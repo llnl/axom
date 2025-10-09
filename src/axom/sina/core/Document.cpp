@@ -1234,6 +1234,13 @@ void appendDocument(const Document& document,
                    Protocol outputProtocol)
 {
   Protocol actualProtocol = outputProtocol;
+
+  // if the file does not exist let's create it
+  if (!std::filesystem::exists(filepath)) {
+    saveDocument(document, filepath, outputProtocol);
+    return;
+  };
+
   
   if (actualProtocol == Protocol::AUTO_DETECT)
   {

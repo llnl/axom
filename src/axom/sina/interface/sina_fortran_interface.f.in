@@ -21,9 +21,10 @@ module sina_functions
 
   interface
     
-    subroutine create_document_and_record(id) 
-      character(*) id  
-    end subroutine create_document_and_record
+    subroutine create_record(id, recType) 
+      character(*) id
+      character(*), optional :: recType
+    end subroutine create_record
     
   end interface
   
@@ -134,81 +135,41 @@ module sina_functions
     
   end interface
   
-  interface
+  interface write_sina_document
     
-    subroutine write_sina_document_protocol(file_nm, protocol) 
+    subroutine write_sina_document_all_args(file_nm, protocol, preserve, mergeProtocol) 
       character(*) file_nm  
       integer protocol
-    end subroutine write_sina_document_protocol
+      integer mergeProtocol
+      integer preserve
+    end subroutine write_sina_document_all_args
     
-  end interface
-  interface
-    
-    subroutine write_sina_document_noprotocol(file_nm) 
+    subroutine write_sina_document_noprotocol_nopreserve_nomerge(file_nm) 
       character(*) file_nm  
-    end subroutine write_sina_document_noprotocol
+    end subroutine write_sina_document_noprotocol_nopreserve_nomerge
+
+    subroutine write_sina_document_protocol_nopreserve_nomerge(file_nm, protocol) 
+      character(*) file_nm  
+      integer protocol
+    end subroutine write_sina_document_protocol_nopreserve_nomerge
     
-  end interface
-  interface write_sina_document
-    module procedure save_with_protocol
-    module procedure save_without_protocol
-  end interface
+    subroutine write_sina_document_protocol_preserve_nomerge(file_nm, protocol, preserve) 
+      character(*) file_nm  
+      integer protocol
+      integer preserve
+    end subroutine write_sina_document_protocol_preserve_nomerge
+
+  end interface write_sina_document
+    
+    
+!  interface write_sina_document
+!    module procedure write_sina_document
+!    module procedure save_wi
+!  end interface
 
   ! ADD: New C interface bindings in ONE unnamed interface block
-  interface
-    function sina_save_document_c(document_handle, file_path, output_protocol) &
-        bind(C, name="sina_save_document_fortran") result(status)
-      import :: C_INT, C_PTR, C_CHAR
-      integer(C_INT) :: status
-      type(C_PTR), value :: document_handle
-      character(kind=C_CHAR), dimension(*) :: file_path
-      integer(C_INT), value :: output_protocol
-    end function sina_save_document_c
-
-    function sina_output_document_to_json_c(document_handle, file_path) &
-        bind(C, name="sina_output_document_to_json_fortran") result(status)
-      import :: C_INT, C_PTR, C_CHAR
-      integer(C_INT) :: status
-      type(C_PTR), value :: document_handle
-      character(kind=C_CHAR), dimension(*) :: file_path
-    end function sina_output_document_to_json_c
-
-    function sina_output_document_to_hdf5_c(document_handle, file_path) &
-        bind(C, name="sina_output_document_to_hdf5_fortran") result(status)
-      import :: C_INT, C_PTR, C_CHAR
-      integer(C_INT) :: status
-      type(C_PTR), value :: document_handle
-      character(kind=C_CHAR), dimension(*) :: file_path
-    end function sina_output_document_to_hdf5_c
-
-    function sina_append_document_c(document_handle, file_path, merge_protocol, output_protocol) &
-        bind(C, name="sina_append_document_fortran") result(status)
-      import :: C_INT, C_PTR, C_CHAR
-      integer(C_INT) :: status
-      type(C_PTR), value :: document_handle
-      character(kind=C_CHAR), dimension(*) :: file_path
-      integer(C_INT), value :: merge_protocol
-      integer(C_INT), value :: output_protocol
-    end function sina_append_document_c
-
-    function sina_append_document_to_json_c(document_handle, file_path, merge_protocol) &
-        bind(C, name="sina_append_document_to_json_fortran") result(status)
-      import :: C_INT, C_PTR, C_CHAR
-      integer(C_INT) :: status
-      type(C_PTR), value :: document_handle
-      character(kind=C_CHAR), dimension(*) :: file_path
-      integer(C_INT), value :: merge_protocol
-    end function sina_append_document_to_json_c
-
-    function sina_append_document_to_hdf5_c(document_handle, file_path, merge_protocol) &
-        bind(C, name="sina_append_document_to_hdf5_fortran") result(status)
-      import :: C_INT, C_PTR, C_CHAR
-      integer(C_INT) :: status
-      type(C_PTR), value :: document_handle
-      character(kind=C_CHAR), dimension(*) :: file_path
-      integer(C_INT), value :: merge_protocol
-    end function sina_append_document_to_hdf5_c
-
+!  interface
+!
 !    function sina_record_set_curve_order_c(record_handle, curve_order) &
 !        bind(C, name="sina_record_set_curve_order_fortran") result(status)
 !      import :: C_INT, C_PTR
@@ -224,106 +185,106 @@ module sina_functions
 !      type(C_PTR), value :: record_handle
 !      integer(C_INT) :: curve_order
 !    end function sina_record_get_curve_order_c
-  end interface
+!  end interface
 
 contains
-  subroutine save_with_protocol(fname, proto)
-    character(*) fname
-    integer proto
-    call write_sina_document_protocol(fname, proto)
-  end subroutine save_with_protocol
-  subroutine save_without_protocol(fname)
-    character(*) fname
-    call write_sina_document_noprotocol(fname)
-  end subroutine save_without_protocol
+!  subroutine save_with_protocol(fname, proto)
+!    character(*) fname
+!    integer proto
+!    call write_sina_document_protocol(fname, proto)
+!  end subroutine save_with_protocol
+!  subroutine save_without_protocol(fname)
+!    character(*) fname
+!    call write_sina_document_noprotocol(fname)
+!  end subroutine save_without_protocol
 
   ! ADD: New wrapper functions for save/output
-  function sina_save_document(document_handle, file_path, output_protocol) result(status)
-    type(C_PTR), intent(in) :: document_handle
-    character(len=*), intent(in) :: file_path
-    integer, intent(in), optional :: output_protocol
-    integer :: status
+!  function sina_save_document(document_handle, file_path, output_protocol) result(status)
+!    type(C_PTR), intent(in) :: document_handle
+!    character(len=*), intent(in) :: file_path
+!    integer, intent(in), optional :: output_protocol
+!    integer :: status
     
-    character(len=:, kind=C_CHAR), allocatable :: c_file_path
-    integer(C_INT) :: c_output_protocol
+!    character(len=:, kind=C_CHAR), allocatable :: c_file_path
+!    integer(C_INT) :: c_output_protocol
     
-    c_file_path = trim(file_path) // C_NULL_CHAR
+!    c_file_path = trim(file_path) // C_NULL_CHAR
     
-    if (present(output_protocol)) then
-      c_output_protocol = int(output_protocol, C_INT)
-    else
-      c_output_protocol = AUTO_DETECT
-    end if
+!    if (present(output_protocol)) then
+!      c_output_protocol = int(output_protocol, C_INT)
+!    else
+!      c_output_protocol = AUTO_DETECT
+!    end if
     
-    status = sina_save_document_c(document_handle, c_file_path, c_output_protocol)
-  end function sina_save_document
+!    status = sina_save_document_c(document_handle, c_file_path, c_output_protocol)
+!  end function sina_save_document
 
-  function sina_output_document_to_json(document_handle, file_path) result(status)
-    type(C_PTR), intent(in) :: document_handle
-    character(len=*), intent(in) :: file_path
-    integer :: status
+!  function sina_output_document_to_json(document_handle, file_path) result(status)
+!    type(C_PTR), intent(in) :: document_handle
+!    character(len=*), intent(in) :: file_path
+!    integer :: status
     
-    character(len=:, kind=C_CHAR), allocatable :: c_file_path
-    c_file_path = trim(file_path) // C_NULL_CHAR
-    status = sina_output_document_to_json_c(document_handle, c_file_path)
-  end function sina_output_document_to_json
+!    character(len=:, kind=C_CHAR), allocatable :: c_file_path
+!    c_file_path = trim(file_path) // C_NULL_CHAR
+!    status = sina_output_document_to_json_c(document_handle, c_file_path)
+!  end function sina_output_document_to_json
 
-  function sina_output_document_to_hdf5(document_handle, file_path) result(status)
-    type(C_PTR), intent(in) :: document_handle
-    character(len=*), intent(in) :: file_path
-    integer :: status
+!  function sina_output_document_to_hdf5(document_handle, file_path) result(status)
+!    type(C_PTR), intent(in) :: document_handle
+!    character(len=*), intent(in) :: file_path
+!    integer :: status
     
-    character(len=:, kind=C_CHAR), allocatable :: c_file_path
-    c_file_path = trim(file_path) // C_NULL_CHAR
-    status = sina_output_document_to_hdf5_c(document_handle, c_file_path)
-  end function sina_output_document_to_hdf5
+!    character(len=:, kind=C_CHAR), allocatable :: c_file_path
+!    c_file_path = trim(file_path) // C_NULL_CHAR
+!    status = sina_output_document_to_hdf5_c(document_handle, c_file_path)
+!  end function sina_output_document_to_hdf5
 
   ! ADD: New wrapper functions for append
-  function sina_append_document(document_handle, file_path, merge_protocol, output_protocol) result(status)
-    type(C_PTR), intent(in) :: document_handle
-    character(len=*), intent(in) :: file_path
-    integer, intent(in) :: merge_protocol
-    integer, intent(in), optional :: output_protocol
-    integer :: status
+!  function sina_append_document(document_handle, file_path, merge_protocol, output_protocol) result(status)
+!    type(C_PTR), intent(in) :: document_handle
+!    character(len=*), intent(in) :: file_path
+!    integer, intent(in) :: merge_protocol
+!    integer, intent(in), optional :: output_protocol
+!    integer :: status
     
-    character(len=:, kind=C_CHAR), allocatable :: c_file_path
-    integer(C_INT) :: c_output_protocol
+!    character(len=:, kind=C_CHAR), allocatable :: c_file_path
+!    integer(C_INT) :: c_output_protocol
     
-    c_file_path = trim(file_path) // C_NULL_CHAR
+!    c_file_path = trim(file_path) // C_NULL_CHAR
     
-    if (present(output_protocol)) then
-      c_output_protocol = int(output_protocol, C_INT)
-    else
-      c_output_protocol = AUTO_DETECT
-    end if
+!    if (present(output_protocol)) then
+!      c_output_protocol = int(output_protocol, C_INT)
+!    else
+!      c_output_protocol = AUTO_DETECT
+!    end if
     
-    status = sina_append_document_c(document_handle, c_file_path, &
-                                    int(merge_protocol, C_INT), c_output_protocol)
-  end function sina_append_document
+!    status = sina_append_document_c(document_handle, c_file_path, &
+!                                    int(merge_protocol, C_INT), c_output_protocol)
+!  end function sina_append_document
 
-  function sina_append_document_to_json(document_handle, file_path, merge_protocol) result(status)
-    type(C_PTR), intent(in) :: document_handle
-    character(len=*), intent(in) :: file_path
-    integer, intent(in) :: merge_protocol
-    integer :: status
+!  function sina_append_document_to_json(document_handle, file_path, merge_protocol) result(status)
+!    type(C_PTR), intent(in) :: document_handle
+!    character(len=*), intent(in) :: file_path
+!    integer, intent(in) :: merge_protocol
+!    integer :: status
     
-    character(len=:, kind=C_CHAR), allocatable :: c_file_path
-    c_file_path = trim(file_path) // C_NULL_CHAR
-    status = sina_append_document_to_json_c(document_handle, c_file_path, &
-                                            int(merge_protocol, C_INT))
-  end function sina_append_document_to_json
+!    character(len=:, kind=C_CHAR), allocatable :: c_file_path
+!    c_file_path = trim(file_path) // C_NULL_CHAR
+!    status = sina_append_document_to_json_c(document_handle, c_file_path, &
+!                                            int(merge_protocol, C_INT))
+!  end function sina_append_document_to_json
 
-  function sina_append_document_to_hdf5(document_handle, file_path, merge_protocol) result(status)
-    type(C_PTR), intent(in) :: document_handle
-    character(len=*), intent(in) :: file_path
-    integer, intent(in) :: merge_protocol
-    integer :: status
+!  function sina_append_document_to_hdf5(document_handle, file_path, merge_protocol) result(status)
+!    type(C_PTR), intent(in) :: document_handle
+!    character(len=*), intent(in) :: file_path
+!    integer, intent(in) :: merge_protocol
+!    integer :: status
     
-    character(len=:, kind=C_CHAR), allocatable :: c_file_path
-    c_file_path = trim(file_path) // C_NULL_CHAR
-    status = sina_append_document_to_hdf5_c(document_handle, c_file_path, &
-                                            int(merge_protocol, C_INT))
-  end function sina_append_document_to_hdf5
+!    character(len=:, kind=C_CHAR), allocatable :: c_file_path
+!    c_file_path = trim(file_path) // C_NULL_CHAR
+!    status = sina_append_document_to_hdf5_c(document_handle, c_file_path, &
+!                                            int(merge_protocol, C_INT))
+!  end function sina_append_document_to_hdf5
 
   ! ADD: New wrapper functions for curve ordering
   !function sina_record_set_curve_order(record_handle, curve_order) result(status)

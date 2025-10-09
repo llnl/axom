@@ -12,7 +12,28 @@
 #include <cstring>
 
 
+std::vector<std::unique_ptr<axom::sina::Record>> sinaRecordsList;
 axom::sina::Document *sina_document;
+
+// Helper that returns empty string for invalid input
+inline const char* validate_optional_string_safe(char *str, int str_len) {
+  if (str == NULL || str_len <= 0 || str[0] == '\0') {
+    return "";  // Return empty string instead of NULL
+  }
+  return str;
+}
+
+// Helper function to check if modifications are allowed
+inline bool can_modify_records() {
+  if (sina_document != nullptr) {
+    std::cerr << "ERROR: Cannot modify records after document has been created. "
+              << "Call write_sina_document with preserve=0 first"
+              << std::endl;
+    return false;
+  }
+  return true;
+}
+
 
 extern "C" char *Get_File_Extension(char *input_fn)
 {
@@ -24,50 +45,49 @@ extern "C" char *Get_File_Extension(char *input_fn)
   return (ext + 1);
 }
 
-extern "C" void create_document_and_record_(char *recID, char *recType)
+extern "C" void create_record_(char *recID, char *recType, int recId_length, int recType_length)
 {
-  sina_document = new axom::sina::Document;
   // Create a record of "My Sim Code" version "1.2.3", which was run by "jdoe".
   // The run has an ID of "run1", which has to be unique to this file.
+  if (!can_modify_records()) return; 
   axom::sina::ID id {recID, axom::sina::IDType::Global};
-  std::unique_ptr<axom::sina::Record> myRecord {new axom::sina::Record {id, recType}};
-  sina_document->add(std::move(myRecord));
+  // std::unique_ptr<axom::sina::Record> myRecord {new axom::sina::Record {id, recType}};
+  const char *validated_recType = validate_optional_string_safe(recType, recType_length);
+  if (validated_recType[0] == '\0') {
+    validated_recType = "my_type";
+  }
+  sinaRecordsList.emplace_back(std::make_unique<axom::sina::Record>(id, validated_recType));
 }
 
 extern "C" axom::sina::Record *Sina_Get_Record(char * recId=NULL)
 {
-  if(sina_document)
-  {
-    axom::sina::Document::RecordList const &allRecords = sina_document->getRecords();
-    if(allRecords.size())
-    {
-      if (recId == NULL) {
-        std::unique_ptr<axom::sina::Record> const &myRecord = allRecords.front();
-        return myRecord.get();
-      }
-      else {
-        axom::sina::ID id {recId, axom::sina::IDType::Global};
-        for (const std::unique_ptr<axom::sina::Record> &myRecord : allRecords) {
-          const char* current_id_str = myRecord->getId().getId().c_str();
-          // Compare the input C-string (recId) with the current record's C-string ID
-          if (strcmp(recId, current_id_str) == 0) { 
-            return myRecord.get();
-         } 
-        }
+
+    std::cout << "=== Sina_Get_Record called ===" << std::endl;
+    std::cout << "Total records in list: " << sinaRecordsList.size() << std::endl;
+
+    if (recId == NULL || recId[0] == '\0') {
+      std::unique_ptr<axom::sina::Record> const &myRecord = sinaRecordsList.front();
+      return myRecord.get();
+    }
+    else {
+      axom::sina::ID id {recId, axom::sina::IDType::Global};
+      for (const std::unique_ptr<axom::sina::Record> &myRecord : sinaRecordsList) {
+        const char* current_id_str = myRecord->getId().getId().c_str();
+        // Compare the input C-string (recId) with the current record's C-string ID
+        if (strcmp(recId, current_id_str) == 0) { 
+          return myRecord.get();
+        } 
       }
     }
-  }
   return nullptr;
 }
 
-extern "C" void sina_add_logical_(char *key, bool *value, char *units, char *tags, char *recId=NULL)
+extern "C" void sina_add_logical_(char *key, bool *value, char *units, char *tags, char *recId, int key_len, int units_len, int tags_len, int recId_len)
 {
-  if(sina_document)
-  {
-    axom::sina::Record *sina_record = Sina_Get_Record(recId);
+    if (!can_modify_records()) return; 
+    const char *validated_recId = validate_optional_string_safe(recId, recId_len);
+    axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(validated_recId));
     std::string key_name = std::string(key);
-    if(sina_record)
-    {
       axom::sina::Datum datum {static_cast<double>(*value)};
       if(units)
       {
@@ -86,18 +106,14 @@ extern "C" void sina_add_logical_(char *key, bool *value, char *units, char *tag
         }
       }
       sina_record->add(key_name, datum);
-    }
-  }
 }
 
-extern "C" void sina_add_long_(char *key, long long int *value, char *units, char *tags, char *recId=NULL)
+extern "C" void sina_add_long_(char *key, long long int *value, char *units, char *tags, char *recId, int key_len, int units_len, int tags_len, int recId_len)
 {
-  if(sina_document)
-  {
-    axom::sina::Record *sina_record = Sina_Get_Record(recId);
+    if (!can_modify_records()) return; 
+    const char *validated_recId = validate_optional_string_safe(recId, recId_len);
+    axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(validated_recId));
     std::string key_name = std::string(key);
-    if(sina_record)
-    {
       axom::sina::Datum datum {static_cast<double>(*value)};
       if(units)
       {
@@ -116,18 +132,14 @@ extern "C" void sina_add_long_(char *key, long long int *value, char *units, cha
         }
       }
       sina_record->add(key_name, datum);
-    }
-  }
 }
 
-extern "C" void sina_add_int_(char *key, int *value, char *units, char *tags, char *recId=NULL)
+extern "C" void sina_add_int_(char *key, int *value, char *units, char *tags, char *recId, int key_len, int units_len, int tags_len, int recId_len)
 {
-  if(sina_document)
-  {
-    axom::sina::Record *sina_record = Sina_Get_Record(recId);
+    if (!can_modify_records()) return; 
+    const char *validated_recId = validate_optional_string_safe(recId, recId_len);
+    axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(validated_recId));
     std::string key_name = std::string(key);
-    if(sina_record)
-    {
       axom::sina::Datum datum {static_cast<double>(*value)};
       if(units)
       {
@@ -146,18 +158,14 @@ extern "C" void sina_add_int_(char *key, int *value, char *units, char *tags, ch
         }
       }
       sina_record->add(key_name, datum);
-    }
-  }
 }
 
-extern "C" void sina_add_double_(char *key, double *value, char *units, char *tags, char *recId=NULL)
+extern "C" void sina_add_double_(char *key, double *value, char *units, char *tags, char *recId, int key_len, int units_len, int tags_len, int recId_len)
 {
-  if(sina_document)
-  {
-    axom::sina::Record *sina_record = Sina_Get_Record(recId);
+    if (!can_modify_records()) return; 
+    const char *validated_recId = validate_optional_string_safe(recId, recId_len);
+    axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(validated_recId));
     std::string key_name = std::string(key);
-    if(sina_record)
-    {
       axom::sina::Datum datum {*value};
       if(units)
       {
@@ -176,18 +184,14 @@ extern "C" void sina_add_double_(char *key, double *value, char *units, char *ta
         }
       }
       sina_record->add(key_name, datum);
-    }
-  }
 }
 
-extern "C" void sina_add_float_(char *key, float *value, char *units, char *tags, char *recId=NULL)
+extern "C" void sina_add_float_(char *key, float *value, char *units, char *tags, char *recId, int key_len, int units_len, int tags_len, int recId_len)
 {
-  if(sina_document)
-  {
-    axom::sina::Record *sina_record = Sina_Get_Record(recId);
+    if (!can_modify_records()) return; 
+    const char *validated_recId = validate_optional_string_safe(recId, recId_len);
+    axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(validated_recId));
     std::string key_name = std::string(key);
-    if(sina_record)
-    {
       axom::sina::Datum datum {*value};
       if(units)
       {
@@ -206,20 +210,16 @@ extern "C" void sina_add_float_(char *key, float *value, char *units, char *tags
         }
       }
       sina_record->add(key_name, datum);
-    }
-  }
 }
 
-extern "C" void sina_add_string_(char *key, char *value, char *units, char *tags, char *recId=NULL)
+extern "C" void sina_add_string_(char *key, char *value, char *units, char *tags, char *recId, int key_len, int units_len, int tags_len, int recId_len)
 {
-  if(sina_document)
-  {
-    axom::sina::Record *sina_record = Sina_Get_Record(recId);
+    if (!can_modify_records()) return; 
+    const char *validated_recId = validate_optional_string_safe(recId, recId_len);
+    axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(validated_recId));
     std::string key_name = std::string(key);
     std::string key_value = std::string(value);
     std::string key_units = std::string(units);
-    if(sina_record)
-    {
       axom::sina::Datum datum {key_value};
       if(units)
       {
@@ -238,16 +238,14 @@ extern "C" void sina_add_string_(char *key, char *value, char *units, char *tags
         }
       }
       sina_record->add(key_name, datum);
-    }
-  }
 }
 
-extern "C" void sina_add_file_(char *filename, char *mime_type, char *recId)
+extern "C" void sina_add_file_(char *filename, char *mime_type, char *recId, int file_len, int mime_len, int recId_len)
 {
-  std::string used_mime_type = "";
-  if(sina_document)
-  {
-    axom::sina::Record *sina_record = Sina_Get_Record(recId);
+    if (!can_modify_records()) return; 
+    std::string used_mime_type = "";
+    const char *validated_recId = validate_optional_string_safe(recId, recId_len);
+    axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(validated_recId));
     if(mime_type)
     {
       used_mime_type = std::string(mime_type);
@@ -267,41 +265,83 @@ extern "C" void sina_add_file_(char *filename, char *mime_type, char *recId)
     {
       sina_record->add(my_file);
     }
-  }
 }
 
-extern "C" void write_sina_document_protocol_(char *input_fn, int *protocol)
+extern "C" void write_sina_document_all_args_(char *input_fn, int *protocol, int *preserve, int *mergeProtocol=0)
 {
+
+  // Lets create the document if needed
+  if (sina_document == nullptr) {
+    std::cout << "=== Creating new document ===" << std::endl;
+    sina_document = new axom::sina::Document();
+    
+    // Move all records into the document
+    for (auto& uniquePtr : sinaRecordsList) {
+      if (uniquePtr) {
+        sina_document->add(std::move(uniquePtr));
+      }
+    }
+    sinaRecordsList.clear();  // Clear empty pointers
+  } else {
+    std::cout << "=== Reusing existing document ===" << std::endl;
+  }
+
+
   std::string filename(input_fn);
   axom::sina::Protocol proto = static_cast<axom::sina::Protocol>(*protocol);
   // Save everything
-  if(sina_document)
-  {
-    axom::sina::saveDocument(*sina_document, filename.c_str(), proto);
+  axom::sina::appendDocument(*sina_document, filename.c_str(), *mergeProtocol, proto);
+
+  // Do we want to bring it back?
+  if (*preserve == 0) {
+    std::cout << "=== Deleting document ===" << std::endl;
+    delete sina_document;
+    sina_document = nullptr;
+    sinaRecordsList.clear();
   }
 }
 
-extern "C" void write_sina_document_noprotocol_(char *input_fn)
+extern "C" void write_sina_document_noprotocol_nopreserve_nomerge_(char *input_fn)
 {
-  std::string filename(input_fn);
-  // Save everything
-  if(sina_document)
-  {
-    axom::sina::saveDocument(*sina_document, filename.c_str());
-  }
+    int default_protocol = static_cast<int>(axom::sina::Protocol::AUTO_DETECT);
+    int default_merge_protocol = 0;
+    int default_preserve = 0;
+
+    write_sina_document_all_args_(input_fn, &default_protocol, &default_preserve, &default_merge_protocol);
+
+}
+extern "C" void write_sina_document_protocol_nopreserve_nomerge_(char *input_fn, int *protocol)
+{
+    int default_merge_protocol = 0;
+    int default_preserve = 0;
+
+    write_sina_document_all_args_(input_fn, protocol, &default_preserve, &default_merge_protocol);
+
 }
 
-extern "C" void sina_add_curveset_(char *name, char *recId=NULL)
+extern "C" void write_sina_document_protocol_preserve_nomerge_(char *input_fn, int *protocol, int *preserve)
 {
-  if(sina_document)
-  {
-    axom::sina::Record *sina_record = Sina_Get_Record(recId);
+    int default_merge_protocol = 0;
+
+    write_sina_document_all_args_(input_fn, protocol, preserve, &default_merge_protocol);
+
+}
+
+extern "C" void sina_add_curveset_(char *name, char *recId, int name_len, int recId_len)
+{
+    if (!can_modify_records()) return; 
+    const char *validated_recId = validate_optional_string_safe(recId, recId_len);
+
+    std::cout << "=== sina_add_curveset called ===" << std::endl;
+    std::cout << "  curveset name: '" << name << "'" << std::endl;
+    std::cout << "  recId: '" << validated_recId << "'" << std::endl;
+
+    axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(validated_recId));
     if(sina_record)
     {
       axom::sina::CurveSet cs {name};
       sina_record->add(cs);
     }
-  }
 }
 
 extern "C" void sina_add_curve_long_(char *curveset_name,
@@ -309,11 +349,14 @@ extern "C" void sina_add_curve_long_(char *curveset_name,
                                      long long int *values,
                                      int *n,
                                      bool *independent,
-                                     char *recId=NULL)
+                                     char *recId,
+                                     int curveset_len,
+                                     int curvename_len,
+                                     int recId_len)
 {
-  if(sina_document)
-  {
-    axom::sina::Record *sina_record = Sina_Get_Record(recId);
+    if (!can_modify_records()) return; 
+    const char *validated_recId = validate_optional_string_safe(recId, recId_len);
+    axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(validated_recId));
     if(sina_record)
     {
       std::vector<double> y(*n);
@@ -335,7 +378,6 @@ extern "C" void sina_add_curve_long_(char *curveset_name,
       }
       sina_record->add(cs);
     }
-  }
 }
 
 extern "C" void sina_add_curve_int_(char *curveset_name,
@@ -343,13 +385,14 @@ extern "C" void sina_add_curve_int_(char *curveset_name,
                                     int *values,
                                     int *n,
                                     bool *independent,
-                                    char *recId=NULL)
+                                    char *recId,
+                                    int curveset_len,
+                                    int curvename_len,
+                                    int recId_len)
 {
-  if(sina_document)
-  {
-    axom::sina::Record *sina_record = Sina_Get_Record(recId);
-    if(sina_record)
-    {
+    if (!can_modify_records()) return; 
+      const char *validated_recId = validate_optional_string_safe(recId, recId_len);
+      axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(validated_recId));
       std::vector<double> y(*n);
       for(int i = 0; i < *n; i++)
       {
@@ -368,8 +411,6 @@ extern "C" void sina_add_curve_int_(char *curveset_name,
         cs.addDependentCurve(curve);
       }
       sina_record->add(cs);
-    }
-  }
 }
 
 extern "C" void sina_add_curve_float_(char *curveset_name,
@@ -377,13 +418,14 @@ extern "C" void sina_add_curve_float_(char *curveset_name,
                                       float *values,
                                       int *n,
                                       bool *independent,
-                                      char *recId=NULL)
+                                      char *recId,
+                                     int curveset_len,
+                                     int curvename_len,
+                                     int recId_len)
 {
-  if(sina_document)
-  {
-    axom::sina::Record *sina_record = Sina_Get_Record(recId);
-    if(sina_record)
-    {
+      if (!can_modify_records()) return; 
+      const char *validated_recId = validate_optional_string_safe(recId, recId_len);
+      axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(validated_recId));
       std::vector<double> y(*n);
       for(int i = 0; i < *n; i++)
       {
@@ -402,8 +444,6 @@ extern "C" void sina_add_curve_float_(char *curveset_name,
         cs.addDependentCurve(curve);
       }
       sina_record->add(cs);
-    }
-  }
 }
 
 extern "C" void sina_add_curve_double_(char *curveset_name,
@@ -411,13 +451,19 @@ extern "C" void sina_add_curve_double_(char *curveset_name,
                                        double *values,
                                        int *n,
                                        bool *independent,
-                                       char *recId)
+                                       char *recId,
+                                       int curveset_len,
+                                       int curvename_len,
+                                       int recId_len)
 {
-  if(sina_document)
-  {
-    axom::sina::Record *sina_record = Sina_Get_Record(recId);
-    if(sina_record)
-    {
+    if (!can_modify_records()) return; 
+    const char *validated_recId = validate_optional_string_safe(recId, recId_len);
+    std::cout << "=== sina_add_curve_double called ===" << std::endl;
+    std::cout << "  curveset_name: '" << curveset_name << "'" << std::endl;
+    std::cout << "  curve_name: '" << curve_name << "'" << std::endl;
+    std::cout << "  recId: '" << validated_recId << "'" << std::endl;
+
+      axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(validated_recId));
       axom::sina::Curve curve {curve_name, values, static_cast<size_t>(*n)};
 
       auto &curvesets = sina_record->getCurveSets();
@@ -431,118 +477,6 @@ extern "C" void sina_add_curve_double_(char *curveset_name,
         cs.addDependentCurve(curve);
       }
       sina_record->add(cs);
-    }
-  }
-}
-
-//=============================================================================
-// Save/Output Functions (NEW)
-//=============================================================================
-
-extern "C" int sina_save_document_fortran(
-    void* document_handle,
-    const char* file_path,
-    int output_protocol)
-{
-    try {
-        axom::sina::Document* doc = static_cast<axom::sina::Document*>(document_handle);
-        if (!doc) return -1;
-        
-        axom::sina::saveDocument(*doc, std::string(file_path), static_cast<axom::sina::Protocol>(output_protocol));
-        return 0;
-    }
-    catch (const std::runtime_error& e) { return -2; }
-    catch (const std::exception& e) { return -3; }
-    catch (...) { return -4; }
-}
-
-extern "C" int sina_output_document_to_json_fortran(
-    void* document_handle,
-    const char* file_path)
-{
-    try {
-        axom::sina::Document* doc = static_cast<axom::sina::Document*>(document_handle);
-        if (!doc) return -1;
-        
-        axom::sina::saveDocument(*doc, std::string(file_path), axom::sina::Protocol::JSON);
-        return 0;
-    }
-    catch (...) { return -2; }
-}
-
-extern "C" int sina_output_document_to_hdf5_fortran(
-    void* document_handle,
-    const char* file_path)
-{
-#ifdef AXOM_USE_HDF5
-    try {
-        axom::sina::Document* doc = static_cast<axom::sina::Document*>(document_handle);
-        if (!doc) return -1;
-        
-        axom::sina::saveDocument(*doc, std::string(file_path), axom::sina::Protocol::HDF5);
-        return 0;
-    }
-    catch (...) { return -2; }
-#else
-    return -4;
-#endif
-}
-
-//=============================================================================
-// Append Functions (NEW)
-//=============================================================================
-
-extern "C" int sina_append_document_fortran(
-    void* document_handle,
-    const char* file_path,
-    int merge_protocol,
-    int output_protocol)
-{
-    try {
-        axom::sina::Document* doc = static_cast<axom::sina::Document*>(document_handle);
-        if (!doc) return -1;
-        
-        axom::sina::appendDocument(*doc, std::string(file_path), 
-                                  merge_protocol, static_cast<axom::sina::Protocol>(output_protocol));
-        return 0;
-    }
-    catch (const std::runtime_error& e) { return -2; }
-    catch (const std::exception& e) { return -3; }
-    catch (...) { return -4; }
-}
-
-extern "C" int sina_append_document_to_json_fortran(
-    void* document_handle,
-    const char* file_path,
-    int merge_protocol)
-{
-    try {
-        axom::sina::Document* doc = static_cast<axom::sina::Document*>(document_handle);
-        if (!doc) return -1;
-        
-        axom::sina::appendDocument(*doc, std::string(file_path), merge_protocol, axom::sina::Protocol::JSON);
-        return 0;
-    }
-    catch (...) { return -2; }
-}
-
-extern "C" int sina_append_document_to_hdf5_fortran(
-    void* document_handle,
-    const char* file_path,
-    int merge_protocol)
-{
-#ifdef AXOM_USE_HDF5
-    try {
-        axom::sina::Document* doc = static_cast<axom::sina::Document*>(document_handle);
-        if (!doc) return -1;
-        
-        axom::sina::appendDocument(*doc, std::string(file_path), merge_protocol, axom::sina::Protocol::HDF5);
-        return 0;
-    }
-    catch (...) { return -2; }
-#else
-    return -4;
-#endif
 }
 
 //=============================================================================

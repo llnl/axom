@@ -31,11 +31,18 @@ program example
   character(20) :: json_fn
   character(20) :: hdf5_fn
   character(15) :: name
+  character(20) :: name2
   character(25) :: curve
-  
+  character(11) :: custom_type
+
   ! 1D integer Array
   integer, dimension(20) :: int_arr
   integer (kind=8), dimension(20) :: long_arr
+  
+  integer :: num_args
+  character(len=100) :: arg
+  integer :: status 
+
   
   int_val = 10
   long_val = 1000000000
@@ -43,7 +50,16 @@ program example
   double_val = 1./1.2345678901234567890123456789
   char_val = 'A'
   is_val = .false.
+
+
+  ! Set default value
+  arg = "sina_dump"
   
+  ! Override if argument was passed
+  if (command_argument_count() >= 1) then
+    call get_command_argument(1, arg)
+  end if
+
   do i = 1, 20
     real_arr(i) = i
     double_arr(i) = i*2.
@@ -58,9 +74,9 @@ program example
   wrk_dir = '/path/to/my/file/'
   full_path = make_cstring(wrk_dir//''//fle_nme)
   ofull_path = make_cstring(wrk_dir//''//ofle_nme)
-  json_fn = make_cstring('sina_dump.json')
+  json_fn = make_cstring(trim(arg) // '.json')
   if (use_hdf5) then
-    hdf5_fn = make_cstring('sina_dump.hdf5')
+    hdf5_fn = make_cstring(trim(arg) // '.hdf5')
   end if
   
   
@@ -74,9 +90,10 @@ program example
   
   ! create sina record and document
   print *,'Creating the document'
-  call create_document_and_record(rec_id)
+  call create_record(rec_id)
   print *,'Creating the document and second record'
-  call create_document_and_record(rec2_id)
+  custom_type = make_cstring('custom_type')
+  call create_record(rec2_id, custom_type)
   
   ! add file to sina record
   print *,'Adding a file to the Sina record'
@@ -127,19 +144,21 @@ program example
   tag = make_cstring('new_fancy_tag')
   call sina_add(name, double_val, units, tag)
 
-  print *, "Adding char"
+  print *, "Adding char type"
   name = make_cstring('u_char')
   call sina_add(name, trim(char_val)//char(0), units, tag)
 
   deallocate(tag)
  
   name = make_cstring('my_curveset')
+  name2 = make_cstring('my_other_curveset')
   call sina_add_curveset(name)
+  call sina_add_curveset(name2, rec2_id)
 
   curve = make_cstring('my_indep_curve_double')
   independent = .TRUE.
   call sina_add_curve(name, curve, double_arr, size(double_arr), independent)
-  call sina_add_curve(name, curve, double_arr, size(double_arr), independent, rec2_id)
+  call sina_add_curve(name2, curve, double_arr, size(double_arr), independent, rec2_id)
   curve = make_cstring('my_indep_curve_real')
   call sina_add_curve(name, curve, real_arr, size(real_arr), independent)
   curve = make_cstring('my_indep_curve_int')
@@ -149,6 +168,7 @@ program example
   curve = make_cstring('my_dep_curve_double')
   independent = .false.
   call sina_add_curve(name, curve, double_arr, size(double_arr), independent)
+  call sina_add_curve(name2, curve, double_arr, size(double_arr), independent, rec2_id)
   curve = make_cstring('my_dep_curve_double_2')
   call sina_add_curve(name, curve, double_arr, size(double_arr), independent)
   curve = make_cstring('my_dep_curve_real')
@@ -158,10 +178,13 @@ program example
   curve = make_cstring('my_dep_curve_long')
   call sina_add_curve(name, curve, long_arr, size(long_arr), independent)
   ! write out the Sina Document
-  print *,'Writing out the Sina Document'
-  call write_sina_document(json_fn)
+  print *,'Writing out the Sina Document as json, preserve records'
   if (use_hdf5) then
+    call write_sina_document(json_fn, 0, 1)
+    print *,'Writing out the Sina Document as hdf5, yank records'
     call write_sina_document(hdf5_fn, 1)
+  else
+    call write_sina_document(json_fn)
   end if
 
   

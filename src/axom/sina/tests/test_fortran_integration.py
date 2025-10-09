@@ -5,6 +5,9 @@ import os
 import subprocess
 import unittest
 import config
+import sys
+import random
+
 
 if (config.AXOM_USE_HDF5):
     import h5py
@@ -44,14 +47,15 @@ class TestFortranExampleIntegrationJSON(unittest.TestCase):
 
     def setUp(self):
         """ Invoke example Fortran application to dump a sina file """
-        p = subprocess.Popen([os.path.join(self.binary_dir, "examples/sina_fortran_ex")], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        seed = f"sina_dump_{random.randint(1,10000)}"
+        cmd = [os.path.join(self.binary_dir, "examples/sina_fortran_ex"), seed]
+        p = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         o,e = p.communicate()
-        print("DID SET THIS UP", p.returncode)
-        self.dump_file = "sina_dump.json"
+        self.assertEqual(p.returncode, 0)
+        self.dump_file = f"{seed}.json"
         
     def tearDown(self):
         """ Clean up output directory after each test. """
-        print("TEARING DOWN")
         os.remove(self.dump_file)
     
     def test_file_validity(self):
@@ -69,24 +73,27 @@ class TestFortranExampleIntegrationJSON(unittest.TestCase):
             print("jsonschema module not found. Skipping test_file_validity.")
             pass
                     
-    def test_validate_contents_of_record(self):
+    def test_validate_contents_of_records(self):
         """ Ensure that the  record written out matches what we expect """
         with open(self.dump_file, "r", encoding="utf-8") as loaded_test:
             rec = json.load(loaded_test)
 
-        self.assertEqual(2,3)
-        self.assertEqual(len(rec["records"]), 20)
+        self.assertEqual(len(rec["records"]), 2)
         record = rec["records"][0]
         record2 = rec["records"][1]
         
         # Test the metadata in the record
         self.assertEqual("my_rec_id", record["id"])
         self.assertEqual("my_type", record["type"])
+        self.assertEqual("custom_type", record2["type"])
         
         # Test the files
         self.assertEqual(list(record["files"].keys()), ["/path/to/my/file/my_other_file.txt", "/path/to/my/file/my_file.txt"])
         self.assertEqual(record["files"]["/path/to/my/file/my_other_file.txt"]["mimetype"], "png")
         self.assertEqual(record["files"]["/path/to/my/file/my_file.txt"]["mimetype"], "txt")
+        # Test the files
+        self.assertEqual(list(record2["files"].keys()), ["/path/to/my/file/my_file.txt"])
+        self.assertEqual(record2["files"]["/path/to/my/file/my_file.txt"]["mimetype"], "txt")
         
         # Test the signed variants 
         self.assertEqual("A", record["data"]["char"]["value"])
@@ -95,6 +102,9 @@ class TestFortranExampleIntegrationJSON(unittest.TestCase):
         self.assertEqual(1000000000.0, record["data"]["long"]["value"])
         self.assertEqual(1.23456704616547, record["data"]["real"]["value"])
         self.assertEqual(0.810000002384186, record["data"]["double"]["value"])
+        self.assertEqual(0.810000002384186, record2["data"]["double"]["value"])
+        for name in ["char", "int", "logical", "long", "real"]:
+            self.assertTrue(name not in record2["data"])
         
         # Test the unsigned variants
         self.assertEqual("A", record["data"]["u_char"]["value"])
@@ -124,6 +134,9 @@ class TestFortranExampleIntegrationJSON(unittest.TestCase):
             for val_type, target in (("real", real_arr), ("double", double_arr), ("int", int_arr), ("long", long_arr)):
                 name = "my_{}_curve_{}".format(kind, val_type)
                 self.assertEqual(target, record["curve_sets"][curveset][loc][name]["value"])
+                if val_type == "double":
+                    self.assertEqual(target, record2["curve_sets"]["my_other_curveset"][loc][name]["value"])
+
         double_2_name = "my_dep_curve_double_2"
         self.assertEqual(double_arr, record["curve_sets"][curveset]["dependent"][double_2_name]["value"])
 
@@ -155,8 +168,12 @@ class TestFortranExampleIntegrationHDF5(unittest.TestCase):
 
     def setUp(self):
         """ Invoke example Fortran application to dump a sina file """
-        subprocess.run([os.path.join(self.binary_dir, "examples/sina_fortran_ex")])
-        self.dump_file = "sina_dump.hdf5"
+        seed = f"sina_dump_{random.randint(1,10000)}"
+        cmd = [os.path.join(self.binary_dir, "examples/sina_fortran_ex"), seed]
+        p = subprocess.Popen(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        o,e = p.communicate()
+        self.assertEqual(p.returncode, 0)
+        self.dump_file = f"{seed}.hdf5"
 
     def tearDown(self):
         os.remove(self.dump_file)
@@ -190,11 +207,14 @@ class TestFortranExampleIntegrationHDF5(unittest.TestCase):
 
     def test_validate_contents_of_record(self):
         with h5py.File(self.dump_file, "r") as f:
+            self.assertEqual(len(f["records"]), 2)
             record = f["records"]["0"]
+            record2 = f["records"]["1"]
 
             # Validate metadata
             self.assertEqual("my_rec_id", self.extract_hdf5_value(record["id"]))
             self.assertEqual("my_type", self.extract_hdf5_value(record["type"]))
+            self.assertEqual("custom_type", self.extract_hdf5_value(record2["type"]))
 
             # Validate Files
             files_group = record["files"]
@@ -262,6 +282,7 @@ class TestFortranExampleIntegrationHDF5(unittest.TestCase):
                     curve_name = f"my_{kind}_curve_{val_type}"
                     self.assertIn(curve_name, grp)
                     curve_val = self.extract_hdf5_value(grp[curve_name]["value"])
+                    self.assertEqual(len(curve_val), len(target))
                     self.assertEqual(curve_val, target)
 
             double_2_name = "my_dep_curve_double_2"
@@ -277,4 +298,6 @@ if __name__ == "__main__":
     if config.AXOM_USE_HDF5:
         suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(TestFortranExampleIntegrationHDF5))
     runner = unittest.TextTestRunner(buffer=False)
-    runner.run(suite)
+    results = runner.run(suite)
+    if not results.wasSuccessful():
+        sys.exit(1)
