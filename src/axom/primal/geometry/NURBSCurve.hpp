@@ -1059,6 +1059,7 @@ public:
   void evaluateDerivatives(T t, int d, PointType& eval, axom::Array<VectorType>& ders) const
   {
     SLIC_ASSERT(m_knotvec.isValidParameter(t));
+    SLIC_ASSERT(d >= 1);
     t = axom::utilities::clampVal(t, getMinKnot(), getMaxKnot());
 
     const int p = m_knotvec.getDegree();
@@ -1069,11 +1070,17 @@ public:
     int du = std::min(d, p);
     const auto span = m_knotvec.findSpan(t);
     const auto N_evals = m_knotvec.derivativeBasisFunctionsBySpan(span, t, du);
+std::cout << "dtdt(" << t << "): d=" << d << ", du=" << du << ", span=" << span << ", N_evals={";
+for(const auto &val : N_evals)
+{
+   std::cout << val << ", ";
+}
+std::cout << "}\n";
 
-    // Store w(u) in Awders[NDIMS][0], w'(u) in Awders[NDIMS][1], ...
+    // Store w(u) in Awders[0][NDIMS], w'(u) in Awders[1][NDIMS], ...
     axom::Array<Point<T, NDIMS + 1>> Awders(d + 1);
 
-    // Compute the homogenous point and its d derivatives
+    // Compute the homogeneous point and its d derivatives
     for(int k = 0; k <= du; k++)
     {
       Point<T, NDIMS + 1> Pw(0.0);
@@ -1097,29 +1104,75 @@ public:
     // and Awders[0][NDIMS] is w(u).
 
     // Zero out the points
-    for(int i = 0; i < NDIMS; ++i)
+    for(int k = 0; k < d; k++)
     {
-      eval[i] = 0.0;
-      for(int k = 0; k < d; k++)
+      for(int j = 0; j < NDIMS; ++j)
       {
-        ders[k][i] = 0.0;
+        ders[k][j] = 0.0;
       }
     }
 
     // Separate k = 0 case
-    Point<T, NDIMS + 1> v = Awders[0];
-    for(int i = 0; i < NDIMS; ++i)
+    const T w = Awders[0][NDIMS];
+    for(int j = 0; j < NDIMS; ++j)
     {
-      eval[i] = v[i] / Awders[0][NDIMS];
+      eval[j] = Awders[0][j] / w;
     }
 
     // Separate k = 1 case
-    v = Awders[1];
     for(int j = 0; j < NDIMS; ++j)
     {
-      ders[0][j] = (v[j] - Awders[1][NDIMS] * eval[j]) / Awders[0][NDIMS];
+      // C'(t) = (A'(t) - w'(t) * C(t)) / w(t)
+      ders[0][j] = (Awders[1][j] - Awders[1][NDIMS] * eval[j]) / w;
     }
 
+#if 1
+#pragma message "Got my newer version."
+    for(int k = 2; k <= d; k++)
+    {
+std::cout << "\tk=" << k << ", eval=" << eval << ", Awders[" << k << "]=" << Awders[k] << std::endl;
+      // Eq. 4.8 on page 125.
+      //
+      //                      k
+      //  (k)      (k)     ----         (i)   (k-i)
+      // C  (t) = A  (t) - \     ( k ) w  (t)C    (t)
+      //                   /     ( i )
+      //                   ----
+      //                    i=1
+      //         ------------------------------------
+      //                         w(t)
+      //
+      // (shown here for 2nd derivative)
+      // C''(t) = (A''(t) - 2w'(t)C'(t) - w''(t)C(t)) / w(t)
+      //
+      //
+      // w(t) = Awders[0][NDIMS]
+      // w'(t) = Awders[1][NDIMS]
+      // w''(t) = Awders[2][NDIMS]
+      // ...
+      // A(t) = Awders[0]
+      // A'(t) = Awders[1]
+      // A''(t) = Awders[2]
+      // ...
+      // C(t) = eval
+      // C'(t) = ders[0]
+      // C''(t) = ders[1]
+      // ...
+      auto Ck = VectorType(Awders[k].data(), NDIMS);
+      for(int i = 1; i <= k; i++)
+      {
+        const auto bin = axom::utilities::binomialCoefficient(k, i);
+        const auto k_i = k - i;
+        const auto wi = Awders[i][NDIMS];
+        for(int j = 0; j < NDIMS; ++j)
+        {
+          Ck[j] -= bin * wi * ders[k_i][j];
+        }
+      }
+std::cout << "\tk=" << k << ", v=" << v << std::endl;
+      ders[k - 1] = Ck / w;
+    }
+#else
     // Recursive formula for k >= 2
     for(int k = 2; k <= d; k++)
     {
@@ -1128,7 +1181,6 @@ public:
       {
         v[j] = v[j] - Awders[k][NDIMS] * eval[j];
       }
-
       for(int i = 1; i < k; i++)
       {
         auto bin = axom::utilities::binomialCoefficient(k, i);
@@ -1143,8 +1195,8 @@ public:
         ders[k - 1][j] = v[j] / Awders[0][NDIMS];
       }
     }
+#endif
   }
-
   ///@}
 
   ///@{
