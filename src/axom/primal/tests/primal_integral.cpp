@@ -10,6 +10,11 @@
 
 #include "gtest/gtest.h"
 
+// MFEM includes
+#ifdef AXOM_USE_MFEM
+  #include "mfem.hpp"
+#endif
+
 namespace primal = axom::primal;
 
 TEST(primal_integral, evaluate_area_integral)

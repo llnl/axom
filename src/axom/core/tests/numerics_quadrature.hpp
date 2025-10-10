@@ -19,6 +19,8 @@ TEST(numerics_quadrature, gauss_legendre_math_check)
   {
     // Evaluate using the quadrature rule
     auto rule = axom::numerics::get_gauss_legendre(npts);
+    std::cout << rule.getNumPoints() << std::endl;
+    for(int i = 0; i < npts; ++i) std::cout << rule.node(i) << std::endl;
     int degree = 2 * npts - 1;
 
     // Define a collection of random coefficients for a polynomial
@@ -89,13 +91,37 @@ TEST(numerics_quadrature, gauss_legendre_math_check)
   }
 }
 
-TEST(numerics_quadrature, gauss_legendre_cache_check)
+template <typename ExecSpace>
+struct test_device_quadrature
 {
-  // The first two rules are put in the cache
-  axom::numerics::QuadratureRule first_rule = axom::numerics::get_gauss_legendre(20);
-  axom::numerics::QuadratureRule second_rule = axom::numerics::get_gauss_legendre(20);
+  static void test()
+  {
+    const int npts = 15;
 
-  // Check that the two rules are located in the same place in memory, and the third isn't
-  // EXPECT_EQ(&first_rule.node(0), &second_rule.node(0));
-  // EXPECT_EQ(&first_rule.weight(0), &second_rule.weight(0));
-}
+    // Create the rule with the proper allocator
+    const auto rule =
+      axom::numerics::get_gauss_legendre(npts, axom::execution_space<ExecSpace>::allocatorID());
+
+    // Use the rule in a lambda to integrate the volume under std::sin(pi * x) on [0, 1]
+    axom::ReduceSum<ExecSpace, double> quadrature_sum(0.0);
+    axom::for_all<ExecSpace>(
+      npts,
+      AXOM_LAMBDA(axom::IndexType i) { quadrature_sum += rule.weight(i) * sin(M_PI * rule.node(i)); });
+
+    EXPECT_NEAR(quadrature_sum.get(), 0.636619772368, 1e-6);
+  }
+};
+
+TEST(numerics_quadrature, get_nodes_seq) { test_device_quadrature<axom::SEQ_EXEC>::test(); }
+
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+TEST(numerics_quadrature, get_nodes_omp) { test_device_quadrature<axom::OMP_EXEC>::test(); }
+#endif
+
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+TEST(numerics_quadrature, get_nodes_cuda) { test_device_quadrature<axom::CUDA_EXEC<256>>::test(); }
+#endif
+
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+TEST(numerics_quadrature, get_nodes_hip) { test_device_quadrature<axom::HIP_EXEC<256>>::test(); }
+#endif

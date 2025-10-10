@@ -34,12 +34,15 @@ namespace numerics
  * \note This method constructs the points by scratch each time, without caching
  * \sa get_gauss_legendre(int)
  */
-void compute_gauss_legendre_data(int npts, axom::Array<double>& nodes, axom::Array<double>& weights)
+void compute_gauss_legendre_data(int npts,
+                                 axom::Array<double>& nodes,
+                                 axom::Array<double>& weights,
+                                 int allocatorID)
 {
   assert("Quadrature rules must have >= 1 point" && (npts >= 1));
 
-  nodes.resize(npts);
-  weights.resize(npts);
+  nodes = axom::Array<double>(npts, npts, allocatorID);
+  weights = axom::Array<double>(npts, npts, allocatorID);
 
   if(npts == 1)
   {
@@ -140,23 +143,24 @@ void compute_gauss_legendre_data(int npts, axom::Array<double>& nodes, axom::Arr
  * 
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
  */
-QuadratureRule get_gauss_legendre(int npts)
+QuadratureRule get_gauss_legendre(int npts, int allocatorID)
 {
   assert("Quadrature rules must have >= 1 point" && (npts >= 1));
 
   // Define a static map that stores the GL quadrature rule for a given order
-  static axom::FlatMap<int, std::pair<axom::Array<double>, axom::Array<double>>> rule_library;
-  if(rule_library.find(npts) == rule_library.end())
+  static std::map<std::pair<int, int>, std::pair<axom::Array<double>, axom::Array<double>>> rule_library;
+
+  const std::pair<int, int> key = std::make_pair(npts, allocatorID);
+
+  auto value_it = rule_library.find(key);
+  if(value_it == rule_library.end())
   {
-    rule_library[npts] = std::make_pair(axom::Array<double>(npts), axom::Array<double>(npts));
-    compute_gauss_legendre_data(npts, rule_library[npts].first, rule_library[npts].second);
+    auto& vals = rule_library[key];
+    compute_gauss_legendre_data(npts, vals.first, vals.second);
+    value_it = rule_library.find(key);
   }
 
-  QuadratureRule rule;
-  rule.m_nodes = rule_library[npts].first.view();
-  rule.m_weights = rule_library[npts].second.view();
-
-  return rule;
+  return QuadratureRule {value_it->second.first.view(), value_it->second.second.view()};
 }
 
 } /* end namespace numerics */

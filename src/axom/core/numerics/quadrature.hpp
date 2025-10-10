@@ -7,6 +7,7 @@
 #define AXOM_NUMERICS_QUADRATURE_HPP_
 
 #include "axom/core/Array.hpp"
+#include "axom/core/memory_management.hpp"
 
 /*!
  * \file quadrature.hpp
@@ -27,7 +28,7 @@ namespace numerics
 class QuadratureRule
 {
   // Define friend functions so rules can only be created via get_rule() methods
-  friend QuadratureRule get_gauss_legendre(int npts);
+  friend QuadratureRule get_gauss_legendre(int, int);
 
 public:
   QuadratureRule() = default;
@@ -42,6 +43,10 @@ public:
   int getNumPoints() const { return m_nodes.size(); }
 
 private:
+  QuadratureRule(axom::ArrayView<double> nodes, axom::ArrayView<double> weights)
+    : m_nodes(nodes)
+    , m_weights(weights) { };
+
   axom::ArrayView<double> m_nodes;
   axom::ArrayView<double> m_weights;
 };
@@ -63,7 +68,8 @@ private:
  */
 void compute_gauss_legendre_data(int npts,
                                  axom::Array<double>& nodes,
-                                 axom::Array<double>& weights);
+                                 axom::Array<double>& weights,
+                                 int allocatorID = axom::getDefaultAllocatorID());
 
 /*!
  * \brief Computes or accesses a precomputed 1D quadrature rule of Gauss-Legendre points 
@@ -78,7 +84,7 @@ void compute_gauss_legendre_data(int npts,
  *
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
  */
-QuadratureRule get_gauss_legendre(int npts);
+QuadratureRule get_gauss_legendre(int npts, int allocatorID = axom::getDefaultAllocatorID());
 
 } /* end namespace numerics */
 } /* end namespace axom */
