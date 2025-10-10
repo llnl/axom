@@ -5,6 +5,7 @@
 
 #include "gtest/gtest.h"
 
+#include "axom/config.hpp"
 #include "axom/core/numerics/quadrature.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 
@@ -106,9 +107,9 @@ struct test_device_quadrature
     axom::ReduceSum<ExecSpace, double> quadrature_sum(0.0);
     axom::for_all<ExecSpace>(
       npts,
-      AXOM_LAMBDA(axom::IndexType i) { quadrature_sum += rule.weight(i) * sin(M_PI * rule.node(i)); });
+      AXOM_LAMBDA(axom::IndexType i) { quadrature_sum += rule.weight(i) * sin(rule.node(i)); });
 
-    EXPECT_NEAR(quadrature_sum.get(), 0.636619772368, 1e-6);
+    EXPECT_NEAR(quadrature_sum.get(), 0.459697694132, 1e-6);
   }
 };
 
