@@ -31,18 +31,20 @@ class QuadratureRule
   friend QuadratureRule get_gauss_legendre(int, int);
 
 public:
-  QuadratureRule() = default;
-
   //! \brief Accessor for quadrature nodes
+  AXOM_HOST_DEVICE
   double node(size_t idx) const { return m_nodes[idx]; };
 
   //! \brief Accessor for quadrature weights
+  AXOM_HOST_DEVICE
   double weight(size_t idx) const { return m_weights[idx]; };
 
-  //! \brief Accessofr for the size of the quadrature rule
+  //! \brief Accessor for the size of the quadrature rule
+  AXOM_HOST_DEVICE
   int getNumPoints() const { return m_nodes.size(); }
 
 private:
+  //! \brief Use a private constructor to avoid creation of an invalid rule
   QuadratureRule(axom::ArrayView<double> nodes, axom::ArrayView<double> weights)
     : m_nodes(nodes)
     , m_weights(weights) { };

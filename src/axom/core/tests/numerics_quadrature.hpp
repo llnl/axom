@@ -20,8 +20,6 @@ TEST(numerics_quadrature, gauss_legendre_math_check)
   {
     // Evaluate using the quadrature rule
     auto rule = axom::numerics::get_gauss_legendre(npts);
-    std::cout << rule.getNumPoints() << std::endl;
-    for(int i = 0; i < npts; ++i) std::cout << rule.node(i) << std::endl;
     int degree = 2 * npts - 1;
 
     // Define a collection of random coefficients for a polynomial
