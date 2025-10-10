@@ -98,7 +98,6 @@ struct test_device_quadrature
     const int npts = 15;
 
     // Create the rule with the proper allocator
-    std::cout << axom::execution_space<ExecSpace>::allocatorID() << std::endl;
     const auto rule =
       axom::numerics::get_gauss_legendre(npts, axom::execution_space<ExecSpace>::allocatorID());
 
