@@ -878,7 +878,7 @@ bool Matrix<T>::isIdentity() const
         T expected = (i == j) ? 1.0 : 0.0;
         ok = (this->operator()(i, j) == expected);
       }  // END for all columns
-    }    // END for all rows
+    }  // END for all rows
   }
   return ok;
 }
@@ -897,7 +897,7 @@ Matrix<T> Matrix<T>::identity(int n)
     {
       In(i, j) = static_cast<T>((i == j) ? 1.0 : 0.0);
     }  // END for all columns
-  }    // END for all rows
+  }  // END for all rows
 
   return (In);
 }
@@ -1026,7 +1026,7 @@ Matrix<T> lower_triangular(const Matrix<T>& A, bool unit_diagonal)
       }
 
     }  // END for all columns
-  }    // END for all rows
+  }  // END for all rows
 
   return (L);
 }
@@ -1060,7 +1060,7 @@ Matrix<T> upper_triangular(const Matrix<T>& A, bool unit_diagonal)
       }
 
     }  // END for all columns
-  }    // END for all rows
+  }  // END for all rows
 
   return (U);
 }

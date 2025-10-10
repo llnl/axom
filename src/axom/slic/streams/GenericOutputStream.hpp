@@ -93,17 +93,17 @@ public:
                       const std::string& fileName,
                       int line,
                       bool filter_duplicates,
-                      bool tag_stream_only);
+                      bool tag_stream_only) override;
 
   /*!
    * \brief Outputs the log stream to the console.
    */
-  virtual void outputLocal();
+  virtual void outputLocal() override;
 
   /*!
    * \brief Flushes the log stream.
    */
-  virtual void flush();
+  virtual void flush() override;
 
 private:
   std::ostream* m_stream;
@@ -119,7 +119,7 @@ private:
     : m_stream(static_cast<std::ostream*>(nullptr))
     , m_file_name()
     , m_opened(false)
-    , m_isOstreamOwnedBySLIC(false) {};
+    , m_isOstreamOwnedBySLIC(false) { };
 
   /*!
    * \brief Opens a file before flushing stream when GenericOutputStream

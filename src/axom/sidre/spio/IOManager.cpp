@@ -238,8 +238,7 @@ void IOManager::write(sidre::Group* datagroup,
     status = H5Fclose(h5_file_id);
     SLIC_ASSERT(status >= 0);
 #else
-    SLIC_WARNING("'sidre_hdf5' protocol only available "
-                 << "when axom is configured with hdf5");
+    SLIC_WARNING("'sidre_hdf5' protocol only available " << "when axom is configured with hdf5");
 #endif /* AXOM_USE_HDF5 */
   }
   else
@@ -274,8 +273,7 @@ void IOManager::read(sidre::Group* datagroup,
 #ifdef AXOM_USE_HDF5
     readSidreHDF5(datagroup, root_file, preserve_contents);
 #else
-    SLIC_WARNING("'sidre_hdf5' protocol only available "
-                 << "when axom is configured with hdf5");
+    SLIC_WARNING("'sidre_hdf5' protocol only available " << "when axom is configured with hdf5");
 #endif /* AXOM_USE_HDF5 */
   }
   else
@@ -447,8 +445,7 @@ void IOManager::loadExternalData(sidre::Group* datagroup, const std::string& roo
 
 #else
   AXOM_UNUSED_VAR(datagroup);
-  SLIC_WARNING("Loading external data only only available "
-               << "when Axom is configured with hdf5");
+  SLIC_WARNING("Loading external data only only available " << "when Axom is configured with hdf5");
 #endif /* AXOM_USE_HDF5 */
 
   (void)m_baton->pass();
@@ -599,8 +596,7 @@ void IOManager::loadExternalData(sidre::Group* parent_group,
 #else
   AXOM_UNUSED_VAR(parent_group);
   AXOM_UNUSED_VAR(load_group);
-  SLIC_WARNING("Loading external data only only available "
-               << "when Axom is configured with hdf5");
+  SLIC_WARNING("Loading external data only only available " << "when Axom is configured with hdf5");
 #endif /* AXOM_USE_HDF5 */
 
   (void)m_baton->pass();
@@ -702,9 +698,9 @@ std::string IOManager::getProtocol(const std::string& root_orig)
     // It should always be "root"
     conduit::utils::rsplit_string(root_name, dot, extension, base);
 
-    SLIC_CHECK_MSG(extension == "root",
-                   "The root file name should always end in 'root'."
-                     << " File name was '" << root_name << "'");
+    SLIC_CHECK_MSG(
+      extension == "root",
+      "The root file name should always end in 'root'." << " File name was '" << root_name << "'");
 
     std::string relay_protocol = "json";
 #ifdef AXOM_USE_HDF5
@@ -1310,8 +1306,8 @@ void IOManager::writeBlueprintIndexToRootFile(DataStore* datastore,
   }
   else
   {
-    SLIC_WARNING("DataStore failed to generate Blueprint Index "
-                 << "based on group at path " << domain_path);
+    SLIC_WARNING("DataStore failed to generate Blueprint Index " << "based on group at path "
+                                                                 << domain_path);
   }
 #else
   AXOM_UNUSED_VAR(datastore);

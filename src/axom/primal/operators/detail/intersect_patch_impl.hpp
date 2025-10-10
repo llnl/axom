@@ -121,7 +121,7 @@ bool intersect_line_patch(const Line<T, 3> &line,
 
   // Check bounding box to skip the subdivision procedure
   // Expand the box a bit so that intersections near subdivision boundaries are accurately recorded
-  if(!intersect(line, patch.boundingBox().scale(1.5)))
+  if(!intersect(line, patch.boundingBox().expand(10 * EPS)))
   {
     return false;
   }

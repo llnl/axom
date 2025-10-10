@@ -1075,7 +1075,7 @@ TEST_P(SlicMacrosParallel, test_abort_error_macros)
 #endif
 
     }  //end NUM_ABORT_STATES loop
-  }    // end nranks loop
+  }  // end nranks loop
 
   slic::disableAbortOnError(); /* disable abort for testing purposes */
   slic::setAbortFunction(axom::utilities::processAbort);
@@ -1206,7 +1206,7 @@ TEST_P(SlicMacrosParallel, test_abort_warning_macros)
 #endif
 
     }  //end NUM_ABORT_STATES loop
-  }    // end nranks loop
+  }  // end nranks loop
 
   slic::disableAbortOnWarning(); /* disable abort for testing purposes */
   slic::setAbortFunction(axom::utilities::processAbort);

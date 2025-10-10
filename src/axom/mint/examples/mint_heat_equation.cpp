@@ -277,7 +277,7 @@ private:
         new_temp[idx] = neighbors_scale * neighbors_contrib;
         new_temp[idx] += self_scale * prev_temp[idx];
       } /* loop over i */
-    }   /* loop over j */
+    } /* loop over j */
   }
 
   /*!

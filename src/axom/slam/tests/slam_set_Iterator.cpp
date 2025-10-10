@@ -379,23 +379,20 @@ TEST(slam_set_iterator, modify_with_iterators)
 
   /// Print the set values
   {
-    SLIC_INFO("set 1 := {0,1,2,..., n-1},"
-              << " where n is the set's size (" << set1.size() << ")");
+    SLIC_INFO("set 1 := {0,1,2,..., n-1}," << " where n is the set's size (" << set1.size() << ")");
     for(auto& el : set1)
     {
       SLIC_INFO(el);
     }
 
-    SLIC_INFO("set 2 := {0,1,2,..., n-1},"
-              << " where n is the set's size (" << set2.size() << ")");
+    SLIC_INFO("set 2 := {0,1,2,..., n-1}," << " where n is the set's size (" << set2.size() << ")");
     for(auto& el : set2)
     {
       SLIC_INFO(el);
     }
 
-    SLIC_INFO("set 3 := { 2n -i }, "
-              << " where n is the set's size (" << set3.size() << ")"
-              << " and i is the element index");
+    SLIC_INFO("set 3 := { 2n -i }, " << " where n is the set's size (" << set3.size() << ")"
+                                     << " and i is the element index");
 
     for(auto& el : set3)
     {
