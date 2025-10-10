@@ -156,7 +156,7 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID)
   if(value_it == rule_library.end())
   {
     auto& vals = rule_library[key];
-    compute_gauss_legendre_data(npts, vals.first, vals.second);
+    compute_gauss_legendre_data(npts, vals.first, vals.second, allocatorID);
     value_it = rule_library.find(key);
   }
 
