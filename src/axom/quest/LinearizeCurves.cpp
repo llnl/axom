@@ -143,9 +143,7 @@ static void appendPoints(LinearizeCurves::SegmentMesh* mesh, SegmentArray& S, do
   }
 }
 
-#ifdef AXOM_USE_MFEM
 /// Compute the arc length of a curve by numerical quadrature
-// This currently uses mfem's quadrature weights
 double computeArcLength(const LinearizeCurves::NURBSCurve& nurbs, int npts)
 {
   double arcLength = 0.;
@@ -156,29 +154,6 @@ double computeArcLength(const LinearizeCurves::NURBSCurve& nurbs, int npts)
   }
   return arcLength;
 }
-#else
-/// Compute the arc length of a curve by discretizing into linear segments and adding their lengths
-double computeArcLength(const LinearizeCurves::NURBSCurve& nurbs, int nSamples)
-{
-  using axom::utilities::lerp;
-
-  // Get the contour start/end parameters.
-  const auto knots = nurbs.getKnots();
-  const double u0 = knots[0];
-  const double u1 = knots[knots.getNumKnots() - 1];
-
-  double arcLength = 0.;
-  PointType prev = nurbs.evaluate(u0);
-  for(int i = 1; i <= nSamples; ++i)
-  {
-    const double u = lerp(u0, u1, i / static_cast<double>(nSamples));
-    PointType cur = nurbs.evaluate(u);
-    arcLength += sqrt(primal::squared_distance(prev, cur));
-    axom::utilities::swap(prev, cur);
-  }
-  return arcLength;
-}
-#endif
 
 //---------------------------------------------------------------------------
 #ifdef AXOM_DEBUG_WRITE_LINES
@@ -408,13 +383,8 @@ void LinearizeCurves::getLinearMeshNonUniform(LinearizeCurves::CurveArrayView cu
     if(knots.getNumKnotSpans() > 1)
     {
       constexpr int MAX_NUMBER_OF_SAMPLES = 2000;
-
-#ifdef AXOM_USE_MFEM
       constexpr int quadrature_order = 30;
       const double hiCurveLen = internal::computeArcLength(nurbs, quadrature_order);
-#else
-      const double hiCurveLen = internal::computeArcLength(nurbs, MAX_NUMBER_OF_SAMPLES);
-#endif
 
       // The initial curve length.
       double curveLength = first.length;

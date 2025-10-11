@@ -10,6 +10,7 @@
 
 #include "gtest/gtest.h"
 
+// MFEM includes
 #ifdef AXOM_USE_MFEM
   #include "mfem.hpp"
 #endif

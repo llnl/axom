@@ -7,6 +7,7 @@
 #define AXOM_NUMERICS_QUADRATURE_HPP_
 
 #include "axom/core/Array.hpp"
+#include "axom/core/memory_management.hpp"
 
 /*!
  * \file quadrature.hpp
@@ -27,21 +28,27 @@ namespace numerics
 class QuadratureRule
 {
   // Define friend functions so rules can only be created via get_rule() methods
-  friend QuadratureRule get_gauss_legendre(int npts);
+  friend QuadratureRule get_gauss_legendre(int, int);
 
 public:
-  QuadratureRule() = default;
-
   //! \brief Accessor for quadrature nodes
+  AXOM_HOST_DEVICE
   double node(size_t idx) const { return m_nodes[idx]; };
 
   //! \brief Accessor for quadrature weights
+  AXOM_HOST_DEVICE
   double weight(size_t idx) const { return m_weights[idx]; };
 
   //! \brief Accessor for the size of the quadrature rule
+  AXOM_HOST_DEVICE
   int getNumPoints() const { return m_nodes.size(); }
 
 private:
+  //! \brief Use a private constructor to avoid creation of an invalid rule
+  QuadratureRule(axom::ArrayView<double> nodes, axom::ArrayView<double> weights)
+    : m_nodes(nodes)
+    , m_weights(weights) { };
+
   axom::ArrayView<double> m_nodes;
   axom::ArrayView<double> m_weights;
 };
@@ -61,7 +68,10 @@ private:
  * \note This method constructs the points by scratch each time, without caching
  * \sa get_gauss_legendre(int)
  */
-void compute_gauss_legendre_data(int npts, axom::Array<double>& nodes, axom::Array<double>& weights);
+void compute_gauss_legendre_data(int npts,
+                                 axom::Array<double>& nodes,
+                                 axom::Array<double>& weights,
+                                 int allocatorID = axom::getDefaultAllocatorID());
 
 /*!
  * \brief Computes or accesses a precomputed 1D quadrature rule of Gauss-Legendre points 
@@ -76,7 +86,7 @@ void compute_gauss_legendre_data(int npts, axom::Array<double>& nodes, axom::Arr
  *
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
  */
-QuadratureRule get_gauss_legendre(int npts);
+QuadratureRule get_gauss_legendre(int npts, int allocatorID = axom::getDefaultAllocatorID());
 
 } /* end namespace numerics */
 } /* end namespace axom */

@@ -5,6 +5,7 @@
 
 #include "gtest/gtest.h"
 
+#include "axom/config.hpp"
 #include "axom/core/numerics/quadrature.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 
@@ -88,3 +89,38 @@ TEST(numerics_quadrature, gauss_legendre_math_check)
     }
   }
 }
+
+template <typename ExecSpace>
+struct test_device_quadrature
+{
+  static void test()
+  {
+    const int npts = 15;
+
+    // Create the rule with the proper allocator
+    const auto rule =
+      axom::numerics::get_gauss_legendre(npts, axom::execution_space<ExecSpace>::allocatorID());
+
+    // Use the rule in a lambda to integrate the volume under std::sin(pi * x) on [0, 1]
+    axom::ReduceSum<ExecSpace, double> quadrature_sum(0.0);
+    axom::for_all<ExecSpace>(
+      npts,
+      AXOM_LAMBDA(axom::IndexType i) { quadrature_sum += rule.weight(i) * sin(rule.node(i)); });
+
+    EXPECT_NEAR(quadrature_sum.get(), 0.459697694132, 1e-6);
+  }
+};
+
+TEST(numerics_quadrature, get_nodes_seq) { test_device_quadrature<axom::SEQ_EXEC>::test(); }
+
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+TEST(numerics_quadrature, get_nodes_omp) { test_device_quadrature<axom::OMP_EXEC>::test(); }
+#endif
+
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+TEST(numerics_quadrature, get_nodes_cuda) { test_device_quadrature<axom::CUDA_EXEC<256>>::test(); }
+#endif
+
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+TEST(numerics_quadrature, get_nodes_hip) { test_device_quadrature<axom::HIP_EXEC<256>>::test(); }
+#endif
