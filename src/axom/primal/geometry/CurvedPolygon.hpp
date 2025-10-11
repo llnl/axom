@@ -129,19 +129,16 @@ public:
     }
   }
 
-  /// Constructor from an array of \a nEdges curves
-  CurvedPolygon(CurveType* curves, int nEdges)
-  {
-    SLIC_ASSERT(curves != nullptr);
-    SLIC_ASSERT(nEdges >= 1);
+  ///! \brief Constructor for CurvedPolygon from an ArrayView of curves
+  CurvedPolygon(axom::ArrayView<const CurveType> curves) : m_edges(curves) { }
 
-    m_edges.reserve(nEdges);
+  ///! \brief Constructor from a c-style array of \a nEdges curves
+  CurvedPolygon(const CurveType* curves, int nEdges)
+    : CurvedPolygon(axom::ArrayView<const CurveType>(curves, nEdges))
+  { }
 
-    for(int e = 0; e < nEdges; ++e)
-    {
-      this->addEdge(curves[e]);
-    }
-  }
+  ///! \brief Constructor from a Axom array of curves
+  CurvedPolygon(const axom::Array<CurveType>& curves) : CurvedPolygon(curves.view()) { }
 
   /// Clears the list of edges
   void clear() { m_edges.clear(); }
