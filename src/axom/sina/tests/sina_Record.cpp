@@ -192,7 +192,7 @@ TEST(Record, add_child_record_as_library_data_with_curves)
       "data": { "SINA_librarydata_type": { "value": "test_record_child"},
                 "SINA_librarydata_id": { "value": "child id"}}
    }}})";
-  EXPECT_THAT(parentRecord.toNode(CurveSet::CurveOrder::ALPHABETIC), MatchesJsonMatcher(expected));
+  EXPECT_THAT(parentRecord.toNode(), MatchesJsonMatcher(expected));
 }
 
 TEST(Record, create_localId_fromNode)
@@ -516,6 +516,40 @@ TEST(Record, toNode_curveSets_customOrder)
         }
     })";
   EXPECT_THAT(record.toNode(CurveSet::CurveOrder::REVERSE_ALPHABETIC), MatchesJsonMatcher(expected));
+}
+
+TEST(Record, toNode_curveSets_setDefaultOrder)
+{
+  ID id {"the id", IDType::Local};
+  Record record {id, "my type"};
+  CurveSet cs {"reordered_curves"};
+  cs.addIndependentCurve(Curve {"lime", {1, 2, 3}});
+  cs.addIndependentCurve(Curve {"white", {4, 5, 6}});
+  cs.addIndependentCurve(Curve {"black", {7, 8, 9}});
+  cs.addDependentCurve(Curve {"cyan", {1, 2, 3}});
+  cs.addDependentCurve(Curve {"yellow", {1, 2, 3}});
+  cs.addDependentCurve(Curve {"pink", {1, 2, 3}});
+  record.add(cs);
+  record.setDefaultCurveOrder(axom::sina::CurveSet::CurveOrder::ALPHABETIC);
+  auto expected = R"({
+        "local_id": "the id",
+        "type": "my type",
+        "curve_sets": {
+            "reordered_curves": {
+                "independent": {
+                     "black": { "value": [7.0, 8.0, 9.0] },
+                     "lime": { "value": [1.0, 2.0, 3.0] },
+                     "white": { "value": [4.0, 5.0, 6.0] }
+                 },
+                 "dependent": {
+                     "cyan": { "value": [1.0, 2.0, 3.0] },
+                     "pink": { "value": [1.0, 2.0, 3.0] },
+                     "yellow": { "value": [1.0, 2.0, 3.0] }
+                 }
+            }
+        }
+    })";
+  EXPECT_THAT(record.toNode(CurveSet::CurveOrder::ALPHABETIC), MatchesJsonMatcher(expected));
 }
 
 TEST(RecordLoader, load_missingLoader)
