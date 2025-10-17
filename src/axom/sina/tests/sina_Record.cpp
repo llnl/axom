@@ -564,8 +564,10 @@ TEST(Record, toNode_curveSets_setDefaultOrder)
   EXPECT_THAT(record.toNode(), MatchesJsonMatcher(expected));
   std::vector<std::string> expected_order{"black", "lime", "white"};
   EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["independent"].child_names(), expected_order);
+  std::vector<std::string> dep_expected_order{"cyan", "pink", "yellow"};
+  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["dependent"].child_names(), dep_expected_order);
   std::vector<std::string> expected_reverse_order{"white", "lime", "black"};
-  EXPECT_EQ(record.toNode(CurveSet::CurveOrder::REVERSE_ALPHABETIC)["curve_sets"]["reordered_curves"]["independent"].child_names(), expected_reverse_order);
+  EXPECT_EQ(record.toNode(CurveSet::CurveOrder::REVERSE_ALPHABETICAL)["curve_sets"]["reordered_curves"]["independent"].child_names(), expected_reverse_order);
 }
 
 TEST(RecordLoader, load_missingLoader)
