@@ -3452,6 +3452,115 @@ TEST(sidre_group, import_conduit_external)
 }
 
 //------------------------------------------------------------------------------
+namespace testing
+{
+class Package
+{
+public:
+
+  void processCheckpoint()
+  {
+    const int N = m_checkpoint.fetch_existing("options/N").to_int();
+    m_field1.resize(N);
+    m_field2.resize(N);
+    std::iota(m_field1.begin(), m_field1.end(), 0);
+    std::iota(m_field2.begin(), m_field2.end(), 0);
+
+    // Reference the Package's field vectors.
+    m_checkpoint["options/field1"].set_external(m_field1.data(), N);
+    m_checkpoint["options/field2"].set_external(m_field2.data(), N);
+
+    // Remove the string.
+    m_checkpoint["options/op"].remove("str");
+  }
+
+  conduit::Node &getCheckpointNode() { return m_checkpoint; }
+  const std::vector<double> &getField1() const { return m_field1; }
+  const std::vector<double> &getField2() const { return m_field2; }
+private:
+  conduit::Node m_checkpoint {};
+  std::vector<double> m_field1 {};
+  std::vector<double> m_field2 {};
+};
+} // end namespace testing
+
+void test_import_conduit_external_with_external_data(bool preserveContents)
+{
+  // Create some package options in a DataStore, as if we restarted and read those values.
+  const double a = 1.2, b = 2.3;
+  const int N = 100000;
+  std::vector<int> vec{0,1,2,3,4,5};
+  DataStore* ds = new DataStore();
+  Group* root = ds->getRoot();
+  Group* restartGroup = root->createGroup("restart");
+  {
+    Group* options = restartGroup->createGroup("options");
+    Group* op = options->createGroup("op");
+    op->createViewScalar("a", a);
+    op->createViewScalar("b", b);
+    op->createViewString("str", "vanishing string");
+
+    options->createViewScalar("N", N);
+    options->createView("vec", INT_ID, vec.size())->setExternalDataPtr(vec.data());
+    options->createView("field1");
+    options->createView("field2");
+  }
+
+  // Store a representation of the restart group in the Package's checkpoint node.
+  // The checkpointNode will contain external references to all of the Sidre view data.
+  testing::Package P;
+  conduit::Node &checkpointNode = P.getCheckpointNode();
+  restartGroup->createNativeLayout(checkpointNode);
+
+  // Process the options in the checkpointNode (and modify it)
+  P.processCheckpoint();
+
+  // Re-import the checkpoint options into the Sidre group. When preserveContents
+  // is false, so restartGroup will clear out child groups and  views by default.
+  // If we are preservingContents, restore into a different group to avoid name
+  // conflicts.
+  if(preserveContents)
+  {
+    restartGroup = root->createGroup("restart2");
+  }
+  bool success = restartGroup->importConduitTreeExternal(checkpointNode, preserveContents);
+  EXPECT_TRUE(success);
+
+  // Check that importing the Conduit tree worked as expected.
+  EXPECT_TRUE(restartGroup->hasView("options/op/a"));
+  const double _a = restartGroup->getView("options/op/a")->getScalar();
+  EXPECT_EQ(_a, a);
+  EXPECT_TRUE(restartGroup->hasView("options/op/b"));
+  const double _b = restartGroup->getView("options/op/b")->getScalar();
+  EXPECT_EQ(_b, b);
+  EXPECT_FALSE(restartGroup->hasView("options/op/str"));
+
+  EXPECT_TRUE(restartGroup->hasView("options/N"));
+  const int _N = restartGroup->getView("options/N")->getScalar();
+  EXPECT_EQ(_N, N);
+
+  EXPECT_TRUE(restartGroup->hasView("options/vec"));
+  EXPECT_EQ(restartGroup->getView("options/vec")->getNumElements(), vec.size());
+  EXPECT_EQ(restartGroup->getView("options/vec")->getVoidPtr(), vec.data());
+
+  EXPECT_TRUE(restartGroup->hasView("options/field1"));
+  EXPECT_EQ(restartGroup->getView("options/field1")->getNumElements(), N);
+  EXPECT_EQ(restartGroup->getView("options/field1")->getVoidPtr(), P.getField1().data());
+
+  EXPECT_TRUE(restartGroup->hasView("options/field2"));
+  EXPECT_EQ(restartGroup->getView("options/field2")->getNumElements(), N);
+  EXPECT_EQ(restartGroup->getView("options/field2")->getVoidPtr(), P.getField2().data());
+
+  delete ds;
+}
+
+TEST(sidre_group, import_conduit_external_with_external_data)
+{
+  test_import_conduit_external_with_external_data(true);
+  test_import_conduit_external_with_external_data(false);
+}
+
+//------------------------------------------------------------------------------
 TEST(sidre_group, import_conduit_lists)
 {
   conduit::Node input;
