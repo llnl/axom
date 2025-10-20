@@ -270,9 +270,9 @@ TEST(utils_fileUtilities, TempFile_two)
 
 TEST(utils_fileUtilities, TempFile_extension)
 {
-  for(const std::string& nm : {"", "foo"})
+  for(const auto nm : {"", "foo"})
   {
-    for(const std::string& ext : {"", ".json", "json"})
+    for(const auto ext : {"", ".json", "json"})
     {
       fs::TempFile temp(nm, ext);
 

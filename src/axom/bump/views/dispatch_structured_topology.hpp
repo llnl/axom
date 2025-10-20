@@ -50,6 +50,7 @@ struct make_strided_structured_topology<3>
   static Indexing indexing(const conduit::Node &topo)
   {
     namespace utils = axom::bump::utilities;
+    verify(topo, "topology");
     const std::string offsetsKey("elements/dims/offsets");
     const std::string stridesKey("elements/dims/strides");
 
@@ -57,7 +58,13 @@ struct make_strided_structured_topology<3>
     zoneDims[0] = topo.fetch_existing("elements/dims/i").to_int();
     zoneDims[1] = topo.fetch_existing("elements/dims/j").to_int();
     zoneDims[2] = topo.fetch_existing("elements/dims/k").to_int();
-
+    for(int d = 0; d < 3; d++)
+    {
+      SLIC_ERROR_IF(zoneDims[d] < 1,
+                    axom::fmt::format("Dimension {} was {}. It must be greater than or equal to 1.",
+                                      d,
+                                      zoneDims[d]));
+    }
     LogicalIndex offsets {{0, 0, 0}}, strides {{1, 1, 1}};
     utils::fillFromNode(topo, offsetsKey, offsets, true);
     if(utils::fillFromNode(topo, stridesKey, strides, true))
@@ -101,11 +108,19 @@ struct make_strided_structured_topology<2>
   static Indexing indexing(const conduit::Node &topo)
   {
     namespace utils = axom::bump::utilities;
+    verify(topo, "topology");
     const std::string offsetsKey("elements/dims/offsets");
     const std::string stridesKey("elements/dims/strides");
     LogicalIndex zoneDims;
     zoneDims[0] = topo.fetch_existing("elements/dims/i").to_int();
     zoneDims[1] = topo.fetch_existing("elements/dims/j").to_int();
+    for(int d = 0; d < 2; d++)
+    {
+      SLIC_ERROR_IF(zoneDims[d] < 1,
+                    axom::fmt::format("Dimension {} was {}. It must be greater than or equal to 1.",
+                                      d,
+                                      zoneDims[d]));
+    }
 
     LogicalIndex offsets {{0, 0}}, strides {{1, 1}};
     utils::fillFromNode(topo, offsetsKey, offsets, true);
@@ -148,11 +163,15 @@ struct make_strided_structured_topology<1>
   static Indexing indexing(const conduit::Node &topo)
   {
     namespace utils = axom::bump::utilities;
+    verify(topo, "topology");
     const std::string offsetsKey("elements/dims/offsets");
     const std::string stridesKey("elements/dims/strides");
 
     LogicalIndex zoneDims;
     zoneDims[0] = topo.fetch_existing("elements/dims/i").to_int();
+    SLIC_ERROR_IF(
+      zoneDims[0] < 1,
+      axom::fmt::format("Dimension was {}. It must be greater than or equal to 1.", zoneDims[0]));
 
     LogicalIndex offsets {0}, strides {1};
     utils::fillFromNode(topo, offsetsKey, offsets, true);
@@ -193,6 +212,7 @@ struct make_structured_topology<3>
    */
   static Indexing indexing(const conduit::Node &topo)
   {
+    verify(topo, "topology");
     LogicalIndex zoneDims;
     zoneDims[0] = topo.fetch_existing("elements/dims/i").to_int();
     zoneDims[1] = topo.fetch_existing("elements/dims/j").to_int();
@@ -226,6 +246,7 @@ struct make_structured_topology<2>
    */
   static Indexing indexing(const conduit::Node &topo)
   {
+    verify(topo, "topology");
     LogicalIndex zoneDims;
     zoneDims[0] = topo.fetch_existing("elements/dims/i").to_int();
     zoneDims[1] = topo.fetch_existing("elements/dims/j").to_int();
@@ -257,6 +278,7 @@ struct make_structured_topology<1>
    */
   static Indexing indexing(const conduit::Node &topo)
   {
+    verify(topo, "topology");
     LogicalIndex zoneDims;
     zoneDims[0] = topo.fetch_existing("elements/dims/i").to_int();
 
@@ -512,6 +534,7 @@ struct dispatch_any_structured_topology<true, 1, FuncType>
 template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType>
 void dispatch_structured_topology(const conduit::Node &topo, FuncType &&func)
 {
+  verify(topo, "topology");
   int ndims = 1;
   ndims += topo.has_path("elements/dims/j") ? 1 : 0;
   ndims += topo.has_path("elements/dims/k") ? 1 : 0;
@@ -552,6 +575,7 @@ void dispatch_structured_topology(const conduit::Node &topo, FuncType &&func)
 template <int SelectedDimensions = select_dimensions(1, 2, 3), typename FuncType>
 void dispatch_structured_topologies(const conduit::Node &topo, FuncType &&func)
 {
+  verify(topo, "topology");
   const auto ndims = conduit::blueprint::mesh::utils::topology::dims(topo);
   switch(ndims)
   {
