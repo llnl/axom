@@ -113,7 +113,7 @@ int IOBaton::pass()
   int return_val = 0;
   if(m_rank_after_me != s_invalid_rank_id)
   {
-    int baton;
+    int baton = 0;
     int mpi_err = MPI_Ssend(&baton, 1, MPI_INT, m_rank_after_me, 0, m_mpi_comm);
     if(mpi_err != MPI_SUCCESS)
     {
