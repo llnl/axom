@@ -481,8 +481,7 @@ TYPED_TEST(BivariateSetTester, traverse)
   using S2 = typename TestFixture::SecondSetType;
 
   // Test traversal functions for a ProductSet
-  SLIC_INFO("Traversing product set"
-            << "\n       ----------------------");
+  SLIC_INFO("Traversing product set" << "\n       ----------------------");
   {
     using PSet = slam::ProductSet<S1, S2>;
 
@@ -495,8 +494,7 @@ TYPED_TEST(BivariateSetTester, traverse)
 
   // Test traversal functions for a RelationSet
   std::cout << std::endl;
-  SLIC_INFO("Traversing relation set"
-            << "\n       -----------------------");
+  SLIC_INFO("Traversing relation set" << "\n       -----------------------");
   {
     using RType = typename TestFixture::RelationType;
     using RSet = slam::RelationSet<RType, S1, S2>;

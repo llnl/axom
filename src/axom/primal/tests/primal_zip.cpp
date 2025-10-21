@@ -62,9 +62,7 @@ void check_zip_points_3d()
   axom::for_all<ExecSpace>(
     0,
     N,
-    AXOM_LAMBDA(int idx) {
-      valid[idx] = (it[idx] == PrimitiveType {x[idx], y[idx], z[idx]});
-    });
+    AXOM_LAMBDA(int idx) { valid[idx] = (it[idx] == PrimitiveType {x[idx], y[idx], z[idx]}); });
 
   axom::copy(&valid_host, valid, N * sizeof(bool));
 
@@ -111,9 +109,7 @@ void check_zip_points_2d_from_3d()
   axom::for_all<ExecSpace>(
     0,
     N,
-    AXOM_LAMBDA(int idx) {
-      valid[idx] = (it[idx] == PointType {x[idx], y[idx]});
-    });
+    AXOM_LAMBDA(int idx) { valid[idx] = (it[idx] == PointType {x[idx], y[idx]}); });
 
   axom::copy(&valid_host, valid, N * sizeof(bool));
 
@@ -159,9 +155,7 @@ void check_zip_vectors_2d_from_3d()
   axom::for_all<ExecSpace>(
     0,
     N,
-    AXOM_LAMBDA(int idx) {
-      valid[idx] = (it[idx] == PointType {x[idx], y[idx]});
-    });
+    AXOM_LAMBDA(int idx) { valid[idx] = (it[idx] == PointType {x[idx], y[idx]}); });
 
   axom::copy(&valid_host, valid, N * sizeof(bool));
 

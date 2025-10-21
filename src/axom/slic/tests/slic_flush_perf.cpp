@@ -17,37 +17,36 @@ namespace slic = axom::slic;
 //------------------------------------------------------------------------------
 TEST(SlicPerfTest, test_many_flushes)
 {
-    // initialize slic
-    slic::initialize();
-    slic::setLoggingMsgLevel(slic::message::Debug);
-    slic::disableAbortOnError(); /* disable abort for testing purposes */
+  // initialize slic
+  slic::initialize();
+  slic::setLoggingMsgLevel(slic::message::Debug);
+  slic::disableAbortOnError(); /* disable abort for testing purposes */
 
-    // Stream for message levels
-    std::ostringstream test_stream;
+  // Stream for message levels
+  std::ostringstream test_stream;
 
-    // Stream for tagged streams
-    std::ostringstream test_tag_stream;
+  // Stream for tagged streams
+  std::ostringstream test_tag_stream;
 
-    slic::addStreamToAllMsgLevels(
-        new slic::LumberjackStream(&test_stream, MPI_COMM_WORLD, 1, "<MESSAGE>\n"));
+  slic::addStreamToAllMsgLevels(
+    new slic::LumberjackStream(&test_stream, MPI_COMM_WORLD, 1, "<MESSAGE>\n"));
 
-    slic::addStreamToTag(
-        new slic::LumberjackStream(&test_tag_stream, MPI_COMM_WORLD, 1, "<MESSAGE>\n"),
-        "myTag");
+  slic::addStreamToTag(
+    new slic::LumberjackStream(&test_tag_stream, MPI_COMM_WORLD, 1, "<MESSAGE>\n"),
+    "myTag");
 
-    slic::addStreamToAllMsgLevels(
-        new slic::SynchronizedStream(&test_stream, MPI_COMM_WORLD, "<MESSAGE>\n"));
+  slic::addStreamToAllMsgLevels(
+    new slic::SynchronizedStream(&test_stream, MPI_COMM_WORLD, "<MESSAGE>\n"));
 
-    slic::addStreamToTag(
-        new slic::SynchronizedStream(&test_tag_stream, MPI_COMM_WORLD, "<MESSAGE>\n"),
-        "myTag");
+  slic::addStreamToTag(new slic::SynchronizedStream(&test_tag_stream, MPI_COMM_WORLD, "<MESSAGE>\n"),
+                       "myTag");
 
-    for (int i = 0; i < 10000; i++) {
-        slic::flushStreams();
-    }
+  for(int i = 0; i < 10000; i++)
+  {
+    slic::flushStreams();
+  }
 
-    slic::finalize();
-
+  slic::finalize();
 }
 
 int main(int argc, char* argv[])

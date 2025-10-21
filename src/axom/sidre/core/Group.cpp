@@ -1509,17 +1509,6 @@ bool Group::deepCopyToConduit(Node& dst, int tupleAllocId, int arrayAllocId, con
     {
       hasSavedViews = true;
     }
-    else
-    {
-      if(m_is_list)
-      {
-        dst.remove(group.getName());
-      }
-      else
-      {
-        dst.remove(dst.number_of_children() - 1);
-      }
-    }
   }
 
   return hasSavedViews;

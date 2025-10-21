@@ -161,9 +161,9 @@ struct InOutHelper
 
     if(m_surfaceMesh->getDimension() != getDimension())
     {
-      SLIC_WARNING("Incorrect dimensionality for mesh."
-                   << "Expected " << getDimension() << ", "
-                   << "but got " << m_surfaceMesh->getDimension());
+      SLIC_WARNING("Incorrect dimensionality for mesh." << "Expected " << getDimension() << ", "
+                                                        << "but got "
+                                                        << m_surfaceMesh->getDimension());
       return QUEST_INOUT_FAILED;
     }
 
@@ -608,8 +608,8 @@ int inout_set_dimension(int dim)
 
   if(!(dim == 2 || dim == 3))
   {
-    SLIC_WARNING("quest inout query only supports 2D or 3D queries."
-                 << " Supplied dimension was " << dim);
+    SLIC_WARNING("quest inout query only supports 2D or 3D queries." << " Supplied dimension was "
+                                                                     << dim);
 
     return QUEST_INOUT_FAILED;
   }

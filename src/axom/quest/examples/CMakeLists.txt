@@ -273,7 +273,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                      inline_mesh --min 0 0 --max 300 400 --res 300 400 -d 2
             NUM_MPI_TASKS ${_nranks})
         set_tests_properties(${_testname} PROPERTIES
-            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,637.")
+            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?637.")
 
         # Test 2D MFEM mesh (winding number)
         set(_testname quest_shaping_driver_ex_heroic_roses_mfem_cp)
@@ -285,7 +285,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                      inline_mesh --min 0 0 --max 300 400 --res 300 400 -d 2
             NUM_MPI_TASKS ${_nranks})
         set_tests_properties(${_testname} PROPERTIES
-            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,645.")
+            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?645.")
 
         # 3D shaping tests
         set(_nranks 3)
