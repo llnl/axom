@@ -316,8 +316,9 @@ template <typename TopologyView, typename CoordsetView, bool makeFaces = false>
 struct PrimalAdaptor
 {
   using value_type = typename CoordsetView::value_type;
+  static constexpr int MAX_POLYGON_VERTS = 12;
   using Polygon =
-    axom::primal::Polygon<value_type, CoordsetView::dimension(), axom::primal::PolygonArray::Static>;
+    axom::primal::Polygon<value_type, CoordsetView::dimension(), axom::primal::PolygonArray::Static, MAX_POLYGON_VERTS>;
   using Tetrahedron = axom::primal::Tetrahedron<value_type, CoordsetView::dimension()>;
   using Hexahedron = axom::primal::Hexahedron<value_type, CoordsetView::dimension()>;
   using Polyhedron =

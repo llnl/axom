@@ -86,13 +86,14 @@ protected:
   static constexpr int NDIMS = IndexPolicy::dimension();
   static constexpr int StencilSize = elvira::getStencilSize(NDIMS);
   static constexpr int numVectorComponents = 3;
+  static constexpr int MAX_POLYGON_VERTS = 12;
 
   // Determine the output type from the clip operations. Those are the shape
   // types that we're emitting into the MIR output. Create the builder.
   using CoordType = typename CoordsetView::value_type;
   using ClipResultType =
     typename std::conditional<NDIMS == 2,
-                              axom::primal::Polygon<CoordType, 2, axom::primal::PolygonArray::Static>,
+                              axom::primal::Polygon<CoordType, 2, axom::primal::PolygonArray::Static, MAX_POLYGON_VERTS>,
                               axom::primal::Polyhedron<CoordType, 3>>::type;
 
   using VectorType = axom::primal::Vector<CoordType, NDIMS>;
