@@ -174,6 +174,15 @@ private:
   std::vector<std::string> orderedDependentCurveNames;
 };
 
+extern CurveSet::CurveOrder sinaDefaultCurveOrder;
+
+/**
+ * \brief Set the default curve order for all CurveSets.
+ * 
+ * \param order The curve order to use as the default
+ */
+void setDefaultCurveOrder(CurveSet::CurveOrder order);
+
 }  // namespace sina
 }  // namespace axom
 

@@ -10,6 +10,7 @@
 #include "gmock/gmock.h"
 
 #include "axom/sina/core/Record.hpp"
+#include "axom/sina/core/CurveSet.hpp"
 
 #include "axom/sina/tests/SinaMatchers.hpp"
 #include "axom/sina/tests/TestRecord.hpp"
@@ -530,7 +531,7 @@ TEST(Record, toNode_curveSets_customOrder)
   EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["independent"].child_names(), expected_order);
 }
 
-TEST(Record, toNode_curveSets_setDefaultOrder)
+TEST(Record, toNode_curveSets_setDefaultOrder_fromRecord)
 {
   ID id {"the id", IDType::Local};
   Record record {id, "my type"};
@@ -568,6 +569,45 @@ TEST(Record, toNode_curveSets_setDefaultOrder)
   EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["dependent"].child_names(), dep_expected_order);
   std::vector<std::string> expected_reverse_order{"white", "lime", "black"};
   EXPECT_EQ(record.toNode(CurveSet::CurveOrder::REVERSE_ALPHABETICAL)["curve_sets"]["reordered_curves"]["independent"].child_names(), expected_reverse_order);
+}
+
+TEST(Record, toNode_curveSets_setDefaultOrder)
+{
+  ID id {"the id", IDType::Local};
+  Record record {id, "my type"};
+  CurveSet cs {"reordered_curves"};
+  axom::sina::setDefaultCurveOrder(axom::sina::CurveSet::CurveOrder::ALPHABETIC);
+
+  cs.addIndependentCurve(Curve {"lime", {1, 2, 3}});
+  cs.addIndependentCurve(Curve {"white", {4, 5, 6}});
+  cs.addIndependentCurve(Curve {"black", {7, 8, 9}});
+  cs.addDependentCurve(Curve {"cyan", {1, 2, 3}});
+  cs.addDependentCurve(Curve {"yellow", {1, 2, 3}});
+  cs.addDependentCurve(Curve {"pink", {1, 2, 3}});
+  record.add(cs);
+  auto expected = R"({
+        "local_id": "the id",
+        "type": "my type",
+        "curve_sets": {
+            "reordered_curves": {
+                "independent": {
+                     "black": { "value": [7.0, 8.0, 9.0] },
+                     "lime": { "value": [1.0, 2.0, 3.0] },
+                     "white": { "value": [4.0, 5.0, 6.0] }
+                 },
+                 "dependent": {
+                     "cyan": { "value": [1.0, 2.0, 3.0] },
+                     "pink": { "value": [1.0, 2.0, 3.0] },
+                     "yellow": { "value": [1.0, 2.0, 3.0] }
+                 }
+            }
+        }
+    })";
+  EXPECT_THAT(record.toNode(), MatchesJsonMatcher(expected));
+  std::vector<std::string> expected_order{"black", "lime", "white"};
+  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["independent"].child_names(), expected_order);
+  std::vector<std::string> dep_expected_order{"cyan", "pink", "yellow"};
+  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["dependent"].child_names(), dep_expected_order);
 }
 
 TEST(RecordLoader, load_missingLoader)

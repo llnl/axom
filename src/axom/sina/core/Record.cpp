@@ -47,18 +47,27 @@ Record::Record(ID id_, std::string type_)
   : DataHolder {}
   , id {std::move(id_), LOCAL_ID_FIELD, GLOBAL_ID_FIELD}
   , type {std::move(type_)}
+  , hasInstanceDefault{false}
+  , instanceDefaultCurveOrder{sinaDefaultCurveOrder}
 { }
 
 // Define the default curves ordering
-CurveSet::CurveOrder Record::defaultCurveOrder = CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST;
+// CurveSet::CurveOrder Record::defaultCurveOrder = sinaDefaultCurveOrder;
 
 void Record::setDefaultCurveOrder(CurveSet::CurveOrder order)
 {
-  defaultCurveOrder = order;
+  instanceDefaultCurveOrder = order;
+  hasInstanceDefault = true;
+}
+
+CurveSet::CurveOrder Record::getDefaultCurveOrder() const
+{
+  return hasInstanceDefault ? instanceDefaultCurveOrder : sinaDefaultCurveOrder;
 }
 
 conduit::Node Record::toNode(CurveSet::CurveOrder curveOrder) const
 {
+
   conduit::Node asNode = DataHolder::toNode(curveOrder);
   asNode[TYPE_FIELD] = type;
   id.addTo(asNode);
@@ -74,6 +83,11 @@ conduit::Node Record::toNode(CurveSet::CurveOrder curveOrder) const
     }
   }
   return asNode;
+}
+
+conduit::Node Record::toNode() const
+{
+  return toNode(getDefaultCurveOrder());
 }
 
 Record::Record(conduit::Node const &asNode)

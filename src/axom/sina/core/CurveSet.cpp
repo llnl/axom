@@ -28,12 +28,24 @@ namespace axom
 namespace sina
 {
 
+// Definition with initialization
+CurveSet::CurveOrder sinaDefaultCurveOrder = CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST;
+
+// Function to set the default curve order
+void setDefaultCurveOrder(CurveSet::CurveOrder order)
+{
+  sinaDefaultCurveOrder = order;
+}
+
 namespace
 {
 
 constexpr auto INDEPENDENT_KEY = "independent";
 constexpr auto DEPENDENT_KEY = "dependent";
 
+/**
+ * Reset the default sinaCurveOrder, all records created after this will us e that
+ */
 /**
  * Add a curve to the given curve map.
  *
