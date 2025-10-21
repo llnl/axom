@@ -91,10 +91,10 @@ protected:
   // Determine the output type from the clip operations. Those are the shape
   // types that we're emitting into the MIR output. Create the builder.
   using CoordType = typename CoordsetView::value_type;
-  using ClipResultType =
-    typename std::conditional<NDIMS == 2,
-                              axom::primal::Polygon<CoordType, 2, axom::primal::PolygonArray::Static, MAX_POLYGON_VERTS>,
-                              axom::primal::Polyhedron<CoordType, 3>>::type;
+  using ClipResultType = typename std::conditional<
+    NDIMS == 2,
+    axom::primal::Polygon<CoordType, 2, axom::primal::PolygonArray::Static, MAX_POLYGON_VERTS>,
+    axom::primal::Polyhedron<CoordType, 3>>::type;
 
   using VectorType = axom::primal::Vector<CoordType, NDIMS>;
   using PointType = axom::primal::Point<CoordType, NDIMS>;
