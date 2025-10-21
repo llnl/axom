@@ -46,6 +46,8 @@ TEST(core_shared_memory, shared_memory_allocator)
       EXPECT_EQ(buffer[i], i);
     }
 
+    MPI_Barrier(MPI_COMM_WORLD);
+
     axom::deallocate(buffer);
   }
 }

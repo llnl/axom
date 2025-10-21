@@ -6,6 +6,7 @@
 #include "axom/core/memory_management.hpp"
 
 #if defined(AXOM_USE_UMPIRE)
+  #include "axom/fmt.hpp"
   #include "umpire/Umpire.hpp"
   #include "umpire/util/MemoryResourceTraits.hpp"
   #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
@@ -41,9 +42,10 @@ int getSharedMemoryAllocatorID()
   if(!rm.isAllocator(allocatorName))
   {
     // Create the allocator
-    auto traits {umpire::get_default_resource_traits("SHARED")};
+    const auto name = axom::fmt::format("SHARED::{}", UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE);
+    auto traits {umpire::get_default_resource_traits(name)};
     traits.scope = umpire::MemoryResourceTraits::shared_scope::node;
-    auto axom_node_allocator {rm.makeResource("SHARED::axom_node_allocator", traits)};
+    auto axom_node_allocator {rm.makeResource(axom::fmt::format("{}::axom_node_allocator", name), traits)};
     auto axom_shared_allocator {
       rm.makeAllocator<umpire::strategy::NamedAllocationStrategy>(allocatorName, axom_node_allocator)};
     allocator_id = axom_shared_allocator.getId();
