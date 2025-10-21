@@ -147,7 +147,7 @@ void getSphereSurfaceMesh(mint::UnstructuredMesh<mint::SINGLE_SHAPE>* mesh,
       c[2] = c[1] - 1;
       mesh->appendCell(c);
     }  // END for all j
-  }    // END for all i
+  }  // END for all i
 }
 
 /*!

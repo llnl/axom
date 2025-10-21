@@ -26,6 +26,7 @@ set(core_serial_tests
     core_execution_space.hpp
     core_map.hpp
     core_flatmap.hpp
+    core_flatmap_for_all.hpp
     core_memory_management.hpp
     core_numeric_array.hpp
     core_numeric_limits.hpp

@@ -49,7 +49,8 @@ std::ostream& operator<<(std::ostream& os, const BezierPatch<T, NDIMS>& bPatch);
  * parametrized from u=0 to u=1 and v=0 to v=1.
  * 
  * Contains a 2D array of positive weights to represent a rational Bezier patch.
- * Nonrational Bezier patches are identified by an empty weights array.
+ * Polynomial (nonrational) Bezier patches are identified by an empty weights array.
+ * 
  * Algorithms for Rational Bezier curves derived from 
  * Gerald Farin, "Algorithms for rational Bezier curves"
  * Computer-Aided Design, Volume 15, Number 2, 1983,
@@ -78,231 +79,210 @@ public:
                          "A Bezier Patch must be defined using an arithmetic type");
 
 public:
-  /*!
-   * \brief Constructor for a nonrational Bezier Patch that reserves 
-   *  space for the given order of the surface
+  ///@{
+  /** 
+   * @name Constructors for BezierPatch
    *
-   * Constructs an empty patch by default (no nodes/weights on either axis)
+   * The constructors allow for flexible initialization of BezierPatch objects from:
+   * - 1D or 2D Axom arrays of control points and weights,
+   * - C-style arrays of control points and weights,
+   * - Specified polynomial orders in each axis,
+   * - Rational or polynomial (nonrational) patches, depending on the presence of weights.
+   *
+   * For 1D arrays, the mapping of control points and weights to the patch is lexicographical, i.e.
+     \verbatim
+      pts[0]               -> nodes[0, 0],     ..., pts[ord_v]       -> nodes[0, ord_v]
+      pts[ord_v+1]         -> nodes[1, 0],     ..., pts[2*ord_v]     -> nodes[1, ord_v]
+                                               ...
+      pts[ord_u*(ord_v-1)] -> nodes[ord_u, 0], ..., pts[ord_u*ord_v] -> nodes[ord_u, ord_v]
+     \endverbatim
    * 
+   * The patch is parametrized from u=0 to u=1 and v=0 to v=1. 
+   * 
+   * Rational patches are identified by a non-empty weights array, 
+   * and nonrational patches by an empty weights array.
+   * All weights must be greater than 0 in a rational patch.
+   */
+
+  /**
+   * \brief Constructor from an ArrayView over the control points and weights
+   * 
+   * \param [in] controlPoints ArrayView of control points (size: (ord_u+1, ord_v+1) or (0,0))
+   * \param [in] weights ArrayView of weights (size: (ord_u+1, ord_v+1) or (0,0))
    * \param [in] ord_u The patch's polynomial order on the first axis
    * \param [in] ord_v The patch's polynomial order on the second axis
-   * \pre ord_u, ord_v greater than or equal to -1.
+   * 
+   * If \a controlPoints is empty, we still allocate space for (ord_u+1, ord_v+1) control points
+   * \pre ord_u and ord_v must either both be at least 0 for a valid patch, or both must be -1 for an empty patch
    */
-  BezierPatch(int ord_u = -1, int ord_v = -1)
+  BezierPatch(axom::ArrayView<const PointType, 2> controlPoints,
+              axom::ArrayView<const T, 2> weights,
+              int ord_u,
+              int ord_v)
   {
-    SLIC_ASSERT(ord_u >= -1 && ord_v >= -1);
-
+    SLIC_ASSERT((ord_u == -1 && ord_v == -1) || (ord_u >= 0 && ord_u >= 0));
     const int sz_u = utilities::max(0, ord_u + 1);
     const int sz_v = utilities::max(0, ord_v + 1);
 
-    m_controlPoints.resize(sz_u, sz_v);
+    SLIC_ASSERT(controlPoints.size() >= weights.size());
 
-    makeNonrational();
+    // note: always allocate space for control points
+    if(controlPoints.empty())
+    {
+      m_controlPoints.resize(sz_u, sz_v);
+    }
+    else
+    {
+      SLIC_ASSERT(controlPoints.data() != nullptr);
+      SLIC_ASSERT(controlPoints.shape()[0] == sz_u && controlPoints.shape()[1] == sz_v);
+      m_controlPoints = controlPoints;
+    }
+
+    // note: only allocate space for weights when they are supplied
+    if(!weights.empty())
+    {
+      SLIC_ASSERT(weights.data() != nullptr);
+      SLIC_ASSERT(weights.shape()[0] == sz_u && weights.shape()[1] == sz_v);
+      m_weights = weights;
+      SLIC_ASSERT(isValidRational());
+    }
   }
+
+  /// Constructor for polynomial BezierPatch from ArrayView of control points
+  BezierPatch(axom::ArrayView<PointType, 2> controlPoints, int ord_u, int ord_v)
+    : BezierPatch(axom::ArrayView<const PointType, 2>(controlPoints.data(), controlPoints.shape()),
+                  axom::ArrayView<const T, 2>(nullptr, {0, 0}),
+                  ord_u,
+                  ord_v)
+  { }
+
+  /// Constructor for rational BezierPatch from ArrayView of control points
+  BezierPatch(axom::ArrayView<PointType, 2> controlPoints,
+              axom::ArrayView<T, 2> weights,
+              int ord_u,
+              int ord_v)
+    : BezierPatch(axom::ArrayView<const PointType, 2>(controlPoints.data(), controlPoints.shape()),
+                  axom::ArrayView<const T, 2>(weights.data(), weights.shape()),
+                  ord_u,
+                  ord_v)
+  { }
+
+  /*!
+   * \brief Constructor for a polynomial (nonrational) Bezier Patch that reserves 
+   *  space for the given order of the surface
+   * 
+   * \param [in] ord_u, ord_v The patch's polynomial orders
+   * \pre ord_u, ord_v greater than or equal to -1.
+   */
+  BezierPatch(int ord_u = -1, int ord_v = -1)
+    : BezierPatch(axom::ArrayView<const PointType, 2>(nullptr, {0, 0}),
+                  axom::ArrayView<const T, 2>(nullptr, {0, 0}),
+                  ord_u,
+                  ord_v)
+  { }
 
   /*!
    * \brief Constructor for a Bezier Patch from an array of coordinates
    *
    * \param [in] pts A 1D C-style array of (ord_u+1)*(ord_v+1) control points
-   * \param [in] ord_u The patch's polynomial order on the first axis
-   * \param [in] ord_v The patch's polynomial order on the second axis
+   * \param [in] ord_u, ord_v The patch's polynomial orders
    * \pre order in both directions is greater than or equal to zero
-   *
-   * Elements of pts[k] are mapped to control nodes (p, q) lexicographically, i.e.
-   * pts[0]               -> nodes[0, 0],     ..., pts[ord_v]       -> nodes[0, ord_v]
-   * pts[ord_v+1]         -> nodes[1, 0],     ..., pts[2*ord_v]     -> nodes[1, ord_v]
-   *                                          ...
-   * pts[ord_u*(ord_v-1)] -> nodes[ord_u, 0], ..., pts[ord_u*ord_v] -> nodes[ord_u, ord_v]
-   * 
    */
-  BezierPatch(PointType* pts, int ord_u, int ord_v)
-  {
-    SLIC_ASSERT(pts != nullptr);
-    SLIC_ASSERT(ord_u >= 0 && ord_v >= 0);
-
-    const int sz_u = utilities::max(0, ord_u + 1);
-    const int sz_v = utilities::max(0, ord_v + 1);
-
-    m_controlPoints.resize(sz_u, sz_v);
-
-    for(int t = 0; t < sz_u * sz_v; ++t)
-    {
-      m_controlPoints.flatIndex(t) = pts[t];
-    }
-
-    makeNonrational();
-  }
+  BezierPatch(const PointType* pts, int ord_u, int ord_v)
+    : BezierPatch(axom::ArrayView<const PointType, 2>(pts, {ord_u + 1, ord_v + 1}),
+                  axom::ArrayView<const T, 2>(nullptr, {0, 0}),
+                  ord_u,
+                  ord_v)
+  { }
 
   /*!
-   * \brief Constructor for a Rational Bezier Patch from arrays of coordinates and weights
+   * \brief Constructor for a rational Bezier Patch from arrays of coordinates and weights
    *
    * \param [in] pts A 1D C-style array of (ord_u+1)*(ord_v+1) control points
    * \param [in] weights A 1D C-style array of (ord_u+1)*(ord_v+1) positive weights
-   * \param [in] ord_u The patch's polynomial order on the first axis
-   * \param [in] ord_v The patch's polynomial order on the second axis
-   * \pre order is greater than or equal to zero in each direction
-   * 
-   * Elements of pts and weights are mapped to control nodes (p, q) lexicographically
-   * 
-   * If \p weights is the null pointer, creates a nonrational curve
+   * \param [in] ord_u, ord_v The patch's polynomial orders, both greater than or equal to zero
+   *  
+   * If \a weights is the null pointer, creates a nonrational curve
    */
   BezierPatch(PointType* pts, T* weights, int ord_u, int ord_v)
-  {
-    SLIC_ASSERT(pts != nullptr);
-    SLIC_ASSERT(ord_u >= 0 && ord_v >= 0);
-
-    const int sz_u = utilities::max(0, ord_u + 1);
-    const int sz_v = utilities::max(0, ord_v + 1);
-
-    m_controlPoints.resize(sz_u, sz_v);
-
-    for(int t = 0; t < sz_u * sz_v; ++t)
-    {
-      m_controlPoints.flatIndex(t) = pts[t];
-    }
-
-    if(weights == nullptr)
-    {
-      makeNonrational();
-    }
-    else
-    {
-      m_weights.resize(sz_u, sz_v);
-
-      for(int t = 0; t < sz_u * sz_v; ++t)
-      {
-        m_weights.flatIndex(t) = weights[t];
-      }
-    }
-
-    SLIC_ASSERT(isValidRational());
-  }
+    : BezierPatch(axom::ArrayView<const PointType, 2>(pts, {ord_u + 1, ord_v + 1}),
+                  axom::ArrayView<const T, 2>(weights, {ord_u + 1, ord_v + 1}),
+                  ord_u,
+                  ord_v)
+  { }
 
   /*!
    * \brief Constructor for a Bezier Patch from a 1D Axom array of coordinates
    *
    * \param [in] pts A 1D Axom array of (ord_u+1)*(ord_v+1) control points
-   * \param [in] ord_u The patch's polynomial order on the first axis
-   * \param [in] ord_v The patch's polynomial order on the second axis
-   * \pre order in both directions is greater than or equal to zero
-   * 
-   * Elements of pts are mapped to control nodes (p, q) lexicographically
+   * \param [in] ord_u, ord_v The patch's polynomial orders, both greater than or equal to zero
    */
   BezierPatch(const CoordsVec& pts, int ord_u, int ord_v)
-  {
-    SLIC_ASSERT(ord_u >= 0 && ord_v >= 0);
-
-    const int sz_u = utilities::max(0, ord_u + 1);
-    const int sz_v = utilities::max(0, ord_v + 1);
-
-    m_controlPoints.resize(sz_u, sz_v);
-
-    for(int t = 0; t < sz_u * sz_v; ++t)
-    {
-      m_controlPoints.flatIndex(t) = pts.flatIndex(t);
-    }
-
-    makeNonrational();
-  }
+    : BezierPatch(axom::ArrayView<const PointType, 2>(pts.data(), {ord_u + 1, ord_v + 1}),
+                  axom::ArrayView<const T, 2>(nullptr, {0, 0}),
+                  ord_u,
+                  ord_v)
+  { }
 
   /*!
    * \brief Constructor for a Rational Bezier Patch from 1D Axom arrays of coordinates and weights
    *
    * \param [in] pts A 1D Axom array of (ord_u+1)*(ord_v+1) control points
    * \param [in] weights A 1D Axom array of (ord_u+1)*(ord_v+1) positive weights
-   * \param [in] ord_u The patch's polynomial order on the first axis
-   * \param [in] ord_v The patch's polynomial order on the second axis
-   * \pre order is greater than or equal to zero in each direction
-   * 
-   * Elements of pts and weights are mapped to control nodes (p, q) lexicographically.
+   * \param [in] ord_u, ord_v The patch's polynomial orders, both greater than or equal to zero
    */
   BezierPatch(const CoordsVec& pts, const WeightsVec& weights, int ord_u, int ord_v)
-  {
-    SLIC_ASSERT(ord_u >= 0 && ord_v >= 0);
-    SLIC_ASSERT(weights.size() == pts.size());
-
-    const int sz_u = utilities::max(0, ord_u + 1);
-    const int sz_v = utilities::max(0, ord_v + 1);
-
-    m_controlPoints.resize(sz_u, sz_v);
-    for(int t = 0; t < sz_u * sz_v; ++t)
-    {
-      m_controlPoints.flatIndex(t) = pts.flatIndex(t);
-    }
-
-    m_weights.resize(sz_u, sz_v);
-    for(int t = 0; t < sz_u * sz_v; ++t)
-    {
-      m_weights.flatIndex(t) = weights.flatIndex(t);
-    }
-
-    SLIC_ASSERT(isValidRational());
-  }
+    : BezierPatch(axom::ArrayView<const PointType, 2>(pts.data(), {ord_u + 1, ord_v + 1}),
+                  axom::ArrayView<const T, 2>(weights.data(), {ord_u + 1, ord_v + 1}),
+                  ord_u,
+                  ord_v)
+  { }
 
   /*!
    * \brief Constructor for a Bezier Patch from an Axom array of coordinates
    *
    * \param [in] pts A 2D Axom array with (ord_u+1, ord_v+1) control points
-   * \param [in] ord_u The patch's polynomial order on the first axis
-   * \param [in] ord_v The patch's polynomial order on the second axis
-   * \pre order is greater than or equal to zero in each direction
-   *
+   * \param [in] ord_u, ord_v The patch's polynomial orders, both greater than or equal to zero
    */
   BezierPatch(const CoordsMat& pts, int ord_u, int ord_v)
-  {
-    SLIC_ASSERT((ord_u >= 0) && (ord_v >= 0));
-
-    const int sz_u = utilities::max(0, ord_u + 1);
-    const int sz_v = utilities::max(0, ord_v + 1);
-
-    m_controlPoints.resize(sz_u, sz_v);
-    m_controlPoints = pts;
-
-    makeNonrational();
-  }
+    : BezierPatch(pts.view(), axom::ArrayView<const T, 2>(nullptr, {0, 0}), ord_u, ord_v)
+  { }
 
   /*!
-   * \brief Constructor for a rational Bezier Patch from a 2D Axom array 
-   *   of weights and coordinates
+   * \brief Constructor for a rational Bezier Patch from a 2D Axom array  of weights and coordinates
    *
    * \param [in] pts A 2D Axom array with (ord_u+1, ord_v+1) control points
    * \param [in] weights A 2D Axom array with (ord_u+1, ord_v+1) weights
-   * \param [in] ord_u The patch's polynomial order on the first axis
-   * \param [in] ord_v The patch's polynomial order on the second axis
-   * \pre order is greater than or equal to zero in each direction
+   * \param [in] ord_u, ord_v The patch's polynomial orders, both greater than or equal to zero
    */
   BezierPatch(const CoordsMat& pts, const WeightsMat& weights, int ord_u, int ord_v)
-  {
-    SLIC_ASSERT(ord_u >= 0 && ord_v >= 0);
-    SLIC_ASSERT(pts.shape()[0] == weights.shape()[0]);
-    SLIC_ASSERT(pts.shape()[1] == weights.shape()[1]);
+    : BezierPatch(pts.view(), weights.view(), ord_u, ord_v)
+  { }
 
-    const int sz_u = utilities::max(0, ord_u + 1);
-    const int sz_v = utilities::max(0, ord_v + 1);
+  ///@}
 
-    m_controlPoints.resize(sz_u, sz_v);
-    m_controlPoints = pts;
-
-    m_weights.resize(sz_u, sz_v);
-    m_weights = weights;
-
-    SLIC_ASSERT(isValidRational());
-  }
+  ///@{
+  /// \name Query/modify patch properties (order, rationality, ...)
 
   /*!
    * \brief Sets the order of Bezier patch
    *
-   * \param [in] ord_u The patch's polynomial order on the first axis
-   * \param [in] ord_v The patch's polynomial order on the second axis
+   * \param [in] ord_u, ord_v The patch's polynomial orders, 
+   * 
+   * \pre ord_u and ord_v must both be -1 or both greater than or equal to zero
    *
    * \note Will only resize the arrays, and likely make the patch invalid
    */
   void setOrder(int ord_u, int ord_v)
   {
-    m_controlPoints.resize(ord_u + 1, ord_v + 1);
+    SLIC_ASSERT((ord_u == -1 && ord_v == -1) || (ord_u >= 0 && ord_v >= 0));
+    const int SZ_U = utilities::max(0, ord_u + 1);
+    const int SZ_V = utilities::max(0, ord_v + 1);
+
+    m_controlPoints.resize(SZ_U, SZ_V);
     if(isRational())
     {
-      m_weights.resize(ord_u + 1, ord_v + 1);
+      m_weights.resize(SZ_U, SZ_V);
     }
   }
 
@@ -311,6 +291,16 @@ public:
 
   /// Returns the order of the Bezier Patch on the second axis
   int getOrder_v() const { return static_cast<int>(m_controlPoints.shape()[1]) - 1; }
+
+  /// Clears the list of control points, make nonrational
+  void clear()
+  {
+    m_controlPoints.clear();
+    makeNonrational();
+  }
+
+  /// Use array size as flag for rationality
+  bool isRational() const { return !m_weights.empty(); }
 
   /// Make trivially rational. If already rational, do nothing
   void makeRational()
@@ -328,21 +318,19 @@ public:
   /// Make nonrational by shrinking array of weights
   void makeNonrational() { m_weights.clear(); }
 
-  /// Use array size as flag for rationality
-  bool isRational() const { return !m_weights.empty(); }
+  ///@}
 
-  /// Clears the list of control points, make nonrational
-  void clear()
-  {
-    m_controlPoints.clear();
-    makeNonrational();
-  }
+  ///@{
+  /// \name Query/modify patch's geometry (control points, weights, bounding box, ...)
 
   /// Retrieves the control point at index \a (idx_p, idx_q)
   PointType& operator()(int ui, int vi) { return m_controlPoints(ui, vi); }
 
   /// Retrieves the vector of control points at index \a idx
   const PointType& operator()(int ui, int vi) const { return m_controlPoints(ui, vi); }
+
+  /// Returns a copy of the Bezier patch's control points
+  CoordsMat getControlPoints() const { return m_controlPoints; }
 
   /*!
    * \brief Get a specific weight
@@ -374,22 +362,237 @@ public:
     m_weights(ui, vi) = weight;
   };
 
-  /// Checks equality of two Bezier Patches
-  friend inline bool operator==(const BezierPatch<T, NDIMS>& lhs, const BezierPatch<T, NDIMS>& rhs)
-  {
-    return (lhs.m_controlPoints == rhs.m_controlPoints) && (lhs.m_weights == rhs.m_weights);
-  }
-
-  friend inline bool operator!=(const BezierPatch<T, NDIMS>& lhs, const BezierPatch<T, NDIMS>& rhs)
-  {
-    return !(lhs == rhs);
-  }
-
-  /// Returns a copy of the Bezier patch's control points
-  CoordsMat getControlPoints() const { return m_controlPoints; }
-
   /// Returns a copy of the Bezier patch's weights
   WeightsMat getWeights() const { return m_weights; }
+
+  /// Returns an axis-aligned bounding box containing the Bezier patch
+  BoundingBoxType boundingBox() const
+  {
+    return BoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
+  }
+
+  /// Returns an oriented bounding box containing the Bezier patch
+  OrientedBoundingBoxType orientedBoundingBox() const
+  {
+    return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
+  }
+
+  /*!
+   * \brief Predicate to check if the Bezier patch is approximately planar (i.e. flat)
+   *
+   * This function checks if all control points of the BezierPatch
+   * are approximately on the plane defined by its four corners
+   *
+   * \param [in] sq_tol Threshold for sum of squared distances
+   * \param [in] EPS Threshold for nearness to zero
+   * \return True if the object is planar up to tolerance \a sq_tol
+   */
+  bool isPlanar(double sq_tol = 1e-8, double EPS = 1e-8) const
+  {
+    const int ord_u = getOrder_u();
+    const int ord_v = getOrder_v();
+
+    if(ord_u <= 0 && ord_v <= 0)
+    {
+      return true;
+    }
+    if(ord_u == 1 && ord_v == 0)
+    {
+      return true;
+    }
+    if(ord_u == 0 && ord_v == 1)
+    {
+      return true;
+    }
+
+    // Check that the four corners aren't coplanar
+    VectorType v1(m_controlPoints(0, 0), m_controlPoints(0, ord_v));
+    VectorType v2(m_controlPoints(0, 0), m_controlPoints(ord_u, 0));
+    VectorType v3(m_controlPoints(0, 0), m_controlPoints(ord_u, ord_v));
+    if(!axom::utilities::isNearlyEqual(VectorType::scalar_triple_product(v1, v2, v3), 0.0, EPS))
+    {
+      return false;
+    }
+
+    // Find three points that produce a nonzero normal
+    VectorType plane_normal = VectorType::cross_product(v1, v2);
+    if(axom::utilities::isNearlyEqual(plane_normal.norm(), 0.0, EPS))
+    {
+      plane_normal = VectorType::cross_product(v1, v3);
+    }
+    if(axom::utilities::isNearlyEqual(plane_normal.norm(), 0.0, EPS))
+    {
+      plane_normal = VectorType::cross_product(v2, v3);
+    }
+    plane_normal = plane_normal.unitVector();
+
+    // Check all control points for simplicity
+    for(int p = 0; p <= ord_u; ++p)
+    {
+      for(int q = ((p == 0) ? 1 : 0); q <= ord_v; ++q)
+      {
+        const double signedDist = plane_normal.dot(m_controlPoints(p, q) - m_controlPoints(0, 0));
+
+        if(signedDist * signedDist > sq_tol)
+        {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  /*!
+   * \brief Predicate to check if the patch can be approximated by a polygon
+   *
+   * This function checks if a BezierPatch lies in a plane
+   *  and that the edges are linear up to tolerance `sq_tol`
+   *
+   * \param [in] tol Threshold for sum of squared distances
+   * \param [in] EPS Threshold for nearness to zero
+   * \return True if the patch is a planar polygon, up to the desired tolerances
+   */
+  bool isPolygonal(double sq_tol = 1e-8, double EPS = 1e-8) const
+  {
+    const int ord_u = getOrder_u();
+    const int ord_v = getOrder_v();
+
+    if(ord_u <= 0 && ord_v <= 0)
+    {
+      return true;
+    }
+    if(ord_u == 1 && ord_v == 0)
+    {
+      return true;
+    }
+    if(ord_u == 0 && ord_v == 1)
+    {
+      return true;
+    }
+
+    // Check if the patch is planar
+    if(!isPlanar(sq_tol, EPS))
+    {
+      return false;
+    }
+
+    // Check if each bounding curve is linear
+    if(!isocurve_u(0).isLinear(sq_tol))
+    {
+      return false;
+    }
+    if(!isocurve_v(0).isLinear(sq_tol))
+    {
+      return false;
+    }
+    if(!isocurve_u(1).isLinear(sq_tol))
+    {
+      return false;
+    }
+    if(!isocurve_v(1).isLinear(sq_tol))
+    {
+      return false;
+    }
+
+    return true;
+  }
+
+  /*!
+   * \brief Predicate to check if the Bezier patch is approximately bilinear
+   *
+   * This function checks if the patch is (nearly) bilinear.
+   * A necessary condition for a geometrically bilinear patch is that each line of
+   *  control points in the net is approximately linear. 
+   * A necessary condition for a parametrically bilinear patch is that the control
+   *  points are coincident with the surface of the bilinear patch defined by
+   *  its corners evaluated at uniform parameter values, 
+   *  i.e. the control points are also equally spaced on the net.
+   *
+   * \param [in] sq_tol Threshold for absolute squared distances
+   * \param [in] useStrictBilinear If true, require the patch be parametrically bilinear
+   * \return True if patch is bilinear up to tolerance \a sq_tol
+   */
+  bool isBilinear(double sq_tol = 1e-8, bool useStrictBilinear = false) const
+  {
+    const int ord_u = getOrder_u();
+    const int ord_v = getOrder_v();
+
+    if(ord_u <= 1 && ord_v <= 1)
+    {
+      return true;
+    }
+
+    if(useStrictBilinear)
+    {
+      // Anonymous function to evaluate the bilinear patch defined by the corners
+      auto bilinear_patch = [&](T u, T v) -> PointType {
+        PointType val;
+        for(int N = 0; N < NDIMS; ++N)
+        {
+          val[N] = axom::utilities::lerp(
+            axom::utilities::lerp(m_controlPoints(0, 0)[N], m_controlPoints(0, ord_v)[N], v),
+            axom::utilities::lerp(m_controlPoints(ord_u, 0)[N], m_controlPoints(ord_u, ord_v)[N], v),
+            u);
+        }
+        return val;
+      };
+
+      for(int u = 0; u <= ord_u; ++u)
+      {
+        for(int v = 0; v <= ord_v; ++v)
+        {
+          // Don't need to check the corners
+          if((u == 0 && v == 0) || (u == 0 && v == ord_v) || (u == ord_u && v == 0) ||
+             (u == ord_u && v == ord_v))
+          {
+            continue;
+          }
+
+          // Evaluate where the control point would be if the patch *was* bilinear
+          PointType bilinear_point =
+            bilinear_patch(u / static_cast<T>(ord_u), v / static_cast<T>(ord_v));
+
+          if(squared_distance(m_controlPoints(u, v), bilinear_point) > sq_tol)
+          {
+            return false;
+          }
+        }
+      }
+    }
+    else
+    {
+      for(int p = 0; p <= ord_u; ++p)
+      {
+        Segment<T, 3> seg(m_controlPoints(p, 0), m_controlPoints(p, ord_v));
+        for(int q = 1; q < ord_v; ++q)
+        {
+          if(squared_distance(m_controlPoints(p, q), seg) > sq_tol)
+          {
+            return false;
+          }
+        }
+      }
+
+      for(int q = 0; q <= ord_v; ++q)
+      {
+        Segment<T, 3> seg(m_controlPoints(0, q), m_controlPoints(ord_u, q));
+        for(int p = 1; p < ord_u; ++p)
+        {
+          if(squared_distance(m_controlPoints(p, q), seg) > sq_tol)
+          {
+            return false;
+          }
+        }
+      }
+    }
+
+    return true;
+  }
+
+  ///@}
+
+  ///@{
+  /// \name Query/modify patch parametrization
 
   /*!
    * \brief Reverses the order of one direction of the Bezier patch's control points and weights
@@ -491,17 +694,10 @@ public:
     }
   }
 
-  /// Returns an axis-aligned bounding box containing the Bezier patch
-  BoundingBoxType boundingBox() const
-  {
-    return BoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
-  }
+  ///@}
 
-  /// Returns an oriented bounding box containing the Bezier patch
-  OrientedBoundingBoxType orientedBoundingBox() const
-  {
-    return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
-  }
+  ///@{
+  /// \name Functions to evaluate patch and its derivatives and normals along points or lines
 
   /*!
    * \brief Evaluates a slice Bezier patch for a fixed parameter value of \a u or \a v
@@ -1632,6 +1828,11 @@ public:
     return VectorType::cross_product(Du, Dv);
   }
 
+  ///@}
+
+  ///@{
+  /// \name Functions dealing with patch subdivision
+
   /*!
    * \brief Splits a Bezier patch into two Bezier patches
    *
@@ -1831,217 +2032,7 @@ public:
     p0.split_v(v, p2, p4);
   }
 
-  /*!
-   * \brief Predicate to check if the Bezier patch is approximately planar (i.e. flat)
-   *
-   * This function checks if all control points of the BezierPatch
-   * are approximately on the plane defined by its four corners
-   *
-   * \param [in] sq_tol Threshold for sum of squared distances
-   * \param [in] EPS Threshold for nearness to zero
-   * \return True if the object is planar up to tolerance \a sq_tol
-   */
-  bool isPlanar(double sq_tol = 1e-8, double EPS = 1e-8) const
-  {
-    const int ord_u = getOrder_u();
-    const int ord_v = getOrder_v();
-
-    if(ord_u <= 0 && ord_v <= 0)
-    {
-      return true;
-    }
-    if(ord_u == 1 && ord_v == 0)
-    {
-      return true;
-    }
-    if(ord_u == 0 && ord_v == 1)
-    {
-      return true;
-    }
-
-    // Check that the four corners aren't coplanar
-    VectorType v1(m_controlPoints(0, 0), m_controlPoints(0, ord_v));
-    VectorType v2(m_controlPoints(0, 0), m_controlPoints(ord_u, 0));
-    VectorType v3(m_controlPoints(0, 0), m_controlPoints(ord_u, ord_v));
-    if(!axom::utilities::isNearlyEqual(VectorType::scalar_triple_product(v1, v2, v3), 0.0, EPS))
-    {
-      return false;
-    }
-
-    // Find three points that produce a nonzero normal
-    VectorType plane_normal = VectorType::cross_product(v1, v2);
-    if(axom::utilities::isNearlyEqual(plane_normal.norm(), 0.0, EPS))
-    {
-      plane_normal = VectorType::cross_product(v1, v3);
-    }
-    if(axom::utilities::isNearlyEqual(plane_normal.norm(), 0.0, EPS))
-    {
-      plane_normal = VectorType::cross_product(v2, v3);
-    }
-    plane_normal = plane_normal.unitVector();
-
-    // Check all control points for simplicity
-    for(int p = 0; p <= ord_u; ++p)
-    {
-      for(int q = ((p == 0) ? 1 : 0); q <= ord_v; ++q)
-      {
-        const double signedDist = plane_normal.dot(m_controlPoints(p, q) - m_controlPoints(0, 0));
-
-        if(signedDist * signedDist > sq_tol)
-        {
-          return false;
-        }
-      }
-    }
-    return true;
-  }
-
-  /*!
-   * \brief Predicate to check if the patch can be approximated by a polygon
-   *
-   * This function checks if a BezierPatch lies in a plane
-   *  and that the edges are linear up to tolerance `sq_tol`
-   *
-   * \param [in] tol Threshold for sum of squared distances
-   * \param [in] EPS Threshold for nearness to zero
-   * \return True if c1 is planar-polygonal up to tolerance \a sq_tol
-   */
-  bool isPolygonal(double sq_tol = 1e-8, double EPS = 1e-8) const
-  {
-    const int ord_u = getOrder_u();
-    const int ord_v = getOrder_v();
-
-    if(ord_u <= 0 && ord_v <= 0)
-    {
-      return true;
-    }
-    if(ord_u == 1 && ord_v == 0)
-    {
-      return true;
-    }
-    if(ord_u == 0 && ord_v == 1)
-    {
-      return true;
-    }
-
-    // Check if the patch is planar
-    if(!isPlanar(sq_tol, EPS))
-    {
-      return false;
-    }
-
-    // Check if each bounding curve is linear
-    if(!isocurve_u(0).isLinear(sq_tol))
-    {
-      return false;
-    }
-    if(!isocurve_v(0).isLinear(sq_tol))
-    {
-      return false;
-    }
-    if(!isocurve_u(1).isLinear(sq_tol))
-    {
-      return false;
-    }
-    if(!isocurve_v(1).isLinear(sq_tol))
-    {
-      return false;
-    }
-
-    return true;
-  }
-
-  /*!
-   * \brief Predicate to check if the Bezier patch is approximately bilinear
-   *
-   * This function checks if the patch is (nearly) bilinear.
-   * A necessary condition for a geometrically bilinear patch is that each line of
-   *  control points in the net is approximately linear. 
-   * A necessary condition for a parametrically bilinear patch is that the control
-   *  points are coincident with the surface of the bilinear patch defined by
-   *  its corners evaluated at uniform parameter values, 
-   *  i.e. the control points are also equally spaced on the net.
-   *
-   * \param [in] sq_tol Threshold for absolute squared distances
-   * \param [in] useStrictBilinear If true, require the patch be parametrically bilinear
-   * \return True if patch is bilinear up to tolerance \a sq_tol
-   */
-  bool isBilinear(double sq_tol = 1e-8, bool useStrictBilinear = false) const
-  {
-    const int ord_u = getOrder_u();
-    const int ord_v = getOrder_v();
-
-    if(ord_u <= 1 && ord_v <= 1)
-    {
-      return true;
-    }
-
-    if(useStrictBilinear)
-    {
-      // Anonymous function to evaluate the bilinear patch defined by the corners
-      auto bilinear_patch = [&](T u, T v) -> PointType {
-        PointType val;
-        for(int N = 0; N < NDIMS; ++N)
-        {
-          val[N] = axom::utilities::lerp(
-            axom::utilities::lerp(m_controlPoints(0, 0)[N], m_controlPoints(0, ord_v)[N], v),
-            axom::utilities::lerp(m_controlPoints(ord_u, 0)[N], m_controlPoints(ord_u, ord_v)[N], v),
-            u);
-        }
-        return val;
-      };
-
-      for(int u = 0; u <= ord_u; ++u)
-      {
-        for(int v = 0; v <= ord_v; ++v)
-        {
-          // Don't need to check the corners
-          if((u == 0 && v == 0) || (u == 0 && v == ord_v) || (u == ord_u && v == 0) ||
-             (u == ord_u && v == ord_v))
-          {
-            continue;
-          }
-
-          // Evaluate where the control point would be if the patch *was* bilinear
-          PointType bilinear_point =
-            bilinear_patch(u / static_cast<T>(ord_u), v / static_cast<T>(ord_v));
-
-          if(squared_distance(m_controlPoints(u, v), bilinear_point) > sq_tol)
-          {
-            return false;
-          }
-        }
-      }
-    }
-    else
-    {
-      for(int p = 0; p <= ord_u; ++p)
-      {
-        Segment<T, 3> seg(m_controlPoints(p, 0), m_controlPoints(p, ord_v));
-        for(int q = 1; q < ord_v; ++q)
-        {
-          if(squared_distance(m_controlPoints(p, q), seg) > sq_tol)
-          {
-            return false;
-          }
-        }
-      }
-
-      for(int q = 0; q <= ord_v; ++q)
-      {
-        Segment<T, 3> seg(m_controlPoints(0, q), m_controlPoints(ord_u, q));
-        for(int p = 1; p < ord_u; ++p)
-        {
-          if(squared_distance(m_controlPoints(p, q), seg) > sq_tol)
-          {
-            return false;
-          }
-        }
-      }
-    }
-
-    return true;
-  }
+  ///@}
 
   /*!
    * \brief Simple formatted print of a Bezier Patch instance
@@ -2080,6 +2071,17 @@ public:
     return os;
   }
 
+  /// Checks equality of two Bezier Patches
+  friend inline bool operator==(const BezierPatch<T, NDIMS>& lhs, const BezierPatch<T, NDIMS>& rhs)
+  {
+    return (lhs.m_controlPoints == rhs.m_controlPoints) && (lhs.m_weights == rhs.m_weights);
+  }
+
+  friend inline bool operator!=(const BezierPatch<T, NDIMS>& lhs, const BezierPatch<T, NDIMS>& rhs)
+  {
+    return !(lhs == rhs);
+  }
+
 private:
   /// Check that the weights used are positive, and
   ///  that there is one for each control node
@@ -2112,6 +2114,7 @@ private:
     return true;
   }
 
+private:
   CoordsMat m_controlPoints;
   WeightsMat m_weights;
 };

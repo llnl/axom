@@ -421,7 +421,7 @@ inline bool matrix_multiply(const Matrix<T>& A, const Matrix<T>& B, Matrix<T>& C
       }  // END for all internal
 
     }  // END for all columns
-  }    // END for all rows
+  }  // END for all rows
 
   return true;
 }
@@ -481,7 +481,7 @@ inline bool matrix_transpose(const Matrix<T>& A, Matrix<T>& M)
     {
       M(j, i) = A(i, j);
     }  // END for all columns in A
-  }    // END for all rows in A
+  }  // END for all rows in A
 
   return true;
 }
@@ -508,7 +508,7 @@ inline T matrix_norm(const Matrix<T>& A, MatrixNorm normType)
   default:
     assert("pre: unsupported norm type!" && false);
     norm = -1.0;  // set norm to a negative number to indicate an error
-  }               // END switch
+  }  // END switch
 
   return norm;
 }

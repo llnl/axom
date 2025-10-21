@@ -43,8 +43,7 @@ namespace quest
 /**
  * Abstract base class for shaping material volume fractions
  *
- * Shaper requires Axom to be configured with Conduit or MFEM
- * or both.
+ * Shaper requires Axom to be configured with Conduit or MFEM or both.
  */
 class Shaper
 {
@@ -52,9 +51,7 @@ public:
   using RuntimePolicy = axom::runtime_policy::Policy;
 
 #if defined(AXOM_USE_MFEM)
-  /*!
-    @brief Construct Shaper to operate on an MFEM mesh.
-  */
+  /// @brief Construct Shaper to operate on an MFEM mesh.
   Shaper(RuntimePolicy execPolicy,
          int allocatorId,
          const klee::ShapeSet& shapeSet,
@@ -62,9 +59,9 @@ public:
 #endif
 
   /*!
-    @brief Construct Shaper to operate on a blueprint-formatted mesh
-    stored in a sidre Group.
-  */
+   * @brief Construct Shaper to operate on a blueprint-formatted mesh
+   * stored in a sidre Group.
+   */
   Shaper(RuntimePolicy execPolicy,
          int allocatorId,
          const klee::ShapeSet& shapeSet,
@@ -72,13 +69,13 @@ public:
          const std::string& topo = "");
 
   /*!
-    @brief Construct Shaper to operate on a blueprint-formatted mesh
-    stored in a conduit Node.
-
-    Because \c conduit::Node doesn't support application-specified
-    allocator id for (only) arrays, the incoming \c bpNode must have
-    all arrays pre-allocated in a space accessible by the runtime
-    policy.  Any needed-but-missing space would lead to an exception.
+   * @brief Construct Shaper to operate on a blueprint-formatted mesh
+   * stored in a conduit Node.
+   * 
+   * Because \c conduit::Node doesn't support application-specified
+   * allocator id for (only) arrays, the incoming \c bpNode must have
+   * all arrays pre-allocated in a space accessible by the runtime
+   * policy.  Any needed-but-missing space would lead to an exception.
   */
   Shaper(RuntimePolicy execPolicy,
          int allocatorId,
@@ -101,7 +98,7 @@ public:
   //! @brief Verify the input mesh is okay for this class to work with.
   bool verifyInputMesh(std::string& whyBad) const;
 
-  //@{
+  ///@{
   //!  @name Functions to get and set shaping parameters
 
   void setSamplesPerKnotSpan(int nSamples);
@@ -110,13 +107,13 @@ public:
   void setPercentError(double percent);
   void setRefinementType(RefinementType t);
 
-  //@}
+  ///@}
 
   /*!
-    @brief Set path of shape input file.
-
-    The path is used to resolve relative paths that may have been
-    specified in the file.
+   * @brief Set path of shape input file.
+   *
+   * The path is used to resolve relative paths that may have been
+   * specified in the file.
   */
   void setFilePath(const std::string& filePath);
 
@@ -146,8 +143,8 @@ public:
   RuntimePolicy getExecutionPolicy() const { return m_execPolicy; }
 
 public:
-  //@{
-  //!  @name Functions related to the stages for a given shape
+  ///@{
+  ///  @name Functions related to the stages for a given shape
 
   /// Loads the shape from file into m_surfaceMesh
   virtual void loadShape(const klee::Shape& shape);
@@ -160,15 +157,15 @@ public:
 
   virtual void finalizeShapeQuery() = 0;
 
-  //@}
+  ///@}
 
 public:
-  //@{
-  //!  @name Functions to generate/adjust volume fractions after all shapes have been applied
+  ///@{
+  ///  @name Functions to generate/adjust volume fractions after all shapes have been applied
 
   virtual void adjustVolumeFractions() = 0;
 
-  //@}
+  ///@}
 
   /*!
    * \brief Helper to apply a parallel sum reduction to a quantity

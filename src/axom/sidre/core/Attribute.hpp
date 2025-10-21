@@ -126,7 +126,7 @@ private:
   DISABLE_DEFAULT_CTOR(Attribute);
   DISABLE_MOVE_AND_ASSIGNMENT(Attribute);
 
-  //@{
+  ///@{
   //!  @name Private Attribute ctor and dtor
   //!        (callable only by DataStore methods).
 
@@ -146,7 +146,7 @@ private:
    */
   ~Attribute();
 
-  //@}
+  ///@}
 
   /// Name of this Attribute object.
   std::string m_name;

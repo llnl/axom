@@ -79,12 +79,6 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   // This may take too long if there are repeated construction.
   m_bpGrp->createNativeLayout(m_bpNodeInt);
 
-#if defined(AXOM_DEBUG)
-  std::string whyBad;
-  bool goodMesh = verifyInputMesh(whyBad);
-  SLIC_ASSERT_MSG(goodMesh, whyBad);
-#endif
-
   m_cellCount = conduit::blueprint::mesh::topology::length(
     m_bpNodeInt.fetch_existing("topologies").fetch_existing(m_bpTopo));
 
@@ -113,8 +107,7 @@ Shaper::Shaper(RuntimePolicy execPolicy,
 {
   AXOM_ANNOTATE_SCOPE("Shaper::Shaper_Node");
   m_bpGrp = m_dataStore.getRoot()->createGroup("internalGrp");
-  m_bpGrp->setDefaultAllocator(m_allocatorId);
-
+  m_bpGrp->setDefaultArrayAllocator(m_allocatorId);
   m_bpGrp->importConduitTreeExternal(bpNode);
 
   // We want unstructured topo but can accomodate structured.
@@ -146,12 +139,6 @@ Shaper::Shaper(RuntimePolicy execPolicy,
 
   m_bpGrp->createNativeLayout(m_bpNodeInt);
 
-#if defined(AXOM_DEBUG)
-  std::string whyBad;
-  bool goodMesh = verifyInputMesh(whyBad);
-  SLIC_ASSERT_MSG(goodMesh, whyBad);
-#endif
-
   m_cellCount = conduit::blueprint::mesh::topology::length(
     bpNode.fetch_existing("topologies").fetch_existing(m_bpTopo));
 
@@ -175,7 +162,7 @@ void Shaper::setFilePath(const std::string& filePath)
 void Shaper::setSamplesPerKnotSpan(int nSamples)
 {
   using axom::utilities::clampLower;
-  SLIC_WARNING_IF(
+  SLIC_WARNING_ROOT_IF(
     nSamples < 1,
     axom::fmt::format("Samples per knot span must be at least 1. Provided value was {}", nSamples));
 
@@ -184,7 +171,7 @@ void Shaper::setSamplesPerKnotSpan(int nSamples)
 
 void Shaper::setVertexWeldThreshold(double threshold)
 {
-  SLIC_WARNING_IF(
+  SLIC_WARNING_ROOT_IF(
     threshold <= 0.,
     axom::fmt::format("Vertex weld threshold should be positive Provided value was {}", threshold));
 
@@ -194,15 +181,16 @@ void Shaper::setVertexWeldThreshold(double threshold)
 void Shaper::setPercentError(double percent)
 {
   using axom::utilities::clampVal;
-  SLIC_WARNING_IF(percent <= MINIMUM_PERCENT_ERROR,
-                  axom::fmt::format("Percent error must be greater than {}. Provided value "
-                                    "was {}. Dynamic refinement will not be used.",
-                                    MINIMUM_PERCENT_ERROR,
-                                    percent));
-  SLIC_WARNING_IF(percent > MAXIMUM_PERCENT_ERROR,
-                  axom::fmt::format("Percent error must be less than {}. Provided value was {}",
-                                    MAXIMUM_PERCENT_ERROR,
-                                    percent));
+  SLIC_WARNING_ROOT_IF(percent <= MINIMUM_PERCENT_ERROR,
+                       axom::fmt::format("Percent error must be greater than {}. Provided value "
+                                         "was {}. Dynamic refinement will not be used.",
+                                         MINIMUM_PERCENT_ERROR,
+                                         percent));
+  SLIC_WARNING_ROOT_IF(
+    percent > MAXIMUM_PERCENT_ERROR,
+    axom::fmt::format("Percent error must be less than {}. Provided value was {}",
+                      MAXIMUM_PERCENT_ERROR,
+                      percent));
   if(percent <= MINIMUM_PERCENT_ERROR)
   {
     m_refinementType = DiscreteShape::RefinementUniformSegments;
@@ -214,9 +202,23 @@ void Shaper::setRefinementType(Shaper::RefinementType t) { m_refinementType = t;
 
 bool Shaper::isValidFormat(const std::string& format) const
 {
-  return (format == "stl" || format == "proe" || format == "c2c" || format == "blueprint-tets" ||
-          format == "tet3D" || format == "hex3D" || format == "plane3D" || format == "sphere3D" ||
-          format == "sor3D" || format == "none");
+  static const char* formats[] = {
+#if defined(AXOM_USE_MFEM)
+    "mfem",
+#endif
+    "stl",
+    "proe",
+    "c2c",
+    "blueprint-tets",
+    "tet3D",
+    "hex3D",
+    "plane3D",
+    "sphere3D",
+    "sor3D",
+    "none"};
+  constexpr auto numFormats = sizeof(formats) / sizeof(const char*);
+  const auto formats_end = formats + numFormats;
+  return std::find(formats, formats + numFormats, format) != formats_end;
 }
 
 void Shaper::loadShape(const klee::Shape& shape)
@@ -237,8 +239,9 @@ void Shaper::loadShapeInternal(const klee::Shape& shape, double percentError, do
   SLIC_INFO_ROOT(
     axom::fmt::format("{:-^80}", axom::fmt::format(" Loading shape '{}' ", shape.getName())));
 
-  SLIC_ASSERT_MSG(this->isValidFormat(this->shapeFormat(shape)),
-                  axom::fmt::format("Shape has unsupported format: '{}", this->shapeFormat(shape)));
+  SLIC_ERROR_ROOT_IF(
+    !this->isValidFormat(this->shapeFormat(shape)),
+    axom::fmt::format("Shape has unsupported format: '{}", this->shapeFormat(shape)));
 
   // Code for discretizing shapes has been factored into DiscreteShape class.
   DiscreteShape discreteShape(shape, m_dataStore.getRoot(), m_prefixPath);

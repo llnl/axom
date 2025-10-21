@@ -1023,13 +1023,7 @@ public:
 
 private:
   int m_num_vertices {0};
-  Coords m_vertices {PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}};
+  Coords m_vertices;
   Neighbors m_neighbors {};
 };
 

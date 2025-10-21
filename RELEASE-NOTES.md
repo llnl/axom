@@ -19,6 +19,24 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ### Added
+
+###  Changed
+- Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
+  Materials are now expected to be defined only on the valid subset of zones in the mesh.
+  This more closely matches VisIt behavior.
+- Views and functions for creating views in `axom::bump` have been enhanced to better validate
+  Blueprint meshes to guard against malformed input. Likewise, runtime input checks have been
+  promoted to use `SLIC_ERROR_IF` instead of `SLIC_ASSERT` so the checks will remain in
+  optimized Axom builds.
+###  Fixed
+
+###  Deprecated
+
+
+## [Version 0.12.0] - Release date 2025-10-03
+
+### Added
+- Added a new Python interface for sidre, using nanobind to generate Python bindings.
 - Added a new "BUMP" (Blueprint Utilities for Mesh Processing) component in Axom, which includes
   utilities that were formerly included in the Axom MIR component. BUMP is useful for writing
   algorithms that process Blueprint meshes.
@@ -38,12 +56,39 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   compile and run. These constructs are templated on the `ExecSpace` _(execution space)_ so it
   is not necessary to query RAJA policies via the `execution_space` type traits classes.
 - 2D and 3D implementations for `axom::for_all` were added.
+- Adds `axom::FlatMapView`, a helper class associated with `axom::FlatMap` to support queries from
+  within a GPU kernel.
+- Adds `axom::FlatMap::create<ExecSpace>()` and `axom::FlatMap::insert<ExecSpace>()` to support
+  constructing or inserting a hash map over a batch of keys and values on the GPU or with OpenMP.
 - Adds support for custom allocators to `axom::FlatMap`.
 - Primal: Adds ability to perform sample-based shaping on tetrahedral shapes.
 - Improves efficiency of volume fraction computation from quadrature samples during sample-based shaping.
 - Adds a `axom::DeviceHash` type as a GPU-enabled version of the `std::hash` interface.
+- Added a new `quest::STLWriter` class that writes mint meshes to STL format.
+- Adds `assign` methods to `axom::Array`.
+- Adds `assign`, `fill`, `set` methods to `axom::ArrayView`.
+- Core: Adds a `TempFile` class to Axom's FileUtilities to help with generating temp files with unique file
+  names that can be automatically removed when the instance goes out of scope.
+- Klee: We now support optional specification of a per-shape `dimensions` field for the 
+  geometry of a shape. These can be used to override the global `dimensions` 
+  of a Klee input file.
+- Lumberjack: Added sorting of log messages by creation time.  This is now the default.
+- Slic: Added check for pending messages which is done by default when calling flushStreams() and pushStreams().
+- Sina: Records can now be provided with a curve ordering to use when writing to file. By default, all records will now use
+  oldest-first ordering (ULTRA-like)
+- Sina: Documents can optionally be written as HDF5 instead of JSON. HDF5 should provide better performance for large, curve-rich sets
+- Sina: Written documents can now be appended to. This is a flexible system with a few different uses, ex: continuous writing of timeseries, overwriting values that change over the course of a simulation, and snapshot handling. See documentation for details.
+- Adds `quest::MFEMReader` for reading 1D MFEM contours in 2D space.
+- Adds an option to `quest::SamplingShaper` to allow in/out tests based on winding numbers for MFEM contours.
+- The `shaping_driver` example program can select `--sampling inout` to do the default In/Out sampling and `--sampling windingnumber` to select winding number in/out tests for MFEM data.
 
 ###  Changed
+- Updates blt submodule to [BLT version 0.7.1][https://github.com/LLNL/blt/releases/tag/v0.7.1]
+- Updates to [Conduit version 0.9.5][https://github.com/LLNL/conduit/releases/tag/v0.9.5]
+- Updates to [RAJA version 2025.09.0][https://github.com/LLNL/RAJA/releases/tag/v2025.09.0]
+- Updates to [camp version 2025.09.2][https://github.com/LLNL/camp/releases/tag/v2025.09.2]
+- Updates to [Umpire version 2025.09.0][https://github.com/LLNL/Umpire/releases/tag/v2025.09.0]
+- Axom now requires `C++17` and will default to that if not specified via `BLT_CXX_STD`.
 - Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
   since the last `reset()`.
 - Adds support for allocations using `malloc` and `free` even when Axom is configured with Umpire support.
@@ -53,10 +98,32 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - The `primal::BoundingBox` class' `expand()` and `shift()` methods were modified so they do
   nothing when called on invalid bounding boxes.
 - Updates to [MFEM version 4.8.0][https://github.com/mfem/mfem/releases/tag/v4.8]
+- Readers in Quest were moved from a `quest/readers` directory to `quest/io`.
+- Sina: Renames a Fortran module to `sina_hdf5_config` (from `hdf5_config`)
+- Spin: Uses `axom::FlatMap` in `SparseOctreeLevel` implementation. We have observed a performance regression
+  of about 20% during InOutOctree construction and queries over STL surface meshes relative to the previous sparsehash
+  implementation. Please reach out to Axom developers if this affects you while we work on fixes for these.
+- Klee: Moves source files related to IO into a new `io` subdirectory in the Klee component
+- Primal: Consolidates construction logic for `BezierCurve`, `BezierPatch`, `KnotVector`,
+  `NURBSCurve` and `NURBSPatch` classes and add overloads from `axom::ArrayView`
+- Primal: 2D and 3D winding number methods are now accelerated via memoization (dynamic caching + reuse) when supplied
+  arrays of query points
+- Core: Updates behavior of `FlatMap::reserve()` to only trigger a rehash if maximum load factor
+  would be exceeded.
+- Quest: Moves curve linearization from the `quest::C2CReader` into `quest::LinearizeCurves` so the logic can be used with other curve data.
 
 ###  Fixed
 - Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled
   with GPU support. Instances where this occurs will now trigger a static assertion during compile time.
+- Fixes build with `ninja` generator
+- Primal: Fixes a `BoundingBox` constructor with zero (or fewer) points
+- Sina: Fixes configuration variables related to inclusion of `AdiakWriter.hpp` and to hdf5 support in `sina_fortran_interface.f`
+- Spin: Fixes undefined behavior in BVH tree construction associated with using signed indexes
+- Spin: Fixes undefined behavior in UniformGrid construction associated with invalid geometry bounding boxes
+- Core: Fixes undefined behavior in MapCollection when searching empty collections
+- Core: Fixes some edge cases in the `joinPath` file utility
+- Core: Fixes `FlatMap::erase()` to update reported size.
+- Core: Fixes `FlatMap::rehash()` when allocated in device-only memory.
 
 ###  Deprecated
 - Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.
@@ -1225,7 +1292,8 @@ fractions for the associated materials must be supplied before shaping.
 - Use this section in case of vulnerabilities
 
 
-[Unreleased]:     https://github.com/LLNL/axom/compare/v0.11.0...develop
+[Unreleased]:     https://github.com/LLNL/axom/compare/v0.12.0...develop
+[Version 0.12.0]: https://github.com/LLNL/axom/compare/v0.11.0...v0.12.0
 [Version 0.11.0]: https://github.com/LLNL/axom/compare/v0.10.1...v0.11.0
 [Version 0.10.1]: https://github.com/LLNL/axom/compare/v0.10.0...v0.10.1
 [Version 0.10.0]: https://github.com/LLNL/axom/compare/v0.9.0...v0.10.0

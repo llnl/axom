@@ -1,0 +1,51 @@
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
+# other Axom Project Developers. See the top-level LICENSE file for details.
+#
+# SPDX-License-Identifier: (BSD-3-Clause)
+
+####
+# This is the shared configuration of jobs for tuolumne
+.on_tuolumne:
+  variables:
+    SCHEDULER_PARAMETERS: "--queue pci --exclusive --time-limit=${ALLOC_TIME}m --nodes=${NUM_NODES}"
+  tags:
+    - batch
+    - tuolumne
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /_qnone/ || $ON_TUOLUMNE == "OFF"' #run except if ...
+      when: never
+    - when: on_success
+  before_script:
+    - module load cmake/3.29
+
+####
+# Template
+.src_build_on_tuolumne:
+  variables:
+    ALLOC_TIME: "60"
+    NUM_NODES: "1"
+  extends: [.src_build_script, .on_tuolumne, .src_workflow]
+  needs: []
+
+.full_build_on_tuolumne:
+  variables:
+    ALLOC_TIME: "60"
+  extends: [.full_build_script, .on_tuolumne, .full_workflow]
+  needs: []
+
+####
+# PR Build jobs
+tuolumne-llvm-amdgpu_6_4_2_hip-src:
+  variables:
+    COMPILER: "llvm-amdgpu@6.4.2_hip"
+    HOST_CONFIG: "tuolumne-toss_4_x86_64_ib_cray-${COMPILER}.cmake"
+  extends: .src_build_on_tuolumne
+
+####
+# Full Build jobs
+tuolumne-llvm-amdgpu_6_4_2_hip-full:
+  variables:
+    COMPILER: "llvm-amdgpu@6.4.2_hip"
+    SPEC: "%${COMPILER}~openmp+rocm+mfem+c2c"
+    EXTRASPEC: "amdgpu_target=gfx90a ^hip@6.4.2 ^hsa-rocr-dev@6.4.2 ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion"
+  extends: .full_build_on_tuolumne

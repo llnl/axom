@@ -46,7 +46,9 @@ public:
   ExplicitCoordsetView(const axom::ArrayView<DataType> &x, const axom::ArrayView<DataType> &y)
     : m_coordinates {x, y}
   {
-    SLIC_ASSERT_MSG(x.size() == y.size(), "Coordinate size mismatch.");
+#if !defined(AXOM_DEVICE_CODE)
+    SLIC_ERROR_IF(x.size() != y.size(), "Coordinate size mismatch.");
+#endif
   }
 
   /*!
@@ -118,7 +120,9 @@ public:
                        const axom::ArrayView<DataType> &z)
     : m_coordinates {x, y, z}
   {
-    SLIC_ASSERT_MSG(x.size() == y.size() && x.size() == z.size(), "Coordinate size mismatch.");
+#if !defined(AXOM_DEVICE_CODE)
+    SLIC_ERROR_IF(x.size() != y.size() || x.size() != z.size(), "Coordinate size mismatch.");
+#endif
   }
 
   /*!

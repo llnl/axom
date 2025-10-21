@@ -283,8 +283,7 @@ bool BivariateSet<Set1, Set2>::isValid(bool verboseOutput) const
   {
     if(verboseOutput)
     {
-      SLIC_INFO("BivariateSet is not valid: "
-                << " Set pointers should not be null.");
+      SLIC_INFO("BivariateSet is not valid: " << " Set pointers should not be null.");
     }
     return false;
   }

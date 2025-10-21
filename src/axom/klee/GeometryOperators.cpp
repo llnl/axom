@@ -3,12 +3,11 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/klee/GeometryOperators.hpp"
-
 #include "axom/core/numerics/matvecops.hpp"
+
+#include "axom/klee/GeometryOperators.hpp"
 #include "axom/klee/Units.hpp"
 
-// C/C++ includes
 #include <cmath>
 #include <stdexcept>
 

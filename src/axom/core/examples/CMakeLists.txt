@@ -96,3 +96,10 @@ if(AXOM_ENABLE_TESTS)
         endif()
     endforeach()
 endif()
+
+axom_add_executable(
+    NAME        core_flatmap_perf_ex
+    SOURCES     core_flatmap_perf.cpp
+    OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
+    DEPENDS_ON  core
+    FOLDER      axom/core/examples )

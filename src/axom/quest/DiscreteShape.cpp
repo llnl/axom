@@ -54,12 +54,12 @@ public:
 
   void visit(const klee::CompositeOperator&) override
   {
-    SLIC_WARNING("CompositeOperator not supported for Shaper query");
+    SLIC_WARNING_ROOT("CompositeOperator not supported for Shaper query");
     m_isValid = false;
   }
   void visit(const klee::SliceOperator&) override
   {
-    SLIC_WARNING("SliceOperator not yet supported for Shaper query");
+    SLIC_WARNING_ROOT("SliceOperator not yet supported for Shaper query");
     m_isValid = false;
   }
 
@@ -145,9 +145,9 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
   if(!m_shape.getGeometry().hasGeometry())
   {
     // If shape has no geometry, there's nothing to discretize.
-    SLIC_DEBUG(axom::fmt::format("Current shape '{}' of material '{}' has no geometry",
-                                 m_shape.getName(),
-                                 m_shape.getMaterial()));
+    SLIC_DEBUG_ROOT(axom::fmt::format("Current shape '{}' of material '{}' has no geometry",
+                                      m_shape.getName(),
+                                      m_shape.getMaterial()));
     return m_meshRep;
   }
 
@@ -163,8 +163,8 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
 
   if(utilities::string::endsWith(shapePath, ".stl"))
   {
-    SLIC_ASSERT_MSG(file_format == "stl",
-                    axom::fmt::format(" '{}' format requires .stl file type", file_format));
+    SLIC_ERROR_ROOT_IF(file_format != "stl",
+                       axom::fmt::format(" '{}' format requires .stl file type", file_format));
 
     axom::mint::Mesh* meshRep = nullptr;
 #ifdef AXOM_USE_MPI
@@ -178,8 +178,8 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
   }
   else if(utilities::string::endsWith(shapePath, ".proe"))
   {
-    SLIC_ASSERT_MSG(file_format == "proe",
-                    axom::fmt::format(" '{}' format requires .proe file type", file_format));
+    SLIC_ERROR_ROOT_IF(file_format != "proe",
+                       axom::fmt::format(" '{}' format requires .proe file type", file_format));
 
     axom::mint::Mesh* meshRep = nullptr;
 #ifdef AXOM_USE_MPI
@@ -192,36 +192,55 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
 #ifdef AXOM_USE_C2C
   else if(utilities::string::endsWith(shapePath, ".contour"))
   {
-    SLIC_ASSERT_MSG(file_format == "c2c",
-                    axom::fmt::format(" '{}' format requires .contour file type", file_format));
+    SLIC_ERROR_ROOT_IF(file_format != "c2c",
+                       axom::fmt::format(" '{}' format requires .contour file type", file_format));
 
     // Get the transforms that are being applied to the mesh. Get them
     // as a single concatenated matrix.
     auto transform = getTransforms();
 
-    // Pass in the transform so any transformations can figure into
-    // computing the revolved volume.
+    // Pass in the transform so any transformations can figure into computing the revolved volume.
     axom::mint::Mesh* meshRep = nullptr;
-    if(m_refinementType == DiscreteShape::RefinementDynamic && m_percentError > MINIMUM_PERCENT_ERROR)
-    {
-      quest::internal::read_c2c_mesh_non_uniform(shapePath,
-                                                 transform,
-                                                 m_percentError,
-                                                 m_vertexWeldThreshold,
-                                                 meshRep,
-                                                 m_revolvedVolume,  // output arg
-                                                 m_comm);
-    }
-    else
-    {
-      quest::internal::read_c2c_mesh_uniform(shapePath,
-                                             transform,
-                                             m_samplesPerKnotSpan,
-                                             m_vertexWeldThreshold,
-                                             meshRep,
-                                             m_revolvedVolume,  // output arg
-                                             m_comm);
-    }
+    const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic &&
+                           m_percentError > MINIMUM_PERCENT_ERROR);
+    quest::internal::read_c2c_mesh(shapePath,
+                                   uniform,
+                                   transform,
+                                   m_samplesPerKnotSpan,
+                                   m_vertexWeldThreshold,
+                                   m_percentError,
+                                   meshRep,
+                                   m_revolvedVolume,  // output arg
+                                   m_comm);
+
+    m_meshRep.reset(meshRep);
+
+    // Transform the coordinates of the linearized mesh.
+    applyTransforms();
+  }
+#endif
+#ifdef AXOM_USE_MFEM
+  else if(utilities::string::endsWith(shapePath, ".mesh"))
+  {
+    SLIC_ERROR_ROOT_IF(file_format != "mfem",
+                       axom::fmt::format(" '{}' format requires .mesh file extension", file_format));
+    // Get the transforms that are being applied to the mesh. Get them
+    // as a single concatenated matrix.
+    auto transform = getTransforms();
+
+    // Pass in the transform so any transformations can figure into computing the revolved volume.
+    axom::mint::Mesh* meshRep = nullptr;
+    const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic &&
+                           m_percentError > MINIMUM_PERCENT_ERROR);
+    quest::internal::read_mfem_mesh(shapePath,
+                                    uniform,
+                                    transform,
+                                    m_samplesPerKnotSpan,
+                                    m_vertexWeldThreshold,
+                                    m_percentError,
+                                    meshRep,
+                                    m_revolvedVolume);  // output arg
+
     m_meshRep.reset(meshRep);
 
     // Transform the coordinates of the linearized mesh.
@@ -230,7 +249,7 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
 #endif
   else
   {
-    SLIC_ERROR(
+    SLIC_ERROR_ROOT(
       axom::fmt::format("Unsupported filetype for this Axom configuration. "
                         "Provided file was '{}', with format '{}'",
                         shapePath,
@@ -544,7 +563,7 @@ void DiscreteShape::createRepresentationOfSOR()
 
   // Rotate to the SOR axis direction and translate to the base location.
   numerics::Matrix<double> rotate = sorAxisRotMatrix(sorGeom.getSorDirection());
-  const auto& translate = sorGeom.getSorBaseCoords();
+  const auto& translate = sorGeom.getSorOriginCoords();
   auto octsView = octs.view();
   axom::for_all<axom::SEQ_EXEC>(
     octCount,
@@ -716,7 +735,7 @@ numerics::Matrix<double> DiscreteShape::sorAxisRotMatrix(const Vector3D& dir)
 void DiscreteShape::setSamplesPerKnotSpan(int nSamples)
 {
   using axom::utilities::clampLower;
-  SLIC_WARNING_IF(
+  SLIC_WARNING_ROOT_IF(
     nSamples < 1,
     axom::fmt::format("Samples per knot span must be at least 1. Provided value was {}", nSamples));
 
@@ -725,9 +744,9 @@ void DiscreteShape::setSamplesPerKnotSpan(int nSamples)
 
 void DiscreteShape::setVertexWeldThreshold(double threshold)
 {
-  SLIC_WARNING_IF(
+  SLIC_WARNING_ROOT_IF(
     threshold <= 0.,
-    axom::fmt::format("Vertex weld threshold should be positive Provided value was {}", threshold));
+    axom::fmt::format("Vertex weld threshold should be positive. Provided value was {}", threshold));
 
   m_vertexWeldThreshold = threshold;
 }
@@ -735,15 +754,16 @@ void DiscreteShape::setVertexWeldThreshold(double threshold)
 void DiscreteShape::setPercentError(double percent)
 {
   using axom::utilities::clampVal;
-  SLIC_WARNING_IF(percent <= MINIMUM_PERCENT_ERROR,
-                  axom::fmt::format("Percent error must be greater than {}. Provided value "
-                                    "was {}. Dynamic refinement will not be used.",
-                                    MINIMUM_PERCENT_ERROR,
-                                    percent));
-  SLIC_WARNING_IF(percent > MAXIMUM_PERCENT_ERROR,
-                  axom::fmt::format("Percent error must be less than {}. Provided value was {}",
-                                    MAXIMUM_PERCENT_ERROR,
-                                    percent));
+  SLIC_WARNING_ROOT_IF(percent <= MINIMUM_PERCENT_ERROR,
+                       axom::fmt::format("Percent error must be greater than {}. Provided value "
+                                         "was {}. Dynamic refinement will not be used.",
+                                         MINIMUM_PERCENT_ERROR,
+                                         percent));
+  SLIC_WARNING_ROOT_IF(
+    percent > MAXIMUM_PERCENT_ERROR,
+    axom::fmt::format("Percent error must be less than {}. Provided value was {}",
+                      MAXIMUM_PERCENT_ERROR,
+                      percent));
   if(percent <= MINIMUM_PERCENT_ERROR)
   {
     m_refinementType = DiscreteShape::RefinementUniformSegments;
@@ -753,8 +773,8 @@ void DiscreteShape::setPercentError(double percent)
 
 void DiscreteShape::setPrefixPath(const std::string& prefixPath)
 {
-  SLIC_ERROR_IF(!prefixPath.empty() && !axom::utilities::filesystem::pathExists(prefixPath),
-                "Path '" + prefixPath + "' does not exist.");
+  SLIC_ERROR_ROOT_IF(!prefixPath.empty() && !axom::utilities::filesystem::pathExists(prefixPath),
+                     axom::fmt::format("Path '{}' does not exist.", prefixPath));
   m_prefixPath = prefixPath;
 }
 
@@ -765,16 +785,16 @@ void DiscreteShape::setParentGroup(axom::sidre::Group* parentGroup)
     // Use object address to create a unique name for sidre group under parent.
     std::string myGroupName;
     int i = 0;
-    while(myGroupName.empty())
+    do
     {
-      std::ostringstream os;
-      os << "DiscreteShapeTemp-" << i;
-      if(!parentGroup->hasGroup(os.str()))
+      const std::string str = axom::fmt::format("DiscreteShapeTemp-{}", i);
+      if(!parentGroup->hasGroup(str))
       {
-        myGroupName = os.str();
+        myGroupName = str;
       }
       ++i;
-    }
+    } while(myGroupName.empty());
+
     m_sidreGroup = parentGroup->createGroup(myGroupName);
   }
 }

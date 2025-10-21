@@ -23,6 +23,8 @@
 
 #include "axom/fmt.hpp"
 
+#include <unordered_map>
+
 namespace axom
 {
 namespace quest
@@ -272,7 +274,7 @@ public:
     axom::IndexType* blockCoord[DIM];
     blockCoord[0] = addIntField(debugMesh, "block_x");
     blockCoord[1] = addIntField(debugMesh, "block_y");
-#if(DIM == 3)
+#if (DIM == 3)
     blockCoord[2] = addIntField(debugMesh, "block_z");
 #endif
 
@@ -283,7 +285,7 @@ public:
 
       blockCoord[0][i] = leafPoint[i][0];
       blockCoord[1][i] = leafPoint[i][1];
-#if(DIM == 3)
+#if (DIM == 3)
       blockCoord[2][i] = leafPoint[i][2];
 #endif
     }

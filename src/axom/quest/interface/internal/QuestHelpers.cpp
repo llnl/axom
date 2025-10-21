@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/quest/interface/internal/QuestHelpers.hpp"
+#include "axom/quest/LinearizeCurves.hpp"
 
 #include "axom/core.hpp"
 #include "axom/core/NumericLimits.hpp"
@@ -11,16 +12,22 @@
 
 // Quest includes
 #ifdef AXOM_USE_MPI
-  #include "axom/quest/readers/PSTLReader.hpp"
-  #include "axom/quest/readers/PProEReader.hpp"
+  #include "axom/quest/io/PSTLReader.hpp"
+  #include "axom/quest/io/PProEReader.hpp"
 #endif
 
 #if defined(AXOM_USE_C2C)
   #if defined(AXOM_USE_MPI)
-    #include "axom/quest/readers/PC2CReader.hpp"
+    #include "axom/quest/io/PC2CReader.hpp"
   #else
-    #include "axom/quest/readers/C2CReader.hpp"
+    #include "axom/quest/io/C2CReader.hpp"
   #endif
+#endif
+
+#if defined(AXOM_USE_MFEM)
+  #include "axom/quest/io/MFEMReader.hpp"
+  #include <mfem.hpp>
+  #include <map>
 #endif
 
 #include <limits>
@@ -329,28 +336,27 @@ int read_stl_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
 /*
  * Reads in the contour mesh from the specified file.
  */
-int read_c2c_mesh_uniform(const std::string& file,
-                          const numerics::Matrix<double>& transform,
-                          int segmentsPerPiece,
-                          double vertexWeldThreshold,
-                          mint::Mesh*& m,
-                          double& revolvedVolume,
-                          MPI_Comm comm)
+int read_c2c_mesh(const std::string& file,
+                  bool uniform,
+                  const numerics::Matrix<double>& transform,
+                  int segmentsPerPiece,
+                  double vertexWeldThreshold,
+                  double percentError,
+                  mint::Mesh*& m,
+                  double& revolvedVolume,
+                  MPI_Comm comm)
 {
   // NOTE: C2C meshes are always 2D
   constexpr int DIMENSION = 2;
   using SegmentMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
 
-  // STEP 0: check input mesh pointer
+  // STEP 1: check input mesh pointer
   revolvedVolume = 0.;
   if(m != nullptr)
   {
     SLIC_WARNING("supplied mesh pointer is not null!");
     return READ_FAILED;
   }
-
-  // STEP 1: allocate output mesh object
-  m = new SegmentMesh(DIMENSION, mint::SEGMENT);
 
   // STEP 2: construct C2C reader
   #if defined(AXOM_USE_MPI) && defined(AXOM_USE_C2C)
@@ -362,77 +368,33 @@ int read_c2c_mesh_uniform(const std::string& file,
 
   // STEP 3: read the mesh from the input file
   reader.setFileName(file);
-  reader.setVertexWeldingThreshold(vertexWeldThreshold);
   int rc = reader.read();
   if(rc == READ_SUCCESS)
   {
-    reader.getLinearMeshUniform(static_cast<SegmentMesh*>(m), segmentsPerPiece);
-    revolvedVolume = reader.getRevolvedVolume(transform);
+    m = new SegmentMesh(DIMENSION, mint::SEGMENT);
+
+    // STEP 4: Make the linear segments.
+    LinearizeCurves lin;
+    lin.setVertexWeldingThreshold(vertexWeldThreshold);
+    if(uniform)
+    {
+      lin.getLinearMeshUniform(reader.getCurvesView(), static_cast<SegmentMesh*>(m), segmentsPerPiece);
+    }
+    else
+    {
+      lin.getLinearMeshNonUniform(reader.getCurvesView(), static_cast<SegmentMesh*>(m), percentError);
+    }
+    revolvedVolume = lin.getRevolvedVolume(reader.getCurvesView(), transform);
   }
   else
   {
     SLIC_WARNING("reading C2C file failed, setting mesh to NULL");
-    delete m;
     m = nullptr;
   }
 
   return rc;
 }
 
-/*
- * Reads in the contour mesh from the specified file and refines it according
- * to an error tolerance.
- */
-int read_c2c_mesh_non_uniform(const std::string& file,
-                              const numerics::Matrix<double>& transform,
-                              double percentError,
-                              double vertexWeldThreshold,
-                              mint::Mesh*& m,
-                              double& revolvedVolume,
-                              MPI_Comm comm)
-{
-  // NOTE: C2C meshes are always 2D
-  constexpr int DIMENSION = 2;
-  using SegmentMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
-
-  // STEP 0: check input mesh pointer
-  revolvedVolume = 0.;
-  if(m != nullptr)
-  {
-    SLIC_WARNING("supplied mesh pointer is not null!");
-    return READ_FAILED;
-  }
-
-  // STEP 1: allocate output mesh object
-  m = new SegmentMesh(DIMENSION, mint::SEGMENT);
-
-  // STEP 2: construct C2C reader
-  #if defined(AXOM_USE_MPI) && defined(AXOM_USE_C2C)
-  quest::PC2CReader reader(comm);
-  #else
-  AXOM_UNUSED_VAR(comm);
-  quest::C2CReader reader;
-  #endif
-
-  // STEP 3: read the mesh from the input file
-  reader.setFileName(file);
-  reader.setVertexWeldingThreshold(vertexWeldThreshold);
-  int rc = reader.read();
-  if(rc == READ_SUCCESS)
-  {
-    reader.getLinearMeshNonUniform(static_cast<SegmentMesh*>(m), percentError);
-    revolvedVolume = reader.getRevolvedVolume(transform);
-  }
-  else
-  {
-    SLIC_WARNING("reading C2C file failed, setting mesh to NULL");
-    delete m;
-    m = nullptr;
-    revolvedVolume = 0.;
-  }
-
-  return rc;
-}
 #endif  // AXOM_USE_C2C
 
 /*
@@ -478,7 +440,171 @@ int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
   return rc;
 }
 
+#if defined(AXOM_USE_MFEM)
+/*
+ * Reads in the contour mesh from the specified file.
+ */
+int read_mfem_mesh(const std::string& file,
+                   bool uniform,
+                   const numerics::Matrix<double>& transform,
+                   int segmentsPerPiece,
+                   double vertexWeldThreshold,
+                   double percentError,
+                   mint::Mesh*& m,
+                   double& revolvedVolume)
+{
+  // NOTE: MFEM meshes we are dealing with are always 2D
+  constexpr int DIMENSION = 2;
+  using SegmentMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
+
+  // STEP 1: check input mesh pointer
+  revolvedVolume = 0.;
+  if(m != nullptr)
+  {
+    SLIC_WARNING("supplied mesh pointer is not null!");
+    return READ_FAILED;
+  }
+
+  // STEP 2: construct MFEM reader
+  quest::MFEMReader reader;
+
+  // STEP 3: read the curves from the input file
+  axom::Array<axom::primal::NURBSCurve<double, 2>> curves;
+  reader.setFileName(file);
+  int rc = reader.read(curves);
+  if(rc == READ_SUCCESS)
+  {
+    m = new SegmentMesh(DIMENSION, mint::SEGMENT);
+
+    // STEP 4: Make the linear segments.
+    LinearizeCurves lin;
+    lin.setVertexWeldingThreshold(vertexWeldThreshold);
+    if(uniform)
+    {
+      lin.getLinearMeshUniform(curves.view(), static_cast<SegmentMesh*>(m), segmentsPerPiece);
+    }
+    else
+    {
+      lin.getLinearMeshNonUniform(curves.view(), static_cast<SegmentMesh*>(m), percentError);
+    }
+    revolvedVolume = lin.getRevolvedVolume(curves.view(), transform);
+  }
+  else
+  {
+    SLIC_WARNING("reading MFEM file failed, setting mesh to NULL");
+    m = nullptr;
+  }
+
+  return rc;
+}
+#endif
+
 /// Mesh Helper Methods
+
+#if defined(AXOM_USE_MFEM)
+/*!
+ * \brief Convert an MFEM zone (containing a 1D contour) to an appropriate primal curve type.
+ *
+ * \tparam CurveType The type of primal curve to create/return.
+ * \tparam PolynomialConstructor A function that constructs CurveType using polynomial arguments.
+ * \tparam RationalConstructor A function that constructs CurveType using rational arguments.
+ *
+ * \param mesh A pointer to the MFEM mesh that contains contours.
+ * \param elem_id The id of the element that we want returned as a curve.
+ * \param polynomialConstructor A function that will construct the curve as CurveType,
+ *                              given polynomial arguments (points, npts, order).
+ * \param rationalConstructor A function that will construct the curve as CurveType,
+ *                            given rational arguments (points, weights, npts, order).
+ *
+ * \return An instance of CurveType that represents the MFEM element.
+ */
+template <typename CurveType, typename PolynomialConstructor, typename RationalConstructor>
+CurveType segment_to_curve_impl(const mfem::Mesh* mesh,
+                                int elem_id,
+                                PolynomialConstructor&& polynomialConstructor,
+                                RationalConstructor&& rationalConstructor)
+{
+  using Point2D = axom::primal::Point<double, 2>;
+
+  const auto* fes = mesh->GetNodes()->FESpace();
+  const auto* fec = fes->FEColl();
+
+  const bool isBernstein = dynamic_cast<const mfem::H1Pos_FECollection*>(fec) != nullptr;
+  const bool isNURBS = dynamic_cast<const mfem::NURBSFECollection*>(fec) != nullptr;
+
+  SLIC_ERROR_IF(!(isBernstein || isNURBS),
+                "MFEM mesh elements must be in either the Bernstein or NURBS basis");
+
+  const int NE = isBernstein ? mesh->GetNE() : fes->GetNURBSext()->GetNP();
+  SLIC_ERROR_IF(NE < elem_id, axom::fmt::format("Mesh does not have {} elements", elem_id));
+
+  const int order = isBernstein ? fes->GetOrder(elem_id) : mesh->NURBSext->GetOrders()[elem_id];
+
+  mfem::Array<int> dofs;
+  mfem::Array<int> vdofs;
+
+  mfem::Vector weights;
+  mfem::Vector v;
+
+  fes->GetElementDofs(elem_id, dofs);
+  fes->GetElementVDofs(elem_id, vdofs);
+  mesh->GetNodes()->GetSubVector(vdofs, v);
+
+  const int p = order + 1;
+  axom::Array<Point2D> points(p, p);
+  if(isBernstein)
+  {
+    points[0] = Point2D {v[0], v[0 + p]};
+    for(int i = 2; i < order; i++)
+    {
+      points[i - 1] = Point2D {v[i], v[i + p]};
+    }
+    points[order] = Point2D {v[1], v[1 + p]};
+
+    return polynomialConstructor(points.data(), p, order);
+  }
+  else  // isNURBS
+  {
+    // temporary assumption is that there are no interior knots
+    // i.e. the NURBS curve is essentially a rational Bezier curve
+
+    for(int i = 0; i < p; i++)
+    {
+      points[i] = Point2D {v[i], v[i + p]};
+    }
+
+    fes->GetNURBSext()->GetWeights().GetSubVector(dofs, weights);
+    return rationalConstructor(points.data(), weights.GetData(), p, order);
+  }
+}
+
+primal::BezierCurve<double, 2> segment_to_curve(const mfem::Mesh* mesh, int elem_id)
+{
+  using BezierCurve2D = primal::BezierCurve<double, 2>;
+  return segment_to_curve_impl<BezierCurve2D>(
+    mesh,
+    elem_id,
+    [](const auto* points, int AXOM_UNUSED_PARAM(npts), int order) {
+      return BezierCurve2D(points, order);
+    },
+    [](const auto* points, const double* weights, int AXOM_UNUSED_PARAM(npts), int order) {
+      return BezierCurve2D(points, weights, order);
+    });
+}
+
+primal::NURBSCurve<double, 2> segment_to_nurbs(const mfem::Mesh* mesh, int elem_id)
+{
+  using NURBSCurve2D = primal::NURBSCurve<double, 2>;
+  return segment_to_curve_impl<NURBSCurve2D>(
+    mesh,
+    elem_id,
+    [](const auto* points, int npts, int order) { return NURBSCurve2D(points, npts, order); },
+    [](const auto* points, const double* weights, int npts, int order) {
+      return NURBSCurve2D(points, weights, npts, order);
+    });
+}
+
+#endif
 
 /*
  * Computes the bounds of the given mesh.

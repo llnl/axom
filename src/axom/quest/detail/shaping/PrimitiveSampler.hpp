@@ -239,9 +239,7 @@ public:
       : axom::ArrayView<ToPoint>(reinterpret_cast<ToPoint*>(pos_coef->HostReadWrite()), nq);
 
     axom::ArrayView<double> inout_view(const_cast<double*>(inout->HostRead()), nq);
-    axom::for_all<ExecSpace>(
-      nq,
-      AXOM_LAMBDA(axom::IndexType i) { inout_view[i] = 0.; });
+    axom::for_all<ExecSpace>(nq, AXOM_LAMBDA(axom::IndexType i) { inout_view[i] = 0.; });
 
     axom::Array<IndexType> offsets(nq, nq);
     axom::Array<IndexType> counts(nq, nq);
@@ -305,14 +303,13 @@ public:
    * (instead of at quadrature points)
    * \warning Not yet implemented
    */
-  void computeVolumeFractionsBaseline(mfem::DataCollection* dc, int sampleRes, int outputOrder)
+  template <int FromDim, int ToDim = DIM>
+  void computeVolumeFractionsBaseline(mfem::DataCollection* AXOM_UNUSED_PARAM(dc),
+                                      int AXOM_UNUSED_PARAM(sampleRes),
+                                      int AXOM_UNUSED_PARAM(outputOrder),
+                                      PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {
     AXOM_ANNOTATE_SCOPE("computeVolumeFractionsBaseline");
-
-    AXOM_UNUSED_VAR(dc);
-    AXOM_UNUSED_VAR(sampleRes);
-    AXOM_UNUSED_VAR(outputOrder);
-
     SLIC_WARNING_ROOT("computeVolumeFractionsBaseline() not implemented yet");
   }
 

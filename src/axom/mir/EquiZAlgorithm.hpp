@@ -108,6 +108,8 @@ protected:
   {
     namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE("EquizAlgorithm");
+    SLIC_ERROR_IF(m_topologyView.numberOfZones() != m_matsetView.numberOfZones(),
+                  "The mesh and the material do not have the same number of zones.");
 
     // Copy the options.
     conduit::Node n_options_copy;
@@ -117,10 +119,10 @@ protected:
 #if defined(AXOM_EQUIZ_DEBUG)
     // Save the MIR input.
     conduit::Node n_tmpInput;
-    n_tmpInput[n_topo.path()].set_external(n_topo);
-    n_tmpInput[n_coordset.path()].set_external(n_coordset);
-    n_tmpInput[n_fields.path()].set_external(n_fields);
-    n_tmpInput[n_matset.path()].set_external(n_matset);
+    n_tmpInput[localPath(n_topo)].set_external(n_topo);
+    n_tmpInput[localPath(n_coordset)].set_external(n_coordset);
+    n_tmpInput[localPath(n_fields)].set_external(n_fields);
+    n_tmpInput[localPath(n_matset)].set_external(n_matset);
     saveMesh(n_tmpInput, "debug_equiz_input");
 #endif
 
@@ -137,12 +139,12 @@ protected:
       // Gather the inputs into a single root but replace the fields with
       // a new node to which we can add additional fields.
       conduit::Node n_root;
-      n_root[n_coordset.path()].set_external(n_coordset);
-      n_root[n_topo.path()].set_external(n_topo);
-      n_root[n_matset.path()].set_external(n_matset);
-      conduit::Node &n_root_coordset = n_root[n_coordset.path()];
-      conduit::Node &n_root_topo = n_root[n_topo.path()];
-      conduit::Node &n_root_matset = n_root[n_matset.path()];
+      n_root[localPath(n_coordset)].set_external(n_coordset);
+      n_root[localPath(n_topo)].set_external(n_topo);
+      n_root[localPath(n_matset)].set_external(n_matset);
+      conduit::Node &n_root_coordset = n_root[localPath(n_coordset)];
+      conduit::Node &n_root_topo = n_root[localPath(n_topo)];
+      conduit::Node &n_root_matset = n_root[localPath(n_matset)];
       conduit::Node &n_root_fields = n_root["fields"];
       for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
       {
@@ -179,10 +181,10 @@ protected:
 
       // Gather the MIR output into a single node.
       conduit::Node n_mirOutput;
-      n_mirOutput[n_newTopo.path()].set_external(n_newTopo);
-      n_mirOutput[n_newCoordset.path()].set_external(n_newCoordset);
-      n_mirOutput[n_newFields.path()].set_external(n_newFields);
-      n_mirOutput[n_newMatset.path()].set_external(n_newMatset);
+      n_mirOutput[localPath(n_newTopo)].set_external(n_newTopo);
+      n_mirOutput[localPath(n_newCoordset)].set_external(n_newCoordset);
+      n_mirOutput[localPath(n_newFields)].set_external(n_newFields);
+      n_mirOutput[localPath(n_newMatset)].set_external(n_newMatset);
   #if defined(AXOM_EQUIZ_DEBUG)
       saveMesh(n_mirOutput, "debug_equiz_mir");
       std::cout << "--- clean ---\n";
@@ -203,10 +205,10 @@ protected:
   #endif
 
       // Move the merged output into the output variables.
-      n_newCoordset.move(n_merged[n_newCoordset.path()]);
-      n_newTopo.move(n_merged[n_newTopo.path()]);
-      n_newFields.move(n_merged[n_newFields.path()]);
-      n_newMatset.move(n_merged[n_newMatset.path()]);
+      n_newCoordset.move(n_merged[localPath(n_newCoordset)]);
+      n_newTopo.move(n_merged[localPath(n_newTopo)]);
+      n_newFields.move(n_merged[localPath(n_newFields)]);
+      n_newMatset.move(n_merged[localPath(n_newMatset)]);
     }
     else if(cleanZones.size() == 0 && mixedZones.size() > 0)
     {
@@ -514,9 +516,9 @@ protected:
     // Make some nodes that will contain the inputs to subsequent iterations.
     // Store them under a single node so the nodes will have names.
     conduit::Node n_Input;
-    conduit::Node &n_InputTopo = n_Input[n_topo.path()];
-    conduit::Node &n_InputCoordset = n_Input[n_coordset.path()];
-    conduit::Node &n_InputFields = n_Input[n_fields.path()];
+    conduit::Node &n_InputTopo = n_Input[localPath(n_topo)];
+    conduit::Node &n_InputCoordset = n_Input[localPath(n_coordset)];
+    conduit::Node &n_InputFields = n_Input[localPath(n_fields)];
 
     // Get the materials from the matset and determine which of them are clean/mixed.
     axom::bump::views::MaterialInformation allMats, cleanMats, mixedMats;
@@ -647,10 +649,10 @@ protected:
     //
     //--------------------------------------------------------------------------
     conduit::Node n_output;
-    n_output[n_newTopo.path()].set_external(n_newTopo);
-    n_output[n_newCoordset.path()].set_external(n_newCoordset);
-    n_output[n_newFields.path()].set_external(n_newFields);
-    n_output[n_newMatset.path()].set_external(n_newMatset);
+    n_output[localPath(n_newTopo)].set_external(n_newTopo);
+    n_output[localPath(n_newCoordset)].set_external(n_newCoordset);
+    n_output[localPath(n_newFields)].set_external(n_newFields);
+    n_output[localPath(n_newMatset)].set_external(n_newMatset);
     saveMesh(n_output, "debug_equiz_output");
 #endif
   }
@@ -913,9 +915,9 @@ protected:
     {
       AXOM_ANNOTATE_SCOPE("Saving input");
       conduit::Node n_mesh_input;
-      n_mesh_input[n_topo.path()].set_external(n_topo);
-      n_mesh_input[n_coordset.path()].set_external(n_coordset);
-      n_mesh_input[n_fields.path()].set_external(n_fields);
+      n_mesh_input[localPath(n_topo)].set_external(n_topo);
+      n_mesh_input[localPath(n_coordset)].set_external(n_coordset);
+      n_mesh_input[localPath(n_fields)].set_external(n_fields);
 
       // save
       std::stringstream ss1;
@@ -1059,9 +1061,9 @@ protected:
     {
       AXOM_ANNOTATE_SCOPE("Saving output");
       conduit::Node mesh;
-      mesh[n_newTopo.path()].set_external(n_newTopo);
-      mesh[n_newCoordset.path()].set_external(n_newCoordset);
-      mesh[n_newFields.path()].set_external(n_newFields);
+      mesh[localPath(n_newTopo)].set_external(n_newTopo);
+      mesh[localPath(n_newCoordset)].set_external(n_newCoordset);
+      mesh[localPath(n_newFields)].set_external(n_newFields);
 
       // save
       std::stringstream ss;

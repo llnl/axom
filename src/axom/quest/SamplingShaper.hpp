@@ -31,6 +31,8 @@
 #include "axom/quest/detail/shaping/shaping_helpers.hpp"
 #include "axom/quest/detail/shaping/InOutSampler.hpp"
 #include "axom/quest/detail/shaping/PrimitiveSampler.hpp"
+#include "axom/quest/detail/shaping/WindingNumberSampler.hpp"
+#include "axom/quest/io/MFEMReader.hpp"
 
 #include "mfem.hpp"
 #include "mfem/linalg/dtensor.hpp"
@@ -47,6 +49,14 @@ namespace quest
 /// \brief Concrete class for sample based shaping
 class SamplingShaper : public Shaper
 {
+public:
+  /// Struct to help choose sampler method: InOut or WindingNumber.
+  enum class SamplingMethod : int
+  {
+    InOut,
+    WindingNumber
+  };
+
 public:
   SamplingShaper(RuntimePolicy execPolicy,
                  int allocatorId,
@@ -70,10 +80,12 @@ public:
     m_inoutArrays.clear();
   }
 
-  //@{
+  ///@{
   //!  @name Functions to get and set shaping parameters related to sampling; supplements parameters in base class
 
   void setSamplingType(shaping::VolFracSampling vfSampling) { m_vfSampling = vfSampling; }
+
+  void setSamplingMethod(SamplingMethod samplingMethod) { m_samplingMethod = samplingMethod; }
 
   void setQuadratureOrder(int quadratureOrder) { m_quadratureOrder = quadratureOrder; }
 
@@ -91,7 +103,7 @@ public:
   /// Registers a function to project from 3D input points to 3D query points
   void setPointProjector33(shaping::PointProjector<3, 3> projector) { m_projector33 = projector; }
 
-  //@}
+  ///@}
 
   /// Returns a pointer to the quadrature function associated with shape \a name if it exists, else nullptr
   mfem::QuadratureFunction* getShapeQFunction(const std::string& name) const
@@ -112,6 +124,7 @@ private:
     {
     case 2:
       count += m_inoutSampler2D ? 1 : 0;
+      count += m_inoutSamplerWN ? 1 : 0;
       break;
     case 3:
       count += m_inoutSampler3D ? 1 : 0;
@@ -139,9 +152,41 @@ private:
     return count2D > 0 ? klee::Dimensions::Two : klee::Dimensions::Three;
   }
 
+  /// Determine whether it is appropriate to use the winding number sampler.
+  bool useWindingNumberSampler(const klee::Shape& shape) const
+  {
+    return this->shapeFormat(shape) == "mfem" &&
+      this->m_samplingMethod == SamplingMethod::WindingNumber;
+  }
+
 public:
-  //@{
+  ///@{
   //!  @name Functions related to the stages for a given shape
+
+  /*!
+   * \brief Load the shape geometry. For MFEM files, geometry is loaded into m_contours.
+   *        Other formats make discrete geometry and load it into m_surface in the Shaper
+   *        base class.
+   *
+   * \param shape The shape to load.
+   */
+  void loadShape(const klee::Shape& shape) override
+  {
+    if(useWindingNumberSampler(shape))
+    {
+      const std::string shapePath =
+        axom::utilities::filesystem::prefixRelativePath(shape.getGeometry().getPath(), m_prefixPath);
+      SLIC_INFO_ROOT("Reading file: " << shapePath << "...");
+      // Read the MFEM file as curved polygon contours for winding number intersection.
+      quest::MFEMReader reader;
+      reader.setFileName(shapePath);
+      reader.read(m_contours);
+    }
+    else
+    {
+      Shaper::loadShape(shape);
+    }
+  }
 
   /// Initializes the spatial index for shaping
   void prepareShapeQuery(klee::Dimensions shapeDimension, const klee::Shape& shape) override
@@ -163,7 +208,14 @@ public:
     // note: ignoring the global shapeDimension for now since it's causing problems
     // reading c2c when the dimension is Three
     AXOM_UNUSED_VAR(shapeDimension);
-    if(this->shapeFormat(shape) == "c2c")
+    if(useWindingNumberSampler(shape))
+    {
+      m_inoutSamplerWN =
+        std::make_unique<shaping::WindingNumberSampler<2>>(shapeName, m_contours.view());
+      m_inoutSamplerWN->computeBounds();
+      m_inoutSamplerWN->initSpatialIndex(this->m_vertexWeldThreshold);
+    }
+    else if(this->shapeFormat(shape) == "c2c" || this->shapeFormat(shape) == "mfem")
     {
       m_inoutSampler2D = std::make_unique<shaping::InOutSampler<2>>(shapeName, m_surfaceMesh);
       m_inoutSampler2D->computeBounds();
@@ -221,12 +273,20 @@ public:
     // Output some logging info and dump the mesh
     if(this->isVerbose() && this->getRank() == 0)
     {
-      const int nVerts = m_surfaceMesh->getNumberOfNodes();
-      const int nCells = m_surfaceMesh->getNumberOfCells();
-      SLIC_INFO(axom::fmt::format("After welding, surface mesh has {} vertices  and {} elements.",
-                                  nVerts,
-                                  nCells));
-      mint::write_vtk(m_surfaceMesh.get(), axom::fmt::format("melded_shape_mesh_{}.vtk", shapeName));
+      if(m_surfaceMesh != nullptr)
+      {
+        const int nVerts = m_surfaceMesh->getNumberOfNodes();
+        const int nCells = m_surfaceMesh->getNumberOfCells();
+        SLIC_INFO(axom::fmt::format("After welding, surface mesh has {} vertices  and {} elements.",
+                                    nVerts,
+                                    nCells));
+        mint::write_vtk(m_surfaceMesh.get(),
+                        axom::fmt::format("melded_shape_mesh_{}.vtk", shapeName));
+      }
+      else if(!m_contours.empty())
+      {
+        SLIC_INFO(axom::fmt::format("Contours contain {} curved polygons.", m_contours.size()));
+      }
     }
   }
 
@@ -248,7 +308,14 @@ public:
     switch(getShapeDimension())
     {
     case klee::Dimensions::Two:
-      runShapeQueryImpl(m_inoutSampler2D.get());
+      if(useWindingNumberSampler(shape))
+      {
+        runShapeQueryImpl(m_inoutSamplerWN.get());
+      }
+      else
+      {
+        runShapeQueryImpl(m_inoutSampler2D.get());
+      }
       break;
     case klee::Dimensions::Three:
       if(this->shapeFormat(shape) == "stl")
@@ -282,6 +349,9 @@ public:
           break;
         }
       }
+      break;
+    case klee::Dimensions::Unspecified:
+      SLIC_ERROR("Unsupported PrimitiveSampler3D requires a 2D or 3D shape");
       break;
     }
   }
@@ -382,6 +452,7 @@ public:
     m_primitiveSampler3D_omp.reset();
     m_primitiveSampler3D_cuda.reset();
     m_primitiveSampler3D_hip.reset();
+    m_inoutSamplerWN.reset();
 
     SLIC_WARNING_IF(
       m_surfaceMesh.use_count() > 1,
@@ -393,7 +464,7 @@ public:
     m_surfaceMesh.reset();
   }
 
-  //@}
+  ///@}
 
 public:
   /**
@@ -514,55 +585,103 @@ public:
   }
 
 private:
-  // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
-  template <int DIM>
-  void runShapeQueryImpl(shaping::InOutSampler<DIM>* shaper)
+  // Handles 2D or 3D shaping for compatible samplers, based on the template and associated parameter
+  template <typename SamplerType>
+  void runShapeQueryImplSampler(SamplerType* shaper)
   {
     // Sample the InOut field at the mesh quadrature points
     const int meshDim = m_dc->GetMesh()->Dimension();
     switch(m_vfSampling)
     {
     case shaping::VolFracSampling::SAMPLE_AT_QPTS:
-      switch(DIM)
+      switch(SamplerType::DIM)
       {
       case 2:
         if(meshDim == 2)
         {
-          shaper->template sampleInOutField<2>(m_dc,
-                                               m_inoutShapeQFuncs,
-                                               m_quadratureOrder,
-                                               m_projector22);
+          shaper->template sampleInOutField<2, 2>(m_dc,
+                                                  m_inoutShapeQFuncs,
+                                                  m_quadratureOrder,
+                                                  m_projector22);
         }
         else if(meshDim == 3)
         {
-          shaper->template sampleInOutField<3>(m_dc,
-                                               m_inoutShapeQFuncs,
-                                               m_quadratureOrder,
-                                               m_projector32);
+          shaper->template sampleInOutField<3, 2>(m_dc,
+                                                  m_inoutShapeQFuncs,
+                                                  m_quadratureOrder,
+                                                  m_projector32);
         }
         break;
       case 3:
         if(meshDim == 2)
         {
-          shaper->template sampleInOutField<2>(m_dc,
-                                               m_inoutShapeQFuncs,
-                                               m_quadratureOrder,
-                                               m_projector23);
+          shaper->template sampleInOutField<2, 3>(m_dc,
+                                                  m_inoutShapeQFuncs,
+                                                  m_quadratureOrder,
+                                                  m_projector23);
         }
         else if(meshDim == 3)
         {
-          shaper->template sampleInOutField<3>(m_dc,
-                                               m_inoutShapeQFuncs,
-                                               m_quadratureOrder,
-                                               m_projector33);
+          shaper->template sampleInOutField<3, 3>(m_dc,
+                                                  m_inoutShapeQFuncs,
+                                                  m_quadratureOrder,
+                                                  m_projector33);
         }
         break;
       }
       break;
     case shaping::VolFracSampling::SAMPLE_AT_DOFS:
-      shaper->computeVolumeFractionsBaseline(m_dc, m_quadratureOrder, m_volfracOrder);
+      switch(SamplerType::DIM)
+      {
+      case 2:
+        if(meshDim == 2)
+        {
+          shaper->template computeVolumeFractionsBaseline<2, 2>(m_dc,
+                                                                m_quadratureOrder,
+                                                                m_volfracOrder,
+                                                                m_projector22);
+        }
+        else if(meshDim == 3)
+        {
+          shaper->template computeVolumeFractionsBaseline<3, 2>(m_dc,
+                                                                m_quadratureOrder,
+                                                                m_volfracOrder,
+                                                                m_projector32);
+        }
+        break;
+      case 3:
+        if(meshDim == 2)
+        {
+          shaper->template computeVolumeFractionsBaseline<2, 3>(m_dc,
+                                                                m_quadratureOrder,
+                                                                m_volfracOrder,
+                                                                m_projector23);
+        }
+        else if(meshDim == 3)
+        {
+          shaper->template computeVolumeFractionsBaseline<3, 3>(m_dc,
+                                                                m_quadratureOrder,
+                                                                m_volfracOrder,
+                                                                m_projector33);
+        }
+        break;
+      }
       break;
     }
+  }
+
+  // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
+  template <int DIM>
+  void runShapeQueryImpl(shaping::InOutSampler<DIM>* shaper)
+  {
+    runShapeQueryImplSampler(shaper);
+  }
+
+  // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
+  template <int DIM>
+  void runShapeQueryImpl(shaping::WindingNumberSampler<DIM>* shaper)
+  {
+    runShapeQueryImplSampler(shaper);
   }
 
   // Handles 2D or 3D shaping for PrimitiveSampler, based on the template and associated parameter
@@ -582,17 +701,17 @@ private:
       case 3:
         if(meshDim == 2)
         {
-          shaper->template sampleInOutField<2>(m_dc,
-                                               m_inoutShapeQFuncs,
-                                               m_quadratureOrder,
-                                               m_projector23);
+          shaper->template sampleInOutField<2, 3>(m_dc,
+                                                  m_inoutShapeQFuncs,
+                                                  m_quadratureOrder,
+                                                  m_projector23);
         }
         else if(meshDim == 3)
         {
-          shaper->template sampleInOutField<3>(m_dc,
-                                               m_inoutShapeQFuncs,
-                                               m_quadratureOrder,
-                                               m_projector33);
+          shaper->template sampleInOutField<3, 3>(m_dc,
+                                                  m_inoutShapeQFuncs,
+                                                  m_quadratureOrder,
+                                                  m_projector33);
         }
         break;
       }
@@ -841,6 +960,9 @@ private:
   std::unique_ptr<shaping::PrimitiveSampler<3, cuda_exec>> m_primitiveSampler3D_cuda;
   std::unique_ptr<shaping::PrimitiveSampler<3, hip_exec>> m_primitiveSampler3D_hip;
 
+  std::unique_ptr<shaping::WindingNumberSampler<2>> m_inoutSamplerWN;
+  axom::Array<axom::primal::CurvedPolygon<double, 2>> m_contours;
+
   std::set<std::string> m_knownMaterials;
 
   shaping::PointProjector<2, 2> m_projector22 {};
@@ -851,6 +973,7 @@ private:
   shaping::VolFracSampling m_vfSampling {shaping::VolFracSampling::SAMPLE_AT_QPTS};
   int m_quadratureOrder {5};
   int m_volfracOrder {2};
+  SamplingMethod m_samplingMethod {SamplingMethod::InOut};
 };
 
 }  // namespace quest

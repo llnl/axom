@@ -141,8 +141,8 @@
  *  when compiling and linking with -fsanitize=undefined
  */
 #if defined(__has_attribute)
-  #if __has_attribute(no_sanitize_undefined)
-    #define AXOM_SUPPRESS_UBSAN __attribute__((no_sanitize_undefined))
+  #if __has_attribute(no_sanitize)
+    #define AXOM_SUPPRESS_UBSAN __attribute__((no_sanitize("undefined")))
   #else
     #define AXOM_SUPPRESS_UBSAN
   #endif
@@ -218,6 +218,27 @@
   #define AXOM_DEBUG_PARAM(_x) _x
 #else
   #define AXOM_DEBUG_PARAM(_x)
+#endif
+
+/*!
+ * \def AXOM_MAYBE_UNUSED
+ * \brief Macro that is used to silence compiler warnings about variables that
+ *        might be unused in some build configurations.
+ *
+ * \note This macro can be used for the same purpose as AXOM_UNUSED_VAR and AXOM_DEBUG_PARAM but it
+ *       is applied before the variable type declaration.
+ * \code
+ *
+ *  AXOM_MAYBE_UNUSED double myVar = ...
+ *  SLIC_ASSERT(myVar > 0)
+ *
+ * \endcode
+ */
+#if __cplusplus >= 201703L
+  // C++17 and later.
+  #define AXOM_MAYBE_UNUSED [[maybe_unused]]
+#else
+  #define AXOM_MAYBE_UNUSED
 #endif
 
 /*!
@@ -311,7 +332,7 @@
     typedef gtest_TypeParam_ TypeParam;                                                           \
     void TestBody() override;                                                                     \
   };                                                                                              \
-  static bool gtest_##CaseName##_##TestName##_registered_ GTEST_ATTRIBUTE_UNUSED_ =               \
+  GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED static bool gtest_##CaseName##_##TestName##_registered_ = \
     ::testing::internal::TypeParameterizedTest<                                                   \
       CaseName,                                                                                   \
       ::testing::internal::TemplateSel<GTEST_TEST_CLASS_NAME_(CaseName, TestName)>,               \
