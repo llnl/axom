@@ -57,6 +57,43 @@ if (UMPIRE_DIR)
     set(UMPIRE_FOUND TRUE)
 
     blt_convert_to_system_includes(TARGET umpire)
+
+    # Check whether the Umpire defines symbols for shared memory
+    blt_check_code_compiles(CODE_COMPILES UMPIRE_SHARED_MEMORY
+                            VERBOSE_OUTPUT OFF
+                            DEPENDS_ON umpire
+                            SOURCE_STRING "
+    #include <umpire/config.hpp>
+    #if defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY)
+    int main() { return 0; }
+    #else
+    #error Macros not defined
+    #endif
+    ")
+    if (AXOM_ENABLE_MPI AND UMPIRE_SHARED_MEMORY)
+        set(AXOM_USE_UMPIRE_SHARED_MEMORY TRUE)
+    else()
+        set(AXOM_USE_UMPIRE_SHARED_MEMORY FALSE)
+    endif()
+    message(STATUS "  Umpire supports shared memory: ${AXOM_USE_UMPIRE_SHARED_MEMORY}")
+
+    # If it looks like Umpire supports shared memory (and the header file exists)
+    # then print out the default type of shared memory.
+    set(UMPIRE_CONFIG_HPP "${UMPIRE_DIR}/include/umpire/config.hpp")
+    if(AXOM_USE_UMPIRE_SHARED_MEMORY AND EXISTS "${UMPIRE_CONFIG_HPP}")
+        file(READ "${UMPIRE_CONFIG_HPP}" UMPIRE_CONFIG_HPP_CONTENTS)
+        # Try to match: #define UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE <value>
+        string(REGEX MATCH "#define[ \t]+UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE[ \t]+([^\n\r ]+)" UMPIRE_MACRO_LINE "${UMPIRE_CONFIG_HPP_CONTENTS}")
+        if(UMPIRE_MACRO_LINE)
+            # Extract just the value (the first capture group)
+            string(REGEX REPLACE ".*#define[ \t]+UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE[ \t]+\"([^\"]*)\".*" "\\1" UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE "${UMPIRE_MACRO_LINE}")
+            message(STATUS "  UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE: ${UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE}")
+        else()
+            message(STATUS "  UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE is not defined in ${UMPIRE_CONFIG_HPP}")
+        endif()
+    else()
+        message(WARNING "  Could not find ${UMPIRE_CONFIG_HPP}")
+    endif()
 else()
     message(STATUS "Umpire support is OFF")
     set(UMPIRE_FOUND FALSE)

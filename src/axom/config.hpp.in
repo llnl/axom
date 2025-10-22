@@ -54,7 +54,6 @@
 #cmakedefine AXOM_USE_CUDA
 #cmakedefine AXOM_USE_HIP
 #cmakedefine AXOM_USE_MPI
-#cmakedefine AXOM_USE_MPI3
 #cmakedefine AXOM_USE_MPIF_HEADER
 #cmakedefine AXOM_USE_OPENMP
 
@@ -76,6 +75,11 @@
 #cmakedefine AXOM_USE_SOL
 #cmakedefine AXOM_USE_SPARSEHASH
 #cmakedefine AXOM_USE_UMPIRE
+
+/*
+ * Compiler defines for library capabilities
+ */
+#cmakedefine AXOM_USE_UMPIRE_SHARED_MEMORY
 
 /*
  * Compiler defines for third-party executables
