@@ -131,15 +131,22 @@ class TestFortranExampleIntegrationJSON(unittest.TestCase):
         long_arr = [i*4 for i in nums]
         curveset = "my_curveset"
         self.assertEqual(list(record["curve_sets"][curveset]['independent'].keys()),
-                         sorted(['my_indep_curve_double', 'my_indep_curve_real', 'my_indep_curve_int', 'my_indep_curve_long'] ))
+                         sorted(['my_indep_curve_double', 'my_indep_curve_real',
+                                 'my_indep_curve_int', 'my_indep_curve_long'] ))
+        self.assertEqual(list(record2["curve_sets"]["my_other_curveset"]['independent'].keys()),
+                         sorted(['my_indep_curve_double', 'my_indep_curve_real',
+                                 'my_indep_curve_int', 'my_indep_curve_long'], reverse=True))
         self.assertEqual(list(record["curve_sets"][curveset]['dependent'].keys()),
-                         sorted(['my_dep_curve_double', 'my_dep_curve_double_2', 'my_dep_curve_real', 'my_dep_curve_int', 'my_dep_curve_long']))
+                         sorted(['my_dep_curve_double', 'my_dep_curve_double_2',
+                                 'my_dep_curve_real', 'my_dep_curve_int',
+                                 'my_dep_curve_long']))
         for kind, loc in (("indep", "independent"), ("dep", "dependent")):
             for val_type, target in (("real", real_arr), ("double", double_arr), ("int", int_arr), ("long", long_arr)):
                 name = "my_{}_curve_{}".format(kind, val_type)
                 self.assertEqual(target, record["curve_sets"][curveset][loc][name]["value"])
                 if val_type == "double":
                     self.assertEqual(target, record2["curve_sets"]["my_other_curveset"][loc][name]["value"])
+
 
         double_2_name = "my_dep_curve_double_2"
         self.assertEqual(double_arr, record["curve_sets"][curveset]["dependent"][double_2_name]["value"])
@@ -270,6 +277,9 @@ class TestFortranExampleIntegrationHDF5(unittest.TestCase):
             self.assertEqual(tags_value, ["new_fancy_tag"])
 
             # Validate Curves
+
+            # Validate order set on record
+            self.assertEqual(list(record2["curve_sets"]["my_other_curveset"]["independent"].keys()), sorted(['my_indep_curve_double', 'my_indep_curve_real', 'my_indep_curve_int', 'my_indep_curve_long'], reverse=True))
             curveset_group = record["curve_sets"]["my_curveset"]
             independent_group = curveset_group["independent"]
             dependent_group = curveset_group["dependent"]

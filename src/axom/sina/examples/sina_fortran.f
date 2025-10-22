@@ -90,7 +90,10 @@ program example
   
   ! create sina record and document
   print *,'Creating the document'
+  ! changing default order for my_curveset to reverse alphabetical
+  call sina_set_curves_order(3)
   call sina_create_record(rec_id)
+  ! set this record curves order to alphabetical
   call sina_set_record_curves_order(rec_id, 2)
   print *,'Creating the document and second record'
   custom_type = make_cstring('custom_type')
@@ -162,10 +165,13 @@ program example
   call sina_add_curve(name2, curve, double_arr, size(double_arr), independent, rec2_id)
   curve = make_cstring('my_indep_curve_real')
   call sina_add_curve(name, curve, real_arr, size(real_arr), independent)
+  call sina_add_curve(name2, curve, real_arr, size(real_arr), independent, rec2_id)
   curve = make_cstring('my_indep_curve_int')
   call sina_add_curve(name, curve, int_arr, size(int_arr), independent)
+  call sina_add_curve(name2, curve, int_arr, size(int_arr), independent, rec2_id)
   curve = make_cstring('my_indep_curve_long')
   call sina_add_curve(name, curve, long_arr, size(long_arr), independent)
+  call sina_add_curve(name2, curve, long_arr, size(long_arr), independent, rec2_id)
   curve = make_cstring('my_dep_curve_double')
   independent = .false.
   call sina_add_curve(name, curve, double_arr, size(double_arr), independent)

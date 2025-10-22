@@ -500,6 +500,22 @@ extern "C" void sina_add_curve_double_(char *curveset_name,
 // Curve Ordering Functions 
 //=============================================================================
 
+
+extern "C" void sina_set_curves_order_(int* curve_order)
+{
+        axom::sina::CurveSet::CurveOrder order;
+        switch (*curve_order) {
+            case 0: order = axom::sina::CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST; break;
+            case 1: order = axom::sina::CurveSet::CurveOrder::REGISTRATION_NEWEST_FIRST; break;
+            case 2: order = axom::sina::CurveSet::CurveOrder::ALPHABETIC; break;
+            case 3: order = axom::sina::CurveSet::CurveOrder::REVERSE_ALPHABETIC; break;
+            default: return;
+        }
+        
+        axom::sina::setDefaultCurveOrder(order);
+        return;
+}
+
 extern "C" void sina_set_record_curves_order_(char* recId, int* curve_order)
 {
     axom::sina::Record *sina_record = Sina_Get_Record(recId);

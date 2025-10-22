@@ -170,6 +170,12 @@ module sina_functions
   end interface sina_write_document
     
   interface
+    subroutine sina_set_curves_order(curve_order)
+      integer curve_order
+    end subroutine sina_set_curves_order
+  end interface
+
+  interface
     subroutine sina_set_record_curves_order(recId, curve_order)
       character(*) recId
       integer curve_order
