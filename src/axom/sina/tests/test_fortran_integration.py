@@ -44,7 +44,14 @@ class TestFortranExampleIntegrationJSON(unittest.TestCase):
 
         if not os.path.exists(os.path.join(
                 cls.binary_dir, "examples/sina_fortran_ex")):
-            subprocess.run(["make", "sina_fortran_ex"])
+            p = subprocess.Popen(["make", "sina_fortran_ex"], stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+            o, e = p.communicate()
+            if p.returncode != 0:
+                print("Failed making sina fortran executable")
+                print("Output: ", o)
+                print("Error: ", e)
+            cls.assertEqual(p.returncode, 0)
 
         os.chdir(cwd)
 
