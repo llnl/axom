@@ -44,10 +44,24 @@ public:
    * \param dims The dimensions we're indexing.
    */
   AXOM_HOST_DEVICE
-  StructuredIndexing() : m_dimensions() { }
+  StructuredIndexing() : m_dimensions()
+  {
+    for(int d = 0; d < NDIMS; d++)
+    {
+      m_dimensions[d] = 1;
+    }
+  }
 
   AXOM_HOST_DEVICE
-  StructuredIndexing(const LogicalIndex &dims) : m_dimensions(dims) { }
+  StructuredIndexing(const LogicalIndex &dims) : m_dimensions(dims)
+  {
+#if !defined(AXOM_DEVICE_CODE)
+    for(int d = 0; d < NDIMS; d++)
+    {
+      SLIC_ERROR_IF(m_dimensions[d] < 1, "Dimensions must greater than or equal to 1.");
+    }
+#endif
+  }
 
   /*!
    * \brief Return the number of points in the index space.
