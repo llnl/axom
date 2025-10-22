@@ -405,6 +405,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const VariableShape<T, 3> &shape1,
  * \tparam SrcMatsetView The view type for the source matset.
  * \tparam TargetTopologyView The view type for the target topology.
  * \tparam TargetCoordsetView The view type for the target coordset.
+ * \tparam MAX_VERTS The maximum number of vertices allowed in a polygon. This
+ *                   value is used only in 2D.
  * \tparam makeFaces Make faces instead of proper Polyhedron zones when polyhedra
  *                   are involved. This enables faster conversion between Blueprint
  *                   and Axom since making planes is less complicated than Axom's
@@ -421,6 +423,7 @@ template <typename ExecSpace,
           typename SrcMatsetView,
           typename TargetTopologyView,
           typename TargetCoordsetView,
+          int MAX_VERTS = 12,
           bool makeFaces = true>
 class TopologyMapper
 {
@@ -428,8 +431,8 @@ public:
   static_assert(SrcCoordsetView::dimension() == TargetCoordsetView::dimension(),
                 "coordset dimension mismatch");
 
-  using SrcShapeView = PrimalAdaptor<SrcTopologyView, SrcCoordsetView, makeFaces>;
-  using TargetShapeView = PrimalAdaptor<TargetTopologyView, TargetCoordsetView>;
+  using SrcShapeView = PrimalAdaptor<SrcTopologyView, SrcCoordsetView, MAX_VERTS, makeFaces>;
+  using TargetShapeView = PrimalAdaptor<TargetTopologyView, TargetCoordsetView, MAX_VERTS>;
 
   /**
    * \brief Constructor

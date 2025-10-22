@@ -64,6 +64,8 @@ namespace mir
  * \tparam IndexPolicy The structured mesh indexing policy.
  * \tparam CoordsetView The view type that describes the coordinates.
  * \tparam MatsetView The view type that describes matset.
+ * \tparam MAX_VERTS The maximum number of vertices allowed in a polygon. This
+ *                   value is used only in 2D.
  *
  * \note We template on IndexPolicy instead of TopologyView so we can enforce a
  *       StructuredTopologyView on the algorithm. This is done because ELVIRA
@@ -75,7 +77,7 @@ namespace mir
  *       input coordset, topology, and matset will be copied to the output. In
  *       that case, the types will depend on the input types.
  */
-template <typename ExecSpace, typename IndexPolicy, typename CoordsetView, typename MatsetView>
+template <typename ExecSpace, typename IndexPolicy, typename CoordsetView, typename MatsetView, int MAX_VERTS = 12>
 class ElviraAlgorithm : public axom::mir::MIRAlgorithm
 {
 public:
@@ -86,21 +88,20 @@ protected:
   static constexpr int NDIMS = IndexPolicy::dimension();
   static constexpr int StencilSize = elvira::getStencilSize(NDIMS);
   static constexpr int numVectorComponents = 3;
-  static constexpr int MAX_POLYGON_VERTS = 12;
 
   // Determine the output type from the clip operations. Those are the shape
   // types that we're emitting into the MIR output. Create the builder.
   using CoordType = typename CoordsetView::value_type;
   using ClipResultType = typename std::conditional<
     NDIMS == 2,
-    axom::primal::Polygon<CoordType, 2, axom::primal::PolygonArray::Static, MAX_POLYGON_VERTS>,
+    axom::primal::Polygon<CoordType, 2, axom::primal::PolygonArray::Static, MAX_VERTS>,
     axom::primal::Polyhedron<CoordType, 3>>::type;
 
   using VectorType = axom::primal::Vector<CoordType, NDIMS>;
   using PointType = axom::primal::Point<CoordType, NDIMS>;
   using PlaneType = axom::primal::Plane<CoordType, NDIMS>;
 
-  using ShapeView = axom::bump::PrimalAdaptor<TopologyView, CoordsetView>;
+  using ShapeView = axom::bump::PrimalAdaptor<TopologyView, CoordsetView, MAX_VERTS>;
   using Builder =
     detail::TopologyBuilder<ExecSpace, CoordsetView, TopologyView, MatsetView, ClipResultType, NDIMS>;
   using BuilderView = typename Builder::View;
