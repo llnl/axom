@@ -662,8 +662,7 @@ public:
     const double A = M_PI / 16.;
     const double sinA = sin(A);
     const double cosA = cos(A);
-    const double M[2][2] = {{cosA, -sinA},
-                            {sinA, cosA}};
+    const double M[2][2] = {{cosA, -sinA}, {sinA, cosA}};
     for(conduit::index_t i = 0; i < x.number_of_elements(); i++)
     {
       xp[i] = M[0][0] * x[i] + M[0][1] * y[i];
@@ -677,12 +676,13 @@ public:
   static void mapping_target1(conduit::Node &n_dev)
   {
     // Wrap polygonal mesh in views.
-    auto srcCoordset =
-      views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/coords"]);
+    auto srcCoordset = views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/coords"]);
     using SrcCoordsetView = decltype(srcCoordset);
 
     const conduit::Node &n_srcTopo = n_dev["topologies/topo"];
-    auto srcTopo = views::make_unstructured_single_shape_topology<views::PolygonShape<std::uint64_t>>::view(n_srcTopo);
+    auto srcTopo =
+      views::make_unstructured_single_shape_topology<views::PolygonShape<std::uint64_t>>::view(
+        n_srcTopo);
     using SrcTopologyView = decltype(srcTopo);
 
     const conduit::Node &n_srcMatset = n_dev["matsets/mat"];
@@ -714,12 +714,13 @@ public:
   static void mapping_target2(conduit::Node &n_dev)
   {
     // Wrap polygonal mesh in views.
-    auto srcCoordset =
-      views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/coords"]);
+    auto srcCoordset = views::make_explicit_coordset<double, 2>::view(n_dev["coordsets/coords"]);
     using SrcCoordsetView = decltype(srcCoordset);
 
     const conduit::Node &n_srcTopo = n_dev["topologies/topo"];
-    auto srcTopo = views::make_unstructured_single_shape_topology<views::PolygonShape<std::uint64_t>>::view(n_srcTopo);
+    auto srcTopo =
+      views::make_unstructured_single_shape_topology<views::PolygonShape<std::uint64_t>>::view(
+        n_srcTopo);
     using SrcTopologyView = decltype(srcTopo);
 
     const conduit::Node &n_srcMatset = n_dev["matsets/mat"];
@@ -732,13 +733,20 @@ public:
     using TargetCoordsetView = decltype(targetCoordset);
 
     const conduit::Node &n_targetTopo = n_dev["topologies/target2"];
-    auto targetTopo = views::make_unstructured_single_shape_topology<views::PolygonShape<std::uint64_t>>::view(n_targetTopo);
+    auto targetTopo =
+      views::make_unstructured_single_shape_topology<views::PolygonShape<std::uint64_t>>::view(
+        n_targetTopo);
     using TargetTopologyView = decltype(targetTopo);
 
     // Make new VFs via mapper.
-    constexpr int MAX_VERTS = 16; // Use a larger MAX_VERTS to handle oct-oct clipping.
-    using Mapper =
-      bump::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView, MAX_VERTS>;
+    constexpr int MAX_VERTS = 16;  // Use a larger MAX_VERTS to handle oct-oct clipping.
+    using Mapper = bump::TopologyMapper<ExecSpace,
+                                        SrcTopologyView,
+                                        SrcCoordsetView,
+                                        SrcMatsetView,
+                                        TargetTopologyView,
+                                        TargetCoordsetView,
+                                        MAX_VERTS>;
     Mapper mapper(srcTopo, srcCoordset, srcMatset, targetTopo, targetCoordset);
     conduit::Node n_opts;
     n_opts["source/matsetName"] = "mat";
@@ -753,7 +761,7 @@ public:
     //const auto material_ids = utils::make_array_view<int>(matset["material_ids"]);
     const auto indices = utils::make_array_view<int>(matset["indices"]);
     const auto sizes = utils::make_array_view<int>(matset["sizes"]);
-    const auto offsets = utils::make_array_view<int>(matset["offsets"]); 
+    const auto offsets = utils::make_array_view<int>(matset["offsets"]);
 
     const int nzones = sizes.size();
     int badZones = 0;
