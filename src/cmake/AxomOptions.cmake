@@ -44,9 +44,6 @@ cmake_dependent_option(AXOM_ENABLE_DOCS "Enables Axom Docs" ON "ENABLE_DOCS" OFF
 cmake_dependent_option(AXOM_ENABLE_EXAMPLES "Enables Axom Examples" ON "ENABLE_EXAMPLES" OFF)
 option(AXOM_ENABLE_TOOLS "Enables Axom Tools" ON)
 
-cmake_dependent_option(AXOM_ENABLE_MPI3 "Enables use of MPI-3 features" OFF "ENABLE_MPI" OFF)
-mark_as_advanced(AXOM_ENABLE_MPI3)
-
 #--------------------------------------------------------------------------
 # Option to control whether AXOM_DEFINE compiler define is enabled
 #

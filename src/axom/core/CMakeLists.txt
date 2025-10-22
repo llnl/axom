@@ -107,6 +107,7 @@ set(core_sources
 
     numerics/polynomial_solvers.cpp
 
+    memory_management.cpp
     Path.cpp
     Types.cpp
     )

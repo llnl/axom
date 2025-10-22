@@ -157,6 +157,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("umpire@6.0.0", when="@0.6.0")
         depends_on("umpire@5:5.0.1", when="@:0.5.0")
         depends_on("umpire+openmp", when="+openmp")
+        depends_on("umpire+mpi3_shmem", when="+mpi")
 
     with when("+raja"):
         depends_on("raja")
