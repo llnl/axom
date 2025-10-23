@@ -130,6 +130,18 @@ public:
       case ST_QUA:
         os << "ST_QUA";
         break;
+      case ST_POLY5:
+        os << "ST_POLY5";
+        break;
+      case ST_POLY6:
+        os << "ST_POLY6";
+        break;
+      case ST_POLY7:
+        os << "ST_POLY7";
+        break;
+      case ST_POLY8:
+        os << "ST_POLY8";
+        break;
       case ST_TET:
         os << "ST_TET";
         break;
@@ -236,6 +248,18 @@ public:
         break;
       case ST_QUA:
         retval = 2 + 4;
+        break;
+      case ST_POLY5:
+        retval = 2 + 5;
+        break;
+      case ST_POLY6:
+        retval = 2 + 6;
+        break;
+      case ST_POLY7:
+        retval = 2 + 7;
+        break;
+      case ST_POLY8:
+        retval = 2 + 8;
         break;
       case ST_TET:
         retval = 2 + 4;
@@ -437,7 +461,7 @@ public:
     std::vector<size_t> s;
     if(dim == -1 || dim == 2)
     {
-      for(const auto value : std::vector<size_t> {ST_TRI, ST_QUA})
+      for(const auto value : std::vector<size_t> {ST_TRI, ST_QUA, ST_POLY5, ST_POLY6, ST_POLY7, ST_POLY8})
       {
         s.push_back(value);
       }
@@ -491,6 +515,38 @@ private:
                              startClipShapesQua,
                              clipShapesQua,
                              clipShapesQuaSize);
+      }
+      else if(shape == ST_POLY5)
+      {
+        m_tables[index].load(numClipCasesPoly5,
+                             numClipShapesPoly5,
+                             startClipShapesPoly5,
+                             clipShapesPoly5,
+                             clipShapesPoly5Size);
+      }
+      else if(shape == ST_POLY6)
+      {
+        m_tables[index].load(numClipCasesPoly6,
+                             numClipShapesPoly6,
+                             startClipShapesPoly6,
+                             clipShapesPoly6,
+                             clipShapesPoly6Size);
+      }
+      else if(shape == ST_POLY7)
+      {
+        m_tables[index].load(numClipCasesPoly7,
+                             numClipShapesPoly7,
+                             startClipShapesPoly7,
+                             clipShapesPoly7,
+                             clipShapesPoly7Size);
+      }
+      else if(shape == ST_POLY8)
+      {
+        m_tables[index].load(numClipCasesPoly8,
+                             numClipShapesPoly8,
+                             startClipShapesPoly8,
+                             clipShapesPoly8,
+                             clipShapesPoly8Size);
       }
       else if(shape == ST_TET)
       {

@@ -9,6 +9,7 @@
 // NOTE: The values for EA-EL and N0-N3 were reduced.
 // NOTE: We're using AXOM_BUMP_EXPORT instead of VISIT_VTK_LIGHT_API throughout.
 // NOTE: All #define were changed to constexpr variables to avoid symbol collisions.
+// NOTE: We added ST_POLY5 through ST_POLY8.
 // clang-format off
 
 #include "axom/export/bump.h"
@@ -81,9 +82,13 @@ constexpr unsigned char ST_WDG = 102;
 constexpr unsigned char ST_HEX = 103;
 constexpr unsigned char ST_TRI = 104;
 constexpr unsigned char ST_QUA = 105;
-constexpr unsigned char ST_VTX = 106;
-constexpr unsigned char ST_LIN = 107;
-constexpr unsigned char ST_PNT = 108;
+constexpr unsigned char ST_POLY5 = 106;
+constexpr unsigned char ST_POLY6 = 107;
+constexpr unsigned char ST_POLY7 = 108;
+constexpr unsigned char ST_POLY8 = 109;
+constexpr unsigned char ST_VTX = 110;
+constexpr unsigned char ST_LIN = 111;
+constexpr unsigned char ST_PNT = 112;
 
 // Colors
 constexpr unsigned char COLOR0 =  120;
