@@ -75,7 +75,7 @@ inline double evaluate_scalar_line_integral_component(const primal::NURBSCurve<T
                                                       Lambda&& scalar_integrand,
                                                       const int npts)
 {
-  auto beziers = n.extractBezier();
+  const auto beziers = n.extractBezier();
   double total_integral = 0.0;
   for(int i = 0; i < beziers.size(); ++i)
   {
@@ -164,7 +164,7 @@ inline double evaluate_vector_line_integral_component(const primal::NURBSCurve<T
                                                       Lambda&& vec_field,
                                                       const int npts)
 {
-  auto beziers = n.extractBezier();
+  const auto beziers = n.extractBezier();
   double total_integral = 0.0;
   for(int i = 0; i < beziers.size(); ++i)
   {

@@ -463,7 +463,7 @@ TEST(primal_integral, evaluate_integral_nurbs_gwn_cache)
 
   // Test integrals with same integrand and curves as `evaluate_integral_rational`,
   //  but with curves added to detail::NURBSCurveGWNCache objects to ensure template compatibility,
-  //  even if there isn't compelling reason to use GWN caches for this purpose
+  //  even if there isn't a compelling reason to use GWN caches for this purpose
 
   // Elliptical arc shape
   Point2D ellipse_nodes[] = {Point2D {2.0, 0.0}, Point2D {2.0, 1.0}, Point2D {0.0, 1.0}};

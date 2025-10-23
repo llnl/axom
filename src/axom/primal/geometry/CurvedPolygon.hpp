@@ -167,7 +167,7 @@ public:
   /// Splits an edge "in place"
   void splitEdge(int idx, T t)
   {
-    SLIC_ASSERT(idx < static_cast<int>(m_edges.size()));
+    SLIC_ASSERT(idx >= 0 && idx < static_cast<int>(m_edges.size()));
     AXOM_STATIC_ASSERT_MSG(!internal::has_cached_data<CurveType>::value,
                            "splitEdge cannot be called on objects with associated cache data");
 

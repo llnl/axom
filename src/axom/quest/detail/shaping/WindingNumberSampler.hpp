@@ -65,7 +65,7 @@ public:
 
   using CurvedPolygonType = primal::CurvedPolygon<axom::primal::NURBSCurve<double, 2>>;
   using GeometryView = typename axom::ArrayView<CurvedPolygonType>;
-  
+
   using ContourCacheType = primal::CurvedPolygon<axom::primal::detail::NURBSCurveGWNCache<double>>;
   using ContourCacheArray = typename axom::Array<ContourCacheType>;
 
@@ -83,7 +83,7 @@ public:
    */
   WindingNumberSampler(const std::string& shapeName, GeometryView geomView) : m_shapeName(shapeName)
   {
-    for(auto & contour : geomView)
+    for(const auto& contour : geomView)
     {
       m_contourCaches.push_back(ContourCacheType(contour));
     }
