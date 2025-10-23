@@ -10,6 +10,7 @@
 #include "axom/config.hpp"
 
 #include "core_types.hpp"
+#include "core_shared_memory.hpp"
 
 int main(int argc, char* argv[])
 {

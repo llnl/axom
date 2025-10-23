@@ -28,13 +28,6 @@
       "+devtools~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx942,gfx90a %rocm_6_3_1 ^hip@6.3.1 ^hipblas@6.3.1 ^hipsparse@6.3.1 ^hsa-rocr-dev@6.3.1 ^rocprim@6.3.1 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
       "+devtools~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx942,gfx90a %cce_20 ^hip@6.4.2 ^hipblas@6.4.2 ^hipsparse@6.4.2 ^hsa-rocr-dev@6.4.2  ^rocprim@6.4.2 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion" ],
 
-    "__comment__":"# Note: clang-ibm + raja+openmp causes runtime failures, turning it off until there is an alternative",
-    "blueos_3_ppc64le_ib_p9":
-    [ "clang@10.0.1.1+devtools+mfem+c2c+profiling",
-      "clang@10.0.1.2+devtools+mfem+c2c+profiling+cuda cuda_arch=70 ^raja+openmp+cuda ^umpire+openmp+cuda",
-      "gcc@8.3.1.1+devtools~mfem+c2c+profiling",
-      "gcc@8.3.1.2+devtools~mfem+c2c+profiling+cuda cuda_arch=70 ^raja+openmp+cuda ^umpire+openmp+cuda" ],
-
     "darwin-x86_64":
     [ "clang@9.0.0+devtools+mfem" ]
 }

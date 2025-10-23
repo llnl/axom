@@ -109,6 +109,7 @@ set(core_sources
     numerics/polynomial_solvers.cpp
     numerics/quadrature.cpp
 
+    memory_management.cpp
     Path.cpp
     Types.cpp
     )
