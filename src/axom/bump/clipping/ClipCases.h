@@ -168,6 +168,10 @@ constexpr unsigned char ST_MAX = (ST_PNT + 1);
 
 extern AXOM_BUMP_EXPORT const size_t clipShapesTriSize;
 extern AXOM_BUMP_EXPORT const size_t clipShapesQuaSize;
+extern AXOM_BUMP_EXPORT const size_t clipShapesPoly5Size;
+extern AXOM_BUMP_EXPORT const size_t clipShapesPoly6Size;
+extern AXOM_BUMP_EXPORT const size_t clipShapesPoly7Size;
+extern AXOM_BUMP_EXPORT const size_t clipShapesPoly8Size;
 extern AXOM_BUMP_EXPORT const size_t clipShapesTetSize;
 extern AXOM_BUMP_EXPORT const size_t clipShapesPyrSize;
 extern AXOM_BUMP_EXPORT const size_t clipShapesWdgSize;
