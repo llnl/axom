@@ -123,7 +123,8 @@ void compute_gauss_legendre_data(int npts,
     nodes[i - 1] = xi;
     nodes[n - i] = 1.0 - xi;
 
-    // Evaluate the weight as w_i = 2 / (1 - z^2) / P'_n(z)^2, with z \in [-1, 1]
+    // For z \in [-1, 1], w_i = 2 / (1 - z^2) / P'_n(z)^2.
+    // For nodes[i] = xi = (1 - z)/2 \in [0, 1], weights[i] = 0.5 * w_i
     weights[i - 1] = weights[n - i] = 1.0 / (4.0 * xi * (1.0 - xi) * Pp_n * Pp_n);
   }
 }
