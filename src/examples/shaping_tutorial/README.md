@@ -15,9 +15,9 @@ Our focus application in this tutorial is a **"Shaping"** application, which per
 
 ## Tutorial roadmap
 
-This tutorial showcases several features of Axom by incrementally building up an application that performs shaping on a computational mesh
+This tutorial showcases several features of Axom by incrementally building up an application that performs shaping on a computational mesh.
 
-* [Lesson 00](lesson_00/README.md) provides a brief overview of Axom and develops a simple application against an installed version of Axom
+* [Lesson 00](lesson_00/README.md) provides a brief overview of Axom and develops a simple application against an installed version of Axom.
 * [Lesson 01](lesson_01/README.md) uses Axom's `Sidre` component to structure Cartesian mesh metadata (bounding box and resolution) and generate a Conduit Mesh Blueprint representation.
 * [Lesson 02](lesson_02/README.md) focuses on Axom's `Inlet` component to define, parse, and validate simulation input for mesh metadata.
 * [Lesson 03](lesson_03/README.md) describes geometry setup for multimaterial simulation using Axom's `Klee` component.
