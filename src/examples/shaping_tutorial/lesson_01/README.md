@@ -19,10 +19,10 @@ Mesh metadata defines key properties that describe the geometry and discretizati
 
 <figure style="text-align: center;">
   <img src="cartesian_mesh.svg" alt="Cartesian Mesh" style="display: inline-block;" />
-  <figcaption>Figure: This shows the resolution and bounding box for a 2D Cartesian mesh.</figcaption>
+  <figcaption>Figure: A Cartesian mesh can be defined in terms of its resolution and bounding box.</figcaption>
 </figure>
 
-In this tutorial, we will demonstrate how to represent these metadata elements using Sidre data structures.
+This tutorial demonstrates how to represent this metadata using Sidre.
 
 ## Sidre basics
 <div style="text-align: center;">
@@ -74,7 +74,7 @@ graph LR
 <figurecaption>Figure: Axom components, highlighting Sidre</figurecaption>
 </div>
 
-Sidre, a core component of Axom, was designed for efficiently storing and organizing simulation data in memory using hierarchical structures. It manages a tree-like organization through a central `DataStore`, which contains a hierarchy of directories (`Group`) and files (`View`).
+Sidre was designed for efficiently storing and organizing simulation data in memory using hierarchical structures. It manages a tree-like organization through a central `DataStore`, which contains a hierarchy of Groups and Views.
 
 ### Key concepts in Sidre
 
@@ -85,10 +85,10 @@ Sidre, a core component of Axom, was designed for efficiently storing and organi
 :  Nodes in the hierarchy that act like directories or folders. Groups can contain other groups or views, helping to organize data logically.
 
 **Views**
-:  Leaf nodes containing metadata or raw data. Views provide access to scalar data or bulk data stored internally using Buffers or external.
+:  Leaf nodes containing metadata or raw data. Views provide access to scalar data or arrays stored internally using Buffers or stored externally.
 
 **Buffers**
-:  Memory blocks allocated to hold bulk (array) data referenced by views. Views use buffers to read and write actual data values.
+:  Memory blocks allocated to hold bulk (array) data referenced by views. 
 
 **Attributes**
 :  Metadata about views, such as type information or external identifiers, which provide additional context.
@@ -98,7 +98,6 @@ Sidre allows flexible and efficient memory management, making it ideal to pass a
 In the following sections, we will create groups and views within a Sidre DataStore to store the bounding box and resolution data for a Cartesian mesh.
 
 > :information_source: **Note:** Sidre has a hard dependency on [Conduit](https://github.com/LLNL/conduit) for its core data structures and a soft dependency on [HDF5](https://www.hdfgroup.org/solutions/hdf5/) for optional serialization capabilities.
-
 
 ## Defining mesh metadata with Sidre
 
@@ -330,8 +329,7 @@ We covered:
 - Organizing the data using Sidre's Groups and Views
 - Generating and visualizing a Conduit mesh blueprint representation of this metadata
 
-Sidre provides a flexible framework for storing and organizing simulation data, making it easier to manage complex data structures in memory efficiently.
-
+Sidre provides a flexible way to store and organize simulation data, making it easier to manage complex data structures in memory efficiently.
 
 The next lesson will extend this example by:
 

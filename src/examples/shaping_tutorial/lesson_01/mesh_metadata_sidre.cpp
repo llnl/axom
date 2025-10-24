@@ -1,3 +1,22 @@
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
+// other Axom Project Developers. See the top-level LICENSE file for details.
+//
+// SPDX-License-Identifier: (BSD-3-Clause)
+
+//-----------------------------------------------------------------------------
+/*!
+ * \file mesh_metadata_sidre.cpp
+ * \brief An example that uses Sidre to describe a 2D Cartesian mesh.
+ *
+ * This example demonstrates creating a Sidre DataStore and using Groups and Views
+ * to represent mesh metadata including bounding box coordinates and resolution.
+ * It also optionally generates the mesh following the conduit mesh blueprint convention.
+ * 
+ * Example run:
+ * ./mesh_metadata_sidre --min_x 0.0 --min_y 0.0 --max_x 2.0 --max_y 3.0 --res_x 20 --res_y 30 [-o]
+ */
+//-----------------------------------------------------------------------------
+
 #include "axom/config.hpp"
 #include "axom/sidre.hpp"
 
@@ -17,23 +36,11 @@
 #include <iostream>
 
 /*!
- * \file basic_sidre_example.cpp
- * \brief A basic example of how to use Sidre to describe a mesh object.
- *
- * This example demonstrates creating a Sidre DataStore and using Groups and Views
- * to represent mesh metadata including bounding box coordinates and resolution.
- * It also optionally generates the mesh following the conduit mesh blueprint convention.
- * 
- * Example run:
- * ./basic_sidre_example --min_x 0.0 --min_y 0.0 --max_x 2.0 --max_y 3.0 --res_x 20 --res_y 30 [-o]
- */
-
-/*!
  * \struct Input
  * \brief Struct representing user input parameters for mesh bounding box and resolution.
  *
  * This struct holds the minimum and maximum x and y coordinates defining the bounding box,
- * as well as the resolution (number of divisions) in both x and y directions.
+ * as well as the resolution (number of cells) in both x and y directions.
  */
 struct Input
 {
@@ -208,8 +215,12 @@ conduit::Node create_mesh_blueprint(axom::sidre::Group* meshGroup)
     return blueprint;
   }
 
-  int res_x = resGroup->getView("x")->getData<int>();
-  int res_y = resGroup->getView("y")->getData<int>();
+  const int res_x = resGroup->getView("x")->getData<int>();
+  const int res_y = resGroup->getView("y")->getData<int>();
+  SLIC_ERROR_IF(res_x < 1,
+                axom::fmt::format("Resolution in x-coordinate ({}) must be positive", res_x));
+  SLIC_ERROR_IF(res_y < 1,
+                axom::fmt::format("Resolution in y-coordinate ({}) must be positive", res_y));
 
   // Create coordset
   blueprint["coordsets/coords/type"] = "uniform";
