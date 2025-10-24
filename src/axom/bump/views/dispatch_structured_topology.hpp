@@ -69,9 +69,13 @@ struct make_strided_structured_topology<3>
     utils::fillFromNode(topo, offsetsKey, offsets, true);
     if(utils::fillFromNode(topo, stridesKey, strides, true))
     {
+      const auto nx = strides[1];
+      const auto nxy = strides[2];
+      const auto ny = nxy / nx;
+
       // Make zone striding.
       strides[1]--;
-      strides[2] = strides[1] * (zoneDims[1] - 1);
+      strides[2] = strides[1] * (ny - 1);
     }
     else
     {
