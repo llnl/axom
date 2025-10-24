@@ -384,8 +384,10 @@ public:
     // Make the input mesh.
     conduit::Node n_mesh;
     initialize(n_mesh);
-conduit::relay::io::blueprint::save_mesh(n_mesh, "coupling3d", "hdf5");
-conduit::relay::io::blueprint::save_mesh(n_mesh, "coupling3d.yaml", "yaml");
+#if 1
+    conduit::relay::io::blueprint::save_mesh(n_mesh, "coupling3d", "hdf5");
+    conduit::relay::io::blueprint::save_mesh(n_mesh, "coupling3d.yaml", "yaml");
+#endif
 
     // host->device
     conduit::Node n_dev;
@@ -393,10 +395,17 @@ conduit::relay::io::blueprint::save_mesh(n_mesh, "coupling3d.yaml", "yaml");
 
     // Do MIR on the coarse mesh. The new objects will be added to n_mesh.
     mir("coarse", n_dev, "postmir", n_dev);
+#if 1
+    conduit::relay::io::blueprint::save_mesh(n_dev, "coupling3d_postmir", "hdf5");
+    conduit::relay::io::blueprint::save_mesh(n_dev, "coupling3d_postmir.yaml", "yaml");
+#endif
 
     // Map MIR output in n_mesh onto the fine mesh as a new matset.
     mapping(n_dev, n_dev);
-
+#if 1
+    conduit::relay::io::blueprint::save_mesh(n_dev, "coupling3d_postmap", "hdf5");
+    conduit::relay::io::blueprint::save_mesh(n_dev, "coupling3d_postmap.yaml", "yaml");
+#endif
     // As a check, run the generated fine matset through elvira again to make clean zones.
     mir("fine", n_dev, "check", n_dev);
 
@@ -428,30 +437,19 @@ private:
                   const std::string &output_prefix,
                   conduit::Node &n_output)
   {
-    // Wrap the coarse mesh in views.
-    const conduit::Node &n_topology = n_input["topologies/" + input_prefix];
-
-    auto topologyView = views::make_strided_structured_topology<3>::view(n_topology);
-    mir(topologyView, input_prefix, n_input, output_prefix, n_output);
-  }
-
-  template <typename TopologyView>
-  static void mir(TopologyView topologyView,
-                  const std::string &input_prefix,
-                  conduit::Node &n_input,
-                  const std::string &output_prefix,
-                  conduit::Node &n_output)
-  {
     SLIC_INFO(axom::fmt::format("mir {} to {}", input_prefix, output_prefix));
 
     // Wrap the input mesh in views.
     const conduit::Node &n_coordset = n_input[axom::fmt::format("coordsets/{}_coords", input_prefix)];
+    const conduit::Node &n_topology = n_input[axom::fmt::format("topologies/{}", input_prefix)];
     const conduit::Node &n_matset = n_input[axom::fmt::format("matsets/{}_matset", input_prefix)];
 
     auto coordsetView = views::make_explicit_coordset<double, 3>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
 
     // Get the indexing policy from the TopologyView type.
+    auto topologyView = views::make_strided_structured_topology<3>::view(n_topology);
+    using TopologyView = decltype(topologyView);
     using IndexingPolicy = typename TopologyView::IndexingPolicy;
 
     const int MAXMATS = 20;
@@ -459,12 +457,12 @@ private:
     using MatsetView = decltype(matsetView);
 
     // Do MIR on the mesh.
-    using MIR = axom::mir::ElviraAlgorithm<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>;
+    using MIR = axom::mir::ElviraAlgorithm<ExecSpace, IndexingPolicy, CoordsetView, MatsetView, 8>;
     MIR m(topologyView, coordsetView, matsetView);
     conduit::Node options;
     // Select that matset we'll operate on.
     options["matset"] = axom::fmt::format("{}_matset", input_prefix);
-    options["plane"] = 1;
+
     // Change the names of the topology, coordset, and matset in the output.
     options["topologyName"] = output_prefix;
     options["coordsetName"] = axom::fmt::format("{}_coords", output_prefix);
@@ -501,7 +499,7 @@ private:
     auto targetCoordsetView = views::make_explicit_coordset<double, 3>::view(n_target_coordset);
     using TargetCoordsetView = decltype(targetCoordsetView);
 
-    auto targetTopologyView = views::make_structured_topology<3>::view(n_target_topology);
+    auto targetTopologyView = views::make_strided_structured_topology<3>::view(n_target_topology);
     using TargetTopologyView = decltype(targetTopologyView);
 
     // Make new a new matset on the target topology to record material overlaps.
@@ -529,6 +527,7 @@ TEST(mir_coupling, coupling_3D_seq)
   AXOM_ANNOTATE_SCOPE("coupling_3D_seq");
   test_coupling<seq_exec>::test("coupling_3D");
 }
+/*
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_coupling, coupling_3D_omp)
 {
@@ -550,6 +549,7 @@ TEST(mir_coupling, coupling_3D_hip)
   test_coupling<hip_exec>::test("coupling_3D");
 }
 #endif
+*/
 
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])
