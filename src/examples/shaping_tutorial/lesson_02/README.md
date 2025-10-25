@@ -8,13 +8,15 @@
 
 # Lesson 02: Input validation with Inlet
 
-This lesson demonstrates how to use Axom's `Inlet` library to define, parse, and validate structured mesh metadata from configuration files. We'll show how to create robust input parsing with validation rules.
+This lesson demonstrates how to use Axom's `Inlet` component to define, parse, and validate structured mesh metadata from configuration files. We'll show how to create robust input parsing with validation rules.
 
 ## Motivation
 
 In the previous lesson, we provided input for our mesh metadata on the command line
 ```bash
-> ./bin/lesson_01_mesh_metadata_sidre --min_x 0.0 --min_y 0.0 --max_x 1.0 --max_y 1.5 --res_x 15 --res_y 25
+> ./bin/lesson_01_mesh_metadata_sidre --min_x 0.0 --min_y 0.0 \
+                                      --max_x 1.0 --max_y 1.5 \
+                                      --res_x 15  --res_y 25
 ```
 This can be tedious and error prone, especially as we add more input parameters!
 
@@ -87,7 +89,7 @@ graph LR
 <figurecaption>Figure: Axom components, highlighting Inlet</figurecaption>
 </div>
 
-Inlet provides a powerful way to define input schemas with validation:
+Inlet provides a powerful way to define and parse input schemas with validation:
 
 - Define required parameters and optional parameters with defaults
 - Validate numeric ranges and relationships between parameters
@@ -147,9 +149,9 @@ res.addInt("y", "Resolution in y direction");
 ```
 </details>
 
-we can easily add some basic validation within our schema:
+We can easily add some basic validation within our schema:
 <details>
-  <summary style="color: gray;"> schema with some inline validation (click to expand) </summary>
+  <summary style="color: gray;"> Schema with some inline validation (click to expand) </summary>
 
 ```cpp
 // Define a schema for a simulation configuration
@@ -174,10 +176,10 @@ res.addInt("y", "Resolution in y direction").required().range(1, std::numeric_li
 </details>
 <br />
 
-We can also add custom verifiers. For example, here's how we could express that the bounding box minimums are less than the bounding box maximums in each dimension:
+We can also add custom verifiers. For example, here's how we could express that the bounding box minimums must be less than the bounding box maximums in each dimension:
 
 ```cpp
-// Custom validation: ensure min < max in each dimension
+// Bounding box validation: ensure min < max in each dimension
 bb.registerVerifier([](const inlet::Container& input) -> bool {
   const double min_x = input["min/x"];
   const double max_x = input["max/x"];
@@ -221,9 +223,9 @@ struct MeshMetadata
 };
 ```
 
-We can initialize a `MeshMetadata` from inlet using the following construct:
+We can initialize a `MeshMetadata` from an inlet container using the following construct:
 ```cpp
-// Template specialization to map inlet data to our struct
+// Template specialization to map inlet data to our MeshMetadata struct
 template <>
 struct FromInlet<MeshMetadata>
 {
@@ -258,7 +260,7 @@ MeshMetadata::defineSchema(schema);
 // Validate input against schema
 inlet::Container validated = inlet::applySchema(input, schema);
 
-// Populate struct from validated container
+// Populate struct from validated container, using FromInlet<> specialization
 MeshMetadata metadata = validated["mesh"].get<MeshMetadata>();
 ```
 
@@ -280,8 +282,8 @@ The `improved_inlet_metadata` example extends the basic example with:
 4. Integration with Axom's `primal::BoundingBox` type
 
 ### Support for 2D and 3D
-For example, we can now update our top-level verifier for the mesh schema to ensure
-that 2D meshes only have `x` and `y` fields, while 3D meshes always have `z` fields.
+We begin by updating our top-level verifier for the mesh schema to ensure
+that 2D meshes only have `x` and `y` fields, while 3D meshes also have `z` fields.
 Note that we have also added a `dim` field for the mesh's dimension.
 
 ```cpp
@@ -354,7 +356,7 @@ Inlet inlet(std::move(reader));
 
 > :bulb: **Note:** Lua is an optional dependency of Axom, and is available when Axom is configured with a `LUA_DIR` path. When available, `axom/config.hpp` will have a `AXOM_USE_LUA` compiler define.
 
-> :bulb: **Note:** Inlet also support JSON, through the `JSONReader`, but this is not demonstrated in this example.
+> :bulb: **Note:** Inlet also support JSON, through the `JSONReader` but this is not demonstrated in this example.
 
 ### Example inputs: 2D vs. 3D; YAML vs. Lua
 
@@ -417,7 +419,7 @@ mesh = {
 
 <br />
 
-> :clapper: We can try running this example code in the [improved_inlet_metadata](https://github.com/LLNL/axom/tree/develop/examples/improved_inlet_metadata) example provided in Axom's GitHub repository to see how it handles both 2D and 3D configurations in different input formats (YAML and Lua), and demonstrates dimension-specific validation.
+> :clapper: We can try running this example code in the ``improved_inlet_metadata`` example to see how it handles both 2D and 3D configurations in different input formats (YAML and Lua), and demonstrates dimension-specific validation.
 > e.g.:
 >
 > ```bash
@@ -427,6 +429,6 @@ mesh = {
 
 ## Summary and next steps
 
-In this lesson, we introduced Axom's Inlet component as a way of defining and validating structured input for simulations. And demonstrated how we can use this to read in mesh metadata for our Cartesian meshes. We also extended the example to work with 2D or 3D input in different format (YAML or Lua).
+In this lesson, we introduced Axom's Inlet component as a way of defining and validating structured input for simulations. We also demonstrated how we can use this to read in mesh metadata for our Cartesian meshes and extended the example to work with 2D or 3D input in different format (YAML or Lua).
 
 In the next lesson, we will introduce Axom's Klee component which is built on top of Inlet and allows users to specify geometric input for multimaterial simulations.

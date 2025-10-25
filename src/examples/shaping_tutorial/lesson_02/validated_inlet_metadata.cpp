@@ -1,19 +1,11 @@
-#include "axom/config.hpp"
-#include "axom/inlet.hpp"
-#include "axom/sidre.hpp"
-#include "axom/fmt.hpp"
-#include "axom/CLI11.hpp"
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
+// other Axom Project Developers. See the top-level LICENSE file for details.
+//
+// SPDX-License-Identifier: (BSD-3-Clause)
 
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <vector>
-
-using axom::inlet::Inlet;
-using axom::inlet::YAMLReader;
-
+//-----------------------------------------------------------------------------
 /*! 
- * \file inlet_metadata.cpp
+ * \file validated_inlet_metadata.cpp
  * \brief Example of how to use Inlet to parse and validate inlet metadata from YAML input
  * using a user-defined MeshMetadata struct with a templated FromInlet specialization.
  *
@@ -33,6 +25,21 @@ using axom::inlet::YAMLReader;
  *     x: 15
  *     y: 25
  */
+//-----------------------------------------------------------------------------
+
+#include "axom/config.hpp"
+#include "axom/inlet.hpp"
+#include "axom/sidre.hpp"
+#include "axom/fmt.hpp"
+#include "axom/CLI11.hpp"
+
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+
+using axom::inlet::Inlet;
+using axom::inlet::YAMLReader;
 
 namespace inlet = axom::inlet;
 
