@@ -41,8 +41,10 @@ constexpr int NRIGHT = 1;
  * \param extents The mesh coordinate extents {xmin, xmax, ymin, ymax, zmin, zmax}.
  * \param dims The total number of NODES in each dimension.
  */
-void make_explicit_coordset(conduit::Node &n_mesh, const std::string &coordsetName,
-  double extents[6], int dims[3])
+void make_explicit_coordset(conduit::Node &n_mesh,
+                            const std::string &coordsetName,
+                            double extents[6],
+                            int dims[3])
 {
   SLIC_ASSERT(dims[0] > 0 && dims[1] > 0 && dims[2] > 0);
   const int nnodes = dims[0] * dims[1] * dims[2];
@@ -87,9 +89,9 @@ void make_explicit_coordset(conduit::Node &n_mesh, const std::string &coordsetNa
  * \note extents and dims include phonies.
  */
 void make_mesh(conduit::Node &n_mesh,
-  const std::string &topoName,
-  const std::string &coordsetName,
-  const int dims[3])
+               const std::string &topoName,
+               const std::string &coordsetName,
+               const int dims[3])
 {
   SLIC_ASSERT(dims[0] > 0 && dims[1] > 0 && dims[2] > 0);
   const int real_zone_dims[] = {dims[0] - 1 - NLEFT - NRIGHT,
@@ -102,7 +104,7 @@ void make_mesh(conduit::Node &n_mesh,
   strides[1] = dims[0];
   strides[2] = dims[0] * dims[1];
 
-  // Make the strided-structured topology, 
+  // Make the strided-structured topology,
   conduit::Node &n_topo = n_mesh["topologies/" + topoName];
   n_topo["type"] = "structured";
   n_topo["coordset"] = coordsetName;
@@ -129,17 +131,16 @@ void make_mesh(conduit::Node &n_mesh,
  * \param wallX The X value above which zones are filled with CU.
  */
 void make_matset(conduit::Node &n_mesh,
-  const std::string &topologyName,
-  const std::string &matsetName,
-  const double extents[6],
-  const int dims[3],
-  const double ballCenter[3],
-  double ballRadius,
-  const double wallX)
+                 const std::string &topologyName,
+                 const std::string &matsetName,
+                 const double extents[6],
+                 const int dims[3],
+                 const double ballCenter[3],
+                 double ballRadius,
+                 const double wallX)
 {
   /// Sample a zone and determine vfCU and vfAIR, returning number of materials 1 or 2.
-  auto ballVF = [&](const double zExt[6], double &vfCU, double &vfAIR) -> int
-  {
+  auto ballVF = [&](const double zExt[6], double &vfCU, double &vfAIR) -> int {
     const int nSamples = 10;
     const double br2 = ballRadius * ballRadius;
     const int nTotalSamples = nSamples * nSamples * nSamples;
@@ -203,17 +204,15 @@ void make_matset(conduit::Node &n_mesh,
         const int globalZoneIndex = (k * zdims[0] * zdims[1]) + (j * zdims[0]) + i;
 
         // Define the material only on the real zones.
-        if((i >= NLEFT && i < (zdims[0] - NRIGHT)) &&
-           (j >= NLEFT && j < (zdims[1] - NRIGHT)) &&
+        if((i >= NLEFT && i < (zdims[0] - NRIGHT)) && (j >= NLEFT && j < (zdims[1] - NRIGHT)) &&
            (k >= NLEFT && k < (zdims[2] - NRIGHT)))
         {
-          double zoneExtents[] = {
-            extents[0] + i * dx,
-            extents[0] + (i + 1) * dx,
-            extents[2] + j * dy,
-            extents[2] + (j + 1) * dy,
-            extents[4] + k * dz,
-            extents[4] + (k + 1) * dz};
+          double zoneExtents[] = {extents[0] + i * dx,
+                                  extents[0] + (i + 1) * dx,
+                                  extents[2] + j * dy,
+                                  extents[2] + (j + 1) * dy,
+                                  extents[4] + k * dz,
+                                  extents[4] + (k + 1) * dz};
 
           const double midX = (zoneExtents[0] + zoneExtents[1]) / 2.;
           double vfCU = 0., vfAIR = 1.;
@@ -234,7 +233,7 @@ void make_matset(conduit::Node &n_mesh,
           if(nmats == 1)
           {
             volume_fractions[index] = (vfCU > 0.) ? vfCU : vfAIR;
-            material_ids[index] =  (vfCU > 0.) ? CU : AIR;
+            material_ids[index] = (vfCU > 0.) ? CU : AIR;
 
             offsets.push_back(indices.size());
             indices.push_back(index);
@@ -450,8 +449,7 @@ private:
   }
 
   /// Map material from postmir mesh onto fine mesh to make fine matset.
-  static void mapping(conduit::Node &n_src,
-                      conduit::Node &n_target)
+  static void mapping(conduit::Node &n_src, conduit::Node &n_target)
   {
     SLIC_INFO("mapping postmir to fine");
 
@@ -464,8 +462,7 @@ private:
     using SrcCoordsetView = decltype(srcCoordsetView);
 
     // 3D Elvira makes polyhedral meshes
-    auto srcTopologyView =
-      views::make_unstructured_polyhedral_topology<int>::view(n_src_topology);
+    auto srcTopologyView = views::make_unstructured_polyhedral_topology<int>::view(n_src_topology);
     using SrcTopologyView = decltype(srcTopologyView);
 
     constexpr int MAXMATS = 20;
