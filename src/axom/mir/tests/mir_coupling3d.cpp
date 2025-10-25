@@ -21,13 +21,14 @@ namespace views = axom::bump::views;
 
 std::string baselineDirectory()
 {
-  return pjoin(dataDirectory(), "mir", "regression", "mir_coupled");
+  return pjoin(dataDirectory(), "mir", "regression", "mir_coupled3d");
 }
 
 //------------------------------------------------------------------------------
 // Global test application object.
 axom::blueprint::testing::TestApplication TestApp;
 
+/// Spacing on left and right of real zones.
 constexpr int NLEFT = 2;
 constexpr int NRIGHT = 1;
 
@@ -98,8 +99,8 @@ void make_mesh(conduit::Node &n_mesh,
   const int offsets[] = {NLEFT, NLEFT, NLEFT};
   int strides[3];
   strides[0] = 1;
-  strides[1] = dims[1];
-  strides[2] = dims[1] * dims[2];
+  strides[1] = dims[0];
+  strides[2] = dims[0] * dims[1];
 
   // Make the strided-structured topology, 
   conduit::Node &n_topo = n_mesh["topologies/" + topoName];
@@ -110,8 +111,6 @@ void make_mesh(conduit::Node &n_mesh,
   n_topo["elements/dims/k"] = real_zone_dims[2];
   n_topo["elements/dims/offsets"].set(offsets, 3);
   n_topo["elements/dims/strides"].set(strides, 3);
-
-  n_topo.print();
 }
 
 /*!
@@ -172,15 +171,6 @@ void make_matset(conduit::Node &n_mesh,
     vfAIR = static_cast<double>(sums[0]) / static_cast<double>(nTotalSamples);
     vfCU = static_cast<double>(sums[1]) / static_cast<double>(nTotalSamples);
     const int nmats = (sums[0] == 0 || sums[1] == 0) ? 1 : 2;
-#if 0
-std::cout << "ballVF: zExt={"
-          << zExt[0] << ", "
-          << zExt[1] << ", "
-          << zExt[2] << ", "
-          << zExt[3] << ", "
-          << zExt[4] << ", "
-          << zExt[5] << "}, sums={" << sums[0] << ", " << sums[1] << "}, vfCU=" << vfCU << ", vfAIR=" << vfAIR << ", nmats=" << nmats << std::endl;
-#endif
     return nmats;
   };
 
@@ -346,24 +336,15 @@ void make_fine(conduit::Node &n_mesh, double real_extents[6], int real_dims[3], 
 {
   SLIC_ASSERT(real_dims[0] > 0 && real_dims[1] > 0 && real_dims[2] > 0);
   SLIC_ASSERT(refinement[0] > 0 && refinement[1] > 0 && refinement[2] > 0);
-std::cout << "make_fine: "
-    << "real_dims={" << real_dims[0] << ", " << real_dims[1] << ", " << real_dims[2] << "}"
-    << ", refinement={" << refinement[0] << ", " << refinement[1] << ", " << refinement[2] << "}\n";
+
   int nx = (real_dims[0] - 1) * refinement[0] + 1;
   int ny = (real_dims[1] - 1) * refinement[1] + 1;
   int nz = (real_dims[2] - 1) * refinement[2] + 1;
   int rdims[] = {nx, ny, nz};
-std::cout << "make_fine: "
-    << "rdims={" << rdims[0] << ", " << rdims[1] << ", " << rdims[2] << "}\n";
 
   int total_dims[3];
   double total_extents[6];
   adjust_sizes(rdims, real_extents, total_dims, total_extents);
-std::cout << "make_fine: "
-    << "total_dims={" << total_dims[0] << ", " << total_dims[1] << ", " << total_dims[2] << "}\n";
-std::cout << "make_fine: "
-    << "total_extents={" << total_extents[0] << ", " << total_extents[1] << ", " << total_extents[2]
-    << ", " << total_extents[3] << ", " << total_extents[4] << ", " << total_extents[5] << "{\n";
 
   make_explicit_coordset(n_mesh, "fine_coords", total_extents, total_dims);
   make_mesh(n_mesh, "fine", "fine_coords", total_dims);
@@ -384,10 +365,6 @@ public:
     // Make the input mesh.
     conduit::Node n_mesh;
     initialize(n_mesh);
-#if 1
-    conduit::relay::io::blueprint::save_mesh(n_mesh, "coupling3d", "hdf5");
-    conduit::relay::io::blueprint::save_mesh(n_mesh, "coupling3d.yaml", "yaml");
-#endif
 
     // host->device
     conduit::Node n_dev;
@@ -395,17 +372,10 @@ public:
 
     // Do MIR on the coarse mesh. The new objects will be added to n_mesh.
     mir("coarse", n_dev, "postmir", n_dev);
-#if 1
-    conduit::relay::io::blueprint::save_mesh(n_dev, "coupling3d_postmir", "hdf5");
-    conduit::relay::io::blueprint::save_mesh(n_dev, "coupling3d_postmir.yaml", "yaml");
-#endif
 
     // Map MIR output in n_mesh onto the fine mesh as a new matset.
     mapping(n_dev, n_dev);
-#if 1
-    conduit::relay::io::blueprint::save_mesh(n_dev, "coupling3d_postmap", "hdf5");
-    conduit::relay::io::blueprint::save_mesh(n_dev, "coupling3d_postmap.yaml", "yaml");
-#endif
+
     // As a check, run the generated fine matset through elvira again to make clean zones.
     mir("fine", n_dev, "check", n_dev);
 
@@ -415,23 +385,32 @@ public:
 
     TestApp.saveVisualization(name, hostResult);
 
+    // Remove the check and postmir meshes from the baseline to make it smaller.
+    hostResult.remove("coordsets/check_coords");
+    hostResult.remove("topologies/check");
+    hostResult.remove("matsets/check_matset");
+    hostResult.remove("coordsets/postmir_coords");
+    hostResult.remove("topologies/postmir");
+    hostResult.remove("matsets/postmir_matset");
+
     // Handle baseline comparison.
     EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostResult));
   }
 
 private:
+  /// Make the meshes
   static void initialize(conduit::Node &n_mesh)
   {
-//    double extents[] = {0., 11., 0., 12., 0., 13.};
-//    int dims[] = {11, 12, 13};
+    // Unit cube with different numbers of zones (and refinements) in each dimension.
     double extents[] = {0., 1., 0., 1., 0., 1.};
-    int dims[] = {11, 11, 11};
-    int refinement[] = {2,2,2};//4, 3, 2};
+    int dims[] = {11, 16, 13};
+    int refinement[] = {4, 3, 2};
 
     make_coarse(n_mesh, extents, dims);
     make_fine(n_mesh, extents, dims, refinement);
   }
 
+  /// Perform MIR on input mesh and make new output mesh.
   static void mir(const std::string &input_prefix,
                   conduit::Node &n_input,
                   const std::string &output_prefix,
@@ -470,6 +449,7 @@ private:
     m.execute(n_input, options, n_output);
   }
 
+  /// Map material from postmir mesh onto fine mesh to make fine matset.
   static void mapping(conduit::Node &n_src,
                       conduit::Node &n_target)
   {
@@ -522,34 +502,32 @@ private:
 };
 
 //------------------------------------------------------------------------------
-TEST(mir_coupling, coupling_3D_seq)
+TEST(mir_coupling, coupling_3d_seq)
 {
-  AXOM_ANNOTATE_SCOPE("coupling_3D_seq");
-  test_coupling<seq_exec>::test("coupling_3D");
+  AXOM_ANNOTATE_SCOPE("coupling_3d_seq");
+  test_coupling<seq_exec>::test("coupling_3d");
 }
-/*
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_coupling, coupling_3D_omp)
+TEST(mir_coupling, coupling_3d_omp)
 {
-  AXOM_ANNOTATE_SCOPE("coupling_3D_omp");
-  test_coupling<omp_exec>::test("coupling_3D");
+  AXOM_ANNOTATE_SCOPE("coupling_3d_omp");
+  test_coupling<omp_exec>::test("coupling_3d");
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_coupling, coupling_3D_cuda)
+TEST(mir_coupling, coupling_3d_cuda)
 {
-  AXOM_ANNOTATE_SCOPE("coupling_3D_cuda");
-  test_coupling<cuda_exec>::test("coupling_3D");
+  AXOM_ANNOTATE_SCOPE("coupling_3d_cuda");
+  test_coupling<cuda_exec>::test("coupling_3d");
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_coupling, coupling_3D_hip)
+TEST(mir_coupling, coupling_3d_hip)
 {
-  AXOM_ANNOTATE_SCOPE("coupling_3D_hip");
-  test_coupling<hip_exec>::test("coupling_3D");
+  AXOM_ANNOTATE_SCOPE("coupling_3d_hip");
+  test_coupling<hip_exec>::test("coupling_3d");
 }
 #endif
-*/
 
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])
