@@ -690,7 +690,11 @@ public:
 #endif
                 matids[m] = mat;
                 vfs[m] = vf;
-                sizes[zi]++;
+                // Workaround for failure on rzvernal (misreporting out-of-bounds access)
+                if(zi < sizes.size())
+                {
+                  sizes[zi]++;
+                }
                 break;
               }
             }
