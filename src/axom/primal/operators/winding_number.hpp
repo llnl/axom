@@ -33,15 +33,11 @@
 #include "axom/primal/operators/detail/winding_number_2d_impl.hpp"
 #include "axom/primal/operators/detail/winding_number_2d_memoization.hpp"
 
+#include "axom/primal/operators/detail/winding_number_3d_impl.hpp"
+#include "axom/primal/operators/detail/winding_number_3d_memoization.hpp"
+
 // C++ includes
 #include <cmath>
-
-// MFEM includes
-#ifdef AXOM_USE_MFEM
-  #include "mfem.hpp"
-  #include "axom/primal/operators/detail/winding_number_3d_impl.hpp"
-  #include "axom/primal/operators/detail/winding_number_3d_memoization.hpp"
-#endif
 
 namespace axom
 {
@@ -672,8 +668,6 @@ int winding_number(const Point<T, 3>& q,
   return std::lround(wn);
 }
 
-#ifdef AXOM_USE_MFEM
-
 /*!
  * \brief Computes the GWN for a 3D point wrt a 3D NURBS patch with precomputed data
  *
@@ -866,7 +860,6 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
 
   return winding_number(query_arr, nurbs_cache_arr, edge_tol, ls_tol, quad_tol, disk_size, EPS);
 }
-#endif
 ///@}
 
 }  // namespace primal
