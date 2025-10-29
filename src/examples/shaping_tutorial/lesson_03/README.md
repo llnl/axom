@@ -6,13 +6,22 @@
 [comment]: # (# SPDX-License-Identifier: BSD-3-Clause)
 [comment]: # (#################################################################)
 
+
+<style>
+    figcaption {
+        text-align: center;
+        font-style: italic;
+        color: #555555;
+    }
+</style>
+
 # Lesson 03: Defining Geometry Setup with Klee
 
 In this lesson, we temporarily set aside our mesh metadata example and use Axom's `Klee` component to define the geometric setup for a multimaterial simulation.  (Don't worry, we'll return to the mesh metadata in the next lesson).
 
 `Klee` is built on top of `Inlet` to define the schema for geometry setup. A Klee input consists of a list of shapes; each shape specifies its material and geometry, and may optionally include *replacement rules* that describe which previously "shaped in" materials the current shape will replace or preserve.
 
-## Introduction to Klee
+## Introducing Klee
 
 <div style="text-align: center;">
 
@@ -60,7 +69,7 @@ graph LR
   %% links can be highlighted as follows:
   %% linkStyle 5 stroke: #d32f2f,color: #d32f2f, stroke-width:3px;
 ```
-<figurecaption>Figure: Axom components, highlighting Klee</figurecaption>
+<figcaption>Figure: Axom components, highlighting Klee</figcaption>
 </div>
 
 Klee provides a flexible framework for defining complex geometric configurations through its key components:
@@ -83,10 +92,10 @@ Klee provides a flexible framework for defining complex geometric configurations
 Shapes are processed in order, with later shapes potentially replacing or preserving materials from earlier shapes according to the replacement rules. This approach allows for building complex material layouts through a combination of simple shapes and clearly defined interaction rules.
 
 > :information_source: **Why "Klee"?**
-> The Klee component was named after the Swiss-German artist Paul Klee (1879-1940), who was known for his distinctive style featuring geometric shapes, abstract forms, and colorful compositions. The pronunciation of Klee (/kleɪ/, pronounced “clay”) also evokes the concept of modeling and shaping materials.
+> The Klee component was named after the Swiss-German artist Paul Klee (1879-1940), who was known for his distinctive style featuring geometric shapes, abstract forms, and colorful compositions. The pronunciation of Klee (/kleɪ/, often pronounced “clay”) evokes modeling or shaping materials.
 >
-> <div align="center">
->   <img src="klee_paintings.png" alt="Examples of Paul Klee's paintings featuring geometric shapes and patterns">
+> <div style="text-align: center;">
+>   <img src="klee_paintings.png" alt="Examples of Paul Klee's paintings featuring geometric shapes and patterns" />
 >   <figcaption>Figure: Examples of Paul Klee's paintings featuring geometric shapes and patterns. <br />
 >               Public domain images from: https://en.wikipedia.org/wiki/Paul_Klee
 >   </figcaption>
@@ -116,14 +125,18 @@ This separation provides several key benefits:
 </div>
 
 
-### Geometry Definition: File formats
+### Geometry definition: 
+
+#### File formats
 - Klee currently supports the following input mesh formats: 
-    - `.stl` triangle mesh
+    - `.stl` triangle mesh (ascii and binary)
     - `.c2c` contour file
     - `.mfem` contours
     - `.proe` tetrahedral meshes
 
 > :warning: **Note:** Support for `.c2c` files is only available on LLNL's LC systems. For other environments, please use alternative geometry file formats.
+
+> :information_source: Our ascii-based `.proe` format is an indexed representation for the vertices and tetrahedra within a tetrahedral mesh.
 
 > :information_source: Axom provides a Python script to convert SVG files to the MFEM format, making it easy to use vector graphics as geometry inputs for Klee.
 
@@ -182,7 +195,27 @@ endsolid Mesh
 </div>
 </details>
 
-### Geometry Definition: Operators
+#### Basic shape file
+
+A minimal shape file includes a ``dimensions`` field and a ``shapes`` list.
+
+The following example has a single shape representing the boundary a tetrahedron.
+The name of the shape -- in this case ``my_tetrahedron`` -- is used internally, and it will get shaped into the ``steel`` material:
+
+```yaml
+dimensions: 3
+
+shapes:
+  - name: my_tetrahedron
+    material: steel
+    geometry:
+      format: stl
+      path: tetrahedron.stl
+      units: cm
+```
+
+
+#### Operators
 
 The geometry definition can also include `operators` defining affine transformations (scaling, rotations, translations, ...) and unit conversions.
 
@@ -245,7 +278,7 @@ shapes:
   </td>
   </tr>
 </table>
-  <figcaption>Figure: Example Klee inputs showing `scale`, `translate`, `rotate` and unit conversion operators.</figcaption>
+  <figcaption style="font-style: italic;">Figure: Example Klee inputs showing `scale`, `translate`, `rotate` and unit conversion operators.</figcaption>
 </div>
 
 
@@ -257,11 +290,13 @@ Replacement rules give users some extra control in how shapes get overlaid. By d
   <figcaption>Figure: Replacement rules have many uses, including when there are overlapping parts (top), when we need to expand a shape to close a gap (middle), or when we need to fill a void (bottom).</figcaption>
 </div>
 
+<br />
+
 If desired, users can either add an explicit list of materials to replace via the `replaces` entry, or an explicit list of materials to preserve via the `does_not_replace` entry (but not both).
 
 <div style="text-align: center;">
   <img src="klee_replacement_rules.png" width="75%" alt="Visualization of Klee replacement rules">
-  <figcaption>Figure: Illustration of Klee replacement rules (default, explicit "replaces" list, and explicit "does_not_replace" list) and how later shapes interact with earlier materials when shaping "wood" boats on a mesh with "water", "mud" and "grass".</figcaption>
+  <figcaption style="font-style: italic;">Figure: Illustration of Klee replacement rules (default, explicit "replaces" list, and explicit "does_not_replace" list) and how later shapes interact with earlier materials when shaping "wood" boats on a mesh with "water", "mud" and "grass".</figcaption>
 </div>
 
 <br />
@@ -292,7 +327,7 @@ If desired, users can either add an explicit list of materials to replace via th
 
 ## Examples: 
 
-### Simple 2D Contours With Units and Scaling
+### Simple 2D contours with units and scaling
 
 ```yaml
 dimensions: 2
@@ -433,15 +468,15 @@ Let's create a setup for an ice cream cone, which will consist of a cone, and ic
   <img src="cone.svg" width="20%" alt="Cone">
   <img src="scoop.svg" width="20%" alt="Scoop">
   <img src="sprinkles.svg" width="20%" alt="sprinkles">
-  <figcaption>Figure: Ice cream cone geometry for the challenge.</figcaption>
+  <figcaption style="font-style: italic;">Figure: Ice cream cone geometry for the challenge.</figcaption>
 </div>
 
 <br />
 
-**Task:** Given the "cone", "scoop" and "sprinkle" geometry, create a Klee setup such that
-* The cone covers the background
-* The scoop covers the cone
-* The sprinkles cover the ice cream scoop, but not the cone or the background
+**Task:** Given the "cone", "scoop" and "sprinkle" geometries, create a Klee setup such that:
+* the cone covers the background
+* the scoop covers the cone
+* the sprinkles cover the ice cream scoop, but not the cone or the background
 
 **Solution:**
 ```yaml
@@ -489,7 +524,7 @@ shapes:
   > source venv/bin/activate
 
   (venv)> pip3 install -r requirements.txt
-  # Note: We apply a small patch that hasn't yet been upstreamed
+  # Note: We apply a small patch that was upstreamed after v1.7.1
   (venv)> patch  -p1 venv/lib/python3.9/site-packages/svgpathtools/path.py -i svgpathtools-1.7.1-eigenvec-fix.patch --verbose
 
   # run the script on our svg images: sprinkles.svg, scoop.svg and cone.svg
@@ -512,7 +547,7 @@ shapes:
 
   <div style="text-align: center;">
     <img src="ice_cream_visit.png" width="60%" alt="Viewing the generated MFEM files for the ice cream cone in VisIt using the MultiresControl">
-    <figcaption>Figure: Generated MFEM meshes containing the contours for our ice cream example (cone, scoop, sprinkles) visualized in VisIt. We use the `MultiresControl` operator to see the curvature of the contours.</figcaption>
+    <figcaption>Figure: Generated MFEM meshes containing the contours for our ice cream example (cone, scoop, sprinkles) visualized in VisIt. We use VisIt's `MultiresControl` operator to see the curvature of the contours.</figcaption>
   </div>
 
 </details>

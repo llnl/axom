@@ -1,3 +1,15 @@
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
+// other Axom Project Developers. See the top-level LICENSE file for details.
+//
+// SPDX-License-Identifier: (BSD-3-Clause)
+
+//-----------------------------------------------------------------------------
+/*! 
+ * \file klee_operators_and_validation.cpp
+ * \brief Loads and validates a Klee input file
+ */
+//-----------------------------------------------------------------------------
+
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/primal.hpp"
