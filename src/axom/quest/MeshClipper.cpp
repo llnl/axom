@@ -41,16 +41,16 @@ void MeshClipper::clip(axom::Array<double>& ovlap)
   clip(ovlap.view());
 }
 
-/*
- * Orchestrates the geometry clipping by using the capabilities of the
+/**
+ * @brief Orchestrates the geometry clipping by using the capabilities of the
  * MeshClipperStrategy implementation.
  *
  * If the strategy can label cells as inside/on/outside geometry
  * boundary, use that to reduce reliance on expensive clipping methods.
  *
- * Regardless of labling, try to use specialized clipping first.
+ * Regardless of labeling, try to use specialized clipping first.
  * If specialized methods aren't implemented, resort to discretizing
- * geomety into tets or octs for clipping against mesh cells.
+ * geometry into tets or octs for clipping against mesh cells.
  */
 void MeshClipper::clip(axom::ArrayView<double> ovlap)
 {
@@ -144,7 +144,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
       axom::fmt::format("MeshClipper strategy '{}' did not provide in/out cell labels.\n",
                         m_strategy->name());
     SLIC_INFO(msg);
-    m_impl->initVolumeOverlaps(ovlap);
+    m_impl->zeroVolumeOverlaps(ovlap);
     done = m_strategy->specializedClipCells(m_shapeMesh, ovlap);
 
     if(!done)
@@ -158,7 +158,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
 }
 
 /*!
- * @brief Allocate a Impl for the execution-space computations
+ * @brief Allocate an Impl for the execution-space computations
  * of this clipper.
  */
 std::unique_ptr<MeshClipper::Impl> MeshClipper::newImpl()

@@ -104,7 +104,7 @@ public:
                                     axom::ArrayView<double> ovlap) = 0;
 
     //! @brief Initialize overlap volumes to zero.
-    virtual void initVolumeOverlaps(axom::ArrayView<double> ovlap) = 0;
+    virtual void zeroVolumeOverlaps(axom::ArrayView<double> ovlap) = 0;
 
     //!@brief Collect unlabeled LABEL_ON indices into an index list.
     virtual void collectOnIndices(const axom::ArrayView<LabelType>& labels,

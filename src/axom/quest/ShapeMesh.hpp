@@ -197,7 +197,7 @@ public:
   //@{
   /*!
    * @brief Create (Blueprint) matset in the mesh for a material.
-   * @param materialName [in]
+   * @param materialName [in] Name of material
    * @param volumes [in] Cell-centered volumes
    * @param isFraction [in] Whether @c volumes is actually
    *   volume fractions.
@@ -211,6 +211,10 @@ public:
                            const axom::ArrayView<double>& volumes,
                            bool isFraction = false);
 
+  /*!
+   * @brief Compute and set the free volume fraction.
+   * @param freeName [in] Name of free material.
+   */
   void setFreeVolumeFractions(const std::string& freeName);
   //@}
 

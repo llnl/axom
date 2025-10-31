@@ -56,7 +56,7 @@ public:
     return;
   }
 
-  void initVolumeOverlaps(axom::ArrayView<double> ovlap) override
+  void zeroVolumeOverlaps(axom::ArrayView<double> ovlap) override
   {
     SLIC_ASSERT(ovlap.size() == getShapeMesh().getCellCount());
     ovlap.fill(0.0);
@@ -90,7 +90,7 @@ public:
       });
   }
 
-  //! @brief Make an list of indices where labels have value LABEL_ON.
+  //! @brief Make a list of indices where labels have value LABEL_ON.
   void collectOnIndices(const axom::ArrayView<LabelType>& labels,
                         axom::Array<axom::IndexType>& onIndices) override
   {
@@ -102,7 +102,7 @@ public:
     AXOM_ANNOTATE_SCOPE("MeshClipper::collect_unlabeleds");
     /*!
      * 1. Generate tmpLabels, having a value of 1 where labels is LABEL_ON and zero elsewhere.
-     * 2. Inclusive scan on tmpLabels to generate values that step up at unlabeled cells.
+     * 2. Inclusive scan on tmpLabels to generate values that step up at LABEL_ON cells.
      * 3. Find unlabeled cells by seeing where tmpLabels changes values.
      *    (Handle first cell separately, then loop from second cell on.)
     */
@@ -293,7 +293,7 @@ public:
                                            allocId);
     auto shapeCandidatesView = shapeCandidates.view();
 
-    // Tetrahedrons from hexes (24 for each hex)
+    // Tetrahedra from hexes (24 for each hex)
     auto cellsAsTets = shapeMesh.getCellsAsTets();
 
     // Index into 'tets'
@@ -420,8 +420,8 @@ public:
   }  // end of computeClipVolumes3D() function
 
   /*
-   * Clip tets of from the mesh with tets or octs from the clipping
-   * geomnetry.  This implemenation is like the above except that it
+   * Clip tets from the mesh with tets or octs from the clipping
+   * geometry.  This implementation is like the above except that it
    * limits clipping to a subset of mesh cells labeled as potentially
    * on the boundary.
    */
@@ -678,7 +678,7 @@ public:
 
   /*
    * Clip tets of from the mesh with tets or octs from the clipping
-   * geomnetry.  This implemenation is like the two above except that
+   * geometry.  This implementation is like the two above except that
    * it limits clipping to a subset of mesh tets labeled as
    * potentially on the boundary.
    */

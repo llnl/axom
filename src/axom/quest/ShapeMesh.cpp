@@ -271,14 +271,20 @@ bool ShapeMesh::isValidForShaping(std::string& whyNot) const
   {
     std::string topoType = bpMesh.fetch("topologies")[m_topoName]["type"].as_string();
     rval = topoType == "unstructured";
-    info[0].set_string("Topology is not unstructured.");
+    if(!rval)
+    {
+      info[0].set_string("Topology is not unstructured.");
+    }
   }
 
   if(rval)
   {
     std::string elemShape = bpMesh.fetch("topologies")[m_topoName]["elements/shape"].as_string();
     rval = elemShape == "hex";
-    info[0].set_string("Topology elements are not hex.");
+    if(!rval)
+    {
+      info[0].set_string("Topology elements are not hex.");
+    }
   }
 
   whyNot = info.to_summary_string();
@@ -293,6 +299,8 @@ void ShapeMesh::setMatsetFromVolume(const std::string& materialName,
   SLIC_ERROR_IF(m_matsetName.empty(),
                 "Cannot use material set in ShapeMesh: Matset name was not provided, and no "
                 "default matset was found.");
+  SLIC_ERROR_IF(materialName.empty(),
+                "Cannot have an empty materialName.");
 
   double* vfPtr = nullptr;
 
@@ -367,6 +375,8 @@ void ShapeMesh::setFreeVolumeFractions(const std::string& freeName)
   SLIC_ERROR_IF(m_matsetName.empty(),
                 "Cannot use material set in ShapeMesh: Matset name was not provided, and no "
                 "default matset was found.");
+  SLIC_ERROR_IF(freeName.empty(),
+                "Cannot have an empty material name.");
 
   auto dataType = conduit::DataType::float64(m_cellCount);
 
