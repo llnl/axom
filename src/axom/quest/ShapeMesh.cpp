@@ -774,8 +774,6 @@ void ShapeMesh::computeCellsAsHexesImpl()
 template <typename ExecSpace>
 void ShapeMesh::computeCellsAsTetsImpl()
 {
-  constexpr int NUM_TETS_PER_HEX = primal::Hexahedron<double, 3>::NUM_TRIANGULATE;
-
   SLIC_ASSERT(m_dim == 3);  // or we shouldn't be here.
 
   m_cellsAsTets = axom::Array<TetrahedronType>(ArrayOptions::Uninitialized(),

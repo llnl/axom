@@ -162,7 +162,7 @@ public:
    * code and computations.
    */
   /*!
-   * @brief Tetrahedral version of mesh cells with cell i having tet ids in
+   * @brief Tetrahedral version of mesh cells with cell \c i having tet ids in
    * [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX).
    */
   axom::ArrayView<const TetrahedronType> getCellsAsTets();

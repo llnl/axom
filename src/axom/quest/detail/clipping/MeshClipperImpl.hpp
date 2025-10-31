@@ -105,7 +105,11 @@ public:
      * 2. Inclusive scan on tmpLabels to generate values that step up at LABEL_ON cells.
      * 3. Find unlabeled cells by seeing where tmpLabels changes values.
      *    (Handle first cell separately, then loop from second cell on.)
-    */
+     *    Note that tmpLabels holds non-decreasing values.  By populating
+     *    onIndices based on where tmpLabels changes, we never write to
+     *    the same index more than once.  Write conflicts are thus avoided.
+     *    Thanks to Jason Burmark for recommending this approach.
+     */
     using ScanPolicy = typename axom::execution_space<ExecSpace>::loop_policy;
 
     const axom::IndexType labelCount = labels.size();
