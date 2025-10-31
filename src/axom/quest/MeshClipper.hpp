@@ -110,9 +110,23 @@ public:
     virtual void collectOnIndices(const axom::ArrayView<LabelType>& labels,
                                   axom::Array<axom::IndexType>& onIndices) = 0;
 
-    //!@brief Change tet indices from sparse-set values to full-set values.
-    virtual void remapTetIndices(axom::ArrayView<axom::IndexType> tetsOnBdry,
-                                 axom::ArrayView<const axom::IndexType> cellsOnBdry) = 0;
+    /*!
+     * @brief Remap tet indices by de-referencing the cell indices they refer to.
+     *
+     * @param cellIndices [in] a list of cell indices.
+     * @param tetIndices [in,out] a list of tet indices.
+     *
+     * On input, tetIndices have values in [0, cellIndices.size()*NUM_TETS_PER_HEX),
+     * as though the cells have indices in [0, cellIndices.size()).
+     *
+     * On output, tetIndices values are remapped to match real cell indices.
+     * For example, tet index values in
+     * [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX) are remapped to
+     * [j*NUM_TETS_PER_HEX, (j+1)*NUM_TETS_PER_HEX), where j = cellIndices[i],
+     * the real cell index.
+     */
+    virtual void remapTetIndices(axom::ArrayView<const axom::IndexType> cellIndices,
+                                 axom::ArrayView<axom::IndexType> tetIndices) = 0;
 
     //!@brief Add volumes of tets inside the geometry to the volume data.
     virtual void addVolumesOfInteriorTets(axom::ArrayView<const axom::IndexType> cellsOnBdry,

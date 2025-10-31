@@ -152,41 +152,29 @@ public:
       });
   }
 
-  void remapTetIndices(axom::ArrayView<axom::IndexType> tetsOnBdry,
-                       axom::ArrayView<const axom::IndexType> cellsOnBdry) override
+  void remapTetIndices(axom::ArrayView<const axom::IndexType> cellIndices,
+                       axom::ArrayView<axom::IndexType> tetIndices) override
   {
-    /*
-     * cellsOnBdry is a list of cell indices.
-     *
-     * Each cell has NUM_TETS_PER_HEX.
-     *
-     * tetsOnBdry are a list of indices referring to the tets in those
-     * cells.  N tets for each cell.  So the values in tetsOnBDry are
-     * in [0, cellsOnBdry.size()*24).
-     *
-     * Use the indices in cellsOnBdry to map tetsOnBdry values to the
-     * indices of the full set of tets.
-     */
-    if(tetsOnBdry.empty())
+    if(tetIndices.empty())
     {
       return;
     }
 
     axom::for_all<ExecSpace>(
-      tetsOnBdry.size(),
+      tetIndices.size(),
       AXOM_LAMBDA(axom::IndexType i) {
-        auto tetIdId = tetsOnBdry[i];
-        auto cellIdId = tetIdId / NUM_TETS_PER_HEX;
-        auto cellId = cellsOnBdry[cellIdId];
-        auto tetIdInCell = tetIdId % NUM_TETS_PER_HEX;
-        auto tetId = cellId * NUM_TETS_PER_HEX + tetIdInCell;
-        tetsOnBdry[i] = tetId;
+        auto tetIdIn = tetIndices[i];
+        auto cellIdFake = tetIdIn / NUM_TETS_PER_HEX;
+        auto cellIdTrue = cellIndices[cellIdFake];
+        auto tetIdInCell = tetIdIn % NUM_TETS_PER_HEX;
+        auto tetIdOut = cellIdTrue * NUM_TETS_PER_HEX + tetIdInCell;
+        tetIndices[i] = tetIdOut;
       });
   }
 
   /*
-   * Clip tets of from the mesh with tets or octs from the clipping
-   * geomnetry.  This implemenation was lifted from IntersectionShaper
+   * Clip tets from the mesh with tets or octs from the clipping
+   * geometry.  This implementation was lifted from IntersectionShaper
    * and modified to work both tet and oct representations of the
    * geometry.
    */
