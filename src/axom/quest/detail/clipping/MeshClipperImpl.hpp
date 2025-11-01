@@ -329,11 +329,6 @@ public:
         });
     }
 
-    SLIC_INFO(
-      axom::fmt::format("Running clip loop on {} candidate tets for of all {} hexes in the mesh",
-                        tetCandidatesCount,
-                        cellCount));
-
     constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = false;
 
@@ -348,6 +343,11 @@ public:
       }
       SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
 #endif
+
+      SLIC_INFO(
+        axom::fmt::format("Running clip loop on {} candidate tets for of all {} hexes in the mesh",
+                          tetCandidatesCount,
+                          cellCount));
 
       if(useTets)
       {
