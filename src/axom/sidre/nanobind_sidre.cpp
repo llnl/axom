@@ -151,8 +151,6 @@ void bindIterator(nb::module_& m, const char* iterator_name)
       "Return next item from iterator");
 }
 
-// TODO determine return value policy (nb::rv_policy::reference or not) for ownership between C++ and Python:
-// https://nanobind.readthedocs.io/en/latest/ownership.html#return-value-policies
 NB_MODULE(pysidre, m_sidre)
 {
   m_sidre.doc() = "A python extension for Axom's Sidre component";
