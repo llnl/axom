@@ -578,7 +578,11 @@ struct test_braid2d_mat
     {
       axom::bump::views::dispatch_material_multibuffer(
         deviceMesh["matsets/mat"],
-        [&](auto matsetView) { test_matsetview(nzones, matsetView, allocatorID); });
+        [&](auto matsetView) {
+        test_matsetview(nzones, matsetView, allocatorID);
+        // Test iterators.
+        test_matsetview_iterators(matsetView, allocatorID);
+      });
     }
     else if(mattype == "element_dominant")
     {
@@ -702,7 +706,6 @@ TEST(bump_views, matset_unibuffer_seq)
 {
   test_braid2d_mat<seq_exec>::test("uniform", "unibuffer", "uniform2d_unibuffer");
 }
-#if 0
 #if defined(AXOM_USE_OPENMP)
 TEST(bump_views, matset_unibuffer_omp)
 {
@@ -745,7 +748,7 @@ TEST(bump_views, matset_multibuffer_hip)
   test_braid2d_mat<hip_exec>::test("uniform", "multibuffer", "uniform2d_multibuffer");
 }
 #endif
-
+#if 0
 // Element-dominant
 TEST(bump_views, matset_element_dominant_seq)
 {
