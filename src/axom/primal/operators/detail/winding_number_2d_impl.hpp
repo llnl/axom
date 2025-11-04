@@ -21,11 +21,6 @@
 // C++ includes
 #include <math.h>
 
-// MFEM includes
-#ifdef AXOM_USE_MFEM
-  #include "mfem.hpp"
-#endif
-
 namespace axom
 {
 namespace primal
