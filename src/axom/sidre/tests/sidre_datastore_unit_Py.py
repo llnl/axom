@@ -301,28 +301,6 @@ def test_iterate_buffers_iterators():
         idx = b.getIndex()
         bs[idx] = b
 
-    # non-const iterator on non-const datastore
-    found_buffers = 0
-    for buff in ds.buffers():
-        idx = buff.getIndex()
-        found_buffers += 1
-        assert pysidre.indexIsValid(idx)
-        assert ds.getBuffer(idx) == buff
-        assert bs[idx] == buff
-    assert found_buffers == bufcount
-
-    # const iterator on non-const datastore (Python doesn't distinguish)
-    found_buffers = 0
-    for buff in ds.buffers():
-        idx = buff.getIndex()
-        found_buffers += 1
-        assert pysidre.indexIsValid(idx)
-        assert ds.getBuffer(idx) == buff
-        assert bs[idx] == buff
-    assert found_buffers == bufcount
-
-    # const iterator on const datastore (Python doesn't distinguish)
-    # Just re-use the same ds object
     found_buffers = 0
     for buff in ds.buffers():
         idx = buff.getIndex()
@@ -393,24 +371,6 @@ def test_iterate_buffers_with_delete_iterators():
     assert ds.getNumBuffers() == exp_buff_count
 
     # Iterate using standard Python for-loop
-    found_buffers = 0
-    for buff in ds.buffers():
-        idx = buff.getIndex()
-        found_buffers += 1
-        assert pysidre.indexIsValid(idx)
-        assert ds.getBuffer(idx) == buff
-    assert found_buffers == exp_buff_count
-
-    # "begin/end" style iteration is just a for-loop in Python
-    found_buffers = 0
-    for buff in ds.buffers():
-        idx = buff.getIndex()
-        found_buffers += 1
-        assert pysidre.indexIsValid(idx)
-        assert ds.getBuffer(idx) == buff
-    assert found_buffers == exp_buff_count
-
-    # Const iteration (no distinction in Python)
     found_buffers = 0
     for buff in ds.buffers():
         idx = buff.getIndex()
