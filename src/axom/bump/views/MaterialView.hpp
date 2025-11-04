@@ -224,6 +224,9 @@ public:
              m_indices != rhs.m_indices;
     }
   private:
+    DISABLE_DEFAULT_CTOR(iterator);
+
+    /// Constructor
     AXOM_HOST_DEVICE iterator(axom::ArrayView<MaterialID> material_ids,
                               axom::ArrayView<FloatType> volume_fractions,
                               axom::ArrayView<IndexType> indices,
@@ -478,6 +481,8 @@ public:
              m_view != rhs.m_view;
     }
   private:
+    DISABLE_DEFAULT_CTOR(iterator);
+
     /// Constructor
     AXOM_HOST_DEVICE iterator(const MultiBufferMaterialView<IndexT, FloatT, MAXMATERIALS> *view,
                               ZoneIndex zoneIndex,
@@ -744,6 +749,8 @@ public:
              m_view != rhs.m_view;
     }
   private:
+    DISABLE_DEFAULT_CTOR(iterator);
+
     /// Constructor
     AXOM_HOST_DEVICE iterator(const ElementDominantMaterialView<IndexT, FloatT, MAXMATERIALS> *view,
                               ZoneIndex zoneIndex,
