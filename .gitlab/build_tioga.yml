@@ -34,17 +34,17 @@
 
 ####
 # PR Build jobs
-tioga-llvm-amdgpu_6.4.2_hip-src:
+tioga-llvm-amdgpu_6_3_1_hip-src:
   variables:
-    COMPILER: "llvm-amdgpu@6.4.2_hip"
+    COMPILER: "llvm-amdgpu@6.3.1_hip"
     HOST_CONFIG: "tioga-toss_4_x86_64_ib_cray-${COMPILER}.cmake"
   extends: .src_build_on_tioga
 
 ####
 # Full Build jobs
-tioga-llvm-amdgpu_6.4.2_hip-full:
+tioga-llvm-amdgpu_6_3_1_hip-full:
   variables:
-    COMPILER: "llvm-amdgpu@6.4.2_hip"
+    COMPILER: "llvm-amdgpu@6.3.1_hip"
     SPEC: "%${COMPILER}~openmp+rocm+mfem+c2c"
-    EXTRASPEC: "amdgpu_target=gfx90a ^hip@6.4.2 ^hsa-rocr-dev@6.4.2 ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion"
+    EXTRASPEC: "amdgpu_target=gfx90a ^hip@6.3.1 ^hsa-rocr-dev@6.3.1 ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion"
   extends: .full_build_on_tioga
