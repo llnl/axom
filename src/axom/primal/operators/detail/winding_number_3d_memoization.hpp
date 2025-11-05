@@ -25,18 +25,13 @@
 
 #include "axom/primal/operators/is_convex.hpp"
 
+#include "axom/core/numerics/quadrature.hpp"
+
 #include <vector>
 #include <ostream>
 #include <math.h>
 
 #include "axom/fmt.hpp"
-
-// MFEM includes
-#ifdef AXOM_USE_MFEM
-  #include "mfem.hpp"
-#else
-  #error "3D GWN evaluation requires mfem library."
-#endif
 
 namespace axom
 {
@@ -76,9 +71,7 @@ struct TrimmingCurveQuadratureData
     : m_quad_npts(quad_npts)
   {
     // Generate the (cached) quadrature rules in parameter space
-    static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
-    const mfem::IntegrationRule& quad_rule =
-      my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * quad_npts - 1);
+    const numerics::QuadratureRule& gl_rule = numerics::get_gauss_legendre(quad_npts);
 
     auto& the_curve = a_patch.getTrimmingCurve(a_curve_index);
 
@@ -93,7 +86,7 @@ struct TrimmingCurveQuadratureData
     m_quadrature_tangents.resize(m_quad_npts);
     for(int q = 0; q < m_quad_npts; ++q)
     {
-      T quad_x = quad_rule.IntPoint(q).x * m_span_length + curve_min_knot + span_offset;
+      T quad_x = gl_rule.node(q) * m_span_length + curve_min_knot + span_offset;
 
       Point<T, 2> c_eval;
       Vector<T, 2> c_Dt;
@@ -114,10 +107,8 @@ struct TrimmingCurveQuadratureData
   {
     // Because the quadrature weights are identical for each trimming curve (up to a scaling factor),
     //  we query the static rule instead of storing redundant weights
-    static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
-    const mfem::IntegrationRule& quad_rule =
-      my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * m_quad_npts - 1);
-    return quad_rule.IntPoint(idx).weight * m_span_length;
+    const numerics::QuadratureRule& gl_rule = numerics::get_gauss_legendre(m_quad_npts);
+    return gl_rule.weight(idx) * m_span_length;
   }
   double getNumPoints() const { return m_quad_npts; }
 

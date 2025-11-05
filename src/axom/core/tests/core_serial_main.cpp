@@ -39,6 +39,7 @@
 #include "numerics_matrix.hpp"
 #include "numerics_matvecops.hpp"
 #include "numerics_polynomial_solvers.hpp"
+#include "numerics_quadrature.hpp"
 
 #include "utils_endianness.hpp"
 #include "utils_fileUtilities.hpp"

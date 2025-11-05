@@ -39,6 +39,7 @@ set(core_serial_tests
     numerics_eigen_sort.hpp
     numerics_floating_point_limits.hpp
     numerics_jacobi_eigensolve.hpp
+    numerics_quadrature.hpp
     numerics_linear_solve.hpp
     numerics_lu.hpp
     numerics_matrix.hpp
