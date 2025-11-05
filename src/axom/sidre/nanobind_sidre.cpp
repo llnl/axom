@@ -7,6 +7,7 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 #include <nanobind/ndarray.h>
+#include <nanobind/make_iterator.h>
 
 #include "axom/core/Types.hpp"
 #include "core/SidreTypes.hpp"
@@ -129,26 +130,37 @@ nb::ndarray<nb::numpy> bufferToNumpyArray(Buffer& self)
 template <typename IteratorType>
 void bindIterator(nb::module_& m, const char* iterator_name)
 {
+  // Create non-const and const python iterators using nanobind's make_iterator helper
+  // We need to specify the ValueType (4th template parameter) as a reference since IndexedCollections
+  // have pointer/reference semantics and the underlying type (e.g. sidre::View) are not copyable
   nb::class_<IteratorType>(m, iterator_name)
+    .def("__len__", &IteratorType::size)
     .def(
       "__iter__",
-      [](IteratorType& self) { return self; },
-      nb::rv_policy::reference,
-      "Return iterator")
-    .def(
-      "__next__",
-      [](IteratorType& self) {
-        if(self.getCounter() < self.size())
-        {
-          // Get a pointer to the item (no copy constructor)
-          auto result = &(*(self.begin() + self.getCounter()));
-          self.incrementCounter();
-          return result;
-        }
-        throw nb::stop_iteration();
+      [iterator_name](IteratorType& self) {
+        return nb::make_iterator<nb::rv_policy::reference,
+                                 decltype(self.begin()),
+                                 decltype(self.end()),
+                                 typename IteratorType::CollectionType::value_type&>(
+          nb::type<IteratorType>(),
+          iterator_name,
+          self.begin(),
+          self.end());
       },
-      nb::rv_policy::reference,
-      "Return next item from iterator");
+      nb::keep_alive<0, 1>())
+    .def(
+      "__iter__",
+      [iterator_name](const IteratorType& self) {
+        return nb::make_iterator<nb::rv_policy::reference,
+                                 decltype(self.cbegin()),
+                                 decltype(self.cend()),
+                                 const typename IteratorType::CollectionType::value_type&>(
+          nb::type<const IteratorType>(),
+          iterator_name,
+          self.cbegin(),
+          self.cend());
+      },
+      nb::keep_alive<0, 1>());
 }
 
 NB_MODULE(pysidre, m_sidre)
