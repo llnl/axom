@@ -11,6 +11,15 @@
 
 // Axom includes
 #include "axom/config.hpp"
+
+#if !defined(AXOM_USE_CONDUIT)
+  #error Shaping functionality requires Axom to be configured with Conduit
+#endif
+
+#if !defined(AXOM_USE_SIDRE)
+  #error Shaping functionality requires Axom to be have sidre enabled
+#endif
+
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/mint.hpp"
@@ -22,10 +31,6 @@
 
 #include "axom/fmt.hpp"
 #include "axom/CLI11.hpp"
-
-#if !defined(AXOM_USE_CONDUIT)
-  #error Shaping functionality requires Axom to be configured with Conduit
-#endif
 
 #include "conduit_blueprint.hpp"
 #include "conduit_relay_io_blueprint.hpp"

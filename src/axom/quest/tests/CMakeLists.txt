@@ -234,7 +234,7 @@ endif()
 #------------------------------------------------------------------------------
 # Geometry clipping tests require Conduit and RAJA
 #------------------------------------------------------------------------------
-if(CONDUIT_FOUND AND RAJA_FOUND)
+if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
     axom_add_executable(
         NAME        quest_mesh_clipper_test
         SOURCES     quest_mesh_clipper.cpp

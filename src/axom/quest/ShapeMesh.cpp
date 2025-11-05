@@ -39,6 +39,7 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
   , m_matsetName(matsetName.empty() && bpMesh["matsets"].number_of_children() > 0
                    ? bpMesh.fetch("matsets").child(0).name()
                    : matsetName)
+  , m_bpGrpExt(nullptr)
   , m_bpNodeExt(&bpMesh)
   , m_zeroThreshold(1e-10)
 {
@@ -64,7 +65,7 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
   {
     conduit::Node& matsetNode = m_bpNodeExt->fetch("matsets").fetch(m_matsetName);
 
-    // If matsetName was given, but not data isn't set up yet, set it up.
+    // If matsetName was given, but topology data isn't set up yet, set it up.
     if(!matsetNode.has_child("topology"))
     {
       matsetNode.set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(hostAllocId));
@@ -321,9 +322,9 @@ void ShapeMesh::setMatsetFromVolume(const std::string& materialName,
     conduit::Node& vfValues = getMeshConduitPath(*m_bpNodeExt, vfValuesPath, dataType);
     vfPtr = vfValues.as_double_ptr();
   }
-  else
+#if defined(AXOM_USE_SIDRE)
+  if(m_bpGrpExt != nullptr)
   {
-    SLIC_ASSERT(m_bpGrpExt != nullptr);
     std::string viewPath = "matsets/" + m_matsetName + "/volume_fractions/" + materialName;
     sidre::View* vfValues = m_bpGrpExt->hasView(viewPath)
       ? m_bpGrpExt->getView(viewPath)
@@ -339,6 +340,7 @@ void ShapeMesh::setMatsetFromVolume(const std::string& materialName,
     }
     vfPtr = (double*)(vfValues->getVoidPtr());
   }
+#endif
 
   axom::copy(vfPtr, volumes.data(), m_cellCount * sizeof(double));
   if(!isFraction)
@@ -409,9 +411,9 @@ void ShapeMesh::setFreeVolumeFractions(const std::string& freeName)
       elementwiseAddImpl(newVfView, vfView, newVfView);
     }
   }
-  else
+#if defined(AXOM_USE_SIDRE)
+  if(m_bpGrpExt != nullptr)
   {
-    SLIC_ASSERT(m_bpGrpExt != nullptr);
     sidre::Group* matsetGrp = m_bpGrpExt->createGroup("matsets/" + m_matsetName, false, true);
     if(matsetGrp->hasView("topology"))
     {
@@ -439,6 +441,7 @@ void ShapeMesh::setFreeVolumeFractions(const std::string& freeName)
       elementwiseAddImpl(newVfView, vfView, newVfView);
     }
   }
+#endif
 
   elementwiseComplementImpl(newVfView, 1.0, newVfView);
 }

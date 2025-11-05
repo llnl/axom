@@ -3,12 +3,20 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_SHAPEEMESH_HPP
-#define AXOM_QUEST_SHAPEEMESH_HPP
+#ifndef AXOM_QUEST_SHAPEMESH_HPP
+#define AXOM_QUEST_SHAPEMESH_HPP
+
+#include "axom/config.hpp"
 
 #ifndef AXOM_USE_CONDUIT
   #error "ShapeMesh requires Conduit"
-// TODO: Support MFEM as well.
+#endif
+
+#ifndef AXOM_USE_SIDRE
+  #error "ShapeMesh requires sidre"
+  // Note: We guard sidre use for mesh stored in sidre, but sidre::ConduitMemory
+  // is required even when the mesh is stored in Conduit.  Hence the dependence
+  // on sidre.
 #endif
 
 #include "axom/core.hpp"
@@ -16,9 +24,7 @@
 #include "axom/primal/geometry/Hexahedron.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
 
-#ifdef AXOM_USE_SIDRE
-  #include "axom/sidre.hpp"
-#endif
+#include "axom/sidre.hpp"
 
 #include "conduit/conduit_node.hpp"
 #include "conduit_blueprint.hpp"
@@ -340,4 +346,4 @@ public:
 }  // namespace quest
 }  // namespace axom
 
-#endif  // AXOM_QUEST_SHAPEEMESH_HPP
+#endif  // AXOM_QUEST_SHAPEMESH_HPP
