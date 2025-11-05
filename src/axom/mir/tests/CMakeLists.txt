@@ -12,8 +12,8 @@
 #------------------------------------------------------------------------------
 
 set(gtest_mir_tests
-    mir_coupling.cpp
-    mir_coupling3d.cpp
+    mir_coupled.cpp
+    mir_coupled3d.cpp
     mir_elvira2d.cpp
     mir_elvira3d.cpp
     mir_equiz2d.cpp
