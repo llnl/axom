@@ -45,7 +45,7 @@ The input to this query is a collection of bounding boxes, and the output is ret
 ### Second step: Filtering and deduplicating the candidates
 The results from the previous step will, in general, contain numerous duplicates as well as the indices of degenerate triangles. For example, since every bounding box intersects itself, the results from the previous query contain all pairs ``(idx, idx)``  for a triangle with index ``idx``.  For pairs of distinct triangles ``idx1`` and ``idx2`` whose bounding boxes overlap, the results will contain both ``(idx1, idx2)`` and ``(idx2, idx1)``
 
-In this phase, we filter out these duplicates, as well an pair containing a degenerate triangle. This is aided by building up a device-accessible array of boolean flags:
+In this phase, we filter out these duplicates, as well as any pairs containing a degenerate triangle. This is aided by building up a device-accessible array of boolean flags:
 ```cpp
     // Compute a device bool array of validity flags
     axom::Array<bool> is_valid_d(axom::ArrayOptions::Uninitialized {},
@@ -95,7 +95,7 @@ Our kernel therefore has the following implementation:
 ```
 
 ### Third phase
-At this point, we have a pair of corresponding arrays, allowing us to run a fairly straightforward kernel to check for actual intersections. As in the previous kernel, we use a ``axom::atomicAdd`` variable to obtain a unique location for each intersection pair:
+At this point, we have a pair of corresponding arrays, allowing us to run a fairly straightforward kernel to check for actual intersections. As in the previous kernel, we use the ``axom::atomicAdd`` reduction to obtain a unique location for each intersection pair:
 ```cpp
   // Iterate through valid candidates to find actual intersections
   IndexArray intersect_d[2] = {IndexArray(axom::ArrayOptions::Uninitialized {},
