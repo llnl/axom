@@ -142,7 +142,8 @@ void copy(conduit::Node &dest, const conduit::Node &src)
   else
   {
     const int allocatorID = axom::getAllocatorIDFromPointer(src.data_ptr());
-    bool deviceAllocated = (allocatorID == INVALID_ALLOCATOR_ID) ? false : isDeviceAllocator(allocatorID);
+    bool deviceAllocated =
+      (allocatorID == INVALID_ALLOCATOR_ID) ? false : isDeviceAllocator(allocatorID);
     if(deviceAllocated || (!src.dtype().is_string() && src.dtype().number_of_elements() > 1))
     {
       // Allocate the node's memory in the right place.

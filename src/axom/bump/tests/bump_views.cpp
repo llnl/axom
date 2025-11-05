@@ -576,17 +576,13 @@ struct test_braid2d_mat
     {
       axom::bump::views::dispatch_material_multibuffer(
         deviceMesh["matsets/mat"],
-        [&](auto matsetView) {
-        test_matsetview(nzones, matsetView, allocatorID);
-      });
+        [&](auto matsetView) { test_matsetview(nzones, matsetView, allocatorID); });
     }
     else if(mattype == "element_dominant")
     {
       axom::bump::views::dispatch_material_element_dominant(
         deviceMesh["matsets/mat"],
-        [&](auto matsetView) {
-        test_matsetview(nzones, matsetView, allocatorID);
-      });
+        [&](auto matsetView) { test_matsetview(nzones, matsetView, allocatorID); });
     }
     else if(mattype == "material_dominant")
     {
@@ -702,8 +698,7 @@ struct test_braid2d_mat
         int i = 0;
         for(auto it = matsetView.beginZone(index); it != end; it++, i++)
         {
-          eq_count += (vfs[i] == it.volume_fraction() &&
-                       ids[i] == it.material_id()) ? 1 : 0;
+          eq_count += (vfs[i] == it.volume_fraction() && ids[i] == it.material_id()) ? 1 : 0;
           count++;
         }
         resultsView[index] = (eq_count == count) ? 1 : 0;
