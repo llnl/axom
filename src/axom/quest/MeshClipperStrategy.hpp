@@ -67,14 +67,13 @@ public:
   /*!
    * @brief A type to denote whether something is inside,
    * on or outside the boundary of a geometry.
-  */
-  using LabelType = char;
-  //!@brief Denotes something inside a shape boundary.
-  static constexpr LabelType LABEL_IN = 0;
-  //!@brief Denotes something on a shape boundary.
-  static constexpr LabelType LABEL_ON = 1;
-  //!@brief Denotes something outside a shape boundary.
-  static constexpr LabelType LABEL_OUT = 2;
+   */
+  enum class LabelType : char {
+    LABEL_IN = 0, ///< Denotes something inside a shape boundary.
+    LABEL_ON = 1, ///< Denotes something on a shape boundary.
+    LABEL_OUT = 2 ///< Denotes something outside a shape boundary.
+  };
+
 
   using BoundingBox3DType = axom::primal::BoundingBox<double, 3>;
   using Cone3DType = axom::primal::Cone<double, 3>;

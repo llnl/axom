@@ -60,7 +60,7 @@ public:
       cellCount,
       AXOM_LAMBDA(axom::IndexType i) {
         auto& l = labels[i];
-        ovlap[i] = l == MeshClipperStrategy::LABEL_IN ? cellVolumes[i] : 0.0;
+        ovlap[i] = l == LabelType::LABEL_IN ? cellVolumes[i] : 0.0;
       });
 
     return;
@@ -90,7 +90,7 @@ public:
         const LabelType* tetLabelsForHex = &tetLabels[NUM_TETS_PER_HEX * ih];
         for(int it = 0; it < NUM_TETS_PER_HEX; ++it)
         {
-          if(tetLabelsForHex[it] == MeshClipperStrategy::LABEL_IN)
+          if(tetLabelsForHex[it] == LabelType::LABEL_IN)
           {
             const axom::IndexType tetId = hexId * NUM_TETS_PER_HEX + it;
             const auto& tet = meshTets[tetId];
@@ -129,7 +129,7 @@ public:
     axom::for_all<ExecSpace>(
       labelCount,
       AXOM_LAMBDA(axom::IndexType ci) {
-        tmpLabelsView[ci] = labels[ci] == MeshClipperStrategy::LABEL_ON;
+        tmpLabelsView[ci] = labels[ci] == LabelType::LABEL_ON;
       });
 
     RAJA::inclusive_scan_inplace<ScanPolicy>(RAJA::make_span(tmpLabels.data(), tmpLabels.size()),
@@ -147,9 +147,9 @@ public:
     }
     auto onIndicesView = onIndices.view();
 
-    LabelType firstLabel = '\0';
+    LabelType firstLabel = LabelType::LABEL_IN;
     axom::copy(&firstLabel, &labels[0], sizeof(firstLabel));
-    if(firstLabel == 1)
+    if(firstLabel == LabelType::LABEL_ON)
     {
       axom::IndexType zero = 0;
       axom::copy(&onIndices[0], &zero, sizeof(zero));
@@ -875,11 +875,11 @@ public:
       RAJA::RangeSegment(0, labels.size()),
       AXOM_LAMBDA(axom::IndexType cellId) {
         const auto& label = labels[cellId];
-        if(label == MeshClipperStrategy::LABEL_OUT)
+        if(label == LabelType::LABEL_OUT)
         {
           outSum += 1;
         }
-        else if(label == MeshClipperStrategy::LABEL_IN)
+        else if(label == LabelType::LABEL_IN)
         {
           inSum += 1;
         }
