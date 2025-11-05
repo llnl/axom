@@ -9,7 +9,14 @@ from os.path import join as pjoin
 
 from spack.package import *
 from spack.util.executable import which_string
-
+from spack_repo.builtin.build_systems.cached_cmake import (
+    CachedCMakePackage,
+    cmake_cache_option,
+    cmake_cache_path,
+    cmake_cache_string,
+)
+from spack_repo.builtin.build_systems.cuda import CudaPackage
+from spack_repo.builtin.build_systems.rocm import ROCmPackage
 
 def get_spec_path(spec, package_name, path_replacements={}, use_bin=False):
     """Extracts the prefix path for the given spack package
@@ -45,6 +52,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     version("main", branch="main")
     version("develop", branch="develop")
+    version("0.12.0", tag="v0.12.0", commit="297544010a3dfb98145a1a85f09f9c648c00a18c")
+    version("0.11.0", tag="v0.11.0", commit="685960486aa55d3a74a821ee02f6d9d9a3e67ab1")
     version("0.10.1", tag="v0.10.1", commit="6626ee1c5668176fb64dd9a52dec3e8596b3ba6b")
     version("0.10.0", tag="v0.10.0", commit="ea853a34a834415ea75f824160fc44cba9a0755d")
     version("0.9.0", tag="v0.9.0", commit="5f531595d941d16fa3b8583bfc347a845d9feb6d")
@@ -132,6 +141,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("conduit+{0}".format(_var), when="+{0}".format(_var))
         depends_on("conduit~{0}".format(_var), when="~{0}".format(_var))
 
+    depends_on("conduit+python", when="+devtools")
+    depends_on("conduit~python", when="~devtools")
+
     depends_on("hdf5", when="+hdf5")
 
     depends_on("lua", when="+lua")
@@ -141,14 +153,17 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     with when("+umpire"):
         depends_on("umpire")
+        depends_on("umpire@2025.09.0:", when="@0.10:")
         depends_on("umpire@2024.02.0:", when="@0.9:")
         depends_on("umpire@2022.03.0:2023.06", when="@0.7.0:0.8")
         depends_on("umpire@6.0.0", when="@0.6.0")
         depends_on("umpire@5:5.0.1", when="@:0.5.0")
         depends_on("umpire+openmp", when="+openmp")
+        depends_on("umpire+mpi3_shmem", when="+mpi")
 
     with when("+raja"):
         depends_on("raja")
+        depends_on("raja@2025.09.0:", when="@0.10:")
         depends_on("raja@2024.02.0:", when="@0.9:")
         depends_on("raja@2022.03.0:2023.06", when="@0.7.0:0.8")
         depends_on("raja@0.14.0", when="@0.6.0")
@@ -209,9 +224,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("py-pytest")
         depends_on("py-jsonschema")
 
-        # Need clang@14 for clang-format
+        # Need clang@19 for clang-format
         # (ENABLE_CLANGFORMAT will be OFF if not the exact version)
-        depends_on("llvm+clang@14", type="build")
+        depends_on("llvm+clang@19", type="build")
 
     # -----------------------------------------------------------------------
     # Conflicts
@@ -304,6 +319,16 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         if spec.satisfies("%cce"):
             entries.append(cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-O1 -g"))
 
+            # Remove unusable -Mfreeform flag injected by spack
+            entries = [entry.replace("-Mfreeform", "") for entry in entries]
+
+        # Disable intrusive warning:
+        #   icpx: remark: note that use of '-g' without any optimization-level
+        #   option will turn off most compiler optimizations similar to use of
+        #   '-O0'; use '-Rno-debug-disables-optimization' to disable this remark
+        if spec.satisfies("%oneapi"):
+            entries.append(cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-g -Rno-debug-disables-optimization"))
+
         return entries
 
     def initconfig_hardware_entries(self):
@@ -346,9 +371,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
             # Recommended MPI flags
             hip_link_flags += "-lxpmem "
-            hip_link_flags += "-L/opt/cray/pe/mpich/{0}/gtl/lib ".format(spec["mpi"].version)
+            hip_link_flags += "-L/opt/cray/pe/mpich/{0}/gtl/lib ".format(spec["mpi"].version.up_to(3))
             hip_link_flags += "-Wl,-rpath,/opt/cray/pe/mpich/{0}/gtl/lib ".format(
-                spec["mpi"].version
+                spec["mpi"].version.up_to(3)
             )
             hip_link_flags += "-lmpi_gtl_hsa "
 
@@ -575,11 +600,11 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             path2 = os.path.realpath(spec["doxygen"].prefix)
             self.find_path_replacement(path1, path2, path_replacements, "DEVTOOLS_ROOT", entries)
 
-        if spec.satisfies("+devtools") and spec.satisfies("^llvm@14"):
+        if spec.satisfies("+devtools") and spec.satisfies("^llvm@19"):
             clang_fmt_path = spec["llvm"].prefix.bin.join("clang-format")
             entries.append(cmake_cache_path("CLANGFORMAT_EXECUTABLE", clang_fmt_path))
         else:
-            entries.append("# ClangFormat disabled since llvm@14 and devtools not in spec\n")
+            entries.append("# ClangFormat disabled since llvm@19 and devtools not in spec\n")
             entries.append(cmake_cache_option("ENABLE_CLANGFORMAT", False))
 
         if spec.satisfies("+python") or spec.satisfies("+devtools"):

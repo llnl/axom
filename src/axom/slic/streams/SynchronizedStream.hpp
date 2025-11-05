@@ -195,7 +195,7 @@ private:
     , m_cache(static_cast<MessageCache*>(nullptr))
     , m_stream(static_cast<std::ostream*>(nullptr))
     , m_file_name()
-    , m_opened(false) {};
+    , m_opened(false) { };
 
   DISABLE_COPY_AND_ASSIGNMENT(SynchronizedStream);
   DISABLE_MOVE_AND_ASSIGNMENT(SynchronizedStream);

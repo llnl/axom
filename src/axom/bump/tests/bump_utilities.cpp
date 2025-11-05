@@ -34,9 +34,7 @@ struct test_conduit_allocate
 
     // Make sure we can store some values into the data that were allocated.
     auto nview = utils::make_array_view<int>(n);
-    axom::for_all<ExecSpace>(
-      nValues,
-      AXOM_LAMBDA(axom::IndexType index) { nview[index] = index; });
+    axom::for_all<ExecSpace>(nValues, AXOM_LAMBDA(axom::IndexType index) { nview[index] = index; });
 
     EXPECT_EQ(n.dtype().number_of_elements(), nValues);
 

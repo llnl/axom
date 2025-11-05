@@ -96,6 +96,7 @@ set(bump_sources
     utilities/blueprint_utilities.cpp
     views/MaterialView.cpp
     views/UnstructuredTopologyMixedShapeView.cpp
+    views/dispatch_utilities.cpp
     )
 
 #------------------------------------------------------------------------------

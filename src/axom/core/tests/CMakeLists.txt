@@ -39,6 +39,7 @@ set(core_serial_tests
     numerics_eigen_sort.hpp
     numerics_floating_point_limits.hpp
     numerics_jacobi_eigensolve.hpp
+    numerics_quadrature.hpp
     numerics_linear_solve.hpp
     numerics_lu.hpp
     numerics_matrix.hpp
@@ -104,6 +105,7 @@ axom_add_test( NAME    core_collections
 if (AXOM_ENABLE_MPI)
   set( core_mpi_tests
        core_types.hpp
+       core_shared_memory.hpp
        )
 
   axom_add_executable(NAME       core_mpi_tests
@@ -117,7 +119,7 @@ if (AXOM_ENABLE_MPI)
     get_filename_component( test_suite ${test_suite} NAME_WE )
     axom_add_test( NAME          ${test_suite}_mpi
                    COMMAND       core_mpi_tests --gtest_filter=${test_suite}*
-                   NUM_MPI_TASKS 1 )
+                   NUM_MPI_TASKS 2 )
   endforeach()
 endif()
 

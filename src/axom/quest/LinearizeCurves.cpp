@@ -143,44 +143,17 @@ static void appendPoints(LinearizeCurves::SegmentMesh* mesh, SegmentArray& S, do
   }
 }
 
-#ifdef AXOM_USE_MFEM
 /// Compute the arc length of a curve by numerical quadrature
-// This currently uses mfem's quadrature weights
 double computeArcLength(const LinearizeCurves::NURBSCurve& nurbs, int npts)
 {
   double arcLength = 0.;
   for(const auto& bezier : nurbs.extractBezier())
   {
-    arcLength += primal::evaluate_scalar_line_integral(
-      bezier,
-      [](PointType /*x*/) -> double { return 1.; },
-      npts);
+    arcLength +=
+      primal::evaluate_scalar_line_integral(bezier, [](PointType /*x*/) -> double { return 1.; }, npts);
   }
   return arcLength;
 }
-#else
-/// Compute the arc length of a curve by discretizing into linear segments and adding their lengths
-double computeArcLength(const LinearizeCurves::NURBSCurve& nurbs, int nSamples)
-{
-  using axom::utilities::lerp;
-
-  // Get the contour start/end parameters.
-  const auto knots = nurbs.getKnots();
-  const double u0 = knots[0];
-  const double u1 = knots[knots.getNumKnots() - 1];
-
-  double arcLength = 0.;
-  PointType prev = nurbs.evaluate(u0);
-  for(int i = 1; i <= nSamples; ++i)
-  {
-    const double u = lerp(u0, u1, i / static_cast<double>(nSamples));
-    PointType cur = nurbs.evaluate(u);
-    arcLength += sqrt(primal::squared_distance(prev, cur));
-    axom::utilities::swap(prev, cur);
-  }
-  return arcLength;
-}
-#endif
 
 //---------------------------------------------------------------------------
 #ifdef AXOM_DEBUG_WRITE_LINES
@@ -410,13 +383,8 @@ void LinearizeCurves::getLinearMeshNonUniform(LinearizeCurves::CurveArrayView cu
     if(knots.getNumKnotSpans() > 1)
     {
       constexpr int MAX_NUMBER_OF_SAMPLES = 2000;
-
-#ifdef AXOM_USE_MFEM
       constexpr int quadrature_order = 30;
       const double hiCurveLen = internal::computeArcLength(nurbs, quadrature_order);
-#else
-      const double hiCurveLen = internal::computeArcLength(nurbs, MAX_NUMBER_OF_SAMPLES);
-#endif
 
       // The initial curve length.
       double curveLength = first.length;
@@ -516,13 +484,8 @@ double LinearizeCurves::revolvedVolume(const LinearizeCurves::NURBSCurve& nurbs,
   using PointType = axom::primal::Point<double, 2>;
   using VectorType = axom::primal::Vector<double, 2>;
 
-  // Use 5-point Gauss Quadrature.
-  const double X[] = {-0.906179845938664, -0.538469310105683, 0, 0.538469310105683, 0.906179845938664};
-  const double W[] = {0.23692688505618908,
-                      0.47862867049936647,
-                      0.5688888888888889,
-                      0.47862867049936647,
-                      0.23692688505618908};
+  // Use 5-point Gauss-Legendre Quadrature.
+  numerics::QuadratureRule quad_rule = numerics::get_gauss_legendre(5);
 
   // Make a transform with no translation. We use this to transform
   // the derivative since we want to permit scaling and rotation but
@@ -547,12 +510,12 @@ double LinearizeCurves::revolvedVolume(const LinearizeCurves::NURBSCurve& nurbs,
 #endif
 
     // Approximate the integral "Int pi*x'(u)*y(u)^2du" using quadrature.
-    constexpr double scale = M_PI * ((bd - ad) / 2.);
+    constexpr double scale = M_PI * (bd - ad);
     double sum = 0.;
     for(size_t i = 0; i < 5; i++)
     {
-      // Map quad point x value [-1,1] to [a,b].
-      const double u = X[i] * ((bd - ad) / 2.) + ((bd + ad) / 2.);
+      // Map quad point x value [0,1] to [a,b].
+      const double u = quad_rule.node(i) * (bd - ad) + ad;
 
       // Compute y(u) to get radius
       PointType eval;
@@ -571,7 +534,7 @@ double LinearizeCurves::revolvedVolume(const LinearizeCurves::NURBSCurve& nurbs,
 #endif
 
       // Accumulate weight times dx*r^2.
-      sum += W[i] * xp * (r * r);
+      sum += quad_rule.weight(i) * xp * (r * r);
     }
     // Guard against volumes being negative (if the curve went the wrong way)
     vol += axom::utilities::abs(scale * sum);

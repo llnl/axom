@@ -85,7 +85,14 @@ struct StridedStructuredIndexing
     : m_dimensions(dims)
     , m_offsets(offsets)
     , m_strides(strides)
-  { }
+  {
+#if !defined(AXOM_DEVICE_CODE)
+    for(int d = 0; d < NDIMS; d++)
+    {
+      SLIC_ERROR_IF(m_dimensions[d] < 1, "Dimensions must greater than or equal to 1.");
+    }
+#endif
+  }
 
   /*!
    * \brief Return the number of values in the index space.

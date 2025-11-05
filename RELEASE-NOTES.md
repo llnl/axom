@@ -19,6 +19,23 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ### Added
+
+###  Changed
+- Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
+  Materials are now expected to be defined only on the valid subset of zones in the mesh.
+  This more closely matches VisIt behavior.
+- Views and functions for creating views in `axom::bump` have been enhanced to better validate
+  Blueprint meshes to guard against malformed input. Likewise, runtime input checks have been
+  promoted to use `SLIC_ERROR_IF` instead of `SLIC_ASSERT` so the checks will remain in
+  optimized Axom builds.
+###  Fixed
+
+###  Deprecated
+
+
+## [Version 0.12.0] - Release date 2025-10-03
+
+### Added
 - Added a new Python interface for sidre, using nanobind to generate Python bindings.
 - Added a new "BUMP" (Blueprint Utilities for Mesh Processing) component in Axom, which includes
   utilities that were formerly included in the Axom MIR component. BUMP is useful for writing
@@ -64,8 +81,14 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds `quest::MFEMReader` for reading 1D MFEM contours in 2D space.
 - Adds an option to `quest::SamplingShaper` to allow in/out tests based on winding numbers for MFEM contours.
 - The `shaping_driver` example program can select `--sampling inout` to do the default In/Out sampling and `--sampling windingnumber` to select winding number in/out tests for MFEM data.
+- Adds Axom-native Gauss-Legendre quadrature rules that can be used without an MFEM dependency
 
 ###  Changed
+- Updates blt submodule to [BLT version 0.7.1][https://github.com/LLNL/blt/releases/tag/v0.7.1]
+- Updates to [Conduit version 0.9.5][https://github.com/LLNL/conduit/releases/tag/v0.9.5]
+- Updates to [RAJA version 2025.09.0][https://github.com/LLNL/RAJA/releases/tag/v2025.09.0]
+- Updates to [camp version 2025.09.2][https://github.com/LLNL/camp/releases/tag/v2025.09.2]
+- Updates to [Umpire version 2025.09.0][https://github.com/LLNL/Umpire/releases/tag/v2025.09.0]
 - Axom now requires `C++17` and will default to that if not specified via `BLT_CXX_STD`.
 - Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
   since the last `reset()`.
@@ -84,8 +107,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Klee: Moves source files related to IO into a new `io` subdirectory in the Klee component
 - Primal: Consolidates construction logic for `BezierCurve`, `BezierPatch`, `KnotVector`,
   `NURBSCurve` and `NURBSPatch` classes and add overloads from `axom::ArrayView`
+- Primal: 2D and 3D winding number methods are now accelerated via memoization (dynamic caching + reuse) when supplied
+  arrays of query points
 - Core: Updates behavior of `FlatMap::reserve()` to only trigger a rehash if maximum load factor
   would be exceeded.
+- Quest: The signed_distance functions were modified so they use Umpire's shared memory mechanisms instead of using MPI3 directly.
+- Axom's `AXOM_USE_MPI3` CMake build option and corresponding macro definition were removed.
+- When Umpire is present, Axom now detects whether it supports shared memory and defines the `AXOM_USE_UMPIRE_SHARED_MEMORY` macro if appropriate. This macro can be used to conditionally compile code involving shared memory via Umpire.
 - Quest: Moves curve linearization from the `quest::C2CReader` into `quest::LinearizeCurves` so the logic can be used with other curve data.
 
 ###  Fixed
@@ -1268,7 +1296,8 @@ fractions for the associated materials must be supplied before shaping.
 - Use this section in case of vulnerabilities
 
 
-[Unreleased]:     https://github.com/LLNL/axom/compare/v0.11.0...develop
+[Unreleased]:     https://github.com/LLNL/axom/compare/v0.12.0...develop
+[Version 0.12.0]: https://github.com/LLNL/axom/compare/v0.11.0...v0.12.0
 [Version 0.11.0]: https://github.com/LLNL/axom/compare/v0.10.1...v0.11.0
 [Version 0.10.1]: https://github.com/LLNL/axom/compare/v0.10.0...v0.10.1
 [Version 0.10.0]: https://github.com/LLNL/axom/compare/v0.9.0...v0.10.0
