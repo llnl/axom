@@ -42,7 +42,7 @@ int MIRApplication::initialize(int argc, char **argv)
   app.add_option("--gridsize", gridSize)
     ->check(axom::CLI::PositiveNumber)
     ->description("The number of zones along an axis.");
-  app.add_option("--method", method)->description("The MIR method name (equiz, elvira)");
+  app.add_option("--method", method)->description("The MIR method (or operation) name (equiz, elvira, traversal)");
   app.add_option("--numcircles", numCircles)
     ->check(axom::CLI::PositiveNumber)
     ->description("The number of circles to use for material creation.");
