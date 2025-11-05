@@ -234,6 +234,7 @@ public:
     axom::IndexType m_currentIndex;
     axom::IndexType m_index; // not considered in ==, !=
   };
+  // Let the iterator access members.
   friend class iterator;
 
   /*!
