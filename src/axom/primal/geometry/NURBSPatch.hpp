@@ -842,8 +842,11 @@ public:
   /// Retrieves the vector of control points at index \a idx
   const PointType& operator()(int ui, int vi) const { return m_controlPoints(ui, vi); }
 
-  /// Returns a copy of the NURBS patch's control points
-  CoordsMat getControlPoints() const { return m_controlPoints; }
+  /// Returns a reference to the NURBS patch's control points
+  CoordsMat& getControlPoints() { return m_controlPoints; }
+
+  /// Returns a reference to the NURBS patch's control points
+  const CoordsMat& getControlPoints() const { return m_controlPoints; }
 
   /*!
    * \brief Get a specific weight
@@ -875,8 +878,11 @@ public:
     m_weights(ui, vi) = weight;
   }
 
-  /// Returns a copy of the NURBS patch's weights
-  WeightsMat getWeights() const { return m_weights; }
+  /// Returns a reference to the NURBS patch's weights
+  WeightsMat& getWeights() { return m_weights; }
+
+  /// Returns a const reference to the NURBS patch's weights
+  const WeightsMat& getWeights() const { return m_weights; }
 
   /// \brief Returns an axis-aligned bounding box containing the patch
   BoundingBoxType boundingBox() const

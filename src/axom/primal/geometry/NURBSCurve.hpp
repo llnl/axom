@@ -624,8 +624,11 @@ public:
   const PointType& getInitPoint() const { return m_controlPoints[0]; }
   const PointType& getEndPoint() const { return m_controlPoints[m_controlPoints.size() - 1]; }
 
-  /// \brief Returns a copy of the NURBS curve's control points
-  CoordsVec getControlPoints() const { return m_controlPoints; }
+  /// \brief Returns a reference to the NURBS curve's control points
+  CoordsVec& getControlPoints() { return m_controlPoints; }
+
+  /// \brief Returns a const reference to the NURBS curve's control points
+  const CoordsVec& getControlPoints() const { return m_controlPoints; }
 
   /*!
    * \brief Get a specific weight
@@ -657,8 +660,11 @@ public:
     m_weights[idx] = weight;
   }
 
-  /// \brief Returns a copy of the NURBS curve's control points
-  WeightsVec getWeights() const { return m_weights; }
+  /// \brief Returns a reference to the NURBS curve's control points
+  WeightsVec& getWeights() { return m_weights; }
+
+  /// \brief Returns a const reference to the NURBS curve's control points
+  const WeightsVec& getWeights() const { return m_weights; }
 
   /// \brief Returns an axis-aligned bounding box containing the NURBS curve
   BoundingBoxType boundingBox() const
