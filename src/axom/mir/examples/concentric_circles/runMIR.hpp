@@ -10,6 +10,47 @@
 #include "axom/bump.hpp"
 #include "axom/mir.hpp"  // for Mir classes & functions
 
+template <typename ExecSpace, typename MatsetView>
+void test_matset_traveral(MatsetView matsetView)
+{
+  AXOM_ANNOTATE_SCOPE("test_matset_traversal");
+  double vf1, vf2;
+  {
+    AXOM_ANNOTATE_SCOPE("zoneMaterials");
+    axom::ReduceSum<ExecSpace, double> vfSum(0.);
+    axom::for_all<ExecSpace>(matsetView.numberOfZones(), AXOM_LAMBDA(axom::IndexType zoneIndex)
+    {
+      typename MatsetView::IDList ids;
+      typename MatsetView::VFList vfs;
+      matsetView.zoneMaterials(zoneIndex, ids, vfs);
+      double sum = 0.;
+      for(axom::IndexType i = 0; i < vfs.size(); i++)
+      {
+        sum += vfs[i];
+      }
+      vfSum += sum;
+    });
+    vf1 = vfSum.get();
+  }
+  {
+    AXOM_ANNOTATE_SCOPE("iterators");
+    axom::ReduceSum<ExecSpace, double> vfSum(0.);
+    axom::for_all<ExecSpace>(matsetView.numberOfZones(), AXOM_LAMBDA(axom::IndexType zoneIndex)
+    {
+      const auto end = matsetView.endZone(zoneIndex);
+      double sum = 0.;
+      for(auto it = matsetView.beginZone(zoneIndex); it != end; it++)
+      {
+        sum += it.volume_fraction();
+      }
+      vfSum += sum;
+    });
+    vf2 = vfSum.get();
+  }
+
+  std::cout << "test_matset_traversal: vf1=" << vf1 << ", vf2=" << vf2 << ", nzones=" << matsetView.numberOfZones() << std::endl;
+}
+
 template <typename ExecSpace, int NDIMS>
 int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit::Node &hostResult)
 {
@@ -97,6 +138,12 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
       using MIR = axom::mir::ElviraAlgorithm<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>;
       MIR m(topologyView, coordsetView, matsetView);
       m.execute(deviceMesh, options, deviceResult);
+    }
+    else if(method == "traversal")
+    {
+      using namespace axom::bump::views;
+      auto matsetView = make_unibuffer_matset<int, float, MAXMATERIALS>::view(n_matset);
+      test_matset_traveral<ExecSpace>(matsetView);
     }
     else
     {
