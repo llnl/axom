@@ -15,7 +15,7 @@
     }
 </style>
 
-# Lesson 03: Defining Geometry Setup with Klee
+# Lesson 03: Defining geometry setup with Klee
 
 In this lesson, we temporarily set aside our mesh metadata example and use Axom's `Klee` component to define the geometric setup for a multimaterial simulation.  (Don't worry, we'll return to the mesh metadata in the next lesson).
 

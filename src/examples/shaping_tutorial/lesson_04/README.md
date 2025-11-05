@@ -6,11 +6,19 @@
 [comment]: # (# SPDX-License-Identifier: BSD-3-Clause)
 [comment]: # (#################################################################)
 
-# Lesson: Axom Quest — Shaping Application
+<style>
+    figcaption {
+        text-align: center;
+        font-style: italic;
+        color: #555555;
+    }
+</style>
+
+# Lesson: Shaping application with Quest
 
 In this lesson, we will consider Axom's shaping application, which takes a Klee input file describing a geometric setup and "shapes" it onto a computational mesh, resulting in a `volume_fraction` scalar field for each material.
 
-The shaping application lives inside the `Quest` component of Axom, so we begin by first describing Quest and then focus on the details of the Shaping application.
+The shaping application lives inside the `Quest` component of Axom, so we begin by describing Quest and then focus on the details of the Shaping application.
 
 ## Introduction to Quest
 
@@ -60,18 +68,18 @@ graph LR
   %% links can be highlighted as follows:
   %% linkStyle 5 stroke: #d32f2f,color: #d32f2f, stroke-width:3px;
 ```
-<figurecaption>Figure: Axom components, highlighting Quest</figurecaption>
+<figcaption>Figure: Axom components, highlighting Quest</figcaption>
 </div>
 
 
-Quest is a component of Axom that deals with specify high level geometric queries over computational meshes. 
+Quest is a component of Axom that deals with high level geometric queries over computational meshes. 
 Some examples:
     
 **In/Out queries**
-:  Given a point and a surface bounding a volumetric region of space, is the point inside or outside that surface.
+:  Given a point and a surface bounding a volumetric region of space, determine whether the point lies inside or outside that surface.
 
 **Point location**
-:  Given a point and a volumetric mesh (in 2D or 3D), which element of the mesh contains the point. If such an element exists, we also find the isoparametric coordinates of the point within that element.
+:  Given a point and a volumetric mesh (in 2D or 3D), find the element of the mesh containing the point. If such an element exists, we also find the isoparametric coordinates of the point within that element.
 
 **Isosurface extraction**
 :  Given a volumetric mesh and a scalar field defined at the mesh vertices and a field value, extract the isosurface for a given field value (e.g. using [Marching Cubes](https://en.wikipedia.org/wiki/Marching_cubes)).
@@ -79,22 +87,22 @@ Some examples:
 **Distributed closest point**
 :  Given two collection of primitives, e.g. two point clouds, each distributed across the problem's MPI ranks, for each primitive from the first collection, find the closest primitive in the second collection.
 
-Quest applications are designed to be robust to geometric and numerical tolerances. They are defined in terms of the computational geometry primitives and operators in Axom's Primal component and often utilize a spatial index from Axom's Spin component. Furthermore, to achieve good performance on CPU-based and GPU-based platforms, they are built on top of our performance portability abstractions based on [RAJA](https://github.com/LLNL/RAJA) and [Umpire](https://github.com/LLNL/Umpire)
+Quest applications are designed to be robust to geometric and numerical tolerances. They are defined in terms of the computational geometry primitives and operators in Axom's `primal` component and often utilize a spatial index from Axom's `spin` component. Furthermore, to achieve good performance on CPU-based and GPU-based platforms, they are built on top of our performance portability abstractions based on [RAJA](https://github.com/LLNL/RAJA) and [Umpire](https://github.com/LLNL/Umpire)
 
 ## Shaping Application Overview
 
-The shaping application maps user-defined geometric shapes onto a target computational mesh to determine the spatial arrangement of materials. It then computes conservative, per-cell volume fractions for each material based on those shapes, while honoring user-defined replacement rules. The resulting fields set of volume fractions are bounded between 0 and 1, formimg a partition of unity at every location in the mesh.
+The shaping application maps user-defined geometric shapes onto a target computational mesh to determine the spatial arrangement of materials. It computes conservative, per-cell volume fractions for each material based on those shapes, while honoring user-defined replacement rules. The resulting set of volume fraction fields are bounded between 0 and 1, forming a partition of unity at every location in the mesh.
 
-For each mesh cell (or sampled location), the algorithm evaluates how each shape interacts with the current material state. It determines which materials are writable according to the specified rules, estimates the shape’s contribution (via sampling or exact geometric intersection), and updates the writable fractions in a consistent order. After all shapes are processed, every cell’s material composition reflects the cumulative effect of replacements and additions.
+For each mesh cell (or sampled location), the algorithm evaluates how each shape interacts with the current material state. It determines which materials to update according to the specified replacements rules, and computes the shape’s contribution to the cell's material volume fractions (via sampling or exact geometric intersection).
 
 Axom's shaping application supports two types of shaping: 
-- Intersection-based shaping, in which the volume fractions are determined by finding the intersection volume between each cell of the computational mesh and the shapes
-- Sample-based shaping, in which we sample the shape at various locations within each cell to determine whether that point lies within the shape and then reconstruct the volume fractions from the those samples.
+- _Intersection-based shaping_, in which the volume fractions are determined by finding the intersection volume between each cell of the computational mesh and the shapes
+- _Sample-based shaping_, in which we sample the shape at various locations within each cell to determine whether that point lies within the shape and then reconstruct the volume fractions from those samples.
 
 For this lesson, we will focus on the sampling-based shaper and discuss two methods for determining whether points are inside or outside the shape:
 
 **InOutOctree**
-:  The first approach constructs an octree over the cells of the shape, and labels each octree block as "inside", "outside" or on the "surface". The former two cases immediately yield the in/out determination, while the "surface" case requires some additional computational geometry to settle the case. This case requires the shape to be discretized into line segments (2D) or planar triangles (3D), and requires the collection of facets to be watertight.
+:  The [InOutOctree](https://www.osti.gov/biblio/1357384) approach constructs an octree over the shape, and labels each octree block as "inside", "outside" or on the "surface". The former two cases immediately yield the in/out determination, while the "surface" case requires some additional computational geometry to settle the case. This approach requires the shape to be discretized into line segments (2D) or triangles (3D), and requires the collection of facets to be watertight.
 
 **Winding number**
 :  The [winding number](https://doi.org/10.1145/3658228) approach is more computationally intensive, but is tolerant to geometric defects such as gaps in the surface as well as self-intersections. It considers the number of times the surface wraps around the query point and then rounds to the closest integer.
@@ -105,7 +113,7 @@ For this lesson, we will focus on the sampling-based shaper and discuss two meth
 </figure>
 
 
-## Shaping Pipeline
+## Shaping pipeline
 
 We apply the same pipeline to each shape in our Klee input:
 
@@ -133,7 +141,7 @@ We apply the same pipeline to each shape in our Klee input:
 :  In this stage, we query the spatial index to find candidates for each cell of the computational mesh. We then apply computational geometry operations on each pair of candidates. For sample-based shaping, this determines whether samples from each cell are contained within the shape. For intersection-based shaping, we find the overlap volume between each computational cell and the (discretized) shape.
 
 **applyReplacementRules()**
-:  In this stage, we apply the replacement rules to update the volume fractions for the current shape's material and for the other materials that have already been shaped in.
+:  We next apply the replacement rules to update the volume fractions for the current shape's material and for the other materials that have already been shaped in.
 
 **finalizeShapeQuery()**
 :  Finally, we release temporary memory associated with the current shape.
@@ -164,9 +172,9 @@ struct MeshMetadata
 ```
 This allows the user to set the polynomial order of the volume fraction functions via `volume_fraction_order`, the sampling order for quadrature points within each element `quadrature_order`, and the `sampling_method` -- either using an `InOutOctree` over a discretized/linearized representation of the shape, or using an approach based on winding numbers.
 
-We also allow the user to specify a "background_material". When specified, a volume fraction field, initialized to 1 will be added. Users can incorporate this into their input with a special "geometry/format" of "none".
+We also allow the user to specify a "background_material". When specified, a corresponding volume fraction field will be generated and initialized to 1 everywhere. Users can incorporate this into their input with a special "geometry/format" of "none".
 
-> :information_source: This feature is more powerful than implied above. Our shaping application allows the user to supply an initial volume fraction field for each of the materials, which they can incorporate into their geometric setups using the `geometry/format: none` field.
+> :information_source: This feature is more powerful than implied above. Our shaping application allows the user to supply an initial volume fraction field for any of the materials, e.g. via attributes for each element in the input mesh.
 
 
 <details>
@@ -238,7 +246,7 @@ struct FromInlet<MeshMetadata>
 
 <br />
 
-Once the MeshMetadata instance has been initialized, we use it to generate a high order MFEM mesh using a built-in quest function `quest::util::make_cartesian_mfem_mesh_{2,3}D`:
+Once the `MeshMetadata` instance has been initialized, we use it to generate a high order MFEM mesh using a built-in quest function `quest::util::make_cartesian_mfem_mesh_{2,3}D`:
 
 ```cpp
 mfem::Mesh* createCartesianMesh(const MeshMetadata& meta, int nodal_order)
@@ -270,7 +278,7 @@ mfem::Mesh* createCartesianMesh(const MeshMetadata& meta, int nodal_order)
 }
 ```
 
-We then generate a Conduit mesh blueprint over this mesh using the `MFEMSidreDataCollection` class
+We then generate a Conduit mesh blueprint over this mesh using Sidre's `MFEMSidreDataCollection` class
 ```cpp
   // --------------------------------------------------------------------------
   // Set up computational mesh from MeshMetadata
@@ -285,8 +293,6 @@ We then generate a Conduit mesh blueprint over this mesh using the `MFEMSidreDat
 #endif
   dc.SetMeshNodesName("positions");
 
-  // Associate any fields that begin with "vol_frac" with "material" so when
-  // the data collection is written, a matset will be created.
   dc.AssociateMaterialSet("vol_frac", "material");
 ```
 The last line adds `matset` metadata to our mesh blueprint, which allows VisIt to apply material interface reconstruction (MIR) to better visualize our volume fraction fields.
@@ -388,8 +394,7 @@ shapes:
     material: void
     geometry:
       format: none
-
-
+      
   - name: outer_shell
     material: steel
     geometry:
@@ -398,7 +403,6 @@ shapes:
       units: cm
       operators:
         - scale: 5
-
 
   - name: inner_ball
     material: void
@@ -410,7 +414,6 @@ shapes:
       operators:
         - scale: 25
         - convert_units_to: cm
-
 
 ```
 <figcaption style="text-align: center;">Figure: Klee input for circles example (circles.yaml).</figcaption></br>
@@ -450,11 +453,11 @@ shapes:
 </table>
 
 We note that this example exercises scaling operators, unit conversion operators and a background material.
-The replacement rules are implicit -- each new shape replaces all existing materials.
+The replacement rules are implicit -- each new shape replaces all existing materials under it.
 
 > :clapper: This example was run using from the build directory as:
 > ```bash
->   > ./bin/shaping_tutorial_lesson_04_quest_sampling_shaper \
+>   ./bin/shaping_tutorial_lesson_04_quest_sampling_shaper \
 >              -k ../src/examples/shaping_tutorial/lesson_04/circles.yaml \
 >              -m ../src/examples/shaping_tutorial/lesson_04/circle_input.lua
 > ```
@@ -569,9 +572,9 @@ shapes:
 
 > :clapper: This example was run in parallel on 32 ranks using from the build directory as:
 > ```bash
->   > srun -n32 ./bin/shaping_tutorial_lesson_04_quest_sampling_shaper \
->              -k ../src/examples/shaping_tutorial/lesson_04/ice_cream.yaml \
->              -m ../src/examples/shaping_tutorial/lesson_04/ice_cream_metadata.lua
+>   srun -n32 ./bin/shaping_tutorial_lesson_04_quest_sampling_shaper \
+>            -k ../src/examples/shaping_tutorial/lesson_04/ice_cream.yaml \
+>            -m ../src/examples/shaping_tutorial/lesson_04/ice_cream_metadata.lua
 > ```
 
 ### Example: Klee's heroic roses
@@ -623,7 +626,7 @@ This example uses contours stored in MFEM files to approximate the shapes in Pau
 
 ## Wrap up
 
-In this lesson, we covered shaping in Axom, focusing on the `InOutOctree` and `Winding Number` containment tests. We defined mesh metadata (orders, quadrature, sampling method) and created high-order MFEM meshes. We used background materials, replacement rules, and produced matset-aware outputs suitable for MIR in VisIt. We demonstrated the workflow with several examples. Although we didn't focus on it, everything transparently works with MPI, and much of the workflow is GPU ready (or work is planned to port it).
+In this lesson, we covered shaping in Axom, focusing on the `InOutOctree` and `Winding Number` containment tests. We defined mesh metadata (orders, quadrature, sampling method) and created high-order MFEM meshes. We used background materials, replacement rules, and produced matset-aware outputs suitable for MIR in VisIt. We demonstrated the workflow with several examples. Although we didn't focus on it, everything transparently works with MPI, and much of the workflow is GPU-ready (or work is planned to port it).
 
 ## Technologies Used
 

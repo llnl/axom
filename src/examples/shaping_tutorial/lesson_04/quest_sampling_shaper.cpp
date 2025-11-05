@@ -1,3 +1,28 @@
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
+// other Axom Project Developers. See the top-level LICENSE file for details.
+//
+// SPDX-License-Identifier: (BSD-3-Clause)
+
+//-----------------------------------------------------------------------------
+/*!
+ * \file quest_sampling_shaper.cpp
+ * \brief An example that shapes a Klee input onto a compuational mesh
+ *
+ * This example demonstrates how to use the Quest SamplingShaper to shape
+ * a Klee input onto a computational mesh. The program:
+ * 1. Creates a structured mesh from Inlet mesh metadata
+ * 2. Loads Klee shapes from a YAML file
+ * 3. Generates volume fraction fields for each material based on the input shapes
+ * 4. Outputs the generated mesh to disk
+ * 
+ * This example supports both serial and MPI execution.
+ * 
+ * Example run:
+ * > [srun -n8] ./quest_sampling_shaper -m mesh_metadata.lua -k shapes.yaml [-v]
+ * 
+ */
+//-----------------------------------------------------------------------------
+
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -34,7 +59,7 @@ namespace primal = axom::primal;
 namespace inlet = axom::inlet;
 namespace sidre = axom::sidre;
 
-// Mesh metadata (from examples, adapted)
+// Mesh metadata
 struct MeshMetadata
 {
 public:
@@ -50,6 +75,7 @@ public:
   quest::SamplingShaper::SamplingMethod sampling_method {quest::SamplingShaper::SamplingMethod::InOut};
 
 public:
+  /// Returns the axis-aligned bounding box as a templated primal BoundingBox primitive
   template <int DIM>
   axom::primal::BoundingBox<double, DIM> getBoundingBox() const
   {
@@ -67,6 +93,7 @@ public:
     }
   }
 
+  /// Defines the input schema for our mesh metadata, w/ some validation checks
   static void defineSchema(inlet::Container& mesh_schema)
   {
     mesh_schema.addInt("dim", "Dimension (2 or 3)").required().range(2, 3);
@@ -157,6 +184,7 @@ public:
   }
 };
 
+/// Generate a MeshMetadata instance from the in-memory inlet representation
 template <>
 struct FromInlet<MeshMetadata>
 {
@@ -220,6 +248,7 @@ struct FromInlet<MeshMetadata>
   }
 };
 
+/// Helper function to generate a 2D or 3D mfem cartesian mesh (partitioned across ranks in MPI configurations)
 mfem::Mesh* createCartesianMesh(const MeshMetadata& meta, int nodal_order)
 {
   mfem::Mesh* mesh = nullptr;
@@ -265,6 +294,8 @@ mfem::Mesh* createCartesianMesh(const MeshMetadata& meta, int nodal_order)
 
 int main(int argc, char** argv)
 {
+  // use Axom's utility classes to initialize MPI and a logger
+  // these will be automatically finalized at the end of the function
   axom::utilities::raii::MPIWrapper mpi_raii_wrapper(argc, argv);
   axom::slic::SimpleLogger raii_logger;
   axom::slic::setIsRoot(mpi_raii_wrapper.my_rank() == 0);
@@ -320,7 +351,8 @@ int main(int argc, char** argv)
   }();
 
   // --------------------------------------------------------------------------
-  // Set up computational mesh from MeshMetadata
+  // Set up computational mesh from MeshMetadata, store within a sidre-basead
+  // DataCollection following the mesh blueprint conventions
   // --------------------------------------------------------------------------
   mfem::Mesh* mesh = createCartesianMesh(meta, meta.mesh_order);
   constexpr bool dc_owns_data = true;  // Note: dc takes ownership of mesh
@@ -358,7 +390,7 @@ int main(int argc, char** argv)
   }
 
   // --------------------------------------------------------------------------
-  // Setup shaper
+  // Setup sample-based shaper
   // --------------------------------------------------------------------------
   using RuntimePolicy = axom::runtime_policy::Policy;
   RuntimePolicy policy = RuntimePolicy::seq;
@@ -408,7 +440,7 @@ int main(int argc, char** argv)
   }
 
   // --------------------------------------------------------------------------
-  // Run pipeline
+  // Run shaping pipeline
   // --------------------------------------------------------------------------
   SLIC_INFO_ROOT(axom::fmt::format("{:=^80}", "Shaping"));
   for(const auto& shape : shapeSet.getShapes())
@@ -432,7 +464,7 @@ int main(int argc, char** argv)
   }
 
   //---------------------------------------------------------------------------
-  // After shaping in all shapes, generate/adjust the material volume fractions
+  // After processing all shapes, generate/adjust the material volume fractions
   //---------------------------------------------------------------------------
   SLIC_INFO_ROOT(axom::fmt::format("{:=^80}", "Generating volume fraction fields for materials"));
 

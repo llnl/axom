@@ -86,7 +86,7 @@ graph LR
   %% links can be highlighted as follows:
   %% linkStyle 5 stroke: #d32f2f,color: #d32f2f, stroke-width:3px;
 ```
-<figurecaption>Figure: Axom components, highlighting Inlet</figurecaption>
+<figcaption>Figure: Axom components, highlighting Inlet</figcaption>
 </div>
 
 Inlet provides a powerful way to define and parse input schemas with validation:

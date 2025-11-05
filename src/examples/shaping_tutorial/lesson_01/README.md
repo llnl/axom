@@ -71,7 +71,7 @@ graph LR
   %% links can be highlighted as follows:
   %% linkStyle 5 stroke: #d32f2f,color: #d32f2f, stroke-width:3px;
 ```
-<figurecaption>Figure: Axom components, highlighting Sidre</figurecaption>
+<figcaption>Figure: Axom components, highlighting Sidre</figcaption>
 </div>
 
 Sidre was designed for efficiently storing and organizing simulation data in memory using hierarchical structures. It manages a tree-like organization through a central `DataStore`, which contains a hierarchy of Groups and Views.
