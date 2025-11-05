@@ -48,7 +48,7 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
 
   const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
-  // We want unstructured topo but can accomodate structured.
+  // We currently support only unstructured topo.
   const auto& typeNode =
     m_bpNodeExt->fetch_existing("topologies").fetch_existing(m_topoName).fetch_existing("type");
   const std::string topoType = typeNode.as_string();
