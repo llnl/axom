@@ -197,6 +197,12 @@ public:
   /*!
    * @brief Check whether mesh meets requirements for shaping.
    * @param whyNot [out] Diagnostic message if mesh is invalid.
+   *
+   * Requirements for the mesh are:
+   * - Follow blueprint conventions.  See
+   *   https://llnl-conduit.readthedocs.io/en/latest/blueprint_mesh.html
+   * - Be unstructured.
+   * - Have hexahedral elements.
    */
   bool isValidForShaping(std::string& whyNot) const;
 

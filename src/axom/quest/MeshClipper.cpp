@@ -59,7 +59,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
   SLIC_ASSERT(ovlap.size() == cellCount);
 
   // Try to label cells as inside, outside or on shape boundary
-  axom::Array<char> cellLabels;
+  axom::Array<LabelType> cellLabels;
   bool withCellInOut = m_strategy->labelCellsInOut(m_shapeMesh, cellLabels);
 
   bool done = false;
@@ -89,7 +89,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
     axom::Array<axom::IndexType> cellsOnBdry;
     m_impl->collectOnIndices(cellLabels.view(), cellsOnBdry);
 
-    axom::Array<char> tetLabels;
+    axom::Array<LabelType> tetLabels;
     bool withTetInOut = m_strategy->labelTetsInOut(m_shapeMesh, cellsOnBdry.view(), tetLabels);
 
     axom::Array<axom::IndexType> tetsOnBdry;

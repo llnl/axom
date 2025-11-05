@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_GEOMETRYCLIPPERSTRATEGY_HPP
-#define AXOM_QUEST_GEOMETRYCLIPPERSTRATEGY_HPP
+#ifndef AXOM_QUEST_MESHCLIPPERSTRATEGY_HPP
+#define AXOM_QUEST_MESHCLIPPERSTRATEGY_HPP
 
 #include "axom/config.hpp"
 
@@ -397,4 +397,4 @@ private:
 }  // namespace quest
 }  // namespace axom
 
-#endif  // AXOM_QUEST_GEOMETRYCLIPPERSTRATEGY_HPP
+#endif  // AXOM_QUEST_MESHCLIPPERSTRATEGY_HPP

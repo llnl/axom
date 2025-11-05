@@ -40,6 +40,7 @@ bool TetClipper::getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh, ax
   {
     tets = axom::Array<TetrahedronType>(1, 1, allocId);
   }
+  // Copy tet into tets array, which may be in non-host memory.
   axom::copy(tets.data(), &m_tet, sizeof(TetrahedronType));
   return true;
 }
@@ -50,6 +51,10 @@ void TetClipper::extractClipperInfo()
   const auto v1 = m_info.fetch_existing("v1").as_double_array();
   const auto v2 = m_info.fetch_existing("v2").as_double_array();
   const auto v3 = m_info.fetch_existing("v3").as_double_array();
+  SLIC_ASSERT(v0.number_of_elements() == 3);
+  SLIC_ASSERT(v1.number_of_elements() == 3);
+  SLIC_ASSERT(v2.number_of_elements() == 3);
+  SLIC_ASSERT(v3.number_of_elements() == 3);
   for(int d = 0; d < 3; ++d)
   {
     m_tetBeforeTrans[0][d] = v0[d];

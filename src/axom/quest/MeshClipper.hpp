@@ -20,16 +20,17 @@ namespace experimental
 {
 
 /*!
- * @brief Abstract base class encapsulating the clipping task in
- * intersection shaping, to be specialized for geometry-specific
- * implementations.
+ * @brief Entry point for computing clipping a computational mesh
+ * by overlaying a geometry and computing the intersection volume
+ * the geometry makes with each mesh cell.
  *
- * Each object operates is associated with a single klee::Geometry object.*
+ * To construct:
+ * - Wrap the computational mesh in a ShapeMesh object.
+ * - Allocate a MeshClipperStrategy implementation to provide
+ *   geometry-specific operations.  Axom natively provides
+ *   implementations for some common geometries.
  *
- * This class defines the interfaces for specializing computations
- * that can run fast on specific geometries.  This allows for
- * geometry-specific optimizations.  If no such specialization
- * is provided, default methods are used.
+ * To compute the intersection volumes, use one of the clip() methods.
  */
 class MeshClipper
 {
