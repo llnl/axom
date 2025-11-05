@@ -134,6 +134,7 @@ struct braid2d_mat_test
         bool verifyOK = conduit::blueprint::mesh::verify(hostMIRMesh, info);
         if(!verifyOK)
         {
+          printNode(hostMIRMesh);
           info.print();
         }
         EXPECT_TRUE(verifyOK);
@@ -248,6 +249,17 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_seq)
                                    "elvira_uniform_unibuffer_sel",
                                    selectZones,
                                    pointMesh);
+
+  // Run clean mats example with selected zones.
+  {
+    const bool cleanMats = true;
+    braid2d_mat_test<seq_exec>::test("uniform",
+                                     "unibuffer",
+                                     "elvira_uniform_unibuffer_sel_clean",
+                                     selectZones,
+                                     pointMesh,
+                                     cleanMats);
+  }
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_seq_pm)
@@ -273,7 +285,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_seq)
                                    selectZones,
                                    pointMesh);
 }
-#if 0
+
 #if defined(AXOM_USE_OPENMP)
 TEST(mir_elvira, elvira_uniform_unibuffer_omp)
 {
@@ -319,6 +331,16 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_omp)
                                    "elvira_uniform_unibuffer_sel",
                                    selectZones,
                                    pointMesh);
+  // Run clean mats example with selected zones.
+  {
+    const bool cleanMats = true;
+    braid2d_mat_test<omp_exec>::test("uniform",
+                                     "unibuffer",
+                                     "elvira_uniform_unibuffer_sel_clean",
+                                     selectZones,
+                                     pointMesh,
+                                     cleanMats);
+  }
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_pm_omp)
@@ -391,6 +413,17 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_cuda)
                                     "elvira_uniform_unibuffer_sel",
                                     selectZones,
                                     pointMesh);
+
+  // Run clean mats example with selected zones.
+  {
+    const bool cleanMats = true;
+    braid2d_mat_test<cuda_exec>::test("uniform",
+                                      "unibuffer",
+                                      "elvira_uniform_unibuffer_sel_clean",
+                                      selectZones,
+                                      pointMesh,
+                                      cleanMats);
+  }
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_pm_cuda)
@@ -463,6 +496,16 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_hip)
                                    "elvira_uniform_unibuffer_sel",
                                    selectZones,
                                    pointMesh);
+  // Run clean mats example with selected zones.
+  {
+    const bool cleanMats = true;
+    braid2d_mat_test<hip_exec>::test("uniform",
+                                     "unibuffer",
+                                     "elvira_uniform_unibuffer_sel_clean",
+                                     selectZones,
+                                     pointMesh,
+                                     cleanMats);
+  }
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_pm_hip)
