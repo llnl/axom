@@ -304,7 +304,10 @@ protected:
         n_newCoordset.move(n_cleanOutput[localPath(n_newCoordset)]);
         n_newTopo.move(n_cleanOutput[localPath(n_newTopo)]);
         n_newMatset.move(n_cleanOutput[localPath(n_newMatset)]);
-        n_newFields.move(n_cleanOutput["fields"]);
+        if(n_cleanOutput.has_path("fields"))
+        {
+          n_newFields.move(n_cleanOutput["fields"]);
+        }
       }
     }
   }
