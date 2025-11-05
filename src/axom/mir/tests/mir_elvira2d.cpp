@@ -43,7 +43,10 @@ constexpr int maxAttempts()
 template <typename ExecSpace>
 struct braid2d_mat_test
 {
-  static void initialize(const std::string &type, const std::string &mattype, bool cleanMats, conduit::Node &n_mesh)
+  static void initialize(const std::string &type,
+                         const std::string &mattype,
+                         bool cleanMats,
+                         conduit::Node &n_mesh)
   {
     axom::StackArray<axom::IndexType, 2> dims {10, 10};
     axom::StackArray<axom::IndexType, 2> zoneDims {dims[0] - 1, dims[1] - 1};

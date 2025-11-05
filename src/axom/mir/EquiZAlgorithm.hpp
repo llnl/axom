@@ -243,7 +243,8 @@ protected:
         utils::copy<ExecSpace>(n_newMatset, n_matset);
 
         // Add an originalElements array.
-        const std::string originalElementsField(axom::bump::Options(n_options).originalElementsField());
+        const std::string originalElementsField(
+          axom::bump::Options(n_options).originalElementsField());
         addOriginal(n_newFields[originalElementsField],
                     n_newTopo.name(),
                     "element",
@@ -259,11 +260,7 @@ protected:
         n_root[localPath(n_matset)].set_external(n_matset);
 
         conduit::Node n_cleanOutput;
-        makeCleanZones(n_root,
-                       n_topo.name(),
-                       n_options_copy,
-                       cleanZones.view(),
-                       n_cleanOutput);
+        makeCleanZones(n_root, n_topo.name(), n_options_copy, cleanZones.view(), n_cleanOutput);
 
         // Move n_cleanOutput objects into the supplied nodes.
         n_newCoordset.move(n_cleanOutput[localPath(n_newCoordset)]);

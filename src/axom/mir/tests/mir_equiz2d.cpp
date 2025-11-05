@@ -111,7 +111,8 @@ void braid2d_mat_test(const std::string &type,
       }
       if(selectedZones)
       {
-        options["selectedZones"].set(std::vector<axom::IndexType> {30, 31, 32, 39, 40, 41, 48, 49, 50});
+        options["selectedZones"].set(
+          std::vector<axom::IndexType> {30, 31, 32, 39, 40, 41, 48, 49, 50});
       }
       m.execute(deviceDomain, options, deviceMIRDomain);
     }
@@ -145,23 +146,48 @@ void test_equiz_uniform_unibuffer()
   {
     const bool selectedZones = false;
     const bool cleanMats = false;
-    braid2d_mat_test<ExecSpace>("uniform", "unibuffer", "equiz_uniform_unibuffer", 1, selectedZones, cleanMats);
-    braid2d_mat_test<ExecSpace>("uniform", "unibuffer", "equiz_uniform_unibuffer", 2, selectedZones, cleanMats);
+    braid2d_mat_test<ExecSpace>("uniform",
+                                "unibuffer",
+                                "equiz_uniform_unibuffer",
+                                1,
+                                selectedZones,
+                                cleanMats);
+    braid2d_mat_test<ExecSpace>("uniform",
+                                "unibuffer",
+                                "equiz_uniform_unibuffer",
+                                2,
+                                selectedZones,
+                                cleanMats);
   }
   {
     const bool selectedZones = true;
     const bool cleanMats = false;
-    braid2d_mat_test<ExecSpace>("uniform", "unibuffer", "equiz_uniform_unibuffer_sel", 1, selectedZones, cleanMats);
+    braid2d_mat_test<ExecSpace>("uniform",
+                                "unibuffer",
+                                "equiz_uniform_unibuffer_sel",
+                                1,
+                                selectedZones,
+                                cleanMats);
   }
   {
     const bool selectedZones = false;
     const bool cleanMats = true;
-    braid2d_mat_test<ExecSpace>("uniform", "unibuffer", "equiz_uniform_unibuffer_clean", 1, selectedZones, cleanMats);
+    braid2d_mat_test<ExecSpace>("uniform",
+                                "unibuffer",
+                                "equiz_uniform_unibuffer_clean",
+                                1,
+                                selectedZones,
+                                cleanMats);
   }
   {
     const bool selectedZones = true;
     const bool cleanMats = true;
-    braid2d_mat_test<ExecSpace>("uniform", "unibuffer", "equiz_uniform_unibuffer_sel_clean", 1, selectedZones, cleanMats);
+    braid2d_mat_test<ExecSpace>("uniform",
+                                "unibuffer",
+                                "equiz_uniform_unibuffer_sel_clean",
+                                1,
+                                selectedZones,
+                                cleanMats);
   }
 }
 

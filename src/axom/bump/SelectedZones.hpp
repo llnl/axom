@@ -91,8 +91,7 @@ protected:
    *       strided-structured indexing are the [0..n) zone numbers that exist only
    *       within the selected window.
    */
-  void buildSelectedZones(axom::IndexType nzones,
-                          const conduit::Node &n_options)
+  void buildSelectedZones(axom::IndexType nzones, const conduit::Node &n_options)
   {
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
 
