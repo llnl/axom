@@ -205,8 +205,8 @@ private:
   internal::IDField id;
   std::string type;
   FileSet files;
-  bool hasInstanceDefault;
-  CurveSet::CurveOrder instanceDefaultCurveOrder; // Per-record default
+  bool hasInstanceDefault = false;
+  CurveSet::CurveOrder instanceDefaultCurveOrder = sinaDefaultCurveOrder; // Per-record default
 };
 
 /**
