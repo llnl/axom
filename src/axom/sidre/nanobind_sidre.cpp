@@ -147,19 +147,6 @@ void bindIterator(nb::module_& m, const char* iterator_name)
           self.begin(),
           self.end());
       },
-      nb::keep_alive<0, 1>())
-    .def(
-      "__iter__",
-      [iterator_name](const IteratorType& self) {
-        return nb::make_iterator<nb::rv_policy::reference,
-                                 decltype(self.cbegin()),
-                                 decltype(self.cend()),
-                                 const typename IteratorType::CollectionType::value_type&>(
-          nb::type<const IteratorType>(),
-          iterator_name,
-          self.cbegin(),
-          self.cend());
-      },
       nb::keep_alive<0, 1>());
 }
 
