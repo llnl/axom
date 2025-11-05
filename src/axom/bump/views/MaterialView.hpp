@@ -174,51 +174,41 @@ public:
     /// Get the current material id for the iterator.
     MaterialID AXOM_HOST_DEVICE material_id() const
     {
+      SLIC_ASSERT(m_currentIndex < size());
       return m_material_ids[m_indices[m_currentIndex]];
     }
     /// Get the current volume fraction for the iterator.
     FloatType AXOM_HOST_DEVICE volume_fraction() const
     {
+      SLIC_ASSERT(m_currentIndex < size());
       return m_volume_fractions[m_indices[m_currentIndex]];
     }
     axom::IndexType AXOM_HOST_DEVICE size() const
     {
       return m_indices.size();
     }
+    ZoneIndex AXOM_HOST_DEVICE zoneIndex() const { return m_zoneIndex; }
+
     void AXOM_HOST_DEVICE operator ++()
     {
-      SLIC_ASSERT(m_currentIndex < m_indices.size());
-      m_currentIndex++;
+      m_currentIndex += (m_currentIndex < size()) ? 1 : 0;
     }
     void AXOM_HOST_DEVICE operator ++(int)
     {
-      SLIC_ASSERT(m_currentIndex < m_indices.size());
-      m_currentIndex++;
+      m_currentIndex += (m_currentIndex < size()) ? 1 : 0;
     }
     bool AXOM_HOST_DEVICE operator == (const iterator &rhs) const
     {
       return m_currentIndex == rhs.m_currentIndex &&
+             m_zoneIndex == rhs.m_zoneIndex &&
              m_material_ids == rhs.m_material_ids &&
              m_volume_fractions == rhs.m_volume_fractions &&
              m_indices == rhs.m_indices;
     }
-    bool AXOM_HOST_DEVICE operator < (const iterator &rhs) const
-    {
-      return m_currentIndex < rhs.m_currentIndex &&
-             (m_material_ids == rhs.m_material_ids &&
-              m_volume_fractions == rhs.m_volume_fractions &&
-              m_indices == rhs.m_indices);
-    }
-    bool AXOM_HOST_DEVICE operator > (const iterator &rhs) const
-    {
-      return m_currentIndex > rhs.m_currentIndex &&
-             (m_material_ids == rhs.m_material_ids &&
-              m_volume_fractions == rhs.m_volume_fractions &&
-              m_indices == rhs.m_indices);
-    }
     bool AXOM_HOST_DEVICE operator != (const iterator &rhs) const
     {
       return m_currentIndex != rhs.m_currentIndex ||
+             m_zoneIndex != rhs.m_zoneIndex ||
              m_material_ids != rhs.m_material_ids ||
              m_volume_fractions != rhs.m_volume_fractions ||
              m_indices != rhs.m_indices;
@@ -227,13 +217,15 @@ public:
     DISABLE_DEFAULT_CTOR(iterator);
 
     /// Constructor
-    AXOM_HOST_DEVICE iterator(axom::ArrayView<MaterialID> material_ids,
-                              axom::ArrayView<FloatType> volume_fractions,
-                              axom::ArrayView<IndexType> indices,
+    AXOM_HOST_DEVICE iterator(const axom::ArrayView<MaterialID> &material_ids,
+                              const axom::ArrayView<FloatType> &volume_fractions,
+                              const axom::ArrayView<IndexType> &indices,
+                              ZoneIndex zoneIndex,
                               axom::IndexType currentIndex = 0) :
       m_material_ids(material_ids),
       m_volume_fractions(volume_fractions),
       m_indices(indices),
+      m_zoneIndex(zoneIndex),
       m_currentIndex(currentIndex)
     {
     }
@@ -241,6 +233,7 @@ public:
     axom::ArrayView<MaterialID> m_material_ids;
     axom::ArrayView<FloatType>  m_volume_fractions;
     axom::ArrayView<IndexType>  m_indices;
+    ZoneIndex m_zoneIndex;
     axom::IndexType m_currentIndex;
   };
 
@@ -258,6 +251,7 @@ public:
     return iterator(m_material_ids,
                     m_volume_fractions,
                     axom::ArrayView<IndexType>(m_indices.data() + m_offsets[zi], m_sizes[zi]),
+                    zi,
                     0);
   }
 
@@ -275,6 +269,7 @@ public:
     return iterator(m_material_ids,
                     m_volume_fractions,
                     axom::ArrayView<IndexType>(m_indices.data() + m_offsets[zi], m_sizes[zi]),
+                    zi,
                     m_sizes[zi]);
   }
 
@@ -446,6 +441,7 @@ public:
     {
       return m_view->numberOfMaterials(m_zoneIndex);
     }
+    ZoneIndex AXOM_HOST_DEVICE zoneIndex() const { return m_zoneIndex; }
     void AXOM_HOST_DEVICE operator ++()
     {
       m_currentIndex += (m_currentIndex < m_view->m_size) ? 1 : 0;
@@ -460,18 +456,6 @@ public:
     {
       return m_currentIndex == rhs.m_currentIndex &&
              m_zoneIndex == rhs.m_zoneIndex &&
-             m_view == rhs.m_view;
-    }
-    bool AXOM_HOST_DEVICE operator < (const iterator &rhs) const
-    {
-      return m_currentIndex < rhs.m_currentIndex &&
-             m_zoneIndex < rhs.m_zoneIndex &&
-             m_view == rhs.m_view;
-    }
-    bool AXOM_HOST_DEVICE operator > (const iterator &rhs) const
-    {
-      return m_currentIndex > rhs.m_currentIndex &&
-             m_zoneIndex > rhs.m_zoneIndex &&
              m_view == rhs.m_view;
     }
     bool AXOM_HOST_DEVICE operator != (const iterator &rhs) const
@@ -714,6 +698,7 @@ public:
     {
       return m_view->numberOfMaterials(m_zoneIndex);
     }
+    ZoneIndex AXOM_HOST_DEVICE zoneIndex() const { return m_zoneIndex; }
     void AXOM_HOST_DEVICE operator ++()
     {
       m_currentIndex += (m_currentIndex < m_view->m_volume_fractions.size()) ? 1 : 0;
@@ -728,18 +713,6 @@ public:
     {
       return m_currentIndex == rhs.m_currentIndex &&
              m_zoneIndex == rhs.m_zoneIndex &&
-             m_view == rhs.m_view;
-    }
-    bool AXOM_HOST_DEVICE operator < (const iterator &rhs) const
-    {
-      return m_currentIndex < rhs.m_currentIndex &&
-             m_zoneIndex < rhs.m_zoneIndex &&
-             m_view == rhs.m_view;
-    }
-    bool AXOM_HOST_DEVICE operator > (const iterator &rhs) const
-    {
-      return m_currentIndex > rhs.m_currentIndex &&
-             m_zoneIndex > rhs.m_zoneIndex &&
              m_view == rhs.m_view;
     }
     bool AXOM_HOST_DEVICE operator != (const iterator &rhs) const
@@ -996,6 +969,139 @@ public:
       }
     }
     return found;
+  }
+
+  /*!
+   * \brief An iterator class for iterating over the mat/vf data in a zone.
+   */
+  class iterator
+  {
+    // Let the material view call the iterator constructor.
+    friend class MaterialDominantMaterialView<IndexT, FloatT, MAXMATERIALS>;
+  public:
+    /// Get the current material id for the iterator.
+    MaterialID AXOM_HOST_DEVICE material_id() const
+    {
+      SLIC_ASSERT(m_miIndex < m_view->m_size);
+      return m_view->m_matnos[m_miIndex];
+    }
+    /// Get the current volume fraction for the iterator.
+    FloatType AXOM_HOST_DEVICE volume_fraction() const
+    {
+      SLIC_ASSERT(m_miIndex < m_view->m_size && m_index < m_view->m_element_ids[m_miIndex].size());
+      return m_view->m_volume_fractions[m_miIndex][m_index];
+    }
+    ZoneIndex AXOM_HOST_DEVICE zoneIndex() const { return m_zoneIndex; }
+    axom::IndexType AXOM_HOST_DEVICE size() const
+    {
+      return m_view->numberOfMaterials(m_zoneIndex);
+    }
+    void AXOM_HOST_DEVICE operator ++()
+    {
+      advance(true);
+    }
+    void AXOM_HOST_DEVICE operator ++(int)
+    {
+      advance(true);
+    }
+    bool AXOM_HOST_DEVICE operator == (const iterator &rhs) const
+    {
+      return m_miIndex == rhs.m_miIndex &&
+             m_index == rhs.m_index &&
+             m_zoneIndex == rhs.m_zoneIndex &&
+             m_view == rhs.m_view;
+    }
+    bool AXOM_HOST_DEVICE operator != (const iterator &rhs) const
+    {
+      return m_miIndex != rhs.m_miIndex ||
+             m_index != rhs.m_index ||
+             m_zoneIndex != rhs.m_zoneIndex ||
+             m_view != rhs.m_view;
+    }
+  private:
+    DISABLE_DEFAULT_CTOR(iterator);
+
+    /// Constructor
+    AXOM_HOST_DEVICE iterator(const MaterialDominantMaterialView<IndexT, FloatT, MAXMATERIALS> *view,
+                              ZoneIndex zoneIndex,
+                              axom::IndexType miIndex,
+                              axom::IndexType index) :
+      m_view(view),
+      m_zoneIndex(zoneIndex),
+      m_miIndex(miIndex),
+      m_index(index)
+    {
+    }
+
+    /// Advance to the next valid material slot for the zone.
+    void AXOM_HOST_DEVICE advance(bool doIncrement)
+    {
+      if(doIncrement)
+      {
+        if(m_miIndex < m_view->m_size)
+        {
+          m_index = 0;
+          m_miIndex++;
+        }
+        if(m_miIndex == m_view->m_size)
+        {
+          m_index = m_view->m_element_ids[m_view->m_size - 1].size();
+        }
+      }
+
+      // Look for the next m_miIndex,m_index pair that contains material for the selected zone index.
+      for(; m_miIndex < m_view->m_size; m_miIndex++)
+      {
+        const auto &element_ids = m_view->m_element_ids[m_miIndex];
+        const auto sz = element_ids.size();
+        for(; m_index < sz; m_index++)
+        {
+          if(element_ids[m_index] == m_zoneIndex)
+          {
+            return;
+          }
+        }
+        m_index = (m_miIndex + 1 == m_view->m_size) ? m_index : 0;
+      }
+    }
+
+    const MaterialDominantMaterialView<IndexT, FloatT, MAXMATERIALS> *m_view;
+    ZoneIndex m_zoneIndex;
+    axom::IndexType m_miIndex;
+    axom::IndexType m_index;
+  };
+  // Let the iterator access members.
+  friend class iterator;
+
+  /*!
+   * \brief Return the iterator for the beginning of a zone's material data.
+   *
+   * \param zi The zone index being queried.
+   *
+   * \return The iterator for the beginning of a zone's material data.
+   */
+  iterator AXOM_HOST_DEVICE beginZone(ZoneIndex zi) const
+  {
+    SLIC_ASSERT(zi < static_cast<ZoneIndex>(numberOfZones()));
+
+    auto it = iterator(this, zi, 0, 0);
+    it.advance(false);
+    return it;
+  }
+
+  /*!
+   * \brief Return the iterator for the end of a zone's material data.
+   *
+   * \param zi The zone index being queried.
+   *
+   * \return The iterator for the end of a zone's material data.
+   */
+  iterator AXOM_HOST_DEVICE endZone(ZoneIndex zi) const
+  {
+    SLIC_ASSERT(zi < static_cast<ZoneIndex>(numberOfZones()));
+    const axom::IndexType miIndex = m_size;
+    const axom::IndexType index = (m_size > 0) ? (m_volume_fractions[m_size - 1].size()) : 0;
+    return iterator(this, zi, miIndex, index);
   }
 
 private:

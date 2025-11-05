@@ -571,8 +571,6 @@ struct test_braid2d_mat
       // _bump_views_matsetview_end
       // clang-format on
       test_matsetview(nzones, matsetView, allocatorID);
-      // Test iterators.
-      test_matsetview_iterators(matsetView, allocatorID);
     }
     else if(mattype == "multibuffer")
     {
@@ -580,8 +578,6 @@ struct test_braid2d_mat
         deviceMesh["matsets/mat"],
         [&](auto matsetView) {
         test_matsetview(nzones, matsetView, allocatorID);
-        // Test iterators.
-        test_matsetview_iterators(matsetView, allocatorID);
       });
     }
     else if(mattype == "element_dominant")
@@ -590,8 +586,6 @@ struct test_braid2d_mat
         deviceMesh["matsets/mat"],
         [&](auto matsetView) {
         test_matsetview(nzones, matsetView, allocatorID);
-        // Test iterators.
-        test_matsetview_iterators(matsetView, allocatorID);
       });
     }
     else if(mattype == "material_dominant")
@@ -667,11 +661,15 @@ struct test_braid2d_mat
     {
       EXPECT_EQ(results[i], resultsHost[i]);
     }
+
+    // Test iterators.
+    test_matsetview_iterators(matsetView, allocatorID);
   }
 
   template <typename MatsetView>
   static void test_matsetview_iterators(MatsetView matsetView, int allocatorID)
   {
+    using ZoneIndex = typename MatsetView::ZoneIndex;
     // Allocate results array on device.
     const int nResults = matsetView.numberOfZones();
     axom::Array<int> resultsArrayDevice(nResults, nResults, allocatorID);
@@ -684,15 +682,31 @@ struct test_braid2d_mat
         typename MatsetView::VFList vfs {};
         matsetView.zoneMaterials(index, ids, vfs);
 
+        // Get the end iterator for the zone.
         const auto end = matsetView.endZone(index);
-        int i = 0;
+
         int eq_count = 0;
+        int count = 0;
+
+        // Make sure the iterator is for the right zone.
+        eq_count += (end.zoneIndex() == static_cast<ZoneIndex>(index)) ? 1 : 0;
+        count++;
+
+        // Make sure incrementing the last iterator has no effect.
+        auto end2 = end;
+        end2++;
+        eq_count += (end == end2) ? 1 : 0;
+        count++;
+
+        // Make sure the iterator order is the same as for the values we got from zoneMaterials().
+        int i = 0;
         for(auto it = matsetView.beginZone(index); it != end; it++, i++)
         {
           eq_count += (vfs[i] == it.volume_fraction() &&
                        ids[i] == it.material_id()) ? 1 : 0;
+          count++;
         }
-        resultsView[index] = (eq_count == ids.size()) ? 1 : 0;
+        resultsView[index] = (eq_count == count) ? 1 : 0;
       });
 
     // Get containsView data to the host and compare results
@@ -776,7 +790,7 @@ TEST(bump_views, matset_element_dominant_hip)
   test_braid2d_mat<hip_exec>::test("uniform", "element_dominant", "uniform2d_element_dominant");
 }
 #endif
-#if 0
+
 // Material-dominant
 TEST(bump_views, matset_material_dominant_seq)
 {
@@ -871,7 +885,7 @@ matsets:
     EXPECT_EQ(vf, 1.);
   });
 }
-#endif
+
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
