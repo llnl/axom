@@ -274,7 +274,7 @@ protected:
 
       // Add an originalElements array.
       const std::string originalElementsField(ELVIRAOptions(n_options).originalElementsField());
-      addOriginal(n_newFields[originalElementsField], n_topo.name(), "element", cleanZones);
+      addOriginal(n_newFields[originalElementsField], n_newTopo.name(), "element", cleanZones);
     }
   }
 

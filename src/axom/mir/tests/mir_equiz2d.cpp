@@ -64,9 +64,9 @@ void braid2d_mat_test(const std::string &type,
   {
     const std::string domainName = axom::fmt::format("domain_{:07}", dom);
     conduit::Node &hostDomain = (nDomains > 1) ? hostMesh[domainName] : hostMesh;
-
+    const bool cleanMats = false;
     axom::blueprint::testing::data::braid(type, dims, hostDomain);
-    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, hostDomain);
+    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, cleanMats, hostDomain);
     TestApp.saveVisualization(name + "_orig", hostDomain);
   }
 

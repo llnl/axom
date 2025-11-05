@@ -237,7 +237,7 @@ protected:
       // Add an originalElements array.
       const std::string originalElementsField(axom::bump::Options(n_options).originalElementsField());
       addOriginal(n_newFields[originalElementsField],
-                  n_topo.name(),
+                  n_newTopo.name(),
                   "element",
                   m_topologyView.numberOfZones());
     }
