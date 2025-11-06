@@ -89,6 +89,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     variant("examples", default=True, description="Build examples")
     variant("tools", default=True, description="Build tools")
+    variant("tutorials", default=True, description="Build tutorials")
 
     # Hard requirement after Axom 0.6.1
     variant("cpp14", default=True, description="Build with C++14 support")
@@ -651,6 +652,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         options.append(self.define_from_variant("BUILD_SHARED_LIBS", "shared"))
         options.append(self.define_from_variant("AXOM_ENABLE_EXAMPLES", "examples"))
         options.append(self.define_from_variant("AXOM_ENABLE_TOOLS", "tools"))
+        options.append(self.define_from_variant("AXOM_ENABLE_TUTORIALS", "tutorials"))
         if self.spec.satisfies("~raja") or self.spec.satisfies("+umpire"):
             options.append("-DAXOM_ENABLE_MIR:BOOL=OFF")
 
