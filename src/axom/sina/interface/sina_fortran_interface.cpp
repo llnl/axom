@@ -55,6 +55,18 @@ extern "C" void sina_create_record_(char *recID, char *recType, int recId_length
   // Create a record of "My Sim Code" version "1.2.3", which was run by "jdoe".
   // The run has an ID of "run1", which has to be unique to this file.
   if (!can_modify_records()) return; 
+
+    // Find the actual null terminator, don't trust the full Fortran length
+  auto find_null_or_end = [](const char* str, int max_len) -> int {
+    for (int i = 0; i < max_len; ++i) {
+      if (str[i] == '\0') return i;
+    }
+    return max_len;
+  };
+  
+  int id_actual_len = find_null_or_end(recID, recId_length);
+  std::string id_str(recID, id_actual_len);
+
   axom::sina::ID id {recID, axom::sina::IDType::Global};
   // std::unique_ptr<axom::sina::Record> myRecord {new axom::sina::Record {id, recType}};
   const char *validated_recType = validate_optional_string_safe(recType, recType_length);
