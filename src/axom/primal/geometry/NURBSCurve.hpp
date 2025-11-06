@@ -746,10 +746,10 @@ public:
   const KnotVectorType& getKnots() const { return m_knotvec; }
 
   /// \brief Get minimum knot
-  T getMinKnot() const { return m_knotvec[0]; }
+  T getMinKnot() const { return m_knotvec.getMinKnot(); }
 
   /// \brief Get maximum knot
-  T getMaxKnot() const { return m_knotvec[m_knotvec.getNumKnots() - 1]; }
+  T getMaxKnot() const { return m_knotvec.getMaxKnot(); }
 
   /// \brief Reverses the order of the NURBS curve's control points and weights
   void reverseOrientation()

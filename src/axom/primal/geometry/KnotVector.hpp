@@ -206,6 +206,11 @@ public:
   /// \brief Return the number of control points implied by the knot vector
   axom::IndexType getNumControlPoints() const { return m_knots.size() - m_deg - 1; }
 
+  /// \brief Return the value of the smallest knot, or 0 if there are no knots
+  T getMinKnot() const { return (m_knots.size() > 0) ? m_knots[0] : T {}; }
+  /// \brief Return the value of the largest knot, or 0 if there are no knots
+  T getMaxKnot() const { return (m_knots.size() > 0) ? m_knots[m_knots.size() - 1] : T {}; }
+
   /// \brief Clear the list of knots
   void clear()
   {
@@ -368,8 +373,8 @@ public:
   /// \brief Normalize the knot vector to the span of [0, 1]
   void normalize()
   {
-    const T min_knot = m_knots[0];
-    const T max_knot = m_knots[m_knots.size() - 1];
+    const T min_knot = getMinKnot();
+    const T max_knot = getMaxKnot();
     const T span = max_knot - min_knot;
 
     for(int i = 0; i < m_knots.size(); ++i)
@@ -390,8 +395,8 @@ public:
   {
     SLIC_ASSERT(a < b);
 
-    const T min_knot = m_knots[0];
-    const T max_knot = m_knots[m_knots.size() - 1];
+    const T min_knot = getMinKnot();
+    const T max_knot = getMaxKnot();
     const T span = max_knot - min_knot;
 
     for(int i = 0; i < m_knots.size(); ++i)

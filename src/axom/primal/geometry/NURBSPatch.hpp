@@ -960,10 +960,10 @@ public:
   const KnotVectorType& getKnots_u() const { return m_knotvec_u; }
 
   /// \brief Get the minimum knot value in the u-axis
-  T getMinKnot_u() const { return m_knotvec_u[0]; }
+  T getMinKnot_u() const { return m_knotvec_u.getMinKnot(); }
 
   /// \brief Get the maximum knot value in the u-axis
-  T getMaxKnot_u() const { return m_knotvec_u[m_knotvec_u.getNumKnots() - 1]; }
+  T getMaxKnot_u() const { return m_knotvec_u.getMaxKnot(); }
 
   /// \brief Get the length of the parameter space bounding box
   T getParameterSpaceDiagonal() const
@@ -981,10 +981,10 @@ public:
   const KnotVectorType& getKnots_v() const { return m_knotvec_v; }
 
   /// \brief Get the minimum knot value in the v-axis
-  T getMinKnot_v() const { return m_knotvec_v[0]; }
+  T getMinKnot_v() const { return m_knotvec_v.getMinKnot(); }
 
   /// \brief Get the maximum knot value in the v-axis
-  T getMaxKnot_v() const { return m_knotvec_v[m_knotvec_v.getNumKnots() - 1]; }
+  T getMaxKnot_v() const { return m_knotvec_v.getMaxKnot(); }
 
   /// \brief Return the length of the knot vector on the first axis
   int getNumKnots_u() const { return m_knotvec_u.getNumKnots(); }
