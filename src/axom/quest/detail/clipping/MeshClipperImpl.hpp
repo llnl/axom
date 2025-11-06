@@ -128,14 +128,12 @@ public:
     auto tmpLabelsView = tmpLabels.view();
     axom::for_all<ExecSpace>(
       labelCount,
-      AXOM_LAMBDA(axom::IndexType ci) {
-        tmpLabelsView[ci] = labels[ci] == LabelType::LABEL_ON;
-      });
+      AXOM_LAMBDA(axom::IndexType ci) { tmpLabelsView[ci] = labels[ci] == LabelType::LABEL_ON; });
 
     RAJA::inclusive_scan_inplace<ScanPolicy>(RAJA::make_span(tmpLabels.data(), tmpLabels.size()),
                                              RAJA::operators::plus<axom::IndexType> {});
 
-    axom::IndexType onCount; // Count of tets labeled ON.
+    axom::IndexType onCount;  // Count of tets labeled ON.
     axom::copy(&onCount, &tmpLabels.back(), sizeof(onCount));
 
     if(onIndices.size() < onCount || onIndices.getAllocatorID() != labels.getAllocatorID())
@@ -368,12 +366,10 @@ public:
             const int shapeIndex = shapeCandidatesView[i];
             const int tetIndex = tetIndicesView[i];
 
-            const auto poly =
-              primal::clip<double>(
-                geomTetsView[shapeIndex],
-                cellsAsTets[tetIndex],
-                EPS,
-                tryFixOrientation);
+            const auto poly = primal::clip<double>(geomTetsView[shapeIndex],
+                                                   cellsAsTets[tetIndex],
+                                                   EPS,
+                                                   tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -395,12 +391,10 @@ public:
             const int shapeIndex = shapeCandidatesView[i];
             const int tetIndex = tetIndicesView[i];
 
-            const auto poly =
-              primal::clip<double>(
-                geomOctsView[shapeIndex],
-                cellsAsTets[tetIndex],
-                EPS,
-                tryFixOrientation);
+            const auto poly = primal::clip<double>(geomOctsView[shapeIndex],
+                                                   cellsAsTets[tetIndex],
+                                                   EPS,
+                                                   tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -618,12 +612,10 @@ public:
             tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
               tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
-            const auto poly =
-              primal::clip<double>(
-                geomTetsView[shapeIndex],
-                cellsAsTets[tetIndex],
-                EPS,
-                tryFixOrientation);
+            const auto poly = primal::clip<double>(geomTetsView[shapeIndex],
+                                                   cellsAsTets[tetIndex],
+                                                   EPS,
+                                                   tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -652,12 +644,10 @@ public:
             tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
               tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
-            const auto poly =
-              primal::clip<double>(
-                geomOctsView[shapeIndex],
-                cellsAsTets[tetIndex],
-                EPS,
-                tryFixOrientation);
+            const auto poly = primal::clip<double>(geomOctsView[shapeIndex],
+                                                   cellsAsTets[tetIndex],
+                                                   EPS,
+                                                   tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -811,12 +801,7 @@ public:
           auto tetId = tetIndices[tetIdId];
           const auto& tet = meshTets[tetId];
 
-          const auto poly =
-            primal::clip<double>(
-              tet,
-              geomPiece,
-              EPS,
-              tryFixOrientation);
+          const auto poly = primal::clip<double>(tet, geomPiece, EPS, tryFixOrientation);
 
           if(poly.numVertices() >= 4)
           {
@@ -840,12 +825,7 @@ public:
           auto tetId = tetIndices[tetIdId];
           const auto& tet = meshTets[tetId];
 
-          const auto poly =
-            primal::clip<double>(
-              tet,
-              geomPiece,
-              EPS,
-              tryFixOrientation);
+          const auto poly = primal::clip<double>(tet, geomPiece, EPS, tryFixOrientation);
 
           if(poly.numVertices() >= 4)
           {

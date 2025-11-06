@@ -271,7 +271,7 @@ const std::string coordsetName = "coords";
 int cellCount = -1;
 // Translation to individual octants (override) when running multiple shapes.
 // Except that the plane is never moved.
-const double tDist = 0.9; // Bias toward origin to help keep shape inside domain.
+const double tDist = 0.9;  // Bias toward origin to help keep shape inside domain.
 std::vector<axom::NumericArray<double, 3>> translations {{tDist, tDist, -tDist},
                                                          {-tDist, tDist, -tDist},
                                                          {-tDist, -tDist, -tDist},
@@ -760,12 +760,15 @@ int main(int argc, char** argv)
       params.scaleFactors.resize(3, 1.0);
     }
     for(auto& f : params.scaleFactors) f *= 0.5;
-    axom::StackArray<double, 3> tmpOutput{params.scaleFactors[0], params.scaleFactors[1], params.scaleFactors[2]};
+    axom::StackArray<double, 3> tmpOutput {params.scaleFactors[0],
+                                           params.scaleFactors[1],
+                                           params.scaleFactors[2]};
     SLIC_WARNING(
       axom::fmt::format("Multiple test configurations specified.\n"
-      "Adding additional 0.5 scaling to shrink the geometries\n"
-      "and move them to individual octants so they don't overlap\n"
-      "with each other.  Final scaling: {}", tmpOutput));
+                        "Adding additional 0.5 scaling to shrink the geometries\n"
+                        "and move them to individual octants so they don't overlap\n"
+                        "with each other.  Final scaling: {}",
+                        tmpOutput));
   }
   for(auto sf : params.scaleFactors)
   {
@@ -822,7 +825,8 @@ int main(int argc, char** argv)
 
     if(tg == "tet")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::experimental::TetClipper>(createGeom_Tet(name), name));
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::experimental::TetClipper>(createGeom_Tet(name), name));
     }
     // More geometries to come.
   }
@@ -844,8 +848,11 @@ int main(int argc, char** argv)
   AXOM_ANNOTATE_BEGIN("setup shaping problem");
   if(params.useBlueprintSidre())
   {
-    sMeshPtr =
-      std::make_shared<quest::experimental::ShapeMesh>(params.policy, dataAllocId, compMeshGrp, topoName, matsetName);
+    sMeshPtr = std::make_shared<quest::experimental::ShapeMesh>(params.policy,
+                                                                dataAllocId,
+                                                                compMeshGrp,
+                                                                topoName,
+                                                                matsetName);
   }
   if(params.useBlueprintConduit())
   {
@@ -855,10 +862,10 @@ int main(int argc, char** argv)
     compMeshNode->set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(dataAllocId));
 
     sMeshPtr = std::make_shared<quest::experimental::ShapeMesh>(params.policy,
-                                                   dataAllocId,
-                                                   *compMeshNode,
-                                                   topoName,
-                                                   matsetName);
+                                                                dataAllocId,
+                                                                *compMeshNode,
+                                                                topoName,
+                                                                matsetName);
   }
   quest::experimental::ShapeMesh& sMesh = *sMeshPtr;
 
