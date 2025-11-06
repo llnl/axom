@@ -653,11 +653,9 @@ public:
 
             // Get the src material - there should just be one because we assume
             // that a clean matset is being mapped.
-            typename SrcMatsetView::IDList zoneMatIds;
-            typename SrcMatsetView::VFList zoneMatVFs;
-            srcMatsetView.zoneMaterials(srcZone, zoneMatIds, zoneMatVFs);
-            SLIC_ASSERT(zoneMatIds.size() == 1);
-            const auto mat = zoneMatIds[0];
+            auto zoneMat = srcMatsetView.beginZone(srcZone);
+            SLIC_ASSERT(zoneMat.size() == 1);
+            const auto mat = zoneMat.material_id();
 
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
             std::cout << "\tintersection:" << std::endl
