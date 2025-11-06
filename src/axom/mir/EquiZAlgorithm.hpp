@@ -136,7 +136,6 @@ protected:
     // Come up with lists of clean/mixed zones.
     axom::Array<axom::IndexType> cleanZones, mixedZones;
     makeZoneLists(n_options_copy, cleanZones, mixedZones);
-    SLIC_ASSERT((cleanZones.size() + mixedZones.size()) == m_topologyView.numberOfZones());
     SLIC_INFO(
       axom::fmt::format("cleanZones: {}, mixedZones: {}", cleanZones.size(), mixedZones.size()));
 
@@ -303,17 +302,22 @@ protected:
     namespace utils = axom::bump::utilities;
     axom::bump::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(m_topologyView,
                                                                          m_matsetView);
+    [[maybe_unused]] axom::IndexType expectedSize = 0;
     if(n_options.has_child(m_selectionKey))
     {
       auto selectedZonesView =
         utils::make_array_view<axom::IndexType>(n_options.fetch_existing(m_selectionKey));
       zlb.execute(m_coordsetView.numberOfNodes(), selectedZonesView, cleanZones, mixedZones);
+      expectedSize = selectedZonesView.size();
     }
     else
     {
       zlb.execute(m_coordsetView.numberOfNodes(), cleanZones, mixedZones);
+      expectedSize = m_topologyView.numberOfZones();
     }
     // _bump_utilities_zlb_end
+
+    SLIC_ASSERT((cleanZones.size() + mixedZones.size()) == expectedSize);
   }
 
   /*!
