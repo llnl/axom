@@ -32,7 +32,8 @@ TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
   }
 }
 
-bool TetClipper::getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh, axom::Array<TetrahedronType>& tets)
+bool TetClipper::getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh,
+                                   axom::Array<TetrahedronType>& tets)
 {
   AXOM_ANNOTATE_SCOPE("TetClipper::getGeometryAsTets");
   int allocId = shapeMesh.getAllocatorID();

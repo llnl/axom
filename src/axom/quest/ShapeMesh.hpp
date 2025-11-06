@@ -151,10 +151,7 @@ public:
 
   //!@brief Set the threshold to snapping vertex coordinates near
   // zero to zero.  Default threshold is 1e-10.
-  void setZeroThreshold(double threshold)
-  {
-    m_zeroThreshold = threshold;
-  }
+  void setZeroThreshold(double threshold) { m_zeroThreshold = threshold; }
 
   //@{
   //!@name Accessors to mesh data.

@@ -68,12 +68,12 @@ public:
    * @brief A type to denote whether something is inside,
    * on or outside the boundary of a geometry.
    */
-  enum class LabelType : char {
-    LABEL_IN = 0, ///< Denotes something inside a shape boundary.
-    LABEL_ON = 1, ///< Denotes something on a shape boundary.
-    LABEL_OUT = 2 ///< Denotes something outside a shape boundary.
+  enum class LabelType : char
+  {
+    LABEL_IN = 0,  ///< Denotes something inside a shape boundary.
+    LABEL_ON = 1,  ///< Denotes something on a shape boundary.
+    LABEL_OUT = 2  ///< Denotes something outside a shape boundary.
   };
-
 
   using BoundingBox3DType = axom::primal::BoundingBox<double, 3>;
   using Cone3DType = axom::primal::Cone<double, 3>;
@@ -172,7 +172,8 @@ public:
    * @post labels.size() == shapeMesh.getCellCount()
    * @post labels.getAllocatorID() == shapeMesh.getAllocatorId()
   */
-  virtual bool labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& cellLabels)
+  virtual bool labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                               axom::Array<LabelType>& cellLabels)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(cellLabels);
@@ -235,7 +236,8 @@ public:
    * @post ovlap.size() == shapeMesh.getCellCount()
    * @post ovlap.getAllocatorID() == shapeMesh.getAllocatorId()
   */
-  virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh, axom::ArrayView<double> ovlap)
+  virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
+                                    axom::ArrayView<double> ovlap)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
