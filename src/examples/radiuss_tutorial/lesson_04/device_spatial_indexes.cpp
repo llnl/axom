@@ -256,8 +256,6 @@ axom::Array<IndexPair> findIntersectionsBVH(const TriangleMesh& triMesh,
   using IndexArray = axom::Array<axom::IndexType>;
   constexpr bool on_device = axom::execution_space<ExecSpace>::onDevice();
 
-  using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
-
   axom::Array<IndexPair> intersectionPairs;
 
   // Get ids of necessary allocators
@@ -351,7 +349,8 @@ axom::Array<IndexPair> findIntersectionsBVH(const TriangleMesh& triMesh,
           const axom::IndexType potential = candidates_v[offsets_v[i] + j];
           if(i < potential && is_valid_v[i] && is_valid_v[potential])
           {
-            const auto idx = RAJA::atomicAdd<ATOMIC_POL>(numValidCandidates_p, axom::IndexType {1});
+            const auto idx =
+              axom::atomicAdd<axom::auto_atomic>(numValidCandidates_p, axom::IndexType {1});
             indices_v[idx] = i;
             validCandidates_v[idx] = potential;
           }
@@ -390,7 +389,8 @@ axom::Array<IndexPair> findIntersectionsBVH(const TriangleMesh& triMesh,
         const auto candidate = validCandidates_v[i];
         if(axom::primal::intersect(tris_v[index], tris_v[candidate], includeBoundaries, tol))
         {
-          const auto idx = RAJA::atomicAdd<ATOMIC_POL>(numIntersections_p, axom::IndexType {1});
+          const auto idx =
+            axom::atomicAdd<axom::auto_atomic>(numIntersections_p, axom::IndexType {1});
           intersect1_v[idx] = index;
           intersect2_v[idx] = candidate;
         }
