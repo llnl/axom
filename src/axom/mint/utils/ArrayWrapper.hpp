@@ -51,6 +51,14 @@ public:
     return *this;
   }
 
+  void push_back(const T& value)
+  {
+    std::visit([&](auto& arr) { arr.push_back(value); }, m_array);
+  }
+  void insert(IndexType pos, IndexType n, const T* values)
+  {
+    std::visit([&](auto& arr) { arr.insert(pos, n, values); }, m_array);
+  }
   void insert(IndexType index, ArrayView<const T, DIM> span)
   {
     std::visit([&](auto& arr) { arr.insert(index, span); }, m_array);
@@ -114,6 +122,9 @@ public:
   {
     return std::visit([](const auto& arr) -> const T* { return arr.data(); }, m_array);
   }
+
+  T* operator*() { return data(); }
+  const T* operator*() const { return data(); }
 
   axom::StackArray<IndexType, DIM> shape() const
   {
