@@ -29,9 +29,10 @@ void braid3d_mat_test(const std::string &type, const std::string &mattype, const
   axom::StackArray<axom::IndexType, 3> zoneDims {dims[0] - 1, dims[1] - 1, dims[2] - 1};
 
   // Create the data
+  const bool cleanMats = false;
   conduit::Node hostMesh, deviceMesh;
   axom::blueprint::testing::data::braid(type, dims, hostMesh);
-  axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, hostMesh);
+  axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, cleanMats, hostMesh);
   utils::copy<ExecSpace>(deviceMesh, hostMesh);
   TestApp.saveVisualization(name + "_orig", hostMesh);
 
