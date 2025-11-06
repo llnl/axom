@@ -42,7 +42,7 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh, axom::Array<char>& label) override;
+  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh, axom::Array<LabelType>& label) override;
 
   bool getGeometryAsTets(quest::experimental::ShapeMesh& shappeMesh, axom::Array<TetrahedronType>& tets) override;
 
@@ -72,7 +72,7 @@ private:
   axom::primal::experimental::CoordinateTransformer<double> m_transformer;
 
   template <typename ExecSpace>
-  void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<char>& label);
+  void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& label);
 
   template <typename ExecSpace>
   void vertexInsideToCellLabel(quest::experimental::ShapeMesh& shapeMesh,

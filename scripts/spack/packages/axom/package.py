@@ -52,6 +52,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     version("main", branch="main")
     version("develop", branch="develop")
+    version("0.12.0", tag="v0.12.0", commit="297544010a3dfb98145a1a85f09f9c648c00a18c")
+    version("0.11.0", tag="v0.11.0", commit="685960486aa55d3a74a821ee02f6d9d9a3e67ab1")
     version("0.10.1", tag="v0.10.1", commit="6626ee1c5668176fb64dd9a52dec3e8596b3ba6b")
     version("0.10.0", tag="v0.10.0", commit="ea853a34a834415ea75f824160fc44cba9a0755d")
     version("0.9.0", tag="v0.9.0", commit="5f531595d941d16fa3b8583bfc347a845d9feb6d")
@@ -87,6 +89,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     variant("examples", default=True, description="Build examples")
     variant("tools", default=True, description="Build tools")
+    variant("tutorials", default=True, description="Build tutorials")
 
     # Hard requirement after Axom 0.6.1
     variant("cpp14", default=True, description="Build with C++14 support")
@@ -157,6 +160,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("umpire@6.0.0", when="@0.6.0")
         depends_on("umpire@5:5.0.1", when="@:0.5.0")
         depends_on("umpire+openmp", when="+openmp")
+        depends_on("umpire+mpi3_shmem", when="+mpi")
 
     with when("+raja"):
         depends_on("raja")
@@ -648,6 +652,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         options.append(self.define_from_variant("BUILD_SHARED_LIBS", "shared"))
         options.append(self.define_from_variant("AXOM_ENABLE_EXAMPLES", "examples"))
         options.append(self.define_from_variant("AXOM_ENABLE_TOOLS", "tools"))
+        options.append(self.define_from_variant("AXOM_ENABLE_TUTORIALS", "tutorials"))
         if self.spec.satisfies("~raja") or self.spec.satisfies("+umpire"):
             options.append("-DAXOM_ENABLE_MIR:BOOL=OFF")
 

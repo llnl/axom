@@ -18,7 +18,7 @@ namespace experimental
 {
 
 /*!
- * @brief Geometry clipping operations for sphere geometries.
+ * @brief Geometry clipping operations for a single tetrahedron geometry.
 */
 class TetClipper : public MeshClipperStrategy
 {
@@ -40,7 +40,14 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool getGeometryAsTets(quest::experimental::ShapeMesh& shappeMesh, axom::Array<TetrahedronType>& tets) override;
+  /*!
+   * @copydoc MeshClipperStrategy::getGeometryAsTets()
+   *
+   * \c tets will have length one, because the geometry for this
+   * class is a single tetrahedron.
+   */
+  bool getGeometryAsTets(quest::experimental::ShapeMesh& shappeMesh,
+                         axom::Array<TetrahedronType>& tets) override;
 
 #if !defined(__CUDACC__)
 private:

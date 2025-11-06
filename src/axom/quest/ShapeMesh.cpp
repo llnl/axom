@@ -39,6 +39,7 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
   , m_matsetName(matsetName.empty() && bpMesh["matsets"].number_of_children() > 0
                    ? bpMesh.fetch("matsets").child(0).name()
                    : matsetName)
+  , m_bpGrpExt(nullptr)
   , m_bpNodeExt(&bpMesh)
   , m_zeroThreshold(1e-10)
 {
@@ -47,7 +48,7 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
 
   const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
-  // We want unstructured topo but can accomodate structured.
+  // We currently support only unstructured topo.
   const auto& typeNode =
     m_bpNodeExt->fetch_existing("topologies").fetch_existing(m_topoName).fetch_existing("type");
   const std::string topoType = typeNode.as_string();
@@ -64,7 +65,7 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
   {
     conduit::Node& matsetNode = m_bpNodeExt->fetch("matsets").fetch(m_matsetName);
 
-    // If matsetName was given, but not data isn't set up yet, set it up.
+    // If matsetName was given, but topology data isn't set up yet, set it up.
     if(!matsetNode.has_child("topology"))
     {
       matsetNode.set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(hostAllocId));
@@ -271,14 +272,20 @@ bool ShapeMesh::isValidForShaping(std::string& whyNot) const
   {
     std::string topoType = bpMesh.fetch("topologies")[m_topoName]["type"].as_string();
     rval = topoType == "unstructured";
-    info[0].set_string("Topology is not unstructured.");
+    if(!rval)
+    {
+      info[0].set_string("Topology is not unstructured.");
+    }
   }
 
   if(rval)
   {
     std::string elemShape = bpMesh.fetch("topologies")[m_topoName]["elements/shape"].as_string();
     rval = elemShape == "hex";
-    info[0].set_string("Topology elements are not hex.");
+    if(!rval)
+    {
+      info[0].set_string("Topology elements are not hex.");
+    }
   }
 
   whyNot = info.to_summary_string();
@@ -293,6 +300,7 @@ void ShapeMesh::setMatsetFromVolume(const std::string& materialName,
   SLIC_ERROR_IF(m_matsetName.empty(),
                 "Cannot use material set in ShapeMesh: Matset name was not provided, and no "
                 "default matset was found.");
+  SLIC_ERROR_IF(materialName.empty(), "Cannot have an empty materialName.");
 
   double* vfPtr = nullptr;
 
@@ -313,9 +321,9 @@ void ShapeMesh::setMatsetFromVolume(const std::string& materialName,
     conduit::Node& vfValues = getMeshConduitPath(*m_bpNodeExt, vfValuesPath, dataType);
     vfPtr = vfValues.as_double_ptr();
   }
-  else
+#if defined(AXOM_USE_SIDRE)
+  if(m_bpGrpExt != nullptr)
   {
-    SLIC_ASSERT(m_bpGrpExt != nullptr);
     std::string viewPath = "matsets/" + m_matsetName + "/volume_fractions/" + materialName;
     sidre::View* vfValues = m_bpGrpExt->hasView(viewPath)
       ? m_bpGrpExt->getView(viewPath)
@@ -331,6 +339,7 @@ void ShapeMesh::setMatsetFromVolume(const std::string& materialName,
     }
     vfPtr = (double*)(vfValues->getVoidPtr());
   }
+#endif
 
   axom::copy(vfPtr, volumes.data(), m_cellCount * sizeof(double));
   if(!isFraction)
@@ -367,6 +376,7 @@ void ShapeMesh::setFreeVolumeFractions(const std::string& freeName)
   SLIC_ERROR_IF(m_matsetName.empty(),
                 "Cannot use material set in ShapeMesh: Matset name was not provided, and no "
                 "default matset was found.");
+  SLIC_ERROR_IF(freeName.empty(), "Cannot have an empty material name.");
 
   auto dataType = conduit::DataType::float64(m_cellCount);
 
@@ -399,9 +409,9 @@ void ShapeMesh::setFreeVolumeFractions(const std::string& freeName)
       elementwiseAddImpl(newVfView, vfView, newVfView);
     }
   }
-  else
+#if defined(AXOM_USE_SIDRE)
+  if(m_bpGrpExt != nullptr)
   {
-    SLIC_ASSERT(m_bpGrpExt != nullptr);
     sidre::Group* matsetGrp = m_bpGrpExt->createGroup("matsets/" + m_matsetName, false, true);
     if(matsetGrp->hasView("topology"))
     {
@@ -429,6 +439,7 @@ void ShapeMesh::setFreeVolumeFractions(const std::string& freeName)
       elementwiseAddImpl(newVfView, vfView, newVfView);
     }
   }
+#endif
 
   elementwiseComplementImpl(newVfView, 1.0, newVfView);
 }
@@ -764,8 +775,6 @@ void ShapeMesh::computeCellsAsHexesImpl()
 template <typename ExecSpace>
 void ShapeMesh::computeCellsAsTetsImpl()
 {
-  constexpr int NUM_TETS_PER_HEX = primal::Hexahedron<double, 3>::NUM_TRIANGULATE;
-
   SLIC_ASSERT(m_dim == 3);  // or we shouldn't be here.
 
   m_cellsAsTets = axom::Array<TetrahedronType>(ArrayOptions::Uninitialized(),
@@ -842,9 +851,7 @@ void ShapeMesh::computeVertPointsImpl()
   auto vertPointsView = m_vertPoints3D.view();
   axom::for_all<ExecSpace>(
     m_vertexCount,
-    AXOM_LAMBDA(axom::IndexType vi) {
-      vertPointsView[vi] = Point3DType {vX[vi], vY[vi], vZ[vi]};
-    });
+    AXOM_LAMBDA(axom::IndexType vi) { vertPointsView[vi] = Point3DType {vX[vi], vY[vi], vZ[vi]}; });
 }
 
 template <typename ExecSpace, typename T>

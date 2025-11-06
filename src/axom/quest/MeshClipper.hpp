@@ -20,16 +20,17 @@ namespace experimental
 {
 
 /*!
- * @brief Abstract base class encapsulating the clipping task in
- * intersection shaping, to be specialized for geometry-specific
- * implementations.
+ * @brief Entry point for computing clipping a computational mesh
+ * by overlaying a geometry and computing the intersection volume
+ * the geometry makes with each mesh cell.
  *
- * Each object operates is associated with a single klee::Geometry object.*
+ * To construct:
+ * - Wrap the computational mesh in a ShapeMesh object.
+ * - Allocate a MeshClipperStrategy implementation to provide
+ *   geometry-specific operations.  Axom natively provides
+ *   implementations for some common geometries.
  *
- * This class defines the interfaces for specializing computations
- * that can run fast on specific geometries.  This allows for
- * geometry-specific optimizations.  If no such specialization
- * is provided, default methods are used.
+ * To compute the intersection volumes, use one of the clip() methods.
  */
 class MeshClipper
 {
@@ -50,7 +51,8 @@ public:
    * @c bpMesh must be an unstructured hex mesh.
    * That is the only type currently supported.
    */
-  MeshClipper(quest::experimental::ShapeMesh& shapeMesh, const std::shared_ptr<MeshClipperStrategy>& strategy);
+  MeshClipper(quest::experimental::ShapeMesh& shapeMesh,
+              const std::shared_ptr<MeshClipperStrategy>& strategy);
 
   //!@brief The mesh.
   ShapeMesh& getShapeMesh() { return m_shapeMesh; }
@@ -104,15 +106,29 @@ public:
                                     axom::ArrayView<double> ovlap) = 0;
 
     //! @brief Initialize overlap volumes to zero.
-    virtual void initVolumeOverlaps(axom::ArrayView<double> ovlap) = 0;
+    virtual void zeroVolumeOverlaps(axom::ArrayView<double> ovlap) = 0;
 
     //!@brief Collect unlabeled LABEL_ON indices into an index list.
     virtual void collectOnIndices(const axom::ArrayView<LabelType>& labels,
                                   axom::Array<axom::IndexType>& onIndices) = 0;
 
-    //!@brief Change tet indices from sparse-set values to full-set values.
-    virtual void remapTetIndices(axom::ArrayView<axom::IndexType> tetsOnBdry,
-                                 axom::ArrayView<const axom::IndexType> cellsOnBdry) = 0;
+    /*!
+     * @brief Remap tet indices by de-referencing the cell indices they refer to.
+     *
+     * @param cellIndices [in] a list of cell indices.
+     * @param tetIndices [in,out] a list of tet indices.
+     *
+     * On input, tetIndices have values in [0, cellIndices.size()*NUM_TETS_PER_HEX),
+     * as though the cells have indices in [0, cellIndices.size()).
+     *
+     * On output, tetIndices values are remapped to match real cell indices.
+     * For example, tet index values in
+     * [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX) are remapped to
+     * [j*NUM_TETS_PER_HEX, (j+1)*NUM_TETS_PER_HEX), where j = cellIndices[i],
+     * the real cell index.
+     */
+    virtual void remapTetIndices(axom::ArrayView<const axom::IndexType> cellIndices,
+                                 axom::ArrayView<axom::IndexType> tetIndices) = 0;
 
     //!@brief Add volumes of tets inside the geometry to the volume data.
     virtual void addVolumesOfInteriorTets(axom::ArrayView<const axom::IndexType> cellsOnBdry,

@@ -131,7 +131,7 @@ void SphereClipper::labelCellsInOutImplOld(quest::experimental::ShapeMesh& shape
         hasIn |= isIn;
         hasOut |= isOut;
       }
-      cellLabel = !hasOut ? LABEL_IN : !hasIn ? LABEL_OUT : LABEL_ON;
+      cellLabel = !hasOut ? LabelType::LABEL_IN : !hasIn ? LabelType::LABEL_OUT : LabelType::LABEL_ON;
     });
 
   bool checkEdges = false;
@@ -148,7 +148,7 @@ void SphereClipper::labelCellsInOutImplOld(quest::experimental::ShapeMesh& shape
       cellCount,
       AXOM_LAMBDA(axom::IndexType cellId) {
         LabelType& cellLabel = labelsView[cellId];
-        if(cellLabel == LABEL_OUT)
+        if(cellLabel == LabelType::LABEL_OUT)
         {
           constexpr int NUM_TETS_PER_HEX = primal::Hexahedron<double, 3>::NUM_TRIANGULATE;
           const double sqRadius = sphere.getRadius() * sphere.getRadius();
@@ -158,9 +158,9 @@ void SphereClipper::labelCellsInOutImplOld(quest::experimental::ShapeMesh& shape
           for(axom::IndexType ti = tetIdxStart; ti < tetIdxEnd; ++ti)
           {
             const TetrahedronType& tet = cellsAsTets[ti];
-            for(int vA = 0; vA < 4 && cellLabel == LABEL_OUT; ++vA)
+            for(int vA = 0; vA < 4 && cellLabel == LabelType::LABEL_OUT; ++vA)
             {
-              for(int vB = vA + 1; vB < 4 && cellLabel == LABEL_OUT; ++vB)
+              for(int vB = vA + 1; vB < 4 && cellLabel == LabelType::LABEL_OUT; ++vB)
               {
                 const Segment3DType seg(tet[vA], tet[vB]);
                 const Vector3DType vec(tet[vA], tet[vB]);
@@ -174,7 +174,7 @@ void SphereClipper::labelCellsInOutImplOld(quest::experimental::ShapeMesh& shape
                   double sqNorm = centerToIntersection.squared_norm();
                   if(sqNorm < sqRadius)
                   {
-                    cellLabel = LABEL_ON;
+                    cellLabel = LabelType::LABEL_ON;
                   }
                 }
               }
@@ -243,11 +243,11 @@ void SphereClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMes
    * Label cell:
    * - Compute cell's bounding sphere.  Use bounding box's
    *   bounding sphere as a fast conservative approximation.
-   * - If bounding sphere doesn't intersect the geometry, cell is LABEL_OUT.
-   * - If all cell vertices are inside geometry, cell is LABEL_IN.
+   * - If bounding sphere doesn't intersect the geometry, cell is LabelType::LABEL_OUT.
+   * - If all cell vertices are inside geometry, cell is LabelType::LABEL_IN.
    *   This is true because geometry is convex.
    * - If spheres intersect and not all vertices are inside,
-   *   some parts of the cell may intersect boundary, so it's LABEL_ON.
+   *   some parts of the cell may intersect boundary, so it's LabelType::LABEL_ON.
   */
 
   auto cellBbs = shapeMesh.getCellBoundingBoxes();
@@ -267,11 +267,11 @@ void SphereClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMes
           int vertId = cellVertIds[vi];
           hasOut |= vertIsOutsideView[vertId];
         }
-        cellLabel = hasOut ? LABEL_ON : LABEL_IN;
+        cellLabel = hasOut ? LabelType::LABEL_ON : LabelType::LABEL_IN;
       }
       else
       {
-        cellLabel = LABEL_OUT;
+        cellLabel = LabelType::LABEL_OUT;
       }
     });
 
@@ -337,11 +337,11 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh
    * - Compute tets's bounding sphere.  Use bounding box's
    *   bounding sphere as a fast conservative approximation.
    * - If bounding sphere doesn't intersect sphere geometry,
-   *   cell is LABEL_OUT.
+   *   cell is LabelType::LABEL_OUT.
    * - If all cell vertices are inside sphere geometry,
-   *   cell is LABEL_IN.  This is true because geometry is convex.
+   *   cell is LabelType::LABEL_IN.  This is true because geometry is convex.
    * - If spheres intersect and not all vertices are inside,
-   *   some parts of the cell may intersect boundary, so it's LABEL_ON.
+   *   some parts of the cell may intersect boundary, so it's LabelType::LABEL_ON.
    *
    * TODO: It shouldn't be hard to compute the closest point
    * of a BoundingBox to another point.  It would be less
@@ -383,11 +383,11 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh
             double sqDistance = axom::primal::squared_distance(sphere.getCenter(), tet[vi]);
             hasOut |= sqDistance > squaredRad;
           }
-          tetLabel = hasOut ? LABEL_ON : LABEL_IN;
+          tetLabel = hasOut ? LabelType::LABEL_ON : LabelType::LABEL_IN;
         }
         else
         {
-          tetLabel = LABEL_OUT;
+          tetLabel = LabelType::LABEL_OUT;
         }
       }
     });

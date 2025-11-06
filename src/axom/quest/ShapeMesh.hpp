@@ -3,12 +3,20 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_SHAPEEMESH_HPP
-#define AXOM_QUEST_SHAPEEMESH_HPP
+#ifndef AXOM_QUEST_SHAPEMESH_HPP
+#define AXOM_QUEST_SHAPEMESH_HPP
+
+#include "axom/config.hpp"
 
 #ifndef AXOM_USE_CONDUIT
   #error "ShapeMesh requires Conduit"
-// TODO: Support MFEM as well.
+#endif
+
+#ifndef AXOM_USE_SIDRE
+  #error "ShapeMesh requires sidre"
+  // Note: We guard sidre use for mesh stored in sidre, but sidre::ConduitMemory
+  // is required even when the mesh is stored in Conduit.  Hence the dependence
+  // on sidre.
 #endif
 
 #include "axom/core.hpp"
@@ -16,9 +24,7 @@
 #include "axom/primal/geometry/Hexahedron.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
 
-#ifdef AXOM_USE_SIDRE
-  #include "axom/sidre.hpp"
-#endif
+#include "axom/sidre.hpp"
 
 #include "conduit/conduit_node.hpp"
 #include "conduit_blueprint.hpp"
@@ -145,10 +151,7 @@ public:
 
   //!@brief Set the threshold to snapping vertex coordinates near
   // zero to zero.  Default threshold is 1e-10.
-  void setZeroThreshold(double threshold)
-  {
-    m_zeroThreshold = threshold;
-  }
+  void setZeroThreshold(double threshold) { m_zeroThreshold = threshold; }
 
   //@{
   //!@name Accessors to mesh data.
@@ -162,7 +165,7 @@ public:
    * code and computations.
    */
   /*!
-   * @brief Tetrahedral version of mesh cells with cell i having tet ids in
+   * @brief Tetrahedral version of mesh cells with cell \c i having tet ids in
    * [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX).
    */
   axom::ArrayView<const TetrahedronType> getCellsAsTets();
@@ -191,13 +194,19 @@ public:
   /*!
    * @brief Check whether mesh meets requirements for shaping.
    * @param whyNot [out] Diagnostic message if mesh is invalid.
+   *
+   * Requirements for the mesh are:
+   * - Follow blueprint conventions.  See
+   *   https://llnl-conduit.readthedocs.io/en/latest/blueprint_mesh.html
+   * - Be unstructured.
+   * - Have hexahedral elements.
    */
   bool isValidForShaping(std::string& whyNot) const;
 
   //@{
   /*!
    * @brief Create (Blueprint) matset in the mesh for a material.
-   * @param materialName [in]
+   * @param materialName [in] Name of material
    * @param volumes [in] Cell-centered volumes
    * @param isFraction [in] Whether @c volumes is actually
    *   volume fractions.
@@ -211,6 +220,10 @@ public:
                            const axom::ArrayView<double>& volumes,
                            bool isFraction = false);
 
+  /*!
+   * @brief Compute and set the free volume fraction.
+   * @param freeName [in] Name of free material.
+   */
   void setFreeVolumeFractions(const std::string& freeName);
   //@}
 
@@ -336,4 +349,4 @@ public:
 }  // namespace quest
 }  // namespace axom
 
-#endif  // AXOM_QUEST_SHAPEEMESH_HPP
+#endif  // AXOM_QUEST_SHAPEMESH_HPP

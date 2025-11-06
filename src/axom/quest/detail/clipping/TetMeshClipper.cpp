@@ -195,7 +195,7 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
           bool intersects = axom::primal::intersect(candidate, hexBb);
           if(intersects)
           {
-            label = LABEL_ON;
+            label = LabelType::LABEL_ON;
             return;
           }
         }
@@ -233,13 +233,13 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
               axom::utilities::isNearlyEqual(contactPt[2], eps);
             if(grazing)
             {
-              label = LABEL_ON;
+              label = LabelType::LABEL_ON;
               return;
             }
             ++surfaceCrossingCount;
           }
         }
-        label = surfaceCrossingCount % 2 == 0 ? LABEL_OUT : LABEL_IN;
+        label = surfaceCrossingCount % 2 == 0 ? LabelType::LABEL_OUT : LabelType::LABEL_IN;
       }
     });
   AXOM_ANNOTATE_END("TetMeshClipper::compute_labels");
@@ -362,7 +362,7 @@ void TetMeshClipper::vertexInsideToCellLabel(quest::experimental::ShapeMesh& sha
         hasIn |= isIn;
         hasOut |= !isIn;
       }
-      labelsView[cellId] = !hasOut ? LABEL_IN : !hasIn ? LABEL_OUT : LABEL_ON;
+      labelsView[cellId] = !hasOut ? LabelType::LABEL_IN : !hasIn ? LabelType::LABEL_OUT : LabelType::LABEL_ON;
     });
 
   return;

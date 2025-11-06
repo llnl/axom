@@ -149,9 +149,6 @@ foreach(test ${quest_mpi_tests})
     )
 
     set(_numMPITasks 4)
-    if (${test_name} STREQUAL "quest_signed_distance_interface")
-        set(_numMPITasks 1)
-    endif()
     if (${test_name} STREQUAL "quest_inout_interface")
         set(_numMPITasks 1)
     endif()
@@ -237,7 +234,7 @@ endif()
 #------------------------------------------------------------------------------
 # Geometry clipping tests require Conduit and RAJA
 #------------------------------------------------------------------------------
-if(CONDUIT_FOUND AND RAJA_FOUND)
+if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
     axom_add_executable(
         NAME        quest_mesh_clipper_test
         SOURCES     quest_mesh_clipper.cpp

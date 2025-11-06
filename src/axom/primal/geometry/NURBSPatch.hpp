@@ -2476,7 +2476,6 @@ public:
     return VectorType::cross_product(Du, Dv);
   }
 
-#ifdef AXOM_USE_MFEM
   /*!
    * \brief Calculate the average normal for the (untrimmed) patch
    * 
@@ -2489,7 +2488,7 @@ public:
    *  then computes the 2D area of that projection to get the corresponding
    *  component of the average surface normal.
    *  
-   * \note This requires the MFEM third-party library
+   * Evaluates the integral with Gauss-Legendre quadrature on each boundary curve
    * 
    * \return The calculated mean surface normal
    */
@@ -2572,7 +2571,6 @@ public:
     ret_vec[1] = -ret_vec[1];
     return ret_vec;
   }
-#endif
   ///@}
 
   ///@{
@@ -3092,7 +3090,6 @@ public:
     return split_patches;
   }
 
-#ifdef AXOM_USE_MFEM
   /*!
    * \brief Calculate the average normal for the trimmed patch
    * 
@@ -3101,7 +3098,7 @@ public:
    * Decomposes the NURBS surface into trimmed Bezier components (to ensure differentiability of the integrand) 
    *  and evaluates the integral numerically on each component using trimming curves
    * 
-   * \note This requires the MFEM third-party library
+   * Evaluates the integral with Gauss-Legendre quadrature on each boundary curve
    * 
    * \return The calculated mean surface normal
    */
@@ -3132,7 +3129,6 @@ public:
 
     return ret_vec;
   }
-#endif
   //@}
 
   ///@{

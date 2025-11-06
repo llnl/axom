@@ -16,16 +16,12 @@
 #include "axom/primal/operators/squared_distance.hpp"
 
 #include "axom/core/numerics/transforms.hpp"
+#include "axom/core/numerics/quadrature.hpp"
 
 #include "axom/primal/operators/detail/winding_number_3d_memoization.hpp"
 
 // C++ includes
 #include <math.h>
-
-// MFEM includes
-#ifdef AXOM_USE_MFEM
-  #include "mfem.hpp"
-#endif
 
 namespace axom
 {

@@ -255,7 +255,7 @@ void FSorClipper::labelInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom
         double sqDist = axom::primal::squared_distance(cellBb, bbOn);
         if(sqDist <= sqDistThreshold)
         {
-          cellLabel = LABEL_ON;
+          cellLabel = LabelType::LABEL_ON;
           return;
         }
       }
@@ -264,12 +264,12 @@ void FSorClipper::labelInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom
       {
         if(cellBb.intersectsWith(bbUnder))
         {
-          cellLabel = LABEL_IN;
+          cellLabel = LabelType::LABEL_IN;
           return;
         }
       }
 
-      cellLabel = LABEL_OUT;
+      cellLabel = LabelType::LABEL_OUT;
     });
 }
 

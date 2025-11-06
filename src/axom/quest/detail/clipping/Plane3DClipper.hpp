@@ -38,7 +38,7 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh, axom::Array<char>& label) override;
+  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh, axom::Array<LabelType>& label) override;
 
   bool specializedClipCells(quest::experimental::ShapeMesh& shappeMesh,
                             axom::ArrayView<double> ovlap,
@@ -52,7 +52,7 @@ private:
   axom::primal::Plane<double, 3> m_plane;
 
   template <typename ExecSpace>
-  void labelInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<char>& label);
+  void labelInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& label);
 
   template <typename ExecSpace>
   void specializedClipImpl(quest::experimental::ShapeMesh& shapeMesh,

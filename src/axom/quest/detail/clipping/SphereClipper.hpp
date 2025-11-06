@@ -36,7 +36,7 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh, axom::Array<char>& label) override;
+  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh, axom::Array<LabelType>& label) override;
 
   bool labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
                       axom::ArrayView<const axom::IndexType> cellIds,
@@ -62,9 +62,9 @@ private:
   int m_levelOfRefinement;
 
   template <typename ExecSpace>
-  void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<char>& label);
+  void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& label);
   template <typename ExecSpace>
-  void labelCellsInOutImplOld(quest::experimental::ShapeMesh& shapeMesh, axom::Array<char>& label);
+  void labelCellsInOutImplOld(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& label);
 
   template <typename ExecSpace>
   void labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,

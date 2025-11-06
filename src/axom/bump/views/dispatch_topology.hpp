@@ -11,6 +11,7 @@
 #include "axom/bump/views/dispatch_rectilinear_topology.hpp"
 #include "axom/bump/views/dispatch_structured_topology.hpp"
 #include "axom/bump/views/dispatch_unstructured_topology.hpp"
+#include "axom/bump/views/dispatch_utilities.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -33,6 +34,7 @@ namespace views
 template <int SelectedDimensions = select_dimensions(1, 2, 3), int ShapeTypes = AnyShape, typename FuncType>
 void dispatch_topology(const conduit::Node &topo, FuncType &&func)
 {
+  verify(topo, "topology");
   const auto type = topo.fetch_existing("type").as_string();
 
   if(type == "unstructured")

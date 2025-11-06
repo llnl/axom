@@ -106,7 +106,7 @@ void HexClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, 
       // If bounding boxes don't intersect, nothing intersects.
       if(!hexBb.intersectsWith(cellBb))
       {
-        cellLabel = LABEL_OUT;
+        cellLabel = LabelType::LABEL_OUT;
         return;
       }
       // If cellBb intersects hex surface, there's a high chance cell does too.
@@ -115,7 +115,7 @@ void HexClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, 
         const auto& surfTri = surfaceTriangles[ti];
         if(axom::primal::intersect(surfTri, cellBb))
         {
-          cellLabel = LABEL_ON;
+          cellLabel = LabelType::LABEL_ON;
           return;
         }
       }
@@ -130,11 +130,11 @@ void HexClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, 
       {
         if(tet.contains(ptInCell, eps))
         {
-          cellLabel = LABEL_IN;
+          cellLabel = LabelType::LABEL_IN;
           return;
         }
       }
-      cellLabel = LABEL_OUT;
+      cellLabel = LabelType::LABEL_OUT;
     });
 
   return;

@@ -26,6 +26,16 @@ namespace experimental
 namespace detail
 {
 
+/*!
+ * @brief Implementation of MeshClipper::Impl
+ *
+ * This class should be thought of as a part of the MeshClipper code,
+ * even though it's in a different file.  Abstract base class
+ * MeshClipper::Impl defines interfaces for MeshClipper methods that
+ * should be implemented in the same execution space.  This class
+ * implements those methods with the execution space as a template
+ * parameter.
+ */
 template <typename ExecSpace>
 class MeshClipperImpl : public MeshClipper::Impl
 {
@@ -52,13 +62,13 @@ public:
       cellCount,
       AXOM_LAMBDA(axom::IndexType i) {
         auto& l = labels[i];
-        ovlap[i] = l == MeshClipperStrategy::LABEL_IN ? cellVolumes[i] : 0.0;
+        ovlap[i] = l == LabelType::LABEL_IN ? cellVolumes[i] : 0.0;
       });
 
     return;
   }
 
-  void initVolumeOverlaps(axom::ArrayView<double> ovlap) override
+  void zeroVolumeOverlaps(axom::ArrayView<double> ovlap) override
   {
     SLIC_ASSERT(ovlap.size() == getShapeMesh().getCellCount());
     ovlap.fill(0.0);
@@ -82,7 +92,7 @@ public:
         const LabelType* tetLabelsForHex = &tetLabels[NUM_TETS_PER_HEX * ih];
         for(int it = 0; it < NUM_TETS_PER_HEX; ++it)
         {
-          if(tetLabelsForHex[it] == MeshClipperStrategy::LABEL_IN)
+          if(tetLabelsForHex[it] == LabelType::LABEL_IN)
           {
             const axom::IndexType tetId = hexId * NUM_TETS_PER_HEX + it;
             const auto& tet = meshTets[tetId];
@@ -92,7 +102,7 @@ public:
       });
   }
 
-  //! @brief Make an list of indices where labels have value LABEL_ON.
+  //! @brief Make a list of indices where labels have value LABEL_ON.
   void collectOnIndices(const axom::ArrayView<LabelType>& labels,
                         axom::Array<axom::IndexType>& onIndices) override
   {
@@ -104,10 +114,14 @@ public:
     AXOM_ANNOTATE_SCOPE("MeshClipper::collect_unlabeleds");
     /*!
      * 1. Generate tmpLabels, having a value of 1 where labels is LABEL_ON and zero elsewhere.
-     * 2. Inclusive scan on tmpLabels to generate values that step up at unlabeled cells.
+     * 2. Inclusive scan on tmpLabels to generate values that step up at LABEL_ON cells.
      * 3. Find unlabeled cells by seeing where tmpLabels changes values.
      *    (Handle first cell separately, then loop from second cell on.)
-    */
+     *    Note that tmpLabels holds non-decreasing values.  By populating
+     *    onIndices based on where tmpLabels changes, we never write to
+     *    the same index more than once.  Write conflicts are thus avoided.
+     *    Thanks to Jason Burmark for recommending this approach.
+     */
     using ScanPolicy = typename axom::execution_space<ExecSpace>::loop_policy;
 
     const axom::IndexType labelCount = labels.size();
@@ -116,14 +130,12 @@ public:
     auto tmpLabelsView = tmpLabels.view();
     axom::for_all<ExecSpace>(
       labelCount,
-      AXOM_LAMBDA(axom::IndexType ci) {
-        tmpLabelsView[ci] = labels[ci] == MeshClipperStrategy::LABEL_ON;
-      });
+      AXOM_LAMBDA(axom::IndexType ci) { tmpLabelsView[ci] = labels[ci] == LabelType::LABEL_ON; });
 
     RAJA::inclusive_scan_inplace<ScanPolicy>(RAJA::make_span(tmpLabels.data(), tmpLabels.size()),
                                              RAJA::operators::plus<axom::IndexType> {});
 
-    axom::IndexType onCount; // Count of tets labeled ON.
+    axom::IndexType onCount;  // Count of tets labeled ON.
     axom::copy(&onCount, &tmpLabels.back(), sizeof(onCount));
 
     if(onIndices.size() < onCount || onIndices.getAllocatorID() != labels.getAllocatorID())
@@ -135,9 +147,9 @@ public:
     }
     auto onIndicesView = onIndices.view();
 
-    LabelType firstLabel = '\0';
+    LabelType firstLabel = LabelType::LABEL_IN;
     axom::copy(&firstLabel, &labels[0], sizeof(firstLabel));
-    if(firstLabel == 1)
+    if(firstLabel == LabelType::LABEL_ON)
     {
       axom::IndexType zero = 0;
       axom::copy(&onIndices[0], &zero, sizeof(zero));
@@ -154,41 +166,29 @@ public:
       });
   }
 
-  void remapTetIndices(axom::ArrayView<axom::IndexType> tetsOnBdry,
-                       axom::ArrayView<const axom::IndexType> cellsOnBdry) override
+  void remapTetIndices(axom::ArrayView<const axom::IndexType> cellIndices,
+                       axom::ArrayView<axom::IndexType> tetIndices) override
   {
-    /*
-     * cellsOnBdry is a list of cell indices.
-     *
-     * Each cell has NUM_TETS_PER_HEX.
-     *
-     * tetsOnBdry are a list of indices referring to the tets in those
-     * cells.  N tets for each cell.  So the values in tetsOnBDry are
-     * in [0, cellsOnBdry.size()*24).
-     *
-     * Use the indices in cellsOnBdry to map tetsOnBdry values to the
-     * indices of the full set of tets.
-     */
-    if(tetsOnBdry.empty())
+    if(tetIndices.empty())
     {
       return;
     }
 
     axom::for_all<ExecSpace>(
-      tetsOnBdry.size(),
+      tetIndices.size(),
       AXOM_LAMBDA(axom::IndexType i) {
-        auto tetIdId = tetsOnBdry[i];
-        auto cellIdId = tetIdId / NUM_TETS_PER_HEX;
-        auto cellId = cellsOnBdry[cellIdId];
-        auto tetIdInCell = tetIdId % NUM_TETS_PER_HEX;
-        auto tetId = cellId * NUM_TETS_PER_HEX + tetIdInCell;
-        tetsOnBdry[i] = tetId;
+        auto tetIdIn = tetIndices[i];
+        auto cellIdFake = tetIdIn / NUM_TETS_PER_HEX;
+        auto cellIdTrue = cellIndices[cellIdFake];
+        auto tetIdInCell = tetIdIn % NUM_TETS_PER_HEX;
+        auto tetIdOut = cellIdTrue * NUM_TETS_PER_HEX + tetIdInCell;
+        tetIndices[i] = tetIdOut;
       });
   }
 
   /*
-   * Clip tets of from the mesh with tets or octs from the clipping
-   * geomnetry.  This implemenation was lifted from IntersectionShaper
+   * Clip tets from the mesh with tets or octs from the clipping
+   * geometry.  This implementation was lifted from IntersectionShaper
    * and modified to work both tet and oct representations of the
    * geometry.
    */
@@ -295,7 +295,7 @@ public:
                                            allocId);
     auto shapeCandidatesView = shapeCandidates.view();
 
-    // Tetrahedrons from hexes (24 for each hex)
+    // Tetrahedra from hexes (24 for each hex)
     auto cellsAsTets = shapeMesh.getCellsAsTets();
 
     // Index into 'tets'
@@ -339,11 +339,6 @@ public:
         });
     }
 
-    SLIC_INFO(
-      axom::fmt::format("Running clip loop on {} candidate tets for of all {} hexes in the mesh",
-                        tetCandidatesCount,
-                        cellCount));
-
     constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = false;
 
@@ -359,6 +354,11 @@ public:
       SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
 #endif
 
+      SLIC_INFO(
+        axom::fmt::format("Running clip loop on {} candidate tets for of all {} hexes in the mesh",
+                          tetCandidatesCount,
+                          cellCount));
+
       if(useTets)
       {
         axom::for_all<ExecSpace>(
@@ -368,12 +368,10 @@ public:
             const int shapeIndex = shapeCandidatesView[i];
             const int tetIndex = tetIndicesView[i];
 
-            const auto poly =
-              primal::clip<double>(
-                geomTetsView[shapeIndex],
-                cellsAsTets[tetIndex],
-                EPS,
-                tryFixOrientation);
+            const auto poly = primal::clip<double>(geomTetsView[shapeIndex],
+                                                   cellsAsTets[tetIndex],
+                                                   EPS,
+                                                   tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -395,12 +393,10 @@ public:
             const int shapeIndex = shapeCandidatesView[i];
             const int tetIndex = tetIndicesView[i];
 
-            const auto poly =
-              primal::clip<double>(
-                geomOctsView[shapeIndex],
-                cellsAsTets[tetIndex],
-                EPS,
-                tryFixOrientation);
+            const auto poly = primal::clip<double>(geomOctsView[shapeIndex],
+                                                   cellsAsTets[tetIndex],
+                                                   EPS,
+                                                   tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -422,8 +418,8 @@ public:
   }  // end of computeClipVolumes3D() function
 
   /*
-   * Clip tets of from the mesh with tets or octs from the clipping
-   * geomnetry.  This implemenation is like the above except that it
+   * Clip tets from the mesh with tets or octs from the clipping
+   * geometry.  This implementation is like the above except that it
    * limits clipping to a subset of mesh cells labeled as potentially
    * on the boundary.
    */
@@ -618,12 +614,10 @@ public:
             tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
               tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
-            const auto poly =
-              primal::clip<double>(
-                geomTetsView[shapeIndex],
-                cellsAsTets[tetIndex],
-                EPS,
-                tryFixOrientation);
+            const auto poly = primal::clip<double>(geomTetsView[shapeIndex],
+                                                   cellsAsTets[tetIndex],
+                                                   EPS,
+                                                   tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -652,12 +646,10 @@ public:
             tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
               tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
-            const auto poly =
-              primal::clip<double>(
-                geomOctsView[shapeIndex],
-                cellsAsTets[tetIndex],
-                EPS,
-                tryFixOrientation);
+            const auto poly = primal::clip<double>(geomOctsView[shapeIndex],
+                                                   cellsAsTets[tetIndex],
+                                                   EPS,
+                                                   tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -680,7 +672,7 @@ public:
 
   /*
    * Clip tets of from the mesh with tets or octs from the clipping
-   * geomnetry.  This implemenation is like the two above except that
+   * geometry.  This implementation is like the two above except that
    * it limits clipping to a subset of mesh tets labeled as
    * potentially on the boundary.
    */
@@ -811,12 +803,7 @@ public:
           auto tetId = tetIndices[tetIdId];
           const auto& tet = meshTets[tetId];
 
-          const auto poly =
-            primal::clip<double>(
-              tet,
-              geomPiece,
-              EPS,
-              tryFixOrientation);
+          const auto poly = primal::clip<double>(tet, geomPiece, EPS, tryFixOrientation);
 
           if(poly.numVertices() >= 4)
           {
@@ -840,12 +827,7 @@ public:
           auto tetId = tetIndices[tetIdId];
           const auto& tet = meshTets[tetId];
 
-          const auto poly =
-            primal::clip<double>(
-              tet,
-              geomPiece,
-              EPS,
-              tryFixOrientation);
+          const auto poly = primal::clip<double>(tet, geomPiece, EPS, tryFixOrientation);
 
           if(poly.numVertices() >= 4)
           {
@@ -875,11 +857,11 @@ public:
       RAJA::RangeSegment(0, labels.size()),
       AXOM_LAMBDA(axom::IndexType cellId) {
         const auto& label = labels[cellId];
-        if(label == MeshClipperStrategy::LABEL_OUT)
+        if(label == LabelType::LABEL_OUT)
         {
           outSum += 1;
         }
-        else if(label == MeshClipperStrategy::LABEL_IN)
+        else if(label == LabelType::LABEL_IN)
         {
           inSum += 1;
         }

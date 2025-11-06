@@ -42,6 +42,7 @@ set(core_headers
     numerics/eigen_solve.hpp
     numerics/eigen_sort.hpp
     numerics/floating_point_limits.hpp
+    numerics/quadrature.hpp
     numerics/jacobi_eigensolve.hpp
     numerics/linear_solve.hpp
     numerics/matvecops.hpp
@@ -106,7 +107,9 @@ set(core_sources
     ${PROJECT_BINARY_DIR}/axom/core/utilities/About.cpp
 
     numerics/polynomial_solvers.cpp
+    numerics/quadrature.cpp
 
+    memory_management.cpp
     Path.cpp
     Types.cpp
     )

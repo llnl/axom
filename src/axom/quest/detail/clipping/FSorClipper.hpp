@@ -55,7 +55,7 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh, axom::Array<char>& label) override;
+  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh, axom::Array<LabelType>& label) override;
 
   bool getGeometryAsOcts(quest::experimental::ShapeMesh& shappeMesh, axom::Array<OctahedronType>& octs) override;
 
@@ -147,7 +147,7 @@ private:
   axom::primal::experimental::CoordinateTransformer<double> m_inverseTransformer;
 
   template <typename ExecSpace>
-  void labelInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<char>& label);
+  void labelInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& label);
 
   // Extract clipper info from MeshClipperStrategy::m_info.
   void extractClipperInfo();
