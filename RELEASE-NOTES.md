@@ -33,6 +33,12 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - The maximum number of vertices allowed in polygon primitives can now be passed as a template
   argument to `axom::bump::TopologyMapper`, `axom::bump::PrimalAdaptor`, and
   `axom::mir::ElviraAlgorithm`.
+- Material views in `axom::bump::views` were enhanced with `iterator` classes that
+  enable traversal of material data for zones so kernels do not need to use large fixed size
+  buffers inside kernels.
+- Material views in `axom::bump::views` were enhanced with an overloaded `zoneMaterials()`
+  method that allows data to be gathered into `axom::ArrayView` objects.
+
 ###  Fixed
 
 ###  Deprecated
