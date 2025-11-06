@@ -52,11 +52,9 @@ extern "C" char *Get_File_Extension(char *input_fn)
 
 extern "C" void sina_create_record_(char *recID, char *recType, int recId_length, int recType_length)
 {
-  // Create a record of "My Sim Code" version "1.2.3", which was run by "jdoe".
-  // The run has an ID of "run1", which has to be unique to this file.
   if (!can_modify_records()) return; 
 
-    // Find the actual null terminator, don't trust the full Fortran length
+  // Find the actual null terminator
   auto find_null_or_end = [](const char* str, int max_len) -> int {
     for (int i = 0; i < max_len; ++i) {
       if (str[i] == '\0') return i;
@@ -64,17 +62,27 @@ extern "C" void sina_create_record_(char *recID, char *recType, int recId_length
     return max_len;
   };
   
+  // Clean up recID
   int id_actual_len = find_null_or_end(recID, recId_length);
   std::string id_str(recID, id_actual_len);
-
-  axom::sina::ID id {recID, axom::sina::IDType::Global};
-  // std::unique_ptr<axom::sina::Record> myRecord {new axom::sina::Record {id, recType}};
-  const char *validated_recType = validate_optional_string_safe(recType, recType_length);
-  if (validated_recType[0] == '\0') {
-    validated_recType = default_record_type;
+  
+  axom::sina::ID id {id_str, axom::sina::IDType::Global};
+  
+  // Clean up recType and keep it alive
+  std::string recType_str;
+  const char* type_to_use = default_record_type;
+  
+  if (recType != nullptr && recType_length > 0) {
+    int type_actual_len = find_null_or_end(recType, recType_length);
+    if (type_actual_len > 0) {
+      recType_str = std::string(recType, type_actual_len);
+      type_to_use = recType_str.c_str();  // Safe because recType_str stays in scope
+    }
   }
-  sinaRecordsList.emplace_back(std::make_unique<axom::sina::Record>(id, validated_recType));
+  
+  sinaRecordsList.emplace_back(std::make_unique<axom::sina::Record>(id, type_to_use));
 }
+
 
 extern "C" axom::sina::Record *Sina_Get_Record(char * recId=NULL)
 {
