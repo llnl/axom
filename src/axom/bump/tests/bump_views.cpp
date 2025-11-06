@@ -702,7 +702,25 @@ struct test_braid2d_mat
           eq_count += (vfs[i] == it.volume_fraction() && ids[i] == it.material_id()) ? 1 : 0;
           count++;
         }
-        resultsView[index] = (eq_count == count) ? 1 : 0;
+
+        // Test ArrayView version of zoneMaterials().
+        using IndexType = typename MatsetView::IndexType;
+        using FloatType = typename MatsetView::FloatType;
+        constexpr int ARRAY_SIZE = 10;
+        IndexType idStorage[ARRAY_SIZE];
+        FloatType vfStorage[ARRAY_SIZE];
+        axom::ArrayView<IndexType> idView(idStorage, ARRAY_SIZE);
+        axom::ArrayView<FloatType> vfView(vfStorage, ARRAY_SIZE);
+        const auto nmats = matsetView.zoneMaterials(index, idView, vfView);
+        eq_count += (nmats == ids.size()) ? 1 : 0;
+        count++;
+        for(axom::IndexType j = 0; j < nmats; j++)
+        {
+          eq_count += (vfs[j] == vfView[j] && ids[j] == idView[j]) ? 1 : 0;
+          count++;
+        }
+
+        resultsView[index] = (eq_count == count) ? 1 : 0;       
       });
 
     // Get containsView data to the host and compare results
