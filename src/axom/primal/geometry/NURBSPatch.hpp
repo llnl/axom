@@ -953,11 +953,11 @@ public:
    */
   void setKnots_v(const KnotVectorType& knotVector) { m_knotvec_v = knotVector; }
 
-  /// \brief Return a copy of the KnotVector instance on the first axis
-  KnotVectorType getKnots_u() const { return m_knotvec_u; }
+  /// \brief Return a reference to the KnotVector instance on the first axis
+  KnotVectorType& getKnots_u() { return m_knotvec_u; }
 
-  /// \brief Return an array of knot values on the first axis
-  axom::Array<T> getKnotsArray_u() const { return m_knotvec_u.getArray(); }
+  /// \brief Return a const reference to the KnotVector instance on the first axis
+  const KnotVectorType& getKnots_u() const { return m_knotvec_u; }
 
   /// \brief Get the minimum knot value in the u-axis
   T getMinKnot_u() const { return m_knotvec_u[0]; }
@@ -974,11 +974,11 @@ public:
     return std::sqrt(u_length * u_length + v_length * v_length);
   }
 
-  /// \brief Return a copy of the KnotVector instance on the second axis
-  KnotVectorType getKnots_v() const { return m_knotvec_v; }
+  /// \brief Return a reference to the KnotVector instance on the second axis
+  KnotVectorType& getKnots_v() { return m_knotvec_v; }
 
-  /// \brief Return an array of knot values on the second axis
-  axom::Array<T> getKnotsArray_v() const { return m_knotvec_v.getArray(); }
+  /// \brief Return a const reference to the KnotVector instance on the second axis
+  const KnotVectorType& getKnots_v() const { return m_knotvec_v; }
 
   /// \brief Get the minimum knot value in the v-axis
   T getMinKnot_v() const { return m_knotvec_v[0]; }

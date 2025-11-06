@@ -739,11 +739,11 @@ public:
    */
   void setKnots(const KnotVectorType& knotVector) { m_knotvec = knotVector; }
 
-  /// \brief Return a copy of the knot vector
-  KnotVectorType getKnots() const { return m_knotvec; }
+  /// \brief Return a reference to the knot vector
+  KnotVectorType& getKnots() { return m_knotvec; }
 
-  /// \brief Return a copy of the knot vector as an array
-  axom::Array<T> getKnotsArray() const { return m_knotvec.getArray(); }
+  /// \brief Return a const reference to the knot vector
+  const KnotVectorType& getKnots() const { return m_knotvec; }
 
   /// \brief Get minimum knot
   T getMinKnot() const { return m_knotvec[0]; }

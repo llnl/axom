@@ -45,8 +45,8 @@ TEST(primal_nurbspatch, sizing_constructors)
       EXPECT_EQ(npts_v, nPatch.getControlPoints().shape()[1]);
       EXPECT_EQ(npts_u * npts_v, nPatch.getControlPoints().size());
 
-      EXPECT_EQ(npts_u + deg_u + 1, nPatch.getKnotsArray_u().size());
-      EXPECT_EQ(npts_v + deg_v + 1, nPatch.getKnotsArray_v().size());
+      EXPECT_EQ(npts_u + deg_u + 1, nPatch.getKnots_u().getArray().size());
+      EXPECT_EQ(npts_v + deg_v + 1, nPatch.getKnots_v().getArray().size());
 
       EXPECT_FALSE(nPatch.isRational());
     };
@@ -208,8 +208,8 @@ TEST(primal_nurbspatch, knotless_array_constructors)
       EXPECT_EQ(npts_v, patch.getControlPoints().shape()[1]);
       EXPECT_EQ(npts_u * npts_v, patch.getControlPoints().size());
 
-      EXPECT_EQ(npts_u + deg_u + 1, patch.getKnotsArray_u().size());
-      EXPECT_EQ(npts_v + deg_v + 1, patch.getKnotsArray_v().size());
+      EXPECT_EQ(npts_u + deg_u + 1, patch.getKnots_u().getArray().size());
+      EXPECT_EQ(npts_v + deg_v + 1, patch.getKnots_v().getArray().size());
 
       if(expect_rational)
       {
@@ -329,8 +329,8 @@ TEST(primal_nurbspatch, knot_array_constructor)
       EXPECT_EQ(npts_v, patch.getControlPoints().shape()[1]);
       EXPECT_EQ(npts_u * npts_v, patch.getControlPoints().size());
 
-      EXPECT_EQ(npts_u + deg_u + 1, patch.getKnotsArray_u().size());
-      EXPECT_EQ(npts_v + deg_v + 1, patch.getKnotsArray_v().size());
+      EXPECT_EQ(npts_u + deg_u + 1, patch.getKnots_u().getArray().size());
+      EXPECT_EQ(npts_v + deg_v + 1, patch.getKnots_v().getArray().size());
 
       if(expect_rational)
       {

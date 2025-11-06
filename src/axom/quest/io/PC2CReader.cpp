@@ -63,7 +63,10 @@ int PC2CReader::read()
         bcast_data(pt_v);
 
         // broadcast knot vector as an array of doubles
-        bcast_data(curve.getKnotsArray().view());
+        auto kn_v = numKnots > 0
+          ? axom::ArrayView<double>(const_cast<double*>(curve.getKnots().getArray().data()), numKnots)
+          : axom::ArrayView<double>(nullptr, 0);
+        bcast_data(kn_v);
 
         // optionally broadcast control point weights
         if(isRational)

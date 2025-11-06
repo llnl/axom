@@ -368,9 +368,9 @@ public:
   /// \brief Normalize the knot vector to the span of [0, 1]
   void normalize()
   {
-    T min_knot = m_knots[0];
-    T max_knot = m_knots[m_knots.size() - 1];
-    T span = max_knot - min_knot;
+    const T min_knot = m_knots[0];
+    const T max_knot = m_knots[m_knots.size() - 1];
+    const T span = max_knot - min_knot;
 
     for(int i = 0; i < m_knots.size(); ++i)
     {
@@ -390,9 +390,9 @@ public:
   {
     SLIC_ASSERT(a < b);
 
-    T min_knot = m_knots[0];
-    T max_knot = m_knots[m_knots.size() - 1];
-    T span = max_knot - min_knot;
+    const T min_knot = m_knots[0];
+    const T max_knot = m_knots[m_knots.size() - 1];
+    const T span = max_knot - min_knot;
 
     for(int i = 0; i < m_knots.size(); ++i)
     {
@@ -458,10 +458,11 @@ public:
     SLIC_ASSERT(isValidParameter(t));
 
     int multiplicity;
-    auto span = findSpan(t, multiplicity);
+    const auto span = findSpan(t, multiplicity);
 
     // Compute how many knots should be inserted
-    int r = axom::utilities::clampVal(target_multiplicity - multiplicity, 0, m_deg - multiplicity);
+    const int r =
+      axom::utilities::clampVal(target_multiplicity - multiplicity, 0, m_deg - multiplicity);
 
     insertKnotBySpan(span, t, r);
   }
@@ -469,13 +470,13 @@ public:
   /// \brief Checks if given parameter is in knot span (to a tolerance)
   bool isValidParameter(T t, T EPS = 1e-5) const
   {
-    return t >= m_knots[0] - EPS && t <= m_knots[m_knots.size() - 1] + EPS;
+    return (t >= m_knots[0] - EPS) && (t <= m_knots[m_knots.size() - 1] + EPS);
   }
 
   /// \brief Checks if given parameter is *interior* to knot span (to a tolerance)
   bool isValidInteriorParameter(T t) const
   {
-    return t > m_knots[0] && t < m_knots[m_knots.size() - 1];
+    return (t > m_knots[0]) && (t < m_knots[m_knots.size() - 1]);
   }
 
   ///@}
