@@ -522,6 +522,7 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string&
   tetMesh.appendCell(conn2);
 
   SLIC_ASSERT(axom::mint::blueprint::isValidRootGroup(meshGroup));
+  meshGroup->destroyGroup("fields");
 
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
                                                     axom::klee::LengthUnit::unspecified};

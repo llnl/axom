@@ -433,8 +433,6 @@ void convert_blueprint_structured_explicit_to_unstructured_3d_impl(axom::sidre::
     // mint::Mesh requires connectivity strides, even though Blueprint doesn't.
     elementsGrp->createViewScalar("stride", NUM_VERTS_PER_HEX);
 
-    // mint::Mesh requires field group, even though Blueprint doesn't.
-    meshGrp->createGroup("fields");
     AXOM_ANNOTATE_END("add_extra");
   }
 
@@ -552,9 +550,6 @@ void convert_blueprint_structured_explicit_to_unstructured_2d_impl(axom::sidre::
     // mint::Mesh requires connectivity strides, even though Blueprint doesn't.
     constexpr axom::IndexType BIT_SPECIFIC_NUM_VERTS_PER_QUAD = 4;
     elementsGrp->createViewScalar("stride", BIT_SPECIFIC_NUM_VERTS_PER_QUAD);
-
-    // mint::Mesh requires field group, even though Blueprint doesn't.
-    meshGrp->createGroup("fields");
   }
 
   return;
