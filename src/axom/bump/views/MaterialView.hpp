@@ -213,7 +213,7 @@ public:
       , m_index(0)
     { }
 
-    void advance(bool doIncrement)
+    void AXOM_HOST_DEVICE advance(bool doIncrement)
     {
       m_currentIndex += (doIncrement && m_currentIndex < size()) ? 1 : 0;
       m_index = m_view->m_indices[m_view->m_offsets[m_zoneIndex] + m_currentIndex];
