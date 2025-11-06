@@ -1811,8 +1811,6 @@ private:
                         axom::IndexType nzones,
                         axom::IndexType zOffset) const
   {
-    using IDList = typename decltype(matsetView)::IDList;
-    using VFList = typename decltype(matsetView)::VFList;
     using MatID = typename decltype(matsetView)::IndexType;
 
     // Make some maps for renumbering material numbers.
@@ -1844,19 +1842,18 @@ private:
       nzones,
       AXOM_LAMBDA(axom::IndexType zoneIndex) {
         // Get this zone's materials.
-        IDList ids;
-        VFList vfs;
-        matsetView.zoneMaterials(zoneIndex, ids, vfs);
+        auto zoneMat = matsetView.beginZone(zoneIndex);
+        const auto nmats = zoneMat.size();
 
         // Store the materials in the new material.
         const auto zoneStart = offsetsView[zOffset + zoneIndex];
-        for(axom::IndexType mi = 0; mi < ids.size(); mi++)
+        for(axom::IndexType mi = 0; mi < nmats; mi++, zoneMat++)
         {
           const auto destIndex = zoneStart + mi;
-          volumeFractionsView[destIndex] = vfs[mi];
+          volumeFractionsView[destIndex] = zoneMat.volume_fraction();
 
           // Get the index of the material number in the local map.
-          const auto mapIndex = axom::utilities::binary_search(localView, ids[mi]);
+          const auto mapIndex = axom::utilities::binary_search(localView, zoneMat.material_id());
           SLIC_ASSERT(mapIndex != -1);
           // We'll store the all materials number.
           const auto allMatno = allView[mapIndex];
