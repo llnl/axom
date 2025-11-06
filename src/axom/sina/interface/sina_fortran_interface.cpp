@@ -50,7 +50,7 @@ extern "C" char *Get_File_Extension(char *input_fn)
   return (ext + 1);
 }
 
-extern "C" void sina_create_record_(char *recID, char *recType, int recId_length, int recType_length)
+ extern "C" void sina_create_record_(char *recID, char *recType, int recId_length, int recType_length)
 {
   if (!can_modify_records()) return; 
 
@@ -68,21 +68,19 @@ extern "C" void sina_create_record_(char *recID, char *recType, int recId_length
   
   axom::sina::ID id {id_str, axom::sina::IDType::Global};
   
-  // Clean up recType and keep it alive
-  std::string recType_str;
-  const char* type_to_use = default_record_type;
+  // Clean up recType - store as std::string to pass to Record
+  std::string type_str = default_record_type;  // Default
   
   if (recType != nullptr && recType_length > 0) {
     int type_actual_len = find_null_or_end(recType, recType_length);
     if (type_actual_len > 0) {
-      recType_str = std::string(recType, type_actual_len);
-      type_to_use = recType_str.c_str();  // Safe because recType_str stays in scope
+      type_str = std::string(recType, type_actual_len);
     }
   }
   
-  sinaRecordsList.emplace_back(std::make_unique<axom::sina::Record>(id, type_to_use));
+  // Pass the string object, not a pointer - Record should copy it
+  sinaRecordsList.emplace_back(std::make_unique<axom::sina::Record>(id, type_str));
 }
-
 
 extern "C" axom::sina::Record *Sina_Get_Record(char * recId=NULL)
 {
