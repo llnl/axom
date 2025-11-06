@@ -308,7 +308,10 @@ public:
   ///@{
   /// \name Query/modify/access knots
 
-  /// \brief Accessor for the knot vector
+  /// \brief Accessor for the array of knot vector
+  axom::Array<T>& getArray() { return m_knots; }
+
+  /// \brief Const accessor for the array of knot vectors
   const axom::Array<T>& getArray() const { return m_knots; }
 
   /*!

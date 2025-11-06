@@ -41,40 +41,34 @@ int PC2CReader::read()
 
   switch(m_my_rank)
   {
+  // handle rank 0
   case 0:
     rc = C2CReader::read();
+
     if(rc == READER_SUCCESS)
     {
       bcast_int(m_nurbsData.size());
 
-      for(const auto& curve : m_nurbsData)
+      for(auto& curve : m_nurbsData)
       {
         // broadcast sizes
         const int numCP = bcast_int(curve.getNumControlPoints());
-        const int numKnots = bcast_int(curve.getNumKnots());
+        bcast_int(curve.getNumKnots());
         const bool isRational = bcast_bool(curve.isRational());
 
-        AXOM_UNUSED_VAR(numKnots);
-
-        // broadcast control points as an array of doubles
-        auto pt_v = numCP > 0
-          ? axom::ArrayView<double>(const_cast<double*>(curve[0].data()), numCP * DIM)
-          : axom::ArrayView<double>(nullptr, 0);
+        // broadcast control points
+        // since they're contiguous, we can broadcast them as an array of doubles
+        auto pt_v = numCP > 0 ? axom::ArrayView<double>(curve[0].data(), numCP * DIM)
+                              : axom::ArrayView<double>(nullptr, 0);
         bcast_data(pt_v);
 
         // broadcast knot vector as an array of doubles
-        auto kn_v = numKnots > 0
-          ? axom::ArrayView<double>(const_cast<double*>(curve.getKnots().getArray().data()), numKnots)
-          : axom::ArrayView<double>(nullptr, 0);
-        bcast_data(kn_v);
+        bcast_data(curve.getKnots().getArray().view());
 
         // optionally broadcast control point weights
         if(isRational)
         {
-          auto wts_v = numCP > 0
-            ? axom::ArrayView<double>(const_cast<double*>(&curve.getWeight(0)), numCP)
-            : axom::ArrayView<double>(nullptr, 0);
-          bcast_data(wts_v);
+          bcast_data(curve.getWeights().view());
         }
       }
     }
@@ -84,11 +78,11 @@ int PC2CReader::read()
     }
     break;
 
+  // handle other ranks
   default:
 
-    // Rank 0 broadcasts the number of NURBSCurve entities, a positive integer, if the
-    // C2C file is read successfully, or sends a READER_FAILED flag, indicating
-    // that the read was not successful.
+    // Rank 0 broadcasts the number of NURBSCurve entities (>= 0) if the C2C file is read successfully
+    // or sends a READER_FAILED flag indicating that the read was not successful
     rc = bcast_int();
     if(rc != READER_FAILED)
     {
