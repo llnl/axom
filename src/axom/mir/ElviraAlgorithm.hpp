@@ -614,11 +614,15 @@ protected:
     axom::Array<double> fragmentVFStencil(numFragmentsStencil, numFragmentsStencil, allocatorID);
     auto fragmentVFStencilView = fragmentVFStencil.view();
 
-    // Sorted material ids for each zone.
+    // Sorted material ids / vfs for each zone.
     axom::Array<typename MatsetView::IndexType> sortedMaterialIds(numFragments,
                                                                   numFragments,
                                                                   allocatorID);
+    axom::Array<typename MatsetView::FloatType> sortedMaterialVfs(numFragments,
+                                                                  numFragments,
+                                                                  allocatorID);
     auto sortedMaterialIdsView = sortedMaterialIds.view();
+    auto sortedMaterialVfsView = sortedMaterialVfs.view();
 
     // Coordinate stencil data for each zone.
     const auto nzonesStencil = nzones * StencilSize;
@@ -641,21 +645,15 @@ protected:
         // Where to begin writing this zone's fragment data.
         const auto offset = matOffsetView[szIndex];
 
-        // Get materials for this zone from the matset.
-        typename MatsetView::IDList ids;
-        typename MatsetView::VFList vfs;
-        deviceMatsetView.zoneMaterials(matZoneIndex, ids, vfs);
+        // Determine the views for this zone's material data.
+        axom::ArrayView<typename MatsetView::IndexType> ids(sortedMaterialIdsView.data() + offset, matCount);
+        axom::ArrayView<typename MatsetView::FloatType> vfs(sortedMaterialVfsView.data() + offset, matCount);
+        // Get materials for this zone from the matset, directly into the "sorted" views.
+        [[maybe_unused]] auto ids_size = deviceMatsetView.zoneMaterials(matZoneIndex, ids, vfs);
 
         // Reverse sort the materials by the volume fraction so the larger VFs are first.
-        SLIC_ASSERT(ids.size() == matCount);
+        SLIC_ASSERT(ids_size == matCount);
         axom::utilities::reverse_sort_multiple(vfs.data(), ids.data(), matCount);
-
-        // Save sorted ids in sortedMaterialIdsView.
-        for(axom::IndexType m = 0; m < matCount; m++)
-        {
-          const auto fragmentIndex = offset + m;
-          sortedMaterialIdsView[fragmentIndex] = ids[m];
-        }
 
         // Retrieve the stencil data from neighbor zones.
         auto logical = deviceTopologyView.indexing().IndexToLogicalIndex(zoneIndex);

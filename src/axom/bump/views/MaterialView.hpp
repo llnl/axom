@@ -137,6 +137,24 @@ public:
   }
 
   AXOM_HOST_DEVICE
+  axom::IndexType zoneMaterials(ZoneIndex zi, axom::ArrayView<IndexType> &ids, axom::ArrayView<FloatType> &vfs) const
+  {
+    SLIC_ASSERT(zi < static_cast<ZoneIndex>(numberOfZones()));
+
+    const auto sz = numberOfMaterials(zi);
+    SLIC_ASSERT(sz <= ids.size());
+    const auto offset = m_offsets[zi];
+    for(axom::IndexType i = 0; i < sz; i++)
+    {
+      const auto idx = m_indices[offset + i];
+
+      ids[i] = m_material_ids[idx];
+      vfs[i] = m_volume_fractions[idx];
+    }
+    return sz;
+  }
+
+  AXOM_HOST_DEVICE
   bool zoneContainsMaterial(ZoneIndex zi, MaterialID mat) const
   {
     FloatType tmp {};
@@ -373,6 +391,29 @@ public:
         }
       }
     }
+  }
+
+  AXOM_HOST_DEVICE
+  axom::IndexType zoneMaterials(ZoneIndex zi, axom::ArrayView<IndexType> &ids, axom::ArrayView<FloatType> &vfs) const
+  {
+    axom::IndexType n = 0;
+    for(axom::IndexType i = 0; i < m_size; i++)
+    {
+      const auto &curIndices = m_indices[i];
+      const auto &curValues = m_values[i];
+
+      if(zi < static_cast<ZoneIndex>(curIndices.size()))
+      {
+        const auto idx = curIndices[zi];
+        if(curValues[idx] > 0)
+        {
+          ids[n] = m_matnos[i];
+          vfs[n] = curValues[idx];
+          n++;
+        }
+      }
+    }
+    return n;
   }
 
   AXOM_HOST_DEVICE
@@ -633,6 +674,24 @@ public:
         vfs.push_back(currentVF[zi]);
       }
     }
+  }
+
+  AXOM_HOST_DEVICE
+  axom::IndexType zoneMaterials(ZoneIndex zi, axom::ArrayView<IndexType> &ids, axom::ArrayView<FloatType> &vfs) const
+  {
+    axom::IndexType n = 0;
+    for(axom::IndexType i = 0; i < m_volume_fractions.size(); i++)
+    {
+      const auto &currentVF = m_volume_fractions[i];
+      SLIC_ASSERT(zi < currentVF.size());
+      if(currentVF[zi] > 0)
+      {
+        ids[n] = m_matnos[i];
+        vfs[n] = currentVF[zi];
+        n++;
+      }
+    }
+    return n;
   }
 
   AXOM_HOST_DEVICE
@@ -918,6 +977,29 @@ public:
         }
       }
     }
+  }
+
+  AXOM_HOST_DEVICE
+  axom::IndexType zoneMaterials(ZoneIndex zi, axom::ArrayView<IndexType> &ids, axom::ArrayView<FloatType> &vfs) const
+  {
+    axom::IndexType n = 0;
+    for(axom::IndexType mi = 0; mi < m_size; mi++)
+    {
+      const auto &element_ids = m_element_ids[mi];
+      const auto &volume_fractions = m_volume_fractions[mi];
+      const auto sz = element_ids.size();
+      for(axom::IndexType i = 0; i < sz; i++)
+      {
+        if(element_ids[i] == zi)
+        {
+          ids[n] = m_matnos[mi];
+          vfs[n] = volume_fractions[i];
+          n++;
+          break;
+        }
+      }
+    }
+    return n;
   }
 
   AXOM_HOST_DEVICE
