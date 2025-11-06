@@ -11,6 +11,7 @@
 
 #include "axom/mint/config.hpp"
 #include "axom/mint/mesh/CellTypes.hpp"
+#include "axom/mint/utils/ArrayWrapper.hpp"
 
 #include "axom/slic/interface/slic.hpp"
 
@@ -145,8 +146,7 @@ inline CellType initializeFromGroup(sidre::Group* group,
  * \pre group != nullptr
  * \pre m_values != nullptr
  */
-inline CellType initializeFromGroup(sidre::Group* group,
-                                    std::unique_ptr<axom::Array<IndexType, 2>>& m_values)
+inline CellType initializeFromGroup(sidre::Group* group, detail::ArrayWrapper<IndexType, 2>& m_values)
 {
   SLIC_ERROR_IF(group == nullptr, "sidre::Group pointer must not be null.");
 
@@ -201,7 +201,7 @@ inline CellType initializeFromGroup(sidre::Group* group,
                                 << "does not have a child view 'connectivity'.");
 
   sidre::View* connec_view = elems_group->getView("connectivity");
-  m_values = std::make_unique<sidre::MCArray<IndexType>>(connec_view);
+  m_values = sidre::MCArray<IndexType>(connec_view);
   return cell_type;
 }
 
