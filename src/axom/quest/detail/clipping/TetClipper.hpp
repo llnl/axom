@@ -46,7 +46,8 @@ public:
    * \c tets will have length one, because the geometry for this
    * class is a single tetrahedron.
    */
-  bool getGeometryAsTets(quest::experimental::ShapeMesh& shappeMesh, axom::Array<TetrahedronType>& tets) override;
+  bool getGeometryAsTets(quest::experimental::ShapeMesh& shappeMesh,
+                         axom::Array<TetrahedronType>& tets) override;
 
 #if !defined(__CUDACC__)
 private:

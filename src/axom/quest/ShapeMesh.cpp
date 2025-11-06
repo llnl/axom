@@ -300,8 +300,7 @@ void ShapeMesh::setMatsetFromVolume(const std::string& materialName,
   SLIC_ERROR_IF(m_matsetName.empty(),
                 "Cannot use material set in ShapeMesh: Matset name was not provided, and no "
                 "default matset was found.");
-  SLIC_ERROR_IF(materialName.empty(),
-                "Cannot have an empty materialName.");
+  SLIC_ERROR_IF(materialName.empty(), "Cannot have an empty materialName.");
 
   double* vfPtr = nullptr;
 
@@ -377,8 +376,7 @@ void ShapeMesh::setFreeVolumeFractions(const std::string& freeName)
   SLIC_ERROR_IF(m_matsetName.empty(),
                 "Cannot use material set in ShapeMesh: Matset name was not provided, and no "
                 "default matset was found.");
-  SLIC_ERROR_IF(freeName.empty(),
-                "Cannot have an empty material name.");
+  SLIC_ERROR_IF(freeName.empty(), "Cannot have an empty material name.");
 
   auto dataType = conduit::DataType::float64(m_cellCount);
 
@@ -853,9 +851,7 @@ void ShapeMesh::computeVertPointsImpl()
   auto vertPointsView = m_vertPoints3D.view();
   axom::for_all<ExecSpace>(
     m_vertexCount,
-    AXOM_LAMBDA(axom::IndexType vi) {
-      vertPointsView[vi] = Point3DType {vX[vi], vY[vi], vZ[vi]};
-    });
+    AXOM_LAMBDA(axom::IndexType vi) { vertPointsView[vi] = Point3DType {vX[vi], vY[vi], vZ[vi]}; });
 }
 
 template <typename ExecSpace, typename T>

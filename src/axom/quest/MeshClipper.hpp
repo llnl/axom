@@ -51,7 +51,8 @@ public:
    * @c bpMesh must be an unstructured hex mesh.
    * That is the only type currently supported.
    */
-  MeshClipper(quest::experimental::ShapeMesh& shapeMesh, const std::shared_ptr<MeshClipperStrategy>& strategy);
+  MeshClipper(quest::experimental::ShapeMesh& shapeMesh,
+              const std::shared_ptr<MeshClipperStrategy>& strategy);
 
   //!@brief The mesh.
   ShapeMesh& getShapeMesh() { return m_shapeMesh; }
