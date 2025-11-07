@@ -387,7 +387,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             # These flags are already part of the wrapped compilers on TOSS4 systems
             if spec.satisfies("+fortran") and self.is_fortran_compiler("amdflang"):
                 hip_link_flags += "-Wl,--disable-new-dtags "
-                hip_link_flags += "-lpgmath -lflang -lflangrti -lompstub "
+                hip_link_flags += "-lflang -lflangrti "
 
             # Additional library path for cray compiler
             if self.spec.satisfies("%cce"):
