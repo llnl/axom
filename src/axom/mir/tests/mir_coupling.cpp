@@ -117,31 +117,19 @@ fine - refines coarse with equal sized quads.
 0    1    2    3    4    5    6    7    8    9    10   11   12
 
 */
-// NOTE: uniform coordsets used here for simplicity. Other coordset types can be used too.
+// NOTE: Coordinates were switched to explicit to play better with VisIt and strided-structured.
 const char *yaml = R"(
 coordsets:
   coarse_coords:
-    type: uniform
-    dims:
-      i: 7
-      j: 7
-    origin:
-      x: 0.
-      y: 0.
-    spacing:
-      dx: 1.
-      dy: 1.
+    type: explicit
+    values:
+      x: [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+      y: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0]
   fine_coords:
-    type: uniform
-    dims:
-      i: 13
-      j: 13
-    origin:
-      x: 0.
-      y: 0.
-    spacing:
-      dx: 0.5
-      dy: 0.5
+    type: explicit
+    values:
+      x: [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0]
+      y: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 2.5, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.0, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 3.5, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.5, 4.5, 4.5, 4.5, 4.5, 4.5, 4.5, 4.5, 4.5, 4.5, 4.5, 4.5, 4.5, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 5.5, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0]
 topologies:
   coarse_strided:
     type: structured
@@ -166,19 +154,38 @@ topologies:
       dims:
        i: 12
        j: 12
-matsets:
-  coarse_matset:
-   topology: coarse
-   material_map:
-     mat0: 0
-     mat1: 1
-     mat2: 2
-     mat3: 3
-   material_ids: [0, 0, 0, 0, 0, 0,               0, 0, 0, 0, 0, 0,           0, 0, 0,1, 0,1,2, 0,2, 0,2,                                 1, 1, 1,2, 2,3, 2,3, 2,3,                           2, 2, 2,3, 3, 3, 3,             3, 3, 3, 3, 3, 3]
-   volume_fractions: [1., 1., 1., 1., 1., 1.,     1., 1., 1., 1., 1., 1.,     1., 1., 0.625,0.375, 0.5,0.125,0.375, 0.5,0.5, 0.5,0.5,     1., 1., 0.5,0.5, 0.625,0.375, 0.5,0.5, 0.5,0.5,     1., 1., 0.5,0.5, 1., 1., 1.,    1., 1., 1., 1., 1., 1.]
-   indices: [0, 1, 2, 3, 4, 5,                    6, 7, 8, 9, 10, 11,         12, 13, 14,15, 16,17,18, 19,20, 21,22,                      23, 24, 25,26, 27,28, 29,30, 31,32,                 33, 34, 35,36, 37, 38, 39,      40, 41, 42, 43, 44, 45]
-   sizes: [1, 1, 1, 1, 1, 1,     1, 1, 1, 1, 1, 1,     1, 1, 2, 3, 2, 2,    1, 1, 2, 2, 2, 2,    1, 1, 2, 1, 1, 1,    1, 1, 1, 1, 1, 1]
-   offsets: [0, 1, 2, 3, 4, 5,     6, 7, 8, 9, 10, 11,     12, 13, 14, 16, 19, 21,     23, 24, 25, 27, 29, 31,     33, 34, 35, 37, 38, 39,     40, 41, 42, 43, 44, 45]
+)";
+
+// This matset is defined on all zones in the mesh.
+const char *coarse_matset_yaml = R"(
+coarse_matset:
+  topology: coarse
+  material_map:
+    mat0: 0
+    mat1: 1
+    mat2: 2
+    mat3: 3
+  material_ids: [0, 0, 0, 0, 0, 0,               0, 0, 0, 0, 0, 0,           0, 0, 0,1, 0,1,2, 0,2, 0,2,                                 1, 1, 1,2, 2,3, 2,3, 2,3,                           2, 2, 2,3, 3, 3, 3,             3, 3, 3, 3, 3, 3]
+  volume_fractions: [1., 1., 1., 1., 1., 1.,     1., 1., 1., 1., 1., 1.,     1., 1., 0.625,0.375, 0.5,0.125,0.375, 0.5,0.5, 0.5,0.5,     1., 1., 0.5,0.5, 0.625,0.375, 0.5,0.5, 0.5,0.5,     1., 1., 0.5,0.5, 1., 1., 1.,    1., 1., 1., 1., 1., 1.]
+  indices: [0, 1, 2, 3, 4, 5,                    6, 7, 8, 9, 10, 11,         12, 13, 14,15, 16,17,18, 19,20, 21,22,                      23, 24, 25,26, 27,28, 29,30, 31,32,                 33, 34, 35,36, 37, 38, 39,      40, 41, 42, 43, 44, 45]
+  sizes: [1, 1, 1, 1, 1, 1,     1, 1, 1, 1, 1, 1,     1, 1, 2, 3, 2, 2,    1, 1, 2, 2, 2, 2,    1, 1, 2, 1, 1, 1,    1, 1, 1, 1, 1, 1]
+  offsets: [0, 1, 2, 3, 4, 5,     6, 7, 8, 9, 10, 11,     12, 13, 14, 16, 19, 21,     23, 24, 25, 27, 29, 31,     33, 34, 35, 37, 38, 39,     40, 41, 42, 43, 44, 45]
+)";
+
+// This matset is restricted to the valid zones in a strided structured mesh.
+const char *coarse_matset_ss_yaml = R"(
+coarse_strided_matset:
+  topology: coarse_strided
+  material_map:
+    mat0: 0
+    mat1: 1
+    mat2: 2
+    mat3: 3
+  material_ids: [0,1, 0,1,2, 0,2,    1,2, 2,3, 2,3,    2,3, 3, 3]
+  volume_fractions: [0.625,0.375, 0.5,0.125,0.375, 0.5,0.5,     0.5,0.5, 0.625,0.375, 0.5,0.5,     0.5,0.5, 1., 1.]
+  indices: [0,1, 2,3,4, 5,6,    7,8, 9,10, 11,12,    13,14, 15, 16]
+  sizes: [2, 3, 2,    2, 2, 2,    2, 1, 1]
+  offsets: [0, 2, 5, 7, 9, 11, 13, 15, 16]
 )";
 
 //------------------------------------------------------------------------------
@@ -235,14 +242,14 @@ private:
       // Adjust the mesh so we have the right names.
       n_mesh["coordsets/coarse_strided_coords"].set(n_mesh["coordsets/coarse_coords"]);
       n_mesh["topologies/coarse_strided/coordset"] = "coarse_strided_coords";
-      n_mesh["matsets/coarse_strided_matset"].set(n_mesh["matsets/coarse_matset"]);
-      n_mesh["matsets/coarse_strided_matset/topology"] = "coarse_strided";
+      n_mesh["matsets"].parse(coarse_matset_ss_yaml);
+
       n_mesh.remove("coordsets/coarse_coords");
       n_mesh.remove("topologies/coarse");
-      n_mesh.remove("matsets/coarse_matset");
     }
     else
     {
+      n_mesh["matsets"].parse(coarse_matset_yaml);
       n_mesh.remove("topologies/coarse_strided");
     }
   }
@@ -284,7 +291,7 @@ private:
     const conduit::Node &n_coordset = n_input[axom::fmt::format("coordsets/{}_coords", input_prefix)];
     const conduit::Node &n_matset = n_input[axom::fmt::format("matsets/{}_matset", input_prefix)];
 
-    auto coordsetView = views::make_uniform_coordset<2>::view(n_coordset);
+    auto coordsetView = views::make_explicit_coordset<double, 2>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
 
     // Get the indexing policy from the TopologyView type.
@@ -372,7 +379,7 @@ private:
     const conduit::Node &n_target_coordset = n_target["coordsets/fine_coords"];
     const conduit::Node &n_target_topology = n_target["topologies/fine"];
 
-    auto targetCoordsetView = views::make_uniform_coordset<2>::view(n_target_coordset);
+    auto targetCoordsetView = views::make_explicit_coordset<double, 2>::view(n_target_coordset);
     using TargetCoordsetView = decltype(targetCoordsetView);
 
     auto targetTopologyView = views::make_structured_topology<2>::view(n_target_topology);
@@ -422,7 +429,6 @@ TEST(mir_coupling, coupling_2D_sz1_ss1_seq)
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss1_seq");
   test_coupling<seq_exec>::test2D("coupling_2D_sz1_ss1", true, true);
 }
-
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_coupling, coupling_2D_sz0_ss0_omp)
 {

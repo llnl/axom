@@ -21,6 +21,7 @@ set( primal_tests
     primal_curved_polygon.cpp
     primal_hexahedron.cpp
     primal_in_sphere.cpp
+    primal_integral.cpp
     primal_intersect.cpp
     primal_intersect_impl.cpp
     primal_knot_vector.cpp
@@ -36,6 +37,7 @@ set( primal_tests
     primal_ray_intersect.cpp
     primal_segment.cpp
     primal_sphere.cpp
+    primal_solid_angle.cpp
     primal_split.cpp
     primal_squared_distance.cpp
     primal_surface_intersect.cpp
@@ -50,13 +52,6 @@ set( primal_tests
 
     primal_clip_perf.cpp
    )
-
-blt_list_append(
-    TO       primal_tests 
-    ELEMENTS primal_integral.cpp 
-             primal_solid_angle.cpp
-    IF       MFEM_FOUND 
-               )
 
 set(primal_test_depends primal fmt gtest)
 

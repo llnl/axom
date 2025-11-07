@@ -47,24 +47,32 @@ using seq_exec = axom::SEQ_EXEC;
 
 We also add user support via the following ``RuntimePolicy`` enum:
 ```cpp
-enum class RuntimePolicy
-{
-  raja_seq = 1,
-  raja_omp = 2,
-  raja_cuda = 3
-};
+using RuntimePolicy = axom::runtime_policy::Policy;
+```
+which contains the following:
+
+```cpp
+namespace axom {
+namespace runtime_policy {
+  enum class Policy
+  {
+    seq  = 0,   // always available
+    omp  = 1,   // only available when Axom is configured with OpenMP
+    cuda = 2,   // only available when Axom is configured with cuda
+    hip  = 3    // only available when Axom is configured with hip
+  };
+}
+}
 ```
 and add a ``RuntimePolicy`` member to  our ``Input`` class:
 ```cpp
-  RuntimePolicy policy {RuntimePolicy::raja_seq};
+  RuntimePolicy policy {RuntimePolicy::seq};
 ```
 and use ``CLI11``'s ``CheckedTransformer`` to ensure that the user can only input valid choices for our configuration.
 
 We expose this as a new  command-line argument ``--policy`` (with shortcut ``-p``).
 
 > :clapper: Show this in the code if the audience is interested in the details
-
-> :memo:  Since this is a common pattern in code that uses axom, we have defined a similar ``Policy`` enumeration in the ``axom::runtime_policy`` namespace, as well as maps to convert these to/from strings. See ``axom/core/execution/runtime_policy.hpp`` for the definition and its use in several of the quest example applications in ``axom/src/axom/quest/examples/``.
 
 ## Calling our find intersections algorithm
 
@@ -76,7 +84,7 @@ Since the execution space is templated, and we would to expose a runtime choice 
 
   switch(params.policy)
   {
-  case RuntimePolicy::raja_omp:
+  case RuntimePolicy::omp:
 #ifdef AXOM_USE_OPENMP
     intersectionPairs =
       naiveFindIntersections<omp_exec>(mesh,
@@ -85,7 +93,7 @@ Since the execution space is templated, and we would to expose a runtime choice 
                                        params.isVerbose());
 #endif
     break;
-  case RuntimePolicy::raja_cuda:
+  case RuntimePolicy::cuda:
 #ifdef AXOM_USE_CUDA
     intersectionPairs =
       naiveFindIntersections<cuda_exec>(mesh,
@@ -94,7 +102,7 @@ Since the execution space is templated, and we would to expose a runtime choice 
                                         params.isVerbose());
 #endif
     break;
-  default:  // RuntimePolicy::raja_seq
+  default:  // RuntimePolicy::seq
     intersectionPairs =
       naiveFindIntersections<seq_exec>(mesh,
                                        params.intersectionThreshold,
@@ -177,16 +185,14 @@ Now that we know the number of valid triangles and their indices, we are ready t
 We perform this test in parallel and use a reduction variable to atomically increment our intersection count:
 
 ```cpp
-  // Phase I: Find the number of intersecting pairs of triangles
+// Phase I: Find the number of intersecting pairs of triangles
   const auto validCount = valid_v.size();
   RAJA::RangeSegment row_range(0, validCount);
   RAJA::RangeSegment col_range(0, validCount);
 
   using KERNEL_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop2d_policy;
-  using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-  using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
 
-  RAJA::ReduceSum<REDUCE_POL, int> numIntersect(0);
+  axom::ReduceSum<ExecSpace, int> numIntersect(0);
 
   RAJA::kernel<KERNEL_POL>(
     RAJA::make_tuple(col_range, row_range),
@@ -197,18 +203,16 @@ We perform this test in parallel and use a reduction variable to atomically incr
       }
     });
 ```
-> :memo: ``numIntersect`` is a RAJA reduction variable that sums the results over each kernel iteration. We access its value outside the kenel via the ``.get()`` member function.
+> :memo: ``numIntersect`` is a reduction variable that sums the results over each kernel iteration. We access its value outside the kernel via the ``.get()`` member function.
 
 The ``trianglesIntersect`` lambda is similar to the one in our previous lesson, although it now uses views into the triangle array and the bounding box array, and its caller is expected to only pass in valid (i.e. non-degenerate) triangle indices:
 ```cpp
   // lambda to check if two triangles w/ given indices intersect
-  auto trianglesIntersect =
-    AXOM_LAMBDA(axom::IndexType idx1, axom::IndexType idx2)
+  auto trianglesIntersect = AXOM_LAMBDA(axom::IndexType idx1, axom::IndexType idx2)
   {
     constexpr bool includeBoundaries = false;  // only use triangle interiors
 
-    return (!useBoundingBoxes ||
-            axom::primal::intersect(bbox_v[idx1], bbox_v[idx2])) &&
+    return (!useBoundingBoxes || axom::primal::intersect(bbox_v[idx1], bbox_v[idx2])) &&
       axom::primal::intersect(tris_v[idx1], tris_v[idx2], includeBoundaries, tol);
   };
 ```
@@ -225,7 +229,7 @@ We first allocate an array (in the proper space), without initializing its membe
                                kernel_allocator);
 ```
 
-We use the counter, along with a ``RAJA::atomicAdd`` to keep track of the insertion location in the following algorithm:
+We use the counter, along with an ``axom::atomicAdd`` to keep track of the insertion location in the following algorithm:
 ```cpp
     auto intersections_v = intersections_d.view();
     RAJA::kernel<KERNEL_POL>(
@@ -233,7 +237,7 @@ We use the counter, along with a ``RAJA::atomicAdd`` to keep track of the insert
       AXOM_LAMBDA(int col, int row) {
         if(row < col && trianglesIntersect(valid_v[row], valid_v[col]))
         {
-          const auto idx = RAJA::atomicAdd<ATOMIC_POL>(counter_p, 2);
+          const auto idx = axom::atomicAdd<axom::auto_atomic>(counter_p, axom::IndexType {2});
           intersections_v[idx + 0] = valid_v[row];
           intersections_v[idx + 1] = valid_v[col];
         }
@@ -313,11 +317,11 @@ So, as expected, the sequential execution takes approximately twice as long to r
 Here is an execution using 112 OpenMP threads on an Intel Sapphire Rapids node using a mesh with 370K triangles:
 ```shell
 # sequential
-> ./bin/lesson_03_device_self_intersections -i plane.stl --use-bounding-boxes -v --policy raja_seq
+> ./bin/lesson_03_device_self_intersections -i plane.stl --use-bounding-boxes -v --policy seq
 
 [lesson_03: INFO] 
      Parsed parameters:
-      * Runtime execution policy: 'raja_seq'
+      * Runtime execution policy: 'seq'
 ...
 [lesson_03: INFO] After welding, mesh has 186,708 vertices and 373,412 triangles. 
 [lesson_03: INFO] Running naive intersection algorithm in execution Space: [SEQ_EXEC] 
@@ -325,11 +329,11 @@ Here is an execution using 112 OpenMP threads on an Intel Sapphire Rapids node u
 [lesson_03: INFO] Mesh had 0 intersection pairs   
 
 # threaded
-> NUM_OMP_THREADS=112 ./bin/lesson_03_device_self_intersections -i plane.stl --use-bounding-boxes -v ---policy raja_omp
+> NUM_OMP_THREADS=112 ./bin/lesson_03_device_self_intersections -i plane.stl --use-bounding-boxes -v ---policy omp
 
 [lesson_03: INFO] 
      Parsed parameters:
-      * Runtime execution policy: 'raja_omp'
+      * Runtime execution policy: 'omp'
        
 [lesson_03: INFO] After welding, mesh has 186,708 vertices and 373,412 triangles. 
 [lesson_03: INFO] Running naive intersection algorithm in execution Space: [OMP_EXEC] 
@@ -340,11 +344,11 @@ Here is an execution using 112 OpenMP threads on an Intel Sapphire Rapids node u
 ##### Execution on a V100 GPU
 Finally, here's a run on a single NVidia V100 GPU
 ```shell
->./bin/lesson_03_device_self_intersections -i plane.stl --use-bounding-boxes -v --policy raja_cuda
+>./bin/lesson_03_device_self_intersections -i plane.stl --use-bounding-boxes -v --policy cuda
 
 [lesson_03: INFO] 
      Parsed parameters:
-      * Runtime execution policy: 'raja_cuda'
+      * Runtime execution policy: 'cuda'
        
 [lesson_03: INFO] After welding, mesh has 186,708 vertices and 373,412 triangles. 
 [lesson_03: INFO] Running naive intersection algorithm in execution Space: [CUDA_EXEC] 
@@ -355,4 +359,4 @@ Finally, here's a run on a single NVidia V100 GPU
 > :clapper:  Let's run a few examples on different meshes
 
 ### Next time:
-In this lesson, we ported out naive self-intersection algorithm to different execution space with the help of RAJA and Umpire. This accelerated our compute time, but did not help with the algorithmic complexity of the algorithm. In the next lesson, we will introduce a better algorithm based on a spatial index that, for reasonable meshes, should considerably reduces the expected work per triangle.
+In this lesson, we ported our naive self-intersection algorithm to different execution space with the help of RAJA and Umpire. This accelerated our compute time, but did not help with the algorithmic complexity of the algorithm. In the next lesson, we will introduce a better algorithm based on a spatial index that, for reasonable meshes, should considerably reduce the expected work per triangle.

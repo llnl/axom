@@ -8,14 +8,11 @@
 
 // Axom includes
 #include "axom/config.hpp"  // for compile-time configuration options
-#include "axom/primal.hpp"
+#include "axom/primal/geometry/Point.hpp"
+#include "axom/primal/geometry/Vector.hpp"
+#include "axom/primal/geometry/BezierCurve.hpp"
 
-// MFEM includes
-#ifdef AXOM_USE_MFEM
-  #include "mfem.hpp"
-#else
-  #error "Primal's integral evaluation functions require mfem library."
-#endif
+#include "axom/core/numerics/quadrature.hpp"
 
 // C++ includes
 #include <cmath>
@@ -26,32 +23,35 @@ namespace primal
 {
 namespace detail
 {
+
 /*!
  * \brief Evaluate a scalar field line integral on a single Bezier curve.
  *
- * Evaluate the scalar field line integral with MFEM integration rule
+ * Evaluate the scalar field line integral with Gauss-Legendre quadrature
  *
  * \param [in] c the Bezier curve object
  * \param [in] integrand the lambda function representing the integrand. 
  * Must accept a 2D point as input and return a double
- * \param [in] quad the mfem integration rule containing nodes and weights
+ * \param [in] npts The number of quadrature points in the rule
  * \return the value of the integral
  */
 template <class Lambda, typename T, int NDIMS>
 inline double evaluate_scalar_line_integral_component(const primal::BezierCurve<T, NDIMS>& c,
                                                       Lambda&& scalar_integrand,
-                                                      const mfem::IntegrationRule& quad)
+                                                      const int npts)
 {
+  const axom::numerics::QuadratureRule& quad = axom::numerics::get_gauss_legendre(npts);
+
   // Store/compute quadrature result
   double full_quadrature = 0.0;
-  for(int q = 0; q < quad.GetNPoints(); q++)
+  for(int q = 0; q < npts; q++)
   {
     // Get intermediate quadrature point
     //  at which to evaluate tangent vector
-    auto x_q = c.evaluate(quad.IntPoint(q).x);
-    auto dx_q = c.dt(quad.IntPoint(q).x);
+    auto x_q = c.evaluate(quad.node(q));
+    auto dx_q = c.dt(quad.node(q));
 
-    full_quadrature += quad.IntPoint(q).weight * scalar_integrand(x_q) * dx_q.norm();
+    full_quadrature += quad.weight(q) * scalar_integrand(x_q) * dx_q.norm();
   }
 
   return full_quadrature;
@@ -60,30 +60,32 @@ inline double evaluate_scalar_line_integral_component(const primal::BezierCurve<
 /*!
  * \brief Evaluate a vector field line integral on a single Bezier curve.
  *
- * Evaluate the vector field line integral with MFEM integration rule
+ * Evaluate the vector field line integral with Gauss-Legendre quadrature
  *
  * \param [in] c the Bezier curve object
  * \param [in] integrand the lambda function representing the integrand. 
  * Must accept a 2D point as input and return a 2D axom vector object
- * \param [in] quad the mfem integration rule containing nodes and weights
+ * \param [in] npts The number of quadrature points in the rule
  * \return the value of the integral
  */
 template <class Lambda, typename T, int NDIMS>
 inline double evaluate_vector_line_integral_component(const primal::BezierCurve<T, NDIMS>& c,
                                                       Lambda&& vec_field,
-                                                      const mfem::IntegrationRule& quad)
+                                                      const int npts)
 {
+  const axom::numerics::QuadratureRule& quad = axom::numerics::get_gauss_legendre(npts);
+
   // Store/compute quadrature result
   double full_quadrature = 0.0;
-  for(int q = 0; q < quad.GetNPoints(); q++)
+  for(int q = 0; q < npts; q++)
   {
     // Get intermediate quadrature point
     //  on which to evaluate dot product
-    auto x_q = c.evaluate(quad.IntPoint(q).x);
-    auto dx_q = c.dt(quad.IntPoint(q).x);
+    auto x_q = c.evaluate(quad.node(q));
+    auto dx_q = c.dt(quad.node(q));
     auto func_val = vec_field(x_q);
 
-    full_quadrature += quad.IntPoint(q).weight * Vector<T, NDIMS>::dot_product(func_val, dx_q);
+    full_quadrature += quad.weight(q) * Vector<T, NDIMS>::dot_product(func_val, dx_q);
   }
   return full_quadrature;
 }
@@ -101,37 +103,40 @@ inline double evaluate_vector_line_integral_component(const primal::BezierCurve<
  * \param [in] integrand the lambda function representing the integrand. 
  * Must accept a 2D point as input and return a double
  * \param [in] The lower bound of integration for the antiderivatives
- * \param [in] quad_Q the quadrature rule for the line integral
- * \param [in] quad_P the quadrature rule for the antiderivative
+ * \param [in] npts_Q The number of quadrature points for the line integral
+ * \param [in] npts_P The number of quadrature points for the antiderivative
  * \return the value of the integral, which is mathematically meaningless.
  */
 template <class Lambda, typename T>
 double evaluate_area_integral_component(const primal::BezierCurve<T, 2>& c,
                                         Lambda&& integrand,
                                         double int_lb,
-                                        const mfem::IntegrationRule& quad_Q,
-                                        const mfem::IntegrationRule& quad_P)
+                                        const int npts_Q,
+                                        const int npts_P)
 {
+  const axom::numerics::QuadratureRule& quad_Q = axom::numerics::get_gauss_legendre(npts_Q);
+  const axom::numerics::QuadratureRule& quad_P = axom::numerics::get_gauss_legendre(npts_P);
+
   // Store some intermediate values
   double antiderivative = 0.0;
 
   // Store/compute quadrature result
   double full_quadrature = 0.0;
-  for(int q = 0; q < quad_Q.GetNPoints(); q++)
+  for(int q = 0; q < npts_Q; q++)
   {
     // Get intermediate quadrature point
     //  on which to evaluate antiderivative
-    auto x_q = c.evaluate(quad_Q.IntPoint(q).x);
+    auto x_q = c.evaluate(quad_Q.node(q));
 
     // Evaluate the antiderivative at x_q, add it to full quadrature
-    for(int xi = 0; xi < quad_P.GetNPoints(); xi++)
+    for(int xi = 0; xi < npts_P; xi++)
     {
       // Define interior quadrature points
-      auto x_qxi = Point2D({x_q[0], (x_q[1] - int_lb) * quad_P.IntPoint(xi).x + int_lb});
+      auto x_qxi = Point<T, 2>({x_q[0], (x_q[1] - int_lb) * quad_P.node(xi) + int_lb});
 
-      antiderivative = quad_P.IntPoint(xi).weight * (x_q[1] - int_lb) * integrand(x_qxi);
+      antiderivative = quad_P.weight(xi) * (x_q[1] - int_lb) * integrand(x_qxi);
 
-      full_quadrature += quad_Q.IntPoint(q).weight * c.dt(quad_Q.IntPoint(q).x)[0] * -antiderivative;
+      full_quadrature += quad_Q.weight(q) * c.dt(quad_Q.node(q))[0] * -antiderivative;
     }
   }
 

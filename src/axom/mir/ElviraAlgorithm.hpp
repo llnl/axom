@@ -68,6 +68,12 @@ namespace mir
  * \note We template on IndexPolicy instead of TopologyView so we can enforce a
  *       StructuredTopologyView on the algorithm. This is done because ELVIRA
  *       assumes a structured mesh for stencils, etc.
+ *
+ * \note This algorithm typically produces unstructured meshes of polygons or
+ *       polyhedra, depending on the mesh dimension. However, if the input matset
+ *       contains only "clean" zones consisting of 1 material per zone then the
+ *       input coordset, topology, and matset will be copied to the output. In
+ *       that case, the types will depend on the input types.
  */
 template <typename ExecSpace, typename IndexPolicy, typename CoordsetView, typename MatsetView>
 class ElviraAlgorithm : public axom::mir::MIRAlgorithm
@@ -151,6 +157,8 @@ protected:
     namespace utils = axom::bump::utilities;
 
     AXOM_ANNOTATE_SCOPE("ElviraAlgorithm");
+    SLIC_ERROR_IF(m_topologyView.numberOfZones() != m_matsetView.numberOfZones(),
+                  "The mesh and the material do not have the same number of zones.");
 
     // Copy the options to make sure they are in the right memory space.
     conduit::Node n_options_copy;
@@ -505,7 +513,7 @@ protected:
     auto matCountView = matCount.view();
     auto matZoneView = matZone.view();
 
-    // Get the material count per zone and the zone number (in case of strided structured)
+    // Get the material count per zone and the zone number
     const TopologyView deviceTopologyView(m_topologyView);
     const MatsetView deviceMatsetView(m_matsetView);
     axom::ReduceSum<ExecSpace, axom::IndexType> num_reduce(0);
@@ -515,7 +523,7 @@ protected:
       AXOM_LAMBDA(axom::IndexType szIndex) {
         // Get the material data for the zone.
         const auto zoneIndex = mixedZonesView[szIndex];
-        const auto matZoneIndex = deviceTopologyView.indexing().LocalToGlobal(zoneIndex);
+        const auto matZoneIndex = zoneIndex;
         const auto nmats = deviceMatsetView.numberOfMaterials(matZoneIndex);
 
         // Save some material information for later.
@@ -629,7 +637,7 @@ protected:
         const auto zoneIndex = matZoneView[szIndex];
         const auto matCount = matCountView[szIndex];
         // The index to use for the zone's material.
-        const auto matZoneIndex = deviceTopologyView.indexing().LocalToGlobal(zoneIndex);
+        const auto matZoneIndex = zoneIndex;
         // Where to begin writing this zone's fragment data.
         const auto offset = matOffsetView[szIndex];
 
@@ -667,12 +675,7 @@ protected:
           neighbor = deviceTopologyView.indexing().clamp(neighbor);
           const auto neighborIndex = static_cast<typename MatsetView::ZoneIndex>(
             deviceTopologyView.indexing().LogicalIndexToIndex(neighbor));
-
-          // Turn to a "global" logical index and transform it to an index to use in the material,
-          // which for strided-structured can be larger than the mesh.
-          const auto matNeighbor = deviceTopologyView.indexing().LocalToGlobal(neighbor);
-          const auto matNeighborIndex = static_cast<typename MatsetView::ZoneIndex>(
-            deviceTopologyView.indexing().GlobalToGlobal(matNeighbor));
+          const auto matNeighborIndex = static_cast<typename MatsetView::ZoneIndex>(neighborIndex);
 
           // Copy material vfs into the stencil.
           for(axom::IndexType m = 0; m < matCount; m++)

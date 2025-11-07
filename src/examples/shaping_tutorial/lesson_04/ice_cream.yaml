@@ -1,0 +1,30 @@
+dimensions: 2
+
+shapes:
+  - name: background
+    material: air
+    geometry:
+      format: none
+
+  - name: vanilla_scoop
+    material: icecream
+    geometry:
+      format: mfem
+      path: scoop.mesh
+      units: cm
+
+  - name: colorful_sprinkles
+    material: sprinkles
+    geometry:
+      format: mfem
+      path: sprinkles.mesh
+      units: cm
+    replaces: [icecream]
+
+  - name: cone
+    material: batter
+    geometry:
+      format: mfem
+      path: cone.mesh
+      units: cm
+    does_not_replace: [icecream, sprinkles]
