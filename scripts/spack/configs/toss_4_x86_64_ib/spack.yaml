@@ -15,8 +15,13 @@ spack:
     build_stage::
     - $spack/../build_stage
 
-  # Regular TPLs do not need views
-  view: false
+  # View to get python modules
+  view:
+    default:
+      root: ../view
+      select: [python, ^python]
+      projections:
+        all: '{name}-{version}'
 
   include:
   - ../defaults.yaml
@@ -380,35 +385,8 @@ spack:
       externals:
       - spec: python@3.13.5
         prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
-
-    # Other python externals built by devtools for conduit
-    py-pytest:
-      buildable: false
-      externals:
-      - spec: py-pytest@8.2.1
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
     py-jsonschema:
       buildable: false
       externals:
       - spec: py-jsonschema@4.17.3
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
-    python-venv:
-      buildable: false
-      externals:
-      - spec: python-venv@1.0
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
-    py-pyproject-metadata:
-      buildable: false
-      externals:
-      - spec: py-pyproject-metadata@0.17.1
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
-    py-meson-python:
-      buildable: false
-      externals:
-      - spec: py-meson-python@0.16.0
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
-    py-numpy:
-      buildable: false
-      externals:
-      - spec: py-numpy@2.3.2
         prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/

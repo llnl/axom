@@ -180,9 +180,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             depends_on("conduit+{0}".format(_var), when="+{0}".format(_var))
             depends_on("conduit~{0}".format(_var), when="~{0}".format(_var))
 
-        depends_on("conduit+python", when="+devtools")
-        depends_on("conduit~python", when="~devtools")
-
     depends_on("hdf5", when="+hdf5")
 
     depends_on("lua", when="+lua")
@@ -251,6 +248,12 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     depends_on("python", when="+python")
 
+    # Python
+    with when("+python"):
+        depends_on("py-nanobind@2.7.0")
+        depends_on("py-pytest")
+        depends_on("py-numpy")
+
     # Devtools
     with when("+devtools"):
         depends_on("cppcheck")
@@ -259,7 +262,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("python")
         depends_on("py-sphinx")
         depends_on("py-shroud")
-        depends_on("py-pytest")
         depends_on("py-jsonschema")
 
         # Need clang@19 for clang-format
@@ -673,8 +675,11 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             entries.append(cmake_cache_option("ENABLE_CLANGFORMAT", False))
 
         if spec.satisfies("+python") or spec.satisfies("+devtools"):
-            python_bin_dir = get_spec_path(spec, "python", path_replacements, use_bin=True)
-            entries.append(cmake_cache_path("Python_EXECUTABLE", pjoin(python_bin_dir, "python3")))
+            # Get path to python with submodules
+            python_view_exe = pjoin(os.path.dirname(os.path.dirname(self.prefix)), "view",
+                spec["python"].name + "-" + str(spec["python"].version), "bin/python3")
+            entries.append(cmake_cache_path("Python_EXECUTABLE", python_view_exe))
+
 
         if spec.satisfies("^py-jsonschema"):
             jsonschema_dir = get_spec_path(spec, "py-jsonschema", path_replacements, use_bin=True)
