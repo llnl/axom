@@ -173,6 +173,7 @@ int MIRApplication::runMIR()
   }
 
   // Begin material interface reconstruction
+  timer.reset();
   timer.start();
   conduit::Node options, resultMesh;
   options["matset"] = "mat";

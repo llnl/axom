@@ -32,10 +32,9 @@ if(AXOM_ENABLE_TESTS)
         axom_add_test(
             NAME ${_testname}
             COMMAND mir_heavily_mixed
-                --dimension 2
-                --dims 50,50
-                --refinement 10
-                --nmats 10
+                --dims 100 100
+                --refinement 20
+                --materials 10
                 --policy ${_policy}
                 --disable-write
             )
@@ -47,10 +46,9 @@ if(AXOM_ENABLE_TESTS)
         axom_add_test(
             NAME ${_testname}
             COMMAND mir_heavily_mixed
-                --dimension 3
-                --dims 50,50,10
+                --dims 50 50 10
                 --refinement 10
-                --nmats 10
+                --materials 10
                 --policy ${_policy}
                 --disable-write
             )
