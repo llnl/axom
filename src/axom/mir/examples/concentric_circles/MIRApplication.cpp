@@ -109,6 +109,7 @@ int MIRApplication::initialize(int argc, char **argv)
 int MIRApplication::execute()
 {
   axom::slic::SimpleLogger logger(axom::slic::message::Info);
+  axom::slic::setLoggingMsgLevel(axom::slic::message::Debug);
 
   if(handler)
   {

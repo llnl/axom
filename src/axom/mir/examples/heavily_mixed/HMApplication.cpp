@@ -100,9 +100,8 @@ void heavily_mixed_matset(const std::string &topoName, int dims[3], int refineme
   for(int i = 0; i < nmats; i++)
   {
     int matno = i + 1;
-    std::stringstream ss;
-    ss << "mat" << matno;
-    n_material_map[ss.str()] = matno;
+    const std::string name = axom::fmt::format("mat{:02d}", matno);
+    n_material_map[name] = matno;
   }
   n_matset["material_ids"].set(material_ids);
   n_matset["volume_fractions"].set(volume_fractions);
@@ -312,6 +311,7 @@ int HMApplication::initialize(int argc, char **argv)
 int HMApplication::execute()
 {
   axom::slic::SimpleLogger logger(axom::slic::message::Info);
+  axom::slic::setLoggingMsgLevel(axom::slic::message::Debug);
 
   if(m_handler)
   {
