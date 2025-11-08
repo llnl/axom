@@ -1025,14 +1025,14 @@ protected:
           if(m == 0)
           {
 #if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
-            SLIC_DEBUG("\tclip: before=" << inputShape << ", P=" << P);
+            SLIC_DEBUG("\tclip: before=" << inputShape << ", P=" << P << ", pt=" << pt);
 #endif
             remaining = axom::primal::clip(inputShape, P, detail::clip_precision<CoordType>::eps);
           }
           else
           {
 #if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
-            SLIC_DEBUG("\tclip: before=" << remaining << ", P=" << P);
+            SLIC_DEBUG("\tclip: before=" << remaining << ", P=" << P << ", pt=" << pt);
 #endif
             remaining = axom::primal::clip(remaining, P, detail::clip_precision<CoordType>::eps);
           }
@@ -1053,6 +1053,20 @@ protected:
           lastNormal[d] = -normal[d];
         }
         buildView.addShape(zoneIndex, fragmentIndex, remaining, matId, pt, -planeOffset, lastNormal);
+
+#if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
+        // Examine remaining's bounding box. It should NEVER be larger than the
+        // original inputShape's bounding box. If so, there was probably an error
+        // in clipping.
+        const auto remainingBBox = axom::primal::compute_bounding_box(remaining);
+        if(!inputShapeBBox.contains(remainingBBox))
+        {
+          SLIC_ERROR("\tclip: BAD CLIPPED SHAPE IN ZONE "
+                     << zoneIndex << "\n\t\tinputShape=" << inputShape
+                     << "\n\t\tinputShapeBBox=" << inputShapeBBox << "\n\t\tremaining=" << remaining
+                     << "\n\t\tremainingBBox=" << remainingBBox);
+        }
+#endif
       });
     reportErrors(__LINE__);
   }
