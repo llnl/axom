@@ -30,7 +30,12 @@ namespace detail
  * \param n_field The field used for matset creation.
  * \param nmats The number of materials to make.
  */
-void heavily_mixed_matset(const std::string &topoName, int dims[3], int refinement, conduit::Node &n_coarse, const conduit::Node &n_field, int nmats)
+void heavily_mixed_matset(const std::string &topoName,
+                          int dims[3],
+                          int refinement,
+                          conduit::Node &n_coarse,
+                          const conduit::Node &n_field,
+                          int nmats)
 {
   const auto fine = n_field.as_float64_accessor();
   int nzones = dims[0] * dims[1] * dims[2];
@@ -38,7 +43,7 @@ void heavily_mixed_matset(const std::string &topoName, int dims[3], int refineme
   std::vector<double> vfs(nslots, 0.);
 
   // break the data range into nmats parts.
-  const double matSize = 1000. / nmats; //fine.max() / nmats;
+  const double matSize = 1000. / nmats;  //fine.max() / nmats;
 
   const int rdims[] = {dims[0] * refinement, dims[1] * refinement, dims[2] * refinement};
 
@@ -53,13 +58,14 @@ void heavily_mixed_matset(const std::string &topoName, int dims[3], int refineme
         const int jr = j * refinement;
         const int ir = i * refinement;
         for(int jj = 0; jj < refinement; jj++)
-        for(int ii = 0; ii < refinement; ii++)
-        {
-          const int fine_index = (kr * rdims[0] * rdims[1]) + ((jr + jj) * rdims[0]) + (ir + ii);
-          const int matid = axom::utilities::clampVal(static_cast<int>(fine[fine_index] / matSize), 0, nmats-1);
-          const int matslot = zoneIndex * nmats + matid;
-          vfs[matslot] += 1. / (refinement * refinement);
-        }
+          for(int ii = 0; ii < refinement; ii++)
+          {
+            const int fine_index = (kr * rdims[0] * rdims[1]) + ((jr + jj) * rdims[0]) + (ir + ii);
+            const int matid =
+              axom::utilities::clampVal(static_cast<int>(fine[fine_index] / matSize), 0, nmats - 1);
+            const int matslot = zoneIndex * nmats + matid;
+            vfs[matslot] += 1. / (refinement * refinement);
+          }
       }
     }
   }
@@ -127,15 +133,7 @@ void heavily_mixed(conduit::Node &n_mesh, int dims[3], int refinement, int nmats
   const conduit::float64 c_re = -0.5125;
   const conduit::float64 c_im = 0.5213;
 
-  conduit::blueprint::mesh::examples::julia(dims[0],
-                                            dims[1],
-                                            x_min,
-                                            x_max,
-                                            y_min,
-                                            y_max,
-                                            c_re,
-                                            c_im,
-                                            n_mesh);
+  conduit::blueprint::mesh::examples::julia(dims[0], dims[1], x_min, x_max, y_min, y_max, c_re, c_im, n_mesh);
   if(dims[2] > 1)
   {
     // Add another dimension to the coordset.
@@ -160,30 +158,23 @@ void heavily_mixed(conduit::Node &n_mesh, int dims[3], int refinement, int nmats
     conduit::Node n_field;
     n_field.set(conduit::DataType::int32(rdims[0] * rdims[1] * rdims[2]));
     conduit::int32 *destPtr = n_field.as_int32_ptr();
-    axom::for_all<CPUExecSpace>(rdims[2], AXOM_LAMBDA(int k)
-    {
-      const auto t = static_cast<conduit::float64>(k) / (dims[2] - 1);
-      // Interpolate the window
-      const conduit::float64 x0 = axom::utilities::lerp(x_min, x1_min, t);
-      const conduit::float64 x1 = axom::utilities::lerp(x_max, x1_max, t);
-      const conduit::float64 y0 = axom::utilities::lerp(y_min, y1_min, t);
-      const conduit::float64 y1 = axom::utilities::lerp(y_max, y1_max, t);
-      conduit::Node n_rmesh;
-      conduit::blueprint::mesh::examples::julia(rdims[0],
-                                                rdims[1],
-                                                x0,
-                                                x1,
-                                                y0,
-                                                y1,
-                                                c_re,
-                                                c_im,
-                                                n_rmesh);
-      const conduit::Node &n_src_field = n_rmesh["fields/iters/values"];
-      const conduit::int32 *srcPtr = n_src_field.as_int32_ptr();
-      conduit::int32 *currentDestPtr = destPtr + k * rdims[0] * rdims[1];
-      axom::copy(currentDestPtr, srcPtr, rdims[0] * rdims[1] * sizeof(conduit::int32));
-      SLIC_INFO(axom::fmt::format("Made slice {}/{}", k+1, rdims[2]));
-    });
+    axom::for_all<CPUExecSpace>(
+      rdims[2],
+      AXOM_LAMBDA(int k) {
+        const auto t = static_cast<conduit::float64>(k) / (dims[2] - 1);
+        // Interpolate the window
+        const conduit::float64 x0 = axom::utilities::lerp(x_min, x1_min, t);
+        const conduit::float64 x1 = axom::utilities::lerp(x_max, x1_max, t);
+        const conduit::float64 y0 = axom::utilities::lerp(y_min, y1_min, t);
+        const conduit::float64 y1 = axom::utilities::lerp(y_max, y1_max, t);
+        conduit::Node n_rmesh;
+        conduit::blueprint::mesh::examples::julia(rdims[0], rdims[1], x0, x1, y0, y1, c_re, c_im, n_rmesh);
+        const conduit::Node &n_src_field = n_rmesh["fields/iters/values"];
+        const conduit::int32 *srcPtr = n_src_field.as_int32_ptr();
+        conduit::int32 *currentDestPtr = destPtr + k * rdims[0] * rdims[1];
+        axom::copy(currentDestPtr, srcPtr, rdims[0] * rdims[1] * sizeof(conduit::int32));
+        SLIC_INFO(axom::fmt::format("Made slice {}/{}", k + 1, rdims[2]));
+      });
 
     // Make a matset based on the higher resolution julia field.
     heavily_mixed_matset("topo", dims, refinement, n_mesh, n_field, nmats);
@@ -208,12 +199,12 @@ void heavily_mixed(conduit::Node &n_mesh, int dims[3], int refinement, int nmats
   }
 }
 
-} // end namespace detail
+}  // end namespace detail
 
 //--------------------------------------------------------------------------------
 HMApplication::HMApplication()
   : m_handler(true)
-  , m_dims{100, 100, 1}
+  , m_dims {100, 100, 1}
   , m_numMaterials(40)
   , m_refinement(40)
   , m_numTrials(1)

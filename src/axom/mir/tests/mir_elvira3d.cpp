@@ -309,7 +309,8 @@ struct test_Elvira3D
           SLIC_ASSERT(index >= 0 && index < sortedIdsView.size());
 
           // Use an atomic to sum the value.
-          axom::atomicAdd<ExecSpace>(totalVolumeView.data() + index, zoneVolumes[zi] * zoneMat.volume_fraction());
+          axom::atomicAdd<ExecSpace>(totalVolumeView.data() + index,
+                                     zoneVolumes[zi] * zoneMat.volume_fraction());
         }
       });
 

@@ -682,8 +682,10 @@ protected:
         const auto offset = matOffsetView[szIndex];
 
         // Determine the views for this zone's material data.
-        axom::ArrayView<typename MatsetView::IndexType> ids(sortedMaterialIdsView.data() + offset, matCount);
-        axom::ArrayView<typename MatsetView::FloatType> vfs(sortedMaterialVfsView.data() + offset, matCount);
+        axom::ArrayView<typename MatsetView::IndexType> ids(sortedMaterialIdsView.data() + offset,
+                                                            matCount);
+        axom::ArrayView<typename MatsetView::FloatType> vfs(sortedMaterialVfsView.data() + offset,
+                                                            matCount);
         // Get materials for this zone from the matset, directly into the "sorted" views.
         [[maybe_unused]] auto ids_size = deviceMatsetView.zoneMaterials(matZoneIndex, ids, vfs);
 
@@ -1012,12 +1014,10 @@ protected:
           const auto clippedShapeBBox = axom::primal::compute_bounding_box(clippedShape);
           if(!inputShapeBBox.contains(clippedShapeBBox))
           {
-            SLIC_ERROR("\tclip: BAD CLIPPED SHAPE IN ZONE " << zoneIndex
-                       << "\n\t\tinputShape=" << inputShape
-                       << "\n\t\tinputShapeBBox=" << inputShapeBBox
-                       << "\n\t\tclippedShape=" << clippedShape
-                       << "\n\t\tclippedShapeBBox=" << clippedShapeBBox
-                      );
+            SLIC_ERROR("\tclip: BAD CLIPPED SHAPE IN ZONE "
+                       << zoneIndex << "\n\t\tinputShape=" << inputShape << "\n\t\tinputShapeBBox="
+                       << inputShapeBBox << "\n\t\tclippedShape=" << clippedShape
+                       << "\n\t\tclippedShapeBBox=" << clippedShapeBBox);
           }
 #endif
 

@@ -720,7 +720,7 @@ struct test_braid2d_mat
           count++;
         }
 
-        resultsView[index] = (eq_count == count) ? 1 : 0;       
+        resultsView[index] = (eq_count == count) ? 1 : 0;
       });
 
     // Get containsView data to the host and compare results

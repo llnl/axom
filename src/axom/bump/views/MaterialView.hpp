@@ -137,7 +137,9 @@ public:
   }
 
   AXOM_HOST_DEVICE
-  axom::IndexType zoneMaterials(ZoneIndex zi, axom::ArrayView<IndexType> &ids, axom::ArrayView<FloatType> &vfs) const
+  axom::IndexType zoneMaterials(ZoneIndex zi,
+                                axom::ArrayView<IndexType> &ids,
+                                axom::ArrayView<FloatType> &vfs) const
   {
     SLIC_ASSERT(zi < static_cast<ZoneIndex>(numberOfZones()));
 
@@ -394,7 +396,9 @@ public:
   }
 
   AXOM_HOST_DEVICE
-  axom::IndexType zoneMaterials(ZoneIndex zi, axom::ArrayView<IndexType> &ids, axom::ArrayView<FloatType> &vfs) const
+  axom::IndexType zoneMaterials(ZoneIndex zi,
+                                axom::ArrayView<IndexType> &ids,
+                                axom::ArrayView<FloatType> &vfs) const
   {
     axom::IndexType n = 0;
     for(axom::IndexType i = 0; i < m_size; i++)
@@ -677,7 +681,9 @@ public:
   }
 
   AXOM_HOST_DEVICE
-  axom::IndexType zoneMaterials(ZoneIndex zi, axom::ArrayView<IndexType> &ids, axom::ArrayView<FloatType> &vfs) const
+  axom::IndexType zoneMaterials(ZoneIndex zi,
+                                axom::ArrayView<IndexType> &ids,
+                                axom::ArrayView<FloatType> &vfs) const
   {
     axom::IndexType n = 0;
     for(axom::IndexType i = 0; i < m_volume_fractions.size(); i++)
@@ -980,7 +986,9 @@ public:
   }
 
   AXOM_HOST_DEVICE
-  axom::IndexType zoneMaterials(ZoneIndex zi, axom::ArrayView<IndexType> &ids, axom::ArrayView<FloatType> &vfs) const
+  axom::IndexType zoneMaterials(ZoneIndex zi,
+                                axom::ArrayView<IndexType> &ids,
+                                axom::ArrayView<FloatType> &vfs) const
   {
     axom::IndexType n = 0;
     for(axom::IndexType mi = 0; mi < m_size; mi++)
