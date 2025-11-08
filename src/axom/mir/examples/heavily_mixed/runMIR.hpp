@@ -35,7 +35,6 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
     trials = std::max(1, options["trials"].to_int());
   }
 
-  // TODO: set MAXMATERIALS to 1, remove warning.
   // Check materials.
   constexpr int MAXMATERIALS = 100;
   auto materialInfo = axom::bump::views::materials(hostMesh["matsets/mat"]);
@@ -70,7 +69,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
     auto topologyView = make_rectilinear_topology<NDIMS>::view(n_topology);
     using TopologyView = decltype(topologyView);
 
-    auto matsetView = make_unibuffer_matset<int, float, MAXMATERIALS>::view(n_matset);
+    auto matsetView = make_unibuffer_matset<int, double, MAXMATERIALS>::view(n_matset);
     using MatsetView = decltype(matsetView);
 
     if(method == "equiz")
