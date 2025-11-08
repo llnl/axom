@@ -38,6 +38,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   buffers inside kernels.
 - Material views in `axom::bump::views` were enhanced with an overloaded `zoneMaterials()`
   method that allows data to be gathered into `axom::ArrayView` objects.
+- A new `heavily_mixed` example program was added in `axom::mir` to demonstrate running MIR on
+  meshes with heavily mixed zones.
 
 ###  Fixed
 
