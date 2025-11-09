@@ -12,11 +12,12 @@
 
 // Shared with other Shroud wrapped libraries
 #ifndef SHROUD_SHARED_H
-#define SHROUD_SHARED_H
+  #define SHROUD_SHARED_H
 
-enum SwigMemFlags {
-    SWIG_MEM_OWN = 0x01,
-    SWIG_MEM_RVALUE = 0x02,
+enum SwigMemFlags
+{
+  SWIG_MEM_OWN = 0x01,
+  SWIG_MEM_RVALUE = 0x02,
 };
 
 #endif  // SHROUD_SHARED_H
@@ -32,10 +33,11 @@ extern "C" {
 // splicer end types.C_declarations
 
 // helper capsule_data
-struct s_SPIO_SHROUD_capsule_data {
-    void *addr;     /* address of C++ memory */
-    int idtor;      /* index of destructor */
-    int cmemflags;  /* memory flags */
+struct s_SPIO_SHROUD_capsule_data
+{
+  void *addr;    /* address of C++ memory */
+  int idtor;     /* index of destructor */
+  int cmemflags; /* memory flags */
 };
 typedef struct s_SPIO_SHROUD_capsule_data SPIO_SHROUD_capsule_data;
 #if 0
@@ -50,10 +52,11 @@ typedef struct s_SPIO_IOManager SPIO_IOManager;
 #endif
 
 // C capsule SPIO_IOManager
-struct s_SPIO_IOManager {
-    void *addr;     // address of C++ memory
-    int idtor;      // index of destructor
-    int cmemflags;  // memory flags
+struct s_SPIO_IOManager
+{
+  void *addr;     // address of C++ memory
+  int idtor;      // index of destructor
+  int cmemflags;  // memory flags
 };
 typedef struct s_SPIO_IOManager SPIO_IOManager;
 

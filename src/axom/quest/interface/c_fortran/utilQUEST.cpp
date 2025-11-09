@@ -8,7 +8,6 @@
 
 #include "typesQUEST.h"
 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -16,9 +15,9 @@ extern "C" {
 // Release library allocated memory.
 void QUEST_SHROUD_memory_destructor(QUEST_SHROUD_capsule_data *cap)
 {
-    cap->addr = nullptr;
-    cap->idtor = 0;  // avoid deleting again
-    cap->cmemflags = cap->cmemflags & ~SWIG_MEM_OWN;
+  cap->addr = nullptr;
+  cap->idtor = 0;  // avoid deleting again
+  cap->cmemflags = cap->cmemflags & ~SWIG_MEM_OWN;
 }
 
 #ifdef __cplusplus

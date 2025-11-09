@@ -15,7 +15,7 @@
 #define WRAPSIDRE_H
 
 #ifndef __cplusplus
-#include <stdbool.h>
+  #include <stdbool.h>
 #endif
 #include "typesSidre.h"
 

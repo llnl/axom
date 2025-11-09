@@ -15,22 +15,23 @@
 
 extern "C" {
 
-
 // helper char_len_trim
 // Returns the length of character string src with length nsrc,
 // ignoring any trailing blanks.
-static int ShroudCharLenTrim(const char *src, int nsrc) {
-    int i;
+static int ShroudCharLenTrim(const char* src, int nsrc)
+{
+  int i;
 
-    for (i = nsrc - 1; i >= 0; i--) {
-        if (src[i] != ' ') {
-            break;
-        }
+  for(i = nsrc - 1; i >= 0; i--)
+  {
+    if(src[i] != ' ')
+    {
+      break;
     }
+  }
 
-    return i + 1;
+  return i + 1;
 }
-
 
 // splicer begin C_definitions
 // equivalent to C_LOC
@@ -51,21 +52,21 @@ void sidre_c_loc_(void* addr, void** out) { *out = addr; }
 
 // splicer end C_definitions
 
-bool SIDRE_name_is_valid(const char *name)
+bool SIDRE_name_is_valid(const char* name)
 {
-    // splicer begin function.nameIsValid
-    return name != NULL;
-    // splicer end function.nameIsValid
+  // splicer begin function.nameIsValid
+  return name != NULL;
+  // splicer end function.nameIsValid
 }
 
-bool SIDRE_name_is_valid_bufferify(char *name, int SHT_name_len)
+bool SIDRE_name_is_valid_bufferify(char* name, int SHT_name_len)
 {
-    // splicer begin function.nameIsValid_bufferify
-    int SHC_name_trim = ShroudCharLenTrim(name, SHT_name_len);
-    const std::string SHC_name_cxx(name, SHC_name_trim);
-    bool SHC_rv = axom::sidre::nameIsValid(SHC_name_cxx);
-    return SHC_rv;
-    // splicer end function.nameIsValid_bufferify
+  // splicer begin function.nameIsValid_bufferify
+  int SHC_name_trim = ShroudCharLenTrim(name, SHT_name_len);
+  const std::string SHC_name_cxx(name, SHC_name_trim);
+  bool SHC_rv = axom::sidre::nameIsValid(SHC_name_cxx);
+  return SHC_rv;
+  // splicer end function.nameIsValid_bufferify
 }
 
 }  // extern "C"

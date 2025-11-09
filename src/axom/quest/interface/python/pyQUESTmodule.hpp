@@ -28,4 +28,4 @@ extern "C" PyMODINIT_FUNC PyInit_quest(void);
 extern "C" PyMODINIT_FUNC initquest(void);
 #endif
 
-#endif  /* PYQUESTMODULE_HPP */
+#endif /* PYQUESTMODULE_HPP */

@@ -15,11 +15,11 @@
 #define WRAPQUEST_H
 
 #ifdef AXOM_USE_MPI
-#include "mpi.h"
+  #include "mpi.h"
 #endif
 #include "wrapQUEST.h"
 #ifndef __cplusplus
-#include <stdbool.h>
+  #include <stdbool.h>
 #endif
 #include "typesQUEST.h"
 
@@ -34,12 +34,13 @@ extern "C" {
 // splicer end C_declarations
 
 //  axom::quest::SignedDistExec
-enum QUEST_SignedDistExec {
-    // splicer begin enum.SignedDistExec
-    QUEST_SignedDistExec_CPU = 0,
-    QUEST_SignedDistExec_OpenMP = 1,
-    QUEST_SignedDistExec_GPU = 2
-    // splicer end enum.SignedDistExec
+enum QUEST_SignedDistExec
+{
+  // splicer begin enum.SignedDistExec
+  QUEST_SignedDistExec_CPU = 0,
+  QUEST_SignedDistExec_OpenMP = 1,
+  QUEST_SignedDistExec_GPU = 2
+  // splicer end enum.SignedDistExec
 };
 
 #ifdef AXOM_USE_MPI
@@ -120,7 +121,15 @@ void QUEST_signed_distance_set_execution_space_bufferify(int execSpace);
 
 double QUEST_signed_distance_evaluate_0(double x, double y, double z);
 
-double QUEST_signed_distance_evaluate_1(double x, double y, double z, double *cp_x, double *cp_y, double *cp_z, double *n_x, double *n_y, double *n_z);
+double QUEST_signed_distance_evaluate_1(double x,
+                                        double y,
+                                        double z,
+                                        double *cp_x,
+                                        double *cp_y,
+                                        double *cp_z,
+                                        double *n_x,
+                                        double *n_y,
+                                        double *n_z);
 
 void QUEST_signed_distance_finalize(void);
 

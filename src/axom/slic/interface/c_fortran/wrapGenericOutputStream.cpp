@@ -16,88 +16,102 @@
 
 extern "C" {
 
-
 // helper char_len_trim
 // Returns the length of character string src with length nsrc,
 // ignoring any trailing blanks.
-static int ShroudCharLenTrim(const char *src, int nsrc) {
-    int i;
+static int ShroudCharLenTrim(const char *src, int nsrc)
+{
+  int i;
 
-    for (i = nsrc - 1; i >= 0; i--) {
-        if (src[i] != ' ') {
-            break;
-        }
+  for(i = nsrc - 1; i >= 0; i--)
+  {
+    if(src[i] != ' ')
+    {
+      break;
     }
+  }
 
-    return i + 1;
+  return i + 1;
 }
-
 
 // splicer begin class.GenericOutputStream.C_definitions
 // splicer end class.GenericOutputStream.C_definitions
 
-SLIC_GenericOutputStream * SLIC_GenericOutputStream_ctor_default(const char *stream, SLIC_GenericOutputStream *SHC_rv)
+SLIC_GenericOutputStream *SLIC_GenericOutputStream_ctor_default(const char *stream,
+                                                                SLIC_GenericOutputStream *SHC_rv)
 {
-    // splicer begin class.GenericOutputStream.method.ctor_default
-    const std::string SHC_stream_cxx(stream);
-    axom::slic::GenericOutputStream *SHCXX_rv = new axom::slic::GenericOutputStream(SHC_stream_cxx);
-    SHC_rv->addr = static_cast<void *>(SHCXX_rv);
-    SHC_rv->idtor = 1;
-    SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
-    return SHC_rv;
-    // splicer end class.GenericOutputStream.method.ctor_default
+  // splicer begin class.GenericOutputStream.method.ctor_default
+  const std::string SHC_stream_cxx(stream);
+  axom::slic::GenericOutputStream *SHCXX_rv = new axom::slic::GenericOutputStream(SHC_stream_cxx);
+  SHC_rv->addr = static_cast<void *>(SHCXX_rv);
+  SHC_rv->idtor = 1;
+  SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
+  return SHC_rv;
+  // splicer end class.GenericOutputStream.method.ctor_default
 }
 
-void SLIC_GenericOutputStream_ctor_default_bufferify(char *stream, int SHT_stream_len, SLIC_GenericOutputStream *SHC_rv)
+void SLIC_GenericOutputStream_ctor_default_bufferify(char *stream,
+                                                     int SHT_stream_len,
+                                                     SLIC_GenericOutputStream *SHC_rv)
 {
-    // splicer begin class.GenericOutputStream.method.ctor_default_bufferify
-    int SHC_stream_trim = ShroudCharLenTrim(stream, SHT_stream_len);
-    const std::string SHC_stream_cxx(stream, SHC_stream_trim);
-    axom::slic::GenericOutputStream *SHCXX_rv = new axom::slic::GenericOutputStream(SHC_stream_cxx);
-    SHC_rv->addr = static_cast<void *>(SHCXX_rv);
-    SHC_rv->idtor = 1;
-    SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
-    // splicer end class.GenericOutputStream.method.ctor_default_bufferify
+  // splicer begin class.GenericOutputStream.method.ctor_default_bufferify
+  int SHC_stream_trim = ShroudCharLenTrim(stream, SHT_stream_len);
+  const std::string SHC_stream_cxx(stream, SHC_stream_trim);
+  axom::slic::GenericOutputStream *SHCXX_rv = new axom::slic::GenericOutputStream(SHC_stream_cxx);
+  SHC_rv->addr = static_cast<void *>(SHCXX_rv);
+  SHC_rv->idtor = 1;
+  SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
+  // splicer end class.GenericOutputStream.method.ctor_default_bufferify
 }
 
-SLIC_GenericOutputStream * SLIC_GenericOutputStream_ctor_format(const char *stream, const char *format, SLIC_GenericOutputStream *SHC_rv)
+SLIC_GenericOutputStream *SLIC_GenericOutputStream_ctor_format(const char *stream,
+                                                               const char *format,
+                                                               SLIC_GenericOutputStream *SHC_rv)
 {
-    // splicer begin class.GenericOutputStream.method.ctor_format
-    const std::string SHC_stream_cxx(stream);
-    const std::string SHC_format_cxx(format);
-    axom::slic::GenericOutputStream *SHCXX_rv = new axom::slic::GenericOutputStream(SHC_stream_cxx, SHC_format_cxx);
-    SHC_rv->addr = static_cast<void *>(SHCXX_rv);
-    SHC_rv->idtor = 1;
-    SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
-    return SHC_rv;
-    // splicer end class.GenericOutputStream.method.ctor_format
+  // splicer begin class.GenericOutputStream.method.ctor_format
+  const std::string SHC_stream_cxx(stream);
+  const std::string SHC_format_cxx(format);
+  axom::slic::GenericOutputStream *SHCXX_rv =
+    new axom::slic::GenericOutputStream(SHC_stream_cxx, SHC_format_cxx);
+  SHC_rv->addr = static_cast<void *>(SHCXX_rv);
+  SHC_rv->idtor = 1;
+  SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
+  return SHC_rv;
+  // splicer end class.GenericOutputStream.method.ctor_format
 }
 
-void SLIC_GenericOutputStream_ctor_format_bufferify(char *stream, int SHT_stream_len, char *format, int SHT_format_len, SLIC_GenericOutputStream *SHC_rv)
+void SLIC_GenericOutputStream_ctor_format_bufferify(char *stream,
+                                                    int SHT_stream_len,
+                                                    char *format,
+                                                    int SHT_format_len,
+                                                    SLIC_GenericOutputStream *SHC_rv)
 {
-    // splicer begin class.GenericOutputStream.method.ctor_format_bufferify
-    int SHC_stream_trim = ShroudCharLenTrim(stream, SHT_stream_len);
-    const std::string SHC_stream_cxx(stream, SHC_stream_trim);
-    int SHC_format_trim = ShroudCharLenTrim(format, SHT_format_len);
-    const std::string SHC_format_cxx(format, SHC_format_trim);
-    axom::slic::GenericOutputStream *SHCXX_rv = new axom::slic::GenericOutputStream(SHC_stream_cxx, SHC_format_cxx);
-    SHC_rv->addr = static_cast<void *>(SHCXX_rv);
-    SHC_rv->idtor = 1;
-    SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
-    // splicer end class.GenericOutputStream.method.ctor_format_bufferify
+  // splicer begin class.GenericOutputStream.method.ctor_format_bufferify
+  int SHC_stream_trim = ShroudCharLenTrim(stream, SHT_stream_len);
+  const std::string SHC_stream_cxx(stream, SHC_stream_trim);
+  int SHC_format_trim = ShroudCharLenTrim(format, SHT_format_len);
+  const std::string SHC_format_cxx(format, SHC_format_trim);
+  axom::slic::GenericOutputStream *SHCXX_rv =
+    new axom::slic::GenericOutputStream(SHC_stream_cxx, SHC_format_cxx);
+  SHC_rv->addr = static_cast<void *>(SHCXX_rv);
+  SHC_rv->idtor = 1;
+  SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
+  // splicer end class.GenericOutputStream.method.ctor_format_bufferify
 }
 
-void SLIC_GenericOutputStream_delete(SLIC_GenericOutputStream * self)
+void SLIC_GenericOutputStream_delete(SLIC_GenericOutputStream *self)
 {
-    axom::slic::GenericOutputStream *SH_this = static_cast<axom::slic::GenericOutputStream *>(self->addr);
-    // splicer begin class.GenericOutputStream.method.delete
-    if (self->cmemflags & SWIG_MEM_OWN) {
-        delete SH_this;
-    }
-    self->addr = nullptr;
-    self->idtor = 0;
-    self->cmemflags = 0;
-    // splicer end class.GenericOutputStream.method.delete
+  axom::slic::GenericOutputStream *SH_this =
+    static_cast<axom::slic::GenericOutputStream *>(self->addr);
+  // splicer begin class.GenericOutputStream.method.delete
+  if(self->cmemflags & SWIG_MEM_OWN)
+  {
+    delete SH_this;
+  }
+  self->addr = nullptr;
+  self->idtor = 0;
+  self->cmemflags = 0;
+  // splicer end class.GenericOutputStream.method.delete
 }
 
 }  // extern "C"

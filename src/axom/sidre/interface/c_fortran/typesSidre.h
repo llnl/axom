@@ -12,11 +12,12 @@
 
 // Shared with other Shroud wrapped libraries
 #ifndef SHROUD_SHARED_H
-#define SHROUD_SHARED_H
+  #define SHROUD_SHARED_H
 
-enum SwigMemFlags {
-    SWIG_MEM_OWN = 0x01,
-    SWIG_MEM_RVALUE = 0x02,
+enum SwigMemFlags
+{
+  SWIG_MEM_OWN = 0x01,
+  SWIG_MEM_RVALUE = 0x02,
 };
 
 #endif  // SHROUD_SHARED_H
@@ -33,10 +34,11 @@ extern "C" {
 // splicer end types.C_declarations
 
 // helper capsule_data
-struct s_SIDRE_SHROUD_capsule_data {
-    void *addr;     /* address of C++ memory */
-    int idtor;      /* index of destructor */
-    int cmemflags;  /* memory flags */
+struct s_SIDRE_SHROUD_capsule_data
+{
+  void *addr;    /* address of C++ memory */
+  int idtor;     /* index of destructor */
+  int cmemflags; /* memory flags */
 };
 typedef struct s_SIDRE_SHROUD_capsule_data SIDRE_SHROUD_capsule_data;
 #if 0
@@ -75,34 +77,38 @@ typedef struct s_SIDRE_DataStore SIDRE_DataStore;
 #endif
 
 // C capsule SIDRE_Buffer
-struct s_SIDRE_Buffer {
-    void *addr;     // address of C++ memory
-    int idtor;      // index of destructor
-    int cmemflags;  // memory flags
+struct s_SIDRE_Buffer
+{
+  void *addr;     // address of C++ memory
+  int idtor;      // index of destructor
+  int cmemflags;  // memory flags
 };
 typedef struct s_SIDRE_Buffer SIDRE_Buffer;
 
 // C capsule SIDRE_Group
-struct s_SIDRE_Group {
-    void *addr;     // address of C++ memory
-    int idtor;      // index of destructor
-    int cmemflags;  // memory flags
+struct s_SIDRE_Group
+{
+  void *addr;     // address of C++ memory
+  int idtor;      // index of destructor
+  int cmemflags;  // memory flags
 };
 typedef struct s_SIDRE_Group SIDRE_Group;
 
 // C capsule SIDRE_View
-struct s_SIDRE_View {
-    void *addr;     // address of C++ memory
-    int idtor;      // index of destructor
-    int cmemflags;  // memory flags
+struct s_SIDRE_View
+{
+  void *addr;     // address of C++ memory
+  int idtor;      // index of destructor
+  int cmemflags;  // memory flags
 };
 typedef struct s_SIDRE_View SIDRE_View;
 
 // C capsule SIDRE_DataStore
-struct s_SIDRE_DataStore {
-    void *addr;     // address of C++ memory
-    int idtor;      // index of destructor
-    int cmemflags;  // memory flags
+struct s_SIDRE_DataStore
+{
+  void *addr;     // address of C++ memory
+  int idtor;      // index of destructor
+  int cmemflags;  // memory flags
 };
 typedef struct s_SIDRE_DataStore SIDRE_DataStore;
 

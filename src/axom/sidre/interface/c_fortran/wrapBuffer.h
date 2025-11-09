@@ -17,10 +17,10 @@
 #include "wrapSidre.h"
 #include "axom/sidre/interface/SidreTypes.h"
 #ifdef __cplusplus
-#include <cstddef>
-#include "axom/sidre/core/SidreTypes.hpp"
+  #include <cstddef>
+  #include "axom/sidre/core/SidreTypes.hpp"
 #else
-#include <stddef.h>
+  #include <stddef.h>
 #endif
 #include "typesSidre.h"
 
@@ -34,29 +34,29 @@ extern "C" {
 // splicer begin class.Buffer.C_declarations
 // splicer end class.Buffer.C_declarations
 
-SIDRE_IndexType SIDRE_Buffer_get_index(const SIDRE_Buffer * self);
+SIDRE_IndexType SIDRE_Buffer_get_index(const SIDRE_Buffer* self);
 
-size_t SIDRE_Buffer_get_num_views(const SIDRE_Buffer * self);
+size_t SIDRE_Buffer_get_num_views(const SIDRE_Buffer* self);
 
-void * SIDRE_Buffer_get_void_ptr(SIDRE_Buffer * self);
+void* SIDRE_Buffer_get_void_ptr(SIDRE_Buffer* self);
 
-SIDRE_TypeIDint SIDRE_Buffer_get_type_id(const SIDRE_Buffer * self);
+SIDRE_TypeIDint SIDRE_Buffer_get_type_id(const SIDRE_Buffer* self);
 
-size_t SIDRE_Buffer_get_num_elements(const SIDRE_Buffer * self);
+size_t SIDRE_Buffer_get_num_elements(const SIDRE_Buffer* self);
 
-size_t SIDRE_Buffer_get_total_bytes(const SIDRE_Buffer * self);
+size_t SIDRE_Buffer_get_total_bytes(const SIDRE_Buffer* self);
 
-size_t SIDRE_Buffer_get_bytes_per_element(const SIDRE_Buffer * self);
+size_t SIDRE_Buffer_get_bytes_per_element(const SIDRE_Buffer* self);
 
-void SIDRE_Buffer_describe(SIDRE_Buffer * self, SIDRE_TypeID type, SIDRE_IndexType num_elems);
+void SIDRE_Buffer_describe(SIDRE_Buffer* self, SIDRE_TypeID type, SIDRE_IndexType num_elems);
 
-void SIDRE_Buffer_allocate_existing(SIDRE_Buffer * self);
+void SIDRE_Buffer_allocate_existing(SIDRE_Buffer* self);
 
-void SIDRE_Buffer_allocate_from_type(SIDRE_Buffer * self, SIDRE_TypeID type, SIDRE_IndexType num_elems);
+void SIDRE_Buffer_allocate_from_type(SIDRE_Buffer* self, SIDRE_TypeID type, SIDRE_IndexType num_elems);
 
-void SIDRE_Buffer_reallocate(SIDRE_Buffer * self, SIDRE_IndexType num_elems);
+void SIDRE_Buffer_reallocate(SIDRE_Buffer* self, SIDRE_IndexType num_elems);
 
-void SIDRE_Buffer_print(const SIDRE_Buffer * self);
+void SIDRE_Buffer_print(const SIDRE_Buffer* self);
 
 #ifdef __cplusplus
 }

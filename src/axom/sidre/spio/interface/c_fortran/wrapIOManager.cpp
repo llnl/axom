@@ -16,293 +16,369 @@
 
 extern "C" {
 
-
 // helper char_len_trim
 // Returns the length of character string src with length nsrc,
 // ignoring any trailing blanks.
-static int ShroudCharLenTrim(const char *src, int nsrc) {
-    int i;
+static int ShroudCharLenTrim(const char *src, int nsrc)
+{
+  int i;
 
-    for (i = nsrc - 1; i >= 0; i--) {
-        if (src[i] != ' ') {
-            break;
-        }
+  for(i = nsrc - 1; i >= 0; i--)
+  {
+    if(src[i] != ' ')
+    {
+      break;
     }
+  }
 
-    return i + 1;
+  return i + 1;
 }
-
 
 // splicer begin class.IOManager.C_definitions
 // splicer end class.IOManager.C_definitions
 
-SPIO_IOManager * SPIO_IOManager_ctor_default(MPI_Fint com, SPIO_IOManager *SHC_rv)
+SPIO_IOManager *SPIO_IOManager_ctor_default(MPI_Fint com, SPIO_IOManager *SHC_rv)
 {
-    // splicer begin class.IOManager.method.ctor_default
-    MPI_Comm SHCXX_com = MPI_Comm_f2c(com);
-    axom::sidre::IOManager *SHCXX_rv = new axom::sidre::IOManager(SHCXX_com);
-    SHC_rv->addr = static_cast<void *>(SHCXX_rv);
-    SHC_rv->idtor = 1;
-    SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
-    return SHC_rv;
-    // splicer end class.IOManager.method.ctor_default
+  // splicer begin class.IOManager.method.ctor_default
+  MPI_Comm SHCXX_com = MPI_Comm_f2c(com);
+  axom::sidre::IOManager *SHCXX_rv = new axom::sidre::IOManager(SHCXX_com);
+  SHC_rv->addr = static_cast<void *>(SHCXX_rv);
+  SHC_rv->idtor = 1;
+  SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
+  return SHC_rv;
+  // splicer end class.IOManager.method.ctor_default
 }
 
 void SPIO_IOManager_ctor_default_bufferify(MPI_Fint com, SPIO_IOManager *SHC_rv)
 {
-    // splicer begin class.IOManager.method.ctor_default_bufferify
-    MPI_Comm SHCXX_com = MPI_Comm_f2c(com);
-    axom::sidre::IOManager *SHCXX_rv = new axom::sidre::IOManager(SHCXX_com);
-    SHC_rv->addr = static_cast<void *>(SHCXX_rv);
-    SHC_rv->idtor = 1;
-    SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
-    // splicer end class.IOManager.method.ctor_default_bufferify
+  // splicer begin class.IOManager.method.ctor_default_bufferify
+  MPI_Comm SHCXX_com = MPI_Comm_f2c(com);
+  axom::sidre::IOManager *SHCXX_rv = new axom::sidre::IOManager(SHCXX_com);
+  SHC_rv->addr = static_cast<void *>(SHCXX_rv);
+  SHC_rv->idtor = 1;
+  SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
+  // splicer end class.IOManager.method.ctor_default_bufferify
 }
 
-SPIO_IOManager * SPIO_IOManager_ctor_usescr(MPI_Fint com, bool use_scr, SPIO_IOManager *SHC_rv)
+SPIO_IOManager *SPIO_IOManager_ctor_usescr(MPI_Fint com, bool use_scr, SPIO_IOManager *SHC_rv)
 {
-    // splicer begin class.IOManager.method.ctor_usescr
-    MPI_Comm SHCXX_com = MPI_Comm_f2c(com);
-    axom::sidre::IOManager *SHCXX_rv = new axom::sidre::IOManager(SHCXX_com, use_scr);
-    SHC_rv->addr = static_cast<void *>(SHCXX_rv);
-    SHC_rv->idtor = 1;
-    SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
-    return SHC_rv;
-    // splicer end class.IOManager.method.ctor_usescr
+  // splicer begin class.IOManager.method.ctor_usescr
+  MPI_Comm SHCXX_com = MPI_Comm_f2c(com);
+  axom::sidre::IOManager *SHCXX_rv = new axom::sidre::IOManager(SHCXX_com, use_scr);
+  SHC_rv->addr = static_cast<void *>(SHCXX_rv);
+  SHC_rv->idtor = 1;
+  SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
+  return SHC_rv;
+  // splicer end class.IOManager.method.ctor_usescr
 }
 
 void SPIO_IOManager_ctor_usescr_bufferify(MPI_Fint com, bool use_scr, SPIO_IOManager *SHC_rv)
 {
-    // splicer begin class.IOManager.method.ctor_usescr_bufferify
-    MPI_Comm SHCXX_com = MPI_Comm_f2c(com);
-    axom::sidre::IOManager *SHCXX_rv = new axom::sidre::IOManager(SHCXX_com, use_scr);
-    SHC_rv->addr = static_cast<void *>(SHCXX_rv);
-    SHC_rv->idtor = 1;
-    SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
-    // splicer end class.IOManager.method.ctor_usescr_bufferify
+  // splicer begin class.IOManager.method.ctor_usescr_bufferify
+  MPI_Comm SHCXX_com = MPI_Comm_f2c(com);
+  axom::sidre::IOManager *SHCXX_rv = new axom::sidre::IOManager(SHCXX_com, use_scr);
+  SHC_rv->addr = static_cast<void *>(SHCXX_rv);
+  SHC_rv->idtor = 1;
+  SHC_rv->cmemflags = SWIG_MEM_RVALUE | SWIG_MEM_OWN;
+  // splicer end class.IOManager.method.ctor_usescr_bufferify
 }
 
-void SPIO_IOManager_delete(SPIO_IOManager * self)
+void SPIO_IOManager_delete(SPIO_IOManager *self)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.delete
-    if (self->cmemflags & SWIG_MEM_OWN) {
-        delete SH_this;
-    }
-    self->addr = nullptr;
-    self->idtor = 0;
-    self->cmemflags = 0;
-    // splicer end class.IOManager.method.delete
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.delete
+  if(self->cmemflags & SWIG_MEM_OWN)
+  {
+    delete SH_this;
+  }
+  self->addr = nullptr;
+  self->idtor = 0;
+  self->cmemflags = 0;
+  // splicer end class.IOManager.method.delete
 }
 
-void SPIO_IOManager_write_0(SPIO_IOManager * self, SIDRE_Group *group, int num_files, const char *file_string, const char *protocol)
+void SPIO_IOManager_write_0(SPIO_IOManager *self,
+                            SIDRE_Group *group,
+                            int num_files,
+                            const char *file_string,
+                            const char *protocol)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.write_0
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    const std::string SHC_file_string_cxx(file_string);
-    const std::string SHC_protocol_cxx(protocol);
-    SH_this->write(SHC_group_cxx, num_files, SHC_file_string_cxx, SHC_protocol_cxx);
-    // splicer end class.IOManager.method.write_0
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.write_0
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  const std::string SHC_file_string_cxx(file_string);
+  const std::string SHC_protocol_cxx(protocol);
+  SH_this->write(SHC_group_cxx, num_files, SHC_file_string_cxx, SHC_protocol_cxx);
+  // splicer end class.IOManager.method.write_0
 }
 
-void SPIO_IOManager_write_0_bufferify(SPIO_IOManager * self, SIDRE_Group *group, int num_files, char *file_string, int SHT_file_string_len, char *protocol, int SHT_protocol_len)
+void SPIO_IOManager_write_0_bufferify(SPIO_IOManager *self,
+                                      SIDRE_Group *group,
+                                      int num_files,
+                                      char *file_string,
+                                      int SHT_file_string_len,
+                                      char *protocol,
+                                      int SHT_protocol_len)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.write_0_bufferify
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    int SHC_file_string_trim = ShroudCharLenTrim(file_string, SHT_file_string_len);
-    const std::string SHC_file_string_cxx(file_string, SHC_file_string_trim);
-    int SHC_protocol_trim = ShroudCharLenTrim(protocol, SHT_protocol_len);
-    const std::string SHC_protocol_cxx(protocol, SHC_protocol_trim);
-    SH_this->write(SHC_group_cxx, num_files, SHC_file_string_cxx, SHC_protocol_cxx);
-    // splicer end class.IOManager.method.write_0_bufferify
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.write_0_bufferify
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  int SHC_file_string_trim = ShroudCharLenTrim(file_string, SHT_file_string_len);
+  const std::string SHC_file_string_cxx(file_string, SHC_file_string_trim);
+  int SHC_protocol_trim = ShroudCharLenTrim(protocol, SHT_protocol_len);
+  const std::string SHC_protocol_cxx(protocol, SHC_protocol_trim);
+  SH_this->write(SHC_group_cxx, num_files, SHC_file_string_cxx, SHC_protocol_cxx);
+  // splicer end class.IOManager.method.write_0_bufferify
 }
 
-void SPIO_IOManager_write_1(SPIO_IOManager * self, SIDRE_Group *group, int num_files, const char *file_string, const char *protocol, const char *tree_pattern)
+void SPIO_IOManager_write_1(SPIO_IOManager *self,
+                            SIDRE_Group *group,
+                            int num_files,
+                            const char *file_string,
+                            const char *protocol,
+                            const char *tree_pattern)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.write_1
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    const std::string SHC_file_string_cxx(file_string);
-    const std::string SHC_protocol_cxx(protocol);
-    const std::string SHC_tree_pattern_cxx(tree_pattern);
-    SH_this->write(SHC_group_cxx, num_files, SHC_file_string_cxx, SHC_protocol_cxx, SHC_tree_pattern_cxx);
-    // splicer end class.IOManager.method.write_1
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.write_1
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  const std::string SHC_file_string_cxx(file_string);
+  const std::string SHC_protocol_cxx(protocol);
+  const std::string SHC_tree_pattern_cxx(tree_pattern);
+  SH_this->write(SHC_group_cxx, num_files, SHC_file_string_cxx, SHC_protocol_cxx, SHC_tree_pattern_cxx);
+  // splicer end class.IOManager.method.write_1
 }
 
-void SPIO_IOManager_write_1_bufferify(SPIO_IOManager * self, SIDRE_Group *group, int num_files, char *file_string, int SHT_file_string_len, char *protocol, int SHT_protocol_len, char *tree_pattern, int SHT_tree_pattern_len)
+void SPIO_IOManager_write_1_bufferify(SPIO_IOManager *self,
+                                      SIDRE_Group *group,
+                                      int num_files,
+                                      char *file_string,
+                                      int SHT_file_string_len,
+                                      char *protocol,
+                                      int SHT_protocol_len,
+                                      char *tree_pattern,
+                                      int SHT_tree_pattern_len)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.write_1_bufferify
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    int SHC_file_string_trim = ShroudCharLenTrim(file_string, SHT_file_string_len);
-    const std::string SHC_file_string_cxx(file_string, SHC_file_string_trim);
-    int SHC_protocol_trim = ShroudCharLenTrim(protocol, SHT_protocol_len);
-    const std::string SHC_protocol_cxx(protocol, SHC_protocol_trim);
-    int SHC_tree_pattern_trim = ShroudCharLenTrim(tree_pattern, SHT_tree_pattern_len);
-    const std::string SHC_tree_pattern_cxx(tree_pattern, SHC_tree_pattern_trim);
-    SH_this->write(SHC_group_cxx, num_files, SHC_file_string_cxx, SHC_protocol_cxx, SHC_tree_pattern_cxx);
-    // splicer end class.IOManager.method.write_1_bufferify
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.write_1_bufferify
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  int SHC_file_string_trim = ShroudCharLenTrim(file_string, SHT_file_string_len);
+  const std::string SHC_file_string_cxx(file_string, SHC_file_string_trim);
+  int SHC_protocol_trim = ShroudCharLenTrim(protocol, SHT_protocol_len);
+  const std::string SHC_protocol_cxx(protocol, SHC_protocol_trim);
+  int SHC_tree_pattern_trim = ShroudCharLenTrim(tree_pattern, SHT_tree_pattern_len);
+  const std::string SHC_tree_pattern_cxx(tree_pattern, SHC_tree_pattern_trim);
+  SH_this->write(SHC_group_cxx, num_files, SHC_file_string_cxx, SHC_protocol_cxx, SHC_tree_pattern_cxx);
+  // splicer end class.IOManager.method.write_1_bufferify
 }
 
-void SPIO_IOManager_writeGroupToRootFile(SPIO_IOManager * self, SIDRE_Group *group, const char *file_name)
+void SPIO_IOManager_writeGroupToRootFile(SPIO_IOManager *self, SIDRE_Group *group, const char *file_name)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.writeGroupToRootFile
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    const std::string SHC_file_name_cxx(file_name);
-    SH_this->writeGroupToRootFile(SHC_group_cxx, SHC_file_name_cxx);
-    // splicer end class.IOManager.method.writeGroupToRootFile
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.writeGroupToRootFile
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  const std::string SHC_file_name_cxx(file_name);
+  SH_this->writeGroupToRootFile(SHC_group_cxx, SHC_file_name_cxx);
+  // splicer end class.IOManager.method.writeGroupToRootFile
 }
 
-void SPIO_IOManager_writeGroupToRootFile_bufferify(SPIO_IOManager * self, SIDRE_Group *group, char *file_name, int SHT_file_name_len)
+void SPIO_IOManager_writeGroupToRootFile_bufferify(SPIO_IOManager *self,
+                                                   SIDRE_Group *group,
+                                                   char *file_name,
+                                                   int SHT_file_name_len)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.writeGroupToRootFile_bufferify
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    int SHC_file_name_trim = ShroudCharLenTrim(file_name, SHT_file_name_len);
-    const std::string SHC_file_name_cxx(file_name, SHC_file_name_trim);
-    SH_this->writeGroupToRootFile(SHC_group_cxx, SHC_file_name_cxx);
-    // splicer end class.IOManager.method.writeGroupToRootFile_bufferify
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.writeGroupToRootFile_bufferify
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  int SHC_file_name_trim = ShroudCharLenTrim(file_name, SHT_file_name_len);
+  const std::string SHC_file_name_cxx(file_name, SHC_file_name_trim);
+  SH_this->writeGroupToRootFile(SHC_group_cxx, SHC_file_name_cxx);
+  // splicer end class.IOManager.method.writeGroupToRootFile_bufferify
 }
 
-void SPIO_IOManager_writeBlueprintIndexToRootFile(SPIO_IOManager * self, SIDRE_DataStore *datastore, const char *domain_path, const char *file_name, const char *mesh_path)
+void SPIO_IOManager_writeBlueprintIndexToRootFile(SPIO_IOManager *self,
+                                                  SIDRE_DataStore *datastore,
+                                                  const char *domain_path,
+                                                  const char *file_name,
+                                                  const char *mesh_path)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.writeBlueprintIndexToRootFile
-    axom::sidre::DataStore *SHC_datastore_cxx = static_cast<axom::sidre::DataStore *>(datastore->addr);
-    const std::string SHC_domain_path_cxx(domain_path);
-    const std::string SHC_file_name_cxx(file_name);
-    const std::string SHC_mesh_path_cxx(mesh_path);
-    SH_this->writeBlueprintIndexToRootFile(SHC_datastore_cxx, SHC_domain_path_cxx, SHC_file_name_cxx, SHC_mesh_path_cxx);
-    // splicer end class.IOManager.method.writeBlueprintIndexToRootFile
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.writeBlueprintIndexToRootFile
+  axom::sidre::DataStore *SHC_datastore_cxx = static_cast<axom::sidre::DataStore *>(datastore->addr);
+  const std::string SHC_domain_path_cxx(domain_path);
+  const std::string SHC_file_name_cxx(file_name);
+  const std::string SHC_mesh_path_cxx(mesh_path);
+  SH_this->writeBlueprintIndexToRootFile(SHC_datastore_cxx,
+                                         SHC_domain_path_cxx,
+                                         SHC_file_name_cxx,
+                                         SHC_mesh_path_cxx);
+  // splicer end class.IOManager.method.writeBlueprintIndexToRootFile
 }
 
-void SPIO_IOManager_writeBlueprintIndexToRootFile_bufferify(SPIO_IOManager * self, SIDRE_DataStore *datastore, char *domain_path, int SHT_domain_path_len, char *file_name, int SHT_file_name_len, char *mesh_path, int SHT_mesh_path_len)
+void SPIO_IOManager_writeBlueprintIndexToRootFile_bufferify(SPIO_IOManager *self,
+                                                            SIDRE_DataStore *datastore,
+                                                            char *domain_path,
+                                                            int SHT_domain_path_len,
+                                                            char *file_name,
+                                                            int SHT_file_name_len,
+                                                            char *mesh_path,
+                                                            int SHT_mesh_path_len)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.writeBlueprintIndexToRootFile_bufferify
-    axom::sidre::DataStore *SHC_datastore_cxx = static_cast<axom::sidre::DataStore *>(datastore->addr);
-    int SHC_domain_path_trim = ShroudCharLenTrim(domain_path, SHT_domain_path_len);
-    const std::string SHC_domain_path_cxx(domain_path, SHC_domain_path_trim);
-    int SHC_file_name_trim = ShroudCharLenTrim(file_name, SHT_file_name_len);
-    const std::string SHC_file_name_cxx(file_name, SHC_file_name_trim);
-    int SHC_mesh_path_trim = ShroudCharLenTrim(mesh_path, SHT_mesh_path_len);
-    const std::string SHC_mesh_path_cxx(mesh_path, SHC_mesh_path_trim);
-    SH_this->writeBlueprintIndexToRootFile(SHC_datastore_cxx, SHC_domain_path_cxx, SHC_file_name_cxx, SHC_mesh_path_cxx);
-    // splicer end class.IOManager.method.writeBlueprintIndexToRootFile_bufferify
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.writeBlueprintIndexToRootFile_bufferify
+  axom::sidre::DataStore *SHC_datastore_cxx = static_cast<axom::sidre::DataStore *>(datastore->addr);
+  int SHC_domain_path_trim = ShroudCharLenTrim(domain_path, SHT_domain_path_len);
+  const std::string SHC_domain_path_cxx(domain_path, SHC_domain_path_trim);
+  int SHC_file_name_trim = ShroudCharLenTrim(file_name, SHT_file_name_len);
+  const std::string SHC_file_name_cxx(file_name, SHC_file_name_trim);
+  int SHC_mesh_path_trim = ShroudCharLenTrim(mesh_path, SHT_mesh_path_len);
+  const std::string SHC_mesh_path_cxx(mesh_path, SHC_mesh_path_trim);
+  SH_this->writeBlueprintIndexToRootFile(SHC_datastore_cxx,
+                                         SHC_domain_path_cxx,
+                                         SHC_file_name_cxx,
+                                         SHC_mesh_path_cxx);
+  // splicer end class.IOManager.method.writeBlueprintIndexToRootFile_bufferify
 }
 
-void SPIO_IOManager_read_0(SPIO_IOManager * self, SIDRE_Group *group, const char *file_string, const char *protocol)
+void SPIO_IOManager_read_0(SPIO_IOManager *self,
+                           SIDRE_Group *group,
+                           const char *file_string,
+                           const char *protocol)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.read_0
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    const std::string SHC_file_string_cxx(file_string);
-    const std::string SHC_protocol_cxx(protocol);
-    SH_this->read(SHC_group_cxx, SHC_file_string_cxx, SHC_protocol_cxx);
-    // splicer end class.IOManager.method.read_0
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.read_0
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  const std::string SHC_file_string_cxx(file_string);
+  const std::string SHC_protocol_cxx(protocol);
+  SH_this->read(SHC_group_cxx, SHC_file_string_cxx, SHC_protocol_cxx);
+  // splicer end class.IOManager.method.read_0
 }
 
-void SPIO_IOManager_read_0_bufferify(SPIO_IOManager * self, SIDRE_Group *group, char *file_string, int SHT_file_string_len, char *protocol, int SHT_protocol_len)
+void SPIO_IOManager_read_0_bufferify(SPIO_IOManager *self,
+                                     SIDRE_Group *group,
+                                     char *file_string,
+                                     int SHT_file_string_len,
+                                     char *protocol,
+                                     int SHT_protocol_len)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.read_0_bufferify
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    int SHC_file_string_trim = ShroudCharLenTrim(file_string, SHT_file_string_len);
-    const std::string SHC_file_string_cxx(file_string, SHC_file_string_trim);
-    int SHC_protocol_trim = ShroudCharLenTrim(protocol, SHT_protocol_len);
-    const std::string SHC_protocol_cxx(protocol, SHC_protocol_trim);
-    SH_this->read(SHC_group_cxx, SHC_file_string_cxx, SHC_protocol_cxx);
-    // splicer end class.IOManager.method.read_0_bufferify
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.read_0_bufferify
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  int SHC_file_string_trim = ShroudCharLenTrim(file_string, SHT_file_string_len);
+  const std::string SHC_file_string_cxx(file_string, SHC_file_string_trim);
+  int SHC_protocol_trim = ShroudCharLenTrim(protocol, SHT_protocol_len);
+  const std::string SHC_protocol_cxx(protocol, SHC_protocol_trim);
+  SH_this->read(SHC_group_cxx, SHC_file_string_cxx, SHC_protocol_cxx);
+  // splicer end class.IOManager.method.read_0_bufferify
 }
 
-void SPIO_IOManager_read_1(SPIO_IOManager * self, SIDRE_Group *group, const char *file_string, const char *protocol, bool preserve_contents)
+void SPIO_IOManager_read_1(SPIO_IOManager *self,
+                           SIDRE_Group *group,
+                           const char *file_string,
+                           const char *protocol,
+                           bool preserve_contents)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.read_1
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    const std::string SHC_file_string_cxx(file_string);
-    const std::string SHC_protocol_cxx(protocol);
-    SH_this->read(SHC_group_cxx, SHC_file_string_cxx, SHC_protocol_cxx, preserve_contents);
-    // splicer end class.IOManager.method.read_1
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.read_1
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  const std::string SHC_file_string_cxx(file_string);
+  const std::string SHC_protocol_cxx(protocol);
+  SH_this->read(SHC_group_cxx, SHC_file_string_cxx, SHC_protocol_cxx, preserve_contents);
+  // splicer end class.IOManager.method.read_1
 }
 
-void SPIO_IOManager_read_1_bufferify(SPIO_IOManager * self, SIDRE_Group *group, char *file_string, int SHT_file_string_len, char *protocol, int SHT_protocol_len, bool preserve_contents)
+void SPIO_IOManager_read_1_bufferify(SPIO_IOManager *self,
+                                     SIDRE_Group *group,
+                                     char *file_string,
+                                     int SHT_file_string_len,
+                                     char *protocol,
+                                     int SHT_protocol_len,
+                                     bool preserve_contents)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.read_1_bufferify
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    int SHC_file_string_trim = ShroudCharLenTrim(file_string, SHT_file_string_len);
-    const std::string SHC_file_string_cxx(file_string, SHC_file_string_trim);
-    int SHC_protocol_trim = ShroudCharLenTrim(protocol, SHT_protocol_len);
-    const std::string SHC_protocol_cxx(protocol, SHC_protocol_trim);
-    SH_this->read(SHC_group_cxx, SHC_file_string_cxx, SHC_protocol_cxx, preserve_contents);
-    // splicer end class.IOManager.method.read_1_bufferify
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.read_1_bufferify
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  int SHC_file_string_trim = ShroudCharLenTrim(file_string, SHT_file_string_len);
+  const std::string SHC_file_string_cxx(file_string, SHC_file_string_trim);
+  int SHC_protocol_trim = ShroudCharLenTrim(protocol, SHT_protocol_len);
+  const std::string SHC_protocol_cxx(protocol, SHC_protocol_trim);
+  SH_this->read(SHC_group_cxx, SHC_file_string_cxx, SHC_protocol_cxx, preserve_contents);
+  // splicer end class.IOManager.method.read_1_bufferify
 }
 
-void SPIO_IOManager_read_2(SPIO_IOManager * self, SIDRE_Group *group, const char *root_file)
+void SPIO_IOManager_read_2(SPIO_IOManager *self, SIDRE_Group *group, const char *root_file)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.read_2
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    const std::string SHC_root_file_cxx(root_file);
-    SH_this->read(SHC_group_cxx, SHC_root_file_cxx);
-    // splicer end class.IOManager.method.read_2
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.read_2
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  const std::string SHC_root_file_cxx(root_file);
+  SH_this->read(SHC_group_cxx, SHC_root_file_cxx);
+  // splicer end class.IOManager.method.read_2
 }
 
-void SPIO_IOManager_read_2_bufferify(SPIO_IOManager * self, SIDRE_Group *group, char *root_file, int SHT_root_file_len)
+void SPIO_IOManager_read_2_bufferify(SPIO_IOManager *self,
+                                     SIDRE_Group *group,
+                                     char *root_file,
+                                     int SHT_root_file_len)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.read_2_bufferify
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    int SHC_root_file_trim = ShroudCharLenTrim(root_file, SHT_root_file_len);
-    const std::string SHC_root_file_cxx(root_file, SHC_root_file_trim);
-    SH_this->read(SHC_group_cxx, SHC_root_file_cxx);
-    // splicer end class.IOManager.method.read_2_bufferify
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.read_2_bufferify
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  int SHC_root_file_trim = ShroudCharLenTrim(root_file, SHT_root_file_len);
+  const std::string SHC_root_file_cxx(root_file, SHC_root_file_trim);
+  SH_this->read(SHC_group_cxx, SHC_root_file_cxx);
+  // splicer end class.IOManager.method.read_2_bufferify
 }
 
-void SPIO_IOManager_read_3(SPIO_IOManager * self, SIDRE_Group *group, const char *root_file, bool preserve_contents)
+void SPIO_IOManager_read_3(SPIO_IOManager *self,
+                           SIDRE_Group *group,
+                           const char *root_file,
+                           bool preserve_contents)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.read_3
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    const std::string SHC_root_file_cxx(root_file);
-    SH_this->read(SHC_group_cxx, SHC_root_file_cxx, preserve_contents);
-    // splicer end class.IOManager.method.read_3
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.read_3
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  const std::string SHC_root_file_cxx(root_file);
+  SH_this->read(SHC_group_cxx, SHC_root_file_cxx, preserve_contents);
+  // splicer end class.IOManager.method.read_3
 }
 
-void SPIO_IOManager_read_3_bufferify(SPIO_IOManager * self, SIDRE_Group *group, char *root_file, int SHT_root_file_len, bool preserve_contents)
+void SPIO_IOManager_read_3_bufferify(SPIO_IOManager *self,
+                                     SIDRE_Group *group,
+                                     char *root_file,
+                                     int SHT_root_file_len,
+                                     bool preserve_contents)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.read_3_bufferify
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    int SHC_root_file_trim = ShroudCharLenTrim(root_file, SHT_root_file_len);
-    const std::string SHC_root_file_cxx(root_file, SHC_root_file_trim);
-    SH_this->read(SHC_group_cxx, SHC_root_file_cxx, preserve_contents);
-    // splicer end class.IOManager.method.read_3_bufferify
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.read_3_bufferify
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  int SHC_root_file_trim = ShroudCharLenTrim(root_file, SHT_root_file_len);
+  const std::string SHC_root_file_cxx(root_file, SHC_root_file_trim);
+  SH_this->read(SHC_group_cxx, SHC_root_file_cxx, preserve_contents);
+  // splicer end class.IOManager.method.read_3_bufferify
 }
 
-void SPIO_IOManager_loadExternalData(SPIO_IOManager * self, SIDRE_Group *group, const char *root_file)
+void SPIO_IOManager_loadExternalData(SPIO_IOManager *self, SIDRE_Group *group, const char *root_file)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.loadExternalData
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    const std::string SHC_root_file_cxx(root_file);
-    SH_this->loadExternalData(SHC_group_cxx, SHC_root_file_cxx);
-    // splicer end class.IOManager.method.loadExternalData
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.loadExternalData
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  const std::string SHC_root_file_cxx(root_file);
+  SH_this->loadExternalData(SHC_group_cxx, SHC_root_file_cxx);
+  // splicer end class.IOManager.method.loadExternalData
 }
 
-void SPIO_IOManager_loadExternalData_bufferify(SPIO_IOManager * self, SIDRE_Group *group, char *root_file, int SHT_root_file_len)
+void SPIO_IOManager_loadExternalData_bufferify(SPIO_IOManager *self,
+                                               SIDRE_Group *group,
+                                               char *root_file,
+                                               int SHT_root_file_len)
 {
-    axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
-    // splicer begin class.IOManager.method.loadExternalData_bufferify
-    axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
-    int SHC_root_file_trim = ShroudCharLenTrim(root_file, SHT_root_file_len);
-    const std::string SHC_root_file_cxx(root_file, SHC_root_file_trim);
-    SH_this->loadExternalData(SHC_group_cxx, SHC_root_file_cxx);
-    // splicer end class.IOManager.method.loadExternalData_bufferify
+  axom::sidre::IOManager *SH_this = static_cast<axom::sidre::IOManager *>(self->addr);
+  // splicer begin class.IOManager.method.loadExternalData_bufferify
+  axom::sidre::Group *SHC_group_cxx = static_cast<axom::sidre::Group *>(group->addr);
+  int SHC_root_file_trim = ShroudCharLenTrim(root_file, SHT_root_file_len);
+  const std::string SHC_root_file_cxx(root_file, SHC_root_file_trim);
+  SH_this->loadExternalData(SHC_group_cxx, SHC_root_file_cxx);
+  // splicer end class.IOManager.method.loadExternalData_bufferify
 }
 
 }  // extern "C"
