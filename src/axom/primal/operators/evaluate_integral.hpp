@@ -40,10 +40,10 @@ namespace primal
  * 
  * Evaluate the scalar field line integral with Gauss-Legendre quadrature
  * 
+ * \tparam Lambda A callable type taking an axom::Point type returning a numeric type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] cpoly the CurvedPolygon object
  * \param [in] scalar_integrand the lambda function representing the integrand. 
- * Must accept a Point<T, NDIM> as input and return a double
  * \param [in] npts the number of quadrature points to evaluate the line integral
  *                  on each edge of the CurvedPolygon
  * \return the value of the integral
@@ -58,7 +58,9 @@ double evaluate_scalar_line_integral(const primal::CurvedPolygon<CurveType> cpol
   {
     // Compute the line integral along each component.
     total_integral +=
-      detail::evaluate_scalar_line_integral_component(cpoly[i], scalar_integrand, npts);
+      detail::evaluate_scalar_line_integral_component(cpoly[i],
+                                                      std::forward<Lambda>(scalar_integrand),
+                                                      npts);
   }
 
   return total_integral;
@@ -67,26 +69,28 @@ double evaluate_scalar_line_integral(const primal::CurvedPolygon<CurveType> cpol
 /*!
  * \brief Evaluate a line integral on a single generic curve on a scalar field
  *
+ * \tparam Lambda A callable type taking an axom::Point type returning a numeric type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] c the generic curve object
  * \param [in] scalar_integrand the lambda function representing the integrand. 
- * Must accept a Point<T, NDIMS> as input, and return a double.
  * \param [in] npts the number of quadrature nodes
  * \return the value of the integral
  */
 template <typename Lambda, typename CurveType>
 double evaluate_scalar_line_integral(const CurveType& c, Lambda&& scalar_integrand, int npts)
 {
-  return detail::evaluate_scalar_line_integral_component(c, scalar_integrand, npts);
+  return detail::evaluate_scalar_line_integral_component(c,
+                                                         std::forward<Lambda>(scalar_integrand),
+                                                         npts);
 }
 
 /*!
  * \brief Evaluate a line integral on an array of NURBS curves on a scalar field
  *
+ * \tparam Lambda A callable type taking an axom::Point type returning a numeric type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] carray The array of generic curve objects
  * \param [in] scalar_integrand the lambda function representing the integrand. 
- * Must accept a Point<T, NDIMS> as input, and return a double.
  * \param [in] npts the number of quadrature nodes per curve per knot span
  * 
  * \note Each NURBS curve is decomposed into Bezier segments, and the Gaussian quadrature
@@ -103,7 +107,9 @@ double evaluate_scalar_line_integral(const axom::Array<CurveType>& carray,
   for(int i = 0; i < carray.size(); i++)
   {
     total_integral +=
-      detail::evaluate_scalar_line_integral_component(carray[i], scalar_integrand, npts);
+      detail::evaluate_scalar_line_integral_component(carray[i],
+                                                      std::forward<Lambda>(scalar_integrand),
+                                                      npts);
   }
 
   return total_integral;
@@ -118,10 +124,10 @@ double evaluate_scalar_line_integral(const axom::Array<CurveType>& carray,
  *
  * Evaluate the scalar field line integral with Gauss-Legendre quadrature
  *
+ * \tparam Lambda A callable type taking an axom::Point type returning an axom::Vector type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] cpoly the CurvedPolygon object
  * \param [in] vector_integrand the lambda function representing the integrand. 
- * Must accept a Point<T, NDIM> as input and return a Vector<double, NDIM>
  * \param [in] npts the number of quadrature points to evaluate the line integral
  *                  on each edge of the CurvedPolygon
  * \return the value of the integral
@@ -136,7 +142,9 @@ double evaluate_vector_line_integral(const primal::CurvedPolygon<CurveType> cpol
   {
     // Compute the line integral along each component.
     total_integral +=
-      detail::evaluate_vector_line_integral_component(cpoly[i], vector_integrand, npts);
+      detail::evaluate_vector_line_integral_component(cpoly[i],
+                                                      std::forward<Lambda>(vector_integrand),
+                                                      npts);
   }
 
   return total_integral;
@@ -145,26 +153,28 @@ double evaluate_vector_line_integral(const primal::CurvedPolygon<CurveType> cpol
 /*!
  * \brief Evaluate a line integral on a single generic curve on a vector field
  *
+ * \tparam Lambda A callable type taking an axom::Point type returning an axom::Vector type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] c the generic curve object
  * \param [in] vector_integrand the lambda function representing the integrand. 
- * Must accept a Point<T, NDIMS> as input, and return a Vector<double, NDIMS>.
  * \param [in] npts the number of quadrature nodes
  * \return the value of the integral
  */
 template <typename Lambda, typename CurveType>
 double evaluate_vector_line_integral(const CurveType& c, Lambda&& vector_integrand, int npts)
 {
-  return detail::evaluate_vector_line_integral_component(c, vector_integrand, npts);
+  return detail::evaluate_vector_line_integral_component(c,
+                                                         std::forward<Lambda>(vector_integrand),
+                                                         npts);
 }
 
 /*!
  * \brief Evaluate a line integral on an array of generic curves on a vector field
  *
+ * \tparam Lambda A callable type taking an axom::Point type returning an axom::Vector type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] carray The array of generic curve objects
  * \param [in] vector_integrand the lambda function representing the integrand. 
- * Must accept a Point<T, NDIMS> as input and return a Vector<double, NDIMS>.
  * \param [in] npts the number of quadrature nodes per curve per knot span
  * 
  * \note Each NURBS curve is decomposed into Bezier segments, and the Gaussian quadrature
@@ -181,7 +191,9 @@ double evaluate_vector_line_integral(const axom::Array<CurveType>& carray,
   for(int i = 0; i < carray.size(); i++)
   {
     total_integral +=
-      detail::evaluate_vector_line_integral_component(carray[i], vector_integrand, npts);
+      detail::evaluate_vector_line_integral_component(carray[i],
+                                                      std::forward<Lambda>(vector_integrand),
+                                                      npts);
   }
 
   return total_integral;
@@ -197,16 +209,17 @@ double evaluate_vector_line_integral(const axom::Array<CurveType>& carray,
  * For algorithm details, see "Spectral Mesh-Free Quadrature for Planar 
  * Regions Bounded by Rational Parametric Curves" by David Gunderman et al.
  * 
+ * \tparam Lambda A callable type taking an axom::Point type returning a numeric type
+ * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the geometry
  * \param [in] cs the array of Bezier curve objects that bound the region
- * \param [in] integrand the lambda function representing the integrand. 
- * Must accept a 2D point as input and return a double
+ * \param [in] scalar_integrand the lambda function representing the integrand. 
  * \param [in] npts_Q the number of quadrature points to evaluate the line integral
  * \param [in] npts_P the number of quadrature points to evaluate the antiderivative
  * \return the value of the integral
  */
 template <typename Lambda, typename CurveType>
 double evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpoly,
-                              Lambda&& integrand,
+                              Lambda&& scalar_integrand,
                               int npts_Q,
                               int npts_P = 0)
 {
@@ -229,8 +242,11 @@ double evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpoly,
   double total_integral = 0.0;
   for(int i = 0; i < cpoly.numEdges(); i++)
   {
-    total_integral +=
-      detail::evaluate_area_integral_component(cpoly[i], integrand, int_lb, npts_Q, npts_P);
+    total_integral += detail::evaluate_area_integral_component(cpoly[i],
+                                                               std::forward<Lambda>(scalar_integrand),
+                                                               int_lb,
+                                                               npts_Q,
+                                                               npts_P);
   }
 
   return total_integral;
@@ -241,9 +257,10 @@ double evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpoly,
  *
  * See above definition for details.
  * 
+ * \tparam Lambda A callable type taking an axom::Point type returning a numeric type
+ * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the geometry
  * \param [in] carray the array of generic curve objects that bound the region
- * \param [in] integrand the lambda function representing the integrand. 
- * Must accept a 2D point as input and return a double
+ * \param [in] scalar_integrand the lambda function representing the integrand. 
  * \param [in] npts_Q the number of quadrature points to evaluate the line integral
  * \param [in] npts_P the number of quadrature points to evaluate the antiderivative
  * 
@@ -253,7 +270,7 @@ double evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpoly,
  */
 template <typename Lambda, typename CurveType>
 double evaluate_area_integral(const axom::Array<CurveType>& carray,
-                              Lambda&& integrand,
+                              Lambda&& scalar_integrand,
                               int npts_Q,
                               int npts_P = 0)
 {
@@ -286,7 +303,11 @@ double evaluate_area_integral(const axom::Array<CurveType>& carray,
     for(int j = 0; j < beziers.size(); j++)
     {
       total_integral +=
-        detail::evaluate_area_integral_component(beziers[j], integrand, int_lb, npts_Q, npts_P);
+        detail::evaluate_area_integral_component(beziers[j],
+                                                 std::forward<Lambda>(scalar_integrand),
+                                                 int_lb,
+                                                 npts_Q,
+                                                 npts_P);
     }
   }
 
