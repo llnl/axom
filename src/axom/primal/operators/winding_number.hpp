@@ -349,7 +349,7 @@ double winding_number(const Point<T, 2>& query,
 /*!
  * \brief Computes the GWN for an array of 2D points wrt an array of cached data for 2D NURBS curves
  *
- * \param [in] query_arr The array of query point to test
+ * \param [in] query_arr The array of query points to test
  * \param [in] nurbs_curve_arr The array of memoized curve objects
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
@@ -418,8 +418,8 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
  * \brief Computes the GWN for an array of 2D points wrt to a 2D curved polygon
  *
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
- * \param [in] q_arr The query point to test
- * \param [in] cpoly The CurvedPolygon object
+ * \param [in] q_arr The array of query points to test
+ * \param [in] cpoly The CurvedPolygon object of generic curves
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
@@ -455,8 +455,8 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
 /*!
  * \brief Computes the GWN for an array of 2D points wrt to a 2D curved polygon
  *
- * \param [in] q_arr The query point to test
- * \param [in] cpoly The CurvedPolygon object
+ * \param [in] q_arr The array of query points to test
+ * \param [in] cpoly The CurvedPolygon object of NURBS curves with cached GWN data
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
