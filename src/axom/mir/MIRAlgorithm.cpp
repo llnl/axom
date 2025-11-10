@@ -84,6 +84,16 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
                   newCoordset,
                   newFields,
                   newMatset);
+    updateNames(n_topo->name(),
+                newTopoName,
+                n_coordset->name(),
+                newCoordsetName,
+                matset,
+                newMatsetName,
+                newTopo,
+                newCoordset,
+                newFields,
+                newMatset);
   }
   else
   {
@@ -99,6 +109,48 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
                   newCoordset,
                   newFields,
                   newMatset);
+    updateNames(n_topo->name(),
+                newTopoName,
+                n_coordset->name(),
+                newCoordsetName,
+                matset,
+                newMatsetName,
+                newTopo,
+                newCoordset,
+                newFields,
+                newMatset);
+  }
+}
+
+void MIRAlgorithm::updateNames(const std::string &origTopoName,
+                               const std::string &newTopoName,
+                               const std::string &origCoordsetName,
+                               const std::string &newCoordsetName,
+                               const std::string &AXOM_UNUSED_PARAM(origMatsetName),
+                               const std::string &AXOM_UNUSED_PARAM(newMatsetName),
+                               conduit::Node &n_newTopo,
+                               conduit::Node &AXOM_UNUSED_PARAM(n_newCoordset),
+                               conduit::Node &n_newFields,
+                               conduit::Node &n_newMatset)
+{
+  // If the coordset was renamed in the output, make sure it the new topology references that new name.
+  if(origCoordsetName != newCoordsetName)
+  {
+    n_newTopo["coordset"] = newCoordsetName;
+  }
+  // If the topology was renamed in the output, make sure the matset and any fields reference that new name.
+  if(origTopoName != newTopoName)
+  {
+    n_newMatset["topology"] = newTopoName;
+
+    for(conduit::index_t i = 0; i < n_newFields.number_of_children(); i++)
+    {
+      conduit::Node &n_field = n_newFields[i];
+      if(n_field["topology"].as_string() == origTopoName)
+      {
+        n_field["topology"] = newTopoName;
+      }
+    }
   }
 }
 

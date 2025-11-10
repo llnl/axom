@@ -227,7 +227,8 @@ void make_material_dominant(const std::vector<float> &vfA,
  *
  * \param type The type of matset to create.
  * \param topoName The name of mesh topology.
- * \param dims The dimensions of the mesh
+ * \param dims The dimensions of the mesh.
+ * \param cleanMats Whether to make a matset of only clean zones (1 mat/zone).
  * \param[out] mesh The mesh node to which a matset will be added.
  *
  *   *--------------*
@@ -244,6 +245,7 @@ template <typename Dimensions>
 void make_matset(const std::string &type,
                  const std::string &topoName,
                  const Dimensions &dims,
+                 bool cleanMats,
                  conduit::Node &mesh)
 {
   constexpr int sampling = 10;
@@ -301,9 +303,24 @@ void make_matset(const std::string &type,
         const int iele = i / sampling;
         int index = k * ksize + jele * dims[0] + iele;
 
-        vfA[index] = static_cast<float>(matA[index]) / s2;
-        vfB[index] = static_cast<float>(matB[index]) / s2;
-        vfC[index] = static_cast<float>(matC[index]) / s2;
+        float vfs[3];
+        vfs[0] = static_cast<float>(matA[index]) / s2;
+        vfs[1] = static_cast<float>(matB[index]) / s2;
+        vfs[2] = static_cast<float>(matC[index]) / s2;
+
+        if(cleanMats)
+        {
+          int maxIdx = (vfs[1] > vfs[0]) ? 1 : 0;
+          maxIdx = (vfs[maxIdx] > vfs[2]) ? maxIdx : 2;
+          for(int ii = 0; ii < 3; ii++)
+          {
+            vfs[ii] = (ii == maxIdx) ? 1.f : 0.f;
+          }
+        }
+
+        vfA[index] = vfs[0];
+        vfB[index] = vfs[1];
+        vfC[index] = vfs[2];
       }
     }
   }
