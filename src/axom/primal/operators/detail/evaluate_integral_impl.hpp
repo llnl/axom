@@ -37,7 +37,7 @@ namespace detail
  * \param [in] npts The number of quadrature points in the rule
  * \return the value of the integral
  */
-template <class Lambda, typename T, int NDIMS>
+template <typename Lambda, typename T, int NDIMS>
 inline double evaluate_scalar_line_integral_component(const primal::BezierCurve<T, NDIMS>& c,
                                                       Lambda&& scalar_integrand,
                                                       const int npts)
@@ -70,7 +70,7 @@ inline double evaluate_scalar_line_integral_component(const primal::BezierCurve<
  * \param [in] npts The number of quadrature points in the rule
  * \return the value of the integral
  */
-template <class Lambda, typename T, int NDIMS>
+template <typename Lambda, typename T, int NDIMS>
 inline double evaluate_scalar_line_integral_component(const primal::NURBSCurve<T, NDIMS>& n,
                                                       Lambda&& scalar_integrand,
                                                       const int npts)
@@ -97,7 +97,7 @@ inline double evaluate_scalar_line_integral_component(const primal::NURBSCurve<T
  * \param [in] npts The number of quadrature points in the rule
  * \return the value of the integral
  */
-template <class Lambda, typename T, int NDIMS>
+template <typename Lambda, typename T, int NDIMS>
 inline double evaluate_scalar_line_integral_component(const primal::detail::NURBSCurveGWNCache<T>& nc,
                                                       Lambda&& scalar_integrand,
                                                       const int npts)
@@ -126,7 +126,7 @@ inline double evaluate_scalar_line_integral_component(const primal::detail::NURB
  * \param [in] npts The number of quadrature points in the rule
  * \return the value of the integral
  */
-template <class Lambda, typename T, int NDIMS>
+template <typename Lambda, typename T, int NDIMS>
 inline double evaluate_vector_line_integral_component(const primal::BezierCurve<T, NDIMS>& c,
                                                       Lambda&& vec_field,
                                                       const int npts)
@@ -159,7 +159,7 @@ inline double evaluate_vector_line_integral_component(const primal::BezierCurve<
  * \param [in] npts The number of quadrature points in the rule
  * \return the value of the integral
  */
-template <class Lambda, typename T, int NDIMS>
+template <typename Lambda, typename T, int NDIMS>
 inline double evaluate_vector_line_integral_component(const primal::NURBSCurve<T, NDIMS>& n,
                                                       Lambda&& vec_field,
                                                       const int npts)
@@ -185,7 +185,7 @@ inline double evaluate_vector_line_integral_component(const primal::NURBSCurve<T
  * \param [in] npts The number of quadrature points in the rule
  * \return the value of the integral
  */
-template <class Lambda, typename T, int NDIMS>
+template <typename Lambda, typename T, int NDIMS>
 inline double evaluate_vector_line_integral_component(const primal::detail::NURBSCurveGWNCache<T>& nc,
                                                       Lambda&& vec_field,
                                                       const int npts)
@@ -219,7 +219,7 @@ inline double evaluate_vector_line_integral_component(const primal::detail::NURB
  * \param [in] npts_P The number of quadrature points for the antiderivative
  * \return the value of the integral, which is mathematically meaningless.
  */
-template <class Lambda, typename T>
+template <typename Lambda, typename T>
 double evaluate_area_integral_component(const primal::BezierCurve<T, 2>& c,
                                         Lambda&& integrand,
                                         double int_lb,
@@ -268,7 +268,7 @@ double evaluate_area_integral_component(const primal::BezierCurve<T, 2>& c,
  * \param [in] npts_P The number of quadrature points for the antiderivative
  * \return the value of the integral, which is mathematically meaningless.
  */
-template <class Lambda, typename T>
+template <typename Lambda, typename T>
 double evaluate_area_integral_component(const primal::NURBSCurve<T, 2>& n,
                                         Lambda&& integrand,
                                         double int_lb,
@@ -298,7 +298,7 @@ double evaluate_area_integral_component(const primal::NURBSCurve<T, 2>& n,
  * \param [in] npts_P The number of quadrature points for the antiderivative
  * \return the value of the integral, which is mathematically meaningless.
  */
-template <class Lambda, typename T, int NDIMS>
+template <typename Lambda, typename T, int NDIMS>
 inline double evaluate_area_integral_component(const primal::detail::NURBSCurveGWNCache<T>& nc,
                                                Lambda&& integrand,
                                                double int_lb,

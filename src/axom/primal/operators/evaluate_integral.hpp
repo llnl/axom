@@ -204,8 +204,8 @@ double evaluate_vector_line_integral(const axom::Array<CurveType>& carray,
  * \param [in] npts_P the number of quadrature points to evaluate the antiderivative
  * \return the value of the integral
  */
-template <class Lambda, typename CurveType>
-double evaluate_area_integral(const primal::CurvedPolygon<CurveType> cpoly,
+template <typename Lambda, typename CurveType>
+double evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpoly,
                               Lambda&& integrand,
                               int npts_Q,
                               int npts_P = 0)
@@ -251,8 +251,8 @@ double evaluate_area_integral(const primal::CurvedPolygon<CurveType> cpoly,
  * 
  * \return the value of the integral
  */
-template <class Lambda, typename CurveType>
-double evaluate_area_integral(const axom::Array<CurveType> carray,
+template <typename Lambda, typename CurveType>
+double evaluate_area_integral(const axom::Array<CurveType>& carray,
                               Lambda&& integrand,
                               int npts_Q,
                               int npts_P = 0)
