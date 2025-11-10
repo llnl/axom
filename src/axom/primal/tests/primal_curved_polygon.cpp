@@ -263,8 +263,7 @@ template <typename CurveType>
 void test_split_edge(primal::CurvedPolygon<CurveType>& curved_polygon)
 {
   using PointType = primal::Point<double, 2>;
-  
-  // Needs to be std::vector to use .assign
+
   axom::Array<PointType> subCP = {PointType {0.6, 1.2}, PointType {0.3, 2.0}};
 
   CurveType nCurve(subCP, 1);
@@ -308,7 +307,7 @@ TEST(primal_curvedpolygon, split_edge)
 
   test_split_edge(bPolygon32);
   test_split_edge(nPolygon32);
-  
+
   // Not allowed, since cached objects cannot be changed
   //test_split_edge(createNURBSCachePolygon(bPolygon32));
 }
