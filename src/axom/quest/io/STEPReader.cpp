@@ -880,9 +880,9 @@ public:
     // summarize the number of patches and trimming curves
     {
       int totalTrimmingCurves = 0;
-      for(const auto& kv : m_patchData)
+      for(const auto& [_, value] : m_patchData)
       {
-        totalTrimmingCurves += kv.second.trimmingCurves.size();
+        totalTrimmingCurves += value.nurbsPatch.getNumTrimmingCurves();
       }
 
       axom::fmt::format_to(std::back_inserter(out),
@@ -894,9 +894,9 @@ public:
     // compute and print the bounding box of the mesh in physical space
     {
       BBox3D meshBBox;
-      for(const auto& kv : m_patchData)
+      for(const auto& [_, value] : m_patchData)
       {
-        meshBBox.addBox(kv.second.physicalBBox);
+        meshBBox.addBox(value.physicalBBox);
       }
 
       axom::fmt::format_to(std::back_inserter(out),
@@ -907,7 +907,7 @@ public:
 
     // compute a histogram of the patch degrees w/ some additional info
     {
-      struct counts
+      struct Counts
       {
         int total {0};
         int rational {0};
@@ -915,41 +915,41 @@ public:
         int periodic_v {0};
       };
 
-      std::map<std::pair<int, int>, counts> patchDegrees;
-      for(const auto& kv : m_patchData)
+      std::map<std::pair<int, int>, Counts> patchDegrees;
+      for(const auto& [_, value] : m_patchData)
       {
-        const auto& patch = kv.second.nurbsPatch;
-        auto& c = patchDegrees[std::make_pair(patch.getDegree_u(), patch.getDegree_v())];
+        const auto& patch = value.nurbsPatch;
+        auto& c = patchDegrees[{patch.getDegree_u(), patch.getDegree_v()}];
         c.total++;
         if(patch.isRational())
         {
           c.rational++;
         }
-        if(kv.second.wasOriginallyPeriodic_u)
+        if(value.wasOriginallyPeriodic_u)
         {
           c.periodic_u++;
         }
-        if(kv.second.wasOriginallyPeriodic_v)
+        if(value.wasOriginallyPeriodic_v)
         {
           c.periodic_v++;
         }
       }
 
       axom::fmt::format_to(std::back_inserter(out), " - Patch degree histogram:\n");
-      for(const auto& entry : patchDegrees)
+      for(const auto& [degs, counts] : patchDegrees)
       {
         axom::fmt::format_to(
           std::back_inserter(out),
           "   - Degree (u={}, v={}): {} patches ({} rational{}{})\n",
-          entry.first.first,   // degree u
-          entry.first.second,  // degree v
-          entry.second.total,
-          entry.second.rational,
-          entry.second.periodic_u > 0
-            ? axom::fmt::format("; {} originally periodic in u", entry.second.periodic_u)
+          degs.first,   // degree u
+          degs.second,  // degree v
+          counts.total,
+          counts.rational,
+          counts.periodic_u > 0
+            ? axom::fmt::format("; {} originally periodic in u", counts.periodic_u)
             : "",
-          entry.second.periodic_v > 0
-            ? axom::fmt::format("; {} originally periodic in v", entry.second.periodic_v)
+          counts.periodic_v > 0
+            ? axom::fmt::format("; {} originally periodic in v", counts.periodic_v)
             : "");
       }
     }
@@ -958,9 +958,9 @@ public:
     {
       std::vector<int> uSpansPerPatch;
       std::vector<int> vSpansPerPatch;
-      for(const auto& kv : m_patchData)
+      for(const auto& [_, value] : m_patchData)
       {
-        const auto& patch = kv.second.nurbsPatch;
+        const auto& patch = value.nurbsPatch;
         uSpansPerPatch.push_back(patch.getKnots_u().getNumKnotSpans());
         vSpansPerPatch.push_back(patch.getKnots_v().getNumKnotSpans());
       }
@@ -988,9 +988,9 @@ public:
     // Compute statistics on the number of trimming curves per patch
     {
       std::vector<int> trimmingCurvesPerPatch;
-      for(const auto& kv : m_patchData)
+      for(const auto& [_, value] : m_patchData)
       {
-        trimmingCurvesPerPatch.push_back(kv.second.trimmingCurves.size());
+        trimmingCurvesPerPatch.push_back(value.nurbsPatch.getNumTrimmingCurves());
       }
 
       AccumStatistics trimmingCurvesStats = computeStatistics(trimmingCurvesPerPatch);
@@ -1006,33 +1006,34 @@ public:
 
     // Compute statistics on the degrees of the trimming curves in the mesh
     {
-      struct counts
+      struct Counts
       {
         int total {0};
         int rational {0};
         int periodic {0};
       };
 
-      std::map<int, counts> curveDegreeCounts;
+      std::map<int, Counts> curveDegreeCounts;
       std::vector<int> curveDegreeList;
-      for(const auto& kv : m_patchData)
+      for(const auto& [_, value] : m_patchData)
       {
-        const auto& curves = kv.second.trimmingCurves;
-        for(axom::IndexType i = 0; i < curves.size(); i++)
+        int idx = 0;
+        for(const auto& curve : value.nurbsPatch.getTrimmingCurves())
         {
-          const int degree = curves[i].getDegree();
+          const int degree = curve.getDegree();
           auto& c = curveDegreeCounts[degree];
           c.total++;
-          if(curves[i].isRational())
+          if(curve.isRational())
           {
             c.rational++;
           }
-          if(kv.second.trimmingCurves_originallyPeriodic[i])
+          if(value.trimmingCurves_originallyPeriodic[idx])
           {
             c.periodic++;
           }
 
           curveDegreeList.push_back(degree);
+          ++idx;
         }
       }
 
@@ -1040,16 +1041,15 @@ public:
 
       // Output the results for curve orders
       axom::fmt::format_to(std::back_inserter(out), " - Mesh trimming curve degree histogram:\n");
-      for(const auto& entry : curveDegreeCounts)
+      for(const auto& [deg, counts] : curveDegreeCounts)
       {
-        axom::fmt::format_to(std::back_inserter(out),
-                             "   - Degree {}: {} curves ({} rational{})\n",
-                             entry.first,  // degree
-                             entry.second.total,
-                             entry.second.rational,
-                             entry.second.periodic > 0
-                               ? axom::fmt::format("; {} originally periodic", entry.second.periodic)
-                               : "");
+        axom::fmt::format_to(
+          std::back_inserter(out),
+          "   - Degree {}: {} curves ({} rational{})\n",
+          deg,
+          counts.total,
+          counts.rational,
+          counts.periodic > 0 ? axom::fmt::format("; {} originally periodic", counts.periodic) : "");
       }
 
       axom::fmt::format_to(std::back_inserter(out),
@@ -1061,10 +1061,9 @@ public:
     // Compute statistics on the number of spans in the trimming curves
     {
       std::vector<int> spansPerCurve;
-      for(const auto& kv : m_patchData)
+      for(const auto& [_, value] : m_patchData)
       {
-        const auto& curves = kv.second.trimmingCurves;
-        for(const auto& curve : curves)
+        for(const auto& curve : value.nurbsPatch.getTrimmingCurves())
         {
           spansPerCurve.push_back(curve.getKnots().getNumKnotSpans());
         }
@@ -1090,6 +1089,10 @@ public:
     int patchIndex = 0;
     for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
     {
+      SLIC_INFO_IF(m_verbose, axom::fmt::format("---"));
+      SLIC_INFO_IF(m_verbose, "*** Processing patch " << patchIndex);
+      SLIC_INFO_IF(m_verbose, axom::fmt::format("---"));
+
       const TopoDS_Face& face = TopoDS::Face(faceExp.Current());
 
       opencascade::handle<Geom_Surface> surface = BRep_Tool::Surface(face);
@@ -1098,11 +1101,7 @@ public:
         opencascade::handle<Geom_BSplineSurface> bsplineSurface =
           opencascade::handle<Geom_BSplineSurface>::DownCast(surface);
 
-        PatchProcessor patchProcessor(bsplineSurface);
-
-        SLIC_INFO_IF(m_verbose, axom::fmt::format("---"));
-        SLIC_INFO_IF(m_verbose, "*** Processing patch " << patchIndex);
-        SLIC_INFO_IF(m_verbose, axom::fmt::format("---"));
+        PatchProcessor patchProcessor(bsplineSurface, m_verbose);
 
         PatchData& patchData = m_patchData[patchIndex];
         patchData.patchIndex = patchIndex;
@@ -1116,14 +1115,21 @@ public:
         {
           opencascade::handle<Geom_BSplineSurface> origSurface =
             opencascade::handle<Geom_BSplineSurface>::DownCast(surface);
-          const bool withinThreshold = patchProcessor.compareToSurface(origSurface, 25);
 
+          const bool withinThreshold = patchProcessor.compareToSurface(origSurface, 25);
           SLIC_WARNING_IF(!withinThreshold,
                           axom::fmt::format("[Patch {}] Patch geometry was not "
                                             "within threshold after clamping.",
                                             patchIndex,
                                             patchData.nurbsPatch));
         }
+      }
+      else
+      {
+        const std::string surfaceType = surface->DynamicType()->Name();
+        SLIC_WARNING(fmt::format("Skipping patch {} with non-BSpline surface type: '{}'",
+                                 patchIndex,
+                                 surfaceType));
       }
     }
   }
@@ -1146,7 +1152,7 @@ public:
     for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
     {
       PatchData& patchData = m_patchData[patchIndex];
-      NCurveArray& curves = patchData.trimmingCurves;
+      auto& patch = patchData.nurbsPatch;
 
       // Get span of this patch in u and v directions
       BBox2D patchBbox = patchData.parametricBBox;
@@ -1175,6 +1181,7 @@ public:
 
           BRepAdaptor_Curve curveAdaptor(edge);
           GeomAbs_CurveType curveType = curveAdaptor.GetType();
+          const int curveIndex = patch.getNumTrimmingCurves();
 
           std::string curveTypeStr = curveTypeMap[curveType];
           SLIC_INFO_IF(m_verbose,
@@ -1183,7 +1190,7 @@ public:
                                          patchIndex,
                                          wireIndex,
                                          edgeIndex,
-                                         curves.size(),
+                                         curveIndex,
                                          curveTypeStr));
 
           Standard_Real first, last;
@@ -1197,24 +1204,25 @@ public:
             const bool originalCurvePeriodic = bsplineCurve->IsPeriodic();
 
             CurveProcessor curveProcessor(bsplineCurve, m_verbose);
-            curves.emplace_back(curveProcessor.nurbsCurve());
+            auto curve = curveProcessor.nurbsCurve();
             patchData.trimmingCurves_originallyPeriodic.push_back(
               curveProcessor.curveWasOriginallyPeriodic());
 
             if(isReversed)  // Ensure consistency of curve w.r.t. patch
             {
-              curves.back().reverseOrientation();
+              curve.reverseOrientation();
             }
-            SLIC_ASSERT(curves.back().isValidNURBS());
-            SLIC_ASSERT(curves.back().getDegree() == bsplineCurve->Degree());
+            SLIC_ASSERT(curve.isValidNURBS());
+            SLIC_ASSERT(curve.getDegree() == bsplineCurve->Degree());
+            patch.addTrimmingCurve(curve);
 
             SLIC_INFO_IF(m_verbose,
                          axom::fmt::format("[Patch {} Wire {} Edge {} Curve {}] Added curve: {}",
                                            patchIndex,
                                            wireIndex,
                                            edgeIndex,
-                                           curves.size(),
-                                           curves.back()));
+                                           curveIndex,
+                                           curve));
 
             // Check to ensure that curve did not change geometrically after making non-periodic
             if(originalCurvePeriodic)
@@ -1229,8 +1237,8 @@ public:
                                   patchIndex,
                                   wireIndex,
                                   edgeIndex,
-                                  curves.size(),
-                                  curves.back()));
+                                  curveIndex,
+                                  curve));
             }
           }
         }

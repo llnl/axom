@@ -88,7 +88,7 @@ public:
     SLIC_INFO_IF(m_verbose,
                  axom::fmt::format("Parametric BBox for patch {}: {}", patchIndex, parametricBBox));
 
-    const auto& curves = patchData.trimmingCurves;
+    const auto& curves = patchData.nurbsPatch.getTrimmingCurves();
     axom::fmt::memory_buffer svgContent;
 
     // Create a new bounding box by scaling and translating the parametricBBox

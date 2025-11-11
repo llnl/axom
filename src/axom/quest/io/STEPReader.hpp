@@ -39,7 +39,6 @@ struct PatchData
   axom::primal::NURBSPatch<double, 3> nurbsPatch;
   axom::primal::BoundingBox<double, 2> parametricBBox;
   axom::primal::BoundingBox<double, 3> physicalBBox;
-  axom::Array<axom::primal::NURBSCurve<double, 2>> trimmingCurves;
   axom::Array<bool> trimmingCurves_originallyPeriodic;
 };
 
