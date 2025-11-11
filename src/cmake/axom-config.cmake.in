@@ -33,7 +33,7 @@ if(NOT AXOM_FOUND)
   set(AXOM_USE_CUDA           "@AXOM_USE_CUDA@")
   set(AXOM_USE_HIP            "@AXOM_USE_HIP@")
   set(AXOM_USE_MPI            "@AXOM_USE_MPI@")
-  set(AXOM_USE_OPENMP         "@AXOM_USE_OPENMP@")
+  set(AXOM_USE_OPENMP         "@AXOM_ENABLE_OPENMP@")
 
   # Axom components
   set(AXOM_COMPONENTS_ENABLED @AXOM_COMPONENTS_ENABLED@)

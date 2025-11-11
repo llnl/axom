@@ -15,9 +15,9 @@ message(STATUS "Configuring Axom version ${AXOM_VERSION_FULL}")
 ## check for vars of the form <DEP>_FOUND or ENABLE_<DEP>
 set(TPL_DEPS ADIAK C2C CALIPER CAMP CLI11 CONDUIT CUDA FMT HIP HDF5 LUA MFEM MPI OPENMP OPENCASCADE RAJA SCR SOL SPARSEHASH UMPIRE ZLIB)
 foreach(dep ${TPL_DEPS})
-    if( ${dep}_FOUND OR ENABLE_${dep} )
-        set(AXOM_USE_${dep} TRUE  )
-    endif()
+  if( ENABLE_${dep} OR (NOT DEFINED ENABLE_${dep} AND ${dep}_FOUND) )
+    set(AXOM_USE_${dep} TRUE)
+  endif()
 endforeach()
 
 # Handle MPI Fortran headers
