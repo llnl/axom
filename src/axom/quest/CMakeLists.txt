@@ -169,9 +169,15 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
 endif()
 
 if(C2C_FOUND)
-    list(APPEND quest_headers io/C2CReader.hpp)
-    list(APPEND quest_sources io/C2CReader.cpp)
-    list(APPEND quest_depends_on c2c)
+    list(APPEND quest_headers       io/C2CReader.hpp)
+    list(APPEND quest_sources       io/C2CReader.cpp)
+    list(APPEND quest_depends_on    c2c)
+endif()
+
+if(OPENCASCADE_FOUND)
+    list(APPEND quest_headers       io/STEPReader.hpp)
+    list(APPEND quest_sources       io/STEPReader.cpp)
+    list(APPEND quest_depends_on    opencascade)
 endif()
 
 if (AXOM_ENABLE_MPI)
