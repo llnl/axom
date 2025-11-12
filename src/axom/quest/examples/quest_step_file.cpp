@@ -57,6 +57,7 @@
  */
 
 using PatchData = axom::quest::internal::PatchData;
+using NURBSPatch = axom::quest::STEPReader::NURBSPatch;
 
 /**
  * Class that generates SVG files over the parametric space of trimmed NURBS patches
@@ -81,14 +82,14 @@ public:
     }
   }
 
-  void generateSVGForPatch(int patchIndex, const PatchData& patchData)
+  void generateSVGForPatch(int patchIndex, const PatchData& patchData, const NURBSPatch& patch)
   {
     const auto& parametricBBox = patchData.parametricBBox;
 
     SLIC_INFO_IF(m_verbose,
                  axom::fmt::format("Parametric BBox for patch {}: {}", patchIndex, parametricBBox));
 
-    const auto& curves = patchData.nurbsPatch.getTrimmingCurves();
+    const auto& curves = patch.getTrimmingCurves();
     axom::fmt::memory_buffer svgContent;
 
     // Create a new bounding box by scaling and translating the parametricBBox
@@ -140,8 +141,8 @@ public:
     axom::fmt::format_to(std::back_inserter(svgContent),
                          "  <!-- Bounding box of ({},{})-degree patch in parametric space: {}; \n"
                          "       BBox in physical space: {} -->\n",
-                         patchData.nurbsPatch.getDegree_u(),
-                         patchData.nurbsPatch.getDegree_v(),
+                         patch.getDegree_u(),
+                         patch.getDegree_v(),
                          patchData.parametricBBox,
                          patchData.physicalBBox);
 
@@ -183,7 +184,7 @@ public:
       return uniqueCounts;
     };
 
-    for(const auto& u : unique_knots_and_multiplicities(patchData.nurbsPatch.getKnots_u().getArray()))
+    for(const auto& u : unique_knots_and_multiplicities(patch.getKnots_u().getArray()))
     {
       axom::fmt::format_to(std::back_inserter(svgContent),
                            "  <line class='u-line mult-{}' x1='{}' y1='{}' x2='{}' y2='{}' />\n",
@@ -194,7 +195,7 @@ public:
                            parametricBBox.getMax()[1]);
     }
 
-    for(const auto& v : unique_knots_and_multiplicities(patchData.nurbsPatch.getKnots_v().getArray()))
+    for(const auto& v : unique_knots_and_multiplicities(patch.getKnots_v().getArray()))
     {
       axom::fmt::format_to(std::back_inserter(svgContent),
                            "  <line class='v-line mult-{}' x1='{}' y1='{}' x2='{}' y2='{}' />\n",
@@ -673,7 +674,6 @@ int main(int argc, char** argv)
 
   using NURBSPatch = axom::primal::NURBSPatch<double, 3>;
   using PatchArray = axom::Array<NURBSPatch>;
-  [[maybe_unused]] PatchArray patches;
 
   axom::quest::STEPReader stepReader;
   stepReader.setFileName(filename);
@@ -688,8 +688,8 @@ int main(int argc, char** argv)
   }
 
   ////---------------------------
-
-  const int numPatches = stepReader.getPatchDataMap().size();
+  PatchArray& patches = stepReader.getPatchArray();
+  const int numPatches = patches.size();
   const int numFillZeros = static_cast<int>(std::log10(numPatches)) + 1;
 
   // Generate outputs
@@ -702,9 +702,9 @@ int main(int argc, char** argv)
     axom::fmt::format("Generating SVG meshes for patches and their trimming "
                       "curves in '{}' directory",
                       output_dir));
-  for(const auto& entry : stepReader.getPatchDataMap())
+  for(const auto& [index, patchData] : stepReader.getPatchDataMap())
   {
-    patchProcessor.generateSVGForPatch(entry.first, entry.second);
+    patchProcessor.generateSVGForPatch(index, patchData, patches[index]);
   }
 
   auto& nurbs_shape = stepReader.getShape();

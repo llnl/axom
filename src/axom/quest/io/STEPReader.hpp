@@ -36,7 +36,6 @@ struct PatchData
   int patchIndex {-1};
   bool wasOriginallyPeriodic_u {false};
   bool wasOriginallyPeriodic_v {false};
-  axom::primal::NURBSPatch<double, 3> nurbsPatch;
   axom::primal::BoundingBox<double, 2> parametricBBox;
   axom::primal::BoundingBox<double, 3> physicalBBox;
   axom::Array<bool> trimmingCurves_originallyPeriodic;
@@ -49,7 +48,8 @@ using PatchDataMap = std::map<int, PatchData>;
 /*
  * \class STEPReader
  *
- * \brief A class to help with reading STEP files that contain parametric surface patches
+ * \brief A class to help with reading a STEP file containing a parametric BRep (Boundary Representation)
+ * consisting of trimmed NURBS patches.
  */
 class STEPReader
 {
@@ -79,10 +79,21 @@ public:
   const internal::PatchDataMap& getPatchDataMap() const;
   const TopoDS_Shape& getShape() const;
 
+  PatchArray& getPatchArray() { return m_patches; }
+  const PatchArray& getPatchArray() const { return m_patches; }
+
+  /// Logs some information about the loaded BRep
+  void printBRepStats() const;
+
+protected:
+  // open cascade does not appear to offer a direct way to get the number of patches
+  int numPatchesInFile() const;
+
 protected:
   std::string m_fileName;
   bool m_verbosity {false};
   internal::StepFileProcessor* m_stepProcessor {nullptr};
+  PatchArray m_patches;
 };
 
 }  // namespace quest
