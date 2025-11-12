@@ -551,9 +551,10 @@ struct test_braid2d_mat
     const axom::IndexType nzones = zoneDims[0] * zoneDims[1];
 
     // Create the data
+    const bool cleanMats = false;
     conduit::Node hostMesh, deviceMesh;
     axom::blueprint::testing::data::braid(type, dims, hostMesh);
-    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, hostMesh);
+    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, cleanMats, hostMesh);
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
     TestApp.saveVisualization(name + "_orig", hostMesh);
 

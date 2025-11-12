@@ -53,7 +53,9 @@ template <typename ExecSpace>
 void braid2d_mat_test(const std::string &type,
                       const std::string &mattype,
                       const std::string &name,
-                      int nDomains = 1)
+                      int nDomains,
+                      bool selectedZones,
+                      bool cleanMats)
 {
   axom::StackArray<axom::IndexType, 2> dims {10, 10};
   axom::StackArray<axom::IndexType, 2> zoneDims {dims[0] - 1, dims[1] - 1};
@@ -64,9 +66,8 @@ void braid2d_mat_test(const std::string &type,
   {
     const std::string domainName = axom::fmt::format("domain_{:07}", dom);
     conduit::Node &hostDomain = (nDomains > 1) ? hostMesh[domainName] : hostMesh;
-
     axom::blueprint::testing::data::braid(type, dims, hostDomain);
-    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, hostDomain);
+    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, cleanMats, hostDomain);
     TestApp.saveVisualization(name + "_orig", hostDomain);
   }
 
@@ -101,12 +102,34 @@ void braid2d_mat_test(const std::string &type,
       MIR m(topologyView, coordsetView, matsetView);
       conduit::Node options;
       options["matset"] = "mat";
+      if(cleanMats)
+      {
+        // Set the output names
+        options["topologyName"] = "postmir_topology";
+        options["coordsetName"] = "postmir_coords";
+        options["matsetName"] = "postmir_matset";
+      }
+      if(selectedZones)
+      {
+        options["selectedZones"].set(
+          std::vector<axom::IndexType> {30, 31, 32, 39, 40, 41, 48, 49, 50});
+      }
       m.execute(deviceDomain, options, deviceMIRDomain);
     }
 
     // device->host for the current domain
     conduit::Node hostMIRDomain;
     utils::copy<seq_exec>(hostMIRDomain, deviceMIRDomain);
+
+    // Verify the hostMIRMesh to look for errors.
+    conduit::Node info;
+    bool verifyOK = conduit::blueprint::mesh::verify(hostMIRDomain, info);
+    if(!verifyOK)
+    {
+      printNode(hostMIRDomain);
+      info.print();
+    }
+    EXPECT_TRUE(verifyOK);
 
     TestApp.saveVisualization(name, hostMIRDomain);
 
@@ -117,19 +140,69 @@ void braid2d_mat_test(const std::string &type,
 }
 
 //------------------------------------------------------------------------------
+template <typename ExecSpace>
+void test_equiz_uniform_unibuffer()
+{
+  {
+    const bool selectedZones = false;
+    const bool cleanMats = false;
+    braid2d_mat_test<ExecSpace>("uniform",
+                                "unibuffer",
+                                "equiz_uniform_unibuffer",
+                                1,
+                                selectedZones,
+                                cleanMats);
+    braid2d_mat_test<ExecSpace>("uniform",
+                                "unibuffer",
+                                "equiz_uniform_unibuffer",
+                                2,
+                                selectedZones,
+                                cleanMats);
+  }
+  {
+    const bool selectedZones = true;
+    const bool cleanMats = false;
+    braid2d_mat_test<ExecSpace>("uniform",
+                                "unibuffer",
+                                "equiz_uniform_unibuffer_sel",
+                                1,
+                                selectedZones,
+                                cleanMats);
+  }
+  {
+    const bool selectedZones = false;
+    const bool cleanMats = true;
+    braid2d_mat_test<ExecSpace>("uniform",
+                                "unibuffer",
+                                "equiz_uniform_unibuffer_clean",
+                                1,
+                                selectedZones,
+                                cleanMats);
+  }
+  {
+    const bool selectedZones = true;
+    const bool cleanMats = true;
+    braid2d_mat_test<ExecSpace>("uniform",
+                                "unibuffer",
+                                "equiz_uniform_unibuffer_sel_clean",
+                                1,
+                                selectedZones,
+                                cleanMats);
+  }
+}
+
+//------------------------------------------------------------------------------
 TEST(mir_equiz, equiz_uniform_unibuffer_seq)
 {
   AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_seq");
-  braid2d_mat_test<seq_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer");
-  braid2d_mat_test<seq_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer", 2);
+  test_equiz_uniform_unibuffer<seq_exec>();
 }
 
 #if defined(AXOM_USE_OPENMP)
 TEST(mir_equiz, equiz_uniform_unibuffer_omp)
 {
   AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_omp");
-  braid2d_mat_test<omp_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer");
-  braid2d_mat_test<omp_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer", 2);
+  test_equiz_uniform_unibuffer<omp_exec>();
 }
 #endif
 
@@ -137,8 +210,7 @@ TEST(mir_equiz, equiz_uniform_unibuffer_omp)
 TEST(mir_equiz, equiz_uniform_unibuffer_cuda)
 {
   AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_cuda");
-  braid2d_mat_test<cuda_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer");
-  braid2d_mat_test<cuda_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer", 2);
+  test_equiz_uniform_unibuffer<cuda_exec>();
 }
 #endif
 
@@ -146,8 +218,7 @@ TEST(mir_equiz, equiz_uniform_unibuffer_cuda)
 TEST(mir_equiz, equiz_uniform_unibuffer_hip)
 {
   AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_hip");
-  braid2d_mat_test<hip_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer");
-  braid2d_mat_test<hip_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer", 2);
+  test_equiz_uniform_unibuffer<hip_exec>();
 }
 #endif
 

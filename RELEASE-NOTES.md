@@ -19,7 +19,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ### Added
+- Adds the `AXOM_ENABLE_TUTORIALS` configuration variable (`ON` by default)
+- Adds a tutorial on shaping in Axom and associated infrastructure in `quest`, `klee`, `inlet` and `sidre`.
 - Added iterators and Attribute class to the Python interface for sidre.
+
 
 ###  Changed
 - Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
@@ -29,6 +32,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   Blueprint meshes to guard against malformed input. Likewise, runtime input checks have been
   promoted to use `SLIC_ERROR_IF` instead of `SLIC_ASSERT` so the checks will remain in
   optimized Axom builds.
+- The maximum number of vertices allowed in polygon primitives can now be passed as a template
+  argument to `axom::bump::TopologyMapper`, `axom::bump::PrimalAdaptor`, and
+  `axom::mir::ElviraAlgorithm`.
 ###  Fixed
 
 ###  Deprecated
