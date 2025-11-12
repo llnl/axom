@@ -23,7 +23,6 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds a tutorial on shaping in Axom and associated infrastructure in `quest`, `klee`, `inlet` and `sidre`.
 - Added iterators and Attribute class to the Python interface for sidre.
 
-
 ###  Changed
 - Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
   Materials are now expected to be defined only on the valid subset of zones in the mesh.
