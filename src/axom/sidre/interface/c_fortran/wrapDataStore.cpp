@@ -116,6 +116,7 @@ SIDRE_Buffer *SIDRE_DataStore_get_buffer(SIDRE_DataStore *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -176,6 +177,7 @@ SIDRE_Buffer *SIDRE_DataStore_create_buffer_from_type(SIDRE_DataStore *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 

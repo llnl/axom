@@ -118,6 +118,7 @@ const char *SLIC_getActiveLoggerName(SLIC_SHROUD_capsule_data *SHT_rv_capsule)
   if(!SHC_rv_cxx->empty()) SHC_rv = SHC_rv_cxx->c_str();
   SHT_rv_capsule->addr = SHC_rv_cxx;
   SHT_rv_capsule->idtor = 2;
+  SHT_rv_capsule->cmemflags = SWIG_MEM_RVALUE;
   return SHC_rv;
   // splicer end function.getActiveLoggerName
 }
@@ -131,6 +132,7 @@ void SLIC_getActiveLoggerName_bufferify(SLIC_SHROUD_array *SHT_rv_cdesc,
   ShroudStringToCdesc(SHT_rv_cdesc, SHC_rv_cxx);
   SHT_rv_capsule->addr = SHC_rv_cxx;
   SHT_rv_capsule->idtor = 3;
+  SHT_rv_capsule->cmemflags = SWIG_MEM_RVALUE;
   // splicer end function.getActiveLoggerName_bufferify
 }
 

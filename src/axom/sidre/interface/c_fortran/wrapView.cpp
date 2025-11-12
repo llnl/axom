@@ -102,6 +102,7 @@ const char *SIDRE_View_get_path(const SIDRE_View *self, SIDRE_SHROUD_capsule_dat
   if(!SHC_rv_cxx->empty()) SHC_rv = SHC_rv_cxx->c_str();
   SHT_rv_capsule->addr = SHC_rv_cxx;
   SHT_rv_capsule->idtor = 1;
+  SHT_rv_capsule->cmemflags = SWIG_MEM_RVALUE;
   return SHC_rv;
   // splicer end class.View.method.getPath
 }
@@ -132,6 +133,7 @@ const char *SIDRE_View_get_path_name(const SIDRE_View *self, SIDRE_SHROUD_capsul
   if(!SHC_rv_cxx->empty()) SHC_rv = SHC_rv_cxx->c_str();
   SHT_rv_capsule->addr = SHC_rv_cxx;
   SHT_rv_capsule->idtor = 1;
+  SHT_rv_capsule->cmemflags = SWIG_MEM_RVALUE;
   return SHC_rv;
   // splicer end class.View.method.getPathName
 }

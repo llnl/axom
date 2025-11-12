@@ -103,6 +103,7 @@ const char *SIDRE_Group_get_path(const SIDRE_Group *self, SIDRE_SHROUD_capsule_d
   if(!SHC_rv_cxx->empty()) SHC_rv = SHC_rv_cxx->c_str();
   SHT_rv_capsule->addr = SHC_rv_cxx;
   SHT_rv_capsule->idtor = 1;
+  SHT_rv_capsule->cmemflags = SWIG_MEM_RVALUE;
   return SHC_rv;
   // splicer end class.Group.method.getPath
 }
@@ -134,6 +135,7 @@ const char *SIDRE_Group_get_path_name(const SIDRE_Group *self,
   if(!SHC_rv_cxx->empty()) SHC_rv = SHC_rv_cxx->c_str();
   SHT_rv_capsule->addr = SHC_rv_cxx;
   SHT_rv_capsule->idtor = 1;
+  SHT_rv_capsule->cmemflags = SWIG_MEM_RVALUE;
   return SHC_rv;
   // splicer end class.Group.method.getPathName
 }
@@ -336,6 +338,7 @@ SIDRE_View *SIDRE_Group_get_view_from_name(SIDRE_Group *self, const char *path, 
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -374,6 +377,7 @@ SIDRE_View *SIDRE_Group_get_view_from_index(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -426,6 +430,7 @@ SIDRE_View *SIDRE_Group_create_view_empty(SIDRE_Group *self, const char *path, S
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -468,6 +473,7 @@ SIDRE_View *SIDRE_Group_create_view_from_type(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -515,6 +521,7 @@ SIDRE_View *SIDRE_Group_create_view_with_shape_base(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -561,6 +568,7 @@ SIDRE_View *SIDRE_Group_create_view_into_buffer(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -608,6 +616,7 @@ SIDRE_View *SIDRE_Group_create_view_from_type_and_buffer(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -660,6 +669,7 @@ SIDRE_View *SIDRE_Group_create_view_with_shape_and_buffer(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -707,6 +717,7 @@ SIDRE_View *SIDRE_Group_create_view_external(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -752,6 +763,7 @@ SIDRE_View *SIDRE_Group_create_view_from_type_external(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -802,6 +814,7 @@ SIDRE_View *SIDRE_Group_create_view_with_shape_external(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -850,6 +863,7 @@ SIDRE_View *SIDRE_Group_create_view_and_allocate_nelems(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -897,6 +911,7 @@ SIDRE_View *SIDRE_Group_create_view_with_shape_and_allocate(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -942,6 +957,7 @@ SIDRE_View *SIDRE_Group_create_view_scalar_int(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -983,6 +999,7 @@ SIDRE_View *SIDRE_Group_create_view_scalar_long(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -1024,6 +1041,7 @@ SIDRE_View *SIDRE_Group_create_view_scalar_float(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -1065,6 +1083,7 @@ SIDRE_View *SIDRE_Group_create_view_scalar_double(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -1107,6 +1126,7 @@ SIDRE_View *SIDRE_Group_create_view_string(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -1351,6 +1371,7 @@ SIDRE_Group *SIDRE_Group_get_group_from_name(SIDRE_Group *self, const char *path
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -1389,6 +1410,7 @@ SIDRE_Group *SIDRE_Group_get_group_from_index(SIDRE_Group *self,
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 
@@ -1441,6 +1463,7 @@ SIDRE_Group *SIDRE_Group_create_group(SIDRE_Group *self, const char *path, SIDRE
   {
     SHC_rv->addr = NULL;
     SHC_rv->idtor = 0;
+    SHC_rv->cmemflags = 0;
     return NULL;
   }
 

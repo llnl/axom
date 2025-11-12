@@ -780,6 +780,7 @@ patterns:
         if ({cxx_var} == nullptr) {{
             {c_var}->addr = NULL;
             {c_var}->idtor = 0; 
+            {c_var}->cmemflags = 0; 
             return NULL;
         }}
     PY_invalid_name: |
