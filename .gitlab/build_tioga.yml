@@ -22,7 +22,7 @@
 # Template
 .src_build_on_tioga:
   variables:
-    ALLOC_TIME: "40"
+    ALLOC_TIME: "60"
   extends: [.src_build_script, .on_tioga, .src_workflow]
   needs: []
 
