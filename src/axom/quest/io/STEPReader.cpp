@@ -202,7 +202,7 @@ private:
     }
 
     /// Logs some information about the patch
-    void printSurfaceStats() const
+    void printSurfaceInfo() const
     {
       SLIC_INFO(axom::fmt::format("Patch is periodic in u: {}", m_surface->IsUPeriodic()));
       SLIC_INFO(axom::fmt::format("Patch is periodic in v: {}", m_surface->IsVPeriodic()));
@@ -235,101 +235,30 @@ private:
     /// converts the surface from periodic knots to clamped knots, when necessary
     void ensureClamped()
     {
-      const bool isUPeriodic = m_surface->IsUPeriodic();
-      const bool isVPeriodic = m_surface->IsVPeriodic();
-      if(!isUPeriodic && !isVPeriodic)
+      if(!m_surface->IsUPeriodic() && !m_surface->IsVPeriodic())
       {
         return;  // nothing to do, return
       }
 
-      const bool isRational = m_surface->IsURational() || m_surface->IsVRational();
+      // compute the period
+      const Standard_Integer iu1 = m_surface->FirstUKnotIndex();
+      const Standard_Integer iu2 = m_surface->LastUKnotIndex();
+      const Standard_Integer iv1 = m_surface->FirstVKnotIndex();
+      const Standard_Integer iv2 = m_surface->LastVKnotIndex();
 
-      const int uDegree = m_surface->UDegree();
-      const int vDegree = m_surface->VDegree();
-      SLIC_INFO_IF(m_verbose, axom::fmt::format("  --> U degree: {}", uDegree));
-      SLIC_INFO_IF(m_verbose, axom::fmt::format("  --> V degree: {}", vDegree));
+      const Standard_Real Tu = m_surface->UKnot(iu2) - m_surface->UKnot(iu1);
+      const Standard_Real Tv = m_surface->VKnot(iv2) - m_surface->VKnot(iv1);
 
-      if(isUPeriodic)
-      {
-        m_surface->SetUNotPeriodic();
+      // Choose a start parameter and wrap to the patch's period
+      Standard_Real U0 = m_surface->UKnot(iu1);
+      Standard_Real V0 = m_surface->VKnot(iv1);
+      m_surface->PeriodicNormalization(U0, V0);
 
-        // Modify knots and mults to ensure proper clamping
-        // We remove the first and last knot and increase the multiplicity of the second and second-to-last knots
-        auto mod_knots_u = extractKnotValues_u();
-        auto mod_mults_u = extractKnotMultiplicities_u();
-        SLIC_ASSERT(mod_knots_u.size() >= 4);
-        SLIC_ASSERT(mod_mults_u.size() == mod_knots_u.size());
+      // Trim to one full period (updates control nets / knot vectors)
+      m_surface->Segment(U0, U0 + Tu, V0, V0 + Tv);
 
-        const int last_idx = mod_knots_u.size() - 1;
-        mod_mults_u[1] += mod_mults_u[0];
-        mod_mults_u[last_idx - 1] += mod_mults_u[last_idx];
-        mod_knots_u.erase(mod_knots_u.end() - 1);
-        mod_knots_u.erase(mod_knots_u.begin());
-        mod_mults_u.erase(mod_mults_u.end() - 1);
-        mod_mults_u.erase(mod_mults_u.begin());
-
-        try
-        {
-          // Create a new BSpline surface from the modified knots and control points
-          m_surface = createBSplineSurfaceFromAxomArrays(
-            extractControlPoints(),
-            isRational ? extractWeights() : axom::Array<double, 2>(),
-            mod_knots_u,
-            mod_mults_u,
-            extractKnotValues_v(),
-            extractKnotMultiplicities_v(),
-            false,
-            isVPeriodic,
-            uDegree,
-            vDegree);
-        }
-        catch(const Standard_Failure& e)
-        {
-          std::cerr << "Error: " << e.GetMessageString() << std::endl;
-          throw;
-        }
-      }
-
-      if(isVPeriodic)
-      {
-        m_surface->SetVNotPeriodic();
-
-        // Modify knots and mults to ensure proper clamping
-        // We remove the first and last knot and increase the multiplicity of the second and second-to-last knots
-        auto mod_knots_v = extractKnotValues_v();
-        auto mod_mults_v = extractKnotMultiplicities_v();
-        SLIC_ASSERT(mod_knots_v.size() >= 4);
-        SLIC_ASSERT(mod_mults_v.size() == mod_knots_v.size());
-
-        const int last_idx = mod_knots_v.size() - 1;
-        mod_mults_v[1] += mod_mults_v[0];
-        mod_mults_v[last_idx - 1] += mod_mults_v[last_idx];
-        mod_knots_v.erase(mod_knots_v.end() - 1);
-        mod_knots_v.erase(mod_knots_v.begin());
-        mod_mults_v.erase(mod_mults_v.end() - 1);
-        mod_mults_v.erase(mod_mults_v.begin());
-
-        try
-        {
-          // Create a new BSpline surface from the modified knots and control points
-          m_surface = createBSplineSurfaceFromAxomArrays(
-            extractControlPoints(),
-            isRational ? extractWeights() : axom::Array<double, 2>(),
-            extractKnotValues_u(),
-            extractKnotMultiplicities_u(),
-            mod_knots_v,
-            mod_mults_v,
-            false,
-            false,
-            uDegree,
-            vDegree);
-        }
-        catch(const Standard_Failure& e)
-        {
-          std::cerr << "Error: " << e.GetMessageString() << std::endl;
-          throw;
-        }
-      }
+      m_surface->SetUNotPeriodic();
+      m_surface->SetVNotPeriodic();
     }
 
     /// generates a new BSpline surface from data in axom::Arrays
@@ -580,13 +509,18 @@ private:
   public:
     CurveProcessor() = delete;
 
-    CurveProcessor(const opencascade::handle<Geom2d_BSplineCurve>& curve, bool verbose = false)
+    CurveProcessor(const opencascade::handle<Geom2d_BSplineCurve>& curve,
+                   bool verbose = false,
+                   bool ensure_clamped = true)
       : m_curve(curve)
       , m_verbose(verbose)
     {
       m_inputSurfaceWasPeriodic = m_curve->IsPeriodic();
 
-      ensureClamped();
+      if(ensure_clamped)
+      {
+        ensureClamped();
+      }
     }
 
     /// Returns a representation of the trimming curve as an axom::primal::NURBSCurve
@@ -659,46 +593,20 @@ private:
         return;
       }
 
-      const int degree = m_curve->Degree();
+      // Compute the period
+      const Standard_Integer i1 = m_curve->FirstUKnotIndex();
+      const Standard_Integer i2 = m_curve->LastUKnotIndex();
+      const Standard_Real T = m_curve->Knot(i2) - m_curve->Knot(i1);
 
-      const bool isRational = m_curve->IsRational();
+      // Choose a start parameter, and normalize to curve's period
+      Standard_Real U0 = m_curve->FirstParameter();
+      m_curve->PeriodicNormalization(U0);  // no-op if not periodic
 
-      // Set the curve to not periodic; this can change the poles, knots and multiplicities
-      m_curve->SetNotPeriodic();
-
-      // Modify knots and mults to ensure proper clamping
-      // We remove the first and last knot and increase the multiplicity of the second and second-to-last knots
-      auto mod_knots = extractKnotValues();
-      auto mod_mults = extractKnotMultiplicities();
-      SLIC_ASSERT(mod_knots.size() >= 4);
-      SLIC_ASSERT(mod_mults.size() == mod_knots.size());
-
-      const int last_idx = mod_knots.size() - 1;
-      mod_mults[1] += mod_mults[0];
-      mod_mults[last_idx - 1] += mod_mults[last_idx];
-      mod_knots.erase(mod_knots.end() - 1);
-      mod_knots.erase(mod_knots.begin());
-      mod_mults.erase(mod_mults.end() - 1);
-      mod_mults.erase(mod_mults.begin());
-
-      try
-      {
-        // Create a new BSpline surface from the modified knots and control points
-        m_curve =
-          createBSplineCurveFromAxomArrays(extractControlPoints(),
-                                           isRational ? extractWeights() : axom::Array<double>(),
-                                           mod_knots,
-                                           mod_mults,
-                                           degree);
-      }
-      catch(const Standard_Failure& e)
-      {
-        std::cerr << "Error: " << e.GetMessageString() << std::endl;
-        throw;
-      }
+      // Trim to one full period (updates control points and knot vectors)
+      m_curve->Segment(U0, U0 + T);
     }
 
-    /// generates a new BSpline surface from data in axom::Arrays
+    /// generates a new BSpline curve from data in axom::Arrays
     opencascade::handle<Geom2d_BSplineCurve> createBSplineCurveFromAxomArrays(
       const axom::Array<PointType>& controlPoints,
       const axom::Array<double>& weights,  // will be empty if curve is non-rational
@@ -743,8 +651,7 @@ private:
       return clamped_curve;
     }
 
-    // note: bounding boxes are used as debug checks that control points
-    // lie within the parameter space of the parent patch
+  public:
     axom::Array<PointType> extractControlPoints() const
     {
       axom::Array<PointType> controlPoints;
@@ -768,10 +675,10 @@ private:
       {
         TColStd_Array1OfReal curveWeights(1, m_curve->NbPoles());
         m_curve->Weights(curveWeights);
-        weights.resize(curveWeights.Length());
+        weights.reserve(curveWeights.Length());
         for(int i = 1; i <= curveWeights.Length(); ++i)
         {
-          weights[i - 1] = curveWeights(i);
+          weights.push_back(curveWeights(i));
         }
       }
       return weights;
@@ -847,27 +754,19 @@ public:
 
   const TopoDS_Shape& getShape() const { return m_shape; }
 
-  int numPatchesInFile() const
-  {
-    int count = 0;
-    for(TopExp_Explorer exp(m_shape, TopAbs_FACE); exp.More(); exp.Next())
-    {
-      ++count;
-    }
-    return count;
-  }
+  int numPatchesInFile() const { return m_faceMap.Extent(); }
 
   /// Extracts data from the faces of the mesh and converts each patch to a NURBSPatch
   void extractPatches(NPatchArray& patches)
   {
     patches.resize(numPatchesInFile());
 
-    int patchIndex = 0;
-    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
+    for(int faceIdx = 1; faceIdx <= m_faceMap.Extent(); ++faceIdx)
     {
+      const int patchIndex = faceIdx - 1;
       SLIC_DEBUG_IF(m_verbose, "*** Processing patch " << patchIndex);
 
-      const TopoDS_Face& face = TopoDS::Face(faceExp.Current());
+      const TopoDS_Face& face = TopoDS::Face(m_faceMap.FindKey(faceIdx));
 
       opencascade::handle<Geom_Surface> surface = BRep_Tool::Surface(face);
       if(surface->IsKind(STANDARD_TYPE(Geom_BSplineSurface)))
@@ -949,23 +848,21 @@ public:
         for(TopExp_Explorer edgeExp(wire, TopAbs_EDGE); edgeExp.More(); edgeExp.Next(), ++edgeIndex)
         {
           const TopoDS_Edge& edge = TopoDS::Edge(edgeExp.Current());
-
-          TopAbs_Orientation orientation = edge.Orientation();
-          const bool isReversed = orientation == TopAbs_REVERSED;
-
-          BRepAdaptor_Curve curveAdaptor(edge);
-          GeomAbs_CurveType curveType = curveAdaptor.GetType();
           const int curveIndex = patch.getNumTrimmingCurves();
 
-          std::string curveTypeStr = curveTypeMap[curveType];
-          SLIC_INFO_IF(m_verbose,
-                       axom::fmt::format("[Patch {} Wire {} Edge {} Curve {}] Processing "
-                                         "edge with curve type: {}",
-                                         patchIndex,
-                                         wireIndex,
-                                         edgeIndex,
-                                         curveIndex,
-                                         curveTypeStr));
+          TopAbs_Orientation orientation = edge.Orientation();
+          const bool isReversed = (orientation == TopAbs_REVERSED);
+
+          if(m_verbose)
+          {
+            BRepAdaptor_Curve curveAdaptor(edge);
+            SLIC_INFO(axom::fmt::format("[Patch {} Wire {} Edge {} Curve {}] Curve type: '{}'",
+                                        patchIndex,
+                                        wireIndex,
+                                        edgeIndex,
+                                        curveIndex,
+                                        curveTypeMap[curveAdaptor.GetType()]));
+          }
 
           Standard_Real first, last;
           opencascade::handle<Geom2d_Curve> parametricCurve =
@@ -988,6 +885,7 @@ public:
             }
             SLIC_ASSERT(curve.isValidNURBS());
             SLIC_ASSERT(curve.getDegree() == bsplineCurve->Degree());
+
             patch.addTrimmingCurve(curve);
 
             SLIC_INFO_IF(m_verbose,
@@ -1011,8 +909,7 @@ public:
                                   patchIndex,
                                   wireIndex,
                                   edgeIndex,
-                                  curveIndex,
-                                  curve));
+                                  curveIndex));
             }
           }
         }
