@@ -58,16 +58,16 @@ constexpr auto DEPENDENT_KEY = "dependent";
  */
 void addCurve(Curve &&curve, CurveSet::CurveMap &curves, std::vector<std::string> &nameList)
 {
-  auto &curveName = curve.getName();
+  std::string curveName = curve.getName();  // Make a COPY before moving
   auto existing = curves.find(curveName);
   if(existing == curves.end())
   {
-    curves.insert(std::make_pair(curveName, curve));
-    nameList.emplace_back(curveName);
+    curves.insert(std::make_pair(curveName, std::move(curve)));  // Explicit move
+    nameList.emplace_back(std::move(curveName));  // Move the copy into the list
   }
   else
   {
-    existing->second = curve;
+    existing->second = std::move(curve);  // Explicit move
   }
 }
 
@@ -135,6 +135,7 @@ conduit::Node createCurveMapNode(CurveSet::CurveMap const &curveMap,
                                  std::vector<std::string> const &nameList,
                                  CurveSet::CurveOrder const curveOrder)
 {
+
   conduit::Node mapNode;
   mapNode.set_dtype(conduit::DataType::object());
   // Copy for sorting
@@ -213,6 +214,11 @@ conduit::Node CurveSet::toNode(CurveOrder curveOrder) const
     createCurveMapNode(independentCurves, orderedIndependentCurveNames, curveOrder);
   asNode[DEPENDENT_KEY] = createCurveMapNode(dependentCurves, orderedDependentCurveNames, curveOrder);
   return asNode;
+}
+
+conduit::Node CurveSet::toNode() const
+{
+  return toNode(sinaDefaultCurveOrder);
 }
 
 }  // namespace sina

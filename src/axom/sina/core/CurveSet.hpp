@@ -164,6 +164,7 @@ public:
     *
      * \return the Node representation of this CurveSet
      */
+  conduit::Node toNode() const;  // Use default order
   conduit::Node toNode(CurveOrder curveOrder) const;
 
 private:

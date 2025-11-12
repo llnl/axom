@@ -213,11 +213,15 @@ program example
 
   
 contains
-  function make_cstring(string) result(cstring)
-    character(len=*), intent(in) :: string
-    character(len=:), allocatable :: cstring
-    cstring = trim(string) // char(0)
-  end function make_cstring
-  
+function make_cstring2(fstr) result(cstr)
+  use iso_c_binding
+  character(*), intent(in) :: fstr
+  character(len=len_trim(fstr)+1, kind=c_char) :: cstr
+
+  if (len_trim(fstr) > 0) then
+    cstr(1:len_trim(fstr)) = fstr(1:len_trim(fstr))
+  endif
+  cstr(len_trim(fstr)+1:len_trim(fstr)+1) = c_null_char
+end function make_cstring2 
 
 end program example

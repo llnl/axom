@@ -263,7 +263,10 @@ extern "C" void sina_add_file_(char *filename, char *mime_type, char *recId, int
     
     axom::sina::File my_file {filename_str};
     
-    if (!mime_type_str.empty()) {
+    bool is_effectively_empty = 
+    mime_type_str.find_first_not_of('\0') == std::string::npos;
+
+    if (!is_effectively_empty) {
       my_file.setMimeType(mime_type_str);
     } else {
       std::string ext = Get_File_Extension(const_cast<char*>(filename_str.c_str()));
@@ -343,84 +346,43 @@ extern "C" void sina_add_curveset_(char *name, char *recId, int name_len, int re
     }
 }
 
-extern "C" void sina_add_curve_long_(char *curveset_name,
-                                     char *curve_name,
-                                     long long int *values,
-                                     int *n,
-                                     bool *independent,
-                                     char *recId,
-                                     int curveset_len,
-                                     int curvename_len,
-                                     int recId_len)
+extern "C" void sina_add_curve_double_(char *curveset_name,
+                                       char *curve_name,
+                                       double *values,
+                                       int *n,
+                                       int *independent,
+                                       char *recId)
 {
     if (!can_modify_records()) return; 
-    
-    std::string recId_str = fortran_to_cpp_string(recId, recId_len);
-    std::string curveset_str = fortran_to_cpp_string(curveset_name, curveset_len);
-    std::string curvename_str = fortran_to_cpp_string(curve_name, curvename_len);
-    
-    axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
-    if (sina_record) {
-      std::vector<double> y(*n);
-      for (int i = 0; i < *n; i++) {
-        y[i] = static_cast<double>(values[i]);
-      }
-      axom::sina::Curve curve {curvename_str, y};
 
+    std::string recId_str(recId);
+    std::string curveset_str(curveset_name);
+    std::string curvename_str(curve_name);
+    axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
+
+    if (sina_record) {
+      
+     axom::sina::Curve curve {curvename_str, values, static_cast<size_t>(*n)};
       auto &curvesets = sina_record->getCurveSets();
       if (curvesets.find(curveset_str) == curvesets.end()) {
-        // missing curveset let's create it
-        sina_add_curveset_(curveset_name, recId, curveset_len, recId_len);
-      }
-
-      auto &curvesets_updated = sina_record->getCurveSets();
-      axom::sina::CurveSet cs = curvesets_updated.at(curveset_str);
-      if (*independent) {
-        cs.addIndependentCurve(curve);
+        // Create curveset directly
+        axom::sina::CurveSet cs {curveset_str};
+        if (*independent != 0) {
+          cs.addIndependentCurve(curve);
+        } else {
+          cs.addDependentCurve(curve);
+        }
+        sina_record->add(cs);
       } else {
-        cs.addDependentCurve(curve);
+        // Curveset already exists
+        axom::sina::CurveSet cs = curvesets.at(curveset_str);
+        if (*independent != 0) {
+          cs.addIndependentCurve(curve);
+        } else {
+          cs.addDependentCurve(curve);
+        }
+        sina_record->add(cs);
       }
-      sina_record->add(cs);
-    }
-}
-
-extern "C" void sina_add_curve_int_(char *curveset_name,
-                                    char *curve_name,
-                                    int *values,
-                                    int *n,
-                                    bool *independent,
-                                    char *recId,
-                                    int curveset_len,
-                                    int curvename_len,
-                                    int recId_len)
-{
-    if (!can_modify_records()) return; 
-    
-    std::string recId_str = fortran_to_cpp_string(recId, recId_len);
-    std::string curveset_str = fortran_to_cpp_string(curveset_name, curveset_len);
-    std::string curvename_str = fortran_to_cpp_string(curve_name, curvename_len);
-    
-    axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
-    if (sina_record) {
-      std::vector<double> y(*n);
-      for (int i = 0; i < *n; i++) {
-        y[i] = static_cast<double>(values[i]);
-      }
-      axom::sina::Curve curve {curvename_str, y};
-
-      auto &curvesets = sina_record->getCurveSets();
-      if (curvesets.find(curveset_str) == curvesets.end()) {
-        sina_add_curveset_(curveset_name, recId, curveset_len, recId_len);
-      }
-
-      auto &curvesets_updated = sina_record->getCurveSets();
-      axom::sina::CurveSet cs = curvesets_updated.at(curveset_str);
-      if (*independent) {
-        cs.addIndependentCurve(curve);
-      } else {
-        cs.addDependentCurve(curve);
-      }
-      sina_record->add(cs);
     }
 }
 
@@ -428,18 +390,15 @@ extern "C" void sina_add_curve_float_(char *curveset_name,
                                       char *curve_name,
                                       float *values,
                                       int *n,
-                                      bool *independent,
-                                      char *recId,
-                                      int curveset_len,
-                                      int curvename_len,
-                                      int recId_len)
+                                      int *independent,
+                                      char *recId)
 {
     if (!can_modify_records()) return; 
     
-    std::string recId_str = fortran_to_cpp_string(recId, recId_len);
-    std::string curveset_str = fortran_to_cpp_string(curveset_name, curveset_len);
-    std::string curvename_str = fortran_to_cpp_string(curve_name, curvename_len);
-    
+    std::string recId_str(recId);
+    std::string curveset_str(curveset_name);
+    std::string curvename_str(curve_name);
+
     axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
     if (sina_record) {
       std::vector<double> y(*n);
@@ -450,53 +409,112 @@ extern "C" void sina_add_curve_float_(char *curveset_name,
 
       auto &curvesets = sina_record->getCurveSets();
       if (curvesets.find(curveset_str) == curvesets.end()) {
-        sina_add_curveset_(curveset_name, recId, curveset_len, recId_len);
-      }
-
-      auto &curvesets_updated = sina_record->getCurveSets();
-      axom::sina::CurveSet cs = curvesets_updated.at(curveset_str);
-      if (*independent) {
-        cs.addIndependentCurve(curve);
+        // Create curveset directly
+        axom::sina::CurveSet cs {curveset_str};
+        if (*independent != 0) {
+          cs.addIndependentCurve(curve);
+        } else {
+          cs.addDependentCurve(curve);
+        }
+        sina_record->add(cs);
       } else {
-        cs.addDependentCurve(curve);
+        // Curveset already exists
+        axom::sina::CurveSet cs = curvesets.at(curveset_str);
+        if (*independent != 0) {
+          cs.addIndependentCurve(curve);
+        } else {
+          cs.addDependentCurve(curve);
+        }
+        sina_record->add(cs);
       }
-      sina_record->add(cs);
     }
 }
 
-extern "C" void sina_add_curve_double_(char *curveset_name,
-                                       char *curve_name,
-                                       double *values,
-                                       int *n,
-                                       bool *independent,
-                                       char *recId,
-                                       int curveset_len,
-                                       int curvename_len,
-                                       int recId_len)
+extern "C" void sina_add_curve_int_(char *curveset_name,
+                                    char *curve_name,
+                                    int *values,
+                                    int *n,
+                                    int *independent,
+                                    char *recId)
 {
     if (!can_modify_records()) return; 
     
-    std::string recId_str = fortran_to_cpp_string(recId, recId_len);
-    std::string curveset_str = fortran_to_cpp_string(curveset_name, curveset_len);
-    std::string curvename_str = fortran_to_cpp_string(curve_name, curvename_len);
+    std::string recId_str(recId);
+    std::string curveset_str(curveset_name);
+    std::string curvename_str(curve_name);
 
     axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
     if (sina_record) {
-      axom::sina::Curve curve {curvename_str, values, static_cast<size_t>(*n)};
+      std::vector<double> y(*n);
+      for (int i = 0; i < *n; i++) {
+        y[i] = static_cast<double>(values[i]);
+      }
+      axom::sina::Curve curve {curvename_str, y};
 
       auto &curvesets = sina_record->getCurveSets();
       if (curvesets.find(curveset_str) == curvesets.end()) {
-        sina_add_curveset_(curveset_name, recId, curveset_len, recId_len);
-      }
-
-      auto &curvesets_updated = sina_record->getCurveSets();
-      axom::sina::CurveSet cs = curvesets_updated.at(curveset_str);
-      if (*independent) {
-        cs.addIndependentCurve(curve);
+        // Create curveset directly
+        axom::sina::CurveSet cs {curveset_str};
+        if (*independent != 0) {
+          cs.addIndependentCurve(curve);
+        } else {
+          cs.addDependentCurve(curve);
+        }
+        sina_record->add(cs);
       } else {
-        cs.addDependentCurve(curve);
+        // Curveset already exists
+        axom::sina::CurveSet cs = curvesets.at(curveset_str);
+        if (*independent != 0) {
+          cs.addIndependentCurve(curve);
+        } else {
+          cs.addDependentCurve(curve);
+        }
+        sina_record->add(cs);
       }
-      sina_record->add(cs);
+    }
+}
+
+extern "C" void sina_add_curve_long_(char *curveset_name,
+                                     char *curve_name,
+                                     long long int *values,
+                                     int *n,
+                                     int *independent,
+                                     char *recId)
+{
+    if (!can_modify_records()) return; 
+    
+    std::string recId_str(recId);
+    std::string curveset_str(curveset_name);
+    std::string curvename_str(curve_name);
+
+    axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(recId_str.c_str()));
+    if (sina_record) {
+      std::vector<double> y(*n);
+      for (int i = 0; i < *n; i++) {
+        y[i] = static_cast<double>(values[i]);
+      }
+      axom::sina::Curve curve {curvename_str, y};
+
+      auto &curvesets = sina_record->getCurveSets();
+      if (curvesets.find(curveset_str) == curvesets.end()) {
+        // Create curveset directly
+        axom::sina::CurveSet cs {curveset_str};
+        if (*independent != 0) {
+          cs.addIndependentCurve(curve);
+        } else {
+          cs.addDependentCurve(curve);
+        }
+        sina_record->add(cs);
+      } else {
+        // Curveset already exists
+        axom::sina::CurveSet cs = curvesets.at(curveset_str);
+        if (*independent != 0) {
+          cs.addIndependentCurve(curve);
+        } else {
+          cs.addDependentCurve(curve);
+        }
+        sina_record->add(cs);
+      }
     }
 }
 
