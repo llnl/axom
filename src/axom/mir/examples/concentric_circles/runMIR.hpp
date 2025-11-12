@@ -11,7 +11,7 @@
 #include "axom/mir.hpp"  // for Mir classes & functions
 
 template <typename ExecSpace, typename MatsetView>
-void test_matset_traveral(MatsetView matsetView)
+void test_matset_traversal(MatsetView matsetView)
 {
   AXOM_ANNOTATE_SCOPE("test_matset_traversal");
   double vf1, vf2;
@@ -50,8 +50,12 @@ void test_matset_traveral(MatsetView matsetView)
     vf2 = vfSum.get();
   }
 
-  std::cout << "test_matset_traversal: vf1=" << vf1 << ", vf2=" << vf2
-            << ", nzones=" << matsetView.numberOfZones() << std::endl;
+  const double eps = 1.e-10;
+  SLIC_INFO(axom::fmt::format("test_matset_traversal: vf1={}, vf2={}, nzones={}, result={}",
+                              vf1,
+                              vf2,
+                              matsetView.numberOfZones(),
+                              (axom::utilities::abs(vf1 - vf2) < eps) ? "pass" : "fail"));
 }
 
 template <typename ExecSpace, int NDIMS>
@@ -146,7 +150,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
     {
       using namespace axom::bump::views;
       auto matsetView = make_unibuffer_matset<int, float, MAXMATERIALS>::view(n_matset);
-      test_matset_traveral<ExecSpace>(matsetView);
+      test_matset_traversal<ExecSpace>(matsetView);
     }
     else
     {
