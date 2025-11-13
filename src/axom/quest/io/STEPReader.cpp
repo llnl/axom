@@ -16,7 +16,6 @@
 #include "opencascade/BRepAdaptor_Curve.hxx"
 #include "opencascade/BRepBuilderAPI_MakeFace.hxx"
 #include "opencascade/BRepBuilderAPI_NurbsConvert.hxx"
-#include "opencascade/BRepMesh_IncrementalMesh.hxx"
 #include "opencascade/BRepTools.hxx"
 #include "opencascade/BRep_Tool.hxx"
 #include "opencascade/Geom2d_BSplineCurve.hxx"
@@ -27,21 +26,26 @@
 #include "opencascade/Geom_RectangularTrimmedSurface.hxx"
 #include "opencascade/Geom_Surface.hxx"
 #include "opencascade/Interface_Static.hxx"
-#include "opencascade/Poly_Triangulation.hxx"
-#include "opencascade/Precision.hxx"
 #include "opencascade/STEPControl_Reader.hxx"
-#include "opencascade/TColgp_Array1OfPnt.hxx"
 #include "opencascade/TColgp_Array2OfPnt.hxx"
-#include "opencascade/TopAbs.hxx"
 #include "opencascade/TopExp.hxx"
 #include "opencascade/TopExp_Explorer.hxx"
-#include "opencascade/TopLoc_Location.hxx"
 #include "opencascade/TopTools_IndexedMapOfShape.hxx"
 #include "opencascade/TopoDS.hxx"
 #include "opencascade/TopoDS_Edge.hxx"
 #include "opencascade/TopoDS_Face.hxx"
 #include "opencascade/TopoDS_Shape.hxx"
 #include "opencascade/TopoDS_Wire.hxx"
+#include "opencascade/BRepLib.hxx"
+#include "opencascade/ShapeFix_Edge.hxx"
+#include "opencascade/BRepCheck_Analyzer.hxx"
+#include "opencascade/BRepCheck.hxx"
+#include "opencascade/BRepCheck_Face.hxx"
+#include "opencascade/BRepCheck_Wire.hxx"
+#include "opencascade/BRepCheck_Edge.hxx"
+#include "opencascade/ShapeFix_Wire.hxx"
+#include "opencascade/ShapeFix_Face.hxx"
+#include "opencascade/ShapeBuild_ReShape.hxx"
 
 #include <iostream>
 
@@ -261,87 +265,7 @@ private:
       m_surface->SetVNotPeriodic();
     }
 
-    /// generates a new BSpline surface from data in axom::Arrays
-    opencascade::handle<Geom_BSplineSurface> createBSplineSurfaceFromAxomArrays(
-      const axom::Array<PointType3D, 2>& controlPoints,
-      const axom::Array<double, 2>& weights,  // will be empty if surface is non-rational
-      const axom::Array<double>& uKnots,
-      const axom::Array<int>& uMults,
-      const axom::Array<double>& vKnots,
-      const axom::Array<int>& vMults,
-      bool isUPeriodic,
-      bool isVPeriodic,
-      int uDegree,
-      int vDegree)
-    {
-      // Convert control points to Open Cascade array
-      TColgp_Array2OfPnt poles(1, controlPoints.shape()[0], 1, controlPoints.shape()[1]);
-      for(int i = 0; i < controlPoints.shape()[0]; ++i)
-      {
-        for(int j = 0; j < controlPoints.shape()[1]; ++j)
-        {
-          const PointType3D& pt = controlPoints(i, j);
-          poles.SetValue(i + 1, j + 1, gp_Pnt(pt[0], pt[1], pt[2]));
-        }
-      }
-
-      // Convert uKnots and uMults to Open Cascade arrays
-      TColStd_Array1OfReal occUKnots(1, uKnots.size());
-      TColStd_Array1OfInteger occUMults(1, uMults.size());
-      for(int i = 0; i < uKnots.size(); ++i)
-      {
-        occUKnots.SetValue(i + 1, uKnots[i]);
-        occUMults.SetValue(i + 1, uMults[i]);
-      }
-
-      // Convert vKnots and vMults to Open Cascade arrays
-      TColStd_Array1OfReal occVKnots(1, vKnots.size());
-      TColStd_Array1OfInteger occVMults(1, vMults.size());
-      for(int i = 0; i < vKnots.size(); ++i)
-      {
-        occVKnots.SetValue(i + 1, vKnots[i]);
-        occVMults.SetValue(i + 1, vMults[i]);
-      }
-
-      // Create and return the BSpline surface
-      opencascade::handle<Geom_BSplineSurface> bsplineSurface;
-      if(!weights.empty())
-      {
-        TColStd_Array2OfReal occWeights(1, controlPoints.shape()[0], 1, controlPoints.shape()[1]);
-        for(int i = 0; i < controlPoints.shape()[0]; ++i)
-        {
-          for(int j = 0; j < controlPoints.shape()[1]; ++j)
-          {
-            occWeights.SetValue(i + 1, j + 1, weights(i, j));
-          }
-        }
-        bsplineSurface = new Geom_BSplineSurface(poles,
-                                                 occWeights,
-                                                 occUKnots,
-                                                 occVKnots,
-                                                 occUMults,
-                                                 occVMults,
-                                                 uDegree,
-                                                 vDegree,
-                                                 isUPeriodic,
-                                                 isVPeriodic);
-      }
-      else
-      {
-        bsplineSurface = new Geom_BSplineSurface(poles,
-                                                 occUKnots,
-                                                 occVKnots,
-                                                 occUMults,
-                                                 occVMults,
-                                                 uDegree,
-                                                 vDegree,
-                                                 isUPeriodic,
-                                                 isVPeriodic);
-      }
-
-      return bsplineSurface;
-    }
-
+  public:
     /// extracts control points (poles) from the patch as a 2D axom::Array
     axom::Array<PointType3D, 2> extractControlPoints() const
     {
@@ -606,51 +530,6 @@ private:
       m_curve->Segment(U0, U0 + T);
     }
 
-    /// generates a new BSpline curve from data in axom::Arrays
-    opencascade::handle<Geom2d_BSplineCurve> createBSplineCurveFromAxomArrays(
-      const axom::Array<PointType>& controlPoints,
-      const axom::Array<double>& weights,  // will be empty if curve is non-rational
-      const axom::Array<double>& knots,
-      const axom::Array<int>& mults,
-      int degree)
-    {
-      // Convert control points to Open Cascade array
-      TColgp_Array1OfPnt2d occPoles(1, controlPoints.size());
-      for(int i = 0; i < controlPoints.size(); ++i)
-      {
-        occPoles.SetValue(i + 1, gp_Pnt2d(controlPoints[i][0], controlPoints[i][1]));
-      }
-
-      // Convert knots and mults to Open Cascade arrays
-      TColStd_Array1OfReal occKnots(1, knots.size());
-      TColStd_Array1OfInteger occMults(1, mults.size());
-      for(int i = 0; i < knots.size(); ++i)
-      {
-        occKnots.SetValue(i + 1, knots[i]);
-        occMults.SetValue(i + 1, mults[i]);
-      }
-
-      opencascade::handle<Geom2d_BSplineCurve> clamped_curve;
-
-      // Copy updated weights into Open Cascade array
-      if(!weights.empty())
-      {
-        TColStd_Array1OfReal occWeights(1, weights.size());
-        for(int i = 0; i < weights.size(); ++i)
-        {
-          occWeights.SetValue(i + 1, weights[i]);
-        }
-
-        clamped_curve = new Geom2d_BSplineCurve(occPoles, occWeights, occKnots, occMults, degree);
-      }
-      else
-      {
-        clamped_curve = new Geom2d_BSplineCurve(occPoles, occKnots, occMults, degree);
-      }
-
-      return clamped_curve;
-    }
-
   public:
     axom::Array<PointType> extractControlPoints() const
     {
@@ -754,19 +633,26 @@ public:
 
   const TopoDS_Shape& getShape() const { return m_shape; }
 
-  int numPatchesInFile() const { return m_faceMap.Extent(); }
+  int numPatchesInFile() const
+  {
+    int count = 0;
+    for(TopExp_Explorer ex(m_shape, TopAbs_FACE); ex.More(); ex.Next())
+    {
+      ++count;
+    }
+    return count;
+  }
 
   /// Extracts data from the faces of the mesh and converts each patch to a NURBSPatch
   void extractPatches(NPatchArray& patches)
   {
     patches.resize(numPatchesInFile());
 
-    for(int faceIdx = 1; faceIdx <= m_faceMap.Extent(); ++faceIdx)
+    int patchIndex = 0;
+    for(TopExp_Explorer ex(m_shape, TopAbs_FACE); ex.More(); ex.Next(), ++patchIndex)
     {
-      const int patchIndex = faceIdx - 1;
       SLIC_DEBUG_IF(m_verbose, "*** Processing patch " << patchIndex);
-
-      const TopoDS_Face& face = TopoDS::Face(m_faceMap.FindKey(faceIdx));
+      const TopoDS_Face& face = TopoDS::Face(ex.Current());
 
       opencascade::handle<Geom_Surface> surface = BRep_Tool::Surface(face);
       if(surface->IsKind(STANDARD_TYPE(Geom_BSplineSurface)))
@@ -911,6 +797,8 @@ public:
                                   edgeIndex,
                                   curveIndex));
             }
+
+            // TODO: Check that curve control points are within UV patch after adjusting periodicity
           }
         }
       }
@@ -1055,9 +943,6 @@ private:
     SLIC_INFO_IF(m_verbose,
                  axom::fmt::format("Successfully read the STEP file with {} roots", numRoots));
 
-    // Initialize m_faceMap with faces from nurbsShape
-    TopExp::MapShapes(nurbsShape, TopAbs_FACE, m_faceMap);
-
     return nurbsShape;
   }
 
@@ -1065,7 +950,6 @@ private:
   TopoDS_Shape m_shape;
   bool m_verbose {false};
   LoadStatus m_loadStatus {LoadStatus::UNINITIALIZED};
-  TopTools_IndexedMapOfShape m_faceMap;
 
   std::string m_fileUnits {"mm"};
 
@@ -1073,30 +957,6 @@ private:
 };
 
 }  // end namespace internal
-
-STEPReader::~STEPReader()
-{
-  if(m_stepProcessor)
-  {
-    delete m_stepProcessor;
-    m_stepProcessor = nullptr;
-  }
-}
-
-int STEPReader::read()
-{
-  m_stepProcessor = new internal::StepFileProcessor(m_fileName, m_verbosity);
-  if(!m_stepProcessor->isLoaded())
-  {
-    return 1;
-  }
-
-  m_stepProcessor->extractPatches(m_patches);
-  m_stepProcessor->extractTrimmingCurves(m_patches);
-  this->printBRepStats();
-
-  return 0;
-}
 
 std::string STEPReader::getFileUnits() const { return m_stepProcessor->getFileUnits(); }
 
@@ -1339,6 +1199,31 @@ void STEPReader::printBRepStats() const
   }
 
   SLIC_INFO(axom::fmt::to_string(out));
+}
+
+STEPReader::~STEPReader()
+{
+  if(m_stepProcessor)
+  {
+    delete m_stepProcessor;
+    m_stepProcessor = nullptr;
+  }
+}
+
+int STEPReader::read()
+{
+  m_stepProcessor = new internal::StepFileProcessor(m_fileName, m_verbosity);
+  if(!m_stepProcessor->isLoaded())
+  {
+    return 1;
+  }
+
+  m_stepProcessor->extractPatches(m_patches);
+  m_stepProcessor->extractTrimmingCurves(m_patches);
+
+  this->printBRepStats();
+
+  return 0;
 }
 
 }  // end namespace quest
