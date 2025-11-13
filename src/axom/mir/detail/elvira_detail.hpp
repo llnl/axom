@@ -104,18 +104,14 @@ AXOM_HOST_DEVICE inline void computeRange(const ShapeType &shape,
                                           const axom::primal::Vector<T, NDIMS> &normal,
                                           axom::primal::Point<T, NDIMS> range[2])
 {
-#if 1
-  // Use the vertex mean as the center of the shape
-  const auto center = shape.vertexMean();
-#else
   // Compute the shape bounding box.
   const auto bbox = axom::primal::compute_bounding_box(shape);
-  const auto center = bbox.getCentroid();
-#endif
-  const axom::primal::Plane<T, NDIMS> P(normal, center, false);
-  range[0] = range[1] = center;
+
+  const axom::primal::Plane<T, NDIMS> P(normal, bbox.getCentroid(), false);
 
   // Compute distances from all points in shape to plane.
+  const auto centroid = bbox.getCentroid();
+  range[0] = range[1] = centroid;
   double dist[2] = {0., 0.};
   for(axom::IndexType ip = 0; ip < shape.numVertices(); ip++)
   {
@@ -123,12 +119,12 @@ AXOM_HOST_DEVICE inline void computeRange(const ShapeType &shape,
     if(d < dist[0])
     {
       dist[0] = d;
-      range[0] = center + (normal * d);
+      range[0] = centroid + (normal * d);
     }
     if(d > dist[1])
     {
       dist[1] = d;
-      range[1] = center + (normal * d);
+      range[1] = centroid + (normal * d);
     }
   }
 }
