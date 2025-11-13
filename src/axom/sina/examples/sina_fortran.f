@@ -197,15 +197,16 @@ program example
   ! set default record type
   rec_id = make_cstring('fortran_test')
   call sina_set_default_record_type(rec_id)
-! Let's add another record
+  
+  ! Let's add another record
   rec2_id = make_cstring('my_rec_3_id')
   call sina_create_record(rec2_id)
   curve = make_cstring('my_indep_curve_double')
   independent = .true.
   print*, 'adding curve to rec3 double', independent, curve
   call sina_add_curve(name2, curve, double_arr, size(double_arr), independent, rec2_id)
-  call sina_add_curve(name2, curve, double_arr, size(double_arr), independent, rec2_id)
-! And save the hdf5 only with autodetect
+  
+  ! And save the hdf5 only with autodetect
   print*, 'saving to', hdf5_fn
   call sina_write_document(hdf5_fn)
   call sina_add_curve(name2, curve, double_arr, size(double_arr), independent, rec2_id)

@@ -373,12 +373,12 @@ conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
  * 
  * @param document The Document to append
  * @param filepath Path to the existing file
- * @param mergeProtocol How to handle conflicts (0=APPEND, 1=KEEP_ORIGINAL, 2=OVERWRITE, 3=ERROR)
+ * @param mergeProtocol How to handle conflicts (1=KEEP_ORIGINAL, 2=OVERWRITE, 3=ERROR)
  * @param outputProtocol Optional format override (default: AUTO_DETECT)
  */
 void appendDocument(const Document& document,
                    const std::string& filepath,
-                   int mergeProtocol = 0,
+                   int mergeProtocol = 1,
                    Protocol Protocol = Protocol::AUTO_DETECT);
 
 /**
