@@ -48,7 +48,7 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
   for(int i = 0; i < sections.size(); ++i)
   {
     axom::ArrayView<const Point2DType> section = sections[i].view();
-    std::string sectionName = axom::fmt::format("{}.{}", m_name, i);
+    std::string sectionName = axom::fmt::format("{}.section{:02d}", m_name, i);
     m_fsorStrategies.push_back(std::make_shared<FSorClipper>(kGeom,
                                                              sectionName,
                                                              section,
