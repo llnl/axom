@@ -20,29 +20,17 @@
 #include "opencascade/BRepMesh_IncrementalMesh.hxx"
 #include "opencascade/BRepTools.hxx"
 #include "opencascade/BRep_Tool.hxx"
-#include "opencascade/Geom2d_BSplineCurve.hxx"
-#include "opencascade/Geom2d_Curve.hxx"
-#include "opencascade/Geom2dConvert.hxx"
-#include "opencascade/GeomAbs_CurveType.hxx"
 #include "opencascade/Geom_BSplineSurface.hxx"
 #include "opencascade/Geom_RectangularTrimmedSurface.hxx"
 #include "opencascade/Geom_Surface.hxx"
-#include "opencascade/Interface_Static.hxx"
 #include "opencascade/Poly_Triangulation.hxx"
 #include "opencascade/Precision.hxx"
-#include "opencascade/STEPControl_Reader.hxx"
-#include "opencascade/TColgp_Array1OfPnt.hxx"
-#include "opencascade/TColgp_Array2OfPnt.hxx"
-#include "opencascade/TopAbs.hxx"
 #include "opencascade/TopExp.hxx"
 #include "opencascade/TopExp_Explorer.hxx"
 #include "opencascade/TopLoc_Location.hxx"
-#include "opencascade/TopTools_IndexedMapOfShape.hxx"
 #include "opencascade/TopoDS.hxx"
-#include "opencascade/TopoDS_Edge.hxx"
 #include "opencascade/TopoDS_Face.hxx"
 #include "opencascade/TopoDS_Shape.hxx"
-#include "opencascade/TopoDS_Wire.hxx"
 #include <iostream>
 
 /**
@@ -378,7 +366,10 @@ public:
     , m_angularDeflection(angularDeflection)
     , m_verbose(verbose)
   {
-    BRepMesh_IncrementalMesh mesh(m_shape, m_deflection, Standard_False, m_angularDeflection);
+    const bool is_relative = false;
+    BRepTools::Clean(shape);
+    BRepMesh_IncrementalMesh mesh(m_shape, m_deflection, is_relative, m_angularDeflection);
+
     if(!mesh.IsDone())
     {
       throw std::runtime_error("Mesh generation failed.");
@@ -416,15 +407,18 @@ public:
       axom::fmt::format_to(std::back_inserter(stlContent), "solid patch_{}\n", patchIndex);
 
       const int numTriangles = triangulation->NbTriangles();
+      auto trsf = loc.Transformation();
+
       for(int i = 1; i <= numTriangles; ++i)
       {
         Poly_Triangle triangle = triangulation->Triangle(i);
         int n1, n2, n3;
         triangle.Get(n1, n2, n3);
-        axom::fmt::format_to(std::back_inserter(stlContent),
-                             axom::fmt::runtime(triangleAsSTLString(triangulation->Node(n1),
-                                                                    triangulation->Node(n2),
-                                                                    triangulation->Node(n3))));
+        axom::fmt::format_to(
+          std::back_inserter(stlContent),
+          axom::fmt::runtime(triangleAsSTLString(triangulation->Node(n1).Transformed(trsf),
+                                                 triangulation->Node(n2).Transformed(trsf),
+                                                 triangulation->Node(n3).Transformed(trsf))));
       }
 
       axom::fmt::format_to(std::back_inserter(stlContent), "endsolid patch_{}\n", patchIndex);
