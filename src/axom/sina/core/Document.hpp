@@ -371,10 +371,11 @@ conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
  * Automatically detects the file format from the extension and appends accordingly.
  * The format can optionally be overridden.
  * 
- * @param document The Document to append
- * @param filepath Path to the existing file
- * @param mergeProtocol How to handle conflicts (1=KEEP_ORIGINAL, 2=OVERWRITE, 3=ERROR)
- * @param outputProtocol Optional format override (default: AUTO_DETECT)
+ * \param document The Document to append
+ * \param filepath Path to the existing file
+ * \param mergeProtocol How to handle conflicts (1=KEEP_ORIGINAL, 2=OVERWRITE, 3=ERROR)
+ * \param outputProtocol Optional format override (default: AUTO_DETECT)
+ * \throws std::runtime_error If the file cannot be opened or the format is unsupported
  */
 void appendDocument(const Document& document,
                    const std::string& filepath,

@@ -19,7 +19,6 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/fmt.hpp"
-#include "axom/core/utilities/StringUtilities.hpp"
 
 #include "conduit.hpp"
 #ifdef AXOM_USE_HDF5
