@@ -211,6 +211,16 @@ program example
   call sina_add_curve(name2, curve, double_arr, size(double_arr), independent, rec2_id)
   call sina_write_document(hdf5_fn)
 
+  ! ========== CLEANUP - Deallocate only allocatable strings ==========
+  if (allocated(rec_id)) deallocate(rec_id)
+  if (allocated(rec2_id)) deallocate(rec2_id)
+  if (allocated(fle_nme)) deallocate(fle_nme)
+  if (allocated(ofle_nme)) deallocate(ofle_nme)
+  if (allocated(mime_type)) deallocate(mime_type)
+  if (allocated(units)) deallocate(units)
+  if (allocated(tag)) deallocate(tag)
+  ! Note: full_path, ofull_path, custom_type are fixed-length, not allocatable
+
   
 contains
 function make_cstring2(fstr) result(cstr)

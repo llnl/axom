@@ -237,12 +237,12 @@ extern "C" void sina_add_string_(char *key, char *value, char *units, char *tags
     
     axom::sina::Datum datum {key_value};
     
-    std::string key_units = fortran_to_cpp_string(units, units_len);
+    std::string key_units(units);
     if (!key_units.empty()) {
       datum.setUnits(key_units);
     }
     
-    std::string tags_str = fortran_to_cpp_string(tags, tags_len);
+    std::string tags_str(tags);
     if (!tags_str.empty()) {
       datum.setTags({tags_str});
     }
