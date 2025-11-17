@@ -16,6 +16,7 @@
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/spin/RectangularLattice.hpp"
 
+#include <type_traits>
 #include <vector>
 
 namespace axom
@@ -708,7 +709,7 @@ private:
   template <typename FuncType>
   AXOM_HOST_DEVICE bool getVisitResult(FuncType&& type, int arg) const
   {
-    using ReturnType = typename std::result_of<FuncType(int)>::type;
+    using ReturnType = std::invoke_result_t<FuncType, int>;
     return VisitDispatch<FuncType, ReturnType>::getResult(type, arg);
   }
 

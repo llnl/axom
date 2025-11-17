@@ -21,6 +21,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ### Added
 - Adds the `AXOM_ENABLE_TUTORIALS` configuration variable (`ON` by default)
 - Adds a tutorial on shaping in Axom and associated infrastructure in `quest`, `klee`, `inlet` and `sidre`.
+- Added iterators and Attribute class to the Python interface for sidre.
 
 ###  Changed
 - Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
