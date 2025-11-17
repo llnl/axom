@@ -75,7 +75,7 @@ matsets:
 
  \endverbatim
  */
-template <typename IndexT, typename FloatT, axom::IndexType MAXMATERIALS>
+template <typename IndexT, typename FloatT, axom::IndexType MAXMATERIALS = 20>
 class UnibufferMaterialView
 {
 public:
@@ -316,7 +316,7 @@ matsets:
 
  \endverbatim
  */
-template <typename IndexT, typename FloatT, axom::IndexType MAXMATERIALS>
+template <typename IndexT, typename FloatT, axom::IndexType MAXMATERIALS = 20>
 class MultiBufferMaterialView
 {
 public:
@@ -611,7 +611,7 @@ matsets:
 
  \endverbatim
  */
-template <typename IndexT, typename FloatT, axom::IndexType MAXMATERIALS>
+template <typename IndexT, typename FloatT, axom::IndexType MAXMATERIALS = 20>
 class ElementDominantMaterialView
 {
 public:
@@ -897,7 +897,7 @@ matsets:
  \note This matset type does not seem so GPU friendly since there is some work to do for some of the queries.
 
  */
-template <typename IndexT, typename FloatT, axom::IndexType MAXMATERIALS>
+template <typename IndexT, typename FloatT, axom::IndexType MAXMATERIALS = 20>
 class MaterialDominantMaterialView
 {
 public:
