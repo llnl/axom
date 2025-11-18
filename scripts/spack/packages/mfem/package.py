@@ -12,6 +12,16 @@ class Mfem(BuiltinMfem):
         extension="tar.gz",
     )
 
+    ## Hack (BH,18Nov2025): Needed for linking hypre to mfem+cuda
+    @property
+    def xlinker(self):
+    ### BEGIN AXOM PATCH
+        # using_nvcc = "+cuda" in self.spec and "+enzyme" not in self.spec
+        # return "-Wl," if not using_nvcc else "-Xlinker="
+        return "-Wl,"
+    ### END AXOM PATCH
+
+
     ## Hack (KW,14May2024): We needed to add the `hipblas` library to the hip_libs
     ## I've copied the entire `get_make_config_options` function
     ## to inject the appropriate call below.
