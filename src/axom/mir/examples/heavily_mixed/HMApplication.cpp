@@ -338,9 +338,11 @@ int HMApplication::runMIR()
   {
     AXOM_ANNOTATE_SCOPE("generate");
     int dims[3];
-    dims[0] = m_dims[0];
-    dims[1] = m_dims[1];
-    dims[2] = m_dims[2];
+    // NOTE: Use axom::copy to copy m_dims into dims. This way, the Umpire resource
+    //       manager gets created now so by the time we have multiple threads using
+    //       axom::copy, there is no race condition.
+    axom::copy(dims, m_dims, sizeof(int) * 3);
+
     SLIC_INFO(axom::fmt::format("dims: {},{},{}", dims[0], dims[1], dims[2]));
     SLIC_INFO(axom::fmt::format("refinement: {}", m_refinement));
     SLIC_INFO(axom::fmt::format("numMaterials: {}", m_numMaterials));
