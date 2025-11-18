@@ -22,7 +22,6 @@ format:
   # Any C++ function which returns a string will be wrapped in
   # Fortran as a subroutine with an additional character argument
   # for the result.
-  F_string_result_as_arg: name
 
 typemap:
 - type: axom::sidre::DataStore

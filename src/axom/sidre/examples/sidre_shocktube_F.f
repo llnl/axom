@@ -207,7 +207,7 @@ end subroutine GetUserInput
 !**************************************************************************
 
 subroutine CreateShockTubeMesh(prob)
-  type(SidreGroup), intent(IN) :: prob
+  type(SidreGroup), intent(INOUT) :: prob
   type(SidreGroup) elem, face, tube
   type(SidreGroup) ingrp, outgrp  ! XXX unused
   type(SidreView) tmpview
