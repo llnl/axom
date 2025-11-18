@@ -193,6 +193,7 @@ if (ENABLE_FORTRAN)
     list(APPEND quest_headers interface/c_fortran/wrapQUEST.h)
     list(APPEND quest_headers interface/c_fortran/typesQUEST.h)
     list(APPEND quest_sources interface/c_fortran/wrapQUEST.cpp)
+    list(APPEND quest_sources interface/c_fortran/utilQUEST.cpp)
     list(APPEND quest_sources interface/c_fortran/wrapfquest.F)
 endif()
 
