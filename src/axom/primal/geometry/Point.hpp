@@ -10,6 +10,7 @@
 #include "axom/core/Macros.hpp"
 #include "axom/core/numerics/Matrix.hpp"
 #include "axom/core/numerics/matvecops.hpp"
+#include "axom/core/numerics/matvecops.hpp"
 #include "axom/slic/interface/slic.hpp"
 
 // C/C++ includes
@@ -145,6 +146,24 @@ public:
   AXOM_HOST_DEVICE T* data() { return m_components.data(); }
 
   ///@}
+
+  /*!
+   * \brief Distance from origin.
+   */
+  AXOM_HOST_DEVICE
+  T r() const
+  {
+    return std::sqrt(r_squared());
+  }
+
+  /*!
+   * \brief Squared distance from origin.
+   */
+  AXOM_HOST_DEVICE
+  T r_squared() const
+  {
+    return numerics::dot_product(data(), data(), NDIMS);
+  }
 
   /*!
    * \brief Returns a reference to the underlying NumericArray.
