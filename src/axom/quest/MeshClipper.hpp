@@ -11,6 +11,7 @@
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/quest/ShapeMesh.hpp"
+#include "conduit/conduit_node.hpp"
 
 namespace axom
 {
@@ -80,6 +81,20 @@ public:
 
   //!@brief Dimension of the shape (2 or 3)
   int dimension() const { return m_shapeMesh.dimension(); }
+
+  /*!
+   * @brief Log clipping statistics.
+   *
+   * This is a collective method if MPI-parallel.
+   */
+  void logClippingStats() const;
+
+  /*!
+   * @brief Get assorted clipping statistics.
+   *
+   * This is a collective method if MPI-parallel.
+   */
+  conduit::Node getClippingStats() const;
 
   /*!
    * @brief Single interface for methods implemented with
@@ -166,11 +181,6 @@ public:
     MeshClipper& m_myClipper;
   };
 
-  //! @brief For assessments, not general use.
-  void getClippingStats(axom::IndexType& localCellInCount,
-                        axom::IndexType& globalCellInCount,
-                        axom::IndexType& maxLocalCellInCount) const;
-
 private:
   friend Impl;
 
@@ -189,7 +199,14 @@ private:
 
   ///@{
   //! @name Statistics
-  axom::IndexType m_localCellInCount {0};
+  axom::IndexType m_cellsInCount {0};
+  axom::IndexType m_cellsOnCount {0};
+  axom::IndexType m_cellsOutCount {0};
+  axom::IndexType m_hexesClipped {0};
+  axom::IndexType m_tetsInCount {0};
+  axom::IndexType m_tetsOnCount {0};
+  axom::IndexType m_tetsOutCount {0};
+  axom::IndexType m_tetsClipped {0};
   ///@}
 
   bool m_verbose;
@@ -210,8 +227,6 @@ public:
   {
     m_impl->getLabelCounts(labels, inCount, onCount, outCount);
   }
-
-  void logLabelStats(axom::ArrayView<const LabelType> labels, const std::string& labelType);
   //@}
 };
 

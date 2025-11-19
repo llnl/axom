@@ -733,10 +733,10 @@ void ShapeMesh::computeCellsAsHexesImpl()
 
   SLIC_ASSERT(m_dim == NDIM);  // or we shouldn't be here.
 
-  auto vertexCoords = getVertexCoords3D();
-  const axom::ArrayView<const double>& vX = vertexCoords[0];
-  const axom::ArrayView<const double>& vY = vertexCoords[1];
-  const axom::ArrayView<const double>& vZ = vertexCoords[2];
+  const auto& vertexCoords = getVertexCoords3D();
+  const auto& vX = vertexCoords[0];
+  const auto& vY = vertexCoords[1];
+  const auto& vZ = vertexCoords[2];
 
   axom::ArrayView<const IndexType, 2> connView = getCellNodeConnectivity();
 
@@ -749,7 +749,6 @@ void ShapeMesh::computeCellsAsHexesImpl()
   axom::for_all<ExecSpace>(
     m_cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
-      // Set each hexahedral element vertices
       auto& hex = cellsAsHexesView[cellId];
 
       for(int vi = 0; vi < NUM_VERTS_PER_HEX; ++vi)

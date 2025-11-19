@@ -68,7 +68,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
   {
     SLIC_ERROR_IF(
       cellLabels.size() != m_shapeMesh.getCellCount(),
-      axom::fmt::format("MeshClipperStrategy '{}' did not return the correct array size of {}",
+      axom::fmt::format("MeshClipperStrategy '{}' did not return the correct cell label array size of {}",
                         m_strategy->name(),
                         m_shapeMesh.getCellCount()));
     SLIC_ERROR_IF(cellLabels.getAllocatorID() != allocId,
@@ -77,10 +77,9 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
                                     m_strategy->name(),
                                     allocId));
 
-    if(m_verbose)
-    {
-      logLabelStats(cellLabels, "cells");
-    }
+    // Counting labels is non-essential and presumed to be relatively very fast.
+    getLabelCounts(cellLabels, m_cellsInCount, m_cellsOnCount, m_cellsOutCount);
+    if(m_verbose) { logClippingStats(); }
 
     AXOM_ANNOTATE_BEGIN("MeshClipper::processInOut");
 
@@ -88,6 +87,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
 
     axom::Array<axom::IndexType> cellsOnBdry;
     m_impl->collectOnIndices(cellLabels.view(), cellsOnBdry);
+    SLIC_ASSERT(cellsOnBdry.size() == m_cellsOnCount);
 
     axom::Array<LabelType> tetLabels;
     bool withTetInOut = m_strategy->labelTetsInOut(m_shapeMesh, cellsOnBdry.view(), tetLabels);
@@ -96,10 +96,21 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
 
     if(withTetInOut)
     {
-      if(m_verbose)
-      {
-        logLabelStats(tetLabels, "tets");
-      }
+      SLIC_ERROR_IF(
+        tetLabels.size() != NUM_TETS_PER_HEX*cellsOnBdry.size(),
+        axom::fmt::format("MeshClipperStrategy '{}' did not return the correct tet label array size of {}",
+                          m_strategy->name(),
+                          NUM_TETS_PER_HEX*cellsOnBdry.size()));
+      SLIC_ERROR_IF(tetLabels.getAllocatorID() != allocId,
+                    axom::fmt::format("MeshClipperStrategy '{}' failed to provide tetLabels data "
+                                      "with the required allocator id {}",
+                                      m_strategy->name(),
+                                      allocId));
+
+      // Counting labels is non-essential and presumed to be very fast.
+      getLabelCounts(tetLabels, m_tetsInCount, m_tetsOnCount, m_tetsOutCount);
+      if(m_verbose) { logClippingStats(); }
+
       m_impl->collectOnIndices(tetLabels.view(), tetsOnBdry);
       m_impl->remapTetIndices(cellsOnBdry, tetsOnBdry);
 
@@ -117,10 +128,18 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
     if(withTetInOut)
     {
       done = m_strategy->specializedClipTets(m_shapeMesh, ovlap, tetsOnBdry);
+      if(done)
+      {
+        m_tetsClipped = tetsOnBdry.size();
+      }
     }
     else
     {
       done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, cellsOnBdry);
+      if(done)
+      {
+        m_hexesClipped = cellsOnBdry.size();
+      }
     }
 
     if(!done)
@@ -129,14 +148,14 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
       if(withTetInOut)
       {
         m_impl->computeClipVolumes3DTets(tetsOnBdry.view(), ovlap);
+        m_tetsClipped = tetsOnBdry.size();
       }
       else
       {
         m_impl->computeClipVolumes3D(cellsOnBdry.view(), ovlap);
+        m_hexesClipped = cellsOnBdry.size();
       }
     }
-
-    m_localCellInCount = cellsOnBdry.size();
   }
   else  // !withCellInOut
   {
@@ -153,7 +172,8 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
       m_impl->computeClipVolumes3D(ovlap);
     }
 
-    m_localCellInCount = cellCount;
+    m_cellsOnCount = cellCount;
+    m_hexesClipped = cellCount;
   }
 }
 
@@ -197,52 +217,72 @@ std::unique_ptr<MeshClipper::Impl> MeshClipper::newImpl()
   return impl;
 }
 
-void MeshClipper::logLabelStats(axom::ArrayView<const LabelType> labels, const std::string& labelType)
+template<typename T>
+void globalReduce(axom::Array<T>& values, int reduceOp)
 {
-  axom::IndexType countsa[4];
-  axom::IndexType countsb[4];
-  getLabelCounts(labels, countsa[0], countsa[1], countsa[2]);
-  countsa[3] = m_shapeMesh.getCellCount();
 #ifdef AXOM_USE_MPI
-  MPI_Reduce(countsa, countsb, 4, axom::mpi_traits<axom::IndexType>::type, MPI_SUM, 0, MPI_COMM_WORLD);
+  axom::Array<T> localValues(values);
+  MPI_Allreduce(localValues.data(),
+             values.data(),
+             values.size(),
+             axom::mpi_traits<T>::type,
+             reduceOp,
+             MPI_COMM_WORLD);
 #endif
-  std::string msg = axom::fmt::format(
-    "MeshClipper strategy '{}' globally labeled {} {} inside, {} on and {} outside, for mesh with "
-    "{} cells ({} tets)\n",
-    m_strategy->name(),
-    labelType,
-    countsb[0],
-    countsb[1],
-    countsb[2],
-    countsb[3],
-    countsb[3] * NUM_TETS_PER_HEX);
-  SLIC_INFO(msg);
 }
 
-void MeshClipper::getClippingStats(axom::IndexType& localCellInCount,
-                                   axom::IndexType& globalCellInCount,
-                                   axom::IndexType& maxLocalCellInCount) const
+conduit::Node MeshClipper::getClippingStats() const
 {
-  localCellInCount = m_localCellInCount;
-#ifdef AXOM_USE_MPI
-  MPI_Reduce(&localCellInCount,
-             &globalCellInCount,
-             1,
-             axom::mpi_traits<axom::IndexType>::type,
-             MPI_SUM,
-             0,
-             MPI_COMM_WORLD);
-  MPI_Reduce(&localCellInCount,
-             &maxLocalCellInCount,
-             1,
-             axom::mpi_traits<axom::IndexType>::type,
-             MPI_MAX,
-             0,
-             MPI_COMM_WORLD);
-#else
-  maxLocalCellInCount = localCellInCount;
-  globalCellInCount = localCellInCount;
-#endif
+  axom::Array<std::int64_t> sums {
+    m_cellsInCount, m_cellsOnCount, m_cellsOutCount, m_hexesClipped,
+    m_tetsInCount, m_tetsOnCount, m_tetsOutCount, m_tetsClipped};
+  axom::Array<std::int64_t> maxs {
+    m_cellsInCount, m_cellsOnCount, m_cellsOutCount, m_hexesClipped,
+    m_tetsInCount, m_tetsOnCount, m_tetsOutCount, m_tetsClipped};
+
+  conduit::Node stats;
+
+  auto& locNode = stats["loc"];
+  locNode["cellsIn"].set(sums[0]);
+  locNode["cellsOn"].set(sums[1]);
+  locNode["cellsOut"].set(sums[2]);
+  locNode["hexesClipped"].set(sums[3]);
+  locNode["tetsIn"].set(sums[4]);
+  locNode["tetsOn"].set(sums[5]);
+  locNode["tetsOut"].set(sums[6]);
+  locNode["tetsClipped"].set(sums[7]);
+
+  auto& sumNode = stats["sum"];
+  globalReduce(sums, MPI_SUM);
+  sumNode["cellsIn"].set(sums[0]);
+  sumNode["cellsOn"].set(sums[1]);
+  sumNode["cellsOut"].set(sums[2]);
+  sumNode["hexesClipped"].set(sums[3]);
+  sumNode["tetsIn"].set(sums[4]);
+  sumNode["tetsOn"].set(sums[5]);
+  sumNode["tetsOut"].set(sums[6]);
+  sumNode["tetsClipped"].set(sums[7]);
+
+  auto& maxNode = stats["max"];
+  globalReduce(maxs, MPI_MAX);
+  maxNode["cellsIn"].set(maxs[0]);
+  maxNode["cellsOn"].set(maxs[1]);
+  maxNode["cellsOut"].set(maxs[2]);
+  maxNode["hexesClipped"].set(maxs[3]);
+  maxNode["tetsIn"].set(maxs[4]);
+  maxNode["tetsOn"].set(maxs[5]);
+  maxNode["tetsOut"].set(maxs[6]);
+  maxNode["tetsClipped"].set(maxs[7]);
+
+  return stats;
+}
+
+void MeshClipper::logClippingStats() const
+{
+  conduit::Node stats = getClippingStats();
+  SLIC_INFO(std::string("MeshClipper loc-stats: ") + stats["loc"].to_string("yaml", 2, 0, "", " "));
+  SLIC_INFO(std::string("MeshClipper sum-stats: ") + stats["sum"].to_string("yaml", 2, 0, "", " "));
+  SLIC_INFO(std::string("MeshClipper max-stats: ") + stats["max"].to_string("yaml", 2, 0, "", " "));
 }
 
 }  // namespace experimental

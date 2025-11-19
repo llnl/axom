@@ -402,6 +402,7 @@ void initializeLogger()
 #ifdef AXOM_USE_MPI
   int num_ranks = 1;
   MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+  SLIC_ERROR_IF(num_ranks > 1, "Sorry, this test is serial.");
   if(num_ranks > 1)
   {
     std::string fmt = "[<RANK>][<LEVEL>]: <MESSAGE>\n";
@@ -1328,6 +1329,8 @@ int main(int argc, char** argv)
     AXOM_ANNOTATE_BEGIN(annotationName);
     clipper.clip(ovlap);
     AXOM_ANNOTATE_END(annotationName);
+
+    clipper.logClippingStats();
 
     // Save volume fractions in mesh, for plotting and checking.
     sMesh.setMatsetFromVolume(geomStrategies[i]->name(), ovlap.view(), false);

@@ -355,7 +355,7 @@ public:
 #endif
 
       SLIC_INFO(
-        axom::fmt::format("Running clip loop on {} candidate tets for of all {} hexes in the mesh",
+        axom::fmt::format("Running clip loop on {} candidate pieces for of all {} hexes in the mesh",
                           tetCandidatesCount,
                           cellCount));
 
@@ -578,7 +578,7 @@ public:
     }
 
     SLIC_INFO(axom::fmt::format(
-      "Running clip loop on {} candidate tets for the select {} hexes of the full {} cells",
+      "Running clip loop on {} candidate pieces for the select {} hexes of the full {} mesh cells",
       tetCandidatesCount,
       cellIndices.size(),
       cellCount));
@@ -790,6 +790,12 @@ public:
     using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
     constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = false;
+
+    SLIC_INFO(axom::fmt::format(
+      "Running clip loop on {} candidate pieces for the select {} tets of the full {} mesh cells",
+      candidates.size(),
+      tetCount,
+      shapeMesh.getCellCount()));
 
     if(useTets)
     {
