@@ -57,6 +57,11 @@ public:
 
   bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh, axom::Array<LabelType>& label) override;
 
+  bool labelTetsInOut(
+    quest::experimental::ShapeMesh& shapeMesh,
+    axom::ArrayView<const axom::IndexType> cellIds,
+    axom::Array<LabelType>& tetLabels);
+
   bool getGeometryAsOcts(quest::experimental::ShapeMesh& shappeMesh, axom::Array<OctahedronType>& octs) override;
 
   axom::ArrayView<const Point2DType> getSorCurve() const { return m_sorCurve.view(); }
@@ -144,10 +149,33 @@ private:
    * Therefore, we don't transform the shape until after it's discretized.
    * When needed, we will inverse-transform the mesh.
   */
-  axom::primal::experimental::CoordinateTransformer<double> m_inverseTransformer;
+  axom::primal::experimental::CoordinateTransformer<double> m_invTransformer;
 
   template <typename ExecSpace>
-  void labelInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& label);
+  void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                           axom::ArrayView<LabelType> label);
+
+  template <typename ExecSpace>
+  void labelTetsInOutImpl(
+    quest::experimental::ShapeMesh& shapeMesh,
+    axom::ArrayView<const axom::IndexType> cellIds,
+    axom::ArrayView<LabelType> tetLabels);
+
+  template <typename ExecSpace>
+  void computeCurveBoxes(
+    quest::experimental::ShapeMesh& shapeMesh,
+    axom::Array<BoundingBox2DType>& bbOn,
+    axom::Array<BoundingBox2DType>& bbUnder);
+
+  template <typename PolyhedronType>
+  AXOM_HOST_DEVICE
+  BoundingBox2DType computeBoundingBoxInRz(const PolyhedronType& vertices);
+
+  AXOM_HOST_DEVICE inline
+  MeshClipperStrategy::LabelType rzBbToLabel(
+    const BoundingBox2DType& bbInRz,
+    const axom::ArrayView<const BoundingBox2DType>& bbOn,
+    const axom::ArrayView<const BoundingBox2DType>& bbUnder);
 
   // Extract clipper info from MeshClipperStrategy::m_info.
   void extractClipperInfo();

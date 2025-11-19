@@ -33,6 +33,7 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom, const std::string& name)
   axom::Array<axom::IndexType> turnIndices = findZSwitchbacks(m_sorCurve.view());
   if(turnIndices.size() > 2)
   {
+    // The 2 "turns" allowed are the first and last points.  Anything else is a switchback.
     SLIC_ERROR(
       "FSorClipper does not work when a curve doubles back"
       " in the axial direction.  Use SorClipper instead.");
@@ -50,7 +51,7 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom, const std::string& name)
   m_transformer.applyRotation(Vector3DType({1, 0, 0}), m_sorDirection);
   m_transformer.applyTranslation(m_sorOrigin.array());
   m_transformer.applyMatrix(m_extTrans);
-  m_inverseTransformer = m_transformer.getInverse();
+  m_invTransformer = m_transformer.getInverse();
 
   for(const auto& pt : m_sorCurve)
   {
@@ -78,6 +79,7 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
   axom::Array<axom::IndexType> turnIndices = findZSwitchbacks(m_sorCurve.view());
   if(turnIndices.size() > 2)
   {
+    // The 2 "turns" allowed are the first and last points.  Anything else is a switchback.
     SLIC_ERROR(
       "FSorClipper does not work when a curve doubles back"
       " in the axial direction.  Use SorClipper instead.");
@@ -95,7 +97,7 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
   m_transformer.applyRotation(Vector3DType({1, 0, 0}), m_sorDirection);
   m_transformer.applyTranslation(m_sorOrigin.array());
   m_transformer.applyMatrix(m_extTrans);
-  m_inverseTransformer = m_transformer.getInverse();
+  m_invTransformer = m_transformer.getInverse();
 
   for(const auto& pt : m_sorCurve)
   {
@@ -105,25 +107,78 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
 
 bool FSorClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
 {
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "FSorClipper requires a 3D mesh.");
+
   AXOM_ANNOTATE_SCOPE("FSorClipper::labelCellsInOut");
+
+  const int allocId = shapeMesh.getAllocatorID();
+  const auto cellCount = shapeMesh.getCellCount();
+  if(labels.size() < cellCount || labels.getAllocatorID() != allocId)
+  {
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
+  }
+
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels.view());
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelInOutImpl<axom::OMP_EXEC>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::OMP_EXEC>(shapeMesh, labels.view());
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels.view());
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels.view());
+    break;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+  return true;
+}
+
+bool FSorClipper::labelTetsInOut(
+  quest::experimental::ShapeMesh& shapeMesh,
+  axom::ArrayView<const axom::IndexType> cellIds,
+  axom::Array<LabelType>& tetLabels)
+{
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "FSorClipper requires a 3D mesh.");
+
+  AXOM_ANNOTATE_SCOPE("FSorClipper::labelTetsInOut");
+
+  const int allocId = shapeMesh.getAllocatorID();
+  const auto cellCount = cellIds.size();
+  const auto tetCount = cellCount*NUM_TETS_PER_HEX;
+  if(tetLabels.size() < tetCount || tetLabels.getAllocatorID() != allocId)
+  {
+    tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), tetCount, tetCount, allocId);
+  }
+
+  switch(shapeMesh.getRuntimePolicy())
+  {
+  case axom::runtime_policy::Policy::seq:
+    labelTetsInOutImpl<axom::SEQ_EXEC>(shapeMesh, cellIds, tetLabels.view());
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case axom::runtime_policy::Policy::omp:
+    labelTetsInOutImpl<axom::OMP_EXEC>(shapeMesh, cellIds, tetLabels.view());
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case axom::runtime_policy::Policy::cuda:
+    labelTetsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, cellIds, tetLabels.view());
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case axom::runtime_policy::Policy::hip:
+    labelTetsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, cellIds, tetLabels.view());
     break;
 #endif
   default:
@@ -138,14 +193,187 @@ bool FSorClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axo
  * determine whether the point is in the sor that way.
 */
 template <typename ExecSpace>
-void FSorClipper::labelInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
+void FSorClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                      axom::ArrayView<LabelType> labels)
 {
-  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "FSorClipper requires a 3D mesh.");
+  axom::Array<BoundingBox2DType> bbOn;
+  axom::Array<BoundingBox2DType> bbUnder;
+  computeCurveBoxes<ExecSpace>(shapeMesh, bbOn, bbUnder);
+  const axom::ArrayView<const BoundingBox2DType> bbOnView = bbOn.view();
+  const axom::ArrayView<const BoundingBox2DType> bbUnderView = bbUnder.view();
 
-  const int allocId = shapeMesh.getAllocatorID();
   const auto cellCount = shapeMesh.getCellCount();
+  auto meshHexes = shapeMesh.getCellsAsHexes();
+  auto invTransformer = m_invTransformer;
 
-  auto inverseTransformer = m_inverseTransformer;
+  axom::for_all<ExecSpace>(
+    cellCount,
+    AXOM_LAMBDA(axom::IndexType cellId) {
+      auto cellHex = meshHexes[cellId];
+      for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
+      {
+        invTransformer.transform(cellHex[vi].array());
+      }
+      BoundingBox2DType cellBbInRz = computeBoundingBoxInRz(cellHex);
+      labels[cellId] = rzBbToLabel(cellBbInRz, bbOnView, bbUnderView);
+    });
+}
+
+template <typename ExecSpace>
+void FSorClipper::labelTetsInOutImpl(
+  quest::experimental::ShapeMesh& shapeMesh,
+  axom::ArrayView<const axom::IndexType> cellIds,
+  axom::ArrayView<LabelType> labels)
+{
+  axom::Array<BoundingBox2DType> bbOn;
+  axom::Array<BoundingBox2DType> bbUnder;
+  computeCurveBoxes<ExecSpace>(shapeMesh, bbOn, bbUnder);
+  const axom::ArrayView<const BoundingBox2DType> bbOnView = bbOn.view();
+  const axom::ArrayView<const BoundingBox2DType> bbUnderView = bbUnder.view();
+
+  const auto cellCount = cellIds.size();
+  auto meshHexes = shapeMesh.getCellsAsHexes();
+  auto invTransformer = m_invTransformer;
+
+  axom::for_all<ExecSpace>(
+    cellCount,
+    AXOM_LAMBDA(axom::IndexType ci) {
+      axom::IndexType cellId = cellIds[ci];
+
+      HexahedronType hex = meshHexes[cellId];
+      for( int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
+        { invTransformer.transform(hex[vi].array()); }
+
+      TetrahedronType cellTets[NUM_TETS_PER_HEX];
+      hex.triangulate(cellTets);
+
+      for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+      {
+        const TetrahedronType& tet = cellTets[ti];
+        LabelType& tetLabel = labels[ci * NUM_TETS_PER_HEX + ti];
+        BoundingBox2DType bbInRz = computeBoundingBoxInRz(tet);
+        tetLabel = rzBbToLabel(bbInRz, bbOnView, bbUnderView);
+      }
+    });
+}
+
+/*
+  Compute bounding box in rz space for a tet or hex geometry in
+  body frame (the 3D frame with the axis of rotation along +x).
+
+  Compute cell bounding boxes in rz plane:
+  1. Rotate vertex into rz plane.
+  2. Compute bounding box for vertices.
+  3. Expand 2D bounding box to contain edge that may
+     intersect SOR between vertices.
+*/
+template <typename PolyhedronType>
+AXOM_HOST_DEVICE
+FSorClipper::BoundingBox2DType FSorClipper::computeBoundingBoxInRz(
+  const PolyhedronType& vertices)
+{
+  FSorClipper::BoundingBox2DType bbInRz;
+
+  // Range of vertex angles in cylindrical coordinates.
+  double minAngle = numerics::floating_point_limits<double>::max();
+  double maxAngle = -numerics::floating_point_limits<double>::max();
+
+  for(IndexType vi = 0; vi < vertices.numVertices(); ++vi)
+  {
+    auto& vert = vertices[vi];
+    Point2DType vertOnXPlane { vert[1], vert[2] };
+    Point2DType vertOnRz { vert[0], vertOnXPlane.r() };
+    bbInRz.addPoint(vertOnRz);
+
+    double angle = atan2(vertOnXPlane[1], vertOnXPlane[0]);
+    minAngle = std::min(minAngle, angle);
+    maxAngle = std::max(maxAngle, angle);
+  }
+#if 1
+  /*
+    The geometry can be closer to the z-axis than its individual
+    vertices are, depending on the angle (about the z-axis)
+    between the vertices.  Given the angle, scale the bottom of
+    bbInRz for the worst case.
+  */
+  double angleRange = maxAngle - minAngle;
+  double factor = angleRange > M_PI ? 0.0 : cos(angleRange/2);
+  auto newMin = bbInRz.getMin();
+  newMin[1] *= factor;
+  bbInRz.addPoint(newMin);
+#endif
+#if 0
+  /*
+    Jeff's method to account for the angle.  Faster, but less
+    discriminating, I think.
+  */
+  auto newMin = bbInRz.getMin();
+  newMin[1] -= 0.5 * cellLengths[cellId];
+  if (newMin[1] < 0.0) newMin[1] = 0.0;
+  bbInRz.addPoint(newMin);
+#endif
+  return bbInRz;
+}
+
+/*
+  Compute label based on a bounding box in rz space.
+
+  - If bbInRz is close to any bbOn, label it ON.
+  - Else if bbInRz touches any bbUnder, label it IN.
+    It cannot possibly be partially outside, because it
+    doesn't cross the boundary or even touch any bbOn.
+  - Else, label bbInRz OUT.
+
+  We expect bbOn and bbUnder to be small arrays, so we use
+  linear searches.  If that's too slow, we can use a BVH.
+*/
+AXOM_HOST_DEVICE inline
+MeshClipperStrategy::LabelType FSorClipper::rzBbToLabel(
+  const BoundingBox2DType& bbInRz,
+  const axom::ArrayView<const BoundingBox2DType>& bbOn,
+  const axom::ArrayView<const BoundingBox2DType>& bbUnder)
+{
+  LabelType label = LabelType::LABEL_OUT;
+
+  for(const auto& bbOn : bbOn)
+  {
+    double sqDist = axom::primal::squared_distance(bbInRz, bbOn);
+    if(sqDist <= 0.0)
+    {
+      label = LabelType::LABEL_ON;
+    }
+  }
+
+  if(label == LabelType::LABEL_OUT) {
+
+    for(const auto& bbUnder : bbUnder)
+    {
+      if(bbInRz.intersectsWith(bbUnder))
+      {
+        label = LabelType::LABEL_IN;
+      }
+    }
+  }
+
+  return label;
+}
+
+/*
+*/
+template <typename ExecSpace>
+void FSorClipper::computeCurveBoxes(
+  quest::experimental::ShapeMesh& shapeMesh,
+  axom::Array<BoundingBox2DType>& bbOn,
+  axom::Array<BoundingBox2DType>& bbUnder)
+{
+  /*
+   * Compute bounding boxes bbOn, which cover the curve segments, and
+   * bbUnder, which cover the space between bbOn and the z axis.  bbOn
+   * includes end caps, the segments that join the curve to the
+   * z-axis.
+   */
+  const int allocId = shapeMesh.getAllocatorID();
+  const IndexType cellCount = shapeMesh.getCellCount();
 
   axom::ArrayView<const double> cellLengths = shapeMesh.getCellLengths();
 
@@ -157,28 +385,34 @@ void FSorClipper::labelInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom
     AXOM_LAMBDA(axom::IndexType cellId) { sumCharLength += cellLengths[cellId]; });
   double avgCharLength = sumCharLength.get() / cellCount;
 
-  // Subdivide the SOR curve and place in the right allocator.
+  /*
+    Subdivide the SOR curve and place it with the correct allocator.
+    Create temporary sorCurve that is equivalent to m_sorCurve but
+    - with long segments subdivided subsegments based on characteristic
+      length of mesh cells.
+    - with memory from allocId.
+  */
   axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve, avgCharLength);
-  sorCurve = axom::Array<Point2DType>(sorCurve, shapeMesh.getAllocatorID());
+  sorCurve = axom::Array<Point2DType>(sorCurve, allocId);
   auto sorCurveView = sorCurve.view();
 
   /*
-   * Compute bounding boxes bbOn, which cover the curve segments, and
-   * bbUnder, which cover the space between bbOn and the z axis.  bbOn
-   * includes end caps, the segments that join the curve to the
-   * z-axis.
-   */
+    Compute 2 sets of boxes.
+    - bbOn have boxes over each segment.
+    - bbUnder have boxes from the z axis to the bottom of bbOn.
+    Add add to bbOn boxes representing the vertical endcaps of the curve.
+  */
   auto segCount = sorCurve.size() - 1;
-  axom::Array<BoundingBox2DType> bbOn(segCount + 2, segCount + 2, allocId);
-  axom::Array<BoundingBox2DType> bbUnder(segCount, segCount, allocId);
+  bbOn = axom::Array<BoundingBox2DType>(segCount + 2, segCount + 2, allocId);
+  bbUnder = axom::Array<BoundingBox2DType>(segCount, segCount, allocId);
   auto bbOnView = bbOn.view();
   auto bbUnderView = bbUnder.view();
+
   axom::for_all<ExecSpace>(
     segCount,
     AXOM_LAMBDA(axom::IndexType i) {
       BoundingBox2DType& on = bbOnView[i];
       BoundingBox2DType& under = bbUnderView[i];
-      // on = BoundingBox2DType{&sorCurve[i], 2};
       on.addPoint(sorCurveView[i]);
       on.addPoint(sorCurveView[i + 1]);
       Point2DType underMin {on.getMin()[0], 0.0};
@@ -192,93 +426,11 @@ void FSorClipper::labelInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom
   endCaps[1].addPoint(m_sorCurve.back());
   endCaps[1].addPoint(Point2DType {m_sorCurve.back()[0], 0.0});
   axom::copy(&bbOn[segCount], endCaps.data(), endCaps.size() * sizeof(BoundingBox2DType));
-
-  const double lenFactor = 0.5;
-
-  auto cellBbs = shapeMesh.getCellBoundingBoxes();
-  constexpr int NUM_BB_VERTS = 8;
-
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
-  {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
-  }
-
-  auto labelsView = labels.view();
-
-  /*
-    Compute cell bounding boxes in rz plane, to be checked against
-    bbOn and bbUnder.
-  */
-  axom::Array<BoundingBox2DType> cellBbsInRz(cellBbs.size(),
-                                             cellBbs.size(),
-                                             shapeMesh.getAllocatorID());
-  auto cellBbsInRzView = cellBbsInRz.view();
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType cellId) {
-      const auto& cellBb = cellBbs[cellId];
-      const auto& boxMin = cellBb.getMin();
-      const auto& boxMax = cellBb.getMax();
-      BoundingBox2DType& cellBbInRz = cellBbsInRzView[cellId];
-      for(int vi = 0; vi < NUM_BB_VERTS; ++vi)
-      {
-        Point3DType vert3D({(vi & 1) ? boxMax[0] : boxMin[0],
-                            (vi & 2) ? boxMax[1] : boxMin[1],
-                            (vi & 4) ? boxMax[2] : boxMin[2]});
-        Point3DType vert3Dt = inverseTransformer.getTransformed(vert3D);
-        Point2DType vertRz({vert3Dt[0], sqrt(vert3Dt[1] * vert3Dt[1] + vert3Dt[2] * vert3Dt[2])});
-        cellBbInRz.addPoint(vertRz);
-      }
-    });
-
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType cellId) {
-      const auto& cellBb = cellBbsInRzView[cellId];
-
-      /*
-        - If cellBb is close to any bbOn, label it ON.
-        - Else if cellBb touches any bbUnder, label it IN.
-          It cannot possibly be partially outside, because it
-          doesn't cross the boundary or even touch any bbOn.
-        - Else, label cellBb OUT.
-
-        We expect bbOn and bbUnder to be small arrays, so we use
-        linear searches.  If that's too slow, we can use a BVH.
-      */
-
-      auto& cellLabel = labelsView[cellId];
-      double sqDistThreshold = lenFactor * cellLengths[cellId];
-      sqDistThreshold = sqDistThreshold * sqDistThreshold;
-      for(const auto& bbOn : bbOnView)
-      {
-        double sqDist = axom::primal::squared_distance(cellBb, bbOn);
-        if(sqDist <= sqDistThreshold)
-        {
-          cellLabel = LabelType::LABEL_ON;
-          return;
-        }
-      }
-
-      for(const auto& bbUnder : bbUnderView)
-      {
-        if(cellBb.intersectsWith(bbUnder))
-        {
-          cellLabel = LabelType::LABEL_IN;
-          return;
-        }
-      }
-
-      cellLabel = LabelType::LABEL_OUT;
-    });
 }
 
 /*
-  Reduce large segments, which have bounding boxes that
-  overlap much more than the segments actually overlap.
-
-  Use harmonic mean because it works better than dz to prevent
-  dividing segments that are cylindrical or nearly cylindrical.
+  Reduce segments having bounding boxes that overlap much more than
+  the segments actually overlap.
 */
 Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(const Array<Point2DType>& sorCurveIn,
                                                             double cellCharacteristicLength)
@@ -290,8 +442,8 @@ Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(const Array<Point2DT
     return sorCurveOut;
   }
 
-  const double maxMean = 3 * cellCharacteristicLength;
-  const double minDz = 2 * cellCharacteristicLength;
+  const double maxMean = 3 * cellCharacteristicLength; // 3 is an empirical choice
+  const double minDz = 2 * cellCharacteristicLength; // 2 an empirical choice
 
   // Reserve estimated total number of points needed
   sorCurveOut.reserve(sorCurveIn.size() * 1.2 + 10);
@@ -307,11 +459,13 @@ Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(const Array<Point2DT
     const double segDz = absDelta[0];
     const double segDr = absDelta[1];
 
-    // To drive harmonic mean below maxMean.
+    // Drive harmonic mean below maxMean.  Harmonic mean criterion
+    // to admit slender axis-aligned bounding boxes better than other
+    // characteristics.
     double segMean = 2 * segDz * segDr / (segDz + segDr);
     int numSplitsByMean = static_cast<int>(std::ceil(segMean / maxMean));
 
-    // To prevent dz from falling below minDz
+    // Prevent dz from falling below minDz
     int numSplitsByMinDz = static_cast<int>(std::ceil(segDz / minDz));
 
     int numSplits = std::min(numSplitsByMean, numSplitsByMinDz);
