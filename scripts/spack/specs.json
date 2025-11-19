@@ -22,7 +22,7 @@
 
     "__comment__":"# Configs are for matrix/rzvector",
     "matrix":
-    [ "+devtools~mfem+c2c+profiling+cuda cuda_arch=90 %gcc_13",
+    [ "+devtools+mfem+c2c+profiling+cuda cuda_arch=90 %gcc_13",
       "+devtools+mfem+c2c+profiling+cuda cuda_arch=90 %clang_19"],
 
     "__comment__":"# Use amdgpu_target=gfx942 for rzadams",
