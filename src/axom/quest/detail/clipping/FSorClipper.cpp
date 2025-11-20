@@ -24,7 +24,7 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom, const std::string& name)
   : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("FSor") : name)
   , m_maxRadius(0.0)
-  , m_minRadius(std::numeric_limits<double>::max())
+  , m_minRadius(numerics::floating_point_limits<double>::max())
   , m_transformer()
 {
   extractClipperInfo();
@@ -69,7 +69,7 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
   , m_name(name.empty() ? std::string("FSor") : name)
   , m_sorCurve(sorCurve, axom::execution_space<axom::SEQ_EXEC>::allocatorID())
   , m_maxRadius(0.0)
-  , m_minRadius(std::numeric_limits<double>::max())
+  , m_minRadius(numerics::floating_point_limits<double>::max())
   , m_sorOrigin(sorOrigin)
   , m_sorDirection(sorDirection)
   , m_levelOfRefinement(levelOfRefinement)
