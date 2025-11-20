@@ -353,6 +353,7 @@ public:
       }
       SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
 #endif
+      reportClipCount(tetCandidatesCount);
 
       SLIC_INFO(
         axom::fmt::format("Running clip loop on {} candidate pieces for of all {} hexes in the mesh",
@@ -664,6 +665,8 @@ public:
       }
     }
 
+    reportClipCount(tetCandidatesCount);
+
     if(tetCandidatesCountPtr != &tetCandidatesCount)
     {
       axom::deallocate(tetCandidatesCountPtr);
@@ -845,6 +848,7 @@ public:
           }
         });
     }
+    reportClipCount(candidates.size());
 
   }  // end of computeClipVolumes3DTets() function
 

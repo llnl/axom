@@ -176,6 +176,9 @@ public:
 
     MeshClipperStrategy& getStrategy() { return *m_myClipper.m_strategy; }
 
+    //!@brief Report number of times primitive clipping method was used.
+    void reportClipCount(IndexType clipCount) { m_myClipper.m_clipCount = clipCount; }
+
   private:
     //!@brief The MeshClipper that owns this Impl.
     MeshClipper& m_myClipper;
@@ -202,11 +205,10 @@ private:
   axom::IndexType m_cellsInCount {0};
   axom::IndexType m_cellsOnCount {0};
   axom::IndexType m_cellsOutCount {0};
-  axom::IndexType m_hexesClipped {0};
   axom::IndexType m_tetsInCount {0};
   axom::IndexType m_tetsOnCount {0};
   axom::IndexType m_tetsOutCount {0};
-  axom::IndexType m_tetsClipped {0};
+  axom::IndexType m_clipCount {0};
   ///@}
 
   bool m_verbose;
