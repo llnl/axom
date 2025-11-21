@@ -23,25 +23,24 @@ Plane3DClipper::Plane3DClipper(const klee::Geometry& kGeom, const std::string& n
 
 bool Plane3DClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
 {
-  AXOM_ANNOTATE_SCOPE("Plane3DClipper::labelCellsInOut");
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelInOutImpl<axom::OMP_EXEC>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::OMP_EXEC>(shapeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels);
     break;
 #endif
   default:
@@ -54,7 +53,6 @@ bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeM
                                           axom::ArrayView<double> ovlap,
                                           const axom::ArrayView<IndexType>& cellIds)
 {
-  AXOM_ANNOTATE_SCOPE("Plane3DClipper::specializedClipCells");
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
@@ -82,7 +80,8 @@ bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeM
 }
 
 template <typename ExecSpace>
-void Plane3DClipper::labelInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
+void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                         axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "Plane3DClipper requires a 3D mesh.");
 

@@ -111,7 +111,7 @@ public:
       return;
     };
 
-    AXOM_ANNOTATE_SCOPE("MeshClipper::collect_unlabeleds");
+    AXOM_ANNOTATE_SCOPE("MeshClipper:collect_unlabeleds");
     /*!
      * 1. Generate tmpLabels, having a value of 1 where labels is LABEL_ON and zero elsewhere.
      * 2. Inclusive scan on tmpLabels to generate values that step up at LABEL_ON cells.
@@ -194,8 +194,6 @@ public:
    */
   void computeClipVolumes3D(axom::ArrayView<double> ovlap) override
   {
-    AXOM_ANNOTATE_SCOPE("MeshClipper::computeClipVolumes3D");
-
     using BoundingBoxType = primal::BoundingBox<double, 3>;
 
     ShapeMesh& shapeMesh = getShapeMesh();
@@ -204,18 +202,16 @@ public:
 
     const IndexType cellCount = shapeMesh.getCellCount();
 
-    SLIC_INFO(axom::fmt::format(
-      "MeshClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
-      getStrategy().name()));
-
     //
     // Get the geometry in discrete pieces, which can be tets or octs.
     //
     auto& strategy = getStrategy();
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
+    AXOM_ANNOTATE_BEGIN("MeshClipper:get_geometry");
     const bool useOcts = strategy.getGeometryAsOcts(shapeMesh, geomAsOcts);
     const bool useTets = strategy.getGeometryAsTets(shapeMesh, geomAsTets);
+    AXOM_ANNOTATE_END("MeshClipper:get_geometry");
     SLIC_ASSERT(useOcts || geomAsOcts.empty());
     SLIC_ASSERT(useTets || geomAsTets.empty());
     if(useTets == useOcts)
@@ -270,12 +266,12 @@ public:
     SLIC_INFO(
       axom::fmt::format("{:-^80}", " Finding shape candidates for each hexahedral element "));
 
+    AXOM_ANNOTATE_BEGIN("MeshClipper:find_candidates");
     axom::Array<IndexType> offsets(cellCount, cellCount, allocId);
     axom::Array<IndexType> counts(cellCount, cellCount, allocId);
     axom::Array<IndexType> candidates;
-    AXOM_ANNOTATE_BEGIN("bvh.findBoundingBoxes");
     bvh.findBoundingBoxes(offsets, counts, candidates, cellCount, cellBbsView);
-    AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
+    AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     // Get the total number of candidates
     using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
@@ -342,75 +338,74 @@ public:
     constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = false;
 
-    {
-      tetCandidatesCount = NUM_TETS_PER_HEX * candidates.size();
-      AXOM_ANNOTATE_SCOPE("MeshClipper::clipLoop");
+    tetCandidatesCount = NUM_TETS_PER_HEX * candidates.size();
 #if defined(AXOM_DEBUG)
-      // Verifying: this should always pass.
-      if(tetCandidatesCountPtr != &tetCandidatesCount)
-      {
-        axom::copy(&tetCandidatesCount, tetCandidatesCountPtr, sizeof(IndexType));
-      }
-      SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
-#endif
-      reportClipCount(tetCandidatesCount);
-
-      SLIC_INFO(
-        axom::fmt::format("Running clip loop on {} candidate pieces for of all {} hexes in the mesh",
-                          tetCandidatesCount,
-                          cellCount));
-
-      if(useTets)
-      {
-        axom::for_all<ExecSpace>(
-          tetCandidatesCount,
-          AXOM_LAMBDA(axom::IndexType i) {
-            const int index = hexIndicesView[i];
-            const int shapeIndex = shapeCandidatesView[i];
-            const int tetIndex = tetIndicesView[i];
-
-            const auto poly = primal::clip<double>(geomTetsView[shapeIndex],
-                                                   cellsAsTets[tetIndex],
-                                                   EPS,
-                                                   tryFixOrientation);
-
-            // Poly is valid
-            if(poly.numVertices() >= 4)
-            {
-              // Workaround - intermediate volume variable needed for
-              // CUDA Pro/E test case correctness
-              double volume = poly.volume();
-              SLIC_ASSERT(volume >= 0);
-              RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
-            }
-          });
-      }
-      else  // useOcts
-      {
-        axom::for_all<ExecSpace>(
-          tetCandidatesCount,
-          AXOM_LAMBDA(axom::IndexType i) {
-            const int index = hexIndicesView[i];
-            const int shapeIndex = shapeCandidatesView[i];
-            const int tetIndex = tetIndicesView[i];
-
-            const auto poly = primal::clip<double>(geomOctsView[shapeIndex],
-                                                   cellsAsTets[tetIndex],
-                                                   EPS,
-                                                   tryFixOrientation);
-
-            // Poly is valid
-            if(poly.numVertices() >= 4)
-            {
-              // Workaround - intermediate volume variable needed for
-              // CUDA Pro/E test case correctness
-              double volume = poly.volume();
-              SLIC_ASSERT(volume >= 0);
-              RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
-            }
-          });
-      }
+    // Verifying: this should always pass.
+    if(tetCandidatesCountPtr != &tetCandidatesCount)
+    {
+      axom::copy(&tetCandidatesCount, tetCandidatesCountPtr, sizeof(IndexType));
     }
+    SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
+#endif
+    reportClipCount(tetCandidatesCount);
+
+    SLIC_INFO(
+      axom::fmt::format("Running clip loop on {} candidate pieces for of all {} hexes in the mesh",
+                        tetCandidatesCount,
+                        cellCount));
+
+    AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_notScreened");
+    if(useTets)
+    {
+      axom::for_all<ExecSpace>(
+        tetCandidatesCount,
+        AXOM_LAMBDA(axom::IndexType i) {
+          const int index = hexIndicesView[i];
+          const int shapeIndex = shapeCandidatesView[i];
+          const int tetIndex = tetIndicesView[i];
+
+          const auto poly = primal::clip<double>(geomTetsView[shapeIndex],
+                                                 cellsAsTets[tetIndex],
+                                                 EPS,
+                                                 tryFixOrientation);
+
+          // Poly is valid
+          if(poly.numVertices() >= 4)
+          {
+            // Workaround - intermediate volume variable needed for
+            // CUDA Pro/E test case correctness
+            double volume = poly.volume();
+            SLIC_ASSERT(volume >= 0);
+            RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
+          }
+        });
+    }
+    else  // useOcts
+    {
+      axom::for_all<ExecSpace>(
+        tetCandidatesCount,
+        AXOM_LAMBDA(axom::IndexType i) {
+          const int index = hexIndicesView[i];
+          const int shapeIndex = shapeCandidatesView[i];
+          const int tetIndex = tetIndicesView[i];
+
+          const auto poly = primal::clip<double>(geomOctsView[shapeIndex],
+                                                 cellsAsTets[tetIndex],
+                                                 EPS,
+                                                 tryFixOrientation);
+
+          // Poly is valid
+          if(poly.numVertices() >= 4)
+          {
+            // Workaround - intermediate volume variable needed for
+            // CUDA Pro/E test case correctness
+            double volume = poly.volume();
+            SLIC_ASSERT(volume >= 0);
+            RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
+          }
+        });
+    }
+    AXOM_ANNOTATE_END("MeshClipper:clipLoop_notScreened");
 
     if(tetCandidatesCountPtr != &tetCandidatesCount)
     {
@@ -428,8 +423,6 @@ public:
                             axom::ArrayView<double> ovlap) override
 
   {
-    AXOM_ANNOTATE_SCOPE("MeshClipper::computeClipVolumes3D:limited");
-
     using BoundingBoxType = primal::BoundingBox<double, 3>;
 
     ShapeMesh& shapeMesh = getShapeMesh();
@@ -438,15 +431,13 @@ public:
 
     const IndexType cellCount = shapeMesh.getCellCount();
 
-    SLIC_INFO(axom::fmt::format(
-      "MeshClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
-      getStrategy().name()));
-
     auto& strategy = getStrategy();
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
+    AXOM_ANNOTATE_BEGIN("MeshClipper:get_geometry");
     const bool useOcts = strategy.getGeometryAsOcts(shapeMesh, geomAsOcts);
     const bool useTets = strategy.getGeometryAsTets(shapeMesh, geomAsTets);
+    AXOM_ANNOTATE_END("MeshClipper:get_geometry");
     SLIC_ASSERT(useOcts || geomAsOcts.empty());
     SLIC_ASSERT(useTets || geomAsTets.empty());
     if(useTets == useOcts)
@@ -493,8 +484,11 @@ public:
     spin::BVH<3, ExecSpace, double> bvh;
     bvh.initialize(pieceBbsView, pieceBbsView.size());
 
-    SLIC_INFO(axom::fmt::format("{:-^80}", " Querying the BVH tree "));
+    SLIC_INFO(
+      axom::fmt::format("{:-^80}", " Finding shape candidates for each hexahedral element labeled ON"));
 
+    AXOM_ANNOTATE_BEGIN("MeshClipper:find_candidates");
+    // Find which shape bounding boxes intersect hexahedron bounding boxes
     // Create a temporary subset of cell bounding boxes,
     // containing only those listed in cellIndices.
     const axom::IndexType limitedCellCount = cellIndices.size();
@@ -505,16 +499,11 @@ public:
       limitedCellBbsView.size(),
       AXOM_LAMBDA(axom::IndexType i) { limitedCellBbsView[i] = cellBbsView[cellIndices[i]]; });
 
-    // Find which shape bounding boxes intersect hexahedron bounding boxes
-    SLIC_INFO(
-      axom::fmt::format("{:-^80}", " Finding shape candidates for each hexahedral element "));
-
     axom::Array<IndexType> offsets(limitedCellCount, limitedCellCount, allocId);
     axom::Array<IndexType> counts(limitedCellCount, limitedCellCount, allocId);
     axom::Array<IndexType> candidates;
-    AXOM_ANNOTATE_BEGIN("bvh.findBoundingBoxes");
     bvh.findBoundingBoxes(offsets, counts, candidates, limitedCellCount, limitedCellBbsView);
-    AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
+    AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     // Get the total number of candidates
     using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
@@ -587,83 +576,82 @@ public:
     constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = false;
 
-    {
-      tetCandidatesCount = NUM_TETS_PER_HEX * candidates.size();
-      AXOM_ANNOTATE_SCOPE("MeshClipper::clipLoop_limited");
+    tetCandidatesCount = NUM_TETS_PER_HEX * candidates.size();
 #if defined(AXOM_DEBUG)
-      // Verifying: this should always pass.
-      if(tetCandidatesCountPtr != &tetCandidatesCount)
-      {
-        axom::copy(&tetCandidatesCount, tetCandidatesCountPtr, sizeof(IndexType));
-      }
-      SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
+    // Verifying: this should always pass.
+    if(tetCandidatesCountPtr != &tetCandidatesCount)
+    {
+      axom::copy(&tetCandidatesCount, tetCandidatesCountPtr, sizeof(IndexType));
+    }
+    SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
 #endif
 
-      if(useTets)
-      {
-        axom::for_all<ExecSpace>(
-          tetCandidatesCount,
-          AXOM_LAMBDA(axom::IndexType i) {
-            int index = hexIndicesView[i];  // index into limited mesh hex array
-            index = cellIndices[index];     // Now, it indexes into the full hex array.
+    AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_hexScreened");
+    if(useTets)
+    {
+      axom::for_all<ExecSpace>(
+        tetCandidatesCount,
+        AXOM_LAMBDA(axom::IndexType i) {
+          int index = hexIndicesView[i];  // index into limited mesh hex array
+          index = cellIndices[index];     // Now, it indexes into the full hex array.
 
-            const int shapeIndex = shapeCandidatesView[i];  // index into pieces array
-            int tetIndex =
-              tetIndicesView[i];  // index into BVH results, implicit because BVH results specify hexes, not tets.
-            int tetIndex1 = tetIndex / NUM_TETS_PER_HEX;
-            int tetIndex2 = tetIndex % NUM_TETS_PER_HEX;
-            tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
-              tetIndex2;  // Now it indexes into the full tets-from-hexes array.
+          const int shapeIndex = shapeCandidatesView[i];  // index into pieces array
+          int tetIndex =
+            tetIndicesView[i];  // index into BVH results, implicit because BVH results specify hexes, not tets.
+          int tetIndex1 = tetIndex / NUM_TETS_PER_HEX;
+          int tetIndex2 = tetIndex % NUM_TETS_PER_HEX;
+          tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
+            tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
-            const auto poly = primal::clip<double>(geomTetsView[shapeIndex],
-                                                   cellsAsTets[tetIndex],
-                                                   EPS,
-                                                   tryFixOrientation);
+          const auto poly = primal::clip<double>(geomTetsView[shapeIndex],
+                                                 cellsAsTets[tetIndex],
+                                                 EPS,
+                                                 tryFixOrientation);
 
-            // Poly is valid
-            if(poly.numVertices() >= 4)
-            {
-              // Workaround - intermediate volume variable needed for
-              // CUDA Pro/E test case correctness
-              double volume = poly.volume();
-              SLIC_ASSERT(volume >= 0);
-              RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
-            }
-          });
-      }
-      else  // useOcts
-      {
-        axom::for_all<ExecSpace>(
-          tetCandidatesCount,
-          AXOM_LAMBDA(axom::IndexType i) {
-            int index = hexIndicesView[i];  // index into limited mesh hex array
-            index = cellIndices[index];     // Now, it indexes into the full hex array.
-
-            const int shapeIndex = shapeCandidatesView[i];  // index into pieces array
-            int tetIndex =
-              tetIndicesView[i];  // index into BVH results, implicit because BVH results specify hexes, not tets.
-            int tetIndex1 = tetIndex / NUM_TETS_PER_HEX;
-            int tetIndex2 = tetIndex % NUM_TETS_PER_HEX;
-            tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
-              tetIndex2;  // Now it indexes into the full tets-from-hexes array.
-
-            const auto poly = primal::clip<double>(geomOctsView[shapeIndex],
-                                                   cellsAsTets[tetIndex],
-                                                   EPS,
-                                                   tryFixOrientation);
-
-            // Poly is valid
-            if(poly.numVertices() >= 4)
-            {
-              // Workaround - intermediate volume variable needed for
-              // CUDA Pro/E test case correctness
-              double volume = poly.volume();
-              SLIC_ASSERT(volume >= 0);
-              RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
-            }
-          });
-      }
+          // Poly is valid
+          if(poly.numVertices() >= 4)
+          {
+            // Workaround - intermediate volume variable needed for
+            // CUDA Pro/E test case correctness
+            double volume = poly.volume();
+            SLIC_ASSERT(volume >= 0);
+            RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
+          }
+        });
     }
+    else  // useOcts
+    {
+      axom::for_all<ExecSpace>(
+        tetCandidatesCount,
+        AXOM_LAMBDA(axom::IndexType i) {
+          int index = hexIndicesView[i];  // index into limited mesh hex array
+          index = cellIndices[index];     // Now, it indexes into the full hex array.
+
+          const int shapeIndex = shapeCandidatesView[i];  // index into pieces array
+          int tetIndex =
+            tetIndicesView[i];  // index into BVH results, implicit because BVH results specify hexes, not tets.
+          int tetIndex1 = tetIndex / NUM_TETS_PER_HEX;
+          int tetIndex2 = tetIndex % NUM_TETS_PER_HEX;
+          tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
+            tetIndex2;  // Now it indexes into the full tets-from-hexes array.
+
+          const auto poly = primal::clip<double>(geomOctsView[shapeIndex],
+                                                 cellsAsTets[tetIndex],
+                                                 EPS,
+                                                 tryFixOrientation);
+
+          // Poly is valid
+          if(poly.numVertices() >= 4)
+          {
+            // Workaround - intermediate volume variable needed for
+            // CUDA Pro/E test case correctness
+            double volume = poly.volume();
+            SLIC_ASSERT(volume >= 0);
+            RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
+          }
+        });
+    }
+    AXOM_ANNOTATE_END("MeshClipper:clipLoop_hexScreened");
 
     reportClipCount(tetCandidatesCount);
 
@@ -683,8 +671,6 @@ public:
                                 axom::ArrayView<double> ovlap) override
 
   {
-    AXOM_ANNOTATE_SCOPE("MeshClipper::computeClipVolumes3D:limited");
-
     using BoundingBoxType = primal::BoundingBox<double, 3>;
     using TetrahedronType = primal::Tetrahedron<double, 3>;
     using OctahedronType = primal::Octahedron<double, 3>;
@@ -694,15 +680,13 @@ public:
 
     const int allocId = shapeMesh.getAllocatorID();
 
-    SLIC_INFO(axom::fmt::format(
-      "MeshClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
-      getStrategy().name()));
-
     auto& strategy = getStrategy();
     axom::Array<TetrahedronType> geomAsTets;
     axom::Array<OctahedronType> geomAsOcts;
+    AXOM_ANNOTATE_BEGIN("MeshClipper:get_geometry");
     const bool useOcts = strategy.getGeometryAsOcts(shapeMesh, geomAsOcts);
     const bool useTets = strategy.getGeometryAsTets(shapeMesh, geomAsTets);
+    AXOM_ANNOTATE_END("MeshClipper:get_geometry");
     SLIC_ASSERT(useOcts || geomAsOcts.empty());
     SLIC_ASSERT(useTets || geomAsTets.empty());
     if(useTets == useOcts)
@@ -749,8 +733,10 @@ public:
     spin::BVH<3, ExecSpace, double> bvh;
     bvh.initialize(pieceBbsView, pieceBbsView.size());
 
-    SLIC_INFO(axom::fmt::format("{:-^80}", " Querying the BVH tree "));
+    SLIC_INFO(
+      axom::fmt::format("{:-^80}", " Finding shape candidates for each tetrahedral element labeled ON"));
 
+    AXOM_ANNOTATE_BEGIN("MeshClipper:find_candidates");
     // Create a temporary subset of tet bounding boxes,
     // containing only those listed in tetIndices.
     const axom::IndexType tetCount = tetIndices.size();
@@ -771,11 +757,11 @@ public:
     auto countsView = counts.view();
     auto offsetsView = offsets.view();
 
-    AXOM_ANNOTATE_BEGIN("bvh.findBoundingBoxes");
     axom::Array<IndexType> candidates;
     bvh.findBoundingBoxes(offsets, counts, candidates, tetBbsView.size(), tetBbsView);
+    AXOM_ANNOTATE_END("MeshClipper:find_candidates");
+
     auto candidatesView = candidates.view();
-    AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
 
     axom::Array<IndexType> candToTetIdId(candidates.size(), candidates.size(), allocId);
     auto candToTetIdIdView = candToTetIdId.view();
@@ -800,6 +786,7 @@ public:
       tetCount,
       shapeMesh.getCellCount()));
 
+    AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_tetScreened");
     if(useTets)
     {
       axom::for_all<ExecSpace>(
@@ -848,6 +835,8 @@ public:
           }
         });
     }
+    AXOM_ANNOTATE_END("MeshClipper:clipLoop_tetScreened");
+
     reportClipCount(candidates.size());
 
   }  // end of computeClipVolumes3DTets() function
@@ -857,7 +846,7 @@ public:
                       axom::IndexType& onCount,
                       axom::IndexType& outCount) override
   {
-    AXOM_ANNOTATE_SCOPE("MeshClipper::getLabelCounts");
+    AXOM_ANNOTATE_SCOPE("MeshClipper:count_labels");
     using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
     using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
     RAJA::ReduceSum<ReducePolicy, axom::IndexType> inSum(0);

@@ -43,7 +43,6 @@ bool TetMeshClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, 
 
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "TetMeshClipper requires a 3D mesh.");
 
-  AXOM_ANNOTATE_SCOPE("TetMeshClipper::labelCellsInOut");
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
@@ -371,7 +370,6 @@ void TetMeshClipper::vertexInsideToCellLabel(quest::experimental::ShapeMesh& sha
 bool TetMeshClipper::getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh,
                                        axom::Array<TetrahedronType>& tets)
 {
-  AXOM_ANNOTATE_SCOPE("TetMeshClipper::getGeometryAsTets");
   tets = axom::Array<TetrahedronType>(m_tets, shapeMesh.getAllocatorID());
   return true;
 }

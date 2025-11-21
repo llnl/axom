@@ -38,7 +38,6 @@ HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
 
 bool HexClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
 {
-  AXOM_ANNOTATE_SCOPE("HexClipper::labelCellsInOut");
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
@@ -142,7 +141,6 @@ void HexClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, 
 
 bool HexClipper::getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh, axom::Array<TetrahedronType>& tets)
 {
-  AXOM_ANNOTATE_SCOPE("HexClipper::getGeometryAsTets");
   int allocId = shapeMesh.getAllocatorID();
   if(tets.getAllocatorID() != allocId || tets.size() != m_tets.size())
   {

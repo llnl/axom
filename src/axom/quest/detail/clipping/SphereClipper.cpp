@@ -27,7 +27,6 @@ SphereClipper::SphereClipper(const klee::Geometry& kGeom, const std::string& nam
 
 bool SphereClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
 {
-  AXOM_ANNOTATE_SCOPE("SphereClipper::labelCellsInOut");
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
@@ -282,7 +281,6 @@ bool SphereClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
                                    axom::ArrayView<const axom::IndexType> cellIds,
                                    axom::Array<LabelType>& tetLabels)
 {
-  AXOM_ANNOTATE_SCOPE("SphereClipper::labelTetsInOut");
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:

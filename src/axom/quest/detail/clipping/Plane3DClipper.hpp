@@ -52,7 +52,8 @@ private:
   axom::primal::Plane<double, 3> m_plane;
 
   template <typename ExecSpace>
-  void labelInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& label);
+  void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                           axom::Array<LabelType>& label);
 
   template <typename ExecSpace>
   void specializedClipImpl(quest::experimental::ShapeMesh& shapeMesh,

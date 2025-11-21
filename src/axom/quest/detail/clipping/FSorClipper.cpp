@@ -109,8 +109,6 @@ bool FSorClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axo
 {
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "FSorClipper requires a 3D mesh.");
 
-  AXOM_ANNOTATE_SCOPE("FSorClipper::labelCellsInOut");
-
   const int allocId = shapeMesh.getAllocatorID();
   const auto cellCount = shapeMesh.getCellCount();
   if(labels.size() < cellCount || labels.getAllocatorID() != allocId)
@@ -150,8 +148,6 @@ bool FSorClipper::labelTetsInOut(
   axom::Array<LabelType>& tetLabels)
 {
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "FSorClipper requires a 3D mesh.");
-
-  AXOM_ANNOTATE_SCOPE("FSorClipper::labelTetsInOut");
 
   const int allocId = shapeMesh.getAllocatorID();
   const auto cellCount = cellIds.size();
