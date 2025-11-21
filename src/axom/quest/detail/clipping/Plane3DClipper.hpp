@@ -53,7 +53,7 @@ private:
 
   template <typename ExecSpace>
   void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
-                           axom::Array<LabelType>& label);
+                           axom::ArrayView<LabelType> label);
 
   template <typename ExecSpace>
   void specializedClipCellsImpl(quest::experimental::ShapeMesh& shapeMesh,

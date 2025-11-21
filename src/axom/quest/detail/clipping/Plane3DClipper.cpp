@@ -21,26 +21,34 @@ Plane3DClipper::Plane3DClipper(const klee::Geometry& kGeom, const std::string& n
   extractClipperInfo();
 }
 
-bool Plane3DClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
+bool Plane3DClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                                     axom::Array<LabelType>& labels)
 {
+  int allocId = shapeMesh.getAllocatorID();
+  auto cellCount = shapeMesh.getCellCount();
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
+  {
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
+  }
+
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels.view());
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelCellsInOutImpl<axom::OMP_EXEC>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::OMP_EXEC>(shapeMesh, labels.view());
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels.view());
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels.view());
     break;
 #endif
   default:
@@ -81,7 +89,7 @@ bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeM
 
 template <typename ExecSpace>
 void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
-                                         axom::Array<LabelType>& labels)
+                                         axom::ArrayView<LabelType> labels)
 {
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "Plane3DClipper requires a 3D mesh.");
 
@@ -115,18 +123,11 @@ void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
       vertIsInsideView[vertId] = signedDist > 0;
     });
 
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
-  {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
-  }
-
   /*
    * Label cell by whether it has vertices inside, outside or both.
   */
   axom::ArrayView<const axom::IndexType, 2> connView = shapeMesh.getCellNodeConnectivity();
   SLIC_ASSERT(connView.shape()[1] == NUM_VERTS_PER_CELL);
-
-  auto labelsView = labels.view();
 
   axom::for_all<ExecSpace>(
     cellCount,
@@ -141,7 +142,7 @@ void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
         hasIn |= isIn;
         hasOut |= !isIn;
       }
-      labelsView[cellId] =
+      labels[cellId] =
         !hasOut ? LabelType::LABEL_IN : !hasIn ? LabelType::LABEL_OUT : LabelType::LABEL_ON;
     });
 
