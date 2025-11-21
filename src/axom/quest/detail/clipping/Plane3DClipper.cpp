@@ -56,21 +56,21 @@ bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeM
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    specializedClipImpl<axom::SEQ_EXEC>(shapeMesh, ovlap, cellIds);
+    specializedClipCellsImpl<axom::SEQ_EXEC>(shapeMesh, ovlap, cellIds);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    specializedClipImpl<axom::OMP_EXEC>(shapeMesh, ovlap, cellIds);
+    specializedClipCellsImpl<axom::OMP_EXEC>(shapeMesh, ovlap, cellIds);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    specializedClipImpl<axom::CUDA_EXEC<256>>(shapeMesh, ovlap, cellIds);
+    specializedClipCellsImpl<axom::CUDA_EXEC<256>>(shapeMesh, ovlap, cellIds);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    specializedClipImpl<axom::HIP_EXEC<256>>(shapeMesh, ovlap, cellIds);
+    specializedClipCellsImpl<axom::HIP_EXEC<256>>(shapeMesh, ovlap, cellIds);
     break;
 #endif
   default:
@@ -149,9 +149,9 @@ void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
 }
 
 template <typename ExecSpace>
-void Plane3DClipper::specializedClipImpl(quest::experimental::ShapeMesh& shapeMesh,
-                                         axom::ArrayView<double>& ovlap,
-                                         const axom::ArrayView<IndexType>& cellIds)
+void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                              axom::ArrayView<double>& ovlap,
+                                              const axom::ArrayView<IndexType>& cellIds)
 {
   constexpr int NUM_VERTS_PER_CELL = 8;
   constexpr int NUM_TETS_PER_HEX = 24;

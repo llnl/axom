@@ -56,9 +56,9 @@ private:
                            axom::Array<LabelType>& label);
 
   template <typename ExecSpace>
-  void specializedClipImpl(quest::experimental::ShapeMesh& shapeMesh,
-                           axom::ArrayView<double>& ovlap,
-                           const axom::ArrayView<IndexType>& cellIds);
+  void specializedClipCellsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                axom::ArrayView<double>& ovlap,
+                                const axom::ArrayView<IndexType>& cellIds);
 
   void extractClipperInfo();
 };
