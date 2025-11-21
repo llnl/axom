@@ -40,13 +40,20 @@ public:
 
   const std::string& name() const override { return m_name; }
 
+  bool labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                       axom::Array<LabelType>& cellLabels) override;
+
+  bool labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                      axom::ArrayView<const axom::IndexType> cellIds,
+                      axom::Array<LabelType>& tetLabels) override;
+
   /*!
    * @copydoc MeshClipperStrategy::getGeometryAsTets()
    *
    * \c tets will have length one, because the geometry for this
    * class is a single tetrahedron.
    */
-  bool getGeometryAsTets(quest::experimental::ShapeMesh& shappeMesh,
+  bool getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh,
                          axom::Array<TetrahedronType>& tets) override;
 
 #if !defined(__CUDACC__)
@@ -62,7 +69,22 @@ private:
 
   axom::primal::BoundingBox<double, 3> m_bb;
 
+  //!@brief 4 planes of the Tet, oriented to the interior of the tet.
+  axom::StackArray<Plane3DType, 4> m_planes;
+
+  //!@brief Height of the tet when resting on each facet.
+  axom::StackArray<double, 4> m_heights;
+
   axom::primal::experimental::CoordinateTransformer<double> m_transformer;
+
+  template <typename ExecSpace>
+  void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                           axom::ArrayView<LabelType> cellLabel);
+
+  template <typename ExecSpace>
+  void labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                          axom::ArrayView<const axom::IndexType> cellsOnBdry,
+                          axom::ArrayView<LabelType> tetLabels);
 
   // Extract clipper info from MeshClipperStrategy::m_info.
   void extractClipperInfo();
