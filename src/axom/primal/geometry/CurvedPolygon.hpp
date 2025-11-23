@@ -124,7 +124,6 @@ public:
     m_edges.resize(other_poly.numEdges());
     for(int e = 0; e < other_poly.numEdges(); ++e)
     {
-      //this->addEdge(CurveType(other_poly[e]));
       m_edges[e] = CurveType(other_poly[e]);
     }
   }
