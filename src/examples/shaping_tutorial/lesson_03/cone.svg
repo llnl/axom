@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="416.53091"
+   height="506.883"
+   viewBox="0 0 416.53091 506.88299"
+   version="1.1"
+   id="svg34"
+   sodipodi:docname="cone.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview34"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="1.1396485"
+     inkscape:cx="-97.398456"
+     inkscape:cy="95.204798"
+     inkscape:window-width="3440"
+     inkscape:window-height="1369"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg34">
+    <inkscape:page
+       x="1.1633912e-08"
+       y="0"
+       width="416.53091"
+       height="506.883"
+       id="page39"
+       margin="0 0 0 0"
+       bleed="0" />
+  </sodipodi:namedview>
+  <title
+     id="title1">Ice cream cone</title>
+  <defs
+     id="defs1">
+    <style
+       id="style1">
+      .outline { stroke:#1f1f1f; stroke-width:10; stroke-linejoin:round; stroke-linecap:round; }
+    </style>
+  </defs>
+  <!-- CONE -->
+  <g
+     id="cone"
+     transform="matrix(1,0,0,1.6787427,-64.844672,-301.04872)"
+     style="display:inline;stroke-width:0.771806">
+    <ellipse
+       cx="254.24677"
+       cy="197.09598"
+       rx="120"
+       ry="25"
+       fill="#d6a14a"
+       stroke="#1f1f1f"
+       stroke-width="6"
+       opacity="0.8"
+       id="ellipse1"
+       transform="matrix(1,0,0,0.5956839,0.87746358,179.05208)" />
+    <path
+       class="outline"
+       fill="#d6a14a"
+       d="M 256,470 140,300 q 116,20 232,0 z"
+       id="path24" />
+  </g>
+</svg>

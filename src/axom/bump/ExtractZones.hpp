@@ -780,37 +780,12 @@ protected:
                   conduit::Node &n_newMatset) const
   {
     AXOM_ANNOTATE_SCOPE("makeMatset");
-    // TODO: Make this "if constexpr" when Axom allows that.
-    if(axom::bump::views::view_traits<TopologyView>::supports_strided_structured())
-    {
-      // If the topology view supports strided structured then we need to convert the
-      // selected zones to "global" values to pull out the right zones from the material.
-      const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-      const auto nzones = selectedZonesView.size();
-      axom::Array<axom::IndexType> matZoneIds(nzones, nzones, allocatorID);
-      auto matZoneIdsView = matZoneIds.view();
-      const TopologyView deviceTopologyView(
-        ExtractZones<ExecSpace, TopologyView, CoordsetView>::m_topologyView);
-      axom::for_all<ExecSpace>(
-        selectedZonesView.size(),
-        AXOM_LAMBDA(axom::IndexType index) {
-          matZoneIdsView[index] =
-            deviceTopologyView.indexing().LocalToGlobal(selectedZonesView[index]);
-        });
-      MatsetSlicer<ExecSpace, MatsetView> ms(m_matsetView);
-      SliceData zSlice;
-      zSlice.m_indicesView = matZoneIdsView;
-      ms.execute(zSlice, n_matset, n_newMatset);
-    }
-    else
-    {
-      // _bump_utilities_matsetslicer_begin
-      MatsetSlicer<ExecSpace, MatsetView> ms(m_matsetView);
-      SliceData zSlice;
-      zSlice.m_indicesView = selectedZonesView;
-      ms.execute(zSlice, n_matset, n_newMatset);
-      // _bump_utilities_matsetslicer_end
-    }
+    // _bump_utilities_matsetslicer_begin
+    MatsetSlicer<ExecSpace, MatsetView> ms(m_matsetView);
+    SliceData zSlice;
+    zSlice.m_indicesView = selectedZonesView;
+    ms.execute(zSlice, n_matset, n_newMatset);
+    // _bump_utilities_matsetslicer_end
   }
 
   MatsetView m_matsetView;

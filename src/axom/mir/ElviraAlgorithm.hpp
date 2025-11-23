@@ -64,12 +64,20 @@ namespace mir
  * \tparam IndexPolicy The structured mesh indexing policy.
  * \tparam CoordsetView The view type that describes the coordinates.
  * \tparam MatsetView The view type that describes matset.
+ * \tparam MAX_VERTS_2D The maximum number of vertices allowed in a polygon. This
+ *                      value is used only in 2D.
  *
  * \note We template on IndexPolicy instead of TopologyView so we can enforce a
  *       StructuredTopologyView on the algorithm. This is done because ELVIRA
  *       assumes a structured mesh for stencils, etc.
+ *
+ * \note This algorithm typically produces unstructured meshes of polygons or
+ *       polyhedra, depending on the mesh dimension. However, if the input matset
+ *       contains only "clean" zones consisting of 1 material per zone then the
+ *       input coordset, topology, and matset will be copied to the output. In
+ *       that case, the types will depend on the input types.
  */
-template <typename ExecSpace, typename IndexPolicy, typename CoordsetView, typename MatsetView>
+template <typename ExecSpace, typename IndexPolicy, typename CoordsetView, typename MatsetView, int MAX_VERTS_2D = 12>
 class ElviraAlgorithm : public axom::mir::MIRAlgorithm
 {
 public:
@@ -84,16 +92,16 @@ protected:
   // Determine the output type from the clip operations. Those are the shape
   // types that we're emitting into the MIR output. Create the builder.
   using CoordType = typename CoordsetView::value_type;
-  using ClipResultType =
-    typename std::conditional<NDIMS == 2,
-                              axom::primal::Polygon<CoordType, 2, axom::primal::PolygonArray::Static>,
-                              axom::primal::Polyhedron<CoordType, 3>>::type;
+  using ClipResultType = typename std::conditional<
+    NDIMS == 2,
+    axom::primal::Polygon<CoordType, 2, axom::primal::PolygonArray::Static, MAX_VERTS_2D>,
+    axom::primal::Polyhedron<CoordType, 3>>::type;
 
   using VectorType = axom::primal::Vector<CoordType, NDIMS>;
   using PointType = axom::primal::Point<CoordType, NDIMS>;
   using PlaneType = axom::primal::Plane<CoordType, NDIMS>;
 
-  using ShapeView = axom::bump::PrimalAdaptor<TopologyView, CoordsetView>;
+  using ShapeView = axom::bump::PrimalAdaptor<TopologyView, CoordsetView, MAX_VERTS_2D>;
   using Builder =
     detail::TopologyBuilder<ExecSpace, CoordsetView, TopologyView, MatsetView, ClipResultType, NDIMS>;
   using BuilderView = typename Builder::View;
@@ -151,6 +159,8 @@ protected:
     namespace utils = axom::bump::utilities;
 
     AXOM_ANNOTATE_SCOPE("ElviraAlgorithm");
+    SLIC_ERROR_IF(m_topologyView.numberOfZones() != m_matsetView.numberOfZones(),
+                  "The mesh and the material do not have the same number of zones.");
 
     // Copy the options to make sure they are in the right memory space.
     conduit::Node n_options_copy;
@@ -253,18 +263,52 @@ protected:
     }
     else if(cleanZones.size() > 0 && mixedZones.size() == 0)
     {
-      // There were no mixed zones. We can copy the input to the output.
+      // There were no mixed zones.
+
+      if(!n_options_copy.has_path(selectedZones.selectionKey()))
       {
+        // We can copy the input to the output (no selected zones).
         AXOM_ANNOTATE_SCOPE("copy");
         utils::copy<ExecSpace>(n_newCoordset, n_coordset);
         utils::copy<ExecSpace>(n_newTopo, n_topo);
         utils::copy<ExecSpace>(n_newFields, n_fields);
         utils::copy<ExecSpace>(n_newMatset, n_matset);
-      }
 
-      // Add an originalElements array.
-      const std::string originalElementsField(ELVIRAOptions(n_options).originalElementsField());
-      addOriginal(n_newFields[originalElementsField], n_topo.name(), "element", cleanZones);
+        // Add an originalElements array.
+        const std::string originalElementsField(ELVIRAOptions(n_options).originalElementsField());
+        addOriginal(n_newFields[originalElementsField], n_newTopo.name(), "element", cleanZones);
+      }
+      else
+      {
+        // Make the clean mesh of only the selected zones
+
+        conduit::Node n_root;
+        n_root[localPath(n_coordset)].set_external(n_coordset);
+        n_root[localPath(n_topo)].set_external(n_topo);
+        n_root[localPath(n_matset)].set_external(n_matset);
+        conduit::Node &n_root_coordset = n_root[localPath(n_coordset)];
+        conduit::Node &n_root_topo = n_root[localPath(n_topo)];
+        conduit::Node &n_root_matset = n_root[localPath(n_matset)];
+        conduit::Node n_root_fields = n_root["fields"];
+
+        conduit::Node n_cleanOutput;
+        makeCleanZones(cleanZones.view(),
+                       n_root,
+                       n_root_topo,
+                       n_root_coordset,
+                       n_root_matset,
+                       n_options_copy,
+                       n_cleanOutput);
+
+        // Move n_cleanOutput objects into the supplied nodes.
+        n_newCoordset.move(n_cleanOutput[localPath(n_newCoordset)]);
+        n_newTopo.move(n_cleanOutput[localPath(n_newTopo)]);
+        n_newMatset.move(n_cleanOutput[localPath(n_newMatset)]);
+        if(n_cleanOutput.has_path("fields"))
+        {
+          n_newFields.move(n_cleanOutput["fields"]);
+        }
+      }
     }
   }
 
@@ -505,7 +549,7 @@ protected:
     auto matCountView = matCount.view();
     auto matZoneView = matZone.view();
 
-    // Get the material count per zone and the zone number (in case of strided structured)
+    // Get the material count per zone and the zone number
     const TopologyView deviceTopologyView(m_topologyView);
     const MatsetView deviceMatsetView(m_matsetView);
     axom::ReduceSum<ExecSpace, axom::IndexType> num_reduce(0);
@@ -515,7 +559,7 @@ protected:
       AXOM_LAMBDA(axom::IndexType szIndex) {
         // Get the material data for the zone.
         const auto zoneIndex = mixedZonesView[szIndex];
-        const auto matZoneIndex = deviceTopologyView.indexing().LocalToGlobal(zoneIndex);
+        const auto matZoneIndex = zoneIndex;
         const auto nmats = deviceMatsetView.numberOfMaterials(matZoneIndex);
 
         // Save some material information for later.
@@ -629,7 +673,7 @@ protected:
         const auto zoneIndex = matZoneView[szIndex];
         const auto matCount = matCountView[szIndex];
         // The index to use for the zone's material.
-        const auto matZoneIndex = deviceTopologyView.indexing().LocalToGlobal(zoneIndex);
+        const auto matZoneIndex = zoneIndex;
         // Where to begin writing this zone's fragment data.
         const auto offset = matOffsetView[szIndex];
 
@@ -667,12 +711,7 @@ protected:
           neighbor = deviceTopologyView.indexing().clamp(neighbor);
           const auto neighborIndex = static_cast<typename MatsetView::ZoneIndex>(
             deviceTopologyView.indexing().LogicalIndexToIndex(neighbor));
-
-          // Turn to a "global" logical index and transform it to an index to use in the material,
-          // which for strided-structured can be larger than the mesh.
-          const auto matNeighbor = deviceTopologyView.indexing().LocalToGlobal(neighbor);
-          const auto matNeighborIndex = static_cast<typename MatsetView::ZoneIndex>(
-            deviceTopologyView.indexing().GlobalToGlobal(matNeighbor));
+          const auto matNeighborIndex = static_cast<typename MatsetView::ZoneIndex>(neighborIndex);
 
           // Copy material vfs into the stencil.
           for(axom::IndexType m = 0; m < matCount; m++)

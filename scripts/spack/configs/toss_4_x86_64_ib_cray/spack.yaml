@@ -398,11 +398,11 @@ spack:
       - spec: cmake@3.24.2
         prefix: /usr/tce
     py-shroud:
-      version: [0.13.0]
+      version: [0.14.0]
       buildable: false
       externals:
-      - spec: py-shroud@0.13.0
-        prefix: /collab/usr/gapps/shroud/public/toss_4_x86_64_ib_cray/shroud-0.13.0
+      - spec: py-shroud@0.14.0
+        prefix: /collab/usr/gapps/shroud/public/toss_4_x86_64_ib_cray/shroud-0.14.0
     cppcheck:
       version: [2.18]
       buildable: false

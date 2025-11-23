@@ -125,10 +125,18 @@ public:
     , m_shapeMap(shapemap)
     , m_indexing(m_sizes.size())
   {
-    SLIC_ASSERT(m_shapes.size() != 0);
-    SLIC_ASSERT(m_sizes.size() != 0);
-    SLIC_ASSERT(m_offsets.size() != 0);
-    SLIC_ASSERT(m_offsets.size() == m_sizes.size() && m_offsets.size() == m_shapes.size());
+#if !defined(AXOM_DEVICE_CODE)
+    SLIC_ERROR_IF(m_shapes.empty(), "Array view shapes is empty.");
+    SLIC_ERROR_IF(m_sizes.empty(), "Array view sizes is empty.");
+    SLIC_ERROR_IF(m_offsets.empty(), "Array view offsets is empty.");
+    SLIC_ERROR_IF(
+      m_offsets.size() != m_sizes.size() || m_offsets.size() != m_shapes.size(),
+      axom::fmt::format("Array views are different sizes: sizes={}, offsets={}, shapes={}.",
+                        m_sizes.size(),
+                        m_offsets.size(),
+                        m_shapes.size()));
+    SLIC_ERROR_IF(shapemap.empty(), "Shape map is empty.");
+#endif
   }
 
   /*!

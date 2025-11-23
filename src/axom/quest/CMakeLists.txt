@@ -140,11 +140,22 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
         list(APPEND quest_headers Shaper.hpp
                                   DiscreteShape.hpp
                                   IntersectionShaper.hpp
-                                  detail/shaping/shaping_helpers.hpp)
+                                  detail/shaping/shaping_helpers.hpp
+                                  ShapeMesh.hpp)
         list(APPEND quest_sources Shaper.cpp
-                                DiscreteShape.cpp
-                                detail/shaping/shaping_helpers.cpp)
-        list(APPEND quest_depends_on klee)       
+                                  DiscreteShape.cpp
+                                  detail/shaping/shaping_helpers.cpp
+                                  ShapeMesh.cpp)
+        list(APPEND quest_depends_on klee)
+        if(RAJA_FOUND)
+            list(APPEND quest_headers MeshClipper.hpp
+                                      MeshClipperStrategy.hpp
+                                      detail/clipping/TetClipper.hpp
+                                      detail/clipping/MeshClipperImpl.hpp)
+            list(APPEND quest_sources MeshClipper.cpp
+                                      detail/clipping/TetClipper.cpp
+                                      MeshClipperStrategy.cpp)
+        endif()
     endif()
 
     if(MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
@@ -182,6 +193,7 @@ if (ENABLE_FORTRAN)
     list(APPEND quest_headers interface/c_fortran/wrapQUEST.h)
     list(APPEND quest_headers interface/c_fortran/typesQUEST.h)
     list(APPEND quest_sources interface/c_fortran/wrapQUEST.cpp)
+    list(APPEND quest_sources interface/c_fortran/utilQUEST.cpp)
     list(APPEND quest_sources interface/c_fortran/wrapfquest.F)
 endif()
 
