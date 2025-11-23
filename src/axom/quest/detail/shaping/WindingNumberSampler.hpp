@@ -45,13 +45,8 @@ namespace detail
 template <typename ShapeType, typename PointType>
 bool AXOM_HOST_DEVICE checkInside(const ShapeType& shape, const PointType& pt)
 {
-  double wn {};
-  for(int c = 0; c < shape.numEdges(); c++)
-  {
-    wn += axom::primal::winding_number(pt, shape[c]);
-  }
   // A point inside the polygon should have non-zero winding number.
-  return (round(wn) != 0);
+  return (round(axom::primal::winding_number(pt, shape)) != 0);
 }
 
 }  // end namespace detail
@@ -68,7 +63,12 @@ public:
   // For now.
   using ExecSpace = axom::SEQ_EXEC;
 
-  using GeometryView = typename axom::ArrayView<axom::primal::CurvedPolygon<double, DIM>>;
+  using CurvedPolygonType = primal::CurvedPolygon<axom::primal::NURBSCurve<double, 2>>;
+  using GeometryView = typename axom::ArrayView<CurvedPolygonType>;
+
+  using ContourCacheType = primal::CurvedPolygon<axom::primal::detail::NURBSCurveGWNCache<double>>;
+  using ContourCacheArray = typename axom::Array<ContourCacheType>;
+
   using PointType = primal::Point<double, DIM>;
   using GeometricBoundingBox = axom::primal::BoundingBox<double, DIM>;
   using BVH = typename axom::spin::BVH<NDIMS, ExecSpace, double>;
@@ -81,10 +81,13 @@ public:
    * \param geomView A view that contains the shapes being queried.
    *
    */
-  WindingNumberSampler(const std::string& shapeName, GeometryView geomView)
-    : m_shapeName(shapeName)
-    , m_geometryView(geomView)
-  { }
+  WindingNumberSampler(const std::string& shapeName, GeometryView geomView) : m_shapeName(shapeName)
+  {
+    for(const auto& contour : geomView)
+    {
+      m_contourCaches.push_back(ContourCacheType(contour));
+    }
+  }
 
   ~WindingNumberSampler() = default;
 
@@ -102,15 +105,15 @@ public:
     AXOM_ANNOTATE_SCOPE("Initialize spatial index");
 
     // Figure out bounding boxes for each geometric object.
-    const axom::IndexType geometrySize = m_geometryView.size();
+    const axom::IndexType geometrySize = m_contourCaches.size();
     axom::Array<GeometricBoundingBox> aabbs(geometrySize,
                                             geometrySize,
                                             axom::execution_space<ExecSpace>::allocatorID());
     auto aabbsView = aabbs.view();
-    const auto geometryView = m_geometryView;
+    const auto contourCaches = m_contourCaches;
     axom::for_all<ExecSpace>(
       geometrySize,
-      AXOM_LAMBDA(axom::IndexType i) { aabbsView[i] = geometryView[i].boundingBox(); });
+      AXOM_LAMBDA(axom::IndexType i) { aabbsView[i] = contourCaches[i].boundingBox(); });
 
     // Initialize the BVH using the bounding boxes.
     m_bvh.initialize(aabbs, aabbs.size());
@@ -221,7 +224,7 @@ public:
     axom::Array<bool> inOutResult(numQueryPoints, numQueryPoints, allocatorID);
     auto inOutResultView = inOutResult.view();
     const auto candidatesView = candidates.view();
-    const auto geometryView = m_geometryView;
+    const auto contourCaches = m_contourCaches;
     axom::for_all<ExecSpace>(
       numQueryPoints,
       AXOM_LAMBDA(axom::IndexType qpi) {
@@ -232,7 +235,7 @@ public:
         for(axom::IndexType ci = 0; ci < numCandidates && in == false; ci++)
         {
           const auto candidateIndex = candidatesView[offsetsView[qpi] + ci];
-          in |= detail::checkInside(geometryView[candidateIndex], queryPoint);
+          in |= detail::checkInside(contourCaches[candidateIndex], queryPoint);
         }
         inOutResultView[qpi] = in;
       });
@@ -291,15 +294,15 @@ public:
     PointProjector<FromDim, ToDim> projector = {})
   {
     AXOM_ANNOTATE_SCOPE("computeVolumeFractionsBaseline");
-    const auto geometryView = m_geometryView;
+    const auto contourCaches = m_contourCaches;
     auto checkInside = [=](const PointType& pt) -> bool {
       // TODO: Use m_bvh to limit which curved polygons might contain point.
 
       // Check each candidate
       bool inside = false;
-      for(axom::IndexType i = 0; i < geometryView.size() && !inside; i++)
+      for(axom::IndexType i = 0; i < contourCaches.size() && !inside; i++)
       {
-        inside |= detail::checkInside(geometryView[i], pt);
+        inside |= detail::checkInside(contourCaches[i], pt);
       }
       return inside;
     };
@@ -333,7 +336,7 @@ private:
 
   std::string m_shapeName;
   GeometricBoundingBox m_bbox {};
-  GeometryView m_geometryView;
+  ContourCacheArray m_contourCaches;
   BVH m_bvh {};
 };
 

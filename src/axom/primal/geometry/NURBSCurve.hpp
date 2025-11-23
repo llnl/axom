@@ -621,6 +621,9 @@ public:
    */
   const PointType& operator[](int idx) const { return m_controlPoints[idx]; }
 
+  const PointType& getInitPoint() const { return m_controlPoints[0]; }
+  const PointType& getEndPoint() const { return m_controlPoints[m_controlPoints.size() - 1]; }
+
   /// \brief Returns a copy of the NURBS curve's control points
   CoordsVec getControlPoints() const { return m_controlPoints; }
 
