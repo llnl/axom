@@ -105,7 +105,8 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
   }
 }
 
-bool FSorClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
+bool FSorClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                                  axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "FSorClipper requires a 3D mesh.");
 

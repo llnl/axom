@@ -36,31 +36,36 @@ TetMeshClipper::TetMeshClipper(const klee::Geometry& kGeom, const std::string& n
   computeTets();
 }
 
-bool TetMeshClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
+bool TetMeshClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                                     axom::Array<LabelType>& labels)
 {
-  AXOM_UNUSED_VAR(shapeMesh);
-  AXOM_UNUSED_VAR(labels);
-
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "TetMeshClipper requires a 3D mesh.");
+
+  int allocId = shapeMesh.getAllocatorID();
+  auto cellCount = shapeMesh.getCellCount();
+  if(labels.size() < cellCount || labels.getAllocatorID() != allocId)
+  {
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, 0, allocId);
+  }
 
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels.view());
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelCellsInOutImpl<axom::OMP_EXEC>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::OMP_EXEC>(shapeMesh, labels.view());
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels.view());
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels.view());
     break;
 #endif
   default:
@@ -88,19 +93,14 @@ bool TetMeshClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, 
  *     If count is odd, hex is IN, if even, OUT.
 */
 template <typename ExecSpace>
-void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
+void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                         axom::ArrayView<LabelType> labels)
 {
   int allocId = shapeMesh.getAllocatorID();
   auto cellCount = shapeMesh.getCellCount();
 
   // Copy m_tetMesh array data to allocId if it's not done yet.
   copy_tetmesh_arrays_to(allocId);
-
-  if(labels.size() < cellCount || labels.getAllocatorID() != allocId)
-  {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, 0, allocId);
-  }
-  auto labelsView = labels.view();
 
   /*
     Compute surface triangles of the tet mesh.
@@ -179,7 +179,7 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
-      LabelType& label = labelsView[cellId];
+      LabelType& label = labels[cellId];
 
       {
         // Label cell as ON boundary if it's near the boundary.

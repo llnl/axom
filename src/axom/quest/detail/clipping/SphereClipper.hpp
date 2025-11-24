@@ -36,7 +36,8 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh, axom::Array<LabelType>& label) override;
+  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh,
+                       axom::Array<LabelType>& label) override;
 
   bool labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
                       axom::ArrayView<const axom::IndexType> cellIds,
