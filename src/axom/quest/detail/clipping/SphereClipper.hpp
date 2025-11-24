@@ -51,25 +51,31 @@ private:
   std::string m_name;
 
   //!@brief Sphere before external transformations.
-  axom::primal::Sphere<double, 3> m_sphereBeforeTrans;
+  SphereType m_sphereBeforeTrans;
 
-  //!@brief Sphere after external transformations from m_transMat.
-  axom::primal::Sphere<double, 3> m_sphere;
+  //!@brief Sphere after external transformations.
+  SphereType m_sphere;
 
-  //!@brief External transformations, equivalent to m_transMat.
+  //!@brief External transformations.
   axom::primal::experimental::CoordinateTransformer<double> m_transformer;
 
   int m_levelOfRefinement;
 
   template <typename ExecSpace>
-  void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& label);
-  template <typename ExecSpace>
-  void labelCellsInOutImplOld(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& label);
+  void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                           axom::ArrayView<LabelType> label);
 
   template <typename ExecSpace>
   void labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                           axom::ArrayView<const axom::IndexType> cellIds,
-                          axom::Array<LabelType>& tetLabels);
+                          axom::ArrayView<LabelType> tetLabels);
+
+  //!@brief Compute LabelType for a polyhedron (hex or tet in our case).
+  template <typename Polyhedron>
+  AXOM_HOST_DEVICE inline
+  MeshClipperStrategy::LabelType polyhedronToLabel(
+    const Polyhedron& verts,
+    const SphereType& sphere) const;
 
   void extractClipperInfo();
 

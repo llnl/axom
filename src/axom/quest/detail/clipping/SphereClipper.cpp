@@ -25,26 +25,34 @@ SphereClipper::SphereClipper(const klee::Geometry& kGeom, const std::string& nam
   transformSphere();
 }
 
-bool SphereClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
+bool SphereClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                                    axom::Array<LabelType>& labels)
 {
+  int allocId = shapeMesh.getAllocatorID();
+  auto cellCount = shapeMesh.getCellCount();
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
+  {
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
+  }
+
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels.view());
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelCellsInOutImpl<axom::OMP_EXEC>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::OMP_EXEC>(shapeMesh, labels.view());
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels.view());
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels.view());
     break;
 #endif
   default:
@@ -54,226 +62,20 @@ bool SphereClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, a
 }
 
 template <typename ExecSpace>
-void SphereClipper::labelCellsInOutImplOld(quest::experimental::ShapeMesh& shapeMesh,
-                                           axom::Array<LabelType>& labels)
+void SphereClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                        axom::ArrayView<LabelType> labels)
 {
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
-
-  constexpr int NUM_VERTS_PER_CELL = 8;
-
-  int allocId = shapeMesh.getAllocatorID();
   auto cellCount = shapeMesh.getCellCount();
-  auto vertCount = shapeMesh.getVertexCount();
-
-  const auto& vertCoords = shapeMesh.getVertexCoords3D();
-  const auto& vX = vertCoords[0];
-  const auto& vY = vertCoords[1];
-  const auto& vZ = vertCoords[2];
-
-  /*
-    Compute whether vertices are inside shape.
-  */
-  axom::Array<double> vertDist {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
-  auto vertDistView = vertDist.view();
-  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vX.getAllocatorID()));
-  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vY.getAllocatorID()));
-  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vZ.getAllocatorID()));
-  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vertDistView.getAllocatorID()));
-
+  auto cellsAsHexes = shapeMesh.getCellsAsHexes();
   auto sphere = m_sphere;
-  axom::for_all<ExecSpace>(
-    vertCount,
-    AXOM_LAMBDA(axom::IndexType vertId) {
-      primal::Point3D vert {vX[vertId], vY[vertId], vZ[vertId]};
-      double signedDist = sphere.computeSignedDistance(vert);
-      vertDistView[vertId] = signedDist;
-    });
-
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
-  {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
-  }
-
-  /*
-   * Label cell by whether it has vertices inside, outside or both.
-   * Sphere may intersect cell between its vertices, so we classify
-   * the cells conservatively.
-   * - If cell has vertex less than a small distance outside the
-   *   sphere, the cell is classified as having a vertex inside.
-   * - We don't need to do the same for vertices a small distance
-   *   inside the sphere, because the sphere is convex.  There's no
-   *   cell with all vertices inside the sphere and intersects the
-   *   sphere.
-  */
-  auto cellLengths = shapeMesh.getCellLengths();
-  const double lenFactor = 0.5;
-
-  axom::ArrayView<const axom::IndexType, 2> connView = shapeMesh.getCellNodeConnectivity();
-  SLIC_ASSERT(connView.shape() ==
-              (axom::StackArray<axom::IndexType, 2> {cellCount, NUM_VERTS_PER_CELL}));
-
-  auto labelsView = labels.view();
-
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
-      LabelType& cellLabel = labelsView[cellId];
-      auto cellVertIds = connView[cellId];
-      const double proximityThreshold = cellLengths[cellId] * lenFactor;
-      bool hasIn = vertDistView[cellVertIds[0]] < proximityThreshold;
-      bool hasOut = vertDistView[cellVertIds[0]] > 0;
-      for(int vi = 1; vi < NUM_VERTS_PER_CELL; ++vi)
-      {
-        int vertId = cellVertIds[vi];
-        bool isIn = vertDistView[vertId] < proximityThreshold;
-        bool isOut = vertDistView[vertId] > 0;
-        hasIn |= isIn;
-        hasOut |= isOut;
-      }
-      cellLabel = !hasOut ? LabelType::LABEL_IN : !hasIn ? LabelType::LABEL_OUT : LabelType::LABEL_ON;
+      LabelType& cellLabel = labels[cellId];
+      const auto& hex = cellsAsHexes[cellId];
+      cellLabel = polyhedronToLabel(hex, sphere);
     });
-
-  bool checkEdges = false;
-  if(checkEdges)
-  {
-    /*
-     * The vertices are all outside, Check if any edge crosses the
-     * geometry.  This check rarely makes a difference.  Any errors
-     * corrected is probably O(h^3) and much smaller than the error
-     * from discretizing the sphere.  It's probably not worth the cost.
-    */
-    axom::ArrayView<const TetrahedronType> cellsAsTets = shapeMesh.getCellsAsTets();
-    axom::for_all<ExecSpace>(
-      cellCount,
-      AXOM_LAMBDA(axom::IndexType cellId) {
-        LabelType& cellLabel = labelsView[cellId];
-        if(cellLabel == LabelType::LABEL_OUT)
-        {
-          constexpr int NUM_TETS_PER_HEX = primal::Hexahedron<double, 3>::NUM_TRIANGULATE;
-          const double sqRadius = sphere.getRadius() * sphere.getRadius();
-
-          const axom::IndexType tetIdxStart = cellId * NUM_TETS_PER_HEX;
-          const axom::IndexType tetIdxEnd = (1 + cellId) * NUM_TETS_PER_HEX;
-          for(axom::IndexType ti = tetIdxStart; ti < tetIdxEnd; ++ti)
-          {
-            const TetrahedronType& tet = cellsAsTets[ti];
-            for(int vA = 0; vA < 4 && cellLabel == LabelType::LABEL_OUT; ++vA)
-            {
-              for(int vB = vA + 1; vB < 4 && cellLabel == LabelType::LABEL_OUT; ++vB)
-              {
-                const Segment3DType seg(tet[vA], tet[vB]);
-                const Vector3DType vec(tet[vA], tet[vB]);
-                const Plane3DType plane(vec, sphere.getCenter());
-                double t;
-                bool intersects = axom::primal::intersect(plane, seg, t);
-                if(intersects)
-                {
-                  Point3DType intersectionPt = seg.at(t);
-                  Vector3DType centerToIntersection(sphere.getCenter(), intersectionPt);
-                  double sqNorm = centerToIntersection.squared_norm();
-                  if(sqNorm < sqRadius)
-                  {
-                    cellLabel = LabelType::LABEL_ON;
-                  }
-                }
-              }
-            }
-          }
-        }
-      });
-  }
-
-  return;
-}
-
-template <typename ExecSpace>
-void SphereClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
-{
-  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
-
-  constexpr int NUM_VERTS_PER_CELL = 8;
-
-  int allocId = shapeMesh.getAllocatorID();
-  auto cellCount = shapeMesh.getCellCount();
-  auto vertCount = shapeMesh.getVertexCount();
-
-  auto sphere = m_sphere;
-
-  const auto& vertCoords = shapeMesh.getVertexCoords3D();
-  const auto& vX = vertCoords[0];
-  const auto& vY = vertCoords[1];
-  const auto& vZ = vertCoords[2];
-
-  /*
-   * Compute whether vertices are inside shape.
-  */
-
-  axom::Array<bool> vertIsOutside {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
-  auto vertIsOutsideView = vertIsOutside.view();
-  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vX.getAllocatorID()));
-  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vY.getAllocatorID()));
-  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vZ.getAllocatorID()));
-  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vertIsOutsideView.getAllocatorID()));
-
-  axom::for_all<ExecSpace>(
-    vertCount,
-    AXOM_LAMBDA(axom::IndexType vertId) {
-      primal::Point3D vert {vX[vertId], vY[vertId], vZ[vertId]};
-      int orientation = sphere.getOrientation(vert, 0.0);
-      vertIsOutsideView[vertId] = orientation == primal::ON_POSITIVE_SIDE;
-    });
-
-  /*
-   * Compute cell labels.
-  */
-
-  axom::ArrayView<const axom::IndexType, 2> connView = shapeMesh.getCellNodeConnectivity();
-  SLIC_ASSERT(connView.shape() ==
-              (axom::StackArray<axom::IndexType, 2> {cellCount, NUM_VERTS_PER_CELL}));
-
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
-  {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
-  }
-
-  auto labelsView = labels.view();
-
-  /*
-   * Label cell:
-   * - Compute cell's bounding sphere.  Use bounding box's
-   *   bounding sphere as a fast conservative approximation.
-   * - If bounding sphere doesn't intersect the geometry, cell is LabelType::LABEL_OUT.
-   * - If all cell vertices are inside geometry, cell is LabelType::LABEL_IN.
-   *   This is true because geometry is convex.
-   * - If spheres intersect and not all vertices are inside,
-   *   some parts of the cell may intersect boundary, so it's LabelType::LABEL_ON.
-  */
-
-  auto cellBbs = shapeMesh.getCellBoundingBoxes();
-
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType cellId) {
-      LabelType& cellLabel = labelsView[cellId];
-      const auto& bb = cellBbs[cellId];
-      const SphereType boundingSphere(bb.getCentroid(), bb.range().norm() / 2);
-      if(sphere.intersectsWith(boundingSphere, 0.0))
-      {
-        auto cellVertIds = connView[cellId];
-        bool hasOut = vertIsOutsideView[cellVertIds[0]];
-        for(int vi = 1; vi < NUM_VERTS_PER_CELL; ++vi)
-        {
-          int vertId = cellVertIds[vi];
-          hasOut |= vertIsOutsideView[vertId];
-        }
-        cellLabel = hasOut ? LabelType::LABEL_ON : LabelType::LABEL_IN;
-      }
-      else
-      {
-        cellLabel = LabelType::LABEL_OUT;
-      }
-    });
-
   return;
 }
 
@@ -281,24 +83,36 @@ bool SphereClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
                                    axom::ArrayView<const axom::IndexType> cellIds,
                                    axom::Array<LabelType>& tetLabels)
 {
+  const axom::IndexType cellCount = cellIds.size();
+  const int allocId = shapeMesh.getAllocatorID();
+
+  if(tetLabels.size() < cellCount * NUM_TETS_PER_HEX ||
+     tetLabels.getAllocatorID() != shapeMesh.getAllocatorID())
+  {
+    tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
+                                       cellCount * NUM_TETS_PER_HEX,
+                                       cellCount * NUM_TETS_PER_HEX,
+                                       allocId);
+  }
+
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelTetsInOutImpl<axom::SEQ_EXEC>(shapeMesh, cellIds, tetLabels);
+    labelTetsInOutImpl<axom::SEQ_EXEC>(shapeMesh, cellIds, tetLabels.view());
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelTetsInOutImpl<axom::OMP_EXEC>(shapeMesh, cellIds, tetLabels);
+    labelTetsInOutImpl<axom::OMP_EXEC>(shapeMesh, cellIds, tetLabels.view());
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelTetsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, cellIds, tetLabels);
+    labelTetsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, cellIds, tetLabels.view());
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelTetsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, cellIds, tetLabels);
+    labelTetsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, cellIds, tetLabels.view());
     break;
 #endif
   default:
@@ -310,48 +124,13 @@ bool SphereClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
 template <typename ExecSpace>
 void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                                        axom::ArrayView<const axom::IndexType> cellIds,
-                                       axom::Array<LabelType>& tetLabels)
+                                       axom::ArrayView<LabelType> tetLabels)
 {
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
 
-  constexpr int NUM_VERTS_PER_TET = 4;
-
   const axom::IndexType cellCount = cellIds.size();
-
-  int allocId = shapeMesh.getAllocatorID();
-
-  if(tetLabels.size() < cellCount * NUM_TETS_PER_HEX ||
-     tetLabels.getAllocatorID() != shapeMesh.getAllocatorID())
-  {
-    tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
-                                       cellCount * NUM_TETS_PER_HEX,
-                                       cellCount * NUM_TETS_PER_HEX,
-                                       allocId);
-  }
-  auto tetLabelsView = tetLabels.view();
-
-  /*
-   * Label tets:
-   * - Compute tets's bounding sphere.  Use bounding box's
-   *   bounding sphere as a fast conservative approximation.
-   * - If bounding sphere doesn't intersect sphere geometry,
-   *   cell is LabelType::LABEL_OUT.
-   * - If all cell vertices are inside sphere geometry,
-   *   cell is LabelType::LABEL_IN.  This is true because geometry is convex.
-   * - If spheres intersect and not all vertices are inside,
-   *   some parts of the cell may intersect boundary, so it's LabelType::LABEL_ON.
-   *
-   * TODO: It shouldn't be hard to compute the closest point
-   * of a BoundingBox to another point.  It would be less
-   * conservative than using the BoundingBox circumsphere.
-   * Worth doing because too many tets are unnecessarily
-   * labeled ON.
-  */
-
   auto meshHexes = shapeMesh.getCellsAsHexes();
-
   auto sphere = m_sphere;
-  const double squaredRad = sphere.getRadius() * sphere.getRadius();
 
   axom::for_all<ExecSpace>(
     cellCount,
@@ -365,32 +144,47 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh
       for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
         const TetrahedronType& tet = cellTets[ti];
-        LabelType& tetLabel = tetLabelsView[ci * NUM_TETS_PER_HEX + ti];
-
-        BoundingBox3DType bb(tet[0]);
-        bb.addPoint(tet[1]);
-        bb.addPoint(tet[2]);
-        bb.addPoint(tet[3]);
-        const SphereType boundingSphere(bb.getCentroid(), bb.range().norm() / 2);
-
-        if(sphere.intersectsWith(boundingSphere, 0.0))
-        {
-          bool hasOut = false;
-          for(int vi = 0; vi < NUM_VERTS_PER_TET; ++vi)
-          {
-            double sqDistance = axom::primal::squared_distance(sphere.getCenter(), tet[vi]);
-            hasOut |= sqDistance > squaredRad;
-          }
-          tetLabel = hasOut ? LabelType::LABEL_ON : LabelType::LABEL_IN;
-        }
-        else
-        {
-          tetLabel = LabelType::LABEL_OUT;
-        }
+        LabelType& tetLabel = tetLabels[ci * NUM_TETS_PER_HEX + ti];
+        tetLabel = polyhedronToLabel(tet, sphere);
       }
-    });
 
+    });
   return;
+}
+
+template <typename Polyhedron>
+AXOM_HOST_DEVICE inline
+MeshClipperStrategy::LabelType SphereClipper::polyhedronToLabel(
+  const Polyhedron& verts,
+  const SphereType& sphere) const
+{
+  /*
+    If bounding box of polyhedron is more than the radius distance
+    from center, it is LABEL_OUT.  (Comparing vertices for this check
+    can miss intersections by edges and facets, so we compare bounding
+    box.)
+
+    Otherwise, polyhedron either LABEL_ON or LABEL_IN.  Sphere is
+    convex, so polyhedron is IN only if all vertices are inside.
+  */
+  BoundingBox3DType bb(verts[0]);
+  auto vertCount = Polyhedron::numVertices();
+  for(int i = 1; i < vertCount; ++i) { bb.addPoint(verts[i]); }
+
+  const double sqRad = sphere.getRadius() * sphere.getRadius();
+
+  double sqDistToBb = primal::squared_distance(sphere.getCenter(), bb);
+
+  if (sqDistToBb >= sqRad) { return LabelType::LABEL_OUT; }
+
+  for(int i = 0; i < vertCount; ++i)
+  {
+    const auto& vert = verts[i];
+    double sqDistToVert = axom::primal::squared_distance(sphere.getCenter(), vert);
+    if(sqDistToVert > sqRad)
+      { return LabelType::LABEL_ON; }
+  }
+  return LabelType::LABEL_IN;
 }
 
 /*
