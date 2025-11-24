@@ -36,26 +36,78 @@ HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
   computeSurface();
 }
 
-bool HexClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
+bool HexClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                                 axom::Array<LabelType>& labels)
 {
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "HexClipper requires a 3D mesh.");
+
+  int allocId = shapeMesh.getAllocatorID();
+  auto cellCount = shapeMesh.getCellCount();
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
+  {
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
+  }
+
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels.view());
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelCellsInOutImpl<axom::OMP_EXEC>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::OMP_EXEC>(shapeMesh, labels.view());
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels.view());
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels);
+    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels.view());
+    break;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+  return true;
+}
+
+bool HexClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                                   axom::ArrayView<const axom::IndexType> cellIds,
+                                   axom::Array<LabelType>& tetLabels)
+{
+  const axom::IndexType cellCount = cellIds.size();
+  const int allocId = shapeMesh.getAllocatorID();
+
+  if(tetLabels.size() < cellCount * NUM_TETS_PER_HEX ||
+     tetLabels.getAllocatorID() != shapeMesh.getAllocatorID())
+  {
+    tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
+                                       cellCount * NUM_TETS_PER_HEX,
+                                       cellCount * NUM_TETS_PER_HEX,
+                                       allocId);
+  }
+
+  switch(shapeMesh.getRuntimePolicy())
+  {
+  case axom::runtime_policy::Policy::seq:
+    labelTetsInOutImpl<axom::SEQ_EXEC>(shapeMesh, cellIds, tetLabels.view());
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case axom::runtime_policy::Policy::omp:
+    labelTetsInOutImpl<axom::OMP_EXEC>(shapeMesh, cellIds, tetLabels.view());
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case axom::runtime_policy::Policy::cuda:
+    labelTetsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, cellIds, tetLabels.view());
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case axom::runtime_policy::Policy::hip:
+    labelTetsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, cellIds, tetLabels.view());
     break;
 #endif
   default:
@@ -65,81 +117,110 @@ bool HexClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom
 }
 
 template <typename ExecSpace>
-void HexClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
+void HexClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                     axom::ArrayView<LabelType> labels)
 {
-  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "HexClipper requires a 3D mesh.");
-
-  int allocId = shapeMesh.getAllocatorID();
   auto cellCount = shapeMesh.getCellCount();
-
-  axom::ArrayView<const BoundingBox3DType> cellBbs = shapeMesh.getCellBoundingBoxes();
-  axom::ArrayView<const HexahedronType> cellsAsHexes = shapeMesh.getCellsAsHexes();
-
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
-  {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
-  }
-  auto labelsView = labels.view();
-
-  /*
-   * Label cell by eliminating where it can be w.r.t. the hex.
-   * The cell is conservatively represented by its bounding box, cellBb.
-   * - If cellBb doens't intersect hexBb, cell is OUT.
-   * - Else if cellBb intersects any of the hex's 24 surface triangles,
-   *   the cell is ON the boundary.
-   * - Else if any cell vertex is in the hex (in any of the 24 tets),
-   *   the cell is IN.  Otherwise OUT, since we've eliminated
-   *   the possibility that it's ON the boundary.
-  */
+  const auto cellBbs = shapeMesh.getCellBoundingBoxes();
+  const auto cellsAsHexes = shapeMesh.getCellsAsHexes();
   const auto hexBb = m_hexBb;
-  axom::Array<TetrahedronType> tets(m_tets.size(), m_tets.size(), allocId);
-  axom::copy(tets.data(), m_tets.data(), m_tets.size() * sizeof(TetrahedronType));
-  auto tetsView = tets.view();
-  auto surfaceTriangles = m_surfaceTriangles;
-  constexpr double eps = 1e-12;
+  const auto tets = m_tets;
+  const auto surfaceTriangles = m_surfaceTriangles;
+
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
-      auto& cellLabel = labelsView[cellId];
+      auto& cellLabel = labels[cellId];
       auto& cellBb = cellBbs[cellId];
-      // If bounding boxes don't intersect, nothing intersects.
-      if(!hexBb.intersectsWith(cellBb))
-      {
-        cellLabel = LabelType::LABEL_OUT;
-        return;
-      }
-      // If cellBb intersects hex surface, there's a high chance cell does too.
-      for(int ti = 0; ti < 24; ++ti)
-      {
-        const auto& surfTri = surfaceTriangles[ti];
-        if(axom::primal::intersect(surfTri, cellBb))
-        {
-          cellLabel = LabelType::LABEL_ON;
-          return;
-        }
-      }
-      // After eliminating possibility that cell is on surface,
-      // the cell is either completely inside or completely out.
-      // The cell is IN if any part of it is IN, so check an arbitrary vertex.
-      // Note: Should the arbitrary vertex be some weird corner case, we could
-      // use an alternative, like averaging two opposite corners, 0 and 6.
-      const auto& cellAsHex = cellsAsHexes[cellId];
-      const Point3DType& ptInCell(cellAsHex[0]);
-      for(const auto& tet : tetsView)
-      {
-        if(tet.contains(ptInCell, eps))
-        {
-          cellLabel = LabelType::LABEL_IN;
-          return;
-        }
-      }
-      cellLabel = LabelType::LABEL_OUT;
+      const auto& cellHex = cellsAsHexes[cellId];
+      cellLabel = polyhedronToLabel(cellHex, cellBb, hexBb, tets, surfaceTriangles);
     });
 
   return;
 }
 
-bool HexClipper::getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh, axom::Array<TetrahedronType>& tets)
+template <typename ExecSpace>
+void HexClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                    axom::ArrayView<const axom::IndexType> cellIds,
+                                    axom::ArrayView<LabelType> tetLabels)
+{
+  const axom::IndexType cellCount = cellIds.size();
+  auto meshHexes = shapeMesh.getCellsAsHexes();
+  const auto hexBb = m_hexBb;
+  const auto tets = m_tets;
+  const auto surfaceTriangles = m_surfaceTriangles;
+
+  axom::for_all<ExecSpace>(
+    cellCount,
+    AXOM_LAMBDA(axom::IndexType ci) {
+      axom::IndexType cellId = cellIds[ci];
+      const HexahedronType& hex = meshHexes[cellId];
+
+      TetrahedronType cellTets[NUM_TETS_PER_HEX];
+      hex.triangulate(cellTets);
+
+      for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+      {
+        const TetrahedronType& cellTet = cellTets[ti];
+        LabelType& tetLabel = tetLabels[ci * NUM_TETS_PER_HEX + ti];
+        BoundingBox3DType cellTetBb{cellTet[0], cellTet[1], cellTet[2], cellTet[3]};
+        tetLabel = polyhedronToLabel(cellTet, cellTetBb, hexBb, tets, surfaceTriangles);
+      }
+
+    });
+  return;
+}
+
+template <typename Polyhedron>
+AXOM_HOST_DEVICE inline
+MeshClipperStrategy::LabelType HexClipper::polyhedronToLabel(
+  const Polyhedron& verts,
+  const BoundingBox3DType& vertsBb,
+  const BoundingBox3DType& hexBb,
+  const axom::StackArray<TetrahedronType, HexahedronType::NUM_TRIANGULATE>& hexTets,
+  const axom::StackArray<Triangle3DType, 24>& surfaceTriangles) const
+{
+  /*
+    If vertsBb and hexBb don't intersect, nothing intersects.
+    This check is not technically needed, because the thecks
+    below can catch it, but it is fast and can avoid the more
+    expensive surface triangle intersection checks below.
+  */
+  if(!hexBb.intersectsWith(vertsBb))
+  {
+    return LabelType::LABEL_OUT;
+  }
+
+  // If vertsBb intersects hex surface, there's a high chance cell does too.
+  for(int ti = 0; ti < 24; ++ti)
+  {
+    const auto& surfTri = surfaceTriangles[ti];
+    if(axom::primal::intersect(surfTri, vertsBb))
+    {
+      return LabelType::LABEL_ON;
+    }
+  }
+  /*
+    After eliminating possibility that polyhedron is on the surface,
+    it's either completely inside or completely out.
+    It's IN if any part of it is IN, so check an arbitrary vertex.
+    Note: Should the arbitrary vertex be some weird corner case, we could
+    use an alternative, like averaging two opposite corners, 0 and 6.
+  */
+  constexpr double eps = 1e-12;
+  const Point3DType& ptInCell(verts[0]);
+  for(const auto& tet : hexTets)
+  {
+    if(tet.contains(ptInCell, eps))
+    {
+      return LabelType::LABEL_IN;
+    }
+  }
+  return LabelType::LABEL_OUT;
+}
+
+bool HexClipper::getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh,
+                                   axom::Array<TetrahedronType>& tets)
 {
   int allocId = shapeMesh.getAllocatorID();
   if(tets.getAllocatorID() != allocId || tets.size() != m_tets.size())

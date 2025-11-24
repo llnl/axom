@@ -40,9 +40,15 @@ public:
    * If a mesh cell has all vertices outside the geometry, it labeled outside.
    * This will miss cases where an edge of the cell passes through the geometry.
   */
-  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh, axom::Array<LabelType>& label) override;
+  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh,
+                       axom::Array<LabelType>& label) override;
 
-  bool getGeometryAsTets(quest::experimental::ShapeMesh& shappeMesh, axom::Array<TetrahedronType>& tets) override;
+  bool labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                      axom::ArrayView<const axom::IndexType> cellIds,
+                      axom::Array<LabelType>& tetLabels) override;
+
+  bool getGeometryAsTets(quest::experimental::ShapeMesh& shappeMesh,
+                         axom::Array<TetrahedronType>& tets) override;
 
 #if !defined(__CUDACC__)
 private:
@@ -56,7 +62,7 @@ private:
   HexahedronType m_hex;
 
   //!@brief Bounding box of m_hex.
-  axom::primal::BoundingBox<double, 3> m_hexBb;
+  BoundingBox3DType m_hexBb;
 
   //!@brief Tetrahedralized version of of m_hex.
   axom::StackArray<TetrahedronType, HexahedronType::NUM_TRIANGULATE> m_tets;
@@ -67,7 +73,23 @@ private:
   axom::primal::experimental::CoordinateTransformer<double> m_transformer;
 
   template <typename ExecSpace>
-  void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& label);
+  void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                           axom::ArrayView<LabelType> label);
+
+  template <typename ExecSpace>
+  void labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                          axom::ArrayView<const axom::IndexType> cellIds,
+                          axom::ArrayView<LabelType> tetLabels);
+
+  //!@brief Compute LabelType for a polyhedron (hex or tet in our case).
+  template <typename Polyhedron>
+  AXOM_HOST_DEVICE inline
+  LabelType polyhedronToLabel(
+    const Polyhedron& verts,
+    const BoundingBox3DType& vertsBb,
+    const BoundingBox3DType& hexBb,
+    const axom::StackArray<TetrahedronType, HexahedronType::NUM_TRIANGULATE>& hexTets,
+    const axom::StackArray<Triangle3DType, 24>& surfaceTriangles) const;
 
   void extractClipperInfo();
 
