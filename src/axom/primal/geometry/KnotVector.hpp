@@ -310,10 +310,10 @@ public:
   ///@{
   /// \name Query/modify/access knots
 
-  /// \brief Accessor for the array of knot vector
+  /// \brief Accessor for the array of knots
   axom::Array<T>& getArray() { return m_knots; }
 
-  /// \brief Const accessor for the array of knot vectors
+  /// \brief Const accessor for the array of knots
   const axom::Array<T>& getArray() const { return m_knots; }
 
   /*!
@@ -379,12 +379,19 @@ public:
   void normalize()
   {
     const T min_knot = getMinKnot();
-    const T max_knot = getMaxKnot();
-    const T span = max_knot - min_knot;
-
-    for(int i = 0; i < m_knots.size(); ++i)
+    if(const T span = getMaxKnot() - min_knot; span > 0)
     {
-      m_knots[i] = (m_knots[i] - min_knot) / span;
+      for(T& knot : m_knots)
+      {
+        knot = (knot - min_knot) / span;
+      }
+    }
+    else
+    {
+      for(T& knot : m_knots)
+      {
+        knot = T {};
+      }
     }
   }
 
@@ -401,12 +408,19 @@ public:
     SLIC_ASSERT(a < b);
 
     const T min_knot = getMinKnot();
-    const T max_knot = getMaxKnot();
-    const T span = max_knot - min_knot;
-
-    for(int i = 0; i < m_knots.size(); ++i)
+    if(const T span = getMaxKnot() - min_knot; span > 0)
     {
-      m_knots[i] = a + (m_knots[i] - min_knot) * (b - a) / span;
+      for(T& knot : m_knots)
+      {
+        knot = axom::utilities::lerp(a, b, (knot - min_knot) / span);
+      }
+    }
+    else
+    {
+      for(T& knot : m_knots)
+      {
+        knot = a;
+      }
     }
   }
 
