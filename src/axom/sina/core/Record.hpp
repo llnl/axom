@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-
 #ifndef SINA_RECORD_HPP
 #define SINA_RECORD_HPP
 
@@ -95,7 +94,7 @@ public:
   /**
     * An enum member representing the default ordering of Curves within CurveSets.
     */
-  static CurveSet::CurveOrder defaultCurveOrder ;
+  static CurveSet::CurveOrder defaultCurveOrder;
 
   /**    
    * \brief Set the default curve order for all Records.
@@ -185,7 +184,7 @@ public:
      */
   conduit::Node toNode(CurveSet::CurveOrder curveOrder) const override;
 
-    /**
+  /**
    * \brief Convert using this record's default curve order.
    */
   conduit::Node toNode() const;
@@ -206,7 +205,7 @@ private:
   std::string type;
   FileSet files;
   bool hasInstanceDefault = false;
-  CurveSet::CurveOrder instanceDefaultCurveOrder = sinaDefaultCurveOrder; // Per-record default
+  CurveSet::CurveOrder instanceDefaultCurveOrder = sinaDefaultCurveOrder;  // Per-record default
 };
 
 /**

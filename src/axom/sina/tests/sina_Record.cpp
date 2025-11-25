@@ -169,7 +169,7 @@ TEST(Record, add_child_record_as_library_data_with_curves)
   cs.addDependentCurve(Curve {"lightgrey", {4.0, 5.0, 6.0}});
   cs.addDependentCurve(Curve {"maroon", {7.0, 8.0, 9.0}});
   cs.addDependentCurve(Curve {"brown", {1.0, 2.0, 3.0}});
-  std::vector<std::string> expected_order{"lightgrey", "brown", "maroon"};
+  std::vector<std::string> expected_order {"lightgrey", "brown", "maroon"};
   cs.applyCustomDependentCurveOrder(expected_order);
   childRecord.add(cs);
   parentRecord.addRecordAsLibraryData(childRecord, "child");
@@ -198,9 +198,16 @@ TEST(Record, add_child_record_as_library_data_with_curves)
   // gmock's Json matcher doesn't check JSON object order, as it's not expected to be ordered; we're relying on
   // conduit to give us that, but it's still useful to make sure we didn't alter the structure of the rest of the rec
   EXPECT_THAT(parentRecord.toNode(), MatchesJsonMatcher(expected));
-  EXPECT_EQ(parentRecord.toNode()["library_data"]["child"]["curve_sets"]["name"]["dependent"].child_names(), expected_order);
-  std::vector<std::string> expected_reorder{"brown", "lightgrey", "maroon"};
-  EXPECT_EQ(parentRecord.toNode(axom::sina::CurveSet::CurveOrder::ALPHABETIC)["library_data"]["child"]["curve_sets"]["name"]["dependent"].child_names(), expected_reorder);
+  EXPECT_EQ(
+    parentRecord.toNode()["library_data"]["child"]["curve_sets"]["name"]["dependent"].child_names(),
+    expected_order);
+  std::vector<std::string> expected_reorder {"brown", "lightgrey", "maroon"};
+  EXPECT_EQ(
+    parentRecord
+      .toNode(axom::sina::CurveSet::CurveOrder::ALPHABETIC)["library_data"]["child"]["curve_sets"]
+                                                           ["name"]["dependent"]
+      .child_names(),
+    expected_reorder);
 }
 
 TEST(Record, create_localId_fromNode)
@@ -491,8 +498,9 @@ TEST(Record, toNode_curveSets)
         }
     })";
   EXPECT_THAT(record.toNode(), MatchesJsonMatcher(expected));
-  std::vector<std::string> expected_order{"myCurve", "myOtherCurve", "myThirdCurve"};
-  EXPECT_EQ(record.toNode()["curve_sets"].child("myCurveSet/with/slash")["independent"].child_names(), expected_order);
+  std::vector<std::string> expected_order {"myCurve", "myOtherCurve", "myThirdCurve"};
+  EXPECT_EQ(record.toNode()["curve_sets"].child("myCurveSet/with/slash")["independent"].child_names(),
+            expected_order);
 }
 
 TEST(Record, toNode_curveSets_customOrder)
@@ -506,7 +514,7 @@ TEST(Record, toNode_curveSets_customOrder)
   cs.addDependentCurve(Curve {"cyan", {1, 2, 3}});
   cs.addDependentCurve(Curve {"yellow", {1, 2, 3}});
   cs.addDependentCurve(Curve {"pink", {1, 2, 3}});
-  std::vector<std::string> expected_order{"white", "black", "lime"};
+  std::vector<std::string> expected_order {"white", "black", "lime"};
   cs.applyCustomIndependentCurveOrder(expected_order);
   record.add(cs);
   auto expected = R"({
@@ -528,7 +536,8 @@ TEST(Record, toNode_curveSets_customOrder)
         }
     })";
   EXPECT_THAT(record.toNode(), MatchesJsonMatcher(expected));
-  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["independent"].child_names(), expected_order);
+  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["independent"].child_names(),
+            expected_order);
 }
 
 TEST(Record, toNode_curveSets_setDefaultOrder_fromRecord)
@@ -563,12 +572,19 @@ TEST(Record, toNode_curveSets_setDefaultOrder_fromRecord)
         }
     })";
   EXPECT_THAT(record.toNode(), MatchesJsonMatcher(expected));
-  std::vector<std::string> expected_order{"black", "lime", "white"};
-  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["independent"].child_names(), expected_order);
-  std::vector<std::string> dep_expected_order{"cyan", "pink", "yellow"};
-  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["dependent"].child_names(), dep_expected_order);
-  std::vector<std::string> expected_reverse_order{"white", "lime", "black"};
-  EXPECT_EQ(record.toNode(CurveSet::CurveOrder::REVERSE_ALPHABETICAL)["curve_sets"]["reordered_curves"]["independent"].child_names(), expected_reverse_order);
+  std::vector<std::string> expected_order {"black", "lime", "white"};
+  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["independent"].child_names(),
+            expected_order);
+  std::vector<std::string> dep_expected_order {"cyan", "pink", "yellow"};
+  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["dependent"].child_names(),
+            dep_expected_order);
+  std::vector<std::string> expected_reverse_order {"white", "lime", "black"};
+  EXPECT_EQ(
+    record
+      .toNode(
+        CurveSet::CurveOrder::REVERSE_ALPHABETICAL)["curve_sets"]["reordered_curves"]["independent"]
+      .child_names(),
+    expected_reverse_order);
 }
 
 TEST(Record, toNode_curveSets_setDefaultOrder)
@@ -608,12 +624,15 @@ TEST(Record, toNode_curveSets_setDefaultOrder)
         }
     })";
   EXPECT_THAT(record.toNode(), MatchesJsonMatcher(expected));
-  std::vector<std::string> expected_order{"black", "lime", "white"};
-  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["independent"].child_names(), expected_order);
-  std::vector<std::string> expected_reverse_order{"white", "lime", "black"};
-  EXPECT_EQ(record2.toNode()["curve_sets"]["reordered_curves"]["independent"].child_names(), expected_reverse_order);
-  std::vector<std::string> dep_expected_order{"cyan", "pink", "yellow"};
-  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["dependent"].child_names(), dep_expected_order);
+  std::vector<std::string> expected_order {"black", "lime", "white"};
+  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["independent"].child_names(),
+            expected_order);
+  std::vector<std::string> expected_reverse_order {"white", "lime", "black"};
+  EXPECT_EQ(record2.toNode()["curve_sets"]["reordered_curves"]["independent"].child_names(),
+            expected_reverse_order);
+  std::vector<std::string> dep_expected_order {"cyan", "pink", "yellow"};
+  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["dependent"].child_names(),
+            dep_expected_order);
 }
 
 TEST(RecordLoader, load_missingLoader)

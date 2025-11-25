@@ -1111,66 +1111,60 @@ conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
 namespace internal
 {
 
-Protocol detectOutputProtocol(const std::string& filepath)
+Protocol detectOutputProtocol(const std::string &filepath)
 {
   size_t dotPos = filepath.find_last_of('.');
-  
-  if (dotPos == std::string::npos)
+
+  if(dotPos == std::string::npos)
   {
-    throw std::runtime_error(
-      "Cannot detect file format: no extension found in '" + filepath + "'");
+    throw std::runtime_error("Cannot detect file format: no extension found in '" + filepath + "'");
   }
-  
-  
-    // Get extension and convert to lowercase
+
+  // Get extension and convert to lowercase
   std::string ext = filepath.substr(dotPos);
   axom::utilities::string::toLower(ext);  // Modifies ext in-place
 
-  if (ext == ".json" || ext == ".jsn")
+  if(ext == ".json" || ext == ".jsn")
   {
     return Protocol::JSON;
   }
-  
-  if (ext == ".h5" || ext == ".hdf5" || ext == ".hdf")
+
+  if(ext == ".h5" || ext == ".hdf5" || ext == ".hdf")
   {
 #ifdef AXOM_USE_HDF5
     return Protocol::HDF5;
 #else
-    throw std::runtime_error(
-      "HDF5 format detected but Axom not compiled with HDF5 support");
+    throw std::runtime_error("HDF5 format detected but Axom not compiled with HDF5 support");
 #endif
   }
-  
+
   std::string supported = ".json";
 #ifdef AXOM_USE_HDF5
   supported += ", .h5, .hdf5, .hdf";
 #endif
-  
-  throw std::runtime_error(
-    "Unknown extension '" + ext + "'. Supported: " + supported);
+
+  throw std::runtime_error("Unknown extension '" + ext + "'. Supported: " + supported);
 }
 
-} // namespace internal
+}  // namespace internal
 
 //-----------------------------------------------------------------------------
 // Enhanced save functions with auto-detection
 //-----------------------------------------------------------------------------
 
-void saveDocument(const Document& document,
-                 const std::string& fileName,
-                 Protocol protocol)
+void saveDocument(const Document &document, const std::string &fileName, Protocol protocol)
 {
   Protocol actualProtocol = protocol;
   std::string tmpFileName = fileName + SAVE_TMP_FILE_EXTENSION;
-  
-  if (actualProtocol == Protocol::AUTO_DETECT)
+
+  if(actualProtocol == Protocol::AUTO_DETECT)
   {
     actualProtocol = internal::detectOutputProtocol(fileName);
   }
-  
-  switch (actualProtocol)
+
+  switch(actualProtocol)
   {
-    case Protocol::JSON:
+  case Protocol::JSON:
   {
     protocolWarn(".json", fileName);
     auto asJson = document.toJson();
@@ -1179,15 +1173,15 @@ void saveDocument(const Document& document,
     fout << asJson;
     fout.close();
   }
-      break;
-      
+  break;
+
 #ifdef AXOM_USE_HDF5
-    case Protocol::HDF5:
-      protocolWarn(".hdf5", fileName);
-      document.toHDF5(tmpFileName);
-      break;
+  case Protocol::HDF5:
+    protocolWarn(".hdf5", fileName);
+    document.toHDF5(tmpFileName);
+    break;
 #endif
-    default:
+  default:
   {
     std::ostringstream message;
     message << "Invalid format choice. Please choose from one of the supported "
@@ -1209,17 +1203,14 @@ void saveDocument(const Document& document,
   }
 }
 
-void saveDocument(const Document& document,
-                 const std::string& fileName,
-                 int protocolInt)
+void saveDocument(const Document &document, const std::string &fileName, int protocolInt)
 {
-  if (protocolInt < -1 || protocolInt > 1)
+  if(protocolInt < -1 || protocolInt > 1)
   {
-    throw std::runtime_error(
-      "Invalid protocol: " + std::to_string(protocolInt) + 
-      ". Valid: -1 (AUTO), 0 (JSON), 1 (HDF5)");
+    throw std::runtime_error("Invalid protocol: " + std::to_string(protocolInt) +
+                             ". Valid: -1 (AUTO), 0 (JSON), 1 (HDF5)");
   }
-  
+
   saveDocument(document, fileName, static_cast<Protocol>(protocolInt));
 }
 
@@ -1227,63 +1218,60 @@ void saveDocument(const Document& document,
 // Generic append functions with auto-detection
 //-----------------------------------------------------------------------------
 
-void appendDocument(const Document& document,
-                   const std::string& filepath,
-                   int mergeProtocol,
-                   Protocol outputProtocol)
+void appendDocument(const Document &document,
+                    const std::string &filepath,
+                    int mergeProtocol,
+                    Protocol outputProtocol)
 {
   Protocol actualProtocol = outputProtocol;
 
   // if the file does not exist let's create it
-  if (!std::filesystem::exists(filepath)) {
+  if(!std::filesystem::exists(filepath))
+  {
     saveDocument(document, filepath, outputProtocol);
     return;
   };
 
-  
-  if (actualProtocol == Protocol::AUTO_DETECT)
+  if(actualProtocol == Protocol::AUTO_DETECT)
   {
     actualProtocol = internal::detectOutputProtocol(filepath);
   }
-   // Call the existing append functions (they take conduit::Node, not Document)
+  // Call the existing append functions (they take conduit::Node, not Document)
   conduit::Node docNode = document.toNode();
- 
-  switch (actualProtocol)
+
+  switch(actualProtocol)
   {
-    case Protocol::JSON:
-      appendDocumentToJson(filepath, document, mergeProtocol);
-      break;
-      
-    case Protocol::HDF5:
+  case Protocol::JSON:
+    appendDocumentToJson(filepath, document, mergeProtocol);
+    break;
+
+  case Protocol::HDF5:
 #ifdef AXOM_USE_HDF5
-      appendDocumentToHDF5(filepath, document, mergeProtocol);
+    appendDocumentToHDF5(filepath, document, mergeProtocol);
 #else
-      throw std::runtime_error(
-        "HDF5 not compiled in. File: " + filepath);
+    throw std::runtime_error("HDF5 not compiled in. File: " + filepath);
 #endif
-      break;
-      
-    default:
-      throw std::runtime_error("Invalid output protocol");
+    break;
+
+  default:
+    throw std::runtime_error("Invalid output protocol");
   }
 }
 
-void appendDocument(const Document& document,
-                   const std::string& filepath,
-                   int mergeProtocol,
-                   int outputProtocolInt)
+void appendDocument(const Document &document,
+                    const std::string &filepath,
+                    int mergeProtocol,
+                    int outputProtocolInt)
 {
-  if (outputProtocolInt < -1 || outputProtocolInt > 1)
+  if(outputProtocolInt < -1 || outputProtocolInt > 1)
   {
-    throw std::runtime_error(
-      "Invalid protocol: " + std::to_string(outputProtocolInt) + 
-      ". Valid: -1 (AUTO), 0 (JSON), 1 (HDF5)");
+    throw std::runtime_error("Invalid protocol: " + std::to_string(outputProtocolInt) +
+                             ". Valid: -1 (AUTO), 0 (JSON), 1 (HDF5)");
   }
- 
+
   Protocol protocol = static_cast<Protocol>(outputProtocolInt);
   appendDocument(document, filepath, mergeProtocol, protocol);
 }
-
 
 }  // namespace sina
 }  // namespace axom
