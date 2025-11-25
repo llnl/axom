@@ -57,6 +57,44 @@ bool Plane3DClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
   return true;
 }
 
+bool Plane3DClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                                    axom::ArrayView<const axom::IndexType> cellIds,
+                                    axom::Array<LabelType>& tetLabels)
+{
+  int allocId = shapeMesh.getAllocatorID();
+  const auto cellCount = cellIds.size();
+  const auto tetCount = cellCount*NUM_TETS_PER_HEX;
+  if(tetLabels.size() < tetCount || tetLabels.getAllocatorID() != allocId)
+  {
+    tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), tetCount, tetCount, allocId);
+  }
+
+  switch(shapeMesh.getRuntimePolicy())
+  {
+  case axom::runtime_policy::Policy::seq:
+    labelTetsInOutImpl<axom::SEQ_EXEC>(shapeMesh, cellIds, tetLabels.view());
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case axom::runtime_policy::Policy::omp:
+    labelTetsInOutImpl<axom::OMP_EXEC>(shapeMesh, cellIds, tetLabels.view());
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case axom::runtime_policy::Policy::cuda:
+    labelTetsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, cellIds, tetLabels.view());
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case axom::runtime_policy::Policy::hip:
+    labelTetsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, cellIds, tetLabels.view());
+    break;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+  return true;
+}
+
 bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                           axom::ArrayView<double> ovlap,
                                           const axom::ArrayView<IndexType>& cellIds)
@@ -87,12 +125,40 @@ bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeM
   return true;
 }
 
+bool Plane3DClipper::specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
+                                         axom::ArrayView<double> ovlap,
+                                         const axom::ArrayView<IndexType>& tetIds)
+{
+  switch(shapeMesh.getRuntimePolicy())
+  {
+  case axom::runtime_policy::Policy::seq:
+    specializedClipTetsImpl<axom::SEQ_EXEC>(shapeMesh, ovlap, tetIds);
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case axom::runtime_policy::Policy::omp:
+    specializedClipTetsImpl<axom::OMP_EXEC>(shapeMesh, ovlap, tetIds);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case axom::runtime_policy::Policy::cuda:
+    specializedClipTetsImpl<axom::CUDA_EXEC<256>>(shapeMesh, ovlap, tetIds);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case axom::runtime_policy::Policy::hip:
+    specializedClipTetsImpl<axom::HIP_EXEC<256>>(shapeMesh, ovlap, tetIds);
+    break;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+  return true;
+}
+
 template <typename ExecSpace>
 void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                                          axom::ArrayView<LabelType> labels)
 {
-  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "Plane3DClipper requires a 3D mesh.");
-
   constexpr int NUM_VERTS_PER_CELL = 8;
 
   int allocId = shapeMesh.getAllocatorID();
@@ -150,8 +216,50 @@ void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
 }
 
 template <typename ExecSpace>
+void Plane3DClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                        axom::ArrayView<const axom::IndexType> cellIds,
+                                        axom::ArrayView<LabelType> tetLabels)
+{
+  auto cellCount = cellIds.size();
+  auto meshTets = shapeMesh.getCellsAsTets();
+
+  auto plane = m_plane;
+
+  /*
+   * Label tet by whether it has vertices inside, outside or both.
+   */
+  axom::for_all<ExecSpace>(
+    cellCount,
+    AXOM_LAMBDA(axom::IndexType ci) {
+      axom::IndexType cellId = cellIds[ci];
+
+      const TetrahedronType* tetsForCell = &meshTets[cellId * NUM_TETS_PER_HEX];
+
+      for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+      {
+        const auto& tet = tetsForCell[ti];
+        LabelType& tetLabel = tetLabels[ci * NUM_TETS_PER_HEX + ti];
+
+        bool hasIn = false;
+        bool hasOut = false;
+        for(int vi = 0; vi < TetrahedronType::NUM_VERTS; ++vi)
+        {
+          const auto& vert = tet[vi];
+          double signedDist = plane.signedDistance(vert);
+          hasIn |= signedDist > 0;
+          hasOut |= signedDist < 0;
+        }
+        tetLabel =
+          !hasOut ? LabelType::LABEL_IN : !hasIn ? LabelType::LABEL_OUT : LabelType::LABEL_ON;
+      }
+    });
+
+  return;
+}
+
+template <typename ExecSpace>
 void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& shapeMesh,
-                                              axom::ArrayView<double>& ovlap,
+                                              axom::ArrayView<double> ovlap,
                                               const axom::ArrayView<IndexType>& cellIds)
 {
   constexpr int NUM_VERTS_PER_CELL = 8;
@@ -196,6 +304,32 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
         vol += overlap.volume();
       }
       ovlap[cellId] = vol;
+    });
+}
+
+template <typename ExecSpace>
+void Plane3DClipper::specializedClipTetsImpl(
+  quest::experimental::ShapeMesh& shapeMesh,
+  axom::ArrayView<double> ovlap,
+  const axom::ArrayView<IndexType>& tetIds)
+{
+  constexpr int NUM_TETS_PER_HEX = 24;
+  constexpr double EPS = 1e-10;
+  using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
+
+  auto meshTets = shapeMesh.getCellsAsTets();
+  IndexType tetCount = tetIds.size();
+  auto plane = m_plane;
+
+  axom::for_all<ExecSpace>(
+    tetCount,
+    AXOM_LAMBDA(axom::IndexType ti) {
+      axom::IndexType tetId = tetIds[ti];
+      axom::IndexType cellId = tetId/NUM_TETS_PER_HEX;
+      const auto& tet = meshTets[tetId];
+      primal::Polyhedron<double, 3> overlap = primal::clip(tet, plane, EPS);
+      double vol = overlap.volume();
+      RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, vol);
     });
 }
 

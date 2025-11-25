@@ -38,11 +38,20 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh, axom::Array<LabelType>& label) override;
+  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh,
+                       axom::Array<LabelType>& label) override;
+
+  bool labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                      axom::ArrayView<const axom::IndexType> cellIds,
+                      axom::Array<LabelType>& tetLabels) override;
 
   bool specializedClipCells(quest::experimental::ShapeMesh& shappeMesh,
                             axom::ArrayView<double> ovlap,
                             const axom::ArrayView<IndexType>& cellIds) override;
+
+  bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
+                           axom::ArrayView<double> ovlap,
+                           const axom::ArrayView<IndexType>& tetIds) override;
 
 #if !defined(__CUDACC__)
 private:
@@ -56,9 +65,19 @@ private:
                            axom::ArrayView<LabelType> label);
 
   template <typename ExecSpace>
+  void labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                          axom::ArrayView<const axom::IndexType> cellIds,
+                          axom::ArrayView<LabelType> label);
+
+  template <typename ExecSpace>
   void specializedClipCellsImpl(quest::experimental::ShapeMesh& shapeMesh,
-                                axom::ArrayView<double>& ovlap,
+                                axom::ArrayView<double> ovlap,
                                 const axom::ArrayView<IndexType>& cellIds);
+
+  template <typename ExecSpace>
+  void specializedClipTetsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                               axom::ArrayView<double> ovlap,
+                               const axom::ArrayView<IndexType>& tetIds);
 
   void extractClipperInfo();
 };

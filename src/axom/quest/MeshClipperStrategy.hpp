@@ -53,12 +53,13 @@ namespace experimental
  * false if it was a no-op.
 
  * Subclasses of MeshClipperStrategy must implement either
- * - a @c specializedClipCells method or
+ * - a @c specializedClipCells or @c specializedClipTets method or
  * - one of the @c getShapesAs...() methods.
  * The former is prefered if the use of geometry-specific information
- * can make it faster.  @c labelCellsInOut is optional but if provided,
- * it can improve performance by limiting the slower clipping steps
- * to a subset of cells.  @c getBoundingBox2D or @c getBoundingBox3D
+ * can make it faster.  @c labelCellsInOut and @c labelTetsInOut
+ * are optional but if provided,
+ * they can improve performance by limiting the slower clipping steps
+ * to a smaller subset.  @c getBoundingBox2D or @c getBoundingBox3D
  * can also improve performance by reducing computation.
 */
 class MeshClipperStrategy
