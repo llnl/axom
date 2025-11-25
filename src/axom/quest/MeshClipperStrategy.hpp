@@ -96,9 +96,8 @@ public:
   using Ray2DType = axom::primal::Ray<double, 2>;
   using Segment2DType = axom::primal::Segment<double, 2>;
 
-  //!@brief Number of tetrahedra per hexahedron decomposes into
-  // @internal We could use a more efficient 18-tet decomposition in the future.
   static constexpr axom::IndexType NUM_TETS_PER_HEX = ShapeMesh::NUM_TETS_PER_HEX;
+  static constexpr axom::IndexType NUM_VERTS_PER_CELL_3D = ShapeMesh::NUM_VERTS_PER_CELL_3D;
 
   /*!
    * @brief Construct a strategy for the given klee::Geometry object.

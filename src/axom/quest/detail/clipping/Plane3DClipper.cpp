@@ -159,8 +159,6 @@ template <typename ExecSpace>
 void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                                          axom::ArrayView<LabelType> labels)
 {
-  constexpr int NUM_VERTS_PER_CELL = 8;
-
   int allocId = shapeMesh.getAllocatorID();
   auto cellCount = shapeMesh.getCellCount();
   auto vertCount = shapeMesh.getVertexCount();
@@ -193,7 +191,7 @@ void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
    * Label cell by whether it has vertices inside, outside or both.
   */
   axom::ArrayView<const axom::IndexType, 2> connView = shapeMesh.getCellNodeConnectivity();
-  SLIC_ASSERT(connView.shape()[1] == NUM_VERTS_PER_CELL);
+  SLIC_ASSERT(connView.shape()[1] == NUM_VERTS_PER_CELL_3D);
 
   axom::for_all<ExecSpace>(
     cellCount,
@@ -201,7 +199,7 @@ void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
       auto cellVertIds = connView[cellId];
       bool hasIn = vertIsInsideView[cellVertIds[0]];
       bool hasOut = !hasIn;
-      for(int vi = 0; vi < NUM_VERTS_PER_CELL; ++vi)
+      for(int vi = 0; vi < NUM_VERTS_PER_CELL_3D; ++vi)
       {
         int vertId = cellVertIds[vi];
         bool isIn = vertIsInsideView[vertId];
@@ -262,40 +260,16 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
                                               axom::ArrayView<double> ovlap,
                                               const axom::ArrayView<IndexType>& cellIds)
 {
-  constexpr int NUM_VERTS_PER_CELL = 8;
-  constexpr int NUM_TETS_PER_HEX = 24;
   constexpr double EPS = 1e-10;
 
-  const axom::ArrayView<const axom::IndexType, 2> connView = shapeMesh.getCellNodeConnectivity();
-  SLIC_ASSERT(connView.shape()[1] == NUM_VERTS_PER_CELL);
-
-  auto& vertCoords = shapeMesh.getVertexCoords3D();
-  const auto& x = vertCoords[0];
-  const auto& y = vertCoords[1];
-  const auto& z = vertCoords[2];
-
-  using TetsInHex = axom::StackArray<primal::Tetrahedron<double, 3>, NUM_TETS_PER_HEX>;
+  auto cellsAsTets = shapeMesh.getCellsAsTets();
 
   auto plane = m_plane;
   axom::for_all<ExecSpace>(
     cellIds.size(),
     AXOM_LAMBDA(axom::IndexType i) {
       axom::IndexType cellId = cellIds[i];
-
-      auto cellVerts = connView[cellId];
-      primal::Hexahedron<double, 3> hex;
-      for(int vi = 0; vi < NUM_VERTS_PER_CELL; ++vi)
-      {
-        axom::IndexType vertId = cellVerts[vi];
-        auto& vCoords = hex[vi];
-        vCoords[0] = x[vertId];
-        vCoords[1] = y[vertId];
-        vCoords[2] = z[vertId];
-      }
-
-      TetsInHex tetsInHex;
-      hex.triangulate(tetsInHex);
-
+      const TetrahedronType* tetsInHex = cellsAsTets.data() + cellId * NUM_TETS_PER_HEX;
       double vol = 0.0;
       for(int ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
@@ -313,7 +287,6 @@ void Plane3DClipper::specializedClipTetsImpl(
   axom::ArrayView<double> ovlap,
   const axom::ArrayView<IndexType>& tetIds)
 {
-  constexpr int NUM_TETS_PER_HEX = 24;
   constexpr double EPS = 1e-10;
   using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
 

@@ -64,6 +64,9 @@ public:
   // @internal We could use a more efficient 18-tet decomposition in the future.
   static constexpr axom::IndexType NUM_TETS_PER_HEX = HexahedronType::NUM_TRIANGULATE;
 
+  //!@brief Number of vertices per cell.
+  static constexpr axom::IndexType NUM_VERTS_PER_CELL_3D = 8;
+
   /*!
    * @brief Constructor with computational mesh in a conduit::Node.
    *

@@ -258,8 +258,6 @@ public:
     spin::BVH<3, ExecSpace, double> bvh;
     bvh.initialize(pieceBbsView, pieceBbsView.size());
 
-    SLIC_INFO(axom::fmt::format("{:-^80}", " Querying the BVH tree "));
-
     axom::ArrayView<const BoundingBoxType> cellBbsView = shapeMesh.getCellBoundingBoxes();
 
     // Find which shape bounding boxes intersect hexahedron bounding boxes
@@ -772,9 +770,6 @@ public:
         auto offset = offsetsView[i];
         for(int j = 0; j < count; ++j) candToTetIdIdView[offset + j] = i;
       });
-
-    // Find which shape bounding boxes intersect hexahedron bounding boxes
-    SLIC_INFO(axom::fmt::format("Finding shape candidates for {} tet elements ", tetIndices.size()));
 
     using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
     constexpr double EPS = 1e-10;
