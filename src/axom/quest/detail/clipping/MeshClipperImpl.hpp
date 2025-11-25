@@ -192,7 +192,8 @@ public:
    * and modified to work both tet and oct representations of the
    * geometry.
    */
-  void computeClipVolumes3D(axom::ArrayView<double> ovlap) override
+  void computeClipVolumes3D(axom::ArrayView<double> ovlap,
+                            axom::IndexType& clipCount) override
   {
     using BoundingBoxType = primal::BoundingBox<double, 3>;
 
@@ -345,7 +346,6 @@ public:
     }
     SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
 #endif
-    reportClipCount(tetCandidatesCount);
 
     SLIC_INFO(
       axom::fmt::format("Running clip loop on {} candidate pieces for of all {} hexes in the mesh",
@@ -404,6 +404,7 @@ public:
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_notScreened");
+    clipCount = tetCandidatesCount;
 
     if(tetCandidatesCountPtr != &tetCandidatesCount)
     {
@@ -418,7 +419,8 @@ public:
    * on the boundary.
    */
   void computeClipVolumes3D(const axom::ArrayView<axom::IndexType>& cellIndices,
-                            axom::ArrayView<double> ovlap) override
+                            axom::ArrayView<double> ovlap,
+                            axom::IndexType& clipCount) override
 
   {
     using BoundingBoxType = primal::BoundingBox<double, 3>;
@@ -651,7 +653,7 @@ public:
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_hexScreened");
 
-    reportClipCount(tetCandidatesCount);
+    clipCount = tetCandidatesCount;
 
     if(tetCandidatesCountPtr != &tetCandidatesCount)
     {
@@ -666,7 +668,8 @@ public:
    * potentially on the boundary.
    */
   void computeClipVolumes3DTets(const axom::ArrayView<axom::IndexType>& tetIndices,
-                                axom::ArrayView<double> ovlap) override
+                                axom::ArrayView<double> ovlap,
+                                axom::IndexType& clipCount) override
 
   {
     using BoundingBoxType = primal::BoundingBox<double, 3>;
@@ -832,7 +835,7 @@ public:
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_tetScreened");
 
-    reportClipCount(candidates.size());
+    clipCount = candidates.size();
 
   }  // end of computeClipVolumes3DTets() function
 

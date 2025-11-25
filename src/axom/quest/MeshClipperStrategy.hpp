@@ -238,10 +238,12 @@ public:
    * @post ovlap.getAllocatorID() == shapeMesh.getAllocatorId()
   */
   virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
-                                    axom::ArrayView<double> ovlap)
+                                    axom::ArrayView<double> ovlap,
+                                    axom::IndexType& clipCount)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
+    AXOM_UNUSED_VAR(clipCount);
     return false;
   }
 
@@ -258,8 +260,9 @@ public:
    * The default implementation has no specialized method,
    * so it's a no-op and returns false.
    *
-   * If this method returns false, then exactly one of the
-   * shape discretization methods must be provided.
+   * If this method returns false, then exactly one of
+   * getGeometryAsTets() or getGeometryAsOcts() methods must be
+   * provided so MeshClipper can use the general clipping methods.
    *
    * @return True if clipping was done and false if a no-op.
    *
@@ -276,11 +279,13 @@ public:
   */
   virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::ArrayView<double> ovlap,
-                                    const axom::ArrayView<IndexType>& cellIds)
+                                    const axom::ArrayView<IndexType>& cellIds,
+                                    axom::IndexType& clipCount)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
     AXOM_UNUSED_VAR(cellIds);
+    AXOM_UNUSED_VAR(clipCount);
     return false;
   }
 
@@ -302,11 +307,13 @@ public:
    */
   virtual bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
                                    axom::ArrayView<double> ovlap,
-                                   const axom::ArrayView<IndexType>& tetIds)
+                                   const axom::ArrayView<IndexType>& tetIds,
+                                   axom::IndexType& clipCount)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
     AXOM_UNUSED_VAR(tetIds);
+    AXOM_UNUSED_VAR(clipCount);
     return false;
   }
 

@@ -59,6 +59,8 @@
 #include <vector>
 #include <memory>
 
+extern conduit::Node labelingControl;
+
 namespace klee = axom::klee;
 namespace primal = axom::primal;
 namespace quest = axom::quest;
@@ -125,6 +127,8 @@ public:
 
   std::string backgroundMaterial;
 
+int screenLevel = 2;
+
   // clang-format off
   enum class MeshType { bpSidre = 0, bpConduit = 1 };
   const std::map<std::string, MeshType> meshTypeChoices
@@ -152,6 +156,9 @@ public:
 
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
+app.add_option("--screenLevel", screenLevel)->description("Screen level: 0=none, 1=cell, 2=cell+tet")
+  ->capture_default_str();
+
     app.add_option("-o,--outputFile", outputFile)->description("Path to output file(s)");
 
     app.add_flag("-v,--verbose,!--no-verbose", m_verboseOutput)
@@ -270,6 +277,8 @@ public:
 
     // could throw an exception
     app.parse(argc, argv);
+
+    labelingControl["screenLevel"].set(screenLevel);
 
     slic::setLoggingMsgLevel(m_verboseOutput ? slic::message::Debug : slic::message::Info);
   }

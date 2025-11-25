@@ -45,7 +45,9 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh, axom::ArrayView<double> ovlap) override;
+  bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
+                            axom::ArrayView<double> ovlap,
+                            axom::IndexType& clipCount) override;
 
 #if !defined(__CUDACC__)
 private:

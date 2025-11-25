@@ -47,11 +47,13 @@ public:
 
   bool specializedClipCells(quest::experimental::ShapeMesh& shappeMesh,
                             axom::ArrayView<double> ovlap,
-                            const axom::ArrayView<IndexType>& cellIds) override;
+                            const axom::ArrayView<IndexType>& cellIds,
+                            axom::IndexType& clipCount) override;
 
   bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
                            axom::ArrayView<double> ovlap,
-                           const axom::ArrayView<IndexType>& tetIds) override;
+                           const axom::ArrayView<IndexType>& tetIds,
+                           axom::IndexType& clipCount) override;
 
 #if !defined(__CUDACC__)
 private:
@@ -72,12 +74,14 @@ private:
   template <typename ExecSpace>
   void specializedClipCellsImpl(quest::experimental::ShapeMesh& shapeMesh,
                                 axom::ArrayView<double> ovlap,
-                                const axom::ArrayView<IndexType>& cellIds);
+                                const axom::ArrayView<IndexType>& cellIds,
+                                axom::IndexType& clipCount);
 
   template <typename ExecSpace>
   void specializedClipTetsImpl(quest::experimental::ShapeMesh& shapeMesh,
                                axom::ArrayView<double> ovlap,
-                               const axom::ArrayView<IndexType>& tetIds);
+                               const axom::ArrayView<IndexType>& tetIds,
+                                axom::IndexType& clipCount);
 
   void extractClipperInfo();
 };

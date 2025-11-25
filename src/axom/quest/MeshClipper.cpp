@@ -11,6 +11,8 @@
 #include "axom/core/execution/runtime_policy.hpp"
 #include "axom/slic/interface/slic_macros.hpp"
 #include "axom/fmt.hpp"
+#include "conduit/conduit_node.hpp"
+conduit::Node labelingControl;
 
 namespace axom
 {
@@ -58,11 +60,17 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
   const axom::IndexType cellCount = m_shapeMesh.getCellCount();
   SLIC_ASSERT(ovlap.size() == cellCount);
 
+  m_clipCount = 0;
+
   // Try to label cells as inside, outside or on shape boundary
   axom::Array<LabelType> cellLabels;
-  AXOM_ANNOTATE_BEGIN("MeshClipper:label_cells");
-  bool withCellInOut = m_strategy->labelCellsInOut(m_shapeMesh, cellLabels);
-  AXOM_ANNOTATE_END("MeshClipper:label_cells");
+  bool withCellInOut = false;
+  if(labelingControl["screenLevel"].as_int() >= 1)
+  {
+    AXOM_ANNOTATE_BEGIN("MeshClipper:label_cells");
+    withCellInOut = m_strategy->labelCellsInOut(m_shapeMesh, cellLabels);
+    AXOM_ANNOTATE_END("MeshClipper:label_cells");
+  }
 
   bool done = false;
 
@@ -93,9 +101,13 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
     SLIC_ASSERT(cellsOnBdry.size() == m_cellsOnCount);
 
     axom::Array<LabelType> tetLabels;
-    AXOM_ANNOTATE_BEGIN("MeshClipper:label_tets");
-    bool withTetInOut = m_strategy->labelTetsInOut(m_shapeMesh, cellsOnBdry.view(), tetLabels);
-    AXOM_ANNOTATE_END("MeshClipper:label_tets");
+    bool withTetInOut = false;
+    if(labelingControl["screenLevel"].as_int() >= 2)
+    {
+      AXOM_ANNOTATE_BEGIN("MeshClipper:label_tets");
+      withTetInOut = m_strategy->labelTetsInOut(m_shapeMesh, cellsOnBdry.view(), tetLabels);
+      AXOM_ANNOTATE_END("MeshClipper:label_tets");
+    }
 
     axom::Array<axom::IndexType> tetsOnBdry;
 
@@ -134,11 +146,11 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
     AXOM_ANNOTATE_BEGIN("MeshClipper:specialized_clip");
     if(withTetInOut)
     {
-      done = m_strategy->specializedClipTets(m_shapeMesh, ovlap, tetsOnBdry);
+      done = m_strategy->specializedClipTets(m_shapeMesh, ovlap, tetsOnBdry, m_clipCount);
     }
     else
     {
-      done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, cellsOnBdry);
+      done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, cellsOnBdry, m_clipCount);
     }
     AXOM_ANNOTATE_END("MeshClipper:specialized_clip");
 
@@ -147,11 +159,11 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
       AXOM_ANNOTATE_SCOPE("MeshClipper:clip_fcn");
       if(withTetInOut)
       {
-        m_impl->computeClipVolumes3DTets(tetsOnBdry.view(), ovlap);
+        m_impl->computeClipVolumes3DTets(tetsOnBdry.view(), ovlap, m_clipCount);
       }
       else
       {
-        m_impl->computeClipVolumes3D(cellsOnBdry.view(), ovlap);
+        m_impl->computeClipVolumes3D(cellsOnBdry.view(), ovlap, m_clipCount);
       }
     }
   }
@@ -159,13 +171,13 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
   {
     m_impl->zeroVolumeOverlaps(ovlap);
     AXOM_ANNOTATE_BEGIN("MeshClipper:specialized_clip");
-    done = m_strategy->specializedClipCells(m_shapeMesh, ovlap);
+    done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, m_clipCount);
     AXOM_ANNOTATE_END("MeshClipper:specialized_clip");
 
     if(!done)
     {
       AXOM_ANNOTATE_SCOPE("MeshClipper:clip_fcn");
-      m_impl->computeClipVolumes3D(ovlap);
+      m_impl->computeClipVolumes3D(ovlap, m_clipCount);
     }
   }
 }

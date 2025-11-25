@@ -82,6 +82,9 @@ public:
   //!@brief Dimension of the shape (2 or 3)
   int dimension() const { return m_shapeMesh.dimension(); }
 
+  //!@brief Return the number of times primitive clipping was used.
+  IndexType getClipCount() const { return m_clipCount; }
+
   /*!
    * @brief Log clipping statistics.
    *
@@ -151,11 +154,13 @@ public:
                                           axom::ArrayView<double> ovlap) = 0;
 
     //!@brief Compute clip volumes for every cell.
-    virtual void computeClipVolumes3D(axom::ArrayView<double> ovlap) = 0;
+    virtual void computeClipVolumes3D(axom::ArrayView<double> ovlap,
+                                      axom::IndexType& clipCount) = 0;
 
     //!@brief Compute clip volumes for cell in an index list.
     virtual void computeClipVolumes3D(const axom::ArrayView<axom::IndexType>& cellIndices,
-                                      axom::ArrayView<double> ovlap) = 0;
+                                      axom::ArrayView<double> ovlap,
+                                      axom::IndexType& clipCount) = 0;
 
     /*!
      * @brief Compute clip volumes for cell tets in an index list.
@@ -164,7 +169,8 @@ public:
      * NUM_TETS_PER_HEX tets and stored consecutively.
      */
     virtual void computeClipVolumes3DTets(const axom::ArrayView<axom::IndexType>& tetIndices,
-                                          axom::ArrayView<double> ovlap) = 0;
+                                          axom::ArrayView<double> ovlap,
+                                          axom::IndexType& clipCount) = 0;
 
     //!@brief Count the number of labels of each type.
     virtual void getLabelCounts(axom::ArrayView<const LabelType> labels,
