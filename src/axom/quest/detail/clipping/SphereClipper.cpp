@@ -28,6 +28,8 @@ SphereClipper::SphereClipper(const klee::Geometry& kGeom, const std::string& nam
 bool SphereClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::Array<LabelType>& labels)
 {
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
+
   int allocId = shapeMesh.getAllocatorID();
   auto cellCount = shapeMesh.getCellCount();
   if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
@@ -65,7 +67,6 @@ template <typename ExecSpace>
 void SphereClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                                         axom::ArrayView<LabelType> labels)
 {
-  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
   auto cellCount = shapeMesh.getCellCount();
   auto cellsAsHexes = shapeMesh.getCellsAsHexes();
   auto sphere = m_sphere;
@@ -83,6 +84,8 @@ bool SphereClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
                                    axom::ArrayView<const axom::IndexType> cellIds,
                                    axom::Array<LabelType>& tetLabels)
 {
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
+
   const axom::IndexType cellCount = cellIds.size();
   const int allocId = shapeMesh.getAllocatorID();
 
@@ -126,8 +129,6 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh
                                        axom::ArrayView<const axom::IndexType> cellIds,
                                        axom::ArrayView<LabelType> tetLabels)
 {
-  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
-
   const axom::IndexType cellCount = cellIds.size();
   auto meshHexes = shapeMesh.getCellsAsHexes();
   auto sphere = m_sphere;

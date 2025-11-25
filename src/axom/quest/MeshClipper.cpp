@@ -45,8 +45,8 @@ void MeshClipper::clip(axom::Array<double>& ovlap)
  * @brief Orchestrates the geometry clipping by using the capabilities of the
  * MeshClipperStrategy implementation.
  *
- * If the strategy can label cells as inside/on/outside geometry
- * boundary, use that to reduce reliance on expensive clipping methods.
+ * If the strategy can label cells/tets as inside/on/outside geometry
+ * boundary, use that to reduce use of expensive primitive clipping methods.
  *
  * Regardless of labeling, try to use specialized clipping first.
  * If specialized methods aren't implemented, resort to discretizing
@@ -70,12 +70,13 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
   {
     SLIC_ERROR_IF(
       cellLabels.size() != m_shapeMesh.getCellCount(),
-      axom::fmt::format("MeshClipperStrategy '{}' did not return the correct cell label array size of {}",
+      axom::fmt::format("MeshClipperStrategy '{}' did not return the correct"
+                        " cell label array size of {}",
                         m_strategy->name(),
                         m_shapeMesh.getCellCount()));
     SLIC_ERROR_IF(cellLabels.getAllocatorID() != allocId,
-                  axom::fmt::format("MeshClipperStrategy '{}' failed to provide cellLabels data "
-                                    "with the required allocator id {}",
+                  axom::fmt::format("MeshClipperStrategy '{}' failed to provide"
+                                    " cellLabels data with the required allocator id {}",
                                     m_strategy->name(),
                                     allocId));
 
@@ -102,12 +103,13 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
     {
       SLIC_ERROR_IF(
         tetLabels.size() != NUM_TETS_PER_HEX*cellsOnBdry.size(),
-        axom::fmt::format("MeshClipperStrategy '{}' did not return the correct tet label array size of {}",
+        axom::fmt::format("MeshClipperStrategy '{}' did not return the correct"
+                          " tet label array size of {}",
                           m_strategy->name(),
                           NUM_TETS_PER_HEX*cellsOnBdry.size()));
       SLIC_ERROR_IF(tetLabels.getAllocatorID() != allocId,
-                    axom::fmt::format("MeshClipperStrategy '{}' failed to provide tetLabels data "
-                                      "with the required allocator id {}",
+                    axom::fmt::format("MeshClipperStrategy '{}' failed to provide"
+                                      "tetLabels data with the required allocator id {}",
                                       m_strategy->name(),
                                       allocId));
 
