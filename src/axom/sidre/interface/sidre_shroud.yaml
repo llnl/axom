@@ -10,6 +10,9 @@ copyright:
 
 library: Sidre
 # cxx_header: each class has its own header file
+# Header needed for nameIsValid
+cxx_header: axom/sidre/core/SidreTypes.hpp
+
 namespace: axom sidre
 
 options:
@@ -25,7 +28,6 @@ format:
   # Any C++ function which returns a string will be wrapped in
   # Fortran as a subroutine with an additional character argument
   # for the result.
-#  F_string_result_as_arg: name
   F_filename_suffix: F
 
 typemap:
@@ -44,7 +46,7 @@ declarations:
     f_type: integer(SIDRE_IndexType)
     f_kind: SIDRE_IndexType
     f_module_name: axom_sidre
-    f_c_module:
+    i_module:
       "--import--":
       -  SIDRE_IndexType
   splicer:
@@ -70,7 +72,7 @@ declarations:
     f_type: integer(TypeID)
     f_kind: TypeID
     f_module_name: axom_sidre
-    f_c_module:
+    i_module:
       "--import--":
       -  TypeID
 
@@ -90,7 +92,7 @@ declarations:
     f_type: integer(TypeIDint)
     f_kind: TypeIDint
     f_module_name: axom_sidre
-    f_c_module:
+    i_module:
       "--import--":
       -  TypeIDint
 
@@ -223,13 +225,13 @@ declarations:
     PY_error_pattern: PY_invalid_name_idx
 
   # View access and iteration methods.
-  - decl: View *getView( const std::string& path )
+  - decl: View *getView( const std::string& path ) +constfunc
     format:
       function_suffix: _from_name
     C_error_pattern: C_null_to_error_capsule
     PY_error_pattern: PY_null_to_none
 #  - decl: View const * getView( const std::string& path ) const
-  - decl: View *getView( const IndexType idx )
+  - decl: View *getView( const IndexType idx ) +constfunc
     format:
       function_suffix: _from_index
     fortran_generic:
@@ -437,7 +439,7 @@ declarations:
     PY_error_pattern: PY_invalid_name_idx
 
   # Group access and iteration methods.
-  - decl: Group * getGroup( const std::string& path )
+  - decl: Group * getGroup( const std::string& path ) +constfunc
     format:
       function_suffix: _from_name
     C_error_pattern: C_null_to_error_capsule
@@ -582,7 +584,7 @@ declarations:
   - decl: Buffer* getBuffer()
 #  - decl: Buffer const* getBuffer() const
   - decl: bool isExternal() const
-  - decl: bool isAllocated()
+  - decl: bool isAllocated() const
   - decl: bool isApplied() const
   - decl: bool isDescribed() const
   - decl: bool isEmpty() const
@@ -726,9 +728,7 @@ declarations:
       function_suffix: _shape
 
   # Methods to retrieve data in a view.
-  - decl: const char * getString() +len(MAXNAMESIZE)
-    format:
-      F_string_result_as_arg: name
+  - decl: const char * getString() +len(MAXNAMESIZE)+funcarg(name)+deref(copy)
 
   - decl: |
       template<typename DataType>
@@ -780,6 +780,7 @@ patterns:
         if ({cxx_var} == nullptr) {{
             {c_var}->addr = NULL;
             {c_var}->idtor = 0; 
+            {c_var}->cmemflags = 0; 
             return NULL;
         }}
     PY_invalid_name: |

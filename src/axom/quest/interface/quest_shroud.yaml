@@ -22,13 +22,13 @@ options:
   F_name_impl_template: "{library_lower}_{C_name_scope}{F_name_api}{function_suffix}"
   F_name_generic_template: "{library_lower}_{F_name_api}"
   wrap_python: True
+  F_result_as_arg: name
 
 format:
   C_prefix: QUEST_
   # Any C++ function which returns a string will be wrapped in
   # Fortran as a subroutine with an additional character argument
   # for the result.
-  F_string_result_as_arg: name
   F_filename_suffix: F
 
 typemap:

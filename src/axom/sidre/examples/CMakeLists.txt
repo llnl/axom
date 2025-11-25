@@ -157,11 +157,15 @@ if(NANOBIND_FOUND)
     foreach(example_source ${Py_example_sources})
         get_filename_component(exe_name ${example_source} NAME_WE)
 
+        # Copy python example file to build
+        axom_configure_file ("${example_source}"
+                             "${EXAMPLE_OUTPUT_DIRECTORY}/${example_source}" COPYONLY)
+
         # Use convenience script to run python examples
         if(AXOM_ENABLE_PYTHON_TESTS)
             axom_add_test (
                 NAME    ${exe_name}
-                COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh ${CMAKE_CURRENT_SOURCE_DIR}/${example_source}
+                COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh ${EXAMPLE_OUTPUT_DIRECTORY}/${example_source}
             )
         endif()
     endforeach()

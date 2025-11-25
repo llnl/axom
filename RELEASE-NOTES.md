@@ -24,6 +24,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - User can control curves' ordering in Sina output file `setDefaultCurveOrder()` 
 - `appendDocument()` that will create the document if not present or append if document exists, it also `AUTODETECT` the protocol based on file's name, removing the need to call the append function that maatch your protocol
 - Sina fortran `sina_set_curves_order` and `sina_set_record_curves_order` to control curves order
+- Added iterators and Attribute class to the Python interface for sidre.
+
 ###  Changed
 - Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
   Materials are now expected to be defined only on the valid subset of zones in the mesh.

@@ -35,7 +35,7 @@ public:
   using NURBSCurve = axom::primal::NURBSCurve<double, 2>;
   using CurveArray = axom::Array<NURBSCurve>;
 
-  using CurvedPolygon = axom::primal::CurvedPolygon<double, 2>;
+  using CurvedPolygon = axom::primal::CurvedPolygon<NURBSCurve>;
   using CurvedPolygonArray = axom::Array<CurvedPolygon>;
 
 public:
