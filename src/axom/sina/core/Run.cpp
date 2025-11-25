@@ -57,10 +57,7 @@ conduit::Node Run::toNode(CurveSet::CurveOrder curveOrder) const
   return asNode;
 }
 
-conduit::Node Run::toNode() const
-{
-  return toNode(getDefaultCurveOrder());
-}
+conduit::Node Run::toNode() const { return toNode(getDefaultCurveOrder()); }
 
 void addRunLoader(RecordLoader &loader)
 {

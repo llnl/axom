@@ -50,9 +50,9 @@ namespace sina
 
 enum class Protocol
 {
-  AUTO_DETECT = -1, ///< Automatically detect from file extension (.json, .h5, .hdf5)
-  JSON = 0,         ///< Force JSON format (supported_types[0])
-  HDF5 = 1          ///< Force HDF5 format (supported_types[1], requires AXOM_USE_HDF5)
+  AUTO_DETECT = -1,  ///< Automatically detect from file extension (.json, .h5, .hdf5)
+  JSON = 0,          ///< Force JSON format (supported_types[0])
+  HDF5 = 1           ///< Force HDF5 format (supported_types[1], requires AXOM_USE_HDF5)
 };
 
 const std::vector<std::string> supported_types = {"JSON",
@@ -377,10 +377,10 @@ conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
  * \param outputProtocol Optional format override (default: AUTO_DETECT)
  * \throws std::runtime_error If the file cannot be opened or the format is unsupported
  */
-void appendDocument(const Document& document,
-                   const std::string& filepath,
-                   int mergeProtocol = 1,
-                   Protocol Protocol = Protocol::AUTO_DETECT);
+void appendDocument(const Document &document,
+                    const std::string &filepath,
+                    int mergeProtocol = 1,
+                    Protocol Protocol = Protocol::AUTO_DETECT);
 
 /**
  * \brief Check a node against some file handle and return a Conduit node populated with any errors that
