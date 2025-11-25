@@ -328,7 +328,7 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
       }
       ovlap[cellId] = vol;
     });
-  clipCount = cellIds.size();
+  clipCount = cellIds.size() * NUM_TETS_PER_HEX;
 }
 
 template <typename ExecSpace>
