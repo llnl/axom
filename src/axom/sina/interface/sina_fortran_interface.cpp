@@ -5,6 +5,7 @@
 
 #include <string.h>
 
+#include "axom/core.hpp"
 #include "axom/sina/interface/sina_fortran_interface.h"
 #include "axom/sina/core/Document.hpp"
 #include "axom/sina/core/Record.hpp"
@@ -287,6 +288,9 @@ extern "C" void sina_add_string_(char *key,
                                  int tags_len,
                                  int recId_len)
 {
+  AXOM_UNUSED_VAR(units_len);
+  AXOM_UNUSED_VAR(tags_len);
+
   if(!can_modify_records()) return;
 
   std::string recId_str = fortran_to_cpp_string(recId, recId_len);
