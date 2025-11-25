@@ -60,7 +60,7 @@ public:
   bool labelTetsInOut(
     quest::experimental::ShapeMesh& shapeMesh,
     axom::ArrayView<const axom::IndexType> cellIds,
-    axom::Array<LabelType>& tetLabels);
+    axom::Array<LabelType>& tetLabels) override;
 
   bool getGeometryAsOcts(quest::experimental::ShapeMesh& shappeMesh, axom::Array<OctahedronType>& octs) override;
 

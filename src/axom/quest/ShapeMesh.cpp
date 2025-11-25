@@ -789,7 +789,7 @@ void ShapeMesh::computeCellsAsTetsImpl()
     AXOM_LAMBDA(axom::IndexType cellId) {
       const auto& hex = cellsAsHexesView[cellId];
       auto* firstTetPtr = &cellsAsTetsView[cellId * NUM_TETS_PER_HEX];
-      hex.triangulate(firstTetPtr);
+      hexToTets24(hex, firstTetPtr);
     });
 }
 

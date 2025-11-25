@@ -26,7 +26,7 @@ HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
     m_hex[i] = m_transformer.getTransformed(m_hexBeforeTrans[i]);
   }
 
-  m_hex.triangulate(m_tets);
+  ShapeMesh::hexToTets24(m_hex, m_tets.data());
 
   for(int i = 0; i < HexahedronType::NUM_HEX_VERTS; ++i)
   {
@@ -157,7 +157,7 @@ void HexClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
       const HexahedronType& hex = meshHexes[cellId];
 
       TetrahedronType cellTets[NUM_TETS_PER_HEX];
-      hex.triangulate(cellTets);
+      ShapeMesh::hexToTets24(hex, cellTets);
 
       for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {

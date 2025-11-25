@@ -140,7 +140,7 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh
       const HexahedronType& hex = meshHexes[cellId];
 
       TetrahedronType cellTets[NUM_TETS_PER_HEX];
-      hex.triangulate(cellTets);
+      ShapeMesh::hexToTets24(hex, cellTets);
 
       for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
