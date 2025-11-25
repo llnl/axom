@@ -35,10 +35,24 @@ namespace axom
 namespace sina
 {
 
+/**
+ * @brief File format enum for explicit format specification
+ * 
+ * This enum provides type-safe format specification for saveDocument and
+ * appendDocument functions. It works alongside the existing supported_types
+ * for backward compatibility.
+ * 
+ * The enum values map to supported_types indices:
+ * - AUTO_DETECT: Special value for auto-detection from file extension
+ * - JSON: maps to supported_types[0] = "JSON"
+ * - HDF5: maps to supported_types[1] = "HDF5" (if AXOM_USE_HDF5 is defined)
+ */
+
 enum class Protocol
 {
-  JSON,
-  HDF5
+  AUTO_DETECT = -1, ///< Automatically detect from file extension (.json, .h5, .hdf5)
+  JSON = 0,         ///< Force JSON format (supported_types[0])
+  HDF5 = 1          ///< Force HDF5 format (supported_types[1], requires AXOM_USE_HDF5)
 };
 
 const std::vector<std::string> supported_types = {"JSON",
@@ -259,7 +273,7 @@ private:
  */
 void saveDocument(Document const &document,
                   std::string const &fileName,
-                  Protocol protocol = Protocol::JSON);
+                  Protocol protocol = Protocol::AUTO_DETECT);
 
 /**
  * \brief Get the current file format version.
@@ -350,6 +364,23 @@ conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
                                    Document const &newData,
                                    const int mergeProtocol = 1,
                                    const bool skipValidation = false);
+
+/**
+ * @brief Append a Document to an existing file with automatic format detection
+ * 
+ * Automatically detects the file format from the extension and appends accordingly.
+ * The format can optionally be overridden.
+ * 
+ * \param document The Document to append
+ * \param filepath Path to the existing file
+ * \param mergeProtocol How to handle conflicts (1=KEEP_ORIGINAL, 2=OVERWRITE, 3=ERROR)
+ * \param outputProtocol Optional format override (default: AUTO_DETECT)
+ * \throws std::runtime_error If the file cannot be opened or the format is unsupported
+ */
+void appendDocument(const Document& document,
+                   const std::string& filepath,
+                   int mergeProtocol = 1,
+                   Protocol Protocol = Protocol::AUTO_DETECT);
 
 /**
  * \brief Check a node against some file handle and return a Conduit node populated with any errors that

@@ -156,7 +156,7 @@ Appending Documents to Existing Sina Files
 
 It's normal during a simulation to need to dump data multiple times, ex: collect quantities
 at certain milestones, write timeseries once they reach a certain length, or add new sets
-of curves. The append methods such as ``appendDocumentToHDF5()`` cover this case. Simply write your
+of curves. The append methods such as ``appendDocument()`` cover this case. Simply write your
 first document to the filesystem, and when you reach a point where you would like to write another,
 use an append function matching the filetype (JSON is recommended for small files, namely anything
 not involving timeseries, and HDF5 for anything beefier). There's some nuance to how appending works:

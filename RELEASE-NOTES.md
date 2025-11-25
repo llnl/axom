@@ -21,6 +21,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ### Added
 - Adds the `AXOM_ENABLE_TUTORIALS` configuration variable (`ON` by default)
 - Adds a tutorial on shaping in Axom and associated infrastructure in `quest`, `klee`, `inlet` and `sidre`.
+- User can control curves' ordering in Sina output file `setDefaultCurveOrder()` 
+- `appendDocument()` that will create the document if not present or append if document exists, it also `AUTODETECT` the protocol based on file's name, removing the need to call the append function that maatch your protocol
+- Sina fortran `sina_set_curves_order` and `sina_set_record_curves_order` to control curves order
 - Added iterators and Attribute class to the Python interface for sidre.
 
 ###  Changed
@@ -34,8 +37,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - The maximum number of vertices allowed in polygon primitives can now be passed as a template
   argument to `axom::bump::TopologyMapper`, `axom::bump::PrimalAdaptor`, and
   `axom::mir::ElviraAlgorithm`.
+- `saveDocument()` now has a `AUTODETECT` protocol for the file type
+- Sina fortran can now handle multiple records rather than a single record per application
+- Most Sina Fortran call can now pass the record for which the call is desired (`sina_add`, `sina_add_file`, `sina_add_curveset`, `sina_add_curve`)
+- Sina fortran `create_document_and_record` is now `sina_create_record`
+- Sina fortran `sina_write_document` now accepts a third argument that preserves records in memory so they can be written to another file (otherwise they're released from memory as soon as they're written)
 ###  Fixed
-
+- Sina's Fortran tests were not properly ran and would fail silently
 ###  Deprecated
 
 
