@@ -237,14 +237,16 @@ public:
     }
 
     // Check for clamped-ness
-    auto nkts = m_knots.size();
+    const auto nkts = m_knots.size();
+    const auto minKnot = getMinKnot();
+    const auto maxKnot = getMaxKnot();
     for(int i = 0; i < m_deg + 1; ++i)
     {
-      if(m_knots[i] != m_knots[0])
+      if(m_knots[i] != minKnot)
       {
         return false;
       }
-      if(m_knots[nkts - 1 - i] != m_knots[nkts - 1])
+      if(m_knots[nkts - 1 - i] != maxKnot)
       {
         return false;
       }
@@ -421,7 +423,7 @@ public:
     }
 
     // Replace each knot with sum - knot_value
-    const T the_sum = m_knots[0] + m_knots[nkts - 1];
+    const T the_sum = getMinKnot() + getMaxKnot();
     for(int i = 0; i < nkts; ++i)
     {
       m_knots[i] = the_sum - m_knots[i];
@@ -478,14 +480,11 @@ public:
   /// \brief Checks if given parameter is in knot span (to a tolerance)
   bool isValidParameter(T t, T EPS = 1e-5) const
   {
-    return (t >= m_knots[0] - EPS) && (t <= m_knots[m_knots.size() - 1] + EPS);
+    return (t >= getMinKnot() - EPS) && (t <= getMaxKnot() + EPS);
   }
 
   /// \brief Checks if given parameter is *interior* to knot span (to a tolerance)
-  bool isValidInteriorParameter(T t) const
-  {
-    return (t > m_knots[0]) && (t < m_knots[m_knots.size() - 1]);
-  }
+  bool isValidInteriorParameter(T t) const { return (t > getMinKnot()) && (t < getMaxKnot()); }
 
   ///@}
 
@@ -516,12 +515,12 @@ public:
 
     // Handle cases where t is outside the knot span within a tolerance
     //  by implicitly clamping it to the nearest span
-    if(t <= m_knots[0])
+    if(t <= getMinKnot())
     {
       return m_deg;
     }
 
-    if(t >= m_knots[nkts - 1])
+    if(t >= getMaxKnot())
     {
       return nkts - m_deg - 2;
     }
@@ -559,11 +558,10 @@ public:
   {
     SLIC_ASSERT(isValidParameter(t));
 
-    const auto nkts = m_knots.size();
     const auto span = findSpan(t);
 
     // Early exit for known multiplicities
-    if(t <= m_knots[0] || t >= m_knots[nkts - 1])
+    if(t <= getMinKnot() || t >= getMaxKnot())
     {
       multiplicity = m_deg + 1;
       return span;
