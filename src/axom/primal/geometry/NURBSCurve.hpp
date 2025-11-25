@@ -660,10 +660,10 @@ public:
     m_weights[idx] = weight;
   }
 
-  /// \brief Returns a reference to the NURBS curve's control points
+  /// \brief Returns a reference to the NURBS curve's weights
   WeightsVec& getWeights() { return m_weights; }
 
-  /// \brief Returns a const reference to the NURBS curve's control points
+  /// \brief Returns a const reference to the NURBS curve's weights
   const WeightsVec& getWeights() const { return m_weights; }
 
   /// \brief Returns an axis-aligned bounding box containing the NURBS curve
@@ -745,10 +745,10 @@ public:
   /// \brief Return a const reference to the knot vector
   const KnotVectorType& getKnots() const { return m_knotvec; }
 
-  /// \brief Get minimum knot
+  /// \brief Get minimum knot value
   T getMinKnot() const { return m_knotvec.getMinKnot(); }
 
-  /// \brief Get maximum knot
+  /// \brief Get maximum knot value
   T getMaxKnot() const { return m_knotvec.getMaxKnot(); }
 
   /// \brief Reverses the order of the NURBS curve's control points and weights
