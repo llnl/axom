@@ -97,6 +97,36 @@ bool Plane3DClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
 
 bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                           axom::ArrayView<double> ovlap,
+                                          axom::IndexType& clipCount)
+{
+  switch(shapeMesh.getRuntimePolicy())
+  {
+  case axom::runtime_policy::Policy::seq:
+    specializedClipCellsImpl<axom::SEQ_EXEC>(shapeMesh, ovlap, clipCount);
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case axom::runtime_policy::Policy::omp:
+    specializedClipCellsImpl<axom::OMP_EXEC>(shapeMesh, ovlap, clipCount);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case axom::runtime_policy::Policy::cuda:
+    specializedClipCellsImpl<axom::CUDA_EXEC<256>>(shapeMesh, ovlap, clipCount);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case axom::runtime_policy::Policy::hip:
+    specializedClipCellsImpl<axom::HIP_EXEC<256>>(shapeMesh, ovlap, clipCount);
+    break;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+  return true;
+}
+
+bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
+                                          axom::ArrayView<double> ovlap,
                                           const axom::ArrayView<IndexType>& cellIds,
                                           axom::IndexType& clipCount)
 {
@@ -255,6 +285,22 @@ void Plane3DClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
     });
 
   return;
+}
+
+template <typename ExecSpace>
+void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                              axom::ArrayView<double> ovlap,
+                                              axom::IndexType& clipCount)
+{
+  axom::IndexType cellCount = shapeMesh.getCellCount();
+  axom::Array<IndexType> cellIds(cellCount, cellCount, shapeMesh.getAllocatorID());
+  auto cellIdsView = cellIds.view();
+  axom::for_all<ExecSpace>(
+    cellCount,
+    AXOM_LAMBDA(axom::IndexType i) {
+      cellIdsView[i] = i;
+    });
+  specializedClipCellsImpl<ExecSpace>(shapeMesh, ovlap, cellIds, clipCount);
 }
 
 template <typename ExecSpace>

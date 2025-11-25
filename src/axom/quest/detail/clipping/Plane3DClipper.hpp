@@ -47,6 +47,10 @@ public:
 
   bool specializedClipCells(quest::experimental::ShapeMesh& shappeMesh,
                             axom::ArrayView<double> ovlap,
+                            axom::IndexType& clipCount) override;
+
+  bool specializedClipCells(quest::experimental::ShapeMesh& shappeMesh,
+                            axom::ArrayView<double> ovlap,
                             const axom::ArrayView<IndexType>& cellIds,
                             axom::IndexType& clipCount) override;
 
@@ -70,6 +74,11 @@ private:
   void labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                           axom::ArrayView<const axom::IndexType> cellIds,
                           axom::ArrayView<LabelType> label);
+
+  template <typename ExecSpace>
+  void specializedClipCellsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                axom::ArrayView<double> ovlap,
+                                axom::IndexType& clipCount);
 
   template <typename ExecSpace>
   void specializedClipCellsImpl(quest::experimental::ShapeMesh& shapeMesh,
