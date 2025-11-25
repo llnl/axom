@@ -694,6 +694,117 @@ public:
     }
   }
 
+  void validateBRep()
+  {
+    // lambda to return a string with all the (error) status problems in an entity
+    auto printStatusList = [](const std::string& prefix, const BRepCheck_ListOfStatus& statusList) {
+      auto statusToString = [](BRepCheck_Status st) -> std::string {
+        // clang-format off
+          switch(st)
+          {
+          case BRepCheck_NoError: return "NoError";
+          case BRepCheck_InvalidPointOnCurve: return "InvalidPointOnCurve";
+          case BRepCheck_InvalidPointOnCurveOnSurface: return "InvalidPointOnCurveOnSurface";
+          case BRepCheck_InvalidPointOnSurface: return "InvalidPointOnSurface";
+          case BRepCheck_No3DCurve: return "No3DCurve";
+          case BRepCheck_Multiple3DCurve: return "Multiple3DCurve";
+          case BRepCheck_Invalid3DCurve: return "Invalid3DCurve";
+          case BRepCheck_NoCurveOnSurface: return "NoCurveOnSurface";
+          case BRepCheck_InvalidCurveOnSurface: return "InvalidCurveOnSurface";
+          case BRepCheck_InvalidCurveOnClosedSurface: return "InvalidCurveOnClosedSurface";
+          case BRepCheck_InvalidSameRangeFlag: return "InvalidSameRangeFlag";
+          case BRepCheck_InvalidSameParameterFlag: return "InvalidSameParameterFlag";
+          case BRepCheck_InvalidDegeneratedFlag: return "InvalidDegeneratedFlag";
+          case BRepCheck_FreeEdge: return "FreeEdge";
+          case BRepCheck_InvalidMultiConnexity: return "InvalidMultiConnexity";
+          case BRepCheck_InvalidRange: return "InvalidRange";
+          case BRepCheck_EmptyWire: return "EmptyWire";
+          case BRepCheck_RedundantEdge: return "RedundantEdge";
+          case BRepCheck_SelfIntersectingWire: return "SelfIntersectingWire";
+          case BRepCheck_NoSurface: return "NoFace";
+          case BRepCheck_InvalidWire: return "InvalidWire";
+          case BRepCheck_RedundantWire: return "RedundantWire";
+          case BRepCheck_IntersectingWires: return "IntersectingWires";
+          case BRepCheck_InvalidImbricationOfWires: return "InvalidImbricationOfWires";
+          case BRepCheck_EmptyShell: return "EmptyShell";
+          case BRepCheck_RedundantFace: return "RedundantFace";
+          case BRepCheck_InvalidImbricationOfShells: return "InvalidImbricationOfShells";
+          case BRepCheck_UnorientableShape: return "UnorientableShape";
+          case BRepCheck_NotClosed: return "NotClosed";
+          case BRepCheck_NotConnected: return "NotConnected";
+          case BRepCheck_SubshapeNotInShape: return "SubshapeNotInShape";
+          case BRepCheck_BadOrientation: return "BadOrientation";
+          case BRepCheck_BadOrientationOfSubshape: return "BadOrientationOfSubshape";
+          case BRepCheck_InvalidPolygonOnTriangulation: return "InvalidPolygonOnTriangulation";
+          case BRepCheck_InvalidToleranceValue: return "InvalidToleranceValue";
+          case BRepCheck_EnclosedRegion: return "EnclosedRegion";
+          case BRepCheck_CheckFail: return "CheckFail";
+          default: return "UnknownStatus";
+          }
+        // clang-format on
+      };
+
+      std::stringstream sstr;
+      for(BRepCheck_ListIteratorOfListOfStatus it(statusList); it.More(); it.Next())
+      {
+        if(const BRepCheck_Status st = it.Value(); st != BRepCheck_NoError)
+        {
+          sstr << axom::fmt::format("  - {} ({})\n", static_cast<int>(st), statusToString(st));
+        }
+      }
+      if(!sstr.str().empty())
+      {
+        SLIC_INFO(prefix << "\n" << sstr.str());
+      }
+    };
+
+    // Diagnose each face
+    int patchIndex = 0;
+    for(TopExp_Explorer ex(m_shape, TopAbs_FACE); ex.More(); ex.Next(), ++patchIndex)
+    {
+      const TopoDS_Face& F = TopoDS::Face(ex.Current());
+
+      // Use BRepCheck_Analyzer to validate the face
+      BRepCheck_Analyzer analyzer(F, true);
+
+      const bool face_is_valid = analyzer.IsValid(F);
+      if(face_is_valid)
+      {
+        continue;
+      }
+
+      printStatusList(axom::fmt::format("[Patch {} analyzer status]", patchIndex),
+                      analyzer.Result(F)->Status());
+
+      BRepCheck_Face fc(F);
+      fc.Blind();  // run full tests
+      printStatusList(axom::fmt::format("[Patch {} face check]", patchIndex), fc.Status());
+
+      // Validate wires and edges of face F
+      int wireIdx = 0;
+      for(TopExp_Explorer wireExp(F, TopAbs_WIRE); wireExp.More(); wireExp.Next(), ++wireIdx)
+      {
+        const TopoDS_Wire& W = TopoDS::Wire(wireExp.Current());
+        printStatusList(axom::fmt::format("[Patch {} Wire{} wire check]", patchIndex, wireIdx),
+                        analyzer.Result(W)->Status());
+
+        int edgeIdx = 0;
+        for(TopExp_Explorer edgeExp(W, TopAbs_EDGE); edgeExp.More(); edgeExp.Next(), ++edgeIdx)
+        {
+          const TopoDS_Edge& E = TopoDS::Edge(edgeExp.Current());
+          if(!analyzer.IsValid(E))
+          {
+            printStatusList(axom::fmt::format("[Patch {} Wire {} Edge {} analyzer status]",
+                                              patchIndex,
+                                              wireIdx,
+                                              edgeIdx),
+                            analyzer.Result(E)->Status());
+          }
+        }
+      }
+    }
+  }
+
   /// Extracts data from the trimming curves of each patch and converts the curves to a NURBSCurve representation
   void extractTrimmingCurves(NPatchArray& patches)
   {
@@ -1217,6 +1328,8 @@ int STEPReader::read()
   {
     return 1;
   }
+
+  m_stepProcessor->validateBRep();
 
   m_stepProcessor->extractPatches(m_patches);
   m_stepProcessor->extractTrimmingCurves(m_patches);
