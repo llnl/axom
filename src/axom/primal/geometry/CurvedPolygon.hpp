@@ -176,7 +176,12 @@ public:
     csplit.split(t, m_edges[idx], m_edges[idx + 1]);
   }
 
-  axom::Array<CurveType> getEdges() const { return m_edges; }
+  /// Returns a reference to the underlying array of curved edges
+  axom::Array<CurveType>& getEdges() { return m_edges; }
+
+  /// Returns a const reference to the underlying array of curved edges
+  const axom::Array<CurveType>& getEdges() const { return m_edges; }
+
   /// @}
 
   /*! Retrieves the curve at index idx */

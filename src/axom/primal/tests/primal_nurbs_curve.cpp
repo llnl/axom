@@ -30,7 +30,7 @@ TEST(primal_nurbscurve, default_constructor)
     EXPECT_EQ(-1, cur.getDegree());
     EXPECT_EQ(zero, cur.getOrder());
     EXPECT_EQ(zero, cur.getControlPoints().size());
-    EXPECT_EQ(zero, cur.getKnotsArray().size());
+    EXPECT_EQ(zero, cur.getKnots().getArray().size());
     EXPECT_FALSE(cur.isValidNURBS());
   };
 
@@ -71,7 +71,7 @@ TEST(primal_nurbscurve, sizing_constructors)
       EXPECT_EQ(deg, nCurve.getDegree());
       EXPECT_EQ(deg + 1, nCurve.getOrder());
       EXPECT_EQ(npts, nCurve.getControlPoints().size());
-      EXPECT_EQ(npts + deg + 1, nCurve.getKnotsArray().size());
+      EXPECT_EQ(npts + deg + 1, nCurve.getKnots().getArray().size());
       EXPECT_FALSE(nCurve.isRational());
     }
   }
@@ -107,7 +107,7 @@ TEST(primal_nurbscurve, bezier_constructors)
     EXPECT_EQ(order, cur.getDegree());
     EXPECT_EQ(order + 1, cur.getOrder());
     EXPECT_EQ(controlPoints.size(), cur.getControlPoints().size());
-    EXPECT_EQ(controlPoints.size() + order + 1, cur.getKnotsArray().size());
+    EXPECT_EQ(controlPoints.size() + order + 1, cur.getKnots().getArray().size());
 
     for(int p = 0; p < controlPoints.size(); ++p)
     {
@@ -144,7 +144,7 @@ TEST(primal_nurbscurve, knotless_array_constructors)
     EXPECT_EQ(degree, cur.getDegree());
     EXPECT_EQ(degree + 1, cur.getOrder());
     EXPECT_EQ(npts, cur.getControlPoints().size());
-    EXPECT_EQ(npts + degree + 1, cur.getKnotsArray().size());
+    EXPECT_EQ(npts + degree + 1, cur.getKnots().getArray().size());
 
     EXPECT_EQ(cur.isRational(), expect_rational);
 
@@ -234,7 +234,7 @@ TEST(primal_nurbscurve, knotted_array_constructor)
     EXPECT_EQ(degree, cur.getDegree());
     EXPECT_EQ(degree + 1, cur.getOrder());
     EXPECT_EQ(npts, cur.getControlPoints().size());
-    EXPECT_EQ(nkts, cur.getKnotsArray().size());
+    EXPECT_EQ(nkts, cur.getKnots().getArray().size());
 
     EXPECT_EQ(cur.isRational(), expect_rational);
 

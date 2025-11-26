@@ -1534,7 +1534,7 @@ public:
       return uniqueCounts;
     };
 
-    for(const auto& u : unique_knots_and_multiplicities(patchData.nurbsPatch.getKnotsArray_u()))
+    for(const auto& u : unique_knots_and_multiplicities(patchData.nurbsPatch.getKnots_u().getArray()))
     {
       axom::fmt::format_to(std::back_inserter(svgContent),
                            "  <line class='u-line mult-{}' x1='{}' y1='{}' x2='{}' y2='{}' />\n",
@@ -1545,7 +1545,7 @@ public:
                            parametricBBox.getMax()[1]);
     }
 
-    for(const auto& v : unique_knots_and_multiplicities(patchData.nurbsPatch.getKnotsArray_v()))
+    for(const auto& v : unique_knots_and_multiplicities(patchData.nurbsPatch.getKnots_v().getArray()))
     {
       axom::fmt::format_to(std::back_inserter(svgContent),
                            "  <line class='v-line mult-{}' x1='{}' y1='{}' x2='{}' y2='{}' />\n",
