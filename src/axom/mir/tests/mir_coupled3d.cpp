@@ -462,7 +462,8 @@ private:
     using SrcCoordsetView = decltype(srcCoordsetView);
 
     // 3D Elvira makes polyhedral meshes
-    auto srcTopologyView = views::make_unstructured_polyhedral_topology<int>::view(n_src_topology);
+    auto srcTopologyView =
+      views::make_unstructured_polyhedral_topology<axom::IndexType>::view(n_src_topology);
     using SrcTopologyView = decltype(srcTopologyView);
 
     constexpr int MAXMATS = 20;
