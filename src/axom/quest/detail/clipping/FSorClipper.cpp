@@ -242,7 +242,7 @@ void FSorClipper::labelTetsInOutImpl(
         { invTransformer.transform(hex[vi].array()); }
 
       TetrahedronType cellTets[NUM_TETS_PER_HEX];
-      ShapeMesh::hexToTets24(hex, cellTets);
+      ShapeMesh::hexToTets(hex, cellTets);
 
       for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {

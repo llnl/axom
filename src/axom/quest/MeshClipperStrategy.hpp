@@ -321,8 +321,8 @@ public:
    * @brief Get the geometry as discrete tetrahedra, or return false.
    *
    * @param [in] shapeMesh Blueprint mesh to shape into.
-   * @param [out] tets Array of tetrahedra filling the space of the shape,
-   * fully transformed.
+   * @param [out] tets Array of non-degenerate tetrahedra filling the
+   *   space of the shape, fully transformed.
    *
    * Subclasses implementing this routine should snap to zero any
    * output vertex coordinate that is close to zero.
@@ -346,8 +346,8 @@ public:
    * @brief Get the geometry as discrete octahedra, or return false.
    *
    * @param [in] shapeMesh Blueprint mesh to shape into.
-   * @param [out] octs Array of octahedra filling the space of the shape,
-   * fully transformed.
+   * @param [out] tets Array of non-degenerate octahedra filling the
+   *   space of the shape, fully transformed.
    *
    * Subclasses implementing this routine should snap to zero any
    * output vertex coordinate that is close to zero.

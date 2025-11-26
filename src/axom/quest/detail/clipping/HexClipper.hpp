@@ -65,7 +65,7 @@ private:
   BoundingBox3DType m_hexBb;
 
   //!@brief Tetrahedralized version of of m_hex.
-  axom::StackArray<TetrahedronType, HexahedronType::NUM_TRIANGULATE> m_tets;
+  axom::Array<TetrahedronType> m_tets;
 
   //!@brief Triangles on the discretized hex surface, oriented inward.
   axom::StackArray<Triangle3DType, 24> m_surfaceTriangles;
@@ -88,7 +88,7 @@ private:
     const Polyhedron& verts,
     const BoundingBox3DType& vertsBb,
     const BoundingBox3DType& hexBb,
-    const axom::StackArray<TetrahedronType, HexahedronType::NUM_TRIANGULATE>& hexTets,
+    const axom::ArrayView<const TetrahedronType>& hexTets,
     const axom::StackArray<Triangle3DType, 24>& surfaceTriangles) const;
 
   void extractClipperInfo();

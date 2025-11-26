@@ -26,7 +26,17 @@ HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
     m_hex[i] = m_transformer.getTransformed(m_hexBeforeTrans[i]);
   }
 
-  ShapeMesh::hexToTets24(m_hex, m_tets.data());
+  axom::StackArray<TetrahedronType, ShapeMesh::NUM_TETS_PER_HEX> geomTets;
+  ShapeMesh::hexToTets(m_hex, geomTets.data());
+  m_tets.reserve(geomTets.size());
+  constexpr double EPS = 1e-10;
+  for(const auto& tet : geomTets)
+  {
+    if(!axom::utilities::isNearlyEqual(tet.volume(), 0.0, EPS))
+    {
+      m_tets.push_back(tet);
+    }
+  }
 
   for(int i = 0; i < HexahedronType::NUM_HEX_VERTS; ++i)
   {
@@ -120,12 +130,14 @@ template <typename ExecSpace>
 void HexClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                                      axom::ArrayView<LabelType> labels)
 {
-  auto cellCount = shapeMesh.getCellCount();
+  const auto cellCount = shapeMesh.getCellCount();
+  const int allocId = shapeMesh.getAllocatorID();
   const auto cellBbs = shapeMesh.getCellBoundingBoxes();
   const auto cellsAsHexes = shapeMesh.getCellsAsHexes();
   const auto hexBb = m_hexBb;
-  const auto tets = m_tets;
   const auto surfaceTriangles = m_surfaceTriangles;
+  axom::Array<TetrahedronType> tets(m_tets, allocId);
+  axom::ArrayView<const TetrahedronType> tetsView = tets.view();
 
   axom::for_all<ExecSpace>(
     cellCount,
@@ -133,7 +145,7 @@ void HexClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
       auto& cellLabel = labels[cellId];
       auto& cellBb = cellBbs[cellId];
       const auto& cellHex = cellsAsHexes[cellId];
-      cellLabel = polyhedronToLabel(cellHex, cellBb, hexBb, tets, surfaceTriangles);
+      cellLabel = polyhedronToLabel(cellHex, cellBb, hexBb, tetsView, surfaceTriangles);
     });
 
   return;
@@ -145,10 +157,12 @@ void HexClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::ArrayView<LabelType> tetLabels)
 {
   const axom::IndexType cellCount = cellIds.size();
+  const int allocId = shapeMesh.getAllocatorID();
   auto meshHexes = shapeMesh.getCellsAsHexes();
   const auto hexBb = m_hexBb;
-  const auto tets = m_tets;
   const auto surfaceTriangles = m_surfaceTriangles;
+  axom::Array<TetrahedronType> tets(m_tets, allocId);
+  axom::ArrayView<const TetrahedronType> tetsView = tets.view();
 
   axom::for_all<ExecSpace>(
     cellCount,
@@ -157,14 +171,14 @@ void HexClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
       const HexahedronType& hex = meshHexes[cellId];
 
       TetrahedronType cellTets[NUM_TETS_PER_HEX];
-      ShapeMesh::hexToTets24(hex, cellTets);
+      ShapeMesh::hexToTets(hex, cellTets);
 
       for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
         const TetrahedronType& cellTet = cellTets[ti];
         LabelType& tetLabel = tetLabels[ci * NUM_TETS_PER_HEX + ti];
         BoundingBox3DType cellTetBb{cellTet[0], cellTet[1], cellTet[2], cellTet[3]};
-        tetLabel = polyhedronToLabel(cellTet, cellTetBb, hexBb, tets, surfaceTriangles);
+        tetLabel = polyhedronToLabel(cellTet, cellTetBb, hexBb, tetsView, surfaceTriangles);
       }
 
     });
@@ -177,7 +191,7 @@ MeshClipperStrategy::LabelType HexClipper::polyhedronToLabel(
   const Polyhedron& verts,
   const BoundingBox3DType& vertsBb,
   const BoundingBox3DType& hexBb,
-  const axom::StackArray<TetrahedronType, HexahedronType::NUM_TRIANGULATE>& hexTets,
+  const axom::ArrayView<const TetrahedronType>& hexTets,
   const axom::StackArray<Triangle3DType, 24>& surfaceTriangles) const
 {
   /*

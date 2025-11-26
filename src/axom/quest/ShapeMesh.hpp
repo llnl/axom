@@ -58,11 +58,20 @@ public:
   using Point3DType = primal::Point<double, 3>;
   using TetrahedronType = primal::Tetrahedron<double, 3>;
   using HexahedronType = primal::Hexahedron<double, 3>;
+  using Plane3DType = axom::primal::Plane<double, 3>;
   using BoundingBox3DType = primal::BoundingBox<double, 3>;
 
-  //!@brief Number of tetrahedra per hexahedron decomposes into
-  // @internal We could use a more efficient 18-tet decomposition in the future.
-  static constexpr axom::IndexType NUM_TETS_PER_HEX = HexahedronType::NUM_TRIANGULATE;
+  /*!
+   * @brief Number of tetrahedra per hexahedron decomposes into
+   * @see hexToTets()
+   *
+   * @internal Values of 24 and 18 are valid.  18 is likely more
+   * performant because it generates fewer tets.
+   *
+   * @internal The code branches on the value at a low level,
+   * but this should be optimized out by the compiler.
+   */
+  static constexpr axom::IndexType NUM_TETS_PER_HEX = 18;
 
   //!@brief Number of vertices per cell.
   static constexpr axom::IndexType NUM_VERTS_PER_CELL_3D = 8;
@@ -157,9 +166,9 @@ public:
   void setZeroThreshold(double threshold) { m_zeroThreshold = threshold; }
 
   /*!
-   * @brief Decompose a hexahedron into 24 tetrahedra.
+   * @brief Decompose a hexahedron into NUM_TETS_PER_HEX tetrahedra.
    * @param hex [in] The hexahedron
-   * @param [out] Pointer to space for 24 tetrahedra.
+   * @param tets [out] Pointer to space for NUM_TETS_PER_HEX tetrahedra.
    *
    * To avoid ambiguity due to the 2 diagonals that can be chosen to
    * divide each hex face into 2 triangles, we introduce a
@@ -167,11 +176,11 @@ public:
    * and decompose the face into 4 triangles.
    *
    * It is expected that this method will be used in long inner
-   * loops, so it is bare-bones for good performance.
+   * loops, so it is bare-bones for best performance.
    */
   AXOM_HOST_DEVICE inline
-  static void hexToTets24( const HexahedronType& hex,
-                           TetrahedronType* tets );
+  static void hexToTets( const HexahedronType& hex,
+                         TetrahedronType* tets );
 
   //@{
   //!@name Accessors to mesh data.
@@ -192,6 +201,8 @@ public:
   axom::ArrayView<const HexahedronType> getCellsAsHexes();
   //!@brief Get volume of mesh cells.
   axom::ArrayView<const double> getCellVolumes();
+  //!@brief Get volumes of tets in getCellsAsTets().
+  axom::ArrayView<const double> getTetVolumes();
   //!@brief Get characteristic lengths of mesh cells.
   axom::ArrayView<const double> getCellLengths();
   axom::ArrayView<const BoundingBox3DType> getCellBoundingBoxes();
@@ -296,6 +307,9 @@ private:
   //!@brief Volumes of hex cells.
   axom::Array<double> m_hexVolumes;
 
+  //!@brief Volumes of cell tets.
+  axom::Array<double> m_tetVolumes;
+
   //!@brief Characteristic lengths of cells.
   axom::Array<double> m_cellLengths;
 
@@ -308,6 +322,7 @@ private:
   void computeCellsAsHexes();
   void computeCellsAsTets();
   void computeHexVolumes();
+  void computeTetVolumes();
   void computeHexBbs();
   void computeCellLengths();
   void computeVertPoints();
@@ -325,6 +340,9 @@ public:
 
   template <typename ExecSpace>
   void computeHexVolumesImpl();
+
+  template <typename ExecSpace>
+  void computeTetVolumesImpl();
 
   template <typename ExecSpace>
   void computeHexBbsImpl();
@@ -366,11 +384,141 @@ public:
 };
 
 AXOM_HOST_DEVICE inline
-void ShapeMesh::hexToTets24(
+void ShapeMesh::hexToTets(
   const HexahedronType& hex,
   TetrahedronType* tets )
 {
-  hex.triangulate(tets);
+  AXOM_STATIC_ASSERT(NUM_TETS_PER_HEX == 24 || NUM_TETS_PER_HEX == 18);
+
+  if(NUM_TETS_PER_HEX == 24)
+  {
+    hex.triangulate(tets);
+  }
+  else
+  {
+    // Tets sharing the axis between hex vertices 4 and 2.
+    tets[0][0] = hex[4];
+    tets[0][1] = hex[2];
+    tets[0][2] = hex[1];
+    tets[0][3] = hex[0];
+
+    tets[1][0] = hex[4];
+    tets[1][1] = hex[2];
+    tets[1][2] = hex[0];
+    tets[1][3] = hex[3];
+
+    tets[2][0] = hex[4];
+    tets[2][1] = hex[2];
+    tets[2][2] = hex[3];
+    tets[2][3] = hex[7];
+
+    tets[3][0] = hex[4];
+    tets[3][1] = hex[2];
+    tets[3][2] = hex[7];
+    tets[3][3] = hex[6];
+
+    tets[4][0] = hex[4];
+    tets[4][1] = hex[2];
+    tets[4][2] = hex[6];
+    tets[4][3] = hex[5];
+
+    tets[5][0] = hex[4];
+    tets[5][1] = hex[2];
+    tets[5][2] = hex[5];
+    tets[5][3] = hex[1];
+
+    // Centroids of the 6 faces.
+    Point3DType mp0473 = Point3DType::midpoint(Point3DType::midpoint(hex[0], hex[4]),
+                                               Point3DType::midpoint(hex[7], hex[3]));
+    Point3DType mp1562 = Point3DType::midpoint(Point3DType::midpoint(hex[1], hex[5]),
+                                               Point3DType::midpoint(hex[6], hex[2]));
+    Point3DType mp0451 = Point3DType::midpoint(Point3DType::midpoint(hex[0], hex[4]),
+                                               Point3DType::midpoint(hex[5], hex[1]));
+    Point3DType mp3762 = Point3DType::midpoint(Point3DType::midpoint(hex[3], hex[7]),
+                                               Point3DType::midpoint(hex[6], hex[2]));
+    Point3DType mp0123 = Point3DType::midpoint(Point3DType::midpoint(hex[0], hex[1]),
+                                               Point3DType::midpoint(hex[2], hex[3]));
+    Point3DType mp4567 = Point3DType::midpoint(Point3DType::midpoint(hex[4], hex[5]),
+                                               Point3DType::midpoint(hex[6], hex[7]));
+
+    // Tets from the 6 faces (two per face).
+    tets[6][0] = hex[4];
+    tets[6][1] = hex[6];
+    tets[6][2] = hex[7];
+    tets[6][3] = mp4567;
+    tets[7][0] = hex[4];
+    tets[7][1] = hex[5];
+    tets[7][2] = hex[6];
+    tets[7][3] = mp4567;
+
+    tets[8][0] = hex[0];
+    tets[8][1] = hex[2];
+    tets[8][2] = hex[3];
+    tets[8][3] = mp0123;
+    tets[9][0] = hex[0];
+    tets[9][1] = hex[1];
+    tets[9][2] = hex[2];
+    tets[9][3] = mp0123;
+
+    tets[10][0] = hex[4];
+    tets[10][1] = hex[0];
+    tets[10][2] = hex[3];
+    tets[10][3] = mp0473;
+    tets[11][0] = hex[4];
+    tets[11][1] = hex[3];
+    tets[11][2] = hex[7];
+    tets[11][3] = mp0473;
+
+    tets[12][0] = hex[5];
+    tets[12][1] = hex[1];
+    tets[12][2] = hex[2];
+    tets[12][3] = mp1562;
+    tets[13][0] = hex[5];
+    tets[13][1] = hex[1];
+    tets[13][2] = hex[2];
+    tets[13][3] = mp1562;
+
+    tets[14][0] = hex[4];
+    tets[14][1] = hex[5];
+    tets[14][2] = hex[1];
+    tets[14][3] = mp0451;
+    tets[15][0] = hex[4];
+    tets[15][1] = hex[1];
+    tets[15][2] = hex[0];
+    tets[15][3] = mp0451;
+
+    tets[16][0] = hex[7];
+    tets[16][1] = hex[6];
+    tets[16][2] = hex[2];
+    tets[16][3] = mp3762;
+    tets[17][0] = hex[7];
+    tets[17][1] = hex[6];
+    tets[17][2] = hex[3];
+    tets[17][3] = mp3762;
+  }
+
+#if 0
+  // Sanity checks
+  double correctVol = hex.volume();
+  double summedVol = 0.0;
+  for(int i=0; i<NUM_TETS_PER_HEX; ++i) summedVol += tets[i].volume();
+  assert(axom::utilities::isNearlyEqual(summedVol, correctVol, 1e-10));
+  double vols[NUM_TETS_PER_HEX];
+  for(int i = 0; i<NUM_TETS_PER_HEX; ++i)
+  {
+    vols[i] = tets[i].volume();
+  }
+  for(int i = 0; i<NUM_TETS_PER_HEX; ++i)
+  {
+    if(axom::utilities::isNearlyEqual(vols[i], 0.0, 1e-10)) continue;
+    const auto& tet = tets[i];
+    Plane3DType planes[4] = {make_plane(tet[1], tet[3], tet[2]),
+                             make_plane(tet[0], tet[2], tet[3]),
+                             make_plane(tet[0], tet[3], tet[1]),
+                             make_plane(tet[0], tet[1], tet[2])};
+// std::cout<<i<<' '<<tet<<' '<<planes[0]<<' '<<planes[1]<<' '<<planes[2]<<' '<<planes[3]<<std::endl;
+  }
+#endif
 }
 
 }  // namespace experimental

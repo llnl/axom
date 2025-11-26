@@ -290,8 +290,9 @@ public:
                                            allocId);
     auto shapeCandidatesView = shapeCandidates.view();
 
-    // Tetrahedra from hexes (24 for each hex)
+    // Tetrahedra from hexes
     auto cellsAsTets = shapeMesh.getCellsAsTets();
+    auto meshTetVolumes = getShapeMesh().getTetVolumes();
 
     // Index into 'tets'
     axom::Array<IndexType> tetIndices(candidateCount * NUM_TETS_PER_HEX,
@@ -362,6 +363,9 @@ public:
           const int shapeIndex = shapeCandidatesView[i];
           const int tetIndex = tetIndicesView[i];
 
+          // Skip degenerate mesh tets.
+          if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10)) { return; }
+
           const auto poly = primal::clip<double>(geomTetsView[shapeIndex],
                                                  cellsAsTets[tetIndex],
                                                  EPS,
@@ -386,6 +390,9 @@ public:
           const int index = hexIndicesView[i];
           const int shapeIndex = shapeCandidatesView[i];
           const int tetIndex = tetIndicesView[i];
+
+          // Skip degenerate mesh tets.
+          if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10)) { return; }
 
           const auto poly = primal::clip<double>(geomOctsView[shapeIndex],
                                                  cellsAsTets[tetIndex],
@@ -523,8 +530,9 @@ public:
                                            allocId);
     auto shapeCandidatesView = shapeCandidates.view();
 
-    // Tetrahedrons from hexes (24 for each hex)
+    // Tetrahedrons from hexes
     auto cellsAsTets = shapeMesh.getCellsAsTets();
+    auto meshTetVolumes = getShapeMesh().getTetVolumes();
 
     // Index into 'tets'
     axom::Array<IndexType> tetIndices(candidateCount * NUM_TETS_PER_HEX,
@@ -603,8 +611,12 @@ public:
           tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
             tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
+          // Skip degenerate mesh tets.
+          if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10)) { return; }
+
+          const auto& cellTet = cellsAsTets[tetIndex];
           const auto poly = primal::clip<double>(geomTetsView[shapeIndex],
-                                                 cellsAsTets[tetIndex],
+                                                 cellTet,
                                                  EPS,
                                                  tryFixOrientation);
 
@@ -635,8 +647,12 @@ public:
           tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
             tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
+          // Skip degenerate mesh tets.
+          if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10)) { return; }
+
+          const auto& cellTet = cellsAsTets[tetIndex];
           const auto poly = primal::clip<double>(geomOctsView[shapeIndex],
-                                                 cellsAsTets[tetIndex],
+                                                 cellTet,
                                                  EPS,
                                                  tryFixOrientation);
 
@@ -678,6 +694,7 @@ public:
 
     ShapeMesh& shapeMesh = getShapeMesh();
     auto meshTets = getShapeMesh().getCellsAsTets();
+    auto meshTetVolumes = getShapeMesh().getTetVolumes();
 
     const int allocId = shapeMesh.getAllocatorID();
 
@@ -713,12 +730,16 @@ public:
     axom::ArrayView<BoundingBoxType> pieceBbsView = pieceBbs.view();
 
     // Get the bounding boxes for the shapes
+    // If debug build, check for degenerate pieces.
     if(useTets)
     {
       axom::for_all<ExecSpace>(
         pieceBbsView.size(),
         AXOM_LAMBDA(axom::IndexType i) {
           pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
+#if defined(AXOM_DEBUG)
+          SLIC_ASSERT(!geomTetsView[i].degenerate());
+#endif
         });
     }
     else
@@ -795,8 +816,11 @@ public:
 
           auto tetIdId = candToTetIdIdView[iCand];
           auto tetId = tetIndices[tetIdId];
-          const auto& tet = meshTets[tetId];
 
+          // Skip degenerate mesh tets.
+          if(axom::utilities::isNearlyEqual(meshTetVolumes[tetId], 0.0, 1e-10)) { return; }
+
+          const auto& tet = meshTets[tetId];
           const auto poly = primal::clip<double>(tet, geomPiece, EPS, tryFixOrientation);
 
           if(poly.numVertices() >= 4)
@@ -819,8 +843,11 @@ public:
 
           auto tetIdId = candToTetIdIdView[iCand];
           auto tetId = tetIndices[tetIdId];
-          const auto& tet = meshTets[tetId];
 
+          // Skip degenerate mesh tets.
+          if(axom::utilities::isNearlyEqual(meshTetVolumes[tetId], 0.0, 1e-10)) { return; }
+
+          const auto& tet = meshTets[tetId];
           const auto poly = primal::clip<double>(tet, geomPiece, EPS, tryFixOrientation);
 
           if(poly.numVertices() >= 4)
