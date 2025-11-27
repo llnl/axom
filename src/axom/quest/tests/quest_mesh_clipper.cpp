@@ -1196,6 +1196,7 @@ int main(int argc, char** argv)
   }
 #endif
 
+  labelingControl.print();
   AXOM_ANNOTATE_BEGIN("quest clipping test");
   AXOM_ANNOTATE_BEGIN("init");
 

@@ -134,15 +134,22 @@ void HexClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
   const int allocId = shapeMesh.getAllocatorID();
   const auto cellBbs = shapeMesh.getCellBoundingBoxes();
   const auto cellsAsHexes = shapeMesh.getCellsAsHexes();
+  const auto cellVolumes = shapeMesh.getCellVolumes();
   const auto hexBb = m_hexBb;
   const auto surfaceTriangles = m_surfaceTriangles;
   axom::Array<TetrahedronType> tets(m_tets, allocId);
   axom::ArrayView<const TetrahedronType> tetsView = tets.view();
+  constexpr double EPS = 1e-10;
 
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
       auto& cellLabel = labels[cellId];
+      if(axom::utilities::isNearlyEqual(cellVolumes[cellId], 0.0, EPS))
+      {
+        cellLabel = LabelType::LABEL_OUT;
+        return;
+      }
       auto& cellBb = cellBbs[cellId];
       const auto& cellHex = cellsAsHexes[cellId];
       cellLabel = polyhedronToLabel(cellHex, cellBb, hexBb, tetsView, surfaceTriangles);
@@ -159,10 +166,12 @@ void HexClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
   const axom::IndexType cellCount = cellIds.size();
   const int allocId = shapeMesh.getAllocatorID();
   auto meshHexes = shapeMesh.getCellsAsHexes();
+  auto tetVolumes = shapeMesh.getTetVolumes();
   const auto hexBb = m_hexBb;
   const auto surfaceTriangles = m_surfaceTriangles;
   axom::Array<TetrahedronType> tets(m_tets, allocId);
   axom::ArrayView<const TetrahedronType> tetsView = tets.view();
+  constexpr double EPS = 1e-10;
 
   axom::for_all<ExecSpace>(
     cellCount,
@@ -177,6 +186,12 @@ void HexClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
       {
         const TetrahedronType& cellTet = cellTets[ti];
         LabelType& tetLabel = tetLabels[ci * NUM_TETS_PER_HEX + ti];
+        axom::IndexType tetId = cellId * NUM_TETS_PER_HEX + ti;
+        if(axom::utilities::isNearlyEqual(tetVolumes[tetId], 0.0, EPS))
+        {
+          tetLabel = LabelType::LABEL_OUT;
+          continue;
+        }
         BoundingBox3DType cellTetBb{cellTet[0], cellTet[1], cellTet[2], cellTet[3]};
         tetLabel = polyhedronToLabel(cellTet, cellTetBb, hexBb, tetsView, surfaceTriangles);
       }

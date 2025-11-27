@@ -194,6 +194,8 @@ void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
   int allocId = shapeMesh.getAllocatorID();
   auto cellCount = shapeMesh.getCellCount();
   auto vertCount = shapeMesh.getVertexCount();
+  auto cellVolumes = shapeMesh.getCellVolumes();
+  constexpr double EPS = 1e-10;
 
   const auto& vertCoords = shapeMesh.getVertexCoords3D();
   const auto& vX = vertCoords[0];
@@ -228,6 +230,11 @@ void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
+      if(axom::utilities::isNearlyEqual(cellVolumes[cellId], 0.0, EPS))
+      {
+        labels[cellId] = LabelType::LABEL_OUT;
+        return;
+      }
       auto cellVertIds = connView[cellId];
       bool hasIn = vertIsInsideView[cellVertIds[0]];
       bool hasOut = !hasIn;
@@ -252,11 +259,15 @@ void Plane3DClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
 {
   auto cellCount = cellIds.size();
   auto meshTets = shapeMesh.getCellsAsTets();
+  auto meshTetVolumes = shapeMesh.getTetVolumes();
 
   auto plane = m_plane;
 
+  constexpr double EPS = 1e-10;
+
   /*
    * Label tet by whether it has vertices inside, outside or both.
+   * Degenerate tets as outside, because they contribute no volume.
    */
   axom::for_all<ExecSpace>(
     cellCount,
@@ -264,11 +275,18 @@ void Plane3DClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
       axom::IndexType cellId = cellIds[ci];
 
       const TetrahedronType* tetsForCell = &meshTets[cellId * NUM_TETS_PER_HEX];
+      const double* tetVolumesForCell = &meshTetVolumes[cellId * NUM_TETS_PER_HEX];
 
       for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
         const auto& tet = tetsForCell[ti];
         LabelType& tetLabel = tetLabels[ci * NUM_TETS_PER_HEX + ti];
+
+        if(axom::utilities::isNearlyEqual(tetVolumesForCell[ti], 0.0, EPS))
+        {
+          tetLabel = LabelType::LABEL_OUT;
+          continue;
+        }
 
         bool hasIn = false;
         bool hasOut = false;

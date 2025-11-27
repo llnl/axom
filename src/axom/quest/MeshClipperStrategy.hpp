@@ -164,6 +164,8 @@ public:
    * skip if it's not.  It's safe to label cells as on the boundary if
    * it can't be positively determined as inside or outside.
    *
+   * Degenerate cells have zero valume and should be labeled outside.
+   *
    * @return Whether the operation was done.  (A false means
    * not done.)
    *
@@ -195,6 +197,8 @@ public:
    * The \c NUM_TETS_PER_HEX tets in cell \c c have indices
    * [c*NUM_TETS_PER_HEX, (c+1)*NUM_TETS_PER_HEX).
    * in \c shapeMesh.getCellsAsTets().
+   *
+   * Degenerate tets have zero valume and should be labeled outside.
    *
    * If implementation returns true, it should ensure these
    * post-conditions hold:

@@ -69,11 +69,18 @@ void SphereClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMes
 {
   auto cellCount = shapeMesh.getCellCount();
   auto cellsAsHexes = shapeMesh.getCellsAsHexes();
+  auto cellVolumes = shapeMesh.getCellVolumes();
+  constexpr double EPS = 1e-10;
   auto sphere = m_sphere;
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
       LabelType& cellLabel = labels[cellId];
+      if(axom::utilities::isNearlyEqual(cellVolumes[cellId], 0.0, EPS))
+      {
+        cellLabel = LabelType::LABEL_OUT;
+        return;
+      }
       const auto& hex = cellsAsHexes[cellId];
       cellLabel = polyhedronToLabel(hex, sphere);
     });
@@ -131,6 +138,8 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh
 {
   const axom::IndexType cellCount = cellIds.size();
   auto meshHexes = shapeMesh.getCellsAsHexes();
+  auto tetVolumes = shapeMesh.getTetVolumes();
+  constexpr double EPS = 1e-10;
   auto sphere = m_sphere;
 
   axom::for_all<ExecSpace>(
@@ -144,8 +153,14 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh
 
       for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
-        const TetrahedronType& tet = cellTets[ti];
         LabelType& tetLabel = tetLabels[ci * NUM_TETS_PER_HEX + ti];
+        const axom::IndexType tetId = cellId * NUM_TETS_PER_HEX + ti;
+        if(axom::utilities::isNearlyEqual(tetVolumes[tetId], 0.0, EPS))
+        {
+          tetLabel = LabelType::LABEL_OUT;
+          continue;
+        }
+        const TetrahedronType& tet = cellTets[ti];
         tetLabel = polyhedronToLabel(tet, sphere);
       }
 

@@ -201,11 +201,18 @@ void FSorClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
 
   const auto cellCount = shapeMesh.getCellCount();
   auto meshHexes = shapeMesh.getCellsAsHexes();
+  auto meshCellVolumes = shapeMesh.getCellVolumes();
   auto invTransformer = m_invTransformer;
+  constexpr double EPS = 1e-10;
 
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
+      if(axom::utilities::isNearlyEqual(meshCellVolumes[cellId], 0.0, EPS))
+      {
+        labels[cellId] = LabelType::LABEL_OUT;
+        return;
+      }
       auto cellHex = meshHexes[cellId];
       for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
       {
@@ -230,7 +237,9 @@ void FSorClipper::labelTetsInOutImpl(
 
   const auto cellCount = cellIds.size();
   auto meshHexes = shapeMesh.getCellsAsHexes();
+  auto tetVolumes = shapeMesh.getTetVolumes();
   auto invTransformer = m_invTransformer;
+  constexpr double EPS = 1e-10;
 
   axom::for_all<ExecSpace>(
     cellCount,
@@ -246,8 +255,14 @@ void FSorClipper::labelTetsInOutImpl(
 
       for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
-        const TetrahedronType& tet = cellTets[ti];
+        axom::IndexType tetId = cellId*NUM_TETS_PER_HEX + ti;
         LabelType& tetLabel = labels[ci * NUM_TETS_PER_HEX + ti];
+        if(axom::utilities::isNearlyEqual(tetVolumes[tetId], 0.0, EPS))
+        {
+          tetLabel = LabelType::LABEL_OUT;
+          continue;
+        }
+        const TetrahedronType& tet = cellTets[ti];
         BoundingBox2DType bbInRz = computeBoundingBoxInRz(tet);
         tetLabel = rzBbToLabel(bbInRz, bbOnView, bbUnderView);
       }
