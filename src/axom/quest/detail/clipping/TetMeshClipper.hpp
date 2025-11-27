@@ -45,6 +45,10 @@ public:
   bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh,
                        axom::Array<LabelType>& label) override;
 
+  bool labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                      axom::ArrayView<const axom::IndexType> cellIds,
+                      axom::Array<LabelType>& tetLabels) override;
+
   bool getGeometryAsTets(quest::experimental::ShapeMesh& shappeMesh,
                          axom::Array<TetrahedronType>& tets) override;
 
@@ -76,6 +80,11 @@ private:
   template <typename ExecSpace>
   void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                            axom::ArrayView<LabelType> label);
+
+  template <typename ExecSpace>
+  void labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                          axom::ArrayView<const axom::IndexType> cellIds,
+                          axom::ArrayView<LabelType> tetLabels);
 
   template <typename ExecSpace>
   void vertexInsideToCellLabel(quest::experimental::ShapeMesh& shapeMesh,

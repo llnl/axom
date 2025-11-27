@@ -74,6 +74,46 @@ bool TetMeshClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
   return true;
 }
 
+bool TetMeshClipper::labelTetsInOut(
+  quest::experimental::ShapeMesh& shapeMesh,
+  axom::ArrayView<const axom::IndexType> cellIds,
+  axom::Array<LabelType>& tetLabels)
+{
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "TetMeshClipper requires a 3D mesh.");
+
+  int allocId = shapeMesh.getAllocatorID();
+  const axom::IndexType tetCount = cellIds.size() * NUM_TETS_PER_HEX;
+  if(tetLabels.size() < tetCount || tetLabels.getAllocatorID() != allocId)
+  {
+    tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), tetCount, 0, allocId);
+  }
+
+  switch(shapeMesh.getRuntimePolicy())
+  {
+  case axom::runtime_policy::Policy::seq:
+    labelTetsInOutImpl<axom::SEQ_EXEC>(shapeMesh, cellIds, tetLabels.view());
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case axom::runtime_policy::Policy::omp:
+    labelTetsInOutImpl<axom::OMP_EXEC>(shapeMesh, cellIds, tetLabels.view());
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case axom::runtime_policy::Policy::cuda:
+    labelTetsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, cellIds, tetLabels.view());
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case axom::runtime_policy::Policy::hip:
+    labelTetsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, cellIds, tetLabels.view());
+    break;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+  return true;
+}
+
 #if 1
 /*
  * Alternative way:
@@ -82,16 +122,16 @@ bool TetMeshClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
  *   originates from the bounding box center and points away from
  *   the center of m_tetMeshBb.
  * - Use BVH::findBoundingBoxes and BVH::findRay to get surface
- *   triangle near the bounding boxes and rays.  We won't need
+ *   triangles near the bounding boxes and rays.  We won't need
  *   both for most of the hexes, but it may be faster than building
  *   index lists of where we need them.
  * - Loop through the hexes.
  *   - If hex bb intersects any surface triangle bb, hex is ON.
  *   - Else, the hex is either IN or OUT.  It can't possibly by ON.
  *     Count number of surface triangles the hex's ray intersects.
- *     use bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray)
+ *     Use bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray)
  *     If count is odd, hex is IN, if even, OUT.
-*/
+ */
 template <typename ExecSpace>
 void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                                          axom::ArrayView<LabelType> labels)
@@ -173,7 +213,7 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
   auto rayOffsetsView = rayOffsets.view();
   auto rayCandidatesView = rayCandidates.view();
 
-  const double eps = 1e-12;
+  const double EPS = 1e-12;
 
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::compute_labels");
   axom::for_all<ExecSpace>(
@@ -203,7 +243,7 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
       /*
        * At this point, the cell must be IN or OUT.  No need to account
        * for the possibility that it's ON.
-      */
+       */
 
       {
         const Ray3DType& hexRay = hexRaysView[cellId];
@@ -223,13 +263,13 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
             /*
              * Grazing contact requires more logic and computation to
              * determine if the ray crosses the boundary.  Label the
-             * hex as ON the boundary and to the clipping computation
-             * handle it this edge case.
-            */
+             * hex as ON the boundary so the clipping computation
+             * will handle this edge case.
+             */
             contactPt.array() /= contactPt[0] + contactPt[1] + contactPt[2];  // Normalize
-            bool grazing = axom::utilities::isNearlyEqual(contactPt[0], eps) ||
-              axom::utilities::isNearlyEqual(contactPt[1], eps) ||
-              axom::utilities::isNearlyEqual(contactPt[2], eps);
+            bool grazing = axom::utilities::isNearlyEqual(contactPt[0], EPS) ||
+              axom::utilities::isNearlyEqual(contactPt[1], EPS) ||
+              axom::utilities::isNearlyEqual(contactPt[2], EPS);
             if(grazing)
             {
               label = LabelType::LABEL_ON;
@@ -256,7 +296,8 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
  * If needed, we can implement edge-tet detection for TetMeshClipper.
 */
 template <typename ExecSpace>
-void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
+void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                         axom::Array<LabelType>& labels)
 {
   int allocId = shapeMesh.getAllocatorID();
   auto vertCount = shapeMesh.getVertexCount();
@@ -323,6 +364,199 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
   vertexInsideToCellLabel<ExecSpace>(shapeMesh, vertIsInsideView, labels);
 }
 #endif
+
+/*
+ * Alternative way:
+ * - Put surface triangles in BVH.
+ * - Create a bounding box and a ray for every tet.  The ray
+ *   originates from the bounding box center and points away from
+ *   the center of m_tetMeshBb.
+ * - Use BVH::findBoundingBoxes and BVH::findRay to get surface
+ *   triangles near the bounding boxes and rays.  We won't need
+ *   both for most of the tets, but it may be faster than building
+ *   index lists of where we need them.
+ * - Loop through the tets.
+ *   - If tet bb intersects any surface triangle bb, hex is ON.
+ *   - Else, the tet is either IN or OUT.  It can't possibly by ON.
+ *     Count number of surface triangles the tet's ray intersects.
+ *     Use bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray)
+ *     If count is odd, tet is IN, if even, OUT.
+ */
+template <typename ExecSpace>
+void TetMeshClipper::labelTetsInOutImpl(
+  quest::experimental::ShapeMesh& shapeMesh,
+  axom::ArrayView<const axom::IndexType> cellIds,
+  axom::ArrayView<LabelType> tetLabels)
+{
+  int allocId = shapeMesh.getAllocatorID();
+  auto cellCount = cellIds.size();
+  auto tetCount = cellCount * NUM_TETS_PER_HEX;
+
+  const auto meshTets = shapeMesh.getCellsAsTets();
+  auto tetVolumes = shapeMesh.getTetVolumes();
+
+  // Copy m_tetMesh array data to allocId if it's not done yet.
+  copy_tetmesh_arrays_to(allocId);
+
+  /*
+    Compute surface triangles of the tet mesh.
+  */
+  AXOM_ANNOTATE_BEGIN("TetMeshClipper::compute_surface");
+  axom::Array<Triangle3DType> surfTris =
+    computeGeometrySurface(shapeMesh.getRuntimePolicy(), allocId);
+  AXOM_ANNOTATE_END("TetMeshClipper::compute_surface");
+  auto surfTrisView = surfTris.view();
+
+  /*
+    Surface triangles (as bounding boxes) in BVH.
+  */
+  AXOM_ANNOTATE_BEGIN("TetMeshClipper::make_surf_bvh");
+  axom::Array<BoundingBox3DType> surfTrisAsBbs(surfTris.size(), 0, allocId);
+  auto surfTrisAsBbsView = surfTrisAsBbs.view();
+
+  axom::for_all<ExecSpace>(
+    surfTris.size(),
+    AXOM_LAMBDA(axom::IndexType fi) {
+      const auto& surfTri = surfTrisView[fi];
+      surfTrisAsBbsView[fi] = axom::primal::compute_bounding_box(surfTri);
+    });
+
+  spin::BVH<3, ExecSpace, double> bvh;
+  bvh.initialize(surfTrisAsBbsView, surfTrisAsBbsView.size());
+  AXOM_ANNOTATE_END("TetMeshClipper::make_surf_bvh");
+
+  /*
+    Compute rays.  Each ray originates from its hex center and point
+    away from the center of the tet mesh.
+  */
+  AXOM_ANNOTATE_BEGIN("TetMeshClipper::make_rays");
+  Point3DType geomCenter = m_tetMeshBb.getCentroid();  // Estimate of tet mesh center.
+  axom::Array<BoundingBox3DType> tetBbs(axom::ArrayOptions::Uninitialized(),
+                                        tetCount, tetCount, allocId);
+  auto tetBbsView = tetBbs.view();
+  axom::Array<Ray3DType> tetRays(axom::ArrayOptions::Uninitialized(),
+                                 tetCount, tetCount, allocId);
+  auto tetRaysView = tetRays.view();
+  axom::for_all<ExecSpace>(
+    cellCount,
+    AXOM_LAMBDA(axom::IndexType ci) {
+      auto cellId = cellIds[ci];
+      auto* tetsForCell = &meshTets[cellId * NUM_TETS_PER_HEX];
+      for(int ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+      {
+        const auto& tet = tetsForCell[ti];
+        Point3DType tetCenter((tet[0].array() + tet[1].array() + tet[2].array())/3);
+        Vector3DType direction(geomCenter, tetCenter);
+        tetRaysView[ci * NUM_TETS_PER_HEX + ti] = Ray3DType(tetCenter, direction);
+        tetBbsView[ci * NUM_TETS_PER_HEX + ti] = BoundingBox3DType{tet[0], tet[1], tet[2]};
+      }
+    });
+  AXOM_ANNOTATE_END("TetMeshClipper::make_rays");
+
+  /*
+   * Find candidate surface triangles near the tets' bounding boxes and rays.
+   */
+  AXOM_ANNOTATE_BEGIN("TetMeshClipper::get_surf_near_bbs");
+  axom::Array<IndexType> bbOffsets(tetCount, 0, allocId);
+  axom::Array<IndexType> bbCounts(tetCount, 0, allocId);
+  axom::Array<IndexType> bbCandidates;
+  bvh.findBoundingBoxes(bbOffsets, bbCounts, bbCandidates, tetBbs.size(), tetBbsView);
+  AXOM_ANNOTATE_END("TetMeshClipper::get_surf_near_bbs");
+
+  AXOM_ANNOTATE_BEGIN("TetMeshClipper::get_surf_near_rays");
+  axom::Array<IndexType> rayOffsets(tetCount, 0, allocId);
+  axom::Array<IndexType> rayCounts(tetCount, 0, allocId);
+  axom::Array<IndexType> rayCandidates;
+  bvh.findRays(rayOffsets, rayCounts, rayCandidates, tetRaysView.size(), tetRaysView);
+  AXOM_ANNOTATE_END("TetMeshClipper::get_surf_near_rays");
+
+  auto bbCountsView = bbCounts.view();
+  auto bbOffsetsView = bbOffsets.view();
+  auto bbCandidatesView = bbCandidates.view();
+
+  auto rayCountsView = rayCounts.view();
+  auto rayOffsetsView = rayOffsets.view();
+  auto rayCandidatesView = rayCandidates.view();
+
+  const double EPS = 1e-12;
+
+  AXOM_ANNOTATE_BEGIN("TetMeshClipper::compute_labels");
+  axom::for_all<ExecSpace>(
+    tetCount,
+    AXOM_LAMBDA(axom::IndexType ti) {
+      LabelType& label = tetLabels[ti];
+
+      axom::IndexType ci = ti / NUM_TETS_PER_HEX;
+      axom::IndexType tii = ti % NUM_TETS_PER_HEX;
+      axom::IndexType tetId = ci * NUM_TETS_PER_HEX + tii;
+      if(axom::utilities::isNearlyEqual(tetVolumes[tetId], 0.0, EPS))
+      {
+        label = LabelType::LABEL_OUT;
+        return;
+      }
+
+      {
+        // Label tet as ON boundary if it's near the boundary.
+        const auto& tetBb = tetBbsView[ti];
+        auto candidateCount = bbCountsView[ti];
+        auto candidateOffset = bbOffsetsView[ti];
+        auto* candidateIds = bbCandidatesView.data() + candidateOffset;
+        for(int ci = 0; ci < candidateCount; ++ci)
+        {
+          axom::IndexType candidateId = candidateIds[ci];
+          const Triangle3DType& candidate = surfTrisView[candidateId];
+          bool intersects = axom::primal::intersect(candidate, tetBb);
+          if(intersects)
+          {
+            label = LabelType::LABEL_ON;
+            return;
+          }
+        }
+      }
+
+      /*
+       * At this point, the cell must be IN or OUT.  No need to account
+       * for the possibility that it's ON.
+       */
+
+      {
+        const Ray3DType& tetRay = tetRaysView[ti];
+        auto candidateCount = rayCountsView[ti];
+        auto candidateOffset = rayOffsetsView[ti];
+        auto* candidateIds = rayCandidatesView.data() + candidateOffset;
+        axom::IndexType surfaceCrossingCount = 0;
+        for(int ci = 0; ci < candidateCount; ++ci)
+        {
+          axom::IndexType candidateId = candidateIds[ci];
+          Triangle3DType candidate = surfTrisView[candidateId];
+          double contactT;
+          Point3DType contactPt;  // contact point in unnormalized barycentric coordinates.
+          bool touches = axom::primal::intersect(candidate, tetRay, contactT, contactPt);
+          if(touches)
+          {
+            /*
+             * Grazing contact requires more logic and computation to
+             * determine if the ray crosses the boundary.  Label the
+             * tet as ON the boundary so the clipping computation
+             * will handle this edge case.
+             */
+            contactPt.array() /= contactPt[0] + contactPt[1] + contactPt[2];  // Normalize
+            bool grazing = axom::utilities::isNearlyEqual(contactPt[0], EPS) ||
+              axom::utilities::isNearlyEqual(contactPt[1], EPS) ||
+              axom::utilities::isNearlyEqual(contactPt[2], EPS);
+            if(grazing)
+            {
+              label = LabelType::LABEL_ON;
+              return;
+            }
+            ++surfaceCrossingCount;
+          }
+        }
+        label = surfaceCrossingCount % 2 == 0 ? LabelType::LABEL_OUT : LabelType::LABEL_IN;
+      }
+    });
+  AXOM_ANNOTATE_END("TetMeshClipper::compute_labels");
+}
 
 /*
  * Label cell outside if no vertex is in the bounding box.
