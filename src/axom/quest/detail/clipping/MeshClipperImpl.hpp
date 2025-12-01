@@ -256,8 +256,11 @@ public:
         });
     }
 
-    spin::BVH<3, ExecSpace, double> bvh;
-    bvh.initialize(pieceBbsView, pieceBbsView.size());
+    spin::BVH<3, ExecSpace, double> bvh(pieceBbsView,
+                                        pieceBbsView.size(),
+                                        allocId,
+                                        EPS,
+                                        BVH_SCALE_FACTOR);
 
     axom::ArrayView<const BoundingBoxType> cellBbsView = shapeMesh.getCellBoundingBoxes();
 
@@ -335,7 +338,6 @@ public:
         });
     }
 
-    constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = false;
 
     tetCandidatesCount = NUM_TETS_PER_HEX * candidates.size();
@@ -362,12 +364,13 @@ public:
           const int index = hexIndicesView[i];
           const int shapeIndex = shapeCandidatesView[i];
           const int tetIndex = tetIndicesView[i];
+          const auto& tet = cellsAsTets[tetIndex];
 
           // Skip degenerate mesh tets.
           if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10)) { return; }
 
           const auto poly = primal::clip<double>(geomTetsView[shapeIndex],
-                                                 cellsAsTets[tetIndex],
+                                                 tet,
                                                  EPS,
                                                  tryFixOrientation);
 
@@ -390,12 +393,13 @@ public:
           const int index = hexIndicesView[i];
           const int shapeIndex = shapeCandidatesView[i];
           const int tetIndex = tetIndicesView[i];
+          const auto& tet = cellsAsTets[tetIndex];
 
           // Skip degenerate mesh tets.
           if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10)) { return; }
 
           const auto poly = primal::clip<double>(geomOctsView[shapeIndex],
-                                                 cellsAsTets[tetIndex],
+                                                 tet,
                                                  EPS,
                                                  tryFixOrientation);
 
@@ -488,8 +492,11 @@ public:
     }
 
     // Insert shapes' Bounding Boxes into BVH.
-    spin::BVH<3, ExecSpace, double> bvh;
-    bvh.initialize(pieceBbsView, pieceBbsView.size());
+    spin::BVH<3, ExecSpace, double> bvh(pieceBbsView,
+                                        pieceBbsView.size(),
+                                        allocId,
+                                        EPS,
+                                        BVH_SCALE_FACTOR);
 
     SLIC_INFO(
       axom::fmt::format("{:-^80}", " Finding shape candidates for each hexahedral element labeled ON"));
@@ -581,7 +588,6 @@ public:
       cellIndices.size(),
       cellCount));
 
-    constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = false;
 
     tetCandidatesCount = NUM_TETS_PER_HEX * candidates.size();
@@ -752,8 +758,11 @@ public:
     }
 
     // Insert shapes' Bounding Boxes into BVH.
-    spin::BVH<3, ExecSpace, double> bvh;
-    bvh.initialize(pieceBbsView, pieceBbsView.size());
+    spin::BVH<3, ExecSpace, double> bvh(pieceBbsView,
+                                        pieceBbsView.size(),
+                                        allocId,
+                                        EPS,
+                                        BVH_SCALE_FACTOR);
 
     SLIC_INFO(
       axom::fmt::format("{:-^80}", " Finding shape candidates for each tetrahedral element labeled ON"));
@@ -796,7 +805,6 @@ public:
       });
 
     using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
-    constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = false;
 
     SLIC_INFO(axom::fmt::format(
@@ -900,6 +908,8 @@ public:
   }
 
 private:
+  static constexpr double EPS = 1e-10;
+  static constexpr double BVH_SCALE_FACTOR = 1.0;
   static constexpr int MAX_VERTS_FOR_TET_CLIPPING = 32;
   static constexpr int MAX_NBRS_PER_VERT_FOR_TET_CLIPPING = 8;
   static constexpr int MAX_VERTS_FOR_OCT_CLIPPING = 32;
