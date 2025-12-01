@@ -5,8 +5,8 @@
 
 #include "axom/config.hpp"
 
-#ifndef AXOM_USE_MFEM
-  #error These tests should only be included when Axom is configured with MFEM
+#if !defined(AXOM_USE_MFEM) || !defined(AXOM_USE_SIDRE)
+  #error These tests should only be included when Axom is configured with MFEM and SIDRE
 #endif
 
 #include "axom/quest/io/MFEMReader.hpp"

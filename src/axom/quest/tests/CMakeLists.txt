@@ -87,7 +87,7 @@ endif()
 # Tests that use MFEM when available
 #------------------------------------------------------------------------------
 
-if(MFEM_FOUND)
+if(MFEM_FOUND AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
     function(add_quest_mfem_test test_name)
         axom_add_executable(
             NAME       ${test_name}
