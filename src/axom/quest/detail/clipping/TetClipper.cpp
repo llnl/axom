@@ -107,6 +107,7 @@ void TetClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
   int allocId = shapeMesh.getAllocatorID();
   auto vertCount = shapeMesh.getVertexCount();
   auto cellCount = shapeMesh.getCellCount();
+  auto meshCellVolumes = shapeMesh.getCellVolumes();
 
   const auto& vertCoords = shapeMesh.getVertexCoords3D();
   const auto& vX = vertCoords[0];
@@ -148,9 +149,17 @@ void TetClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
       }
     });
 
+  constexpr double EPS = 1e-10;
+
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
+      if(axom::utilities::isNearlyEqual(meshCellVolumes[cellId], 0.0, EPS))
+      {
+        cellLabels[cellId] = LabelType::LABEL_OUT;
+        return;
+      }
+
       LabelType& cellLabel = cellLabels[cellId];
       auto cellVertIds = connView[cellId];
 
@@ -245,11 +254,13 @@ void TetClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
   */
 
   auto meshTets = shapeMesh.getCellsAsTets();
+  auto tetVolumes = shapeMesh.getTetVolumes();
 
   const axom::IndexType cellCount = cellIds.size();
 
   const auto geomHeights = m_heights;
   auto planes = m_planes;
+  constexpr double EPS = 1e-10;
 
   axom::for_all<ExecSpace>(
     cellCount,
@@ -262,6 +273,13 @@ void TetClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
       {
         const TetrahedronType& tet = tetsForCell[ti];
         LabelType& tetLabel = tetLabels[ci * NUM_TETS_PER_HEX + ti];
+        const axom::IndexType tetId = cellId * NUM_TETS_PER_HEX + ti;
+
+        if(axom::utilities::isNearlyEqual(tetVolumes[tetId], 0.0, EPS))
+        {
+          tetLabel = LabelType::LABEL_OUT;
+          continue;
+        }
 
         tetLabel = LabelType::LABEL_ON;
         bool vertsAreOnTetSideOfAllPlanes = true;
