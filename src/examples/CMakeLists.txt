@@ -163,7 +163,7 @@ if(AXOM_ENABLE_TUTORIALS AND AXOM_ENABLE_KLEE)
                   lesson_02:validated_inlet_metadata.cpp
                   lesson_02:improved_inlet_metadata.cpp
                   lesson_03:klee_operators_and_validation.cpp)
-    if(MFEM_FOUND)
+    if(LUA_FOUND AND MFEM_FOUND)
         blt_list_append(TO _examples ELEMENTS lesson_04:quest_sampling_shaper.cpp)
     endif()
 

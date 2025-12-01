@@ -206,6 +206,11 @@ public:
   /// \brief Return the number of control points implied by the knot vector
   axom::IndexType getNumControlPoints() const { return m_knots.size() - m_deg - 1; }
 
+  /// \brief Return the value of the smallest knot, or 0 if there are no knots
+  T getMinKnot() const { return (m_knots.size() > 0) ? m_knots[0] : T {}; }
+  /// \brief Return the value of the largest knot, or 0 if there are no knots
+  T getMaxKnot() const { return (m_knots.size() > 0) ? m_knots[m_knots.size() - 1] : T {}; }
+
   /// \brief Clear the list of knots
   void clear()
   {
@@ -232,14 +237,16 @@ public:
     }
 
     // Check for clamped-ness
-    auto nkts = m_knots.size();
+    const auto nkts = m_knots.size();
+    const auto minKnot = getMinKnot();
+    const auto maxKnot = getMaxKnot();
     for(int i = 0; i < m_deg + 1; ++i)
     {
-      if(m_knots[i] != m_knots[0])
+      if(m_knots[i] != minKnot)
       {
         return false;
       }
-      if(m_knots[nkts - 1 - i] != m_knots[nkts - 1])
+      if(m_knots[nkts - 1 - i] != maxKnot)
       {
         return false;
       }
@@ -303,7 +310,10 @@ public:
   ///@{
   /// \name Query/modify/access knots
 
-  /// \brief Accessor for the knot vector
+  /// \brief Accessor for the array of knots
+  axom::Array<T>& getArray() { return m_knots; }
+
+  /// \brief Const accessor for the array of knots
   const axom::Array<T>& getArray() const { return m_knots; }
 
   /*!
@@ -368,13 +378,20 @@ public:
   /// \brief Normalize the knot vector to the span of [0, 1]
   void normalize()
   {
-    T min_knot = m_knots[0];
-    T max_knot = m_knots[m_knots.size() - 1];
-    T span = max_knot - min_knot;
-
-    for(int i = 0; i < m_knots.size(); ++i)
+    const T min_knot = getMinKnot();
+    if(const T span = getMaxKnot() - min_knot; span > 0)
     {
-      m_knots[i] = (m_knots[i] - min_knot) / span;
+      for(T& knot : m_knots)
+      {
+        knot = (knot - min_knot) / span;
+      }
+    }
+    else
+    {
+      for(T& knot : m_knots)
+      {
+        knot = T {};
+      }
     }
   }
 
@@ -390,13 +407,20 @@ public:
   {
     SLIC_ASSERT(a < b);
 
-    T min_knot = m_knots[0];
-    T max_knot = m_knots[m_knots.size() - 1];
-    T span = max_knot - min_knot;
-
-    for(int i = 0; i < m_knots.size(); ++i)
+    const T min_knot = getMinKnot();
+    if(const T span = getMaxKnot() - min_knot; span > 0)
     {
-      m_knots[i] = a + (m_knots[i] - min_knot) * (b - a) / span;
+      for(T& knot : m_knots)
+      {
+        knot = axom::utilities::lerp(a, b, (knot - min_knot) / span);
+      }
+    }
+    else
+    {
+      for(T& knot : m_knots)
+      {
+        knot = a;
+      }
     }
   }
 
@@ -413,7 +437,7 @@ public:
     }
 
     // Replace each knot with sum - knot_value
-    const T the_sum = m_knots[0] + m_knots[nkts - 1];
+    const T the_sum = getMinKnot() + getMaxKnot();
     for(int i = 0; i < nkts; ++i)
     {
       m_knots[i] = the_sum - m_knots[i];
@@ -458,10 +482,11 @@ public:
     SLIC_ASSERT(isValidParameter(t));
 
     int multiplicity;
-    auto span = findSpan(t, multiplicity);
+    const auto span = findSpan(t, multiplicity);
 
     // Compute how many knots should be inserted
-    int r = axom::utilities::clampVal(target_multiplicity - multiplicity, 0, m_deg - multiplicity);
+    const int r =
+      axom::utilities::clampVal(target_multiplicity - multiplicity, 0, m_deg - multiplicity);
 
     insertKnotBySpan(span, t, r);
   }
@@ -469,14 +494,11 @@ public:
   /// \brief Checks if given parameter is in knot span (to a tolerance)
   bool isValidParameter(T t, T EPS = 1e-5) const
   {
-    return t >= m_knots[0] - EPS && t <= m_knots[m_knots.size() - 1] + EPS;
+    return (t >= getMinKnot() - EPS) && (t <= getMaxKnot() + EPS);
   }
 
   /// \brief Checks if given parameter is *interior* to knot span (to a tolerance)
-  bool isValidInteriorParameter(T t) const
-  {
-    return t > m_knots[0] && t < m_knots[m_knots.size() - 1];
-  }
+  bool isValidInteriorParameter(T t) const { return (t > getMinKnot()) && (t < getMaxKnot()); }
 
   ///@}
 
@@ -507,12 +529,12 @@ public:
 
     // Handle cases where t is outside the knot span within a tolerance
     //  by implicitly clamping it to the nearest span
-    if(t <= m_knots[0])
+    if(t <= getMinKnot())
     {
       return m_deg;
     }
 
-    if(t >= m_knots[nkts - 1])
+    if(t >= getMaxKnot())
     {
       return nkts - m_deg - 2;
     }
@@ -550,11 +572,10 @@ public:
   {
     SLIC_ASSERT(isValidParameter(t));
 
-    const auto nkts = m_knots.size();
     const auto span = findSpan(t);
 
     // Early exit for known multiplicities
-    if(t <= m_knots[0] || t >= m_knots[nkts - 1])
+    if(t <= getMinKnot() || t >= getMaxKnot())
     {
       multiplicity = m_deg + 1;
       return span;
