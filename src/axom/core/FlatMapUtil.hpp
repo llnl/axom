@@ -204,7 +204,7 @@ void gatherFilledBuckets(ArrayView<flat_map::GroupBucket> group_metadata,
       if(group_metadata[group_idx].metadata.buckets[slot_idx] > GroupBucket::Sentinel)
       {
         // Bucket contains an element.
-        IndexType dest = axom::atomicAdd<ExecSpace>(counter, 1);
+        IndexType dest = axom::atomicAdd<ExecSpace>(counter, IndexType {1});
         filled_bucket_indexes[dest] = bucket_idx;
       }
     });
