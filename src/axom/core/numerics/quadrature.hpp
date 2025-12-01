@@ -23,7 +23,7 @@ namespace numerics
 /*!
  * \class QuadratureRule
  *
- * \brief Stores a fixed array of 1D quadrature points and weights
+ * \brief Stores fixed views to arrays of 1D quadrature points and weights
  */
 class QuadratureRule
 {

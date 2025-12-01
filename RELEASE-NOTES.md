@@ -21,7 +21,12 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ### Added
 - Adds the `AXOM_ENABLE_TUTORIALS` configuration variable (`ON` by default)
 - Adds a tutorial on shaping in Axom and associated infrastructure in `quest`, `klee`, `inlet` and `sidre`.
-- Added iterators and Attribute class to the Python interface for sidre.
+- Sina: User can control curve ordering in Sina output file `setDefaultCurveOrder()` 
+- Sina: `appendDocument()` will create the document if not present or append if document exists.
+  It can also auto detects the protocol based on file's name, removing the need to call 
+  the append function that matches your protocol.
+- Adds Sina fortran functions `sina_set_curves_order` and `sina_set_record_curves_order`
+- Sidre: Added iterators and Attribute class to the Python interface.
 
 ###  Changed
 - Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
@@ -34,7 +39,16 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - The maximum number of vertices allowed in polygon primitives can now be passed as a template
   argument to `axom::bump::TopologyMapper`, `axom::bump::PrimalAdaptor`, and
   `axom::mir::ElviraAlgorithm`.
+- `saveDocument()` now has a `AUTODETECT` protocol for the file type
+- Sina fortran can now handle multiple records rather than a single record per application
+- Most Sina Fortran call can now pass the record for which the call is desired (`sina_add`, `sina_add_file`, `sina_add_curveset`, `sina_add_curve`)
+- Sina fortran `create_document_and_record` is now `sina_create_record`
+- Sina fortran `sina_write_document` now accepts a third argument that preserves records in memory so they can be written to another file (otherwise they're released from memory as soon as they're written)
+- Primal: In Bezier and NURBS classes, accessors for arrays of control points, weights and knots 
+  are now returned by (const) reference instead of returning a copy by value.
+
 ###  Fixed
+- Sina's Fortran tests are now running (instead of silently failing)
 
 ###  Deprecated
 

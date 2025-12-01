@@ -221,6 +221,9 @@ public:
   /// Returns the order of the Bezier Curve
   int getOrder() const { return static_cast<int>(m_controlPoints.size()) - 1; }
 
+  /// Returns the number of control points of the Bezier Curve
+  int getNumControlPoints() const { return static_cast<int>(m_controlPoints.size()); }
+
   /// Clears the list of control points, make nonrational
   void clear()
   {
@@ -256,8 +259,14 @@ public:
   /// Retrieves the control point at index \a idx
   const PointType& operator[](int idx) const { return m_controlPoints[idx]; }
 
-  /// Returns a copy of the Bezier curve's control points
-  CoordsVec getControlPoints() const { return m_controlPoints; }
+  const PointType& getInitPoint() const { return m_controlPoints[0]; }
+  const PointType& getEndPoint() const { return m_controlPoints[m_controlPoints.size() - 1]; }
+
+  /// Returns a reference to the Bezier curve's control points
+  CoordsVec& getControlPoints() { return m_controlPoints; }
+
+  /// Returns a const reference to the Bezier curve's control points
+  const CoordsVec& getControlPoints() const { return m_controlPoints; }
 
   /*!
    * \brief Get a specific weight
@@ -287,8 +296,11 @@ public:
     m_weights[idx] = weight;
   };
 
-  /// Returns a copy of the Bezier curve's weights
-  WeightsVec getWeights() const { return m_weights; }
+  /// Returns a reference of the Bezier curve's weights
+  WeightsVec& getWeights() { return m_weights; }
+
+  /// Returns a const reference of the Bezier curve's weights
+  const WeightsVec& getWeights() const { return m_weights; }
 
   /// Returns an axis-aligned bounding box containing the Bezier curve
   BoundingBoxType boundingBox() const
