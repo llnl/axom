@@ -78,6 +78,96 @@ inline IndexType getViewShapeImpl<2>(int dim, const View* view)
   return static_cast<axom::IndexType>(dims[dim]);
 }
 
+/*!
+ * \class SidreStoragePolicy
+ *
+ * \brief Storage policy for sidre::Array.
+ *  Uses Sidre to manage buffers.
+ */
+template <typename T>
+struct SidreStoragePolicy
+{
+  /*!
+   * \brief Callback to report changes in shape/size of valid data in Array.
+   *
+   * \param [in] shape the current dimensions of the array
+   * \param [in] size the current number of elements stored in the array
+   */
+  template <int Dims>
+  void onSizeUpdate(StackArray<IndexType, Dims> shape, IndexType size)
+  {
+    if(m_view != nullptr)
+    {
+      describeViewImpl(sidreTypeId(), shape, m_view);
+    }
+  }
+
+  /*!
+   * \brief Reallocates a buffer.
+   *
+   * \param [in] old_data pointer to the old buffer
+   * \param [in] size the number of elements stored in the array
+   * \param [in] allocator_id the allocator ID to use
+   * \param [in] new_capacity the capacity to allocate
+   * \param [in] nontrivial_move a callback to move elements that aren't
+   *  trivially copyable
+   *
+   * \return a pointer to the new buffer with moved elements
+   */
+  template <typename Func>
+  T* reallocate(T* old_data,
+                int AXOM_UNUSED_PARAM(size),
+                int AXOM_UNUSED_PARAM(allocator_id),
+                int new_capacity,
+                Func&& AXOM_UNUSED_PARAM(nontrivial_move))
+  {
+    if(m_view->isEmpty())
+    {
+      constexpr sidre::TypeID T_type = sidreTypeId();
+      m_view->allocate(T_type, new_capacity);
+    }
+    else
+    {
+      m_view->reallocate(new_capacity);
+    }
+    return static_cast<T*>(m_view->getVoidPtr());
+  }
+
+  /*!
+   * \brief Deallocator callback. Unused since Sidre manages the underlying memory.
+   */
+  void deallocate(T* AXOM_UNUSED_PARAM(data)) { }
+
+  /*!
+   * \brief Return the TypeID corresponding to T.
+   */
+  static constexpr TypeID sidreTypeId()
+  {
+    if constexpr(std::is_enum_v<T>)
+    {
+      return detail::SidreTT<typename std::underlying_type_t<T>>::id;
+    }
+    else
+    {
+      return detail::SidreTT<T>::id;
+    }
+  }
+
+  /// \brief Sets the underlying Sidre view.
+  void setView(View* view) { m_view = view; }
+
+  /*!
+   * \brief Return the underlying Sidre view.
+   */
+  /// @{
+  View* getView() { return m_view; }
+  const View* getView() const { return m_view; }
+  /// @}
+
+private:
+  View* m_view;
+};
+
 }  // namespace detail
 
 /*!
