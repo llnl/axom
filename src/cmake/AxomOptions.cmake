@@ -22,7 +22,7 @@ endif()
 
 option(AXOM_ENABLE_SPARSEHASH "Enables Sparsehash." ON)
 option(AXOM_ENABLE_ALL_COMPONENTS "Enables all components by default" ON)
-option(AXOM_USE_64BIT_INDEXTYPE "Use 64-bit integers for axom::IndexType" OFF)
+option(AXOM_USE_64BIT_INDEXTYPE "Use 64-bit integers for axom::IndexType" ON)
 option(AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION "Enable Axom's version of the MFEM SidreDataCollection" ON)
 
 if(NOT CMAKE_CONFIGURATION_TYPES)
@@ -43,6 +43,9 @@ cmake_dependent_option(AXOM_ENABLE_PYTHON_TESTS "Enables Axom Python Tests" ON "
 cmake_dependent_option(AXOM_ENABLE_DOCS "Enables Axom Docs" ON "ENABLE_DOCS" OFF)
 cmake_dependent_option(AXOM_ENABLE_EXAMPLES "Enables Axom Examples" ON "ENABLE_EXAMPLES" OFF)
 option(AXOM_ENABLE_TOOLS "Enables Axom Tools" ON)
+
+option(AXOM_ENABLE_TUTORIALS "Builds Axom tutorials as part of the Axom build" ON)
+mark_as_advanced(AXOM_ENABLE_TUTORIALS)
 
 #--------------------------------------------------------------------------
 # Option to control whether AXOM_DEFINE compiler define is enabled

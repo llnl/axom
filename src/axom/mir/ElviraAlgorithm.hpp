@@ -64,6 +64,8 @@ namespace mir
  * \tparam IndexPolicy The structured mesh indexing policy.
  * \tparam CoordsetView The view type that describes the coordinates.
  * \tparam MatsetView The view type that describes matset.
+ * \tparam MAX_VERTS_2D The maximum number of vertices allowed in a polygon. This
+ *                      value is used only in 2D.
  *
  * \note We template on IndexPolicy instead of TopologyView so we can enforce a
  *       StructuredTopologyView on the algorithm. This is done because ELVIRA
@@ -75,7 +77,7 @@ namespace mir
  *       input coordset, topology, and matset will be copied to the output. In
  *       that case, the types will depend on the input types.
  */
-template <typename ExecSpace, typename IndexPolicy, typename CoordsetView, typename MatsetView>
+template <typename ExecSpace, typename IndexPolicy, typename CoordsetView, typename MatsetView, int MAX_VERTS_2D = 12>
 class ElviraAlgorithm : public axom::mir::MIRAlgorithm
 {
 public:
@@ -90,16 +92,16 @@ protected:
   // Determine the output type from the clip operations. Those are the shape
   // types that we're emitting into the MIR output. Create the builder.
   using CoordType = typename CoordsetView::value_type;
-  using ClipResultType =
-    typename std::conditional<NDIMS == 2,
-                              axom::primal::Polygon<CoordType, 2, axom::primal::PolygonArray::Static>,
-                              axom::primal::Polyhedron<CoordType, 3>>::type;
+  using ClipResultType = typename std::conditional<
+    NDIMS == 2,
+    axom::primal::Polygon<CoordType, 2, axom::primal::PolygonArray::Static, MAX_VERTS_2D>,
+    axom::primal::Polyhedron<CoordType, 3>>::type;
 
   using VectorType = axom::primal::Vector<CoordType, NDIMS>;
   using PointType = axom::primal::Point<CoordType, NDIMS>;
   using PlaneType = axom::primal::Plane<CoordType, NDIMS>;
 
-  using ShapeView = axom::bump::PrimalAdaptor<TopologyView, CoordsetView>;
+  using ShapeView = axom::bump::PrimalAdaptor<TopologyView, CoordsetView, MAX_VERTS_2D>;
   using Builder =
     detail::TopologyBuilder<ExecSpace, CoordsetView, TopologyView, MatsetView, ClipResultType, NDIMS>;
   using BuilderView = typename Builder::View;
@@ -261,18 +263,52 @@ protected:
     }
     else if(cleanZones.size() > 0 && mixedZones.size() == 0)
     {
-      // There were no mixed zones. We can copy the input to the output.
+      // There were no mixed zones.
+
+      if(!n_options_copy.has_path(selectedZones.selectionKey()))
       {
+        // We can copy the input to the output (no selected zones).
         AXOM_ANNOTATE_SCOPE("copy");
         utils::copy<ExecSpace>(n_newCoordset, n_coordset);
         utils::copy<ExecSpace>(n_newTopo, n_topo);
         utils::copy<ExecSpace>(n_newFields, n_fields);
         utils::copy<ExecSpace>(n_newMatset, n_matset);
-      }
 
-      // Add an originalElements array.
-      const std::string originalElementsField(ELVIRAOptions(n_options).originalElementsField());
-      addOriginal(n_newFields[originalElementsField], n_topo.name(), "element", cleanZones);
+        // Add an originalElements array.
+        const std::string originalElementsField(ELVIRAOptions(n_options).originalElementsField());
+        addOriginal(n_newFields[originalElementsField], n_newTopo.name(), "element", cleanZones);
+      }
+      else
+      {
+        // Make the clean mesh of only the selected zones
+
+        conduit::Node n_root;
+        n_root[localPath(n_coordset)].set_external(n_coordset);
+        n_root[localPath(n_topo)].set_external(n_topo);
+        n_root[localPath(n_matset)].set_external(n_matset);
+        conduit::Node &n_root_coordset = n_root[localPath(n_coordset)];
+        conduit::Node &n_root_topo = n_root[localPath(n_topo)];
+        conduit::Node &n_root_matset = n_root[localPath(n_matset)];
+        conduit::Node n_root_fields = n_root["fields"];
+
+        conduit::Node n_cleanOutput;
+        makeCleanZones(cleanZones.view(),
+                       n_root,
+                       n_root_topo,
+                       n_root_coordset,
+                       n_root_matset,
+                       n_options_copy,
+                       n_cleanOutput);
+
+        // Move n_cleanOutput objects into the supplied nodes.
+        n_newCoordset.move(n_cleanOutput[localPath(n_newCoordset)]);
+        n_newTopo.move(n_cleanOutput[localPath(n_newTopo)]);
+        n_newMatset.move(n_cleanOutput[localPath(n_newMatset)]);
+        if(n_cleanOutput.has_path("fields"))
+        {
+          n_newFields.move(n_cleanOutput["fields"]);
+        }
+      }
     }
   }
 

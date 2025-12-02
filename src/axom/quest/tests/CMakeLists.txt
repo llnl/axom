@@ -87,7 +87,7 @@ endif()
 # Tests that use MFEM when available
 #------------------------------------------------------------------------------
 
-if(MFEM_FOUND)
+if(MFEM_FOUND AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
     function(add_quest_mfem_test test_name)
         axom_add_executable(
             NAME       ${test_name}
@@ -228,6 +228,54 @@ if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
         COMMAND quest_sampling_shaper_test
         NUM_MPI_TASKS 1
     )
+
+endif()
+
+#------------------------------------------------------------------------------
+# Geometry clipping tests require Conduit and RAJA
+#------------------------------------------------------------------------------
+if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
+    axom_add_executable(
+        NAME        quest_mesh_clipper_test
+        SOURCES     quest_mesh_clipper.cpp
+        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_tests_depends}
+        FOLDER      axom/quest/tests
+        )
+
+    # 3D shaping tests.  No 2D shaping in this feature, at least for now.
+    set(_nranks 1)
+
+    # Run the geometry clipping test on with each enabled policy
+    set(_policies "seq")
+    if(RAJA_FOUND)
+      blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
+      blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
+      blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
+    endif()
+
+    set(_testgeoms "tet" )
+    set(_meshTypes "bpSidre" "bpConduit")
+    foreach(_meshType ${_meshTypes})
+      foreach(_policy ${_policies})
+        foreach(_testgeom ${_testgeoms})
+          set(_testname "quest_mesh_clipper_${_meshType}_${_policy}_${_testgeom}")
+          axom_add_test(
+            NAME ${_testname}
+            COMMAND quest_mesh_clipper_test
+            --policy ${_policy}
+            --verbose
+            --testGeom ${_testgeom}
+            -o ${_testname}
+            --refinements 5
+            --scale .99 .99 .99
+            --dir 8 4 2
+            --meshType ${_meshType}
+            inline_mesh --min -2 -2 -2 --max 2 2 2 --res 16 16 16
+            NUM_MPI_TASKS ${_nranks})
+        endforeach()
+      endforeach()
+    endforeach()
 
 endif()
 

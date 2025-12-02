@@ -52,10 +52,12 @@ public:
     */
   enum class CurveOrder
   {
-    REGISTRATION_OLDEST_FIRST,
-    REGISTRATION_NEWEST_FIRST,
-    ALPHABETIC,
-    REVERSE_ALPHABETIC
+    REGISTRATION_OLDEST_FIRST = 0,
+    REGISTRATION_NEWEST_FIRST = 1,
+    ALPHABETIC = 2,
+    REVERSE_ALPHABETIC = 3,
+    ALPHABETICAL = 2,
+    REVERSE_ALPHABETICAL = 3
   };
 
   /**
@@ -162,6 +164,7 @@ public:
     *
      * \return the Node representation of this CurveSet
      */
+  conduit::Node toNode() const;  // Use default order
   conduit::Node toNode(CurveOrder curveOrder) const;
 
 private:
@@ -171,6 +174,15 @@ private:
   std::vector<std::string> orderedIndependentCurveNames;
   std::vector<std::string> orderedDependentCurveNames;
 };
+
+extern CurveSet::CurveOrder sinaDefaultCurveOrder;
+
+/**
+ * \brief Set the default curve order for all CurveSets.
+ * 
+ * \param order The curve order to use as the default
+ */
+void setDefaultCurveOrder(CurveSet::CurveOrder order);
 
 }  // namespace sina
 }  // namespace axom
