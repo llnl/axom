@@ -88,13 +88,12 @@ template <typename T>
 struct SidreStoragePolicy
 {
   /*!
-   * \brief Callback to report changes in shape/size of valid data in Array.
+   * \brief Callback to report changes in shape of data in Array.
    *
    * \param [in] shape the current dimensions of the array
-   * \param [in] size the current number of elements stored in the array
    */
   template <int Dims>
-  void onSizeUpdate(StackArray<IndexType, Dims> shape, IndexType size)
+  void onShapeUpdate(StackArray<IndexType, Dims> shape)
   {
     if(m_view != nullptr)
     {
