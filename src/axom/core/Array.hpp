@@ -954,12 +954,10 @@ protected:
   /*!
    * \brief Make space for a subsequent insertion into the array.
    *
-   * \param [in] n the number of elements to insert.
-   *
    * \note This version supports concurrent GPU insertions.
-   * \note Reallocation is not supported.
+   * \note Reallocation is not supported on the GPU.
    */
-  AXOM_DEVICE IndexType reserveForDeviceInsert(IndexType n);
+  AXOM_HOST_DEVICE IndexType reserveForPushBack();
 
   /*!
    * \brief Update the number of elements.
@@ -1521,7 +1519,8 @@ template <typename... Args>
 inline void Array<T, DIM, SPACE>::emplace_back(Args&&... args)
 {
   static_assert(DIM == 1, "emplace_back is only supported for 1D arrays");
-  emplace(size(), std::forward<Args>(args)...);
+  IndexType insertIndex = reserveForPushBack();
+  m_arrayOps.emplace(m_data, insertIndex, std::forward<Args>(args)...);
 }
 
 //------------------------------------------------------------------------------
@@ -1530,12 +1529,12 @@ template <typename... Args>
 AXOM_HOST_DEVICE inline void Array<T, DIM, SPACE>::emplace_back_device(Args&&... args)
 {
   static_assert(DIM == 1, "emplace_back is only supported for 1D arrays");
+  IndexType insertIndex = reserveForPushBack();
 #ifdef AXOM_DEVICE_CODE
-  IndexType insertIndex = reserveForDeviceInsert(1);
   // Construct in-place in uninitialized memory.
   new(m_data + insertIndex) T(std::forward<Args>(args)...);
 #else
-  emplace(size(), std::forward<Args>(args)...);
+  m_arrayOps.emplace(m_data, insertIndex, std::forward<Args>(args)...);
 #endif
 }
 
@@ -1679,18 +1678,21 @@ inline T* Array<T, DIM, SPACE>::reserveForInsert(IndexType n, IndexType pos)
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM, MemorySpace SPACE>
-AXOM_DEVICE inline IndexType Array<T, DIM, SPACE>::reserveForDeviceInsert(IndexType n)
+AXOM_HOST_DEVICE inline IndexType Array<T, DIM, SPACE>::reserveForPushBack()
 {
 #ifndef AXOM_DEVICE_CODE
-  // Host path: should never be called.
-  AXOM_UNUSED_VAR(n);
-  assert(false);
-  return {};
+  if (m_num_elements >= m_capacity)
+  {
+    dynamicRealloc(m_num_elements + 1);
+  }
+  IndexType end = m_num_elements;
+  updateNumElements(m_num_elements + 1);
+  return end;
 #else
   // Device path: supports insertion while m_num_elements < m_capacity
   // Does not support insertions which require reallocating the underlying
   // buffer.
-  IndexType new_pos = axom::atomicAdd<axom::auto_atomic>(&m_num_elements, n);
+  IndexType new_pos = axom::atomicAdd<axom::auto_atomic>(&m_num_elements, 1);
   if(new_pos >= m_capacity)
   {
   #ifdef AXOM_DEBUG
