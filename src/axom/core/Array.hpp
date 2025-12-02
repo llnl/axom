@@ -408,7 +408,7 @@ public:
   /*!
    * Destructor. Frees the associated buffer.
    */
-  virtual ~Array();
+  ~Array();
 
   /// \name Array element access operators
   /// @{
@@ -1019,14 +1019,14 @@ protected:
    *
    * \param [in] new_num_elements the new number of elements.
    */
-  virtual void updateNumElements(IndexType new_num_elements);
+  void updateNumElements(IndexType new_num_elements);
 
   /*!
    * \brief Set the number of elements allocated for the data array.
    *
    * \param [in] capacity the new number of elements to allocate.
    */
-  virtual void setCapacity(IndexType new_capacity);
+  void setCapacity(IndexType new_capacity);
 
   /*!
    * \brief Reallocates the data array when the size exceeds the capacity.
@@ -1034,7 +1034,7 @@ protected:
    * \param [in] new_num_elements the number of elements which exceeds the
    *  current capacity.
    */
-  virtual void dynamicRealloc(IndexType new_num_elements);
+  void dynamicRealloc(IndexType new_num_elements);
 
   T* m_data = nullptr;
   /// \brief The full number of elements in the array
