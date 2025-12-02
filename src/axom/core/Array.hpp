@@ -43,6 +43,62 @@ struct ArrayTraits<Array<T, DIM, SPACE>>
   constexpr static bool is_view = false;
 };
 
+/*!
+ * \class DefaultStoragePolicy
+ *
+ * \brief Default storage policy for axom::Array.
+ *  Uses Umpire to reallocate buffers.
+ */
+template <typename T>
+struct DefaultStoragePolicy
+{
+  /*!
+   * \brief Callback to report changes in shape/size of valid data in Array.
+   *
+   * \param [in] shape the current dimensions of the array
+   * \param [in] size the current number of elements stored in the array
+   */
+  template <int Dims>
+  void onSizeUpdate(StackArray<IndexType, Dims> shape, IndexType size)
+  { }
+
+  /*!
+   * \brief Reallocates a buffer.
+   *
+   * \param [in] old_data pointer to the old buffer
+   * \param [in] size the number of elements stored in the array
+   * \param [in] allocator_id the allocator ID to use
+   * \param [in] new_capacity the capacity to allocate
+   * \param [in] nontrivial_move a callback to move elements that aren't
+   *  trivially copyable
+   *
+   * \return a pointer to the new buffer with moved elements
+   */
+  template <typename Func>
+  T* reallocate(T* old_data, int size, int allocator_id, int new_capacity, Func&& nontrivial_move)
+  {
+    // Create a new block of memory, and move the elements over.
+    T* new_data = axom::allocate<T>(new_capacity, allocator_id);
+    nontrivial_move(new_data, size, old_data);
+
+    // Destroy the original array.
+    axom::deallocate(old_data);
+
+    return new_data;
+  }
+
+  /*!
+   * \brief Frees a buffer.
+   */
+  void deallocate(T* data)
+  {
+    if(data != nullptr)
+    {
+      axom::deallocate(data);
+    }
+  }
+};
+
 }  // namespace detail
 
 /*!
@@ -96,7 +152,7 @@ struct ArrayTraits<Array<T, DIM, SPACE>>
  *
  */
 template <typename T, int DIM = 1, MemorySpace SPACE = MemorySpace::Dynamic>
-class Array : public ArrayBase<T, DIM, Array<T, DIM, SPACE>>
+class Array : public ArrayBase<T, DIM, Array<T, DIM, SPACE>>, detail::DefaultStoragePolicy
 {
 public:
   static constexpr double DEFAULT_RESIZE_RATIO = 2.0;
@@ -111,6 +167,7 @@ public:
 
 private:
   using OpHelper = detail::ArrayOps<T, SPACE>;
+  using StoragePolicy = detail::DefaultStoragePolicy;
 
 public:
   /// \name Native Storage Array Constructors
@@ -311,10 +368,7 @@ public:
     if(this != &other)
     {
       this->clear();
-      if(m_data != nullptr)
-      {
-        axom::deallocate(m_data);
-      }
+      StoragePolicy::deallocate(m_data);
       static_cast<ArrayBase<T, DIM, Array<T, DIM, SPACE>>&>(*this) = std::move(other);
 
       m_data = other.m_data;
@@ -1257,10 +1311,7 @@ template <typename T, int DIM, MemorySpace SPACE>
 Array<T, DIM, SPACE>::~Array()
 {
   clear();
-  if(m_data != nullptr)
-  {
-    axom::deallocate(m_data);
-  }
+  StoragePolicy::deallocate(m_data);
 
   m_data = nullptr;
 }
@@ -1718,6 +1769,8 @@ inline void Array<T, DIM, SPACE>::updateNumElements(IndexType new_num_elements)
   assert(new_num_elements <= m_capacity);
 
   m_num_elements = new_num_elements;
+  // Needed for Sidre array
+  StoragePolicy::onSizeUpdate(this->shape(), m_num_elements);
 }
 
 //------------------------------------------------------------------------------
@@ -1732,17 +1785,24 @@ inline void Array<T, DIM, SPACE>::setCapacity(IndexType new_capacity)
     // when the array is being shrunk
     updateNumElements(new_capacity);
   }
+  T* new_data = StoragePolicy::reallocate(
+    m_data,
+    m_num_elements,
+    m_allocator_id,
+    new_capacity,
+    [this](T* new_data, IndexType size, T* old_data) {
+      // Call helper method to move underlying elements if T is non-trivial.
+      m_arrayOps.realloc_move(new_data, size, old_data);
+    });
 
-  // Create a new block of memory, and move the elements over.
-  T* new_data = axom::allocate<T>(new_capacity, m_allocator_id);
-  m_arrayOps.realloc_move(new_data, m_num_elements, m_data);
+  if(new_data)
+  {
+    this->m_data = new_data;
+    this->m_capacity = new_capacity;
+  }
 
-  // Destroy the original array.
-  axom::deallocate(m_data);
-
-  // Set the pointer and capacity to the new memory.
-  m_data = new_data;
-  m_capacity = new_capacity;
+  // Needed for Sidre array
+  StoragePolicy::onSizeUpdate(this->shape(), m_num_elements);
 
   assert(m_data != nullptr || m_capacity <= 0);
 }
