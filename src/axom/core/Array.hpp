@@ -296,11 +296,7 @@ public:
       {
         srcSpace = axom::detail::getAllocatorSpace(other.m_allocator_id);
       }
-      OpHelper {m_allocator_id, m_executeOnGPU}.fill_range(m_data,
-                                                           0,
-                                                           other.size(),
-                                                           other.data(),
-                                                           srcSpace);
+      m_arrayOps.fill_range(m_data, 0, other.size(), other.data(), srcSpace);
       updateNumElements(other.size());
     }
 
@@ -1170,7 +1166,7 @@ AXOM_HOST_DEVICE Array<T, DIM, SPACE>::Array(const Array& other)
   {
     srcSpace = axom::detail::getAllocatorSpace(other.m_allocator_id);
   }
-  OpHelper {m_allocator_id, m_executeOnGPU}.fill_range(m_data, 0, other.size(), other.data(), srcSpace);
+  m_arrayOps.fill_range(m_data, 0, other.size(), other.data(), srcSpace);
   this->updateNumElements(other.size());
 #endif
 }
@@ -1275,8 +1271,8 @@ Array<T, DIM, SPACE>::~Array()
 template <typename T, int DIM, MemorySpace SPACE>
 inline void Array<T, DIM, SPACE>::fill(const T& value)
 {
-  OpHelper {m_allocator_id, m_executeOnGPU}.destroy(m_data, 0, m_num_elements);
-  OpHelper {m_allocator_id, m_executeOnGPU}.fill(m_data, 0, m_num_elements, value);
+  m_arrayOps.destroy(m_data, 0, m_num_elements);
+  m_arrayOps.fill(m_data, 0, m_num_elements, value);
 }
 
 //------------------------------------------------------------------------------
@@ -1286,8 +1282,8 @@ inline void Array<T, DIM, SPACE>::fill(const T& value, IndexType n, IndexType po
   assert(pos >= 0);
   assert(pos + n <= m_num_elements);
 
-  OpHelper {m_allocator_id, m_executeOnGPU}.destroy(m_data, pos, n);
-  OpHelper {m_allocator_id, m_executeOnGPU}.fill(m_data, pos, n, value);
+  m_arrayOps.destroy(m_data, pos, n);
+  m_arrayOps.fill(m_data, pos, n, value);
 }
 
 //------------------------------------------------------------------------------
@@ -1298,8 +1294,8 @@ inline void Array<T, DIM, SPACE>::set(const T* elements, IndexType n, IndexType 
   assert(pos >= 0);
   assert(pos + n <= m_num_elements);
 
-  OpHelper {m_allocator_id, m_executeOnGPU}.destroy(m_data, pos, n);
-  OpHelper {m_allocator_id, m_executeOnGPU}.fill_range(m_data, pos, n, elements, MemorySpace::Dynamic);
+  m_arrayOps.destroy(m_data, pos, n);
+  m_arrayOps.fill_range(m_data, pos, n, elements, MemorySpace::Dynamic);
 }
 
 //------------------------------------------------------------------------------
@@ -1308,8 +1304,8 @@ inline void Array<T, DIM, SPACE>::assign(axom::IndexType count, const T& value)
 {
   assert(count >= 0);
   resize(count, value);
-  OpHelper {m_allocator_id, m_executeOnGPU}.destroy(m_data, 0, count);
-  OpHelper {m_allocator_id, m_executeOnGPU}.fill(m_data, 0, count, value);
+  m_arrayOps.destroy(m_data, 0, count);
+  m_arrayOps.fill(m_data, 0, count, value);
 }
 
 //------------------------------------------------------------------------------
@@ -1330,12 +1326,8 @@ template <typename T, int DIM, MemorySpace SPACE>
 inline void Array<T, DIM, SPACE>::assign(std::initializer_list<T> elems)
 {
   resize(elems.size());
-  OpHelper {m_allocator_id, m_executeOnGPU}.destroy(m_data, 0, elems.size());
-  OpHelper {m_allocator_id, m_executeOnGPU}.fill_range(m_data,
-                                                       0,
-                                                       elems.size(),
-                                                       elems.begin(),
-                                                       MemorySpace::Dynamic);
+  m_arrayOps.destroy(m_data, 0, elems.size());
+  m_arrayOps.fill_range(m_data, 0, elems.size(), elems.begin(), MemorySpace::Dynamic);
 }
 
 //------------------------------------------------------------------------------
@@ -1344,7 +1336,7 @@ inline void Array<T, DIM, SPACE>::clear()
 {
   if(m_num_elements > 0)
   {
-    OpHelper {m_allocator_id, m_executeOnGPU}.destroy(m_data, 0, m_num_elements);
+    m_arrayOps.destroy(m_data, 0, m_num_elements);
 
     updateNumElements(0);
   }
@@ -1357,7 +1349,7 @@ inline void Array<T, DIM, SPACE>::insert(IndexType pos, const T& value)
   static_assert(DIM == 1, "Insertion not supported for multidimensional Arrays");
   reserveForInsert(1, pos);
 
-  OpHelper {m_allocator_id, m_executeOnGPU}.emplace(m_data, pos, value);
+  m_arrayOps.emplace(m_data, pos, value);
 }
 
 //------------------------------------------------------------------------------
@@ -1378,7 +1370,7 @@ inline void Array<T, DIM, SPACE>::insert(IndexType pos, IndexType n, const T* va
 {
   assert(values != nullptr);
   reserveForInsert(n, pos);
-  OpHelper {m_allocator_id, m_executeOnGPU}.fill_range(m_data, pos, n, values, MemorySpace::Dynamic);
+  m_arrayOps.fill_range(m_data, pos, n, values, MemorySpace::Dynamic);
 }
 
 //------------------------------------------------------------------------------
@@ -1398,7 +1390,7 @@ inline void Array<T, DIM, SPACE>::insert(IndexType pos, IndexType n, const T& va
 {
   static_assert(DIM == 1, "Insertion not supported for multidimensional Arrays");
   reserveForInsert(n, pos);
-  OpHelper {m_allocator_id, m_executeOnGPU}.fill(m_data, pos, n, value);
+  m_arrayOps.fill(m_data, pos, n, value);
 }
 
 //------------------------------------------------------------------------------
@@ -1433,8 +1425,8 @@ inline typename Array<T, DIM, SPACE>::ArrayIterator Array<T, DIM, SPACE>::erase(
   IndexType posIdx = pos - begin();
 
   // Destroy element at posIdx and shift elements over by 1
-  OpHelper {m_allocator_id, m_executeOnGPU}.destroy(m_data, posIdx, 1);
-  OpHelper {m_allocator_id, m_executeOnGPU}.move(m_data, posIdx + 1, m_num_elements, posIdx);
+  m_arrayOps.destroy(m_data, posIdx, 1);
+  m_arrayOps.move(m_data, posIdx + 1, m_num_elements, posIdx);
   updateNumElements(m_num_elements - 1);
 
   return ArrayIterator(posIdx, this);
@@ -1459,10 +1451,10 @@ inline typename Array<T, DIM, SPACE>::ArrayIterator Array<T, DIM, SPACE>::erase(
   IndexType firstIdx = first - begin();
   IndexType lastIdx = last - begin();
   IndexType nelems = last - first;
-  OpHelper {m_allocator_id, m_executeOnGPU}.destroy(m_data, firstIdx, nelems);
+  m_arrayOps.destroy(m_data, firstIdx, nelems);
 
   // Shift [last, end) elements over
-  OpHelper {m_allocator_id, m_executeOnGPU}.move(m_data, lastIdx, m_num_elements, firstIdx);
+  m_arrayOps.move(m_data, lastIdx, m_num_elements, firstIdx);
 
   IndexType count = lastIdx - firstIdx;
   updateNumElements(m_num_elements - count);
@@ -1475,7 +1467,7 @@ template <typename... Args>
 inline void Array<T, DIM, SPACE>::emplace(IndexType pos, Args&&... args)
 {
   reserveForInsert(1, pos);
-  OpHelper {m_allocator_id, m_executeOnGPU}.emplace(m_data, pos, std::forward<Args>(args)...);
+  m_arrayOps.emplace(m_data, pos, std::forward<Args>(args)...);
 }
 
 //------------------------------------------------------------------------------
@@ -1571,25 +1563,18 @@ inline void Array<T, DIM, SPACE>::resizeImpl(const StackArray<IndexType, DIM>& d
     if(value)
     {
       // Copy-construct new elements with value
-      OpHelper {m_allocator_id, m_executeOnGPU}.fill(m_data,
-                                                     prev_num_elements,
-                                                     new_num_elements - prev_num_elements,
-                                                     *value);
+      m_arrayOps.fill(m_data, prev_num_elements, new_num_elements - prev_num_elements, *value);
     }
     else
     {
       // Default-initialize the new elements
-      OpHelper {m_allocator_id, m_executeOnGPU}.init(m_data,
-                                                     prev_num_elements,
-                                                     new_num_elements - prev_num_elements);
+      m_arrayOps.init(m_data, prev_num_elements, new_num_elements - prev_num_elements);
     }
   }
   else if(prev_num_elements > new_num_elements)
   {
     // Destroy any elements above new_num_elements
-    OpHelper {m_allocator_id, m_executeOnGPU}.destroy(m_data,
-                                                      new_num_elements,
-                                                      prev_num_elements - new_num_elements);
+    m_arrayOps.destroy(m_data, new_num_elements, prev_num_elements - new_num_elements);
   }
 
   updateNumElements(new_num_elements);
@@ -1628,7 +1613,7 @@ inline void Array<T, DIM, SPACE>::initialize(IndexType num_elements,
   setCapacity(capacity);
   if(default_construct)
   {
-    OpHelper {m_allocator_id, m_executeOnGPU}.init(m_data, 0, num_elements);
+    m_arrayOps.init(m_data, 0, num_elements);
   }
   updateNumElements(num_elements);
 
@@ -1663,11 +1648,7 @@ inline void Array<T, DIM, SPACE>::initialize_from_other(const T* other_data,
   this->setCapacity(num_elements);
   // Use fill_range to ensure that copy constructors are invoked for each
   // element.
-  OpHelper {m_allocator_id, m_executeOnGPU}.fill_range(m_data,
-                                                       0,
-                                                       num_elements,
-                                                       other_data,
-                                                       other_data_space);
+  m_arrayOps.fill_range(m_data, 0, num_elements, other_data, other_data_space);
   this->updateNumElements(num_elements);
 }
 
@@ -1690,7 +1671,7 @@ inline T* Array<T, DIM, SPACE>::reserveForInsert(IndexType n, IndexType pos)
     dynamicRealloc(new_size);
   }
 
-  OpHelper {m_allocator_id, m_executeOnGPU}.move(m_data, pos, m_num_elements, pos + n);
+  m_arrayOps.move(m_data, pos, m_num_elements, pos + n);
 
   updateNumElements(new_size);
   return m_data + pos;
@@ -1752,7 +1733,7 @@ inline void Array<T, DIM, SPACE>::setCapacity(IndexType new_capacity)
 
   // Create a new block of memory, and move the elements over.
   T* new_data = axom::allocate<T>(new_capacity, m_allocator_id);
-  OpHelper {m_allocator_id, m_executeOnGPU}.realloc_move(new_data, m_num_elements, m_data);
+  m_arrayOps.realloc_move(new_data, m_num_elements, m_data);
 
   // Destroy the original array.
   axom::deallocate(m_data);
