@@ -254,24 +254,22 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MPI)
       blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
     endif()
 
-    set(_testgeoms "tet" )
-    set(_meshTypes "bpSidre" "bpConduit")
-    foreach(_meshType ${_meshTypes})
+    foreach(_meshType "bpSidre" "bpConduit")
       foreach(_policy ${_policies})
-        foreach(_testgeom ${_testgeoms})
+        foreach(_testgeom "tet")
           set(_testname "quest_mesh_clipper_${_meshType}_${_policy}_${_testgeom}")
           axom_add_test(
             NAME ${_testname}
             COMMAND quest_mesh_clipper_test
-            --policy ${_policy}
-            --verbose
-            --testGeom ${_testgeom}
-            -o ${_testname}
-            --refinements 5
-            --scale .99 .99 .99
-            --dir 8 4 2
-            --meshType ${_meshType}
-            inline_mesh --min -2 -2 -2 --max 2 2 2 --res 16 16 16
+                        --policy ${_policy}
+                        --verbose
+                        --testGeom ${_testgeom}
+                        -o ${_testname}
+                        --refinements 5
+                        --scale .99 .99 .99
+                        --dir 8 4 2
+                        --meshType ${_meshType}
+                        inline_mesh --min -2 -2 -2 --max 2 2 2 --res 16 16 16
             NUM_MPI_TASKS ${_nranks})
         endforeach()
       endforeach()
