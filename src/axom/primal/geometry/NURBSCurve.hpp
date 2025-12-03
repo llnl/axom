@@ -621,8 +621,14 @@ public:
    */
   const PointType& operator[](int idx) const { return m_controlPoints[idx]; }
 
-  /// \brief Returns a copy of the NURBS curve's control points
-  CoordsVec getControlPoints() const { return m_controlPoints; }
+  const PointType& getInitPoint() const { return m_controlPoints[0]; }
+  const PointType& getEndPoint() const { return m_controlPoints[m_controlPoints.size() - 1]; }
+
+  /// \brief Returns a reference to the NURBS curve's control points
+  CoordsVec& getControlPoints() { return m_controlPoints; }
+
+  /// \brief Returns a const reference to the NURBS curve's control points
+  const CoordsVec& getControlPoints() const { return m_controlPoints; }
 
   /*!
    * \brief Get a specific weight
@@ -654,8 +660,11 @@ public:
     m_weights[idx] = weight;
   }
 
-  /// \brief Returns a copy of the NURBS curve's control points
-  WeightsVec getWeights() const { return m_weights; }
+  /// \brief Returns a reference to the NURBS curve's weights
+  WeightsVec& getWeights() { return m_weights; }
+
+  /// \brief Returns a const reference to the NURBS curve's weights
+  const WeightsVec& getWeights() const { return m_weights; }
 
   /// \brief Returns an axis-aligned bounding box containing the NURBS curve
   BoundingBoxType boundingBox() const
@@ -730,17 +739,17 @@ public:
    */
   void setKnots(const KnotVectorType& knotVector) { m_knotvec = knotVector; }
 
-  /// \brief Return a copy of the knot vector
-  KnotVectorType getKnots() const { return m_knotvec; }
+  /// \brief Return a reference to the knot vector
+  KnotVectorType& getKnots() { return m_knotvec; }
 
-  /// \brief Return a copy of the knot vector as an array
-  axom::Array<T> getKnotsArray() const { return m_knotvec.getArray(); }
+  /// \brief Return a const reference to the knot vector
+  const KnotVectorType& getKnots() const { return m_knotvec; }
 
-  /// \brief Get minimum knot
-  T getMinKnot() const { return m_knotvec[0]; }
+  /// \brief Get minimum knot value
+  T getMinKnot() const { return m_knotvec.getMinKnot(); }
 
-  /// \brief Get maximum knot
-  T getMaxKnot() const { return m_knotvec[m_knotvec.getNumKnots() - 1]; }
+  /// \brief Get maximum knot value
+  T getMaxKnot() const { return m_knotvec.getMaxKnot(); }
 
   /// \brief Reverses the order of the NURBS curve's control points and weights
   void reverseOrientation()

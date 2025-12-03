@@ -8,6 +8,7 @@
 
 #include "axom/bump/views/MaterialView.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
+#include "axom/bump/views/dispatch_utilities.hpp"
 
 #include <conduit/conduit_blueprint.hpp>
 
