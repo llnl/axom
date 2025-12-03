@@ -728,8 +728,8 @@ void ShapeMesh::computeConnectivity()
 template <typename ExecSpace>
 void ShapeMesh::computeCellsAsHexesImpl()
 {
-  constexpr int NUM_VERTS_PER_HEX = 8;
-  constexpr int NDIM = 3;
+  constexpr static int NUM_VERTS_PER_HEX = 8;
+  constexpr static int NDIM = 3;
 
   SLIC_ASSERT(m_dim == NDIM);  // or we shouldn't be here.
 
