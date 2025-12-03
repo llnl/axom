@@ -85,16 +85,21 @@ public:
   //!@brief Return the number of times primitive clipping was used.
   IndexType getClipCount() const { return m_clipCount; }
 
+  //!@brief Return the number of times primitive clipping contributed to the mesh clip volume.
+  IndexType getContribCount() const { return m_contribCount; }
+
   /*!
    * @brief Log clipping statistics.
    *
+   * For developer use.
    * This is a collective method if MPI-parallel.
    */
-  void logClippingStats() const;
+  void logClippingStats(bool local = false, bool sum = true, bool max = false) const;
 
   /*!
    * @brief Get assorted clipping statistics.
    *
+   * For developer use.
    * This is a collective method if MPI-parallel.
    */
   conduit::Node getClippingStats() const;
@@ -155,12 +160,14 @@ public:
 
     //!@brief Compute clip volumes for every cell.
     virtual void computeClipVolumes3D(axom::ArrayView<double> ovlap,
-                                      axom::IndexType& clipCount) = 0;
+                                      axom::IndexType& clipCount,
+                                      axom::IndexType& contribCount) = 0;
 
     //!@brief Compute clip volumes for cell in an index list.
     virtual void computeClipVolumes3D(const axom::ArrayView<axom::IndexType>& cellIndices,
                                       axom::ArrayView<double> ovlap,
-                                      axom::IndexType& clipCount) = 0;
+                                      axom::IndexType& clipCount,
+                                      axom::IndexType& contribCount) = 0;
 
     /*!
      * @brief Compute clip volumes for cell tets in an index list.
@@ -170,7 +177,8 @@ public:
      */
     virtual void computeClipVolumes3DTets(const axom::ArrayView<axom::IndexType>& tetIndices,
                                           axom::ArrayView<double> ovlap,
-                                          axom::IndexType& clipCount) = 0;
+                                          axom::IndexType& clipCount,
+                                          axom::IndexType& contribCount) = 0;
 
     //!@brief Count the number of labels of each type.
     virtual void getLabelCounts(axom::ArrayView<const LabelType> labels,
@@ -215,6 +223,7 @@ private:
   axom::IndexType m_tetsOnCount {0};
   axom::IndexType m_tetsOutCount {0};
   axom::IndexType m_clipCount {0};
+  axom::IndexType m_contribCount {0};
   ///@}
 
   bool m_verbose;

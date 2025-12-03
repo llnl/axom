@@ -25,10 +25,16 @@ class HexClipper : public MeshClipperStrategy
 public:
   /*!
    * @brief Constructor.
-
+   *
    * @param [in] kGeom Describes the shape to place
    *   into the mesh.
    * @param [in] name To override the default strategy name
+   *
+   * \c kGeom.asHierarchy() must contain the following data:
+   * - v0, v1, v2, ..., v8: each contains a 3D coordinates of the
+   *   hexahedron vertices, in the order used by primal::Hexahedron.
+   *   The hex may be degenerate, but when subdivided into tetrahedra,
+   *   none of them may be inverted (have negative volume).
   */
   HexClipper(const klee::Geometry& kGeom, const std::string& name = "");
 

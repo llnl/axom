@@ -400,8 +400,8 @@ void FSorClipper::computeCurveBoxes(
   /*
     Subdivide the SOR curve and place it with the correct allocator.
     Create temporary sorCurve that is equivalent to m_sorCurve but
-    - with long segments subdivided subsegments based on characteristic
-      length of mesh cells.
+    - with long segments subdivided into subsegments based on
+      characteristic length of mesh cells.
     - with memory from allocId.
   */
   axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve, avgCharLength);
@@ -441,11 +441,19 @@ void FSorClipper::computeCurveBoxes(
 }
 
 /*
-  Reduce segments having bounding boxes that overlap much more than
-  the segments actually overlap.
-*/
-Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(const Array<Point2DType>& sorCurveIn,
-                                                            double cellCharacteristicLength)
+ * Replace SOR curve segments that have bounding boxes that overlap
+ * too much beyond what the segments actually overlap.
+ *
+ * Goal: Split up segments with excessively large bounding boxes,
+ * which reach too far beyond the SOR curve.  These are long diagonal
+ * segments.  But don't split up segments aligned close to z or r
+ * directions, because they don't have excessively large bounding
+ * boxes for their size.  We do this by limiting the harmonic mean of
+ * the r and z sides of the bounding boxes.
+ */
+Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(
+  const Array<Point2DType>& sorCurveIn,
+  double cellCharacteristicLength)
 {
   Array<Point2DType> sorCurveOut;
 
@@ -471,9 +479,6 @@ Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(const Array<Point2DT
     const double segDz = absDelta[0];
     const double segDr = absDelta[1];
 
-    // Drive harmonic mean below maxMean.  Harmonic mean criterion
-    // to admit slender axis-aligned bounding boxes better than other
-    // characteristics.
     double segMean = 2 * segDz * segDr / (segDz + segDr);
     int numSplitsByMean = static_cast<int>(std::ceil(segMean / maxMean));
 

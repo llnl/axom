@@ -47,17 +47,20 @@ public:
 
   bool specializedClipCells(quest::experimental::ShapeMesh& shappeMesh,
                             axom::ArrayView<double> ovlap,
-                            axom::IndexType& clipCount) override;
+                            axom::IndexType& clipCount,
+                            axom::IndexType& contribCount) override;
 
   bool specializedClipCells(quest::experimental::ShapeMesh& shappeMesh,
                             axom::ArrayView<double> ovlap,
                             const axom::ArrayView<IndexType>& cellIds,
-                            axom::IndexType& clipCount) override;
+                            axom::IndexType& clipCount,
+                            axom::IndexType& contribCount) override;
 
   bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
                            axom::ArrayView<double> ovlap,
                            const axom::ArrayView<IndexType>& tetIds,
-                           axom::IndexType& clipCount) override;
+                           axom::IndexType& clipCount,
+                           axom::IndexType& contribCount) override;
 
 #if !defined(__CUDACC__)
 private:
@@ -78,19 +81,22 @@ private:
   template <typename ExecSpace>
   void specializedClipCellsImpl(quest::experimental::ShapeMesh& shapeMesh,
                                 axom::ArrayView<double> ovlap,
-                                axom::IndexType& clipCount);
+                                axom::IndexType& clipCount,
+                                axom::IndexType& contribCount);
 
   template <typename ExecSpace>
   void specializedClipCellsImpl(quest::experimental::ShapeMesh& shapeMesh,
                                 axom::ArrayView<double> ovlap,
                                 const axom::ArrayView<IndexType>& cellIds,
-                                axom::IndexType& clipCount);
+                                axom::IndexType& clipCount,
+                                axom::IndexType& contribCount);
 
   template <typename ExecSpace>
   void specializedClipTetsImpl(quest::experimental::ShapeMesh& shapeMesh,
                                axom::ArrayView<double> ovlap,
                                const axom::ArrayView<IndexType>& tetIds,
-                                axom::IndexType& clipCount);
+                                axom::IndexType& clipCount,
+                               axom::IndexType& contribCount);
 
   void extractClipperInfo();
 };

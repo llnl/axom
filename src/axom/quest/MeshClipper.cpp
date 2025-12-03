@@ -61,6 +61,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
   SLIC_ASSERT(ovlap.size() == cellCount);
 
   m_clipCount = 0;
+  m_contribCount = 0;
 
   // Try to label cells as inside, outside or on shape boundary
   axom::Array<LabelType> cellLabels;
@@ -146,11 +147,11 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
     AXOM_ANNOTATE_BEGIN("MeshClipper:specialized_clip");
     if(withTetInOut)
     {
-      done = m_strategy->specializedClipTets(m_shapeMesh, ovlap, tetsOnBdry, m_clipCount);
+      done = m_strategy->specializedClipTets(m_shapeMesh, ovlap, tetsOnBdry, m_clipCount, m_contribCount);
     }
     else
     {
-      done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, cellsOnBdry, m_clipCount);
+      done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, cellsOnBdry, m_clipCount, m_contribCount);
     }
     AXOM_ANNOTATE_END("MeshClipper:specialized_clip");
 
@@ -159,11 +160,11 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
       AXOM_ANNOTATE_SCOPE("MeshClipper:clip_fcn");
       if(withTetInOut)
       {
-        m_impl->computeClipVolumes3DTets(tetsOnBdry.view(), ovlap, m_clipCount);
+        m_impl->computeClipVolumes3DTets(tetsOnBdry.view(), ovlap, m_clipCount, m_contribCount);
       }
       else
       {
-        m_impl->computeClipVolumes3D(cellsOnBdry.view(), ovlap, m_clipCount);
+        m_impl->computeClipVolumes3D(cellsOnBdry.view(), ovlap, m_clipCount, m_contribCount);
       }
     }
   }
@@ -171,13 +172,13 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
   {
     m_impl->zeroVolumeOverlaps(ovlap);
     AXOM_ANNOTATE_BEGIN("MeshClipper:specialized_clip");
-    done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, m_clipCount);
+    done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, m_clipCount, m_contribCount);
     AXOM_ANNOTATE_END("MeshClipper:specialized_clip");
 
     if(!done)
     {
       AXOM_ANNOTATE_SCOPE("MeshClipper:clip_fcn");
-      m_impl->computeClipVolumes3D(ovlap, m_clipCount);
+      m_impl->computeClipVolumes3D(ovlap, m_clipCount, m_contribCount);
     }
   }
 }
@@ -240,7 +241,8 @@ conduit::Node MeshClipper::getClippingStats() const
 {
   axom::Array<std::int64_t> sums {
     m_cellsInCount, m_cellsOnCount, m_cellsOutCount,
-    m_tetsInCount, m_tetsOnCount, m_tetsOutCount, m_clipCount};
+    m_tetsInCount, m_tetsOnCount, m_tetsOutCount,
+    m_clipCount, m_contribCount};
 
   conduit::Node stats;
 
@@ -251,7 +253,8 @@ conduit::Node MeshClipper::getClippingStats() const
   locNode["tetsIn"].set(sums[3]);
   locNode["tetsOn"].set(sums[4]);
   locNode["tetsOut"].set(sums[5]);
-  locNode["clipCount"].set(sums[6]);
+  locNode["clips"].set(sums[6]);
+  locNode["contribs"].set(sums[7]);
 
 #if !defined(AXOM_USE_MPI)
   stats["max"] = stats["loc"];
@@ -266,7 +269,8 @@ conduit::Node MeshClipper::getClippingStats() const
   maxNode["tetsIn"].set(maxs[3]);
   maxNode["tetsOn"].set(maxs[4]);
   maxNode["tetsOut"].set(maxs[5]);
-  maxNode["clipCount"].set(maxs[6]);
+  maxNode["clips"].set(maxs[6]);
+  maxNode["contribs"].set(maxs[7]);
 
   auto& sumNode = stats["sum"];
   globalReduce(sums, MPI_SUM);
@@ -276,18 +280,28 @@ conduit::Node MeshClipper::getClippingStats() const
   sumNode["tetsIn"].set(sums[3]);
   sumNode["tetsOn"].set(sums[4]);
   sumNode["tetsOut"].set(sums[5]);
-  sumNode["clipCount"].set(sums[6]);
+  sumNode["clips"].set(sums[6]);
+  sumNode["contribs"].set(sums[7]);
 #endif
 
   return stats;
 }
 
-void MeshClipper::logClippingStats() const
+void MeshClipper::logClippingStats(bool local, bool sum, bool max) const
 {
   conduit::Node stats = getClippingStats();
-  SLIC_INFO(std::string("MeshClipper loc-stats: ") + stats["loc"].to_string("yaml", 2, 0, "", " "));
-  SLIC_INFO(std::string("MeshClipper sum-stats: ") + stats["sum"].to_string("yaml", 2, 0, "", " "));
-  SLIC_INFO(std::string("MeshClipper max-stats: ") + stats["max"].to_string("yaml", 2, 0, "", " "));
+  if(local)
+  {
+    SLIC_INFO(std::string("MeshClipper loc-stats: ") + stats["loc"].to_string("yaml", 2, 0, "", " "));
+  }
+  if(sum)
+  {
+    SLIC_INFO(std::string("MeshClipper sum-stats: ") + stats["sum"].to_string("yaml", 2, 0, "", " "));
+  }
+  if(max)
+  {
+    SLIC_INFO(std::string("MeshClipper max-stats: ") + stats["max"].to_string("yaml", 2, 0, "", " "));
+  }
 }
 
 }  // namespace experimental

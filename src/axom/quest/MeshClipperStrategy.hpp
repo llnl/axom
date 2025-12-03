@@ -224,6 +224,10 @@ public:
    * @param [in] shapeMesh Blueprint mesh to shape into.
    * @param [out] ovlap Shape overlap volume of each cell
    *   in the \c shapeMesh.  It's initialized to zeros.
+   * @param [out] clipCount Count of primitive clip function
+   *   calls, for use in statistics.
+   * @param [out] contribCount Count of non-trivial volume
+   *   contributions from clip count, for use in statistics.
    *
    * The default implementation has no specialized method,
    * so it's a no-op and returns false.
@@ -236,6 +240,9 @@ public:
    * This method need not be implemented if labelCellsInOut()
    * returns true.
    *
+   * Setting the counters is not required except for getting
+   * accurate statistics.
+   *
    * If implementation returns true, it should ensure these
    * post-conditions hold:
    * @post ovlap.size() == shapeMesh.getCellCount()
@@ -243,11 +250,13 @@ public:
   */
   virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::ArrayView<double> ovlap,
-                                    axom::IndexType& clipCount)
+                                    axom::IndexType& clipCount,
+                                    axom::IndexType& contribCount)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
     AXOM_UNUSED_VAR(clipCount);
+    AXOM_UNUSED_VAR(contribCount);
     return false;
   }
 
@@ -260,6 +269,10 @@ public:
    *   in \c shapeMesh, initialized to the cell volumes
    *   for cell inside the shape and zero for other cells.
    * @param [in] cellIds Limit computation to these cell ids.
+   * @param [out] clipCount Count of primitive clip function
+   *   calls, for use in statistics.
+   * @param [out] contribCount Count of non-trivial volume
+   *   contributions from clip count, for use in statistics.
    *
    * The default implementation has no specialized method,
    * so it's a no-op and returns false.
@@ -273,6 +286,9 @@ public:
    * This method need not be implemented if labelCellsInOut()
    * returns false.
    *
+   * Setting the counters is not required except for getting
+   * accurate statistics.
+   *
    * @pre @c ovlap is pre-initialized for the implementation
    * to add or subtract partial volumes to individual cells.
    *
@@ -284,12 +300,14 @@ public:
   virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::ArrayView<double> ovlap,
                                     const axom::ArrayView<IndexType>& cellIds,
-                                    axom::IndexType& clipCount)
+                                    axom::IndexType& clipCount,
+                                    axom::IndexType& contribCount)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
     AXOM_UNUSED_VAR(cellIds);
     AXOM_UNUSED_VAR(clipCount);
+    AXOM_UNUSED_VAR(contribCount);
     return false;
   }
 
@@ -303,21 +321,32 @@ public:
    *   done so far.  Clip volumes computed by this method should
    *   be added to the current values in this array.
    *
+   * @param [out] clipCount Count of primitive clip function
+   *   calls, for use in statistics.
+   *
+   * @param [out] contribCount Count of non-trivial volume
+   *   contributions from clip count, for use in statistics.
+   *
    * @param [in] tetIds Indices of tets to clip, referring to the
    * shapeMesh.getCellsAsTets() array.  tetIds[i] is the
    * \c (tetIds[i]%NUM_TETS_PER_HEX)-th tetrahedron of cell
    * \c = \c tetIds[i]/NUM_TETS_PER_HEX.  Its overlap volume should
    * be added to \c ovlap[c].
+   *
+   * Setting the counters is not required except for getting
+   * accurate statistics.
    */
   virtual bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
                                    axom::ArrayView<double> ovlap,
                                    const axom::ArrayView<IndexType>& tetIds,
-                                   axom::IndexType& clipCount)
+                                   axom::IndexType& clipCount,
+                                   axom::IndexType& contribCount)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
     AXOM_UNUSED_VAR(tetIds);
     AXOM_UNUSED_VAR(clipCount);
+    AXOM_UNUSED_VAR(contribCount);
     return false;
   }
 

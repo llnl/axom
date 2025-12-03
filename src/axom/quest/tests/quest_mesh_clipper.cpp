@@ -118,6 +118,7 @@ public:
                                                "hex",
                                                "plane",
                                                "tet2",
+                                               "tetmesh2",
                                                "hex2"};
 
   RuntimePolicy policy {RuntimePolicy::seq};
@@ -732,21 +733,65 @@ axom::klee::Geometry createGeom_Tet2(const std::string& geomName)
                                                     axom::klee::LengthUnit::unspecified};
 
   // Tetrahedron at origin.
-  const double len = 1.0;
-  const Point3D a {Point3D::NumericArray {0., 40., 0.} * len};
-  const Point3D b {Point3D::NumericArray {0., 0., 0.} * len};
-  const Point3D c {Point3D::NumericArray {40., 0., 0.} * len};
-  const Point3D d {Point3D::NumericArray {40., 0., 40.} * len};
+  const Point3D a {Point3D::NumericArray {-10, 10, 0}};
+  const Point3D b {Point3D::NumericArray {-30, 30, 0}};
+  const Point3D c {Point3D::NumericArray {-30, 0, 0}};
+  const Point3D d {Point3D::NumericArray {-30, 30, 20}};
   const primal::Tetrahedron<double, 3> tet {a, b, c, d};
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
-  exactGeomVols[geomName] = tet.volume();
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+  exactGeomVols[geomName] = vScale * tet.volume();
   errorToleranceRel[geomName] = 1e-12;
   errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
 
   axom::klee::Geometry tetGeometry(prop, tet, compositeOp);
 
   return tetGeometry;
+}
+
+axom::klee::Geometry createGeom_TetMesh2(sidre::DataStore& ds, const std::string& geomName)
+{
+  // Shape a tetrahedal mesh.
+  sidre::Group* meshGroup = ds.getRoot()->createGroup(geomName);
+
+  AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
+  const std::string topo = "mesh";
+  const std::string coordset = "coords";
+
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tetMesh(3,
+                                                                 axom::mint::CellType::TET,
+                                                                 meshGroup,
+                                                                 topo,
+                                                                 coordset);
+
+  tetMesh.appendNode(-10, 10, 0);
+  tetMesh.appendNode(-30, 30, 0);
+  tetMesh.appendNode(-30, 0, 0);
+  tetMesh.appendNode(-30, 30, 20);
+  axom::IndexType conn0[4] = {0, 1, 2, 3};
+  tetMesh.appendCell(conn0);
+
+  SLIC_ASSERT(axom::mint::blueprint::isValidRootGroup(meshGroup));
+  meshGroup->destroyGroup("fields");
+
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
+
+  exactGeomVols[geomName] = vScale * volumeOfTetMesh(tetMesh);
+  errorToleranceRel[geomName] = 0.005;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return tetMeshGeometry;
 }
 
 axom::klee::Geometry createGeom_Hex(const std::string& geomName)
@@ -1258,7 +1303,13 @@ int main(int argc, char** argv)
 
     else if(tg == "tet2")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::experimental::TetClipper>(createGeom_Tet2(name), name));
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::experimental::TetClipper>(createGeom_Tet2(name), name));
+    }
+    else if(tg == "tetmesh2")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::experimental::TetMeshClipper>(createGeom_TetMesh2(ds, name), name));
     }
     else if(tg == "hex2")
     {

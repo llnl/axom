@@ -193,7 +193,8 @@ public:
    * geometry.
    */
   void computeClipVolumes3D(axom::ArrayView<double> ovlap,
-                            axom::IndexType& clipCount) override
+                            axom::IndexType& clipCount,
+                            axom::IndexType& contribCount) override
   {
     using BoundingBoxType = primal::BoundingBox<double, 3>;
 
@@ -229,7 +230,7 @@ public:
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
 
-    SLIC_INFO(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
+    SLIC_DEBUG(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
 
     //
     // Generate the BVH over the (bounding boxes of the) discretized geometry
@@ -265,7 +266,7 @@ public:
     axom::ArrayView<const BoundingBoxType> cellBbsView = shapeMesh.getCellBoundingBoxes();
 
     // Find which shape bounding boxes intersect hexahedron bounding boxes
-    SLIC_INFO(
+    SLIC_DEBUG(
       axom::fmt::format("{:-^80}", " Finding shape candidates for each hexahedral element "));
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:find_candidates");
@@ -350,10 +351,14 @@ public:
     SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
 #endif
 
-    SLIC_INFO(
+    SLIC_DEBUG(
       axom::fmt::format("Running clip loop on {} candidate pieces for of all {} hexes in the mesh",
                         tetCandidatesCount,
                         cellCount));
+
+    contribCount = 0;
+    axom::IndexType *contribCountPtr = axom::allocate<axom::IndexType>(1, allocId);
+    axom::copy(contribCountPtr, &contribCount, sizeof(contribCount));
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_notScreened");
     if(useTets)
@@ -382,6 +387,7 @@ public:
             double volume = poly.volume();
             SLIC_ASSERT(volume >= 0);
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
+            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
           }
         });
     }
@@ -411,11 +417,14 @@ public:
             double volume = poly.volume();
             SLIC_ASSERT(volume >= 0);
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
+            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
           }
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_notScreened");
     clipCount = tetCandidatesCount;
+    axom::copy(&contribCount, contribCountPtr, sizeof(contribCount));
+    axom::deallocate(contribCountPtr);
 
     if(tetCandidatesCountPtr != &tetCandidatesCount)
     {
@@ -431,7 +440,8 @@ public:
    */
   void computeClipVolumes3D(const axom::ArrayView<axom::IndexType>& cellIndices,
                             axom::ArrayView<double> ovlap,
-                            axom::IndexType& clipCount) override
+                            axom::IndexType& clipCount,
+                            axom::IndexType& contribCount) override
 
   {
     using BoundingBoxType = primal::BoundingBox<double, 3>;
@@ -465,7 +475,7 @@ public:
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
 
-    SLIC_INFO(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
+    SLIC_DEBUG(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
 
     // Generate the BVH tree over the shape's discretized geometry
     // axis-aligned bounding boxes.  "pieces" refers to tets or octs.
@@ -498,7 +508,7 @@ public:
                                         EPS,
                                         BVH_SCALE_FACTOR);
 
-    SLIC_INFO(
+    SLIC_DEBUG(
       axom::fmt::format("{:-^80}", " Finding shape candidates for each hexahedral element labeled ON"));
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:find_candidates");
@@ -582,7 +592,7 @@ public:
         });
     }
 
-    SLIC_INFO(axom::fmt::format(
+    SLIC_DEBUG(axom::fmt::format(
       "Running clip loop on {} candidate pieces for the select {} hexes of the full {} mesh cells",
       tetCandidatesCount,
       cellIndices.size(),
@@ -599,6 +609,10 @@ public:
     }
     SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
 #endif
+
+    contribCount = 0;
+    axom::IndexType *contribCountPtr = axom::allocate<axom::IndexType>(1, allocId);
+    axom::copy(contribCountPtr, &contribCount, sizeof(contribCount));
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_hexScreened");
     if(useTets)
@@ -634,6 +648,7 @@ public:
             double volume = poly.volume();
             SLIC_ASSERT(volume >= 0);
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
+            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
           }
         });
     }
@@ -670,12 +685,15 @@ public:
             double volume = poly.volume();
             SLIC_ASSERT(volume >= 0);
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
+            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
           }
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_hexScreened");
 
     clipCount = tetCandidatesCount;
+    axom::copy(&contribCount, contribCountPtr, sizeof(contribCount));
+    axom::deallocate(contribCountPtr);
 
     if(tetCandidatesCountPtr != &tetCandidatesCount)
     {
@@ -691,7 +709,8 @@ public:
    */
   void computeClipVolumes3DTets(const axom::ArrayView<axom::IndexType>& tetIndices,
                                 axom::ArrayView<double> ovlap,
-                                axom::IndexType& clipCount) override
+                                axom::IndexType& clipCount,
+                                axom::IndexType& contribCount) override
 
   {
     using BoundingBoxType = primal::BoundingBox<double, 3>;
@@ -727,7 +746,7 @@ public:
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
 
-    SLIC_INFO(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
+    SLIC_DEBUG(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
 
     // Generate the BVH tree over the shape's discretized geometry
     // axis-aligned bounding boxes.  "pieces" refers to tets or octs.
@@ -764,7 +783,7 @@ public:
                                         EPS,
                                         BVH_SCALE_FACTOR);
 
-    SLIC_INFO(
+    SLIC_DEBUG(
       axom::fmt::format("{:-^80}", " Finding shape candidates for each tetrahedral element labeled ON"));
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:find_candidates");
@@ -807,11 +826,15 @@ public:
     using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
     constexpr bool tryFixOrientation = false;
 
-    SLIC_INFO(axom::fmt::format(
+    SLIC_DEBUG(axom::fmt::format(
       "Running clip loop on {} candidate pieces for the select {} tets of the full {} mesh cells",
       candidates.size(),
       tetCount,
       shapeMesh.getCellCount()));
+
+    contribCount = 0;
+    axom::IndexType *contribCountPtr = axom::allocate<axom::IndexType>(1, allocId);
+    axom::copy(contribCountPtr, &contribCount, sizeof(contribCount));
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_tetScreened");
     if(useTets)
@@ -838,6 +861,7 @@ public:
             SLIC_ASSERT(volume >= 0);
             auto cellId = tetId / NUM_TETS_PER_HEX;
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
+            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
           }
         });
     }
@@ -865,10 +889,15 @@ public:
             SLIC_ASSERT(volume >= 0);
             auto cellId = tetId / NUM_TETS_PER_HEX;
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
+            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
           }
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_tetScreened");
+
+    axom::copy(&contribCount, contribCountPtr, sizeof(contribCount));
+    axom::deallocate(contribCountPtr);
+    SLIC_DEBUG(axom::fmt::format(""));
 
     clipCount = candidates.size();
 

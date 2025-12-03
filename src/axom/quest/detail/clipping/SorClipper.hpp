@@ -47,7 +47,8 @@ public:
 
   bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                             axom::ArrayView<double> ovlap,
-                            axom::IndexType& clipCount) override;
+                            axom::IndexType& clipCount,
+                            axom::IndexType& contribCount) override;
 
 #if !defined(__CUDACC__)
 private:
