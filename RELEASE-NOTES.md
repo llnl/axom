@@ -27,6 +27,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   the append function that matches your protocol.
 - Adds Sina fortran functions `sina_set_curves_order` and `sina_set_record_curves_order`
 - Sidre: Added iterators and Attribute class to the Python interface.
+- Adds new optimization hint macros `AXOM_LIKELY` and `AXOM_UNLIKELY` to mark likely/unlikely
+  paths in if-statements.
 
 ###  Changed
 - Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
@@ -49,6 +51,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ###  Fixed
 - Sina's Fortran tests are now running (instead of silently failing)
+- Optimized `Array::push_back()` and `Array::emplace_back()` operations.
 
 ###  Deprecated
 
