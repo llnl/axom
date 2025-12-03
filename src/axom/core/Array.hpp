@@ -1692,7 +1692,7 @@ AXOM_HOST_DEVICE inline IndexType Array<T, DIM, SPACE>::reserveForPushBack()
   // Device path: supports insertion while m_num_elements < m_capacity
   // Does not support insertions which require reallocating the underlying
   // buffer.
-  IndexType new_pos = axom::atomicAdd<axom::auto_atomic>(&m_num_elements, IndexType{1});
+  IndexType new_pos = axom::atomicAdd<axom::auto_atomic>(&m_num_elements, IndexType {1});
   if(new_pos >= m_capacity)
   {
   #ifdef AXOM_DEBUG
