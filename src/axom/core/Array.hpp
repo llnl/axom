@@ -1681,7 +1681,7 @@ template <typename T, int DIM, MemorySpace SPACE>
 AXOM_HOST_DEVICE inline IndexType Array<T, DIM, SPACE>::reserveForPushBack()
 {
 #ifndef AXOM_DEVICE_CODE
-  if (m_num_elements >= m_capacity)
+  if AXOM_UNLIKELY(m_num_elements >= m_capacity)
   {
     dynamicRealloc(m_num_elements + 1);
   }
