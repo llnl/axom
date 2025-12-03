@@ -67,15 +67,29 @@ public:
   /// @{
 
   /*!
-   * \brief Constructs a Ellipsoid centered at origin with the given radius.
+   * \brief Constructs a Ellipsoid centered at origin with the given radius
+   * in all dimensions: a circle or sphere.
    * \param [in] radius the radius of the Ellipsoid (optional).
    * \note If a radius is not supplied, the default radius is 1.0.
    */
   AXOM_HOST_DEVICE
-  explicit Ellipsoid(T radius = 1.0) : m_center(PointType::zero()), m_radius(radius) { }
+  explicit Ellipsoid(T radius = 1.0)
+    : m_center(PointType::zero())
+    , m_P1(PointType::zero())
+    , m_P2(PointType::zero())
+    , m_P3(PointType::zero())
+  {
+    m_P1[0] = radius;
+    m_P2[1] = radius;
+    if constexpr (NDIMS == 3)
+    {
+      m_P3[2] = radius;
+    }
+  }
 
   /*!
-   * \brief Constructs a Ellipsoid with the given center and radius.
+   * \brief Constructs a Ellipsoid with the given center and radius
+   * in all dimensions: a circle or sphere.
    *
    * \param [in] center user-supplied center.
    * \param [in] radius the radius of the Ellipsoid (optional).
@@ -83,7 +97,86 @@ public:
    * \note If a radius is not supplied, the default radius is 1.0.
    */
   AXOM_HOST_DEVICE
-  explicit Ellipsoid(const PointType& center, T radius = 1.0) : m_center(center), m_radius(radius) { }
+  explicit Ellipsoid(const PointType& center, T radius = 1.0)
+    : m_center(center)
+    , m_P1(PointType::zero())
+    , m_P2(PointType::zero())
+    , m_P3(PointType::zero())
+  {
+    m_P1[0] = radius;
+    m_P1 = m_P1 + m_center;
+    m_P2[1] = radius;
+    m_P2 = m_P2 + m_center;
+    if constexpr(NDIMS == 3)
+    {
+      m_P3[2] = radius;
+      m_P3 = m_P3 + m_center;
+    }
+  }
+
+  /*!
+   * \brief Constructs a Ellipsoid with the given center and axis endpoints,
+   * in two dimensions: an ellipse.
+   *
+   * \param [in] center user-supplied center.
+   * \param [in] P1 the endpoint of the first semimajor axis
+   * \param [in] P2 the endpoint of the second semimajor axis
+   */
+  AXOM_HOST_DEVICE
+  explicit Ellipsoid(const PointType& center,
+                     const PointType& P1,
+                     const PointType& P2,
+                     typename std::enable_if<TDIM == 2, bool>::type dummy = false)
+    : m_center(center)
+    , m_P1(P1)
+    , m_P2(P2)
+  { 
+      orthogonalize();
+  }
+
+  /*!
+   * \brief Constructs a Ellipsoid with the given center and axis endpoints,
+   * in three dimensions: an ellipsoid.
+   *
+   * \param [in] center user-supplied center.
+   * \param [in] P1 the endpoint of the first semimajor axis
+   * \param [in] P2 the endpoint of the second semimajor axis
+   * \param [in] P3 the endpoint of the last semimajor axis
+   */
+  AXOM_HOST_DEVICE
+  explicit Ellipsoid(const PointType& center,
+                     const PointType& P1,
+                     const PointType& P2,
+                     const PointType& P3,
+                     typename std::enable_if<TDIM == 3, bool>::type dummy = false)
+    : m_center(center)
+    , m_P1(P1)
+    , m_P2(P2)
+    , m_P3(P3)
+  {
+    orthogonalize();
+  }
+
+  /*!
+   * \brief If necessary, adjusts ellipsoid semi-axes to be orthogonal.
+   */
+  AXOM_HOST_DEVICE
+  void orthogonalize() 
+  {
+    VectorType A(m_center, m_P1);
+    VectorType B(m_center, m_P2);
+
+    // If A dot B > tolerance, adjust B so that A dot B < tolerance
+
+    if constexpr (NDIMS == 3)
+    {
+      VectorType C(m_center, m_P3);
+
+      // VectorType maybe_C = A cross B
+      // If necessary, negate maybe_C
+      // If unit(C) dot unit(maybe_C) < 1 - tolerance, set C = maybe_C
+    }
+  }
 
   /*!
    * \brief Constructs a Ellipsoid with the given center and radius.
@@ -95,8 +188,8 @@ public:
    *
    * \pre center != nullptr
    */
-  AXOM_HOST_DEVICE
-  explicit Ellipsoid(const T* center, T radius = 1.0);
+  //AXOM_HOST_DEVICE
+  //explicit Ellipsoid(const T* center, T radius = 1.0);
 
   /// @}
 
@@ -104,8 +197,8 @@ public:
    * \brief Returns the radius of the Ellipsoid.
    * \return r the radius of the Ellipsoid.
    */
-  AXOM_HOST_DEVICE
-  inline T getRadius() const { return m_radius; };
+  //AXOM_HOST_DEVICE
+  //inline T getRadius() const { return m_radius; };
 
   /*!
    * \brief Returns the center of the Ellipsoid.
@@ -117,11 +210,27 @@ public:
   AXOM_HOST_DEVICE
   inline const PointType& getCenter() const { return m_center; };
 
+  AXOM_HOST_DEVICE
+  inline void getRadii(T& a, T& b, T& c) const
+  {
+    a = VectorType(m_center, m_P1).norm();
+    b = VectorType(m_center, m_P2).norm();
+    if constexpr(NDIMS == 3)
+    {
+      c = VectorType(m_center, m_P3).norm();
+    }
+  }
+
   /*!
    * \brief Returns the volume of the Ellipsoid.
    */
   AXOM_HOST_DEVICE
-  inline T getVolume() const { return 4.0 / 3 * M_PI * m_radius * m_radius * m_radius; };
+  inline T getVolume() const 
+  {
+    T a, b, c;
+    getRadii(a, b, c);
+    return 4.0 / 3 * M_PI * a * b * c; 
+  };
 
   /*!
    * \brief Computes the signed distance of a point to the Ellipsoid's boundary.
@@ -136,10 +245,10 @@ public:
    *   <li> zero on the boundary </li>
    *  </ul>
    */
-  AXOM_HOST_DEVICE inline T computeSignedDistance(const PointType& q) const
+  /*AXOM_HOST_DEVICE inline T computeSignedDistance(const PointType& q) const
   {
     return VectorType(m_center, q).norm() - m_radius;
-  }
+  }*/
 
   /*!
    * \brief Computes the orientation of a point with respect to the Ellipsoid.
@@ -161,14 +270,21 @@ public:
   AXOM_HOST_DEVICE
   inline int getOrientation(const PointType& q, double TOL = 1.e-9) const
   {
-    const T signed_distance = this->computeSignedDistance(q);
+    T a, b, c;
+    getRadii(a, b, c);
 
-    if(axom::utilities::isNearlyEqual(signed_distance, 0., TOL))
+    T testval = (q[0] * q[0]) / (a * a) + (q[1] * q[1]) / (b * b);
+    if constexpr (NDIMS == 3)
+    {
+      testval += (q[2] * q[2]) / (c * c);
+    }
+
+    if(axom::utilities::isNearlyEqual(testval, T {1}, TOL))
     {
       return primal::ON_BOUNDARY;
     }
 
-    return (signed_distance < T {0}) ? primal::ON_NEGATIVE_SIDE : primal::ON_POSITIVE_SIDE;
+    return (signed_distance < T {1}) ? primal::ON_NEGATIVE_SIDE : primal::ON_POSITIVE_SIDE;
   }
 
   /*!
@@ -180,8 +296,8 @@ public:
    *
    * \return status true if the Ellipsoid intersects, false otherwise.
    */
-  AXOM_HOST_DEVICE
-  inline bool intersectsWith(const Ellipsoid<T, NDIMS>& Ellipsoid, double TOL = 1.e-9) const;
+  /*AXOM_HOST_DEVICE
+  inline bool intersectsWith(const Ellipsoid<T, NDIMS>& Ellipsoid, double TOL = 1.e-9) const;*/
 
   /*!
    * \brief Prints the Ellipsoid information in the given output stream.
@@ -193,7 +309,7 @@ public:
 
 private:
   PointType m_center; /*!< Ellipsoid center */
-  T m_radius;         /*!< Ellipsoid radius */
+  PointType m_P1, m_P2, m_P3;         /*!< Ellipsoid axis end-points */
 };
 
 } /* namespace primal */
