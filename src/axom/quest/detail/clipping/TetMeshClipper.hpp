@@ -22,10 +22,7 @@ namespace experimental
 
 /*!
  * @brief Geometry clipping operations for tetrahedral mesh geometries.
-
- * @internal TODO: Implement load balancing.  The 1D array of shapee hexes
- * should be load balanced for better performance.
-*/
+ */
 class TetMeshClipper : public MeshClipperStrategy
 {
 public:
@@ -35,7 +32,14 @@ public:
    * @param [in] kGeom Describes the shape to place
    *   into the mesh.
    * @param [in] name To override the default strategy name
-  */
+   *
+   * \c kGeom.asHierarchy() must contain the following data:
+   * - "klee::Geometry:tetMesh": A blueprint tetrahedral mesh.
+   *   The tetrahedra may be degenerate, but not inverted (negative volume).
+   * - "topologyName": The mesh's blueprint topology name
+   * - "fixOrientation": Whether to fix inverted tetrahedra
+   *   instead of aborting.
+   */
   TetMeshClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
   virtual ~TetMeshClipper() = default;
@@ -75,6 +79,11 @@ private:
   //! @brief Geometry as tetrahedra.
   axom::Array<TetrahedronType> m_tets;
 
+  /*!
+   * @brief Combined external transformation.
+   *
+   * (TetMesh has no internal transformation.)
+   */
   axom::primal::experimental::CoordinateTransformer<double> m_transformer;
 
   template <typename ExecSpace>
@@ -97,6 +106,13 @@ private:
   // Check validity of tetMesh for our purposes.
   bool isValidTetMesh(const conduit::Node& tetMesh, std::string& whyBad) const;
 
+  /*!
+   * @brief Add a transformed coordset to m_tetMesh.
+   *
+   * The transformed version is the original coordset, transformed
+   * through m_transformer.  It has the name m_coordsetName +
+   * ".trans".
+   */
   void transformCoordset();
 
   void computeTets();

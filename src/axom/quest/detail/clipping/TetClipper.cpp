@@ -351,6 +351,28 @@ void TetClipper::extractClipperInfo()
     m_tetBeforeTrans[2][d] = v2[d];
     m_tetBeforeTrans[3][d] = v3[d];
   }
+
+  bool fixOrientation = false;
+  if (m_info.has_child("fixOrientation"))
+  {
+    fixOrientation = bool(m_info.fetch_existing("fixOrientation").as_int());
+  }
+
+  if(fixOrientation)
+  {
+    m_tetBeforeTrans.checkAndFixOrientation();
+  }
+  else
+  {
+    constexpr double EPS = 1e-10;
+    double signedVol = m_tetBeforeTrans.signedVolume();
+    if(signedVol < -EPS)
+    {
+      SLIC_ERROR(axom::fmt::format("TetClipper tet {} has negative volume {}.:"
+                                   "  (See TetClipper's 'fixOrientation' flag.)",
+                                   m_tetBeforeTrans, signedVol));
+    }
+  }
 }
 
 }  // namespace experimental

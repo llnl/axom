@@ -681,7 +681,14 @@ void TetMeshClipper::computeTets()
     (mint::UnstructuredMesh<axom::mint::Topology::SINGLE_SHAPE>*)axom::mint::getMesh(tetMeshGrp,
                                                                                      m_topoName)};
 
-  // Initialize tetrahedra
+  bool fixOrientation = false;
+  if (m_info.has_child("fixOrientation"))
+  {
+    fixOrientation = bool(m_info.fetch_existing("fixOrientation").as_int());
+  }
+
+  // Initialize tetrahedra and check for bad orientations.
+  constexpr double EPS = 1e-10;
   IndexType nodeIds[4];
   Point3DType pts[4];
   for(int i = 0; i < m_tetCount; i++)
@@ -694,6 +701,21 @@ void TetMeshClipper::computeTets()
     mintMesh->getNode(nodeIds[3], pts[3].data());
 
     m_tets[i] = TetrahedronType({pts[0], pts[1], pts[2], pts[3]});
+
+    if(fixOrientation)
+    {
+      m_tets[i].checkAndFixOrientation();
+    }
+    else
+    {
+      double signedVol = m_tets[i].signedVolume();
+      if(signedVol < -EPS)
+      {
+        SLIC_ERROR(axom::fmt::format("TetMeshClipper's tet {}, {}, has a negative volume {}.:"
+                                     "  (See TetMeshClipper's 'fixOrientation' flag.)",
+                                     i, m_tets[i], signedVol));
+      }
+    }
   }
 }
 

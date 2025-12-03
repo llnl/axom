@@ -33,6 +33,9 @@ public:
    * \c kGeom.asHierarchy() must contain the following data:
    * - v0, v1, v2, v3: each contains a 3D coordinates of the
    *   tetrahedron vertices, in the order used by primal::Tetrahedron.
+   *   The tet may be degenerate, but not inverted (negative volume).
+   * - "fixOrientation": Whether to fix inverted tetrahedra
+   *   instead of aborting.
    */
   TetClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
