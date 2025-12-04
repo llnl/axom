@@ -98,11 +98,17 @@ struct test_device_quadrature
     const int npts = 15;
 
     // Create the rule with the proper allocator
+    int allocID;
+#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_GPU)
 
     // TODO QuadratureRule class needs to be ported for CUDA
     constexpr bool on_device = axom::execution_space<ExecSpace>::onDevice();
-    int allocID = on_device ? axom::getUmpireResourceAllocatorID(umpire::resource::Unified)
-                            : axom::execution_space<ExecSpace>::allocatorID();
+
+    allocID = on_device ? axom::getUmpireResourceAllocatorID(umpire::resource::Unified)
+                        : axom::execution_space<ExecSpace>::allocatorID();
+#else
+    allocID = axom::execution_space<ExecSpace>::allocatorID();
+#endif
 
     const auto rule = axom::numerics::get_gauss_legendre(npts, allocID);
 
