@@ -35,14 +35,14 @@ struct ExternalStoragePolicy
    * \param [in] size the current number of elements stored in the array
    */
   template <int Dims>
-  void onShapeUpdate(StackArray<IndexType, Dims> shape)
+  void onShapeUpdate(StackArray<IndexType, Dims> AXOM_UNUSED_PARAM(shape))
   { }
 
   /*!
    * \brief Reallocates a buffer. No-op for ExternalArray.
    */
   template <typename Func>
-  T* reallocate(T*, int, int, int new_capacity, Func&&)
+  T* reallocate(T*, int, int, int, Func&&)
   {
     return nullptr;
   }
@@ -50,7 +50,7 @@ struct ExternalStoragePolicy
   /*!
    * \brief Frees a buffer. No-op for ExternalArray.
    */
-  void deallocate(void* data) { }
+  void deallocate(void* AXOM_UNUSED_PARAM(data)) { }
 };
 
 }  // namespace detail

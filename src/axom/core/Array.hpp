@@ -58,7 +58,7 @@ struct DefaultStoragePolicy
    * \param [in] shape the current dimensions of the array
    */
   template <int Dims>
-  void onShapeUpdate(StackArray<IndexType, Dims> shape)
+  void onShapeUpdate(StackArray<IndexType, Dims> AXOM_UNUSED_PARAM(shape))
   { }
 
   /*!

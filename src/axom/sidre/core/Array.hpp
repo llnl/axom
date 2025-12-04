@@ -114,7 +114,7 @@ struct SidreStoragePolicy
    * \return a pointer to the new buffer with moved elements
    */
   template <typename Func>
-  T* reallocate(T* old_data,
+  T* reallocate(T* AXOM_UNUSED_PARAM(old_data),
                 int AXOM_UNUSED_PARAM(size),
                 int AXOM_UNUSED_PARAM(allocator_id),
                 int new_capacity,
