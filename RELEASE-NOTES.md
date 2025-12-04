@@ -48,6 +48,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Sina fortran `sina_write_document` now accepts a third argument that preserves records in memory so they can be written to another file (otherwise they're released from memory as soon as they're written)
 - Primal: In Bezier and NURBS classes, accessors for arrays of control points, weights and knots 
   are now returned by (const) reference instead of returning a copy by value.
+- The `axom::bump::clipping::ClipField` class was enhanced so it can clip up to 8-sided polygons.
 
 ###  Fixed
 - Sina's Fortran tests are now running (instead of silently failing)
