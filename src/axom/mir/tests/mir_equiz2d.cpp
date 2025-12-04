@@ -118,13 +118,21 @@ void braid2d_mat_test(const std::string &type,
 }
 //------------------------------------------------------------------------------
 /*!
- * \brief Tests the TopologyMapper on polygonal geometry.
+ * \brief Tests the MIR+TopologyMapper on polygonal geometry.
+ *
+ *        1. Make polygonal mesh 1 with clean matset
+ *        2. Make mesh 2, a rotated version of polygonal mesh 1
+ *        3. Map material from mesh 1 onto mesh 2
+ *        4. Run MIR on mesh 2
  */
 template <typename ExecSpace>
 class test_Polygonal_MIR
 {
 public:
-  static void test()
+  static constexpr conduit::index_t NLEVELS = 4;
+  static constexpr int MAX_MATERIALS = NLEVELS + 1;
+
+  static void test(const std::string &name)
   {
     // Make the 2D input mesh.
     conduit::Node n_mesh;
@@ -146,20 +154,19 @@ public:
     TestApp.saveVisualization("test_poly_mir", hostResult);
 
     // Handle baseline comparison.
-    EXPECT_TRUE(TestApp.test<ExecSpace>("test_poly_mir", hostResult));
+    EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostResult));
   }
 
   static void initialize(conduit::Node &n_mesh)
   {
     // Make polygonal geometry
-    const conduit::index_t nlevels = 4;
     const conduit::index_t nz = 1;
-    conduit::blueprint::mesh::examples::polytess(nlevels, nz, n_mesh);
+    conduit::blueprint::mesh::examples::polytess(NLEVELS, nz, n_mesh);
 
     // Make a matset from the level field.
     conduit::Node &n_matset = n_mesh["matsets/mat"];
     n_matset["topology"] = "topo";
-    for(int mat = 1; mat <= nlevels; mat++)
+    for(int mat = 1; mat <= NLEVELS; mat++)
     {
       n_matset[axom::fmt::format("material_map/mat{}", mat)] = mat;
     }
@@ -228,7 +235,7 @@ public:
     using SrcTopologyView = decltype(srcTopo);
 
     const conduit::Node &n_srcMatset = n_dev["matsets/mat"];
-    auto srcMatset = views::make_unibuffer_matset<int, float, 4>::view(n_srcMatset);
+    auto srcMatset = views::make_unibuffer_matset<int, float, MAX_MATERIALS>::view(n_srcMatset);
     using SrcMatsetView = decltype(srcMatset);
 
     // Wrap target2 mesh in views.
@@ -273,18 +280,26 @@ public:
     using TopologyView = decltype(topologyView);
 
     const conduit::Node &n_targetMatset = n_dev["matsets/target2_matset"];
-    auto matsetView = views::make_unibuffer_matset<int, float, 5>::view(n_targetMatset);
+    auto matsetView = views::make_unibuffer_matset<int, float, MAX_MATERIALS>::view(n_targetMatset);
     using MatsetView = decltype(matsetView);
 
-    // Do MIR
+    // Do MIR (into new node)
+    conduit::Node n_mir;
     using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
     MIR m(topologyView, coordsetView, matsetView);
     conduit::Node options;
     options["matset"] = "target2_matset";
     options["matsetName"] = "mir_matset";
-    options["coordsetName"] = "mir_coords";
-    options["topologyName"] = "mir";
-    m.execute(n_dev, options, n_dev);
+    m.execute(n_dev, options, n_mir);
+
+    // Move the MIR output to the n_dev node.
+    n_dev["coordsets/mir_coords"].move(n_mir["coordsets/target2_coords"]);
+    n_dev["topologies/mir"].move(n_mir["topologies/target2"]);
+    n_dev["topologies/mir/coordset"] = "mir_coords";
+    n_dev["matsets/mir_matset"].move(n_mir["matsets/mir_matset"]);
+    n_dev["matsets/mir_matset/topology"] = "mir";
+    n_dev["fields/originalElements"].move(n_mir["fields/originalElements"]);
+    n_dev["fields/originalElements/topology"] = "mir";
   }
 
   static int countBadMaterialZones(const conduit::Node &matset, double eps = 1.e-4)
@@ -319,7 +334,6 @@ public:
   }
 };
 
-#if 0
 //------------------------------------------------------------------------------
 TEST(mir_equiz, equiz_uniform_unibuffer_seq)
 {
@@ -354,13 +368,37 @@ TEST(mir_equiz, equiz_uniform_unibuffer_hip)
   braid2d_mat_test<hip_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer", 2);
 }
 #endif
-#endif
+
 //------------------------------------------------------------------------------
 TEST(mir_equiz, equiz_polygonal_unibuffer_seq)
 {
   AXOM_ANNOTATE_SCOPE("equiz_polygonal_unibuffer_seq");
-  test_Polygonal_MIR<seq_exec>::test();
+  test_Polygonal_MIR<seq_exec>::test("equiz_polygonal_unibuffer");
 }
+
+#if defined(AXOM_USE_OPENMP)
+TEST(mir_equiz, equiz_polygonal_unibuffer_omp)
+{
+  AXOM_ANNOTATE_SCOPE("equiz_polygonal_unibuffer_omp");
+  test_Polygonal_MIR<omp_exec>::test("equiz_polygonal_unibuffer");
+}
+#endif
+
+#if defined(AXOM_USE_CUDA)
+TEST(mir_equiz, equiz_polygonal_unibuffer_cuda)
+{
+  AXOM_ANNOTATE_SCOPE("equiz_polygonal_unibuffer_cuda");
+  test_Polygonal_MIR<cuda_exec>::test("equiz_polygonal_unibuffer");
+}
+#endif
+
+#if defined(AXOM_USE_HIP)
+TEST(mir_equiz, equiz_polygonal_unibuffer_hip)
+{
+  AXOM_ANNOTATE_SCOPE("equiz_polygonal_unibuffer_hip");
+  test_Polygonal_MIR<hip_exec>::test("equiz_polygonal_unibuffer");
+}
+#endif
 
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])
