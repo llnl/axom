@@ -15,7 +15,11 @@
 #include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/quest/MeshClipper.hpp"
 #include "axom/spin/BVH.hpp"
+#include "axom/primal/geometry/CoordinateTransformer.hpp"
 #include "RAJA/RAJA.hpp"
+#include "axom/core/WhereMacro.hpp"
+
+extern conduit::Node labelingControl;
 
 namespace axom
 {
@@ -41,6 +45,10 @@ class MeshClipperImpl : public MeshClipper::Impl
 {
 public:
   using LabelType = MeshClipper::LabelType;
+  using BoundingBoxType = primal::BoundingBox<double, 3>;
+  using TetrahedronType = primal::Tetrahedron<double, 3>;
+  using OctahedronType = primal::Octahedron<double, 3>;
+
 
   MeshClipperImpl(MeshClipper& clipper) : MeshClipper::Impl(clipper) { }
 
@@ -196,8 +204,6 @@ public:
                             axom::IndexType& clipCount,
                             axom::IndexType& contribCount) override
   {
-    using BoundingBoxType = primal::BoundingBox<double, 3>;
-
     ShapeMesh& shapeMesh = getShapeMesh();
 
     const int allocId = shapeMesh.getAllocatorID();
@@ -444,8 +450,6 @@ public:
                             axom::IndexType& contribCount) override
 
   {
-    using BoundingBoxType = primal::BoundingBox<double, 3>;
-
     ShapeMesh& shapeMesh = getShapeMesh();
 
     const int allocId = shapeMesh.getAllocatorID();
@@ -713,10 +717,6 @@ public:
                                 axom::IndexType& contribCount) override
 
   {
-    using BoundingBoxType = primal::BoundingBox<double, 3>;
-    using TetrahedronType = primal::Tetrahedron<double, 3>;
-    using OctahedronType = primal::Octahedron<double, 3>;
-
     ShapeMesh& shapeMesh = getShapeMesh();
     auto meshTets = getShapeMesh().getCellsAsTets();
     auto meshTetVolumes = getShapeMesh().getTetVolumes();
@@ -832,34 +832,56 @@ public:
       tetCount,
       shapeMesh.getCellCount()));
 
-    contribCount = 0;
+    clipCount = contribCount = 0;
     axom::IndexType *contribCountPtr = axom::allocate<axom::IndexType>(1, allocId);
+    axom::IndexType *clipCountPtr = axom::allocate<axom::IndexType>(1, allocId);
     axom::copy(contribCountPtr, &contribCount, sizeof(contribCount));
+    axom::copy(clipCountPtr, &clipCount, sizeof(clipCount));
+
+    const auto screenLevel = m_myClipper.getScreenLevel();
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_tetScreened");
+    const TetrahedronType unitTet { {0,0,0}, {1,0,0}, {0,1,0}, {0,0,1} };
     if(useTets)
     {
       axom::for_all<ExecSpace>(
         candidates.size(),
         AXOM_LAMBDA(axom::IndexType iCand) {
           auto pieceId = candidatesView[iCand];
-          const axom::primal::Tetrahedron<double, 3>& geomPiece = geomTetsView[pieceId];
+          const TetrahedronType& geomPiece = geomTetsView[pieceId];
 
           auto tetIdId = candToTetIdIdView[iCand];
           auto tetId = tetIndices[tetIdId];
+          auto cellId = tetId / NUM_TETS_PER_HEX;
 
           // Skip degenerate mesh tets.
           if(axom::utilities::isNearlyEqual(meshTetVolumes[tetId], 0.0, 1e-10)) { return; }
 
           const auto& tet = meshTets[tetId];
-          const auto poly = primal::clip<double>(tet, geomPiece, EPS, tryFixOrientation);
 
+          if(screenLevel >= 3)
+          {
+            LabelType geomLabel = labelPieceInOutOfTet(tet, geomPiece);
+            if(geomLabel == LabelType::LABEL_OUT)
+            {
+              return;
+            }
+            if(geomLabel == LabelType::LABEL_IN)
+            {
+              double volume = geomPiece.volume();
+              RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
+              RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
+              return;
+            }
+          }
+
+          const auto poly = primal::clip<double>(tet, geomPiece, EPS, tryFixOrientation);
+          RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, 1);
           if(poly.numVertices() >= 4)
           {
             // Poly is valid
             double volume = poly.volume();
             SLIC_ASSERT(volume >= 0);
-            auto cellId = tetId / NUM_TETS_PER_HEX;
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
             RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
           }
@@ -871,23 +893,40 @@ public:
         candidates.size(),
         AXOM_LAMBDA(axom::IndexType iCand) {
           auto pieceId = candidatesView[iCand];
-          const axom::primal::Octahedron<double, 3>& geomPiece = geomOctsView[pieceId];
+          const OctahedronType& geomPiece = geomOctsView[pieceId];
 
           auto tetIdId = candToTetIdIdView[iCand];
           auto tetId = tetIndices[tetIdId];
+          auto cellId = tetId / NUM_TETS_PER_HEX;
 
           // Skip degenerate mesh tets.
-          if(axom::utilities::isNearlyEqual(meshTetVolumes[tetId], 0.0, 1e-10)) { return; }
+          if(axom::utilities::isNearlyEqual(meshTetVolumes[tetId], 0.0, EPS)) { return; }
 
           const auto& tet = meshTets[tetId];
-          const auto poly = primal::clip<double>(tet, geomPiece, EPS, tryFixOrientation);
 
+          if(screenLevel >= 3)
+          {
+            LabelType geomLabel = labelPieceInOutOfTet(tet, geomPiece);
+            if(geomLabel == LabelType::LABEL_OUT)
+            {
+              return;
+            }
+            if(geomLabel == LabelType::LABEL_IN)
+            {
+              double volume = octahedronVolume(geomPiece);
+              RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
+              RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
+              return;
+            }
+          }
+
+          const auto poly = primal::clip<double>(tet, geomPiece, EPS, tryFixOrientation);
+          RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, 1);
           if(poly.numVertices() >= 4)
           {
             // Poly is valid
             double volume = poly.volume();
             SLIC_ASSERT(volume >= 0);
-            auto cellId = tetId / NUM_TETS_PER_HEX;
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
             RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
           }
@@ -897,11 +936,93 @@ public:
 
     axom::copy(&contribCount, contribCountPtr, sizeof(contribCount));
     axom::deallocate(contribCountPtr);
+    axom::copy(&clipCount, clipCountPtr, sizeof(clipCount));
+    axom::deallocate(clipCountPtr);
     SLIC_DEBUG(axom::fmt::format(""));
-
-    clipCount = candidates.size();
-
   }  // end of computeClipVolumes3DTets() function
+
+  /*!
+   * @brief Compute whether a tetrahedron or octhedron is inside,
+   * outside or on the boundary of a reference tetrahedron,
+   * and conservatively label it as on, if not known.
+   *
+   * @internal To reduce repeatedly computing toUnitTet for
+   * the same tet, precompute that in the calling function
+   * and use it instead of tet.
+   */
+  AXOM_HOST_DEVICE
+  template <typename TetOrOctType>
+  LabelType labelPieceInOutOfTet(
+    const TetrahedronType& tet,
+    const TetOrOctType& piece)
+  {
+    const TetrahedronType unitTet { {0,0,0}, {1,0,0}, {0,1,0}, {0,0,1} };
+    axom::primal::experimental::CoordinateTransformer toUnitTet(tet.vertices(), unitTet.vertices());
+    /*
+     * Count (transformed) piece vertices above/below unitTet as unitTet
+     * rests on its 4 sides.  Sides 0-2 are perpendicular to the axes.
+     * Side 3 is the diagonal side.
+     */
+    int vsAbove[4] = { 0,0,0,0 };
+    int vsBelow[4] = { 0,0,0,0 };
+    int vsTetSide[4] = { 0,0,0,0 };
+    for(int i = 0; i < TetOrOctType::NUM_VERTS; ++i)
+    {
+      auto pVert = toUnitTet.getTransformed(piece[i]);
+      // h4 is height of pVert above the diagonal face, scaled by sqrt(3).
+      // h4 of 1 coresponds to the unitTet's height of sqrt(3).
+      double h4 = 1 - (pVert[0] + pVert[1] + pVert[2]);
+      vsAbove[0] += pVert[0] >= 1;
+      vsAbove[1] += pVert[1] >= 1;
+      vsAbove[2] += pVert[2] >= 1;
+      vsAbove[3] += h4 >= 1;
+      vsBelow[0] += pVert[0] <= 0;
+      vsBelow[1] += pVert[1] <= 0;
+      vsBelow[2] += pVert[2] <= 0;
+      vsBelow[3] += h4 <= 0;
+      vsTetSide[0] += pVert[0] >= 0;
+      vsTetSide[1] += pVert[1] >= 0;
+      vsTetSide[2] += pVert[2] >= 0;
+      vsTetSide[3] += h4 >= 0;
+    }
+    if(vsAbove[0] == TetOrOctType::NUM_VERTS ||
+       vsAbove[1] == TetOrOctType::NUM_VERTS ||
+       vsAbove[2] == TetOrOctType::NUM_VERTS ||
+       vsAbove[3] == TetOrOctType::NUM_VERTS ||
+       vsBelow[0] == TetOrOctType::NUM_VERTS ||
+       vsBelow[1] == TetOrOctType::NUM_VERTS ||
+       vsBelow[2] == TetOrOctType::NUM_VERTS ||
+       vsBelow[3] == TetOrOctType::NUM_VERTS)
+    {
+      return LabelType::LABEL_OUT;
+    }
+    if(vsTetSide[0] == TetOrOctType::NUM_VERTS &&
+       vsTetSide[1] == TetOrOctType::NUM_VERTS &&
+       vsTetSide[2] == TetOrOctType::NUM_VERTS &&
+       vsTetSide[3] == TetOrOctType::NUM_VERTS)
+    {
+      return LabelType::LABEL_IN;
+    }
+    return LabelType::LABEL_ON;
+  }
+
+  //!@brief Compute volume of convex octahedron.
+  AXOM_HOST_DEVICE
+  double octahedronVolume(const OctahedronType& oct)
+  {
+    TetrahedronType tets[] = { TetrahedronType(oct[0], oct[3], oct[1], oct[2]),
+                               TetrahedronType(oct[0], oct[3], oct[2], oct[4]),
+                               TetrahedronType(oct[0], oct[3], oct[4], oct[5]),
+                               TetrahedronType(oct[0], oct[3], oct[5], oct[1]) };
+    double octVol = 0.0;
+    for( int i = 0; i < 4; ++i )
+    {
+      double tetVol = tets[i].volume();
+      SLIC_ASSERT(tetVol >= -EPS); // Tet may be degenerate but not inverted.
+      octVol += tetVol;
+    }
+    return octVol;
+  }
 
   void getLabelCounts(axom::ArrayView<const LabelType> labels,
                       axom::IndexType& inCount,

@@ -11,8 +11,6 @@
 #include "axom/core/execution/runtime_policy.hpp"
 #include "axom/slic/interface/slic_macros.hpp"
 #include "axom/fmt.hpp"
-#include "conduit/conduit_node.hpp"
-conduit::Node labelingControl;
 
 namespace axom
 {
@@ -27,6 +25,7 @@ MeshClipper::MeshClipper(quest::experimental::ShapeMesh& shapeMesh,
   , m_strategy(strategy)
   , m_impl(newImpl())
   , m_verbose(false)
+  , m_screenLevel(3)
 { }
 
 void MeshClipper::clip(axom::Array<double>& ovlap)
@@ -66,7 +65,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
   // Try to label cells as inside, outside or on shape boundary
   axom::Array<LabelType> cellLabels;
   bool withCellInOut = false;
-  if(labelingControl["screenLevel"].as_int() >= 1)
+  if(m_screenLevel >= 1)
   {
     AXOM_ANNOTATE_BEGIN("MeshClipper:label_cells");
     withCellInOut = m_strategy->labelCellsInOut(m_shapeMesh, cellLabels);
@@ -103,7 +102,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
 
     axom::Array<LabelType> tetLabels;
     bool withTetInOut = false;
-    if(labelingControl["screenLevel"].as_int() >= 2)
+    if(m_screenLevel >= 2)
     {
       AXOM_ANNOTATE_BEGIN("MeshClipper:label_tets");
       withTetInOut = m_strategy->labelTetsInOut(m_shapeMesh, cellsOnBdry.view(), tetLabels);

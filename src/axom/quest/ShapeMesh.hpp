@@ -170,10 +170,10 @@ public:
    * @param hex [in] The hexahedron
    * @param tets [out] Pointer to space for NUM_TETS_PER_HEX tetrahedra.
    *
-   * To avoid ambiguity due to the 2 diagonals that can be chosen to
-   * divide each hex face into 2 triangles, we introduce a
-   * face-centered at the average of the midpoints of the 2 diagonals
-   * and decompose the face into 4 triangles.
+   * To avoid ambiguity due to the choice of 2 diagonals for dividing
+   * each hex face into 2 triangles, we introduce a face-centered
+   * point at the average of the face vertices and decompose the face
+   * into 4 triangles.
    *
    * It is expected that this method will be used in long inner
    * loops, so it is bare-bones for best performance.

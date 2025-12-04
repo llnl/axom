@@ -39,7 +39,7 @@ public:
   //!@brief Whether an element is in, out or on shape boundary.
   using LabelType = MeshClipperStrategy::LabelType;
 
-  static constexpr axom::IndexType NUM_TETS_PER_HEX = MeshClipperStrategy::NUM_TETS_PER_HEX;
+  static constexpr axom::IndexType NUM_TETS_PER_HEX = ShapeMesh::NUM_TETS_PER_HEX;
 
   /*!
    * @brief Construct a shape clipper
@@ -103,6 +103,18 @@ public:
    * This is a collective method if MPI-parallel.
    */
   conduit::Node getClippingStats() const;
+
+  /*!
+   * @brief Set the level of screening.
+   * This feature is for developer use.
+   */
+  void setScreenLevel( int screenLevel ) { m_screenLevel = screenLevel; }
+
+  /*!
+   * @brief Get the level of screening.
+   * This feature is for developer use.
+   */
+  int getScreenLevel() const { return m_screenLevel; }
 
   /*!
    * @brief Single interface for methods implemented with
@@ -193,7 +205,7 @@ public:
     //!@brief Report number of times primitive clipping method was used.
     void reportClipCount(IndexType clipCount) { m_myClipper.m_clipCount = clipCount; }
 
-  private:
+  protected:
     //!@brief The MeshClipper that owns this Impl.
     MeshClipper& m_myClipper;
   };
@@ -227,6 +239,8 @@ private:
   ///@}
 
   bool m_verbose;
+
+  int m_screenLevel;
 
 #if defined(__CUDACC__)
 public:

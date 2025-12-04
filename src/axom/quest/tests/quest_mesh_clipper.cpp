@@ -128,7 +128,7 @@ public:
 
   std::string backgroundMaterial;
 
-int screenLevel = 2;
+  int screenLevel = -1;
 
   // clang-format off
   enum class MeshType { bpSidre = 0, bpConduit = 1 };
@@ -157,7 +157,7 @@ public:
 
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
-app.add_option("--screenLevel", screenLevel)->description("Screen level: 0=none, 1=cell, 2=cell+tet")
+    app.add_option("--screenLevel", screenLevel)->description("Developer feature for MeshClipper.")
   ->capture_default_str();
 
     app.add_option("-o,--outputFile", outputFile)->description("Path to output file(s)");
@@ -279,7 +279,7 @@ app.add_option("--screenLevel", screenLevel)->description("Screen level: 0=none,
     // could throw an exception
     app.parse(argc, argv);
 
-    labelingControl["screenLevel"].set(screenLevel);
+    // labelingControl["screenLevel"].set(screenLevel);
 
     slic::setLoggingMsgLevel(m_verboseOutput ? slic::message::Debug : slic::message::Info);
   }
@@ -1241,7 +1241,6 @@ int main(int argc, char** argv)
   }
 #endif
 
-  labelingControl.print();
   AXOM_ANNOTATE_BEGIN("quest clipping test");
   AXOM_ANNOTATE_BEGIN("init");
 
@@ -1386,6 +1385,9 @@ int main(int argc, char** argv)
 
     quest::experimental::MeshClipper clipper(sMesh, geomStrategies[i]);
     clipper.setVerbose(params.isVerbose());
+    if(params.screenLevel >= 0) { clipper.setScreenLevel(params.screenLevel); }
+    SLIC_INFO(axom::fmt::format("MeshClipper screen level: {}", clipper.getScreenLevel()));
+
     axom::Array<double> ovlap;
     AXOM_ANNOTATE_BEGIN(annotationName);
     clipper.clip(ovlap);
