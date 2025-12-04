@@ -124,6 +124,9 @@ public:
       case ST_PNT:
         os << "ST_PNT";
         break;
+      case ST_LIN:
+        os << "ST_LIN";
+        break;
       case ST_TRI:
         os << "ST_TRI";
         break;
@@ -242,6 +245,9 @@ public:
       {
       case ST_PNT:
         retval = 4 + caseData[3];
+        break;
+      case ST_LIN:
+        retval = 2 + 2;
         break;
       case ST_TRI:
         retval = 2 + 3;
