@@ -56,7 +56,7 @@ namespace detail
  * \return The ShapeID value that matches the st_index, or 0 if there is no match.
  */
 template <typename IntegerType>
-inline AXOM_HOST_DEVICE IntegerType ST_Index_to_ShapeID(IntegerType st_index)
+AXOM_HOST_DEVICE inline constexpr IntegerType ST_Index_to_ShapeID(IntegerType st_index)
 {
   using namespace axom::bump::clipping::tables;
   IntegerType shapeID = 0;
@@ -70,6 +70,12 @@ inline AXOM_HOST_DEVICE IntegerType ST_Index_to_ShapeID(IntegerType st_index)
     break;
   case ST_QUA:
     shapeID = views::Quad_ShapeID;
+    break;
+  case ST_POLY5:
+  case ST_POLY6:
+  case ST_POLY7:
+  case ST_POLY8:
+    shapeID = views::Polygon_ShapeID;
     break;
   case ST_TET:
     shapeID = views::Tet_ShapeID;
@@ -90,10 +96,11 @@ inline AXOM_HOST_DEVICE IntegerType ST_Index_to_ShapeID(IntegerType st_index)
 /*!
  * \brief Returns a clip table index for the input shapeId.
  * \param shapeId A shapeID (e.g. Tet_ShapeID)
+ * \param numNodes The number of nodes in the shape.
  * \return The clip table index for the shape.
  */
 AXOM_HOST_DEVICE
-inline int getClipTableIndex(int shapeId)
+inline constexpr int getClipTableIndex(int shapeId, axom::IndexType numNodes)
 {
   int index = 0;
   switch(shapeId)
@@ -104,17 +111,28 @@ inline int getClipTableIndex(int shapeId)
   case views::Quad_ShapeID:
     index = 1;
     break;
+  case views::Polygon_ShapeID:
+    switch(numNodes)
+    {
+    case 3: index = 0; break; // triangle
+    case 4: index = 1; break; // quad
+    case 5: index = 2; break; // pentagon
+    case 6: index = 3; break; // hexagon
+    case 7: index = 4; break; // septagon
+    case 8: index = 5; break; // octagon
+    }
+    break;
   case views::Tet_ShapeID:
-    index = 2;
+    index = 6;
     break;
   case views::Pyramid_ShapeID:
-    index = 3;
+    index = 7;
     break;
   case views::Wedge_ShapeID:
-    index = 4;
+    index = 8;
     break;
   case views::Hex_ShapeID:
-    index = 5;
+    index = 9;
     break;
   }
   return index;
@@ -142,19 +160,41 @@ inline bool shapeIsSelected(unsigned char color, int selection)
 }
 
 AXOM_HOST_DEVICE
-constexpr IndexType maxPointForDimension(int dim)
+constexpr IndexType maxPointForDimension(int dim, IndexType numPoints)
 {
-  return (dim == 3)
-    ? axom::bump::clipping::tables::P7
-    : ((dim == 2) ? axom::bump::clipping::tables::P3 : axom::bump::clipping::tables::P1);
+  // 3D default
+  IndexType maxPoint = static_cast<IndexType>(axom::bump::clipping::tables::P7);
+  switch(dim)
+  {
+  case 2:
+    // We take the max since we might have a polygon.
+    maxPoint = axom::utilities::max(static_cast<IndexType>(axom::bump::clipping::tables::P0) + numPoints - 1,
+                                    static_cast<IndexType>(axom::bump::clipping::tables::P3));
+    break;
+  case 1:
+    maxPoint = static_cast<IndexType>(axom::bump::clipping::tables::P1);
+    break;
+  }
+  return maxPoint;
 }
 
 AXOM_HOST_DEVICE
-constexpr IndexType maxEdgeForDimension(int dim)
+constexpr IndexType maxEdgeForDimension(int dim, IndexType numPoints)
 {
-  return (dim == 3)
-    ? axom::bump::clipping::tables::EL
-    : ((dim == 2) ? axom::bump::clipping::tables::ED : axom::bump::clipping::tables::EB);
+  // 3D default
+  IndexType maxEdge = static_cast<IndexType>(axom::bump::clipping::tables::EL);
+  switch(dim)
+  {
+  case 2:
+    // We take the max since we might have a polygon.
+    maxEdge = axom::utilities::max(static_cast<IndexType>(axom::bump::clipping::tables::EA) + numPoints - 1,
+                                   static_cast<IndexType>(axom::bump::clipping::tables::ED));
+    break;
+  case 1:
+    maxEdge = static_cast<IndexType>(axom::bump::clipping::tables::EA);
+    break;
+  }
+  return maxEdge;
 }
 
 template <typename IdType, int MAXSIZE>
@@ -824,7 +864,8 @@ class ClipField
 public:
   using BlendData = axom::bump::BlendData;
   using SliceData = axom::bump::SliceData;
-  using ClipTableViews = axom::StackArray<axom::bump::clipping::TableView, 6>;
+  static constexpr int TOTAL_ST_SHAPES = 10;
+  using ClipTableViews = axom::StackArray<axom::bump::clipping::TableView, TOTAL_ST_SHAPES>;
   using Intersector = IntersectPolicy;
 
   using BitSet = detail::BitSet;
@@ -1193,15 +1234,19 @@ private:
     AXOM_ANNOTATE_SCOPE("createClipTableViews");
     if(dimension == -1 || dimension == 2)
     {
-      views[detail::getClipTableIndex(views::Tri_ShapeID)] = m_clipTables[ST_TRI].view();
-      views[detail::getClipTableIndex(views::Quad_ShapeID)] = m_clipTables[ST_QUA].view();
+      views[detail::getClipTableIndex(views::Tri_ShapeID, 3)] = m_clipTables[ST_TRI].view();
+      views[detail::getClipTableIndex(views::Quad_ShapeID, 4)] = m_clipTables[ST_QUA].view();
+      views[detail::getClipTableIndex(views::Polygon_ShapeID, 5)] = m_clipTables[ST_POLY5].view();
+      views[detail::getClipTableIndex(views::Polygon_ShapeID, 6)] = m_clipTables[ST_POLY6].view();
+      views[detail::getClipTableIndex(views::Polygon_ShapeID, 7)] = m_clipTables[ST_POLY7].view();
+      views[detail::getClipTableIndex(views::Polygon_ShapeID, 8)] = m_clipTables[ST_POLY8].view();
     }
     if(dimension == -1 || dimension == 3)
     {
-      views[detail::getClipTableIndex(views::Tet_ShapeID)] = m_clipTables[ST_TET].view();
-      views[detail::getClipTableIndex(views::Pyramid_ShapeID)] = m_clipTables[ST_PYR].view();
-      views[detail::getClipTableIndex(views::Wedge_ShapeID)] = m_clipTables[ST_WDG].view();
-      views[detail::getClipTableIndex(views::Hex_ShapeID)] = m_clipTables[ST_HEX].view();
+      views[detail::getClipTableIndex(views::Tet_ShapeID, 4)] = m_clipTables[ST_TET].view();
+      views[detail::getClipTableIndex(views::Pyramid_ShapeID, 5)] = m_clipTables[ST_PYR].view();
+      views[detail::getClipTableIndex(views::Wedge_ShapeID, 6)] = m_clipTables[ST_WDG].view();
+      views[detail::getClipTableIndex(views::Hex_ShapeID, 8)] = m_clipTables[ST_HEX].view();
     }
   }
 
@@ -1253,7 +1298,7 @@ private:
         zoneData.m_clipCasesView[szIndex] = clipcase;
 
         // Iterate over the shapes in this clip case to determine the number of blend groups.
-        const auto clipTableIndex = detail::getClipTableIndex(zone.id());
+        const auto clipTableIndex = detail::getClipTableIndex(zone.id(), zone.numberOfNodes());
         const auto &ctView = clipTableViews[clipTableIndex];
 
         int thisBlendGroups = 0;      // The number of blend groups produced in this case.
@@ -1319,8 +1364,8 @@ private:
         // Save the flags for the points that were used in this zone
         zoneData.m_pointsUsedView[szIndex] = ptused;
 
-        const auto PMAX = detail::maxPointForDimension(zone.dimension());
-        const auto EMAX = detail::maxEdgeForDimension(zone.dimension());
+        const auto PMAX = detail::maxPointForDimension(zone.dimension(), zone.numberOfNodes());
+        const auto EMAX = detail::maxEdgeForDimension(zone.dimension(), zone.numberOfNodes());
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
         // NOTE: We are not going to emit blend groups for P0..P7 points.
 
@@ -1524,7 +1569,7 @@ private:
         const auto clipcase = zoneData.m_clipCasesView[szIndex];
 
         // Iterate over the shapes in this clip case to determine the number of blend groups.
-        const auto clipTableIndex = detail::getClipTableIndex(zone.id());
+        const auto clipTableIndex = detail::getClipTableIndex(zone.id(), zone.numberOfNodes());
         const auto &ctView = clipTableViews[clipTableIndex];
 
         // These are the points used in this zone's fragments.
@@ -1581,7 +1626,7 @@ private:
 #if !defined(AXOM_REDUCE_BLEND_GROUPS)
         // Add blend group for each original point that was used.
         // NOTE - this can add a lot of blend groups with 1 node.
-        const auto PMAX = detail::maxPointForDimension(zone.dimension());
+        const auto PMAX = detail::maxPointForDimension(zone.dimension(), zone.numberOfNodes());
         for(IndexType pid = P0; pid <= PMAX; pid++)
         {
           if(axom::utilities::bitIsSet(ptused, pid))
@@ -1593,7 +1638,7 @@ private:
         }
 #endif
         // Add blend group for each edge point that was used.
-        const auto EMAX = detail::maxEdgeForDimension(zone.dimension());
+        const auto EMAX = detail::maxEdgeForDimension(zone.dimension(), zone.numberOfNodes());
         for(IndexType pid = EA; pid <= EMAX; pid++)
         {
           if(axom::utilities::bitIsSet(ptused, pid))
@@ -1770,8 +1815,8 @@ private:
             }
           }
 
-          const BitSet PMAX = detail::maxPointForDimension(zone.dimension());
-          const BitSet EMAX = detail::maxEdgeForDimension(zone.dimension());
+          const BitSet PMAX = detail::maxPointForDimension(zone.dimension(), zone.numberOfNodes());
+          const BitSet EMAX = detail::maxEdgeForDimension(zone.dimension(), zone.numberOfNodes());
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
           // For single nodes, we did not make a blend group. We look up the new
           // node id from nodeData.m_oldNodeToNewNodeView.
@@ -1825,7 +1870,7 @@ private:
 #endif
           // Iterate over the selected fragments and emit connectivity for them.
           const auto clipcase = zoneData.m_clipCasesView[szIndex];
-          const auto clipTableIndex = detail::getClipTableIndex(zone.id());
+          const auto clipTableIndex = detail::getClipTableIndex(zone.id(), zone.numberOfNodes());
           const auto ctView = clipTableViews[clipTableIndex];
           auto it = ctView.begin(clipcase);
           const auto end = ctView.end(clipcase);
