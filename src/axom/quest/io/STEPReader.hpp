@@ -7,6 +7,7 @@
 #define QUEST_STEPREADER_HPP_
 
 #include "axom/config.hpp"
+#include "axom/mint.hpp"
 
 #ifndef AXOM_USE_OPENCASCADE
   #error STEPReader should only be included when Axom is configured with opencascade
@@ -84,6 +85,27 @@ public:
 
   /// Logs some information about the loaded BRep
   void printBRepStats() const;
+
+  /*!
+   * \brief Generates a triangulated representation of the STEP file as a Mint unstructured triangle mesh.
+   *
+   * \param[inout] mesh Pointer to a Mint unstructured mesh that will be populated
+   *            with triangular elements approximating the STEP geometry.
+   * \param[in] linear_deflection Maximum allowed deviation between the
+   *            original geometry and the triangulated approximation.
+   * \param[in] angular_deflection Maximum allowed angular deviation (in radians)
+   *            between normals of adjacent triangles.
+   * \param[in] is_relative When false (default), linear deflection is in mesh units. When true,
+                linear deflection is relative to the local edge length of the triangles.
+   * \param[in] trimmed If true (default), the triangulation respects trimming curves.
+   *            otherwise, we triangulate the untrimmed patches. The latter is mostly to aid 
+   *            in understanding the model's patches and is not generally useful.
+   */
+  int getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* mesh,
+                      double linear_deflection = 0.1,
+                      double angular_deflection = 0.5,
+                      bool is_relative = false,
+                      bool trimmed = true);
 
 protected:
   // open cascade does not appear to offer a direct way to get the number of patches

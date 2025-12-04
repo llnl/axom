@@ -14,23 +14,6 @@
 
 #include "axom/quest/io/STEPReader.hpp"
 
-#include "opencascade/BRepAdaptor_Curve.hxx"
-#include "opencascade/BRepBuilderAPI_MakeFace.hxx"
-#include "opencascade/BRepBuilderAPI_NurbsConvert.hxx"
-#include "opencascade/BRepMesh_IncrementalMesh.hxx"
-#include "opencascade/BRepTools.hxx"
-#include "opencascade/BRep_Tool.hxx"
-#include "opencascade/Geom_BSplineSurface.hxx"
-#include "opencascade/Geom_RectangularTrimmedSurface.hxx"
-#include "opencascade/Geom_Surface.hxx"
-#include "opencascade/Poly_Triangulation.hxx"
-#include "opencascade/Precision.hxx"
-#include "opencascade/TopExp.hxx"
-#include "opencascade/TopExp_Explorer.hxx"
-#include "opencascade/TopLoc_Location.hxx"
-#include "opencascade/TopoDS.hxx"
-#include "opencascade/TopoDS_Face.hxx"
-#include "opencascade/TopoDS_Shape.hxx"
 #include <iostream>
 
 /**
@@ -345,165 +328,6 @@ private:
   int m_numFillZeros {0};
 };
 
-/**
- * Utility class to assist with triangulating STEP files
- * 
- * This class uses Open Cascade's triangulation functionality to generate triangle meshes
- * Supported triangulations:
- *  - triangulateTrimmedPatches: Generate a triangulation of the entire (trimmed) mesh and return as a mint mesh
- *  - triangulateUntrimmedPatches: Generate a triangulation of the entire (trimmed) mesh and return as a mint mesh
- *  The output mesh has a field 'patch_index' that associates each triangle with the index of its original patch in the input mesh
- */
-class PatchTriangulator
-{
-public:
-  PatchTriangulator() = delete;
-
-  PatchTriangulator(const TopoDS_Shape& shape, double deflection, double angularDeflection)
-    : m_shape(shape)
-    , m_deflection(deflection)
-    , m_angularDeflection(angularDeflection)
-  {
-    const bool is_relative = false;
-    BRepTools::Clean(shape);
-    BRepMesh_IncrementalMesh mesh(m_shape, m_deflection, is_relative, m_angularDeflection);
-
-    if(!mesh.IsDone())
-    {
-      throw std::runtime_error("Mesh generation failed.");
-    }
-  }
-
-  /// Utility function to triangulate each patch, ignoring the trimming curves, and write it to disk as as STL mesh
-  void triangulateUntrimmedPatches(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& output_mesh)
-  {
-    std::vector<int> patch_id;
-
-    int patchIndex = 0;
-    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
-    {
-      TopoDS_Face face = TopoDS::Face(faceExp.Current());
-
-      // Get the underlying surface of the face
-      opencascade::handle<Geom_Surface> surface = BRep_Tool::Surface(face);
-
-      // Optionally, you can create a rectangular trimmed surface if needed
-      // Here, we assume the surface is already suitable for creating a new face
-      Standard_Real u1, u2, v1, v2;
-      surface->Bounds(u1, u2, v1, v2);
-      opencascade::handle<Geom_RectangularTrimmedSurface> untrimmedSurface =
-        new Geom_RectangularTrimmedSurface(surface, u1, u2, v1, v2);
-
-      // Create a new face from the untrimmed surface
-      TopoDS_Face newFace = BRepBuilderAPI_MakeFace(untrimmedSurface, Precision::Confusion());
-
-      // Mesh the new face
-      BRepMesh_IncrementalMesh mesh(newFace, m_deflection, Standard_False, m_angularDeflection);
-
-      // Now you can access the triangulation of the new face
-      TopLoc_Location loc;
-      opencascade::handle<Poly_Triangulation> triangulation = BRep_Tool::Triangulation(newFace, loc);
-
-      if(triangulation.IsNull())
-      {
-        SLIC_WARNING(
-          axom::fmt::format("Error: Triangulation could not be generated for untrimmed patch {}",
-                            patchIndex));
-        break;
-      }
-
-      const int numTriangles = triangulation->NbTriangles();
-      auto trsf = loc.Transformation();
-
-      for(int i = 1; i <= numTriangles; ++i)
-      {
-        Poly_Triangle triangle = triangulation->Triangle(i);
-        int n1, n2, n3;
-        triangle.Get(n1, n2, n3);
-
-        gp_Pnt p1 = triangulation->Node(n1).Transformed(trsf);
-        gp_Pnt p2 = triangulation->Node(n2).Transformed(trsf);
-        gp_Pnt p3 = triangulation->Node(n3).Transformed(trsf);
-
-        axom::IndexType v1 = output_mesh.appendNode(p1.X(), p1.Y(), p1.Z());
-        axom::IndexType v2 = output_mesh.appendNode(p2.X(), p2.Y(), p2.Z());
-        axom::IndexType v3 = output_mesh.appendNode(p3.X(), p3.Y(), p3.Z());
-
-        axom::IndexType cell[3] = {v1, v2, v3};
-        output_mesh.appendCell(cell);
-        patch_id.push_back(patchIndex);
-      }
-    }
-
-    // Add a field to store the patch index for each cell
-    auto* patchIndexField = output_mesh.createField<int>("patch_index", axom::mint::CELL_CENTERED);
-
-    for(axom::IndexType i = 0; i < output_mesh.getNumberOfCells(); ++i)
-    {
-      patchIndexField[i] = patch_id[i];
-    }
-  }
-
-  /// Triangulates the entire mesh as a single VTK file
-  /// The association to the original patches is tracked via the patch_index field
-  void triangulateTrimmedPatches(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& output_mesh)
-  {
-    std::vector<int> patch_id;
-
-    int patchIndex = 0;
-    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
-    {
-      TopoDS_Face face = TopoDS::Face(faceExp.Current());
-
-      // Create a triangulation of this patch
-      TopLoc_Location loc;
-      opencascade::handle<Poly_Triangulation> triangulation = BRep_Tool::Triangulation(face, loc);
-
-      if(triangulation.IsNull())
-      {
-        SLIC_WARNING(axom::fmt::format("Error: Triangulation could not be generated for patch {}",
-                                       patchIndex));
-        continue;
-      }
-
-      const int numTriangles = triangulation->NbTriangles();
-      auto trsf = loc.Transformation();
-
-      for(int i = 1; i <= numTriangles; ++i)
-      {
-        Poly_Triangle triangle = triangulation->Triangle(i);
-        int n1, n2, n3;
-        triangle.Get(n1, n2, n3);
-
-        gp_Pnt p1 = triangulation->Node(n1).Transformed(trsf);
-        gp_Pnt p2 = triangulation->Node(n2).Transformed(trsf);
-        gp_Pnt p3 = triangulation->Node(n3).Transformed(trsf);
-
-        axom::IndexType v1 = output_mesh.appendNode(p1.X(), p1.Y(), p1.Z());
-        axom::IndexType v2 = output_mesh.appendNode(p2.X(), p2.Y(), p2.Z());
-        axom::IndexType v3 = output_mesh.appendNode(p3.X(), p3.Y(), p3.Z());
-
-        axom::IndexType cell[3] = {v1, v2, v3};
-        output_mesh.appendCell(cell);
-        patch_id.push_back(patchIndex);
-      }
-    }
-
-    // Add a field to store the patch index for each cell
-    auto* patchIndexField = output_mesh.createField<int>("patch_index", axom::mint::CELL_CENTERED);
-
-    for(axom::IndexType i = 0; i < output_mesh.getNumberOfCells(); ++i)
-    {
-      patchIndexField[i] = patch_id[i];
-    }
-  }
-
-private:
-  TopoDS_Shape m_shape;
-  double m_deflection;
-  double m_angularDeflection;
-};
-
 int main(int argc, char** argv)
 {
   axom::slic::SimpleLogger logger(axom::slic::message::Info);
@@ -577,41 +401,57 @@ int main(int argc, char** argv)
   patchProcessor.setVerbosity(verbosity);
   patchProcessor.setOutputDirectory(output_dir);
   patchProcessor.setNumFillZeros(numFillZeros);
-  SLIC_INFO(
-    axom::fmt::format("Generating SVG meshes for patches and their trimming "
-                      "curves in '{}' directory",
-                      output_dir));
+  SLIC_INFO(axom::fmt::format(
+    "Generating SVG meshes for patches and their trimming curves in '{}' directory",
+    output_dir));
   for(const auto& [index, patchData] : stepReader.getPatchDataMap())
   {
     patchProcessor.generateSVGForPatch(index, patchData, patches[index]);
   }
 
-  auto& nurbs_shape = stepReader.getShape();
-  PatchTriangulator patchTriangulator(nurbs_shape, deflection, angular_deflection);
-  SLIC_INFO(
-    axom::fmt::format("Generating triangles meshes for trimmed and untrimmed "
-                      "patches in '{}' directory",
-                      output_dir));
+  SLIC_INFO(axom::fmt::format(
+    "Generating triangles meshes for trimmed and untrimmed patches in '{}' directory",
+    output_dir));
+  // Create an unstructured triangle mesh of the model (using trimmed patches)
   {
-    // Create an unstructured mesh with 3D vertices and triangular cells
-    axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> mesh(3, axom::mint::TRIANGLE);
+    constexpr bool extract_trimmed_surface = true;
 
-    patchTriangulator.triangulateTrimmedPatches(mesh);
+    axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> mesh(3, axom::mint::TRIANGLE);
+    stepReader.getTriangleMesh(&mesh, deflection, angular_deflection, true, extract_trimmed_surface);
 
     const std::string filename =
       axom::utilities::filesystem::joinPath(output_dir, "triangulated_mesh.vtk");
     axom::mint::write_vtk(&mesh, filename);
-    SLIC_INFO_IF(verbosity, "VTK triangle mesh of entire model generated: " << filename);
+    SLIC_INFO_ROOT(
+      axom::fmt::format(axom::utilities::locale(),
+                        "Generated VTK triangle mesh of trimmed model with {} deflection {} and {} "
+                        "angular deflection, with {:L} triangles: '{}'",
+                        false ? "relative" : "absolute",
+                        deflection,
+                        angular_deflection,
+                        mesh.getNumberOfCells(),
+                        filename));
   }
+
+  // Create an unstructured triangle mesh of the model's untrimmed patches (mostly to understand the model better)
   {
-    // Create an unstructured mesh with 3D vertices and triangular cells
+    constexpr bool extract_trimmed_surface = false;
+
     axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> mesh(3, axom::mint::TRIANGLE);
-    patchTriangulator.triangulateUntrimmedPatches(mesh);
+    stepReader.getTriangleMesh(&mesh, deflection, angular_deflection, true, extract_trimmed_surface);
 
     const std::string filename =
       axom::utilities::filesystem::joinPath(output_dir, "untrimmed_mesh.vtk");
     axom::mint::write_vtk(&mesh, filename);
-    SLIC_INFO_IF(verbosity, "VTK triangle mesh of entire (untrimmed) model generated: " << filename);
+    SLIC_INFO_ROOT(
+      axom::fmt::format(axom::utilities::locale(),
+                        "Generated VTK triangle mesh of untrimmed model with {} deflection {} and "
+                        "{} angular deflection, with {:L} triangles: '{}'",
+                        false ? "relative" : "absolute",
+                        deflection,
+                        angular_deflection,
+                        mesh.getNumberOfCells(),
+                        filename));
   }
 
   return 0;

@@ -13,39 +13,42 @@
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
 
+#include "opencascade/BRep_Tool.hxx"
 #include "opencascade/BRepAdaptor_Curve.hxx"
 #include "opencascade/BRepBuilderAPI_MakeFace.hxx"
 #include "opencascade/BRepBuilderAPI_NurbsConvert.hxx"
+#include "opencascade/BRepCheck_Analyzer.hxx"
+#include "opencascade/BRepCheck_Edge.hxx"
+#include "opencascade/BRepCheck_Face.hxx"
+#include "opencascade/BRepCheck_Wire.hxx"
+#include "opencascade/BRepCheck.hxx"
+#include "opencascade/BRepLib.hxx"
+#include "opencascade/BRepMesh_IncrementalMesh.hxx"
 #include "opencascade/BRepTools.hxx"
-#include "opencascade/BRep_Tool.hxx"
+#include "opencascade/Geom_BSplineSurface.hxx"
+#include "opencascade/Geom_RectangularTrimmedSurface.hxx"
+#include "opencascade/Geom_Surface.hxx"
 #include "opencascade/Geom2d_BSplineCurve.hxx"
 #include "opencascade/Geom2d_Curve.hxx"
 #include "opencascade/Geom2dConvert.hxx"
 #include "opencascade/GeomAbs_CurveType.hxx"
-#include "opencascade/Geom_BSplineSurface.hxx"
-#include "opencascade/Geom_RectangularTrimmedSurface.hxx"
-#include "opencascade/Geom_Surface.hxx"
 #include "opencascade/Interface_Static.hxx"
+#include "opencascade/Poly_Triangulation.hxx"
+#include "opencascade/Precision.hxx"
+#include "opencascade/ShapeBuild_ReShape.hxx"
+#include "opencascade/ShapeFix_Edge.hxx"
+#include "opencascade/ShapeFix_Face.hxx"
+#include "opencascade/ShapeFix_Wire.hxx"
 #include "opencascade/STEPControl_Reader.hxx"
 #include "opencascade/TColgp_Array2OfPnt.hxx"
-#include "opencascade/TopExp.hxx"
 #include "opencascade/TopExp_Explorer.hxx"
-#include "opencascade/TopTools_IndexedMapOfShape.hxx"
-#include "opencascade/TopoDS.hxx"
+#include "opencascade/TopExp.hxx"
+#include "opencascade/TopLoc_Location.hxx"
 #include "opencascade/TopoDS_Edge.hxx"
 #include "opencascade/TopoDS_Face.hxx"
 #include "opencascade/TopoDS_Shape.hxx"
 #include "opencascade/TopoDS_Wire.hxx"
-#include "opencascade/BRepLib.hxx"
-#include "opencascade/ShapeFix_Edge.hxx"
-#include "opencascade/BRepCheck_Analyzer.hxx"
-#include "opencascade/BRepCheck.hxx"
-#include "opencascade/BRepCheck_Face.hxx"
-#include "opencascade/BRepCheck_Wire.hxx"
-#include "opencascade/BRepCheck_Edge.hxx"
-#include "opencascade/ShapeFix_Wire.hxx"
-#include "opencascade/ShapeFix_Face.hxx"
-#include "opencascade/ShapeBuild_ReShape.hxx"
+#include "opencascade/TopoDS.hxx"
 
 #include <iostream>
 
@@ -1067,6 +1070,170 @@ private:
   PatchDataMap m_patchData;
 };
 
+/**
+ * Utility class to assist with triangulating STEP files
+ * 
+ * This class uses Open Cascade's triangulation functionality to generate triangle meshes
+ * Supported triangulations:
+ *  - triangulateTrimmedPatches: Generate a triangulation of the entire (trimmed) mesh and return as a mint mesh
+ *  - triangulateUntrimmedPatches: Generate a triangulation of the entire (trimmed) mesh and return as a mint mesh
+ *  The output mesh has a field 'patch_index' that associates each triangle with the index of its original patch in the input mesh
+ */
+class PatchTriangulator
+{
+public:
+  PatchTriangulator() = delete;
+
+  PatchTriangulator(const TopoDS_Shape& shape,
+                    double deflection,
+                    double angularDeflection,
+                    bool deflectionIsRelative)
+    : m_shape(shape)
+    , m_deflection(deflection)
+    , m_angularDeflection(angularDeflection)
+    , m_deflectionIsRelative(deflectionIsRelative)
+  {
+    BRepTools::Clean(shape);
+    BRepMesh_IncrementalMesh mesh(m_shape, m_deflection, m_deflectionIsRelative, m_angularDeflection);
+
+    if(!mesh.IsDone())
+    {
+      throw std::runtime_error("Mesh generation failed.");
+    }
+  }
+
+
+  /// Triangulates the entire mesh as a single VTK file
+  /// The association to the original patches is tracked via the patch_index field
+  void triangulateTrimmedPatches(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& output_mesh)
+  {
+    std::vector<int> patch_id;
+
+    int patchIndex = 0;
+    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
+    {
+      TopoDS_Face face = TopoDS::Face(faceExp.Current());
+
+      // Create a triangulation of this patch
+      TopLoc_Location loc;
+      opencascade::handle<Poly_Triangulation> triangulation = BRep_Tool::Triangulation(face, loc);
+
+      if(triangulation.IsNull())
+      {
+        SLIC_WARNING(axom::fmt::format("Error: Triangulation could not be generated for patch {}",
+                                       patchIndex));
+        continue;
+      }
+
+      const int numTriangles = triangulation->NbTriangles();
+      auto trsf = loc.Transformation();
+
+      for(int i = 1; i <= numTriangles; ++i)
+      {
+        Poly_Triangle triangle = triangulation->Triangle(i);
+        int n1, n2, n3;
+        triangle.Get(n1, n2, n3);
+
+        gp_Pnt p1 = triangulation->Node(n1).Transformed(trsf);
+        gp_Pnt p2 = triangulation->Node(n2).Transformed(trsf);
+        gp_Pnt p3 = triangulation->Node(n3).Transformed(trsf);
+
+        axom::IndexType v1 = output_mesh.appendNode(p1.X(), p1.Y(), p1.Z());
+        axom::IndexType v2 = output_mesh.appendNode(p2.X(), p2.Y(), p2.Z());
+        axom::IndexType v3 = output_mesh.appendNode(p3.X(), p3.Y(), p3.Z());
+
+        axom::IndexType cell[3] = {v1, v2, v3};
+        output_mesh.appendCell(cell);
+        patch_id.push_back(patchIndex);
+      }
+    }
+
+    // Add a field to store the patch index for each cell
+    auto* patchIndexField = output_mesh.createField<int>("patch_index", axom::mint::CELL_CENTERED);
+
+    for(axom::IndexType i = 0; i < output_mesh.getNumberOfCells(); ++i)
+    {
+      patchIndexField[i] = patch_id[i];
+    }
+  }
+
+  /// Utility function to triangulate each patch, ignoring the trimming curves, and write it to disk as as STL mesh
+  void triangulateUntrimmedPatches(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& output_mesh)
+  {
+    std::vector<int> patch_id;
+
+    int patchIndex = 0;
+    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
+    {
+      TopoDS_Face face = TopoDS::Face(faceExp.Current());
+
+      // Get the underlying surface of the face
+      opencascade::handle<Geom_Surface> surface = BRep_Tool::Surface(face);
+
+      // Optionally, you can create a rectangular trimmed surface if needed
+      // Here, we assume the surface is already suitable for creating a new face
+      Standard_Real u1, u2, v1, v2;
+      surface->Bounds(u1, u2, v1, v2);
+      opencascade::handle<Geom_RectangularTrimmedSurface> untrimmedSurface =
+        new Geom_RectangularTrimmedSurface(surface, u1, u2, v1, v2);
+
+      // Create a new face from the untrimmed surface
+      TopoDS_Face newFace = BRepBuilderAPI_MakeFace(untrimmedSurface, Precision::Confusion());
+
+      // Mesh the new face
+      BRepMesh_IncrementalMesh mesh(newFace, m_deflection, m_deflectionIsRelative, m_angularDeflection);
+
+      // Now you can access the triangulation of the new face
+      TopLoc_Location loc;
+      opencascade::handle<Poly_Triangulation> triangulation = BRep_Tool::Triangulation(newFace, loc);
+
+      if(triangulation.IsNull())
+      {
+        SLIC_WARNING(
+          axom::fmt::format("Error: Triangulation could not be generated for untrimmed patch {}",
+                            patchIndex));
+        break;
+      }
+
+      const int numTriangles = triangulation->NbTriangles();
+      auto trsf = loc.Transformation();
+
+      for(int i = 1; i <= numTriangles; ++i)
+      {
+        Poly_Triangle triangle = triangulation->Triangle(i);
+        int n1, n2, n3;
+        triangle.Get(n1, n2, n3);
+
+        gp_Pnt p1 = triangulation->Node(n1).Transformed(trsf);
+        gp_Pnt p2 = triangulation->Node(n2).Transformed(trsf);
+        gp_Pnt p3 = triangulation->Node(n3).Transformed(trsf);
+
+        axom::IndexType v1 = output_mesh.appendNode(p1.X(), p1.Y(), p1.Z());
+        axom::IndexType v2 = output_mesh.appendNode(p2.X(), p2.Y(), p2.Z());
+        axom::IndexType v3 = output_mesh.appendNode(p3.X(), p3.Y(), p3.Z());
+
+        axom::IndexType cell[3] = {v1, v2, v3};
+        output_mesh.appendCell(cell);
+        patch_id.push_back(patchIndex);
+      }
+    }
+
+    // Add a field to store the patch index for each cell
+    auto* patchIndexField = output_mesh.createField<int>("patch_index", axom::mint::CELL_CENTERED);
+
+    for(axom::IndexType i = 0; i < output_mesh.getNumberOfCells(); ++i)
+    {
+      patchIndexField[i] = patch_id[i];
+    }
+  }
+
+private:
+  TopoDS_Shape m_shape;
+  double m_deflection;
+  double m_angularDeflection;
+  bool m_deflectionIsRelative;
+};
+
 }  // end namespace internal
 
 std::string STEPReader::getFileUnits() const { return m_stepProcessor->getFileUnits(); }
@@ -1335,6 +1502,41 @@ int STEPReader::read()
   m_stepProcessor->extractTrimmingCurves(m_patches);
 
   this->printBRepStats();
+
+  return 0;
+}
+
+int STEPReader::getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* mesh,
+                                double linear_deflection,
+                                double angular_deflection,
+                                bool is_relative,
+                                bool trimmed)
+{
+  if(!m_stepProcessor || !m_stepProcessor->isLoaded())
+  {
+    SLIC_WARNING("Cannot triangulate model until calling STEPReader::read()");
+    return 1;
+  }
+
+  if(!mesh)
+  {
+    SLIC_WARNING("Passed in mesh instance was null. Skipping triangulation");
+    return 1;
+  }
+
+  internal::PatchTriangulator patchTriangulator(getShape(),
+                                                linear_deflection,
+                                                angular_deflection,
+                                                is_relative);
+
+  if(trimmed)
+  {
+    patchTriangulator.triangulateTrimmedPatches(*mesh);
+  }
+  else
+  {
+    patchTriangulator.triangulateUntrimmedPatches(*mesh);
+  }
 
   return 0;
 }
