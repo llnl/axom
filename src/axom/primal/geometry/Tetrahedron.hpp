@@ -141,6 +141,14 @@ public:
   }
 
   /*!
+   * \brief (Experimental) Pointer to vertices.
+   */
+  AXOM_HOST_DEVICE const PointType* vertices() const
+  {
+    return m_points;
+  }
+
+  /*!
    * \brief Returns whether the tetrahedron is degenerate
    * \return true iff the tetrahedron is degenerate (has near zero volume)
    */
