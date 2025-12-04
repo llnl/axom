@@ -102,6 +102,33 @@ protected:
                              conduit::Node &n_newMatset) = 0;
 
   /*!
+   * \brief Update names in some of the objects when we can tell they have been renamed.
+   *
+   * \param origTopoName The topology name of the input mesh.
+   * \param newTopoName The topology name of the output mesh.
+   * \param origCoordsetName The coordset name of the input mesh.
+   * \param newCoordsetName The coordset name of the output mesh.
+   * \param origMatsetName The matset name of the input mesh.
+   * \param newMatsetName The matset name of the output mesh.
+   * \param n_newTopo The node that contains the output topology.
+   * \param n_newCoordset The node that contains the output coordset.
+   * \param n_newFields The node that contains the output fields.
+   * \param n_newMatset The node that contains the output matset.
+   *
+   * \note This method is used internally mainly when MIR copies the input mesh to the output when MIR is no-op.
+   */
+  void updateNames(const std::string &origTopoName,
+                   const std::string &newTopoName,
+                   const std::string &origCoordsetName,
+                   const std::string &newCoordsetName,
+                   const std::string &origMatsetName,
+                   const std::string &newMatsetName,
+                   conduit::Node &n_newTopo,
+                   conduit::Node &n_newCoordset,
+                   conduit::Node &n_newFields,
+                   conduit::Node &n_newMatset);
+
+  /*!
    * \brief Copy state from the src domain to the destination domain.
    * \param srcState The node that contains the state in the source domain.
    * \param destState The node that contains the state in the destination domain.

@@ -21,11 +21,6 @@
 // C++ includes
 #include <math.h>
 
-// MFEM includes
-#ifdef AXOM_USE_MFEM
-  #include "mfem.hpp"
-#endif
-
 namespace axom
 {
 namespace primal
@@ -143,16 +138,14 @@ double linear_winding_number(const Point<T, 2>& q,
                              bool& isOnEdge,
                              double edge_tol)
 {
-  Vector<T, 2> V0(q, c0);
-  Vector<T, 2> V1(q, c1);
+  const auto V0 = c0 - q;
+  const auto V1 = c1 - q;
+  const auto seg_vec = c0 - c1;
 
-  // clang-format off
-  // Measures the signed area of the triangle with vertices q, c0, c1
-  double tri_area = axom::numerics::determinant(V0[0] - V1[0], V1[0], 
-                                                V0[1] - V1[1], V1[1]);
-  // clang-format on
+  // Measures (twice) the signed area of the triangle with vertices q, c0, c1
+  const double tri_area = axom::numerics::determinant(seg_vec[0], V1[0], seg_vec[1], V1[1]);
 
-  double segment_sq_len = (V0 - V1).squared_norm();
+  const double segment_sq_len = seg_vec.squared_norm();
 
   // Compute distance from line connecting endpoints to query
   isOnEdge = false;
@@ -163,24 +156,21 @@ double linear_winding_number(const Point<T, 2>& q,
     {
       isOnEdge = (V0.squared_norm() <= edge_tol * edge_tol);
     }
-    else
+    else if(const double proj_val = V0.dot(seg_vec) / segment_sq_len;
+            (proj_val >= 0 - edge_tol) && (proj_val <= 1 + edge_tol))
     {
-      double proj_val = Vector<T, 2>::dot_product(V0, V0 - V1) / segment_sq_len;
-      if((proj_val >= 0 - edge_tol) && (proj_val <= 1 + edge_tol))
-      {
-        isOnEdge = true;
-      }
+      isOnEdge = true;
     }
 
     return 0;
   }
 
   // Compute signed angle between vectors
-  double dotprod =
+  const double dotprod =
     axom::utilities::clampVal(Vector<T, 2>::dot_product(V0.unitVector(), V1.unitVector()), -1.0, 1.0);
 
   constexpr double gwn_modulo = 0.5 * M_1_PI;
-  return gwn_modulo * acos(dotprod) * ((tri_area > 0) ? 1 : -1);
+  return (tri_area > 0) ? gwn_modulo * acos(dotprod) : -gwn_modulo * acos(dotprod);
 }
 
 /*!

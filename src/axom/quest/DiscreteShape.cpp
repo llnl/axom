@@ -203,6 +203,7 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     axom::mint::Mesh* meshRep = nullptr;
     const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic &&
                            m_percentError > MINIMUM_PERCENT_ERROR);
+  #ifdef AXOM_USE_MPI
     quest::internal::read_c2c_mesh(shapePath,
                                    uniform,
                                    transform,
@@ -212,6 +213,16 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
                                    meshRep,
                                    m_revolvedVolume,  // output arg
                                    m_comm);
+  #else
+    quest::internal::read_c2c_mesh(shapePath,
+                                   uniform,
+                                   transform,
+                                   m_samplesPerKnotSpan,
+                                   m_vertexWeldThreshold,
+                                   m_percentError,
+                                   meshRep,
+                                   m_revolvedVolume);  // output arg
+  #endif
 
     m_meshRep.reset(meshRep);
 

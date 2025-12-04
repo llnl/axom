@@ -263,18 +263,52 @@ protected:
     }
     else if(cleanZones.size() > 0 && mixedZones.size() == 0)
     {
-      // There were no mixed zones. We can copy the input to the output.
+      // There were no mixed zones.
+
+      if(!n_options_copy.has_path(selectedZones.selectionKey()))
       {
+        // We can copy the input to the output (no selected zones).
         AXOM_ANNOTATE_SCOPE("copy");
         utils::copy<ExecSpace>(n_newCoordset, n_coordset);
         utils::copy<ExecSpace>(n_newTopo, n_topo);
         utils::copy<ExecSpace>(n_newFields, n_fields);
         utils::copy<ExecSpace>(n_newMatset, n_matset);
-      }
 
-      // Add an originalElements array.
-      const std::string originalElementsField(ELVIRAOptions(n_options).originalElementsField());
-      addOriginal(n_newFields[originalElementsField], n_topo.name(), "element", cleanZones);
+        // Add an originalElements array.
+        const std::string originalElementsField(ELVIRAOptions(n_options).originalElementsField());
+        addOriginal(n_newFields[originalElementsField], n_newTopo.name(), "element", cleanZones);
+      }
+      else
+      {
+        // Make the clean mesh of only the selected zones
+
+        conduit::Node n_root;
+        n_root[localPath(n_coordset)].set_external(n_coordset);
+        n_root[localPath(n_topo)].set_external(n_topo);
+        n_root[localPath(n_matset)].set_external(n_matset);
+        conduit::Node &n_root_coordset = n_root[localPath(n_coordset)];
+        conduit::Node &n_root_topo = n_root[localPath(n_topo)];
+        conduit::Node &n_root_matset = n_root[localPath(n_matset)];
+        conduit::Node n_root_fields = n_root["fields"];
+
+        conduit::Node n_cleanOutput;
+        makeCleanZones(cleanZones.view(),
+                       n_root,
+                       n_root_topo,
+                       n_root_coordset,
+                       n_root_matset,
+                       n_options_copy,
+                       n_cleanOutput);
+
+        // Move n_cleanOutput objects into the supplied nodes.
+        n_newCoordset.move(n_cleanOutput[localPath(n_newCoordset)]);
+        n_newTopo.move(n_cleanOutput[localPath(n_newTopo)]);
+        n_newMatset.move(n_cleanOutput[localPath(n_newMatset)]);
+        if(n_cleanOutput.has_path("fields"))
+        {
+          n_newFields.move(n_cleanOutput["fields"]);
+        }
+      }
     }
   }
 

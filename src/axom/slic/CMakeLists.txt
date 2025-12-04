@@ -58,6 +58,7 @@ if (ENABLE_FORTRAN)
     list(APPEND slic_sources
         interface/c_fortran/wrapSLIC.cpp
         interface/c_fortran/wrapGenericOutputStream.cpp
+        interface/c_fortran/utilSLIC.cpp
         interface/c_fortran/wrapfslic.f
     )
 endif()
