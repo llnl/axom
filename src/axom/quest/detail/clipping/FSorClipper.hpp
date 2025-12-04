@@ -143,12 +143,12 @@ private:
 
   /*!
    * @brief Inverse of m_transformer.
-
+   *
    * Axom supports vector scaling.  @see axom::klee::Scale.  This means
    * a SOR may be transformed into a shape that we cannot represent.
    * Therefore, we don't transform the shape until after it's discretized.
    * When needed, we will inverse-transform the mesh.
-  */
+   */
   axom::primal::experimental::CoordinateTransformer<double> m_invTransformer;
 
   template <typename ExecSpace>
@@ -167,9 +167,13 @@ private:
     axom::Array<BoundingBox2DType>& bbOn,
     axom::Array<BoundingBox2DType>& bbUnder);
 
+  /*!
+   * @brief Compute 2D bounding box of a polyhedron in the r-z plane.
+   * @tparam PolyhedronType Either TetrahedronType or HexahedronType.
+   */
   template <typename PolyhedronType>
   AXOM_HOST_DEVICE
-  BoundingBox2DType computeBoundingBoxInRz(const PolyhedronType& vertices);
+  BoundingBox2DType estimateBoundingBoxInRz(const PolyhedronType& vertices);
 
   AXOM_HOST_DEVICE inline
   MeshClipperStrategy::LabelType rzBbToLabel(

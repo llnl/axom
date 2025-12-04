@@ -202,6 +202,7 @@ void FSorClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
   const auto cellCount = shapeMesh.getCellCount();
   auto meshHexes = shapeMesh.getCellsAsHexes();
   auto meshCellVolumes = shapeMesh.getCellVolumes();
+  auto cellLengths = shapeMesh.getCellLengths();
   auto invTransformer = m_invTransformer;
   constexpr double EPS = 1e-10;
 
@@ -218,7 +219,7 @@ void FSorClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
       {
         invTransformer.transform(cellHex[vi].array());
       }
-      BoundingBox2DType cellBbInRz = computeBoundingBoxInRz(cellHex);
+      BoundingBox2DType cellBbInRz = estimateBoundingBoxInRz(cellHex);
       labels[cellId] = rzBbToLabel(cellBbInRz, bbOnView, bbUnderView);
     });
 }
@@ -238,6 +239,7 @@ void FSorClipper::labelTetsInOutImpl(
   const auto cellCount = cellIds.size();
   auto meshHexes = shapeMesh.getCellsAsHexes();
   auto tetVolumes = shapeMesh.getTetVolumes();
+  auto cellLengths = shapeMesh.getCellLengths();
   auto invTransformer = m_invTransformer;
   constexpr double EPS = 1e-10;
 
@@ -263,7 +265,7 @@ void FSorClipper::labelTetsInOutImpl(
           continue;
         }
         const TetrahedronType& tet = cellTets[ti];
-        BoundingBox2DType bbInRz = computeBoundingBoxInRz(tet);
+        BoundingBox2DType bbInRz = estimateBoundingBoxInRz(tet);
         tetLabel = rzBbToLabel(bbInRz, bbOnView, bbUnderView);
       }
     });
@@ -271,17 +273,16 @@ void FSorClipper::labelTetsInOutImpl(
 
 /*
   Compute bounding box in rz space for a tet or hex geometry in
-  body frame (the 3D frame with the axis of rotation along +x).
+  body frame (the 3D frame with the rotation along +x).
 
-  Compute cell bounding boxes in rz plane:
-  1. Rotate vertex into rz plane.
+  1. Rotate vertices into the rz plane.
   2. Compute bounding box for vertices.
   3. Expand 2D bounding box to contain edge that may
      intersect SOR between vertices.
 */
 template <typename PolyhedronType>
 AXOM_HOST_DEVICE
-FSorClipper::BoundingBox2DType FSorClipper::computeBoundingBoxInRz(
+FSorClipper::BoundingBox2DType FSorClipper::estimateBoundingBoxInRz(
   const PolyhedronType& vertices)
 {
   FSorClipper::BoundingBox2DType bbInRz;
@@ -303,10 +304,10 @@ FSorClipper::BoundingBox2DType FSorClipper::computeBoundingBoxInRz(
   }
 #if 1
   /*
-    The geometry can be closer to the z-axis than its individual
-    vertices are, depending on the angle (about the z-axis)
-    between the vertices.  Given the angle, scale the bottom of
-    bbInRz for the worst case.
+    The geometry can be closer to the rotation axis than its
+    individual vertices are, depending on the angle (about the axis)
+    between the vertices.  Given the angle, scale the bottom of bbInRz
+    for the worst case.
   */
   double angleRange = maxAngle - minAngle;
   double factor = angleRange > M_PI ? 0.0 : cos(angleRange/2);
@@ -320,7 +321,7 @@ FSorClipper::BoundingBox2DType FSorClipper::computeBoundingBoxInRz(
     discriminating, I think.
   */
   auto newMin = bbInRz.getMin();
-  newMin[1] -= 0.5 * cellLengths[cellId];
+  newMin[1] -= 0.5 * cellLength;
   if (newMin[1] < 0.0) newMin[1] = 0.0;
   bbInRz.addPoint(newMin);
 #endif
