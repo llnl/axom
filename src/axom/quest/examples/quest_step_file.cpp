@@ -343,6 +343,28 @@ int main(int argc, char** argv)
   bool verbosity {false};
   app.add_flag("-v,--verbose", verbosity)->description("Enable verbose output")->capture_default_str();
 
+  std::string output_dir = "step_output";
+  app.add_option("-o,--output-dir", output_dir)
+    ->description("Output directory for generated meshes")
+    ->capture_default_str()
+    ->check([](const std::string& dir) -> std::string {
+      if(dir.find_first_of("\\:*?\"<>|") != std::string::npos)
+      {
+        return std::string("Output directory contains invalid characters.");
+      }
+      return std::string();
+    });
+
+  bool output_trimmed {true};
+  app.add_flag("--output-trimmed,!--no-output-trimmed", output_trimmed)
+    ->description("Generate triangulation of trimmed model?")
+    ->capture_default_str();
+
+  bool output_untrimmed {false};
+  app.add_flag("--output-untrimmed,!--no-output-untrimmed", output_untrimmed)
+    ->description("Generate triangulation of untrimmed patches?")
+    ->capture_default_str();
+
   double deflection {.1};
   app.add_option("--deflection", deflection)
     ->description("Max distance between actual geometry and triangulated geometry")
@@ -358,26 +380,9 @@ int main(int argc, char** argv)
     ->description("Angular deflection between adjacent normals when triangulating surfaces")
     ->capture_default_str();
 
-  std::string output_dir = "step_output";
-  app.add_option("-o,--output-dir", output_dir)
-    ->description("Output directory for generated meshes")
-    ->capture_default_str()
-    ->check([](const std::string& dir) -> std::string {
-      if(dir.find_first_of("\\:*?\"<>|") != std::string::npos)
-      {
-        return std::string("Output directory contains invalid characters.");
-      }
-      return std::string();
-    });
-
   bool output_svg {false};
   app.add_flag("--output-svg", output_svg)
     ->description("Generate SVG files for each NURBS patch?")
-    ->capture_default_str();
-
-  bool output_untrimmed {false};
-  app.add_flag("--output-untrimmed,!--no-output-untrimmed", output_untrimmed)
-    ->description("Generate triangulation of untrimmed patches?")
     ->capture_default_str();
 
   app.get_formatter()->column_width(50);
@@ -415,11 +420,10 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   // Triangulate model
   //---------------------------------------------------------------------------
-  SLIC_INFO(axom::fmt::format(
-    "Generating triangles meshes for trimmed and untrimmed patches in '{}' directory",
-    output_dir));
   // Create an unstructured triangle mesh of the model (using trimmed patches)
+  if(output_trimmed)
   {
+    SLIC_INFO(axom::fmt::format("Generating triangulation of model in '{}' directory", output_dir));
     constexpr bool extract_trimmed_surface = true;
 
     axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> mesh(3, axom::mint::TRIANGLE);
@@ -446,6 +450,10 @@ int main(int argc, char** argv)
   // Create an unstructured triangle mesh of the model's untrimmed patches (mostly to understand the model better)
   if(output_untrimmed)
   {
+    SLIC_INFO(axom::fmt::format(
+      "Generating triangulation of model (ignoring trimming curves) in '{}' directory",
+      output_dir));
+
     constexpr bool extract_trimmed_surface = false;
 
     axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> mesh(3, axom::mint::TRIANGLE);
