@@ -202,7 +202,6 @@ void FSorClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
   const auto cellCount = shapeMesh.getCellCount();
   auto meshHexes = shapeMesh.getCellsAsHexes();
   auto meshCellVolumes = shapeMesh.getCellVolumes();
-  auto cellLengths = shapeMesh.getCellLengths();
   auto invTransformer = m_invTransformer;
   constexpr double EPS = 1e-10;
 
@@ -239,7 +238,6 @@ void FSorClipper::labelTetsInOutImpl(
   const auto cellCount = cellIds.size();
   auto meshHexes = shapeMesh.getCellsAsHexes();
   auto tetVolumes = shapeMesh.getTetVolumes();
-  auto cellLengths = shapeMesh.getCellLengths();
   auto invTransformer = m_invTransformer;
   constexpr double EPS = 1e-10;
 
@@ -405,7 +403,7 @@ void FSorClipper::computeCurveBoxes(
       characteristic length of mesh cells.
     - with memory from allocId.
   */
-  axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve, avgCharLength);
+  axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve, 3*avgCharLength, -1, -1);
   sorCurve = axom::Array<Point2DType>(sorCurve, allocId);
   auto sorCurveView = sorCurve.view();
 
@@ -454,7 +452,9 @@ void FSorClipper::computeCurveBoxes(
  */
 Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(
   const Array<Point2DType>& sorCurveIn,
-  double cellCharacteristicLength)
+  double maxMean,
+  double maxDz,
+  double minDz)
 {
   Array<Point2DType> sorCurveOut;
 
@@ -463,10 +463,7 @@ Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(
     return sorCurveOut;
   }
 
-  const double maxMean = 3 * cellCharacteristicLength; // 3 is an empirical choice
-  const double minDz = 2 * cellCharacteristicLength; // 2 an empirical choice
-
-  // Reserve estimated total number of points needed
+  // Reserve guessed total number of points needed
   sorCurveOut.reserve(sorCurveIn.size() * 1.2 + 10);
   sorCurveOut.push_back(sorCurveIn[0]);
 
@@ -479,14 +476,16 @@ Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(
     const auto absDelta = axom::abs(delta);
     const double segDz = absDelta[0];
     const double segDr = absDelta[1];
+    const double segMean = 2 * segDz * segDr / (segDz + segDr);
 
-    double segMean = 2 * segDz * segDr / (segDz + segDr);
-    int numSplitsByMean = static_cast<int>(std::ceil(segMean / maxMean));
+    int numSplitsByMean = maxMean < 0 ? 0 : static_cast<int>(std::ceil(segMean / maxMean));
+    int numSplitsByDz = maxDz < 0 ? 0 : static_cast<int>(std::ceil(segDz / maxDz));
 
     // Prevent dz from falling below minDz
-    int numSplitsByMinDz = static_cast<int>(std::ceil(segDz / minDz));
+    int numSplitsByMinDz = minDz < 0 ? 0 : static_cast<int>(std::ceil(segDz / minDz));
 
-    int numSplits = std::min(numSplitsByMean, numSplitsByMinDz);
+    int numSplits = std::min(std::max(numSplitsByMean, numSplitsByDz),
+                             numSplitsByMinDz);
 
     for(int j = 1; j < numSplits; ++j)
     {
@@ -536,16 +535,34 @@ bool FSorClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh, a
   if it's not there yet.
 */
 template <typename ExecSpace>
-bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMesh,
-                                        axom::Array<OctahedronType>& octs)
+bool FSorClipper::getGeometryAsOctsImpl(
+  quest::experimental::ShapeMesh& shapeMesh,
+  axom::Array<OctahedronType>& octs)
 {
   const int allocId = shapeMesh.getAllocatorID();
   octs = axom::Array<OctahedronType>(0, 0, allocId);
 
+  axom::ArrayView<const double> cellLengths = shapeMesh.getCellLengths();
+  const auto cellCount = shapeMesh.getCellCount();
+
+
+  using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
+  using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
+  RAJA::ReduceSum<ReducePolicy, double> sumCharLength(0.0);
+  RAJA::forall<LoopPolicy>(
+    RAJA::RangeSegment(0, cellCount),
+    AXOM_LAMBDA(axom::IndexType cellId) { sumCharLength += cellLengths[cellId]; });
+  double avgCharLength = sumCharLength.get() / cellCount;
+
+  axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve,
+                                                     3*avgCharLength,
+                                                     3*avgCharLength,
+                                                     2*avgCharLength);
+
   // Generate the Octahedra
   int octCount = 0;
-  const bool good = axom::quest::discretize<ExecSpace>(m_sorCurve.view(),
-                                                       int(m_sorCurve.size()),
+  const bool good = axom::quest::discretize<ExecSpace>(sorCurve.view(),
+                                                       int(sorCurve.size()),
                                                        m_levelOfRefinement,
                                                        octs,
                                                        octCount);
@@ -560,7 +577,7 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMes
     octCount,
     AXOM_LAMBDA(axom::IndexType iOct) {
       OctahedronType& oct = octsView[iOct];
-      for(int iVert = 0; iVert < OctType::NUM_VERTS; ++iVert)
+      for(int iVert = 0; iVert < OctahedronType::NUM_VERTS; ++iVert)
       {
         transformer.transform(oct[iVert].array());
       }

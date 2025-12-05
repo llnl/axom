@@ -187,17 +187,25 @@ private:
   /*!
    * @brief Subdivide large segments of the SOR curve to make
    * screening more precise.
-
+   *
    * @param sorCurveIn [in] Un-divided SOR curve
-   * @param characteristicLength [in] Characteristic length
-   *   of cells near the curve.
-  */
-  axom::Array<Point2DType> subdivideCurve(const Array<Point2DType>& sorCurveIn,
-                                          double cellsCharacteristicLength);
+   * @param maxMean [in] Subdivide segment if the harmonic mean
+   *   of its bounding box sides exceeds this value.
+   * @param maxDz [in] Subdivide segment if its length along the
+   *   axis of symmetry exceeds this value.
+   * @param minDz [in] Don't subdivide segments below this dz.
+   */
+  axom::Array<Point2DType> subdivideCurve(
+    const Array<Point2DType>& sorCurveIn,
+    double maxMean,
+    double maxDz,
+    double minDz);
 
   //!@brief Compute geometry as octs, by policy.
   template <typename ExecSpace>
-  bool getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shappeMesh, axom::Array<OctahedronType>& octs);
+  bool getGeometryAsOctsImpl(
+    quest::experimental::ShapeMesh& shappeMesh,
+    axom::Array<OctahedronType>& octs);
 };
 
 }  // namespace experimental

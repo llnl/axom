@@ -746,7 +746,10 @@ public:
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
 
-    SLIC_DEBUG(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
+    SLIC_DEBUG(axom::fmt::format("Geometry {} has {} discrete {}s",
+                                 strategy.name(),
+                                 useTets?geomAsTets.size():geomAsOcts.size(),
+                                 useTets?"tet":"oct"));
 
     // Generate the BVH tree over the shape's discretized geometry
     // axis-aligned bounding boxes.  "pieces" refers to tets or octs.
@@ -810,6 +813,7 @@ public:
     axom::Array<IndexType> candidates;
     bvh.findBoundingBoxes(offsets, counts, candidates, tetBbsView.size(), tetBbsView);
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
+SLIC_DEBUG(axom::fmt::format("{} {} candidates found", __WHERE, candidates.size()));
 
     auto candidatesView = candidates.view();
 
