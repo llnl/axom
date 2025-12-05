@@ -427,6 +427,7 @@ int main(int argc, char** argv)
     return 1;
   }
 
+  SLIC_INFO(axom::fmt::format("STEP file units: '{}'", stepReader.getFileUnits()));
   stepReader.printBRepStats();
 
   //---------------------------------------------------------------------------
