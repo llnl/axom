@@ -42,8 +42,16 @@ struct ExternalStoragePolicy
    * \brief Reallocates a buffer. No-op for ExternalArray.
    */
   template <typename Func>
-  T* reallocate(T*, int, int, int, Func&&)
+  T* reallocate(T* AXOM_UNUSED_PARAM(old_data),
+                int old_capacity,
+                int AXOM_UNUSED_PARAM(allocator_id),
+                int new_capacity,
+                Func&& AXOM_UNUSED_PARAM(nontrivial_move))
   {
+    if(old_capacity != new_capacity)
+    {
+      SLIC_ERROR("Cannot increase capacity of an ExternalArray.");
+    }
     return nullptr;
   }
 

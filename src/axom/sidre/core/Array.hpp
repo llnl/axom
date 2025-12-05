@@ -105,7 +105,7 @@ struct SidreStoragePolicy
    * \brief Reallocates a buffer.
    *
    * \param [in] old_data pointer to the old buffer
-   * \param [in] size the number of elements stored in the array
+   * \param [in] old_capacity the capacity of the currently allocated buffer
    * \param [in] allocator_id the allocator ID to use
    * \param [in] new_capacity the capacity to allocate
    * \param [in] nontrivial_move a callback to move elements that aren't
@@ -115,7 +115,7 @@ struct SidreStoragePolicy
    */
   template <typename Func>
   T* reallocate(T* AXOM_UNUSED_PARAM(old_data),
-                int AXOM_UNUSED_PARAM(size),
+                int AXOM_UNUSED_PARAM(old_capacity),
                 int AXOM_UNUSED_PARAM(allocator_id),
                 int new_capacity,
                 Func&& AXOM_UNUSED_PARAM(nontrivial_move))
