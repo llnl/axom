@@ -350,6 +350,11 @@ int main(int argc, char** argv)
   bool verbosity {false};
   app.add_flag("-v,--verbose", verbosity)->description("Enable verbose output")->capture_default_str();
 
+  bool validate_model {true};
+  app.add_flag("--validate,!--no-validate", validate_model)
+    ->description("Validate the model while reading it in?")
+    ->capture_default_str();
+
   std::string output_dir = "step_output";
   app.add_option("-o,--output-dir", output_dir)
     ->description("Output directory for generated meshes")
@@ -414,7 +419,7 @@ int main(int argc, char** argv)
   stepReader.setFileName(filename);
   stepReader.setVerbosity(verbosity);
 
-  int res = stepReader.read();
+  int res = stepReader.read(validate_model);
 
   if(res != 0)
   {

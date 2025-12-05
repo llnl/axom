@@ -1487,7 +1487,7 @@ STEPReader::~STEPReader()
   }
 }
 
-int STEPReader::read()
+int STEPReader::read(bool validate_model)
 {
   m_stepProcessor = new internal::StepFileProcessor(m_fileName, m_verbosity);
   if(!m_stepProcessor->isLoaded())
@@ -1495,7 +1495,10 @@ int STEPReader::read()
     return 1;
   }
 
-  m_stepProcessor->validateBRep();
+  if(validate_model)
+  {
+    m_stepProcessor->validateBRep();
+  }
 
   m_stepProcessor->extractPatches(m_patches);
   m_stepProcessor->extractTrimmingCurves(m_patches);

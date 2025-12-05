@@ -70,11 +70,10 @@ public:
   /*!
    * \brief Read the contour file provided by \a setFileName()
    *
-   * \param[out] patches An array of NURBS patches that will contain the trimmed patches read from the STEP file
-   *
+   * \param[in] validate Adds validation tests on the model, when true
    * \return 0 for a successful read; non-zero otherwise
    */
-  int read();
+  int read(bool validate);
 
   std::string getFileUnits() const;
   const TopoDS_Shape& getShape() const;
