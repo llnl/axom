@@ -77,7 +77,6 @@ public:
   int read();
 
   std::string getFileUnits() const;
-  const internal::PatchDataMap& getPatchDataMap() const;
   const TopoDS_Shape& getShape() const;
 
   PatchArray& getPatchArray() { return m_patches; }
@@ -110,6 +109,8 @@ public:
 protected:
   // open cascade does not appear to offer a direct way to get the number of patches
   int numPatchesInFile() const;
+
+  const internal::PatchDataMap& getPatchDataMap() const;
 
 protected:
   std::string m_fileName;

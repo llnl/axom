@@ -53,9 +53,13 @@ public:
     }
   }
 
-  void generateSVGForPatch(int patchIndex, const PatchData& patchData, const NURBSPatch& patch)
+  void generateSVGForPatch(int patchIndex, const NURBSPatch& patch)
   {
-    const auto& parametricBBox = patchData.parametricBBox;
+    using Point2D = axom::primal::Point<double, 2>;
+
+    axom::primal::BoundingBox<double, 2> parametricBBox;
+    parametricBBox.addPoint(Point2D {patch.getMinKnot_u(), patch.getMinKnot_v()});
+    parametricBBox.addPoint(Point2D {patch.getMaxKnot_u(), patch.getMaxKnot_v()});
 
     SLIC_INFO_IF(m_verbose,
                  axom::fmt::format("Parametric BBox for patch {}: {}", patchIndex, parametricBBox));
@@ -72,6 +76,8 @@ public:
                                    patchIndex,
                                    scaledParametricBBox));
 
+    const auto physicalBBox = patch.boundingBox();
+
     // add the SVG header
     axom::fmt::format_to(std::back_inserter(svgContent),
                          "<svg xmlns='http://www.w3.org/2000/svg' version='1.1' \n"
@@ -85,37 +91,37 @@ public:
 
     // add some CSS styles
     axom::fmt::format_to(std::back_inserter(svgContent), R"raw(
-    <style>
-      path {{ fill:none; stroke:black; stroke-width:.03; marker-end:url(#arrow); paint-order:fill stroke markers; stroke-linejoin:round; stroke-linecap:round; }}
-      rect {{ fill: white; stroke: gray; stroke-width: 0.05; }}
-      .u-line {{ fill: none; stroke: gray; stroke-width: 0.01; }}
-      .v-line {{ fill: none; stroke: gray; stroke-width: 0.01; }}
-    </style>
+  <style>
+    path {{ fill:none; stroke:black; stroke-width:.03; marker-end:url(#arrow); paint-order:fill stroke markers; stroke-linejoin:round; stroke-linecap:round; }}
+    rect {{ fill: white; stroke: gray; stroke-width: 0.05; }}
+    .u-line {{ fill: none; stroke: gray; stroke-width: 0.01; }}
+    .v-line {{ fill: none; stroke: gray; stroke-width: 0.01; }}
+  </style>
     )raw");
 
     // add a marker for the arrow's head to indicate the orientation
     axom::fmt::format_to(std::back_inserter(svgContent), R"raw(
-    <defs>
-      <marker id='arrow' style='overflow:visible' orient='auto-start-reverse'
-          refX='0' refY='0'
-          markerWidth='3.3239999' markerHeight='3.8427744'
-          viewBox='0 0 5.3244081 6.1553851'>
-        <path
-            transform='scale(0.8)'
-            style='fill:context-stroke;fill-rule:evenodd;stroke:none'
-            d='M 5.77,0 L -2.88,4.5 L -1.44,0 L -2.88,-4.5 Z' />
-      </marker>
-    </defs>
+  <defs>
+    <marker id='arrow' style='overflow:visible' orient='auto-start-reverse'
+        refX='0' refY='0'
+        markerWidth='3.3239999' markerHeight='3.8427744'
+        viewBox='0 0 5.3244081 6.1553851'>
+      <path
+          transform='scale(0.8)'
+          style='fill:context-stroke;fill-rule:evenodd;stroke:none'
+          d='M 5.77,0 L -2.88,4.5 L -1.44,0 L -2.88,-4.5 Z' />
+    </marker>
+  </defs>
     )raw");
 
     // add a rectangle for the parametric bounding box and a comment for its bounding boxes
     axom::fmt::format_to(std::back_inserter(svgContent),
-                         "  <!-- Bounding box of ({},{})-degree patch in parametric space: {}; \n"
+                         "\n  <!-- Bounding box of ({},{})-degree patch in parametric space: {}; \n"
                          "       BBox in physical space: {} -->\n",
                          patch.getDegree_u(),
                          patch.getDegree_v(),
-                         patchData.parametricBBox,
-                         patchData.physicalBBox);
+                         parametricBBox,
+                         physicalBBox);
 
     axom::fmt::format_to(std::back_inserter(svgContent),
                          "  <rect x='{}' y='{}' width='{}' height='{}' />\n",
@@ -125,7 +131,6 @@ public:
                          parametricBBox.range()[1]);
 
     // add lines for the u- and v- knots
-    axom::fmt::format_to(std::back_inserter(svgContent), "  <!-- Lines for u- and v- knots -->\n");
 
     auto unique_knots_and_multiplicities = [](const axom::Array<double>& knots_vector) {
       axom::Array<std::pair<double, int>> uniqueCounts;
@@ -155,6 +160,7 @@ public:
       return uniqueCounts;
     };
 
+    axom::fmt::format_to(std::back_inserter(svgContent), "\n  <!-- Lines for u- knots -->\n");
     for(const auto& u : unique_knots_and_multiplicities(patch.getKnots_u().getArray()))
     {
       axom::fmt::format_to(std::back_inserter(svgContent),
@@ -166,6 +172,7 @@ public:
                            parametricBBox.getMax()[1]);
     }
 
+    axom::fmt::format_to(std::back_inserter(svgContent), "\n  <!-- Lines for v- knots -->\n");
     for(const auto& v : unique_knots_and_multiplicities(patch.getKnots_v().getArray()))
     {
       axom::fmt::format_to(std::back_inserter(svgContent),
@@ -180,7 +187,7 @@ public:
     // add a path for each trimming curve
     // add lines for the u- and v- knots
     axom::fmt::format_to(std::back_inserter(svgContent),
-                         "  <!-- Paths for patch trimming curves -->\n");
+                         "\n  <!-- Paths for patch trimming curves -->\n");
     for(const auto& curve : curves)
     {
       std::string pathData = nurbsCurveToSVGPath(curve);
@@ -490,16 +497,15 @@ int main(int argc, char** argv)
     const int numPatches = patches.size();
     const int numFillZeros = static_cast<int>(std::log10(numPatches)) + 1;
 
-    // Generate outputs
     PatchParametricSpaceProcessor patchProcessor;
     patchProcessor.setUnits(stepReader.getFileUnits());
     patchProcessor.setVerbosity(verbosity);
     patchProcessor.setOutputDirectory(output_dir);
     patchProcessor.setNumFillZeros(numFillZeros);
 
-    for(const auto& [index, patchData] : stepReader.getPatchDataMap())
+    for(int index = 0; index < numPatches; ++index)
     {
-      patchProcessor.generateSVGForPatch(index, patchData, patches[index]);
+      patchProcessor.generateSVGForPatch(index, patches[index]);
     }
   }
 
