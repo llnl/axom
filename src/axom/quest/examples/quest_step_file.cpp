@@ -375,6 +375,12 @@ int main(int argc, char** argv)
     ->description("Generate SVG files for each NURBS patch")
     ->capture_default_str();
 
+  bool output_untrimmed {false};
+  app.add_flag("--output_untrimmed,!--no-output_untrimmed", output_untrimmed)
+    ->description(
+      "Generate triangulation of untrimmed patches (use --no-output_untrimmed to disable)")
+    ->capture_default_str();
+
   CLI11_PARSE(app, argc, argv);
 
   // Ensure output directory exists
@@ -438,6 +444,7 @@ int main(int argc, char** argv)
   }
 
   // Create an unstructured triangle mesh of the model's untrimmed patches (mostly to understand the model better)
+  if(output_untrimmed)
   {
     constexpr bool extract_trimmed_surface = false;
 
