@@ -336,7 +336,7 @@ int main(int argc, char** argv)
   axom::CLI::App app {"Quest Step File Example"};
 
   std::string filename;
-  app.add_option("-f,--file", filename, "Input file")->required();
+  app.add_option("-f,--file", filename, "Input STEP file")->required();
 
   bool verbosity {false};
   app.add_flag("-v,--verbose", verbosity)->description("Enable verbose output")->capture_default_str();
@@ -344,6 +344,11 @@ int main(int argc, char** argv)
   double deflection {.1};
   app.add_option("--deflection", deflection)
     ->description("Max distance between actual geometry and triangulated geometry")
+    ->capture_default_str();
+
+  bool relative_deflection {false};
+  app.add_flag("--relative", relative_deflection)
+    ->description("Use relative deflection instead of absolute")
     ->capture_default_str();
 
   double angular_deflection {0.5};
@@ -417,7 +422,11 @@ int main(int argc, char** argv)
     constexpr bool extract_trimmed_surface = true;
 
     axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> mesh(3, axom::mint::TRIANGLE);
-    stepReader.getTriangleMesh(&mesh, deflection, angular_deflection, true, extract_trimmed_surface);
+    stepReader.getTriangleMesh(&mesh,
+                               deflection,
+                               angular_deflection,
+                               relative_deflection,
+                               extract_trimmed_surface);
 
     const std::string filename =
       axom::utilities::filesystem::joinPath(output_dir, "triangulated_mesh.vtk");
@@ -438,7 +447,11 @@ int main(int argc, char** argv)
     constexpr bool extract_trimmed_surface = false;
 
     axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> mesh(3, axom::mint::TRIANGLE);
-    stepReader.getTriangleMesh(&mesh, deflection, angular_deflection, true, extract_trimmed_surface);
+    stepReader.getTriangleMesh(&mesh,
+                               deflection,
+                               angular_deflection,
+                               relative_deflection,
+                               extract_trimmed_surface);
 
     const std::string filename =
       axom::utilities::filesystem::joinPath(output_dir, "untrimmed_mesh.vtk");
