@@ -24,9 +24,16 @@ static constexpr int shapes_for_dimension(int dimension)
   int shapes = 0;
   switch(dimension)
   {
+  case 0:
+    axom::utilities::setBitOn(shapes, Point_ShapeID);
+    break;
+  case 1:
+    axom::utilities::setBitOn(shapes, Line_ShapeID);
+    break;
   case 2:
     axom::utilities::setBitOn(shapes, Tri_ShapeID);
     axom::utilities::setBitOn(shapes, Quad_ShapeID);
+    axom::utilities::setBitOn(shapes, Polygon_ShapeID);
     axom::utilities::setBitOn(shapes, Mixed_ShapeID);
     break;
   case 3:
