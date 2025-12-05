@@ -1992,11 +1992,28 @@ private:
     SLIC_ASSERT_MSG(shapeMap.empty() == false, "The shape map is empty!");
     if(axom::utilities::popcount(static_cast<std::uint64_t>(shapesUsed)) > 1)
     {
-      n_newTopo["elements/shape"] = "mixed";
-      conduit::Node &n_shape_map = n_newTopo["elements/shape_map"];
+      // Determine the dimensions for the shapes that were used.
+      std::set<IndexType> usedDimensions;
       for(auto it = shapeMap.cbegin(); it != shapeMap.cend(); it++)
       {
-        n_shape_map[it->first] = it->second;
+        usedDimensions.insert(views::shapeDimension(it->second));
+      }
+      SLIC_ASSERT(usedDimensions.size() > 0);
+      const auto it = usedDimensions.begin();
+      if(usedDimensions.size() == 1 && *it == 2)
+      {
+        // All were 2D. Promote to polygonal.
+        n_newTopo["elements/shape"] = views::PolygonTraits::name();
+        n_newTopo["elements"].remove("shapes");
+      }
+      else
+      {
+        n_newTopo["elements/shape"] = "mixed";
+        conduit::Node &n_shape_map = n_newTopo["elements/shape_map"];
+        for(auto it = shapeMap.cbegin(); it != shapeMap.cend(); it++)
+        {
+          n_shape_map[it->first] = it->second;
+        }
       }
     }
     else
@@ -2225,26 +2242,26 @@ private:
   {
     std::map<std::string, int> sm;
 
-    if(axom::utilities::bitIsSet(shapes, views::Line_ShapeID)) sm["line"] = views::Line_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Line_ShapeID)) sm[views::LineTraits::name()] = views::Line_ShapeID;
 
-    if(axom::utilities::bitIsSet(shapes, views::Tri_ShapeID)) sm["tri"] = views::Tri_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Tri_ShapeID)) sm[views::TriTraits::name()] = views::Tri_ShapeID;
 
-    if(axom::utilities::bitIsSet(shapes, views::Quad_ShapeID)) sm["quad"] = views::Quad_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Quad_ShapeID)) sm[views::QuadTraits::name()] = views::Quad_ShapeID;
 
     if(axom::utilities::bitIsSet(shapes, views::Polygon_ShapeID))
-      sm["polygon"] = views::Polygon_ShapeID;
+      sm[views::PolygonTraits::name()] = views::Polygon_ShapeID;
 
-    if(axom::utilities::bitIsSet(shapes, views::Tet_ShapeID)) sm["tet"] = views::Tet_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Tet_ShapeID)) sm[views::TetTraits::name()] = views::Tet_ShapeID;
 
     if(axom::utilities::bitIsSet(shapes, views::Pyramid_ShapeID))
-      sm["pyramid"] = views::Pyramid_ShapeID;
+      sm[views::PyramidTraits::name()] = views::Pyramid_ShapeID;
 
-    if(axom::utilities::bitIsSet(shapes, views::Wedge_ShapeID)) sm["wedge"] = views::Wedge_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Wedge_ShapeID)) sm[views::WedgeTraits::name()] = views::Wedge_ShapeID;
 
-    if(axom::utilities::bitIsSet(shapes, views::Hex_ShapeID)) sm["hex"] = views::Hex_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Hex_ShapeID)) sm[views::HexTraits::name()] = views::Hex_ShapeID;
 
     if(axom::utilities::bitIsSet(shapes, views::Polyhedron_ShapeID))
-      sm["polyhedron"] = views::Polyhedron_ShapeID;
+      sm[views::PolyhedronTraits::name()] = views::Polyhedron_ShapeID;
 
     return sm;
   }
