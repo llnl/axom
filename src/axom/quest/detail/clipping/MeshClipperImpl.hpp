@@ -201,8 +201,7 @@ public:
    * geometry.
    */
   void computeClipVolumes3D(axom::ArrayView<double> ovlap,
-                            axom::IndexType& clipCount,
-                            axom::IndexType& contribCount) override
+                            conduit::Node& statistics) override
   {
     ShapeMesh& shapeMesh = getShapeMesh();
 
@@ -362,9 +361,21 @@ public:
                         tetCandidatesCount,
                         cellCount));
 
-    contribCount = 0;
-    axom::IndexType *contribCountPtr = axom::allocate<axom::IndexType>(1, allocId);
-    axom::copy(contribCountPtr, &contribCount, sizeof(contribCount));
+    /*
+     * Initialize statistics and copy some to allocId space for computing.
+     */
+
+    const std::int64_t zero = 0;
+    std::int64_t& clipCount = *(statistics["clip"] = zero).as_int64_ptr();
+    std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
+    statistics["candidate"].set_int64(candidateCount);
+
+    std::int64_t *clipCountPtr = axom::allocate<std::int64_t>(1, allocId);
+    std::int64_t *contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
+    axom::copy(clipCountPtr, &clipCount, sizeof(zero));
+    axom::copy(contribCountPtr, &contribCount, sizeof(zero));
+
+    const auto screenLevel = m_myClipper.getScreenLevel();
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_notScreened");
     if(useTets)
@@ -376,14 +387,32 @@ public:
           const int shapeIndex = shapeCandidatesView[i];
           const int tetIndex = tetIndicesView[i];
           const auto& tet = cellsAsTets[tetIndex];
+          const TetrahedronType& geomPiece = geomTetsView[shapeIndex];
 
           // Skip degenerate mesh tets.
           if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10)) { return; }
+
+          if(screenLevel >= 3)
+          {
+            LabelType geomLabel = labelPieceInOutOfTet(tet, geomPiece);
+            if(geomLabel == LabelType::LABEL_OUT)
+            {
+              return;
+            }
+            if(geomLabel == LabelType::LABEL_IN)
+            {
+              double volume = geomPiece.volume();
+              RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
+              RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
+              return;
+            }
+          }
 
           const auto poly = primal::clip<double>(geomTetsView[shapeIndex],
                                                  tet,
                                                  EPS,
                                                  tryFixOrientation);
+          RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, std::int64_t(1));
 
           // Poly is valid
           if(poly.numVertices() >= 4)
@@ -393,7 +422,7 @@ public:
             double volume = poly.volume();
             SLIC_ASSERT(volume >= 0);
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
-            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
+            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
           }
         });
     }
@@ -406,14 +435,32 @@ public:
           const int shapeIndex = shapeCandidatesView[i];
           const int tetIndex = tetIndicesView[i];
           const auto& tet = cellsAsTets[tetIndex];
+          const OctahedronType& geomPiece = geomOctsView[shapeIndex];
 
           // Skip degenerate mesh tets.
           if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10)) { return; }
+
+          if(screenLevel >= 3)
+          {
+            LabelType geomLabel = labelPieceInOutOfTet(tet, geomPiece);
+            if(geomLabel == LabelType::LABEL_OUT)
+            {
+              return;
+            }
+            if(geomLabel == LabelType::LABEL_IN)
+            {
+              double volume = octahedronVolume(geomPiece);
+              RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
+              RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
+              return;
+            }
+          }
 
           const auto poly = primal::clip<double>(geomOctsView[shapeIndex],
                                                  tet,
                                                  EPS,
                                                  tryFixOrientation);
+          RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, std::int64_t(1));
 
           // Poly is valid
           if(poly.numVertices() >= 4)
@@ -423,7 +470,7 @@ public:
             double volume = poly.volume();
             SLIC_ASSERT(volume >= 0);
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
-            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
+            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
           }
         });
     }
@@ -446,8 +493,7 @@ public:
    */
   void computeClipVolumes3D(const axom::ArrayView<axom::IndexType>& cellIndices,
                             axom::ArrayView<double> ovlap,
-                            axom::IndexType& clipCount,
-                            axom::IndexType& contribCount) override
+                            conduit::Node& statistics) override
 
   {
     ShapeMesh& shapeMesh = getShapeMesh();
@@ -614,9 +660,21 @@ public:
     SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
 #endif
 
-    contribCount = 0;
-    axom::IndexType *contribCountPtr = axom::allocate<axom::IndexType>(1, allocId);
-    axom::copy(contribCountPtr, &contribCount, sizeof(contribCount));
+    /*
+     * Initialize statistics and copy some to allocId space for computing.
+     */
+
+    const std::int64_t zero = 0;
+    std::int64_t& clipCount = *(statistics["clip"] = zero).as_int64_ptr();
+    std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
+    statistics["candidate"].set_int64(candidateCount);
+
+    std::int64_t *clipCountPtr = axom::allocate<std::int64_t>(1, allocId);
+    std::int64_t *contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
+    axom::copy(clipCountPtr, &clipCount, sizeof(zero));
+    axom::copy(contribCountPtr, &contribCount, sizeof(zero));
+
+    const auto screenLevel = m_myClipper.getScreenLevel();
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_hexScreened");
     if(useTets)
@@ -639,10 +697,29 @@ public:
           if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10)) { return; }
 
           const auto& cellTet = cellsAsTets[tetIndex];
+          const TetrahedronType& geomPiece = geomTetsView[shapeIndex];
+
+          if(screenLevel >= 3)
+          {
+            LabelType geomLabel = labelPieceInOutOfTet(cellTet, geomPiece);
+            if(geomLabel == LabelType::LABEL_OUT)
+            {
+              return;
+            }
+            if(geomLabel == LabelType::LABEL_IN)
+            {
+              double volume = geomPiece.volume();
+              RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
+              RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
+              return;
+            }
+          }
+
           const auto poly = primal::clip<double>(geomTetsView[shapeIndex],
                                                  cellTet,
                                                  EPS,
                                                  tryFixOrientation);
+          RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, std::int64_t(1));
 
           // Poly is valid
           if(poly.numVertices() >= 4)
@@ -652,7 +729,7 @@ public:
             double volume = poly.volume();
             SLIC_ASSERT(volume >= 0);
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
-            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
+            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
           }
         });
     }
@@ -672,14 +749,33 @@ public:
           tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
             tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
+          const OctahedronType& geomPiece = geomOctsView[shapeIndex];
+          const auto& cellTet = cellsAsTets[tetIndex];
+
           // Skip degenerate mesh tets.
           if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10)) { return; }
 
-          const auto& cellTet = cellsAsTets[tetIndex];
+          if(screenLevel >= 3)
+          {
+            LabelType geomLabel = labelPieceInOutOfTet(cellTet, geomPiece);
+            if(geomLabel == LabelType::LABEL_OUT)
+            {
+              return;
+            }
+            if(geomLabel == LabelType::LABEL_IN)
+            {
+              double volume = octahedronVolume(geomPiece);
+              RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
+              RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
+              return;
+            }
+          }
+
           const auto poly = primal::clip<double>(geomOctsView[shapeIndex],
                                                  cellTet,
                                                  EPS,
                                                  tryFixOrientation);
+          RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, std::int64_t(1));
 
           // Poly is valid
           if(poly.numVertices() >= 4)
@@ -689,7 +785,7 @@ public:
             double volume = poly.volume();
             SLIC_ASSERT(volume >= 0);
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
-            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
+            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
           }
         });
     }
@@ -713,8 +809,7 @@ public:
    */
   void computeClipVolumes3DTets(const axom::ArrayView<axom::IndexType>& tetIndices,
                                 axom::ArrayView<double> ovlap,
-                                axom::IndexType& clipCount,
-                                axom::IndexType& contribCount) override
+                                conduit::Node& statistics) override
 
   {
     ShapeMesh& shapeMesh = getShapeMesh();
@@ -836,11 +931,20 @@ SLIC_DEBUG(axom::fmt::format("{} {} candidates found", __WHERE, candidates.size(
       tetCount,
       shapeMesh.getCellCount()));
 
-    clipCount = contribCount = 0;
-    axom::IndexType *contribCountPtr = axom::allocate<axom::IndexType>(1, allocId);
-    axom::IndexType *clipCountPtr = axom::allocate<axom::IndexType>(1, allocId);
-    axom::copy(contribCountPtr, &contribCount, sizeof(contribCount));
-    axom::copy(clipCountPtr, &clipCount, sizeof(clipCount));
+    /*
+     * Initialize statistics and copy some to allocId space for computing.
+     */
+
+    const std::int64_t zero = 0;
+    std::int64_t& clipCount = *(statistics["clip"] = zero).as_int64_ptr();
+    std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
+    std::int64_t& candidateCount = *(statistics["candidate"] = zero).as_int64_ptr();
+    candidateCount = candidates.size();
+
+    std::int64_t *clipCountPtr = axom::allocate<std::int64_t>(1, allocId);
+    std::int64_t *contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
+    axom::copy(clipCountPtr, &clipCount, sizeof(zero));
+    axom::copy(contribCountPtr, &contribCount, sizeof(zero));
 
     const auto screenLevel = m_myClipper.getScreenLevel();
 
@@ -874,20 +978,20 @@ SLIC_DEBUG(axom::fmt::format("{} {} candidates found", __WHERE, candidates.size(
             {
               double volume = geomPiece.volume();
               RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
-              RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
+              RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
               return;
             }
           }
 
           const auto poly = primal::clip<double>(tet, geomPiece, EPS, tryFixOrientation);
-          RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, 1);
+          RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, std::int64_t(1));
           if(poly.numVertices() >= 4)
           {
             // Poly is valid
             double volume = poly.volume();
             SLIC_ASSERT(volume >= 0);
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
-            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
+            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
           }
         });
     }
@@ -919,29 +1023,30 @@ SLIC_DEBUG(axom::fmt::format("{} {} candidates found", __WHERE, candidates.size(
             {
               double volume = octahedronVolume(geomPiece);
               RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
-              RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
+              RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
               return;
             }
           }
 
           const auto poly = primal::clip<double>(tet, geomPiece, EPS, tryFixOrientation);
-          RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, 1);
+          RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, std::int64_t(1));
           if(poly.numVertices() >= 4)
           {
             // Poly is valid
             double volume = poly.volume();
             SLIC_ASSERT(volume >= 0);
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
-            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
+            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
           }
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_tetScreened");
 
     axom::copy(&contribCount, contribCountPtr, sizeof(contribCount));
-    axom::deallocate(contribCountPtr);
     axom::copy(&clipCount, clipCountPtr, sizeof(clipCount));
+    axom::deallocate(contribCountPtr);
     axom::deallocate(clipCountPtr);
+
     SLIC_DEBUG(axom::fmt::format(""));
   }  // end of computeClipVolumes3DTets() function
 
@@ -1029,16 +1134,16 @@ SLIC_DEBUG(axom::fmt::format("{} {} candidates found", __WHERE, candidates.size(
   }
 
   void getLabelCounts(axom::ArrayView<const LabelType> labels,
-                      axom::IndexType& inCount,
-                      axom::IndexType& onCount,
-                      axom::IndexType& outCount) override
+                      std::int64_t& inCount,
+                      std::int64_t& onCount,
+                      std::int64_t& outCount) override
   {
     AXOM_ANNOTATE_SCOPE("MeshClipper:count_labels");
     using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
     using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
-    RAJA::ReduceSum<ReducePolicy, axom::IndexType> inSum(0);
-    RAJA::ReduceSum<ReducePolicy, axom::IndexType> onSum(0);
-    RAJA::ReduceSum<ReducePolicy, axom::IndexType> outSum(0);
+    RAJA::ReduceSum<ReducePolicy, std::int64_t> inSum(0);
+    RAJA::ReduceSum<ReducePolicy, std::int64_t> onSum(0);
+    RAJA::ReduceSum<ReducePolicy, std::int64_t> outSum(0);
     RAJA::forall<LoopPolicy>(
       RAJA::RangeSegment(0, labels.size()),
       AXOM_LAMBDA(axom::IndexType cellId) {
@@ -1056,9 +1161,9 @@ SLIC_DEBUG(axom::fmt::format("{} {} candidates found", __WHERE, candidates.size(
           onSum += 1;
         }
       });
-    inCount = static_cast<axom::IndexType>(inSum.get());
-    onCount = static_cast<axom::IndexType>(onSum.get());
-    outCount = static_cast<axom::IndexType>(outSum.get());
+    inCount = static_cast<std::int64_t>(inSum.get());
+    onCount = static_cast<std::int64_t>(onSum.get());
+    outCount = static_cast<std::int64_t>(outSum.get());
   }
 
 private:

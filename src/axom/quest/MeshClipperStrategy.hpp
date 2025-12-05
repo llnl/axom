@@ -224,10 +224,8 @@ public:
    * @param [in] shapeMesh Blueprint mesh to shape into.
    * @param [out] ovlap Shape overlap volume of each cell
    *   in the \c shapeMesh.  It's initialized to zeros.
-   * @param [out] clipCount Count of primitive clip function
-   *   calls, for use in statistics.
-   * @param [out] contribCount Count of non-trivial volume
-   *   contributions from clip count, for use in statistics.
+   * @param [out] statistics Optional statistics to record
+   *   consisting of child nodes with integer values.
    *
    * The default implementation has no specialized method,
    * so it's a no-op and returns false.
@@ -250,13 +248,11 @@ public:
   */
   virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::ArrayView<double> ovlap,
-                                    axom::IndexType& clipCount,
-                                    axom::IndexType& contribCount)
+                                    conduit::Node& statistics)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
-    AXOM_UNUSED_VAR(clipCount);
-    AXOM_UNUSED_VAR(contribCount);
+    AXOM_UNUSED_VAR(statistics);
     return false;
   }
 
@@ -269,10 +265,8 @@ public:
    *   in \c shapeMesh, initialized to the cell volumes
    *   for cell inside the shape and zero for other cells.
    * @param [in] cellIds Limit computation to these cell ids.
-   * @param [out] clipCount Count of primitive clip function
-   *   calls, for use in statistics.
-   * @param [out] contribCount Count of non-trivial volume
-   *   contributions from clip count, for use in statistics.
+   * @param [out] statistics Optional statistics to record
+   *   consisting of child nodes with integer values.
    *
    * The default implementation has no specialized method,
    * so it's a no-op and returns false.
@@ -300,14 +294,12 @@ public:
   virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::ArrayView<double> ovlap,
                                     const axom::ArrayView<IndexType>& cellIds,
-                                    axom::IndexType& clipCount,
-                                    axom::IndexType& contribCount)
+                                    conduit::Node& statistics)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
     AXOM_UNUSED_VAR(cellIds);
-    AXOM_UNUSED_VAR(clipCount);
-    AXOM_UNUSED_VAR(contribCount);
+    AXOM_UNUSED_VAR(statistics);
     return false;
   }
 
@@ -321,11 +313,8 @@ public:
    *   done so far.  Clip volumes computed by this method should
    *   be added to the current values in this array.
    *
-   * @param [out] clipCount Count of primitive clip function
-   *   calls, for use in statistics.
-   *
-   * @param [out] contribCount Count of non-trivial volume
-   *   contributions from clip count, for use in statistics.
+   * @param [out] statistics Optional statistics to record
+   *   consisting of child nodes with integer values.
    *
    * @param [in] tetIds Indices of tets to clip, referring to the
    * shapeMesh.getCellsAsTets() array.  tetIds[i] is the
@@ -339,14 +328,12 @@ public:
   virtual bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
                                    axom::ArrayView<double> ovlap,
                                    const axom::ArrayView<IndexType>& tetIds,
-                                   axom::IndexType& clipCount,
-                                   axom::IndexType& contribCount)
+                                   conduit::Node& statistics)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
     AXOM_UNUSED_VAR(tetIds);
-    AXOM_UNUSED_VAR(clipCount);
-    AXOM_UNUSED_VAR(contribCount);
+    AXOM_UNUSED_VAR(statistics);
     return false;
   }
 

@@ -97,27 +97,26 @@ bool Plane3DClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
 
 bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                           axom::ArrayView<double> ovlap,
-                                          axom::IndexType& clipCount,
-                                          axom::IndexType& contribCount)
+                                          conduit::Node& statistics)
 {
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    specializedClipCellsImpl<axom::SEQ_EXEC>(shapeMesh, ovlap, clipCount, contribCount);
+    specializedClipCellsImpl<axom::SEQ_EXEC>(shapeMesh, ovlap, statistics);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    specializedClipCellsImpl<axom::OMP_EXEC>(shapeMesh, ovlap, clipCount, contribCount);
+    specializedClipCellsImpl<axom::OMP_EXEC>(shapeMesh, ovlap, statistics);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    specializedClipCellsImpl<axom::CUDA_EXEC<256>>(shapeMesh, ovlap, clipCount, contribCount);
+    specializedClipCellsImpl<axom::CUDA_EXEC<256>>(shapeMesh, ovlap, statistics);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    specializedClipCellsImpl<axom::HIP_EXEC<256>>(shapeMesh, ovlap, clipCount, contribCount);
+    specializedClipCellsImpl<axom::HIP_EXEC<256>>(shapeMesh, ovlap, statistics);
     break;
 #endif
   default:
@@ -129,27 +128,26 @@ bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeM
 bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                           axom::ArrayView<double> ovlap,
                                           const axom::ArrayView<IndexType>& cellIds,
-                                          axom::IndexType& clipCount,
-                                          axom::IndexType& contribCount)
+                                          conduit::Node& statistics)
 {
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    specializedClipCellsImpl<axom::SEQ_EXEC>(shapeMesh, ovlap, cellIds, clipCount, contribCount);
+    specializedClipCellsImpl<axom::SEQ_EXEC>(shapeMesh, ovlap, cellIds, statistics);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    specializedClipCellsImpl<axom::OMP_EXEC>(shapeMesh, ovlap, cellIds, clipCount, contribCount);
+    specializedClipCellsImpl<axom::OMP_EXEC>(shapeMesh, ovlap, cellIds, statistics);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    specializedClipCellsImpl<axom::CUDA_EXEC<256>>(shapeMesh, ovlap, cellIds, clipCount, contribCount);
+    specializedClipCellsImpl<axom::CUDA_EXEC<256>>(shapeMesh, ovlap, cellIds, statistics);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    specializedClipCellsImpl<axom::HIP_EXEC<256>>(shapeMesh, ovlap, cellIds, clipCount, contribCount);
+    specializedClipCellsImpl<axom::HIP_EXEC<256>>(shapeMesh, ovlap, cellIds, statistics);
     break;
 #endif
   default:
@@ -161,27 +159,26 @@ bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeM
 bool Plane3DClipper::specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
                                          axom::ArrayView<double> ovlap,
                                          const axom::ArrayView<IndexType>& tetIds,
-                                         axom::IndexType& clipCount,
-                                         axom::IndexType& contribCount)
+                                         conduit::Node& statistics)
 {
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    specializedClipTetsImpl<axom::SEQ_EXEC>(shapeMesh, ovlap, tetIds, clipCount, contribCount);
+    specializedClipTetsImpl<axom::SEQ_EXEC>(shapeMesh, ovlap, tetIds, statistics);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    specializedClipTetsImpl<axom::OMP_EXEC>(shapeMesh, ovlap, tetIds, clipCount, contribCount);
+    specializedClipTetsImpl<axom::OMP_EXEC>(shapeMesh, ovlap, tetIds, statistics);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    specializedClipTetsImpl<axom::CUDA_EXEC<256>>(shapeMesh, ovlap, tetIds, clipCount, contribCount);
+    specializedClipTetsImpl<axom::CUDA_EXEC<256>>(shapeMesh, ovlap, tetIds, statistics);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    specializedClipTetsImpl<axom::HIP_EXEC<256>>(shapeMesh, ovlap, tetIds, clipCount, contribCount);
+    specializedClipTetsImpl<axom::HIP_EXEC<256>>(shapeMesh, ovlap, tetIds, statistics);
     break;
 #endif
   default:
@@ -311,8 +308,7 @@ void Plane3DClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
 template <typename ExecSpace>
 void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& shapeMesh,
                                               axom::ArrayView<double> ovlap,
-                                              axom::IndexType& clipCount,
-                                              axom::IndexType& contribCount)
+                                              conduit::Node& statistics)
 {
   axom::IndexType cellCount = shapeMesh.getCellCount();
   axom::Array<IndexType> cellIds(cellCount, cellCount, shapeMesh.getAllocatorID());
@@ -322,26 +318,28 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
     AXOM_LAMBDA(axom::IndexType i) {
       cellIdsView[i] = i;
     });
-  specializedClipCellsImpl<ExecSpace>(shapeMesh, ovlap, cellIds, clipCount, contribCount);
+  specializedClipCellsImpl<ExecSpace>(shapeMesh, ovlap, cellIds, statistics);
 }
 
 template <typename ExecSpace>
 void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& shapeMesh,
                                               axom::ArrayView<double> ovlap,
                                               const axom::ArrayView<IndexType>& cellIds,
-                                              axom::IndexType& clipCount,
-                                              axom::IndexType& contribCount)
+                                              conduit::Node& statistics)
 {
   using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
   constexpr double EPS = 1e-10;
+
+  int allocId = shapeMesh.getAllocatorID();
 
   auto cellsAsTets = shapeMesh.getCellsAsTets();
 
   auto plane = m_plane;
 
-  contribCount = 0;
-  axom::IndexType *contribCountPtr = axom::allocate<axom::IndexType>(1, shapeMesh.getAllocatorID());
-  axom::copy(contribCountPtr, &contribCount, sizeof(contribCount));
+  const std::int64_t zero = 0;
+  std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
+  std::int64_t *contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
+  axom::copy(contribCountPtr, &contribCount, sizeof(zero));
 
   axom::for_all<ExecSpace>(
     cellIds.size(),
@@ -355,11 +353,12 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
         primal::Polyhedron<double, 3> overlap = primal::clip(tet, plane, EPS);
         auto volume = overlap.volume();
         vol += volume;
-        RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(volume >= EPS));
+        RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
       }
       ovlap[cellId] = vol;
     });
-  clipCount = cellIds.size() * NUM_TETS_PER_HEX;
+
+  statistics["clip"].set_int64(cellIds.size() * NUM_TETS_PER_HEX);
   axom::copy(&contribCount, contribCountPtr, sizeof(contribCount));
   axom::deallocate(contribCountPtr);
 }
@@ -369,19 +368,21 @@ void Plane3DClipper::specializedClipTetsImpl(
   quest::experimental::ShapeMesh& shapeMesh,
   axom::ArrayView<double> ovlap,
   const axom::ArrayView<IndexType>& tetIds,
-  axom::IndexType& clipCount,
-  axom::IndexType& contribCount)
+  conduit::Node& statistics)
 {
   constexpr double EPS = 1e-10;
   using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
+
+  int allocId = shapeMesh.getAllocatorID();
 
   auto meshTets = shapeMesh.getCellsAsTets();
   IndexType tetCount = tetIds.size();
   auto plane = m_plane;
 
-  contribCount = 0;
-  axom::IndexType *contribCountPtr = axom::allocate<axom::IndexType>(1, shapeMesh.getAllocatorID());
-  axom::copy(contribCountPtr, &contribCount, sizeof(contribCount));
+  const std::int64_t zero = 0;
+  std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
+  std::int64_t *contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
+  axom::copy(contribCountPtr, &contribCount, sizeof(zero));
 
   axom::for_all<ExecSpace>(
     tetCount,
@@ -392,9 +393,10 @@ void Plane3DClipper::specializedClipTetsImpl(
       primal::Polyhedron<double, 3> overlap = primal::clip(tet, plane, EPS);
       double vol = overlap.volume();
       RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, vol);
-      RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, axom::IndexType(vol >= EPS));
+      RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(vol >= EPS));
     });
-  clipCount = tetIds.size();
+
+  statistics["clip"].set_int64(tetIds.size());
   axom::copy(&contribCount, contribCountPtr, sizeof(contribCount));
   axom::deallocate(contribCountPtr);
 }

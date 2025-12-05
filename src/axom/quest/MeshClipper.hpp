@@ -82,39 +82,64 @@ public:
   //!@brief Dimension of the shape (2 or 3)
   int dimension() const { return m_shapeMesh.dimension(); }
 
-  //!@brief Return the number of times primitive clipping was used.
-  IndexType getClipCount() const { return m_clipCount; }
+  //@{
 
-  //!@brief Return the number of times primitive clipping contributed to the mesh clip volume.
-  IndexType getContribCount() const { return m_contribCount; }
+  /*!
+   * @brief Return the number of times primitive clipping was used,
+   * intended for developer use.
+   */
+  std::int64_t getClipCount() const { return m_counterStats["clips"].as_int64(); }
+
+  /*!
+   * @brief Return the number of times primitive clipping contributed to the mesh clip volume,
+   * intended for developer use.
+   */
+  std::int64_t getContribCount() const { return m_counterStats["contribs"].as_int64(); }
 
   /*!
    * @brief Log clipping statistics.
+   * Intended for developer use.
    *
-   * For developer use.
    * This is a collective method if MPI-parallel.
    */
   void logClippingStats(bool local = false, bool sum = true, bool max = false) const;
 
   /*!
-   * @brief Get assorted clipping statistics.
-   *
-   * For developer use.
-   * This is a collective method if MPI-parallel.
+   * @brief Get local assorted clipping statistics,
+   * intended for developer use.
    */
-  conduit::Node getClippingStats() const;
+  const conduit::Node& getClippingStats() const
+  { return m_counterStats; }
 
   /*!
-   * @brief Set the level of screening.
-   * This feature is for developer use.
+   * @brief Get global assorted clipping statistics,
+   * intended for developer use.
+   *
+   * This is a collective method if MPI-parallel.
+   */
+  conduit::Node getGlobalClippingStats() const;
+
+  /*!
+   * @brief Set the level of screening,
+   * intended for developer use.
    */
   void setScreenLevel( int screenLevel ) { m_screenLevel = screenLevel; }
 
   /*!
-   * @brief Get the level of screening.
-   * This feature is for developer use.
+   * @brief Get the level of screening,
+   * intended for developer use.
    */
   int getScreenLevel() const { return m_screenLevel; }
+
+  /*!
+   * @brief Add new stats to current stats,
+   * intended for developer use.
+   */
+  static void accumulateClippingStats(
+    conduit::Node& curStats,
+    const conduit::Node& newStats);
+
+  //@}
 
   /*!
    * @brief Single interface for methods implemented with
@@ -172,14 +197,12 @@ public:
 
     //!@brief Compute clip volumes for every cell.
     virtual void computeClipVolumes3D(axom::ArrayView<double> ovlap,
-                                      axom::IndexType& clipCount,
-                                      axom::IndexType& contribCount) = 0;
+                                      conduit::Node& statistics) = 0;
 
     //!@brief Compute clip volumes for cell in an index list.
     virtual void computeClipVolumes3D(const axom::ArrayView<axom::IndexType>& cellIndices,
                                       axom::ArrayView<double> ovlap,
-                                      axom::IndexType& clipCount,
-                                      axom::IndexType& contribCount) = 0;
+                                      conduit::Node& statistics) = 0;
 
     /*!
      * @brief Compute clip volumes for cell tets in an index list.
@@ -189,21 +212,17 @@ public:
      */
     virtual void computeClipVolumes3DTets(const axom::ArrayView<axom::IndexType>& tetIndices,
                                           axom::ArrayView<double> ovlap,
-                                          axom::IndexType& clipCount,
-                                          axom::IndexType& contribCount) = 0;
+                                          conduit::Node& statistics) = 0;
 
     //!@brief Count the number of labels of each type.
     virtual void getLabelCounts(axom::ArrayView<const LabelType> labels,
-                                axom::IndexType& inCount,
-                                axom::IndexType& onCount,
-                                axom::IndexType& outCount) = 0;
+                                std::int64_t& inCount,
+                                std::int64_t& onCount,
+                                std::int64_t& outCount) = 0;
 
     ShapeMesh& getShapeMesh() { return m_myClipper.m_shapeMesh; }
 
     MeshClipperStrategy& getStrategy() { return *m_myClipper.m_strategy; }
-
-    //!@brief Report number of times primitive clipping method was used.
-    void reportClipCount(IndexType clipCount) { m_myClipper.m_clipCount = clipCount; }
 
   protected:
     //!@brief The MeshClipper that owns this Impl.
@@ -226,17 +245,8 @@ private:
    * for multiple execution spaces.
    */
 
-  ///@{
-  //! @name Statistics
-  axom::IndexType m_cellsInCount {0};
-  axom::IndexType m_cellsOnCount {0};
-  axom::IndexType m_cellsOutCount {0};
-  axom::IndexType m_tetsInCount {0};
-  axom::IndexType m_tetsOnCount {0};
-  axom::IndexType m_tetsOutCount {0};
-  axom::IndexType m_clipCount {0};
-  axom::IndexType m_contribCount {0};
-  ///@}
+  //! @brief Statistics
+  conduit::Node m_counterStats;
 
   bool m_verbose;
 
@@ -252,9 +262,9 @@ public:
   //!@name Convenience methods
   //!@brief Count the number of labels of each type.
   void getLabelCounts(const axom::Array<LabelType>& labels,
-                      axom::IndexType& inCount,
-                      axom::IndexType& onCount,
-                      axom::IndexType& outCount)
+                      std::int64_t& inCount,
+                      std::int64_t& onCount,
+                      std::int64_t& outCount)
   {
     m_impl->getLabelCounts(labels, inCount, onCount, outCount);
   }

@@ -47,8 +47,7 @@ public:
 
   bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                             axom::ArrayView<double> ovlap,
-                            axom::IndexType& clipCount,
-                            axom::IndexType& contribCount) override;
+                            conduit::Node& statistics) override;
 
 #if !defined(__CUDACC__)
 private:

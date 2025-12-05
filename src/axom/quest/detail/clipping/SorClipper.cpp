@@ -60,8 +60,7 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
 
 bool SorClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                       axom::ArrayView<double> ovlap,
-                                      axom::IndexType& clipCount,
-                                      axom::IndexType& contribCount)
+                                      conduit::Node& statistics)
 {
   /*
    * The SOR curve has been split into SOR functions that do not double
@@ -77,7 +76,6 @@ bool SorClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
   */
   const axom::IndexType cellCount = ovlap.size();
   axom::Array<double> tmpOvlap(cellCount, cellCount, ovlap.getAllocatorID());
-  clipCount = 0;
   for(auto& fsorStrategy : m_fsorStrategies)
   {
     tmpOvlap.fill(0.0);
@@ -89,8 +87,7 @@ bool SorClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
     const auto lastZ = sorCurve[sorCurve.size() - 1][0];
     int sign = axom::utilities::sign_of(lastZ - firstZ, 0.0);
     accumulateData(ovlap, tmpOvlap.view(), double(sign), shapeMesh.getRuntimePolicy());
-    clipCount += clipper.getClipCount();
-    contribCount += clipper.getContribCount();
+    MeshClipper::accumulateClippingStats(statistics, clipper.getClippingStats());
   }
   return true;
 }

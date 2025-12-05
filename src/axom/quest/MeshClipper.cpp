@@ -26,7 +26,17 @@ MeshClipper::MeshClipper(quest::experimental::ShapeMesh& shapeMesh,
   , m_impl(newImpl())
   , m_verbose(false)
   , m_screenLevel(3)
-{ }
+{
+  // Initialize statistics.
+  m_counterStats["cellsIn"].set_int64(0);
+  m_counterStats["cellsOn"].set_int64(0);
+  m_counterStats["cellsOut"].set_int64(0);
+  m_counterStats["tetsIn"].set_int64(0);
+  m_counterStats["tetsOn"].set_int64(0);
+  m_counterStats["tetsOut"].set_int64(0);
+  m_counterStats["clips"].set_int64(0);
+  m_counterStats["contribs"].set_int64(0);
+}
 
 void MeshClipper::clip(axom::Array<double>& ovlap)
 {
@@ -59,8 +69,12 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
   const axom::IndexType cellCount = m_shapeMesh.getCellCount();
   SLIC_ASSERT(ovlap.size() == cellCount);
 
-  m_clipCount = 0;
-  m_contribCount = 0;
+  auto& cellsInCount = *m_counterStats["cellsIn"].as_int64_ptr();
+  auto& cellsOnCount = *m_counterStats["cellsOn"].as_int64_ptr();
+  auto& cellsOutCount = *m_counterStats["cellsOut"].as_int64_ptr();
+  auto& tetsInCount = *m_counterStats["tetsIn"].as_int64_ptr();
+  auto& tetsOnCount = *m_counterStats["tetsOn"].as_int64_ptr();
+  auto& tetsOutCount = *m_counterStats["tetsOut"].as_int64_ptr();
 
   // Try to label cells as inside, outside or on shape boundary
   axom::Array<LabelType> cellLabels;
@@ -89,7 +103,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
                                     allocId));
 
     // Counting labels is non-essential and presumed to be relatively very fast.
-    getLabelCounts(cellLabels, m_cellsInCount, m_cellsOnCount, m_cellsOutCount);
+    getLabelCounts(cellLabels, cellsInCount, cellsOnCount, cellsOutCount);
     if(m_verbose) { logClippingStats(); }
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:process_in_out");
@@ -98,7 +112,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
 
     axom::Array<axom::IndexType> cellsOnBdry;
     m_impl->collectOnIndices(cellLabels.view(), cellsOnBdry);
-    SLIC_ASSERT(cellsOnBdry.size() == m_cellsOnCount);
+    SLIC_ASSERT(cellsOnBdry.size() == cellsOnCount);
 
     axom::Array<LabelType> tetLabels;
     bool withTetInOut = false;
@@ -126,7 +140,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
                                       allocId));
 
       // Counting labels is non-essential and presumed to be very fast.
-      getLabelCounts(tetLabels, m_tetsInCount, m_tetsOnCount, m_tetsOutCount);
+      getLabelCounts(tetLabels, tetsInCount, tetsOnCount, tetsOutCount);
       if(m_verbose) { logClippingStats(); }
 
       m_impl->collectOnIndices(tetLabels.view(), tetsOnBdry);
@@ -146,11 +160,11 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
     AXOM_ANNOTATE_BEGIN("MeshClipper:specialized_clip");
     if(withTetInOut)
     {
-      done = m_strategy->specializedClipTets(m_shapeMesh, ovlap, tetsOnBdry, m_clipCount, m_contribCount);
+      done = m_strategy->specializedClipTets(m_shapeMesh, ovlap, tetsOnBdry, m_counterStats);
     }
     else
     {
-      done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, cellsOnBdry, m_clipCount, m_contribCount);
+      done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, cellsOnBdry, m_counterStats);
     }
     AXOM_ANNOTATE_END("MeshClipper:specialized_clip");
 
@@ -159,11 +173,11 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
       AXOM_ANNOTATE_SCOPE("MeshClipper:clip_fcn");
       if(withTetInOut)
       {
-        m_impl->computeClipVolumes3DTets(tetsOnBdry.view(), ovlap, m_clipCount, m_contribCount);
+        m_impl->computeClipVolumes3DTets(tetsOnBdry.view(), ovlap, m_counterStats);
       }
       else
       {
-        m_impl->computeClipVolumes3D(cellsOnBdry.view(), ovlap, m_clipCount, m_contribCount);
+        m_impl->computeClipVolumes3D(cellsOnBdry.view(), ovlap, m_counterStats);
       }
     }
   }
@@ -171,13 +185,13 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
   {
     m_impl->zeroVolumeOverlaps(ovlap);
     AXOM_ANNOTATE_BEGIN("MeshClipper:specialized_clip");
-    done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, m_clipCount, m_contribCount);
+    done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, m_counterStats);
     AXOM_ANNOTATE_END("MeshClipper:specialized_clip");
 
     if(!done)
     {
       AXOM_ANNOTATE_SCOPE("MeshClipper:clip_fcn");
-      m_impl->computeClipVolumes3D(ovlap, m_clipCount, m_contribCount);
+      m_impl->computeClipVolumes3D(ovlap, m_counterStats);
     }
   }
 }
@@ -236,51 +250,54 @@ void globalReduce(axom::Array<T>& values, int reduceOp)
 #endif
 }
 
-conduit::Node MeshClipper::getClippingStats() const
+void MeshClipper::accumulateClippingStats(conduit::Node& curStats,
+                                          const conduit::Node& newStats)
 {
-  axom::Array<std::int64_t> sums {
-    m_cellsInCount, m_cellsOnCount, m_cellsOutCount,
-    m_tetsInCount, m_tetsOnCount, m_tetsOutCount,
-    m_clipCount, m_contribCount};
+  for( int i = 0; i < newStats.number_of_children(); ++i )
+  {
+    const auto& newStat = newStats.child(i);
+    SLIC_ERROR_IF(!newStat.dtype().is_integer(),
+                  "MeshClipper statistic must be integer"
+                  " (at least until a need for floats arises).");
+    auto& currentStat = curStats[newStat.name()];
+    if(currentStat.dtype().is_empty())
+    {
+      currentStat.set_int64(newStat.as_int64());
+    }
+    else
+    {
+      *currentStat.as_int64_ptr() += newStat.as_int64();
+    }
+  }
+}
 
+conduit::Node MeshClipper::getGlobalClippingStats() const
+{
   conduit::Node stats;
-
   auto& locNode = stats["loc"];
-  locNode["cellsIn"].set(sums[0]);
-  locNode["cellsOn"].set(sums[1]);
-  locNode["cellsOut"].set(sums[2]);
-  locNode["tetsIn"].set(sums[3]);
-  locNode["tetsOn"].set(sums[4]);
-  locNode["tetsOut"].set(sums[5]);
-  locNode["clips"].set(sums[6]);
-  locNode["contribs"].set(sums[7]);
-
-#if !defined(AXOM_USE_MPI)
-  stats["max"] = stats["loc"];
-  stats["sum"] = stats["loc"];
-#else
-  axom::Array<std::int64_t> maxs(sums);
   auto& maxNode = stats["max"];
-  globalReduce(maxs, MPI_MAX);
-  maxNode["cellsIn"].set(maxs[0]);
-  maxNode["cellsOn"].set(maxs[1]);
-  maxNode["cellsOut"].set(maxs[2]);
-  maxNode["tetsIn"].set(maxs[3]);
-  maxNode["tetsOn"].set(maxs[4]);
-  maxNode["tetsOut"].set(maxs[5]);
-  maxNode["clips"].set(maxs[6]);
-  maxNode["contribs"].set(maxs[7]);
-
   auto& sumNode = stats["sum"];
+
+  locNode.set(m_counterStats);
+  sumNode.set(m_counterStats);
+  maxNode.set(m_counterStats);
+
+#if defined(AXOM_USE_MPI)
+  // Do sum and max reductions.
+  axom::Array<std::int64_t> sums(0, sumNode.number_of_children());
+  for(int i = 0; i < sumNode.number_of_children(); ++i)
+  {
+    sums.push_back(locNode.child(i).as_int64());
+  }
+  axom::Array<std::int64_t> maxs(sums);
+  globalReduce(maxs, MPI_MAX);
   globalReduce(sums, MPI_SUM);
-  sumNode["cellsIn"].set(sums[0]);
-  sumNode["cellsOn"].set(sums[1]);
-  sumNode["cellsOut"].set(sums[2]);
-  sumNode["tetsIn"].set(sums[3]);
-  sumNode["tetsOn"].set(sums[4]);
-  sumNode["tetsOut"].set(sums[5]);
-  sumNode["clips"].set(sums[6]);
-  sumNode["contribs"].set(sums[7]);
+
+  for(int i = 0; i < sumNode.number_of_children(); ++i)
+  {
+    *maxNode.child(i).as_int64_ptr() = maxs[i];
+    *sumNode.child(i).as_int64_ptr() = sums[i];
+  }
 #endif
 
   return stats;
@@ -288,7 +305,7 @@ conduit::Node MeshClipper::getClippingStats() const
 
 void MeshClipper::logClippingStats(bool local, bool sum, bool max) const
 {
-  conduit::Node stats = getClippingStats();
+  conduit::Node stats = getGlobalClippingStats();
   if(local)
   {
     SLIC_INFO(std::string("MeshClipper loc-stats: ") + stats["loc"].to_string("yaml", 2, 0, "", " "));
