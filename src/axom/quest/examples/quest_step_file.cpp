@@ -350,16 +350,16 @@ int main(int argc, char** argv)
 
   bool relative_deflection {false};
   app.add_flag("--relative", relative_deflection)
-    ->description("Use relative deflection instead of absolute")
+    ->description("Use relative deflection instead of absolute?")
     ->capture_default_str();
 
   double angular_deflection {0.5};
-  app.add_option("--angular_deflection", angular_deflection)
+  app.add_option("--angular-deflection", angular_deflection)
     ->description("Angular deflection between adjacent normals when triangulating surfaces")
     ->capture_default_str();
 
   std::string output_dir = "step_output";
-  app.add_option("-o,--output_dir", output_dir)
+  app.add_option("-o,--output-dir", output_dir)
     ->description("Output directory for generated meshes")
     ->capture_default_str()
     ->check([](const std::string& dir) -> std::string {
@@ -371,16 +371,16 @@ int main(int argc, char** argv)
     });
 
   bool output_svg {false};
-  app.add_flag("--output_svg", output_svg)
-    ->description("Generate SVG files for each NURBS patch")
+  app.add_flag("--output-svg", output_svg)
+    ->description("Generate SVG files for each NURBS patch?")
     ->capture_default_str();
 
   bool output_untrimmed {false};
-  app.add_flag("--output_untrimmed,!--no-output_untrimmed", output_untrimmed)
-    ->description(
-      "Generate triangulation of untrimmed patches (use --no-output_untrimmed to disable)")
+  app.add_flag("--output-untrimmed,!--no-output-untrimmed", output_untrimmed)
+    ->description("Generate triangulation of untrimmed patches?")
     ->capture_default_str();
 
+  app.get_formatter()->column_width(50);
   CLI11_PARSE(app, argc, argv);
 
   // Ensure output directory exists
