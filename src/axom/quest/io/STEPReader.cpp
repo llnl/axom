@@ -1102,7 +1102,6 @@ public:
     }
   }
 
-
   /// Triangulates the entire mesh as a single VTK file
   /// The association to the original patches is tracked via the patch_index field
   void triangulateTrimmedPatches(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& output_mesh)
@@ -1500,8 +1499,6 @@ int STEPReader::read()
 
   m_stepProcessor->extractPatches(m_patches);
   m_stepProcessor->extractTrimmingCurves(m_patches);
-
-  this->printBRepStats();
 
   return 0;
 }

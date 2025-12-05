@@ -332,7 +332,9 @@ int main(int argc, char** argv)
 {
   axom::slic::SimpleLogger logger(axom::slic::message::Info);
 
+  //---------------------------------------------------------------------------
   // Set up and parse command line options
+  //---------------------------------------------------------------------------
   axom::CLI::App app {"Quest Step File Example"};
 
   std::string filename;
@@ -368,6 +370,11 @@ int main(int argc, char** argv)
       return std::string();
     });
 
+  bool output_svg {false};
+  app.add_flag("--output_svg", output_svg)
+    ->description("Generate SVG files for each NURBS patch")
+    ->capture_default_str();
+
   CLI11_PARSE(app, argc, argv);
 
   // Ensure output directory exists
@@ -376,7 +383,9 @@ int main(int argc, char** argv)
     axom::utilities::filesystem::makeDirsForPath(output_dir);
   }
 
+  //---------------------------------------------------------------------------
   // Load and process file
+  //---------------------------------------------------------------------------
   SLIC_INFO("Processing file: " << filename);
   SLIC_INFO_IF(verbosity, "Current working directory: " << axom::utilities::filesystem::getCWD());
 
@@ -395,25 +404,11 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  ////---------------------------
-  PatchArray& patches = stepReader.getPatchArray();
-  const int numPatches = patches.size();
-  const int numFillZeros = static_cast<int>(std::log10(numPatches)) + 1;
+  stepReader.printBRepStats();
 
-  // Generate outputs
-  PatchParametricSpaceProcessor patchProcessor;
-  patchProcessor.setUnits(stepReader.getFileUnits());
-  patchProcessor.setVerbosity(verbosity);
-  patchProcessor.setOutputDirectory(output_dir);
-  patchProcessor.setNumFillZeros(numFillZeros);
-  SLIC_INFO(axom::fmt::format(
-    "Generating SVG meshes for patches and their trimming curves in '{}' directory",
-    output_dir));
-  for(const auto& [index, patchData] : stepReader.getPatchDataMap())
-  {
-    patchProcessor.generateSVGForPatch(index, patchData, patches[index]);
-  }
-
+  //---------------------------------------------------------------------------
+  // Triangulate model
+  //---------------------------------------------------------------------------
   SLIC_INFO(axom::fmt::format(
     "Generating triangles meshes for trimmed and untrimmed patches in '{}' directory",
     output_dir));
@@ -465,6 +460,32 @@ int main(int argc, char** argv)
                         angular_deflection,
                         mesh.getNumberOfCells(),
                         filename));
+  }
+
+  //---------------------------------------------------------------------------
+  // Optionally output an SVG for each patch
+  //---------------------------------------------------------------------------
+  if(output_svg)
+  {
+    SLIC_INFO(axom::fmt::format(
+      "Generating SVG meshes for patches and their trimming curves in '{}' directory",
+      output_dir));
+
+    PatchArray& patches = stepReader.getPatchArray();
+    const int numPatches = patches.size();
+    const int numFillZeros = static_cast<int>(std::log10(numPatches)) + 1;
+
+    // Generate outputs
+    PatchParametricSpaceProcessor patchProcessor;
+    patchProcessor.setUnits(stepReader.getFileUnits());
+    patchProcessor.setVerbosity(verbosity);
+    patchProcessor.setOutputDirectory(output_dir);
+    patchProcessor.setNumFillZeros(numFillZeros);
+
+    for(const auto& [index, patchData] : stepReader.getPatchDataMap())
+    {
+      patchProcessor.generateSVGForPatch(index, patchData, patches[index]);
+    }
   }
 
   return 0;
