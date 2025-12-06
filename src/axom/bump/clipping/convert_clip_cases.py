@@ -80,11 +80,16 @@ def combine_polygons(polygons, max_edges=8):
                 if shared_edge:
                     new_poly = merge_polygons(polygons[i], polygons[j], shared_edge)
                     if len(new_poly) <= max_edges:
+                        # We should sort the points so merging works better
+                        new_poly = tuple(sort_points(new_poly, 8))
+                        #print("Created ", new_poly, "from", polygons[i], polygons[j])
                         new_polygons.append(new_poly)
                         skip.update([i, j])
                         merged = True
                         changed = True
                         break
+                    #else:
+                    #    print("Could not combine polygons due to length!", polygons[i], polygons[j])
             if not merged:
                 new_polygons.append(polygons[i])
         polygons = new_polygons
@@ -143,13 +148,13 @@ def convert_clip_cases(filename, name, npts):
        nptsToShapeName[advance[k] - 2] = k
 
    sizes = read_array_cc(filename, f"numClipShapes{name}", True)
-   print(sizes)
+   #print(sizes)
 
    offsets = read_array_cc(filename, f"startClipShapes{name}", True)
-   print(offsets)
+   #print(offsets)
 
    shapes = read_array_cc(filename, f"clipShapes{name}", False)
-   print(shapes)
+   #print(shapes)
 
    numCases = len(sizes)
 
@@ -173,7 +178,7 @@ def convert_clip_cases(filename, name, npts):
                color0.append(shapeTokens[2:])
            else:
                color1.append(shapeTokens[2:])
-           print("  ", shapeTokens)
+           #print("  ", shapeTokens)
            offset = offset + shapeSize
 
        outOffsets[ci] = outOffset
