@@ -15,6 +15,7 @@
 #include <cstdlib>
 
 namespace bump = axom::bump;
+namespace views = axom::bump::views;
 namespace utils = axom::bump::utilities;
 
 std::string baselineDirectory()
@@ -569,32 +570,26 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
   options["fields/color"] = "new_color";
   options["fields/new_radial"] = "new_radial2";
 
-  conduit::Node deviceClipMixedMesh;
-  if(n_device_topo.has_path("elements/shape") &&
-     n_device_topo.fetch_existing("elements/shape").as_string() == "mixed")
+  const auto shape = n_device_topo.fetch_existing("elements/shape").as_string();
+  
+  conduit::Node deviceClipMesh2;
+  if(shape == "polygonal")
   {
-    auto shapesView =
-      utils::make_array_view<axom::IndexType>(n_device_topo.fetch_existing("elements/shapes"));
     const auto sizesView =
       utils::make_array_view<axom::IndexType>(n_device_topo.fetch_existing("elements/sizes"));
     const auto offsetsView =
       utils::make_array_view<axom::IndexType>(n_device_topo.fetch_existing("elements/offsets"));
 
-    // Make the shape map.
-    volatile int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-    axom::Array<axom::IndexType> values, ids;
-    auto shapeMap = axom::bump::views::buildShapeMap(n_device_topo, values, ids, allocatorID);
-
-    using MixedTopoView = axom::bump::views::UnstructuredTopologyMixedShapeView<axom::IndexType>;
-    MixedTopoView mixedTopoView(connView, shapesView, sizesView, offsetsView, shapeMap);
+    using PolyTopoView = views::UnstructuredTopologySingleShapeView<views::PolygonShape<axom::IndexType>>;
+    PolyTopoView polyTopoView(connView, sizesView, offsetsView);
 
     // Clip the data
-    axom::bump::clipping::ClipField<ExecSpace, MixedTopoView, ExpCoordsetView> mixedClipper(
-      mixedTopoView,
+    axom::bump::clipping::ClipField<ExecSpace, PolyTopoView, ExpCoordsetView> polyClipper(
+      polyTopoView,
       expCoordsetView);
-    mixedClipper.execute(deviceClipMesh, options, deviceClipMixedMesh);
+    polyClipper.execute(deviceClipMesh, options, deviceClipMesh2);
   }
-  else
+  else if(shape == "quad")
   {
     // Depending on optimizations, we might get a mesh with just quads.
     using QuadTopoView =
@@ -605,17 +600,22 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
     axom::bump::clipping::ClipField<ExecSpace, QuadTopoView, ExpCoordsetView> quadClipper(
       quadTopoView,
       expCoordsetView);
-    quadClipper.execute(deviceClipMesh, options, deviceClipMixedMesh);
+    quadClipper.execute(deviceClipMesh, options, deviceClipMesh2);
+  }
+  else
+  {
+    std::cout << "The test got an unexpected shape " << shape << std::endl;
+    FAIL();
   }
 
   // Copy device->host
-  conduit::Node hostClipMixedMesh;
-  utils::copy<seq_exec>(hostClipMixedMesh, deviceClipMixedMesh);
+  conduit::Node hostClipMesh2;
+  utils::copy<seq_exec>(hostClipMesh2, deviceClipMesh2);
 
-  TestApp.saveVisualization(name + "_mixed", hostClipMixedMesh);
+  TestApp.saveVisualization(name + "_clip2", hostClipMesh2);
 
   // Handle baseline comparison.
-  EXPECT_TRUE(TestApp.test<ExecSpace>(name + "_mixed", hostClipMixedMesh));
+  EXPECT_TRUE(TestApp.test<ExecSpace>(name + "_clip2", hostClipMesh2));
 }
 
 TEST(bump_clipfield, uniform2d)
