@@ -174,7 +174,7 @@ public:
 
     EXPECT_EQ(countBadMaterialZones(hostResult["matsets/target2_matset"]), 0);
 
-    TestApp.saveVisualization("test_poly_mir", hostResult);
+    TestApp.saveVisualization(name, hostResult);
 
     // Handle baseline comparison.
     EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostResult));
