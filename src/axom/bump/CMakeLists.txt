@@ -19,7 +19,7 @@ axom_component_requires(NAME       BUMP
 
 set(bump_headers
     extraction/BlendGroupBuilder.hpp
-    extraction/ClipCases.h
+    extraction/tables/clipping/ClipCases.h
     extraction/ClipField.hpp
     extraction/ClipOptions.hpp
     extraction/ClipTableManager.hpp
@@ -84,16 +84,16 @@ set(bump_headers
     )
 
 set(bump_sources
-    extraction/ClipCasesHex.cpp
-    extraction/ClipCasesPoly5.cpp
-    extraction/ClipCasesPoly6.cpp
-    extraction/ClipCasesPoly7.cpp
-    extraction/ClipCasesPoly8.cpp
-    extraction/ClipCasesPyr.cpp
-    extraction/ClipCasesQua.cpp
-    extraction/ClipCasesTet.cpp
-    extraction/ClipCasesTri.cpp
-    extraction/ClipCasesWdg.cpp
+    extraction/tables/clipping/ClipCasesHex.cpp
+    extraction/tables/clipping/ClipCasesPoly5.cpp
+    extraction/tables/clipping/ClipCasesPoly6.cpp
+    extraction/tables/clipping/ClipCasesPoly7.cpp
+    extraction/tables/clipping/ClipCasesPoly8.cpp
+    extraction/tables/clipping/ClipCasesPyr.cpp
+    extraction/tables/clipping/ClipCasesQua.cpp
+    extraction/tables/clipping/ClipCasesTet.cpp
+    extraction/tables/clipping/ClipCasesTri.cpp
+    extraction/tables/clipping/ClipCasesWdg.cpp
     data/MeshTester.cpp
     io/save.cpp
     utilities/conduit_traits.cpp
