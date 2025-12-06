@@ -18,11 +18,11 @@ axom_component_requires(NAME       BUMP
 #------------------------------------------------------------------------------
 
 set(bump_headers
-    clipping/BlendGroupBuilder.hpp
-    clipping/ClipCases.h
-    clipping/ClipField.hpp
-    clipping/ClipOptions.hpp
-    clipping/ClipTableManager.hpp
+    extraction/BlendGroupBuilder.hpp
+    extraction/ClipCases.h
+    extraction/ClipField.hpp
+    extraction/ClipOptions.hpp
+    extraction/ClipTableManager.hpp
     data/MeshTester.hpp
     io/save.hpp
     utilities/blueprint_utilities.hpp
@@ -84,16 +84,16 @@ set(bump_headers
     )
 
 set(bump_sources
-    clipping/ClipCasesHex.cpp
-    clipping/ClipCasesPoly5.cpp
-    clipping/ClipCasesPoly6.cpp
-    clipping/ClipCasesPoly7.cpp
-    clipping/ClipCasesPoly8.cpp
-    clipping/ClipCasesPyr.cpp
-    clipping/ClipCasesQua.cpp
-    clipping/ClipCasesTet.cpp
-    clipping/ClipCasesTri.cpp
-    clipping/ClipCasesWdg.cpp
+    extraction/ClipCasesHex.cpp
+    extraction/ClipCasesPoly5.cpp
+    extraction/ClipCasesPoly6.cpp
+    extraction/ClipCasesPoly7.cpp
+    extraction/ClipCasesPoly8.cpp
+    extraction/ClipCasesPyr.cpp
+    extraction/ClipCasesQua.cpp
+    extraction/ClipCasesTet.cpp
+    extraction/ClipCasesTri.cpp
+    extraction/ClipCasesWdg.cpp
     data/MeshTester.cpp
     io/save.cpp
     utilities/conduit_traits.cpp
