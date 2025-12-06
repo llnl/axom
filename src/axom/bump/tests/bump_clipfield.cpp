@@ -571,7 +571,7 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
   options["fields/new_radial"] = "new_radial2";
 
   const auto shape = n_device_topo.fetch_existing("elements/shape").as_string();
-  
+
   conduit::Node deviceClipMesh2;
   if(shape == "polygonal")
   {
@@ -580,7 +580,8 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
     const auto offsetsView =
       utils::make_array_view<axom::IndexType>(n_device_topo.fetch_existing("elements/offsets"));
 
-    using PolyTopoView = views::UnstructuredTopologySingleShapeView<views::PolygonShape<axom::IndexType>>;
+    using PolyTopoView =
+      views::UnstructuredTopologySingleShapeView<views::PolygonShape<axom::IndexType>>;
     PolyTopoView polyTopoView(connView, sizesView, offsetsView);
 
     // Clip the data
