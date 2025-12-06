@@ -4,20 +4,23 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "ClipCases.h"
 
-namespace axom {
-namespace bump {
-namespace clipping {
-namespace tables {
+namespace axom
+{
+namespace bump
+{
+namespace clipping
+{
+namespace tables
+{
 
 int numClipCasesPoly5 = 32;
 
-int numClipShapesPoly5[] = {
-  1, 2, 2, 2, 2, 3, 2, 2, 2, 3, 3, 3, 2, 3, 2, 2, 2, 2, 3, 2, 3, 3, 3, 2, 2, 2, 3, 2, 2, 2, 2, 1
-};
+int numClipShapesPoly5[] = {1, 2, 2, 2, 2, 3, 2, 2, 2, 3, 3, 3, 2, 3, 2, 2,
+                            2, 2, 3, 2, 3, 3, 3, 2, 2, 2, 3, 2, 2, 2, 2, 1};
 
-int startClipShapesPoly5[] = {
-  0, 7, 20, 33, 46, 59, 78, 91, 104, 117, 136, 155, 174, 187, 206, 219, 232, 245, 258, 277, 290, 309, 328, 347, 360, 373, 386, 405, 418, 431, 444, 457
-};
+int startClipShapesPoly5[] = {0,   7,   20,  33,  46,  59,  78,  91,  104, 117, 136,
+                              155, 174, 187, 206, 219, 232, 245, 258, 277, 290, 309,
+                              328, 347, 360, 373, 386, 405, 418, 431, 444, 457};
 
 // clang-format off
 unsigned char clipShapesPoly5[] = {
@@ -130,7 +133,7 @@ unsigned char clipShapesPoly5[] = {
 
 const size_t clipShapesPoly5Size = sizeof(clipShapesPoly5) / sizeof(unsigned char);
 
-} // namespace tables
-} // namespace clipping
-} // namespace bump
-} // namespace axom
+}  // namespace tables
+}  // namespace clipping
+}  // namespace bump
+}  // namespace axom

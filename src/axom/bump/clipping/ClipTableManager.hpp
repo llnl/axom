@@ -467,7 +467,8 @@ public:
     std::vector<size_t> s;
     if(dim == -1 || dim == 2)
     {
-      for(const auto value : std::vector<size_t> {ST_TRI, ST_QUA, ST_POLY5, ST_POLY6, ST_POLY7, ST_POLY8})
+      for(const auto value :
+          std::vector<size_t> {ST_TRI, ST_QUA, ST_POLY5, ST_POLY6, ST_POLY7, ST_POLY8})
       {
         s.push_back(value);
       }

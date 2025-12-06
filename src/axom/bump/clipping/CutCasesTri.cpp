@@ -1,9 +1,13 @@
 #include "CutCases.h"
 
-namespace axom {
-namespace bump {
-namespace cutting {
-namespace tables {
+namespace axom
+{
+namespace bump
+{
+namespace cutting
+{
+namespace tables
+{
 
 int numCutCasesTri = 8;
 
@@ -26,17 +30,13 @@ unsigned char cutShapesTri[] = {
 };
 // clang-format on
 
-unsigned char numCutShapesTri[] = {
-0, 1, 1, 1, 1, 1, 1, 0
-};
+unsigned char numCutShapesTri[] = {0, 1, 1, 1, 1, 1, 1, 0};
 
-unsigned char startCutShapesTri[] = {
-0, 0, 4, 8, 12, 16, 20, 24
-};
+unsigned char startCutShapesTri[] = {0, 0, 4, 8, 12, 16, 20, 24};
 
 const size_t cutShapesTriSize = sizeof(cutShapesTri) / sizeof(unsigned char);
 
-} // namespace tables
-} // namespace cutting
-} // namespace bump
-} // namespace axom
+}  // namespace tables
+}  // namespace cutting
+}  // namespace bump
+}  // namespace axom

@@ -1,9 +1,13 @@
 #include "CutCases.h"
 
-namespace axom {
-namespace bump {
-namespace cutting {
-namespace tables {
+namespace axom
+{
+namespace bump
+{
+namespace cutting
+{
+namespace tables
+{
 
 int numCutCasesPyramid = 32;
 
@@ -76,17 +80,16 @@ unsigned char cutShapesPyramid[] = {
 };
 // clang-format on
 
-unsigned char numCutShapesPyramid[] = {
-0, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0
-};
+unsigned char numCutShapesPyramid[] = {0, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1,
+                                       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0};
 
-unsigned char startCutShapesPyramid[] = {
-0, 0, 5, 10, 16, 21, 31, 37, 44, 49, 55, 65, 72, 78, 85, 92, 98, 104, 111, 118, 124, 131, 139, 145, 150, 157, 163, 171, 176, 182, 187, 192
-};
+unsigned char startCutShapesPyramid[] = {0,   0,   5,   10,  16,  21,  31,  37,  44,  49,  55,
+                                         65,  72,  78,  85,  92,  98,  104, 111, 118, 124, 131,
+                                         139, 145, 150, 157, 163, 171, 176, 182, 187, 192};
 
 const size_t cutShapesPyramidSize = sizeof(cutShapesPyramid) / sizeof(unsigned char);
 
-} // namespace tables
-} // namespace cutting
-} // namespace bump
-} // namespace axom
+}  // namespace tables
+}  // namespace cutting
+}  // namespace bump
+}  // namespace axom

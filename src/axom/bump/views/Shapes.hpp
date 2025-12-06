@@ -842,10 +842,7 @@ struct VariableShape
   AXOM_HOST_DEVICE constexpr static bool is_polyhedral() { return false; }
   AXOM_HOST_DEVICE constexpr static bool is_variable_size() { return true; }
 
-  AXOM_HOST_DEVICE IndexType dimension() const
-  {
-    return shapeDimension(m_shapeId);
-  }
+  AXOM_HOST_DEVICE IndexType dimension() const { return shapeDimension(m_shapeId); }
 
   AXOM_HOST_DEVICE IndexType numberOfNodes() const { return m_ids.size(); }
 

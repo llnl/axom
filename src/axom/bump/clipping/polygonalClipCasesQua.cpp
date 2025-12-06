@@ -4,20 +4,20 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "ClipCases.h"
 
-namespace axom {
-namespace bump {
-namespace clipping {
-namespace tables {
+namespace axom
+{
+namespace bump
+{
+namespace clipping
+{
+namespace tables
+{
 
 int numClipCasesQua = 16;
 
-int numClipShapesQua[] = {
-  1, 2, 2, 2, 2, 3, 2, 2, 2, 2, 3, 2, 2, 2, 2, 1
-};
+int numClipShapesQua[] = {1, 2, 2, 2, 2, 3, 2, 2, 2, 2, 3, 2, 2, 2, 2, 1};
 
-int startClipShapesQua[] = {
-  0, 6, 18, 30, 42, 54, 72, 84, 96, 108, 120, 138, 150, 162, 174, 186
-};
+int startClipShapesQua[] = {0, 6, 18, 30, 42, 54, 72, 84, 96, 108, 120, 138, 150, 162, 174, 186};
 
 // clang-format off
 unsigned char clipShapesQua[] = {
@@ -74,7 +74,7 @@ unsigned char clipShapesQua[] = {
 
 const size_t clipShapesQuaSize = sizeof(clipShapesQua) / sizeof(unsigned char);
 
-} // namespace tables
-} // namespace clipping
-} // namespace bump
-} // namespace axom
+}  // namespace tables
+}  // namespace clipping
+}  // namespace bump
+}  // namespace axom

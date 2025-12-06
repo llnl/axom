@@ -4,20 +4,26 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "ClipCases.h"
 
-namespace axom {
-namespace bump {
-namespace clipping {
-namespace tables {
+namespace axom
+{
+namespace bump
+{
+namespace clipping
+{
+namespace tables
+{
 
 int numClipCasesPoly6 = 64;
 
-int numClipShapesPoly6[] = {
-  1, 2, 2, 2, 2, 3, 2, 2, 2, 3, 3, 3, 2, 3, 2, 2, 2, 3, 3, 3, 3, 5, 3, 3, 2, 3, 3, 3, 2, 3, 2, 2, 2, 2, 3, 2, 3, 3, 3, 2, 3, 3, 5, 3, 3, 3, 3, 2, 2, 2, 3, 2, 3, 3, 3, 2, 2, 2, 3, 2, 2, 2, 2, 1
-};
+int numClipShapesPoly6[] = {1, 2, 2, 2, 2, 3, 2, 2, 2, 3, 3, 3, 2, 3, 2, 2, 2, 3, 3, 3, 3, 5,
+                            3, 3, 2, 3, 3, 3, 2, 3, 2, 2, 2, 2, 3, 2, 3, 3, 3, 2, 3, 3, 5, 3,
+                            3, 3, 3, 2, 2, 2, 3, 2, 3, 3, 3, 2, 2, 2, 3, 2, 2, 2, 2, 1};
 
-int startClipShapesPoly6[] = {
-  0, 8, 22, 36, 50, 64, 84, 98, 112, 126, 146, 166, 186, 200, 220, 234, 248, 262, 282, 302, 322, 342, 372, 392, 412, 426, 446, 466, 486, 500, 520, 534, 548, 562, 576, 596, 610, 630, 650, 670, 684, 704, 724, 754, 774, 794, 814, 834, 848, 862, 876, 896, 910, 930, 950, 970, 984, 998, 1012, 1032, 1046, 1060, 1074, 1088
-};
+int startClipShapesPoly6[] = {0,   8,   22,  36,  50,  64,  84,   98,   112,  126,  146,  166, 186,
+                              200, 220, 234, 248, 262, 282, 302,  322,  342,  372,  392,  412, 426,
+                              446, 466, 486, 500, 520, 534, 548,  562,  576,  596,  610,  630, 650,
+                              670, 684, 704, 724, 754, 774, 794,  814,  834,  848,  862,  876, 896,
+                              910, 930, 950, 970, 984, 998, 1012, 1032, 1046, 1060, 1074, 1088};
 
 // clang-format off
 unsigned char clipShapesPoly6[] = {
@@ -252,7 +258,7 @@ unsigned char clipShapesPoly6[] = {
 
 const size_t clipShapesPoly6Size = sizeof(clipShapesPoly6) / sizeof(unsigned char);
 
-} // namespace tables
-} // namespace clipping
-} // namespace bump
-} // namespace axom
+}  // namespace tables
+}  // namespace clipping
+}  // namespace bump
+}  // namespace axom

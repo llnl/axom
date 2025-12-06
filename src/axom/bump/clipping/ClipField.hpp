@@ -114,12 +114,24 @@ inline constexpr int getClipTableIndex(int shapeId, axom::IndexType numNodes)
   case views::Polygon_ShapeID:
     switch(numNodes)
     {
-    case 3: index = 0; break; // triangle
-    case 4: index = 1; break; // quad
-    case 5: index = 2; break; // pentagon
-    case 6: index = 3; break; // hexagon
-    case 7: index = 4; break; // septagon
-    case 8: index = 5; break; // octagon
+    case 3:
+      index = 0;
+      break;  // triangle
+    case 4:
+      index = 1;
+      break;  // quad
+    case 5:
+      index = 2;
+      break;  // pentagon
+    case 6:
+      index = 3;
+      break;  // hexagon
+    case 7:
+      index = 4;
+      break;  // septagon
+    case 8:
+      index = 5;
+      break;  // octagon
     }
     break;
   case views::Tet_ShapeID:
@@ -168,8 +180,9 @@ constexpr IndexType maxPointForDimension(int dim, IndexType numPoints)
   {
   case 2:
     // We take the max since we might have a polygon.
-    maxPoint = axom::utilities::max(static_cast<IndexType>(axom::bump::clipping::tables::P0) + numPoints - 1,
-                                    static_cast<IndexType>(axom::bump::clipping::tables::P3));
+    maxPoint =
+      axom::utilities::max(static_cast<IndexType>(axom::bump::clipping::tables::P0) + numPoints - 1,
+                           static_cast<IndexType>(axom::bump::clipping::tables::P3));
     break;
   case 1:
     maxPoint = static_cast<IndexType>(axom::bump::clipping::tables::P1);
@@ -187,8 +200,9 @@ constexpr IndexType maxEdgeForDimension(int dim, IndexType numPoints)
   {
   case 2:
     // We take the max since we might have a polygon.
-    maxEdge = axom::utilities::max(static_cast<IndexType>(axom::bump::clipping::tables::EA) + numPoints - 1,
-                                   static_cast<IndexType>(axom::bump::clipping::tables::ED));
+    maxEdge =
+      axom::utilities::max(static_cast<IndexType>(axom::bump::clipping::tables::EA) + numPoints - 1,
+                           static_cast<IndexType>(axom::bump::clipping::tables::ED));
     break;
   case 1:
     maxEdge = static_cast<IndexType>(axom::bump::clipping::tables::EA);
@@ -1715,7 +1729,8 @@ private:
   {
     AXOM_ANNOTATE_SCOPE("makeTopology");
     using namespace axom::bump::clipping::tables;
-    using FragmentOps = detail::FragmentOperations<TopologyView::dimension(), ExecSpace, ConnectivityType>;
+    using FragmentOps =
+      detail::FragmentOperations<TopologyView::dimension(), ExecSpace, ConnectivityType>;
     const auto selection = getSelection(opts);
 
     AXOM_ANNOTATE_BEGIN("allocation");
@@ -1895,14 +1910,15 @@ private:
             {
               if(detail::shapeIsSelected(fragment[1], selection))
               {
-                [[maybe_unused]] const bool addedFragment = FragmentOps::addFragment(fragment,
-                                                                    connView,
-                                                                    sizesView[sizeIndex],
-                                                                    offsetsView[sizeIndex],
-                                                                    shapesView[sizeIndex],
-                                                                    colorView[sizeIndex],
-                                                                    point_2_new,
-                                                                    outputIndex);
+                [[maybe_unused]] const bool addedFragment =
+                  FragmentOps::addFragment(fragment,
+                                           connView,
+                                           sizesView[sizeIndex],
+                                           offsetsView[sizeIndex],
+                                           shapesView[sizeIndex],
+                                           colorView[sizeIndex],
+                                           point_2_new,
+                                           outputIndex);
                 sizeIndex++;
 
 #if defined(AXOM_CLIP_FILTER_DEGENERATES)
@@ -1947,16 +1963,15 @@ private:
     // Filter out shapes that were marked as zero-size, adjusting connectivity and other arrays.
     if(degenerates_reduce.get())
     {
-      FragmentOps::filterZeroSizes(
-        fragmentData,
-        n_sizes,
-        n_offsets,
-        n_shapes,
-        n_color_values,
-        sizesView,
-        offsetsView,
-        shapesView,
-        colorView);
+      FragmentOps::filterZeroSizes(fragmentData,
+                                   n_sizes,
+                                   n_offsets,
+                                   n_shapes,
+                                   n_color_values,
+                                   sizesView,
+                                   offsetsView,
+                                   shapesView,
+                                   colorView);
     }
 #endif
 
@@ -1985,13 +2000,7 @@ private:
 
 #if defined(AXOM_CLIP_FILTER_DEGENERATES)
     // Handle some quad->tri degeneracies, depending on dimension.
-    shapesUsed =
-      FragmentOps::quadtri(
-        shapesUsed,
-        connView,
-        sizesView,
-        offsetsView,
-        shapesView);
+    shapesUsed = FragmentOps::quadtri(shapesUsed, connView, sizesView, offsetsView, shapesView);
 #endif
 
     // Add shape information to the connectivity.
@@ -2250,23 +2259,29 @@ private:
   {
     std::map<std::string, int> sm;
 
-    if(axom::utilities::bitIsSet(shapes, views::Line_ShapeID)) sm[views::LineTraits::name()] = views::Line_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Line_ShapeID))
+      sm[views::LineTraits::name()] = views::Line_ShapeID;
 
-    if(axom::utilities::bitIsSet(shapes, views::Tri_ShapeID)) sm[views::TriTraits::name()] = views::Tri_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Tri_ShapeID))
+      sm[views::TriTraits::name()] = views::Tri_ShapeID;
 
-    if(axom::utilities::bitIsSet(shapes, views::Quad_ShapeID)) sm[views::QuadTraits::name()] = views::Quad_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Quad_ShapeID))
+      sm[views::QuadTraits::name()] = views::Quad_ShapeID;
 
     if(axom::utilities::bitIsSet(shapes, views::Polygon_ShapeID))
       sm[views::PolygonTraits::name()] = views::Polygon_ShapeID;
 
-    if(axom::utilities::bitIsSet(shapes, views::Tet_ShapeID)) sm[views::TetTraits::name()] = views::Tet_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Tet_ShapeID))
+      sm[views::TetTraits::name()] = views::Tet_ShapeID;
 
     if(axom::utilities::bitIsSet(shapes, views::Pyramid_ShapeID))
       sm[views::PyramidTraits::name()] = views::Pyramid_ShapeID;
 
-    if(axom::utilities::bitIsSet(shapes, views::Wedge_ShapeID)) sm[views::WedgeTraits::name()] = views::Wedge_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Wedge_ShapeID))
+      sm[views::WedgeTraits::name()] = views::Wedge_ShapeID;
 
-    if(axom::utilities::bitIsSet(shapes, views::Hex_ShapeID)) sm[views::HexTraits::name()] = views::Hex_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Hex_ShapeID))
+      sm[views::HexTraits::name()] = views::Hex_ShapeID;
 
     if(axom::utilities::bitIsSet(shapes, views::Polyhedron_ShapeID))
       sm[views::PolyhedronTraits::name()] = views::Polyhedron_ShapeID;

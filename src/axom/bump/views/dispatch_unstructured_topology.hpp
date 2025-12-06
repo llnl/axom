@@ -352,7 +352,9 @@ struct dispatch_shape<true, ConnType, PolygonShape<ConnType>, FuncType>
   {
     if(eligible && shape == "polygonal")
     {
-      UnstructuredTopologySingleShapeView<PolygonShape<ConnType>> ugView(connView, sizesView, offsetsView);
+      UnstructuredTopologySingleShapeView<PolygonShape<ConnType>> ugView(connView,
+                                                                         sizesView,
+                                                                         offsetsView);
       func(shape, ugView);
       eligible = false;
     }
