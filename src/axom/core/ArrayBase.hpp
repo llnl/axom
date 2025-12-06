@@ -1637,19 +1637,18 @@ public:
   template <typename... Args>
   void emplace(T* array, IndexType dst, Args&&... args)
   {
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-    if(space == MemorySpace::Device)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
+    // CUDA-only: special logic is needed if calling emplace() from the host on
+    // device-only memory.
+    // This is not needed for HIP builds, as device-allocated memory is
+    // accessible on the host.
+    if AXOM_UNLIKELY(space == MemorySpace::Device)
     {
       BaseDevice::emplace(array, dst, std::forward<Args>(args)...);
       return;
     }
-    else if(space == MemorySpace::Unified || space == MemorySpace::Pinned)
-    {
-      BaseUM::emplace(array, dst, std::forward<Args>(args)...);
-      return;
-    }
 #endif
-    Base::emplace(array, dst, std::forward<Args>(args)...);
+    ::new(array + dst) T(std::forward<Args>(args)...);
   }
 };
 

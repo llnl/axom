@@ -120,6 +120,7 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
                    : matsetName)
   , m_bpGrpExt(bpMesh)
   , m_bpNodeInt()
+  , m_zeroThreshold(1e-10)
 {
   SLIC_ASSERT(m_topoName != sidre::InvalidName);
   SLIC_ERROR_IF(m_topoName.empty(),

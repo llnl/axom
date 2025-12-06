@@ -48,7 +48,11 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Sina fortran `sina_write_document` now accepts a third argument that preserves records in memory so they can be written to another file (otherwise they're released from memory as soon as they're written)
 - Primal: In Bezier and NURBS classes, accessors for arrays of control points, weights and knots 
   are now returned by (const) reference instead of returning a copy by value.
-- The `axom::bump::clipping::ClipField` class was enhanced so it can clip up to 8-sided polygons.
+- The `axom::bump::clipping::ClipField` and `axom::mir::EquiZAlgorithm` classes were enhanced so they can clip polygons up to 8 sides.
+- De-virtualized `axom::Array` methods to improve performance. This change may break code which
+  utilizes `axom::Array` or `sidre::Array/MCArray` in a polymorphic manner, for example by overriding
+  `Array::updateNumElements()` or `Array::dynamicRealloc()`.
+  Refer to the new `StoragePolicy` interface for substitute functionality.
 
 ###  Fixed
 - Sina's Fortran tests are now running (instead of silently failing)
