@@ -451,6 +451,8 @@ void test_one_shape(const conduit::Node &hostMesh, const std::string &name)
   conduit::Node hostClipMesh;
   utils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
 
+  TestApp.saveVisualization(name, hostClipMesh);
+
   // Handle baseline comparison.
   EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
 }
@@ -543,6 +545,8 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
   conduit::Node hostClipMesh;
   utils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
 
+  TestApp.saveVisualization(name, hostClipMesh);
+
   // Handle baseline comparison.
   EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
 
@@ -608,6 +612,8 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
   conduit::Node hostClipMixedMesh;
   utils::copy<seq_exec>(hostClipMixedMesh, deviceClipMixedMesh);
 
+  TestApp.saveVisualization(name + "_mixed", hostClipMixedMesh);
+
   // Handle baseline comparison.
   EXPECT_TRUE(TestApp.test<ExecSpace>(name + "_mixed", hostClipMixedMesh));
 }
@@ -671,6 +677,8 @@ void braid_rectilinear_clip_test(const std::string &name)
   // Copy device->host
   conduit::Node hostClipMesh;
   utils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
+
+  TestApp.saveVisualization(name, hostClipMesh);
 
   // Handle baseline comparison.
   EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
@@ -740,6 +748,8 @@ void strided_structured_clip_test(const std::string &name, const conduit::Node &
 
   // device->host
   utils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
+
+  TestApp.saveVisualization(name, hostClipMesh);
 
   // Handle baseline comparison.
   EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
@@ -822,6 +832,8 @@ void braid3d_clip_test(const std::string &type, const std::string &name)
   // Copy device->host
   conduit::Node hostClipMesh;
   utils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
+
+  TestApp.saveVisualization(name, hostClipMesh);
 
   // Handle baseline comparison.
   EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
@@ -932,6 +944,8 @@ void braid3d_mixed_clip_test(const std::string &name)
   conduit::Node hostClipMesh;
   utils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
 
+  TestApp.saveVisualization(name, hostClipMesh);
+
   // Handle baseline comparison.
   EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
 }
@@ -984,6 +998,7 @@ struct point_merge_test
   {
     conduit::Node hostMesh;
     create(hostMesh);
+    TestApp.saveVisualization("pointmerge_orig", hostMesh);
 
     // host->device
     conduit::Node deviceMesh;
@@ -1013,6 +1028,8 @@ struct point_merge_test
     utils::copy<axom::SEQ_EXEC>(hostClipMesh, deviceClipMesh);
     //printNode(hostClipMesh);
 
+    TestApp.saveVisualization("pointmerge", hostClipMesh);
+
     // Check that the points were merged when making the new mesh.
     std::vector<float> x {{2.0, 2.0, 0.0, 1.0, 2.0, 1.5, 1.0}};
     std::vector<float> y {{0.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.5}};
@@ -1024,11 +1041,10 @@ struct point_merge_test
       EXPECT_FLOAT_EQ(hostClipMesh["coordsets/coords/values/y"].as_float_accessor()[i], y[i]);
     }
 
-    // Check that the degenerate quads were turned into triangles.
-    std::vector<int> shapes {{2, 2, 3, 2}};
-    std::vector<int> sizes {{3, 3, 4, 3}};
-    std::vector<int> offsets {{0, 4, 8, 12}};
-    compare_values(shapes, hostClipMesh["topologies/mesh/elements/shapes"].as_int_accessor());
+    // Check that we git tris and a pentagon.
+    EXPECT_EQ(hostClipMesh["topologies/mesh/elements/shape"].as_string(), "polygonal");
+    std::vector<int> sizes {{3, 3, 5}};
+    std::vector<int> offsets {{0, 4, 8}};
     compare_values(sizes, hostClipMesh["topologies/mesh/elements/sizes"].as_int_accessor());
     compare_values(offsets, hostClipMesh["topologies/mesh/elements/offsets"].as_int_accessor());
   }
@@ -1085,6 +1101,8 @@ struct test_selectedzones
     conduit::Node hostResult;
     utils::copy<seq_exec>(hostResult, deviceResult);
 
+    TestApp.saveVisualization("selectedzones1", hostResult);
+
     // Handle baseline comparison.
     EXPECT_TRUE(TestApp.test<ExecSpace>("selectedzones1", hostResult));
 
@@ -1099,6 +1117,8 @@ struct test_selectedzones
 
     // device->host
     utils::copy<seq_exec>(hostResult, deviceResult);
+
+    TestApp.saveVisualization("selectedzones2", hostResult);
 
     EXPECT_TRUE(TestApp.test<ExecSpace>("selectedzones2", hostResult));
   }
