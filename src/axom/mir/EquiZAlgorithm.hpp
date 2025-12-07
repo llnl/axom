@@ -11,7 +11,8 @@
 
 #include "axom/mir/MIRAlgorithm.hpp"
 #include "axom/mir/detail/equiz_detail.hpp"
-#include "axom/bump/extraction/ClipField.hpp"
+#include "axom/bump/extraction/TableBasedExtractor.hpp"
+#include "axom/bump/extraction/ClipTableManager.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/bump/ExtractZones.hpp"
@@ -917,7 +918,7 @@ protected:
    * \param n_newCoordset[out] A Conduit node to contain the new coordset.
    * \param n_newFields[out] A Conduit node to contain the new fields.
    *
-   * \note This algorithm uses a ClipField with a MaterialIntersector that gives
+   * \note This algorithm uses a TableBasedExtractor with a MaterialIntersector that gives
    *       it the ability to access nodal volume fraction fields and make intersection
    *       decisions with that data.
    */
@@ -1058,7 +1059,7 @@ protected:
     //--------------------------------------------------------------------------
     {
       using ClipperType =
-        axom::bump::extraction::ClipField<ExecSpace, ITopologyView, ICoordsetView, IntersectorType>;
+        axom::bump::extraction::TableBasedExtractor<ExecSpace, axom::bump::extraction::ClipTableManager, ITopologyView, ICoordsetView, IntersectorType>;
       ClipperType clipper(topoView, coordsetView, intersector);
       clipper.execute(n_topo, n_coordset, n_fields, options, n_newTopo, n_newCoordset, n_newFields);
     }
