@@ -11,7 +11,7 @@
 
 #include "axom/mir/MIRAlgorithm.hpp"
 #include "axom/mir/detail/equiz_detail.hpp"
-#include "axom/bump/clipping/ClipField.hpp"
+#include "axom/bump/extraction/ClipField.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/bump/ExtractZones.hpp"
@@ -1058,7 +1058,7 @@ protected:
     //--------------------------------------------------------------------------
     {
       using ClipperType =
-        axom::bump::clipping::ClipField<ExecSpace, ITopologyView, ICoordsetView, IntersectorType>;
+        axom::bump::extraction::ClipField<ExecSpace, ITopologyView, ICoordsetView, IntersectorType>;
       ClipperType clipper(topoView, coordsetView, intersector);
       clipper.execute(n_topo, n_coordset, n_fields, options, n_newTopo, n_newCoordset, n_newFields);
     }

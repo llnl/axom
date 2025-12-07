@@ -23,6 +23,9 @@ set(bump_headers
     extraction/ClipField.hpp
     extraction/ClipOptions.hpp
     extraction/ClipTableManager.hpp
+    extraction/ExtractionConstants.hpp
+    extraction/Table.hpp
+    extraction/TableManager.hpp
     data/MeshTester.hpp
     io/save.hpp
     utilities/blueprint_utilities.hpp

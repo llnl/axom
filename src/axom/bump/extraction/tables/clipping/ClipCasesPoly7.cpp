@@ -8,9 +8,11 @@ namespace axom
 {
 namespace bump
 {
-namespace clipping
+namespace extraction
 {
 namespace tables
+{
+namespace clipping
 {
 
 int numClipCasesPoly7 = 128;
@@ -546,7 +548,8 @@ unsigned char clipShapesPoly7[] = {
 
 const size_t clipShapesPoly7Size = sizeof(clipShapesPoly7) / sizeof(unsigned char);
 
-}  // namespace tables
-}  // namespace clipping
-}  // namespace bump
-}  // namespace axom
+} // namespace clipping
+} // namespace tables
+} // namespace extraction
+} // namespace bump
+} // namespace axom

@@ -11,7 +11,7 @@ namespace axom
 {
 namespace bump
 {
-namespace clipping
+namespace extraction
 {
 /**
  * \brief This class provides a kind of schema over the clipping options, as well
@@ -101,7 +101,7 @@ private:
   const conduit::Node &options() const { return this->m_options; }
 };
 
-}  // end namespace clipping
+}  // end namespace extraction
 }  // end namespace bump
 }  // end namespace axom
 

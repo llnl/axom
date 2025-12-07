@@ -25,7 +25,7 @@ public:
    * \brief Constructor
    *
    * \param nzones The total number of zones in the associated topology.
-   * \param options The node that contains the clipping options.
+   * \param options The node that contains the options.
    */
   Options(const conduit::Node &options) : m_options(options) { }
 

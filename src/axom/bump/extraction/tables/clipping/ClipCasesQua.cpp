@@ -8,9 +8,11 @@ namespace axom
 {
 namespace bump
 {
-namespace clipping
+namespace extraction
 {
 namespace tables
+{
+namespace clipping
 {
 
 int numClipCasesQua = 16;
@@ -74,7 +76,8 @@ unsigned char clipShapesQua[] = {
 
 const size_t clipShapesQuaSize = sizeof(clipShapesQua) / sizeof(unsigned char);
 
-}  // namespace tables
-}  // namespace clipping
-}  // namespace bump
-}  // namespace axom
+} // namespace clipping
+} // namespace tables
+} // namespace extraction
+} // namespace bump
+} // namespace axom

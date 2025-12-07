@@ -2,98 +2,17 @@
 // Project developers.  See the top-level LICENSE file for dates and other
 // details.  No copyright assignment is required to contribute to VisIt.
 
-#ifndef AXOM_VISIT_CLIP_CASES_H
-#define AXOM_VISIT_CLIP_CASES_H
-//---------------------------------------------------------------------------
-// Axom modifications
-// NOTE: The values for EA-EL and N0-N3 were reduced.
-// NOTE: We're using AXOM_BUMP_EXPORT instead of VISIT_VTK_LIGHT_API throughout.
-// NOTE: All #define were changed to constexpr variables to avoid symbol collisions.
-// NOTE: We added ST_POLY5 through ST_POLY8.
-// clang-format off
-
+#ifndef AXOM_BUMP_EXTRACTION_CLIP_CASES_H
+#define AXOM_BUMP_EXTRACTION_CLIP_CASES_H
 #include "axom/export/bump.h"
-
+#include "axom/bump/extraction/ExtractionConstants.hpp"
 #include <cstdlib>
+
 namespace axom {
 namespace bump {
-namespace clipping {
+namespace extraction {
 namespace tables {
-//---------------------------------------------------------------------------
-
-// Programmer: Jeremy Meredith
-// Date      : August 11, 2003
-//
-// Modifications:
-//    Jeremy Meredith, Mon Sep 15 17:24:15 PDT 2003
-//    Added NOCOLOR.
-//
-//    Jeremy Meredith, Thu Sep 18 11:29:12 PDT 2003
-//    Added quad and triangle cases and output shapes.
-//
-//    Brad Whitlock, Tue Sep 23 09:59:23 PDT 2003
-//    Added API so it builds on Windows.
-//
-//    Jeremy Meredith, Wed Jun 23 15:39:58 PDT 2004
-//    Added voxel and pixel cases.  Not output shapes, though.
-//
-//    Jeremy Meredith, Tue Aug 29 13:52:33 EDT 2006
-//    Added line segments and vertexes.
-//
-
-// Points of original cell (up to 8, for the hex)
-// Note: we assume P0 is zero in several places.
-// Note: we assume these values are contiguous and monotonic.
-constexpr unsigned char P0 = 0;
-constexpr unsigned char P1 = 1;
-constexpr unsigned char P2 = 2;
-constexpr unsigned char P3 = 3;
-constexpr unsigned char P4 = 4;
-constexpr unsigned char P5 = 5;
-constexpr unsigned char P6 = 6;
-constexpr unsigned char P7 = 7;
-
-// Edges of original cell (up to 12, for the hex)
-// Note: we assume these values are contiguous and monotonic.
-constexpr unsigned char EA = 8;
-constexpr unsigned char EB = 9;
-constexpr unsigned char EC = 10;
-constexpr unsigned char ED = 11;
-constexpr unsigned char EE = 12;
-constexpr unsigned char EF = 13;
-constexpr unsigned char EG = 14;
-constexpr unsigned char EH = 15;
-constexpr unsigned char EI = 16;
-constexpr unsigned char EJ = 17;
-constexpr unsigned char EK = 18;
-constexpr unsigned char EL = 19;
-
-// New interpolated points (ST_PNT outputs)
-// Note: we assume these values are contiguous and monotonic.
-constexpr unsigned char N0 = 20;
-constexpr unsigned char N1 = 21;
-constexpr unsigned char N2 = 22;
-constexpr unsigned char N3 = 23;
-
-// Shapes
-constexpr unsigned char ST_TET = 100;
-constexpr unsigned char ST_PYR = 101;
-constexpr unsigned char ST_WDG = 102;
-constexpr unsigned char ST_HEX = 103;
-constexpr unsigned char ST_TRI = 104;
-constexpr unsigned char ST_QUA = 105;
-constexpr unsigned char ST_POLY5 = 106;
-constexpr unsigned char ST_POLY6 = 107;
-constexpr unsigned char ST_POLY7 = 108;
-constexpr unsigned char ST_POLY8 = 109;
-constexpr unsigned char ST_VTX = 110;
-constexpr unsigned char ST_LIN = 111;
-constexpr unsigned char ST_PNT = 112;
-
-// Colors
-constexpr unsigned char COLOR0 =  120;
-constexpr unsigned char COLOR1 =  121;
-constexpr unsigned char NOCOLOR = 122;
+namespace clipping {
 
 // Tables
 extern AXOM_BUMP_EXPORT int numClipCasesHex;
@@ -166,11 +85,6 @@ extern AXOM_BUMP_EXPORT int numClipShapesPoly8[256];
 extern AXOM_BUMP_EXPORT int startClipShapesPoly8[256];
 extern AXOM_BUMP_EXPORT unsigned char clipShapesPoly8[];
 
-//---------------------------------------------------------------------------
-// Axom modifications
-constexpr unsigned char ST_MIN = ST_TET;
-constexpr unsigned char ST_MAX = (ST_PNT + 1);
-
 extern AXOM_BUMP_EXPORT const size_t clipShapesTriSize;
 extern AXOM_BUMP_EXPORT const size_t clipShapesQuaSize;
 extern AXOM_BUMP_EXPORT const size_t clipShapesPoly5Size;
@@ -181,11 +95,11 @@ extern AXOM_BUMP_EXPORT const size_t clipShapesTetSize;
 extern AXOM_BUMP_EXPORT const size_t clipShapesPyrSize;
 extern AXOM_BUMP_EXPORT const size_t clipShapesWdgSize;
 extern AXOM_BUMP_EXPORT const size_t clipShapesHexSize;
-} // namespace tables
+
 } // namespace clipping
+} // namespace tables
+} // namespace extraction
 } // namespace bump
 } // namespace axom
-// clang-format on
-//---------------------------------------------------------------------------
 
 #endif

@@ -6,10 +6,10 @@
 #define AXOM_BUMP_CLIP_FIELD_HPP_
 
 #include "axom/core.hpp"
-#include "axom/bump/clipping/BlendGroupBuilder.hpp"
-#include "axom/bump/clipping/ClipCases.h"
-#include "axom/bump/clipping/ClipOptions.hpp"
-#include "axom/bump/clipping/ClipTableManager.hpp"
+#include "axom/bump/extraction/BlendGroupBuilder.hpp"
+#include "axom/bump/extraction/ExtractionConstants.hpp"
+#include "axom/bump/extraction/ClipOptions.hpp"
+#include "axom/bump/extraction/ClipTableManager.hpp"
 #include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/CoordsetBlender.hpp"
@@ -44,7 +44,7 @@ namespace axom
 {
 namespace bump
 {
-namespace clipping
+namespace extraction
 {
 namespace detail
 {
@@ -58,7 +58,6 @@ namespace detail
 template <typename IntegerType>
 AXOM_HOST_DEVICE inline constexpr IntegerType ST_Index_to_ShapeID(IntegerType st_index)
 {
-  using namespace axom::bump::clipping::tables;
   IntegerType shapeID = 0;
   switch(st_index)
   {
@@ -159,33 +158,33 @@ inline bool color1Selected(int selection) { return axom::utilities::bitIsSet(sel
 AXOM_HOST_DEVICE
 inline bool generatedPointIsSelected(unsigned char color, int selection)
 {
-  return color == axom::bump::clipping::tables::NOCOLOR ||
-    (color0Selected(selection) && color == axom::bump::clipping::tables::COLOR0) ||
-    (color1Selected(selection) && color == axom::bump::clipping::tables::COLOR1);
+  return color == NOCOLOR ||
+    (color0Selected(selection) && color == COLOR0) ||
+    (color1Selected(selection) && color == COLOR1);
 }
 
 AXOM_HOST_DEVICE
 inline bool shapeIsSelected(unsigned char color, int selection)
 {
-  return (color0Selected(selection) && color == axom::bump::clipping::tables::COLOR0) ||
-    (color1Selected(selection) && color == axom::bump::clipping::tables::COLOR1);
+  return (color0Selected(selection) && color == COLOR0) ||
+    (color1Selected(selection) && color == COLOR1);
 }
 
 AXOM_HOST_DEVICE
 constexpr IndexType maxPointForDimension(int dim, IndexType numPoints)
 {
   // 3D default
-  IndexType maxPoint = static_cast<IndexType>(axom::bump::clipping::tables::P7);
+  IndexType maxPoint = static_cast<IndexType>(P7);
   switch(dim)
   {
   case 2:
     // We take the max since we might have a polygon.
     maxPoint =
-      axom::utilities::max(static_cast<IndexType>(axom::bump::clipping::tables::P0) + numPoints - 1,
-                           static_cast<IndexType>(axom::bump::clipping::tables::P3));
+      axom::utilities::max(static_cast<IndexType>(P0) + numPoints - 1,
+                           static_cast<IndexType>(P3));
     break;
   case 1:
-    maxPoint = static_cast<IndexType>(axom::bump::clipping::tables::P1);
+    maxPoint = static_cast<IndexType>(P1);
     break;
   }
   return maxPoint;
@@ -195,17 +194,17 @@ AXOM_HOST_DEVICE
 constexpr IndexType maxEdgeForDimension(int dim, IndexType numPoints)
 {
   // 3D default
-  IndexType maxEdge = static_cast<IndexType>(axom::bump::clipping::tables::EL);
+  IndexType maxEdge = static_cast<IndexType>(EL);
   switch(dim)
   {
   case 2:
     // We take the max since we might have a polygon.
     maxEdge =
-      axom::utilities::max(static_cast<IndexType>(axom::bump::clipping::tables::EA) + numPoints - 1,
-                           static_cast<IndexType>(axom::bump::clipping::tables::ED));
+      axom::utilities::max(static_cast<IndexType>(EA) + numPoints - 1,
+                           static_cast<IndexType>(ED));
     break;
   case 1:
-    maxEdge = static_cast<IndexType>(axom::bump::clipping::tables::EA);
+    maxEdge = static_cast<IndexType>(EA);
     break;
   }
   return maxEdge;
@@ -255,7 +254,7 @@ struct FragmentOperations
    * \return True if the fragment was added, false otherwise.
    */
   AXOM_HOST_DEVICE
-  static bool addFragment(const axom::bump::clipping::TableView::TableDataView &fragment,
+  static bool addFragment(const TableView::TableDataView &fragment,
                           axom::ArrayView<ConnectivityType> connView,
                           ConnectivityType &size,
                           ConnectivityType &offset,
@@ -275,7 +274,7 @@ struct FragmentOperations
     const auto nIdsThisFragment = fragmentSize - 2;
     size = nIdsThisFragment;
     shape = detail::ST_Index_to_ShapeID(fragmentShape);
-    color = fragment[1] - axom::bump::clipping::tables::COLOR0;
+    color = fragment[1] - COLOR0;
     return true;
   }
 
@@ -394,7 +393,7 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
    * \return True if the fragment was added, false otherwise.
    */
   AXOM_HOST_DEVICE
-  static bool addFragment(const axom::bump::clipping::TableView::TableDataView &fragment,
+  static bool addFragment(const TableView::TableDataView &fragment,
                           axom::ArrayView<ConnectivityType> connView,
                           ConnectivityType &size,
                           ConnectivityType &offset,
@@ -439,7 +438,7 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
     shape = (nIdsThisFragment == 4) ? static_cast<ConnectivityType>(views::Quad_ShapeID) : shape;
     shape = (nIdsThisFragment > 4) ? static_cast<ConnectivityType>(views::Polygon_ShapeID) : shape;
 
-    color = fragment[1] - axom::bump::clipping::tables::COLOR0;
+    color = fragment[1] - COLOR0;
 
     // Move the connectivity output index forward if we added the fragment.
     outputIndex += added ? nIdsThisFragment : 0;
@@ -880,7 +879,7 @@ template <typename ExecSpace,
           typename TopologyView,
           typename CoordsetView,
           typename IntersectPolicy =
-            axom::bump::clipping::FieldIntersector<ExecSpace, typename TopologyView::ConnectivityType>,
+            axom::bump::extraction::FieldIntersector<ExecSpace, typename TopologyView::ConnectivityType>,
           typename NamingPolicy = axom::bump::HashNaming<axom::IndexType>>
 class ClipField
 {
@@ -888,7 +887,7 @@ public:
   using BlendData = axom::bump::BlendData;
   using SliceData = axom::bump::SliceData;
   static constexpr int TOTAL_ST_SHAPES = 10;
-  using ClipTableViews = axom::StackArray<axom::bump::clipping::TableView, TOTAL_ST_SHAPES>;
+  using ClipTableViews = axom::StackArray<TableView, TOTAL_ST_SHAPES>;
   using Intersector = IntersectPolicy;
 
   using BitSet = detail::BitSet;
@@ -1253,7 +1252,6 @@ private:
    */
   void createClipTableViews(ClipTableViews &views, int dimension)
   {
-    using namespace axom::bump::clipping::tables;
     AXOM_ANNOTATE_SCOPE("createClipTableViews");
     if(dimension == -1 || dimension == 2)
     {
@@ -1295,7 +1293,6 @@ private:
                     const SelectedZones &selectedZones) const
   {
     AXOM_ANNOTATE_SCOPE("computeSizes");
-    using namespace axom::bump::clipping::tables;
     const auto selection = getSelection(opts);
 
     auto blendGroupsView = builder.state().m_blendGroupsView;
@@ -1576,7 +1573,6 @@ private:
                        const SelectedZones &selectedZones) const
   {
     AXOM_ANNOTATE_SCOPE("makeBlendGroups");
-    using namespace axom::bump::clipping::tables;
     const auto selection = getSelection(opts);
 
     const auto deviceIntersector = m_intersector.view();
@@ -1728,7 +1724,6 @@ private:
                     conduit::Node &n_newFields) const
   {
     AXOM_ANNOTATE_SCOPE("makeTopology");
-    using namespace axom::bump::clipping::tables;
     using FragmentOps =
       detail::FragmentOperations<TopologyView::dimension(), ExecSpace, ConnectivityType>;
     const auto selection = getSelection(opts);
@@ -2358,11 +2353,11 @@ private:
   TopologyView m_topologyView {};
   CoordsetView m_coordsetView {};
   Intersector m_intersector {};
-  axom::bump::clipping::ClipTableManager<ExecSpace> m_clipTables {};
+  ClipTableManager<ExecSpace> m_clipTables {};
   NamingPolicy m_naming {};
 };
 
-}  // end namespace clipping
+}  // end namespace extraction
 }  // end namespace bump
 }  // end namespace axom
 
