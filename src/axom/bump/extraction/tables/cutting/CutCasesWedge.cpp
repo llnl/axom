@@ -11,10 +11,10 @@ namespace tables
 namespace cutting
 {
 
-int numCutCasesWedge = 64;
+int numCutCasesWdg = 64;
 
 // clang-format off
-unsigned char cutShapesWedge[] = {
+unsigned char cutShapesWdg[] = {
   // Case 0
   // Case 1
   ST_TRI,   COLOR0, EA, EG, EC,
@@ -156,17 +156,17 @@ unsigned char cutShapesWedge[] = {
 };
 // clang-format on
 
-int numCutShapesWedge[] = {
+int numCutShapesWdg[] = {
   0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 1, 2, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1,
   1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0};
 
-int startCutShapesWedge[] = {
+int startCutShapesWdg[] = {
   0,   0,   5,   10,  16,  21,  27,  33,  38,  43,  49,  59,  66,  76,  83,  94,
   100, 105, 115, 121, 128, 138, 149, 156, 162, 168, 175, 182, 188, 199, 207, 215,
   220, 225, 235, 245, 256, 262, 269, 276, 282, 288, 295, 306, 314, 321, 327, 335,
   340, 346, 357, 364, 372, 379, 387, 393, 398, 403, 409, 415, 420, 426, 431, 436};
 
-const size_t cutShapesWedgeSize = sizeof(cutShapesWedge) / sizeof(unsigned char);
+const size_t cutShapesWdgSize = sizeof(cutShapesWdg) / sizeof(unsigned char);
 
 }  // namespace cutting
 }  // namespace tables

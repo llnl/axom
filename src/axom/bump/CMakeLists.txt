@@ -107,6 +107,7 @@ set(bump_sources
     extraction/tables/clipping/ClipCasesWdg.cpp
     extraction/tables/cutting/CutCasesHex.cpp
     extraction/tables/cutting/CutCasesPyramid.cpp
+    extraction/tables/cutting/CutCasesQua.cpp
     extraction/tables/cutting/CutCasesTet.cpp
     extraction/tables/cutting/CutCasesTri.cpp
     extraction/tables/cutting/CutCasesWedge.cpp

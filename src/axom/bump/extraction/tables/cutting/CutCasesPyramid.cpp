@@ -11,10 +11,10 @@ namespace tables
 namespace cutting
 {
 
-int numCutCasesPyramid = 32;
+int numCutCasesPyr = 32;
 
 // clang-format off
-unsigned char cutShapesPyramid[] = {
+unsigned char cutShapesPyr[] = {
   // Case 0
   // Case 1
   ST_TRI,   COLOR0, EA, EE, ED,
@@ -82,14 +82,14 @@ unsigned char cutShapesPyramid[] = {
 };
 // clang-format on
 
-int numCutShapesPyramid[] = {0, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1,
+int numCutShapesPyr[] = {0, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1,
                                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0};
 
-int startCutShapesPyramid[] = {0,   0,   5,   10,  16,  21,  31,  37,  44,  49,  55,
+int startCutShapesPyr[] = {0,   0,   5,   10,  16,  21,  31,  37,  44,  49,  55,
                                          65,  72,  78,  85,  92,  98,  104, 111, 118, 124, 131,
                                          139, 145, 150, 157, 163, 171, 176, 182, 187, 192};
 
-const size_t cutShapesPyramidSize = sizeof(cutShapesPyramid) / sizeof(unsigned char);
+const size_t cutShapesPyrSize = sizeof(cutShapesPyr) / sizeof(unsigned char);
 
 }  // namespace cutting
 }  // namespace tables

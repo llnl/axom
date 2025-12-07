@@ -426,17 +426,17 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
       }
     }
 
-    const bool added = nIdsThisFragment >= 3;
-    offset = outputIndex;
-
-    // If we're adding the fragment, record non-zero size.
-    size = added ? nIdsThisFragment : 0;
-
     // Determine the shape from the number of ids we admitted.
     shape = detail::ST_Index_to_ShapeID(fragmentShape);
     shape = (nIdsThisFragment == 3) ? static_cast<ConnectivityType>(views::Tri_ShapeID) : shape;
     shape = (nIdsThisFragment == 4) ? static_cast<ConnectivityType>(views::Quad_ShapeID) : shape;
     shape = (nIdsThisFragment > 4) ? static_cast<ConnectivityType>(views::Polygon_ShapeID) : shape;
+
+    const bool added = nIdsThisFragment >= (fragmentShape == ST_LIN ? 2 : 3);
+    offset = outputIndex;
+
+    // If we're adding the fragment, record non-zero size.
+    size = added ? nIdsThisFragment : 0;
 
     color = fragment[1] - COLOR0;
 
