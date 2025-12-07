@@ -27,6 +27,7 @@ set(bump_headers
     extraction/CutField.hpp
     extraction/CutTableManager.hpp
     extraction/ExtractionConstants.hpp
+    extraction/FieldIntersector.hpp
     extraction/Table.hpp
     extraction/TableBasedExtractor.hpp
     extraction/TableManager.hpp

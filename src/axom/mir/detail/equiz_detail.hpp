@@ -63,8 +63,8 @@ public:
      * \return The clip case number for the zone.
      */
     AXOM_HOST_DEVICE
-    axom::IndexType determineClipCase(axom::IndexType zoneIndex,
-                                      const ConnectivityView &nodeIdsView) const
+    axom::IndexType determineTableCase(axom::IndexType zoneIndex,
+                                       const ConnectivityView &nodeIdsView) const
     {
       // Determine the matvf view index for the material that owns the zone.
       int backgroundIndex = INVALID_INDEX;
@@ -187,6 +187,8 @@ public:
    * \param n_fields The node that contains fields.
    */
   void initialize(const conduit::Node &AXOM_UNUSED_PARAM(n_options),
+                  const conduit::Node &AXOM_UNUSED_PARAM(n_topology),
+                  const conduit::Node &AXOM_UNUSED_PARAM(n_coordset),
                   const conduit::Node &AXOM_UNUSED_PARAM(n_fields))
   { }
 
