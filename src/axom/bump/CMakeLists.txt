@@ -25,6 +25,7 @@ set(bump_headers
     extraction/ClipTableManager.hpp
     extraction/ExtractionConstants.hpp
     extraction/Table.hpp
+    extraction/TableBasedExtractor.hpp
     extraction/TableManager.hpp
     data/MeshTester.hpp
     io/save.hpp
