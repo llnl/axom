@@ -870,18 +870,20 @@ private:
  * \brief This class clips a topology using a field and puts the new topology into a new Conduit node.
  *
  * \tparam ExecSpace    The execution space where the compute-heavy kernels run.
+ * \tparam TableManagerType The type of table manager that contains clipping/cutting tables.
  * \tparam TopologyView The topology view that can operate on the Blueprint topology.
  * \tparam CoordsetView The coordset view that can operate on the Blueprint coordset.
  * \tparam IntersectPolicy The intersector policy that can helps with cases and weights.
  * \tparam NamingPolicy The policy for making names from arrays of ids.
  */
 template <typename ExecSpace,
+          typename TableManagerType,
           typename TopologyView,
           typename CoordsetView,
           typename IntersectPolicy =
             axom::bump::extraction::FieldIntersector<ExecSpace, typename TopologyView::ConnectivityType>,
           typename NamingPolicy = axom::bump::HashNaming<axom::IndexType>>
-class ClipField
+class MeshExtractor
 {
 public:
   using BlendData = axom::bump::BlendData;
@@ -905,7 +907,7 @@ public:
    * \param coordsetView A coordset view suitable for the supplied coordset.
    *
    */
-  ClipField(const TopologyView &topoView,
+  MeshExtractor(const TopologyView &topoView,
             const CoordsetView &coordsetView,
             const Intersector &intersector = Intersector())
     : m_topologyView(topoView)
@@ -2355,9 +2357,29 @@ private:
   TopologyView m_topologyView {};
   CoordsetView m_coordsetView {};
   Intersector m_intersector {};
-  ClipTableManager m_clipTables {};
+  TableManagerType m_clipTables {};
   NamingPolicy m_naming {};
 };
+
+//------------------------------------------------------------------------------
+/*!
+ * \accelerated
+ * \brief This class clips a topology using a field and puts the new topology into a new Conduit node.
+ *
+ * \tparam ExecSpace    The execution space where the compute-heavy kernels run.
+ * \tparam TopologyView The topology view that can operate on the Blueprint topology.
+ * \tparam CoordsetView The coordset view that can operate on the Blueprint coordset.
+ * \tparam IntersectPolicy The intersector policy that can helps with cases and weights.
+ * \tparam NamingPolicy The policy for making names from arrays of ids.
+ */
+template <typename ExecSpace,
+          typename TopologyView,
+          typename CoordsetView,
+          typename IntersectPolicy =
+            axom::bump::extraction::FieldIntersector<ExecSpace, typename TopologyView::ConnectivityType>,
+          typename NamingPolicy = axom::bump::HashNaming<axom::IndexType>>
+using ClipField = MeshExtractor<ExecSpace, ClipTableManager, TopologyView, CoordsetView, IntersectPolicy, NamingPolicy>;
+
 
 }  // end namespace extraction
 }  // end namespace bump
