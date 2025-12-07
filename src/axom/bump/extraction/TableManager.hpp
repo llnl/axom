@@ -21,11 +21,14 @@ namespace extraction
 /*!
  * \brief Manage several tables.
  */
-template <typename ExecSpace>
 class TableManager
 {
 public:
   static constexpr int NumberOfTables = ST_MAX - ST_MIN;
+
+  TableManager();
+
+  void setAllocatorID(int allocatorID);
 
   /*!
    * \brief Return a reference to the table, which is loaded on demand.
@@ -34,25 +37,13 @@ public:
    *
    * \return A reference to the table. 
    */
-  Table<ExecSpace> &operator[](size_t shape)
-  {
-    const size_t index = shapeToIndex(shape);
-    SLIC_ASSERT(shape < ST_MAX);
-    loadShape(shape);
-    return m_tables[index];
-  }
+  Table &operator[](size_t shape);
 
   /*!
    * \brief Load tables based on dimension.
    * \param dim The dimension of shapes to load.
    */
-  void load(int dim)
-  {
-    for(const auto shape : shapes(dim))
-    {
-      loadShape(shape);
-    }
-  }
+  void load(int dim);
 
   /*!
    * \brief Return a vector of shape ids for the given dimension.
@@ -61,26 +52,7 @@ public:
    *
    * \return A vector of shape ids.
    */
-  std::vector<size_t> shapes(int dim) const
-  {
-    std::vector<size_t> s;
-    if(dim == -1 || dim == 2)
-    {
-      for(const auto value :
-          std::vector<size_t> {ST_TRI, ST_QUA, ST_POLY5, ST_POLY6, ST_POLY7, ST_POLY8})
-      {
-        s.push_back(value);
-      }
-    }
-    if(dim == -1 || dim == 3)
-    {
-      for(const auto value : std::vector<size_t> {ST_TET, ST_PYR, ST_WDG, ST_HEX})
-      {
-        s.push_back(value);
-      }
-    }
-    return s;
-  }
+  std::vector<size_t> shapes(int dim) const;
 
 protected:
   /*!
@@ -103,7 +75,8 @@ protected:
   virtual void loadShape(size_t shape) = 0;
 
 protected:
-  axom::StackArray<Table<ExecSpace>, NumberOfTables> m_tables {};
+  axom::StackArray<Table, NumberOfTables> m_tables {};
+  int m_allocatorID {};
 };
 
 }  // end namespace extraction

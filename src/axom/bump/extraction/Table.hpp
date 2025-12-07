@@ -357,7 +357,6 @@ private:
 /*!
  * \brief This class manages data table arrays and can produce a view for the data.
  */
-template <typename ExecSpace>
 class Table
 {
 public:
@@ -380,26 +379,14 @@ public:
    * \param offsets The offset into the table for each case.
    * \param table The table data.
    * \param tableLen The size of the table data.
+   * \param allocatorID The allocator ID to use when allocating memory.
    */
   void load(size_t n,
             const IndexData *shapes,
             const IndexData *offsets,
             const TableData *table,
-            size_t tableLen)
-  {
-    const int allocatorID = execution_space<ExecSpace>::allocatorID();
-
-    // Allocate space.
-    m_shapes = IndexDataArray(n, n, allocatorID);
-    m_offsets = IndexDataArray(n, n, allocatorID);
-    m_table = TableDataArray(tableLen, tableLen, allocatorID);
-
-    // Copy data to the arrays.
-    axom::copy(m_shapes.data(), shapes, n * sizeof(IndexData));
-    axom::copy(m_offsets.data(), offsets, n * sizeof(IndexData));
-    axom::copy(m_table.data(), table, tableLen * sizeof(TableData));
-  }
-
+            size_t tableLen,
+            int allocatorID);
   /*!
    * \brief Create a view to access the table data.
    *

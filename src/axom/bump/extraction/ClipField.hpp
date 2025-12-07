@@ -913,7 +913,9 @@ public:
     , m_intersector(intersector)
     , m_clipTables()
     , m_naming()
-  { }
+  {
+    m_clipTables.setAllocatorID(axom::execution_space<ExecSpace>::allocatorID());
+  }
 
   /*!
    * \brief Allow the user to pass in a NamingPolicy to use when making blend group names.
@@ -2353,7 +2355,7 @@ private:
   TopologyView m_topologyView {};
   CoordsetView m_coordsetView {};
   Intersector m_intersector {};
-  ClipTableManager<ExecSpace> m_clipTables {};
+  ClipTableManager m_clipTables {};
   NamingPolicy m_naming {};
 };
 

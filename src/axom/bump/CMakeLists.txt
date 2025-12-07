@@ -87,6 +87,9 @@ set(bump_headers
     )
 
 set(bump_sources
+    extraction/ClipTableManager.cpp
+    extraction/Table.cpp
+    extraction/TableManager.cpp
     extraction/tables/clipping/ClipCasesHex.cpp
     extraction/tables/clipping/ClipCasesPoly5.cpp
     extraction/tables/clipping/ClipCasesPoly6.cpp
