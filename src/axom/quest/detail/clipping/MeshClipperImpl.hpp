@@ -203,39 +203,17 @@ public:
   void computeClipVolumes3D(axom::ArrayView<double> ovlap,
                             conduit::Node& statistics) override
   {
+    using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
+
     ShapeMesh& shapeMesh = getShapeMesh();
-
     const int allocId = shapeMesh.getAllocatorID();
-
     const IndexType cellCount = shapeMesh.getCellCount();
 
-    //
-    // Get the geometry in discrete pieces, which can be tets or octs.
-    //
-    auto& strategy = getStrategy();
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
-    AXOM_ANNOTATE_BEGIN("MeshClipper:get_geometry");
-    const bool useOcts = strategy.getGeometryAsOcts(shapeMesh, geomAsOcts);
-    const bool useTets = strategy.getGeometryAsTets(shapeMesh, geomAsTets);
-    AXOM_ANNOTATE_END("MeshClipper:get_geometry");
-    SLIC_ASSERT(useOcts || geomAsOcts.empty());
-    SLIC_ASSERT(useTets || geomAsTets.empty());
-    if(useTets == useOcts)
-    {
-      SLIC_ERROR(
-        axom::fmt::format("Problem with MeshClipperStrategy implementation '{}'."
-                          "  Implementations that don't provide a specializedClip function"
-                          " must provide exactly one getGeometryAsOcts() or getGeometryAsTets()."
-                          "  This implementation provides {}.",
-                          strategy.name(),
-                          int(useOcts) + int(useTets)));
-    }
-
+    bool useTets = getDiscreteGeometry(geomAsTets, geomAsOcts);
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
-
-    SLIC_DEBUG(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
 
     //
     // Generate the BVH over the (bounding boxes of the) discretized geometry
@@ -280,9 +258,6 @@ public:
     axom::Array<IndexType> candidates;
     bvh.findBoundingBoxes(offsets, counts, candidates, cellCount, cellBbsView);
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
-
-    // Get the total number of candidates
-    using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
 
     const auto countsView = counts.view();
     const int candidateCount = candidates.size();
@@ -343,8 +318,6 @@ public:
           }
         });
     }
-
-    constexpr bool tryFixOrientation = false;
 
     tetCandidatesCount = NUM_TETS_PER_HEX * candidates.size();
 #if defined(AXOM_DEBUG)
@@ -461,36 +434,17 @@ public:
                             conduit::Node& statistics) override
 
   {
+    using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
+
     ShapeMesh& shapeMesh = getShapeMesh();
-
     const int allocId = shapeMesh.getAllocatorID();
-
     const IndexType cellCount = shapeMesh.getCellCount();
 
-    auto& strategy = getStrategy();
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
-    AXOM_ANNOTATE_BEGIN("MeshClipper:get_geometry");
-    const bool useOcts = strategy.getGeometryAsOcts(shapeMesh, geomAsOcts);
-    const bool useTets = strategy.getGeometryAsTets(shapeMesh, geomAsTets);
-    AXOM_ANNOTATE_END("MeshClipper:get_geometry");
-    SLIC_ASSERT(useOcts || geomAsOcts.empty());
-    SLIC_ASSERT(useTets || geomAsTets.empty());
-    if(useTets == useOcts)
-    {
-      SLIC_ERROR(
-        axom::fmt::format("Problem with MeshClipperStrategy implementation '{}'."
-                          "  Implementations that don't provide a specializedClip function"
-                          " must provide exactly one getGeometryAsOcts() or getGeometryAsTets()."
-                          "  This implementation provides {}.",
-                          strategy.name(),
-                          int(useOcts) + int(useTets)));
-    }
-
+    bool useTets = getDiscreteGeometry(geomAsTets, geomAsOcts);
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
-
-    SLIC_DEBUG(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
 
     // Generate the BVH tree over the shape's discretized geometry
     // axis-aligned bounding boxes.  "pieces" refers to tets or octs.
@@ -545,8 +499,6 @@ public:
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     // Get the total number of candidates
-    using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
-
     const auto countsView = counts.view();
     const int candidateCount = candidates.size();
 
@@ -612,8 +564,6 @@ public:
       tetCandidatesCount,
       cellIndices.size(),
       cellCount));
-
-    constexpr bool tryFixOrientation = false;
 
     tetCandidatesCount = NUM_TETS_PER_HEX * candidates.size();
 #if defined(AXOM_DEBUG)
@@ -739,39 +689,19 @@ public:
                                 conduit::Node& statistics) override
 
   {
+    using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
+
     ShapeMesh& shapeMesh = getShapeMesh();
     auto meshTets = getShapeMesh().getCellsAsTets();
     auto meshTetVolumes = getShapeMesh().getTetVolumes();
 
     const int allocId = shapeMesh.getAllocatorID();
 
-    auto& strategy = getStrategy();
-    axom::Array<TetrahedronType> geomAsTets;
-    axom::Array<OctahedronType> geomAsOcts;
-    AXOM_ANNOTATE_BEGIN("MeshClipper:get_geometry");
-    const bool useOcts = strategy.getGeometryAsOcts(shapeMesh, geomAsOcts);
-    const bool useTets = strategy.getGeometryAsTets(shapeMesh, geomAsTets);
-    AXOM_ANNOTATE_END("MeshClipper:get_geometry");
-    SLIC_ASSERT(useOcts || geomAsOcts.empty());
-    SLIC_ASSERT(useTets || geomAsTets.empty());
-    if(useTets == useOcts)
-    {
-      SLIC_ERROR(
-        axom::fmt::format("Problem with MeshClipperStrategy implementation '{}'."
-                          "  Implementations that don't provide a specializedClip function"
-                          " must provide exactly one getGeometryAsOcts() or getGeometryAsTets()."
-                          "  This implementation provides {}.",
-                          strategy.name(),
-                          int(useOcts) + int(useTets)));
-    }
-
+    axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
+    axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
+    bool useTets = getDiscreteGeometry(geomAsTets, geomAsOcts);
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
-
-    SLIC_DEBUG(axom::fmt::format("Geometry {} has {} discrete {}s",
-                                 strategy.name(),
-                                 useTets?geomAsTets.size():geomAsOcts.size(),
-                                 useTets?"tet":"oct"));
 
     // Generate the BVH tree over the shape's discretized geometry
     // axis-aligned bounding boxes.  "pieces" refers to tets or octs.
@@ -847,9 +777,6 @@ public:
         auto offset = offsetsView[i];
         for(int j = 0; j < count; ++j) candToTetIdIdView[offset + j] = i;
       });
-
-    using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
-    constexpr bool tryFixOrientation = false;
 
     SLIC_DEBUG(axom::fmt::format(
       "Running clip loop on {} candidate pieces for the select {} tets of the full {} mesh cells",
@@ -948,6 +875,41 @@ public:
 
     SLIC_DEBUG(axom::fmt::format(""));
   }  // end of computeClipVolumes3DTets() function
+
+  /*!
+   * @brief Get the geometry in discrete pieces,
+   *   which can be tets or octs.
+   * @return whether geometry are tetrahedra instead of octahedra.
+   */
+  bool getDiscreteGeometry(
+    axom::Array<axom::primal::Tetrahedron<double, 3>> &geomAsTets,
+    axom::Array<axom::primal::Octahedron<double, 3>> &geomAsOcts)
+  {
+    auto& strategy = getStrategy();
+    ShapeMesh& shapeMesh = getShapeMesh();
+    AXOM_ANNOTATE_BEGIN("MeshClipper:get_geometry");
+    const bool useOcts = strategy.getGeometryAsOcts(shapeMesh, geomAsOcts);
+    const bool useTets = strategy.getGeometryAsTets(shapeMesh, geomAsTets);
+    AXOM_ANNOTATE_END("MeshClipper:get_geometry");
+    SLIC_ASSERT(useOcts || geomAsOcts.empty());
+    SLIC_ASSERT(useTets || geomAsTets.empty());
+    if(useTets == useOcts)
+    {
+      SLIC_ERROR(
+        axom::fmt::format("Problem with MeshClipperStrategy implementation '{}'."
+                          "  Implementations that don't provide a specializedClip function"
+                          " must provide exactly one of either getGeometryAsOcts() or"
+                          " getGeometryAsTets().   This implementation provides {}.",
+                          strategy.name(),
+                          int(useOcts) + int(useTets)));
+    }
+
+    SLIC_DEBUG(axom::fmt::format("Geometry {} has {} discrete {}s",
+                                 strategy.name(),
+                                 useTets ? geomAsTets.size() : geomAsOcts.size(),
+                                 useTets ? "tet" : "oct"));
+    return useTets;
+  }
 
   /*!
    * @brief Volume of a tetrahedron from discretized geometry.
