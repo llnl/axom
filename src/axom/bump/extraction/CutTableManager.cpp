@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "axom/core.hpp"
 #include "axom/bump/extraction/CutTableManager.hpp"
-#include "axom/bump/extraction/tables/cutting/CutCases.h"
+#include "axom/bump/extraction/tables/cutting/CutCases.hpp"
 
 namespace axom
 {
@@ -15,7 +15,7 @@ namespace extraction
 
 void CutTableManager::loadShape(size_t shape)
   {
-    using namespace axom::bump::extraction::tables::cutping;
+    using namespace axom::bump::extraction::tables::cutting;
     const auto index = shapeToIndex(shape);
     if(!m_tables[index].isLoaded())
     {
@@ -68,8 +68,7 @@ void CutTableManager::loadShape(size_t shape)
                              cutShapesPoly8,
                              cutShapesPoly8Size, m_allocatorID);
       }
-*/
-      else if(shape == ST_TET)
+      else */if(shape == ST_TET)
       {
         m_tables[index].load(numCutCasesTet,
                              numCutShapesTet,
