@@ -34,16 +34,17 @@ namespace detail
  * \brief This class is an intersection policy compatible with ClipField. It
  *        helps determine clip cases and weights using material-aware logic.
  *
- * \tparam ConnectivityT The type of index we'd see in the associated mesh's
- *                       connectivity. We template on it so we can pass the
- *                       array views of connectivity (node lists) to methods here.
+ * \tparam TopologyView The type of topology view being used in the code that
+ *                      uses this intersector.
+ * \tparam CoordsetView The type of coordset view being used in the code that
+ *                      uses this intersector.
  * \tparam MAXMATERIALS The max number of materials to handle.
  */
-template <typename ConnectivityT, int MAXMATERIALS = 10>
+template <typename TopologyView, typename CoordsetView, int MAXMATERIALS = 10>
 class MaterialIntersector
 {
 public:
-  using ConnectivityType = ConnectivityT;
+  using ConnectivityType = typename TopologyView::ConnectivityType;
   using ConnectivityView = axom::ArrayView<ConnectivityType>;
 
   /*!
@@ -186,22 +187,23 @@ public:
    * \param n_options The node that contains the options.
    * \param n_fields The node that contains fields.
    */
-  void initialize(const conduit::Node &AXOM_UNUSED_PARAM(n_options),
+  void initialize(const TopologyView &AXOM_UNUSED_PARAM(topologyView),
+                  const CoordsetView &AXOM_UNUSED_PARAM(coordsetView),
+                  const conduit::Node &AXOM_UNUSED_PARAM(n_options),
                   const conduit::Node &AXOM_UNUSED_PARAM(n_topology),
                   const conduit::Node &AXOM_UNUSED_PARAM(n_coordset),
                   const conduit::Node &AXOM_UNUSED_PARAM(n_fields))
-  { }
+  {
+    m_topologyName = n_options["topology"].as_string();
+  }
 
   /*!
    * \brief Determine the name of the topology on which to operate.
-   * \param n_input The input mesh node.
-   * \param n_options The clipping options.
    * \return The name of the toplogy on which to operate.
    */
-  std::string getTopologyName(const conduit::Node &AXOM_UNUSED_PARAM(n_input),
-                              const conduit::Node &n_options) const
+  const std::string &getTopologyName() const
   {
-    return n_options["topology"].as_string();
+    return m_topologyName;
   }
 
   /// Set various attributes.
@@ -236,6 +238,7 @@ public:
   View view() const { return m_view; }
 
 private:
+  std::string m_topologyName {};
   View m_view {};
 };
 

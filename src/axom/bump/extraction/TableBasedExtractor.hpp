@@ -792,7 +792,7 @@ public:
   {
     // Get the topo/coordset names in the input.
     ClipOptions opts(n_options);
-    const std::string topoName = m_intersector.getTopologyName(n_input, n_options);
+    const std::string &topoName = m_intersector.getTopologyName();
     const conduit::Node &n_topo = n_input.fetch_existing("topologies/" + topoName);
     const std::string coordsetName = n_topo["coordset"].as_string();
     const conduit::Node &n_coordset = n_input.fetch_existing("coordsets/" + coordsetName);
@@ -842,7 +842,7 @@ public:
     // Give the intersector a chance to further initialize.
     {
       AXOM_ANNOTATE_SCOPE("Initialize intersector");
-      m_intersector.initialize(n_options, n_topo, n_coordset, n_fields);
+      m_intersector.initialize(m_topologyView, m_coordsetView, n_options, n_topo, n_coordset, n_fields);
     }
 
     // Load table data and make views.

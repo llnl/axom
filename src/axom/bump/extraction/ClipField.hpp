@@ -27,7 +27,7 @@ template <typename ExecSpace,
           typename TopologyView,
           typename CoordsetView,
           typename IntersectPolicy =
-            axom::bump::extraction::FieldIntersector<ExecSpace, typename TopologyView::ConnectivityType>,
+            axom::bump::extraction::FieldIntersector<ExecSpace, TopologyView, CoordsetView>,
           typename NamingPolicy = axom::bump::HashNaming<axom::IndexType>>
 using ClipField = TableBasedExtractor<ExecSpace, ClipTableManager, TopologyView, CoordsetView, IntersectPolicy, NamingPolicy>;
 

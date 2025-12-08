@@ -2,16 +2,15 @@
 // other Axom Project Developers. See the top-level LICENSE file for internal.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_FIELD_INTERSECTOR_HPP_
-#define AXOM_BUMP_FIELD_INTERSECTOR_HPP_
+#ifndef AXOM_BUMP_PLANE_INTERSECTOR_HPP_
+#define AXOM_BUMP_PLANE_INTERSECTOR_HPP_
 
 #include "axom/core.hpp"
-#include "axom/bump/extraction/FieldOptions.hpp"
 #include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
-#include "axom/bump/views/NodeArrayView.hpp"
+#include "axom/primal/geometry/Plane.hpp"
 #include "axom/slic.hpp"
 
 #include <conduit/conduit.hpp>
@@ -25,15 +24,21 @@ namespace extraction
 
 /*!
  * \brief This class helps TableBasedExtractor determine intersection cases and
- *        weights using a field designated by the options.
+ *        weights using a plane designated by the options.
+ *
+ * \tparam TopologyView The type of topology view being used in the code that
+ *                      uses this intersector.
+ * \tparam CoordsetView The type of coordset view being used in the code that
+ *                      uses this intersector.
  */
-template <typename ExecSpace, typename TopologyView, typename CoordsetView>
-class FieldIntersector
+template <typename TopologyView, typename CoordsetView>
+class PlaneIntersector
 {
 public:
-  using FieldType = float;
-  using ConnectivityType = typename TopologyView::ConnectivityType;
   using ConnectivityView = axom::ArrayView<ConnectivityType>;
+  constexpr int NDIMS = CoordsetView::dimension();
+  using value_type = typename CoordsetView::value_type;
+  using PlaneType = axom::primal::Plane<value_type, NDIMS>;
 
   /*!
    * \brief This is a view class for FieldIntersector that can be used in device code.
@@ -41,9 +46,21 @@ public:
   struct View
   {
     /*!
+     * \brief Determine the signed distance to the plane.
+     *
+     * \param nodeId The index of the node to query for distance.
+     *
+     * \return The signed distance to the plane.
+     */
+    AXOM_HOST_DEVICE
+    value_type distance(axom::IndexType nodeId) const
+    {
+      return m_plane.signedDistance(coordsetView[nodeId]);
+    }
+
+    /*!
      * \brief Given a zone index and the node ids that comprise the zone, return
-     *        the appropriate table case, taking into account the field and
-     *        value.
+     *        the appropriate table case.
      *
      * \param zoneIndex The zone index.
      * \param nodeIds A view containing node ids for the zone.
@@ -55,9 +72,8 @@ public:
       axom::IndexType caseNumber = 0, numIds = nodeIds.size();
       for(IndexType i = 0; i < numIds; i++)
       {
-        const auto id = nodeIds[i];
-        const auto distance = m_fieldView[id] - m_fieldValue;
-        caseNumber |= (distance > 0) ? (1 << i) : 0;
+        const auto dist = distance(nodeIds[i]);
+        caseNumber |= (dist > value_type{0}) ? (1 << i) : 0;
       }
       return caseNumber;
     }
@@ -75,17 +91,17 @@ public:
                                 ConnectivityType id0,
                                 ConnectivityType id1) const
     {
-      const FieldType d0 = m_fieldView[id0];
-      const FieldType d1 = m_fieldView[id1];
-      constexpr FieldType tiny = 1.e-09;
+      const value_type d0 = distance(id0);
+      const value_type d1 = distance(id1);
+      constexpr value_type tiny = 1.e-09;
       return axom::utilities::clampVal(
-        axom::utilities::abs(m_fieldValue - d0) / (axom::utilities::abs(d1 - d0) + tiny),
-        FieldType(0),
-        FieldType(1));
+        axom::utilities::abs(-d0) / (axom::utilities::abs(d1 - d0) + tiny),
+        value_type{0},
+        value_type{1});
     }
 
-    axom::ArrayView<FieldType> m_fieldView {};
-    FieldType m_fieldValue {};
+    CoordsetView m_coordsetView;
+    PlaneType m_plane;
   };
 
   /*!
@@ -94,41 +110,32 @@ public:
    * \param n_fields The node that contains fields.
    */
   void initialize(const TopologyView &AXOM_UNUSED_PARAM(topologyView),
-                  const CoordsetView &AXOM_UNUSED_PARAM(coordsetView),
+                  const CoordsetView &coordsetView,
                   const conduit::Node &n_options,
                   const conduit::Node &AXOM_UNUSED_PARAM(n_topology),
                   const conduit::Node &AXOM_UNUSED_PARAM(n_coordset),
                   const conduit::Node &n_fields)
   {
-    namespace utils = axom::bump::utilities;
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-
-    // Get the field name and value.
-    FieldOptions opts(n_options);
-    m_view.m_fieldValue = opts.value();
-
-    // Make sure the clipField is the right data type and store access to it in the view.
-    const conduit::Node &n_field = n_fields.fetch_existing(opts.field());
-    const conduit::Node &n_field_values = n_field["values"];
-    SLIC_ASSERT(n_field["association"].as_string() == "vertex");
-    SLIC_ASSERT(!n_field_values.is_object());
-    if(n_field_values.dtype().id() == utils::cpp2conduit<FieldType>::id)
+    // Make a plane from the options.
+    SLIC_ASSERT(n_options.has_child("origin"));
+    SLIC_ASSERT(n_options.has_child("normal"));
+    const auto origin = n_options["origin"].as_double_accessor();
+    const auto normal = n_options["normal"].as_double_accessor();
+    value_type planeOrigin[NDIMS], planeNormal[NDIMS];
+    for(int i = 0; i < NDIMS; i++)
     {
-      // Make a view.
-      m_view.m_fieldView = utils::make_array_view<FieldType>(n_field_values);
-    }
-    else
-    {
-      // Convert to FieldType.
-      const IndexType n = static_cast<IndexType>(n_field_values.dtype().number_of_elements());
-      m_fieldData = axom::Array<FieldType>(n, n, allocatorID);
-      m_view.m_fieldView = m_fieldData.view();
-      views::Node_to_ArrayView(n_field_values,
-                               [&](auto clipFieldViewSrc) { copyValues(clipFieldViewSrc); });
+      planeOrigin[i] = static_cast<value_type>(origin[i]);
+      planeNormal[i] = static_cast<value_type>(normal[i]);
     }
 
-    // Get the field's topo name.
-    m_topologyName = n_field["topology"].as_string();
+    // Set the plane in the view.
+    m_view.m_plane = PlaneType(typename PlaneType::VectorType(planeNormal, NDIMS),
+                               typename PlaneType::PointType(planeNormal, NDIMS));
+
+    // Save the coordset view.
+    m_view.m_coordsetView = coordsetView;
+
+    m_topologyName = n_options["topology"].as_string();
   }
 
   /*!
@@ -151,24 +158,7 @@ public:
 private:
 #endif
 
-  /*!
-   * \brief Copy values from srcView into m_fieldData.
-   *
-   * \param srcView The source data view.
-   */
-  template <typename DataView>
-  void copyValues(DataView srcView)
-  {
-    auto clipFieldView = m_fieldData.view();
-    axom::for_all<ExecSpace>(
-      srcView.size(),
-      AXOM_LAMBDA(axom::IndexType index) {
-        clipFieldView[index] = static_cast<FieldType>(srcView[index]);
-      });
-  }
-
   std::string m_topologyName {};
-  axom::Array<FieldType> m_fieldData {};
   View m_view {};
 };
 

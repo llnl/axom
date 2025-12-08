@@ -974,7 +974,7 @@ protected:
     //
     //--------------------------------------------------------------------------
     using ConnectivityType = typename ITopologyView::ConnectivityType;
-    using IntersectorType = detail::MaterialIntersector<ConnectivityType, MatsetView::MaxMaterials>;
+    using IntersectorType = detail::MaterialIntersector<TopologyView, CoordsetView, MatsetView::MaxMaterials>;
 
     IntersectorType intersector;
     int allocatorID = axom::execution_space<ExecSpace>::allocatorID();

@@ -35,12 +35,12 @@ TEST(bump_clipfield, options)
   conduit::Node options;
   axom::bump::extraction::ClipOptions opts(options);
 
-  options["clipField"] = "distance";
-  EXPECT_EQ(opts.clipField(), options["clipField"].as_string());
+  options["field"] = "distance";
+  EXPECT_EQ(opts.field(), options["field"].as_string());
 
-  EXPECT_EQ(opts.clipValue(), 0.);
-  options["clipValue"] = 2.5f;
-  EXPECT_EQ(opts.clipValue(), 2.5f);
+  EXPECT_EQ(opts.value(), 0.);
+  options["value"] = 2.5f;
+  EXPECT_EQ(opts.value(), 2.5f);
 
   EXPECT_EQ(opts.topologyName("default"), "default");
   options["topologyName"] = "topo";
@@ -441,8 +441,8 @@ void test_one_shape(const conduit::Node &hostMesh, const std::string &name)
   // Clip the data
   conduit::Node deviceClipMesh, options;
   axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
-  options["clipField"] = "distance";
-  options["clipValue"] = 0.;
+  options["field"] = "distance";
+  options["value"] = 0.;
   options["inside"] = 1;
   options["outside"] = 1;
   clipper.execute(deviceMesh, options, deviceClipMesh);
@@ -529,7 +529,7 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
   // Create options to control the clipping.
   const std::string clipTopoName("cliptopo");
   conduit::Node options;
-  options["clipField"] = "distance";
+  options["field"] = "distance";
   options["inside"] = 1;
   options["outside"] = 1;
   options["topologyName"] = clipTopoName;
@@ -563,8 +563,8 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
   const auto connView =
     utils::make_array_view<axom::IndexType>(n_device_topo.fetch_existing("elements/connectivity"));
 
-  options["clipField"] = "new_braid";
-  options["clipValue"] = 1.;
+  options["field"] = "new_braid";
+  options["value"] = 1.;
   options["fields"].reset();
   options["fields/new_braid"] = "new_braid2";
   options["fields/color"] = "new_color";
@@ -666,7 +666,7 @@ void braid_rectilinear_clip_test(const std::string &name)
 
   // Create options to control the clipping.
   conduit::Node options;
-  options["clipField"] = "distance";
+  options["field"] = "distance";
   options["inside"] = 1;
   options["outside"] = 1;
 
@@ -777,8 +777,8 @@ TEST(bump_clipfield, strided_structured_2d)
 {
   // Create options to control the clipping.
   conduit::Node options;
-  options["clipField"] = "vert_vals";
-  options["clipValue"] = 6.5;
+  options["field"] = "vert_vals";
+  options["value"] = 6.5;
   options["inside"] = 1;
   options["outside"] = 1;
   strided_structured_clip_test_exec("strided_structured_2d", options);
@@ -821,7 +821,7 @@ void braid3d_clip_test(const std::string &type, const std::string &name)
 
   // Create options to control the clipping.
   conduit::Node options;
-  options["clipField"] = "distance";
+  options["field"] = "distance";
   options["inside"] = 1;
   options["outside"] = 0;
 
@@ -931,8 +931,8 @@ void braid3d_mixed_clip_test(const std::string &name)
 
   // Create options to control the clipping.
   conduit::Node options;
-  options["clipField"] = "distance";
-  options["clipValue"] = 12.f;
+  options["field"] = "distance";
+  options["value"] = 12.f;
   options["inside"] = 1;
   options["outside"] = 0;
 
@@ -1018,8 +1018,8 @@ struct point_merge_test
 
     // Clip
     conduit::Node options, deviceClipMesh;
-    options["clipField"] = "clip";
-    options["clipValue"] = 0.5;
+    options["field"] = "clip";
+    options["value"] = 0.5;
     using Clip = axom::bump::extraction::ClipField<ExecSpace, TopologyView, CoordsetView>;
     Clip clip(topologyView, coordsetView);
     clip.execute(deviceMesh, options, deviceClipMesh);
@@ -1089,7 +1089,7 @@ struct test_selectedzones
     hostOptions["selectedZones"].set(std::vector<axom::IndexType> {{1, 3, 4, 5, 7}});
     hostOptions["inside"] = 1;
     hostOptions["outside"] = 1;
-    hostOptions["clipField"] = "zero";
+    hostOptions["field"] = "zero";
 
     conduit::Node deviceOptions, deviceResult;
     utils::copy<ExecSpace>(deviceOptions, hostOptions);
@@ -1110,8 +1110,8 @@ struct test_selectedzones
     //---------------------
     // Try a different clip
     hostOptions["outside"] = 0;
-    hostOptions["clipField"] = "radial";
-    hostOptions["clipValue"] = 3.2;
+    hostOptions["field"] = "radial";
+    hostOptions["value"] = 3.2;
     utils::copy<ExecSpace>(deviceOptions, hostOptions);
     deviceResult.reset();
     clip.execute(deviceMesh, deviceOptions, deviceResult);

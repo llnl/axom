@@ -2,8 +2,8 @@
 // other Axom Project Developers. See the top-level LICENSE file for internal.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_CUT_FIELD_HPP_
-#define AXOM_BUMP_CUT_FIELD_HPP_
+#ifndef AXOM_BUMP_PLANE_SLICE_HPP_
+#define AXOM_BUMP_PLANE_SLICE_HPP_
 
 #include "axom/bump/extraction/TableBasedExtractor.hpp"
 #include "axom/bump/extraction/CutTableManager.hpp"
@@ -15,7 +15,7 @@ namespace bump
 namespace extraction
 {
 /*!
- * \brief This class cuts a topology using a field and puts the new topology into a new Conduit node.
+ * \brief This class slices a topology using a plane and puts the new topology into a new Conduit node.
  *
  * \tparam ExecSpace    The execution space where the compute-heavy kernels run.
  * \tparam TopologyView The topology view that can operate on the Blueprint topology.
@@ -27,9 +27,9 @@ template <typename ExecSpace,
           typename TopologyView,
           typename CoordsetView,
           typename IntersectPolicy =
-            axom::bump::extraction::FieldIntersector<ExecSpace, TopologyView, CoordsetView>,
+            axom::bump::extraction::PlaneIntersector<TopologyView, CoordsetView>,
           typename NamingPolicy = axom::bump::HashNaming<axom::IndexType>>
-using CutField = TableBasedExtractor<ExecSpace, CutTableManager, TopologyView, CoordsetView, IntersectPolicy, NamingPolicy>;
+using PlaneSlice = TableBasedExtractor<ExecSpace, CutTableManager, TopologyView, CoordsetView, IntersectPolicy, NamingPolicy>;
 
 }  // end namespace extraction
 }  // end namespace bump
