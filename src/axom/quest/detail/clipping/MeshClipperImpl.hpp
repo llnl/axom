@@ -651,7 +651,6 @@ public:
 
     ShapeMesh& shapeMesh = getShapeMesh();
     auto meshTets = getShapeMesh().getCellsAsTets();
-    auto meshTetVolumes = getShapeMesh().getTetVolumes();
 
     const int allocId = shapeMesh.getAllocatorID();
 
@@ -673,6 +672,7 @@ public:
     AXOM_ANNOTATE_BEGIN("MeshClipper:find_candidates");
     // Create a temporary subset of tet bounding boxes,
     // containing only those listed in tetIndices.
+    // The BVH searches on this array.
     const axom::IndexType tetCount = tetIndices.size();
     axom::Array<BoundingBoxType> tetBbs(tetCount, tetCount, allocId);
     axom::ArrayView<BoundingBoxType> tetBbsView = tetBbs.view();
@@ -688,12 +688,10 @@ public:
     axom::Array<IndexType> counts(tetCount, tetCount, allocId);
     axom::Array<IndexType> offsets(tetCount, tetCount, allocId);
     axom::Array<IndexType> candidates;
-    bvh.findBoundingBoxes(offsets, counts, candidates, tetBbsView.size(), tetBbsView);
-    AXOM_ANNOTATE_END("MeshClipper:find_candidates");
-
     auto countsView = counts.view();
-    auto candidatesView = candidates.view();
     auto offsetsView = offsets.view();
+    bvh.findBoundingBoxes(offsets, counts, candidates, tetBbsView.size(), tetBbsView);
+    auto candidatesView = candidates.view();
 
     axom::Array<IndexType> candToTetIdId(candidates.size(), candidates.size(), allocId);
     auto candToTetIdIdView = candToTetIdId.view();
@@ -704,6 +702,7 @@ public:
         auto offset = offsetsView[i];
         for(int j = 0; j < count; ++j) candToTetIdIdView[offset + j] = i;
       });
+    AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     SLIC_DEBUG(axom::fmt::format(
       "Running clip loop on {} candidate pieces for the select {} tets of the full {} mesh cells",
@@ -916,7 +915,9 @@ public:
    * the two types a geometry can be discretized into.
    */
   template <typename TetOrOctType>
-  AXOM_HOST_DEVICE inline LabelType computeMeshTetGeomPieceOverlap(const TetrahedronType& meshTet,
+  AXOM_HOST_DEVICE
+  inline
+  LabelType computeMeshTetGeomPieceOverlap(const TetrahedronType& meshTet,
                                                                    const TetOrOctType& geomPiece,
                                                                    double& overlapVolume,
                                                                    int screenLevel)
@@ -961,8 +962,9 @@ public:
    * the same tet, precompute that in the calling function
    * and use it instead of tet.
    */
-  AXOM_HOST_DEVICE
   template <typename TetOrOctType>
+  AXOM_HOST_DEVICE
+  inline
   LabelType labelPieceInOutOfTet(const TetrahedronType& tet, const TetOrOctType& piece)
   {
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
