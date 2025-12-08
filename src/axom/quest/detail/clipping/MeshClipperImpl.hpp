@@ -321,6 +321,7 @@ public:
     axom::copy(contribCountPtr, &contribCount, sizeof(zero));
 
     const auto screenLevel = m_myClipper.getScreenLevel();
+    constexpr double EPS1 = EPS;
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_notScreened");
     if(useTets)
@@ -349,7 +350,7 @@ public:
           if(tmpLabel == LabelType::LABEL_IN || tmpLabel == LabelType::LABEL_ON)
           {
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
-            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
+            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS1));
           }
           if(tmpLabel == LabelType::LABEL_ON)
           {
@@ -381,7 +382,7 @@ public:
           if(tmpLabel == LabelType::LABEL_IN || tmpLabel == LabelType::LABEL_ON)
           {
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
-            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
+            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS1));
           }
           if(tmpLabel == LabelType::LABEL_ON)
           {
