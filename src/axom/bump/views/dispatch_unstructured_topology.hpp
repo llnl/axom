@@ -12,6 +12,7 @@
 #include "axom/bump/views/UnstructuredTopologyMixedShapeView.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
 #include "axom/bump/views/Shapes.hpp"
+#include "axom/bump/views/dispatch_utilities.hpp"
 #include "axom/bump/utilities/blueprint_utilities.hpp"
 
 #include <conduit/conduit_blueprint.hpp>

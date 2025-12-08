@@ -979,7 +979,7 @@ private:
 
   // Holds an instance of the 2D or 3D sampler; only one can be active at a time
   SamplerVariant m_sampler;
-  axom::Array<axom::primal::CurvedPolygon<double, 2>> m_contours;
+  axom::Array<axom::primal::CurvedPolygon<axom::primal::NURBSCurve<double, 2>>> m_contours;
 
   std::set<std::string> m_knownMaterials;
 

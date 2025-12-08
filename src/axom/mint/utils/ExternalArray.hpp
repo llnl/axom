@@ -17,6 +17,52 @@ namespace axom
 {
 namespace mint
 {
+namespace detail
+{
+/*!
+ * \class ExternalStoragePolicy
+ *
+ * \brief Externally-managed storage policy.
+ *  Reallocation is not supported.
+ */
+template <typename T>
+struct ExternalStoragePolicy
+{
+  /*!
+   * \brief Callback to report changes in shape/size of valid data in Array.
+   *
+   * \param [in] shape the current dimensions of the array
+   * \param [in] size the current number of elements stored in the array
+   */
+  template <int Dims>
+  void onShapeUpdate(StackArray<IndexType, Dims> AXOM_UNUSED_PARAM(shape))
+  { }
+
+  /*!
+   * \brief Reallocates a buffer. No-op for ExternalArray.
+   */
+  template <typename Func>
+  T* reallocate(T* AXOM_UNUSED_PARAM(old_data),
+                int old_capacity,
+                int AXOM_UNUSED_PARAM(allocator_id),
+                int new_capacity,
+                Func&& AXOM_UNUSED_PARAM(nontrivial_move))
+  {
+    if(old_capacity != new_capacity)
+    {
+      SLIC_ERROR("Cannot increase capacity of an ExternalArray.");
+    }
+    return nullptr;
+  }
+
+  /*!
+   * \brief Frees a buffer. No-op for ExternalArray.
+   */
+  void deallocate(void* AXOM_UNUSED_PARAM(data)) { }
+};
+
+}  // namespace detail
+
 /*!
  * \class ExternalArray
  *
@@ -39,10 +85,11 @@ namespace mint
  * \tparam T the type of the values to hold.
  */
 template <typename T, int DIM = 1>
-class ExternalArray : public axom::Array<T, DIM>
+class ExternalArray
+  : public axom::Array<T, DIM, MemorySpace::Dynamic, detail::ExternalStoragePolicy<T>>
 {
 public:
-  using BaseClass = axom::Array<T, DIM>;
+  using BaseClass = axom::Array<T, DIM, MemorySpace::Dynamic, detail::ExternalStoragePolicy<T>>;
   static_assert(DIM <= 2, "Only 1- and 2-dimensional external arrays are permitted");
   /*!
    * \brief Default constructor. Disabled.
@@ -53,7 +100,7 @@ public:
    * \brief Move constructor.
    * \param [in] other The array to move from
    */
-  ExternalArray(ExternalArray&& other) : axom::Array<T, DIM>(std::move(other)) { }
+  ExternalArray(ExternalArray&& other) = default;
 
   /// \name ExternalArray constructors
   /// @{
@@ -67,18 +114,17 @@ public:
    * \post size() == num_elements
    */
   template <int UDIM = DIM, typename Enable = std::enable_if_t<UDIM != 1>>
-  ExternalArray(T* data, const StackArray<IndexType, DIM>& shape, IndexType capacity)
-    : axom::Array<T, DIM>()
+  ExternalArray(T* data, const StackArray<IndexType, DIM>& shape, IndexType capacity) : BaseClass()
   {
     SLIC_ASSERT(data != nullptr);
 
     this->m_shape = shape;
     this->updateStrides();
 
-    SLIC_ERROR_IF(!detail::allNonNegative(shape.m_data),
+    SLIC_ERROR_IF(!axom::detail::allNonNegative(shape.m_data),
                   "Dimensions passed as shape must all be non-negative.");
 
-    this->m_num_elements = detail::packProduct(shape.m_data);
+    this->m_num_elements = axom::detail::packProduct(shape.m_data);
     this->m_capacity = capacity;
 
     if(this->m_num_elements > capacity)
@@ -96,7 +142,7 @@ public:
 
   /// \overload
   template <int UDIM = DIM, typename Enable = std::enable_if_t<UDIM == 1>>
-  ExternalArray(T* data, IndexType size, IndexType capacity) : axom::Array<T, DIM>()
+  ExternalArray(T* data, IndexType size, IndexType capacity) : BaseClass()
   {
     SLIC_ASSERT(data != nullptr);
 
@@ -121,49 +167,13 @@ public:
   /*!
    * Destructor.
    */
-  virtual ~ExternalArray()
-  {
-    // The below avoids the base class constructor from erasing/destroying the
-    // externally-managed buffer.
-    this->updateNumElements(0);
-    this->m_data = nullptr;
-  }
+  virtual ~ExternalArray() = default;
 
   /*!
    * \brief Move assignment.
    * \param [in] other The ExternalArray to move from
    */
-  ExternalArray& operator=(ExternalArray&& other)
-  {
-    axom::Array<T, DIM>::operator=(std::move(other));
-    return *this;
-  }
-
-protected:
-  /*!
-   * \brief Set the number of elements allocated for the data array.
-   *
-   * \param [in] capacity the new number of elements to allocate.
-   */
-  virtual void setCapacity(axom::IndexType new_capacity)
-  {
-    if(this->m_capacity != new_capacity)
-    {
-      SLIC_ERROR("Cannot modify the capacity of an ExternalArray.");
-    }
-  }
-
-  /*!
-   * \brief Reallocates the data array when the size exceeds the capacity.
-   *
-   * \param [in] new_num_elements the number of elements which exceeds the current
-   *  capacity.
-   */
-  virtual void dynamicRealloc(axom::IndexType new_num_elements)
-  {
-    AXOM_UNUSED_VAR(new_num_elements);
-    SLIC_ERROR("Cannot increase capacity of an ExternalArray.");
-  }
+  ExternalArray& operator=(ExternalArray&& other) = default;
 };
 
 }  // namespace mint

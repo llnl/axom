@@ -8,8 +8,8 @@
 
 #include "axom/config.hpp"
 
-#ifndef AXOM_USE_MFEM
-  #error MFEMReader should only be included when Axom is configured with MFEM
+#if !defined(AXOM_USE_MFEM) || !defined(AXOM_USE_SIDRE)
+  #error MFEMReader should only be included when Axom is configured with MFEM, SIDRE (and MFEM_SIDRE_DATACOLLECTION)
 #endif
 
 #include "axom/core/Array.hpp"
@@ -35,7 +35,7 @@ public:
   using NURBSCurve = axom::primal::NURBSCurve<double, 2>;
   using CurveArray = axom::Array<NURBSCurve>;
 
-  using CurvedPolygon = axom::primal::CurvedPolygon<double, 2>;
+  using CurvedPolygon = axom::primal::CurvedPolygon<NURBSCurve>;
   using CurvedPolygonArray = axom::Array<CurvedPolygon>;
 
 public:

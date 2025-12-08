@@ -75,6 +75,7 @@ if (ENABLE_FORTRAN)
         interface/c_fortran/wrapGroup.cpp
         interface/c_fortran/wrapBuffer.cpp
         interface/c_fortran/wrapView.cpp
+        interface/c_fortran/utilSidre.cpp
         interface/c_fortran/wrapfsidre.F
     )
 
@@ -87,6 +88,7 @@ if (ENABLE_FORTRAN)
         list(APPEND sidre_sources
              spio/interface/c_fortran/wrapfspio.f
              spio/interface/c_fortran/wrapIOManager.cpp
+             spio/interface/c_fortran/utilSPIO.cpp
         )
     endif()
 endif()

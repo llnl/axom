@@ -120,6 +120,7 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
                    : matsetName)
   , m_bpGrpExt(bpMesh)
   , m_bpNodeInt()
+  , m_zeroThreshold(1e-10)
 {
   SLIC_ASSERT(m_topoName != sidre::InvalidName);
   SLIC_ERROR_IF(m_topoName.empty(),
@@ -766,8 +767,8 @@ void ShapeMesh::computeConnectivity()
 template <typename ExecSpace>
 void ShapeMesh::computeCellsAsHexesImpl()
 {
-  constexpr int NUM_VERTS_PER_HEX = 8;
-  constexpr int NDIM = 3;
+  constexpr static int NUM_VERTS_PER_HEX = 8;
+  constexpr static int NDIM = 3;
 
   SLIC_ASSERT(m_dim == NDIM);  // or we shouldn't be here.
 

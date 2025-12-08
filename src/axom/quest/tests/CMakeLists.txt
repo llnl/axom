@@ -87,7 +87,7 @@ endif()
 # Tests that use MFEM when available
 #------------------------------------------------------------------------------
 
-if(MFEM_FOUND)
+if(MFEM_FOUND AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
     function(add_quest_mfem_test test_name)
         axom_add_executable(
             NAME       ${test_name}
@@ -264,15 +264,15 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
           axom_add_test(
             NAME ${_testname}
             COMMAND quest_mesh_clipper_test
-            --policy ${_policy}
-            --verbose
-            --testGeom ${_testgeom}
-            -o ${_testname}
-            --refinements 5
-            --scale .99 .99 .99
-            --dir 8 4 2
-            --meshType ${_meshType}
-            inline_mesh --min -2 -2 -2 --max 2 2 2 --res 16 16 16
+                        --policy ${_policy}
+                        --verbose
+                        --testGeom ${_testgeom}
+                        -o ${_testname}
+                        --refinements 5
+                        --scale .99 .99 .99
+                        --dir 8 4 2
+                        --meshType ${_meshType}
+                        inline_mesh --min -2 -2 -2 --max 2 2 2 --res 16 16 16
             NUM_MPI_TASKS ${_nranks})
         endforeach()
       endforeach()
