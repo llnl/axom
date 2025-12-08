@@ -64,21 +64,17 @@ private:
 #endif
   std::string m_name;
 
-  //!@brief Tetrahedron before transformation.
+  //!@brief Tetrahedron before external transformation.
   TetrahedronType m_tetBeforeTrans;
 
-  //!@brief Tetrahedron after transformation.
+  //!@brief Tetrahedron after external transformation.
   TetrahedronType m_tet;
 
-  axom::primal::BoundingBox<double, 3> m_bb;
+  //!@brief External transformation.
+  axom::primal::experimental::CoordinateTransformer<double> m_extTransformer;
 
-  //!@brief 4 planes of the Tet, oriented to the interior of the tet.
-  axom::StackArray<Plane3DType, 4> m_planes;
-
-  //!@brief Height of the tet when resting on each facet.
-  axom::StackArray<double, 4> m_heights;
-
-  axom::primal::experimental::CoordinateTransformer<double> m_transformer;
+  //!@brief Transformation of m_tet to unit tet.
+  axom::primal::experimental::CoordinateTransformer<double> m_toUnitTet;
 
   template <typename ExecSpace>
   void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,

@@ -17,35 +17,28 @@ namespace experimental
 TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
   : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Tet") : name)
-  , m_transformer(m_extTrans)
+  , m_extTransformer(m_extTrans)
 {
   extractClipperInfo();
 
   for(int i = 0; i < TetrahedronType::NUM_VERTS; ++i)
   {
-    m_tet[i] = m_transformer.getTransformed(m_tetBeforeTrans[i]);
+    m_tet[i] = m_extTransformer.getTransformed(m_tetBeforeTrans[i]);
   }
 
-  for(int i = 0; i < TetrahedronType::NUM_VERTS; ++i)
-  {
-    m_bb.addPoint(m_tet[i]);
-  }
-
-  for(int iPlane = 0; iPlane < 4; ++iPlane)
-  {
-    const Point3DType& a = m_tet[iPlane % 4];
-    const Point3DType& b = m_tet[(iPlane + 1) % 4];
-    const Point3DType& c = m_tet[(iPlane + 2) % 4];
-    m_planes[iPlane] = axom::primal::make_plane(a, b, c);
-
-    // For tet points ordered by right hand rule, odd planes
-    // face outside.  Make them face inside.
-    if(iPlane % 2 == 1) m_planes[iPlane].flip();
-
-    const Point3DType& apex = m_tet[(iPlane + 3) % 4];
-    m_heights[iPlane] = m_planes[iPlane].signedDistance(apex);
-    SLIC_ASSERT(m_heights[iPlane] >= 0);
-  }
+  /*
+   * Compute the transformation from m_tet to a unit tet.  Location of
+   * points w.r.t. the tet are done in the unit tet space.  The unit
+   * tet has heights 1, 1, 1 and 1/sqrt(3) as it rests on each of its 4
+   * faces.  Height w.r.t. the 4th face are scaled by sqrt(3) to make
+   * it come out to 1.  So height < 0 means means below the tet and
+   * height > 1 means above the tet.
+   *
+   * Points with any height outside [0,1] cannot possibly be in the tet.
+   * Points with all 4 heights in [0,1] must be in the tet.
+   */
+  Point3DType unitTetPts[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+  m_toUnitTet.setByTerminusPts(&m_tet[0], unitTetPts);
 }
 
 bool TetClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
@@ -133,19 +126,21 @@ void TetClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
     aboveView[p] = above[p].view();
   }
 
-  const auto tetHeights = m_heights;
-  auto planes = m_planes;
+  auto toUnitTet = m_toUnitTet;
 
   axom::for_all<ExecSpace>(
     vertCount,
     AXOM_LAMBDA(axom::IndexType vertId) {
-      primal::Point3D vert {vX[vertId], vY[vertId], vZ[vertId]};
+      // vh is the heights of the vertex in the space of the unit tet.
+      // See comment on m_toUnitTet.
+      axom::NumericArray<double, 4> vh({vX[vertId], vY[vertId], vZ[vertId], 0});
+      toUnitTet.transform(vh[0], vh[1], vh[2]);
+      vh[3] = 1 - vh[0] - vh[1] - vh[2];
 
-      for(IndexType p = 0; p < 4; ++p)
+      for(int p = 0; p < 4; ++p)
       {
-        double vertHeight = planes[p].signedDistance(vert);
-        belowView[p][vertId] = vertHeight < 0;
-        aboveView[p][vertId] = vertHeight > tetHeights[p];
+        belowView[p][vertId] = vh[p] < 0;
+        aboveView[p][vertId] = vh[p] > 1;
       }
     });
 
@@ -241,9 +236,9 @@ void TetClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "TetClipper requires a 3D mesh.");
   /*
    * Compute whether the tets in hexes listed in cellIds
-   * as in, out or on the boundary.
-   * the tet rests on its 4 facets.
+   * are in, out or on the boundary.
    *
+   * Picture the tet resting on each of of its 4 faces.
    * - For any facet the tet rests on, if all cell vertices are
    *   above the tet or all are below, cell is OUT.
    *
@@ -251,15 +246,14 @@ void TetClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
    *   the cell is IN.
    *
    * - Otherwise, cell is ON.
-  */
+   */
 
   auto meshTets = shapeMesh.getCellsAsTets();
   auto tetVolumes = shapeMesh.getTetVolumes();
 
   const axom::IndexType cellCount = cellIds.size();
 
-  const auto geomHeights = m_heights;
-  auto planes = m_planes;
+  auto toUnitTet = m_toUnitTet;
   constexpr double EPS = 1e-10;
 
   axom::for_all<ExecSpace>(
@@ -271,7 +265,7 @@ void TetClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
 
       for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
-        const TetrahedronType& tet = tetsForCell[ti];
+        const TetrahedronType& cellTet = tetsForCell[ti];
         LabelType& tetLabel = tetLabels[ci * NUM_TETS_PER_HEX + ti];
         const axom::IndexType tetId = cellId * NUM_TETS_PER_HEX + ti;
 
@@ -282,21 +276,26 @@ void TetClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
         }
 
         tetLabel = LabelType::LABEL_ON;
-        bool vertsAreOnTetSideOfAllPlanes = true;
 
         bool allVertsBelow = true;
         bool allVertsAbove = true;
+        bool vertsAreOnTetSideOfAllPlanes = true;
 
-        for(IndexType p = 0; p < 4; ++p)
+        for(IndexType vi = 0; vi < 4; ++vi)
         {
-          const auto& plane = planes[p];
+          const auto& vert = cellTet[vi];
 
-          for(IndexType vi = 0; vi < 4; ++vi)
+          // vh is the heights of vert in the space of the unit tet.
+          // See comment on m_toUnitTet.
+          axom::NumericArray<double, 4> vh({vert[0], vert[1], vert[2], 0});
+          toUnitTet.transform(vh[0], vh[1], vh[2]);
+          vh[3] = 1 - vh[0] - vh[1] - vh[2];
+
+          // Where vertex vi is w.r.t. the tet resting on side pj.
+          for(int pj = 0; pj < 4; ++pj)
           {
-            const auto& vert = tet[vi];
-            double vertHeight = plane.signedDistance(vert);
-            bool vertIsBelow = vertHeight < 0;
-            bool vertIsAbove = vertHeight > geomHeights[p];
+            bool vertIsBelow = vh[pj] < 0;
+            bool vertIsAbove = vh[pj] > 1;
 
             allVertsBelow &= vertIsBelow;
             allVertsAbove &= vertIsAbove;
