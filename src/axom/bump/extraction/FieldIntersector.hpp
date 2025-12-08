@@ -111,7 +111,7 @@ public:
     const conduit::Node &n_field = n_fields.fetch_existing(opts.field());
     const conduit::Node &n_field_values = n_field["values"];
     SLIC_ASSERT(n_field["association"].as_string() == "vertex");
-    SLIC_ASSERT(!n_field_values.is_object());
+    SLIC_ASSERT(!n_field_values.dtype().is_object());
     if(n_field_values.dtype().id() == utils::cpp2conduit<FieldType>::id)
     {
       // Make a view.
@@ -126,18 +126,21 @@ public:
       views::Node_to_ArrayView(n_field_values,
                                [&](auto clipFieldViewSrc) { copyValues(clipFieldViewSrc); });
     }
-
-    // Get the field's topo name.
-    m_topologyName = n_field["topology"].as_string();
   }
 
   /*!
    * \brief Determine the name of the topology on which to operate.
+   * \param n_input The input mesh node.
+   * \param n_options The options.
    * \return The name of the toplogy on which to operate.
    */
-  const std::string &getTopologyName() const
+  std::string getTopologyName(const conduit::Node &n_input, const conduit::Node &n_options) const
   {
-    return m_topologyName;
+    // Get the topo name.
+    FieldOptions opts(n_options);
+    const conduit::Node &n_fields = n_input.fetch_existing("fields");
+    const conduit::Node &n_field = n_fields.fetch_existing(opts.field());
+    return n_field["topology"].as_string();
   }
 
   /*!
@@ -167,7 +170,6 @@ private:
       });
   }
 
-  std::string m_topologyName {};
   axom::Array<FieldType> m_fieldData {};
   View m_view {};
 };

@@ -8,7 +8,7 @@
 #include "axom/core.hpp"
 #include "axom/bump/extraction/BlendGroupBuilder.hpp"
 #include "axom/bump/extraction/ExtractionConstants.hpp"
-#include "axom/bump/extraction/ClipOptions.hpp"
+#include "axom/bump/extraction/ExtractorOptions.hpp"
 #include "axom/bump/extraction/TableManager.hpp"
 #include "axom/bump/extraction/FieldIntersector.hpp"
 #include "axom/bump/utilities/blueprint_utilities.hpp"
@@ -737,7 +737,7 @@ template <typename ExecSpace,
           typename TopologyView,
           typename CoordsetView,
           typename IntersectPolicy =
-            axom::bump::extraction::FieldIntersector<ExecSpace, typename TopologyView::ConnectivityType>,
+            axom::bump::extraction::FieldIntersector<ExecSpace, TopologyView, CoordsetView>,
           typename NamingPolicy = axom::bump::HashNaming<axom::IndexType>>
 class TableBasedExtractor
 {
@@ -791,8 +791,8 @@ public:
   void execute(const conduit::Node &n_input, const conduit::Node &n_options, conduit::Node &n_output)
   {
     // Get the topo/coordset names in the input.
-    ClipOptions opts(n_options);
-    const std::string &topoName = m_intersector.getTopologyName();
+    ExtractorOptions opts(n_options);
+    const std::string &topoName = m_intersector.getTopologyName(n_input, n_options);
     const conduit::Node &n_topo = n_input.fetch_existing("topologies/" + topoName);
     const std::string coordsetName = n_topo["coordset"].as_string();
     const conduit::Node &n_coordset = n_input.fetch_existing("coordsets/" + coordsetName);
@@ -835,7 +835,7 @@ public:
     n_newFields = conduit::Node();
 
     // Make the selected zones and get the size.
-    ClipOptions opts(n_options);
+    ExtractorOptions opts(n_options);
     SelectedZones selectedZones(m_topologyView.numberOfZones(), n_options);
     const auto nzones = selectedZones.view().size();
 
@@ -1090,7 +1090,7 @@ private:
   /*!
    * \brief Make a bitset that indicates the parts of the selection that are selected.
    */
-  int getSelection(const ClipOptions &opts) const
+  int getSelection(const ExtractorOptions &opts) const
   {
     int selection = 0;
     if(opts.inside()) axom::utilities::setBitOn(selection, 0);
@@ -1144,7 +1144,7 @@ private:
                     ZoneData zoneData,
                     NodeData nodeData,
                     FragmentData fragmentData,
-                    const ClipOptions &opts,
+                    const ExtractorOptions &opts,
                     const SelectedZones &selectedZones) const
   {
     AXOM_ANNOTATE_SCOPE("computeSizes");
@@ -1424,7 +1424,7 @@ private:
   void makeBlendGroups(TableViews tableViews,
                        BlendGroupBuilderType builder,
                        ZoneData zoneData,
-                       const ClipOptions &opts,
+                       const ExtractorOptions &opts,
                        const SelectedZones &selectedZones) const
   {
     AXOM_ANNOTATE_SCOPE("makeBlendGroups");
@@ -1571,7 +1571,7 @@ private:
                     ZoneData zoneData,
                     NodeData nodeData,
                     FragmentData fragmentData,
-                    const ClipOptions &opts,
+                    const ExtractorOptions &opts,
                     const SelectedZones &selectedZones,
                     const std::string &newTopologyName,
                     conduit::Node &n_newTopo,
@@ -2007,7 +2007,7 @@ private:
    * \note Objects that we need to capture into kernels are passed by value (they only contain views anyway). Data can be modified through the views.
    */
   void makeOriginalElements(FragmentData fragmentData,
-                            const ClipOptions &opts,
+                            const ExtractorOptions &opts,
                             const SelectedZones &selectedZones,
                             const conduit::Node &n_fields,
                             conduit::Node &n_newTopo,

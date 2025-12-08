@@ -96,7 +96,7 @@ public:
     return options().has_path("outside") ? (options().fetch_existing("outside").to_int() > 0) : false;
   }
 
-private:
+protected:
   /// Access the base class' options.
   const conduit::Node &options() const { return this->m_options; }
 };

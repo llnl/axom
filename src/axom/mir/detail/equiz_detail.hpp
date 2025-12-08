@@ -193,17 +193,17 @@ public:
                   const conduit::Node &AXOM_UNUSED_PARAM(n_topology),
                   const conduit::Node &AXOM_UNUSED_PARAM(n_coordset),
                   const conduit::Node &AXOM_UNUSED_PARAM(n_fields))
-  {
-    m_topologyName = n_options["topology"].as_string();
-  }
+  { }
 
   /*!
    * \brief Determine the name of the topology on which to operate.
+   * \param n_input The input mesh node.
+   * \param n_options The options.
    * \return The name of the toplogy on which to operate.
    */
-  const std::string &getTopologyName() const
+  std::string getTopologyName(const conduit::Node &AXOM_UNUSED_PARAM(n_input), const conduit::Node &n_options) const
   {
-    return m_topologyName;
+    return n_options["topology"].as_string();
   }
 
   /// Set various attributes.
@@ -238,7 +238,6 @@ public:
   View view() const { return m_view; }
 
 private:
-  std::string m_topologyName {};
   View m_view {};
 };
 

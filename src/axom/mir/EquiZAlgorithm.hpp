@@ -973,8 +973,7 @@ protected:
     // Make material intersector.
     //
     //--------------------------------------------------------------------------
-    using ConnectivityType = typename ITopologyView::ConnectivityType;
-    using IntersectorType = detail::MaterialIntersector<TopologyView, CoordsetView, MatsetView::MaxMaterials>;
+    using IntersectorType = detail::MaterialIntersector<ITopologyView, ICoordsetView, MatsetView::MaxMaterials>;
 
     IntersectorType intersector;
     int allocatorID = axom::execution_space<ExecSpace>::allocatorID();

@@ -35,11 +35,11 @@ to the memory space where it will be used to support options that are accessed o
 +---------------------------------+------------------------------------------------------+
 | Option                          | Description                                          |
 +=================================+======================================================+
-| ``clipField: name``             | A required string argument that specifies the name   |
+| ``field: name``                 | A required string argument that specifies the name   |
 |                                 | of the field that is used for clipping. At present,  |
 |                                 | the field must be a vertex-associated field.         |
 +---------------------------------+------------------------------------------------------+
-| ``clipValue: value``            | An optional numeric argument that specifies the      |
+| ``value: value``                | An optional numeric argument that specifies the      |
 |                                 | value in the field at which the clip boundary is     |
 |                                 | defined. The default is 0.                           |
 +---------------------------------+------------------------------------------------------+

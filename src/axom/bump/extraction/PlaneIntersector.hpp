@@ -35,8 +35,9 @@ template <typename TopologyView, typename CoordsetView>
 class PlaneIntersector
 {
 public:
+  using ConnectivityType = typename TopologyView::ConnectivityType;
   using ConnectivityView = axom::ArrayView<ConnectivityType>;
-  constexpr int NDIMS = CoordsetView::dimension();
+  static constexpr int NDIMS = CoordsetView::dimension();
   using value_type = typename CoordsetView::value_type;
   using PlaneType = axom::primal::Plane<value_type, NDIMS>;
 
@@ -55,7 +56,7 @@ public:
     AXOM_HOST_DEVICE
     value_type distance(axom::IndexType nodeId) const
     {
-      return m_plane.signedDistance(coordsetView[nodeId]);
+      return m_plane.signedDistance(m_coordsetView[nodeId]);
     }
 
     /*!
@@ -87,7 +88,7 @@ public:
      * \return A parametric position t [0,1] where we locate \a clipValues in [d0,d1].
      */
     AXOM_HOST_DEVICE
-    FieldType computeWeight(axom::IndexType AXOM_UNUSED_PARAM(zoneIndex),
+    value_type computeWeight(axom::IndexType AXOM_UNUSED_PARAM(zoneIndex),
                                 ConnectivityType id0,
                                 ConnectivityType id1) const
     {
@@ -114,7 +115,7 @@ public:
                   const conduit::Node &n_options,
                   const conduit::Node &AXOM_UNUSED_PARAM(n_topology),
                   const conduit::Node &AXOM_UNUSED_PARAM(n_coordset),
-                  const conduit::Node &n_fields)
+                  const conduit::Node &AXOM_UNUSED_PARAM(n_fields))
   {
     // Make a plane from the options.
     SLIC_ASSERT(n_options.has_child("origin"));
@@ -134,17 +135,17 @@ public:
 
     // Save the coordset view.
     m_view.m_coordsetView = coordsetView;
-
-    m_topologyName = n_options["topology"].as_string();
   }
 
   /*!
    * \brief Determine the name of the topology on which to operate.
+   * \param n_input The input mesh node.
+   * \param n_options The options.
    * \return The name of the toplogy on which to operate.
    */
-  const std::string &getTopologyName() const
+  std::string getTopologyName(const conduit::Node &AXOM_UNUSED_PARAM(n_input), const conduit::Node &n_options) const
   {
-    return m_topologyName;
+    return n_options["topology"].as_string();
   }
 
   /*!
@@ -158,7 +159,6 @@ public:
 private:
 #endif
 
-  std::string m_topologyName {};
   View m_view {};
 };
 

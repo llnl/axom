@@ -33,7 +33,7 @@ TEST(bump_clipfield, options)
   int nzones = 6;
 
   conduit::Node options;
-  axom::bump::extraction::ClipOptions opts(options);
+  axom::bump::extraction::FieldOptions opts(options);
 
   options["field"] = "distance";
   EXPECT_EQ(opts.field(), options["field"].as_string());
