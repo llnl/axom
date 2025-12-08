@@ -669,7 +669,6 @@ public:
     //       unnecessary if the view already holds a scalar.
     if(m_state == EMPTY || m_state == TUPLE)
     {
-      // auto conduitAllocId = getValidConduitAllocatorID(allocID);
       auto conduitAllocId = ConduitMemory::axomAllocIdToConduit(getValidTupleAllocatorId(allocID));
       m_node.set_allocator(conduitAllocId);
       m_node.set(value);

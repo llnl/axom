@@ -491,29 +491,6 @@ AXOM_HOST_DEVICE inline void ShapeMesh::hexToTets(const HexahedronType& hex, Tet
     tets[17][2] = hex[3];
     tets[17][3] = mp3762;
   }
-
-#if 0
-  // Sanity checks
-  double correctVol = hex.volume();
-  double summedVol = 0.0;
-  for(int i=0; i<NUM_TETS_PER_HEX; ++i) summedVol += tets[i].volume();
-  assert(axom::utilities::isNearlyEqual(summedVol, correctVol, 1e-10));
-  double vols[NUM_TETS_PER_HEX];
-  for(int i = 0; i<NUM_TETS_PER_HEX; ++i)
-  {
-    vols[i] = tets[i].volume();
-  }
-  for(int i = 0; i<NUM_TETS_PER_HEX; ++i)
-  {
-    if(axom::utilities::isNearlyEqual(vols[i], 0.0, 1e-10)) continue;
-    const auto& tet = tets[i];
-    Plane3DType planes[4] = {make_plane(tet[1], tet[3], tet[2]),
-                             make_plane(tet[0], tet[2], tet[3]),
-                             make_plane(tet[0], tet[3], tet[1]),
-                             make_plane(tet[0], tet[1], tet[2])};
-// std::cout<<i<<' '<<tet<<' '<<planes[0]<<' '<<planes[1]<<' '<<planes[2]<<' '<<planes[3]<<std::endl;
-  }
-#endif
 }
 
 }  // namespace experimental

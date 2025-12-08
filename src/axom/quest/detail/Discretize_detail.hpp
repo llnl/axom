@@ -268,7 +268,7 @@ bool discretize(const axom::ArrayView<Point2D> &polyline,
                 int &octcount)
 {
   SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(out.getAllocatorID()),
-                axom::fmt::format("Execution space {} cannot access allocator ed {}",
+                axom::fmt::format("Execution space {} cannot access allocator id {}",
                                   axom::execution_space<ExecSpace>::name(),
                                   out.getAllocatorID()));
 

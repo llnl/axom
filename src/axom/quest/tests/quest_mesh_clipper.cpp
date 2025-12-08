@@ -59,8 +59,6 @@
 #include <vector>
 #include <memory>
 
-extern conduit::Node labelingControl;
-
 namespace klee = axom::klee;
 namespace primal = axom::primal;
 namespace quest = axom::quest;
@@ -164,7 +162,7 @@ public:
     app.add_option("-o,--outputFile", outputFile)->description("Path to output file(s)");
 
     app.add_flag("-v,--verbose,!--no-verbose", m_verboseOutput)
-      ->description("Enable/disable verbose output")
+      ->description("Enable/disable verbose output, including SLIC_DEBUG")
       ->capture_default_str();
 
     app.add_option("--meshType", meshType)
@@ -280,8 +278,6 @@ public:
     // could throw an exception
     app.parse(argc, argv);
 
-    // labelingControl["screenLevel"].set(screenLevel);
-
     slic::setLoggingMsgLevel(m_verboseOutput ? slic::message::Debug : slic::message::Info);
   }
 };  // struct Input
@@ -296,7 +292,8 @@ const std::string matsetName = "matset";
 const std::string coordsetName = "coords";
 int cellCount = -1;
 // Translation to individual octants (override) when running multiple shapes.
-// Except that the plane is never moved.
+// Exception: the plane always placed at origin to facilitate finding its
+// exact overlap volume.
 const double tDist = 0.9;  // Bias toward origin to help keep shape inside domain.
 std::vector<axom::NumericArray<double, 3>> translations {{tDist, tDist, -tDist},
                                                          {-tDist, tDist, -tDist},

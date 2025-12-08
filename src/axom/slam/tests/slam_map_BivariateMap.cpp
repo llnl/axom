@@ -210,7 +210,7 @@ void constructAndTestRelationSetMap(int stride)
 
   rel.bindBeginOffsets(MAX_SET_SIZE1, &begin_vec);
   rel.bindIndices(indice_vec.size(), &indice_vec);
-  RelationSetType s(&rel);  // This caused link failures on rzansel: Undefined reference to 'ppc_trap'
+  RelationSetType s(&rel);
 
   const SetPosition indice_size = indice_vec.size();
   EXPECT_EQ(indice_size, s.totalSize());

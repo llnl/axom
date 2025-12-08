@@ -38,7 +38,6 @@ public:
   using SphereType = Sphere<T, NDIMS>;
 
   static constexpr int NUM_VERTS = 4;
-  static constexpr int NUM_EDGES = 6;
 
 public:
   /// \brief Default constructor. Creates a degenerate tetrahedron.

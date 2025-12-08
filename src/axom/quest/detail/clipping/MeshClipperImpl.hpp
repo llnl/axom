@@ -18,9 +18,6 @@
 #include "axom/spin/BVH.hpp"
 #include "axom/primal/geometry/CoordinateTransformer.hpp"
 #include "RAJA/RAJA.hpp"
-#include "axom/core/WhereMacro.hpp"
-
-extern conduit::Node labelingControl;
 
 namespace axom
 {
@@ -915,9 +912,7 @@ public:
    * the two types a geometry can be discretized into.
    */
   template <typename TetOrOctType>
-  AXOM_HOST_DEVICE
-  inline
-  LabelType computeMeshTetGeomPieceOverlap(const TetrahedronType& meshTet,
+  AXOM_HOST_DEVICE inline LabelType computeMeshTetGeomPieceOverlap(const TetrahedronType& meshTet,
                                                                    const TetOrOctType& geomPiece,
                                                                    double& overlapVolume,
                                                                    int screenLevel)
@@ -963,9 +958,8 @@ public:
    * and use it instead of tet.
    */
   template <typename TetOrOctType>
-  AXOM_HOST_DEVICE
-  inline
-  LabelType labelPieceInOutOfTet(const TetrahedronType& tet, const TetOrOctType& piece)
+  AXOM_HOST_DEVICE inline LabelType labelPieceInOutOfTet(const TetrahedronType& tet,
+                                                         const TetOrOctType& piece)
   {
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     axom::primal::experimental::CoordinateTransformer toUnitTet(&tet[0], unitTet);

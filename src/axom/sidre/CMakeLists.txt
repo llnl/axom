@@ -27,7 +27,6 @@ set(sidre_headers
     core/View.hpp
     core/Attribute.hpp
     core/AttrValues.hpp
-    core/DataSemantic.hpp
     core/SidreTypes.hpp
     core/SidreDataTypeIds.h )
 
