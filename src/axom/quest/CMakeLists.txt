@@ -184,10 +184,12 @@ if (AXOM_ENABLE_MPI)
     list(APPEND quest_headers io/PSTLReader.hpp
                               io/PProEReader.hpp)
     blt_list_append(TO quest_headers IF C2C_FOUND ELEMENTS io/PC2CReader.hpp)
+    blt_list_append(TO quest_headers IF OPENCASCADE_FOUND ELEMENTS io/PSTEPReader.hpp)
 
     list(APPEND quest_sources io/PSTLReader.cpp
                               io/PProEReader.cpp)
     blt_list_append(TO quest_sources IF C2C_FOUND ELEMENTS io/PC2CReader.cpp)
+    blt_list_append(TO quest_sources IF OPENCASCADE_FOUND ELEMENTS io/PSTEPReader.cpp)
 endif()
 
 if (SHROUD_FOUND)

@@ -12,7 +12,7 @@
 #include "axom/CLI11.hpp"
 #include "axom/fmt.hpp"
 
-#include "axom/quest/io/STEPReader.hpp"
+#include "axom/quest.hpp"
 
 #include <iostream>
 
@@ -29,6 +29,7 @@
 
 using PatchData = axom::quest::internal::PatchData;
 using NURBSPatch = axom::quest::STEPReader::NURBSPatch;
+namespace slic = axom::slic;
 
 /**
  * Class that generates SVG files over the parametric space of trimmed NURBS patches
@@ -335,9 +336,50 @@ private:
   int m_numFillZeros {0};
 };
 
+struct RAIILogger
+{
+  RAIILogger(int my_rank)
+  {
+    slic::initialize();
+    slic::setIsRoot(my_rank == 0);
+
+    slic::LogStream* logStream;
+
+#ifdef AXOM_USE_MPI
+    std::string fmt = "[<RANK>][<LEVEL>]: <MESSAGE>\n";
+    // #ifdef AXOM_USE_LUMBERJACK
+    //   const int RLIMIT = 8;
+    //   logStream = new slic::LumberjackStream(&std::cout, MPI_COMM_WORLD, RLIMIT, fmt);
+    // #else
+    logStream = new slic::SynchronizedStream(&std::cout, MPI_COMM_WORLD, fmt);
+    // #endif
+#else
+    std::string fmt = "[<LEVEL>]: <MESSAGE>\n";
+    logStream = new slic::GenericOutputStream(&std::cout, fmt);
+#endif  // AXOM_USE_MPI
+
+    slic::addStreamToAllMsgLevels(logStream);
+  }
+
+  ~RAIILogger()
+  {
+    if(slic::isInitialized())
+    {
+      slic::flushStreams();
+      slic::finalize();
+    }
+  }
+
+  void setLoggingLevel(slic::message::Level level) { slic::setLoggingMsgLevel(level); }
+};
+
 int main(int argc, char** argv)
 {
-  axom::slic::SimpleLogger logger(axom::slic::message::Info);
+  axom::utilities::raii::MPIWrapper mpi_raii_wrapper(argc, argv);
+
+  const bool is_root = mpi_raii_wrapper.my_rank() == 0;
+  RAIILogger raii_logger(mpi_raii_wrapper.my_rank());
+  raii_logger.setLoggingLevel(slic::message::Info);
 
   //---------------------------------------------------------------------------
   // Set up and parse command line options
@@ -398,10 +440,29 @@ int main(int argc, char** argv)
     ->capture_default_str();
 
   app.get_formatter()->column_width(50);
-  CLI11_PARSE(app, argc, argv);
+
+  try
+  {
+    app.parse(argc, argv);
+  }
+  catch(const axom::CLI::ParseError& e)
+  {
+    int retval = -1;
+    if(is_root)
+    {
+      retval = app.exit(e);
+    }
+
+#ifdef AXOM_USE_MPI
+    MPI_Bcast(&retval, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    exit(retval);
+#else
+    return retval;
+#endif
+  }
 
   // Ensure output directory exists
-  if(!axom::utilities::filesystem::pathExists(output_dir))
+  if(is_root && !axom::utilities::filesystem::pathExists(output_dir))
   {
     axom::utilities::filesystem::makeDirsForPath(output_dir);
   }
@@ -409,26 +470,33 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   // Load and process file
   //---------------------------------------------------------------------------
-  SLIC_INFO("Processing file: " << filename);
-  SLIC_INFO_IF(verbosity, "Current working directory: " << axom::utilities::filesystem::getCWD());
+  SLIC_INFO_ROOT("Processing file: " << filename);
+  SLIC_INFO_ROOT_IF(verbosity,
+                    "Current working directory: " << axom::utilities::filesystem::getCWD());
 
   using NURBSPatch = axom::primal::NURBSPatch<double, 3>;
   using PatchArray = axom::Array<NURBSPatch>;
 
+#ifdef AXOM_USE_MPI
+  axom::quest::PSTEPReader stepReader(MPI_COMM_WORLD);
+#else
   axom::quest::STEPReader stepReader;
+#endif
   stepReader.setFileName(filename);
   stepReader.setVerbosity(verbosity);
 
   int res = stepReader.read(validate_model);
-
   if(res != 0)
   {
-    std::cerr << "Error: The shape is invalid or empty." << std::endl;
+    SLIC_WARNING_ROOT("Error: The shape is invalid or empty.");
     return 1;
   }
 
-  SLIC_INFO(axom::fmt::format("STEP file units: '{}'", stepReader.getFileUnits()));
-  stepReader.printBRepStats();
+  if(is_root)
+  {
+    SLIC_INFO(axom::fmt::format("STEP file units: '{}'", stepReader.getFileUnits()));
+    stepReader.printBRepStats();
+  }
 
   //---------------------------------------------------------------------------
   // Triangulate model
@@ -436,7 +504,8 @@ int main(int argc, char** argv)
   // Create an unstructured triangle mesh of the model (using trimmed patches)
   if(output_trimmed)
   {
-    SLIC_INFO(axom::fmt::format("Generating triangulation of model in '{}' directory", output_dir));
+    SLIC_INFO_ROOT(
+      axom::fmt::format("Generating triangulation of model in '{}' directory", output_dir));
     constexpr bool extract_trimmed_surface = true;
 
     axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> mesh(3, axom::mint::TRIANGLE);
@@ -446,24 +515,27 @@ int main(int argc, char** argv)
                                relative_deflection,
                                extract_trimmed_surface);
 
-    const std::string filename =
-      axom::utilities::filesystem::joinPath(output_dir, "triangulated_mesh.vtk");
-    axom::mint::write_vtk(&mesh, filename);
-    SLIC_INFO_ROOT(
-      axom::fmt::format(axom::utilities::locale(),
-                        "Generated VTK triangle mesh of trimmed model with {} deflection {} and {} "
-                        "angular deflection, with {:L} triangles: '{}'",
-                        false ? "relative" : "absolute",
-                        deflection,
-                        angular_deflection,
-                        mesh.getNumberOfCells(),
-                        filename));
+    if(is_root)
+    {
+      const std::string filename =
+        axom::utilities::filesystem::joinPath(output_dir, "triangulated_mesh.vtk");
+      axom::mint::write_vtk(&mesh, filename);
+
+      SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                  "Generated VTK triangle mesh of trimmed model with {} deflection "
+                                  "{} and {} angular deflection, with {:L} triangles: '{}'",
+                                  false ? "relative" : "absolute",
+                                  deflection,
+                                  angular_deflection,
+                                  mesh.getNumberOfCells(),
+                                  filename));
+    }
   }
 
   // Create an unstructured triangle mesh of the model's untrimmed patches (mostly to understand the model better)
   if(output_untrimmed)
   {
-    SLIC_INFO(axom::fmt::format(
+    SLIC_INFO_ROOT(axom::fmt::format(
       "Generating triangulation of model (ignoring trimming curves) in '{}' directory",
       output_dir));
 
@@ -476,24 +548,27 @@ int main(int argc, char** argv)
                                relative_deflection,
                                extract_trimmed_surface);
 
-    const std::string filename =
-      axom::utilities::filesystem::joinPath(output_dir, "untrimmed_mesh.vtk");
-    axom::mint::write_vtk(&mesh, filename);
-    SLIC_INFO_ROOT(
-      axom::fmt::format(axom::utilities::locale(),
-                        "Generated VTK triangle mesh of untrimmed model with {} deflection {} and "
-                        "{} angular deflection, with {:L} triangles: '{}'",
-                        false ? "relative" : "absolute",
-                        deflection,
-                        angular_deflection,
-                        mesh.getNumberOfCells(),
-                        filename));
+    if(is_root)
+    {
+      const std::string filename =
+        axom::utilities::filesystem::joinPath(output_dir, "untrimmed_mesh.vtk");
+      axom::mint::write_vtk(&mesh, filename);
+      SLIC_INFO(
+        axom::fmt::format(axom::utilities::locale(),
+                          "Generated VTK triangle mesh of untrimmed model with {} deflection {} "
+                          "and {} angular deflection, with {:L} triangles: '{}'",
+                          false ? "relative" : "absolute",
+                          deflection,
+                          angular_deflection,
+                          mesh.getNumberOfCells(),
+                          filename));
+    }
   }
 
   //---------------------------------------------------------------------------
   // Optionally output an SVG for each patch
   //---------------------------------------------------------------------------
-  if(output_svg)
+  if(output_svg && is_root)
   {
     SLIC_INFO(axom::fmt::format(
       "Generating SVG meshes for patches and their trimming curves in '{}' directory",

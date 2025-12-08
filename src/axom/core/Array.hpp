@@ -41,6 +41,7 @@ template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 struct ArrayTraits<Array<T, DIM, SPACE, StoragePolicy>>
 {
   constexpr static bool is_view = false;
+  constexpr static int dimension = DIM;
 };
 
 /*!
@@ -297,7 +298,7 @@ public:
   /*!
    * \brief Constructor for transferring between memory spaces
    *
-   * \param [in] other The array in a different memory space to copy from
+   * \param [in] si The array in a different memory space to copy from
    *
    * \note The new Array will be constructed with the allocator ID of the
    *  copied-from array, if compatible with the memory space of the target

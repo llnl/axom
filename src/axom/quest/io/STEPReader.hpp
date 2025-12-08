@@ -58,6 +58,8 @@ public:
   using NURBSPatch = axom::primal::NURBSPatch<double, 3>;
   using PatchArray = axom::Array<NURBSPatch>;
 
+  using NURBSCurve = axom::primal::NURBSCurve<double, 2>;
+
   STEPReader() = default;
   virtual ~STEPReader();
 
@@ -73,7 +75,7 @@ public:
    * \param[in] validate Adds validation tests on the model, when true
    * \return 0 for a successful read; non-zero otherwise
    */
-  int read(bool validate);
+  virtual int read(bool validate);
 
   std::string getFileUnits() const;
   const TopoDS_Shape& getShape() const;
@@ -99,11 +101,11 @@ public:
    *            otherwise, we triangulate the untrimmed patches. The latter is mostly to aid 
    *            in understanding the model's patches and is not generally useful.
    */
-  int getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* mesh,
-                      double linear_deflection = 0.1,
-                      double angular_deflection = 0.5,
-                      bool is_relative = false,
-                      bool trimmed = true);
+  virtual int getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* mesh,
+                              double linear_deflection = 0.1,
+                              double angular_deflection = 0.5,
+                              bool is_relative = false,
+                              bool trimmed = true);
 
 protected:
   // open cascade does not appear to offer a direct way to get the number of patches
