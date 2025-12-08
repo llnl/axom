@@ -5,6 +5,7 @@
 
 #include "axom/config.hpp"
 
+#include "axom/core/numerics/matvecops.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
 #include "axom/quest/Discretize.hpp"
@@ -293,7 +294,10 @@ FSorClipper::BoundingBox2DType FSorClipper::estimateBoundingBoxInRz(
   {
     auto& vert = vertices[vi];
     Point2DType vertOnXPlane { vert[1], vert[2] };
-    Point2DType vertOnRz { vert[0], vertOnXPlane.r() };
+    Point2DType vertOnRz { vert[0],
+                           std::sqrt(numerics::dot_product(vertOnXPlane.data(),
+                                                           vertOnXPlane.data(),
+                                                           2)) };
     bbInRz.addPoint(vertOnRz);
 
     double angle = atan2(vertOnXPlane[1], vertOnXPlane[0]);

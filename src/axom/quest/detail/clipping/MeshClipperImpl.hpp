@@ -12,6 +12,7 @@
   #error "quest::MeshClipper requires RAJA."
 #endif
 
+#include "axom/core/numerics/matvecops.hpp"
 #include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/quest/MeshClipper.hpp"
 #include "axom/spin/BVH.hpp"
@@ -45,6 +46,7 @@ class MeshClipperImpl : public MeshClipper::Impl
 {
 public:
   using LabelType = MeshClipper::LabelType;
+  using Point3DType = primal::Point<double, 3>;
   using BoundingBoxType = primal::BoundingBox<double, 3>;
   using TetrahedronType = primal::Tetrahedron<double, 3>;
   using OctahedronType = primal::Octahedron<double, 3>;
@@ -972,9 +974,8 @@ public:
     const TetrahedronType& tet,
     const TetOrOctType& piece)
   {
-    const TetrahedronType unitTet { {0,0,0}, {1,0,0}, {0,1,0}, {0,0,1} };
-    axom::primal::experimental::CoordinateTransformer
-      toUnitTet(tet.vertices(), unitTet.vertices());
+    Point3DType unitTet[] = { {0,0,0}, {1,0,0}, {0,1,0}, {0,0,1} };
+    axom::primal::experimental::CoordinateTransformer toUnitTet(&tet[0], unitTet);
 
     /*
      * Count (transformed) piece vertices above/below unitTet as unitTet
