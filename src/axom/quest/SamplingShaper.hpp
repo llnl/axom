@@ -15,10 +15,8 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
-#include "axom/slam.hpp"
 #include "axom/primal.hpp"
 #include "axom/mint.hpp"
-#include "axom/spin.hpp"
 #include "axom/klee.hpp"
 
 #ifndef AXOM_USE_MFEM

@@ -27,6 +27,7 @@
 #include "axom/sidre.hpp"
 #include "axom/klee.hpp"
 #include "axom/quest.hpp"
+#include "axom/quest/detail/clipping/Plane3DClipper.hpp"
 #include "axom/quest/detail/clipping/TetClipper.hpp"
 
 #include "axom/fmt.hpp"
@@ -101,7 +102,7 @@ public:
   // The shape to run.
   std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
-  const std::set<std::string> availableShapes {"tet"};  // More geometries to come.
+  const std::set<std::string> availableShapes {"tet", "plane"};
 
   RuntimePolicy policy {RuntimePolicy::seq};
   int refinementLevel {7};
@@ -109,6 +110,8 @@ public:
   std::string annotationMode {"none"};
 
   std::string backgroundMaterial;
+
+  int screenLevel = -1;
 
   // clang-format off
   enum class MeshType { bpSidre = 0, bpConduit = 1 };
@@ -137,10 +140,14 @@ public:
 
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
+    app.add_option("--screenLevel", screenLevel)
+      ->description("Developer feature for MeshClipper.")
+      ->capture_default_str();
+
     app.add_option("-o,--outputFile", outputFile)->description("Path to output file(s)");
 
     app.add_flag("-v,--verbose,!--no-verbose", m_verboseOutput)
-      ->description("Enable/disable verbose output")
+      ->description("Enable/disable verbose output, including SLIC_DEBUG")
       ->capture_default_str();
 
     app.add_option("--meshType", meshType)
@@ -270,7 +277,8 @@ const std::string matsetName = "matset";
 const std::string coordsetName = "coords";
 int cellCount = -1;
 // Translation to individual octants (override) when running multiple shapes.
-// Except that the plane is never moved.
+// Exception: the plane always placed at origin to facilitate finding its
+// exact overlap volume.
 const double tDist = 0.9;  // Bias toward origin to help keep shape inside domain.
 std::vector<axom::NumericArray<double, 3>> translations {{tDist, tDist, -tDist},
                                                          {-tDist, tDist, -tDist},
@@ -387,6 +395,7 @@ void initializeLogger()
 #ifdef AXOM_USE_MPI
   int num_ranks = 1;
   MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+  SLIC_ERROR_IF(num_ranks > 1, "Sorry, this test is serial.");
   if(num_ranks > 1)
   {
     std::string fmt = "[<RANK>][<LEVEL>]: <MESSAGE>\n";
@@ -417,6 +426,32 @@ void finalizeLogger()
   }
 }
 
+double volumeOfTetMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& tetMesh)
+{
+  using TetType = axom::primal::Tetrahedron<double, 3>;
+  axom::StackArray<axom::IndexType, 1> nodesShape {tetMesh.getNumberOfNodes()};
+  axom::ArrayView<const double> x(tetMesh.getCoordinateArray(0), nodesShape);
+  axom::ArrayView<const double> y(tetMesh.getCoordinateArray(1), nodesShape);
+  axom::ArrayView<const double> z(tetMesh.getCoordinateArray(2), nodesShape);
+  const axom::IndexType tetCount = tetMesh.getNumberOfCells();
+  axom::Array<double> tetVolumes(tetCount, tetCount);
+  double meshVolume = 0.0;
+  for(axom::IndexType ic = 0; ic < tetCount; ++ic)
+  {
+    const axom::IndexType* nodeIds = tetMesh.getCellNodeIDs(ic);
+    TetType tet;
+    for(int j = 0; j < 4; ++j)
+    {
+      auto cornerNodeId = nodeIds[j];
+      tet[j][0] = x[cornerNodeId];
+      tet[j][1] = y[cornerNodeId];
+      tet[j][2] = z[cornerNodeId];
+    }
+    meshVolume += tet.volume();
+  }
+  return meshVolume;
+}
+
 axom::klee::Geometry createGeom_Tet(const std::string& geomName)
 {
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
@@ -441,6 +476,36 @@ axom::klee::Geometry createGeom_Tet(const std::string& geomName)
   axom::klee::Geometry tetGeometry(prop, tet, compositeOp);
 
   return tetGeometry;
+}
+
+axom::klee::Geometry createGeom_Plane(const std::string& geomName)
+{
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  // Create a plane crossing center of mesh.  No matter the normal,
+  // it cuts the mesh in half.
+  Point3D center {0.5 *
+                  (axom::NumericArray<double, 3>(params.boxMins.data()) +
+                   axom::NumericArray<double, 3>(params.boxMaxs.data()))};
+  primal::Vector<double, 3> normal = params.direction.empty()
+    ? primal::Vector3D {1.0, 0.0, 0.0}
+    : primal::Vector3D {params.direction.data()}.unitVector();
+  const primal::Plane<double, 3> plane {normal, center, true};
+
+  axom::klee::Geometry planeGeometry(prop, plane, {nullptr});
+
+  // Exact mesh overlap volume, assuming plane passes through center of box mesh.
+  using Pt3D = primal::Point<double, 3>;
+  Pt3D lower(params.boxMins.data());
+  Pt3D upper(params.boxMaxs.data());
+  auto diag = upper.array() - lower.array();
+  double meshVolume = diag[0] * diag[1] * diag[2];
+  exactGeomVols[geomName] = 0.5 * meshVolume;
+  errorToleranceRel[geomName] = 1e-6;
+  errorToleranceAbs[geomName] = 1e-8;
+
+  return planeGeometry;
 }
 
 /*!
@@ -823,12 +888,16 @@ int main(int argc, char** argv)
     }
     std::string name = axom::fmt::format("{}.{}", tg, geomReps[tg]++);
 
-    if(tg == "tet")
+    if(tg == "plane")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::experimental::Plane3DClipper>(createGeom_Plane(name), name));
+    }
+    else if(tg == "tet")
     {
       geomStrategies.push_back(
         std::make_shared<axom::quest::experimental::TetClipper>(createGeom_Tet(name), name));
     }
-    // More geometries to come.
   }
 
   {
@@ -900,10 +969,18 @@ int main(int argc, char** argv)
 
     quest::experimental::MeshClipper clipper(sMesh, geomStrategies[i]);
     clipper.setVerbose(params.isVerbose());
+    if(params.screenLevel >= 0)
+    {
+      clipper.setScreenLevel(params.screenLevel);
+    }
+    SLIC_INFO(axom::fmt::format("MeshClipper screen level: {}", clipper.getScreenLevel()));
+
     axom::Array<double> ovlap;
     AXOM_ANNOTATE_BEGIN(annotationName);
     clipper.clip(ovlap);
     AXOM_ANNOTATE_END(annotationName);
+
+    clipper.logClippingStats();
 
     // Save volume fractions in mesh, for plotting and checking.
     sMesh.setMatsetFromVolume(geomStrategies[i]->name(), ovlap.view(), false);

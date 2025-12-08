@@ -337,6 +337,7 @@ endif()
 if((CONDUIT_FOUND OR
       (AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
         AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION))
+    AND RAJA_FOUND
     AND AXOM_ENABLE_KLEE)
     if(MFEM_FOUND)
         set(optional_dependency, "mfem")
@@ -368,7 +369,7 @@ if((CONDUIT_FOUND OR
             blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
         endif()
 
-        set(_testshapes "tetmesh" "tet" "hex" "sphere" "cyl" "cone" "sor" "all" "plane")
+        set(_testshapes "tetmesh" "tet" "hex" "sphere" "cyl" "cone" "sor" "plane" "tetmesh,tet,hex")
         foreach(_policy ${_policies})
             foreach(_testshape ${_testshapes})
               set(_testname "quest_shape_in_memory_${_policy}_${_testshape}")
@@ -377,11 +378,11 @@ if((CONDUIT_FOUND OR
                 COMMAND quest_shape_in_memory_ex
                            --policy ${_policy}
                            --testShape ${_testshape}
-                           --refinements 2
-                           --scale 0.75 0.75 0.75
-                           --dir 0.2 0.4 0.8
+                           --refinements 5
+                           --scale .99 .99 .99
+                           --dir 8 4 2
                            --meshType bpSidre
-                           inline_mesh --min -2 -2 -2 --max 2 2 2 --res 30 30 30
+                           inline_mesh --min -2 -2 -2 --max 2 2 2 --res 16 16 16
                 NUM_MPI_TASKS ${_nranks})
             endforeach()
         endforeach()
@@ -399,9 +400,9 @@ if((CONDUIT_FOUND OR
                   COMMAND quest_shape_in_memory_ex
                              --policy ${_policy}
                              --testShape ${_testshape}
-                             --refinements 2
-                             --scale 0.75 0.75 0.75
-                             --dir 0.2 0.4 0.8
+                             --refinements 5
+                             --scale .99 .99 .99
+                             --dir 8 4 2
                              --meshType ${_testMeshType}
                              inline_mesh --min -2 -2 -2 --max 2 2 2 --res 8 8 8
                   NUM_MPI_TASKS ${_nranks})

@@ -254,9 +254,11 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
       blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
     endif()
 
-    foreach(_meshType "bpSidre" "bpConduit")
+    set(_testgeoms "plane" "tet" "plane,tet")
+    set(_meshTypes "bpSidre" "bpConduit")
+    foreach(_meshType ${_meshTypes})
       foreach(_policy ${_policies})
-        foreach(_testgeom "tet")
+        foreach(_testgeom ${_testgeoms})
           set(_testname "quest_mesh_clipper_${_meshType}_${_policy}_${_testgeom}")
           axom_add_test(
             NAME ${_testname}

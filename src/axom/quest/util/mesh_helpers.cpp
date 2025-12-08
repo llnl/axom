@@ -239,30 +239,41 @@ axom::sidre::Group* make_unstructured_blueprint_box_mesh_2d(axom::sidre::Group* 
 
 void convert_blueprint_structured_explicit_to_unstructured_3d(axom::sidre::Group* meshGrp,
                                                               const std::string& topoName,
-                                                              axom::runtime_policy::Policy runtimePolicy)
+                                                              axom::runtime_policy::Policy runtimePolicy,
+                                                              const std::string& ugTopoName)
 {
   if(runtimePolicy == axom::runtime_policy::Policy::seq)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_3d<axom::SEQ_EXEC>(meshGrp, topoName);
+    convert_blueprint_structured_explicit_to_unstructured_3d_impl<axom::SEQ_EXEC>(
+      meshGrp,
+      topoName,
+      ugTopoName.empty() ? topoName : ugTopoName);
   }
   #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   if(runtimePolicy == axom::runtime_policy::Policy::omp)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_3d<axom::OMP_EXEC>(meshGrp, topoName);
+    convert_blueprint_structured_explicit_to_unstructured_3d_impl<axom::OMP_EXEC>(
+      meshGrp,
+      topoName,
+      ugTopoName.empty() ? topoName : ugTopoName);
   }
   #endif
   #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   if(runtimePolicy == axom::runtime_policy::Policy::cuda)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_3d<axom::CUDA_EXEC<256>>(meshGrp,
-                                                                                        topoName);
+    convert_blueprint_structured_explicit_to_unstructured_3d_impl<axom::CUDA_EXEC<256>>(
+      meshGrp,
+      topoName,
+      ugTopoName.empty() ? topoName : ugTopoName);
   }
   #endif
   #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   if(runtimePolicy == axom::runtime_policy::Policy::hip)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_3d<axom::HIP_EXEC<256>>(meshGrp,
-                                                                                       topoName);
+    convert_blueprint_structured_explicit_to_unstructured_3d_impl<axom::HIP_EXEC<256>>(
+      meshGrp,
+      topoName,
+      ugTopoName.empty() ? topoName : ugTopoName);
   }
   #endif
 }
@@ -273,57 +284,73 @@ void convert_blueprint_structured_explicit_to_unstructured_2d(axom::sidre::Group
 {
   if(runtimePolicy == axom::runtime_policy::Policy::seq)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_2d<axom::SEQ_EXEC>(meshGrp, topoName);
+    convert_blueprint_structured_explicit_to_unstructured_2d_impl<axom::SEQ_EXEC>(meshGrp, topoName);
   }
   #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   if(runtimePolicy == axom::runtime_policy::Policy::omp)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_2d<axom::OMP_EXEC>(meshGrp, topoName);
+    convert_blueprint_structured_explicit_to_unstructured_2d_impl<axom::OMP_EXEC>(meshGrp, topoName);
   }
   #endif
   #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   if(runtimePolicy == axom::runtime_policy::Policy::cuda)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_2d<axom::CUDA_EXEC<256>>(meshGrp,
+    convert_blueprint_structured_explicit_to_unstructured_2d_impl<axom::CUDA_EXEC<256>>(meshGrp,
                                                                                         topoName);
   }
   #endif
   #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   if(runtimePolicy == axom::runtime_policy::Policy::hip)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_2d<axom::HIP_EXEC<256>>(meshGrp,
+    convert_blueprint_structured_explicit_to_unstructured_2d_impl<axom::HIP_EXEC<256>>(meshGrp,
                                                                                        topoName);
   }
   #endif
 }
 
 template <typename ExecSpace>
-void convert_blueprint_structured_explicit_to_unstructured_impl_3d(axom::sidre::Group* meshGrp,
-                                                                   const std::string& topoName)
+void convert_blueprint_structured_explicit_to_unstructured_3d_impl(axom::sidre::Group* meshGrp,
+                                                                   const std::string& topoName,
+                                                                   const std::string& ugTopoName)
 {
   AXOM_ANNOTATE_SCOPE("convert_to_unstructured");
   // Note: MSVC required `static` to pass DIM to the axom::for_all w/ C++14
   // this restriction might be lifted w/ C++17
   static constexpr int DIM = 3;
 
-  const std::string& coordsetName =
-    meshGrp->getView("topologies/" + topoName + "/coordset")->getString();
+  sidre::Group* topologiesGrp = meshGrp->getGroup("topologies");
+  axom::sidre::Group* topoGrp = topologiesGrp->getGroup(topoName);
+  axom::sidre::Group* ugTopoGrp =
+    ugTopoName == topoName ? topoGrp : topologiesGrp->createGroup(ugTopoName);
+
+  const std::string& coordsetName = topoGrp->getView("coordset")->getString();
 
   sidre::Group* coordsetGrp = meshGrp->getGroup("coordsets")->getGroup(coordsetName);
   SLIC_ASSERT(std::string(coordsetGrp->getView("type")->getString()) == "explicit");
 
-  axom::sidre::Group* topoGrp = meshGrp->getGroup("topologies")->getGroup(topoName);
-  axom::sidre::View* topoTypeView = topoGrp->getView("type");
-  SLIC_ASSERT(std::string(topoTypeView->getString()) == "structured");
-  topoTypeView->setString("unstructured");
-  topoGrp->createView("elements/shape")->setString("hex");
+  if(!ugTopoGrp->hasView("coordset"))
+  {
+    ugTopoGrp->createViewString("coordset", coordsetName);
+  }
+  else
+  {
+    SLIC_ASSERT(ugTopoGrp->getView("coordset")->isString());
+    SLIC_ASSERT(std::string(ugTopoGrp->getView("coordset")->getString()) == coordsetName);
+  }
+
+  SLIC_ASSERT(std::string(topoGrp->getView("type")->getString()) == "structured");
+  axom::sidre::View* ugTopoTypeView =
+    ugTopoGrp == topoGrp ? ugTopoGrp->getView("type") : ugTopoGrp->createView("type");
+  ugTopoTypeView->setString("unstructured");
+  axom::sidre::View* shapeView = ugTopoGrp->createView("elements/shape");
+  shapeView->setString("hex");
 
   axom::sidre::Group* topoElemGrp = topoGrp->getGroup("elements");
   axom::sidre::Group* topoDimsGrp = topoElemGrp->getGroup("dims");
 
   // Assuming no ghost, but we should eventually support ghosts.
-  SLIC_ASSERT(!topoGrp->hasGroup("elements/offsets"));
-  SLIC_ASSERT(!topoGrp->hasGroup("elements/strides"));
+  SLIC_ASSERT(!topoElemGrp->hasGroup("offsets"));
+  SLIC_ASSERT(!topoElemGrp->hasGroup("strides"));
 
   const axom::StackArray<axom::IndexType, DIM> cShape {
     axom::IndexType(topoDimsGrp->getView("i")->getNode().to_value()),
@@ -335,10 +362,10 @@ void convert_blueprint_structured_explicit_to_unstructured_impl_3d(axom::sidre::
 
   const axom::StackArray<axom::IndexType, 2> connShape {cCount, 8};
   axom::sidre::View* connView =
-    topoGrp->createViewWithShapeAndAllocate("elements/connectivity",
-                                            axom::sidre::detail::SidreTT<axom::IndexType>::id,
-                                            2,
-                                            connShape.begin());
+    ugTopoGrp->createViewWithShapeAndAllocate("elements/connectivity",
+                                              axom::sidre::detail::SidreTT<axom::IndexType>::id,
+                                              2,
+                                              connShape.begin());
   axom::ArrayView<axom::IndexType, 2> connArrayView(
     static_cast<axom::IndexType*>(connView->getVoidPtr()),
     connShape);
@@ -370,15 +397,15 @@ void convert_blueprint_structured_explicit_to_unstructured_impl_3d(axom::sidre::
   {
     AXOM_ANNOTATE_BEGIN("add_extra");
     /*
-      Constructing a mint mesh from meshGrp fails unless we add some
-      extra data.  Blueprint doesn't require this extra data.  (The mesh
-      passes conduit's Blueprint verification.)  This should be fixed,
-      or we should write better blueprint support utilities.
+     * Constructing a mint mesh from meshGrp fails unless we add some
+     * extra data.  Blueprint doesn't require this extra data.  (The mesh
+     * passes conduit's Blueprint verification.)  This should be fixed,
+     * or we should write better blueprint support utilities.
     */
     /*
-      Make the coordinate arrays 2D to use mint::Mesh.
-      For some reason, mint::Mesh requires the arrays to be
-      2D, even though the second dimension is always 1.
+     * Make the coordinate arrays 2D to use mint::Mesh.
+     * For some reason, mint::Mesh requires the arrays to be
+     * 2D, even though the second dimension is always 1.
     */
     axom::IndexType curShape[2];
     int curDim;
@@ -391,7 +418,7 @@ void convert_blueprint_structured_explicit_to_unstructured_impl_3d(axom::sidre::
     valuesGrp->getView("z")->reshapeArray(2, vertsShape);
 
     // Make connectivity array 2D for the same reason.
-    auto* elementsGrp = topoGrp->getGroup("elements");
+    auto* elementsGrp = ugTopoGrp->getGroup("elements");
     auto* connView = elementsGrp->getView("connectivity");
     curDim = connView->getShape(2, curShape);
     constexpr axom::IndexType NUM_VERTS_PER_HEX = 8;
@@ -406,8 +433,6 @@ void convert_blueprint_structured_explicit_to_unstructured_impl_3d(axom::sidre::
     // mint::Mesh requires connectivity strides, even though Blueprint doesn't.
     elementsGrp->createViewScalar("stride", NUM_VERTS_PER_HEX);
 
-    // mint::Mesh requires field group, even though Blueprint doesn't.
-    meshGrp->createGroup("fields");
     AXOM_ANNOTATE_END("add_extra");
   }
 
@@ -423,7 +448,7 @@ void convert_blueprint_structured_explicit_to_unstructured_impl_3d(axom::sidre::
 }
 
 template <typename ExecSpace>
-void convert_blueprint_structured_explicit_to_unstructured_impl_2d(axom::sidre::Group* meshGrp,
+void convert_blueprint_structured_explicit_to_unstructured_2d_impl(axom::sidre::Group* meshGrp,
                                                                    const std::string& topoName)
 {
   AXOM_ANNOTATE_SCOPE("convert_to_unstructured");
@@ -494,15 +519,15 @@ void convert_blueprint_structured_explicit_to_unstructured_impl_2d(axom::sidre::
   {
     AXOM_ANNOTATE_SCOPE("add_extra");
     /*
-      Constructing a mint mesh from meshGrp fails unless we add some
-      extra data.  Blueprint doesn't require this extra data.  (The mesh
-      passes conduit's Blueprint verification.)  This should be fixed,
-      or we should write better blueprint support utilities.
+     * Constructing a mint mesh from meshGrp fails unless we add some
+     * extra data.  Blueprint doesn't require this extra data.  (The mesh
+     * passes conduit's Blueprint verification.)  This should be fixed,
+     * or we should write better blueprint support utilities.
     */
     /*
-      Make the coordinate arrays 2D to use mint::Mesh.
-      For some reason, mint::Mesh requires the arrays to be
-      2D, even though the second dimension is always 1.
+     * Make the coordinate arrays 2D to use mint::Mesh.
+     * For some reason, mint::Mesh requires the arrays to be
+     * 2D, even though the second dimension is always 1.
     */
     axom::IndexType curShape[2] = {};
     auto* valuesGrp = coordsetGrp->getGroup("values");
@@ -525,9 +550,6 @@ void convert_blueprint_structured_explicit_to_unstructured_impl_2d(axom::sidre::
     // mint::Mesh requires connectivity strides, even though Blueprint doesn't.
     constexpr axom::IndexType BIT_SPECIFIC_NUM_VERTS_PER_QUAD = 4;
     elementsGrp->createViewScalar("stride", BIT_SPECIFIC_NUM_VERTS_PER_QUAD);
-
-    // mint::Mesh requires field group, even though Blueprint doesn't.
-    meshGrp->createGroup("fields");
   }
 
   return;

@@ -150,11 +150,14 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
         if(RAJA_FOUND)
             list(APPEND quest_headers MeshClipper.hpp
                                       MeshClipperStrategy.hpp
+                                      detail/clipping/Plane3DClipper.hpp
                                       detail/clipping/TetClipper.hpp
                                       detail/clipping/MeshClipperImpl.hpp)
             list(APPEND quest_sources MeshClipper.cpp
+                                      MeshClipperStrategy.cpp
+                                      detail/clipping/Plane3DClipper.cpp
                                       detail/clipping/TetClipper.cpp
-                                      MeshClipperStrategy.cpp)
+                                      detail/clipping/MeshClipperImpl.hpp)
         endif()
     endif()
 

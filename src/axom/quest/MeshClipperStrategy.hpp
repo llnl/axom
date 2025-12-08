@@ -53,12 +53,13 @@ namespace experimental
  * false if it was a no-op.
 
  * Subclasses of MeshClipperStrategy must implement either
- * - a @c specializedClipCells method or
+ * - a @c specializedClipCells or @c specializedClipTets method or
  * - one of the @c getShapesAs...() methods.
  * The former is prefered if the use of geometry-specific information
- * can make it faster.  @c labelCellsInOut is optional but if provided,
- * it can improve performance by limiting the slower clipping steps
- * to a subset of cells.  @c getBoundingBox2D or @c getBoundingBox3D
+ * can make it faster.  @c labelCellsInOut and @c labelTetsInOut
+ * are optional but if provided,
+ * they can improve performance by limiting the slower clipping steps
+ * to a smaller subset.  @c getBoundingBox2D or @c getBoundingBox3D
  * can also improve performance by reducing computation.
 */
 class MeshClipperStrategy
@@ -95,9 +96,8 @@ public:
   using Ray2DType = axom::primal::Ray<double, 2>;
   using Segment2DType = axom::primal::Segment<double, 2>;
 
-  //!@brief Number of tetrahedra per hexahedron decomposes into
-  // @internal We could use a more efficient 18-tet decomposition in the future.
   static constexpr axom::IndexType NUM_TETS_PER_HEX = ShapeMesh::NUM_TETS_PER_HEX;
+  static constexpr axom::IndexType NUM_VERTS_PER_CELL_3D = ShapeMesh::NUM_VERTS_PER_CELL_3D;
 
   /*!
    * @brief Construct a strategy for the given klee::Geometry object.
@@ -164,6 +164,9 @@ public:
    * skip if it's not.  It's safe to label cells as on the boundary if
    * it can't be positively determined as inside or outside.
    *
+   * Degenerate cells have zero volume and should be labeled outside
+   * for best clipping performance.
+   *
    * @return Whether the operation was done.  (A false means
    * not done.)
    *
@@ -191,9 +194,13 @@ public:
    *
    * Indices [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX) in \c tetLabels
    * correspond to parent cell index \c c = \c cellIds[i].
-   * The \c NUM_TETS_PER_HEX tets in cell \c cid have indices
+   *
+   * The \c NUM_TETS_PER_HEX tets in cell \c c have indices
    * [c*NUM_TETS_PER_HEX, (c+1)*NUM_TETS_PER_HEX).
    * in \c shapeMesh.getCellsAsTets().
+   *
+   * Degenerate tets have zero volume and should be labeled outside
+   * for best clipping performance.
    *
    * If implementation returns true, it should ensure these
    * post-conditions hold:
@@ -219,6 +226,8 @@ public:
    * @param [in] shapeMesh Blueprint mesh to shape into.
    * @param [out] ovlap Shape overlap volume of each cell
    *   in the \c shapeMesh.  It's initialized to zeros.
+   * @param [out] statistics Optional statistics to record
+   *   consisting of child nodes with integer values.
    *
    * The default implementation has no specialized method,
    * so it's a no-op and returns false.
@@ -231,16 +240,21 @@ public:
    * This method need not be implemented if labelCellsInOut()
    * returns true.
    *
+   * Setting the statistics is not required except for getting
+   * accurate statistics.
+   *
    * If implementation returns true, it should ensure these
    * post-conditions hold:
    * @post ovlap.size() == shapeMesh.getCellCount()
    * @post ovlap.getAllocatorID() == shapeMesh.getAllocatorId()
   */
   virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
-                                    axom::ArrayView<double> ovlap)
+                                    axom::ArrayView<double> ovlap,
+                                    conduit::Node& statistics)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
+    AXOM_UNUSED_VAR(statistics);
     return false;
   }
 
@@ -253,17 +267,23 @@ public:
    *   in \c shapeMesh, initialized to the cell volumes
    *   for cell inside the shape and zero for other cells.
    * @param [in] cellIds Limit computation to these cell ids.
+   * @param [out] statistics Optional statistics to record
+   *   consisting of child nodes with integer values.
    *
    * The default implementation has no specialized method,
    * so it's a no-op and returns false.
    *
-   * If this method returns false, then exactly one of the
-   * shape discretization methods must be provided.
+   * If this method returns false, then exactly one of
+   * getGeometryAsTets() or getGeometryAsOcts() methods must be
+   * provided so MeshClipper can use the general clipping methods.
    *
    * @return True if clipping was done and false if a no-op.
    *
    * This method need not be implemented if labelCellsInOut()
    * returns false.
+   *
+   * Setting the statistics is not required except for getting
+   * accurate statistics.
    *
    * @pre @c ovlap is pre-initialized for the implementation
    * to add or subtract partial volumes to individual cells.
@@ -275,11 +295,13 @@ public:
   */
   virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::ArrayView<double> ovlap,
-                                    const axom::ArrayView<IndexType>& cellIds)
+                                    const axom::ArrayView<IndexType>& cellIds,
+                                    conduit::Node& statistics)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
     AXOM_UNUSED_VAR(cellIds);
+    AXOM_UNUSED_VAR(statistics);
     return false;
   }
 
@@ -293,19 +315,27 @@ public:
    *   done so far.  Clip volumes computed by this method should
    *   be added to the current values in this array.
    *
+   * @param [out] statistics Optional statistics to record
+   *   consisting of child nodes with integer values.
+   *
    * @param [in] tetIds Indices of tets to clip, referring to the
    * shapeMesh.getCellsAsTets() array.  tetIds[i] is the
    * \c (tetIds[i]%NUM_TETS_PER_HEX)-th tetrahedron of cell
    * \c = \c tetIds[i]/NUM_TETS_PER_HEX.  Its overlap volume should
    * be added to \c ovlap[c].
+   *
+   * Setting the statistics is not required except for getting
+   * accurate statistics.
    */
   virtual bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
                                    axom::ArrayView<double> ovlap,
-                                   const axom::ArrayView<IndexType>& tetIds)
+                                   const axom::ArrayView<IndexType>& tetIds,
+                                   conduit::Node& statistics)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
     AXOM_UNUSED_VAR(tetIds);
+    AXOM_UNUSED_VAR(statistics);
     return false;
   }
 
@@ -313,8 +343,8 @@ public:
    * @brief Get the geometry as discrete tetrahedra, or return false.
    *
    * @param [in] shapeMesh Blueprint mesh to shape into.
-   * @param [out] tets Array of tetrahedra filling the space of the shape,
-   * fully transformed.
+   * @param [out] tets Array of non-degenerate tetrahedra filling the
+   *   space of the shape, fully transformed.
    *
    * Subclasses implementing this routine should snap to zero any
    * output vertex coordinate that is close to zero.
@@ -338,8 +368,8 @@ public:
    * @brief Get the geometry as discrete octahedra, or return false.
    *
    * @param [in] shapeMesh Blueprint mesh to shape into.
-   * @param [out] octs Array of octahedra filling the space of the shape,
-   * fully transformed.
+   * @param [out] tets Array of non-degenerate octahedra filling the
+   *   space of the shape, fully transformed.
    *
    * Subclasses implementing this routine should snap to zero any
    * output vertex coordinate that is close to zero.
