@@ -164,7 +164,8 @@ public:
    * skip if it's not.  It's safe to label cells as on the boundary if
    * it can't be positively determined as inside or outside.
    *
-   * Degenerate cells have zero valume and should be labeled outside.
+   * Degenerate cells have zero volume and should be labeled outside
+   * for best clipping performance.
    *
    * @return Whether the operation was done.  (A false means
    * not done.)
@@ -198,7 +199,8 @@ public:
    * [c*NUM_TETS_PER_HEX, (c+1)*NUM_TETS_PER_HEX).
    * in \c shapeMesh.getCellsAsTets().
    *
-   * Degenerate tets have zero valume and should be labeled outside.
+   * Degenerate tets have zero volume and should be labeled outside
+   * for best clipping performance.
    *
    * If implementation returns true, it should ensure these
    * post-conditions hold:
@@ -238,7 +240,7 @@ public:
    * This method need not be implemented if labelCellsInOut()
    * returns true.
    *
-   * Setting the counters is not required except for getting
+   * Setting the statistics is not required except for getting
    * accurate statistics.
    *
    * If implementation returns true, it should ensure these
@@ -280,7 +282,7 @@ public:
    * This method need not be implemented if labelCellsInOut()
    * returns false.
    *
-   * Setting the counters is not required except for getting
+   * Setting the statistics is not required except for getting
    * accurate statistics.
    *
    * @pre @c ovlap is pre-initialized for the implementation
@@ -322,7 +324,7 @@ public:
    * \c = \c tetIds[i]/NUM_TETS_PER_HEX.  Its overlap volume should
    * be added to \c ovlap[c].
    *
-   * Setting the counters is not required except for getting
+   * Setting the statistics is not required except for getting
    * accurate statistics.
    */
   virtual bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,

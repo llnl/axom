@@ -335,18 +335,19 @@ public:
           const int tetIndex = tetIndicesView[i];
 
           // Skip degenerate mesh tets.
-          // TODO: verify that we don't need this, it's done by the tet labling code.
+          // Tet screening can filter out degenerate tets, but this method
+          // assumes no tet screening.
           if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10))
             { return; }
 
           const int cellId = hexIndicesView[i];
           const int pieceId = shapeCandidatesView[i];
-          const auto& tet = cellsAsTets[tetIndex];
+          const auto& cellTet = cellsAsTets[tetIndex];
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
 
           double volume = 0.0;
           LabelType tmpLabel =
-            computeMeshTetGeomPieceOverlap(tet, geomPiece, volume, screenLevel);
+            computeMeshTetGeomPieceOverlap(cellTet, geomPiece, volume, screenLevel);
           if(tmpLabel == LabelType::LABEL_IN || tmpLabel == LabelType::LABEL_ON)
           {
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
@@ -370,13 +371,13 @@ public:
             { return; }
 
           const int cellId = hexIndicesView[i];
-          const auto& tet = cellsAsTets[tetIndex];
+          const auto& cellTet = cellsAsTets[tetIndex];
           const int pieceId = shapeCandidatesView[i];
           const OctahedronType& geomPiece = geomOctsView[pieceId];
 
           double volume = 0.0;
           LabelType tmpLabel =
-            computeMeshTetGeomPieceOverlap(tet, geomPiece, volume, screenLevel);
+            computeMeshTetGeomPieceOverlap(cellTet, geomPiece, volume, screenLevel);
           if(tmpLabel == LabelType::LABEL_IN || tmpLabel == LabelType::LABEL_ON)
           {
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
@@ -559,6 +560,8 @@ public:
             tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
           // Skip degenerate mesh tets.
+          // Tet screening can filter out degenerate tets, but this method
+          // assumes no tet screening.
           if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10))
             { return; }
 
@@ -729,7 +732,6 @@ public:
     const auto screenLevel = m_myClipper.getScreenLevel();
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_tetScreened");
-    const TetrahedronType unitTet { {0,0,0}, {1,0,0}, {0,1,0}, {0,0,1} };
     if(useTets)
     {
       axom::for_all<ExecSpace>(
@@ -738,13 +740,8 @@ public:
           auto tetIdId = candToTetIdIdView[iCand];
           auto tetId = tetIndices[tetIdId];
 
-          // Skip degenerate mesh tets.
-          if(axom::utilities::isNearlyEqual(meshTetVolumes[tetId], 0.0, 1e-10))
-            { return; }
-
           auto cellId = tetId / NUM_TETS_PER_HEX;
           auto pieceId = candidatesView[iCand];
-
           const auto& meshTet = meshTets[tetId];
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
 
@@ -769,10 +766,6 @@ public:
         AXOM_LAMBDA(axom::IndexType iCand) {
           auto tetIdId = candToTetIdIdView[iCand];
           auto tetId = tetIndices[tetIdId];
-
-          // Skip degenerate mesh tets.
-          if(axom::utilities::isNearlyEqual(meshTetVolumes[tetId], 0.0, EPS))
-            { return; }
 
           auto cellId = tetId / NUM_TETS_PER_HEX;
           auto pieceId = candidatesView[iCand];
@@ -980,7 +973,9 @@ public:
     const TetOrOctType& piece)
   {
     const TetrahedronType unitTet { {0,0,0}, {1,0,0}, {0,1,0}, {0,0,1} };
-    axom::primal::experimental::CoordinateTransformer toUnitTet(tet.vertices(), unitTet.vertices());
+    axom::primal::experimental::CoordinateTransformer
+      toUnitTet(tet.vertices(), unitTet.vertices());
+
     /*
      * Count (transformed) piece vertices above/below unitTet as unitTet
      * rests on its 4 sides.  Sides 0-2 are perpendicular to the axes.
