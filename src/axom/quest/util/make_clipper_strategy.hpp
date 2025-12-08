@@ -11,8 +11,8 @@
 // MeshClipper depends on sidre
 #ifdef AXOM_USE_SIDRE
 
-#include "axom/klee/Geometry.hpp"
-#include "axom/quest/MeshClipperStrategy.hpp"
+  #include "axom/klee/Geometry.hpp"
+  #include "axom/quest/MeshClipperStrategy.hpp"
 
 namespace axom
 {

@@ -55,14 +55,15 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh, axom::Array<LabelType>& label) override;
+  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh,
+                       axom::Array<LabelType>& label) override;
 
-  bool labelTetsInOut(
-    quest::experimental::ShapeMesh& shapeMesh,
-    axom::ArrayView<const axom::IndexType> cellIds,
-    axom::Array<LabelType>& tetLabels) override;
+  bool labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                      axom::ArrayView<const axom::IndexType> cellIds,
+                      axom::Array<LabelType>& tetLabels) override;
 
-  bool getGeometryAsOcts(quest::experimental::ShapeMesh& shappeMesh, axom::Array<OctahedronType>& octs) override;
+  bool getGeometryAsOcts(quest::experimental::ShapeMesh& shappeMesh,
+                         axom::Array<OctahedronType>& octs) override;
 
   axom::ArrayView<const Point2DType> getSorCurve() const { return m_sorCurve.view(); }
 
@@ -156,27 +157,23 @@ private:
                            axom::ArrayView<LabelType> label);
 
   template <typename ExecSpace>
-  void labelTetsInOutImpl(
-    quest::experimental::ShapeMesh& shapeMesh,
-    axom::ArrayView<const axom::IndexType> cellIds,
-    axom::ArrayView<LabelType> tetLabels);
+  void labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                          axom::ArrayView<const axom::IndexType> cellIds,
+                          axom::ArrayView<LabelType> tetLabels);
 
   template <typename ExecSpace>
-  void computeCurveBoxes(
-    quest::experimental::ShapeMesh& shapeMesh,
-    axom::Array<BoundingBox2DType>& bbOn,
-    axom::Array<BoundingBox2DType>& bbUnder);
+  void computeCurveBoxes(quest::experimental::ShapeMesh& shapeMesh,
+                         axom::Array<BoundingBox2DType>& bbOn,
+                         axom::Array<BoundingBox2DType>& bbUnder);
 
   /*!
    * @brief Compute 2D bounding box of a polyhedron in the r-z plane.
    * @tparam PolyhedronType Either TetrahedronType or HexahedronType.
    */
   template <typename PolyhedronType>
-  AXOM_HOST_DEVICE
-  BoundingBox2DType estimateBoundingBoxInRz(const PolyhedronType& vertices);
+  AXOM_HOST_DEVICE BoundingBox2DType estimateBoundingBoxInRz(const PolyhedronType& vertices);
 
-  AXOM_HOST_DEVICE inline
-  MeshClipperStrategy::LabelType rzBbToLabel(
+  AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType rzBbToLabel(
     const BoundingBox2DType& bbInRz,
     const axom::ArrayView<const BoundingBox2DType>& bbOn,
     const axom::ArrayView<const BoundingBox2DType>& bbUnder);
@@ -195,17 +192,15 @@ private:
    *   axis of symmetry exceeds this value.
    * @param minDz [in] Don't subdivide segments below this dz.
    */
-  axom::Array<Point2DType> subdivideCurve(
-    const Array<Point2DType>& sorCurveIn,
-    double maxMean,
-    double maxDz,
-    double minDz);
+  axom::Array<Point2DType> subdivideCurve(const Array<Point2DType>& sorCurveIn,
+                                          double maxMean,
+                                          double maxDz,
+                                          double minDz);
 
   //!@brief Compute geometry as octs, by policy.
   template <typename ExecSpace>
-  bool getGeometryAsOctsImpl(
-    quest::experimental::ShapeMesh& shappeMesh,
-    axom::Array<OctahedronType>& octs);
+  bool getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shappeMesh,
+                             axom::Array<OctahedronType>& octs);
 };
 
 }  // namespace experimental

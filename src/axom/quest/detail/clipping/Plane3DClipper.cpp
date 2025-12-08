@@ -63,7 +63,7 @@ bool Plane3DClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
 {
   int allocId = shapeMesh.getAllocatorID();
   const auto cellCount = cellIds.size();
-  const auto tetCount = cellCount*NUM_TETS_PER_HEX;
+  const auto tetCount = cellCount * NUM_TETS_PER_HEX;
   if(tetLabels.size() < tetCount || tetLabels.getAllocatorID() != allocId)
   {
     tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), tetCount, tetCount, allocId);
@@ -245,8 +245,9 @@ void Plane3DClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
         hasIn |= isIn;
         hasOut |= !isIn;
       }
-      labels[cellId] =
-        !hasOut ? LabelType::LABEL_IN : !hasIn ? LabelType::LABEL_OUT : LabelType::LABEL_ON;
+      labels[cellId] = !hasOut ? LabelType::LABEL_IN
+        : !hasIn               ? LabelType::LABEL_OUT
+                               : LabelType::LABEL_ON;
     });
 
   return;
@@ -297,8 +298,9 @@ void Plane3DClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
           hasIn |= signedDist > 0;
           hasOut |= signedDist < 0;
         }
-        tetLabel =
-          !hasOut ? LabelType::LABEL_IN : !hasIn ? LabelType::LABEL_OUT : LabelType::LABEL_ON;
+        tetLabel = !hasOut ? LabelType::LABEL_IN
+          : !hasIn         ? LabelType::LABEL_OUT
+                           : LabelType::LABEL_ON;
       }
     });
 
@@ -313,11 +315,7 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
   axom::IndexType cellCount = shapeMesh.getCellCount();
   axom::Array<IndexType> cellIds(cellCount, cellCount, shapeMesh.getAllocatorID());
   auto cellIdsView = cellIds.view();
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType i) {
-      cellIdsView[i] = i;
-    });
+  axom::for_all<ExecSpace>(cellCount, AXOM_LAMBDA(axom::IndexType i) { cellIdsView[i] = i; });
   specializedClipCellsImpl<ExecSpace>(shapeMesh, ovlap, cellIds, statistics);
 }
 
@@ -338,7 +336,7 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
 
   const std::int64_t zero = 0;
   std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
-  std::int64_t *contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
+  std::int64_t* contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
   axom::copy(contribCountPtr, &contribCount, sizeof(zero));
 
   axom::for_all<ExecSpace>(
@@ -364,11 +362,10 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
 }
 
 template <typename ExecSpace>
-void Plane3DClipper::specializedClipTetsImpl(
-  quest::experimental::ShapeMesh& shapeMesh,
-  axom::ArrayView<double> ovlap,
-  const axom::ArrayView<IndexType>& tetIds,
-  conduit::Node& statistics)
+void Plane3DClipper::specializedClipTetsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                             axom::ArrayView<double> ovlap,
+                                             const axom::ArrayView<IndexType>& tetIds,
+                                             conduit::Node& statistics)
 {
   constexpr double EPS = 1e-10;
   using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
@@ -381,14 +378,14 @@ void Plane3DClipper::specializedClipTetsImpl(
 
   const std::int64_t zero = 0;
   std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
-  std::int64_t *contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
+  std::int64_t* contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
   axom::copy(contribCountPtr, &contribCount, sizeof(zero));
 
   axom::for_all<ExecSpace>(
     tetCount,
     AXOM_LAMBDA(axom::IndexType ti) {
       axom::IndexType tetId = tetIds[ti];
-      axom::IndexType cellId = tetId/NUM_TETS_PER_HEX;
+      axom::IndexType cellId = tetId / NUM_TETS_PER_HEX;
       const auto& tet = meshTets[tetId];
       primal::Polyhedron<double, 3> overlap = primal::clip(tet, plane, EPS);
       double vol = overlap.volume();

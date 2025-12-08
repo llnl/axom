@@ -849,8 +849,7 @@ template <typename ExecSpace>
 void ShapeMesh::computeTetVolumesImpl()
 {
   axom::IndexType tetCount = m_cellCount * NUM_TETS_PER_HEX;
-  m_tetVolumes =
-    axom::Array<double>(ArrayOptions::Uninitialized(), tetCount, tetCount, m_allocId);
+  m_tetVolumes = axom::Array<double>(ArrayOptions::Uninitialized(), tetCount, tetCount, m_allocId);
 
   auto cellsAsTets = getCellsAsTets();
 

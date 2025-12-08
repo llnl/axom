@@ -163,14 +163,12 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh
         const TetrahedronType& tet = cellTets[ti];
         tetLabel = polyhedronToLabel(tet, sphere);
       }
-
     });
   return;
 }
 
 template <typename Polyhedron>
-AXOM_HOST_DEVICE inline
-MeshClipperStrategy::LabelType SphereClipper::polyhedronToLabel(
+AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType SphereClipper::polyhedronToLabel(
   const Polyhedron& verts,
   const SphereType& sphere) const
 {
@@ -185,20 +183,28 @@ MeshClipperStrategy::LabelType SphereClipper::polyhedronToLabel(
   */
   BoundingBox3DType bb(verts[0]);
   auto vertCount = Polyhedron::numVertices();
-  for(int i = 1; i < vertCount; ++i) { bb.addPoint(verts[i]); }
+  for(int i = 1; i < vertCount; ++i)
+  {
+    bb.addPoint(verts[i]);
+  }
 
   const double sqRad = sphere.getRadius() * sphere.getRadius();
 
   double sqDistToBb = primal::squared_distance(sphere.getCenter(), bb);
 
-  if (sqDistToBb >= sqRad) { return LabelType::LABEL_OUT; }
+  if(sqDistToBb >= sqRad)
+  {
+    return LabelType::LABEL_OUT;
+  }
 
   for(int i = 0; i < vertCount; ++i)
   {
     const auto& vert = verts[i];
     double sqDistToVert = axom::primal::squared_distance(sphere.getCenter(), vert);
     if(sqDistToVert > sqRad)
-      { return LabelType::LABEL_ON; }
+    {
+      return LabelType::LABEL_ON;
+    }
   }
   return LabelType::LABEL_IN;
 }

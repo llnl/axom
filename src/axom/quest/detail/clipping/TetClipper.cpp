@@ -201,7 +201,7 @@ bool TetClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
 
   const int allocId = shapeMesh.getAllocatorID();
   const auto cellCount = cellIds.size();
-  const auto tetCount = cellCount*NUM_TETS_PER_HEX;
+  const auto tetCount = cellCount * NUM_TETS_PER_HEX;
   if(tetLabels.size() < tetCount || tetLabels.getAllocatorID() != allocId)
   {
     tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), tetCount, tetCount, allocId);
@@ -353,7 +353,7 @@ void TetClipper::extractClipperInfo()
   }
 
   bool fixOrientation = false;
-  if (m_info.has_child("fixOrientation"))
+  if(m_info.has_child("fixOrientation"))
   {
     fixOrientation = bool(m_info.fetch_existing("fixOrientation").as_int());
   }
@@ -368,9 +368,11 @@ void TetClipper::extractClipperInfo()
     double signedVol = m_tetBeforeTrans.signedVolume();
     if(signedVol < -EPS)
     {
-      SLIC_ERROR(axom::fmt::format("TetClipper tet {} has negative volume {}.:"
-                                   "  (See TetClipper's 'fixOrientation' flag.)",
-                                   m_tetBeforeTrans, signedVol));
+      SLIC_ERROR(
+        axom::fmt::format("TetClipper tet {} has negative volume {}.:"
+                          "  (See TetClipper's 'fixOrientation' flag.)",
+                          m_tetBeforeTrans,
+                          signedVol));
     }
   }
 }

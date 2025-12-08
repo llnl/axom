@@ -89,8 +89,7 @@ private:
 
   //!@brief Compute LabelType for a polyhedron (hex or tet in our case).
   template <typename Polyhedron>
-  AXOM_HOST_DEVICE inline
-  LabelType polyhedronToLabel(
+  AXOM_HOST_DEVICE inline LabelType polyhedronToLabel(
     const Polyhedron& verts,
     const BoundingBox3DType& vertsBb,
     const BoundingBox3DType& hexBb,

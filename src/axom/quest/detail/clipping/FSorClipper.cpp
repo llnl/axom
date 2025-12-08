@@ -144,16 +144,15 @@ bool FSorClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
   return true;
 }
 
-bool FSorClipper::labelTetsInOut(
-  quest::experimental::ShapeMesh& shapeMesh,
-  axom::ArrayView<const axom::IndexType> cellIds,
-  axom::Array<LabelType>& tetLabels)
+bool FSorClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                                 axom::ArrayView<const axom::IndexType> cellIds,
+                                 axom::Array<LabelType>& tetLabels)
 {
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "FSorClipper requires a 3D mesh.");
 
   const int allocId = shapeMesh.getAllocatorID();
   const auto cellCount = cellIds.size();
-  const auto tetCount = cellCount*NUM_TETS_PER_HEX;
+  const auto tetCount = cellCount * NUM_TETS_PER_HEX;
   if(tetLabels.size() < tetCount || tetLabels.getAllocatorID() != allocId)
   {
     tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), tetCount, tetCount, allocId);
@@ -225,10 +224,9 @@ void FSorClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
 }
 
 template <typename ExecSpace>
-void FSorClipper::labelTetsInOutImpl(
-  quest::experimental::ShapeMesh& shapeMesh,
-  axom::ArrayView<const axom::IndexType> cellIds,
-  axom::ArrayView<LabelType> labels)
+void FSorClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                     axom::ArrayView<const axom::IndexType> cellIds,
+                                     axom::ArrayView<LabelType> labels)
 {
   axom::Array<BoundingBox2DType> bbOn;
   axom::Array<BoundingBox2DType> bbUnder;
@@ -248,15 +246,17 @@ void FSorClipper::labelTetsInOutImpl(
       axom::IndexType cellId = cellIds[ci];
 
       HexahedronType hex = meshHexes[cellId];
-      for( int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
-        { invTransformer.transform(hex[vi].array()); }
+      for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
+      {
+        invTransformer.transform(hex[vi].array());
+      }
 
       TetrahedronType cellTets[NUM_TETS_PER_HEX];
       ShapeMesh::hexToTets(hex, cellTets);
 
       for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
-        axom::IndexType tetId = cellId*NUM_TETS_PER_HEX + ti;
+        axom::IndexType tetId = cellId * NUM_TETS_PER_HEX + ti;
         LabelType& tetLabel = labels[ci * NUM_TETS_PER_HEX + ti];
         if(axom::utilities::isNearlyEqual(tetVolumes[tetId], 0.0, EPS))
         {
@@ -280,8 +280,7 @@ void FSorClipper::labelTetsInOutImpl(
      intersect SOR between vertices.
 */
 template <typename PolyhedronType>
-AXOM_HOST_DEVICE
-FSorClipper::BoundingBox2DType FSorClipper::estimateBoundingBoxInRz(
+AXOM_HOST_DEVICE FSorClipper::BoundingBox2DType FSorClipper::estimateBoundingBoxInRz(
   const PolyhedronType& vertices)
 {
   FSorClipper::BoundingBox2DType bbInRz;
@@ -293,11 +292,10 @@ FSorClipper::BoundingBox2DType FSorClipper::estimateBoundingBoxInRz(
   for(IndexType vi = 0; vi < vertices.numVertices(); ++vi)
   {
     auto& vert = vertices[vi];
-    Point2DType vertOnXPlane { vert[1], vert[2] };
-    Point2DType vertOnRz { vert[0],
-                           std::sqrt(numerics::dot_product(vertOnXPlane.data(),
-                                                           vertOnXPlane.data(),
-                                                           2)) };
+    Point2DType vertOnXPlane {vert[1], vert[2]};
+    Point2DType vertOnRz {
+      vert[0],
+      std::sqrt(numerics::dot_product(vertOnXPlane.data(), vertOnXPlane.data(), 2))};
     bbInRz.addPoint(vertOnRz);
 
     double angle = atan2(vertOnXPlane[1], vertOnXPlane[0]);
@@ -312,7 +310,7 @@ FSorClipper::BoundingBox2DType FSorClipper::estimateBoundingBoxInRz(
     for the worst case.
   */
   double angleRange = maxAngle - minAngle;
-  double factor = angleRange > M_PI ? 0.0 : cos(angleRange/2);
+  double factor = angleRange > M_PI ? 0.0 : cos(angleRange / 2);
   auto newMin = bbInRz.getMin();
   newMin[1] *= factor;
   bbInRz.addPoint(newMin);
@@ -342,8 +340,7 @@ FSorClipper::BoundingBox2DType FSorClipper::estimateBoundingBoxInRz(
   We expect bbOn and bbUnder to be small arrays, so we use
   linear searches.  If that's too slow, we can use a BVH.
 */
-AXOM_HOST_DEVICE inline
-MeshClipperStrategy::LabelType FSorClipper::rzBbToLabel(
+AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType FSorClipper::rzBbToLabel(
   const BoundingBox2DType& bbInRz,
   const axom::ArrayView<const BoundingBox2DType>& bbOn,
   const axom::ArrayView<const BoundingBox2DType>& bbUnder)
@@ -359,8 +356,8 @@ MeshClipperStrategy::LabelType FSorClipper::rzBbToLabel(
     }
   }
 
-  if(label == LabelType::LABEL_OUT) {
-
+  if(label == LabelType::LABEL_OUT)
+  {
     for(const auto& bbUnder : bbUnder)
     {
       if(bbInRz.intersectsWith(bbUnder))
@@ -376,10 +373,9 @@ MeshClipperStrategy::LabelType FSorClipper::rzBbToLabel(
 /*
 */
 template <typename ExecSpace>
-void FSorClipper::computeCurveBoxes(
-  quest::experimental::ShapeMesh& shapeMesh,
-  axom::Array<BoundingBox2DType>& bbOn,
-  axom::Array<BoundingBox2DType>& bbUnder)
+void FSorClipper::computeCurveBoxes(quest::experimental::ShapeMesh& shapeMesh,
+                                    axom::Array<BoundingBox2DType>& bbOn,
+                                    axom::Array<BoundingBox2DType>& bbUnder)
 {
   /*
    * Compute bounding boxes bbOn, which cover the curve segments, and
@@ -407,7 +403,7 @@ void FSorClipper::computeCurveBoxes(
       characteristic length of mesh cells.
     - with memory from allocId.
   */
-  axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve, 3*avgCharLength, -1, -1);
+  axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve, 3 * avgCharLength, -1, -1);
   sorCurve = axom::Array<Point2DType>(sorCurve, allocId);
   auto sorCurveView = sorCurve.view();
 
@@ -454,11 +450,10 @@ void FSorClipper::computeCurveBoxes(
  * boxes for their size.  We do this by limiting the harmonic mean of
  * the r and z sides of the bounding boxes.
  */
-Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(
-  const Array<Point2DType>& sorCurveIn,
-  double maxMean,
-  double maxDz,
-  double minDz)
+Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(const Array<Point2DType>& sorCurveIn,
+                                                            double maxMean,
+                                                            double maxDz,
+                                                            double minDz)
 {
   Array<Point2DType> sorCurveOut;
 
@@ -488,8 +483,7 @@ Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(
     // Prevent dz from falling below minDz
     int numSplitsByMinDz = minDz < 0 ? 0 : static_cast<int>(std::ceil(segDz / minDz));
 
-    int numSplits = std::min(std::max(numSplitsByMean, numSplitsByDz),
-                             numSplitsByMinDz);
+    int numSplits = std::min(std::max(numSplitsByMean, numSplitsByDz), numSplitsByMinDz);
 
     for(int j = 1; j < numSplits; ++j)
     {
@@ -503,7 +497,8 @@ Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(
   return sorCurveOut;
 }
 
-bool FSorClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh, axom::Array<OctahedronType>& octs)
+bool FSorClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
+                                    axom::Array<OctahedronType>& octs)
 {
   AXOM_ANNOTATE_SCOPE("FSorClipper::getGeometryAsOcts");
   switch(shapeMesh.getRuntimePolicy())
@@ -539,16 +534,14 @@ bool FSorClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh, a
   if it's not there yet.
 */
 template <typename ExecSpace>
-bool FSorClipper::getGeometryAsOctsImpl(
-  quest::experimental::ShapeMesh& shapeMesh,
-  axom::Array<OctahedronType>& octs)
+bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                        axom::Array<OctahedronType>& octs)
 {
   const int allocId = shapeMesh.getAllocatorID();
   octs = axom::Array<OctahedronType>(0, 0, allocId);
 
   axom::ArrayView<const double> cellLengths = shapeMesh.getCellLengths();
   const auto cellCount = shapeMesh.getCellCount();
-
 
   using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
   using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
@@ -558,10 +551,8 @@ bool FSorClipper::getGeometryAsOctsImpl(
     AXOM_LAMBDA(axom::IndexType cellId) { sumCharLength += cellLengths[cellId]; });
   double avgCharLength = sumCharLength.get() / cellCount;
 
-  axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve,
-                                                     3*avgCharLength,
-                                                     3*avgCharLength,
-                                                     2*avgCharLength);
+  axom::Array<Point2DType> sorCurve =
+    subdivideCurve(m_sorCurve, 3 * avgCharLength, 3 * avgCharLength, 2 * avgCharLength);
 
   // Generate the Octahedra
   int octCount = 0;

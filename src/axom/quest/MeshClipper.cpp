@@ -90,12 +90,11 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
 
   if(withCellInOut)
   {
-    SLIC_ERROR_IF(
-      cellLabels.size() != m_shapeMesh.getCellCount(),
-      axom::fmt::format("MeshClipperStrategy '{}' did not return the correct"
-                        " cell label array size of {}",
-                        m_strategy->name(),
-                        m_shapeMesh.getCellCount()));
+    SLIC_ERROR_IF(cellLabels.size() != m_shapeMesh.getCellCount(),
+                  axom::fmt::format("MeshClipperStrategy '{}' did not return the correct"
+                                    " cell label array size of {}",
+                                    m_strategy->name(),
+                                    m_shapeMesh.getCellCount()));
     SLIC_ERROR_IF(cellLabels.getAllocatorID() != allocId,
                   axom::fmt::format("MeshClipperStrategy '{}' failed to provide"
                                     " cellLabels data with the required allocator id {}",
@@ -104,7 +103,10 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
 
     // Counting labels is non-essential and presumed to be relatively very fast.
     getLabelCounts(cellLabels, cellsInCount, cellsOnCount, cellsOutCount);
-    if(m_verbose) { logClippingStats(); }
+    if(m_verbose)
+    {
+      logClippingStats();
+    }
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:process_in_out");
 
@@ -127,12 +129,11 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
 
     if(withTetInOut)
     {
-      SLIC_ERROR_IF(
-        tetLabels.size() != NUM_TETS_PER_HEX*cellsOnBdry.size(),
-        axom::fmt::format("MeshClipperStrategy '{}' did not return the correct"
-                          " tet label array size of {}",
-                          m_strategy->name(),
-                          NUM_TETS_PER_HEX*cellsOnBdry.size()));
+      SLIC_ERROR_IF(tetLabels.size() != NUM_TETS_PER_HEX * cellsOnBdry.size(),
+                    axom::fmt::format("MeshClipperStrategy '{}' did not return the correct"
+                                      " tet label array size of {}",
+                                      m_strategy->name(),
+                                      NUM_TETS_PER_HEX * cellsOnBdry.size()));
       SLIC_ERROR_IF(tetLabels.getAllocatorID() != allocId,
                     axom::fmt::format("MeshClipperStrategy '{}' failed to provide"
                                       "tetLabels data with the required allocator id {}",
@@ -141,7 +142,10 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
 
       // Counting labels is non-essential and presumed to be very fast.
       getLabelCounts(tetLabels, tetsInCount, tetsOnCount, tetsOutCount);
-      if(m_verbose) { logClippingStats(); }
+      if(m_verbose)
+      {
+        logClippingStats();
+      }
 
       m_impl->collectOnIndices(tetLabels.view(), tetsOnBdry);
       m_impl->remapTetIndices(cellsOnBdry, tetsOnBdry);
@@ -237,23 +241,22 @@ std::unique_ptr<MeshClipper::Impl> MeshClipper::newImpl()
 }
 
 #if defined(AXOM_USE_MPI)
-template<typename T>
+template <typename T>
 void globalReduce(axom::Array<T>& values, int reduceOp)
 {
   axom::Array<T> localValues(values);
   MPI_Allreduce(localValues.data(),
-             values.data(),
-             values.size(),
-             axom::mpi_traits<T>::type,
-             reduceOp,
-             MPI_COMM_WORLD);
+                values.data(),
+                values.size(),
+                axom::mpi_traits<T>::type,
+                reduceOp,
+                MPI_COMM_WORLD);
 #endif
 }
 
-void MeshClipper::accumulateClippingStats(conduit::Node& curStats,
-                                          const conduit::Node& newStats)
+void MeshClipper::accumulateClippingStats(conduit::Node& curStats, const conduit::Node& newStats)
 {
-  for( int i = 0; i < newStats.number_of_children(); ++i )
+  for(int i = 0; i < newStats.number_of_children(); ++i)
   {
     const auto& newStat = newStats.child(i);
     SLIC_ERROR_IF(!newStat.dtype().is_integer(),
@@ -308,15 +311,18 @@ void MeshClipper::logClippingStats(bool local, bool sum, bool max) const
   conduit::Node stats = getGlobalClippingStats();
   if(local)
   {
-    SLIC_INFO(std::string("MeshClipper loc-stats: ") + stats["loc"].to_string("yaml", 2, 0, "", " "));
+    SLIC_INFO(std::string("MeshClipper loc-stats: ") +
+              stats["loc"].to_string("yaml", 2, 0, "", " "));
   }
   if(sum)
   {
-    SLIC_INFO(std::string("MeshClipper sum-stats: ") + stats["sum"].to_string("yaml", 2, 0, "", " "));
+    SLIC_INFO(std::string("MeshClipper sum-stats: ") +
+              stats["sum"].to_string("yaml", 2, 0, "", " "));
   }
   if(max)
   {
-    SLIC_INFO(std::string("MeshClipper max-stats: ") + stats["max"].to_string("yaml", 2, 0, "", " "));
+    SLIC_INFO(std::string("MeshClipper max-stats: ") +
+              stats["max"].to_string("yaml", 2, 0, "", " "));
   }
 }
 

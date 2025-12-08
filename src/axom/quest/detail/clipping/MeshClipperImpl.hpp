@@ -51,7 +51,6 @@ public:
   using TetrahedronType = primal::Tetrahedron<double, 3>;
   using OctahedronType = primal::Octahedron<double, 3>;
 
-
   MeshClipperImpl(MeshClipper& clipper) : MeshClipper::Impl(clipper) { }
 
   void initVolumeOverlaps(const axom::ArrayView<MeshClipperStrategy::LabelType>& labels,
@@ -202,8 +201,7 @@ public:
    * and modified to work both tet and oct representations of the
    * geometry.
    */
-  void computeClipVolumes3D(axom::ArrayView<double> ovlap,
-                            conduit::Node& statistics) override
+  void computeClipVolumes3D(axom::ArrayView<double> ovlap, conduit::Node& statistics) override
   {
     using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
 
@@ -230,11 +228,7 @@ public:
     axom::Array<IndexType> counts(cellCount, cellCount, allocId);
     axom::Array<IndexType> offsets(cellCount, cellCount, allocId);
     axom::Array<IndexType> candidates;
-    bvh->findBoundingBoxes(offsets,
-                           counts,
-                           candidates,
-                           cellCount,
-                           shapeMesh.getCellBoundingBoxes());
+    bvh->findBoundingBoxes(offsets, counts, candidates, cellCount, shapeMesh.getCellBoundingBoxes());
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     const auto countsView = counts.view();
@@ -321,8 +315,8 @@ public:
     std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
     statistics["candidate"].set_int64(candidateCount);
 
-    std::int64_t *clipCountPtr = axom::allocate<std::int64_t>(1, allocId);
-    std::int64_t *contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
+    std::int64_t* clipCountPtr = axom::allocate<std::int64_t>(1, allocId);
+    std::int64_t* contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
     axom::copy(clipCountPtr, &clipCount, sizeof(zero));
     axom::copy(contribCountPtr, &contribCount, sizeof(zero));
 
@@ -340,7 +334,9 @@ public:
           // Tet screening can filter out degenerate tets, but this method
           // assumes no tet screening.
           if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10))
-            { return; }
+          {
+            return;
+          }
 
           const int cellId = hexIndicesView[i];
           const int pieceId = shapeCandidatesView[i];
@@ -370,7 +366,9 @@ public:
 
           // Skip degenerate mesh tets.
           if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10))
-            { return; }
+          {
+            return;
+          }
 
           const int cellId = hexIndicesView[i];
           const auto& cellTet = cellsAsTets[tetIndex];
@@ -449,11 +447,7 @@ public:
     axom::Array<IndexType> counts(limitedCellCount, limitedCellCount, allocId);
     axom::Array<IndexType> offsets(limitedCellCount, limitedCellCount, allocId);
     axom::Array<IndexType> candidates;
-    bvh->findBoundingBoxes(offsets,
-                           counts,
-                           candidates,
-                           limitedCellCount,
-                           limitedCellBbsView);
+    bvh->findBoundingBoxes(offsets, counts, candidates, limitedCellCount, limitedCellBbsView);
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     const auto countsView = counts.view();
@@ -541,8 +535,8 @@ public:
     std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
     statistics["candidate"].set_int64(candidateCount);
 
-    std::int64_t *clipCountPtr = axom::allocate<std::int64_t>(1, allocId);
-    std::int64_t *contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
+    std::int64_t* clipCountPtr = axom::allocate<std::int64_t>(1, allocId);
+    std::int64_t* contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
     axom::copy(clipCountPtr, &clipCount, sizeof(zero));
     axom::copy(contribCountPtr, &contribCount, sizeof(zero));
 
@@ -565,7 +559,9 @@ public:
           // Tet screening can filter out degenerate tets, but this method
           // assumes no tet screening.
           if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10))
-            { return; }
+          {
+            return;
+          }
 
           int cellId = hexIndicesView[i];  // index into limited mesh hex array
           cellId = cellIndices[cellId];    // Now, it indexes into the full hex array.
@@ -602,10 +598,12 @@ public:
 
           // Skip degenerate mesh tets.
           if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10))
-            { return; }
+          {
+            return;
+          }
 
           int cellId = hexIndicesView[i];  // index into limited mesh hex array
-          cellId = cellIndices[cellId];     // Now, it indexes into the full hex array.
+          cellId = cellIndices[cellId];    // Now, it indexes into the full hex array.
 
           const int pieceId = shapeCandidatesView[i];  // index into pieces array
           const OctahedronType& geomPiece = geomOctsView[pieceId];
@@ -689,11 +687,7 @@ public:
     axom::Array<IndexType> counts(tetCount, tetCount, allocId);
     axom::Array<IndexType> offsets(tetCount, tetCount, allocId);
     axom::Array<IndexType> candidates;
-    bvh->findBoundingBoxes(offsets,
-                           counts,
-                           candidates,
-                           tetBbsView.size(),
-                           tetBbsView);
+    bvh->findBoundingBoxes(offsets, counts, candidates, tetBbsView.size(), tetBbsView);
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     auto countsView = counts.view();
@@ -726,8 +720,8 @@ public:
     std::int64_t& candidateCount = *(statistics["candidate"] = zero).as_int64_ptr();
     candidateCount = candidates.size();
 
-    std::int64_t *clipCountPtr = axom::allocate<std::int64_t>(1, allocId);
-    std::int64_t *contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
+    std::int64_t* clipCountPtr = axom::allocate<std::int64_t>(1, allocId);
+    std::int64_t* contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
     axom::copy(clipCountPtr, &clipCount, sizeof(zero));
     axom::copy(contribCountPtr, &contribCount, sizeof(zero));
 
@@ -803,11 +797,10 @@ public:
    *   which can be tets or octs.
    * @return whether geometry are tetrahedra instead of octahedra.
    */
-  bool getDiscreteGeometry(
-    axom::Array<axom::primal::Tetrahedron<double, 3>> &geomAsTets,
-    axom::Array<axom::primal::Octahedron<double, 3>> &geomAsOcts,
-    axom::Array<BoundingBoxType>& pieceBbs,
-    std::shared_ptr<spin::BVH<3, ExecSpace, double>>& bvh)
+  bool getDiscreteGeometry(axom::Array<axom::primal::Tetrahedron<double, 3>>& geomAsTets,
+                           axom::Array<axom::primal::Octahedron<double, 3>>& geomAsOcts,
+                           axom::Array<BoundingBoxType>& pieceBbs,
+                           std::shared_ptr<spin::BVH<3, ExecSpace, double>>& bvh)
   {
     auto& strategy = getStrategy();
     ShapeMesh& shapeMesh = getShapeMesh();
@@ -872,12 +865,11 @@ public:
         });
     }
 
-    bvh = std::make_shared<spin::BVH<3, ExecSpace, double>>(
-      pieceBbsView,
-      pieceBbsView.size(),
-      allocId,
-      EPS,
-      BVH_SCALE_FACTOR);
+    bvh = std::make_shared<spin::BVH<3, ExecSpace, double>>(pieceBbsView,
+                                                            pieceBbsView.size(),
+                                                            allocId,
+                                                            EPS,
+                                                            BVH_SCALE_FACTOR);
 
     return useTets;
   }
@@ -885,7 +877,7 @@ public:
   /*!
    * @brief Volume of a tetrahedron from discretized geometry.
    */
-  AXOM_HOST_DEVICE inline double geomPieceVolume(const TetrahedronType &tet)
+  AXOM_HOST_DEVICE inline double geomPieceVolume(const TetrahedronType& tet)
   {
     return tet.volume();
   }
@@ -895,17 +887,17 @@ public:
    *
    * Assumes octahedron is convex.
    */
-  AXOM_HOST_DEVICE inline double geomPieceVolume(const OctahedronType &oct)
+  AXOM_HOST_DEVICE inline double geomPieceVolume(const OctahedronType& oct)
   {
-    TetrahedronType tets[] = { TetrahedronType(oct[0], oct[3], oct[1], oct[2]),
-                               TetrahedronType(oct[0], oct[3], oct[2], oct[4]),
-                               TetrahedronType(oct[0], oct[3], oct[4], oct[5]),
-                               TetrahedronType(oct[0], oct[3], oct[5], oct[1]) };
+    TetrahedronType tets[] = {TetrahedronType(oct[0], oct[3], oct[1], oct[2]),
+                              TetrahedronType(oct[0], oct[3], oct[2], oct[4]),
+                              TetrahedronType(oct[0], oct[3], oct[4], oct[5]),
+                              TetrahedronType(oct[0], oct[3], oct[5], oct[1])};
     double octVol = 0.0;
-    for( int i = 0; i < 4; ++i )
+    for(int i = 0; i < 4; ++i)
     {
       double tetVol = tets[i].volume();
-      SLIC_ASSERT(tetVol >= -EPS); // Tet may be degenerate but not inverted.
+      SLIC_ASSERT(tetVol >= -EPS);  // Tet may be degenerate but not inverted.
       octVol += tetVol;
     }
     return octVol;
@@ -924,12 +916,10 @@ public:
    * the two types a geometry can be discretized into.
    */
   template <typename TetOrOctType>
-  AXOM_HOST_DEVICE inline
-  LabelType computeMeshTetGeomPieceOverlap(
-    const TetrahedronType& meshTet,
-    const TetOrOctType& geomPiece,
-    double& overlapVolume,
-    int screenLevel)
+  AXOM_HOST_DEVICE inline LabelType computeMeshTetGeomPieceOverlap(const TetrahedronType& meshTet,
+                                                                   const TetOrOctType& geomPiece,
+                                                                   double& overlapVolume,
+                                                                   int screenLevel)
   {
     constexpr bool tryFixOrientation = false;
     if(screenLevel >= 3)
@@ -954,7 +944,10 @@ public:
       overlapVolume = poly.volume();
       SLIC_ASSERT(overlapVolume >= 0);
     }
-    else { overlapVolume = 0.0; }
+    else
+    {
+      overlapVolume = 0.0;
+    }
 
     return LabelType::LABEL_ON;
   }
@@ -970,11 +963,9 @@ public:
    */
   AXOM_HOST_DEVICE
   template <typename TetOrOctType>
-  LabelType labelPieceInOutOfTet(
-    const TetrahedronType& tet,
-    const TetOrOctType& piece)
+  LabelType labelPieceInOutOfTet(const TetrahedronType& tet, const TetOrOctType& piece)
   {
-    Point3DType unitTet[] = { {0,0,0}, {1,0,0}, {0,1,0}, {0,0,1} };
+    Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     axom::primal::experimental::CoordinateTransformer toUnitTet(&tet[0], unitTet);
 
     /*
@@ -982,9 +973,9 @@ public:
      * rests on its 4 sides.  Sides 0-2 are perpendicular to the axes.
      * Side 3 is the diagonal side.
      */
-    int vsAbove[4] = { 0,0,0,0 };
-    int vsBelow[4] = { 0,0,0,0 };
-    int vsTetSide[4] = { 0,0,0,0 };
+    int vsAbove[4] = {0, 0, 0, 0};
+    int vsBelow[4] = {0, 0, 0, 0};
+    int vsTetSide[4] = {0, 0, 0, 0};
     for(int i = 0; i < TetOrOctType::NUM_VERTS; ++i)
     {
       auto pVert = toUnitTet.getTransformed(piece[i]);
@@ -1004,21 +995,15 @@ public:
       vsTetSide[2] += pVert[2] >= 0;
       vsTetSide[3] += h4 >= 0;
     }
-    if(vsAbove[0] == TetOrOctType::NUM_VERTS ||
-       vsAbove[1] == TetOrOctType::NUM_VERTS ||
-       vsAbove[2] == TetOrOctType::NUM_VERTS ||
-       vsAbove[3] == TetOrOctType::NUM_VERTS ||
-       vsBelow[0] == TetOrOctType::NUM_VERTS ||
-       vsBelow[1] == TetOrOctType::NUM_VERTS ||
-       vsBelow[2] == TetOrOctType::NUM_VERTS ||
-       vsBelow[3] == TetOrOctType::NUM_VERTS)
+    if(vsAbove[0] == TetOrOctType::NUM_VERTS || vsAbove[1] == TetOrOctType::NUM_VERTS ||
+       vsAbove[2] == TetOrOctType::NUM_VERTS || vsAbove[3] == TetOrOctType::NUM_VERTS ||
+       vsBelow[0] == TetOrOctType::NUM_VERTS || vsBelow[1] == TetOrOctType::NUM_VERTS ||
+       vsBelow[2] == TetOrOctType::NUM_VERTS || vsBelow[3] == TetOrOctType::NUM_VERTS)
     {
       return LabelType::LABEL_OUT;
     }
-    if(vsTetSide[0] == TetOrOctType::NUM_VERTS &&
-       vsTetSide[1] == TetOrOctType::NUM_VERTS &&
-       vsTetSide[2] == TetOrOctType::NUM_VERTS &&
-       vsTetSide[3] == TetOrOctType::NUM_VERTS)
+    if(vsTetSide[0] == TetOrOctType::NUM_VERTS && vsTetSide[1] == TetOrOctType::NUM_VERTS &&
+       vsTetSide[2] == TetOrOctType::NUM_VERTS && vsTetSide[3] == TetOrOctType::NUM_VERTS)
     {
       return LabelType::LABEL_IN;
     }

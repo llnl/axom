@@ -74,10 +74,9 @@ bool TetMeshClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
   return true;
 }
 
-bool TetMeshClipper::labelTetsInOut(
-  quest::experimental::ShapeMesh& shapeMesh,
-  axom::ArrayView<const axom::IndexType> cellIds,
-  axom::Array<LabelType>& tetLabels)
+bool TetMeshClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                                    axom::ArrayView<const axom::IndexType> cellIds,
+                                    axom::Array<LabelType>& tetLabels)
 {
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "TetMeshClipper requires a 3D mesh.");
 
@@ -383,10 +382,9 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
  *     If count is odd, tet is IN, if even, OUT.
  */
 template <typename ExecSpace>
-void TetMeshClipper::labelTetsInOutImpl(
-  quest::experimental::ShapeMesh& shapeMesh,
-  axom::ArrayView<const axom::IndexType> cellIds,
-  axom::ArrayView<LabelType> tetLabels)
+void TetMeshClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                        axom::ArrayView<const axom::IndexType> cellIds,
+                                        axom::ArrayView<LabelType> tetLabels)
 {
   int allocId = shapeMesh.getAllocatorID();
   auto cellCount = cellIds.size();
@@ -432,10 +430,11 @@ void TetMeshClipper::labelTetsInOutImpl(
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::make_rays");
   Point3DType geomCenter = m_tetMeshBb.getCentroid();  // Estimate of tet mesh center.
   axom::Array<BoundingBox3DType> tetBbs(axom::ArrayOptions::Uninitialized(),
-                                        tetCount, tetCount, allocId);
+                                        tetCount,
+                                        tetCount,
+                                        allocId);
   auto tetBbsView = tetBbs.view();
-  axom::Array<Ray3DType> tetRays(axom::ArrayOptions::Uninitialized(),
-                                 tetCount, tetCount, allocId);
+  axom::Array<Ray3DType> tetRays(axom::ArrayOptions::Uninitialized(), tetCount, tetCount, allocId);
   auto tetRaysView = tetRays.view();
   axom::for_all<ExecSpace>(
     cellCount,
@@ -445,10 +444,10 @@ void TetMeshClipper::labelTetsInOutImpl(
       for(int ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
         const auto& tet = tetsForCell[ti];
-        Point3DType tetCenter((tet[0].array() + tet[1].array() + tet[2].array())/3);
+        Point3DType tetCenter((tet[0].array() + tet[1].array() + tet[2].array()) / 3);
         Vector3DType direction(geomCenter, tetCenter);
         tetRaysView[ci * NUM_TETS_PER_HEX + ti] = Ray3DType(tetCenter, direction);
-        tetBbsView[ci * NUM_TETS_PER_HEX + ti] = BoundingBox3DType{tet[0], tet[1], tet[2]};
+        tetBbsView[ci * NUM_TETS_PER_HEX + ti] = BoundingBox3DType {tet[0], tet[1], tet[2]};
       }
     });
   AXOM_ANNOTATE_END("TetMeshClipper::make_rays");
@@ -595,7 +594,9 @@ void TetMeshClipper::vertexInsideToCellLabel(quest::experimental::ShapeMesh& sha
         hasIn |= isIn;
         hasOut |= !isIn;
       }
-      labelsView[cellId] = !hasOut ? LabelType::LABEL_IN : !hasIn ? LabelType::LABEL_OUT : LabelType::LABEL_ON;
+      labelsView[cellId] = !hasOut ? LabelType::LABEL_IN
+        : !hasIn                   ? LabelType::LABEL_OUT
+                                   : LabelType::LABEL_ON;
     });
 
   return;
@@ -682,7 +683,7 @@ void TetMeshClipper::computeTets()
                                                                                      m_topoName)};
 
   bool fixOrientation = false;
-  if (m_info.has_child("fixOrientation"))
+  if(m_info.has_child("fixOrientation"))
   {
     fixOrientation = bool(m_info.fetch_existing("fixOrientation").as_int());
   }
@@ -711,9 +712,12 @@ void TetMeshClipper::computeTets()
       double signedVol = m_tets[i].signedVolume();
       if(signedVol < -EPS)
       {
-        SLIC_ERROR(axom::fmt::format("TetMeshClipper's tet {}, {}, has a negative volume {}.:"
-                                     "  (See TetMeshClipper's 'fixOrientation' flag.)",
-                                     i, m_tets[i], signedVol));
+        SLIC_ERROR(
+          axom::fmt::format("TetMeshClipper's tet {}, {}, has a negative volume {}.:"
+                            "  (See TetMeshClipper's 'fixOrientation' flag.)",
+                            i,
+                            m_tets[i],
+                            signedVol));
       }
     }
   }

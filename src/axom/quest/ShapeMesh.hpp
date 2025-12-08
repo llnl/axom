@@ -178,9 +178,7 @@ public:
    * It is expected that this method will be used in long inner
    * loops, so it is bare-bones for best performance.
    */
-  AXOM_HOST_DEVICE inline
-  static void hexToTets( const HexahedronType& hex,
-                         TetrahedronType* tets );
+  AXOM_HOST_DEVICE inline static void hexToTets(const HexahedronType& hex, TetrahedronType* tets);
 
   //@{
   //!@name Accessors to mesh data.
@@ -383,10 +381,7 @@ public:
                                     const conduit::DataType& dtype);
 };
 
-AXOM_HOST_DEVICE inline
-void ShapeMesh::hexToTets(
-  const HexahedronType& hex,
-  TetrahedronType* tets )
+AXOM_HOST_DEVICE inline void ShapeMesh::hexToTets(const HexahedronType& hex, TetrahedronType* tets)
 {
   AXOM_STATIC_ASSERT(NUM_TETS_PER_HEX == 24 || NUM_TETS_PER_HEX == 18);
 

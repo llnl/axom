@@ -85,8 +85,8 @@ bool HexClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
 }
 
 bool HexClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
-                                   axom::ArrayView<const axom::IndexType> cellIds,
-                                   axom::Array<LabelType>& tetLabels)
+                                axom::ArrayView<const axom::IndexType> cellIds,
+                                axom::Array<LabelType>& tetLabels)
 {
   const axom::IndexType cellCount = cellIds.size();
   const int allocId = shapeMesh.getAllocatorID();
@@ -192,17 +192,15 @@ void HexClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
           tetLabel = LabelType::LABEL_OUT;
           continue;
         }
-        BoundingBox3DType cellTetBb{cellTet[0], cellTet[1], cellTet[2], cellTet[3]};
+        BoundingBox3DType cellTetBb {cellTet[0], cellTet[1], cellTet[2], cellTet[3]};
         tetLabel = polyhedronToLabel(cellTet, cellTetBb, hexBb, tetsView, surfaceTriangles);
       }
-
     });
   return;
 }
 
 template <typename Polyhedron>
-AXOM_HOST_DEVICE inline
-MeshClipperStrategy::LabelType HexClipper::polyhedronToLabel(
+AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType HexClipper::polyhedronToLabel(
   const Polyhedron& verts,
   const BoundingBox3DType& vertsBb,
   const BoundingBox3DType& hexBb,

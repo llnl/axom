@@ -157,8 +157,9 @@ public:
 
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
-    app.add_option("--screenLevel", screenLevel)->description("Developer feature for MeshClipper.")
-  ->capture_default_str();
+    app.add_option("--screenLevel", screenLevel)
+      ->description("Developer feature for MeshClipper.")
+      ->capture_default_str();
 
     app.add_option("-o,--outputFile", outputFile)->description("Path to output file(s)");
 
@@ -1268,7 +1269,8 @@ int main(int argc, char** argv)
     }
     else if(tg == "hex")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::experimental::HexClipper>(createGeom_Hex(name), name));
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::experimental::HexClipper>(createGeom_Hex(name), name));
     }
     else if(tg == "sphere")
     {
@@ -1278,7 +1280,8 @@ int main(int argc, char** argv)
     else if(tg == "tetmesh")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::TetMeshClipper>(createGeom_TetMesh(ds, name), name));
+        std::make_shared<axom::quest::experimental::TetMeshClipper>(createGeom_TetMesh(ds, name),
+                                                                    name));
     }
     else if(tg == "tet")
     {
@@ -1297,7 +1300,8 @@ int main(int argc, char** argv)
     }
     else if(tg == "sor")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::experimental::SorClipper>(createGeom_Sor(name), name));
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::experimental::SorClipper>(createGeom_Sor(name), name));
     }
 
     else if(tg == "tet2")
@@ -1308,11 +1312,13 @@ int main(int argc, char** argv)
     else if(tg == "tetmesh2")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::TetMeshClipper>(createGeom_TetMesh2(ds, name), name));
+        std::make_shared<axom::quest::experimental::TetMeshClipper>(createGeom_TetMesh2(ds, name),
+                                                                    name));
     }
     else if(tg == "hex2")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::experimental::HexClipper>(createGeom_Hex2(name), name));
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::experimental::HexClipper>(createGeom_Hex2(name), name));
     }
   }
 
@@ -1385,7 +1391,10 @@ int main(int argc, char** argv)
 
     quest::experimental::MeshClipper clipper(sMesh, geomStrategies[i]);
     clipper.setVerbose(params.isVerbose());
-    if(params.screenLevel >= 0) { clipper.setScreenLevel(params.screenLevel); }
+    if(params.screenLevel >= 0)
+    {
+      clipper.setScreenLevel(params.screenLevel);
+    }
     SLIC_INFO(axom::fmt::format("MeshClipper screen level: {}", clipper.getScreenLevel()));
 
     axom::Array<double> ovlap;

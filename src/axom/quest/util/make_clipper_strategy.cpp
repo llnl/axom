@@ -6,15 +6,15 @@
 #include "axom/config.hpp"
 
 #ifdef AXOM_USE_SIDRE
-#include "axom/quest/util/make_clipper_strategy.hpp"
-#include "axom/quest/detail/clipping/Plane3DClipper.hpp"
-#include "axom/quest/detail/clipping/TetClipper.hpp"
-#include "axom/quest/detail/clipping/TetMeshClipper.hpp"
-#include "axom/quest/detail/clipping/HexClipper.hpp"
-#include "axom/quest/detail/clipping/SphereClipper.hpp"
-#include "axom/quest/detail/clipping/FSorClipper.hpp"
-#include "axom/quest/detail/clipping/SorClipper.hpp"
-#include "axom/slic/interface/slic_macros.hpp"
+  #include "axom/quest/util/make_clipper_strategy.hpp"
+  #include "axom/quest/detail/clipping/Plane3DClipper.hpp"
+  #include "axom/quest/detail/clipping/TetClipper.hpp"
+  #include "axom/quest/detail/clipping/TetMeshClipper.hpp"
+  #include "axom/quest/detail/clipping/HexClipper.hpp"
+  #include "axom/quest/detail/clipping/SphereClipper.hpp"
+  #include "axom/quest/detail/clipping/FSorClipper.hpp"
+  #include "axom/quest/detail/clipping/SorClipper.hpp"
+  #include "axom/slic/interface/slic_macros.hpp"
 
 namespace axom
 {

@@ -108,8 +108,7 @@ public:
    * @brief Get local assorted clipping statistics,
    * intended for developer use.
    */
-  const conduit::Node& getClippingStats() const
-  { return m_counterStats; }
+  const conduit::Node& getClippingStats() const { return m_counterStats; }
 
   /*!
    * @brief Get global assorted clipping statistics,
@@ -123,7 +122,7 @@ public:
    * @brief Set the level of screening,
    * intended for developer use.
    */
-  void setScreenLevel( int screenLevel ) { m_screenLevel = screenLevel; }
+  void setScreenLevel(int screenLevel) { m_screenLevel = screenLevel; }
 
   /*!
    * @brief Get the level of screening,
@@ -135,9 +134,7 @@ public:
    * @brief Add new stats to current stats,
    * intended for developer use.
    */
-  static void accumulateClippingStats(
-    conduit::Node& curStats,
-    const conduit::Node& newStats);
+  static void accumulateClippingStats(conduit::Node& curStats, const conduit::Node& newStats);
 
   //@}
 
@@ -196,8 +193,7 @@ public:
                                           axom::ArrayView<double> ovlap) = 0;
 
     //!@brief Compute clip volumes for every cell.
-    virtual void computeClipVolumes3D(axom::ArrayView<double> ovlap,
-                                      conduit::Node& statistics) = 0;
+    virtual void computeClipVolumes3D(axom::ArrayView<double> ovlap, conduit::Node& statistics) = 0;
 
     //!@brief Compute clip volumes for cell in an index list.
     virtual void computeClipVolumes3D(const axom::ArrayView<axom::IndexType>& cellIndices,
