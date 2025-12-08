@@ -119,6 +119,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     variant("raja", default=True, description="Build with raja")
 
+    variant("int64", default=True, description="Use 64bit integers for IndexType")
+
     varmsg = "Build development tools (such as Sphinx, Doxygen, etc...)"
     variant("devtools", default=False, description=varmsg)
 
@@ -371,12 +373,13 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             entries.append(cmake_cache_path("ROCM_ROOT_DIR", rocm_root))
 
             # Recommended MPI flags
-            hip_link_flags += "-lxpmem "
-            hip_link_flags += "-L/opt/cray/pe/mpich/{0}/gtl/lib ".format(spec["mpi"].version.up_to(3))
-            hip_link_flags += "-Wl,-rpath,/opt/cray/pe/mpich/{0}/gtl/lib ".format(
-                spec["mpi"].version.up_to(3)
-            )
-            hip_link_flags += "-lmpi_gtl_hsa "
+            if spec.satisfies("+mpi"):
+                hip_link_flags += "-lxpmem "
+                hip_link_flags += "-L/opt/cray/pe/mpich/{0}/gtl/lib ".format(spec["mpi"].version.up_to(3))
+                hip_link_flags += "-Wl,-rpath,/opt/cray/pe/mpich/{0}/gtl/lib ".format(
+                    spec["mpi"].version.up_to(3)
+                )
+                hip_link_flags += "-lmpi_gtl_hsa "
 
             if spec.satisfies("^hip@6.0.0:"):
                 hip_link_flags += "-L{0}/lib/llvm/lib -Wl,-rpath,{0}/lib/llvm/lib ".format(rocm_root)
@@ -652,6 +655,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         options.append(self.define_from_variant("AXOM_ENABLE_TUTORIALS", "tutorials"))
         if self.spec.satisfies("~raja") or self.spec.satisfies("+umpire"):
             options.append("-DAXOM_ENABLE_MIR:BOOL=OFF")
+
+        options.append(self.define_from_variant("AXOM_USE_64BIT_INDEXTYPE", "int64"))
 
         return options
 
