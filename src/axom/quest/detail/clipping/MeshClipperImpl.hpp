@@ -215,7 +215,7 @@ public:
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
     axom::Array<BoundingBoxType> pieceBbs;
-    std::shared_ptr<spin::BVH<3, ExecSpace, double>> bvh;
+    spin::BVH<3, ExecSpace, double> bvh;
     bool useTets = getDiscreteGeometry(geomAsTets, geomAsOcts, pieceBbs, bvh);
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
@@ -228,7 +228,7 @@ public:
     axom::Array<IndexType> counts(cellCount, cellCount, allocId);
     axom::Array<IndexType> offsets(cellCount, cellCount, allocId);
     axom::Array<IndexType> candidates;
-    bvh->findBoundingBoxes(offsets, counts, candidates, cellCount, shapeMesh.getCellBoundingBoxes());
+    bvh.findBoundingBoxes(offsets, counts, candidates, cellCount, shapeMesh.getCellBoundingBoxes());
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     const auto countsView = counts.view();
@@ -423,7 +423,7 @@ public:
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
     axom::Array<BoundingBoxType> pieceBbs;
-    std::shared_ptr<spin::BVH<3, ExecSpace, double>> bvh;
+    spin::BVH<3, ExecSpace, double> bvh;
     bool useTets = getDiscreteGeometry(geomAsTets, geomAsOcts, pieceBbs, bvh);
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
@@ -447,7 +447,7 @@ public:
     axom::Array<IndexType> counts(limitedCellCount, limitedCellCount, allocId);
     axom::Array<IndexType> offsets(limitedCellCount, limitedCellCount, allocId);
     axom::Array<IndexType> candidates;
-    bvh->findBoundingBoxes(offsets, counts, candidates, limitedCellCount, limitedCellBbsView);
+    bvh.findBoundingBoxes(offsets, counts, candidates, limitedCellCount, limitedCellBbsView);
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     const auto countsView = counts.view();
@@ -660,7 +660,7 @@ public:
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
     axom::Array<BoundingBoxType> pieceBbs;
-    std::shared_ptr<spin::BVH<3, ExecSpace, double>> bvh;
+    spin::BVH<3, ExecSpace, double> bvh;
     bool useTets = getDiscreteGeometry(geomAsTets, geomAsOcts, pieceBbs, bvh);
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
@@ -687,7 +687,7 @@ public:
     axom::Array<IndexType> counts(tetCount, tetCount, allocId);
     axom::Array<IndexType> offsets(tetCount, tetCount, allocId);
     axom::Array<IndexType> candidates;
-    bvh->findBoundingBoxes(offsets, counts, candidates, tetBbsView.size(), tetBbsView);
+    bvh.findBoundingBoxes(offsets, counts, candidates, tetBbsView.size(), tetBbsView);
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     auto countsView = counts.view();
@@ -794,13 +794,13 @@ public:
 
   /*!
    * @brief Get the geometry in discrete pieces,
-   *   which can be tets or octs.
+   *   which can be tets or octs, and place them in a search tree.
    * @return whether geometry are tetrahedra instead of octahedra.
    */
   bool getDiscreteGeometry(axom::Array<axom::primal::Tetrahedron<double, 3>>& geomAsTets,
                            axom::Array<axom::primal::Octahedron<double, 3>>& geomAsOcts,
                            axom::Array<BoundingBoxType>& pieceBbs,
-                           std::shared_ptr<spin::BVH<3, ExecSpace, double>>& bvh)
+                           spin::BVH<3, ExecSpace, double>& bvh)
   {
     auto& strategy = getStrategy();
     ShapeMesh& shapeMesh = getShapeMesh();
@@ -865,11 +865,10 @@ public:
         });
     }
 
-    bvh = std::make_shared<spin::BVH<3, ExecSpace, double>>(pieceBbsView,
-                                                            pieceBbsView.size(),
-                                                            allocId,
-                                                            EPS,
-                                                            BVH_SCALE_FACTOR);
+    bvh.setAllocatorID(allocId);
+    bvh.setTolerance(EPS);
+    bvh.setScaleFactor(BVH_SCALE_FACTOR);
+    bvh.initialize(pieceBbsView, pieceBbsView.size());
 
     return useTets;
   }
