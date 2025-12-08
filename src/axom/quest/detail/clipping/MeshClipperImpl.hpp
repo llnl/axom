@@ -209,54 +209,30 @@ public:
     const int allocId = shapeMesh.getAllocatorID();
     const IndexType cellCount = shapeMesh.getCellCount();
 
+    /*
+     * Geometry as discrete tets or octs, and their bounding boxes.
+     */
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
-    bool useTets = getDiscreteGeometry(geomAsTets, geomAsOcts);
+    axom::Array<BoundingBoxType> pieceBbs;
+    std::shared_ptr<spin::BVH<3, ExecSpace, double>> bvh;
+    bool useTets = getDiscreteGeometry(geomAsTets, geomAsOcts, pieceBbs, bvh);
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
 
-    //
-    // Generate the BVH over the (bounding boxes of the) discretized geometry
-    //
-    const axom::IndexType bbCount = useTets ? geomAsTets.size() : geomAsOcts.size();
-    axom::Array<BoundingBoxType> pieceBbs(bbCount, bbCount, allocId);
-    axom::ArrayView<BoundingBoxType> pieceBbsView = pieceBbs.view();
-
-    // Get the bounding boxes for the shapes
-    if(useTets)
-    {
-      axom::for_all<ExecSpace>(
-        pieceBbsView.size(),
-        AXOM_LAMBDA(axom::IndexType i) {
-          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
-        });
-    }
-    else
-    {
-      axom::for_all<ExecSpace>(
-        pieceBbsView.size(),
-        AXOM_LAMBDA(axom::IndexType i) {
-          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomOctsView[i]);
-        });
-    }
-
-    spin::BVH<3, ExecSpace, double> bvh(pieceBbsView,
-                                        pieceBbsView.size(),
-                                        allocId,
-                                        EPS,
-                                        BVH_SCALE_FACTOR);
-
-    axom::ArrayView<const BoundingBoxType> cellBbsView = shapeMesh.getCellBoundingBoxes();
-
-    // Find which shape bounding boxes intersect hexahedron bounding boxes
-    SLIC_DEBUG(
-      axom::fmt::format("{:-^80}", " Finding shape candidates for each hexahedral element "));
+    /*
+     * Find which shape bounding boxes intersect hexahedron bounding boxes
+     */
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:find_candidates");
-    axom::Array<IndexType> offsets(cellCount, cellCount, allocId);
     axom::Array<IndexType> counts(cellCount, cellCount, allocId);
+    axom::Array<IndexType> offsets(cellCount, cellCount, allocId);
     axom::Array<IndexType> candidates;
-    bvh.findBoundingBoxes(offsets, counts, candidates, cellCount, cellBbsView);
+    bvh->findBoundingBoxes(offsets,
+                           counts,
+                           candidates,
+                           cellCount,
+                           shapeMesh.getCellBoundingBoxes());
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     const auto countsView = counts.view();
@@ -440,65 +416,43 @@ public:
     const int allocId = shapeMesh.getAllocatorID();
     const IndexType cellCount = shapeMesh.getCellCount();
 
+    /*
+     * Geometry as discrete tets or octs, and their bounding boxes.
+     */
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
-    bool useTets = getDiscreteGeometry(geomAsTets, geomAsOcts);
+    axom::Array<BoundingBoxType> pieceBbs;
+    std::shared_ptr<spin::BVH<3, ExecSpace, double>> bvh;
+    bool useTets = getDiscreteGeometry(geomAsTets, geomAsOcts, pieceBbs, bvh);
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
 
-    // Generate the BVH tree over the shape's discretized geometry
-    // axis-aligned bounding boxes.  "pieces" refers to tets or octs.
-    const axom::IndexType bbCount = useTets ? geomAsTets.size() : geomAsOcts.size();
-    axom::Array<BoundingBoxType> pieceBbs(bbCount, bbCount, allocId);
-    axom::ArrayView<BoundingBoxType> pieceBbsView = pieceBbs.view();
-
-    // Get the bounding boxes for the shapes
-    if(useTets)
-    {
-      axom::for_all<ExecSpace>(
-        pieceBbsView.size(),
-        AXOM_LAMBDA(axom::IndexType i) {
-          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
-        });
-    }
-    else
-    {
-      axom::for_all<ExecSpace>(
-        pieceBbsView.size(),
-        AXOM_LAMBDA(axom::IndexType i) {
-          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomOctsView[i]);
-        });
-    }
-
-    // Insert shapes' Bounding Boxes into BVH.
-    spin::BVH<3, ExecSpace, double> bvh(pieceBbsView,
-                                        pieceBbsView.size(),
-                                        allocId,
-                                        EPS,
-                                        BVH_SCALE_FACTOR);
-
-    SLIC_DEBUG(
-      axom::fmt::format("{:-^80}", " Finding shape candidates for each hexahedral element labeled ON"));
+    /*
+     * Find which shape bounding boxes intersect hexahedron bounding boxes
+     */
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:find_candidates");
     // Find which shape bounding boxes intersect hexahedron bounding boxes
     // Create a temporary subset of cell bounding boxes,
     // containing only those listed in cellIndices.
-    const axom::IndexType limitedCellCount = cellIndices.size();
     axom::ArrayView<const BoundingBoxType> cellBbsView = shapeMesh.getCellBoundingBoxes();
+    const axom::IndexType limitedCellCount = cellIndices.size();
     axom::Array<BoundingBoxType> limitedCellBbs(limitedCellCount, limitedCellCount, allocId);
     axom::ArrayView<BoundingBoxType> limitedCellBbsView = limitedCellBbs.view();
     axom::for_all<ExecSpace>(
       limitedCellBbsView.size(),
       AXOM_LAMBDA(axom::IndexType i) { limitedCellBbsView[i] = cellBbsView[cellIndices[i]]; });
 
-    axom::Array<IndexType> offsets(limitedCellCount, limitedCellCount, allocId);
     axom::Array<IndexType> counts(limitedCellCount, limitedCellCount, allocId);
+    axom::Array<IndexType> offsets(limitedCellCount, limitedCellCount, allocId);
     axom::Array<IndexType> candidates;
-    bvh.findBoundingBoxes(offsets, counts, candidates, limitedCellCount, limitedCellBbsView);
+    bvh->findBoundingBoxes(offsets,
+                           counts,
+                           candidates,
+                           limitedCellCount,
+                           limitedCellBbsView);
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
-    // Get the total number of candidates
     const auto countsView = counts.view();
     const int candidateCount = candidates.size();
 
@@ -697,49 +651,20 @@ public:
 
     const int allocId = shapeMesh.getAllocatorID();
 
+    /*
+     * Geometry as discrete tets or octs, and their bounding boxes.
+     */
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
-    bool useTets = getDiscreteGeometry(geomAsTets, geomAsOcts);
+    axom::Array<BoundingBoxType> pieceBbs;
+    std::shared_ptr<spin::BVH<3, ExecSpace, double>> bvh;
+    bool useTets = getDiscreteGeometry(geomAsTets, geomAsOcts, pieceBbs, bvh);
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
 
-    // Generate the BVH tree over the shape's discretized geometry
-    // axis-aligned bounding boxes.  "pieces" refers to tets or octs.
-    const axom::IndexType bbCount = useTets ? geomAsTets.size() : geomAsOcts.size();
-    axom::Array<BoundingBoxType> pieceBbs(bbCount, bbCount, allocId);
-    axom::ArrayView<BoundingBoxType> pieceBbsView = pieceBbs.view();
-
-    // Get the bounding boxes for the shapes
-    // If debug build, check for degenerate pieces.
-    if(useTets)
-    {
-      axom::for_all<ExecSpace>(
-        pieceBbsView.size(),
-        AXOM_LAMBDA(axom::IndexType i) {
-          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
-#if defined(AXOM_DEBUG)
-          SLIC_ASSERT(!geomTetsView[i].degenerate());
-#endif
-        });
-    }
-    else
-    {
-      axom::for_all<ExecSpace>(
-        pieceBbsView.size(),
-        AXOM_LAMBDA(axom::IndexType i) {
-          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomOctsView[i]);
-        });
-    }
-
-    // Insert shapes' Bounding Boxes into BVH.
-    spin::BVH<3, ExecSpace, double> bvh(pieceBbsView,
-                                        pieceBbsView.size(),
-                                        allocId,
-                                        EPS,
-                                        BVH_SCALE_FACTOR);
-
-    SLIC_DEBUG(
-      axom::fmt::format("{:-^80}", " Finding shape candidates for each tetrahedral element labeled ON"));
+    /*
+     * Find which shape bounding boxes intersect hexahedron bounding boxes
+     */
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:find_candidates");
     // Create a temporary subset of tet bounding boxes,
@@ -758,15 +683,17 @@ public:
 
     axom::Array<IndexType> counts(tetCount, tetCount, allocId);
     axom::Array<IndexType> offsets(tetCount, tetCount, allocId);
-
-    auto countsView = counts.view();
-    auto offsetsView = offsets.view();
-
     axom::Array<IndexType> candidates;
-    bvh.findBoundingBoxes(offsets, counts, candidates, tetBbsView.size(), tetBbsView);
+    bvh->findBoundingBoxes(offsets,
+                           counts,
+                           candidates,
+                           tetBbsView.size(),
+                           tetBbsView);
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
+    auto countsView = counts.view();
     auto candidatesView = candidates.view();
+    auto offsetsView = offsets.view();
 
     axom::Array<IndexType> candToTetIdId(candidates.size(), candidates.size(), allocId);
     auto candToTetIdIdView = candToTetIdId.view();
@@ -883,16 +810,27 @@ public:
    */
   bool getDiscreteGeometry(
     axom::Array<axom::primal::Tetrahedron<double, 3>> &geomAsTets,
-    axom::Array<axom::primal::Octahedron<double, 3>> &geomAsOcts)
+    axom::Array<axom::primal::Octahedron<double, 3>> &geomAsOcts,
+    axom::Array<BoundingBoxType>& pieceBbs,
+    std::shared_ptr<spin::BVH<3, ExecSpace, double>>& bvh)
   {
     auto& strategy = getStrategy();
     ShapeMesh& shapeMesh = getShapeMesh();
+    int allocId = shapeMesh.getAllocatorID();
+
     AXOM_ANNOTATE_BEGIN("MeshClipper:get_geometry");
     const bool useOcts = strategy.getGeometryAsOcts(shapeMesh, geomAsOcts);
     const bool useTets = strategy.getGeometryAsTets(shapeMesh, geomAsTets);
     AXOM_ANNOTATE_END("MeshClipper:get_geometry");
-    SLIC_ASSERT(useOcts || geomAsOcts.empty());
-    SLIC_ASSERT(useTets || geomAsTets.empty());
+
+    if(useTets)
+    {
+      SLIC_ASSERT(geomAsTets.getAllocatorID() == allocId);
+    }
+    else
+    {
+      SLIC_ASSERT(geomAsOcts.getAllocatorID() == allocId);
+    }
     if(useTets == useOcts)
     {
       SLIC_ERROR(
@@ -908,6 +846,44 @@ public:
                                  strategy.name(),
                                  useTets ? geomAsTets.size() : geomAsOcts.size(),
                                  useTets ? "tet" : "oct"));
+
+    /*
+     * Get the bounding boxes for the discrete geometry pieces.
+     * If debug build, check for degenerate pieces.
+     */
+    const axom::IndexType bbCount = useTets ? geomAsTets.size() : geomAsOcts.size();
+    pieceBbs = axom::Array<BoundingBoxType>(bbCount, bbCount, allocId);
+    axom::ArrayView<BoundingBoxType> pieceBbsView = pieceBbs.view();
+
+    if(useTets)
+    {
+      auto geomTetsView = geomAsTets.view();
+      axom::for_all<ExecSpace>(
+        pieceBbsView.size(),
+        AXOM_LAMBDA(axom::IndexType i) {
+          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
+#if defined(AXOM_DEBUG)
+          SLIC_ASSERT(!geomTetsView[i].degenerate());
+#endif
+        });
+    }
+    else
+    {
+      auto geomOctsView = geomAsOcts.view();
+      axom::for_all<ExecSpace>(
+        pieceBbsView.size(),
+        AXOM_LAMBDA(axom::IndexType i) {
+          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomOctsView[i]);
+        });
+    }
+
+    bvh = std::make_shared<spin::BVH<3, ExecSpace, double>>(
+      pieceBbsView,
+      pieceBbsView.size(),
+      allocId,
+      EPS,
+      BVH_SCALE_FACTOR);
+
     return useTets;
   }
 
