@@ -1666,11 +1666,11 @@ private:
       axom::for_all<ExecSpace>(
         selectedZonesView.size(),
         AXOM_LAMBDA(axom::IndexType szIndex) {
-          const auto zoneIndex = selectedZonesView[szIndex];
-          const auto zone = deviceTopologyView.zone(zoneIndex);
-
           // If there are no fragments, return from lambda.
           if(fragmentData.m_fragmentsView[szIndex] == 0) return;
+
+          const auto zoneIndex = selectedZonesView[szIndex];
+          const auto zone = deviceTopologyView.zone(zoneIndex);
 
           // Seek to the start of the blend groups for this zone.
           auto groups = builder.blendGroupsForZone(szIndex);
