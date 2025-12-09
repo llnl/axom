@@ -36,6 +36,15 @@ public:
 
   /*!
    * \brief Constructor
+   */
+  AXOM_HOST_DEVICE
+  RectilinearCoordsetView2()
+    : m_coordinates()
+    , m_indexing()
+  { }
+
+  /*!
+   * \brief Constructor
    *
    * \param x The first coordinate component.
    * \param y The second coordinate component.
@@ -148,6 +157,15 @@ public:
   using PointType = axom::primal::Point<DataType, 3>;
 
   AXOM_HOST_DEVICE constexpr static int dimension() { return 3; }
+
+  /*!
+   * \brief Constructor
+   */
+  AXOM_HOST_DEVICE
+  RectilinearCoordsetView3()
+    : m_coordinates()
+    , m_indexing()
+  { }
 
   /*!
    * \brief Constructor

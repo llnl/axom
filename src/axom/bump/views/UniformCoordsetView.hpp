@@ -39,6 +39,16 @@ public:
 
   /*!
    * \brief Constructor
+   */
+  AXOM_HOST_DEVICE
+  UniformCoordsetView()
+    : m_indexing()
+    , m_origin()
+    , m_spacing()
+  { }
+
+  /*!
+   * \brief Constructor
    *
    * \param dims    The logical dimensions of the coordset.
    * \param origin  The origin of the coordset's coordinate system.
