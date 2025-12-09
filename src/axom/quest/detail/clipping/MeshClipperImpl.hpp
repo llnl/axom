@@ -47,6 +47,7 @@ public:
   using BoundingBoxType = primal::BoundingBox<double, 3>;
   using TetrahedronType = primal::Tetrahedron<double, 3>;
   using OctahedronType = primal::Octahedron<double, 3>;
+  using CoordTransformer = primal::experimental::CoordinateTransformer<double>;
 
   MeshClipperImpl(MeshClipper& clipper) : MeshClipper::Impl(clipper) { }
 
@@ -694,12 +695,15 @@ public:
      * Predicate for traversing the BVH.  We enter BVH nodes
      * whose bounding boxes intersect the query bounding box.
      */
-    auto traversePredicate = [] AXOM_HOST_DEVICE(const BoundingBoxType& queryBbox,
-                                                 const BoundingBoxType& bvhBbox) -> bool {
-                               // Could replace this with mesh tet as first arg.
-                               // Should instantiate by template.  called at non-leaves.
-                               return queryBbox.intersectsWith(bvhBbox);
-                             };
+    auto traversePredBox = [] AXOM_HOST_DEVICE(const BoundingBoxType& queryBbox,
+                                                    const BoundingBoxType& bvhBbox) -> bool {
+                                  return queryBbox.intersectsWith(bvhBbox);
+                                };
+    auto traversePredTetId = [=] AXOM_HOST_DEVICE(const IndexType& queryTetId,
+                                                    const BoundingBoxType& bvhBbox) -> bool {
+                                  const auto& queryTet = meshTets[tetIndices[queryTetId]];
+                                  return tetBoxIntersects(queryTet, bvhBbox);
+                                };
 
     /*
      * First pass: count number of collisions each of the tetBbs makes
@@ -714,10 +718,31 @@ public:
                                  // countCollisions is only called at the leaves.
                                  AXOM_UNUSED_VAR(currentNode);
                                  AXOM_UNUSED_VAR(leafNodes);
-                                 ++count;
-                                 // Eventually, bypass if tet and candidate can be shown not to collide.
-                                 };
-        bvhTraverser.traverse_tree(tetBbsView[iTet], countCollisions, traversePredicate);
+
+                                 auto& tetId = tetIndices[iTet];
+                                 const auto& meshTet = meshTets[tetId];
+
+                                 auto pieceId = leafNodes[currentNode];
+++count; return;
+                                 if(useTets)
+                                 {
+                                   const auto& piece = geomTetsView[pieceId];
+                                   if(tetTetIntersects(meshTet, piece))
+                                   {
+                                     ++count;
+                                   }
+                                 }
+                                 else
+                                 {
+                                   const auto& piece = geomOctsView[pieceId];
+                                   if(tetOctIntersects(meshTet, piece))
+                                   {
+                                     ++count;
+                                   }
+                                 }
+                               };
+        // bvhTraverser.traverse_tree(tetBbsView[iTet], countCollisions, traversePredBox);
+        bvhTraverser.traverse_tree(iTet, countCollisions, traversePredTetId);
         countsView[iTet] = count;
         totalCountReduce += count;
       });
@@ -745,16 +770,42 @@ public:
       AXOM_LAMBDA(axom::IndexType iTet) {
         auto offset = offsetsView[iTet];
 
-        // PrimitiveType cellTet = tetBbsView[iTet]; // Eventually, use the tet, not its BB.
+        // PrimitiveType cellTet = tetBbsView[iTet];
+        // Eventually, use the tet, not its BB.
         // Record indices of the tet and the candidate that collided.
         // Eventually, bypass if tet and candidate can be shown not to collide.
         auto recordCollision = [&](std::int32_t currentNode, const std::int32_t* leafs) {
-                                 candToTetIdIdView[offset] = iTet;
-                                 candidatesView[offset] = leafs[currentNode];
-                                 ++offset;
+                                 auto& tetId = tetIndices[iTet];
+                                 const auto& meshTet = meshTets[tetId];
+                                 auto pieceId = leafs[currentNode];
+                                 bool record = false;
+record = true;
+                                 if(useTets)
+                                 {
+                                   const auto& piece = geomTetsView[pieceId];
+                                   if(tetTetIntersects(meshTet, piece))
+                                   {
+                                     record = true;
+                                   }
+                                 }
+                                 else
+                                 {
+                                   const auto& piece = geomOctsView[pieceId];
+                                   if(tetOctIntersects(meshTet, piece))
+                                   {
+                                     record = true;
+                                   }
+                                 }
+                                 if(record)
+                                 {
+                                   candToTetIdIdView[offset] = iTet;
+                                   candidatesView[offset] = pieceId;
+                                   ++offset;
+                                 }
                                };
 
-        bvhTraverser.traverse_tree(tetBbsView[iTet], recordCollision, traversePredicate);
+        // bvhTraverser.traverse_tree(tetBbsView[iTet], recordCollision, traversePredBox);
+        bvhTraverser.traverse_tree(iTet, recordCollision, traversePredTetId);
       });
 #else
     bvh.findBoundingBoxes(offsets, counts, candidates, tetBbsView.size(), tetBbsView);
@@ -971,7 +1022,7 @@ public:
   }
 
   /*!
-   * @brief Compute overlap volume between a tet (from the shape mesh)
+   * @brief Compute overlap volume between a reference tet (from the shape mesh)
    * and a piece (tet or oct) of the discretized geometry.
    *
    * Becaue primal::clip is so expensive, we do a conservative
@@ -1033,7 +1084,7 @@ public:
                                                          const TetOrOctType& piece)
   {
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
-    axom::primal::experimental::CoordinateTransformer toUnitTet(&tet[0], unitTet);
+    CoordTransformer toUnitTet(&tet[0], unitTet);
 
     /*
      * Count (transformed) piece vertices above/below unitTet as unitTet
@@ -1075,6 +1126,133 @@ public:
       return LabelType::LABEL_IN;
     }
     return LabelType::LABEL_ON;
+  }
+
+  /*!
+   * @brief Whether a tet and a bounding box intersect.
+   * Answer may be a false positive but never a false negative.
+   */
+  AXOM_HOST_DEVICE static inline
+  bool tetBoxIntersects(const TetrahedronType& tet,
+                        const BoundingBoxType& box)
+  {
+    if(box.contains(tet[0]) || box.contains(tet[1]) || box.contains(tet[2]) || box.contains(tet[3]))
+    {
+      return true;
+    }
+
+    Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+    CoordTransformer toUnitTet(&tet[0], unitTet);
+
+    int vsAbove[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    int vsBelow[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    for(int i = 0; i < 8; ++i)
+    {
+      Point3DType boxVert{ (i & 1) == 0 ? box.getMin()[0] : box.getMax()[0],
+                           (i & 2) == 0 ? box.getMin()[1] : box.getMax()[1],
+                           (i & 4) == 0 ? box.getMin()[2] : box.getMax()[2] };
+      toUnitTet.transform(boxVert.array());
+      // h4 is height of boxVert above the diagonal face, scaled by sqrt(3).
+      // h4 of 1 coresponds to the unitTet's height of sqrt(3).
+      double h4 = 1 - (boxVert[0] + boxVert[1] + boxVert[2]);
+      vsAbove[0] += boxVert[0] >= 1;
+      vsAbove[1] += boxVert[1] >= 1;
+      vsAbove[2] += boxVert[2] >= 1;
+      vsAbove[3] += h4 >= 1;
+      vsBelow[0] += boxVert[0] <= 0;
+      vsBelow[1] += boxVert[1] <= 0;
+      vsBelow[2] += boxVert[2] <= 0;
+      vsBelow[3] += h4 <= 0;
+    }
+    if(vsAbove[0] == 8 || vsAbove[1] == 8 || vsAbove[2] == 8 || vsAbove[3] == 8 ||
+       vsBelow[0] == 8 || vsBelow[1] == 8 || vsBelow[2] == 8 || vsBelow[3] == 8)
+    {
+      return false;
+    }
+    return true;
+  }
+
+  /*!
+   * @brief Whether a tet and the convex hull of an octahedron intersects.
+   * Answer may be a false positive but never a false negative.
+   */
+  AXOM_HOST_DEVICE static inline
+  bool tetOctIntersects(const TetrahedronType& tet,
+                        const OctahedronType& oct)
+  {
+    Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+    CoordTransformer toUnitTet(&tet[0], unitTet);
+
+    int vsAbove[OctahedronType::NUM_VERTS] = {0, 0, 0, 0, 0, 0};
+    int vsBelow[OctahedronType::NUM_VERTS] = {0, 0, 0, 0, 0, 0};
+    for(int i = 0; i < OctahedronType::NUM_VERTS; ++i)
+    {
+      auto octVert = toUnitTet.getTransformed(oct[i]);
+      // h4 is height of octVert above the diagonal face, scaled by sqrt(3).
+      // h4 of 1 coresponds to the unitTet's height of sqrt(3).
+      double h4 = 1 - (octVert[0] + octVert[1] + octVert[2]);
+      vsAbove[0] += octVert[0] >= 1;
+      vsAbove[1] += octVert[1] >= 1;
+      vsAbove[2] += octVert[2] >= 1;
+      vsAbove[3] += h4 >= 1;
+      vsBelow[0] += octVert[0] <= 0;
+      vsBelow[1] += octVert[1] <= 0;
+      vsBelow[2] += octVert[2] <= 0;
+      vsBelow[3] += h4 <= 0;
+    }
+    if(vsAbove[0] == OctahedronType::NUM_VERTS || vsAbove[1] == OctahedronType::NUM_VERTS ||
+       vsAbove[2] == OctahedronType::NUM_VERTS || vsAbove[3] == OctahedronType::NUM_VERTS ||
+       vsBelow[0] == OctahedronType::NUM_VERTS || vsBelow[1] == OctahedronType::NUM_VERTS ||
+       vsBelow[2] == OctahedronType::NUM_VERTS || vsBelow[3] == OctahedronType::NUM_VERTS)
+    {
+      return false;
+    }
+    return true;
+  }
+
+  /*!
+   * @brief Whether a tet and another tet intersects.
+   * Answer may be a false positive but never a false negative.
+   */
+  AXOM_HOST_DEVICE static inline
+  bool tetTetIntersects(const TetrahedronType& tetA,
+                        const TetrahedronType& tetB,
+                        bool flip = true)
+  {
+    Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+    CoordTransformer toUnitTet(&tetA[0], unitTet);
+
+    int vsAbove[TetrahedronType::NUM_VERTS] = {0, 0, 0, 0};
+    int vsBelow[TetrahedronType::NUM_VERTS] = {0, 0, 0, 0};
+    for(int i = 0; i < TetrahedronType::NUM_VERTS; ++i)
+    {
+      const auto bVert = toUnitTet.getTransformed(tetB[i].array());
+      // h4 is height of bVert above the diagonal face, scaled by sqrt(3).
+      // h4 of 1 coresponds to the unitTet's height of sqrt(3).
+      double h4 = 1 - (bVert[0] + bVert[1] + bVert[2]);
+      vsAbove[0] += bVert[0] >= 1;
+      vsAbove[1] += bVert[1] >= 1;
+      vsAbove[2] += bVert[2] >= 1;
+      vsAbove[3] += h4 >= 1;
+      vsBelow[0] += bVert[0] <= 0;
+      vsBelow[1] += bVert[1] <= 0;
+      vsBelow[2] += bVert[2] <= 0;
+      vsBelow[3] += h4 <= 0;
+    }
+    if(vsAbove[0] == TetrahedronType::NUM_VERTS || vsAbove[1] == TetrahedronType::NUM_VERTS ||
+       vsAbove[2] == TetrahedronType::NUM_VERTS || vsAbove[3] == TetrahedronType::NUM_VERTS)
+    {
+      return false;
+    }
+
+    if(flip)
+    {
+      // Cannot claim no-intersection checking whether tetB above or below tetA.
+      // So try checking whether tetA is above or below tetB.
+      return tetTetIntersects(tetB, tetA, false);
+    }
+
+    return true;
   }
 
   void getLabelCounts(axom::ArrayView<const LabelType> labels,
