@@ -356,7 +356,7 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
       ovlap[cellId] = vol;
     });
 
-  statistics["clip"].set_int64(cellIds.size() * NUM_TETS_PER_HEX);
+  statistics["clips"].set_int64(cellIds.size() * NUM_TETS_PER_HEX);
   axom::copy(&contribCount, contribCountPtr, sizeof(contribCount));
   axom::deallocate(contribCountPtr);
 }
@@ -393,7 +393,7 @@ void Plane3DClipper::specializedClipTetsImpl(quest::experimental::ShapeMesh& sha
       RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(vol >= EPS));
     });
 
-  statistics["clip"].set_int64(tetIds.size());
+  statistics["clips"].set_int64(tetIds.size());
   axom::copy(&contribCount, contribCountPtr, sizeof(contribCount));
   axom::deallocate(contribCountPtr);
 }

@@ -308,9 +308,9 @@ public:
      */
 
     const std::int64_t zero = 0;
-    std::int64_t& clipCount = *(statistics["clip"] = zero).as_int64_ptr();
+    std::int64_t& clipCount = *(statistics["clips"] = zero).as_int64_ptr();
     std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
-    statistics["candidate"].set_int64(candidateCount);
+    statistics["candidates"].set_int64(candidateCount);
 
     std::int64_t* clipCountPtr = axom::allocate<std::int64_t>(1, allocId);
     std::int64_t* contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
@@ -529,9 +529,9 @@ public:
      */
 
     const std::int64_t zero = 0;
-    std::int64_t& clipCount = *(statistics["clip"] = zero).as_int64_ptr();
+    std::int64_t& clipCount = *(statistics["clips"] = zero).as_int64_ptr();
     std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
-    statistics["candidate"].set_int64(candidateCount);
+    statistics["candidates"].set_int64(candidateCount);
 
     std::int64_t* clipCountPtr = axom::allocate<std::int64_t>(1, allocId);
     std::int64_t* contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
@@ -712,9 +712,9 @@ public:
      */
 
     const std::int64_t zero = 0;
-    std::int64_t& clipCount = *(statistics["clip"] = zero).as_int64_ptr();
+    std::int64_t& clipCount = *(statistics["clips"] = zero).as_int64_ptr();
     std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
-    std::int64_t& candidateCount = *(statistics["candidate"] = zero).as_int64_ptr();
+    std::int64_t& candidateCount = *(statistics["candidates"] = zero).as_int64_ptr();
     candidateCount = candidates.size();
 
     std::int64_t* clipCountPtr = axom::allocate<std::int64_t>(1, allocId);
