@@ -687,6 +687,76 @@ public:
     axom::Array<IndexType> candidates;
     auto countsView = counts.view();
     auto offsetsView = offsets.view();
+#if 1
+    // Get the BVH traverser for doing the 2-pass search manually.
+    const auto bvhTraverser = bvh.getTraverser();
+    /*
+     * Predicate for traversing the BVH.  We enter BVH nodes
+     * whose bounding boxes intersect the query bounding box.
+     */
+    auto traversePredicate = [] AXOM_HOST_DEVICE(const BoundingBoxType& queryBbox,
+                                                 const BoundingBoxType& bvhBbox) -> bool {
+                               // Could replace this with mesh tet as first arg.
+                               // Should instantiate by template.  called at non-leaves.
+                               return queryBbox.intersectsWith(bvhBbox);
+                             };
+
+    /*
+     * First pass: count number of collisions each of the tetBbs makes
+     * with the BVH leaves.  Populate the counts array.
+     */
+    axom::ReduceSum<ExecSpace, IndexType> totalCountReduce(0);
+    axom::for_all<ExecSpace>(
+      tetCount,
+      AXOM_LAMBDA(axom::IndexType iTet) {
+        axom::IndexType count = 0;
+        auto countCollisions = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
+                                 // countCollisions is only called at the leaves.
+                                 AXOM_UNUSED_VAR(currentNode);
+                                 AXOM_UNUSED_VAR(leafNodes);
+                                 ++count;
+                                 // Eventually, bypass if tet and candidate can be shown not to collide.
+                                 };
+        bvhTraverser.traverse_tree(tetBbsView[iTet], countCollisions, traversePredicate);
+        countsView[iTet] = count;
+        totalCountReduce += count;
+      });
+
+    // Compute the offsets array using a prefix scan of counts.
+    axom::exclusive_scan<ExecSpace>(counts, offsets);
+    const IndexType nCollisions = totalCountReduce.get();
+
+    /*
+     * Allocate 2 arrays to hold info about the meshTet/geometry piece collisions.
+     * - candidates: geometry pieces in a potential collision, actually their indices.
+     * - candToTetIdId: indicates the meshTets in the collision,
+     *   where candToTetIdId[i] corresponds to meshTets[tetIndices[i]].
+     */
+    candidates = axom::Array<IndexType>(nCollisions, nCollisions, allocId);
+    axom::Array<IndexType> candToTetIdId(candidates.size(), candidates.size(), allocId);
+    auto candidatesView = candidates.view();
+    auto candToTetIdIdView = candToTetIdId.view();
+
+    /*
+     * Second pass: Populate tet-candidate piece collision arrays.
+     */
+    axom::for_all<ExecSpace>(
+      tetCount,
+      AXOM_LAMBDA(axom::IndexType iTet) {
+        auto offset = offsetsView[iTet];
+
+        // PrimitiveType cellTet = tetBbsView[iTet]; // Eventually, use the tet, not its BB.
+        // Record indices of the tet and the candidate that collided.
+        // Eventually, bypass if tet and candidate can be shown not to collide.
+        auto recordCollision = [&](std::int32_t currentNode, const std::int32_t* leafs) {
+                                 candToTetIdIdView[offset] = iTet;
+                                 candidatesView[offset] = leafs[currentNode];
+                                 ++offset;
+                               };
+
+        bvhTraverser.traverse_tree(tetBbsView[iTet], recordCollision, traversePredicate);
+      });
+#else
     bvh.findBoundingBoxes(offsets, counts, candidates, tetBbsView.size(), tetBbsView);
     auto candidatesView = candidates.view();
 
@@ -699,6 +769,7 @@ public:
         auto offset = offsetsView[i];
         for(int j = 0; j < count; ++j) candToTetIdIdView[offset + j] = i;
       });
+#endif
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     SLIC_DEBUG(axom::fmt::format(
