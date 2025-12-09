@@ -1253,10 +1253,14 @@ struct ArrayOpsBase
    */
   static void destroy(T* array, IndexType begin, IndexType nelems)
   {
-    if(DestroyOnHost)
+    if constexpr(!std::is_trivially_destructible_v<T>)
     {
       StagingBuffer tmp_buf(SPACE, array, begin, nelems, true);
-      HostOp::destroy(tmp_buf.getStagingBuffer(), 0, nelems);
+      T* array_host = tmp_buf.getStagingBuffer();
+      for(IndexType i = 0; i < nelems; i++)
+      {
+        array_host[i].~T();
+      }
     }
   }
 
