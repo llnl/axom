@@ -1021,59 +1021,6 @@ struct ArrayOpsBase<T, OperationSpace::Host>
 };
 
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-/*!
- * \name Tag types for device initialization
- */
-/// @{
-
-/*!
- * \brief Tag type representing that a type can be initialized on the device.
- *
- *  This only applies to types which are trivially device-constructible.
- */
-struct InitTypeOnDevice
-{ };
-/*!
- * \brief Tag type representing that a type can be initialized on the device.
- *
- *  This applies to types which are not trivially default-constructible, but are
- *  trivially-copyable; we can construct a default value on the host and copy-
- *  construct values with it on the device.
- */
-struct InitTypeOnDeviceWithCopy
-{ };
-/*!
- * \brief Tag type representing that a type cannot be initialized on the device.
- */
-struct InitTypeOnHost
-{ };
-
-/*!
- * \brief Selector type which matches a type to its corresponding initialization
- *  tag type.
- */
-template <typename T, typename Enable = void>
-struct DeviceInitTag
-{
-  using Type = InitTypeOnHost;
-};
-
-template <typename T>
-struct DeviceInitTag<T, std::enable_if_t<std::is_trivially_default_constructible<T>::value>>
-{
-  using Type = InitTypeOnDevice;
-};
-
-template <typename T>
-struct DeviceInitTag<
-  T,
-  std::enable_if_t<!std::is_trivially_default_constructible<T>::value &&
-                   std::is_default_constructible<T>::value && std::is_trivially_copyable<T>::value>>
-{
-  using Type = InitTypeOnDeviceWithCopy;
-};
-/// @}
-
 template <typename T>
 struct DeviceStagingBuffer
 {
