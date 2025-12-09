@@ -55,8 +55,8 @@ struct test_cutfield
     using TopologyView = decltype(topologyView);
 
     conduit::Node hostOptions;
-    hostOptions["clipField"] = "braid";
-    hostOptions["clipValue"] = 1.;
+    hostOptions["field"] = "braid";
+    hostOptions["value"] = 1.;
 
     conduit::Node deviceOptions, deviceResult;
     utils::copy<ExecSpace>(deviceOptions, hostOptions);
