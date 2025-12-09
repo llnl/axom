@@ -861,7 +861,7 @@ struct DeviceStagingBuffer
     : m_data(data)
     , m_begin(begin)
     , m_num_elems(nelems)
-#ifdef AXOM_USE_CUDA
+#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
     // CUDA device memory is inaccessible from the host. This is the only case
     // where mirroring data is required.
     , m_deviceStage(space == MemorySpace::Device)
@@ -871,18 +871,17 @@ struct DeviceStagingBuffer
     , m_deviceStage(false)
 #endif
   {
+#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
     if(m_deviceStage)
     {
-      int allocator_id = 0;
-#ifdef AXOM_USE_UMPIRE
-      allocator_id = axom::detail::getAllocatorID<axom::MemorySpace::Host>();
-#endif
+      int allocator_id = axom::detail::getAllocatorID<axom::MemorySpace::Host>();
       m_staging_buf = axom::allocate<T>(nelems, allocator_id);
       if(read_from_data)
       {
         axom::copy(m_staging_buf, m_data + begin, sizeof(T) * nelems);
       }
     }
+#endif
   }
 
   DISABLE_COPY_AND_ASSIGNMENT(DeviceStagingBuffer);
@@ -890,12 +889,14 @@ struct DeviceStagingBuffer
 
   ~DeviceStagingBuffer()
   {
+#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
     if(m_deviceStage)
     {
       // Copy back staging data to destination buffer.
       axom::copy(m_data + m_begin, m_staging_buf, m_num_elems * sizeof(T));
       axom::deallocate(m_staging_buf);
     }
+#endif
   }
 
   T* getStagingBuffer() const
