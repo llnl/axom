@@ -1084,7 +1084,7 @@ public:
     // device-only memory.
     // This is not needed for HIP builds, as device-allocated memory is
     // accessible on the host.
-    if(SPACE == MemorySpace::Device)
+    if AXOM_UNLIKELY(space == MemorySpace::Device)
     {
       // Similar to fill(), except we can allocate stack memory and placement-new
       // the object with a move constructor.
