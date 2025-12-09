@@ -1210,51 +1210,6 @@ public:
   }
 };
 
-template <MemorySpace SPACE>
-struct MemSpaceTraits
-{
-  static constexpr OperationSpace Space = OperationSpace::Host;
-  // True if memory is accessible by both the host and device. False otherwise.
-  static constexpr bool IsUVMAccessible = false;
-};
-
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-template <>
-struct MemSpaceTraits<MemorySpace::Device>
-{
-  #if defined(AXOM_USE_CUDA)
-  // On CUDA platforms, device memory allocated with cudaMalloc can only be
-  // touched from a device kernel.
-  static constexpr OperationSpace Space = OperationSpace::Device;
-  static constexpr bool IsUVMAccessible = false;
-  #elif defined(AXOM_USE_HIP)
-  // On HIP platforms, device memory allocated with hipMalloc is accessible from
-  // the host.
-  static constexpr OperationSpace Space = OperationSpace::Unified_Device;
-  static constexpr bool IsUVMAccessible = true;
-  #endif
-};
-
-template <>
-struct MemSpaceTraits<MemorySpace::Pinned>
-{
-  static constexpr OperationSpace Space = OperationSpace::Unified_Device;
-  static constexpr bool IsUVMAccessible = true;
-};
-template <>
-struct MemSpaceTraits<MemorySpace::Unified>
-{
-  static constexpr OperationSpace Space = OperationSpace::Unified_Device;
-  static constexpr bool IsUVMAccessible = true;
-};
-
-template <>
-struct MemSpaceTraits<MemorySpace::Dynamic>
-{
-  static constexpr bool IsUVMAccessible = true;
-};
-#endif
-
 template <typename T, int SliceDim, typename BaseArray>
 struct ArrayTraits<ArraySubslice<T, SliceDim, BaseArray>>
 {
