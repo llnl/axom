@@ -1256,14 +1256,14 @@ struct ArrayOpsBase
    */
   static void move(T* array, IndexType src_begin, IndexType src_end, IndexType dst)
   {
-    if(!std::is_trivially_copyable<T>::value && SPACE == OperationSpace::Unified_Device)
-    {
-      // Type might not be trivially-relocatable, move the range on the host.
-      // Note that we only do this for objects in unified/pinned memory, since
-      // we assume that objects in device-only memory are trivially-relocatable.
-      HostOp::move(array, src_begin, src_end, dst);
-    }
-    else
+  #ifdef AXOM_USE_CUDA
+    // CUDA-only: we require non-trivial types to be trivially-relocatable.
+    // This enables us to do simple memcpys for move operations.
+    bool presume_trivially_relocatable = (SPACE == OperationSpace::Device);
+  #else
+    bool presume_trivially_relocatable = false;
+  #endif
+    if(std::is_trivially_copyable_v<T> || presume_trivially_relocatable)
     {
       // Since this memory is on the device-side, we copy it to a temporary buffer
       // first.
@@ -1272,6 +1272,13 @@ struct ArrayOpsBase
       axom::copy(tmp_buf, array + src_begin, nelems * sizeof(T));
       axom::copy(array + dst, tmp_buf, nelems * sizeof(T));
       axom::deallocate(tmp_buf);
+    }
+    else
+    {
+      // Type might not be trivially-relocatable, move the range on the host.
+      // Note that we only do this for objects in unified/pinned memory, since
+      // we assume that objects in device-only memory are trivially-relocatable.
+      HostOp::move(array, src_begin, src_end, dst);
     }
   }
 
@@ -1284,16 +1291,23 @@ struct ArrayOpsBase
    */
   static void realloc_move(T* array, IndexType nelems, T* values)
   {
-    if(!std::is_trivially_copyable<T>::value && SPACE == OperationSpace::Unified_Device)
-    {
-      HostOp::realloc_move(array, nelems, values);
-    }
-    else
+  #ifdef AXOM_USE_CUDA
+    // CUDA-only: we require non-trivial types to be trivially-relocatable.
+    // This enables us to do simple memcpys for move operations.
+    bool presume_trivially_relocatable = (SPACE == OperationSpace::Device);
+  #else
+    bool presume_trivially_relocatable = false;
+  #endif
+    if(std::is_trivially_copyable<T>::value || presume_trivially_relocatable)
     {
       // NOTE: technically this is incorrect for non-trivially relocatable types,
       // but since we only support trivially-relocatable types in device-only
       // memory, a bitcopy will suffice.
       axom::copy(array, values, nelems * sizeof(T));
+    }
+    else
+    {
+      HostOp::realloc_move(array, nelems, values);
     }
   }
 };
