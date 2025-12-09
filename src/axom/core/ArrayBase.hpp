@@ -1342,7 +1342,10 @@ struct ArrayOpsBase
     }
     else
     {
-      HostOp::realloc_move(array, nelems, values);
+      std::uninitialized_copy(std::make_move_iterator(values),
+                              std::make_move_iterator(values + nelems),
+                              array);
+      destroy(values, 0, nelems);
     }
   }
 };
