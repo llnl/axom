@@ -1211,8 +1211,11 @@ struct ArrayOpsBase
     {
       // HostOp::fill_range will handle the copy to our "staging" host buffer,
       // regardless of the source memory space.
-      StagingBuffer tmp_buf(SPACE, array, begin, nelems);
-      HostOp::fill_range(tmp_buf.getStagingBuffer(), 0, nelems, values, space);
+      StagingBuffer dst_buf(SPACE, array, begin, nelems);
+      DeviceStagingBuffer<const T> src_buf(space, values, 0, nelems, true);
+      std::uninitialized_copy(src_buf.getStagingBuffer(),
+                              src_buf.getStagingBuffer() + nelems,
+                              dst_buf.getStagingBuffer());
     }
   }
 
