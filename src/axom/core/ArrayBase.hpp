@@ -1074,34 +1074,48 @@ struct DeviceInitTag<
 };
 /// @}
 
-template <typename T, OperationSpace SPACE>
-struct DeviceStagingBuffer;
-
 template <typename T>
-struct DeviceStagingBuffer<T, OperationSpace::Device>
+struct DeviceStagingBuffer
 {
   /*!
    * \brief Create a staging buffer for a device memory operation.
    *
+   * \param [in] space the space the array is located in
    * \param [in] data the array to mirror on the CPU
    * \param [in] begin the beginning index of the range to mirror
    * \param [in] nelems the number of elements to mirror
    * \param [in] read_from_data if true, copies existing data range to the
    *  staging buffer during construction
    */
-  DeviceStagingBuffer(T* data, IndexType begin, IndexType nelems, bool read_from_data = false)
+  DeviceStagingBuffer(MemorySpace space,
+                      T* data,
+                      IndexType begin,
+                      IndexType nelems,
+                      bool read_from_data = false)
     : m_data(data)
     , m_begin(begin)
     , m_num_elems(nelems)
-  {
-    int allocator_id = 0;
-  #ifdef AXOM_USE_UMPIRE
-    allocator_id = axom::detail::getAllocatorID<axom::MemorySpace::Host>();
+  #ifdef AXOM_USE_CUDA
+    // CUDA device memory is inaccessible from the host. This is the only case
+    // where mirroring data is required.
+    , m_deviceStage(space == MemorySpace::Device)
+  #else
+    // In all other contexts, mirroring data is not required. HIP device memory
+    // is fully accessible from the host.
+    , m_deviceStage(false)
   #endif
-    m_staging_buf = axom::allocate<T>(nelems, allocator_id);
-    if(read_from_data)
+  {
+    if(m_deviceStage)
     {
-      axom::copy(m_staging_buf, m_data + begin, sizeof(T) * nelems);
+      int allocator_id = 0;
+  #ifdef AXOM_USE_UMPIRE
+      allocator_id = axom::detail::getAllocatorID<axom::MemorySpace::Host>();
+  #endif
+      m_staging_buf = axom::allocate<T>(nelems, allocator_id);
+      if(read_from_data)
+      {
+        axom::copy(m_staging_buf, m_data + begin, sizeof(T) * nelems);
+      }
     }
   }
 
@@ -1110,34 +1124,24 @@ struct DeviceStagingBuffer<T, OperationSpace::Device>
 
   ~DeviceStagingBuffer()
   {
-    // Copy back staging data to destination buffer.
-    axom::copy(m_data + m_begin, m_staging_buf, m_num_elems * sizeof(T));
-    axom::deallocate(m_staging_buf);
+    if(m_deviceStage)
+    {
+      // Copy back staging data to destination buffer.
+      axom::copy(m_data + m_begin, m_staging_buf, m_num_elems * sizeof(T));
+      axom::deallocate(m_staging_buf);
+    }
   }
 
-  T* getStagingBuffer() const { return static_cast<T*>(m_staging_buf); }
+  T* getStagingBuffer() const
+  {
+    return static_cast<T*>(m_deviceStage ? m_staging_buf : m_data + m_begin);
+  }
 
   T* m_staging_buf;
   T* m_data;
   IndexType m_begin;
   IndexType m_num_elems;
-};
-
-template <typename T>
-struct DeviceStagingBuffer<T, OperationSpace::Unified_Device>
-{
-  DeviceStagingBuffer(T* data, IndexType begin, IndexType nelems, bool read_from_data = false)
-    : m_data(data)
-    , m_begin(begin)
-  {
-    AXOM_UNUSED_VAR(nelems);
-    AXOM_UNUSED_VAR(read_from_data);
-  }
-
-  T* getStagingBuffer() const { return static_cast<T*>(m_data + m_begin); }
-
-  T* m_data;
-  IndexType m_begin;
+  bool m_deviceStage;
 };
 
 template <typename T, OperationSpace SPACE>
@@ -1167,7 +1171,7 @@ struct ArrayOpsBase
   static constexpr bool DefaultCtor = std::is_default_constructible<T>::value;
 
   using HostOp = ArrayOpsBase<T, OperationSpace::Host>;
-  using StagingBuffer = DeviceStagingBuffer<T, SPACE>;
+  using StagingBuffer = DeviceStagingBuffer<T>;
 
   /*!
    * \brief Helper for default-initialization of a range of elements.
@@ -1184,7 +1188,7 @@ struct ArrayOpsBase
       // If we instantiated a fill kernel here it would require
       // that T's default ctor is device-annotated which is too
       // strict of a requirement, so we copy a buffer instead.
-      StagingBuffer tmp_buf(data, begin, nelems);
+      StagingBuffer tmp_buf(SPACE, data, begin, nelems);
       HostOp::init(tmp_buf.getStagingBuffer(), 0, nelems);
     }
   }
@@ -1234,7 +1238,7 @@ struct ArrayOpsBase
     // If we instantiated a fill kernel here it would require
     // that T's copy ctor is device-annotated which is too
     // strict of a requirement, so we copy a buffer instead.
-    StagingBuffer tmp_buf(array, begin, nelems);
+    StagingBuffer tmp_buf(SPACE, array, begin, nelems);
     HostOp::fill(tmp_buf.getStagingBuffer(), 0, nelems, value);
   }
 
@@ -1279,7 +1283,7 @@ struct ArrayOpsBase
     {
       // HostOp::fill_range will handle the copy to our "staging" host buffer,
       // regardless of the source memory space.
-      StagingBuffer tmp_buf(array, begin, nelems);
+      StagingBuffer tmp_buf(SPACE, array, begin, nelems);
       HostOp::fill_range(tmp_buf.getStagingBuffer(), 0, nelems, values, space);
     }
   }
@@ -1320,7 +1324,7 @@ struct ArrayOpsBase
   {
     if(DestroyOnHost)
     {
-      StagingBuffer tmp_buf(array, begin, nelems, true);
+      StagingBuffer tmp_buf(SPACE, array, begin, nelems, true);
       HostOp::destroy(tmp_buf.getStagingBuffer(), 0, nelems);
     }
   }
