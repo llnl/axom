@@ -1175,18 +1175,21 @@ struct ArrayOpsBase
    */
   static void fill(T* array, IndexType begin, IndexType nelems, const T& value)
   {
-    if constexpr(std::is_trivially_copyable_v<T>)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
+    if(space != MemorySpace::Host)
     {
-      // Trivially-copyable objects can be copied on the device.
-      for_all<ExecSpace>(nelems, AXOM_LAMBDA(IndexType i) { new(&array[i + begin]) T(value); });
+      if constexpr(std::is_trivially_copyable_v<T>)
+      {
+        // Trivially-copyable objects can be copied on the device.
+        for_all<ExecSpace>(nelems, AXOM_LAMBDA(IndexType i) { new(&array[i + begin]) T(value); });
+        return;
+      }
     }
-    else
-    {
-      // Object is not trivially-copyable, so ensure copy constructors are
-      // called on the host.
-      StagingBuffer tmp_buf(SPACE, array, begin, nelems);
-      HostOp::fill(tmp_buf.getStagingBuffer(), 0, nelems, value);
-    }
+#endif
+    // Object is not trivially-copyable, so ensure copy constructors are
+    // called on the host.
+    StagingBuffer tmp_buf(SPACE, array, begin, nelems);
+    std::uninitialized_fill_n(tmp_buf.getStagingBuffer(), nelems, value);
   }
 
   /*!
