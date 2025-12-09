@@ -840,13 +840,6 @@ struct all_types_are_integral
   static constexpr bool value = all_types_are_integral_impl<Args...>::value;
 };
 
-enum class OperationSpace
-{
-  Host,
-  Device,
-  Unified_Device
-};
-
 template <typename T>
 struct DeviceStagingBuffer
 {
@@ -1090,7 +1083,7 @@ public:
     // device-only memory.
     // This is not needed for HIP builds, as device-allocated memory is
     // accessible on the host.
-    if(SPACE == OperationSpace::Device)
+    if(SPACE == MemorySpace::Device)
     {
       // Similar to fill(), except we can allocate stack memory and placement-new
       // the object with a move constructor.
