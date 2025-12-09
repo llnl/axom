@@ -1131,28 +1131,36 @@ struct ArrayOpsBase
   {
     if constexpr(std::is_default_constructible_v<T>)
     {
-      if constexpr(std::is_trivially_default_constructible_v<T>)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
+      if(space != MemorySpace::Host)
       {
-        // Object is trivially default-constructible, so default-construct
-        // the object on the device.
-        for_all<ExecSpace>(begin, begin + nelems, AXOM_LAMBDA(IndexType i) { new(&data[i]) T(); });
+        if constexpr(std::is_trivially_default_constructible_v<T>)
+        {
+          // Object is trivially default-constructible, so default-construct
+          // the object on the device.
+          for_all<ExecSpace>(begin, begin + nelems, AXOM_LAMBDA(IndexType i) { new(&data[i]) T(); });
+          return;
+        }
+        else if constexpr(std::is_trivially_copyable_v<T>)
+        {
+          // Object is not trivially default-constructible, but is trivially-
+          // copyable. Copy-construct instances on the device.
+          T object {};
+          for_all<ExecSpace>(
+            begin,
+            begin + nelems,
+            AXOM_LAMBDA(IndexType i) { new(&data[i]) T(object); });
+          return;
+        }
       }
-      else if constexpr(std::trivially_copyable_v<T>)
+#endif
+      // Object is neither trivially default-constructible nor trivially-
+      // copyable. Construct instances on the host.
+      StagingBuffer tmp_buf(SPACE, data, begin, nelems);
+      T* data_host = tmp_buf.getStagingBuffer();
+      for(IndexType i = 0; i < nelems; ++i)
       {
-        // Object is not trivially default-constructible, but is trivially-
-        // copyable. Copy-construct instances on the device.
-        T object {};
-        for_all<ExecSpace>(
-          begin,
-          begin + nelems,
-          AXOM_LAMBDA(IndexType i) { new(&data[i]) T(object); });
-      }
-      else
-      {
-        // Object is neither trivially default-constructible nor trivially-
-        // copyable. Construct instances on the host.
-        StagingBuffer tmp_buf(SPACE, data, begin, nelems);
-        HostOp::init(tmp_buf.getStagingBuffer(), 0, nelems);
+        new(data_host + i) T();
       }
     }
   }
