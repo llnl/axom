@@ -1274,6 +1274,7 @@ struct ArrayOpsBase
    */
   static void move(T* array, IndexType src_begin, IndexType src_end, IndexType dst)
   {
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
   #ifdef AXOM_USE_CUDA
     // CUDA-only: we require non-trivial types to be trivially-relocatable.
     // This enables us to do simple memcpys for move operations.
@@ -1290,13 +1291,29 @@ struct ArrayOpsBase
       axom::copy(tmp_buf, array + src_begin, nelems * sizeof(T));
       axom::copy(array + dst, tmp_buf, nelems * sizeof(T));
       axom::deallocate(tmp_buf);
+      return;
     }
-    else
+#endif
+    // Type might not be trivially-relocatable, move the range on the host.
+    // Note that we only do this for objects in unified/pinned memory, since
+    // we assume that objects in device-only memory are trivially-relocatable.
+    if(src_begin < dst)
     {
-      // Type might not be trivially-relocatable, move the range on the host.
-      // Note that we only do this for objects in unified/pinned memory, since
-      // we assume that objects in device-only memory are trivially-relocatable.
-      HostOp::move(array, src_begin, src_end, dst);
+      IndexType dst_last = dst + src_end - src_begin;
+      auto rbegin = std::reverse_iterator<T*>(array + src_end);
+      auto rend = std::reverse_iterator<T*>(array + src_begin);
+      auto rdest = std::reverse_iterator<T*>(array + dst_last);
+      // Do an "uninitialized-move" in reverse order, to avoid overwriting
+      // any existing elements.
+      std::uninitialized_copy(std::make_move_iterator(rbegin), std::make_move_iterator(rend), rdest);
+    }
+    else if(src_begin > dst)
+    {
+      // This substitutes for std::uninitialized_move(), which is only
+      // available in C++17.
+      std::uninitialized_copy(std::make_move_iterator(array + src_begin),
+                              std::make_move_iterator(array + src_end),
+                              array + dst);
     }
   }
 
