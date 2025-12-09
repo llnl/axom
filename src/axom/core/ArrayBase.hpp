@@ -1174,45 +1174,6 @@ struct ArrayOpsBase
   using StagingBuffer = DeviceStagingBuffer<T>;
 
   /*!
-   * \brief Helper for default-initialization of a range of elements.
-   *
-   * \param [inout] data The data to initialize
-   * \param [in] begin The beginning of the subset of \a data that should be initialized
-   * \param [in] nelems the number of elements to initialize
-   * \note Specialization for when T is only initializable on the host.
-   */
-  static void init_impl(T* data, IndexType begin, IndexType nelems, InitTypeOnHost)
-  {
-    if(std::is_default_constructible<T>::value)
-    {
-      // If we instantiated a fill kernel here it would require
-      // that T's default ctor is device-annotated which is too
-      // strict of a requirement, so we copy a buffer instead.
-      StagingBuffer tmp_buf(SPACE, data, begin, nelems);
-      HostOp::init(tmp_buf.getStagingBuffer(), 0, nelems);
-    }
-  }
-
-  /*!
-   * \overload
-   * \note Specialization for when T is trivially default-constructible.
-   */
-  static void init_impl(T* data, IndexType begin, IndexType nelems, InitTypeOnDevice)
-  {
-    for_all<ExecSpace>(begin, begin + nelems, AXOM_LAMBDA(IndexType i) { new(&data[i]) T(); });
-  }
-
-  /*!
-   * \overload
-   * \note Specialization for when T is trivially copyable.
-   */
-  static void init_impl(T* data, IndexType begin, IndexType nelems, InitTypeOnDeviceWithCopy)
-  {
-    T object {};
-    for_all<ExecSpace>(begin, begin + nelems, AXOM_LAMBDA(IndexType i) { new(&data[i]) T(object); });
-  }
-
-  /*!
    * \brief Default-initializes the "new" segment of an array
    *
    * \param [inout] data The data to initialize
@@ -1221,7 +1182,32 @@ struct ArrayOpsBase
    */
   static void init(T* data, IndexType begin, IndexType nelems)
   {
-    init_impl(data, begin, nelems, typename DeviceInitTag<T>::Type {});
+    if constexpr(std::is_default_constructible_v<T>)
+    {
+      if constexpr(std::is_trivially_default_constructible_v<T>)
+      {
+        // Object is trivially default-constructible, so default-construct
+        // the object on the device.
+        for_all<ExecSpace>(begin, begin + nelems, AXOM_LAMBDA(IndexType i) { new(&data[i]) T(); });
+      }
+      else if constexpr(std::trivially_copyable_v<T>)
+      {
+        // Object is not trivially default-constructible, but is trivially-
+        // copyable. Copy-construct instances on the device.
+        T object {};
+        for_all<ExecSpace>(
+          begin,
+          begin + nelems,
+          AXOM_LAMBDA(IndexType i) { new(&data[i]) T(object); });
+      }
+      else
+      {
+        // Object is neither trivially default-constructible nor trivially-
+        // copyable. Construct instances on the host.
+        StagingBuffer tmp_buf(SPACE, data, begin, nelems);
+        HostOp::init(tmp_buf.getStagingBuffer(), 0, nelems);
+      }
+    }
   }
 
   /*!
