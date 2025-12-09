@@ -121,7 +121,8 @@ struct test_planeslice
 
   static void initialize(conduit::Node &mesh)
   {
-    const axom::StackArray<axom::IndexType, 3> dims {11, 11, (NDIMS > 2) ? 11 : 0};
+    const axom::IndexType N = 50;
+    const axom::StackArray<axom::IndexType, 3> dims {N, N, (NDIMS > 2) ? N : 0};
 
     // Create the data
     axom::blueprint::testing::data::braid("rectilinear", dims, mesh);

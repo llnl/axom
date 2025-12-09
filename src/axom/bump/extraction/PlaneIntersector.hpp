@@ -96,7 +96,7 @@ public:
       const value_type d1 = distance(id1);
       constexpr value_type tiny = 1.e-09;
       return axom::utilities::clampVal(
-        axom::utilities::abs(-d0) / (axom::utilities::abs(d1 - d0) + tiny),
+        axom::utilities::abs(d0) / (axom::utilities::abs(d1 - d0) + tiny),
         value_type{0},
         value_type{1});
     }
@@ -131,7 +131,7 @@ public:
 
     // Set the plane in the view.
     m_view.m_plane = PlaneType(typename PlaneType::VectorType(planeNormal, NDIMS),
-                               typename PlaneType::PointType(planeNormal, NDIMS));
+                               typename PlaneType::PointType(planeOrigin, NDIMS));
 
     // Save the coordset view.
     m_view.m_coordsetView = coordsetView;
