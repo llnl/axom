@@ -1229,6 +1229,11 @@ struct ArrayOpsBase
   template <typename... Args>
   static void emplace(T* array, IndexType i, Args&&... args)
   {
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
+    // CUDA-only: special logic is needed if calling emplace() from the host on
+    // device-only memory.
+    // This is not needed for HIP builds, as device-allocated memory is
+    // accessible on the host.
     if(SPACE == OperationSpace::Device)
     {
       // Similar to fill(), except we can allocate stack memory and placement-new
@@ -1236,12 +1241,11 @@ struct ArrayOpsBase
       alignas(T) std::uint8_t host_buf[sizeof(T)];
       T* host_obj = ::new(&host_buf) T(std::forward<Args>(args)...);
       axom::copy(array + i, host_obj, sizeof(T));
+      return;
     }
-    else  // SPACE == OperationSpace::Unified_Device
-    {
-      // Construct directly in unified/pinned memory.
-      ::new(array + i) T(std::forward<Args>(args)...);
-    }
+#endif
+    // Construct directly in unified/pinned memory.
+    ::new(array + i) T(std::forward<Args>(args)...);
   }
 
   /*!
