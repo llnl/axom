@@ -16,6 +16,10 @@
 
 #include <iostream>
 
+#ifdef AXOM_USE_MPI
+  #include <mpi.h>
+#endif
+
 /**
  * /file quest_step_file.cpp
  * /brief Example that loads in a STEP file and converts the surface patches and curves to Axom's NURBS representations
@@ -27,9 +31,12 @@
  * /note This example requires Axom to be configured with Open Cascade enabled.
  */
 
+namespace slic = axom::slic;
+
+namespace
+{
 using PatchData = axom::quest::internal::PatchData;
 using NURBSPatch = axom::quest::STEPReader::NURBSPatch;
-namespace slic = axom::slic;
 
 /**
  * Class that generates SVG files over the parametric space of trimmed NURBS patches
@@ -336,6 +343,169 @@ private:
   int m_numFillZeros {0};
 };
 
+#ifdef AXOM_USE_MPI
+
+// utility function to help with MPI_Allreduce calls
+template <typename T>
+T allreduce_val(T localVal, MPI_Op op)
+{
+  T result = 0;
+  MPI_Allreduce(&localVal, &result, 1, axom::mpi_traits<T>::type, op, MPI_COMM_WORLD);
+  return result;
+}
+
+// utility function to help with MPI_Allreduce calls on booleans
+bool allreduce_bool(bool localBool, MPI_Op op)
+{
+  const int localInt = localBool ? 1 : 0;
+  int result = 0;
+  MPI_Allreduce(&localInt, &result, 1, axom::mpi_traits<int>::type, op, MPI_COMM_WORLD);
+  return result ? true : false;
+}
+
+// utility function to compare a value across ranks
+template <typename T>
+bool compare_across_ranks(T localVal, const std::string& check_str)
+{
+  const T minVal = allreduce_val(localVal, MPI_MIN);
+  const T maxVal = allreduce_val(localVal, MPI_MAX);
+  SLIC_WARNING_ROOT_IF(
+    minVal != maxVal,
+    axom::fmt::format("validation failed: {} is not consistent across ranks. min={}, max={}",
+                      check_str,
+                      minVal,
+                      maxVal));
+
+  return minVal == maxVal;
+}
+
+// utility function to compare a bool across ranks
+bool compare_bool_across_ranks(bool localVal, const std::string& check_str)
+{
+  const int ival = localVal ? 1 : 0;
+  const int all_true = allreduce_val(ival, MPI_LAND);
+  const int all_false = !allreduce_val(ival, MPI_LOR);
+  const bool consistent = all_true || all_false;
+
+  SLIC_WARNING_ROOT_IF(
+    !consistent,
+    axom::fmt::format("patch validation failed: {} is not consistent across ranks.", check_str));
+
+  return consistent;
+}
+
+/// Validates consistency of patch data across all ranks
+bool validate_patches(const axom::Array<NURBSPatch>& patches)
+{
+  bool is_valid = true;
+
+  // First, check that all ranks have the same number of patches
+  axom::IndexType localNumPatches = patches.size();
+  if(!compare_across_ranks(localNumPatches, "number of patches"))
+  {
+    return false;
+  }
+  // If no patches (and consistent), nothing more to check
+  if(localNumPatches == 0)
+  {
+    return is_valid;
+  }
+
+  for(const auto& patch : patches)
+  {
+    // check that all patches are valid
+    if(!allreduce_bool(patch.isValidNURBS(), MPI_LAND))
+    {
+      SLIC_WARNING("patch validation failed: patch is not valid on this rank");
+      is_valid = false;
+    }
+
+    // check that orders and num control points and rationality are consistent
+    if(!compare_across_ranks(patch.getOrder_u(), "order u"))
+    {
+      is_valid = false;
+    }
+    if(!compare_across_ranks(patch.getOrder_v(), "order v"))
+    {
+      is_valid = false;
+    }
+    if(!compare_across_ranks(patch.getNumControlPoints_u(), "num control points u"))
+    {
+      is_valid = false;
+    }
+    if(!compare_across_ranks(patch.getNumControlPoints_v(), "num control points v"))
+    {
+      is_valid = false;
+    }
+
+    if(!compare_bool_across_ranks(patch.isRational(), "patch rationality"))
+    {
+      is_valid = false;
+    }
+
+    // check trimming curve validity and consistency
+    if(!compare_across_ranks(patch.getNumTrimmingCurves(), "num trimming curves"))
+    {
+      is_valid = false;
+    }
+    else
+    {
+      for(const auto& cur : patch.getTrimmingCurves())
+      {
+        if(!allreduce_bool(cur.isValidNURBS(), MPI_LAND))
+        {
+          SLIC_WARNING("patch validation failed: trimming curve is not valid on this rank");
+          is_valid = false;
+        }
+
+        if(!compare_across_ranks(cur.getDegree(), "trimming curve degree"))
+        {
+          is_valid = false;
+        }
+
+        if(!compare_across_ranks(cur.getNumKnots(), "num trimming curve knots"))
+        {
+          is_valid = false;
+        }
+
+        if(!compare_across_ranks(cur.getNumControlPoints(), "num trimming curve control points"))
+        {
+          is_valid = false;
+        }
+
+        if(!compare_bool_across_ranks(cur.isRational(), "trimming curve rationality"))
+        {
+          is_valid = false;
+        }
+      }
+    }
+  }
+
+  return is_valid;
+}
+
+/// Simple check that the triangle meshes are valid and consistent on all ranks
+bool validate_triangle_mesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& mesh)
+{
+  bool is_valid = true;
+
+  // Check that all ranks have the same number of cells
+  if(!compare_across_ranks(mesh.getNumberOfCells(), "number of cells"))
+  {
+    is_valid = false;
+  }
+
+  // Check that all ranks have the same number of nodes
+  if(!compare_across_ranks(mesh.getNumberOfNodes(), "number of nodes"))
+  {
+    is_valid = false;
+  }
+
+  return is_valid;
+}
+#endif
+
+/// Sets up a parallel logger for this example, taking care of initialization and finalization
 struct RAIILogger
 {
   RAIILogger(int my_rank)
@@ -347,12 +517,12 @@ struct RAIILogger
 
 #ifdef AXOM_USE_MPI
     std::string fmt = "[<RANK>][<LEVEL>]: <MESSAGE>\n";
-    // #ifdef AXOM_USE_LUMBERJACK
-    //   const int RLIMIT = 8;
-    //   logStream = new slic::LumberjackStream(&std::cout, MPI_COMM_WORLD, RLIMIT, fmt);
-    // #else
+  #ifdef AXOM_USE_LUMBERJACK
+    const int RLIMIT = 8;
+    logStream = new slic::LumberjackStream(&std::cout, MPI_COMM_WORLD, RLIMIT, fmt);
+  #else
     logStream = new slic::SynchronizedStream(&std::cout, MPI_COMM_WORLD, fmt);
-    // #endif
+  #endif
 #else
     std::string fmt = "[<LEVEL>]: <MESSAGE>\n";
     logStream = new slic::GenericOutputStream(&std::cout, fmt);
@@ -373,8 +543,14 @@ struct RAIILogger
   void setLoggingLevel(slic::message::Level level) { slic::setLoggingMsgLevel(level); }
 };
 
+}  // namespace
+
 int main(int argc, char** argv)
 {
+  constexpr static int RETURN_VALID = 0;
+  constexpr static int RETURN_INVALID = 1;
+  int rc = RETURN_VALID;
+
   axom::utilities::raii::MPIWrapper mpi_raii_wrapper(argc, argv);
 
   const bool is_root = mpi_raii_wrapper.my_rank() == 0;
@@ -489,7 +665,7 @@ int main(int argc, char** argv)
   if(res != 0)
   {
     SLIC_WARNING_ROOT("Error: The shape is invalid or empty.");
-    return 1;
+    return RETURN_INVALID;
   }
 
   if(is_root)
@@ -497,6 +673,15 @@ int main(int argc, char** argv)
     SLIC_INFO(axom::fmt::format("STEP file units: '{}'", stepReader.getFileUnits()));
     stepReader.printBRepStats();
   }
+
+  PatchArray& patches = stepReader.getPatchArray();
+
+#ifdef AXOM_USE_MPI
+  if(validate_model && !validate_patches(patches))
+  {
+    rc = RETURN_INVALID;
+  }
+#endif
 
   //---------------------------------------------------------------------------
   // Triangulate model
@@ -514,6 +699,13 @@ int main(int argc, char** argv)
                                angular_deflection,
                                relative_deflection,
                                extract_trimmed_surface);
+
+#ifdef AXOM_USE_MPI
+    if(validate_model && !validate_triangle_mesh(mesh))
+    {
+      rc = RETURN_INVALID;
+    }
+#endif
 
     if(is_root)
     {
@@ -548,6 +740,13 @@ int main(int argc, char** argv)
                                relative_deflection,
                                extract_trimmed_surface);
 
+#ifdef AXOM_USE_MPI
+    if(validate_model && !validate_triangle_mesh(mesh))
+    {
+      rc = RETURN_INVALID;
+    }
+#endif
+
     if(is_root)
     {
       const std::string filename =
@@ -566,7 +765,7 @@ int main(int argc, char** argv)
   }
 
   //---------------------------------------------------------------------------
-  // Optionally output an SVG for each patch
+  // Optionally output an SVG for each patch, only on root rank
   //---------------------------------------------------------------------------
   if(output_svg && is_root)
   {
@@ -574,7 +773,6 @@ int main(int argc, char** argv)
       "Generating SVG meshes for patches and their trimming curves in '{}' directory",
       output_dir));
 
-    PatchArray& patches = stepReader.getPatchArray();
     const int numPatches = patches.size();
     const int numFillZeros = static_cast<int>(std::log10(numPatches)) + 1;
 
@@ -590,5 +788,5 @@ int main(int argc, char** argv)
     }
   }
 
-  return 0;
+  return rc;
 }
