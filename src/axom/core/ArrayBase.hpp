@@ -1423,68 +1423,8 @@ struct MemSpaceTraits<MemorySpace::Dynamic>
 };
 #endif
 
-template <typename T, MemorySpace SPACE, bool IsUVMAccessible = MemSpaceTraits<SPACE>::IsUVMAccessible>
-struct ArrayOps;
-
 template <typename T, MemorySpace SPACE>
-struct ArrayOps<T, SPACE, false>
-{
-private:
-  constexpr static OperationSpace OpSpace = MemSpaceTraits<SPACE>::Space;
-
-  using Base = ArrayOpsBase<T, OpSpace>;
-
-public:
-  ArrayOps(int allocId, bool preferDevice)
-  {
-    AXOM_UNUSED_VAR(allocId);
-    AXOM_UNUSED_VAR(preferDevice);
-  }
-
-  void init(T* array, IndexType begin, IndexType nelems) { Base::init(array, begin, nelems); }
-
-  void fill(T* array, IndexType begin, IndexType nelems, const T& value)
-  {
-    Base::fill(array, begin, nelems, value);
-  }
-
-  void fill_range(T* array, IndexType begin, IndexType nelems, const T* values, MemorySpace space)
-  {
-    Base::fill_range(array, begin, nelems, values, space);
-  }
-
-  void destroy(T* array, IndexType begin, IndexType nelems)
-  {
-    if(nelems == 0)
-    {
-      return;
-    }
-    Base::destroy(array, begin, nelems);
-  }
-
-  void move(T* array, IndexType src_begin, IndexType src_end, IndexType dst)
-  {
-    if(src_begin >= src_end)
-    {
-      return;
-    }
-    Base::move(array, src_begin, src_end, dst);
-  }
-
-  void realloc_move(T* array, IndexType nelems, T* values)
-  {
-    Base::realloc_move(array, nelems, values);
-  }
-
-  template <typename... Args>
-  void emplace(T* array, IndexType dst, Args&&... args)
-  {
-    Base::emplace(array, dst, std::forward<Args>(args)...);
-  }
-};
-
-template <typename T, MemorySpace SPACE>
-struct ArrayOps<T, SPACE, true>
+struct ArrayOps<T, SPACE>
 {
 private:
   using Base = ArrayOpsBase<T, OperationSpace::Host>;
