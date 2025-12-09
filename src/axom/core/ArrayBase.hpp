@@ -1192,7 +1192,7 @@ struct ArrayOpsBase
    */
   static void fill_range(T* array, IndexType begin, IndexType nelems, const T* values, MemorySpace space)
   {
-    if(std::is_trivially_copyable<T>::value)
+    if constexpr(std::is_trivially_copyable_v<T>)
     {
       axom::copy(array + begin, values, sizeof(T) * nelems);
     }
