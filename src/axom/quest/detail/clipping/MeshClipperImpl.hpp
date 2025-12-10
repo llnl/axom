@@ -305,21 +305,16 @@ public:
                         cellCount));
 
     /*
-     * Initialize statistics and copy some to allocId space for computing.
+     * Statistics from the clip loop.
+     * Count number of times the piece was found inside/outside/on a mesh tet boundary.
+     * Be sure to use kernel-compatible memory.
      */
-
-    const std::int64_t zero = 0;
-    std::int64_t& clipCount = *(statistics["clips"] = zero).as_int64_ptr();
-    std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
-    statistics["candidates"].set_int64(candidateCount);
-
-    std::int64_t* clipCountPtr = axom::allocate<std::int64_t>(1, allocId);
-    std::int64_t* contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
-    axom::copy(clipCountPtr, &clipCount, sizeof(zero));
-    axom::copy(contribCountPtr, &contribCount, sizeof(zero));
+    std::int64_t* clipsIn = nullptr;
+    std::int64_t* clipsOn = nullptr;
+    std::int64_t* clipsOut = nullptr;
+    initializeClippingStatistics(allocId, clipsIn, clipsOn, clipsOut);
 
     const auto screenLevel = m_myClipper.getScreenLevel();
-    constexpr double EPS1 = EPS;
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_notScreened");
     if(useTets)
@@ -328,32 +323,17 @@ public:
         tetCandidatesCount,
         AXOM_LAMBDA(axom::IndexType i) {
           const int tetIndex = tetIndicesView[i];
-
-          // Skip degenerate mesh tets.
-          // Tet screening can filter out degenerate tets, but this method
-          // assumes no tet screening.
-          if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10))
-          {
-            return;
-          }
-
           const int cellId = hexIndicesView[i];
           const int pieceId = shapeCandidatesView[i];
           const auto& cellTet = cellsAsTets[tetIndex];
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
-
-          double volume = 0.0;
-          LabelType tmpLabel =
-            computeMeshTetGeomPieceOverlap(cellTet, geomPiece, volume, screenLevel);
-          if(tmpLabel == LabelType::LABEL_IN || tmpLabel == LabelType::LABEL_ON)
-          {
-            RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
-            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS1));
-          }
-          if(tmpLabel == LabelType::LABEL_ON)
-          {
-            RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, std::int64_t(1));
-          }
+          computeMeshTetGeomPieceOverlap(cellTet,
+                                         geomPiece,
+                                         ovlap.data() + cellId,
+                                         clipsIn,
+                                         clipsOn,
+                                         clipsOut,
+                                         screenLevel);
         });
     }
     else  // useOcts
@@ -362,36 +342,23 @@ public:
         tetCandidatesCount,
         AXOM_LAMBDA(axom::IndexType i) {
           const int tetIndex = tetIndicesView[i];
-
-          // Skip degenerate mesh tets.
-          if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10))
-          {
-            return;
-          }
-
           const int cellId = hexIndicesView[i];
           const auto& cellTet = cellsAsTets[tetIndex];
           const int pieceId = shapeCandidatesView[i];
           const OctahedronType& geomPiece = geomOctsView[pieceId];
-
-          double volume = 0.0;
-          LabelType tmpLabel =
-            computeMeshTetGeomPieceOverlap(cellTet, geomPiece, volume, screenLevel);
-          if(tmpLabel == LabelType::LABEL_IN || tmpLabel == LabelType::LABEL_ON)
-          {
-            RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
-            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS1));
-          }
-          if(tmpLabel == LabelType::LABEL_ON)
-          {
-            RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, std::int64_t(1));
-          }
+          computeMeshTetGeomPieceOverlap(cellTet,
+                                         geomPiece,
+                                         ovlap.data() + cellId,
+                                         clipsIn,
+                                         clipsOn,
+                                         clipsOut,
+                                         screenLevel);
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_notScreened");
-    clipCount = tetCandidatesCount;
-    axom::copy(&contribCount, contribCountPtr, sizeof(contribCount));
-    axom::deallocate(contribCountPtr);
+
+    finalizeClippingStatistics(statistics, clipsIn, clipsOn, clipsOut);
+    statistics["clipsCandidates"].set_int64(tetCandidatesCount);
 
     if(tetCandidatesCountPtr != &tetCandidatesCount)
     {
@@ -525,19 +492,10 @@ public:
     SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
 #endif
 
-    /*
-     * Initialize statistics and copy some to allocId space for computing.
-     */
-
-    const std::int64_t zero = 0;
-    std::int64_t& clipCount = *(statistics["clips"] = zero).as_int64_ptr();
-    std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
-    statistics["candidates"].set_int64(candidateCount);
-
-    std::int64_t* clipCountPtr = axom::allocate<std::int64_t>(1, allocId);
-    std::int64_t* contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
-    axom::copy(clipCountPtr, &clipCount, sizeof(zero));
-    axom::copy(contribCountPtr, &contribCount, sizeof(zero));
+    std::int64_t* clipsIn = nullptr;
+    std::int64_t* clipsOn = nullptr;
+    std::int64_t* clipsOut = nullptr;
+    initializeClippingStatistics(allocId, clipsIn, clipsOn, clipsOut);
 
     const auto screenLevel = m_myClipper.getScreenLevel();
 
@@ -554,33 +512,19 @@ public:
           tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
             tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
-          // Skip degenerate mesh tets.
-          // Tet screening can filter out degenerate tets, but this method
-          // assumes no tet screening.
-          if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10))
-          {
-            return;
-          }
-
           int cellId = hexIndicesView[i];  // index into limited mesh hex array
           cellId = cellIndices[cellId];    // Now, it indexes into the full hex array.
 
           const int pieceId = shapeCandidatesView[i];  // index into pieces array
           const auto& cellTet = cellsAsTets[tetIndex];
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
-
-          double volume = 0.0;
-          LabelType tmpLabel =
-            computeMeshTetGeomPieceOverlap(cellTet, geomPiece, volume, screenLevel);
-          if(tmpLabel == LabelType::LABEL_IN || tmpLabel == LabelType::LABEL_ON)
-          {
-            RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
-            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
-          }
-          if(tmpLabel == LabelType::LABEL_ON)
-          {
-            RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, std::int64_t(1));
-          }
+          computeMeshTetGeomPieceOverlap(cellTet,
+                                         geomPiece,
+                                         ovlap.data() + cellId,
+                                         clipsIn,
+                                         clipsOn,
+                                         clipsOut,
+                                         screenLevel);
         });
     }
     else  // useOcts
@@ -595,38 +539,25 @@ public:
           tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
             tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
-          // Skip degenerate mesh tets.
-          if(axom::utilities::isNearlyEqual(meshTetVolumes[tetIndex], 0.0, 1e-10))
-          {
-            return;
-          }
-
           int cellId = hexIndicesView[i];  // index into limited mesh hex array
           cellId = cellIndices[cellId];    // Now, it indexes into the full hex array.
 
           const int pieceId = shapeCandidatesView[i];  // index into pieces array
           const OctahedronType& geomPiece = geomOctsView[pieceId];
           const auto& cellTet = cellsAsTets[tetIndex];
-
-          double volume = 0.0;
-          LabelType tmpLabel =
-            computeMeshTetGeomPieceOverlap(cellTet, geomPiece, volume, screenLevel);
-          if(tmpLabel == LabelType::LABEL_IN || tmpLabel == LabelType::LABEL_ON)
-          {
-            RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
-            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
-          }
-          if(tmpLabel == LabelType::LABEL_ON)
-          {
-            RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, std::int64_t(1));
-          }
+          computeMeshTetGeomPieceOverlap(cellTet,
+                                         geomPiece,
+                                         ovlap.data() + cellId,
+                                         clipsIn,
+                                         clipsOn,
+                                         clipsOut,
+                                         screenLevel);
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_hexScreened");
 
-    clipCount = tetCandidatesCount;
-    axom::copy(&contribCount, contribCountPtr, sizeof(contribCount));
-    axom::deallocate(contribCountPtr);
+    finalizeClippingStatistics(statistics, clipsIn, clipsOn, clipsOut);
+    statistics["clipsCandidates"].set_int64(tetCandidatesCount);
 
     if(tetCandidatesCountPtr != &tetCandidatesCount)
     {
@@ -696,14 +627,15 @@ public:
      * whose bounding boxes intersect the query bounding box.
      */
     auto traversePredBox = [] AXOM_HOST_DEVICE(const BoundingBoxType& queryBbox,
-                                                    const BoundingBoxType& bvhBbox) -> bool {
-                                  return queryBbox.intersectsWith(bvhBbox);
-                                };
+                                               const BoundingBoxType& bvhBbox) -> bool {
+      return queryBbox.intersectsWith(bvhBbox);
+    };
+    AXOM_UNUSED_VAR(traversePredBox);
     auto traversePredTetId = [=] AXOM_HOST_DEVICE(const IndexType& queryTetId,
-                                                    const BoundingBoxType& bvhBbox) -> bool {
-                                  const auto& queryTet = meshTets[tetIndices[queryTetId]];
-                                  return tetBoxIntersects(queryTet, bvhBbox);
-                                };
+                                                  const BoundingBoxType& bvhBbox) -> bool {
+      const auto& queryTet = meshTets[tetIndices[queryTetId]];
+      return tetBoxIntersects(queryTet, bvhBbox);
+    };
 
     /*
      * First pass: count number of collisions each of the tetBbs makes
@@ -715,32 +647,29 @@ public:
       AXOM_LAMBDA(axom::IndexType iTet) {
         axom::IndexType count = 0;
         auto countCollisions = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
-                                 // countCollisions is only called at the leaves.
-                                 AXOM_UNUSED_VAR(currentNode);
-                                 AXOM_UNUSED_VAR(leafNodes);
+          // countCollisions is only called at the leaves.
+          auto& tetId = tetIndices[iTet];
+          const auto& meshTet = meshTets[tetId];
 
-                                 auto& tetId = tetIndices[iTet];
-                                 const auto& meshTet = meshTets[tetId];
-
-                                 auto pieceId = leafNodes[currentNode];
-++count; return;
-                                 if(useTets)
-                                 {
-                                   const auto& piece = geomTetsView[pieceId];
-                                   if(tetTetIntersects(meshTet, piece))
-                                   {
-                                     ++count;
-                                   }
-                                 }
-                                 else
-                                 {
-                                   const auto& piece = geomOctsView[pieceId];
-                                   if(tetOctIntersects(meshTet, piece))
-                                   {
-                                     ++count;
-                                   }
-                                 }
-                               };
+          auto pieceId = leafNodes[currentNode];
+// ++count; return;
+          if(useTets)
+          {
+            const auto& piece = geomTetsView[pieceId];
+            if(tetTetIntersects(meshTet, piece))
+            {
+              ++count;
+            }
+          }
+          else
+          {
+            const auto& piece = geomOctsView[pieceId];
+            if(tetOctIntersects(meshTet, piece))
+            {
+              ++count;
+            }
+          }
+        };
         // bvhTraverser.traverse_tree(tetBbsView[iTet], countCollisions, traversePredBox);
         bvhTraverser.traverse_tree(iTet, countCollisions, traversePredTetId);
         countsView[iTet] = count;
@@ -775,34 +704,34 @@ public:
         // Record indices of the tet and the candidate that collided.
         // Eventually, bypass if tet and candidate can be shown not to collide.
         auto recordCollision = [&](std::int32_t currentNode, const std::int32_t* leafs) {
-                                 auto& tetId = tetIndices[iTet];
-                                 const auto& meshTet = meshTets[tetId];
-                                 auto pieceId = leafs[currentNode];
-                                 bool record = false;
-record = true;
-                                 if(useTets)
-                                 {
-                                   const auto& piece = geomTetsView[pieceId];
-                                   if(tetTetIntersects(meshTet, piece))
-                                   {
-                                     record = true;
-                                   }
-                                 }
-                                 else
-                                 {
-                                   const auto& piece = geomOctsView[pieceId];
-                                   if(tetOctIntersects(meshTet, piece))
-                                   {
-                                     record = true;
-                                   }
-                                 }
-                                 if(record)
-                                 {
-                                   candToTetIdIdView[offset] = iTet;
-                                   candidatesView[offset] = pieceId;
-                                   ++offset;
-                                 }
-                               };
+          auto& tetId = tetIndices[iTet];
+          const auto& meshTet = meshTets[tetId];
+          auto pieceId = leafs[currentNode];
+          bool record = false;
+// record = true;
+          if(useTets)
+          {
+            const auto& piece = geomTetsView[pieceId];
+            if(tetTetIntersects(meshTet, piece))
+            {
+              record = true;
+            }
+          }
+          else
+          {
+            const auto& piece = geomOctsView[pieceId];
+            if(tetOctIntersects(meshTet, piece))
+            {
+              record = true;
+            }
+          }
+          if(record)
+          {
+            candToTetIdIdView[offset] = iTet;
+            candidatesView[offset] = pieceId;
+            ++offset;
+          }
+        };
 
         // bvhTraverser.traverse_tree(tetBbsView[iTet], recordCollision, traversePredBox);
         bvhTraverser.traverse_tree(iTet, recordCollision, traversePredTetId);
@@ -829,20 +758,10 @@ record = true;
       tetCount,
       shapeMesh.getCellCount()));
 
-    /*
-     * Initialize statistics and copy some to allocId space for computing.
-     */
-
-    const std::int64_t zero = 0;
-    std::int64_t& clipCount = *(statistics["clips"] = zero).as_int64_ptr();
-    std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
-    std::int64_t& candidateCount = *(statistics["candidates"] = zero).as_int64_ptr();
-    candidateCount = candidates.size();
-
-    std::int64_t* clipCountPtr = axom::allocate<std::int64_t>(1, allocId);
-    std::int64_t* contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
-    axom::copy(clipCountPtr, &clipCount, sizeof(zero));
-    axom::copy(contribCountPtr, &contribCount, sizeof(zero));
+    std::int64_t* clipsIn = nullptr;
+    std::int64_t* clipsOn = nullptr;
+    std::int64_t* clipsOut = nullptr;
+    initializeClippingStatistics(allocId, clipsIn, clipsOn, clipsOut);
 
     const auto screenLevel = m_myClipper.getScreenLevel();
 
@@ -854,24 +773,17 @@ record = true;
         AXOM_LAMBDA(axom::IndexType iCand) {
           auto tetIdId = candToTetIdIdView[iCand];
           auto tetId = tetIndices[tetIdId];
-
           auto cellId = tetId / NUM_TETS_PER_HEX;
           auto pieceId = candidatesView[iCand];
           const auto& meshTet = meshTets[tetId];
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
-
-          double volume = 0.0;
-          LabelType tmpLabel =
-            computeMeshTetGeomPieceOverlap(meshTet, geomPiece, volume, screenLevel);
-          if(tmpLabel == LabelType::LABEL_IN || tmpLabel == LabelType::LABEL_ON)
-          {
-            RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
-            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
-          }
-          if(tmpLabel == LabelType::LABEL_ON)
-          {
-            RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, std::int64_t(1));
-          }
+          computeMeshTetGeomPieceOverlap(meshTet,
+                                         geomPiece,
+                                         ovlap.data() + cellId,
+                                         clipsIn,
+                                         clipsOn,
+                                         clipsOut,
+                                         screenLevel);
         });
     }
     else  // useOcts
@@ -881,32 +793,23 @@ record = true;
         AXOM_LAMBDA(axom::IndexType iCand) {
           auto tetIdId = candToTetIdIdView[iCand];
           auto tetId = tetIndices[tetIdId];
-
           auto cellId = tetId / NUM_TETS_PER_HEX;
           auto pieceId = candidatesView[iCand];
           const auto& meshTet = meshTets[tetId];
           const OctahedronType& geomPiece = geomOctsView[pieceId];
-
-          double volume = 0.0;
-          LabelType tmpLabel =
-            computeMeshTetGeomPieceOverlap(meshTet, geomPiece, volume, screenLevel);
-          if(tmpLabel == LabelType::LABEL_IN || tmpLabel == LabelType::LABEL_ON)
-          {
-            RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
-            RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
-          }
-          if(tmpLabel == LabelType::LABEL_ON)
-          {
-            RAJA::atomicAdd<ATOMIC_POL>(clipCountPtr, std::int64_t(1));
-          }
+          computeMeshTetGeomPieceOverlap(meshTet,
+                                         geomPiece,
+                                         ovlap.data() + cellId,
+                                         clipsIn,
+                                         clipsOn,
+                                         clipsOut,
+                                         screenLevel);
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_tetScreened");
 
-    axom::copy(&contribCount, contribCountPtr, sizeof(contribCount));
-    axom::copy(&clipCount, clipCountPtr, sizeof(clipCount));
-    axom::deallocate(contribCountPtr);
-    axom::deallocate(clipCountPtr);
+    finalizeClippingStatistics(statistics, clipsIn, clipsOn, clipsOut);
+    statistics["clipsCandidates"].set_int64(candidates.size());
 
     SLIC_DEBUG(axom::fmt::format(""));
   }  // end of computeClipVolumes3DTets() function
@@ -1036,35 +939,39 @@ record = true;
   template <typename TetOrOctType>
   AXOM_HOST_DEVICE inline LabelType computeMeshTetGeomPieceOverlap(const TetrahedronType& meshTet,
                                                                    const TetOrOctType& geomPiece,
-                                                                   double& overlapVolume,
+                                                                   double* overlapVolume,
+                                                                   std::int64_t* clipsIn,
+                                                                   std::int64_t* clipsOn,
+                                                                   std::int64_t* clipsOut,
                                                                    int screenLevel)
   {
+    using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
     constexpr bool tryFixOrientation = false;
     if(screenLevel >= 3)
     {
       LabelType geomLabel = labelPieceInOutOfTet(meshTet, geomPiece);
       if(geomLabel == LabelType::LABEL_OUT)
       {
-        overlapVolume = 0.0;
+        RAJA::atomicAdd<ATOMIC_POL>(clipsOut, std::int64_t(1));
         return geomLabel;
       }
       if(geomLabel == LabelType::LABEL_IN)
       {
-        overlapVolume = geomPieceVolume(geomPiece);
+        auto contribVol = geomPieceVolume(geomPiece);
+        RAJA::atomicAdd<ATOMIC_POL>(overlapVolume, contribVol);
+        RAJA::atomicAdd<ATOMIC_POL>(clipsIn, std::int64_t(1));
         return geomLabel;
       }
     }
 
+    RAJA::atomicAdd<ATOMIC_POL>(clipsOn, std::int64_t(1));
     const auto poly = primal::clip<double>(meshTet, geomPiece, EPS, tryFixOrientation);
     if(poly.numVertices() >= 4)
     {
       // Poly is valid
-      overlapVolume = poly.volume();
-      SLIC_ASSERT(overlapVolume >= 0);
-    }
-    else
-    {
-      overlapVolume = 0.0;
+      auto contribVol = poly.volume();
+      SLIC_ASSERT(contribVol >= 0);
+      RAJA::atomicAdd<ATOMIC_POL>(overlapVolume, contribVol);
     }
 
     return LabelType::LABEL_ON;
@@ -1132,9 +1039,8 @@ record = true;
    * @brief Whether a tet and a bounding box intersect.
    * Answer may be a false positive but never a false negative.
    */
-  AXOM_HOST_DEVICE static inline
-  bool tetBoxIntersects(const TetrahedronType& tet,
-                        const BoundingBoxType& box)
+  AXOM_HOST_DEVICE static inline bool tetBoxIntersects(const TetrahedronType& tet,
+                                                       const BoundingBoxType& box)
   {
     if(box.contains(tet[0]) || box.contains(tet[1]) || box.contains(tet[2]) || box.contains(tet[3]))
     {
@@ -1148,9 +1054,9 @@ record = true;
     int vsBelow[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     for(int i = 0; i < 8; ++i)
     {
-      Point3DType boxVert{ (i & 1) == 0 ? box.getMin()[0] : box.getMax()[0],
+      Point3DType boxVert {(i & 1) == 0 ? box.getMin()[0] : box.getMax()[0],
                            (i & 2) == 0 ? box.getMin()[1] : box.getMax()[1],
-                           (i & 4) == 0 ? box.getMin()[2] : box.getMax()[2] };
+                           (i & 4) == 0 ? box.getMin()[2] : box.getMax()[2]};
       toUnitTet.transform(boxVert.array());
       // h4 is height of boxVert above the diagonal face, scaled by sqrt(3).
       // h4 of 1 coresponds to the unitTet's height of sqrt(3).
@@ -1176,9 +1082,8 @@ record = true;
    * @brief Whether a tet and the convex hull of an octahedron intersects.
    * Answer may be a false positive but never a false negative.
    */
-  AXOM_HOST_DEVICE static inline
-  bool tetOctIntersects(const TetrahedronType& tet,
-                        const OctahedronType& oct)
+  AXOM_HOST_DEVICE static inline bool tetOctIntersects(const TetrahedronType& tet,
+                                                       const OctahedronType& oct)
   {
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     CoordTransformer toUnitTet(&tet[0], unitTet);
@@ -1214,10 +1119,9 @@ record = true;
    * @brief Whether a tet and another tet intersects.
    * Answer may be a false positive but never a false negative.
    */
-  AXOM_HOST_DEVICE static inline
-  bool tetTetIntersects(const TetrahedronType& tetA,
-                        const TetrahedronType& tetB,
-                        bool flip = true)
+  AXOM_HOST_DEVICE static inline bool tetTetIntersects(const TetrahedronType& tetA,
+                                                       const TetrahedronType& tetB,
+                                                       bool flip = true)
   {
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     CoordTransformer toUnitTet(&tetA[0], unitTet);
@@ -1286,6 +1190,42 @@ record = true;
     inCount = static_cast<std::int64_t>(inSum.get());
     onCount = static_cast<std::int64_t>(onSum.get());
     outCount = static_cast<std::int64_t>(outSum.get());
+  }
+
+  void initializeClippingStatistics(int allocId,
+                                    std::int64_t*& clipsIn,
+                                    std::int64_t*& clipsOn,
+                                    std::int64_t*& clipsOut)
+  {
+    // Provide space for clip counters.
+    clipsIn = axom::allocate<std::int64_t>(1, allocId);
+    clipsOn = axom::allocate<std::int64_t>(1, allocId);
+    clipsOut = axom::allocate<std::int64_t>(1, allocId);
+    const std::int64_t zero = 0;
+    axom::copy(clipsIn, &zero, sizeof(std::int64_t));
+    axom::copy(clipsOn, &zero, sizeof(std::int64_t));
+    axom::copy(clipsOut, &zero, sizeof(std::int64_t));
+  }
+
+  void finalizeClippingStatistics(conduit::Node& statistics,
+                                  std::int64_t*& clipsIn,
+                                  std::int64_t*& clipsOn,
+                                  std::int64_t*& clipsOut)
+  {
+    // Place clip counts in statistics container.
+    const std::int64_t zero = 0;
+    std::int64_t& clipsInCount = *(statistics["clipsIn"] = zero).as_int64_ptr();
+    std::int64_t& clipsOnCount = *(statistics["clipsOn"] = zero).as_int64_ptr();
+    std::int64_t& clipsOutCount = *(statistics["clipsOut"] = zero).as_int64_ptr();
+    axom::copy(&clipsInCount, clipsIn, sizeof(std::int64_t));
+    axom::copy(&clipsOnCount, clipsOn, sizeof(std::int64_t));
+    axom::copy(&clipsOutCount, clipsOut, sizeof(std::int64_t));
+    statistics["clipsSum"] = clipsInCount + clipsOnCount + clipsOutCount;
+
+    axom::deallocate(clipsIn);
+    axom::deallocate(clipsOn);
+    axom::deallocate(clipsOut);
+    clipsIn = clipsOn = clipsOut = nullptr;
   }
 
 private:

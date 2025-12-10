@@ -34,8 +34,6 @@ MeshClipper::MeshClipper(quest::experimental::ShapeMesh& shapeMesh,
   m_counterStats["tetsIn"].set_int64(0);
   m_counterStats["tetsOn"].set_int64(0);
   m_counterStats["tetsOut"].set_int64(0);
-  m_counterStats["clips"].set_int64(0);
-  m_counterStats["contribs"].set_int64(0);
 }
 
 void MeshClipper::clip(axom::Array<double>& ovlap)
