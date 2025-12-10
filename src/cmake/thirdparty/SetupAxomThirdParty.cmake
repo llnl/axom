@@ -326,6 +326,10 @@ if(EXISTS ${Python_EXECUTABLE})
     endif()
 endif()
 
+if(nanobind_ROOT AND NOT CONDUIT_PYTHON_ENABLED)
+    message(FATAL_ERROR "Conduit python module is required if nanobind python module is provided.")
+endif()
+
 # "cannot allocate memory in static TLS block" on blueos with cuda and/or clang.
 # Also disable when sanitizers are enabled, requires environment variable manipulation:
 # https://stackoverflow.com/questions/55692357/address-sanitizer-on-a-python-extension
