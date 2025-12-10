@@ -81,6 +81,11 @@ struct test_cutfield
 
     TestApp.saveVisualization(name + "_braid", hostResult);
 
+    // Remove some fields to make the baseline smaller
+    hostResult.remove("fields/vel");
+    hostResult.remove("fields/distance");
+    hostResult.remove("fields/braid");
+
     // Handle baseline comparison.
     EXPECT_TRUE(TestApp.test<ExecSpace>(name + "_braid", hostResult));
 
@@ -97,6 +102,11 @@ struct test_cutfield
     utils::copy<seq_exec>(hostResult, deviceResult);
 
     TestApp.saveVisualization(name + "_gyroid", hostResult);
+
+    // Remove some fields to make the baseline smaller
+    hostResult.remove("fields/vel");
+    hostResult.remove("fields/distance");
+    hostResult.remove("fields/gyroid");
 
     EXPECT_TRUE(TestApp.test<ExecSpace>(name + "_gyroid", hostResult));
   }

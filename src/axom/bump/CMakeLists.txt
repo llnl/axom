@@ -22,12 +22,12 @@ set(bump_headers
     extraction/tables/clipping/ClipCases.h
     extraction/tables/cutting/CutCases.hpp
     extraction/ClipField.hpp
+    extraction/CutField.hpp
     extraction/ExtractorOptions.hpp
     extraction/FieldOptions.hpp
     extraction/ClipTableManager.hpp
     extraction/CutTableManager.hpp
     extraction/ExtractionConstants.hpp
-    extraction/Isosurface.hpp
     extraction/FieldIntersector.hpp
     extraction/PlaneIntersector.hpp
     extraction/PlaneSlice.hpp

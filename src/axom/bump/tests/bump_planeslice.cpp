@@ -114,6 +114,9 @@ struct test_planeslice
 
       TestApp.saveVisualization(name + "_" + it->first, hostResult);
 
+      // Remove some fields to make the baseline smaller
+      hostResult.remove("fields/distance");
+
       // Handle baseline comparison.
       EXPECT_TRUE(TestApp.test<ExecSpace>(name + "_" + it->first, hostResult));
     }
