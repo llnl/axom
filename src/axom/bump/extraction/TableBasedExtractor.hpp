@@ -41,6 +41,10 @@
 // blend groups and instead using a node lookup field for those.
 #define AXOM_REDUCE_BLEND_GROUPS
 
+// Add a "case" field so we can see which table cases were used in fragments.
+// NOTE: This is not compatible with AXOM_EXTRACTOR_DEGENERATES.
+//#define AXOM_EXTRACTOR_ADD_CASE_FIELD
+
 namespace axom
 {
 namespace bump
@@ -731,6 +735,9 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
  * \tparam CoordsetView The coordset view that can operate on the Blueprint coordset.
  * \tparam IntersectPolicy The intersector policy that can helps with cases and weights.
  * \tparam NamingPolicy The policy for making names from arrays of ids.
+ * \tparam AllowEdgePointConversion If an edge is sliced really close to an endpoint,
+ *                                  make its blend group contain only that endpoint
+ *                                  instead of the edge points.
  */
 template <typename ExecSpace,
           typename TableManagerType,
@@ -738,7 +745,8 @@ template <typename ExecSpace,
           typename CoordsetView,
           typename IntersectPolicy =
             axom::bump::extraction::FieldIntersector<ExecSpace, TopologyView, CoordsetView>,
-          typename NamingPolicy = axom::bump::HashNaming<axom::IndexType>>
+          typename NamingPolicy = axom::bump::HashNaming<axom::IndexType>,
+          bool AllowEdgePointConversion = true>
 class TableBasedExtractor
 {
 public:
@@ -1188,50 +1196,53 @@ private:
         {
           // Get the current shape in the case.
           const auto fragment = *it;
+          bool handleFragment = true;
 
-          if(fragment[0] == ST_PNT)
+          // If the tables contain ST_PNT then handle them.
+          if constexpr(TableManagerType::generates_points())
           {
-            if(detail::generatedPointIsSelected(fragment[2], selection))
+            if(fragment[0] == ST_PNT)
             {
-              const int nIds = static_cast<int>(fragment[3]);
-
-              for(int ni = 0; ni < nIds; ni++)
+              if(detail::generatedPointIsSelected(fragment[2], selection))
               {
-                const auto pid = fragment[4 + ni];
+                const int nIds = static_cast<int>(fragment[3]);
 
-                // Increase the blend size to include this center point.
-                if(pid <= P7)
+                for(int ni = 0; ni < nIds; ni++)
                 {
-                  // corner point
-                  thisBlendGroupLen++;
+                  const auto pid = fragment[4 + ni];
+
+                  // Increase the blend size to include this center point.
+                  if(pid <= P7)
+                  {
+                    // corner point
+                    thisBlendGroupLen++;
+                  }
+                  else if(pid >= EA && pid <= EL)
+                  {
+                    // edge point
+                    thisBlendGroupLen += 2;
+                  }
                 }
-                else if(pid >= EA && pid <= EL)
-                {
-                  // edge point
-                  thisBlendGroupLen += 2;
-                }
+
+                // This center or face point counts as a blend group.
+                thisBlendGroups++;
+
+                // Mark the point used.
+                axom::utilities::setBitOn(ptused, N0 + fragment[1]);
               }
-
-              // This center or face point counts as a blend group.
-              thisBlendGroups++;
-
-              // Mark the point used.
-              axom::utilities::setBitOn(ptused, N0 + fragment[1]);
+              handleFragment = false;
             }
           }
-          else
+          if(handleFragment && detail::shapeIsSelected(fragment[1], selection))
           {
-            if(detail::shapeIsSelected(fragment[1], selection))
-            {
-              thisFragments++;
-              const int nIdsThisFragment = fragment.size() - 2;
-              thisFragmentsNumIds += nIdsThisFragment;
+            thisFragments++;
+            const int nIdsThisFragment = fragment.size() - 2;
+            thisFragmentsNumIds += nIdsThisFragment;
 
-              // Mark the points this fragment used.
-              for(int i = 2; i < fragment.size(); i++)
-              {
-                axom::utilities::setBitOn(ptused, fragment[i]);
-              }
+            // Mark the points this fragment used.
+            for(int i = 2; i < fragment.size(); i++)
+            {
+              axom::utilities::setBitOn(ptused, fragment[i]);
             }
           }
         }
@@ -1459,40 +1470,44 @@ private:
           // Get the current shape in the case.
           const auto fragment = *it;
 
-          if(fragment[0] == ST_PNT)
+          // If the tables contain ST_PNT then handle them.
+          if constexpr(TableManagerType::generates_points())
           {
-            if(detail::generatedPointIsSelected(fragment[2], selection))
+            if(fragment[0] == ST_PNT)
             {
-              const int nIds = static_cast<int>(fragment[3]);
-              const auto one_over_n = 1.f / static_cast<float>(nIds);
-
-              groups.beginGroup();
-              for(int ni = 0; ni < nIds; ni++)
+              if(detail::generatedPointIsSelected(fragment[2], selection))
               {
-                const auto ptid = fragment[4 + ni];
+                const int nIds = static_cast<int>(fragment[3]);
+                const auto one_over_n = 1.f / static_cast<float>(nIds);
 
-                // Add the point to the blend group.
-                if(ptid <= P7)
+                groups.beginGroup();
+                for(int ni = 0; ni < nIds; ni++)
                 {
-                  // corner point.
-                  groups.add(zone.getId(ptid), one_over_n);
-                }
-                else if(ptid >= EA && ptid <= EL)
-                {
-                  // edge point.
-                  const auto edgeIndex = ptid - EA;
-                  const auto edge = zone.getEdge(edgeIndex);
-                  const auto id0 = zone.getId(edge[0]);
-                  const auto id1 = zone.getId(edge[1]);
+                  const auto ptid = fragment[4 + ni];
 
-                  // Figure out the blend for edge.
-                  const auto t = deviceIntersector.computeWeight(zoneIndex, id0, id1);
+                  // Add the point to the blend group.
+                  if(ptid <= P7)
+                  {
+                    // corner point.
+                    groups.add(zone.getId(ptid), one_over_n);
+                  }
+                  else if(ptid >= EA && ptid <= EL)
+                  {
+                    // edge point.
+                    const auto edgeIndex = ptid - EA;
+                    const auto edge = zone.getEdge(edgeIndex);
+                    const auto id0 = zone.getId(edge[0]);
+                    const auto id1 = zone.getId(edge[1]);
 
-                  groups.add(id0, one_over_n * (1.f - t));
-                  groups.add(id1, one_over_n * t);
+                    // Figure out the blend for edge.
+                    const auto t = deviceIntersector.computeWeight(zoneIndex, id0, id1);
+
+                    groups.add(id0, one_over_n * (1.f - t));
+                    groups.add(id1, one_over_n * t);
+                  }
                 }
+                groups.endGroup();
               }
-              groups.endGroup();
             }
           }
         }
@@ -1525,18 +1540,28 @@ private:
             // Figure out the blend for edge.
             const auto t = deviceIntersector.computeWeight(zoneIndex, id0, id1);
 
-            // Close to the endpoints, just count the edge blend group
-            // as an endpoint to ensure better blend group matching later.
-            constexpr decltype(t) LOWER = 1.e-4;
-            constexpr decltype(t) UPPER = 1. - LOWER;
             groups.beginGroup();
-            if(t < LOWER)
+            if constexpr(AllowEdgePointConversion)
             {
-              groups.add(id0, 1.f);
-            }
-            else if(t > UPPER)
-            {
-              groups.add(id1, 1.f);
+              // We probably only want to do this for clipping fragments.
+
+              // Close to the endpoints, just count the edge blend group
+              // as an endpoint to ensure better blend group matching later.
+              constexpr decltype(t) LOWER = 1.e-4;
+              constexpr decltype(t) UPPER = 1. - LOWER;
+              if(t < LOWER)
+              {
+                groups.add(id0, 1.f);
+              }
+              else if(t > UPPER)
+              {
+                groups.add(id1, 1.f);
+              }
+              else
+              {
+                groups.add(id0, 1.f - t);
+                groups.add(id1, t);
+              }
             }
             else
             {
@@ -1627,6 +1652,20 @@ private:
     n_color_values.set_allocator(conduitAllocatorID);
     n_color_values.set(conduit::DataType::int32(fragmentData.m_finalNumZones));
     auto colorView = utils::make_array_view<int>(n_color_values);
+
+#if defined(AXOM_EXTRACTOR_ADD_CASE_FIELD)
+  #if defined(AXOM_EXTRACTOR_DEGENERATES)
+    #pragma error("AXOM_EXTRACTOR_ADD_CASE_FIELD and AXOM_EXTRACTOR_DEGENERATES are mutually exclusive.")
+  #endif
+    // Allocate a color variable to keep track of the "color" of the fragments.
+    conduit::Node &n_case = n_newFields["case"];
+    n_case["topology"] = newTopologyName;
+    n_case["association"] = "element";
+    conduit::Node &n_case_values = n_case["values"];
+    n_case_values.set_allocator(conduitAllocatorID);
+    n_case_values.set(conduit::DataType::int32(fragmentData.m_finalNumZones));
+    auto caseView = utils::make_array_view<int>(n_case_values);
+#endif
 
     // Fill in connectivity values in case we leave empty slots later.
     axom::for_all<ExecSpace>(
@@ -1760,6 +1799,11 @@ private:
             {
               if(detail::shapeIsSelected(fragment[1], selection))
               {
+#if defined(AXOM_EXTRACTOR_ADD_CASE_FIELD)
+                // Save the table index and table case into the "case" variable.
+                caseView[sizeIndex] = tableIndex * 10000 + caseNumber;
+#endif
+
                 [[maybe_unused]] const bool addedFragment =
                   FragmentOps::addFragment(fragment,
                                            connView,

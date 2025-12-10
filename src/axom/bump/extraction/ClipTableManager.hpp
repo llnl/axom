@@ -21,7 +21,11 @@ namespace extraction
  */
 class ClipTableManager : public TableManager
 {
+public:
+  /// Return true since the tables can generate ST_PNT points.
+  static constexpr bool generates_points() { return true; }
 protected:
+
   /*!
    * \brief Load the clipping table for a shape.
    *

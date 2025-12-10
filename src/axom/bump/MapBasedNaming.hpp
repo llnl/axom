@@ -76,9 +76,9 @@ public:
       return name;
     }
 
-    /// Set the max number of nodes, which can be useful for packing/narrowing.
+    /// Set the max number of nodes.
     AXOM_HOST_DEVICE
-    void setMaxId(IndexType m) { }
+    void setMaxId(IndexType) { }
 
     MapType *m_map_ptr{nullptr};
   };

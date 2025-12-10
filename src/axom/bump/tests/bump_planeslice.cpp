@@ -121,7 +121,7 @@ struct test_planeslice
 
   static void initialize(conduit::Node &mesh)
   {
-    const axom::IndexType N = 50;
+    const axom::IndexType N = 10;
     const axom::StackArray<axom::IndexType, 3> dims {N, N, (NDIMS > 2) ? N : 0};
 
     // Create the data

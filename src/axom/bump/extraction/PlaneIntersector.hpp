@@ -126,7 +126,8 @@ public:
     for(int i = 0; i < NDIMS; i++)
     {
       planeOrigin[i] = static_cast<value_type>(origin[i]);
-      planeNormal[i] = static_cast<value_type>(normal[i]);
+      // Reverse the normal so generated surface's normals go in same direction as the normal.
+      planeNormal[i] = -static_cast<value_type>(normal[i]);
     }
 
     // Set the plane in the view.

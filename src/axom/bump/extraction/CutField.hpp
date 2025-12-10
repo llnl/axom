@@ -29,7 +29,7 @@ template <typename ExecSpace,
           typename IntersectPolicy =
             axom::bump::extraction::FieldIntersector<ExecSpace, TopologyView, CoordsetView>,
           typename NamingPolicy = axom::bump::HashNaming<axom::IndexType>>
-using CutField = TableBasedExtractor<ExecSpace, CutTableManager, TopologyView, CoordsetView, IntersectPolicy, NamingPolicy>;
+using CutField = TableBasedExtractor<ExecSpace, CutTableManager, TopologyView, CoordsetView, IntersectPolicy, NamingPolicy, false>;
 
 }  // end namespace extraction
 }  // end namespace bump
