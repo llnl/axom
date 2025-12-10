@@ -1133,9 +1133,9 @@ public:
     // CUDA-only: we require non-trivial types to be trivially-relocatable.
     // This enables us to do simple memcpys for move operations.
     bool presume_trivially_relocatable = (SPACE == OperationSpace::Device);
-#else
+  #else
     bool presume_trivially_relocatable = false;
-#endif
+  #endif
     if(std::is_trivially_copyable_v<T> || presume_trivially_relocatable)
     {
       // Since this memory is on the device-side, we copy it to a temporary buffer
