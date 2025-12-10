@@ -246,7 +246,6 @@ public:
 
     // Tetrahedra from hexes
     auto cellsAsTets = shapeMesh.getCellsAsTets();
-    auto meshTetVolumes = getShapeMesh().getTetVolumes();
 
     // Index into 'tets'
     axom::Array<IndexType> tetIndices(candidateCount * NUM_TETS_PER_HEX,
@@ -312,7 +311,8 @@ public:
     std::int64_t* clipsIn = nullptr;
     std::int64_t* clipsOn = nullptr;
     std::int64_t* clipsOut = nullptr;
-    initializeClippingStatistics(allocId, clipsIn, clipsOn, clipsOut);
+    std::int64_t* clipsMiss = nullptr;
+    initializeClippingStatistics(allocId, clipsIn, clipsOn, clipsOut, clipsMiss);
 
     const auto screenLevel = m_myClipper.getScreenLevel();
 
@@ -333,6 +333,7 @@ public:
                                          clipsIn,
                                          clipsOn,
                                          clipsOut,
+                                         clipsMiss,
                                          screenLevel);
         });
     }
@@ -352,12 +353,13 @@ public:
                                          clipsIn,
                                          clipsOn,
                                          clipsOut,
+                                         clipsMiss,
                                          screenLevel);
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_notScreened");
 
-    finalizeClippingStatistics(statistics, clipsIn, clipsOn, clipsOut);
+    finalizeClippingStatistics(statistics, clipsIn, clipsOn, clipsOut, clipsMiss);
     statistics["clipsCandidates"].set_int64(tetCandidatesCount);
 
     if(tetCandidatesCountPtr != &tetCandidatesCount)
@@ -433,7 +435,6 @@ public:
 
     // Tetrahedrons from hexes
     auto cellsAsTets = shapeMesh.getCellsAsTets();
-    auto meshTetVolumes = getShapeMesh().getTetVolumes();
 
     // Index into 'tets'
     axom::Array<IndexType> tetIndices(candidateCount * NUM_TETS_PER_HEX,
@@ -495,7 +496,8 @@ public:
     std::int64_t* clipsIn = nullptr;
     std::int64_t* clipsOn = nullptr;
     std::int64_t* clipsOut = nullptr;
-    initializeClippingStatistics(allocId, clipsIn, clipsOn, clipsOut);
+    std::int64_t* clipsMiss = nullptr;
+    initializeClippingStatistics(allocId, clipsIn, clipsOn, clipsOut, clipsMiss);
 
     const auto screenLevel = m_myClipper.getScreenLevel();
 
@@ -524,6 +526,7 @@ public:
                                          clipsIn,
                                          clipsOn,
                                          clipsOut,
+                                         clipsMiss,
                                          screenLevel);
         });
     }
@@ -551,12 +554,13 @@ public:
                                          clipsIn,
                                          clipsOn,
                                          clipsOut,
+                                         clipsMiss,
                                          screenLevel);
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_hexScreened");
 
-    finalizeClippingStatistics(statistics, clipsIn, clipsOn, clipsOut);
+    finalizeClippingStatistics(statistics, clipsIn, clipsOn, clipsOut, clipsMiss);
     statistics["clipsCandidates"].set_int64(tetCandidatesCount);
 
     if(tetCandidatesCountPtr != &tetCandidatesCount)
@@ -576,8 +580,6 @@ public:
                                 conduit::Node& statistics) override
 
   {
-    using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
-
     ShapeMesh& shapeMesh = getShapeMesh();
     auto meshTets = getShapeMesh().getCellsAsTets();
 
@@ -761,7 +763,8 @@ public:
     std::int64_t* clipsIn = nullptr;
     std::int64_t* clipsOn = nullptr;
     std::int64_t* clipsOut = nullptr;
-    initializeClippingStatistics(allocId, clipsIn, clipsOn, clipsOut);
+    std::int64_t* clipsMiss = nullptr;
+    initializeClippingStatistics(allocId, clipsIn, clipsOn, clipsOut, clipsMiss);
 
     const auto screenLevel = m_myClipper.getScreenLevel();
 
@@ -783,6 +786,7 @@ public:
                                          clipsIn,
                                          clipsOn,
                                          clipsOut,
+                                         clipsMiss,
                                          screenLevel);
         });
     }
@@ -803,12 +807,13 @@ public:
                                          clipsIn,
                                          clipsOn,
                                          clipsOut,
+                                         clipsMiss,
                                          screenLevel);
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_tetScreened");
 
-    finalizeClippingStatistics(statistics, clipsIn, clipsOn, clipsOut);
+    finalizeClippingStatistics(statistics, clipsIn, clipsOn, clipsOut, clipsMiss);
     statistics["clipsCandidates"].set_int64(candidates.size());
 
     SLIC_DEBUG(axom::fmt::format(""));
@@ -943,6 +948,7 @@ public:
                                                                    std::int64_t* clipsIn,
                                                                    std::int64_t* clipsOn,
                                                                    std::int64_t* clipsOut,
+                                                                   std::int64_t* clipsMiss,
                                                                    int screenLevel)
   {
     using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
@@ -972,6 +978,10 @@ public:
       auto contribVol = poly.volume();
       SLIC_ASSERT(contribVol >= 0);
       RAJA::atomicAdd<ATOMIC_POL>(overlapVolume, contribVol);
+    }
+    else
+    {
+      RAJA::atomicAdd<ATOMIC_POL>(clipsMiss, std::int64_t(1));
     }
 
     return LabelType::LABEL_ON;
@@ -1195,37 +1205,44 @@ public:
   void initializeClippingStatistics(int allocId,
                                     std::int64_t*& clipsIn,
                                     std::int64_t*& clipsOn,
-                                    std::int64_t*& clipsOut)
+                                    std::int64_t*& clipsOut,
+                                    std::int64_t*& clipsMiss)
   {
     // Provide space for clip counters.
     clipsIn = axom::allocate<std::int64_t>(1, allocId);
     clipsOn = axom::allocate<std::int64_t>(1, allocId);
     clipsOut = axom::allocate<std::int64_t>(1, allocId);
+    clipsMiss = axom::allocate<std::int64_t>(1, allocId);
     const std::int64_t zero = 0;
     axom::copy(clipsIn, &zero, sizeof(std::int64_t));
     axom::copy(clipsOn, &zero, sizeof(std::int64_t));
     axom::copy(clipsOut, &zero, sizeof(std::int64_t));
+    axom::copy(clipsMiss, &zero, sizeof(std::int64_t));
   }
 
   void finalizeClippingStatistics(conduit::Node& statistics,
                                   std::int64_t*& clipsIn,
                                   std::int64_t*& clipsOn,
-                                  std::int64_t*& clipsOut)
+                                  std::int64_t*& clipsOut,
+                                  std::int64_t*& clipsMiss)
   {
     // Place clip counts in statistics container.
     const std::int64_t zero = 0;
     std::int64_t& clipsInCount = *(statistics["clipsIn"] = zero).as_int64_ptr();
     std::int64_t& clipsOnCount = *(statistics["clipsOn"] = zero).as_int64_ptr();
     std::int64_t& clipsOutCount = *(statistics["clipsOut"] = zero).as_int64_ptr();
+    std::int64_t& clipsMissCount = *(statistics["clipsMiss"] = zero).as_int64_ptr();
     axom::copy(&clipsInCount, clipsIn, sizeof(std::int64_t));
     axom::copy(&clipsOnCount, clipsOn, sizeof(std::int64_t));
     axom::copy(&clipsOutCount, clipsOut, sizeof(std::int64_t));
+    axom::copy(&clipsMissCount, clipsMiss, sizeof(std::int64_t));
     statistics["clipsSum"] = clipsInCount + clipsOnCount + clipsOutCount;
 
     axom::deallocate(clipsIn);
     axom::deallocate(clipsOn);
     axom::deallocate(clipsOut);
-    clipsIn = clipsOn = clipsOut = nullptr;
+    axom::deallocate(clipsMiss);
+    clipsIn = clipsOn = clipsOut = clipsMiss = nullptr;
   }
 
 private:
