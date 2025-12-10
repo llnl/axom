@@ -477,11 +477,11 @@ Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(const Array<Point2DT
     const double segDr = absDelta[1];
     const double segMean = 2 * segDz * segDr / (segDz + segDr);
 
-    int numSplitsByMean = maxMean < 0 ? 0 : static_cast<int>(std::ceil(segMean / maxMean));
-    int numSplitsByDz = maxDz < 0 ? 0 : static_cast<int>(std::ceil(segDz / maxDz));
+    int numSplitsByMean = maxMean <= 0 && segMean > maxMean ? 0 : static_cast<int>(std::ceil(segMean / maxMean)) - 1;
+    int numSplitsByDz = maxDz <= 0 && segDz > maxDz ? 0 : static_cast<int>(std::ceil(segDz / maxDz)) - 1;
 
     // Prevent dz from falling below minDz
-    int numSplitsByMinDz = minDz < 0 ? 0 : static_cast<int>(std::ceil(segDz / minDz));
+    int numSplitsByMinDz = minDz <= 0 && segDz > minDz ? 0 : static_cast<int>(segDz / minDz) - 1;
 
     int numSplits = std::min(std::max(numSplitsByMean, numSplitsByDz), numSplitsByMinDz);
 
@@ -540,11 +540,12 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMes
   const int allocId = shapeMesh.getAllocatorID();
   octs = axom::Array<OctahedronType>(0, 0, allocId);
 
-  axom::ArrayView<const double> cellLengths = shapeMesh.getCellLengths();
   const auto cellCount = shapeMesh.getCellCount();
 
+  // Compute an average characteristic length for the mesh cells.
   using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
   using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
+  axom::ArrayView<const double> cellLengths = shapeMesh.getCellLengths();
   RAJA::ReduceSum<ReducePolicy, double> sumCharLength(0.0);
   RAJA::forall<LoopPolicy>(
     RAJA::RangeSegment(0, cellCount),
@@ -577,6 +578,9 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMes
         transformer.transform(oct[iVert].array());
       }
     });
+
+  SLIC_DEBUG(axom::fmt::format("FSorClipper '{}' generated {} geometry octs from {} curve points.",
+                               name(), octs.size(), sorCurve.size()));
 
   return true;
 }
