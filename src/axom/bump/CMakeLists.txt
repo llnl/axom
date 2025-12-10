@@ -25,9 +25,9 @@ set(bump_headers
     extraction/ExtractorOptions.hpp
     extraction/FieldOptions.hpp
     extraction/ClipTableManager.hpp
-    extraction/CutField.hpp
     extraction/CutTableManager.hpp
     extraction/ExtractionConstants.hpp
+    extraction/Isosurface.hpp
     extraction/FieldIntersector.hpp
     extraction/PlaneIntersector.hpp
     extraction/PlaneSlice.hpp
@@ -78,6 +78,7 @@ set(bump_headers
     MakeUnstructured.hpp
     MakeZoneCenters.hpp
     MakeZoneVolumes.hpp
+    MapBasedNaming.hpp
     MatsetSlicer.hpp
     MergeCoordsetPoints.hpp
     MergeMeshes.hpp

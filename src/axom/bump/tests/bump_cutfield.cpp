@@ -10,6 +10,8 @@
 #include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 #include "axom/bump/tests/blueprint_testing_helpers.hpp"
 
+#include "axom/bump/MapBasedNaming.hpp"
+
 #include <conduit/conduit_relay_io_blueprint.hpp>
 #include <cmath>
 #include <cstdlib>
@@ -60,9 +62,17 @@ struct test_cutfield
 
     conduit::Node deviceOptions, deviceResult;
     utils::copy<ExecSpace>(deviceOptions, hostOptions);
-
+#if 0
+    // For Debugging
+    axom::bump::extraction::CutField<ExecSpace,
+                                     TopologyView,
+                                     CoordsetView,
+                                     axom::bump::extraction::FieldIntersector<ExecSpace, TopologyView, CoordsetView>,
+                                     axom::bump::MapBasedNaming<axom::IndexType>> iso(topologyView, coordsetView);
+#else
     axom::bump::extraction::CutField<ExecSpace, TopologyView, CoordsetView> iso(topologyView,
                                                                                 coordsetView);
+#endif
     iso.execute(deviceMesh, deviceOptions, deviceResult);
 
     // device->host
@@ -76,9 +86,10 @@ struct test_cutfield
 
     //---------------------
     // Try a different clip
-    hostOptions["clipField"] = "gyroid";
-    hostOptions["clipValue"] = 0;
+    hostOptions["field"] = "gyroid";
+    hostOptions["value"] = 0;
     utils::copy<ExecSpace>(deviceOptions, hostOptions);
+    hostResult.reset();
     deviceResult.reset();
     iso.execute(deviceMesh, deviceOptions, deviceResult);
 
@@ -92,7 +103,8 @@ struct test_cutfield
 
   static void initialize(conduit::Node &mesh)
   {
-    const axom::StackArray<axom::IndexType, 3> dims {50, 50, (NDIMS > 2) ? 50 : 0};
+    const axom::IndexType N = 20;
+    const axom::StackArray<axom::IndexType, 3> dims {N, N, (NDIMS > 2) ? N : 0};
     const auto maxZ = axom::utilities::max(dims[2], axom::IndexType{1});
     const auto nnodes = dims[0] * dims[1] * maxZ;
 
