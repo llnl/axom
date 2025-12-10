@@ -1154,8 +1154,7 @@ inline int shapeNameToID(const std::string &name)
  * \return True if the value is a valid ShapeID; False otherwise.
  */
 template <typename T>
-AXOM_HOST_DEVICE
-constexpr bool isValidShapeID(T shapeID)
+AXOM_HOST_DEVICE constexpr bool isValidShapeID(T shapeID)
 {
   return shapeID >= static_cast<T>(Point_ShapeID) && shapeID <= static_cast<T>(Mixed_ShapeID);
 }

@@ -469,10 +469,13 @@ private:
 
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     auto shapeMap = views::buildShapeMap(n_srcTopo, shapeValues, shapeIds, allocatorID);
-    const auto srcConnView = utils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]);
-    const auto srcShapesView = utils::make_array_view<conduit::index_t>(n_srcTopo["elements/shapes"]);
+    const auto srcConnView =
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]);
+    const auto srcShapesView =
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/shapes"]);
     const auto srcSizesView = utils::make_array_view<conduit::index_t>(n_srcTopo["elements/sizes"]);
-    const auto srcOffsetsView = utils::make_array_view<conduit::index_t>(n_srcTopo["elements/offsets"]);
+    const auto srcOffsetsView =
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/offsets"]);
     // Check sizes with the current version of this test.
     EXPECT_TRUE(srcSizesView.size() == 54);
     EXPECT_TRUE(srcSizesView.size() == srcOffsetsView.size());
