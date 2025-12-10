@@ -461,18 +461,24 @@ private:
     auto srcCoordset =
       views::make_explicit_coordset<double, 3>::view(n_dev["coordsets/epm_coords"]);
     using SrcCoordsetView = decltype(srcCoordset);
-
     using SrcTopologyView = views::UnstructuredTopologyMixedShapeView<conduit::index_t>;
     axom::Array<axom::IndexType> shapeValues, shapeIds;
     const conduit::Node &n_srcTopo = n_dev["topologies/epm"];
+    EXPECT_EQ(n_srcTopo["type"].as_string(), "unstructured");
+    EXPECT_EQ(n_srcTopo["elements/shape"].as_string(), "mixed");
+
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     auto shapeMap = views::buildShapeMap(n_srcTopo, shapeValues, shapeIds, allocatorID);
-    SrcTopologyView srcTopo(
-      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]),
-      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/shapes"]),
-      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/sizes"]),
-      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/offsets"]),
-      shapeMap);
+    const auto srcConnView = utils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]);
+    const auto srcShapesView = utils::make_array_view<conduit::index_t>(n_srcTopo["elements/shapes"]);
+    const auto srcSizesView = utils::make_array_view<conduit::index_t>(n_srcTopo["elements/sizes"]);
+    const auto srcOffsetsView = utils::make_array_view<conduit::index_t>(n_srcTopo["elements/offsets"]);
+    // Check sizes with the current version of this test.
+    EXPECT_TRUE(srcSizesView.size() == 54);
+    EXPECT_TRUE(srcSizesView.size() == srcOffsetsView.size());
+    EXPECT_TRUE(srcSizesView.size() == srcShapesView.size());
+
+    SrcTopologyView srcTopo(srcConnView, srcShapesView, srcSizesView, srcOffsetsView, shapeMap);
 
     const conduit::Node &n_srcMatset = n_dev["matsets/epm_matset"];
     auto srcMatset = views::make_unibuffer_matset<std::int64_t, double, 4>::view(n_srcMatset);

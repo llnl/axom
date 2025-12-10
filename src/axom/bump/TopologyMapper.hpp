@@ -623,8 +623,12 @@ public:
     axom::for_all<ExecSpace>(
       targetSelectionView.size(),
       AXOM_LAMBDA(axom::IndexType index) {
+        SLIC_ASSERT(index >= 0 && index < targetSelectionView.size());
+
         // Get the target zone as a primal shape.
         const axom::IndexType zi = targetSelectionView[index];
+        SLIC_ASSERT(zi >= 0 && zi < targetView.numberOfZones());
+
         const auto targetBBox = targetView.getBoundingBox(zi);
         const auto targetShape = targetView.getShape(zi);
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
@@ -638,7 +642,10 @@ public:
         // Handle intersection in-depth of the bounding boxes intersected.
         auto handleIntersection = [&](std::int32_t currentNode, const std::int32_t *leafNodes) {
           const auto srcBboxIndex = leafNodes[currentNode];
+          SLIC_ASSERT(srcBboxIndex >= 0 && srcBboxIndex < srcSelectionView.size());
+
           const auto srcZone = srcSelectionView[srcBboxIndex];
+          SLIC_ASSERT(srcZone >= 0 && srcZone < srcView.numberOfZones());
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
           std::cout << "handleIntersection: targetZone=" << zi << ", srcZone=" << srcZone
                     << std::endl;
