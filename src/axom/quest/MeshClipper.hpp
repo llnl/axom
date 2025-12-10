@@ -85,18 +85,6 @@ public:
   //@{
 
   /*!
-   * @brief Return the number of times primitive clipping was used,
-   * intended for developer use.
-   */
-  std::int64_t getClipCount() const { return m_counterStats["clips"].as_int64(); }
-
-  /*!
-   * @brief Return the number of times primitive clipping contributed to the mesh clip volume,
-   * intended for developer use.
-   */
-  std::int64_t getContribCount() const { return m_counterStats["contribs"].as_int64(); }
-
-  /*!
    * @brief Log clipping statistics.
    * Intended for developer use.
    *
