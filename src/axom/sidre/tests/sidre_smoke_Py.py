@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: (BSD-3-Clause)
 
 import pysidre
+import conduit
 
 # Python automatically calls destructor during garbage collection
 def test_create_datastore():
@@ -23,3 +24,9 @@ def test_valid_invalid():
 	root = ds.getRoot()
 	assert root.getGroupName(idx) == pysidre.InvalidName
 	assert root.getGroupIndex(name) == pysidre.InvalidIndex
+
+def test_conduit_in_sidre_smoke():
+	# make sure we are importing conduit module ok.
+	n = conduit.Node()
+	n["field"] = 100
+	assert n["field"] == 100
