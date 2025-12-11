@@ -403,7 +403,11 @@ void FSorClipper::computeCurveBoxes(quest::experimental::ShapeMesh& shapeMesh,
       characteristic length of mesh cells.
     - with memory from allocId.
   */
-  axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve, 3 * avgCharLength, -1, -1);
+  axom::Array<Point2DType> sorCurve =
+    subdivideCurve(m_sorCurve,
+                   3 * avgCharLength /* maxMean */,
+                   -1 /* maxDz, negative disables */,
+                   -1 /* minDz, negative disables */);
   sorCurve = axom::Array<Point2DType>(sorCurve, allocId);
   auto sorCurveView = sorCurve.view();
 
@@ -563,7 +567,10 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMes
 #endif
 
   axom::Array<Point2DType> sorCurve =
-    subdivideCurve(m_sorCurve, 3 * avgCharLength, 3 * avgCharLength, 2 * avgCharLength);
+    subdivideCurve(m_sorCurve,
+                   3 * avgCharLength /* maxMean */,
+                   3 * avgCharLength /* maxDz */,
+                   2 * avgCharLength /* minDz */);
 
   // Generate the Octahedra
   int octCount = 0;

@@ -1138,13 +1138,13 @@ public:
 
     // Indices of the vertices of each of the 8 faces of the octagon, oriented inside.
     using ThreeIds = int[3];
-    ThreeIds octFIds[8] = { {0, 2, 5},
-                            {0, 4, 1},
+    ThreeIds octFIds[8] = { {0, 2, 4},
+                            {0, 5, 1},
                             {2, 1, 3},
-                            {5, 3, 4},
-                            {1, 4, 3},
-                            {3, 5, 2},
-                            {4, 0, 5},
+                            {4, 3, 5},
+                            {1, 5, 3},
+                            {3, 4, 2},
+                            {5, 0, 4},
                             {1, 2, 0} };
     for(int fi = 0; fi < 8; ++fi)
     {
