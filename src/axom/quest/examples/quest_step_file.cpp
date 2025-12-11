@@ -559,6 +559,18 @@ struct RAIILogger
   void setLoggingLevel(slic::message::Level level) { slic::setLoggingMsgLevel(level); }
 };
 
+enum class TriangleMeshOutputType
+{
+  NONE,
+  VTK,
+  STL
+};
+
+const std::map<std::string, TriangleMeshOutputType> validTriangleMeshOutputs {
+  {"none", TriangleMeshOutputType::NONE},
+  {"vtk", TriangleMeshOutputType::VTK},
+  {"stl", TriangleMeshOutputType::STL}};
+
 }  // namespace
 
 int main(int argc, char** argv)
@@ -585,8 +597,9 @@ int main(int argc, char** argv)
   app.add_flag("-v,--verbose", verbosity)->description("Enable verbose output")->capture_default_str();
 
   bool validate_model {true};
-  app.add_flag("--validate,!--no-validate", validate_model)
-    ->description("Validate the model while reading it in?")
+  app.add_flag("--validate", validate_model)
+    ->description(
+      axom::fmt::format("Validate the model while reading it in? (default: {})", validate_model))
     ->capture_default_str();
 
   std::string output_dir = "step_output";
@@ -601,15 +614,17 @@ int main(int argc, char** argv)
       return std::string();
     });
 
-  bool output_trimmed {true};
-  app.add_flag("--output-trimmed,!--no-output-trimmed", output_trimmed)
-    ->description("Generate triangulation of trimmed model?")
-    ->capture_default_str();
+  TriangleMeshOutputType output_trimmed {TriangleMeshOutputType::VTK};
+  app.add_option("--output-trimmed", output_trimmed)
+    ->description("Output format for trimmed model triangulation: 'none', 'vtk', 'stl'")
+    ->capture_default_str()
+    ->transform(axom::CLI::CheckedTransformer(validTriangleMeshOutputs));
 
-  bool output_untrimmed {false};
-  app.add_flag("--output-untrimmed,!--no-output-untrimmed", output_untrimmed)
-    ->description("Generate triangulation of untrimmed patches?")
-    ->capture_default_str();
+  TriangleMeshOutputType output_untrimmed {TriangleMeshOutputType::NONE};
+  app.add_option("--output-untrimmed", output_untrimmed)
+    ->description("Output format for untrimmed model triangulation: 'none', 'vtk', 'stl'")
+    ->capture_default_str()
+    ->transform(axom::CLI::CheckedTransformer(validTriangleMeshOutputs));
 
   double deflection {.1};
   app.add_option("--deflection", deflection)
@@ -702,8 +717,10 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   // Triangulate model
   //---------------------------------------------------------------------------
+  using axom::utilities::filesystem::joinPath;
+
   // Create an unstructured triangle mesh of the model (using trimmed patches)
-  if(output_trimmed)
+  if(output_trimmed != TriangleMeshOutputType::NONE)
   {
     SLIC_INFO_ROOT(
       axom::fmt::format("Generating triangulation of model in '{}' directory", output_dir));
@@ -725,23 +742,34 @@ int main(int argc, char** argv)
 
     if(is_root)
     {
-      const std::string filename =
-        axom::utilities::filesystem::joinPath(output_dir, "triangulated_mesh.vtk");
-      axom::mint::write_vtk(&mesh, filename);
+      const std::string format = output_trimmed == TriangleMeshOutputType::VTK ? "vtk" : "stl";
+      const std::string fname = axom::fmt::format("triangulated_mesh.{}", format);
+      const std::string output_file = joinPath(output_dir, fname);
+
+      if(output_trimmed == TriangleMeshOutputType::VTK)
+      {
+        axom::mint::write_vtk(&mesh, output_file);
+      }
+      else
+      {
+        axom::quest::STLWriter writer(output_file, true);
+        writer.write(&mesh);
+      }
 
       SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                  "Generated VTK triangle mesh of trimmed model with {} deflection "
-                                  "{} and {} angular deflection, with {:L} triangles: '{}'",
+                                  "Generated {} triangle mesh of trimmed model with {} deflection "
+                                  "{} and {} angular deflection containing {:L} triangles: '{}'",
+                                  format,
                                   false ? "relative" : "absolute",
                                   deflection,
                                   angular_deflection,
                                   mesh.getNumberOfCells(),
-                                  filename));
+                                  output_file));
     }
   }
 
   // Create an unstructured triangle mesh of the model's untrimmed patches (mostly to understand the model better)
-  if(output_untrimmed)
+  if(output_untrimmed != TriangleMeshOutputType::NONE)
   {
     SLIC_INFO_ROOT(axom::fmt::format(
       "Generating triangulation of model (ignoring trimming curves) in '{}' directory",
@@ -765,18 +793,30 @@ int main(int argc, char** argv)
 
     if(is_root)
     {
-      const std::string filename =
-        axom::utilities::filesystem::joinPath(output_dir, "untrimmed_mesh.vtk");
-      axom::mint::write_vtk(&mesh, filename);
+      const std::string format = output_untrimmed == TriangleMeshOutputType::VTK ? "vtk" : "stl";
+      const std::string fname = axom::fmt::format("untrimmed_mesh.{}", format);
+      const std::string output_file = joinPath(output_dir, fname);
+
+      if(output_untrimmed == TriangleMeshOutputType::VTK)
+      {
+        axom::mint::write_vtk(&mesh, output_file);
+      }
+      else
+      {
+        axom::quest::STLWriter writer(output_file, true);
+        writer.write(&mesh);
+      }
+
       SLIC_INFO(
         axom::fmt::format(axom::utilities::locale(),
-                          "Generated VTK triangle mesh of untrimmed model with {} deflection {} "
-                          "and {} angular deflection, with {:L} triangles: '{}'",
+                          "Generated {} triangle mesh of untrimmed model with {} deflection {} "
+                          "and {} angular deflection containing {:L} triangles: '{}'",
+                          format,
                           false ? "relative" : "absolute",
                           deflection,
                           angular_deflection,
                           mesh.getNumberOfCells(),
-                          filename));
+                          output_file));
     }
   }
 
