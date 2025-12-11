@@ -1,4 +1,3 @@
-================
 Acknowledgement
 ================
 
@@ -16,7 +15,6 @@ split/ClipCasesPoly7.cpp
 split/ClipCasesPoly8.cpp
 split/ClipCasesQua.cpp
 
-====================
 Regenerating Tables
 ====================
 
@@ -29,17 +27,17 @@ cutting tables for polygon cases 4-8.
 
 To regenerate the cutting tables:
 
-   cd split
-   python3 ./convert_clip_cases.py
+	cd split
+	python3 ./convert_clip_cases.py
 
 To regenerate the clipping tables:
 
-   cd split
-   python3 ./convert_clip_cases.py -clip
+	cd split
+	python3 ./convert_clip_cases.py -clip
 
 Some light editing of the regenerated files may be required.
 
-==============
+
 VisIt License
 ==============
 
