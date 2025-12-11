@@ -9,8 +9,7 @@ Extraction
 
 The BUMP component provides multiple algorithms for extracting data from Blueprint
 meshes where the output geometry consists of fragments created from the input mesh's
-zones. These algorithms are templated and designed to operate on various hardware
-architectures on Blueprint meshes with various coordset and topology types.
+zones, including:
 
 * axom::bump::extraction::ClipField
 * axom::bump::extraction::CutField
@@ -18,17 +17,16 @@ architectures on Blueprint meshes with various coordset and topology types.
 
 The algorithms are implemented as classes with template parameters that set policies
 that determine where the algorithms will execute, which coordset and topology
-types they support, and how they performs intersection. The input to an algorithm is
+types they support, and how they perform intersection. The input to an algorithm is
 a Blueprint mesh. When instantiated with coordset and topology views appropriate
 for the input data, the algorithm can operate on a wide variety of mesh types. This
 includes 2D/3D structured and unstructured topologies that can be represented using
 finite elements.
 
-The algorithms are all called using a similar pattern where the algorithm is first
+Algorithms are called using a pattern where the algorithm is first
 instantiated (using execution space, topology view, and coordset view parameters)
-and then the algorithm is invoked using an ``execute()`` method. The ``execute()``
-method accepts Conduit nodes for the input Blueprint mesh, any options, and an output
-node to contain the output mesh.
+, followed by calling an ``execute()`` method. The ``execute()``
+method accepts Conduit nodes for the input Blueprint mesh, any options, and the output mesh.
 
 #######
 Inputs
@@ -158,6 +156,17 @@ The ``CutField`` class with its default intersection policy performs an isosurfa
 the output will consist of 1D line segments. For 3D input, the output will consist of 2D polygonal
 surfaces.
 
++---------------------------------+------------------------------------------------------+
+| Option                          | Description                                          |
++=================================+======================================================+
+| ``field: name``                 | A required string argument that specifies the name   |
+|                                 | of the field that is used for clipping. At present,  |
+|                                 | the field must be a vertex-associated field.         |
++---------------------------------+------------------------------------------------------+
+| ``value: value``                | An optional numeric argument that specifies the      |
+|                                 | value in the field at which the clip boundary is     |
+|                                 | defined. The default is 0.                           |
++---------------------------------+------------------------------------------------------+
 
 .. figure:: figures/cutfield.png
    :figwidth: 800px
@@ -174,6 +183,24 @@ The algorithm works in 2D and 3D. For 2D, the plane "origin" and "normal" contai
 a line and the output will consist of line segments along that line. For 3D, the "origin" and "normal"
 contain 3 components that describe a plane. The output will contain polygonal shapes that cover the
 intersection of the slice plane with the input mesh.
+
++---------------------------------+------------------------------------------------------+
+| Option                          | Description                                          |
++=================================+======================================================+
+| ``origin: [x,y,z]``             | A required array argument that specifies the plane   |
+|                                 | origin. There must be 2 or 3 array elements,         |
+|                                 | depending on the topological dimension of the        |
+|                                 | Blueprint mesh being sliced.                         |
++---------------------------------+------------------------------------------------------+
+| ``normal: [x,y,z]``             | A required array argument that specifies the plane   |
+|                                 | normal, which determines the slice plane orientation.|
+|                                 | There must be 2 or 3 array elements, depending on the|
+|                                 | topological dimension of the Blueprint mesh being    |
+|                                 | sliced.                                              |
++---------------------------------+------------------------------------------------------+
+| ``topology: "mesh"``            | A required string argument containing the name of the|
+|                                 | Blueprint topology to slice.                         |
++---------------------------------+------------------------------------------------------+
 
 .. figure:: figures/planeslice.png
    :figwidth: 533px

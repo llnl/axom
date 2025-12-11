@@ -68,7 +68,7 @@ installs an allocation routine in Conduit that can be used to allocate data thro
 Axom. The Conduit allocator is set on each ``conduit::Node`` before setting data into
 the object.
 
-.. literalinclude:: ../../clipping/ClipField.hpp
+.. literalinclude:: ../../extraction/TableBasedExtractor.hpp
    :start-after: _bump_utilities_c2a_begin
    :end-before: _bump_utilities_c2a_end
    :language: C++
@@ -105,7 +105,7 @@ and summing them together to produce the new point for the output coordset. Clas
 ``ClipField`` use ``CoordsetBlender`` to make new coordsets that contain points that were a
 combination of multiple points in the input coordset.
 
-.. literalinclude:: ../../clipping/ClipField.hpp
+.. literalinclude:: ../../extraction/TableBasedExtractor.hpp
    :start-after: _bump_utilities_coordsetblender_begin
    :end-before: _bump_utilities_coordsetblender_end
    :language: C++
