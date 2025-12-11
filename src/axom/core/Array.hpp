@@ -298,7 +298,7 @@ public:
   /*!
    * \brief Constructor for transferring between memory spaces
    *
-   * \param [in] si The array in a different memory space to copy from
+   * \param [in] other The array in a different memory space to copy from
    *
    * \note The new Array will be constructed with the allocator ID of the
    *  copied-from array, if compatible with the memory space of the target
