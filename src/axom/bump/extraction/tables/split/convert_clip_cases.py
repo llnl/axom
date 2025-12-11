@@ -127,22 +127,26 @@ def sort_points(pts, maxPoints):
        out.append(sp[k])
     return out
 
-def shapeSize(name):
-   advance = {"ST_TRI": 2 + 3,
+def advanceTable():
+   return {"ST_LIN" : 2 + 2,
+              "ST_TRI": 2 + 3,
               "ST_QUA": 2 + 4,
               "ST_POLY5": 2 + 5,
               "ST_POLY6": 2 + 6,
               "ST_POLY7": 2 + 7,
-              "ST_POLY8": 2 + 8}
-   return advance[name]
+              "ST_POLY8": 2 + 8,
+              # fictional sizes to help for line conversion
+              "ST_POLY9": 2 + 9,
+              "ST_POLY10": 2 + 10,
+              "ST_POLY11": 2 + 11,
+              "ST_POLY12": 2 + 12,
+             }
 
-def convert_clip_cases(filename, name, npts):
-   advance = {"ST_TRI": 2 + 3,
-              "ST_QUA": 2 + 4,
-              "ST_POLY5": 2 + 5,
-              "ST_POLY6": 2 + 6,
-              "ST_POLY7": 2 + 7,
-              "ST_POLY8": 2 + 8}
+def shapeSize(name):
+   return advanceTable()[name]
+
+def convert_clip_cases(filename, name, npts, max_edges = 8):
+   advance = advanceTable()
    nptsToShapeName = {}
    for k in advance:
        nptsToShapeName[advance[k] - 2] = k
@@ -183,7 +187,7 @@ def convert_clip_cases(filename, name, npts):
 
        outOffsets[ci] = outOffset
        if len(color0) > 0:
-          c0 = combine_polygons(color0, max_edges=8)
+          c0 = combine_polygons(color0, max_edges=max_edges)
           #print("COLOR0", c0)
           for c in c0:
              sc = sort_points(c, npts)
@@ -195,7 +199,7 @@ def convert_clip_cases(filename, name, npts):
           outSizes[ci] = outSizes[ci] + len(c0)
 
        if len(color1) > 0:
-          c1 = combine_polygons(color1, max_edges=8)
+          c1 = combine_polygons(color1, max_edges=max_edges)
           #print("COLOR1", c1)
           for c in c1:
              sc = sort_points(c, npts)
@@ -208,7 +212,11 @@ def convert_clip_cases(filename, name, npts):
 
    return (outSizes, outOffsets, outShapes)
 
-def write_new_tables(filename, name, sizes, offsets, shapes):
+def write_new_tables(filename, name, tableNames, sizes, offsets, shapes):
+
+    Clip = tableNames[0]
+    clip = tableNames[1]
+    clipping = tableNames[2]
 
     f = open(filename, "wt")
     f.write("// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and\n")
@@ -216,26 +224,29 @@ def write_new_tables(filename, name, sizes, offsets, shapes):
     f.write("//\n")
     f.write("// SPDX-License-Identifier: (BSD-3-Clause)\n")
 
-    f.write("#include \"ClipCases.h\"\n\n")
+    f.write(f"#include \"{Clip}Cases.hpp\"\n\n")
 
     f.write("namespace axom {\n")
     f.write("namespace bump {\n")
-    f.write("namespace clipping {\n")
-    f.write("namespace tables {\n\n")
-    f.write(f"int numClipCases{name} = {len(sizes)};\n\n")   
+    f.write("namespace extraction {\n")
+    f.write("namespace tables {\n")
+    f.write(f"namespace {clipping}")
+    f.write(" {\n\n")
+    f.write(f"int num{Clip}Cases{name} = {len(sizes)};")
+    f.write("\n\n")   
 
-    f.write(f"int numClipShapes{name}[] = ")
+    f.write(f"int num{Clip}Shapes{name}[] = ")
     f.write("{\n")
     f.write("  " + str(sizes)[1:-1])
     f.write("\n};\n\n")
     
-    f.write(f"int startClipShapes{name}[] = ")
+    f.write(f"int start{Clip}Shapes{name}[] = ")
     f.write("{\n")
     f.write("  " + str(offsets)[1:-1])
     f.write("\n};\n\n")
 
     f.write("// clang-format off\n")
-    f.write(f"unsigned char clipShapes{name}[] = ")
+    f.write(f"unsigned char {clip}Shapes{name}[] = ")
     f.write("{\n")
 
     numCases = len(sizes)
@@ -258,29 +269,95 @@ def write_new_tables(filename, name, sizes, offsets, shapes):
     f.write("};\n")
     f.write("// clang-format on\n\n")
 
-    f.write(f"const size_t clipShapes{name}Size = sizeof(clipShapes{name}) / sizeof(unsigned char);\n\n")
+    f.write(f"const size_t {clip}Shapes{name}Size = sizeof({clip}Shapes{name}) / sizeof(unsigned char);\n\n")
+    f.write("}")
+    f.write(f" // namespace {clipping}\n")
     f.write("} // namespace tables\n")
-    f.write("} // namespace clipping\n")
+    f.write("} // namespace extraction\n")
     f.write("} // namespace bump\n")
     f.write("} // namespace axom\n")
     f.close()
 
+def make_cut_cases(sizes, offsets, shapes):
+    cutSizes = []
+    cutOffsets = []
+    cutShapes = []
+
+    newOffset = 0
+    numCases = len(sizes)
+    for ci in range(numCases):
+        offset = offsets[ci]
+        edges = []
+        for si in range(sizes[ci]):
+            shapeTag = shapes[offset]
+            ss = shapeSize(shapeTag)
+            toks = shapes[offset:offset+ss]
+
+            for i in range(len(toks)):
+               e0 = toks[i]
+               e1 = toks[(i+1)%len(toks)]
+               if e0[0] == 'E' and e1[0] == 'E':
+                  name = e0 + e1
+                  if name not in edges:
+                    edges.append(name)
+
+            offset = offset + ss
+
+        for e in edges:
+            e0 = e[:2]
+            e1 = e[2:]
+            cutShapes.append("ST_LIN")
+            cutShapes.append("COLOR0")
+            cutShapes.append(e0)
+            cutShapes.append(e1)
+        cutSizes.append(len(edges))
+        cutOffsets.append(newOffset)
+        newOffset = newOffset + len(edges) * 4 
+
+    return cutSizes, cutOffsets, cutShapes
+
+def make_polygonal_clip_tables():
+   tableNames = ["Clip", "clip", "clipping"]
+
+   outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesQua.cpp", "Qua", 4, max_points=4)
+   write_new_tables("polygonalClipCasesQua.cpp", "Qua", tableNames, outSizes, outOffsets, outShapes)
+
+   outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly5.cpp", "Poly5", 5, max_points=5)
+   write_new_tables("polygonalClipCasesPoly5.cpp", "Poly5", tableNames, outSizes, outOffsets, outShapes)
+
+   outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly6.cpp", "Poly6", 6, max_points=6)
+   write_new_tables("polygonalClipCasesPoly6.cpp", "Poly6", tableNames, outSizes, outOffsets, outShapes)
+
+   outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly7.cpp", "Poly7", 7, max_points=7)
+   write_new_tables("polygonalClipCasesPoly7.cpp", "Poly7", tableNames, outSizes, outOffsets, outShapes)
+
+   outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly8.cpp", "Poly8", 8, max_points=8)
+   write_new_tables("polygonalClipCasesPoly8.cpp", "Poly8", tableNames, outSizes, outOffsets, outShapes)
+
+def make_polygonal_cut_tables():
+   tableNames = ["Cut", "cut", "cutting"]
+
+   outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly5.cpp", "Poly5", 5, max_edges=20)
+   outSizes, outOffsets, outShapes = make_cut_cases(outSizes, outOffsets, outShapes)
+   write_new_tables("CutCasesPoly5.cpp", "Poly5", tableNames, outSizes, outOffsets, outShapes)
+
+   outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly6.cpp", "Poly6", 6, max_edges=20)
+   outSizes, outOffsets, outShapes = make_cut_cases(outSizes, outOffsets, outShapes)
+   write_new_tables("CutCasesPoly6.cpp", "Poly6", tableNames, outSizes, outOffsets, outShapes)
+
+   outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly7.cpp", "Poly7", 7, max_edges=20)
+   outSizes, outOffsets, outShapes = make_cut_cases(outSizes, outOffsets, outShapes)
+   write_new_tables("CutCasesPoly7.cpp", "Poly7", tableNames, outSizes, outOffsets, outShapes)
+
+   outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly8.cpp", "Poly8", 8, max_edges=20)
+   outSizes, outOffsets, outShapes = make_cut_cases(outSizes, outOffsets, outShapes)
+   write_new_tables("CutCasesPoly8.cpp", "Poly8", tableNames, outSizes, outOffsets, outShapes)
+
+
 def main():
    #example()
-   outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesQua.cpp", "Qua", 4)
-   write_new_tables("polygonalClipCasesQua.cpp", "Qua", outSizes, outOffsets, outShapes)
-
-   outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly5.cpp", "Poly5", 5)
-   write_new_tables("polygonalClipCasesPoly5.cpp", "Poly5", outSizes, outOffsets, outShapes)
-
-   outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly6.cpp", "Poly6", 6)
-   write_new_tables("polygonalClipCasesPoly6.cpp", "Poly6", outSizes, outOffsets, outShapes)
-
-   outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly7.cpp", "Poly7", 7)
-   write_new_tables("polygonalClipCasesPoly7.cpp", "Poly7", outSizes, outOffsets, outShapes)
-
-   outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly8.cpp", "Poly8", 8)
-   write_new_tables("polygonalClipCasesPoly8.cpp", "Poly8", outSizes, outOffsets, outShapes)
+   #make_polygonal_clip_tables()
+   make_polygonal_cut_tables()
 
 main()
  

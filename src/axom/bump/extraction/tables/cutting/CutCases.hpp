@@ -45,7 +45,6 @@ extern AXOM_BUMP_EXPORT int numCutShapesTri[8];
 extern AXOM_BUMP_EXPORT int startCutShapesTri[8];
 extern AXOM_BUMP_EXPORT unsigned char cutShapesTri[];
 
-/*
 extern AXOM_BUMP_EXPORT int numCutCasesPoly5;
 extern AXOM_BUMP_EXPORT int numCutShapesPoly5[32];
 extern AXOM_BUMP_EXPORT int startCutShapesPoly5[32];
@@ -65,7 +64,6 @@ extern AXOM_BUMP_EXPORT int numCutCasesPoly8;
 extern AXOM_BUMP_EXPORT int numCutShapesPoly8[256];
 extern AXOM_BUMP_EXPORT int startCutShapesPoly8[256];
 extern AXOM_BUMP_EXPORT unsigned char cutShapesPoly8[];
-*/
 
 extern AXOM_BUMP_EXPORT int numCutCasesLin;
 extern AXOM_BUMP_EXPORT int numCutShapesLin[4];
@@ -80,12 +78,10 @@ extern AXOM_BUMP_EXPORT unsigned char cutShapesVtx[];
 
 extern AXOM_BUMP_EXPORT const size_t cutShapesTriSize;
 extern AXOM_BUMP_EXPORT const size_t cutShapesQuaSize;
-/*
 extern AXOM_BUMP_EXPORT const size_t cutShapesPoly5Size;
 extern AXOM_BUMP_EXPORT const size_t cutShapesPoly6Size;
 extern AXOM_BUMP_EXPORT const size_t cutShapesPoly7Size;
 extern AXOM_BUMP_EXPORT const size_t cutShapesPoly8Size;
-*/
 extern AXOM_BUMP_EXPORT const size_t cutShapesTetSize;
 extern AXOM_BUMP_EXPORT const size_t cutShapesPyrSize;
 extern AXOM_BUMP_EXPORT const size_t cutShapesWdgSize;

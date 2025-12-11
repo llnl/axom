@@ -35,7 +35,6 @@ void CutTableManager::loadShape(size_t shape)
                              cutShapesQua,
                              cutShapesQuaSize, m_allocatorID);
       }
-/*
       else if(shape == ST_POLY5)
       {
         m_tables[index].load(numCutCasesPoly5,
@@ -68,7 +67,6 @@ void CutTableManager::loadShape(size_t shape)
                              cutShapesPoly8,
                              cutShapesPoly8Size, m_allocatorID);
       }
-*/
       else if(shape == ST_TET)
       {
         m_tables[index].load(numCutCasesTet,
