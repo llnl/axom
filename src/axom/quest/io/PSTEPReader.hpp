@@ -22,19 +22,6 @@ namespace axom
 namespace quest
 {
 
-namespace detail
-{
-template <typename T>
-struct is_point_of_dimension : std::false_type
-{ };
-
-template <int DIM>
-struct is_point_of_dimension<primal::Point<double, DIM>>
-  : std::integral_constant<bool, (DIM >= 1 && DIM <= 4)>
-{ };
-
-}  // namespace detail
-
 /*
  * \class PSTEPReader
  *
@@ -127,8 +114,7 @@ private:
 
     // Check that the value_type of the array is either double or Point<double, DIM>
     using value_type = typename ArrayType::value_type;
-    static_assert(std::is_same_v<value_type, double> ||
-                  detail::is_point_of_dimension<value_type>::value);
+    static_assert(std::is_same_v<value_type, double> || primal::detail::is_point_v<value_type>);
 
     const bool is_root = (m_my_rank == 0);
 
@@ -167,7 +153,7 @@ private:
       // handles Array<double,1> and Array<double,2>
       bcast_data(arr.view());
     }
-    else if constexpr(detail::is_point_of_dimension<value_type>::value)
+    else if constexpr(primal::detail::is_point_v<value_type>)
     {
       // handles 1D or 2D array of primal::Point
       // since the data is contiguous, we cast the values to a 1D ArrayView<double>
@@ -194,7 +180,7 @@ private:
 private:
   MPI_Comm m_comm {MPI_COMM_NULL};
   int m_my_rank {0};
-  int m_num_ranks;
+  int m_num_ranks {-1};
 
   DISABLE_COPY_AND_ASSIGNMENT(PSTEPReader);
   DISABLE_MOVE_AND_ASSIGNMENT(PSTEPReader);

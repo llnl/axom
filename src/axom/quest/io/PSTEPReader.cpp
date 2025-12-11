@@ -23,14 +23,14 @@ int PSTEPReader::read(bool validate_model)
 {
   SLIC_ASSERT(m_comm != MPI_COMM_NULL);
 
-  int rc = -1;
+  int rc = READER_FAILED;  // return code
 
   switch(m_my_rank)
   {
   // handle rank 0
   case 0:
     rc = STEPReader::read(validate_model);
-    if(m_num_ranks == 1)
+    if(m_num_ranks <= 1)
     {
       return rc;
     }
@@ -38,8 +38,7 @@ int PSTEPReader::read(bool validate_model)
     bcast_int(rc);
     if(rc == READER_SUCCESS)
     {
-      // Rank 0 has valid data and will broadcast it
-      // Broadcast number of patches
+      // broadcast number of patches, followed by patch data
       bcast_int(m_patches.size());
       for(auto& patch : m_patches)
       {
@@ -52,11 +51,8 @@ int PSTEPReader::read(bool validate_model)
         // broadcast control points
         bcast_array(patch.getControlPoints());
 
-        // broadcast rational flag
-        const bool isRational = patch.isRational();
-        bcast_bool(isRational);
-
-        // broadcast weights (if rational)
+        // broadcast rational flag and weights
+        const bool isRational = bcast_bool(patch.isRational());
         if(isRational)
         {
           bcast_array(patch.getWeights());
@@ -92,6 +88,7 @@ int PSTEPReader::read(bool validate_model)
     {
       // receive and reconstruct each NURBSPatch
       const int numPatches = bcast_int();
+      m_patches.clear();
       m_patches.reserve(numPatches);
       for(int i = 0; i < numPatches; ++i)
       {
@@ -115,11 +112,11 @@ int PSTEPReader::read(bool validate_model)
             NURBSPatch::WeightsMat weights;
             bcast_array(weights);
 
-            m_patches.push_back(NURBSPatch {ctrlPts, weights, uKnotsArr, vKnotsArr});
+            m_patches.emplace_back(NURBSPatch {ctrlPts, weights, uKnotsArr, vKnotsArr});
           }
           else
           {
-            m_patches.push_back(NURBSPatch {ctrlPts, uKnotsArr, vKnotsArr});
+            m_patches.emplace_back(NURBSPatch {ctrlPts, uKnotsArr, vKnotsArr});
           }
         }
 
@@ -172,7 +169,7 @@ int PSTEPReader::getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE
     rc =
       STEPReader::getTriangleMesh(mesh, linear_deflection, angular_deflection, is_relative, trimmed);
 
-    if(m_num_ranks == 1)
+    if(m_num_ranks <= 1)
     {
       return rc;
     }
@@ -261,7 +258,7 @@ axom::IndexType PSTEPReader::bcast_index(axom::IndexType value)
 /// MPI broadcasts a bool from rank 0
 bool PSTEPReader::bcast_bool(bool value)
 {
-  int intValue = static_cast<int>(value);
+  int intValue = value ? 1 : 0;
   MPI_Bcast(&intValue, 1, axom::mpi_traits<int>::type, 0, m_comm);
   return static_cast<bool>(intValue);
 }
