@@ -87,6 +87,14 @@ The following table provides the options that are common to all algorithms:
 ClipField
 ##########
 
+The ``ClipField`` class with its default intersection policy breaks a mesh's zones into
+fragments, using an isosurface defined by a field where it equals a target clip value,
+to select and cut the mesh's zones. The surface divides the mesh into 2 colors, either of
+which can be selected. Whole zones that are selected become zones in the new mesh, as do
+any zone fragments arising from zones that are cut by the surface. Zone fragments have the
+same topological dimension as the input zones (2D zones make 2D fragments and 3D zones make
+3D fragments).
+
 To use the ``ClipField`` class, one must have Blueprint data with at least one vertex-associated
 field. Views for the coordset and topology are created and their types are used to instantiate
 a ``ClipField`` object. The ``ClipField`` constructor takes a Conduit node for the input Blueprint mesh, a Conduit
