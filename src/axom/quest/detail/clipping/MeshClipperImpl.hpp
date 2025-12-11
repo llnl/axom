@@ -44,6 +44,7 @@ class MeshClipperImpl : public MeshClipper::Impl
 public:
   using LabelType = MeshClipper::LabelType;
   using Point3DType = primal::Point<double, 3>;
+  using Plane3DType = primal::Plane<double, 3>;
   using BoundingBoxType = primal::BoundingBox<double, 3>;
   using TetrahedronType = primal::Tetrahedron<double, 3>;
   using OctahedronType = primal::Octahedron<double, 3>;
@@ -1110,30 +1111,81 @@ public:
   {
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     CoordTransformer toUnitTet(&tet[0], unitTet);
-
-    int vsAbove[OctahedronType::NUM_VERTS] = {0, 0, 0, 0, 0, 0};
-    int vsBelow[OctahedronType::NUM_VERTS] = {0, 0, 0, 0, 0, 0};
+    int octVertsAbove[OctahedronType::NUM_VERTS] = {0, 0, 0, 0, 0, 0};
+    int octVertsBelow[OctahedronType::NUM_VERTS] = {0, 0, 0, 0, 0, 0};
     for(int i = 0; i < OctahedronType::NUM_VERTS; ++i)
     {
       auto octVert = toUnitTet.getTransformed(oct[i]);
       // h4 is height of octVert above the diagonal face, scaled by sqrt(3).
       // h4 of 1 coresponds to the unitTet's height of sqrt(3).
       double h4 = 1 - (octVert[0] + octVert[1] + octVert[2]);
-      vsAbove[0] += octVert[0] >= 1;
-      vsAbove[1] += octVert[1] >= 1;
-      vsAbove[2] += octVert[2] >= 1;
-      vsAbove[3] += h4 >= 1;
-      vsBelow[0] += octVert[0] <= 0;
-      vsBelow[1] += octVert[1] <= 0;
-      vsBelow[2] += octVert[2] <= 0;
-      vsBelow[3] += h4 <= 0;
+      octVertsAbove[0] += octVert[0] >= 1;
+      octVertsAbove[1] += octVert[1] >= 1;
+      octVertsAbove[2] += octVert[2] >= 1;
+      octVertsAbove[3] += h4 >= 1;
+      octVertsBelow[0] += octVert[0] <= 0;
+      octVertsBelow[1] += octVert[1] <= 0;
+      octVertsBelow[2] += octVert[2] <= 0;
+      octVertsBelow[3] += h4 <= 0;
     }
-    if(vsAbove[0] == OctahedronType::NUM_VERTS || vsAbove[1] == OctahedronType::NUM_VERTS ||
-       vsAbove[2] == OctahedronType::NUM_VERTS || vsAbove[3] == OctahedronType::NUM_VERTS ||
-       vsBelow[0] == OctahedronType::NUM_VERTS || vsBelow[1] == OctahedronType::NUM_VERTS ||
-       vsBelow[2] == OctahedronType::NUM_VERTS || vsBelow[3] == OctahedronType::NUM_VERTS)
+    if(octVertsAbove[0] == OctahedronType::NUM_VERTS || octVertsAbove[1] == OctahedronType::NUM_VERTS ||
+       octVertsAbove[2] == OctahedronType::NUM_VERTS || octVertsAbove[3] == OctahedronType::NUM_VERTS ||
+       octVertsBelow[0] == OctahedronType::NUM_VERTS || octVertsBelow[1] == OctahedronType::NUM_VERTS ||
+       octVertsBelow[2] == OctahedronType::NUM_VERTS || octVertsBelow[3] == OctahedronType::NUM_VERTS)
     {
       return false;
+    }
+
+    // Indices of the vertices of each of the 8 faces of the octagon, oriented inside.
+    using ThreeIds = int[3];
+    ThreeIds octFIds[8] = { {0, 2, 5},
+                            {0, 4, 1},
+                            {2, 1, 3},
+                            {5, 3, 4},
+                            {1, 4, 3},
+                            {3, 5, 2},
+                            {4, 0, 5},
+                            {1, 2, 0} };
+    for(int fi = 0; fi < 8; ++fi)
+    {
+      // Construct  plane of face fi of the oct.
+      const ThreeIds& fIds = octFIds[fi];
+      auto& v0 = oct[fIds[0]];
+      auto& v1 = oct[fIds[1]];
+      auto& v2 = oct[fIds[2]];
+      axom::primal::Vector<double, 3> r1(v0, v1);
+      axom::primal::Vector<double, 3> r2(v0, v2);
+      axom::primal::Vector<double, 3> normal = axom::primal::Vector<double, 3>::cross_product(r1, r2);
+      if(normal.squared_norm() < EPS) { continue; } // Skip degenerate face
+      axom::primal::Plane<double, 3> octBase(normal, v0);
+
+      // Compute height range of vertices not in face fi.
+      double maxHeight = 0.0;
+      double minHeight = 0.0;
+      const ThreeIds& nonFids = octFIds[(fi+4)%8]; // 3 oct vertices not part of face fi.
+      for(int vi = 0; vi < 3; ++vi)
+      {
+        const auto& vert = oct[nonFids[vi]];
+        double vertHeight = octBase.signedDistance(vert);
+        if(maxHeight < vertHeight) {maxHeight = vertHeight;}
+        if(minHeight > vertHeight) {minHeight = vertHeight;}
+      }
+
+      // Number of tet vertices outside [minHeight,maxHeight]..
+      int tetVertsAbove = 0;
+      int tetVertsBelow = 0;
+      for(int ti = 0; ti < 4; ++ti)
+      {
+        const auto& tetVert = tet[ti];
+        double tetVertHeight = octBase.signedDistance(tetVert);
+        tetVertsAbove += tetVertHeight >= maxHeight;
+        tetVertsBelow += tetVertHeight <= minHeight;
+      }
+
+      if(tetVertsAbove == TetrahedronType::NUM_VERTS || tetVertsBelow == TetrahedronType::NUM_VERTS)
+      {
+        return false;
+      }
     }
     return true;
   }
