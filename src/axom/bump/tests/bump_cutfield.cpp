@@ -10,8 +10,6 @@
 #include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 #include "axom/bump/tests/blueprint_testing_helpers.hpp"
 
-#include "axom/bump/MapBasedNaming.hpp"
-
 #include <conduit/conduit_blueprint_mesh_examples_tiled.hpp>
 #include <conduit/conduit_relay_io_blueprint.hpp>
 #include <cmath>
