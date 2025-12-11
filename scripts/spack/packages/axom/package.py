@@ -393,15 +393,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 )
                 hip_link_flags += "-lmpi_gtl_hsa "
 
-            if spec.satisfies("^hip@6.0.0:"):
-                hip_link_flags += "-L{0}/lib/llvm/lib -Wl,-rpath,{0}/lib/llvm/lib ".format(
-                    rocm_root
-                )
-            else:
-                hip_link_flags += "-L{0}/llvm/lib -Wl,-rpath,{0}/llvm/lib ".format(rocm_root)
-            # Only amdclang requires this path; cray compiler fails if this is included
-            if spec.satisfies("%llvm-amdgpu"):
-                hip_link_flags += "-L{0}/lib -Wl,-rpath,{0}/lib ".format(rocm_root)
             hip_link_flags += "-lpgmath -lompstub "
 
             # Fixes for mpi for rocm until wrapper paths are fixed

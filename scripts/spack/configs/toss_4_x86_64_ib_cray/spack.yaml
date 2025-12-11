@@ -76,7 +76,7 @@ spack:
           flags:
             fflags: -Mfreeform
           environment: {}
-          extra_rpaths: []
+          extra_rpaths: [/opt/rocmc-6.3.1/lib, /opt/rocm-6.3.1/lib/llvm/lib]
       - spec: llvm-amdgpu@6.4.2
         prefix: /opt/rocm-6.4.2/llvm
         extra_attributes:
@@ -87,7 +87,7 @@ spack:
           flags:
             fflags: -Mfreeform
           environment: {}
-          extra_rpaths: []
+          extra_rpaths: [/opt/rocm-6.4.2/lib, /opt/rocm-6.4.2/lib/llvm/lib]
 
     cce:
       externals:
@@ -102,8 +102,6 @@ spack:
           flags:
             fflags: -ef
           environment: {}
-          extra_rpaths: []
-
 
     hip:
       # version: [6.3.1, 6.4.2]
