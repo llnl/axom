@@ -196,7 +196,16 @@ int PSTEPReader::getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE
       bcast_index(connSize);
       bcast_data(conn);
 
-      // todo: send patchIndex field
+      // broadcast patch_index field
+      const bool has_patch_index_field = mesh->hasField("patch_index", mint::CELL_CENTERED);
+      bcast_bool(has_patch_index_field);
+      if(has_patch_index_field)
+      {
+        auto* field = mesh->getFieldPtr<int>("patch_index", mint::CELL_CENTERED);
+        SLIC_ASSERT(field != nullptr);
+        axom::ArrayView<int> patchIdxView(field, numCells);
+        bcast_data(patchIdxView);
+      }
     }
   }
   else
@@ -234,7 +243,15 @@ int PSTEPReader::getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE
         mesh->appendCell(verts);
       }
 
-      // todo: receive patchIndex field
+      // receive patch_index field
+      const bool has_patch_index_field = bcast_bool();
+      if(has_patch_index_field)
+      {
+        auto* field = mesh->createField<int>("patch_index", mint::CELL_CENTERED, numCells);
+
+        axom::ArrayView<int> patchIdxArr(field, numCells);
+        bcast_data(patchIdxArr);
+      }
     }
   }
 

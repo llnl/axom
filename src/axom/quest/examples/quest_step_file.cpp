@@ -501,6 +501,22 @@ bool validate_triangle_mesh(const axom::mint::UnstructuredMesh<axom::mint::SINGL
     is_valid = false;
   }
 
+  // Check consistency of presence of cell-centered "patch_index" field on all ranks
+  const bool has_patch_index = mesh.hasField("patch_index", axom::mint::CELL_CENTERED);
+  if(!compare_bool_across_ranks(has_patch_index, "presence of 'patch_index' cell field"))
+  {
+    is_valid = false;
+  }
+  if(is_valid && has_patch_index)
+  {
+    auto* patch_index_ptr = mesh.getFieldPtr<int>("patch_index", axom::mint::CELL_CENTERED);
+    const bool is_patch_index_ptr_null = (patch_index_ptr == nullptr);
+    if(!compare_bool_across_ranks(is_patch_index_ptr_null, "'patch_index' field nullptr"))
+    {
+      is_valid = false;
+    }
+  }
+
   return is_valid;
 }
 #endif
