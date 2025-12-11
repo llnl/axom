@@ -125,14 +125,11 @@ if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
         axom_configure_file ("${test}"
                              "${TEST_OUTPUT_DIRECTORY}/${test}" COPYONLY)
 
-        # Run unit test with pytest
-        # "-p no:cacheprovider" disables caching
-        #
-        # Need to invoke with "python3 -m pytest" to get generated nanobind library added to search path:
-        # https://docs.pytest.org/en/latest/explanation/pythonpath.html#invoking-pytest-versus-python-m-pytest
+        # Run unit test with pytest ("python3 -m pytest").
+        # Use convenience script that has pysidre and conduit added to PYTHONPATH.
+        # "-p no:cacheprovider" disables caching.
         add_test (NAME    ${test_name}
-          COMMAND ${Python_EXECUTABLE} -m pytest -s -p no:cacheprovider ${TEST_OUTPUT_DIRECTORY}/${test}
-          WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/lib
+          COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -m pytest -s -p no:cacheprovider ${TEST_OUTPUT_DIRECTORY}/${test}
         )
     endforeach()
 endif()
