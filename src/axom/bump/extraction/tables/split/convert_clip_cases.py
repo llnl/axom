@@ -1,5 +1,13 @@
-from collections import defaultdict
+import sys
 
+# NOTE: The clipping tables in this directory are adapted from VisIt's
+#       polygon clipping cases. The tables contain a mixture of triangle
+#       and quad shapes. This script reads in the clipping tables and
+#       combines shapes to make up to 8-sided polygons, enabling Axom's
+#       clipping algorithms to produce fewer zones and fewer artificially
+#       introduced mesh lines.
+
+This script converts the polygonal clipping tables in this directory 
 def read_array_cc(filename, name, convert):
    lines = open(filename, "rt").readlines()
    reading = False
@@ -320,44 +328,44 @@ def make_polygonal_clip_tables():
    tableNames = ["Clip", "clip", "clipping"]
 
    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesQua.cpp", "Qua", 4, max_points=4)
-   write_new_tables("polygonalClipCasesQua.cpp", "Qua", tableNames, outSizes, outOffsets, outShapes)
+   write_new_tables("../clipping/ClipCasesQua.cpp", "Qua", tableNames, outSizes, outOffsets, outShapes)
 
    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly5.cpp", "Poly5", 5, max_points=5)
-   write_new_tables("polygonalClipCasesPoly5.cpp", "Poly5", tableNames, outSizes, outOffsets, outShapes)
+   write_new_tables("../clipping/ClipCasesPoly5.cpp", "Poly5", tableNames, outSizes, outOffsets, outShapes)
 
    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly6.cpp", "Poly6", 6, max_points=6)
-   write_new_tables("polygonalClipCasesPoly6.cpp", "Poly6", tableNames, outSizes, outOffsets, outShapes)
+   write_new_tables("../clipping/ClipCasesPoly6.cpp", "Poly6", tableNames, outSizes, outOffsets, outShapes)
 
    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly7.cpp", "Poly7", 7, max_points=7)
-   write_new_tables("polygonalClipCasesPoly7.cpp", "Poly7", tableNames, outSizes, outOffsets, outShapes)
+   write_new_tables("../clipping/ClipCasesPoly7.cpp", "Poly7", tableNames, outSizes, outOffsets, outShapes)
 
    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly8.cpp", "Poly8", 8, max_points=8)
-   write_new_tables("polygonalClipCasesPoly8.cpp", "Poly8", tableNames, outSizes, outOffsets, outShapes)
+   write_new_tables("../clipping/ClipCasesPoly8.cpp", "Poly8", tableNames, outSizes, outOffsets, outShapes)
 
 def make_polygonal_cut_tables():
    tableNames = ["Cut", "cut", "cutting"]
 
    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly5.cpp", "Poly5", 5, max_edges=20)
    outSizes, outOffsets, outShapes = make_cut_cases(outSizes, outOffsets, outShapes)
-   write_new_tables("CutCasesPoly5.cpp", "Poly5", tableNames, outSizes, outOffsets, outShapes)
+   write_new_tables("../cutting/CutCasesPoly5.cpp", "Poly5", tableNames, outSizes, outOffsets, outShapes)
 
    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly6.cpp", "Poly6", 6, max_edges=20)
    outSizes, outOffsets, outShapes = make_cut_cases(outSizes, outOffsets, outShapes)
-   write_new_tables("CutCasesPoly6.cpp", "Poly6", tableNames, outSizes, outOffsets, outShapes)
+   write_new_tables("../cutting/CutCasesPoly6.cpp", "Poly6", tableNames, outSizes, outOffsets, outShapes)
 
    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly7.cpp", "Poly7", 7, max_edges=20)
    outSizes, outOffsets, outShapes = make_cut_cases(outSizes, outOffsets, outShapes)
-   write_new_tables("CutCasesPoly7.cpp", "Poly7", tableNames, outSizes, outOffsets, outShapes)
+   write_new_tables("../cutting/CutCasesPoly7.cpp", "Poly7", tableNames, outSizes, outOffsets, outShapes)
 
    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly8.cpp", "Poly8", 8, max_edges=20)
    outSizes, outOffsets, outShapes = make_cut_cases(outSizes, outOffsets, outShapes)
-   write_new_tables("CutCasesPoly8.cpp", "Poly8", tableNames, outSizes, outOffsets, outShapes)
-
+   write_new_tables("../cutting/CutCasesPoly8.cpp", "Poly8", tableNames, outSizes, outOffsets, outShapes)
 
 def main():
-   #example()
-   #make_polygonal_clip_tables()
-   make_polygonal_cut_tables()
+   if "-clip" in sys.argv:
+      make_polygonal_clip_tables()
+   else:
+      make_polygonal_cut_tables()
 
 main()
  
