@@ -545,12 +545,22 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMes
   // Compute an average characteristic length for the mesh cells.
   using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
   using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
+#if 1
+  axom::ArrayView<const double> cellVolumes = shapeMesh.getCellVolumes();
+  RAJA::ReduceSum<ReducePolicy, double> sumVolume(0.0);
+  RAJA::forall<LoopPolicy>(
+    RAJA::RangeSegment(0, cellCount),
+    AXOM_LAMBDA(axom::IndexType cellId) { sumVolume += cellVolumes[cellId]; });
+  double avgVolume = sumVolume.get() / cellCount;
+  double avgCharLength = pow(avgVolume, 1./3);
+#else
   axom::ArrayView<const double> cellLengths = shapeMesh.getCellLengths();
   RAJA::ReduceSum<ReducePolicy, double> sumCharLength(0.0);
   RAJA::forall<LoopPolicy>(
     RAJA::RangeSegment(0, cellCount),
     AXOM_LAMBDA(axom::IndexType cellId) { sumCharLength += cellLengths[cellId]; });
   double avgCharLength = sumCharLength.get() / cellCount;
+#endif
 
   axom::Array<Point2DType> sorCurve =
     subdivideCurve(m_sorCurve, 3 * avgCharLength, 3 * avgCharLength, 2 * avgCharLength);
@@ -579,7 +589,7 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMes
       }
     });
 
-  SLIC_DEBUG(axom::fmt::format("FSorClipper '{}' generated {} geometry octs from {} curve points.",
+  SLIC_INFO(axom::fmt::format("FSorClipper '{}' generated {} geometry octs from {} curve points.",
                                name(), octs.size(), sorCurve.size()));
 
   return true;
