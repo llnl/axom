@@ -23,6 +23,7 @@ spack:
 
   toolchains:
     rocm_6_4_2:
+    - spec: fflags=-Mfreeform
     - spec: '%c=llvm-amdgpu@6.4.2'
       when: '%c'
     - spec: '%cxx=llvm-amdgpu@6.4.2'
@@ -32,6 +33,7 @@ spack:
     - spec: '%cray-mpich@8.1.29.rocm_6_4_2'
       when: '%mpi'
     rocm_6_3_1:
+    - spec: fflags=-Mfreeform
     - spec: '%c=llvm-amdgpu@6.3.1'
       when: '%c'
     - spec: '%cxx=llvm-amdgpu@6.3.1'
@@ -41,6 +43,7 @@ spack:
     - spec: '%cray-mpich@8.1.29.rocm_6_3_1'
       when: '%mpi'
     cce_20:
+    - spec: fflags=-ef
     - spec: '%c=cce@20.0.0'
       when: '%c'
     - spec: '%cxx=cce@20.0.0'
@@ -73,8 +76,6 @@ spack:
             c: /opt/rocm-6.3.1/llvm/bin/amdclang
             cxx: /opt/rocm-6.3.1/llvm/bin/amdclang++
             fortran: /opt/rocm-6.3.1/llvm/bin/amdflang
-          flags:
-            fflags: -Mfreeform
           environment: {}
           extra_rpaths: [/opt/rocmc-6.3.1/lib, /opt/rocm-6.3.1/lib/llvm/lib]
       - spec: llvm-amdgpu@6.4.2
@@ -84,8 +85,6 @@ spack:
             c: /opt/rocm-6.4.2/llvm/bin/amdclang
             cxx: /opt/rocm-6.4.2/llvm/bin/amdclang++
             fortran: /opt/rocm-6.4.2/llvm/bin/amdflang
-          flags:
-            fflags: -Mfreeform
           environment: {}
           extra_rpaths: [/opt/rocm-6.4.2/lib, /opt/rocm-6.4.2/lib/llvm/lib]
 
@@ -98,9 +97,6 @@ spack:
             c: /usr/tce/packages/cce-tce/cce-20.0.0/bin/craycc
             cxx: /usr/tce/packages/cce-tce/cce-20.0.0/bin/crayCC
             fortran: /usr/tce/packages/cce-tce/cce-20.0.0/bin/crayftn
-          # Flag for lowercase Fortran module names
-          flags:
-            fflags: -ef
           environment: {}
           extra_rpaths: [/opt/cray/pe/cce/20.0.0/cce/x86_64/lib]
 
