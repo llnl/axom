@@ -3,17 +3,17 @@ Acknowledgement
 
 Certain clipping tables have been borrowed/adapted from the VisIt software.
 
-clipping/ClipCasesHex.cpp  
-clipping/ClipCasesPyr.cpp
-clipping/ClipCasesQua.cpp
-clipping/ClipCasesTet.cpp
-clipping/ClipCasesTri.cpp
-clipping/ClipCasesWdg.cpp
-split/ClipCasesPoly5.cpp
-split/ClipCasesPoly6.cpp
-split/ClipCasesPoly7.cpp
-split/ClipCasesPoly8.cpp
-split/ClipCasesQua.cpp
+ - clipping/ClipCasesHex.cpp  
+ - clipping/ClipCasesPyr.cpp
+ - clipping/ClipCasesQua.cpp
+ - clipping/ClipCasesTet.cpp
+ - clipping/ClipCasesTri.cpp
+ - clipping/ClipCasesWdg.cpp
+ - split/ClipCasesPoly5.cpp
+ - split/ClipCasesPoly6.cpp
+ - split/ClipCasesPoly7.cpp
+ - split/ClipCasesPoly8.cpp
+ - split/ClipCasesQua.cpp
 
 Regenerating Tables
 ====================
