@@ -46,6 +46,7 @@ struct test_cutfield
     conduit::Node deviceMesh;
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
+    // _bump_utilities_cutfield_begin
     // Wrap the data in views.
     auto coordsetView = axom::bump::views::make_rectilinear_coordset<conduit::float64, NDIMS>::view(
       deviceMesh["coordsets/coords"]);
@@ -61,18 +62,10 @@ struct test_cutfield
 
     conduit::Node deviceOptions, deviceResult;
     utils::copy<ExecSpace>(deviceOptions, hostOptions);
-#if 0
-    // For Debugging
-    axom::bump::extraction::CutField<ExecSpace,
-                                     TopologyView,
-                                     CoordsetView,
-                                     axom::bump::extraction::FieldIntersector<ExecSpace, TopologyView, CoordsetView>,
-                                     axom::bump::MapBasedNaming<axom::IndexType>> iso(topologyView, coordsetView);
-#else
     axom::bump::extraction::CutField<ExecSpace, TopologyView, CoordsetView> iso(topologyView,
                                                                                 coordsetView);
-#endif
     iso.execute(deviceMesh, deviceOptions, deviceResult);
+    // _bump_utilities_cutfield_end
 
     // device->host
     conduit::Node hostResult;

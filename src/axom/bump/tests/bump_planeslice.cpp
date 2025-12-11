@@ -94,6 +94,7 @@ struct test_planeslice
     const auto p = make_planes<NDIMS>::planes();
     for(auto it = p.begin(); it != p.end(); it++)
     {
+      //_bump_utilities_planeslice_begin
       // Encode the plane in the options.
       conduit::Node hostOptions;
       hostOptions["topology"] = "mesh";
@@ -107,6 +108,7 @@ struct test_planeslice
       axom::bump::extraction::PlaneSlice<ExecSpace, TopologyView, CoordsetView> slice(topologyView,
                                                                                       coordsetView);
       slice.execute(deviceMesh, deviceOptions, deviceResult);
+      //_bump_utilities_planeslice_end
 
       // device->host
       conduit::Node hostResult;
