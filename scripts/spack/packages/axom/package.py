@@ -7,7 +7,6 @@ import shutil
 import socket
 from os.path import join as pjoin
 
-from spack.package import *
 from spack.util.executable import which_string
 from spack_repo.builtin.build_systems.cached_cmake import (
     CachedCMakePackage,
@@ -17,6 +16,9 @@ from spack_repo.builtin.build_systems.cached_cmake import (
 )
 from spack_repo.builtin.build_systems.cuda import CudaPackage
 from spack_repo.builtin.build_systems.rocm import ROCmPackage
+
+from spack.package import *
+
 
 def get_spec_path(spec, package_name, path_replacements={}, use_bin=False):
     """Extracts the prefix path for the given spack package
@@ -69,10 +71,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     version("0.3.1", tag="v0.3.1", commit="cbefc0457a229d8acfb70622360d0667e90e50a2")
     version("0.3.0", tag="v0.3.0", commit="20068ccab4b4f70055918b4f17960ec3ed6dbce8")
     version("0.2.9", tag="v0.2.9", commit="9e9a54ede3326817c05f35922738516e43b5ec3d")
-
-    depends_on("c", type="build")
-    depends_on("cxx", type="build")
-    depends_on("fortran", type="build", when="+fortran")
 
     # https://github.com/spack/spack/issues/31829
     patch("examples-oneapi.patch", when="@0.6.1 +examples %oneapi")
@@ -128,13 +126,19 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     # Dependencies
     # -----------------------------------------------------------------------
     # Basics
+    depends_on("c", type="build")
+    depends_on("cxx", type="build")
+    depends_on("fortran", type="build", when="+fortran")
+
     depends_on("cmake@3.14:", type="build")
     depends_on("cmake@3.18:", type="build", when="@0.7.0:")
     depends_on("cmake@3.21:", type="build", when="+rocm")
 
     depends_on("blt", type="build")
+    depends_on("blt@0.7.1:", type="build", when="@0.12:")
+    depends_on("blt@0.7", type="build", when="@0.11:")
+    depends_on("blt@0.6.2", type="build", when="@0.9:0.10")
     depends_on("blt@0.5.1:0.5.3", type="build", when="@0.6.1:0.8")
-    depends_on("blt@0.6.2:", type="build", when="@0.9:")
 
     depends_on("mpi", when="+mpi")
 
@@ -156,8 +160,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     with when("+umpire"):
         depends_on("umpire")
-        depends_on("umpire@2025.09.0:", when="@0.10:")
-        depends_on("umpire@2024.02.0:", when="@0.9:")
+        depends_on("umpire@2025.09:", when="@0.12:")
+        depends_on("umpire@2025.03", when="@0.11")
+        depends_on("umpire@2024.07", when="@0.10")
+        depends_on("umpire@2024.02", when="@0.9")
         depends_on("umpire@2022.03.0:2023.06", when="@0.7.0:0.8")
         depends_on("umpire@6.0.0", when="@0.6.0")
         depends_on("umpire@5:5.0.1", when="@:0.5.0")
@@ -166,8 +172,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     with when("+raja"):
         depends_on("raja")
-        depends_on("raja@2025.09.0:", when="@0.10:")
-        depends_on("raja@2024.02.0:", when="@0.9:")
+        depends_on("raja@2025.09:", when="@0.12:")
+        depends_on("raja@2025.03", when="@0.11")
+        depends_on("raja@2024.07", when="@0.10")
+        depends_on("raja@2024.02", when="@0.9")
         depends_on("raja@2022.03.0:2023.06", when="@0.7.0:0.8")
         depends_on("raja@0.14.0", when="@0.6.0")
         depends_on("raja@:0.13.0", when="@:0.5.0")
@@ -330,7 +338,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         #   option will turn off most compiler optimizations similar to use of
         #   '-O0'; use '-Rno-debug-disables-optimization' to disable this remark
         if spec.satisfies("%oneapi"):
-            entries.append(cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-g -Rno-debug-disables-optimization"))
+            entries.append(
+                cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-g -Rno-debug-disables-optimization")
+            )
 
         return entries
 
@@ -369,20 +379,24 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
             hip_link_flags = ""
 
-            rocm_root = os.path.dirname(spec["llvm-amdgpu"].prefix)
+            rocm_root = spec["llvm-amdgpu"].prefix
             entries.append(cmake_cache_path("ROCM_ROOT_DIR", rocm_root))
 
             # Recommended MPI flags
             if spec.satisfies("+mpi"):
                 hip_link_flags += "-lxpmem "
-                hip_link_flags += "-L/opt/cray/pe/mpich/{0}/gtl/lib ".format(spec["mpi"].version.up_to(3))
+                hip_link_flags += "-L/opt/cray/pe/mpich/{0}/gtl/lib ".format(
+                    spec["mpi"].version.up_to(3)
+                )
                 hip_link_flags += "-Wl,-rpath,/opt/cray/pe/mpich/{0}/gtl/lib ".format(
                     spec["mpi"].version.up_to(3)
                 )
                 hip_link_flags += "-lmpi_gtl_hsa "
 
             if spec.satisfies("^hip@6.0.0:"):
-                hip_link_flags += "-L{0}/lib/llvm/lib -Wl,-rpath,{0}/lib/llvm/lib ".format(rocm_root)
+                hip_link_flags += "-L{0}/lib/llvm/lib -Wl,-rpath,{0}/lib/llvm/lib ".format(
+                    rocm_root
+                )
             else:
                 hip_link_flags += "-L{0}/llvm/lib -Wl,-rpath,{0}/llvm/lib ".format(rocm_root)
             # Only amdclang requires this path; cray compiler fails if this is included
@@ -398,9 +412,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
             # Additional library path for cray compiler
             if self.spec.satisfies("%cce"):
-                hip_link_flags += "-L/opt/cray/pe/cce/{0}/cce/x86_64/lib -Wl,-rpath,/opt/cray/pe/cce/{0}/cce/x86_64/lib ".format(
-                                        self.spec.compiler.version
-                                    )
+                lib_path = "/opt/cray/pe/cce/{0}/cce/x86_64/lib".format(self.spec.compiler.version)
+                hip_link_flags += "-L{0} -Wl,-rpath,{0}".format(lib_path)
 
             # Remove extra link library for crayftn
             if spec.satisfies("+fortran") and self.is_fortran_compiler("crayftn"):
@@ -430,9 +443,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         if spec.satisfies("+fortran") and self.is_fortran_compiler("xlf"):
             # Grab lib directory for the current fortran compiler
             libdir = pjoin(os.path.dirname(os.path.dirname(self.compiler.fc)), "lib")
-            description = (
-                "Adds a missing rpath for libraries " "associated with the fortran compiler"
-            )
+            description = "Adds a missing rpath for libraries associated with the fortran compiler"
 
             linker_flags = "${BLT_EXE_LINKER_FLAGS} -Wl,-rpath," + libdir
 
