@@ -8,8 +8,9 @@
 // clang-format off
 namespace axom {
 namespace bump {
-namespace clipping {
+namespace extraction {
 namespace tables {
+namespace clipping {
 //---------------------------------------------------------------------------
 
 // This file is meant to be read and created by a program other than a
@@ -385,8 +386,9 @@ unsigned char clipShapesPoly6[] = {
 //---------------------------------------------------------------------------
 // Axom modifications
 const size_t clipShapesPoly6Size = sizeof(clipShapesPoly6) / sizeof(unsigned char);
-} // namespace tables
 } // namespace clipping
+} // namespace tables
+} // namespace extraction
 } // namespace bump
 } // namespace axom
 // clang-format on
