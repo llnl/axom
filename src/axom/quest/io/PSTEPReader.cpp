@@ -214,7 +214,7 @@ int PSTEPReader::getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE
     if(rc == READER_SUCCESS)
     {
       // receive vertex data
-      axom::IndexType numCoords = bcast_int();
+      axom::IndexType numCoords = bcast_index();
       axom::Array<double> coords_x(ArrayOptions::Uninitialized {}, numCoords, numCoords);
       axom::Array<double> coords_y(ArrayOptions::Uninitialized {}, numCoords, numCoords);
       axom::Array<double> coords_z(ArrayOptions::Uninitialized {}, numCoords, numCoords);
