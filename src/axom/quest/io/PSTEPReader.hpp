@@ -114,20 +114,7 @@ private:
         std::is_same_v<ValueType, axom::IndexType>,
       "PSTEPReader::bcast_data only supports ValueType of double, int, or axom::IndexType");
 
-    const int sz = arr.size();
-
-    if constexpr(std::is_same_v<ValueType, double>)
-    {
-      MPI_Bcast(arr.data(), sz, axom::mpi_traits<double>::type, 0, m_comm);
-    }
-    else if constexpr(std::is_same_v<ValueType, int>)
-    {
-      MPI_Bcast(arr.data(), sz, axom::mpi_traits<int>::type, 0, m_comm);
-    }
-    else if constexpr(std::is_same_v<ValueType, axom::IndexType>)
-    {
-      MPI_Bcast(arr.data(), sz, axom::mpi_traits<axom::IndexType>::type, 0, m_comm);
-    }
+    MPI_Bcast(arr.data(), arr.size(), axom::mpi_traits<ValueType>::type, 0, m_comm);
   }
 
   /// MPI broadcasts an Array<double, ARR_DIM> or Array<PointType, ARR_DIM> for ARR_DIM==1 or ARR_DIM==2
