@@ -76,8 +76,8 @@ unsigned char clipShapesQua[] = {
 
 const size_t clipShapesQuaSize = sizeof(clipShapesQua) / sizeof(unsigned char);
 
-} // namespace clipping
-} // namespace tables
-} // namespace extraction
-} // namespace bump
-} // namespace axom
+}  // namespace clipping
+}  // namespace tables
+}  // namespace extraction
+}  // namespace bump
+}  // namespace axom

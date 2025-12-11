@@ -973,7 +973,8 @@ protected:
     // Make material intersector.
     //
     //--------------------------------------------------------------------------
-    using IntersectorType = detail::MaterialIntersector<ITopologyView, ICoordsetView, MatsetView::MaxMaterials>;
+    using IntersectorType =
+      detail::MaterialIntersector<ITopologyView, ICoordsetView, MatsetView::MaxMaterials>;
 
     IntersectorType intersector;
     int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
@@ -1058,7 +1059,11 @@ protected:
     //--------------------------------------------------------------------------
     {
       using ClipperType =
-        axom::bump::extraction::TableBasedExtractor<ExecSpace, axom::bump::extraction::ClipTableManager, ITopologyView, ICoordsetView, IntersectorType>;
+        axom::bump::extraction::TableBasedExtractor<ExecSpace,
+                                                    axom::bump::extraction::ClipTableManager,
+                                                    ITopologyView,
+                                                    ICoordsetView,
+                                                    IntersectorType>;
       ClipperType clipper(topoView, coordsetView, intersector);
       clipper.execute(n_topo, n_coordset, n_fields, options, n_newTopo, n_newCoordset, n_newFields);
     }

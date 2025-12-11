@@ -8,11 +8,16 @@
 #include "axom/bump/extraction/ExtractionConstants.hpp"
 #include <cstdlib>
 
-namespace axom {
-namespace bump {
-namespace extraction {
-namespace tables {
-namespace cutting {
+namespace axom
+{
+namespace bump
+{
+namespace extraction
+{
+namespace tables
+{
+namespace cutting
+{
 
 // Tables
 extern AXOM_BUMP_EXPORT int numCutCasesHex;
@@ -75,7 +80,6 @@ extern AXOM_BUMP_EXPORT int numCutShapesVtx[2];
 extern AXOM_BUMP_EXPORT int startCutShapesVtx[2];
 extern AXOM_BUMP_EXPORT unsigned char cutShapesVtx[];
 
-
 extern AXOM_BUMP_EXPORT const size_t cutShapesTriSize;
 extern AXOM_BUMP_EXPORT const size_t cutShapesQuaSize;
 extern AXOM_BUMP_EXPORT const size_t cutShapesPoly5Size;
@@ -87,10 +91,10 @@ extern AXOM_BUMP_EXPORT const size_t cutShapesPyrSize;
 extern AXOM_BUMP_EXPORT const size_t cutShapesWdgSize;
 extern AXOM_BUMP_EXPORT const size_t cutShapesHexSize;
 
-} // namespace cutting
-} // namespace tables
-} // namespace extraction
-} // namespace bump
-} // namespace axom
+}  // namespace cutting
+}  // namespace tables
+}  // namespace extraction
+}  // namespace bump
+}  // namespace axom
 
 #endif

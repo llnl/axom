@@ -163,8 +163,7 @@ inline bool color1Selected(int selection) { return axom::utilities::bitIsSet(sel
 AXOM_HOST_DEVICE
 inline bool generatedPointIsSelected(unsigned char color, int selection)
 {
-  return color == NOCOLOR ||
-    (color0Selected(selection) && color == COLOR0) ||
+  return color == NOCOLOR || (color0Selected(selection) && color == COLOR0) ||
     (color1Selected(selection) && color == COLOR1);
 }
 
@@ -185,8 +184,7 @@ constexpr IndexType maxPointForDimension(int dim, IndexType numPoints)
   case 2:
     // We take the max since we might have a polygon.
     maxPoint =
-      axom::utilities::max(static_cast<IndexType>(P0) + numPoints - 1,
-                           static_cast<IndexType>(P3));
+      axom::utilities::max(static_cast<IndexType>(P0) + numPoints - 1, static_cast<IndexType>(P3));
     break;
   case 1:
     maxPoint = static_cast<IndexType>(P1);
@@ -205,8 +203,7 @@ constexpr IndexType maxEdgeForDimension(int dim, IndexType numPoints)
   case 2:
     // We take the max since we might have a polygon.
     maxEdge =
-      axom::utilities::max(static_cast<IndexType>(EA) + numPoints - 1,
-                           static_cast<IndexType>(ED));
+      axom::utilities::max(static_cast<IndexType>(EA) + numPoints - 1, static_cast<IndexType>(ED));
     break;
   case 1:
     maxEdge = static_cast<IndexType>(EA);
@@ -771,8 +768,8 @@ public:
    *
    */
   TableBasedExtractor(const TopologyView &topoView,
-            const CoordsetView &coordsetView,
-            const Intersector &intersector = Intersector())
+                      const CoordsetView &coordsetView,
+                      const Intersector &intersector = Intersector())
     : m_topologyView(topoView)
     , m_coordsetView(coordsetView)
     , m_intersector(intersector)
@@ -1655,7 +1652,8 @@ private:
 
 #if defined(AXOM_EXTRACTOR_ADD_CASE_FIELD)
   #if defined(AXOM_EXTRACTOR_DEGENERATES)
-    #pragma error("AXOM_EXTRACTOR_ADD_CASE_FIELD and AXOM_EXTRACTOR_DEGENERATES are mutually exclusive.")
+    #pragma error( \
+      "AXOM_EXTRACTOR_ADD_CASE_FIELD and AXOM_EXTRACTOR_DEGENERATES are mutually exclusive.")
   #endif
     // Allocate a color variable to keep track of the "color" of the fragments.
     conduit::Node &n_case = n_newFields["case"];

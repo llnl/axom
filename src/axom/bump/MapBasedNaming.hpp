@@ -36,8 +36,8 @@ public:
 
 private:
   using MapType = std::map<std::set<IndexT>, KeyType>;
-public:
 
+public:
   /*!
    * \brief A view for making names.
    */
@@ -62,7 +62,7 @@ public:
       {
         ids.insert(p[i]);
       }
-      KeyType name{};
+      KeyType name {};
       const auto it = m_map_ptr->find(ids);
       if(it == m_map_ptr->end())
       {
@@ -80,7 +80,7 @@ public:
     AXOM_HOST_DEVICE
     void setMaxId(IndexType) { }
 
-    MapType *m_map_ptr{nullptr};
+    MapType *m_map_ptr {nullptr};
   };
 
   // Host-callable methods

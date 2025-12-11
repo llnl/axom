@@ -4,21 +4,25 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "CutCases.hpp"
 
-namespace axom {
-namespace bump {
-namespace extraction {
-namespace tables {
-namespace cutting {
+namespace axom
+{
+namespace bump
+{
+namespace extraction
+{
+namespace tables
+{
+namespace cutting
+{
 
 int numCutCasesPoly5 = 32;
 
-int numCutShapesPoly5[] = {
-  0, 1, 1, 1, 1, 2, 1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1, 1, 2, 1, 2, 2, 2, 1, 1, 1, 2, 1, 1, 1, 1, 0
-};
+int numCutShapesPoly5[] = {0, 1, 1, 1, 1, 2, 1, 1, 1, 2, 2, 2, 1, 2, 1, 1,
+                           1, 1, 2, 1, 2, 2, 2, 1, 1, 1, 2, 1, 1, 1, 1, 0};
 
-int startCutShapesPoly5[] = {
-  0, 0, 4, 8, 12, 16, 24, 28, 32, 36, 44, 52, 60, 64, 72, 76, 80, 84, 88, 96, 100, 108, 116, 124, 128, 132, 136, 144, 148, 152, 156, 160
-};
+int startCutShapesPoly5[] = {0,   0,   4,   8,   12,  16,  24,  28,  32,  36,  44,
+                             52,  60,  64,  72,  76,  80,  84,  88,  96,  100, 108,
+                             116, 124, 128, 132, 136, 144, 148, 152, 156, 160};
 
 // clang-format off
 unsigned char cutShapesPoly5[] = {
@@ -99,8 +103,8 @@ unsigned char cutShapesPoly5[] = {
 
 const size_t cutShapesPoly5Size = sizeof(cutShapesPoly5) / sizeof(unsigned char);
 
-} // namespace cutting
-} // namespace tables
-} // namespace extraction
-} // namespace bump
-} // namespace axom
+}  // namespace cutting
+}  // namespace tables
+}  // namespace extraction
+}  // namespace bump
+}  // namespace axom

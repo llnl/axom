@@ -72,8 +72,8 @@ public:
      */
     AXOM_HOST_DEVICE
     FieldType computeWeight(axom::IndexType AXOM_UNUSED_PARAM(zoneIndex),
-                                ConnectivityType id0,
-                                ConnectivityType id1) const
+                            ConnectivityType id0,
+                            ConnectivityType id1) const
     {
       const FieldType d0 = m_fieldView[id0];
       const FieldType d1 = m_fieldView[id1];

@@ -24,6 +24,7 @@ class CutTableManager : public TableManager
 public:
   /// Return false since the tables cannot generate ST_PNT points.
   static constexpr bool generates_points() { return false; }
+
 protected:
   /*!
    * \brief Load the cutting table for a shape.

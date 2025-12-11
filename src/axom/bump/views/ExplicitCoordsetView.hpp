@@ -40,10 +40,7 @@ public:
    * \brief Constructor
    */
   AXOM_HOST_DEVICE
-  ExplicitCoordsetView()
-    : m_coordinates()
-  {
-  }
+  ExplicitCoordsetView() : m_coordinates() { }
 
   /*!
    * \brief Constructor
@@ -120,10 +117,7 @@ public:
    * \brief Constructor
    */
   AXOM_HOST_DEVICE
-  ExplicitCoordsetView()
-    : m_coordinates()
-  {
-  }
+  ExplicitCoordsetView() : m_coordinates() { }
 
   /*!
    * \brief Constructor

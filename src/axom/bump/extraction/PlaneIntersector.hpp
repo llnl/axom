@@ -74,7 +74,7 @@ public:
       for(IndexType i = 0; i < numIds; i++)
       {
         const auto dist = distance(nodeIds[i]);
-        caseNumber |= (dist > value_type{0}) ? (1 << i) : 0;
+        caseNumber |= (dist > value_type {0}) ? (1 << i) : 0;
       }
       return caseNumber;
     }
@@ -89,16 +89,16 @@ public:
      */
     AXOM_HOST_DEVICE
     value_type computeWeight(axom::IndexType AXOM_UNUSED_PARAM(zoneIndex),
-                                ConnectivityType id0,
-                                ConnectivityType id1) const
+                             ConnectivityType id0,
+                             ConnectivityType id1) const
     {
       const value_type d0 = distance(id0);
       const value_type d1 = distance(id1);
       constexpr value_type tiny = 1.e-09;
       return axom::utilities::clampVal(
         axom::utilities::abs(d0) / (axom::utilities::abs(d1 - d0) + tiny),
-        value_type{0},
-        value_type{1});
+        value_type {0},
+        value_type {1});
     }
 
     CoordsetView m_coordsetView;
@@ -144,7 +144,8 @@ public:
    * \param n_options The options.
    * \return The name of the toplogy on which to operate.
    */
-  std::string getTopologyName(const conduit::Node &AXOM_UNUSED_PARAM(n_input), const conduit::Node &n_options) const
+  std::string getTopologyName(const conduit::Node &AXOM_UNUSED_PARAM(n_input),
+                              const conduit::Node &n_options) const
   {
     return n_options["topology"].as_string();
   }

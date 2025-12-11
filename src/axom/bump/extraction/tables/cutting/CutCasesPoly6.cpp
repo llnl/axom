@@ -4,21 +4,28 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "CutCases.hpp"
 
-namespace axom {
-namespace bump {
-namespace extraction {
-namespace tables {
-namespace cutting {
+namespace axom
+{
+namespace bump
+{
+namespace extraction
+{
+namespace tables
+{
+namespace cutting
+{
 
 int numCutCasesPoly6 = 64;
 
-int numCutShapesPoly6[] = {
-  0, 1, 1, 1, 1, 2, 1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1, 2, 2, 2, 2, 3, 2, 2, 1, 2, 2, 2, 1, 2, 1, 1, 1, 1, 2, 1, 2, 2, 2, 1, 2, 2, 3, 2, 2, 2, 2, 1, 1, 1, 2, 1, 2, 2, 2, 1, 1, 1, 2, 1, 1, 1, 1, 0
-};
+int numCutShapesPoly6[] = {0, 1, 1, 1, 1, 2, 1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1, 2, 2, 2, 2, 3,
+                           2, 2, 1, 2, 2, 2, 1, 2, 1, 1, 1, 1, 2, 1, 2, 2, 2, 1, 2, 2, 3, 2,
+                           2, 2, 2, 1, 1, 1, 2, 1, 2, 2, 2, 1, 1, 1, 2, 1, 1, 1, 1, 0};
 
-int startCutShapesPoly6[] = {
-  0, 0, 4, 8, 12, 16, 24, 28, 32, 36, 44, 52, 60, 64, 72, 76, 80, 84, 92, 100, 108, 116, 128, 136, 144, 148, 156, 164, 172, 176, 184, 188, 192, 196, 200, 208, 212, 220, 228, 236, 240, 248, 256, 268, 276, 284, 292, 300, 304, 308, 312, 320, 324, 332, 340, 348, 352, 356, 360, 368, 372, 376, 380, 384
-};
+int startCutShapesPoly6[] = {0,   0,   4,   8,   12,  16,  24,  28,  32,  36,  44,  52,  60,
+                             64,  72,  76,  80,  84,  92,  100, 108, 116, 128, 136, 144, 148,
+                             156, 164, 172, 176, 184, 188, 192, 196, 200, 208, 212, 220, 228,
+                             236, 240, 248, 256, 268, 276, 284, 292, 300, 304, 308, 312, 320,
+                             324, 332, 340, 348, 352, 356, 360, 368, 372, 376, 380, 384};
 
 // clang-format off
 unsigned char cutShapesPoly6[] = {
@@ -187,8 +194,8 @@ unsigned char cutShapesPoly6[] = {
 
 const size_t cutShapesPoly6Size = sizeof(cutShapesPoly6) / sizeof(unsigned char);
 
-} // namespace cutting
-} // namespace tables
-} // namespace extraction
-} // namespace bump
-} // namespace axom
+}  // namespace cutting
+}  // namespace tables
+}  // namespace extraction
+}  // namespace bump
+}  // namespace axom

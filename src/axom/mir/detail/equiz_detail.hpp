@@ -201,7 +201,8 @@ public:
    * \param n_options The options.
    * \return The name of the toplogy on which to operate.
    */
-  std::string getTopologyName(const conduit::Node &AXOM_UNUSED_PARAM(n_input), const conduit::Node &n_options) const
+  std::string getTopologyName(const conduit::Node &AXOM_UNUSED_PARAM(n_input),
+                              const conduit::Node &n_options) const
   {
     return n_options["topology"].as_string();
   }

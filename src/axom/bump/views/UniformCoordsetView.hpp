@@ -41,11 +41,7 @@ public:
    * \brief Constructor
    */
   AXOM_HOST_DEVICE
-  UniformCoordsetView()
-    : m_indexing()
-    , m_origin()
-    , m_spacing()
-  { }
+  UniformCoordsetView() : m_indexing(), m_origin(), m_spacing() { }
 
   /*!
    * \brief Constructor

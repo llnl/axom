@@ -30,7 +30,7 @@ axom::blueprint::testing::TestApplication TestApp;
 template <int NDIMS>
 struct make_planes;
 
-template<>
+template <>
 struct make_planes<2>
 {
   using PlaneType = axom::primal::Plane<double, 2>;
@@ -40,14 +40,14 @@ struct make_planes<2>
   static std::map<std::string, PlaneType> planes()
   {
     std::map<std::string, PlaneType> p;
-    p["x=1"] = PlaneType(VectorType{{1., 0.}}, PointType{{1., 0.}});
-    p["y=1"] = PlaneType(VectorType{{0., 1.}}, PointType{{0., 1.}});
-    p["free"] = PlaneType(VectorType{{1., 1.}}, PointType{{1.5, 2.5}});
+    p["x=1"] = PlaneType(VectorType {{1., 0.}}, PointType {{1., 0.}});
+    p["y=1"] = PlaneType(VectorType {{0., 1.}}, PointType {{0., 1.}});
+    p["free"] = PlaneType(VectorType {{1., 1.}}, PointType {{1.5, 2.5}});
     return p;
   }
 };
 
-template<>
+template <>
 struct make_planes<3>
 {
   using PlaneType = axom::primal::Plane<double, 3>;
@@ -57,10 +57,10 @@ struct make_planes<3>
   static std::map<std::string, PlaneType> planes()
   {
     std::map<std::string, PlaneType> p;
-    p["x=0"] = PlaneType(VectorType{{1., 0., 0.}}, PointType{{0., 0., 0.}});
-    p["y=0"] = PlaneType(VectorType{{0., 1., 0.}}, PointType{{0., 0., 0.}});
-    p["z=0"] = PlaneType(VectorType{{0., 0., 1.}}, PointType{{0., 0., 0.}});
-    p["free"] = PlaneType(VectorType{{1., 1., 1.}}, PointType{{-1.1, -1.2, -1.3}});
+    p["x=0"] = PlaneType(VectorType {{1., 0., 0.}}, PointType {{0., 0., 0.}});
+    p["y=0"] = PlaneType(VectorType {{0., 1., 0.}}, PointType {{0., 0., 0.}});
+    p["z=0"] = PlaneType(VectorType {{0., 0., 1.}}, PointType {{0., 0., 0.}});
+    p["free"] = PlaneType(VectorType {{1., 1., 1.}}, PointType {{-1.1, -1.2, -1.3}});
     return p;
   }
 };

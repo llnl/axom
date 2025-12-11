@@ -8,11 +8,16 @@
 #include "axom/bump/extraction/ExtractionConstants.hpp"
 #include <cstdlib>
 
-namespace axom {
-namespace bump {
-namespace extraction {
-namespace tables {
-namespace clipping {
+namespace axom
+{
+namespace bump
+{
+namespace extraction
+{
+namespace tables
+{
+namespace clipping
+{
 
 // Tables
 extern AXOM_BUMP_EXPORT int numClipCasesHex;
@@ -96,10 +101,10 @@ extern AXOM_BUMP_EXPORT const size_t clipShapesPyrSize;
 extern AXOM_BUMP_EXPORT const size_t clipShapesWdgSize;
 extern AXOM_BUMP_EXPORT const size_t clipShapesHexSize;
 
-} // namespace clipping
-} // namespace tables
-} // namespace extraction
-} // namespace bump
-} // namespace axom
+}  // namespace clipping
+}  // namespace tables
+}  // namespace extraction
+}  // namespace bump
+}  // namespace axom
 
 #endif

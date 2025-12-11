@@ -122,7 +122,7 @@ struct test_cutfield
   {
     const axom::IndexType N = 20;
     const axom::StackArray<axom::IndexType, 3> dims {N, N, (NDIMS > 2) ? N : 0};
-    const auto maxZ = axom::utilities::max(dims[2], axom::IndexType{1});
+    const auto maxZ = axom::utilities::max(dims[2], axom::IndexType {1});
     const auto nnodes = dims[0] * dims[1] * maxZ;
 
     // Create the data
@@ -149,9 +149,7 @@ struct test_cutfield
           const auto x = scale * pt[0];
           const auto y = scale * pt[1];
           const auto z = scale * ((NDIMS == 2) ? 0. : pt[2]);
-          gyroid[index] = sin(x) * cos(y) + 
-                          sin(y) * cos(z) + 
-                          sin(z) * cos(x);
+          gyroid[index] = sin(x) * cos(y) + sin(y) * cos(z) + sin(z) * cos(x);
         }
       }
     }
@@ -175,8 +173,8 @@ struct test_cutfield
       deviceMesh["coordsets/coords"]);
     using CoordsetView = decltype(coordsetView);
 
-    auto topologyView =
-      axom::bump::views::make_unstructured_single_shape_topology<views::PolygonShape<conduit::index_t>>::view(deviceMesh["topologies/mesh"]);
+    auto topologyView = axom::bump::views::make_unstructured_single_shape_topology<
+      views::PolygonShape<conduit::index_t>>::view(deviceMesh["topologies/mesh"]);
     using TopologyView = decltype(topologyView);
 
     conduit::Node hostOptions, deviceOptions, deviceResult;
@@ -274,7 +272,8 @@ translate:
     n_options["tile"].parse(tile);
     const int N = 10;
     conduit::blueprint::mesh::examples::tiled(N, N, 0, n_mesh, n_options);
-    conduit::blueprint::mesh::topology::unstructured::generate_offsets_inline(n_mesh["topologies/mesh"]);
+    conduit::blueprint::mesh::topology::unstructured::generate_offsets_inline(
+      n_mesh["topologies/mesh"]);
 
     const auto xc = n_mesh["coordsets/coords/values/x"].as_double_accessor();
     const auto yc = n_mesh["coordsets/coords/values/y"].as_double_accessor();
@@ -291,9 +290,7 @@ translate:
       const double x = scale * xc[i];
       const double y = scale * yc[i];
       const double z = 0.;
-      gyroid[i] = sin(x) * cos(y) + 
-                  sin(y) * cos(z) + 
-                  sin(z) * cos(x);
+      gyroid[i] = sin(x) * cos(y) + sin(y) * cos(z) + sin(z) * cos(x);
     }
   }
 };

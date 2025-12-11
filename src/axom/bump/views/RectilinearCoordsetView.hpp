@@ -38,10 +38,7 @@ public:
    * \brief Constructor
    */
   AXOM_HOST_DEVICE
-  RectilinearCoordsetView2()
-    : m_coordinates()
-    , m_indexing()
-  { }
+  RectilinearCoordsetView2() : m_coordinates(), m_indexing() { }
 
   /*!
    * \brief Constructor
@@ -162,10 +159,7 @@ public:
    * \brief Constructor
    */
   AXOM_HOST_DEVICE
-  RectilinearCoordsetView3()
-    : m_coordinates()
-    , m_indexing()
-  { }
+  RectilinearCoordsetView3() : m_coordinates(), m_indexing() { }
 
   /*!
    * \brief Constructor

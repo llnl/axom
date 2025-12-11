@@ -50,10 +50,7 @@ unsigned char cutShapesQua[] = {
 };
 // clang-format on
 
-int numCutShapesQua[] = {0, 1, 1, 1,
-                         1, 2, 1, 1,
-                         1, 1, 2, 1,
-                         1, 1, 1, 0};
+int numCutShapesQua[] = {0, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 0};
 
 int startCutShapesQua[] = {0, 0, 4, 8, 12, 16, 24, 28, 32, 36, 40, 48, 52, 56, 60, 64};
 

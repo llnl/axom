@@ -7,9 +7,12 @@
 #include "axom/export/bump.h"
 
 #include <cstdlib>
-namespace axom {
-namespace bump {
-namespace extraction {
+namespace axom
+{
+namespace bump
+{
+namespace extraction
+{
 
 // NOTE: These values were derived from VisIt
 
@@ -66,13 +69,13 @@ constexpr unsigned char ST_MIN = ST_TET;
 constexpr unsigned char ST_MAX = (ST_PNT + 1);
 
 // Colors
-constexpr unsigned char COLOR0 =  120;
-constexpr unsigned char COLOR1 =  121;
+constexpr unsigned char COLOR0 = 120;
+constexpr unsigned char COLOR1 = 121;
 constexpr unsigned char NOCOLOR = 122;
 
-} // namespace extraction
-} // namespace bump
-} // namespace axom
+}  // namespace extraction
+}  // namespace bump
+}  // namespace axom
 // clang-format on
 //---------------------------------------------------------------------------
 

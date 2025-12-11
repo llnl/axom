@@ -1202,8 +1202,8 @@ unsigned char clipShapesPoly8[] = {
 
 const size_t clipShapesPoly8Size = sizeof(clipShapesPoly8) / sizeof(unsigned char);
 
-} // namespace clipping
-} // namespace tables
-} // namespace extraction
-} // namespace bump
-} // namespace axom
+}  // namespace clipping
+}  // namespace tables
+}  // namespace extraction
+}  // namespace bump
+}  // namespace axom

@@ -62,10 +62,7 @@ protected:
    *
    * \return An index into the m_tables array.
    */
-  constexpr static size_t shapeToIndex(size_t shape)
-  {
-    return shape - ST_MIN;
-  }
+  constexpr static size_t shapeToIndex(size_t shape) { return shape - ST_MIN; }
 
   /*!
    * \brief Load the table for a shape.

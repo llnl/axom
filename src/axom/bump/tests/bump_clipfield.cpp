@@ -440,7 +440,8 @@ void test_one_shape(const conduit::Node &hostMesh, const std::string &name)
 
   // Clip the data
   conduit::Node deviceClipMesh, options;
-  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
+  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView,
+                                                                               coordsetView);
   options["field"] = "distance";
   options["value"] = 0.;
   options["inside"] = 1;
@@ -539,7 +540,8 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
 
   // Clip the data
   conduit::Node deviceClipMesh;
-  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
+  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView,
+                                                                               coordsetView);
   clipper.execute(deviceMesh, options, deviceClipMesh);
 
   // Copy device->host
@@ -672,7 +674,8 @@ void braid_rectilinear_clip_test(const std::string &name)
 
   // Clip the data
   conduit::Node deviceClipMesh;
-  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
+  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView,
+                                                                               coordsetView);
   clipper.execute(deviceMesh, options, deviceClipMesh);
 
   // Copy device->host
@@ -744,7 +747,8 @@ void strided_structured_clip_test(const std::string &name, const conduit::Node &
   using TopoView = decltype(topoView);
 
   // Clip the data
-  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
+  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView,
+                                                                               coordsetView);
   clipper.execute(deviceMesh, deviceOptions, deviceClipMesh);
 
   // device->host
@@ -827,7 +831,8 @@ void braid3d_clip_test(const std::string &type, const std::string &name)
 
   // Clip the data
   conduit::Node deviceClipMesh;
-  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
+  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView,
+                                                                               coordsetView);
   clipper.execute(deviceMesh, options, deviceClipMesh);
 
   // Copy device->host
@@ -938,7 +943,8 @@ void braid3d_mixed_clip_test(const std::string &name)
 
   // Clip the data
   conduit::Node deviceClipMesh;
-  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
+  axom::bump::extraction::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView,
+                                                                               coordsetView);
   clipper.execute(deviceMesh, options, deviceClipMesh);
 
   // Copy device->host
@@ -1095,7 +1101,7 @@ struct test_selectedzones
     utils::copy<ExecSpace>(deviceOptions, hostOptions);
 
     axom::bump::extraction::ClipField<ExecSpace, TopologyView, CoordsetView> clip(topologyView,
-                                                                                coordsetView);
+                                                                                  coordsetView);
     clip.execute(deviceMesh, deviceOptions, deviceResult);
 
     // device->host

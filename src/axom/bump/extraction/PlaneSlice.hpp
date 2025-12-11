@@ -26,10 +26,10 @@ namespace extraction
 template <typename ExecSpace,
           typename TopologyView,
           typename CoordsetView,
-          typename IntersectPolicy =
-            axom::bump::extraction::PlaneIntersector<TopologyView, CoordsetView>,
+          typename IntersectPolicy = axom::bump::extraction::PlaneIntersector<TopologyView, CoordsetView>,
           typename NamingPolicy = axom::bump::HashNaming<axom::IndexType>>
-using PlaneSlice = TableBasedExtractor<ExecSpace, CutTableManager, TopologyView, CoordsetView, IntersectPolicy, NamingPolicy, false>;
+using PlaneSlice =
+  TableBasedExtractor<ExecSpace, CutTableManager, TopologyView, CoordsetView, IntersectPolicy, NamingPolicy, false>;
 
 }  // end namespace extraction
 }  // end namespace bump
