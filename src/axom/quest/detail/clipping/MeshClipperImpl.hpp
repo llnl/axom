@@ -367,11 +367,7 @@ public:
           const int pieceId = shapeCandidatesView[i];
           const auto& cellTet = cellsAsTets[tetIndex];
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
-          computeMeshTetGeomPieceOverlap(cellTet,
-                                         geomPiece,
-                                         ovlap.data() + cellId,
-                                         csp,
-                                         screenLevel);
+          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
         });
     }
     else  // useOcts
@@ -384,11 +380,7 @@ public:
           const auto& cellTet = cellsAsTets[tetIndex];
           const int pieceId = shapeCandidatesView[i];
           const OctahedronType& geomPiece = geomOctsView[pieceId];
-          computeMeshTetGeomPieceOverlap(cellTet,
-                                         geomPiece,
-                                         ovlap.data() + cellId,
-                                         csp,
-                                         screenLevel);
+          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_notScreened");
@@ -551,11 +543,7 @@ public:
           const int pieceId = shapeCandidatesView[i];  // index into pieces array
           const auto& cellTet = cellsAsTets[tetIndex];
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
-          computeMeshTetGeomPieceOverlap(cellTet,
-                                         geomPiece,
-                                         ovlap.data() + cellId,
-                                         csp,
-                                         screenLevel);
+          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
         });
     }
     else  // useOcts
@@ -576,11 +564,7 @@ public:
           const int pieceId = shapeCandidatesView[i];  // index into pieces array
           const OctahedronType& geomPiece = geomOctsView[pieceId];
           const auto& cellTet = cellsAsTets[tetIndex];
-          computeMeshTetGeomPieceOverlap(cellTet,
-                                         geomPiece,
-                                         ovlap.data() + cellId,
-                                         csp,
-                                         screenLevel);
+          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_hexScreened");
@@ -680,7 +664,7 @@ public:
           const auto& meshTet = meshTets[tetId];
 
           auto pieceId = leafNodes[currentNode];
-// ++count; return;
+          // ++count; return;
           if(useTets)
           {
             const auto& piece = geomTetsView[pieceId];
@@ -736,7 +720,7 @@ public:
           const auto& meshTet = meshTets[tetId];
           auto pieceId = leafs[currentNode];
           bool record = false;
-// record = true;
+          // record = true;
           if(useTets)
           {
             const auto& piece = geomTetsView[pieceId];
@@ -802,11 +786,7 @@ public:
           auto pieceId = candidatesView[iCand];
           const auto& meshTet = meshTets[tetId];
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
-          computeMeshTetGeomPieceOverlap(meshTet,
-                                         geomPiece,
-                                         ovlap.data() + cellId,
-                                         csp,
-                                         screenLevel);
+          computeMeshTetGeomPieceOverlap(meshTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
         });
     }
     else  // useOcts
@@ -820,11 +800,7 @@ public:
           auto pieceId = candidatesView[iCand];
           const auto& meshTet = meshTets[tetId];
           const OctahedronType& geomPiece = geomOctsView[pieceId];
-          computeMeshTetGeomPieceOverlap(meshTet,
-                                         geomPiece,
-                                         ovlap.data() + cellId,
-                                         csp,
-                                         screenLevel);
+          computeMeshTetGeomPieceOverlap(meshTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_tetScreened");
@@ -959,11 +935,12 @@ public:
    * the two types a geometry can be discretized into.
    */
   template <typename TetOrOctType>
-  AXOM_HOST_DEVICE static inline LabelType computeMeshTetGeomPieceOverlap(const TetrahedronType& meshTet,
-                                                                          const TetOrOctType& geomPiece,
-                                                                          double* overlapVolume,
-                                                                          const ClippingStatPointers& csp,
-                                                                          int screenLevel)
+  AXOM_HOST_DEVICE static inline LabelType computeMeshTetGeomPieceOverlap(
+    const TetrahedronType& meshTet,
+    const TetOrOctType& geomPiece,
+    double* overlapVolume,
+    const ClippingStatPointers& csp,
+    int screenLevel)
   {
     using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
     constexpr bool tryFixOrientation = false;
@@ -1128,9 +1105,12 @@ public:
       octVertsBelow[2] += octVert[2] <= 0;
       octVertsBelow[3] += h4 <= 0;
     }
-    if(octVertsAbove[0] == OctahedronType::NUM_VERTS || octVertsAbove[1] == OctahedronType::NUM_VERTS ||
-       octVertsAbove[2] == OctahedronType::NUM_VERTS || octVertsAbove[3] == OctahedronType::NUM_VERTS ||
-       octVertsBelow[0] == OctahedronType::NUM_VERTS || octVertsBelow[1] == OctahedronType::NUM_VERTS ||
+    if(octVertsAbove[0] == OctahedronType::NUM_VERTS ||
+       octVertsAbove[1] == OctahedronType::NUM_VERTS ||
+       octVertsAbove[2] == OctahedronType::NUM_VERTS ||
+       octVertsAbove[3] == OctahedronType::NUM_VERTS ||
+       octVertsBelow[0] == OctahedronType::NUM_VERTS ||
+       octVertsBelow[1] == OctahedronType::NUM_VERTS ||
        octVertsBelow[2] == OctahedronType::NUM_VERTS || octVertsBelow[3] == OctahedronType::NUM_VERTS)
     {
       return false;
@@ -1138,14 +1118,8 @@ public:
 
     // Indices of the vertices of each of the 8 faces of the octagon, oriented inside.
     using ThreeIds = int[3];
-    ThreeIds octFIds[8] = { {0, 2, 4},
-                            {0, 5, 1},
-                            {2, 1, 3},
-                            {4, 3, 5},
-                            {1, 5, 3},
-                            {3, 4, 2},
-                            {5, 0, 4},
-                            {1, 2, 0} };
+    ThreeIds octFIds[8] =
+      {{0, 2, 4}, {0, 5, 1}, {2, 1, 3}, {4, 3, 5}, {1, 5, 3}, {3, 4, 2}, {5, 0, 4}, {1, 2, 0}};
     for(int fi = 0; fi < 8; ++fi)
     {
       // Construct  plane of face fi of the oct.
@@ -1156,19 +1130,28 @@ public:
       axom::primal::Vector<double, 3> r1(v0, v1);
       axom::primal::Vector<double, 3> r2(v0, v2);
       axom::primal::Vector<double, 3> normal = axom::primal::Vector<double, 3>::cross_product(r1, r2);
-      if(normal.squared_norm() < EPS) { continue; } // Skip degenerate face
+      if(normal.squared_norm() < EPS)
+      {
+        continue;
+      }  // Skip degenerate face
       axom::primal::Plane<double, 3> octBase(normal, v0);
 
       // Compute height range of vertices not in face fi.
       double maxHeight = 0.0;
       double minHeight = 0.0;
-      const ThreeIds& nonFids = octFIds[(fi+4)%8]; // 3 oct vertices not part of face fi.
+      const ThreeIds& nonFids = octFIds[(fi + 4) % 8];  // 3 oct vertices not part of face fi.
       for(int vi = 0; vi < 3; ++vi)
       {
         const auto& vert = oct[nonFids[vi]];
         double vertHeight = octBase.signedDistance(vert);
-        if(maxHeight < vertHeight) {maxHeight = vertHeight;}
-        if(minHeight > vertHeight) {minHeight = vertHeight;}
+        if(maxHeight < vertHeight)
+        {
+          maxHeight = vertHeight;
+        }
+        if(minHeight > vertHeight)
+        {
+          minHeight = vertHeight;
+        }
       }
 
       // Number of tet vertices outside [minHeight,maxHeight]..

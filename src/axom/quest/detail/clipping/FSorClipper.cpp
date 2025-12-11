@@ -403,11 +403,10 @@ void FSorClipper::computeCurveBoxes(quest::experimental::ShapeMesh& shapeMesh,
       characteristic length of mesh cells.
     - with memory from allocId.
   */
-  axom::Array<Point2DType> sorCurve =
-    subdivideCurve(m_sorCurve,
-                   3 * avgCharLength /* maxMean */,
-                   -1 /* maxDz, negative disables */,
-                   -1 /* minDz, negative disables */);
+  axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve,
+                                                     3 * avgCharLength /* maxMean */,
+                                                     -1 /* maxDz, negative disables */,
+                                                     -1 /* minDz, negative disables */);
   sorCurve = axom::Array<Point2DType>(sorCurve, allocId);
   auto sorCurveView = sorCurve.view();
 
@@ -481,8 +480,10 @@ Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(const Array<Point2DT
     const double segDr = absDelta[1];
     const double segMean = 2 * segDz * segDr / (segDz + segDr);
 
-    int numSplitsByMean = maxMean <= 0 && segMean > maxMean ? 0 : static_cast<int>(std::ceil(segMean / maxMean)) - 1;
-    int numSplitsByDz = maxDz <= 0 && segDz > maxDz ? 0 : static_cast<int>(std::ceil(segDz / maxDz)) - 1;
+    int numSplitsByMean =
+      maxMean <= 0 && segMean > maxMean ? 0 : static_cast<int>(std::ceil(segMean / maxMean)) - 1;
+    int numSplitsByDz =
+      maxDz <= 0 && segDz > maxDz ? 0 : static_cast<int>(std::ceil(segDz / maxDz)) - 1;
 
     // Prevent dz from falling below minDz
     int numSplitsByMinDz = minDz <= 0 && segDz > minDz ? 0 : static_cast<int>(segDz / minDz) - 1;
@@ -556,7 +557,7 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMes
     RAJA::RangeSegment(0, cellCount),
     AXOM_LAMBDA(axom::IndexType cellId) { sumVolume += cellVolumes[cellId]; });
   double avgVolume = sumVolume.get() / cellCount;
-  double avgCharLength = pow(avgVolume, 1./3);
+  double avgCharLength = pow(avgVolume, 1. / 3);
 #else
   axom::ArrayView<const double> cellLengths = shapeMesh.getCellLengths();
   RAJA::ReduceSum<ReducePolicy, double> sumCharLength(0.0);
@@ -566,11 +567,10 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMes
   double avgCharLength = sumCharLength.get() / cellCount;
 #endif
 
-  axom::Array<Point2DType> sorCurve =
-    subdivideCurve(m_sorCurve,
-                   3 * avgCharLength /* maxMean */,
-                   3 * avgCharLength /* maxDz */,
-                   2 * avgCharLength /* minDz */);
+  axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve,
+                                                     3 * avgCharLength /* maxMean */,
+                                                     3 * avgCharLength /* maxDz */,
+                                                     2 * avgCharLength /* minDz */);
 
   // Generate the Octahedra
   int octCount = 0;
@@ -597,7 +597,9 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMes
     });
 
   SLIC_INFO(axom::fmt::format("FSorClipper '{}' generated {} geometry octs from {} curve points.",
-                               name(), octs.size(), sorCurve.size()));
+                              name(),
+                              octs.size(),
+                              sorCurve.size()));
 
   return true;
 }
