@@ -102,6 +102,7 @@ spack:
           flags:
             fflags: -ef
           environment: {}
+          extra_rpaths: [/opt/cray/pe/cce/20.0.0/cce/x86_64/lib]
 
     hip:
       # version: [6.3.1, 6.4.2]
