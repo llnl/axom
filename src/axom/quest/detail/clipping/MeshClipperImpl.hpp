@@ -363,9 +363,14 @@ public:
         tetCandidatesCount,
         AXOM_LAMBDA(axom::IndexType i) {
           const int tetIndex = tetIndicesView[i];
+          const auto& cellTet = cellsAsTets[tetIndex];
+          if(cellTet.degenerate())
+          {
+            RAJA::atomicAdd<ATOMIC_POL>(csp.clipsOut, std::int64_t(1));
+            return;
+          }
           const int cellId = hexIndicesView[i];
           const int pieceId = shapeCandidatesView[i];
-          const auto& cellTet = cellsAsTets[tetIndex];
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
           computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
         });
@@ -376,8 +381,13 @@ public:
         tetCandidatesCount,
         AXOM_LAMBDA(axom::IndexType i) {
           const int tetIndex = tetIndicesView[i];
-          const int cellId = hexIndicesView[i];
           const auto& cellTet = cellsAsTets[tetIndex];
+          if(cellTet.degenerate())
+          {
+            RAJA::atomicAdd<ATOMIC_POL>(csp.clipsOut, std::int64_t(1));
+            return;
+          }
+          const int cellId = hexIndicesView[i];
           const int pieceId = shapeCandidatesView[i];
           const OctahedronType& geomPiece = geomOctsView[pieceId];
           computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
@@ -537,11 +547,17 @@ public:
           tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
             tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
+          const auto& cellTet = cellsAsTets[tetIndex];
+          if(cellTet.degenerate())
+          {
+            RAJA::atomicAdd<ATOMIC_POL>(csp.clipsOut, std::int64_t(1));
+            return;
+          }
+
           int cellId = hexIndicesView[i];  // index into limited mesh hex array
           cellId = cellIndices[cellId];    // Now, it indexes into the full hex array.
 
           const int pieceId = shapeCandidatesView[i];  // index into pieces array
-          const auto& cellTet = cellsAsTets[tetIndex];
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
           computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
         });
@@ -558,12 +574,18 @@ public:
           tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
             tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
+          const auto& cellTet = cellsAsTets[tetIndex];
+          if(cellTet.degenerate())
+          {
+            RAJA::atomicAdd<ATOMIC_POL>(csp.clipsOut, std::int64_t(1));
+            return;
+          }
+
           int cellId = hexIndicesView[i];  // index into limited mesh hex array
           cellId = cellIndices[cellId];    // Now, it indexes into the full hex array.
 
           const int pieceId = shapeCandidatesView[i];  // index into pieces array
           const OctahedronType& geomPiece = geomOctsView[pieceId];
-          const auto& cellTet = cellsAsTets[tetIndex];
           computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
         });
     }

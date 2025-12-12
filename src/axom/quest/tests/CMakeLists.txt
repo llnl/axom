@@ -271,6 +271,7 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
                         --refinements 5
                         --scale .99 .99 .99
                         --dir 8 4 2
+                        --screenLevel 2
                         --meshType ${_meshType}
                         inline_mesh --min -2 -2 -2 --max 2 2 2 --res 16 16 16
             NUM_MPI_TASKS ${_nranks})

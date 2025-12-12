@@ -199,8 +199,8 @@ public:
    * [c*NUM_TETS_PER_HEX, (c+1)*NUM_TETS_PER_HEX).
    * in \c shapeMesh.getCellsAsTets().
    *
-   * Degenerate tets have zero volume and should be labeled outside
-   * for best clipping performance.
+   * Degenerate tets have zero volume and MUST be labeled outside.
+   * Further computation can fail if degenerate tets are seen.
    *
    * If implementation returns true, it should ensure these
    * post-conditions hold:
