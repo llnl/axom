@@ -35,7 +35,6 @@ namespace slic = axom::slic;
 
 namespace
 {
-using PatchData = axom::quest::internal::PatchData;
 using NURBSPatch = axom::quest::STEPReader::NURBSPatch;
 
 /**

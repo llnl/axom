@@ -58,6 +58,19 @@ namespace quest
 {
 namespace internal
 {
+/// Struct to hold data associated with each surface patch of the mesh
+struct PatchData
+{
+  int patchIndex {-1};
+  bool wasOriginallyPeriodic_u {false};
+  bool wasOriginallyPeriodic_v {false};
+  axom::primal::BoundingBox<double, 2> parametricBBox;
+  axom::primal::BoundingBox<double, 3> physicalBBox;
+  axom::Array<bool> trimmingCurves_originallyPeriodic;
+};
+
+using PatchDataMap = std::map<int, PatchData>;
+
 /**
  * Class to read in a STEP file representing trimmed NURBS meshes using Open Cascade 
  * and convert the patches and trimming curves to Axom's NURBSPatch and NURBSCurve primitives.
@@ -1237,11 +1250,6 @@ private:
 
 std::string STEPReader::getFileUnits() const { return m_stepProcessor->getFileUnits(); }
 
-const internal::PatchDataMap& STEPReader::getPatchDataMap() const
-{
-  return m_stepProcessor->getPatchDataMap();
-}
-
 const TopoDS_Shape& STEPReader::getShape() const { return m_stepProcessor->getShape(); }
 
 void STEPReader::printBRepStats() const
@@ -1290,7 +1298,7 @@ void STEPReader::printBRepStats() const
   // compute and print the bounding box of the mesh in physical space
   {
     typename internal::StepFileProcessor::BBox3D meshBBox;
-    for(const auto& [_, value] : this->getPatchDataMap())
+    for(const auto& [_, value] : m_stepProcessor->getPatchDataMap())
     {
       meshBBox.addBox(value.physicalBBox);
     }
@@ -1312,7 +1320,7 @@ void STEPReader::printBRepStats() const
     };
 
     std::map<std::pair<int, int>, Counts> patchDegrees;
-    for(const auto& [_, value] : this->getPatchDataMap())
+    for(const auto& [_, value] : m_stepProcessor->getPatchDataMap())
     {
       const auto& patch = m_patches[value.patchIndex];
       auto& c = patchDegrees[{patch.getDegree_u(), patch.getDegree_v()}];
@@ -1408,7 +1416,7 @@ void STEPReader::printBRepStats() const
 
     std::map<int, Counts> curveDegreeCounts;
     std::vector<int> curveDegreeList;
-    for(const auto& [_, value] : this->getPatchDataMap())
+    for(const auto& [_, value] : m_stepProcessor->getPatchDataMap())
     {
       const auto& patch = m_patches[value.patchIndex];
 

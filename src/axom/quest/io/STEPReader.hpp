@@ -26,25 +26,10 @@ namespace axom
 {
 namespace quest
 {
-
 namespace internal
 {
 class StepFileProcessor;
-
-/// Struct to hold data associated with each surface patch of the mesh
-struct PatchData
-{
-  int patchIndex {-1};
-  bool wasOriginallyPeriodic_u {false};
-  bool wasOriginallyPeriodic_v {false};
-  axom::primal::BoundingBox<double, 2> parametricBBox;
-  axom::primal::BoundingBox<double, 3> physicalBBox;
-  axom::Array<bool> trimmingCurves_originallyPeriodic;
-};
-
-using PatchDataMap = std::map<int, PatchData>;
-
-}  // namespace internal
+}
 
 /*
  * \class STEPReader
@@ -110,8 +95,6 @@ public:
 protected:
   // open cascade does not appear to offer a direct way to get the number of patches
   int numPatchesInFile() const;
-
-  const internal::PatchDataMap& getPatchDataMap() const;
 
 protected:
   std::string m_fileName;
