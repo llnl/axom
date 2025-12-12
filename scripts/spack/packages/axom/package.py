@@ -166,6 +166,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     )
 
     # variants for package dependencies
+    variant("conduit", default=True, description="Build with conduit")
     variant("c2c", default=False, description="Build with c2c")
     variant("opencascade", default=False, description="Build with opencascade")
 
@@ -198,12 +199,13 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     # Libraries
     # Forward variants to Conduit
-    for _var in ["fortran", "hdf5", "mpi", "python"]:
-        depends_on("conduit+{0}".format(_var), when="+{0}".format(_var))
-        depends_on("conduit~{0}".format(_var), when="~{0}".format(_var))
+    with when("+conduit"):
+        for _var in ["fortran", "hdf5", "mpi", "python"]:
+            depends_on("conduit+{0}".format(_var), when="+{0}".format(_var))
+            depends_on("conduit~{0}".format(_var), when="~{0}".format(_var))
 
-    depends_on("conduit+python", when="+devtools")
-    depends_on("conduit~python", when="~devtools")
+        depends_on("conduit+python", when="+devtools")
+        depends_on("conduit~python", when="~devtools")
 
     depends_on("hdf5", when="+hdf5")
 
@@ -691,18 +693,20 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         entries.append("# TPLs")
         entries.append("#------------------{0}\n".format("-" * 60))
 
+
         # Try to find the common prefix of the TPL directory.
         # If found, we will use this in the TPL paths
-        path1 = os.path.realpath(spec["conduit"].prefix)
-        path2 = os.path.realpath(self.prefix)
-        self.find_path_replacement(path1, path2, path_replacements, "TPL_ROOT", entries)
+        variant_deps = ["conduit", "c2c", "mfem", "hdf5", "lua", "raja", "umpire", "opencascade"]
+        for dep in variant_deps:
+            if spec.satisfies(f"+{dep}"):
+                path1 = os.path.realpath(spec[dep].prefix)
+                path2 = os.path.realpath(self.prefix)
+                self.find_path_replacement(path1, path2, path_replacements, "TPL_ROOT", entries)
+                break
 
-        conduit_dir = get_spec_path(spec, "conduit", path_replacements)
-        entries.append(cmake_cache_path("CONDUIT_DIR", conduit_dir))
-
-        # optional tpls
-        for dep in ("c2c", "mfem", "hdf5", "lua", "raja", "umpire", "opencascade"):
-            if spec.satisfies("+%s" % dep):
+        # optional tpls based on variants
+        for dep in variant_deps:
+            if spec.satisfies(f"+{dep}"):
                 dep_dir = get_spec_path(spec, dep, path_replacements)
                 entries.append(cmake_cache_path("%s_DIR" % dep.upper(), dep_dir))
             else:
