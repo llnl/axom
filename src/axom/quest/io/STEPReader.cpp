@@ -1250,8 +1250,15 @@ private:
 
 std::string STEPReader::getFileUnits() const { return m_stepProcessor->getFileUnits(); }
 
-void STEPReader::printBRepStats() const
+std::string STEPReader::getBRepStats() const
 {
+  // early return if the step file has not been loaded
+  // (or, e.g. for the derived PSTEPReader class, if it's not loaded on this rank)
+  if(!m_stepProcessor)
+  {
+    return "";
+  }
+
   // Helper struct for simple stats over a collection of integers
   struct AccumStatistics
   {
@@ -1481,7 +1488,7 @@ void STEPReader::printBRepStats() const
                          spansStats.stddev);
   }
 
-  SLIC_INFO(axom::fmt::to_string(out));
+  return axom::fmt::to_string(out);
 }
 
 STEPReader::~STEPReader()

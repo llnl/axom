@@ -65,8 +65,8 @@ public:
   PatchArray& getPatchArray() { return m_patches; }
   const PatchArray& getPatchArray() const { return m_patches; }
 
-  /// Logs some information about the loaded BRep
-  void printBRepStats() const;
+  /// Returns some information about the loaded BRep
+  std::string getBRepStats() const;
 
   /*!
    * \brief Generates a triangulated representation of the STEP file as a Mint unstructured triangle mesh.
