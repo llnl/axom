@@ -5,7 +5,7 @@
 packages:
   caliper:
     require:
-      - spec: "~kokkos"
+      - spec: "~kokkos~papi"
   conduit:
     require:
       - spec: "~shared~test~examples~utilities"

@@ -150,8 +150,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     variant(
         "profiling",
         default=False,
-        when="@develop",
-        description="Build with hooks for Adiak/Caliper performance analysis",
+        when="@:0.12.0",
+        description="Build with hooks for Adiak/Caliper performance analysis. " \
+                    "Deprecated -- use the adiak and/or caliper variants directly.",
     )
 
     # variant for Axom components
@@ -166,17 +167,17 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     )
 
     # variants for package dependencies
-    variant("conduit", default=True, description="Build with conduit")
+    variant("adiak", default=False, description="Build with adiak")
     variant("c2c", default=False, description="Build with c2c")
-    variant("opencascade", default=False, description="Build with opencascade")
-
-    variant("mfem", default=False, description="Build with mfem")
+    variant("caliper", default=False, description="Build with caliper")
+    variant("conduit", default=True, description="Build with conduit")
     variant("hdf5", default=True, description="Build with hdf5")
     variant("lua", default=True, description="Build with Lua")
+    variant("mfem", default=False, description="Build with mfem")
+    variant("opencascade", default=False, description="Build with opencascade")
+    variant("raja", default=True, description="Build with raja")
     variant("scr", default=False, description="Build with SCR")
     variant("umpire", default=True, description="Build with umpire")
-
-    variant("raja", default=True, description="Build with raja")
 
     variant("int64", default=True, description="Use 64bit integers for IndexType")
 
@@ -234,34 +235,33 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("raja~openmp", when="~openmp")
         depends_on("raja+openmp", when="+openmp")
 
+    # we're planning to remove support for the profiling variant, but still need to support it for now
+    depends_on("adiak", when="+adiak")
+    depends_on("caliper", when="+caliper")
     with when("+profiling"):
         depends_on("adiak")
-        depends_on("caliper+adiak~papi")
+        depends_on("caliper")
 
-        depends_on("caliper+cuda", when="+cuda")
-        depends_on("caliper~cuda", when="~cuda")
+    with when("^adiak"):
+        for fwd in ("mpi", "shared"):
+            depends_on(f"adiak+{fwd}", when=f"+{fwd}")
 
-        depends_on("caliper+rocm", when="+rocm")
-        depends_on("caliper~rocm", when="~rocm")
-
-        for dep in ["adiak", "caliper"]:
-            depends_on(f"{dep}+mpi", when="+mpi")
-            depends_on(f"{dep}~mpi", when="~mpi")
-            depends_on(f"{dep}+shared", when="+shared")
-            depends_on(f"{dep}~shared", when="~shared")
+    with when("^caliper"):
+        for fwd in ("cuda", "rocm", "mpi", "shared"):
+            depends_on(f"caliper+{fwd}", when=f"+{fwd}")
 
     for val in CudaPackage.cuda_arch_values:
         ext_cuda_dep = f"+cuda cuda_arch={val}"
         depends_on(f"raja {ext_cuda_dep}", when=f"+raja {ext_cuda_dep}")
         depends_on(f"umpire {ext_cuda_dep}", when=f"+umpire {ext_cuda_dep}")
-        depends_on(f"caliper {ext_cuda_dep}", when=f"+profiling {ext_cuda_dep}")
+        depends_on(f"caliper {ext_cuda_dep}", when=f"^caliper {ext_cuda_dep}")
         depends_on(f"mfem {ext_cuda_dep}", when=f"+mfem {ext_cuda_dep}")
 
     for val in ROCmPackage.amdgpu_targets:
         ext_rocm_dep = f"+rocm amdgpu_target={val}"
         depends_on(f"raja {ext_rocm_dep}", when=f"+raja {ext_rocm_dep}")
         depends_on(f"umpire {ext_rocm_dep}", when=f"+umpire {ext_rocm_dep}")
-        depends_on(f"caliper {ext_rocm_dep}", when=f"+profiling {ext_rocm_dep}")
+        depends_on(f"caliper {ext_rocm_dep}", when=f"^caliper {ext_rocm_dep}")
         depends_on(f"mfem {ext_rocm_dep}", when=f"+mfem {ext_rocm_dep}")
 
     depends_on("rocprim", when="+rocm")
@@ -696,7 +696,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
         # Try to find the common prefix of the TPL directory.
         # If found, we will use this in the TPL paths
-        variant_deps = ["conduit", "c2c", "mfem", "hdf5", "lua", "raja", "umpire", "opencascade"]
+        variant_deps = ["conduit", "c2c", "mfem", "hdf5", "lua", "raja", "umpire", "opencascade", "adiak", "caliper"]
         for dep in variant_deps:
             if spec.satisfies(f"+{dep}"):
                 path1 = os.path.realpath(spec[dep].prefix)
@@ -711,13 +711,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 entries.append(cmake_cache_path("%s_DIR" % dep.upper(), dep_dir))
             else:
                 entries.append("# %s not built\n" % dep.upper())
-
-        if spec.satisfies("+profiling"):
-            dep_dir = get_spec_path(spec, "adiak", path_replacements)
-            entries.append(cmake_cache_path("ADIAK_DIR", dep_dir))
-
-            dep_dir = get_spec_path(spec, "caliper", path_replacements)
-            entries.append(cmake_cache_path("CALIPER_DIR", dep_dir))
 
         if spec.satisfies("+umpire") and spec.satisfies("^camp"):
             dep_dir = get_spec_path(spec, "camp", path_replacements)
