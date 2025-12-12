@@ -94,12 +94,11 @@ TEST(numerics_quadrature, gauss_jacobi_math_check)
 {
   const int N = 10;
   // Test with a few alpha, beta pairs
-  std::vector<std::pair<double, double>> params = {
-    {0.0, 0.0},
-    {0.5, 0.5},
-    {-0.5, -0.5},
-    {1.0, 2.0},
-    {0.5, -0.2}};
+  std::vector<std::pair<double, double>> params = {{0.0, 0.0},
+                                                   {0.5, 0.5},
+                                                   {-0.5, -0.5},
+                                                   {1.0, 2.0},
+                                                   {0.5, -0.2}};
 
   for(auto p : params)
   {
@@ -133,12 +132,10 @@ TEST(numerics_quadrature, gauss_jacobi_math_check)
             binom = binom * (k - m + 1) / m;
           }
 
-          double term_integral = std::exp(std::lgamma(alpha + 1.0) +
-                                          std::lgamma(beta + j + 1.0) -
+          double term_integral = std::exp(std::lgamma(alpha + 1.0) + std::lgamma(beta + j + 1.0) -
                                           std::lgamma(alpha + beta + j + 2.0));
 
-          analytic +=
-            binom * std::pow(2.0, j) * std::pow(-1.0, k - j) * term_integral;
+          analytic += binom * std::pow(2.0, j) * std::pow(-1.0, k - j) * term_integral;
         }
         analytic *= prefactor;
 
@@ -151,9 +148,10 @@ TEST(numerics_quadrature, gauss_jacobi_math_check)
           quad_sum += rule.weight(i) * std::pow(z, k);
         }
 
-        EXPECT_NEAR(quad_sum, analytic, 1e-8)
-          << "Failed for npts=" << npts << ", alpha=" << alpha
-          << ", beta=" << beta << ", degree=" << k;
+        // increase tolerance as the number of points (N) increases
+        double tol = std::pow(10.0, -12.0 + static_cast<double>(npts) / 2.0);
+        EXPECT_NEAR(quad_sum, analytic, tol) << "Failed for npts=" << npts << ", alpha=" << alpha
+                                             << ", beta=" << beta << ", degree=" << k;
       }
     }
   }

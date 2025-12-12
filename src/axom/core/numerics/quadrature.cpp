@@ -166,7 +166,6 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID)
   return QuadratureRule {value_it->second.first.view(), value_it->second.second.view()};
 }
 
-
 /*!
  * \brief Computes a 1D quadrature rule of Gauss-Jacobi points
  *
@@ -205,8 +204,7 @@ void compute_gauss_jacobi_data(int npts,
   // Helper to compute 2^(a+b+1)*Gamma(a+1)*Gamma(b+1)/Gamma(a+b+2)
   auto total_integral = [](double a, double b) -> double {
     return std::pow(2.0, a + b + 1.0) *
-      std::exp(std::lgamma(a + 1.0) + std::lgamma(b + 1.0) -
-               std::lgamma(a + b + 2.0));
+      std::exp(std::lgamma(a + 1.0) + std::lgamma(b + 1.0) - std::lgamma(a + b + 2.0));
   };
 
   if(npts == 1)
@@ -219,9 +217,12 @@ void compute_gauss_jacobi_data(int npts,
 
   for(int i = 0; i < npts; ++i)
   {
-    // Initial guess (Chebyshev points)
-    // z goes from near -1 to near 1 as i goes 0 to npts-1
-    double z = -std::cos(M_PI * (2.0 * i + 1.0) / (2.0 * npts));
+    // Initial guess using asymptotic expansion for Jacobi zeros
+    // (4k + 2alpha + 3) * pi / (4n + 2alpha + 2beta + 2)
+    // This provides better starting points for non-symmetric weights.
+    double theta =
+      (4.0 * i + 2.0 * alpha + 3.0) * M_PI / (4.0 * npts + 2.0 * alpha + 2.0 * beta + 2.0);
+    double z = std::cos(theta);
 
     double P_n = 0.0;
     double Pp_n = 0.0;
@@ -239,14 +240,11 @@ void compute_gauss_jacobi_data(int npts,
         P_nm2 = P_nm1;
         P_nm1 = P_curr;
 
-        double a1 =
-          2.0 * j * (j + alpha + beta) * (2.0 * j + alpha + beta - 2.0);
-        double a2 = (2.0 * j + alpha + beta - 1.0) *
-          (2.0 * j + alpha + beta) * (2.0 * j + alpha + beta - 2.0);
-        double a3 =
-          (2.0 * j + alpha + beta - 1.0) * (alpha * alpha - beta * beta);
-        double a4 =
-          2.0 * (j + alpha - 1.0) * (j + beta - 1.0) * (2.0 * j + alpha + beta);
+        double a1 = 2.0 * j * (j + alpha + beta) * (2.0 * j + alpha + beta - 2.0);
+        double a2 =
+          (2.0 * j + alpha + beta - 1.0) * (2.0 * j + alpha + beta) * (2.0 * j + alpha + beta - 2.0);
+        double a3 = (2.0 * j + alpha + beta - 1.0) * (alpha * alpha - beta * beta);
+        double a4 = 2.0 * (j + alpha - 1.0) * (j + beta - 1.0) * (2.0 * j + alpha + beta);
 
         P_curr = ((a2 * z + a3) * P_nm1 - a4 * P_nm2) / a1;
       }
@@ -261,6 +259,8 @@ void compute_gauss_jacobi_data(int npts,
 
       double dz = P_n / Pp_n;
       z -= dz;
+      // Clamp z to be within (-1, 1) to prevent divergence
+      z = axom::utilities::clampVal(z, -1.0 + 1e-15, 1.0 - 1e-15);
 
       if(std::abs(dz) < 1e-14)
       {
@@ -270,11 +270,9 @@ void compute_gauss_jacobi_data(int npts,
 
     nodes[i] = (z + 1.0) / 2.0;
 
-    double log_gamma_part = std::lgamma(npts + alpha + 1.0) +
-      std::lgamma(npts + beta + 1.0) - std::lgamma(npts + 1.0) -
-      std::lgamma(npts + alpha + beta + 1.0);
-    double constant =
-      std::pow(2.0, alpha + beta + 1.0) * std::exp(log_gamma_part);
+    double log_gamma_part = std::lgamma(npts + alpha + 1.0) + std::lgamma(npts + beta + 1.0) -
+      std::lgamma(npts + 1.0) - std::lgamma(npts + alpha + beta + 1.0);
+    double constant = std::pow(2.0, alpha + beta + 1.0) * std::exp(log_gamma_part);
 
     weights[i] = constant / ((1.0 - z * z) * Pp_n * Pp_n);
   }
@@ -314,8 +312,7 @@ QuadratureRule get_gauss_jacobi(int npts, double alpha, double beta, int allocat
 {
   assert("Quadrature rules must have >= 1 point" && (npts >= 1));
 
-  static std::map<std::tuple<int, double, double, int>,
-                  std::pair<axom::Array<double>, axom::Array<double>>>
+  static std::map<std::tuple<int, double, double, int>, std::pair<axom::Array<double>, axom::Array<double>>>
     rule_library;
 
   const auto key = std::make_tuple(npts, alpha, beta, allocatorID);
@@ -324,13 +321,11 @@ QuadratureRule get_gauss_jacobi(int npts, double alpha, double beta, int allocat
   if(value_it == rule_library.end())
   {
     auto& vals = rule_library[key];
-    compute_gauss_jacobi_data(npts, alpha, beta, vals.first, vals.second,
-                              allocatorID);
+    compute_gauss_jacobi_data(npts, alpha, beta, vals.first, vals.second, allocatorID);
     value_it = rule_library.find(key);
   }
 
-  return QuadratureRule {value_it->second.first.view(),
-                         value_it->second.second.view()};
+  return QuadratureRule {value_it->second.first.view(), value_it->second.second.view()};
 }
 
 } /* end namespace numerics */
