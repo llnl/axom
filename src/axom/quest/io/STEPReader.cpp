@@ -1250,8 +1250,6 @@ private:
 
 std::string STEPReader::getFileUnits() const { return m_stepProcessor->getFileUnits(); }
 
-const TopoDS_Shape& STEPReader::getShape() const { return m_stepProcessor->getShape(); }
-
 void STEPReader::printBRepStats() const
 {
   // Helper struct for simple stats over a collection of integers
@@ -1532,7 +1530,7 @@ int STEPReader::getTriangleMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_
     return 1;
   }
 
-  internal::PatchTriangulator patchTriangulator(getShape(),
+  internal::PatchTriangulator patchTriangulator(m_stepProcessor->getShape(),
                                                 linear_deflection,
                                                 angular_deflection,
                                                 is_relative);

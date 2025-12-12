@@ -20,8 +20,6 @@
 #include <memory>
 #include <map>
 
-class TopoDS_Shape;
-
 namespace axom
 {
 namespace quest
@@ -63,7 +61,6 @@ public:
   virtual int read(bool validate);
 
   std::string getFileUnits() const;
-  const TopoDS_Shape& getShape() const;
 
   PatchArray& getPatchArray() { return m_patches; }
   const PatchArray& getPatchArray() const { return m_patches; }
