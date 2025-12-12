@@ -50,7 +50,7 @@ _AXOM_COMPONENT_DEPS = {
     "primal": {"slic"},
     "quest": {"slic", "slam", "primal", "mint", "spin"},
     "sidre": {"slic"},
-    # sina only depends on core
+    "sina": {"slic"}, # sina's tests depends on slic
     "slam": {"slic"},
     # slic only depends on core
     "spin": {"slic", "slam", "primal"},
