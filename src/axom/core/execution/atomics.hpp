@@ -243,7 +243,7 @@ inline AXOM_HOST_DEVICE void atomicStore(T* address, T value)
   constexpr bool is_serial =
     std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
   AXOM_STATIC_ASSERT(is_serial);
-  const T retval = *address;
+  [[maybe_unused]] const T retval = *address;
   *address = value;
 }
 
