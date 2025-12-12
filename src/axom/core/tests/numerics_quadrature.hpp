@@ -90,6 +90,90 @@ TEST(numerics_quadrature, gauss_legendre_math_check)
   }
 }
 
+TEST(numerics_quadrature, gauss_jacobi_math_check)
+{
+  const int N = 10;
+  // Test with a few alpha, beta pairs
+  std::vector<std::pair<double, double>> params = {
+    {0.0, 0.0},
+    {0.5, 0.5},
+    {-0.5, -0.5},
+    {1.0, 2.0},
+    {0.5, -0.2}};
+
+  for(auto p : params)
+  {
+    double alpha = p.first;
+    double beta = p.second;
+
+    for(int npts = 1; npts <= N; ++npts)
+    {
+      auto rule = axom::numerics::get_gauss_jacobi(npts, alpha, beta);
+      int max_degree = 2 * npts - 1;
+
+      for(int k = 0; k <= max_degree; ++k)
+      {
+        // Compute analytic integral of x^k * (1-x)^alpha * (1+x)^beta on [-1, 1]
+        // = 2^(alpha+beta+1) * Integral_0^1 (1-t)^alpha * t^beta * (2t-1)^k dt
+
+        double analytic = 0.0;
+        // Expand (2t-1)^k using binomial theorem
+        // (2t-1)^k = sum_{j=0}^k C(k, j) * (2t)^j * (-1)^{k-j}
+        // Integral term: 2^j * (-1)^{k-j} * Integral_0^1 (1-t)^alpha * t^{beta+j} dt
+        // Integral is Beta(alpha+1, beta+j+1)
+        // Beta(x,y) = Gamma(x)Gamma(y)/Gamma(x+y)
+
+        double prefactor = std::pow(2.0, alpha + beta + 1.0);
+
+        for(int j = 0; j <= k; ++j)
+        {
+          double binom = 1.0;  // C(k,j)
+          for(int m = 1; m <= j; ++m)
+          {
+            binom = binom * (k - m + 1) / m;
+          }
+
+          double term_integral = std::exp(std::lgamma(alpha + 1.0) +
+                                          std::lgamma(beta + j + 1.0) -
+                                          std::lgamma(alpha + beta + j + 2.0));
+
+          analytic +=
+            binom * std::pow(2.0, j) * std::pow(-1.0, k - j) * term_integral;
+        }
+        analytic *= prefactor;
+
+        // Quadrature sum
+        double quad_sum = 0.0;
+        for(int i = 0; i < npts; ++i)
+        {
+          double x_node = rule.node(i);   // in [0, 1]
+          double z = 2.0 * x_node - 1.0;  // in [-1, 1]
+          quad_sum += rule.weight(i) * std::pow(z, k);
+        }
+
+        EXPECT_NEAR(quad_sum, analytic, 1e-8)
+          << "Failed for npts=" << npts << ", alpha=" << alpha
+          << ", beta=" << beta << ", degree=" << k;
+      }
+    }
+  }
+}
+
+TEST(numerics_quadrature, jacobi_legendre_consistency)
+{
+  int npts = 5;
+  auto leg_rule = axom::numerics::get_gauss_legendre(npts);
+  auto jac_rule = axom::numerics::get_gauss_jacobi(npts, 0.0, 0.0);
+
+  for(int i = 0; i < npts; ++i)
+  {
+    EXPECT_NEAR(leg_rule.node(i), jac_rule.node(i), 1e-12);
+    // Legendre rule weights sum to 1 (normalized for [0,1])
+    // Jacobi rule weights sum to 2 (integral of 1 on [-1,1])
+    EXPECT_NEAR(leg_rule.weight(i) * 2.0, jac_rule.weight(i), 1e-12);
+  }
+}
+
 template <typename ExecSpace>
 struct test_device_quadrature
 {

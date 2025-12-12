@@ -29,6 +29,7 @@ class QuadratureRule
 {
   // Define friend functions so rules can only be created via get_rule() methods
   friend QuadratureRule get_gauss_legendre(int, int);
+  friend QuadratureRule get_gauss_jacobi(int, double, double, int);
 
 public:
   //! \brief Accessor for quadrature nodes
@@ -87,6 +88,57 @@ void compute_gauss_legendre_data(int npts,
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
  */
 QuadratureRule get_gauss_legendre(int npts, int allocatorID = axom::getDefaultAllocatorID());
+
+/*!
+ * \brief Computes a 1D quadrature rule of Gauss-Jacobi points
+ *
+ * \param [in] npts The number of points in the rule
+ * \param [in] alpha The exponent for the (1-x) term in the weight function
+ * \param [in] beta The exponent for the (1+x) term in the weight function
+ * \param [out] nodes The array of 1D nodes
+ * \param [out] weights The array of weights
+ * \param [in] allocatorID The allocator ID to use for the arrays
+ *
+ * A Gauss-Jacobi rule with \a npts points can exactly integrate
+ *  polynomials of order 2 * npts - 1 with respect to the weight function
+ *  (1-x)^alpha * (1+x)^beta on the interval [-1, 1]
+ *
+ * \note This method constructs the points by scratch each time, without caching
+ * \note The nodes are mapped to the interval [0, 1] to match the behavior of
+ *  get_gauss_legendre.
+ * \note The weights are scaled such that the sum of the weights approximates the integral
+ *  of (1-x)^alpha * (1+x)^beta on [-1, 1].
+ *
+ * \sa get_gauss_jacobi(int, double, double, int)
+ */
+void compute_gauss_jacobi_data(int npts,
+                               double alpha,
+                               double beta,
+                               axom::Array<double>& nodes,
+                               axom::Array<double>& weights,
+                               int allocatorID = axom::getDefaultAllocatorID());
+
+/*!
+ * \brief Computes or accesses a precomputed 1D quadrature rule of Gauss-Jacobi points
+ *
+ * \param [in] npts The number of points in the rule
+ * \param [in] alpha The exponent for the (1-x) term in the weight function
+ * \param [in] beta The exponent for the (1+x) term in the weight function
+ * \param [in] allocatorID The allocator ID to use for the arrays
+ *
+ * A Gauss-Jacobi rule with \a npts points can exactly integrate
+ *  polynomials of order 2 * npts - 1 with respect to the weight function
+ *  (1-x)^alpha * (1+x)^beta on the interval [-1, 1]
+ *
+ * \note If this method has already been called for a given order, it will reuse the same quadrature points
+ *  without needing to recompute them
+ *
+ * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
+ */
+QuadratureRule get_gauss_jacobi(int npts,
+                                double alpha,
+                                double beta,
+                                int allocatorID = axom::getDefaultAllocatorID());
 
 } /* end namespace numerics */
 } /* end namespace axom */
