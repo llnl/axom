@@ -881,6 +881,9 @@ struct DeviceStagingBuffer
         axom::copy(m_staging_buf, m_data + begin, sizeof(T) * nelems);
       }
     }
+#else
+    AXOM_UNUSED_VAR(space);
+    AXOM_UNUSED_VAR(read_from_data);
 #endif
   }
 
@@ -939,6 +942,9 @@ struct ArrayOps
   #else
   using ExecSpace = axom::HIP_EXEC<256>;
   #endif
+#else
+  // CPU-only placeholder for memory space.
+  constexpr static MemorySpace space {MemorySpace::Dynamic};
 #endif
   using StagingBuffer = DeviceStagingBuffer<T>;
 
