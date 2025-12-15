@@ -37,6 +37,7 @@ _AXOM_COMPONENTS = (
     "spin",
 )
 
+
 def get_spec_path(spec, package_name, path_replacements={}, use_bin=False):
     """Extracts the prefix path for the given spack package
     path_replacements is a dictionary with string replacements for the path.
@@ -124,17 +125,17 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         "profiling",
         default=False,
         when="@:0.12.0",
-        description="Build with hooks for Adiak/Caliper performance analysis. " \
-                    "Deprecated -- use the adiak and/or caliper variants directly.",
+        description="Build with hooks for Adiak/Caliper performance analysis. "
+        "Deprecated -- use the adiak and/or caliper variants directly.",
     )
 
     # variant for Axom components
     variant(
         "components",
         description=(
-            "Axom components to enable. "
-            "'all' enables all components; 'none' disables all components"
-            "a comma-separated list enables only those components."
+            "Comma separated list of Axom components to enable. "
+            "'all' enables all components; 'none' disables all components "
+            "Missing dependencies will be added (e.g. we'll add `sidre` and `conduit` for `components=inlet`)"
         ),
         values=any_combination_of("all", *_AXOM_COMPONENTS).with_default("all"),
     )
@@ -588,7 +589,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         entries = []
         path_replacements = {}
 
-
         all_components_enabled = all(
             spec.satisfies(f"components={comp}") for comp in _AXOM_COMPONENTS
         )
@@ -611,7 +611,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         entries.append("#------------------{0}".format("-" * 60))
         entries.append("# TPLs")
         entries.append("#------------------{0}\n".format("-" * 60))
-
 
         # Try to find the common prefix of the TPL directory.
         # If found, we will use this in the TPL paths
