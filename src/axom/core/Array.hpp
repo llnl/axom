@@ -172,7 +172,7 @@ public:
   using ConstArrayViewType = ArrayView<const T, DIM, SPACE>;
 
 private:
-  using OpHelper = detail::ArrayOps<T, SPACE>;
+  using OpHelper = detail::ArrayOps<T>;
 
 public:
   /// \name Native Storage Array Constructors

@@ -911,7 +911,7 @@ struct DeviceStagingBuffer
   bool m_deviceStage;
 };
 
-template <typename T, MemorySpace SPACE>
+template <typename T>
 struct ArrayOps
 {
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
@@ -946,14 +946,7 @@ public:
   ArrayOps(int allocId, bool preferDevice)
   {
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-    if(SPACE == MemorySpace::Dynamic)
-    {
-      space = getAllocatorSpace(allocId);
-    }
-    else
-    {
-      space = SPACE;
-    }
+    space = getAllocatorSpace(allocId);
 
     bool isUnifiedSpace = false;
     isUnifiedSpace = (space == MemorySpace::Unified || space == MemorySpace::Pinned);
@@ -1006,7 +999,7 @@ public:
 #endif
       // Object is neither trivially default-constructible nor trivially-
       // copyable. Construct instances on the host.
-      StagingBuffer tmp_buf(SPACE, data, begin, nelems);
+      StagingBuffer tmp_buf(space, data, begin, nelems);
       T* data_host = tmp_buf.getStagingBuffer();
       for(IndexType i = 0; i < nelems; ++i)
       {
@@ -1038,7 +1031,7 @@ public:
 #endif
     // Object is not trivially-copyable, so ensure copy constructors are
     // called on the host.
-    StagingBuffer tmp_buf(SPACE, array, begin, nelems);
+    StagingBuffer tmp_buf(space, array, begin, nelems);
     std::uninitialized_fill_n(tmp_buf.getStagingBuffer(), nelems, value);
   }
 
@@ -1061,7 +1054,7 @@ public:
     {
       // HostOp::fill_range will handle the copy to our "staging" host buffer,
       // regardless of the source memory space.
-      StagingBuffer dst_buf(SPACE, array, begin, nelems);
+      StagingBuffer dst_buf(space, array, begin, nelems);
       DeviceStagingBuffer<const T> src_buf(space, values, 0, nelems, true);
       std::uninitialized_copy(src_buf.getStagingBuffer(),
                               src_buf.getStagingBuffer() + nelems,
@@ -1109,7 +1102,7 @@ public:
   {
     if constexpr(!std::is_trivially_destructible_v<T>)
     {
-      StagingBuffer tmp_buf(SPACE, array, begin, nelems, true);
+      StagingBuffer tmp_buf(space, array, begin, nelems, true);
       T* array_host = tmp_buf.getStagingBuffer();
       for(IndexType i = 0; i < nelems; i++)
       {
@@ -1132,9 +1125,9 @@ public:
   #ifdef AXOM_USE_CUDA
     // CUDA-only: we require non-trivial types to be trivially-relocatable.
     // This enables us to do simple memcpys for move operations.
-    bool presume_trivially_relocatable = (SPACE == OperationSpace::Device);
+    bool presume_trivially_relocatable = (space == OperationSpace::Device);
   #else
-    bool presume_trivially_relocatable = false;
+    constexpr bool presume_trivially_relocatable = false;
   #endif
     if(std::is_trivially_copyable_v<T> || presume_trivially_relocatable)
     {
@@ -1183,9 +1176,9 @@ public:
 #ifdef AXOM_USE_CUDA
     // CUDA-only: we require non-trivial types to be trivially-relocatable.
     // This enables us to do simple memcpys for move operations.
-    bool presume_trivially_relocatable = (SPACE == OperationSpace::Device);
+    bool presume_trivially_relocatable = (space == OperationSpace::Device);
 #else
-    bool presume_trivially_relocatable = false;
+    constexpr bool presume_trivially_relocatable = false;
 #endif
     if(std::is_trivially_copyable<T>::value || presume_trivially_relocatable)
     {
