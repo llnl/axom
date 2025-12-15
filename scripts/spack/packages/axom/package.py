@@ -376,9 +376,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
             hip_link_flags = ""
 
-            rocm_root = spec["llvm-amdgpu"].prefix
-            entries.append(cmake_cache_path("ROCM_ROOT_DIR", rocm_root))
-
             # Recommended MPI flags
             if spec.satisfies("+mpi"):
                 hip_link_flags += "-lxpmem "

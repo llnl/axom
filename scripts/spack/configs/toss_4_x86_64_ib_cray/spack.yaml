@@ -70,7 +70,7 @@ spack:
     llvm-amdgpu:
       externals:
       - spec: llvm-amdgpu@6.3.1
-        prefix: /opt/rocm-6.3.1/llvm
+        prefix: /opt/rocm-6.3.1
         extra_attributes:
           compilers:
             c: /opt/rocm-6.3.1/llvm/bin/amdclang
@@ -79,7 +79,7 @@ spack:
           environment: {}
           extra_rpaths: [/opt/rocmc-6.3.1/lib, /opt/rocm-6.3.1/lib/llvm/lib]
       - spec: llvm-amdgpu@6.4.2
-        prefix: /opt/rocm-6.4.2/llvm
+        prefix: /opt/rocm-6.4.2
         extra_attributes:
           compilers:
             c: /opt/rocm-6.4.2/llvm/bin/amdclang
