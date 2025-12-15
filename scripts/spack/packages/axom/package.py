@@ -37,33 +37,6 @@ _AXOM_COMPONENTS = (
     "spin",
 )
 
-# Hard inter-component dependencies taken from Axom's dependency graph.
-# Only *solid* edges from dependencies.dot are encoded here
-_AXOM_COMPONENT_DEPS = {
-    "bump": {"slic", "spin", "primal"},
-    "inlet": {"sidre", "slic", "primal"},
-    "klee": {"sidre", "slic", "inlet", "primal"},
-    # lumberjack only depends on core
-    "mint": {"slic", "slam"},
-    "mir": {"bump", "slic", "slam", "primal"},
-    "multimat": {"slic", "slam"},
-    "primal": {"slic"},
-    "quest": {"slic", "slam", "primal", "mint", "spin"},
-    "sidre": {"slic"},
-    "sina": {"slic"}, # sina's tests depends on slic
-    "slam": {"slic"},
-    # slic only depends on core
-    "spin": {"slic", "slam", "primal"},
-}
-
-# Hard dependencies of Axom components on other packages
-_AXOM_COMPONENT_SPACK_DEPS = {
-    "bump": {"conduit"},
-    "mir": {"conduit"},
-    "sidre": {"conduit"},
-    "sina": {"conduit"},
-}
-
 def get_spec_path(spec, package_name, path_replacements={}, use_bin=False):
     """Extracts the prefix path for the given spack package
     path_replacements is a dictionary with string replacements for the path.
@@ -292,6 +265,33 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("llvm+clang@19", type="build")
 
     # -----------------------------------------------------------------------
+    # Component requirements
+    # -----------------------------------------------------------------------
+    # Hard inter-component dependencies taken from Axom's dependency graph.
+    requires(f"components={','.join(_AXOM_COMPONENTS)}", when="components=all")
+    for c in _AXOM_COMPONENTS:
+        conflicts(f"components={c}", when="components=none")
+
+    requires("components=slic,spin,primal", when="components=bump")
+    requires("components=sidre,slic,primal", when="components=inlet")
+    requires("components=sidre,slic,inlet,primal", when="components=klee")
+    requires("components=slic,slam", when="components=mint")
+    requires("components=bump,slic,slam,primal", when="components=mir")
+    requires("components=slic,slam", when="components=multimat")
+    requires("components=slic", when="components=primal")
+    requires("components=slic,slam,primal,mint,spin", when="components=quest")
+    requires("components=slic", when="components=sidre")
+    requires("components=slic", when="components=sina")
+    requires("components=slic", when="components=slam")
+    requires("components=slic,slam,primal", when="components=spin")
+
+    # Hard dependencies of Axom components on other packages
+    requires("+conduit", when="components=bump")
+    requires("+conduit", when="components=mir")
+    requires("+conduit", when="components=sidre")
+    requires("+conduit", when="components=sina")
+
+    # -----------------------------------------------------------------------
     # Conflicts
     # -----------------------------------------------------------------------
     # Hard requirement after Axom 0.6.1
@@ -332,92 +332,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         if self.compiler.fc is not None and compiler in self.compiler.fc:
             return True
         return False
-
-    def _components_is_all(self):
-        """True iff the effective selection is 'all' (including default)."""
-        if "components" not in self.spec.variants:
-            return True  # Default is "all"
-
-        raw = self.spec.variants["components"].value
-        if isinstance(raw, str):
-            raw = (raw,)
-
-        return "all" in raw
-
-    def _enabled_components(self):
-        """
-        Return the *effective* set of enabled components, 
-        interpreting 'all' and 'none' (empty set) as special cases.
-        """
-
-        # raw variant values
-        if "components" not in self.spec.variants:
-            raw = ("all",)
-        else:
-            raw = self.spec.variants["components"].value
-
-        if isinstance(raw, str):
-            raw = (raw,)
-
-        values = set(raw or ())
-
-        # Guard against illegal mixes like "all,none" or "none,sidre"
-        if "none" in values and (len(values) > 1):
-            raise SpackError(
-                "Invalid 'components' selection: 'none' cannot be combined "
-                "with other values (got: {})".format(",".join(sorted(values)))
-            )
-        if "all" in values and (len(values) > 1):
-            raise SpackError(
-                "Invalid 'components' selection: 'all' cannot be combined "
-                "with other values (got: {})".format(",".join(sorted(values)))
-            )
-
-        if "none" in values:
-            # explicit "disable everything"
-            return set()
-
-        if "all" in values:
-            return set(_AXOM_COMPONENTS)
-
-        # explicit subset
-        return values
-
-
-    def _validate_component_deps(self):
-        """
-        Ensure that if a component is enabled, all of its *hard*
-        Axom component dependencies and package dependencies are also enabled.
-        """
-        enabled = self._enabled_components()
-
-        # ensure that all required inter-component deps are present
-        for comp, deps in _AXOM_COMPONENT_DEPS.items():
-            if comp not in enabled:
-                continue
-
-            missing = deps - enabled
-            if missing:
-                msg = (
-                    "Invalid Axom component selection: component '{comp}' "
-                    "requires {deps}, but the following are not enabled in "
-                    "the 'components' variant: {missing}"
-                ).format(
-                    comp=comp,
-                    deps=", ".join(sorted(deps)),
-                    missing=", ".join(sorted(missing)),
-                )
-                raise SpackError(msg)
-            
-        # ensure that all required package deps are enabled
-        for comp, deps in _AXOM_COMPONENT_SPACK_DEPS.items():
-            if comp not in enabled:
-                continue
-            for pkg in deps:
-                if not self.spec.satisfies(f"^{pkg}"):
-                    raise SpackError(
-                        f"Component '{comp}' requires dependency '{pkg}', "
-                        f"but it is not present in the current spec.")
 
     @property
     def cache_name(self):
@@ -674,19 +588,24 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         entries = []
         path_replacements = {}
 
-        # Validate the 'components' spec, which can selectively enable components
-        self._validate_component_deps()
-        _enabled_components = self._enabled_components()
-        if self._components_is_all():
-            print(f"All axom components enabled: {_enabled_components}")
+
+        all_components_enabled = all(
+            spec.satisfies(f"components={comp}") for comp in _AXOM_COMPONENTS
+        )
+
+        if all_components_enabled:
+            print("All axom components enabled")
         else:
-            print(f"The following Axom components are enabled: {_enabled_components}")
+            print(f"The following Axom components are enabled: {spec.variants['components'].value}")
+
             entries.append("#------------------{0}".format("-" * 60))
             entries.append("# Axom components")
             entries.append("#------------------{0}\n".format("-" * 60))
             entries.append(cmake_cache_option("AXOM_ENABLE_ALL_COMPONENTS", False))
-            for comp in _enabled_components:
-                entries.append(cmake_cache_option(f"AXOM_ENABLE_{comp.upper()}", True))
+            
+            for comp in spec.variants["components"].value:
+                if comp in _AXOM_COMPONENTS:
+                    entries.append(cmake_cache_option(f"AXOM_ENABLE_{comp.upper()}", True))
 
         # TPL locations
         entries.append("#------------------{0}".format("-" * 60))
