@@ -616,7 +616,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         # If found, we will use this in the TPL paths
         variant_deps = ["conduit", "c2c", "mfem", "hdf5", "lua", "raja", "umpire", "opencascade", "adiak", "caliper"]
         for dep in variant_deps:
-            if spec.satisfies(f"+{dep}"):
+            if spec.satisfies(f"^{dep}"):
                 path1 = os.path.realpath(spec[dep].prefix)
                 path2 = os.path.realpath(self.prefix)
                 self.find_path_replacement(path1, path2, path_replacements, "TPL_ROOT", entries)
@@ -624,11 +624,11 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
         # optional tpls based on variants
         for dep in variant_deps:
-            if spec.satisfies(f"+{dep}"):
+            if spec.satisfies(f"^{dep}"):
                 dep_dir = get_spec_path(spec, dep, path_replacements)
-                entries.append(cmake_cache_path("%s_DIR" % dep.upper(), dep_dir))
+                entries.append(cmake_cache_path(f"{dep.upper()}_DIR", dep_dir))
             else:
-                entries.append("# %s not built\n" % dep.upper())
+                entries.append(f"# {dep.upper()} not built\n")
 
         if spec.satisfies("+umpire") and spec.satisfies("^camp"):
             dep_dir = get_spec_path(spec, "camp", path_replacements)
