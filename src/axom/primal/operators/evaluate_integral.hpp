@@ -431,12 +431,11 @@ RetType evaluate_area_integral(const axom::Array<CurveType>& carray,
 
     for(int j = 0; j < beziers.size(); j++)
     {
-      total_integral +=
-        detail::evaluate_area_integral_component(beziers[j],
-                                                 std::forward<Lambda>(integrand),
-                                                 int_lb,
-                                                 npts_Q,
-                                                 npts_P);
+      total_integral += detail::evaluate_area_integral_component(beziers[j],
+                                                                 std::forward<Lambda>(integrand),
+                                                                 int_lb,
+                                                                 npts_Q,
+                                                                 npts_P);
     }
   }
 
