@@ -1028,7 +1028,7 @@ public:
     {
       auto pVert = toUnitTet.getTransformed(piece[i]);
       // h4 is height of pVert above the diagonal face, scaled by sqrt(3).
-      // h4 of 1 coresponds to the unitTet's height of sqrt(3).
+      // h4 of 1 is right at the unitTet's height of sqrt(3).
       double h4 = 1 - (pVert[0] + pVert[1] + pVert[2]);
       vsAbove[0] += pVert[0] >= 1;
       vsAbove[1] += pVert[1] >= 1;
@@ -1082,7 +1082,7 @@ public:
                            (i & 4) == 0 ? box.getMin()[2] : box.getMax()[2]};
       toUnitTet.transform(boxVert.array());
       // h4 is height of boxVert above the diagonal face, scaled by sqrt(3).
-      // h4 of 1 coresponds to the unitTet's height of sqrt(3).
+      // h4 of 1 is right at the unitTet's height of sqrt(3).
       double h4 = 1 - (boxVert[0] + boxVert[1] + boxVert[2]);
       vsAbove[0] += boxVert[0] >= 1;
       vsAbove[1] += boxVert[1] >= 1;
@@ -1116,7 +1116,7 @@ public:
     {
       auto octVert = toUnitTet.getTransformed(oct[i]);
       // h4 is height of octVert above the diagonal face, scaled by sqrt(3).
-      // h4 of 1 coresponds to the unitTet's height of sqrt(3).
+      // h4 of 1 is right at the unitTet's height of sqrt(3).
       double h4 = 1 - (octVert[0] + octVert[1] + octVert[2]);
       octVertsAbove[0] += octVert[0] >= 1;
       octVertsAbove[1] += octVert[1] >= 1;
@@ -1212,7 +1212,7 @@ public:
     {
       const auto bVert = toUnitTet.getTransformed(tetB[i].array());
       // h4 is height of bVert above the diagonal face, scaled by sqrt(3).
-      // h4 of 1 coresponds to the unitTet's height of sqrt(3).
+      // h4 of 1 is right at the unitTet's height of sqrt(3).
       double h4 = 1 - (bVert[0] + bVert[1] + bVert[2]);
       vsAbove[0] += bVert[0] >= 1;
       vsAbove[1] += bVert[1] >= 1;
