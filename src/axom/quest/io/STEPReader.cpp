@@ -100,6 +100,7 @@ public:
   using NPatchArray = axom::Array<NPatch>;
 
   using PointType = axom::primal::Point<double, CurveDim>;
+  using VectorType = axom::primal::Vector<double, CurveDim>;
   using PointType2D = axom::primal::Point<double, CurveDim>;
   using PointType3D = axom::primal::Point<double, SpaceDim>;
   using BBox2D = axom::primal::BoundingBox<double, CurveDim>;
@@ -927,6 +928,25 @@ public:
 
             // TODO: Check that curve control points are within UV patch after adjusting periodicity
           }
+        }
+      }
+
+      // Ensure that the trimming curves form ccw loops
+      if(patch.isTrimmed())
+      {
+        auto area_field = [](PointType x) -> VectorType {
+          return primal::Vector<double, 2>({-0.5 * x[1], 0.5 * x[0]});
+        };
+
+        constexpr int n_quad_pts = 20;
+        auto area =
+          primal::evaluate_vector_line_integral(patch.getTrimmingCurves(), area_field, n_quad_pts);
+
+        // Signed areas should be positive
+        if(area < 0)
+        {
+          patch.reverseOrientation_u();
+          patch.reverseTrimmingCurves();
         }
       }
     }
