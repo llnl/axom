@@ -1131,6 +1131,19 @@ inline int shapeNameToID(const std::string &name)
 }
 
 /*!
+ * \brief Determine whether a value is a valid ShapeID.
+ *
+ * \param shapeID The value to test for validity.
+ *
+ * \return True if the value is a valid ShapeID; False otherwise.
+ */
+template <typename T>
+AXOM_HOST_DEVICE constexpr bool isValidShapeID(T shapeID)
+{
+  return shapeID >= static_cast<T>(Point_ShapeID) && shapeID <= static_cast<T>(Mixed_ShapeID);
+}
+
+/*!
  * \brief Return the dimension for the specified shape id.
  *
  * \param shapeId The shape id.
