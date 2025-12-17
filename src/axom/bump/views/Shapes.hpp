@@ -40,6 +40,9 @@ enum
   Invalid_ShapeID = 20
 };
 
+/// prototype
+AXOM_HOST_DEVICE constexpr IndexType shapeDimension(int shapeId);
+
 /*!
  \brief Point type traits.
 
@@ -521,6 +524,21 @@ struct PolygonTraits
 };
 
 /*!
+ * \brief Polyhedron shape traits.
+ *
+ * \note This struct contains a subset of the interface used in some other shape
+ *       traits.
+ */
+struct PolyhedronTraits
+{
+  AXOM_HOST_DEVICE constexpr static int id() { return Polyhedron_ShapeID; }
+  AXOM_HOST_DEVICE constexpr static bool is_polyhedral() { return true; }
+  AXOM_HOST_DEVICE constexpr static bool is_variable_size() { return true; }
+  AXOM_HOST_DEVICE constexpr static IndexType dimension() { return 3; }
+  AXOM_HOST_DEVICE constexpr static const char *name() { return "polyhedral"; }
+};
+
+/*!
  * \brief This struct represents a polygon zone.
  */
 template <typename ConnType>
@@ -824,41 +842,7 @@ struct VariableShape
   AXOM_HOST_DEVICE constexpr static bool is_polyhedral() { return false; }
   AXOM_HOST_DEVICE constexpr static bool is_variable_size() { return true; }
 
-  AXOM_HOST_DEVICE IndexType dimension() const
-  {
-    IndexType dim = 2;
-    switch(m_shapeId)
-    {
-    case Point_ShapeID:
-      dim = PointTraits::dimension();
-      break;
-    case Line_ShapeID:
-      dim = LineTraits::dimension();
-      break;
-    case Tri_ShapeID:
-      dim = TriTraits::dimension();
-      break;
-    case Quad_ShapeID:
-      dim = QuadTraits::dimension();
-      break;
-    case Polygon_ShapeID:
-      dim = PolygonTraits::dimension();
-      break;
-    case Tet_ShapeID:
-      dim = TetTraits::dimension();
-      break;
-    case Pyramid_ShapeID:
-      dim = PyramidTraits::dimension();
-      break;
-    case Wedge_ShapeID:
-      dim = WedgeTraits::dimension();
-      break;
-    case Hex_ShapeID:
-      dim = HexTraits::dimension();
-      break;
-    }
-    return dim;
-  }
+  AXOM_HOST_DEVICE IndexType dimension() const { return shapeDimension(m_shapeId); }
 
   AXOM_HOST_DEVICE IndexType numberOfNodes() const { return m_ids.size(); }
 
@@ -1144,6 +1128,57 @@ inline int shapeNameToID(const std::string &name)
   else if(name == "mixed")
     id = Mixed_ShapeID;
   return id;
+}
+
+/*!
+ * \brief Return the dimension for the specified shape id.
+ *
+ * \param shapeId The shape id.
+ *
+ * \return The dimension for the shape id.
+ *
+ * \note We can't tell the dimension for mixed shapes from the id alone. Return -1.
+ */
+AXOM_HOST_DEVICE constexpr IndexType shapeDimension(int shapeId)
+{
+  IndexType dim = 2;
+  switch(shapeId)
+  {
+  case Point_ShapeID:
+    dim = PointTraits::dimension();
+    break;
+  case Line_ShapeID:
+    dim = LineTraits::dimension();
+    break;
+  case Tri_ShapeID:
+    dim = TriTraits::dimension();
+    break;
+  case Quad_ShapeID:
+    dim = QuadTraits::dimension();
+    break;
+  case Polygon_ShapeID:
+    dim = PolygonTraits::dimension();
+    break;
+  case Tet_ShapeID:
+    dim = TetTraits::dimension();
+    break;
+  case Pyramid_ShapeID:
+    dim = PyramidTraits::dimension();
+    break;
+  case Wedge_ShapeID:
+    dim = WedgeTraits::dimension();
+    break;
+  case Hex_ShapeID:
+    dim = HexTraits::dimension();
+    break;
+  case Polyhedron_ShapeID:
+    dim = 3;
+    break;
+  case Mixed_ShapeID:
+    dim = -1;
+    break;
+  }
+  return dim;
 }
 
 }  // end namespace views

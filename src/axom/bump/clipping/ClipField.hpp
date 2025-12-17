@@ -56,7 +56,7 @@ namespace detail
  * \return The ShapeID value that matches the st_index, or 0 if there is no match.
  */
 template <typename IntegerType>
-inline AXOM_HOST_DEVICE IntegerType ST_Index_to_ShapeID(IntegerType st_index)
+AXOM_HOST_DEVICE inline constexpr IntegerType ST_Index_to_ShapeID(IntegerType st_index)
 {
   using namespace axom::bump::clipping::tables;
   IntegerType shapeID = 0;
@@ -70,6 +70,12 @@ inline AXOM_HOST_DEVICE IntegerType ST_Index_to_ShapeID(IntegerType st_index)
     break;
   case ST_QUA:
     shapeID = views::Quad_ShapeID;
+    break;
+  case ST_POLY5:
+  case ST_POLY6:
+  case ST_POLY7:
+  case ST_POLY8:
+    shapeID = views::Polygon_ShapeID;
     break;
   case ST_TET:
     shapeID = views::Tet_ShapeID;
@@ -90,10 +96,11 @@ inline AXOM_HOST_DEVICE IntegerType ST_Index_to_ShapeID(IntegerType st_index)
 /*!
  * \brief Returns a clip table index for the input shapeId.
  * \param shapeId A shapeID (e.g. Tet_ShapeID)
+ * \param numNodes The number of nodes in the shape.
  * \return The clip table index for the shape.
  */
 AXOM_HOST_DEVICE
-inline int getClipTableIndex(int shapeId)
+inline constexpr int getClipTableIndex(int shapeId, axom::IndexType numNodes)
 {
   int index = 0;
   switch(shapeId)
@@ -104,17 +111,40 @@ inline int getClipTableIndex(int shapeId)
   case views::Quad_ShapeID:
     index = 1;
     break;
+  case views::Polygon_ShapeID:
+    switch(numNodes)
+    {
+    case 3:
+      index = 0;
+      break;  // triangle
+    case 4:
+      index = 1;
+      break;  // quad
+    case 5:
+      index = 2;
+      break;  // pentagon
+    case 6:
+      index = 3;
+      break;  // hexagon
+    case 7:
+      index = 4;
+      break;  // septagon
+    case 8:
+      index = 5;
+      break;  // octagon
+    }
+    break;
   case views::Tet_ShapeID:
-    index = 2;
+    index = 6;
     break;
   case views::Pyramid_ShapeID:
-    index = 3;
+    index = 7;
     break;
   case views::Wedge_ShapeID:
-    index = 4;
+    index = 8;
     break;
   case views::Hex_ShapeID:
-    index = 5;
+    index = 9;
     break;
   }
   return index;
@@ -142,46 +172,43 @@ inline bool shapeIsSelected(unsigned char color, int selection)
 }
 
 AXOM_HOST_DEVICE
-constexpr IndexType maxPointForDimension(int dim)
+constexpr IndexType maxPointForDimension(int dim, IndexType numPoints)
 {
-  return (dim == 3)
-    ? axom::bump::clipping::tables::P7
-    : ((dim == 2) ? axom::bump::clipping::tables::P3 : axom::bump::clipping::tables::P1);
+  // 3D default
+  IndexType maxPoint = static_cast<IndexType>(axom::bump::clipping::tables::P7);
+  switch(dim)
+  {
+  case 2:
+    // We take the max since we might have a polygon.
+    maxPoint =
+      axom::utilities::max(static_cast<IndexType>(axom::bump::clipping::tables::P0) + numPoints - 1,
+                           static_cast<IndexType>(axom::bump::clipping::tables::P3));
+    break;
+  case 1:
+    maxPoint = static_cast<IndexType>(axom::bump::clipping::tables::P1);
+    break;
+  }
+  return maxPoint;
 }
 
 AXOM_HOST_DEVICE
-constexpr IndexType maxEdgeForDimension(int dim)
+constexpr IndexType maxEdgeForDimension(int dim, IndexType numPoints)
 {
-  return (dim == 3)
-    ? axom::bump::clipping::tables::EL
-    : ((dim == 2) ? axom::bump::clipping::tables::ED : axom::bump::clipping::tables::EB);
-}
-
-template <typename IdType, int MAXSIZE>
-inline AXOM_HOST_DEVICE int unique_count(const IdType *values, int n)
-{
-  IdType v[MAXSIZE];
-  // Start off with one unique element
-  int nv = 1;
-  v[0] = values[0];
-  // Scan the rest
-  for(int j = 1; j < n; j++)
+  // 3D default
+  IndexType maxEdge = static_cast<IndexType>(axom::bump::clipping::tables::EL);
+  switch(dim)
   {
-    int fi = -1;
-    for(int i = 0; i < nv; i++)
-    {
-      if(values[j] == v[i])
-      {
-        fi = i;
-        break;
-      }
-    }
-    if(fi == -1)
-    {
-      v[nv++] = values[j];
-    }
+  case 2:
+    // We take the max since we might have a polygon.
+    maxEdge =
+      axom::utilities::max(static_cast<IndexType>(axom::bump::clipping::tables::EA) + numPoints - 1,
+                           static_cast<IndexType>(axom::bump::clipping::tables::ED));
+    break;
+  case 1:
+    maxEdge = static_cast<IndexType>(axom::bump::clipping::tables::EA);
+    break;
   }
-  return nv;
+  return maxEdge;
 }
 
 //------------------------------------------------------------------------------
@@ -206,6 +233,95 @@ struct FragmentData
   axom::ArrayView<IndexType> m_fragmentSizeOffsetsView {};
 };
 //------------------------------------------------------------------------------
+
+/*!
+ * \brief Base template for handling fragments when we make new connectivity.
+ */
+template <int NDIMS, typename ExecSpace, typename ConnectivityType>
+struct FragmentOperations
+{
+  /*!
+   * \brief Add the current fragment.
+   *
+   * \param fragment The current fragment to add.
+   * \param connView The new connectivity.
+   * \param size The size for the current fragment.
+   * \param offset The offset for the current fragment.
+   * \param shape The shape for the current fragment.
+   * \param color The color for the current fragment.
+   * \param point_2_new A map to determine the new node id from the current node id.
+   * \param[out] outputIndex The offset in the connView where we're writing fragment data.
+   *
+   * \return True if the fragment was added, false otherwise.
+   */
+  AXOM_HOST_DEVICE
+  static bool addFragment(const axom::bump::clipping::TableView::TableDataView &fragment,
+                          axom::ArrayView<ConnectivityType> connView,
+                          ConnectivityType &size,
+                          ConnectivityType &offset,
+                          ConnectivityType &shape,
+                          int &color,
+                          const ConnectivityType *point_2_new,
+                          int &outputIndex)
+  {
+    // Output the nodes used in this zone.
+    const int fragmentSize = fragment.size();
+    const auto fragmentShape = fragment[0];
+    offset = outputIndex;
+    for(int i = 2; i < fragmentSize; i++)
+    {
+      connView[outputIndex++] = point_2_new[fragment[i]];
+    }
+    const auto nIdsThisFragment = fragmentSize - 2;
+    size = nIdsThisFragment;
+    shape = detail::ST_Index_to_ShapeID(fragmentShape);
+    color = fragment[1] - axom::bump::clipping::tables::COLOR0;
+    return true;
+  }
+
+  /*!
+   * \brief In a previous stage, degenerate shapes were marked as having zero size.
+   *        This method filters them out from the auxiliary arrays.
+   *
+   * \param fragmentData The fragments.
+   * \param[inout] n_sizes The node that contains the sizes.
+   * \param[inout] n_offsets The node that contains the offsets.
+   * \param[inout] n_shapes The node that contains the shapes.
+   * \param[inout] n_color The node that contains the color.
+   * \param[inout] sizesView The view that wraps sizes (can change on output).
+   * \param[inout] offsetsView The view that wraps offsets (can change on output).
+   * \param[inout] shapesView The view that wraps shapes (can change on output).
+   * \param[inout] colorView The view that wraps colors (can change on output).
+   */
+  static void filterZeroSizes(FragmentData &AXOM_UNUSED_PARAM(fragmentData),
+                              conduit::Node &AXOM_UNUSED_PARAM(n_sizes),
+                              conduit::Node &AXOM_UNUSED_PARAM(n_offsets),
+                              conduit::Node &AXOM_UNUSED_PARAM(n_shapes),
+                              conduit::Node &AXOM_UNUSED_PARAM(n_color),
+                              axom::ArrayView<ConnectivityType> &AXOM_UNUSED_PARAM(sizesView),
+                              axom::ArrayView<ConnectivityType> &AXOM_UNUSED_PARAM(offsetsView),
+                              axom::ArrayView<ConnectivityType> &AXOM_UNUSED_PARAM(shapesView),
+                              axom::ArrayView<int> &AXOM_UNUSED_PARAM(colorView))
+  { }
+
+  /*!
+   * \brief Turns degenerate quads into triangles in-place.
+   *
+   * \param shapesUsed A BitSet that indicates which shapes are present in the mesh.
+   * \param connView A view that contains the connectivity.
+   * \param sizesView A view that contains the sizes.
+   * \param offsetsView A view that contains the offsets.
+   * \param shapesView A view that contains the shapes.
+   */
+  static BitSet quadtri(BitSet shapesUsed,
+                        axom::ArrayView<ConnectivityType> AXOM_UNUSED_PARAM(connView),
+                        axom::ArrayView<ConnectivityType> AXOM_UNUSED_PARAM(sizesView),
+                        axom::ArrayView<ConnectivityType> AXOM_UNUSED_PARAM(offsetsView),
+                        axom::ArrayView<ConnectivityType> AXOM_UNUSED_PARAM(shapesView))
+  {
+    return shapesUsed;
+  }
+};
 
 #if defined(AXOM_CLIP_FILTER_DEGENERATES)
 /*!
@@ -253,135 +369,82 @@ DataView filter(conduit::Node &n_src,
   return utils::make_array_view<value_type>(n_src);
 }
 
-/// NOTE - Use partial specialization (instead of the cleaner "if constexpr")
-///        for now to implement some 2D-specific behavior.
-
 /*!
- * \brief Base template for degenerate removal.
- */
-template <int NDIMS, typename ExecSpace, typename ConnectivityType>
-struct DegenerateHandler
-{
-  /*!
-   * \brief Set the size for the current fragment.
-   *
-   * \param fragmentsView The number of fragments for the szIndex zone.
-   * \param connView The new connectivity.
-   * \param sizesView The new mesh sizes.
-   * \param szIndex The zone index currently being processed.
-   * \param nidsThisFragment The number of node ids in the current fragment.
-   * \param sizeIndex The write index for the sizes to output.
-   * \param outputIndex The write index for the offsets to output.
-   *
-   * \return True if the fragment is degenerate, false otherwise.
-   */
-  AXOM_HOST_DEVICE
-  static bool setSize(axom::ArrayView<IndexType> AXOM_UNUSED_PARAM(fragmentsView),
-                      axom::ArrayView<ConnectivityType> AXOM_UNUSED_PARAM(connView),
-                      axom::ArrayView<ConnectivityType> sizesView,
-                      axom::IndexType AXOM_UNUSED_PARAM(szIndex),
-                      int nIdsThisFragment,
-                      int sizeIndex,
-                      int &AXOM_UNUSED_PARAM(outputIndex))
-  {
-    sizesView[sizeIndex] = nIdsThisFragment;
-    return false;
-  }
-
-  /*!
-   * \brief In a previous stage, degenerate shapes were marked as having zero size.
-   *        This method filters them out from the auxiliary arrays.
-   *
-   * \param fragmentData The fragments.
-   * \param[inout] n_sizes The node that contains the sizes.
-   * \param[inout] n_offsets The node that contains the offsets.
-   * \param[inout] n_shapes The node that contains the shapes.
-   * \param[inout] n_color The node that contains the color.
-   * \param[inout] sizesView The view that wraps sizes (can change on output).
-   * \param[inout] offsetsView The view that wraps offsets (can change on output).
-   * \param[inout] shapesView The view that wraps shapes (can change on output).
-   * \param[inout] colorView The view that wraps colors (can change on output).
-   */
-  static void filterZeroSizes(FragmentData &AXOM_UNUSED_PARAM(fragmentData),
-                              conduit::Node &AXOM_UNUSED_PARAM(n_sizes),
-                              conduit::Node &AXOM_UNUSED_PARAM(n_offsets),
-                              conduit::Node &AXOM_UNUSED_PARAM(n_shapes),
-                              conduit::Node &AXOM_UNUSED_PARAM(n_color),
-                              axom::ArrayView<ConnectivityType> &AXOM_UNUSED_PARAM(sizesView),
-                              axom::ArrayView<ConnectivityType> &AXOM_UNUSED_PARAM(offsetsView),
-                              axom::ArrayView<ConnectivityType> &AXOM_UNUSED_PARAM(shapesView),
-                              axom::ArrayView<int> &AXOM_UNUSED_PARAM(colorView))
-  { }
-
-  /*!
-   * \brief Turns degenerate quads into triangles in-place.
-   *
-   * \param shapesUsed A BitSet that indicates which shapes are present in the mesh.
-   * \param connView A view that contains the connectivity.
-   * \param sizesView A view that contains the sizes.
-   * \param offsetsView A view that contains the offsets.
-   * \param shapesView A view that contains the shapes.
-   */
-  static BitSet quadtri(BitSet shapesUsed,
-                        axom::ArrayView<ConnectivityType> AXOM_UNUSED_PARAM(connView),
-                        axom::ArrayView<ConnectivityType> AXOM_UNUSED_PARAM(sizesView),
-                        axom::ArrayView<ConnectivityType> AXOM_UNUSED_PARAM(offsetsView),
-                        axom::ArrayView<ConnectivityType> AXOM_UNUSED_PARAM(shapesView))
-  {
-    return shapesUsed;
-  }
-};
-
-/*!
- * \brief Partial specialization that implements some degeneracy handling for 2D meshes.
+ * \brief Partial specialization that implements adding fragments for 2D meshes with
+ *        some degeneracy handling. This specialization is only enabled for 2D meshes
+ *        when AXOM_CLIP_FILTER_DEGENERATES is enabled.
  */
 template <typename ExecSpace, typename ConnectivityType>
-struct DegenerateHandler<2, ExecSpace, ConnectivityType>
+struct FragmentOperations<2, ExecSpace, ConnectivityType>
 {
   using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
 
   /*!
-   * \brief Set the size for the current fragment.
+   * \brief Add the current fragment.
    *
-   * \param fragmentsView The number of fragments for the szIndex zone.
+   * \param fragment The current fragment to add.
    * \param connView The new connectivity.
-   * \param sizesView The new mesh sizes.
-   * \param szIndex The zone index currently being processed.
-   * \param nidsThisFragment The number of node ids in the current fragment.
-   * \param sizeIndex The write index for the sizes to output.
-   * \param outputIndex The write index for the offsets to output.
+   * \param size The size for the current fragment.
+   * \param offset The offset for the current fragment.
+   * \param shape The shape for the current fragment.
+   * \param color The color for the current fragment.
+   * \param point_2_new A map to determine the new node id from the current node id.
+   * \param[out] outputIndex The offset in the connView where we're writing fragment data.
    *
-   * \return True if the fragment is degenerate, false otherwise.
+   * \return True if the fragment was added, false otherwise.
    */
   AXOM_HOST_DEVICE
-  static bool setSize(axom::ArrayView<IndexType> fragmentsView,
-                      axom::ArrayView<ConnectivityType> connView,
-                      axom::ArrayView<ConnectivityType> sizesView,
-                      axom::IndexType szIndex,
-                      int nIdsThisFragment,
-                      int sizeIndex,
-                      int &outputIndex)
+  static bool addFragment(const axom::bump::clipping::TableView::TableDataView &fragment,
+                          axom::ArrayView<ConnectivityType> connView,
+                          ConnectivityType &size,
+                          ConnectivityType &offset,
+                          ConnectivityType &shape,
+                          int &color,
+                          const ConnectivityType *point_2_new,
+                          int &outputIndex)
   {
-    const int connStart = outputIndex - nIdsThisFragment;
-
-    // Check for degenerate
-    const int nUniqueIds =
-      detail::unique_count<ConnectivityType, 8>(connView.data() + connStart, nIdsThisFragment);
-    const bool thisFragmentDegenerate = nUniqueIds < (nIdsThisFragment - 1);
-
-    // Rewind the outputIndex so we don't emit it in the connectivity.
-    if(thisFragmentDegenerate)
+    constexpr int NotFound = -1;
+    // Output the nodes used in this zone.
+    const int fragmentSize = fragment.size();
+    const auto fragmentShape = fragment[0];
+    int nIdsThisFragment = 0;
+    for(int i = 2; i < fragmentSize; i++)
     {
-      outputIndex = connStart;
-
-      // There is one less fragment than we're expecting in the output.
-      fragmentsView[szIndex] -= 1;
+      const auto nodeId = point_2_new[fragment[i]];
+      // In a 2D shape, skip adding the node if we've added it before.
+      int foundIndex = NotFound;
+      for(int j = 0; j < nIdsThisFragment && foundIndex == NotFound; j++)
+      {
+        if(connView[outputIndex + j] == nodeId)
+        {
+          foundIndex = j;
+        }
+      }
+      if(foundIndex == NotFound)
+      {
+        connView[outputIndex + nIdsThisFragment] = nodeId;
+        nIdsThisFragment++;
+      }
     }
 
-    // Mark empty size.
-    sizesView[sizeIndex] = thisFragmentDegenerate ? 0 : nIdsThisFragment;
+    const bool added = nIdsThisFragment >= 3;
+    offset = outputIndex;
 
-    return thisFragmentDegenerate;
+    // If we're adding the fragment, record non-zero size.
+    size = added ? nIdsThisFragment : 0;
+
+    // Determine the shape from the number of ids we admitted.
+    shape = detail::ST_Index_to_ShapeID(fragmentShape);
+    shape = (nIdsThisFragment == 3) ? static_cast<ConnectivityType>(views::Tri_ShapeID) : shape;
+    shape = (nIdsThisFragment == 4) ? static_cast<ConnectivityType>(views::Quad_ShapeID) : shape;
+    shape = (nIdsThisFragment > 4) ? static_cast<ConnectivityType>(views::Polygon_ShapeID) : shape;
+
+    color = fragment[1] - axom::bump::clipping::tables::COLOR0;
+
+    // Move the connectivity output index forward if we added the fragment.
+    outputIndex += added ? nIdsThisFragment : 0;
+
+    return added;
   }
 
   /*!
@@ -824,7 +887,8 @@ class ClipField
 public:
   using BlendData = axom::bump::BlendData;
   using SliceData = axom::bump::SliceData;
-  using ClipTableViews = axom::StackArray<axom::bump::clipping::TableView, 6>;
+  static constexpr int TOTAL_ST_SHAPES = 10;
+  using ClipTableViews = axom::StackArray<axom::bump::clipping::TableView, TOTAL_ST_SHAPES>;
   using Intersector = IntersectPolicy;
 
   using BitSet = detail::BitSet;
@@ -1193,15 +1257,19 @@ private:
     AXOM_ANNOTATE_SCOPE("createClipTableViews");
     if(dimension == -1 || dimension == 2)
     {
-      views[detail::getClipTableIndex(views::Tri_ShapeID)] = m_clipTables[ST_TRI].view();
-      views[detail::getClipTableIndex(views::Quad_ShapeID)] = m_clipTables[ST_QUA].view();
+      views[detail::getClipTableIndex(views::Tri_ShapeID, 3)] = m_clipTables[ST_TRI].view();
+      views[detail::getClipTableIndex(views::Quad_ShapeID, 4)] = m_clipTables[ST_QUA].view();
+      views[detail::getClipTableIndex(views::Polygon_ShapeID, 5)] = m_clipTables[ST_POLY5].view();
+      views[detail::getClipTableIndex(views::Polygon_ShapeID, 6)] = m_clipTables[ST_POLY6].view();
+      views[detail::getClipTableIndex(views::Polygon_ShapeID, 7)] = m_clipTables[ST_POLY7].view();
+      views[detail::getClipTableIndex(views::Polygon_ShapeID, 8)] = m_clipTables[ST_POLY8].view();
     }
     if(dimension == -1 || dimension == 3)
     {
-      views[detail::getClipTableIndex(views::Tet_ShapeID)] = m_clipTables[ST_TET].view();
-      views[detail::getClipTableIndex(views::Pyramid_ShapeID)] = m_clipTables[ST_PYR].view();
-      views[detail::getClipTableIndex(views::Wedge_ShapeID)] = m_clipTables[ST_WDG].view();
-      views[detail::getClipTableIndex(views::Hex_ShapeID)] = m_clipTables[ST_HEX].view();
+      views[detail::getClipTableIndex(views::Tet_ShapeID, 4)] = m_clipTables[ST_TET].view();
+      views[detail::getClipTableIndex(views::Pyramid_ShapeID, 5)] = m_clipTables[ST_PYR].view();
+      views[detail::getClipTableIndex(views::Wedge_ShapeID, 6)] = m_clipTables[ST_WDG].view();
+      views[detail::getClipTableIndex(views::Hex_ShapeID, 8)] = m_clipTables[ST_HEX].view();
     }
   }
 
@@ -1253,7 +1321,7 @@ private:
         zoneData.m_clipCasesView[szIndex] = clipcase;
 
         // Iterate over the shapes in this clip case to determine the number of blend groups.
-        const auto clipTableIndex = detail::getClipTableIndex(zone.id());
+        const auto clipTableIndex = detail::getClipTableIndex(zone.id(), zone.numberOfNodes());
         const auto &ctView = clipTableViews[clipTableIndex];
 
         int thisBlendGroups = 0;      // The number of blend groups produced in this case.
@@ -1319,8 +1387,8 @@ private:
         // Save the flags for the points that were used in this zone
         zoneData.m_pointsUsedView[szIndex] = ptused;
 
-        const auto PMAX = detail::maxPointForDimension(zone.dimension());
-        const auto EMAX = detail::maxEdgeForDimension(zone.dimension());
+        const auto PMAX = detail::maxPointForDimension(zone.dimension(), zone.numberOfNodes());
+        const auto EMAX = detail::maxEdgeForDimension(zone.dimension(), zone.numberOfNodes());
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
         // NOTE: We are not going to emit blend groups for P0..P7 points.
 
@@ -1524,7 +1592,7 @@ private:
         const auto clipcase = zoneData.m_clipCasesView[szIndex];
 
         // Iterate over the shapes in this clip case to determine the number of blend groups.
-        const auto clipTableIndex = detail::getClipTableIndex(zone.id());
+        const auto clipTableIndex = detail::getClipTableIndex(zone.id(), zone.numberOfNodes());
         const auto &ctView = clipTableViews[clipTableIndex];
 
         // These are the points used in this zone's fragments.
@@ -1581,7 +1649,7 @@ private:
 #if !defined(AXOM_REDUCE_BLEND_GROUPS)
         // Add blend group for each original point that was used.
         // NOTE - this can add a lot of blend groups with 1 node.
-        const auto PMAX = detail::maxPointForDimension(zone.dimension());
+        const auto PMAX = detail::maxPointForDimension(zone.dimension(), zone.numberOfNodes());
         for(IndexType pid = P0; pid <= PMAX; pid++)
         {
           if(axom::utilities::bitIsSet(ptused, pid))
@@ -1593,7 +1661,7 @@ private:
         }
 #endif
         // Add blend group for each edge point that was used.
-        const auto EMAX = detail::maxEdgeForDimension(zone.dimension());
+        const auto EMAX = detail::maxEdgeForDimension(zone.dimension(), zone.numberOfNodes());
         for(IndexType pid = EA; pid <= EMAX; pid++)
         {
           if(axom::utilities::bitIsSet(ptused, pid))
@@ -1661,6 +1729,8 @@ private:
   {
     AXOM_ANNOTATE_SCOPE("makeTopology");
     using namespace axom::bump::clipping::tables;
+    using FragmentOps =
+      detail::FragmentOperations<TopologyView::dimension(), ExecSpace, ConnectivityType>;
     const auto selection = getSelection(opts);
 
     AXOM_ANNOTATE_BEGIN("allocation");
@@ -1770,8 +1840,8 @@ private:
             }
           }
 
-          const BitSet PMAX = detail::maxPointForDimension(zone.dimension());
-          const BitSet EMAX = detail::maxEdgeForDimension(zone.dimension());
+          const BitSet PMAX = detail::maxPointForDimension(zone.dimension(), zone.numberOfNodes());
+          const BitSet EMAX = detail::maxEdgeForDimension(zone.dimension(), zone.numberOfNodes());
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
           // For single nodes, we did not make a blend group. We look up the new
           // node id from nodeData.m_oldNodeToNewNodeView.
@@ -1822,10 +1892,11 @@ private:
           int sizeIndex = fragmentData.m_fragmentOffsetsView[szIndex];
 #if defined(AXOM_CLIP_FILTER_DEGENERATES)
           bool degenerates = false;
+          int thisFragments = 0;
 #endif
           // Iterate over the selected fragments and emit connectivity for them.
           const auto clipcase = zoneData.m_clipCasesView[szIndex];
-          const auto clipTableIndex = detail::getClipTableIndex(zone.id());
+          const auto clipTableIndex = detail::getClipTableIndex(zone.id(), zone.numberOfNodes());
           const auto ctView = clipTableViews[clipTableIndex];
           auto it = ctView.begin(clipcase);
           const auto end = ctView.end(clipcase);
@@ -1839,36 +1910,34 @@ private:
             {
               if(detail::shapeIsSelected(fragment[1], selection))
               {
-                // Output the nodes used in this zone.
-                const int fragmentSize = fragment.size();
-                offsetsView[sizeIndex] = outputIndex;
-                for(int i = 2; i < fragmentSize; i++)
-                {
-                  connView[outputIndex++] = point_2_new[fragment[i]];
-                }
-                const auto nIdsThisFragment = fragmentSize - 2;
-#if defined(AXOM_CLIP_FILTER_DEGENERATES)
-                // Set the output zone size, checking to see whether it is degenerate.
-                degenerates |=
-                  detail::DegenerateHandler<TopologyView::dimension(), ExecSpace, ConnectivityType>::setSize(
-                    fragmentData.m_fragmentsView,
-                    connView,
-                    sizesView,
-                    szIndex,
-                    nIdsThisFragment,
-                    sizeIndex,
-                    outputIndex);
-#else
-                sizesView[sizeIndex] = nIdsThisFragment;
-#endif
-                shapesView[sizeIndex] = detail::ST_Index_to_ShapeID(fragmentShape);
-                colorView[sizeIndex] = fragment[1] - COLOR0;
+                [[maybe_unused]] const bool addedFragment =
+                  FragmentOps::addFragment(fragment,
+                                           connView,
+                                           sizesView[sizeIndex],
+                                           offsetsView[sizeIndex],
+                                           shapesView[sizeIndex],
+                                           colorView[sizeIndex],
+                                           point_2_new,
+                                           outputIndex);
                 sizeIndex++;
+
+#if defined(AXOM_CLIP_FILTER_DEGENERATES)
+                thisFragments += addedFragment ? 1 : 0;
+
+                // Record whether we have had any degenerates.
+                degenerates |= !addedFragment;
+#endif
               }
             }
           }
 
 #if defined(AXOM_CLIP_FILTER_DEGENERATES)
+          // If there were degenerates then update the fragment count.
+          if(degenerates)
+          {
+            fragmentData.m_fragmentsView[szIndex] = thisFragments;
+          }
+
           // Reduce overall whether there are degenerates.
           degenerates_reduce |= degenerates;
 #endif
@@ -1894,16 +1963,15 @@ private:
     // Filter out shapes that were marked as zero-size, adjusting connectivity and other arrays.
     if(degenerates_reduce.get())
     {
-      detail::DegenerateHandler<TopologyView::dimension(), ExecSpace, ConnectivityType>::filterZeroSizes(
-        fragmentData,
-        n_sizes,
-        n_offsets,
-        n_shapes,
-        n_color_values,
-        sizesView,
-        offsetsView,
-        shapesView,
-        colorView);
+      FragmentOps::filterZeroSizes(fragmentData,
+                                   n_sizes,
+                                   n_offsets,
+                                   n_shapes,
+                                   n_color_values,
+                                   sizesView,
+                                   offsetsView,
+                                   shapesView,
+                                   colorView);
     }
 #endif
 
@@ -1932,13 +2000,7 @@ private:
 
 #if defined(AXOM_CLIP_FILTER_DEGENERATES)
     // Handle some quad->tri degeneracies, depending on dimension.
-    shapesUsed =
-      detail::DegenerateHandler<TopologyView::dimension(), ExecSpace, ConnectivityType>::quadtri(
-        shapesUsed,
-        connView,
-        sizesView,
-        offsetsView,
-        shapesView);
+    shapesUsed = FragmentOps::quadtri(shapesUsed, connView, sizesView, offsetsView, shapesView);
 #endif
 
     // Add shape information to the connectivity.
@@ -1947,11 +2009,28 @@ private:
     SLIC_ASSERT_MSG(shapeMap.empty() == false, "The shape map is empty!");
     if(axom::utilities::popcount(static_cast<std::uint64_t>(shapesUsed)) > 1)
     {
-      n_newTopo["elements/shape"] = "mixed";
-      conduit::Node &n_shape_map = n_newTopo["elements/shape_map"];
+      // Determine the dimensions for the shapes that were used.
+      std::set<IndexType> usedDimensions;
       for(auto it = shapeMap.cbegin(); it != shapeMap.cend(); it++)
       {
-        n_shape_map[it->first] = it->second;
+        usedDimensions.insert(views::shapeDimension(it->second));
+      }
+      SLIC_ASSERT(usedDimensions.size() > 0);
+      const auto it = usedDimensions.begin();
+      if(usedDimensions.size() == 1 && *it == 2)
+      {
+        // All were 2D. Promote to polygonal.
+        n_newTopo["elements/shape"] = views::PolygonTraits::name();
+        n_newTopo["elements"].remove("shapes");
+      }
+      else
+      {
+        n_newTopo["elements/shape"] = "mixed";
+        conduit::Node &n_shape_map = n_newTopo["elements/shape_map"];
+        for(auto it = shapeMap.cbegin(); it != shapeMap.cend(); it++)
+        {
+          n_shape_map[it->first] = it->second;
+        }
       }
     }
     else
@@ -2180,26 +2259,32 @@ private:
   {
     std::map<std::string, int> sm;
 
-    if(axom::utilities::bitIsSet(shapes, views::Line_ShapeID)) sm["line"] = views::Line_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Line_ShapeID))
+      sm[views::LineTraits::name()] = views::Line_ShapeID;
 
-    if(axom::utilities::bitIsSet(shapes, views::Tri_ShapeID)) sm["tri"] = views::Tri_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Tri_ShapeID))
+      sm[views::TriTraits::name()] = views::Tri_ShapeID;
 
-    if(axom::utilities::bitIsSet(shapes, views::Quad_ShapeID)) sm["quad"] = views::Quad_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Quad_ShapeID))
+      sm[views::QuadTraits::name()] = views::Quad_ShapeID;
 
     if(axom::utilities::bitIsSet(shapes, views::Polygon_ShapeID))
-      sm["polygon"] = views::Polygon_ShapeID;
+      sm[views::PolygonTraits::name()] = views::Polygon_ShapeID;
 
-    if(axom::utilities::bitIsSet(shapes, views::Tet_ShapeID)) sm["tet"] = views::Tet_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Tet_ShapeID))
+      sm[views::TetTraits::name()] = views::Tet_ShapeID;
 
     if(axom::utilities::bitIsSet(shapes, views::Pyramid_ShapeID))
-      sm["pyramid"] = views::Pyramid_ShapeID;
+      sm[views::PyramidTraits::name()] = views::Pyramid_ShapeID;
 
-    if(axom::utilities::bitIsSet(shapes, views::Wedge_ShapeID)) sm["wedge"] = views::Wedge_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Wedge_ShapeID))
+      sm[views::WedgeTraits::name()] = views::Wedge_ShapeID;
 
-    if(axom::utilities::bitIsSet(shapes, views::Hex_ShapeID)) sm["hex"] = views::Hex_ShapeID;
+    if(axom::utilities::bitIsSet(shapes, views::Hex_ShapeID))
+      sm[views::HexTraits::name()] = views::Hex_ShapeID;
 
     if(axom::utilities::bitIsSet(shapes, views::Polyhedron_ShapeID))
-      sm["polyhedron"] = views::Polyhedron_ShapeID;
+      sm[views::PolyhedronTraits::name()] = views::Polyhedron_ShapeID;
 
     return sm;
   }

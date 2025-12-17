@@ -341,6 +341,27 @@ struct dispatch_shape<true, ConnType, QuadShape<ConnType>, FuncType>
 };
 
 template <typename ConnType, typename FuncType>
+struct dispatch_shape<true, ConnType, PolygonShape<ConnType>, FuncType>
+{
+  static void execute(bool &eligible,
+                      const std::string &shape,
+                      const axom::ArrayView<ConnType> &connView,
+                      const axom::ArrayView<ConnType> &sizesView,
+                      const axom::ArrayView<ConnType> &offsetsView,
+                      FuncType &&func)
+  {
+    if(eligible && shape == "polygonal")
+    {
+      UnstructuredTopologySingleShapeView<PolygonShape<ConnType>> ugView(connView,
+                                                                         sizesView,
+                                                                         offsetsView);
+      func(shape, ugView);
+      eligible = false;
+    }
+  }
+};
+
+template <typename ConnType, typename FuncType>
 struct dispatch_shape<true, ConnType, TetShape<ConnType>, FuncType>
 {
   static void execute(bool &eligible,
@@ -515,6 +536,15 @@ void typed_dispatch_unstructured_topology(const conduit::Node &topo, FuncType &&
     internal::dispatch_shape<axom::utilities::bitIsSet(ShapeTypes, Quad_ShapeID),
                              ConnType,
                              QuadShape<ConnType>,
+                             FuncType>::execute(eligible,
+                                                shape,
+                                                connView,
+                                                sizesView,
+                                                offsetsView,
+                                                std::forward<FuncType>(func));
+    internal::dispatch_shape<axom::utilities::bitIsSet(ShapeTypes, Polygon_ShapeID),
+                             ConnType,
+                             PolygonShape<ConnType>,
                              FuncType>::execute(eligible,
                                                 shape,
                                                 connView,
