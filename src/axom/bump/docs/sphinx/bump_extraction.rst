@@ -24,8 +24,8 @@ includes 2D/3D structured and unstructured topologies that can be represented us
 finite elements.
 
 Algorithms are called using a pattern where the algorithm is first
-instantiated (using execution space, topology view, and coordset view parameters)
-, followed by calling an ``execute()`` method. The ``execute()``
+instantiated (using execution space, topology view, and coordset view parameters),
+followed by calling an ``execute()`` method. The ``execute()``
 method accepts Conduit nodes for the input Blueprint mesh, any options, and the output mesh.
 
 #######
