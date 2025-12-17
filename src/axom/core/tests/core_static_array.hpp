@@ -45,6 +45,11 @@ void check_static_array_policy()
       sizes_view[0][i] = s_arrays_view[i].size();
     });
 
+  if(axom::execution_space<ExecSpace>::async())
+  {
+    axom::synchronize<ExecSpace>();
+  }
+
   // Copy static arrays and their sizes back to host
   axom::Array<StaticArrayType> s_arrays_host =
     axom::Array<StaticArrayType>(s_arrays_device, host_allocator);

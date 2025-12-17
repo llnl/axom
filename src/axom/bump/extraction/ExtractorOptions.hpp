@@ -2,8 +2,8 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_BUMP_CLIP_OPTIONS_HPP_
-#define AXOM_BUMP_CLIP_OPTIONS_HPP_
+#ifndef AXOM_BUMP_EXTRACTOR_OPTIONS_HPP_
+#define AXOM_BUMP_EXTRACTOR_OPTIONS_HPP_
 
 #include "axom/bump/Options.hpp"
 
@@ -11,13 +11,13 @@ namespace axom
 {
 namespace bump
 {
-namespace clipping
+namespace extraction
 {
 /**
- * \brief This class provides a kind of schema over the clipping options, as well
+ * \brief This class provides a kind of schema over the extractor options, as well
  *        as default values, and some utilities functions.
  */
-class ClipOptions : public axom::bump::Options
+class ExtractorOptions : public axom::bump::Options
 {
 public:
   /**
@@ -25,7 +25,7 @@ public:
    *
    * \param options The node that contains the clipping options.
    */
-  ClipOptions(const conduit::Node &options) : axom::bump::Options(options) { }
+  ExtractorOptions(const conduit::Node &options) : axom::bump::Options(options) { }
 
   /**
    * \brief Return the name of the field used for clipping.
@@ -96,12 +96,12 @@ public:
     return options().has_path("outside") ? (options().fetch_existing("outside").to_int() > 0) : false;
   }
 
-private:
+protected:
   /// Access the base class' options.
   const conduit::Node &options() const { return this->m_options; }
 };
 
-}  // end namespace clipping
+}  // end namespace extraction
 }  // end namespace bump
 }  // end namespace axom
 

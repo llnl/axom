@@ -28,7 +28,7 @@ public:
    * \brief Constructor
    *
    * \param nzones The total number of zones in the associated topology.
-   * \param n_options The node that contains the clipping options.
+   * \param n_options The node that contains the options.
    * \param selectionKey The name of the node with the selection data in the options.
    *
    * The n_options node contains options that influence how the class runs.

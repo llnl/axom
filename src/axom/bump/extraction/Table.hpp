@@ -3,18 +3,18 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_BUMP_CLIPPING_CLIP_TABLE_MANAGER_HPP_
-#define AXOM_BUMP_CLIPPING_CLIP_TABLE_MANAGER_HPP_
+#ifndef AXOM_BUMP_EXTRACTION_TABLE_HPP_
+#define AXOM_BUMP_EXTRACTION_TABLE_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
-#include "axom/bump/clipping/ClipCases.h"
+#include "axom/bump/extraction/ExtractionConstants.hpp"
 
 namespace axom
 {
 namespace bump
 {
-namespace clipping
+namespace extraction
 {
 /*!
  * \accelerated
@@ -118,17 +118,31 @@ public:
   private:
     void printShape(std::ostream &os, TableData shape) const
     {
-      using namespace axom::bump::clipping::tables;
       switch(shape)
       {
       case ST_PNT:
         os << "ST_PNT";
+        break;
+      case ST_LIN:
+        os << "ST_LIN";
         break;
       case ST_TRI:
         os << "ST_TRI";
         break;
       case ST_QUA:
         os << "ST_QUA";
+        break;
+      case ST_POLY5:
+        os << "ST_POLY5";
+        break;
+      case ST_POLY6:
+        os << "ST_POLY6";
+        break;
+      case ST_POLY7:
+        os << "ST_POLY7";
+        break;
+      case ST_POLY8:
+        os << "ST_POLY8";
         break;
       case ST_TET:
         os << "ST_TET";
@@ -146,7 +160,6 @@ public:
     }
     void printColor(std::ostream &os, TableData color) const
     {
-      using namespace axom::bump::clipping::tables;
       switch(color)
       {
       case COLOR0:
@@ -162,7 +175,6 @@ public:
     }
     void printIds(std::ostream &os, const TableData *ids, int n) const
     {
-      using namespace axom::bump::clipping::tables;
       for(int i = 0; i < n; i++)
       {
         if(/*ids[i] >= P0 &&*/ ids[i] <= P7)
@@ -183,7 +195,6 @@ public:
   public:
     void print(std::ostream &os) const
     {
-      using namespace axom::bump::clipping::tables;
       TableData *ptr = m_shapeStart + m_offset;
       printShape(os, ptr[0]);
       os << " ";
@@ -223,7 +234,6 @@ public:
     AXOM_HOST_DEVICE
     size_t shapeLength(const TableData *caseData) const
     {
-      using namespace axom::bump::clipping::tables;
       size_t retval = 0;
       const auto shape = caseData[0];
       switch(shape)
@@ -231,11 +241,26 @@ public:
       case ST_PNT:
         retval = 4 + caseData[3];
         break;
+      case ST_LIN:
+        retval = 2 + 2;
+        break;
       case ST_TRI:
         retval = 2 + 3;
         break;
       case ST_QUA:
         retval = 2 + 4;
+        break;
+      case ST_POLY5:
+        retval = 2 + 5;
+        break;
+      case ST_POLY6:
+        retval = 2 + 6;
+        break;
+      case ST_POLY7:
+        retval = 2 + 7;
+        break;
+      case ST_POLY8:
+        retval = 2 + 8;
         break;
       case ST_TET:
         retval = 2 + 4;
@@ -280,9 +305,9 @@ public:
   { }
 
   /*!
-   * \brief Return the number of cases for the clipping table.
+   * \brief Return the number of cases for the table.
    *
-   * \return The number of cases for the clipping table.
+   * \return The number of cases for the table.
    */
   AXOM_HOST_DEVICE
   size_t size() const { return m_shapes.size(); }
@@ -332,7 +357,6 @@ private:
 /*!
  * \brief This class manages data table arrays and can produce a view for the data.
  */
-template <typename ExecSpace>
 class Table
 {
 public:
@@ -351,30 +375,18 @@ public:
    * \brief Load table data into the arrays, moving data as needed.
    *
    * \param n The number of cases in the clip table.
-   * \param shapes The number of shapes produced by clipping cases.
-   * \param offsets The offset into the table for each clipping case.
-   * \param table The clipping table data.
-   * \param tableLen The size of the clipping table data.
+   * \param shapes The number of shapes produced by cases.
+   * \param offsets The offset into the table for each case.
+   * \param table The table data.
+   * \param tableLen The size of the table data.
+   * \param allocatorID The allocator ID to use when allocating memory.
    */
   void load(size_t n,
             const IndexData *shapes,
             const IndexData *offsets,
             const TableData *table,
-            size_t tableLen)
-  {
-    const int allocatorID = execution_space<ExecSpace>::allocatorID();
-
-    // Allocate space.
-    m_shapes = IndexDataArray(n, n, allocatorID);
-    m_offsets = IndexDataArray(n, n, allocatorID);
-    m_table = TableDataArray(tableLen, tableLen, allocatorID);
-
-    // Copy data to the arrays.
-    axom::copy(m_shapes.data(), shapes, n * sizeof(int));
-    axom::copy(m_offsets.data(), offsets, n * sizeof(int));
-    axom::copy(m_table.data(), table, tableLen * sizeof(unsigned char));
-  }
-
+            size_t tableLen,
+            int allocatorID);
   /*!
    * \brief Create a view to access the table data.
    *
@@ -388,149 +400,7 @@ private:
   TableDataArray m_table;
 };
 
-/*!
- * \brief Manage several clipping tables.
- */
-template <typename ExecSpace>
-class ClipTableManager
-{
-public:
-  static constexpr int NumberOfTables = tables::ST_MAX - tables::ST_MIN;
-
-  /*!
-   * \brief Return a reference to the clipping table, which is loaded on demand.
-   *
-   * \param shape The shape type to be retrieved.
-   *
-   * \return A reference to the clipping table. 
-   */
-  Table<ExecSpace> &operator[](size_t shape)
-  {
-    const size_t index = shapeToIndex(shape);
-    SLIC_ASSERT(shape < tables::ST_MAX);
-    loadShape(shape);
-    return m_tables[index];
-  }
-
-  /*!
-   * \brief Load tables based on dimension.
-   * \param dim The dimension of shapes to load.
-   */
-  void load(int dim)
-  {
-    for(const auto shape : shapes(dim))
-    {
-      loadShape(shape);
-    }
-  }
-
-  /*!
-   * \brief Return a vector of clipping shape ids for the given dimension.
-   *
-   * \param The spatial dimension.
-   *
-   * \return A vector of clipping shape ids.
-   */
-  std::vector<size_t> shapes(int dim) const
-  {
-    using namespace axom::bump::clipping::tables;
-    std::vector<size_t> s;
-    if(dim == -1 || dim == 2)
-    {
-      for(const auto value : std::vector<size_t> {ST_TRI, ST_QUA})
-      {
-        s.push_back(value);
-      }
-    }
-    if(dim == -1 || dim == 3)
-    {
-      for(const auto value : std::vector<size_t> {ST_TET, ST_PYR, ST_WDG, ST_HEX})
-      {
-        s.push_back(value);
-      }
-    }
-    return s;
-  }
-
-private:
-  /*!
-   * \brief Turn a shape into an table index.
-   *
-   * \param shape The shape type ST_XXX.
-   *
-   * \return An index into the m_tables array.
-   */
-  constexpr static size_t shapeToIndex(size_t shape)
-  {
-    return shape - axom::bump::clipping::tables::ST_MIN;
-  }
-
-  /*!
-   * \brief Load the clipping table for a shape.
-   *
-   * \param shape The shape whose table will be loaded.
-   */
-  void loadShape(size_t shape)
-  {
-    using namespace axom::bump::clipping::tables;
-    const auto index = shapeToIndex(shape);
-    if(!m_tables[index].isLoaded())
-    {
-      if(shape == ST_TRI)
-      {
-        m_tables[index].load(numClipCasesTri,
-                             numClipShapesTri,
-                             startClipShapesTri,
-                             clipShapesTri,
-                             clipShapesTriSize);
-      }
-      else if(shape == ST_QUA)
-      {
-        m_tables[index].load(numClipCasesQua,
-                             numClipShapesQua,
-                             startClipShapesQua,
-                             clipShapesQua,
-                             clipShapesQuaSize);
-      }
-      else if(shape == ST_TET)
-      {
-        m_tables[index].load(numClipCasesTet,
-                             numClipShapesTet,
-                             startClipShapesTet,
-                             clipShapesTet,
-                             clipShapesTetSize);
-      }
-      else if(shape == ST_PYR)
-      {
-        m_tables[index].load(numClipCasesPyr,
-                             numClipShapesPyr,
-                             startClipShapesPyr,
-                             clipShapesPyr,
-                             clipShapesPyrSize);
-      }
-      else if(shape == ST_WDG)
-      {
-        m_tables[index].load(numClipCasesWdg,
-                             numClipShapesWdg,
-                             startClipShapesWdg,
-                             clipShapesWdg,
-                             clipShapesWdgSize);
-      }
-      else if(shape == ST_HEX)
-      {
-        m_tables[index].load(numClipCasesHex,
-                             numClipShapesHex,
-                             startClipShapesHex,
-                             clipShapesHex,
-                             clipShapesHexSize);
-      }
-    }
-  }
-
-  axom::StackArray<Table<ExecSpace>, NumberOfTables> m_tables {};
-};
-
-}  // end namespace clipping
+}  // end namespace extraction
 }  // end namespace bump
 }  // end namespace axom
 
