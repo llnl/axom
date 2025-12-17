@@ -491,7 +491,7 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE> ArrayView<T, DIM, SPACE>::subspan(
 template <typename T, int DIM, MemorySpace SPACE>
 void ArrayView<T, DIM, SPACE>::fill(const T& value)
 {
-  using OpHelper = detail::ArrayOps<T, SPACE>;
+  using OpHelper = detail::ArrayOps<T>;
   const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
   OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, 0, m_num_elements);
   OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, 0, m_num_elements, value);
@@ -504,7 +504,7 @@ void ArrayView<T, DIM, SPACE>::fill(const T& value, IndexType n, IndexType pos)
   assert(pos >= 0);
   assert(pos + n <= m_num_elements);
 
-  using OpHelper = detail::ArrayOps<T, SPACE>;
+  using OpHelper = detail::ArrayOps<T>;
   const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
   OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, pos, n);
   OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, pos, n, value);
@@ -517,7 +517,7 @@ void ArrayView<T, DIM, SPACE>::set(const T* elements, IndexType n, IndexType pos
   assert(pos >= 0);
   assert(pos + n <= m_num_elements);
 
-  using OpHelper = detail::ArrayOps<T, SPACE>;
+  using OpHelper = detail::ArrayOps<T>;
   const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
   OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, pos, n);
   OpHelper {m_allocator_id, executeOnGPU}.fill_range(m_data, pos, n, elements, MemorySpace::Dynamic);
@@ -529,7 +529,7 @@ void ArrayView<T, DIM, SPACE>::assign(axom::IndexType count, const T& value)
 {
   assert(count >= 0);
 
-  using OpHelper = detail::ArrayOps<T, SPACE>;
+  using OpHelper = detail::ArrayOps<T>;
   const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
   OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, 0, m_num_elements);
   OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, 0, count, value);
@@ -541,7 +541,7 @@ template <typename T, int DIM, MemorySpace SPACE>
 template <class InputIt>
 void ArrayView<T, DIM, SPACE>::assign(InputIt first, InputIt last)
 {
-  using OpHelper = detail::ArrayOps<T, SPACE>;
+  using OpHelper = detail::ArrayOps<T>;
   const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
   OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, 0, m_num_elements);
   m_num_elements = 0;
