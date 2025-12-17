@@ -96,7 +96,9 @@ public:
       return sqDistL > sqDistR;
     };
 
-    lbvh::bvh_traverse(m_inner_nodes, m_leaf_nodes, p, predicate, leaf_action, traversePref);
+    lbvh::BVHStack stack;
+
+    lbvh::bvh_traverse(m_inner_nodes, m_leaf_nodes, p, stack, predicate, leaf_action, traversePref);
   }
 
   /*
@@ -116,7 +118,9 @@ public:
       return false;
     };
 
-    lbvh::bvh_traverse(m_inner_nodes, m_leaf_nodes, p, predicate, leaf_action, noTraversePref);
+    lbvh::BVHStack stack;
+
+    lbvh::bvh_traverse(m_inner_nodes, m_leaf_nodes, p, stack, predicate, leaf_action, noTraversePref);
   }
 
   /*!
@@ -408,7 +412,9 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
       auto leafAction = [&count](std::int32_t AXOM_UNUSED_PARAM(current_node),
                                  const std::int32_t* AXOM_UNUSED_PARAM(leaf_nodes)) { count++; };
 
-      lbvh::bvh_traverse(inner_nodes, leaf_nodes, primitive, predicate, leafAction, noTraversePref);
+      lbvh::BVHStack stack;
+
+      lbvh::bvh_traverse(inner_nodes, leaf_nodes, primitive, stack, predicate, leafAction, noTraversePref);
 
       counts[i] = count;
       total_count_reduce += count;
@@ -442,7 +448,9 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
         offset++;
       };
 
-      lbvh::bvh_traverse(inner_nodes, leaf_nodes, obj, predicate, leafAction, noTraversePref);
+      lbvh::BVHStack stack;
+
+      lbvh::bvh_traverse(inner_nodes, leaf_nodes, obj, stack, predicate, leafAction, noTraversePref);
     });
   AXOM_ANNOTATE_END("PASS[2]:fill_traversal");
 
@@ -466,7 +474,9 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
       current_offset++;
     };
 
-    lbvh::bvh_traverse(inner_nodes, leaf_nodes, obj, predicate, leafAction, noTraversePref);
+    lbvh::BVHStack stack;
+
+    lbvh::bvh_traverse(inner_nodes, leaf_nodes, obj, stack, predicate, leafAction, noTraversePref);
     counts[i] = matching_leaves;
   });
   AXOM_ANNOTATE_END("PASS[1]:fill_traversal");
