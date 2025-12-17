@@ -567,7 +567,11 @@ protected:
     n_InputFields.reset();
     for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
     {
-      n_InputFields[n_fields[i].name()].set_external(n_fields[i]);
+      const conduit::Node &n_field = n_fields[i];
+      if(n_field["topology"].as_string() == n_newTopo.name())
+      {
+        n_InputFields[n_fields[i].name()].set_external(n_fields[i]);
+      }
     }
     makeNodeCenteredVFs(n_topo, n_coordset, n_InputFields, mixedMats);
     makeWorkingFields(n_topo, n_InputFields, cleanMats, mixedMats);

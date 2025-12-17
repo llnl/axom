@@ -85,6 +85,10 @@ set(bump_headers
 
 set(bump_sources
     clipping/ClipCasesHex.cpp
+    clipping/ClipCasesPoly5.cpp
+    clipping/ClipCasesPoly6.cpp
+    clipping/ClipCasesPoly7.cpp
+    clipping/ClipCasesPoly8.cpp
     clipping/ClipCasesPyr.cpp
     clipping/ClipCasesQua.cpp
     clipping/ClipCasesTet.cpp
