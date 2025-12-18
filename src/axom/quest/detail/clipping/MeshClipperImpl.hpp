@@ -919,9 +919,9 @@ public:
     double octVol = 0.0;
     for(int i = 0; i < 4; ++i)
     {
-      double tetVol = tets[i].volume();
+      double tetVol = tets[i].signedVolume();
       SLIC_ASSERT(tetVol >= -EPS);  // Tet may be degenerate but not inverted.
-      octVol += tetVol;
+      octVol += axom::utilities::abs(tetVol);
     }
     return octVol;
   }
