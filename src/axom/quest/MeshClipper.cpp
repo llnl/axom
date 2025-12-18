@@ -99,10 +99,9 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
                                     m_strategy->name(),
                                     allocId));
 
-    // Counting labels is non-essential and presumed to be relatively very fast.
-    getLabelCounts(cellLabels, cellsInCount, cellsOnCount, cellsOutCount);
     if(m_verbose)
     {
+      getLabelCounts(cellLabels, cellsInCount, cellsOnCount, cellsOutCount);
       logClippingStats();
     }
 
@@ -138,10 +137,9 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
                                       m_strategy->name(),
                                       allocId));
 
-      // Counting labels is non-essential and presumed to be very fast.
-      getLabelCounts(tetLabels, tetsInCount, tetsOnCount, tetsOutCount);
       if(m_verbose)
       {
+        getLabelCounts(tetLabels, tetsInCount, tetsOnCount, tetsOutCount);
         logClippingStats();
       }
 
