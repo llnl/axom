@@ -119,7 +119,7 @@ public:
       return;
     };
 
-    AXOM_ANNOTATE_SCOPE("MeshClipper:collect_unlabeleds");
+    AXOM_ANNOTATE_SCOPE("MeshClipper:collect_indices");
     /*!
      * 1. Generate tmpLabels, having a value of 1 where labels is LABEL_ON and zero elsewhere.
      * 2. Inclusive scan on tmpLabels to generate values that step up at LABEL_ON cells.
@@ -134,42 +134,40 @@ public:
 
     const axom::IndexType labelCount = labels.size();
 
-    axom::Array<axom::IndexType> tmpLabels(labels.shape(), labels.getAllocatorID());
+    axom::ReduceSum<ExecSpace, IndexType> onCountReduce{0};
+    axom::Array<axom::IndexType> tmpLabels(ArrayOptions::Uninitialized(),
+                                           1 + labels.size(),
+                                           0,
+                                           labels.getAllocatorID());
+    tmpLabels.fill(0, 1, 0);
     auto tmpLabelsView = tmpLabels.view();
     axom::for_all<ExecSpace>(
       labelCount,
-      AXOM_LAMBDA(axom::IndexType ci) { tmpLabelsView[ci] = labels[ci] == LabelType::LABEL_ON; });
+      AXOM_LAMBDA(axom::IndexType ci) {
+        bool isOn = labels[ci] == LabelType::LABEL_ON;
+        tmpLabelsView[1 + ci] = isOn;
+        onCountReduce += isOn;
+      });
 
     RAJA::inclusive_scan_inplace<ScanPolicy>(RAJA::make_span(tmpLabels.data(), tmpLabels.size()),
                                              RAJA::operators::plus<axom::IndexType> {});
 
-    axom::IndexType onCount;  // Count of tets labeled ON.
-    axom::copy(&onCount, &tmpLabels.back(), sizeof(onCount));
-
+    axom::IndexType onCount = onCountReduce.get();
     if(onIndices.size() < onCount || onIndices.getAllocatorID() != labels.getAllocatorID())
     {
       onIndices = axom::Array<axom::IndexType> {axom::ArrayOptions::Uninitialized(),
                                                 onCount,
-                                                onCount,
+                                                0,
                                                 labels.getAllocatorID()};
     }
     auto onIndicesView = onIndices.view();
-
-    LabelType firstLabel = LabelType::LABEL_IN;
-    axom::copy(&firstLabel, &labels[0], sizeof(firstLabel));
-    if(firstLabel == LabelType::LABEL_ON)
-    {
-      axom::IndexType zero = 0;
-      axom::copy(&onIndices[0], &zero, sizeof(zero));
-    }
-
     axom::for_all<ExecSpace>(
       1,
-      labelCount,
+      1 + labelCount,
       AXOM_LAMBDA(axom::IndexType i) {
         if(tmpLabelsView[i] != tmpLabelsView[i - 1])
         {
-          onIndicesView[tmpLabelsView[i - 1]] = i;
+          onIndicesView[tmpLabelsView[i] - 1] = i - 1;
         }
       });
   }
