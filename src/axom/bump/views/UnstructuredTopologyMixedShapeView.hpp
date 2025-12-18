@@ -181,7 +181,7 @@ public:
     const ConnectivityView shapeData(m_connectivity.data() + m_offsets[zoneIndex],
                                      m_sizes[zoneIndex]);
     const auto shapeID = m_shapeMap[m_shapes[zoneIndex]];
-    SLIC_ASSERT(shapeID >= Point_ShapeID && shapeID <= Mixed_ShapeID);
+    SLIC_ASSERT(isValidShapeID(shapeID));
 
     return ShapeType(shapeID, shapeData);
   }

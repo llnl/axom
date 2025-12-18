@@ -22,6 +22,6 @@ Doxygen generated API documentation can be found here: `API documentation <../..
    :maxdepth: 1
 
    bump_views
-   bump_clipping
+   bump_extraction
    bump_utilities
    bump_building_blueprint
