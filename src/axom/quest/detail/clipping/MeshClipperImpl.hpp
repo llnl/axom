@@ -194,45 +194,30 @@ public:
       });
   }
 
-  // Provide space for clip counters.
-  struct ClippingStatPointers
+  // Work space for clip counters.
+  struct ClippingStats
   {
-    std::int64_t* clipsIn = nullptr;
-    std::int64_t* clipsOn = nullptr;
-    std::int64_t* clipsOut = nullptr;
-    std::int64_t* clipsMiss = nullptr;
-    ClippingStatPointers(int allocId)
-      : clipsIn(axom::allocate<std::int64_t>(1, allocId))
-      , clipsOn(axom::allocate<std::int64_t>(1, allocId))
-      , clipsOut(axom::allocate<std::int64_t>(1, allocId))
-      , clipsMiss(axom::allocate<std::int64_t>(1, allocId))
-    {
-      const std::int64_t zero = 0;
-      axom::copy(clipsIn, &zero, sizeof(std::int64_t));
-      axom::copy(clipsOn, &zero, sizeof(std::int64_t));
-      axom::copy(clipsOut, &zero, sizeof(std::int64_t));
-      axom::copy(clipsMiss, &zero, sizeof(std::int64_t));
-    }
-    void deallocate()
-    {
-      axom::deallocate(clipsIn);
-      axom::deallocate(clipsOn);
-      axom::deallocate(clipsOut);
-      axom::deallocate(clipsMiss);
-      clipsIn = clipsOn = clipsOut = clipsMiss = nullptr;
-    }
+    axom::ReduceSum<ExecSpace, IndexType> inSum{0};
+    axom::ReduceSum<ExecSpace, IndexType> onSum{0};
+    axom::ReduceSum<ExecSpace, IndexType> outSum{0};
+    axom::ReduceSum<ExecSpace, IndexType> missSum{0};
+    ClippingStats()
+      : inSum(0)
+      , onSum(0)
+      , outSum(0)
+      , missSum(0)
+    {}
     void copyTo(conduit::Node& stats)
     {
       // Place clip counts in statistics container.
-      const std::int64_t zero = 0;
-      std::int64_t& clipsInCount = *(stats["clipsIn"] = zero).as_int64_ptr();
-      std::int64_t& clipsOnCount = *(stats["clipsOn"] = zero).as_int64_ptr();
-      std::int64_t& clipsOutCount = *(stats["clipsOut"] = zero).as_int64_ptr();
-      std::int64_t& clipsMissCount = *(stats["clipsMiss"] = zero).as_int64_ptr();
-      axom::copy(&clipsInCount, clipsIn, sizeof(std::int64_t));
-      axom::copy(&clipsOnCount, clipsOn, sizeof(std::int64_t));
-      axom::copy(&clipsOutCount, clipsOut, sizeof(std::int64_t));
-      axom::copy(&clipsMissCount, clipsMiss, sizeof(std::int64_t));
+      std::int64_t clipsInCount = inSum.get();
+      std::int64_t clipsOnCount = onSum.get();
+      std::int64_t clipsOutCount = outSum.get();
+      std::int64_t clipsMissCount = missSum.get();
+      stats["clipsIn"].set_int64(clipsInCount);
+      stats["clipsOn"].set_int64(clipsOnCount);
+      stats["clipsOut"].set_int64(clipsOutCount);
+      stats["clipsMiss"].set_int64(clipsMissCount);
       stats["clipsSum"] = clipsInCount + clipsOnCount + clipsOutCount;
     }
   };
@@ -352,7 +337,7 @@ public:
      * Count number of times the piece was found inside/outside/on a mesh tet boundary.
      * Be sure to use kernel-compatible memory.
      */
-    ClippingStatPointers csp(allocId);
+    ClippingStats clipStats;
 
     const auto screenLevel = m_myClipper.getScreenLevel();
 
@@ -366,13 +351,13 @@ public:
           const auto& cellTet = cellsAsTets[tetIndex];
           if(cellTet.degenerate())
           {
-            RAJA::atomicAdd<ATOMIC_POL>(csp.clipsOut, std::int64_t(1));
+            clipStats.outSum += 1;
             return;
           }
           const int cellId = hexIndicesView[i];
           const int pieceId = shapeCandidatesView[i];
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
-          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
+          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, clipStats, screenLevel);
         });
     }
     else  // useOcts
@@ -384,19 +369,18 @@ public:
           const auto& cellTet = cellsAsTets[tetIndex];
           if(cellTet.degenerate())
           {
-            RAJA::atomicAdd<ATOMIC_POL>(csp.clipsOut, std::int64_t(1));
+            clipStats.outSum += 1;
             return;
           }
           const int cellId = hexIndicesView[i];
           const int pieceId = shapeCandidatesView[i];
           const OctahedronType& geomPiece = geomOctsView[pieceId];
-          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
+          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, clipStats, screenLevel);
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_notScreened");
 
-    csp.copyTo(statistics);
-    csp.deallocate();
+    clipStats.copyTo(statistics);
     statistics["clipsCandidates"].set_int64(tetCandidatesCount);
 
     if(tetCandidatesCountPtr != &tetCandidatesCount)
@@ -530,7 +514,7 @@ public:
     SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
 #endif
 
-    ClippingStatPointers csp(allocId);
+    ClippingStats clipStats;
 
     const auto screenLevel = m_myClipper.getScreenLevel();
 
@@ -550,7 +534,7 @@ public:
           const auto& cellTet = cellsAsTets[tetIndex];
           if(cellTet.degenerate())
           {
-            RAJA::atomicAdd<ATOMIC_POL>(csp.clipsOut, std::int64_t(1));
+            clipStats.outSum += 1;
             return;
           }
 
@@ -559,7 +543,7 @@ public:
 
           const int pieceId = shapeCandidatesView[i];  // index into pieces array
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
-          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
+          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, clipStats, screenLevel);
         });
     }
     else  // useOcts
@@ -577,7 +561,7 @@ public:
           const auto& cellTet = cellsAsTets[tetIndex];
           if(cellTet.degenerate())
           {
-            RAJA::atomicAdd<ATOMIC_POL>(csp.clipsOut, std::int64_t(1));
+            clipStats.outSum += 1;
             return;
           }
 
@@ -586,13 +570,12 @@ public:
 
           const int pieceId = shapeCandidatesView[i];  // index into pieces array
           const OctahedronType& geomPiece = geomOctsView[pieceId];
-          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
+          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, clipStats, screenLevel);
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_hexScreened");
 
-    csp.copyTo(statistics);
-    csp.deallocate();
+    clipStats.copyTo(statistics);
     statistics["clipsCandidates"].set_int64(tetCandidatesCount);
 
     if(tetCandidatesCountPtr != &tetCandidatesCount)
@@ -792,7 +775,7 @@ public:
       tetCount,
       shapeMesh.getCellCount()));
 
-    ClippingStatPointers csp(allocId);
+    ClippingStats clipStats;
 
     const auto screenLevel = m_myClipper.getScreenLevel();
 
@@ -808,7 +791,7 @@ public:
           auto pieceId = candidatesView[iCand];
           const auto& meshTet = meshTets[tetId];
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
-          computeMeshTetGeomPieceOverlap(meshTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
+          computeMeshTetGeomPieceOverlap(meshTet, geomPiece, ovlap.data() + cellId, clipStats, screenLevel);
         });
     }
     else  // useOcts
@@ -822,13 +805,12 @@ public:
           auto pieceId = candidatesView[iCand];
           const auto& meshTet = meshTets[tetId];
           const OctahedronType& geomPiece = geomOctsView[pieceId];
-          computeMeshTetGeomPieceOverlap(meshTet, geomPiece, ovlap.data() + cellId, csp, screenLevel);
+          computeMeshTetGeomPieceOverlap(meshTet, geomPiece, ovlap.data() + cellId, clipStats, screenLevel);
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_tetScreened");
 
-    csp.copyTo(statistics);
-    csp.deallocate();
+    clipStats.copyTo(statistics);
     statistics["clipsCandidates"].set_int64(candidates.size());
 
     SLIC_DEBUG(axom::fmt::format(""));
@@ -961,7 +943,7 @@ public:
     const TetrahedronType& meshTet,
     const TetOrOctType& geomPiece,
     double* overlapVolume,
-    const ClippingStatPointers& csp,
+    const ClippingStats& clipStats,
     int screenLevel)
   {
     using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
@@ -971,19 +953,19 @@ public:
       LabelType geomLabel = labelPieceInOutOfTet(meshTet, geomPiece);
       if(geomLabel == LabelType::LABEL_OUT)
       {
-        RAJA::atomicAdd<ATOMIC_POL>(csp.clipsOut, std::int64_t(1));
+        clipStats.outSum += 1;
         return geomLabel;
       }
       if(geomLabel == LabelType::LABEL_IN)
       {
         auto contribVol = geomPieceVolume(geomPiece);
         RAJA::atomicAdd<ATOMIC_POL>(overlapVolume, contribVol);
-        RAJA::atomicAdd<ATOMIC_POL>(csp.clipsIn, std::int64_t(1));
+        clipStats.inSum += 1;
         return geomLabel;
       }
     }
 
-    RAJA::atomicAdd<ATOMIC_POL>(csp.clipsOn, std::int64_t(1));
+    clipStats.onSum += 1;
     const auto poly = primal::clip<double>(meshTet, geomPiece, EPS, tryFixOrientation);
     if(poly.numVertices() >= 4)
     {
@@ -994,7 +976,7 @@ public:
     }
     else
     {
-      RAJA::atomicAdd<ATOMIC_POL>(csp.clipsMiss, std::int64_t(1));
+      clipStats.missSum += 1;
     }
 
     return LabelType::LABEL_ON;
