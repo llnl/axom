@@ -596,11 +596,11 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMes
       }
     });
 
-  SLIC_DEBUG(axom::fmt::format("FSorClipper '{}' {}-level refinement got {} geometry octs from {} curve points.",
-                               name(),
-                               m_levelOfRefinement,
-                               octs.size(),
-                               sorCurve.size()));
+  SLIC_INFO(axom::fmt::format("FSorClipper '{}' {}-level refinement got {} geometry octs from {} curve points.",
+                              name(),
+                              m_levelOfRefinement,
+                              octs.size(),
+                              sorCurve.size()));
 
   return true;
 }

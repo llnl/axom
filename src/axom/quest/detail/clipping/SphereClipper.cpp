@@ -239,8 +239,8 @@ bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
     octs = axom::Array<axom::primal::Octahedron<double, 3>>(octs, allocId);
   }
 
-  SLIC_DEBUG(axom::fmt::format("SphereClipper '{}' {}-level refined got {} geometry octs.",
-                               name(), m_levelOfRefinement, octs.size()));
+  SLIC_INFO(axom::fmt::format("SphereClipper '{}' {}-level refined got {} geometry octs.",
+                              name(), m_levelOfRefinement, octs.size()));
   return true;
 }
 
