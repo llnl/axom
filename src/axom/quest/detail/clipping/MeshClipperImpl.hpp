@@ -819,7 +819,7 @@ public:
   /*!
    * @brief Get the geometry in discrete pieces,
    *   which can be tets or octs, and place them in a search tree.
-   * @return whether geometry are tetrahedra instead of octahedra.
+   * @return true if geometry is composed of tetrahedra, fals if octahedra.
    */
   bool getDiscreteGeometry(axom::Array<axom::primal::Tetrahedron<double, 3>>& geomAsTets,
                            axom::Array<axom::primal::Octahedron<double, 3>>& geomAsOcts,
@@ -930,7 +930,7 @@ public:
    * @brief Compute overlap volume between a reference tet (from the shape mesh)
    * and a piece (tet or oct) of the discretized geometry.
    *
-   * Becaue primal::clip is so expensive, we do a conservative
+   * Because primal::clip is so expensive, we do a conservative
    * overlap check on @c meshTet and @c geomPiece to avoid clipping.
    *
    * @return results of check whether the piece is IN/ON/OUT of the tet.
