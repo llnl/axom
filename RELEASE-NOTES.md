@@ -37,6 +37,12 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   results in polygons for 3D inputs and lines for 2D inputs.
 - Adds a reader for STEP files to `quest/io`. The geometry can either be returned
   as an array of `NURBSPatch` with trimming curves or it can be triangulated into triangle mesh.
+- Adds a `components` variant to Axom's spack package. Users can now provide an explicit list 
+  of desired components, e.g. `components=sidre` and Spack adds any missing dependencies, 
+  e.g. the `slic` component and the `conduit` dependency. By default (when `components` is not provided, 
+  or when `components="all"`), all components are enabled. All components can be disabled via `components=none`.
+- Adds a `conduit` spack variant. Conduit was previously a required dependency in our spack package, and is now enabled by default.
+- Adds spack variants for `adiak` and `caliper`. These replace the previous `profiling` variant which enabled both at the same time.
 
 ###  Changed
 - Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.

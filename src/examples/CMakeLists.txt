@@ -80,8 +80,9 @@ endif()
 
 #------------------------------------------------------------------------------
 # configure and install 'radiuss_tutorial' example
+# This example requires Quest (which requires Slic, Mint, Primal and Spin)
 #------------------------------------------------------------------------------
-if(AXOM_ENABLE_TUTORIALS)
+if(AXOM_ENABLE_TUTORIALS AND AXOM_ENABLE_QUEST)
     configure_file(
         radiuss_tutorial/host-config.cmake.in
         ${PROJECT_BINARY_DIR}/tutorials/radiuss_tutorial/host-config.cmake)
@@ -125,15 +126,14 @@ if(AXOM_ENABLE_TUTORIALS)
                            SOURCES    radiuss_tutorial/${_lesson}/${_file_with_ext}
                            OUTPUT_DIR ${PROJECT_BINARY_DIR}/tutorials
                            DEPENDS_ON ${radiuss_tutorial_deps})
-    endforeach()    
-
+    endforeach()
 endif()
 
 #------------------------------------------------------------------------------
 # configure and install 'shaping_tutorial' example
-# This example requires Klee (which requires Inlet, Sidre and Conduit)
+# This example requires Klee (which requires Inlet, Sidre and Conduit) as well as Quest
 #------------------------------------------------------------------------------
-if(AXOM_ENABLE_TUTORIALS AND AXOM_ENABLE_KLEE)
+if(AXOM_ENABLE_TUTORIALS AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_QUEST)
     configure_file(
         shaping_tutorial/host-config.cmake.in
         ${PROJECT_BINARY_DIR}/tutorials/shaping_tutorial/host-config.cmake)
