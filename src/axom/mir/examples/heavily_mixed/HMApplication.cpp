@@ -173,7 +173,9 @@ void heavily_mixed(conduit::Node &n_mesh, int dims[3], int refinement, int nmats
         const conduit::int32 *srcPtr = n_src_field.as_int32_ptr();
         conduit::int32 *currentDestPtr = destPtr + k * rdims[0] * rdims[1];
         axom::copy(currentDestPtr, srcPtr, rdims[0] * rdims[1] * sizeof(conduit::int32));
+#ifndef AXOM_DEVICE_CODE
         SLIC_INFO(axom::fmt::format("Made slice {}/{}", k + 1, rdims[2]));
+#endif
       });
 
     // Make a matset based on the higher resolution julia field.
