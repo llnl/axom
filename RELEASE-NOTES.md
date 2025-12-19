@@ -35,6 +35,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - The `axom::bump::extraction::PlaneSlice` class was added to cut Blueprint geometry using a
   plane given using "origin" and "normal" values in the algorithm's options. The planar slice
   results in polygons for 3D inputs and lines for 2D inputs.
+- Adds a reader for STEP files to `quest/io`. The geometry can either be returned
+  as an array of `NURBSPatch` with trimming curves or it can be triangulated into triangle mesh.
 
 ###  Changed
 - Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.

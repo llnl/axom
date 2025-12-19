@@ -753,4 +753,40 @@ if(OPENCASCADE_FOUND)
         DEPENDS_ON  axom cli11 fmt opencascade
         FOLDER      axom/quest/examples
     )
+
+    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+        if(AXOM_ENABLE_MPI)
+            set(_num_ranks 2)
+        else()
+            set(_num_ranks 1)
+        endif()
+
+        axom_add_test(
+            NAME quest_step_file_sliced_cylinder
+            COMMAND quest_step_file_ex  -f ${quest_data_dir}/step/sliced_cylinder.step
+                                        -o step_sliced_cylinder
+                                        --output-trimmed vtk
+                                        --output-untrimmed stl
+                                        --output-svg
+                                        --deflection 1e-2
+                                        --angular-deflection .1
+            NUM_MPI_TASKS ${_num_ranks})
+        set_tests_properties(quest_step_file_sliced_cylinder PROPERTIES
+            PASS_REGULAR_EXPRESSION  "5 patches .* 18 trimming curves")
+
+        axom_add_test(
+            NAME quest_step_file_tet
+            COMMAND quest_step_file_ex  -f ${quest_data_dir}/step/tet.step -o step_tet
+            NUM_MPI_TASKS ${_num_ranks})
+        set_tests_properties(quest_step_file_tet PROPERTIES
+            PASS_REGULAR_EXPRESSION  "4 patches .* 12 trimming curves")
+
+        axom_add_test(
+            NAME quest_step_file_boxed_sphere
+            COMMAND quest_step_file_ex  -f ${quest_data_dir}/step/boxed_sphere.step -o step_boxed_sphere
+            NUM_MPI_TASKS ${_num_ranks})
+        set_tests_properties(quest_step_file_boxed_sphere PROPERTIES
+            PASS_REGULAR_EXPRESSION  "192 patches .* 968 trimming curves")
+
+    endif()
 endif()

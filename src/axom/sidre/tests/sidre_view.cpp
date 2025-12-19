@@ -2013,7 +2013,7 @@ TEST(sidre_view, deep_copy_to_conduit_with_allocid)
   using axom::sidre::ConduitMemory;
 
   std::vector<int> allocIds = getKnownAllocIds();
-  for(axom::IndexType si = 0; si < allocIds.size(); ++si)
+  for(std::size_t si = 0; si < allocIds.size(); ++si)
   {
     auto aId = allocIds[si];
     auto cId = ConduitMemory::axomAllocIdToConduit(aId);
@@ -2034,7 +2034,7 @@ TEST(sidre_view, deep_copy_to_conduit_with_allocid)
   srcView->setScalar(int(15));
 
   // Copy srcView to conduit destinations, varying the allocator.
-  for(axom::IndexType si = 0; si < allocIds.size(); ++si)
+  for(std::size_t si = 0; si < allocIds.size(); ++si)
   {
     // dst1 uses default Conduit allocator
     conduit::Node dst1;
