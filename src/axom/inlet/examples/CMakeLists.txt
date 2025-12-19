@@ -41,11 +41,6 @@ foreach(example ${inlet_examples})
                         FOLDER     axom/inlet/examples )
 endforeach()
 
-if (SOL_FOUND AND NOT AXOM_ENABLE_HIP)
-    # Set file back to C++ due to nvcc compiler error
-    set_source_files_properties(lua_library.cpp PROPERTIES LANGUAGE CXX)
-endif()
-
 if (SOL_FOUND AND MFEM_FOUND)
     axom_add_executable(NAME       inlet_mfem_coefficient_ex
                         SOURCES    mfem_coefficient.cpp

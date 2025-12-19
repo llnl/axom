@@ -36,11 +36,6 @@ foreach(test ${gtest_inlet_tests})
                    COMMAND ${test_name}_test )
 endforeach()
 
-if(SOL_FOUND AND NOT AXOM_ENABLE_HIP)
-    # Set file back to C++ due to nvcc compiler error
-    set_source_files_properties(inlet_function.cpp PROPERTIES LANGUAGE CXX)
-endif()
-
 if(ENABLE_GMOCK)
     # Add Serial GMock based tests
     set(gmock_inlet_tests

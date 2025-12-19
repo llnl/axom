@@ -1048,9 +1048,9 @@ public:
    * \param [in] begin the index at which to begin placing elements
    * \param [in] nelems the number of elements in the range to fill the array with
    * \param [in] values the values to set each array element to
-   * \param [in] space the memory space in which values resides
+   * \param [in] valueSpace the memory space in which values resides
    */
-  void fill_range(T* array, IndexType begin, IndexType nelems, const T* values, MemorySpace space)
+  void fill_range(T* array, IndexType begin, IndexType nelems, const T* values, MemorySpace valueSpace)
   {
     if constexpr(std::is_trivially_copyable_v<T>)
     {
@@ -1061,7 +1061,7 @@ public:
       // HostOp::fill_range will handle the copy to our "staging" host buffer,
       // regardless of the source memory space.
       StagingBuffer dst_buf(space, array, begin, nelems);
-      DeviceStagingBuffer<const T> src_buf(space, values, 0, nelems, true);
+      DeviceStagingBuffer<T> src_buf(valueSpace, const_cast<T*>(values), 0, nelems, true);
       std::uninitialized_copy(src_buf.getStagingBuffer(),
                               src_buf.getStagingBuffer() + nelems,
                               dst_buf.getStagingBuffer());
@@ -1131,7 +1131,7 @@ public:
   #ifdef AXOM_USE_CUDA
     // CUDA-only: we require non-trivial types to be trivially-relocatable.
     // This enables us to do simple memcpys for move operations.
-    bool presume_trivially_relocatable = (space == OperationSpace::Device);
+    bool presume_trivially_relocatable = (space == MemorySpace::Device);
   #else
     constexpr bool presume_trivially_relocatable = false;
   #endif
@@ -1182,7 +1182,7 @@ public:
 #ifdef AXOM_USE_CUDA
     // CUDA-only: we require non-trivial types to be trivially-relocatable.
     // This enables us to do simple memcpys for move operations.
-    bool presume_trivially_relocatable = (space == OperationSpace::Device);
+    bool presume_trivially_relocatable = (space == MemorySpace::Device);
 #else
     constexpr bool presume_trivially_relocatable = false;
 #endif
