@@ -207,3 +207,24 @@ TEST(core_utilities, sort_multiple_values)
     }
   }
 }
+
+TEST(core_utilties, sign_of)
+{
+  using axom::utilities::sign_of;
+  EXPECT_EQ(sign_of(1234), 1);
+  EXPECT_EQ(sign_of(-1234), -1);
+  EXPECT_EQ(sign_of(0), 0);
+
+  EXPECT_EQ(sign_of(0.1234), 1);
+  EXPECT_EQ(sign_of(-0.1234), -1);
+  EXPECT_EQ(sign_of(0.0), 0);
+
+  EXPECT_EQ(sign_of(1e-9), 1);
+  EXPECT_EQ(sign_of(-1e-9), -1);
+
+  EXPECT_EQ(sign_of(1e-9, 1e-12), 1);
+  EXPECT_EQ(sign_of(-1e-9, 1e-12), -1);
+
+  EXPECT_EQ(sign_of(1e-9, 1e-8), 0);
+  EXPECT_EQ(sign_of(-1e-9, 1e-8), 0);
+}
