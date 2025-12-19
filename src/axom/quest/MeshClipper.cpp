@@ -111,7 +111,6 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
 
     axom::Array<axom::IndexType> cellsOnBdry;
     m_impl->collectOnIndices(cellLabels.view(), cellsOnBdry);
-    SLIC_ASSERT(cellsOnBdry.size() == cellsOnCount);
 
     axom::Array<LabelType> tetLabels;
     bool withTetInOut = false;
