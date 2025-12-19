@@ -169,19 +169,27 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
 endif()
 
 if(C2C_FOUND)
-    list(APPEND quest_headers io/C2CReader.hpp)
-    list(APPEND quest_sources io/C2CReader.cpp)
-    list(APPEND quest_depends_on c2c)
+    list(APPEND quest_headers       io/C2CReader.hpp)
+    list(APPEND quest_sources       io/C2CReader.cpp)
+    list(APPEND quest_depends_on    c2c)
+endif()
+
+if(OPENCASCADE_FOUND)
+    list(APPEND quest_headers       io/STEPReader.hpp)
+    list(APPEND quest_sources       io/STEPReader.cpp)
+    list(APPEND quest_depends_on    opencascade)
 endif()
 
 if (AXOM_ENABLE_MPI)
     list(APPEND quest_headers io/PSTLReader.hpp
                               io/PProEReader.hpp)
     blt_list_append(TO quest_headers IF C2C_FOUND ELEMENTS io/PC2CReader.hpp)
+    blt_list_append(TO quest_headers IF OPENCASCADE_FOUND ELEMENTS io/PSTEPReader.hpp)
 
     list(APPEND quest_sources io/PSTLReader.cpp
                               io/PProEReader.cpp)
     blt_list_append(TO quest_sources IF C2C_FOUND ELEMENTS io/PC2CReader.cpp)
+    blt_list_append(TO quest_sources IF OPENCASCADE_FOUND ELEMENTS io/PSTEPReader.cpp)
 endif()
 
 if (SHROUD_FOUND)

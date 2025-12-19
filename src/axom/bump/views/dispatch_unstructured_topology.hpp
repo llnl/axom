@@ -63,6 +63,7 @@ struct make_unstructured_single_shape_topology
     {
       sizesView = utils::make_array_view<ConnectivityType>(n_topo["elements/sizes"]);
       offsetsView = utils::make_array_view<ConnectivityType>(n_topo["elements/offsets"]);
+      SLIC_ASSERT(sizesView.size() == offsetsView.size());
     }
     else
     {

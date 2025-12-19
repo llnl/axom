@@ -202,7 +202,13 @@ if(NOT AXOM_FOUND)
   # OpenCASCADE
   if(AXOM_USE_OPENCASCADE)
     set(AXOM_OPENCASCADE_DIR     "@OPENCASCADE_DIR@")
-    # Note: 'opencascade' target is exported as 'axom::opencascade'
+    if(NOT OPENCASCADE_DIR)
+      set(OPENCASCADE_DIR "${AXOM_OPENCASCADE_DIR}")
+    endif()
+
+    # Re-find OpenCASCADE so imported targets like TKernel exist
+    find_dependency(OpenCASCADE CONFIG REQUIRED NO_DEFAULT_PATH
+                    HINTS "${OPENCASCADE_DIR}/lib/cmake" "${OPENCASCADE_DIR}")
   endif()
 
   # scr
