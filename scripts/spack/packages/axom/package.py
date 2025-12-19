@@ -615,10 +615,14 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         # Try to find the common prefix of the TPL directory.
         # If found, we will use this in the TPL paths
         variant_deps = ["conduit", "c2c", "mfem", "hdf5", "lua", "raja", "umpire", "opencascade", "adiak", "caliper"]
+
         for dep in variant_deps:
+            if dep in ["lua"]:  # skip entries often outside the common prefix
+                continue
+
             if spec.satisfies(f"^{dep}"):
                 path1 = os.path.realpath(spec[dep].prefix)
-                path2 = os.path.realpath(self.prefix)
+                path2 = os.path.realpath(os.path.dirname(self.prefix))
                 self.find_path_replacement(path1, path2, path_replacements, "TPL_ROOT", entries)
                 break
 
