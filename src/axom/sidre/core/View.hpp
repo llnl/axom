@@ -999,6 +999,9 @@ public:
 
   /*!
    * \brief Deep copy View into the given conduit::Node.
+   * \param dst [in/out] Destination
+   * \param allocId [in] If not equal to INVALID_ALLOCATOR_ID,
+   *   use this allocator for the destination.
    */
   void deepCopyToConduit(Node& dst, int allocId = INVALID_ALLOCATOR_ID) const;
 

@@ -29,6 +29,14 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Sidre: Added iterators and Attribute class to the Python interface.
 - Adds new optimization hint macros `AXOM_LIKELY` and `AXOM_UNLIKELY` to mark likely/unlikely
   paths in if-statements.
+- The `axom::bump::extraction::CutField` class was added to cut Blueprint geometry using a
+  field (isosurface). The output contains polygons for 3D inputs and lines for 2D inputs.
+ resulting in geometry with reduced topological dimension.
+- The `axom::bump::extraction::PlaneSlice` class was added to cut Blueprint geometry using a
+  plane given using "origin" and "normal" values in the algorithm's options. The planar slice
+  results in polygons for 3D inputs and lines for 2D inputs.
+- Adds a reader for STEP files to `quest/io`. The geometry can either be returned
+  as an array of `NURBSPatch` with trimming curves or it can be triangulated into triangle mesh.
 
 ###  Changed
 - Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
@@ -41,6 +49,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - The maximum number of vertices allowed in polygon primitives can now be passed as a template
   argument to `axom::bump::TopologyMapper`, `axom::bump::PrimalAdaptor`, and
   `axom::mir::ElviraAlgorithm`.
+- Material views in `axom::bump::views` were enhanced with `const_iterator` classes that
+  enable traversal of material data for zones so kernels do not need to use large fixed size
+  buffers to gather that data inside kernels.
+- Material views in `axom::bump::views` were enhanced with an overloaded `zoneMaterials()`
+  method that allows data to be gathered into `axom::ArrayView` objects.
+- A new `heavily_mixed` example program was added in `axom::mir` to demonstrate running MIR on
+  meshes with heavily mixed zones.
 - `saveDocument()` now has a `AUTODETECT` protocol for the file type
 - Sina fortran can now handle multiple records rather than a single record per application
 - Most Sina Fortran call can now pass the record for which the call is desired (`sina_add`, `sina_add_file`, `sina_add_curveset`, `sina_add_curve`)
@@ -48,10 +63,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Sina fortran `sina_write_document` now accepts a third argument that preserves records in memory so they can be written to another file (otherwise they're released from memory as soon as they're written)
 - Primal: In Bezier and NURBS classes, accessors for arrays of control points, weights and knots 
   are now returned by (const) reference instead of returning a copy by value.
+- The `axom::bump::clipping::ClipField` and `axom::mir::EquiZAlgorithm` classes were enhanced so they can clip polygons up to 8 sides.
 - De-virtualized `axom::Array` methods to improve performance. This change may break code which
   utilizes `axom::Array` or `sidre::Array/MCArray` in a polymorphic manner, for example by overriding
   `Array::updateNumElements()` or `Array::dynamicRealloc()`.
   Refer to the new `StoragePolicy` interface for substitute functionality.
+- The `axom::bump::clipping` namespace was renamed to `axom::bump::extraction` since it now
+  contains additional algorithms.
 
 ###  Fixed
 - Sina's Fortran tests are now running (instead of silently failing)

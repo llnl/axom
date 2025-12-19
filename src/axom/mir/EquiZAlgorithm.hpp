@@ -11,7 +11,8 @@
 
 #include "axom/mir/MIRAlgorithm.hpp"
 #include "axom/mir/detail/equiz_detail.hpp"
-#include "axom/bump/clipping/ClipField.hpp"
+#include "axom/bump/extraction/TableBasedExtractor.hpp"
+#include "axom/bump/extraction/ClipTableManager.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/bump/ExtractZones.hpp"
@@ -567,7 +568,11 @@ protected:
     n_InputFields.reset();
     for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
     {
-      n_InputFields[n_fields[i].name()].set_external(n_fields[i]);
+      const conduit::Node &n_field = n_fields[i];
+      if(n_field["topology"].as_string() == n_newTopo.name())
+      {
+        n_InputFields[n_fields[i].name()].set_external(n_fields[i]);
+      }
     }
     makeNodeCenteredVFs(n_topo, n_coordset, n_InputFields, mixedMats);
     makeWorkingFields(n_topo, n_InputFields, cleanMats, mixedMats);
@@ -913,7 +918,7 @@ protected:
    * \param n_newCoordset[out] A Conduit node to contain the new coordset.
    * \param n_newFields[out] A Conduit node to contain the new fields.
    *
-   * \note This algorithm uses a ClipField with a MaterialIntersector that gives
+   * \note This algorithm uses a TableBasedExtractor with a MaterialIntersector that gives
    *       it the ability to access nodal volume fraction fields and make intersection
    *       decisions with that data.
    */
@@ -968,8 +973,8 @@ protected:
     // Make material intersector.
     //
     //--------------------------------------------------------------------------
-    using ConnectivityType = typename ITopologyView::ConnectivityType;
-    using IntersectorType = detail::MaterialIntersector<ConnectivityType, MatsetView::MaxMaterials>;
+    using IntersectorType =
+      detail::MaterialIntersector<ITopologyView, ICoordsetView, MatsetView::MaxMaterials>;
 
     IntersectorType intersector;
     int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
@@ -1054,7 +1059,11 @@ protected:
     //--------------------------------------------------------------------------
     {
       using ClipperType =
-        axom::bump::clipping::ClipField<ExecSpace, ITopologyView, ICoordsetView, IntersectorType>;
+        axom::bump::extraction::TableBasedExtractor<ExecSpace,
+                                                    axom::bump::extraction::ClipTableManager,
+                                                    ITopologyView,
+                                                    ICoordsetView,
+                                                    IntersectorType>;
       ClipperType clipper(topoView, coordsetView, intersector);
       clipper.execute(n_topo, n_coordset, n_fields, options, n_newTopo, n_newCoordset, n_newFields);
     }
