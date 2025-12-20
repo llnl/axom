@@ -67,7 +67,7 @@ public:
   CoordinateTransformer(const numerics::Matrix<T>& matrix) { setMatrix(matrix); }
 
   /*!
-   * @brief Contruct transformer that moves 4 starting points to 4
+   * @brief Construct transformer that moves 4 starting points to 4
    * destination points.
    */
   AXOM_HOST_DEVICE CoordinateTransformer(const primal::Point<T, 3>* startPts,
