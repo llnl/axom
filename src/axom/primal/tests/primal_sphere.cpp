@@ -161,7 +161,7 @@ void check_sphere_containment()
   double radius = 5.0;
 
   SphereType S0(center, radius);
-  SphereType S1(PointType{1.5, 2.0, 0.0}, radius/2);
+  SphereType S1(PointType {1.5, 2.0, 0.0}, radius / 2);
   SphereType S2(S1.getCenter(), radius);
 
   double tol = 1e-12;
