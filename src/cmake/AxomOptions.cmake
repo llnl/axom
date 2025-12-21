@@ -47,6 +47,16 @@ option(AXOM_ENABLE_TOOLS "Enables Axom Tools" ON)
 option(AXOM_ENABLE_TUTORIALS "Builds Axom tutorials as part of the Axom build" ON)
 mark_as_advanced(AXOM_ENABLE_TUTORIALS)
 
+#------------------------------------------------------------------------------
+# Test execution controls
+#------------------------------------------------------------------------------
+if(AXOM_ENABLE_OPENMP)
+    set(AXOM_TEST_NUM_OMP_THREADS 4 CACHE STRING "Default number of OpenMP threads for tests")
+else()
+    set(AXOM_TEST_NUM_OMP_THREADS 0 CACHE STRING "Default number of OpenMP threads for tests")
+endif()
+mark_as_advanced(AXOM_TEST_NUM_OMP_THREADS)
+
 #--------------------------------------------------------------------------
 # Option to control whether AXOM_DEFINE compiler define is enabled
 #
