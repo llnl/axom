@@ -64,6 +64,11 @@ if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
     endif()
 
     foreach(_policy ${_policies})
+        # sets the number of threads for the omp policy; leave empty for non-omp policies
+        set(_num_threads)
+        if(_policy STREQUAL "omp")
+            set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+        endif()
 
         set(_testname "quest_bvh_two_pass_example_${_policy}")
         axom_add_test(
@@ -71,7 +76,7 @@ if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
           COMMAND quest_bvh_two_pass_ex
                   --file ${input_file}
                   --exec_space ${_policy}
-        )
+          NUM_OMP_THREADS ${_num_threads})
 
         set_tests_properties(${_testname} PROPERTIES
             PASS_REGULAR_EXPRESSION  "Found 4 actual collisions")
@@ -117,6 +122,11 @@ if (CONDUIT_FOUND AND UMPIRE_FOUND)
 
         foreach(_method ${_methods})
             foreach(_policy ${_policies})
+                # sets the number of threads for the omp policy; leave empty for non-omp policies
+                set(_num_threads)
+                if(_policy STREQUAL "omp")
+                    set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+                endif()
 
                 set(_testname "quest_candidates_example_${_method}_${_policy}")
                 axom_add_test(
@@ -126,7 +136,7 @@ if (CONDUIT_FOUND AND UMPIRE_FOUND)
                           --queryfile ${query_file}
                           --method ${_method}
                           --policy ${_policy}
-                )
+                  NUM_OMP_THREADS ${_num_threads})
 
                 # Match either one comma or none for portability
                 set_tests_properties(${_testname} PROPERTIES
@@ -244,6 +254,12 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             endif()
 
             foreach(_policy ${_policies})
+                # sets the number of threads for the omp policy; leave empty for non-omp policies
+                set(_num_threads)
+                if(_policy STREQUAL "omp")
+                    set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+                endif()
+
                 set(_testname quest_shaping_driver_ex_semi_circle_2d_${_policy})
 
                 axom_add_test(
@@ -254,7 +270,8 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                             --segments-per-knot-span 50
                             --method intersection
                             inline_mesh --min 0 0 --max 3 3 --res 3 3 -d 2
-                    NUM_MPI_TASKS ${_nranks})
+                    NUM_MPI_TASKS ${_nranks}
+                    NUM_OMP_THREADS ${_num_threads})
                 # steel unit semi-circle with an area of pi/2
                 set_tests_properties(${_testname} PROPERTIES
                     PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 1.57")
@@ -370,6 +387,12 @@ if((CONDUIT_FOUND OR
 
         set(_testshapes "tetmesh" "tet" "hex" "sphere" "cyl" "cone" "sor" "all" "plane")
         foreach(_policy ${_policies})
+            # sets the number of threads for the omp policy; leave empty for non-omp policies
+            set(_num_threads)
+            if(_policy STREQUAL "omp")
+                set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+            endif()
+
             foreach(_testshape ${_testshapes})
               set(_testname "quest_shape_in_memory_${_policy}_${_testshape}")
               axom_add_test(
@@ -382,7 +405,8 @@ if((CONDUIT_FOUND OR
                            --dir 0.2 0.4 0.8
                            --meshType bpSidre
                            inline_mesh --min -2 -2 -2 --max 2 2 2 --res 30 30 30
-                NUM_MPI_TASKS ${_nranks})
+                NUM_MPI_TASKS ${_nranks}
+                NUM_OMP_THREADS ${_num_threads})
             endforeach()
         endforeach()
 
@@ -391,6 +415,12 @@ if((CONDUIT_FOUND OR
         set(_testMeshTypes "bpConduit")
         blt_list_append(TO _testMeshTypes ELEMENTS "mfem" IF MFEM_FOUND)
         foreach(_policy ${_policies})
+            # sets the number of threads for the omp policy; leave empty for non-omp policies
+            set(_num_threads)
+            if(_policy STREQUAL "omp")
+                set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+            endif()
+
             foreach(_testMeshType ${_testMeshTypes})
               foreach(_testshape ${_testshapes})
                 set(_testname "quest_shape_in_memory_${_policy}_${_testMeshType}_${_testshape}")
@@ -404,7 +434,8 @@ if((CONDUIT_FOUND OR
                              --dir 0.2 0.4 0.8
                              --meshType ${_testMeshType}
                              inline_mesh --min -2 -2 -2 --max 2 2 2 --res 8 8 8
-                  NUM_MPI_TASKS ${_nranks})
+                  NUM_MPI_TASKS ${_nranks}
+                  NUM_OMP_THREADS ${_num_threads})
               endforeach()
             endforeach()
         endforeach()
@@ -427,7 +458,8 @@ if((CONDUIT_FOUND OR
                              --dir 0.2 0.4 0.8
                              --meshType ${_testMeshType}
                              inline_mesh --min -2 -2 --max 2 2 --res 2 2
-                  NUM_MPI_TASKS ${_nranks})
+                  NUM_MPI_TASKS ${_nranks}
+                  NUM_OMP_THREADS ${_num_threads})
               endforeach()
             endforeach()
         endforeach()
@@ -462,6 +494,12 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0 -mu=2,2 -ms=100,100 -dc=2,3 -o mdmesh.2x3
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0,0 -mu=2,2,2 -ms=20,20,15 -dc=2,2,1 -o mdmeshg.2x2x1 --strided
         foreach(_pol ${_policies})
+            # sets the number of threads for the omp policy; leave empty for non-omp policies
+            set(_num_threads)
+            if(_pol STREQUAL "omp")
+                set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+            endif()
+
             foreach(_mesh ${_meshes})
                 # Determine problem dimension by mesh filename.
                 # and set dimension-dependent arguments.
@@ -491,10 +529,8 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
                                 --policy ${_pol}
                                 --object-file dcp_object_mesh_${_ndim}d_${_pol}_${_mesh}
                                 --distance-file dcp_closest_point_2d_${_pol}_${_mesh}
-                    NUM_MPI_TASKS ${_nranks})
-                if(${_pol} STREQUAL "omp")
-                    set_property(TEST ${_test} APPEND PROPERTY ENVIRONMENT OMP_NUM_THREADS=4)
-                endif()
+                    NUM_MPI_TASKS ${_nranks}
+                    NUM_OMP_THREADS ${_num_threads})
             endforeach()
         endforeach()
 
@@ -543,6 +579,12 @@ if(CONDUIT_FOUND)
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0,0 -mu=2,2,2 -ms=20,20,15 -dc=2,2,1 -o mdmesh.2x2x1
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0,0 -mu=2,2,2 -ms=20,20,15 -dc=2,2,1 -o mdmeshg.2x2x1 --strided
         foreach(_pol ${_policies})
+            # sets the number of threads for the omp policy; leave empty for non-omp policies
+            set(_num_threads)
+            if(_pol STREQUAL "omp")
+                set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+            endif()
+
             foreach(_mesh ${_meshes})
                 # Determine problem dimension by mesh filename.
                 # and set dimension-dependent arguments.
@@ -573,7 +615,8 @@ if(CONDUIT_FOUND)
                                 --contourVal 1.25
                                 --check-results
                                 --verbose
-                    NUM_MPI_TASKS ${_nranks})
+                    NUM_MPI_TASKS ${_nranks}
+                    NUM_OMP_THREADS ${_num_threads})
             endforeach()
         endforeach()
 

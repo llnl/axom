@@ -44,18 +44,17 @@ foreach(test ${quest_tests})
         FOLDER     axom/quest/tests
         )
 
+    # sets the number of threads for the quest_discretize test
+    set(_num_threads)
+    if(AXOM_ENABLE_OPENMP AND "${test_name}" STREQUAL "quest_disctretize")
+        set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+    endif()
+
     axom_add_test(
         NAME ${test_name}
         COMMAND ${test_name}_test
-        )
+        NUM_OMP_THREADS ${_num_threads})
 endforeach()
-
-if(TARGET quest_discretize_test)
-    axom_add_test( NAME quest_discretize_test_openmp
-                   COMMAND quest_discretize_test
-                   NUM_OMP_THREADS 8
-                   )
-endif()
 
 #------------------------------------------------------------------------------
 # Tests that use Conduit when available
@@ -75,8 +74,7 @@ if(CONDUIT_FOUND AND AXOM_DATA_DIR)
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND NOT WIN32)
         axom_add_test(
             NAME    quest_mesh_view_util
-            COMMAND quest_mesh_view_util_test
-                        --verbose)
+            COMMAND quest_mesh_view_util_test --verbose)
         unset(_nranks)
         unset(_test)
     endif()
@@ -256,6 +254,12 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
 
     foreach(_meshType "bpSidre" "bpConduit")
       foreach(_policy ${_policies})
+        # sets the number of threads for the omp policy; leave empty for non-omp policies
+        set(_num_threads)
+        if(_policy STREQUAL "omp")
+            set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+        endif()
+
         foreach(_testgeom "tet")
           set(_testname "quest_mesh_clipper_${_meshType}_${_policy}_${_testgeom}")
           axom_add_test(
@@ -270,7 +274,8 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
                         --dir 8 4 2
                         --meshType ${_meshType}
                         inline_mesh --min -2 -2 -2 --max 2 2 2 --res 16 16 16
-            NUM_MPI_TASKS ${_nranks})
+            NUM_MPI_TASKS ${_nranks}
+            NUM_OMP_THREADS ${_num_threads})
         endforeach()
       endforeach()
     endforeach()

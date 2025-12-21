@@ -39,7 +39,14 @@ if(AXOM_ENABLE_TESTS)
     endif()
 
     foreach(_policy ${_policies})
+        # sets the number of threads for the omp policy; leave empty for non-omp policies
+        set(_num_threads)
+        if(_policy STREQUAL "omp")
+            set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+        endif()
+            
         set(_testname "mir_concentric_circles_${_policy}")
+
         axom_add_test(
             NAME ${_testname}
             COMMAND mir_concentric_circles
@@ -47,7 +54,7 @@ if(AXOM_ENABLE_TESTS)
                 --numcircles 5
                 --policy ${_policy}
                 --disable-write
-            )
+            NUM_OMP_THREADS ${num_threads})
 
         set_tests_properties(${_testname} PROPERTIES
             PASS_REGULAR_EXPRESSION  "Material interface reconstruction time:")
