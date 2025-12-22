@@ -249,7 +249,7 @@ RetType evaluate_line_integral(const primal::CurvedPolygon<CurveType> cpoly,
                                Lambda&& integrand,
                                int npts)
 {
-  AXOM_STATIC_ASSERT_MSG(
+  static_assert(
     detail::internal::is_integrable<internal::get_numeric_type<CurveType>::type, RetType>::value,
     "evaluate_integral methods require addition and scalar multiplication for lambda function "
     "return type");
@@ -281,7 +281,7 @@ template <typename Lambda,
           typename RetType = std::invoke_result_t<Lambda, CurveType::PointType>>
 RetType evaluate_line_integral(const CurveType& c, Lambda&& integrand, int npts)
 {
-  AXOM_STATIC_ASSERT_MSG(
+  static_assert(
     detail::internal::is_integrable<internal::get_numeric_type<CurveType>::type, RetType>::value,
     "evaluate_integral methods require addition and scalar multiplication for lambda function "
     "return type");
@@ -310,7 +310,7 @@ template <typename Lambda,
           typename RetType = std::invoke_result_t<Lambda, CurveType::PointType>>
 RetType evaluate_line_integral(const axom::Array<CurveType>& carray, Lambda&& integrand, int npts)
 {
-  AXOM_STATIC_ASSERT_MSG(
+  static_assert(
     detail::internal::is_integrable<internal::get_numeric_type<CurveType>::type, RetType>::value,
     "evaluate_integral methods require addition and scalar multiplication for lambda function "
     "return type");
@@ -358,7 +358,7 @@ RetType evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpoly,
 {
   using T = internal::get_numeric_type<CurveType>::type;
 
-  AXOM_STATIC_ASSERT_MSG(
+  static_assert(
     detail::internal::is_integrable<T, RetType>::value,
     "evaluate_integral methods require addition and scalar multiplication for lambda function "
     "return type");
@@ -419,7 +419,7 @@ RetType evaluate_area_integral(const axom::Array<CurveType>& carray,
 {
   using T = internal::get_numeric_type<CurveType>::type;
 
-  AXOM_STATIC_ASSERT_MSG(
+  static_assert(
     detail::internal::is_integrable<T, RetType>::value,
     "evaluate_integral methods require addition and scalar multiplication for lambda function "
     "return type");
