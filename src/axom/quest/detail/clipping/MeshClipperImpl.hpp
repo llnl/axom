@@ -817,7 +817,7 @@ public:
   /*!
    * @brief Get the geometry in discrete pieces,
    *   which can be tets or octs, and place them in a search tree.
-   * @return true if geometry is composed of tetrahedra, fals if octahedra.
+   * @return true if geometry is composed of tetrahedra, false if octahedra.
    */
   bool getDiscreteGeometry(axom::Array<axom::primal::Tetrahedron<double, 3>>& geomAsTets,
                            axom::Array<axom::primal::Octahedron<double, 3>>& geomAsOcts,
