@@ -404,7 +404,7 @@ if((CONDUIT_FOUND OR
                            --scale 0.75 0.75 0.75
                            --dir 0.2 0.4 0.8
                            --meshType bpSidre
-                           inline_mesh --min -2 -2 -2 --max 2 2 2 --res 30 30 30
+                           inline_mesh --min -2 -2 -2 --max 2 2 2 --res 10 10 10
                 NUM_MPI_TASKS ${_nranks}
                 NUM_OMP_THREADS ${_num_threads})
             endforeach()
