@@ -3111,15 +3111,11 @@ public:
   {
     SLIC_ASSERT(NDIMS == 3);
 
-    // Split the patch along the unique knot values to improve convergence
-    auto split_patches = extractTrimmedBezier();
-
     VectorType ret_vec;
-    for(int n = 0; n < split_patches.size(); ++n)
-    {
-      // Integrand for the surface area integral
-      auto& nPatch = split_patches[n];
 
+    // Split the patch along the unique knot values to improve convergence
+    for(const auto& nPatch : extractTrimmedBezier())
+    {
       // Integrate the surface normal over the patches
       ret_vec += evaluate_area_integral(
         nPatch.getTrimmingCurves(),
@@ -3391,28 +3387,25 @@ public:
         const double sq_tol = 1e-14;
         const double EPS = 1e-6;
 
-        // Extract the Bezier curves of the NURBS curve
-        auto beziers = curve.extractBezier();
+        // Extract the Bezier curves of the NURBS curve, checking each for intersection
         axom::Array<T> knot_vals = curve.getKnots().getUniqueKnots();
-
-        // Check each Bezier segment for intersection
-        for(int i = 0; i < beziers.size(); ++i)
+        for(const auto& bez : curve.extractBezier())
         {
           axom::Array<T> temp_curve_p;
           axom::Array<T> temp_circle_p;
           detail::intersect_circle_bezier(circle_obj,
-                                          beziers[i],
+                                          bez,
                                           temp_circle_p,
                                           temp_curve_p,
                                           sq_tol,
                                           EPS,
-                                          beziers[i].getOrder(),
+                                          bez.getOrder(),
                                           0.,
                                           1.);
 
           // If the number of recorded intersection points is too great (as defined by Bezout's theorem),
           //   then they can be assumed to be completely overlapping, and no intersections are recorded.
-          if(temp_curve_p.size() > 6 * beziers[i].getOrder())
+          if(temp_curve_p.size() > 6 * bez.getOrder())
           {
             continue;
           }
@@ -3843,31 +3836,28 @@ private:
         const double sq_tol = 1e-14;
         const double EPS = 1e-6;
 
-        // Extract the Bezier curves of the NURBS curve
-        auto beziers = curve.extractBezier();
+        // Extract the Bezier curves of the NURBS curve, and check each for intersection
         axom::Array<T> knot_vals = curve.getKnots().getUniqueKnots();
-
-        // Check each Bezier segment for intersection
-        for(int i = 0; i < beziers.size(); ++i)
+        for(const auto& bez : curve.extractBezier())
         {
           axom::Array<T> temp_curve_p;
           axom::Array<T> temp_ray_p;
 
           // Perform an initial check to see if the curve is linear and completely overlaps the ray
           if(beziers[i].isLinear(sq_tol) &&
-             axom::utilities::isNearlyEqual(beziers[i][0][splitInU ? 0 : 1], uv) &&
-             axom::utilities::isNearlyEqual(beziers[i][beziers[i].getOrder()][splitInU ? 0 : 1], uv))
+             axom::utilities::isNearlyEqual(bez[0][splitInU ? 0 : 1], uv) &&
+             axom::utilities::isNearlyEqual(bez[bez.getOrder()][splitInU ? 0 : 1], uv))
           {
             continue;
           }
 
           detail::intersect_ray_bezier(ray_obj,
-                                       beziers[i],
+                                       bez,
                                        temp_ray_p,
                                        temp_curve_p,
                                        sq_tol,
                                        EPS,
-                                       beziers[i].getOrder(),
+                                       bez.getOrder(),
                                        0.,
                                        1.,
                                        false);

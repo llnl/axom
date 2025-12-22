@@ -3,6 +3,24 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+/*!
+ * \file evaluate_integral.hpp
+ *
+ * \brief Consists of methods that evaluate scalar-field integrals on curves and 
+ *  regions defined by 2D curves, and vector-field integrals on curves
+ *
+ * All integrals are evaluated numerically with Gauss-Legendre quadrature
+ * 
+ * Scalar-field line integrals and scalar-field area integrals are of form 
+ * int_D f(x) dr, with f : R^n -> R^m, D is a curve or a 2D region bound by curves
+ * 
+ * Vector-field line integrals are of form int_C f(x) \cdot d\vec{r}, 
+ *  with f : R^n -> R^n, C is a curve
+ * 
+ * 2D area integrals computed with "Spectral Mesh-Free Quadrature for Planar 
+ * Regions Bounded by Rational Parametric Curves" by David Gunderman et al.
+ */
+
 #ifndef PRIMAL_EVAL_INTEGRAL_IMPL_HPP_
 #define PRIMAL_EVAL_INTEGRAL_IMPL_HPP_
 
@@ -53,6 +71,9 @@ template <typename T, typename U>
 using is_integrable = std::conjunction<has_addition<U>, has_scalar_multiplication<T, U>>;
 ///@}
 }  // namespace internal
+
+///@{
+/// \name Evaluates scalar-field line integrals for functions f : R^n -> R^m
 
 /*!
  * \brief Evaluate a line integral on a single Bezier curve.
@@ -111,9 +132,8 @@ inline RetType evaluate_line_integral_component(const NURBSCurve<T, NDIMS>& n,
                                                 Lambda&& integrand,
                                                 const int npts)
 {
-  const auto beziers = n.extractBezier();
   RetType total_integral = RetType {};
-  for(int i = 0; i < beziers.size(); ++i)
+  for(const auto& bez : n.extractBezier())
   {
     total_integral +=
       detail::evaluate_line_integral_component(beziers[i], std::forward<Lambda>(integrand), npts);
@@ -122,7 +142,7 @@ inline RetType evaluate_line_integral_component(const NURBSCurve<T, NDIMS>& n,
 }
 
 /*!
- * \brief Evaluate a integral on a single NURBS curve with cached data for GWN evaluation.
+ * \brief Evaluate an integral on a single NURBS curve with cached data for GWN evaluation.
  *
  * The cache object has already decomposed the NURBS curve into Bezier segments, 
  *  which are used to evaluate the integral over each
@@ -153,6 +173,10 @@ inline RetType evaluate_line_integral_component(const NURBSCurveGWNCache<T>& nc,
 
   return total_integral;
 }
+//@}
+
+///@{
+/// \name Evaluates vector-field line integrals for functions f : R^n -> R^n
 
 /*!
  * \brief Evaluate a vector field line integral on a single Bezier curve.
@@ -204,9 +228,8 @@ inline T evaluate_vector_line_integral_component(const primal::NURBSCurve<T, NDI
                                                  Lambda&& vector_integrand,
                                                  const int npts)
 {
-  const auto beziers = n.extractBezier();
   T total_integral = T {};
-  for(int i = 0; i < beziers.size(); ++i)
+  for(const auto& bez : n.extractBezier())
   {
     total_integral +=
       detail::evaluate_vector_line_integral_component(beziers[i],
@@ -246,6 +269,10 @@ inline T evaluate_vector_line_integral_component(const NURBSCurveGWNCache<T>& nc
 
   return total_integral;
 }
+//@}
+
+///@{
+/// \name Evaluates scalar-field 2D area integrals for functions f : R^2 -> R^m
 
 /*!
  * \brief Evaluate the area integral across one component of the curved polygon.
@@ -323,9 +350,8 @@ RetType evaluate_area_integral_component(const primal::NURBSCurve<T, 2>& n,
                                          const int npts_Q,
                                          const int npts_P)
 {
-  auto beziers = n.extractBezier();
   RetType total_integral = RetType {};
-  for(int i = 0; i < beziers.size(); ++i)
+  for(const auto& bez : n.extractBezier())
   {
     total_integral += detail::evaluate_area_integral_component(beziers[i],
                                                                std::forward<Lambda>(integrand),
@@ -373,6 +399,7 @@ inline RetType evaluate_area_integral_component(const NURBSCurveGWNCache<T>& nc,
 
   return total_integral;
 }
+//@}
 
 }  // end namespace detail
 }  // end namespace primal

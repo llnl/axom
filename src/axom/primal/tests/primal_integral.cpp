@@ -102,7 +102,10 @@ TEST(primal_integral, evaluate_area_integral_aggregate)
   // Quadrature nodes. Should be sufficiently high to pass tests
   int npts = 20;
 
-  // Define anonymous function for testing
+  // Define anonymous function for testing component-wise integration
+  //  of an function with a vector return type.
+  // This is equivalent to evaluating three separate integrands
+  //  without unnecessarily repeating geometric processing.
   auto aggregate_integrand = [](Point2D x) -> ReturnType {
     return ReturnType {1.0, x[0] * x[1] * x[1], std::sin(x[0] * x[1])};
   };
@@ -241,7 +244,10 @@ TEST(primal_integral, evaluate_line_integral_aggregate)
   // Quadrature nodes. Should be sufficiently high to pass tests
   int npts = 30;
 
-  // Define anonymous function for testing
+  // Define anonymous function for testing component-wise integration
+  //  of an function with a vector return type.
+  // This is equivalent to evaluating three separate integrands
+  //  without unnecessarily repeating geometric processing.
   auto aggregate_integrand = [](Point2D x) -> ReturnType {
     return ReturnType {1.0, x[0] * x[1] * x[1], std::sin(x[0] * x[1])};
   };

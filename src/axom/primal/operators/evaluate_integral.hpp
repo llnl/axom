@@ -6,11 +6,17 @@
 /*!
  * \file evaluate_integral.hpp
  *
- * \brief Consists of methods that evaluate integrals over regions defined
- * by Bezier and NURBS curves, such as 2D area integrals and scalar/vector field line integrals
+ * \brief Consists of methods that evaluate scalar-field integrals on curves and 
+ *  regions defined by 2D curves, and vector-field integrals on curves
  *
- * Line integrals are evaluated numerically with Gauss-Legendre quadrature
- *
+ * All integrals are evaluated numerically with Gauss-Legendre quadrature
+ * 
+ * Scalar-field line integrals and scalar-field area integrals are of form 
+ * int_D f(x) dr, with f : R^n -> R^m, D is a curve or a 2D region bound by curves
+ * 
+ * Vector-field line integrals are of form int_C f(x) \cdot d\vec{r}, 
+ *  with f : R^n -> R^n, C is a curve
+ * 
  * 2D area integrals computed with "Spectral Mesh-Free Quadrature for Planar 
  * Regions Bounded by Rational Parametric Curves" by David Gunderman et al.
  */
@@ -31,6 +37,9 @@ namespace axom
 {
 namespace primal
 {
+///@{
+/// \name Evaluates scalar-field line integrals for functions f : R^n -> R
+
 /*!
  * \brief Evaluate a line integral along the boundary of a CurvedPolygon object 
  *        on a scalar field.
@@ -40,7 +49,7 @@ namespace primal
  * 
  * Evaluate the scalar field line integral with Gauss-Legendre quadrature
  * 
- * \tparam Lambda A callable type taking an CurveType's PointType and returning its numeric type
+ * \tparam Lambda A callable type taking a CurveType's PointType and returning its numeric type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] cpoly the CurvedPolygon object
  * \param [in] scalar_integrand the lambda function representing the integrand. 
@@ -70,7 +79,7 @@ typename internal::get_numeric_type<CurveType>::type evaluate_scalar_line_integr
 /*!
  * \brief Evaluate a line integral on a single generic curve on a scalar field
  *
- * \tparam Lambda A callable type taking an CurveType's PointType and returning its numeric type
+ * \tparam Lambda A callable type taking a CurveType's PointType and returning its numeric type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] c the generic curve object
  * \param [in] scalar_integrand the lambda function representing the integrand. 
@@ -87,7 +96,7 @@ evaluate_scalar_line_integral(const CurveType& c, Lambda&& scalar_integrand, int
 /*!
  * \brief Evaluate a line integral on an array of NURBS curves on a scalar field
  *
- * \tparam Lambda A callable type taking an CurveType's PointType and returning its numeric type
+ * \tparam Lambda A callable type taking a CurveType's PointType and returning its numeric type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] carray The array of generic curve objects
  * \param [in] scalar_integrand the lambda function representing the integrand. 
@@ -115,6 +124,10 @@ typename internal::get_numeric_type<CurveType>::type evaluate_scalar_line_integr
 
   return total_integral;
 }
+//@}
+
+///@{
+/// \name Evaluates vector-field line integrals for functions f : R^n -> R^n
 
 /*!
  * \brief Evaluate a line integral along the boundary of a CurvedPolygon object 
@@ -125,7 +138,7 @@ typename internal::get_numeric_type<CurveType>::type evaluate_scalar_line_integr
  *
  * Evaluate the scalar field line integral with Gauss-Legendre quadrature
  *
- * \tparam Lambda A callable type taking an CurveType's PointType and returning its numeric type
+ * \tparam Lambda A callable type taking a CurveType's PointType and returning its numeric type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] cpoly the CurvedPolygon object
  * \param [in] vector_integrand the lambda function representing the integrand. 
@@ -157,7 +170,7 @@ typename internal::get_numeric_type<CurveType>::type evaluate_vector_line_integr
 /*!
  * \brief Evaluate a line integral on a single generic curve on a vector field
  *
- * \tparam Lambda A callable type taking an CurveType's PointType and returning its numeric type
+ * \tparam Lambda A callable type taking a CurveType's PointType and returning its numeric type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] c the generic curve object
  * \param [in] vector_integrand the lambda function representing the integrand. 
@@ -176,7 +189,7 @@ evaluate_vector_line_integral(const CurveType& c, Lambda&& vector_integrand, int
 /*!
  * \brief Evaluate a line integral on an array of generic curves on a vector field
  *
- * \tparam Lambda A callable type taking an CurveType's PointType and returning its numeric type
+ * \tparam Lambda A callable type taking a CurveType's PointType and returning its numeric type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] carray The array of generic curve objects
  * \param [in] vector_integrand the lambda function representing the integrand. 
@@ -206,17 +219,21 @@ typename internal::get_numeric_type<CurveType>::type evaluate_vector_line_integr
 
   return total_integral;
 }
+//@
+
+///@{
+/// \name Evaluates scalar-field line integrals for functions f : R^n -> R^m
 
 /*!
  * \brief Evaluate a line integral along the boundary of a CurvedPolygon object 
  *        for a function with an arbitrary return type.
  *
  * The line integral is evaluated on each curve in the CurvedPolygon, and added
- * together to represent the total integral. The Polygon need not be connected.
+ * together to represent the total integral. The curved polygon need not be connected.
  * 
  * Evaluate the line integral with Gauss-Legendre quadrature
  * 
- * \tparam Lambda A callable type taking an CurveType's PointType and returning an integrable type
+ * \tparam Lambda A callable type taking a CurveType's PointType and returning an integrable type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \tparam RetType The return type of Lambda, which must support addition and scalar multiplication
  * \param [in] cpoly the CurvedPolygon object
@@ -252,7 +269,7 @@ RetType evaluate_line_integral(const primal::CurvedPolygon<CurveType> cpoly,
  * \brief Evaluate a line integral along the boundary of a generic curve
  *        for a function with an arbitrary return type.
  *
- * \tparam Lambda A callable type taking an CurveType's PointType and returning an integrable type
+ * \tparam Lambda A callable type taking a CurveType's PointType and returning an integrable type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] c the generic curve object
  * \param [in] integrand the lambda function representing the integrand. 
@@ -276,7 +293,7 @@ RetType evaluate_line_integral(const CurveType& c, Lambda&& integrand, int npts)
  * \brief Evaluate a line integral on an array of NURBS curves on a scalar field
  *        for a function with an arbitrary return type.
  *
- * \tparam Lambda A callable type taking an CurveType's PointType and returning an integrable type
+ * \tparam Lambda A callable type taking a CurveType's PointType and returning an integrable type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \tparam RetType The return type of Lambda, which must support addition and scalar multiplication
  * \param [in] carray The array of generic curve objects
@@ -307,6 +324,10 @@ RetType evaluate_line_integral(const axom::Array<CurveType>& carray, Lambda&& in
 
   return total_integral;
 }
+//@}
+
+///@{
+/// \name Evaluates scalar-field 2D area integrals for functions f : R^2 -> R^m
 
 /*!
  * \brief Evaluate an integral on the interior of a CurvedPolygon object.
@@ -318,7 +339,7 @@ RetType evaluate_line_integral(const axom::Array<CurveType>& carray, Lambda&& in
  * For algorithm details, see "Spectral Mesh-Free Quadrature for Planar 
  * Regions Bounded by Rational Parametric Curves" by David Gunderman et al.
  * 
- * \tparam Lambda A callable type taking an CurveType's PointType and returning an integrable type
+ * \tparam Lambda A callable type taking a CurveType's PointType and returning an integrable type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the geometry
  * \tparam RetType The return type of Lambda, which must support addition and scalar multiplication
  * \param [in] cpoly the CurvedPolygon object
@@ -376,7 +397,7 @@ RetType evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpoly,
  *
  * See above definition for details.
  * 
- * \tparam Lambda A callable type taking an CurveType's PointType and returning an integrable type
+ * \tparam Lambda A callable type taking a CurveType's PointType and returning an integrable type
  * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the geometry
  * \tparam RetType The return type of Lambda, which must support addition and scalar multiplication
  * \param [in] carray the array of generic curve objects that bound the region
@@ -427,9 +448,7 @@ RetType evaluate_area_integral(const axom::Array<CurveType>& carray,
   RetType total_integral = RetType {};
   for(int i = 0; i < carray.size(); i++)
   {
-    auto beziers = carray[i].extractBezier();
-
-    for(int j = 0; j < beziers.size(); j++)
+    for(const auto& bez : carray[i].extractBezier())
     {
       total_integral += detail::evaluate_area_integral_component(beziers[j],
                                                                  std::forward<Lambda>(integrand),
@@ -441,6 +460,7 @@ RetType evaluate_area_integral(const axom::Array<CurveType>& carray,
 
   return total_integral;
 }
+//@}
 
 }  // namespace primal
 }  // end namespace axom
