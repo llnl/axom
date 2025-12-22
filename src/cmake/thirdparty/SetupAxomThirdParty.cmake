@@ -62,38 +62,39 @@ if (UMPIRE_DIR)
     blt_check_code_compiles(CODE_COMPILES UMPIRE_SHARED_MEMORY
                             VERBOSE_OUTPUT OFF
                             DEPENDS_ON umpire
-                            SOURCE_STRING "
-    #include <umpire/config.hpp>
-    #if defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY)
-    int main() { return 0; }
-    #else
-    #error Macros not defined
-    #endif
-    ")
+                            SOURCE_STRING [=[
+        #include <umpire/config.hpp>
+        #if defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY)
+        int main() { return 0; }
+        #else
+        #error Macros not defined
+        #endif
+        ]=])
+
     if (AXOM_ENABLE_MPI AND UMPIRE_SHARED_MEMORY)
         set(AXOM_USE_UMPIRE_SHARED_MEMORY TRUE)
-    else()
-        set(AXOM_USE_UMPIRE_SHARED_MEMORY FALSE)
-    endif()
-    message(STATUS "  Umpire supports shared memory: ${AXOM_USE_UMPIRE_SHARED_MEMORY}")
+        message(STATUS "  Umpire supports shared memory")
 
-    # If it looks like Umpire supports shared memory (and the header file exists)
-    # then print out the default type of shared memory.
-    set(UMPIRE_CONFIG_HPP "${UMPIRE_DIR}/include/umpire/config.hpp")
-    if(AXOM_USE_UMPIRE_SHARED_MEMORY AND EXISTS "${UMPIRE_CONFIG_HPP}")
-        file(READ "${UMPIRE_CONFIG_HPP}" UMPIRE_CONFIG_HPP_CONTENTS)
-        # Try to match: #define UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE <value>
-        string(REGEX MATCH "#define[ \t]+UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE[ \t]+([^\n\r ]+)" UMPIRE_MACRO_LINE "${UMPIRE_CONFIG_HPP_CONTENTS}")
-        if(UMPIRE_MACRO_LINE)
-            # Extract just the value (the first capture group)
-            string(REGEX REPLACE ".*#define[ \t]+UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE[ \t]+\"([^\"]*)\".*" "\\1" UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE "${UMPIRE_MACRO_LINE}")
-            message(STATUS "  UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE: ${UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE}")
-        else()
-            message(STATUS "  UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE is not defined in ${UMPIRE_CONFIG_HPP}")
+        # If it looks like Umpire supports shared memory
+        # (try to) print out the default type of shared memory from its config file
+        set(UMPIRE_CONFIG_HPP "${UMPIRE_DIR}/include/umpire/config.hpp")
+        if(EXISTS "${UMPIRE_CONFIG_HPP}")
+            file(READ "${UMPIRE_CONFIG_HPP}" UMPIRE_CONFIG_HPP_CONTENTS)
+            # Try to match: #define UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE <value>
+            string(REGEX MATCH "#define[ \t]+UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE[ \t]+([^\n\r ]+)" UMPIRE_MACRO_LINE "${UMPIRE_CONFIG_HPP_CONTENTS}")
+            if(UMPIRE_MACRO_LINE)
+                # Extract just the value (the first capture group)
+                string(REGEX REPLACE ".*#define[ \t]+UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE[ \t]+\"([^\"]*)\".*" "\\1" UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE "${UMPIRE_MACRO_LINE}")
+                message(STATUS "  UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE: ${UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE}")
+            else()
+                message(STATUS "  UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE is not defined in ${UMPIRE_CONFIG_HPP}")
+            endif()
         endif()
     else()
-        message(WARNING "  Could not find ${UMPIRE_CONFIG_HPP}")
+        set(AXOM_USE_UMPIRE_SHARED_MEMORY FALSE)
+        message(STATUS "  Umpire does not support shared memory")
     endif()
+
 else()
     message(STATUS "Umpire support is OFF")
     set(UMPIRE_FOUND FALSE)

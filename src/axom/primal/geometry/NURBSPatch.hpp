@@ -3086,10 +3086,9 @@ public:
     {
       for(int j = 0; j < num_knot_span_v - 1; ++j)
       {
-        split_patches[i * num_knot_span_v + j].split_v(
-          knot_vals_v[i + 1],
-          split_patches[i * num_knot_span_v + j],
-          split_patches[(i + 1) * num_knot_span_v + j + 1]);
+        split_patches[i * num_knot_span_v + j].split_v(knot_vals_v[j + 1],
+                                                       split_patches[i * num_knot_span_v + j],
+                                                       split_patches[i * num_knot_span_v + j + 1]);
       }
     }
 

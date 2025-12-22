@@ -13,7 +13,7 @@ namespace axom
 {
 namespace bump
 {
-namespace clipping
+namespace extraction
 {
 /*!
  * \brief This class encapsulates the logic for building blend groups.
@@ -504,7 +504,7 @@ private:
   State m_state;
 };
 
-}  // end namespace clipping
+}  // end namespace extraction
 }  // end namespace bump
 }  // end namespace axom
 

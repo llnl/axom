@@ -1476,6 +1476,15 @@ bool Group::createNativeLayout(Node& n, const Attribute* attr) const
  */
 bool Group::deepCopyToConduit(Node& dst, int tupleAllocId, int arrayAllocId, const Attribute* attr) const
 {
+  if(tupleAllocId == INVALID_ALLOCATOR_ID)
+  {
+    tupleAllocId = ConduitMemory::conduitAllocIdToAxom(dst.allocator());
+  }
+  if(arrayAllocId == INVALID_ALLOCATOR_ID)
+  {
+    arrayAllocId = ConduitMemory::conduitAllocIdToAxom(dst.allocator());
+  }
+
   dst.set(DataType::object());
   bool hasSavedViews = false;
 

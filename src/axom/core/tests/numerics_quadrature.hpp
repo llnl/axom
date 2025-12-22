@@ -98,8 +98,19 @@ struct test_device_quadrature
     const int npts = 15;
 
     // Create the rule with the proper allocator
-    const auto rule =
-      axom::numerics::get_gauss_legendre(npts, axom::execution_space<ExecSpace>::allocatorID());
+    int allocID;
+#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_GPU)
+
+    // TODO QuadratureRule class needs to be ported for CUDA
+    constexpr bool on_device = axom::execution_space<ExecSpace>::onDevice();
+
+    allocID = on_device ? axom::getUmpireResourceAllocatorID(umpire::resource::Unified)
+                        : axom::execution_space<ExecSpace>::allocatorID();
+#else
+    allocID = axom::execution_space<ExecSpace>::allocatorID();
+#endif
+
+    const auto rule = axom::numerics::get_gauss_legendre(npts, allocID);
 
     // Use the rule in a lambda to integrate the volume under std::sin(pi * x) on [0, 1]
     axom::ReduceSum<ExecSpace, double> quadrature_sum(0.0);

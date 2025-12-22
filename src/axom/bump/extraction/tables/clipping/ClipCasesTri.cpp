@@ -6,10 +6,16 @@
 //---------------------------------------------------------------------------
 // Axom modifications
 // clang-format off
-namespace axom {
-namespace bump {
-namespace clipping {
-namespace tables {
+namespace axom
+{
+namespace bump
+{
+namespace extraction
+{
+namespace tables
+{
+namespace clipping
+{
 //---------------------------------------------------------------------------
 
 // Programmer: Jeremy Meredith
@@ -59,8 +65,9 @@ unsigned char clipShapesTri[] = {
 //---------------------------------------------------------------------------
 // Axom modifications
 const size_t clipShapesTriSize = sizeof(clipShapesTri) / sizeof(unsigned char);
-} // namespace tables
 } // namespace clipping
+} // namespace tables
+} // namespace extraction
 } // namespace bump
 } // namespace axom
 // clang-format on

@@ -35,13 +35,13 @@
 #include <string>
 
 // Uncomment to save inputs and outputs.
-//#define AXOM_ELVIRA_DEBUG
+// #define AXOM_ELVIRA_DEBUG
 
 // Uncomment to debug make fragments.
-//#define AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS
+// #define AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS
 
 // Uncomment to gather ELVIRA data and save to YAML file.
-//#define AXOM_ELVIRA_GATHER_INFO
+// #define AXOM_ELVIRA_GATHER_INFO
 
 #if defined(AXOM_ELVIRA_DEBUG)
   #include <conduit/conduit_relay_io.hpp>
@@ -650,11 +650,15 @@ protected:
     axom::Array<double> fragmentVFStencil(numFragmentsStencil, numFragmentsStencil, allocatorID);
     auto fragmentVFStencilView = fragmentVFStencil.view();
 
-    // Sorted material ids for each zone.
+    // Sorted material ids / vfs for each zone.
     axom::Array<typename MatsetView::IndexType> sortedMaterialIds(numFragments,
                                                                   numFragments,
                                                                   allocatorID);
+    axom::Array<typename MatsetView::FloatType> sortedMaterialVfs(numFragments,
+                                                                  numFragments,
+                                                                  allocatorID);
     auto sortedMaterialIdsView = sortedMaterialIds.view();
+    auto sortedMaterialVfsView = sortedMaterialVfs.view();
 
     // Coordinate stencil data for each zone.
     const auto nzonesStencil = nzones * StencilSize;
@@ -677,21 +681,17 @@ protected:
         // Where to begin writing this zone's fragment data.
         const auto offset = matOffsetView[szIndex];
 
-        // Get materials for this zone from the matset.
-        typename MatsetView::IDList ids;
-        typename MatsetView::VFList vfs;
-        deviceMatsetView.zoneMaterials(matZoneIndex, ids, vfs);
+        // Determine the views for this zone's material data.
+        axom::ArrayView<typename MatsetView::IndexType> ids(sortedMaterialIdsView.data() + offset,
+                                                            matCount);
+        axom::ArrayView<typename MatsetView::FloatType> vfs(sortedMaterialVfsView.data() + offset,
+                                                            matCount);
+        // Get materials for this zone from the matset, directly into the "sorted" views.
+        [[maybe_unused]] auto ids_size = deviceMatsetView.zoneMaterials(matZoneIndex, ids, vfs);
 
         // Reverse sort the materials by the volume fraction so the larger VFs are first.
-        SLIC_ASSERT(ids.size() == matCount);
+        SLIC_ASSERT(ids_size == matCount);
         axom::utilities::reverse_sort_multiple(vfs.data(), ids.data(), matCount);
-
-        // Save sorted ids in sortedMaterialIdsView.
-        for(axom::IndexType m = 0; m < matCount; m++)
-        {
-          const auto fragmentIndex = offset + m;
-          sortedMaterialIdsView[fragmentIndex] = ids[m];
-        }
 
         // Retrieve the stencil data from neighbor zones.
         auto logical = deviceTopologyView.indexing().IndexToLogicalIndex(zoneIndex);
@@ -920,6 +920,11 @@ protected:
         // Get the starting shape.
         const auto inputShape = deviceShapeView.getShape(zoneIndex);
 
+#if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
+        // Get the shape's bounding box and enlarge it a little.
+        auto inputShapeBBox = axom::primal::compute_bounding_box(inputShape);
+        inputShapeBBox.scale(1.05);
+#endif
         // Get the zone's actual volume.
         const double zoneVol = utils::ComputeShapeAmount<NDIMS>::execute(inputShape);
 
@@ -1002,27 +1007,38 @@ protected:
           // Emit clippedShape as material matId
           buildView.addShape(zoneIndex, fragmentIndex, clippedShape, matId, pt, planeOffset, normalPtr);
 
+#if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
+          // Examine clippedShape's bounding box. It should NEVER be larger than the
+          // original inputShape's bounding box. If so, there was probably an error
+          // in clipping.
+          const auto clippedShapeBBox = axom::primal::compute_bounding_box(clippedShape);
+          if(!inputShapeBBox.contains(clippedShapeBBox))
+          {
+            SLIC_ERROR("\tclip: BAD CLIPPED SHAPE IN ZONE "
+                       << zoneIndex << "\n\t\tinputShape=" << inputShape << "\n\t\tinputShapeBBox="
+                       << inputShapeBBox << "\n\t\tclippedShape=" << clippedShape
+                       << "\n\t\tclippedShapeBBox=" << clippedShapeBBox);
+          }
+#endif
+
           // Clip in the other direction to get the remaining fragment for the next material.
           if(m == 0)
           {
 #if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
-            SLIC_DEBUG("\tclip: P=" << P << ", before=" << inputShape);
+            SLIC_DEBUG("\tclip: before=" << inputShape << ", P=" << P << ", pt=" << pt);
 #endif
-            remaining = axom::primal::clip(inputShape, P);
-#if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
-            SLIC_DEBUG("\tclip: after=" << clippedShape);
-#endif
+            remaining = axom::primal::clip(inputShape, P, detail::clip_precision<CoordType>::eps);
           }
           else
           {
 #if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
-            SLIC_DEBUG("\tclip: P=" << P << ", before=" << remaining);
+            SLIC_DEBUG("\tclip: before=" << remaining << ", P=" << P << ", pt=" << pt);
 #endif
-            remaining = axom::primal::clip(remaining, P);
-#if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
-            SLIC_DEBUG("\tclip: after=" << remaining);
-#endif
+            remaining = axom::primal::clip(remaining, P, detail::clip_precision<CoordType>::eps);
           }
+#if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
+          SLIC_DEBUG("\tclip: after=" << remaining);
+#endif
         }
 
         // Emit the last leftover fragment.
@@ -1037,6 +1053,20 @@ protected:
           lastNormal[d] = -normal[d];
         }
         buildView.addShape(zoneIndex, fragmentIndex, remaining, matId, pt, -planeOffset, lastNormal);
+
+#if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
+        // Examine remaining's bounding box. It should NEVER be larger than the
+        // original inputShape's bounding box. If so, there was probably an error
+        // in clipping.
+        const auto remainingBBox = axom::primal::compute_bounding_box(remaining);
+        if(!inputShapeBBox.contains(remainingBBox))
+        {
+          SLIC_ERROR("\tclip: BAD CLIPPED SHAPE IN ZONE "
+                     << zoneIndex << "\n\t\tinputShape=" << inputShape
+                     << "\n\t\tinputShapeBBox=" << inputShapeBBox << "\n\t\tremaining=" << remaining
+                     << "\n\t\tremainingBBox=" << remainingBBox);
+        }
+#endif
       });
     reportErrors(__LINE__);
   }

@@ -41,6 +41,7 @@ template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 struct ArrayTraits<Array<T, DIM, SPACE, StoragePolicy>>
 {
   constexpr static bool is_view = false;
+  constexpr static int dimension = DIM;
 };
 
 /*!
@@ -172,7 +173,7 @@ public:
   using ConstArrayViewType = ArrayView<const T, DIM, SPACE>;
 
 private:
-  using OpHelper = detail::ArrayOps<T, SPACE>;
+  using OpHelper = detail::ArrayOps<T>;
 
 public:
   /// \name Native Storage Array Constructors
