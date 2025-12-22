@@ -25,18 +25,13 @@ axom_add_executable(
 if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND CALIPER_FOUND)
     set(_input_file "${AXOM_DATA_DIR}/quest/sphere_binary.stl")
     
-    if(AXOM_ENABLE_MPI)     # this test requires MPI when available
-        set(_num_ranks 1)   # (but only 1 rank)
-    else()                  # but can otherwise be run without MPI
-        unset(_num_ranks)
-    endif()
-    
+    # this test requires MPI when available (but only 1 rank)
     axom_add_test(
         NAME    quest_containment_sphere_ex
         COMMAND quest_containment_driver_ex
                 --input ${_input_file}
                 --caliper report
-        NUM_MPI_TASKS ${_num_ranks}
+        NUM_MPI_TASKS 1
     )
 endif()
 
@@ -368,11 +363,8 @@ if((CONDUIT_FOUND OR
 
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
 
-        if(AXOM_ENABLE_MPI)     # this test requires MPI when available
-            set(_nranks 1)      # (but only 1 rank)
-        else()                  # but can otherwise be run without MPI
-            unset(_nranks)
-        endif()
+        # this test requires MPI when available (but only 1 rank)
+        set(_nranks 1)
 
         # Run the in-memory shaping example on with each enabled policy
         set(_policies "seq")
@@ -696,31 +688,22 @@ axom_add_executable(
     )
 
 if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
-    # Add a test for the quest interface; Set up for MPI, when available
-    if (AXOM_ENABLE_MPI)
+    set(_num_ranks 1)
+    if(AXOM_ENABLE_MPI)
+        set(_num_ranks 2)
+    endif()
+
+    axom_add_test(
+        NAME quest_inout_interface_3D_test
+        COMMAND quest_inout_interface_ex -i ${quest_data_dir}/sphere_binary.stl
+        NUM_MPI_TASKS ${_num_ranks}
+        )
+    if(C2C_FOUND)
         axom_add_test(
-            NAME quest_inout_interface_3D_mpi_test
-            COMMAND quest_inout_interface_ex -i ${quest_data_dir}/sphere_binary.stl
-            NUM_MPI_TASKS 2
+            NAME quest_inout_interface_2D_test
+            COMMAND quest_inout_interface_ex -i ${AXOM_DATA_DIR}/contours/unit_circle.contour
+            NUM_MPI_TASKS ${_num_ranks}
             )
-        if(C2C_FOUND)
-            axom_add_test(
-                NAME quest_inout_interface_2D_mpi_test
-                COMMAND quest_inout_interface_ex -i ${AXOM_DATA_DIR}/contours/unit_circle.contour
-                NUM_MPI_TASKS 2
-                )
-        endif()
-    else()
-        axom_add_test(
-            NAME quest_inout_interface_3D_test
-            COMMAND quest_inout_interface_ex -i ${quest_data_dir}/sphere_binary.stl
-            )
-        if(C2C_FOUND)
-            axom_add_test(
-                NAME quest_inout_interface_2D_test
-                COMMAND quest_inout_interface_ex -i ${AXOM_DATA_DIR}/contours/unit_circle.contour
-                )
-        endif()
     endif()
 endif()
 
@@ -762,16 +745,14 @@ if (ENABLE_FORTRAN)
     endforeach()
 
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND ${_has_inout_fortran_example})
-        if (AXOM_ENABLE_MPI)
-            axom_add_test(
-                NAME quest_inout_interface_mpi_F_test
-                COMMAND quest_inout_interface_F_ex ${quest_data_dir}/sphere_binary.stl
-                NUM_MPI_TASKS 2)
-        else()
-            axom_add_test(
-                NAME quest_inout_interface_F_test
-                COMMAND quest_inout_interface_F_ex ${quest_data_dir}/sphere_binary.stl)
+        set(_num_ranks 1)
+        if(AXOM_ENABLE_MPI)
+            set(_num_ranks 2)
         endif()
+        axom_add_test(
+            NAME quest_inout_interface_F_test
+            COMMAND quest_inout_interface_F_ex ${quest_data_dir}/sphere_binary.stl
+            NUM_MPI_TASKS ${_num_ranks})
     endif()
 endif()
 
@@ -798,10 +779,9 @@ if(OPENCASCADE_FOUND)
     )
 
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+        set(_num_ranks 1)
         if(AXOM_ENABLE_MPI)
             set(_num_ranks 2)
-        else()
-            set(_num_ranks 1)
         endif()
 
         axom_add_test(

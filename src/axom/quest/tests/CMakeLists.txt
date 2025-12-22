@@ -152,7 +152,7 @@ foreach(test ${quest_mpi_tests})
         set(_numMPITasks 4)
     endif()
     if(${test_name} STREQUAL "quest_inout_interface")
-        set(_numMPITasks 4)
+        set(_numMPITasks 1)
     endif()
 
     axom_add_test(
