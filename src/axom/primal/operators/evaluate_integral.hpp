@@ -63,7 +63,7 @@ typename internal::get_numeric_type<CurveType>::type evaluate_scalar_line_integr
   Lambda&& scalar_integrand,
   int npts)
 {
-  using T = internal::get_numeric_type<CurveType>::type;
+  using T = typename internal::get_numeric_type<CurveType>::type;
 
   T total_integral = T {};
   for(int i = 0; i < cpoly.numEdges(); i++)
@@ -113,7 +113,7 @@ typename internal::get_numeric_type<CurveType>::type evaluate_scalar_line_integr
   Lambda&& scalar_integrand,
   int npts)
 {
-  using T = internal::get_numeric_type<CurveType>::type;
+  using T = typename internal::get_numeric_type<CurveType>::type;
 
   T total_integral = T {};
   for(int i = 0; i < carray.size(); i++)
@@ -152,7 +152,7 @@ typename internal::get_numeric_type<CurveType>::type evaluate_vector_line_integr
   Lambda&& vector_integrand,
   int npts)
 {
-  using T = internal::get_numeric_type<CurveType>::type;
+  using T = typename internal::get_numeric_type<CurveType>::type;
 
   T total_integral = T {};
   for(int i = 0; i < cpoly.numEdges(); i++)
@@ -206,7 +206,7 @@ typename internal::get_numeric_type<CurveType>::type evaluate_vector_line_integr
   Lambda&& vector_integrand,
   int npts)
 {
-  using T = internal::get_numeric_type<CurveType>::type;
+  using T = typename internal::get_numeric_type<CurveType>::type;
 
   T total_integral = T {};
   for(int i = 0; i < carray.size(); i++)
@@ -356,7 +356,7 @@ RetType evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpoly,
                                int npts_Q,
                                int npts_P = 0)
 {
-  using T = internal::get_numeric_type<CurveType>::type;
+  using T = typename internal::get_numeric_type<CurveType>::type;
 
   static_assert(
     detail::internal::is_integrable<T, RetType>::value,
@@ -369,12 +369,12 @@ RetType evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpoly,
   }
 
   // Use minimum y-coord of control nodes as lower bound for integration
-  T int_lb = cpoly[0][0][1];
+  T lower_bound_y = cpoly[0][0][1];
   for(int i = 0; i < cpoly.numEdges(); i++)
   {
     for(int j = 1; j < cpoly[i].getOrder() + 1; j++)
     {
-      int_lb = std::min(int_lb, cpoly[i][j][1]);
+      lower_bound_y = std::min(lower_bound_y, cpoly[i][j][1]);
     }
   }
 
@@ -384,7 +384,7 @@ RetType evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpoly,
   {
     total_integral += detail::evaluate_area_integral_component(cpoly[i],
                                                                std::forward<Lambda>(integrand),
-                                                               int_lb,
+                                                               lower_bound_y,
                                                                npts_Q,
                                                                npts_P);
   }
@@ -417,7 +417,7 @@ RetType evaluate_area_integral(const axom::Array<CurveType>& carray,
                                int npts_Q,
                                int npts_P = 0)
 {
-  using T = internal::get_numeric_type<CurveType>::type;
+  using T = typename internal::get_numeric_type<CurveType>::type;
 
   static_assert(
     detail::internal::is_integrable<T, RetType>::value,
