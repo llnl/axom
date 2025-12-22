@@ -450,7 +450,7 @@ RetType evaluate_area_integral(const axom::Array<CurveType>& carray,
   {
     for(const auto& bez : carray[i].extractBezier())
     {
-      total_integral += detail::evaluate_area_integral_component(beziers[j],
+      total_integral += detail::evaluate_area_integral_component(bez,
                                                                  std::forward<Lambda>(integrand),
                                                                  int_lb,
                                                                  npts_Q,

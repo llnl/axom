@@ -136,7 +136,7 @@ inline RetType evaluate_line_integral_component(const NURBSCurve<T, NDIMS>& n,
   for(const auto& bez : n.extractBezier())
   {
     total_integral +=
-      detail::evaluate_line_integral_component(beziers[i], std::forward<Lambda>(integrand), npts);
+      detail::evaluate_line_integral_component(bez, std::forward<Lambda>(integrand), npts);
   }
   return total_integral;
 }
@@ -232,7 +232,7 @@ inline T evaluate_vector_line_integral_component(const primal::NURBSCurve<T, NDI
   for(const auto& bez : n.extractBezier())
   {
     total_integral +=
-      detail::evaluate_vector_line_integral_component(beziers[i],
+      detail::evaluate_vector_line_integral_component(bez,
                                                       std::forward<Lambda>(vector_integrand),
                                                       npts);
   }
@@ -353,7 +353,7 @@ RetType evaluate_area_integral_component(const primal::NURBSCurve<T, 2>& n,
   RetType total_integral = RetType {};
   for(const auto& bez : n.extractBezier())
   {
-    total_integral += detail::evaluate_area_integral_component(beziers[i],
+    total_integral += detail::evaluate_area_integral_component(bez,
                                                                std::forward<Lambda>(integrand),
                                                                int_lb,
                                                                npts_Q,

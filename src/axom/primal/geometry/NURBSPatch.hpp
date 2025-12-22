@@ -3119,8 +3119,9 @@ public:
       // Integrate the surface normal over the patches
       ret_vec += evaluate_area_integral(
         nPatch.getTrimmingCurves(),
-        [&nPatch](Point2D x) -> Vector<T, 3> { return nPatch.normal(x[0], x[1]); } npts);
-    };
+        [&nPatch](Point2D x) -> Vector<T, 3> { return nPatch.normal(x[0], x[1]); },
+        npts);
+    }
 
     return ret_vec;
   }
@@ -3389,23 +3390,24 @@ public:
 
         // Extract the Bezier curves of the NURBS curve, checking each for intersection
         axom::Array<T> knot_vals = curve.getKnots().getUniqueKnots();
-        for(const auto& bez : curve.extractBezier())
+        const auto beziers = curve.extractBezier();
+        for(int i = 0; i < beziers.size(); ++i)
         {
           axom::Array<T> temp_curve_p;
           axom::Array<T> temp_circle_p;
           detail::intersect_circle_bezier(circle_obj,
-                                          bez,
+                                          beziers[i],
                                           temp_circle_p,
                                           temp_curve_p,
                                           sq_tol,
                                           EPS,
-                                          bez.getOrder(),
+                                          beziers[i].getOrder(),
                                           0.,
                                           1.);
 
           // If the number of recorded intersection points is too great (as defined by Bezout's theorem),
           //   then they can be assumed to be completely overlapping, and no intersections are recorded.
-          if(temp_curve_p.size() > 6 * bez.getOrder())
+          if(temp_curve_p.size() > 6 * beziers[i].getOrder())
           {
             continue;
           }
@@ -3838,25 +3840,27 @@ private:
 
         // Extract the Bezier curves of the NURBS curve, and check each for intersection
         axom::Array<T> knot_vals = curve.getKnots().getUniqueKnots();
-        for(const auto& bez : curve.extractBezier())
+        const auto beziers = curve.extractBezier();
+        for(int i = 0; i < beziers.size(); ++i)
         {
           axom::Array<T> temp_curve_p;
           axom::Array<T> temp_ray_p;
 
           // Perform an initial check to see if the curve is linear and completely overlaps the ray
-          if(bez.isLinear(sq_tol) && axom::utilities::isNearlyEqual(bez[0][splitInU ? 0 : 1], uv) &&
-             axom::utilities::isNearlyEqual(bez[bez.getOrder()][splitInU ? 0 : 1], uv))
+          if(beziers[i].isLinear(sq_tol) &&
+             axom::utilities::isNearlyEqual(beziers[i][0][splitInU ? 0 : 1], uv) &&
+             axom::utilities::isNearlyEqual(beziers[i][beziers[i].getOrder()][splitInU ? 0 : 1], uv))
           {
             continue;
           }
 
           detail::intersect_ray_bezier(ray_obj,
-                                       bez,
+                                       beziers[i],
                                        temp_ray_p,
                                        temp_curve_p,
                                        sq_tol,
                                        EPS,
-                                       bez.getOrder(),
+                                       beziers[i].getOrder(),
                                        0.,
                                        1.,
                                        false);
