@@ -3121,14 +3121,11 @@ public:
       // Integrand for the surface area integral
       auto& nPatch = split_patches[n];
 
-      auto avg_surface_normal_integrand = [&nPatch](Point2D x) -> Vector<T, 3> {
-        return nPatch.normal(x[0], x[1]);
-      };
-
-      // Find the area of the resulting projection
-      ret_vec +=
-        evaluate_area_integral(nPatch.getTrimmingCurves(), avg_surface_normal_integrand, npts);
-    }
+      // Integrate the surface normal over the patches
+      ret_vec += evaluate_area_integral(
+        nPatch.getTrimmingCurves(),
+        [&nPatch](Point2D x) -> Vector<T, 3> { return nPatch.normal(x[0], x[1]); } npts);
+    };
 
     return ret_vec;
   }
