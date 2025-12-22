@@ -215,10 +215,17 @@ if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
       endforeach()
     endforeach()
 
+    # quest_intersection_shaper_dynamic does not take a policy argument, 
+    # but uses OpenMP when enabled
+    set(_dynamic_num_threads)
+    if(AXOM_ENABLE_OPENMP)
+        set(_dynamic_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+    endif()
+
     axom_add_test(NAME quest_intersection_shaper_dynamic
         COMMAND quest_intersection_shaper_dynamic_test
         NUM_MPI_TASKS 1
-        NUM_OMP_THREADS ${_num_threads}
+        NUM_OMP_THREADS ${_dynamic_num_threads}
     )
 
     axom_add_test(NAME quest_sampling_shaper

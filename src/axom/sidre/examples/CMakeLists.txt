@@ -109,7 +109,7 @@ if(MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
 
         if(AXOM_ENABLE_TESTS)
             set(_nranks 1)
-            if(MFEM_USE_MPI)
+            if(AXOM_ENABLE_MPI AND MFEM_USE_MPI)
                 set(_nranks 2)
             endif()
 
