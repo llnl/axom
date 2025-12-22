@@ -244,7 +244,7 @@ typename internal::get_numeric_type<CurveType>::type evaluate_vector_line_integr
  */
 template <typename Lambda,
           typename CurveType,
-          typename RetType = std::invoke_result_t<Lambda, CurveType::PointType>>
+          typename RetType = std::invoke_result_t<Lambda, typename CurveType::PointType>>
 RetType evaluate_line_integral(const primal::CurvedPolygon<CurveType> cpoly,
                                Lambda&& integrand,
                                int npts)
@@ -278,7 +278,7 @@ RetType evaluate_line_integral(const primal::CurvedPolygon<CurveType> cpoly,
  */
 template <typename Lambda,
           typename CurveType,
-          typename RetType = std::invoke_result_t<Lambda, CurveType::PointType>>
+          typename RetType = std::invoke_result_t<Lambda, typename CurveType::PointType>>
 RetType evaluate_line_integral(const CurveType& c, Lambda&& integrand, int npts)
 {
   static_assert(
@@ -307,7 +307,7 @@ RetType evaluate_line_integral(const CurveType& c, Lambda&& integrand, int npts)
  */
 template <typename Lambda,
           typename CurveType,
-          typename RetType = std::invoke_result_t<Lambda, CurveType::PointType>>
+          typename RetType = std::invoke_result_t<Lambda, typename CurveType::PointType>>
 RetType evaluate_line_integral(const axom::Array<CurveType>& carray, Lambda&& integrand, int npts)
 {
   static_assert(
@@ -350,7 +350,7 @@ RetType evaluate_line_integral(const axom::Array<CurveType>& carray, Lambda&& in
  */
 template <typename Lambda,
           typename CurveType,
-          typename RetType = std::invoke_result_t<Lambda, CurveType::PointType>>
+          typename RetType = std::invoke_result_t<Lambda, typename CurveType::PointType>>
 RetType evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpoly,
                                Lambda&& integrand,
                                int npts_Q,
@@ -411,7 +411,7 @@ RetType evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpoly,
  */
 template <typename Lambda,
           typename CurveType,
-          typename RetType = std::invoke_result_t<Lambda, CurveType::PointType>>
+          typename RetType = std::invoke_result_t<Lambda, typename CurveType::PointType>>
 RetType evaluate_area_integral(const axom::Array<CurveType>& carray,
                                Lambda&& integrand,
                                int npts_Q,

@@ -48,7 +48,7 @@ namespace detail
 namespace internal
 {
 ///@{
-/// \name Boilerplate to support integrals of functions with general return types,
+/// \name Type traits to support integrals of functions with general return types,
 ///   provided it supports addition and scalar multiplication
 template <typename U, typename = void>
 struct has_addition : std::false_type
@@ -90,7 +90,7 @@ using is_integrable = std::conjunction<has_addition<U>, has_scalar_multiplicatio
 template <typename Lambda,
           typename T,
           int NDIMS,
-          typename RetType = std::invoke_result_t<Lambda, BezierCurve<T, NDIMS>::PointType>>
+          typename RetType = std::invoke_result_t<Lambda, typename BezierCurve<T, NDIMS>::PointType>>
 inline RetType evaluate_line_integral_component(const BezierCurve<T, NDIMS>& c,
                                                 Lambda&& integrand,
                                                 const int npts)
@@ -127,7 +127,7 @@ inline RetType evaluate_line_integral_component(const BezierCurve<T, NDIMS>& c,
 template <typename Lambda,
           typename T,
           int NDIMS,
-          typename RetType = std::invoke_result_t<Lambda, NURBSCurve<T, NDIMS>::PointType>>
+          typename RetType = std::invoke_result_t<Lambda, typename NURBSCurve<T, NDIMS>::PointType>>
 inline RetType evaluate_line_integral_component(const NURBSCurve<T, NDIMS>& n,
                                                 Lambda&& integrand,
                                                 const int npts)
@@ -156,7 +156,7 @@ inline RetType evaluate_line_integral_component(const NURBSCurve<T, NDIMS>& n,
  */
 template <typename Lambda,
           typename T,
-          typename RetType = std::invoke_result_t<Lambda, NURBSCurveGWNCache<T>::PointType>>
+          typename RetType = std::invoke_result_t<Lambda, typename NURBSCurveGWNCache<T>::PointType>>
 inline RetType evaluate_line_integral_component(const NURBSCurveGWNCache<T>& nc,
                                                 Lambda&& integrand,
                                                 const int npts)
@@ -294,7 +294,7 @@ inline T evaluate_vector_line_integral_component(const NURBSCurveGWNCache<T>& nc
  */
 template <typename Lambda,
           typename T,
-          typename RetType = std::invoke_result_t<Lambda, BezierCurve<T, 2>::PointType>>
+          typename RetType = std::invoke_result_t<Lambda, typename BezierCurve<T, 2>::PointType>>
 RetType evaluate_area_integral_component(const primal::BezierCurve<T, 2>& c,
                                          Lambda&& integrand,
                                          double int_lb,
@@ -343,7 +343,7 @@ RetType evaluate_area_integral_component(const primal::BezierCurve<T, 2>& c,
  */
 template <typename Lambda,
           typename T,
-          typename RetType = std::invoke_result_t<Lambda, NURBSCurve<T, 2>::PointType>>
+          typename RetType = std::invoke_result_t<Lambda, typename NURBSCurve<T, 2>::PointType>>
 RetType evaluate_area_integral_component(const primal::NURBSCurve<T, 2>& n,
                                          Lambda&& integrand,
                                          double int_lb,
@@ -378,7 +378,7 @@ RetType evaluate_area_integral_component(const primal::NURBSCurve<T, 2>& n,
  */
 template <typename Lambda,
           typename T,
-          typename RetType = std::invoke_result_t<Lambda, NURBSCurveGWNCache<T>::PointType>>
+          typename RetType = std::invoke_result_t<Lambda, typename NURBSCurveGWNCache<T>::PointType>>
 inline RetType evaluate_area_integral_component(const NURBSCurveGWNCache<T>& nc,
                                                 Lambda&& integrand,
                                                 double int_lb,
