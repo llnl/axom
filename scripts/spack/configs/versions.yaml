@@ -6,9 +6,10 @@ packages:
   adiak:
     require: 
       - spec: "@0.4.0"
+  # 7/23/25 - Commit after 2.13.1 release, has fix for CUDA 12.9.1
   caliper:
     require:
-      - spec: "@2.12.1"
+      - spec: "@git.527e1ae3a16487e425707e928e05c43d372e144f=master"
   camp:
     require:
       - spec: "@2025.09.2"

@@ -150,6 +150,12 @@ spack:
       - spec: mvapich2@2.3.7.intel_25~alloca~cuda~debug~hwloc_graphics~hwlocv2+regcache+wrapperrpath build_system=autotools ch3_rank_bits=32 fabrics=mrail file_systems=auto process_managers=slurm threads=multiple
         prefix: /usr/tce/packages/mvapich2/mvapich2-2.3.7-intel-2025.2.0
 
+    cuda:
+      buildable: False
+      externals:
+      - spec: cuda@12.9.1 +allow-unsupported-compilers
+        prefix: /usr/tce/packages/cuda/cuda-12.9.1
+
     netlib-lapack:
       buildable: false
       externals:

@@ -1,0 +1,555 @@
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
+// other Axom Project Developers. See the top-level LICENSE file for details.
+//
+// SPDX-License-Identifier: (BSD-3-Clause)
+#include "ClipCases.h"
+
+namespace axom
+{
+namespace bump
+{
+namespace extraction
+{
+namespace tables
+{
+namespace clipping
+{
+
+int numClipCasesPoly7 = 128;
+
+int numClipShapesPoly7[] = {
+  1, 2, 2, 2, 2, 3, 2, 2, 2, 3, 3, 3, 2, 3, 2, 2, 2, 3, 3, 3, 3, 5, 3, 3, 2, 3, 3, 3, 2, 3, 2, 2,
+  2, 3, 3, 3, 3, 5, 3, 3, 3, 5, 5, 5, 3, 5, 3, 4, 2, 3, 3, 3, 3, 5, 3, 4, 2, 3, 3, 4, 2, 4, 2, 2,
+  2, 2, 3, 2, 3, 3, 3, 2, 3, 3, 5, 3, 3, 3, 3, 2, 3, 3, 5, 3, 5, 5, 5, 4, 3, 3, 5, 4, 3, 4, 4, 2,
+  2, 2, 3, 2, 3, 3, 3, 2, 3, 3, 5, 4, 3, 4, 4, 2, 2, 2, 3, 2, 3, 4, 4, 2, 2, 2, 4, 2, 2, 2, 2, 1};
+
+int startClipShapesPoly7[] = {
+  0,    9,    24,   39,   54,   69,   90,   105,  120,  135,  156,  177,  198,  213,  234,  249,
+  264,  279,  300,  321,  342,  363,  394,  415,  436,  451,  472,  493,  514,  529,  550,  565,
+  580,  595,  616,  637,  658,  679,  710,  731,  752,  773,  804,  835,  866,  887,  918,  939,
+  964,  979,  1000, 1021, 1042, 1063, 1094, 1115, 1140, 1155, 1176, 1197, 1222, 1237, 1262, 1277,
+  1292, 1307, 1322, 1343, 1358, 1379, 1400, 1421, 1436, 1457, 1478, 1509, 1530, 1551, 1572, 1593,
+  1608, 1629, 1650, 1681, 1702, 1733, 1764, 1795, 1820, 1841, 1862, 1893, 1918, 1939, 1964, 1989,
+  2004, 2019, 2034, 2055, 2070, 2091, 2112, 2133, 2148, 2169, 2190, 2221, 2246, 2267, 2292, 2317,
+  2332, 2347, 2362, 2383, 2398, 2419, 2444, 2469, 2484, 2499, 2514, 2539, 2554, 2569, 2584, 2599};
+
+// clang-format off
+unsigned char clipShapesPoly7[] = {
+  // Case #0
+  ST_POLY7, COLOR0, P0, P1, P2, P3, P4, P5, P6,
+  // Case #1
+  ST_POLY8, COLOR0, EA, P1, P2, P3, P4, P5, P6, EG,
+  ST_TRI, COLOR1, P0, EA, EG,
+  // Case #2
+  ST_POLY8, COLOR0, P0, EA, EB, P2, P3, P4, P5, P6,
+  ST_TRI, COLOR1, EA, P1, EB,
+  // Case #3
+  ST_POLY7, COLOR0, EB, P2, P3, P4, P5, P6, EG,
+  ST_QUA, COLOR1, P0, P1, EB, EG,
+  // Case #4
+  ST_POLY8, COLOR0, P0, P1, EB, EC, P3, P4, P5, P6,
+  ST_TRI, COLOR1, EB, P2, EC,
+  // Case #5
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_POLY6, COLOR0, EC, P3, P4, P5, P6, EG,
+  ST_POLY6, COLOR1, P0, EA, EB, P2, EC, EG,
+  // Case #6
+  ST_POLY7, COLOR0, P0, EA, EC, P3, P4, P5, P6,
+  ST_QUA, COLOR1, EA, P1, P2, EC,
+  // Case #7
+  ST_POLY6, COLOR0, EC, P3, P4, P5, P6, EG,
+  ST_POLY5, COLOR1, P0, P1, P2, EC, EG,
+  // Case #8
+  ST_POLY8, COLOR0, P0, P1, P2, EC, ED, P4, P5, P6,
+  ST_TRI, COLOR1, EC, P3, ED,
+  // Case #9
+  ST_QUA, COLOR0, EA, P1, P2, EC,
+  ST_POLY5, COLOR0, ED, P4, P5, P6, EG,
+  ST_POLY6, COLOR1, P0, EA, EC, P3, ED, EG,
+  // Case #10
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_POLY6, COLOR0, P0, EA, ED, P4, P5, P6,
+  ST_POLY6, COLOR1, EA, P1, EB, EC, P3, ED,
+  // Case #11
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_POLY5, COLOR0, ED, P4, P5, P6, EG,
+  ST_POLY7, COLOR1, P0, P1, EB, EC, P3, ED, EG,
+  // Case #12
+  ST_POLY7, COLOR0, P0, P1, EB, ED, P4, P5, P6,
+  ST_QUA, COLOR1, EB, P2, P3, ED,
+  // Case #13
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_POLY5, COLOR0, ED, P4, P5, P6, EG,
+  ST_POLY7, COLOR1, P0, EA, EB, P2, P3, ED, EG,
+  // Case #14
+  ST_POLY6, COLOR0, P0, EA, ED, P4, P5, P6,
+  ST_POLY5, COLOR1, EA, P1, P2, P3, ED,
+  // Case #15
+  ST_POLY5, COLOR0, ED, P4, P5, P6, EG,
+  ST_POLY6, COLOR1, P0, P1, P2, P3, ED, EG,
+  // Case #16
+  ST_POLY8, COLOR0, P0, P1, P2, P3, ED, EE, P5, P6,
+  ST_TRI, COLOR1, ED, P4, EE,
+  // Case #17
+  ST_QUA, COLOR0, EE, P5, P6, EG,
+  ST_POLY5, COLOR0, EA, P1, P2, P3, ED,
+  ST_POLY6, COLOR1, P0, EA, ED, P4, EE, EG,
+  // Case #18
+  ST_QUA, COLOR0, EB, P2, P3, ED,
+  ST_POLY5, COLOR0, P0, EA, EE, P5, P6,
+  ST_POLY6, COLOR1, EA, P1, EB, ED, P4, EE,
+  // Case #19
+  ST_QUA, COLOR0, EB, P2, P3, ED,
+  ST_QUA, COLOR0, EE, P5, P6, EG,
+  ST_POLY7, COLOR1, P0, P1, EB, ED, P4, EE, EG,
+  // Case #20
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_POLY6, COLOR0, P0, P1, EB, EE, P5, P6,
+  ST_POLY6, COLOR1, EB, P2, EC, ED, P4, EE,
+  // Case #21
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_QUA, COLOR0, EE, P5, P6, EG,
+  ST_POLY6, COLOR1, P0, EA, EB, P2, EC, ED,
+  ST_POLY5, COLOR1, P0, ED, P4, EE, EG,
+  // Case #22
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_POLY5, COLOR0, P0, EA, EE, P5, P6,
+  ST_POLY7, COLOR1, EA, P1, P2, EC, ED, P4, EE,
+  // Case #23
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_QUA, COLOR0, EE, P5, P6, EG,
+  ST_POLY8, COLOR1, P0, P1, P2, EC, ED, P4, EE, EG,
+  // Case #24
+  ST_POLY7, COLOR0, P0, P1, P2, EC, EE, P5, P6,
+  ST_QUA, COLOR1, EC, P3, P4, EE,
+  // Case #25
+  ST_QUA, COLOR0, EE, P5, P6, EG,
+  ST_QUA, COLOR0, EA, P1, P2, EC,
+  ST_POLY7, COLOR1, P0, EA, EC, P3, P4, EE, EG,
+  // Case #26
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_POLY5, COLOR0, P0, EA, EE, P5, P6,
+  ST_POLY7, COLOR1, EA, P1, EB, EC, P3, P4, EE,
+  // Case #27
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_QUA, COLOR0, EE, P5, P6, EG,
+  ST_POLY8, COLOR1, P0, P1, EB, EC, P3, P4, EE, EG,
+  // Case #28
+  ST_POLY6, COLOR0, P0, P1, EB, EE, P5, P6,
+  ST_POLY5, COLOR1, EB, P2, P3, P4, EE,
+  // Case #29
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_QUA, COLOR0, EE, P5, P6, EG,
+  ST_POLY8, COLOR1, P0, EA, EB, P2, P3, P4, EE, EG,
+  // Case #30
+  ST_POLY5, COLOR0, P0, EA, EE, P5, P6,
+  ST_POLY6, COLOR1, EA, P1, P2, P3, P4, EE,
+  // Case #31
+  ST_QUA, COLOR0, EE, P5, P6, EG,
+  ST_POLY7, COLOR1, P0, P1, P2, P3, P4, EE, EG,
+  // Case #32
+  ST_POLY8, COLOR0, P0, P1, P2, P3, P4, EE, EF, P6,
+  ST_TRI, COLOR1, EE, P5, EF,
+  // Case #33
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_POLY6, COLOR0, EA, P1, P2, P3, P4, EE,
+  ST_POLY6, COLOR1, P0, EA, EE, P5, EF, EG,
+  // Case #34
+  ST_QUA, COLOR0, P0, EA, EF, P6,
+  ST_POLY5, COLOR0, EB, P2, P3, P4, EE,
+  ST_POLY6, COLOR1, EA, P1, EB, EE, P5, EF,
+  // Case #35
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_POLY5, COLOR0, EB, P2, P3, P4, EE,
+  ST_POLY7, COLOR1, P0, P1, EB, EE, P5, EF, EG,
+  // Case #36
+  ST_QUA, COLOR0, EC, P3, P4, EE,
+  ST_POLY5, COLOR0, P0, P1, EB, EF, P6,
+  ST_POLY6, COLOR1, EB, P2, EC, EE, P5, EF,
+  // Case #37
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_QUA, COLOR0, EC, P3, P4, EE,
+  ST_POLY6, COLOR1, P0, EA, EB, P5, EF, EG,
+  ST_POLY5, COLOR1, EB, P2, EC, EE, P5,
+  // Case #38
+  ST_QUA, COLOR0, EC, P3, P4, EE,
+  ST_QUA, COLOR0, P0, EA, EF, P6,
+  ST_POLY7, COLOR1, EA, P1, P2, EC, EE, P5, EF,
+  // Case #39
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_QUA, COLOR0, EC, P3, P4, EE,
+  ST_POLY8, COLOR1, P0, P1, P2, EC, EE, P5, EF, EG,
+  // Case #40
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_POLY6, COLOR0, P0, P1, P2, EC, EF, P6,
+  ST_POLY6, COLOR1, EC, P3, ED, EE, P5, EF,
+  // Case #41
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_QUA, COLOR0, EA, P1, P2, EC,
+  ST_POLY6, COLOR1, P3, ED, EE, P5, EF, EG,
+  ST_POLY5, COLOR1, P0, EA, EC, P3, EG,
+  // Case #42
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_QUA, COLOR0, P0, EA, EF, P6,
+  ST_POLY6, COLOR1, P1, EB, EC, P3, ED, EE,
+  ST_POLY5, COLOR1, EA, P1, EE, P5, EF,
+  // Case #43
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_POLY6, COLOR1, P0, P1, EB, EC, P3, ED,
+  ST_POLY6, COLOR1, P0, ED, EE, P5, EF, EG,
+  // Case #44
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_POLY5, COLOR0, P0, P1, EB, EF, P6,
+  ST_POLY7, COLOR1, EB, P2, P3, ED, EE, P5, EF,
+  // Case #45
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_POLY6, COLOR1, P2, P3, ED, EE, P5, EF,
+  ST_POLY6, COLOR1, P0, EA, EB, P2, EF, EG,
+  // Case #46
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_QUA, COLOR0, P0, EA, EF, P6,
+  ST_POLY8, COLOR1, EA, P1, P2, P3, ED, EE, P5, EF,
+  // Case #47
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_POLY6, COLOR1, P0, P1, P2, P3, ED, EE,
+  ST_POLY5, COLOR1, P0, EE, P5, EF, EG,
+  // Case #48
+  ST_POLY7, COLOR0, P0, P1, P2, P3, ED, EF, P6,
+  ST_QUA, COLOR1, ED, P4, P5, EF,
+  // Case #49
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_POLY5, COLOR0, EA, P1, P2, P3, ED,
+  ST_POLY7, COLOR1, P0, EA, ED, P4, P5, EF, EG,
+  // Case #50
+  ST_QUA, COLOR0, P0, EA, EF, P6,
+  ST_QUA, COLOR0, EB, P2, P3, ED,
+  ST_POLY7, COLOR1, EA, P1, EB, ED, P4, P5, EF,
+  // Case #51
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_QUA, COLOR0, EB, P2, P3, ED,
+  ST_POLY8, COLOR1, P0, P1, EB, ED, P4, P5, EF, EG,
+  // Case #52
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_POLY5, COLOR0, P0, P1, EB, EF, P6,
+  ST_POLY7, COLOR1, EB, P2, EC, ED, P4, P5, EF,
+  // Case #53
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_POLY6, COLOR1, P0, EA, P4, P5, EF, EG,
+  ST_POLY6, COLOR1, EA, EB, P2, EC, ED, P4,
+  // Case #54
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_QUA, COLOR0, P0, EA, EF, P6,
+  ST_POLY8, COLOR1, EA, P1, P2, EC, ED, P4, P5, EF,
+  // Case #55
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_POLY6, COLOR1, P0, P1, P2, EC, ED, P4,
+  ST_POLY5, COLOR1, P0, P4, P5, EF, EG,
+  // Case #56
+  ST_POLY6, COLOR0, P0, P1, P2, EC, EF, P6,
+  ST_POLY5, COLOR1, EC, P3, P4, P5, EF,
+  // Case #57
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_QUA, COLOR0, EA, P1, P2, EC,
+  ST_POLY8, COLOR1, P0, EA, EC, P3, P4, P5, EF, EG,
+  // Case #58
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_QUA, COLOR0, P0, EA, EF, P6,
+  ST_POLY8, COLOR1, EA, P1, EB, EC, P3, P4, P5, EF,
+  // Case #59
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_POLY6, COLOR1, P0, P3, P4, P5, EF, EG,
+  ST_POLY5, COLOR1, P0, P1, EB, EC, P3,
+  // Case #60
+  ST_POLY5, COLOR0, P0, P1, EB, EF, P6,
+  ST_POLY6, COLOR1, EB, P2, P3, P4, P5, EF,
+  // Case #61
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_POLY6, COLOR1, P2, P3, P4, P5, EF, EG,
+  ST_POLY5, COLOR1, P0, EA, EB, P2, EG,
+  // Case #62
+  ST_QUA, COLOR0, P0, EA, EF, P6,
+  ST_POLY7, COLOR1, EA, P1, P2, P3, P4, P5, EF,
+  // Case #63
+  ST_TRI, COLOR0, EF, P6, EG,
+  ST_POLY8, COLOR1, P0, P1, P2, P3, P4, P5, EF, EG,
+  // Case #64
+  ST_POLY8, COLOR0, P0, P1, P2, P3, P4, P5, EF, EG,
+  ST_TRI, COLOR1, EF, P6, EG,
+  // Case #65
+  ST_POLY7, COLOR0, EA, P1, P2, P3, P4, P5, EF,
+  ST_QUA, COLOR1, P0, EA, EF, P6,
+  // Case #66
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_POLY6, COLOR0, EB, P2, P3, P4, P5, EF,
+  ST_POLY6, COLOR1, EA, P1, EB, EF, P6, EG,
+  // Case #67
+  ST_POLY6, COLOR0, EB, P2, P3, P4, P5, EF,
+  ST_POLY5, COLOR1, P0, P1, EB, EF, P6,
+  // Case #68
+  ST_QUA, COLOR0, P0, P1, EB, EG,
+  ST_POLY5, COLOR0, EC, P3, P4, P5, EF,
+  ST_POLY6, COLOR1, EB, P2, EC, EF, P6, EG,
+  // Case #69
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_POLY5, COLOR0, EC, P3, P4, P5, EF,
+  ST_POLY7, COLOR1, P0, EA, EB, P2, EC, EF, P6,
+  // Case #70
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_POLY5, COLOR0, EC, P3, P4, P5, EF,
+  ST_POLY7, COLOR1, EA, P1, P2, EC, EF, P6, EG,
+  // Case #71
+  ST_POLY5, COLOR0, EC, P3, P4, P5, EF,
+  ST_POLY6, COLOR1, P0, P1, P2, EC, EF, P6,
+  // Case #72
+  ST_QUA, COLOR0, ED, P4, P5, EF,
+  ST_POLY5, COLOR0, P0, P1, P2, EC, EG,
+  ST_POLY6, COLOR1, EC, P3, ED, EF, P6, EG,
+  // Case #73
+  ST_QUA, COLOR0, EA, P1, P2, EC,
+  ST_QUA, COLOR0, ED, P4, P5, EF,
+  ST_POLY7, COLOR1, P0, EA, EC, P3, ED, EF, P6,
+  // Case #74
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_QUA, COLOR0, ED, P4, P5, EF,
+  ST_POLY6, COLOR1, EA, P1, EB, EC, P6, EG,
+  ST_POLY5, COLOR1, EC, P3, ED, EF, P6,
+  // Case #75
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_QUA, COLOR0, ED, P4, P5, EF,
+  ST_POLY8, COLOR1, P0, P1, EB, EC, P3, ED, EF, P6,
+  // Case #76
+  ST_QUA, COLOR0, ED, P4, P5, EF,
+  ST_QUA, COLOR0, P0, P1, EB, EG,
+  ST_POLY7, COLOR1, EB, P2, P3, ED, EF, P6, EG,
+  // Case #77
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_QUA, COLOR0, ED, P4, P5, EF,
+  ST_POLY8, COLOR1, P0, EA, EB, P2, P3, ED, EF, P6,
+  // Case #78
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_QUA, COLOR0, ED, P4, P5, EF,
+  ST_POLY8, COLOR1, EA, P1, P2, P3, ED, EF, P6, EG,
+  // Case #79
+  ST_QUA, COLOR0, ED, P4, P5, EF,
+  ST_POLY7, COLOR1, P0, P1, P2, P3, ED, EF, P6,
+  // Case #80
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_POLY6, COLOR0, P0, P1, P2, P3, ED, EG,
+  ST_POLY6, COLOR1, ED, P4, EE, EF, P6, EG,
+  // Case #81
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_POLY5, COLOR0, EA, P1, P2, P3, ED,
+  ST_POLY7, COLOR1, P0, EA, ED, P4, EE, EF, P6,
+  // Case #82
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_QUA, COLOR0, EB, P2, P3, ED,
+  ST_POLY6, COLOR1, EA, P4, EE, EF, P6, EG,
+  ST_POLY5, COLOR1, EA, P1, EB, ED, P4,
+  // Case #83
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_QUA, COLOR0, EB, P2, P3, ED,
+  ST_POLY8, COLOR1, P0, P1, EB, ED, P4, EE, EF, P6,
+  // Case #84
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_QUA, COLOR0, P0, P1, EB, EG,
+  ST_POLY6, COLOR1, P2, EC, ED, P4, EE, EF,
+  ST_POLY5, COLOR1, EB, P2, EF, P6, EG,
+  // Case #85
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_POLY6, COLOR1, P0, EA, EB, P2, EC, P6,
+  ST_POLY6, COLOR1, EC, ED, P4, EE, EF, P6,
+  // Case #86
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_POLY6, COLOR1, P1, P2, EC, ED, P4, EE,
+  ST_POLY6, COLOR1, EA, P1, EE, EF, P6, EG,
+  // Case #87
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_POLY6, COLOR1, P0, P1, P2, EC, ED, P6,
+  ST_POLY5, COLOR1, ED, P4, EE, EF, P6,
+  // Case #88
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_POLY5, COLOR0, P0, P1, P2, EC, EG,
+  ST_POLY7, COLOR1, EC, P3, P4, EE, EF, P6, EG,
+  // Case #89
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_QUA, COLOR0, EA, P1, P2, EC,
+  ST_POLY8, COLOR1, P0, EA, EC, P3, P4, EE, EF, P6,
+  // Case #90
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_POLY6, COLOR1, P3, P4, EE, EF, P6, EG,
+  ST_POLY6, COLOR1, EA, P1, EB, EC, P3, EG,
+  // Case #91
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_POLY6, COLOR1, P0, P1, EB, EC, P3, P6,
+  ST_POLY5, COLOR1, P3, P4, EE, EF, P6,
+  // Case #92
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_QUA, COLOR0, P0, P1, EB, EG,
+  ST_POLY8, COLOR1, EB, P2, P3, P4, EE, EF, P6, EG,
+  // Case #93
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_POLY6, COLOR1, P2, P3, P4, EE, EF, P6,
+  ST_POLY5, COLOR1, P0, EA, EB, P2, P6,
+  // Case #94
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_POLY6, COLOR1, P1, P2, P3, P4, EE, EF,
+  ST_POLY5, COLOR1, EA, P1, EF, P6, EG,
+  // Case #95
+  ST_TRI, COLOR0, EE, P5, EF,
+  ST_POLY8, COLOR1, P0, P1, P2, P3, P4, EE, EF, P6,
+  // Case #96
+  ST_POLY7, COLOR0, P0, P1, P2, P3, P4, EE, EG,
+  ST_QUA, COLOR1, EE, P5, P6, EG,
+  // Case #97
+  ST_POLY6, COLOR0, EA, P1, P2, P3, P4, EE,
+  ST_POLY5, COLOR1, P0, EA, EE, P5, P6,
+  // Case #98
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_POLY5, COLOR0, EB, P2, P3, P4, EE,
+  ST_POLY7, COLOR1, EA, P1, EB, EE, P5, P6, EG,
+  // Case #99
+  ST_POLY5, COLOR0, EB, P2, P3, P4, EE,
+  ST_POLY6, COLOR1, P0, P1, EB, EE, P5, P6,
+  // Case #100
+  ST_QUA, COLOR0, P0, P1, EB, EG,
+  ST_QUA, COLOR0, EC, P3, P4, EE,
+  ST_POLY7, COLOR1, EB, P2, EC, EE, P5, P6, EG,
+  // Case #101
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_QUA, COLOR0, EC, P3, P4, EE,
+  ST_POLY8, COLOR1, P0, EA, EB, P2, EC, EE, P5, P6,
+  // Case #102
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_QUA, COLOR0, EC, P3, P4, EE,
+  ST_POLY8, COLOR1, EA, P1, P2, EC, EE, P5, P6, EG,
+  // Case #103
+  ST_QUA, COLOR0, EC, P3, P4, EE,
+  ST_POLY7, COLOR1, P0, P1, P2, EC, EE, P5, P6,
+  // Case #104
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_POLY5, COLOR0, P0, P1, P2, EC, EG,
+  ST_POLY7, COLOR1, EC, P3, ED, EE, P5, P6, EG,
+  // Case #105
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_QUA, COLOR0, EA, P1, P2, EC,
+  ST_POLY8, COLOR1, P0, EA, EC, P3, ED, EE, P5, P6,
+  // Case #106
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_POLY6, COLOR1, EA, P1, EB, P5, P6, EG,
+  ST_POLY6, COLOR1, EB, EC, P3, ED, EE, P5,
+  // Case #107
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_POLY6, COLOR1, P0, P1, EB, EC, P5, P6,
+  ST_POLY5, COLOR1, EC, P3, ED, EE, P5,
+  // Case #108
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_QUA, COLOR0, P0, P1, EB, EG,
+  ST_POLY8, COLOR1, EB, P2, P3, ED, EE, P5, P6, EG,
+  // Case #109
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_POLY6, COLOR1, P0, EA, EB, P2, P5, P6,
+  ST_POLY5, COLOR1, P2, P3, ED, EE, P5,
+  // Case #110
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_POLY6, COLOR1, P1, P2, P3, ED, EE, P5,
+  ST_POLY5, COLOR1, EA, P1, P5, P6, EG,
+  // Case #111
+  ST_TRI, COLOR0, ED, P4, EE,
+  ST_POLY8, COLOR1, P0, P1, P2, P3, ED, EE, P5, P6,
+  // Case #112
+  ST_POLY6, COLOR0, P0, P1, P2, P3, ED, EG,
+  ST_POLY5, COLOR1, ED, P4, P5, P6, EG,
+  // Case #113
+  ST_POLY5, COLOR0, EA, P1, P2, P3, ED,
+  ST_POLY6, COLOR1, P0, EA, ED, P4, P5, P6,
+  // Case #114
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_QUA, COLOR0, EB, P2, P3, ED,
+  ST_POLY8, COLOR1, EA, P1, EB, ED, P4, P5, P6, EG,
+  // Case #115
+  ST_QUA, COLOR0, EB, P2, P3, ED,
+  ST_POLY7, COLOR1, P0, P1, EB, ED, P4, P5, P6,
+  // Case #116
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_QUA, COLOR0, P0, P1, EB, EG,
+  ST_POLY8, COLOR1, EB, P2, EC, ED, P4, P5, P6, EG,
+  // Case #117
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_POLY6, COLOR1, P0, EA, EB, P4, P5, P6,
+  ST_POLY5, COLOR1, EB, P2, EC, ED, P4,
+  // Case #118
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_POLY6, COLOR1, EA, P1, P4, P5, P6, EG,
+  ST_POLY5, COLOR1, P1, P2, EC, ED, P4,
+  // Case #119
+  ST_TRI, COLOR0, EC, P3, ED,
+  ST_POLY8, COLOR1, P0, P1, P2, EC, ED, P4, P5, P6,
+  // Case #120
+  ST_POLY5, COLOR0, P0, P1, P2, EC, EG,
+  ST_POLY6, COLOR1, EC, P3, P4, P5, P6, EG,
+  // Case #121
+  ST_QUA, COLOR0, EA, P1, P2, EC,
+  ST_POLY7, COLOR1, P0, EA, EC, P3, P4, P5, P6,
+  // Case #122
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_POLY6, COLOR1, EA, P3, P4, P5, P6, EG,
+  ST_POLY5, COLOR1, EA, P1, EB, EC, P3,
+  // Case #123
+  ST_TRI, COLOR0, EB, P2, EC,
+  ST_POLY8, COLOR1, P0, P1, EB, EC, P3, P4, P5, P6,
+  // Case #124
+  ST_QUA, COLOR0, P0, P1, EB, EG,
+  ST_POLY7, COLOR1, EB, P2, P3, P4, P5, P6, EG,
+  // Case #125
+  ST_TRI, COLOR0, EA, P1, EB,
+  ST_POLY8, COLOR1, P0, EA, EB, P2, P3, P4, P5, P6,
+  // Case #126
+  ST_TRI, COLOR0, P0, EA, EG,
+  ST_POLY8, COLOR1, EA, P1, P2, P3, P4, P5, P6, EG,
+  // Case #127
+  ST_POLY7, COLOR1, P0, P1, P2, P3, P4, P5, P6
+};
+// clang-format on
+
+const size_t clipShapesPoly7Size = sizeof(clipShapesPoly7) / sizeof(unsigned char);
+
+}  // namespace clipping
+}  // namespace tables
+}  // namespace extraction
+}  // namespace bump
+}  // namespace axom

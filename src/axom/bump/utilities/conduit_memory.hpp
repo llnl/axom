@@ -97,7 +97,16 @@ private:
    */
   static void *internal_allocate(size_t items, size_t item_size)
   {
-    const auto axomAllocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    int axomAllocatorID;
+#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_GPU)
+    constexpr bool on_device = axom::execution_space<ExecSpace>::onDevice();
+
+    axomAllocatorID = on_device ? axom::getUmpireResourceAllocatorID(umpire::resource::Unified)
+                                : axom::execution_space<ExecSpace>::allocatorID();
+#else
+    axomAllocatorID = axom::execution_space<ExecSpace>::allocatorID();
+#endif
+
     void *ptr = static_cast<void *>(axom::allocate<std::uint8_t>(items * item_size, axomAllocatorID));
     //std::cout << axom::execution_space<ExecSpace>::name()
     //  << ": Allocated for Conduit via axom: items=" << items
