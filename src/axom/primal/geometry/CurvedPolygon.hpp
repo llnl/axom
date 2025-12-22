@@ -33,29 +33,6 @@ namespace primal
 {
 namespace internal
 {
-///@{
-/// \name Boilerplate to deduce the numeric type from the curve object
-template <typename U>
-struct get_numeric_type;
-
-template <typename T, int NDIMS>
-struct get_numeric_type<BezierCurve<T, NDIMS>>
-{
-  using type = T;
-};
-
-template <typename T, int NDIMS>
-struct get_numeric_type<NURBSCurve<T, NDIMS>>
-{
-  using type = T;
-};
-
-template <typename T>
-struct get_numeric_type<detail::NURBSCurveGWNCache<T>>
-{
-  using type = T;
-};
-///@}
 
 ///@{
 /// \name Boilerplate for a compile-time flag for the cached object
@@ -80,8 +57,7 @@ std::ostream& operator<<(std::ostream& os, const CurvedPolygon<CurveType>& poly)
 /*!
  * \class CurvedPolygon
  *
- * \brief Represents a polygon with curved edges defined by BezierCurves
- * \tparam T the coordinate type, e.g., double, float, etc.
+ * \brief Represents a polygon with generic curves for edges
  * \tparam NDIMS the number of dimensions
  * \note The component curves should be ordered in a counter clockwise
  *       orientation with respect to the polygon's normal vector
@@ -90,8 +66,7 @@ template <typename CurveType>
 class CurvedPolygon
 {
 public:
-  using T = typename internal::get_numeric_type<CurveType>::type;
-
+  using NumericType = typename CurveType::NumericType;
   using PointType = typename CurveType::PointType;
   using VectorType = typename CurveType::VectorType;
   using BoundingBoxType = typename CurveType::BoundingBoxType;
@@ -164,7 +139,7 @@ public:
   void addEdge(CurveType&& c1) { m_edges.push_back(std::move(c1)); }
 
   /// Splits an edge "in place"
-  void splitEdge(int idx, T t)
+  void splitEdge(int idx, NumericType t)
   {
     SLIC_ASSERT(idx >= 0 && idx < static_cast<int>(m_edges.size()));
     AXOM_STATIC_ASSERT_MSG(!internal::has_cached_data<CurveType>::value,
