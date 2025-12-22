@@ -250,7 +250,7 @@ RetType evaluate_line_integral(const primal::CurvedPolygon<CurveType> cpoly,
                                int npts)
 {
   static_assert(
-    detail::internal::is_integrable<internal::get_numeric_type<CurveType>::type, RetType>::value,
+    detail::internal::is_integrable_v<typename internal::get_numeric_type<CurveType>::type, RetType>,
     "evaluate_integral methods require addition and scalar multiplication for lambda function "
     "return type");
 
@@ -282,7 +282,7 @@ template <typename Lambda,
 RetType evaluate_line_integral(const CurveType& c, Lambda&& integrand, int npts)
 {
   static_assert(
-    detail::internal::is_integrable<internal::get_numeric_type<CurveType>::type, RetType>::value,
+    detail::internal::is_integrable_v<internal::get_numeric_type<CurveType>::type, RetType>,
     "evaluate_integral methods require addition and scalar multiplication for lambda function "
     "return type");
 
@@ -311,7 +311,7 @@ template <typename Lambda,
 RetType evaluate_line_integral(const axom::Array<CurveType>& carray, Lambda&& integrand, int npts)
 {
   static_assert(
-    detail::internal::is_integrable<internal::get_numeric_type<CurveType>::type, RetType>::value,
+    detail::internal::is_integrable_v<internal::get_numeric_type<CurveType>::type, RetType>,
     "evaluate_integral methods require addition and scalar multiplication for lambda function "
     "return type");
 
@@ -359,7 +359,7 @@ RetType evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpoly,
   using T = typename internal::get_numeric_type<CurveType>::type;
 
   static_assert(
-    detail::internal::is_integrable<T, RetType>::value,
+    detail::internal::is_integrable_v<T, RetType>,
     "evaluate_integral methods require addition and scalar multiplication for lambda function "
     "return type");
 
@@ -420,7 +420,7 @@ RetType evaluate_area_integral(const axom::Array<CurveType>& carray,
   using T = typename internal::get_numeric_type<CurveType>::type;
 
   static_assert(
-    detail::internal::is_integrable<T, RetType>::value,
+    detail::internal::is_integrable_v<T, RetType>,
     "evaluate_integral methods require addition and scalar multiplication for lambda function "
     "return type");
 

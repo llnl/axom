@@ -69,6 +69,9 @@ struct has_scalar_multiplication<T, U, std::void_t<decltype(std::declval<T>() * 
 
 template <typename T, typename U>
 using is_integrable = std::conjunction<has_addition<U>, has_scalar_multiplication<T, U>>;
+
+template <typename T, typename U>
+constexpr bool is_integrable_v = is_integrable<T, U>::value;
 ///@}
 }  // namespace internal
 
