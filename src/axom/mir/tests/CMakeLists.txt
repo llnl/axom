@@ -37,7 +37,7 @@ foreach(test ${gtest_mir_tests})
                          DEPENDS_ON ${mir_tests_depends_on}
                          FOLDER axom/mir/tests )
 
-    blt_add_test( NAME ${test_name}
-                  COMMAND ${test_name}_test )
+    axom_add_test( NAME ${test_name}
+                   COMMAND ${test_name}_test )
 endforeach()
 

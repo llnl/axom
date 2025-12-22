@@ -79,15 +79,13 @@ if(AXOM_ENABLE_MPI)
         endif()
     endforeach()
 
-    blt_add_test( NAME sidre_createdatastore_parallel
-                  COMMAND sidre_createdatastore_ex
-                  NUM_MPI_TASKS 4
-                  )
+    axom_add_test( NAME sidre_createdatastore_parallel
+                   COMMAND sidre_createdatastore_ex
+                   NUM_MPI_TASKS 4)
 
-    blt_add_test( NAME sidre_generateindex_parallel
-                  COMMAND sidre_generateindex_ex
-                  NUM_MPI_TASKS 4
-                  )
+    axom_add_test( NAME sidre_generateindex_parallel
+                   COMMAND sidre_generateindex_ex
+                   NUM_MPI_TASKS 4)
 
 endif()
 
@@ -110,20 +108,14 @@ if(MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
             FOLDER      axom/sidre/examples)
 
         if(AXOM_ENABLE_TESTS)
-            if(AXOM_ENABLE_MPI)
-                if(MFEM_USE_MPI)
-                    set(_nranks 2)
-                else()
-                    set(_nranks 1)
-                endif()
-
-                axom_add_test( NAME ${exe_name}
-                               COMMAND ${exe_name}_ex
-                               NUM_MPI_TASKS ${_nranks})
-            else()
-                axom_add_test( NAME ${exe_name}
-                               COMMAND ${exe_name}_ex)
+            set(_nranks 1)
+            if(MFEM_USE_MPI)
+                set(_nranks 2)
             endif()
+
+            axom_add_test( NAME ${exe_name}
+                           COMMAND ${exe_name}_ex
+                           NUM_MPI_TASKS ${_nranks})
         endif()
 
     endforeach()
