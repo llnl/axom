@@ -140,9 +140,9 @@ if (AXOM_ENABLE_OPENMP AND RAJA_FOUND)
 
   foreach( test_suite ${core_openmp_tests} )
     get_filename_component( test_suite ${test_suite} NAME_WE )
-    axom_add_test( NAME          ${test_suite}_openmp
-                   COMMAND       core_openmp_tests --gtest_filter=${test_suite}*
-                   NUM_OMP_THREADS 24 )
+    axom_add_test( NAME            ${test_suite}_openmp
+                   COMMAND         core_openmp_tests --gtest_filter=${test_suite}*
+                   NUM_OMP_THREADS ${AXOM_TEST_NUM_OMP_THREADS} )
   endforeach()
 endif()
 

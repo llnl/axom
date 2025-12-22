@@ -46,7 +46,7 @@ foreach(test ${quest_tests})
 
     # sets the number of threads for the quest_discretize test
     set(_num_threads)
-    if(AXOM_ENABLE_OPENMP AND "${test_name}" STREQUAL "quest_disctretize")
+    if(AXOM_ENABLE_OPENMP AND "${test_name}" STREQUAL "quest_discretize")
         set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
     endif()
 
@@ -146,23 +146,19 @@ foreach(test ${quest_mpi_tests})
         FOLDER     axom/quest/tests
     )
 
-    set(_numMPITasks 4)
-    if (${test_name} STREQUAL "quest_inout_interface")
-        set(_numMPITasks 1)
+    # sets the number of MPI ranks; quest_inout_interface can only run w/ 1 rank
+    set(_numMPITasks 1)
+    if (AXOM_ENABLE_MPI)
+        set(_numMPITasks 4)
+    endif()
+    if(${test_name} STREQUAL "quest_inout_interface")
+        set(_numMPITasks 4)
     endif()
 
-    if (AXOM_ENABLE_MPI)
-        axom_add_test(
-            NAME ${test_name}
-            COMMAND ${test_name}_test
-            NUM_MPI_TASKS ${_numMPITasks}
-        )
-    else()
-        axom_add_test(
-            NAME ${test_name}
-            COMMAND ${test_name}_test
-        )
-    endif()
+    axom_add_test(
+        NAME ${test_name}
+        COMMAND ${test_name}_test
+        NUM_MPI_TASKS ${_numMPITasks})
 endforeach()
 
 #------------------------------------------------------------------------------
@@ -189,38 +185,41 @@ if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
     endforeach()
 
     # Invoke the intersection shaper test program as many tests that run a subset of the tests.
-    set(_numOMPThreads 8) # limit omp parallelism
-    set(_policies seq)
+    set(_policies "seq")
     if(RAJA_FOUND)
-      blt_list_append(TO _policies ELEMENTS omp IF AXOM_ENABLE_OPENMP)
+      blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
       if(AXOM_USE_UMPIRE)
-        blt_list_append(TO _policies ELEMENTS cuda IF AXOM_ENABLE_CUDA)
-        blt_list_append(TO _policies ELEMENTS hip IF AXOM_ENABLE_HIP)
+        blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
+        blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
       endif()
     endif()
-    foreach(shapingPolicy ${_policies})
-      # For seq, limit the cases since the tests are somewhat slow.
-      if(${shapingPolicy} STREQUAL "seq")
-        set(caseNumbers 5)
-      else()
-        set(caseNumbers 1 2 3 4 5)
+
+    foreach(_pol ${_policies})
+      # sets the number of threads
+      set(_num_threads)
+      if(_pol STREQUAL "omp")
+          set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
       endif()
+
+      # For seq, limit the cases since the tests are somewhat slow.
+      set(caseNumbers 1 2 3 4 5)
+      if(_pol STREQUAL "seq")
+        set(caseNumbers 5)
+      endif()
+
       foreach(caseNumber ${caseNumbers})
-        axom_add_test(NAME quest_intersection_shaper_${caseNumber}_${shapingPolicy}
-          COMMAND quest_intersection_shaper_test --casenumber ${caseNumber} --policy ${shapingPolicy}
+        axom_add_test(NAME quest_intersection_shaper_${caseNumber}_${_pol}
+          COMMAND quest_intersection_shaper_test --casenumber ${caseNumber} --policy ${_pol}
           NUM_MPI_TASKS 1
-          NUM_OMP_THREADS ${_numOMPThreads}
-        )
-        set_tests_properties(quest_intersection_shaper_${caseNumber}_${shapingPolicy} PROPERTIES PROCESSORS ${_numOMPThreads})
+          NUM_OMP_THREADS ${_num_threads})
       endforeach()
     endforeach()
 
     axom_add_test(NAME quest_intersection_shaper_dynamic
         COMMAND quest_intersection_shaper_dynamic_test
         NUM_MPI_TASKS 1
-        NUM_OMP_THREADS ${_numOMPThreads}
+        NUM_OMP_THREADS ${_num_threads}
     )
-    set_tests_properties(quest_intersection_shaper_dynamic PROPERTIES PROCESSORS ${_numOMPThreads})
 
     axom_add_test(NAME quest_sampling_shaper
         COMMAND quest_sampling_shaper_test

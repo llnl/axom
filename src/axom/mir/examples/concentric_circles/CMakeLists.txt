@@ -54,7 +54,7 @@ if(AXOM_ENABLE_TESTS)
                 --numcircles 5
                 --policy ${_policy}
                 --disable-write
-            NUM_OMP_THREADS ${num_threads})
+            NUM_OMP_THREADS ${_num_threads})
 
         set_tests_properties(${_testname} PROPERTIES
             PASS_REGULAR_EXPRESSION  "Material interface reconstruction time:")
