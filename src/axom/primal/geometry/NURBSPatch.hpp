@@ -3844,8 +3844,7 @@ private:
           axom::Array<T> temp_ray_p;
 
           // Perform an initial check to see if the curve is linear and completely overlaps the ray
-          if(beziers[i].isLinear(sq_tol) &&
-             axom::utilities::isNearlyEqual(bez[0][splitInU ? 0 : 1], uv) &&
+          if(bez.isLinear(sq_tol) && axom::utilities::isNearlyEqual(bez[0][splitInU ? 0 : 1], uv) &&
              axom::utilities::isNearlyEqual(bez[bez.getOrder()][splitInU ? 0 : 1], uv))
           {
             continue;
