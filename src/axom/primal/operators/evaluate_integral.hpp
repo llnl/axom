@@ -87,7 +87,7 @@ typename internal::get_numeric_type<CurveType>::type evaluate_scalar_line_integr
  * \return the value of the integral
  */
 template <typename Lambda, typename CurveType>
-typename typename internal::get_numeric_type<CurveType>::type
+typename internal::get_numeric_type<CurveType>::type
 evaluate_scalar_line_integral(const CurveType& c, Lambda&& scalar_integrand, int npts)
 {
   return detail::evaluate_line_integral_component(c, std::forward<Lambda>(scalar_integrand), npts);
