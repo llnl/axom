@@ -208,7 +208,7 @@ TEST(core_utilities, sort_multiple_values)
   }
 }
 
-TEST(core_utilties, sign_of)
+TEST(core_utilities, sign_of)
 {
   using axom::utilities::sign_of;
   EXPECT_EQ(sign_of(1234), 1);
