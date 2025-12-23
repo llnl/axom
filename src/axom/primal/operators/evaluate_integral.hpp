@@ -408,9 +408,9 @@ template <typename Lambda,
           typename CurveType,
           typename LambdaRetType = std::invoke_result_t<Lambda, typename CurveType::PointType>>
 LambdaRetType evaluate_area_integral(const axom::Array<CurveType>& carray,
-                               Lambda&& integrand,
-                               int npts_Q,
-                               int npts_P = 0)
+                                     Lambda&& integrand,
+                                     int npts_Q,
+                                     int npts_P = 0)
 {
   using T = typename CurveType::NumericType;
 
