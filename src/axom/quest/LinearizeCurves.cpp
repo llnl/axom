@@ -150,7 +150,7 @@ double computeArcLength(const LinearizeCurves::NURBSCurve& nurbs, int npts)
   for(const auto& bezier : nurbs.extractBezier())
   {
     arcLength +=
-      primal::evaluate_scalar_line_integral(bezier, [](PointType /*x*/) -> double { return 1.; }, npts);
+      primal::evaluate_line_integral(bezier, [](PointType /*x*/) -> double { return 1.; }, npts);
   }
   return arcLength;
 }

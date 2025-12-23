@@ -181,14 +181,10 @@ TEST(primal_integral, evaluate_line_integral_scalar)
   // Compare against hand computed/high-precision calculated values.
 
   // Constant integrand line integral is equivalent to arc-length calculation
-  EXPECT_NEAR(evaluate_scalar_line_integral(parabola_segment, const_integrand, npts),
-              6.12572661998,
-              abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(parabola_segment, const_integrand, npts), 6.12572661998, abs_tol);
 
-  EXPECT_NEAR(evaluate_scalar_line_integral(parabola_segment, poly_integrand, npts),
-              37.8010703669,
-              abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(parabola_segment, transc_integrand, npts),
+  EXPECT_NEAR(evaluate_line_integral(parabola_segment, poly_integrand, npts), 37.8010703669, abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(parabola_segment, transc_integrand, npts),
               0.495907795678,
               abs_tol);
 
@@ -208,13 +204,9 @@ TEST(primal_integral, evaluate_line_integral_scalar)
   BCurve connected_curve_edges[] = {cubic_segment, linear_segment, quadratic_segment};
   CPolygon connected_curve(connected_curve_edges, 3);
 
-  EXPECT_NEAR(evaluate_scalar_line_integral(connected_curve, const_integrand, npts),
-              8.28968500196,
-              abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(connected_curve, poly_integrand, npts),
-              -5.97565740064,
-              abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(connected_curve, transc_integrand, npts),
+  EXPECT_NEAR(evaluate_line_integral(connected_curve, const_integrand, npts), 8.28968500196, abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(connected_curve, poly_integrand, npts), -5.97565740064, abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(connected_curve, transc_integrand, npts),
               -0.574992518405,
               abs_tol);
 
@@ -222,13 +214,13 @@ TEST(primal_integral, evaluate_line_integral_scalar)
   BCurve disconnected_curve_edges[] = {cubic_segment, quadratic_segment};
   CPolygon disconnected_curve(disconnected_curve_edges, 2);
 
-  EXPECT_NEAR(evaluate_scalar_line_integral(disconnected_curve, const_integrand, npts),
+  EXPECT_NEAR(evaluate_line_integral(disconnected_curve, const_integrand, npts),
               6.05361702446,
               abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(disconnected_curve, poly_integrand, npts),
+  EXPECT_NEAR(evaluate_line_integral(disconnected_curve, poly_integrand, npts),
               -6.34833539689,
               abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(disconnected_curve, transc_integrand, npts),
+  EXPECT_NEAR(evaluate_line_integral(disconnected_curve, transc_integrand, npts),
               -0.914161242161,
               abs_tol);
 }
@@ -390,12 +382,8 @@ TEST(primal_integral, evaluate_integral_3D)
   };
 
   // Test line integral on scalar domain againt values computed with external software
-  EXPECT_NEAR(evaluate_scalar_line_integral(spatial_arc, const_integrand, npts),
-              4.09193268998,
-              abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(spatial_arc, transc_integrand, npts),
-              0.515093324547,
-              abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(spatial_arc, const_integrand, npts), 4.09193268998, abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(spatial_arc, transc_integrand, npts), 0.515093324547, abs_tol);
 
   // Test line integral on vector domain againt values computed with external software
   EXPECT_NEAR(evaluate_vector_line_integral(spatial_arc, vector_field, npts), 155.344, abs_tol);
@@ -443,12 +431,8 @@ TEST(primal_integral, evaluate_integral_rational)
   EXPECT_NEAR(evaluate_area_integral(quarter_ellipse, transc_integrand, npts), 0.472951736306, abs_tol);
 
   // Test line integral on scalar domain againt values computed with external software
-  EXPECT_NEAR(evaluate_scalar_line_integral(ellipse_arc, const_integrand, npts),
-              2.42211205514,
-              abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(ellipse_arc, transc_integrand, npts),
-              1.38837959326,
-              abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(ellipse_arc, const_integrand, npts), 2.42211205514, abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(ellipse_arc, transc_integrand, npts), 1.38837959326, abs_tol);
 
   // Test line integral on vector domain againt values computed with external software
   EXPECT_NEAR(evaluate_vector_line_integral(ellipse_arc, area_field, npts),
@@ -504,12 +488,8 @@ TEST(primal_integral, evaluate_integral_nurbs)
               abs_tol);
   EXPECT_NEAR(evaluate_area_integral(quarter_ellipse, transc_integrand, npts), 0.472951736306, abs_tol);
 
-  EXPECT_NEAR(evaluate_scalar_line_integral(ellipse_arc, const_integrand, npts),
-              2.42211205514,
-              abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(ellipse_arc, transc_integrand, npts),
-              1.38837959326,
-              abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(ellipse_arc, const_integrand, npts), 2.42211205514, abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(ellipse_arc, transc_integrand, npts), 1.38837959326, abs_tol);
 
   EXPECT_NEAR(evaluate_vector_line_integral(ellipse_arc, area_field, npts),
               M_PI * 2 * 1 / 4.0,
@@ -632,12 +612,8 @@ TEST(primal_integral, evaluate_integral_nurbs_gwn_cache)
               abs_tol);
   EXPECT_NEAR(evaluate_area_integral(quarter_ellipse, transc_integrand, npts), 0.472951736306, abs_tol);
 
-  EXPECT_NEAR(evaluate_scalar_line_integral(ellipse_arc, const_integrand, npts),
-              2.42211205514,
-              abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(ellipse_arc, transc_integrand, npts),
-              1.38837959326,
-              abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(ellipse_arc, const_integrand, npts), 2.42211205514, abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(ellipse_arc, transc_integrand, npts), 1.38837959326, abs_tol);
 
   EXPECT_NEAR(evaluate_vector_line_integral(ellipse_arc, area_field, npts),
               M_PI * 2 * 1 / 4.0,
