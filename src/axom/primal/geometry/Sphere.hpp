@@ -248,7 +248,8 @@ AXOM_HOST_DEVICE inline bool Sphere<T, NDIMS>::intersectsWith(const Sphere<T, ND
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE inline bool Sphere<T, NDIMS>::contains(const Sphere<T, NDIMS>& other, double margin) const
+AXOM_HOST_DEVICE inline bool Sphere<T, NDIMS>::contains(const Sphere<T, NDIMS>& other,
+                                                        double margin) const
 {
   const T center_sep = VectorType(other.getCenter(), m_center).norm();
   return (m_radius >= center_sep + other.getRadius() + margin);
