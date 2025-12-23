@@ -84,7 +84,7 @@ constexpr bool is_integrable_v = is_integrable<T, U>::value;
  * Evaluate the line integral with Gauss-Legendre quadrature
  *
  * \tparam Lambda A callable type taking an CurveType's PointType and returning an integrable type
- * \tparam RetType The return type of Lambda, which must support addition and scalar multiplication
+ * \tparam LambdaRetType A type which supports addition and scalar multiplication
  * \param [in] c the Bezier curve object
  * \param [in] integrand the lambda function representing the integrand. 
  * \param [in] npts The number of quadrature points in the rule
@@ -93,15 +93,15 @@ constexpr bool is_integrable_v = is_integrable<T, U>::value;
 template <typename Lambda,
           typename T,
           int NDIMS,
-          typename RetType = std::invoke_result_t<Lambda, typename BezierCurve<T, NDIMS>::PointType>>
-inline RetType evaluate_line_integral_component(const BezierCurve<T, NDIMS>& c,
-                                                Lambda&& integrand,
-                                                const int npts)
+          typename LambdaRetTyp = std::invoke_result_t<Lambda, typename BezierCurve<T, NDIMS>::PointType>>
+inline LambdaRetTyp evaluate_line_integral_component(const BezierCurve<T, NDIMS>& c,
+                                                     Lambda&& integrand,
+                                                     const int npts)
 {
   const axom::numerics::QuadratureRule& quad = axom::numerics::get_gauss_legendre(npts);
 
   // Store/compute quadrature result
-  RetType full_quadrature = RetType {};
+  LambdaRetTyp full_quadrature = LambdaRetTyp {};
   for(int q = 0; q < npts; q++)
   {
     // Get intermediate quadrature point
@@ -121,7 +121,7 @@ inline RetType evaluate_line_integral_component(const BezierCurve<T, NDIMS>& c,
  * Decompose the NURBS curve into Bezier segments, then sum the integral on each
  *
  * \tparam Lambda A callable type taking an CurveType's PointType and returning an integrable type
- * \tparam RetType The return type of Lambda, which must support addition and scalar multiplication
+ * \tparam LambdaRetType The return type of Lambda, which must support addition and scalar multiplication
  * \param [in] n The NURBS curve object
  * \param [in] integrand the lambda function representing the integrand. 
  * \param [in] npts The number of quadrature points in the rule
@@ -130,12 +130,12 @@ inline RetType evaluate_line_integral_component(const BezierCurve<T, NDIMS>& c,
 template <typename Lambda,
           typename T,
           int NDIMS,
-          typename RetType = std::invoke_result_t<Lambda, typename NURBSCurve<T, NDIMS>::PointType>>
-inline RetType evaluate_line_integral_component(const NURBSCurve<T, NDIMS>& n,
-                                                Lambda&& integrand,
-                                                const int npts)
+          typename LambdaRetType = std::invoke_result_t<Lambda, typename NURBSCurve<T, NDIMS>::PointType>>
+inline LambdaRetType evaluate_line_integral_component(const NURBSCurve<T, NDIMS>& n,
+                                                      Lambda&& integrand,
+                                                      const int npts)
 {
-  RetType total_integral = RetType {};
+  LambdaRetType total_integral = LambdaRetType {};
   for(const auto& bez : n.extractBezier())
   {
     total_integral +=
@@ -151,7 +151,7 @@ inline RetType evaluate_line_integral_component(const NURBSCurve<T, NDIMS>& n,
  *  which are used to evaluate the integral over each
  *
  * \tparam Lambda A callable type taking an CurveType's PointType and returning an integrable type
- * \tparam RetType The return type of Lambda, which must support addition and scalar multiplication
+ * \tparam LambdaRetType A type which supports addition and scalar multiplication
  * \param [in] n The NURBS curve object
  * \param [in] integrand the lambda function representing the integrand. 
  * \param [in] npts The number of quadrature points in the rule
@@ -159,12 +159,12 @@ inline RetType evaluate_line_integral_component(const NURBSCurve<T, NDIMS>& n,
  */
 template <typename Lambda,
           typename T,
-          typename RetType = std::invoke_result_t<Lambda, typename NURBSCurveGWNCache<T>::PointType>>
-inline RetType evaluate_line_integral_component(const NURBSCurveGWNCache<T>& nc,
-                                                Lambda&& integrand,
-                                                const int npts)
+          typename LambdaRetType = std::invoke_result_t<Lambda, typename NURBSCurveGWNCache<T>::PointType>>
+inline LambdaRetType evaluate_line_integral_component(const NURBSCurveGWNCache<T>& nc,
+                                                      Lambda&& integrand,
+                                                      const int npts)
 {
-  RetType total_integral = RetType {};
+  LambdaRetType total_integral = LambdaRetType {};
   for(int i = 0; i < nc.getNumKnotSpans(); ++i)
   {
     // Assuming the cache is properly initialized, this operation will never add to the cache
@@ -287,7 +287,7 @@ inline T evaluate_vector_line_integral_component(const NURBSCurveGWNCache<T>& nc
  * Regions Bounded by Rational Parametric Curves" by David Gunderman et al.
  * 
  * \tparam Lambda A callable type taking an CurveType's PointType and returning an integrable type
- * \tparam RetType The return type of Lambda, which must support addition and scalar multiplication
+ * \tparam LambdaRetType A type which supports addition and scalar multiplication
  * \param [in] c The component Bezier curve 
  * \param [in] integrand The lambda function representing the scalar integrand. 
  * \param [in] The lower bound of integration for the antiderivatives
@@ -297,18 +297,18 @@ inline T evaluate_vector_line_integral_component(const NURBSCurveGWNCache<T>& nc
  */
 template <typename Lambda,
           typename T,
-          typename RetType = std::invoke_result_t<Lambda, typename BezierCurve<T, 2>::PointType>>
-RetType evaluate_area_integral_component(const primal::BezierCurve<T, 2>& c,
-                                         Lambda&& integrand,
-                                         double int_lb,
-                                         const int npts_Q,
-                                         const int npts_P)
+          typename LambdaRetTYpe = std::invoke_result_t<Lambda, typename BezierCurve<T, 2>::PointType>>
+LambdaRetTYpe evaluate_area_integral_component(const primal::BezierCurve<T, 2>& c,
+                                               Lambda&& integrand,
+                                               double int_lb,
+                                               const int npts_Q,
+                                               const int npts_P)
 {
   const axom::numerics::QuadratureRule& quad_Q = axom::numerics::get_gauss_legendre(npts_Q);
   const axom::numerics::QuadratureRule& quad_P = axom::numerics::get_gauss_legendre(npts_P);
 
   // Store/compute quadrature result
-  RetType full_quadrature = RetType {};
+  LambdaRetTYpe full_quadrature = LambdaRetTYpe {};
   for(int q = 0; q < npts_Q; q++)
   {
     // Get intermediate quadrature point
@@ -336,7 +336,7 @@ RetType evaluate_area_integral_component(const primal::BezierCurve<T, 2>& c,
  * Intended to be called for each NURBSCurve object bounding a closed 2D region.
  *
  * \tparam Lambda A callable type taking an CurveType's PointType and returning an integrable type
- * \tparam RetType The return type of Lambda, which must support addition and scalar multiplication
+ * \tparam LambdaRetType A type which supports addition and scalar multiplication
  * \param [in] n The component NURBSCurve object
  * \param [in] integrand The lambda function representing the scalar integrand. 
  * \param [in] int_lb The lower bound of integration for the antiderivatives
@@ -346,14 +346,14 @@ RetType evaluate_area_integral_component(const primal::BezierCurve<T, 2>& c,
  */
 template <typename Lambda,
           typename T,
-          typename RetType = std::invoke_result_t<Lambda, typename NURBSCurve<T, 2>::PointType>>
-RetType evaluate_area_integral_component(const primal::NURBSCurve<T, 2>& n,
-                                         Lambda&& integrand,
-                                         double int_lb,
-                                         const int npts_Q,
-                                         const int npts_P)
+          typename LambdaRetType = std::invoke_result_t<Lambda, typename NURBSCurve<T, 2>::PointType>>
+LambdaRetType evaluate_area_integral_component(const primal::NURBSCurve<T, 2>& n,
+                                               Lambda&& integrand,
+                                               double int_lb,
+                                               const int npts_Q,
+                                               const int npts_P)
 {
-  RetType total_integral = RetType {};
+  LambdaRetType total_integral = LambdaRetType {};
   for(const auto& bez : n.extractBezier())
   {
     total_integral += detail::evaluate_area_integral_component(bez,

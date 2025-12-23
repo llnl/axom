@@ -174,7 +174,7 @@ FuncRetType evaluate_vector_line_integral(const CurvedPolygon<CurveType> cpoly,
  * \pre Lambda must return the CurveTypes's vector type
  * \return the value of the integral
  */
-template <typename Lambda, typename CurveType, typename FuncRetType = CurveType::NumericType>
+template <typename Lambda, typename CurveType, typename FuncRetType = typename CurveType::NumericType>
 FuncRetType evaluate_vector_line_integral(const CurveType& c, Lambda&& vector_integrand, int npts)
 {
   return detail::evaluate_vector_line_integral_component(c,
@@ -197,7 +197,7 @@ FuncRetType evaluate_vector_line_integral(const CurveType& c, Lambda&& vector_in
  *
  * \return the value of the integral
  */
-template <typename Lambda, typename CurveType, typename FuncRetType = CurveType::NumericType>
+template <typename Lambda, typename CurveType, typename FuncRetType = typename CurveType::NumericType>
 FuncRetType evaluate_vector_line_integral(const axom::Array<CurveType>& carray,
                                           Lambda&& vector_integrand,
                                           int npts)
@@ -302,15 +302,15 @@ LambdaRetType evaluate_line_integral(const CurveType& c, Lambda&& integrand, int
  */
 template <typename Lambda,
           typename CurveType,
-          typename RetType = std::invoke_result_t<Lambda, typename CurveType::PointType>>
-RetType evaluate_line_integral(const axom::Array<CurveType>& carray, Lambda&& integrand, int npts)
+          typename LambdaRetType = std::invoke_result_t<Lambda, typename CurveType::PointType>>
+LambdaRetType evaluate_line_integral(const axom::Array<CurveType>& carray, Lambda&& integrand, int npts)
 {
   static_assert(
-    detail::internal::is_integrable_v<typename CurveType::NumericType, RetType>,
+    detail::internal::is_integrable_v<typename CurveType::NumericType, LambdaRetType>,
     "evaluate_integral methods require addition and scalar multiplication for lambda function "
     "return type");
 
-  RetType total_integral = RetType {};
+  LambdaRetType total_integral = LambdaRetType {};
   for(int i = 0; i < carray.size(); i++)
   {
     total_integral +=
@@ -406,8 +406,8 @@ LambdaRetType evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpo
  */
 template <typename Lambda,
           typename CurveType,
-          typename RetType = std::invoke_result_t<Lambda, typename CurveType::PointType>>
-RetType evaluate_area_integral(const axom::Array<CurveType>& carray,
+          typename LambdaRetType = std::invoke_result_t<Lambda, typename CurveType::PointType>>
+LambdaRetType evaluate_area_integral(const axom::Array<CurveType>& carray,
                                Lambda&& integrand,
                                int npts_Q,
                                int npts_P = 0)
@@ -415,7 +415,7 @@ RetType evaluate_area_integral(const axom::Array<CurveType>& carray,
   using T = typename CurveType::NumericType;
 
   static_assert(
-    detail::internal::is_integrable_v<T, RetType>,
+    detail::internal::is_integrable_v<T, LambdaRetType>,
     "evaluate_integral methods require addition and scalar multiplication for lambda function "
     "return type");
 
@@ -426,28 +426,28 @@ RetType evaluate_area_integral(const axom::Array<CurveType>& carray,
 
   if(carray.empty())
   {
-    return 0.0;
+    return LambdaRetType {};
   }
 
   // Use minimum y-coord of control nodes as lower bound for integration
-  T int_lb = carray[0][0][1];
+  T lower_bound_y = carray[0][0][1];
   for(int i = 0; i < carray.size(); i++)
   {
     for(int j = 1; j < carray[i].getNumControlPoints(); j++)
     {
-      int_lb = std::min(int_lb, carray[i][j][1]);
+      lower_bound_y = std::min(lower_bound_y, carray[i][j][1]);
     }
   }
 
   // Evaluate the antiderivative line integral along each component
-  RetType total_integral = RetType {};
+  LambdaRetType total_integral = LambdaRetType {};
   for(int i = 0; i < carray.size(); i++)
   {
     for(const auto& bez : carray[i].extractBezier())
     {
       total_integral += detail::evaluate_area_integral_component(bez,
                                                                  std::forward<Lambda>(integrand),
-                                                                 int_lb,
+                                                                 lower_bound_y,
                                                                  npts_Q,
                                                                  npts_P);
     }

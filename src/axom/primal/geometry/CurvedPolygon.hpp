@@ -33,9 +33,8 @@ namespace primal
 {
 namespace internal
 {
-
 ///@{
-/// \name Boilerplate for a compile-time flag for the cached object
+/// \name Type traits for a compile-time flag for the cached object
 template <typename U>
 struct has_cached_data : std::false_type
 { };
