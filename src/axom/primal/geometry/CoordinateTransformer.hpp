@@ -69,6 +69,7 @@ public:
   /*!
    * @brief Construct transformer that moves 4 starting points to 4
    * destination points.
+   * @see setByTerminusPts.
    */
   AXOM_HOST_DEVICE CoordinateTransformer(const primal::Point<T, 3>* startPts,
                                          const primal::Point<T, 3>* destPts)
