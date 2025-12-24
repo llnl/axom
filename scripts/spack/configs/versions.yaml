@@ -18,7 +18,7 @@ packages:
       - spec: "@0.9.5"
   hypre:
     require:
-      - spec: "@2.24.0"
+      - spec: "@2.27.0"
   mfem:
     require:
       - spec: "@4.9"
