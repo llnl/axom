@@ -312,6 +312,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     conflicts("~umpire", when="+cuda")
     conflicts("~umpire", when="+rocm")
 
+    # The 'profiling' variant is deprecated after v0.12, but spack doesn't 
+    # give a reasonable error/warning message if it is set
+    conflicts("+profiling", when="@develop")
+
     conflicts("^blt@:0.3.6", when="+rocm")
 
     def flag_handler(self, name, flags):
