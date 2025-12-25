@@ -283,7 +283,7 @@ public:
 
   //functions related to fields
 
-  int getNumberOfFields() const { return m_fieldNameVec.size(); }
+  int getNumberOfFields() const { return static_cast<int>(m_fieldNameVec.size()); }
 
   /**
    * \brief Add a field to the MultiMat object

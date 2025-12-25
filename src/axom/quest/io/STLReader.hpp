@@ -51,13 +51,13 @@ public:
    * \brief Returns the number of nodes of the surface mesh.
    * \return numNodes the number of nodes.
    */
-  int getNumNodes() const { return m_num_nodes; };
+  int getNumNodes() const { return static_cast<int>(m_num_nodes); };
 
   /*!
    * \brief Returns the number of faces of the surface mesh.
    * \return numFaces the number of faces.
    */
-  int getNumFaces() const { return m_num_faces; };
+  int getNumFaces() const { return static_cast<int>(m_num_faces); };
 
   /*!
    * \brief Clears all internal data-structures

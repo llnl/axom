@@ -347,7 +347,7 @@ inline void MCArray<T>::dynamicRealloc(axom::IndexType new_num_tuples)
   SLIC_ERROR_IF(this->m_resize_ratio < 1.0,
                 "Resize ratio of " << this->m_resize_ratio << " doesn't support dynamic resizing");
 
-  IndexType new_capacity = new_num_tuples * this->m_resize_ratio + 0.5;
+  const IndexType new_capacity = static_cast<IndexType>(new_num_tuples * this->m_resize_ratio + 0.5);
   return reallocViewData(new_capacity);
 }
 

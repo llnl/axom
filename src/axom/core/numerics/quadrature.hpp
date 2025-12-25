@@ -41,7 +41,7 @@ public:
 
   //! \brief Accessor for the size of the quadrature rule
   AXOM_HOST_DEVICE
-  int getNumPoints() const { return m_nodes.size(); }
+  int getNumPoints() const { return static_cast<int>(m_nodes.size()); }
 
 private:
   //! \brief Use a private constructor to avoid creation of an invalid rule
