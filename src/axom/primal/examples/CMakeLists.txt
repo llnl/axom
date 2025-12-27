@@ -51,13 +51,17 @@ if (RAJA_FOUND AND UMPIRE_FOUND)
         blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
 
         foreach(_policy ${_policies})
+            # sets the number of threads for the omp policy; leave empty for non-omp policies
+            set(_num_threads)
+            if(_policy STREQUAL "omp")
+                set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+            endif()
 
             set(_testname "primal_hex_tet_volume_ex_${_policy}")
             axom_add_test(
-              NAME ${_testname}
-              COMMAND hex_tet_volume_ex
-                      --policy ${_policy}
-            )
+              NAME           ${_testname}
+              COMMAND        hex_tet_volume_ex --policy ${_policy}
+              NUM_OMP_THREADS ${_num_threads})
 
             set_tests_properties(${_testname} PROPERTIES
                 PASS_REGULAR_EXPRESSION  "Difference between sums")

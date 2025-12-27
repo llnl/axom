@@ -24,6 +24,6 @@ foreach(test ${gtest_multimat_tests})
                         OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
                         DEPENDS_ON multimat gtest
                         FOLDER     axom/multimat/tests )
-    blt_add_test( NAME ${test_name}
-                  COMMAND ${test_name}_test )
+    axom_add_test( NAME ${test_name}
+                   COMMAND ${test_name}_test )
 endforeach()
