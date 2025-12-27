@@ -45,6 +45,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds spack variants for `adiak` and `caliper`. These replace the previous `profiling` variant which enabled both at the same time.
 
 ###  Changed
+- Evaluation methods for line integrals in `axom::primal` have been generalized, and 
+  `evaluate_scalar_line_integral` has been renamed to `evaluate_line_integral`.
 - Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
   Materials are now expected to be defined only on the valid subset of zones in the mesh.
   This more closely matches VisIt behavior.
