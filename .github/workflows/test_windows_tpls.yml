@@ -6,6 +6,12 @@ name: Manual test for Axom's TPLs on Windows
 # This workflow runs when manually triggered using the UI or API.
 on:
   workflow_dispatch:
+    inputs:
+      tpl_timestamp:
+        description: >
+          Windows TPL cache timestamp. Leave empty to auto-generate of form 10-07-25_22h-56m.
+        required: false
+        default: ""
   
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:  
@@ -31,17 +37,55 @@ jobs:
     - name: Checkout repo w/ submodules
       uses: actions/checkout@v4
       with:
-        submodules: recursive
-        
+        submodules: recursive        
+
     - name: Set up python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
-        
+
+    - name: Determine Windows TPL timestamp
+      id: tpl_ts
+      shell: pwsh
+      run: |
+        if ("${{ inputs.tpl_timestamp }}" -ne "") {
+          $ts = "${{ inputs.tpl_timestamp }}"
+        } else {
+          # Match docker tag style: MM-DD-YY_HHh-MMm
+          $ts = Get-Date -Format "MM-dd-yy_HH'h'-mm'm'"
+        }
+        echo "Using Windows TPL timestamp: $ts"
+        "TPL_TIMESTAMP=$ts" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+    - name: Configure vcpkg binary cache directory
+      shell: pwsh
+      run: |
+        $cacheDir = "${{ github.workspace }}\.vcpkg-cache"
+        New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
+        "VCPKG_DEFAULT_BINARY_CACHE=$cacheDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+    - name: Cache vcpkg binary artifacts (TPLs)
+      id: cache-vcpkg
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}\.vcpkg-cache
+        key: >
+          win-tpls-${{ env.TPL_TIMESTAMP }}-${{ matrix.triplet }}-
+          ${{ hashFiles(
+              'scripts/uberenv/**',
+              'scripts/vcpkg_ports/**',
+              '**/vcpkg.json',
+              '**/vcpkg-configuration.json'
+          ) }}
+        restore-keys: |
+          win-tpls-${{ env.TPL_TIMESTAMP }}-${{ matrix.triplet }}-
+
     - name: List path and files
       run: ls
+
     - name: Run uberenv (${{ matrix.triplet }})
       run: python3 ./scripts/uberenv/uberenv.py --triplet ${{ matrix.triplet }}
+
     - name: Save Uberenv logs
       uses: actions/upload-artifact@v4
       if: ${{ always() }}
@@ -66,12 +110,13 @@ jobs:
         cd build_axom
         ls
         cmake --build . --config ${{ matrix.cfg }}
-        
+
     - name: Test axom (${{ matrix.triplet }} ${{ matrix.cfg }})
       run: |
         cd build_axom
         ls
         ctest -C ${{ matrix.cfg }} --no-compress-output -T Test 
+
     - name: Save CTest logs
       uses: actions/upload-artifact@v4
       if: ${{ always() }}
@@ -79,3 +124,15 @@ jobs:
         name: ctest_artifacts_${{ matrix.triplet }}_${{ matrix.cfg }}.zip
         path: |
           ${{ github.workspace }}/build_axom/**/*.xml
+
+    - name: Publish TPL timestamp
+      shell: pwsh
+      run: |
+        echo "### Windows TPL cache published" >> $env:GITHUB_STEP_SUMMARY
+        echo "" >> $env:GITHUB_STEP_SUMMARY
+        echo "**Timestamp:** \`${{ env.TPL_TIMESTAMP }}\`" >> $env:GITHUB_STEP_SUMMARY
+        echo "" >> $env:GITHUB_STEP_SUMMARY
+        echo "Use this in ci-tests.yml as:" >> $env:GITHUB_STEP_SUMMARY
+        echo "\`WIN_TPL_TIMESTAMP: ${{ env.TPL_TIMESTAMP }}\`" >> $env:GITHUB_STEP_SUMMARY
+        echo "" >> $env:GITHUB_STEP_SUMMARY
+        echo "**Cache hit:** \`${{ steps.cache-vcpkg.outputs.cache-hit }}\`" >> $env:GITHUB_STEP_SUMMARY
