@@ -100,11 +100,11 @@ jobs:
       run: |
         echo "### Windows TPL cache warmed" >> $env:GITHUB_STEP_SUMMARY
         echo "" >> $env:GITHUB_STEP_SUMMARY
-        echo "**Timestamp:** \`${{ env.TPL_TIMESTAMP }}\`" >> $env:GITHUB_STEP_SUMMARY
+        echo '**Timestamp:** `${{ env.TPL_TIMESTAMP }}`' >> $env:GITHUB_STEP_SUMMARY
         echo "" >> $env:GITHUB_STEP_SUMMARY
-        echo "**Triplet:** \`${{ matrix.triplet }}\`" >> $env:GITHUB_STEP_SUMMARY
+        echo '**Triplet:** `${{ matrix.triplet }}`' >> $env:GITHUB_STEP_SUMMARY
         echo "" >> $env:GITHUB_STEP_SUMMARY
-        echo "**Cache hit:** \`${{ steps.cache-vcpkg.outputs.cache-hit }}\`" >> $env:GITHUB_STEP_SUMMARY
+        echo '**Cache hit:** `${{ steps.cache-vcpkg.outputs.cache-hit }}`' >> $env:GITHUB_STEP_SUMMARY
 
 
   # Job 2: Build/test Axom for Debug/Release, but DO NOT rebuild TPLs
