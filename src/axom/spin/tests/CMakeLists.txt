@@ -50,10 +50,16 @@ if (AXOM_ENABLE_MINT)
       FOLDER     axom/spin/tests
       )
 
+    # sets the number of threads for the omp policy; leave empty for non-omp policies
+    set(_num_threads)
+    if(AXOM_ENABLE_OPENMP)
+        set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+    endif()
+
     axom_add_test(
       NAME            spin_bvh
       COMMAND         spin_bvh_test
-      NUM_OMP_THREADS 4
+      NUM_OMP_THREADS ${_num_threads}
       )
 
 endif()

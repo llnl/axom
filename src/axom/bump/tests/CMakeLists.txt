@@ -43,7 +43,7 @@ foreach(test ${gtest_bump_tests})
                          DEPENDS_ON ${bump_tests_depends_on}
                          FOLDER axom/bump/tests )
 
-    blt_add_test( NAME ${test_name}
-                  COMMAND ${test_name}_test )
+    axom_add_test( NAME ${test_name}
+                   COMMAND ${test_name}_test )
 endforeach()
 

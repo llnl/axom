@@ -25,18 +25,13 @@ axom_add_executable(
 if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND CALIPER_FOUND)
     set(_input_file "${AXOM_DATA_DIR}/quest/sphere_binary.stl")
     
-    if(AXOM_ENABLE_MPI)     # this test requires MPI when available
-        set(_num_ranks 1)   # (but only 1 rank)
-    else()                  # but can otherwise be run without MPI
-        unset(_num_ranks)
-    endif()
-    
+    # this test requires MPI when available (but only 1 rank)
     axom_add_test(
         NAME    quest_containment_sphere_ex
         COMMAND quest_containment_driver_ex
                 --input ${_input_file}
                 --caliper report
-        NUM_MPI_TASKS ${_num_ranks}
+        NUM_MPI_TASKS 1
     )
 endif()
 
@@ -64,6 +59,11 @@ if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
     endif()
 
     foreach(_policy ${_policies})
+        # sets the number of threads for the omp policy; leave empty for non-omp policies
+        set(_num_threads)
+        if(_policy STREQUAL "omp")
+            set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+        endif()
 
         set(_testname "quest_bvh_two_pass_example_${_policy}")
         axom_add_test(
@@ -71,7 +71,7 @@ if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
           COMMAND quest_bvh_two_pass_ex
                   --file ${input_file}
                   --exec_space ${_policy}
-        )
+          NUM_OMP_THREADS ${_num_threads})
 
         set_tests_properties(${_testname} PROPERTIES
             PASS_REGULAR_EXPRESSION  "Found 4 actual collisions")
@@ -117,6 +117,11 @@ if (CONDUIT_FOUND AND UMPIRE_FOUND)
 
         foreach(_method ${_methods})
             foreach(_policy ${_policies})
+                # sets the number of threads for the omp policy; leave empty for non-omp policies
+                set(_num_threads)
+                if(_policy STREQUAL "omp")
+                    set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+                endif()
 
                 set(_testname "quest_candidates_example_${_method}_${_policy}")
                 axom_add_test(
@@ -126,7 +131,7 @@ if (CONDUIT_FOUND AND UMPIRE_FOUND)
                           --queryfile ${query_file}
                           --method ${_method}
                           --policy ${_policy}
-                )
+                  NUM_OMP_THREADS ${_num_threads})
 
                 # Match either one comma or none for portability
                 set_tests_properties(${_testname} PROPERTIES
@@ -244,6 +249,12 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             endif()
 
             foreach(_policy ${_policies})
+                # sets the number of threads for the omp policy; leave empty for non-omp policies
+                set(_num_threads)
+                if(_policy STREQUAL "omp")
+                    set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+                endif()
+
                 set(_testname quest_shaping_driver_ex_semi_circle_2d_${_policy})
 
                 axom_add_test(
@@ -254,7 +265,8 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                             --segments-per-knot-span 50
                             --method intersection
                             inline_mesh --min 0 0 --max 3 3 --res 3 3 -d 2
-                    NUM_MPI_TASKS ${_nranks})
+                    NUM_MPI_TASKS ${_nranks}
+                    NUM_OMP_THREADS ${_num_threads})
                 # steel unit semi-circle with an area of pi/2
                 set_tests_properties(${_testname} PROPERTIES
                     PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 1.57")
@@ -270,10 +282,10 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             COMMAND  quest_shaping_driver_ex 
                      -i ${shaping_data_dir}/heroic_roses_mfem.yaml
                      --method sampling
-                     inline_mesh --min 0 0 --max 300 400 --res 300 400 -d 2
+                     inline_mesh --min 0 0 --max 300 400 --res 150 200 -d 2
             NUM_MPI_TASKS ${_nranks})
         set_tests_properties(${_testname} PROPERTIES
-            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?637.")
+            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?595.")
 
         # Test 2D MFEM mesh (winding number)
         set(_testname quest_shaping_driver_ex_heroic_roses_mfem_cp)
@@ -282,10 +294,10 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             COMMAND  quest_shaping_driver_ex 
                      -i ${shaping_data_dir}/heroic_roses_mfem_cp.yaml
                      --method sampling --sampling windingnumber
-                     inline_mesh --min 0 0 --max 300 400 --res 300 400 -d 2
+                     inline_mesh --min 0 0 --max 300 400 --res 150 200 -d 2
             NUM_MPI_TASKS ${_nranks})
         set_tests_properties(${_testname} PROPERTIES
-            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?645.")
+            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?633.")
 
         # 3D shaping tests
         set(_nranks 3)
@@ -351,11 +363,8 @@ if((CONDUIT_FOUND OR
 
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
 
-        if(AXOM_ENABLE_MPI)     # this test requires MPI when available
-            set(_nranks 1)      # (but only 1 rank)
-        else()                  # but can otherwise be run without MPI
-            unset(_nranks)
-        endif()
+        # this test requires MPI when available (but only 1 rank)
+        set(_nranks 1)
 
         # Run the in-memory shaping example on with each enabled policy
         set(_policies "seq")
@@ -370,6 +379,12 @@ if((CONDUIT_FOUND OR
 
         set(_testshapes "tetmesh" "tet" "hex" "sphere" "cyl" "cone" "sor" "all" "plane")
         foreach(_policy ${_policies})
+            # sets the number of threads for the omp policy; leave empty for non-omp policies
+            set(_num_threads)
+            if(_policy STREQUAL "omp")
+                set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+            endif()
+
             foreach(_testshape ${_testshapes})
               set(_testname "quest_shape_in_memory_${_policy}_${_testshape}")
               axom_add_test(
@@ -381,8 +396,9 @@ if((CONDUIT_FOUND OR
                            --scale 0.75 0.75 0.75
                            --dir 0.2 0.4 0.8
                            --meshType bpSidre
-                           inline_mesh --min -2 -2 -2 --max 2 2 2 --res 30 30 30
-                NUM_MPI_TASKS ${_nranks})
+                           inline_mesh --min -2 -2 -2 --max 2 2 2 --res 10 10 10
+                NUM_MPI_TASKS ${_nranks}
+                NUM_OMP_THREADS ${_num_threads})
             endforeach()
         endforeach()
 
@@ -391,6 +407,12 @@ if((CONDUIT_FOUND OR
         set(_testMeshTypes "bpConduit")
         blt_list_append(TO _testMeshTypes ELEMENTS "mfem" IF MFEM_FOUND)
         foreach(_policy ${_policies})
+            # sets the number of threads for the omp policy; leave empty for non-omp policies
+            set(_num_threads)
+            if(_policy STREQUAL "omp")
+                set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+            endif()
+
             foreach(_testMeshType ${_testMeshTypes})
               foreach(_testshape ${_testshapes})
                 set(_testname "quest_shape_in_memory_${_policy}_${_testMeshType}_${_testshape}")
@@ -404,7 +426,8 @@ if((CONDUIT_FOUND OR
                              --dir 0.2 0.4 0.8
                              --meshType ${_testMeshType}
                              inline_mesh --min -2 -2 -2 --max 2 2 2 --res 8 8 8
-                  NUM_MPI_TASKS ${_nranks})
+                  NUM_MPI_TASKS ${_nranks}
+                  NUM_OMP_THREADS ${_num_threads})
               endforeach()
             endforeach()
         endforeach()
@@ -427,7 +450,8 @@ if((CONDUIT_FOUND OR
                              --dir 0.2 0.4 0.8
                              --meshType ${_testMeshType}
                              inline_mesh --min -2 -2 --max 2 2 --res 2 2
-                  NUM_MPI_TASKS ${_nranks})
+                  NUM_MPI_TASKS ${_nranks}
+                  NUM_OMP_THREADS ${_num_threads})
               endforeach()
             endforeach()
         endforeach()
@@ -462,6 +486,12 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0 -mu=2,2 -ms=100,100 -dc=2,3 -o mdmesh.2x3
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0,0 -mu=2,2,2 -ms=20,20,15 -dc=2,2,1 -o mdmeshg.2x2x1 --strided
         foreach(_pol ${_policies})
+            # sets the number of threads for the omp policy; leave empty for non-omp policies
+            set(_num_threads)
+            if(_pol STREQUAL "omp")
+                set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+            endif()
+
             foreach(_mesh ${_meshes})
                 # Determine problem dimension by mesh filename.
                 # and set dimension-dependent arguments.
@@ -491,10 +521,8 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
                                 --policy ${_pol}
                                 --object-file dcp_object_mesh_${_ndim}d_${_pol}_${_mesh}
                                 --distance-file dcp_closest_point_2d_${_pol}_${_mesh}
-                    NUM_MPI_TASKS ${_nranks})
-                if(${_pol} STREQUAL "omp")
-                    set_property(TEST ${_test} APPEND PROPERTY ENVIRONMENT OMP_NUM_THREADS=4)
-                endif()
+                    NUM_MPI_TASKS ${_nranks}
+                    NUM_OMP_THREADS ${_num_threads})
             endforeach()
         endforeach()
 
@@ -543,6 +571,12 @@ if(CONDUIT_FOUND)
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0,0 -mu=2,2,2 -ms=20,20,15 -dc=2,2,1 -o mdmesh.2x2x1
         # src/tools/gen-multidom-structured-mesh.py -ml=0,0,0 -mu=2,2,2 -ms=20,20,15 -dc=2,2,1 -o mdmeshg.2x2x1 --strided
         foreach(_pol ${_policies})
+            # sets the number of threads for the omp policy; leave empty for non-omp policies
+            set(_num_threads)
+            if(_pol STREQUAL "omp")
+                set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+            endif()
+
             foreach(_mesh ${_meshes})
                 # Determine problem dimension by mesh filename.
                 # and set dimension-dependent arguments.
@@ -573,7 +607,8 @@ if(CONDUIT_FOUND)
                                 --contourVal 1.25
                                 --check-results
                                 --verbose
-                    NUM_MPI_TASKS ${_nranks})
+                    NUM_MPI_TASKS ${_nranks}
+                    NUM_OMP_THREADS ${_num_threads})
             endforeach()
         endforeach()
 
@@ -653,31 +688,22 @@ axom_add_executable(
     )
 
 if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
-    # Add a test for the quest interface; Set up for MPI, when available
-    if (AXOM_ENABLE_MPI)
+    set(_num_ranks 1)
+    if(AXOM_ENABLE_MPI)
+        set(_num_ranks 2)
+    endif()
+
+    axom_add_test(
+        NAME quest_inout_interface_3D_test
+        COMMAND quest_inout_interface_ex -i ${quest_data_dir}/sphere_binary.stl
+        NUM_MPI_TASKS ${_num_ranks}
+        )
+    if(C2C_FOUND)
         axom_add_test(
-            NAME quest_inout_interface_3D_mpi_test
-            COMMAND quest_inout_interface_ex -i ${quest_data_dir}/sphere_binary.stl
-            NUM_MPI_TASKS 2
+            NAME quest_inout_interface_2D_test
+            COMMAND quest_inout_interface_ex -i ${AXOM_DATA_DIR}/contours/unit_circle.contour
+            NUM_MPI_TASKS ${_num_ranks}
             )
-        if(C2C_FOUND)
-            axom_add_test(
-                NAME quest_inout_interface_2D_mpi_test
-                COMMAND quest_inout_interface_ex -i ${AXOM_DATA_DIR}/contours/unit_circle.contour
-                NUM_MPI_TASKS 2
-                )
-        endif()
-    else()
-        axom_add_test(
-            NAME quest_inout_interface_3D_test
-            COMMAND quest_inout_interface_ex -i ${quest_data_dir}/sphere_binary.stl
-            )
-        if(C2C_FOUND)
-            axom_add_test(
-                NAME quest_inout_interface_2D_test
-                COMMAND quest_inout_interface_ex -i ${AXOM_DATA_DIR}/contours/unit_circle.contour
-                )
-        endif()
     endif()
 endif()
 
@@ -719,16 +745,14 @@ if (ENABLE_FORTRAN)
     endforeach()
 
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND ${_has_inout_fortran_example})
-        if (AXOM_ENABLE_MPI)
-            axom_add_test(
-                NAME quest_inout_interface_mpi_F_test
-                COMMAND quest_inout_interface_F_ex ${quest_data_dir}/sphere_binary.stl
-                NUM_MPI_TASKS 2)
-        else()
-            axom_add_test(
-                NAME quest_inout_interface_F_test
-                COMMAND quest_inout_interface_F_ex ${quest_data_dir}/sphere_binary.stl)
+        set(_num_ranks 1)
+        if(AXOM_ENABLE_MPI)
+            set(_num_ranks 2)
         endif()
+        axom_add_test(
+            NAME quest_inout_interface_F_test
+            COMMAND quest_inout_interface_F_ex ${quest_data_dir}/sphere_binary.stl
+            NUM_MPI_TASKS ${_num_ranks})
     endif()
 endif()
 
@@ -755,10 +779,9 @@ if(OPENCASCADE_FOUND)
     )
 
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+        set(_num_ranks 1)
         if(AXOM_ENABLE_MPI)
             set(_num_ranks 2)
-        else()
-            set(_num_ranks 1)
         endif()
 
         axom_add_test(

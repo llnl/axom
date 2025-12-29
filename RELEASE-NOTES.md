@@ -43,6 +43,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   or when `components="all"`), all components are enabled. All components can be disabled via `components=none`.
 - Adds a `conduit` spack variant. Conduit was previously a required dependency in our spack package, and is now enabled by default.
 - Adds spack variants for `adiak` and `caliper`. These replace the previous `profiling` variant which enabled both at the same time.
+- Adds the `AXOM_TEST_NUM_OMP_THREADS` configuration variable to control the default OpenMP thread count for tests.
 
 ###  Changed
 - Evaluation methods for line integrals in `axom::primal` have been generalized, and 

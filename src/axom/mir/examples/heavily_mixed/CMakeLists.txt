@@ -28,6 +28,11 @@ if(AXOM_ENABLE_TESTS)
     endif()
 
     foreach(_policy ${_policies})
+        set(_num_threads)
+        if(_policy STREQUAL "omp")
+            set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+        endif()
+
         set(_testname "mir_heavily_mixed_2D_${_policy}")
         axom_add_test(
             NAME ${_testname}
@@ -37,7 +42,7 @@ if(AXOM_ENABLE_TESTS)
                 --materials 10
                 --policy ${_policy}
                 --disable-write
-            )
+            NUM_OMP_THREADS ${_num_threads})
 
         set_tests_properties(${_testname} PROPERTIES
             PASS_REGULAR_EXPRESSION  "Material interface reconstruction time:")
@@ -51,7 +56,7 @@ if(AXOM_ENABLE_TESTS)
                 --materials 10
                 --policy ${_policy}
                 --disable-write
-            )
+            NUM_OMP_THREADS ${_num_threads})
 
         set_tests_properties(${_testname} PROPERTIES
             PASS_REGULAR_EXPRESSION  "Material interface reconstruction time:")
