@@ -66,9 +66,11 @@ namespace sidre = axom::sidre;
 using RuntimePolicy = axom::runtime_policy::Policy;
 
 #if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
-static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT64_ID;
+[[maybe_unused]] static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
+  conduit::DataType::INT64_ID;
 #else
-static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT32_ID;
+[[maybe_unused]] static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
+  conduit::DataType::INT32_ID;
 #endif
 
 /// Struct to parse and store the input parameters
