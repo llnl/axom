@@ -5,7 +5,7 @@ The `svg2contours` script converts [SVG](https://developer.mozilla.org/en-US/doc
 The latter can be used with axom's `quest_winding_number` example application to 
 sample the winding number field over the generated curves.
 
-Full SVG support requires a (slightly) patched copy of [svgpathtools@1.7.1](https://github.com/mathandy/svgpathtools/releases/tag/v1.7.1), as described in this document.
+Full SVG support requires [svgpathtools@1.7.2](https://github.com/mathandy/svgpathtools/releases/tag/v1.7.2)
 
 ### Create a virtual environment
 
@@ -18,20 +18,6 @@ Full SVG support requires a (slightly) patched copy of [svgpathtools@1.7.1](http
 > source ./venv/Scripts/activate
 
 > pip3 install -r requirements.txt
-```
-
-### Apply patch to svgpathtools to fix how angles are computed from eigenvalues
-
-[svgpathtools@1.7.1](https://github.com/mathandy/svgpathtools/releases/tag/v1.7.1) has a bug in applying the correct rotation angle to a path. The eigenvalues can sometimes be complex numbers. 
-This can be resolved by applying the following patch:
-```shell
-> patch  -p1 venv/lib/python3.9/site-packages/svgpathtools/path.py -i svgpathtools-1.7.1-eigenvec-fix.patch --verbose 
-```
-
-#### Developer's note:
-These patches were generated from a git diff after modifying a file in svgpathtools:
-```shell
- > git diff  bb54e6b15701c1839a6d26bb47893d26a7bde694 93097cc5ec1800267fc04dc6750b837701cde52c > svgpathtools-1.7.1-eigenvec-fix.patch
 ```
 
 ### Run the script on an input SVG mesh
