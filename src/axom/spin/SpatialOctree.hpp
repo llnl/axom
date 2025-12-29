@@ -128,7 +128,7 @@ public:
 
     while(minLev <= maxLev)
     {
-      GridPt gridPt = findGridCellAtLevel(pt, lev);
+      GridPt gridPt = findGridCellAtLevel(pt, static_cast<int>(lev));
       switch(this->blockStatus(gridPt, lev))
       {
       case BlockNotInTree:
@@ -142,7 +142,7 @@ public:
         lev = (maxLev + minLev) >> 1;
         break;
       case LeafBlock:
-        return BlockIndex(gridPt, lev);
+        return BlockIndex(gridPt, static_cast<int>(lev));
       }
     }
 

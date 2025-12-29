@@ -1251,6 +1251,11 @@ TEST_F(SamplingShaperTest2D, contour_and_mfem_2D)
 dimensions: 2
 
 shapes:
+# Background material
+- name: bg
+  material: luminiferous_ether
+  geometry:
+    format: none
 # shape in a square using mfem
 - name: square1
   material: square
@@ -1331,7 +1336,7 @@ Ordering: 1
   const std::string background_material = "luminiferous_ether";
   const std::string square_material = "square";
 
-  fs::TempFile contour_file(testname, ".mfem");
+  fs::TempFile contour_file(testname, ".mesh");
   contour_file.write(mfem_square_contour);
 
   fs::TempFile shape_file(testname, ".yaml");

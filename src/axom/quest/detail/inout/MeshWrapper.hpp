@@ -119,14 +119,8 @@ public:
   /** Accessor for the number of elements in the wrapped surface mesh */
   int numMeshCells() const
   {
-    if(m_meshWasReindexed)
-    {
-      return m_elementSet.size();
-    }
-    else
-    {
-      return m_surfaceMesh->getNumberOfCells();
-    }
+    return m_meshWasReindexed ? static_cast<int>(m_elementSet.size())
+                              : static_cast<int>(m_surfaceMesh->getNumberOfCells());
   }
 
   /**

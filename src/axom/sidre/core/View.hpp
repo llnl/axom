@@ -1660,7 +1660,7 @@ private:
     else
     {
       axom::Array<axom::IndexType> shape(getNumDimensions());
-      getShape(shape.size(), shape.data());
+      getShape(static_cast<int>(shape.size()), shape.data());
       os << ' ' << getVoidPtr() << " # non-host " << typeid(T).name() << " array of (" << shape[0];
       for(axom::IndexType i = 1; i < shape.size(); ++i)
       {

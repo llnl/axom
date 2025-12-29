@@ -725,7 +725,7 @@ private:
     }
 
     // Add fields to the triangle mesh
-    int numTris = tris.size();
+    const auto numTris = tris.size();
 
     // Index of each triangle within the mesh
     axom::IndexType* triIdx = addIntField(debugMesh, "triangle_index");

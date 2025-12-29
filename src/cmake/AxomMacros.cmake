@@ -228,8 +228,13 @@ endmacro(axom_add_library)
 ##               NUM_OMP_THREADS [n]
 ##               CONFIGURATIONS  [config1 [config2...]])
 ##
-## Wrapper around blt_add_test() that handles functionality that Axom applies to all
-## tests.
+## Wrapper around blt_add_test() that handles functionality 
+## that Axom applies to all tests.
+##
+## Note that NUM_OMP_THREADS delegates to the corresponding argument 
+## in blt_add_test() and sets the OpenMP environment variable OMP_NUM_THREADS.
+## When AXOM_ENABLE_OPENMP is set and NUM_OMP_THREADS is not provided, 
+## this macros also sets the environment variable OMP_NUM_THREADS=1.
 ##------------------------------------------------------------------------------
 macro(axom_add_test)
 
