@@ -116,6 +116,7 @@ jobs:
       fail-fast: false
       matrix:
         cfg: ["Debug", "Release"]
+        triplet: ["x64-windows", "x86-windows"]
         include:
         - triplet: "x64-windows"
           msvc:    "202264"
