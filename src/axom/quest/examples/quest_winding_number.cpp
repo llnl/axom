@@ -26,6 +26,7 @@
 namespace primal = axom::primal;
 using Point2D = primal::Point<double, 2>;
 using BezierCurve2D = primal::BezierCurve<double, 2>;
+using NURBSCurve2D = primal::NURBSCurve<double, 2>;
 using CurveGWNCache = primal::detail::NURBSCurveGWNCache<double>;
 using BoundingBox2D = primal::BoundingBox<double, 2>;
 
@@ -140,44 +141,39 @@ int main(int argc, char** argv)
 
   CLI11_PARSE(app, argc, argv);
 
-  mfem::Mesh mesh(inputFile);
-  SLIC_INFO(
-    axom::fmt::format("Curve mesh has a topological dimension of {}d, "
-                      "has {} vertices and {} elements",
-                      mesh.Dimension(),
-                      mesh.GetNV(),
-                      mesh.GetNE()));
+  axom::Array<NURBSCurve2D> curves;
+  axom::quest::MFEMReader mfem_reader;
+  mfem_reader.setFileName(inputFile);
 
-  if(!check_mesh_valid(&mesh))
+  int ret = mfem_reader.read(curves);
+
+  // SLIC_INFO(
+  //   axom::fmt::format("Curve mesh has a topological dimension of {}d, "
+  //                     "has {} vertices and {} elements",
+  //                     mesh.Dimension(),
+  //                     mesh.GetNV(),
+  //                     mesh.GetNE()));
+
+  if(ret != 0)
   {
     return 1;
   }
 
-  axom::Array<int> segments;
-  axom::Array<CurveGWNCache> curves;
-
-  // Loop through mesh elements, retaining the (curved) 1D segments
-  for(int i = 0; i < mesh.GetNE(); ++i)
-  {
-    auto* el = mesh.GetElement(i);
-    if(el->GetGeometryType() == mfem::Geometry::SEGMENT)
-    {
-      segments.push_back(i);
-    }
-  }
+  // axom::Array<int> segments;
+  // axom::Array<CurveGWNCache> curves;
 
   // Extract the curves and compute their bounding boxes along the way
   BoundingBox2D bbox;
-  for(int i = 0; i < segments.size(); ++i)
+  int count {0};
+  for(const auto& cur : curves)
   {
-    auto curve = axom::quest::internal::segment_to_curve(&mesh, i);
-    SLIC_INFO_IF(verbose, axom::fmt::format("Element {}: {}", i, curve));
+    SLIC_INFO_IF(verbose, axom::fmt::format("Element {}: {}", count++, cur));
 
-    bbox.addBox(curve.boundingBox());
+    bbox.addBox(cur.boundingBox());
 
-    // Add curves to GWN Cache objects that dynamically store intermediate
-    //  curve subdivisions to be reused across query points
-    curves.emplace_back(CurveGWNCache(std::move(curve)));
+    // // Add curves to GWN Cache objects that dynamically store intermediate
+    // //  curve subdivisions to be reused across query points
+    // curves.emplace_back(CurveGWNCache(std::move(curve)));
   }
 
   SLIC_INFO(axom::fmt::format("Curve mesh bounding box: {}", bbox));

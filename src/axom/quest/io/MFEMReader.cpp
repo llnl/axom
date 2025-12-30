@@ -17,6 +17,7 @@
 
 #include <map>
 #include <string>
+#include <memory>
 
 namespace axom
 {
@@ -47,10 +48,10 @@ int read_mfem(const std::string &fileName, BuildGeometry &&build)
   int retval = READ_FAILED;
 
   // Load the MFEM file
-  mfem::Mesh *mesh = nullptr;
+  std::unique_ptr<mfem::Mesh> mesh;
   try
   {
-    mesh = new mfem::Mesh(fileName, 1, 1, true);
+    mesh = std::make_unique<mfem::Mesh>(fileName, 1, 1, true);
 
     // This code is only supporting 1D meshes in 2D space.
     if(mesh->Dimension() == 1 && mesh->SpaceDimension() == 2)
@@ -66,7 +67,7 @@ int read_mfem(const std::string &fileName, BuildGeometry &&build)
       }
 
       // Use the map to build the geometry.
-      build(mesh, contourZones);
+      build(mesh.get(), contourZones);
 
       retval = READ_SUCCESS;
     }
@@ -77,13 +78,12 @@ int read_mfem(const std::string &fileName, BuildGeometry &&build)
                           "is dimension {} with spatial dimension {}.",
                           mesh->Dimension(),
                           mesh->SpaceDimension()));
+      retval = READ_FAILED;
     }
-
-    delete mesh;
   }
   catch(std::exception &e)
   {
-    delete mesh;
+    retval = READ_FAILED;
   }
   return retval;
 }
