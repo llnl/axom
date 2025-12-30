@@ -35,6 +35,8 @@ void setup_mesh(mfem::DataCollection& dc,
                 const axom::NumericArray<int, 2>& query_res,
                 int queryOrder)
 {
+  AXOM_ANNOTATE_SCOPE("setup_mesh");
+
   constexpr int DIM = 2;
 
   dc.SetOwnData(true);
@@ -57,6 +59,39 @@ void setup_mesh(mfem::DataCollection& dc,
 
   dc.RegisterField("winding", winding);
   dc.RegisterField("inout", inout);
+}
+
+template <typename CurveArray>
+void run_query(mfem::DataCollection& dc, const CurveArray& curves)
+{
+  AXOM_ANNOTATE_SCOPE("run_query");
+
+  auto* query_mesh = dc.GetMesh();
+  auto& winding = *dc.GetField("winding");
+  auto& inout = *dc.GetField("inout");
+
+  // Utility function to get query point from query index
+  const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
+  auto query_point = [&query_mesh](int idx) -> Point2D {
+    Point2D pt;
+    query_mesh->GetNode(idx, pt.data());
+    return pt;
+  };
+
+  // Query the winding numbers at each degree of freedom (DoF) of the query mesh.
+  // The loop below independently checks (and adaptively refines) every curve for each query point.
+  for(int nidx = 0; nidx < num_query_points; ++nidx)
+  {
+    const Point2D q = query_point(nidx);
+    double wn {};
+    for(const auto& c : curves)
+    {
+      wn += axom::primal::winding_number(q, c);
+    }
+
+    winding[nidx] = wn;
+    inout[nidx] = std::round(wn);
+  }
 }
 
 int main(int argc, char** argv)
@@ -125,27 +160,34 @@ int main(int argc, char** argv)
   AXOM_ANNOTATE_SCOPE("winding number example");
 
   axom::Array<NURBSCurve2D> curves;
-  axom::quest::MFEMReader mfem_reader;
-  mfem_reader.setFileName(inputFile);
-
-  int ret = mfem_reader.read(curves);
-  if(ret != axom::quest::MFEMReader::READ_SUCCESS)
   {
-    return 1;
-  }
+    AXOM_ANNOTATE_SCOPE("read_mesh");
 
+    axom::quest::MFEMReader mfem_reader;
+    mfem_reader.setFileName(inputFile);
+
+    const int ret = mfem_reader.read(curves);
+    if(ret != axom::quest::MFEMReader::READ_SUCCESS)
+    {
+      return 1;
+    }
+  }
   // Extract the curves and compute their bounding boxes along the way
   BoundingBox2D bbox;
-  int count {0};
-  for(const auto& cur : curves)
   {
-    SLIC_INFO_IF(verbose, axom::fmt::format("Element {}: {}", count++, cur));
+    AXOM_ANNOTATE_SCOPE("preprocessing");
 
-    bbox.addBox(cur.boundingBox());
+    int count {0};
+    for(const auto& cur : curves)
+    {
+      SLIC_INFO_IF(verbose, axom::fmt::format("Element {}: {}", count++, cur));
 
-    // // Add curves to GWN Cache objects that dynamically store intermediate
-    // //  curve subdivisions to be reused across query points
-    // curves.emplace_back(CurveGWNCache(std::move(curve)));
+      bbox.addBox(cur.boundingBox());
+
+      // // Add curves to GWN Cache objects that dynamically store intermediate
+      // //  curve subdivisions to be reused across query points
+      // curves.emplace_back(CurveGWNCache(std::move(curve)));
+    }
   }
 
   SLIC_INFO(axom::fmt::format("Curve mesh bounding box: {}", bbox));
@@ -162,38 +204,15 @@ int main(int argc, char** argv)
   mfem::DataCollection dc("winding_query");
   setup_mesh(dc, query_box, query_res, queryOrder);
 
-  auto* query_mesh = dc.GetMesh();
-  auto& winding = *dc.GetField("winding");
-  auto& inout = *dc.GetField("inout");
-
-  // Add utility function to convert an index into a query point
-  const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
-  auto query_point = [&query_mesh](int idx) -> Point2D {
-    Point2D pt;
-    query_mesh->GetNode(idx, pt.data());
-    return pt;
-  };
-
-  // Query the winding numbers at each degree of freedom (DoF) of the query mesh.
-  // The loop below independently checks (and adaptively refines) every curve for each query point.
-  for(int nidx = 0; nidx < num_query_points; ++nidx)
-  {
-    const Point2D q = query_point(nidx);
-    double wn {};
-    for(const auto& c : curves)
-    {
-      wn += axom::primal::winding_number(q, c);
-    }
-
-    winding[nidx] = wn;
-    inout[nidx] = std::round(wn);
-  }
+  run_query(dc, curves);
 
   // Save the query mesh and fields to disk using a format that can be viewed in VisIt
   {
-    mfem::VisItDataCollection windingDC(outputPrefix, query_mesh);
-    windingDC.RegisterField("winding", &winding);
-    windingDC.RegisterField("inout", &inout);
+    AXOM_ANNOTATE_SCOPE("dump_mesh");
+
+    mfem::VisItDataCollection windingDC(outputPrefix, dc.GetMesh());
+    windingDC.RegisterField("winding", dc.GetField("winding"));
+    windingDC.RegisterField("inout", dc.GetField("inout"));
     windingDC.Save();
 
     SLIC_INFO(axom::fmt::format("Outputting generated mesh '{}' to '{}'",
