@@ -93,15 +93,15 @@ constexpr bool is_integrable_v = is_integrable<T, U>::value;
 template <typename Lambda,
           typename T,
           int NDIMS,
-          typename LambdaRetTyp = std::invoke_result_t<Lambda, typename BezierCurve<T, NDIMS>::PointType>>
-inline LambdaRetTyp evaluate_line_integral_component(const BezierCurve<T, NDIMS>& c,
-                                                     Lambda&& integrand,
-                                                     const int npts)
+          typename LambdaRetType = std::invoke_result_t<Lambda, typename BezierCurve<T, NDIMS>::PointType>>
+inline LambdaRetType evaluate_line_integral_component(const BezierCurve<T, NDIMS>& c,
+                                                      Lambda&& integrand,
+                                                      const int npts)
 {
   const axom::numerics::QuadratureRule& quad = axom::numerics::get_gauss_legendre(npts);
 
   // Store/compute quadrature result
-  LambdaRetTyp full_quadrature = LambdaRetTyp {};
+  LambdaRetType full_quadrature = LambdaRetType {};
   for(int q = 0; q < npts; q++)
   {
     // Get intermediate quadrature point
@@ -297,8 +297,8 @@ inline T evaluate_vector_line_integral_component(const NURBSCurveGWNCache<T>& nc
  */
 template <typename Lambda,
           typename T,
-          typename LambdaRetTYpe = std::invoke_result_t<Lambda, typename BezierCurve<T, 2>::PointType>>
-LambdaRetTYpe evaluate_area_integral_component(const primal::BezierCurve<T, 2>& c,
+          typename LambdaRetType = std::invoke_result_t<Lambda, typename BezierCurve<T, 2>::PointType>>
+LambdaRetType evaluate_area_integral_component(const primal::BezierCurve<T, 2>& c,
                                                Lambda&& integrand,
                                                double int_lb,
                                                const int npts_Q,
@@ -308,7 +308,7 @@ LambdaRetTYpe evaluate_area_integral_component(const primal::BezierCurve<T, 2>& 
   const axom::numerics::QuadratureRule& quad_P = axom::numerics::get_gauss_legendre(npts_P);
 
   // Store/compute quadrature result
-  LambdaRetTYpe full_quadrature = LambdaRetTYpe {};
+  LambdaRetType full_quadrature = LambdaRetType {};
   for(int q = 0; q < npts_Q; q++)
   {
     // Get intermediate quadrature point
