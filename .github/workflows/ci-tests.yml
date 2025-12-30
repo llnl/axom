@@ -14,6 +14,7 @@ concurrency:
 env:
   CLANG_DOCKER_IMAGE: axom/tpls:clang-19_12-24-25_01h-51m
   GCC_DOCKER_IMAGE: axom/tpls:gcc-13_12-24-25_01h-51m
+  WIN_TPL_TIMESTAMP: 12-29-25_21h-52m
  
 jobs:
   # Hacky solution to reference env variables outside of `run` steps https://stackoverflow.com/a/74217028
@@ -119,29 +120,76 @@ jobs:
           path: "**/Test.xml"
   windows_build_and_test:
     runs-on: windows-latest
+
     strategy:
       # If any of checks (e.g. style) fail, allow other jobs to continue running.
       fail-fast: false
+    
     env:
-      CMAKE_EXTRA_FLAGS: '-DAXOM_ENABLE_SIDRE:BOOL=OFF -DAXOM_ENABLE_INLET:BOOL=OFF -DAXOM_ENABLE_KLEE:BOOL=OFF -DAXOM_ENABLE_SINA:BOOL=OFF -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF'
+      CMAKE_EXTRA_FLAGS: ' '
+      VCPKG_TRIPLET: x64-windows
+
     steps:
     - name: Checkout Axom
       uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: Windows - CMake
-      run: |
-        cmake ${{ env.CMAKE_EXTRA_FLAGS }} -B build -S src
+
+    - name: Set up python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Configure vcpkg binary cache directory
       shell: pwsh
+      run: |
+        $cacheDir = "${{ github.workspace }}\.vcpkg-cache"
+        New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
+        "VCPKG_DEFAULT_BINARY_CACHE=$cacheDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+    - name: Restore vcpkg binary artifacts (TPLs)
+      id: cache-vcpkg
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}\.vcpkg-cache
+        key: >
+          win-tpls-${{ env.WIN_TPL_TIMESTAMP }}-${{ env.VCPKG_TRIPLET }}-
+          ${{ hashFiles(
+              'scripts/uberenv/**',
+              'scripts/vcpkg_ports/**',
+              '**/vcpkg.json',
+              '**/vcpkg-configuration.json'
+          ) }}
+        restore-keys: |
+          win-tpls-${{ env.WIN_TPL_TIMESTAMP }}-${{ env.VCPKG_TRIPLET }}-
+          win-tpls-${{ env.WIN_TPL_TIMESTAMP }}-
+    - name: Windows - Run uberenv (fast with cache)
+      shell: pwsh
+      run: |
+        python3 .\scripts\uberenv\uberenv.py --triplet ${{ env.VCPKG_TRIPLET }}
+
+    - name: Windows - Configure (config-build.py + checked-in host-config)
+      shell: pwsh
+      run: |
+        python3 .\config-build.py -bp build -ip install -hc host-configs/msvc/x64-windows.cmake --msvc 202264 -- $env:CMAKE_EXTRA_FLAGS
+
     - name: Windows - Build
-      run: |
-        cmake --build build
       shell: pwsh
+      run: |
+        cmake --build build --config Debug
+
     - name: Windows - Test
+      shell: pwsh
       run: |
         cd build
         ctest -C Debug -T Test --output-on-failure -V
+
+    - name: Windows - Report cache hit
       shell: pwsh
+      run: |
+        echo "WIN_TPL_TIMESTAMP = ${{ env.WIN_TPL_TIMESTAMP }}"
+        echo "cache-hit         = ${{ steps.cache-vcpkg.outputs.cache-hit }}"
+
   macos_build_and_test:
     runs-on: macos-latest
     strategy:
