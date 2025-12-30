@@ -29,6 +29,36 @@ using NURBSCurve2D = primal::NURBSCurve<double, 2>;
 using CurveGWNCache = primal::detail::NURBSCurveGWNCache<double>;
 using BoundingBox2D = primal::BoundingBox<double, 2>;
 
+/// Helper function to set up the mesh and associated winding and inout fields; uses an mfem::DataCollection to hold everything together
+void setup_mesh(mfem::DataCollection& dc,
+                const BoundingBox2D& query_box,
+                const axom::NumericArray<int, 2>& query_res,
+                int queryOrder)
+{
+  constexpr int DIM = 2;
+
+  dc.SetOwnData(true);
+
+  mfem::Mesh* query_mesh =
+    axom::quest::util::make_cartesian_mfem_mesh_2D(query_box, query_res, queryOrder);
+  dc.SetMesh(query_mesh);
+
+  // Create grid functions for the winding field; will take care of fes and fec memory via MakeOwner()
+  auto* winding_fec = new mfem::H1_FECollection(queryOrder, DIM);
+  auto* winding_fes = new mfem::FiniteElementSpace(query_mesh, winding_fec, 1);
+  mfem::GridFunction* winding = new mfem::GridFunction(winding_fes);
+  winding->MakeOwner(winding_fec);
+
+  // Create grid functions for the inout field; will take care of fes and fec memory via MakeOwner()
+  auto* inout_fec = new mfem::H1_FECollection(queryOrder, DIM);
+  auto* inout_fes = new mfem::FiniteElementSpace(query_mesh, inout_fec, 1);
+  mfem::GridFunction* inout = new mfem::GridFunction(inout_fes);
+  inout->MakeOwner(inout_fec);
+
+  dc.RegisterField("winding", winding);
+  dc.RegisterField("inout", inout);
+}
+
 int main(int argc, char** argv)
 {
   axom::slic::SimpleLogger raii_logger;
@@ -116,14 +146,12 @@ int main(int argc, char** argv)
   // Generate a Cartesian (high order) mesh for the query points
   const auto query_res = axom::NumericArray<int, 2>(boxResolution.data());
   const auto query_box = BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()));
-  auto query_mesh = std::unique_ptr<mfem::Mesh>(
-    axom::quest::util::make_cartesian_mfem_mesh_2D(query_box, query_res, queryOrder));
+  mfem::DataCollection dc("winding_query");
+  setup_mesh(dc, query_box, query_res, queryOrder);
 
-  // Create grid functions for the winding number and inout fields
-  auto fec = mfem::H1_FECollection(queryOrder, 2);
-  auto fes = mfem::FiniteElementSpace(query_mesh.get(), &fec, 1);
-  auto winding = mfem::GridFunction(&fes);
-  auto inout = mfem::GridFunction(&fes);
+  auto* query_mesh = dc.GetMesh();
+  auto& winding = *dc.GetField("winding");
+  auto& inout = *dc.GetField("inout");
 
   // Add utility function to convert an index into a query point
   const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
@@ -149,14 +177,16 @@ int main(int argc, char** argv)
   }
 
   // Save the query mesh and fields to disk using a format that can be viewed in VisIt
-  mfem::VisItDataCollection windingDC(outputPrefix, query_mesh.get());
-  windingDC.RegisterField("winding", &winding);
-  windingDC.RegisterField("inout", &inout);
-  windingDC.Save();
+  {
+    mfem::VisItDataCollection windingDC(outputPrefix, query_mesh);
+    windingDC.RegisterField("winding", &winding);
+    windingDC.RegisterField("inout", &inout);
+    windingDC.Save();
 
-  SLIC_INFO(axom::fmt::format("Outputting generated mesh '{}' to '{}'",
-                              windingDC.GetCollectionName(),
-                              axom::utilities::filesystem::getCWD()));
+    SLIC_INFO(axom::fmt::format("Outputting generated mesh '{}' to '{}'",
+                                windingDC.GetCollectionName(),
+                                axom::utilities::filesystem::getCWD()));
+  }
 
   return 0;
 }
