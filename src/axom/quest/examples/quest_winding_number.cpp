@@ -71,6 +71,7 @@ int main(int argc, char** argv)
   std::string outputPrefix = {"winding"};
 
   bool verbose {false};
+  std::string annotationMode {"none"};
 
   // Query mesh parameters
   std::vector<double> boxMins;
@@ -91,6 +92,15 @@ int main(int argc, char** argv)
 
   app.add_flag("-v,--verbose", verbose, "verbose output")->capture_default_str();
 
+#ifdef AXOM_USE_CALIPER
+  app.add_option("--caliper", annotationMode)
+    ->description(
+      "caliper annotation mode. Valid options include 'none' and 'report'. "
+      "Use 'help' to see full list.")
+    ->capture_default_str()
+    ->check(axom::utilities::ValidCaliperMode);
+#endif
+
   auto* query_mesh_subcommand =
     app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
   query_mesh_subcommand->add_option("--min", boxMins)
@@ -110,6 +120,9 @@ int main(int argc, char** argv)
     ->check(axom::CLI::PositiveNumber);
 
   CLI11_PARSE(app, argc, argv);
+
+  axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(annotationMode);
+  AXOM_ANNOTATE_SCOPE("winding number example");
 
   axom::Array<NURBSCurve2D> curves;
   axom::quest::MFEMReader mfem_reader;
