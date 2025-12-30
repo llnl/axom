@@ -38,6 +38,9 @@ public:
   using CurvedPolygon = axom::primal::CurvedPolygon<NURBSCurve>;
   using CurvedPolygonArray = axom::Array<CurvedPolygon>;
 
+  static constexpr int READ_FAILED = 1;
+  static constexpr int READ_SUCCESS = 0;
+
 public:
   /// Sets the name of the contour file to load. Must be called before \a read()
   void setFileName(const std::string &fileName) { m_fileName = fileName; }

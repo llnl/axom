@@ -4,15 +4,13 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/quest/io/MFEMReader.hpp"
-#include "axom/quest/interface/internal/QuestHelpers.hpp"
-
-#ifndef AXOM_USE_MFEM
-  #error MFEMReader should only be included when Axom is configured with MFEM
-#endif
 
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
 
+#ifndef AXOM_USE_MFEM
+  #error MFEMReader should only be included when Axom is configured with MFEM
+#endif
 #include <mfem.hpp>
 
 #include <map>
@@ -39,53 +37,128 @@ namespace internal
  *
  * \return 0 on success; non-zero on failure.
  */
-template <typename BuildGeometry>
-int read_mfem(const std::string &fileName, BuildGeometry &&build)
+int read_mfem(const std::string &fileName,
+              std::map<int, axom::Array<primal::NURBSCurve<double, 2>>> &curvemap)
 {
-  constexpr int READ_FAILED = 1;
-  constexpr int READ_SUCCESS = 0;
-
-  int retval = READ_FAILED;
-
   // Load the MFEM file
-  std::unique_ptr<mfem::Mesh> mesh;
-  try
-  {
-    mesh = std::make_unique<mfem::Mesh>(fileName, 1, 1, true);
+  constexpr int generate_edges = 1;
+  constexpr int refine = 1;
+  constexpr bool fix_orientation = true;
+  auto mesh = std::make_unique<mfem::Mesh>(fileName, generate_edges, refine, fix_orientation);
 
-    // This code is only supporting 1D meshes in 2D space.
-    if(mesh->Dimension() == 1 && mesh->SpaceDimension() == 2)
+  if(mesh->Dimension() != 1 || mesh->SpaceDimension() != 2)
+  {
+    SLIC_WARNING(
+      axom::fmt::format("Mesh must have dimension 1 and spatial dimension 2. The supplied mesh "
+                        "is dimension {} with spatial dimension {}.",
+                        mesh->Dimension(),
+                        mesh->SpaceDimension()));
+    return MFEMReader::READ_FAILED;
+  }
+
+  const auto *nodes = mesh->GetNodes();
+  const auto *fes = nodes != nullptr ? nodes->FESpace() : nullptr;
+  const auto *fec = fes != nullptr ? fes->FEColl() : nullptr;
+  if(nodes == nullptr || fes == nullptr || fec == nullptr)
+  {
+    SLIC_WARNING("Mesh does not have a valid nodes grid function");
+    return MFEMReader::READ_FAILED;
+  }
+
+  // lambda to extract the knot vector associated with curve idx. Converts from mfem::KnotVector to primal::KnotVector
+  auto get_knots = [&mesh](int idx) -> primal::KnotVector<double> {
+    mfem::Array<const mfem::KnotVector *> kvs;
+    mesh->NURBSext->GetPatchKnotVectors(idx, kvs);
+    const mfem::KnotVector &kv = *kvs[0];
+
+    axom::ArrayView<const double> knots_view(&kv[0], kv.Size());
+    return primal::KnotVector<double>(knots_view, kv.GetOrder());
+  };
+
+  // lambda to extract the control points for curve idx from the mfem mesh as an array of primal::Point
+  using ControlPoint = primal::Point<double, 2>;
+  auto get_controlpoints = [nodes, fes](int idx) -> axom::Array<ControlPoint> {
+    mfem::Array<int> vdofs;
+    mfem::Vector v;
+    fes->GetElementVDofs(idx, vdofs);
+    nodes->GetSubVector(vdofs, v);
+    const auto ord = fes->GetOrdering();
+
+    const int ncp = v.Size() / 2;
+    axom::Array<ControlPoint> cp(0, ncp);
+    for(int i = 0; i < ncp; ++i)
     {
-      // Examine the mesh attributes and group all of the related zones that are
-      // edges of the same contour.
-      std::map<int, axom::Array<int>> contourZones;
-      for(int zoneId = 0; zoneId < mesh->GetNE(); zoneId++)
+      ord == mfem::Ordering::byVDIM ? cp.push_back({v[i], v[i + ncp]})
+                                    : cp.push_back({v[2 * i], v[2 * i + 1]});
+    }
+
+    return cp;
+  };
+
+  // lambda to extract the weights for curve idx from the mfem mesh
+  auto get_weights = [&mesh, fes](int idx) -> axom::Array<double> {
+    mfem::Array<int> dofs;
+    fes->GetElementDofs(idx, dofs);
+
+    const int NW = dofs.Size();
+    axom::Array<double> w(0, NW);
+
+    // wrap our array's buffer w/ an mfem::Vector for GetSubVector
+    mfem::Vector mfem_vec_weights(w.data(), NW);
+    mesh->NURBSext->GetWeights().GetSubVector(dofs, mfem_vec_weights);
+
+    return w;
+  };
+
+  // lambda to check if the weights correspond to a rational curve. If they are all equal it is not rational
+  auto is_rational = [](const axom::Array<double> &weights) -> bool {
+    const int sz = weights.size();
+    if(sz == 0)
+    {
+      return false;
+    }
+
+    const double first = weights[0];
+    for(int i = 1; i < sz; ++i)
+    {
+      if(weights[i] != first)  // strict equality is fine for this
       {
-        // Get element attribute and make it zero-origin.
-        const int contourId = mesh->GetAttribute(zoneId) - 1;
-        contourZones[contourId].push_back(zoneId);
+        return true;
       }
-
-      // Use the map to build the geometry.
-      build(mesh.get(), contourZones);
-
-      retval = READ_SUCCESS;
     }
-    else
-    {
-      SLIC_WARNING(
-        axom::fmt::format("Mesh must have dimension 1 and spatial dimension 2. The supplied mesh "
-                          "is dimension {} with spatial dimension {}.",
-                          mesh->Dimension(),
-                          mesh->SpaceDimension()));
-      retval = READ_FAILED;
-    }
-  }
-  catch(std::exception &e)
+
+    return false;
+  };
+
+  // Examine the mesh attributes and group all of the related curves w/ same attribute
+  // Assumption is that they're part of the same contour
+  if(const bool isNURBS = dynamic_cast<const mfem::NURBSFECollection *>(fec) != nullptr; isNURBS)
   {
-    retval = READ_FAILED;
+    const int num_patches = fes->GetNURBSext()->GetNP();
+    for(int patchId = 0; patchId < num_patches; ++patchId)
+    {
+      // Get patch attribute and make it zero-origin.
+      const int contourId = mesh->GetPatchAttribute(patchId) - 1;
+
+      const auto kv = get_knots(patchId);
+      const auto cp = get_controlpoints(patchId);
+      const auto w = get_weights(patchId);
+
+      is_rational(w) ? curvemap[contourId].push_back({cp, w, kv})
+                     : curvemap[contourId].push_back({cp, kv});
+    }
   }
-  return retval;
+  else
+  {
+    for(int zoneId = 0; zoneId < mesh->GetNE(); zoneId++)
+    {
+      // Get element attribute and make it zero-origin.
+      const int contourId = mesh->GetAttribute(zoneId) - 1;
+      curvemap[contourId].push_back({get_controlpoints(zoneId), fes->GetOrder(zoneId)});
+    }
+  }
+
+  return MFEMReader::READ_SUCCESS;
 }
 
 }  // end namespace internal
@@ -95,43 +168,40 @@ int MFEMReader::read(CurveArray &curves)
   SLIC_WARNING_IF(m_fileName.empty(), "Missing a filename in MFEMReader::read()");
 
   curves.clear();
-  return internal::read_mfem(
-    m_fileName,
-    [&](mfem::Mesh *mesh, const std::map<int, axom::Array<int>> &contourZones) {
-      // Build NURBSCurves from the MFEM zones.
-      for(auto &[contourId, zoneIds] : contourZones)
-      {
-        for(int zoneId : zoneIds)
-        {
-          curves.push_back(axom::quest::internal::segment_to_nurbs(mesh, zoneId));
-        }
-      }
-    });
+  std::map<int, CurveArray> curvemap;
+  const int ret = internal::read_mfem(m_fileName, curvemap);
+  if(ret == READ_SUCCESS)
+  {
+    for(auto &[contourId, nurbs] : curvemap)
+    {
+      // this version ignores the attributes
+      curves.append(nurbs.view());
+    }
+  }
+
+  return ret;
 }
 
 int MFEMReader::read(CurvedPolygonArray &curvedPolygons)
 {
   SLIC_WARNING_IF(m_fileName.empty(), "Missing a filename in MFEMReader::read()");
 
-  return internal::read_mfem(
-    m_fileName,
-    [&](mfem::Mesh *mesh, const std::map<int, axom::Array<int>> &contourZones) {
-      // Build CurvedPolygons from the MFEM zones.
-
-      // Resize the array.
-      curvedPolygons.clear();
-      curvedPolygons.resize(contourZones.size());
-
-      for(auto &[contourId, zoneIds] : contourZones)
+  curvedPolygons.clear();
+  std::map<int, CurveArray> curvemap;
+  const int ret = internal::read_mfem(m_fileName, curvemap);
+  if(ret == READ_SUCCESS)
+  {
+    curvedPolygons.resize(curvemap.size());
+    for(auto &[contourId, nurbs] : curvemap)
+    {
+      auto &poly = curvedPolygons[contourId];
+      for(auto &cur : nurbs)
       {
-        auto &poly = curvedPolygons[contourId];
-        for(int zoneId : zoneIds)
-        {
-          auto curve = axom::quest::internal::segment_to_nurbs(mesh, zoneId);
-          poly.addEdge(std::move(curve));
-        }
+        poly.addEdge(cur);
       }
-    });
+    }
+  }
+  return ret;
 }
 
 }  // end namespace quest
