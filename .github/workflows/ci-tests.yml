@@ -14,7 +14,7 @@ concurrency:
 env:
   CLANG_DOCKER_IMAGE: axom/tpls:clang-19_12-24-25_01h-51m
   GCC_DOCKER_IMAGE: axom/tpls:gcc-13_12-24-25_01h-51m
-  WIN_TPL_TIMESTAMP: 12-29-25_21h-52m
+  WIN_TPL_TIMESTAMP: "12-29-25_21h-52m"
  
 jobs:
   # Hacky solution to reference env variables outside of `run` steps https://stackoverflow.com/a/74217028
@@ -120,6 +120,9 @@ jobs:
           path: "**/Test.xml"
   windows_build_and_test:
     runs-on: windows-latest
+    permissions:
+      actions: read
+      contents: read
 
     strategy:
       # If any of checks (e.g. style) fail, allow other jobs to continue running.
@@ -166,6 +169,11 @@ jobs:
     - name: Windows - Cache status
       shell: pwsh
       run: |
+        echo "ref               = ${{ github.ref }}"
+        echo "event_name        = ${{ github.event_name }}"
+        echo "WIN_TPL_TIMESTAMP = ${{ env.WIN_TPL_TIMESTAMP }}"
+        echo "VCPKG_TRIPLET     = ${{ env.VCPKG_TRIPLET }}"
+        echo "cache-key         = win-tpls-${{ env.WIN_TPL_TIMESTAMP }}-${{ env.VCPKG_TRIPLET }}- ${{ hashFiles('scripts/uberenv/**', 'scripts/vcpkg_ports/**', '**/vcpkg.json', '**/vcpkg-configuration.json') }}"
         if ("${{ steps.cache-vcpkg.outputs.cache-hit }}" -eq "true") {
           echo "vcpkg binary cache hit; uberenv should be fast."
         } else {
