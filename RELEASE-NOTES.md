@@ -79,6 +79,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   Refer to the new `StoragePolicy` interface for substitute functionality.
 - The `axom::bump::clipping` namespace was renamed to `axom::bump::extraction` since it now
   contains additional algorithms.
+- Updates to [mfem version 4.9][https://github.com/mfem/mfem/releases/tag/v4.9].
+  Also updates mfem's hypre dependency to [hypre version 2.27][https://github.com/hypre-space/hypre/releases/tag/v2.27.0].
 
 ###  Fixed
 - Sina's Fortran tests are now running (instead of silently failing)

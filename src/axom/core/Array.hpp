@@ -1804,7 +1804,7 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::setCapacity(IndexType new_capac
   T* new_data =
     StoragePolicy::reallocate(m_data, m_num_elements, m_allocator_id, new_capacity, [this](T* new_data) {
       // Call helper method to move underlying elements if T is non-trivial.
-      m_arrayOps.realloc_move(new_data, this->m_num_elements, this->m_data);
+      m_arrayOps.realloc_move(new_data, static_cast<IndexType>(this->m_num_elements), this->m_data);
     });
 
   if(new_data)

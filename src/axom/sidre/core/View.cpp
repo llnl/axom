@@ -768,13 +768,13 @@ int View::getShape(int ndims, IndexType* shape) const
  */
 IndexType View::getOffset() const
 {
-  int offset = 0;
+  IndexType offset = 0;
 
   if(isDescribed())
   {
     offset = m_schema.dtype().offset();
 
-    const int bytes_per_elem = getBytesPerElement();
+    const auto bytes_per_elem = getBytesPerElement();
     if(bytes_per_elem != 0)
     {
       SLIC_ERROR_IF(offset % bytes_per_elem != 0,
@@ -790,7 +790,7 @@ IndexType View::getOffset() const
     }
   }
 
-  return static_cast<IndexType>(offset);
+  return offset;
 }
 
 /*
@@ -803,13 +803,13 @@ IndexType View::getOffset() const
  */
 IndexType View::getStride() const
 {
-  int stride = 1;
+  IndexType stride = 1;
 
   if(isDescribed())
   {
     stride = m_schema.dtype().stride();
 
-    const int bytes_per_elem = getBytesPerElement();
+    const auto bytes_per_elem = getBytesPerElement();
     if(bytes_per_elem != 0)
     {
       SLIC_ERROR_IF(stride % bytes_per_elem != 0,
@@ -825,7 +825,7 @@ IndexType View::getStride() const
     }
   }
 
-  return static_cast<IndexType>(stride);
+  return stride;
 }
 
 /*
@@ -1738,7 +1738,7 @@ void View::importDescription(conduit::Node& data_holder)
     {
       Node& n = data_holder["shape"];
       IndexType* shape = n.value();
-      int ndims = n.dtype().number_of_elements();
+      const auto ndims = static_cast<int>(n.dtype().number_of_elements());
       describeShape(ndims, shape);
     }
   }

@@ -168,19 +168,19 @@ void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFun
 
   mfem::QuadratureFunction* pos_coef = new mfem::QuadratureFunction(sp, dim);
   pos_coef->SetOwnsSpace(true);
-  pos_coef->HostReadWrite();
+  auto pos = mfem::Reshape(pos_coef->HostWrite(), dim, nq, NE);
 
   // Rearrange positions into quadrature function
   {
     for(int i = 0; i < NE; ++i)
     {
-      const int elStartIdx = i * nq * dim;
+      const int gf_elStartIdx = i * nq * dim;
       for(int j = 0; j < dim; ++j)
       {
         for(int k = 0; k < nq; ++k)
         {
           //X has dims nqpts x sdim x ne
-          (*pos_coef)(elStartIdx + (k * dim) + j) = geomFactors->X(elStartIdx + (j * nq) + k);
+          pos(j, k, i) = geomFactors->X(gf_elStartIdx + (j * nq) + k);
         }
       }
     }
