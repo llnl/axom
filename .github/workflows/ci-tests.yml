@@ -126,7 +126,6 @@ jobs:
       fail-fast: false
     
     env:
-      CMAKE_EXTRA_FLAGS: ' '
       VCPKG_TRIPLET: x64-windows
 
     steps:
@@ -149,7 +148,7 @@ jobs:
 
     - name: Restore vcpkg binary artifacts (TPLs)
       id: cache-vcpkg
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v4
       with:
         path: ${{ github.workspace }}\.vcpkg-cache
         key: >
@@ -163,6 +162,15 @@ jobs:
         restore-keys: |
           win-tpls-${{ env.WIN_TPL_TIMESTAMP }}-${{ env.VCPKG_TRIPLET }}-
           win-tpls-${{ env.WIN_TPL_TIMESTAMP }}-
+
+    - name: Windows - Cache status
+      shell: pwsh
+      run: |
+        if ("${{ steps.cache-vcpkg.outputs.cache-hit }}" -eq "true") {
+          echo "vcpkg binary cache hit; uberenv should be fast."
+        } else {
+          echo "vcpkg binary cache miss; uberenv will build missing TPLs locally (no cache upload in this workflow)."
+        }
     - name: Windows - Run uberenv (fast with cache)
       shell: pwsh
       run: |
@@ -171,7 +179,7 @@ jobs:
     - name: Windows - Configure (config-build.py + checked-in host-config)
       shell: pwsh
       run: |
-        python3 .\config-build.py -bp build -ip install -hc host-configs/msvc/x64-windows.cmake --msvc 202264 -- $env:CMAKE_EXTRA_FLAGS
+        python3 .\config-build.py -bp build -ip install -hc host-configs/msvc/x64-windows.cmake --msvc 202264
 
     - name: Windows - Build
       shell: pwsh
@@ -240,5 +248,3 @@ jobs:
         submodules: recursive
     - name: Check ${{ matrix.check_type }}
       run: ./scripts/github-actions/linux-check.sh 
-
-
