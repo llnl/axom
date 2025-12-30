@@ -544,6 +544,26 @@ CurveType segment_to_curve_impl(const mfem::Mesh* mesh,
   fes->GetElementVDofs(elem_id, vdofs);
   mesh->GetNodes()->GetSubVector(vdofs, v);
 
+  // lambda to check if the weights correspond to a rational curve. If they are all equal it is not rational
+  auto is_rational = [](const mfem::Vector& w) -> bool {
+    const int sz = w.Size();
+    if(sz == 0)
+    {
+      return false;
+    }
+
+    const double first = w[0];
+    for(int i = 1; i < sz; ++i)
+    {
+      if(w[i] != first)  // strict equality is fine for this
+      {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
   const int p = order + 1;
   axom::Array<Point2D> points(p, p);
   if(isBernstein)
@@ -568,7 +588,8 @@ CurveType segment_to_curve_impl(const mfem::Mesh* mesh,
     }
 
     fes->GetNURBSext()->GetWeights().GetSubVector(dofs, weights);
-    return rationalConstructor(points.data(), weights.GetData(), p, order);
+    return is_rational(weights) ? rationalConstructor(points.data(), weights.GetData(), p, order)
+                                : polynomialConstructor(points.data(), p, order);
   }
 }
 
