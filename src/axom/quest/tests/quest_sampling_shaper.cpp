@@ -44,25 +44,6 @@ namespace fs = axom::utilities::filesystem;
 
 namespace
 {
-struct SlicAbortException final : std::exception
-{
-  const char* what() const noexcept override { return "SLIC abort"; }
-};
-
-void slic_abort_throw() { throw SlicAbortException {}; }
-
-class ScopedSlicAbortToThrow
-{
-public:
-  ScopedSlicAbortToThrow()
-  {
-    axom::slic::enableAbortOnError();
-    axom::slic::setAbortFunction(slic_abort_throw);
-  }
-
-  ~ScopedSlicAbortToThrow() { axom::slic::setAbortFunction(axom::utilities::processAbort); }
-};
-
 const std::string unit_circle_contour =
   "piece = circle(origin=(0cm, 0cm), radius=1cm, start=0deg, end=360deg)";
 
@@ -2172,8 +2153,8 @@ shapes:
   EXPECT_FALSE(m_shapeSet->getShapes().empty());
 
   const auto& shape = m_shapeSet->getShapes().front();
-  ScopedSlicAbortToThrow abort_guard;
-  EXPECT_THROW(m_shaper->loadShape(shape), SlicAbortException);
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->loadShape(shape), slic::SlicAbortException);
 }
 
 TEST_F(SamplingShaperTest2D, loadShape_missing_mfem_mesh_file_aborts)
@@ -2203,8 +2184,8 @@ shapes:
   EXPECT_FALSE(m_shapeSet->getShapes().empty());
 
   const auto& shape = m_shapeSet->getShapes().front();
-  ScopedSlicAbortToThrow abort_guard;
-  EXPECT_THROW(m_shaper->loadShape(shape), SlicAbortException);
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->loadShape(shape), slic::SlicAbortException);
 }
 
 TEST_F(SamplingShaperTest2D, loadShape_missing_mfem_mesh_file_windingnumber_aborts)
@@ -2235,8 +2216,8 @@ shapes:
   EXPECT_FALSE(m_shapeSet->getShapes().empty());
 
   const auto& shape = m_shapeSet->getShapes().front();
-  ScopedSlicAbortToThrow abort_guard;
-  EXPECT_THROW(m_shaper->loadShape(shape), SlicAbortException);
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->loadShape(shape), slic::SlicAbortException);
 }
 
 //-----------------------------------------------------------------------------
@@ -2268,8 +2249,8 @@ shapes:
   EXPECT_FALSE(m_shapeSet->getShapes().empty());
 
   const auto& shape = m_shapeSet->getShapes().front();
-  ScopedSlicAbortToThrow abort_guard;
-  EXPECT_THROW(m_shaper->loadShape(shape), SlicAbortException);
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->loadShape(shape), slic::SlicAbortException);
 }
 
 TEST_F(SamplingShaperTest3D, loadShape_missing_proe_file_aborts)
@@ -2299,8 +2280,8 @@ shapes:
   EXPECT_FALSE(m_shapeSet->getShapes().empty());
 
   const auto& shape = m_shapeSet->getShapes().front();
-  ScopedSlicAbortToThrow abort_guard;
-  EXPECT_THROW(m_shaper->loadShape(shape), SlicAbortException);
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->loadShape(shape), slic::SlicAbortException);
 }
 
 //-----------------------------------------------------------------------------

@@ -55,29 +55,6 @@ std::vector<std::string> proeCase {"shaping/proeCase/proeCase1.yaml",
 constexpr double tolerance = 1.e-10;
 
 //---------------------------------------------------------------------------
-namespace
-{
-struct SlicAbortException final : std::exception
-{
-  const char* what() const noexcept override { return "SLIC abort"; }
-};
-
-void slic_abort_throw() { throw SlicAbortException {}; }
-
-class ScopedSlicAbortToThrow
-{
-public:
-  ScopedSlicAbortToThrow()
-  {
-    axom::slic::enableAbortOnError();
-    axom::slic::setAbortFunction(slic_abort_throw);
-  }
-
-  ~ScopedSlicAbortToThrow() { axom::slic::setAbortFunction(axom::utilities::processAbort); }
-};
-}  // namespace
-
-//---------------------------------------------------------------------------
 TEST(IntersectionShaperFileReadTest, loadShape_missing_stl_file_aborts)
 {
   // Tests Klee shape file referencing non-existant STL mesh; should fail
@@ -106,8 +83,8 @@ shapes:
   quest::IntersectionShaper shaper(policy, alloc, shapeSet, &dc);
 
   const auto& shape = shapeSet.getShapes().front();
-  ScopedSlicAbortToThrow abort_guard;
-  EXPECT_THROW(shaper.loadShape(shape), SlicAbortException);
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(shaper.loadShape(shape), slic::SlicAbortException);
 }
 
 TEST(IntersectionShaperFileReadTest, loadShape_missing_c2c_file_aborts)
@@ -138,8 +115,8 @@ shapes:
   quest::IntersectionShaper shaper(policy, alloc, shapeSet, &dc);
 
   const auto& shape = shapeSet.getShapes().front();
-  ScopedSlicAbortToThrow abort_guard;
-  EXPECT_THROW(shaper.loadShape(shape), SlicAbortException);
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(shaper.loadShape(shape), slic::SlicAbortException);
 }
 
 //---------------------------------------------------------------------------
