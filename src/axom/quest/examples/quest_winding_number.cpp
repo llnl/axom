@@ -107,6 +107,7 @@ int main(int argc, char** argv)
 
   bool verbose {false};
   std::string annotationMode {"none"};
+  bool memoized {true};
 
   // Query mesh parameters
   std::vector<double> boxMins;
@@ -126,6 +127,8 @@ int main(int argc, char** argv)
     ->capture_default_str();
 
   app.add_flag("-v,--verbose", verbose, "verbose output")->capture_default_str();
+  app.add_flag("--memoized,!--no-memoized", memoized, "Cache geometric data during query?")
+    ->capture_default_str();
 
 #ifdef AXOM_USE_CALIPER
   app.add_option("--caliper", annotationMode)
@@ -174,6 +177,7 @@ int main(int argc, char** argv)
   }
   // Extract the curves and compute their bounding boxes along the way
   BoundingBox2D bbox;
+  axom::Array<CurveGWNCache> memoized_curves;
   {
     AXOM_ANNOTATE_SCOPE("preprocessing");
 
@@ -184,12 +188,14 @@ int main(int argc, char** argv)
 
       bbox.addBox(cur.boundingBox());
 
-      // // Add curves to GWN Cache objects that dynamically store intermediate
-      // //  curve subdivisions to be reused across query points
-      // curves.emplace_back(CurveGWNCache(std::move(curve)));
+      // Add curves to GWN Cache objects that dynamically store intermediate
+      //  curve subdivisions to be reused across query points
+      if(memoized)
+      {
+        memoized_curves.emplace_back(CurveGWNCache(cur));
+      }
     }
   }
-
   SLIC_INFO(axom::fmt::format("Curve mesh bounding box: {}", bbox));
 
   // Early return if user didn't set up a query mesh
@@ -204,7 +210,15 @@ int main(int argc, char** argv)
   mfem::DataCollection dc("winding_query");
   setup_mesh(dc, query_box, query_res, queryOrder);
 
-  run_query(dc, curves);
+  // Run the query (optionally, with memoization)
+  if(memoized)
+  {
+    run_query(dc, memoized_curves);
+  }
+  else
+  {
+    run_query(dc, curves);
+  }
 
   // Save the query mesh and fields to disk using a format that can be viewed in VisIt
   {
