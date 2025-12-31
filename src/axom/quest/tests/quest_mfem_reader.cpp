@@ -80,6 +80,54 @@ TEST(quest_mfem_reader, read_curved_polygon)
   EXPECT_EQ(polys[72].numEdges(), 2);
 }
 
+TEST(quest_mfem_reader, preserves_rational_weights)
+{
+  const std::string fileName =
+    pjoin(AXOM_DATA_DIR, "contours", "heroic_roses", "mfem", "brightgreen_over.mesh");
+
+  quest::MFEMReader reader;
+  reader.setFileName(fileName);
+
+  // test read on NURBSCurve array and check that at least one curve is rational
+  {
+    axom::Array<primal::NURBSCurve<double, 2>> curves;
+    EXPECT_EQ(reader.read(curves), quest::MFEMReader::READ_SUCCESS);
+    ASSERT_GT(curves.size(), 0);
+
+    bool any_rational = false;
+    for(const auto &curve : curves)
+    {
+      if(curve.isRational())
+      {
+        any_rational = true;
+        break;
+      }
+    }
+    EXPECT_TRUE(any_rational);
+  }
+
+  // do the same with the extracted Curved polygon array
+  {
+    axom::Array<primal::CurvedPolygon<axom::primal::NURBSCurve<double, 2>>> polys;
+    EXPECT_EQ(reader.read(polys), quest::MFEMReader::READ_SUCCESS);
+    ASSERT_GT(polys.size(), 0);
+
+    bool any_rational = false;
+    for(const auto &poly : polys)
+    {
+      for(const auto &cur : poly.getEdges())
+      {
+        if(cur.isRational())
+        {
+          any_rational = true;
+          break;
+        }
+      }
+    }
+    EXPECT_TRUE(any_rational);
+  }
+}
+
 //------------------------------------------------------------------------------
 
 int main(int argc, char *argv[])

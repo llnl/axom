@@ -101,7 +101,7 @@ int read_mfem(const std::string &fileName,
     fes->GetElementDofs(idx, dofs);
 
     const int NW = dofs.Size();
-    axom::Array<double> w(0, NW);
+    axom::Array<double> w(NW, NW);
 
     // wrap our array's buffer w/ an mfem::Vector for GetSubVector
     mfem::Vector mfem_vec_weights(w.data(), NW);
