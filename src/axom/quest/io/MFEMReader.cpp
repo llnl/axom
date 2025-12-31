@@ -28,13 +28,8 @@ namespace internal
  * \brief Read the MFEM file and build the desired type of geometry from it using a supplied function.
  *        The MFEM files must contain only 1D curves in 2D space.
  *
- * \tparam BuildGeometry A function/lambda that will be used to build geometry from the MFEM mesh.
- *
  * \param fileName The name of the file to read.
- * \param build The function/lambda that generates the geometry using the map of zones to curves.
- *              The function must take 2 parameters, an MFEM mesh pointer, and a reference to
- *              std::map<int, axom::Array<int>>. The latter map contains contourId:zoneIdList mapping, which
- *              can be used to group related MFEM zones/contours as edges in a shape.
+ * \param curvemap Output map from MFEM attribute value to the associated curves.
  *
  * \return 0 on success; non-zero on failure.
  */
@@ -144,24 +139,22 @@ int read_mfem(const std::string &fileName,
     const int num_patches = fes->GetNURBSext()->GetNP();
     for(int patchId = 0; patchId < num_patches; ++patchId)
     {
-      // Get patch attribute and make it zero-origin.
-      const int contourId = mesh->GetPatchAttribute(patchId) - 1;
+      const int attribute = mesh->GetPatchAttribute(patchId);
 
       const auto kv = get_knots(patchId);
       const auto cp = get_controlpoints(patchId);
       const auto w = get_weights(patchId);
 
-      is_rational(w) ? curvemap[contourId].push_back({cp, w, kv})
-                     : curvemap[contourId].push_back({cp, kv});
+      is_rational(w) ? curvemap[attribute].push_back({cp, w, kv})
+                     : curvemap[attribute].push_back({cp, kv});
     }
   }
   else
   {
     for(int zoneId = 0; zoneId < mesh->GetNE(); zoneId++)
     {
-      // Get element attribute and make it zero-origin.
-      const int contourId = mesh->GetAttribute(zoneId) - 1;
-      curvemap[contourId].push_back({get_controlpoints(zoneId), fes->GetOrder(zoneId)});
+      const int attribute = mesh->GetAttribute(zoneId);
+      curvemap[attribute].push_back({get_controlpoints(zoneId), fes->GetOrder(zoneId)});
     }
   }
 
@@ -179,7 +172,7 @@ int MFEMReader::read(CurveArray &curves)
   const int ret = internal::read_mfem(m_fileName, curvemap);
   if(ret == READ_SUCCESS)
   {
-    for(auto &[contourId, nurbs] : curvemap)
+    for(auto &[attribute, nurbs] : curvemap)
     {
       // this version ignores the attributes
       curves.append(nurbs.view());
@@ -191,21 +184,33 @@ int MFEMReader::read(CurveArray &curves)
 
 int MFEMReader::read(CurvedPolygonArray &curvedPolygons)
 {
+  axom::Array<int> attributes;
+  return read(curvedPolygons, attributes);
+}
+
+int MFEMReader::read(CurvedPolygonArray &curvedPolygons, axom::Array<int> &attributes)
+{
   SLIC_WARNING_IF(m_fileName.empty(), "Missing a filename in MFEMReader::read()");
 
   curvedPolygons.clear();
+  attributes.clear();
   std::map<int, CurveArray> curvemap;
   const int ret = internal::read_mfem(m_fileName, curvemap);
   if(ret == READ_SUCCESS)
   {
     curvedPolygons.resize(curvemap.size());
-    for(auto &[contourId, nurbs] : curvemap)
+    attributes.resize(curvemap.size());
+
+    int polygon_index = 0;
+    for(auto &[attribute, nurbs] : curvemap)
     {
-      auto &poly = curvedPolygons[contourId];
+      attributes[polygon_index] = attribute;
+      auto &poly = curvedPolygons[polygon_index];
       for(auto &cur : nurbs)
       {
         poly.addEdge(cur);
       }
+      ++polygon_index;
     }
   }
   return ret;

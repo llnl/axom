@@ -10,11 +10,17 @@
 #endif
 
 #include "axom/quest/io/MFEMReader.hpp"
+#include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
 
+#include "mfem.hpp"
+
 // gtest includes
 #include "gtest/gtest.h"
+
+#include <fstream>
+#include <string>
 
 // namespace aliases
 namespace primal = axom::primal;
@@ -126,6 +132,79 @@ TEST(quest_mfem_reader, preserves_rational_weights)
     }
     EXPECT_TRUE(any_rational);
   }
+}
+
+TEST(quest_mfem_reader, read_curved_polygon_noncontiguous_attributes)
+{
+  axom::utilities::filesystem::TempFile tmp_mesh("noncontiguous_attributes", ".mesh");
+
+  // This test uses non-contiguous attributes.
+  // For testing, we're setting the y-coordinate to be the same as the attribute
+  constexpr int attr10 {10};
+  constexpr int attr20 {20};
+
+  {
+    mfem::Mesh mesh(/*Dim*/ 1, /*NVert*/ 4, /*NElem*/ 2, /*NBdrElem*/ 0, /*spaceDim*/ 2);
+    const double v0[] = {0., static_cast<double>(attr20)};
+    const double v1[] = {1., static_cast<double>(attr20)};
+    const double v2[] = {0., static_cast<double>(attr10)};
+    const double v3[] = {1., static_cast<double>(attr10)};
+
+    mesh.AddVertex(v0);
+    mesh.AddVertex(v1);
+    mesh.AddVertex(v2);
+    mesh.AddVertex(v3);
+
+    mesh.AddSegment(0, 1, attr20);
+    mesh.AddSegment(2, 3, attr10);
+
+    mesh.FinalizeTopology(/*generate_bdr*/ true);
+    mesh.Finalize(/*refine*/ false, /*fix_orientation*/ true);
+    mesh.EnsureNodes();
+
+    std::ofstream ofs(tmp_mesh.getPath());
+    ASSERT_TRUE(ofs.good());
+    mesh.Print(ofs);
+  }
+
+  quest::MFEMReader reader;
+  reader.setFileName(tmp_mesh.getPath());
+
+  axom::Array<primal::CurvedPolygon<axom::primal::NURBSCurve<double, 2>>> polys;
+  axom::Array<int> attributes;
+  EXPECT_EQ(reader.read(polys, attributes), quest::MFEMReader::READ_SUCCESS);
+
+  ASSERT_EQ(polys.size(), 2);
+  ASSERT_EQ(attributes.size(), 2);
+
+  EXPECT_EQ(polys[0].numEdges(), 1);
+  EXPECT_EQ(polys[1].numEdges(), 1);
+
+  // note: the curves are added to a map, so the order is not guaranteed
+  // let's check that the attributes and geometry match expectations
+  // the y-coordinates of the edges start and end vertex should equal the attribute
+  for(int i : {0, 1})
+  {
+    const auto &edge = polys[i][0];
+    if(attributes[i] == attr10)
+    {
+      EXPECT_EQ(edge[0][1], attr10);
+      EXPECT_EQ(edge[1][1], attr10);
+    }
+    else if(attributes[i] == attr20)
+    {
+      EXPECT_EQ(edge[0][1], attr20);
+      EXPECT_EQ(edge[1][1], attr20);
+    }
+    else
+    {
+      FAIL() << "Got unexpected attribute for polygon " << i << ": " << attributes[i] << "\n";
+    }
+  }
+
+  polys.clear();
+  EXPECT_EQ(reader.read(polys), quest::MFEMReader::READ_SUCCESS);
+  EXPECT_EQ(polys.size(), 2);
 }
 
 //------------------------------------------------------------------------------
