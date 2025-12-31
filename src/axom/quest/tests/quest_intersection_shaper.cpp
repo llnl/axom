@@ -17,6 +17,7 @@
 // Uncomment this macro to save MFEM datasets for use in VisIt.
 //#define VISUALIZE_DATASETS
 
+#include "axom/core.hpp"
 #include "quest_intersection_shaper_utils.hpp"
 
 #ifndef AXOM_USE_MFEM
@@ -52,6 +53,94 @@ std::vector<std::string> proeCase {"shaping/proeCase/proeCase1.yaml",
                                    "shaping/proeCase/proeCase2.yaml"};
 
 constexpr double tolerance = 1.e-10;
+
+//---------------------------------------------------------------------------
+namespace
+{
+struct SlicAbortException final : std::exception
+{
+  const char* what() const noexcept override { return "SLIC abort"; }
+};
+
+void slic_abort_throw() { throw SlicAbortException {}; }
+
+class ScopedSlicAbortToThrow
+{
+public:
+  ScopedSlicAbortToThrow()
+  {
+    axom::slic::enableAbortOnError();
+    axom::slic::setAbortFunction(slic_abort_throw);
+  }
+
+  ~ScopedSlicAbortToThrow() { axom::slic::setAbortFunction(axom::utilities::processAbort); }
+};
+}  // namespace
+
+//---------------------------------------------------------------------------
+TEST(IntersectionShaperFileReadTest, loadShape_missing_stl_file_aborts)
+{
+  // Tests Klee shape file referencing non-existant STL mesh; should fail
+  const std::string shape_yaml = R"(
+dimensions: 3
+
+shapes:
+- name: missing_stl
+  material: mat
+  geometry:
+    format: stl
+    path: missing.stl
+)";
+
+  axom::utilities::filesystem::TempFile shape_file("missing_stl", ".yaml");
+  shape_file.write(shape_yaml);
+
+  const auto shapeSet = klee::readShapeSet(shape_file.getPath());
+  EXPECT_FALSE(shapeSet.getShapes().empty());
+
+  sidre::MFEMSidreDataCollection dc("missing_stl_dc", nullptr, true);
+  makeTestMesh(dc, false);
+
+  const auto policy = RuntimePolicy::seq;
+  const int alloc = axom::policyToDefaultAllocatorID(policy);
+  quest::IntersectionShaper shaper(policy, alloc, shapeSet, &dc);
+
+  const auto& shape = shapeSet.getShapes().front();
+  ScopedSlicAbortToThrow abort_guard;
+  EXPECT_THROW(shaper.loadShape(shape), SlicAbortException);
+}
+
+TEST(IntersectionShaperFileReadTest, loadShape_missing_c2c_file_aborts)
+{
+  // Tests Klee shape file referencing non-existant c2c file; should fail
+  const std::string shape_yaml = R"(
+dimensions: 3
+
+shapes:
+- name: missing_c2c
+  material: mat
+  geometry:
+    format: c2c
+    path: missing.contour
+)";
+
+  axom::utilities::filesystem::TempFile shape_file("missing_c2c", ".yaml");
+  shape_file.write(shape_yaml);
+
+  const auto shapeSet = klee::readShapeSet(shape_file.getPath());
+  EXPECT_FALSE(shapeSet.getShapes().empty());
+
+  sidre::MFEMSidreDataCollection dc("missing_c2c_dc", nullptr, true);
+  makeTestMesh(dc, false);
+
+  const auto policy = RuntimePolicy::seq;
+  const int alloc = axom::policyToDefaultAllocatorID(policy);
+  quest::IntersectionShaper shaper(policy, alloc, shapeSet, &dc);
+
+  const auto& shape = shapeSet.getShapes().front();
+  ScopedSlicAbortToThrow abort_guard;
+  EXPECT_THROW(shaper.loadShape(shape), SlicAbortException);
+}
 
 //---------------------------------------------------------------------------
 // Define testing functions for different modes.
@@ -248,23 +337,12 @@ TEST(IntersectionShaperTest, proeCase_hip)
 #endif
 
 //---------------------------------------------------------------------------
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
-  int result = 0;
-#ifdef AXOM_USE_MPI
-  // This is needed because of Axom's c2c reader.
-  MPI_Init(&argc, &argv);
-  // See if this aborts right away.
-  int my_rank, num_ranks;
-  MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
-#endif
+  axom::utilities::raii::MPIWrapper mpi_raii_wrapper(argc, argv);
 
   ::testing::InitGoogleTest(&argc, argv);
-  result = testApp.execute(argc, argv);
+  int result = testApp.execute(argc, argv);
 
-#ifdef AXOM_USE_MPI
-  MPI_Finalize();
-#endif
   return result;
 }

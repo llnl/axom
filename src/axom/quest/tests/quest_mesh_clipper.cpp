@@ -820,9 +820,8 @@ int main(int argc, char** argv)
 
 #ifdef AXOM_USE_MPI
     MPI_Bcast(&retval, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Finalize();
 #endif
-    exit(retval);
+    return retval;
   }
 
   if(params.testGeom.size() > 1)

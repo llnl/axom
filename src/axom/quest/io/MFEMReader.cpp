@@ -5,6 +5,7 @@
 
 #include "axom/quest/io/MFEMReader.hpp"
 
+#include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
 
@@ -40,6 +41,12 @@ namespace internal
 int read_mfem(const std::string &fileName,
               std::map<int, axom::Array<primal::NURBSCurve<double, 2>>> &curvemap)
 {
+  if(!axom::utilities::filesystem::pathExists(fileName))
+  {
+    SLIC_WARNING(axom::fmt::format("Cannot open the provided MFEM mesh file '{}'", fileName));
+    return MFEMReader::READ_FAILED;
+  }
+
   // Load the MFEM file
   constexpr int generate_edges = 1;
   constexpr int refine = 1;
