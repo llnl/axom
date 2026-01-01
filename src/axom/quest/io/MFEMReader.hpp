@@ -56,6 +56,18 @@ public:
 
   /*!
    * \brief Read the contour file provided by \a setFileName()
+   *
+   * \param[out] curves The curve array that will contain curves read from the MFEM file.
+   * \param[out] attributes The MFEM attribute value associated with each curve.
+   *
+   * \note The i-th entry in \a attributes contains the MFEM attribute for the i-th curve.
+   *
+   * \return READ_SUCCESS for a successful read; READ_FAILED (non-zero) otherwise
+   */
+  int read(CurveArray &curves, axom::Array<int> &attributes);
+
+  /*!
+   * \brief Read the contour file provided by \a setFileName()
    * 
    * \param[out] curvedPolygons The curved polygon array that will contain curved polygons created from reading
    *                            the MFEM file.

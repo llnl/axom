@@ -54,8 +54,14 @@ TEST(quest_mfem_reader, read_nurbs_curves)
 
   // Read as 9 NURBS curves
   axom::Array<primal::NURBSCurve<double, 2>> curves;
-  EXPECT_EQ(reader.read(curves), 0);
+  axom::Array<int> attributes;
+  EXPECT_EQ(reader.read(curves, attributes), quest::MFEMReader::READ_SUCCESS);
   EXPECT_EQ(curves.size(), 9);
+  ASSERT_EQ(attributes.size(), 9);
+  for(int i = 0; i < attributes.size(); ++i)
+  {
+    EXPECT_EQ(attributes[i], 1);
+  }
 }
 
 TEST(quest_mfem_reader, read_curved_polygon)
@@ -170,41 +176,72 @@ TEST(quest_mfem_reader, read_curved_polygon_noncontiguous_attributes)
   quest::MFEMReader reader;
   reader.setFileName(tmp_mesh.getPath());
 
-  axom::Array<primal::CurvedPolygon<axom::primal::NURBSCurve<double, 2>>> polys;
-  axom::Array<int> attributes;
-  EXPECT_EQ(reader.read(polys, attributes), quest::MFEMReader::READ_SUCCESS);
-
-  ASSERT_EQ(polys.size(), 2);
-  ASSERT_EQ(attributes.size(), 2);
-
-  EXPECT_EQ(polys[0].numEdges(), 1);
-  EXPECT_EQ(polys[1].numEdges(), 1);
-
-  // note: the curves are added to a map, so the order is not guaranteed
-  // let's check that the attributes and geometry match expectations
-  // the y-coordinates of the edges start and end vertex should equal the attribute
-  for(int i : {0, 1})
+  // check that we can successfully read in the attributes to CurvedPolygon array
   {
-    const auto &edge = polys[i][0];
-    if(attributes[i] == attr10)
+    axom::Array<primal::CurvedPolygon<axom::primal::NURBSCurve<double, 2>>> polys;
+    axom::Array<int> attributes;
+    EXPECT_EQ(reader.read(polys, attributes), quest::MFEMReader::READ_SUCCESS);
+
+    ASSERT_EQ(polys.size(), 2);
+    ASSERT_EQ(attributes.size(), 2);
+
+    EXPECT_EQ(polys[0].numEdges(), 1);
+    EXPECT_EQ(polys[1].numEdges(), 1);
+
+    // note: the curves are added to a map, so the order is not guaranteed
+    // let's check that the attributes and geometry match expectations
+    // the y-coordinates of the edges start and end vertex should equal the attribute
+    for(int i : {0, 1})
     {
-      EXPECT_EQ(edge[0][1], attr10);
-      EXPECT_EQ(edge[1][1], attr10);
+      const auto &edge = polys[i][0];
+      if(attributes[i] == attr10)
+      {
+        EXPECT_EQ(edge[0][1], attr10);
+        EXPECT_EQ(edge[1][1], attr10);
+      }
+      else if(attributes[i] == attr20)
+      {
+        EXPECT_EQ(edge[0][1], attr20);
+        EXPECT_EQ(edge[1][1], attr20);
+      }
+      else
+      {
+        FAIL() << "Got unexpected attribute for polygon " << i << ": " << attributes[i] << "\n";
+      }
     }
-    else if(attributes[i] == attr20)
-    {
-      EXPECT_EQ(edge[0][1], attr20);
-      EXPECT_EQ(edge[1][1], attr20);
-    }
-    else
-    {
-      FAIL() << "Got unexpected attribute for polygon " << i << ": " << attributes[i] << "\n";
-    }
+
+    polys.clear();
+    EXPECT_EQ(reader.read(polys), quest::MFEMReader::READ_SUCCESS);
+    EXPECT_EQ(polys.size(), 2);
   }
 
-  polys.clear();
-  EXPECT_EQ(reader.read(polys), quest::MFEMReader::READ_SUCCESS);
-  EXPECT_EQ(polys.size(), 2);
+  // check that we can successfully read in the attributes to NURBSCurve array
+  {
+    axom::Array<primal::NURBSCurve<double, 2>> curves;
+    axom::Array<int> curve_attributes;
+    EXPECT_EQ(reader.read(curves, curve_attributes), quest::MFEMReader::READ_SUCCESS);
+    ASSERT_EQ(curves.size(), 2);
+    ASSERT_EQ(curve_attributes.size(), 2);
+
+    for(int i : {0, 1})
+    {
+      const auto &curve = curves[i];
+      if(curve_attributes[i] == attr10)
+      {
+        EXPECT_EQ(curve[0][1], attr10);
+        EXPECT_EQ(curve[1][1], attr10);
+      }
+      else if(curve_attributes[i] == attr20)
+      {
+        EXPECT_EQ(curve[0][1], attr20);
+        EXPECT_EQ(curve[1][1], attr20);
+      }
+      else
+      {
+        FAIL() << "Got unexpected attribute for curve " << i << ": " << curve_attributes[i] << "\n";
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------

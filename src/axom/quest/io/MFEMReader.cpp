@@ -165,17 +165,27 @@ int read_mfem(const std::string &fileName,
 
 int MFEMReader::read(CurveArray &curves)
 {
+  axom::Array<int> attributes;
+  return read(curves, attributes);
+}
+
+int MFEMReader::read(CurveArray &curves, axom::Array<int> &attributes)
+{
   SLIC_WARNING_IF(m_fileName.empty(), "Missing a filename in MFEMReader::read()");
 
   curves.clear();
+  attributes.clear();
   std::map<int, CurveArray> curvemap;
   const int ret = internal::read_mfem(m_fileName, curvemap);
   if(ret == READ_SUCCESS)
   {
     for(auto &[attribute, nurbs] : curvemap)
     {
-      // this version ignores the attributes
-      curves.append(nurbs.view());
+      for(const auto &curve : nurbs)
+      {
+        curves.push_back(curve);
+        attributes.push_back(attribute);
+      }
     }
   }
 
