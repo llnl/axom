@@ -20,6 +20,7 @@
 #include "gtest/gtest.h"
 
 #include <fstream>
+#include <map>
 #include <string>
 
 // namespace aliases
@@ -43,6 +44,87 @@ std::string pjoin(const char *str, Args... args)
   return axom::utilities::filesystem::joinPath(std::string(str), pjoin(args...));
 }
 //------------------------------------------------------------------------------
+
+namespace
+{
+using BezierCurve2D = primal::BezierCurve<double, 2>;
+using Point2D = primal::Point<double, 2>;
+
+void write_mesh_from_bezier_curves(const std::string &mesh_path,
+                                   const axom::Array<BezierCurve2D> &bezier_curves,
+                                   const axom::Array<int> &attributes,
+                                   mfem::FiniteElementCollection &fec)
+{
+  ASSERT_EQ(bezier_curves.size(), attributes.size());
+  const int num_curves = bezier_curves.size();
+  ASSERT_GT(num_curves, 0);
+
+  constexpr int VDIM = 2;
+
+  mfem::Mesh mesh(/*Dim*/ 1,
+                  /*NVert*/ VDIM * num_curves,
+                  /*NElem*/ num_curves,
+                  /*NBdrElem*/ 0,
+                  /*spaceDim*/ VDIM);
+
+  for(int i = 0; i < num_curves; ++i)
+  {
+    const auto &curve = bezier_curves[i];
+    ASSERT_EQ(curve.getOrder(), fec.GetOrder());
+
+    const auto &p0 = curve.getInitPoint();
+    const auto &p1 = curve.getEndPoint();
+
+    const double v0[] = {p0[0], p0[1]};
+    const double v1[] = {p1[0], p1[1]};
+
+    mesh.AddVertex(v0);
+    mesh.AddVertex(v1);
+    mesh.AddSegment(VDIM * i, VDIM * i + 1, attributes[i]);
+  }
+
+  mesh.FinalizeTopology(/*generate_bdr*/ true);
+  mesh.Finalize(/*refine*/ false, /*fix_orientation*/ true);
+
+  mfem::FiniteElementSpace fes(&mesh,
+                               &fec,
+                               /*vdim*/ mesh.SpaceDimension(),
+                               mfem::Ordering::byVDIM);
+
+  mfem::GridFunction nodes(&fes);
+  nodes = 0.0;
+
+  mfem::Array<int> dofs, vdofs_c;
+  for(int e = 0; e < mesh.GetNE(); ++e)
+  {
+    // utility lambda to help with indexing; mfem stores endpoint and the interior points
+    const int order = fes.GetOrder(e);
+    auto mfemLocalToBezier = [order](int j) -> int {
+      if(j == 0) return 0;      // start vertex
+      if(j == 1) return order;  // end vertex
+      return j - 1;             // interior dofs
+    };
+
+    fes.GetElementDofs(e, dofs);
+    EXPECT_EQ(order, bezier_curves[e].getOrder());
+    EXPECT_EQ(dofs.Size(), order + 1);
+
+    for(int i = 0; i <= order; ++i)
+    {
+      const auto &cp = bezier_curves[e][mfemLocalToBezier(i)];
+      nodes(fes.DofToVDof(dofs[i], 0)) = cp[0];
+      nodes(fes.DofToVDof(dofs[i], 1)) = cp[1];
+    }
+  }
+
+  mesh.NewNodes(nodes, /*make_owner*/ false);
+
+  std::ofstream ofs(mesh_path);
+  ASSERT_TRUE(ofs.good());
+  ofs.precision(17);
+  mesh.Print(ofs);
+}
+}  // namespace
 
 TEST(quest_mfem_reader, read_nurbs_curves)
 {
@@ -140,6 +222,85 @@ TEST(quest_mfem_reader, preserves_rational_weights)
   }
 }
 
+TEST(quest_mfem_reader, read_bernstein_basis_roundtrip_bezier_order3)
+{
+  axom::utilities::filesystem::TempFile tmp_mesh("bernstein_basis", ".mesh");
+
+  // write out mfem file containing a few Bezier curves; store curves and attributes in `expected`, keyed by attribute
+  std::map<int, BezierCurve2D> expected;
+  {
+    axom::Array<BezierCurve2D> input_curves = {
+      BezierCurve2D({Point2D {0.0, 0.0}, Point2D {0.25, 0.5}, Point2D {0.75, 0.5}, Point2D {1.0, 0.0}},
+                    3),
+      BezierCurve2D({Point2D {2.0, 0.0}, Point2D {2.2, -0.2}, Point2D {2.8, 0.2}, Point2D {3.0, 0.0}},
+                    3),
+      BezierCurve2D({Point2D {-1.0, 1.0}, Point2D {-0.5, 1.5}, Point2D {0.5, 0.5}, Point2D {1.0, 1.0}},
+                    3)};
+    axom::Array<int> input_attributes {30, 10, 20};
+
+    constexpr int order = 3;
+    mfem::H1Pos_FECollection fec(order, /*dim*/ 1);
+    write_mesh_from_bezier_curves(tmp_mesh.getPath(), input_curves, input_attributes, fec);
+
+    for(int i = 0; i < input_curves.size(); ++i)
+    {
+      expected.emplace(input_attributes[i], input_curves[i]);
+    }
+  }
+
+  // we should be able to successfully load the file and compare to originals
+  quest::MFEMReader reader;
+  reader.setFileName(tmp_mesh.getPath());
+
+  axom::Array<primal::NURBSCurve<double, 2>> curves;
+  axom::Array<int> attributes;
+  EXPECT_EQ(reader.read(curves, attributes), quest::MFEMReader::READ_SUCCESS);
+
+  ASSERT_EQ(curves.size(), expected.size());
+  ASSERT_EQ(attributes.size(), expected.size());
+
+  for(int i = 0; i < curves.size(); ++i)
+  {
+    const int attr = attributes[i];
+    const auto expected_it = expected.find(attr);
+    ASSERT_TRUE(expected_it != expected.end());
+    const auto &expected_curve = expected_it->second;
+
+    EXPECT_EQ(curves[i].getDegree(), expected_curve.getOrder());
+    EXPECT_EQ(curves[i].getNumControlPoints(), expected_curve.getOrder() + 1);
+    for(int j = 0; j < expected_curve.getOrder() + 1; ++j)
+    {
+      EXPECT_NEAR(curves[i][j][0], expected_curve[j][0], 1e-12);
+      EXPECT_NEAR(curves[i][j][1], expected_curve[j][1], 1e-12);
+    }
+  }
+}
+
+TEST(quest_mfem_reader, read_non_bernstein_basis_rejected)
+{
+  axom::utilities::filesystem::TempFile tmp_mesh("non_bernstein_basis", ".mesh");
+
+  // create file containing curves in non-Bernstein basis
+  {
+    axom::Array<BezierCurve2D> input_curves = {BezierCurve2D(
+      {Point2D {0.0, 0.0}, Point2D {0.25, 0.5}, Point2D {0.75, 0.5}, Point2D {1.0, 0.0}},
+      3)};
+    axom::Array<int> input_attributes = {7};
+
+    constexpr int order = 3;
+    mfem::H1_FECollection fec(order, /*dim*/ 1);
+    write_mesh_from_bezier_curves(tmp_mesh.getPath(), input_curves, input_attributes, fec);
+  }
+
+  // attempt to read it in; should fail
+  quest::MFEMReader reader;
+  reader.setFileName(tmp_mesh.getPath());
+
+  axom::Array<primal::NURBSCurve<double, 2>> curves;
+  axom::Array<int> attributes;
+  EXPECT_EQ(reader.read(curves, attributes), quest::MFEMReader::READ_FAILED);
+}
+
 TEST(quest_mfem_reader, read_curved_polygon_noncontiguous_attributes)
 {
   axom::utilities::filesystem::TempFile tmp_mesh("noncontiguous_attributes", ".mesh");
@@ -148,29 +309,19 @@ TEST(quest_mfem_reader, read_curved_polygon_noncontiguous_attributes)
   // For testing, we're setting the y-coordinate to be the same as the attribute
   constexpr int attr10 {10};
   constexpr int attr20 {20};
+  constexpr int order = 1;
+  constexpr int dim = 1;
 
+  // write out a mesh containing two segments w/ non-contiguous attributes
   {
-    mfem::Mesh mesh(/*Dim*/ 1, /*NVert*/ 4, /*NElem*/ 2, /*NBdrElem*/ 0, /*spaceDim*/ 2);
-    const double v0[] = {0., static_cast<double>(attr20)};
-    const double v1[] = {1., static_cast<double>(attr20)};
-    const double v2[] = {0., static_cast<double>(attr10)};
-    const double v3[] = {1., static_cast<double>(attr10)};
+    axom::Array<BezierCurve2D> input_curves = {
+      BezierCurve2D({Point2D {0, attr20}, Point2D {1, attr20}}, order),
+      BezierCurve2D({Point2D {0, attr10}, Point2D {1, attr10}}, order)};
 
-    mesh.AddVertex(v0);
-    mesh.AddVertex(v1);
-    mesh.AddVertex(v2);
-    mesh.AddVertex(v3);
+    axom::Array<int> input_attributes {attr20, attr10};
 
-    mesh.AddSegment(0, 1, attr20);
-    mesh.AddSegment(2, 3, attr10);
-
-    mesh.FinalizeTopology(/*generate_bdr*/ true);
-    mesh.Finalize(/*refine*/ false, /*fix_orientation*/ true);
-    mesh.EnsureNodes();
-
-    std::ofstream ofs(tmp_mesh.getPath());
-    ASSERT_TRUE(ofs.good());
-    mesh.Print(ofs);
+    mfem::H1Pos_FECollection fec(order, dim);
+    write_mesh_from_bezier_curves(tmp_mesh.getPath(), input_curves, input_attributes, fec);
   }
 
   quest::MFEMReader reader;
@@ -193,52 +344,48 @@ TEST(quest_mfem_reader, read_curved_polygon_noncontiguous_attributes)
     // the y-coordinates of the edges start and end vertex should equal the attribute
     for(int i : {0, 1})
     {
-      const auto &edge = polys[i][0];
-      if(attributes[i] == attr10)
+      const auto &curve = polys[i][0];
+      switch(attributes[i])
       {
-        EXPECT_EQ(edge[0][1], attr10);
-        EXPECT_EQ(edge[1][1], attr10);
-      }
-      else if(attributes[i] == attr20)
-      {
-        EXPECT_EQ(edge[0][1], attr20);
-        EXPECT_EQ(edge[1][1], attr20);
-      }
-      else
-      {
+      case attr10:
+        EXPECT_EQ(curve[0][1], attr10);
+        EXPECT_EQ(curve[1][1], attr10);
+        break;
+      case attr20:
+        EXPECT_EQ(curve[0][1], attr20);
+        EXPECT_EQ(curve[1][1], attr20);
+        break;
+      default:
         FAIL() << "Got unexpected attribute for polygon " << i << ": " << attributes[i] << "\n";
+        break;
       }
     }
-
-    polys.clear();
-    EXPECT_EQ(reader.read(polys), quest::MFEMReader::READ_SUCCESS);
-    EXPECT_EQ(polys.size(), 2);
   }
 
   // check that we can successfully read in the attributes to NURBSCurve array
   {
     axom::Array<primal::NURBSCurve<double, 2>> curves;
-    axom::Array<int> curve_attributes;
-    EXPECT_EQ(reader.read(curves, curve_attributes), quest::MFEMReader::READ_SUCCESS);
+    axom::Array<int> attributes;
+    EXPECT_EQ(reader.read(curves, attributes), quest::MFEMReader::READ_SUCCESS);
     ASSERT_EQ(curves.size(), 2);
-    ASSERT_EQ(curve_attributes.size(), 2);
+    ASSERT_EQ(attributes.size(), 2);
 
     for(int i : {0, 1})
     {
       const auto &curve = curves[i];
-      if(curve_attributes[i] == attr10)
+      switch(attributes[i])
       {
+      case attr10:
         EXPECT_EQ(curve[0][1], attr10);
         EXPECT_EQ(curve[1][1], attr10);
-      }
-      else if(curve_attributes[i] == attr20)
-      {
+        break;
+      case attr20:
         EXPECT_EQ(curve[0][1], attr20);
         EXPECT_EQ(curve[1][1], attr20);
-      }
-      else
-      {
-        FAIL() << "Got unexpected attribute for curve " << i << ": " << curve_attributes[i] << "\n";
+        break;
+      default:
+        FAIL() << "Got unexpected attribute for curve " << i << ": " << attributes[i] << "\n";
+        break;
       }
     }
   }

@@ -151,10 +151,39 @@ int read_mfem(const std::string &fileName,
   }
   else
   {
+    const bool is_bernstein = dynamic_cast<const mfem::H1Pos_FECollection *>(fec) != nullptr;
+    if(!is_bernstein)
+    {
+      SLIC_WARNING(axom::fmt::format(
+        "Non-NURBS meshes must define their nodes in the positive Bernstein basis "
+        "(mfem::H1Pos_FECollection). Got FECollection '{}'.",
+        fec->Name()));
+      return MFEMReader::READ_FAILED;
+    }
+
     for(int zoneId = 0; zoneId < mesh->GetNE(); zoneId++)
     {
       const int attribute = mesh->GetAttribute(zoneId);
-      curvemap[attribute].push_back({get_controlpoints(zoneId), fes->GetOrder(zoneId)});
+      auto control_points = get_controlpoints(zoneId);
+      const int order = fes->GetOrder(zoneId);
+
+      // mfem::H1Pos_FECollection stores 1D element DOFs grouped by entity (vertices, then edges).
+      // For a segment, this yields local ordering: [v0, v1, e0, e1, ...].
+      // Convert to Bezier control point ordering: [v0, e0, e1, ..., v1].
+      const int num_cp = control_points.size();
+      if(order > 1 && num_cp == order + 1)
+      {
+        axom::Array<ControlPoint> reordered(0, num_cp);
+        reordered.push_back(control_points[0]);
+        for(int i = 2; i < num_cp; ++i)
+        {
+          reordered.push_back(control_points[i]);
+        }
+        reordered.push_back(control_points[1]);
+        control_points = std::move(reordered);
+      }
+
+      curvemap[attribute].push_back({control_points, order});
     }
   }
 
