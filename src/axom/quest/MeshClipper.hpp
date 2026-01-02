@@ -11,6 +11,7 @@
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/quest/ShapeMesh.hpp"
+#include "conduit/conduit_node.hpp"
 
 namespace axom
 {
@@ -38,7 +39,7 @@ public:
   //!@brief Whether an element is in, out or on shape boundary.
   using LabelType = MeshClipperStrategy::LabelType;
 
-  static constexpr axom::IndexType NUM_TETS_PER_HEX = MeshClipperStrategy::NUM_TETS_PER_HEX;
+  static constexpr axom::IndexType NUM_TETS_PER_HEX = ShapeMesh::NUM_TETS_PER_HEX;
 
   /*!
    * @brief Construct a shape clipper
@@ -80,6 +81,50 @@ public:
 
   //!@brief Dimension of the shape (2 or 3)
   int dimension() const { return m_shapeMesh.dimension(); }
+
+  //@{
+
+  /*!
+   * @brief Log clipping statistics.
+   * Intended for developer use.
+   *
+   * This is a collective method if MPI-parallel.
+   */
+  void logClippingStats(bool local = false, bool sum = true, bool max = false) const;
+
+  /*!
+   * @brief Get local assorted clipping statistics,
+   * intended for developer use.
+   */
+  const conduit::Node& getClippingStats() const { return m_counterStats; }
+
+  /*!
+   * @brief Get global assorted clipping statistics,
+   * intended for developer use.
+   *
+   * This is a collective method if MPI-parallel.
+   */
+  conduit::Node getGlobalClippingStats() const;
+
+  /*!
+   * @brief Set the level of screening,
+   * intended for developer use.
+   */
+  void setScreenLevel(int screenLevel) { m_screenLevel = screenLevel; }
+
+  /*!
+   * @brief Get the level of screening,
+   * intended for developer use.
+   */
+  int getScreenLevel() const { return m_screenLevel; }
+
+  /*!
+   * @brief Add new stats to current stats,
+   * intended for developer use.
+   */
+  static void accumulateClippingStats(conduit::Node& curStats, const conduit::Node& newStats);
+
+  //@}
 
   /*!
    * @brief Single interface for methods implemented with
@@ -136,11 +181,12 @@ public:
                                           axom::ArrayView<double> ovlap) = 0;
 
     //!@brief Compute clip volumes for every cell.
-    virtual void computeClipVolumes3D(axom::ArrayView<double> ovlap) = 0;
+    virtual void computeClipVolumes3D(axom::ArrayView<double> ovlap, conduit::Node& statistics) = 0;
 
     //!@brief Compute clip volumes for cell in an index list.
     virtual void computeClipVolumes3D(const axom::ArrayView<axom::IndexType>& cellIndices,
-                                      axom::ArrayView<double> ovlap) = 0;
+                                      axom::ArrayView<double> ovlap,
+                                      conduit::Node& statistics) = 0;
 
     /*!
      * @brief Compute clip volumes for cell tets in an index list.
@@ -149,13 +195,14 @@ public:
      * NUM_TETS_PER_HEX tets and stored consecutively.
      */
     virtual void computeClipVolumes3DTets(const axom::ArrayView<axom::IndexType>& tetIndices,
-                                          axom::ArrayView<double> ovlap) = 0;
+                                          axom::ArrayView<double> ovlap,
+                                          conduit::Node& statistics) = 0;
 
     //!@brief Count the number of labels of each type.
     virtual void getLabelCounts(axom::ArrayView<const LabelType> labels,
-                                axom::IndexType& inCount,
-                                axom::IndexType& onCount,
-                                axom::IndexType& outCount) = 0;
+                                std::int64_t& inCount,
+                                std::int64_t& onCount,
+                                std::int64_t& outCount) = 0;
 
     ShapeMesh& getShapeMesh() { return m_myClipper.m_shapeMesh; }
 
@@ -165,11 +212,6 @@ public:
     //!@brief The MeshClipper that owns this Impl.
     MeshClipper& m_myClipper;
   };
-
-  //! @brief For assessments, not general use.
-  void getClippingStats(axom::IndexType& localCellInCount,
-                        axom::IndexType& globalCellInCount,
-                        axom::IndexType& maxLocalCellInCount) const;
 
 private:
   friend Impl;
@@ -187,12 +229,12 @@ private:
    * for multiple execution spaces.
    */
 
-  ///@{
-  //! @name Statistics
-  axom::IndexType m_localCellInCount {0};
-  ///@}
+  //! @brief Statistics
+  conduit::Node m_counterStats;
 
   bool m_verbose;
+
+  int m_screenLevel;
 
 #if defined(__CUDACC__)
 public:
@@ -204,14 +246,12 @@ public:
   //!@name Convenience methods
   //!@brief Count the number of labels of each type.
   void getLabelCounts(const axom::Array<LabelType>& labels,
-                      axom::IndexType& inCount,
-                      axom::IndexType& onCount,
-                      axom::IndexType& outCount)
+                      std::int64_t& inCount,
+                      std::int64_t& onCount,
+                      std::int64_t& outCount)
   {
     m_impl->getLabelCounts(labels, inCount, onCount, outCount);
   }
-
-  void logLabelStats(axom::ArrayView<const LabelType> labels, const std::string& labelType);
   //@}
 };
 
