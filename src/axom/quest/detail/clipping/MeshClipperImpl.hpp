@@ -365,6 +365,10 @@ public:
             const int index = hexIndicesView[i];
             const int shapeIndex = shapeCandidatesView[i];
             const int tetIndex = tetIndicesView[i];
+            if(cellsAsTets[tetIndex].degenerate())
+            {
+              return;
+            }
 
             const auto poly = primal::clip<double>(geomTetsView[shapeIndex],
                                                    cellsAsTets[tetIndex],
@@ -390,6 +394,10 @@ public:
             const int index = hexIndicesView[i];
             const int shapeIndex = shapeCandidatesView[i];
             const int tetIndex = tetIndicesView[i];
+            if(cellsAsTets[tetIndex].degenerate())
+            {
+              return;
+            }
 
             const auto poly = primal::clip<double>(geomOctsView[shapeIndex],
                                                    cellsAsTets[tetIndex],
@@ -611,6 +619,10 @@ public:
             int tetIndex2 = tetIndex % NUM_TETS_PER_HEX;
             tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
               tetIndex2;  // Now it indexes into the full tets-from-hexes array.
+            if(cellsAsTets[tetIndex].degenerate())
+            {
+              return;
+            }
 
             const auto poly = primal::clip<double>(geomTetsView[shapeIndex],
                                                    cellsAsTets[tetIndex],
@@ -643,6 +655,10 @@ public:
             int tetIndex2 = tetIndex % NUM_TETS_PER_HEX;
             tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
               tetIndex2;  // Now it indexes into the full tets-from-hexes array.
+            if(cellsAsTets[tetIndex].degenerate())
+            {
+              return;
+            }
 
             const auto poly = primal::clip<double>(geomOctsView[shapeIndex],
                                                    cellsAsTets[tetIndex],
@@ -800,6 +816,10 @@ public:
           auto tetIdId = candToTetIdIdView[iCand];
           auto tetId = tetIndices[tetIdId];
           const auto& tet = meshTets[tetId];
+          if(tet.degenerate())
+          {
+            return;
+          }
 
           const auto poly = primal::clip<double>(tet, geomPiece, EPS, tryFixOrientation);
 
@@ -824,6 +844,10 @@ public:
           auto tetIdId = candToTetIdIdView[iCand];
           auto tetId = tetIndices[tetIdId];
           const auto& tet = meshTets[tetId];
+          if(tet.degenerate())
+          {
+            return;
+          }
 
           const auto poly = primal::clip<double>(tet, geomPiece, EPS, tryFixOrientation);
 
