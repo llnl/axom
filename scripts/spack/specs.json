@@ -22,13 +22,13 @@
 
     "__comment__":"# Configs are for rzvector",
     "rzvector":
-    [ "+devtools+mfem+c2c+profiling+cuda cuda_arch=90 %gcc_13",
-      "+devtools+mfem+c2c+profiling+cuda cuda_arch=90 %clang_19"],
+    [ "+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %gcc_13",
+      "+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %clang_19"],
 
     "__comment__":"# Configs are for matrix",
     "matrix":
-    [ "+devtools+mfem+c2c+profiling+cuda cuda_arch=90 %gcc_13",
-      "+devtools+mfem+c2c+profiling+cuda cuda_arch=90 %clang_19"],
+    [ "+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %gcc_13",
+      "+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %clang_19"],
 
     "__comment__":"# Use amdgpu_target=gfx942 for rzadams",
     "__comment__":"# Use amdgpu_target=gfx90a for tioga/rzvernal",

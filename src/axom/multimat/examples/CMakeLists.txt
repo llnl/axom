@@ -35,7 +35,7 @@ foreach(example_source ${multimat_example_sources})
         )
     unset(deps)
 
-    blt_add_test(
+    axom_add_test(
         NAME        multimat_${example_name}
         COMMAND     multimat_${example_name}_ex
         )

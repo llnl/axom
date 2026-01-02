@@ -557,7 +557,10 @@ private:
    * \param [in] idx the node index to check
    * \return status true if the index is valid, false, otherwise.
    */
-  bool validIndex(IndexType idx) const { return indexInRange(idx, 0, numNodes() - 1); }
+  bool validIndex(IndexType idx) const
+  {
+    return indexInRange(static_cast<int>(idx), 0, numNodes() - 1);
+  }
 
   /*!
    * \brief Helper method to initialize the internal array data-structures.

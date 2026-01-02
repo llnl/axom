@@ -26,14 +26,13 @@ axom_add_executable(
     FOLDER     axom/sidre/examples )
 
 if(AXOM_ENABLE_TESTS)
-    if(AXOM_ENABLE_MPI)
-        axom_add_test(NAME sidre_lulesh2
-                      COMMAND sidre_lulesh2_ex -s 5
-                      NUM_MPI_TASKS 1
-                      NUM_OMP_THREADS 2 )
-    else()
-        axom_add_test(NAME sidre_lulesh2 -s 5
-                      COMMAND sidre_lulesh2_ex
-                      NUM_OMP_THREADS 2 )
+    set(_num_threads)
+    if(AXOM_ENABLE_OPENMP)
+        set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
     endif()
+
+    axom_add_test(NAME sidre_lulesh2
+                    COMMAND sidre_lulesh2_ex -s 5
+                    NUM_MPI_TASKS 1
+                    NUM_OMP_THREADS ${_num_threads} )
 endif()
