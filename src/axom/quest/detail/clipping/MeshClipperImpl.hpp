@@ -189,16 +189,11 @@ public:
   // Work space for clip counters.
   struct ClippingStats
   {
-    axom::ReduceSum<ExecSpace, IndexType> inSum{0};
-    axom::ReduceSum<ExecSpace, IndexType> onSum{0};
-    axom::ReduceSum<ExecSpace, IndexType> outSum{0};
-    axom::ReduceSum<ExecSpace, IndexType> missSum{0};
-    ClippingStats()
-      : inSum(0)
-      , onSum(0)
-      , outSum(0)
-      , missSum(0)
-    {}
+    axom::ReduceSum<ExecSpace, IndexType> inSum {0};
+    axom::ReduceSum<ExecSpace, IndexType> onSum {0};
+    axom::ReduceSum<ExecSpace, IndexType> outSum {0};
+    axom::ReduceSum<ExecSpace, IndexType> missSum {0};
+    ClippingStats() : inSum(0), onSum(0), outSum(0), missSum(0) { }
     void copyTo(conduit::Node& stats)
     {
       // Place clip counts in statistics container.
