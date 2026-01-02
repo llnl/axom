@@ -111,8 +111,10 @@ public:
    * @param [in] destPts Four destination points.
    *
    * The four starting points must define a non-degenerate volume.
-   * Else the transformation is ill-defined and the transformer
-   * is set to invalid.
+   * Else the transformation is ill-defined and the transformer is set
+   * to invalid.  If you think of each 4 points as the vertices of a
+   * tetrahedron, the transformation moves the starting tet to the
+   * destination tet.
    */
   AXOM_HOST_DEVICE void setByTerminusPts(const primal::Point<T, 3>* startPts,
                                          const primal::Point<T, 3>* destPts)
@@ -217,7 +219,6 @@ public:
    */
   void applyRotation(const axom::primal::Vector<T, 3>& start, const axom::primal::Vector<T, 3>& end)
   {
-    // Note that the rotation matrix is not unique.
     Vector<T, 3> s = start.unitVector();
     Vector<T, 3> e = end.unitVector();
     Vector<T, 3> u;  // Rotation vector, the cross product of start and end.
@@ -225,10 +226,10 @@ public:
     const T sinT = u.norm();
     const T cosT = numerics::dot_product(s.data(), e.data(), 3);
 
-    // Degenerate: end is parallel to start.
-    // angle near 0 (identity transform) or pi.
     if(utilities::isNearlyEqual(sinT, 0.0))
     {
+      // Degenerate: end is parallel to start.
+      // angle near 0 (identity transform) or pi.
       if(cosT < 0)
       {
         setInvalid();  // Transformation is ill-defined
