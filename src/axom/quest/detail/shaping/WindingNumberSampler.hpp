@@ -18,6 +18,9 @@
 #include "axom/fmt.hpp"
 
 #include "mfem.hpp"
+#include "mfem/linalg/dtensor.hpp"
+
+#include <cmath>
 
 namespace axom
 {
@@ -169,6 +172,10 @@ public:
     mfem::QuadratureFunction* pos_coef = inoutQFuncs.Get("positions");
     auto* sp = pos_coef->GetSpace();
     const int nq = sp->GetIntRule(0).GetNPoints();
+    const int numQueryPoints = sp->GetSize();
+    SLIC_ASSERT(numQueryPoints == NE * nq);
+
+    const auto pos = mfem::Reshape(pos_coef->Read(), dim, nq, NE);
 
     // Sample the in/out field at each point
     // store in QField which we register with the QFunc collection
@@ -176,36 +183,22 @@ public:
     const int vdim = 1;
     auto* inout = new mfem::QuadratureFunction(sp, vdim);
     inoutQFuncs.Register(inoutName, inout, true);
+    auto inout_vals = mfem::Reshape(inout->Write(), nq, NE);
 
     // Build an array of query points at the quad points.
     axom::utilities::Timer timer(true);
     AXOM_ANNOTATE_BEGIN("Create query points");
-    const int numQueryPoints = NE * nq;
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     axom::Array<ToPoint> queryPoints(numQueryPoints, numQueryPoints, allocatorID);
     auto queryPointsView = queryPoints.view();
     axom::for_all<ExecSpace>(
-      NE,
-      AXOM_LAMBDA(axom::IndexType i) {
-        // FIXME: GPU portability MFEM usage.
-        mfem::DenseMatrix m;
-        pos_coef->GetValues(i, m);
+      numQueryPoints,
+      AXOM_LAMBDA(axom::IndexType qpi) {
+        const int i = static_cast<int>(qpi / nq);
+        const int p = static_cast<int>(qpi - axom::IndexType(i) * nq);
 
-        int qpi = i * nq;
-        if(projector)
-        {
-          for(int p = 0; p < nq; ++p)
-          {
-            queryPointsView[qpi++] = projector(FromPoint(m.GetColumn(p), dim));
-          }
-        }
-        else
-        {
-          for(int p = 0; p < nq; ++p)
-          {
-            queryPointsView[qpi++] = ToPoint(m.GetColumn(p), dim);
-          }
-        }
+        const double* coords = &pos(0, p, i);
+        queryPointsView[qpi] = projector ? projector(FromPoint(coords, dim)) : ToPoint(coords, dim);
       });
     AXOM_ANNOTATE_END("Create query points");
 
@@ -242,18 +235,11 @@ public:
 
     // Store the results back into the MFEM quad function.
     axom::for_all<ExecSpace>(
-      NE,
-      AXOM_LAMBDA(axom::IndexType i) {
-        // FIXME: GPU portability MFEM usage.
-        mfem::Vector res;
-        inout->GetValues(i, res);
-
-        // Check this element i's quad points against candidate shapes.
-        axom::IndexType qpi = i * nq;
-        for(int p = 0; p < nq; p++, qpi++)
-        {
-          res(p) = inOutResultView[qpi] ? 1. : 0.;
-        }
+      numQueryPoints,
+      AXOM_LAMBDA(axom::IndexType qpi) {
+        const int i = static_cast<int>(qpi / nq);
+        const int p = static_cast<int>(qpi - axom::IndexType(i) * nq);
+        inout_vals(p, i) = inOutResultView[qpi] ? 1. : 0.;
       });
     AXOM_ANNOTATE_END("InOut tests");
     timer.stop();
@@ -264,7 +250,7 @@ public:
       "\t Sampling inout field '{}' took {:.3Lf} seconds (@ {:L} queries per second)",
       inoutName,
       timer.elapsed(),
-      static_cast<int>((NE * nq) / timer.elapsed())));
+      static_cast<int>(numQueryPoints / timer.elapsed())));
   }
 
   /*!

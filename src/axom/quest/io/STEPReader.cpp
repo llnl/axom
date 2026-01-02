@@ -934,13 +934,14 @@ public:
       // Ensure that the trimming curves form ccw loops
       if(patch.isTrimmed())
       {
-        auto area_field = [](PointType x) -> VectorType {
-          return primal::Vector<double, 2>({-0.5 * x[1], 0.5 * x[0]});
-        };
-
+        // Evaluate the signed area over the patch trimming curves
         constexpr int n_quad_pts = 20;
-        auto area =
-          primal::evaluate_vector_line_integral(patch.getTrimmingCurves(), area_field, n_quad_pts);
+        auto area = primal::evaluate_vector_line_integral(
+          patch.getTrimmingCurves(),
+          [](PointType x) -> VectorType {
+            return primal::Vector<double, 2>({-0.5 * x[1], 0.5 * x[0]});
+          },
+          n_quad_pts);
 
         // Signed areas should be positive
         if(area < 0)

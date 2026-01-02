@@ -48,6 +48,11 @@ if(AXOM_ENABLE_TESTS)
     endif()
 
     foreach(_policy ${_policies})
+        set(_num_threads)
+        if(_policy STREQUAL "omp")
+            set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+        endif()
+
         foreach(_testnum ${_test_numbers})
             set(_testname "mir_tutorial_simple_${_policy}_${_testnum}")
             axom_add_test(
@@ -56,7 +61,7 @@ if(AXOM_ENABLE_TESTS)
                     --test-case ${_testnum}
                     --policy ${_policy}
                     --disable-write
-                )
+                NUM_OMP_THREADS ${_num_threads})
 
             set_tests_properties(${_testname} PROPERTIES
                 PASS_REGULAR_EXPRESSION  "Reconstruction time:")

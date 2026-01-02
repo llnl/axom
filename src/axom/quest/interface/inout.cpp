@@ -172,7 +172,7 @@ struct InOutHelper
     m_meshCenterOfMass = SpacePt::zero();
     SpacePt pt;
 
-    const int numMeshNodes = m_surfaceMesh->getNumberOfNodes();
+    const auto numMeshNodes = m_surfaceMesh->getNumberOfNodes();
     if(numMeshNodes > 0)
     {
       for(int i = 0; i < numMeshNodes; ++i)

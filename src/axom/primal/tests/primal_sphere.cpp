@@ -157,22 +157,25 @@ void check_sphere_containment()
   using PointType = primal::Point<double, NDIMS>;
   using SphereType = primal::Sphere<double, NDIMS>;
 
-  PointType center {0.0, 0.0, 0.0};
+  PointType center {3.0, 4.0, 0.0};
+  double radius = 5.0;
+
+  SphereType S0(center, radius);
+  SphereType S1(PointType {1.5, 2.0, 0.0}, radius / 2);
+  SphereType S2(S1.getCenter(), radius);
+
   double tol = 1e-12;
 
   // STEP 0: test fully containing
-  SphereType S0;
   EXPECT_TRUE(S0.contains(S0, -tol));
+  EXPECT_TRUE(S0.contains(S1, -tol));
 
   // STEP 1: test barely not containing.
-  center[0] = tol;
-  SphereType S1(center);
-  EXPECT_FALSE(S0.contains(S1));
+  EXPECT_FALSE(S0.contains(S0, tol));
+  EXPECT_FALSE(S0.contains(S1, tol));
 
   // STEP 2: test partial containment.
-  center[0] = 0.5;
-  SphereType S3(center);
-  EXPECT_FALSE(S0.contains(S3));
+  EXPECT_FALSE(S0.contains(S2));
 }
 
 //------------------------------------------------------------------------------

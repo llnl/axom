@@ -29,7 +29,10 @@ bool isSharedMemoryAllocator(int allocID)
     isShared = allocator.getAllocationStrategy()->getTraits().resource ==
       umpire::MemoryResourceTraits::resource_type::shared;
   }
+#else
+  AXOM_UNUSED_VAR(allocID);
 #endif
+
   return isShared;
 }
 

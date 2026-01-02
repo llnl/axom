@@ -18,6 +18,7 @@
 
 #if defined(AXOM_USE_MFEM)
   #include "mfem.hpp"
+  #include "mfem/linalg/dtensor.hpp"
 #endif
 
 namespace axom
@@ -276,6 +277,10 @@ void sampleInOutField(const std::string shapeName,
   mfem::QuadratureFunction* pos_coef = inoutQFuncs.Get("positions");
   auto* sp = pos_coef->GetSpace();
   const int nq = sp->GetIntRule(0).GetNPoints();
+  const int numQueryPoints = sp->GetSize();
+  SLIC_ASSERT(numQueryPoints == NE * nq);
+
+  const auto pos = mfem::Reshape(pos_coef->HostRead(), dim, nq, NE);
 
   // Sample the in/out field at each point
   // store in QField which we register with the QFunc collection
@@ -283,21 +288,17 @@ void sampleInOutField(const std::string shapeName,
   const int vdim = 1;
   auto* inout = new mfem::QuadratureFunction(sp, vdim);
   inoutQFuncs.Register(inoutName, inout, true);
-
-  mfem::DenseMatrix m;
-  mfem::Vector res;
+  auto inout_vals = mfem::Reshape(inout->HostWrite(), nq, NE);
 
   axom::utilities::Timer timer(true);
   if(projector)
   {
     for(int i = 0; i < NE; ++i)
     {
-      pos_coef->GetValues(i, m);
-      inout->GetValues(i, res);
       for(int p = 0; p < nq; ++p)
       {
-        const ToPoint pt = projector(FromPoint(m.GetColumn(p), dim));
-        res(p) = checkInside(pt) ? 1. : 0.;
+        const ToPoint pt = projector(FromPoint(&pos(0, p, i), dim));
+        inout_vals(p, i) = checkInside(pt) ? 1. : 0.;
       }
     }
   }
@@ -305,12 +306,10 @@ void sampleInOutField(const std::string shapeName,
   {
     for(int i = 0; i < NE; ++i)
     {
-      pos_coef->GetValues(i, m);
-      inout->GetValues(i, res);
       for(int p = 0; p < nq; ++p)
       {
-        const ToPoint pt(m.GetColumn(p), dim);
-        res(p) = checkInside(pt) ? 1. : 0.;
+        const ToPoint pt(&pos(0, p, i), dim);
+        inout_vals(p, i) = checkInside(pt) ? 1. : 0.;
       }
     }
   }
@@ -322,7 +321,7 @@ void sampleInOutField(const std::string shapeName,
     "\t Sampling inout field '{}' took {:.3Lf} seconds (@ {:L} queries per second)",
     inoutName,
     timer.elapsed(),
-    static_cast<int>((NE * nq) / timer.elapsed())));
+    static_cast<int>(numQueryPoints / timer.elapsed())));
 }
 
 /*!

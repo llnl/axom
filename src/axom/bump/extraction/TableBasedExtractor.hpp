@@ -1170,6 +1170,8 @@ private:
     axom::for_all<ExecSpace>(
       selectedZonesView.size(),
       AXOM_LAMBDA(axom::IndexType szIndex) {
+        // Avoid first-capture in constexpr-if context error
+        (void)selection;
         const auto zoneIndex = selectedZonesView[szIndex];
         const auto zone = deviceTopologyView.zone(zoneIndex);
 
@@ -1444,6 +1446,9 @@ private:
     axom::for_all<ExecSpace>(
       selectedZonesView.size(),
       AXOM_LAMBDA(axom::IndexType szIndex) {
+        // Avoid first-capture in constexpr-if context error
+        (void)selection;
+        (void)deviceIntersector;
         const auto zoneIndex = selectedZonesView[szIndex];
         const auto zone = deviceTopologyView.zone(zoneIndex);
 

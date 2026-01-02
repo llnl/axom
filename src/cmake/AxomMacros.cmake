@@ -228,8 +228,13 @@ endmacro(axom_add_library)
 ##               NUM_OMP_THREADS [n]
 ##               CONFIGURATIONS  [config1 [config2...]])
 ##
-## Wrapper around blt_add_test() that handles functionality that Axom applies to all
-## tests.
+## Wrapper around blt_add_test() that handles functionality 
+## that Axom applies to all tests.
+##
+## Note that NUM_OMP_THREADS delegates to the corresponding argument 
+## in blt_add_test() and sets the OpenMP environment variable OMP_NUM_THREADS.
+## When AXOM_ENABLE_OPENMP is set and NUM_OMP_THREADS is not provided, 
+## this macros also sets the environment variable OMP_NUM_THREADS=1.
 ##------------------------------------------------------------------------------
 macro(axom_add_test)
 
@@ -248,15 +253,25 @@ macro(axom_add_test)
                  NUM_OMP_THREADS ${arg_NUM_OMP_THREADS}
                  CONFIGURATIONS  ${arg_CONFIGURATIONS} )
 
-    ###########################################################################
+    #--------------------------------------------------------------------------
     # Newer versions of OpenMPI require OMPI_MCA_rmaps_base_oversubscribe=1
     # to run with more tasks than actual cores
     # Since this is an OpenMPI specific env var, it shouldn't interfere
     # with other mpi implementations.
-    ###########################################################################
+    #--------------------------------------------------------------------------
     set_property(TEST ${arg_NAME}
                  APPEND
                  PROPERTY ENVIRONMENT  "OMPI_MCA_rmaps_base_oversubscribe=1")
+
+    #--------------------------------------------------------------------------
+    # Cap OpenMP parallelism for tests that do not explicitly
+    # specify NUM_OMP_THREADS to avoid accidental oversubscription
+    #--------------------------------------------------------------------------
+    if(AXOM_ENABLE_OPENMP AND (NOT arg_NUM_OMP_THREADS))
+        set_property(TEST ${arg_NAME}
+                     APPEND 
+                     PROPERTY ENVIRONMENT OMP_NUM_THREADS=1)
+    endif()
 
 endmacro(axom_add_test)
 

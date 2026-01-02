@@ -1583,7 +1583,8 @@ void MFEMSidreDataCollection::RegisterAttributeField(const std::string& attr_nam
 
   // Register new attribute array with attr_map
   sidre::View* a = m_bp_grp->getGroup("fields")->getGroup(attr_name)->getView("values");
-  mfem::Array<int>* attr = new mfem::Array<int>(a->getData<int*>(), a->getNumElements());
+  mfem::Array<int>* attr =
+    new mfem::Array<int>(a->getData<int*>(), static_cast<int>(a->getNumElements()));
 
   attr_map.Register(attr_name, attr, true);
 }
@@ -2414,7 +2415,7 @@ void MFEMSidreDataCollection::reconstructMesh()
   View* element_attribute_view = m_bp_grp->getView(element_attribute_path + "/values");
 
   int* element_attributes = element_attribute_view->getData<int*>();
-  int num_elements = element_attribute_view->getNumElements();
+  int num_elements = static_cast<int>(element_attribute_view->getNumElements());
 
   const std::string boundary_elements_path = "topologies/" + s_boundary_topology_name + "/elements";
 

@@ -182,8 +182,9 @@ public:
    * \brief Tests if this sphere completely contains another sphere.
    *
    * \param [in] other The sphere object to check for containment
-   * \param [in] margin Amount that this sphere must contain the other sphere by.
-   *   Positive means that the other sphere is "more inside".
+   * \param [in] margin Amount to add to other's radius before comparing.
+   *
+   * Note: a sphere does contain itself.
    *
    * \return true if this sphere contains the other, false otherwise.
    */
@@ -247,10 +248,11 @@ AXOM_HOST_DEVICE inline bool Sphere<T, NDIMS>::intersectsWith(const Sphere<T, ND
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE inline bool Sphere<T, NDIMS>::contains(const Sphere<T, NDIMS>& sphere, double TOL) const
+AXOM_HOST_DEVICE inline bool Sphere<T, NDIMS>::contains(const Sphere<T, NDIMS>& other,
+                                                        double margin) const
 {
-  const T center_sep = VectorType(sphere.getCenter(), m_center).norm();
-  return (m_radius > center_sep + sphere.getRadius() + TOL);
+  const T center_sep = VectorType(other.getCenter(), m_center).norm();
+  return (m_radius >= center_sep + other.getRadius() + margin);
 }
 
 //------------------------------------------------------------------------------
