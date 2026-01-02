@@ -65,11 +65,12 @@ public:
    * @brief Number of tetrahedra per hexahedron decomposes into
    * @see hexToTets()
    *
-   * @internal Values of 24 and 18 are valid.  18 is likely more
+   * @internal Only values of 24 and 18 are valid.  18 is likely more
    * performant because it generates fewer tets.
    *
-   * @internal The code branches on the value at a low level,
-   * but this should be optimized out by the compiler.
+   * @internal The hexToTets() method branches on the value of
+   * NUM_TETS_PER_HEX at a low level, but the branching should be
+   * optimized out by the compiler.
    */
   static constexpr axom::IndexType NUM_TETS_PER_HEX = 18;
 
@@ -391,7 +392,11 @@ AXOM_HOST_DEVICE inline void ShapeMesh::hexToTets(const HexahedronType& hex, Tet
   }
   else
   {
-    // Tets sharing the axis between hex vertices 4 and 2.
+    /*
+     * Six tets sharing the line segment between hex vertices 4 and 2.
+     * Each tet also uses 2 of the remaining 6 hex vertices (any 2
+     * that shares a hex edge).
+     */
     tets[0][0] = hex[4];
     tets[0][1] = hex[2];
     tets[0][2] = hex[1];
@@ -422,7 +427,7 @@ AXOM_HOST_DEVICE inline void ShapeMesh::hexToTets(const HexahedronType& hex, Tet
     tets[5][2] = hex[5];
     tets[5][3] = hex[1];
 
-    // Centroids of the 6 faces.
+    // Centroids of the 6 hex faces.
     Point3DType mp0473 = Point3DType::midpoint(Point3DType::midpoint(hex[0], hex[4]),
                                                Point3DType::midpoint(hex[7], hex[3]));
     Point3DType mp1562 = Point3DType::midpoint(Point3DType::midpoint(hex[1], hex[5]),
@@ -436,7 +441,10 @@ AXOM_HOST_DEVICE inline void ShapeMesh::hexToTets(const HexahedronType& hex, Tet
     Point3DType mp4567 = Point3DType::midpoint(Point3DType::midpoint(hex[4], hex[5]),
                                                Point3DType::midpoint(hex[6], hex[7]));
 
-    // Tets from the 6 faces (two per face).
+    /*
+     * Tets from the 6 hex faces (two per face).  If the face is
+     * coplanar, its 2 tets are degenerate.
+     */
     tets[6][0] = hex[4];
     tets[6][1] = hex[6];
     tets[6][2] = hex[7];
