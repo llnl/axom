@@ -634,7 +634,6 @@ public:
     axom::Array<IndexType> candidates;
     auto countsView = counts.view();
     auto offsetsView = offsets.view();
-#if 1
     // Get the BVH traverser for doing the 2-pass search manually.
     const auto bvhTraverser = bvh.getTraverser();
     /*
@@ -751,20 +750,6 @@ public:
         // bvhTraverser.traverse_tree(tetBbsView[iTet], recordCollision, traversePredBox);
         bvhTraverser.traverse_tree(iTet, recordCollision, traversePredTetId);
       });
-#else
-    bvh.findBoundingBoxes(offsets, counts, candidates, tetBbsView.size(), tetBbsView);
-    auto candidatesView = candidates.view();
-
-    axom::Array<IndexType> candToTetIdId(candidates.size(), candidates.size(), allocId);
-    auto candToTetIdIdView = candToTetIdId.view();
-    axom::for_all<ExecSpace>(
-      tetCount,
-      AXOM_LAMBDA(axom::IndexType i) {
-        auto count = countsView[i];
-        auto offset = offsetsView[i];
-        for(int j = 0; j < count; ++j) candToTetIdIdView[offset + j] = i;
-      });
-#endif
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     SLIC_DEBUG(axom::fmt::format(
