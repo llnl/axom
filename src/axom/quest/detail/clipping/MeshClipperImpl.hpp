@@ -140,7 +140,7 @@ public:
                                            labels.getAllocatorID());
     tmpLabels.fill(0, 1, 0);
     auto tmpLabelsView = tmpLabels.view();
-    axom::ReduceSum<ExecSpace, IndexType> onCountReduce{0};
+    axom::ReduceSum<ExecSpace, IndexType> onCountReduce {0};
     axom::for_all<ExecSpace>(
       labelCount,
       AXOM_LAMBDA(axom::IndexType ci) {
@@ -197,16 +197,11 @@ public:
   // Work space for clip counters.
   struct ClippingStats
   {
-    axom::ReduceSum<ExecSpace, IndexType> inSum{0};
-    axom::ReduceSum<ExecSpace, IndexType> onSum{0};
-    axom::ReduceSum<ExecSpace, IndexType> outSum{0};
-    axom::ReduceSum<ExecSpace, IndexType> missSum{0};
-    ClippingStats()
-      : inSum(0)
-      , onSum(0)
-      , outSum(0)
-      , missSum(0)
-    {}
+    axom::ReduceSum<ExecSpace, IndexType> inSum {0};
+    axom::ReduceSum<ExecSpace, IndexType> onSum {0};
+    axom::ReduceSum<ExecSpace, IndexType> outSum {0};
+    axom::ReduceSum<ExecSpace, IndexType> missSum {0};
+    ClippingStats() : inSum(0), onSum(0), outSum(0), missSum(0) { }
     void copyTo(conduit::Node& stats)
     {
       // Place clip counts in statistics container.
@@ -357,7 +352,11 @@ public:
           const int cellId = hexIndicesView[i];
           const int pieceId = shapeCandidatesView[i];
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
-          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, clipStats, screenLevel);
+          computeMeshTetGeomPieceOverlap(cellTet,
+                                         geomPiece,
+                                         ovlap.data() + cellId,
+                                         clipStats,
+                                         screenLevel);
         });
     }
     else  // useOcts
@@ -375,7 +374,11 @@ public:
           const int cellId = hexIndicesView[i];
           const int pieceId = shapeCandidatesView[i];
           const OctahedronType& geomPiece = geomOctsView[pieceId];
-          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, clipStats, screenLevel);
+          computeMeshTetGeomPieceOverlap(cellTet,
+                                         geomPiece,
+                                         ovlap.data() + cellId,
+                                         clipStats,
+                                         screenLevel);
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_notScreened");
@@ -543,7 +546,11 @@ public:
 
           const int pieceId = shapeCandidatesView[i];  // index into pieces array
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
-          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, clipStats, screenLevel);
+          computeMeshTetGeomPieceOverlap(cellTet,
+                                         geomPiece,
+                                         ovlap.data() + cellId,
+                                         clipStats,
+                                         screenLevel);
         });
     }
     else  // useOcts
@@ -570,7 +577,11 @@ public:
 
           const int pieceId = shapeCandidatesView[i];  // index into pieces array
           const OctahedronType& geomPiece = geomOctsView[pieceId];
-          computeMeshTetGeomPieceOverlap(cellTet, geomPiece, ovlap.data() + cellId, clipStats, screenLevel);
+          computeMeshTetGeomPieceOverlap(cellTet,
+                                         geomPiece,
+                                         ovlap.data() + cellId,
+                                         clipStats,
+                                         screenLevel);
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_hexScreened");
@@ -776,7 +787,11 @@ public:
           auto pieceId = candidatesView[iCand];
           const auto& meshTet = meshTets[tetId];
           const TetrahedronType& geomPiece = geomTetsView[pieceId];
-          computeMeshTetGeomPieceOverlap(meshTet, geomPiece, ovlap.data() + cellId, clipStats, screenLevel);
+          computeMeshTetGeomPieceOverlap(meshTet,
+                                         geomPiece,
+                                         ovlap.data() + cellId,
+                                         clipStats,
+                                         screenLevel);
         });
     }
     else  // useOcts
@@ -790,7 +805,11 @@ public:
           auto pieceId = candidatesView[iCand];
           const auto& meshTet = meshTets[tetId];
           const OctahedronType& geomPiece = geomOctsView[pieceId];
-          computeMeshTetGeomPieceOverlap(meshTet, geomPiece, ovlap.data() + cellId, clipStats, screenLevel);
+          computeMeshTetGeomPieceOverlap(meshTet,
+                                         geomPiece,
+                                         ovlap.data() + cellId,
+                                         clipStats,
+                                         screenLevel);
         });
     }
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_tetScreened");

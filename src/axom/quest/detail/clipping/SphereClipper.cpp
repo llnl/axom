@@ -240,7 +240,9 @@ bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
   }
 
   SLIC_INFO(axom::fmt::format("SphereClipper '{}' {}-level refined got {} geometry octs.",
-                              name(), m_levelOfRefinement, octs.size()));
+                              name(),
+                              m_levelOfRefinement,
+                              octs.size()));
   return true;
 }
 
