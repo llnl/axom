@@ -208,6 +208,8 @@ public:
 
     MeshClipperStrategy& getStrategy() { return *m_myClipper.m_strategy; }
 
+    MeshClipper& myClipper() { return m_myClipper; }
+
   private:
     //!@brief The MeshClipper that owns this Impl.
     MeshClipper& m_myClipper;
