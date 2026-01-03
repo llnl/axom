@@ -134,13 +134,13 @@ public:
 
     const axom::IndexType labelCount = labels.size();
 
-    axom::ReduceSum<ExecSpace, IndexType> onCountReduce{0};
     axom::Array<axom::IndexType> tmpLabels(ArrayOptions::Uninitialized(),
                                            1 + labels.size(),
                                            0,
                                            labels.getAllocatorID());
     tmpLabels.fill(0, 1, 0);
     auto tmpLabelsView = tmpLabels.view();
+    axom::ReduceSum<ExecSpace, IndexType> onCountReduce{0};
     axom::for_all<ExecSpace>(
       labelCount,
       AXOM_LAMBDA(axom::IndexType ci) {
@@ -152,6 +152,7 @@ public:
     RAJA::inclusive_scan_inplace<ScanPolicy>(RAJA::make_span(tmpLabels.data(), tmpLabels.size()),
                                              RAJA::operators::plus<axom::IndexType> {});
 
+    // Space for output index list
     axom::IndexType onCount = onCountReduce.get();
     if(onIndices.size() < onCount || onIndices.getAllocatorID() != labels.getAllocatorID())
     {
@@ -160,6 +161,7 @@ public:
                                                 0,
                                                 labels.getAllocatorID()};
     }
+
     auto onIndicesView = onIndices.view();
     axom::for_all<ExecSpace>(
       1,
@@ -1240,10 +1242,6 @@ public:
 private:
   static constexpr double EPS = 1e-10;
   static constexpr double BVH_SCALE_FACTOR = 1.0;
-  static constexpr int MAX_VERTS_FOR_TET_CLIPPING = 32;
-  static constexpr int MAX_NBRS_PER_VERT_FOR_TET_CLIPPING = 8;
-  static constexpr int MAX_VERTS_FOR_OCT_CLIPPING = 32;
-  static constexpr int MAX_NBRS_PER_VERT_FOR_OCT_CLIPPING = 8;
 };
 
 }  // end namespace detail

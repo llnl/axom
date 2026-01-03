@@ -275,7 +275,7 @@ public:
    *
    * If this method returns false, then exactly one of
    * getGeometryAsTets() or getGeometryAsOcts() methods must be
-   * provided so MeshClipper can use the general clipping methods.
+   * provided so that MeshClipper can use the general clipping methods.
    *
    * @return True if clipping was done and false if a no-op.
    *
