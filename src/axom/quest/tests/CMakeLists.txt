@@ -268,7 +268,7 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
             set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
         endif()
 
-        foreach(_testgeom "tet")
+        foreach(_testgeom ${_testgeoms})
           set(_testname "quest_mesh_clipper_${_meshType}_${_policy}_${_testgeom}")
           axom_add_test(
             NAME ${_testname}

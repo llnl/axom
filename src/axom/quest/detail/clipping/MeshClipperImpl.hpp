@@ -334,7 +334,7 @@ public:
      */
     ClippingStats clipStats;
 
-    const auto screenLevel = m_myClipper.getScreenLevel();
+    const auto screenLevel = myClipper().getScreenLevel();
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_notScreened");
     if(useTets)
@@ -519,7 +519,7 @@ public:
 
     ClippingStats clipStats;
 
-    const auto screenLevel = m_myClipper.getScreenLevel();
+    const auto screenLevel = myClipper().getScreenLevel();
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_hexScreened");
     if(useTets)
