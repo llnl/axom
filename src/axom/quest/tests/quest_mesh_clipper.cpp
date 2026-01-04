@@ -27,6 +27,7 @@
 #include "axom/sidre.hpp"
 #include "axom/klee.hpp"
 #include "axom/quest.hpp"
+#include "axom/quest/detail/clipping/SphereClipper.hpp"
 #include "axom/quest/detail/clipping/TetClipper.hpp"
 
 #include "axom/fmt.hpp"
@@ -101,7 +102,7 @@ public:
   // The shape to run.
   std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
-  const std::set<std::string> availableShapes {"tet"};  // More geometries to come.
+  const std::set<std::string> availableShapes {"tet", "sphere"};  // More geometries to come.
 
   RuntimePolicy policy {RuntimePolicy::seq};
   int refinementLevel {7};
@@ -109,6 +110,8 @@ public:
   std::string annotationMode {"none"};
 
   std::string backgroundMaterial;
+
+  int screenLevel = -1;
 
   // clang-format off
   enum class MeshType { bpSidre = 0, bpConduit = 1 };
@@ -137,10 +140,14 @@ public:
 
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
+    app.add_option("--screenLevel", screenLevel)
+      ->description("Developer feature for MeshClipper.")
+      ->capture_default_str();
+
     app.add_option("-o,--outputFile", outputFile)->description("Path to output file(s)");
 
     app.add_flag("-v,--verbose,!--no-verbose", m_verboseOutput)
-      ->description("Enable/disable verbose output")
+      ->description("Enable/disable verbose output, including SLIC_DEBUG")
       ->capture_default_str();
 
     app.add_option("--meshType", meshType)
@@ -270,7 +277,8 @@ const std::string matsetName = "matset";
 const std::string coordsetName = "coords";
 int cellCount = -1;
 // Translation to individual octants (override) when running multiple shapes.
-// Except that the plane is never moved.
+// Exception: the plane always placed at origin to facilitate finding its
+// exact overlap volume.
 const double tDist = 0.9;  // Bias toward origin to help keep shape inside domain.
 std::vector<axom::NumericArray<double, 3>> translations {{tDist, tDist, -tDist},
                                                          {-tDist, tDist, -tDist},
@@ -387,6 +395,7 @@ void initializeLogger()
 #ifdef AXOM_USE_MPI
   int num_ranks = 1;
   MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+  SLIC_ERROR_IF(num_ranks > 1, "Sorry, this test is serial.");
   if(num_ranks > 1)
   {
     std::string fmt = "[<RANK>][<LEVEL>]: <MESSAGE>\n";
@@ -415,6 +424,36 @@ void finalizeLogger()
     slic::flushStreams();
     slic::finalize();
   }
+}
+
+/*
+ * For the test shapes, try to get good volume with compact shape
+ * that stays in domain when rotated (else volume check is invalid).
+ */
+
+axom::klee::Geometry createGeom_Sphere(const std::string& geomName)
+{
+  Point3D center = params.center.empty() ? Point3D {0, 0, 0} : Point3D {params.center.data()};
+  double radius = params.radius < 0 ? 1.0 : params.radius;
+  axom::primal::Sphere<double, 3> sphere {center, radius};
+
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  const axom::IndexType levelOfRefinement = params.refinementLevel;
+  axom::klee::Geometry sphereGeometry(prop, sphere, levelOfRefinement, compositeOp);
+  exactGeomVols[geomName] = vScale * 4. / 3 * M_PI * radius * radius * radius;
+  errorToleranceRel[geomName] = 1e-3;
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.0015 : 0.0001;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return sphereGeometry;
 }
 
 axom::klee::Geometry createGeom_Tet(const std::string& geomName)
@@ -823,7 +862,12 @@ int main(int argc, char** argv)
     }
     std::string name = axom::fmt::format("{}.{}", tg, geomReps[tg]++);
 
-    if(tg == "tet")
+    if(tg == "sphere")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::experimental::SphereClipper>(createGeom_Sphere(name), name));
+    }
+    else if(tg == "tet")
     {
       geomStrategies.push_back(
         std::make_shared<axom::quest::experimental::TetClipper>(createGeom_Tet(name), name));
@@ -900,10 +944,18 @@ int main(int argc, char** argv)
 
     quest::experimental::MeshClipper clipper(sMesh, geomStrategies[i]);
     clipper.setVerbose(params.isVerbose());
+    if(params.screenLevel >= 0)
+    {
+      clipper.setScreenLevel(params.screenLevel);
+    }
+    SLIC_INFO(axom::fmt::format("MeshClipper screen level: {}", clipper.getScreenLevel()));
+
     axom::Array<double> ovlap;
     AXOM_ANNOTATE_BEGIN(annotationName);
     clipper.clip(ovlap);
     AXOM_ANNOTATE_END(annotationName);
+
+    clipper.logClippingStats();
 
     // Save volume fractions in mesh, for plotting and checking.
     sMesh.setMatsetFromVolume(geomStrategies[i]->name(), ovlap.view(), false);
