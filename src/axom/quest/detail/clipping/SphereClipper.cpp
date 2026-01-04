@@ -209,9 +209,6 @@ AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType SphereClipper::polyhedron
   return LabelType::LABEL_IN;
 }
 
-/*
-  TODO: If possible: Port to GPU.  Will need to rewrite quest/Discretize.[ch]pp.
-*/
 bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
                                       axom::Array<axom::primal::Octahedron<double, 3>>& octs)
 {

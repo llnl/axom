@@ -292,8 +292,8 @@ const std::string matsetName = "matset";
 const std::string coordsetName = "coords";
 int cellCount = -1;
 // Translation to individual octants (override) when running multiple shapes.
-// Exception: the plane always placed at origin to facilitate finding its
-// exact overlap volume.
+// Exception: the plane always placed at the center of the box mesh
+// to facilitate finding its exact overlap volume.
 const double tDist = 0.9;  // Bias toward origin to help keep shape inside domain.
 std::vector<axom::NumericArray<double, 3>> translations {{tDist, tDist, -tDist},
                                                          {-tDist, tDist, -tDist},
@@ -470,7 +470,7 @@ double volumeOfTetMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHA
 /*
  * For the test shapes, try to get good volume with compact shape
  * that stays in domain when rotated (else volume check is invalid).
-*/
+ */
 
 axom::klee::Geometry createGeom_Sphere(const std::string& geomName)
 {

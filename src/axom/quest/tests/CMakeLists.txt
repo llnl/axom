@@ -259,7 +259,6 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
     endif()
 
     set(_testgeoms "plane" "tet" "hex" "sphere" "tetmesh" "sor" "cyl" "cone" "plane,hex,tetmesh")
-    # set(_testgeoms "tetmesh" "tet" "hex" "sphere" "cyl" "cone" "sor" "plane" "plane+hex")
     set(_meshTypes "bpSidre" "bpConduit")
     foreach(_meshType ${_meshTypes})
       foreach(_policy ${_policies})

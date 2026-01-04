@@ -19,7 +19,7 @@ namespace experimental
 
 /*!
  * @brief Geometry clipping operations for sphere geometries.
-*/
+ */
 class SphereClipper : public MeshClipperStrategy
 {
 public:
@@ -29,7 +29,7 @@ public:
    * @param [in] kGeom Describes the shape to place
    *   into the mesh.
    * @param [in] name To override the default strategy name
-  */
+   */
   SphereClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
   virtual ~SphereClipper() = default;

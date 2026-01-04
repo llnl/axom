@@ -771,7 +771,7 @@ public:
 
     ClippingStats clipStats;
 
-    const auto screenLevel = m_myClipper.getScreenLevel();
+    const auto screenLevel = myClipper().getScreenLevel();
 
     /*
      * Now we have the candidates.  Do the clip loop.
