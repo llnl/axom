@@ -661,7 +661,7 @@ public:
     auto traversePredTetId = [=] AXOM_HOST_DEVICE(const IndexType& queryTetId,
                                                   const BoundingBoxType& bvhBbox) -> bool {
       const auto& queryTet = meshTets[tetIndices[queryTetId]];
-      return tetBoxIntersects(queryTet, bvhBbox);
+      return tetBoxCollision(queryTet, bvhBbox);
     };
 
     /*
@@ -683,7 +683,7 @@ public:
           if(useTets)
           {
             const auto& piece = geomTetsView[pieceId];
-            if(tetTetIntersects(meshTet, piece))
+            if(tetTetCollision(meshTet, piece))
             {
               ++count;
             }
@@ -691,7 +691,7 @@ public:
           else
           {
             const auto& piece = geomOctsView[pieceId];
-            if(tetOctIntersects(meshTet, piece))
+            if(tetOctCollision(meshTet, piece))
             {
               ++count;
             }
@@ -726,20 +726,19 @@ public:
       AXOM_LAMBDA(axom::IndexType iTet) {
         auto offset = offsetsView[iTet];
 
-        // PrimitiveType cellTet = tetBbsView[iTet];
-        // Eventually, use the tet, not its BB.
-        // Record indices of the tet and the candidate that collided.
-        // Eventually, bypass if tet and candidate can be shown not to collide.
+        /*
+         * Record indices of the tet and the candidate that collided.
+         * Unless tet and candidate can be shown not to collide.
+         */
         auto recordCollision = [&](std::int32_t currentNode, const std::int32_t* leafs) {
           auto& tetId = tetIndices[iTet];
           const auto& meshTet = meshTets[tetId];
           auto pieceId = leafs[currentNode];
           bool record = false;
-          // record = true;
           if(useTets)
           {
             const auto& piece = geomTetsView[pieceId];
-            if(tetTetIntersects(meshTet, piece))
+            if(tetTetCollision(meshTet, piece))
             {
               record = true;
             }
@@ -747,7 +746,7 @@ public:
           else
           {
             const auto& piece = geomOctsView[pieceId];
-            if(tetOctIntersects(meshTet, piece))
+            if(tetOctCollision(meshTet, piece))
             {
               record = true;
             }
@@ -760,7 +759,6 @@ public:
           }
         };
 
-        // bvhTraverser.traverse_tree(tetBbsView[iTet], recordCollision, traversePredBox);
         bvhTraverser.traverse_tree(iTet, recordCollision, traversePredTetId);
       });
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
@@ -775,6 +773,9 @@ public:
 
     const auto screenLevel = m_myClipper.getScreenLevel();
 
+    /*
+     * Now we have the candidates.  Do the clip loop.
+     */
     AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_tetScreened");
     if(useTets)
     {
@@ -1045,11 +1046,11 @@ public:
   }
 
   /*!
-   * @brief Whether a tet and a bounding box intersect.
+   * @brief Whether a tet and a bounding box (possibly) intersect.
    * Answer may be a false positive but never a false negative.
    */
-  AXOM_HOST_DEVICE static inline bool tetBoxIntersects(const TetrahedronType& tet,
-                                                       const BoundingBoxType& box)
+  AXOM_HOST_DEVICE static inline bool tetBoxCollision(const TetrahedronType& tet,
+                                                      const BoundingBoxType& box)
   {
     if(box.contains(tet[0]) || box.contains(tet[1]) || box.contains(tet[2]) || box.contains(tet[3]))
     {
@@ -1088,11 +1089,11 @@ public:
   }
 
   /*!
-   * @brief Whether a tet and the convex hull of an octahedron intersects.
+   * @brief Whether a tet and the convex hull of an octahedron (possibly) intersect.
    * Answer may be a false positive but never a false negative.
    */
-  AXOM_HOST_DEVICE static inline bool tetOctIntersects(const TetrahedronType& tet,
-                                                       const OctahedronType& oct)
+  AXOM_HOST_DEVICE static inline bool tetOctCollision(const TetrahedronType& tet,
+                                                      const OctahedronType& oct)
   {
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     CoordTransformer toUnitTet(&tet[0], unitTet);
@@ -1182,12 +1183,12 @@ public:
   }
 
   /*!
-   * @brief Whether a tet and another tet intersects.
+   * @brief Whether a tet and another tet (possibly) intersect.
    * Answer may be a false positive but never a false negative.
    */
-  AXOM_HOST_DEVICE static inline bool tetTetIntersects(const TetrahedronType& tetA,
-                                                       const TetrahedronType& tetB,
-                                                       bool flip = true)
+  AXOM_HOST_DEVICE static inline bool tetTetCollision(const TetrahedronType& tetA,
+                                                      const TetrahedronType& tetB,
+                                                      bool flip = true)
   {
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     CoordTransformer toUnitTet(&tetA[0], unitTet);
@@ -1219,7 +1220,7 @@ public:
     {
       // Cannot claim no-intersection checking whether tetB above or below tetA.
       // So try checking whether tetA is above or below tetB.
-      return tetTetIntersects(tetB, tetA, false);
+      return tetTetCollision(tetB, tetA, false);
     }
 
     return true;

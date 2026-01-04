@@ -188,7 +188,7 @@ bool FSorClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
  * Implementation: (reverse) transform the mesh vertices to the r-z
  * frame where the curve is defined as a r(z) function.  It's easier to
  * determine whether the point is in the sor that way.
-*/
+ */
 template <typename ExecSpace>
 void FSorClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                                       axom::ArrayView<LabelType> labels)
@@ -274,7 +274,7 @@ void FSorClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
   Compute bounding box in rz space for a tet or hex geometry in
   body frame (the 3D frame with the rotation along +x).
 
-  1. Rotate vertices into the rz plane.
+  1. Rotate the tet or hex vertices into the rz plane.
   2. Compute bounding box for vertices.
   3. Expand 2D bounding box to contain edge that may
      intersect SOR between vertices.

@@ -24,14 +24,19 @@ class Plane3DClipper : public MeshClipperStrategy
 public:
   /*!
    * @brief Constructor.
-
+   *
    * @param [in] kGeom Describes the shape to place
    *   into the mesh.
    * @param [in] name To override the default strategy name
-
+   *
    * Clipping operations for a semi-infinite half-space
    * on the positive normal direction of a plane.
-  */
+   *
+   * @internal Three specialized clipping implementations are
+   * currently provided, for use with varying levels of screening.
+   * The more screening, the better the expected performance, so
+   * in the end, only specializedClipTets will be kept.
+   */
   Plane3DClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
   virtual ~Plane3DClipper() = default;

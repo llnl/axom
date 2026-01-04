@@ -20,30 +20,30 @@ namespace experimental
 /*!
  * @brief Geometry clipping operations for 3D
  * surface-of-revolution geometries.
-
+ *
  * This implementation requires the SOR curve to be a function.
  * It requires axial coordinates to be monotonic but doesn't require
  * them to be strictly monotonic.  For SOR curves where the axial
  * coordinates change directions, use SorClipper.
-
+ *
  * The SOR specification may include axis orientation and location
  * in addition to any external transformation.
-*/
+ */
 class FSorClipper : public MeshClipperStrategy
 {
 public:
   /*!
    * @brief Constructor.
-
+   *
    * @param [in] kGeom Describes the shape to place
    *   into the mesh.
    * @param [in] name To override the default strategy name
-  */
+   */
   FSorClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
   /*!
    * @brief Construct from geometric specifications.
-  */
+   */
   FSorClipper(const klee::Geometry& kGeom,
               const std::string& name,
               axom::ArrayView<const Point2DType> sorCurve,
@@ -72,21 +72,21 @@ public:
   /*!
    * @brief Find division points between curve sections where z (x)
    * changes directions.
-
+   *
    * @param sorCurve Set of at least 2 2D points describing a curve
    *   in r-z space (in host array).
-
+   *
    * @return Indices of switchbacks, plus the first and last indices.
-  */
+   */
   static axom::Array<axom::IndexType> findZSwitchbacks(axom::ArrayView<const Point2DType> pts);
 
   /*
    * @brief Combine consecutive radial segments of the curve into a
    * single segment.
-
+   *
    * This step is necessary because some other steps assume there are
    * no consecutive radial segments.
-  */
+   */
   static void combineRadialSegments(axom::Array<Point2DType>& sorCurve);
   //@}
 
@@ -97,11 +97,11 @@ private:
 
   /*!
    * @brief The discrete r(z) curve as an array of y(x) points.
-
+   *
    * This data is before internal or external transformations.
    * It may include points on each end to connect the curve to
    * the axis of rotation.
-  */
+   */
   axom::Array<Point2DType> m_sorCurve;
 
   //! @brief Bounding box of points in m_sorCurve;
@@ -125,18 +125,18 @@ private:
 
   /*!
    * @brief Boxes (in rz space) on the curve.
-
+   *
    * The curve lies completely in these boxes and includes the planes
    * of the base and top.  Points in these boxes are require more
    * computation to determine their signed distance.
-  */
+   */
   axom::Array<BoundingBox2DType> m_bbOn;
 
   /*!
    * @brief Boxes (in rz space) completely under the curve.
-
+   *
    * These boxes lie completely under the curve.
-  */
+   */
   axom::Array<BoundingBox2DType> m_bbUnder;
 
   //!@brief Internal and external transforms (includes m_sorDirection and m_sorOrigin).
