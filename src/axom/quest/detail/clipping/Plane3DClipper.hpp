@@ -32,10 +32,14 @@ public:
    * Clipping operations for a semi-infinite half-space
    * on the positive normal direction of a plane.
    *
-   * @internal Three specialized clipping implementations are
-   * currently provided, for use with varying levels of screening.
-   * The more screening, the better the expected performance, so
-   * in the end, only specializedClipTets will be kept.
+   * @internal Because this class provides screening via the
+   * labelCellsInOut and labelTetsInOut methods, the
+   * specializedClipCells methods below are not essential.  They are
+   * implemented only to avoid crashing when the MeshClipper's screen
+   * level is overridden (for performance comparisons).  The
+   * specializedClipTets method is much faster and is the one used for
+   * the default screen level.  If the screen level override is remove,
+   * the non-essential methods can also be removed.
    */
   Plane3DClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
