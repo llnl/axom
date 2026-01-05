@@ -27,6 +27,7 @@
 #include "axom/sidre.hpp"
 #include "axom/klee.hpp"
 #include "axom/quest.hpp"
+#include "axom/quest/detail/clipping/Plane3DClipper.hpp"
 #include "axom/quest/detail/clipping/SphereClipper.hpp"
 #include "axom/quest/detail/clipping/TetClipper.hpp"
 
@@ -102,7 +103,7 @@ public:
   // The shape to run.
   std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
-  const std::set<std::string> availableShapes {"tet", "sphere"};  // More geometries to come.
+  const std::set<std::string> availableShapes {"tet", "sphere", "plane"};  // More geometries to come.
 
   RuntimePolicy policy {RuntimePolicy::seq};
   int refinementLevel {7};
@@ -277,8 +278,8 @@ const std::string matsetName = "matset";
 const std::string coordsetName = "coords";
 int cellCount = -1;
 // Translation to individual octants (override) when running multiple shapes.
-// Exception: the plane always placed at origin to facilitate finding its
-// exact overlap volume.
+// Exception: the plane always placed at the center of the box mesh
+// to facilitate finding its exact overlap volume.
 const double tDist = 0.9;  // Bias toward origin to help keep shape inside domain.
 std::vector<axom::NumericArray<double, 3>> translations {{tDist, tDist, -tDist},
                                                          {-tDist, tDist, -tDist},
@@ -480,6 +481,36 @@ axom::klee::Geometry createGeom_Tet(const std::string& geomName)
   axom::klee::Geometry tetGeometry(prop, tet, compositeOp);
 
   return tetGeometry;
+}
+
+axom::klee::Geometry createGeom_Plane(const std::string& geomName)
+{
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  // Create a plane crossing center of mesh.  No matter the normal,
+  // it cuts the mesh in half.
+  Point3D center {0.5 *
+                  (axom::NumericArray<double, 3>(params.boxMins.data()) +
+                   axom::NumericArray<double, 3>(params.boxMaxs.data()))};
+  primal::Vector<double, 3> normal = params.direction.empty()
+    ? primal::Vector3D {1.0, 0.0, 0.0}
+    : primal::Vector3D {params.direction.data()}.unitVector();
+  const primal::Plane<double, 3> plane {normal, center, true};
+
+  axom::klee::Geometry planeGeometry(prop, plane, {nullptr});
+
+  // Exact mesh overlap volume, assuming plane passes through center of box mesh.
+  using Pt3D = primal::Point<double, 3>;
+  Pt3D lower(params.boxMins.data());
+  Pt3D upper(params.boxMaxs.data());
+  auto diag = upper.array() - lower.array();
+  double meshVolume = diag[0] * diag[1] * diag[2];
+  exactGeomVols[geomName] = 0.5 * meshVolume;
+  errorToleranceRel[geomName] = 1e-6;
+  errorToleranceAbs[geomName] = 1e-8;
+
+  return planeGeometry;
 }
 
 /*!
@@ -862,7 +893,12 @@ int main(int argc, char** argv)
     }
     std::string name = axom::fmt::format("{}.{}", tg, geomReps[tg]++);
 
-    if(tg == "sphere")
+    if(tg == "plane")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::experimental::Plane3DClipper>(createGeom_Plane(name), name));
+    }
+    else if(tg == "sphere")
     {
       geomStrategies.push_back(
         std::make_shared<axom::quest::experimental::SphereClipper>(createGeom_Sphere(name), name));
