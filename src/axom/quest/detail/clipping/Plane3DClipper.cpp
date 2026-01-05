@@ -334,10 +334,7 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
 
   auto plane = m_plane;
 
-  const std::int64_t zero = 0;
-  std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
-  std::int64_t* contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
-  axom::copy(contribCountPtr, &contribCount, sizeof(zero));
+  axom::ReduceSum<ExecSpace, std::int64_t> missSum {0};
 
   axom::for_all<ExecSpace>(
     cellIds.size(),
@@ -349,16 +346,22 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
       {
         const auto& tet = tetsInHex[ti];
         primal::Polyhedron<double, 3> overlap = primal::clip(tet, plane, EPS);
-        auto volume = overlap.volume();
-        vol += volume;
-        RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(volume >= EPS));
+        if(overlap.numVertices() >= 4)
+        {
+          auto volume = overlap.volume();
+          vol += volume;
+        }
+        else
+        {
+          missSum += 1;
+        }
       }
       ovlap[cellId] = vol;
     });
 
-  statistics["clips"].set_int64(cellIds.size() * NUM_TETS_PER_HEX);
-  axom::copy(&contribCount, contribCountPtr, sizeof(contribCount));
-  axom::deallocate(contribCountPtr);
+  statistics["clipsOn"].set_int64(cellIds.size() * NUM_TETS_PER_HEX);
+  statistics["clipsSum"].set_int64(cellIds.size() * NUM_TETS_PER_HEX);
+  statistics["missSum"].set_int64(missSum.get());
 }
 
 template <typename ExecSpace>
@@ -376,11 +379,6 @@ void Plane3DClipper::specializedClipTetsImpl(quest::experimental::ShapeMesh& sha
   IndexType tetCount = tetIds.size();
   auto plane = m_plane;
 
-  const std::int64_t zero = 0;
-  std::int64_t& contribCount = *(statistics["contribs"] = zero).as_int64_ptr();
-  std::int64_t* contribCountPtr = axom::allocate<std::int64_t>(1, allocId);
-  axom::copy(contribCountPtr, &contribCount, sizeof(zero));
-
   axom::for_all<ExecSpace>(
     tetCount,
     AXOM_LAMBDA(axom::IndexType ti) {
@@ -390,12 +388,11 @@ void Plane3DClipper::specializedClipTetsImpl(quest::experimental::ShapeMesh& sha
       primal::Polyhedron<double, 3> overlap = primal::clip(tet, plane, EPS);
       double vol = overlap.volume();
       RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, vol);
-      RAJA::atomicAdd<ATOMIC_POL>(contribCountPtr, std::int64_t(vol >= EPS));
     });
 
-  statistics["clips"].set_int64(tetIds.size());
-  axom::copy(&contribCount, contribCountPtr, sizeof(contribCount));
-  axom::deallocate(contribCountPtr);
+  // Because the tet screening is perfect, all tets in tetIds are on the plane.
+  statistics["onSum"].set_int64(tetCount);
+  statistics["clipsSum"].set_int64(tetCount);
 }
 
 void Plane3DClipper::extractClipperInfo()
