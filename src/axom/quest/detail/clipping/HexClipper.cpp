@@ -17,13 +17,13 @@ namespace experimental
 HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
   : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Hex") : name)
-  , m_transformer(m_extTrans)
+  , m_extTransformer(m_extTrans)
 {
   extractClipperInfo();
 
   for(int i = 0; i < HexahedronType::NUM_HEX_VERTS; ++i)
   {
-    m_hex[i] = m_transformer.getTransformed(m_hexBeforeTrans[i]);
+    m_hex[i] = m_extTransformer.getTransformed(m_hexBeforeTrans[i]);
   }
 
   axom::StackArray<TetrahedronType, ShapeMesh::NUM_TETS_PER_HEX> geomTets;
@@ -281,6 +281,11 @@ void HexClipper::extractClipperInfo()
   }
 }
 
+/*
+  Compute the triangulated surface of the hex.  There 4 triangles per hex face.
+  Each touches two vertices on the face and the face centroid.
+  All are orientated inward.
+*/
 void HexClipper::computeSurface()
 {
   // Hex vertex shorthands
@@ -294,7 +299,7 @@ void HexClipper::computeSurface()
   const auto& v = m_hex[6];
   const auto& w = m_hex[7];
 
-  // 6 face centers, right handed, oriented inward.
+  // 6 face centroids.
   Point3DType pswt(axom::NumericArray<double, 3> {p.array() + s.array() + w.array() + t.array()} / 4);
   Point3DType quvr(axom::NumericArray<double, 3> {q.array() + u.array() + v.array() + r.array()} / 4);
 

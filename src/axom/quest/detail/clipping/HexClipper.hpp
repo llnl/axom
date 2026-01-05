@@ -31,21 +31,17 @@ public:
    * @param [in] name To override the default strategy name
    *
    * \c kGeom.asHierarchy() must contain the following data:
-   * - v0, v1, v2, ..., v8: each contains a 3D coordinates of the
+   * - v0, v1, v2, ..., v7: each contains a 3D coordinates of the
    *   hexahedron vertices, in the order used by primal::Hexahedron.
    *   The hex may be degenerate, but when subdivided into tetrahedra,
    *   none of them may be inverted (have negative volume).
-  */
+   */
   HexClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
   virtual ~HexClipper() = default;
 
   const std::string& name() const override { return m_name; }
 
-  /*!
-   * If a mesh cell has all vertices outside the geometry, it labeled outside.
-   * This will miss cases where an edge of the cell passes through the geometry.
-  */
   bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh,
                        axom::Array<LabelType>& label) override;
 
@@ -67,6 +63,9 @@ private:
   //!@brief Hexahedron after transformation.
   HexahedronType m_hex;
 
+  //!@brief External transformation.
+  axom::primal::experimental::CoordinateTransformer<double> m_extTransformer;
+
   //!@brief Bounding box of m_hex.
   BoundingBox3DType m_hexBb;
 
@@ -75,8 +74,6 @@ private:
 
   //!@brief Triangles on the discretized hex surface, oriented inward.
   axom::StackArray<Triangle3DType, 24> m_surfaceTriangles;
-
-  axom::primal::experimental::CoordinateTransformer<double> m_transformer;
 
   template <typename ExecSpace>
   void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
