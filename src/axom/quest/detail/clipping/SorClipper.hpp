@@ -84,7 +84,7 @@ private:
   // analytical shapes and surfaces of revolutions.
   axom::IndexType m_levelOfRefinement = 0;
 
-  //!@brief Array implementation of a += b.
+  //!@brief Array implementation of a += scale*b.
   void accumulateData(axom::ArrayView<double> a,
                       axom::ArrayView<const double> b,
                       double scale,
