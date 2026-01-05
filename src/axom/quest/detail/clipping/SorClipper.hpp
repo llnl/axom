@@ -19,11 +19,11 @@ namespace experimental
 {
 
 /*!
- * @brief Geometry clipping operations for 3D
+ * @brief Geometry clipping operations for general 3D
  * surface-of-revolution geometries.
  *
  * This implementation allows the SOR function to have non-monotonic
- * axial coordinates.  For SOR curves that don't, the less complex
+ * z in the r(z) curve.  For SOR curves that don't, the less complex
  * FSorClipper is sufficient.
  *
  * The SOR specification may include rotation and translation

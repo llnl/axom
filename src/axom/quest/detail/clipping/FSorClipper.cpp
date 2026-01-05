@@ -644,7 +644,7 @@ void FSorClipper::combineRadialSegments(axom::Array<Point2DType>& sorCurve)
 }
 
 /*
-  Find points along the r-z curve where the z-coordinate changes direction.
+  Find points along the r(z) curve where the z-coordinate changes direction.
 
   Cases 1 and 2 below show direction changes at point o.  Case 3
   shows a potential change at the radial segment, but not a real

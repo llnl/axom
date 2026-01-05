@@ -18,13 +18,13 @@ namespace experimental
 {
 
 /*!
- * @brief Geometry clipping operations for 3D
+ * @brief Geometry clipping operations for simple 3D
  * surface-of-revolution geometries.
  *
- * This implementation requires the SOR curve to be a function.
- * It requires axial coordinates to be monotonic but doesn't require
- * them to be strictly monotonic.  For SOR curves where the axial
- * coordinates change directions, use SorClipper.
+ * This implementation requires the SOR curve r(z) have monotonic (but
+ * not strictly monotonic) z coordinates.  The curve may have vertical
+ * slopes but it may not double back in z.  For SOR curves where z
+ * changes directions, use SorClipper.
  *
  * The SOR specification may include axis orientation and location
  * in addition to any external transformation.
@@ -38,6 +38,16 @@ public:
    * @param [in] kGeom Describes the shape to place
    *   into the mesh.
    * @param [in] name To override the default strategy name
+   *
+   * \c kGeom.asHierarchy() must contain the following data:
+   * - sorOrigin: 3D coordinates of the point (z,r) = (0,0)
+   * - sorDirection: orientation of the SOR axis in 3D space.
+   * - discreteFunction: The discretized r(z) curve as an array of (z,r) pairs.
+   * - levelOfRefinement: number of refinement levels used
+   *   to approximate the sphere with octahedra.  The number
+   *   of octs grows exponentially with level
+   *   (@see quest::discretize(const axom::ArrayView<Point2D> &polyline, int pointcount, int levels, axom::Array<OctType> &out, int &octcount)).
+   *   In practice, keep this number to 11 or less.
    */
   FSorClipper(const klee::Geometry& kGeom, const std::string& name = "");
 

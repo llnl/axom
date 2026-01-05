@@ -95,7 +95,7 @@ void TetClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
    *   the cell is IN.
    *
    * - Otherwise, cell is ON.
-  */
+   */
 
   int allocId = shapeMesh.getAllocatorID();
   auto vertCount = shapeMesh.getVertexCount();
@@ -114,14 +114,17 @@ void TetClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
   SLIC_ASSERT(connView.shape() ==
               (axom::StackArray<axom::IndexType, 2> {cellCount, HexahedronType::NUM_HEX_VERTS}));
 
+  /*
+   * Compute whether mesh vertices are above/below the tet.
+   */
   axom::Array<bool> below[4];
   axom::Array<bool> above[4];
   axom::ArrayView<bool> belowView[4];
   axom::ArrayView<bool> aboveView[4];
   for(IndexType p = 0; p < 4; ++p)
   {
-    below[p] = axom::Array<bool>(ArrayOptions::Uninitialized(), vertCount, vertCount, allocId);
-    above[p] = axom::Array<bool>(ArrayOptions::Uninitialized(), vertCount, vertCount, allocId);
+    below[p] = axom::Array<bool>(ArrayOptions::Uninitialized(), vertCount, 0, allocId);
+    above[p] = axom::Array<bool>(ArrayOptions::Uninitialized(), vertCount, 0, allocId);
     belowView[p] = below[p].view();
     aboveView[p] = above[p].view();
   }
@@ -146,6 +149,9 @@ void TetClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
 
   constexpr double EPS = 1e-10;
 
+  /*
+   * Compute whether mesh cells are above/below the tet.
+   */
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
