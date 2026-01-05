@@ -792,11 +792,6 @@ public:
      * Predicate for traversing the BVH.  We enter BVH nodes
      * whose bounding boxes intersect the query bounding box.
      */
-    auto traversePredBox = [] AXOM_HOST_DEVICE(const BoundingBoxType& queryBbox,
-                                               const BoundingBoxType& bvhBbox) -> bool {
-      return queryBbox.intersectsWith(bvhBbox);
-    };
-    AXOM_UNUSED_VAR(traversePredBox);
     auto traversePredTetId = [=] AXOM_HOST_DEVICE(const IndexType& queryTetId,
                                                   const BoundingBoxType& bvhBbox) -> bool {
       const auto& queryTet = meshTets[tetIndices[queryTetId]];
@@ -818,7 +813,6 @@ public:
           const auto& meshTet = meshTets[tetId];
 
           auto pieceId = leafNodes[currentNode];
-          // ++count; return;
           if(useTets)
           {
             const auto& piece = geomTetsView[pieceId];
@@ -836,7 +830,6 @@ public:
             }
           }
         };
-        // bvhTraverser.traverse_tree(tetBbsView[iTet], countCollisions, traversePredBox);
         bvhTraverser.traverse_tree(iTet, countCollisions, traversePredTetId);
         countsView[iTet] = count;
         totalCountReduce += count;
@@ -956,8 +949,6 @@ public:
 
     clipStats.copyTo(statistics);
     statistics["clipsCandidates"].set_int64(candidates.size());
-
-    SLIC_DEBUG(axom::fmt::format(""));
   }  // end of computeClipVolumes3DTets() function
 
   /*!
