@@ -101,7 +101,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
         logLabelStats(tetLabels, "tets");
       }
       m_impl->collectOnIndices(tetLabels.view(), tetsOnBdry);
-      m_impl->remapTetIndices(tetsOnBdry, cellsOnBdry);
+      m_impl->remapTetIndices(cellsOnBdry, tetsOnBdry);
 
       SLIC_ASSERT(tetsOnBdry.getAllocatorID() == m_shapeMesh.getAllocatorID());
       SLIC_ASSERT(tetsOnBdry.size() <= cellsOnBdry.size() * NUM_TETS_PER_HEX);
