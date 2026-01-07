@@ -6,6 +6,8 @@
 #ifndef AXOM_MESHCLIPPERIMPL_HPP_
 #define AXOM_MESHCLIPPERIMPL_HPP_
 
+#include "axom/config.hpp"
+
 #ifndef AXOM_USE_RAJA
   #error "quest::MeshClipper requires RAJA."
 #endif
@@ -109,7 +111,7 @@ public:
       return;
     };
 
-    AXOM_ANNOTATE_SCOPE("MeshClipper::collect_unlabeleds");
+    AXOM_ANNOTATE_SCOPE("MeshClipper:collect_indices");
     /*!
      * 1. Generate tmpLabels, having a value of 1 where labels is LABEL_ON and zero elsewhere.
      * 2. Inclusive scan on tmpLabels to generate values that step up at LABEL_ON cells.
@@ -124,42 +126,42 @@ public:
 
     const axom::IndexType labelCount = labels.size();
 
-    axom::Array<axom::IndexType> tmpLabels(labels.shape(), labels.getAllocatorID());
+    axom::Array<axom::IndexType> tmpLabels(ArrayOptions::Uninitialized(),
+                                           1 + labels.size(),
+                                           0,
+                                           labels.getAllocatorID());
+    tmpLabels.fill(0, 1, 0);
     auto tmpLabelsView = tmpLabels.view();
+    axom::ReduceSum<ExecSpace, IndexType> onCountReduce {0};
     axom::for_all<ExecSpace>(
       labelCount,
-      AXOM_LAMBDA(axom::IndexType ci) { tmpLabelsView[ci] = labels[ci] == LabelType::LABEL_ON; });
+      AXOM_LAMBDA(axom::IndexType ci) {
+        bool isOn = labels[ci] == LabelType::LABEL_ON;
+        tmpLabelsView[1 + ci] = isOn;
+        onCountReduce += isOn;
+      });
 
     RAJA::inclusive_scan_inplace<ScanPolicy>(RAJA::make_span(tmpLabels.data(), tmpLabels.size()),
                                              RAJA::operators::plus<axom::IndexType> {});
 
-    axom::IndexType onCount;  // Count of tets labeled ON.
-    axom::copy(&onCount, &tmpLabels.back(), sizeof(onCount));
-
+    // Space for output index list
+    axom::IndexType onCount = onCountReduce.get();
     if(onIndices.size() < onCount || onIndices.getAllocatorID() != labels.getAllocatorID())
     {
       onIndices = axom::Array<axom::IndexType> {axom::ArrayOptions::Uninitialized(),
                                                 onCount,
-                                                onCount,
+                                                0,
                                                 labels.getAllocatorID()};
     }
+
     auto onIndicesView = onIndices.view();
-
-    LabelType firstLabel = LabelType::LABEL_IN;
-    axom::copy(&firstLabel, &labels[0], sizeof(firstLabel));
-    if(firstLabel == LabelType::LABEL_ON)
-    {
-      axom::IndexType zero = 0;
-      axom::copy(&onIndices[0], &zero, sizeof(zero));
-    }
-
     axom::for_all<ExecSpace>(
       1,
-      labelCount,
+      1 + labelCount,
       AXOM_LAMBDA(axom::IndexType i) {
         if(tmpLabelsView[i] != tmpLabelsView[i - 1])
         {
-          onIndicesView[tmpLabelsView[i - 1]] = i;
+          onIndicesView[tmpLabelsView[i] - 1] = i - 1;
         }
       });
   }
@@ -184,13 +186,36 @@ public:
       });
   }
 
+  // Work space for clip counters.
+  struct ClippingStats
+  {
+    axom::ReduceSum<ExecSpace, IndexType> inSum {0};
+    axom::ReduceSum<ExecSpace, IndexType> onSum {0};
+    axom::ReduceSum<ExecSpace, IndexType> outSum {0};
+    axom::ReduceSum<ExecSpace, IndexType> missSum {0};
+    ClippingStats() : inSum(0), onSum(0), outSum(0), missSum(0) { }
+    void copyTo(conduit::Node& stats)
+    {
+      // Place clip counts in statistics container.
+      std::int64_t clipsInCount = inSum.get();
+      std::int64_t clipsOnCount = onSum.get();
+      std::int64_t clipsOutCount = outSum.get();
+      std::int64_t clipsMissCount = missSum.get();
+      stats["clipsIn"].set_int64(clipsInCount);
+      stats["clipsOn"].set_int64(clipsOnCount);
+      stats["clipsOut"].set_int64(clipsOutCount);
+      stats["clipsMiss"].set_int64(clipsMissCount);
+      stats["clipsSum"] = clipsInCount + clipsOnCount + clipsOutCount;
+    }
+  };
+
   /*
    * Clip tets from the mesh with tets or octs from the clipping
    * geometry.  This implementation was lifted from IntersectionShaper
    * and modified to work both tet and oct representations of the
    * geometry.
    */
-  void computeClipVolumes3D(axom::ArrayView<double> ovlap) override
+  void computeClipVolumes3D(axom::ArrayView<double> ovlap, conduit::Node& statistics) override
   {
     AXOM_ANNOTATE_SCOPE("MeshClipper::computeClipVolumes3D");
 
@@ -293,7 +318,7 @@ public:
                                            allocId);
     auto shapeCandidatesView = shapeCandidates.view();
 
-    // Tetrahedra from hexes (24 for each hex)
+    // Tetrahedra from hexes
     auto cellsAsTets = shapeMesh.getCellsAsTets();
 
     // Index into 'tets'
@@ -339,6 +364,13 @@ public:
 
     constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = false;
+
+    /*
+     * Statistics from the clip loop.
+     * Count number of times the piece was found inside/outside/on a mesh tet boundary.
+     * Be sure to use kernel-compatible memory.
+     */
+    ClippingStats clipStats;
 
     {
       tetCandidatesCount = NUM_TETS_PER_HEX * candidates.size();
@@ -417,6 +449,11 @@ public:
       }
     }
 
+    AXOM_ANNOTATE_END("MeshClipper:clipLoop_notScreened");
+
+    clipStats.copyTo(statistics);
+    statistics["clipsCandidates"].set_int64(tetCandidatesCount);
+
     if(tetCandidatesCountPtr != &tetCandidatesCount)
     {
       axom::deallocate(tetCandidatesCountPtr);
@@ -430,7 +467,8 @@ public:
    * on the boundary.
    */
   void computeClipVolumes3D(const axom::ArrayView<axom::IndexType>& cellIndices,
-                            axom::ArrayView<double> ovlap) override
+                            axom::ArrayView<double> ovlap,
+                            conduit::Node& statistics) override
 
   {
     AXOM_ANNOTATE_SCOPE("MeshClipper::computeClipVolumes3D:limited");
@@ -539,7 +577,7 @@ public:
                                            allocId);
     auto shapeCandidatesView = shapeCandidates.view();
 
-    // Tetrahedrons from hexes (24 for each hex)
+    // Tetrahedrons from hexes
     auto cellsAsTets = shapeMesh.getCellsAsTets();
 
     // Index into 'tets'
@@ -603,6 +641,8 @@ public:
       }
       SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
 #endif
+
+      ClippingStats clipStats;
 
       if(useTets)
       {
@@ -676,6 +716,9 @@ public:
             }
           });
       }
+
+      clipStats.copyTo(statistics);
+      statistics["clipsCandidates"].set_int64(tetCandidatesCount);
     }
 
     if(tetCandidatesCountPtr != &tetCandidatesCount)
@@ -691,7 +734,8 @@ public:
    * potentially on the boundary.
    */
   void computeClipVolumes3DTets(const axom::ArrayView<axom::IndexType>& tetIndices,
-                                axom::ArrayView<double> ovlap) override
+                                axom::ArrayView<double> ovlap,
+                                conduit::Node& statistics) override
 
   {
     AXOM_ANNOTATE_SCOPE("MeshClipper::computeClipVolumes3D:limited");
@@ -805,6 +849,8 @@ public:
     constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = false;
 
+    ClippingStats clipStats;
+
     if(useTets)
     {
       axom::for_all<ExecSpace>(
@@ -862,19 +908,22 @@ public:
         });
     }
 
+    clipStats.copyTo(statistics);
+    statistics["clipsCandidates"].set_int64(candidates.size());
+
   }  // end of computeClipVolumes3DTets() function
 
   void getLabelCounts(axom::ArrayView<const LabelType> labels,
-                      axom::IndexType& inCount,
-                      axom::IndexType& onCount,
-                      axom::IndexType& outCount) override
+                      std::int64_t& inCount,
+                      std::int64_t& onCount,
+                      std::int64_t& outCount) override
   {
     AXOM_ANNOTATE_SCOPE("MeshClipper::getLabelCounts");
     using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
     using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
-    RAJA::ReduceSum<ReducePolicy, axom::IndexType> inSum(0);
-    RAJA::ReduceSum<ReducePolicy, axom::IndexType> onSum(0);
-    RAJA::ReduceSum<ReducePolicy, axom::IndexType> outSum(0);
+    RAJA::ReduceSum<ReducePolicy, std::int64_t> inSum(0);
+    RAJA::ReduceSum<ReducePolicy, std::int64_t> onSum(0);
+    RAJA::ReduceSum<ReducePolicy, std::int64_t> outSum(0);
     RAJA::forall<LoopPolicy>(
       RAJA::RangeSegment(0, labels.size()),
       AXOM_LAMBDA(axom::IndexType cellId) {
@@ -892,16 +941,12 @@ public:
           onSum += 1;
         }
       });
-    inCount = static_cast<axom::IndexType>(inSum.get());
-    onCount = static_cast<axom::IndexType>(onSum.get());
-    outCount = static_cast<axom::IndexType>(outSum.get());
+    inCount = static_cast<std::int64_t>(inSum.get());
+    onCount = static_cast<std::int64_t>(onSum.get());
+    outCount = static_cast<std::int64_t>(outSum.get());
   }
 
 private:
-  static constexpr int MAX_VERTS_FOR_TET_CLIPPING = 32;
-  static constexpr int MAX_NBRS_PER_VERT_FOR_TET_CLIPPING = 8;
-  static constexpr int MAX_VERTS_FOR_OCT_CLIPPING = 32;
-  static constexpr int MAX_NBRS_PER_VERT_FOR_OCT_CLIPPING = 8;
 };
 
 }  // end namespace detail
