@@ -33,6 +33,7 @@
 #include "axom/quest/detail/clipping/SorClipper.hpp"
 #include "axom/quest/detail/clipping/SphereClipper.hpp"
 #include "axom/quest/detail/clipping/TetClipper.hpp"
+#include "axom/quest/detail/clipping/TetMeshClipper.hpp"
 
 #include "axom/fmt.hpp"
 #include "axom/CLI11.hpp"
@@ -106,8 +107,14 @@ public:
   // The shape to run.
   std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
-  const std::set<std::string>
-    availableShapes {"sphere", "cyl", "cone", "sor", "tet", "hex", "plane"};
+  const std::set<std::string> availableShapes {"tetmesh",
+                                               "sphere",
+                                               "cyl",
+                                               "cone",
+                                               "sor",
+                                               "tet",
+                                               "hex",
+                                               "plane"};
 
   RuntimePolicy policy {RuntimePolicy::seq};
   int refinementLevel {7};
@@ -431,6 +438,32 @@ void finalizeLogger()
   }
 }
 
+double volumeOfTetMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& tetMesh)
+{
+  using TetType = axom::primal::Tetrahedron<double, 3>;
+  axom::StackArray<axom::IndexType, 1> nodesShape {tetMesh.getNumberOfNodes()};
+  axom::ArrayView<const double> x(tetMesh.getCoordinateArray(0), nodesShape);
+  axom::ArrayView<const double> y(tetMesh.getCoordinateArray(1), nodesShape);
+  axom::ArrayView<const double> z(tetMesh.getCoordinateArray(2), nodesShape);
+  const axom::IndexType tetCount = tetMesh.getNumberOfCells();
+  axom::Array<double> tetVolumes(tetCount, tetCount);
+  double meshVolume = 0.0;
+  for(axom::IndexType ic = 0; ic < tetCount; ++ic)
+  {
+    const axom::IndexType* nodeIds = tetMesh.getCellNodeIDs(ic);
+    TetType tet;
+    for(int j = 0; j < 4; ++j)
+    {
+      auto cornerNodeId = nodeIds[j];
+      tet[j][0] = x[cornerNodeId];
+      tet[j][1] = y[cornerNodeId];
+      tet[j][2] = z[cornerNodeId];
+    }
+    meshVolume += tet.volume();
+  }
+  return meshVolume;
+}
+
 /*
  * For the test shapes, try to get good volume with compact shape
  * that stays in domain when rotated (else volume check is invalid).
@@ -459,6 +492,59 @@ axom::klee::Geometry createGeom_Sphere(const std::string& geomName)
   errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
 
   return sphereGeometry;
+}
+
+axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string& geomName)
+{
+  // Shape a tetrahedal mesh.
+  sidre::Group* meshGroup = ds.getRoot()->createGroup(geomName);
+
+  AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
+  const std::string topo = "mesh";
+  const std::string coordset = "coords";
+
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tetMesh(3,
+                                                                 axom::mint::CellType::TET,
+                                                                 meshGroup,
+                                                                 topo,
+                                                                 coordset);
+
+  double lll = params.length < 0 ? 1.17 : params.length;
+
+  // Insert tets around origin.
+  tetMesh.appendNode(-lll, -lll, -lll);
+  tetMesh.appendNode(+lll, -lll, -lll);
+  tetMesh.appendNode(-lll, +lll, -lll);
+  tetMesh.appendNode(-lll, -lll, +lll);
+  tetMesh.appendNode(+lll, +lll, +lll);
+  tetMesh.appendNode(-lll, +lll, +lll);
+  tetMesh.appendNode(+lll, +lll, -lll);
+  tetMesh.appendNode(+lll, -lll, +lll);
+  axom::IndexType conn0[4] = {0, 1, 2, 3};
+  tetMesh.appendCell(conn0);
+  axom::IndexType conn1[4] = {4, 5, 6, 7};
+  tetMesh.appendCell(conn1);
+  axom::IndexType conn2[4] = {1, 2, 3, 5};
+  tetMesh.appendCell(conn2);
+
+  SLIC_ASSERT(axom::mint::blueprint::isValidRootGroup(meshGroup));
+  meshGroup->destroyGroup("fields");
+
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
+
+  exactGeomVols[geomName] = vScale * volumeOfTetMesh(tetMesh);
+  errorToleranceRel[geomName] = 0.005;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return tetMeshGeometry;
 }
 
 axom::klee::Geometry createGeometry_Sor(axom::primal::Point<double, 3>& sorBase,
@@ -1082,6 +1168,12 @@ int main(int argc, char** argv)
       geomStrategies.push_back(
         std::make_shared<axom::quest::experimental::SphereClipper>(createGeom_Sphere(name), name));
     }
+    else if(tg == "tetmesh")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::experimental::TetMeshClipper>(createGeom_TetMesh(ds, name),
+                                                                    name));
+    }
     else if(tg == "tet")
     {
       geomStrategies.push_back(
@@ -1102,7 +1194,6 @@ int main(int argc, char** argv)
       geomStrategies.push_back(
         std::make_shared<axom::quest::experimental::SorClipper>(createGeom_Sor(name), name));
     }
-    // More geometries to come.
   }
 
   {

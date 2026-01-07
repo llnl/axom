@@ -100,6 +100,7 @@ set( quest_depends_on
     )
 
 blt_list_append(TO quest_depends_on IF AXOM_ENABLE_SIDRE ELEMENTS sidre)
+blt_list_append(TO quest_depends_on IF AXOM_ENABLE_BUMP ELEMENTS bump)
 blt_list_append(TO quest_depends_on IF SPARSEHASH_FOUND ELEMENTS sparsehash)
 blt_list_append(TO quest_depends_on IF MFEM_FOUND ELEMENTS mfem)
 
@@ -152,6 +153,7 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                       MeshClipperStrategy.hpp
                                       detail/clipping/Plane3DClipper.hpp
                                       detail/clipping/TetClipper.hpp
+                                      detail/clipping/TetMeshClipper.hpp
                                       detail/clipping/HexClipper.hpp
                                       detail/clipping/SphereClipper.hpp
                                       detail/clipping/FSorClipper.hpp
@@ -161,6 +163,7 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                       MeshClipperStrategy.cpp
                                       detail/clipping/Plane3DClipper.cpp
                                       detail/clipping/TetClipper.cpp
+                                      detail/clipping/TetMeshClipper.cpp
                                       detail/clipping/HexClipper.cpp
                                       detail/clipping/SphereClipper.cpp
                                       detail/clipping/FSorClipper.cpp
