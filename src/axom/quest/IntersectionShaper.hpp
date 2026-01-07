@@ -825,6 +825,7 @@ private:
 
       // Generate the Octahedra
       // (octahedra m_octs will be on device)
+      m_octs = axom::Array<OctahedronType>(0, 0, axom::execution_space<ExecSpace>::allocatorID());
       const bool disc_status =
         axom::quest::discretize<ExecSpace>(polyline, polyline_size, m_level, m_octs, m_octcount);
 
