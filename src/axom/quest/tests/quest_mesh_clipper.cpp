@@ -29,6 +29,8 @@
 #include "axom/quest.hpp"
 #include "axom/quest/detail/clipping/HexClipper.hpp"
 #include "axom/quest/detail/clipping/Plane3DClipper.hpp"
+#include "axom/quest/detail/clipping/FSorClipper.hpp"
+#include "axom/quest/detail/clipping/SorClipper.hpp"
 #include "axom/quest/detail/clipping/SphereClipper.hpp"
 #include "axom/quest/detail/clipping/TetClipper.hpp"
 
@@ -104,7 +106,13 @@ public:
   // The shape to run.
   std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
-  const std::set<std::string> availableShapes {"tet", "hex", "sphere", "plane"};  // More geometries to come.
+  const std::set<std::string> availableShapes {"sphere",
+                                               "cyl",
+                                               "cone",
+                                               "sor",
+                                               "tet",
+                                               "hex",
+                                               "plane"};
 
   RuntimePolicy policy {RuntimePolicy::seq};
   int refinementLevel {7};
@@ -456,6 +464,155 @@ axom::klee::Geometry createGeom_Sphere(const std::string& geomName)
   errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
 
   return sphereGeometry;
+}
+
+axom::klee::Geometry createGeometry_Sor(axom::primal::Point<double, 3>& sorBase,
+                                        axom::primal::Vector<double, 3>& sorDirection,
+                                        axom::ArrayView<const double, 2> discreteFunction,
+                                        std::shared_ptr<axom::klee::CompositeOperator>& compositeOp)
+{
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  const axom::IndexType levelOfRefinement = params.refinementLevel;
+  axom::klee::Geometry sorGeometry(prop,
+                                   discreteFunction,
+                                   sorBase,
+                                   sorDirection,
+                                   levelOfRefinement,
+                                   compositeOp);
+  return sorGeometry;
+}
+
+double computeVolume_Sor(axom::ArrayView<const double, 2> discreteFunction)
+{
+  using ConeType = axom::primal::Cone<double, 3>;
+  axom::IndexType segmentCount = discreteFunction.shape()[0];
+  double vol = 0.0;
+  for(axom::IndexType s = 0; s < segmentCount - 1; ++s)
+  {
+    ConeType cone(discreteFunction(s, 1),
+                  discreteFunction(s + 1, 1),
+                  discreteFunction(s + 1, 0) - discreteFunction(s, 0));
+    vol += cone.volume();
+  }
+  return vol;
+}
+
+axom::klee::Geometry createGeom_Sor(const std::string& geomName)
+{
+  Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
+  axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
+    ? primal::Vector3D {1.0, 0.0, 0.0}
+    : primal::Vector3D {params.direction.data()};
+  // discreteFunction is discrete (z,r) pairs describing the r(z) function
+  // to be rotated around the z axis.
+  using Point2DType = axom::primal::Point<double, 2>;
+  double zLen = 0.5 * (params.length < 0 ? 2.40 : params.length);
+  double maxR = params.radius < 0 ? 1.10 : params.radius;
+  axom::Array<Point2DType> discretePts(0, 10);
+#if 1
+  discretePts.push_back(Point2DType({-1.0 * zLen, 1.0 * maxR}));
+  discretePts.push_back(Point2DType({0.4 * zLen, 1.0 * maxR}));
+  discretePts.push_back(Point2DType({0.4 * zLen, 0.7 * maxR}));
+  discretePts.push_back(Point2DType({1.0 * zLen, 0.7 * maxR}));
+  discretePts.push_back(Point2DType({1.0 * zLen, 0.4 * maxR}));
+  discretePts.push_back(Point2DType({0.5 * zLen, 0.4 * maxR}));
+  discretePts.push_back(Point2DType({0.5 * zLen, 0.3 * maxR}));
+  discretePts.push_back(Point2DType({0.0 * zLen, 0.3 * maxR}));
+  discretePts.push_back(Point2DType({0.0 * zLen, 0.5 * maxR}));
+  discretePts.push_back(Point2DType({0.2 * zLen, 0.5 * maxR}));
+  discretePts.push_back(Point2DType({0.2 * zLen, 0.7 * maxR}));
+  discretePts.push_back(Point2DType({-1.0 * zLen, 0.7 * maxR}));
+#else
+  discretePts.push_back(Point2DType({-1.0 * zLen, 0.4 * maxR}));
+  discretePts.push_back(Point2DType({0.0 * zLen, 1.0 * maxR}));
+  discretePts.push_back(Point2DType({0.6 * zLen, 1.0 * maxR}));
+  discretePts.push_back(Point2DType({1.0 * zLen, 0.8 * maxR}));
+  discretePts.push_back(Point2DType({1.0 * zLen, 0.6 * maxR}));
+  discretePts.push_back(Point2DType({0.2 * zLen, 0.4 * maxR}));
+  discretePts.push_back(Point2DType({0.0 * zLen, 0.0 * maxR}));
+#endif
+  axom::ArrayView<const double, 2> discreteFunction((const double*)discretePts.data(),
+                                                    discretePts.size(),
+                                                    2);
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry sorGeometry =
+    createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
+
+  exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.007 : 0.0063;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return sorGeometry;
+}
+
+axom::klee::Geometry createGeom_Cylinder(const std::string& geomName)
+{
+  Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
+  axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
+    ? primal::Vector3D {1.0, 0.0, 0.0}
+    : primal::Vector3D {params.direction.data()};
+  // discreteFunction are discrete z-r pairs describing the function
+  // to be rotated around the z axis.
+  axom::Array<double, 2> discreteFunction({2, 2}, axom::ArrayStrideOrder::ROW);
+  double radius = params.radius < 0 ? 0.695 : params.radius;
+  double height = params.length < 0 ? 2.78 : params.length;
+  discreteFunction(0, 0) = -height / 2;
+  discreteFunction(0, 1) = radius;
+  discreteFunction(1, 0) = height / 2;
+  discreteFunction(1, 1) = radius;
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry sorGeometry =
+    createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
+
+  exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.00075 : 0.00005;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return sorGeometry;
+}
+
+axom::klee::Geometry createGeom_Cone(const std::string& geomName)
+{
+  Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
+  axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
+    ? primal::Vector3D {1.0, 0.0, 0.0}
+    : primal::Vector3D {params.direction.data()};
+  // discreteFunction are discrete z-r pairs describing the function
+  // to be rotated around the z axis.
+  axom::Array<double, 2> discreteFunction({2, 2}, axom::ArrayStrideOrder::ROW);
+  double baseRadius = params.radius < 0 ? 1.23 : params.radius;
+  double topRadius = params.radius2 < 0 ? 0.176 : params.radius2;
+  double height = params.length < 0 ? 2.3 : params.length;
+  discreteFunction(0, 0) = -height / 2;
+  discreteFunction(0, 1) = baseRadius;
+  discreteFunction(1, 0) = height / 2;
+  discreteFunction(1, 1) = topRadius;
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry sorGeometry =
+    createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
+
+  exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.00075 : 0.00005;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return sorGeometry;
 }
 
 axom::klee::Geometry createGeom_Tet(const std::string& geomName)
@@ -944,6 +1101,21 @@ int main(int argc, char** argv)
     {
       geomStrategies.push_back(
         std::make_shared<axom::quest::experimental::TetClipper>(createGeom_Tet(name), name));
+    }
+    else if(tg == "cyl")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::experimental::FSorClipper>(createGeom_Cylinder(name), name));
+    }
+    else if(tg == "cone")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::experimental::FSorClipper>(createGeom_Cone(name), name));
+    }
+    else if(tg == "sor")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::experimental::SorClipper>(createGeom_Sor(name), name));
     }
     // More geometries to come.
   }

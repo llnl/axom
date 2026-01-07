@@ -154,6 +154,8 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                       detail/clipping/TetClipper.hpp
                                       detail/clipping/HexClipper.hpp
                                       detail/clipping/SphereClipper.hpp
+                                      detail/clipping/FSorClipper.hpp
+                                      detail/clipping/SorClipper.hpp
                                       detail/clipping/MeshClipperImpl.hpp)
             list(APPEND quest_sources MeshClipper.cpp
                                       MeshClipperStrategy.cpp
@@ -161,6 +163,8 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                       detail/clipping/TetClipper.cpp
                                       detail/clipping/HexClipper.cpp
                                       detail/clipping/SphereClipper.cpp
+                                      detail/clipping/FSorClipper.cpp
+                                      detail/clipping/SorClipper.cpp
                                       detail/clipping/MeshClipperImpl.hpp)
         endif()
     endif()
