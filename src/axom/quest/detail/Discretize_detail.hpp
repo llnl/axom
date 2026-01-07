@@ -7,6 +7,7 @@
 #define AXOM_QUEST_DISCRETIZE_DETAIL_
 
 #include "axom/primal/constants.hpp"
+#include "math.h"
 
 namespace
 {
@@ -152,12 +153,11 @@ int discrSeg(const Point2D &a, const Point2D &b, int levels, axom::ArrayView<Oct
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   // Assert input assumptions
-  SLIC_ASSERT(b[0] - a[0] >= 0);
   SLIC_ASSERT(a[1] >= 0);
   SLIC_ASSERT(b[1] >= 0);
 
   // Deal with degenerate segments
-  if(b[0] - a[0] < axom::primal::PRIMAL_TINY)
+  if(fabs(b[0] - a[0]) < axom::primal::PRIMAL_TINY)
   {
     return 0;
   }
@@ -277,11 +277,6 @@ bool discretize(const axom::ArrayView<Point2D> &polyline,
   {
     const Point2D &a = polyline[seg];
     const Point2D &b = polyline[seg + 1];
-    // invalid if a.x > b.x
-    if(a[0] > b[0])
-    {
-      stillValid = false;
-    }
     if(a[1] < 0 || b[1] < 0)
     {
       stillValid = false;
@@ -308,6 +303,8 @@ bool discretize(const axom::ArrayView<Point2D> &polyline,
       discrSeg<ExecSpace>(polyline[seg], polyline[seg + 1], levels, out_view, octcount);
     octcount += segment_prism_count;
   }
+  // octcount may be < totaloctcount if there are degenerate segments.
+  out.resize(octcount);
 
   // TODO check for errors in each segment's computation
   return true;

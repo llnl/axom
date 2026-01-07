@@ -219,10 +219,6 @@ void run_degen_segment_tests()
   polyline[0] = {1., 1.};
   polyline[1] = {1.5, -.1};
   degenerate_segment_test<ExecPolicy>("b.y < 0", polyline, 2, false);
-
-  polyline[0] = {.5, 1.};
-  polyline[1] = {0., 1.};
-  degenerate_segment_test<ExecPolicy>("a.x > b.x", polyline, 2, false);
 }
 
 template <typename ExecPolicy>
