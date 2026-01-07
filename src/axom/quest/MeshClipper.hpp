@@ -88,6 +88,10 @@ public:
    * @brief Log clipping statistics.
    * Intended for developer use.
    *
+   * @param local [in] Log the MPI local statistics.
+   * @param sum [in] Log the statistics summed over MPI ranks.
+   * @param max [in] Log the max statistics over MPI ranks.
+   *
    * This is a collective method if MPI-parallel.
    */
   void logClippingStats(bool local = false, bool sum = true, bool max = false) const;
@@ -109,6 +113,16 @@ public:
   /*!
    * @brief Set the level of screening,
    * intended for developer use.
+   * @param screenLevel [in] the value to control how much screening
+   *   is done to avoid using the slower clipping functions.
+   *
+   * Screenlevel values:
+   * - 0 allows no screening
+   * - 1 allows screening cells.  @see MeshClipperStrategy::labelCellsInOut.
+   * - 2 also allows screening tets.  @see MeshClipperStrategy::labelTetsInOut.
+   * - 3 also allows a check on the tet from mesh and a piece of the discretized
+   *     geometry to (conservatively) determine whether the piece is completely
+   *     inside or completely outside of the tst.
    */
   void setScreenLevel(int screenLevel) { m_screenLevel = screenLevel; }
 
