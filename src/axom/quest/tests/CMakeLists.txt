@@ -258,7 +258,9 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
       blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
     endif()
 
-    foreach(_meshType "bpSidre" "bpConduit")
+    set(_testgeoms "tet" "sphere" "tet,sphere")
+    set(_meshTypes "bpSidre" "bpConduit")
+    foreach(_meshType ${_meshTypes})
       foreach(_policy ${_policies})
         # sets the number of threads for the omp policy; leave empty for non-omp policies
         set(_num_threads)
@@ -266,7 +268,7 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
             set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
         endif()
 
-        foreach(_testgeom "tet")
+        foreach(_testgeom ${_testgeoms})
           set(_testname "quest_mesh_clipper_${_meshType}_${_policy}_${_testgeom}")
           axom_add_test(
             NAME ${_testname}
@@ -278,6 +280,7 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
                         --refinements 5
                         --scale .99 .99 .99
                         --dir 8 4 2
+                        --screenLevel 2
                         --meshType ${_meshType}
                         inline_mesh --min -2 -2 -2 --max 2 2 2 --res 16 16 16
             NUM_MPI_TASKS ${_nranks}
