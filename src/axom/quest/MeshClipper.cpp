@@ -27,7 +27,7 @@ MeshClipper::MeshClipper(quest::experimental::ShapeMesh& shapeMesh,
   , m_verbose(false)
   , m_screenLevel(3)
 {
-  // Initialize statistics.
+  // Initialize statistics used by this class.
   m_counterStats["cellsIn"].set_int64(0);
   m_counterStats["cellsOn"].set_int64(0);
   m_counterStats["cellsOut"].set_int64(0);
