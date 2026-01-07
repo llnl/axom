@@ -106,13 +106,8 @@ public:
   // The shape to run.
   std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
-  const std::set<std::string> availableShapes {"sphere",
-                                               "cyl",
-                                               "cone",
-                                               "sor",
-                                               "tet",
-                                               "hex",
-                                               "plane"};
+  const std::set<std::string>
+    availableShapes {"sphere", "cyl", "cone", "sor", "tet", "hex", "plane"};
 
   RuntimePolicy policy {RuntimePolicy::seq};
   int refinementLevel {7};
