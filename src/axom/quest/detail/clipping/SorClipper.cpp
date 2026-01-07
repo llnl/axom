@@ -49,12 +49,12 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
   {
     axom::ArrayView<const Point2DType> section = sections[i].view();
     std::string sectionName = axom::fmt::format("{}.section{:02d}", m_name, i);
-    m_fsorStrategies.push_back(std::make_shared<FSorClipper>(kGeom,
-                                                             sectionName,
-                                                             section,
-                                                             m_sorOrigin,
-                                                             m_sorDirection,
-                                                             m_levelOfRefinement));
+    m_fsorImpls.push_back(std::make_shared<FSorClipper>(kGeom,
+                                                        sectionName,
+                                                        section,
+                                                        m_sorOrigin,
+                                                        m_sorDirection,
+                                                        m_levelOfRefinement));
   }
 }
 
@@ -76,13 +76,13 @@ bool SorClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
   */
   const axom::IndexType cellCount = ovlap.size();
   axom::Array<double> tmpOvlap(cellCount, cellCount, ovlap.getAllocatorID());
-  for(auto& fsorStrategy : m_fsorStrategies)
+  for(auto& fsorImpl : m_fsorImpls)
   {
     tmpOvlap.fill(0.0);
-    MeshClipper clipper(shapeMesh, fsorStrategy);
+    MeshClipper clipper(shapeMesh, fsorImpl);
     clipper.setVerbose(false);
     clipper.clip(tmpOvlap);
-    auto sorCurve = fsorStrategy->getSorCurve();
+    auto sorCurve = fsorImpl->getSorCurve();
     const auto firstZ = sorCurve[0][0];
     const auto lastZ = sorCurve[sorCurve.size() - 1][0];
     int sign = axom::utilities::sign_of(lastZ - firstZ, 0.0);
