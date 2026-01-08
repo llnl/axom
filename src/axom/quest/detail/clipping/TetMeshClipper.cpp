@@ -113,9 +113,7 @@ bool TetMeshClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
   return true;
 }
 
-#if 1
 /*
- * Alternative way:
  * - Put surface triangles in BVH.
  * - Create a bounding box and a ray for every hex.  The ray
  *   originates from the bounding box center and points away from
@@ -138,35 +136,10 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
   int allocId = shapeMesh.getAllocatorID();
   auto cellCount = shapeMesh.getCellCount();
 
-  // Copy m_tetMesh array data to allocId if it's not done yet.
-  copy_tetmesh_arrays_to(allocId);
-
-  /*
-    Compute surface triangles of the tet mesh.
-  */
-  AXOM_ANNOTATE_BEGIN("TetMeshClipper::compute_surface");
-  axom::Array<Triangle3DType> surfTris =
-    computeGeometrySurface(shapeMesh.getRuntimePolicy(), allocId);
-  AXOM_ANNOTATE_END("TetMeshClipper::compute_surface");
-  auto surfTrisView = surfTris.view();
-
-  /*
-    Surface triangles (as bounding boxes) in BVH.
-  */
-  AXOM_ANNOTATE_BEGIN("TetMeshClipper::make_surf_bvh");
-  axom::Array<BoundingBox3DType> surfTrisAsBbs(surfTris.size(), 0, allocId);
-  auto surfTrisAsBbsView = surfTrisAsBbs.view();
-
-  axom::for_all<ExecSpace>(
-    surfTris.size(),
-    AXOM_LAMBDA(axom::IndexType fi) {
-      const auto& surfTri = surfTrisView[fi];
-      surfTrisAsBbsView[fi] = axom::primal::compute_bounding_box(surfTri);
-    });
-
+  axom::Array<Triangle3DType> surfTris;
   spin::BVH<3, ExecSpace, double> bvh;
-  bvh.initialize(surfTrisAsBbsView, surfTrisAsBbsView.size());
-  AXOM_ANNOTATE_END("TetMeshClipper::make_surf_bvh");
+  computeSurfaceTrianglesAndBVH<ExecSpace>(allocId, surfTris, bvh);
+  auto surfTrisView = surfTris.view();
 
   /*
     Compute rays.  Each ray originates from its hex center and point
@@ -282,90 +255,8 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
     });
   AXOM_ANNOTATE_END("TetMeshClipper::compute_labels");
 }
-#else
-/*
- * This is an old version, kept around until performance evaluation
- * determines which is better.
-
- * 1. Compute whether vertices are in or out of the tet mesh.
- * 2. Determine whether cells are in, out or on the tet mesh
- *    boundary.
- * Unlike the TetClipper, this doesn't check edge-tet intersections,
- * so it has errors.  These errors should shrink with mesh resolution.
- * If needed, we can implement edge-tet detection for TetMeshClipper.
-*/
-template <typename ExecSpace>
-void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
-                                         axom::Array<LabelType>& labels)
-{
-  int allocId = shapeMesh.getAllocatorID();
-  auto vertCount = shapeMesh.getVertexCount();
-
-  /*
-   * Tets (as bounding boxes) in BVH.
-  */
-  axom::Array<BoundingBox3DType> tetsAsBbs(m_tets.size(), m_tets.size(), allocId);
-  auto tetsAsBbsView = tetsAsBbs.view();
-  auto tetsView = m_tets.view();
-
-  axom::Array<TetrahedronType> tmpTets;
-  if(allocId != m_tets.getAllocatorID())
-  {
-    tmpTets = axom::Array<TetrahedronType>(m_tets, allocId);
-    tetsView = tmpTets.view();
-  }
-  axom::for_all<ExecSpace>(
-    tetsView.size(),
-    AXOM_LAMBDA(axom::IndexType vi) {
-      const auto& tet = tetsView[vi];
-      tetsAsBbsView[vi] = axom::primal::compute_bounding_box(tet);
-    });
-
-  spin::BVH<3, ExecSpace, double> bvh;
-  bvh.initialize(tetsAsBbsView, tetsAsBbsView.size());
-
-  /*
-   * Compute whether vertices are inside tet mesh.
-   * (Use BVH to narrow the search to nearby candidate tets.)
-  */
-  axom::Array<bool> vertIsInside {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
-  vertIsInside.fill(false);
-  auto vertIsInsideView = vertIsInside.view();
-
-  axom::ArrayView<const Point3DType> vertPointsView = shapeMesh.getVertexPoints();
-
-  axom::Array<IndexType> offsets(vertCount, vertCount, allocId);
-  axom::Array<IndexType> counts(vertCount, vertCount, allocId);
-  axom::Array<IndexType> candidates;
-  bvh.findPoints(offsets, counts, candidates, vertCount, vertPointsView);
-
-  auto countsView = counts.view();
-  auto offsetsView = offsets.view();
-  auto candidatesView = candidates.view();
-  axom::for_all<ExecSpace>(
-    vertCount,
-    AXOM_LAMBDA(axom::IndexType vertId) {
-      auto candidateCount = countsView[vertId];
-      bool& isInside = vertIsInsideView[vertId];
-      if(!isInside && candidateCount > 0)
-      {
-        auto candidateIds = &candidatesView[offsetsView[vertId]];
-        auto& vertex = vertPointsView[vertId];
-        for(int ci = 0; ci < candidateCount && !isInside; ++ci)
-        {
-          axom::IndexType tetId = candidateIds[ci];
-          const auto& tet = tetsView[tetId];
-          isInside |= tet.contains(vertex);
-        }
-      }
-    });
-
-  vertexInsideToCellLabel<ExecSpace>(shapeMesh, vertIsInsideView, labels);
-}
-#endif
 
 /*
- * Alternative way:
  * - Put surface triangles in BVH.
  * - Create a bounding box and a ray for every tet.  The ray
  *   originates from the bounding box center and points away from
@@ -394,34 +285,12 @@ void TetMeshClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
   auto tetVolumes = shapeMesh.getTetVolumes();
 
   // Copy m_tetMesh array data to allocId if it's not done yet.
-  copy_tetmesh_arrays_to(allocId);
+  copy_topo_and_coords_to(allocId);
 
-  /*
-    Compute surface triangles of the tet mesh.
-  */
-  AXOM_ANNOTATE_BEGIN("TetMeshClipper::compute_surface");
-  axom::Array<Triangle3DType> surfTris =
-    computeGeometrySurface(shapeMesh.getRuntimePolicy(), allocId);
-  AXOM_ANNOTATE_END("TetMeshClipper::compute_surface");
-  auto surfTrisView = surfTris.view();
-
-  /*
-    Surface triangles (as bounding boxes) in BVH.
-  */
-  AXOM_ANNOTATE_BEGIN("TetMeshClipper::make_surf_bvh");
-  axom::Array<BoundingBox3DType> surfTrisAsBbs(surfTris.size(), 0, allocId);
-  auto surfTrisAsBbsView = surfTrisAsBbs.view();
-
-  axom::for_all<ExecSpace>(
-    surfTris.size(),
-    AXOM_LAMBDA(axom::IndexType fi) {
-      const auto& surfTri = surfTrisView[fi];
-      surfTrisAsBbsView[fi] = axom::primal::compute_bounding_box(surfTri);
-    });
-
+  axom::Array<Triangle3DType> surfTris;
   spin::BVH<3, ExecSpace, double> bvh;
-  bvh.initialize(surfTrisAsBbsView, surfTrisAsBbsView.size());
-  AXOM_ANNOTATE_END("TetMeshClipper::make_surf_bvh");
+  computeSurfaceTrianglesAndBVH<ExecSpace>(allocId, surfTris, bvh);
+  auto surfTrisView = surfTris.view();
 
   /*
     Compute rays.  Each ray originates from its hex center and point
@@ -557,10 +426,41 @@ void TetMeshClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
   AXOM_ANNOTATE_END("TetMeshClipper::compute_labels");
 }
 
+template <typename ExecSpace>
+void TetMeshClipper::computeSurfaceTrianglesAndBVH(int allocId,
+                                                   axom::Array<Triangle3DType>& surfTris,
+                                                   spin::BVH<3, ExecSpace, double>& bvh)
+{
+  /*
+    Compute surface triangles of the tet mesh.
+  */
+  AXOM_ANNOTATE_BEGIN("TetMeshClipper:compute_surface");
+  surfTris = computeGeometrySurface<ExecSpace>(allocId);
+  AXOM_ANNOTATE_END("TetMeshClipper:compute_surface");
+  auto surfTrisView = surfTris.view();
+
+  /*
+    Surface triangles (as bounding boxes) in BVH.
+  */
+  AXOM_ANNOTATE_BEGIN("TetMeshClipper::make_surf_bvh");
+  axom::Array<BoundingBox3DType> surfTrisAsBbs(surfTris.size(), 0, allocId);
+  auto surfTrisAsBbsView = surfTrisAsBbs.view();
+
+  axom::for_all<ExecSpace>(
+    surfTris.size(),
+    AXOM_LAMBDA(axom::IndexType fi) {
+      const auto& surfTri = surfTrisView[fi];
+      surfTrisAsBbsView[fi] = axom::primal::compute_bounding_box(surfTri);
+    });
+
+  bvh.initialize(surfTrisAsBbsView, surfTrisAsBbsView.size());
+  AXOM_ANNOTATE_END("TetMeshClipper::make_surf_bvh");
+}
+
 /*
  * Label cell outside if no vertex is in the bounding box.
  * Otherwise, label it on boundary, because we don't know.
-*/
+ */
 template <typename ExecSpace>
 void TetMeshClipper::vertexInsideToCellLabel(quest::experimental::ShapeMesh& shapeMesh,
                                              axom::ArrayView<bool>& vertIsInside,
@@ -585,9 +485,10 @@ void TetMeshClipper::vertexInsideToCellLabel(quest::experimental::ShapeMesh& sha
     shapeMesh.getCellCount(),
     AXOM_LAMBDA(axom::IndexType cellId) {
       auto cellVertIds = hexConnView[cellId];
+
       bool hasIn = vertIsInside[cellVertIds[0]];
       bool hasOut = !hasIn;
-      for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
+      for(int vi = 1; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
       {
         int vertId = cellVertIds[vi];
         bool isIn = vertIsInside[vertId];
@@ -609,7 +510,10 @@ bool TetMeshClipper::getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh
   return true;
 }
 
-// Compute m_tets.  Keep data on host.  We don't know what allocator the ShapeMesh uses.
+/*
+ * Compute m_tets.  Keep data on host.
+ * (We don't know what allocator the ShapeMesh uses.)
+ */
 void TetMeshClipper::computeTets()
 {
   AXOM_ANNOTATE_SCOPE("TetMeshClipper::computeTets");
@@ -621,7 +525,7 @@ void TetMeshClipper::computeTets()
    * 1. Initialize a mint Mesh intermediary from the blueprint mesh.
    *    mint::getMesh() utility for this saves some coding.
    * 2. Populate a tet array on the host (because mint data works only for host).
-  */
+   */
 
   axom::sidre::DataStore ds;
   auto* tetMeshGrp = ds.getRoot()->createGroup("blueprintMesh");
@@ -635,7 +539,7 @@ void TetMeshClipper::computeTets()
      * extra data.  Blueprint doesn't require this extra data.  (The mesh
      * passes conduit's Blueprint verification.)  This should be fixed,
      * or we should write better blueprint support utilities.
-    */
+     */
     auto* topoGrp = tetMeshGrp->getGroup("topologies")->getGroup(m_topoName);
     auto* coordValuesGrp =
       tetMeshGrp->getGroup("coordsets")->getGroup(m_coordsetName)->getGroup("values");
@@ -643,7 +547,7 @@ void TetMeshClipper::computeTets()
      * Make the coordinate arrays 2D to use mint::Mesh.
      * For some reason, mint::Mesh requires the arrays to be
      * 2D, even though the second dimension is always 1.
-    */
+     */
     axom::IndexType curShape[2];
     int curDim;
     curDim = coordValuesGrp->getView("x")->getShape(2, curShape);
@@ -806,49 +710,25 @@ void TetMeshClipper::transformCoordset()
   m_coordsetName = newCoordsetName;
 }
 
-axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurface(
-  axom::runtime_policy::Policy policy,
-  int allocId)
-{
-  AXOM_ANNOTATE_SCOPE("TetMeshClipper::computeGeometrySurface");
-  switch(policy)
-  {
-  case axom::runtime_policy::Policy::seq:
-    return computeGeometrySurface<axom::SEQ_EXEC>(allocId);
-    break;
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-  case axom::runtime_policy::Policy::omp:
-    return computeGeometrySurface<axom::OMP_EXEC>(allocId);
-    break;
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-  case axom::runtime_policy::Policy::cuda:
-    return computeGeometrySurface<axom::CUDA_EXEC<256>>(allocId);
-    break;
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-  case axom::runtime_policy::Policy::hip:
-    return computeGeometrySurface<axom::HIP_EXEC<256>>(allocId);
-    break;
-#endif
-  }
-  SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
-  return {};
-}
-
+/*
+ * Compute the surface of the tet mesh, using bump utilities.
+ */
 template <typename ExecSpace>
 axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurface(int allocId)
 {
+  // Copy some m_tetMesh data to allocId for accessing in ExecSpace.
+  copy_topo_and_coords_to(allocId);
+
   /*
    * Make a view of the tet mesh topology.
    *
    * Note: Using axom::IndexType for integers.  Users should configure
    * Axom with the type that they plan to use.  Mixing different
    * IndexTypes in the same Axom build is not supported.
-  */
+   */
   namespace bumpViews = axom::bump::views;
   namespace bumpUtils = axom::bump::utilities;
-  using bumpShape = bumpViews::TetShape<axom::IndexType>;
+  using BumpShape = bumpViews::TetShape<axom::IndexType>;
 
   constexpr axom::IndexType FACES_PER_TET = 4;
   constexpr axom::IndexType VERTS_PER_TET = 4;
@@ -858,7 +738,7 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
   conduit::Node& tetTopo = m_tetMesh["topologies"][topoName];
   conduit::Node& tetVertConn = tetTopo.fetch_existing("elements").fetch_existing("connectivity");
   const auto tetVertConnView = bumpUtils::make_array_view<axom::IndexType>(tetVertConn);
-  bumpViews::UnstructuredTopologySingleShapeView<bumpShape> topoView(tetVertConnView);
+  bumpViews::UnstructuredTopologySingleShapeView<BumpShape> topoView(tetVertConnView);
 
   conduit::Node& polyTopo = m_tetMesh["topologies"]["polyhedral"];
   make_polyhedral_topology<ExecSpace>(tetTopo, polyTopo);
@@ -880,7 +760,7 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
   /*
    * Compute tet faces as triangles.
    * Compute rays from triangle centroid, in normal direction.
-  */
+   */
   axom::Array<Triangle3DType> faceTris(faceCount, faceCount, allocId);
   axom::Array<Ray3DType> faceRays(faceCount, faceCount, allocId);
   auto faceTrisView = faceTris.view();
@@ -905,7 +785,7 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
 
   /*
    * Compute whether faces have tets on each side.
-  */
+   */
   axom::Array<bool> hasCellOnFrontSide(faceCount, 0, allocId);
   axom::Array<bool> hasCellOnBackSide(faceCount, 0, allocId);
   hasCellOnFrontSide.fill(false);
@@ -944,7 +824,7 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
 
   /*
    * Mark faces touching only 1 cell.
-  */
+   */
   axom::Array<axom::IndexType> hasCellOnOneSide(ArrayOptions::Uninitialized(), faceCount, 0, allocId);
   auto hasCellOnOneSideView = hasCellOnOneSide.view();
   axom::for_all<ExecSpace>(
@@ -957,7 +837,7 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
   /*
    * Get running total of surface triangle count using prefix-sum scan.
    * Then use the results to populate array of those faces.
-  */
+   */
   axom::Array<axom::IndexType> prefixSum(faceCount + 1, 0, allocId);
   prefixSum.fill(0);
   auto prefixSumView = prefixSum.view();
@@ -1029,11 +909,10 @@ void TetMeshClipper::make_polyhedral_topology(conduit::Node& tetTopo, conduit::N
 {
   namespace bumpViews = axom::bump::views;
   namespace bumpUtils = axom::bump::utilities;
-  using bumpShape = bumpViews::TetShape<axom::IndexType>;
+  using BumpShape = bumpViews::TetShape<axom::IndexType>;
 
-  // const conduit::Node& tetTopo = tetMesh["topologies"][m_topoName];
   SLIC_ASSERT(tetTopo["type"].as_string() == std::string("unstructured"));
-  auto tetTopoView = bumpViews::make_unstructured_single_shape_topology<bumpShape>::view(tetTopo);
+  auto tetTopoView = bumpViews::make_unstructured_single_shape_topology<BumpShape>::view(tetTopo);
   using TopologyView = decltype(tetTopoView);
   using ConnectivityType = typename TopologyView::ConnectivityType;
 
@@ -1044,7 +923,7 @@ void TetMeshClipper::make_polyhedral_topology(conduit::Node& tetTopo, conduit::N
 
 /*
  * Copy a conduit Node, with special allocator ids for new arrays.
-*/
+ */
 void TetMeshClipper::copy_node_with_array_allocator(conduit::Node& src,
                                                     conduit::Node& dst,
                                                     conduit::index_t conduitArrayAllocId)
@@ -1093,12 +972,12 @@ void TetMeshClipper::copy_hierarchy_with_array_allocator(conduit::Node& hierarch
 }
 
 /*
- * Copy m_tetMesh array data into allocId if it's not there yet.
+ * Copy m_tetMesh topology and coordset into allocId if it's not there yet.
  * (Copy only the arrays this object uses: coordset and connectivity.)
  * We give new array data keys "<oldKey>.<allocId>".
  * If the new array exists, no need to redo it.
-*/
-void TetMeshClipper::copy_tetmesh_arrays_to(int allocId)
+ */
+void TetMeshClipper::copy_topo_and_coords_to(int allocId)
 {
   const std::string oldTopoPath = "topologies/" + m_topoName;
   const std::string oldCoordsetPath = "coordsets/" + m_coordsetName;
@@ -1108,7 +987,8 @@ void TetMeshClipper::copy_tetmesh_arrays_to(int allocId)
   copy_hierarchy_with_array_allocator(m_tetMesh, oldTopoPath, newTopoPath, allocId);
   copy_hierarchy_with_array_allocator(m_tetMesh, oldCoordsetPath, newCoordsetPath, allocId);
 
-  m_tetMesh[newTopoPath + "/coordset"].set(axom::fmt::format("{}.{}", m_coordsetName, allocId));
+  const std::string newCoordsetName = axom::fmt::format("{}.{}", m_coordsetName, allocId);
+  m_tetMesh[newTopoPath + "/coordset"].set(newCoordsetName);
 }
 
 // Run cellKernel through a cell loop.

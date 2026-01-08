@@ -9,6 +9,7 @@
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/primal/geometry/CoordinateTransformer.hpp"
+#include "axom/spin/BVH.hpp"
 
 // Implementation requires Conduit.
 #include "conduit_blueprint.hpp"
@@ -79,6 +80,9 @@ private:
   //! @brief Geometry as tetrahedra.
   axom::Array<TetrahedronType> m_tets;
 
+  //! @brief Tet mesh surface as triangluar facets.
+  axom::Array<Triangle3DType> m_surfTris;
+
   /*!
    * @brief Combined external transformation.
    *
@@ -109,9 +113,9 @@ private:
   /*!
    * @brief Add a transformed coordset to m_tetMesh.
    *
-   * The transformed version is the original coordset, transformed
-   * through m_transformer.  It has the name m_coordsetName +
-   * ".trans".
+   * The transformed version @c m_tetMesh["coordsets"][m_coordsetName],
+   * transformed through m_transformer.  It has the name
+   * m_coordsetName + ".trans".
    */
   void transformCoordset();
 
@@ -120,15 +124,17 @@ private:
   //@{
   //!@name For computing surface of m_tetMesh.
   /*!
-   * @brief Entry point for computing geometry surface.
-   *
-   * This computation is independent of the shapee mesh, except that we
-   * need the policy and allocator id.
-  */
-  axom::Array<Triangle3DType> computeGeometrySurface(axom::runtime_policy::Policy policy,
-                                                     int allocId);
+   * @brief Compute the surface triangles and their BVH.
+   */
   template <typename ExecSpace>
+  void computeSurfaceTrianglesAndBVH(int allocId,
+                                     axom::Array<Triangle3DType>& surfTris,
+                                     spin::BVH<3, ExecSpace, double>& bvh);
 
+  /*!
+   * @brief Compute the tet-mesh geometry surface as trianglular facets.
+   */
+  template <typename ExecSpace>
   axom::Array<Triangle3DType> computeGeometrySurface(int allocId);
 
   /*!
@@ -136,7 +142,6 @@ private:
    * @param tetMesh Input unstructured tet mesh, single domain.
    * @param polyTopo Output unstructured polyhedral topology.
    */
-
   template <typename ExecSpace>
   void make_polyhedral_topology(conduit::Node& tetTopo, conduit::Node& polyTopo);
 
@@ -151,7 +156,7 @@ private:
                                            const std::string& srcPath,
                                            const std::string& dstPath,
                                            int allocId);
-  void copy_tetmesh_arrays_to(int allocId);
+  void copy_topo_and_coords_to(int allocId);
 };
 
 }  // namespace experimental
