@@ -1037,7 +1037,8 @@ public:
 
   /*!
    * @brief Whether a tet and a bounding box (possibly) intersect.
-   * Answer may be a false positive but never a false negative.
+   * Answer may be a false positive but never a false negative
+   * (which is why this code lives here instead of in a primal::intersect method).
    */
   AXOM_HOST_DEVICE static inline bool tetBoxCollision(const TetrahedronType& tet,
                                                       const BoundingBoxType& box)
@@ -1080,7 +1081,8 @@ public:
 
   /*!
    * @brief Whether a tet and the convex hull of an octahedron (possibly) intersect.
-   * Answer may be a false positive but never a false negative.
+   * Answer may be a false positive but never a false negative
+   * (which is why this code lives here instead of in a primal::intersect method).
    */
   AXOM_HOST_DEVICE static inline bool tetOctCollision(const TetrahedronType& tet,
                                                       const OctahedronType& oct)
@@ -1174,7 +1176,8 @@ public:
 
   /*!
    * @brief Whether a tet and another tet (possibly) intersect.
-   * Answer may be a false positive but never a false negative.
+   * Answer may be a false positive but never a false negative
+   * (which is why this code lives here instead of in a primal::intersect method).
    */
   AXOM_HOST_DEVICE static inline bool tetTetCollision(const TetrahedronType& tetA,
                                                       const TetrahedronType& tetB,
