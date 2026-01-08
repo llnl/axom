@@ -1052,9 +1052,9 @@ public:
     double octVol = 0.0;
     for(int i = 0; i < 4; ++i)
     {
-      TetrahedronType tet (oct[tIds[i][0]], oct[tIds[i][1]], oct[tIds[i][2]], oct[tIds[i][3]]);
+      TetrahedronType tet(oct[tIds[i][0]], oct[tIds[i][1]], oct[tIds[i][2]], oct[tIds[i][3]]);
       double tetVol = tet.signedVolume();
-      octVol -= tetVol; // Octs from the discretized geometries are inverted w.r.t. tIDs.
+      octVol -= tetVol;  // Octs from the discretized geometries are inverted w.r.t. tIDs.
     }
     SLIC_ASSERT(octVol > 0.0);
     return octVol;
