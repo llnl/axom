@@ -79,7 +79,7 @@ void run_query(mfem::DataCollection& dc, const CurveArray& curves)
   };
 
   // Query the winding numbers at each degree of freedom (DoF) of the query mesh.
-  // The loop below independently checks (and adaptively refines) every curve for each query point.
+  // The loop below independently checks every curve for each query point.
   for(int nidx = 0; nidx < num_query_points; ++nidx)
   {
     const Point2D q = query_point(nidx);

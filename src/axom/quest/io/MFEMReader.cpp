@@ -134,7 +134,8 @@ int read_mfem(const std::string &fileName,
 
   // Examine the mesh attributes and group all of the related curves w/ same attribute
   // Assumption is that they're part of the same contour
-  if(const bool isNURBS = dynamic_cast<const mfem::NURBSFECollection *>(fec) != nullptr; isNURBS)
+  const bool isNURBS = dynamic_cast<const mfem::NURBSFECollection *>(fec) != nullptr;
+  if(isNURBS)
   {
     const int num_patches = fes->GetNURBSext()->GetNP();
     for(int patchId = 0; patchId < num_patches; ++patchId)
