@@ -62,7 +62,7 @@ public:
   using BoundingBox3DType = primal::BoundingBox<double, 3>;
 
   /*!
-   * @brief Number of tetrahedra per hexahedron decomposes into
+   * @brief Number of tetrahedra that a hexahedron decomposes into
    * @see hexToTets()
    *
    * @internal Only values of 24 and 18 are valid.  18 is likely more
@@ -176,8 +176,10 @@ public:
    * point at the average of the face vertices and decompose the face
    * into 4 triangles.
    *
-   * It is expected that this method will be used in long inner
-   * loops, so it is bare-bones for best performance.
+   * It is expected that this method will be used in long inner loops,
+   * so it is bare-bones for best performance.  Caller must ensure
+   * tets points to at least NUM_TETS_PER_HEX objects. This method
+   * neither checks the pointer nor reallocates the space.
    */
   AXOM_HOST_DEVICE inline static void hexToTets(const HexahedronType& hex, TetrahedronType* tets);
 

@@ -792,11 +792,6 @@ public:
      * Predicate for traversing the BVH.  We enter BVH nodes
      * whose bounding boxes intersect the query bounding box.
      */
-    auto traversePredBox = [] AXOM_HOST_DEVICE(const BoundingBoxType& queryBbox,
-                                               const BoundingBoxType& bvhBbox) -> bool {
-      return queryBbox.intersectsWith(bvhBbox);
-    };
-    AXOM_UNUSED_VAR(traversePredBox);
     auto traversePredTetId = [=] AXOM_HOST_DEVICE(const IndexType& queryTetId,
                                                   const BoundingBoxType& bvhBbox) -> bool {
       const auto& queryTet = meshTets[tetIndices[queryTetId]];
@@ -818,7 +813,6 @@ public:
           const auto& meshTet = meshTets[tetId];
 
           auto pieceId = leafNodes[currentNode];
-          // ++count; return;
           if(useTets)
           {
             const auto& piece = geomTetsView[pieceId];
@@ -836,7 +830,6 @@ public:
             }
           }
         };
-        // bvhTraverser.traverse_tree(tetBbsView[iTet], countCollisions, traversePredBox);
         bvhTraverser.traverse_tree(iTet, countCollisions, traversePredTetId);
         countsView[iTet] = count;
         totalCountReduce += count;
@@ -956,8 +949,6 @@ public:
 
     clipStats.copyTo(statistics);
     statistics["clipsCandidates"].set_int64(candidates.size());
-
-    SLIC_DEBUG(axom::fmt::format(""));
   }  // end of computeClipVolumes3DTets() function
 
   /*!
@@ -1056,17 +1047,16 @@ public:
    */
   AXOM_HOST_DEVICE static inline double geomPieceVolume(const OctahedronType& oct)
   {
-    TetrahedronType tets[] = {TetrahedronType(oct[0], oct[3], oct[1], oct[2]),
-                              TetrahedronType(oct[0], oct[3], oct[2], oct[4]),
-                              TetrahedronType(oct[0], oct[3], oct[4], oct[5]),
-                              TetrahedronType(oct[0], oct[3], oct[5], oct[1])};
+    // Oct vertex indices of the four tets that the oct decomposes into.
+    IndexType tIds[4][4] = {{0, 3, 1, 2}, {0, 3, 2, 4}, {0, 3, 4, 5}, {0, 3, 5, 1}};
     double octVol = 0.0;
     for(int i = 0; i < 4; ++i)
     {
-      double tetVol = tets[i].signedVolume();
-      SLIC_ASSERT(tetVol >= -EPS);  // Tet may be degenerate but not inverted.
-      octVol += axom::utilities::abs(tetVol);
+      TetrahedronType tet(oct[tIds[i][0]], oct[tIds[i][1]], oct[tIds[i][2]], oct[tIds[i][3]]);
+      double tetVol = tet.signedVolume();
+      octVol -= tetVol;  // Octs from the discretized geometries are inverted w.r.t. tIDs.
     }
+    SLIC_ASSERT(octVol > 0.0);
     return octVol;
   }
 
@@ -1186,7 +1176,8 @@ public:
 
   /*!
    * @brief Whether a tet and a bounding box (possibly) intersect.
-   * Answer may be a false positive but never a false negative.
+   * Answer may be a false positive but never a false negative
+   * (which is why this code lives here instead of in a primal::intersect method).
    */
   AXOM_HOST_DEVICE static inline bool tetBoxCollision(const TetrahedronType& tet,
                                                       const BoundingBoxType& box)
@@ -1229,7 +1220,8 @@ public:
 
   /*!
    * @brief Whether a tet and the convex hull of an octahedron (possibly) intersect.
-   * Answer may be a false positive but never a false negative.
+   * Answer may be a false positive but never a false negative
+   * (which is why this code lives here instead of in a primal::intersect method).
    */
   AXOM_HOST_DEVICE static inline bool tetOctCollision(const TetrahedronType& tet,
                                                       const OctahedronType& oct)
@@ -1323,7 +1315,8 @@ public:
 
   /*!
    * @brief Whether a tet and another tet (possibly) intersect.
-   * Answer may be a false positive but never a false negative.
+   * Answer may be a false positive but never a false negative
+   * (which is why this code lives here instead of in a primal::intersect method).
    */
   AXOM_HOST_DEVICE static inline bool tetTetCollision(const TetrahedronType& tetA,
                                                       const TetrahedronType& tetB,
