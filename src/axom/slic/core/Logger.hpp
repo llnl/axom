@@ -130,6 +130,13 @@ public:
   void setAbortFunction(AbortFunctionPtr abort_func);
 
   /*!
+   * \brief Gets the function called when program abort is requested.
+   *
+   * \return Pointer to the currently registered abort function.
+   */
+  AbortFunctionPtr getAbortFunction() const { return m_abortFunction; }
+
+  /*!
    * \brief Returns the name of this logger instance.
    *
    * \return s a string corresponding to the name of this logger instance.
