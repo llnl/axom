@@ -32,6 +32,7 @@ vcpkg_configure_cmake(
         -DENABLE_EXAMPLES=OFF
         -DENABLE_TESTS=OFF
         -DBUILD_SHARED_LIBS=${_is_shared}
+        -DOpenMP_RUNTIME_MSVC:STRING="experimental"
         ${FEATURE_OPTIONS}
 )
 

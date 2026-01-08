@@ -38,6 +38,7 @@ vcpkg_configure_cmake(
         -DRAJA_ENABLE_BENCHMARKS:BOOL=OFF
         -DBUILD_SHARED_LIBS:BOOL=${_is_shared}
         -DBLT_CXX_FLAGS:STRING=${_extra_cxx_flags}
+        -DOpenMP_RUNTIME_MSVC:STRING="experimental"
         ${FEATURE_OPTIONS}
 )
 
