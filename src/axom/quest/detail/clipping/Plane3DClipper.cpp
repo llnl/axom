@@ -373,8 +373,6 @@ void Plane3DClipper::specializedClipTetsImpl(quest::experimental::ShapeMesh& sha
   constexpr double EPS = 1e-10;
   using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
 
-  int allocId = shapeMesh.getAllocatorID();
-
   auto meshTets = shapeMesh.getCellsAsTets();
   IndexType tetCount = tetIds.size();
   auto plane = m_plane;

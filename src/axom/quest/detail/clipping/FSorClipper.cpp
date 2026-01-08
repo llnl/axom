@@ -302,7 +302,6 @@ AXOM_HOST_DEVICE FSorClipper::BoundingBox2DType FSorClipper::estimateBoundingBox
     minAngle = std::min(minAngle, angle);
     maxAngle = std::max(maxAngle, angle);
   }
-#if 1
   /*
     The geometry can be closer to the rotation axis than its
     individual vertices are, depending on the angle (about the axis)
@@ -314,17 +313,6 @@ AXOM_HOST_DEVICE FSorClipper::BoundingBox2DType FSorClipper::estimateBoundingBox
   auto newMin = bbInRz.getMin();
   newMin[1] *= factor;
   bbInRz.addPoint(newMin);
-#endif
-#if 0
-  /*
-    Jeff's method to account for the angle.  Faster, but less
-    discriminating, I think.
-  */
-  auto newMin = bbInRz.getMin();
-  newMin[1] -= 0.5 * cellLength;
-  if (newMin[1] < 0.0) newMin[1] = 0.0;
-  bbInRz.addPoint(newMin);
-#endif
   return bbInRz;
 }
 
@@ -550,7 +538,6 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMes
   // Compute an average characteristic length for the mesh cells.
   using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
   using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
-#if 1
   axom::ArrayView<const double> cellVolumes = shapeMesh.getCellVolumes();
   RAJA::ReduceSum<ReducePolicy, double> sumVolume(0.0);
   RAJA::forall<LoopPolicy>(
@@ -558,14 +545,6 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMes
     AXOM_LAMBDA(axom::IndexType cellId) { sumVolume += cellVolumes[cellId]; });
   double avgVolume = sumVolume.get() / cellCount;
   double avgCharLength = pow(avgVolume, 1. / 3);
-#else
-  axom::ArrayView<const double> cellLengths = shapeMesh.getCellLengths();
-  RAJA::ReduceSum<ReducePolicy, double> sumCharLength(0.0);
-  RAJA::forall<LoopPolicy>(
-    RAJA::RangeSegment(0, cellCount),
-    AXOM_LAMBDA(axom::IndexType cellId) { sumCharLength += cellLengths[cellId]; });
-  double avgCharLength = sumCharLength.get() / cellCount;
-#endif
 
   axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve,
                                                      3 * avgCharLength /* maxMean */,

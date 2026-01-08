@@ -169,7 +169,7 @@ public:
    * The output labels are used in optimizing the clipping algorithm.
    * Subclasses should implement this if it's cost-effective, and
    * skip if it's not.  It's safe to label cells as on the boundary if
-   * it can't be positively determined as inside or outside.
+   * it can't be efficiently determined as inside or outside.
    *
    * Degenerate cells have zero volume and should be labeled outside
    * for best clipping performance.
@@ -198,6 +198,8 @@ public:
    * @param [in] cellIds Indices of cells whose constituent
    *   tets should be labeled.
    * @param [out] tetLabels Output
+   *
+   * See also comments in labelCellsInOut().
    *
    * Indices [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX) in \c tetLabels
    * correspond to parent cell index \c c = \c cellIds[i].
@@ -375,7 +377,7 @@ public:
    * @brief Get the geometry as discrete octahedra, or return false.
    *
    * @param [in] shapeMesh Blueprint mesh to shape into.
-   * @param [out] tets Array of non-degenerate octahedra filling the
+   * @param [out] octs Array of non-degenerate octahedra filling the
    *   space of the shape, fully transformed.
    *
    * Subclasses implementing this routine should snap to zero any

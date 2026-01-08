@@ -23,8 +23,8 @@ namespace experimental
  *
  * This implementation requires the SOR curve r(z) have monotonic (but
  * not strictly monotonic) z coordinates.  The curve may have vertical
- * slopes but it may not double back in z.  For SOR curves where z
- * changes directions, use SorClipper.
+ * slopes but it may not double back in z.  For SOR curves that double back,
+ * use SorClipper.
  *
  * The SOR specification may include axis orientation and location
  * in addition to any external transformation.

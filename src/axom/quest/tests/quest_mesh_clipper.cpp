@@ -589,13 +589,12 @@ axom::klee::Geometry createGeom_Sor(const std::string& geomName)
   axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
     ? primal::Vector3D {1.0, 0.0, 0.0}
     : primal::Vector3D {params.direction.data()};
-  // discreteFunction is discrete z-r pairs describing the function
+  // discreteFunction is discrete (z,r) pairs describing the r(z) function
   // to be rotated around the z axis.
   using Point2DType = axom::primal::Point<double, 2>;
   double zLen = 0.5 * (params.length < 0 ? 2.40 : params.length);
   double maxR = params.radius < 0 ? 1.10 : params.radius;
   axom::Array<Point2DType> discretePts(0, 10);
-#if 1
   discretePts.push_back(Point2DType({-1.0 * zLen, 1.0 * maxR}));
   discretePts.push_back(Point2DType({0.4 * zLen, 1.0 * maxR}));
   discretePts.push_back(Point2DType({0.4 * zLen, 0.7 * maxR}));
@@ -608,15 +607,6 @@ axom::klee::Geometry createGeom_Sor(const std::string& geomName)
   discretePts.push_back(Point2DType({0.2 * zLen, 0.5 * maxR}));
   discretePts.push_back(Point2DType({0.2 * zLen, 0.7 * maxR}));
   discretePts.push_back(Point2DType({-1.0 * zLen, 0.7 * maxR}));
-#else
-  discretePts.push_back(Point2DType({-1.0 * zLen, 0.4 * maxR}));
-  discretePts.push_back(Point2DType({0.0 * zLen, 1.0 * maxR}));
-  discretePts.push_back(Point2DType({0.6 * zLen, 1.0 * maxR}));
-  discretePts.push_back(Point2DType({1.0 * zLen, 0.8 * maxR}));
-  discretePts.push_back(Point2DType({1.0 * zLen, 0.6 * maxR}));
-  discretePts.push_back(Point2DType({0.2 * zLen, 0.4 * maxR}));
-  discretePts.push_back(Point2DType({0.0 * zLen, 0.0 * maxR}));
-#endif
   axom::ArrayView<const double, 2> discreteFunction((const double*)discretePts.data(),
                                                     discretePts.size(),
                                                     2);

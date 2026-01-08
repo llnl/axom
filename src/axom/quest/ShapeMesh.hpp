@@ -392,6 +392,7 @@ AXOM_HOST_DEVICE inline void ShapeMesh::hexToTets(const HexahedronType& hex, Tet
   else
   {
     // Tets sharing the axis between hex vertices 4 and 2.
+    // Should we implement this 18-tet decomposition directly in primal::Hexahedron?
     tets[0][0] = hex[4];
     tets[0][1] = hex[2];
     tets[0][2] = hex[1];
