@@ -100,6 +100,7 @@ template <typename T>
 class NURBSCurveGWNCache
 {
 public:
+  using NumericType = T;
   using PointType = typename NURBSCurve<T, 2>::PointType;
   using VectorType = typename NURBSCurve<T, 2>::VectorType;
   using BoundingBoxType = typename NURBSCurve<T, 2>::BoundingBoxType;

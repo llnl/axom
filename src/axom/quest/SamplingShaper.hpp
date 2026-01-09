@@ -246,7 +246,12 @@ public:
       // Read the MFEM file as curved polygon contours for winding number intersection.
       quest::MFEMReader reader;
       reader.setFileName(shapePath);
-      reader.read(m_contours);
+      const int rc = reader.read(m_contours);
+
+      SLIC_ERROR_IF(rc != quest::MFEMReader::READ_SUCCESS,
+                    axom::fmt::format("Failed to read MFEM shape '{}' from file '{}'.",
+                                      shape.getName(),
+                                      shapePath));
     }
     else
     {

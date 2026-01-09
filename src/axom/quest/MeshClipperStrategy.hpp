@@ -95,9 +95,8 @@ public:
   using Ray2DType = axom::primal::Ray<double, 2>;
   using Segment2DType = axom::primal::Segment<double, 2>;
 
-  //!@brief Number of tetrahedra per hexahedron decomposes into
-  // @internal We could use a more efficient 18-tet decomposition in the future.
   static constexpr axom::IndexType NUM_TETS_PER_HEX = ShapeMesh::NUM_TETS_PER_HEX;
+  static constexpr axom::IndexType NUM_VERTS_PER_CELL_3D = ShapeMesh::NUM_VERTS_PER_CELL_3D;
 
   /*!
    * @brief Construct a strategy for the given klee::Geometry object.
@@ -162,7 +161,7 @@ public:
    * The output labels are used in optimizing the clipping algorithm.
    * Subclasses should implement this if it's cost-effective, and
    * skip if it's not.  It's safe to label cells as on the boundary if
-   * it can't be positively determined as inside or outside.
+   * it can't be efficiently determined as inside or outside.
    *
    * @return Whether the operation was done.  (A false means
    * not done.)
@@ -188,6 +187,8 @@ public:
    * @param [in] cellIds Indices of cells whose constituent
    *   tets should be labeled.
    * @param [out] tetLabels Output
+   *
+   * See also comments in labelCellsInOut().
    *
    * Indices [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX) in \c tetLabels
    * correspond to parent cell index \c c = \c cellIds[i].
@@ -219,6 +220,8 @@ public:
    * @param [in] shapeMesh Blueprint mesh to shape into.
    * @param [out] ovlap Shape overlap volume of each cell
    *   in the \c shapeMesh.  It's initialized to zeros.
+   * @param [out] statistics Optional statistics to record
+   *   consisting of child nodes with integer values.
    *
    * The default implementation has no specialized method,
    * so it's a no-op and returns false.
@@ -231,16 +234,21 @@ public:
    * This method need not be implemented if labelCellsInOut()
    * returns true.
    *
+   * Setting the statistics is not required except for getting
+   * accurate statistics.
+   *
    * If implementation returns true, it should ensure these
    * post-conditions hold:
    * @post ovlap.size() == shapeMesh.getCellCount()
    * @post ovlap.getAllocatorID() == shapeMesh.getAllocatorId()
   */
   virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
-                                    axom::ArrayView<double> ovlap)
+                                    axom::ArrayView<double> ovlap,
+                                    conduit::Node& statistics)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
+    AXOM_UNUSED_VAR(statistics);
     return false;
   }
 
@@ -253,6 +261,8 @@ public:
    *   in \c shapeMesh, initialized to the cell volumes
    *   for cell inside the shape and zero for other cells.
    * @param [in] cellIds Limit computation to these cell ids.
+   * @param [out] statistics Optional statistics to record
+   *   consisting of child nodes with integer values.
    *
    * The default implementation has no specialized method,
    * so it's a no-op and returns false.
@@ -265,6 +275,9 @@ public:
    * This method need not be implemented if labelCellsInOut()
    * returns false.
    *
+   * Setting the statistics is not required except for getting
+   * accurate statistics.
+   *
    * @pre @c ovlap is pre-initialized for the implementation
    * to add or subtract partial volumes to individual cells.
    *
@@ -275,11 +288,13 @@ public:
   */
   virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::ArrayView<double> ovlap,
-                                    const axom::ArrayView<IndexType>& cellIds)
+                                    const axom::ArrayView<IndexType>& cellIds,
+                                    conduit::Node& statistics)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
     AXOM_UNUSED_VAR(cellIds);
+    AXOM_UNUSED_VAR(statistics);
     return false;
   }
 
@@ -293,19 +308,27 @@ public:
    *   done so far.  Clip volumes computed by this method should
    *   be added to the current values in this array.
    *
+   * @param [out] statistics Optional statistics to record
+   *   consisting of child nodes with integer values.
+   *
    * @param [in] tetIds Indices of tets to clip, referring to the
    * shapeMesh.getCellsAsTets() array.  tetIds[i] is the
    * \c (tetIds[i]%NUM_TETS_PER_HEX)-th tetrahedron of cell
    * \c = \c tetIds[i]/NUM_TETS_PER_HEX.  Its overlap volume should
    * be added to \c ovlap[c].
+   *
+   * Setting the statistics is not required except for getting
+   * accurate statistics.
    */
   virtual bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
                                    axom::ArrayView<double> ovlap,
-                                   const axom::ArrayView<IndexType>& tetIds)
+                                   const axom::ArrayView<IndexType>& tetIds,
+                                   conduit::Node& statistics)
   {
     AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
     AXOM_UNUSED_VAR(tetIds);
+    AXOM_UNUSED_VAR(statistics);
     return false;
   }
 

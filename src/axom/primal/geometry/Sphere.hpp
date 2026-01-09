@@ -179,6 +179,19 @@ public:
   inline bool intersectsWith(const Sphere<T, NDIMS>& sphere, double TOL = 1.e-9) const;
 
   /*!
+   * \brief Tests if this sphere completely contains another sphere.
+   *
+   * \param [in] other The sphere object to check for containment
+   * \param [in] margin Amount to add to other's radius before comparing.
+   *
+   * Note: a sphere does contain itself.
+   *
+   * \return true if this sphere contains the other, false otherwise.
+   */
+  AXOM_HOST_DEVICE
+  inline bool contains(const Sphere<T, NDIMS>& other, double margin = 0.0) const;
+
+  /*!
    * \brief Prints the Sphere information in the given output stream.
    * \param [in,out] os the output stream to write to.
    * \note This method is primarily used for debugging.
@@ -231,6 +244,15 @@ AXOM_HOST_DEVICE inline bool Sphere<T, NDIMS>::intersectsWith(const Sphere<T, ND
 
   return (distance_squared < sum_of_radii_2 ||
           utilities::isNearlyEqual(distance_squared, sum_of_radii_2, TOL));
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int NDIMS>
+AXOM_HOST_DEVICE inline bool Sphere<T, NDIMS>::contains(const Sphere<T, NDIMS>& other,
+                                                        double margin) const
+{
+  const T center_sep = VectorType(other.getCenter(), m_center).norm();
+  return (m_radius >= center_sep + other.getRadius() + margin);
 }
 
 //------------------------------------------------------------------------------

@@ -73,26 +73,36 @@ if(AXOM_ENABLE_TESTS)
     # Run the core array performance example on N ranks for each enabled policy
     set(_policies "seq")
     if(RAJA_FOUND)
-        blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
+        blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
         blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-        blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
+        blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
     endif()
     foreach(_pol ${_policies})
+        # sets the number of threads for the omp policy; leave empty for non-omp policies
+        set(_num_threads)
+        if(_pol STREQUAL "omp")
+            set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+        endif()
+
         axom_add_test(
-            NAME    "core_array_perf_1d_${_pol}"
-            COMMAND core_array_perf_ex --policy ${_pol} --shape 1200000 -r 10)
+            NAME            core_array_perf_1d_${_pol}
+            COMMAND         core_array_perf_ex --policy ${_pol} --shape 1200000 -r 10
+            NUM_OMP_THREADS ${_num_threads})
         axom_add_test(
-            NAME    "core_array_perf_2d_${_pol}"
-            COMMAND core_array_perf_ex --policy ${_pol} --shape 1000 1200 -r 10)
+            NAME            core_array_perf_2d_${_pol}
+            COMMAND         core_array_perf_ex --policy ${_pol} --shape 1000 1200 -r 10
+            NUM_OMP_THREADS ${_num_threads})
         axom_add_test(
-            NAME    "core_array_perf_3d_${_pol}"
-            COMMAND core_array_perf_ex --policy ${_pol} --shape 100 100 120 -r 10)
+            NAME            core_array_perf_3d_${_pol}
+            COMMAND         core_array_perf_ex --policy ${_pol} --shape 100 100 120 -r 10
+            NUM_OMP_THREADS ${_num_threads})
         if(NOT RAJA_FOUND)
             # RAJA provides support for up to 3D tiled nested loops,
             # so run 4D test only for non-RAJA builds.
             axom_add_test(
-                NAME    "core_array_perf_4d_${_pol}"
-                COMMAND core_array_perf_ex --policy ${_pol} --shape 50 20 30 6 )
+                NAME            core_array_perf_4d_${_pol}
+                COMMAND         core_array_perf_ex --policy ${_pol} --shape 50 20 30 6
+                NUM_OMP_THREADS ${_num_threads})
         endif()
     endforeach()
 endif()

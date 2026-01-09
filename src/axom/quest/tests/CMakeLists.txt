@@ -44,18 +44,17 @@ foreach(test ${quest_tests})
         FOLDER     axom/quest/tests
         )
 
+    # sets the number of threads for the quest_discretize test
+    set(_num_threads)
+    if(AXOM_ENABLE_OPENMP AND "${test_name}" STREQUAL "quest_discretize")
+        set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+    endif()
+
     axom_add_test(
         NAME ${test_name}
         COMMAND ${test_name}_test
-        )
+        NUM_OMP_THREADS ${_num_threads})
 endforeach()
-
-if(TARGET quest_discretize_test)
-    axom_add_test( NAME quest_discretize_test_openmp
-                   COMMAND quest_discretize_test
-                   NUM_OMP_THREADS 8
-                   )
-endif()
 
 #------------------------------------------------------------------------------
 # Tests that use Conduit when available
@@ -75,8 +74,7 @@ if(CONDUIT_FOUND AND AXOM_DATA_DIR)
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND NOT WIN32)
         axom_add_test(
             NAME    quest_mesh_view_util
-            COMMAND quest_mesh_view_util_test
-                        --verbose)
+            COMMAND quest_mesh_view_util_test --verbose)
         unset(_nranks)
         unset(_test)
     endif()
@@ -148,23 +146,19 @@ foreach(test ${quest_mpi_tests})
         FOLDER     axom/quest/tests
     )
 
-    set(_numMPITasks 4)
-    if (${test_name} STREQUAL "quest_inout_interface")
+    # sets the number of MPI ranks; quest_inout_interface can only run w/ 1 rank
+    set(_numMPITasks 1)
+    if (AXOM_ENABLE_MPI)
+        set(_numMPITasks 4)
+    endif()
+    if(${test_name} STREQUAL "quest_inout_interface")
         set(_numMPITasks 1)
     endif()
 
-    if (AXOM_ENABLE_MPI)
-        axom_add_test(
-            NAME ${test_name}
-            COMMAND ${test_name}_test
-            NUM_MPI_TASKS ${_numMPITasks}
-        )
-    else()
-        axom_add_test(
-            NAME ${test_name}
-            COMMAND ${test_name}_test
-        )
-    endif()
+    axom_add_test(
+        NAME ${test_name}
+        COMMAND ${test_name}_test
+        NUM_MPI_TASKS ${_numMPITasks})
 endforeach()
 
 #------------------------------------------------------------------------------
@@ -191,38 +185,48 @@ if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
     endforeach()
 
     # Invoke the intersection shaper test program as many tests that run a subset of the tests.
-    set(_numOMPThreads 8) # limit omp parallelism
-    set(_policies seq)
+    set(_policies "seq")
     if(RAJA_FOUND)
-      blt_list_append(TO _policies ELEMENTS omp IF AXOM_ENABLE_OPENMP)
+      blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
       if(AXOM_USE_UMPIRE)
-        blt_list_append(TO _policies ELEMENTS cuda IF AXOM_ENABLE_CUDA)
-        blt_list_append(TO _policies ELEMENTS hip IF AXOM_ENABLE_HIP)
+        blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
+        blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
       endif()
     endif()
-    foreach(shapingPolicy ${_policies})
-      # For seq, limit the cases since the tests are somewhat slow.
-      if(${shapingPolicy} STREQUAL "seq")
-        set(caseNumbers 5)
-      else()
-        set(caseNumbers 1 2 3 4 5)
+
+    foreach(_pol ${_policies})
+      # sets the number of threads
+      set(_num_threads)
+      if(_pol STREQUAL "omp")
+          set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
       endif()
+
+      # For seq, limit the cases since the tests are somewhat slow.
+      set(caseNumbers 1 2 3 4 5)
+      if(_pol STREQUAL "seq")
+        set(caseNumbers 5)
+      endif()
+
       foreach(caseNumber ${caseNumbers})
-        axom_add_test(NAME quest_intersection_shaper_${caseNumber}_${shapingPolicy}
-          COMMAND quest_intersection_shaper_test --casenumber ${caseNumber} --policy ${shapingPolicy}
+        axom_add_test(NAME quest_intersection_shaper_${caseNumber}_${_pol}
+          COMMAND quest_intersection_shaper_test --casenumber ${caseNumber} --policy ${_pol}
           NUM_MPI_TASKS 1
-          NUM_OMP_THREADS ${_numOMPThreads}
-        )
-        set_tests_properties(quest_intersection_shaper_${caseNumber}_${shapingPolicy} PROPERTIES PROCESSORS ${_numOMPThreads})
+          NUM_OMP_THREADS ${_num_threads})
       endforeach()
     endforeach()
+
+    # quest_intersection_shaper_dynamic does not take a policy argument, 
+    # but uses OpenMP when enabled
+    set(_dynamic_num_threads)
+    if(AXOM_ENABLE_OPENMP)
+        set(_dynamic_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+    endif()
 
     axom_add_test(NAME quest_intersection_shaper_dynamic
         COMMAND quest_intersection_shaper_dynamic_test
         NUM_MPI_TASKS 1
-        NUM_OMP_THREADS ${_numOMPThreads}
+        NUM_OMP_THREADS ${_dynamic_num_threads}
     )
-    set_tests_properties(quest_intersection_shaper_dynamic PROPERTIES PROCESSORS ${_numOMPThreads})
 
     axom_add_test(NAME quest_sampling_shaper
         COMMAND quest_sampling_shaper_test
@@ -254,9 +258,17 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
       blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
     endif()
 
-    foreach(_meshType "bpSidre" "bpConduit")
+    set(_testgeoms "plane" "tet" "sphere" "plane,tet,sphere")
+    set(_meshTypes "bpSidre" "bpConduit")
+    foreach(_meshType ${_meshTypes})
       foreach(_policy ${_policies})
-        foreach(_testgeom "tet")
+        # sets the number of threads for the omp policy; leave empty for non-omp policies
+        set(_num_threads)
+        if(_policy STREQUAL "omp")
+            set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+        endif()
+
+        foreach(_testgeom ${_testgeoms})
           set(_testname "quest_mesh_clipper_${_meshType}_${_policy}_${_testgeom}")
           axom_add_test(
             NAME ${_testname}
@@ -270,7 +282,8 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
                         --dir 8 4 2
                         --meshType ${_meshType}
                         inline_mesh --min -2 -2 -2 --max 2 2 2 --res 16 16 16
-            NUM_MPI_TASKS ${_nranks})
+            NUM_MPI_TASKS ${_nranks}
+            NUM_OMP_THREADS ${_num_threads})
         endforeach()
       endforeach()
     endforeach()
