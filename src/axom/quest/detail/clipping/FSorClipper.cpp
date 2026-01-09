@@ -299,8 +299,8 @@ AXOM_HOST_DEVICE FSorClipper::BoundingBox2DType FSorClipper::estimateBoundingBox
     bbInRz.addPoint(vertOnRz);
 
     double angle = atan2(vertOnXPlane[1], vertOnXPlane[0]);
-    minAngle = std::min(minAngle, angle);
-    maxAngle = std::max(maxAngle, angle);
+    minAngle = angle < minAngle ? angle : minAngle;
+    maxAngle = angle > minAngle ? angle : minAngle;
   }
   /*
     The geometry can be closer to the rotation axis than its
