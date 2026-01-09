@@ -123,7 +123,7 @@ private:
     return bbox;
   }
 
-  /// Helper class to convert faces of CAD mesh to valid NURBSPatch instances
+  /// Helper class to convert the face geometry of CAD mesh to valid NURBSPatch instances
   /// The constructor converts the surface to a clamped (non-periodic) representation, if necessary
   class PatchProcessor
   {
@@ -142,8 +142,8 @@ private:
 
     const opencascade::handle<Geom_BSplineSurface>& getSurface() const { return m_surface; }
 
-    /// Returns a representation of the surface as an axom::primal::NURBSPatch
-    NPatch nurbsPatch() const
+    /// Returns a representation of the surface geometry as an axom::primal::NURBSPatch
+    NPatch nurbsPatchGeometry() const
     {
       // Check if the surface is periodic in u or v
       const bool isUPeriodic = m_surface->IsUPeriodic();
@@ -679,7 +679,13 @@ public:
 
         PatchProcessor patchProcessor(bsplineSurface, m_verbose);
 
-        patches[patchIndex] = patchProcessor.nurbsPatch();
+        patches[patchIndex] = patchProcessor.nurbsPatchGeometry();
+
+        // If the face is flipped in opencascade, we need to flip the primal primitive too
+        if(face.Orientation() == TopAbs_REVERSED)
+        {
+          patches[patchIndex].reverseOrientation_u();
+        }
 
         PatchData& patchData = m_patchData[patchIndex];
         patchData.patchIndex = patchIndex;
@@ -931,23 +937,10 @@ public:
         }
       }
 
-      // Ensure that the trimming curves form ccw loops
-      if(patch.isTrimmed())
+      // If the face is flipped, then the trimming curves all need to be reversed too
+      if(TopoDS::Face(faceExp.Current()).Orientation() == TopAbs_Orientation::TopAbs_REVERSED)
       {
-        auto area_field = [](PointType x) -> VectorType {
-          return primal::Vector<double, 2>({-0.5 * x[1], 0.5 * x[0]});
-        };
-
-        constexpr int n_quad_pts = 20;
-        auto area =
-          primal::evaluate_vector_line_integral(patch.getTrimmingCurves(), area_field, n_quad_pts);
-
-        // Signed areas should be positive
-        if(area < 0)
-        {
-          patch.reverseOrientation_u();
-          patch.reverseTrimmingCurves();
-        }
+        patch.reverseTrimmingCurves();
       }
     }
   }
@@ -1146,6 +1139,8 @@ public:
     {
       TopoDS_Face face = TopoDS::Face(faceExp.Current());
 
+      const bool isReversed = (face.Orientation() == TopAbs_Orientation::TopAbs_REVERSED);
+
       // Create a triangulation of this patch
       TopLoc_Location loc;
       opencascade::handle<Poly_Triangulation> triangulation = BRep_Tool::Triangulation(face, loc);
@@ -1165,6 +1160,11 @@ public:
         Poly_Triangle triangle = triangulation->Triangle(i);
         int n1, n2, n3;
         triangle.Get(n1, n2, n3);
+
+        if(isReversed)
+        {
+          std::swap(n1, n3);
+        }
 
         gp_Pnt p1 = triangulation->Node(n1).Transformed(trsf);
         gp_Pnt p2 = triangulation->Node(n2).Transformed(trsf);
@@ -1198,6 +1198,8 @@ public:
     for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
     {
       TopoDS_Face face = TopoDS::Face(faceExp.Current());
+
+      const bool isReversed = (face.Orientation() == TopAbs_Orientation::TopAbs_REVERSED);
 
       // Get the underlying surface of the face
       opencascade::handle<Geom_Surface> surface = BRep_Tool::Surface(face);
@@ -1235,6 +1237,11 @@ public:
         Poly_Triangle triangle = triangulation->Triangle(i);
         int n1, n2, n3;
         triangle.Get(n1, n2, n3);
+
+        if(isReversed)
+        {
+          std::swap(n1, n3);
+        }
 
         gp_Pnt p1 = triangulation->Node(n1).Transformed(trsf);
         gp_Pnt p2 = triangulation->Node(n2).Transformed(trsf);
