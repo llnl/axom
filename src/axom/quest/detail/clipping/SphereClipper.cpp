@@ -83,6 +83,9 @@ void SphereClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMes
       }
       const auto& hex = cellsAsHexes[cellId];
       cellLabel = polyhedronToLabel(hex, sphere);
+      // Note: cellLabel may be set to LABEL_ON if polyhedronToLabel
+      // cannot efficiently determine whether the hex is IN or OUT.
+      // See MeshClipperStrategy::labelCellsInOut().
     });
   return;
 }
@@ -162,6 +165,9 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh
         }
         const TetrahedronType& tet = cellTets[ti];
         tetLabel = polyhedronToLabel(tet, sphere);
+        // Note: cellLabel may be set to LABEL_ON if polyhedronToLabel
+        // cannot efficiently determine whether the tet is IN or OUT.
+        // See MeshClipperStrategy::labelTetsInOut().
       }
     });
   return;
@@ -178,8 +184,13 @@ AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType SphereClipper::polyhedron
     can miss intersections by edges and facets, so we compare bounding
     box.)
 
-    Otherwise, polyhedron either LABEL_ON or LABEL_IN.  Sphere is
-    convex, so polyhedron is IN only if all vertices are inside.
+    Otherwise, polyhedron is labeled either LABEL_ON or LABEL_IN.
+    Sphere is convex, so polyhedron is IN only if all vertices are inside.
+
+    Some polyhedra may be LABEL_ON even though they are actually LABEL_OUT,
+    but this is a conservative error.  The clip function will compute the
+    correct overlap volume.  The purpose of labeling is bypass the
+    clip function where we can do it efficiently.
   */
   BoundingBox3DType bb(verts[0]);
   auto vertCount = Polyhedron::numVertices();
