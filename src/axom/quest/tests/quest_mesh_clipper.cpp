@@ -27,6 +27,7 @@
 #include "axom/sidre.hpp"
 #include "axom/klee.hpp"
 #include "axom/quest.hpp"
+#include "axom/quest/detail/clipping/HexClipper.hpp"
 #include "axom/quest/detail/clipping/Plane3DClipper.hpp"
 #include "axom/quest/detail/clipping/SphereClipper.hpp"
 #include "axom/quest/detail/clipping/TetClipper.hpp"
@@ -105,7 +106,7 @@ public:
   // The shape to run.
   std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
-  const std::set<std::string> availableShapes {"tet", "sphere", "plane"};  // More geometries to come.
+  const std::set<std::string> availableShapes {"tet", "hex", "sphere", "plane"};  // More geometries to come.
 
   RuntimePolicy policy {RuntimePolicy::seq};
   int refinementLevel {7};
@@ -483,6 +484,37 @@ axom::klee::Geometry createGeom_Tet(const std::string& geomName)
   axom::klee::Geometry tetGeometry(prop, tet, compositeOp);
 
   return tetGeometry;
+}
+
+axom::klee::Geometry createGeom_Hex(const std::string& geomName)
+{
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  const double md = params.length < 0 ? 0.82 : params.length / 2;
+  const double lg = 1.2 * md;
+  const double sm = 0.8 * md;
+  const Point3D p {-lg, -md, -sm};
+  const Point3D q {+lg, -md, -sm};
+  const Point3D r {+lg, +md, -sm};
+  const Point3D s {-lg, +md, -sm};
+  const Point3D t {-lg, -md, +sm};
+  const Point3D u {+lg, -md, +sm};
+  const Point3D v {+lg, +md, +sm};
+  const Point3D w {-lg, +md, +sm};
+  const primal::Hexahedron<double, 3> hex {p, q, r, s, t, u, v, w};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+  exactGeomVols[geomName] = vScale * hex.volume();
+  errorToleranceRel[geomName] = 0.000075;
+  errorToleranceAbs[geomName] = 0.0003;
+
+  axom::klee::Geometry hexGeometry(prop, hex, compositeOp);
+
+  return hexGeometry;
 }
 
 axom::klee::Geometry createGeom_Plane(const std::string& geomName)
@@ -898,6 +930,11 @@ int main(int argc, char** argv)
     {
       geomStrategies.push_back(
         std::make_shared<axom::quest::experimental::Plane3DClipper>(createGeom_Plane(name), name));
+    }
+    else if(tg == "hex")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::experimental::HexClipper>(createGeom_Hex(name), name));
     }
     else if(tg == "sphere")
     {
