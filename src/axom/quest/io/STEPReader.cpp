@@ -938,7 +938,8 @@ public:
       }
 
       // If the face is flipped, then the trimming curves all need to be reversed too
-      if(TopoDS::Face(faceExp.Current()).Orientation() == TopAbs_Orientation::TopAbs_REVERSED)
+      if(patch.isTrimmed() &&
+         TopoDS::Face(faceExp.Current()).Orientation() == TopAbs_Orientation::TopAbs_REVERSED)
       {
         patch.reverseTrimmingCurves();
       }
