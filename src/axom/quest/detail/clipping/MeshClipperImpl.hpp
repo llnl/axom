@@ -109,12 +109,19 @@ public:
       });
   }
 
-  //! @brief Make a list of indices where labels have value LABEL_ON.
+  /*!
+   * @brief Make a list of indices where labels have value LABEL_ON,
+   * stored in the same allocator id as the labels.
+   */
   void collectOnIndices(const axom::ArrayView<LabelType>& labels,
                         axom::Array<axom::IndexType>& onIndices) override
   {
     if(labels.empty())
     {
+      if(onIndices.getAllocatorID() != labels.getAllocatorID())
+      {
+        onIndices = axom::Array<IndexType>(0, 0, labels.getAllocatorID());
+      }
       return;
     };
 
