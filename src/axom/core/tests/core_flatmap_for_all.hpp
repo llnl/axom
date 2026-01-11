@@ -23,7 +23,7 @@ struct FlatMapTestParams
 };
 
 template <typename ExecParams>
-class core_flatmap_forall : public ::testing::Test
+class core_flatmap_for_all : public ::testing::Test
 {
 public:
   using MapType = typename ExecParams::MapType;
@@ -105,9 +105,9 @@ using ViewTypes = ::testing::Types<
   FlatMapTestParams<axom::FlatMap<int, double>, axom::SEQ_EXEC>,
   FlatMapTestParams<axom::FlatMap<int, double, ConstantHash<int>>, axom::SEQ_EXEC>>;
 
-TYPED_TEST_SUITE(core_flatmap_forall, ViewTypes);
+TYPED_TEST_SUITE(core_flatmap_for_all, ViewTypes);
 
-AXOM_TYPED_TEST(core_flatmap_forall, insert_and_find)
+AXOM_TYPED_TEST(core_flatmap_for_all, insert_and_find)
 {
   using MapType = typename TestFixture::MapType;
   using MapViewConstType = typename TestFixture::MapViewConstType;
@@ -180,7 +180,7 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_and_find)
   }
 }
 
-AXOM_TYPED_TEST(core_flatmap_forall, insert_and_modify)
+AXOM_TYPED_TEST(core_flatmap_for_all, insert_and_modify)
 {
   using MapType = typename TestFixture::MapType;
   using MapViewType = typename TestFixture::MapViewType;
@@ -233,7 +233,7 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_and_modify)
   }
 }
 
-AXOM_TYPED_TEST(core_flatmap_forall, insert_batched)
+AXOM_TYPED_TEST(core_flatmap_for_all, insert_batched)
 {
   using MapType = typename TestFixture::MapType;
   using ExecSpace = typename TestFixture::ExecSpace;
@@ -278,7 +278,7 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batched)
   }
 }
 
-AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_with_existing)
+AXOM_TYPED_TEST(core_flatmap_for_all, insert_batched_with_existing)
 {
   using MapType = typename TestFixture::MapType;
   using ExecSpace = typename TestFixture::ExecSpace;
@@ -343,7 +343,7 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_with_existing)
   }
 }
 
-AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_with_dups)
+AXOM_TYPED_TEST(core_flatmap_for_all, insert_batched_with_dups)
 {
   using MapType = typename TestFixture::MapType;
   using ExecSpace = typename TestFixture::ExecSpace;
@@ -417,7 +417,7 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_with_dups)
   }
 }
 
-AXOM_TYPED_TEST(core_flatmap_forall, insert_multiple_batch_with_dups)
+AXOM_TYPED_TEST(core_flatmap_for_all, insert_multiple_batch_with_dups)
 {
   using MapType = typename TestFixture::MapType;
   using ExecSpace = typename TestFixture::ExecSpace;
@@ -504,7 +504,7 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_multiple_batch_with_dups)
  *  - Delete a few of the elements on the same probing path
  *  - Perform a batched insert, with duplicates.
  */
-AXOM_TYPED_TEST(core_flatmap_forall, insert_batch_with_gaps_and_dups)
+AXOM_TYPED_TEST(core_flatmap_for_all, insert_batch_with_gaps_and_dups)
 {
   using MapType = typename TestFixture::MapType;
   using ExecSpace = typename TestFixture::ExecSpace;
