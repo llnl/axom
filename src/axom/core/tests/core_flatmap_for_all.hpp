@@ -511,111 +511,119 @@ AXOM_TYPED_TEST(core_flatmap_for_all, insert_batch_with_gaps_and_dups)
 
   const int NUM_ELEMS = 200;
 
-  // Allocate enough space to ensure rehashes don't eliminate probing sequence gaps.
-  MapType test_map(NUM_ELEMS * 4);
+  // Seed triplet observed to trigger an insertion regression in an OpenMP configuration
+  const std::mt19937::result_type seed_insert = 1087231065u;
+  const std::mt19937::result_type seed_batch_1 = 1693880942u;
+  const std::mt19937::result_type seed_batch_2 = 3511204532u;
 
-  // Shuffle inserted elements.
-  std::vector<int> shuffled_indexes(NUM_ELEMS);
-  std::iota(shuffled_indexes.begin(), shuffled_indexes.end(), 0);
-  std::shuffle(shuffled_indexes.begin(),
-               shuffled_indexes.end(),
-               std::mt19937 {std::random_device {}()});
-
-  // Insert initial elements, in shuffled order.
-  for(int i = 0; i < NUM_ELEMS; i++)
+  // Repeat the test as necessary to catch scheduling dependent regression
+  int num_trials = 20;
+  if(const char *env_iters = std::getenv("AXOM_FLATMAP_TEST_STRESS_ITERS"))
   {
-    int shuf_i = shuffled_indexes[i];
-    auto key = this->getKey(shuf_i);
-    auto value = this->getValue(shuf_i * 10.0 + 5.0);
-
-    test_map.emplace(key, value);
+    num_trials = std::max(1, std::atoi(env_iters));
   }
 
-  // Delete every third element.
-  // This is intended to creates gaps in probing sequences.
-  int num_erases = 0;
-  for(int i = 0; i < NUM_ELEMS / 3; i++)
+  for(int trial = 0; trial < num_trials; ++trial)
   {
-    int index = i * 3 + 2;
-    auto key = this->getKey(index);
+    // Allocate enough space to ensure rehashes don't eliminate probing sequence gaps.
+    MapType test_map(NUM_ELEMS * 4);
 
-    auto it = test_map.find(key);
-    test_map.erase(it);
-    num_erases++;
-  }
+    // Shuffle inserted elements.
+    std::vector<int> shuffled_indexes(NUM_ELEMS);
+    std::iota(shuffled_indexes.begin(), shuffled_indexes.end(), 0);
+    std::shuffle(shuffled_indexes.begin(), shuffled_indexes.end(), std::mt19937 {seed_insert});
 
-  EXPECT_EQ(test_map.size(), NUM_ELEMS - num_erases);
+    // Insert initial elements, in shuffled order.
+    for(int i = 0; i < NUM_ELEMS; i++)
+    {
+      int shuf_i = shuffled_indexes[i];
+      auto key = this->getKey(shuf_i);
+      auto value = this->getValue(shuf_i * 10.0 + 5.0);
 
-  MapType test_map_gpu(test_map, axom::Allocator {this->getKernelAllocatorID()});
+      test_map.emplace(key, value);
+    }
 
-  axom::Array<std::pair<int, double>> second_batch_pairs(NUM_ELEMS * 2);
+    // Delete every third element.
+    // This is intended to creates gaps in probing sequences.
+    int num_erases = 0;
+    for(int i = 0; i < NUM_ELEMS / 3; i++)
+    {
+      const int index = i * 3 + 2;
+      const auto key = this->getKey(index);
+      const auto it = test_map.find(key);
+      EXPECT_TRUE(it != test_map.end());
 
-  // Add some duplicate key values through the batched interface.
-  std::shuffle(shuffled_indexes.begin(),
-               shuffled_indexes.end(),
-               std::mt19937 {std::random_device {}()});
-  for(int i = 0; i < NUM_ELEMS; i++)
-  {
-    int shuf_i = shuffled_indexes[i];
-    auto key = this->getKey(shuf_i);
-    auto value = this->getValue(shuf_i * 10.0 + 6.0);
+      test_map.erase(it);
+      num_erases++;
+    }
 
-    second_batch_pairs[i] = {key, value};
-  }
+    EXPECT_EQ(test_map.size(), NUM_ELEMS - num_erases);
 
-  // Add a second set of duplicates.
-  // Since these ones are at the end of the sequence, they should be the ones
-  // actually written into the map.
-  std::shuffle(shuffled_indexes.begin(),
-               shuffled_indexes.end(),
-               std::mt19937 {std::random_device {}()});
-  for(int i = 0; i < NUM_ELEMS; i++)
-  {
-    int shuf_i = shuffled_indexes[i];
-    auto key = this->getKey(shuf_i);
-    auto value = this->getValue(shuf_i * 10.0 + 7.0);
+    MapType test_map_gpu(test_map, axom::Allocator {this->getKernelAllocatorID()});
 
-    second_batch_pairs[i + NUM_ELEMS] = {key, value};
-  }
-  // Copy pairs to GPU space.
-  axom::Array<std::pair<int, double>> second_batch_gpu(second_batch_pairs,
-                                                       this->getKernelAllocatorID());
+    axom::Array<std::pair<int, double>> second_batch_pairs(NUM_ELEMS * 2);
 
-  // Perform batched insert.
-  test_map_gpu.template insert<ExecSpace>(second_batch_gpu.data(),
-                                          second_batch_gpu.data() + NUM_ELEMS * 2);
+    // Add some duplicate key values through the batched interface.
+    std::shuffle(shuffled_indexes.begin(), shuffled_indexes.end(), std::mt19937 {seed_batch_1});
+    for(int i = 0; i < NUM_ELEMS; i++)
+    {
+      const int shuf_i = shuffled_indexes[i];
+      const auto key = this->getKey(shuf_i);
+      const auto value = this->getValue(shuf_i * 10.0 + 6.0);
 
-  // Copy back flat map to host for testing.
-  test_map = MapType(test_map_gpu, axom::Allocator {this->getHostAllocatorID()});
+      second_batch_pairs[i] = {key, value};
+    }
 
-  // Check contents on the host. Only one of the duplicate keys should remain.
-  EXPECT_EQ(NUM_ELEMS, test_map.size());
+    // Add a second set of duplicates.
+    // Since these are at the end of the sequence, they should be the ones written into the map.
+    std::shuffle(shuffled_indexes.begin(), shuffled_indexes.end(), std::mt19937 {seed_batch_2});
+    for(int i = 0; i < NUM_ELEMS; i++)
+    {
+      const int shuf_i = shuffled_indexes[i];
+      const auto key = this->getKey(shuf_i);
+      const auto value = this->getValue(shuf_i * 10.0 + 7.0);
 
-  // Check that every element we inserted is in the map
-  for(int i = 0; i < NUM_ELEMS; i++)
-  {
-    auto expected_key = this->getKey(i);
-    auto expected_val1 = this->getValue(i * 10.0 + 5.0);
-    auto expected_val2 = this->getValue(i * 10.0 + 7.0);
-    EXPECT_EQ(1, test_map.count(expected_key));
-    // Second key-value pair in batch-order should overwrite first pair with
-    // same key.
-    EXPECT_EQ(expected_val2, test_map.at(expected_key));
-    EXPECT_NE(expected_val1, test_map.at(expected_key));
-  }
+      second_batch_pairs[i + NUM_ELEMS] = {key, value};
+    }
+    // Copy pairs to GPU space.
+    axom::Array<std::pair<int, double>> second_batch_gpu(second_batch_pairs,
+                                                         this->getKernelAllocatorID());
 
-  // Check that we only have one instance of every key in the map
-  axom::Array<int> dedup_keys(NUM_ELEMS);
-  for(auto &pair : test_map)
-  {
-    // Check that we haven't seen another K-V pair with the same key.
-    EXPECT_EQ(dedup_keys[pair.first], 0);
-    dedup_keys[pair.first]++;
+    // Perform batched insert.
+    test_map_gpu.template insert<ExecSpace>(second_batch_gpu.data(),
+                                            second_batch_gpu.data() + NUM_ELEMS * 2);
 
-    // Check that we got the second KV pair, not the first.
-    auto expected_val1 = this->getValue(pair.first * 10.0 + 5.0);
-    auto expected_val2 = this->getValue(pair.first * 10.0 + 7.0);
-    EXPECT_EQ(expected_val2, pair.second);
-    EXPECT_NE(expected_val1, pair.second);
+    // Copy back flat map to host for testing.
+    test_map = MapType(test_map_gpu, axom::Allocator {this->getHostAllocatorID()});
+
+    // Check contents on the host. Only one of the duplicate keys should remain.
+    EXPECT_EQ(NUM_ELEMS, test_map.size());
+
+    // Check that every element we inserted is in the map
+    for(int i = 0; i < NUM_ELEMS; i++)
+    {
+      auto expected_key = this->getKey(i);
+      auto expected_val1 = this->getValue(i * 10.0 + 5.0);
+      auto expected_val2 = this->getValue(i * 10.0 + 7.0);
+      EXPECT_EQ(1, test_map.count(expected_key));
+      // Second key-value pair in batch-order should overwrite first pair with same key
+      EXPECT_EQ(expected_val2, test_map.at(expected_key));
+      EXPECT_NE(expected_val1, test_map.at(expected_key));
+    }
+
+    // Check that we only have one instance of every key in the map
+    axom::Array<int> dedup_keys(NUM_ELEMS);
+    for(auto &pair : test_map)
+    {
+      // Check that we haven't seen another K-V pair with the same key.
+      EXPECT_EQ(dedup_keys[pair.first], 0);
+      dedup_keys[pair.first]++;
+
+      // Check that we got the second KV pair, not the first.
+      auto expected_val1 = this->getValue(pair.first * 10.0 + 5.0);
+      auto expected_val2 = this->getValue(pair.first * 10.0 + 7.0);
+      EXPECT_EQ(expected_val2, pair.second);
+      EXPECT_NE(expected_val1, pair.second);
+    }
   }
 }
