@@ -78,9 +78,15 @@ axom_add_executable(NAME       core_serial_tests
                     FOLDER     axom/core/tests )
 
 foreach(test_suite ${core_serial_tests})
+    set(_num_threads)
+    if(test_suite MATCHES "(for_all|device)" AND AXOM_ENABLE_OPENMP)
+        set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+    endif()
+
     get_filename_component( test_suite ${test_suite} NAME_WE )
-    axom_add_test( NAME    ${test_suite}_serial
-                   COMMAND core_serial_tests --gtest_filter=${test_suite}* )
+    axom_add_test( NAME            ${test_suite}_serial
+                   COMMAND         core_serial_tests --gtest_filter=${test_suite}*
+                   NUM_OMP_THREADS ${_num_threads})
 endforeach()
 
 #------------------------------------------------------------------------------
