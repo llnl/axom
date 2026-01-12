@@ -16,6 +16,7 @@
 
 import sys
 import os
+import json
 from svgpathtools import (
     Document,
     Path,
@@ -294,6 +295,32 @@ class MFEMData:
             f.write("\n".join(mfem_file))
 
 
+def compute_svg_path_stats(paths):
+    stats = {
+        "paths_total": len(paths),
+        "curves_order_1": 0,
+        "curves_order_2": 0,
+        "curves_order_3": 0,
+        "elliptical_arcs": 0,
+        "unknown_segments": 0,
+    }
+
+    for p in paths:
+        for seg in p:
+            if isinstance(seg, Line):
+                stats["curves_order_1"] += 1
+            elif isinstance(seg, QuadraticBezier):
+                stats["curves_order_2"] += 1
+            elif isinstance(seg, CubicBezier):
+                stats["curves_order_3"] += 1
+            elif isinstance(seg, Arc):
+                stats["elliptical_arcs"] += 1
+            else:
+                stats["unknown_segments"] += 1
+
+    return stats
+
+
 def parse_args():
 
     parser = argparse.ArgumentParser(description="svg2contours: Convert the curves in an SVG to MFEM NURBS mesh")
@@ -316,12 +343,28 @@ def parse_args():
     )
 
     parser.add_argument(
-        "-r", "--reverse", dest="reverse_paths", default=False, action="store_true", 
-        help="reverses paths (can be helpful during coordinate system transformation from y-axis pointing down to up)"
+        "--stats",
+        dest="statsfile",
+        default=None,
+        help="Optional output JSON file with SVG curve statistics (use '-' for stdout)",
     )
 
     parser.add_argument(
-        "-v", "--verbose", dest="verbose", default=False, action="store_true", help="verbose output flag"
+        "-r",
+        "--reverse",
+        dest="reverse_paths",
+        default=False,
+        action="store_true",
+        help="reverses paths (can be helpful during coordinate system transformation from y-axis pointing down to up)",
+    )
+
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        default=False,
+        action="store_true",
+        help="verbose output flag",
     )
 
     opts = parser.parse_args()
@@ -348,6 +391,19 @@ def main():
             print(f"\t{k}: {v}")
 
     coordinate_transform = get_root_transform(doc)
+
+    ## Optionally, generate a json file w/ stats about the number of curves/paths
+    stats_file = opts.get("statsfile", None)
+    if stats_file:
+        stats = compute_svg_path_stats(paths)
+        stats["input_svg"] = os.path.relpath(input_file, os.getcwd())
+
+        stats_json = json.dumps(stats, indent=2, sort_keys=True)
+        if stats_file == "-":
+            print(stats_json)
+        else:
+            with open(stats_file, mode="w", encoding="utf-8") as f:
+                f.write(stats_json + "\n")
 
     ## Process SVG paths
     if verbose:
