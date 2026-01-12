@@ -168,7 +168,7 @@ jobs:
           ctest -T Test --output-on-failure -V
         shell: bash
   check_code:
-    runs-on: ubuntu-24.04
+    runs-on: radiuss-cpu-runners
     needs:
     - set_image_vars
     strategy:
