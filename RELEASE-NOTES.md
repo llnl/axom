@@ -90,6 +90,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Optimized `Array::push_back()` and `Array::emplace_back()` operations.
 - Quest: In Shaping applications, we now check return code after attempting to load a mesh
   and throw an error for unsuccessful loads.
+- Core: Bugfix for batched insertion into a FlatMap with deleted entries
 
 ###  Deprecated
 
