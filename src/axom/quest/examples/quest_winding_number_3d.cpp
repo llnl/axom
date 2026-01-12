@@ -115,124 +115,123 @@ int main(int argc, char** argv)
 {
   axom::slic::SimpleLogger raii_logger;
 
-  axom::CLI::App app {
-    "Load a STEP file containing trimmed NURBS patches "
-    "and optionally generate a query grid of generalized winding numbers."};
-
   std::string inputFile;
   std::string outputPrefix {"winding3d"};
-
   bool verbose {false};
   bool validate {false};
   std::string annotationMode {"none"};
   bool memoized {true};
-
-  // Query mesh parameters (either 2D slice or full 3D grid)
   std::vector<double> boxMins;
   std::vector<double> boxMaxs;
   std::vector<int> boxResolution;
   int queryOrder {1};
   double sliceZ {0.0};
-
-  // Winding-number tolerances
   WindingTolerances tol;
 
-  app.add_option("-i,--input", inputFile)
-    ->description("Input STEP file containing a trimmed NURBS BRep")
-    ->required()
-    ->check(axom::CLI::ExistingFile);
+  axom::CLI::App app {
+    "Load a STEP file containing trimmed NURBS patches "
+    "and optionally generate a query grid of generalized winding numbers."};
 
-  app.add_option("-o,--output-prefix", outputPrefix)
-    ->description("Prefix for output query grid (in MFEM format) containing winding number results")
-    ->capture_default_str();
+  // Command line options and validation
+  {
+    app.add_option("-i,--input", inputFile)
+      ->description("Input STEP file containing a trimmed NURBS BRep")
+      ->required()
+      ->check(axom::CLI::ExistingFile);
 
-  app.add_flag("-v,--verbose", verbose, "verbose output")->capture_default_str();
-  app.add_flag("--validate", validate, "Run STEP model validation checks")->capture_default_str();
-  app.add_flag("--memoized,!--no-memoized", memoized, "Cache geometric data during query?")
-    ->capture_default_str();
+    app.add_option("-o,--output-prefix", outputPrefix)
+      ->description(
+        "Prefix for output query grid (in MFEM format) containing winding number results")
+      ->capture_default_str();
 
-  // Options for query tolerances; for now, only expose the line search and quadrature tolerances
-  app.add_option("--ls-tol", tol.ls_tol)
-    ->description("Tolerance for line-surface intersection")
-    ->check(axom::CLI::PositiveNumber)
-    ->capture_default_str();
-  app.add_option("--quad-tol", tol.quad_tol)
-    ->description("Relative error tolerance for quadrature")
-    ->check(axom::CLI::PositiveNumber)
-    ->capture_default_str();
+    app.add_flag("-v,--verbose", verbose, "verbose output")->capture_default_str();
+    app.add_flag("--validate", validate, "Run STEP model validation checks")->capture_default_str();
+    app.add_flag("--memoized,!--no-memoized", memoized, "Cache geometric data during query?")
+      ->capture_default_str();
+
+    // Options for query tolerances; for now, only expose the line search and quadrature tolerances
+    app.add_option("--ls-tol", tol.ls_tol)
+      ->description("Tolerance for line-surface intersection")
+      ->check(axom::CLI::PositiveNumber)
+      ->capture_default_str();
+    app.add_option("--quad-tol", tol.quad_tol)
+      ->description("Relative error tolerance for quadrature")
+      ->check(axom::CLI::PositiveNumber)
+      ->capture_default_str();
 
 #ifdef AXOM_USE_CALIPER
-  app.add_option("--caliper", annotationMode)
-    ->description(
-      "caliper annotation mode. Valid options include 'none' and 'report'. "
-      "Use 'help' to see full list.")
-    ->capture_default_str()
-    ->check(axom::utilities::ValidCaliperMode);
+    app.add_option("--caliper", annotationMode)
+      ->description(
+        "caliper annotation mode. Valid options include 'none' and 'report'. "
+        "Use 'help' to see full list.")
+      ->capture_default_str()
+      ->check(axom::utilities::ValidCaliperMode);
 #endif
 
-  auto* query_mesh_subcommand =
-    app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
+    auto* query_mesh_subcommand =
+      app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
 
-  auto* minbb = query_mesh_subcommand->add_option("--min", boxMins)
-                  ->description("Min bounds for box mesh (x,y[,z])")
-                  ->expected(2, 3);
-  auto* maxbb = query_mesh_subcommand->add_option("--max", boxMaxs)
-                  ->description("Max bounds for box mesh (x,y[,z])")
-                  ->expected(2, 3);
-  query_mesh_subcommand->add_option("--res", boxResolution)
-    ->description("Resolution of the box mesh (i,j[,k])")
-    ->expected(2, 3)
-    ->required();
-  query_mesh_subcommand->add_option("--order", queryOrder)
-    ->description("polynomial order of the query mesh")
-    ->check(axom::CLI::PositiveNumber);
-  query_mesh_subcommand->add_option("--slice-z", sliceZ)
-    ->description("Z value for 2D slice query meshes (when --min/--max are 2D)")
-    ->capture_default_str();
+    auto* minbb = query_mesh_subcommand->add_option("--min", boxMins)
+                    ->description("Min bounds for box mesh (x,y[,z])")
+                    ->expected(2, 3);
+    auto* maxbb = query_mesh_subcommand->add_option("--max", boxMaxs)
+                    ->description("Max bounds for box mesh (x,y[,z])")
+                    ->expected(2, 3);
+    query_mesh_subcommand->add_option("--res", boxResolution)
+      ->description("Resolution of the box mesh (i,j[,k])")
+      ->expected(2, 3)
+      ->required();
+    query_mesh_subcommand->add_option("--order", queryOrder)
+      ->description("polynomial order of the query mesh")
+      ->check(axom::CLI::PositiveNumber);
+    query_mesh_subcommand->add_option("--slice-z", sliceZ)
+      ->description("Z value for 2D slice query meshes (when --min/--max are 2D)")
+      ->capture_default_str();
 
-  // add some requirements -- if user provides minbb or maxbb, we need both
-  minbb->needs(maxbb);
-  maxbb->needs(minbb);
+    // add some requirements -- if user provides minbb or maxbb, we need both
+    minbb->needs(maxbb);
+    maxbb->needs(minbb);
 
-  // let's also check that they're consistently sized w/ each other and with the resolution
-  query_mesh_subcommand->callback([&]() {
-    if(const bool have_box = (minbb->count() > 0 || maxbb->count() > 0); have_box)
-    {
-      if(boxMins.size() != boxMaxs.size())
+    // let's also check that they're consistently sized w/ each other and with the resolution
+    query_mesh_subcommand->callback([&]() {
+      if(const bool have_box = (minbb->count() > 0 || maxbb->count() > 0); have_box)
       {
-        throw axom::CLI::ValidationError(
-          "--min/--max",
-          axom::fmt::format("must have the same number of values (2 for 2D or 3 for 3D). "
-                            "Got --min={}, --max={}",
-                            boxMins.size(),
-                            boxMaxs.size()));
-      }
-
-      for(size_t d = 0; d < boxMins.size(); ++d)
-      {
-        if(boxMins[d] >= boxMaxs[d])
+        if(boxMins.size() != boxMaxs.size())
         {
           throw axom::CLI::ValidationError(
             "--min/--max",
+            axom::fmt::format("must have the same number of values (2 for 2D or 3 for 3D). "
+                              "Got --min={}, --max={}",
+                              boxMins.size(),
+                              boxMaxs.size()));
+        }
+
+        for(size_t d = 0; d < boxMins.size(); ++d)
+        {
+          if(boxMins[d] >= boxMaxs[d])
+          {
+            throw axom::CLI::ValidationError(
+              "--min/--max",
+              axom::fmt::format(
+                "must satisfy min < max in every dimension; failed at index {}, mins: {}, maxs: {}",
+                d,
+                boxMins,
+                boxMaxs));
+          }
+        }
+
+        if(boxResolution.size() != boxMins.size())
+        {
+          throw axom::CLI::ValidationError(
+            "--res",
             axom::fmt::format(
-              "must satisfy min < max in every dimension; failed at index {}, mins: {}, maxs: {}",
-              d,
-              boxMins,
-              boxMaxs));
+              "must have the same number of values as --min/--max. Got --res={}, --min/--max={}",
+              boxResolution.size(),
+              boxMins.size()));
         }
       }
-
-      if(boxResolution.size() != boxMins.size())
-      {
-        throw axom::CLI::ValidationError(
-          "--res",
-          axom::fmt::format(
-            "must have the same number of values as --min/--max. Got --res={}, --min/--max={}",
-            boxResolution.size(),
-            boxMins.size()));
-      }
-    }
-  });
+    });
+  }
 
   CLI11_PARSE(app, argc, argv);
 
@@ -259,7 +258,8 @@ int main(int argc, char** argv)
   step_read_timer.stop();
   SLIC_INFO(step_reader.getBRepStats());
   SLIC_INFO(axom::fmt::format("STEP file units: {}", step_reader.getFileUnits()));
-  SLIC_INFO(axom::fmt::format("Loaded {} trimmed NURBS patches in {:.3Lf} seconds",
+  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                              "Loaded {} trimmed NURBS patches in {:.3Lf} seconds",
                               patches.size(),
                               step_read_timer.elapsed()));
 
@@ -269,7 +269,7 @@ int main(int argc, char** argv)
     return 0;
   }
 
-  // Extract the patches and compute their bounding boxes along the way
+  // Preprocessing: Extract the patches and compute their bounding boxes along the way
   BoundingBox3D bbox;
   axom::Array<PatchGWNCache> memoized_patches(0, memoized ? patches.size() : 0);
   {
@@ -298,18 +298,22 @@ int main(int argc, char** argv)
   }
   SLIC_INFO(axom::fmt::format("Patch collection bounding box: {}", bbox));
 
+  // Query grid setup; has some dimension-specific types;
+  // if user did not provide a bounding box, user input bounding box scaled by 10%
   mfem::DataCollection dc("winding_query");
 
-  const int query_resolution = boxResolution.size();
+  const int query_dim = boxResolution.size();
   const bool has_query_box = boxMins.size() > 0;
-  if(query_resolution == 2)
+  constexpr double scale_factor = 1.1;
+  if(query_dim == 2)
   {
     using Point2D = primal::Point<double, 2>;
     const auto query_res = axom::NumericArray<int, 2>(boxResolution.data());
     const auto query_box = has_query_box
       ? BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()))
       : BoundingBox2D(Point2D({bbox.getMin()[0], bbox.getMin()[1]}),
-                      Point2D({bbox.getMax()[0], bbox.getMax()[1]}));
+                      Point2D({bbox.getMax()[0], bbox.getMax()[1]}))
+          .scale(scale_factor);
 
     SLIC_INFO(
       axom::fmt::format("Query grid resolution {} within bounding box {}", query_res, query_box));
@@ -326,7 +330,7 @@ int main(int argc, char** argv)
     const auto query_res = axom::NumericArray<int, 3>(boxResolution.data());
     const auto query_box = has_query_box
       ? BoundingBox3D(Point3D(boxMins.data()), Point3D(boxMaxs.data()))
-      : BoundingBox3D(bbox.getMin(), bbox.getMax());
+      : BoundingBox3D(bbox.getMin(), bbox.getMax()).scale(scale_factor);
 
     SLIC_INFO(
       axom::fmt::format("Query grid resolution {} within bounding box {}", query_res, query_box));
@@ -353,11 +357,12 @@ int main(int argc, char** argv)
 
     const int ndofs = dc.GetField("winding")->FESpace()->GetNDofs();
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Querying {} samples in winding number field took {:.3Lf} seconds"
-                                " (@ {:.0Lf} queries per second)",
+                                "Querying {:L} samples in winding number field took {:.3Lf} seconds"
+                                " (@ {:.0Lf} queries per second; {:.2Lf} ms per query)",
                                 ndofs,
                                 query_timer.elapsed(),
-                                ndofs / query_timer.elapsed()));
+                                ndofs / query_timer.elapsed(),
+                                query_timer.elapsedTimeInMilliSec() / ndofs));
     AXOM_ANNOTATE_METADATA("query_points", ndofs, "");
     AXOM_ANNOTATE_METADATA("query_time", query_timer.elapsed(), "");
   }
