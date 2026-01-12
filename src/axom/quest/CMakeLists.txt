@@ -140,14 +140,32 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
         list(APPEND quest_headers Shaper.hpp
                                   DiscreteShape.hpp
                                   IntersectionShaper.hpp
-                                  detail/shaping/shaping_helpers.hpp)
+                                  detail/shaping/shaping_helpers.hpp
+                                  ShapeMesh.hpp)
         list(APPEND quest_sources Shaper.cpp
-                                DiscreteShape.cpp
-                                detail/shaping/shaping_helpers.cpp)
-        list(APPEND quest_depends_on klee)       
+                                  DiscreteShape.cpp
+                                  detail/shaping/shaping_helpers.cpp
+                                  ShapeMesh.cpp)
+        list(APPEND quest_depends_on klee)
+        if(RAJA_FOUND)
+            list(APPEND quest_headers MeshClipper.hpp
+                                      MeshClipperStrategy.hpp
+                                      detail/clipping/Plane3DClipper.hpp
+                                      detail/clipping/TetClipper.hpp
+                                      detail/clipping/HexClipper.hpp
+                                      detail/clipping/SphereClipper.hpp
+                                      detail/clipping/MeshClipperImpl.hpp)
+            list(APPEND quest_sources MeshClipper.cpp
+                                      MeshClipperStrategy.cpp
+                                      detail/clipping/Plane3DClipper.cpp
+                                      detail/clipping/TetClipper.cpp
+                                      detail/clipping/HexClipper.cpp
+                                      detail/clipping/SphereClipper.cpp
+                                      detail/clipping/MeshClipperImpl.hpp)
+        endif()
     endif()
 
-    if(MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+    if(MFEM_FOUND AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
         list(APPEND quest_headers SamplingShaper.hpp 
                                   detail/shaping/InOutSampler.hpp
                                   detail/shaping/PrimitiveSampler.hpp
@@ -158,19 +176,27 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
 endif()
 
 if(C2C_FOUND)
-    list(APPEND quest_headers io/C2CReader.hpp)
-    list(APPEND quest_sources io/C2CReader.cpp)
-    list(APPEND quest_depends_on c2c)
+    list(APPEND quest_headers       io/C2CReader.hpp)
+    list(APPEND quest_sources       io/C2CReader.cpp)
+    list(APPEND quest_depends_on    c2c)
+endif()
+
+if(OPENCASCADE_FOUND)
+    list(APPEND quest_headers       io/STEPReader.hpp)
+    list(APPEND quest_sources       io/STEPReader.cpp)
+    list(APPEND quest_depends_on    opencascade)
 endif()
 
 if (AXOM_ENABLE_MPI)
     list(APPEND quest_headers io/PSTLReader.hpp
                               io/PProEReader.hpp)
     blt_list_append(TO quest_headers IF C2C_FOUND ELEMENTS io/PC2CReader.hpp)
+    blt_list_append(TO quest_headers IF OPENCASCADE_FOUND ELEMENTS io/PSTEPReader.hpp)
 
     list(APPEND quest_sources io/PSTLReader.cpp
                               io/PProEReader.cpp)
     blt_list_append(TO quest_sources IF C2C_FOUND ELEMENTS io/PC2CReader.cpp)
+    blt_list_append(TO quest_sources IF OPENCASCADE_FOUND ELEMENTS io/PSTEPReader.cpp)
 endif()
 
 if (SHROUD_FOUND)
@@ -182,6 +208,7 @@ if (ENABLE_FORTRAN)
     list(APPEND quest_headers interface/c_fortran/wrapQUEST.h)
     list(APPEND quest_headers interface/c_fortran/typesQUEST.h)
     list(APPEND quest_sources interface/c_fortran/wrapQUEST.cpp)
+    list(APPEND quest_sources interface/c_fortran/utilQUEST.cpp)
     list(APPEND quest_sources interface/c_fortran/wrapfquest.F)
 endif()
 

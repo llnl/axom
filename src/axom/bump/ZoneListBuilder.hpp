@@ -72,8 +72,7 @@ public:
       m_topologyView.numberOfZones(),
       AXOM_LAMBDA(axom::IndexType zoneIndex) {
         const auto zone = deviceTopologyView.zone(zoneIndex);
-
-        const auto matZoneIndex = deviceTopologyView.indexing().LocalToGlobal(zoneIndex);
+        const auto matZoneIndex = zoneIndex;
         const int nmats = deviceMatsetView.numberOfMaterials(matZoneIndex);
 
         const auto nnodesThisZone = zone.numberOfNodes();
@@ -205,8 +204,7 @@ public:
       AXOM_LAMBDA(axom::IndexType szIndex) {
         const auto zoneIndex = selectedZonesView[szIndex];
         const auto zone = deviceTopologyView.zone(zoneIndex);
-
-        const auto matZoneIndex = deviceTopologyView.indexing().LocalToGlobal(zoneIndex);
+        const auto matZoneIndex = zoneIndex;
         const int nmats = deviceMatsetView.numberOfMaterials(matZoneIndex);
 
         const auto nnodesThisZone = zone.numberOfNodes();
@@ -324,12 +322,11 @@ public:
     auto maskView = mask.view();
     axom::ReduceSum<ExecSpace, int> mask_reduce(0);
     const MatsetView deviceMatsetView(m_matsetView);
-    const TopologyView deviceTopologyView(m_topologyView);
     axom::for_all<ExecSpace>(
       selectedZonesView.size(),
       AXOM_LAMBDA(axom::IndexType szIndex) {
         const auto zoneIndex = selectedZonesView[szIndex];
-        const auto matZoneIndex = deviceTopologyView.indexing().LocalToGlobal(zoneIndex);
+        const auto matZoneIndex = zoneIndex;
 
         // clean zone == 1, mixed zone = 0
         const int ival = (deviceMatsetView.numberOfMaterials(matZoneIndex) == 1) ? 1 : 0;

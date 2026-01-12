@@ -7,7 +7,7 @@
 #define AXOM_MEMORYMANAGEMENT_HPP_
 
 // Axom includes
-#include "axom/config.hpp"  // for AXOM compile-time definitions
+#include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 
@@ -143,6 +143,23 @@ inline int getAllocatorIDFromPointer(const void* ptr)
 #endif
   return ptr == nullptr ? INVALID_ALLOCATOR_ID : MALLOC_ALLOCATOR_ID;
 }
+
+/*!
+ * \brief Determines whether an allocator id is for shared memory.
+ *
+ * \param allocID An allocator id.
+ *
+ * \return True if the allocator id is for shared memory; false otherwise.
+ */
+bool isSharedMemoryAllocator(int allocID);
+
+/*!
+ * \brief Get the allocator ID for Axom's shared memory allocator.
+ *
+ * \return The allocator ID for Axom's shared memory allocator (if Axom is using Umpire),
+ *         or INVALID_ALLOCATOR_ID otherwise.
+ */
+int getSharedMemoryAllocatorID();
 
 /*!
  * \brief Allocates a chunk of memory of type T.

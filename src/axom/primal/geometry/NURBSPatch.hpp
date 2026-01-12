@@ -842,8 +842,11 @@ public:
   /// Retrieves the vector of control points at index \a idx
   const PointType& operator()(int ui, int vi) const { return m_controlPoints(ui, vi); }
 
-  /// Returns a copy of the NURBS patch's control points
-  CoordsMat getControlPoints() const { return m_controlPoints; }
+  /// Returns a reference to the NURBS patch's control points
+  CoordsMat& getControlPoints() { return m_controlPoints; }
+
+  /// Returns a reference to the NURBS patch's control points
+  const CoordsMat& getControlPoints() const { return m_controlPoints; }
 
   /*!
    * \brief Get a specific weight
@@ -875,8 +878,11 @@ public:
     m_weights(ui, vi) = weight;
   }
 
-  /// Returns a copy of the NURBS patch's weights
-  WeightsMat getWeights() const { return m_weights; }
+  /// Returns a reference to the NURBS patch's weights
+  WeightsMat& getWeights() { return m_weights; }
+
+  /// Returns a const reference to the NURBS patch's weights
+  const WeightsMat& getWeights() const { return m_weights; }
 
   /// \brief Returns an axis-aligned bounding box containing the patch
   BoundingBoxType boundingBox() const
@@ -947,17 +953,17 @@ public:
    */
   void setKnots_v(const KnotVectorType& knotVector) { m_knotvec_v = knotVector; }
 
-  /// \brief Return a copy of the KnotVector instance on the first axis
-  KnotVectorType getKnots_u() const { return m_knotvec_u; }
+  /// \brief Return a reference to the KnotVector instance on the first axis
+  KnotVectorType& getKnots_u() { return m_knotvec_u; }
 
-  /// \brief Return an array of knot values on the first axis
-  axom::Array<T> getKnotsArray_u() const { return m_knotvec_u.getArray(); }
+  /// \brief Return a const reference to the KnotVector instance on the first axis
+  const KnotVectorType& getKnots_u() const { return m_knotvec_u; }
 
   /// \brief Get the minimum knot value in the u-axis
-  T getMinKnot_u() const { return m_knotvec_u[0]; }
+  T getMinKnot_u() const { return m_knotvec_u.getMinKnot(); }
 
   /// \brief Get the maximum knot value in the u-axis
-  T getMaxKnot_u() const { return m_knotvec_u[m_knotvec_u.getNumKnots() - 1]; }
+  T getMaxKnot_u() const { return m_knotvec_u.getMaxKnot(); }
 
   /// \brief Get the length of the parameter space bounding box
   T getParameterSpaceDiagonal() const
@@ -968,17 +974,17 @@ public:
     return std::sqrt(u_length * u_length + v_length * v_length);
   }
 
-  /// \brief Return a copy of the KnotVector instance on the second axis
-  KnotVectorType getKnots_v() const { return m_knotvec_v; }
+  /// \brief Return a reference to the KnotVector instance on the second axis
+  KnotVectorType& getKnots_v() { return m_knotvec_v; }
 
-  /// \brief Return an array of knot values on the second axis
-  axom::Array<T> getKnotsArray_v() const { return m_knotvec_v.getArray(); }
+  /// \brief Return a const reference to the KnotVector instance on the second axis
+  const KnotVectorType& getKnots_v() const { return m_knotvec_v; }
 
   /// \brief Get the minimum knot value in the v-axis
-  T getMinKnot_v() const { return m_knotvec_v[0]; }
+  T getMinKnot_v() const { return m_knotvec_v.getMinKnot(); }
 
   /// \brief Get the maximum knot value in the v-axis
-  T getMaxKnot_v() const { return m_knotvec_v[m_knotvec_v.getNumKnots() - 1]; }
+  T getMaxKnot_v() const { return m_knotvec_v.getMaxKnot(); }
 
   /// \brief Return the length of the knot vector on the first axis
   int getNumKnots_u() const { return m_knotvec_u.getNumKnots(); }
@@ -2476,7 +2482,6 @@ public:
     return VectorType::cross_product(Du, Dv);
   }
 
-#ifdef AXOM_USE_MFEM
   /*!
    * \brief Calculate the average normal for the (untrimmed) patch
    * 
@@ -2489,7 +2494,7 @@ public:
    *  then computes the 2D area of that projection to get the corresponding
    *  component of the average surface normal.
    *  
-   * \note This requires the MFEM third-party library
+   * Evaluates the integral with Gauss-Legendre quadrature on each boundary curve
    * 
    * \return The calculated mean surface normal
    */
@@ -2572,7 +2577,6 @@ public:
     ret_vec[1] = -ret_vec[1];
     return ret_vec;
   }
-#endif
   ///@}
 
   ///@{
@@ -3082,17 +3086,15 @@ public:
     {
       for(int j = 0; j < num_knot_span_v - 1; ++j)
       {
-        split_patches[i * num_knot_span_v + j].split_v(
-          knot_vals_v[i + 1],
-          split_patches[i * num_knot_span_v + j],
-          split_patches[(i + 1) * num_knot_span_v + j + 1]);
+        split_patches[i * num_knot_span_v + j].split_v(knot_vals_v[j + 1],
+                                                       split_patches[i * num_knot_span_v + j],
+                                                       split_patches[i * num_knot_span_v + j + 1]);
       }
     }
 
     return split_patches;
   }
 
-#ifdef AXOM_USE_MFEM
   /*!
    * \brief Calculate the average normal for the trimmed patch
    * 
@@ -3101,7 +3103,7 @@ public:
    * Decomposes the NURBS surface into trimmed Bezier components (to ensure differentiability of the integrand) 
    *  and evaluates the integral numerically on each component using trimming curves
    * 
-   * \note This requires the MFEM third-party library
+   * Evaluates the integral with Gauss-Legendre quadrature on each boundary curve
    * 
    * \return The calculated mean surface normal
    */
@@ -3109,30 +3111,20 @@ public:
   {
     SLIC_ASSERT(NDIMS == 3);
 
-    // Split the patch along the unique knot values to improve convergence
-    auto split_patches = extractTrimmedBezier();
-
     VectorType ret_vec;
-    for(int n = 0; n < split_patches.size(); ++n)
+
+    // Split the patch along the unique knot values to improve convergence
+    for(const auto& nPatch : extractTrimmedBezier())
     {
-      // Integrand for the surface area integral
-      auto& nPatch = split_patches[n];
-
-      for(int N = 0; N < 3; ++N)
-      {
-        auto avg_surface_normal_integrand = [&nPatch, &N](Point2D x) -> double {
-          return nPatch.normal(x[0], x[1])[N];
-        };
-
-        // Find the area of the resulting projection
-        ret_vec[N] +=
-          evaluate_area_integral(nPatch.getTrimmingCurves(), avg_surface_normal_integrand, npts);
-      }
+      // Integrate the surface normal over the patches
+      ret_vec += evaluate_area_integral(
+        nPatch.getTrimmingCurves(),
+        [&nPatch](Point2D x) -> Vector<T, 3> { return nPatch.normal(x[0], x[1]); },
+        npts);
     }
 
     return ret_vec;
   }
-#endif
   //@}
 
   ///@{
@@ -3396,11 +3388,9 @@ public:
         const double sq_tol = 1e-14;
         const double EPS = 1e-6;
 
-        // Extract the Bezier curves of the NURBS curve
-        auto beziers = curve.extractBezier();
+        // Extract the Bezier curves of the NURBS curve, checking each for intersection
         axom::Array<T> knot_vals = curve.getKnots().getUniqueKnots();
-
-        // Check each Bezier segment for intersection
+        const auto beziers = curve.extractBezier();
         for(int i = 0; i < beziers.size(); ++i)
         {
           axom::Array<T> temp_curve_p;
@@ -3848,11 +3838,9 @@ private:
         const double sq_tol = 1e-14;
         const double EPS = 1e-6;
 
-        // Extract the Bezier curves of the NURBS curve
-        auto beziers = curve.extractBezier();
+        // Extract the Bezier curves of the NURBS curve, and check each for intersection
         axom::Array<T> knot_vals = curve.getKnots().getUniqueKnots();
-
-        // Check each Bezier segment for intersection
+        const auto beziers = curve.extractBezier();
         for(int i = 0; i < beziers.size(); ++i)
         {
           axom::Array<T> temp_curve_p;

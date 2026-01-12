@@ -8,6 +8,7 @@
 
 #include "axom/bump/views/MaterialView.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
+#include "axom/bump/views/dispatch_utilities.hpp"
 
 #include <conduit/conduit_blueprint.hpp>
 
@@ -36,6 +37,7 @@ struct make_unibuffer_matset
   static MatsetView view(const conduit::Node &n_matset)
   {
     namespace utils = axom::bump::utilities;
+    verify(n_matset, "matset");
     MatsetView m;
     m.set(utils::make_array_view<IntType>(n_matset["material_ids"]),
           utils::make_array_view<FloatType>(n_matset["volume_fractions"]),
@@ -58,6 +60,7 @@ template <typename FuncType, size_t MAXMATERIALS = 20>
 bool dispatch_material_unibuffer(const conduit::Node &matset, FuncType &&func)
 {
   bool retval = false;
+  verify(matset, "matset");
   if(conduit::blueprint::mesh::matset::is_uni_buffer(matset))
   {
     IndexNode_to_ArrayView_same(
@@ -118,6 +121,7 @@ template <typename FuncType, size_t MAXMATERIALS = 20>
 bool dispatch_material_multibuffer(const conduit::Node &matset, FuncType &&func)
 {
   bool retval = false;
+  verify(matset, "matset");
   if(conduit::blueprint::mesh::matset::is_multi_buffer(matset))
   {
     const conduit::Node &volume_fractions = matset.fetch_existing("volume_fractions");
@@ -178,6 +182,7 @@ template <typename FuncType, size_t MAXMATERIALS = 20>
 bool dispatch_material_element_dominant(const conduit::Node &matset, FuncType &&func)
 {
   bool retval = false;
+  verify(matset, "matset");
   if(conduit::blueprint::mesh::matset::is_element_dominant(matset))
   {
     const conduit::Node &volume_fractions = matset.fetch_existing("volume_fractions");
@@ -226,6 +231,7 @@ template <typename FuncType, size_t MAXMATERIALS = 20>
 bool dispatch_material_material_dominant(const conduit::Node &matset, FuncType &&func)
 {
   bool retval = false;
+  verify(matset, "matset");
   if(conduit::blueprint::mesh::matset::is_material_dominant(matset))
   {
     const conduit::Node &volume_fractions = matset.fetch_existing("volume_fractions");

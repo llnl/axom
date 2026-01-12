@@ -168,10 +168,15 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
 
     axom::mint::Mesh* meshRep = nullptr;
 #ifdef AXOM_USE_MPI
-    quest::internal::read_stl_mesh(shapePath, meshRep, m_comm);
+    const int rc = quest::internal::read_stl_mesh(shapePath, meshRep, m_comm);
 #else
-    quest::internal::read_stl_mesh(shapePath, meshRep);
+    const int rc = quest::internal::read_stl_mesh(shapePath, meshRep);
 #endif
+    SLIC_ERROR_ROOT_IF(rc != quest::internal::READ_SUCCESS,
+                       axom::fmt::format("Failed to read STL shape '{}' from file '{}'.",
+                                         m_shape.getName(),
+                                         shapePath));
+
     m_meshRep.reset(meshRep);
     // Transform the coordinates of the linearized mesh.
     applyTransforms();
@@ -183,10 +188,15 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
 
     axom::mint::Mesh* meshRep = nullptr;
 #ifdef AXOM_USE_MPI
-    quest::internal::read_pro_e_mesh(shapePath, meshRep, m_comm);
+    const int rc = quest::internal::read_pro_e_mesh(shapePath, meshRep, m_comm);
 #else
-    quest::internal::read_pro_e_mesh(shapePath, meshRep);
+    const int rc = quest::internal::read_pro_e_mesh(shapePath, meshRep);
 #endif
+    SLIC_ERROR_ROOT_IF(rc != quest::internal::READ_SUCCESS,
+                       axom::fmt::format("Failed to read Pro/E shape '{}' from file '{}'.",
+                                         m_shape.getName(),
+                                         shapePath));
+
     m_meshRep.reset(meshRep);
   }
 #ifdef AXOM_USE_C2C
@@ -203,15 +213,66 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     axom::mint::Mesh* meshRep = nullptr;
     const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic &&
                            m_percentError > MINIMUM_PERCENT_ERROR);
-    quest::internal::read_c2c_mesh(shapePath,
-                                   uniform,
-                                   transform,
-                                   m_samplesPerKnotSpan,
-                                   m_vertexWeldThreshold,
-                                   m_percentError,
-                                   meshRep,
-                                   m_revolvedVolume,  // output arg
-                                   m_comm);
+  #ifdef AXOM_USE_MPI
+    int rc = quest::internal::READ_FAILED;
+    try
+    {
+      rc = quest::internal::read_c2c_mesh(shapePath,
+                                          uniform,
+                                          transform,
+                                          m_samplesPerKnotSpan,
+                                          m_vertexWeldThreshold,
+                                          m_percentError,
+                                          meshRep,
+                                          m_revolvedVolume,  // output arg
+                                          m_comm);
+    }
+    catch(const std::exception& e)
+    {
+      SLIC_ERROR_ROOT(
+        axom::fmt::format("Failed to read C2C shape '{}' from file '{}'. Exception: {}",
+                          m_shape.getName(),
+                          shapePath,
+                          e.what()));
+    }
+    catch(...)
+    {
+      SLIC_ERROR_ROOT(axom::fmt::format("Failed to read C2C shape '{}' from file '{}'.",
+                                        m_shape.getName(),
+                                        shapePath));
+    }
+  #else
+    int rc = quest::internal::READ_FAILED;
+    try
+    {
+      rc = quest::internal::read_c2c_mesh(shapePath,
+                                          uniform,
+                                          transform,
+                                          m_samplesPerKnotSpan,
+                                          m_vertexWeldThreshold,
+                                          m_percentError,
+                                          meshRep,
+                                          m_revolvedVolume);  // output arg
+    }
+    catch(const std::exception& e)
+    {
+      SLIC_ERROR_ROOT(
+        axom::fmt::format("Failed to read C2C shape '{}' from file '{}'. Exception: {}",
+                          m_shape.getName(),
+                          shapePath,
+                          e.what()));
+    }
+    catch(...)
+    {
+      SLIC_ERROR_ROOT(axom::fmt::format("Failed to read C2C shape '{}' from file '{}'.",
+                                        m_shape.getName(),
+                                        shapePath));
+    }
+  #endif
+    SLIC_ERROR_ROOT_IF(rc != quest::internal::READ_SUCCESS,
+                       axom::fmt::format("Failed to read C2C shape '{}' from file '{}'.",
+                                         m_shape.getName(),
+                                         shapePath));
 
     m_meshRep.reset(meshRep);
 
@@ -232,14 +293,19 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     axom::mint::Mesh* meshRep = nullptr;
     const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic &&
                            m_percentError > MINIMUM_PERCENT_ERROR);
-    quest::internal::read_mfem_mesh(shapePath,
-                                    uniform,
-                                    transform,
-                                    m_samplesPerKnotSpan,
-                                    m_vertexWeldThreshold,
-                                    m_percentError,
-                                    meshRep,
-                                    m_revolvedVolume);  // output arg
+    const int rc = quest::internal::read_mfem_mesh(shapePath,
+                                                   uniform,
+                                                   transform,
+                                                   m_samplesPerKnotSpan,
+                                                   m_vertexWeldThreshold,
+                                                   m_percentError,
+                                                   meshRep,
+                                                   m_revolvedVolume);  // output arg
+
+    SLIC_ERROR_ROOT_IF(rc != quest::internal::READ_SUCCESS,
+                       axom::fmt::format("Failed to read MFEM shape '{}' from file '{}'.",
+                                         m_shape.getName(),
+                                         shapePath));
 
     m_meshRep.reset(meshRep);
 

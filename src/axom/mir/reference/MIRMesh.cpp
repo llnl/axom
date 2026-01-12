@@ -7,6 +7,7 @@
 
 #include "axom/core.hpp"
 #include "axom/primal.hpp"
+#include "axom/fmt.hpp"
 
 #include <sstream>
 
@@ -274,97 +275,60 @@ void MIRMesh::constructElementShapeTypesMap(const std::vector<mir::Shape>& shape
 
 void MIRMesh::print()
 {
-  printf(
-    "\n------------------------Printing Mesh "
-    "Information:------------------------\n");
-  printf("number of vertices: %d\n", m_verts.size());
-  printf("number of elements: %d\n", m_elems.size());
-  printf("number of materials: %d\n", m_numMaterials);
+  SLIC_INFO("\n------------------------Printing Mesh Information:------------------------");
+  SLIC_INFO(axom::fmt::format("number of vertices: {}", m_verts.size()));
+  SLIC_INFO(axom::fmt::format("number of elements: {}", m_elems.size()));
+  SLIC_INFO(axom::fmt::format("number of materials: {}", m_numMaterials));
 
-  printf("evInds: { ");
-  for(unsigned long i = 0; i < m_meshTopology.m_evInds.size(); i++)
-  {
-    printf("%d ", m_meshTopology.m_evInds[i]);
-  }
-  printf("}\n");
+  SLIC_INFO(axom::fmt::format("evInds: {{ {} }}", axom::fmt::join(m_meshTopology.m_evInds, " ")););
+  SLIC_INFO(
+    axom::fmt::format("evBegins: {{ {} }}", axom::fmt::join(m_meshTopology.m_evBegins, " ")));
+  SLIC_INFO(axom::fmt::format("veInds: {{ {} }}", axom::fmt::join(m_meshTopology.m_veInds, " ")));
+  SLIC_INFO(
+    axom::fmt::format("veBegins: {{ {} }}", axom::fmt::join(m_meshTopology.m_veBegins, " ")));
 
-  printf("evBegins: { ");
-  for(unsigned long i = 0; i < m_meshTopology.m_evBegins.size(); i++)
-  {
-    printf("%d ", m_meshTopology.m_evBegins[i]);
-  }
-  printf("}\n");
+  SLIC_INFO(axom::fmt::format("vertexPositions: {{ {} }}", axom::fmt::join(m_vertexPositions, " ")));
+  SLIC_INFO(
+    axom::fmt::format("elementParentIDs: {{ {} }}", axom::fmt::join(m_elementParentIDs, " ")));
 
-  printf("veInds: { ");
-  for(unsigned long i = 0; i < m_meshTopology.m_veInds.size(); i++)
-  {
-    printf("%d ", m_meshTopology.m_veInds[i]);
-  }
-  printf("}\n");
+  SLIC_INFO(axom::fmt::format("elementDominantMaterials: {{ {} }}",
+                              axom::fmt::join(m_elementDominantMaterials, " ")));
 
-  printf("veBegins: { ");
-  for(unsigned long i = 0; i < m_meshTopology.m_veBegins.size(); i++)
-  {
-    printf("%d ", m_meshTopology.m_veBegins[i]);
-  }
-  printf("}\n");
+  SLIC_INFO(axom::fmt::format("shapeTypes: {{ {} }}", axom::fmt::join(m_shapeTypes, " ")));
 
-  printf("vertexPositions: { ");
-  for(int i = 0; i < m_verts.size(); ++i)
-  {
-    std::stringstream sstr;
-    sstr << m_vertexPositions[i];
-    printf("%s", sstr.str().c_str());
-  }
-  printf("}\n");
-
-  printf("elementParentIDs: { ");
-  for(int i = 0; i < m_elems.size(); ++i)
-  {
-    printf("%d ", m_elementParentIDs[i]);
-  }
-  printf("}\n");
-
-  printf("elementDominantMaterials: { ");
-  for(int i = 0; i < m_elems.size(); ++i)
-  {
-    printf("%d ", m_elementDominantMaterials[i]);
-  }
-  printf("}\n");
-
-  printf("shapeTypes: { ");
-  for(int i = 0; i < m_elems.size(); ++i)
-  {
-    printf("%d ", m_shapeTypes[i]);
-  }
-  printf("}\n");
-
-  printf("elementVolumeFractions: { \n");
-  for(unsigned long i = 0; i < m_materialVolumeFractionsElement.size(); ++i)
-  {
-    printf("  { ");
-    for(int j = 0; j < m_elems.size(); ++j)
+  // lambda to convert an array of doubles to an array of formatted strings
+  auto formatted_string_array = [](const auto& arr) {
+    axom::Array<std::string> result(0, arr.size());
+    for(auto v : arr)
     {
-      printf("%.3f, ", m_materialVolumeFractionsElement[i][j]);
+      result.emplace_back(axom::fmt::format("{:.3f}", v));
     }
-    printf("}\n");
-  }
-  printf("}\n");
+    return result;
+  };
 
-  printf("vertexVolumeFractions: { \n");
-  for(unsigned long i = 0; i < m_materialVolumeFractionsVertex.size(); ++i)
   {
-    printf("  { ");
-    for(int j = 0; j < m_verts.size(); ++j)
+    axom::Array<std::string> entries(0, m_materialVolumeFractionsElement.size());
+    for(unsigned long i = 0; i < m_materialVolumeFractionsElement.size(); ++i)
     {
-      printf("%.3f, ", m_materialVolumeFractionsVertex[i][j]);
+      entries.emplace_back(axom::fmt::format(
+        "  {{ {} }}",
+        axom::fmt::join(formatted_string_array(m_materialVolumeFractionsElement[i]), ", ")));
     }
-    printf("}\n");
+    SLIC_INFO(axom::fmt::format("elementVolumeFractions: {{ {} }}", axom::fmt::join(entries, " ")));
   }
-  printf("}\n");
-  printf(
-    "--------------------------------------------------------------------------"
-    "\n");
+
+  {
+    axom::Array<std::string> entries(0, m_materialVolumeFractionsVertex.size());
+    for(unsigned long i = 0; i < m_materialVolumeFractionsVertex.size(); ++i)
+    {
+      entries.emplace_back(axom::fmt::format(
+        "  {{ {} }}",
+        axom::fmt::join(formatted_string_array(m_materialVolumeFractionsVertex[i]), ", ")));
+    }
+    SLIC_INFO(axom::fmt::format("vertexVolumeFractions: {{ {} }}", axom::fmt::join(entries, " ")));
+  }
+
+  SLIC_INFO("--------------------------------------------------------------------------");
 }
 
 //--------------------------------------------------------------------------------

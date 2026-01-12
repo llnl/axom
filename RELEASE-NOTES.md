@@ -19,10 +19,78 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ### Added
+- Adds the `AXOM_ENABLE_TUTORIALS` configuration variable (`ON` by default)
+- Adds a tutorial on shaping in Axom and associated infrastructure in `quest`, `klee`, `inlet` and `sidre`.
+- Sina: User can control curve ordering in Sina output file `setDefaultCurveOrder()` 
+- Sina: `appendDocument()` will create the document if not present or append if document exists.
+  It can also auto detects the protocol based on file's name, removing the need to call 
+  the append function that matches your protocol.
+- Adds Sina fortran functions `sina_set_curves_order` and `sina_set_record_curves_order`
+- Sidre: Added iterators and Attribute class to the Python interface.
+- Adds new optimization hint macros `AXOM_LIKELY` and `AXOM_UNLIKELY` to mark likely/unlikely
+  paths in if-statements.
+- The `axom::bump::extraction::CutField` class was added to cut Blueprint geometry using a
+  field (isosurface). The output contains polygons for 3D inputs and lines for 2D inputs.
+ resulting in geometry with reduced topological dimension.
+- The `axom::bump::extraction::PlaneSlice` class was added to cut Blueprint geometry using a
+  plane given using "origin" and "normal" values in the algorithm's options. The planar slice
+  results in polygons for 3D inputs and lines for 2D inputs.
+- Adds a reader for STEP files to `quest/io`. The geometry can either be returned
+  as an array of `NURBSPatch` with trimming curves or it can be triangulated into triangle mesh.
+- Adds a `components` variant to Axom's spack package. Users can now provide an explicit list 
+  of desired components, e.g. `components=sidre` and Spack adds any missing dependencies, 
+  e.g. the `slic` component and the `conduit` dependency. By default (when `components` is not provided, 
+  or when `components="all"`), all components are enabled. All components can be disabled via `components=none`.
+- Adds a `conduit` spack variant. Conduit was previously a required dependency in our spack package, and is now enabled by default.
+- Adds spack variants for `adiak` and `caliper`. These replace the previous `profiling` variant which enabled both at the same time.
+- Adds the `AXOM_TEST_NUM_OMP_THREADS` configuration variable to control the default OpenMP thread count for tests.
+- Slic: Adds `slic::getAbortFunction()` to return a function pointer to the abort handler called during logging functions
+
 
 ###  Changed
+- Evaluation methods for line integrals in `axom::primal` have been generalized, and 
+  `evaluate_scalar_line_integral` has been renamed to `evaluate_line_integral`.
+- Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
+  Materials are now expected to be defined only on the valid subset of zones in the mesh.
+  This more closely matches VisIt behavior.
+- Views and functions for creating views in `axom::bump` have been enhanced to better validate
+  Blueprint meshes to guard against malformed input. Likewise, runtime input checks have been
+  promoted to use `SLIC_ERROR_IF` instead of `SLIC_ASSERT` so the checks will remain in
+  optimized Axom builds.
+- The maximum number of vertices allowed in polygon primitives can now be passed as a template
+  argument to `axom::bump::TopologyMapper`, `axom::bump::PrimalAdaptor`, and
+  `axom::mir::ElviraAlgorithm`.
+- Material views in `axom::bump::views` were enhanced with `const_iterator` classes that
+  enable traversal of material data for zones so kernels do not need to use large fixed size
+  buffers to gather that data inside kernels.
+- Material views in `axom::bump::views` were enhanced with an overloaded `zoneMaterials()`
+  method that allows data to be gathered into `axom::ArrayView` objects.
+- A new `heavily_mixed` example program was added in `axom::mir` to demonstrate running MIR on
+  meshes with heavily mixed zones.
+- `saveDocument()` now has a `AUTODETECT` protocol for the file type
+- Sina fortran can now handle multiple records rather than a single record per application
+- Most Sina Fortran call can now pass the record for which the call is desired (`sina_add`, `sina_add_file`, `sina_add_curveset`, `sina_add_curve`)
+- Sina fortran `create_document_and_record` is now `sina_create_record`
+- Sina fortran `sina_write_document` now accepts a third argument that preserves records in memory so they can be written to another file (otherwise they're released from memory as soon as they're written)
+- Primal: In Bezier and NURBS classes, accessors for arrays of control points, weights and knots 
+  are now returned by (const) reference instead of returning a copy by value.
+- The `axom::bump::clipping::ClipField` and `axom::mir::EquiZAlgorithm` classes were enhanced so they can clip polygons up to 8 sides.
+- De-virtualized `axom::Array` methods to improve performance. This change may break code which
+  utilizes `axom::Array` or `sidre::Array/MCArray` in a polymorphic manner, for example by overriding
+  `Array::updateNumElements()` or `Array::dynamicRealloc()`.
+  Refer to the new `StoragePolicy` interface for substitute functionality.
+- The `axom::bump::clipping` namespace was renamed to `axom::bump::extraction` since it now
+  contains additional algorithms.
+- Updates to [mfem version 4.9](https://github.com/mfem/mfem/releases/tag/v4.9).
+  Also updates mfem's hypre dependency to [hypre version 2.27](https://github.com/hypre-space/hypre/releases/tag/v2.27.0).
+- Quest: MFEMReader can now read in multispan 1D NURBS meshes
 
 ###  Fixed
+- Sina's Fortran tests are now running (instead of silently failing)
+- Optimized `Array::push_back()` and `Array::emplace_back()` operations.
+- Quest: In Shaping applications, we now check return code after attempting to load a mesh
+  and throw an error for unsuccessful loads.
+- Core: Bugfix for batched insertion into a FlatMap with deleted entries
 
 ###  Deprecated
 
@@ -75,13 +143,14 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds `quest::MFEMReader` for reading 1D MFEM contours in 2D space.
 - Adds an option to `quest::SamplingShaper` to allow in/out tests based on winding numbers for MFEM contours.
 - The `shaping_driver` example program can select `--sampling inout` to do the default In/Out sampling and `--sampling windingnumber` to select winding number in/out tests for MFEM data.
+- Adds Axom-native Gauss-Legendre quadrature rules that can be used without an MFEM dependency
 
 ###  Changed
-- Updates blt submodule to [BLT version 0.7.1][https://github.com/LLNL/blt/releases/tag/v0.7.1]
-- Updates to [Conduit version 0.9.5][https://github.com/LLNL/conduit/releases/tag/v0.9.5]
-- Updates to [RAJA version 2025.09.0][https://github.com/LLNL/RAJA/releases/tag/v2025.09.0]
-- Updates to [camp version 2025.09.2][https://github.com/LLNL/camp/releases/tag/v2025.09.2]
-- Updates to [Umpire version 2025.09.0][https://github.com/LLNL/Umpire/releases/tag/v2025.09.0]
+- Updates blt submodule to [BLT version 0.7.1](https://github.com/LLNL/blt/releases/tag/v0.7.1)
+- Updates to [Conduit version 0.9.5](https://github.com/LLNL/conduit/releases/tag/v0.9.5)
+- Updates to [RAJA version 2025.09.0](https://github.com/LLNL/RAJA/releases/tag/v2025.09.0)
+- Updates to [camp version 2025.09.2](https://github.com/LLNL/camp/releases/tag/v2025.09.2)
+- Updates to [Umpire version 2025.09.0](https://github.com/LLNL/Umpire/releases/tag/v2025.09.0)
 - Axom now requires `C++17` and will default to that if not specified via `BLT_CXX_STD`.
 - Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
   since the last `reset()`.
@@ -91,7 +160,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds a method to determine if a point is contained within a Tetrahedron.
 - The `primal::BoundingBox` class' `expand()` and `shift()` methods were modified so they do
   nothing when called on invalid bounding boxes.
-- Updates to [MFEM version 4.8.0][https://github.com/mfem/mfem/releases/tag/v4.8]
+- Updates to [MFEM version 4.8.0](https://github.com/mfem/mfem/releases/tag/v4.8)
 - Readers in Quest were moved from a `quest/readers` directory to `quest/io`.
 - Sina: Renames a Fortran module to `sina_hdf5_config` (from `hdf5_config`)
 - Spin: Uses `axom::FlatMap` in `SparseOctreeLevel` implementation. We have observed a performance regression
@@ -104,7 +173,12 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   arrays of query points
 - Core: Updates behavior of `FlatMap::reserve()` to only trigger a rehash if maximum load factor
   would be exceeded.
+- Quest: The signed_distance functions were modified so they use Umpire's shared memory mechanisms instead of using MPI3 directly.
+- Axom's `AXOM_USE_MPI3` CMake config option and corresponding macro definition were removed.
+- When Umpire is present, Axom now detects whether it supports shared memory and defines the `AXOM_USE_UMPIRE_SHARED_MEMORY` macro if appropriate. This macro can be used to conditionally compile code involving shared memory via Umpire.
 - Quest: Moves curve linearization from the `quest::C2CReader` into `quest::LinearizeCurves` so the logic can be used with other curve data.
+- Axom's `AXOM_USE_64BIT_INDEXTYPE` CMake config option now defaults to `ON`. As a result, 
+  `axom::IndexType` defaults to `std::int64_t` instead of `std::int32_t`.
 
 ###  Fixed
 - Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled
@@ -156,13 +230,13 @@ to use Open Cascade's file I/O capabilities in support of Quest applications.
 - Adds initial support for 2D shaping in `quest::IntersectionShaper`, using a c2c contour as input. The contour cannot overlap, and is expected to be entirely above the x-axis.
 
 ###  Changed
-- Updates blt submodule to [BLT version 0.7.0][https://github.com/LLNL/blt/releases/tag/v0.7.0]
-- Updates to [MFEM version 4.7.0][https://github.com/mfem/mfem/releases/tag/v4.7]
-- Updates to [Caliper version 2.12.1][https://github.com/LLNL/Caliper/releases/tag/v2.12.1]
-- Updates to [Conduit version 0.9.3][https://github.com/LLNL/conduit/releases/tag/v0.9.3]
-- Updates to [RAJA version 2025.03.0][https://github.com/LLNL/RAJA/releases/tag/v2025.03.0]
-- Updates to [camp version 2025.03.0][https://github.com/LLNL/camp/releases/tag/v2025.03.0]
-- Updates to [Umpire version 2025.03.0][https://github.com/LLNL/Umpire/releases/tag/v2025.03.0]
+- Updates blt submodule to [BLT version 0.7.0](https://github.com/LLNL/blt/releases/tag/v0.7.0)
+- Updates to [MFEM version 4.7.0](https://github.com/mfem/mfem/releases/tag/v4.7)
+- Updates to [Caliper version 2.12.1](https://github.com/LLNL/Caliper/releases/tag/v2.12.1)
+- Updates to [Conduit version 0.9.3](https://github.com/LLNL/conduit/releases/tag/v0.9.3)
+- Updates to [RAJA version 2025.03.0](https://github.com/LLNL/RAJA/releases/tag/v2025.03.0)
+- Updates to [camp version 2025.03.0](https://github.com/LLNL/camp/releases/tag/v2025.03.0)
+- Updates to [Umpire version 2025.03.0](https://github.com/LLNL/Umpire/releases/tag/v2025.03.0)
 - `primal::NumericArray` has been moved to `core`.  The header is `core/NumericArray.hpp`.
 - `quest::Shaper` and `quest::IntersectionShaper` constructors require a runtime policy.
   Changing the policy after construction is no longer supported.
@@ -236,10 +310,10 @@ to use Open Cascade's file I/O capabilities in support of Quest applications.
 - Quest: Adds an example to query winding numbers on an MFEM NURBS mesh
 
 ### Changed
-- Updates to [Conduit version 0.9.2][https://github.com/LLNL/conduit/releases/tag/v0.9.2]
-- Updates to [RAJA version 2024.07.0][https://github.com/LLNL/RAJA/releases/tag/v2024.07.0]
-- Updates to [camp version 2024.07.0][https://github.com/LLNL/camp/releases/tag/v2024.07.0]
-- Updates to [Umpire version 2024.07.0][https://github.com/LLNL/Umpire/releases/tag/v2024.07.0]
+- Updates to [Conduit version 0.9.2](https://github.com/LLNL/conduit/releases/tag/v0.9.2)
+- Updates to [RAJA version 2024.07.0](https://github.com/LLNL/RAJA/releases/tag/v2024.07.0)
+- Updates to [camp version 2024.07.0](https://github.com/LLNL/camp/releases/tag/v2024.07.0)
+- Updates to [Umpire version 2024.07.0](https://github.com/LLNL/Umpire/releases/tag/v2024.07.0)
 - `axom::CLI::ExitCodes::Success` has been changed to `axom::CLI::ExitCodes::CLI11_Success`
   to avoid conflict when X11 `#define`s `Success`.
 - `MarchingCubes` masking now uses the mask field's integer values instead of
@@ -339,9 +413,9 @@ to use Open Cascade's file I/O capabilities in support of Quest applications.
 ## [Version 0.8.1] - Release date 2023-08-16
 
 ### Changed
-- Updates to [RAJA version 2023.06.0][https://github.com/LLNL/RAJA/releases/tag/v2023.06.0]
-- Updates to [camp version 2023.06.0][https://github.com/LLNL/camp/releases/tag/v2023.06.0]
-- Updates to [Umpire version 2023.06.0][https://github.com/LLNL/Umpire/releases/tag/v2023.06.0]
+- Updates to [RAJA version 2023.06.0](https://github.com/LLNL/RAJA/releases/tag/v2023.06.0)
+- Updates to [camp version 2023.06.0](https://github.com/LLNL/camp/releases/tag/v2023.06.0)
+- Updates to [Umpire version 2023.06.0](https://github.com/LLNL/Umpire/releases/tag/v2023.06.0)
 
 ### Fixed
 - Fixed MFEMSidreDataCollection finite element space bug

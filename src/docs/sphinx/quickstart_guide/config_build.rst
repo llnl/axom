@@ -75,15 +75,15 @@ The following table lists:
 ================== ==================================== ======================
   `Adiak`_         Optional: Core                       ADIAK_DIR
   `Caliper`_       Optional: Core                       CALIPER_DIR
-  `Conduit`_       Required: Inlet, Klee, Sidre         CONDUIT_DIR
+  `Conduit`_       Required: Inlet, Klee, Sidre, Sina   CONDUIT_DIR
   `c2c`_           Optional: Quest                      C2C_DIR
   `HDF5`_          Optional: Sidre                      HDF5_DIR
   `Lua`_           Optional: Inlet                      LUA_DIR
   `MFEM`_          Optional: Primal, Quest, Sidre       MFEM_DIR
   `OPENCASCADE`_   Optional: Quest                      OPENCASCADE_DIR
-  `RAJA`_          Optional: Mint, Spin, Quest          RAJA_DIR
+  `RAJA`_          Optional: Mint, Mir, Spin, Quest     RAJA_DIR
   `SCR`_           Optional: Sidre                      SCR_DIR
-  `Umpire`_        Optional: Core, Spin, Quest          UMPIRE_DIR
+  `Umpire`_        Optional: Core, Mir, Spin, Quest     UMPIRE_DIR
 ================== ==================================== ======================
 
 .. _Adiak:  https://llnl.github.io/Adiak
@@ -98,7 +98,7 @@ The following table lists:
 .. _SCR: https://computing.llnl.gov/projects/scalable-checkpoint-restart-for-mpi
 .. _Umpire: https://umpire.readthedocs.io/en/latest/
 
-Note that each  library dependency has a corresponding build system variable
+Note that each library dependency has a corresponding build system variable
 (with the suffix ``_DIR``) to supply the path to the library's installation 
 directory. For example, ``hdf5`` has a corresponding variable ``HDF5_DIR``.
 
@@ -351,6 +351,8 @@ Axom components, tests, examples, etc.
 | AXOM_ENABLE_EXAMPLES         | ON      | Build Axom examples                    |
 +------------------------------+---------+----------------------------------------+
 | AXOM_ENABLE_TESTS            | ON      | Build Axom unit tests                  |
++------------------------------+---------+----------------------------------------+
+| AXOM_ENABLE_TUTORIALS        | ON      | Build Axom tutorials                   |
 +------------------------------+---------+----------------------------------------+
 | ENABLE_BENCHMARKS            | OFF     | Build Axom benchmarks                  |
 +------------------------------+---------+----------------------------------------+

@@ -149,6 +149,13 @@ void setAbortFunction(AbortFunctionPtr abort_func)
 }
 
 //------------------------------------------------------------------------------
+AbortFunctionPtr getAbortFunction()
+{
+  ensureInitialized();
+  return Logger::getActiveLogger()->getAbortFunction();
+}
+
+//------------------------------------------------------------------------------
 void addStreamToMsgLevel(LogStream* ls, message::Level level)
 {
   ensureInitialized();

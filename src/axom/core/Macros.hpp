@@ -242,6 +242,56 @@
 #endif
 
 /*!
+ * \def AXOM_LIKELY
+ * \brief Macro that is used to annotate for compiler optimizations a
+ *  conditional that is likely to be true.
+ *
+ * \note This macro is placed before the conditional in an if-statement.
+ * \warning Use with caution, as unwarranted usage may result in pessimistic
+ *  optimizations.
+ * \code
+ *
+ *  bool success = UnlikelyToFail();
+ *  if AXOM_LIKELY(success) { ... }
+ *
+ * \endcode
+ */
+#if __cplusplus >= 202002L
+  // C++20 and later
+  #define AXOM_LIKELY(cond) (cond) [[likely]]
+#elif defined(__GNUC__)
+  // GCC/Clang compilers have __builtin_expect
+  #define AXOM_LIKELY(cond) (__builtin_expect(!!(cond), 1))
+#else
+  #define AXOM_LIKELY(cond) (cond)
+#endif
+
+/*!
+ * \def AXOM_UNLIKELY
+ * \brief Macro that is used to annotate for compiler optimizations a
+ *  conditional that is likely to be false.
+ *
+ * \note This macro is placed before the conditional in an if-statement.
+ * \warning Use with caution, as unwarranted usage may result in pessimistic
+ *  optimizations.
+ * \code
+ *
+ *  bool error = UnlikelyToFail();
+ *  if AXOM_UNLIKELY(error) { ... }
+ *
+ * \endcode
+ */
+#if __cplusplus >= 202002L
+  // C++20 and later
+  #define AXOM_UNLIKELY(cond) (cond) [[unlikely]]
+#elif defined(__GNUC__)
+  // GCC/Clang compilers have __builtin_expect
+  #define AXOM_UNLIKELY(cond) (__builtin_expect(!!(cond), 0))
+#else
+  #define AXOM_UNLIKELY(cond) (cond)
+#endif
+
+/*!
  * \def DISABLE_DEFAULT_CTOR(className)
  * \brief Macro to disable default constructor for the given class.
  * \note This macro should only be used within the private section of a class,

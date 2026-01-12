@@ -5,13 +5,16 @@
 packages:
   caliper:
     require:
-      - spec: "~kokkos"
+      - spec: "~kokkos~papi"
   conduit:
     require:
       - spec: "~shared~test~examples~utilities"
   hdf5:
     require:
       - spec:  "~shared~mpi"
+  mfem:
+    require:
+      - spec: "cxxstd=17"
   # note: for mfem, we use the default +shared to allow PIC flag
   opencascade:
     require:

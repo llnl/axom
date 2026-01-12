@@ -359,16 +359,6 @@ TEST(sidre_view, scalar_view)
   s0view->deallocate();
 
   View* empty = root->createView("empty");
-#if 0
-  try
-  {
-    int* j = empty->getScalar();
-    //int j = empty->getScalar();
-    EXPECT_EQ(0, *j);
-  }
-  catch ( conduit::Error e)
-  {}
-#endif
   const char* svalue = empty->getString();
   EXPECT_EQ(nullptr, svalue);
 
@@ -2014,6 +2004,58 @@ TEST(sidre_view, deep_copy_to_conduit)
 
     ds.getRoot()->destroyGroup("src");
   }
+}
+
+//------------------------------------------------------------------------------
+
+TEST(sidre_view, deep_copy_to_conduit_with_allocid)
+{
+  using axom::sidre::ConduitMemory;
+
+  std::vector<int> allocIds = getKnownAllocIds();
+  for(std::size_t si = 0; si < allocIds.size(); ++si)
+  {
+    auto aId = allocIds[si];
+    auto cId = ConduitMemory::axomAllocIdToConduit(aId);
+    std::cout << "si=" << si << "  axomAllocId=" << aId << "  conduitAllocId=" << cId << std::endl;
+  }
+  if(allocIds.size() < 2)
+  {
+    std::cout << "Skipping test deep_copy_to_conduit_with_allocid."
+                 "At least 2 allocators are needed to test."
+              << std::endl;
+    return;
+  }
+
+  DataStore ds;
+
+  Group* srcGrp = ds.getRoot()->createGroup("src");
+  View* srcView = srcGrp->createView("a");
+  srcView->setScalar(int(15));
+
+  // Copy srcView to conduit destinations, varying the allocator.
+  for(std::size_t si = 0; si < allocIds.size(); ++si)
+  {
+    // dst1 uses default Conduit allocator
+    conduit::Node dst1;
+    auto defaultConduitAllocId = dst1.allocator();
+    srcView->deepCopyToConduit(dst1);
+    EXPECT_EQ(dst1.allocator(), defaultConduitAllocId);
+
+    // dst2 sets and uses allocator allocIds[si]
+    conduit::Node dst2;
+    dst2.set_allocator(ConduitMemory::axomAllocIdToConduit(allocIds[si]));
+    srcView->deepCopyToConduit(dst2);
+    EXPECT_EQ(ConduitMemory::conduitAllocIdToAxom(dst2.allocator()), allocIds[si]);
+
+    // dst3 sets allocator allocIds[si] but overrides it in the copy
+    conduit::Node dst3;
+    dst3.set_allocator(ConduitMemory::axomAllocIdToConduit(allocIds[si]));
+    srcView->deepCopyToConduit(dst3, allocIds[0]);
+    EXPECT_EQ(ConduitMemory::conduitAllocIdToAxom(dst3.allocator()), allocIds[0]);
+  }
+
+  ds.getRoot()->destroyGroup("src");
 }
 
 //------------------------------------------------------------------------------

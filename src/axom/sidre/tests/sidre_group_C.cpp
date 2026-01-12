@@ -57,14 +57,15 @@ TEST(C_sidre_group, get_parent)
 //------------------------------------------------------------------------------
 TEST(C_sidre_group, get_datastore)
 {
-  SIDRE_DataStore ds_buf, const_ds_buf;
+  SIDRE_DataStore ds_buf, ds_buf_group, const_ds_buf;
   SIDRE_Group root_buf, group_buf;
 
   SIDRE_DataStore* ds = SIDRE_DataStore_new(&ds_buf);
   SIDRE_Group* root = SIDRE_DataStore_get_root(ds, &root_buf);
   SIDRE_Group* group = SIDRE_Group_create_group(root, "parent", &group_buf);
 
-  EXPECT_TRUE(SIDRE_Group_get_data_store(group, &ds_buf) == ds);
+  SIDRE_Group_get_data_store(group, &ds_buf_group);
+  EXPECT_TRUE(ds_buf.addr == ds_buf_group.addr);
 
   SIDRE_DataStore const* const_ds = SIDRE_Group_get_data_store(group, &const_ds_buf);
   EXPECT_TRUE(const_ds->addr == ds->addr);

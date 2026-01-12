@@ -34,16 +34,17 @@ namespace detail
  * \brief This class is an intersection policy compatible with ClipField. It
  *        helps determine clip cases and weights using material-aware logic.
  *
- * \tparam ConnectivityT The type of index we'd see in the associated mesh's
- *                       connectivity. We template on it so we can pass the
- *                       array views of connectivity (node lists) to methods here.
+ * \tparam TopologyView The type of topology view being used in the code that
+ *                      uses this intersector.
+ * \tparam CoordsetView The type of coordset view being used in the code that
+ *                      uses this intersector.
  * \tparam MAXMATERIALS The max number of materials to handle.
  */
-template <typename ConnectivityT, int MAXMATERIALS = 10>
+template <typename TopologyView, typename CoordsetView, int MAXMATERIALS = 10>
 class MaterialIntersector
 {
 public:
-  using ConnectivityType = ConnectivityT;
+  using ConnectivityType = typename TopologyView::ConnectivityType;
   using ConnectivityView = axom::ArrayView<ConnectivityType>;
 
   /*!
@@ -63,8 +64,8 @@ public:
      * \return The clip case number for the zone.
      */
     AXOM_HOST_DEVICE
-    axom::IndexType determineClipCase(axom::IndexType zoneIndex,
-                                      const ConnectivityView &nodeIdsView) const
+    axom::IndexType determineTableCase(axom::IndexType zoneIndex,
+                                       const ConnectivityView &nodeIdsView) const
     {
       // Determine the matvf view index for the material that owns the zone.
       int backgroundIndex = INVALID_INDEX;
@@ -77,7 +78,7 @@ public:
       {
         const auto nid = nodeIdsView[i];
         SLIC_ASSERT_MSG(
-          nid >= 0 && nid < m_matvfViews[0].size(),
+          nid >= 0 && nid < static_cast<ConnectivityType>(m_matvfViews[0].size()),
           axom::fmt::format("Node id {} is not in range [0, {}).", nid, m_matvfViews[0].size()));
 
         // clang-format off
@@ -105,10 +106,10 @@ public:
       if(zoneMatID != NULL_MATERIAL) backgroundIndex = matNumberToIndex(zoneMatID);
       // Determine the matvf view index for the current material.
       SLIC_ASSERT_MSG(
-        id0 >= 0 && id0 < m_matvfViews[0].size(),
+        id0 >= 0 && id0 < static_cast<ConnectivityType>(m_matvfViews[0].size()),
         axom::fmt::format("Node id {} is not in range [0, {}).", id0, m_matvfViews[0].size()));
       SLIC_ASSERT_MSG(
-        id1 >= 0 && id1 < m_matvfViews[0].size(),
+        id1 >= 0 && id1 < static_cast<ConnectivityType>(m_matvfViews[0].size()),
         axom::fmt::format("Node id {} is not in range [0, {}).", id1, m_matvfViews[0].size()));
 
       // Get the volume fractions for mat1, mat2 at the edge endpoints id0, id1.
@@ -186,14 +187,18 @@ public:
    * \param n_options The node that contains the options.
    * \param n_fields The node that contains fields.
    */
-  void initialize(const conduit::Node &AXOM_UNUSED_PARAM(n_options),
+  void initialize(const TopologyView &AXOM_UNUSED_PARAM(topologyView),
+                  const CoordsetView &AXOM_UNUSED_PARAM(coordsetView),
+                  const conduit::Node &AXOM_UNUSED_PARAM(n_options),
+                  const conduit::Node &AXOM_UNUSED_PARAM(n_topology),
+                  const conduit::Node &AXOM_UNUSED_PARAM(n_coordset),
                   const conduit::Node &AXOM_UNUSED_PARAM(n_fields))
   { }
 
   /*!
    * \brief Determine the name of the topology on which to operate.
    * \param n_input The input mesh node.
-   * \param n_options The clipping options.
+   * \param n_options The options.
    * \return The name of the toplogy on which to operate.
    */
   std::string getTopologyName(const conduit::Node &AXOM_UNUSED_PARAM(n_input),
