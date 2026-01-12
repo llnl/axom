@@ -2163,11 +2163,23 @@ public:
    */
   void evaluateDerivatives(T u, T v, int d, axom::Array<VectorType, 2>& ders) const
   {
-    SLIC_ASSERT(isValidParameter_u(u));
-    SLIC_ASSERT(isValidParameter_v(v));
+    SLIC_ASSERT_MSG(
+      isValidParameter_u(u, 1e-5),
+      axom::fmt::format("Requested u-parameter {} is outside valid range [{},{}] with tolerance {}",
+                        u,
+                        getMinKnot_u(),
+                        getMaxKnot_u(),
+                        1e-5));
+    SLIC_ASSERT_MSG(
+      isValidParameter_v(v, 1e-5),
+      axom::fmt::format("Requested v-parameter {} is outside valid range [{},{}] with tolerance {}",
+                        v,
+                        getMinKnot_v(),
+                        getMaxKnot_v(),
+                        1e-5));
 
-    u = axom::utilities::clampVal(u, m_knotvec_u[0], m_knotvec_u[m_knotvec_u.getNumKnots() - 1]);
-    v = axom::utilities::clampVal(v, m_knotvec_v[0], m_knotvec_v[m_knotvec_v.getNumKnots() - 1]);
+    u = axom::utilities::clampVal(u, getMinKnot_u(), getMaxKnot_u());
+    v = axom::utilities::clampVal(v, getMinKnot_v(), getMaxKnot_v());
 
     const int deg_u = getDegree_u();
     const int du = axom::utilities::min(d, deg_u);
