@@ -154,7 +154,7 @@ Vector<T, 3> rotate_vector_origin(const numerics::Matrix<T>& matx, const Vector<
  * \brief Adaptively evaluate the integral of the "anti-curl" of the GWN integrand
  *
  * \param [in] query The query point
- * \param [in] nurbs The NURBSPatchGWNCache object contianing the trimming curves
+ * \param [in] nurbs The NURBSPatchGWNCache object containing the trimming curves
  * \param [in] curve_index The curve on the patch which we want to integrate
  * \param [in] quad_npts The number of quadrature points at each level
  * \param [in] refinement_level The current subdivision levels 
@@ -179,14 +179,14 @@ double stokes_gwn_adaptive(const Point<T, 3>& query,
                            const double quad_coarse,
                            const double quad_tol)
 {
-  auto trimming_curve_data_1 = nurbs.getTrimmingCurveQuadratureData(curve_index,
-                                                                    quad_npts,
-                                                                    refinement_level + 1,
-                                                                    2 * refinement_index);
-  auto trimming_curve_data_2 = nurbs.getTrimmingCurveQuadratureData(curve_index,
-                                                                    quad_npts,
-                                                                    refinement_level + 1,
-                                                                    2 * refinement_index + 1);
+  const auto& trimming_curve_data_1 = nurbs.getTrimmingCurveQuadratureData(curve_index,
+                                                                           quad_npts,
+                                                                           refinement_level + 1,
+                                                                           2 * refinement_index);
+  const auto& trimming_curve_data_2 = nurbs.getTrimmingCurveQuadratureData(curve_index,
+                                                                           quad_npts,
+                                                                           refinement_level + 1,
+                                                                           2 * refinement_index + 1);
 
   double quad_fine_1 = stokes_gwn_component(query, ax, rotator, trimming_curve_data_1);
   double quad_fine_2 = stokes_gwn_component(query, ax, rotator, trimming_curve_data_2);
