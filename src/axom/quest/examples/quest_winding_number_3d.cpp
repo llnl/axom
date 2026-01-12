@@ -37,13 +37,15 @@ using PatchGWNCache = primal::detail::NURBSPatchGWNCache<double>;
 
 struct WindingTolerances
 {
-  double edge_tol {1e-6};
   double ls_tol {1e-6};
   double quad_tol {1e-6};
   double disk_size {0.01};
+  double edge_tol {1e-8};
   double EPS {1e-8};
 };
 
+/// Helper function to set up the mesh and associated winding and inout fields.
+/// Uses an mfem::DataCollection to hold everything together.
 void setup_mesh(mfem::DataCollection& dc, mfem::Mesh* query_mesh, int queryOrder)
 {
   AXOM_ANNOTATE_SCOPE("setup_mesh");
@@ -54,13 +56,13 @@ void setup_mesh(mfem::DataCollection& dc, mfem::Mesh* query_mesh, int queryOrder
   const int dim = query_mesh->Dimension();
 
   // Create grid functions for the winding field; will take care of fes and fec memory via MakeOwner()
-  auto* winding_fec = new mfem::H1_FECollection(queryOrder, dim);
+  auto* winding_fec = new mfem::H1Pos_FECollection(queryOrder, dim);
   auto* winding_fes = new mfem::FiniteElementSpace(query_mesh, winding_fec, 1);
   mfem::GridFunction* winding = new mfem::GridFunction(winding_fes);
   winding->MakeOwner(winding_fec);
 
   // Create grid functions for the inout field; will take care of fes and fec memory via MakeOwner()
-  auto* inout_fec = new mfem::H1_FECollection(queryOrder, dim);
+  auto* inout_fec = new mfem::H1Pos_FECollection(queryOrder, dim);
   auto* inout_fes = new mfem::FiniteElementSpace(query_mesh, inout_fec, 1);
   mfem::GridFunction* inout = new mfem::GridFunction(inout_fes);
   inout->MakeOwner(inout_fec);
@@ -73,7 +75,7 @@ template <typename PatchArrayType>
 void run_query(mfem::DataCollection& dc,
                const PatchArrayType& patches,
                const WindingTolerances& tol,
-               double slice_z = 0.0)
+               const double slice_z = 0.0)
 {
   AXOM_ANNOTATE_SCOPE("run_query");
 
@@ -81,25 +83,17 @@ void run_query(mfem::DataCollection& dc,
   auto& winding = *dc.GetField("winding");
   auto& inout = *dc.GetField("inout");
 
-  const int space_dim = query_mesh->SpaceDimension();
   const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
 
   auto query_point = [&](int idx) -> Point3D {
-    double coords[3] = {0., 0., 0.};
-    query_mesh->GetNode(idx, coords);
-
-    if(space_dim == 2)
-    {
-      return Point3D {coords[0], coords[1], slice_z};
-    }
-
-    return Point3D {coords[0], coords[1], coords[2]};
+    Point3D pt({0., 0., slice_z});
+    query_mesh->GetNode(idx, pt.data());
+    return pt;
   };
 
   for(int nidx = 0; nidx < num_query_points; ++nidx)
   {
     const Point3D q = query_point(nidx);
-
     double wn {};
     for(const auto& patch : patches)
     {
@@ -122,8 +116,8 @@ int main(int argc, char** argv)
   axom::slic::SimpleLogger raii_logger;
 
   axom::CLI::App app {
-    "Load a STEP file containing trimmed NURBS patches and optionally generate a "
-    "query mesh of 3D generalized winding numbers."};
+    "Load a STEP file containing trimmed NURBS patches "
+    "and optionally generate a query grid of generalized winding numbers."};
 
   std::string inputFile;
   std::string outputPrefix {"winding3d"};
@@ -149,8 +143,7 @@ int main(int argc, char** argv)
     ->check(axom::CLI::ExistingFile);
 
   app.add_option("-o,--output-prefix", outputPrefix)
-    ->description(
-      "Prefix for output query mesh (in MFEM/VisIt format) containing winding number results")
+    ->description("Prefix for output query grid (in MFEM format) containing winding number results")
     ->capture_default_str();
 
   app.add_flag("-v,--verbose", verbose, "verbose output")->capture_default_str();
@@ -158,24 +151,13 @@ int main(int argc, char** argv)
   app.add_flag("--memoized,!--no-memoized", memoized, "Cache geometric data during query?")
     ->capture_default_str();
 
-  app.add_option("--edge-tol", tol.edge_tol)
-    ->description("Tolerance for boundary proximity checks")
-    ->check(axom::CLI::PositiveNumber)
-    ->capture_default_str();
+  // Options for query tolerances; for now, only expose the line search and quadrature tolerances
   app.add_option("--ls-tol", tol.ls_tol)
     ->description("Tolerance for line-surface intersection")
     ->check(axom::CLI::PositiveNumber)
     ->capture_default_str();
   app.add_option("--quad-tol", tol.quad_tol)
     ->description("Relative error tolerance for quadrature")
-    ->check(axom::CLI::PositiveNumber)
-    ->capture_default_str();
-  app.add_option("--disk-size", tol.disk_size)
-    ->description("Extracted disk size as fraction of parameter-space bbox diagonal")
-    ->check(axom::CLI::PositiveNumber)
-    ->capture_default_str();
-  app.add_option("--eps", tol.EPS)
-    ->description("Miscellaneous numerical tolerance")
     ->check(axom::CLI::PositiveNumber)
     ->capture_default_str();
 
@@ -191,14 +173,12 @@ int main(int argc, char** argv)
   auto* query_mesh_subcommand =
     app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
 
-  query_mesh_subcommand->add_option("--min", boxMins)
-    ->description("Min bounds for box mesh (x,y[,z])")
-    ->expected(2, 3)
-    ->required();
-  query_mesh_subcommand->add_option("--max", boxMaxs)
-    ->description("Max bounds for box mesh (x,y[,z])")
-    ->expected(2, 3)
-    ->required();
+  auto* minbb = query_mesh_subcommand->add_option("--min", boxMins)
+                  ->description("Min bounds for box mesh (x,y[,z])")
+                  ->expected(2, 3);
+  auto* maxbb = query_mesh_subcommand->add_option("--max", boxMaxs)
+                  ->description("Max bounds for box mesh (x,y[,z])")
+                  ->expected(2, 3);
   query_mesh_subcommand->add_option("--res", boxResolution)
     ->description("Resolution of the box mesh (i,j[,k])")
     ->expected(2, 3)
@@ -210,11 +190,56 @@ int main(int argc, char** argv)
     ->description("Z value for 2D slice query meshes (when --min/--max are 2D)")
     ->capture_default_str();
 
+  // add some requirements -- if user provides minbb or maxbb, we need both
+  minbb->needs(maxbb);
+  maxbb->needs(minbb);
+
+  // let's also check that they're consistently sized w/ each other and with the resolution
+  query_mesh_subcommand->callback([&]() {
+    if(const bool have_box = (minbb->count() > 0 || maxbb->count() > 0); have_box)
+    {
+      if(boxMins.size() != boxMaxs.size())
+      {
+        throw axom::CLI::ValidationError(
+          "--min/--max",
+          axom::fmt::format("must have the same number of values (2 for 2D or 3 for 3D). "
+                            "Got --min={}, --max={}",
+                            boxMins.size(),
+                            boxMaxs.size()));
+      }
+
+      for(size_t d = 0; d < boxMins.size(); ++d)
+      {
+        if(boxMins[d] >= boxMaxs[d])
+        {
+          throw axom::CLI::ValidationError(
+            "--min/--max",
+            axom::fmt::format(
+              "must satisfy min < max in every dimension; failed at index {}, mins: {}, maxs: {}",
+              d,
+              boxMins,
+              boxMaxs));
+        }
+      }
+
+      if(boxResolution.size() != boxMins.size())
+      {
+        throw axom::CLI::ValidationError(
+          "--res",
+          axom::fmt::format(
+            "must have the same number of values as --min/--max. Got --res={}, --min/--max={}",
+            boxResolution.size(),
+            boxMins.size()));
+      }
+    }
+  });
+
   CLI11_PARSE(app, argc, argv);
 
   axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(annotationMode);
   AXOM_ANNOTATE_SCOPE("3D winding number example");
 
+  axom::utilities::Timer step_read_timer(true);
   axom::quest::STEPReader step_reader;
   step_reader.setFileName(inputFile);
   step_reader.setVerbosity(verbose);
@@ -231,16 +256,26 @@ int main(int argc, char** argv)
   }
 
   const auto& patches = step_reader.getPatchArray();
+  step_read_timer.stop();
   SLIC_INFO(step_reader.getBRepStats());
   SLIC_INFO(axom::fmt::format("STEP file units: {}", step_reader.getFileUnits()));
-  SLIC_INFO(axom::fmt::format("Loaded {} trimmed NURBS patches.", patches.size()));
+  SLIC_INFO(axom::fmt::format("Loaded {} trimmed NURBS patches in {:.3Lf} seconds",
+                              patches.size(),
+                              step_read_timer.elapsed()));
+
+  // Early return if user didn't set up a query mesh
+  if(boxResolution.empty())
+  {
+    return 0;
+  }
 
   // Extract the patches and compute their bounding boxes along the way
   BoundingBox3D bbox;
-  axom::Array<PatchGWNCache> memoized_patches;
+  axom::Array<PatchGWNCache> memoized_patches(0, memoized ? patches.size() : 0);
   {
     AXOM_ANNOTATE_SCOPE("preprocessing");
 
+    axom::utilities::Timer preproc_timer(true);
     int count {0};
     for(const auto& patch : patches)
     {
@@ -254,40 +289,58 @@ int main(int argc, char** argv)
         memoized_patches.emplace_back(PatchGWNCache(patch));
       }
     }
+    preproc_timer.stop();
+
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "Preprocessing patches took {:.3Lf} seconds",
+                                preproc_timer.elapsed()));
+    AXOM_ANNOTATE_METADATA("preprocessing_time", preproc_timer.elapsed(), "");
   }
   SLIC_INFO(axom::fmt::format("Patch collection bounding box: {}", bbox));
 
-  // Early return if user didn't set up a query mesh
-  if(boxMins.empty())
-  {
-    return 0;
-  }
-
-  if((boxMins.size() != boxMaxs.size()) || (boxMins.size() != boxResolution.size()))
-  {
-    SLIC_ERROR("--min/--max/--res must have the same number of entries (2 or 3).");
-    return 1;
-  }
-
-  if(boxMins.size() != 2 && boxMins.size() != 3)
-  {
-    SLIC_ERROR("--min/--max/--res must have 2 entries (slice) or 3 entries (3D grid).");
-    return 1;
-  }
-
   mfem::DataCollection dc("winding_query");
 
-  if(boxMins.size() == 2)
+  const int query_resolution = boxResolution.size();
+  const bool has_query_box = boxMins.size() > 0;
+  if(query_resolution == 2)
   {
     using Point2D = primal::Point<double, 2>;
     const auto query_res = axom::NumericArray<int, 2>(boxResolution.data());
-    const auto query_box = BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()));
+    const auto query_box = has_query_box
+      ? BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()))
+      : BoundingBox2D(Point2D({bbox.getMin()[0], bbox.getMin()[1]}),
+                      Point2D({bbox.getMax()[0], bbox.getMax()[1]}));
+
+    SLIC_INFO(
+      axom::fmt::format("Query grid resolution {} within bounding box {}", query_res, query_box));
 
     mfem::Mesh* query_mesh =
       axom::quest::util::make_cartesian_mfem_mesh_2D(query_box, query_res, queryOrder);
 
     setup_mesh(dc, query_mesh, queryOrder);
+    AXOM_ANNOTATE_METADATA("query_dimension", 2, "");
+  }
+  else
+  {
+    using Point3D = primal::Point<double, 3>;
+    const auto query_res = axom::NumericArray<int, 3>(boxResolution.data());
+    const auto query_box = has_query_box
+      ? BoundingBox3D(Point3D(boxMins.data()), Point3D(boxMaxs.data()))
+      : BoundingBox3D(bbox.getMin(), bbox.getMax());
 
+    SLIC_INFO(
+      axom::fmt::format("Query grid resolution {} within bounding box {}", query_res, query_box));
+
+    mfem::Mesh* query_mesh =
+      axom::quest::util::make_cartesian_mfem_mesh_3D(query_box, query_res, queryOrder);
+
+    setup_mesh(dc, query_mesh, queryOrder);
+    AXOM_ANNOTATE_METADATA("query_dimension", 3, "");
+  }
+
+  // Run the query
+  {
+    axom::utilities::Timer query_timer(true);
     if(memoized)
     {
       run_query(dc, memoized_patches, tol, sliceZ);
@@ -296,26 +349,17 @@ int main(int argc, char** argv)
     {
       run_query(dc, patches, tol, sliceZ);
     }
-  }
-  else
-  {
-    using Point3 = primal::Point<double, 3>;
-    const auto query_res = axom::NumericArray<int, 3>(boxResolution.data());
-    const auto query_box = BoundingBox3D(Point3(boxMins.data()), Point3(boxMaxs.data()));
+    query_timer.stop();
 
-    mfem::Mesh* query_mesh =
-      axom::quest::util::make_cartesian_mfem_mesh_3D(query_box, query_res, queryOrder);
-
-    setup_mesh(dc, query_mesh, queryOrder);
-
-    if(memoized)
-    {
-      run_query(dc, memoized_patches, tol);
-    }
-    else
-    {
-      run_query(dc, patches, tol);
-    }
+    const int ndofs = dc.GetField("winding")->FESpace()->GetNDofs();
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "Querying {} samples in winding number field took {:.3Lf} seconds"
+                                " (@ {:.0Lf} queries per second)",
+                                ndofs,
+                                query_timer.elapsed(),
+                                ndofs / query_timer.elapsed()));
+    AXOM_ANNOTATE_METADATA("query_points", ndofs, "");
+    AXOM_ANNOTATE_METADATA("query_time", query_timer.elapsed(), "");
   }
 
   // Save the query mesh and fields to disk using a format that can be viewed in VisIt
