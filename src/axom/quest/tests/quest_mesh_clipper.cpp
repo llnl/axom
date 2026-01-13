@@ -108,15 +108,8 @@ public:
   // The shape to run.
   std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
-  const std::set<std::string> availableShapes {"tetmesh",
-                                               "cupmesh",
-                                               "sphere",
-                                               "cyl",
-                                               "cone",
-                                               "sor",
-                                               "tet",
-                                               "hex",
-                                               "plane"};
+  const std::set<std::string>
+    availableShapes {"tetmesh", "cupmesh", "sphere", "cyl", "cone", "sor", "tet", "hex", "plane"};
 
   RuntimePolicy policy {RuntimePolicy::seq};
   int refinementLevel {7};
@@ -545,21 +538,18 @@ void fitTetMeshInsideMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>
   using Pt3D = primal::Point<double, 3>;
   using Vect3D = primal::Vector<double, 3>;
 
-  double *coords[] = { tetMesh.getCoordinateArray(0),
-                       tetMesh.getCoordinateArray(1),
-                       tetMesh.getCoordinateArray(2) };
+  double* coords[] = {tetMesh.getCoordinateArray(0),
+                      tetMesh.getCoordinateArray(1),
+                      tetMesh.getCoordinateArray(2)};
   const axom::IndexType vertCount = tetMesh.getNumberOfNodes();
 
   // Compute bounding boxes of tetMesh and the test mesh.
   BBox3D meshBox = BBox3D(Pt3D(params.boxMins.data()), Pt3D(params.boxMaxs.data()));
   BBox3D tetMeshBox;
-  axom::for_all<axom::SEQ_EXEC>(
-    vertCount,
-    [&](axom::IndexType vi)
-    {
-      Pt3D vertPt{coords[0][vi], coords[1][vi], coords[2][vi]};
-      tetMeshBox.addPoint(vertPt);
-    });
+  axom::for_all<axom::SEQ_EXEC>(vertCount, [&](axom::IndexType vi) {
+    Pt3D vertPt {coords[0][vi], coords[1][vi], coords[2][vi]};
+    tetMeshBox.addPoint(vertPt);
+  });
 
   // Compute tetMesh's scaling and its resultant bounding box.
   // Scale such that tetMesh will fit inside meshBox.
@@ -570,31 +560,28 @@ void fitTetMeshInsideMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>
   const Pt3D scaledTetMeshMax = meshBox.getMin() + tetMeshRange;
   BBox3D newTetMeshBox(meshBox.getMin(), scaledTetMeshMax);
   newTetMeshBox.scale(extraScale);
-  Vect3D shift( newTetMeshBox.getCentroid(), meshBox.getCentroid() );
+  Vect3D shift(newTetMeshBox.getCentroid(), meshBox.getCentroid());
   newTetMeshBox.shift(shift);
 
   // Compute transformation from the current tetMesh's box to the scaled box.
   const Pt3D& startMin = tetMeshBox.getMin();
   const Pt3D& startMax = tetMeshBox.getMax();
-  Pt3D start[4] = { startMin,
-                    Pt3D{startMax[0], startMin[1], startMin[2]},
-                    Pt3D{startMin[0], startMax[1], startMin[2]},
-                    Pt3D{startMin[0], startMin[1], startMax[2]} };
+  Pt3D start[4] = {startMin,
+                   Pt3D {startMax[0], startMin[1], startMin[2]},
+                   Pt3D {startMin[0], startMax[1], startMin[2]},
+                   Pt3D {startMin[0], startMin[1], startMax[2]}};
   const Pt3D& destMin = newTetMeshBox.getMin();
   const Pt3D& destMax = newTetMeshBox.getMax();
-  Pt3D dest[4] = { destMin,
-                   Pt3D{destMax[0], destMin[1], destMin[2]},
-                   Pt3D{destMin[0], destMax[1], destMin[2]},
-                   Pt3D{destMin[0], destMin[1], destMax[2]} };
+  Pt3D dest[4] = {destMin,
+                  Pt3D {destMax[0], destMin[1], destMin[2]},
+                  Pt3D {destMin[0], destMax[1], destMin[2]},
+                  Pt3D {destMin[0], destMin[1], destMax[2]}};
   primal::experimental::CoordinateTransformer<double> trans(start, dest);
 
   // Transform every tetMesh vertex.
   axom::for_all<axom::SEQ_EXEC>(
     vertCount,
-    AXOM_LAMBDA(axom::IndexType vi)
-    {
-      trans.transform(coords[0][vi], coords[1][vi], coords[2][vi]);
-    });
+    AXOM_LAMBDA(axom::IndexType vi) { trans.transform(coords[0][vi], coords[1][vi], coords[2][vi]); });
 }
 
 axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string& geomName)
@@ -671,7 +658,7 @@ axom::klee::Geometry createGeom_CupMesh(sidre::DataStore& ds, const std::string&
   int readStatus = reader.read();
   SLIC_ASSERT(readStatus == 0);
   reader.getMesh(&tetMesh);
-  const double extraScale = 1/sqrt(3.0); // to ensure tetMesh remains inside mesh when rotated.
+  const double extraScale = 1 / sqrt(3.0);  // to ensure tetMesh remains inside mesh when rotated.
   fitTetMeshInsideMesh(tetMesh, extraScale);
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
                                                     axom::klee::LengthUnit::unspecified};
