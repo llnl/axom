@@ -130,7 +130,8 @@ private:
    */
   void transformCoordset();
 
-  void computeTets();
+  template <typename ExecSpace>
+  void computeTets(axom::ArrayView<TetrahedronType> tetsView);
 
   //@{
   //!@name For computing surface of m_tetMesh.

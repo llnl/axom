@@ -33,8 +33,6 @@ TetMeshClipper::TetMeshClipper(const klee::Geometry& kGeom, const std::string& n
   extractClipperInfo();
 
   transformCoordset();
-
-  computeTets();
 }
 
 bool TetMeshClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
@@ -525,23 +523,54 @@ void TetMeshClipper::vertexInsideToCellLabel(quest::experimental::ShapeMesh& sha
 bool TetMeshClipper::getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh,
                                        axom::Array<TetrahedronType>& tets)
 {
-  tets = axom::Array<TetrahedronType>(m_tets, shapeMesh.getAllocatorID());
+  int allocId = shapeMesh.getAllocatorID();
+  if(tets.size() < m_tetCount || tets.getAllocatorID() != allocId)
+  {
+    tets = axom::Array<TetrahedronType>(ArrayOptions::Uninitialized(), m_tetCount, 0, allocId);
+  }
+
+  switch(shapeMesh.getRuntimePolicy())
+  {
+  case axom::runtime_policy::Policy::seq:
+    computeTets<axom::SEQ_EXEC>(tets.view());
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case axom::runtime_policy::Policy::omp:
+    computeTets<axom::OMP_EXEC>(tets.view());
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case axom::runtime_policy::Policy::cuda:
+    computeTets<axom::CUDA_EXEC<256>>(tets.view());
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case axom::runtime_policy::Policy::hip:
+    computeTets<axom::HIP_EXEC<256>>(tets.view());
+    break;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+
   return true;
 }
 
 /*
- * Compute m_tets.  Keep data on host.
- * (We don't know what allocator the ShapeMesh uses.)
+ * Copy the tets from m_tetMesh tetsView.
  */
-void TetMeshClipper::computeTets()
+template <typename ExecSpace>
+void TetMeshClipper::computeTets(axom::ArrayView<TetrahedronType> tetsView)
 {
   AXOM_ANNOTATE_SCOPE("TetMeshClipper::computeTets");
-  const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
-  m_tets = axom::Array<TetrahedronType>(m_tetCount, m_tetCount, hostAllocId);
+  const int allocId = tetsView.getAllocatorID();
+  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(allocId));
+  SLIC_ASSERT(tetsView.size() == m_tetCount);
 
-  copy_topo_and_coords_to(hostAllocId);
-  const std::string topoName = axom::fmt::format("{}.{}", m_topoName, hostAllocId);
+  copy_topo_and_coords_to(allocId);
+
+  const std::string topoName = axom::fmt::format("{}.{}", m_topoName, allocId);
   conduit::Node& tetTopo = m_tetMesh["topologies"][topoName];
   conduit::Node& tetVertConn = tetTopo.fetch_existing("elements").fetch_existing("connectivity");
   auto expectedConnectivityType = axom::sidre::detail::SidreTT<axom::IndexType>::id;
@@ -565,8 +594,7 @@ void TetMeshClipper::computeTets()
   auto ys = bumpUtils::make_array_view<double>(coordsNode["values/y"]);
   auto zs = bumpUtils::make_array_view<double>(coordsNode["values/z"]);
 
-  auto tetsView = m_tets.view();
-  axom::for_all<axom::SEQ_EXEC>(
+  axom::for_all<ExecSpace>(
     m_tetCount,
     AXOM_LAMBDA(IndexType ti) {
       auto vertices = tetVertConnView[ti];
