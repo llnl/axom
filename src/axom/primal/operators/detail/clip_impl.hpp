@@ -880,15 +880,20 @@ template <typename PolygonType, typename PointType, typename T>
 AXOM_HOST_DEVICE void clipPolygonAddVertex(PolygonType& polygon, const PointType& pt, T typed_eps)
 {
   const auto nverts = polygon.numVertices();
-  if(nverts > 0)
+  bool addVert = nverts == 0;
+  if(nverts > 1)
   {
     // Make sure the new point differs from the start/end points in the polygon.
-    if(!pt.isNearlyEqual(polygon[nverts - 1], typed_eps) && !pt.isNearlyEqual(polygon[0], typed_eps))
-    {
-      polygon.addVertex(pt);
-    }
+    const bool notFirstPoint = !pt.isNearlyEqual(polygon[0], typed_eps);
+    const bool notLastPoint = !pt.isNearlyEqual(polygon[nverts - 1], typed_eps);
+    addVert = notFirstPoint && notLastPoint;
   }
-  else
+  else if(nverts > 0)
+  {
+    // Make sure the new point differs from the start point in the polygon.
+    addVert = !pt.isNearlyEqual(polygon[0], typed_eps);
+  }
+  if(addVert)
   {
     polygon.addVertex(pt);
   }

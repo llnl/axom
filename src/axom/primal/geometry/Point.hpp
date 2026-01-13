@@ -199,7 +199,9 @@ public:
   friend inline bool operator!=(const Point& lhs, const Point& rhs) { return !(lhs == rhs); }
 
   /*!
-   * \brief Equality comparison for points that uses a tolerance.
+   * \brief Equality comparison for points that checks that each component is
+   *        compared within a tolerance. This is simpler test than distance, which
+   *        requires multiplies.
    *
    * \param obj The point being compared to this object.
    * \param tol The tolerance being used.
@@ -212,7 +214,7 @@ public:
     bool value = true;
     for(int d = 0; d < NDIMS && value; d++)
     {
-      value &= axom::utilities::isNearlyEqual(m_components[d], obj.m_components[d], tol);
+      value = value && axom::utilities::isNearlyEqual(m_components[d], obj.m_components[d], tol);
     }
     return value;
   }
