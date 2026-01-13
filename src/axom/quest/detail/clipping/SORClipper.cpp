@@ -70,10 +70,10 @@ bool SORClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
    * negative volume.)
    *
    * By convention, backward curves should generate negative volume,
-   * but for some reason, the cone discretization functionality always
-   * generates positive volumes.  We correct this by manually applying
-   * the correct sign.
-  */
+   * but the cone discretization functionality always generates
+   * positive volumes.  We correct this by manually applying the
+   * correct sign.
+   */
   const axom::IndexType cellCount = ovlap.size();
   axom::Array<double> tmpOvlap(cellCount, cellCount, ovlap.getAllocatorID());
   for(auto& fsorImpl : m_fsorImpls)

@@ -52,11 +52,12 @@ public:
   MonotonicZSORClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
   /*!
-   * @brief Construct from geometric specifications.
+   * @brief Construct with parameters to override the specificaitons
+   * in the klee::Geometry.
    */
   MonotonicZSORClipper(const klee::Geometry& kGeom,
                        const std::string& name,
-                       axom::ArrayView<const Point2DType> sorCurve,
+                       axom::ArrayView<const Point2DType> discreteFunction,
                        const Point3DType& sorOrigin,
                        const Vector3DType& sorDirection,
                        axom::IndexType levelOfRefinement);
