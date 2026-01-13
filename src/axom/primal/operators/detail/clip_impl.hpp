@@ -877,15 +877,13 @@ AXOM_HOST_DEVICE Polyhedron<T, NDIMS> clipTetrahedron(const Tetrahedron<T, NDIMS
  * \param typed_eps The tolerance value use to compare points.
  */
 template <typename PolygonType, typename PointType, typename T>
-AXOM_HOST_DEVICE
-void clipPolygonAddVertex(PolygonType &polygon, const PointType &pt, T typed_eps)
+AXOM_HOST_DEVICE void clipPolygonAddVertex(PolygonType& polygon, const PointType& pt, T typed_eps)
 {
   const auto nverts = polygon.numVertices();
   if(nverts > 0)
   {
     // Make sure the new point differs from the start/end points in the polygon.
-    if(!pt.isNearlyEqual(polygon[nverts - 1], typed_eps) &&
-       !pt.isNearlyEqual(polygon[0], typed_eps))
+    if(!pt.isNearlyEqual(polygon[nverts - 1], typed_eps) && !pt.isNearlyEqual(polygon[0], typed_eps))
     {
       polygon.addVertex(pt);
     }
@@ -955,7 +953,7 @@ AXOM_HOST_DEVICE PolygonType clipPolygonPlaneSimple(const PolygonType& inputList
       T seg_param;
       SegmentType subject_edge(prev_point, current_point);
       const bool intersected = intersect(plane, subject_edge, seg_param, eps);
-      if (intersected)
+      if(intersected)
       {
         const auto intersecting_point = subject_edge.at(seg_param);
         clipPolygonAddVertex(outputList, intersecting_point, typed_eps);

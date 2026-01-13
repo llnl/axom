@@ -207,14 +207,12 @@ public:
    * \return True if the points are equal within the tolerance, false otherwise.
    */
   AXOM_HOST_DEVICE
-  bool isNearlyEqual(const Point &obj, const T tol = 1.e-10) const
+  bool isNearlyEqual(const Point& obj, const T tol = 1.e-10) const
   {
     bool value = true;
     for(int d = 0; d < NDIMS && value; d++)
     {
-      value &= axom::utilities::isNearlyEqual(m_components[d],
-                                              obj.m_components[d],
-                                              tol);
+      value &= axom::utilities::isNearlyEqual(m_components[d], obj.m_components[d], tol);
     }
     return value;
   }

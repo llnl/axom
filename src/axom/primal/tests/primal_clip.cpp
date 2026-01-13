@@ -44,7 +44,7 @@ using PolyhedronType = axom::primal::Polyhedron<double, 3>;
 
 /// Compare two polygons with a tolerance.
 template <typename PolygonType, typename T>
-bool polygonsEqual(const PolygonType &p1, const PolygonType &p2, T tol)
+bool polygonsEqual(const PolygonType& p1, const PolygonType& p2, T tol)
 {
   bool eq = p1.numVertices() == p2.numVertices();
   if(eq)
@@ -2147,10 +2147,10 @@ struct test_cases
     auto clippedShape = axom::primal::clip(shape, P, eps);
 
     const PolygonType result5 {PointType {0.28000000204729441622, -0.10170833195453617137},
-                         PointType {0.28000000000000002665, -0.10170833191614940538},
-                         PointType {0.28000000000000002665, -0.10197916549252160345},
-                         PointType {0.32000000000000000666, -0.10535416549252160645},
-                         PointType {0.32000000000000000666, -0.10329166520683076558}};
+                               PointType {0.28000000000000002665, -0.10170833191614940538},
+                               PointType {0.28000000000000002665, -0.10197916549252160345},
+                               PointType {0.32000000000000000666, -0.10535416549252160645},
+                               PointType {0.32000000000000000666, -0.10329166520683076558}};
     return polygonsEqual(result5, clippedShape, eps);
   }
 
@@ -2168,16 +2168,17 @@ struct test_cases
 
     auto clippedShape = axom::primal::clip(shape, P, eps);
 
-    const PolygonType result3{PointType{0.46841046332037361566,-0.24999999999999952816},
-                              PointType{0.4685774857907649138,-0.24999999999999977796},
-                              PointType{0.46839968767712247821,-0.24820405945815776638}};
+    const PolygonType result3 {PointType {0.46841046332037361566, -0.24999999999999952816},
+                               PointType {0.4685774857907649138, -0.24999999999999977796},
+                               PointType {0.46839968767712247821, -0.24820405945815776638}};
 
-    const PolygonType result4{PointType{0.46841046332037361566,-0.24999999999999952816},
-                              PointType{0.46841046332037361566,-0.24999999999999977796},
-                              PointType{0.4685774857907649138,-0.24999999999999977796},
-                              PointType{0.46839968767712247821,-0.24820405945815776638}};
+    const PolygonType result4 {PointType {0.46841046332037361566, -0.24999999999999952816},
+                               PointType {0.46841046332037361566, -0.24999999999999977796},
+                               PointType {0.4685774857907649138, -0.24999999999999977796},
+                               PointType {0.46839968767712247821, -0.24820405945815776638}};
 
-    return expectedVerts == 3 ? polygonsEqual(clippedShape, result3, eps) : polygonsEqual(clippedShape, result4, eps);
+    return expectedVerts == 3 ? polygonsEqual(clippedShape, result3, eps)
+                              : polygonsEqual(clippedShape, result4, eps);
   }
 };
 
