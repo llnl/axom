@@ -237,8 +237,8 @@ void globalReduce(axom::Array<T>& values, int reduceOp)
                 axom::mpi_traits<T>::type,
                 reduceOp,
                 MPI_COMM_WORLD);
-#endif
 }
+#endif
 
 void MeshClipper::accumulateClippingStats(conduit::Node& curStats, const conduit::Node& newStats)
 {
