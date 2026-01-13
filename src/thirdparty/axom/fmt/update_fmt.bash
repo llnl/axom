@@ -3,7 +3,7 @@
 
 function clone_fmt
 {
-  VERSION="11.2.0"
+  VERSION="12.1.0"
   # Clone repo
   echo "Cloning fmt repo..."
   git clone https://github.com/fmtlib/fmt.git
@@ -37,7 +37,6 @@ function patch_file
 
 function apply_patches
 {
-  patch_file base.h       namespace.patch
   patch_file format-inl.h runtime_error.patch
   patch_file format.h     format.h.patch
 }
@@ -50,6 +49,8 @@ function modify_headers
     echo $f
     sed -i "s/FMT_/AXOM_FMT_/g" $f
     sed -i "s/fmt::/axom::fmt::/g" $f
+    sed -i "s/define AXOM_FMT_BEGIN_NAMESPACE/define AXOM_FMT_BEGIN_NAMESPACE namespace axom {/g" $f
+    sed -i "s/define AXOM_FMT_END_NAMESPACE/define AXOM_FMT_END_NAMESPACE }/g" $f
   done
 }
 
@@ -71,7 +72,6 @@ function revert
   git checkout -- std.h
   git checkout -- xchar.h
 
-  git checkout -- namespace.patch
   git checkout -- runtime_error.patch
   git checkout -- format.h.patch
 }
