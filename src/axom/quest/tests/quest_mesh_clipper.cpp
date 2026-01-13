@@ -1091,12 +1091,14 @@ int main(int argc, char** argv)
     else if(tg == "cyl")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::MonotonicZSORClipper>(createGeom_Cylinder(name), name));
+        std::make_shared<axom::quest::experimental::MonotonicZSORClipper>(createGeom_Cylinder(name),
+                                                                          name));
     }
     else if(tg == "cone")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::MonotonicZSORClipper>(createGeom_Cone(name), name));
+        std::make_shared<axom::quest::experimental::MonotonicZSORClipper>(createGeom_Cone(name),
+                                                                          name));
     }
     else if(tg == "sor")
     {

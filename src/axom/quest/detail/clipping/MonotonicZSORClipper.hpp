@@ -55,11 +55,11 @@ public:
    * @brief Construct from geometric specifications.
    */
   MonotonicZSORClipper(const klee::Geometry& kGeom,
-              const std::string& name,
-              axom::ArrayView<const Point2DType> sorCurve,
-              const Point3DType& sorOrigin,
-              const Vector3DType& sorDirection,
-              axom::IndexType levelOfRefinement);
+                       const std::string& name,
+                       axom::ArrayView<const Point2DType> sorCurve,
+                       const Point3DType& sorOrigin,
+                       const Vector3DType& sorDirection,
+                       axom::IndexType levelOfRefinement);
 
   virtual ~MonotonicZSORClipper() = default;
 

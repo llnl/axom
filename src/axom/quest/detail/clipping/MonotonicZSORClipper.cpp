@@ -61,11 +61,11 @@ MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom, const st
 }
 
 MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom,
-                         const std::string& name,
-                         axom::ArrayView<const Point2DType> sorCurve,
-                         const Point3DType& sorOrigin,
-                         const Vector3DType& sorDirection,
-                         axom::IndexType levelOfRefinement)
+                                           const std::string& name,
+                                           axom::ArrayView<const Point2DType> sorCurve,
+                                           const Point3DType& sorOrigin,
+                                           const Vector3DType& sorDirection,
+                                           axom::IndexType levelOfRefinement)
   : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("FSor") : name)
   , m_sorCurve(sorCurve, axom::execution_space<axom::SEQ_EXEC>::allocatorID())
@@ -107,7 +107,7 @@ MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom,
 }
 
 bool MonotonicZSORClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
-                                  axom::Array<LabelType>& labels)
+                                           axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "MonotonicZSORClipper requires a 3D mesh.");
 
@@ -145,8 +145,8 @@ bool MonotonicZSORClipper::labelCellsInOut(quest::experimental::ShapeMesh& shape
 }
 
 bool MonotonicZSORClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
-                                 axom::ArrayView<const axom::IndexType> cellIds,
-                                 axom::Array<LabelType>& tetLabels)
+                                          axom::ArrayView<const axom::IndexType> cellIds,
+                                          axom::Array<LabelType>& tetLabels)
 {
   SLIC_ERROR_IF(shapeMesh.dimension() != 3, "MonotonicZSORClipper requires a 3D mesh.");
 
@@ -191,7 +191,7 @@ bool MonotonicZSORClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeM
  */
 template <typename ExecSpace>
 void MonotonicZSORClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
-                                      axom::ArrayView<LabelType> labels)
+                                               axom::ArrayView<LabelType> labels)
 {
   axom::Array<BoundingBox2DType> bbOn;
   axom::Array<BoundingBox2DType> bbUnder;
@@ -225,8 +225,8 @@ void MonotonicZSORClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& s
 
 template <typename ExecSpace>
 void MonotonicZSORClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
-                                     axom::ArrayView<const axom::IndexType> cellIds,
-                                     axom::ArrayView<LabelType> labels)
+                                              axom::ArrayView<const axom::IndexType> cellIds,
+                                              axom::ArrayView<LabelType> labels)
 {
   axom::Array<BoundingBox2DType> bbOn;
   axom::Array<BoundingBox2DType> bbUnder;
@@ -362,8 +362,8 @@ AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType MonotonicZSORClipper::rzB
 */
 template <typename ExecSpace>
 void MonotonicZSORClipper::computeCurveBoxes(quest::experimental::ShapeMesh& shapeMesh,
-                                    axom::Array<BoundingBox2DType>& bbOn,
-                                    axom::Array<BoundingBox2DType>& bbUnder)
+                                             axom::Array<BoundingBox2DType>& bbOn,
+                                             axom::Array<BoundingBox2DType>& bbUnder)
 {
   /*
    * Compute bounding boxes bbOn, which cover the curve segments, and
@@ -441,10 +441,11 @@ void MonotonicZSORClipper::computeCurveBoxes(quest::experimental::ShapeMesh& sha
  * boxes for their size.  We do this by limiting the harmonic mean of
  * the r and z sides of the bounding boxes.
  */
-Array<MonotonicZSORClipper::Point2DType> MonotonicZSORClipper::subdivideCurve(const Array<Point2DType>& sorCurveIn,
-                                                            double maxMean,
-                                                            double maxDz,
-                                                            double minDz)
+Array<MonotonicZSORClipper::Point2DType> MonotonicZSORClipper::subdivideCurve(
+  const Array<Point2DType>& sorCurveIn,
+  double maxMean,
+  double maxDz,
+  double minDz)
 {
   Array<Point2DType> sorCurveOut;
 
@@ -491,7 +492,7 @@ Array<MonotonicZSORClipper::Point2DType> MonotonicZSORClipper::subdivideCurve(co
 }
 
 bool MonotonicZSORClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
-                                    axom::Array<OctahedronType>& octs)
+                                             axom::Array<OctahedronType>& octs)
 {
   AXOM_ANNOTATE_SCOPE("MonotonicZSORClipper::getGeometryAsOcts");
   switch(shapeMesh.getRuntimePolicy())
@@ -528,7 +529,7 @@ bool MonotonicZSORClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& sha
 */
 template <typename ExecSpace>
 bool MonotonicZSORClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMesh,
-                                        axom::Array<OctahedronType>& octs)
+                                                 axom::Array<OctahedronType>& octs)
 {
   const int allocId = shapeMesh.getAllocatorID();
   octs = axom::Array<OctahedronType>(0, 0, allocId);
@@ -647,7 +648,8 @@ void MonotonicZSORClipper::combineRadialSegments(axom::Array<Point2DType>& sorCu
          |    /             /             \
          +-------------------------------------> z (or x)
 */
-axom::Array<axom::IndexType> MonotonicZSORClipper::findZSwitchbacks(axom::ArrayView<const Point2DType> pts)
+axom::Array<axom::IndexType> MonotonicZSORClipper::findZSwitchbacks(
+  axom::ArrayView<const Point2DType> pts)
 {
   const axom::IndexType segCount = pts.size() - 1;
   SLIC_ASSERT(segCount > 0);

@@ -50,11 +50,11 @@ SORClipper::SORClipper(const klee::Geometry& kGeom, const std::string& name)
     axom::ArrayView<const Point2DType> section = sections[i].view();
     std::string sectionName = axom::fmt::format("{}.section{:02d}", m_name, i);
     m_fsorImpls.push_back(std::make_shared<MonotonicZSORClipper>(kGeom,
-                                                        sectionName,
-                                                        section,
-                                                        m_sorOrigin,
-                                                        m_sorDirection,
-                                                        m_levelOfRefinement));
+                                                                 sectionName,
+                                                                 section,
+                                                                 m_sorOrigin,
+                                                                 m_sorDirection,
+                                                                 m_levelOfRefinement));
   }
 }
 
