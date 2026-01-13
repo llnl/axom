@@ -29,8 +29,8 @@
 #include "axom/quest.hpp"
 #include "axom/quest/detail/clipping/HexClipper.hpp"
 #include "axom/quest/detail/clipping/Plane3DClipper.hpp"
-#include "axom/quest/detail/clipping/FSorClipper.hpp"
-#include "axom/quest/detail/clipping/SorClipper.hpp"
+#include "axom/quest/detail/clipping/MonotonicZSORClipper.hpp"
+#include "axom/quest/detail/clipping/SORClipper.hpp"
 #include "axom/quest/detail/clipping/SphereClipper.hpp"
 #include "axom/quest/detail/clipping/TetClipper.hpp"
 
@@ -1091,17 +1091,17 @@ int main(int argc, char** argv)
     else if(tg == "cyl")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::FSorClipper>(createGeom_Cylinder(name), name));
+        std::make_shared<axom::quest::experimental::MonotonicZSORClipper>(createGeom_Cylinder(name), name));
     }
     else if(tg == "cone")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::FSorClipper>(createGeom_Cone(name), name));
+        std::make_shared<axom::quest::experimental::MonotonicZSORClipper>(createGeom_Cone(name), name));
     }
     else if(tg == "sor")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::SorClipper>(createGeom_Sor(name), name));
+        std::make_shared<axom::quest::experimental::SORClipper>(createGeom_Sor(name), name));
     }
     // More geometries to come.
   }

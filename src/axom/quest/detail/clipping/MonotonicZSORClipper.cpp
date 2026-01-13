@@ -9,7 +9,7 @@
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
 #include "axom/quest/Discretize.hpp"
-#include "axom/quest/detail/clipping/FSorClipper.hpp"
+#include "axom/quest/detail/clipping/MonotonicZSORClipper.hpp"
 #include "axom/fmt.hpp"
 
 #include <limits>
@@ -21,7 +21,7 @@ namespace quest
 namespace experimental
 {
 
-FSorClipper::FSorClipper(const klee::Geometry& kGeom, const std::string& name)
+MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom, const std::string& name)
   : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("FSor") : name)
   , m_maxRadius(0.0)
@@ -36,8 +36,8 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom, const std::string& name)
   {
     // The 2 "turns" allowed are the first and last points.  Anything else is a switchback.
     SLIC_ERROR(
-      "FSorClipper does not work when a curve doubles back"
-      " in the axial direction.  Use SorClipper instead.");
+      "MonotonicZSORClipper does not work when a curve doubles back"
+      " in the axial direction.  Use SORClipper instead.");
   }
 
   for(auto& pt : m_sorCurve)
@@ -46,7 +46,7 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom, const std::string& name)
     m_minRadius = fmin(m_minRadius, pt[1]);
   }
   SLIC_ERROR_IF(m_minRadius < 0.0,
-                axom::fmt::format("FSorClipper '{}' has a negative radius", m_name));
+                axom::fmt::format("MonotonicZSORClipper '{}' has a negative radius", m_name));
 
   // Combine internal and external rotations into m_transformer.
   m_transformer.applyRotation(Vector3DType({1, 0, 0}), m_sorDirection);
@@ -60,7 +60,7 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom, const std::string& name)
   }
 }
 
-FSorClipper::FSorClipper(const klee::Geometry& kGeom,
+MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom,
                          const std::string& name,
                          axom::ArrayView<const Point2DType> sorCurve,
                          const Point3DType& sorOrigin,
@@ -82,8 +82,8 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
   {
     // The 2 "turns" allowed are the first and last points.  Anything else is a switchback.
     SLIC_ERROR(
-      "FSorClipper does not work when a curve doubles back"
-      " in the axial direction.  Use SorClipper instead.");
+      "MonotonicZSORClipper does not work when a curve doubles back"
+      " in the axial direction.  Use SORClipper instead.");
   }
 
   for(auto& pt : m_sorCurve)
@@ -92,7 +92,7 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
     m_minRadius = fmin(m_minRadius, pt[1]);
   }
   SLIC_ERROR_IF(m_minRadius < 0.0,
-                axom::fmt::format("FSorClipper '{}' has a negative radius", m_name));
+                axom::fmt::format("MonotonicZSORClipper '{}' has a negative radius", m_name));
 
   // Combine internal and external rotations into m_transformer.
   m_transformer.applyRotation(Vector3DType({1, 0, 0}), m_sorDirection);
@@ -106,10 +106,10 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
   }
 }
 
-bool FSorClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
+bool MonotonicZSORClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
                                   axom::Array<LabelType>& labels)
 {
-  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "FSorClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "MonotonicZSORClipper requires a 3D mesh.");
 
   const int allocId = shapeMesh.getAllocatorID();
   const auto cellCount = shapeMesh.getCellCount();
@@ -144,11 +144,11 @@ bool FSorClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
   return true;
 }
 
-bool FSorClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
+bool MonotonicZSORClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
                                  axom::ArrayView<const axom::IndexType> cellIds,
                                  axom::Array<LabelType>& tetLabels)
 {
-  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "FSorClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "MonotonicZSORClipper requires a 3D mesh.");
 
   const int allocId = shapeMesh.getAllocatorID();
   const auto cellCount = cellIds.size();
@@ -190,7 +190,7 @@ bool FSorClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
  * determine whether the point is in the sor that way.
  */
 template <typename ExecSpace>
-void FSorClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+void MonotonicZSORClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                                       axom::ArrayView<LabelType> labels)
 {
   axom::Array<BoundingBox2DType> bbOn;
@@ -224,7 +224,7 @@ void FSorClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
 }
 
 template <typename ExecSpace>
-void FSorClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+void MonotonicZSORClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                                      axom::ArrayView<const axom::IndexType> cellIds,
                                      axom::ArrayView<LabelType> labels)
 {
@@ -280,10 +280,10 @@ void FSorClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
      intersect SOR between vertices.
 */
 template <typename PolyhedronType>
-AXOM_HOST_DEVICE FSorClipper::BoundingBox2DType FSorClipper::estimateBoundingBoxInRz(
+AXOM_HOST_DEVICE MonotonicZSORClipper::BoundingBox2DType MonotonicZSORClipper::estimateBoundingBoxInRz(
   const PolyhedronType& vertices)
 {
-  FSorClipper::BoundingBox2DType bbInRz;
+  MonotonicZSORClipper::BoundingBox2DType bbInRz;
 
   // Range of vertex angles in cylindrical coordinates.
   double minAngle = numerics::floating_point_limits<double>::max();
@@ -328,7 +328,7 @@ AXOM_HOST_DEVICE FSorClipper::BoundingBox2DType FSorClipper::estimateBoundingBox
   We expect bbOn and bbUnder to be small arrays, so we use
   linear searches.  If that's too slow, we can use a BVH.
 */
-AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType FSorClipper::rzBbToLabel(
+AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType MonotonicZSORClipper::rzBbToLabel(
   const BoundingBox2DType& bbInRz,
   const axom::ArrayView<const BoundingBox2DType>& bbOn,
   const axom::ArrayView<const BoundingBox2DType>& bbUnder)
@@ -361,7 +361,7 @@ AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType FSorClipper::rzBbToLabel(
 /*
 */
 template <typename ExecSpace>
-void FSorClipper::computeCurveBoxes(quest::experimental::ShapeMesh& shapeMesh,
+void MonotonicZSORClipper::computeCurveBoxes(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::Array<BoundingBox2DType>& bbOn,
                                     axom::Array<BoundingBox2DType>& bbUnder)
 {
@@ -441,7 +441,7 @@ void FSorClipper::computeCurveBoxes(quest::experimental::ShapeMesh& shapeMesh,
  * boxes for their size.  We do this by limiting the harmonic mean of
  * the r and z sides of the bounding boxes.
  */
-Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(const Array<Point2DType>& sorCurveIn,
+Array<MonotonicZSORClipper::Point2DType> MonotonicZSORClipper::subdivideCurve(const Array<Point2DType>& sorCurveIn,
                                                             double maxMean,
                                                             double maxDz,
                                                             double minDz)
@@ -490,10 +490,10 @@ Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(const Array<Point2DT
   return sorCurveOut;
 }
 
-bool FSorClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
+bool MonotonicZSORClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::Array<OctahedronType>& octs)
 {
-  AXOM_ANNOTATE_SCOPE("FSorClipper::getGeometryAsOcts");
+  AXOM_ANNOTATE_SCOPE("MonotonicZSORClipper::getGeometryAsOcts");
   switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
@@ -527,7 +527,7 @@ bool FSorClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
   if it's not there yet.
 */
 template <typename ExecSpace>
-bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMesh,
+bool MonotonicZSORClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMesh,
                                         axom::Array<OctahedronType>& octs)
 {
   const int allocId = shapeMesh.getAllocatorID();
@@ -576,7 +576,7 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMes
     });
 
   SLIC_INFO(axom::fmt::format(
-    "FSorClipper '{}' {}-level refinement got {} geometry octs from {} curve points.",
+    "MonotonicZSORClipper '{}' {}-level refinement got {} geometry octs from {} curve points.",
     name(),
     m_levelOfRefinement,
     octs.size(),
@@ -588,7 +588,7 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMes
 /*
   Combine consecutive radial segments in SOR curve.  Change in place.
 */
-void FSorClipper::combineRadialSegments(axom::Array<Point2DType>& sorCurve)
+void MonotonicZSORClipper::combineRadialSegments(axom::Array<Point2DType>& sorCurve)
 {
   int ptCount = sorCurve.size();
   if(ptCount < 3)
@@ -647,7 +647,7 @@ void FSorClipper::combineRadialSegments(axom::Array<Point2DType>& sorCurve)
          |    /             /             \
          +-------------------------------------> z (or x)
 */
-axom::Array<axom::IndexType> FSorClipper::findZSwitchbacks(axom::ArrayView<const Point2DType> pts)
+axom::Array<axom::IndexType> MonotonicZSORClipper::findZSwitchbacks(axom::ArrayView<const Point2DType> pts)
 {
   const axom::IndexType segCount = pts.size() - 1;
   SLIC_ASSERT(segCount > 0);
@@ -703,7 +703,7 @@ axom::Array<axom::IndexType> FSorClipper::findZSwitchbacks(axom::ArrayView<const
   return boundaryIdx;
 }
 
-void FSorClipper::extractClipperInfo()
+void MonotonicZSORClipper::extractClipperInfo()
 {
   auto sorOriginArray = m_info.fetch_existing("sorOrigin").as_double_array();
   auto sorDirectionArray = m_info.fetch_existing("sorDirection").as_double_array();
@@ -719,7 +719,7 @@ void FSorClipper::extractClipperInfo()
   SLIC_ERROR_IF(
     n % 2 != 0,
     axom::fmt::format(
-      "***FSorClipper: Discrete function must have an even number of values.  It has {}.",
+      "***MonotonicZSORClipper: Discrete function must have an even number of values.  It has {}.",
       n));
 
   m_sorCurve.resize(axom::ArrayOptions::Uninitialized(), n / 2);

@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_FSORCLIPPER_HPP
-#define AXOM_QUEST_FSORCLIPPER_HPP
+#ifndef AXOM_QUEST_MONOTONICZSORCLIPPER_HPP
+#define AXOM_QUEST_MONOTONICZSORCLIPPER_HPP
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/MeshClipperStrategy.hpp"
@@ -24,12 +24,12 @@ namespace experimental
  * This implementation requires the SOR curve r(z) have monotonic (but
  * not strictly monotonic) z coordinates.  The curve may have vertical
  * slopes but it may not double back in z.  For SOR curves that double back,
- * use SorClipper.
+ * use SORClipper.
  *
  * The SOR specification may include axis orientation and location
  * in addition to any external transformation.
  */
-class FSorClipper : public MeshClipperStrategy
+class MonotonicZSORClipper : public MeshClipperStrategy
 {
 public:
   /*!
@@ -49,19 +49,19 @@ public:
    *   (@see quest::discretize(const axom::ArrayView<Point2D> &polyline, int pointcount, int levels, axom::Array<OctType> &out, int &octcount)).
    *   In practice, keep this number to 11 or less.
    */
-  FSorClipper(const klee::Geometry& kGeom, const std::string& name = "");
+  MonotonicZSORClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
   /*!
    * @brief Construct from geometric specifications.
    */
-  FSorClipper(const klee::Geometry& kGeom,
+  MonotonicZSORClipper(const klee::Geometry& kGeom,
               const std::string& name,
               axom::ArrayView<const Point2DType> sorCurve,
               const Point3DType& sorOrigin,
               const Vector3DType& sorDirection,
               axom::IndexType levelOfRefinement);
 
-  virtual ~FSorClipper() = default;
+  virtual ~MonotonicZSORClipper() = default;
 
   const std::string& name() const override { return m_name; }
 
@@ -78,7 +78,7 @@ public:
   axom::ArrayView<const Point2DType> getSorCurve() const { return m_sorCurve.view(); }
 
   //@{
-  //! @name Utilities shared with SorClipper for handling SOR.
+  //! @name Utilities shared with SORClipper for handling SOR.
   /*!
    * @brief Find division points between curve sections where z (x)
    * changes directions.
