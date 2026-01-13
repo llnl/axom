@@ -614,42 +614,42 @@ void TetMeshClipper::computeTets()
   bool fixOrientation = false;
   if(m_info.has_child("fixOrientation"))
   {
-    fixOrientation = bool(m_info.fetch_existing("fixOrientation").as_int());
+    fixOrientation = bool(m_info.fetch_existing("fixOrientation").to_int());
   }
 
   // Initialize tetrahedra and check for bad orientations.
   constexpr double EPS = 1e-10;
-  IndexType nodeIds[4];
-  Point3DType pts[4];
-  for(int i = 0; i < m_tetCount; i++)
-  {
-    mintMesh->getCellNodeIDs(i, nodeIds);
-
-    mintMesh->getNode(nodeIds[0], pts[0].data());
-    mintMesh->getNode(nodeIds[1], pts[1].data());
-    mintMesh->getNode(nodeIds[2], pts[2].data());
-    mintMesh->getNode(nodeIds[3], pts[3].data());
-
-    m_tets[i] = TetrahedronType({pts[0], pts[1], pts[2], pts[3]});
-
-    if(fixOrientation)
+  axom::for_all<SEQ_EXEC>(
+    m_tetCount, AXOM_LAMBDA(IndexType i)
     {
-      m_tets[i].checkAndFixOrientation();
-    }
-    else
-    {
-      double signedVol = m_tets[i].signedVolume();
-      if(signedVol < -EPS)
+      IndexType nodeIds[4];
+      Point3DType pts[4];
+      mintMesh->getCellNodeIDs(i, nodeIds);
+
+      mintMesh->getNode(nodeIds[0], pts[0].data());
+      mintMesh->getNode(nodeIds[1], pts[1].data());
+      mintMesh->getNode(nodeIds[2], pts[2].data());
+      mintMesh->getNode(nodeIds[3], pts[3].data());
+      m_tets[i] = TetrahedronType({pts[0], pts[1], pts[2], pts[3]});
+
+      if(fixOrientation)
       {
-        SLIC_ERROR(
-          axom::fmt::format("TetMeshClipper's tet {}, {}, has a negative volume {}.:"
-                            "  (See TetMeshClipper's 'fixOrientation' flag.)",
-                            i,
-                            m_tets[i],
-                            signedVol));
+        m_tets[i].checkAndFixOrientation();
       }
-    }
-  }
+      else
+      {
+        double signedVol = m_tets[i].signedVolume();
+        if(signedVol < -EPS)
+        {
+          SLIC_ERROR(
+            axom::fmt::format("TetMeshClipper's tet {}, {}, has a negative volume {}.:"
+                              "  (See TetMeshClipper's 'fixOrientation' flag.)",
+                              i,
+                              m_tets[i],
+                              signedVol));
+        }
+      }
+    });
 }
 
 void TetMeshClipper::extractClipperInfo()
