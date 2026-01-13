@@ -1,8 +1,10 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO llnl/raja
-    REF v2025.09.1
-    SHA512 7a116e5348cbb3b6d44c2951ced2d0f513c921631ef534b541e28cc08cfe3d583cd5efaf6805ea09ea2c83e79fc5fd9b94cf59208c03daba3a1c8f153f52f6fc
+    #REF v2025.09.1
+    #SHA512 7a116e5348cbb3b6d44c2951ced2d0f513c921631ef534b541e28cc08cfe3d583cd5efaf6805ea09ea2c83e79fc5fd9b94cf59208c03daba3a1c8f153f52f6fc
+    REF v2025.09.0
+    SHA512 5b67f90b00e98ca8dccfe33a4bca973fcf7654b8473d9caa66b14bce80fdc35bd21d3a61222d5ed38d0dd7be9d81f24d73328d97b3b783fe7b1df6dc67a5fff4
     #PATCHES
     #    "./vcpkg_raja_openmp.patch"
 )
