@@ -84,6 +84,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Updates to [mfem version 4.9](https://github.com/mfem/mfem/releases/tag/v4.9).
   Also updates mfem's hypre dependency to [hypre version 2.27](https://github.com/hypre-space/hypre/releases/tag/v2.27.0).
 - Quest: MFEMReader can now read in multispan 1D NURBS meshes
+- Primal: Axom's polygon clipping was modified to handle some corner cases.
 
 ###  Fixed
 - Sina's Fortran tests are now running (instead of silently failing)
