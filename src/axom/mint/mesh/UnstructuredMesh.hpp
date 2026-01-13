@@ -808,8 +808,7 @@ public:
   // clang-format off
   [[deprecated("No significance. Will be removed in a later release.")]]
   // clang-format on
-  virtual IndexType
-  getFaceCapacity() const final override
+  virtual IndexType getFaceCapacity() const final override
   {
     return m_faces.size();
   }
@@ -992,7 +991,7 @@ public:
    * \brief Reserve space for the given number of cells.
    *
    * \param [in] cell_capacity the number of cells to reserve space for.
-   * \param [in] connectivity_capacity the ammount of space to reserve in the
+   * \param [in] connectivity_capacity the amount of space to reserve in the
    *  connectivity array. Ignored if TOPO == SINGLE_SHAPE.
    *
    * \post getCellCapacity() >= cell_capacity
@@ -1103,8 +1102,7 @@ public:
   // clang-format off
   [[deprecated("No significance. Will be removed in a later release.")]]
   // clang-format on
-  IndexType
-  getFaceNodesCapacity() const
+  IndexType getFaceNodesCapacity() const
   {
     return m_face_node_rel.relationData().size();
   }

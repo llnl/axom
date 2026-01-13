@@ -73,6 +73,21 @@ namespace detail
 {
 
 //------------------------------------------------------------------------------
+template <typename T>
+struct clip_precision
+{
+  // The default precision used in axom::primal::clip
+  static constexpr double eps = 1.e-10;
+};
+
+template <>
+struct clip_precision<double>
+{
+  // Make the axom::primal::clip more precise for double.
+  static constexpr double eps = 1.e-15;
+};
+
+//------------------------------------------------------------------------------
 /*!
  * \brief Compute a range given by 2 points given a shape and a normal. The
  *        range represents a range such that clipping the shape at range[0]
@@ -162,7 +177,7 @@ AXOM_HOST_DEVICE inline ClipResultType clipToVolume(const ShapeType &shape,
     const auto P = axom::primal::Plane<T, NDIMS>(clipNormal, pt, false);
 
     // Clip the shape at the current plane.
-    clippedShape = axom::primal::clip(shape, P);
+    clippedShape = axom::primal::clip(shape, P, clip_precision<T>::eps);
 
     // Find the volume of the clipped shape.
     const double fragmentVolume = utils::ComputeShapeAmount<NDIMS>::execute(clippedShape);

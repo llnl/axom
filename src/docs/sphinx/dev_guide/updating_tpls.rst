@@ -24,8 +24,9 @@ should provide Axom developers with answers to questions such as:
   * How to use the scripts for team TPL support vs. local development 
     and experimentation?
 
+===========
 Determinism
------------
+===========
 
 We strive for as close to deterministic behavior in our builds as possible.
 By this, we mean that repeated builds should be the same with respect to the 
@@ -244,9 +245,8 @@ instructions on how to update a built-in TPL are:
 #. Follow the normal pull request work flow. For more information, please see :ref:`pullrequest-label`.
 
 
-
 CLI11
-^^^^^
++++++
 
 CLI11 is a 3rd party builtin library that Axom uses to handle command
 line processing. Axom packages the library in a header-only format. The CLI11.hpp

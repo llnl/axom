@@ -1,42 +1,44 @@
---- fmt/include/fmt/format-inl.h	2025-07-02 12:34:54.697185000 -0700
-+++ format-inl.h	2025-07-02 12:34:55.058645000 -0700
-@@ -160,11 +160,17 @@
- }
+diff --git a/src/thirdparty/axom/fmt/format-inl.h b/src/thirdparty/axom/fmt/format-inl.h
+index ff6e6323f..efdbeb40a 100644
+--- a/src/thirdparty/axom/fmt/format-inl.h
++++ b/src/thirdparty/axom/fmt/format-inl.h
+@@ -121,11 +121,17 @@ template <typename Char> AXOM_FMT_FUNC Char decimal_point_impl(locale_ref) {
+ AXOM_FMT_API AXOM_FMT_FUNC format_error::~format_error() noexcept = default;
  #endif
  
+-AXOM_FMT_FUNC std::system_error vsystem_error(int error_code, string_view format_str,
 +// BEGIN AXOM BUGFIX
 +// NVCC's preprocessor converts 'std::error_code' to `class std::error_code'
 +// and then complains that `return class std::error_code' isn't valid!
 +using axom_fmt_system_error = std::system_error;
 +
- FMT_FUNC auto vsystem_error(int error_code, string_view fmt, format_args args)
--    -> std::system_error {
-+    -> axom_fmt_system_error {
++AXOM_FMT_FUNC axom_fmt_system_error vsystem_error(int error_code, string_view format_str,
+                                          format_args args) {
    auto ec = std::error_code(error_code, std::generic_category());
--  return std::system_error(ec, vformat(fmt, args));
-+  return axom_fmt_system_error(ec, vformat(fmt, args));
+-  return std::system_error(ec, vformat(format_str, args));
++  return axom_fmt_system_error(ec, vformat(format_str, args));
  }
 +// END AXOM BUGFIX
  
  namespace detail {
  
-@@ -1423,16 +1429,18 @@
+@@ -1449,16 +1455,18 @@ AXOM_FMT_FUNC detail::utf8_to_utf16::utf8_to_utf16(string_view s) {
    buffer_.push_back(0);
  }
  
 +// BEGIN AXOM BUGFIX
- FMT_FUNC void format_system_error(detail::buffer<char>& out, int error_code,
+ AXOM_FMT_FUNC void format_system_error(detail::buffer<char>& out, int error_code,
                                    const char* message) noexcept {
-   FMT_TRY {
+   AXOM_FMT_TRY {
      auto ec = std::error_code(error_code, std::generic_category());
--    detail::write(appender(out), std::system_error(ec, message).what());
-+    detail::write(appender(out), axom_fmt_system_error(ec, message).what());
+-    write(std::back_inserter(out), std::system_error(ec, message).what());
++    write(std::back_inserter(out), axom_fmt_system_error(ec, message).what());
      return;
    }
-   FMT_CATCH(...) {}
+   AXOM_FMT_CATCH(...) {}
    format_error_code(out, error_code, message);
  }
 +// END AXOM BUGFIX
  
- FMT_FUNC void report_system_error(int error_code,
+ AXOM_FMT_FUNC void report_system_error(int error_code,
                                    const char* message) noexcept {

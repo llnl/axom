@@ -1,0 +1,107 @@
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
+# other Axom Project Developers. See the top-level LICENSE file for details.
+#
+# SPDX-License-Identifier: (BSD-3-Clause)
+
+####
+# This is the shared configuration of jobs for dane
+.on_dane:
+  variables:
+    SCHEDULER_PARAMETERS: "--reservation=ci --exclusive=user --deadline=now+1hour -N1 -t ${ALLOC_TIME}"
+  tags:
+    - batch
+    - dane
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /_qnone/ || $ON_DANE == "OFF"' #run except if ...
+      when: never
+    - if: '$CI_JOB_NAME =~ /dane_release/'
+      when: always
+    - when: on_success
+  before_script:
+    - module load cmake/3.19.2
+
+####
+# Template
+.src_build_on_dane:
+  variables:
+    ALLOC_TIME: "40"
+  extends: [.src_build_script, .on_dane, .src_workflow]
+  needs: []
+
+.full_build_on_dane:
+  variables:
+    ALLOC_TIME: "70"
+  extends: [.full_build_script, .on_dane, .full_workflow]
+  needs: []
+
+####
+# PR Build jobs
+dane-llvm_19_1_3-debug-src:
+  variables:
+    COMPILER: "llvm@19.1.3"
+    HOST_CONFIG: "dane-toss_4_x86_64_ib-${COMPILER}.cmake"
+  extends: .src_build_on_dane
+
+dane-llvm_19_1_3-release-src:
+  variables:
+    COMPILER: "llvm@19.1.3"
+    HOST_CONFIG: "dane-toss_4_x86_64_ib-${COMPILER}.cmake"
+    BUILD_TYPE: "Release"
+    EXTRA_CMAKE_OPTIONS: "-DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON"
+  extends: .src_build_on_dane
+
+dane-gcc_13_3_1-src:
+  variables:
+    COMPILER: "gcc@13.3.1"
+    HOST_CONFIG: "dane-toss_4_x86_64_ib-${COMPILER}.cmake"
+  extends: .src_build_on_dane
+
+dane-sanitizers-gcc_13_3_1-src:
+  variables:
+    COMPILER: "gcc@13.3.1"
+    HOST_CONFIG: "dane-toss_4_x86_64_ib-${COMPILER}.cmake"
+    LSAN_OPTIONS: suppressions=${CI_PROJECT_DIR}/suppressions.asan
+    EXTRA_CMAKE_OPTIONS: "-DAXOM_ENABLE_ASAN=ON -DAXOM_ENABLE_UBSAN=ON"
+  extends: .src_build_on_dane
+
+# TODO: turn back on
+#dane-gcc_13_3_1_no_fortran-src:
+#  variables:
+#    COMPILER: "gcc@13.3.1"
+#    HOST_CONFIG: "dane-toss_4_x86_64_ib-${COMPILER}_nofortran.cmake"
+#  extends: .src_build_on_dane
+
+# disabled due to not actually having a host-config yet
+# dane-intel_19_0_4-src:
+#   variables:
+#     COMPILER: "intel@19.0.4"
+#     HOST_CONFIG: "dane-toss_4_x86_64_ib-${COMPILER}.cmake"
+#   extends: .src_build_on_dane
+
+
+####
+# Full Build jobs
+dane-llvm_19_1_3-full:
+  variables:
+    COMPILER: "llvm@19.1.3"
+    SPEC: "%${COMPILER}+mfem"
+  extends: .full_build_on_dane
+
+dane-gcc_13_3_1-full:
+  variables:
+    COMPILER: "gcc@8.3.1"
+    SPEC: "%${COMPILER}+mfem"
+  extends: .full_build_on_dane
+
+dane-gcc_13_3_1_no_fortran-full:
+  variables:
+    COMPILER: "gcc@13.3.1"
+    SPEC: "%${COMPILER}~fortran+mfem"
+  extends: .full_build_on_dane
+
+# disabled due to not actually having a host-config yet
+#dane-intel_19_0_4-full:
+#  variables:
+#    COMPILER: "intel@19.0.4"
+#    SPEC: "%${COMPILER}+mfem~cpp14"
+#  extends: .full_build_on_dane

@@ -8,18 +8,16 @@
 #ifndef AXOM_FMT_OS_H_
 #define AXOM_FMT_OS_H_
 
+#include <cerrno>
+#include <cstddef>
+#include <cstdio>
+#include <system_error>  // std::system_error
+
+#if defined __APPLE__ || defined(__FreeBSD__)
+#  include <xlocale.h>  // for LC_NUMERIC_MASK on OS X
+#endif
+
 #include "format.h"
-
-#ifndef AXOM_FMT_MODULE
-#  include <cerrno>
-#  include <cstddef>
-#  include <cstdio>
-#  include <system_error>  // std::system_error
-
-#  if AXOM_FMT_HAS_INCLUDE(<xlocale.h>)
-#    include <xlocale.h>  // LC_NUMERIC_MASK on macOS
-#  endif
-#endif  // AXOM_FMT_MODULE
 
 #ifndef AXOM_FMT_USE_FCNTL
 // UWP doesn't provide _pipe.
@@ -48,7 +46,6 @@
 
 // Calls to system functions are wrapped in AXOM_FMT_SYSTEM for testability.
 #ifdef AXOM_FMT_SYSTEM
-#  define AXOM_FMT_HAS_SYSTEM
 #  define AXOM_FMT_POSIX_CALL(call) AXOM_FMT_SYSTEM(call)
 #else
 #  define AXOM_FMT_SYSTEM(call) ::call
@@ -74,89 +71,143 @@
 #define AXOM_FMT_RETRY(result, expression) AXOM_FMT_RETRY_VAL(result, expression, -1)
 
 AXOM_FMT_BEGIN_NAMESPACE
-AXOM_FMT_BEGIN_EXPORT
+AXOM_FMT_MODULE_EXPORT_BEGIN
 
 /**
- * A reference to a null-terminated string. It can be constructed from a C
- * string or `std::string`.
- *
- * You can use one of the following type aliases for common character types:
- *
- * +---------------+-----------------------------+
- * | Type          | Definition                  |
- * +===============+=============================+
- * | cstring_view  | basic_cstring_view<char>    |
- * +---------------+-----------------------------+
- * | wcstring_view | basic_cstring_view<wchar_t> |
- * +---------------+-----------------------------+
- *
- * This class is most useful as a parameter type for functions that wrap C APIs.
+  \rst
+  A reference to a null-terminated string. It can be constructed from a C
+  string or ``std::string``.
+
+  You can use one of the following type aliases for common character types:
+
+  +---------------+-----------------------------+
+  | Type          | Definition                  |
+  +===============+=============================+
+  | cstring_view  | basic_cstring_view<char>    |
+  +---------------+-----------------------------+
+  | wcstring_view | basic_cstring_view<wchar_t> |
+  +---------------+-----------------------------+
+
+  This class is most useful as a parameter type to allow passing
+  different types of strings to a function, for example::
+
+    template <typename... Args>
+    std::string format(cstring_view format_str, const Args & ... args);
+
+    format("{}", 42);
+    format(std::string("{}"), 42);
+  \endrst
  */
 template <typename Char> class basic_cstring_view {
  private:
   const Char* data_;
 
  public:
-  /// Constructs a string reference object from a C string.
+  /** Constructs a string reference object from a C string. */
   basic_cstring_view(const Char* s) : data_(s) {}
 
-  /// Constructs a string reference from an `std::string` object.
+  /**
+    \rst
+    Constructs a string reference from an ``std::string`` object.
+    \endrst
+   */
   basic_cstring_view(const std::basic_string<Char>& s) : data_(s.c_str()) {}
 
-  /// Returns the pointer to a C string.
-  auto c_str() const -> const Char* { return data_; }
+  /** Returns the pointer to a C string. */
+  const Char* c_str() const { return data_; }
 };
 
 using cstring_view = basic_cstring_view<char>;
 using wcstring_view = basic_cstring_view<wchar_t>;
 
+template <typename Char> struct formatter<std::error_code, Char> {
+  template <typename ParseContext>
+  AXOM_FMT_CONSTEXPR auto parse(ParseContext& ctx) -> decltype(ctx.begin()) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  AXOM_FMT_CONSTEXPR auto format(const std::error_code& ec, FormatContext& ctx) const
+      -> decltype(ctx.out()) {
+    auto out = ctx.out();
+    out = detail::write_bytes(out, ec.category().name(),
+                              basic_format_specs<Char>());
+    out = detail::write<Char>(out, Char(':'));
+    out = detail::write<Char>(out, ec.value());
+    return out;
+  }
+};
+
 #ifdef _WIN32
 AXOM_FMT_API const std::error_category& system_category() noexcept;
 
-namespace detail {
+AXOM_FMT_BEGIN_DETAIL_NAMESPACE
+// A converter from UTF-16 to UTF-8.
+// It is only provided for Windows since other systems support UTF-8 natively.
+class utf16_to_utf8 {
+ private:
+  memory_buffer buffer_;
+
+ public:
+  utf16_to_utf8() {}
+  AXOM_FMT_API explicit utf16_to_utf8(basic_string_view<wchar_t> s);
+  operator string_view() const { return string_view(&buffer_[0], size()); }
+  size_t size() const { return buffer_.size() - 1; }
+  const char* c_str() const { return &buffer_[0]; }
+  std::string str() const { return std::string(&buffer_[0], size()); }
+
+  // Performs conversion returning a system error code instead of
+  // throwing exception on conversion error. This method may still throw
+  // in case of memory allocation error.
+  AXOM_FMT_API int convert(basic_string_view<wchar_t> s);
+};
+
 AXOM_FMT_API void format_windows_error(buffer<char>& out, int error_code,
                                   const char* message) noexcept;
-}
+AXOM_FMT_END_DETAIL_NAMESPACE
 
-AXOM_FMT_API std::system_error vwindows_error(int error_code, string_view fmt,
+AXOM_FMT_API std::system_error vwindows_error(int error_code, string_view format_str,
                                          format_args args);
 
 /**
- * Constructs a `std::system_error` object with the description of the form
- *
- *     <message>: <system-message>
- *
- * where `<message>` is the formatted message and `<system-message>` is the
- * system message corresponding to the error code.
- * `error_code` is a Windows error code as given by `GetLastError`.
- * If `error_code` is not a valid error code such as -1, the system message
- * will look like "error -1".
- *
- * **Example**:
- *
- *     // This throws a system_error with the description
- *     //   cannot open file 'madeup': The system cannot find the file
- * specified.
- *     // or similar (system message may vary).
- *     const char *filename = "madeup";
- *     LPOFSTRUCT of = LPOFSTRUCT();
- *     HFILE file = OpenFile(filename, &of, OF_READ);
- *     if (file == HFILE_ERROR) {
- *       throw axom::fmt::windows_error(GetLastError(),
- *                                "cannot open file '{}'", filename);
- *     }
- */
-template <typename... T>
-auto windows_error(int error_code, string_view message, const T&... args)
-    -> std::system_error {
-  return vwindows_error(error_code, message, vargs<T...>{{args...}});
+ \rst
+ Constructs a :class:`std::system_error` object with the description
+ of the form
+
+ .. parsed-literal::
+   *<message>*: *<system-message>*
+
+ where *<message>* is the formatted message and *<system-message>* is the
+ system message corresponding to the error code.
+ *error_code* is a Windows error code as given by ``GetLastError``.
+ If *error_code* is not a valid error code such as -1, the system message
+ will look like "error -1".
+
+ **Example**::
+
+   // This throws a system_error with the description
+   //   cannot open file 'madeup': The system cannot find the file specified.
+   // or similar (system message may vary).
+   const char *filename = "madeup";
+   LPOFSTRUCT of = LPOFSTRUCT();
+   HFILE file = OpenFile(filename, &of, OF_READ);
+   if (file == HFILE_ERROR) {
+     throw axom::fmt::windows_error(GetLastError(),
+                              "cannot open file '{}'", filename);
+   }
+ \endrst
+*/
+template <typename... Args>
+std::system_error windows_error(int error_code, string_view message,
+                                const Args&... args) {
+  return vwindows_error(error_code, message, axom::fmt::make_format_args(args...));
 }
 
 // Reports a Windows error without throwing an exception.
 // Can be used to report errors from destructors.
 AXOM_FMT_API void report_windows_error(int error_code, const char* message) noexcept;
 #else
-inline auto system_category() noexcept -> const std::error_category& {
+inline const std::error_category& system_category() noexcept {
   return std::system_category();
 }
 #endif  // _WIN32
@@ -164,8 +215,8 @@ inline auto system_category() noexcept -> const std::error_category& {
 // std::system is not available on some platforms such as iOS (#2248).
 #ifdef __OSX__
 template <typename S, typename... Args, typename Char = char_t<S>>
-void say(const S& fmt, Args&&... args) {
-  std::system(format("say \"{}\"", format(fmt, args...)).c_str());
+void say(const S& format_str, Args&&... args) {
+  std::system(format("say \"{}\"", format(format_str, args...)).c_str());
 }
 #endif
 
@@ -176,24 +227,24 @@ class buffered_file {
 
   friend class file;
 
-  inline explicit buffered_file(FILE* f) : file_(f) {}
+  explicit buffered_file(FILE* f) : file_(f) {}
 
  public:
   buffered_file(const buffered_file&) = delete;
   void operator=(const buffered_file&) = delete;
 
   // Constructs a buffered_file object which doesn't represent any file.
-  inline buffered_file() noexcept : file_(nullptr) {}
+  buffered_file() noexcept : file_(nullptr) {}
 
   // Destroys the object closing the file it represents if any.
   AXOM_FMT_API ~buffered_file() noexcept;
 
  public:
-  inline buffered_file(buffered_file&& other) noexcept : file_(other.file_) {
+  buffered_file(buffered_file&& other) noexcept : file_(other.file_) {
     other.file_ = nullptr;
   }
 
-  inline auto operator=(buffered_file&& other) -> buffered_file& {
+  buffered_file& operator=(buffered_file&& other) {
     close();
     file_ = other.file_;
     other.file_ = nullptr;
@@ -207,20 +258,21 @@ class buffered_file {
   AXOM_FMT_API void close();
 
   // Returns the pointer to a FILE object representing this file.
-  inline auto get() const noexcept -> FILE* { return file_; }
+  FILE* get() const noexcept { return file_; }
 
-  AXOM_FMT_API auto descriptor() const -> int;
+  AXOM_FMT_API int descriptor() const;
 
-  template <typename... T>
-  inline void print(string_view fmt, const T&... args) {
-    axom::fmt::vargs<T...> vargs = {{args...}};
-    detail::is_locking<T...>() ? axom::fmt::vprint_buffered(file_, fmt, vargs)
-                               : axom::fmt::vprint(file_, fmt, vargs);
+  void vprint(string_view format_str, format_args args) {
+    axom::fmt::vprint(file_, format_str, args);
+  }
+
+  template <typename... Args>
+  inline void print(string_view format_str, const Args&... args) {
+    vprint(format_str, axom::fmt::make_format_args(args...));
   }
 };
 
 #if AXOM_FMT_USE_FCNTL
-
 // A file. Closed file is represented by a file object with descriptor -1.
 // Methods that are not declared with noexcept may throw
 // axom::fmt::system_error in case of failure. Note that some errors such as
@@ -234,8 +286,6 @@ class AXOM_FMT_API file {
   // Constructs a file object with a given descriptor.
   explicit file(int fd) : fd_(fd) {}
 
-  friend struct pipe;
-
  public:
   // Possible values for the oflag argument to the constructor.
   enum {
@@ -248,7 +298,7 @@ class AXOM_FMT_API file {
   };
 
   // Constructs a file object which doesn't represent any file.
-  inline file() noexcept : fd_(-1) {}
+  file() noexcept : fd_(-1) {}
 
   // Opens a file and constructs a file object representing this file.
   file(cstring_view path, int oflag);
@@ -257,10 +307,10 @@ class AXOM_FMT_API file {
   file(const file&) = delete;
   void operator=(const file&) = delete;
 
-  inline file(file&& other) noexcept : fd_(other.fd_) { other.fd_ = -1; }
+  file(file&& other) noexcept : fd_(other.fd_) { other.fd_ = -1; }
 
   // Move assignment is not noexcept because close may throw.
-  inline auto operator=(file&& other) -> file& {
+  file& operator=(file&& other) {
     close();
     fd_ = other.fd_;
     other.fd_ = -1;
@@ -271,24 +321,24 @@ class AXOM_FMT_API file {
   ~file() noexcept;
 
   // Returns the file descriptor.
-  inline auto descriptor() const noexcept -> int { return fd_; }
+  int descriptor() const noexcept { return fd_; }
 
   // Closes the file.
   void close();
 
   // Returns the file size. The size has signed type for consistency with
   // stat::st_size.
-  auto size() const -> long long;
+  long long size() const;
 
   // Attempts to read count bytes from the file into the specified buffer.
-  auto read(void* buffer, size_t count) -> size_t;
+  size_t read(void* buffer, size_t count);
 
   // Attempts to write count bytes from the specified buffer to the file.
-  auto write(const void* buffer, size_t count) -> size_t;
+  size_t write(const void* buffer, size_t count);
 
   // Duplicates a file descriptor with the dup function and returns
   // the duplicate as a file object.
-  static auto dup(int fd) -> file;
+  static file dup(int fd);
 
   // Makes fd be the copy of this file descriptor, closing fd first if
   // necessary.
@@ -298,35 +348,24 @@ class AXOM_FMT_API file {
   // necessary.
   void dup2(int fd, std::error_code& ec) noexcept;
 
-  // Creates a buffered_file object associated with this file and detaches
-  // this file object from the file.
-  auto fdopen(const char* mode) -> buffered_file;
-
-#  if defined(_WIN32) && !defined(__MINGW32__)
-  // Opens a file and constructs a file object representing this file by
-  // wcstring_view filename. Windows only.
-  static file open_windows_file(wcstring_view path, int oflag);
-#  endif
-};
-
-struct AXOM_FMT_API pipe {
-  file read_end;
-  file write_end;
-
   // Creates a pipe setting up read_end and write_end file objects for reading
   // and writing respectively.
-  pipe();
+  static void pipe(file& read_end, file& write_end);
+
+  // Creates a buffered_file object associated with this file and detaches
+  // this file object from the file.
+  buffered_file fdopen(const char* mode);
 };
 
 // Returns the memory page size.
-auto getpagesize() -> long;
+long getpagesize();
 
-namespace detail {
+AXOM_FMT_BEGIN_DETAIL_NAMESPACE
 
 struct buffer_size {
-  constexpr buffer_size() = default;
+  buffer_size() = default;
   size_t value = 0;
-  AXOM_FMT_CONSTEXPR auto operator=(size_t val) const -> buffer_size {
+  buffer_size operator=(size_t val) const {
     auto bs = buffer_size();
     bs.value = val;
     return bs;
@@ -337,7 +376,7 @@ struct ostream_params {
   int oflag = file::WRONLY | file::CREATE | file::TRUNC;
   size_t buffer_size = BUFSIZ > 32768 ? BUFSIZ : 32768;
 
-  constexpr ostream_params() {}
+  ostream_params() {}
 
   template <typename... T>
   ostream_params(T... params, int new_oflag) : ostream_params(params...) {
@@ -358,70 +397,82 @@ struct ostream_params {
 #  endif
 };
 
-}  // namespace detail
+AXOM_FMT_END_DETAIL_NAMESPACE
 
-AXOM_FMT_INLINE_VARIABLE constexpr auto buffer_size = detail::buffer_size();
+// Added {} below to work around default constructor error known to
+// occur in Xcode versions 7.2.1 and 8.2.1.
+constexpr detail::buffer_size buffer_size{};
 
-/// A fast buffered output stream for writing from a single thread. Writing from
-/// multiple threads without external synchronization may result in a data race.
-class AXOM_FMT_API ostream : private detail::buffer<char> {
+/** A fast output stream which is not thread-safe. */
+class AXOM_FMT_API ostream final : private detail::buffer<char> {
  private:
   file file_;
 
-  ostream(cstring_view path, const detail::ostream_params& params);
+  AXOM_FMT_CONSTEXPR20 void grow(size_t) override;
 
-  static void grow(buffer<char>& buf, size_t);
-
- public:
-  ostream(ostream&& other) noexcept;
-  ~ostream();
-
-  operator writer() {
-    detail::buffer<char>& buf = *this;
-    return buf;
+  ostream(cstring_view path, const detail::ostream_params& params)
+      : file_(path, params.oflag) {
+    set(new char[params.buffer_size], params.buffer_size);
   }
 
-  inline void flush() {
+ public:
+  ostream(ostream&& other)
+      : detail::buffer<char>(other.data(), other.size(), other.capacity()),
+        file_(std::move(other.file_)) {
+    other.clear();
+    other.set(nullptr, 0);
+  }
+  ~ostream() {
+    flush();
+    delete[] data();
+  }
+
+  void flush() {
     if (size() == 0) return;
-    file_.write(data(), size() * sizeof(data()[0]));
+    file_.write(data(), size());
     clear();
   }
 
   template <typename... T>
-  friend auto output_file(cstring_view path, T... params) -> ostream;
+  friend ostream output_file(cstring_view path, T... params);
 
-  inline void close() {
+  void close() {
     flush();
     file_.close();
   }
 
-  /// Formats `args` according to specifications in `fmt` and writes the
-  /// output to the file.
+  /**
+    Formats ``args`` according to specifications in ``fmt`` and writes the
+    output to the file.
+   */
   template <typename... T> void print(format_string<T...> fmt, T&&... args) {
-    vformat_to(appender(*this), fmt.str, vargs<T...>{{args...}});
+    vformat_to(detail::buffer_appender<char>(*this), fmt,
+               axom::fmt::make_format_args(args...));
   }
 };
 
 /**
- * Opens a file for writing. Supported parameters passed in `params`:
- *
- * - `<integer>`: Flags passed to [open](
- *   https://pubs.opengroup.org/onlinepubs/007904875/functions/open.html)
- *   (`file::WRONLY | file::CREATE | file::TRUNC` by default)
- * - `buffer_size=<integer>`: Output buffer size
- *
- * **Example**:
- *
- *     auto out = axom::fmt::output_file("guide.txt");
- *     out.print("Don't {}", "Panic");
+  \rst
+  Opens a file for writing. Supported parameters passed in *params*:
+
+  * ``<integer>``: Flags passed to `open
+    <https://pubs.opengroup.org/onlinepubs/007904875/functions/open.html>`_
+    (``file::WRONLY | file::CREATE | file::TRUNC`` by default)
+  * ``buffer_size=<integer>``: Output buffer size
+
+  **Example**::
+
+    auto out = axom::fmt::output_file("guide.txt");
+    out.print("Don't {}", "Panic");
+  \endrst
  */
 template <typename... T>
-inline auto output_file(cstring_view path, T... params) -> ostream {
+inline ostream output_file(cstring_view path, T... params) {
   return {path, detail::ostream_params(params...)};
 }
 #endif  // AXOM_FMT_USE_FCNTL
 
-AXOM_FMT_END_EXPORT
+AXOM_FMT_MODULE_EXPORT_END
 AXOM_FMT_END_NAMESPACE
 
 #endif  // AXOM_FMT_OS_H_

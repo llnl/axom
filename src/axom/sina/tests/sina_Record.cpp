@@ -10,6 +10,7 @@
 #include "gmock/gmock.h"
 
 #include "axom/sina/core/Record.hpp"
+#include "axom/sina/core/CurveSet.hpp"
 
 #include "axom/sina/tests/SinaMatchers.hpp"
 #include "axom/sina/tests/TestRecord.hpp"
@@ -155,6 +156,58 @@ TEST(Record, add_child_record_as_library_data_with_files)
   parentRecord.addRecordAsLibraryData(childRecord, "child");
   EXPECT_EQ(1u, parentRecord.getFiles().size());
   EXPECT_EQ("txt", parentRecord.getFiles().find(File {path})->getMimeType());
+}
+
+TEST(Record, add_child_record_as_library_data_with_curves)
+{
+  Record parentRecord {ID {"parent id", IDType::Local}, "test_record_parent"};
+  Record childRecord {ID {"child id", IDType::Local}, "test_record_child"};
+  CurveSet cs {"name"};
+  cs.addIndependentCurve(Curve {"lime", {1.0, 2.0, 3.0}});
+  cs.addIndependentCurve(Curve {"white", {1.0, 2.0, 3.0}});
+  cs.addIndependentCurve(Curve {"black", {1.0, 2.0, 3.0}});
+  cs.addDependentCurve(Curve {"lightgrey", {4.0, 5.0, 6.0}});
+  cs.addDependentCurve(Curve {"maroon", {7.0, 8.0, 9.0}});
+  cs.addDependentCurve(Curve {"brown", {1.0, 2.0, 3.0}});
+  std::vector<std::string> expected_order {"lightgrey", "brown", "maroon"};
+  cs.applyCustomDependentCurveOrder(expected_order);
+  childRecord.add(cs);
+  parentRecord.addRecordAsLibraryData(childRecord, "child");
+  auto expected = R"({
+      "local_id": "parent id",
+      "type": "test_record_parent",
+      "library_data":  {
+        "child": {
+          "curve_sets": {
+            "name": {
+              "independent": {
+                  "black": { "value": [1.0, 2.0, 3.0]},
+                  "lime": { "value": [1.0, 2.0, 3.0]},
+                  "white": { "value": [1.0, 2.0, 3.0]}
+              },
+              "dependent": {
+                  "lightgrey": { "value": [4.0, 5.0, 6.0]},
+                  "brown": { "value": [1.0, 2.0, 3.0]},
+                  "maroon": { "value": [7.0, 8.0, 9.0]}
+              }
+          }
+      },
+      "data": { "SINA_librarydata_type": { "value": "test_record_child"},
+                "SINA_librarydata_id": { "value": "child id"}}
+   }}})";
+  // gmock's Json matcher doesn't check JSON object order, as it's not expected to be ordered; we're relying on
+  // conduit to give us that, but it's still useful to make sure we didn't alter the structure of the rest of the rec
+  EXPECT_THAT(parentRecord.toNode(), MatchesJsonMatcher(expected));
+  EXPECT_EQ(
+    parentRecord.toNode()["library_data"]["child"]["curve_sets"]["name"]["dependent"].child_names(),
+    expected_order);
+  std::vector<std::string> expected_reorder {"brown", "lightgrey", "maroon"};
+  EXPECT_EQ(
+    parentRecord
+      .toNode(axom::sina::CurveSet::CurveOrder::ALPHABETIC)["library_data"]["child"]["curve_sets"]
+                                                           ["name"]["dependent"]
+      .child_names(),
+    expected_reorder);
 }
 
 TEST(Record, create_localId_fromNode)
@@ -421,6 +474,8 @@ TEST(Record, toNode_curveSets)
   Record record {id, "my type"};
   CurveSet cs {"myCurveSet/with/slash"};
   cs.addIndependentCurve(Curve {"myCurve", {1, 2, 3}});
+  cs.addIndependentCurve(Curve {"myOtherCurve", {4, 5, 6}});
+  cs.addIndependentCurve(Curve {"myThirdCurve", {7, 8, 9}});
   record.add(cs);
   std::string expected = R"({
         "local_id": "the id",
@@ -430,6 +485,12 @@ TEST(Record, toNode_curveSets)
                 "independent": {
                      "myCurve": {
                          "value": [1.0, 2.0, 3.0]
+                     },
+                     "myOtherCurve": {
+                         "value": [4.0, 5.0, 6.0]
+                     },
+                     "myThirdCurve": {
+                         "value": [7.0, 8.0, 9.0]
                      }
                  },
                  "dependent": {}
@@ -437,6 +498,141 @@ TEST(Record, toNode_curveSets)
         }
     })";
   EXPECT_THAT(record.toNode(), MatchesJsonMatcher(expected));
+  std::vector<std::string> expected_order {"myCurve", "myOtherCurve", "myThirdCurve"};
+  EXPECT_EQ(record.toNode()["curve_sets"].child("myCurveSet/with/slash")["independent"].child_names(),
+            expected_order);
+}
+
+TEST(Record, toNode_curveSets_customOrder)
+{
+  ID id {"the id", IDType::Local};
+  Record record {id, "my type"};
+  CurveSet cs {"reordered_curves"};
+  cs.addIndependentCurve(Curve {"lime", {1, 2, 3}});
+  cs.addIndependentCurve(Curve {"white", {4, 5, 6}});
+  cs.addIndependentCurve(Curve {"black", {7, 8, 9}});
+  cs.addDependentCurve(Curve {"cyan", {1, 2, 3}});
+  cs.addDependentCurve(Curve {"yellow", {1, 2, 3}});
+  cs.addDependentCurve(Curve {"pink", {1, 2, 3}});
+  std::vector<std::string> expected_order {"white", "black", "lime"};
+  cs.applyCustomIndependentCurveOrder(expected_order);
+  record.add(cs);
+  auto expected = R"({
+        "local_id": "the id",
+        "type": "my type",
+        "curve_sets": {
+            "reordered_curves": {
+                "independent": {
+                     "white": { "value": [4.0, 5.0, 6.0] },
+                     "black": { "value": [7.0, 8.0, 9.0] },
+                     "lime": { "value": [1.0, 2.0, 3.0] }
+                 },
+                 "dependent": {
+                     "pink": { "value": [1.0, 2.0, 3.0] },
+                     "cyan": { "value": [1.0, 2.0, 3.0] },
+                     "yellow": { "value": [1.0, 2.0, 3.0] }
+                 }
+            }
+        }
+    })";
+  EXPECT_THAT(record.toNode(), MatchesJsonMatcher(expected));
+  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["independent"].child_names(),
+            expected_order);
+}
+
+TEST(Record, toNode_curveSets_setDefaultOrder_fromRecord)
+{
+  ID id {"the id", IDType::Local};
+  Record record {id, "my type"};
+  CurveSet cs {"reordered_curves"};
+  cs.addIndependentCurve(Curve {"lime", {1, 2, 3}});
+  cs.addIndependentCurve(Curve {"white", {4, 5, 6}});
+  cs.addIndependentCurve(Curve {"black", {7, 8, 9}});
+  cs.addDependentCurve(Curve {"cyan", {1, 2, 3}});
+  cs.addDependentCurve(Curve {"yellow", {1, 2, 3}});
+  cs.addDependentCurve(Curve {"pink", {1, 2, 3}});
+  record.add(cs);
+  record.setDefaultCurveOrder(axom::sina::CurveSet::CurveOrder::ALPHABETIC);
+  auto expected = R"({
+        "local_id": "the id",
+        "type": "my type",
+        "curve_sets": {
+            "reordered_curves": {
+                "independent": {
+                     "black": { "value": [7.0, 8.0, 9.0] },
+                     "lime": { "value": [1.0, 2.0, 3.0] },
+                     "white": { "value": [4.0, 5.0, 6.0] }
+                 },
+                 "dependent": {
+                     "cyan": { "value": [1.0, 2.0, 3.0] },
+                     "pink": { "value": [1.0, 2.0, 3.0] },
+                     "yellow": { "value": [1.0, 2.0, 3.0] }
+                 }
+            }
+        }
+    })";
+  EXPECT_THAT(record.toNode(), MatchesJsonMatcher(expected));
+  std::vector<std::string> expected_order {"black", "lime", "white"};
+  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["independent"].child_names(),
+            expected_order);
+  std::vector<std::string> dep_expected_order {"cyan", "pink", "yellow"};
+  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["dependent"].child_names(),
+            dep_expected_order);
+  std::vector<std::string> expected_reverse_order {"white", "lime", "black"};
+  EXPECT_EQ(
+    record
+      .toNode(
+        CurveSet::CurveOrder::REVERSE_ALPHABETICAL)["curve_sets"]["reordered_curves"]["independent"]
+      .child_names(),
+    expected_reverse_order);
+}
+
+TEST(Record, toNode_curveSets_setDefaultOrder)
+{
+  ID id {"the id", IDType::Local};
+  ID id2 {"the other id", IDType::Local};
+  Record record {id, "my type"};
+  Record record2 {id2, "my type"};
+  CurveSet cs {"reordered_curves"};
+  axom::sina::setDefaultCurveOrder(axom::sina::CurveSet::CurveOrder::ALPHABETIC);
+  record2.setDefaultCurveOrder(axom::sina::CurveSet::CurveOrder::REVERSE_ALPHABETICAL);
+
+  cs.addIndependentCurve(Curve {"lime", {1, 2, 3}});
+  cs.addIndependentCurve(Curve {"white", {4, 5, 6}});
+  cs.addIndependentCurve(Curve {"black", {7, 8, 9}});
+  cs.addDependentCurve(Curve {"cyan", {1, 2, 3}});
+  cs.addDependentCurve(Curve {"yellow", {1, 2, 3}});
+  cs.addDependentCurve(Curve {"pink", {1, 2, 3}});
+  record.add(cs);
+  record2.add(cs);
+  auto expected = R"({
+        "local_id": "the id",
+        "type": "my type",
+        "curve_sets": {
+            "reordered_curves": {
+                "independent": {
+                     "black": { "value": [7.0, 8.0, 9.0] },
+                     "lime": { "value": [1.0, 2.0, 3.0] },
+                     "white": { "value": [4.0, 5.0, 6.0] }
+                 },
+                 "dependent": {
+                     "cyan": { "value": [1.0, 2.0, 3.0] },
+                     "pink": { "value": [1.0, 2.0, 3.0] },
+                     "yellow": { "value": [1.0, 2.0, 3.0] }
+                 }
+            }
+        }
+    })";
+  EXPECT_THAT(record.toNode(), MatchesJsonMatcher(expected));
+  std::vector<std::string> expected_order {"black", "lime", "white"};
+  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["independent"].child_names(),
+            expected_order);
+  std::vector<std::string> expected_reverse_order {"white", "lime", "black"};
+  EXPECT_EQ(record2.toNode()["curve_sets"]["reordered_curves"]["independent"].child_names(),
+            expected_reverse_order);
+  std::vector<std::string> dep_expected_order {"cyan", "pink", "yellow"};
+  EXPECT_EQ(record.toNode()["curve_sets"]["reordered_curves"]["dependent"].child_names(),
+            dep_expected_order);
 }
 
 TEST(RecordLoader, load_missingLoader)

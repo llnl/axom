@@ -50,8 +50,57 @@ public:
                          "A knot vector must be defined using an arithmetic type");
 
 public:
+  ///@{
+  /**
+   * \name Constructors for KnotVector
+   *  
+   * The KnotVector class provides constructors that allow initialization from a user-supplied array of knots
+   * and a specified degree and enforces several conditions to ensure validity: 
+   * - the degree must be at least -1
+   * - the knot array must contain at least \a (degree + 1) elements, 
+   * - if the knot array is not empty, its data pointer must not be nullptr.
+   * 
+   * These checks guarantee that the constructed KnotVector adheres to the requirements for B-Spline/NURBS curves,
+   * such as monotonicity, clamped ends, and appropriate internal knot multiplicity. The isValid() method is used
+   * to verify that the resulting instance meets all necessary criteria for a valid knot span.
+   */
+
+  /*!
+   * \brief Constructor from a user-supplied knot vector (axom::ArrayView<const T>)
+   *
+   * \param [in] knots the knot vector
+   * \param [in] degree the degree of the curve
+   * \pre \a degree >= 1. When degree is less than 0, the KnotVector is invalid
+   * \pre The \a knots can be empty when the degree is -1, otherwise knots.data() is not \a nullptr
+   * \sa isValid() tests conditions for a valid knot span instance
+   */
+  KnotVector(axom::ArrayView<const T> knots, int degree) : m_deg(degree)
+  {
+    SLIC_ASSERT(degree >= -1);
+    SLIC_ASSERT(knots.size() >= (degree + 1));
+    SLIC_ASSERT(knots.empty() || knots.data() != nullptr);
+
+    if(!knots.empty())
+    {
+      m_knots = knots;
+    }
+
+    SLIC_ASSERT(isValid());
+  }
+
+  /*!
+   * \brief Constructor from a user-supplied knot vector (axom::ArrayView<T>)
+   *
+   * \param [in] knots the knot vector
+   * \param degree The degree of the knot vector.
+   * \overload for ArrayView of non-const T
+   */
+  KnotVector(axom::ArrayView<T> knots, int degree)
+    : KnotVector(axom::ArrayView<const T>(knots.data(), knots.size()), degree)
+  { }
+
   /// \brief Default constructor for an empty (invalid) knot vector
-  KnotVector() : m_deg(-1) { m_knots.resize(0); }
+  KnotVector() : m_deg(-1) { }
 
   /*!
    * \brief Constructor for a normalized, uniform knot vector
@@ -64,26 +113,17 @@ public:
   KnotVector(axom::IndexType npts, int degree) { makeUniform(npts, degree); }
 
   /*!
-   * \brief Constructor from a user-supplied knot vector (C-style)
+   * \brief Constructor from a user-supplied knot vector (C-style array)
    * 
    * \param [in] knots the knot vector
    * \param [in] nkts the length of the knot vector
    * \param [in] degree the degree of the curve
    * 
-   * \pre Assumes that the knot vector is valid
+   * \see KnotVector(axom::ArrayView<const T> knots, int degree)
    */
   KnotVector(const T* knots, axom::IndexType nkts, int degree)
-  {
-    m_knots.resize(nkts);
-    for(int i = 0; i < nkts; ++i)
-    {
-      m_knots[i] = knots[i];
-    }
-
-    m_deg = degree;
-
-    SLIC_ASSERT(isValid());
-  }
+    : KnotVector(axom::ArrayView<const T>(knots, nkts), degree)
+  { }
 
   /*!
    * \brief Constructor from a user-supplied knot vector (axom::Array)
@@ -91,12 +131,14 @@ public:
    * \param [in] knots the knot vector
    * \param [in] degree the degree of the curve
    * 
-   * \pre Assumes that the knot vector is valid
+   * \see KnotVector(axom::ArrayView<const T> knots, int degree)
    */
-  KnotVector(const axom::Array<T>& knots, int degree) : m_deg(degree), m_knots(knots)
-  {
-    SLIC_ASSERT(isValid());
-  }
+  KnotVector(const axom::Array<T>& knots, int degree) : KnotVector(knots.view(), degree) { }
+
+  ///@}
+
+  ///@{
+  /// \name Query/modify knot vector properties and sizes
 
   /*!
    * \brief Give the knot vector uniformly spaced internal knots
@@ -131,33 +173,6 @@ public:
     }
   }
 
-  /// \brief Accessor for the knot vector
-  const axom::Array<T>& getArray() const { return m_knots; }
-
-  /*!
-   * \brief Getter for the knot vector
-   * 
-   * \param [in] i The vector index
-   * 
-   * \return A const reference to the knot value at index i
-   */
-  const T& operator[](axom::IndexType i) const { return m_knots[i]; }
-
-  /*!
-   * \brief Setter for the knot vector
-   *
-   * \param [in] i The vector index
-   * 
-   * \pre Assumes that the knot vector will remain valid after the change
-   * 
-   * \return A reference to the knot value at index i
-   */
-  T& operator[](axom::IndexType i)
-  {
-    SLIC_ASSERT(isValid());
-    return m_knots[i];
-  }
-
   /// \brief Return the degree of the knot vector
   int getDegree() const { return m_deg; }
 
@@ -187,6 +202,143 @@ public:
 
   /// \brief Return the number of knots in the knot vector
   axom::IndexType getNumKnots() const { return m_knots.size(); }
+
+  /// \brief Return the number of control points implied by the knot vector
+  axom::IndexType getNumControlPoints() const { return m_knots.size() - m_deg - 1; }
+
+  /// \brief Return the value of the smallest knot, or 0 if there are no knots
+  T getMinKnot() const { return (m_knots.size() > 0) ? m_knots[0] : T {}; }
+  /// \brief Return the value of the largest knot, or 0 if there are no knots
+  T getMaxKnot() const { return (m_knots.size() > 0) ? m_knots[m_knots.size() - 1] : T {}; }
+
+  /// \brief Clear the list of knots
+  void clear()
+  {
+    m_deg = -1;
+    m_knots.clear();
+  }
+
+  /// \brief Return if the knot vector is valid
+  bool isValid() const
+  {
+    // Check degree
+    if(m_deg < 0)
+    {
+      return false;
+    }
+
+    // Check for monotonicity
+    for(int i = 0; i < m_knots.size() - 1; ++i)
+    {
+      if(m_knots[i] > m_knots[i + 1])
+      {
+        return false;
+      }
+    }
+
+    // Check for clamped-ness
+    const auto nkts = m_knots.size();
+    const auto minKnot = getMinKnot();
+    const auto maxKnot = getMaxKnot();
+    for(int i = 0; i < m_deg + 1; ++i)
+    {
+      if(m_knots[i] != minKnot)
+      {
+        return false;
+      }
+      if(m_knots[nkts - 1 - i] != maxKnot)
+      {
+        return false;
+      }
+    }
+
+    // Check for continuity
+    T this_knot = m_knots[m_deg];
+    int this_multiplicity = 1;
+    for(int i = m_deg + 1; i < nkts - m_deg - 1; ++i)
+    {
+      if(m_knots[i] != this_knot)
+      {
+        this_knot = m_knots[i];
+        this_multiplicity = 1;
+      }
+      else
+      {
+        this_multiplicity++;
+        if(this_multiplicity > m_deg)
+        {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  /*!
+   * \brief Check if a knot span is valid 
+   *
+   * \param [in] span The span to check
+   * 
+   * A valid span is one that is within the knot vector and has a non-zero length
+   * 
+   * \return True if the span is valid, false otherwise
+   */
+  bool isValidSpan(axom::IndexType span) const
+  {
+    return span >= m_deg && span < m_knots.size() - m_deg - 1 && m_knots[span] != m_knots[span + 1];
+  }
+
+  /*!
+   * \brief Check if a knot span is valid and contains the parameter value t
+   *
+   * \param [in] span The span to check
+   * \param [in] t The parameter value
+   * 
+   * A valid span is one that is within the knot vector, has a non-zero length,
+   * and contains the parameter value t
+   * 
+   * \return True if the span is valid, false otherwise
+   */
+  bool isValidSpan(axom::IndexType span, T t) const
+  {
+    return isValidSpan(span) && t >= m_knots[span] && t <= m_knots[span + 1];
+  }
+
+  ///@}
+
+  ///@{
+  /// \name Query/modify/access knots
+
+  /// \brief Accessor for the array of knots
+  axom::Array<T>& getArray() { return m_knots; }
+
+  /// \brief Const accessor for the array of knots
+  const axom::Array<T>& getArray() const { return m_knots; }
+
+  /*!
+   * \brief Getter for the knot vector
+   * 
+   * \param [in] i The vector index
+   * 
+   * \return A const reference to the knot value at index i
+   */
+  const T& operator[](axom::IndexType i) const { return m_knots[i]; }
+
+  /*!
+   * \brief Setter for the knot vector
+   *
+   * \param [in] i The vector index
+   * 
+   * \pre Assumes that the knot vector will remain valid after the change
+   * 
+   * \return A reference to the knot value at index i
+   */
+  T& operator[](axom::IndexType i)
+  {
+    SLIC_ASSERT(isValid());
+    return m_knots[i];
+  }
 
   /// \brief Return an array of the unique knot values
   axom::Array<T> getUniqueKnots() const
@@ -218,119 +370,28 @@ public:
     return num_spans;
   }
 
-  /// \brief Return the number of control points implied by the knot vector
-  axom::IndexType getNumControlPoints() const { return m_knots.size() - m_deg - 1; }
+  ///@}
 
-  /// \brief Clear the list of knots
-  void clear()
-  {
-    m_deg = -1;
-    m_knots.clear();
-  }
-
-  /*!
-   * \brief Returns the index of the knot span containing parameter t
-   * 
-   * \param [in] t The parameter value
-   * 
-   * For knot vector {u_0, ..., u_n}, returns i such that u_i <= t < u_i+1
-   *  if t == u_n, returns i such that u_i < t <= u_i+1 (i.e. i = n - degree - 1)
-   * 
-   * Implementation adapted from Algorithm A2.1 on page 68 of "The NURBS Book"
-   * 
-   * \pre Assumes that the input t is in the span [u_0, u_n] (up to some tolerance)
-   * 
-   * \note If t is outside the knot span up to this tolerance, it is clamped to the span
-   * 
-   * \return The index of the knot span containing t
-   */
-  axom::IndexType findSpan(T t) const
-  {
-    SLIC_ASSERT(isValidParameter(t));
-
-    const axom::IndexType nkts = m_knots.size();
-
-    // Handle cases where t is outside the knot span within a tolerance
-    //  by implicitly clamping it to the nearest span
-    if(t <= m_knots[0])
-    {
-      return m_deg;
-    }
-
-    if(t >= m_knots[nkts - 1])
-    {
-      return nkts - m_deg - 2;
-    }
-
-    // perform binary search on the knots,
-    axom::IndexType low = m_deg;
-    axom::IndexType high = nkts - m_deg - 1;
-    axom::IndexType mid = (low + high) / 2;
-    while(t < m_knots[mid] || t >= m_knots[mid + 1])
-    {
-      (t < m_knots[mid]) ? high = mid : low = mid;
-      mid = (low + high) / 2;
-    }
-
-    return mid;
-  }
-
-  /*!
-   * \brief Returns the index of the knot span containing parameter t and its multiplicity
-   * 
-   * \param [in] t The parameter value
-   * \param [out] multiplicity The multiplicity of the knot at t
-   *
-   * For knot vector {u_0, ..., u_n}, returns i such that u_i <= t < u_i+1
-   *  if t == u_n, returns i such that u_i < t <= u_i+1 (i.e. i = n - degree - 1)
-   * 
-   * \pre Assumes that the input t is within the knot vector (up to some tolerance)
-   * 
-   * \note If t is outside the knot span up to this tolerance, the returned multiplicity
-   *  will be equal to the degree + 1 (required for clamped curves)
-   * 
-   * \return The index of the knot span containing t
-   */
-  axom::IndexType findSpan(T t, int& multiplicity) const
-  {
-    SLIC_ASSERT(isValidParameter(t));
-
-    const auto nkts = m_knots.size();
-    const auto span = findSpan(t);
-
-    // Early exit for known multiplicities
-    if(t <= m_knots[0] || t >= m_knots[nkts - 1])
-    {
-      multiplicity = m_deg + 1;
-      return span;
-    }
-
-    multiplicity = 0;
-    for(auto i = span; i >= 0; --i)
-    {
-      if(m_knots[i] == t)
-      {
-        multiplicity++;
-      }
-      else
-      {
-        break;
-      }
-    }
-
-    return span;
-  }
+  ///@{
+  /// \name Query/modify KnotVector parametrization
 
   /// \brief Normalize the knot vector to the span of [0, 1]
   void normalize()
   {
-    T min_knot = m_knots[0];
-    T max_knot = m_knots[m_knots.size() - 1];
-    T span = max_knot - min_knot;
-
-    for(int i = 0; i < m_knots.size(); ++i)
+    const T min_knot = getMinKnot();
+    if(const T span = getMaxKnot() - min_knot; span > 0)
     {
-      m_knots[i] = (m_knots[i] - min_knot) / span;
+      for(T& knot : m_knots)
+      {
+        knot = (knot - min_knot) / span;
+      }
+    }
+    else
+    {
+      for(T& knot : m_knots)
+      {
+        knot = T {};
+      }
     }
   }
 
@@ -346,13 +407,40 @@ public:
   {
     SLIC_ASSERT(a < b);
 
-    T min_knot = m_knots[0];
-    T max_knot = m_knots[m_knots.size() - 1];
-    T span = max_knot - min_knot;
-
-    for(int i = 0; i < m_knots.size(); ++i)
+    const T min_knot = getMinKnot();
+    if(const T span = getMaxKnot() - min_knot; span > 0)
     {
-      m_knots[i] = a + (m_knots[i] - min_knot) * (b - a) / span;
+      for(T& knot : m_knots)
+      {
+        knot = axom::utilities::lerp(a, b, (knot - min_knot) / span);
+      }
+    }
+    else
+    {
+      for(T& knot : m_knots)
+      {
+        knot = a;
+      }
+    }
+  }
+
+  /// \brief Reverse the knot vector
+  void reverse()
+  {
+    const axom::IndexType nkts = m_knots.size();
+    const axom::IndexType knot_mid = (nkts + 1) / 2;
+
+    // Flip the vector
+    for(int i = 0; i < knot_mid; ++i)
+    {
+      axom::utilities::swap(m_knots[i], m_knots[nkts - 1 - i]);
+    }
+
+    // Replace each knot with sum - knot_value
+    const T the_sum = getMinKnot() + getMaxKnot();
+    for(int i = 0; i < nkts; ++i)
+    {
+      m_knots[i] = the_sum - m_knots[i];
     }
   }
 
@@ -394,86 +482,119 @@ public:
     SLIC_ASSERT(isValidParameter(t));
 
     int multiplicity;
-    auto span = findSpan(t, multiplicity);
+    const auto span = findSpan(t, multiplicity);
 
     // Compute how many knots should be inserted
-    int r = axom::utilities::clampVal(target_multiplicity - multiplicity, 0, m_deg - multiplicity);
+    const int r =
+      axom::utilities::clampVal(target_multiplicity - multiplicity, 0, m_deg - multiplicity);
 
     insertKnotBySpan(span, t, r);
   }
 
-  /*!
-   * \brief Split a knot vector at the value at index `span`
-   * 
-   * \param [in] span The span at which the knot will be split
-   * \param [out] k1 The first knot vector
-   * \param [out] k2 The second knot vector
-   * \param [in] normalize Whether to normalize the output knot vectors
-   * 
-   * \warning Assumes that the multiplicity of the knot at which 
-   *  the vector will be split is equal to the degree, or the
-   *  returned knot vectors will be invalid
-   */
-  void splitBySpan(axom::IndexType span, KnotVector& k1, KnotVector& k2, bool normalize = false) const
+  /// \brief Checks if given parameter is in knot span (to a tolerance)
+  bool isValidParameter(T t, T EPS = 1e-5) const
   {
-    SLIC_ASSERT(isValidSpan(span));
+    return (t >= getMinKnot() - EPS) && (t <= getMaxKnot() + EPS);
+  }
 
-    const auto nkts = getNumKnots();
+  /// \brief Checks if given parameter is *interior* to knot span (to a tolerance)
+  bool isValidInteriorParameter(T t) const { return (t > getMinKnot()) && (t < getMaxKnot()); }
 
-    // Create a copy of the vector in case k1 or k2 is the same as *this
-    KnotVector<T> data(*this);
+  ///@}
 
-    // Copy the degree
-    k1.m_deg = m_deg;
-    k2.m_deg = m_deg;
+  ///@{
+  /// \name Functions for evaluating knot vector
 
-    // Copy the knots
-    k1.m_knots.resize(span + 2);
-    k2.m_knots.resize(nkts - span + m_deg);
+  /*!
+   * \brief Returns the index of the knot span containing parameter t
+   * 
+   * \param [in] t The parameter value
+   * 
+   * For knot vector {u_0, ..., u_n}, returns i such that u_i <= t < u_i+1
+   *  if t == u_n, returns i such that u_i < t <= u_i+1 (i.e. i = n - degree - 1)
+   * 
+   * Implementation adapted from Algorithm A2.1 on page 68 of "The NURBS Book"
+   * 
+   * \pre Assumes that the input t is in the span [u_0, u_n] (up to some tolerance)
+   * 
+   * \note If t is outside the knot span up to this tolerance, it is clamped to the span
+   * 
+   * \return The index of the knot span containing t
+   */
+  axom::IndexType findSpan(T t) const
+  {
+    SLIC_ASSERT(isValidParameter(t));
 
-    k1.m_knots[span + 1] = data[span];
-    for(int i = 0; i < span + 1; ++i)
+    const axom::IndexType nkts = m_knots.size();
+
+    // Handle cases where t is outside the knot span within a tolerance
+    //  by implicitly clamping it to the nearest span
+    if(t <= getMinKnot())
     {
-      k1.m_knots[i] = data[i];
+      return m_deg;
     }
 
-    k2.m_knots[0] = data[span];
-    for(int i = 0; i < nkts - span + m_deg - 1; ++i)
+    if(t >= getMaxKnot())
     {
-      k2.m_knots[i + 1] = data[span + i - m_deg + 1];
+      return nkts - m_deg - 2;
     }
 
-    if(normalize)
+    // perform binary search on the knots,
+    axom::IndexType low = m_deg;
+    axom::IndexType high = nkts - m_deg - 1;
+    axom::IndexType mid = (low + high) / 2;
+    while(t < m_knots[mid] || t >= m_knots[mid + 1])
     {
-      k1.normalize();
-      k2.normalize();
+      (t < m_knots[mid]) ? high = mid : low = mid;
+      mid = (low + high) / 2;
     }
 
-    SLIC_ASSERT(k1.isValid());
-    SLIC_ASSERT(k2.isValid());
+    return mid;
   }
 
   /*!
-   * \brief Split a knot vector at the value t
+   * \brief Returns the index of the knot span containing parameter t and its multiplicity
    * 
-   * \param [in] t The value at which the knot will be split
-   * \param [out] k1 The first knot vector
-   * \param [out] k2 The second knot vector
-   * \param [in] normalize Whether to normalize the output knot vectors
+   * \param [in] t The parameter value
+   * \param [out] multiplicity The multiplicity of the knot at t
+   *
+   * For knot vector {u_0, ..., u_n}, returns i such that u_i <= t < u_i+1
+   *  if t == u_n, returns i such that u_i < t <= u_i+1 (i.e. i = n - degree - 1)
    * 
-   * \pre Assumes that the input t is *interior* to the knot vector
+   * \pre Assumes that the input t is within the knot vector (up to some tolerance)
+   * 
+   * \note If t is outside the knot span up to this tolerance, the returned multiplicity
+   *  will be equal to the degree + 1 (required for clamped curves)
+   * 
+   * \return The index of the knot span containing t
    */
-  void split(T t, KnotVector& k1, KnotVector& k2, bool normalize = false) const
+  axom::IndexType findSpan(T t, int& multiplicity) const
   {
-    SLIC_ASSERT(isValidInteriorParameter(t));
+    SLIC_ASSERT(isValidParameter(t));
 
-    int multiplicity;
-    axom::IndexType span = findSpan(t, multiplicity);
+    const auto span = findSpan(t);
 
-    k1 = *this;
-    k1.insertKnotBySpan(span, t, m_deg - multiplicity);
+    // Early exit for known multiplicities
+    if(t <= getMinKnot() || t >= getMaxKnot())
+    {
+      multiplicity = m_deg + 1;
+      return span;
+    }
 
-    k1.splitBySpan(span + m_deg - multiplicity, k1, k2, normalize);
+    multiplicity = 0;
+    for(auto i = span; i >= 0; --i)
+    {
+      if(m_knots[i] == t)
+      {
+        multiplicity++;
+      }
+      else
+      {
+        break;
+      }
+    }
+
+    return span;
   }
 
   /*!
@@ -652,110 +773,86 @@ public:
     return derivativeBasisFunctionsBySpan(findSpan(t), t, n);
   }
 
-  /// \brief Reverse the knot vector
-  void reverse()
+  ///@}
+
+  ///@{
+  /// \name Functions dealing with knot vector subdivision
+
+  /*!
+   * \brief Split a knot vector at the value at index `span`
+   * 
+   * \param [in] span The span at which the knot will be split
+   * \param [out] k1 The first knot vector
+   * \param [out] k2 The second knot vector
+   * \param [in] normalize Whether to normalize the output knot vectors
+   * 
+   * \warning Assumes that the multiplicity of the knot at which 
+   *  the vector will be split is equal to the degree, or the
+   *  returned knot vectors will be invalid
+   */
+  void splitBySpan(axom::IndexType span, KnotVector& k1, KnotVector& k2, bool normalize = false) const
   {
-    const axom::IndexType nkts = m_knots.size();
-    const axom::IndexType knot_mid = (nkts + 1) / 2;
+    SLIC_ASSERT(isValidSpan(span));
 
-    // Flip the vector
-    for(int i = 0; i < knot_mid; ++i)
+    const auto nkts = getNumKnots();
+
+    // Create a copy of the vector in case k1 or k2 is the same as *this
+    KnotVector<T> data(*this);
+
+    // Copy the degree
+    k1.m_deg = m_deg;
+    k2.m_deg = m_deg;
+
+    // Copy the knots
+    k1.m_knots.resize(span + 2);
+    k2.m_knots.resize(nkts - span + m_deg);
+
+    k1.m_knots[span + 1] = data[span];
+    for(int i = 0; i < span + 1; ++i)
     {
-      axom::utilities::swap(m_knots[i], m_knots[nkts - 1 - i]);
+      k1.m_knots[i] = data[i];
     }
 
-    // Replace each knot with sum - knot_value
-    const T the_sum = m_knots[0] + m_knots[nkts - 1];
-    for(int i = 0; i < nkts; ++i)
+    k2.m_knots[0] = data[span];
+    for(int i = 0; i < nkts - span + m_deg - 1; ++i)
     {
-      m_knots[i] = the_sum - m_knots[i];
-    }
-  }
-
-  /// \brief Return if the knot vector is valid
-  bool isValid() const
-  {
-    // Check degree
-    if(m_deg < 0)
-    {
-      return false;
+      k2.m_knots[i + 1] = data[span + i - m_deg + 1];
     }
 
-    // Check for monotonicity
-    for(int i = 0; i < m_knots.size() - 1; ++i)
+    if(normalize)
     {
-      if(m_knots[i] > m_knots[i + 1])
-      {
-        return false;
-      }
+      k1.normalize();
+      k2.normalize();
     }
 
-    // Check for clamped-ness
-    auto nkts = m_knots.size();
-    for(int i = 0; i < m_deg + 1; ++i)
-    {
-      if(m_knots[i] != m_knots[0])
-      {
-        return false;
-      }
-      if(m_knots[nkts - 1 - i] != m_knots[nkts - 1])
-      {
-        return false;
-      }
-    }
-
-    // Check for continuity
-    T this_knot = m_knots[m_deg];
-    int this_multiplicity = 1;
-    for(int i = m_deg + 1; i < nkts - m_deg - 1; ++i)
-    {
-      if(m_knots[i] != this_knot)
-      {
-        this_knot = m_knots[i];
-        this_multiplicity = 1;
-      }
-      else
-      {
-        this_multiplicity++;
-        if(this_multiplicity > m_deg)
-        {
-          return false;
-        }
-      }
-    }
-
-    return true;
+    SLIC_ASSERT(k1.isValid());
+    SLIC_ASSERT(k2.isValid());
   }
 
   /*!
-   * \brief Check if a knot span is valid 
-   *
-   * \param [in] span The span to check
+   * \brief Split a knot vector at the value t
    * 
-   * A valid span is one that is within the knot vector and has a non-zero length
+   * \param [in] t The value at which the knot will be split
+   * \param [out] k1 The first knot vector
+   * \param [out] k2 The second knot vector
+   * \param [in] normalize Whether to normalize the output knot vectors
    * 
-   * \return True if the span is valid, false otherwise
+   * \pre Assumes that the input t is *interior* to the knot vector
    */
-  bool isValidSpan(axom::IndexType span) const
+  void split(T t, KnotVector& k1, KnotVector& k2, bool normalize = false) const
   {
-    return span >= m_deg && span < m_knots.size() - m_deg - 1 && m_knots[span] != m_knots[span + 1];
+    SLIC_ASSERT(isValidInteriorParameter(t));
+
+    int multiplicity;
+    axom::IndexType span = findSpan(t, multiplicity);
+
+    k1 = *this;
+    k1.insertKnotBySpan(span, t, m_deg - multiplicity);
+
+    k1.splitBySpan(span + m_deg - multiplicity, k1, k2, normalize);
   }
 
-  /*!
-   * \brief Check if a knot span is valid and contains the parameter value t
-   *
-   * \param [in] span The span to check
-   * \param [in] t The parameter value
-   * 
-   * A valid span is one that is within the knot vector, has a non-zero length,
-   * and contains the parameter value t
-   * 
-   * \return True if the span is valid, false otherwise
-   */
-  bool isValidSpan(axom::IndexType span, T t) const
-  {
-    return isValidSpan(span) && t >= m_knots[span] && t <= m_knots[span + 1];
-  }
+  ///@}
 
   /*!
    * \brief Check equality of two knot vectors
@@ -781,18 +878,6 @@ public:
   friend inline bool operator!=(const KnotVector<T>& lhs, const KnotVector<T>& rhs)
   {
     return !(lhs == rhs);
-  }
-
-  /// \brief Checks if given parameter is in knot span (to a tolerance)
-  bool isValidParameter(T t, T EPS = 1e-5) const
-  {
-    return t >= m_knots[0] - EPS && t <= m_knots[m_knots.size() - 1] + EPS;
-  }
-
-  /// \brief Checks if given parameter is *interior* to knot span (to a tolerance)
-  bool isValidInteriorParameter(T t) const
-  {
-    return t > m_knots[0] && t < m_knots[m_knots.size() - 1];
   }
 
   /*!

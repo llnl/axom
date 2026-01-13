@@ -1,13 +1,12 @@
 digraph dependencies {
   quest -> {slam primal mint spin};
   quest -> klee [style="dashed"];
-  {inlet klee mint primal quest slam spin} -> {slic core};
+  {inlet klee mint primal quest slam spin sidre} -> {slic core};
   mint -> slam
   mint -> sidre [style="dashed"];
   mir -> {bump slic core slam primal};
   multimat -> {slic slam};
   spin -> {slam primal};
-  sidre -> {slic core};
   sina -> {core};
   slic -> core;
   slic -> lumberjack [style="dashed"];

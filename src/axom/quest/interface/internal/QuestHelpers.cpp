@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/quest/interface/internal/QuestHelpers.hpp"
+#include "axom/quest/LinearizeCurves.hpp"
 
 #include "axom/core.hpp"
 #include "axom/core/NumericLimits.hpp"
@@ -23,6 +24,12 @@
   #endif
 #endif
 
+#if defined(AXOM_USE_MFEM) && defined(AXOM_USE_SIDRE)
+  #include "axom/quest/io/MFEMReader.hpp"
+  #include <mfem.hpp>
+  #include <map>
+#endif
+
 #include <limits>
 
 namespace axom
@@ -31,25 +38,13 @@ namespace quest
 {
 namespace internal
 {
-/// MPI Helper/Wrapper Methods
+/// Mesh I/O methods
 
-#ifdef AXOM_USE_MPI
-
-/*
- * Deallocates the specified MPI window object.
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
+/*!
+ * \brief Deallocates the specified MPI communicator object.
  */
-void mpi_win_free(MPI_Win* window)
-{
-  if(*window != MPI_WIN_NULL)
-  {
-    MPI_Win_free(window);
-  }
-}
-
-/*
- * Deallocates the specified MPI communicator object.
- */
-void mpi_comm_free(MPI_Comm* comm)
+static void mpi_comm_free(MPI_Comm* comm)
 {
   if(*comm != MPI_COMM_NULL)
   {
@@ -57,14 +52,24 @@ void mpi_comm_free(MPI_Comm* comm)
   }
 }
 
-/*
- * Reads the mesh on rank 0 and exchanges the mesh metadata, i.e., the
- * number of nodes and faces with all other ranks.
+/*!
+ * \brief Reads the mesh on rank 0 and exchanges the mesh metadata, i.e., the
+ *        number of nodes and faces with all other ranks.
+ *
+ * \param [in] global_rank_id MPI rank w.r.t. the global communicator
+ * \param [in] global_comm handle to the global communicator
+ * \param [in,out] reader the corresponding STL reader
+ * \param [out] mesh_metadata an array consisting of the mesh metadata.
+ *
+ * \note This method calls read() on the reader on rank 0.
+ *
+ * \pre global_comm != MPI_COMM_NULL
+ * \pre mesh_metadata != nullptr
  */
-int read_and_exchange_mesh_metadata(int global_rank_id,
-                                    MPI_Comm global_comm,
-                                    quest::STLReader& reader,
-                                    axom::IndexType mesh_metadata[2])
+static int read_and_exchange_mesh_metadata(int global_rank_id,
+                                           MPI_Comm global_comm,
+                                           quest::STLReader& reader,
+                                           axom::IndexType mesh_metadata[2])
 {
   constexpr int NUM_NODES = 0;
   constexpr int NUM_FACES = 1;
@@ -94,19 +99,16 @@ int read_and_exchange_mesh_metadata(int global_rank_id,
   return rc;
 }
 
-#endif /* AXOM_USE_MPI */
-
-#ifdef AXOM_USE_MPI3
-/*
- * Creates inter-node and intra-node communicators from the given global
- * MPI communicator handle.
+/*!
+ * \brief Creates inter-node and intra-node communicators from the given global
+ *        MPI communicator handle.
  */
-void create_communicators(MPI_Comm global_comm,
-                          MPI_Comm& intra_node_comm,
-                          MPI_Comm& inter_node_comm,
-                          int& global_rank_id,
-                          int& local_rank_id,
-                          int& intercom_rank_id)
+static void create_communicators(MPI_Comm global_comm,
+                                 MPI_Comm& intra_node_comm,
+                                 MPI_Comm& inter_node_comm,
+                                 int& global_rank_id,
+                                 int& local_rank_id,
+                                 int& intercom_rank_id)
 {
   // Sanity checks
   SLIC_ASSERT(global_comm != MPI_COMM_NULL);
@@ -134,34 +136,45 @@ void create_communicators(MPI_Comm global_comm,
 
   SLIC_ASSERT(intra_node_comm != MPI_COMM_NULL);
 }
-#endif
 
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_MPI3)
-/*
- * Allocates a shared memory buffer for the mesh that is shared among
- * all the ranks within the same compute node.
+/*!
+ * \brief Allocates a shared memory buffer for the mesh that is shared among
+ *  all the ranks within the same compute node.
+ *
+ * \param [in] mesh_metadata tuple with the number of nodes/faces on the mesh
+ * \param [out] x pointer into the buffer where the x-coordinates are stored.
+ * \param [out] y pointer into the buffer where the y-coordinates are stored.
+ * \param [out] z pointer into the buffer where the z-coordinates are stored.
+ * \param [out] conn pointer into the buffer consisting the cell-connectivity.
+ * \param [out] mesh_buffer raw buffer consisting of all the mesh data.
+ *
+ * \return bytesize the number of bytes in the raw buffer.
+ *
+ * \pre mesh_metadata != nullptr
+ * \pre x == nullptr
+ * \pre y == nullptr
+ * \pre z == nullptr
+ * \pre conn == nullptr
+ * \pre mesh_buffer == nullptr
+ *
+ * \post x != nullptr
+ * \post y != nullptr
+ * \post z != nullptr
+ * \post coon != nullptr
+ * \post mesh_buffer != nullptr
  */
-MPI_Aint allocate_shared_buffer(int local_rank_id,
-                                MPI_Comm intra_node_comm,
-                                const axom::IndexType mesh_metadata[2],
-                                double*& x,
-                                double*& y,
-                                double*& z,
-                                axom::IndexType*& conn,
-                                unsigned char*& mesh_buffer,
-                                MPI_Win& shared_window)
+static size_t allocate_shared_buffer(const axom::IndexType mesh_metadata[2],
+                                     double*& x,
+                                     double*& y,
+                                     double*& z,
+                                     axom::IndexType*& conn,
+                                     unsigned char*& mesh_buffer)
 {
-  constexpr int ROOT_RANK = 0;
-
-  const int nnodes = mesh_metadata[0];
-  const int nfaces = mesh_metadata[1];
-
-  int disp = sizeof(unsigned char);
-  MPI_Aint bytesize = nnodes * 3 * sizeof(double) + nfaces * 3 * sizeof(axom::IndexType);
-  MPI_Aint window_size = (local_rank_id != ROOT_RANK) ? 0 : bytesize;
-
-  MPI_Win_allocate_shared(window_size, disp, MPI_INFO_NULL, intra_node_comm, &mesh_buffer, &shared_window);
-  MPI_Win_shared_query(shared_window, ROOT_RANK, &bytesize, &disp, &mesh_buffer);
+  // Allocate the buffer.
+  const axom::IndexType nnodes = mesh_metadata[0];
+  const axom::IndexType nfaces = mesh_metadata[1];
+  const size_t bytesize = nnodes * 3 * sizeof(double) + nfaces * 3 * sizeof(axom::IndexType);
+  mesh_buffer = allocate<unsigned char>(bytesize, getSharedMemoryAllocatorID());
 
   // calculate offset to the coordinates & cell connectivity in the buffer
   int baseOffset = nnodes * sizeof(double);
@@ -177,11 +190,7 @@ MPI_Aint allocate_shared_buffer(int local_rank_id,
 
   return (bytesize);
 }
-#endif
 
-/// Mesh I/O methods
-
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_MPI3)
 /*
  * Reads in the surface mesh from the specified file into a shared
  * memory buffer that is attached to the given MPI shared window.
@@ -189,13 +198,9 @@ MPI_Aint allocate_shared_buffer(int local_rank_id,
 int read_stl_mesh_shared(const std::string& file,
                          MPI_Comm global_comm,
                          unsigned char*& mesh_buffer,
-                         mint::Mesh*& m,
-                         MPI_Comm& intra_node_comm,
-                         MPI_Win& shared_window)
+                         mint::Mesh*& m)
 {
   SLIC_ASSERT(global_comm != MPI_COMM_NULL);
-  SLIC_ASSERT(intra_node_comm == MPI_COMM_NULL);
-  SLIC_ASSERT(shared_window == MPI_WIN_NULL);
 
   // NOTE: STL meshes are always 3D mesh consisting of triangles.
   using TriangleMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
@@ -213,10 +218,11 @@ int read_stl_mesh_shared(const std::string& file,
     return READ_FAILED;
   }
 
-  // STEP 1: create intra-node and inter-node MPI communicators
+  // STEP 1: Create intra-node and inter-node MPI communicators
   int global_rank_id = -1;
   int local_rank_id = -1;
   int intercom_rank_id = -1;
+  MPI_Comm intra_node_comm = MPI_COMM_NULL;
   MPI_Comm inter_node_comm = MPI_COMM_NULL;
   create_communicators(global_comm,
                        intra_node_comm,
@@ -235,6 +241,8 @@ int read_stl_mesh_shared(const std::string& file,
   int rc = read_and_exchange_mesh_metadata(global_rank_id, global_comm, reader, mesh_metadata);
   if(rc != READ_SUCCESS)
   {
+    mpi_comm_free(&inter_node_comm);
+    mpi_comm_free(&intra_node_comm);
     return READ_FAILED;
   }
 
@@ -243,15 +251,7 @@ int read_stl_mesh_shared(const std::string& file,
   double* y = nullptr;
   double* z = nullptr;
   axom::IndexType* conn = nullptr;
-  MPI_Aint numBytes = allocate_shared_buffer(local_rank_id,
-                                             intra_node_comm,
-                                             mesh_metadata,
-                                             x,
-                                             y,
-                                             z,
-                                             conn,
-                                             mesh_buffer,
-                                             shared_window);
+  const size_t numBytes = allocate_shared_buffer(mesh_metadata, x, y, z, conn, mesh_buffer);
   SLIC_ASSERT(x != nullptr);
   SLIC_ASSERT(y != nullptr);
   SLIC_ASSERT(z != nullptr);
@@ -267,16 +267,17 @@ int read_stl_mesh_shared(const std::string& file,
     reader.getMesh(static_cast<TriangleMesh*>(m));
   }
 
-  // STEP 5: inter-node communication
+  // STEP 5: inter-node communication (broadcast mesh_buffer to shared_memory on other nodes)
   if(intercom_rank_id >= 0)
   {
     MPI_Bcast(mesh_buffer, numBytes, MPI_UNSIGNED_CHAR, 0, inter_node_comm);
   }
 
   // STEP 6 free communicators
-
   MPI_Barrier(global_comm);
   mpi_comm_free(&inter_node_comm);
+  mpi_comm_free(&intra_node_comm);
+
   return READ_SUCCESS;
 }
 #endif
@@ -329,28 +330,27 @@ int read_stl_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
 /*
  * Reads in the contour mesh from the specified file.
  */
-int read_c2c_mesh_uniform(const std::string& file,
-                          const numerics::Matrix<double>& transform,
-                          int segmentsPerPiece,
-                          double vertexWeldThreshold,
-                          mint::Mesh*& m,
-                          double& revolvedVolume,
-                          MPI_Comm comm)
+int read_c2c_mesh(const std::string& file,
+                  bool uniform,
+                  const numerics::Matrix<double>& transform,
+                  int segmentsPerPiece,
+                  double vertexWeldThreshold,
+                  double percentError,
+                  mint::Mesh*& m,
+                  double& revolvedVolume,
+                  MPI_Comm comm)
 {
   // NOTE: C2C meshes are always 2D
   constexpr int DIMENSION = 2;
   using SegmentMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
 
-  // STEP 0: check input mesh pointer
+  // STEP 1: check input mesh pointer
   revolvedVolume = 0.;
   if(m != nullptr)
   {
     SLIC_WARNING("supplied mesh pointer is not null!");
     return READ_FAILED;
   }
-
-  // STEP 1: allocate output mesh object
-  m = new SegmentMesh(DIMENSION, mint::SEGMENT);
 
   // STEP 2: construct C2C reader
   #if defined(AXOM_USE_MPI) && defined(AXOM_USE_C2C)
@@ -362,77 +362,33 @@ int read_c2c_mesh_uniform(const std::string& file,
 
   // STEP 3: read the mesh from the input file
   reader.setFileName(file);
-  reader.setVertexWeldingThreshold(vertexWeldThreshold);
   int rc = reader.read();
   if(rc == READ_SUCCESS)
   {
-    reader.getLinearMeshUniform(static_cast<SegmentMesh*>(m), segmentsPerPiece);
-    revolvedVolume = reader.getRevolvedVolume(transform);
+    m = new SegmentMesh(DIMENSION, mint::SEGMENT);
+
+    // STEP 4: Make the linear segments.
+    LinearizeCurves lin;
+    lin.setVertexWeldingThreshold(vertexWeldThreshold);
+    if(uniform)
+    {
+      lin.getLinearMeshUniform(reader.getCurvesView(), static_cast<SegmentMesh*>(m), segmentsPerPiece);
+    }
+    else
+    {
+      lin.getLinearMeshNonUniform(reader.getCurvesView(), static_cast<SegmentMesh*>(m), percentError);
+    }
+    revolvedVolume = lin.getRevolvedVolume(reader.getCurvesView(), transform);
   }
   else
   {
     SLIC_WARNING("reading C2C file failed, setting mesh to NULL");
-    delete m;
     m = nullptr;
   }
 
   return rc;
 }
 
-/*
- * Reads in the contour mesh from the specified file and refines it according
- * to an error tolerance.
- */
-int read_c2c_mesh_non_uniform(const std::string& file,
-                              const numerics::Matrix<double>& transform,
-                              double percentError,
-                              double vertexWeldThreshold,
-                              mint::Mesh*& m,
-                              double& revolvedVolume,
-                              MPI_Comm comm)
-{
-  // NOTE: C2C meshes are always 2D
-  constexpr int DIMENSION = 2;
-  using SegmentMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
-
-  // STEP 0: check input mesh pointer
-  revolvedVolume = 0.;
-  if(m != nullptr)
-  {
-    SLIC_WARNING("supplied mesh pointer is not null!");
-    return READ_FAILED;
-  }
-
-  // STEP 1: allocate output mesh object
-  m = new SegmentMesh(DIMENSION, mint::SEGMENT);
-
-  // STEP 2: construct C2C reader
-  #if defined(AXOM_USE_MPI) && defined(AXOM_USE_C2C)
-  quest::PC2CReader reader(comm);
-  #else
-  AXOM_UNUSED_VAR(comm);
-  quest::C2CReader reader;
-  #endif
-
-  // STEP 3: read the mesh from the input file
-  reader.setFileName(file);
-  reader.setVertexWeldingThreshold(vertexWeldThreshold);
-  int rc = reader.read();
-  if(rc == READ_SUCCESS)
-  {
-    reader.getLinearMeshNonUniform(static_cast<SegmentMesh*>(m), percentError);
-    revolvedVolume = reader.getRevolvedVolume(transform);
-  }
-  else
-  {
-    SLIC_WARNING("reading C2C file failed, setting mesh to NULL");
-    delete m;
-    m = nullptr;
-    revolvedVolume = 0.;
-  }
-
-  return rc;
-}
 #endif  // AXOM_USE_C2C
 
 /*
@@ -477,6 +433,65 @@ int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
 
   return rc;
 }
+
+#if defined(AXOM_USE_MFEM) && defined(AXOM_USE_SIDRE)
+/*
+ * Reads in the contour mesh from the specified file.
+ */
+int read_mfem_mesh(const std::string& file,
+                   bool uniform,
+                   const numerics::Matrix<double>& transform,
+                   int segmentsPerPiece,
+                   double vertexWeldThreshold,
+                   double percentError,
+                   mint::Mesh*& m,
+                   double& revolvedVolume)
+{
+  // NOTE: MFEM meshes we are dealing with are always 2D
+  constexpr int DIMENSION = 2;
+  using SegmentMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
+
+  // STEP 1: check input mesh pointer
+  revolvedVolume = 0.;
+  if(m != nullptr)
+  {
+    SLIC_WARNING("supplied mesh pointer is not null!");
+    return READ_FAILED;
+  }
+
+  // STEP 2: construct MFEM reader
+  quest::MFEMReader reader;
+
+  // STEP 3: read the curves from the input file
+  axom::Array<axom::primal::NURBSCurve<double, 2>> curves;
+  reader.setFileName(file);
+  int rc = reader.read(curves);
+  if(rc == READ_SUCCESS)
+  {
+    m = new SegmentMesh(DIMENSION, mint::SEGMENT);
+
+    // STEP 4: Make the linear segments.
+    LinearizeCurves lin;
+    lin.setVertexWeldingThreshold(vertexWeldThreshold);
+    if(uniform)
+    {
+      lin.getLinearMeshUniform(curves.view(), static_cast<SegmentMesh*>(m), segmentsPerPiece);
+    }
+    else
+    {
+      lin.getLinearMeshNonUniform(curves.view(), static_cast<SegmentMesh*>(m), percentError);
+    }
+    revolvedVolume = lin.getRevolvedVolume(curves.view(), transform);
+  }
+  else
+  {
+    SLIC_WARNING("reading MFEM file failed, setting mesh to NULL");
+    m = nullptr;
+  }
+
+  return rc;
+}
+#endif
 
 /// Mesh Helper Methods
 

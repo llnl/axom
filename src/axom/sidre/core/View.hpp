@@ -19,15 +19,18 @@
 // Standard C++ headers
 #include <string>
 #include <set>
+#include <typeinfo>
 
 // Other axom headers
 #include "axom/config.hpp"
 #include "axom/core/memory_management.hpp"
+#include "axom/core/Array.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/Types.hpp"
 #include "axom/slic.hpp"
 
 // Sidre headers
+#include "axom/sidre/core/ConduitMemory.hpp"
 #include "axom/sidre/core/SidreTypes.hpp"
 #include "axom/sidre/core/AttrValues.hpp"
 
@@ -96,7 +99,7 @@ public:
   friend class Group;
   friend class Buffer;
 
-  //@{
+  ///@{
   //!  @name View query and accessor methods
 
   /*!
@@ -199,9 +202,14 @@ public:
   bool isOpaque() const { return m_state == EXTERNAL && !isApplied(); }
 
   /*!
+   * \brief Return true if view contains a tuple or scalar value.
+   */
+  bool isTuple() const { return m_state == TUPLE; }
+
+  /*!
    * \brief Return true if view contains a scalar value.
    */
-  bool isScalar() const { return m_state == SCALAR; }
+  bool isScalar() const { return m_state == TUPLE && getNumElements() == 1; }
 
   /*!
    * \brief Return true if view contains a string value.
@@ -331,9 +339,9 @@ public:
    */
   bool isUpdateableFrom(const View* other) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View allocation methods
 
   /*!
@@ -397,7 +405,7 @@ public:
   View* reallocate(IndexType num_elems);
 
   /*!
-   * \brief  Reallocate data for view as specified by Conduit data type object.
+   * \brief Reallocate data for this View as specified by Conduit data type object.
    *
    * \note Reallocation from a view is allowed under the conditions
    *       described by the allocate() method. If the conditions are not met
@@ -421,7 +429,7 @@ public:
    */
   View* deallocate();
 
-  //@}
+  ///@}
 
   /*!
    * \brief Reshape the array without changing its size.
@@ -511,13 +519,13 @@ public:
    */
   void clear();
 
-  //@{
+  ///@{
   //!  @name Methods to apply View description to data.
 
   /*!
    * \brief Apply view description to data.
    *
-   * If view holds a scalar or a string, the method does nothing.
+   * If view holds a scalar, tuple or a string, the method does nothing.
    *
    * \return pointer to this View object.
    */
@@ -586,23 +594,23 @@ public:
    */
   View* apply(const DataType& dtype);
 
-  //@}
+  ///@}
 
-  //@{
-  //!  @name Methods to set data in the view (scalar, string, or external data).
+  ///@{
+  //!  @name Methods to set data in the view (scalar, string, tuple or external data).
 
   /*!
-   * \brief Set the view to hold the given scalar.
+   * \brief Set the view to hold the given tuple.
    *
    * \return pointer to this View object.
    */
   template <typename ScalarType>
-  View* setScalar(ScalarType value)
+  View* setTuple(const axom::ArrayView<ScalarType>& values, int allocID = INVALID_ALLOCATOR_ID)
   {
-    // If this view already contains a scalar, issue a warning if the user is
+    // If this view already contains a tuple, issue a warning if the user is
     // changing the underlying type ( ie: integer -> float ).
 #if defined(AXOM_DEBUG)
-    if(m_state == SCALAR)
+    if(m_state == TUPLE)
     {
       DataTypeId arg_id = detail::SidreTT<ScalarType>::id;
       SLIC_CHECK_MSG(arg_id == m_node.dtype().id(),
@@ -614,19 +622,21 @@ public:
 #endif
 
     // Note: most of these calls that set the view class members are
-    //       unnecessary if the view already holds a scalar.  May be
-    //       a future optimization opportunity to split the
-    if(m_state == EMPTY || m_state == SCALAR)
+    //       unnecessary if the view already holds a tuple.
+    if(m_state == EMPTY || m_state == TUPLE)
     {
-      m_node.set(value);
+      auto conduitAllocId = ConduitMemory::axomAllocIdToConduit(getValidTupleAllocatorId(allocID));
+      m_node.set_allocator(conduitAllocId);
+      std::vector<ScalarType> tmpValues(values.begin(), values.end());
+      m_node.set(tmpValues);
       m_schema.set(m_node.schema());
-      m_state = SCALAR;
+      m_state = TUPLE;
       m_is_applied = true;
       describeShape();
     }
     else
     {
-      SLIC_CHECK_MSG(m_state == EMPTY || m_state == SCALAR,
+      SLIC_CHECK_MSG(m_state == EMPTY || m_state == TUPLE,
                      SIDRE_VIEW_LOG_PREPEND << "Unable to set scalar value on view "
                                             << " with state: " << getStateStringName(m_state));
     }
@@ -638,12 +648,55 @@ public:
    *
    * \return pointer to this View object.
    */
-  View* setScalar(Node& value)
+  template <typename ScalarType>
+  View* setScalar(ScalarType value, int allocID = INVALID_ALLOCATOR_ID)
   {
     // If this view already contains a scalar, issue a warning if the user is
     // changing the underlying type ( ie: integer -> float ).
 #if defined(AXOM_DEBUG)
-    if(m_state == SCALAR)
+    if(m_state == TUPLE)
+    {
+      DataTypeId arg_id = detail::SidreTT<ScalarType>::id;
+      SLIC_CHECK_MSG(arg_id == m_node.dtype().id(),
+                     SIDRE_VIEW_LOG_PREPEND << "You are setting a scalar value which has changed "
+                                            << " the underlying data type. "
+                                            << "Old type: " << m_node.dtype().name() << ", "
+                                            << "new type: " << DataType::id_to_name(arg_id) << ".");
+    }
+#endif
+
+    // Note: most of these calls that set the view class members are
+    //       unnecessary if the view already holds a scalar.
+    if(m_state == EMPTY || m_state == TUPLE)
+    {
+      auto conduitAllocId = ConduitMemory::axomAllocIdToConduit(getValidTupleAllocatorId(allocID));
+      m_node.set_allocator(conduitAllocId);
+      m_node.set(value);
+      m_schema.set(m_node.schema());
+      m_state = TUPLE;
+      m_is_applied = true;
+      describeShape();
+    }
+    else
+    {
+      SLIC_CHECK_MSG(m_state == EMPTY || m_state == TUPLE,
+                     SIDRE_VIEW_LOG_PREPEND << "Unable to set scalar value on view "
+                                            << " with state: " << getStateStringName(m_state));
+    }
+    return this;
+  }
+
+  /*!
+   * \brief Set the view to hold the given scalar.
+   *
+   * \return pointer to this View object.
+   */
+  View* setScalar(Node& value, int allocID = INVALID_ALLOCATOR_ID)
+  {
+    // If this view already contains a scalar, issue a warning if the user is
+    // changing the underlying type ( ie: integer -> float ).
+#if defined(AXOM_DEBUG)
+    if(m_state == TUPLE)
     {
       SLIC_CHECK_MSG(value.dtype().id() == m_node.dtype().id(),
                      SIDRE_VIEW_LOG_PREPEND
@@ -655,19 +708,20 @@ public:
 #endif
 
     // Note: most of these calls that set the view class members are
-    //       unnecessary if the view already holds a scalar.  May be
-    //       a future optimization opportunity to split the
-    if(m_state == EMPTY || m_state == SCALAR)
+    //       unnecessary if the view already holds a scalar.
+    if(m_state == EMPTY || m_state == TUPLE)
     {
+      auto conduitAllocId = ConduitMemory::axomAllocIdToConduit(getValidAllocatorId(allocID));
+      m_node.set_allocator(conduitAllocId);
       m_node.set(value);
       m_schema.set(m_node.schema());
-      m_state = SCALAR;
+      m_state = TUPLE;
       m_is_applied = true;
       describeShape();
     }
     else
     {
-      SLIC_CHECK_MSG(m_state == EMPTY || m_state == SCALAR,
+      SLIC_CHECK_MSG(m_state == EMPTY || m_state == TUPLE,
                      SIDRE_VIEW_LOG_PREPEND << "Unable to set scalar value on view with state: "
                                             << getStateStringName(m_state));
     }
@@ -701,16 +755,17 @@ public:
  *
  * \return pointer to this View object.
  */
-  View* setString(const std::string& value)
+  View* setString(const std::string& value, int allocID = INVALID_ALLOCATOR_ID)
   {
     // Note: most of these calls that set the view class members are
-    //       unnecessary if the view already holds a string.  May be
-    //       a future optimization opportunity to split the
+    //       unnecessary if the view already holds a string.
     if(m_state == EMPTY || m_state == STRING)
     {
+      m_state = STRING;
+      auto conduitAllocId = ConduitMemory::axomAllocIdToConduit(getValidAllocatorId(allocID));
+      m_node.set_allocator(conduitAllocId);
       m_node.set_string(value);
       m_schema.set(m_node.schema());
-      m_state = STRING;
       m_is_applied = true;
       describeShape();
     }
@@ -774,7 +829,7 @@ public:
     return this;
   }
 
-  //@}
+  ///@}
 
   /*!
  * \brief Update the data in this View with the data in other
@@ -784,7 +839,7 @@ public:
  */
   View* updateFrom(const View* other);
 
-  //@{
+  ///@{
   //! @name Methods to retrieve data in a view.
 
   /*!
@@ -831,8 +886,8 @@ public:
    */
   Node::ConstValue getScalar() const
   {
-    SLIC_CHECK_MSG(m_state == SCALAR,
-                   SIDRE_VIEW_LOG_PREPEND << "View::getScalar() called on non-scalar view.");
+    SLIC_CHECK_MSG(isScalar(),
+                   SIDRE_VIEW_LOG_PREPEND << "View::getScalar() called on non-tuple view.");
     return getData();
   }
 
@@ -903,9 +958,9 @@ public:
    */
   void* getVoidPtr() const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View print methods.
 
   /*!
@@ -918,7 +973,14 @@ public:
    */
   void print(std::ostream& os) const;
 
-  //@}
+  /*!
+   * \brief Print data in a way that won't crash for non-host data.
+   *
+   * If data is not host-accessible, print the pointer and a comment.
+   */
+  void hostPrint(std::ostream& os = std::cout) const;
+
+  ///@}
 
   /*!
    * \brief Copy data view description to given Conduit node.
@@ -934,6 +996,14 @@ public:
    * Conduit tree.
    */
   void createNativeLayout(Node& n) const;
+
+  /*!
+   * \brief Deep copy View into the given conduit::Node.
+   * \param dst [in/out] Destination
+   * \param allocId [in] If not equal to INVALID_ALLOCATOR_ID,
+   *   use this allocator for the destination.
+   */
+  void deepCopyToConduit(Node& dst, int allocId = INVALID_ALLOCATOR_ID) const;
 
   /*!
    * \brief Copy metadata of the View to the given Conduit node
@@ -961,7 +1031,7 @@ public:
    */
   bool rename(const std::string& new_name);
 
-  //@{
+  ///@{
   //!  @name Attribute Value query and accessor methods
 
   /*!
@@ -1293,13 +1363,13 @@ public:
     return m_attr_values.getNextValidAttrValueIndex(idx);
   }
 
-  //@}
+  ///@}
 
 private:
   DISABLE_DEFAULT_CTOR(View);
   DISABLE_MOVE_AND_ASSIGNMENT(View);
 
-  //@{
+  ///@{
   //!  @name Private View ctor and dtor
   //!        (callable only by Group and View methods).
 
@@ -1319,9 +1389,9 @@ private:
    */
   ~View();
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Private View declaration methods.
   //!        (callable only by Group and View methods).
 
@@ -1389,23 +1459,24 @@ private:
   /*!
    * \brief Copy contents of this View contents into an undescribed EMPTY View.
    *
-   * For SCALAR and STRING the data is copied; EXTERNAL,
+   * For TUPLE and STRING the data is copied; EXTERNAL,
    * data pointer is copied; BUFFER attaches the buffer.
    */
   void copyView(View* copy) const;
 
   /*!
-   * \brief Deep copy contents of this View contents into an undescribed
-   * EMPTY View.
+   * \brief Deep copy this View into an undescribed EMPTY View.
    *
-   * For SCALAR and STRING the data is copied and the state is preserved.
+   * For TUPLE and STRING the data is copied and the state is preserved.
    * For BUFFER and EXTERNAL, the data described by this View is copied into a
    * new Buffer that is of the size needed to hold the copied data. Any
    * parts of the source Buffer or external array that are not seen due
    * to offsets and strides in the description will not be copied. The copied
    * View will have BUFFER state with zero offset and a stride of one.
    */
-  void deepCopyView(View* copy, int allocID = INVALID_ALLOCATOR_ID) const;
+  void deepCopyView(View* copy,
+                    int arrayAllocId = INVALID_ALLOCATOR_ID,
+                    int tupleAllocID = INVALID_ALLOCATOR_ID) const;
 
   /*!
    * \brief Add view description and references to it's data to a conduit tree.
@@ -1462,9 +1533,9 @@ private:
     unapply();
   }
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Private methods that indicate when certain view operations are valid.
 
   /*!
@@ -1479,7 +1550,7 @@ private:
    */
   bool isApplyValid() const;
 
-  //@}
+  ///@}
 
   ///
   /// Enum with constants that identify the state of a view.
@@ -1497,9 +1568,9 @@ private:
                //    applied may be true or false
     EXTERNAL,  // View holds pointer to external data (no buffer) :
                //    applied may be true or false
-    SCALAR,    // View holds scalar data (via setScalar()):
+    TUPLE,     // View holds tuple (including scalar) data (via setScalar() or setTuple()):
                //    applied is true
-    STRING     // View holds string data (view setString()):
+    STRING     // View holds string data (via setString()):
                //    applied is true
   };
 
@@ -1514,10 +1585,90 @@ private:
   State getStateId(const std::string& name) const;
 
   /*!
-   * \brief Private method. If allocatorID is a valid allocator ID then return
-   *  it. Otherwise return the ID of the default allocator of the owning group.
+   * If allocID == INVALID_ALLOCATOR_ID, return the default allocator id,
+   * which depends on the View's data semantic and owning Group.
+   *
+   * Note: The data semantic depends on m_state, so that must be set first.
    */
-  int getValidAllocatorID(int allocatorID);
+  int getValidAllocatorId(int allocId);
+
+  int getValidTupleAllocatorId(int allocId);
+
+  int getValidArrayAllocatorId(int allocId);
+
+  /*!
+   * \brief Return whether view data is accessible on the host CPU,
+   * as determined by Axom's memory management.
+   *
+   * If data is external and not allocated through Umpire or malloc,
+   * the behavior is undefined.
+   *
+   * By convention, this returns a false if data is not allocated,
+   * because we expect null pointers to be correctly checked before use.
+   */
+  bool isHostAccessible() const;
+
+  //!@brief Print as a single line, in a way that won't crash for non-host data.
+  template <typename T>
+  void hostPrintScalar(std::ostream& os = std::cout) const
+  {
+    if(isHostAccessible())
+    {
+      os << ' ' << T(m_node.value());
+    }
+    else
+    {
+      os << ' ' << getVoidPtr() << " # non-host " << typeid(T).name() << " data";
+    }
+  }
+
+  //!@brief Print on host, as a single line.
+  template <typename T>
+  void hostPrintArray(std::ostream& os = std::cout) const
+  {
+    constexpr IndexType maxPrintItems = 10;
+    if(isHostAccessible())
+    {
+      os << " [";
+      auto start = (T*)(getVoidPtr());
+      auto end = (T*)(getVoidPtr()) + getNumElements();
+      if(getNumElements() <= maxPrintItems)
+      {
+        for(auto i = start; i < end; ++i)
+        {
+          os << *i;
+          if(i != end - 1) os << ", ";
+        }
+      }
+      else
+      {
+        auto a = start + maxPrintItems / 2;
+        auto b = end - maxPrintItems / 2;
+        for(auto i = start; i < a; ++i)
+        {
+          os << *i << ", ";
+        }
+        os << "..., ";
+        for(auto i = b; i < end; ++i)
+        {
+          os << *i;
+          if(i != end - 1) os << ", ";
+        }
+      }
+      os << "]";
+    }
+    else
+    {
+      axom::Array<axom::IndexType> shape(getNumDimensions());
+      getShape(static_cast<int>(shape.size()), shape.data());
+      os << ' ' << getVoidPtr() << " # non-host " << typeid(T).name() << " array of (" << shape[0];
+      for(axom::IndexType i = 1; i < shape.size(); ++i)
+      {
+        os << " x " << shape[i];
+      }
+      os << ") elements";
+    }
+  }
 
   /// Name of this View object.
   std::string m_name;

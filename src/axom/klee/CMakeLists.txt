@@ -12,28 +12,28 @@ set(klee_headers
     Dimensions.hpp
     Geometry.hpp
     GeometryOperators.hpp
-    IO.hpp
     Shape.hpp
     ShapeSet.hpp
     Units.hpp
     KleeError.hpp
+    io/IO.hpp
     )
 
 set(klee_internal_headers
-    GeometryOperatorsIO.hpp
-    IOUtil.hpp
+    io/GeometryOperatorsIO.hpp
+    io/IOUtil.hpp
     )
 
 set(klee_sources
     Geometry.cpp
     GeometryOperators.cpp
-    GeometryOperatorsIO.cpp
     KleeError.cpp
-    IO.cpp
-    IOUtil.cpp
     Shape.cpp
     ShapeSet.cpp
     Units.cpp
+    io/GeometryOperatorsIO.cpp
+    io/IO.cpp
+    io/IOUtil.cpp
     )
 
 #------------------------------------------------------------------------------

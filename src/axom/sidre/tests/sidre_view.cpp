@@ -5,6 +5,7 @@
 
 #include "gtest/gtest.h"
 #include "axom/core/Types.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 #include "axom/slic.hpp"
 #include "axom/sidre.hpp"
 
@@ -29,7 +30,7 @@ enum State
   EMPTY,
   BUFFER,
   EXTERNAL,
-  SCALAR,
+  TUPLE,
   STRING,
   NOTYPE
 };
@@ -52,7 +53,11 @@ static State getState(View* view)
   }
   else if(view->isScalar())
   {
-    return SCALAR;
+    return TUPLE;
+  }
+  else if(view->isTuple())
+  {
+    return TUPLE;
   }
   else if(view->isString())
   {
@@ -288,6 +293,35 @@ static void checkScalarValues(View* view,
   EXPECT_TRUE(view->getShape(1, dims) == 1 && dims[0] == len);
 }
 
+TEST(sidre_view, tuple_view)
+{
+  DataStore ds;
+  Group* root = ds.getRoot();
+
+  constexpr size_t N = 5;
+
+  axom::Array<int> iArray(N, N);
+  for(int i = 0; i < iArray.size(); ++i)
+  {
+    iArray[i] = i + 100;
+  }
+
+  View* iView = root->createView("i")->setTuple(iArray.view());
+  EXPECT_EQ(iView->getNumElements(), iArray.size());
+  EXPECT_TRUE(iView->isTuple());
+  EXPECT_FALSE(iView->isScalar() || N == 1);
+  EXPECT_FALSE(iView->isEmpty());
+  EXPECT_FALSE(iView->isExternal());
+
+  int* iPtr = static_cast<int*>(iView->getVoidPtr());
+  EXPECT_NE(iPtr, iArray.data());
+
+  for(int i = 0; i < iArray.size(); ++i)
+  {
+    EXPECT_EQ(iArray[i], iPtr[i]);
+  }
+}
+
 TEST(sidre_view, scalar_view)
 {
   DataStore* ds = new DataStore();
@@ -296,12 +330,12 @@ TEST(sidre_view, scalar_view)
   const char* s;
 
   View* i0view = root->createView("i0")->setScalar(1);
-  checkScalarValues(i0view, SCALAR, true, true, true, INT_ID, 1);
+  checkScalarValues(i0view, TUPLE, true, true, true, INT_ID, 1);
   i = i0view->getScalar();
   EXPECT_EQ(1, i);
 
   View* i1view = root->createViewScalar("i1", 2);
-  checkScalarValues(i1view, SCALAR, true, true, true, INT_ID, 1);
+  checkScalarValues(i1view, TUPLE, true, true, true, INT_ID, 1);
   i = i1view->getScalar();
   EXPECT_EQ(2, i);
 
@@ -325,16 +359,6 @@ TEST(sidre_view, scalar_view)
   s0view->deallocate();
 
   View* empty = root->createView("empty");
-#if 0
-  try
-  {
-    int* j = empty->getScalar();
-    //int j = empty->getScalar();
-    EXPECT_EQ(0, *j);
-  }
-  catch ( conduit::Error e)
-  {}
-#endif
   const char* svalue = empty->getString();
   EXPECT_EQ(nullptr, svalue);
 
@@ -1737,7 +1761,7 @@ TEST(sidre_view, clear_view)
   // scalar view.
   {
     View* view = root->createViewScalar("v_scalar", 1);
-    EXPECT_TRUE(checkViewValues(view, SCALAR, true, true, true, 1));
+    EXPECT_TRUE(checkViewValues(view, TUPLE, true, true, true, 1));
     view->clear();
     EXPECT_TRUE(checkViewValues(view, EMPTY, false, false, false, 0));
   }
@@ -1835,6 +1859,203 @@ TEST(sidre_view, deep_copy_shape)
   }
 
   delete ds;
+}
+
+// Return vector of known allocator ids.
+std::vector<int> getKnownAllocIds()
+{
+  std::vector<int> allocIds(1, axom::MALLOC_ALLOCATOR_ID);
+#ifdef AXOM_USE_UMPIRE
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
+  #ifdef AXOM_USE_GPU
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());
+  // Does it make sense to check Pinned and Constant memory spaces?
+  #endif
+#endif
+  return allocIds;
+}
+
+//------------------------------------------------------------------------------
+
+TEST(sidre_view, deep_copy_to_conduit)
+{
+  std::vector<int> allocIds = getKnownAllocIds();
+
+  DataStore ds;
+
+  constexpr int N = 5;
+  auto dtypeDouble = conduit::DataType::float64(1);
+  auto dtypeIntArray = conduit::DataType::int32(N);
+
+  const double doubleValue = 10.13456;
+  axom::Array<std::int32_t> intArray(N, N);
+  for(int i = 0; i < N; ++i)
+  {
+    intArray[i] = 1001.5 + i;
+  }
+  std::string stringValue = "a string";
+
+  double tmpDoubleValue = doubleValue;
+  axom::Array<std::int32_t> tmpIntArray(N, N);
+  axom::Array<char> tmpCharArray;
+
+  // For each combination of srcArrayAllocId and dstAllocId,
+  // allocate src and copy to dst.
+
+  for(size_t si = 0; si < allocIds.size(); ++si)
+  {
+    int srcArrayAllocId = allocIds[si];
+    int srcTupleAllocId = allocIds[allocIds.size() - 1 - si];
+
+    Group* src = ds.getRoot()->createGroup("src");
+    src->setDefaultArrayAllocator(srcArrayAllocId);
+    src->setDefaultTupleAllocator(srcArrayAllocId);
+
+    //
+    // Create, initialize and sanity-check src objects to test.
+    //
+
+    View* srcString = src->createViewString("aString", stringValue);
+    const char* srcStringPtr = static_cast<char*>(srcString->getNode().data_ptr());
+    if(srcArrayAllocId == axom::MALLOC_ALLOCATOR_ID)
+    {
+      // Skip this check if srcArrayAllocId is non-MALLOC_ALLOCATOR_ID,
+      // because a current sidre issue results in always
+      // placing strings on Conduit's default alloc id.
+      EXPECT_EQ(axom::getAllocatorIDFromPointer(srcStringPtr), srcArrayAllocId);
+    }
+
+    View* srcScalar = src->createViewScalar("aDouble", dtypeDouble);
+    double* srcScalarPtr = static_cast<double*>(srcScalar->getNode().data_ptr());
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(srcScalarPtr), srcArrayAllocId);
+    axom::copy(srcScalarPtr, &doubleValue, sizeof(double));
+
+    View* srcArray = src->createViewAndAllocate("aIntArray", dtypeIntArray);
+    std::int32_t* srcArrayPtr = static_cast<std::int32_t*>(srcArray->getNode().data_ptr());
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(srcArrayPtr), srcArrayAllocId);
+    axom::copy(srcArrayPtr, intArray.data(), N * sizeof(std::int32_t));
+
+    if(axom::execution_space<axom::SEQ_EXEC>::usesAllocId(srcArrayAllocId))
+    {
+      std::cout << "src group:" << std::endl;
+      src->print();
+    }
+
+    //
+    // Copy the source into destinations of different alloc ids
+    // Conduit doesn't support separate allocators for arrays and tuples
+    // so there's only one destination allocator.
+    //
+
+    for(size_t di = 0; di < allocIds.size(); ++di)
+    {
+      int dstAllocId = allocIds[di];
+
+      std::cout << "Testing copying allocator ids " << srcArrayAllocId << " and " << srcTupleAllocId
+                << " to " << dstAllocId << std::endl;
+
+      const auto& idConverter = axom::sidre::ConduitMemory::instanceForAxomId(dstAllocId);
+      auto dstAllocIdConduit = idConverter.conduitId();
+
+      conduit::Node dst;
+      dst.set_allocator(dstAllocIdConduit);
+
+      src->deepCopyToConduit(dst);
+
+      //
+      // Check pointers.  Copy data to temporary host buffers and check data.
+      //
+      int checkAllocId;
+
+      double* dstScalarPtr =
+        static_cast<double*>(dst.fetch_existing(srcScalar->getName()).data_ptr());
+      EXPECT_NE(dstScalarPtr, nullptr);
+      EXPECT_NE(dstScalarPtr, srcScalarPtr);
+      checkAllocId = axom::getAllocatorIDFromPointer(dstScalarPtr);
+      EXPECT_EQ(checkAllocId, dstAllocId);
+      axom::copy(&tmpDoubleValue, dstScalarPtr, sizeof(double));
+      EXPECT_EQ(tmpDoubleValue, doubleValue);
+
+      std::int32_t* dstArrayPtr =
+        static_cast<std::int32_t*>(dst.fetch_existing(srcArray->getName()).data_ptr());
+      EXPECT_NE(dstArrayPtr, nullptr);
+      EXPECT_NE(dstArrayPtr, srcArrayPtr);
+      checkAllocId = axom::getAllocatorIDFromPointer(dstArrayPtr);
+      EXPECT_EQ(checkAllocId, dstAllocId);
+      axom::copy(tmpIntArray.data(), srcArrayPtr, N * sizeof(std::int32_t));
+      for(int i = 0; i < N; ++i)
+      {
+        EXPECT_EQ(tmpIntArray[i], intArray[i]);
+      }
+
+      char* dstStringPtr = static_cast<char*>(dst.fetch_existing(srcString->getName()).data_ptr());
+      EXPECT_NE(dstStringPtr, nullptr);
+      EXPECT_NE(dstStringPtr, srcStringPtr);
+      checkAllocId = axom::getAllocatorIDFromPointer(dstStringPtr);
+      EXPECT_EQ(checkAllocId, dstAllocId);
+      tmpCharArray.resize(srcString->getNumElements());
+      axom::copy(tmpCharArray.data(), srcStringPtr, srcString->getNumElements());
+      for(int i = 0; i < N; ++i)
+      {
+        EXPECT_EQ(tmpCharArray[i], stringValue[i]);
+      }
+    }
+
+    ds.getRoot()->destroyGroup("src");
+  }
+}
+
+//------------------------------------------------------------------------------
+
+TEST(sidre_view, deep_copy_to_conduit_with_allocid)
+{
+  using axom::sidre::ConduitMemory;
+
+  std::vector<int> allocIds = getKnownAllocIds();
+  for(std::size_t si = 0; si < allocIds.size(); ++si)
+  {
+    auto aId = allocIds[si];
+    auto cId = ConduitMemory::axomAllocIdToConduit(aId);
+    std::cout << "si=" << si << "  axomAllocId=" << aId << "  conduitAllocId=" << cId << std::endl;
+  }
+  if(allocIds.size() < 2)
+  {
+    std::cout << "Skipping test deep_copy_to_conduit_with_allocid."
+                 "At least 2 allocators are needed to test."
+              << std::endl;
+    return;
+  }
+
+  DataStore ds;
+
+  Group* srcGrp = ds.getRoot()->createGroup("src");
+  View* srcView = srcGrp->createView("a");
+  srcView->setScalar(int(15));
+
+  // Copy srcView to conduit destinations, varying the allocator.
+  for(std::size_t si = 0; si < allocIds.size(); ++si)
+  {
+    // dst1 uses default Conduit allocator
+    conduit::Node dst1;
+    auto defaultConduitAllocId = dst1.allocator();
+    srcView->deepCopyToConduit(dst1);
+    EXPECT_EQ(dst1.allocator(), defaultConduitAllocId);
+
+    // dst2 sets and uses allocator allocIds[si]
+    conduit::Node dst2;
+    dst2.set_allocator(ConduitMemory::axomAllocIdToConduit(allocIds[si]));
+    srcView->deepCopyToConduit(dst2);
+    EXPECT_EQ(ConduitMemory::conduitAllocIdToAxom(dst2.allocator()), allocIds[si]);
+
+    // dst3 sets allocator allocIds[si] but overrides it in the copy
+    conduit::Node dst3;
+    dst3.set_allocator(ConduitMemory::axomAllocIdToConduit(allocIds[si]));
+    srcView->deepCopyToConduit(dst3, allocIds[0]);
+    EXPECT_EQ(ConduitMemory::conduitAllocIdToAxom(dst3.allocator()), allocIds[0]);
+  }
+
+  ds.getRoot()->destroyGroup("src");
 }
 
 //------------------------------------------------------------------------------
@@ -1970,6 +2191,54 @@ TEST(sidre_view, reshape_array)
     EXPECT_EQ(shapeOutput[2], 3);
     EXPECT_EQ(shapeOutput[3], 4);
   }
+}
+
+//------------------------------------------------------------------------------
+
+TEST(sidre_view, apply_and_shape_behavior)
+{
+  using namespace axom;
+  DataStore ds;
+  Group* root = ds.getRoot();
+
+  const int nfoo = 10;
+  int int2d[nfoo * 2];
+  IndexType shape[] = {nfoo, 2};
+
+  View* view1 = root->createViewWithShape("int2d", INT_ID, 2, shape, int2d);
+
+  IndexType shapeOutput[] = {0, 0};
+
+  view1->getShape(2, shapeOutput);
+  EXPECT_EQ(shapeOutput[0], nfoo);
+  EXPECT_EQ(shapeOutput[1], 2);
+  EXPECT_EQ(view1->getNumDimensions(), 2);
+  EXPECT_EQ(view1->getStride(), 1);
+
+  // 20 elements, offset of 0, stride of 2
+  // Note - dimensions are flattened to 1D
+  view1->apply(nfoo * 2, 0, 2);
+  view1->getShape(2, shapeOutput);
+  EXPECT_EQ(shapeOutput[0], nfoo * 2);
+  EXPECT_EQ(shapeOutput[1], 0);
+  EXPECT_EQ(view1->getNumDimensions(), 1);
+  EXPECT_EQ(view1->getStride(), 2);
+
+  // Reshape back to [10,2]
+  view1->reshapeArray(2, shape);
+  view1->getShape(2, shapeOutput);
+  EXPECT_EQ(shapeOutput[0], nfoo);
+  EXPECT_EQ(shapeOutput[1], 2);
+  EXPECT_EQ(view1->getNumDimensions(), 2);
+  EXPECT_EQ(view1->getStride(), 1);
+
+  // apply() (no args) - no change
+  view1->apply();
+  view1->getShape(2, shapeOutput);
+  EXPECT_EQ(shapeOutput[0], nfoo);
+  EXPECT_EQ(shapeOutput[1], 2);
+  EXPECT_EQ(view1->getNumDimensions(), 2);
+  EXPECT_EQ(view1->getStride(), 1);
 }
 
 //------------------------------------------------------------------------------

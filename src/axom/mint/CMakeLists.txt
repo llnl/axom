@@ -87,6 +87,7 @@ set( mint_headers
     utils/vtk_utils.hpp
     utils/su2_utils.hpp
     utils/ExternalArray.hpp
+    utils/ArrayWrapper.hpp
    )
 
 blt_list_append(TO mint_headers ELEMENTS deprecated/SidreMCArray.hpp IF AXOM_MINT_USE_SIDRE)

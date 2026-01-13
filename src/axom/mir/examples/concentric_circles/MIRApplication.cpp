@@ -42,7 +42,8 @@ int MIRApplication::initialize(int argc, char **argv)
   app.add_option("--gridsize", gridSize)
     ->check(axom::CLI::PositiveNumber)
     ->description("The number of zones along an axis.");
-  app.add_option("--method", method)->description("The MIR method name (equiz, elvira)");
+  app.add_option("--method", method)
+    ->description("The MIR method (or operation) name (equiz, elvira, traversal)");
   app.add_option("--numcircles", numCircles)
     ->check(axom::CLI::PositiveNumber)
     ->description("The number of circles to use for material creation.");
@@ -108,6 +109,7 @@ int MIRApplication::initialize(int argc, char **argv)
 int MIRApplication::execute()
 {
   axom::slic::SimpleLogger logger(axom::slic::message::Info);
+  axom::slic::setLoggingMsgLevel(axom::slic::message::Debug);
 
   if(handler)
   {
@@ -172,6 +174,7 @@ int MIRApplication::runMIR()
   }
 
   // Begin material interface reconstruction
+  timer.reset();
   timer.start();
   conduit::Node options, resultMesh;
   options["matset"] = "mat";
@@ -242,6 +245,5 @@ void MIRApplication::conduit_debug_err_handler(const std::string &s1, const std:
 {
   SLIC_ERROR(axom::fmt::format("Error from Conduit: s1={}, s2={}, i1={}", s1, s2, i1));
   // This is on purpose.
-  while(1)
-    ;
+  while(1);
 }

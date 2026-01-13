@@ -12,7 +12,8 @@
 #------------------------------------------------------------------------------
 
 set(gtest_mir_tests
-    mir_coupling.cpp
+    mir_coupled.cpp
+    mir_coupled3d.cpp
     mir_elvira2d.cpp
     mir_elvira3d.cpp
     mir_equiz2d.cpp
@@ -36,7 +37,7 @@ foreach(test ${gtest_mir_tests})
                          DEPENDS_ON ${mir_tests_depends_on}
                          FOLDER axom/mir/tests )
 
-    blt_add_test( NAME ${test_name}
-                  COMMAND ${test_name}_test )
+    axom_add_test( NAME ${test_name}
+                   COMMAND ${test_name}_test )
 endforeach()
 

@@ -16,13 +16,10 @@
 #include "axom/primal/operators/is_convex.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
 
+#include "axom/primal/operators/detail/winding_number_2d_memoization.hpp"
+
 // C++ includes
 #include <math.h>
-
-// MFEM includes
-#ifdef AXOM_USE_MFEM
-  #include "mfem.hpp"
-#endif
 
 namespace axom
 {
@@ -35,7 +32,7 @@ namespace detail
  *
  * \param [in] R The query point to test
  * \param [in] P The Polygon object to test for containment
- * \param [in] isOnEdge An optional return parameter if the point is on the boundary
+ * \param [out] isOnEdge An optional return parameter if the point is on the boundary
  * \param [in] includeBoundary If true, points on the boundary are considered interior
  * \param [in] edge_tol The distance at which a point is considered on the boundary
  * 
@@ -119,7 +116,7 @@ int polygon_winding_number(const Point<T, 2>& R,
   return winding_num;
 }
 
-/*
+/*!
  * \brief Compute the GWN at a 2D point wrt a 2D line segment
  *
  * \param [in] q The query point to test
@@ -141,16 +138,14 @@ double linear_winding_number(const Point<T, 2>& q,
                              bool& isOnEdge,
                              double edge_tol)
 {
-  Vector<T, 2> V0(q, c0);
-  Vector<T, 2> V1(q, c1);
+  const auto V0 = c0 - q;
+  const auto V1 = c1 - q;
+  const auto seg_vec = c0 - c1;
 
-  // clang-format off
-  // Measures the signed area of the triangle with vertices q, c0, c1
-  double tri_area = axom::numerics::determinant(V0[0] - V1[0], V1[0], 
-                                                V0[1] - V1[1], V1[1]);
-  // clang-format on
+  // Measures (twice) the signed area of the triangle with vertices q, c0, c1
+  const double tri_area = axom::numerics::determinant(seg_vec[0], V1[0], seg_vec[1], V1[1]);
 
-  double segment_sq_len = (V0 - V1).squared_norm();
+  const double segment_sq_len = seg_vec.squared_norm();
 
   // Compute distance from line connecting endpoints to query
   isOnEdge = false;
@@ -161,23 +156,21 @@ double linear_winding_number(const Point<T, 2>& q,
     {
       isOnEdge = (V0.squared_norm() <= edge_tol * edge_tol);
     }
-    else
+    else if(const double proj_val = V0.dot(seg_vec) / segment_sq_len;
+            (proj_val >= 0 - edge_tol) && (proj_val <= 1 + edge_tol))
     {
-      double proj_val = Vector<T, 2>::dot_product(V0, V0 - V1) / segment_sq_len;
-      if((proj_val >= 0 - edge_tol) && (proj_val <= 1 + edge_tol))
-      {
-        isOnEdge = true;
-      }
+      isOnEdge = true;
     }
 
     return 0;
   }
 
   // Compute signed angle between vectors
-  double dotprod =
+  const double dotprod =
     axom::utilities::clampVal(Vector<T, 2>::dot_product(V0.unitVector(), V1.unitVector()), -1.0, 1.0);
 
-  return 0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1);
+  constexpr double gwn_modulo = 0.5 * M_1_PI;
+  return (tri_area > 0) ? gwn_modulo * acos(dotprod) : -gwn_modulo * acos(dotprod);
 }
 
 /*!
@@ -282,6 +275,80 @@ double convex_endpoint_winding_number(const Point<T, 2>& q,
   double dotprod =
     axom::utilities::clampVal(Vector<T, 2>::dot_product(V1.unitVector(), V2.unitVector()), -1.0, 1.0);
   return 0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1);
+}
+
+/*!
+ * \brief Computes the GWN for a 2D point wrt cached data for a 2D NURBS curve
+ *
+ * \param [in] q The query point to test
+ * \param [in] nurbs_cache The NURBS curve cached data object
+ * \param [in] bezier_idx The index of the bezier curve in the extracted NURBS curve
+ * \param [in] refinement_level The current subdivision level for the Bezier curve
+ * \param [in] refinement_index The index of the specific subdivision at the specified level
+ * \param [out] isOnCurve An returned flag if the point is on the curve
+ * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ *
+ * Computes the GWN by decomposing into rational Bezier curves
+ *  and summing the resulting GWNs. Far-away curves can be evaluated
+ *  without decomposition using direct formula.
+ * 
+ * \return The GWN.
+ */
+template <typename T>
+double bezier_winding_number_memoized(const Point<T, 2>& q,
+                                      const NURBSCurveGWNCache<T>& nurbs_cache,
+                                      int bezier_idx,
+                                      int refinement_level,
+                                      int refinement_index,
+                                      bool& isOnCurve,
+                                      double edge_tol = 1e-8,
+                                      double EPS = 1e-8)
+{
+  // Early exit for degenerate curves
+  const int deg = nurbs_cache.getDegree();
+  if(deg <= 0)
+  {
+    return 0.0;
+  }
+
+  auto& bezier_data =
+    nurbs_cache.getSubdivisionData(bezier_idx, refinement_level, refinement_index, edge_tol);
+  auto& bezier_curve = bezier_data.getCurve();
+
+  // If outside a bounding box, the curve can be treated as linear between its endpoints
+  if(!bezier_data.getBoundingBox().contains(q) || bezier_curve.isLinear(EPS))
+  {
+    return detail::linear_winding_number(q, bezier_curve[0], bezier_curve[deg], isOnCurve, edge_tol);
+  }
+
+  // If the control polygon is convex, we can handle coincidence with a direct formula.
+  //  In this case, accessing subdivision bounding boxes is fast enough to skip checking a polygon
+  if(bezier_data.isConvexControlPolygon() &&
+     (squared_distance(q, bezier_curve[0]) <= edge_tol * edge_tol ||
+      squared_distance(q, bezier_curve[deg]) <= edge_tol * edge_tol))
+  {
+    isOnCurve = true;
+    return convex_endpoint_winding_number(q, bezier_curve, edge_tol, EPS);
+  }
+
+  const auto gwn_half_1 = detail::bezier_winding_number_memoized(q,
+                                                                 nurbs_cache,
+                                                                 bezier_idx,
+                                                                 refinement_level + 1,
+                                                                 2 * refinement_index,
+                                                                 isOnCurve,
+                                                                 edge_tol,
+                                                                 EPS);
+  const auto gwn_half_2 = detail::bezier_winding_number_memoized(q,
+                                                                 nurbs_cache,
+                                                                 bezier_idx,
+                                                                 refinement_level + 1,
+                                                                 2 * refinement_index + 1,
+                                                                 isOnCurve,
+                                                                 edge_tol,
+                                                                 EPS);
+  return gwn_half_1 + gwn_half_2;
 }
 
 /*!
@@ -399,7 +466,7 @@ void construct_approximating_polygon(const Point<T, 2>& q,
  *
  * \param [in] q The query point to test
  * \param [in] c The Bezier curve object 
- * \param [in] isOnCurve An returned flag if the point is on the curve
+ * \param [out] isOnCurve An returned flag if the point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
@@ -497,7 +564,7 @@ double bezier_winding_number(const Point<T, 2>& q,
  *
  * \param [in] q The query point to test
  * \param [in] n The NURBS curve object 
- * \param [in] isOnEdge An returned flag if the point is on the curve
+ * \param [out] isOnCurve An returned flag if the point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
@@ -509,33 +576,37 @@ double bezier_winding_number(const Point<T, 2>& q,
  */
 template <typename T>
 double nurbs_winding_number(const Point<T, 2>& q,
-                            const NURBSCurve<T, 2>& n,
-                            bool& isOnEdge,
+                            const NURBSCurve<T, 2>& nurbs,
+                            bool& isOnCurve,
                             double edge_tol = 1e-8,
                             double EPS = 1e-8)
 {
-  const int deg = n.getDegree();
+  const int deg = nurbs.getDegree();
   if(deg <= 0)
   {
     return 0.0;
   }
 
   // Early return is possible for most points + curves
-  if(!n.boundingBox().expand(edge_tol).contains(q))
+  if(!nurbs.boundingBox().expand(edge_tol).contains(q))
   {
-    return detail::linear_winding_number(q, n[0], n[n.getNumControlPoints() - 1], isOnEdge, edge_tol);
+    return detail::linear_winding_number(q,
+                                         nurbs[0],
+                                         nurbs[nurbs.getNumControlPoints() - 1],
+                                         isOnCurve,
+                                         edge_tol);
   }
 
   // Decompose the NURBS curve into Bezier segments
-  auto beziers = n.extractBezier();
+  auto beziers = nurbs.extractBezier();
 
   // Compute the GWN for each Bezier segment
   double gwn = 0.0;
   for(int i = 0; i < beziers.size(); i++)
   {
-    bool isOnThisEdge = false;
-    gwn += bezier_winding_number(q, beziers[i], isOnThisEdge, edge_tol, EPS);
-    isOnEdge = isOnEdge || isOnThisEdge;
+    bool isOnThisCurve = false;
+    gwn += detail::bezier_winding_number(q, beziers[i], isOnThisCurve, edge_tol, EPS);
+    isOnCurve = isOnCurve || isOnThisCurve;
   }
 
   return gwn;

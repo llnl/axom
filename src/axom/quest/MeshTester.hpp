@@ -71,8 +71,8 @@ void findTriMeshIntersectionsBVH(mint::UnstructuredMesh<mint::SINGLE_SHAPE>* sur
 {
   AXOM_ANNOTATE_SCOPE("quest::findTriMeshIntersectionsBVH");
 
-  SLIC_INFO("Running BVH intersection algorithm "
-            << " in execution Space: " << axom::execution_space<ExecSpace>::name());
+  SLIC_INFO("Running BVH intersection algorithm " << " in execution Space: "
+                                                  << axom::execution_space<ExecSpace>::name());
 
   constexpr detail::AccelType UseBVH = detail::AccelType::BVH;
   using CandidateFinder = detail::CandidateFinder<UseBVH, ExecSpace, FloatType>;

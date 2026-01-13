@@ -44,10 +44,11 @@ namespace slic = axom::slic;
 namespace sidre = axom::sidre;
 
 using VolFracSampling = quest::shaping::VolFracSampling;
+using SamplingMethod = quest::SamplingShaper::SamplingMethod;
 
 //------------------------------------------------------------------------------
 
-/// Struct to help choose if our shaping method: sampling or intersection for now
+/// Struct to help choose our shaping method: sampling or intersection for now
 enum class ShapingMethod : int
 {
   Sampling,
@@ -72,6 +73,7 @@ public:
   klee::ShapeSet shapeSet;
 
   ShapingMethod shapingMethod {ShapingMethod::Sampling};
+  SamplingMethod samplingMethod {SamplingMethod::InOut};
   RuntimePolicy policy {RuntimePolicy::seq};
   int quadratureOrder {5};
   int outputOrder {2};
@@ -208,6 +210,15 @@ public:
       ->description("Determines the shaping method -- either sampling or intersection")
       ->capture_default_str()
       ->transform(axom::CLI::CheckedTransformer(methodMap, axom::CLI::ignore_case));
+
+    std::map<std::string, SamplingMethod> sMethodMap {
+      {"inout", SamplingMethod::InOut},
+      {"windingnumber", SamplingMethod::WindingNumber}};
+    app.add_option("--sampling", samplingMethod)
+      ->description(
+        "Determines the sampling method for the sampling shaper -- either inout or windingnumber")
+      ->capture_default_str()
+      ->transform(axom::CLI::CheckedTransformer(sMethodMap, axom::CLI::ignore_case));
 
 #ifdef AXOM_USE_CALIPER
     app.add_option("--caliper", annotationMode)
@@ -490,14 +501,8 @@ int main(int argc, char** argv)
                         axom::fmt::join(errs, "\n")));
 
     finalizeLogger();
-
-#ifdef AXOM_USE_MPI
-    MPI_Finalize();
-#endif
     exit(1);
   }
-
-  const klee::Dimensions shapeDim = params.shapeSet.getDimensions();
 
   AXOM_ANNOTATE_BEGIN("load mesh");
   //---------------------------------------------------------------------------
@@ -564,15 +569,24 @@ int main(int argc, char** argv)
     samplingShaper->setSamplingType(params.vfSampling);
     samplingShaper->setQuadratureOrder(params.quadratureOrder);
     samplingShaper->setVolumeFractionOrder(params.outputOrder);
+    samplingShaper->setSamplingMethod(params.samplingMethod);
 
-    // register a point projector
-    if(shapingDC.GetMesh()->Dimension() == 3 && shapeDim == klee::Dimensions::Two)
+    // register point projectors
+    if(shapingDC.GetMesh()->Dimension() == 3)
     {
       samplingShaper->setPointProjector32([](primal::Point<double, 3> pt) {
         const double& x = pt[0];
         const double& y = pt[1];
         const double& z = pt[2];
         return primal::Point<double, 2> {z, sqrt(x * x + y * y)};
+      });
+    }
+    else if(shapingDC.GetMesh()->Dimension() == 2)
+    {
+      samplingShaper->setPointProjector23([](primal::Point<double, 2> pt) {
+        const double& x = pt[0];
+        const double& y = pt[1];
+        return primal::Point<double, 3> {x, y, 0.};
       });
     }
   }
@@ -641,6 +655,8 @@ int main(int argc, char** argv)
                                           shape.getName(),
                                           shape.getMaterial(),
                                           shapeFormat)));
+
+    const klee::Dimensions shapeDim = shape.getGeometry().getInputDimensions();
 
     // Apply error checking
 #ifndef AXOM_USE_C2C

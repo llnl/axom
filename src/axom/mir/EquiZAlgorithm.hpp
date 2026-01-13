@@ -11,7 +11,8 @@
 
 #include "axom/mir/MIRAlgorithm.hpp"
 #include "axom/mir/detail/equiz_detail.hpp"
-#include "axom/bump/clipping/ClipField.hpp"
+#include "axom/bump/extraction/TableBasedExtractor.hpp"
+#include "axom/bump/extraction/ClipTableManager.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/bump/ExtractZones.hpp"
@@ -50,6 +51,11 @@ namespace mir
  * \tparam TopologyView A topology view to be used for accessing zones in the mesh.
  * \tparam CoordsetView A coordset view that accesses coordinates as primal::Point.
  * \tparam MatsetView A matset view that interfaces to the Blueprint material set.
+ *
+ * \note This algorithm typically produces unstructured meshes of zoo elements.
+ *       However, if the input matset contains only "clean" zones consisting of 1
+ *       material per zone then the input coordset, topology, and matset will be
+ *       copied to the output. In that case, the types will depend on the input types.
  */
 template <typename ExecSpace, typename TopologyView, typename CoordsetView, typename MatsetView>
 class EquiZAlgorithm : public axom::mir::MIRAlgorithm
@@ -71,6 +77,7 @@ public:
     , m_topologyView(topoView)
     , m_coordsetView(coordsetView)
     , m_matsetView(matsetView)
+    , m_selectionKey("selectedZones")
   { }
 
   /// Destructor
@@ -108,6 +115,8 @@ protected:
   {
     namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE("EquizAlgorithm");
+    SLIC_ERROR_IF(m_topologyView.numberOfZones() != m_matsetView.numberOfZones(),
+                  "The mesh and the material do not have the same number of zones.");
 
     // Copy the options.
     conduit::Node n_options_copy;
@@ -117,10 +126,10 @@ protected:
 #if defined(AXOM_EQUIZ_DEBUG)
     // Save the MIR input.
     conduit::Node n_tmpInput;
-    n_tmpInput[n_topo.path()].set_external(n_topo);
-    n_tmpInput[n_coordset.path()].set_external(n_coordset);
-    n_tmpInput[n_fields.path()].set_external(n_fields);
-    n_tmpInput[n_matset.path()].set_external(n_matset);
+    n_tmpInput[localPath(n_topo)].set_external(n_topo);
+    n_tmpInput[localPath(n_coordset)].set_external(n_coordset);
+    n_tmpInput[localPath(n_fields)].set_external(n_fields);
+    n_tmpInput[localPath(n_matset)].set_external(n_matset);
     saveMesh(n_tmpInput, "debug_equiz_input");
 #endif
 
@@ -128,7 +137,6 @@ protected:
     // Come up with lists of clean/mixed zones.
     axom::Array<axom::IndexType> cleanZones, mixedZones;
     makeZoneLists(n_options_copy, cleanZones, mixedZones);
-    SLIC_ASSERT((cleanZones.size() + mixedZones.size()) == m_topologyView.numberOfZones());
     SLIC_INFO(
       axom::fmt::format("cleanZones: {}, mixedZones: {}", cleanZones.size(), mixedZones.size()));
 
@@ -137,12 +145,12 @@ protected:
       // Gather the inputs into a single root but replace the fields with
       // a new node to which we can add additional fields.
       conduit::Node n_root;
-      n_root[n_coordset.path()].set_external(n_coordset);
-      n_root[n_topo.path()].set_external(n_topo);
-      n_root[n_matset.path()].set_external(n_matset);
-      conduit::Node &n_root_coordset = n_root[n_coordset.path()];
-      conduit::Node &n_root_topo = n_root[n_topo.path()];
-      conduit::Node &n_root_matset = n_root[n_matset.path()];
+      n_root[localPath(n_coordset)].set_external(n_coordset);
+      n_root[localPath(n_topo)].set_external(n_topo);
+      n_root[localPath(n_matset)].set_external(n_matset);
+      conduit::Node &n_root_coordset = n_root[localPath(n_coordset)];
+      conduit::Node &n_root_topo = n_root[localPath(n_topo)];
+      conduit::Node &n_root_matset = n_root[localPath(n_matset)];
       conduit::Node &n_root_fields = n_root["fields"];
       for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
       {
@@ -165,7 +173,7 @@ protected:
       }
 
       // Process the mixed part of the mesh. We select just the mixed zones.
-      n_options_copy["selectedZones"].set_external(mixedZones.data(), mixedZones.size());
+      n_options_copy[m_selectionKey].set_external(mixedZones.data(), mixedZones.size());
       n_options_copy["newNodesField"] = newNodesFieldName();
       processMixedZones(n_root_topo,
                         n_root_coordset,
@@ -179,10 +187,10 @@ protected:
 
       // Gather the MIR output into a single node.
       conduit::Node n_mirOutput;
-      n_mirOutput[n_newTopo.path()].set_external(n_newTopo);
-      n_mirOutput[n_newCoordset.path()].set_external(n_newCoordset);
-      n_mirOutput[n_newFields.path()].set_external(n_newFields);
-      n_mirOutput[n_newMatset.path()].set_external(n_newMatset);
+      n_mirOutput[localPath(n_newTopo)].set_external(n_newTopo);
+      n_mirOutput[localPath(n_newCoordset)].set_external(n_newCoordset);
+      n_mirOutput[localPath(n_newFields)].set_external(n_newFields);
+      n_mirOutput[localPath(n_newMatset)].set_external(n_newMatset);
   #if defined(AXOM_EQUIZ_DEBUG)
       saveMesh(n_mirOutput, "debug_equiz_mir");
       std::cout << "--- clean ---\n";
@@ -203,10 +211,10 @@ protected:
   #endif
 
       // Move the merged output into the output variables.
-      n_newCoordset.move(n_merged[n_newCoordset.path()]);
-      n_newTopo.move(n_merged[n_newTopo.path()]);
-      n_newFields.move(n_merged[n_newFields.path()]);
-      n_newMatset.move(n_merged[n_newMatset.path()]);
+      n_newCoordset.move(n_merged[localPath(n_newCoordset)]);
+      n_newTopo.move(n_merged[localPath(n_newTopo)]);
+      n_newFields.move(n_merged[localPath(n_newFields)]);
+      n_newMatset.move(n_merged[localPath(n_newMatset)]);
     }
     else if(cleanZones.size() == 0 && mixedZones.size() > 0)
     {
@@ -223,21 +231,46 @@ protected:
     }
     else if(cleanZones.size() > 0 && mixedZones.size() == 0)
     {
-      // There were no mixed zones. We can copy the input to the output.
+      // There were no mixed zones.
+
+      if(!n_options_copy.has_path(m_selectionKey))
       {
+        // We can copy the input to the output (no selected zones).
         AXOM_ANNOTATE_SCOPE("copy");
         utils::copy<ExecSpace>(n_newCoordset, n_coordset);
         utils::copy<ExecSpace>(n_newTopo, n_topo);
         utils::copy<ExecSpace>(n_newFields, n_fields);
         utils::copy<ExecSpace>(n_newMatset, n_matset);
-      }
 
-      // Add an originalElements array.
-      const std::string originalElementsField(axom::bump::Options(n_options).originalElementsField());
-      addOriginal(n_newFields[originalElementsField],
-                  n_topo.name(),
-                  "element",
-                  m_topologyView.numberOfZones());
+        // Add an originalElements array.
+        const std::string originalElementsField(
+          axom::bump::Options(n_options).originalElementsField());
+        addOriginal(n_newFields[originalElementsField],
+                    n_newTopo.name(),
+                    "element",
+                    m_topologyView.numberOfZones());
+      }
+      else
+      {
+        // Make the clean mesh of only the selected zones
+
+        conduit::Node n_root;
+        n_root[localPath(n_coordset)].set_external(n_coordset);
+        n_root[localPath(n_topo)].set_external(n_topo);
+        n_root[localPath(n_matset)].set_external(n_matset);
+
+        conduit::Node n_cleanOutput;
+        makeCleanZones(n_root, n_topo.name(), n_options_copy, cleanZones.view(), n_cleanOutput);
+
+        // Move n_cleanOutput objects into the supplied nodes.
+        n_newCoordset.move(n_cleanOutput[localPath(n_newCoordset)]);
+        n_newTopo.move(n_cleanOutput[localPath(n_newTopo)]);
+        n_newMatset.move(n_cleanOutput[localPath(n_newMatset)]);
+        if(n_cleanOutput.has_path("fields"))
+        {
+          n_newFields.move(n_cleanOutput["fields"]);
+        }
+      }
     }
 #else
     // Handle all zones via MIR.
@@ -270,17 +303,22 @@ protected:
     namespace utils = axom::bump::utilities;
     axom::bump::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(m_topologyView,
                                                                          m_matsetView);
-    if(n_options.has_child("selectedZones"))
+    [[maybe_unused]] axom::IndexType expectedSize = 0;
+    if(n_options.has_child(m_selectionKey))
     {
       auto selectedZonesView =
-        utils::make_array_view<axom::IndexType>(n_options.fetch_existing("selectedZones"));
+        utils::make_array_view<axom::IndexType>(n_options.fetch_existing(m_selectionKey));
       zlb.execute(m_coordsetView.numberOfNodes(), selectedZonesView, cleanZones, mixedZones);
+      expectedSize = selectedZonesView.size();
     }
     else
     {
       zlb.execute(m_coordsetView.numberOfNodes(), cleanZones, mixedZones);
+      expectedSize = m_topologyView.numberOfZones();
     }
     // _bump_utilities_zlb_end
+
+    SLIC_ASSERT((cleanZones.size() + mixedZones.size()) == expectedSize);
   }
 
   /*!
@@ -514,9 +552,9 @@ protected:
     // Make some nodes that will contain the inputs to subsequent iterations.
     // Store them under a single node so the nodes will have names.
     conduit::Node n_Input;
-    conduit::Node &n_InputTopo = n_Input[n_topo.path()];
-    conduit::Node &n_InputCoordset = n_Input[n_coordset.path()];
-    conduit::Node &n_InputFields = n_Input[n_fields.path()];
+    conduit::Node &n_InputTopo = n_Input[localPath(n_topo)];
+    conduit::Node &n_InputCoordset = n_Input[localPath(n_coordset)];
+    conduit::Node &n_InputFields = n_Input[localPath(n_fields)];
 
     // Get the materials from the matset and determine which of them are clean/mixed.
     axom::bump::views::MaterialInformation allMats, cleanMats, mixedMats;
@@ -530,7 +568,11 @@ protected:
     n_InputFields.reset();
     for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
     {
-      n_InputFields[n_fields[i].name()].set_external(n_fields[i]);
+      const conduit::Node &n_field = n_fields[i];
+      if(n_field["topology"].as_string() == n_newTopo.name())
+      {
+        n_InputFields[n_fields[i].name()].set_external(n_fields[i]);
+      }
     }
     makeNodeCenteredVFs(n_topo, n_coordset, n_InputFields, mixedMats);
     makeWorkingFields(n_topo, n_InputFields, cleanMats, mixedMats);
@@ -566,9 +608,9 @@ protected:
         // In later iterations, we do not want to pass selectedZones through
         // since they are only valid on the current input topology. Also, if they
         // were passed then the new topology only has those selected zones.
-        if(n_options.has_child("selectedZones"))
+        if(n_options.has_child(m_selectionKey))
         {
-          n_options.remove("selectedZones");
+          n_options.remove(m_selectionKey);
         }
       }
       else
@@ -647,10 +689,10 @@ protected:
     //
     //--------------------------------------------------------------------------
     conduit::Node n_output;
-    n_output[n_newTopo.path()].set_external(n_newTopo);
-    n_output[n_newCoordset.path()].set_external(n_newCoordset);
-    n_output[n_newFields.path()].set_external(n_newFields);
-    n_output[n_newMatset.path()].set_external(n_newMatset);
+    n_output[localPath(n_newTopo)].set_external(n_newTopo);
+    n_output[localPath(n_newCoordset)].set_external(n_newCoordset);
+    n_output[localPath(n_newFields)].set_external(n_newFields);
+    n_output[localPath(n_newMatset)].set_external(n_newMatset);
     saveMesh(n_output, "debug_equiz_output");
 #endif
   }
@@ -876,7 +918,7 @@ protected:
    * \param n_newCoordset[out] A Conduit node to contain the new coordset.
    * \param n_newFields[out] A Conduit node to contain the new fields.
    *
-   * \note This algorithm uses a ClipField with a MaterialIntersector that gives
+   * \note This algorithm uses a TableBasedExtractor with a MaterialIntersector that gives
    *       it the ability to access nodal volume fraction fields and make intersection
    *       decisions with that data.
    */
@@ -913,9 +955,9 @@ protected:
     {
       AXOM_ANNOTATE_SCOPE("Saving input");
       conduit::Node n_mesh_input;
-      n_mesh_input[n_topo.path()].set_external(n_topo);
-      n_mesh_input[n_coordset.path()].set_external(n_coordset);
-      n_mesh_input[n_fields.path()].set_external(n_fields);
+      n_mesh_input[localPath(n_topo)].set_external(n_topo);
+      n_mesh_input[localPath(n_coordset)].set_external(n_coordset);
+      n_mesh_input[localPath(n_fields)].set_external(n_fields);
 
       // save
       std::stringstream ss1;
@@ -931,8 +973,8 @@ protected:
     // Make material intersector.
     //
     //--------------------------------------------------------------------------
-    using ConnectivityType = typename ITopologyView::ConnectivityType;
-    using IntersectorType = detail::MaterialIntersector<ConnectivityType, MatsetView::MaxMaterials>;
+    using IntersectorType =
+      detail::MaterialIntersector<ITopologyView, ICoordsetView, MatsetView::MaxMaterials>;
 
     IntersectorType intersector;
     int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
@@ -993,10 +1035,10 @@ protected:
     options["inside"] = 1;
     options["outside"] = 1;
     options["colorField"] = colorField;
-    if(n_options.has_child("selectedZones"))
+    if(n_options.has_child(m_selectionKey))
     {
       // Pass selectedZones along in the clip options, if present.
-      options["selectedZones"].set_external(n_options.fetch_existing("selectedZones"));
+      options[m_selectionKey].set_external(n_options.fetch_existing(m_selectionKey));
     }
     if(n_options.has_child("fields"))
     {
@@ -1017,7 +1059,11 @@ protected:
     //--------------------------------------------------------------------------
     {
       using ClipperType =
-        axom::bump::clipping::ClipField<ExecSpace, ITopologyView, ICoordsetView, IntersectorType>;
+        axom::bump::extraction::TableBasedExtractor<ExecSpace,
+                                                    axom::bump::extraction::ClipTableManager,
+                                                    ITopologyView,
+                                                    ICoordsetView,
+                                                    IntersectorType>;
       ClipperType clipper(topoView, coordsetView, intersector);
       clipper.execute(n_topo, n_coordset, n_fields, options, n_newTopo, n_newCoordset, n_newFields);
     }
@@ -1059,9 +1105,9 @@ protected:
     {
       AXOM_ANNOTATE_SCOPE("Saving output");
       conduit::Node mesh;
-      mesh[n_newTopo.path()].set_external(n_newTopo);
-      mesh[n_newCoordset.path()].set_external(n_newCoordset);
-      mesh[n_newFields.path()].set_external(n_newFields);
+      mesh[localPath(n_newTopo)].set_external(n_newTopo);
+      mesh[localPath(n_newCoordset)].set_external(n_newCoordset);
+      mesh[localPath(n_newFields)].set_external(n_newFields);
 
       // save
       std::stringstream ss;
@@ -1148,6 +1194,7 @@ private:
   TopologyView m_topologyView;
   CoordsetView m_coordsetView;
   MatsetView m_matsetView;
+  std::string m_selectionKey;
 };
 
 }  // end namespace mir

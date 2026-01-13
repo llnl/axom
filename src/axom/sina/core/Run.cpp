@@ -48,14 +48,16 @@ Run::Run(conduit::Node const &asNode)
   , user {getOptionalString(USER_FIELD, asNode, RUN_TYPE)}
 { }
 
-conduit::Node Run::toNode() const
+conduit::Node Run::toNode(CurveSet::CurveOrder curveOrder) const
 {
-  auto asNode = Record::toNode();
+  auto asNode = Record::toNode(curveOrder);
   asNode[APPLICATION_FIELD] = application;
   asNode[VERSION_FIELD] = version;
   asNode[USER_FIELD] = user;
   return asNode;
 }
+
+conduit::Node Run::toNode() const { return toNode(getDefaultCurveOrder()); }
 
 void addRunLoader(RecordLoader &loader)
 {

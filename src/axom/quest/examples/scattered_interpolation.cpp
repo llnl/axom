@@ -904,6 +904,7 @@ int main(int argc, char** argv)
   }
 
   // Find the simplices containing each of the query points
+  timer.reset();
   timer.start();
   switch(params.dimension)
   {
@@ -923,6 +924,7 @@ int main(int argc, char** argv)
                       numQueryPts / timer.elapsedTimeInSec()));
 
   // Perform the interpolation on each of the fields
+  timer.reset();
   timer.start();
   switch(params.dimension)
   {
@@ -948,6 +950,7 @@ int main(int argc, char** argv)
                       numQueryPts * numFields / timer.elapsedTimeInSec()));
 
   // Check interpolation using local interpolation from weights
+  timer.reset();
   timer.start();
   switch(params.dimension)
   {

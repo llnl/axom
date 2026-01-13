@@ -99,7 +99,7 @@ bool intersect(const Triangle<T, 2>& t1,
  * \return true iff tri intersects with bb, otherwise, false.
  */
 template <typename T>
-bool intersect(const Triangle<T, 3>& tri, const BoundingBox<T, 3>& bb)
+AXOM_HOST_DEVICE bool intersect(const Triangle<T, 3>& tri, const BoundingBox<T, 3>& bb)
 {
   return detail::intersect_tri_bbox(tri, bb);
 }
@@ -145,7 +145,10 @@ bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray, T& t)
  * \note \a t and \a p only valid when function returns true
  */
 template <typename T>
-bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray, T& t, Point<double, 3>& p)
+AXOM_HOST_DEVICE bool intersect(const Triangle<T, 3>& tri,
+                                const Ray<T, 3>& ray,
+                                T& t,
+                                Point<double, 3>& p)
 {
   bool retval = detail::intersect_tri_ray(tri, ray, t, p);
 
@@ -166,7 +169,7 @@ bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray, T& t, Point<doub
  * \return true iff tri intersects with seg, otherwise, false.
  */
 template <typename T>
-bool intersect(const Triangle<T, 3>& tri, const Segment<T, 3>& seg)
+AXOM_HOST_DEVICE bool intersect(const Triangle<T, 3>& tri, const Segment<T, 3>& seg)
 {
   T t = T();
   Point<double, 3> p;
@@ -236,7 +239,11 @@ bool intersect(const Triangle<T, 3>& tri, const Segment<T, 3>& seg, T& t, Point<
  * \see primal::Segment
  */
 template <typename T>
-bool intersect(const Ray<T, 2>& R, const Segment<T, 2>& S, T& ray_param, T& seg_param, const T EPS = 1e-8)
+AXOM_HOST_DEVICE bool intersect(const Ray<T, 2>& R,
+                                const Segment<T, 2>& S,
+                                T& ray_param,
+                                T& seg_param,
+                                const T EPS = 1e-8)
 {
   return detail::intersect_ray(R, S, ray_param, seg_param, EPS);
 }
@@ -259,6 +266,28 @@ bool intersect(const Ray<T, 2>& R, const Segment<T, 2>& S, T& ray_param, T& seg_
 template <typename T>
 bool intersect(const Ray<T, 2>& R, const Segment<T, 2>& S, T& ray_param)
 {
+  T seg_param;
+  return intersect(R, S, ray_param, seg_param);
+}
+
+/*!
+ * \brief Computes the intersection of the given ray, R, with the segment, S.
+ *
+ * \param [in] R the specified ray
+ * \param [in] S the segment to check
+ *
+ * \note If you need to specify a tolerance for the intersection tests, please use the overload
+ * of this function with two [OUT] parameters (\a ray_param and \a seg_param)
+ *
+ * \return status true iff R intersects with S, otherwise, false.
+ *
+ * \see primal::Ray
+ * \see primal::Segment
+ */
+template <typename T>
+AXOM_HOST_DEVICE bool intersect(const Ray<T, 2>& R, const Segment<T, 2>& S)
+{
+  T ray_param;
   T seg_param;
   return intersect(R, S, ray_param, seg_param);
 }
@@ -413,11 +442,11 @@ AXOM_HOST_DEVICE bool intersect(const Line<T, DIM>& L, const BoundingBox<T, DIM>
 
 /// This variant returns the two parametric coordinates of the intersection segment as OUT parameters
 template <typename T, int DIM>
-bool intersect(const Segment<T, DIM>& S,
-               const BoundingBox<T, DIM>& bb,
-               T& tmin,
-               T& tmax,
-               const double& EPS = 1e-8)
+AXOM_HOST_DEVICE bool intersect(const Segment<T, DIM>& S,
+                                const BoundingBox<T, DIM>& bb,
+                                T& tmin,
+                                T& tmax,
+                                const double& EPS = 1e-8)
 {
   const T segLength = S.length();
   tmin = static_cast<T>(0);
@@ -452,7 +481,7 @@ bool intersect(const Segment<T, DIM>& S,
 }
 
 template <typename T, int DIM>
-bool intersect(const Segment<T, DIM>& S, const BoundingBox<T, DIM>& bb)
+AXOM_HOST_DEVICE bool intersect(const Segment<T, DIM>& S, const BoundingBox<T, DIM>& bb)
 {
   T tmin, tmax;
   return intersect(S, bb, tmin, tmax);
@@ -668,7 +697,6 @@ bool intersect(const BezierCurve<T, 2>& c1,
  * \param [in] c The input curve
  * \param [out] rp Parametric coordinates of intersections in \a r [0, inf)
  * \param [out] cp Parametric coordinates of intersections in \a c [0, 1)
- * Bezier curve is linear
  * \param [in] tol Tolerance parameter for physical distances
  * \param [in] EPS Tolerance parameter for parameter-space distances
  * 
@@ -690,8 +718,9 @@ bool intersect(const Ray<T, 2>& r,
 
   // for efficiency, linearity check actually uses a squared tolerance
   const double sq_tol = tol * tol;
+  const bool isHalfOpen = true;
 
-  return detail::intersect_ray_bezier(r, c, rp, cp, sq_tol, EPS, c.getOrder(), offset, scale);
+  return detail::intersect_ray_bezier(r, c, rp, cp, sq_tol, EPS, c.getOrder(), offset, scale, isHalfOpen);
 }
 
 /*!
@@ -1191,6 +1220,7 @@ bool intersect(const Ray<T, 3>& ray,
   double max_u_knot = patch.getKnots_u()[patch.getKnots_u().getNumKnots() - 1];
   double max_v_knot = patch.getKnots_v()[patch.getKnots_v().getNumKnots() - 1];
 
+  // Don't de-duplicate if we're in a failure state
   for(int i = 0; i < tc.size(); ++i)
   {
     // Also remove any intersections on the half-interval boundaries
@@ -1286,7 +1316,7 @@ bool intersect(const Line<T, 3>& line,
 
   // Check a bounding box of the entire NURBS first
   Point<T, 3> ip;
-  if(!intersect(line, patch.boundingBox(), ip))
+  if(!intersect(line, patch.boundingBox().expand(10 * tol), ip))
   {
     return false;
   }

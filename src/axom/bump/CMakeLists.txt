@@ -18,17 +18,29 @@ axom_component_requires(NAME       BUMP
 #------------------------------------------------------------------------------
 
 set(bump_headers
-    clipping/BlendGroupBuilder.hpp
-    clipping/ClipCases.h
-    clipping/ClipField.hpp
-    clipping/ClipOptions.hpp
-    clipping/ClipTableManager.hpp
+    extraction/BlendGroupBuilder.hpp
+    extraction/tables/clipping/ClipCases.h
+    extraction/tables/cutting/CutCases.hpp
+    extraction/ClipField.hpp
+    extraction/CutField.hpp
+    extraction/ExtractorOptions.hpp
+    extraction/FieldOptions.hpp
+    extraction/ClipTableManager.hpp
+    extraction/CutTableManager.hpp
+    extraction/ExtractionConstants.hpp
+    extraction/FieldIntersector.hpp
+    extraction/PlaneIntersector.hpp
+    extraction/PlaneSlice.hpp
+    extraction/Table.hpp
+    extraction/TableBasedExtractor.hpp
+    extraction/TableManager.hpp
     data/MeshTester.hpp
     io/save.hpp
     utilities/blueprint_utilities.hpp
     utilities/conduit_memory.hpp
     utilities/conduit_traits.hpp
     utilities/utilities.hpp
+    views/BasicIndexing.hpp
     views/dispatch_coordset.hpp
     views/dispatch_material.hpp
     views/dispatch_rectilinear_topology.hpp
@@ -54,17 +66,19 @@ set(bump_headers
     CoordsetBlender.hpp
     CoordsetExtents.hpp
     CoordsetSlicer.hpp
-    ExtractZonesAndMatsetPolyhedral.hpp
     ExtractZones.hpp
+    ExtractZonesAndMatsetPolyhedral.hpp
     ExtrudeMesh.hpp
     FieldBlender.hpp
     FieldSlicer.hpp
+    HashNaming.hpp
     IndexingPolicies.hpp
     MakePointMesh.hpp
     MakePolyhedralTopology.hpp
     MakeUnstructured.hpp
     MakeZoneCenters.hpp
     MakeZoneVolumes.hpp
+    MapBasedNaming.hpp
     MatsetSlicer.hpp
     MergeCoordsetPoints.hpp
     MergeMeshes.hpp
@@ -82,18 +96,37 @@ set(bump_headers
     )
 
 set(bump_sources
-    clipping/ClipCasesHex.cpp
-    clipping/ClipCasesPyr.cpp
-    clipping/ClipCasesQua.cpp
-    clipping/ClipCasesTet.cpp
-    clipping/ClipCasesTri.cpp
-    clipping/ClipCasesWdg.cpp
+    extraction/ClipTableManager.cpp
+    extraction/CutTableManager.cpp
+    extraction/Table.cpp
+    extraction/TableManager.cpp
+    extraction/tables/clipping/ClipCasesHex.cpp
+    extraction/tables/clipping/ClipCasesPoly5.cpp
+    extraction/tables/clipping/ClipCasesPoly6.cpp
+    extraction/tables/clipping/ClipCasesPoly7.cpp
+    extraction/tables/clipping/ClipCasesPoly8.cpp
+    extraction/tables/clipping/ClipCasesPyr.cpp
+    extraction/tables/clipping/ClipCasesQua.cpp
+    extraction/tables/clipping/ClipCasesTet.cpp
+    extraction/tables/clipping/ClipCasesTri.cpp
+    extraction/tables/clipping/ClipCasesWdg.cpp
+    extraction/tables/cutting/CutCasesHex.cpp
+    extraction/tables/cutting/CutCasesPoly5.cpp
+    extraction/tables/cutting/CutCasesPoly6.cpp
+    extraction/tables/cutting/CutCasesPoly7.cpp
+    extraction/tables/cutting/CutCasesPoly8.cpp
+    extraction/tables/cutting/CutCasesPyramid.cpp
+    extraction/tables/cutting/CutCasesQua.cpp
+    extraction/tables/cutting/CutCasesTet.cpp
+    extraction/tables/cutting/CutCasesTri.cpp
+    extraction/tables/cutting/CutCasesWedge.cpp
     data/MeshTester.cpp
     io/save.cpp
     utilities/conduit_traits.cpp
     utilities/blueprint_utilities.cpp
     views/MaterialView.cpp
     views/UnstructuredTopologyMixedShapeView.cpp
+    views/dispatch_utilities.cpp
     )
 
 #------------------------------------------------------------------------------

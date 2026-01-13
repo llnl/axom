@@ -18,7 +18,11 @@
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/primal/geometry/BezierCurve.hpp"
+#include "axom/primal/geometry/NURBSCurve.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
+
+// For NURBSCurveGWNCache objects
+#include "axom/primal/operators/detail/winding_number_3d_memoization.hpp"
 
 #include <vector>
 #include <ostream>
@@ -27,32 +31,44 @@ namespace axom
 {
 namespace primal
 {
+namespace internal
+{
+///@{
+/// \name Type traits for a compile-time flag for the cached object
+template <typename U>
+struct has_cached_data : std::false_type
+{ };
+
+template <typename T>
+struct has_cached_data<detail::NURBSCurveGWNCache<T>> : std::true_type
+{ };
+///@}
+}  // namespace internal
+
 // Forward declare the templated classes and operator functions
-template <typename T, int NDIMS>
+template <typename CurveType>
 class CurvedPolygon;
 
 /*! \brief Overloaded output operator for polygons */
-template <typename T, int NDIMS>
-std::ostream& operator<<(std::ostream& os, const CurvedPolygon<T, NDIMS>& poly);
+template <typename CurveType>
+std::ostream& operator<<(std::ostream& os, const CurvedPolygon<CurveType>& poly);
 
 /*!
  * \class CurvedPolygon
  *
- * \brief Represents a polygon with curved edges defined by BezierCurves
- * \tparam T the coordinate type, e.g., double, float, etc.
+ * \brief Represents a polygon with generic curves for edges
  * \tparam NDIMS the number of dimensions
  * \note The component curves should be ordered in a counter clockwise
  *       orientation with respect to the polygon's normal vector
  */
-template <typename T, int NDIMS>
+template <typename CurveType>
 class CurvedPolygon
 {
 public:
-  using PointType = Point<T, NDIMS>;
-  using VectorType = Vector<T, NDIMS>;
-  using NumArrayType = axom::NumericArray<T, NDIMS>;
-  using BezierCurveType = BezierCurve<T, NDIMS>;
-  using BoundingBoxType = typename BezierCurveType::BoundingBoxType;
+  using NumericType = typename CurveType::NumericType;
+  using PointType = typename CurveType::PointType;
+  using VectorType = typename CurveType::VectorType;
+  using BoundingBoxType = typename CurveType::BoundingBoxType;
 
 public:
   /// Default constructor for an empty polygon
@@ -73,19 +89,29 @@ public:
     m_edges.resize(nEdges);
   }
 
-  /// Constructor from an array of \a nEdges curves
-  CurvedPolygon(BezierCurveType* curves, int nEdges)
+  /*!
+   * \brief Copy constructor for another curve type
+   */
+  template <typename OtherCurveType>
+  CurvedPolygon(const CurvedPolygon<OtherCurveType>& other_poly)
   {
-    SLIC_ASSERT(curves != nullptr);
-    SLIC_ASSERT(nEdges >= 1);
-
-    m_edges.reserve(nEdges);
-
-    for(int e = 0; e < nEdges; ++e)
+    m_edges.resize(other_poly.numEdges());
+    for(int e = 0; e < other_poly.numEdges(); ++e)
     {
-      this->addEdge(curves[e]);
+      m_edges[e] = CurveType(other_poly[e]);
     }
   }
+
+  ///! \brief Constructor for CurvedPolygon from an ArrayView of curves
+  CurvedPolygon(axom::ArrayView<const CurveType> curves) : m_edges(curves) { }
+
+  ///! \brief Constructor from a c-style array of \a nEdges curves
+  CurvedPolygon(const CurveType* curves, int nEdges)
+    : CurvedPolygon(axom::ArrayView<const CurveType>(curves, nEdges))
+  { }
+
+  ///! \brief Constructor from a Axom array of curves
+  CurvedPolygon(const axom::Array<CurveType>& curves) : CurvedPolygon(curves.view()) { }
 
   /// Clears the list of edges
   void clear() { m_edges.clear(); }
@@ -105,36 +131,48 @@ public:
     m_edges.resize(ngon);
   }
 
-  /// Appends a BezierCurve to the list of edges
-  void addEdge(const BezierCurveType& c1) { m_edges.push_back(c1); }
+  /// Appends a curve to the list of edges
+  void addEdge(const CurveType& c1) { m_edges.push_back(c1); }
+
+  /// Consumes then appends a curve to the list of edges
+  void addEdge(CurveType&& c1) { m_edges.push_back(std::move(c1)); }
 
   /// Splits an edge "in place"
-  void splitEdge(int idx, T t)
+  void splitEdge(int idx, NumericType t)
   {
-    SLIC_ASSERT(idx < static_cast<int>(m_edges.size()));
+    SLIC_ASSERT(idx >= 0 && idx < static_cast<int>(m_edges.size()));
+    AXOM_STATIC_ASSERT_MSG(!internal::has_cached_data<CurveType>::value,
+                           "splitEdge cannot be called on objects with associated cache data");
 
+    m_edges.reserve(numEdges() + 1);
     m_edges.insert(m_edges.begin() + idx + 1, 1, m_edges[idx]);
     auto& csplit = m_edges[idx];
     csplit.split(t, m_edges[idx], m_edges[idx + 1]);
   }
 
-  axom::Array<BezierCurve<T, NDIMS>> getEdges() const { return m_edges; }
+  /// Returns a reference to the underlying array of curved edges
+  axom::Array<CurveType>& getEdges() { return m_edges; }
+
+  /// Returns a const reference to the underlying array of curved edges
+  const axom::Array<CurveType>& getEdges() const { return m_edges; }
 
   /// @}
 
-  /*! Retrieves the Bezier Curve at index idx */
-  BezierCurveType& operator[](int idx) { return m_edges[idx]; }
-  /*! Retrieves the vertex at index idx */
-  const BezierCurveType& operator[](int idx) const { return m_edges[idx]; }
+  /*! Retrieves the curve at index idx */
+  CurveType& operator[](int idx) { return m_edges[idx]; }
+  /*! Retrieves the curve at index idx */
+  const CurveType& operator[](int idx) const { return m_edges[idx]; }
 
   /// Tests equality of two CurvedPolygons
-  friend inline bool operator==(const CurvedPolygon<T, NDIMS>& lhs, const CurvedPolygon<T, NDIMS>& rhs)
+  friend inline bool operator==(const CurvedPolygon<CurveType>& lhs,
+                                const CurvedPolygon<CurveType>& rhs)
   {
     return lhs.m_edges == rhs.m_edges;
   }
 
   /// Tests inequality of two CurvedPolygons
-  friend inline bool operator!=(const CurvedPolygon<T, NDIMS>& lhs, const CurvedPolygon<T, NDIMS>& rhs)
+  friend inline bool operator!=(const CurvedPolygon<CurveType>& lhs,
+                                const CurvedPolygon<CurveType>& rhs)
   {
     return !(lhs == rhs);
   }
@@ -149,7 +187,7 @@ public:
   {
     const int sz = numEdges();
 
-    os << "{" << sz << "-sided Bezier polygon:";
+    os << "{" << sz << "-sided curved polygon:";
     for(int i = 0; i < sz - 1; ++i)
     {
       os << m_edges[i] << ",";
@@ -177,7 +215,7 @@ public:
     const int nEdges = numEdges();
 
     // initial basic check: no edges, or one edge or linear or quadratic order cannot be closed
-    if(nEdges < 1 || (nEdges == 1 && m_edges[0].getOrder() <= 2))
+    if(nEdges < 1 || (nEdges == 1 && m_edges[0].getNumControlPoints() <= 2))
     {
       return false;
     }
@@ -185,9 +223,8 @@ public:
     // foreach edge: check last vertex of previous edge against first vertex of current edge
     for(int cur = 0, prev = nEdges - 1; cur < nEdges; prev = cur++)
     {
-      const auto ord = m_edges[prev].getOrder();
-      const auto& lastPrev = m_edges[prev][ord];
-      const auto& firstCur = m_edges[cur][0];
+      const auto& lastPrev = m_edges[prev].getEndPoint();
+      const auto& firstCur = m_edges[cur].getInitPoint();
       if(!isNearlyEqual(squared_distance(lastPrev, firstCur), 0., sq_tol))
       {
         return false;
@@ -200,6 +237,10 @@ public:
   /// \brief Reverses orientation of a CurvedPolygon
   void reverseOrientation()
   {
+    AXOM_STATIC_ASSERT_MSG(
+      !internal::has_cached_data<CurveType>::value,
+      "reverseOrientation cannot be called on objects with associated cache data");
+
     const int ngon = numEdges();
     const int mid = ngon >> 1;
     const bool isOdd = (ngon & 1) != 0;
@@ -233,14 +274,14 @@ public:
   }
 
 private:
-  axom::Array<BezierCurve<T, NDIMS>> m_edges;
+  axom::Array<CurveType> m_edges;
 };
 
 //------------------------------------------------------------------------------
 /// Free functions implementing Polygon's operators
 //------------------------------------------------------------------------------
-template <typename T, int NDIMS>
-std::ostream& operator<<(std::ostream& os, const CurvedPolygon<T, NDIMS>& poly)
+template <typename CurveType>
+std::ostream& operator<<(std::ostream& os, const CurvedPolygon<CurveType>& poly)
 {
   poly.print(os);
   return os;

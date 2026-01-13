@@ -259,11 +259,13 @@ public:
 
       if(m_hasRange)
       {
-        const double str = m_stride.stride();
+        const auto str = m_stride.stride();
         const auto diff = (m_rangeUpper - m_rangeLower);
 
-        // size is 0 if upper==lower, or signs of diff and stride differ
-        return (diff == 0 || ((diff > 0) != (str > 0))) ? 0 : ceil(diff / str);
+        // size is 0 if upper==lower, or stride is 0 or signs of diff and stride differ
+        return (diff == 0 || str == 0 || ((diff > 0) != (str > 0)))
+          ? 0
+          : static_cast<PositionType>(ceil(diff / static_cast<double>(str)));
       }
       else
       {

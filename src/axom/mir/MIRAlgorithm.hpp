@@ -29,12 +29,10 @@ public:
   virtual ~MIRAlgorithm() = default;
 
   /*!
-    \brief Perform material interface reconstruction on the meshes supplied in the
-           root node. Root can either be a mesh domain or a node that contains multiple
-           domains.
+    \brief Perform material interface reconstruction on the mesh supplied by \a n_input.
 
-    \param[in] n_input The root node that contains either a mesh or list of mesh
-                       domains that contain a topology and matset to be used for MIR.
+    \param[in] n_input The node that contains a mesh domain with the topology and matset
+                       to be used for MIR.
     \param[in] n_options A node that contains options that help govern MIR execution.
 
 \code{.yaml}
@@ -104,6 +102,33 @@ protected:
                              conduit::Node &n_newMatset) = 0;
 
   /*!
+   * \brief Update names in some of the objects when we can tell they have been renamed.
+   *
+   * \param origTopoName The topology name of the input mesh.
+   * \param newTopoName The topology name of the output mesh.
+   * \param origCoordsetName The coordset name of the input mesh.
+   * \param newCoordsetName The coordset name of the output mesh.
+   * \param origMatsetName The matset name of the input mesh.
+   * \param newMatsetName The matset name of the output mesh.
+   * \param n_newTopo The node that contains the output topology.
+   * \param n_newCoordset The node that contains the output coordset.
+   * \param n_newFields The node that contains the output fields.
+   * \param n_newMatset The node that contains the output matset.
+   *
+   * \note This method is used internally mainly when MIR copies the input mesh to the output when MIR is no-op.
+   */
+  void updateNames(const std::string &origTopoName,
+                   const std::string &newTopoName,
+                   const std::string &origCoordsetName,
+                   const std::string &newCoordsetName,
+                   const std::string &origMatsetName,
+                   const std::string &newMatsetName,
+                   conduit::Node &n_newTopo,
+                   conduit::Node &n_newCoordset,
+                   conduit::Node &n_newFields,
+                   conduit::Node &n_newMatset);
+
+  /*!
    * \brief Copy state from the src domain to the destination domain.
    * \param srcState The node that contains the state in the source domain.
    * \param destState The node that contains the state in the destination domain.
@@ -125,6 +150,17 @@ protected:
    * \param filebase The base filename to use when writing files. Extensions may be added.
    */
   void saveMesh(const conduit::Node &n_mesh, const std::string &filebase) const;
+
+  /*!
+   * \brief Return the local path name, stripping off a domain path prefix. Blueprint domains
+   *        are typically written under top level nodes with names like "domain_{:05}" or "domain_{:07}".
+   *        This method will strip off any path prefix beginning with "domain".
+   *
+   * \param[in] obj The object whose local path we want.
+   *
+   * \return The path without the domain prefix.
+   */
+  std::string localPath(const conduit::Node &obj) const;
 };
 
 }  // end namespace mir

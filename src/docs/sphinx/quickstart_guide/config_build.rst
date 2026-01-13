@@ -25,10 +25,11 @@ Requirements, Dependencies, and Supported Compilers
 Basic requirements:
 ~~~~~~~~~~~~~~~~~~~
 
-  * C++ compiler with C++14 support at a minimum
+  * C++ compiler with C++17 support at a minimum
   * CMake with a minimum required version of 3.14 for CPU-only and CUDA builds,
     and a minimum version of 3.21 when building with HIP support
   * Fortran Compiler (optional)
+  * Python 3.8 at a minimum for python bindings (optional)
 
 Supported Compilers
 ~~~~~~~~~~~~~~~~~~~
@@ -74,15 +75,15 @@ The following table lists:
 ================== ==================================== ======================
   `Adiak`_         Optional: Core                       ADIAK_DIR
   `Caliper`_       Optional: Core                       CALIPER_DIR
-  `Conduit`_       Required: Inlet, Klee, Sidre         CONDUIT_DIR
+  `Conduit`_       Required: Inlet, Klee, Sidre, Sina   CONDUIT_DIR
   `c2c`_           Optional: Quest                      C2C_DIR
   `HDF5`_          Optional: Sidre                      HDF5_DIR
   `Lua`_           Optional: Inlet                      LUA_DIR
   `MFEM`_          Optional: Primal, Quest, Sidre       MFEM_DIR
   `OPENCASCADE`_   Optional: Quest                      OPENCASCADE_DIR
-  `RAJA`_          Optional: Mint, Spin, Quest          RAJA_DIR
+  `RAJA`_          Optional: Mint, Mir, Spin, Quest     RAJA_DIR
   `SCR`_           Optional: Sidre                      SCR_DIR
-  `Umpire`_        Optional: Core, Spin, Quest          UMPIRE_DIR
+  `Umpire`_        Optional: Core, Mir, Spin, Quest     UMPIRE_DIR
 ================== ==================================== ======================
 
 .. _Adiak:  https://llnl.github.io/Adiak
@@ -97,7 +98,7 @@ The following table lists:
 .. _SCR: https://computing.llnl.gov/projects/scalable-checkpoint-restart-for-mpi
 .. _Umpire: https://umpire.readthedocs.io/en/latest/
 
-Note that each  library dependency has a corresponding build system variable
+Note that each library dependency has a corresponding build system variable
 (with the suffix ``_DIR``) to supply the path to the library's installation 
 directory. For example, ``hdf5`` has a corresponding variable ``HDF5_DIR``.
 
@@ -351,6 +352,8 @@ Axom components, tests, examples, etc.
 +------------------------------+---------+----------------------------------------+
 | AXOM_ENABLE_TESTS            | ON      | Build Axom unit tests                  |
 +------------------------------+---------+----------------------------------------+
+| AXOM_ENABLE_TUTORIALS        | ON      | Build Axom tutorials                   |
++------------------------------+---------+----------------------------------------+
 | ENABLE_BENCHMARKS            | OFF     | Build Axom benchmarks                  |
 +------------------------------+---------+----------------------------------------+
 | AXOM_ENABLE_DOCS             | ON      | Enable Axom documentation to be built  |
@@ -444,8 +447,8 @@ options to be provided, which are summarized in the following table.
 +------------------------------+------------------------------------------+
 
 .. note :: To configure the version of the C++ standard, you can supply one of the
-           following values for **BLT_CXX_STD**:  'c++11' or 'c++14'.
-           Axom requires at least 'c++14', the  default value.
+           following values for **BLT_CXX_STD**:  'c++17' or 'c++20'.
+           Axom requires at least 'c++17', the  default value.
 
 
 Tools and features primarily intended for developers

@@ -1,0 +1,82 @@
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
+# other Axom Project Developers. See the top-level LICENSE file for details.
+#
+# SPDX-License-Identifier: (BSD-3-Clause)
+#------------------------------------------------------------------------------
+# Host-config for 'shaping_tutorial' example. 
+#
+# Defines configuration variables from Axom's build.
+# The tutorials can be configured from the directory containing this file using the following commands:
+#  > mkdir build 
+#  > cd build
+#  > @CMAKE_COMMAND@ -C ../host-config.cmake -DCMAKE_BUILD_TYPE='@CMAKE_BUILD_TYPE@' ..
+#------------------------------------------------------------------------------
+
+# Config related to compiler
+set(CMAKE_C_COMPILER              "@CMAKE_C_COMPILER@"       CACHE PATH "")
+set(CMAKE_CXX_COMPILER            "@CMAKE_CXX_COMPILER@"     CACHE PATH "")
+set(CMAKE_Fortran_COMPILER        "@CMAKE_Fortran_COMPILER@" CACHE PATH "")
+set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE                       CACHE BOOL "")
+
+set(BLT_C_FLAGS            "@CMAKE_C_FLAGS@"          CACHE STRING "")
+set(BLT_CXX_FLAGS          "@CMAKE_CXX_FLAGS@"        CACHE STRING "")
+set(BLT_Fortran_FLAGS      "@CMAKE_Fortran_FLAGS@"    CACHE STRING "")
+set(BLT_EXE_LINKER_FLAGS   "@CMAKE_EXE_LINKER_FLAGS@" CACHE STRING "")
+
+set(BLT_CMAKE_IMPLICIT_LINK_DIRECTORIES_EXCLUDE "@BLT_CMAKE_IMPLICIT_LINK_DIRECTORIES_EXCLUDE@" CACHE STRING "")
+set(BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE "@BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE@" CACHE STRING "")
+
+set(ENABLE_OPENMP             @ENABLE_OPENMP@               CACHE BOOL "")
+
+# MPI
+set(ENABLE_MPI             @ENABLE_MPI@               CACHE BOOL "")
+if(ENABLE_MPI)
+  set(MPI_C_COMPILER         "@MPI_C_COMPILER@"         CACHE PATH "")
+  set(MPI_CXX_COMPILER       "@MPI_CXX_COMPILER@"       CACHE PATH "")
+  set(MPI_Fortran_COMPILER   "@MPI_Fortran_COMPILER@"   CACHE PATH "")
+  set(MPIEXEC_EXECUTABLE     "@MPIEXEC_EXECUTABLE@"     CACHE PATH "")
+  set(MPIEXEC_NUMPROC_FLAG   "@MPIEXEC_NUMPROC_FLAG@"   CACHE STRING "")
+endif()
+
+# CUDA
+set(ENABLE_CUDA                @ENABLE_CUDA@                  CACHE BOOL "")
+if(ENABLE_CUDA)
+  set(CUDAToolkit_ROOT           "@CUDAToolkit_ROOT@"           CACHE PATH "")
+  set(CUDA_TOOLKIT_ROOT_DIR      "@CUDA_TOOLKIT_ROOT_DIR@"      CACHE PATH "")
+  set(CMAKE_CUDA_COMPILER        "@CMAKE_CUDA_COMPILER@"        CACHE PATH "")
+  set(CMAKE_CUDA_HOST_COMPILER   "@CMAKE_CUDA_HOST_COMPILER@"   CACHE PATH "")
+  set(CMAKE_CUDA_SEPARABLE_COMPILATION @CMAKE_CUDA_SEPARABLE_COMPILATION@ CACHE BOOL "")
+  set(CMAKE_CUDA_ARCHITECTURES   "@CMAKE_CUDA_ARCHITECTURES@"   CACHE STRING "")
+  set(CMAKE_CUDA_FLAGS           "@CMAKE_CUDA_FLAGS@"           CACHE STRING "")
+  set(gtest_disable_pthreads      @gtest_disable_pthreads@      CACHE BOOL "")
+endif()
+
+# HIP
+set(ENABLE_HIP                @ENABLE_HIP@                  CACHE BOOL "")
+if(ENABLE_HIP)
+  # Add optimization flag workaround for Debug builds with cray compiler
+  if(CMAKE_CXX_COMPILER MATCHES "crayCC")
+    set(CMAKE_CXX_FLAGS_DEBUG           "-O1 -g -DNDEBUG"           CACHE STRING "")
+  endif()
+  set(CMAKE_HIP_COMPILER        "@CMAKE_HIP_COMPILER@"        CACHE PATH "")
+  set(ROCM_PATH                 "@ROCM_PATH@"                 CACHE PATH "")
+  set(ROCM_ROOT_DIR             "@ROCM_ROOT_DIR@"             CACHE PATH "")
+  set(HIP_CLANG_PATH            "@HIP_CLANG_PATH@"            CACHE PATH "")
+  set(HIP_CXX_COMPILER          "@HIP_CXX_COMPILER@"          CACHE PATH "")
+  set(HIP_CLANG_INCLUDE_PATH    "@HIP_CLANG_INCLUDE_PATH@"    CACHE PATH "")
+  set(CMAKE_HIP_ARCHITECTURES   "@CMAKE_HIP_ARCHITECTURES@"   CACHE STRING "")
+  set(CMAKE_HIP_COMPILER        "@CMAKE_HIP_COMPILER@"        CACHE FILEPATH "")
+  set(AMDGPU_TARGETS            "@AMDGPU_TARGETS@"            CACHE STRING "")
+  set(GPU_TARGETS               "@GPU_TARGETS@"               CACHE STRING "")
+endif()
+
+# Config related to BLT
+set(BLT_SOURCE_DIR  "@BLT_SOURCE_DIR@" CACHE PATH "")
+set(BLT_CXX_STD     "@BLT_CXX_STD@" CACHE STRING "")
+set(ENABLE_DOCS     FALSE CACHE BOOL "")
+set(ENABLE_EXAMPLES FALSE CACHE BOOL "")
+set(ENABLE_TESTS    TRUE CACHE BOOL "")
+
+# Path to Axom
+set(AXOM_DIR        "@CMAKE_INSTALL_PREFIX@" CACHE PATH "")
+set(AXOM_DATA_DIR   "@AXOM_DATA_DIR@" CACHE PATH "")

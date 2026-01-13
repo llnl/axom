@@ -170,9 +170,9 @@ struct ConcreteParentSubset
     {
       bool bValid = (m_parentSet->size() > 0);
       AXOM_UNUSED_VAR(bValid);
-      SLIC_CHECK_MSG(bValid,
-                     "VirtualParentSubset -- if input set is non-empty "
-                       << " parent set must be non-empty");
+      SLIC_CHECK_MSG(
+        bValid,
+        "VirtualParentSubset -- if input set is non-empty " << " parent set must be non-empty");
     }
 
     // At this point, parent and child are both non-null

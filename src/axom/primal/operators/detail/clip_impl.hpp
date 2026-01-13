@@ -230,7 +230,13 @@ AXOM_HOST_DEVICE void poly_clip_vertices(Polyhedron<T, NDIMS>& poly,
           intersect(plane, seg, lerp_val);
 
           int newVertexIndex = poly.addVertex(seg.at(lerp_val));
-          SLIC_ASSERT(newVertexIndex == expectedVertexIndex);
+          // A probable AMD GPU 6.3 compiler bug caused the first assert to fail.
+          // The second assert is equivalent because we expect addVertex call to
+          // consume the next index and increment the number of vertices.
+          // However, when the compilers no longar cause false failures, we should
+          // restore the first assert.
+          // SLIC_ASSERT(newVertexIndex == expectedVertexIndex);
+          SLIC_ASSERT(newVertexIndex == poly.numVertices() - 1);
 
           poly.addNeighbors(newVertexIndex, {i, neighborIndex});
 

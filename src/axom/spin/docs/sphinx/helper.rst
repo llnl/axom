@@ -38,9 +38,9 @@ The ``Mortonizer`` (along with its associated class ``MortonBase``) implements
 the Morton index, an operation that associates each point in N-D space with a
 point on a space-filling curve [#f1]_.  The ``PointHash`` class adapts the
 ``Mortonizer`` to provide a hashing functionality for use with
-``std::unordered_map`` or similar container classes.
+``std::unordered_map``, ``axom::FlatMap`` or similar container classes.
 
-The math of the Morton index works with integers.  Thus the ``Mortonizer`` and
+The math of the Morton index works with integers.  Thus, the ``Mortonizer`` and
 its dependent class ``PointHash`` will not work with floating point coordinates.
 The following code example shows how the cells of a ``RectangularLattice``,
 which have integer coordinates, can be used with a hash table.

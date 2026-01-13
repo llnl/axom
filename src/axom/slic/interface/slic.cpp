@@ -149,6 +149,13 @@ void setAbortFunction(AbortFunctionPtr abort_func)
 }
 
 //------------------------------------------------------------------------------
+AbortFunctionPtr getAbortFunction()
+{
+  ensureInitialized();
+  return Logger::getActiveLogger()->getAbortFunction();
+}
+
+//------------------------------------------------------------------------------
 void addStreamToMsgLevel(LogStream* ls, message::Level level)
 {
   ensureInitialized();
@@ -289,6 +296,9 @@ void pushStreams()
   ensureInitialized();
   Logger::getActiveLogger()->pushStreams();
 }
+
+//------------------------------------------------------------------------------
+bool hasPendingMessages() { return Logger::getActiveLogger()->hasPendingMessages(); }
 
 //------------------------------------------------------------------------------
 void finalize() { Logger::finalize(); }

@@ -14,6 +14,10 @@
 #include "axom/slic/core/MessageLevel.hpp"
 #include "axom/core/Macros.hpp"
 
+#if defined(AXOM_USE_MPI)
+  #include <mpi.h>
+#endif
+
 /// \name Wildcards
 /// @{
 
@@ -121,7 +125,7 @@ public:
    *
    * \warning This method is being called before slic aborts.
    */
-  virtual void outputLocal() {};
+  virtual void outputLocal() { };
 
   /*!
    * \brief Flushes the log stream on all ranks. It's a NO-OP by default.
@@ -131,7 +135,7 @@ public:
    *  in a distributed MPI environment, where the flush is a collective
    *  operation intended for a synchronization checkpoint.
    */
-  virtual void flush() {};
+  virtual void flush() { };
 
   /*!
    * \brief Pushes messages incrementally up the log stream. NO-OP by default.
@@ -142,7 +146,32 @@ public:
    *  the push is a collective operation intended for a incrementally advancing
    *  messages through the log stream.
    */
-  virtual void push() {};
+  virtual void push() { };
+
+  /*!
+   * \brief Tests whether there are any pending messages that need to be flushed.
+   * This method should only be overriden for LogStream inherited classes that can
+   * reliably test whether pending messages exist.
+   *
+   * \return Returns true if there are pending messages that need to be flushed
+   */
+  virtual bool hasPendingMessages() { return false; };
+
+  /*!
+   * \brief Tests whether this class relies on MPI
+   *
+   * \return Returns true if this class relies on MPI
+   */
+  virtual bool isUsingMPI() { return false; }
+
+  /*!
+   * \brief Get the communicator
+   *
+   * \return Returns the communicator if it exists, or MPI_COMM_NULL otherwise
+   */
+#if defined(AXOM_USE_MPI)
+  virtual MPI_Comm comm() { return MPI_COMM_NULL; };
+#endif
 
 protected:
   /*!

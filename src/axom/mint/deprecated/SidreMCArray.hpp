@@ -274,8 +274,7 @@ MCArray<T>::MCArray(View* view) : axom::deprecated::MCArray<T>()
 
   this->m_data = static_cast<T*>(m_view->getVoidPtr());
   SLIC_ERROR_IF(this->m_data == nullptr && this->m_capacity > 0,
-                "View returned a null pointer when the capacity "
-                  << "is greater than zero.");
+                "View returned a null pointer when the capacity " << "is greater than zero.");
 }
 
 //------------------------------------------------------------------------------
@@ -348,7 +347,7 @@ inline void MCArray<T>::dynamicRealloc(axom::IndexType new_num_tuples)
   SLIC_ERROR_IF(this->m_resize_ratio < 1.0,
                 "Resize ratio of " << this->m_resize_ratio << " doesn't support dynamic resizing");
 
-  IndexType new_capacity = new_num_tuples * this->m_resize_ratio + 0.5;
+  const IndexType new_capacity = static_cast<IndexType>(new_num_tuples * this->m_resize_ratio + 0.5);
   return reallocViewData(new_capacity);
 }
 

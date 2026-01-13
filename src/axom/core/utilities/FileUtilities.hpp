@@ -7,6 +7,8 @@
 #define COMMON_FILE_UTILITIES_H_
 
 #include <string>
+#include <fstream>
+#include <utility>
 
 namespace axom
 {
@@ -118,6 +120,129 @@ void getDirName(std::string& dir, const std::string& path);
  *       there are open file handles to the specified file.
  */
 int removeFile(const std::string& filename);
+
+/**
+ * /brief Utility class for managing temporary files.
+ *
+ * The TempFile class provides a convenient way to create and manage temporary files.
+ * It ensures that the file is deleted upon destruction, unless the user calls \a retain(true)
+ * The class is non-copyable to prevent accidental duplication of file handles.
+ *
+ * \note The path to the temp file is likely different from the supplied \a file_name
+ */
+class TempFile
+{
+public:
+  /**
+   * \brief Creates a temp file using \a file_name and \a file_ext
+   * 
+   * \param file_name The name of the temporary file to create without extension
+   * \param file_ext An optional extension for the temp file
+   * \note When creating the temp file, the name will likely be changed. You can get the actual file name
+   * using the \a getPath() function after the file is created.
+   */
+  explicit TempFile(const std::string& file_name, const std::string& file_ext = "");
+
+  ~TempFile();
+
+  // Non-copyable
+  TempFile(const TempFile&) = delete;
+  TempFile(TempFile&&) = delete;
+  TempFile& operator=(const TempFile&) = delete;
+  TempFile& operator=(TempFile&&) = delete;
+
+  /// If set to true, we will retain the file after the instance is destroyed
+  void retain(bool should_retain) { m_retain_file = should_retain; }
+
+  /// Returns true if the file will be retained after the instance is destroyed, false otherwise (default)
+  bool retain() const { return m_retain_file; }
+
+  /**
+   * \brief Opens the temporary file for writing
+   * 
+   * \param mode ios flags for opening the file (not used if file is already open)
+   * \return true if the file was successfully opened, false otherwise.
+   */
+  bool open(std::ios_base::openmode mode = std::ios::out | std::ios::trunc)
+  {
+    if(!m_ofs.is_open())
+    {
+      m_ofs.open(m_path, mode);
+    }
+    return m_ofs.is_open();
+  }
+
+  /// \brief Closes the temporary file if it is open
+  void close()
+  {
+    if(m_ofs.is_open())
+    {
+      m_ofs.close();
+    }
+  }
+
+  /**
+   * Writes \a contents to the file
+   * 
+   * Opens the file if it is not already open using \a mode and optionally closes the file
+   * \param content A string to write to the file
+   * \param mode The ios mode to open the file
+   * \param preserve_file_state Controls whether the file should be closed if we had to open it
+   *   If false, the file will be left open. If true, it will be left in its initial state
+   */
+  template <typename StringType>
+  void write(StringType&& content,
+             std::ios::openmode mode = std::ios::out | std::ios::trunc,
+             bool preserve_file_state = true)
+  {
+    bool opened_here = false;
+
+    if(!is_open())
+    {
+      open(mode);
+      opened_here = true;
+    }
+
+    m_ofs << std::forward<StringType>(content);
+
+    if(opened_here && preserve_file_state)
+    {
+      close();
+    }
+  }
+
+  /**
+   * \brief Checks if the temporary file is currently open.
+   * \return true if the file is open, false otherwise.
+   */
+  bool is_open() const { return m_ofs.is_open(); }
+
+  /// Returns the path to the temporary file
+  const std::string& getPath() const { return m_path; }
+
+  /// Loads the contents of the file into a string and returns it
+  std::string getFileContents() const;
+
+  /// Overload the << operator to write data to the file (for general types)
+  template <typename T>
+  TempFile& operator<<(const T& data)
+  {
+    m_ofs << data;
+    return *this;
+  }
+
+  /// Overload the << operator to support manipulators (e.g., std::endl)
+  TempFile& operator<<(std::ostream& (*manip)(std::ostream&))
+  {
+    m_ofs << manip;
+    return *this;
+  }
+
+private:
+  std::string m_path;
+  std::ofstream m_ofs;
+  bool m_retain_file {false};  // should the temp file persist after the instance goes out of scope?
+};
 
 }  // end namespace filesystem
 }  // end namespace utilities

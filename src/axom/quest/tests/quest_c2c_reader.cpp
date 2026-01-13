@@ -10,6 +10,7 @@
 #endif
 
 #include "axom/quest/io/C2CReader.hpp"
+#include "axom/quest/LinearizeCurves.hpp"
 #include "axom/slic.hpp"
 #include "axom/mint.hpp"
 #include "axom/primal.hpp"
@@ -124,7 +125,8 @@ TEST(quest_c2c_reader, interpolate_circle)
   MeshType* mesh = new MeshType(DIM, mint::SEGMENT);
 
   const int segmentsPerKnotSpan = 25;
-  reader.getLinearMeshUniform(mesh, segmentsPerKnotSpan);
+  axom::quest::LinearizeCurves lin;
+  lin.getLinearMeshUniform(reader.getCurvesView(), mesh, segmentsPerKnotSpan);
 
   // The circle is defined by a single NURBS curve with four spans
   SLIC_INFO(axom::fmt::format("Mesh has {} nodes and {} cells",
@@ -169,7 +171,8 @@ TEST(quest_c2c_reader, interpolate_square)
   MeshType* mesh = new MeshType(DIM, mint::SEGMENT);
 
   const int segmentsPerKnotSpan = 10;
-  reader.getLinearMeshUniform(mesh, segmentsPerKnotSpan);
+  axom::quest::LinearizeCurves lin;
+  lin.getLinearMeshUniform(reader.getCurvesView(), mesh, segmentsPerKnotSpan);
 
   SLIC_INFO(axom::fmt::format("Mesh has {} nodes and {} cells",
                               mesh->getNumberOfNodes(),
@@ -205,7 +208,8 @@ TEST(quest_c2c_reader, interpolate_spline)
   MeshType* mesh = new MeshType(DIM, mint::SEGMENT);
 
   const int segmentsPerKnotSpan = 20;
-  reader.getLinearMeshUniform(mesh, segmentsPerKnotSpan);
+  axom::quest::LinearizeCurves lin;
+  lin.getLinearMeshUniform(reader.getCurvesView(), mesh, segmentsPerKnotSpan);
 
   SLIC_INFO(axom::fmt::format("Mesh has {} nodes and {} cells",
                               mesh->getNumberOfNodes(),

@@ -16,6 +16,7 @@
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
 #include "axom/quest.hpp"
+#include "axom/quest/interface/internal/QuestHelpers.hpp"
 
 #include "axom/CLI11.hpp"
 #include "axom/fmt.hpp"
@@ -24,130 +25,73 @@
 
 namespace primal = axom::primal;
 using Point2D = primal::Point<double, 2>;
-using BezierCurve2D = primal::BezierCurve<double, 2>;
+using NURBSCurve2D = primal::NURBSCurve<double, 2>;
+using CurveGWNCache = primal::detail::NURBSCurveGWNCache<double>;
 using BoundingBox2D = primal::BoundingBox<double, 2>;
 
-/*!
- * Given an mfem mesh, convert element with id \a elem_id to a (rational) BezierCurve
- * \pre Assumes the elements of the mfem mesh are in the positive (Bernstein)
- * basis, or in the NURBS basis
- */
-BezierCurve2D segment_to_curve(const mfem::Mesh* mesh, int elem_id)
+/// Helper function to set up the mesh and associated winding and inout fields; uses an mfem::DataCollection to hold everything together
+void setup_mesh(mfem::DataCollection& dc,
+                const BoundingBox2D& query_box,
+                const axom::NumericArray<int, 2>& query_res,
+                int queryOrder)
 {
-  const auto* fes = mesh->GetNodes()->FESpace();
-  const auto* fec = fes->FEColl();
+  AXOM_ANNOTATE_SCOPE("setup_mesh");
 
-  const bool isBernstein = dynamic_cast<const mfem::H1Pos_FECollection*>(fec) != nullptr;
-  const bool isNURBS = dynamic_cast<const mfem::NURBSFECollection*>(fec) != nullptr;
+  constexpr int DIM = 2;
 
-  SLIC_ERROR_IF(!(isBernstein || isNURBS),
-                "MFEM mesh elements must be in either the Bernstein or NURBS basis");
+  dc.SetOwnData(true);
 
-  const int NE = isBernstein ? mesh->GetNE() : fes->GetNURBSext()->GetNP();
-  SLIC_ERROR_IF(NE < elem_id, axom::fmt::format("Mesh does not have {} elements", elem_id));
+  mfem::Mesh* query_mesh =
+    axom::quest::util::make_cartesian_mfem_mesh_2D(query_box, query_res, queryOrder);
+  dc.SetMesh(query_mesh);
 
-  const int order = isBernstein ? fes->GetOrder(elem_id) : mesh->NURBSext->GetOrders()[elem_id];
-  SLIC_ERROR_IF(order != 3,
-                axom::fmt::format("This example currently requires the input mfem mesh to "
-                                  "contain cubic elements, but the order of element {} is {}",
-                                  elem_id,
-                                  order));
+  // Create grid functions for the winding field; will take care of fes and fec memory via MakeOwner()
+  auto* winding_fec = new mfem::H1_FECollection(queryOrder, DIM);
+  auto* winding_fes = new mfem::FiniteElementSpace(query_mesh, winding_fec, 1);
+  mfem::GridFunction* winding = new mfem::GridFunction(winding_fes);
+  winding->MakeOwner(winding_fec);
 
-  mfem::Array<int> dofs;
-  mfem::Array<int> vdofs;
+  // Create grid functions for the inout field; will take care of fes and fec memory via MakeOwner()
+  auto* inout_fec = new mfem::H1_FECollection(queryOrder, DIM);
+  auto* inout_fes = new mfem::FiniteElementSpace(query_mesh, inout_fec, 1);
+  mfem::GridFunction* inout = new mfem::GridFunction(inout_fes);
+  inout->MakeOwner(inout_fec);
 
-  mfem::Vector dvec;
-  mfem::Vector v;
-
-  fes->GetElementDofs(elem_id, dofs);
-  fes->GetElementVDofs(elem_id, vdofs);
-  mesh->GetNodes()->GetSubVector(vdofs, v);
-
-  // Currently hard-coded for 3rd order. This can easily be extended to arbitrary order
-  axom::Array<Point2D> points(4, 4);
-  if(isBernstein)
-  {
-    points[0] = Point2D {v[0], v[0 + 4]};
-    points[1] = Point2D {v[2], v[2 + 4]};
-    points[2] = Point2D {v[3], v[3 + 4]};
-    points[3] = Point2D {v[1], v[1 + 4]};
-
-    return BezierCurve2D(points, fec->GetOrder());
-  }
-  else  // isNURBS
-  {
-    // temporary assumption is that there are no interior knots
-    // i.e. the NURBS curve is essentially a rational Bezier curve
-
-    points[0] = Point2D {v[0], v[0 + 4]};
-    points[1] = Point2D {v[1], v[1 + 4]};
-    points[2] = Point2D {v[2], v[2 + 4]};
-    points[3] = Point2D {v[3], v[3 + 4]};
-
-    fes->GetNURBSext()->GetWeights().GetSubVector(dofs, dvec);
-    axom::Array<double> weights {dvec[0], dvec[1], dvec[2], dvec[3]};
-
-    return BezierCurve2D(points, weights, fec->GetOrder());
-  }
+  dc.RegisterField("winding", winding);
+  dc.RegisterField("inout", inout);
 }
 
-bool check_mesh_valid(const mfem::Mesh* mesh)
+template <typename CurveArray>
+void run_query(mfem::DataCollection& dc, const CurveArray& curves)
 {
-  const auto* fes = mesh->GetNodes()->FESpace();
-  if(fes == nullptr)
-  {
-    SLIC_WARNING("MFEM mesh finite element space was null");
-    return false;
-  }
+  AXOM_ANNOTATE_SCOPE("run_query");
 
-  const auto* fec = fes->FEColl();
-  if(fec == nullptr)
-  {
-    SLIC_WARNING("MFEM mesh finite element collection was null");
-    return false;
-  }
+  auto* query_mesh = dc.GetMesh();
+  auto& winding = *dc.GetField("winding");
+  auto& inout = *dc.GetField("inout");
 
-  const bool isBernstein = dynamic_cast<const mfem::H1Pos_FECollection*>(fec) != nullptr;
-  const bool isNURBS = dynamic_cast<const mfem::NURBSFECollection*>(fec) != nullptr;
-  const bool isValidFEC = isBernstein || isNURBS;
+  // Utility function to get query point from query index
+  const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
+  auto query_point = [&query_mesh](int idx) -> Point2D {
+    Point2D pt;
+    query_mesh->GetNode(idx, pt.data());
+    return pt;
+  };
 
-  // TODO: Convert from Lagrange to Bernstein, if/when necessary
-  if(!isValidFEC)
+  // Query the winding numbers at each degree of freedom (DoF) of the query mesh.
+  // The loop below independently checks every curve for each query point.
+  for(int nidx = 0; nidx < num_query_points; ++nidx)
   {
-    SLIC_WARNING(
-      "Example only currently supports 1D NURBS meshes "
-      "or meshes with nodes in the Bernstein basis");
-    return false;
-  }
+    const Point2D q = query_point(nidx);
+    double wn {};
+    for(const auto& c : curves)
+    {
+      wn += axom::primal::winding_number(q, c);
+    }
 
-  if(fes->GetVDim() != 2)
-  {
-    SLIC_WARNING("Example only currently supports 2D meshes");
-    return false;
+    winding[nidx] = wn;
+    inout[nidx] = std::round(wn);
   }
-
-  const int NE = isBernstein ? mesh->GetNE() : fes->GetNURBSext()->GetNP();
-  int order = -1;
-  if(isBernstein)
-  {
-    order = NE > 0 ? fes->GetOrder(0) : 3;
-  }
-  else  // isNURBS
-  {
-    //SLIC_INFO("nurbsext order :" << mesh->NURBSext->GetOrder());
-    order = NE > 0 ? mesh->NURBSext->GetOrders()[0] : 3;
-  }
-
-  if(order != 3)
-  {
-    SLIC_WARNING(
-      axom::fmt::format("This example currently requires the input mfem mesh to contain cubic "
-                        "elements, but the provided mesh has order {}",
-                        order));
-    return false;
-  }
-
-  return true;
 }
 
 int main(int argc, char** argv)
@@ -162,6 +106,8 @@ int main(int argc, char** argv)
   std::string outputPrefix = {"winding"};
 
   bool verbose {false};
+  std::string annotationMode {"none"};
+  bool memoized {true};
 
   // Query mesh parameters
   std::vector<double> boxMins;
@@ -181,6 +127,17 @@ int main(int argc, char** argv)
     ->capture_default_str();
 
   app.add_flag("-v,--verbose", verbose, "verbose output")->capture_default_str();
+  app.add_flag("--memoized,!--no-memoized", memoized, "Cache geometric data during query?")
+    ->capture_default_str();
+
+#ifdef AXOM_USE_CALIPER
+  app.add_option("--caliper", annotationMode)
+    ->description(
+      "caliper annotation mode. Valid options include 'none' and 'report'. "
+      "Use 'help' to see full list.")
+    ->capture_default_str()
+    ->check(axom::utilities::ValidCaliperMode);
+#endif
 
   auto* query_mesh_subcommand =
     app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
@@ -202,44 +159,43 @@ int main(int argc, char** argv)
 
   CLI11_PARSE(app, argc, argv);
 
-  mfem::Mesh mesh(inputFile);
-  SLIC_INFO(
-    axom::fmt::format("Curve mesh has a topological dimension of {}d, "
-                      "has {} vertices and {} elements",
-                      mesh.Dimension(),
-                      mesh.GetNV(),
-                      mesh.GetNE()));
+  axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(annotationMode);
+  AXOM_ANNOTATE_SCOPE("winding number example");
 
-  if(!check_mesh_valid(&mesh))
+  axom::Array<NURBSCurve2D> curves;
   {
-    return 1;
-  }
+    AXOM_ANNOTATE_SCOPE("read_mesh");
 
-  axom::Array<int> segments;
-  axom::Array<BezierCurve2D> curves;
+    axom::quest::MFEMReader mfem_reader;
+    mfem_reader.setFileName(inputFile);
 
-  // Loop through mesh elements, retaining the (curved) 1D segments
-  for(int i = 0; i < mesh.GetNE(); ++i)
-  {
-    auto* el = mesh.GetElement(i);
-    if(el->GetGeometryType() == mfem::Geometry::SEGMENT)
+    const int ret = mfem_reader.read(curves);
+    if(ret != axom::quest::MFEMReader::READ_SUCCESS)
     {
-      segments.push_back(i);
+      return 1;
     }
   }
-
   // Extract the curves and compute their bounding boxes along the way
   BoundingBox2D bbox;
-  for(int i = 0; i < segments.size(); ++i)
+  axom::Array<CurveGWNCache> memoized_curves;
   {
-    auto curve = segment_to_curve(&mesh, i);
-    SLIC_INFO_IF(verbose, axom::fmt::format("Element {}: {}", i, curve));
+    AXOM_ANNOTATE_SCOPE("preprocessing");
 
-    bbox.addBox(curve.boundingBox());
+    int count {0};
+    for(const auto& cur : curves)
+    {
+      SLIC_INFO_IF(verbose, axom::fmt::format("Element {}: {}", count++, cur));
 
-    curves.emplace_back(std::move(curve));
+      bbox.addBox(cur.boundingBox());
+
+      // Add curves to GWN Cache objects that dynamically store intermediate
+      //  curve subdivisions to be reused across query points
+      if(memoized)
+      {
+        memoized_curves.emplace_back(CurveGWNCache(cur));
+      }
+    }
   }
-
   SLIC_INFO(axom::fmt::format("Curve mesh bounding box: {}", bbox));
 
   // Early return if user didn't set up a query mesh
@@ -251,43 +207,32 @@ int main(int argc, char** argv)
   // Generate a Cartesian (high order) mesh for the query points
   const auto query_res = axom::NumericArray<int, 2>(boxResolution.data());
   const auto query_box = BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()));
+  mfem::DataCollection dc("winding_query");
+  setup_mesh(dc, query_box, query_res, queryOrder);
 
-  auto query_mesh = std::unique_ptr<mfem::Mesh>(
-    axom::quest::util::make_cartesian_mfem_mesh_2D(query_box, query_res, queryOrder));
-  auto fec = mfem::H1_FECollection(queryOrder, 2);
-  auto fes = mfem::FiniteElementSpace(query_mesh.get(), &fec, 1);
-  auto winding = mfem::GridFunction(&fes);
-  auto inout = mfem::GridFunction(&fes);
-  auto nodes_fes = query_mesh->GetNodalFESpace();
-
-  // Query the winding numbers at each degree of freedom (DoF) of the query mesh.
-  // The loop below independently checks (and adaptively refines) every curve for each query points.
-  // A more efficient algorithm can de defined that caches the refined curves to avoid
-  // extra refinements. We will add this in a follow-up PR.
-  for(int nidx = 0; nidx < nodes_fes->GetNDofs(); ++nidx)
+  // Run the query (optionally, with memoization)
+  if(memoized)
   {
-    Point2D q;
-    query_mesh->GetNode(nidx, q.data());
-
-    double wn {};
-    for(const auto& c : curves)
-    {
-      wn += axom::primal::winding_number(q, c);
-    }
-
-    winding[nidx] = wn;
-    inout[nidx] = std::round(wn);
+    run_query(dc, memoized_curves);
+  }
+  else
+  {
+    run_query(dc, curves);
   }
 
   // Save the query mesh and fields to disk using a format that can be viewed in VisIt
-  mfem::VisItDataCollection windingDC(outputPrefix, query_mesh.get());
-  windingDC.RegisterField("winding", &winding);
-  windingDC.RegisterField("inout", &inout);
-  windingDC.Save();
+  {
+    AXOM_ANNOTATE_SCOPE("dump_mesh");
 
-  SLIC_INFO(axom::fmt::format("Outputting generated mesh '{}' to '{}'",
-                              windingDC.GetCollectionName(),
-                              axom::utilities::filesystem::getCWD()));
+    mfem::VisItDataCollection windingDC(outputPrefix, dc.GetMesh());
+    windingDC.RegisterField("winding", dc.GetField("winding"));
+    windingDC.RegisterField("inout", dc.GetField("inout"));
+    windingDC.Save();
+
+    SLIC_INFO(axom::fmt::format("Outputting generated mesh '{}' to '{}'",
+                                windingDC.GetCollectionName(),
+                                axom::utilities::filesystem::getCWD()));
+  }
 
   return 0;
 }

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="416.53091"
+   height="506.883"
+   viewBox="0 0 416.53091 506.88299"
+   version="1.1"
+   id="svg34"
+   sodipodi:docname="scoop.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview34"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="1.1396485"
+     inkscape:cx="-97.398456"
+     inkscape:cy="95.204798"
+     inkscape:window-width="3440"
+     inkscape:window-height="1369"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg34">
+    <inkscape:page
+       x="1.1633912e-08"
+       y="0"
+       width="416.53091"
+       height="506.883"
+       id="page39"
+       margin="0 0 0 0"
+       bleed="0" />
+  </sodipodi:namedview>
+  <title
+     id="title1">Ice cream scoop</title>
+  <defs
+     id="defs1">
+    <style
+       id="style1">
+      .outline { stroke:#1f1f1f; stroke-width:10; stroke-linejoin:round; stroke-linecap:round; }
+    </style>
+  </defs>
+  <!-- SCOOP -->
+  <g
+     id="scoop"
+     transform="translate(-88.793193,-116.17216)"
+     style="display:inline">
+    <path
+       class="outline"
+       fill="#fff5e6"
+       d="m 144,220 c -14,-30 16,-60 56,-60 10,-30 60,-40 90,-15 40,-25 90,-5 98,33 42,4 62,34 50,62 20,20 12,55 -18,65 0,30 -30,45 -60,40 -20,15 -60,15 -80,0 -30,15 -70,15 -90,-5 -30,10 -70,-10 -60,-40 -30,-10 -30,-50 0,-65 -5,-5 5,-13 14,-15 z"
+       id="path1" />
+  </g>
+  </svg>

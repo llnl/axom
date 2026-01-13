@@ -149,11 +149,11 @@ public:
   struct ImplBase
   {
     /*!
-      @brief Prepare internal data for operating on the given domain.
-
-      Put in here codes that can't be in MarchingCubesSingleDomain
-      due to template use (DIM and ExecSpace).
-    */
+     * @brief Prepare internal data for operating on the given domain.
+     *
+     * Put in here codes that can't be in MarchingCubesSingleDomain
+     * due to template use (DIM and ExecSpace).
+     */
     virtual void setDomain(const conduit::Node &dom,
                            const std::string &topologyName,
                            const std::string &maskPath = {}) = 0;
@@ -164,22 +164,28 @@ public:
 
     virtual void setDataParallelism(MarchingCubesDataParallelism dataPar) = 0;
 
-    //@{
-    //!@name Distinct phases in contour generation.
-    //!@brief Compute the contour mesh.
-    //!@brief Mark parent cells that cross the contour value.
+    ///@{
+    //! @name Distinct phases in contour generation.
+
+    /*!
+     * @brief Compute the contour mesh.
+     * @brief Mark parent cells that cross the contour value.
+     */
     virtual void markCrossings() = 0;
+
     //!@brief Scan operations to determine counts and offsets.
     virtual void scanCrossings() = 0;
+
     //!@brief Compute contour data.
     virtual void computeFacets() = 0;
-    //@}
+    ///@}
 
-    //@{
+    ///@{
     //!@name Output methods
-    //!@brief Return number of contour mesh facets generated.
+
+    //! @brief Return number of contour mesh facets generated.
     virtual axom::IndexType getContourCellCount() const = 0;
-    //@}
+    ///@}
 
     void setOutputBuffers(axom::ArrayView<axom::IndexType, 2> &facetNodeIds,
                           axom::ArrayView<double, 2> &facetNodeCoords,
@@ -209,30 +215,28 @@ public:
   ImplBase &getImpl() { return *m_impl; }
 
 private:
-  //!@brief Multi-domain implementation this object is under.
+  //! @brief Multi-domain implementation this object is under.
   MarchingCubes &m_mc;
 
   RuntimePolicy m_runtimePolicy;
   int m_allocatorID = axom::INVALID_ALLOCATOR_ID;
 
-  //@brief Choice of full or partial data-parallelism, or byPolicy.
+  //! @brief Choice of full or partial data-parallelism, or byPolicy.
   MarchingCubesDataParallelism m_dataParallelism = MarchingCubesDataParallelism::byPolicy;
 
-  /*!
-    \brief Computational mesh as a conduit::Node.
-  */
+  //! \brief Computational mesh as a conduit::Node.
   const conduit::Node *m_dom;
   int m_ndim;
 
-  //!@brief Name of Blueprint topology in m_dom.
+  //! @brief Name of Blueprint topology in m_dom.
   std::string m_topologyName;
 
   std::string m_fcnFieldName;
-  //!@brief Path to nodal scalar function in m_dom.
+  //! @brief Path to nodal scalar function in m_dom.
   std::string m_fcnPath;
 
   std::string m_maskFieldName;
-  //!@brief Path to mask in m_dom.
+  //! @brief Path to mask in m_dom.
   std::string m_maskPath;
 
   double m_contourVal = 0.0;
@@ -247,9 +251,7 @@ private:
    */
   void setDomain(const conduit::Node &dom);
 
-  /*!
-    @brief Allocate MarchingCubesImpl object
-  */
+  /// @brief Allocate MarchingCubesImpl object
   std::unique_ptr<ImplBase> newMarchingCubesImpl();
 
 };  // class MarchingCubesSingleDomain

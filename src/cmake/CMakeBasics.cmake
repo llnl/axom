@@ -221,6 +221,12 @@ if(WIN32)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${AXOM_ALLOW_CONSTANT_CONDITIONALS}")
 endif()
 
+# Visual studio can give a warning that /bigobj is required due to the size of some object files
+if(COMPILER_FAMILY_IS_MSVC)
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj" )
+    set( CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} /bigobj" )
+endif()
+
 #------------------------------------------------------------------------------
 # Configure our CTest Dashboard Driver Script
 #------------------------------------------------------------------------------

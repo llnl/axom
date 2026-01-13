@@ -98,6 +98,15 @@ public:
   }
 
   /*!
+   * \brief Returns the centroid of the triangle.
+   */
+  AXOM_HOST_DEVICE PointType centroid() const
+  {
+    PointType c {(m_points[0].array() + m_points[1].array() + m_points[2].array()) / NUM_TRI_VERTS};
+    return c;
+  }
+
+  /*!
    * \brief Returns the normal of the triangle (not normalized)
    * \pre This function is only valid when NDIMS = 3
    * \return n triangle normal when NDIMS=3, zero vector otherwise
@@ -200,6 +209,7 @@ private:
    * \note If the volume is approx. zero, all four points are (nearly) coplanar.
    * \return vol the volume or 0.0 iff NDIMS < 3
    */
+  AXOM_HOST_DEVICE
   double ppedVolume(const PointType& p) const
   {
     /* This method returns double (instead of T) and explicitly specializes
@@ -237,6 +247,7 @@ public:
    *
    * Algorithm adapted from Real Time Collision Detection by Christer Ericson.
    */
+  AXOM_HOST_DEVICE
   Point<double, 3> physToBarycentric(const PointType& p, bool skipNormalization = false) const
   {
     // Query point needs to be in triangle's plane
@@ -353,7 +364,7 @@ public:
    *
    * \return true if \a p is in the triangle
    */
-  bool contains(const PointType& p, double eps = 1e-8) const
+  AXOM_HOST_DEVICE bool contains(const PointType& p, double eps = 1e-8) const
   {
     if(!axom::utilities::isNearlyEqual(ppedVolume(p), 0., eps))
     {

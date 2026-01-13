@@ -7,7 +7,7 @@
 #define AXOM_MEMORYMANAGEMENT_HPP_
 
 // Axom includes
-#include "axom/config.hpp"  // for AXOM compile-time definitions
+#include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 
@@ -24,11 +24,12 @@
 #endif
 
 #include <iostream>
+#include <type_traits>
 
 namespace axom
 {
 // To co-exist with Umpire allocator ids, use negative values here.
-constexpr int INVALID_ALLOCATOR_ID = -1;  //!< Place holder for no allocator
+constexpr int INVALID_ALLOCATOR_ID = -1;  //!< Place holder for no/unknown allocator
 constexpr int MALLOC_ALLOCATOR_ID = -3;   //!< Refers to MemorySpace::Malloc
 
 // _memory_space_start
@@ -123,9 +124,10 @@ inline int getDefaultAllocatorID()
 
 /*!
  * \brief Get the allocator id from which data has been allocated.
- * \return Allocator id.  If Umpire doesn't have an allocator for
- * the pointer, or if Axom wasn't configured with Umpire, assume the
- * pointer is from a malloc and return \c axom::MALLOC_ALLOCATOR_ID.
+ * \return Allocator id.  If Umpire doesn't have an allocator for the
+ * pointer, or if Axom wasn't configured with Umpire, assume the
+ * non-null pointers are from a malloc and return \c
+ * axom::MALLOC_ALLOCATOR_ID.
  *
  * \pre ptr has a valid pointer value.
  */
@@ -139,9 +141,25 @@ inline int getAllocatorIDFromPointer(const void* ptr)
     return allocator.getId();
   }
 #endif
-  AXOM_UNUSED_VAR(ptr);
-  return MALLOC_ALLOCATOR_ID;
+  return ptr == nullptr ? INVALID_ALLOCATOR_ID : MALLOC_ALLOCATOR_ID;
 }
+
+/*!
+ * \brief Determines whether an allocator id is for shared memory.
+ *
+ * \param allocID An allocator id.
+ *
+ * \return True if the allocator id is for shared memory; false otherwise.
+ */
+bool isSharedMemoryAllocator(int allocID);
+
+/*!
+ * \brief Get the allocator ID for Axom's shared memory allocator.
+ *
+ * \return The allocator ID for Axom's shared memory allocator (if Axom is using Umpire),
+ *         or INVALID_ALLOCATOR_ID otherwise.
+ */
+int getSharedMemoryAllocatorID();
 
 /*!
  * \brief Allocates a chunk of memory of type T.
@@ -204,6 +222,20 @@ inline T* reallocate(T* p, std::size_t n, int allocID = getDefaultAllocatorID())
  *  that pointer.
  */
 inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept;
+
+/*!
+ * \brief Fills memory with a value.
+ *
+ * \param [in/out] dst the destination to copy to.
+ * \param [in] n the number of items to copy.
+ * \param [in] The value to copy. It must be trivially copyable for use with GPU.
+ *
+ * \note When using Umpire if dst is not registered with the
+ *  ResourceManager then the default host allocation strategy is assumed for
+ *  that pointer.
+ */
+template <typename T>
+inline void fill(void* dst, std::size_t n, const T& value) noexcept;
 
 /// @}
 // _memory_management_routines_end
@@ -305,12 +337,12 @@ inline T* reallocate(T* pointer, std::size_t n, int allocID) noexcept
       else
       {
         /*
-          Reallocate from non-Umpire to Umpire, manually, using
-          allocate, copy and deallocate.  Because we don't know the
-          current size, we first do a (extra) reallocate within the
-          current space just so we have the size for the copy.
-          Is there a better way?
-        */
+         * Reallocate from non-Umpire to Umpire, manually, using
+         * allocate, copy and deallocate.  Because we don't know the
+         * current size, we first do a (extra) reallocate within the
+         * current space just so we have the size for the copy.
+         * Is there a better way?
+         */
         auto tmpPointer = std::realloc(pointer, numbytes);
         pointer = axom::allocate<T>(n, allocID);
         copy(pointer, tmpPointer, numbytes);
@@ -379,6 +411,45 @@ inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept
 #endif
 }
 
+//------------------------------------------------------------------------------
+template <typename T>
+inline void fill(void* dst, std::size_t n, const T& value) noexcept
+{
+  bool doHostFill = true;
+#ifdef AXOM_USE_UMPIRE
+  // Since data might be copied to GPU, it needs to be trivially copyable.
+  static_assert(std::is_trivially_copyable<T>::value, "value must be trivially copyable.");
+  auto& rm = umpire::ResourceManager::getInstance();
+
+  if(rm.hasAllocator(dst))
+  {
+    auto alloc = rm.getAllocator(dst);
+    if((alloc.getPlatform() != umpire::Platform::host))
+    {
+      doHostFill = false;
+
+      // Device memory: fill on host, then copy to device
+      const auto num_bytes = n * sizeof(T);
+      T* src = allocate<T>(num_bytes, rm.getDefaultAllocator().getId());
+      for(std::size_t i = 0; i < n; ++i)
+      {
+        src[i] = value;
+      }
+      rm.copy(dst, src, num_bytes);
+      deallocate<T>(src);
+    }
+  }
+#endif
+  if(doHostFill)
+  {
+    T* typed_dst = static_cast<T*>(dst);
+    for(std::size_t i = 0; i < n; ++i)
+    {
+      typed_dst[i] = value;
+    }
+  }
+}
+
 namespace detail
 {
 /// \brief Translates between the MemorySpace enum and Umpire allocator IDs
@@ -401,6 +472,14 @@ inline int getAllocatorID<MemorySpace::Malloc>()
   return axom::MALLOC_ALLOCATOR_ID;
 }
 
+/**
+ * @brief Return the Axom MemorySpace for the given Axom allocator id.
+ *
+ * For Umpire allocator ids, the MemorySpace is the corresponding Axom
+ * memory space.  For MALLOC_ALLOCATOR_ID, the MemorySpace is
+ * MemorySpace::Malloc.  Other values have no corresponding MemorySpace
+ * and will cause an abort.
+ */
 inline MemorySpace getAllocatorSpace(int allocatorId)
 {
 #ifdef AXOM_USE_UMPIRE
@@ -428,7 +507,10 @@ inline MemorySpace getAllocatorSpace(int allocatorId)
     }
   }
 #endif
-  if(allocatorId == MALLOC_ALLOCATOR_ID) return MemorySpace::Malloc;
+  if(allocatorId == MALLOC_ALLOCATOR_ID)
+  {
+    return MemorySpace::Malloc;
+  }
 
   std::cerr << "*** Unrecognized allocator id " << allocatorId << "." << std::endl;
   axom::utilities::processAbort();

@@ -24,14 +24,7 @@ void MIRAlgorithm::execute(const conduit::Node &n_input,
   const auto domains = conduit::blueprint::mesh::domains(n_input);
   if(domains.size() > 1)
   {
-    // Handle multiple domains
-    for(const auto &dom_ptr : domains)
-    {
-      const conduit::Node &n_domain = *dom_ptr;
-      conduit::Node &n_newDomain = n_output.append();
-
-      executeSetup(n_domain, n_options, n_newDomain);
-    }
+    SLIC_ERROR("The input node contains multiple domains. Pass a single domain at a time instead.");
   }
   else if(domains.size() > 0)
   {
@@ -73,6 +66,7 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
   newTopo["coordset"] = newCoordsetName;
   conduit::Node &newMatset = n_newDomain["matsets/" + newMatsetName];
   newMatset["topology"] = newTopoName;
+  conduit::Node &newFields = n_newDomain["fields"];
 
   // Execute the algorithm on the domain.
   if(n_domain.has_path("state"))
@@ -81,7 +75,6 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
   }
   if(n_domain.has_path("fields"))
   {
-    conduit::Node &newFields = n_newDomain["fields"];
     executeDomain(*n_topo,
                   *n_coordset,
                   n_domain["fields"],
@@ -91,14 +84,22 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
                   newCoordset,
                   newFields,
                   newMatset);
+    updateNames(n_topo->name(),
+                newTopoName,
+                n_coordset->name(),
+                newCoordsetName,
+                matset,
+                newMatsetName,
+                newTopo,
+                newCoordset,
+                newFields,
+                newMatset);
   }
   else
   {
     // There are no input fields, but make sure n_fields has a name.
     conduit::Node tmp;
     conduit::Node &n_fields = tmp["fields"];
-    // MIR is likely to output some created fields.
-    conduit::Node &newFields = n_newDomain["fields"];
     executeDomain(*n_topo,
                   *n_coordset,
                   n_fields,
@@ -108,6 +109,48 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
                   newCoordset,
                   newFields,
                   newMatset);
+    updateNames(n_topo->name(),
+                newTopoName,
+                n_coordset->name(),
+                newCoordsetName,
+                matset,
+                newMatsetName,
+                newTopo,
+                newCoordset,
+                newFields,
+                newMatset);
+  }
+}
+
+void MIRAlgorithm::updateNames(const std::string &origTopoName,
+                               const std::string &newTopoName,
+                               const std::string &origCoordsetName,
+                               const std::string &newCoordsetName,
+                               const std::string &AXOM_UNUSED_PARAM(origMatsetName),
+                               const std::string &AXOM_UNUSED_PARAM(newMatsetName),
+                               conduit::Node &n_newTopo,
+                               conduit::Node &AXOM_UNUSED_PARAM(n_newCoordset),
+                               conduit::Node &n_newFields,
+                               conduit::Node &n_newMatset)
+{
+  // If the coordset was renamed in the output, make sure it the new topology references that new name.
+  if(origCoordsetName != newCoordsetName)
+  {
+    n_newTopo["coordset"] = newCoordsetName;
+  }
+  // If the topology was renamed in the output, make sure the matset and any fields reference that new name.
+  if(origTopoName != newTopoName)
+  {
+    n_newMatset["topology"] = newTopoName;
+
+    for(conduit::index_t i = 0; i < n_newFields.number_of_children(); i++)
+    {
+      conduit::Node &n_field = n_newFields[i];
+      if(n_field["topology"].as_string() == origTopoName)
+      {
+        n_field["topology"] = newTopoName;
+      }
+    }
   }
 }
 
@@ -135,10 +178,29 @@ void MIRAlgorithm::saveMesh(const conduit::Node &n_mesh, const std::string &file
   conduit::Node n_mesh_host;
   axom::bump::utilities::copy<axom::SEQ_EXEC>(n_mesh_host, n_mesh);
 
+  // Check the mesh we're saving.
+  conduit::Node info;
+  if(!conduit::blueprint::mesh::verify(n_mesh_host, info))
+  {
+    printNode(n_mesh_host);
+  }
+
   conduit::relay::io::save(n_mesh_host, filebase + ".yaml", "yaml");
 #if defined(AXOM_USE_HDF5)
   conduit::relay::io::blueprint::save_mesh(n_mesh_host, filebase, "hdf5");
 #endif
+}
+
+std::string MIRAlgorithm::localPath(const conduit::Node &obj) const
+{
+  std::string path(obj.path());
+  const auto dpos = path.find("domain");
+  const auto spos = path.find("/");
+  if(dpos == 0 && spos != std::string::npos && spos > dpos && obj.parent() != nullptr)
+  {
+    path = path.substr(spos + 1, path.size() - spos - 1);
+  }
+  return path;
 }
 
 }  // namespace mir

@@ -31,12 +31,18 @@ void NonCollectiveRootCommunicator::initialize(MPI_Comm comm, int ranksLimit)
               << "is not positive" << std::endl;
   }
   MPI_Comm_dup(comm, &m_mpiComm);
+
+  MPI_Barrier(m_mpiComm);
+  m_startTime = MPI_Wtime();
+
   MPI_Comm_rank(m_mpiComm, &m_mpiCommRank);
   MPI_Comm_size(m_mpiComm, &m_mpiCommSize);
   m_ranksLimit = ranksLimit;
 }
 
 void NonCollectiveRootCommunicator::finalize() { MPI_Comm_free(&m_mpiComm); }
+
+MPI_Comm NonCollectiveRootCommunicator::comm() { return m_mpiComm; }
 
 int NonCollectiveRootCommunicator::rank() { return m_mpiCommRank; }
 
@@ -93,6 +99,8 @@ bool NonCollectiveRootCommunicator::isOutputNode()
   }
   return false;
 }
+
+double NonCollectiveRootCommunicator::startTime() { return m_startTime; }
 
 }  // end namespace lumberjack
 }  // end namespace axom

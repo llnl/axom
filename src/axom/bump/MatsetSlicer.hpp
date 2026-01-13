@@ -112,15 +112,12 @@ public:
         const auto size = static_cast<int>(sizesView[index]);
         const auto offset = offsetsView[index];
 
-        typename MatsetView::IDList ids;
-        typename MatsetView::VFList vfs;
-        deviceMatsetView.zoneMaterials(deviceSelectedZonesView[index], ids, vfs);
-
-        for(int i = 0; i < size; i++)
+        auto zoneMat = deviceMatsetView.beginZone(deviceSelectedZonesView[index]);
+        for(int i = 0; i < size; i++, zoneMat++)
         {
           const auto destIndex = offset + i;
-          materialIdsView[destIndex] = ids[i];
-          volumeFractionsView[destIndex] = vfs[i];
+          materialIdsView[destIndex] = zoneMat.material_id();
+          volumeFractionsView[destIndex] = zoneMat.volume_fraction();
           indicesView[destIndex] = destIndex;
         }
       });

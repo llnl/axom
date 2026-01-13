@@ -227,8 +227,8 @@ TEST(sidre_external, verify_external_layout)
     axom::sidre::Node emptyNode;
     root->createExternalLayout(emptyNode);
 
-    SLIC_INFO("External node's json before adding external data."
-              << " (should be empty): \n\t" << emptyNode.to_json());
+    SLIC_INFO("External node's json before adding external data." << " (should be empty): \n\t"
+                                                                  << emptyNode.to_json());
 
     EXPECT_EQ(0, emptyNode.number_of_children());
   }

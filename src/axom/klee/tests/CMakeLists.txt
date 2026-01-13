@@ -12,6 +12,7 @@
 
 set(gtest_klee_tests
     klee_config.cpp
+    klee_dimensions.cpp
     klee_geometry.cpp
     klee_geometry_operators.cpp
     klee_geometry_operators_io.cpp
@@ -39,7 +40,7 @@ foreach(test ${gtest_klee_tests})
                         OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
                         DEPENDS_ON  klee_test_utils
                         FOLDER      axom/klee/tests )
-    blt_add_test( NAME ${test_name}
+    axom_add_test(NAME ${test_name}
                   COMMAND ${test_name}_test )
 endforeach()
 

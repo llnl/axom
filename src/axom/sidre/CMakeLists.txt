@@ -21,6 +21,7 @@ axom_component_requires(NAME       Sidre
 set(sidre_headers
     core/Array.hpp
     core/Buffer.hpp
+    core/ConduitMemory.hpp
     core/Group.hpp
     core/DataStore.hpp
     core/View.hpp
@@ -31,6 +32,7 @@ set(sidre_headers
 
 set(sidre_sources
     core/Buffer.cpp
+    core/ConduitMemory.cpp
     core/Group.cpp
     core/DataStore.cpp
     core/View.cpp
@@ -72,6 +74,7 @@ if (ENABLE_FORTRAN)
         interface/c_fortran/wrapGroup.cpp
         interface/c_fortran/wrapBuffer.cpp
         interface/c_fortran/wrapView.cpp
+        interface/c_fortran/utilSidre.cpp
         interface/c_fortran/wrapfsidre.F
     )
 
@@ -84,6 +87,7 @@ if (ENABLE_FORTRAN)
         list(APPEND sidre_sources
              spio/interface/c_fortran/wrapfspio.f
              spio/interface/c_fortran/wrapIOManager.cpp
+             spio/interface/c_fortran/utilSPIO.cpp
         )
     endif()
 endif()
@@ -131,6 +135,26 @@ axom_install_component(NAME    sidre
 if(ENABLE_FORTRAN AND AXOM_ENABLE_MPI)
     install(FILES ${CMAKE_Fortran_MODULE_DIRECTORY}/axom_spio.mod DESTINATION lib/fortran)
 endif()
+
+
+if(NANOBIND_FOUND)
+    nanobind_add_module(pysidre nanobind_sidre.cpp)
+    target_link_libraries(pysidre PRIVATE sidre)
+
+    # Use HIP executable linker flags for the python module
+    # (CMake treats modules separately from executables,
+    # executable flags not automatically applied)
+    if(AXOM_ENABLE_HIP)
+        # Make CMake compile the pysidre file with the HIP compiler.
+        set_source_files_properties(nanobind_sidre.cpp PROPERTIES LANGUAGE HIP)
+
+        string (REPLACE " " ";" MODULE_LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+        target_link_options(pysidre PRIVATE ${MODULE_LINK_FLAGS})
+    endif()
+
+    install(TARGETS pysidre LIBRARY DESTINATION lib)
+endif()
+
 
 #------------------------------------------------------------------------------
 # Add tests and examples

@@ -89,6 +89,38 @@ enum RuntimePolicy
   raja_hip = 4
 };
 
+template <>
+struct axom::fmt::formatter<RuntimePolicy> : axom::fmt::formatter<std::string>
+{
+  template <typename FormatContext>
+  auto format(const RuntimePolicy& policy, FormatContext& ctx) const
+  {
+    std::string name = "unknown";
+    switch(policy)
+    {
+    case seq:
+      name = "seq";
+      break;
+    case raja_seq:
+      name = "raja_seq";
+      break;
+    case raja_omp:
+      name = "raja_omp";
+      break;
+    case raja_cuda:
+      name = "raja_cuda";
+      break;
+    case raja_hip:
+      name = "raja_hip";
+      break;
+    default:
+      name = "unknown";
+      break;
+    }
+    return axom::fmt::formatter<std::string>::format(name, ctx);
+  }
+};
+
 struct Input
 {
   static const std::set<std::string> s_validMethods;

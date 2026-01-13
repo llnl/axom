@@ -79,12 +79,6 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   // This may take too long if there are repeated construction.
   m_bpGrp->createNativeLayout(m_bpNodeInt);
 
-#if defined(AXOM_DEBUG)
-  std::string whyBad;
-  bool goodMesh = verifyInputMesh(whyBad);
-  SLIC_ASSERT_MSG(goodMesh, whyBad);
-#endif
-
   m_cellCount = conduit::blueprint::mesh::topology::length(
     m_bpNodeInt.fetch_existing("topologies").fetch_existing(m_bpTopo));
 
@@ -113,8 +107,7 @@ Shaper::Shaper(RuntimePolicy execPolicy,
 {
   AXOM_ANNOTATE_SCOPE("Shaper::Shaper_Node");
   m_bpGrp = m_dataStore.getRoot()->createGroup("internalGrp");
-  m_bpGrp->setDefaultAllocator(m_allocatorId);
-
+  m_bpGrp->setDefaultArrayAllocator(m_allocatorId);
   m_bpGrp->importConduitTreeExternal(bpNode);
 
   // We want unstructured topo but can accomodate structured.
@@ -145,12 +138,6 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   }
 
   m_bpGrp->createNativeLayout(m_bpNodeInt);
-
-#if defined(AXOM_DEBUG)
-  std::string whyBad;
-  bool goodMesh = verifyInputMesh(whyBad);
-  SLIC_ASSERT_MSG(goodMesh, whyBad);
-#endif
 
   m_cellCount = conduit::blueprint::mesh::topology::length(
     bpNode.fetch_existing("topologies").fetch_existing(m_bpTopo));
@@ -215,9 +202,23 @@ void Shaper::setRefinementType(Shaper::RefinementType t) { m_refinementType = t;
 
 bool Shaper::isValidFormat(const std::string& format) const
 {
-  return (format == "stl" || format == "proe" || format == "c2c" || format == "blueprint-tets" ||
-          format == "tet3D" || format == "hex3D" || format == "plane3D" || format == "sphere3D" ||
-          format == "sor3D" || format == "none");
+  static const char* formats[] = {
+#if defined(AXOM_USE_MFEM)
+    "mfem",
+#endif
+    "stl",
+    "proe",
+    "c2c",
+    "blueprint-tets",
+    "tet3D",
+    "hex3D",
+    "plane3D",
+    "sphere3D",
+    "sor3D",
+    "none"};
+  constexpr auto numFormats = sizeof(formats) / sizeof(const char*);
+  const auto formats_end = formats + numFormats;
+  return std::find(formats, formats + numFormats, format) != formats_end;
 }
 
 void Shaper::loadShape(const klee::Shape& shape)

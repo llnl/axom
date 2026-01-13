@@ -7,6 +7,7 @@
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 #include "axom/slic.hpp"
 #include "axom/core/NumericLimits.hpp"
+#include "axom/core/utilities/FileUtilities.hpp"
 
 // gtest includes
 #include "gtest/gtest.h"
@@ -19,6 +20,7 @@
 // namespace aliases
 namespace mint = axom::mint;
 namespace quest = axom::quest;
+namespace fs = axom::utilities::filesystem;
 
 //------------------------------------------------------------------------------
 // HELPER METHODS
@@ -27,27 +29,27 @@ namespace
 {
 /*!
  * \brief Generates an STL file consisting of a single triangle on the XY plane
- * \param [in] file the name of the file to generate.
+ * \param [in] file the TempFile instance to write into
  * \pre file.empty() == false
  */
-void generate_stl_file(const std::string& file)
+void generate_stl_file(fs::TempFile& file)
 {
-  EXPECT_FALSE(file.empty());
+  EXPECT_FALSE(file.getPath().empty());
 
-  std::ofstream ofs(file.c_str());
-  EXPECT_TRUE(ofs.is_open());
+  file.open();
+  EXPECT_TRUE(file.is_open());
 
-  ofs << "solid triangle" << std::endl;
-  ofs << "\t facet normal 0.0 0.0 1.0" << std::endl;
-  ofs << "\t\t outer loop" << std::endl;
-  ofs << "\t\t\t vertex 0.0 0.0 0.0" << std::endl;
-  ofs << "\t\t\t vertex 1.0 0.0 0.0" << std::endl;
-  ofs << "\t\t\t vertex 0.0 1.0 0.0" << std::endl;
-  ofs << "\t\t endloop" << std::endl;
-  ofs << "\t endfacet" << std::endl;
-  ofs << "endsolid triangle" << std::endl;
+  file << "solid triangle" << std::endl;
+  file << "\t facet normal 0.0 0.0 1.0" << std::endl;
+  file << "\t\t outer loop" << std::endl;
+  file << "\t\t\t vertex 0.0 0.0 0.0" << std::endl;
+  file << "\t\t\t vertex 1.0 0.0 0.0" << std::endl;
+  file << "\t\t\t vertex 0.0 1.0 0.0" << std::endl;
+  file << "\t\t endloop" << std::endl;
+  file << "\t endfacet" << std::endl;
+  file << "endsolid triangle" << std::endl;
 
-  ofs.close();
+  file.close();
 }
 
 } /* end anonymous namespace */
@@ -58,10 +60,10 @@ void generate_stl_file(const std::string& file)
 TEST(quest_stl_reader_DeathTest, read_to_invalid_mesh)
 {
   const char* IGNORE_OUTPUT = ".*";
-  const std::string filename = "triangle.stl";
 
   // STEP 0: generate a temporary STL file for testing
-  generate_stl_file(filename);
+  fs::TempFile tempFile("triangle", ".stl");
+  generate_stl_file(tempFile);
 
   // STEP 1: constructs mesh object to read in the mesh to
   mint::UnstructuredMesh<mint::SINGLE_SHAPE> trimesh(2, mint::TRIANGLE);
@@ -69,7 +71,7 @@ TEST(quest_stl_reader_DeathTest, read_to_invalid_mesh)
 
   // STEP 2: read in the STL mesh data
   quest::STLReader reader;
-  reader.setFileName(filename);
+  reader.setFileName(tempFile.getPath());
   int status = reader.read();
   EXPECT_EQ(status, 0);
 
@@ -80,15 +82,12 @@ TEST(quest_stl_reader_DeathTest, read_to_invalid_mesh)
 
   // read the STL mesh data to a mint::Mesh that has a different cell type
   EXPECT_DEATH_IF_SUPPORTED(reader.getMesh(&hexmesh), IGNORE_OUTPUT);
-
-  // STEP 4: remove STL file
-  EXPECT_EQ(axom::utilities::filesystem::removeFile(filename), 0);
 }
 
 //------------------------------------------------------------------------------
 TEST(quest_stl_reader, read_missing_file)
 {
-  const std::string INVALID_FILE = "foo.stl";
+  const std::string INVALID_FILE = "nonexistent_file.stl";
   quest::STLReader reader;
   reader.setFileName(INVALID_FILE);
   int status = reader.read();
@@ -102,14 +101,13 @@ TEST(quest_stl_reader, read_stl)
   const double y_expected[] = {0.0, 0.0, 1.0};
   const double z_expected[] = {0.0, 0.0, 0.0};
 
-  const std::string filename = "triangle.stl";
-
   // STEP 0: generate a temporary STL file for testing
-  generate_stl_file(filename);
+  fs::TempFile testFile("triangle", ".stl");
+  generate_stl_file(testFile);
 
   // STEP 1: create an STL reader and read-in the mesh data
   quest::STLReader reader;
-  reader.setFileName(filename);
+  reader.setFileName(testFile.getPath());
   int status = reader.read();
   EXPECT_EQ(status, 0);
 
@@ -134,10 +132,7 @@ TEST(quest_stl_reader, read_stl)
     EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
     EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
     EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
-  }  // END for all nodes
-
-  // STEP 4: remove temporary STL file
-  axom::utilities::filesystem::removeFile(filename);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -155,14 +150,13 @@ TEST(quest_stl_reader, read_stl_external)
 
   axom::IndexType conn[] = {-1, -1, -1};
 
-  const std::string filename = "triangle.stl";
-
   // STEP 0: generate a temporary STL file for testing
-  generate_stl_file(filename);
+  fs::TempFile testFile("triangle", ".stl");
+  generate_stl_file(testFile);
 
   // STEP 1: create an STL reader and read-in the mesh data
   quest::STLReader reader;
-  reader.setFileName(filename);
+  reader.setFileName(testFile.getPath());
   int status = reader.read();
   EXPECT_EQ(status, 0);
 
@@ -186,10 +180,7 @@ TEST(quest_stl_reader, read_stl_external)
     EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
     EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
     EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
-  }  // END for all nodes
-
-  // STEP 4: remove temporary STL file
-  axom::utilities::filesystem::removeFile(filename);
+  }
 }
 
 //------------------------------------------------------------------------------

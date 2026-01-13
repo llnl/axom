@@ -45,7 +45,7 @@ if (“${PROJECT_SOURCE_DIR}” STREQUAL “${CMAKE_SOURCE_DIR}”)
     # Set some default BLT options before loading BLT only if not included in
     # another project
     if (NOT BLT_CXX_STD)
-        set(BLT_CXX_STD "c++14" CACHE STRING "")
+        set(BLT_CXX_STD "c++17" CACHE STRING "")
     endif()
 
     # These are not used in Axom, turn them off
@@ -77,7 +77,7 @@ if (“${PROJECT_SOURCE_DIR}” STREQUAL “${CMAKE_SOURCE_DIR}”)
         endif()
     endforeach()
 
-    set(BLT_REQUIRED_CLANGFORMAT_VERSION  "14" CACHE STRING "")
+    set(BLT_REQUIRED_CLANGFORMAT_VERSION  "19" CACHE STRING "")
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/.clang-tidy 
                    ${CMAKE_CURRENT_BINARY_DIR}/.clang-tidy
                    COPYONLY)
@@ -101,8 +101,9 @@ if (“${PROJECT_SOURCE_DIR}” STREQUAL “${CMAKE_SOURCE_DIR}”)
     set(BLT_EXPORT_THIRDPARTY OFF CACHE BOOL "" FORCE)
 endif()
 
-if("${BLT_CXX_STD}" STREQUAL "c++98" OR "${BLT_CXX_STD}" STREQUAL "c++11")
-    message(FATAL_ERROR "Axom requires BLT_CXX_STD to be 'c++14' or above.")
+if("${BLT_CXX_STD}" STREQUAL "c++98" OR "${BLT_CXX_STD}" STREQUAL "c++11"
+                                     OR "${BLT_CXX_STD}" STREQUAL "c++14" )
+    message(FATAL_ERROR "Axom requires BLT_CXX_STD to be 'c++17' or above.")
 endif()
 
 include(${BLT_SOURCE_DIR}/SetupBLT.cmake)
@@ -143,8 +144,8 @@ if(AXOM_ENABLE_TOOLS)
     add_subdirectory(tools)
 endif()
 
-# Using Axom install examples
-if (AXOM_ENABLE_EXAMPLES)
+# Installation examples ('Using Axom') and/or tutorials
+if (AXOM_ENABLE_EXAMPLES OR AXOM_ENABLE_TUTORIALS)
     add_subdirectory(examples)
 endif()
 

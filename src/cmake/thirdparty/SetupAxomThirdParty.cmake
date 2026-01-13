@@ -57,6 +57,44 @@ if (UMPIRE_DIR)
     set(UMPIRE_FOUND TRUE)
 
     blt_convert_to_system_includes(TARGET umpire)
+
+    # Check whether the Umpire defines symbols for shared memory
+    blt_check_code_compiles(CODE_COMPILES UMPIRE_SHARED_MEMORY
+                            VERBOSE_OUTPUT OFF
+                            DEPENDS_ON umpire
+                            SOURCE_STRING [=[
+        #include <umpire/config.hpp>
+        #if defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY)
+        int main() { return 0; }
+        #else
+        #error Macros not defined
+        #endif
+        ]=])
+
+    if (AXOM_ENABLE_MPI AND UMPIRE_SHARED_MEMORY)
+        set(AXOM_USE_UMPIRE_SHARED_MEMORY TRUE)
+        message(STATUS "  Umpire supports shared memory")
+
+        # If it looks like Umpire supports shared memory
+        # (try to) print out the default type of shared memory from its config file
+        set(UMPIRE_CONFIG_HPP "${UMPIRE_DIR}/include/umpire/config.hpp")
+        if(EXISTS "${UMPIRE_CONFIG_HPP}")
+            file(READ "${UMPIRE_CONFIG_HPP}" UMPIRE_CONFIG_HPP_CONTENTS)
+            # Try to match: #define UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE <value>
+            string(REGEX MATCH "#define[ \t]+UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE[ \t]+([^\n\r ]+)" UMPIRE_MACRO_LINE "${UMPIRE_CONFIG_HPP_CONTENTS}")
+            if(UMPIRE_MACRO_LINE)
+                # Extract just the value (the first capture group)
+                string(REGEX REPLACE ".*#define[ \t]+UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE[ \t]+\"([^\"]*)\".*" "\\1" UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE "${UMPIRE_MACRO_LINE}")
+                message(STATUS "  UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE: ${UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE}")
+            else()
+                message(STATUS "  UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE is not defined in ${UMPIRE_CONFIG_HPP}")
+            endif()
+        endif()
+    else()
+        set(AXOM_USE_UMPIRE_SHARED_MEMORY FALSE)
+        message(STATUS "  Umpire does not support shared memory")
+    endif()
+
 else()
     message(STATUS "Umpire support is OFF")
     set(UMPIRE_FOUND FALSE)
@@ -250,6 +288,62 @@ if(EXISTS ${SHROUD_EXECUTABLE})
     include(${CMAKE_CURRENT_BINARY_DIR}/SetupShroud.cmake)
 else()
     message(STATUS "Shroud support is OFF")
+endif()
+
+
+#------------------------------------------------------------------------------
+# Nanobind - Generates Python bindings
+#------------------------------------------------------------------------------
+if(EXISTS ${Python_EXECUTABLE})
+    # Get the right CMake component for Python
+    if (CMAKE_VERSION VERSION_LESS 3.18)
+      set(DEV_MODULE Development)
+    else()
+      set(DEV_MODULE Development.Module)
+    endif()
+
+    find_package(Python 3.8 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
+
+    # Debug print the paths to the found Python artifacts
+    message(STATUS "Python version: ${Python_VERSION}")
+    message(STATUS "Python executable: ${Python_EXECUTABLE}")
+    message(STATUS "Python include dir: ${Python_INCLUDE_DIRS}")
+    message(STATUS "Python library: ${Python_LIBRARIES}")
+
+    # Check for nanobind package
+    execute_process(
+        COMMAND "${Python_EXECUTABLE}" -c "import nanobind"
+        RESULT_VARIABLE NANOBIND_IMPORT_CODE
+        OUTPUT_QUIET
+    )
+
+    # Get nanobind root directory
+    if(NANOBIND_IMPORT_CODE EQUAL 0)
+        execute_process(
+          COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+          OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+    endif()
+endif()
+
+# "cannot allocate memory in static TLS block" on blueos with cuda and/or clang.
+# Also disable when sanitizers are enabled, requires environment variable manipulation:
+# https://stackoverflow.com/questions/55692357/address-sanitizer-on-a-python-extension
+if(nanobind_ROOT
+   AND NOT AXOM_ENABLE_CUDA
+   AND NOT AXOM_ENABLE_ASAN
+   AND NOT AXOM_ENABLE_UBSAN
+   AND
+   ((NOT "$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9")
+   OR
+   ("$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9"
+   AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")))
+
+    axom_assert_is_directory(DIR_VARIABLE nanobind_ROOT)
+    find_package(nanobind CONFIG REQUIRED)
+    message(STATUS "Nanobind support is ON")
+    set(NANOBIND_FOUND TRUE)
+else()
+    message(STATUS "Nanobind support is OFF")
 endif()
 
 

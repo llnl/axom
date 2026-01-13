@@ -92,6 +92,25 @@ public:
   using FileSet = std::unordered_set<File, FileHashByURI, FileEqualByURI>;
 
   /**
+    * An enum member representing the default ordering of Curves within CurveSets.
+    */
+  static CurveSet::CurveOrder defaultCurveOrder;
+
+  /**    
+   * \brief Set the default curve order for all Records.
+   * 
+   * \param order the new default curve order
+  */
+  void setDefaultCurveOrder(CurveSet::CurveOrder order);
+
+  /**
+   * \brief Get the effective default curve order for this Record.
+   * 
+   * \return the instance default if set, otherwise the global default
+   */
+  CurveSet::CurveOrder getDefaultCurveOrder() const;
+
+  /**
      * \brief Construct a new Record.
      *
      * \param id the ID of the record
@@ -101,6 +120,9 @@ public:
 
   /**
      * \brief Construct a Record from its conduit Node representation.
+     *
+     * For the purpose of the order in which curves are written, Nodes are
+     * assumed to be ordered OLDEST FIRST. This should be consistent within codes.
      *
      * \param asNode the Record as a Node
      */
@@ -155,9 +177,17 @@ public:
   /**
      * \brief Convert this record to its conduit Node representation.
      *
+     * \param curveOrder Optionally, specify an order that CurveSets should be written in. Options
+     *                   are enumerated in CurveSets; REGISTRATION_OLDEST_FIRST is "ULTRA style".
+     *
      * \return the Node representation of this record.
      */
-  conduit::Node toNode() const override;
+  conduit::Node toNode(CurveSet::CurveOrder curveOrder) const override;
+
+  /**
+   * \brief Convert using this record's default curve order.
+   */
+  conduit::Node toNode() const;
 
   /**
     * \brief Add another record to this one as library data.
@@ -165,6 +195,8 @@ public:
     * Useful for libraries that can run in standalone mode; the host
     * simply calls this method on the record the library produces.
     * Merges file lists.
+    *
+    * \param name The host code's name for the library
     */
   void addRecordAsLibraryData(Record const &childRecord, std::string const &name);
 
@@ -172,6 +204,8 @@ private:
   internal::IDField id;
   std::string type;
   FileSet files;
+  bool hasInstanceDefault = false;
+  CurveSet::CurveOrder instanceDefaultCurveOrder = sinaDefaultCurveOrder;  // Per-record default
 };
 
 /**
