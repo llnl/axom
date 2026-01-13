@@ -13,11 +13,13 @@
 
 set(gtest_bump_tests
     bump_clipfield.cpp
+    bump_cutfield.cpp
     bump_coordset_extents.cpp
     bump_make_polyhedral_topology.cpp
     bump_mergemeshes.cpp
     bump_mesh_operations.cpp
     bump_node_to_zone_relation.cpp
+    bump_planeslice.cpp
     bump_slicers.cpp
     bump_topology_mapper.cpp
     bump_utilities.cpp
@@ -41,7 +43,7 @@ foreach(test ${gtest_bump_tests})
                          DEPENDS_ON ${bump_tests_depends_on}
                          FOLDER axom/bump/tests )
 
-    blt_add_test( NAME ${test_name}
-                  COMMAND ${test_name}_test )
+    axom_add_test( NAME ${test_name}
+                   COMMAND ${test_name}_test )
 endforeach()
 

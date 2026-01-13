@@ -68,7 +68,7 @@ installs an allocation routine in Conduit that can be used to allocate data thro
 Axom. The Conduit allocator is set on each ``conduit::Node`` before setting data into
 the object.
 
-.. literalinclude:: ../../clipping/ClipField.hpp
+.. literalinclude:: ../../extraction/TableBasedExtractor.hpp
    :start-after: _bump_utilities_c2a_begin
    :end-before: _bump_utilities_c2a_end
    :language: C++
@@ -77,7 +77,7 @@ the object.
 ClipField
 ##########
 
-The ``axom::bump::clipping::ClipField`` class intersects all the zones in the input Blueprint
+The ``axom::bump::extraction::ClipField`` class intersects all the zones in the input Blueprint
 mesh with an implicit surface where the selected input field equals zero and produces a new
 Blueprint mesh based on the selected zone fragments produced by the intersection. This can be thought
 of as an isosurface algorithm but with a volumetric output mesh where the mesh is either inside or
@@ -105,7 +105,7 @@ and summing them together to produce the new point for the output coordset. Clas
 ``ClipField`` use ``CoordsetBlender`` to make new coordsets that contain points that were a
 combination of multiple points in the input coordset.
 
-.. literalinclude:: ../../clipping/ClipField.hpp
+.. literalinclude:: ../../extraction/TableBasedExtractor.hpp
    :start-after: _bump_utilities_coordsetblender_begin
    :end-before: _bump_utilities_coordsetblender_end
    :language: C++
@@ -122,6 +122,25 @@ in a coordset, or repeat nodes in a coordset.
 .. literalinclude:: ../../ExtractZones.hpp
    :start-after: _bump_utilities_coordsetslicer_begin
    :end-before: _bump_utilities_coordsetslicer_end
+   :language: C++
+
+##########
+CutField
+##########
+
+The ``axom::bump::extraction::CutField`` class intersects all the zones in the input Blueprint
+mesh with an implicit surface where the selected input field equals zero. This is an isosurface
+algorithm, though it could be used with other intersection policies. The default algorithm
+produces a new Blueprint mesh containing topologically 2D or 1D zone fragments, based on the 
+input mesh's dimension. The ``CutField`` class has multiple template arguments to
+select the execution space, the type of topology view, the type of coordset view, and the
+type of intersector used to determine intersections. The default intersection uses an isosurface-
+based intersection method, though other intersectors could be created to perform plane
+or sphere intersections.
+
+.. literalinclude:: ../../tests/bump_cutfield.cpp
+   :start-after: _bump_utilities_cutfield_begin
+   :end-before: _bump_utilities_cutfield_end
    :language: C++
 
 ##################
@@ -316,6 +335,20 @@ relation is useful for recentering data from the zones to the nodes.
 .. literalinclude:: ../../tests/bump_node_to_zone_relation.cpp
    :start-after: _bump_utilities_n2zrel_begin
    :end-before: _bump_utilities_n2zrel_end
+   :language: C++
+
+###########
+PlaneSlice
+###########
+
+The ``axom::bump::extraction::PlaneSlice`` class slices input Blueprint geometry using
+a slice plane and produces a new Blueprint output mesh. This algorithm is a close cousin
+to ``axom::bump::extraction::CutField``, except that it uses a plane intersector that
+accepts "origin" and "normal" parameters to specify the slice plane.
+
+.. literalinclude:: ../../tests/bump_planeslice.cpp
+   :start-after: _bump_utilities_planeslice_begin
+   :end-before: _bump_utilities_planeslice_end
    :language: C++
 
 ###############

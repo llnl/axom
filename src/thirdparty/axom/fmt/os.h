@@ -408,7 +408,7 @@ class AXOM_FMT_API ostream final : private detail::buffer<char> {
  private:
   file file_;
 
-  void grow(size_t) override;
+  AXOM_FMT_CONSTEXPR20 void grow(size_t) override;
 
   ostream(cstring_view path, const detail::ostream_params& params)
       : file_(path, params.oflag) {

@@ -143,7 +143,8 @@ public:
   }
 
   /*!
-   * \brief Returns the algebraic volume of the cone
+   * \brief Returns the signed volume of the cone,
+   * which is negative if the length is negative.
    *
    * Volume is only defined when NDIMS == 3.
    */

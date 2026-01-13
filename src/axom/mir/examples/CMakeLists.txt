@@ -4,4 +4,5 @@
 # SPDX-License-Identifier: (BSD-3-Clause)
 
 add_subdirectory(concentric_circles)
+add_subdirectory(heavily_mixed)
 add_subdirectory(tutorial_simple)

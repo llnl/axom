@@ -15,6 +15,7 @@
 // C/C++ includes
 #include <cstring>
 #include <ostream>
+#include <type_traits>
 #include "axom/fmt.hpp"
 
 namespace axom
@@ -24,6 +25,24 @@ namespace primal
 // Forward declare the templated classes and operator functions
 template <typename T, int NDIMS>
 class Point;
+
+namespace detail
+{
+/// \name Type trait for Point class
+///@{
+template <typename T>
+struct is_point : std::false_type
+{ };
+
+template <typename T, int NDIMS>
+struct is_point<Point<T, NDIMS>> : std::true_type
+{ };
+
+template <typename T>
+constexpr bool is_point_v = is_point<T>::value;
+///@}
+
+}  // namespace detail
 
 /// \name Forward Declared Overloaded Operators
 ///@{

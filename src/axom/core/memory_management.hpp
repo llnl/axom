@@ -7,7 +7,7 @@
 #define AXOM_MEMORYMANAGEMENT_HPP_
 
 // Axom includes
-#include "axom/config.hpp"  // for AXOM compile-time definitions
+#include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 

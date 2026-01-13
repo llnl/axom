@@ -17,6 +17,7 @@ namespace bump
 {
 namespace views
 {
+
 /*!
  * \brief This class implements a view for Blueprint polyhedral topologies.
  */
@@ -85,13 +86,9 @@ public:
   /*!
    * \brief This struct provides data about Zone i's shape.
    */
-  struct PolyhedronShape
+  struct PolyhedronShape : public PolyhedronTraits
   {
     constexpr static IndexType MaximumNumberOfIds = 20 * 3;
-
-    AXOM_HOST_DEVICE constexpr static bool is_polyhedral() { return true; }
-    AXOM_HOST_DEVICE constexpr static int id() { return Polyhedron_ShapeID; }
-    AXOM_HOST_DEVICE constexpr static const char *name() { return "polyhedral"; }
 
     /// Constructor.
     AXOM_HOST_DEVICE PolyhedronShape(const PolyhedronData &obj, axom::IndexType zi)

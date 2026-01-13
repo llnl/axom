@@ -1251,6 +1251,11 @@ TEST_F(SamplingShaperTest2D, contour_and_mfem_2D)
 dimensions: 2
 
 shapes:
+# Background material
+- name: bg
+  material: luminiferous_ether
+  geometry:
+    format: none
 # shape in a square using mfem
 - name: square1
   material: square
@@ -1331,7 +1336,7 @@ Ordering: 1
   const std::string background_material = "luminiferous_ether";
   const std::string square_material = "square";
 
-  fs::TempFile contour_file(testname, ".mfem");
+  fs::TempFile contour_file(testname, ".mesh");
   contour_file.write(mfem_square_contour);
 
   fs::TempFile shape_file(testname, ".yaml");
@@ -2117,6 +2122,166 @@ piece = line(end=start)
       }
     }
   }
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SamplingShaperTest2D, loadShape_missing_c2c_file_aborts)
+{
+  // Tests Klee shape file referencing non-existant c2c file; should fail
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: missing_c2c
+  material: mat
+  geometry:
+    format: c2c
+    path: {}
+)";
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), "missing.contour"));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  EXPECT_TRUE(m_shapeSet);
+  EXPECT_TRUE(m_shaper);
+  EXPECT_FALSE(m_shapeSet->getShapes().empty());
+
+  const auto& shape = m_shapeSet->getShapes().front();
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->loadShape(shape), slic::SlicAbortException);
+}
+
+TEST_F(SamplingShaperTest2D, loadShape_missing_mfem_mesh_file_aborts)
+{
+  // Tests Klee shape file referencing non-existant mfem file; should fail
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: missing_mfem
+  material: mat
+  geometry:
+    format: mfem
+    path: {}
+)";
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), "missing.mesh"));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  EXPECT_TRUE(m_shapeSet);
+  EXPECT_TRUE(m_shaper);
+  EXPECT_FALSE(m_shapeSet->getShapes().empty());
+
+  const auto& shape = m_shapeSet->getShapes().front();
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->loadShape(shape), slic::SlicAbortException);
+}
+
+TEST_F(SamplingShaperTest2D, loadShape_missing_mfem_mesh_file_windingnumber_aborts)
+{
+  // Tests Klee shape file referencing non-existant mfem file; should fail
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: missing_mfem_wn
+  material: mat
+  geometry:
+    format: mfem
+    path: {}
+)";
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), "missing.mesh"));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  EXPECT_TRUE(m_shapeSet);
+  EXPECT_TRUE(m_shaper);
+  m_shaper->setSamplingMethod(quest::SamplingShaper::SamplingMethod::WindingNumber);
+  EXPECT_FALSE(m_shapeSet->getShapes().empty());
+
+  const auto& shape = m_shapeSet->getShapes().front();
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->loadShape(shape), slic::SlicAbortException);
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SamplingShaperTest3D, loadShape_missing_stl_file_aborts)
+{
+  // Tests Klee shape file referencing non-existant stl mesh; should fail
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 3
+
+shapes:
+- name: missing_stl
+  material: mat
+  geometry:
+    format: stl
+    path: {}
+)";
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), "missing.stl"));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  EXPECT_TRUE(m_shapeSet);
+  EXPECT_TRUE(m_shaper);
+  EXPECT_FALSE(m_shapeSet->getShapes().empty());
+
+  const auto& shape = m_shapeSet->getShapes().front();
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->loadShape(shape), slic::SlicAbortException);
+}
+
+TEST_F(SamplingShaperTest3D, loadShape_missing_proe_file_aborts)
+{
+  // Tests Klee shape file referencing non-existant pro-e file; should fail
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 3
+
+shapes:
+- name: missing_proe
+  material: mat
+  geometry:
+    format: proe
+    path: {}
+)";
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), "missing.proe"));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  EXPECT_TRUE(m_shapeSet);
+  EXPECT_TRUE(m_shaper);
+  EXPECT_FALSE(m_shapeSet->getShapes().empty());
+
+  const auto& shape = m_shapeSet->getShapes().front();
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->loadShape(shape), slic::SlicAbortException);
 }
 
 //-----------------------------------------------------------------------------

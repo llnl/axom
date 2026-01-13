@@ -29,7 +29,7 @@ RUN git clone --recursive --branch $branch --single-branch --depth 1 https://git
 # Build/install TPLs via spack and then remove the temporary build directory on success
 RUN cd axom_repo && python3 ./scripts/uberenv/uberenv.py --spack-env-file=./scripts/spack/configs/docker/ubuntu24/spack.yaml \
                                                          --project-json=.uberenv_config.json \
-                                                         --spec="+mfem+raja+umpire+profiling %clang_19" --prefix=/home/axom/axom_tpls -k \
+                                                         --spec="+mfem+raja+umpire+adiak+caliper %clang_19" --prefix=/home/axom/axom_tpls -k \
                  && rm -rf /home/axom/axom_tpls/build_stage /home/axom/axom_tpls/spack
 
 RUN mkdir -p /home/axom/export_hostconfig

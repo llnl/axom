@@ -999,8 +999,11 @@ public:
 
   /*!
    * \brief Deep copy View into the given conduit::Node.
+   * \param dst [in/out] Destination
+   * \param allocId [in] If not equal to INVALID_ALLOCATOR_ID,
+   *   use this allocator for the destination.
    */
-  void deepCopyToConduit(Node& dst) const;
+  void deepCopyToConduit(Node& dst, int allocId = INVALID_ALLOCATOR_ID) const;
 
   /*!
    * \brief Copy metadata of the View to the given Conduit node
@@ -1657,7 +1660,7 @@ private:
     else
     {
       axom::Array<axom::IndexType> shape(getNumDimensions());
-      getShape(shape.size(), shape.data());
+      getShape(static_cast<int>(shape.size()), shape.data());
       os << ' ' << getVoidPtr() << " # non-host " << typeid(T).name() << " array of (" << shape[0];
       for(axom::IndexType i = 1; i < shape.size(); ++i)
       {

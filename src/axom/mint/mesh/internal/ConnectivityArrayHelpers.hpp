@@ -11,6 +11,7 @@
 
 #include "axom/mint/config.hpp"
 #include "axom/mint/mesh/CellTypes.hpp"
+#include "axom/mint/utils/ArrayWrapper.hpp"
 
 #include "axom/slic/interface/slic.hpp"
 
@@ -47,9 +48,9 @@ namespace internal
  * \pre m_values != nullptr
  */
 inline CellType initializeFromGroup(sidre::Group* group,
-                                    std::unique_ptr<axom::Array<IndexType>>& m_values,
-                                    std::unique_ptr<axom::Array<IndexType>>& m_offsets,
-                                    std::unique_ptr<axom::Array<CellType>>& m_types)
+                                    detail::ArrayWrapper<IndexType>& m_values,
+                                    detail::ArrayWrapper<IndexType>& m_offsets,
+                                    detail::ArrayWrapper<CellType>& m_types)
 {
   SLIC_ERROR_IF(group == nullptr, "sidre::Group pointer must not be null.");
 
@@ -104,18 +105,18 @@ inline CellType initializeFromGroup(sidre::Group* group,
                                 << "does not have a child view 'connectivity'.");
 
   sidre::View* connec_view = elems_group->getView("connectivity");
-  m_values = std::make_unique<sidre::Array<IndexType>>(connec_view);
+  m_values = sidre::Array<IndexType>(connec_view);
 
   {
     SLIC_ERROR_IF(!elems_group->hasView("offsets"),
                   "sidre::Group " << group->getPathName() << " does not conform to mesh blueprint.");
 
     sidre::View* offsets_view = elems_group->getView("offsets");
-    m_offsets = std::make_unique<sidre::Array<IndexType>>(offsets_view);
+    m_offsets = sidre::Array<IndexType>(offsets_view);
 
-    if(m_offsets->size() == 0)
+    if(m_offsets.size() == 0)
     {
-      m_offsets->push_back(0);
+      m_offsets.push_back(0);
     }
     SLIC_ERROR_IF((*m_offsets)[0] != 0,
                   "The offset of ID 0 must be 0 not " << (*m_offsets)[0] << ".");
@@ -126,7 +127,7 @@ inline CellType initializeFromGroup(sidre::Group* group,
                   "sidre::Group " << group->getPathName() << " does not conform to mesh blueprint.");
 
     sidre::View* elem_type_view = elems_group->getView("types");
-    m_types = std::make_unique<sidre::Array<CellType>>(elem_type_view);
+    m_types = sidre::Array<CellType>(elem_type_view);
   }
 
   return cell_type;
@@ -145,8 +146,7 @@ inline CellType initializeFromGroup(sidre::Group* group,
  * \pre group != nullptr
  * \pre m_values != nullptr
  */
-inline CellType initializeFromGroup(sidre::Group* group,
-                                    std::unique_ptr<axom::Array<IndexType, 2>>& m_values)
+inline CellType initializeFromGroup(sidre::Group* group, detail::ArrayWrapper<IndexType, 2>& m_values)
 {
   SLIC_ERROR_IF(group == nullptr, "sidre::Group pointer must not be null.");
 
@@ -201,7 +201,7 @@ inline CellType initializeFromGroup(sidre::Group* group,
                                 << "does not have a child view 'connectivity'.");
 
   sidre::View* connec_view = elems_group->getView("connectivity");
-  m_values = std::make_unique<sidre::MCArray<IndexType>>(connec_view);
+  m_values = sidre::MCArray<IndexType>(connec_view);
   return cell_type;
 }
 
@@ -308,23 +308,21 @@ inline IndexType getStride(const sidre::Group* group)
 inline void append(IndexType n_IDs,
                    const IndexType* values,
                    const IndexType* offsets,
-                   axom::Array<IndexType>* m_values,
-                   axom::Array<IndexType>* m_offsets)
+                   detail::ArrayWrapper<IndexType>& m_values,
+                   detail::ArrayWrapper<IndexType>& m_offsets)
 {
   SLIC_ASSERT(values != nullptr);
   SLIC_ASSERT(offsets != nullptr);
-  SLIC_ASSERT(m_values != nullptr);
-  SLIC_ASSERT(m_offsets != nullptr);
 
   IndexType n_values_to_add = offsets[n_IDs] - offsets[0];
-  IndexType old_n_values = m_values->size();
-  IndexType old_n_offsets = m_offsets->size();
+  IndexType old_n_values = m_values.size();
+  IndexType old_n_offsets = m_offsets.size();
 
-  m_offsets->insert(m_offsets->end(), n_IDs, offsets + 1);
-  m_values->insert(m_values->end(), n_values_to_add, values);
+  m_offsets.insert(m_offsets.size(), n_IDs, offsets + 1);
+  m_values.insert(m_values.size(), n_values_to_add, values);
 
   /* Correct the appended offsets. */
-  IndexType* m_offsets_ptr = m_offsets->data();
+  IndexType* m_offsets_ptr = m_offsets.data();
   const IndexType correction = old_n_values - offsets[0];
   for(IndexType i = 0; i < n_IDs; ++i)
   {
@@ -349,17 +347,16 @@ inline void append(IndexType n_IDs,
 inline void set(IndexType start_ID,
                 const IndexType* values,
                 IndexType n_IDs,
-                axom::Array<IndexType>* m_values,
-                axom::Array<IndexType>* m_offsets)
+                detail::ArrayWrapper<IndexType>& m_values,
+                detail::ArrayWrapper<IndexType>& m_offsets)
 {
   SLIC_ASSERT(start_ID >= 0);
-  SLIC_ASSERT(start_ID + n_IDs <= m_offsets->size() - 1);
+  SLIC_ASSERT(start_ID + n_IDs <= m_offsets.size() - 1);
   SLIC_ASSERT(values != nullptr);
-  SLIC_ASSERT(m_values != nullptr);
 
   IndexType offset = (*m_offsets)[start_ID];
   IndexType n_values = (*m_offsets)[start_ID + n_IDs] - offset;
-  m_values->set(values, n_values, offset);
+  m_values.set(values, n_values, offset);
 }
 
 /*!
@@ -387,33 +384,31 @@ inline void insert(IndexType start_ID,
                    IndexType n_IDs,
                    const IndexType* values,
                    const IndexType* offsets,
-                   axom::Array<IndexType>* m_values,
-                   axom::Array<IndexType>* m_offsets)
+                   detail::ArrayWrapper<IndexType>& m_values,
+                   detail::ArrayWrapper<IndexType>& m_offsets)
 {
   SLIC_ASSERT(start_ID >= 0);
-  SLIC_ASSERT(start_ID <= m_offsets->size() - 1);
+  SLIC_ASSERT(start_ID <= m_offsets.size() - 1);
   SLIC_ASSERT(n_IDs >= 0);
   SLIC_ASSERT(values != nullptr);
   SLIC_ASSERT(offsets != nullptr);
-  SLIC_ASSERT(m_values != nullptr);
-  SLIC_ASSERT(m_offsets != nullptr);
 
   IndexType n_values = offsets[n_IDs] - offsets[0];
-  IndexType* m_offsets_ptr = m_offsets->data();
+  IndexType* m_offsets_ptr = m_offsets.data();
   IndexType insert_pos = m_offsets_ptr[start_ID];
 
   /* Increment the offsets after the insertion position. */
-  IndexType n_offsets = m_offsets->size();
+  IndexType n_offsets = m_offsets.size();
   for(IndexType i = start_ID + 1; i < n_offsets; ++i)
   {
     m_offsets_ptr[i] += n_values;
   }
 
-  m_offsets->insert(start_ID + 1, n_IDs, offsets + 1);
-  m_values->insert(insert_pos, n_values, values);
+  m_offsets.insert(start_ID + 1, n_IDs, offsets + 1);
+  m_values.insert(insert_pos, n_values, values);
 
   /* Correct the inserted offsets. */
-  m_offsets_ptr = m_offsets->data();
+  m_offsets_ptr = m_offsets.data();
   const IndexType correction = insert_pos - offsets[0];
   for(IndexType i = 0; i < n_IDs; ++i)
   {

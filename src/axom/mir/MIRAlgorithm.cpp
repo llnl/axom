@@ -178,6 +178,13 @@ void MIRAlgorithm::saveMesh(const conduit::Node &n_mesh, const std::string &file
   conduit::Node n_mesh_host;
   axom::bump::utilities::copy<axom::SEQ_EXEC>(n_mesh_host, n_mesh);
 
+  // Check the mesh we're saving.
+  conduit::Node info;
+  if(!conduit::blueprint::mesh::verify(n_mesh_host, info))
+  {
+    printNode(n_mesh_host);
+  }
+
   conduit::relay::io::save(n_mesh_host, filebase + ".yaml", "yaml");
 #if defined(AXOM_USE_HDF5)
   conduit::relay::io::blueprint::save_mesh(n_mesh_host, filebase, "hdf5");

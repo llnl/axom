@@ -3086,10 +3086,9 @@ public:
     {
       for(int j = 0; j < num_knot_span_v - 1; ++j)
       {
-        split_patches[i * num_knot_span_v + j].split_v(
-          knot_vals_v[i + 1],
-          split_patches[i * num_knot_span_v + j],
-          split_patches[(i + 1) * num_knot_span_v + j + 1]);
+        split_patches[i * num_knot_span_v + j].split_v(knot_vals_v[j + 1],
+                                                       split_patches[i * num_knot_span_v + j],
+                                                       split_patches[i * num_knot_span_v + j + 1]);
       }
     }
 
@@ -3112,25 +3111,16 @@ public:
   {
     SLIC_ASSERT(NDIMS == 3);
 
-    // Split the patch along the unique knot values to improve convergence
-    auto split_patches = extractTrimmedBezier();
-
     VectorType ret_vec;
-    for(int n = 0; n < split_patches.size(); ++n)
+
+    // Split the patch along the unique knot values to improve convergence
+    for(const auto& nPatch : extractTrimmedBezier())
     {
-      // Integrand for the surface area integral
-      auto& nPatch = split_patches[n];
-
-      for(int N = 0; N < 3; ++N)
-      {
-        auto avg_surface_normal_integrand = [&nPatch, &N](Point2D x) -> double {
-          return nPatch.normal(x[0], x[1])[N];
-        };
-
-        // Find the area of the resulting projection
-        ret_vec[N] +=
-          evaluate_area_integral(nPatch.getTrimmingCurves(), avg_surface_normal_integrand, npts);
-      }
+      // Integrate the surface normal over the patches
+      ret_vec += evaluate_area_integral(
+        nPatch.getTrimmingCurves(),
+        [&nPatch](Point2D x) -> Vector<T, 3> { return nPatch.normal(x[0], x[1]); },
+        npts);
     }
 
     return ret_vec;
@@ -3398,11 +3388,9 @@ public:
         const double sq_tol = 1e-14;
         const double EPS = 1e-6;
 
-        // Extract the Bezier curves of the NURBS curve
-        auto beziers = curve.extractBezier();
+        // Extract the Bezier curves of the NURBS curve, checking each for intersection
         axom::Array<T> knot_vals = curve.getKnots().getUniqueKnots();
-
-        // Check each Bezier segment for intersection
+        const auto beziers = curve.extractBezier();
         for(int i = 0; i < beziers.size(); ++i)
         {
           axom::Array<T> temp_curve_p;
@@ -3850,11 +3838,9 @@ private:
         const double sq_tol = 1e-14;
         const double EPS = 1e-6;
 
-        // Extract the Bezier curves of the NURBS curve
-        auto beziers = curve.extractBezier();
+        // Extract the Bezier curves of the NURBS curve, and check each for intersection
         axom::Array<T> knot_vals = curve.getKnots().getUniqueKnots();
-
-        // Check each Bezier segment for intersection
+        const auto beziers = curve.extractBezier();
         for(int i = 0; i < beziers.size(); ++i)
         {
           axom::Array<T> temp_curve_p;

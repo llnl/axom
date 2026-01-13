@@ -725,26 +725,27 @@ private:
     }
 
     // Add fields to the triangle mesh
-    int numTris = tris.size();
-
-    // Index of each triangle within the mesh
-    axom::IndexType* triIdx = addIntField(debugMesh, "triangle_index");
-
-    // Indices of the three boundary vertices of this triangle
-    axom::IndexType* vertIdx[DIM];
-    vertIdx[0] = addIntField(debugMesh, "vertex_index_0");
-    vertIdx[1] = addIntField(debugMesh, "vertex_index_1");
-    vertIdx[2] = addIntField(debugMesh, "vertex_index_2");
-
-    for(int i = 0; i < numTris; ++i)
     {
-      CellIndex tIdx = tris[i];
-      triIdx[i] = tIdx;
+      // Index of each triangle within the mesh
+      axom::IndexType* triIdx = addIntField(debugMesh, "triangle_index");
 
-      CellVertIndices tv = m_octree.m_meshWrapper.cellVertexIndices(tIdx);
-      vertIdx[0][i] = tv[0];
-      vertIdx[1][i] = tv[1];
-      vertIdx[2][i] = tv[2];
+      // Indices of the three boundary vertices of this triangle
+      axom::IndexType* vertIdx[DIM];
+      vertIdx[0] = addIntField(debugMesh, "vertex_index_0");
+      vertIdx[1] = addIntField(debugMesh, "vertex_index_1");
+      vertIdx[2] = addIntField(debugMesh, "vertex_index_2");
+
+      const int numTris = static_cast<int>(tris.size());
+      for(int i = 0; i < numTris; ++i)
+      {
+        CellIndex tIdx = tris[i];
+        triIdx[i] = tIdx;
+
+        CellVertIndices tv = m_octree.m_meshWrapper.cellVertexIndices(tIdx);
+        vertIdx[0][i] = tv[0];
+        vertIdx[1][i] = tv[1];
+        vertIdx[2][i] = tv[2];
+      }
     }
 
     // other possible fields on triangles

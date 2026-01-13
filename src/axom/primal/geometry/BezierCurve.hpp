@@ -59,6 +59,7 @@ template <typename T, int NDIMS>
 class BezierCurve
 {
 public:
+  using NumericType = T;
   using PointType = Point<T, NDIMS>;
   using VectorType = Vector<T, NDIMS>;
   using SegmentType = Segment<T, NDIMS>;
