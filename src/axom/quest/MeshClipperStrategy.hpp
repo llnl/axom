@@ -161,7 +161,7 @@ public:
    * The output labels are used in optimizing the clipping algorithm.
    * Subclasses should implement this if it's cost-effective, and
    * skip if it's not.  It's safe to label cells as on the boundary if
-   * it can't be positively determined as inside or outside.
+   * it can't be efficiently determined as inside or outside.
    *
    * @return Whether the operation was done.  (A false means
    * not done.)
@@ -187,6 +187,8 @@ public:
    * @param [in] cellIds Indices of cells whose constituent
    *   tets should be labeled.
    * @param [out] tetLabels Output
+   *
+   * See also comments in labelCellsInOut().
    *
    * Indices [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX) in \c tetLabels
    * correspond to parent cell index \c c = \c cellIds[i].

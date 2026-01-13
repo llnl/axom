@@ -8,7 +8,7 @@
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/MeshClipperStrategy.hpp"
-#include "axom/quest/detail/clipping/FSorClipper.hpp"
+#include "axom/quest/detail/clipping/MonotonicZSORClipper.hpp"
 #include "axom/primal/geometry/CoordinateTransformer.hpp"
 
 namespace axom
@@ -24,12 +24,12 @@ namespace experimental
  *
  * This implementation allows the SOR function to have non-monotonic
  * z in the r(z) curve.  For SOR curves that don't, the less complex
- * FSorClipper is sufficient.
+ * MonotonicZSORClipper is sufficient.
  *
  * The SOR specification may include rotation and translation
  * internally, in addition to any external transformation.
 */
-class SorClipper : public MeshClipperStrategy
+class SORClipper : public MeshClipperStrategy
 {
 public:
   /*!
@@ -39,9 +39,9 @@ public:
    *   into the mesh.
    * @param [in] name To override the default strategy name
   */
-  SorClipper(const klee::Geometry& kGeom, const std::string& name = "");
+  SORClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
-  virtual ~SorClipper() = default;
+  virtual ~SORClipper() = default;
 
   const std::string& name() const override { return m_name; }
 
@@ -54,7 +54,7 @@ private:
 #endif
   std::string m_name;
 
-  axom::Array<std::shared_ptr<FSorClipper>> m_fsorImpls;
+  axom::Array<std::shared_ptr<MonotonicZSORClipper>> m_fsorImpls;
 
   /*!
    * @brief The discrete r(z) curve as an array of (z,r) coordinates.
@@ -96,7 +96,7 @@ private:
   void splitIntoMonotonicSections(axom::ArrayView<const Point2DType> pts,
                                   axom::Array<axom::Array<Point2DType>>& sections);
 
-  void initializeFSorClippers();
+  void initializeMonotonicZSORClippers();
 };
 
 }  // namespace experimental

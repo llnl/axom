@@ -501,10 +501,6 @@ int main(int argc, char** argv)
                         axom::fmt::join(errs, "\n")));
 
     finalizeLogger();
-
-#ifdef AXOM_USE_MPI
-    MPI_Finalize();
-#endif
     exit(1);
   }
 

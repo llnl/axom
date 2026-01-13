@@ -209,7 +209,7 @@ AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType HexClipper::polyhedronToL
 {
   /*
     If vertsBb and hexBb don't intersect, nothing intersects.
-    This check is not technically needed, because the thecks
+    This check is not technically needed, because the checks
     below can catch it, but it is fast and can avoid the more
     expensive surface triangle intersection checks below.
   */

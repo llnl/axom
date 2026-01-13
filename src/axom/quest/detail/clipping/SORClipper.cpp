@@ -6,7 +6,7 @@
 #include "axom/config.hpp"
 
 #include "axom/quest/Discretize.hpp"
-#include "axom/quest/detail/clipping/SorClipper.hpp"
+#include "axom/quest/detail/clipping/SORClipper.hpp"
 #include "axom/quest/MeshClipper.hpp"
 #include "axom/spin/BVH.hpp"
 #include "axom/fmt.hpp"
@@ -20,7 +20,7 @@ namespace quest
 namespace experimental
 {
 
-SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
+SORClipper::SORClipper(const klee::Geometry& kGeom, const std::string& name)
   : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Sor") : name)
   , m_maxRadius(0.0)
@@ -34,14 +34,14 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
     m_minRadius = fmin(m_minRadius, pt[1]);
   }
   SLIC_ERROR_IF(m_minRadius < 0.0,
-                axom::fmt::format("SorClipper '{}' has a negative radius", m_name));
+                axom::fmt::format("SORClipper '{}' has a negative radius", m_name));
 
   for(const auto& pt : m_sorCurve)
   {
     m_curveBb.addPoint(pt);
   }
 
-  FSorClipper::combineRadialSegments(m_sorCurve);
+  MonotonicZSORClipper::combineRadialSegments(m_sorCurve);
 
   axom::Array<axom::Array<Point2DType>> sections;
   splitIntoMonotonicSections(m_sorCurve.view(), sections);
@@ -49,16 +49,16 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
   {
     axom::ArrayView<const Point2DType> section = sections[i].view();
     std::string sectionName = axom::fmt::format("{}.section{:02d}", m_name, i);
-    m_fsorImpls.push_back(std::make_shared<FSorClipper>(kGeom,
-                                                        sectionName,
-                                                        section,
-                                                        m_sorOrigin,
-                                                        m_sorDirection,
-                                                        m_levelOfRefinement));
+    m_fsorImpls.push_back(std::make_shared<MonotonicZSORClipper>(kGeom,
+                                                                 sectionName,
+                                                                 section,
+                                                                 m_sorOrigin,
+                                                                 m_sorDirection,
+                                                                 m_levelOfRefinement));
   }
 }
 
-bool SorClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
+bool SORClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                       axom::ArrayView<double> ovlap,
                                       conduit::Node& statistics)
 {
@@ -70,10 +70,10 @@ bool SorClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
    * negative volume.)
    *
    * By convention, backward curves should generate negative volume,
-   * but for some reason, the cone discretization functionality always
-   * generates positive volumes.  We correct this by manually applying
-   * the correct sign.
-  */
+   * but the cone discretization functionality always generates
+   * positive volumes.  We correct this by manually applying the
+   * correct sign.
+   */
   const axom::IndexType cellCount = ovlap.size();
   axom::Array<double> tmpOvlap(cellCount, cellCount, ovlap.getAllocatorID());
   for(auto& fsorImpl : m_fsorImpls)
@@ -101,11 +101,11 @@ bool SorClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
  * This method assumes there are no consecutive radial segments
  * (combineRadialSegments has been called on pts).
 */
-void SorClipper::splitIntoMonotonicSections(axom::ArrayView<const Point2DType> pts,
+void SORClipper::splitIntoMonotonicSections(axom::ArrayView<const Point2DType> pts,
                                             axom::Array<axom::Array<Point2DType>>& sections)
 {
-  AXOM_ANNOTATE_SCOPE("SorClipper::splitIntoMonotonicSections");
-  axom::Array<axom::IndexType> splitIdx = FSorClipper::findZSwitchbacks(pts);
+  AXOM_ANNOTATE_SCOPE("SORClipper::splitIntoMonotonicSections");
+  axom::Array<axom::IndexType> splitIdx = MonotonicZSORClipper::findZSwitchbacks(pts);
 
   const axom::IndexType sectionCount = splitIdx.size() - 1;
   sections.clear();
@@ -131,7 +131,7 @@ void accumulateDataImpl(axom::ArrayView<double> a, axom::ArrayView<const double>
   axom::for_all<ExecSpace>(a.size(), AXOM_LAMBDA(axom::IndexType i) { a[i] += scale * b[i]; });
 }
 
-void SorClipper::accumulateData(axom::ArrayView<double> a,
+void SORClipper::accumulateData(axom::ArrayView<double> a,
                                 axom::ArrayView<const double> b,
                                 double scale,
                                 axom::runtime_policy::Policy runtimePolicy)
@@ -166,7 +166,7 @@ void SorClipper::accumulateData(axom::ArrayView<double> a,
   return;
 }
 
-void SorClipper::extractClipperInfo()
+void SORClipper::extractClipperInfo()
 {
   auto sorOriginArray = m_info.fetch_existing("sorOrigin").as_double_array();
   auto sorDirectionArray = m_info.fetch_existing("sorDirection").as_double_array();
@@ -182,7 +182,7 @@ void SorClipper::extractClipperInfo()
   SLIC_ERROR_IF(
     n % 2 != 0,
     axom::fmt::format(
-      "***SorClipper: Discrete function must have an even number of values.  It has {}.",
+      "***SORClipper: Discrete function must have an even number of values.  It has {}.",
       n));
 
   m_sorCurve.resize(axom::ArrayOptions::Uninitialized(), n / 2);
