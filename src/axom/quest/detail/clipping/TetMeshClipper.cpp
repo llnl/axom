@@ -659,9 +659,16 @@ void TetMeshClipper::extractClipperInfo()
   m_coordsetName = topoNode.fetch_existing("coordset").as_string();
 }
 
-bool TetMeshClipper::isValidTetMesh(const conduit::Node& tetMesh, std::string& whyBad) const
+bool TetMeshClipper::isValidTetMesh(conduit::Node& tetMesh, std::string& whyBad) const
 {
   bool rval = true;
+
+  if(tetMesh.has_child("fields") && tetMesh["fields"].number_of_children() == 0)
+  {
+    // Remove empty "fields" node:  Blueprint check will fail if "fields" is empty,
+    // but mint check will fail if there's no "fields" node.
+    tetMesh.remove_child("fields");
+  }
 
   conduit::Node info;
   rval = conduit::blueprint::mesh::verify(tetMesh, info);
