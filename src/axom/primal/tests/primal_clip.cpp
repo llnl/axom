@@ -42,6 +42,21 @@ using PlaneType = axom::primal::Plane<double, 3>;
 using PolyhedronType = axom::primal::Polyhedron<double, 3>;
 }  // namespace Primal3D
 
+/// Compare two polygons with a tolerance.
+template <typename PolygonType, typename T>
+bool polygonsEqual(const PolygonType &p1, const PolygonType &p2, T tol)
+{
+  bool eq = p1.numVertices() == p2.numVertices();
+  if(eq)
+  {
+    for(int i = 0; i < p1.numVertices() && eq; i++)
+    {
+      eq &= p1[i].isNearlyEqual(p2[i], tol);
+    }
+  }
+  return eq;
+}
+
 TEST(primal_clip, simple_clip)
 {
   using namespace Primal3D;
@@ -1814,7 +1829,7 @@ TEST(primal_clip, polygon_intersects_polygon)
     clipPolygon.addVertex(Point2D {0.0, 1.0});
 
     Polygon2D poly = axom::primal::clip(subjectPolygon, clipPolygon, EPS);
-
+    EXPECT_EQ(poly.isValid(), true);
     EXPECT_NEAR(poly.signedArea(), 0.25, EPS);
     EXPECT_EQ(poly.numVertices(), 3);
   }
@@ -1880,38 +1895,41 @@ TEST(primal_clip, polygon_intersects_polygon)
 
     Polygon2D poly = axom::primal::clip(subjectPolygon, clipPolygon, EPS);
     EXPECT_NEAR(poly.signedArea(), 37083.3333333333, EPS);
-    EXPECT_EQ(poly.numVertices(), 10);
+    EXPECT_EQ(poly.numVertices(), 11);
 
     // Check vertices
     EXPECT_NEAR(poly[0][0], 100, EPS);
-    EXPECT_NEAR(poly[0][1], 116.6666666666, EPS);
+    EXPECT_NEAR(poly[0][1], 200, EPS);
 
-    EXPECT_NEAR(poly[1][0], 125, EPS);
-    EXPECT_NEAR(poly[1][1], 100, EPS);
+    EXPECT_NEAR(poly[1][0], 100, EPS);
+    EXPECT_NEAR(poly[1][1], 116.6666666666, EPS);
 
-    EXPECT_NEAR(poly[2][0], 275, EPS);
+    EXPECT_NEAR(poly[2][0], 125, EPS);
     EXPECT_NEAR(poly[2][1], 100, EPS);
 
-    EXPECT_NEAR(poly[3][0], 300, EPS);
-    EXPECT_NEAR(poly[3][1], 116.6666666666, EPS);
+    EXPECT_NEAR(poly[3][0], 275, EPS);
+    EXPECT_NEAR(poly[3][1], 100, EPS);
 
     EXPECT_NEAR(poly[4][0], 300, EPS);
-    EXPECT_NEAR(poly[4][1], 300, EPS);
+    EXPECT_NEAR(poly[4][1], 116.6666666666, EPS);
 
-    EXPECT_NEAR(poly[5][0], 250, EPS);
+    EXPECT_NEAR(poly[5][0], 300, EPS);
     EXPECT_NEAR(poly[5][1], 300, EPS);
 
-    EXPECT_NEAR(poly[6][0], 200, EPS);
-    EXPECT_NEAR(poly[6][1], 250, EPS);
+    EXPECT_NEAR(poly[6][0], 250, EPS);
+    EXPECT_NEAR(poly[6][1], 300, EPS);
 
-    EXPECT_NEAR(poly[7][0], 175, EPS);
-    EXPECT_NEAR(poly[7][1], 300, EPS);
+    EXPECT_NEAR(poly[7][0], 200, EPS);
+    EXPECT_NEAR(poly[7][1], 250, EPS);
 
-    EXPECT_NEAR(poly[8][0], 125, EPS);
+    EXPECT_NEAR(poly[8][0], 175, EPS);
     EXPECT_NEAR(poly[8][1], 300, EPS);
 
-    EXPECT_NEAR(poly[9][0], 100, EPS);
-    EXPECT_NEAR(poly[9][1], 250, EPS);
+    EXPECT_NEAR(poly[9][0], 125, EPS);
+    EXPECT_NEAR(poly[9][1], 300, EPS);
+
+    EXPECT_NEAR(poly[10][0], 100, EPS);
+    EXPECT_NEAR(poly[10][1], 250, EPS);
   }
 
   /*
@@ -1944,13 +1962,13 @@ TEST(primal_clip, polygon_intersects_polygon)
 
     // Check vertices
     EXPECT_NEAR(poly[0][0], 0, EPS);
-    EXPECT_NEAR(poly[0][1], 1, EPS);
+    EXPECT_NEAR(poly[0][1], 0, EPS);
 
-    EXPECT_NEAR(poly[1][0], 0, EPS);
-    EXPECT_NEAR(poly[1][1], 0, EPS);
+    EXPECT_NEAR(poly[1][0], 0.3, EPS);
+    EXPECT_NEAR(poly[1][1], 0.3, EPS);
 
-    EXPECT_NEAR(poly[2][0], 0.3, EPS);
-    EXPECT_NEAR(poly[2][1], 0.3, EPS);
+    EXPECT_NEAR(poly[2][0], 0, EPS);
+    EXPECT_NEAR(poly[2][1], 1, EPS);
   }
 }
 
@@ -2096,11 +2114,82 @@ TEST(primal_clip, polygon_clip_regression)
   // Comparisons
   constexpr float EPS = 1.6e-5f;
   EXPECT_EQ(clippedShape.numVertices(), 4);
-  for(int i = 0; i < 4; i++)
+  EXPECT_TRUE(polygonsEqual(clippedShape, expectedPoly, EPS));
+}
+
+//------------------------------------------------------------------------------
+// These test cases were found by clipping actual data in Axom. Basically a clipping
+// plane passes through (or very close to) one of the polygon vertices.
+struct test_cases
+{
+  using FloatType = double;
+  using PlaneType = axom::primal::Plane<FloatType, 2>;
+  using VectorType = typename PlaneType::VectorType;
+  using PointType = typename PlaneType::PointType;
+  using PolygonType = axom::primal::Polygon<FloatType, 2>;
+
+  // This function contains a quad that has a really short side. The clipping plane
+  // went through the polygon very close to the upper left point. The clipping algorithm
+  // used to make an invalid (0,0) point where it added the point even though
+  // the plane did not "intersect" the side.
+  static bool clip(double eps)
   {
-    EXPECT_NEAR(clippedShape[i][0], expectedPoly[i][0], EPS);
-    EXPECT_NEAR(clippedShape[i][1], expectedPoly[i][1], EPS);
+    const auto normal = VectorType {-0.03955235934655436, -0.9992174992813733};
+    const FloatType offset = 0.09055408441368087;
+    const auto P = PlaneType(normal, offset, false);
+
+    PolygonType shape;
+    shape.addVertex(PointType {0.28, -0.1017083319161494});
+    shape.addVertex(PointType {0.28, -0.1019791654925216});
+    shape.addVertex(PointType {0.32, -0.1053541654925216});
+    shape.addVertex(PointType {0.32, -0.1024583319161494});
+
+    auto clippedShape = axom::primal::clip(shape, P, eps);
+
+    const PolygonType result5 {PointType {0.28000000204729441622, -0.10170833195453617137},
+                         PointType {0.28000000000000002665, -0.10170833191614940538},
+                         PointType {0.28000000000000002665, -0.10197916549252160345},
+                         PointType {0.32000000000000000666, -0.10535416549252160645},
+                         PointType {0.32000000000000000666, -0.10329166520683076558}};
+    return polygonsEqual(result5, clippedShape, eps);
   }
+
+  // This is a different polygon where clip made an invalid output polygon.
+  static bool clip2(double eps, int expectedVerts)
+  {
+    const auto normal = VectorType {0.9999820004859855116, 0.0059998920029159345801};
+    const FloatType offset = 0.46690205915894555933;
+    const auto P = PlaneType(normal, offset, false);
+
+    PolygonType shape;
+    shape.addVertex(PointType {0.46841046332037361566, -0.24999999999999977796});
+    shape.addVertex(PointType {0.4685774857907649138, -0.24999999999999977796});
+    shape.addVertex(PointType {0.46822188956348015365, -0.24640811891631614339});
+
+    auto clippedShape = axom::primal::clip(shape, P, eps);
+
+    const PolygonType result3{PointType{0.46841046332037361566,-0.24999999999999952816},
+                              PointType{0.4685774857907649138,-0.24999999999999977796},
+                              PointType{0.46839968767712247821,-0.24820405945815776638}};
+
+    const PolygonType result4{PointType{0.46841046332037361566,-0.24999999999999952816},
+                              PointType{0.46841046332037361566,-0.24999999999999977796},
+                              PointType{0.4685774857907649138,-0.24999999999999977796},
+                              PointType{0.46839968767712247821,-0.24820405945815776638}};
+
+    return expectedVerts == 3 ? polygonsEqual(clippedShape, result3, eps) : polygonsEqual(clippedShape, result4, eps);
+  }
+};
+
+TEST(primal_clip, polygon_plane_clipping_regressions)
+{
+  // Try different tolerances since the clipping algorithm is somewhat sensitive
+  // to it since it helps determine whether points are on the boundary.
+  EXPECT_TRUE(test_cases::clip(1.e-10));
+  EXPECT_TRUE(test_cases::clip(1.e-14));
+
+  EXPECT_TRUE(test_cases::clip2(1.e-14, 3));
+  EXPECT_TRUE(test_cases::clip2(std::numeric_limits<double>::epsilon(), 4));
 }
 
 //------------------------------------------------------------------------------
