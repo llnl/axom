@@ -115,19 +115,17 @@ bool TetMeshClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
 
 /*
  * - Put surface triangles in BVH.
- * - Create a bounding box and a ray for every hex.  The ray
+ * - Create a bounding box and a ray for every mesh hex.  The ray
  *   originates from the bounding box center and points away from
  *   the center of m_tetMeshBb.
  * - Use BVH::findBoundingBoxes and BVH::findRay to get surface
- *   triangles near the bounding boxes and rays.  We won't need
- *   both for most of the hexes, but it may be faster than building
- *   index lists of where we need them.
+ *   triangles near the bounding boxes and rays.
  * - Loop through the hexes.
- *   - If hex bb intersects any surface triangle bb, hex is ON.
- *   - Else, the hex is either IN or OUT.  It can't possibly by ON.
- *     Count number of surface triangles the hex's ray intersects.
- *     Use bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray)
- *     If count is odd, hex is IN, if even, OUT.
+ *   - If hex bb is near any surface triangle bb, label the hex ON.
+ *   - Else, the hex is either IN or OUT.  It can't possibly be ON.
+ *     Count number of surface triangles that the hex's ray intersects,
+ *     @see intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray)
+ *     If the count is odd, hex is IN, if even, OUT.
  */
 template <typename ExecSpace>
 void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
@@ -141,28 +139,14 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
   computeSurfaceTrianglesAndBVH<ExecSpace>(allocId, surfTris, bvh);
   auto surfTrisView = surfTris.view();
 
-  /*
-    Compute rays.  Each ray originates from its hex center and point
-    away from the center of the tet mesh.
-  */
-  AXOM_ANNOTATE_BEGIN("TetMeshClipper::make_rays");
-  Point3DType geomCenter = m_tetMeshBb.getCentroid();  // Estimate of tet mesh center.
-  axom::ArrayView<const BoundingBox3DType> hexBbs = shapeMesh.getCellBoundingBoxes();
-  axom::ArrayView<const HexahedronType> hexes = shapeMesh.getCellsAsHexes();
-  axom::Array<Ray3DType> hexRays(hexes.size(), 0, allocId);
+  axom::Array<Ray3DType> hexRays;
+  computeHexRays<ExecSpace>(shapeMesh, hexRays);
   auto hexRaysView = hexRays.view();
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType cellIdx) {
-      Point3DType hexCenter = hexBbs[cellIdx].getCentroid();
-      Vector3DType direction(geomCenter, hexCenter);
-      hexRaysView[cellIdx] = Ray3DType(hexCenter, direction);
-    });
-  AXOM_ANNOTATE_END("TetMeshClipper::make_rays");
 
   /*
    * Find candidate surface triangles near the cells' bounding boxes and rays.
   */
+  axom::ArrayView<const BoundingBox3DType> hexBbs = shapeMesh.getCellBoundingBoxes();
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::get_surf_near_bbs");
   axom::Array<IndexType> bbOffsets(cellCount, 0, allocId);
   axom::Array<IndexType> bbCounts(cellCount, 0, allocId);
@@ -258,19 +242,17 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
 
 /*
  * - Put surface triangles in BVH.
- * - Create a bounding box and a ray for every tet.  The ray
+ * - Create a bounding box and a ray for every mesh tet.  The ray
  *   originates from the bounding box center and points away from
  *   the center of m_tetMeshBb.
  * - Use BVH::findBoundingBoxes and BVH::findRay to get surface
- *   triangles near the bounding boxes and rays.  We won't need
- *   both for most of the tets, but it may be faster than building
- *   index lists of where we need them.
+ *   triangles near the bounding boxes and rays.
  * - Loop through the tets.
- *   - If tet bb intersects any surface triangle bb, hex is ON.
- *   - Else, the tet is either IN or OUT.  It can't possibly by ON.
- *     Count number of surface triangles the tet's ray intersects.
- *     Use bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray)
- *     If count is odd, tet is IN, if even, OUT.
+ *   - If tet bb is near any surface triangle bb, label the tet ON.
+ *   - Else, the tet is either IN or OUT.  It can't possibly be ON.
+ *     Count number of surface triangles that the tet's ray intersects,
+ *     @see intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray)
+ *     If the count is odd, tet is IN, if even, OUT.
  */
 template <typename ExecSpace>
 void TetMeshClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
@@ -281,7 +263,6 @@ void TetMeshClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
   auto cellCount = cellIds.size();
   auto tetCount = cellCount * NUM_TETS_PER_HEX;
 
-  const auto meshTets = shapeMesh.getCellsAsTets();
   auto tetVolumes = shapeMesh.getTetVolumes();
 
   // Copy m_tetMesh array data to allocId if it's not done yet.
@@ -292,34 +273,11 @@ void TetMeshClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
   computeSurfaceTrianglesAndBVH<ExecSpace>(allocId, surfTris, bvh);
   auto surfTrisView = surfTris.view();
 
-  /*
-    Compute rays.  Each ray originates from its hex center and point
-    away from the center of the tet mesh.
-  */
-  AXOM_ANNOTATE_BEGIN("TetMeshClipper::make_rays");
-  Point3DType geomCenter = m_tetMeshBb.getCentroid();  // Estimate of tet mesh center.
-  axom::Array<BoundingBox3DType> tetBbs(axom::ArrayOptions::Uninitialized(),
-                                        tetCount,
-                                        tetCount,
-                                        allocId);
-  auto tetBbsView = tetBbs.view();
-  axom::Array<Ray3DType> tetRays(axom::ArrayOptions::Uninitialized(), tetCount, tetCount, allocId);
+  axom::Array<BoundingBox3DType> tetBbs;
+  axom::Array<Ray3DType> tetRays;
+  computeTetRays<ExecSpace>(shapeMesh, cellIds, tetRays, tetBbs);
   auto tetRaysView = tetRays.view();
-  axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType ci) {
-      auto cellId = cellIds[ci];
-      auto* tetsForCell = &meshTets[cellId * NUM_TETS_PER_HEX];
-      for(int ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
-      {
-        const auto& tet = tetsForCell[ti];
-        Point3DType tetCenter((tet[0].array() + tet[1].array() + tet[2].array()) / 3);
-        Vector3DType direction(geomCenter, tetCenter);
-        tetRaysView[ci * NUM_TETS_PER_HEX + ti] = Ray3DType(tetCenter, direction);
-        tetBbsView[ci * NUM_TETS_PER_HEX + ti] = BoundingBox3DType {tet[0], tet[1], tet[2]};
-      }
-    });
-  AXOM_ANNOTATE_END("TetMeshClipper::make_rays");
+  auto tetBbsView = tetBbs.view();
 
   /*
    * Find candidate surface triangles near the tets' bounding boxes and rays.
@@ -424,6 +382,73 @@ void TetMeshClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
       }
     });
   AXOM_ANNOTATE_END("TetMeshClipper::compute_labels");
+}
+
+template <typename ExecSpace>
+void TetMeshClipper::computeHexRays(
+  quest::experimental::ShapeMesh& shapeMesh,
+  axom::Array<Ray3DType>& hexRays)
+{
+  AXOM_ANNOTATE_SCOPE("TetMeshClipper::computeHexRays");
+  /*
+   * Each ray originates from a hex center and point
+   * away from the center of the tet mesh.
+   */
+  Point3DType geomCenter = m_tetMeshBb.getCentroid();  // Estimate of tet mesh center.
+  axom::ArrayView<const BoundingBox3DType> hexBbs = shapeMesh.getCellBoundingBoxes();
+  auto cellCount = shapeMesh.getCellCount();
+  hexRays = axom::Array<Ray3DType>(cellCount, 0, shapeMesh.getAllocatorID());
+  auto hexRaysView = hexRays.view();
+  axom::for_all<ExecSpace>(
+    cellCount,
+    AXOM_LAMBDA(axom::IndexType cellIdx) {
+      Point3DType hexCenter = hexBbs[cellIdx].getCentroid();
+      Vector3DType direction(geomCenter, hexCenter);
+      hexRaysView[cellIdx] = Ray3DType(hexCenter, direction);
+    });
+}
+
+template <typename ExecSpace>
+void TetMeshClipper::computeTetRays(quest::experimental::ShapeMesh& shapeMesh,
+                                    axom::ArrayView<const axom::IndexType> cellIds,
+                                    axom::Array<Ray3DType>& tetRays,
+                                    axom::Array<BoundingBox3DType>& tetBbs)
+{
+  AXOM_ANNOTATE_SCOPE("TetMeshClipper::computeTetRays");
+  int allocId = shapeMesh.getAllocatorID();
+  auto cellCount = cellIds.size();
+  auto tetCount = cellCount * NUM_TETS_PER_HEX;
+
+  /*
+   * Each ray originates from a tet center and point
+   * away from the center of the tet mesh.
+   */
+  Point3DType geomCenter = m_tetMeshBb.getCentroid();  // Estimate of tet mesh center.
+  tetBbs = axom::Array<BoundingBox3DType>(axom::ArrayOptions::Uninitialized(),
+                                          tetCount,
+                                          0,
+                                          allocId);
+  auto tetBbsView = tetBbs.view();
+  tetRays = axom::Array<Ray3DType>(axom::ArrayOptions::Uninitialized(),
+                                   tetCount,
+                                   0,
+                                   allocId);
+  auto tetRaysView = tetRays.view();
+  const auto meshTets = shapeMesh.getCellsAsTets();
+  axom::for_all<ExecSpace>(
+    cellCount,
+    AXOM_LAMBDA(axom::IndexType ci) {
+      auto cellId = cellIds[ci];
+      auto* tetsForCell = &meshTets[cellId * NUM_TETS_PER_HEX];
+      for(int ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+      {
+        const auto& tet = tetsForCell[ti];
+        Point3DType tetCenter((tet[0].array() + tet[1].array() + tet[2].array()) / 3);
+        Vector3DType direction(geomCenter, tetCenter);
+        tetRaysView[ci * NUM_TETS_PER_HEX + ti] = Ray3DType(tetCenter, direction);
+        tetBbsView[ci * NUM_TETS_PER_HEX + ti] = BoundingBox3DType {tet[0], tet[1], tet[2]};
+      }
+    });
 }
 
 template <typename ExecSpace>

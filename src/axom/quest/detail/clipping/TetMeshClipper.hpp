@@ -104,6 +104,18 @@ private:
                                axom::ArrayView<bool>& vertIsInside,
                                axom::Array<LabelType>& labels);
 
+  //! @brief Compute rays from mesh hexes, pointing away from tet mesh centroid.
+  template <typename ExecSpace>
+  void computeHexRays(quest::experimental::ShapeMesh& shapeMesh,
+                      axom::Array<Ray3DType>& hexRays);
+
+  //! @brief Compute rays from tets in the given mesh cells, pointing away from tet mesh centroid.
+  template <typename ExecSpace>
+  void computeTetRays(quest::experimental::ShapeMesh& shapeMesh,
+                      axom::ArrayView<const axom::IndexType> cellIds,
+                      axom::Array<Ray3DType>& tetRays,
+                      axom::Array<BoundingBox3DType>& tetBbs);
+
   // Extract clipper info from MeshClipperStrategy::m_info.
   void extractClipperInfo();
 
