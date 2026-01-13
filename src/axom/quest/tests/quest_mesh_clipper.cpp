@@ -34,6 +34,7 @@
 #include "axom/quest/detail/clipping/SphereClipper.hpp"
 #include "axom/quest/detail/clipping/TetClipper.hpp"
 #include "axom/quest/detail/clipping/TetMeshClipper.hpp"
+#include "axom/core/utilities/FileUtilities.hpp"
 
 #include "axom/fmt.hpp"
 #include "axom/CLI11.hpp"
@@ -108,6 +109,7 @@ public:
   std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
   const std::set<std::string> availableShapes {"tetmesh",
+                                               "cupmesh",
                                                "sphere",
                                                "cyl",
                                                "cone",
@@ -438,6 +440,48 @@ void finalizeLogger()
   }
 }
 
+/// Write blueprint mesh to disk
+void saveMesh(const conduit::Node& mesh, const std::string& filename)
+{
+  AXOM_ANNOTATE_SCOPE("save mesh (conduit)");
+
+#ifdef AXOM_USE_MPI
+  conduit::relay::mpi::io::blueprint::save_mesh(mesh, filename, "hdf5", MPI_COMM_WORLD);
+#else
+  conduit::relay::io::blueprint::save_mesh(mesh, filename, "hdf5");
+#endif
+}
+
+/// Write blueprint mesh to disk
+void saveMesh(const sidre::Group& mesh, const std::string& filename)
+{
+  AXOM_ANNOTATE_SCOPE("save mesh (sidre)");
+
+  axom::sidre::DataStore ds;
+  const sidre::Group* meshOnHost = &mesh;
+  if(mesh.getDefaultAllocatorID() != axom::execution_space<axom::SEQ_EXEC>::allocatorID())
+  {
+    meshOnHost =
+      ds.getRoot()->deepCopyGroup(&mesh, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+  }
+  conduit::Node tmpMesh;
+  meshOnHost->createNativeLayout(tmpMesh);
+  {
+    conduit::Node info;
+#ifdef AXOM_USE_MPI
+    if(!conduit::blueprint::mpi::verify("mesh", tmpMesh, info, MPI_COMM_WORLD))
+#else
+    if(!conduit::blueprint::verify("mesh", tmpMesh, info))
+#endif
+    {
+      SLIC_INFO("Invalid blueprint for mesh: \n" << info.to_yaml());
+      slic::flushStreams();
+      assert(false);
+    }
+  }
+  saveMesh(tmpMesh, filename);
+}
+
 double volumeOfTetMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& tetMesh)
 {
   using TetType = axom::primal::Tetrahedron<double, 3>;
@@ -494,6 +538,65 @@ axom::klee::Geometry createGeom_Sphere(const std::string& geomName)
   return sphereGeometry;
 }
 
+void fitTetMeshInsideMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& tetMesh,
+                          double extraScale = 1.0)
+{
+  using BBox3D = primal::BoundingBox<double, 3>;
+  using Pt3D = primal::Point<double, 3>;
+  using Vect3D = primal::Vector<double, 3>;
+
+  double *coords[] = { tetMesh.getCoordinateArray(0),
+                       tetMesh.getCoordinateArray(1),
+                       tetMesh.getCoordinateArray(2) };
+  const axom::IndexType vertCount = tetMesh.getNumberOfNodes();
+
+  // Compute bounding boxes of tetMesh and the test mesh.
+  BBox3D meshBox = BBox3D(Pt3D(params.boxMins.data()), Pt3D(params.boxMaxs.data()));
+  BBox3D tetMeshBox;
+  axom::for_all<axom::SEQ_EXEC>(
+    vertCount,
+    [&](axom::IndexType vi)
+    {
+      Pt3D vertPt{coords[0][vi], coords[1][vi], coords[2][vi]};
+      tetMeshBox.addPoint(vertPt);
+    });
+
+  // Compute tetMesh's scaling and its resultant bounding box.
+  // Scale such that tetMesh will fit inside meshBox.
+  Vect3D tetMeshRange = tetMeshBox.range();
+  const Vect3D meshRange = meshBox.range();
+  const double scale = meshRange.array().min() / tetMeshRange.array().max();
+  tetMeshRange *= scale;
+  const Pt3D scaledTetMeshMax = meshBox.getMin() + tetMeshRange;
+  BBox3D newTetMeshBox(meshBox.getMin(), scaledTetMeshMax);
+  newTetMeshBox.scale(extraScale);
+  Vect3D shift( newTetMeshBox.getCentroid(), meshBox.getCentroid() );
+  newTetMeshBox.shift(shift);
+
+  // Compute transformation from the current tetMesh's box to the scaled box.
+  const Pt3D& startMin = tetMeshBox.getMin();
+  const Pt3D& startMax = tetMeshBox.getMax();
+  Pt3D start[4] = { startMin,
+                    Pt3D{startMax[0], startMin[1], startMin[2]},
+                    Pt3D{startMin[0], startMax[1], startMin[2]},
+                    Pt3D{startMin[0], startMin[1], startMax[2]} };
+  const Pt3D& destMin = newTetMeshBox.getMin();
+  const Pt3D& destMax = newTetMeshBox.getMax();
+  Pt3D dest[4] = { destMin,
+                   Pt3D{destMax[0], destMin[1], destMin[2]},
+                   Pt3D{destMin[0], destMax[1], destMin[2]},
+                   Pt3D{destMin[0], destMin[1], destMax[2]} };
+  primal::experimental::CoordinateTransformer<double> trans(start, dest);
+
+  // Transform every tetMesh vertex.
+  axom::for_all<axom::SEQ_EXEC>(
+    vertCount,
+    AXOM_LAMBDA(axom::IndexType vi)
+    {
+      trans.transform(coords[0][vi], coords[1][vi], coords[2][vi]);
+    });
+}
+
 axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string& geomName)
 {
   // Shape a tetrahedal mesh.
@@ -529,7 +632,6 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string&
 
   SLIC_ASSERT(axom::mint::blueprint::isValidRootGroup(meshGroup));
   meshGroup->destroyGroup("fields");
-
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
                                                     axom::klee::LengthUnit::unspecified};
 
@@ -539,6 +641,48 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string&
   addTranslateOperator(*compositeOp);
 
   axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
+  tetMeshGeometry.asHierarchy()["fixOrientation"] = true;
+
+  exactGeomVols[geomName] = vScale * volumeOfTetMesh(tetMesh);
+  errorToleranceRel[geomName] = 0.005;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return tetMeshGeometry;
+}
+
+axom::klee::Geometry createGeom_CupMesh(sidre::DataStore& ds, const std::string& geomName)
+{
+  // Shape a tetrahedal mesh.
+  sidre::Group* meshGroup = ds.getRoot()->createGroup(geomName);
+
+  AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
+  const std::string topo = "mesh";
+  const std::string coordset = "coords";
+
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tetMesh(3,
+                                                                 axom::mint::CellType::TET,
+                                                                 meshGroup,
+                                                                 topo,
+                                                                 coordset);
+
+  axom::quest::ProEReader reader;
+  std::string proeFile = axom::utilities::filesystem::joinPath(AXOM_DATA_DIR, "quest/cup.proe");
+  reader.setFileName(proeFile);
+  int readStatus = reader.read();
+  SLIC_ASSERT(readStatus == 0);
+  reader.getMesh(&tetMesh);
+  const double extraScale = 1/sqrt(3.0); // to ensure tetMesh remains inside mesh when rotated.
+  fitTetMeshInsideMesh(tetMesh, extraScale);
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
+  tetMeshGeometry.asHierarchy()["fixOrientation"] = true;
 
   exactGeomVols[geomName] = vScale * volumeOfTetMesh(tetMesh);
   errorToleranceRel[geomName] = 0.005;
@@ -969,49 +1113,6 @@ double sumMaterialVolumes(sidre::Group* meshGrp, const std::string& material)
   return rval;
 }
 
-/// Write blueprint mesh to disk
-void saveMesh(const conduit::Node& mesh, const std::string& filename)
-{
-  AXOM_ANNOTATE_SCOPE("save mesh (conduit)");
-
-#ifdef AXOM_USE_MPI
-  conduit::relay::mpi::io::blueprint::save_mesh(mesh, filename, "hdf5", MPI_COMM_WORLD);
-#else
-  conduit::relay::io::blueprint::save_mesh(mesh, filename, "hdf5");
-#endif
-}
-
-/// Write blueprint mesh to disk
-void saveMesh(const sidre::Group& mesh, const std::string& filename)
-{
-  AXOM_ANNOTATE_SCOPE("save mesh (sidre)");
-
-  axom::sidre::DataStore ds;
-  const sidre::Group* meshOnHost = &mesh;
-  if(mesh.getDefaultAllocatorID() != axom::execution_space<axom::SEQ_EXEC>::allocatorID())
-  {
-    meshOnHost =
-      ds.getRoot()->deepCopyGroup(&mesh, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
-  }
-  conduit::Node tmpMesh;
-  meshOnHost->createNativeLayout(tmpMesh);
-  {
-    conduit::Node info;
-#ifdef AXOM_USE_MPI
-    if(!conduit::blueprint::mpi::verify("mesh", tmpMesh, info, MPI_COMM_WORLD))
-#else
-    if(!conduit::blueprint::verify("mesh", tmpMesh, info))
-#endif
-    {
-      SLIC_INFO("Invalid blueprint for mesh: \n" << info.to_yaml());
-      slic::flushStreams();
-      assert(false);
-    }
-    // info.print();
-  }
-  saveMesh(tmpMesh, filename);
-}
-
 //!@brief Fill a sidre array View with a value.
 // No error checking.
 template <typename T>
@@ -1172,6 +1273,12 @@ int main(int argc, char** argv)
     {
       geomStrategies.push_back(
         std::make_shared<axom::quest::experimental::TetMeshClipper>(createGeom_TetMesh(ds, name),
+                                                                    name));
+    }
+    else if(tg == "cupmesh")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::experimental::TetMeshClipper>(createGeom_CupMesh(ds, name),
                                                                     name));
     }
     else if(tg == "tet")
