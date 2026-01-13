@@ -5,6 +5,7 @@
 
 #include "axom/config.hpp"
 
+#include "axom/core.hpp"
 #include "axom/mint/mesh/Mesh.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 #include "axom/spin/BVH.hpp"
@@ -385,9 +386,8 @@ void TetMeshClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMes
 }
 
 template <typename ExecSpace>
-void TetMeshClipper::computeHexRays(
-  quest::experimental::ShapeMesh& shapeMesh,
-  axom::Array<Ray3DType>& hexRays)
+void TetMeshClipper::computeHexRays(quest::experimental::ShapeMesh& shapeMesh,
+                                    axom::Array<Ray3DType>& hexRays)
 {
   AXOM_ANNOTATE_SCOPE("TetMeshClipper::computeHexRays");
   /*
@@ -424,15 +424,9 @@ void TetMeshClipper::computeTetRays(quest::experimental::ShapeMesh& shapeMesh,
    * away from the center of the tet mesh.
    */
   Point3DType geomCenter = m_tetMeshBb.getCentroid();  // Estimate of tet mesh center.
-  tetBbs = axom::Array<BoundingBox3DType>(axom::ArrayOptions::Uninitialized(),
-                                          tetCount,
-                                          0,
-                                          allocId);
+  tetBbs = axom::Array<BoundingBox3DType>(axom::ArrayOptions::Uninitialized(), tetCount, 0, allocId);
   auto tetBbsView = tetBbs.view();
-  tetRays = axom::Array<Ray3DType>(axom::ArrayOptions::Uninitialized(),
-                                   tetCount,
-                                   0,
-                                   allocId);
+  tetRays = axom::Array<Ray3DType>(axom::ArrayOptions::Uninitialized(), tetCount, 0, allocId);
   auto tetRaysView = tetRays.view();
   const auto meshTets = shapeMesh.getCellsAsTets();
   axom::for_all<ExecSpace>(
@@ -546,109 +540,41 @@ void TetMeshClipper::computeTets()
 
   m_tets = axom::Array<TetrahedronType>(m_tetCount, m_tetCount, hostAllocId);
 
-  /*
-   * 1. Initialize a mint Mesh intermediary from the blueprint mesh.
-   *    mint::getMesh() utility for this saves some coding.
-   * 2. Populate a tet array on the host (because mint data works only for host).
-   */
+  copy_topo_and_coords_to(hostAllocId);
+  const std::string topoName = axom::fmt::format("{}.{}", m_topoName, hostAllocId);
+  conduit::Node& tetTopo = m_tetMesh["topologies"][topoName];
+  conduit::Node& tetVertConn = tetTopo.fetch_existing("elements").fetch_existing("connectivity");
+  auto expectedConnectivityType = axom::sidre::detail::SidreTT<axom::IndexType>::id;
+  SLIC_ERROR_IF(
+    tetVertConn.dtype().id() != expectedConnectivityType,
+    fmt::format(
+      "Tet mesh connectivity type {} doesn't match Axom IndexType {}.  Please use the correct "
+      "connectivity type for tet mesh or configure Axom with a compatible IndexType.",
+      tetVertConn.dtype().id(),
+      expectedConnectivityType));
+  constexpr IndexType VERTS_PER_TET = 4;
+  axom::ArrayView<const IndexType, 2> tetVertConnView(
+    static_cast<const IndexType*>(tetVertConn.data_ptr()),
+    m_tetCount,
+    VERTS_PER_TET);
 
-  axom::sidre::DataStore ds;
-  auto* tetMeshGrp = ds.getRoot()->createGroup("blueprintMesh");
-  tetMeshGrp->importConduitTree(m_tetMesh);
+  const std::string coordsName = tetTopo["coordset"].as_string();
+  const conduit::Node& coordsNode = m_tetMesh.fetch_existing("coordsets").fetch_existing(coordsName);
+  namespace bumpUtils = axom::bump::utilities;
+  auto xs = bumpUtils::make_array_view<double>(coordsNode["values/x"]);
+  auto ys = bumpUtils::make_array_view<double>(coordsNode["values/y"]);
+  auto zs = bumpUtils::make_array_view<double>(coordsNode["values/z"]);
 
-  const bool addExtraDataForMint = true;
-  if(addExtraDataForMint)
-  {
-    /*
-     * Constructing a mint mesh from meshGrp fails unless we add some
-     * extra data.  Blueprint doesn't require this extra data.  (The mesh
-     * passes conduit's Blueprint verification.)  This should be fixed,
-     * or we should write better blueprint support utilities.
-     */
-    auto* topoGrp = tetMeshGrp->getGroup("topologies")->getGroup(m_topoName);
-    auto* coordValuesGrp =
-      tetMeshGrp->getGroup("coordsets")->getGroup(m_coordsetName)->getGroup("values");
-    /*
-     * Make the coordinate arrays 2D to use mint::Mesh.
-     * For some reason, mint::Mesh requires the arrays to be
-     * 2D, even though the second dimension is always 1.
-     */
-    axom::IndexType curShape[2];
-    int curDim;
-    curDim = coordValuesGrp->getView("x")->getShape(2, curShape);
-    assert(curDim == 1);
-    const axom::IndexType vertsShape[2] = {curShape[0], 1};
-    coordValuesGrp->getView("x")->reshapeArray(2, vertsShape);
-    coordValuesGrp->getView("y")->reshapeArray(2, vertsShape);
-    coordValuesGrp->getView("z")->reshapeArray(2, vertsShape);
-
-    // Make connectivity array 2D for the same reason.
-    auto* elementsGrp = topoGrp->getGroup("elements");
-    auto* tetVertConnView = elementsGrp->getView("connectivity");
-    curDim = tetVertConnView->getShape(2, curShape);
-    constexpr axom::IndexType NUM_VERTS_PER_TET = 4;
-    SLIC_ASSERT(curDim == 1 || curDim == 2);
-    if(curDim == 1)
-    {
-      SLIC_ASSERT(curShape[0] % NUM_VERTS_PER_TET == 0);
-      axom::IndexType connShape[2] = {curShape[0] / NUM_VERTS_PER_TET, NUM_VERTS_PER_TET};
-      tetVertConnView->reshapeArray(2, connShape);
-    }
-
-    // mint::Mesh requires connectivity strides, even though Blueprint doesn't.
-    if(!elementsGrp->hasView("stride"))
-    {
-      elementsGrp->createViewScalar("stride", NUM_VERTS_PER_TET, hostAllocId);
-    }
-
-    // mint::Mesh requires field group, even though Blueprint doesn't.
-    if(!tetMeshGrp->hasGroup("fields"))
-    {
-      tetMeshGrp->createGroup("fields");
-    }
-  }
-  std::shared_ptr<mint::UnstructuredMesh<axom::mint::Topology::SINGLE_SHAPE>> mintMesh {
-    (mint::UnstructuredMesh<axom::mint::Topology::SINGLE_SHAPE>*)axom::mint::getMesh(tetMeshGrp,
-                                                                                     m_topoName)};
-
-  bool fixOrientation = false;
-  if(m_info.has_child("fixOrientation"))
-  {
-    fixOrientation = bool(m_info.fetch_existing("fixOrientation").to_int());
-  }
-
-  // Initialize tetrahedra and check for bad orientations.
-  constexpr double EPS = 1e-10;
-  axom::for_all<SEQ_EXEC>(
-    m_tetCount, AXOM_LAMBDA(IndexType i)
-    {
-      IndexType nodeIds[4];
-      Point3DType pts[4];
-      mintMesh->getCellNodeIDs(i, nodeIds);
-
-      mintMesh->getNode(nodeIds[0], pts[0].data());
-      mintMesh->getNode(nodeIds[1], pts[1].data());
-      mintMesh->getNode(nodeIds[2], pts[2].data());
-      mintMesh->getNode(nodeIds[3], pts[3].data());
-      m_tets[i] = TetrahedronType({pts[0], pts[1], pts[2], pts[3]});
-
-      if(fixOrientation)
-      {
-        m_tets[i].checkAndFixOrientation();
-      }
-      else
-      {
-        double signedVol = m_tets[i].signedVolume();
-        if(signedVol < -EPS)
-        {
-          SLIC_ERROR(
-            axom::fmt::format("TetMeshClipper's tet {}, {}, has a negative volume {}.:"
-                              "  (See TetMeshClipper's 'fixOrientation' flag.)",
-                              i,
-                              m_tets[i],
-                              signedVol));
-        }
-      }
+  auto tetsView = m_tets.view();
+  axom::for_all<axom::SEQ_EXEC>(
+    m_tetCount,
+    AXOM_LAMBDA(IndexType ti) {
+      auto vertices = tetVertConnView[ti];
+      Point3DType a({xs[vertices[0]], ys[vertices[0]], zs[vertices[0]]});
+      Point3DType b({xs[vertices[1]], ys[vertices[1]], zs[vertices[1]]});
+      Point3DType c({xs[vertices[2]], ys[vertices[2]], zs[vertices[2]]});
+      Point3DType d({xs[vertices[3]], ys[vertices[3]], zs[vertices[3]]});
+      tetsView[ti] = TetrahedronType(a, b, c, d);
     });
 }
 
@@ -760,7 +686,6 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
    */
   namespace bumpViews = axom::bump::views;
   namespace bumpUtils = axom::bump::utilities;
-  using BumpShape = bumpViews::TetShape<axom::IndexType>;
 
   constexpr axom::IndexType FACES_PER_TET = 4;
   constexpr axom::IndexType VERTS_PER_TET = 4;
@@ -770,7 +695,6 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
   conduit::Node& tetTopo = m_tetMesh["topologies"][topoName];
   conduit::Node& tetVertConn = tetTopo.fetch_existing("elements").fetch_existing("connectivity");
   const auto tetVertConnView = bumpUtils::make_array_view<axom::IndexType>(tetVertConn);
-  bumpViews::UnstructuredTopologySingleShapeView<BumpShape> topoView(tetVertConnView);
 
   conduit::Node& polyTopo = m_tetMesh["topologies"]["polyhedral"];
   make_polyhedral_topology<ExecSpace>(tetTopo, polyTopo);

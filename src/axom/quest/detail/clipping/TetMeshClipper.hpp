@@ -106,8 +106,7 @@ private:
 
   //! @brief Compute rays from mesh hexes, pointing away from tet mesh centroid.
   template <typename ExecSpace>
-  void computeHexRays(quest::experimental::ShapeMesh& shapeMesh,
-                      axom::Array<Ray3DType>& hexRays);
+  void computeHexRays(quest::experimental::ShapeMesh& shapeMesh, axom::Array<Ray3DType>& hexRays);
 
   //! @brief Compute rays from tets in the given mesh cells, pointing away from tet mesh centroid.
   template <typename ExecSpace>
