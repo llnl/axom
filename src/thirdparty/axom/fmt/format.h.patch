@@ -1,6 +1,6 @@
---- fmt/include/fmt/format.h	2025-07-02 12:34:54.700210000 -0700
-+++ format.h	2025-07-02 12:34:55.071549000 -0700
-@@ -1603,9 +1603,14 @@
+--- fmt/include/fmt/format.h	2026-01-13 13:48:05.116765000 -0800
++++ format.h	2026-01-13 13:48:05.506544000 -0800
+@@ -1650,9 +1650,14 @@
    return {multiply(x.f, y.f), x.e + y.e + 64};
  }
  
@@ -16,7 +16,7 @@
  
  template <typename T>
  constexpr auto convert_float(T value) -> convert_float_result<T> {
-@@ -2594,7 +2599,9 @@
+@@ -2746,7 +2751,9 @@
    }
  
   public:
