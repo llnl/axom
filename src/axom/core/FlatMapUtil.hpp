@@ -267,12 +267,18 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
 
   IndexType num_elems = std::distance(kv_begin, kv_end);
 
-  // Every probing sequence within a flat map is free of gaps if no erasure
-  // operations have taken place.
-  // For now, just assume this to be the case if the map is empty or if a rehash
-  // has to take place to accomodate the new elements.
-  bool is_gap_free =
-    (this->size() == 0 || (num_elems + this->size() >= max_load_factor() * bucket_count()));
+  // Batched insertion assumes probing sequences are gap-free
+  // (i.e., there are no tombstones from prior erase() operations).
+  // When tombstones exist, the parallel insertion logic can mishandle duplicates
+  // under contention (e.g. OpenMP) and produce incorrect size/value results.
+  //
+  // If tombstones exist, rehash to compact the table and restore the invariants required by this algorithm.
+  if(this->m_loadCount != static_cast<std::uint64_t>(this->m_size))
+  {
+    this->rehash(this->m_size + num_elems);
+  }
+
+  const bool is_gap_free = (this->m_loadCount == static_cast<std::uint64_t>(this->m_size));
 
   // Assume that all elements will be inserted into an empty slot.
   this->reserve(this->size() + num_elems);
