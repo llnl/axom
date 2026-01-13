@@ -77,12 +77,6 @@ private:
   //! @brief Number of tets in the tet mesh.
   axom::IndexType m_tetCount;
 
-  //! @brief Geometry as tetrahedra.
-  axom::Array<TetrahedronType> m_tets;
-
-  //! @brief Tet mesh surface as triangluar facets.
-  axom::Array<Triangle3DType> m_surfTris;
-
   /*!
    * @brief Combined external transformation.
    *
