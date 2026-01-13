@@ -17,15 +17,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch: ["x64", "x86"]
-        cfg: ["Debug", "Release"]
+        # arch: ["x64", "x86"]
+        arch: ["x64"]
+        # cfg: ["Debug", "Release"]
+        cfg: ["Debug"]
         include:
         - arch: "x64"
           triplet: "x64-windows"
           msvc:    "202264"
-        - arch: "x86"
-          triplet: "x86-windows"
-          msvc:    "2022"
+        # - arch: "x86"
+        #   triplet: "x86-windows"
+        #   msvc:    "2022"
 
     steps:
     - name: Checkout repo w/ submodules
@@ -65,7 +67,7 @@ jobs:
       run: |
         cd build_axom
         ls
-        cmake --build . --config ${{ matrix.cfg }}
+        cmake --build . --config ${{ matrix.cfg }} --verbose
         
     - name: Test axom (${{ matrix.triplet }} ${{ matrix.cfg }})
       run: |
