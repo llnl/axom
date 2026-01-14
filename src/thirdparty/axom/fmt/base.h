@@ -467,7 +467,7 @@ enum { use_utf8 = !AXOM_FMT_WIN32 || is_utf8_enabled };
 #  else
 #    define AXOM_FMT_UNICODE 1
 #  endif
-// BEGIN AXOM BUGFIX
+// END AXOM BUGFIX
 #endif
 
 static_assert(!AXOM_FMT_UNICODE || use_utf8,

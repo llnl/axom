@@ -13,7 +13,7 @@
 +#  else
 +#    define FMT_UNICODE 1
 +#  endif
-+// BEGIN AXOM BUGFIX
++// END AXOM BUGFIX
  #endif
  
  static_assert(!FMT_UNICODE || use_utf8,
