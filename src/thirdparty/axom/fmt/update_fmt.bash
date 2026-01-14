@@ -42,6 +42,7 @@ function patch_file
 
 function apply_patches
 {
+  patch_file base.h       base.h.patch
   patch_file format-inl.h runtime_error.patch
   patch_file format.h     format.h.patch
 }
@@ -78,6 +79,7 @@ function revert
 
   git checkout -- runtime_error.patch
   git checkout -- format.h.patch
+  git checkout -- base.h.patch
 }
 
 function cleanup
