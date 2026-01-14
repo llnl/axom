@@ -29,8 +29,8 @@
 #include "axom/quest.hpp"
 #include "axom/quest/detail/clipping/HexClipper.hpp"
 #include "axom/quest/detail/clipping/Plane3DClipper.hpp"
-#include "axom/quest/detail/clipping/FSorClipper.hpp"
-#include "axom/quest/detail/clipping/SorClipper.hpp"
+#include "axom/quest/detail/clipping/MonotonicZSORClipper.hpp"
+#include "axom/quest/detail/clipping/SORClipper.hpp"
 #include "axom/quest/detail/clipping/SphereClipper.hpp"
 #include "axom/quest/detail/clipping/TetClipper.hpp"
 #include "axom/quest/detail/clipping/TetMeshClipper.hpp"
@@ -70,9 +70,11 @@ namespace sidre = axom::sidre;
 using RuntimePolicy = axom::runtime_policy::Policy;
 
 #if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
-static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT64_ID;
+[[maybe_unused]] static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
+  conduit::DataType::INT64_ID;
 #else
-static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT32_ID;
+[[maybe_unused]] static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
+  conduit::DataType::INT32_ID;
 #endif
 
 /// Struct to parse and store the input parameters
@@ -107,17 +109,8 @@ public:
   // The shape to run.
   std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
-  const std::set<std::string> availableShapes {"tetmesh",
-                                               "sphere",
-                                               "cyl",
-                                               "cone",
-                                               "sor",
-                                               "tet",
-                                               "hex",
-                                               "plane",
-                                               "tet2",
-                                               "tetmesh2",
-                                               "hex2"};
+  const std::set<std::string>
+    availableShapes {"tetmesh", "sphere", "cyl", "cone", "sor", "tet", "hex", "plane", "tet2", "tetmesh2", "hex2"};
 
   RuntimePolicy policy {RuntimePolicy::seq};
   int refinementLevel {7};
@@ -1174,9 +1167,8 @@ int main(int argc, char** argv)
 
 #ifdef AXOM_USE_MPI
     MPI_Bcast(&retval, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Finalize();
 #endif
-    exit(retval);
+    return retval;
   }
 
   if(params.testGeom.size() > 1)
@@ -1278,17 +1270,19 @@ int main(int argc, char** argv)
     else if(tg == "cyl")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::FSorClipper>(createGeom_Cylinder(name), name));
+        std::make_shared<axom::quest::experimental::MonotonicZSORClipper>(createGeom_Cylinder(name),
+                                                                          name));
     }
     else if(tg == "cone")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::FSorClipper>(createGeom_Cone(name), name));
+        std::make_shared<axom::quest::experimental::MonotonicZSORClipper>(createGeom_Cone(name),
+                                                                          name));
     }
     else if(tg == "sor")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::SorClipper>(createGeom_Sor(name), name));
+        std::make_shared<axom::quest::experimental::SORClipper>(createGeom_Sor(name), name));
     }
 
     else if(tg == "tet2")

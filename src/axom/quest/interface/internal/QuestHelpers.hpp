@@ -245,28 +245,6 @@ int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm = MPI
 /// \name Mesh Helper Methods
 /// @{
 
-#if defined(AXOM_USE_MFEM)
-/*!
- * \brief Returns an MFEM mesh's zone as a 2D BezierCurve.
- *
- * \param mesh The MFEM mesh being queried.
- * \param elem_id The mesh element id to turn into a BezierCurve.
- *
- * \return A BezierCurve that represents the mesh segment.
- */
-primal::BezierCurve<double, 2> segment_to_curve(const mfem::Mesh* mesh, int elem_id);
-
-/*!
- * \brief Returns an MFEM mesh's zone as a 2D NURBSCurve.
- *
- * \param mesh The MFEM mesh being queried.
- * \param elem_id The mesh element id to turn into a NURBSCurve.
- *
- * \return A NURBSCurve that represents the mesh segment.
- */
-primal::NURBSCurve<double, 2> segment_to_nurbs(const mfem::Mesh* mesh, int elem_id);
-#endif
-
 /*!
  * \brief Computes the bounds of the given mesh.
  *

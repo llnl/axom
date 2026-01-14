@@ -8,6 +8,7 @@
 
 #include "axom/core/numerics/Matrix.hpp"
 #include "axom/core/utilities/Utilities.hpp"
+#include "axom/core/NumericLimits.hpp"
 #include "axom/core/numerics/floating_point_limits.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
@@ -157,7 +158,7 @@ public:
    *
    * Validity can be checked with isValid().
    */
-  AXOM_HOST_DEVICE void setInvalid() { m_P[0][0] = std::numeric_limits<T>::quiet_NaN(); }
+  AXOM_HOST_DEVICE void setInvalid() { m_P[0][0] = axom::numeric_limits<T>::quiet_NaN(); }
 
   //! @brief Whether transformer is valid.
   AXOM_HOST_DEVICE bool isValid() { return !std::isnan(m_P[0][0]); }
@@ -266,9 +267,11 @@ public:
    */
   void applyRotation(const axom::primal::Vector<T, 3>& u, T sinT, T cosT)
   {
-    const T EPS = 10 * axom::numerics::floating_point_limits<T>::epsilon();
-    SLIC_ASSERT(axom::utilities::isNearlyEqual(u.squared_norm(), 1.0, EPS));
-    T ccosT = 1 - cosT;
+    SLIC_ASSERT(
+      axom::utilities::isNearlyEqual(u.squared_norm(),
+                                     1.0,
+                                     10 * axom::numerics::floating_point_limits<T>::epsilon()));
+    const T ccosT = 1 - cosT;
 
     Matrx P;  // 3D rotation matrix.
     P[0][0] = u[0] * u[0] * ccosT + cosT;
@@ -375,7 +378,7 @@ private:
    * M = [ P v ]
    *     [ 0 1 ]
    *
-   * Store m_P[0][0] = std::numeric_limits<T>::quiet_NaN() to set this
+   * Store m_P[0][0] = axom::numeric_limits<T>::quiet_NaN() to set this
    * CoordinateTransformer as invalid.  See \a setInvalid()
    */
   Matrx m_P;
@@ -409,7 +412,7 @@ private:
     }
     else
     {
-      m[0][0] = std::numeric_limits<T>::quiet_NaN();
+      m[0][0] = axom::numeric_limits<T>::quiet_NaN();
     }
   }
 

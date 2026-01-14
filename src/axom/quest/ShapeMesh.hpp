@@ -62,14 +62,15 @@ public:
   using BoundingBox3DType = primal::BoundingBox<double, 3>;
 
   /*!
-   * @brief Number of tetrahedra per hexahedron decomposes into
+   * @brief Number of tetrahedra that a hexahedron decomposes into
    * @see hexToTets()
    *
-   * @internal Values of 24 and 18 are valid.  18 is likely more
+   * @internal Only values of 24 and 18 are valid.  18 is likely more
    * performant because it generates fewer tets.
    *
-   * @internal The code branches on the value at a low level,
-   * but this should be optimized out by the compiler.
+   * @internal The hexToTets() method branches on the value of
+   * NUM_TETS_PER_HEX at a low level, but the branching should be
+   * optimized out by the compiler.
    */
   static constexpr axom::IndexType NUM_TETS_PER_HEX = 18;
 
@@ -175,8 +176,10 @@ public:
    * point at the average of the face vertices and decompose the face
    * into 4 triangles.
    *
-   * It is expected that this method will be used in long inner
-   * loops, so it is bare-bones for best performance.
+   * It is expected that this method will be used in long inner loops,
+   * so it is bare-bones for best performance.  Caller must ensure
+   * tets points to at least NUM_TETS_PER_HEX objects. This method
+   * neither checks the pointer nor reallocates the space.
    */
   AXOM_HOST_DEVICE inline static void hexToTets(const HexahedronType& hex, TetrahedronType* tets);
 
@@ -391,8 +394,11 @@ AXOM_HOST_DEVICE inline void ShapeMesh::hexToTets(const HexahedronType& hex, Tet
   }
   else
   {
-    // Tets sharing the axis between hex vertices 4 and 2.
-    // Should we implement this 18-tet decomposition directly in primal::Hexahedron?
+    /*
+     * Six tets sharing the line segment between hex vertices 4 and 2.
+     * Each tet also uses 2 of the remaining 6 hex vertices (any 2
+     * that shares a hex edge).
+     */
     tets[0][0] = hex[4];
     tets[0][1] = hex[2];
     tets[0][2] = hex[1];
@@ -423,7 +429,7 @@ AXOM_HOST_DEVICE inline void ShapeMesh::hexToTets(const HexahedronType& hex, Tet
     tets[5][2] = hex[5];
     tets[5][3] = hex[1];
 
-    // Centroids of the 6 faces.
+    // Centroids of the 6 hex faces.
     Point3DType mp0473 = Point3DType::midpoint(Point3DType::midpoint(hex[0], hex[4]),
                                                Point3DType::midpoint(hex[7], hex[3]));
     Point3DType mp1562 = Point3DType::midpoint(Point3DType::midpoint(hex[1], hex[5]),
@@ -437,7 +443,10 @@ AXOM_HOST_DEVICE inline void ShapeMesh::hexToTets(const HexahedronType& hex, Tet
     Point3DType mp4567 = Point3DType::midpoint(Point3DType::midpoint(hex[4], hex[5]),
                                                Point3DType::midpoint(hex[6], hex[7]));
 
-    // Tets from the 6 faces (two per face).
+    /*
+     * Tets from the 6 hex faces (two per face).  If the face is
+     * coplanar, its 2 tets are degenerate.
+     */
     tets[6][0] = hex[4];
     tets[6][1] = hex[6];
     tets[6][2] = hex[7];

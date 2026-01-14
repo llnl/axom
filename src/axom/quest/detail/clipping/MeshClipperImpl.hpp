@@ -110,12 +110,19 @@ public:
       });
   }
 
-  //! @brief Make a list of indices where labels have value LABEL_ON.
+  /*!
+   * @brief Make a list of indices where labels have value LABEL_ON,
+   * stored in the same allocator id as the labels.
+   */
   void collectOnIndices(const axom::ArrayView<LabelType>& labels,
                         axom::Array<axom::IndexType>& onIndices) override
   {
     if(labels.empty())
     {
+      if(onIndices.getAllocatorID() != labels.getAllocatorID())
+      {
+        onIndices = axom::Array<IndexType>(0, 0, labels.getAllocatorID());
+      }
       return;
     };
 
@@ -243,7 +250,7 @@ public:
     auto geomOctsView = geomAsOcts.view();
 
     /*
-     * Find which shape bounding boxes intersect hexahedron bounding boxes
+     * Find which shape bounding boxes intersect the mesh cell bounding boxes
      */
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:find_candidates");
@@ -381,6 +388,11 @@ public:
                                          screenLevel);
         });
     }
+    AXOM_ANNOTATE_END("MeshClipper:clipLoop_notScreened");
+
+    clipStats.copyTo(statistics);
+    statistics["clipsCandidates"].set_int64(tetCandidatesCount);
+
     AXOM_ANNOTATE_END("MeshClipper:clipLoop_notScreened");
 
     clipStats.copyTo(statistics);

@@ -18,7 +18,7 @@ namespace experimental
 {
 
 /*!
- * @brief Geometry clipping operations for sphere geometries.
+ * @brief Geometry clipping operations for hexahedron geometries.
 */
 class HexClipper : public MeshClipperStrategy
 {
@@ -84,7 +84,21 @@ private:
                           axom::ArrayView<const axom::IndexType> cellIds,
                           axom::ArrayView<LabelType> tetLabels);
 
-  //!@brief Compute LabelType for a polyhedron (hex or tet in our case).
+  /*!
+   * @brief Compute whether a polyhedron is inside, outside or on the boundary
+   * of a hexahedron.
+   *
+   * @param verts [in] The polyhedron (either hex or tet).
+   * @param vertsBb [in] Bounding box of @c verts
+   * @param hexBb [in] Bounding box of the hex
+   * @param hexTets [in] The hex, decomposed into tets.
+   * @param surfaceTriangles [in] A copy of m_surfaceTriangles,
+   *   but in the appropriate memory space (host or device).
+   *
+   * This method should be fast.  It may label something as on
+   * the boundary when it is inside or outside; this is a conservative
+   * error and the way we use it doesn't lead to real errors.
+   */
   template <typename Polyhedron>
   AXOM_HOST_DEVICE inline LabelType polyhedronToLabel(
     const Polyhedron& verts,

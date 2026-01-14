@@ -325,7 +325,6 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
                                               const axom::ArrayView<IndexType>& cellIds,
                                               conduit::Node& statistics)
 {
-  using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
   constexpr double EPS = 1e-10;
 
   int allocId = shapeMesh.getAllocatorID();

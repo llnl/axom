@@ -292,7 +292,7 @@ bool discretize(const axom::ArrayView<Point2D> &polyline,
   // That was the octahedron count for one segment.  Multiply by the number
   // of segments we will compute.
   int totaloctcount = segoctcount * segmentcount;
-  out.empty();
+  out.clear();
   out.resize(axom::ArrayOptions::Uninitialized(), totaloctcount);
   axom::ArrayView<OctType> out_view = out.view();
   octcount = 0;
