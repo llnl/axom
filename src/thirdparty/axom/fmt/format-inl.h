@@ -168,7 +168,7 @@ AXOM_FMT_API AXOM_FMT_FUNC auto format_facet<std::locale>::do_put(
 using axom_fmt_system_error = std::system_error;
 
 AXOM_FMT_FUNC auto vsystem_error(int error_code, string_view fmt, format_args args)
-    -> std::system_error {
+    -> axom_fmt_system_error {
   auto ec = std::error_code(error_code, std::generic_category());
   return axom_fmt_system_error(ec, vformat(fmt, args));
  }

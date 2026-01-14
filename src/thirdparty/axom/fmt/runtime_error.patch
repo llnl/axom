@@ -1,16 +1,18 @@
---- fmt/include/fmt/format-inl.h	2026-01-13 13:48:05.112770000 -0800
-+++ format-inl.h	2026-01-13 13:53:44.648647000 -0800
-@@ -162,11 +162,17 @@
+--- fmt/include/fmt/format-inl.h	2026-01-13 17:05:51.946889000 -0800
++++ format-inl.h	2026-01-13 17:22:27.650462000 -0800
+@@ -170,11 +170,17 @@
  }
  #endif
  
+-FMT_FUNC auto vsystem_error(int error_code, string_view fmt, format_args args)
+-    -> std::system_error {
 +// BEGIN AXOM BUGFIX
 +// NVCC's preprocessor converts 'std::error_code' to `class std::error_code'
 +// and then complains that `return class std::error_code' isn't valid!
 +using axom_fmt_system_error = std::system_error;
 +
- FMT_FUNC auto vsystem_error(int error_code, string_view fmt, format_args args)
-     -> std::system_error {
++AXOM_FMT_FUNC auto vsystem_error(int error_code, string_view fmt, format_args args)
++    -> axom_fmt_system_error {
    auto ec = std::error_code(error_code, std::generic_category());
 -  return std::system_error(ec, vformat(fmt, args));
 -}
@@ -20,7 +22,7 @@
  
  namespace detail {
  
-@@ -1426,7 +1432,9 @@
+@@ -1434,7 +1440,9 @@
                                    const char* message) noexcept {
    FMT_TRY {
      auto ec = std::error_code(error_code, std::generic_category());
