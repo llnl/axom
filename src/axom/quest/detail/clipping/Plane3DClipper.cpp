@@ -327,10 +327,7 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
 {
   constexpr double EPS = 1e-10;
 
-  int allocId = shapeMesh.getAllocatorID();
-
   auto cellsAsTets = shapeMesh.getCellsAsTets();
-
   auto plane = m_plane;
 
   axom::ReduceSum<ExecSpace, std::int64_t> missSum {0};

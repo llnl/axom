@@ -155,6 +155,7 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                       MeshClipperStrategy.hpp
                                       detail/clipping/Plane3DClipper.hpp
                                       detail/clipping/TetClipper.hpp
+                                      detail/clipping/TetMeshClipper.hpp
                                       detail/clipping/HexClipper.hpp
                                       detail/clipping/SphereClipper.hpp
                                       detail/clipping/MonotonicZSORClipper.hpp

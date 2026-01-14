@@ -881,10 +881,10 @@ public:
       axom::for_all<ExecSpace>(
         pieceBbsView.size(),
         AXOM_LAMBDA(axom::IndexType i) {
-          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
-#if defined(AXOM_DEBUG)
-          SLIC_ASSERT(!geomTetsView[i].degenerate());
-#endif
+          if(!geomTetsView[i].degenerate())
+          {
+            pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
+          }
         });
     }
     else
