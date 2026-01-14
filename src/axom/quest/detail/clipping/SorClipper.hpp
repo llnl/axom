@@ -54,10 +54,10 @@ private:
 #endif
   std::string m_name;
 
-  axom::Array<std::shared_ptr<FSorClipper>> m_fsorStrategies;
+  axom::Array<std::shared_ptr<FSorClipper>> m_fsorImpls;
 
   /*!
-   * @brief The discrete r(z) curve as an array of y(x) points.
+   * @brief The discrete r(z) curve as an array of (z,r) coordinates.
    *
    * This data is before internal or external transformations.
    * It may include points on each end to connect the curve to
