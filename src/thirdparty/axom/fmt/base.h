@@ -253,7 +253,7 @@ AXOM_FMT_PRAGMA_GCC(diagnostic push)
 #endif
 
 #ifndef AXOM_FMT_BEGIN_NAMESPACE
-#  define AXOM_FMT_BEGIN_NAMESPACE  \
+#  define AXOM_FMT_BEGIN_NAMESPACE \
     namespace axom::fmt {           \
     inline namespace v12 {
 #  define AXOM_FMT_END_NAMESPACE \
@@ -459,7 +459,15 @@ enum { is_utf8_enabled = "\u00A7"[1] == '\xA7' };
 enum { use_utf8 = !AXOM_FMT_WIN32 || is_utf8_enabled };
 
 #ifndef AXOM_FMT_UNICODE
-#  define AXOM_FMT_UNICODE is_utf8_enabled
+// BEGIN AXOM BUGFIX
+// Make Unicode support conditional on whether it appears enabled instead of
+// requiring the compiler be invoked with special /utf-8 command line argument.
+#  ifdef AXOM_FMT_WIN32
+#    define AXOM_FMT_UNICODE is_utf8_enabled
+#  else
+#    define AXOM_FMT_UNICODE 1
+#  endif
+// BEGIN AXOM BUGFIX
 #endif
 
 static_assert(!AXOM_FMT_UNICODE || use_utf8,
