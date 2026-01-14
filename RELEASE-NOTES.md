@@ -84,7 +84,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Updates to [mfem version 4.9](https://github.com/mfem/mfem/releases/tag/v4.9).
   Also updates mfem's hypre dependency to [hypre version 2.27](https://github.com/hypre-space/hypre/releases/tag/v2.27.0).
 - Quest: MFEMReader can now read in multispan 1D NURBS meshes
-- FMT: Axom's built-in version of the FMT formatting library was updated to version 12.1.0.
+- fmt: Axom's built-in version of the fmt formatting library was updated to [fmt version 12.1.0](https://github.com/fmtlib/fmt/releases/tag/12.1.0).
 
 ###  Fixed
 - Sina's Fortran tests are now running (instead of silently failing)

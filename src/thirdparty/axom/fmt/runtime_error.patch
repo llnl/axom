@@ -11,7 +11,7 @@
 +// and then complains that `return class std::error_code' isn't valid!
 +using axom_fmt_system_error = std::system_error;
 +
-+AXOM_FMT_FUNC auto vsystem_error(int error_code, string_view fmt, format_args args)
++FMT_FUNC auto vsystem_error(int error_code, string_view fmt, format_args args)
 +    -> axom_fmt_system_error {
    auto ec = std::error_code(error_code, std::generic_category());
 -  return std::system_error(ec, vformat(fmt, args));
