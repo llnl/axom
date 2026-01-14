@@ -459,7 +459,7 @@ enum { is_utf8_enabled = "\u00A7"[1] == '\xA7' };
 enum { use_utf8 = !AXOM_FMT_WIN32 || is_utf8_enabled };
 
 #ifndef AXOM_FMT_UNICODE
-#  define AXOM_FMT_UNICODE 1
+#  define AXOM_FMT_UNICODE is_utf8_enabled
 #endif
 
 static_assert(!AXOM_FMT_UNICODE || use_utf8,
