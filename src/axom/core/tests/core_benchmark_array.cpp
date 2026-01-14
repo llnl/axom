@@ -62,7 +62,7 @@ struct axom::fmt::formatter<ArrayFeatureBenchmarks>
   }
 
   template <typename FormatContext>
-  auto format(ArrayFeatureBenchmarks feature, FormatContext& ctx)
+  auto format(ArrayFeatureBenchmarks feature, FormatContext& ctx) const
   {
     static const std::map<ArrayFeatureBenchmarks, std::string> feature_map = {
       {ArrayFeatureBenchmarks::Constructors, "Constructors"},
