@@ -286,8 +286,7 @@ AXOM_HOST_DEVICE MonotonicZSORClipper::BoundingBox2DType MonotonicZSORClipper::e
   MonotonicZSORClipper::BoundingBox2DType bbInRz;
 
   // Range of vertex angles in cylindrical coordinates.
-  double minAngle = numerics::floating_point_limits<double>::max();
-  double maxAngle = -numerics::floating_point_limits<double>::max();
+  primal::BoundingBox<double, 1> angleRange;
 
   for(IndexType vi = 0; vi < vertices.numVertices(); ++vi)
   {
@@ -299,17 +298,16 @@ AXOM_HOST_DEVICE MonotonicZSORClipper::BoundingBox2DType MonotonicZSORClipper::e
     bbInRz.addPoint(vertOnRz);
 
     double angle = atan2(vertOnXPlane[1], vertOnXPlane[0]);
-    minAngle = angle < minAngle ? angle : minAngle;
-    maxAngle = angle > minAngle ? angle : minAngle;
+    angleRange.addPoint(primal::Point<double, 1>{angle});
   }
   /*
     The geometry can be closer to the rotation axis than its
     individual vertices are, depending on the angle (about the axis)
-    between the vertices.  Given the angle, scale the bottom of bbInRz
+    between the vertices.  Given the angle, extend the bottom of bbInRz
     for the worst case.
   */
-  double angleRange = maxAngle - minAngle;
-  double factor = angleRange > M_PI ? 0.0 : cos(angleRange / 2);
+  auto angleDiff = angleRange.range()[0];
+  double factor = angleDiff > M_PI ? 0.0 : cos(angleDiff / 2);
   auto newMin = bbInRz.getMin();
   newMin[1] *= factor;
   bbInRz.addPoint(newMin);
