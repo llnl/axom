@@ -17,6 +17,9 @@
 #include "core/DataStore.hpp"
 #include "core/Group.hpp"
 
+// Separate Conduit header for python functionality
+#include "conduit_python.hpp"
+
 namespace nb = nanobind;
 using namespace nb::literals;
 
@@ -203,6 +206,51 @@ NB_MODULE(pysidre, m_sidre)
   // Bindings for the DataStore class
   nb::class_<DataStore>(m_sidre, "DataStore")
     .def(nb::init<>())
+
+    .def(
+      "myFunc",
+      [](DataStore& self, const nb::object& o) {
+        if(import_conduit() < 0)
+        {
+          printf("failed to import Conduit Python C-API\n");
+        }
+        else
+        {
+          printf("SUCCEEDED to import Conduit Python C-API\n");
+        }
+        // self.callDataStoreFunction
+        PyObject* node = o.ptr();
+        if(!node)
+        {
+          printf("Null PyObject received\n");
+        }
+        else
+        {
+          printf("PyObject NOT NULL!!!\n");
+        }
+        if(PyConduit_Node_Check(node))
+        {
+          printf("You are a Conduit Node!\n");
+        }
+        else
+        {
+          printf("You are NOT a Conduit Node!\n");
+        }
+
+        // Turn python PyObject into C++ conduit::Node
+        conduit::Node* cpp_node = PyConduit_Node_Get_Node_Ptr(node);
+        printf("cppified node contains:\n");
+        cpp_node->print();
+        printf("modifying cppified node...\n");
+        conduit::Node& cpp_ref = *cpp_node;
+        cpp_ref["fizz"] = "buzz";
+
+        return o;
+      },
+      "This function takes in a python Node as a nb::object, turns it into a PyObject and uses "
+      "conduit API to check and turn it into a conduit::Node and performs a modification before "
+      "returning the original nb::object.")
+
     .def("getRoot",
          nb::overload_cast<>(&DataStore::getRoot),
          nb::rv_policy::reference,
