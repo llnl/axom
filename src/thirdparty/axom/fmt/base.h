@@ -253,10 +253,10 @@ AXOM_FMT_PRAGMA_GCC(diagnostic push)
 #endif
 
 #ifndef AXOM_FMT_BEGIN_NAMESPACE
-#  define AXOM_FMT_BEGIN_NAMESPACE namespace axom { \
-    namespace fmt {           \
+#  define AXOM_FMT_BEGIN_NAMESPACE  \
+    namespace axom::fmt {           \
     inline namespace v12 {
-#  define AXOM_FMT_END_NAMESPACE } \
+#  define AXOM_FMT_END_NAMESPACE \
     }                       \
     }
 #endif

@@ -54,8 +54,7 @@ function modify_headers
     echo $f
     sed -i "s/FMT_/AXOM_FMT_/g" $f
     sed -i "s/fmt::/axom::fmt::/g" $f
-    sed -i "s/define AXOM_FMT_BEGIN_NAMESPACE/define AXOM_FMT_BEGIN_NAMESPACE namespace axom {/g" $f
-    sed -i "s/define AXOM_FMT_END_NAMESPACE/define AXOM_FMT_END_NAMESPACE }/g" $f
+    sed -i "s/namespace fmt/namespace axom::fmt/g" $f
   done
 }
 
