@@ -607,7 +607,7 @@ public:
   }  // end of computeClipVolumes3D() function
 
   /*
-   * Clip tets of from the mesh with tets or octs from the clipping
+   * Clip tets from the mesh with tets or octs from the clipping
    * geometry.  This implementation is like the two above except that
    * it limits clipping to a subset of mesh tets labeled as
    * potentially on the boundary.
