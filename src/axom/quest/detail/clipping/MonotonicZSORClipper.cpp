@@ -298,7 +298,7 @@ AXOM_HOST_DEVICE MonotonicZSORClipper::BoundingBox2DType MonotonicZSORClipper::e
     bbInRz.addPoint(vertOnRz);
 
     double angle = atan2(vertOnXPlane[1], vertOnXPlane[0]);
-    angleRange.addPoint(primal::Point<double, 1>{angle});
+    angleRange.addPoint(primal::Point<double, 1> {angle});
   }
   /*
     The geometry can be closer to the rotation axis than its
