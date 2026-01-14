@@ -6,6 +6,7 @@
 
 import pysidre
 import numpy as np
+import conduit
 
 # Global attribute values, used by multiple tests
 g_name_color = "color"
@@ -381,9 +382,6 @@ def test_set_default():
 
 # ------------------------------------------------------------------------------
 #  get attribute as Conduit::Node
-
-# Requires conduit::Node information
-"""
 def test_as_node():
 	print("Some warnings are expected in the 'as_node' test")
 
@@ -408,14 +406,14 @@ def test_as_node():
 	assert ok
 
 	node1 = view1a.getAttributeNodeRef(attr_color)
-	assert node1.as_string() == g_color_red
+	assert node1.value() == g_color_red
 
 	node2 = view1a.getAttributeNodeRef(attr_dump)
-	assert node2.as_int() == g_dump_no
+	assert node2.value() == g_dump_no
 
-	node3 = view1a.getAttributeNodeRef(g_attr_null)
-	assert node3.schema().dtype().is_empty()
-"""
+	# "None" is not type Attribute
+	# node3 = view1a.getAttributeNodeRef(g_attr_null)
+	# assert node3.schema().dtype() == DataType.empty()
 
 
 def test_overloads():
@@ -475,15 +473,12 @@ def test_overloads():
 	assert view.getAttributeScalarInt(idump) == g_dump_yes
 	assert view.getAttributeScalarInt(g_name_dump) == g_dump_yes
 
-	# Requires conduit::Node information
-	"""
 	node1 = view.getAttributeNodeRef(attr_dump)
-	assert node1.as_int() == g_dump_yes
+	assert node1.value() == g_dump_yes
 	node2 = view.getAttributeNodeRef(idump)
-	assert node2.as_int() == g_dump_yes
+	assert node2.value() == g_dump_yes
 	node3 = view.getAttributeNodeRef(g_name_dump)
-	assert node3.as_int() == g_dump_yes
-	"""
+	assert node3.value() == g_dump_yes
 
 	assert view.hasAttributeValue(attr_dump)
 	assert view.hasAttributeValue(idump)

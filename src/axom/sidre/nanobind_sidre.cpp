@@ -210,32 +210,16 @@ NB_MODULE(pysidre, m_sidre)
     .def(
       "myFunc",
       [](DataStore& self, const nb::object& o) {
+        // Setup conduit python c api
         if(import_conduit() < 0)
         {
-          printf("failed to import Conduit Python C-API\n");
+          SLIC_ERROR("Failed to import Conduit Python C-API");
         }
-        else
-        {
-          printf("SUCCEEDED to import Conduit Python C-API\n");
-        }
+
         // self.callDataStoreFunction
         PyObject* node = o.ptr();
-        if(!node)
-        {
-          printf("Null PyObject received\n");
-        }
-        else
-        {
-          printf("PyObject NOT NULL!!!\n");
-        }
-        if(PyConduit_Node_Check(node))
-        {
-          printf("You are a Conduit Node!\n");
-        }
-        else
-        {
-          printf("You are NOT a Conduit Node!\n");
-        }
+        SLIC_ERROR_IF(!node, "PyObject is null");
+        SLIC_ERROR_IF(!PyConduit_Node_Check(node), "PyObject is not a Conduit Node");
 
         // Turn python PyObject into C++ conduit::Node
         conduit::Node* cpp_node = PyConduit_Node_Get_Node_Ptr(node);
@@ -420,6 +404,32 @@ NB_MODULE(pysidre, m_sidre)
 
   // Bindings for the View class
   nb::class_<View>(m_sidre, "View")
+
+    .def(
+      "retNode",
+      [](View& self) {
+        // Setup conduit python c api
+        if(import_conduit() < 0)
+        {
+          SLIC_ERROR("Failed to import Conduit Python C-API");
+        }
+
+        conduit::Node& node = self.getNode();
+        printf("C++ PRINT\n");
+        node.print();
+
+        // 0 - python owns => false
+        PyObject* wrapped = PyConduit_Node_Python_Wrap(&node, 0);
+
+        SLIC_ERROR_IF(!wrapped, "PyObject is null");
+        SLIC_ERROR_IF(!PyConduit_Node_Check(wrapped), "PyObject is not a Conduit Node");
+
+        // Return nb::object
+        return nb::steal<nb::object>(wrapped);
+      },
+      nb::rv_policy::reference,
+      "This function returns a conduit::Node as a nb::object.")
+
     .def("getIndex", &View::getIndex, "Return the index of the View within its owning Group.")
     .def("getName", &View::getName, "Return the name of the View.")
     .def("getPath", &View::getPath, "Return the path of the View's owning Group object.")
@@ -722,18 +732,81 @@ NB_MODULE(pysidre, m_sidre)
 
     // Requires conduit::Node information
     // Node reference getters
-    // .def("getAttributeNodeRef",
-    //      nb::overload_cast<IndexType>(&View::getAttributeNodeRef),
-    //      nb::rv_policy::reference,
-    //      "Return reference to Attribute Node (by index)")
-    // .def("getAttributeNodeRef",
-    //      nb::overload_cast<const std::string&>(&View::getAttributeNodeRef),
-    //      nb::rv_policy::reference,
-    //      "Return reference to Attribute Node (by name)")
-    // .def("getAttributeNodeRef",
-    //      nb::overload_cast<const Attribute*>(&View::getAttributeNodeRef),
-    //      nb::rv_policy::reference,
-    //      "Return reference to Attribute Node (by pointer)")
+    .def(
+      "getAttributeNodeRef",
+      // nb::overload_cast<IndexType>(&View::getAttributeNodeRef),
+      [](View& self, IndexType idx) {
+        // Setup conduit python c api
+        if(import_conduit() < 0)
+        {
+          SLIC_ERROR("Failed to import Conduit Python C-API");
+        }
+
+        conduit::Node& node = const_cast<conduit::Node&>(self.getAttributeNodeRef(idx));
+        printf("C++ PRINT\n");
+        node.print();
+
+        // 0 - python owns => false
+        PyObject* wrapped = PyConduit_Node_Python_Wrap(&node, 0);
+
+        SLIC_ERROR_IF(!wrapped, "PyObject is null");
+        SLIC_ERROR_IF(!PyConduit_Node_Check(wrapped), "PyObject is not a Conduit Node");
+
+        // Return nb::object
+        return nb::steal<nb::object>(wrapped);
+      },
+      nb::rv_policy::reference,
+      "Return reference to Attribute Node (by index)")
+    .def(
+      "getAttributeNodeRef",
+      // nb::overload_cast<const std::string&>(&View::getAttributeNodeRef),
+      [](View& self, const std::string& name) {
+        // Setup conduit python c api
+        if(import_conduit() < 0)
+        {
+          SLIC_ERROR("Failed to import Conduit Python C-API");
+        }
+
+        conduit::Node& node = const_cast<conduit::Node&>(self.getAttributeNodeRef(name));
+        printf("C++ PRINT\n");
+        node.print();
+
+        // 0 - python owns => false
+        PyObject* wrapped = PyConduit_Node_Python_Wrap(&node, 0);
+
+        SLIC_ERROR_IF(!wrapped, "PyObject is null");
+        SLIC_ERROR_IF(!PyConduit_Node_Check(wrapped), "PyObject is not a Conduit Node");
+
+        // Return nb::object
+        return nb::steal<nb::object>(wrapped);
+      },
+      nb::rv_policy::reference,
+      "Return reference to Attribute Node (by name)")
+    .def(
+      "getAttributeNodeRef",
+      // nb::overload_cast<const Attribute*>(&View::getAttributeNodeRef),
+      [](View& self, const Attribute* attr) {
+        // Setup conduit python c api
+        if(import_conduit() < 0)
+        {
+          SLIC_ERROR("Failed to import Conduit Python C-API");
+        }
+
+        conduit::Node& node = const_cast<conduit::Node&>(self.getAttributeNodeRef(attr));
+        printf("C++ PRINT\n");
+        node.print();
+
+        // 0 - python owns => false
+        PyObject* wrapped = PyConduit_Node_Python_Wrap(&node, 0);
+
+        SLIC_ERROR_IF(!wrapped, "PyObject is null");
+        SLIC_ERROR_IF(!PyConduit_Node_Check(wrapped), "PyObject is not a Conduit Node");
+
+        // Return nb::object
+        return nb::steal<nb::object>(wrapped);
+      },
+      nb::rv_policy::reference,
+      "Return reference to Attribute Node (by pointer)")
 
     // Attribute index iteration
     .def("getFirstValidAttrValueIndex",

@@ -34,6 +34,19 @@ def test_valid_invalid():
 	print(n)
 	print("sdfdsfasdfasdgadgapsdgadsgpojsagp")
 
+	print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	elem_count = 10
+	dv = root.createViewAndAllocate("u0", pysidre.TypeID.INT32_ID, elem_count)
+	data = dv.getDataArray()
+
+	for i in range(elem_count):
+		data[i] = i * i
+
+	print("PYTHON PRINT")
+	v_node = dv.retNode()
+	print(v_node)
+	print("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+
 def test_conduit_in_sidre_smoke():
 	# make sure we are importing conduit module ok.
 	n = Node()
