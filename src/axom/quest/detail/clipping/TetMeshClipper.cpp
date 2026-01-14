@@ -6,8 +6,6 @@
 #include "axom/config.hpp"
 
 #include "axom/core.hpp"
-#include "axom/mint/mesh/Mesh.hpp"
-#include "axom/mint/mesh/UnstructuredMesh.hpp"
 #include "axom/spin/BVH.hpp"
 #include "axom/quest/detail/clipping/TetMeshClipper.hpp"
 #include "axom/bump.hpp"
@@ -615,6 +613,13 @@ void TetMeshClipper::extractClipperInfo()
   SLIC_ASSERT(
     m_tetMesh.fetch_existing("topologies").fetch_existing(m_topoName).fetch_existing("type").as_string() ==
     "unstructured");
+
+  if(m_tetMesh.has_child("fields") && m_tetMesh["fields"].number_of_children() == 0)
+  {
+    // Remove empty "fields" node:  Blueprint check will fail if "fields" is empty,
+    m_tetMesh.remove_child("fields");
+  }
+
   {
     std::string whyBad;
     bool good = isValidTetMesh(m_tetMesh, whyBad);
@@ -641,13 +646,6 @@ void TetMeshClipper::extractClipperInfo()
 bool TetMeshClipper::isValidTetMesh(conduit::Node& tetMesh, std::string& whyBad) const
 {
   bool rval = true;
-
-  if(tetMesh.has_child("fields") && tetMesh["fields"].number_of_children() == 0)
-  {
-    // Remove empty "fields" node:  Blueprint check will fail if "fields" is empty,
-    // but mint check will fail if there's no "fields" node.
-    tetMesh.remove_child("fields");
-  }
 
   conduit::Node info;
   rval = conduit::blueprint::mesh::verify(tetMesh, info);
