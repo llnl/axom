@@ -240,10 +240,9 @@ C++20 and CUDA
 ~~~~~~~~~~~~~~~
 
 C++20 support in Axom is enabled by setting the ``BLT_CXX_STD`` variable in a
-host-config file to ``c++20``. If you use CMake 3.x versions (e.g. 3.30),
-you may get a configuration error indicating that CUDA does not support C++20
-on some systems. The solution is to use a more recent CMake version. CMake 4.2
-is known to support C++20 and CUDA 12.x or later.
+host-config file to ``c++20``. If you get a configuration error indicating that
+CUDA does not support C++20, the solution is to use a more recent CMake version.
+Consult CMake's release notes to find a version that supports C++20 and CUDA.
 
 Python helper script
 ~~~~~~~~~~~~~~~~~~~~
