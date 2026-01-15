@@ -21,10 +21,11 @@ namespace experimental
  * @brief Geometry clipping operations for simple 3D
  * surface-of-revolution geometries.
  *
- * This implementation requires the SOR curve r(z) have monotonic (but
- * not strictly monotonic) z coordinates.  The curve may have vertical
- * slopes but it may not double back in z.  For SOR curves that double back,
- * use SORClipper.
+ * This implementation requires the SOR curve r(z) to be monotonic in z.
+ * The values of z that make up the polyline specifying the curve must
+ * be either non-decreasing or non-increasing.  A curve may have segments
+ * with vertical slope, but it may not double back in z.
+ * For SOR curves that double back, use \a SORClilpper.
  *
  * The SOR specification may include axis orientation and location
  * in addition to any external transformation.
@@ -41,7 +42,7 @@ public:
    *
    * \c kGeom.asHierarchy() must contain the following data:
    * - sorOrigin: 3D coordinates of the point (z,r) = (0,0)
-   * - sorDirection: orientation of the SOR axis in 3D space.
+   * - sorDirection: a vector in the direction of the SOR axis.
    * - discreteFunction: The discretized r(z) curve as an array of (z,r) pairs.
    * - levelOfRefinement: number of refinement levels used
    *   to approximate the sphere with octahedra.  The number
@@ -52,7 +53,7 @@ public:
   MonotonicZSORClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
   /*!
-   * @brief Construct with parameters to override the specificaitons
+   * @brief Construct with parameters to override the specifications
    * in the klee::Geometry.
    */
   MonotonicZSORClipper(const klee::Geometry& kGeom,
