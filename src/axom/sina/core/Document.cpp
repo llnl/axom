@@ -216,6 +216,8 @@ void removeSlashes(const conduit::Node &originalNode, conduit::Node &modifiedNod
     }
   }
 }
+#endif
+
 
 void restoreSlashes(const conduit::Node &modifiedNode, conduit::Node &restoredNode)
 {
@@ -281,6 +283,7 @@ void restoreSlashes(const conduit::Node &modifiedNode, conduit::Node &restoredNo
   }
 }
 
+#ifdef AXOM_USE_HDF5
 conduit::Node &Document::toHDF5Node(conduit::Node &writeTo) const
 {
   conduit::Node &recordsNode = writeTo["records"];
@@ -531,6 +534,7 @@ uint64_t relayLikeArrayNumElements(conduit::Node &appendTo,
   return appendTo["records"].child(record_num)[endpoint].dtype().number_of_elements();
 }
 
+#ifdef AXOM_USE_HDF5
 uint64_t relayLikeArrayNumElements(conduit::relay::io::IOHandle &appendTo,
                                    const std::string &endpoint,
                                    int record_num,
@@ -556,6 +560,7 @@ void relayLikeAppendCurve(conduit::relay::io::IOHandle &appendTo,
   OPTS_NODE["offset"] = relayLikeArrayNumElements(appendTo, endpoint, record_num, original_file_path);
   appendTo.write(appendFrom, endpoint, OPTS_NODE);
 }
+#endif /* AXOM_USE_HDF5 */
 
 void relayLikeAppendCurve(conduit::Node &appendTo,
                           conduit::Node &appendFrom,
@@ -1098,9 +1103,7 @@ conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
   appendTo.close();
   return msgNode;
 #else
-  conduit::Node msgNode = conduit::Node(conduit::DataType::list());
-  msgNode.append("Failed to append Sina HDF5: Axom wasn't build with HDF5");
-  return msgNode;
+  throw std::runtime_error("Failed to append Sina HDF5: Axom wasn't build with HDF5");
 #endif
 }
 
