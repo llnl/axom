@@ -63,7 +63,7 @@ struct TrimmingCurveQuadratureData
    * \param [in] a_refinementLevel How many subdivisions for the curve
    * \param [in] a_refinementSection Which subdivision for a given level
    */
-  TrimmingCurveQuadratureData(const NURBSPatch<T, 3> a_patch,
+  TrimmingCurveQuadratureData(const NURBSPatch<T, 3>& a_patch,
                               int a_curve_index,
                               int quad_npts,
                               int a_refinementLevel,
@@ -110,7 +110,7 @@ struct TrimmingCurveQuadratureData
     const numerics::QuadratureRule& gl_rule = numerics::get_gauss_legendre(m_quad_npts);
     return gl_rule.weight(idx) * m_span_length;
   }
-  double getNumPoints() const { return m_quad_npts; }
+  int getNumPoints() const { return m_quad_npts; }
 
 private:
   axom::Array<Point<T, 3>> m_quadrature_points;
@@ -202,7 +202,7 @@ public:
   }
 
   /// \brief Initialize the cache with the data for a single Bezier patch
-  NURBSPatchGWNCache(const BezierPatch<T, 3> a_patch)
+  NURBSPatchGWNCache(const BezierPatch<T, 3>& a_patch)
     : NURBSPatchGWNCache(NURBSPatch<T, 3>(a_patch))
   { }
 
@@ -210,19 +210,19 @@ public:
   //! \name Functions that mirror functionality of NURBSPatch so signatures match in GWN evaluation.
   //!
   //! By limiting access to these functions, we ensure memoized information is always accurate
-  auto getControlPoints() const { return m_alteredPatch.getControlPoints(); }
-  auto getNumControlPoints_u() const { return m_alteredPatch.getNumControlPoints_u(); }
-  auto getNumControlPoints_v() const { return m_alteredPatch.getNumControlPoints_v(); }
-  auto getWeights() const { return m_alteredPatch.getWeights(); }
-  auto getKnots_u() const { return m_alteredPatch.getKnots_u(); }
-  auto getKnots_v() const { return m_alteredPatch.getKnots_v(); }
-  auto getMinKnot_u() const { return m_alteredPatch.getMinKnot_u(); }
-  auto getMaxKnot_u() const { return m_alteredPatch.getMaxKnot_u(); }
-  auto getMinKnot_v() const { return m_alteredPatch.getMinKnot_v(); }
-  auto getMaxKnot_v() const { return m_alteredPatch.getMaxKnot_v(); }
-  auto getTrimmingCurves() const { return m_alteredPatch.getTrimmingCurves(); };
-  auto getNumTrimmingCurves() const { return m_alteredPatch.getNumTrimmingCurves(); }
-  auto getParameterSpaceDiagonal() const { return m_pboxDiag; }
+  decltype(auto) getControlPoints() const { return m_alteredPatch.getControlPoints(); }
+  int getNumControlPoints_u() const { return m_alteredPatch.getNumControlPoints_u(); }
+  int getNumControlPoints_v() const { return m_alteredPatch.getNumControlPoints_v(); }
+  decltype(auto) getWeights() const { return m_alteredPatch.getWeights(); }
+  decltype(auto) getKnots_u() const { return m_alteredPatch.getKnots_u(); }
+  decltype(auto) getKnots_v() const { return m_alteredPatch.getKnots_v(); }
+  double getMinKnot_u() const { return m_alteredPatch.getMinKnot_u(); }
+  double getMaxKnot_u() const { return m_alteredPatch.getMaxKnot_u(); }
+  double getMinKnot_v() const { return m_alteredPatch.getMinKnot_v(); }
+  double getMaxKnot_v() const { return m_alteredPatch.getMaxKnot_v(); }
+  decltype(auto) getTrimmingCurves() const { return m_alteredPatch.getTrimmingCurves(); };
+  int getNumTrimmingCurves() const { return m_alteredPatch.getNumTrimmingCurves(); }
+  decltype(auto) getParameterSpaceDiagonal() const { return m_pboxDiag; }
   //@}
 
   ///@{

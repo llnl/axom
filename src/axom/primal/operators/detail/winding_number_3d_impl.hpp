@@ -54,8 +54,8 @@ enum class DiscontinuityAxis
  */
 template <typename NURBSType, typename T>
 void degenerate_surface_processing(const NURBSType& nurbs,
-                                   const axom::Array<T> up,
-                                   const axom::Array<T> vp,
+                                   const axom::Array<T>& up,
+                                   const axom::Array<T>& vp,
                                    const T clip_radius,
                                    NURBSPatch<T, 3>& out_patch1,
                                    NURBSPatch<T, 3>& out_patch2)
@@ -388,8 +388,8 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
   for(int n = 0; n < nurbs.getNumTrimmingCurves(); ++n)
   {
     // Get the quadrature points for the curve on the patch without any refinement
-    auto trimming_curve_data = nurbs.getTrimmingCurveQuadratureData(n, quad_npts, 0, 0);
-    double quad_coarse = stokes_gwn_component(query, ax, rotator, trimming_curve_data);
+    const auto& trimming_curve_data = nurbs.getTrimmingCurveQuadratureData(n, quad_npts, 0, 0);
+    const double quad_coarse = stokes_gwn_component(query, ax, rotator, trimming_curve_data);
 
     quad += gwn_modulo *
       stokes_gwn_adaptive(query, nurbs, n, quad_npts, 0, 0, ax, rotator, quad_coarse, quad_tol);
@@ -444,8 +444,9 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
   for(int n = 0; n < nurbs.getNumTrimmingCurves(); ++n)
   {
     // Get the quadrature points for the curve on the *rotated* patch without any refinement
-    auto trimming_curve_data = TrimmingCurveQuadratureData<T>(nurbs_rotated, n, quad_npts, 0, 0);
-    double quad_coarse = stokes_gwn_component(query, ax, rotator, trimming_curve_data);
+    const auto trimming_curve_data =
+      TrimmingCurveQuadratureData<T>(nurbs_rotated, n, quad_npts, 0, 0);
+    const double quad_coarse = stokes_gwn_component(query, ax, rotator, trimming_curve_data);
 
     quad += gwn_modulo *
       stokes_gwn_adaptive(query, nurbs_rotated, n, quad_npts, 0, 0, ax, rotator, quad_coarse, quad_tol);
