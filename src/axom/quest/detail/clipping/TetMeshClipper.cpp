@@ -142,7 +142,7 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
 
   /*
    * Find candidate surface triangles near the cells' bounding boxes and rays.
-  */
+   */
   axom::ArrayView<const BoundingBox3DType> hexBbs = shapeMesh.getCellBoundingBoxes();
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::get_surf_near_bbs");
   axom::Array<IndexType> bbOffsets(cellCount, 0, allocId);
@@ -991,9 +991,6 @@ void TetMeshClipper::copy_topo_and_coords_to(int allocId)
   const std::string newCoordsetName = axom::fmt::format("{}.{}", m_coordsetName, allocId);
   m_tetMesh[newTopoPath + "/coordset"].set(newCoordsetName);
 }
-
-// Run cellKernel through a cell loop.
-// Run faceKernel through a face loop.
 
 }  // namespace experimental
 }  // end namespace quest
