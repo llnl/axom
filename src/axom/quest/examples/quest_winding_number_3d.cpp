@@ -158,6 +158,18 @@ int main(int argc, char** argv)
       ->description("Relative error tolerance for quadrature")
       ->check(axom::CLI::PositiveNumber)
       ->capture_default_str();
+    app.add_option("--disk-size", tol.disk_size)
+      ->description("Relative disk size for winding number edge cases")
+      ->check(axom::CLI::PositiveNumber)
+      ->capture_default_str();
+    app.add_option("--edge-tol", tol.edge_tol)
+      ->description("Relative edge tolerance for queries")
+      ->check(axom::CLI::PositiveNumber)
+      ->capture_default_str();
+    app.add_option("--eps-tol", tol.EPS)
+      ->description("Additional generic tolerance parameter")
+      ->check(axom::CLI::PositiveNumber)
+      ->capture_default_str();
 
 #ifdef AXOM_USE_CALIPER
     app.add_option("--caliper", annotationMode)
