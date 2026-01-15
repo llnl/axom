@@ -98,11 +98,11 @@ private:
                                axom::ArrayView<bool>& vertIsInside,
                                axom::Array<LabelType>& labels);
 
-  //! @brief Compute rays from mesh hexes, pointing away from tet mesh centroid.
+  //! @brief Compute rays from an interior point of each mesh hex, pointing away from tet mesh centroid.
   template <typename ExecSpace>
   void computeHexRays(quest::experimental::ShapeMesh& shapeMesh, axom::Array<Ray3DType>& hexRays);
 
-  //! @brief Compute rays from tets in the given mesh cells, pointing away from tet mesh centroid.
+  //! @brief Compute rays from an interior point of each mesh tet, pointing away from tet mesh centroid.
   template <typename ExecSpace>
   void computeTetRays(quest::experimental::ShapeMesh& shapeMesh,
                       axom::ArrayView<const axom::IndexType> cellIds,
