@@ -108,6 +108,7 @@ int main(int argc, char** argv)
   bool verbose {false};
   std::string annotationMode {"none"};
   bool memoized {true};
+  bool vis {true};
 
   // Query mesh parameters
   std::vector<double> boxMins;
@@ -128,6 +129,8 @@ int main(int argc, char** argv)
 
   app.add_flag("-v,--verbose", verbose, "verbose output")->capture_default_str();
   app.add_flag("--memoized,!--no-memoized", memoized, "Cache geometric data during query?")
+    ->capture_default_str();
+  app.add_flag("--vis,!--no-vis", vis, "Should we write out the results for visualization?")
     ->capture_default_str();
 
 #ifdef AXOM_USE_CALIPER
@@ -249,6 +252,7 @@ int main(int argc, char** argv)
   }
 
   // Save the query mesh and fields to disk using a format that can be viewed in VisIt
+  if(vis)
   {
     AXOM_ANNOTATE_SCOPE("dump_mesh");
 
