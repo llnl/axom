@@ -204,7 +204,7 @@ int main(int argc, char** argv)
     preproc_timer.stop();
 
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Preprocessing curves took {:.3Lf} seconds",
+                                "Preprocessing curves took {:.4Lf} seconds",
                                 preproc_timer.elapsed()));
     AXOM_ANNOTATE_METADATA("preprocessing_time", preproc_timer.elapsed(), "");
   }
@@ -242,7 +242,7 @@ int main(int argc, char** argv)
     const int ndofs = dc.GetField("winding")->FESpace()->GetNDofs();
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
                                 "Querying {:L} samples in winding number field took {:.3Lf} seconds"
-                                " (@ {:.0Lf} queries per second; {:.4Lf} ms per query)",
+                                " (@ {:.0Lf} queries per second; {:.5Lf} ms per query)",
                                 ndofs,
                                 query_timer.elapsed(),
                                 ndofs / query_timer.elapsed(),

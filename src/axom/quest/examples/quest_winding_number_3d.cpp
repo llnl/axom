@@ -117,10 +117,13 @@ int main(int argc, char** argv)
 
   std::string inputFile;
   std::string outputPrefix {"winding3d"};
+
   bool verbose {false};
-  bool validate {false};
   std::string annotationMode {"none"};
   bool memoized {true};
+  bool vis {true};
+  bool validate {false};
+
   std::vector<double> boxMins;
   std::vector<double> boxMaxs;
   std::vector<int> boxResolution;
@@ -147,6 +150,8 @@ int main(int argc, char** argv)
     app.add_flag("-v,--verbose", verbose, "verbose output")->capture_default_str();
     app.add_flag("--validate", validate, "Run STEP model validation checks")->capture_default_str();
     app.add_flag("--memoized,!--no-memoized", memoized, "Cache geometric data during query?")
+      ->capture_default_str();
+    app.add_flag("--vis,!--no-vis", vis, "Should we write out the results for visualization?")
       ->capture_default_str();
 
     // Options for query tolerances; for now, only expose the line search and quadrature tolerances
@@ -380,6 +385,7 @@ int main(int argc, char** argv)
   }
 
   // Save the query mesh and fields to disk using a format that can be viewed in VisIt
+  if(vis)
   {
     AXOM_ANNOTATE_SCOPE("dump_mesh");
 
