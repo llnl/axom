@@ -29,7 +29,7 @@ function copy_headers
 function patch_file
 {
   # Patch copied file
-  cp fmt_src/$1 $1
+  cp fmt_src/include/fmt/$1 $1
   if patch -p1 $1 < $2 ; then
     echo "Applied patch $2 to $1."
     echo "Updating patch file $2."
