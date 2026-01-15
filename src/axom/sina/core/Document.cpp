@@ -1102,7 +1102,7 @@ conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
   appendTo.close();
   return msgNode;
 #else
-  throw std::runtime_error("Failed to append Sina HDF5: Axom wasn't build with HDF5");
+  throw std::runtime_error("Failed to append Sina HDF5: Axom wasn't built with HDF5");
 #endif
 }
 
