@@ -46,9 +46,9 @@ function patch_file
 
 function apply_patches
 {
-  patch_file base.h       base.h.patch
-  patch_file format-inl.h runtime_error.patch
-  patch_file format.h     format.h.patch
+  patch_file base.h       fmt.base.h.patch
+  patch_file format-inl.h fmt.runtime_error.patch
+  patch_file format.h     fmt.format.h.patch
 }
 
 function modify_headers
