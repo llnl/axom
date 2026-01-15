@@ -317,20 +317,17 @@ double stokes_gwn_component(const Point<T, 3>& query,
                             const TrimmingCurveQuadratureData<T>& trimming_curve_data)
 {
   double this_quad = 0;
+
+  const bool is_rotated = (ax == DiscontinuityAxis::rotated);
   for(int q = 0; q < trimming_curve_data.getNumPoints(); ++q)
   {
-    Vector<T, 3> node, node_dt;
-    if(ax == DiscontinuityAxis::rotated)
-    {
-      node =
-        Vector<T, 3>(query, rotate_point(rotator, query, trimming_curve_data.getQuadraturePoint(q)));
-      node_dt = rotate_vector_origin(rotator, trimming_curve_data.getQuadratureTangent(q));
-    }
-    else
-    {
-      node = Vector<T, 3>(query, trimming_curve_data.getQuadraturePoint(q));
-      node_dt = Vector<T, 3>(trimming_curve_data.getQuadratureTangent(q));
-    }
+    const Vector<T, 3> node = is_rotated
+      ? rotate_point(rotator, query, trimming_curve_data.getQuadraturePoint(q)) - query
+      : trimming_curve_data.getQuadraturePoint(q) - query;
+
+    const Vector<T, 3> node_dt = is_rotated
+      ? rotate_vector_origin(rotator, trimming_curve_data.getQuadratureTangent(q))
+      : trimming_curve_data.getQuadratureTangent(q);
 
     const double node_norm = node.norm();
     const double quad_weight = trimming_curve_data.getQuadratureWeight(q);

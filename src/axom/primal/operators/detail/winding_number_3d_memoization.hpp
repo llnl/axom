@@ -86,7 +86,7 @@ struct TrimmingCurveQuadratureData
     m_quadrature_tangents.resize(m_quad_npts);
     for(int q = 0; q < m_quad_npts; ++q)
     {
-      T quad_x = gl_rule.node(q) * m_span_length + curve_min_knot + span_offset;
+      const T quad_x = gl_rule.node(q) * m_span_length + curve_min_knot + span_offset;
 
       Point<T, 2> c_eval;
       Vector<T, 2> c_Dt;
@@ -101,8 +101,8 @@ struct TrimmingCurveQuadratureData
     }
   }
 
-  Point<T, 3> getQuadraturePoint(size_t idx) const { return m_quadrature_points[idx]; }
-  Vector<T, 3> getQuadratureTangent(size_t idx) const { return m_quadrature_tangents[idx]; }
+  const Point<T, 3>& getQuadraturePoint(size_t idx) const { return m_quadrature_points[idx]; }
+  const Vector<T, 3>& getQuadratureTangent(size_t idx) const { return m_quadrature_tangents[idx]; }
   double getQuadratureWeight(size_t idx) const
   {
     // Because the quadrature weights are identical for each trimming curve (up to a scaling factor),
@@ -159,7 +159,7 @@ public:
     // Make a bounding box by doing (trimmed) bezier extraction,
     //  splitting the resulting bezier patches in 4,
     //  and taking a union of those bounding boxes
-    auto split_patches = m_alteredPatch.extractTrimmedBezier();
+    const auto split_patches = m_alteredPatch.extractTrimmedBezier();
 
     // Bounding boxes should be defined according to the *pre-expanded* surface,
     //  since the expanded portions are never visible
@@ -172,20 +172,14 @@ public:
         continue;  // Skip patches with no trimming curves
       }
 
-      BezierPatch<T, 3> the_patch;
-      if(m_alteredPatch.isRational())
-      {
-        the_patch = BezierPatch<T, 3>(split_patches[n].getControlPoints(),
-                                      split_patches[n].getWeights(),
-                                      split_patches[n].getDegree_u(),
-                                      split_patches[n].getDegree_v());
-      }
-      else
-      {
-        the_patch = BezierPatch<T, 3>(split_patches[n].getControlPoints(),
-                                      split_patches[n].getDegree_u(),
-                                      split_patches[n].getDegree_v());
-      }
+      const auto the_patch = m_alteredPatch.isRational()
+        ? BezierPatch<T, 3>(split_patches[n].getControlPoints(),
+                            split_patches[n].getWeights(),
+                            split_patches[n].getDegree_u(),
+                            split_patches[n].getDegree_v())
+        : BezierPatch<T, 3>(split_patches[n].getControlPoints(),
+                            split_patches[n].getDegree_u(),
+                            split_patches[n].getDegree_v());
 
       BezierPatch<T, 3> p1, p2, p3, p4;
       the_patch.split(0.5, 0.5, p1, p2, p3, p4);
@@ -227,9 +221,9 @@ public:
 
   ///@{
   //! \name Accessors for precomputed data
-  Vector<T, 3> getAverageNormal() const { return m_averageNormal; }
-  BoundingBox<T, 3> boundingBox() const { return m_bBox; }
-  OrientedBoundingBox<T, 3> orientedBoundingBox() const { return m_oBox; }
+  const Vector<T, 3>& getAverageNormal() const { return m_averageNormal; }
+  const BoundingBox<T, 3>& boundingBox() const { return m_bBox; }
+  const OrientedBoundingBox<T, 3>& orientedBoundingBox() const { return m_oBox; }
   //@}
 
   /// \brief Creates or accesses the quadrature nodes for a given trimming curve
@@ -239,7 +233,7 @@ public:
                                                                  int refinementIndex) const
   {
     // Check to see if we have already computed the quadrature data for this curve
-    auto hash_key = std::make_pair(refinementLevel, refinementIndex);
+    const auto hash_key = std::make_pair(refinementLevel, refinementIndex);
 
     if(m_curveQuadratureMaps[curveIndex].find(hash_key) == m_curveQuadratureMaps[curveIndex].end())
     {
