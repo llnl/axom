@@ -11,9 +11,10 @@
 
 // Include all fmt header files
 #include "axom/fmt/core.h"
-#include "axom/fmt/format.h"
+#include "axom/fmt/format-inl.h"
 
 #include "axom/fmt/args.h"
+#include "axom/fmt/base.h"
 #include "axom/fmt/chrono.h"
 #include "axom/fmt/color.h"
 #include "axom/fmt/compile.h"
