@@ -662,7 +662,7 @@ void TetMeshClipper::extractClipperInfo()
   m_coordsetName = topoNode.fetch_existing("coordset").as_string();
 }
 
-bool TetMeshClipper::isValidTetMesh(conduit::Node& tetMesh, std::string& whyBad) const
+bool TetMeshClipper::isValidTetMesh(const conduit::Node& tetMesh, std::string& whyBad) const
 {
   bool rval = true;
 

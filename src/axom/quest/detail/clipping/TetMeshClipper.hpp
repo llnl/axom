@@ -113,7 +113,7 @@ private:
   void extractClipperInfo();
 
   // Check validity of tetMesh for our purposes.
-  bool isValidTetMesh(conduit::Node& tetMesh, std::string& whyBad) const;
+  bool isValidTetMesh(const conduit::Node& tetMesh, std::string& whyBad) const;
 
   /*!
    * @brief Add a transformed coordset to m_tetMesh.
