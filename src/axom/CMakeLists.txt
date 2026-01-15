@@ -11,6 +11,9 @@
 
 # Core is an essential part of Axom and cannot be turned off
 axom_add_component(COMPONENT_NAME core DEFAULT_STATE ON)
+if(DEFINED AXOM_ENABLE_CORE AND NOT AXOM_ENABLE_CORE)
+    message(FATAL_ERROR "Core is an essential part of Axom and cannot be turned off")
+endif()
 
 # Lumberjack is a parallel message filtering and reduction library. It can be used
 # by itself or as a SLIC Log Stream. It is not meant for serial (non-mpi) executables.
