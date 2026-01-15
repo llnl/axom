@@ -201,7 +201,7 @@ struct formatter<axom::sidre::DataTypeId>
   constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
 
   template <typename FormatContext>
-  auto format(axom::sidre::DataTypeId dt, FormatContext &ctx)
+  auto format(axom::sidre::DataTypeId dt, FormatContext &ctx) const
   {
     // map enum to its name
     std::string name;

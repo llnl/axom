@@ -236,6 +236,13 @@ information about the platform and spec.
 
 For more information, see `BLT host-config documentation <https://llnl-blt.readthedocs.io/en/develop/tutorial/host_configs.html>`_.
 
+C++20 and CUDA
+~~~~~~~~~~~~~~~
+
+C++20 support in Axom is enabled by setting the ``BLT_CXX_STD`` variable in a
+host-config file to ``c++20``. If you get a configuration error indicating that
+CUDA does not support C++20, the solution is to use a more recent CMake version.
+Consult CMake's release notes to find a version that supports C++20 and CUDA.
 
 Python helper script
 ~~~~~~~~~~~~~~~~~~~~
