@@ -218,7 +218,6 @@ void removeSlashes(const conduit::Node &originalNode, conduit::Node &modifiedNod
 }
 #endif
 
-
 void restoreSlashes(const conduit::Node &modifiedNode, conduit::Node &restoredNode)
 {
   // Check if List or Object, if its a list the else statement would turn it into an object
