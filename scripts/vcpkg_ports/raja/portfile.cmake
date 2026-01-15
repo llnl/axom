@@ -8,7 +8,8 @@ vcpkg_from_github(
     REF v2025.12.0
     SHA512 3668df960d4f1f5fc7dc72e8e6b522a8e7b5da9c2fcefa5a975c2b311050bdf46a58662b9344522ac93765c83f9f63ee9f9d028d7a6ea13c61f72877a11b6929
     PATCHES
-        "./vcpkg_raja_openmp.patch"
+        "./vcpkg_raja_openmp_forall.patch"
+        "./vcpkg_raja_threadutils.patch"
 )
 
 set(_is_shared TRUE)
