@@ -317,116 +317,98 @@ double stokes_gwn_component(const Point<T, 3>& query,
                             const numerics::Matrix<T>& rotator,
                             const TrimmingCurveQuadratureData<T>& trimming_curve_data)
 {
-  const int num_pts = trimming_curve_data.getNumPoints();
-  double this_quad = 0.0;
-  const double qx = query[0];
-  const double qy = query[1];
-  const double qz = query[2];
+  using VectorType = Vector<T, 3>;
 
+  const int num_pts = trimming_curve_data.getNumPoints();
   const auto quad_points = trimming_curve_data.getQuadraturePoints();
   const auto quad_tangents = trimming_curve_data.getQuadratureTangents();
   const auto quad_weights = trimming_curve_data.getQuadratureWeights();
+
+  // Shared loop structure for the different discontinuity axes:
+  //  - build node vector (quadrature point relative to query, optionally rotated)
+  //  - build tangent vector (optionally rotated)
+  //  - accumulate weight * numerator(node, dt) / (denom(node) * ||node||)
+  auto accumulate = [&](auto&& make_node, auto&& make_dt, auto&& numer_fn, auto&& denom_fn) -> double {
+    double this_quad = 0.0;
+    for(int q = 0; q < num_pts; ++q)
+    {
+      const VectorType node = make_node(q);
+      const VectorType node_dt = make_dt(q);
+      const double inv = 1.0 / (denom_fn(node) * node.norm());
+      this_quad += quad_weights[q] * numer_fn(node, node_dt) * inv;
+    }
+    return this_quad;
+  };
+
+  auto numer_x = [](const VectorType& node, const VectorType& dt) -> double {
+    return node[0] * (node[2] * dt[1] - node[1] * dt[2]);
+  };
+  auto numer_y = [](const VectorType& node, const VectorType& dt) -> double {
+    return node[1] * (node[0] * dt[2] - node[2] * dt[0]);
+  };
+  auto numer_z = [](const VectorType& node, const VectorType& dt) -> double {
+    return node[2] * (node[1] * dt[0] - node[0] * dt[1]);
+  };
+
+  auto denom_x = [](const VectorType& node) -> double {
+    return (node[1] * node[1]) + (node[2] * node[2]);
+  };
+  auto denom_y = [](const VectorType& node) -> double {
+    return (node[0] * node[0]) + (node[2] * node[2]);
+  };
+  auto denom_z = [](const VectorType& node) -> double {
+    return (node[0] * node[0]) + (node[1] * node[1]);
+  };
+
+  // Non-rotated paths share the same node/dt construction.
+  auto make_node_unrot = [&](int q) -> VectorType { return quad_points[q] - query; };
+  auto make_dt_unrot = [&](int q) -> VectorType { return quad_tangents[q]; };
 
   // The axis is constant for the full loop; split into specialized loops to avoid
   // per-iteration switching/branching overhead.
   if(ax == DiscontinuityAxis::rotated)
   {
-    // For the rotated case, we rotate each quadrature point around `query`.
-    // Since the integrand uses `rotate_point(..., query, P) - query`, we can
-    // avoid a redundant translation by rotating the query-relative vector directly.
-    // NOTE: axom::numerics::Matrix is stored column-major (see Matrix::operator()).
-    // rotator(i,j) lives at r[j * 3 + i].
+    // Rotate query-relative vectors directly; avoid the extra translate in
+    // rotate_point(..., query, P) - query.
     const T* r = rotator.data();
     const double r00 = r[0], r01 = r[3], r02 = r[6];
     const double r10 = r[1], r11 = r[4], r12 = r[7];
     const double r20 = r[2], r21 = r[5], r22 = r[8];
-    for(int q = 0; q < num_pts; ++q)
-    {
+
+    auto make_node_rot = [&](int q) -> VectorType {
       const auto& qp = quad_points[q];
+      const double dx = qp[0] - query[0];
+      const double dy = qp[1] - query[1];
+      const double dz = qp[2] - query[2];
+
+      return VectorType {r00 * dx + r01 * dy + r02 * dz,
+                         r10 * dx + r11 * dy + r12 * dz,
+                         r20 * dx + r21 * dy + r22 * dz};
+    };
+
+    auto make_dt_rot = [&](int q) -> VectorType {
       const auto& qt = quad_tangents[q];
 
-      const double dx = qp[0] - qx;
-      const double dy = qp[1] - qy;
-      const double dz = qp[2] - qz;
+      return VectorType {r00 * qt[0] + r01 * qt[1] + r02 * qt[2],
+                         r10 * qt[0] + r11 * qt[1] + r12 * qt[2],
+                         r20 * qt[0] + r21 * qt[1] + r22 * qt[2]};
+    };
 
-      const double nx = r00 * dx + r01 * dy + r02 * dz;
-      const double ny = r10 * dx + r11 * dy + r12 * dz;
-      const double nz = r20 * dx + r21 * dy + r22 * dz;
-
-      const double tx = r00 * qt[0] + r01 * qt[1] + r02 * qt[2];
-      const double ty = r10 * qt[0] + r11 * qt[1] + r12 * qt[2];
-
-      const double node_norm = sqrt(nx * nx + ny * ny + nz * nz);
-      const double inv = 1.0 / ((nx * nx + ny * ny) * node_norm);
-
-      // z-axis field (also used for rotated case)
-      const double numerator = nz * (ny * tx - nx * ty);
-      this_quad += quad_weights[q] * numerator * inv;
-    }
-
-    return this_quad;
+    return accumulate(make_node_rot, make_dt_rot, numer_z, denom_z);
   }
 
   if(ax == DiscontinuityAxis::x)
   {
-    for(int q = 0; q < num_pts; ++q)
-    {
-      const auto& qp = quad_points[q];
-      const auto& node_dt = quad_tangents[q];
-
-      const double nx = qp[0] - qx;
-      const double ny = qp[1] - qy;
-      const double nz = qp[2] - qz;
-
-      const double node_norm = sqrt(nx * nx + ny * ny + nz * nz);
-      const double inv = 1.0 / ((ny * ny + nz * nz) * node_norm);
-
-      const double numerator = nx * (nz * node_dt[1] - ny * node_dt[2]);
-      this_quad += quad_weights[q] * numerator * inv;
-    }
-
-    return this_quad;
+    return accumulate(make_node_unrot, make_dt_unrot, numer_x, denom_x);
   }
 
   if(ax == DiscontinuityAxis::y)
   {
-    for(int q = 0; q < num_pts; ++q)
-    {
-      const auto& qp = quad_points[q];
-      const auto& node_dt = quad_tangents[q];
-
-      const double nx = qp[0] - qx;
-      const double ny = qp[1] - qy;
-      const double nz = qp[2] - qz;
-
-      const double node_norm = sqrt(nx * nx + ny * ny + nz * nz);
-      const double inv = 1.0 / ((nx * nx + nz * nz) * node_norm);
-
-      const double numerator = ny * (nx * node_dt[2] - nz * node_dt[0]);
-      this_quad += quad_weights[q] * numerator * inv;
-    }
-
-    return this_quad;
+    return accumulate(make_node_unrot, make_dt_unrot, numer_y, denom_y);
   }
 
   // Default: z-axis field.
-  for(int q = 0; q < num_pts; ++q)
-  {
-    const auto& qp = quad_points[q];
-    const auto& node_dt = quad_tangents[q];
-
-    const double nx = qp[0] - qx;
-    const double ny = qp[1] - qy;
-    const double nz = qp[2] - qz;
-
-    const double node_norm = sqrt(nx * nx + ny * ny + nz * nz);
-    const double inv = 1.0 / ((nx * nx + ny * ny) * node_norm);
-
-    const double numerator = nz * (ny * node_dt[0] - nx * node_dt[1]);
-    this_quad += quad_weights[q] * numerator * inv;
-  }
-
-  return this_quad;
+  return accumulate(make_node_unrot, make_dt_unrot, numer_z, denom_z);
 }
 
 /*!
