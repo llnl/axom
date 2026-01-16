@@ -426,6 +426,9 @@ int main(int argc, char** argv)
   }
 
   // Run the query
+  double query_time_s = 0.0;
+  int ndofs = 0;
+  double ms_per_query = 0.0;
   {
     axom::utilities::Timer query_timer(true);
     if(memoized)
@@ -438,16 +441,18 @@ int main(int argc, char** argv)
     }
     query_timer.stop();
 
-    const int ndofs = dc.GetField("winding")->FESpace()->GetNDofs();
+    ndofs = dc.GetField("winding")->FESpace()->GetNDofs();
+    query_time_s = query_timer.elapsed();
+    ms_per_query = query_timer.elapsedTimeInMilliSec() / ndofs;
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
                                 "Querying {:L} samples in winding number field took {:.3Lf} seconds"
-                                " (@ {:.0Lf} queries per second; {:.2Lf} ms per query)",
+                                " (@ {:.0Lf} queries per second; {:.4Lf} ms per query)",
                                 ndofs,
-                                query_timer.elapsed(),
-                                ndofs / query_timer.elapsed(),
-                                query_timer.elapsedTimeInMilliSec() / ndofs));
+                                query_time_s,
+                                ndofs / query_time_s,
+                                ms_per_query));
     AXOM_ANNOTATE_METADATA("query_points", ndofs, "");
-    AXOM_ANNOTATE_METADATA("query_time", query_timer.elapsed(), "");
+    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
   }
 
   // Postprocess query results: norms, ranges, and integral statistics
@@ -473,7 +478,7 @@ int main(int argc, char** argv)
     }
 
     SLIC_INFO(
-      axom::fmt::format("WN_STATS: dof_l2={:.4e} dof_linf={:.4e} l2={:.4e} min={:.4e} max={:.4e}",
+      axom::fmt::format("WN_STATS: dof_l2={:.6e} dof_linf={:.6e} l2={:.6e} min={:.6e} max={:.6e}",
                         winding_stats.dof_l2,
                         winding_stats.dof_linf,
                         winding_stats.l2,
@@ -481,8 +486,8 @@ int main(int argc, char** argv)
                         winding_stats.max));
 
     SLIC_INFO(axom::fmt::format(
-      "INOUT_STATS: dof_l2={:.4e} dof_linf={:.4e} l2={:.4e} min={:.4e} max={:.4e} volume={:.4e} "
-      "domain_volume={:.4e} vol_frac={:.4e} nonzero_dofs={}",
+      "INOUT_STATS: dof_l2={:.6e} dof_linf={:.6e} l2={:.6e} min={:.6e} max={:.6e} volume={:.6e} "
+      "domain_volume={:.6e} vol_frac={:.6e} nonzero_dofs={}",
       inout_stats.dof_l2,
       inout_stats.dof_linf,
       inout_stats.l2,

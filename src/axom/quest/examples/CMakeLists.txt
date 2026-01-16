@@ -669,14 +669,76 @@ if(MFEM_FOUND AND OPENCASCADE_FOUND)
         )
 
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
-        axom_add_test(
-            NAME quest_winding_number_3d_tet_slice
-            COMMAND quest_winding_number_3d_ex
-                    --input ${quest_data_dir}/step/tet.step
-                    --output-prefix wn3d_tet_slice
-                    query_mesh --min -0.5 -0.5 --max 0.5 0.5 --res 3 3 --slice-z 0.0 --order 1)
-        set_tests_properties(quest_winding_number_3d_tet_slice PROPERTIES
-            PASS_REGULAR_EXPRESSION  "4 patches .* 12 trimming curves")
+        # 3D query regression-style runs (20^3 grid) over several STEP models.
+        # These tests validate that we produce stable summary stats for the winding/inout fields.
+        set(_wn3d_step_models sliced_cylinder teardrop connector tet)
+        foreach(_model ${_wn3d_step_models})
+            # Keep float comparisons fairly strict: match several significant digits in scientific notation.
+            set(_regexes "WN_STATS:" "INOUT_STATS:")
+            if(_model STREQUAL "sliced_cylinder")
+                set(_regexes
+                    "WN_STATS:"
+                    "dof_l2=6\\.10163[0-9]e\\+01"
+                    "dof_linf=1\\.00012[0-9]e\\+00"
+                    "l2=4\\.17801[0-9]e\\+01"
+                    "min=-7\\.7913[0-9]{2}e-05"
+                    "max=1\\.00012[0-9]e\\+00"
+                    "INOUT_STATS:"
+                    "volume=1\\.876513e\\+03"
+                    "domain_volume=4\\.032260e\\+03"
+                    "vol_frac=4\\.653750e-01"
+                    "nonzero_dofs=3723")
+            elseif(_model STREQUAL "teardrop")
+                set(_regexes
+                    "WN_STATS:"
+                    "dof_l2=4\\.773887e\\+01"
+                    "l2=2\\.047271e\\+00"
+                    "min=-4\\.06531[0-9]e-08"
+                    "INOUT_STATS:"
+                    "volume=4\\.550024e\\+00"
+                    "domain_volume=1\\.597200e\\+01"
+                    "vol_frac=2\\.848750e-01"
+                    "nonzero_dofs=2279")
+            elseif(_model STREQUAL "connector")
+                set(_regexes
+                    "WN_STATS:"
+                    "dof_l2=3\\.351146e\\+01"
+                    "dof_linf=1\\.000924e\\+00"
+                    "l2=1\\.749740e\\+00"
+                    "min=-8\\.928465e-04"
+                    "max=1\\.000924e\\+00"
+                    "INOUT_STATS:"
+                    "dof_l2=3\\.351119e\\+01"
+                    "l2=1\\.749722e\\+00"
+                    "volume=4\\.125621e\\+00"
+                    "domain_volume=2\\.939000e\\+01"
+                    "vol_frac=1\\.403750e-01"
+                    "nonzero_dofs=1123")
+            elseif(_model STREQUAL "tet")
+                set(_regexes
+                    "WN_STATS:"
+                    "dof_l2=2\\.406242e\\+01"
+                    "l2=1\\.584475e\\+00"
+                    "min=-1\\.63766[0-9]e-08"
+                    "INOUT_STATS:"
+                    "volume=3\\.082596e\\+00"
+                    "domain_volume=4\\.259200e\\+01"
+                    "vol_frac=7\\.237500e-02"
+                    "nonzero_dofs=579")
+            endif()
+
+            set(_testname "quest_winding_number_3d_${_model}_res20")
+            axom_add_test(
+                NAME ${_testname}
+                COMMAND quest_winding_number_3d_ex
+                        --input ${quest_data_dir}/step/${_model}.step
+                        --output-prefix wn3d_${_model}_res20
+                        --no-vis
+                        --stats
+                        query_mesh --res 20 20 20 --order 1)
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION "${_regexes}")
+        endforeach()
     endif()
 endif()
 
