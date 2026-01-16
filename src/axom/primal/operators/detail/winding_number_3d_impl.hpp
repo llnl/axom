@@ -317,40 +317,103 @@ double stokes_gwn_component(const Point<T, 3>& query,
                             const numerics::Matrix<T>& rotator,
                             const TrimmingCurveQuadratureData<T>& trimming_curve_data)
 {
-  double this_quad = 0;
+  const int num_pts = trimming_curve_data.getNumPoints();
+  double this_quad = 0.0;
 
-  const bool is_rotated = (ax == DiscontinuityAxis::rotated);
-  for(int q = 0; q < trimming_curve_data.getNumPoints(); ++q)
+  // The axis is constant for the full loop; split into specialized loops to avoid
+  // per-iteration switching/branching overhead.
+  if(ax == DiscontinuityAxis::rotated)
   {
-    const Vector<T, 3> node = is_rotated
-      ? rotate_point(rotator, query, trimming_curve_data.getQuadraturePoint(q)) - query
-      : trimming_curve_data.getQuadraturePoint(q) - query;
+    // For the rotated case, we rotate each quadrature point around `query`.
+    // Since the integrand uses `rotate_point(..., query, P) - query`, we can
+    // avoid a redundant translation by rotating the query-relative vector directly.
+    for(int q = 0; q < num_pts; ++q)
+    {
+      const auto& qp = trimming_curve_data.getQuadraturePoint(q);
+      const auto& qt = trimming_curve_data.getQuadratureTangent(q);
 
-    const Vector<T, 3> node_dt = is_rotated
-      ? rotate_vector_origin(rotator, trimming_curve_data.getQuadratureTangent(q))
-      : trimming_curve_data.getQuadratureTangent(q);
+      Vector<T, 3> shifted(query, qp);
+      Vector<T, 3> node;
+      Vector<T, 3> node_dt;
+      numerics::matrix_vector_multiply(rotator, shifted.data(), node.data());
+      numerics::matrix_vector_multiply(rotator, qt.data(), node_dt.data());
+
+      const double nx = node[0];
+      const double ny = node[1];
+      const double nz = node[2];
+
+      const double node_norm = node.norm();
+      const double inv_node_norm = 1.0 / node_norm;
+      const double inv_denom = 1.0 / (nx * nx + ny * ny);
+
+      // z-axis field (also used for rotated case)
+      const double numerator = nz * (ny * node_dt[0] - nx * node_dt[1]);
+      this_quad += trimming_curve_data.getQuadratureWeight(q) * numerator * inv_denom * inv_node_norm;
+    }
+
+    return this_quad;
+  }
+
+  if(ax == DiscontinuityAxis::x)
+  {
+    for(int q = 0; q < num_pts; ++q)
+    {
+      const Vector<T, 3> node = trimming_curve_data.getQuadraturePoint(q) - query;
+      const auto& node_dt = trimming_curve_data.getQuadratureTangent(q);
+
+      const double nx = node[0];
+      const double ny = node[1];
+      const double nz = node[2];
+
+      const double node_norm = node.norm();
+      const double inv_node_norm = 1.0 / node_norm;
+      const double inv_denom = 1.0 / (ny * ny + nz * nz);
+
+      const double numerator = nx * (nz * node_dt[1] - ny * node_dt[2]);
+      this_quad += trimming_curve_data.getQuadratureWeight(q) * numerator * inv_denom * inv_node_norm;
+    }
+
+    return this_quad;
+  }
+
+  if(ax == DiscontinuityAxis::y)
+  {
+    for(int q = 0; q < num_pts; ++q)
+    {
+      const Vector<T, 3> node = trimming_curve_data.getQuadraturePoint(q) - query;
+      const auto& node_dt = trimming_curve_data.getQuadratureTangent(q);
+
+      const double nx = node[0];
+      const double ny = node[1];
+      const double nz = node[2];
+
+      const double node_norm = node.norm();
+      const double inv_node_norm = 1.0 / node_norm;
+      const double inv_denom = 1.0 / (nx * nx + nz * nz);
+
+      const double numerator = ny * (nx * node_dt[2] - nz * node_dt[0]);
+      this_quad += trimming_curve_data.getQuadratureWeight(q) * numerator * inv_denom * inv_node_norm;
+    }
+
+    return this_quad;
+  }
+
+  // Default: z-axis field.
+  for(int q = 0; q < num_pts; ++q)
+  {
+    const Vector<T, 3> node = trimming_curve_data.getQuadraturePoint(q) - query;
+    const auto& node_dt = trimming_curve_data.getQuadratureTangent(q);
+
+    const double nx = node[0];
+    const double ny = node[1];
+    const double nz = node[2];
 
     const double node_norm = node.norm();
-    const double quad_weight = trimming_curve_data.getQuadratureWeight(q);
+    const double inv_node_norm = 1.0 / node_norm;
+    const double inv_denom = 1.0 / (nx * nx + ny * ny);
 
-    // Compute one of three vector field line integrals depending on
-    //  the orientation of the original surface, indicated through ax.
-    switch(ax)
-    {
-    case(DiscontinuityAxis::x):
-      this_quad += quad_weight * (node[2] * node[0] * node_dt[1] - node[1] * node[0] * node_dt[2]) /
-        (node[1] * node[1] + node[2] * node[2]) / node_norm;
-      break;
-    case(DiscontinuityAxis::y):
-      this_quad += quad_weight * (node[0] * node[1] * node_dt[2] - node[2] * node[1] * node_dt[0]) /
-        (node[0] * node[0] + node[2] * node[2]) / node_norm;
-      break;
-    case(DiscontinuityAxis::z):
-    case(DiscontinuityAxis::rotated):
-      this_quad += quad_weight * (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
-        (node[0] * node[0] + node[1] * node[1]) / node_norm;
-      break;
-    }
+    const double numerator = nz * (ny * node_dt[0] - nx * node_dt[1]);
+    this_quad += trimming_curve_data.getQuadratureWeight(q) * numerator * inv_denom * inv_node_norm;
   }
 
   return this_quad;
