@@ -2211,10 +2211,14 @@ public:
 
     // Find the span of the knot vectors and basis function derivatives
     const auto span_u = m_knotvec_u.findSpan(u);
-    const auto N_evals_u = m_knotvec_u.derivativeBasisFunctionsBySpan(span_u, u, du);
+    thread_local typename KnotVector<T>::DerivativeBasisWorkspace basis_workspace_u;
+    const auto N_evals_u =
+      m_knotvec_u.derivativeBasisFunctionsBySpan(span_u, u, du, basis_workspace_u);
 
     const auto span_v = m_knotvec_v.findSpan(v);
-    const auto N_evals_v = m_knotvec_v.derivativeBasisFunctionsBySpan(span_v, v, dv);
+    thread_local typename KnotVector<T>::DerivativeBasisWorkspace basis_workspace_v;
+    const auto N_evals_v =
+      m_knotvec_v.derivativeBasisFunctionsBySpan(span_v, v, dv, basis_workspace_v);
 
     for(int k = 0; k <= du; ++k)
     {

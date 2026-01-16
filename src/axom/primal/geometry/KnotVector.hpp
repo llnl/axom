@@ -758,6 +758,170 @@ public:
     return ders;
   }
 
+  struct DerivativeBasisWorkspace
+  {
+    axom::Array<T> ders;
+    axom::Array<T> ndu;
+    axom::Array<T> a;
+    axom::Array<T> left;
+    axom::Array<T> right;
+
+    void ensure(int deg, int n)
+    {
+      const int p1 = deg + 1;
+      const int ndu_size = p1 * p1;
+      const int ders_size = (n + 1) * p1;
+      const int a_size = 2 * p1;
+
+      if(ndu.size() < ndu_size)
+      {
+        ndu.resize(ndu_size);
+      }
+      if(ders.size() < ders_size)
+      {
+        ders.resize(ders_size);
+      }
+      if(a.size() < a_size)
+      {
+        a.resize(a_size);
+      }
+      if(left.size() < p1)
+      {
+        left.resize(p1);
+      }
+      if(right.size() < p1)
+      {
+        right.resize(p1);
+      }
+    }
+  };
+
+  class DerivativeBasisView
+  {
+  public:
+    struct RowProxy
+    {
+      const T* row {nullptr};
+
+      AXOM_HOST_DEVICE const T& operator[](int col) const { return row[col]; }
+    };
+
+    DerivativeBasisView(const T* data, int nrows, int ncols)
+      : m_data(data)
+      , m_nrows(nrows)
+      , m_ncols(ncols)
+    { }
+
+    AXOM_HOST_DEVICE RowProxy operator[](int row) const
+    {
+      return RowProxy {m_data + row * m_ncols};
+    }
+
+    AXOM_HOST_DEVICE int getNumDerivatives() const { return m_nrows; }
+    AXOM_HOST_DEVICE int getNumBasisFunctions() const { return m_ncols; }
+
+  private:
+    const T* m_data {nullptr};
+    int m_nrows {0};
+    int m_ncols {0};
+  };
+
+  /*!
+   * \brief Evaluates the NURBS basis functions and derivatives using a caller-supplied workspace
+   *
+   * \note This overload avoids per-call dynamic allocations by reusing memory in \a workspace.
+   * \warning The returned views are only valid until \a workspace is reused.
+   */
+  DerivativeBasisView derivativeBasisFunctionsBySpan(axom::IndexType span,
+                                                     T t,
+                                                     int n,
+                                                     DerivativeBasisWorkspace& workspace) const
+  {
+    SLIC_ASSERT(isValidSpan(span, t));
+    SLIC_ASSERT(n >= 0);
+    SLIC_ASSERT(n <= m_deg);
+
+    const int p = m_deg;
+    const int p1 = p + 1;
+    workspace.ensure(p, n);
+
+    T* ders = workspace.ders.data();
+    T* ndu = workspace.ndu.data();
+    T* a = workspace.a.data();
+    T* left = workspace.left.data();
+    T* right = workspace.right.data();
+
+    auto ndu_at = [&](int row, int col) -> T& { return ndu[row * p1 + col]; };
+    auto ders_at = [&](int row, int col) -> T& { return ders[row * p1 + col]; };
+    auto a_at = [&](int row, int col) -> T& { return a[row * p1 + col]; };
+
+    ndu_at(0, 0) = 1.;
+    for(int j = 1; j <= p; j++)
+    {
+      left[j] = t - m_knots[span + 1 - j];
+      right[j] = m_knots[span + j] - t;
+      T saved = 0.0;
+      for(int r = 0; r < j; r++)
+      {
+        ndu_at(j, r) = right[r + 1] + left[j - r];
+        const T temp = ndu_at(r, j - 1) / ndu_at(j, r);
+        ndu_at(r, j) = saved + right[r + 1] * temp;
+        saved = left[j - r] * temp;
+      }
+      ndu_at(j, j) = saved;
+    }
+
+    for(int j = 0; j <= p; j++)
+    {
+      ders_at(0, j) = ndu_at(j, p);
+    }
+
+    for(int r = 0; r <= p; r++)
+    {
+      int s1 = 0, s2 = 1;
+      a_at(0, 0) = 1.;
+      for(int k = 1; k <= n; k++)
+      {
+        T d = 0.;
+        const int rk = r - k;
+        const int pk = p - k;
+        if(r >= k)
+        {
+          a_at(s2, 0) = a_at(s1, 0) / ndu_at(pk + 1, rk);
+          d = a_at(s2, 0) * ndu_at(rk, pk);
+        }
+
+        const int j1 = (rk >= -1) ? 1 : -rk;
+        const int j2 = (r - 1 <= pk) ? (k - 1) : (p - r);
+        for(int j = j1; j <= j2; j++)
+        {
+          a_at(s2, j) = (a_at(s1, j) - a_at(s1, j - 1)) / ndu_at(pk + 1, rk + j);
+          d += a_at(s2, j) * ndu_at(rk + j, pk);
+        }
+        if(r <= pk)
+        {
+          a_at(s2, k) = -a_at(s1, k - 1) / ndu_at(pk + 1, r);
+          d += a_at(s2, k) * ndu_at(r, pk);
+        }
+        ders_at(k, r) = d;
+
+        std::swap(s1, s2);
+      }
+    }
+
+    T factor = static_cast<T>(p);
+    for(int k = 1; k <= n; k++)
+    {
+      for(int j = 0; j <= p; j++)
+      {
+        ders_at(k, j) *= factor;
+      }
+      factor *= static_cast<T>(p - k);
+    }
+
+    return DerivativeBasisView(ders, n + 1, p1);
+  }
+
   /*!
    * \brief Evaluates the NURBS basis functions and derivatives for parameter value t
    * 
