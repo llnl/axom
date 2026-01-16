@@ -319,6 +319,9 @@ double stokes_gwn_component(const Point<T, 3>& query,
 {
   const int num_pts = trimming_curve_data.getNumPoints();
   double this_quad = 0.0;
+  const double qx = query[0];
+  const double qy = query[1];
+  const double qz = query[2];
 
   // The axis is constant for the full loop; split into specialized loops to avoid
   // per-iteration switching/branching overhead.
@@ -343,12 +346,11 @@ double stokes_gwn_component(const Point<T, 3>& query,
       const double nz = node[2];
 
       const double node_norm = node.norm();
-      const double inv_node_norm = 1.0 / node_norm;
-      const double inv_denom = 1.0 / (nx * nx + ny * ny);
+      const double inv = 1.0 / ((nx * nx + ny * ny) * node_norm);
 
       // z-axis field (also used for rotated case)
       const double numerator = nz * (ny * node_dt[0] - nx * node_dt[1]);
-      this_quad += trimming_curve_data.getQuadratureWeight(q) * numerator * inv_denom * inv_node_norm;
+      this_quad += trimming_curve_data.getQuadratureWeight(q) * numerator * inv;
     }
 
     return this_quad;
@@ -358,19 +360,18 @@ double stokes_gwn_component(const Point<T, 3>& query,
   {
     for(int q = 0; q < num_pts; ++q)
     {
-      const Vector<T, 3> node = trimming_curve_data.getQuadraturePoint(q) - query;
+      const auto& qp = trimming_curve_data.getQuadraturePoint(q);
       const auto& node_dt = trimming_curve_data.getQuadratureTangent(q);
 
-      const double nx = node[0];
-      const double ny = node[1];
-      const double nz = node[2];
+      const double nx = qp[0] - qx;
+      const double ny = qp[1] - qy;
+      const double nz = qp[2] - qz;
 
-      const double node_norm = node.norm();
-      const double inv_node_norm = 1.0 / node_norm;
-      const double inv_denom = 1.0 / (ny * ny + nz * nz);
+      const double node_norm = sqrt(nx * nx + ny * ny + nz * nz);
+      const double inv = 1.0 / ((ny * ny + nz * nz) * node_norm);
 
       const double numerator = nx * (nz * node_dt[1] - ny * node_dt[2]);
-      this_quad += trimming_curve_data.getQuadratureWeight(q) * numerator * inv_denom * inv_node_norm;
+      this_quad += trimming_curve_data.getQuadratureWeight(q) * numerator * inv;
     }
 
     return this_quad;
@@ -380,19 +381,18 @@ double stokes_gwn_component(const Point<T, 3>& query,
   {
     for(int q = 0; q < num_pts; ++q)
     {
-      const Vector<T, 3> node = trimming_curve_data.getQuadraturePoint(q) - query;
+      const auto& qp = trimming_curve_data.getQuadraturePoint(q);
       const auto& node_dt = trimming_curve_data.getQuadratureTangent(q);
 
-      const double nx = node[0];
-      const double ny = node[1];
-      const double nz = node[2];
+      const double nx = qp[0] - qx;
+      const double ny = qp[1] - qy;
+      const double nz = qp[2] - qz;
 
-      const double node_norm = node.norm();
-      const double inv_node_norm = 1.0 / node_norm;
-      const double inv_denom = 1.0 / (nx * nx + nz * nz);
+      const double node_norm = sqrt(nx * nx + ny * ny + nz * nz);
+      const double inv = 1.0 / ((nx * nx + nz * nz) * node_norm);
 
       const double numerator = ny * (nx * node_dt[2] - nz * node_dt[0]);
-      this_quad += trimming_curve_data.getQuadratureWeight(q) * numerator * inv_denom * inv_node_norm;
+      this_quad += trimming_curve_data.getQuadratureWeight(q) * numerator * inv;
     }
 
     return this_quad;
@@ -401,19 +401,18 @@ double stokes_gwn_component(const Point<T, 3>& query,
   // Default: z-axis field.
   for(int q = 0; q < num_pts; ++q)
   {
-    const Vector<T, 3> node = trimming_curve_data.getQuadraturePoint(q) - query;
+    const auto& qp = trimming_curve_data.getQuadraturePoint(q);
     const auto& node_dt = trimming_curve_data.getQuadratureTangent(q);
 
-    const double nx = node[0];
-    const double ny = node[1];
-    const double nz = node[2];
+    const double nx = qp[0] - qx;
+    const double ny = qp[1] - qy;
+    const double nz = qp[2] - qz;
 
-    const double node_norm = node.norm();
-    const double inv_node_norm = 1.0 / node_norm;
-    const double inv_denom = 1.0 / (nx * nx + ny * ny);
+    const double node_norm = sqrt(nx * nx + ny * ny + nz * nz);
+    const double inv = 1.0 / ((nx * nx + ny * ny) * node_norm);
 
     const double numerator = nz * (ny * node_dt[0] - nx * node_dt[1]);
-    this_quad += trimming_curve_data.getQuadratureWeight(q) * numerator * inv_denom * inv_node_norm;
+    this_quad += trimming_curve_data.getQuadratureWeight(q) * numerator * inv;
   }
 
   return this_quad;
