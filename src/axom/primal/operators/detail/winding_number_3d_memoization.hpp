@@ -75,8 +75,8 @@ struct TrimmingCurveQuadratureData
   {
     // Generate the (cached) quadrature rules in parameter space
     const numerics::QuadratureRule gl_rule = numerics::get_gauss_legendre(quad_npts);
-    m_quad_nodes = gl_rule.nodes();
-    m_quad_weights = gl_rule.weights();
+    const auto quad_nodes = gl_rule.nodes();
+    const auto quad_weights = gl_rule.weights();
 
     auto& the_curve = a_patch.getTrimmingCurve(a_curve_index);
 
@@ -87,11 +87,14 @@ struct TrimmingCurveQuadratureData
     m_span_length = (curve_max_knot - curve_min_knot) / std::pow(2, a_refinementLevel);
     const T span_offset = m_span_length * a_refinementSection;
 
+    m_quadrature_scaled_weights.resize(m_quad_npts);
     m_quadrature_points.resize(m_quad_npts);
     m_quadrature_tangents.resize(m_quad_npts);
     for(int q = 0; q < m_quad_npts; ++q)
     {
-      const T quad_x = m_quad_nodes[q] * m_span_length + curve_min_knot + span_offset;
+      m_quadrature_scaled_weights[q] = quad_weights[q] * m_span_length;
+
+      const T quad_x = quad_nodes[q] * m_span_length + curve_min_knot + span_offset;
 
       Point<T, 2> c_eval;
       Vector<T, 2> c_Dt;
@@ -108,14 +111,26 @@ struct TrimmingCurveQuadratureData
 
   const Point<T, 3>& getQuadraturePoint(size_t idx) const { return m_quadrature_points[idx]; }
   const Vector<T, 3>& getQuadratureTangent(size_t idx) const { return m_quadrature_tangents[idx]; }
-  double getQuadratureWeight(size_t idx) const { return m_quad_weights[idx] * m_span_length; }
+  double getQuadratureWeight(size_t idx) const { return m_quadrature_scaled_weights[idx]; }
   int getNumPoints() const { return m_quad_npts; }
+
+  axom::ArrayView<const Point<T, 3>> getQuadraturePoints() const
+  {
+    return m_quadrature_points.view();
+  }
+  axom::ArrayView<const Vector<T, 3>> getQuadratureTangents() const
+  {
+    return m_quadrature_tangents.view();
+  }
+  axom::ArrayView<const double> getQuadratureWeights() const
+  {
+    return m_quadrature_scaled_weights.view();
+  }
 
 private:
   axom::Array<Point<T, 3>> m_quadrature_points;
   axom::Array<Vector<T, 3>> m_quadrature_tangents;
-  axom::ArrayView<const double> m_quad_nodes;
-  axom::ArrayView<const double> m_quad_weights;
+  axom::Array<double> m_quadrature_scaled_weights;
   T m_span_length;
   int m_quad_npts;
 };
