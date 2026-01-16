@@ -847,40 +847,142 @@ public:
 
     T* ders = workspace.ders.data();
     T* ndu = workspace.ndu.data();
-    T* a = workspace.a.data();
     T* left = workspace.left.data();
     T* right = workspace.right.data();
+
+    // Fast paths for the most common degrees in practice (especially in winding number use cases)
+    if(n == 1)
+    {
+      const auto& U = m_knots;
+      const T Ui = U[span];
+      const T Ui1 = U[span + 1];
+
+      if(p == 1)
+      {
+        const T denom = Ui1 - Ui;
+        if(denom != static_cast<T>(0))
+        {
+          const T inv = static_cast<T>(1) / denom;
+          ders[0] = (Ui1 - t) * inv;
+          ders[1] = (t - Ui) * inv;
+          ders[2] = -inv;
+          ders[3] = inv;
+        }
+        else
+        {
+          ders[0] = static_cast<T>(0);
+          ders[1] = static_cast<T>(0);
+          ders[2] = static_cast<T>(0);
+          ders[3] = static_cast<T>(0);
+        }
+
+        return DerivativeBasisView(ders, 2, p1);
+      }
+
+      if(p == 2)
+      {
+        // First compute the degree-1 basis functions on the current span: N_{i-1,1}, N_{i,1}
+        const T denom01 = Ui1 - Ui;
+        T N_im1_1 = static_cast<T>(0);
+        T N_i_1 = static_cast<T>(0);
+        if(denom01 != static_cast<T>(0))
+        {
+          const T inv = static_cast<T>(1) / denom01;
+          N_im1_1 = (Ui1 - t) * inv;
+          N_i_1 = (t - Ui) * inv;
+        }
+
+        // Denominators for degree-2 recurrence/derivatives
+        const T Uim1 = U[span - 1];
+        const T Uip2 = U[span + 2];
+        const T denomA = Ui1 - Uim1;  // U[i+1] - U[i-1]
+        const T denomB = Uip2 - Ui;   // U[i+2] - U[i]
+
+        const T invA =
+          (denomA != static_cast<T>(0)) ? (static_cast<T>(1) / denomA) : static_cast<T>(0);
+        const T invB =
+          (denomB != static_cast<T>(0)) ? (static_cast<T>(1) / denomB) : static_cast<T>(0);
+
+        // Basis values (row 0): N_{i-2,2}, N_{i-1,2}, N_{i,2}
+        ders[0] = (Ui1 - t) * invA * N_im1_1;
+        ders[1] = (t - Uim1) * invA * N_im1_1 + (Uip2 - t) * invB * N_i_1;
+        ders[2] = (t - Ui) * invB * N_i_1;
+
+        // First derivatives (row 1): d/dt N_{j,2} = 2/(U[j+2]-U[j])*N_{j,1} - 2/(U[j+3]-U[j+1])*N_{j+1,1}
+        // On the current span, N_{i-2,1} and N_{i+1,1} are zero.
+        ders[3] = static_cast<T>(-2) * invA * N_im1_1;
+        ders[4] = static_cast<T>(2) * invA * N_im1_1 - static_cast<T>(2) * invB * N_i_1;
+        ders[5] = static_cast<T>(2) * invB * N_i_1;
+
+        return DerivativeBasisView(ders, 2, p1);
+      }
+    }
+
+    // ndu stores both the triangular basis function table and denominator terms
+    // from Algorithm A2.2.  We store it in row-major order with stride p1.
+    ndu[0] = 1.;
+    for(int j = 1; j <= p; ++j)
+    {
+      left[j] = t - m_knots[span + 1 - j];
+      right[j] = m_knots[span + j] - t;
+      T saved = 0.0;
+
+      const auto ndu_j = ndu + j * p1;
+      for(int r = 0; r < j; ++r)
+      {
+        ndu_j[r] = right[r + 1] + left[j - r];
+        const T temp = ndu[r * p1 + (j - 1)] / ndu_j[r];
+        ndu[r * p1 + j] = saved + right[r + 1] * temp;
+        saved = left[j - r] * temp;
+      }
+      ndu_j[j] = saved;
+    }
+
+    // ders row 0: basis function values
+    for(int j = 0; j <= p; ++j)
+    {
+      ders[j] = ndu[j * p1 + p];
+    }
+
+    if(n == 0)
+    {
+      return DerivativeBasisView(ders, 1, p1);
+    }
+
+    // Fast path for the common case: first derivatives only.
+    // This simplifies Algorithm A2.3 since k is fixed to 1.
+    if(n == 1)
+    {
+      const auto denom_row = ndu + p * p1;
+      for(int r = 0; r <= p; ++r)
+      {
+        T d = 0.;
+        if(r >= 1)
+        {
+          d += ndu[(r - 1) * p1 + (p - 1)] / denom_row[r - 1];
+        }
+        if(r <= p - 1)
+        {
+          d -= ndu[r * p1 + (p - 1)] / denom_row[r];
+        }
+        ders[p1 + r] = d * static_cast<T>(p);
+      }
+
+      return DerivativeBasisView(ders, 2, p1);
+    }
+
+    // General case (n >= 2): Algorithm A2.3, implemented with workspace buffers.
+    T* a = workspace.a.data();
 
     auto ndu_at = [&](int row, int col) -> T& { return ndu[row * p1 + col]; };
     auto ders_at = [&](int row, int col) -> T& { return ders[row * p1 + col]; };
     auto a_at = [&](int row, int col) -> T& { return a[row * p1 + col]; };
 
-    ndu_at(0, 0) = 1.;
-    for(int j = 1; j <= p; j++)
-    {
-      left[j] = t - m_knots[span + 1 - j];
-      right[j] = m_knots[span + j] - t;
-      T saved = 0.0;
-      for(int r = 0; r < j; r++)
-      {
-        ndu_at(j, r) = right[r + 1] + left[j - r];
-        const T temp = ndu_at(r, j - 1) / ndu_at(j, r);
-        ndu_at(r, j) = saved + right[r + 1] * temp;
-        saved = left[j - r] * temp;
-      }
-      ndu_at(j, j) = saved;
-    }
-
-    for(int j = 0; j <= p; j++)
-    {
-      ders_at(0, j) = ndu_at(j, p);
-    }
-
-    for(int r = 0; r <= p; r++)
+    for(int r = 0; r <= p; ++r)
     {
       int s1 = 0, s2 = 1;
       a_at(0, 0) = 1.;
-      for(int k = 1; k <= n; k++)
+      for(int k = 1; k <= n; ++k)
       {
         T d = 0.;
         const int rk = r - k;
@@ -893,26 +995,27 @@ public:
 
         const int j1 = (rk >= -1) ? 1 : -rk;
         const int j2 = (r - 1 <= pk) ? (k - 1) : (p - r);
-        for(int j = j1; j <= j2; j++)
+        for(int j = j1; j <= j2; ++j)
         {
           a_at(s2, j) = (a_at(s1, j) - a_at(s1, j - 1)) / ndu_at(pk + 1, rk + j);
           d += a_at(s2, j) * ndu_at(rk + j, pk);
         }
+
         if(r <= pk)
         {
           a_at(s2, k) = -a_at(s1, k - 1) / ndu_at(pk + 1, r);
           d += a_at(s2, k) * ndu_at(r, pk);
         }
-        ders_at(k, r) = d;
 
+        ders_at(k, r) = d;
         std::swap(s1, s2);
       }
     }
 
     T factor = static_cast<T>(p);
-    for(int k = 1; k <= n; k++)
+    for(int k = 1; k <= n; ++k)
     {
-      for(int j = 0; j <= p; j++)
+      for(int j = 0; j <= p; ++j)
       {
         ders_at(k, j) *= factor;
       }
