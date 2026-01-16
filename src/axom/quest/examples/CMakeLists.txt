@@ -671,34 +671,44 @@ if(MFEM_FOUND AND OPENCASCADE_FOUND)
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
         # 3D query regression-style runs (20^3 grid) over several STEP models.
         # These tests validate that we produce stable summary stats for the winding/inout fields.
-        set(_wn3d_step_models sliced_cylinder teardrop connector tet)
+        set(_wn3d_step_models connector sliced_cylinder teardrop tet boxed_sphere)
         foreach(_model ${_wn3d_step_models})
             # Keep float comparisons fairly strict: match several significant digits in scientific notation.
             set(_regexes "WN_STATS:" "INOUT_STATS:")
+            set(_res_i 20)
+            set(_res_j 20)
+            set(_res_k 20)
             if(_model STREQUAL "sliced_cylinder")
+                set(_res_i 50)
+                set(_res_j 50)
+                set(_res_k 50)
                 set(_regexes
                     "WN_STATS:"
-                    "dof_l2=6\\.10163[0-9]e\\+01"
-                    "dof_linf=1\\.00012[0-9]e\\+00"
-                    "l2=4\\.17801[0-9]e\\+01"
-                    "min=-7\\.7913[0-9]{2}e-05"
-                    "max=1\\.00012[0-9]e\\+00"
+                    "dof_l2=2\\.32957[0-9]e\\+02"
+                    "dof_linf=1\\.00045[0-9]e\\+00"
+                    "l2=4\\.12389[0-9]e\\+01"
+                    "min=-7\\.00174[0-9]e-03"
+                    "max=1\\.00045[0-9]e\\+00"
                     "INOUT_STATS:"
-                    "volume=1\\.876513e\\+03"
+                    "volume=1\\.75061[0-9]e\\+03"
                     "domain_volume=4\\.032260e\\+03"
-                    "vol_frac=4\\.653750e-01"
-                    "nonzero_dofs=3723")
+                    "vol_frac=4\\.34152[0-9]e-01"
+                    "nonzero_dofs=54269")
             elseif(_model STREQUAL "teardrop")
+                set(_res_i 50)
+                set(_res_j 50)
+                set(_res_k 50)
                 set(_regexes
                     "WN_STATS:"
-                    "dof_l2=4\\.773887e\\+01"
-                    "l2=2\\.047271e\\+00"
-                    "min=-4\\.06531[0-9]e-08"
+                    "dof_l2=1\\.88692[0-9]e\\+02"
+                    "dof_linf=1\\.00000[0-9]e\\+00"
+                    "l2=2\\.09938[0-9]e\\+00"
+                    "min=-2\\.71035[0-9]e-07"
                     "INOUT_STATS:"
-                    "volume=4\\.550024e\\+00"
+                    "volume=4\\.54946[0-9]e\\+00"
                     "domain_volume=1\\.597200e\\+01"
-                    "vol_frac=2\\.848750e-01"
-                    "nonzero_dofs=2279")
+                    "vol_frac=2\\.84840[0-9]e-01"
+                    "nonzero_dofs=35605")
             elseif(_model STREQUAL "connector")
                 set(_regexes
                     "WN_STATS:"
@@ -715,27 +725,47 @@ if(MFEM_FOUND AND OPENCASCADE_FOUND)
                     "vol_frac=1\\.403750e-01"
                     "nonzero_dofs=1123")
             elseif(_model STREQUAL "tet")
+                set(_res_i 50)
+                set(_res_j 50)
+                set(_res_k 50)
                 set(_regexes
                     "WN_STATS:"
-                    "dof_l2=2\\.406242e\\+01"
-                    "l2=1\\.584475e\\+00"
-                    "min=-1\\.63766[0-9]e-08"
+                    "dof_l2=8\\.72525[0-9]e\\+01"
+                    "dof_linf=1\\.00003[0-9]e\\+00"
+                    "l2=1\\.54187[0-9]e\\+00"
+                    "min=-7\\.35998[0-9]e-06"
                     "INOUT_STATS:"
-                    "volume=3\\.082596e\\+00"
+                    "volume=2\\.59402[0-9]e\\+00"
                     "domain_volume=4\\.259200e\\+01"
-                    "vol_frac=7\\.237500e-02"
-                    "nonzero_dofs=579")
+                    "vol_frac=6\\.09040[0-9]e-02"
+                    "nonzero_dofs=7613")
+            elseif(_model STREQUAL "boxed_sphere")
+                set(_res_i 30)
+                set(_res_j 30)
+                set(_res_k 30)
+                set(_regexes
+                    "WN_STATS:"
+                    "dof_l2=1\\.20511[0-9]e\\+02"
+                    "dof_linf=1\\.00605[0-9]e\\+00"
+                    "l2=8\\.23480[0-9]e-01"
+                    "min=-1\\.79418[0-9]e-03"
+                    "max=1\\.00605[0-9]e\\+00"
+                    "INOUT_STATS:"
+                    "volume=7\\.33509[0-9]e-01"
+                    "domain_volume=1\\.363681e\\+00"
+                    "vol_frac=5\\.378889e-01"
+                    "nonzero_dofs=14523")
             endif()
 
-            set(_testname "quest_winding_number_3d_${_model}_res20")
+            set(_testname "quest_winding_number_3d_${_model}_res${_res_i}")
             axom_add_test(
                 NAME ${_testname}
                 COMMAND quest_winding_number_3d_ex
                         --input ${quest_data_dir}/step/${_model}.step
-                        --output-prefix wn3d_${_model}_res20
+                        --output-prefix wn3d_${_model}_res${_res_i}
                         --no-vis
                         --stats
-                        query_mesh --res 20 20 20 --order 1)
+                        query_mesh --res ${_res_i} ${_res_j} ${_res_k} --order 1)
             set_tests_properties(${_testname} PROPERTIES
                 PASS_REGULAR_EXPRESSION "${_regexes}")
         endforeach()
