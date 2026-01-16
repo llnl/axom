@@ -111,18 +111,15 @@ bool TetMeshClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
 }
 
 /*
- * - Put surface triangles in BVH.
- * - Create a bounding box and a ray for every mesh hex.  The ray
- *   originates from the bounding box center and points away from
- *   the center of m_tetMeshBb.
- * - Use BVH::findBoundingBoxes and BVH::findRay to get surface
- *   triangles near the bounding boxes and rays.
- * - Loop through the hexes.
- *   - If hex bb is near any surface triangle bb, label the hex ON.
- *   - Else, the hex is either IN or OUT.  It can't possibly be ON.
- *     Count number of surface triangles that the hex's ray intersects,
- *     @see intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray)
- *     If the count is odd, hex is IN, if even, OUT.
+ * To determine whether a cell is completely inside the tet mesh or
+ * completely outside, create a ray from the cell interior in some
+ * direction.  If the ray crosses the tet mesh boundary an odd number
+ * of times, it's inside; if even, it's outside.  If can't efficiently
+ * determined, call it on the boundary so the slower clipping function
+ * can compute the intersection volume.
+ *
+ * We use a BVH to find candidate boundary facets that a ray can potentially
+ * intersect.
  */
 template <typename ExecSpace>
 void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
@@ -175,7 +172,7 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
       LabelType& label = labels[cellId];
 
       {
-        // Label cell as ON boundary if it's near the boundary.
+        // Label cell as ON boundary if it's bounding box intersects the boundary.
         const auto& hexBb = hexBbs[cellId];
         auto candidateCount = bbCountsView[cellId];
         auto candidateOffset = bbOffsetsView[cellId];
@@ -216,8 +213,8 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
             /*
              * Grazing contact requires more logic and computation to
              * determine if the ray crosses the boundary.  Label the
-             * hex as ON the boundary so the clipping computation
-             * will handle this edge case.
+             * hex as ON the boundary to have the clipping computation
+             * handle this edge case.
              */
             contactPt.array() /= contactPt[0] + contactPt[1] + contactPt[2];  // Normalize
             bool grazing = axom::utilities::isNearlyEqual(contactPt[0], EPS) ||
@@ -238,18 +235,15 @@ void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMe
 }
 
 /*
- * - Put surface triangles in BVH.
- * - Create a bounding box and a ray for every mesh tet.  The ray
- *   originates from the bounding box center and points away from
- *   the center of m_tetMeshBb.
- * - Use BVH::findBoundingBoxes and BVH::findRay to get surface
- *   triangles near the bounding boxes and rays.
- * - Loop through the tets.
- *   - If tet bb is near any surface triangle bb, label the tet ON.
- *   - Else, the tet is either IN or OUT.  It can't possibly be ON.
- *     Count number of surface triangles that the tet's ray intersects,
- *     @see intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray)
- *     If the count is odd, tet is IN, if even, OUT.
+ * To determine whether a tet is completely inside the tet mesh or
+ * completely outside, create a ray from the tet center in some
+ * direction.  If the ray crosses the tet mesh boundary an odd number
+ * of times, it's inside; if even, it's outside.  If can't efficiently
+ * determined, call it on the boundary so the slower clipping function
+ * can compute the intersection volume.
+ *
+ * We use a BVH to find candidate boundary facets that a ray can potentially
+ * intersect.
  */
 template <typename ExecSpace>
 void TetMeshClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
