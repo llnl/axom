@@ -212,7 +212,8 @@ endforeach()
 if (ENABLE_BENCHMARKS)
 
   set(core_benchmarks
-      core_benchmark_array.cpp )
+      core_benchmark_array.cpp
+      core_benchmark_flatmap.cpp )
 
   foreach(test ${core_benchmarks})
     get_filename_component(test_name ${test} NAME_WE)
