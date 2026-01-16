@@ -15,6 +15,7 @@
 
 #include "axom/core/FlatMap.hpp"
 #include "axom/core/FlatMapUtil.hpp"
+#include "axom/core/detail/FlatTable.hpp"
 
 #if defined(AXOM_USE_SPARSEHASH)
   #include "axom/sparsehash/sparse_hash_map"
@@ -525,6 +526,8 @@ int main(int argc, char* argv[])
 
   RegisterBenchmarksFor<axom::FlatMap<KeyType, ValueType>>("axom::FlatMap");
   RegisterFlatMapPrehashedBenchmarks();
+  using FastHash = axom::detail::flat_map::FastHashMixer64<KeyType, axom::DeviceHash>;
+  RegisterBenchmarksFor<axom::FlatMap<KeyType, ValueType, FastHash>>("axom::FlatMapFastHash");
   RegisterBenchmarksFor<std::unordered_map<KeyType, ValueType>>("std::unordered_map");
   RegisterBenchmarksFor<std::map<KeyType, ValueType>>("std::map");
 

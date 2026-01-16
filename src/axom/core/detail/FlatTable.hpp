@@ -72,6 +72,27 @@ struct HashMixer64
   }
 };
 
+/*!
+ * \brief A faster (but lower-cost) hash mixer for 64-bit hashing.
+ *
+ * Intended for performance experiments when the cost of hashing dominates
+ * lookup. Uses a single 64-bit multiply followed by an xor-fold.
+ */
+template <typename KeyType, template <typename> class HashFunc>
+struct FastHashMixer64
+{
+  using argument_type = typename HashFunc<KeyType>::argument_type;
+  using result_type = typename HashFunc<KeyType>::result_type;
+
+  AXOM_HOST_DEVICE uint64_t operator()(const KeyType& key) const
+  {
+    uint64_t hash = static_cast<uint64_t>(HashFunc<KeyType> {}(key));
+    hash *= 0x9e3779b97f4a7c15ULL;
+    hash ^= hash >> 32;
+    return hash;
+  }
+};
+
 // We follow the design of boost::unordered_flat_map, which uses a 128-bit chunk
 // of metadata for each group of 15 buckets.
 // This is split up into an "overflow bit", and 15 bytes representing the

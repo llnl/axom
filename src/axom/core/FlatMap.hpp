@@ -835,8 +835,7 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType num_elems,
 template <typename KeyType, typename ValueType, typename Hash>
 auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) -> iterator
 {
-  auto hash = Hash {}(key);
-  return find_with_hash(key, hash);
+  return find_with_hash(key, Hash {}(key));
 }
 
 template <typename KeyType, typename ValueType, typename Hash>
@@ -859,8 +858,7 @@ auto FlatMap<KeyType, ValueType, Hash>::find_with_hash(const KeyType& key, hash_
 template <typename KeyType, typename ValueType, typename Hash>
 auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) const -> const_iterator
 {
-  auto hash = Hash {}(key);
-  return find_with_hash(key, hash);
+  return find_with_hash(key, Hash {}(key));
 }
 
 template <typename KeyType, typename ValueType, typename Hash>
