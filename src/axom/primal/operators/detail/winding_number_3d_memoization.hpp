@@ -72,7 +72,9 @@ struct TrimmingCurveQuadratureData
     : m_quad_npts(quad_npts)
   {
     // Generate the (cached) quadrature rules in parameter space
-    const numerics::QuadratureRule& gl_rule = numerics::get_gauss_legendre(quad_npts);
+    const numerics::QuadratureRule gl_rule = numerics::get_gauss_legendre(quad_npts);
+    m_quad_nodes = gl_rule.nodes();
+    m_quad_weights = gl_rule.weights();
 
     auto& the_curve = a_patch.getTrimmingCurve(a_curve_index);
 
@@ -87,7 +89,7 @@ struct TrimmingCurveQuadratureData
     m_quadrature_tangents.resize(m_quad_npts);
     for(int q = 0; q < m_quad_npts; ++q)
     {
-      const T quad_x = gl_rule.node(q) * m_span_length + curve_min_knot + span_offset;
+      const T quad_x = m_quad_nodes[q] * m_span_length + curve_min_knot + span_offset;
 
       Point<T, 2> c_eval;
       Vector<T, 2> c_Dt;
@@ -104,18 +106,14 @@ struct TrimmingCurveQuadratureData
 
   const Point<T, 3>& getQuadraturePoint(size_t idx) const { return m_quadrature_points[idx]; }
   const Vector<T, 3>& getQuadratureTangent(size_t idx) const { return m_quadrature_tangents[idx]; }
-  double getQuadratureWeight(size_t idx) const
-  {
-    // Because the quadrature weights are identical for each trimming curve (up to a scaling factor),
-    //  we query the static rule instead of storing redundant weights
-    const numerics::QuadratureRule& gl_rule = numerics::get_gauss_legendre(m_quad_npts);
-    return gl_rule.weight(idx) * m_span_length;
-  }
+  double getQuadratureWeight(size_t idx) const { return m_quad_weights[idx] * m_span_length; }
   int getNumPoints() const { return m_quad_npts; }
 
 private:
   axom::Array<Point<T, 3>> m_quadrature_points;
   axom::Array<Vector<T, 3>> m_quadrature_tangents;
+  axom::ArrayView<const double> m_quad_nodes;
+  axom::ArrayView<const double> m_quad_weights;
   T m_span_length;
   int m_quad_npts;
 };
