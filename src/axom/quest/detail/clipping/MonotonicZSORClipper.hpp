@@ -25,7 +25,7 @@ namespace experimental
  * The values of z that make up the polyline specifying the curve must
  * be either non-decreasing or non-increasing.  A curve may have segments
  * with vertical slope, but it may not double back in z.
- * For SOR curves that double back, use \a SORClilpper.
+ * For SOR curves that double back, use \a SORClipper.
  *
  * The SOR specification may include axis orientation and location
  * in addition to any external transformation.
