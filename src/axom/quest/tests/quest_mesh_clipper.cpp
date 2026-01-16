@@ -1417,53 +1417,50 @@ int main(int argc, char** argv)
   sMesh.setFreeVolumeFractions("free");
   AXOM_ANNOTATE_END("setFreeVolumeFractions");
 
-  /*
-    Copy mesh to host check results and plot.
-  */
-  SLIC_INFO(axom::fmt::format("{:-^80}", "Copying mesh to host and write out"));
-
-  AXOM_ANNOTATE_BEGIN("Copy results to host and write out");
-
-  if(params.useBlueprintConduit())
+  if(!params.outputFile.empty())
   {
-    compMeshGrpOnHost = ds.getRoot()->createGroup("onHost");
-    compMeshGrpOnHost->setDefaultAllocator(hostAllocId);
-    compMeshGrpOnHost->importConduitTree(*sMesh.getMeshAsConduit());
-  }
-  if(params.useBlueprintSidre())
-  {
-    if(sMesh.getMeshAsSidre()->getDefaultAllocatorID() != hostAllocId)
+    SLIC_INFO(axom::fmt::format("{:-^80}", "Copying mesh to host and write out"));
+
+    AXOM_ANNOTATE_BEGIN("Copy results to host and write out");
+
+    if(params.useBlueprintConduit())
     {
       compMeshGrpOnHost = ds.getRoot()->createGroup("onHost");
       compMeshGrpOnHost->setDefaultAllocator(hostAllocId);
-      compMeshGrpOnHost->deepCopyGroup(sMesh.getMeshAsSidre(), hostAllocId);
+      compMeshGrpOnHost->importConduitTree(*sMesh.getMeshAsConduit());
     }
-    else
+    if(params.useBlueprintSidre())
     {
-      SLIC_ASSERT(sMesh.getMeshAsSidre() == compMeshGrp);
-      compMeshGrpOnHost = compMeshGrp;
+      if(sMesh.getMeshAsSidre()->getDefaultAllocatorID() != hostAllocId)
+      {
+        compMeshGrpOnHost = ds.getRoot()->createGroup("onHost");
+        compMeshGrpOnHost->setDefaultAllocator(hostAllocId);
+        compMeshGrpOnHost->deepCopyGroup(sMesh.getMeshAsSidre(), hostAllocId);
+      }
+      else
+      {
+        SLIC_ASSERT(sMesh.getMeshAsSidre() == compMeshGrp);
+        compMeshGrpOnHost = compMeshGrp;
+      }
     }
-  }
 
-  compMeshNode.reset(new conduit::Node);
-  compMeshGrpOnHost->createNativeLayout(*compMeshNode);
+    compMeshNode.reset(new conduit::Node);
+    compMeshGrpOnHost->createNativeLayout(*compMeshNode);
 
-  /*
-    Check blueprint validity.
-  */
+    /*
+      Check blueprint validity.
+    */
 
-  conduit::Node whyNotValid;
-  if(!conduit::blueprint::mesh::verify(*compMeshNode, whyNotValid))
-  {
-    SLIC_ERROR("Computational mesh is invalid after shaping:\n" + whyNotValid.to_summary_string());
-  }
+    conduit::Node whyNotValid;
+    if(!conduit::blueprint::mesh::verify(*compMeshNode, whyNotValid))
+    {
+      SLIC_ERROR("Computational mesh is invalid after shaping:\n" + whyNotValid.to_summary_string());
+    }
 
-  /*
-    Save meshes and fields
-  */
+    /*
+      Save meshes and fields
+    */
 
-  if(!params.outputFile.empty())
-  {
     std::string fileName = params.outputFile + ".volfracs";
     saveMesh(*compMeshNode, fileName);
     SLIC_INFO(axom::fmt::format("{:-^80}", "Wrote output mesh " + fileName));
