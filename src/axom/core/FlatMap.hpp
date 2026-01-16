@@ -74,6 +74,8 @@ public:
   using mapped_type = ValueType;
   using size_type = IndexType;
   using value_type = KeyValuePair;
+  using hasher = Hash;
+  using hash_result_type = typename Hash::result_type;
   using iterator = IteratorImpl<false>;
   using const_iterator = IteratorImpl<true>;
 
@@ -289,6 +291,8 @@ public:
   /// @{
   iterator find(const KeyType& key);
   const_iterator find(const KeyType& key) const;
+  iterator find_with_hash(const KeyType& key, hash_result_type hash);
+  const_iterator find_with_hash(const KeyType& key, hash_result_type hash) const;
   /// @}
 
   /*!
@@ -832,6 +836,13 @@ template <typename KeyType, typename ValueType, typename Hash>
 auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) -> iterator
 {
   auto hash = Hash {}(key);
+  return find_with_hash(key, hash);
+}
+
+template <typename KeyType, typename ValueType, typename Hash>
+auto FlatMap<KeyType, ValueType, Hash>::find_with_hash(const KeyType& key, hash_result_type hash)
+  -> iterator
+{
   iterator found_iter = end();
   this->probeIndex(m_numGroups2, m_metadata, hash, [&](IndexType bucket_index) -> bool {
     if(this->m_buckets[bucket_index].get().first == key)
@@ -849,6 +860,13 @@ template <typename KeyType, typename ValueType, typename Hash>
 auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) const -> const_iterator
 {
   auto hash = Hash {}(key);
+  return find_with_hash(key, hash);
+}
+
+template <typename KeyType, typename ValueType, typename Hash>
+auto FlatMap<KeyType, ValueType, Hash>::find_with_hash(const KeyType& key, hash_result_type hash) const
+  -> const_iterator
+{
   const_iterator found_iter = end();
   this->probeIndex(m_numGroups2, m_metadata, hash, [&](IndexType bucket_index) -> bool {
     if(this->m_buckets[bucket_index].get().first == key)

@@ -348,9 +348,7 @@ struct SequentialLookupPolicy : ProbePolicy
         // Set the overflow bit and continue probing.
         metadata[curr_group].setOverflow(hash_8);
       }
-      // Mask instead of "% metadata.size()": the group count is a power of
-      // two, and the modulo compiled to a 64-bit signed division on the
-      // critical path of every probe continuation.
+      // The group count is a power of two,  so we can use a bitmask (instead of a modulo)
       curr_group = (curr_group + this->getNext(iteration)) & group_mask;
     }
     if(empty_group != NO_MATCH)

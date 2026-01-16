@@ -289,6 +289,67 @@ void BM_Find_Miss(benchmark::State& state)
   }
 }
 
+void BM_FlatMap_Find_Hit_Prehashed(benchmark::State& state)
+{
+  using MapType = axom::FlatMap<KeyType, ValueType>;
+  using HashResult = typename MapType::hash_result_type;
+
+  const int n = state.range(0);
+  const auto keys = make_shuffled_keys(n, 0xC0FFEEULL);
+  const auto pairs = make_pairs(keys);
+  const MapType map = make_filled_map<MapType>(pairs);
+
+  std::vector<HashResult> hashes;
+  hashes.reserve(keys.size());
+  for(KeyType k : keys)
+  {
+    hashes.push_back(typename MapType::hasher {}(k));
+  }
+
+  for(auto _ : state)
+  {
+    ValueType sum = 0;
+    for(std::size_t i = 0; i < keys.size(); ++i)
+    {
+      auto it = map.find_with_hash(keys[i], hashes[i]);
+      if(it != map.end())
+      {
+        sum += it->second;
+      }
+    }
+    benchmark::DoNotOptimize(sum);
+  }
+}
+
+void BM_FlatMap_Find_Miss_Prehashed(benchmark::State& state)
+{
+  using MapType = axom::FlatMap<KeyType, ValueType>;
+  using HashResult = typename MapType::hash_result_type;
+
+  const int n = state.range(0);
+  const auto keys = make_shuffled_keys(n, 0xC0FFEEULL);
+  const auto pairs = make_pairs(keys);
+  const MapType map = make_filled_map<MapType>(pairs);
+  const auto miss_keys = make_miss_keys(keys, static_cast<KeyType>(n) + 11);
+
+  std::vector<HashResult> hashes;
+  hashes.reserve(miss_keys.size());
+  for(KeyType k : miss_keys)
+  {
+    hashes.push_back(typename MapType::hasher {}(k));
+  }
+
+  for(auto _ : state)
+  {
+    std::int64_t misses = 0;
+    for(std::size_t i = 0; i < miss_keys.size(); ++i)
+    {
+      misses += (map.find_with_hash(miss_keys[i], hashes[i]) == map.end()) ? 1 : 0;
+    }
+    benchmark::DoNotOptimize(misses);
+  }
+}
+
 template <typename MapType>
 void insert_pairs_in_batches(MapType& map,
                              const std::vector<std::pair<KeyType, ValueType>>& pairs,
@@ -365,6 +426,19 @@ void RegisterBenchmarksFor(const std::string& map_name)
     benchmark::RegisterBenchmark(name("insert_batched_reserved"), &BM_BatchedInsert_Reserved<MapType>)->Apply(CustomArgs);
   }
   // clang-format on
+}
+
+void RegisterFlatMapPrehashedBenchmarks()
+{
+  auto name = [](const std::string& op) { return axom::fmt::format("axom::FlatMap::{}", op); };
+
+  if((::args_benchmark_features & FlatMapFeatureBenchmarks::Lookup) != FlatMapFeatureBenchmarks::None)
+  {
+    benchmark::RegisterBenchmark(name("find_hit_prehashed"), &BM_FlatMap_Find_Hit_Prehashed)
+      ->Apply(CustomArgs);
+    benchmark::RegisterBenchmark(name("find_miss_prehashed"), &BM_FlatMap_Find_Miss_Prehashed)
+      ->Apply(CustomArgs);
+  }
 }
 
 int main(int argc, char* argv[])
@@ -450,6 +524,7 @@ int main(int argc, char* argv[])
   }
 
   RegisterBenchmarksFor<axom::FlatMap<KeyType, ValueType>>("axom::FlatMap");
+  RegisterFlatMapPrehashedBenchmarks();
   RegisterBenchmarksFor<std::unordered_map<KeyType, ValueType>>("std::unordered_map");
   RegisterBenchmarksFor<std::map<KeyType, ValueType>>("std::map");
 
