@@ -28,7 +28,7 @@ struct axom::fmt::formatter<axom::klee::Dimensions> : ostream_formatter
   constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
 
   template <typename FormatContext>
-  auto format(const axom::klee::Dimensions& dim, FormatContext& ctx)
+  auto format(const axom::klee::Dimensions& dim, FormatContext& ctx) const
   {
     switch(dim)
     {

@@ -38,7 +38,14 @@ public:
    * @param [in] kGeom Describes the shape to place
    *   into the mesh.
    * @param [in] name To override the default strategy name
-  */
+   *
+   * \c kGeom.asHierarchy() must contain the following data:
+   * - All the parameters used by MonotonicZSORClipper.
+   *   The only difference is that the @a discreteFunction
+   *   points may double back in z.
+   * - screenLevel: to override the default screen level of
+   *   internal MeshClipper objects.  @c MeshClipper::setScreenLevel().
+   */
   SORClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
   virtual ~SORClipper() = default;
@@ -83,6 +90,9 @@ private:
   //!@brief Level of refinement for discretizing curved
   // analytical shapes and surfaces of revolutions.
   axom::IndexType m_levelOfRefinement = 0;
+
+  //!@brief Screen level setting to use in internal MeshClipper objects.
+  int m_screenLevel = 3;
 
   //!@brief Array implementation of a += scale*b.
   void accumulateData(axom::ArrayView<double> a,
