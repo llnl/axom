@@ -533,6 +533,7 @@ axom::klee::Geometry createGeom_Sor(const std::string& geomName)
 
   axom::klee::Geometry sorGeometry =
     makeSorGeometry(sorBase, sorDirection, discreteFunction, compositeOp);
+  sorGeometry.asHierarchy()["screenLevel"] = params.screenLevel;
 
   exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
   // Tolerance should account for discretization errors.

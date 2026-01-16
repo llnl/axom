@@ -80,6 +80,7 @@ bool SORClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
   {
     tmpOvlap.fill(0.0);
     MeshClipper clipper(shapeMesh, fsorImpl);
+    clipper.setScreenLevel(m_screenLevel);
     clipper.setVerbose(false);
     clipper.clip(tmpOvlap);
     auto sorCurve = fsorImpl->getSorCurve();
@@ -192,6 +193,11 @@ void SORClipper::extractClipperInfo()
   }
 
   m_levelOfRefinement = m_info.fetch_existing("levelOfRefinement").to_double();
+
+  if(m_info.has_child("screenLevel"))
+  {
+    m_screenLevel = m_info["screenLevel"].to_int();
+  }
 }
 
 }  // namespace experimental
