@@ -680,10 +680,13 @@ axom::klee::Geometry createGeom_CupMesh(sidre::DataStore& ds, const std::string&
   return tetMeshGeometry;
 }
 
-axom::klee::Geometry createGeometry_Sor(axom::primal::Point<double, 3>& sorBase,
-                                        axom::primal::Vector<double, 3>& sorDirection,
-                                        axom::ArrayView<const double, 2> discreteFunction,
-                                        std::shared_ptr<axom::klee::CompositeOperator>& compositeOp)
+/*
+ * Utility function to make a SOR geometry from the specifications in the arguments.
+ */
+axom::klee::Geometry makeSorGeometry(axom::primal::Point<double, 3>& sorBase,
+                                     axom::primal::Vector<double, 3>& sorDirection,
+                                     axom::ArrayView<const double, 2> discreteFunction,
+                                     std::shared_ptr<axom::klee::CompositeOperator>& compositeOp)
 {
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
                                                     axom::klee::LengthUnit::unspecified};
@@ -746,7 +749,7 @@ axom::klee::Geometry createGeom_Sor(const std::string& geomName)
   addTranslateOperator(*compositeOp);
 
   axom::klee::Geometry sorGeometry =
-    createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
+    makeSorGeometry(sorBase, sorDirection, discreteFunction, compositeOp);
 
   exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
   // Tolerance should account for discretization errors.
@@ -777,7 +780,7 @@ axom::klee::Geometry createGeom_Cylinder(const std::string& geomName)
   addTranslateOperator(*compositeOp);
 
   axom::klee::Geometry sorGeometry =
-    createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
+    makeSorGeometry(sorBase, sorDirection, discreteFunction, compositeOp);
 
   exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
   // Tolerance should account for discretization errors.
@@ -809,7 +812,7 @@ axom::klee::Geometry createGeom_Cone(const std::string& geomName)
   addTranslateOperator(*compositeOp);
 
   axom::klee::Geometry sorGeometry =
-    createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
+    makeSorGeometry(sorBase, sorDirection, discreteFunction, compositeOp);
 
   exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
   // Tolerance should account for discretization errors.
