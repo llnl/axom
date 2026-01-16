@@ -411,7 +411,10 @@ void TetMeshClipper::computeHexRays(quest::experimental::ShapeMesh& shapeMesh,
       Point3DType hexInterior(
         (bigTet[0].array() + bigTet[1].array() + bigTet[2].array() + bigTet[3].array()) / 4.0);
       Vector3DType direction(geomCenter, hexInterior);
-      if(geomCenter == hexInterior) { direction = Vector3DType({1.0, 0.0, 0.0}); }
+      if(geomCenter == hexInterior)
+      {
+        direction = Vector3DType({1.0, 0.0, 0.0});
+      }
       hexRaysView[cellIdx] = Ray3DType(hexInterior, direction);
     });
 }
@@ -445,9 +448,13 @@ void TetMeshClipper::computeTetRays(quest::experimental::ShapeMesh& shapeMesh,
       for(int ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
         const auto& tet = tetsForCell[ti];
-        Point3DType tetCenter((tet[0].array() + tet[1].array() + tet[2].array() + tet[3].array()) / 4.0);
+        Point3DType tetCenter((tet[0].array() + tet[1].array() + tet[2].array() + tet[3].array()) /
+                              4.0);
         Vector3DType direction(geomCenter, tetCenter);
-        if(geomCenter == tetCenter) { direction = Vector3DType({1.0, 0.0, 0.0}); }
+        if(geomCenter == tetCenter)
+        {
+          direction = Vector3DType({1.0, 0.0, 0.0});
+        }
         tetRaysView[ci * NUM_TETS_PER_HEX + ti] = Ray3DType(tetCenter, direction);
         tetBbsView[ci * NUM_TETS_PER_HEX + ti] = BoundingBox3DType {tet[0], tet[1], tet[2]};
       }
