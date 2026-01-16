@@ -263,6 +263,27 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
                                 typename std::iterator_traits<InputIt>::iterator_category>::value,
                 "InputIt must be a random-access iterator for batched construction");
 
+  // Fast path for sequential execution:
+  // The batched insertion algorithm below is designed for parallel execution and
+  // uses per-group locks and auxiliary arrays for deduplication. In SEQ, those
+  // structures add significant overhead; a simple sequential loop provides
+  // better performance while preserving the documented semantics that later
+  // duplicates overwrite earlier ones.
+  if constexpr(std::is_same_v<ExecSpace, axom::SEQ_EXEC>)
+  {
+    const IndexType num_elems = std::distance(kv_begin, kv_end);
+
+    // Ensure we have enough capacity up-front to avoid repeated rehashing.
+    this->reserve(this->size() + num_elems);
+
+    for(IndexType idx = 0; idx < num_elems; ++idx)
+    {
+      auto kv = *(kv_begin + idx);
+      this->insert_or_assign(kv.first, kv.second);
+    }
+    return;
+  }
+
   using HashResult = typename Hash::result_type;
   using GroupBucket = detail::flat_map::GroupBucket;
 
