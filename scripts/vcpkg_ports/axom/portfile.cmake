@@ -179,11 +179,9 @@ set(OPENCASCADE_DIR "@CURRENT_INSTALLED_DIR@" CACHE PATH "")
 
 set(_openmp_dep [=[
 
-# Setup OpenMP; fix MSVC linker error about unknown flag;
-# use experimental OpenMP for SIMD features in RAJA
+# Setup OpenMP; fix MSVC linker error about unknown flag
 set(ENABLE_OPENMP ON CACHE BOOL "")
 set(BLT_OPENMP_LINK_FLAGS " " CACHE STRING "")
-set(OpenMP_RUNTIME_MSVC "experimental" CACHE STRING "")
 ]=])
 
 # TODO:

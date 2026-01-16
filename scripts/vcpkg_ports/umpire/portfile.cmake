@@ -41,7 +41,6 @@ vcpkg_configure_cmake(
         -DUMPIRE_ENABLE_BENCHMARKS:BOOL=OFF
         -DUMPIRE_ENABLE_DEVELOPER_BENCHMARKS:BOOL=OFF
         -DBUILD_SHARED_LIBS:BOOL=${_is_shared}
-        -DOpenMP_RUNTIME_MSVC:STRING="experimental"
         ${FEATURE_OPTIONS}
 )
 
