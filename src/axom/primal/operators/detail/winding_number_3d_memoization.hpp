@@ -30,6 +30,8 @@
 
 #include <vector>
 #include <ostream>
+#include <unordered_map>
+#include <cstdint>
 #include <math.h>
 
 #include "axom/fmt.hpp"
@@ -231,19 +233,20 @@ public:
                                                                  int refinementLevel,
                                                                  int refinementIndex) const
   {
-    // Check to see if we have already computed the quadrature data for this curve
-    const auto hash_key = std::make_pair(refinementLevel, refinementIndex);
+    // Cache quadrature data per trimming curve keyed by (refinementLevel, refinementIndex).
+    // Note: `quadNPts` is fixed in the 3D winding-number implementation (currently 15).
+    const auto make_key = [](int level, int index) -> std::uint64_t {
+      return (static_cast<std::uint64_t>(static_cast<std::uint32_t>(level)) << 32) |
+        static_cast<std::uint64_t>(static_cast<std::uint32_t>(index));
+    };
 
-    if(m_curveQuadratureMaps[curveIndex].find(hash_key) == m_curveQuadratureMaps[curveIndex].end())
-    {
-      m_curveQuadratureMaps[curveIndex][hash_key] = TrimmingCurveQuadratureData<T>(m_alteredPatch,
-                                                                                   curveIndex,
-                                                                                   quadNPts,
-                                                                                   refinementLevel,
-                                                                                   refinementIndex);
-    }
+    const std::uint64_t key = make_key(refinementLevel, refinementIndex);
+    auto& curve_map = m_curveQuadratureMaps[curveIndex];
 
-    return m_curveQuadratureMaps[curveIndex][hash_key];
+    // Single lookup for both hit and miss; avoids multiple tree traversals and operator[].
+    auto [it, inserted] =
+      curve_map.try_emplace(key, m_alteredPatch, curveIndex, quadNPts, refinementLevel, refinementIndex);
+    return it->second;
   }
 
 private:
@@ -258,7 +261,7 @@ private:
   double m_pboxDiag;
 
   // Per trimming curve data, keyed by (whichRefinementLevel, whichRefinementIndex)
-  mutable axom::Array<std::map<std::pair<int, int>, TrimmingCurveQuadratureData<T>>> m_curveQuadratureMaps;
+  mutable axom::Array<std::unordered_map<std::uint64_t, TrimmingCurveQuadratureData<T>>> m_curveQuadratureMaps;
 };
 
 }  // namespace detail
