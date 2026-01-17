@@ -332,8 +332,8 @@ double stokes_gwn_component(const Point<T, 3>& query,
     double this_quad = 0.0;
     for(int q = 0; q < num_pts; ++q)
     {
-      const VectorType node = make_node(q);
-      const VectorType node_dt = make_dt(q);
+      const auto& node = make_node(q);
+      const auto& node_dt = make_dt(q);
       const double inv = 1.0 / (denom_fn(node) * node.norm());
       this_quad += quad_weights[q] * numer_fn(node, node_dt) * inv;
     }
@@ -362,7 +362,7 @@ double stokes_gwn_component(const Point<T, 3>& query,
 
   // Non-rotated paths share the same node/dt construction.
   auto make_node_unrot = [&](int q) -> VectorType { return quad_points[q] - query; };
-  auto make_dt_unrot = [&](int q) -> VectorType { return quad_tangents[q]; };
+  auto make_dt_unrot = [&](int q) -> const VectorType& { return quad_tangents[q]; };
 
   // The axis is constant for the full loop; split into specialized loops to avoid
   // per-iteration switching/branching overhead.
