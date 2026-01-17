@@ -64,8 +64,7 @@ void MeshClipper::clip(axom::Array<double>& ovlap)
 void MeshClipper::clip(axom::ArrayView<double> ovlap)
 {
   const int allocId = m_shapeMesh.getAllocatorID();
-  const axom::IndexType cellCount = m_shapeMesh.getCellCount();
-  SLIC_ASSERT(ovlap.size() == cellCount);
+  SLIC_ASSERT(ovlap.size() == m_shapeMesh.getCellCount());
 
   auto& cellsInCount = *m_counterStats["cellsIn"].as_int64_ptr();
   auto& cellsOnCount = *m_counterStats["cellsOn"].as_int64_ptr();

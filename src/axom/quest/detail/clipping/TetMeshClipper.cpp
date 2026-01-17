@@ -654,8 +654,6 @@ void TetMeshClipper::extractClipperInfo()
   bool isMultiDomain = conduit::blueprint::mesh::is_multi_domain(m_tetMesh);
   SLIC_ERROR_IF(isMultiDomain, "TetMeshClipper does not support multi-domain tet meshes yet.");
 
-  const auto topoDim = conduit::blueprint::mesh::topology::dims(topoNode);
-  SLIC_ASSERT(topoDim == 3);
   SLIC_ASSERT(conduit::blueprint::mesh::topology::dims(topoNode) == 3);
 
   m_tetCount = conduit::blueprint::mesh::topology::length(topoNode);
@@ -780,10 +778,6 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
       auto& faceTri = faceTrisView[faceIdx] = Triangle3DType(v0, v1, v2);
       faceRaysView[faceIdx] = Ray3DType(faceTri.centroid(), faceTri.normal());
     });
-
-  const auto tetFaceConn = polyTopo["elements/connectivity"];
-  const auto tetFacesView = bumpUtils::make_array_view<axom::IndexType>(tetFaceConn);
-  SLIC_ASSERT(tetFacesView.size() == 4 * m_tetCount);
 
   /*
    * Compute whether faces have tets on each side.
