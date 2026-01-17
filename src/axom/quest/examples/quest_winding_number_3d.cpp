@@ -467,13 +467,18 @@ int main(int argc, char** argv)
     const auto inout_stats = compute_field_stats(inout);
     const auto inout_integrals = compute_integrals(inout);
 
-    std::int64_t nonzero_inout_dofs = 0;
+    std::int64_t pos_inout_dofs = 0;
+    std::int64_t neg_inout_dofs = 0;
     for(int i = 0; i < inout.Size(); ++i)
     {
       const double v = inout[i];
-      if(v != 0.0)
+      if(v > 0.0)
       {
-        ++nonzero_inout_dofs;
+        ++pos_inout_dofs;
+      }
+      else if(v < 0.0)
+      {
+        ++neg_inout_dofs;
       }
     }
 
@@ -487,7 +492,7 @@ int main(int argc, char** argv)
 
     SLIC_INFO(axom::fmt::format(
       "INOUT_STATS: dof_l2={:.6e} dof_linf={:.6e} l2={:.6e} min={:.6e} max={:.6e} volume={:.6e} "
-      "domain_volume={:.6e} vol_frac={:.6e} nonzero_dofs={}",
+      "domain_volume={:.6e} vol_frac={:.6e} pos_dofs={} neg_dofs={}",
       inout_stats.dof_l2,
       inout_stats.dof_linf,
       inout_stats.l2,
@@ -497,7 +502,8 @@ int main(int argc, char** argv)
       inout_integrals.domain_volume,
       (inout_integrals.domain_volume > 0.0 ? inout_integrals.integral / inout_integrals.domain_volume
                                            : 0.0),
-      nonzero_inout_dofs));
+      pos_inout_dofs,
+      neg_inout_dofs));
   }
 
   // Save the query mesh and fields to disk using a format that can be viewed in VisIt
