@@ -111,10 +111,6 @@ bool intersect_line_patch(const Line<T, 3> &line,
   //  This implies the patch is degenerate at the point of intersection.
   if(tp.size() > order_v * order_u)
   {
-    SLIC_WARNING(
-      "Too many intersections recorded for patch orders, suggesting a degenerate intersection."
-      "Returning early to avoid excessive computation.");
-
     success = false;
     return true;
   }
