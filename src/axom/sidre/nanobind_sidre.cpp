@@ -1094,6 +1094,28 @@ NB_MODULE(pysidre, m_sidre)
     .def("print",
          nb::overload_cast<>(&Group::print, nb::const_),
          "Print JSON description of data Group to stdout.")
+
+    .def("createExternalLayout",
+      [](Group& self, nb::object& n, const Attribute* attr) {
+        // Setup conduit python c api
+        if(import_conduit() < 0)
+        {
+          SLIC_ERROR("Failed to import Conduit Python C-API");
+        }
+
+        PyObject* node = n.ptr();
+        SLIC_ERROR_IF(!node, "PyObject is null");
+        SLIC_ERROR_IF(!PyConduit_Node_Check(node), "PyObject is not a Conduit Node");
+
+        // Turn python PyObject into C++ conduit::Node
+        conduit::Node* cpp_node = PyConduit_Node_Get_Node_Ptr(node);
+        return self.createExternalLayout(*cpp_node, attr);
+      },
+      "Copy data Group external layout to given Conduit node.",
+         nb::arg("n"),
+         nb::arg("attr") = nb::none()
+     )
+
     .def("isEquivalentTo",
          &Group::isEquivalentTo,
          "Return true if this Group is equivalent to given Group; else false.",
