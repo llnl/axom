@@ -215,7 +215,7 @@ if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
       endforeach()
     endforeach()
 
-    # quest_intersection_shaper_dynamic does not take a policy argument, 
+    # quest_intersection_shaper_dynamic does not take a policy argument,
     # but uses OpenMP when enabled
     set(_dynamic_num_threads)
     if(AXOM_ENABLE_OPENMP)
@@ -258,7 +258,7 @@ if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
       blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
     endif()
 
-    set(_testgeoms "plane" "tet" "hex" "sphere" "sor" "cyl" "cone" "plane,hex,tet")
+    set(_testgeoms "plane" "tet" "hex" "sphere" "tetmesh" "cupmesh" "sor" "cyl" "cone" "plane,hex,tetmesh")
     set(_meshTypes "bpSidre" "bpConduit")
     foreach(_meshType ${_meshTypes})
       foreach(_policy ${_policies})
