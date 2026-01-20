@@ -7,38 +7,68 @@
 import pysidre
 import numpy as np
 
+###############################################################################
+# Tests from sidre_external.cpp
+###############################################################################
+
 def test_create_external_view():
 	ds = pysidre.DataStore()
 	root = ds.getRoot()
 
 	length = 11
+	ndims = 1
+	shape = np.array([length])
 
 	idata = np.array(range(length))
 	print(f"PYTHON SIDE: idata type is {type(idata[0])}")
 	print(f"PYTHON SIDE: idata is {idata}")
 
-	ddata = np.array([x * 2.0 for x in range(length)])
-	print(f"PYTHON SIDE: ddata type is {type(ddata[0])}")
-	print(f"PYTHON SIDE: ddata is {ddata}")
+	for i in range(8):
+		view = None
+		match i:
+			case 0:
+				view = root.createView("data0", pysidre.TypeID.INT64_ID, length, idata)
+			case 1:
+				view = root.createView("data1", pysidre.TypeID.INT64_ID, length).setExternalData(idata)
+			case 2:
+				view = root.createView("data2").setExternalData(pysidre.TypeID.INT64_ID, length, idata)
+			case 3:
+				view = root.createView("data3", idata).apply(pysidre.TypeID.INT64_ID, length)
+			case 4:
+				view = root.createViewWithShape("data4", pysidre.TypeID.INT64_ID, ndims, shape, idata)
+			case 5:
+				view = root.createViewWithShape("data5", pysidre.TypeID.INT64_ID, ndims, shape).setExternalData(idata)
+			case 6:
+				view = root.createView("data6").setExternalData(pysidre.TypeID.INT64_ID, ndims, shape, idata)
+			case 7:
+				view = root.createView("data7", idata).apply(pysidre.TypeID.INT64_ID, ndims, shape)
 
-	iview = root.createView("idata", idata)
-	iview.apply(pysidre.TypeID.INT64_ID, length)
-	iview.print()
+		assert view is not None
+		assert root.getNumViews() == i + 1
 
-	dview = root.createView("ddata", ddata)
-	dview.apply(pysidre.TypeID.FLOAT64_ID, length)
-	dview.print()
+		assert view.isDescribed()
+		assert view.isAllocated()
+		assert view.isApplied()
 
-	assert root.getNumViews() == 2
+		assert view.isExternal()
+		assert not view.isOpaque()
 
-	idata_chk = iview.getDataArray()
-	assert len(idata_chk) == length
-	assert np.array_equal(idata_chk, idata)
+		assert view.getTypeID() == pysidre.TypeID.INT64_ID
+		assert view.getNumElements() == length
 
-	ddata_chk = dview.getDataArray()
-	assert len(ddata_chk) == length
-	assert np.array_equal(ddata_chk, ddata)
+		view.print()
 
+		idata_chk = view.getDataArray()
+		assert np.array_equal(idata_chk, idata)
+
+		for ii in range(length):
+			assert idata_chk[ii] == idata[ii]
+
+
+
+###############################################################################
+# Tests from sidre_external_F.f
+###############################################################################
 
 # External numpy array via python
 # Register with datastore then
@@ -74,9 +104,9 @@ def test_external_int_3d():
 	iarray = np.empty((2, 3, 4), dtype=int)
 
 	for i in range(2):
-	    for j in range(3):
-	        for k in range(4):
-	            iarray[i, j, k] = (i+1)*100 + (j+1)*10 + (k+1)
+		for j in range(3):
+			for k in range(4):
+				iarray[i, j, k] = (i+1)*100 + (j+1)*10 + (k+1)
 	view = root.createView("iarray", iarray)
 	view.apply(pysidre.TypeID.INT64_ID, 3, np.array([2,3,4]))
 
