@@ -1137,14 +1137,28 @@ NB_MODULE(pysidre, m_sidre)
          &Attribute::setDefaultString,
          "Set default value of Attribute as string. Return true if successfully changed.")
 
-    // Requires conduit::Node information
-    // .def("setDefaultNodeRef",
-    //      &Attribute::setDefaultNodeRef,
-    //      "Set default value of Attribute as a Node reference.")
-    .def("getDefaultNodeRef",
-         &Attribute::getDefaultNodeRef,
-         nb::rv_policy::reference,
-         "Return default value of Attribute as Node reference.")
+    .def(
+      "getDefaultNodeRef",
+      [](Attribute& self) {
+        // Setup conduit python c api
+        if(import_conduit() < 0)
+        {
+          SLIC_ERROR("Failed to import Conduit Python C-API");
+        }
+
+        conduit::Node& node = const_cast<conduit::Node&>(self.getDefaultNodeRef());
+
+        // 0 - python owns => false
+        PyObject* wrapped = PyConduit_Node_Python_Wrap(&node, 0);
+
+        SLIC_ERROR_IF(!wrapped, "PyObject is null");
+        SLIC_ERROR_IF(!PyConduit_Node_Check(wrapped), "PyObject is not a Conduit Node");
+
+        // Return nb::object
+        return nb::steal<nb::object>(wrapped);
+      },
+      nb::rv_policy::reference,
+      "Return default value of Attribute as Node reference.")
     .def("getTypeID", &Attribute::getTypeID, "Return type of Attribute.");
 }
 

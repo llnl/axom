@@ -701,13 +701,13 @@ def test_save_attributes():
 		# Asserts requires conduit::Node information
 		# Check available attributes
 		attr_color = ds2.getAttribute(g_name_color)
-		#assert attr_color.getDefaultNodeRef().as_string() == g_color_none
+		assert attr_color.getDefaultNodeRef().value() == g_color_none
 
 		attr_dump = ds2.getAttribute(g_name_dump)
-		#assert attr_dump.getDefaultNodeRef().as_int() == g_dump_no
+		assert attr_dump.getDefaultNodeRef().value() == g_dump_no
 
 		attr_size = ds2.getAttribute(g_name_size)
-		#assert attr_size.getDefaultNodeRef().as_double() == g_size_small
+		assert attr_size.getDefaultNodeRef().value() == g_size_small
 
 		# Check attributes assigned to Views
 
@@ -876,8 +876,7 @@ def test_save_load_group_with_attributes_new_ds():
 		assert ds1.getAttribute(g_name_color).getName() == ds2.getAttribute(g_name_color).getName()
 		assert ds1.getAttribute(g_name_color).getTypeID() == ds2.getAttribute(g_name_color).getTypeID()
 		
-		# Requires conduit::Node information
-		# assert ds1.getAttribute(g_name_color).getDefaultNodeRef().to_string() == ds2.getAttribute(g_name_color).getDefaultNodeRef().to_string()
+		assert ds1.getAttribute(g_name_color).getDefaultNodeRef().value() == ds2.getAttribute(g_name_color).getDefaultNodeRef().value()
 
 
 def test_save_load_group_with_attributes_same_ds():
