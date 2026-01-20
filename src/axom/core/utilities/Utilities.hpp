@@ -110,6 +110,22 @@ inline AXOM_HOST_DEVICE void swap(T& a, T& b)
 }
 
 /*!
+ * \brief Returns the fused-multiply-add of a, b, and c
+ * \accelerated
+ * \param [in] a,b,c the values
+ * \return a*b+c computed using an fma operation
+ */
+template <typename T>
+inline AXOM_HOST_DEVICE T fma(const T& a, const T& b, const T& c)
+{
+#if defined(AXOM_DEVICE_CODE)
+  return ::fma(a, b, c);
+#else
+  return std::fma(a, b, c);
+#endif
+}
+
+/*!
  * \brief Returns the base 2 logarithm of the input.
  * \param [in] val The input value
  */

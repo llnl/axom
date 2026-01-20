@@ -1012,7 +1012,14 @@ public:
    */
   axom::IndexType insertKnot_u(T u, int target_multiplicity = 1)
   {
-    SLIC_ASSERT(isValidParameter_u(u));
+    SLIC_ASSERT_MSG(isValidParameter_u(u, 1e-5),
+                    axom::fmt::format("Requested u-parameter {} for knot insertion is outside "
+                                      "valid range [{},{}] with tolerance {}",
+                                      u,
+                                      getMinKnot_u(),
+                                      getMaxKnot_u(),
+                                      1e-5));
+
     u = axom::utilities::clampVal(u, getMinKnot_u(), getMaxKnot_u());
 
     SLIC_ASSERT(target_multiplicity > 0);
@@ -1172,7 +1179,14 @@ public:
    */
   axom::IndexType insertKnot_v(T v, int target_multiplicity = 1)
   {
-    SLIC_ASSERT(isValidParameter_v(v));
+    SLIC_ASSERT_MSG(isValidParameter_v(v, 1e-5),
+                    axom::fmt::format("Requested v-parameter {} for knot insertion is outside "
+                                      "valid range [{},{}] with tolerance {}",
+                                      v,
+                                      getMinKnot_v(),
+                                      getMaxKnot_v(),
+                                      1e-5));
+
     v = axom::utilities::clampVal(v, getMinKnot_v(), getMaxKnot_v());
 
     SLIC_ASSERT(target_multiplicity > 0);
@@ -1917,9 +1931,6 @@ public:
    */
   PointType evaluate(T u, T v) const
   {
-    SLIC_ASSERT(isValidParameter_u(u));
-    SLIC_ASSERT(isValidParameter_v(v));
-
     u = axom::utilities::clampVal(u, getMinKnot_u(), getMaxKnot_u());
     v = axom::utilities::clampVal(v, getMinKnot_v(), getMaxKnot_v());
 
@@ -2027,7 +2038,14 @@ public:
    */
   NURBSCurveType isocurve_u(T u) const
   {
-    SLIC_ASSERT(isValidParameter_u(u));
+    SLIC_ASSERT_MSG(isValidParameter_u(u, 1e-5),
+                    axom::fmt::format("Requested u-parameter {} for isocurve evaluation is "
+                                      "outside valid range [{},{}] with tolerance {}",
+                                      u,
+                                      getMinKnot_u(),
+                                      getMaxKnot_u(),
+                                      1e-5));
+
     u = axom::utilities::clampVal(u, m_knotvec_u[0], m_knotvec_u[m_knotvec_u.getNumKnots() - 1]);
 
     using axom::utilities::lerp;
@@ -2091,7 +2109,14 @@ public:
    */
   NURBSCurveType isocurve_v(T v) const
   {
-    SLIC_ASSERT(isValidParameter_v(v));
+    SLIC_ASSERT_MSG(isValidParameter_v(v, 1e-5),
+                    axom::fmt::format("Requested v-parameter {} for isocurve evaluation is "
+                                      "outside valid range [{},{}] with tolerance {}",
+                                      v,
+                                      getMinKnot_v(),
+                                      getMaxKnot_v(),
+                                      1e-5));
+
     v = axom::utilities::clampVal(v, m_knotvec_v[0], m_knotvec_v[m_knotvec_v.getNumKnots() - 1]);
 
     using axom::utilities::lerp;
@@ -2163,11 +2188,8 @@ public:
    */
   void evaluateDerivatives(T u, T v, int d, axom::Array<VectorType, 2>& ders) const
   {
-    SLIC_ASSERT(isValidParameter_u(u));
-    SLIC_ASSERT(isValidParameter_v(v));
-
-    u = axom::utilities::clampVal(u, m_knotvec_u[0], m_knotvec_u[m_knotvec_u.getNumKnots() - 1]);
-    v = axom::utilities::clampVal(v, m_knotvec_v[0], m_knotvec_v[m_knotvec_v.getNumKnots() - 1]);
+    u = axom::utilities::clampVal(u, getMinKnot_u(), getMaxKnot_u());
+    v = axom::utilities::clampVal(v, getMinKnot_v(), getMaxKnot_v());
 
     const int deg_u = getDegree_u();
     const int du = axom::utilities::min(d, deg_u);
@@ -3154,8 +3176,9 @@ public:
     *          ---------------------- u = u_max
     *  u/v_min
     * 
-    * \pre Parameter \a u and \a v must be *strictly interior* to the knot span
-    * 
+    * \note If u/v is not strictly interior to the knot span, will return an invalid NURBS
+    *  for the invalid portion and the original surface for the rest
+    *
     * \return True if and only if the patch was split (i.e., u, v is in the knot span)
     */
   bool split(T u,
@@ -3166,9 +3189,6 @@ public:
              NURBSPatch& p4,
              bool normalizeParameters = false) const
   {
-    SLIC_ASSERT(isValidInteriorParameter_u(u));
-    SLIC_ASSERT(isValidInteriorParameter_v(v));
-
     bool wasSplit = true;
 
     // Bisect the patch along the u direction
@@ -3195,12 +3215,13 @@ public:
   /*!
    * \brief Split the NURBS surface in two along the u direction
    *
+   * \note If u is not strictly interior to the knot span, will return an invalid NURBS
+   *  for the invalid portion and the original surface for the rest
+   * 
    * \return True if and only if the patch was split (i.e., u is in the knot span)
    */
   bool split_u(T u, NURBSPatch& p1, NURBSPatch& p2, bool normalizeParameters = false) const
   {
-    SLIC_ASSERT(isValidInteriorParameter_u(u));
-
     // If the patch is not valid, return two invalid patches
     if(m_controlPoints.size() == 0)
     {
@@ -3255,12 +3276,13 @@ public:
   /*!
    * \brief Split the NURBS surface in two along the v direction
    *
+   * \note If v is not strictly interior to the knot span, will return an invalid NURBS
+   *  for the invalid portion and the original surface for the rest
+   * 
    * \return True if and only if the patch was split (i.e., v is in the knot span)
    */
   bool split_v(T v, NURBSPatch& p1, NURBSPatch& p2, bool normalizeParameters = false) const
   {
-    SLIC_ASSERT(isValidInteriorParameter_v(v));
-
     // If the patch is not valid, return two invalid patches
     if(m_controlPoints.size() == 0)
     {
@@ -3673,7 +3695,13 @@ private:
   /// \sa NURBSPatch::split_u()
   void uncheckedSplit_u(T u, NURBSPatch& p1, NURBSPatch& p2) const
   {
-    SLIC_ASSERT(isValidInteriorParameter_u(u));
+    SLIC_ASSERT_MSG(
+      isValidParameter_u(u, 1e-5),
+      axom::fmt::format("Requested u-parameter {} for subdivision is outside valid range ({},{})",
+                        u,
+                        getMinKnot_u(),
+                        getMaxKnot_u(),
+                        1e-5));
 
     const bool isRationalPatch = isRational();
 
@@ -3738,7 +3766,13 @@ private:
   /// \sa NURBSPatch::split_v()
   void uncheckedSplit_v(T v, NURBSPatch& p1, NURBSPatch& p2) const
   {
-    SLIC_ASSERT(isValidInteriorParameter_v(v));
+    SLIC_ASSERT_MSG(
+      isValidParameter_v(v, 1e-5),
+      axom::fmt::format("Requested v-parameter {} for subdivision is outside valid range ({},{})",
+                        v,
+                        getMinKnot_v(),
+                        getMaxKnot_v(),
+                        1e-5));
 
     const bool isRationalPatch = isRational();
 

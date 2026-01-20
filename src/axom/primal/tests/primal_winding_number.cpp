@@ -16,6 +16,7 @@
 #include <cmath>
 #include <iostream>
 #include <fstream>
+#include <type_traits>
 
 namespace primal = axom::primal;
 
@@ -478,6 +479,28 @@ TEST(primal_winding_number, nurbs_winding_numbers)
       }
     }
   }
+}
+
+TEST(primal_winding_number, nurbs_patch_gwn_cache_accessors_are_zero_copy)
+{
+  using Patch = primal::NURBSPatch<double, 3>;
+  using Cache = primal::detail::NURBSPatchGWNCache<double>;
+
+  static_assert(std::is_same_v<decltype(std::declval<const Cache&>().getControlPoints()),
+                               decltype(std::declval<const Patch&>().getControlPoints())>,
+                "NURBSPatchGWNCache::getControlPoints() must match NURBSPatch signature");
+  static_assert(std::is_same_v<decltype(std::declval<const Cache&>().getWeights()),
+                               decltype(std::declval<const Patch&>().getWeights())>,
+                "NURBSPatchGWNCache::getWeights() must match NURBSPatch signature");
+  static_assert(std::is_same_v<decltype(std::declval<const Cache&>().getKnots_u()),
+                               decltype(std::declval<const Patch&>().getKnots_u())>,
+                "NURBSPatchGWNCache::getKnots_u() must match NURBSPatch signature");
+  static_assert(std::is_same_v<decltype(std::declval<const Cache&>().getKnots_v()),
+                               decltype(std::declval<const Patch&>().getKnots_v())>,
+                "NURBSPatchGWNCache::getKnots_v() must match NURBSPatch signature");
+  static_assert(std::is_same_v<decltype(std::declval<const Cache&>().getTrimmingCurves()),
+                               decltype(std::declval<const Patch&>().getTrimmingCurves())>,
+                "NURBSPatchGWNCache::getTrimmingCurves() must match NURBSPatch signature");
 }
 
 int main(int argc, char** argv)
