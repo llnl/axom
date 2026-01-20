@@ -108,6 +108,7 @@ int main(int argc, char** argv)
   bool verbose {false};
   std::string annotationMode {"none"};
   bool memoized {true};
+  bool vis {true};
 
   // Query mesh parameters
   std::vector<double> boxMins;
@@ -129,6 +130,8 @@ int main(int argc, char** argv)
   app.add_flag("-v,--verbose", verbose, "verbose output")->capture_default_str();
   app.add_flag("--memoized,!--no-memoized", memoized, "Cache geometric data during query?")
     ->capture_default_str();
+  app.add_flag("--vis,!--no-vis", vis, "Should we write out the results for visualization?")
+    ->capture_default_str();
 
 #ifdef AXOM_USE_CALIPER
   app.add_option("--caliper", annotationMode)
@@ -141,14 +144,12 @@ int main(int argc, char** argv)
 
   auto* query_mesh_subcommand =
     app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
-  query_mesh_subcommand->add_option("--min", boxMins)
-    ->description("Min bounds for box mesh (x,y)")
-    ->expected(2)
-    ->required();
-  query_mesh_subcommand->add_option("--max", boxMaxs)
-    ->description("Max bounds for box mesh (x,y)")
-    ->expected(2)
-    ->required();
+  auto* minbb = query_mesh_subcommand->add_option("--min", boxMins)
+                  ->description("Min bounds for box mesh (x,y)")
+                  ->expected(2);
+  auto* maxbb = query_mesh_subcommand->add_option("--max", boxMaxs)
+                  ->description("Max bounds for box mesh (x,y)")
+                  ->expected(2);
   query_mesh_subcommand->add_option("--res", boxResolution)
     ->description("Resolution of the box mesh (i,j)")
     ->expected(2)
@@ -156,6 +157,10 @@ int main(int argc, char** argv)
   query_mesh_subcommand->add_option("--order", queryOrder)
     ->description("polynomial order of the query mesh")
     ->check(axom::CLI::PositiveNumber);
+
+  // add some requirements -- if user provides minbb or maxbb, we need both
+  minbb->needs(maxbb);
+  maxbb->needs(minbb);
 
   CLI11_PARSE(app, argc, argv);
 
@@ -181,6 +186,7 @@ int main(int argc, char** argv)
   {
     AXOM_ANNOTATE_SCOPE("preprocessing");
 
+    axom::utilities::Timer preproc_timer(true);
     int count {0};
     for(const auto& cur : curves)
     {
@@ -195,32 +201,58 @@ int main(int argc, char** argv)
         memoized_curves.emplace_back(CurveGWNCache(cur));
       }
     }
+    preproc_timer.stop();
+
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "Preprocessing curves took {:.4Lf} seconds",
+                                preproc_timer.elapsed()));
+    AXOM_ANNOTATE_METADATA("preprocessing_time", preproc_timer.elapsed(), "");
   }
   SLIC_INFO(axom::fmt::format("Curve mesh bounding box: {}", bbox));
 
   // Early return if user didn't set up a query mesh
-  if(boxMins.empty())
+  if(boxResolution.empty())
   {
     return 0;
   }
 
   // Generate a Cartesian (high order) mesh for the query points
+  const bool has_query_box = boxMins.size() > 0;
   const auto query_res = axom::NumericArray<int, 2>(boxResolution.data());
-  const auto query_box = BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()));
+  const auto query_box = has_query_box
+    ? BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()))
+    : BoundingBox2D(bbox.getMin(), bbox.getMax()).scale(1.05);
+
   mfem::DataCollection dc("winding_query");
   setup_mesh(dc, query_box, query_res, queryOrder);
 
   // Run the query (optionally, with memoization)
-  if(memoized)
   {
-    run_query(dc, memoized_curves);
-  }
-  else
-  {
-    run_query(dc, curves);
+    axom::utilities::Timer query_timer(true);
+    if(memoized)
+    {
+      run_query(dc, memoized_curves);
+    }
+    else
+    {
+      run_query(dc, curves);
+    }
+    query_timer.stop();
+
+    const int ndofs = dc.GetField("winding")->FESpace()->GetNDofs();
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "Querying {:L} samples in winding number field took {:.3Lf} seconds"
+                                " (@ {:.0Lf} queries per second; {:.5Lf} ms per query)",
+                                ndofs,
+                                query_timer.elapsed(),
+                                ndofs / query_timer.elapsed(),
+                                query_timer.elapsedTimeInMilliSec() / ndofs));
+    AXOM_ANNOTATE_METADATA("query_points", ndofs, "");
+    AXOM_ANNOTATE_METADATA("query_time", query_timer.elapsed(), "");
   }
 
   // Save the query mesh and fields to disk using a format that can be viewed in VisIt
+  if(vis)
   {
     AXOM_ANNOTATE_SCOPE("dump_mesh");
 
