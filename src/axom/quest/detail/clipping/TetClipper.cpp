@@ -44,7 +44,7 @@ TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
 bool TetClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
                                  axom::Array<LabelType>& cellLabels)
 {
-  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "FSorClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "TetClipper requires a 3D mesh.");
 
   const int allocId = shapeMesh.getAllocatorID();
   const auto cellCount = shapeMesh.getCellCount();

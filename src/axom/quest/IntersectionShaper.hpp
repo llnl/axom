@@ -824,7 +824,8 @@ private:
         axom::fmt::format("{:-^80}", axom::fmt::format(" Refinement level set to {} ", m_level)));
 
       // Generate the Octahedra
-      // (octahedra m_octs will be on device)
+      // (Set m_octs's allocator id to where we want its data to live.)
+      m_octs = axom::Array<OctahedronType>(0, 0, axom::execution_space<ExecSpace>::allocatorID());
       const bool disc_status =
         axom::quest::discretize<ExecSpace>(polyline, polyline_size, m_level, m_octs, m_octcount);
 
