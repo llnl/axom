@@ -25,42 +25,50 @@ namespace experimental
 
 /*!
  * @brief Strategy base class for clipping operations for specific
- * geometry instances.
-
+ * geometry instances, for use by MeshClipper.
+ *
  * Key methods to implement:  (Some combination of these is required.)
-
+ *
  * -# @c getBoundingBox2D or @c getBoundingBox3D: Axis-aligned
  *    bounding box for the geometry.
-
+ *
  * -# @c labelCellsInOut: Label the cells in a mesh as inside,
  *    outside or on the shape boundary.  If a cell cannot be
  *    determined, you can conservatively label it as on the boundary.
-
+ *
+ * -# @c labelTetsInOut: Label the tets in a mesh as inside,
+ *    outside or on the shape boundary.  The tets come from decomposing
+ *    the hexahedral mesh cells.  If a tet cannot be determined,
+ *    you can conservatively label it as on the boundary.
+ *
  * -# @c getShapesAsTets: Build an array of tetrahedra to approximate
  *    the shape.
-
+ *
  * -# @c getShapesAsOcts: Build an array of octahedra to approximate
  *    the shape.
-
+ *
  * -# @c specializedClipCells: Use a fast clipping algorithm (if one is
  *    available) to clip the cells in a mesh.  Implementation should
  *    use special knowledge of the geometry.  One version of this
- *    method clips all cells in the mesh and the other clips only
- *    cells in a provided index list.  The latter works in
- *    conjunction with @c labelCellsInOut.
-
+ *    method clips all cells in the mesh, one clips only cells in
+ *    a provided index list and one only clips the tetrahedra (which
+ *    come from decomposing the mesh cells) in a provided index list.
+ *    The last two work in conjunction with @c labelCellsInOut and
+ *    @c labelTetsInOut.
+ *
  * Every method should return true if it fulfilled the request, or
  * false if it was a no-op.
-
+ *
  * Subclasses of MeshClipperStrategy must implement either
- * - a @c specializedClipCells method or
+ * - a @c specializedClipCells or @c specializedClipTets method or
  * - one of the @c getShapesAs...() methods.
  * The former is prefered if the use of geometry-specific information
- * can make it faster.  @c labelCellsInOut is optional but if provided,
- * it can improve performance by limiting the slower clipping steps
- * to a subset of cells.  @c getBoundingBox2D or @c getBoundingBox3D
+ * can make it faster.  @c labelCellsInOut and @c labelTetsInOut
+ * are optional but if provided,
+ * they can improve performance by limiting the slower clipping steps
+ * to a smaller subset.  @c getBoundingBox2D or @c getBoundingBox3D
  * can also improve performance by reducing computation.
-*/
+ */
 class MeshClipperStrategy
 {
 public:
@@ -118,7 +126,7 @@ public:
    * @brief Optional name for strategy.
    *
    * The base implementation returns "UNNAMED".
-  */
+   */
   virtual const std::string& name() const;
 
   /*!
@@ -136,13 +144,13 @@ public:
   /*!
    * @brief Get the 2D axis-aligned bounding box for the geometry,
    * if it's applicable and available.
-  */
+   */
   virtual const axom::primal::BoundingBox<double, 2>& getBoundingBox2D() const;
 
   /*!
    * @brief Get the 3D axis-aligned bounding box for the geometry,
    * if it's applicable and available.
-  */
+   */
   virtual const axom::primal::BoundingBox<double, 3>& getBoundingBox3D() const;
 
   /*!
@@ -163,6 +171,9 @@ public:
    * skip if it's not.  It's safe to label cells as on the boundary if
    * it can't be efficiently determined as inside or outside.
    *
+   * Degenerate cells have zero volume and should be labeled outside
+   * for best clipping performance.
+   *
    * @return Whether the operation was done.  (A false means
    * not done.)
    *
@@ -170,7 +181,7 @@ public:
    * post-conditions hold:
    * @post labels.size() == shapeMesh.getCellCount()
    * @post labels.getAllocatorID() == shapeMesh.getAllocatorId()
-  */
+   */
   virtual bool labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
                                axom::Array<LabelType>& cellLabels)
   {
@@ -192,9 +203,13 @@ public:
    *
    * Indices [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX) in \c tetLabels
    * correspond to parent cell index \c c = \c cellIds[i].
-   * The \c NUM_TETS_PER_HEX tets in cell \c cid have indices
+   *
+   * The \c NUM_TETS_PER_HEX tets in cell \c c have indices
    * [c*NUM_TETS_PER_HEX, (c+1)*NUM_TETS_PER_HEX).
    * in \c shapeMesh.getCellsAsTets().
+   *
+   * Degenerate tets have zero volume and MUST be labeled outside.
+   * Further computation can fail if degenerate tets are seen.
    *
    * If implementation returns true, it should ensure these
    * post-conditions hold:
@@ -202,7 +217,7 @@ public:
    * @post labels.getAllocatorID() == shapeMesh.getAllocatorId()
    * @post \c tetLabels should have \c NUM_TETS_PER_HEX labels
    * for each index in \c cellIds.
-  */
+   */
   virtual bool labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
                               axom::ArrayView<const axom::IndexType> cellIds,
                               axom::Array<LabelType>& tetLabels)
@@ -241,7 +256,7 @@ public:
    * post-conditions hold:
    * @post ovlap.size() == shapeMesh.getCellCount()
    * @post ovlap.getAllocatorID() == shapeMesh.getAllocatorId()
-  */
+   */
   virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::ArrayView<double> ovlap,
                                     conduit::Node& statistics)
@@ -267,8 +282,9 @@ public:
    * The default implementation has no specialized method,
    * so it's a no-op and returns false.
    *
-   * If this method returns false, then exactly one of the
-   * shape discretization methods must be provided.
+   * If this method returns false, then exactly one of
+   * getGeometryAsTets() or getGeometryAsOcts() methods must be
+   * provided so that MeshClipper can use the general clipping methods.
    *
    * @return True if clipping was done and false if a no-op.
    *
@@ -285,7 +301,7 @@ public:
    * post-conditions hold:
    * @post ovlap.size() == shapeMesh.getCellCount()
    * @post ovlap.getAllocatorID() == shapeMesh.getAllocatorId()
-  */
+   */
   virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::ArrayView<double> ovlap,
                                     const axom::ArrayView<IndexType>& cellIds,
@@ -336,8 +352,8 @@ public:
    * @brief Get the geometry as discrete tetrahedra, or return false.
    *
    * @param [in] shapeMesh Blueprint mesh to shape into.
-   * @param [out] tets Array of tetrahedra filling the space of the shape,
-   * fully transformed.
+   * @param [out] tets Array of non-degenerate tetrahedra filling the
+   *   space of the shape, fully transformed.
    *
    * Subclasses implementing this routine should snap to zero any
    * output vertex coordinate that is close to zero.
@@ -350,7 +366,7 @@ public:
    * If implementation returns true, it should ensure these
    * post-conditions hold:
    * @post tets.getAllocatorID() == shapeMesh.getAllocatorId()
-  */
+   */
   virtual bool getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh,
                                  axom::Array<TetrahedronType>& tets)
 
@@ -364,8 +380,8 @@ public:
    * @brief Get the geometry as discrete octahedra, or return false.
    *
    * @param [in] shapeMesh Blueprint mesh to shape into.
-   * @param [out] octs Array of octahedra filling the space of the shape,
-   * fully transformed.
+   * @param [out] octs Array of non-degenerate octahedra filling the
+   *   space of the shape, fully transformed.
    *
    * Subclasses implementing this routine should snap to zero any
    * output vertex coordinate that is close to zero.
@@ -412,13 +428,13 @@ protected:
    * Not to be confused with any geometry's internal transformation
    * (such as a cylinder's orientation and a sphere's center translation),
    * which apply before m_extTrans.
-  */
+   */
   numerics::Matrix<double> m_extTrans;
 
 private:
   /*!
-    @brief Compute the transformation matrix of a GeometryOperator.
-  */
+   * @brief Compute the transformation matrix of a GeometryOperator.
+   */
   numerics::Matrix<double> computeTransformationMatrix(
     const std::shared_ptr<const axom::klee::GeometryOperator>& op) const;
 };

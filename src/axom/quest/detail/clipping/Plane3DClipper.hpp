@@ -32,6 +32,11 @@ public:
    * Clipping operations for a semi-infinite half-space
    * on the positive normal direction of a plane.
    *
+   * \c kGeom.asHierarchy() must contain the following data:
+   * - normal: a 3D vector oriented toward the side you consider
+   *   to be interior.
+   * - offset: The plane offset from origin.  See primal::Plane.
+   *
    * @internal Because this class provides screening via the
    * labelCellsInOut and labelTetsInOut methods, the
    * specializedClipCells methods below are not essential.  They are
