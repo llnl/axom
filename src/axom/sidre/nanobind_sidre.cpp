@@ -1095,7 +1095,8 @@ NB_MODULE(pysidre, m_sidre)
          nb::overload_cast<>(&Group::print, nb::const_),
          "Print JSON description of data Group to stdout.")
 
-    .def("createExternalLayout",
+    .def(
+      "createExternalLayout",
       [](Group& self, nb::object& n, const Attribute* attr) {
         // Setup conduit python c api
         if(import_conduit() < 0)
@@ -1112,9 +1113,8 @@ NB_MODULE(pysidre, m_sidre)
         return self.createExternalLayout(*cpp_node, attr);
       },
       "Copy data Group external layout to given Conduit node.",
-         nb::arg("n"),
-         nb::arg("attr") = nb::none()
-     )
+      nb::arg("n"),
+      nb::arg("attr") = nb::none())
 
     .def("isEquivalentTo",
          &Group::isEquivalentTo,
@@ -1134,7 +1134,7 @@ NB_MODULE(pysidre, m_sidre)
          nb::overload_cast<const std::string&, const std::string&, bool>(&Group::load),
          "Load a Group hierarchy from a file into this Group",
          nb::arg("path"),
-         nb::arg("protocol"),
+         nb::arg("protocol") = Group::getDefaultIOProtocol(),
          nb::arg("preserve_contents") = false)
 
     .def("loadExternalData",
