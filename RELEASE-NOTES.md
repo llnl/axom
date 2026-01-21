@@ -45,7 +45,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds spack variants for `adiak` and `caliper`. These replace the previous `profiling` variant which enabled both at the same time.
 - Adds the `AXOM_TEST_NUM_OMP_THREADS` configuration variable to control the default OpenMP thread count for tests.
 - Slic: Adds `slic::getAbortFunction()` to return a function pointer to the abort handler called during logging functions
-
+- Quest: Adds a 3D winding number example and impoves WN performance in 2D and 3D
 
 ###  Changed
 - Version of `quest::discretize` that approximates a surface-of-revolution from a polyline
@@ -86,8 +86,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   contains additional algorithms.
 - Updates to [mfem version 4.9](https://github.com/mfem/mfem/releases/tag/v4.9).
   Also updates mfem's hypre dependency to [hypre version 2.27](https://github.com/hypre-space/hypre/releases/tag/v2.27.0).
-- Quest: MFEMReader can now read in multispan 1D NURBS meshes
+- Quest: `MFEMReader` can now read in multispan 1D NURBS meshes
 - fmt: Axom's built-in version of the fmt formatting library was updated to [fmt version 12.1.0](https://github.com/fmtlib/fmt/releases/tag/12.1.0).
+- Primal: Improves robustness of `linear_winding_number` by using `atan2` instead of `acos`
 
 ###  Fixed
 - Sina's Fortran tests are now running (instead of silently failing)

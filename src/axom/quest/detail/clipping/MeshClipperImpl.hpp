@@ -231,7 +231,10 @@ public:
   {
     ShapeMesh& shapeMesh = getShapeMesh();
     const IndexType tetCount = shapeMesh.getCellCount() * ShapeMesh::NUM_TETS_PER_HEX;
-    axom::Array<IndexType> tetIndices(ArrayOptions::Uninitialized(), tetCount, 0, shapeMesh.getAllocatorID());
+    axom::Array<IndexType> tetIndices(ArrayOptions::Uninitialized(),
+                                      tetCount,
+                                      0,
+                                      shapeMesh.getAllocatorID());
     auto tetIndicesView = tetIndices.view();
     axom::for_all<ExecSpace>(tetCount, AXOM_LAMBDA(IndexType ti) { tetIndicesView[ti] = ti; });
     computeClipVolumes3DTets(tetIndicesView, ovlap, statistics);
@@ -251,7 +254,10 @@ public:
     ShapeMesh& shapeMesh = getShapeMesh();
     const IndexType cellCount = cellIndices.size();
     const IndexType tetCount = cellCount * ShapeMesh::NUM_TETS_PER_HEX;
-    axom::Array<IndexType> tetIndices(ArrayOptions::Uninitialized(), tetCount, 0, shapeMesh.getAllocatorID());
+    axom::Array<IndexType> tetIndices(ArrayOptions::Uninitialized(),
+                                      tetCount,
+                                      0,
+                                      shapeMesh.getAllocatorID());
     auto tetIndicesView = tetIndices.view();
     axom::for_all<ExecSpace>(
       cellCount,
