@@ -449,7 +449,7 @@ public:
     /*
      * Now we have the candidates.  Do the clip loop.
      */
-    AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop_tetScreened");
+    AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop");
     if(useTets)
     {
       axom::for_all<ExecSpace>(
@@ -486,7 +486,7 @@ public:
                                          screenLevel);
         });
     }
-    AXOM_ANNOTATE_END("MeshClipper:clipLoop_tetScreened");
+    AXOM_ANNOTATE_END("MeshClipper:clipLoop");
 
     clipStats.copyTo(statistics);
     statistics["clipsCandidates"].set_int64(candidates.size());
