@@ -359,7 +359,7 @@ public:
    * output vertex coordinate that is close to zero.
    *
    * Degenerate tets are allowed, but they may cause a reduction in
-   * clipping performance.
+   * clipping performance, so it's best to omit them from \c tets.
    *
    * @return Whether the shape can be represented as tetrahedra.
    *
@@ -386,8 +386,8 @@ public:
    * Subclasses implementing this routine should snap to zero any
    * output vertex coordinate that is close to zero.
    *
-   * Degenerate tets are allowed, but they may cause a reduction in
-   * clipping performance.
+   * Degenerate octs are allowed, but they may cause a reduction in
+   * clipping performance, so it's best to omit them from \c octs.
    *
    * @return Whether the shape can be represented as octahedra.
    *
