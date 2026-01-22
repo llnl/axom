@@ -574,7 +574,7 @@ bool MonotonicZSORClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh&
       }
     });
 
-  SLIC_INFO(axom::fmt::format(
+  SLIC_DEBUG(axom::fmt::format(
     "MonotonicZSORClipper '{}' {}-level refinement got {} geometry octs from {} curve points.",
     name(),
     m_levelOfRefinement,
