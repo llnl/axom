@@ -51,6 +51,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Version of `quest::discretize` that approximates a surface-of-revolution from a polyline
   now respects the allocator ID of the output `Array`.  It no longer resets the ID to the
   execution space default.
+- Updates to [RAJA version 2025.12.0](https://github.com/LLNL/RAJA/releases/tag/v2025.12.0)
+- Updates to [camp version 2025.12.0](https://github.com/LLNL/camp/releases/tag/v2025.12.0)
+- Updates to [Umpire version 2025.12.0](https://github.com/LLNL/Umpire/releases/tag/v2025.12.0)
 - Evaluation methods for line integrals in `axom::primal` have been generalized, and 
   `evaluate_scalar_line_integral` has been renamed to `evaluate_line_integral`.
 - Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
