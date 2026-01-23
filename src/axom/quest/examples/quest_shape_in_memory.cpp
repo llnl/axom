@@ -92,10 +92,10 @@ public:
   }
 
   // The shape to run.
-  std::string testShape {"tetmesh"};
+  std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
   const std::set<std::string>
-    availableShapes {"tetmesh", "tri", "sphere", "cyl", "cone", "sor", "tet", "hex", "plane", "all"};
+    availableShapes {"tri", "tetmesh", "cupmesh", "sphere", "cyl", "cone", "sor", "tet", "hex", "plane"};
 
   RuntimePolicy policy {RuntimePolicy::seq};
   int outputOrder {2};
@@ -229,9 +229,13 @@ public:
       ->check(axom::CLI::PositiveNumber)
       ->capture_default_str();
 
-    app.add_option("-s,--testShape", testShape)
-      ->description("The shape to run")
-      ->check(axom::CLI::IsMember(availableShapes));
+    app.add_option("-s,--testGeom", testGeom)
+      ->description(
+        "The geometry(s) to run.  Specifying multiple shapes will override scaling and "
+        "translations to shrink shapes and shift them to individual octants of the mesh.")
+      ->check(axom::CLI::IsMember(availableShapes))
+      ->delimiter(',')
+      ->expected(1, 60);
 
 #ifdef AXOM_USE_CALIPER
     app.add_option("--caliper", annotationMode)
@@ -333,6 +337,30 @@ public:
 };  // struct Input
 Input params;
 
+/************************************************************
+ * Shared variables.
+ ************************************************************/
+
+// Translation to individual octants (override) when running multiple shapes.
+// Exception: the plane always placed at the center of the box mesh
+// to facilitate finding its exact overlap volume.
+const double tDist = 0.9;  // Bias toward origin to help keep shape inside domain.
+std::vector<axom::NumericArray<double, 3>> translations {{tDist, tDist, -tDist},
+                                                         {-tDist, tDist, -tDist},
+                                                         {-tDist, -tDist, -tDist},
+                                                         {tDist, -tDist, -tDist},
+                                                         {tDist, tDist, tDist},
+                                                         {-tDist, tDist, tDist},
+                                                         {-tDist, -tDist, tDist},
+                                                         {tDist, -tDist, tDist}};
+int translationIdx = 0;  // To track what translations have been used.
+
+std::map<std::string, int> geomReps;  // Repetitions of the geometry.
+std::map<std::string, double> exactGeomVols;
+std::map<std::string, double> errorToleranceRel;  // Relative error tolerance.
+std::map<std::string, double> errorToleranceAbs;  // Absolute error tolerance.
+double vScale = 1.0;                              // Volume scale due to geometry scale.
+
 // Start property for all 3D shapes.
 axom::klee::TransformableGeometryProperties startProp {axom::klee::Dimensions::Three,
                                                        axom::klee::LengthUnit::unspecified};
@@ -353,14 +381,23 @@ void addScaleOperator(axom::klee::CompositeOperator& compositeOp)
 }
 
 // Add translate operator.
-void addTranslateOperator(axom::klee::CompositeOperator& compositeOp,
-                          double shiftx,
-                          double shifty,
-                          double shiftz)
+void addTranslateOperator(axom::klee::CompositeOperator& compositeOp)
 {
-  primal::Vector3D shift({shiftx, shifty, shiftz});
-  auto translateOp = std::make_shared<axom::klee::Translation>(shift, startProp);
-  compositeOp.addOperator(translateOp);
+  if(params.testGeom.size() > 1)
+  {
+    const axom::NumericArray<double, 3>& shifts =
+      translations[(translationIdx++) % translations.size()];
+    primal::Vector3D shift({shifts[0], shifts[1], shifts[2]});
+    auto translateOp = std::make_shared<axom::klee::Translation>(shift, startProp);
+    compositeOp.addOperator(translateOp);
+  }
+  else
+  {
+    // Use zero shift as a smoke test.
+    primal::Vector3D shift({0, 0, 0});
+    auto translateOp = std::make_shared<axom::klee::Translation>(shift, startProp);
+    compositeOp.addOperator(translateOp);
+  }
 }
 
 // Add operator to rotate x-axis to params.direction, if it is given.
@@ -604,278 +641,11 @@ axom::klee::ShapeSet create2DShapeSet(sidre::DataStore& ds)
   return shapeSet;
 }
 
-axom::klee::Shape createShape_Sphere()
-{
-  Point3D center = params.center.empty() ? Point3D {0, 0, 0} : Point3D {params.center.data()};
-  double radius = params.radius < 0 ? 0.6 : params.radius;
-  axom::primal::Sphere<double, 3> sphere {center, radius};
-
-  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
-                                                    axom::klee::LengthUnit::unspecified};
-
-  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
-  addScaleOperator(*compositeOp);
-  addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, 1, 1, 1);
-
-  const axom::IndexType levelOfRefinement = params.refinementLevel;
-  axom::klee::Geometry sphereGeometry(prop, sphere, levelOfRefinement, compositeOp);
-  axom::klee::Shape sphereShape("sphere", "SPHERE", {}, {}, sphereGeometry);
-
-  return sphereShape;
-}
-
-axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds)
-{
-  // Shape a tetrahedal mesh.
-  sidre::Group* meshGroup = ds.getRoot()->createGroup("tetMesh");
-  const std::string topo = "mesh";
-  const std::string coordset = "coords";
-  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tetMesh(3,
-                                                                 axom::mint::CellType::TET,
-                                                                 meshGroup,
-                                                                 topo,
-                                                                 coordset);
-
-  double lll = params.length < 0 ? 0.7 : params.length;
-
-  // Insert tets around origin.
-  tetMesh.appendNode(-lll, -lll, -lll);
-  tetMesh.appendNode(+lll, -lll, -lll);
-  tetMesh.appendNode(-lll, +lll, -lll);
-  tetMesh.appendNode(-lll, -lll, +lll);
-  tetMesh.appendNode(+lll, +lll, +lll);
-  tetMesh.appendNode(-lll, +lll, +lll);
-  tetMesh.appendNode(+lll, +lll, -lll);
-  tetMesh.appendNode(+lll, -lll, +lll);
-  axom::IndexType conn0[4] = {0, 1, 2, 3};
-  tetMesh.appendCell(conn0);
-  axom::IndexType conn1[4] = {4, 5, 6, 7};
-  tetMesh.appendCell(conn1);
-
-  SLIC_ERROR_ROOT_IF(!axom::mint::blueprint::isValidRootGroup(meshGroup),
-                     "Tet mesh blueprint is not valid");
-
-  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
-                                                    axom::klee::LengthUnit::unspecified};
-
-  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
-  addScaleOperator(*compositeOp);
-  addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, -1, 1, 1);
-
-  axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
-  axom::klee::Shape tetShape("tetmesh", "TETMESH", {}, {}, tetMeshGeometry);
-
-  return tetShape;
-}
-
-axom::klee::Geometry createGeometry_Sor(axom::primal::Point<double, 3>& sorBase,
-                                        axom::primal::Vector<double, 3>& sorDirection,
-                                        axom::Array<double, 2>& discreteFunction,
-                                        std::shared_ptr<axom::klee::CompositeOperator>& compositeOp)
-{
-  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
-                                                    axom::klee::LengthUnit::unspecified};
-
-  SLIC_ASSERT(params.scaleFactors.empty() || params.scaleFactors.size() == 3);
-
-  const axom::IndexType levelOfRefinement = params.refinementLevel;
-  axom::klee::Geometry sorGeometry(prop,
-                                   discreteFunction,
-                                   sorBase,
-                                   sorDirection,
-                                   levelOfRefinement,
-                                   compositeOp);
-  return sorGeometry;
-}
-
-axom::klee::Shape createShape_Sor()
-{
-  Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
-  axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
-    ? primal::Vector3D {0.1, 0.2, 0.4}
-    : primal::Vector3D {params.direction.data()};
-  const int numIntervals = 5;
-  // discreteFunction are discrete z-r pairs describing the function
-  // to be rotated around the z axis.
-  axom::Array<double, 2> discreteFunction({numIntervals + 1, 2}, axom::ArrayStrideOrder::ROW);
-  double zLen = params.length < 0 ? 1.6 : params.length;
-  double zShift = -zLen / 2;
-  double maxR = params.radius < 0 ? 0.75 : params.radius;
-  double dz = zLen / numIntervals;
-  discreteFunction[0][0] = 0 * dz + zShift;
-  discreteFunction[0][1] = 0.0 * maxR;
-  discreteFunction[1][0] = 1 * dz + zShift;
-  discreteFunction[1][1] = 0.8 * maxR;
-  discreteFunction[2][0] = 2 * dz + zShift;
-  discreteFunction[2][1] = 0.4 * maxR;
-  discreteFunction[3][0] = 3 * dz + zShift;
-  discreteFunction[3][1] = 0.5 * maxR;
-  discreteFunction[4][0] = 4 * dz + zShift;
-  discreteFunction[4][1] = 1.0 * maxR;
-  discreteFunction[5][0] = 5 * dz + zShift;
-  discreteFunction[5][1] = 0.0;
-
-  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
-  addScaleOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, -1, -1, 1);
-
-  axom::klee::Geometry sorGeometry =
-    createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
-
-  axom::klee::Shape sorShape("sor", "SOR", {}, {}, sorGeometry);
-
-  return sorShape;
-}
-
-axom::klee::Shape createShape_Cylinder()
-{
-  Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
-  axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
-    ? primal::Vector3D {0.1, 0.2, 0.4}
-    : primal::Vector3D {params.direction.data()};
-  // discreteFunction are discrete z-r pairs describing the function
-  // to be rotated around the z axis.
-  axom::Array<double, 2> discreteFunction({2, 2}, axom::ArrayStrideOrder::ROW);
-  double radius = params.radius < 0 ? 0.5 : params.radius;
-  double height = params.length < 0 ? 1.2 : params.length;
-  discreteFunction[0][0] = -height / 2;
-  discreteFunction[0][1] = radius;
-  discreteFunction[1][0] = height / 2;
-  discreteFunction[1][1] = radius;
-
-  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
-  addScaleOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, 1, -1, 1);
-
-  axom::klee::Geometry sorGeometry =
-    createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
-
-  axom::klee::Shape sorShape("cyl", "CYL", {}, {}, sorGeometry);
-
-  return sorShape;
-}
-
-axom::klee::Shape createShape_Cone()
-{
-  Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
-  axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
-    ? primal::Vector3D {0.1, 0.2, 0.4}
-    : primal::Vector3D {params.direction.data()};
-  // discreteFunction are discrete z-r pairs describing the function
-  // to be rotated around the z axis.
-  axom::Array<double, 2> discreteFunction({2, 2}, axom::ArrayStrideOrder::ROW);
-  double baseRadius = params.radius < 0 ? 0.7 : params.radius;
-  double topRadius = params.radius2 < 0 ? 0.1 : params.radius2;
-  double height = params.length < 0 ? 1.3 : params.length;
-  discreteFunction[0][0] = -height / 2;
-  discreteFunction[0][1] = baseRadius;
-  discreteFunction[1][0] = height / 2;
-  discreteFunction[1][1] = topRadius;
-
-  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
-  addScaleOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, 1, 1, -1);
-
-  axom::klee::Geometry sorGeometry =
-    createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
-
-  axom::klee::Shape sorShape("cone", "CONE", {}, {}, sorGeometry);
-
-  return sorShape;
-}
-
-axom::klee::Shape createShape_Tet()
-{
-  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
-                                                    axom::klee::LengthUnit::unspecified};
-
-  SLIC_ASSERT(params.scaleFactors.empty() || params.scaleFactors.size() == 3);
-
-  // Tetrahedron at origin.
-  const double len = params.length < 0 ? 0.8 : params.length;
-  const Point3D a {-len, -len, -len};
-  const Point3D b {+len, -len, -len};
-  const Point3D c {+len, +len, -len};
-  const Point3D d {-len, +len, +len};
-  const primal::Tetrahedron<double, 3> tet {a, b, c, d};
-
-  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
-  addScaleOperator(*compositeOp);
-  addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, -1, 1, -1);
-
-  axom::klee::Geometry tetGeometry(prop, tet, compositeOp);
-  axom::klee::Shape tetShape("tet", "TET", {}, {}, tetGeometry);
-
-  return tetShape;
-}
-
-axom::klee::Shape createShape_Hex()
-{
-  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
-                                                    axom::klee::LengthUnit::unspecified};
-
-  SLIC_ASSERT(params.scaleFactors.empty() || params.scaleFactors.size() == 3);
-
-  const double md = params.length < 0 ? 0.6 : params.length / 2;
-  const double lg = 1.2 * md;
-  const double sm = 0.8 * md;
-  const Point3D p {-lg, -md, -sm};
-  const Point3D q {+lg, -md, -sm};
-  const Point3D r {+lg, +md, -sm};
-  const Point3D s {-lg, +md, -sm};
-  const Point3D t {-lg, -md, +sm};
-  const Point3D u {+lg, -md, +sm};
-  const Point3D v {+lg, +md, +sm};
-  const Point3D w {-lg, +md, +sm};
-  const primal::Hexahedron<double, 3> hex {p, q, r, s, t, u, v, w};
-
-  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
-  addScaleOperator(*compositeOp);
-  addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, -1, -1, -1);
-
-  axom::klee::Geometry hexGeometry(prop, hex, compositeOp);
-  axom::klee::Shape hexShape("hex", "HEX", {}, {}, hexGeometry);
-
-  return hexShape;
-}
-
-axom::klee::Shape createShape_Plane()
-{
-  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
-                                                    axom::klee::LengthUnit::unspecified};
-
-  SLIC_ASSERT(params.scaleFactors.empty() || params.scaleFactors.size() == 3);
-  std::shared_ptr<axom::klee::Scale> scaleOp;
-  if(!params.scaleFactors.empty())
-  {
-    scaleOp = std::make_shared<axom::klee::Scale>(params.scaleFactors[0],
-                                                  params.scaleFactors[1],
-                                                  params.scaleFactors[2],
-                                                  prop);
-  }
-
-  // Create a plane crossing center of mesh.  No matter the normal, it cuts the mesh in half.
-  Point3D center {0.5 *
-                  (axom::NumericArray<double, 3>(params.boxMins.data()) +
-                   axom::NumericArray<double, 3>(params.boxMaxs.data()))};
-  primal::Vector<double, 3> normal = params.direction.empty()
-    ? primal::Vector3D {1.0, 0.0, 0.0}
-    : primal::Vector3D {params.direction.data()}.unitVector();
-  const primal::Plane<double, 3> plane {normal, center, true};
-
-  axom::klee::Geometry planeGeometry(prop, plane, scaleOp);
-  axom::klee::Shape planeShape("plane", "PLANE", {}, {}, planeGeometry);
-
-  return planeShape;
-}
-
 //!@brief Create a ShapeSet with a single shape.
-axom::klee::ShapeSet createShapeSet(const axom::klee::Shape& shape)
+axom::klee::ShapeSet createShapeSet(const axom::klee::Geometry& geometry, const std::string& shapeName)
 {
+  axom::klee::Shape shape(shapeName, shapeName, {}, {}, geometry);
+
   axom::klee::ShapeSet shapeSet;
   shapeSet.setShapes(std::vector<axom::klee::Shape> {shape});
   shapeSet.setDimensions(axom::klee::Dimensions::Three);
@@ -907,6 +677,434 @@ double volumeOfTetMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHA
     meshVolume += tet.volume();
   }
   return meshVolume;
+}
+
+/*
+ * For the test shapes, try to get good volume with compact shape
+ * that stays in domain when rotated (else volume check is invalid).
+ */
+
+axom::klee::Geometry createGeom_Sphere(const std::string& geomName)
+{
+  Point3D center = params.center.empty() ? Point3D {0, 0, 0} : Point3D {params.center.data()};
+  double radius = params.radius < 0 ? 1.0 : params.radius;
+  axom::primal::Sphere<double, 3> sphere {center, radius};
+
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  const axom::IndexType levelOfRefinement = params.refinementLevel;
+  axom::klee::Geometry sphereGeometry(prop, sphere, levelOfRefinement, compositeOp);
+  exactGeomVols[geomName] = vScale * 4. / 3 * M_PI * radius * radius * radius;
+  errorToleranceRel[geomName] = 1e-3;
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.0015 : 0.0001;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return sphereGeometry;
+}
+
+void fitTetMeshInsideMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& tetMesh,
+                          double extraScale = 1.0)
+{
+  using BBox3D = primal::BoundingBox<double, 3>;
+  using Pt3D = primal::Point<double, 3>;
+  using Vect3D = primal::Vector<double, 3>;
+
+  double* coords[] = {tetMesh.getCoordinateArray(0),
+                      tetMesh.getCoordinateArray(1),
+                      tetMesh.getCoordinateArray(2)};
+  const axom::IndexType vertCount = tetMesh.getNumberOfNodes();
+
+  // Compute bounding boxes of tetMesh and the test mesh.
+  BBox3D meshBox = BBox3D(Pt3D(params.boxMins.data()), Pt3D(params.boxMaxs.data()));
+  BBox3D tetMeshBox;
+  axom::for_all<axom::SEQ_EXEC>(vertCount, [&](axom::IndexType vi) {
+    Pt3D vertPt {coords[0][vi], coords[1][vi], coords[2][vi]};
+    tetMeshBox.addPoint(vertPt);
+  });
+
+  // Compute tetMesh's scaling and its resultant bounding box.
+  // Scale such that tetMesh will fit inside meshBox.
+  Vect3D tetMeshRange = tetMeshBox.range();
+  const Vect3D meshRange = meshBox.range();
+  const double scale = meshRange.array().min() / tetMeshRange.array().max();
+  tetMeshRange *= scale;
+  const Pt3D scaledTetMeshMax = meshBox.getMin() + tetMeshRange;
+  BBox3D newTetMeshBox(meshBox.getMin(), scaledTetMeshMax);
+  newTetMeshBox.scale(extraScale);
+  Vect3D shift(newTetMeshBox.getCentroid(), meshBox.getCentroid());
+  newTetMeshBox.shift(shift);
+
+  // Compute transformation from the current tetMesh's box to the scaled box.
+  const Pt3D& startMin = tetMeshBox.getMin();
+  const Pt3D& startMax = tetMeshBox.getMax();
+  Pt3D start[4] = {startMin,
+                   Pt3D {startMax[0], startMin[1], startMin[2]},
+                   Pt3D {startMin[0], startMax[1], startMin[2]},
+                   Pt3D {startMin[0], startMin[1], startMax[2]}};
+  const Pt3D& destMin = newTetMeshBox.getMin();
+  const Pt3D& destMax = newTetMeshBox.getMax();
+  Pt3D dest[4] = {destMin,
+                  Pt3D {destMax[0], destMin[1], destMin[2]},
+                  Pt3D {destMin[0], destMax[1], destMin[2]},
+                  Pt3D {destMin[0], destMin[1], destMax[2]}};
+  primal::experimental::CoordinateTransformer<double> trans(start, dest);
+
+  // Transform every tetMesh vertex.
+  axom::for_all<axom::SEQ_EXEC>(
+    vertCount,
+    AXOM_LAMBDA(axom::IndexType vi) { trans.transform(coords[0][vi], coords[1][vi], coords[2][vi]); });
+}
+
+axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string& geomName)
+{
+  // Shape a tetrahedal mesh.
+  sidre::Group* meshGroup = ds.getRoot()->createGroup(geomName);
+
+  AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
+  const std::string topo = "mesh";
+  const std::string coordset = "coords";
+
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tetMesh(3,
+                                                                 axom::mint::CellType::TET,
+                                                                 meshGroup,
+                                                                 topo,
+                                                                 coordset);
+
+  double lll = params.length < 0 ? 1.17 : params.length;
+
+  // Insert tets around origin.
+  tetMesh.appendNode(-lll, -lll, -lll);
+  tetMesh.appendNode(+lll, -lll, -lll);
+  tetMesh.appendNode(-lll, +lll, -lll);
+  tetMesh.appendNode(-lll, -lll, +lll);
+  tetMesh.appendNode(+lll, +lll, +lll);
+  tetMesh.appendNode(-lll, +lll, +lll);
+  tetMesh.appendNode(+lll, +lll, -lll);
+  tetMesh.appendNode(+lll, -lll, +lll);
+  axom::IndexType conn0[4] = {0, 1, 2, 3};
+  tetMesh.appendCell(conn0);
+  axom::IndexType conn1[4] = {4, 5, 6, 7};
+  tetMesh.appendCell(conn1);
+  axom::IndexType conn2[4] = {1, 2, 3, 5};
+  tetMesh.appendCell(conn2);
+
+  SLIC_ASSERT(axom::mint::blueprint::isValidRootGroup(meshGroup));
+  // meshGroup->destroyGroup("fields");
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
+  tetMeshGeometry.asHierarchy()["fixOrientation"] = true;
+
+  exactGeomVols[geomName] = vScale * volumeOfTetMesh(tetMesh);
+  errorToleranceRel[geomName] = 0.005;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return tetMeshGeometry;
+}
+
+axom::klee::Geometry createGeom_CupMesh(sidre::DataStore& ds, const std::string& geomName)
+{
+  // Shape a tetrahedal mesh.
+  sidre::Group* meshGroup = ds.getRoot()->createGroup(geomName);
+
+  AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
+  const std::string topo = "mesh";
+  const std::string coordset = "coords";
+
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tetMesh(3,
+                                                                 axom::mint::CellType::TET,
+                                                                 meshGroup,
+                                                                 topo,
+                                                                 coordset);
+
+  axom::quest::ProEReader reader;
+  std::string proeFile = axom::utilities::filesystem::joinPath(AXOM_DATA_DIR, "quest/cup.proe");
+  reader.setFileName(proeFile);
+  int readStatus = reader.read();
+  SLIC_ASSERT(readStatus == 0);
+  reader.getMesh(&tetMesh);
+  const double extraScale = 1 / sqrt(3.0);  // to ensure tetMesh remains inside mesh when rotated.
+  fitTetMeshInsideMesh(tetMesh, extraScale);
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
+  tetMeshGeometry.asHierarchy()["fixOrientation"] = true;
+
+  exactGeomVols[geomName] = vScale * volumeOfTetMesh(tetMesh);
+  errorToleranceRel[geomName] = 0.005;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return tetMeshGeometry;
+}
+
+/*
+ * Utility function to make a SOR geometry from the specifications in the arguments.
+ */
+axom::klee::Geometry makeSorGeometry(axom::primal::Point<double, 3>& sorBase,
+                                     axom::primal::Vector<double, 3>& sorDirection,
+                                     axom::ArrayView<const double, 2> discreteFunction,
+                                     std::shared_ptr<axom::klee::CompositeOperator>& compositeOp)
+{
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  const axom::IndexType levelOfRefinement = params.refinementLevel;
+  axom::klee::Geometry sorGeometry(prop,
+                                   discreteFunction,
+                                   sorBase,
+                                   sorDirection,
+                                   levelOfRefinement,
+                                   compositeOp);
+  return sorGeometry;
+}
+
+double computeVolume_Sor(axom::ArrayView<const double, 2> discreteFunction)
+{
+  using ConeType = axom::primal::Cone<double, 3>;
+  axom::IndexType segmentCount = discreteFunction.shape()[0];
+  double vol = 0.0;
+  for(axom::IndexType s = 0; s < segmentCount - 1; ++s)
+  {
+    ConeType cone(discreteFunction(s, 1),
+                  discreteFunction(s + 1, 1),
+                  discreteFunction(s + 1, 0) - discreteFunction(s, 0));
+    vol += cone.volume();
+  }
+  return vol;
+}
+
+axom::klee::Geometry createGeom_Sor(const std::string& geomName)
+{
+  Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
+  axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
+    ? primal::Vector3D {1.0, 0.0, 0.0}
+    : primal::Vector3D {params.direction.data()};
+  const int numIntervals = 5;
+  // discreteFunction is discrete (z,r) pairs describing the r(z) function
+  // to be rotated around the z axis.
+  using Point2DType = axom::primal::Point<double, 2>;
+  // double zLen = 0.5 * (params.length < 0 ? 2.40 : params.length);
+  // double maxR = params.radius < 0 ? 1.10 : params.radius;
+
+  axom::Array<Point2DType> discretePts(numIntervals + 1);
+  double zLen = params.length < 0 ? 1.6 : params.length;
+  double zShift = -zLen / 2;
+  double maxR = params.radius < 0 ? 0.75 : params.radius;
+  double dz = zLen / numIntervals;
+  discretePts[0][0] = 0 * dz + zShift;
+  discretePts[0][1] = 0.0 * maxR;
+  discretePts[1][0] = 1 * dz + zShift;
+  discretePts[1][1] = 0.8 * maxR;
+  discretePts[2][0] = 2 * dz + zShift;
+  discretePts[2][1] = 0.4 * maxR;
+  discretePts[3][0] = 3 * dz + zShift;
+  discretePts[3][1] = 0.5 * maxR;
+  discretePts[4][0] = 4 * dz + zShift;
+  discretePts[4][1] = 1.0 * maxR;
+  discretePts[5][0] = 5 * dz + zShift;
+  discretePts[5][1] = 0.0;
+#if 0
+  axom::Array<Point2DType> discretePts(0, 10);
+  discretePts.push_back(Point2DType({-1.0 * zLen, 1.0 * maxR}));
+  discretePts.push_back(Point2DType({0.4 * zLen, 1.0 * maxR}));
+  discretePts.push_back(Point2DType({0.4 * zLen, 0.7 * maxR}));
+  discretePts.push_back(Point2DType({1.0 * zLen, 0.7 * maxR}));
+  discretePts.push_back(Point2DType({1.0 * zLen, 0.4 * maxR}));
+  discretePts.push_back(Point2DType({0.5 * zLen, 0.4 * maxR}));
+  discretePts.push_back(Point2DType({0.5 * zLen, 0.3 * maxR}));
+  discretePts.push_back(Point2DType({0.0 * zLen, 0.3 * maxR}));
+  discretePts.push_back(Point2DType({0.0 * zLen, 0.5 * maxR}));
+  discretePts.push_back(Point2DType({0.2 * zLen, 0.5 * maxR}));
+  discretePts.push_back(Point2DType({0.2 * zLen, 0.7 * maxR}));
+  discretePts.push_back(Point2DType({-1.0 * zLen, 0.7 * maxR}));
+#endif
+  axom::ArrayView<const double, 2> discreteFunction((const double*)discretePts.data(),
+                                                    discretePts.size(),
+                                                    2);
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry sorGeometry =
+    makeSorGeometry(sorBase, sorDirection, discreteFunction, compositeOp);
+  sorGeometry.asHierarchy()["screenLevel"] = 3;
+
+  exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.007 : 0.0063;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return sorGeometry;
+}
+
+axom::klee::Geometry createGeom_Cylinder(const std::string& geomName)
+{
+  Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
+  axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
+    ? primal::Vector3D {1.0, 0.0, 0.0}
+    : primal::Vector3D {params.direction.data()};
+  // discreteFunction are discrete z-r pairs describing the function
+  // to be rotated around the z axis.
+  axom::Array<double, 2> discreteFunction({2, 2}, axom::ArrayStrideOrder::ROW);
+  double radius = params.radius < 0 ? 0.695 : params.radius;
+  double height = params.length < 0 ? 2.78 : params.length;
+  discreteFunction(0, 0) = -height / 2;
+  discreteFunction(0, 1) = radius;
+  discreteFunction(1, 0) = height / 2;
+  discreteFunction(1, 1) = radius;
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry sorGeometry =
+    makeSorGeometry(sorBase, sorDirection, discreteFunction, compositeOp);
+
+  exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.00075 : 0.00005;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return sorGeometry;
+}
+
+axom::klee::Geometry createGeom_Cone(const std::string& geomName)
+{
+  Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
+  axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
+    ? primal::Vector3D {1.0, 0.0, 0.0}
+    : primal::Vector3D {params.direction.data()};
+  // discreteFunction are discrete z-r pairs describing the function
+  // to be rotated around the z axis.
+  axom::Array<double, 2> discreteFunction({2, 2}, axom::ArrayStrideOrder::ROW);
+  double baseRadius = params.radius < 0 ? 1.23 : params.radius;
+  double topRadius = params.radius2 < 0 ? 0.176 : params.radius2;
+  double height = params.length < 0 ? 2.3 : params.length;
+  discreteFunction(0, 0) = -height / 2;
+  discreteFunction(0, 1) = baseRadius;
+  discreteFunction(1, 0) = height / 2;
+  discreteFunction(1, 1) = topRadius;
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry sorGeometry =
+    makeSorGeometry(sorBase, sorDirection, discreteFunction, compositeOp);
+
+  exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.00075 : 0.00005;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return sorGeometry;
+}
+
+axom::klee::Geometry createGeom_Tet(const std::string& geomName)
+{
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  // Tetrahedron at origin.
+  const double len = params.length < 0 ? 1.55 : params.length;
+  const Point3D a {Point3D::NumericArray {.8, 0., -1.} * len};
+  const Point3D b {Point3D::NumericArray {-.8, 1, -1.} * len};
+  const Point3D c {Point3D::NumericArray {-.8, -1, -1.} * len};
+  const Point3D d {Point3D::NumericArray {0., 0., +1.} * len};
+  const primal::Tetrahedron<double, 3> tet {a, b, c, d};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+  exactGeomVols[geomName] = vScale * tet.volume();
+  errorToleranceRel[geomName] = 1e-12;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  axom::klee::Geometry tetGeometry(prop, tet, compositeOp);
+
+  return tetGeometry;
+}
+
+axom::klee::Geometry createGeom_Hex(const std::string& geomName)
+{
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  const double md = params.length < 0 ? 0.82 : params.length / 2;
+  const double lg = 1.2 * md;
+  const double sm = 0.8 * md;
+  const Point3D p {-lg, -md, -sm};
+  const Point3D q {+lg, -md, -sm};
+  const Point3D r {+lg, +md, -sm};
+  const Point3D s {-lg, +md, -sm};
+  const Point3D t {-lg, -md, +sm};
+  const Point3D u {+lg, -md, +sm};
+  const Point3D v {+lg, +md, +sm};
+  const Point3D w {-lg, +md, +sm};
+  const primal::Hexahedron<double, 3> hex {p, q, r, s, t, u, v, w};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+  exactGeomVols[geomName] = vScale * hex.volume();
+  errorToleranceRel[geomName] = 0.000075;
+  errorToleranceAbs[geomName] = 0.0003;
+
+  axom::klee::Geometry hexGeometry(prop, hex, compositeOp);
+
+  return hexGeometry;
+}
+
+axom::klee::Geometry createGeom_Plane(const std::string& geomName)
+{
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  // Create a plane crossing center of mesh.  No matter the normal,
+  // it cuts the mesh in half.
+  Point3D center {0.5 *
+                  (axom::NumericArray<double, 3>(params.boxMins.data()) +
+                   axom::NumericArray<double, 3>(params.boxMaxs.data()))};
+  primal::Vector<double, 3> normal = params.direction.empty()
+    ? primal::Vector3D {1.0, 0.0, 0.0}
+    : primal::Vector3D {params.direction.data()}.unitVector();
+  const primal::Plane<double, 3> plane {normal, center, true};
+
+  axom::klee::Geometry planeGeometry(prop, plane, {nullptr});
+
+  // Exact mesh overlap volume, assuming plane passes through center of box mesh.
+  using Pt3D = primal::Point<double, 3>;
+  Pt3D lower(params.boxMins.data());
+  Pt3D upper(params.boxMaxs.data());
+  auto diag = upper.array() - lower.array();
+  double meshVolume = diag[0] * diag[1] * diag[2];
+  exactGeomVols[geomName] = 0.5 * meshVolume;
+  errorToleranceRel[geomName] = 1e-6;
+  errorToleranceAbs[geomName] = 1e-8;
+
+  return planeGeometry;
 }
 
 double areaOfTriMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& triMesh)
@@ -1539,6 +1737,28 @@ int main(int argc, char** argv)
     exit(retval);
   }
 
+  if(params.testGeom.size() > 1)
+  {
+    if(params.scaleFactors.empty())
+    {
+      params.scaleFactors.resize(3, 1.0);
+    }
+    for(auto& f : params.scaleFactors) f *= 0.5;
+    axom::StackArray<double, 3> tmpOutput {params.scaleFactors[0],
+                                           params.scaleFactors[1],
+                                           params.scaleFactors[2]};
+    SLIC_WARNING(
+      axom::fmt::format("Multiple test configurations specified.\n"
+                        "Adding additional 0.5 scaling to shrink the geometries\n"
+                        "and move them to individual octants so they don't overlap\n"
+                        "with each other.  Final scaling: {}",
+                        tmpOutput));
+  }
+  for(auto sf : params.scaleFactors)
+  {
+    vScale *= sf;
+  }
+
   axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(params.annotationMode);
 
   const int arrayAllocId = axom::policyToDefaultAllocatorID(params.policy);
@@ -1553,56 +1773,70 @@ int main(int argc, char** argv)
   // Create simple ShapeSet for the example.
   //---------------------------------------------------------------------------
   axom::klee::ShapeSet shapeSet;
+  for(const auto& tg : params.testGeom)
+  {
+    if(geomReps.count(tg) == 0)
+    {
+      geomReps[tg] = 0;
+    }
+    std::string name = axom::fmt::format("{}.{}", tg, geomReps[tg]++);
 
-  if(params.testShape == "tetmesh")
-  {
-    shapeSet = createShapeSet(createShape_TetMesh(ds));
-  }
-  else if(params.testShape == "tet")
-  {
-    shapeSet = createShapeSet(createShape_Tet());
-  }
-  else if(params.testShape == "tri")
-  {
-    SLIC_ERROR_IF(params.getBoxDim() != 2, "This example is only in 2D.");
-    shapeSet = create2DShapeSet(ds);
-  }
-  else if(params.testShape == "hex")
-  {
-    shapeSet = createShapeSet(createShape_Hex());
-  }
-  else if(params.testShape == "sphere")
-  {
-    shapeSet = createShapeSet(createShape_Sphere());
-  }
-  else if(params.testShape == "cyl")
-  {
-    shapeSet = createShapeSet(createShape_Cylinder());
-  }
-  else if(params.testShape == "cone")
-  {
-    shapeSet = createShapeSet(createShape_Cone());
-  }
-  else if(params.testShape == "sor")
-  {
-    shapeSet = createShapeSet(createShape_Sor());
-  }
-  else if(params.testShape == "plane")
-  {
-    shapeSet = createShapeSet(createShape_Plane());
-  }
-  else if(params.testShape == "all")
-  {
-    std::vector<axom::klee::Shape> shapesVec;
-    shapesVec.push_back(createShape_TetMesh(ds));
-    shapesVec.push_back(createShape_Tet());
-    shapesVec.push_back(createShape_Hex());
-    shapesVec.push_back(createShape_Sphere());
-    shapesVec.push_back(createShape_Sor());
-    shapesVec.push_back(createShape_Cylinder());
-    shapesVec.push_back(createShape_Cone());
-    shapeSet.setShapes(shapesVec);
-    shapeSet.setDimensions(axom::klee::Dimensions::Three);
+    if(tg == "tetmesh")
+    {
+      shapeSet = createShapeSet(createGeom_TetMesh(ds, name), name);
+    }
+    if(tg == "cupmesh")
+    {
+      shapeSet = createShapeSet(createGeom_CupMesh(ds, name), name);
+    }
+    else if(tg == "tet")
+    {
+      shapeSet = createShapeSet(createGeom_Tet(name), name);
+    }
+    else if(tg == "tri")
+    {
+      SLIC_ERROR_IF(params.getBoxDim() != 2, "This example is only in 2D.");
+      shapeSet = create2DShapeSet(ds);
+    }
+    else if(tg == "hex")
+    {
+      shapeSet = createShapeSet(createGeom_Hex(name), name);
+    }
+    else if(tg == "sphere")
+    {
+      shapeSet = createShapeSet(createGeom_Sphere(name), name);
+    }
+    else if(tg == "cyl")
+    {
+      shapeSet = createShapeSet(createGeom_Cylinder(name), name);
+    }
+    else if(tg == "cone")
+    {
+      shapeSet = createShapeSet(createGeom_Cone(name), name);
+    }
+    else if(tg == "sor")
+    {
+      shapeSet = createShapeSet(createGeom_Sor(name), name);
+    }
+    else if(tg == "plane")
+    {
+      shapeSet = createShapeSet(createGeom_Plane(name), name);
+    }
+#if 0
+    else if(tg == "all")
+    {
+      std::vector<axom::klee::Shape> shapesVec;
+      shapesVec.push_back(createGeom_TetMesh(ds));
+      shapesVec.push_back(createGeom_Tet(name));
+      shapesVec.push_back(createGeom_Hex(name));
+      shapesVec.push_back(createGeom_Sphere(name));
+      shapesVec.push_back(createGeom_Sor(name));
+      shapesVec.push_back(createGeom_Cylinder(name));
+      shapesVec.push_back(createGeom_Cone(name));
+      shapeSet.setShapes(shapesVec);
+      shapeSet.setDimensions(axom::klee::Dimensions::Three);
+    }
+#endif
   }
 
   // Save the discrete shapes for viz and testing.
@@ -1970,7 +2204,7 @@ int main(int argc, char** argv)
       shapeVol = sumMaterialVolumes<axom::SEQ_EXEC>(shapingDC.get(), materialName);
     }
 #endif
-    double correctShapeVol = params.testShape == "plane" ? params.boxMeshVolume() / 2 : shapeMeshVol;
+    double correctShapeVol = shape.getName().rfind("plane") == 0 ? params.boxMeshVolume() / 2 : shapeMeshVol;
     SLIC_ASSERT(correctShapeVol > 0.0);  // Indicates error in the test setup.
     double diff = shapeVol - correctShapeVol;
 

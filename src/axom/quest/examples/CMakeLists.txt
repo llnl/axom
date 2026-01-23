@@ -377,7 +377,7 @@ if((CONDUIT_FOUND OR
             blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
         endif()
 
-        set(_testshapes "tetmesh" "tet" "hex" "sphere" "cyl" "cone" "sor" "all" "plane")
+        set(_testgeoms "tetmesh" "cupmesh" "tet" "hex" "sphere" "cyl" "cone" "sor" "plane")
         foreach(_policy ${_policies})
             # sets the number of threads for the omp policy; leave empty for non-omp policies
             set(_num_threads)
@@ -385,14 +385,14 @@ if((CONDUIT_FOUND OR
                 set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
             endif()
 
-            foreach(_testshape ${_testshapes})
-              set(_testname "quest_shape_in_memory_${_policy}_${_testshape}")
+            foreach(_testgeom ${_testgeoms})
+              set(_testname "quest_shape_in_memory_${_policy}_${_testgeom}")
               axom_add_test(
                 NAME ${_testname}
                 COMMAND quest_shape_in_memory_ex
                            --policy ${_policy}
-                           --testShape ${_testshape}
-                           --refinements 2
+                           --testGeom ${_testgeom}
+                           --refinements 5
                            --scale 0.75 0.75 0.75
                            --dir 0.2 0.4 0.8
                            --meshType bpSidre
@@ -403,7 +403,7 @@ if((CONDUIT_FOUND OR
         endforeach()
 
         # Test Conduit and MFEM mesh types with a subset of shapes (so it doesn't take too long)
-        set(_testshapes "tetmesh" "sphere" "cyl")
+        set(_testgeoms "tetmesh" "sphere" "cyl")
         set(_testMeshTypes "bpConduit")
         blt_list_append(TO _testMeshTypes ELEMENTS "mfem" IF MFEM_FOUND)
         foreach(_policy ${_policies})
@@ -414,14 +414,14 @@ if((CONDUIT_FOUND OR
             endif()
 
             foreach(_testMeshType ${_testMeshTypes})
-              foreach(_testshape ${_testshapes})
-                set(_testname "quest_shape_in_memory_${_policy}_${_testMeshType}_${_testshape}")
+              foreach(_testgeom ${_testgeoms})
+                set(_testname "quest_shape_in_memory_${_policy}_${_testMeshType}_${_testgeom}")
                 axom_add_test(
                   NAME ${_testname}
                   COMMAND quest_shape_in_memory_ex
                              --policy ${_policy}
-                             --testShape ${_testshape}
-                             --refinements 2
+                             --testGeom ${_testgeom}
+                             --refinements 5
                              --scale 0.75 0.75 0.75
                              --dir 0.2 0.4 0.8
                              --meshType ${_testMeshType}
@@ -433,19 +433,19 @@ if((CONDUIT_FOUND OR
         endforeach()
 
         # Test 2D Triangle shape
-        set(_testshapes "tri")
+        set(_testgeoms "tri")
         set(_testMeshTypes "bpConduit" "bpSidre")
         blt_list_append(TO _testMeshTypes ELEMENTS "mfem" IF MFEM_FOUND)
         foreach(_policy ${_policies})
             foreach(_testMeshType ${_testMeshTypes})
-              foreach(_testshape ${_testshapes})
-                set(_testname "quest_shape_in_memory_${_policy}_${_testMeshType}_${_testshape}")
+              foreach(_testgeom ${_testgeoms})
+                set(_testname "quest_shape_in_memory_${_policy}_${_testMeshType}_${_testgeom}")
                 axom_add_test(
                   NAME ${_testname}
                   COMMAND quest_shape_in_memory_ex
                              --policy ${_policy}
-                             --testShape ${_testshape}
-                             --refinements 2
+                             --testGeom ${_testgeom}
+                             --refinements 5
                              --scale 0.75 0.75 0.75
                              --dir 0.2 0.4 0.8
                              --meshType ${_testMeshType}
