@@ -263,6 +263,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("py-sphinx")
         depends_on("py-shroud")
         depends_on("py-jsonschema")
+        depends_on("py-yapf")
 
         # Need clang@19 for clang-format
         # (ENABLE_CLANGFORMAT will be OFF if not the exact version)
@@ -693,6 +694,12 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             sphinx_bin_dir = get_spec_path(spec, "py-sphinx", path_replacements, use_bin=True)
             entries.append(
                 cmake_cache_path("SPHINX_EXECUTABLE", pjoin(sphinx_bin_dir, "sphinx-build"))
+            )
+
+        if spec.satisfies("^py-yapf"):
+            yapf_bin_dir = get_spec_path(spec, "py-yapf", path_replacements, use_bin=True)
+            entries.append(
+                cmake_cache_path("YAPF_EXECUTABLE", pjoin(yapf_bin_dir, "yapf"))
             )
 
         if spec.satisfies("^py-shroud"):

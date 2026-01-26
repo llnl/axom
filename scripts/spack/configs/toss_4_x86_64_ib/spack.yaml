@@ -362,14 +362,14 @@ spack:
       externals:
       - spec: cppcheck@2.18.0
         # prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/gcc-13.3.1/cppcheck-2.18.0-d2tmb7ls2d5vgh6vhcyohecwcu6msopb/
-        prefix: /usr/workspace/han12/axom/toss_4_x86_64_ib/2026_01_13_10_11_07/gcc-13.3.1/cppcheck-2.18.0-d2tmb7ls2d5vgh6vhcyohecwcu6msopb/
+        prefix: /usr/workspace/han12/axom/toss_4_x86_64_ib/2026_01_26_13_08_45/gcc-13.3.1/cppcheck-2.18.0-zmqouaqe6eckciew7gycrmhpzdqf5uwn
     doxygen:
       version: [1.13.2]
       buildable: false
       externals:
       - spec: doxygen@1.13.2
         # prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/doxygen-1.13.2
-        prefix: /usr/workspace/han12/axom/toss_4_x86_64_ib/2026_01_13_10_11_07/view/doxygen-1.13.2
+        prefix: /usr/workspace/han12/axom/toss_4_x86_64_ib/2026_01_26_13_08_45/view/doxygen-1.15.0
 
     py-shroud:
       version: [0.14.0]
@@ -383,17 +383,24 @@ spack:
       externals:
       - spec: py-sphinx@4.4.0
         # prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
-        prefix: /usr/workspace/han12/axom/toss_4_x86_64_ib/2026_01_13_10_11_07/view/python-3.13.5/
+        prefix: /usr/workspace/han12/axom/toss_4_x86_64_ib/2026_01_26_13_08_45/view/python-3.13.11/
     python:
       buildable: false
       externals:
-      - spec: python@3.13.5
+      - spec: python@3.13.11
         # prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
-        prefix: /usr/workspace/han12/axom/toss_4_x86_64_ib/2026_01_13_10_11_07/view/python-3.13.5/
+        prefix: /usr/workspace/han12/axom/toss_4_x86_64_ib/2026_01_26_13_08_45/view/python-3.13.11/
     py-jsonschema:
       buildable: false
       externals:
       - spec: py-jsonschema@4.17.3
         # prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
-        prefix: /usr/workspace/han12/axom/toss_4_x86_64_ib/2026_01_13_10_11_07/view/python-3.13.5/
+        prefix: /usr/workspace/han12/axom/toss_4_x86_64_ib/2026_01_26_13_08_45/view/python-3.13.11/
+
+    py-yapf:
+      buildable: false
+      externals:
+      - spec: py-yapf@0.43.0
+        # prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
+        prefix: /usr/workspace/han12/axom/toss_4_x86_64_ib/2026_01_26_13_08_45/view/python-3.13.11/
 
