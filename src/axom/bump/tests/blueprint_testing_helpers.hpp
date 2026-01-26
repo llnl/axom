@@ -32,7 +32,7 @@ using seq_exec = axom::SEQ_EXEC;
 #endif
 
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-  constexpr int HIP_BLOCK_SIZE = 64;
+  constexpr int HIP_BLOCK_SIZE = 256;
   using hip_exec = axom::HIP_EXEC<HIP_BLOCK_SIZE>;
 #else
   using hip_exec = seq_exec;
