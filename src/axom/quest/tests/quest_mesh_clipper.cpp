@@ -1421,7 +1421,7 @@ int main(int argc, char** argv)
   {
     SLIC_INFO(axom::fmt::format("{:-^80}", "Copying mesh to host and write out"));
 
-    AXOM_ANNOTATE_BEGIN("Copy results to host and write out");
+    AXOM_ANNOTATE_SCOPE("Copy results to host and write out");
 
     if(params.useBlueprintConduit())
     {
@@ -1465,8 +1465,6 @@ int main(int argc, char** argv)
     saveMesh(*compMeshNode, fileName);
     SLIC_INFO(axom::fmt::format("{:-^80}", "Wrote output mesh " + fileName));
   }
-
-  AXOM_ANNOTATE_END("Copy results to host and write out");
 
   /*
     Cleanup and exit
