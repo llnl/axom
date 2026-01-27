@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -1421,7 +1422,7 @@ int main(int argc, char** argv)
   {
     SLIC_INFO(axom::fmt::format("{:-^80}", "Copying mesh to host and write out"));
 
-    AXOM_ANNOTATE_BEGIN("Copy results to host and write out");
+    AXOM_ANNOTATE_SCOPE("Copy results to host and write out");
 
     if(params.useBlueprintConduit())
     {
@@ -1465,8 +1466,6 @@ int main(int argc, char** argv)
     saveMesh(*compMeshNode, fileName);
     SLIC_INFO(axom::fmt::format("{:-^80}", "Wrote output mesh " + fileName));
   }
-
-  AXOM_ANNOTATE_END("Copy results to host and write out");
 
   /*
     Cleanup and exit

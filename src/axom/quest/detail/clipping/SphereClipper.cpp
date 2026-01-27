@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -247,10 +248,10 @@ bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
     octs = axom::Array<axom::primal::Octahedron<double, 3>>(octs, allocId);
   }
 
-  SLIC_INFO(axom::fmt::format("SphereClipper '{}' {}-level refined got {} geometry octs.",
-                              name(),
-                              m_levelOfRefinement,
-                              octs.size()));
+  SLIC_DEBUG(axom::fmt::format("SphereClipper '{}' {}-level refined got {} geometry octs.",
+                               name(),
+                               m_levelOfRefinement,
+                               octs.size()));
   return true;
 }
 
