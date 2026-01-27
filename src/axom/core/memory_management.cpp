@@ -22,8 +22,7 @@ bool isSharedMemoryAllocator(int allocID)
 {
   bool isShared = false;
 #if defined(AXOM_USE_UMPIRE)
-  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-  if(rm.isAllocator(allocID))
+  if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
   {
     umpire::Allocator allocator = rm.getAllocator(allocID);
 

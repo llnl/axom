@@ -20,11 +20,13 @@
   #include "umpire/resource/MemoryResourceTypes.hpp"
   #include "umpire/strategy/QuickPool.hpp"
 #else
-  #include <cstring>  // for std::memcpy
-  #include <cstdlib>  // for std::malloc, std::realloc, std::free
+  #include <cstring>
+  #include <cstdlib>
 #endif
 
+#include <cstdlib>
 #include <iostream>
+#include <string>
 #include <type_traits>
 
 namespace axom
@@ -181,6 +183,20 @@ template <typename T>
 inline T* allocate(std::size_t n, int allocID = getDefaultAllocatorID()) noexcept;
 
 /*!
+ * \brief Allocates a chunk of memory of type T with a user-supplied allocation name.
+ *
+ * \param [in] n the number of elements to allocate.
+ * \param [in] name allocation name (must be non-empty for shared memory allocators)
+ * \param [in] allocID the Umpire allocator to use (optional)
+ *
+ * \return pointer to the new allocation or a nullptr if allocation failed.
+ */
+template <typename T>
+inline T* allocate(std::size_t n,
+                   const std::string& name,
+                   int allocID = getDefaultAllocatorID()) noexcept;
+
+/*!
  * \brief Frees the chunk of memory pointed to by the supplied pointer, p.
  * \param [in/out] p a pointer to memory allocated with allocate/reallocate or a
  * nullptr.
@@ -269,8 +285,7 @@ inline T* allocate(std::size_t n, int allocID) noexcept
   const std::size_t numbytes = n * sizeof(T);
 
 #ifdef AXOM_USE_UMPIRE
-  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-  if(rm.isAllocator(allocID))
+  if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
   {
     umpire::Allocator allocator = rm.getAllocator(allocID);
     return static_cast<T*>(allocator.allocate(numbytes));
@@ -279,6 +294,32 @@ inline T* allocate(std::size_t n, int allocID) noexcept
 
   if(allocID == MALLOC_ALLOCATOR_ID)
   {
+    return static_cast<T*>(std::malloc(numbytes));
+  }
+
+  std::cerr << "Unrecognized allocator id " << allocID << std::endl;
+  axom::utilities::processAbort();
+
+  return nullptr;  // Silence warning.
+}
+
+template <typename T>
+inline T* allocate(std::size_t n, const std::string& name, int allocID) noexcept
+{
+  const std::size_t numbytes = n * sizeof(T);
+
+#ifdef AXOM_USE_UMPIRE
+  if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
+  {
+    umpire::Allocator allocator = rm.getAllocator(allocID);
+    return name.empty() ? static_cast<T*>(allocator.allocate(numbytes))
+                        : static_cast<T*>(allocator.allocate(name, numbytes));
+  }
+#endif
+
+  if(allocID == MALLOC_ALLOCATOR_ID)
+  {
+    AXOM_UNUSED_VAR(name);
     return static_cast<T*>(std::malloc(numbytes));
   }
 
