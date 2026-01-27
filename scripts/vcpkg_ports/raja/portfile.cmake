@@ -1,8 +1,8 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO llnl/raja
-    REF v2025.09.0
-    SHA512 5b67f90b00e98ca8dccfe33a4bca973fcf7654b8473d9caa66b14bce80fdc35bd21d3a61222d5ed38d0dd7be9d81f24d73328d97b3b783fe7b1df6dc67a5fff4
+    REF v2025.12.0
+    SHA512 3668df960d4f1f5fc7dc72e8e6b522a8e7b5da9c2fcefa5a975c2b311050bdf46a58662b9344522ac93765c83f9f63ee9f9d028d7a6ea13c61f72877a11b6929
 )
 
 set(_is_shared TRUE)
