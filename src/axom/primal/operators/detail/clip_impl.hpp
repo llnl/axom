@@ -885,8 +885,8 @@ AXOM_HOST_DEVICE void clipPolygonAddVertex(PolygonType& polygon, const PointType
   if(nverts > 1)
   {
     // Make sure the new point differs from the start/end points in the polygon.
-    addVert = !pt.isNearlyEqual(polygon[0], typed_eps) &&
-              !pt.isNearlyEqual(polygon[nverts - 1], typed_eps);
+    addVert =
+      !pt.isNearlyEqual(polygon[0], typed_eps) && !pt.isNearlyEqual(polygon[nverts - 1], typed_eps);
   }
   else if(nverts > 0)
   {
