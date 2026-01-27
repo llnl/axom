@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -109,12 +110,19 @@ public:
       });
   }
 
-  //! @brief Make a list of indices where labels have value LABEL_ON.
+  /*!
+   * @brief Make a list of indices where labels have value LABEL_ON,
+   * stored in the same allocator id as the labels.
+   */
   void collectOnIndices(const axom::ArrayView<LabelType>& labels,
                         axom::Array<axom::IndexType>& onIndices) override
   {
     if(labels.empty())
     {
+      if(onIndices.getAllocatorID() != labels.getAllocatorID())
+      {
+        onIndices = axom::Array<IndexType>(0, 0, labels.getAllocatorID());
+      }
       return;
     };
 
@@ -1008,10 +1016,10 @@ public:
       axom::for_all<ExecSpace>(
         pieceBbsView.size(),
         AXOM_LAMBDA(axom::IndexType i) {
-          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
-#if defined(AXOM_DEBUG)
-          SLIC_ASSERT(!geomTetsView[i].degenerate());
-#endif
+          if(!geomTetsView[i].degenerate())
+          {
+            pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
+          }
         });
     }
     else

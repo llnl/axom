@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -187,10 +188,10 @@ AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType SphereClipper::polyhedron
     Otherwise, polyhedron is labeled either LABEL_ON or LABEL_IN.
     Sphere is convex, so polyhedron is IN only if all vertices are inside.
 
-    Some polyhedra may be LABEL_ON even though they are actually LABEL_OUT,
-    but this is a conservative error.  The clip function will compute the
-    correct overlap volume.  The purpose of labeling is bypass the
-    clip function where we can do it efficiently.
+    Some polyhedra may be labeled ON even though they are actually outside.
+    This is a conservative error that is fixed ty the clip function later.
+    The purpose of labeling is bypass the clip function where we can do
+    it efficiently.
   */
   BoundingBox3DType bb(verts[0]);
   auto vertCount = Polyhedron::numVertices();

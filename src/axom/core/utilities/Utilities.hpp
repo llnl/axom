@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -107,6 +108,22 @@ inline AXOM_HOST_DEVICE void swap(T& a, T& b)
   T tmp = a;
   a = b;
   b = tmp;
+}
+
+/*!
+ * \brief Returns the fused-multiply-add of a, b, and c
+ * \accelerated
+ * \param [in] a,b,c the values
+ * \return a*b+c computed using an fma operation
+ */
+template <typename T>
+inline AXOM_HOST_DEVICE T fma(const T& a, const T& b, const T& c)
+{
+#if defined(AXOM_DEVICE_CODE)
+  return ::fma(a, b, c);
+#else
+  return std::fma(a, b, c);
+#endif
 }
 
 /*!

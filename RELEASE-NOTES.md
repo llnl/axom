@@ -1,8 +1,8 @@
 
 [comment]: # (#################################################################)
-[comment]: # (Copyright 2017-2025, Lawrence Livermore National Security, LLC)
-[comment]: # (and Axom Project Developers. See the top-level LICENSE file)
-[comment]: # (for details.)
+[comment]: # (Copyright Lawrence Livermore National Security, LLC and other)
+[comment]: # (Axom Project Contributors. See top-level LICENSE and COPYRIGHT)
+[comment]: # (files for dates and other details.)
 [comment]: #
 [comment]: # (# SPDX-License-Identifier: BSD-3-Clause)
 [comment]: # (#################################################################)
@@ -45,9 +45,15 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds spack variants for `adiak` and `caliper`. These replace the previous `profiling` variant which enabled both at the same time.
 - Adds the `AXOM_TEST_NUM_OMP_THREADS` configuration variable to control the default OpenMP thread count for tests.
 - Slic: Adds `slic::getAbortFunction()` to return a function pointer to the abort handler called during logging functions
-
+- Quest: Adds a 3D winding number example and impoves WN performance in 2D and 3D
 
 ###  Changed
+- Version of `quest::discretize` that approximates a surface-of-revolution from a polyline
+  now respects the allocator ID of the output `Array`.  It no longer resets the ID to the
+  execution space default.
+- Updates to [RAJA version 2025.12.0](https://github.com/LLNL/RAJA/releases/tag/v2025.12.0)
+- Updates to [camp version 2025.12.0](https://github.com/LLNL/camp/releases/tag/v2025.12.0)
+- Updates to [Umpire version 2025.12.0](https://github.com/LLNL/Umpire/releases/tag/v2025.12.0)
 - Evaluation methods for line integrals in `axom::primal` have been generalized, and 
   `evaluate_scalar_line_integral` has been renamed to `evaluate_line_integral`.
 - Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
@@ -83,7 +89,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   contains additional algorithms.
 - Updates to [mfem version 4.9](https://github.com/mfem/mfem/releases/tag/v4.9).
   Also updates mfem's hypre dependency to [hypre version 2.27](https://github.com/hypre-space/hypre/releases/tag/v2.27.0).
-- Quest: MFEMReader can now read in multispan 1D NURBS meshes
+- Quest: `MFEMReader` can now read in multispan 1D NURBS meshes
+- fmt: Axom's built-in version of the fmt formatting library was updated to [fmt version 12.1.0](https://github.com/fmtlib/fmt/releases/tag/12.1.0).
+- Primal: Improves robustness of `linear_winding_number` by using `atan2` instead of `acos`
 - Primal: Axom's polygon clipping was modified to handle some corner cases.
 
 ###  Fixed

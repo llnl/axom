@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -100,6 +101,7 @@ set( quest_depends_on
     )
 
 blt_list_append(TO quest_depends_on IF AXOM_ENABLE_SIDRE ELEMENTS sidre)
+blt_list_append(TO quest_depends_on IF AXOM_ENABLE_BUMP ELEMENTS bump)
 blt_list_append(TO quest_depends_on IF SPARSEHASH_FOUND ELEMENTS sparsehash)
 blt_list_append(TO quest_depends_on IF MFEM_FOUND ELEMENTS mfem)
 
@@ -152,15 +154,21 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                       MeshClipperStrategy.hpp
                                       detail/clipping/Plane3DClipper.hpp
                                       detail/clipping/TetClipper.hpp
+                                      detail/clipping/TetMeshClipper.hpp
                                       detail/clipping/HexClipper.hpp
                                       detail/clipping/SphereClipper.hpp
+                                      detail/clipping/MonotonicZSORClipper.hpp
+                                      detail/clipping/SORClipper.hpp
                                       detail/clipping/MeshClipperImpl.hpp)
             list(APPEND quest_sources MeshClipper.cpp
                                       MeshClipperStrategy.cpp
                                       detail/clipping/Plane3DClipper.cpp
                                       detail/clipping/TetClipper.cpp
+                                      detail/clipping/TetMeshClipper.cpp
                                       detail/clipping/HexClipper.cpp
                                       detail/clipping/SphereClipper.cpp
+                                      detail/clipping/MonotonicZSORClipper.cpp
+                                      detail/clipping/SORClipper.cpp
                                       detail/clipping/MeshClipperImpl.hpp)
         endif()
     endif()

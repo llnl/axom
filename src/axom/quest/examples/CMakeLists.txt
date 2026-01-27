@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -297,7 +298,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                      inline_mesh --min 0 0 --max 300 400 --res 150 200 -d 2
             NUM_MPI_TASKS ${_nranks})
         set_tests_properties(${_testname} PROPERTIES
-            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?633.")
+            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?654.")
 
         # 3D shaping tests
         set(_nranks 3)
@@ -766,6 +767,27 @@ if( MFEM_FOUND)
         DEPENDS_ON  axom mfem cli11 fmt
         FOLDER      axom/quest/examples
         )
+endif()
+
+if(MFEM_FOUND AND OPENCASCADE_FOUND)
+    axom_add_executable(
+        NAME        quest_winding_number_3d_ex
+        SOURCES     quest_winding_number_3d.cpp
+        OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
+        DEPENDS_ON  axom mfem cli11 fmt opencascade
+        FOLDER      axom/quest/examples
+        )
+
+    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+        axom_add_test(
+            NAME quest_winding_number_3d_tet_slice
+            COMMAND quest_winding_number_3d_ex
+                    --input ${quest_data_dir}/step/tet.step
+                    --output-prefix wn3d_tet_slice
+                    query_mesh --min -0.5 -0.5 --max 0.5 0.5 --res 3 3 --slice-z 0.0 --order 1)
+        set_tests_properties(quest_winding_number_3d_tet_slice PROPERTIES
+            PASS_REGULAR_EXPRESSION  "4 patches .* 12 trimming curves")
+    endif()
 endif()
 
 

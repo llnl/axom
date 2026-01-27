@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -64,7 +65,7 @@ void MeshClipper::clip(axom::Array<double>& ovlap)
 void MeshClipper::clip(axom::ArrayView<double> ovlap)
 {
   const int allocId = m_shapeMesh.getAllocatorID();
-  const axom::IndexType cellCount = m_shapeMesh.getCellCount();
+  [[maybe_unused]] const axom::IndexType cellCount = m_shapeMesh.getCellCount();
   SLIC_ASSERT(ovlap.size() == cellCount);
 
   auto& cellsInCount = *m_counterStats["cellsIn"].as_int64_ptr();
