@@ -12,6 +12,7 @@
 #include "gtest/gtest.h"
 
 #include <mpi.h>
+#include <string>
 
 //------------------------------------------------------------------------------
 #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
@@ -28,7 +29,9 @@ TEST(core_shared_memory, shared_memory_allocator)
   {
     // Allocate shared memory
     const int N = sizes[si];
-    int *buffer = axom::allocate<int>(N, axom::getSharedMemoryAllocatorID());
+    const std::string allocation_name =
+      std::string {"axom::core_shared_memory::buffer_"} + std::to_string(si);
+    int* buffer = axom::allocate<int>(N, allocation_name, axom::getSharedMemoryAllocatorID());
 
     // Populate the shared memory on rank 0
     if(rank == 0)
