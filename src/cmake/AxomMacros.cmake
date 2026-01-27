@@ -34,7 +34,7 @@ macro(axom_add_code_checks)
         set(_base_dirs "axom" "examples" "thirdparty/tests" "tools")
         set(_ext_expressions "*.cpp" "*.hpp" "*.inl"
                              "*.cxx" "*.hxx" "*.cc" "*.c" "*.h" "*.hh"
-                             "*.F" "*.f" "*.f90" "*.F90")
+                             "*.F" "*.f" "*.f90" "*.F90" "*.py")
 
         set(_glob_expressions)
         foreach(_exp ${_ext_expressions})
@@ -59,10 +59,11 @@ macro(axom_add_code_checks)
         blt_add_code_checks(PREFIX          axom
                             SOURCES         ${_sources}
                             CLANGFORMAT_CFG_FILE ${PROJECT_SOURCE_DIR}/.clang-format
+                            YAPF_CFG_FILE ${PROJECT_SOURCE_DIR}/.style.yapf
                             CPPCHECK_FLAGS  --enable=all --inconclusive)
 
         # Set FOLDER property for code check targets
-        foreach(_suffix clangformat_check clangformat_style clang_tidy_check clang_tidy_style)
+        foreach(_suffix clangformat_check clangformat_style clang_tidy_check clang_tidy_style yapf_check yapf_style)
             set(_tgt ${arg_PREFIX}_${_suffix})
             if(TARGET ${_tgt}) 
                 set_target_properties(${_tgt} PROPERTIES FOLDER "axom/code_checks")

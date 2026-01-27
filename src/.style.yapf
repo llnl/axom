@@ -1,0 +1,10 @@
+[style]
+# Base style
+based_on_style = pep8
+
+# Column / line length
+column_limit = 100
+
+split_before_logical_operator = true
+
+spaces_around_power_operator = true
