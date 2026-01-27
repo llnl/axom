@@ -150,6 +150,10 @@ int signed_distance_init(const std::string& file, MPI_Comm comm)
   // STEP 1: initialized the signed distance query
   s_must_delete_mesh = true;
   rc = signed_distance_init(s_surface_mesh, comm);
+  if(rc != INIT_SUCCESS)
+  {
+    signed_distance_finalize();
+  }
   return rc;
 }
 
