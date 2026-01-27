@@ -169,13 +169,15 @@ static size_t allocate_shared_buffer(const axom::IndexType mesh_metadata[2],
                                      double*& y,
                                      double*& z,
                                      axom::IndexType*& conn,
-                                     unsigned char*& mesh_buffer)
+                                     unsigned char*& mesh_buffer,
+                                     const std::string& allocation_name)
 {
   // Allocate the buffer.
   const axom::IndexType nnodes = mesh_metadata[0];
   const axom::IndexType nfaces = mesh_metadata[1];
   const size_t bytesize = nnodes * 3 * sizeof(double) + nfaces * 3 * sizeof(axom::IndexType);
-  mesh_buffer = allocate<unsigned char>(bytesize, getSharedMemoryAllocatorID());
+
+  mesh_buffer = allocate<unsigned char>(bytesize, allocation_name, getSharedMemoryAllocatorID());
 
   // calculate offset to the coordinates & cell connectivity in the buffer
   int baseOffset = nnodes * sizeof(double);
@@ -189,7 +191,7 @@ static size_t allocate_shared_buffer(const axom::IndexType mesh_metadata[2],
   z = reinterpret_cast<double*>(&mesh_buffer[z_offset]);
   conn = reinterpret_cast<axom::IndexType*>(&mesh_buffer[conn_offset]);
 
-  return (bytesize);
+  return bytesize;
 }
 
 /*
@@ -252,7 +254,10 @@ int read_stl_mesh_shared(const std::string& file,
   double* y = nullptr;
   double* z = nullptr;
   axom::IndexType* conn = nullptr;
-  const size_t numBytes = allocate_shared_buffer(mesh_metadata, x, y, z, conn, mesh_buffer);
+  const std::string allocation_name =
+    std::string {"axom::quest::signed_distance::mesh_buffer::"} + file;
+  const size_t numBytes =
+    allocate_shared_buffer(mesh_metadata, x, y, z, conn, mesh_buffer, allocation_name);
   SLIC_ASSERT(x != nullptr);
   SLIC_ASSERT(y != nullptr);
   SLIC_ASSERT(z != nullptr);
