@@ -676,7 +676,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             entries.append(cmake_cache_option("ENABLE_CLANGFORMAT", False))
 
         if spec.satisfies("+python") or spec.satisfies("+devtools"):
-            # Get path to python with submodules
+            # Get path to python with modules
             python_view_exe = pjoin(os.path.dirname(os.path.dirname(self.prefix)), "view",
                 spec["python"].name + "-" + str(spec["python"].version), "bin/python3")
             entries.append(cmake_cache_path("Python_EXECUTABLE", python_view_exe))
