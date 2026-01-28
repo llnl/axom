@@ -21,6 +21,7 @@
 #endif
 
 // C/C++ includes
+#include <cstddef>
 #include <string>
 
 /*!
@@ -79,6 +80,10 @@ private:
  * \param [in] global_comm handle to the global MPI communicator
  * \param [out] mesh_buffer pointer to the raw mesh buffer
  * \param [out] m pointer to the mesh object
+ * \param [in] min_shared_mem_segment_size Minimum desired shared-memory segment size in bytes (0 to use defaults).
+ *             This value is treated as a minimum; the implementation may increase it to
+ *             accommodate the required mesh buffer (plus some overhead). The shared-memory
+ *             segment size cannot be increased after creation.
  *
  * \return status set to READ_SUCCESS, or READ_FAILED on error.
  *
@@ -98,7 +103,8 @@ private:
 int read_stl_mesh_shared(const std::string& file,
                          MPI_Comm global_comm,
                          unsigned char*& mesh_buffer,
-                         mint::Mesh*& m);
+                         mint::Mesh*& m,
+                         std::size_t min_shared_mem_segment_size = 0);
 #endif
 
 /*!

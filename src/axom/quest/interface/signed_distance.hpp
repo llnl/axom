@@ -8,13 +8,14 @@
 #define QUEST_SIGNED_DISTANCE_INTERFACE_HPP_
 
 // Axom includes
-#include "axom/config.hpp"  // for compile-time definitions
+#include "axom/config.hpp"
 
 // Quest includes
-#include "axom/quest/interface/internal/mpicomm_wrapper.hpp"  // MPI_COMM_SELF
+#include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
 
 // C/C++ includes
-#include <string>  // for std::string
+#include <cstddef>
+#include <string>
 
 /*!
  * \file
@@ -210,14 +211,29 @@ void signed_distance_set_allocator(int allocatorID);
 void signed_distance_set_verbose(bool status);
 
 /*!
- * \brief Enable/Disable the use of MPI-3 on-node shared memory for storing
- *  the surface mesh. By default this option is disabled.
+ * \brief Enable/Disable the use of on-node shared memory (via Umpire's shared-memory
+ * resource) for storing the surface mesh. By default this option is disabled.
  *
  * \param [in] status flag indicating whether to enable/disable shared memory.
  *
- * \note This option utilities MPI-3 features
+ * \note This option requires Axom to be built with MPI and Umpire shared memory support.
  */
 void signed_distance_use_shared_memory(bool status);
+
+/*!
+ * \brief Set the minimum size (in bytes) of the backing shared-memory segment used
+ * to store the surface mesh when \a signed_distance_use_shared_memory(true) is enabled.
+ *
+ * \param [in] min_segment_size Minimum desired shared-memory segment size in bytes (0 to use defaults).
+ *        This value is treated as a minimum; the implementation may choose a larger value
+ *        to accommodate the mesh buffer (plus some overhead).
+ *
+ * \note This must be called before initializing the Signed Distance Query.
+ * \note The shared-memory segment size cannot be increased after creation. To ensure a
+ * larger segment is used, call this before the first shared-memory allocation that
+ * creates Axom's shared-memory allocator.
+ */
+void signed_distance_set_shared_memory_size(std::size_t min_segment_size);
 
 /*!
  * \brief Set the execution space in which to run signed distance queries. By
