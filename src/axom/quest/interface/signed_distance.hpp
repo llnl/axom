@@ -232,6 +232,8 @@ void signed_distance_use_shared_memory(bool status);
  * \note The shared-memory segment size cannot be increased after creation. To ensure a
  * larger segment is used, call this before the first shared-memory allocation that
  * creates Axom's shared-memory allocator.
+ * \note This option is only used when Axom is built with MPI and Umpire shared memory support;
+ * otherwise it has no effect.
  */
 void signed_distance_set_shared_memory_size(std::size_t min_segment_size);
 

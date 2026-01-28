@@ -170,7 +170,7 @@ bool isSharedMemoryAllocator(int allocID);
  * exists and \a minSegmentSize is larger than its existing segment size, this function aborts with
  * an explanatory message.
  *
- * \return The allocator ID for Axom's shared memory allocator (if Axom is using Umpire),
+ * \return The allocator ID for Axom's shared memory allocator (if Axom is built with Umpire shared memory support),
  *         or INVALID_ALLOCATOR_ID otherwise.
  */
 int getSharedMemoryAllocatorID(std::size_t minSegmentSize = 0);
