@@ -45,7 +45,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds spack variants for `adiak` and `caliper`. These replace the previous `profiling` variant which enabled both at the same time.
 - Adds the `AXOM_TEST_NUM_OMP_THREADS` configuration variable to control the default OpenMP thread count for tests.
 - Slic: Adds `slic::getAbortFunction()` to return a function pointer to the abort handler called during logging functions
-- Quest: Adds a 3D winding number example and impoves WN performance in 2D and 3D
+- Quest: Adds a 3D winding number example and improves WN performance in 2D and 3D
 
 ###  Changed
 - Version of `quest::discretize` that approximates a surface-of-revolution from a polyline
@@ -92,6 +92,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: `MFEMReader` can now read in multispan 1D NURBS meshes
 - fmt: Axom's built-in version of the fmt formatting library was updated to [fmt version 12.1.0](https://github.com/fmtlib/fmt/releases/tag/12.1.0).
 - Primal: Improves robustness of `linear_winding_number` by using `atan2` instead of `acos`
+- Core: Allows users to set the minimum size for Axom's shared memory allocator in `getSharedMemoryAllocatorID()`
+- Core: Allows users to set the name of the shared memory allocation in `allocate()`
+- Quest: Adds a function to the signed distance API to set the shared memory size:  `signed_distance_set_shared_memory_size()`
 
 ###  Fixed
 - Sina's Fortran tests are now running (instead of silently failing)
@@ -99,6 +102,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: In Shaping applications, we now check return code after attempting to load a mesh
   and throw an error for unsuccessful loads.
 - Core: Bugfix for batched insertion into a FlatMap with deleted entries
+- Quest: Sets the allocation name for shared memory in the signed distance query
 
 ###  Deprecated
 
