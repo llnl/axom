@@ -346,11 +346,11 @@ spack:
 
   # Lock in versions of Devtools
     cmake:
-      version: [3.23.1]
+      version: [3.26.3]
       buildable: false
       externals:
-      - spec: cmake@3.23.1
-        prefix: /usr/tce
+      - spec: cmake@3.26.3
+        prefix: /usr/tce/packages/cmake/cmake-3.26.3
     cppcheck:
       version: [2.18.0]
       buildable: false

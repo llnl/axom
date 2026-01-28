@@ -32,7 +32,7 @@ packages:
   # v2025.12.0
   raja:
     require:
-      - spec: "@git.e827035c630e71a9358e2f21c2f3cf6fd5fb6605=develop"
+      - spec: "@git.0151da9b6a3698051110ea88d209bf21346f54d0=develop"
   scr:
     require:
       - spec: "@3.0.1"

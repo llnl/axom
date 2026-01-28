@@ -180,10 +180,10 @@ spack:
 
     # Globally lock in version of devtools
     cmake:
-      version: [3.23.1]
+      version: [3.24.2]
       buildable: false
       externals:
-      - spec: cmake@3.23.1
+      - spec: cmake@3.24.2
         prefix: /usr/local
     doxygen:
       version: [1.9.1]
