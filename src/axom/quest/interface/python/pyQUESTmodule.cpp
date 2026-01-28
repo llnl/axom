@@ -470,6 +470,27 @@ static PyObject *PY_signed_distance_use_shared_memory(PyObject *SHROUD_UNUSED(se
   // splicer end function.signed_distance_use_shared_memory
 }
 
+static char PY_signed_distance_set_shared_memory_size__doc__[] = "documentation";
+
+static PyObject *PY_signed_distance_set_shared_memory_size(PyObject *SHROUD_UNUSED(self),
+                                                           PyObject *args,
+                                                           PyObject *kwds)
+{
+  // splicer begin function.signed_distance_set_shared_memory_size
+  size_t minSegmentSize;
+  const char *SHT_kwlist[] = {"minSegmentSize", nullptr};
+
+  if(!PyArg_ParseTupleAndKeywords(args,
+                                  kwds,
+                                  "n:signed_distance_set_shared_memory_size",
+                                  const_cast<char **>(SHT_kwlist),
+                                  &minSegmentSize))
+    return nullptr;
+  axom::quest::signed_distance_set_shared_memory_size(minSegmentSize);
+  Py_RETURN_NONE;
+  // splicer end function.signed_distance_set_shared_memory_size
+}
+
 static char PY_signed_distance_set_execution_space__doc__[] = "documentation";
 
 static PyObject *PY_signed_distance_set_execution_space(PyObject *SHROUD_UNUSED(self),
@@ -745,6 +766,10 @@ static PyMethodDef PY_methods[] = {
    (PyCFunction)PY_signed_distance_use_shared_memory,
    METH_VARARGS | METH_KEYWORDS,
    PY_signed_distance_use_shared_memory__doc__},
+  {"signed_distance_set_shared_memory_size",
+   (PyCFunction)PY_signed_distance_set_shared_memory_size,
+   METH_VARARGS | METH_KEYWORDS,
+   PY_signed_distance_set_shared_memory_size__doc__},
   {"signed_distance_set_execution_space",
    (PyCFunction)PY_signed_distance_set_execution_space,
    METH_VARARGS | METH_KEYWORDS,

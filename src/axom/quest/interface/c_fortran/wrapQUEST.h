@@ -19,8 +19,11 @@
   #include "mpi.h"
 #endif
 #include "wrapQUEST.h"
-#ifndef __cplusplus
+#ifdef __cplusplus
+  #include <cstddef>
+#else
   #include <stdbool.h>
+  #include <stddef.h>
 #endif
 #include "typesQUEST.h"
 
@@ -115,6 +118,8 @@ void QUEST_signed_distance_set_allocator(int allocatorID);
 void QUEST_signed_distance_set_verbose(bool status);
 
 void QUEST_signed_distance_use_shared_memory(bool status);
+
+void QUEST_signed_distance_set_shared_memory_size(size_t minSegmentSize);
 
 void QUEST_signed_distance_set_execution_space(enum QUEST_SignedDistExec execSpace);
 

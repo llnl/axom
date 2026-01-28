@@ -31,6 +31,10 @@ const char IGNORE_OUTPUT[] = ".*";
 #include <fstream>
 #include <sstream>
 
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
+  #include "umpire/ResourceManager.hpp"
+#endif
+
 // Aliases
 namespace quest = axom::quest;
 namespace mint = axom::mint;
@@ -278,12 +282,11 @@ void check_analytic_plane(const std::string& file,
   axom::IndexType nnodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < nnodes; ++inode)
   {
-    double pt[NDIMS];
-    mesh.getNode(inode, pt);
-    primal::Point<double, NDIMS> thepoint(pt);
+    primal::Point<double, NDIMS> pt;
+    mesh.getNode(inode, pt.data());
     phi[inode] = quest::signed_distance_evaluate(pt[0], pt[1], pt[2]);
 
-    const double phi_expected = analytic_plane.signedDistance(thepoint);
+    const double phi_expected = analytic_plane.signedDistance(pt);
     EXPECT_DOUBLE_EQ(phi[inode], phi_expected);
     err[inode] = utilities::abs(phi[inode] - phi_expected);
   }
@@ -404,6 +407,10 @@ TEST(quest_signed_distance_interface, initialize)
 {
   int rc = -1;
 
+  SLIC_INFO(
+    "Note: This test checks that some missing/invalid files will not work "
+    "and is expected to emit warnings");
+
   // initializing with an empty file should return a non-zero value
   rc = quest::signed_distance_init("");
   EXPECT_TRUE(rc != 0);
@@ -475,8 +482,7 @@ TEST(quest_signed_distance_interface, get_mesh_bounds)
 TEST(quest_signed_distance_interface, analytic_plane)
 {
   // Serial test - called independently on each rank. In order to avoid problems
-  //               writing/reading the STL file, we pass a unique name for each
-  //               rank.
+  //               writing/reading the STL file, we pass a unique name for each rank.
   int rank = comm_rank(MPI_COMM_WORLD);
   check_analytic_plane(axom::fmt::format("plane{}.stl", rank));
 
@@ -495,6 +501,43 @@ TEST(quest_signed_distance_interface, call_twice_using_shared_memory)
   // MPI_COMM_WORLD so pass that communicator.
   check_analytic_plane("plane.stl", USE_SHARED_MEMORY, MPI_COMM_WORLD);
   check_analytic_plane("plane.stl", USE_SHARED_MEMORY, MPI_COMM_WORLD);
+}
+
+TEST(quest_signed_distance_interface, shared_memory_released_on_finalize)
+{
+  // Use a single file name coordinated among ranks so we exercise the
+  // read_stl_mesh_shared path.
+  const std::string fileName = "plane_release.stl";
+  generate_planar_mesh_stl_file(fileName, MPI_COMM_WORLD);
+
+  auto& rm = umpire::ResourceManager::getInstance();
+  auto shared_alloc = rm.getAllocator(axom::getSharedMemoryAllocatorID());
+
+  const auto baseline_current = shared_alloc.getCurrentSize();
+  const auto baseline_actual = shared_alloc.getActualSize();
+
+  quest::signed_distance_use_shared_memory(true);
+  quest::signed_distance_set_closed_surface(false);
+  const int rc = quest::signed_distance_init(fileName, MPI_COMM_WORLD);
+  EXPECT_EQ(rc, 0);
+  EXPECT_TRUE(quest::signed_distance_initialized());
+
+  // The shared-memory path should allocate the mesh buffer in shared memory.
+  EXPECT_GE(shared_alloc.getCurrentSize(), baseline_current);
+  EXPECT_GE(shared_alloc.getActualSize(), baseline_actual);
+
+  quest::signed_distance_finalize();
+  EXPECT_FALSE(quest::signed_distance_initialized());
+
+  // Ensure all ranks have released their reference to the named allocation.
+  barrier(MPI_COMM_WORLD);
+
+  EXPECT_EQ(shared_alloc.getCurrentSize(), baseline_current);
+  EXPECT_EQ(shared_alloc.getActualSize(), baseline_actual);
+
+  #ifdef REMOVE_FILES
+  EXPECT_EQ(removeFile(fileName, MPI_COMM_WORLD), 0);
+  #endif
 }
 #endif
 
@@ -716,11 +759,7 @@ TEST(quest_signed_distance_interface, analytic_sphere_with_closest_pt_and_normal
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-#ifdef AXOM_USE_MPI
-  MPI_Init(&argc, &argv);
-#endif
-
-  int result = 0;
+  axom::utilities::raii::MPIWrapper mpi_raii_wrapper(argc, argv);
 
   ::testing::InitGoogleTest(&argc, argv);
 
@@ -730,11 +769,7 @@ int main(int argc, char* argv[])
 
   SLIC_INFO(axom::fmt::format("USE_SHARED_MEMORY: {}", USE_SHARED_MEMORY));
 
-  result = RUN_ALL_TESTS();
-
-#ifdef AXOM_USE_MPI
-  MPI_Finalize();
-#endif
+  int result = RUN_ALL_TESTS();
 
   return result;
 }
