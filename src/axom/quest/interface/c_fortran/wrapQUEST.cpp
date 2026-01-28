@@ -287,6 +287,13 @@ void QUEST_signed_distance_use_shared_memory(bool status)
   // splicer end function.signed_distance_use_shared_memory
 }
 
+void QUEST_signed_distance_set_shared_memory_size(size_t minSegmentSize)
+{
+  // splicer begin function.signed_distance_set_shared_memory_size
+  axom::quest::signed_distance_set_shared_memory_size(minSegmentSize);
+  // splicer end function.signed_distance_set_shared_memory_size
+}
+
 void QUEST_signed_distance_set_execution_space(enum QUEST_SignedDistExec execSpace)
 {
   // splicer begin function.signed_distance_set_execution_space
