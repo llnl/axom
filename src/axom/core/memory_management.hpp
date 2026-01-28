@@ -24,6 +24,7 @@
   #include <cstdlib>
 #endif
 
+#include <cstddef>
 #include <cstdlib>
 #include <iostream>
 #include <string>
@@ -159,10 +160,20 @@ bool isSharedMemoryAllocator(int allocID);
 /*!
  * \brief Get the allocator ID for Axom's shared memory allocator.
  *
+ * \param [in] minSegmentSize Minimum desired shared-memory segment size in bytes (0 to use defaults).
+ *             This value is treated as a minimum; the implementation will use the maximum
+ *             of this value and Umpire's default shared-memory segment size when creating the allocator.
+ *             This minimum is applied when creating the allocator and is ignored if the allocator
+ *             already exists (except for validation).
+ *
+ * \note The shared-memory segment size cannot be increased after creation. If the allocator already
+ * exists and \a minSegmentSize is larger than its existing segment size, this function aborts with
+ * an explanatory message.
+ *
  * \return The allocator ID for Axom's shared memory allocator (if Axom is using Umpire),
  *         or INVALID_ALLOCATOR_ID otherwise.
  */
-int getSharedMemoryAllocatorID();
+int getSharedMemoryAllocatorID(std::size_t minSegmentSize = 0);
 
 /*!
  * \brief Allocates a chunk of memory of type T.

@@ -36,7 +36,7 @@ bool isSharedMemoryAllocator(int allocID)
   return isShared;
 }
 
-int getSharedMemoryAllocatorID()
+int getSharedMemoryAllocatorID(std::size_t minSegmentSize)
 {
   int allocator_id = INVALID_ALLOCATOR_ID;
 #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
@@ -48,6 +48,10 @@ int getSharedMemoryAllocatorID()
     const auto name = axom::fmt::format("SHARED::{}", UMPIRE_DEFAULT_SHARED_MEMORY_RESOURCE);
     auto traits {umpire::get_default_resource_traits(name)};
     traits.scope = umpire::MemoryResourceTraits::shared_scope::node;
+    if(minSegmentSize > traits.size)
+    {
+      traits.size = minSegmentSize;
+    }
     auto axom_node_allocator {
       rm.makeResource(axom::fmt::format("{}::axom_node_allocator", name), traits)};
     auto axom_shared_allocator {
@@ -56,7 +60,21 @@ int getSharedMemoryAllocatorID()
   }
   else
   {
-    allocator_id = rm.getAllocator(allocatorName).getId();
+    auto alloc = rm.getAllocator(allocatorName);
+    if(minSegmentSize > 0)
+    {
+      const auto existing_size = alloc.getAllocationStrategy()->getTraits().size;
+      if(existing_size > 0 && minSegmentSize > existing_size)
+      {
+        std::cerr << "Axom shared-memory allocator \"" << allocatorName
+                  << "\" already exists with size " << existing_size
+                  << " bytes; requested minimum segment size is " << minSegmentSize
+                  << " bytes. The shared-memory segment size cannot be increased after creation."
+                  << std::endl;
+        axom::utilities::processAbort();
+      }
+    }
+    allocator_id = alloc.getId();
   }
 #endif
   return allocator_id;
