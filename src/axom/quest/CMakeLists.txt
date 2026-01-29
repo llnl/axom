@@ -93,6 +93,11 @@ set( quest_sources
     util/mesh_helpers.cpp
    )
 
+if(MFEM_FOUND)
+    list(APPEND quest_headers io/MFEMReader.hpp)
+    list(APPEND quest_sources io/MFEMReader.cpp)
+endif()
+
 
 set( quest_depends_on
     spin
@@ -138,50 +143,63 @@ blt_list_append(
 blt_list_append( TO quest_depends_on ELEMENTS conduit::conduit IF CONDUIT_FOUND )
 
 if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
-    if((MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION) OR CONDUIT_FOUND)
+    if(MFEM_FOUND OR CONDUIT_FOUND)
         list(APPEND quest_headers Shaper.hpp
                                   DiscreteShape.hpp
                                   IntersectionShaper.hpp
                                   detail/shaping/shaping_helpers.hpp
-                                  ShapeMesh.hpp)
+                                  )
         list(APPEND quest_sources Shaper.cpp
                                   DiscreteShape.cpp
                                   detail/shaping/shaping_helpers.cpp
-                                  ShapeMesh.cpp)
+                                  )
         list(APPEND quest_depends_on klee)
-        if(RAJA_FOUND)
-            list(APPEND quest_headers MeshClipper.hpp
-                                      MeshClipperStrategy.hpp
-                                      detail/clipping/Plane3DClipper.hpp
-                                      detail/clipping/TetClipper.hpp
-                                      detail/clipping/TetMeshClipper.hpp
-                                      detail/clipping/HexClipper.hpp
-                                      detail/clipping/SphereClipper.hpp
-                                      detail/clipping/MonotonicZSORClipper.hpp
-                                      detail/clipping/SORClipper.hpp
-                                      detail/clipping/MeshClipperImpl.hpp
-                                      util/make_clipper_strategy.hpp)
-            list(APPEND quest_sources MeshClipper.cpp
-                                      MeshClipperStrategy.cpp
-                                      detail/clipping/Plane3DClipper.cpp
-                                      detail/clipping/TetClipper.cpp
-                                      detail/clipping/TetMeshClipper.cpp
-                                      detail/clipping/HexClipper.cpp
-                                      detail/clipping/SphereClipper.cpp
-                                      detail/clipping/MonotonicZSORClipper.cpp
-                                      detail/clipping/SORClipper.cpp
-                                      detail/clipping/MeshClipperImpl.hpp
-                                      util/make_clipper_strategy.cpp)
+    endif()
+
+    # Geometry clipping requires Conduit, Sidre, and RAJA.
+    # (TetMeshClipper additionally requires the Bump component.)
+    if(CONDUIT_FOUND AND RAJA_FOUND)
+        list(APPEND quest_headers ShapeMesh.hpp
+                                  MeshClipper.hpp
+                                  MeshClipperStrategy.hpp
+                                  detail/clipping/Plane3DClipper.hpp
+                                  detail/clipping/TetClipper.hpp
+                                  detail/clipping/HexClipper.hpp
+                                  detail/clipping/SphereClipper.hpp
+                                  detail/clipping/MonotonicZSORClipper.hpp
+                                  detail/clipping/SORClipper.hpp
+                                  detail/clipping/MeshClipperImpl.hpp
+                                  util/make_clipper_strategy.hpp)
+
+        list(APPEND quest_sources ShapeMesh.cpp
+                                  MeshClipper.cpp
+                                  MeshClipperStrategy.cpp
+                                  detail/clipping/Plane3DClipper.cpp
+                                  detail/clipping/TetClipper.cpp
+                                  detail/clipping/HexClipper.cpp
+                                  detail/clipping/SphereClipper.cpp
+                                  detail/clipping/MonotonicZSORClipper.cpp
+                                  detail/clipping/SORClipper.cpp
+                                  detail/clipping/MeshClipperImpl.hpp
+                                  util/make_clipper_strategy.cpp)
+
+        # MeshClipperImpl uses RAJA algorithms directly.
+        list(APPEND quest_depends_on RAJA)
+        # MeshClipperStrategy and the clippers depend on Klee geometry.
+        list(APPEND quest_depends_on klee)
+
+        if(AXOM_ENABLE_BUMP)
+            list(APPEND quest_headers detail/clipping/TetMeshClipper.hpp)
+            list(APPEND quest_sources detail/clipping/TetMeshClipper.cpp)
         endif()
     endif()
 
-    if(MFEM_FOUND AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+    if(MFEM_FOUND)
         list(APPEND quest_headers SamplingShaper.hpp 
                                   detail/shaping/InOutSampler.hpp
                                   detail/shaping/PrimitiveSampler.hpp
                                   detail/shaping/WindingNumberSampler.hpp
-                                  io/MFEMReader.hpp)
-        list(APPEND quest_sources io/MFEMReader.cpp)
+                                  )
     endif()
 endif()
 
