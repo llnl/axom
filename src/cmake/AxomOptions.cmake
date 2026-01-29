@@ -23,7 +23,6 @@ endif()
 option(AXOM_ENABLE_SPARSEHASH "Enables Sparsehash." ON)
 option(AXOM_ENABLE_ALL_COMPONENTS "Enables all components by default" ON)
 option(AXOM_USE_64BIT_INDEXTYPE "Use 64-bit integers for axom::IndexType" ON)
-option(AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION "Enable Axom's version of the MFEM SidreDataCollection" ON)
 
 if(NOT CMAKE_CONFIGURATION_TYPES)
     if(CMAKE_BUILD_TYPE MATCHES "(Debug|RelWithDebInfo)")

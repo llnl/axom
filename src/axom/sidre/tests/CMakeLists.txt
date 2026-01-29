@@ -140,7 +140,7 @@ endif()
 #------------------------------------------------------------------------------
 # Add MFEMSidreDataCollection tests
 #------------------------------------------------------------------------------
-if (MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+if (MFEM_FOUND)
     axom_add_executable(NAME sidre_mfem_datacollection_test
                         SOURCES sidre_mfem_datacollection.cpp
                         OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}

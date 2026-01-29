@@ -138,7 +138,7 @@ blt_list_append(
 blt_list_append( TO quest_depends_on ELEMENTS conduit::conduit IF CONDUIT_FOUND )
 
 if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
-    if((MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION) OR CONDUIT_FOUND)
+    if(MFEM_FOUND OR CONDUIT_FOUND)
         list(APPEND quest_headers Shaper.hpp
                                   DiscreteShape.hpp
                                   IntersectionShaper.hpp
@@ -187,7 +187,7 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
         endif()
     endif()
 
-    if(MFEM_FOUND AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+    if(MFEM_FOUND)
         list(APPEND quest_headers SamplingShaper.hpp 
                                   detail/shaping/InOutSampler.hpp
                                   detail/shaping/PrimitiveSampler.hpp

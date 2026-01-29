@@ -86,7 +86,7 @@ endif()
 # Tests that use MFEM when available
 #------------------------------------------------------------------------------
 
-if(MFEM_FOUND AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+if(MFEM_FOUND AND AXOM_ENABLE_SIDRE)
     function(add_quest_mfem_test test_name)
         axom_add_executable(
             NAME       ${test_name}
@@ -166,7 +166,7 @@ endforeach()
 # These tests require MPI+MFEM+C2C+Axom data+...
 #------------------------------------------------------------------------------
 if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
-              AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION
+              AND AXOM_ENABLE_SIDRE
               AND AXOM_ENABLE_KLEE AND AXOM_DATA_DIR
               AND C2C_FOUND)
     set(quest_mpi_mfem_c2c_data_tests

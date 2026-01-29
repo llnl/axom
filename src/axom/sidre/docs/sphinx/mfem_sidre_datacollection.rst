@@ -10,9 +10,8 @@ Using Sidre with MFEM
 *********************
 
 .. note::
-   The functionality described in this page is only available if Axom is 
-   configured with MFEM and if the CMake variable 
-   ``AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION`` is set to ``ON``
+   The functionality described in this page is only available if Axom is
+   configured with MFEM and Sidre.
 
 The ``MFEMSidreDataCollection`` class implements `MFEM <https://mfem.org>`_'s 
 ``DataCollection`` interface for recording simulation data. Specifically, it 

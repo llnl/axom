@@ -145,7 +145,7 @@ endif()
 
 # Shaping example -------------------------------------------------------------
 if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
-                   AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION
+                   AND AXOM_ENABLE_SIDRE
                    AND AXOM_ENABLE_KLEE)
     axom_add_executable(
         NAME        quest_shaping_driver_ex

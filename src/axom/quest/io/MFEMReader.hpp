@@ -10,7 +10,7 @@
 #include "axom/config.hpp"
 
 #if !defined(AXOM_USE_MFEM) || !defined(AXOM_USE_SIDRE)
-  #error MFEMReader should only be included when Axom is configured with MFEM, SIDRE (and MFEM_SIDRE_DATACOLLECTION)
+  #error MFEMReader should only be included when Axom is configured with MFEM and Sidre
 #endif
 
 #include "axom/core/Array.hpp"
