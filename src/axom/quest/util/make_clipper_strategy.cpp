@@ -31,39 +31,38 @@ std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geo
   std::shared_ptr<MeshClipperStrategy> strategy;
 
   const std::string& format = kleeGeometry.getFormat();
-  const std::string& instanceName = !name.empty() ? name : kleeGeometry.getFormat();
 
   if(format == "plane3D")
   {
-    strategy.reset(new Plane3DClipper(kleeGeometry, instanceName));
+    strategy.reset(new Plane3DClipper(kleeGeometry, name));
   }
   else if(format == "tet3D")
   {
-    strategy.reset(new TetClipper(kleeGeometry, instanceName));
+    strategy.reset(new TetClipper(kleeGeometry, name));
   }
   else if(format == "blueprint-tets")
   {
-    strategy.reset(new TetMeshClipper(kleeGeometry, instanceName));
+    strategy.reset(new TetMeshClipper(kleeGeometry, name));
   }
   else if(format == "hex3D")
   {
-    strategy.reset(new HexClipper(kleeGeometry, instanceName));
+    strategy.reset(new HexClipper(kleeGeometry, name));
   }
   else if(format == "sphere3D")
   {
-    strategy.reset(new SphereClipper(kleeGeometry, instanceName));
+    strategy.reset(new SphereClipper(kleeGeometry, name));
   }
   else if(format == "sor3D")
   {
-    strategy.reset(new SORClipper(kleeGeometry, instanceName));
+    strategy.reset(new SORClipper(kleeGeometry, name));
   }
   else if(format == "cyl3D")
   {
-    strategy.reset(new MonotonicZSORClipper(kleeGeometry, instanceName));
+    strategy.reset(new MonotonicZSORClipper(kleeGeometry, name));
   }
   else if(format == "cone3D")
   {
-    strategy.reset(new MonotonicZSORClipper(kleeGeometry, instanceName));
+    strategy.reset(new MonotonicZSORClipper(kleeGeometry, name));
   }
   else
   {

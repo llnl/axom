@@ -28,7 +28,7 @@ namespace util
  * to clip the specified klee Geometry.
  * @param [in] kleeGeometry
  * @param [in] name Name of strategy instance.
- *   If unspecified, use kleeGeometry.getformat().
+ *   If unspecified, the selected implementation will provide a default name.
  *
  * This method chooses the correct implementations for known
  * klee geometry formats.  It issues a warning for unrecognized
