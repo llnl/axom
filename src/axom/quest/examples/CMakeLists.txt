@@ -94,7 +94,7 @@ if (CONDUIT_FOUND AND UMPIRE_FOUND)
         NAME        quest_candidates_example_ex
         SOURCES     quest_candidates_example.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends} conduit::conduit
+        DEPENDS_ON  ${quest_example_depends} conduit::conduit umpire
         FOLDER      axom/quest/examples
         )
 
@@ -428,11 +428,14 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_MPI)
 endif()
 
 if(CONDUIT_FOUND)
+    set(quest_marching_cubes_depends ${quest_example_depends} conduit::conduit)
+    blt_list_append(TO quest_marching_cubes_depends IF AXOM_ENABLE_MPI ELEMENTS conduit::conduit_mpi)
+
     axom_add_executable(
             NAME        quest_marching_cubes_ex
             SOURCES     quest_marching_cubes_example.cpp
             OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-            DEPENDS_ON  ${quest_example_depends}
+            DEPENDS_ON  ${quest_marching_cubes_depends}
             FOLDER      axom/quest/examples
             )
 
