@@ -93,7 +93,7 @@ if (ENABLE_FORTRAN)
     endif()
 endif()
 
-if (MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+if (MFEM_FOUND)
     list(APPEND sidre_headers core/MFEMSidreDataCollection.hpp)
     list(APPEND sidre_sources core/MFEMSidreDataCollection.cpp)
 endif()
@@ -108,8 +108,8 @@ set(sidre_depends
 
 blt_list_append(TO sidre_depends ELEMENTS hdf5 IF HDF5_FOUND)
 blt_list_append(TO sidre_depends ELEMENTS sparsehash IF SPARSEHASH_FOUND)
-if(AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
-    blt_list_append(TO sidre_depends ELEMENTS mfem IF MFEM_FOUND)
+if(MFEM_FOUND)
+    blt_list_append(TO sidre_depends ELEMENTS mfem)
     blt_list_append(TO sidre_depends ELEMENTS fmt)
 endif()
 

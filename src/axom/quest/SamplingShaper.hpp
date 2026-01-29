@@ -20,8 +20,8 @@
 #include "axom/mint.hpp"
 #include "axom/klee.hpp"
 
-#ifndef AXOM_USE_MFEM
-  #error Shaping functionality requires Axom to be configured with MFEM and the AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION option
+#if !defined(AXOM_USE_MFEM) || !defined(AXOM_USE_SIDRE)
+  #error SamplingShaper requires Axom to be configured with MFEM and Sidre
 #endif
 
 #include "axom/quest/Shaper.hpp"

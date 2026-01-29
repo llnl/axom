@@ -8,7 +8,7 @@ appears below:
 ```
 BSD 3-Clause License
 
-Copyright (c) 2000 - 2025, Lawrence Livermore National Security, LLC
+Copyright (c), Lawrence Livermore National Security, LLC
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

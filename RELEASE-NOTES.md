@@ -104,6 +104,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Bugfix for batched insertion into a FlatMap with deleted entries
 - Quest: Sets the allocation name for shared memory in the signed distance query
 
+###  Removed
+- Removes the `AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION` CMake config variable. 
+  It is no longer needed -- we now always use MFEMSidreDataCollection in configurations with `mfem` and `sidre`.
+
 ###  Deprecated
 
 
