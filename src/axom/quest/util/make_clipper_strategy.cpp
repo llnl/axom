@@ -66,7 +66,7 @@ std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geo
   }
   else
   {
-    SLIC_WARNING(axom::fmt::format("Unrecognized Klee Geometry format {}.", format));
+    SLIC_WARNING(axom::fmt::format("klee::Geometry format {} is not supported by MeshClipper.", format));
   }
 
   return strategy;
