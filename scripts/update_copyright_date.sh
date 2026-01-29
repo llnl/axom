@@ -7,7 +7,7 @@
 # SPDX-License-Identifier: (BSD-3-Clause)
 
 #=============================================================================
-# This script is used to update the copyright year in RAJA files that contain
+# This script is used to update the copyright year in Axom files that contain
 # specific year info.
 #
 # To use, change the 'sed' commands below as needed to modify the content that
