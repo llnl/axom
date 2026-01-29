@@ -11,11 +11,20 @@
 #include "axom/core/Array.hpp"
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/memory_management.hpp"
+#include "axom/core/execution/execution_space.hpp"
 #include "axom/core/NumericLimits.hpp"
 #include "axom/slic.hpp"
 #include "axom/export/bump.h"
 
 #include <conduit/conduit.hpp>
+
+#if defined(AXOM_USE_CUDA)
+  #include <cuda_runtime.h>
+#endif
+
+#if defined(AXOM_USE_HIP)
+  #include <hip/hip_runtime.h>
+#endif
 
 #include <string>
 
@@ -137,8 +146,24 @@ private:
  * \param dest The conduit node that will receive the copied data.
  * \param src The source data to be copied.
  */
+namespace detail
+{
+inline void synchronize_device()
+{
+#if defined(AXOM_USE_CUDA)
+  const auto err = cudaDeviceSynchronize();
+  AXOM_UNUSED_VAR(err);
+#endif
+#if defined(AXOM_USE_HIP)
+  const auto err = hipDeviceSynchronize();
+  AXOM_UNUSED_VAR(err);
+#endif
+}
+
 template <typename ExecSpace>
-void copy(conduit::Node &dest, const conduit::Node &src)
+void copy_impl(conduit::Node &dest,
+               const conduit::Node &src,
+               bool &synchronized_for_unified)
 {
   ConduitAllocateThroughAxom<ExecSpace> c2a;
   dest.reset();
@@ -146,7 +171,7 @@ void copy(conduit::Node &dest, const conduit::Node &src)
   {
     for(conduit::index_t i = 0; i < src.number_of_children(); i++)
     {
-      copy<ExecSpace>(dest[src[i].name()], src[i]);
+      copy_impl<ExecSpace>(dest[src[i].name()], src[i], synchronized_for_unified);
     }
   }
   else
@@ -154,8 +179,24 @@ void copy(conduit::Node &dest, const conduit::Node &src)
     const int allocatorID = axom::getAllocatorIDFromPointer(src.data_ptr());
     bool deviceAllocated =
       (allocatorID == INVALID_ALLOCATOR_ID) ? false : isDeviceAllocator(allocatorID);
+    bool unifiedAllocated = false;
+#if defined(AXOM_USE_UMPIRE)
+    unifiedAllocated = (allocatorID != INVALID_ALLOCATOR_ID) &&
+      (axom::detail::getAllocatorSpace(allocatorID) == axom::MemorySpace::Unified);
+#endif
     if(deviceAllocated || (!src.dtype().is_string() && src.dtype().number_of_elements() > 1))
     {
+      // If the input is Unified memory and we're copying to a host execution space,
+      // synchronize the device once before dereferencing the Unified allocation.
+      // Without this synchronization, host-side copies can race with outstanding GPU kernels.
+      if(!synchronized_for_unified &&
+         !axom::execution_space<ExecSpace>::onDevice() &&
+         unifiedAllocated)
+      {
+        synchronize_device();
+        synchronized_for_unified = true;
+      }
+
       // Allocate the node's memory in the right place.
       dest.reset();
       dest.set_allocator(c2a.getConduitAllocatorID());
@@ -163,7 +204,9 @@ void copy(conduit::Node &dest, const conduit::Node &src)
 
       // Copy the data to the destination node. Axom uses Umpire to manage that.
       if(src.is_compact())
+      {
         axom::copy(dest.data_ptr(), src.data_ptr(), src.dtype().bytes_compact());
+      }
       else
       {
         // NOTE: This assumes that src is on the host.
@@ -178,6 +221,14 @@ void copy(conduit::Node &dest, const conduit::Node &src)
       dest.set(src);
     }
   }
+}
+}  // namespace detail
+
+template <typename ExecSpace>
+void copy(conduit::Node &dest, const conduit::Node &src)
+{
+  bool synchronized_for_unified = false;
+  detail::copy_impl<ExecSpace>(dest, src, synchronized_for_unified);
 }
 
 //------------------------------------------------------------------------------

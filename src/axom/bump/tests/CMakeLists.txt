@@ -13,6 +13,7 @@
 #------------------------------------------------------------------------------
 
 set(gtest_bump_tests
+    bump_conduit_memory_copy_sync.cpp
     bump_clipfield.cpp
     bump_cutfield.cpp
     bump_coordset_extents.cpp
@@ -47,4 +48,3 @@ foreach(test ${gtest_bump_tests})
     axom_add_test( NAME ${test_name}
                    COMMAND ${test_name}_test )
 endforeach()
-
