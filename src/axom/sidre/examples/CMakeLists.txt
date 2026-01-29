@@ -93,7 +93,7 @@ endif()
 #------------------------------------------------------------------------------
 # Add MFEM Sidre DataCollection tests
 #------------------------------------------------------------------------------
-if(MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+if(MFEM_FOUND)
     set(_mfem_dc_tests
         sidre_mfem_datacollection_materials.cpp
         sidre_mfem_datacollection_restart.cpp

@@ -25,7 +25,7 @@
   #endif
 #endif
 
-#if defined(AXOM_USE_MFEM) && defined(AXOM_USE_SIDRE)
+#if defined(AXOM_USE_MFEM)
   #include "axom/quest/io/MFEMReader.hpp"
   #include <mfem.hpp>
   #include <map>
@@ -452,7 +452,7 @@ int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
   return rc;
 }
 
-#if defined(AXOM_USE_MFEM) && defined(AXOM_USE_SIDRE)
+#if defined(AXOM_USE_MFEM)
 /*
  * Reads in the contour mesh from the specified file.
  */

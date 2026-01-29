@@ -66,7 +66,7 @@ if(CONDUIT_FOUND AND AXOM_DATA_DIR)
             NAME        quest_mesh_view_util_test
             SOURCES     quest_mesh_view_util.cpp
             OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
-            DEPENDS_ON  ${quest_tests_depends} conduit
+            DEPENDS_ON  ${quest_tests_depends} conduit::conduit
             FOLDER      axom/quest/tests
             )
     set(quest_data_dir  ${AXOM_DATA_DIR}/quest)
@@ -86,7 +86,7 @@ endif()
 # Tests that use MFEM when available
 #------------------------------------------------------------------------------
 
-if(MFEM_FOUND AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+if(MFEM_FOUND AND AXOM_ENABLE_SIDRE)
     function(add_quest_mfem_test test_name)
         axom_add_executable(
             NAME       ${test_name}
@@ -166,7 +166,7 @@ endforeach()
 # These tests require MPI+MFEM+C2C+Axom data+...
 #------------------------------------------------------------------------------
 if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
-              AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION
+              AND AXOM_ENABLE_SIDRE
               AND AXOM_ENABLE_KLEE AND AXOM_DATA_DIR
               AND C2C_FOUND)
     set(quest_mpi_mfem_c2c_data_tests
@@ -237,14 +237,17 @@ if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
 endif()
 
 #------------------------------------------------------------------------------
-# Geometry clipping tests require Conduit and RAJA
+# Geometry clipping tests require Klee, Sidre, Conduit, RAJA and Bump
 #------------------------------------------------------------------------------
-if(CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_SIDRE)
+if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_BUMP)
+    set(quest_mesh_clipper_depends ${quest_tests_depends} conduit::conduit RAJA)
+    blt_list_append(TO quest_mesh_clipper_depends IF AXOM_ENABLE_MPI ELEMENTS conduit::conduit_mpi)
+
     axom_add_executable(
         NAME        quest_mesh_clipper_test
         SOURCES     quest_mesh_clipper.cpp
         OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_tests_depends}
+        DEPENDS_ON  ${quest_mesh_clipper_depends}
         FOLDER      axom/quest/tests
         )
 

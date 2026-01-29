@@ -31,6 +31,7 @@
 #include "axom/config.hpp"
 #include "axom/inlet.hpp"
 #include "axom/sidre.hpp"
+#include "axom/slic.hpp"
 #include "axom/fmt.hpp"
 #include "axom/CLI11.hpp"
 

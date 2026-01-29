@@ -19,7 +19,7 @@
 #endif
 
 #if !defined(AXOM_USE_MFEM) && !defined(AXOM_USE_CONDUIT)
-  #error Shaping functionality requires Axom to be configured with Conduit or MFEM and the AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION option
+  #error Shaping functionality requires Axom to be configured with Conduit or MFEM
 #endif
 
 #include "axom/sidre.hpp"
