@@ -1,5 +1,5 @@
 digraph dependencies {
-  quest -> {bump slam primal mint spin};
+  quest -> {slam primal mint spin};
   quest -> {klee sidre} [style="dashed"];
   {inlet klee mint primal quest slam spin sidre} -> {slic core};
   mint -> slam

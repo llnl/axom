@@ -136,7 +136,7 @@ Axom has the following inter-component dependencies:
 - Multimat depends on Slic, and Slam
 - Inlet depends on Sidre, Slic, and Primal
 - Klee depends on Sidre, Slic, Inlet and Primal
-- Quest depends on Bump, Slam, Spin, Primal, Mint, and, optionally, Klee and Sidre
+- Quest depends on Slam, Spin, Primal, Mint, and, optionally, Klee, Bump and Sidre
 
 The figure below summarizes these dependencies. Solid links indicate hard 
 dependencies; dashed links indicate optional dependencies.

@@ -281,7 +281,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     requires("components=bump,slic,slam,primal", when="components=mir")
     requires("components=slic,slam", when="components=multimat")
     requires("components=slic", when="components=primal")
-    requires("components=slic,slam,primal,mint,spin,bump", when="components=quest")
+    requires("components=slic,slam,primal,mint,spin", when="components=quest")
     requires("components=slic", when="components=sidre")
     requires("components=slic", when="components=sina")
     requires("components=slic", when="components=slam")
