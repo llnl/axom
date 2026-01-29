@@ -76,6 +76,8 @@ int getSharedMemoryAllocatorID(std::size_t minSegmentSize)
     }
     allocator_id = alloc.getId();
   }
+#else
+  AXOM_UNUSED_VAR(minSegmentSize);
 #endif
   return allocator_id;
 }
