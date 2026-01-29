@@ -56,7 +56,7 @@ Signed Distance
 ---------------
 
 The C++ signed distance query is provided by the ``quest::SignedDistance`` class,
-which wraps an instance of ``primal::BVHTree``.
+which wraps an instance of ``spin::BVH``.
 Examples from ``<axom>/src/axom/quest/tests/quest_signed_distance.cpp``.
 
 Class header:

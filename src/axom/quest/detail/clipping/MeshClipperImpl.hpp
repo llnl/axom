@@ -34,7 +34,7 @@ namespace detail
  * This class should be thought of as a part of the MeshClipper code,
  * even though it's in a different file.  Abstract base class
  * MeshClipper::Impl defines interfaces for MeshClipper methods that
- * should be implemented in the same execution space.  This class
+ * should be implemented in a specific execution space.  This class
  * implements those methods with the execution space as a template
  * parameter.
  */
