@@ -29,10 +29,10 @@ packages:
   py-jsonschema:
     require:
       - spec: "@:4.17" #Anything after this requires py-rpds which requires rust and adds 40 minutes
-  # v2025.12.0
+  # v2025.12.1
   raja:
     require:
-      - spec: "@git.0151da9b6a3698051110ea88d209bf21346f54d0=develop"
+      - spec: "@git.3b8b59a1e9be2e1066c0d77372b3bf5956e6d6e2=develop"
   scr:
     require:
       - spec: "@3.0.1"
