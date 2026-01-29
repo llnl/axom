@@ -93,6 +93,11 @@ set( quest_sources
     util/mesh_helpers.cpp
    )
 
+if(MFEM_FOUND)
+    list(APPEND quest_headers io/MFEMReader.hpp)
+    list(APPEND quest_sources io/MFEMReader.cpp)
+endif()
+
 
 set( quest_depends_on
     spin
@@ -192,8 +197,7 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                   detail/shaping/InOutSampler.hpp
                                   detail/shaping/PrimitiveSampler.hpp
                                   detail/shaping/WindingNumberSampler.hpp
-                                  io/MFEMReader.hpp)
-        list(APPEND quest_sources io/MFEMReader.cpp)
+                                  )
     endif()
 endif()
 
