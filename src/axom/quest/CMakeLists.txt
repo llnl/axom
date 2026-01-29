@@ -61,7 +61,6 @@ set( quest_headers
     interface/signed_distance.hpp
 
     util/mesh_helpers.hpp
-    util/make_clipper_strategy.hpp
     MeshViewUtil.hpp
     )
 
@@ -92,7 +91,6 @@ set( quest_sources
     interface/signed_distance.cpp
 
     util/mesh_helpers.cpp
-    util/make_clipper_strategy.cpp
    )
 
 
@@ -161,7 +159,8 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                       detail/clipping/SphereClipper.hpp
                                       detail/clipping/MonotonicZSORClipper.hpp
                                       detail/clipping/SORClipper.hpp
-                                      detail/clipping/MeshClipperImpl.hpp)
+                                      detail/clipping/MeshClipperImpl.hpp
+                                      util/make_clipper_strategy.hpp)
             list(APPEND quest_sources MeshClipper.cpp
                                       MeshClipperStrategy.cpp
                                       detail/clipping/Plane3DClipper.cpp
@@ -171,7 +170,8 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                       detail/clipping/SphereClipper.cpp
                                       detail/clipping/MonotonicZSORClipper.cpp
                                       detail/clipping/SORClipper.cpp
-                                      detail/clipping/MeshClipperImpl.hpp)
+                                      detail/clipping/MeshClipperImpl.hpp
+                                      util/make_clipper_strategy.cpp)
         endif()
     endif()
 
