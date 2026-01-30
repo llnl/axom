@@ -335,7 +335,8 @@ public:
      * whose bounding boxes intersect the query bounding box.
      */
     auto traversePredTetId = [=] AXOM_HOST_DEVICE(const IndexType& queryTetId,
-                                                  const BoundingBoxType& bvhBbox) -> bool {
+                                                  const BoundingBoxType& bvhBbox,
+                                                  std::int32_t) -> bool {
       const auto& queryTet = meshTets[tetIndices[queryTetId]];
       return tetBoxCollision(queryTet, bvhBbox);
     };

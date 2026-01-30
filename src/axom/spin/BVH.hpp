@@ -405,6 +405,15 @@ public:
    */
   void writeVtkFile(const std::string& fileName) const;
 
+  /*!
+   * \brief Iterate over the tree, invoking the leaf action at each leaf node to
+   *        produce a value and then iterate back up the tree, combining nodes
+   *        using a "+" reduction. Return the Array that contains values for
+   *        all tree nodes.
+   */
+  template <typename FieldType, typename LeafAction>
+  axom::Array<FieldType> reduceTree(LeafAction&& lf) const;
+
 private:
   /// \name Private Members
   /// @{
@@ -497,7 +506,7 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findPoints(axom::ArrayView<IndexTyp
   SLIC_ASSERT(m_bvh != nullptr);
 
   // Define traversal predicates
-  auto predicate = [=] AXOM_HOST_DEVICE(const PointType& p, const BoxType& bb) -> bool {
+  auto predicate = [=] AXOM_HOST_DEVICE(const PointType& p, const BoxType& bb, std::int32_t) -> bool {
     return bb.contains(p);
   };
 
@@ -527,7 +536,7 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findRays(axom::ArrayView<IndexType>
   const FloatType TOL = m_tolerance;
 
   // Define traversal predicates
-  auto predicate = [=] AXOM_HOST_DEVICE(const RayType& r, const BoxType& bb) -> bool {
+  auto predicate = [=] AXOM_HOST_DEVICE(const RayType& r, const BoxType& bb, std::int32_t) -> bool {
     primal::Point<FloatType, NDIMS> tmp;
     return primal::detail::intersect_ray(r, bb, tmp, TOL);
   };
@@ -556,7 +565,7 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findBoundingBoxes(axom::ArrayView<I
   SLIC_ASSERT(m_bvh != nullptr);
 
   // STEP 2: define traversal predicates
-  auto predicate = [=] AXOM_HOST_DEVICE(const BoxType& bb1, const BoxType& bb2) -> bool {
+  auto predicate = [=] AXOM_HOST_DEVICE(const BoxType& bb1, const BoxType& bb2, std::int32_t) -> bool {
     return bb1.intersectsWith(bb2);
   };
 
@@ -575,6 +584,16 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::writeVtkFile(const std::string& fil
   SLIC_ASSERT(m_bvh != nullptr);
 
   m_bvh->writeVtkFileImpl(fileName);
+}
+
+//------------------------------------------------------------------------------
+template <int NDIMS, typename ExecSpace, typename FloatType, BVHType Impl>
+template <typename FieldType, typename LeafAction>
+axom::Array<FieldType> BVH<NDIMS, ExecSpace, FloatType, Impl>::reduceTree(LeafAction&& lf) const
+{
+  SLIC_ASSERT(m_bvh != nullptr);
+
+  return m_bvh->template reduceTreeImpl<FieldType, LeafAction>(lf, m_AllocatorID);
 }
 
 }  // namespace spin
