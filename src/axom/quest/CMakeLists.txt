@@ -54,6 +54,9 @@ set( quest_headers
     io/STLWriter.hpp
     io/ProEReader.hpp
 
+    ## Generalized Winding Numbers
+    FastApproximateGWN.hpp
+
     ## quest interface
     interface/internal/mpicomm_wrapper.hpp
     interface/internal/QuestHelpers.hpp

@@ -16,6 +16,7 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
+#include "axom/spin.hpp"
 #include "axom/quest.hpp"
 #include "axom/quest/interface/internal/QuestHelpers.hpp"
 
@@ -95,6 +96,65 @@ void run_query(mfem::DataCollection& dc, const CurveArray& curves)
   }
 }
 
+template <typename CurveArray>
+void run_fast_query(mfem::DataCollection& dc, const CurveArray& curves)
+{
+  AXOM_ANNOTATE_SCOPE("run_query");
+
+  auto* query_mesh = dc.GetMesh();
+  auto& winding = *dc.GetField("winding");
+  auto& inout = *dc.GetField("inout");
+
+  // Utility function to get query point from query index
+  const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
+  auto query_point = [&query_mesh](int idx) -> Point2D {
+    Point2D pt;
+    query_mesh->GetNode(idx, pt.data());
+    return pt;
+  };
+
+  const int ncurves = curves.size();
+  const auto curves_view = curves.view();
+
+  // Get bounding boxes for each curve
+  axom::Array<primal::BoundingBox<double, 2>> aabbs(0, ncurves);
+  auto aabbs_view = aabbs.view();
+  axom::for_all<axom::SEQ_EXEC>(
+    ncurves,
+    AXOM_LAMBDA(axom::IndexType i) { aabbs_view[i] = curves_view[i].boundingBox(); });
+
+  // Initialize BVH
+  axom::spin::BVH<2, axom::SEQ_EXEC> bvh;
+  bvh.initialize(aabbs_view, ncurves);
+  const auto traverser = bvh.getTraverser();
+
+  // Compute GWN moments at each leaf node
+  using GWNMoments = axom::quest::GWNMomentData<double, 2, 2>;
+  auto compute_moments = [curves_view](std::int32_t currentNode,
+                                       const std::int32_t* leafNodes) -> GWNMoments {
+    const auto idx = leafNodes[currentNode];
+    return GWNMoments(curves_view[idx]);
+  };
+  auto internal_moments = bvh.template reduceTree<GWNMoments>(compute_moments);
+  const auto internal_moments_view = internal_moments.view();
+
+  // Query the winding numbers at each degree of freedom (DoF) of the query mesh.
+  // The loop below independently checks every curve for each query point.
+  const primal::WindingTolerances tol;  // Use default tolerances
+  for(int nidx = 0; nidx < num_query_points; ++nidx)
+  {
+    const Point2D q = query_point(nidx);
+    double wn = axom::quest::fast_approximate_winding_number(q,
+                                                             traverser,
+                                                             curves_view,
+                                                             internal_moments_view,
+                                                             tol);
+
+    winding[nidx] = wn;
+    inout[nidx] = std::round(wn);
+  }
+}
+
 int main(int argc, char** argv)
 {
   axom::slic::SimpleLogger raii_logger;
@@ -109,6 +169,7 @@ int main(int argc, char** argv)
   bool verbose {false};
   std::string annotationMode {"none"};
   bool memoized {true};
+  bool agglomerated {true};
   bool vis {true};
 
   // Query mesh parameters
@@ -130,6 +191,11 @@ int main(int argc, char** argv)
 
   app.add_flag("-v,--verbose", verbose, "verbose output")->capture_default_str();
   app.add_flag("--memoized,!--no-memoized", memoized, "Cache geometric data during query?")
+    ->capture_default_str();
+  app
+    .add_flag("--fast-approximation,!--no-fast-approximation",
+              agglomerated,
+              "Approximate the GWN using a heirarchical approximation?")
     ->capture_default_str();
   app.add_flag("--vis,!--no-vis", vis, "Should we write out the results for visualization?")
     ->capture_default_str();
@@ -230,21 +296,38 @@ int main(int argc, char** argv)
   // Run the query (optionally, with memoization)
   {
     axom::utilities::Timer query_timer(true);
-    if(memoized)
+    if(agglomerated)
     {
-      run_query(dc, memoized_curves);
+      if(memoized)
+      {
+        run_fast_query(dc, memoized_curves);
+      }
+      else
+      {
+        run_fast_query(dc, curves);
+      }
     }
     else
     {
-      run_query(dc, curves);
+      if(memoized)
+      {
+        run_query(dc, memoized_curves);
+      }
+      else
+      {
+        run_query(dc, curves);
+      }
     }
     query_timer.stop();
 
     const int ndofs = dc.GetField("winding")->FESpace()->GetNDofs();
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Querying {:L} samples in winding number field took {:.3Lf} seconds"
+                                "Querying {:L} samples in winding number field with{} memoization "
+                                "and with{} fast approximation took {:.3Lf} seconds"
                                 " (@ {:.0Lf} queries per second; {:.5Lf} ms per query)",
                                 ndofs,
+                                memoized ? "" : "out",
+                                agglomerated ? "" : "out",
                                 query_timer.elapsed(),
                                 ndofs / query_timer.elapsed(),
                                 query_timer.elapsedTimeInMilliSec() / ndofs));

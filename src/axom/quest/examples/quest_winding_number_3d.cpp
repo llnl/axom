@@ -194,15 +194,6 @@ void generate_query_mesh(mfem::DataCollection& dc,
 // Query classes
 //------------------------------------------------------------------------------
 
-struct WindingTolerances
-{
-  double ls_tol {1e-6};
-  double quad_tol {1e-6};
-  double disk_size {0.01};
-  double edge_tol {1e-8};
-  double EPS {1e-8};
-};
-
 class DirectGWN3D
 {
 public:
@@ -232,7 +223,9 @@ public:
                                 timer.elapsedTimeInSec()));
   }
 
-  void query(mfem::DataCollection& dc, const WindingTolerances& tol, const double slice_z = 0.0) const
+  void query(mfem::DataCollection& dc,
+             const primal::WindingTolerances& tol,
+             const double slice_z = 0.0) const
   {
     auto* query_mesh = dc.GetMesh();
     auto& winding = *dc.GetField("winding");
@@ -249,7 +242,7 @@ public:
     axom::utilities::Timer query_timer(true);
     {
       AXOM_ANNOTATE_SCOPE("query");
-      const WindingTolerances tol_copy = tol;
+      const primal::WindingTolerances tol_copy = tol;
 
       // Use non-memoized form
       if(m_nurbs_caches.empty())
@@ -319,14 +312,14 @@ class TriangleGWN3D
 public:
   using BoxType = axom::primal::BoundingBox<double, 3>;
   using TriangleType = axom::primal::Triangle<double, 3>;
+  using GWNMoments = axom::quest::GWNMomentData<double, 3, 2>;
 
   TriangleGWN3D() = default;
 
   void preprocess(axom::quest::STEPReader& step_reader,
                   double linear_deflection,
                   double angular_deflection,
-                  bool is_relative,
-                  int moment_order)
+                  bool is_relative)
   {
     axom::utilities::Timer timer(true);
     axom::utilities::Timer stage_timer(false);
@@ -413,14 +406,13 @@ public:
       AXOM_ANNOTATE_SCOPE("moments");
       const auto triangles_view = m_triangles.view();
 
-      auto compute_moments = [triangles_view, order = moment_order](
-                               std::int32_t currentNode,
-                               const std::int32_t* leafNodes) -> MomentDataType {
+      auto compute_moments = [triangles_view](std::int32_t currentNode,
+                                              const std::int32_t* leafNodes) -> GWNMoments {
         const auto idx = leafNodes[currentNode];
-        return MomentDataType(triangles_view[idx], order);
+        return GWNMoments(triangles_view[idx]);
       };
 
-      m_internal_moments = m_bvh.template reduceTree<MomentDataType>(compute_moments);
+      m_internal_moments = m_bvh.template reduceTree<GWNMoments>(compute_moments);
     }
     stage_timer.stop();
     SLIC_INFO(
@@ -430,7 +422,7 @@ public:
     SLIC_INFO(axom::fmt::format("Total preprocessing: {} s", timer.elapsedTimeInSec()));
   }
 
-  void query(mfem::DataCollection& dc, const WindingTolerances& tol, const double slice_z = 0.0)
+  void query(mfem::DataCollection& dc, const primal::WindingTolerances& tol, const double slice_z = 0.0)
   {
     if(m_triangles.empty())
     {
@@ -457,15 +449,14 @@ public:
       const auto traverser = m_bvh.getTraverser();
       const auto triangles_view = m_triangles.view();
       const auto internal_moments_view = m_internal_moments.view();
-      const WindingTolerances tol_copy = tol;
+      const primal::WindingTolerances tol_copy = tol;
 
       axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
-        const double wn = axom::quest::winding_number(query_point(index),
-                                                      traverser,
-                                                      triangles_view,
-                                                      internal_moments_view,
-                                                      tol_copy.edge_tol,
-                                                      tol_copy.EPS);
+        const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
+                                                           traverser,
+                                                           triangles_view,
+                                                           internal_moments_view,
+                                                           tol_copy);
 
         winding[static_cast<int>(index)] = wn;
         inout[static_cast<int>(index)] = std::round(wn);
@@ -488,8 +479,8 @@ public:
 
 private:
   axom::Array<TriangleType> m_triangles;
-  axom::Array<MomentDataType> m_internal_moments;
-  axom::spin::BVH<3, ExecSpace> m_bvh;
+  axom::Array<GWNMoments> m_internal_moments;
+  axom::spin::BVH<3, axom::SEQ_EXEC> m_bvh;
 };
 
 //------------------------------------------------------------------------------
@@ -520,7 +511,7 @@ public:
   int queryOrder {1};
   double sliceZ {0.0};
 
-  WindingTolerances tol;
+  primal::WindingTolerances tol;
 
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
@@ -661,12 +652,22 @@ public:
     });
 
     app.parse(argc, argv);
+
+    triangulate = app.got_subcommand("triangulate_step");
   }
 };
 
-using WNQueryType = std::variant<DirectGWN3D>;
+using WNQueryType = std::variant<DirectGWN3D, TriangleGWN3D>;
 
-WNQueryType make_wn_query(const Input& input) { return DirectGWN3D {}; }
+WNQueryType make_wn_query(const Input& input)
+{
+  if(input.triangulate)
+  {
+    return TriangleGWN3D {};
+  }
+
+  return DirectGWN3D {};
+}
 
 int main(int argc, char** argv)
 {
@@ -708,9 +709,6 @@ int main(int argc, char** argv)
   }
   step_read_timer.stop();
 
-  SLIC_INFO(step_reader.getBRepStats());
-  SLIC_INFO(axom::fmt::format("STEP file units: {}", step_reader.getFileUnits()));
-
   // Read the patches/triangles and, if a query mesh is specified, get the bbox from the reader
   const auto& patches = step_reader.getPatchArray();
   step_read_timer.stop();
@@ -749,11 +747,26 @@ int main(int argc, char** argv)
     // Create the desired winding number query instance
     auto wn_query = make_wn_query(input);
 
-    // Run the preprocess
-    std::visit([&](auto& wn) { wn.preprocess(patches, input.memoized); }, wn_query);
-
     // Generate the query grid and fields
     generate_query_mesh(dc, bbox, input.boxMins, input.boxMaxs, input.boxResolution, input.queryOrder);
+
+    // Run the preprocess
+    std::visit(
+      [&](auto& wn) {
+        using T = std::decay_t<decltype(wn)>;
+        if constexpr(std::is_same_v<T, DirectGWN3D>)
+        {
+          wn.preprocess(patches, input.memoized);
+        }
+        else if constexpr(std::is_same_v<T, TriangleGWN3D>)
+        {
+          wn.preprocess(step_reader,
+                        input.linear_deflection,
+                        input.angular_deflection,
+                        input.deflection_is_relative);
+        }
+      },
+      wn_query);
 
     // Run the query
     std::visit([&](auto& wn) { wn.query(dc, input.tol, input.sliceZ); }, wn_query);
