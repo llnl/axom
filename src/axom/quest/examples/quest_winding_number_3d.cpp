@@ -40,14 +40,11 @@ using BoundingBox3D = primal::BoundingBox<double, 3>;
 using NURBSPatch3D = axom::quest::STEPReader::NURBSPatch;
 using PatchGWNCache = primal::detail::NURBSPatchGWNCache<double>;
 
-struct WindingTolerances
-{
-  double ls_tol {1e-6};
-  double quad_tol {1e-6};
-  double disk_size {0.01};
-  double edge_tol {1e-8};
-  double EPS {1e-8};
-};
+using Triangle3D = primal::Triangle<double, 3>;
+
+//------------------------------------------------------------------------------
+// Compute postprocessing stats
+//------------------------------------------------------------------------------
 
 struct FieldStats
 {
@@ -107,6 +104,10 @@ IntegralStats compute_integrals(const mfem::GridFunction& gf)
   return s;
 }
 
+//------------------------------------------------------------------------------
+// Query-mesh helpers
+//------------------------------------------------------------------------------
+
 /// Helper function to set up the mesh and associated winding and inout fields.
 /// Uses an mfem::DataCollection to hold everything together.
 void setup_mesh(mfem::DataCollection& dc, mfem::Mesh* query_mesh, int queryOrder)
@@ -134,50 +135,370 @@ void setup_mesh(mfem::DataCollection& dc, mfem::Mesh* query_mesh, int queryOrder
   dc.RegisterField("inout", inout);
 }
 
-template <typename PatchArrayType>
-void run_query(mfem::DataCollection& dc,
-               const PatchArrayType& patches,
-               const WindingTolerances& tol,
-               const double slice_z = 0.0)
+/// Query grid setup; has some dimension-specific types;
+///  if user did not provide a bounding box, user input bounding box scaled by 10%
+void generate_query_mesh(mfem::DataCollection& dc,
+                         const BoundingBox3D& bbox,
+                         const std::vector<double>& boxMins,
+                         const std::vector<double>& boxMaxs,
+                         const std::vector<int>& boxResolution,
+                         int queryOrder)
 {
-  AXOM_ANNOTATE_SCOPE("run_query");
+  AXOM_ANNOTATE_SCOPE("generate_query_mesh");
 
-  auto* query_mesh = dc.GetMesh();
-  auto& winding = *dc.GetField("winding");
-  auto& inout = *dc.GetField("inout");
+  const int query_dim = static_cast<int>(boxResolution.size());
+  const bool has_query_box = !boxMins.empty();
 
-  const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
+  SLIC_INFO(axom::fmt::format("Patch collection bounding box: {}", bbox));
 
-  auto query_point = [&](int idx) -> Point3D {
-    Point3D pt({0., 0., slice_z});
-    query_mesh->GetNode(idx, pt.data());
-    return pt;
-  };
-
-  for(int nidx = 0; nidx < num_query_points; ++nidx)
+  constexpr double scale_factor = 1.1;
+  if(query_dim == 2)
   {
-    const Point3D q = query_point(nidx);
-    double wn {};
-    for(const auto& patch : patches)
-    {
-      wn += axom::primal::winding_number(q,
-                                         patch,
-                                         tol.edge_tol,
-                                         tol.ls_tol,
-                                         tol.quad_tol,
-                                         tol.disk_size,
-                                         tol.EPS);
-    }
+    using Point2D = primal::Point<double, 2>;
+    const auto query_res = axom::NumericArray<int, 2>(boxResolution.data());
+    const auto query_box = has_query_box
+      ? BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()))
+      : BoundingBox2D(Point2D({bbox.getMin()[0], bbox.getMin()[1]}),
+                      Point2D({bbox.getMax()[0], bbox.getMax()[1]}))
+          .scale(scale_factor);
 
-    winding[nidx] = wn;
-    inout[nidx] = std::round(wn);
+    SLIC_INFO(
+      axom::fmt::format("Query grid resolution {} within bounding box {}", query_res, query_box));
+
+    mfem::Mesh* query_mesh =
+      axom::quest::util::make_cartesian_mfem_mesh_2D(query_box, query_res, queryOrder);
+
+    setup_mesh(dc, query_mesh, queryOrder);
+    AXOM_ANNOTATE_METADATA("query_dimension", 2, "");
+  }
+  else
+  {
+    using Point3D = primal::Point<double, 3>;
+    const auto query_res = axom::NumericArray<int, 3>(boxResolution.data());
+    const auto query_box = has_query_box
+      ? BoundingBox3D(Point3D(boxMins.data()), Point3D(boxMaxs.data()))
+      : BoundingBox3D(bbox.getMin(), bbox.getMax()).scale(scale_factor);
+
+    SLIC_INFO(
+      axom::fmt::format("Query grid resolution {} within bounding box {}", query_res, query_box));
+
+    mfem::Mesh* query_mesh =
+      axom::quest::util::make_cartesian_mfem_mesh_3D(query_box, query_res, queryOrder);
+
+    setup_mesh(dc, query_mesh, queryOrder);
+    AXOM_ANNOTATE_METADATA("query_dimension", 3, "");
   }
 }
 
-int main(int argc, char** argv)
-{
-  axom::slic::SimpleLogger raii_logger;
+//------------------------------------------------------------------------------
+// Query classes
+//------------------------------------------------------------------------------
 
+struct WindingTolerances
+{
+  double ls_tol {1e-6};
+  double quad_tol {1e-6};
+  double disk_size {0.01};
+  double edge_tol {1e-8};
+  double EPS {1e-8};
+};
+
+class DirectGWN3D
+{
+public:
+  using PatchArrayType = axom::Array<NURBSPatch3D>;
+  using NURBSCacheArray = axom::Array<PatchGWNCache>;
+
+  DirectGWN3D() = default;
+
+  void preprocess(const PatchArrayType& input_patches, bool use_memoization)
+  {
+    m_input_patches_view = input_patches.view();
+    axom::utilities::Timer timer(true);
+    {
+      AXOM_ANNOTATE_SCOPE("preprocessing");
+      if(use_memoization)
+      {
+        m_nurbs_caches.reserve(input_patches.size());
+        for(const auto& patch : input_patches)
+        {
+          m_nurbs_caches.emplace_back(patch);
+        }
+      }
+    }
+    timer.stop();
+    AXOM_ANNOTATE_METADATA("preprocessing_time", timer.elapsed(), "");
+    SLIC_INFO(axom::fmt::format("Direct query preprocessing (memoization caches): {} s",
+                                timer.elapsedTimeInSec()));
+  }
+
+  void query(mfem::DataCollection& dc, const WindingTolerances& tol, const double slice_z = 0.0) const
+  {
+    auto* query_mesh = dc.GetMesh();
+    auto& winding = *dc.GetField("winding");
+    auto& inout = *dc.GetField("inout");
+
+    const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
+
+    auto query_point = [query_mesh, slice_z](int idx) -> Point3D {
+      Point3D pt({0., 0., slice_z});
+      query_mesh->GetNode(idx, pt.data());
+      return pt;
+    };
+
+    axom::utilities::Timer query_timer(true);
+    {
+      AXOM_ANNOTATE_SCOPE("query");
+      const WindingTolerances tol_copy = tol;
+
+      // Use non-memoized form
+      if(m_nurbs_caches.empty())
+      {
+        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
+          const Point3D q = query_point(static_cast<int>(nidx));
+          double wn {};
+          for(const auto& cache : m_input_patches_view)
+          {
+            wn += axom::primal::winding_number(q,
+                                               cache,
+                                               tol_copy.edge_tol,
+                                               tol_copy.ls_tol,
+                                               tol_copy.quad_tol,
+                                               tol_copy.disk_size,
+                                               tol_copy.EPS);
+          }
+          winding[static_cast<int>(nidx)] = wn;
+          inout[static_cast<int>(nidx)] = std::round(wn);
+        });
+      }
+      else  // Use memoized form
+      {
+        const auto nurbs_patches_view = m_nurbs_caches.view();
+        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
+          const Point3D q = query_point(static_cast<int>(nidx));
+          double wn {};
+          for(const auto& cache : nurbs_patches_view)
+          {
+            wn += axom::primal::winding_number(q,
+                                               cache,
+                                               tol_copy.edge_tol,
+                                               tol_copy.ls_tol,
+                                               tol_copy.quad_tol,
+                                               tol_copy.disk_size,
+                                               tol_copy.EPS);
+          }
+          winding[static_cast<int>(nidx)] = wn;
+          inout[static_cast<int>(nidx)] = std::round(wn);
+        });
+      }
+    }
+    query_timer.stop();
+
+    const double query_time_s = query_timer.elapsed();
+    const double ms_per_query = query_timer.elapsedTimeInMilliSec() / num_query_points;
+    SLIC_INFO(axom::fmt::format(
+      axom::utilities::locale(),
+      "Querying {:L} samples in winding number field with{} memoization took {:.3Lf} seconds"
+      " (@ {:.0Lf} queries per second; {:.6Lf} ms per query)",
+      num_query_points,
+      m_nurbs_caches.empty() ? "out" : "",
+      query_time_s,
+      num_query_points / query_time_s,
+      ms_per_query));
+    AXOM_ANNOTATE_METADATA("query_points", num_query_points, "");
+    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
+  }
+
+private:
+  axom::ArrayView<const NURBSPatch3D> m_input_patches_view;
+  NURBSCacheArray m_nurbs_caches;
+};
+
+class TriangleGWN3D
+{
+public:
+  using BoxType = axom::primal::BoundingBox<double, 3>;
+  using TriangleType = axom::primal::Triangle<double, 3>;
+
+  TriangleGWN3D() = default;
+
+  void preprocess(axom::quest::STEPReader& step_reader,
+                  double linear_deflection,
+                  double angular_deflection,
+                  bool is_relative,
+                  int moment_order)
+  {
+    axom::utilities::Timer timer(true);
+    axom::utilities::Timer stage_timer(false);
+
+    AXOM_ANNOTATE_SCOPE("preprocessing");
+
+    axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tri_mesh(3, axom::mint::TRIANGLE);
+    stage_timer.start();
+    {
+      AXOM_ANNOTATE_SCOPE("triangulation");
+      const int rc =
+        step_reader.getTriangleMesh(&tri_mesh, linear_deflection, angular_deflection, is_relative, true);
+      if(rc != 0)
+      {
+        SLIC_ERROR("Failed to triangulate STEP geometry.");
+        return;
+      }
+    }
+    stage_timer.stop();
+
+    const auto ntris = tri_mesh.getNumberOfCells();
+    {
+      SLIC_INFO(
+        axom::fmt::format(axom::utilities::locale(),
+                          "Triangulated geometry with deflection {} and angular deflection {}"
+                          " containing {:L} triangles",
+                          linear_deflection,
+                          angular_deflection,
+                          ntris));
+      SLIC_INFO(axom::fmt::format("Preprocessing stage (triangulation): {} s",
+                                  stage_timer.elapsedTimeInSec()));
+    }
+
+    if(ntris <= 0)
+    {
+      SLIC_WARNING("Triangle mesh contains no cells; skipping preprocessing.");
+      return;
+    }
+
+    stage_timer.reset();
+    stage_timer.start();
+    {
+      AXOM_ANNOTATE_SCOPE("extract_triangles");
+
+      m_triangles.resize(ntris);
+      auto triangles_view = m_triangles.view();
+
+      axom::mint::for_all_cells<axom::SEQ_EXEC, axom::mint::xargs::coords>(
+        &tri_mesh,
+        AXOM_LAMBDA(axom::IndexType cellIdx,
+                    const axom::numerics::Matrix<double>& coords,
+                    [[maybe_unused]] const axom::IndexType* nodeIds) {
+          triangles_view[cellIdx] =
+            TriangleType {Point3D {coords(0, 0), coords(1, 0), coords(2, 0)},
+                          Point3D {coords(0, 1), coords(1, 1), coords(2, 1)},
+                          Point3D {coords(0, 2), coords(1, 2), coords(2, 2)}};
+        });
+    }
+    stage_timer.stop();
+    SLIC_INFO(axom::fmt::format("  Preprocessing stage (extract_triangles): {} s",
+                                stage_timer.elapsedTimeInSec()));
+
+    stage_timer.reset();
+    stage_timer.start();
+    {
+      AXOM_ANNOTATE_SCOPE("bvh_init");
+      axom::Array<BoxType> aabbs(ntris, ntris);
+      auto aabbs_view = aabbs.view();
+      const auto triangles_view = m_triangles.view();
+
+      axom::for_all<axom::SEQ_EXEC>(
+        ntris,
+        AXOM_LAMBDA(axom::IndexType i) {
+          aabbs_view[i] = BoxType {triangles_view[i][0], triangles_view[i][1], triangles_view[i][2]};
+        });
+      m_bvh.initialize(aabbs_view, ntris);
+    }
+    stage_timer.stop();
+    SLIC_INFO(axom::fmt::format("  Preprocessing stage (bvh): {} s", stage_timer.elapsedTimeInSec()));
+
+    stage_timer.reset();
+    stage_timer.start();
+    {
+      AXOM_ANNOTATE_SCOPE("moments");
+      const auto triangles_view = m_triangles.view();
+
+      auto compute_moments = [triangles_view, order = moment_order](
+                               std::int32_t currentNode,
+                               const std::int32_t* leafNodes) -> MomentDataType {
+        const auto idx = leafNodes[currentNode];
+        return MomentDataType(triangles_view[idx], order);
+      };
+
+      m_internal_moments = m_bvh.template reduceTree<MomentDataType>(compute_moments);
+    }
+    stage_timer.stop();
+    SLIC_INFO(
+      axom::fmt::format("  Preprocessing stage (moments): {} s", stage_timer.elapsedTimeInSec()));
+
+    timer.stop();
+    SLIC_INFO(axom::fmt::format("Total preprocessing: {} s", timer.elapsedTimeInSec()));
+  }
+
+  void query(mfem::DataCollection& dc, const WindingTolerances& tol, const double slice_z = 0.0)
+  {
+    if(m_triangles.empty())
+    {
+      SLIC_WARNING("Skipping query; triangle data is empty.");
+      return;
+    }
+
+    const auto* query_mesh = dc.GetMesh();
+    auto& winding = *dc.GetField("winding");
+    auto& inout = *dc.GetField("inout");
+
+    const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
+
+    auto query_point = [query_mesh, slice_z](axom::IndexType idx) -> Point3D {
+      Point3D pt({0., 0., slice_z});
+      query_mesh->GetNode(static_cast<int>(idx), pt.data());
+      return pt;
+    };
+
+    axom::utilities::Timer query_timer(true);
+    {
+      AXOM_ANNOTATE_SCOPE("query");
+
+      const auto traverser = m_bvh.getTraverser();
+      const auto triangles_view = m_triangles.view();
+      const auto internal_moments_view = m_internal_moments.view();
+      const WindingTolerances tol_copy = tol;
+
+      axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+        const double wn = axom::quest::winding_number(query_point(index),
+                                                      traverser,
+                                                      triangles_view,
+                                                      internal_moments_view,
+                                                      tol_copy.edge_tol,
+                                                      tol_copy.EPS);
+
+        winding[static_cast<int>(index)] = wn;
+        inout[static_cast<int>(index)] = std::round(wn);
+      });
+    }
+    query_timer.stop();
+
+    const double query_time_s = query_timer.elapsed();
+    const double ms_per_query = query_timer.elapsedTimeInMilliSec() / num_query_points;
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "Querying {:L} samples in winding number field took {:.3Lf} seconds"
+                                " (@ {:.0Lf} queries per second; {:.5Lf} ms per query)",
+                                num_query_points,
+                                query_time_s,
+                                num_query_points / query_time_s,
+                                ms_per_query));
+    AXOM_ANNOTATE_METADATA("query_points", num_query_points, "");
+    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
+  }
+
+private:
+  axom::Array<TriangleType> m_triangles;
+  axom::Array<MomentDataType> m_internal_moments;
+  axom::spin::BVH<3, ExecSpace> m_bvh;
+};
+
+//------------------------------------------------------------------------------
+// CLI input
+//------------------------------------------------------------------------------
+
+class Input
+{
+public:
   std::string inputFile;
   std::string outputPrefix {"winding3d"};
 
@@ -188,18 +509,20 @@ int main(int argc, char** argv)
   bool validate {false};
   bool stats {false};
 
+  bool triangulate {false};
+  double linear_deflection {0.1};
+  double angular_deflection {0.5};
+  bool deflection_is_relative {false};
+
   std::vector<double> boxMins;
   std::vector<double> boxMaxs;
   std::vector<int> boxResolution;
   int queryOrder {1};
   double sliceZ {0.0};
+
   WindingTolerances tol;
 
-  axom::CLI::App app {
-    "Load a STEP file containing trimmed NURBS patches "
-    "and optionally generate a query grid of generalized winding numbers."};
-
-  // Command line options and validation
+  void parse(int argc, char** argv, axom::CLI::App& app)
   {
     app.add_option("-i,--input", inputFile)
       ->description("Input STEP file containing a trimmed NURBS BRep")
@@ -218,6 +541,28 @@ int main(int argc, char** argv)
     app.add_flag("--vis,!--no-vis", vis, "Should we write out the results for visualization?")
       ->capture_default_str();
     app.add_flag("--stats,!--no-stats", stats, "Compute summary stats for query fields?")
+      ->capture_default_str();
+
+    // Options for triangulation of the input STEP file
+    auto* triangulate_step_subcommand = app.add_subcommand("triangulate_step")
+                                          ->description("Options for triangulating NURBS surfaces")
+                                          ->fallthrough();
+
+    triangulate_step_subcommand->add_option("--linear-deflection", linear_deflection)
+      ->description(
+        "Maximum allowed deviation between the original geometry and the triangulation.")
+      ->check(axom::CLI::PositiveNumber)
+      ->capture_default_str();
+    triangulate_step_subcommand->add_option("--angular-deflection", angular_deflection)
+      ->description(
+        "Maximum allowed angular deviation (in radians) between normals of adjacent triangles.")
+      ->check(axom::CLI::PositiveNumber)
+      ->capture_default_str();
+    triangulate_step_subcommand
+      ->add_flag(
+        "--is-relative",
+        deflection_is_relative,
+        "Is linear deflection in relative to local edge lengths (true) or mesh units (false)")
       ->capture_default_str();
 
     // Options for query tolerances; for now, only expose the line search and quadrature tolerances
@@ -314,149 +659,108 @@ int main(int argc, char** argv)
         }
       }
     });
+
+    app.parse(argc, argv);
+  }
+};
+
+using WNQueryType = std::variant<DirectGWN3D>;
+
+WNQueryType make_wn_query(const Input& input) { return DirectGWN3D {}; }
+
+int main(int argc, char** argv)
+{
+  axom::slic::SimpleLogger raii_logger;
+
+  // Parse command line arguments into input
+  Input input;
+  axom::CLI::App app {
+    "Load a STEP file containing trimmed NURBS patches "
+    "and optionally generate a query grid of generalized winding numbers."};
+
+  try
+  {
+    input.parse(argc, argv, app);
+  }
+  catch(const axom::CLI::ParseError& e)
+  {
+    return app.exit(e);
   }
 
-  CLI11_PARSE(app, argc, argv);
-
-  axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(annotationMode);
+  axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(input.annotationMode);
   AXOM_ANNOTATE_SCOPE("3D winding number example");
 
+  // Load the Step file
   axom::utilities::Timer step_read_timer(true);
   axom::quest::STEPReader step_reader;
-  step_reader.setFileName(inputFile);
-  step_reader.setVerbosity(verbose);
+  step_reader.setFileName(input.inputFile);
+  step_reader.setVerbosity(input.verbose);
 
   {
     AXOM_ANNOTATE_SCOPE("read_step");
 
-    const int ret = step_reader.read(validate);
+    const int ret = step_reader.read(input.validate);
     if(ret != 0)
     {
-      SLIC_ERROR(axom::fmt::format("Failed to read STEP file '{}'", inputFile));
+      SLIC_ERROR(axom::fmt::format("Failed to read STEP file '{}'", input.inputFile));
       return 1;
     }
   }
-
-  const auto& patches = step_reader.getPatchArray();
   step_read_timer.stop();
+
   SLIC_INFO(step_reader.getBRepStats());
   SLIC_INFO(axom::fmt::format("STEP file units: {}", step_reader.getFileUnits()));
-  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                              "Loaded {} trimmed NURBS patches in {:.3Lf} seconds",
-                              patches.size(),
-                              step_read_timer.elapsed()));
+
+  // Read the patches/triangles and, if a query mesh is specified, get the bbox from the reader
+  const auto& patches = step_reader.getPatchArray();
+  step_read_timer.stop();
+  {
+    int num_trimming_curves = 0;
+    for(const auto& patch : patches)
+    {
+      num_trimming_curves += patch.getNumTrimmingCurves();
+    }
+    AXOM_ANNOTATE_METADATA("num_original_trimming_curves", num_trimming_curves, "");
+    AXOM_ANNOTATE_METADATA("num_original_patches", patches.size(), "");
+    AXOM_ANNOTATE_METADATA("units", step_reader.getFileUnits(), "");
+
+    SLIC_INFO(step_reader.getBRepStats());
+    SLIC_INFO(axom::fmt::format("STEP file units: {}", step_reader.getFileUnits()));
+    SLIC_INFO(axom::fmt::format(
+      axom::utilities::locale(),
+      "Loaded {} trimmed NURBS patches (with {} trimming curves) in {:.3Lf} seconds",
+      patches.size(),
+      num_trimming_curves,
+      step_read_timer.elapsed()));
+  }
 
   // Early return if user didn't set up a query mesh
-  if(boxResolution.empty())
+  if(input.boxResolution.empty())
   {
     return 0;
   }
 
-  // Preprocessing: Extract the patches and compute their bounding boxes along the way
-  BoundingBox3D bbox;
-  axom::Array<PatchGWNCache> memoized_patches(0, memoized ? patches.size() : 0);
-  {
-    AXOM_ANNOTATE_SCOPE("preprocessing");
-
-    axom::utilities::Timer preproc_timer(true);
-    int count {0};
-    for(const auto& patch : patches)
-    {
-      auto pbox = patch.boundingBox();
-      bbox.addBox(pbox);
-
-      SLIC_INFO_IF(verbose, axom::fmt::format("Patch {} bbox: {}", count++, pbox));
-
-      if(memoized)
-      {
-        memoized_patches.emplace_back(PatchGWNCache(patch));
-      }
-    }
-    preproc_timer.stop();
-
-    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Preprocessing patches took {:.3Lf} seconds",
-                                preproc_timer.elapsed()));
-    AXOM_ANNOTATE_METADATA("preprocessing_time", preproc_timer.elapsed(), "");
-  }
-  SLIC_INFO(axom::fmt::format("Patch collection bounding box: {}", bbox));
+  BoundingBox3D bbox = step_reader.getBRepBoundingBox();
 
   // Query grid setup; has some dimension-specific types;
   // if user did not provide a bounding box, user input bounding box scaled by 10%
   mfem::DataCollection dc("winding_query");
-
-  const int query_dim = boxResolution.size();
-  const bool has_query_box = boxMins.size() > 0;
-  constexpr double scale_factor = 1.1;
-  if(query_dim == 2)
   {
-    using Point2D = primal::Point<double, 2>;
-    const auto query_res = axom::NumericArray<int, 2>(boxResolution.data());
-    const auto query_box = has_query_box
-      ? BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()))
-      : BoundingBox2D(Point2D({bbox.getMin()[0], bbox.getMin()[1]}),
-                      Point2D({bbox.getMax()[0], bbox.getMax()[1]}))
-          .scale(scale_factor);
+    // Create the desired winding number query instance
+    auto wn_query = make_wn_query(input);
 
-    SLIC_INFO(
-      axom::fmt::format("Query grid resolution {} within bounding box {}", query_res, query_box));
+    // Run the preprocess
+    std::visit([&](auto& wn) { wn.preprocess(patches, input.memoized); }, wn_query);
 
-    mfem::Mesh* query_mesh =
-      axom::quest::util::make_cartesian_mfem_mesh_2D(query_box, query_res, queryOrder);
+    // Generate the query grid and fields
+    generate_query_mesh(dc, bbox, input.boxMins, input.boxMaxs, input.boxResolution, input.queryOrder);
 
-    setup_mesh(dc, query_mesh, queryOrder);
-    AXOM_ANNOTATE_METADATA("query_dimension", 2, "");
-  }
-  else
-  {
-    using Point3D = primal::Point<double, 3>;
-    const auto query_res = axom::NumericArray<int, 3>(boxResolution.data());
-    const auto query_box = has_query_box
-      ? BoundingBox3D(Point3D(boxMins.data()), Point3D(boxMaxs.data()))
-      : BoundingBox3D(bbox.getMin(), bbox.getMax()).scale(scale_factor);
-
-    SLIC_INFO(
-      axom::fmt::format("Query grid resolution {} within bounding box {}", query_res, query_box));
-
-    mfem::Mesh* query_mesh =
-      axom::quest::util::make_cartesian_mfem_mesh_3D(query_box, query_res, queryOrder);
-
-    setup_mesh(dc, query_mesh, queryOrder);
-    AXOM_ANNOTATE_METADATA("query_dimension", 3, "");
-  }
-
-  // Run the query
-  double query_time_s = 0.0;
-  int ndofs = 0;
-  double ms_per_query = 0.0;
-  {
-    axom::utilities::Timer query_timer(true);
-    if(memoized)
-    {
-      run_query(dc, memoized_patches, tol, sliceZ);
-    }
-    else
-    {
-      run_query(dc, patches, tol, sliceZ);
-    }
-    query_timer.stop();
-
-    ndofs = dc.GetField("winding")->FESpace()->GetNDofs();
-    query_time_s = query_timer.elapsed();
-    ms_per_query = query_timer.elapsedTimeInMilliSec() / ndofs;
-    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Querying {:L} samples in winding number field took {:.3Lf} seconds"
-                                " (@ {:.0Lf} queries per second; {:.4Lf} ms per query)",
-                                ndofs,
-                                query_time_s,
-                                ndofs / query_time_s,
-                                ms_per_query));
-    AXOM_ANNOTATE_METADATA("query_points", ndofs, "");
-    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
+    // Run the query
+    std::visit([&](auto& wn) { wn.query(dc, input.tol, input.sliceZ); }, wn_query);
   }
 
   // Postprocess query results: norms, ranges, and integral statistics
-  if(stats)
+  if(input.stats)
   {
     AXOM_ANNOTATE_SCOPE("postprocess");
 
@@ -507,11 +811,11 @@ int main(int argc, char** argv)
   }
 
   // Save the query mesh and fields to disk using a format that can be viewed in VisIt
-  if(vis)
+  if(input.vis)
   {
     AXOM_ANNOTATE_SCOPE("dump_mesh");
 
-    mfem::VisItDataCollection windingDC(outputPrefix, dc.GetMesh());
+    mfem::VisItDataCollection windingDC(input.outputPrefix, dc.GetMesh());
     windingDC.RegisterField("winding", dc.GetField("winding"));
     windingDC.RegisterField("inout", dc.GetField("inout"));
     windingDC.Save();
