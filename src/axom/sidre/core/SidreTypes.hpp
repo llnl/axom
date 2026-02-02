@@ -17,6 +17,7 @@
 #include "SidreDataTypeIds.h"
 #include "conduit.hpp"
 #include "axom/core/Types.hpp"
+#include "axom/core/memory_management.hpp"
 #include "axom/core/utilities/StringUtilities.hpp"
 
 #include "axom/fmt.hpp"
@@ -73,6 +74,20 @@ inline bool nameIsValid(const std::string &name)
 {
   return name != axom::utilities::string::InvalidName;
 }
+
+/*!
+ * \brief Return Axom's invalid allocator id sentinel.
+ *
+ * This returns the value of \c axom::INVALID_ALLOCATOR_ID.
+ */
+inline constexpr int getInvalidAllocatorID() noexcept { return axom::INVALID_ALLOCATOR_ID; }
+
+/*!
+ * \brief Return Axom's malloc allocator id sentinel.
+ *
+ * This returns the value of \c axom::MALLOC_ALLOCATOR_ID.
+ */
+inline constexpr int getMallocAllocatorID() noexcept { return axom::MALLOC_ALLOCATOR_ID; }
 
 /*!
  * \brief Enum that holds the numeric data type id options for sidre types.

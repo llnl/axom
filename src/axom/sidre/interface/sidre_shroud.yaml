@@ -782,6 +782,10 @@ declarations:
     f:
     - 'SHT_rv = name .ne. " "'
 
+- decl: int getInvalidAllocatorID()
+
+- decl: int getMallocAllocatorID()
+
 
 ######################################################################
 patterns:
