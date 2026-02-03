@@ -169,7 +169,6 @@ void generate_query_mesh(mfem::DataCollection& dc,
       axom::quest::util::make_cartesian_mfem_mesh_2D(query_box, query_res, queryOrder);
 
     setup_mesh(dc, query_mesh, queryOrder);
-    AXOM_ANNOTATE_METADATA("query_dimension", 2, "");
   }
   else
   {
@@ -186,7 +185,6 @@ void generate_query_mesh(mfem::DataCollection& dc,
       axom::quest::util::make_cartesian_mfem_mesh_3D(query_box, query_res, queryOrder);
 
     setup_mesh(dc, query_mesh, queryOrder);
-    AXOM_ANNOTATE_METADATA("query_dimension", 3, "");
   }
 }
 
@@ -250,10 +248,10 @@ public:
         axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
           const Point3D q = query_point(static_cast<int>(nidx));
           double wn {};
-          for(const auto& cache : m_input_patches_view)
+          for(const auto& patch : m_input_patches_view)
           {
             wn += axom::primal::winding_number(q,
-                                               cache,
+                                               patch,
                                                tol_copy.edge_tol,
                                                tol_copy.ls_tol,
                                                tol_copy.quad_tol,
@@ -349,7 +347,7 @@ public:
                           linear_deflection,
                           angular_deflection,
                           ntris));
-      SLIC_INFO(axom::fmt::format("Preprocessing stage (triangulation): {} s",
+      SLIC_INFO(axom::fmt::format("  Preprocessing stage (triangulation): {} s",
                                   stage_timer.elapsedTimeInSec()));
     }
 
@@ -453,10 +451,10 @@ public:
 
       axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
         const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
-                                                           traverser,
-                                                           triangles_view,
-                                                           internal_moments_view,
-                                                           tol_copy);
+                                                                       traverser,
+                                                                       triangles_view,
+                                                                       internal_moments_view,
+                                                                       tol_copy);
 
         winding[static_cast<int>(index)] = wn;
         inout[static_cast<int>(index)] = std::round(wn);
@@ -659,6 +657,7 @@ public:
 
 using WNQueryType = std::variant<DirectGWN3D, TriangleGWN3D>;
 
+// This framework will make more sense when there are more than two types available
 WNQueryType make_wn_query(const Input& input)
 {
   if(input.triangulate)

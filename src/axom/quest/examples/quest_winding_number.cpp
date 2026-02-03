@@ -31,21 +31,20 @@ using NURBSCurve2D = primal::NURBSCurve<double, 2>;
 using CurveGWNCache = primal::detail::NURBSCurveGWNCache<double>;
 using BoundingBox2D = primal::BoundingBox<double, 2>;
 
-/// Helper function to set up the mesh and associated winding and inout fields; uses an mfem::DataCollection to hold everything together
-void setup_mesh(mfem::DataCollection& dc,
-                const BoundingBox2D& query_box,
-                const axom::NumericArray<int, 2>& query_res,
-                int queryOrder)
+//------------------------------------------------------------------------------
+// Query-mesh helpers
+//------------------------------------------------------------------------------
+
+/// Helper function to set up the mesh and associated winding and inout fields.
+/// Uses an mfem::DataCollection to hold everything together.
+void setup_mesh(mfem::DataCollection& dc, mfem::Mesh* query_mesh, int queryOrder)
 {
   AXOM_ANNOTATE_SCOPE("setup_mesh");
 
-  constexpr int DIM = 2;
-
   dc.SetOwnData(true);
-
-  mfem::Mesh* query_mesh =
-    axom::quest::util::make_cartesian_mfem_mesh_2D(query_box, query_res, queryOrder);
   dc.SetMesh(query_mesh);
+
+  constexpr int DIM = 2;
 
   // Create grid functions for the winding field; will take care of fes and fec memory via MakeOwner()
   auto* winding_fec = new mfem::H1_FECollection(queryOrder, DIM);
@@ -63,96 +62,307 @@ void setup_mesh(mfem::DataCollection& dc,
   dc.RegisterField("inout", inout);
 }
 
-template <typename CurveArray>
-void run_query(mfem::DataCollection& dc, const CurveArray& curves)
+/// Query grid setup; if user did not provide a bounding box, user input bounding box scaled by 10%
+void generate_query_mesh(mfem::DataCollection& dc,
+                         const BoundingBox2D& bbox,
+                         const std::vector<double>& boxMins,
+                         const std::vector<double>& boxMaxs,
+                         const std::vector<int>& boxResolution,
+                         int queryOrder)
 {
-  AXOM_ANNOTATE_SCOPE("run_query");
+  const bool has_query_box = !boxMins.empty();
+  constexpr double scale_factor = 1.1;
 
-  auto* query_mesh = dc.GetMesh();
-  auto& winding = *dc.GetField("winding");
-  auto& inout = *dc.GetField("inout");
+  using Point2D = primal::Point<double, 2>;
+  const auto query_res = axom::NumericArray<int, 2>(boxResolution.data());
+  const auto query_box = has_query_box
+    ? BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()))
+    : BoundingBox2D(Point2D({bbox.getMin()[0], bbox.getMin()[1]}),
+                    Point2D({bbox.getMax()[0], bbox.getMax()[1]}))
+        .scale(scale_factor);
 
-  // Utility function to get query point from query index
-  const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
-  auto query_point = [&query_mesh](int idx) -> Point2D {
-    Point2D pt;
-    query_mesh->GetNode(idx, pt.data());
-    return pt;
-  };
+  SLIC_INFO(
+    axom::fmt::format("Query grid resolution {} within bounding box {}", query_res, query_box));
 
-  // Query the winding numbers at each degree of freedom (DoF) of the query mesh.
-  // The loop below independently checks every curve for each query point.
-  for(int nidx = 0; nidx < num_query_points; ++nidx)
-  {
-    const Point2D q = query_point(nidx);
-    double wn {};
-    for(const auto& c : curves)
-    {
-      wn += axom::primal::winding_number(q, c);
-    }
-
-    winding[nidx] = wn;
-    inout[nidx] = std::round(wn);
-  }
+  mfem::Mesh* query_mesh =
+    axom::quest::util::make_cartesian_mfem_mesh_2D(bbox, query_res, queryOrder);
+  dc.SetMesh(query_mesh);
 }
 
-template <typename CurveArray>
-void run_fast_query(mfem::DataCollection& dc, const CurveArray& curves)
+//------------------------------------------------------------------------------
+// Query classes
+//------------------------------------------------------------------------------
+
+class DirectGWN2D
 {
-  AXOM_ANNOTATE_SCOPE("run_query");
+public:
+  using CurveArrayType = axom::Array<NURBSCurve2D>;
+  using NURBSCacheArray = axom::Array<CurveGWNCache>;
 
-  auto* query_mesh = dc.GetMesh();
-  auto& winding = *dc.GetField("winding");
-  auto& inout = *dc.GetField("inout");
+  DirectGWN2D() = default;
 
-  // Utility function to get query point from query index
-  const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
-  auto query_point = [&query_mesh](int idx) -> Point2D {
-    Point2D pt;
-    query_mesh->GetNode(idx, pt.data());
-    return pt;
-  };
-
-  const int ncurves = curves.size();
-  const auto curves_view = curves.view();
-
-  // Get bounding boxes for each curve
-  axom::Array<primal::BoundingBox<double, 2>> aabbs(0, ncurves);
-  auto aabbs_view = aabbs.view();
-  axom::for_all<axom::SEQ_EXEC>(
-    ncurves,
-    AXOM_LAMBDA(axom::IndexType i) { aabbs_view[i] = curves_view[i].boundingBox(); });
-
-  // Initialize BVH
-  axom::spin::BVH<2, axom::SEQ_EXEC> bvh;
-  bvh.initialize(aabbs_view, ncurves);
-  const auto traverser = bvh.getTraverser();
-
-  // Compute GWN moments at each leaf node
-  using GWNMoments = axom::quest::GWNMomentData<double, 2, 2>;
-  auto compute_moments = [curves_view](std::int32_t currentNode,
-                                       const std::int32_t* leafNodes) -> GWNMoments {
-    const auto idx = leafNodes[currentNode];
-    return GWNMoments(curves_view[idx]);
-  };
-  auto internal_moments = bvh.template reduceTree<GWNMoments>(compute_moments);
-  const auto internal_moments_view = internal_moments.view();
-
-  // Query the winding numbers at each degree of freedom (DoF) of the query mesh.
-  // The loop below independently checks every curve for each query point.
-  const primal::WindingTolerances tol;  // Use default tolerances
-  for(int nidx = 0; nidx < num_query_points; ++nidx)
+  void preprocess(const CurveArrayType& input_curves, bool use_memoization)
   {
-    const Point2D q = query_point(nidx);
-    double wn = axom::quest::fast_approximate_winding_number(q,
-                                                             traverser,
-                                                             curves_view,
-                                                             internal_moments_view,
-                                                             tol);
-
-    winding[nidx] = wn;
-    inout[nidx] = std::round(wn);
+    m_input_curves_view = input_curves.view();
+    axom::utilities::Timer timer(true);
+    {
+      AXOM_ANNOTATE_SCOPE("preprocessing");
+      if(use_memoization)
+      {
+        m_nurbs_caches.reserve(input_curves.size());
+        for(const auto& curv : input_curves)
+        {
+          m_nurbs_caches.emplace_back(curv);
+        }
+      }
+    }
+    timer.stop();
+    AXOM_ANNOTATE_METADATA("preprocessing_time", timer.elapsed(), "");
+    SLIC_INFO(axom::fmt::format("Direct query preprocessing (memoization caches): {} s",
+                                timer.elapsedTimeInSec()));
   }
+
+  void query(mfem::DataCollection& dc, const primal::WindingTolerances& tol)
+  {
+    auto* query_mesh = dc.GetMesh();
+    auto& winding = *dc.GetField("winding");
+    auto& inout = *dc.GetField("inout");
+
+    const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
+
+    auto query_point = [&query_mesh](int idx) -> Point2D {
+      Point2D pt;
+      query_mesh->GetNode(idx, pt.data());
+      return pt;
+    };
+
+    axom::utilities::Timer query_timer(true);
+    {
+      AXOM_ANNOTATE_SCOPE("query");
+      const primal::WindingTolerances tol_copy = tol;
+
+      // Use non-memoized form
+      if(m_nurbs_caches.empty())
+      {
+        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
+          const Point2D q = query_point(static_cast<int>(nidx));
+          double wn {};
+          for(const auto& cache : m_input_curves_view)
+          {
+            wn += axom::primal::winding_number(q, cache, tol_copy.edge_tol, tol_copy.EPS);
+          }
+          winding[static_cast<int>(nidx)] = wn;
+          inout[static_cast<int>(nidx)] = std::round(wn);
+        });
+      }
+      else  // Use memoized form
+      {
+        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
+          const Point2D q = query_point(static_cast<int>(nidx));
+          double wn {};
+          for(const auto& cache : m_nurbs_caches)
+          {
+            wn += axom::primal::winding_number(q, cache, tol_copy.edge_tol, tol_copy.EPS);
+          }
+          winding[static_cast<int>(nidx)] = wn;
+          inout[static_cast<int>(nidx)] = std::round(wn);
+        });
+      }
+    }
+    query_timer.stop();
+
+    const double query_time_s = query_timer.elapsed();
+    const double ms_per_query = query_timer.elapsedTimeInMilliSec() / num_query_points;
+    SLIC_INFO(axom::fmt::format(
+      axom::utilities::locale(),
+      "Querying {:L} samples in winding number field with{} memoization took {:.3Lf} seconds"
+      " (@ {:.0Lf} queries per second; {:.6Lf} ms per query)",
+      num_query_points,
+      m_nurbs_caches.empty() ? "out" : "",
+      query_time_s,
+      num_query_points / query_time_s,
+      ms_per_query));
+    AXOM_ANNOTATE_METADATA("query_points", num_query_points, "");
+    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
+  }
+
+private:
+  axom::ArrayView<const NURBSCurve2D> m_input_curves_view;
+  NURBSCacheArray m_nurbs_caches;
+};
+
+class PolylineGWN2D
+{
+public:
+  using BoxType = axom::primal::BoundingBox<double, 2>;
+  using CurveArrayType = axom::Array<NURBSCurve2D>;
+  using SegmentType = axom::primal::Segment<double, 2>;
+  using GWNMoments = axom::quest::GWNMomentData<double, 2, 2>;
+
+  PolylineGWN2D() = default;
+
+  void preprocess(const CurveArrayType& input_curves, int segmentsPerKnotSpan)
+  {
+    axom::utilities::Timer timer(true);
+    axom::utilities::Timer stage_timer(false);
+
+    AXOM_ANNOTATE_SCOPE("preprocessing");
+
+    axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> poly_mesh(2, axom::mint::SEGMENT);
+
+    stage_timer.start();
+    {
+      AXOM_ANNOTATE_SCOPE("linearization");
+      axom::quest::LinearizeCurves lc;
+      lc.getLinearMeshUniform(input_curves.view(), &poly_mesh, segmentsPerKnotSpan);
+    }
+    stage_timer.stop();
+
+    const auto nlines = poly_mesh.getNumberOfCells();
+    {
+      SLIC_INFO(axom::fmt::format(
+        axom::utilities::locale(),
+        "Discretized {} curves with {} segments in each knot span for a total of {:L} segments.",
+        input_curves.size(),
+        segmentsPerKnotSpan,
+        nlines));
+      SLIC_INFO(axom::fmt::format("Preprocessing stage (linearization): {} s",
+                                  stage_timer.elapsedTimeInSec()));
+    }
+
+    stage_timer.reset();
+    stage_timer.start();
+    {
+      AXOM_ANNOTATE_SCOPE("extract_segments");
+
+      m_segments.resize(nlines);
+      auto segments_view = m_segments.view();
+
+      axom::mint::for_all_cells<axom::SEQ_EXEC, axom::mint::xargs::coords>(
+        &poly_mesh,
+        AXOM_LAMBDA(axom::IndexType cellIdx,
+                    const axom::numerics::Matrix<double>& coords,
+                    [[maybe_unused]] const axom::IndexType* nodeIds) {
+          segments_view[cellIdx] =
+            SegmentType {Point2D {coords(0, 0), coords(1, 0)}, Point2D {coords(0, 1), coords(1, 1)}};
+        });
+    }
+    stage_timer.stop();
+    SLIC_INFO(axom::fmt::format("  Preprocessing stage (extract_segments): {} s",
+                                stage_timer.elapsedTimeInSec()));
+
+    stage_timer.reset();
+    stage_timer.start();
+    {
+      AXOM_ANNOTATE_SCOPE("bvh_init");
+      axom::Array<BoxType> aabbs(nlines, nlines);
+      auto aabbs_view = aabbs.view();
+      const auto segments_view = m_segments.view();
+
+      axom::for_all<axom::SEQ_EXEC>(
+        nlines,
+        AXOM_LAMBDA(axom::IndexType i) {
+          aabbs_view[i] = BoxType {segments_view[i].source(), segments_view[i].target()};
+        });
+      m_bvh.initialize(aabbs_view, nlines);
+    }
+    stage_timer.stop();
+    SLIC_INFO(axom::fmt::format("  Preprocessing stage (bvh): {} s", stage_timer.elapsedTimeInSec()));
+
+    stage_timer.reset();
+    stage_timer.start();
+    {
+      AXOM_ANNOTATE_SCOPE("moments");
+      const auto triangles_view = m_segments.view();
+
+      auto compute_moments = [triangles_view](std::int32_t currentNode,
+                                              const std::int32_t* leafNodes) -> GWNMoments {
+        const auto idx = leafNodes[currentNode];
+        return GWNMoments(triangles_view[idx]);
+      };
+
+      m_internal_moments = m_bvh.template reduceTree<GWNMoments>(compute_moments);
+    }
+    stage_timer.stop();
+    SLIC_INFO(
+      axom::fmt::format("  Preprocessing stage (moments): {} s", stage_timer.elapsedTimeInSec()));
+
+    timer.stop();
+    SLIC_INFO(axom::fmt::format("Total preprocessing: {} s", timer.elapsedTimeInSec()));
+  }
+
+  void query(mfem::DataCollection& dc, const primal::WindingTolerances& tol, const double slice_z = 0.0)
+  {
+    if(m_segments.empty())
+    {
+      SLIC_WARNING("Skipping query; segment data is empty.");
+      return;
+    }
+
+    const auto* query_mesh = dc.GetMesh();
+    auto& winding = *dc.GetField("winding");
+    auto& inout = *dc.GetField("inout");
+
+    const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
+
+    auto query_point = [query_mesh](axom::IndexType idx) -> Point2D {
+      Point2D pt({0., 0.});
+      query_mesh->GetNode(static_cast<int>(idx), pt.data());
+      return pt;
+    };
+
+    axom::utilities::Timer query_timer(true);
+    {
+      AXOM_ANNOTATE_SCOPE("query");
+
+      const auto traverser = m_bvh.getTraverser();
+      const auto segments_view = m_segments.view();
+      const auto internal_moments_view = m_internal_moments.view();
+      const primal::WindingTolerances tol_copy = tol;
+
+      axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+        const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
+                                                                       traverser,
+                                                                       segments_view,
+                                                                       internal_moments_view,
+                                                                       tol_copy);
+
+        winding[static_cast<int>(index)] = wn;
+        inout[static_cast<int>(index)] = std::round(wn);
+      });
+    }
+    query_timer.stop();
+
+    const double query_time_s = query_timer.elapsed();
+    const double ms_per_query = query_timer.elapsedTimeInMilliSec() / num_query_points;
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "Querying {:L} samples in winding number field took {:.3Lf} seconds"
+                                " (@ {:.0Lf} queries per second; {:.5Lf} ms per query)",
+                                num_query_points,
+                                query_time_s,
+                                num_query_points / query_time_s,
+                                ms_per_query));
+    AXOM_ANNOTATE_METADATA("query_points", num_query_points, "");
+    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
+  }
+
+private:
+  axom::Array<SegmentType> m_segments;
+  axom::Array<GWNMoments> m_internal_moments;
+  axom::spin::BVH<2, axom::SEQ_EXEC> m_bvh;
+};
+
+using WNQueryType = std::variant<DirectGWN2D, PolylineGWN2D>;
+
+// This framework will make more sense when there are more than two types available
+WNQueryType make_wn_query(bool linearize_curves)
+{
+  if(linearize_curves)
+  {
+    return DirectGWN2D {};
+  }
+
+  return PolylineGWN2D {};
 }
 
 int main(int argc, char** argv)
@@ -169,14 +379,17 @@ int main(int argc, char** argv)
   bool verbose {false};
   std::string annotationMode {"none"};
   bool memoized {true};
-  bool agglomerated {true};
   bool vis {true};
+
+  double segmentsPerKnotSpan {10};
 
   // Query mesh parameters
   std::vector<double> boxMins;
   std::vector<double> boxMaxs;
   std::vector<int> boxResolution;
   int queryOrder {1};
+
+  primal::WindingTolerances tol;
 
   app.add_option("-i,--input", inputFile)
     ->description("MFEM mesh containing contours (1D segments)")
@@ -192,12 +405,17 @@ int main(int argc, char** argv)
   app.add_flag("-v,--verbose", verbose, "verbose output")->capture_default_str();
   app.add_flag("--memoized,!--no-memoized", memoized, "Cache geometric data during query?")
     ->capture_default_str();
-  app
-    .add_flag("--fast-approximation,!--no-fast-approximation",
-              agglomerated,
-              "Approximate the GWN using a heirarchical approximation?")
-    ->capture_default_str();
   app.add_flag("--vis,!--no-vis", vis, "Should we write out the results for visualization?")
+    ->capture_default_str();
+
+  // Options for query tolerances
+  app.add_option("--edge-tol", tol.edge_tol)
+    ->description("Relative edge tolerance for queries")
+    ->check(axom::CLI::PositiveNumber)
+    ->capture_default_str();
+  app.add_option("--eps-tol", tol.EPS)
+    ->description("Additional generic tolerance parameter")
+    ->check(axom::CLI::PositiveNumber)
     ->capture_default_str();
 
 #ifdef AXOM_USE_CALIPER
@@ -208,6 +426,16 @@ int main(int argc, char** argv)
     ->capture_default_str()
     ->check(axom::utilities::ValidCaliperMode);
 #endif
+
+  // Options for triangulation of the input STEP file
+  auto* linearize_curves_subcommand = app.add_subcommand("linearize_curves")
+                                        ->description("Options for linearizing NURBS curves")
+                                        ->fallthrough();
+
+  linearize_curves_subcommand->add_option("--num-segments", segmentsPerKnotSpan)
+    ->description("Number of segments for each knot span of each input curve.")
+    ->check(axom::CLI::PositiveNumber)
+    ->capture_default_str();
 
   auto* query_mesh_subcommand =
     app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
@@ -247,35 +475,6 @@ int main(int argc, char** argv)
       return 1;
     }
   }
-  // Extract the curves and compute their bounding boxes along the way
-  BoundingBox2D bbox;
-  axom::Array<CurveGWNCache> memoized_curves;
-  {
-    AXOM_ANNOTATE_SCOPE("preprocessing");
-
-    axom::utilities::Timer preproc_timer(true);
-    int count {0};
-    for(const auto& cur : curves)
-    {
-      SLIC_INFO_IF(verbose, axom::fmt::format("Element {}: {}", count++, cur));
-
-      bbox.addBox(cur.boundingBox());
-
-      // Add curves to GWN Cache objects that dynamically store intermediate
-      //  curve subdivisions to be reused across query points
-      if(memoized)
-      {
-        memoized_curves.emplace_back(CurveGWNCache(cur));
-      }
-    }
-    preproc_timer.stop();
-
-    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Preprocessing curves took {:.4Lf} seconds",
-                                preproc_timer.elapsed()));
-    AXOM_ANNOTATE_METADATA("preprocessing_time", preproc_timer.elapsed(), "");
-  }
-  SLIC_INFO(axom::fmt::format("Curve mesh bounding box: {}", bbox));
 
   // Early return if user didn't set up a query mesh
   if(boxResolution.empty())
@@ -283,56 +482,42 @@ int main(int argc, char** argv)
     return 0;
   }
 
-  // Generate a Cartesian (high order) mesh for the query points
-  const bool has_query_box = boxMins.size() > 0;
-  const auto query_res = axom::NumericArray<int, 2>(boxResolution.data());
-  const auto query_box = has_query_box
-    ? BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()))
-    : BoundingBox2D(bbox.getMin(), bbox.getMax()).scale(1.05);
-
-  mfem::DataCollection dc("winding_query");
-  setup_mesh(dc, query_box, query_res, queryOrder);
-
-  // Run the query (optionally, with memoization)
+  // Extract the curves and compute their bounding boxes along the way
+  BoundingBox2D bbox;
+  axom::Array<CurveGWNCache> memoized_curves;
+  for(const auto& cur : curves)
   {
-    axom::utilities::Timer query_timer(true);
-    if(agglomerated)
-    {
-      if(memoized)
-      {
-        run_fast_query(dc, memoized_curves);
-      }
-      else
-      {
-        run_fast_query(dc, curves);
-      }
-    }
-    else
-    {
-      if(memoized)
-      {
-        run_query(dc, memoized_curves);
-      }
-      else
-      {
-        run_query(dc, curves);
-      }
-    }
-    query_timer.stop();
+    bbox.addBox(cur.boundingBox());
+  }
+  SLIC_INFO(axom::fmt::format("Curve mesh bounding box: {}", bbox));
 
-    const int ndofs = dc.GetField("winding")->FESpace()->GetNDofs();
-    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Querying {:L} samples in winding number field with{} memoization "
-                                "and with{} fast approximation took {:.3Lf} seconds"
-                                " (@ {:.0Lf} queries per second; {:.5Lf} ms per query)",
-                                ndofs,
-                                memoized ? "" : "out",
-                                agglomerated ? "" : "out",
-                                query_timer.elapsed(),
-                                ndofs / query_timer.elapsed(),
-                                query_timer.elapsedTimeInMilliSec() / ndofs));
-    AXOM_ANNOTATE_METADATA("query_points", ndofs, "");
-    AXOM_ANNOTATE_METADATA("query_time", query_timer.elapsed(), "");
+  // Query grid setup;
+  // if user did not provide a bounding box, user input bounding box scaled by 10%
+  mfem::DataCollection dc("winding_query");
+  {
+    // Create the desired winding number query instance
+    auto wn_query = make_wn_query(app.got_subcommand("linearize_curves"));
+
+    // Generate teh query grid and fields
+    generate_query_mesh(dc, bbox, boxMins, boxMaxs, boxResolution, queryOrder);
+
+    // Run the preprocess
+    std::visit(
+      [&](auto& wn) {
+        using T = std::decay_t<decltype(wn)>;
+        if constexpr(std::is_same_v<T, DirectGWN2D>)
+        {
+          wn.preprocess(curves, memoized);
+        }
+        else if constexpr(std::is_same_v<T, PolylineGWN2D>)
+        {
+          wn.preprocess(curves, segmentsPerKnotSpan);
+        }
+      },
+      wn_query);
+
+    // Run the query
+    std::visit([&](auto& wn) { wn.query(dc, tol); }, wn_query);
   }
 
   // Save the query mesh and fields to disk using a format that can be viewed in VisIt

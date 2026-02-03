@@ -123,14 +123,9 @@ public:
     compute_coefficients();
   }
 
-  /// Construct moments from a 2D NURBS Curve
-  explicit GWNMomentData(const axom::primal::NURBSCurve<T, 2>& n)
-    : GWNMomentData(n.getInitPoint(), n.getEndPoint())
-  { }
-
-  /// Construct moments from a 2D NURBS Curve with cached data
-  explicit GWNMomentData(const axom::primal::detail::NURBSCurveGWNCache<T>& n)
-    : GWNMomentData(n.getInitPoint(), n.getEndPoint())
+  /// Construct moments from a 2D Segment
+  explicit GWNMomentData(const axom::primal::Segment<T, 2>& s)
+    : GWNMomentData(s.source(), s.target())
   { }
 
   /// Construct moments from the endpoints of a 2D segment
@@ -415,8 +410,7 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
     traverser.traverse_tree(query, leaf_gwn, bbContain);
   }
 
-  if constexpr(std::is_same_v<LeafGeom, axom::primal::NURBSCurve<T, 2>> ||
-               std::is_same_v<LeafGeom, axom::primal::detail::NURBSCurveGWNCache<T>>)
+  if constexpr(std::is_same_v<LeafGeom, axom::primal::Segment<T, 2>>)
   {
     auto leaf_gwn = [&query, &gwn, leaf_objects_view, &wt](std::int32_t currentNode,
                                                            const std::int32_t* leafNodes) -> void {
