@@ -76,14 +76,14 @@ inline bool nameIsValid(const std::string &name)
 }
 
 /*!
- * \brief Return Axom's invalid allocator id sentinel.
+ * \brief Return Axom's identifier for an invalid allocator
  *
  * This returns the value of \c axom::INVALID_ALLOCATOR_ID.
  */
 inline constexpr int getInvalidAllocatorID() noexcept { return axom::INVALID_ALLOCATOR_ID; }
 
 /*!
- * \brief Return Axom's malloc allocator id sentinel.
+ * \brief Return Axom's identifier for the malloc allocator
  *
  * This returns the value of \c axom::MALLOC_ALLOCATOR_ID.
  */

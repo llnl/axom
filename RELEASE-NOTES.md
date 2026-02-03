@@ -46,9 +46,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds the `AXOM_TEST_NUM_OMP_THREADS` configuration variable to control the default OpenMP thread count for tests.
 - Slic: Adds `slic::getAbortFunction()` to return a function pointer to the abort handler called during logging functions
 - Quest: Adds a 3D winding number example and improves WN performance in 2D and 3D
-- Sidre: Added `AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING` (default `OFF`) to optionally serialize scalar views 
-  with state `"SCALAR"` instead of `"TUPLE"` for compatibility with older downstream readers (e.g. VisIt).
-  We expect to remove this in the future as readers adopt the `"TUPLE"` type.
+- Sidre: Added `AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING` (default `ON`) to optionally serialize scalar views 
+  with state `"SCALAR"` instead of `"TUPLE"` for compatibility with downstream readers (e.g. VisIt)
+  that don't yet support `"TUPLE"`. We expect to remove this in the future as readers adopt the `"TUPLE"` type.
 
 ###  Changed
 - Version of `quest::discretize` that approximates a surface-of-revolution from a polyline

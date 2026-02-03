@@ -126,9 +126,9 @@
 
 /*
  * Sidre removed the SCALAR type in favor of TUPLE, but some readers
- * like VisIt still expect SCALAR. When this option is enabled,
+ * like VisIt@3.4.x still expect SCALAR. When this option is enabled,
  * Sidre will write out SCALAR instead of TUPLE
- * This option will be phased out in the future as VisIt gains support for TUPLE
+ * This option will be phased out in the future as readers gain support for TUPLE
  */
 #cmakedefine AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING
 

@@ -26,13 +26,12 @@ option(AXOM_ENABLE_ALL_COMPONENTS "Enables all components by default" ON)
 option(AXOM_USE_64BIT_INDEXTYPE "Use 64-bit integers for axom::IndexType" ON)
 
 
-# When enabled, Sidre will serialize singleton tuple views (scalars) with
-# state="SCALAR" in its I/O metadata for compatibility with older downstream
-# readers (e.g. VisIt's Blueprint database plugin). When disabled (default),
-# Sidre will serialize these views with state="TUPLE".
+# When enabled (default), Sidre will serialize tuple views of size 1 with state="SCALAR" 
+# in its I/O metadata for compatibility with downstream readers (e.g. VisIt's Blueprint database plugin). 
+# When disabled, Sidre will serialize these views with state="TUPLE".
 option(AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING
-       "Write sidre View scalars with state='SCALAR' (legacy compatibility); default writes state='TUPLE'."
-       OFF)
+       "Write sidre View scalars with state='SCALAR' (legacy compatibility) instead of state='TUPLE'."
+       ON)
 
 
 if(NOT CMAKE_CONFIGURATION_TYPES)

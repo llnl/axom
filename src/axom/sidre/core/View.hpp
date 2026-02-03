@@ -1588,8 +1588,8 @@ private:
   /*!
    * \brief Returns the string stored in sidre I/O metadata for this View's state.
    *
-   * This preserves backward compatibility with older readers (e.g. VisIt)
-   * that only recognize "SCALAR" for singleton tuple data.
+   * This preserves backward compatibility with older readers
+   * that only recognize "SCALAR" (but not "TUPLE")
    */
   const char* getIoStateStringName() const;
 
