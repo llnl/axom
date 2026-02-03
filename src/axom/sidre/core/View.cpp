@@ -1480,13 +1480,12 @@ char const* View::getStateStringName(State state)
 
 const char* View::getIoStateStringName() const
 {
-  // Backward compatibility: prior to removing State::SCALAR, singleton tuple
-  // data (setScalar()) was serialized as "SCALAR". Some downstream readers
-  // (e.g. VisIt's Blueprint database plugin) still expect that string.
-  if(m_state == TUPLE && isScalar())
-  {
-    return "SCALAR";
-  }
+// Backward compatibility: prior to removing State::SCALAR, singleton tuple
+// data (setScalar()) was serialized as "SCALAR". Some downstream readers
+// (e.g. VisIt's Blueprint database plugin) still expect that string.
+#if defined(AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING)
+  if(m_state == TUPLE && isScalar()) return "SCALAR";
+#endif
 
   return getStateStringName(m_state);
 }
