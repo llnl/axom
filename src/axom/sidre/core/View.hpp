@@ -1586,6 +1586,14 @@ private:
   State getStateId(const std::string& name) const;
 
   /*!
+   * \brief Returns the string stored in sidre I/O metadata for this View's state.
+   *
+   * This preserves backward compatibility with older readers (e.g. VisIt)
+   * that only recognize "SCALAR" for singleton tuple data.
+   */
+  const char* getIoStateStringName() const;
+
+  /*!
    * If allocID == INVALID_ALLOCATOR_ID, return the default allocator id,
    * which depends on the View's data semantic and owning Group.
    *

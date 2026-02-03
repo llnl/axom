@@ -10,6 +10,11 @@
 #include "axom/slic.hpp"
 #include "axom/sidre.hpp"
 
+#include "conduit_relay.hpp"
+
+#include <map>
+#include <set>
+
 using axom::sidre::Buffer;
 using axom::sidre::CHAR8_STR_ID;
 using axom::sidre::DataStore;
@@ -367,6 +372,48 @@ TEST(sidre_view, scalar_view)
 }
 
 //------------------------------------------------------------------------------
+
+TEST(sidre_view, io_state_string_compatibility)
+{
+  DataStore ds;
+  Group* root = ds.getRoot();
+
+  root->createView("scalar")->setScalar(42);
+
+  axom::Array<int> tuple_values(2, 0);
+  tuple_values[0] = 1;
+  tuple_values[1] = 2;
+  root->createView("tuple")->setTuple(tuple_values.view());
+
+  const std::string file_path = "sidre_view_io_state_compat.sidre.json";
+  ASSERT_TRUE(root->save(file_path, "sidre_json"));
+
+  conduit::Node n;
+  conduit::relay::io::load(file_path, "json", n);
+  ASSERT_TRUE(n.has_path("sidre/views/scalar/state"));
+  ASSERT_TRUE(n.has_path("sidre/views/tuple/state"));
+  EXPECT_EQ(std::string("SCALAR"), n["sidre/views/scalar/state"].as_string());
+  EXPECT_EQ(std::string("TUPLE"), n["sidre/views/tuple/state"].as_string());
+}
+
+TEST(sidre_view, io_roundtrip_scalar_state_string)
+{
+  DataStore ds;
+  Group* root = ds.getRoot();
+  root->createView("scalar")->setScalar(7);
+
+  const std::string file_path = "sidre_view_io_roundtrip_scalar.sidre.json";
+  ASSERT_TRUE(root->save(file_path, "sidre_json"));
+
+  DataStore ds2;
+  Group* root2 = ds2.getRoot();
+  ASSERT_TRUE(root2->load(file_path, "sidre_json"));
+
+  View* v = root2->getView("scalar");
+  ASSERT_NE(v, nullptr);
+  EXPECT_TRUE(v->isScalar());
+  EXPECT_EQ(7, v->getNode().to_int64());
+}
 
 // Most tests deallocate via the DataStore destructor
 // This is an explicit deallocate test
