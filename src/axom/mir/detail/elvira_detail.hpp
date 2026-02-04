@@ -311,9 +311,6 @@ public:
     n_coordset["values/y"].set(conduit::DataType(utils::cpp2conduit<CoordType>::id, numCoordValues));
     m_view.m_y = utils::make_array_view<CoordType>(n_coordset["values/y"]);
 
-    m_view.m_x.fill(CoordType(0));
-    m_view.m_y.fill(CoordType(0));
-
     // Set up connectivity and allocate data arrays.
     n_topology["type"] = "unstructured";
     n_topology["elements/shape"] = m_view.m_makePointMesh ? "point" : "polygonal";
@@ -321,7 +318,19 @@ public:
     n_conn.set_allocator(c2a.getConduitAllocatorID());
     n_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numCoordValues));
     m_view.m_connectivity = utils::make_array_view<ConnectivityType>(n_conn);
-    m_view.m_connectivity.fill(ConnectivityType(0));
+
+    // Initialize the arrays
+    {
+      const auto dev_x = m_view.m_x;
+      const auto dev_y = m_view.m_y;
+      const auto dev_connectivity = m_view.m_connectivity;
+      axom::for_all<ExecSpace>(numCoordValues, AXOM_LAMBDA(axom::IndexType index)
+      {
+        dev_x[index] = CoordType(0);
+        dev_y[index] = CoordType(0);
+        dev_connectivity[index] = ConnectivityType(0);
+      });
+    }
 
     conduit::Node &n_sizes = n_topology["elements/sizes"];
     n_sizes.set_allocator(c2a.getConduitAllocatorID());
@@ -386,7 +395,13 @@ public:
     n_mat_sizes.set_allocator(c2a.getConduitAllocatorID());
     n_mat_sizes.set(conduit::DataType(utils::cpp2conduit<MaterialID>::id, numFragments));
     m_view.m_mat_sizes = utils::make_array_view<MaterialID>(n_mat_sizes);
-    m_view.m_mat_sizes.fill(MaterialID(0));
+    {
+      const auto dev_mat_sizes = m_view.m_mat_sizes;
+      axom::for_all<ExecSpace>(numFragments, AXOM_LAMBDA(axom::IndexType index)
+      {
+        dev_mat_sizes[index] = MaterialID(0);
+      });
+    }
 
     conduit::Node &n_mat_offsets = n_matset["offsets"];
     n_mat_offsets.set_allocator(c2a.getConduitAllocatorID());
@@ -592,9 +607,17 @@ public:
     n_coordset["values/z"].set(conduit::DataType(utils::cpp2conduit<CoordType>::id, numCoordValues));
     m_view.m_z = utils::make_array_view<CoordType>(n_coordset["values/z"]);
 
-    m_view.m_x.fill(CoordType(0));
-    m_view.m_y.fill(CoordType(0));
-    m_view.m_z.fill(CoordType(0));
+    {
+      const auto dev_x = m_view.m_x;
+      const auto dev_y = m_view.m_y;
+      const auto dev_z = m_view.m_z;
+      axom::for_all<ExecSpace>(numCoordValues, AXOM_LAMBDA(axom::IndexType index)
+      {
+        dev_x[index] = CoordType(0);
+        dev_y[index] = CoordType(0);
+        dev_z[index] = CoordType(0);
+      });
+    }
 
     // elements (zone definitions)
     constexpr ConnectivityType UnusedValue = axom::numeric_limits<ConnectivityType>::is_signed
@@ -609,8 +632,13 @@ public:
       n_conn.set_allocator(c2a.getConduitAllocatorID());
       n_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numConnValues));
       m_view.m_connectivity = utils::make_array_view<ConnectivityType>(n_conn);
-      m_view.m_connectivity.fill(UnusedValue);
-
+      {
+        const auto dev_connectivity = m_view.m_connectivity;
+        axom::for_all<ExecSpace>(numConnValues, AXOM_LAMBDA(axom::IndexType index)
+        {
+          dev_connectivity[index] = UnusedValue;
+        });
+      }
       conduit::Node &n_sizes = n_topology["elements/sizes"];
       n_sizes.set_allocator(c2a.getConduitAllocatorID());
       n_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numFragments));
@@ -628,25 +656,38 @@ public:
       n_topology["subelements/shape"] = "polygonal";
       conduit::Node &n_se_conn = n_topology["subelements/connectivity"];
       n_se_conn.set_allocator(c2a.getConduitAllocatorID());
+      const auto seConnSize = numFragments * m_view.m_MAX_FACES_PER_FRAGMENT * m_view.m_MAX_POINTS_PER_FACE;
       n_se_conn.set(conduit::DataType(
-        utils::cpp2conduit<ConnectivityType>::id,
-        numFragments * m_view.m_MAX_FACES_PER_FRAGMENT * m_view.m_MAX_POINTS_PER_FACE));
+        utils::cpp2conduit<ConnectivityType>::id, seConnSize));
       m_view.m_subelement_connectivity = utils::make_array_view<ConnectivityType>(n_se_conn);
-      m_view.m_subelement_connectivity.fill(UnusedValue);
-
+      {
+        const auto dev_subelement_connectivity = m_view.m_subelement_connectivity;
+        axom::for_all<ExecSpace>(seConnSize, AXOM_LAMBDA(axom::IndexType index)
+        {
+          dev_subelement_connectivity[index] = UnusedValue;
+        });
+      }
       conduit::Node &n_se_sizes = n_topology["subelements/sizes"];
       n_se_sizes.set_allocator(c2a.getConduitAllocatorID());
       n_se_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id,
                                        numFragments * m_view.m_MAX_FACES_PER_FRAGMENT));
       m_view.m_subelement_sizes = utils::make_array_view<ConnectivityType>(n_se_sizes);
-      m_view.m_subelement_sizes.fill(ConnectivityType {0});
 
       conduit::Node &n_se_offsets = n_topology["subelements/offsets"];
       n_se_offsets.set_allocator(c2a.getConduitAllocatorID());
       n_se_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id,
                                          numFragments * m_view.m_MAX_FACES_PER_FRAGMENT));
       m_view.m_subelement_offsets = utils::make_array_view<ConnectivityType>(n_se_offsets);
-      m_view.m_subelement_offsets.fill(UnusedValue);
+
+      {
+        const auto dev_subelement_sizes = m_view.m_subelement_sizes;
+        const auto dev_subelement_offsets = m_view.m_subelement_offsets;
+        axom::for_all<ExecSpace>(numFragments * m_view.m_MAX_FACES_PER_FRAGMENT, AXOM_LAMBDA(axom::IndexType index)
+        {
+          dev_subelement_sizes[index] = ConnectivityType {0};
+          dev_subelement_offsets[index] = UnusedValue;
+        });
+      }
     }
 
     // Make new fields.
@@ -706,7 +747,13 @@ public:
     n_mat_sizes.set_allocator(c2a.getConduitAllocatorID());
     n_mat_sizes.set(conduit::DataType(utils::cpp2conduit<MaterialID>::id, numFragments));
     m_view.m_mat_sizes = utils::make_array_view<MaterialID>(n_mat_sizes);
-    m_view.m_mat_sizes.fill(MaterialID(0));
+    {
+      const auto dev_mat_sizes = m_view.m_mat_sizes;
+      axom::for_all<ExecSpace>(numFragments, AXOM_LAMBDA(axom::IndexType index)
+      {
+        dev_mat_sizes[index] = MaterialID(0);
+      });
+    }
 
     conduit::Node &n_mat_offsets = n_matset["offsets"];
     n_mat_offsets.set_allocator(c2a.getConduitAllocatorID());
