@@ -675,11 +675,15 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             entries.append("# ClangFormat disabled since llvm@19 and devtools not in spec\n")
             entries.append(cmake_cache_option("ENABLE_CLANGFORMAT", False))
 
-        if spec.satisfies("+python") or spec.satisfies("+devtools"):
-            # Get path to python with modules
+        if spec.satisfies("+python"):
+            # Get path to python view with modules
             python_view_exe = pjoin(os.path.dirname(os.path.dirname(self.prefix)), "view",
                 spec["python"].name + "-" + str(spec["python"].version), "bin/python3")
             entries.append(cmake_cache_path("Python_EXECUTABLE", python_view_exe))
+        elif spec.satisfies("+devtools"):
+            # Get path to python executable
+            python_bin_dir = get_spec_path(spec, "python", path_replacements, use_bin=True)
+            entries.append(cmake_cache_path("Python_EXECUTABLE", pjoin(python_bin_dir, "python3")))
 
 
         if spec.satisfies("^py-jsonschema"):

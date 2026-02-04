@@ -6,10 +6,9 @@ packages:
   adiak:
     require: 
       - spec: "@0.4.0"
-  # 2.14.0
   caliper:
     require:
-      - spec: "@git.9ab0e64d2e328d1fdff2ffebb53f30a899d6a598=master"
+      - spec: "@2.14.0"
   # v2025.12.0
   camp:
     require:

@@ -20,7 +20,10 @@ class Axomdevtools(BundlePackage):
 
     # 3.13 is bugfix/stable release
     depends_on("python@3.13")
-    depends_on("doxygen")
+
+    # 1.15.0 is latest release that compiles
+    depends_on("doxygen@1.15.0")
+
     depends_on("cppcheck+rules")
     depends_on("graphviz")
     depends_on("py-sphinx")
