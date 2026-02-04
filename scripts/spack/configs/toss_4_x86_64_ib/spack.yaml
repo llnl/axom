@@ -396,7 +396,6 @@ spack:
       - spec: py-jsonschema@4.17.3
         # prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
         prefix: /usr/workspace/han12/axom/toss_4_x86_64_ib/2026_02_03_14_33_14/view/python-3.13.11/
-
     py-yapf:
       buildable: false
       externals:

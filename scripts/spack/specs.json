@@ -17,10 +17,11 @@
     "__comment__":"# mfem disabled for intel (icpx compiler error)",
     "__comment__":"# python disabled for intel (mixed compiler conduit/caliper MPI spack compiler error)",
     "__comment__":"# Configs are for dane/rzwhippet",
+    "__comment__":"# Order matters - if ~python spec is built last this removes view of python",
     "toss_4_x86_64_ib":
-    [ "+python+devtools+hdf5+mfem+c2c+scr+adiak+caliper %gcc_13",
-      "+python+devtools+hdf5+mfem+c2c+scr+adiak+caliper+opencascade %clang_19",
-      "~python+devtools+hdf5~mfem+c2c+adiak+caliper %intel_25" ],
+    [ "~python+devtools+hdf5~mfem+c2c+adiak+caliper %intel_25",
+      "+python+devtools+hdf5+mfem+c2c+scr+adiak+caliper %gcc_13",
+      "+python+devtools+hdf5+mfem+c2c+scr+adiak+caliper+opencascade %clang_19"],
 
     "__comment__":"# Configs are for rzvector",
     "rzvector":
