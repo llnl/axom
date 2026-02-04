@@ -612,15 +612,15 @@ public:
     auto sizes = utils::make_array_view<MatIntType>(n_sizes);
     auto offsets = utils::make_array_view<MatIntType>(n_offsets);
     // Initialize the expected values.
-    axom::for_all<ExecSpace>(numMaterialSlots * nTargetZones, AXOM_LAMBDA(axom::IndexType index)
-    {
-      volume_fractions[index] = MatFloatType{0};
-      material_ids[index] = MaterialEmpty;
-    });
-    axom::for_all<ExecSpace>(nTargetZones, AXOM_LAMBDA(axom::IndexType index)
-    {
-      sizes[index] = MatIntType{0};
-    });
+    axom::for_all<ExecSpace>(
+      numMaterialSlots * nTargetZones,
+      AXOM_LAMBDA(axom::IndexType index) {
+        volume_fractions[index] = MatFloatType {0};
+        material_ids[index] = MaterialEmpty;
+      });
+    axom::for_all<ExecSpace>(
+      nTargetZones,
+      AXOM_LAMBDA(axom::IndexType index) { sizes[index] = MatIntType {0}; });
     AXOM_ANNOTATE_END("allocation");
 
     // -------------------------------------------------------------------------
@@ -754,9 +754,9 @@ public:
           // If the zone was not completely covered by other materials, increment
           // its size to include the empty material and set its VF.
           constexpr MatFloatType MatTolerance = 1.e-6;
-          if(sizes[index] == 0 || (MatFloatType{1} - vfSum) > MatTolerance)
+          if(sizes[index] == 0 || (MatFloatType {1} - vfSum) > MatTolerance)
           {
-            vfs[sizes[index]] = MatFloatType{1} - vfSum;
+            vfs[sizes[index]] = MatFloatType {1} - vfSum;
             sizes[index]++;
             emptyCount += 1;
           }
