@@ -5,10 +5,17 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "gtest/gtest.h"
+#include "axom/config.hpp"
 #include "axom/core/Types.hpp"
+#include "axom/core/utilities/FileUtilities.hpp"
 #include "axom/sidre/core/ConduitMemory.hpp"
 #include "axom/slic.hpp"
 #include "axom/sidre.hpp"
+
+#include "conduit_relay.hpp"
+
+#include <map>
+#include <set>
 
 using axom::sidre::Buffer;
 using axom::sidre::CHAR8_STR_ID;
@@ -367,6 +374,87 @@ TEST(sidre_view, scalar_view)
 }
 
 //------------------------------------------------------------------------------
+
+TEST(sidre_view, io_state_string_compatibility)
+{
+  namespace fs = axom::utilities::filesystem;
+
+  DataStore ds;
+  Group* root = ds.getRoot();
+
+#if defined(AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING)
+  const std::string expected_scalar_state = "SCALAR";
+#else
+  const std::string expected_scalar_state = "TUPLE";
+#endif
+
+  root->createView("scalar")->setScalar(42);
+
+  axom::Array<int> tuple_values(2, 0);
+  tuple_values[0] = 1;
+  tuple_values[1] = 2;
+  root->createView("tuple")->setTuple(tuple_values.view());
+
+  fs::TempFile tmp_file("sidre_view_io_state_compat", ".sidre.json");
+  ASSERT_TRUE(root->save(tmp_file.getPath(), "sidre_json"));
+
+  conduit::Node n;
+  conduit::relay::io::load(tmp_file.getPath(), "json", n);
+  ASSERT_TRUE(n.has_path("sidre/views/scalar/state"));
+  ASSERT_TRUE(n.has_path("sidre/views/tuple/state"));
+  EXPECT_EQ(expected_scalar_state, n["sidre/views/scalar/state"].as_string());
+  EXPECT_EQ(std::string("TUPLE"), n["sidre/views/tuple/state"].as_string());
+}
+
+TEST(sidre_view, io_import_accepts_scalar_state_string)
+{
+  namespace fs = axom::utilities::filesystem;
+
+  DataStore ds;
+  Group* root = ds.getRoot();
+  root->createView("scalar")->setScalar(7);
+
+  fs::TempFile tmp_file("sidre_view_io_import_accepts_scalar", ".sidre.json");
+  ASSERT_TRUE(root->save(tmp_file.getPath(), "sidre_json"));
+
+  conduit::Node n;
+  conduit::relay::io::load(tmp_file.getPath(), "json", n);
+  ASSERT_TRUE(n.has_path("sidre/views/scalar/state"));
+  n["sidre/views/scalar/state"] = "SCALAR";
+
+  fs::TempFile patched_file("sidre_view_io_import_accepts_scalar_patched", ".sidre.json");
+  conduit::relay::io::save(n, patched_file.getPath(), "json");
+
+  DataStore ds2;
+  Group* root2 = ds2.getRoot();
+  ASSERT_TRUE(root2->load(patched_file.getPath(), "sidre_json"));
+
+  View* v = root2->getView("scalar");
+  ASSERT_NE(v, nullptr);
+  EXPECT_TRUE(v->isScalar());
+  EXPECT_EQ(7, v->getNode().to_int64());
+}
+
+TEST(sidre_view, io_roundtrip_scalar_state_string)
+{
+  namespace fs = axom::utilities::filesystem;
+
+  DataStore ds;
+  Group* root = ds.getRoot();
+  root->createView("scalar")->setScalar(7);
+
+  fs::TempFile tmp_file("sidre_view_io_roundtrip_scalar", ".sidre.json");
+  ASSERT_TRUE(root->save(tmp_file.getPath(), "sidre_json"));
+
+  DataStore ds2;
+  Group* root2 = ds2.getRoot();
+  ASSERT_TRUE(root2->load(tmp_file.getPath(), "sidre_json"));
+
+  View* v = root2->getView("scalar");
+  ASSERT_NE(v, nullptr);
+  EXPECT_TRUE(v->isScalar());
+  EXPECT_EQ(7, v->getNode().to_int64());
+}
 
 // Most tests deallocate via the DataStore destructor
 // This is an explicit deallocate test

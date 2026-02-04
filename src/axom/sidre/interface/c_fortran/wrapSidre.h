@@ -58,6 +58,10 @@ bool SIDRE_name_is_valid(const char *name);
 
 bool SIDRE_name_is_valid_bufferify(char *name, int SHT_name_len);
 
+int SIDRE_get_invalid_allocator_id(void);
+
+int SIDRE_get_malloc_allocator_id(void);
+
 #ifdef __cplusplus
 }
 #endif
