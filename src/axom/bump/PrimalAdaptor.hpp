@@ -132,7 +132,7 @@ struct AdaptPolyhedron
     // Sort the ids.
     const axom::IndexType nnodes = uniqueNodeIds.size();
     StaticArray<int, Polyhedron::MAX_VERTS> ids;
-    SLIC_ASSERT(nnodes < Polyhedron::MAX_VERTS);
+    SLIC_ASSERT(nnodes <= Polyhedron::MAX_VERTS);
     for(axom::IndexType i = 0; i < nnodes; i++)
     {
       ids.push_back(uniqueNodeIds[i]);

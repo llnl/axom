@@ -108,8 +108,11 @@ private:
 #else
     axomAllocatorID = axom::execution_space<ExecSpace>::allocatorID();
 #endif
-
-    void *ptr = static_cast<void *>(axom::allocate<std::uint8_t>(items * item_size, axomAllocatorID));
+    void *ptr = nullptr;
+    if(items * item_size > 0)
+    {
+      ptr = static_cast<void *>(axom::allocate<std::uint8_t>(items * item_size, axomAllocatorID));
+    }
     //std::cout << axom::execution_space<ExecSpace>::name()
     //  << ": Allocated for Conduit via axom: items=" << items
     //  << ", item_size=" << item_size << ", ptr=" << ptr << std::endl;

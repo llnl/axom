@@ -769,6 +769,10 @@ public:
         n_targetMatset["material_map"]["empty"] = MaterialEmpty;
       }
       totalSize = reduceSize.get();
+      if(nTargetZones > 0)
+      {
+        SLIC_ERROR_IF(totalSize == 0, "ReduceSum returned 0 for totalSize.");
+      }
     }
 
     // -------------------------------------------------------------------------
