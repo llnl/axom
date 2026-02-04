@@ -1060,6 +1060,12 @@ AXOM_HOST_DEVICE Polygon<T, 2, ARRAY_TYPE, MAX_VERTS> clipPolygonPolygon(
     PlaneType plane = make_plane(planePoints[iEdge], planePoints[(iEdge + 1) % numClipEdges]);
 
     outputList = clipPolygonPlaneSimple(outputList, plane, eps);
+
+    if(outputList.numVertices() == 0)
+    {
+      // No intersection because all points are gone.
+      return outputList;
+    }
   }  // end of iteration through edges of clip polygon
 
   // Remove duplicate points.

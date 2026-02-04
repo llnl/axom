@@ -604,16 +604,23 @@ public:
       conduit::DataType(utils::cpp2conduit<MatIntType>::id, numMaterialSlots * nTargetZones));
     n_sizes.set(conduit::DataType(utils::cpp2conduit<MatIntType>::id, nTargetZones));
     n_offsets.set(conduit::DataType(utils::cpp2conduit<MatIntType>::id, nTargetZones));
-    // n_indices are allocated later
+    // n_indices allocated later
 
     // Wrap the output matset data in some array views.
     auto material_ids = utils::make_array_view<MatIntType>(n_material_ids);
     auto volume_fractions = utils::make_array_view<MatFloatType>(n_volume_fractions);
     auto sizes = utils::make_array_view<MatIntType>(n_sizes);
     auto offsets = utils::make_array_view<MatIntType>(n_offsets);
-    volume_fractions.fill(MatFloatType(0.));
-    material_ids.fill(MaterialEmpty);
-    sizes.fill(MatIntType(0));
+    // Initialize the expected values.
+    axom::for_all<ExecSpace>(numMaterialSlots * nTargetZones, AXOM_LAMBDA(axom::IndexType index)
+    {
+      volume_fractions[index] = MatFloatType{0};
+      material_ids[index] = MaterialEmpty;
+    });
+    axom::for_all<ExecSpace>(nTargetZones, AXOM_LAMBDA(axom::IndexType index)
+    {
+      sizes[index] = MatIntType{0};
+    });
     AXOM_ANNOTATE_END("allocation");
 
     // -------------------------------------------------------------------------
@@ -747,9 +754,9 @@ public:
           // If the zone was not completely covered by other materials, increment
           // its size to include the empty material and set its VF.
           constexpr MatFloatType MatTolerance = 1.e-6;
-          if(sizes[index] == 0 || (1. - vfSum) > MatTolerance)
+          if(sizes[index] == 0 || (MatFloatType{1} - vfSum) > MatTolerance)
           {
-            vfs[sizes[index]] = 1. - vfSum;
+            vfs[sizes[index]] = MatFloatType{1} - vfSum;
             sizes[index]++;
             emptyCount += 1;
           }
