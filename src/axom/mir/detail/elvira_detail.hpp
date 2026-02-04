@@ -324,12 +324,13 @@ public:
       const auto dev_x = m_view.m_x;
       const auto dev_y = m_view.m_y;
       const auto dev_connectivity = m_view.m_connectivity;
-      axom::for_all<ExecSpace>(numCoordValues, AXOM_LAMBDA(axom::IndexType index)
-      {
-        dev_x[index] = CoordType(0);
-        dev_y[index] = CoordType(0);
-        dev_connectivity[index] = ConnectivityType(0);
-      });
+      axom::for_all<ExecSpace>(
+        numCoordValues,
+        AXOM_LAMBDA(axom::IndexType index) {
+          dev_x[index] = CoordType(0);
+          dev_y[index] = CoordType(0);
+          dev_connectivity[index] = ConnectivityType(0);
+        });
     }
 
     conduit::Node &n_sizes = n_topology["elements/sizes"];
@@ -397,10 +398,9 @@ public:
     m_view.m_mat_sizes = utils::make_array_view<MaterialID>(n_mat_sizes);
     {
       const auto dev_mat_sizes = m_view.m_mat_sizes;
-      axom::for_all<ExecSpace>(numFragments, AXOM_LAMBDA(axom::IndexType index)
-      {
-        dev_mat_sizes[index] = MaterialID(0);
-      });
+      axom::for_all<ExecSpace>(
+        numFragments,
+        AXOM_LAMBDA(axom::IndexType index) { dev_mat_sizes[index] = MaterialID(0); });
     }
 
     conduit::Node &n_mat_offsets = n_matset["offsets"];
@@ -611,12 +611,13 @@ public:
       const auto dev_x = m_view.m_x;
       const auto dev_y = m_view.m_y;
       const auto dev_z = m_view.m_z;
-      axom::for_all<ExecSpace>(numCoordValues, AXOM_LAMBDA(axom::IndexType index)
-      {
-        dev_x[index] = CoordType(0);
-        dev_y[index] = CoordType(0);
-        dev_z[index] = CoordType(0);
-      });
+      axom::for_all<ExecSpace>(
+        numCoordValues,
+        AXOM_LAMBDA(axom::IndexType index) {
+          dev_x[index] = CoordType(0);
+          dev_y[index] = CoordType(0);
+          dev_z[index] = CoordType(0);
+        });
     }
 
     // elements (zone definitions)
@@ -634,10 +635,9 @@ public:
       m_view.m_connectivity = utils::make_array_view<ConnectivityType>(n_conn);
       {
         const auto dev_connectivity = m_view.m_connectivity;
-        axom::for_all<ExecSpace>(numConnValues, AXOM_LAMBDA(axom::IndexType index)
-        {
-          dev_connectivity[index] = UnusedValue;
-        });
+        axom::for_all<ExecSpace>(
+          numConnValues,
+          AXOM_LAMBDA(axom::IndexType index) { dev_connectivity[index] = UnusedValue; });
       }
       conduit::Node &n_sizes = n_topology["elements/sizes"];
       n_sizes.set_allocator(c2a.getConduitAllocatorID());
@@ -656,16 +656,15 @@ public:
       n_topology["subelements/shape"] = "polygonal";
       conduit::Node &n_se_conn = n_topology["subelements/connectivity"];
       n_se_conn.set_allocator(c2a.getConduitAllocatorID());
-      const auto seConnSize = numFragments * m_view.m_MAX_FACES_PER_FRAGMENT * m_view.m_MAX_POINTS_PER_FACE;
-      n_se_conn.set(conduit::DataType(
-        utils::cpp2conduit<ConnectivityType>::id, seConnSize));
+      const auto seConnSize =
+        numFragments * m_view.m_MAX_FACES_PER_FRAGMENT * m_view.m_MAX_POINTS_PER_FACE;
+      n_se_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, seConnSize));
       m_view.m_subelement_connectivity = utils::make_array_view<ConnectivityType>(n_se_conn);
       {
         const auto dev_subelement_connectivity = m_view.m_subelement_connectivity;
-        axom::for_all<ExecSpace>(seConnSize, AXOM_LAMBDA(axom::IndexType index)
-        {
-          dev_subelement_connectivity[index] = UnusedValue;
-        });
+        axom::for_all<ExecSpace>(
+          seConnSize,
+          AXOM_LAMBDA(axom::IndexType index) { dev_subelement_connectivity[index] = UnusedValue; });
       }
       conduit::Node &n_se_sizes = n_topology["subelements/sizes"];
       n_se_sizes.set_allocator(c2a.getConduitAllocatorID());
@@ -682,11 +681,12 @@ public:
       {
         const auto dev_subelement_sizes = m_view.m_subelement_sizes;
         const auto dev_subelement_offsets = m_view.m_subelement_offsets;
-        axom::for_all<ExecSpace>(numFragments * m_view.m_MAX_FACES_PER_FRAGMENT, AXOM_LAMBDA(axom::IndexType index)
-        {
-          dev_subelement_sizes[index] = ConnectivityType {0};
-          dev_subelement_offsets[index] = UnusedValue;
-        });
+        axom::for_all<ExecSpace>(
+          numFragments * m_view.m_MAX_FACES_PER_FRAGMENT,
+          AXOM_LAMBDA(axom::IndexType index) {
+            dev_subelement_sizes[index] = ConnectivityType {0};
+            dev_subelement_offsets[index] = UnusedValue;
+          });
       }
     }
 
@@ -749,10 +749,9 @@ public:
     m_view.m_mat_sizes = utils::make_array_view<MaterialID>(n_mat_sizes);
     {
       const auto dev_mat_sizes = m_view.m_mat_sizes;
-      axom::for_all<ExecSpace>(numFragments, AXOM_LAMBDA(axom::IndexType index)
-      {
-        dev_mat_sizes[index] = MaterialID(0);
-      });
+      axom::for_all<ExecSpace>(
+        numFragments,
+        AXOM_LAMBDA(axom::IndexType index) { dev_mat_sizes[index] = MaterialID(0); });
     }
 
     conduit::Node &n_mat_offsets = n_matset["offsets"];
