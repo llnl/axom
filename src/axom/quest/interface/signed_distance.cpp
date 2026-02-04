@@ -61,10 +61,11 @@ static struct parameters_t
 {
   int dimension; /*!< the dimension, 2 or 3 */
 
-  bool verbose;              /*!< logger verbosity */
-  bool is_closed_surface;    /*!< indicates if the input is a closed surface */
-  bool use_shared_memory;    /*!< use Umpire shared memory for the surface mesh */
-  bool compute_sign;         /*!< indicates if sign should be computed */
+  bool verbose;                           /*!< logger verbosity */
+  bool is_closed_surface;                 /*!< indicates if the input is a closed surface */
+  bool use_shared_memory;                 /*!< use Umpire shared memory for the surface mesh */
+  std::size_t shared_memory_segment_size; /*!< minimum shared-memory segment size (bytes) */
+  bool compute_sign;                      /*!< indicates if sign should be computed */
   int allocator_id;          /*!< the allocator ID to create BVH with (-1 for default) */
   SignedDistExec exec_space; /*!< indicates the execution space to run in */
 
@@ -76,6 +77,7 @@ static struct parameters_t
     , verbose(false)
     , is_closed_surface(true)
     , use_shared_memory(false)
+    , shared_memory_segment_size(0)
     , compute_sign(true)
     , allocator_id(-1)
     , exec_space(SignedDistExec::CPU)
@@ -129,7 +131,11 @@ int signed_distance_init(const std::string& file, MPI_Comm comm)
 #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
   if(Parameters.use_shared_memory)
   {
-    rc = internal::read_stl_mesh_shared(file, comm, s_shared_mesh_buffer, s_surface_mesh);
+    rc = internal::read_stl_mesh_shared(file,
+                                        comm,
+                                        s_shared_mesh_buffer,
+                                        s_surface_mesh,
+                                        Parameters.shared_memory_segment_size);
   }
   else
   {
@@ -150,6 +156,10 @@ int signed_distance_init(const std::string& file, MPI_Comm comm)
   // STEP 1: initialized the signed distance query
   s_must_delete_mesh = true;
   rc = signed_distance_init(s_surface_mesh, comm);
+  if(rc != INIT_SUCCESS)
+  {
+    signed_distance_finalize();
+  }
   return rc;
 }
 
@@ -311,6 +321,15 @@ void signed_distance_use_shared_memory(bool status)
   SLIC_WARNING_IF(Parameters.use_shared_memory,
                   s_shared_memory_requirements + " Option is ignored!");
 #endif
+}
+
+//------------------------------------------------------------------------------
+void signed_distance_set_shared_memory_size(std::size_t minSegmentSize)
+{
+  SLIC_ERROR_IF(signed_distance_initialized(),
+                "signed distance query already initialized; setting option has no effect!");
+
+  Parameters.shared_memory_segment_size = minSegmentSize;
 }
 
 //------------------------------------------------------------------------------

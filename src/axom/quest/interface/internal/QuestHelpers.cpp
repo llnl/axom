@@ -25,12 +25,13 @@
   #endif
 #endif
 
-#if defined(AXOM_USE_MFEM) && defined(AXOM_USE_SIDRE)
+#if defined(AXOM_USE_MFEM)
   #include "axom/quest/io/MFEMReader.hpp"
   #include <mfem.hpp>
   #include <map>
 #endif
 
+#include <algorithm>
 #include <limits>
 
 namespace axom
@@ -148,6 +149,8 @@ static void create_communicators(MPI_Comm global_comm,
  * \param [out] z pointer into the buffer where the z-coordinates are stored.
  * \param [out] conn pointer into the buffer consisting the cell-connectivity.
  * \param [out] mesh_buffer raw buffer consisting of all the mesh data.
+ * \param [in] allocation_name the name of the shared memory allocation
+ * \parem [in] min_shared_mem_segment_size the minimum size (in bytes) for the shared buffer
  *
  * \return bytesize the number of bytes in the raw buffer.
  *
@@ -169,13 +172,19 @@ static size_t allocate_shared_buffer(const axom::IndexType mesh_metadata[2],
                                      double*& y,
                                      double*& z,
                                      axom::IndexType*& conn,
-                                     unsigned char*& mesh_buffer)
+                                     unsigned char*& mesh_buffer,
+                                     const std::string& allocation_name,
+                                     std::size_t min_shared_mem_segment_size)
 {
   // Allocate the buffer.
   const axom::IndexType nnodes = mesh_metadata[0];
   const axom::IndexType nfaces = mesh_metadata[1];
   const size_t bytesize = nnodes * 3 * sizeof(double) + nfaces * 3 * sizeof(axom::IndexType);
-  mesh_buffer = allocate<unsigned char>(bytesize, getSharedMemoryAllocatorID());
+
+  constexpr std::size_t overheadBytes = 1024 * 1024;
+  const std::size_t minSegmentSize = std::max(min_shared_mem_segment_size, bytesize + overheadBytes);
+  mesh_buffer =
+    allocate<unsigned char>(bytesize, allocation_name, getSharedMemoryAllocatorID(minSegmentSize));
 
   // calculate offset to the coordinates & cell connectivity in the buffer
   int baseOffset = nnodes * sizeof(double);
@@ -189,17 +198,16 @@ static size_t allocate_shared_buffer(const axom::IndexType mesh_metadata[2],
   z = reinterpret_cast<double*>(&mesh_buffer[z_offset]);
   conn = reinterpret_cast<axom::IndexType*>(&mesh_buffer[conn_offset]);
 
-  return (bytesize);
+  return bytesize;
 }
 
-/*
- * Reads in the surface mesh from the specified file into a shared
- * memory buffer that is attached to the given MPI shared window.
- */
+/// Reads in the surface mesh from the specified file into
+/// a memory buffer shared among ranks on the same node.
 int read_stl_mesh_shared(const std::string& file,
                          MPI_Comm global_comm,
                          unsigned char*& mesh_buffer,
-                         mint::Mesh*& m)
+                         mint::Mesh*& m,
+                         std::size_t min_shared_mem_segment_size)
 {
   SLIC_ASSERT(global_comm != MPI_COMM_NULL);
 
@@ -252,7 +260,16 @@ int read_stl_mesh_shared(const std::string& file,
   double* y = nullptr;
   double* z = nullptr;
   axom::IndexType* conn = nullptr;
-  const size_t numBytes = allocate_shared_buffer(mesh_metadata, x, y, z, conn, mesh_buffer);
+  const std::string allocation_name =
+    std::string {"axom::quest::signed_distance::mesh_buffer::"} + file;
+  const size_t numBytes = allocate_shared_buffer(mesh_metadata,
+                                                 x,
+                                                 y,
+                                                 z,
+                                                 conn,
+                                                 mesh_buffer,
+                                                 allocation_name,
+                                                 min_shared_mem_segment_size);
   SLIC_ASSERT(x != nullptr);
   SLIC_ASSERT(y != nullptr);
   SLIC_ASSERT(z != nullptr);
@@ -435,7 +452,7 @@ int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
   return rc;
 }
 
-#if defined(AXOM_USE_MFEM) && defined(AXOM_USE_SIDRE)
+#if defined(AXOM_USE_MFEM)
 /*
  * Reads in the contour mesh from the specified file.
  */

@@ -15,13 +15,14 @@ import os
 import sys
 import argparse
 
-axom_copyright_str = """// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+axom_copyright_str = """// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 \n\n"""
 
-axom_copyright_begin_str = "Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and"
+axom_copyright_begin_str = "Copyright (c) Lawrence Livermore National Security, LLC and other"
 
 def checkAndAddCopyrightHeader(filename, testOnly=False):
   # Reject a string if it contains some of these terms.

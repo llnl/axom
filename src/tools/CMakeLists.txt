@@ -110,8 +110,7 @@ endif()
 # data_collection_util is a utility that generates blueprint-conforming sidre
 # output files from an input mfem mesh
 #------------------------------------------------------------------------------
-if( AXOM_ENABLE_SIDRE AND AXOM_ENABLE_PRIMAL AND
-    MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+if(AXOM_ENABLE_SIDRE AND AXOM_ENABLE_PRIMAL AND MFEM_FOUND)
 
     set(data_collection_util
         data_collection_util.cpp

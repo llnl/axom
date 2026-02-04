@@ -239,7 +239,7 @@ std::unique_ptr<MeshClipper::Impl> MeshClipper::newImpl()
 
 #if defined(AXOM_USE_MPI)
 template <typename T>
-void globalReduce(axom::Array<T>& values, int reduceOp)
+void globalReduce(axom::Array<T>& values, MPI_Op reduceOp)
 {
   axom::Array<T> localValues(values);
   MPI_Allreduce(localValues.data(),

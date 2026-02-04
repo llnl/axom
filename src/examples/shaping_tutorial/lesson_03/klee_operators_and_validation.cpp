@@ -15,6 +15,7 @@
 #include "axom/core.hpp"
 #include "axom/primal.hpp"
 #include "axom/klee.hpp"
+#include "axom/slic.hpp"
 
 #include "axom/fmt.hpp"
 #include "axom/CLI11.hpp"

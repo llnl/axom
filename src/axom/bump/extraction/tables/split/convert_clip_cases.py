@@ -227,8 +227,9 @@ def write_new_tables(filename, name, tableNames, sizes, offsets, shapes):
     clipping = tableNames[2]
 
     f = open(filename, "wt")
-    f.write("// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and\n")
-    f.write("// other Axom Project Developers. See the top-level LICENSE file for details.\n")
+    f.write("// Copyright (c) Lawrence Livermore National Security, LLC and other\n")
+    f.write("// Axom Project Contributors. See top-level LICENSE and COPYRIGHT\n")
+    f.write("// files for dates and other details.\n")
     f.write("//\n")
     f.write("// SPDX-License-Identifier: (BSD-3-Clause)\n")
 

@@ -94,7 +94,7 @@ if (CONDUIT_FOUND AND UMPIRE_FOUND)
         NAME        quest_candidates_example_ex
         SOURCES     quest_candidates_example.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends} conduit::conduit
+        DEPENDS_ON  ${quest_example_depends} conduit::conduit umpire
         FOLDER      axom/quest/examples
         )
 
@@ -145,7 +145,7 @@ endif()
 
 # Shaping example -------------------------------------------------------------
 if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
-                   AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION
+                   AND AXOM_ENABLE_SIDRE
                    AND AXOM_ENABLE_KLEE)
     axom_add_executable(
         NAME        quest_shaping_driver_ex
@@ -346,119 +346,6 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
     endif()
 endif()
 
-# Shaping in-memory example ------------------------------------------------------
-if((CONDUIT_FOUND OR
-      (AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
-        AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION))
-    AND AXOM_ENABLE_KLEE)
-    if(MFEM_FOUND)
-        set(optional_dependency, "mfem")
-    endif()
-    axom_add_executable(
-        NAME        quest_shape_in_memory_ex
-        SOURCES     quest_shape_in_memory.cpp
-        OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends} ${optional_dependency}
-        FOLDER      axom/quest/examples
-        )
-
-    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
-
-        # this test requires MPI when available (but only 1 rank)
-        set(_nranks 1)
-
-        # Run the in-memory shaping example on with each enabled policy
-        set(_policies "seq")
-        if(RAJA_FOUND)
-            # Hanging issue on Windows
-            if(NOT WIN32)
-                blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
-            endif()
-            blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-            blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
-        endif()
-
-        set(_testshapes "tetmesh" "tet" "hex" "sphere" "cyl" "cone" "sor" "all" "plane")
-        foreach(_policy ${_policies})
-            # sets the number of threads for the omp policy; leave empty for non-omp policies
-            set(_num_threads)
-            if(_policy STREQUAL "omp")
-                set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
-            endif()
-
-            foreach(_testshape ${_testshapes})
-              set(_testname "quest_shape_in_memory_${_policy}_${_testshape}")
-              axom_add_test(
-                NAME ${_testname}
-                COMMAND quest_shape_in_memory_ex
-                           --policy ${_policy}
-                           --testShape ${_testshape}
-                           --refinements 2
-                           --scale 0.75 0.75 0.75
-                           --dir 0.2 0.4 0.8
-                           --meshType bpSidre
-                           inline_mesh --min -2 -2 -2 --max 2 2 2 --res 10 10 10
-                NUM_MPI_TASKS ${_nranks}
-                NUM_OMP_THREADS ${_num_threads})
-            endforeach()
-        endforeach()
-
-        # Test Conduit and MFEM mesh types with a subset of shapes (so it doesn't take too long)
-        set(_testshapes "tetmesh" "sphere" "cyl")
-        set(_testMeshTypes "bpConduit")
-        blt_list_append(TO _testMeshTypes ELEMENTS "mfem" IF MFEM_FOUND)
-        foreach(_policy ${_policies})
-            # sets the number of threads for the omp policy; leave empty for non-omp policies
-            set(_num_threads)
-            if(_policy STREQUAL "omp")
-                set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
-            endif()
-
-            foreach(_testMeshType ${_testMeshTypes})
-              foreach(_testshape ${_testshapes})
-                set(_testname "quest_shape_in_memory_${_policy}_${_testMeshType}_${_testshape}")
-                axom_add_test(
-                  NAME ${_testname}
-                  COMMAND quest_shape_in_memory_ex
-                             --policy ${_policy}
-                             --testShape ${_testshape}
-                             --refinements 2
-                             --scale 0.75 0.75 0.75
-                             --dir 0.2 0.4 0.8
-                             --meshType ${_testMeshType}
-                             inline_mesh --min -2 -2 -2 --max 2 2 2 --res 8 8 8
-                  NUM_MPI_TASKS ${_nranks}
-                  NUM_OMP_THREADS ${_num_threads})
-              endforeach()
-            endforeach()
-        endforeach()
-
-        # Test 2D Triangle shape
-        set(_testshapes "tri")
-        set(_testMeshTypes "bpConduit" "bpSidre")
-        blt_list_append(TO _testMeshTypes ELEMENTS "mfem" IF MFEM_FOUND)
-        foreach(_policy ${_policies})
-            foreach(_testMeshType ${_testMeshTypes})
-              foreach(_testshape ${_testshapes})
-                set(_testname "quest_shape_in_memory_${_policy}_${_testMeshType}_${_testshape}")
-                axom_add_test(
-                  NAME ${_testname}
-                  COMMAND quest_shape_in_memory_ex
-                             --policy ${_policy}
-                             --testShape ${_testshape}
-                             --refinements 2
-                             --scale 0.75 0.75 0.75
-                             --dir 0.2 0.4 0.8
-                             --meshType ${_testMeshType}
-                             inline_mesh --min -2 -2 --max 2 2 --res 2 2
-                  NUM_MPI_TASKS ${_nranks}
-                  NUM_OMP_THREADS ${_num_threads})
-              endforeach()
-            endforeach()
-        endforeach()
-    endif()
-endif()
-
 # Distributed closest point example -------------------------------------------
 if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
     axom_add_executable(
@@ -541,11 +428,14 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_MPI)
 endif()
 
 if(CONDUIT_FOUND)
+    set(quest_marching_cubes_depends ${quest_example_depends} conduit::conduit)
+    blt_list_append(TO quest_marching_cubes_depends IF AXOM_ENABLE_MPI ELEMENTS conduit::conduit_mpi)
+
     axom_add_executable(
             NAME        quest_marching_cubes_ex
             SOURCES     quest_marching_cubes_example.cpp
             OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-            DEPENDS_ON  ${quest_example_depends}
+            DEPENDS_ON  ${quest_marching_cubes_depends}
             FOLDER      axom/quest/examples
             )
 

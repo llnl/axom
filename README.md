@@ -56,7 +56,7 @@ Thanks to all of Axom's
 License
 -------
 
-Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC. 
+Copyright (c) 2017-2026, Lawrence Livermore National Security, LLC. 
 Produced at the Lawrence Livermore National Laboratory.
 
 Copyrights and patents in the Axom project are retained by contributors.
