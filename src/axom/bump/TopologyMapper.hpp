@@ -573,6 +573,7 @@ public:
     axom::spin::BVH<SrcCoordsetView::dimension(), ExecSpace, src_value_type> bvh;
     bvh.setAllocatorID(allocatorID);
     bvh.initialize(srcBoundingBoxesView, srcBoundingBoxesView.size());
+    axom::synchronize<ExecSpace>();
     AXOM_ANNOTATE_END("build");
 
     // -------------------------------------------------------------------------
@@ -650,8 +651,16 @@ public:
         // Handle intersection in-depth of the bounding boxes intersected.
         auto handleIntersection = [&](std::int32_t currentNode, const std::int32_t *leafNodes) {
           const auto srcBboxIndex = leafNodes[currentNode];
-          SLIC_ASSERT(srcBboxIndex >= 0 && srcBboxIndex < srcSelectionView.size());
 
+          // This should not happen but check that we're not given bad values.
+#if !defined(AXOM_DEVICE_CODE)
+          SLIC_ASSERT(srcBboxIndex >= 0 && srcBboxIndex < srcSelectionView.size());
+#else
+          if(srcBboxIndex < 0 || srcBboxIndex >= srcSelectionView.size())
+          {
+            return;
+          }
+#endif
           const auto srcZone = srcSelectionView[srcBboxIndex];
           SLIC_ASSERT(srcZone >= 0 && srcZone < srcView.numberOfZones());
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)

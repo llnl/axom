@@ -64,8 +64,10 @@ public:
   /*!
    * \brief Return a view that contains the list of selected zone ids for the mesh.
    * \return A view that contains the list of selected zone ids for the mesh.
+   *
+   * \note Return a copy of the view.
    */
-  const axom::ArrayView<axom::IndexType> &view() const { return m_selectedZonesView; }
+  const axom::ArrayView<axom::IndexType> view() const { return m_selectedZonesView; }
 
   /*!
    * \brief Return the selection key for the options.
