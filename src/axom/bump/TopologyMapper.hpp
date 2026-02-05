@@ -449,9 +449,9 @@ public:
                  const SrcMatsetView &srcMatsetView,
                  const TargetTopologyView &targetTopoView,
                  const TargetCoordsetView &targetCoordsetView)
-    : m_srcView({srcTopoView, srcCoordsetView})
+    : m_srcView(srcTopoView, srcCoordsetView)
     , m_srcMatsetView(srcMatsetView)
-    , m_targetView({targetTopoView, targetCoordsetView})
+    , m_targetView(targetTopoView, targetCoordsetView)
   { }
 
   /**
