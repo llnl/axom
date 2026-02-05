@@ -547,6 +547,10 @@ public:
     const axom::IndexType nSrcZones = srcSelectionView.size();
     axom::Array<SrcBoundingBox> srcBoundingBoxes(nSrcZones, nSrcZones, allocatorID);
     auto srcBoundingBoxesView = srcBoundingBoxes.view();
+    if(!n_options_copy.has_path(SRC_SELECTED_ZONES))
+    {
+      SLIC_ASSERT(nSrcZones == srcSelectionView.size());
+    }
     axom::for_all<ExecSpace>(
       nSrcZones,
       AXOM_LAMBDA(axom::IndexType index) {
@@ -566,6 +570,10 @@ public:
     SelectedZones<ExecSpace> targetSelection(nTargetZones, n_options_copy, TARGET_SELECTED_ZONES);
     targetSelection.setSorted(false);
     const auto targetSelectionView = targetSelection.view();
+    if(!n_options_copy.has_path(TARGET_SELECTED_ZONES))
+    {
+      SLIC_ASSERT(nTargetZones == targetSelectionView.size());
+    }
     AXOM_ANNOTATE_END("target");
 
     // -------------------------------------------------------------------------
