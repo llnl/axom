@@ -12,12 +12,44 @@
 #include "axom/core/Types.hpp"   // for axom types
 #include "axom/slic.hpp"         // for SLIC macros
 
+#include <type_traits>  // For template magic
+#include <utility>
+
 namespace axom
 {
 namespace spin
 {
 namespace internal
 {
+/*!
+ * \brief Checks if provided InBinCheck can accept a third positional argument representing the
+ *        index of `bvhBox` in the traverser's internal node list.
+ */
+template <typename InBinCheck, typename PointType, typename BoxType, typename IndexType>
+inline bool invoke_InBinCheck(InBinCheck&& B, PointType&& p, BoxType&& bvhBox, IndexType&& node_idx)
+{
+  // Case 1: InBinCheck is invokable as B( p, bvhBox, node_idx )
+  if constexpr(std::is_invocable_v<InBinCheck, PointType, BoxType, IndexType>)
+  {
+    return std::forward<InBinCheck>(B)(std::forward<PointType>(p),
+                                       std::forward<BoxType>(bvhBox),
+                                       std::forward<IndexType>(node_idx));
+  }
+  // Case 2: InBinCheck is invokable as B( p, bvhBox ), which is more common
+  else if constexpr(std::is_invocable_v<InBinCheck, PointType, BoxType>)
+  {
+    return std::forward<InBinCheck>(B)(std::forward<PointType>(p), std::forward<BoxType>(bvhBox));
+  }
+  // Case 3: Neither works
+  else
+  {
+    static_assert(std::is_invocable_v<InBinCheck, PointType, BoxType, IndexType> ||
+                    std::is_invocable_v<InBinCheck, PointType, BoxType>,
+                  "InBinCheck must be callable as B(p, bvhBox, node_idx) or B(p, bvhBox)");
+    return false;
+  }
+}
+
 namespace linear_bvh
 {
 /*!
@@ -93,8 +125,10 @@ AXOM_HOST_DEVICE inline void bvh_traverse(
     {
       BBoxType left_bin = inner_nodes[current_node + 0];
       BBoxType right_bin = inner_nodes[current_node + 1];
-      const bool in_left = left_bin.isValid() ? B(p, left_bin, current_node + 0) : false;
-      const bool in_right = right_bin.isValid() ? B(p, right_bin, current_node + 1) : false;
+      const bool in_left =
+        left_bin.isValid() ? invoke_InBinCheck(B, p, left_bin, current_node + 0) : false;
+      const bool in_right =
+        right_bin.isValid() ? invoke_InBinCheck(B, p, right_bin, current_node + 1) : false;
       std::int32_t l_child = inner_node_children[current_node + 0];
       std::int32_t r_child = inner_node_children[current_node + 1];
       bool swap = Comp(left_bin, right_bin, p);
