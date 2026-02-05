@@ -87,6 +87,8 @@ void generate_query_mesh(mfem::DataCollection& dc,
   mfem::Mesh* query_mesh =
     axom::quest::util::make_cartesian_mfem_mesh_2D(bbox, query_res, queryOrder);
   dc.SetMesh(query_mesh);
+
+  setup_mesh(dc, query_mesh, queryOrder);
 }
 
 //------------------------------------------------------------------------------
@@ -201,7 +203,7 @@ public:
 
   PolylineGWN2D() = default;
 
-  void preprocess(const CurveArrayType& input_curves, int segmentsPerKnotSpan)
+  void preprocess(const CurveArrayType& input_curves, int segmentsPerKnotSpan, bool useDirectEval)
   {
     axom::utilities::Timer timer(true);
     axom::utilities::Timer stage_timer(false);
@@ -251,42 +253,46 @@ public:
     SLIC_INFO(axom::fmt::format("  Preprocessing stage (extract_segments): {} s",
                                 stage_timer.elapsedTimeInSec()));
 
-    stage_timer.reset();
-    stage_timer.start();
+    // If direct evaluation is preferred, skip BVH initialization
+    if(!useDirectEval)
     {
-      AXOM_ANNOTATE_SCOPE("bvh_init");
-      axom::Array<BoxType> aabbs(nlines, nlines);
-      auto aabbs_view = aabbs.view();
-      const auto segments_view = m_segments.view();
+      stage_timer.reset();
+      stage_timer.start();
+      {
+        AXOM_ANNOTATE_SCOPE("bvh_init");
+        axom::Array<BoxType> aabbs(nlines, nlines);
+        auto aabbs_view = aabbs.view();
+        const auto segments_view = m_segments.view();
 
-      axom::for_all<axom::SEQ_EXEC>(
-        nlines,
-        AXOM_LAMBDA(axom::IndexType i) {
-          aabbs_view[i] = BoxType {segments_view[i].source(), segments_view[i].target()};
-        });
-      m_bvh.initialize(aabbs_view, nlines);
+        axom::for_all<axom::SEQ_EXEC>(
+          nlines,
+          AXOM_LAMBDA(axom::IndexType i) {
+            aabbs_view[i] = BoxType {segments_view[i].source(), segments_view[i].target()};
+          });
+        m_bvh.initialize(aabbs_view, nlines);
+      }
+      stage_timer.stop();
+      SLIC_INFO(
+        axom::fmt::format("  Preprocessing stage (bvh): {} s", stage_timer.elapsedTimeInSec()));
+
+      stage_timer.reset();
+      stage_timer.start();
+      {
+        AXOM_ANNOTATE_SCOPE("moments");
+        const auto triangles_view = m_segments.view();
+
+        auto compute_moments = [triangles_view](std::int32_t currentNode,
+                                                const std::int32_t* leafNodes) -> GWNMoments {
+          const auto idx = leafNodes[currentNode];
+          return GWNMoments(triangles_view[idx]);
+        };
+
+        m_internal_moments = m_bvh.template reduceTree<GWNMoments>(compute_moments);
+      }
+      stage_timer.stop();
+      SLIC_INFO(
+        axom::fmt::format("  Preprocessing stage (moments): {} s", stage_timer.elapsedTimeInSec()));
     }
-    stage_timer.stop();
-    SLIC_INFO(axom::fmt::format("  Preprocessing stage (bvh): {} s", stage_timer.elapsedTimeInSec()));
-
-    stage_timer.reset();
-    stage_timer.start();
-    {
-      AXOM_ANNOTATE_SCOPE("moments");
-      const auto triangles_view = m_segments.view();
-
-      auto compute_moments = [triangles_view](std::int32_t currentNode,
-                                              const std::int32_t* leafNodes) -> GWNMoments {
-        const auto idx = leafNodes[currentNode];
-        return GWNMoments(triangles_view[idx]);
-      };
-
-      m_internal_moments = m_bvh.template reduceTree<GWNMoments>(compute_moments);
-    }
-    stage_timer.stop();
-    SLIC_INFO(
-      axom::fmt::format("  Preprocessing stage (moments): {} s", stage_timer.elapsedTimeInSec()));
-
     timer.stop();
     SLIC_INFO(axom::fmt::format("Total preprocessing: {} s", timer.elapsedTimeInSec()));
   }
@@ -315,21 +321,41 @@ public:
     {
       AXOM_ANNOTATE_SCOPE("query");
 
-      const auto traverser = m_bvh.getTraverser();
       const auto segments_view = m_segments.view();
-      const auto internal_moments_view = m_internal_moments.view();
       const primal::WindingTolerances tol_copy = tol;
 
-      axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
-        const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
-                                                                       traverser,
-                                                                       segments_view,
-                                                                       internal_moments_view,
-                                                                       tol_copy);
+      // Use fast approximation
+      if(m_bvh.isInitialized())
+      {
+        const auto traverser = m_bvh.getTraverser();
+        const auto internal_moments_view = m_internal_moments.view();
 
-        winding[static_cast<int>(index)] = wn;
-        inout[static_cast<int>(index)] = std::round(wn);
-      });
+        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+          const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
+                                                                         traverser,
+                                                                         segments_view,
+                                                                         internal_moments_view,
+                                                                         tol_copy);
+
+          winding[static_cast<int>(index)] = wn;
+          inout[static_cast<int>(index)] = std::round(wn);
+        });
+      }
+      // Use direct formula
+      else
+      {
+        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+          const Point2D q = query_point(static_cast<int>(index));
+          double wn {};
+          for(const auto& seg : m_segments)
+          {
+            wn += axom::primal::winding_number(q, seg, tol_copy.edge_tol);
+          }
+
+          winding[static_cast<int>(index)] = wn;
+          inout[static_cast<int>(index)] = std::round(wn);
+        });
+      }
     }
     query_timer.stop();
 
@@ -347,32 +373,21 @@ public:
   }
 
 private:
+  // For the procsesed input curves/BVH leaf nodes
   axom::Array<SegmentType> m_segments;
+
+  // Only needed for fast approximation method
   axom::Array<GWNMoments> m_internal_moments;
   axom::spin::BVH<2, axom::SEQ_EXEC> m_bvh;
 };
 
-using WNQueryType = std::variant<DirectGWN2D, PolylineGWN2D>;
+//------------------------------------------------------------------------------
+// CLI input
+//------------------------------------------------------------------------------
 
-// This framework will make more sense when there are more than two types available
-WNQueryType make_wn_query(bool linearize_curves)
+class Input
 {
-  if(linearize_curves)
-  {
-    return DirectGWN2D {};
-  }
-
-  return PolylineGWN2D {};
-}
-
-int main(int argc, char** argv)
-{
-  axom::slic::SimpleLogger raii_logger;
-
-  axom::CLI::App app {
-    "Load mesh containing collection of curves"
-    " and optionally generate a query mesh of winding numbers."};
-
+public:
   std::string inputFile;
   std::string outputPrefix = {"winding"};
 
@@ -381,7 +396,9 @@ int main(int argc, char** argv)
   bool memoized {true};
   bool vis {true};
 
+  bool linearize {false};
   double segmentsPerKnotSpan {10};
+  bool directPolylineEval {false};
 
   // Query mesh parameters
   std::vector<double> boxMins;
@@ -391,75 +408,120 @@ int main(int argc, char** argv)
 
   primal::WindingTolerances tol;
 
-  app.add_option("-i,--input", inputFile)
-    ->description("MFEM mesh containing contours (1D segments)")
-    ->required()
-    ->check(axom::CLI::ExistingFile);
+  void parse(int argc, char** argv, axom::CLI::App& app)
+  {
+    app.add_option("-i,--input", inputFile)
+      ->description("MFEM mesh containing contours (1D segments)")
+      ->required()
+      ->check(axom::CLI::ExistingFile);
 
-  app.add_option("-o,--output-prefix", outputPrefix)
-    ->description(
-      "Prefix for output 2D query mesh (in MFEM format) mesh containing "
-      "winding number calculations")
-    ->capture_default_str();
+    app.add_option("-o,--output-prefix", outputPrefix)
+      ->description(
+        "Prefix for output 2D query mesh (in MFEM format) mesh containing "
+        "winding number calculations")
+      ->capture_default_str();
 
-  app.add_flag("-v,--verbose", verbose, "verbose output")->capture_default_str();
-  app.add_flag("--memoized,!--no-memoized", memoized, "Cache geometric data during query?")
-    ->capture_default_str();
-  app.add_flag("--vis,!--no-vis", vis, "Should we write out the results for visualization?")
-    ->capture_default_str();
+    app.add_flag("-v,--verbose", verbose, "verbose output")->capture_default_str();
+    app.add_flag("--memoized,!--no-memoized", memoized, "Cache geometric data during query?")
+      ->capture_default_str();
+    app.add_flag("--vis,!--no-vis", vis, "Should we write out the results for visualization?")
+      ->capture_default_str();
 
-  // Options for query tolerances
-  app.add_option("--edge-tol", tol.edge_tol)
-    ->description("Relative edge tolerance for queries")
-    ->check(axom::CLI::PositiveNumber)
-    ->capture_default_str();
-  app.add_option("--eps-tol", tol.EPS)
-    ->description("Additional generic tolerance parameter")
-    ->check(axom::CLI::PositiveNumber)
-    ->capture_default_str();
+    // Options for query tolerances
+    app.add_option("--edge-tol", tol.edge_tol)
+      ->description("Relative edge tolerance for queries")
+      ->check(axom::CLI::PositiveNumber)
+      ->capture_default_str();
+    app.add_option("--eps-tol", tol.EPS)
+      ->description("Additional generic tolerance parameter")
+      ->check(axom::CLI::PositiveNumber)
+      ->capture_default_str();
 
 #ifdef AXOM_USE_CALIPER
-  app.add_option("--caliper", annotationMode)
-    ->description(
-      "caliper annotation mode. Valid options include 'none' and 'report'. "
-      "Use 'help' to see full list.")
-    ->capture_default_str()
-    ->check(axom::utilities::ValidCaliperMode);
+    app.add_option("--caliper", annotationMode)
+      ->description(
+        "caliper annotation mode. Valid options include 'none' and 'report'. "
+        "Use 'help' to see full list.")
+      ->capture_default_str()
+      ->check(axom::utilities::ValidCaliperMode);
 #endif
 
-  // Options for triangulation of the input STEP file
-  auto* linearize_curves_subcommand = app.add_subcommand("linearize_curves")
-                                        ->description("Options for linearizing NURBS curves")
-                                        ->fallthrough();
+    // Options for triangulation of the input STEP file
+    auto* linearize_curves_subcommand = app.add_subcommand("linearize_curves")
+                                          ->description("Options for linearizing NURBS curves")
+                                          ->fallthrough();
 
-  linearize_curves_subcommand->add_option("--num-segments", segmentsPerKnotSpan)
-    ->description("Number of segments for each knot span of each input curve.")
-    ->check(axom::CLI::PositiveNumber)
-    ->capture_default_str();
+    linearize_curves_subcommand->add_option("--num-segments", segmentsPerKnotSpan)
+      ->description("Number of segments for each knot span of each input curve.")
+      ->check(axom::CLI::PositiveNumber)
+      ->capture_default_str();
+    linearize_curves_subcommand
+      ->add_flag(
+        "--direct,!--fast-approximation",
+        directPolylineEval,
+        "Use direct evaluation instead of fast, heirarchical approximation? (significantly "
+        "slower, slightly more precise)")
+      ->capture_default_str();
 
-  auto* query_mesh_subcommand =
-    app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
-  auto* minbb = query_mesh_subcommand->add_option("--min", boxMins)
-                  ->description("Min bounds for box mesh (x,y)")
-                  ->expected(2);
-  auto* maxbb = query_mesh_subcommand->add_option("--max", boxMaxs)
-                  ->description("Max bounds for box mesh (x,y)")
-                  ->expected(2);
-  query_mesh_subcommand->add_option("--res", boxResolution)
-    ->description("Resolution of the box mesh (i,j)")
-    ->expected(2)
-    ->required();
-  query_mesh_subcommand->add_option("--order", queryOrder)
-    ->description("polynomial order of the query mesh")
-    ->check(axom::CLI::PositiveNumber);
+    auto* query_mesh_subcommand =
+      app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
+    auto* minbb = query_mesh_subcommand->add_option("--min", boxMins)
+                    ->description("Min bounds for box mesh (x,y)")
+                    ->expected(2);
+    auto* maxbb = query_mesh_subcommand->add_option("--max", boxMaxs)
+                    ->description("Max bounds for box mesh (x,y)")
+                    ->expected(2);
+    query_mesh_subcommand->add_option("--res", boxResolution)
+      ->description("Resolution of the box mesh (i,j)")
+      ->expected(2)
+      ->required();
+    query_mesh_subcommand->add_option("--order", queryOrder)
+      ->description("polynomial order of the query mesh")
+      ->check(axom::CLI::PositiveNumber);
 
-  // add some requirements -- if user provides minbb or maxbb, we need both
-  minbb->needs(maxbb);
-  maxbb->needs(minbb);
+    // add some requirements -- if user provides minbb or maxbb, we need both
+    minbb->needs(maxbb);
+    maxbb->needs(minbb);
 
-  CLI11_PARSE(app, argc, argv);
+    app.parse(argc, argv);
 
-  axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(annotationMode);
+    linearize = app.got_subcommand("linearize_curves");
+  }
+};
+
+using WNQueryType = std::variant<DirectGWN2D, PolylineGWN2D>;
+
+// This framework will make more sense when there are more than two types available
+WNQueryType make_wn_query(bool linearize_curves)
+{
+  if(linearize_curves)
+  {
+    return PolylineGWN2D {};
+  }
+
+  return DirectGWN2D {};
+}
+
+int main(int argc, char** argv)
+{
+  axom::slic::SimpleLogger raii_logger;
+
+  // Parse command line arguments into input
+  Input input;
+  axom::CLI::App app {
+    "Load mesh containing collection of curves"
+    " and optionally generate a query mesh of winding numbers."};
+
+  try
+  {
+    input.parse(argc, argv, app);
+  }
+  catch(const axom::CLI::ParseError& e)
+  {
+    return app.exit(e);
+  }
+
+  axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(input.annotationMode);
   AXOM_ANNOTATE_SCOPE("winding number example");
 
   axom::Array<NURBSCurve2D> curves;
@@ -467,7 +529,7 @@ int main(int argc, char** argv)
     AXOM_ANNOTATE_SCOPE("read_mesh");
 
     axom::quest::MFEMReader mfem_reader;
-    mfem_reader.setFileName(inputFile);
+    mfem_reader.setFileName(input.inputFile);
 
     const int ret = mfem_reader.read(curves);
     if(ret != axom::quest::MFEMReader::READ_SUCCESS)
@@ -477,7 +539,7 @@ int main(int argc, char** argv)
   }
 
   // Early return if user didn't set up a query mesh
-  if(boxResolution.empty())
+  if(input.boxResolution.empty())
   {
     return 0;
   }
@@ -499,7 +561,7 @@ int main(int argc, char** argv)
     auto wn_query = make_wn_query(app.got_subcommand("linearize_curves"));
 
     // Generate teh query grid and fields
-    generate_query_mesh(dc, bbox, boxMins, boxMaxs, boxResolution, queryOrder);
+    generate_query_mesh(dc, bbox, input.boxMins, input.boxMaxs, input.boxResolution, input.queryOrder);
 
     // Run the preprocess
     std::visit(
@@ -507,25 +569,25 @@ int main(int argc, char** argv)
         using T = std::decay_t<decltype(wn)>;
         if constexpr(std::is_same_v<T, DirectGWN2D>)
         {
-          wn.preprocess(curves, memoized);
+          wn.preprocess(curves, input.memoized);
         }
         else if constexpr(std::is_same_v<T, PolylineGWN2D>)
         {
-          wn.preprocess(curves, segmentsPerKnotSpan);
+          wn.preprocess(curves, input.segmentsPerKnotSpan, input.directPolylineEval);
         }
       },
       wn_query);
 
     // Run the query
-    std::visit([&](auto& wn) { wn.query(dc, tol); }, wn_query);
+    std::visit([&](auto& wn) { wn.query(dc, input.tol); }, wn_query);
   }
 
   // Save the query mesh and fields to disk using a format that can be viewed in VisIt
-  if(vis)
+  if(input.vis)
   {
     AXOM_ANNOTATE_SCOPE("dump_mesh");
 
-    mfem::VisItDataCollection windingDC(outputPrefix, dc.GetMesh());
+    mfem::VisItDataCollection windingDC(input.outputPrefix, dc.GetMesh());
     windingDC.RegisterField("winding", dc.GetField("winding"));
     windingDC.RegisterField("inout", dc.GetField("inout"));
     windingDC.Save();
