@@ -333,9 +333,9 @@ struct PrimalAdaptor
    * \param coordsetView The coordset view to use for initialization.
    */
   AXOM_HOST_DEVICE PrimalAdaptor(const TopologyView &topologyView, const CoordsetView &coordsetView)
-    : m_topologyView(topologyView), m_coordsetView(coordsetView)
-  {
-  }
+    : m_topologyView(topologyView)
+    , m_coordsetView(coordsetView)
+  { }
 
   /*!
    * \brief Return the number of zones in the associated topology view.
