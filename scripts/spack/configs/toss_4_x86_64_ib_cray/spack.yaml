@@ -175,8 +175,6 @@ spack:
     rocprofiler-sdk:
       buildable: false
       externals:
-        - spec: rocprofiler-sdk@6.3.1
-          prefix: /opt/rocm-6.3.1
         - spec: rocprofiler-sdk@6.4.2
           prefix: /opt/rocm-6.4.2
 
