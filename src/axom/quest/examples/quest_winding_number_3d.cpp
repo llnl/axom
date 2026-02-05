@@ -317,7 +317,8 @@ public:
   void preprocess(axom::quest::STEPReader& step_reader,
                   double linear_deflection,
                   double angular_deflection,
-                  bool is_relative)
+                  bool is_relative,
+                  bool useDirectEval)
   {
     axom::utilities::Timer timer(true);
     axom::utilities::Timer stage_timer(false);
@@ -380,41 +381,47 @@ public:
     SLIC_INFO(axom::fmt::format("  Preprocessing stage (extract_triangles): {} s",
                                 stage_timer.elapsedTimeInSec()));
 
-    stage_timer.reset();
-    stage_timer.start();
+    // If direct evaluation is preferred, skip BVH initialization
+    if(!useDirectEval)
     {
-      AXOM_ANNOTATE_SCOPE("bvh_init");
-      axom::Array<BoxType> aabbs(ntris, ntris);
-      auto aabbs_view = aabbs.view();
-      const auto triangles_view = m_triangles.view();
+      stage_timer.reset();
+      stage_timer.start();
+      {
+        AXOM_ANNOTATE_SCOPE("bvh_init");
+        axom::Array<BoxType> aabbs(ntris, ntris);
+        auto aabbs_view = aabbs.view();
+        const auto triangles_view = m_triangles.view();
 
-      axom::for_all<axom::SEQ_EXEC>(
-        ntris,
-        AXOM_LAMBDA(axom::IndexType i) {
-          aabbs_view[i] = BoxType {triangles_view[i][0], triangles_view[i][1], triangles_view[i][2]};
-        });
-      m_bvh.initialize(aabbs_view, ntris);
+        axom::for_all<axom::SEQ_EXEC>(
+          ntris,
+          AXOM_LAMBDA(axom::IndexType i) {
+            aabbs_view[i] =
+              BoxType {triangles_view[i][0], triangles_view[i][1], triangles_view[i][2]};
+          });
+        m_bvh.initialize(aabbs_view, ntris);
+      }
+      stage_timer.stop();
+      SLIC_INFO(
+        axom::fmt::format("  Preprocessing stage (bvh): {} s", stage_timer.elapsedTimeInSec()));
+
+      stage_timer.reset();
+      stage_timer.start();
+      {
+        AXOM_ANNOTATE_SCOPE("moments");
+        const auto triangles_view = m_triangles.view();
+
+        auto compute_moments = [triangles_view](std::int32_t currentNode,
+                                                const std::int32_t* leafNodes) -> GWNMoments {
+          const auto idx = leafNodes[currentNode];
+          return GWNMoments(triangles_view[idx]);
+        };
+
+        m_internal_moments = m_bvh.template reduceTree<GWNMoments>(compute_moments);
+      }
+      stage_timer.stop();
+      SLIC_INFO(
+        axom::fmt::format("  Preprocessing stage (moments): {} s", stage_timer.elapsedTimeInSec()));
     }
-    stage_timer.stop();
-    SLIC_INFO(axom::fmt::format("  Preprocessing stage (bvh): {} s", stage_timer.elapsedTimeInSec()));
-
-    stage_timer.reset();
-    stage_timer.start();
-    {
-      AXOM_ANNOTATE_SCOPE("moments");
-      const auto triangles_view = m_triangles.view();
-
-      auto compute_moments = [triangles_view](std::int32_t currentNode,
-                                              const std::int32_t* leafNodes) -> GWNMoments {
-        const auto idx = leafNodes[currentNode];
-        return GWNMoments(triangles_view[idx]);
-      };
-
-      m_internal_moments = m_bvh.template reduceTree<GWNMoments>(compute_moments);
-    }
-    stage_timer.stop();
-    SLIC_INFO(
-      axom::fmt::format("  Preprocessing stage (moments): {} s", stage_timer.elapsedTimeInSec()));
 
     timer.stop();
     SLIC_INFO(axom::fmt::format("Total preprocessing: {} s", timer.elapsedTimeInSec()));
@@ -444,21 +451,41 @@ public:
     {
       AXOM_ANNOTATE_SCOPE("query");
 
-      const auto traverser = m_bvh.getTraverser();
       const auto triangles_view = m_triangles.view();
-      const auto internal_moments_view = m_internal_moments.view();
       const primal::WindingTolerances tol_copy = tol;
 
-      axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
-        const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
-                                                                       traverser,
-                                                                       triangles_view,
-                                                                       internal_moments_view,
-                                                                       tol_copy);
+      // Use fast approximation
+      if(m_bvh.isInitialized())
+      {
+        const auto traverser = m_bvh.getTraverser();
+        const auto internal_moments_view = m_internal_moments.view();
 
-        winding[static_cast<int>(index)] = wn;
-        inout[static_cast<int>(index)] = std::round(wn);
-      });
+        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+          const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
+                                                                         traverser,
+                                                                         triangles_view,
+                                                                         internal_moments_view,
+                                                                         tol_copy);
+
+          winding[static_cast<int>(index)] = wn;
+          inout[static_cast<int>(index)] = std::round(wn);
+        });
+      }
+      // Use direct formula
+      else
+      {
+        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+          const Point3D q = query_point(static_cast<int>(index));
+          double wn {};
+          for(const auto& tri : m_triangles)
+          {
+            wn += axom::primal::winding_number(q, tri, tol_copy.edge_tol, tol_copy.EPS);
+          }
+
+          winding[static_cast<int>(index)] = wn;
+          inout[static_cast<int>(index)] = std::round(wn);
+        });
+      }
     }
     query_timer.stop();
 
@@ -476,7 +503,10 @@ public:
   }
 
 private:
+  // For the procsesed input curves/BVH leaf nodes
   axom::Array<TriangleType> m_triangles;
+  
+  // Only needed for fast approximation method
   axom::Array<GWNMoments> m_internal_moments;
   axom::spin::BVH<3, axom::SEQ_EXEC> m_bvh;
 };
@@ -502,6 +532,7 @@ public:
   double linear_deflection {0.1};
   double angular_deflection {0.5};
   bool deflection_is_relative {false};
+  bool directTriangleEval {false};
 
   std::vector<double> boxMins;
   std::vector<double> boxMaxs;
@@ -552,6 +583,13 @@ public:
         "--is-relative",
         deflection_is_relative,
         "Is linear deflection in relative to local edge lengths (true) or mesh units (false)")
+      ->capture_default_str();
+
+    triangulate_step_subcommand
+      ->add_flag("--direct,!--fast-approximation",
+                 directTriangleEval,
+                 "Use direct evaluation instead of fast, heirarchical approximation? "
+                 "(significantly slower, slightly more precise)")
       ->capture_default_str();
 
     // Options for query tolerances; for now, only expose the line search and quadrature tolerances
@@ -762,7 +800,8 @@ int main(int argc, char** argv)
           wn.preprocess(step_reader,
                         input.linear_deflection,
                         input.angular_deflection,
-                        input.deflection_is_relative);
+                        input.deflection_is_relative,
+                        input.directTriangleEval);
         }
       },
       wn_query);
