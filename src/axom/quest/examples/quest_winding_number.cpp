@@ -287,7 +287,8 @@ public:
           return GWNMoments(triangles_view[idx]);
         };
 
-        m_internal_moments = m_bvh.template reduceTree<GWNMoments>(compute_moments);
+        const auto traverser = m_bvh.getTraverser();
+        m_internal_moments = traverser.reduce_tree<axom::SEQ_EXEC, GWNMoments>(compute_moments);
       }
       stage_timer.stop();
       SLIC_INFO(

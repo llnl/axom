@@ -416,7 +416,8 @@ public:
           return GWNMoments(triangles_view[idx]);
         };
 
-        m_internal_moments = m_bvh.template reduceTree<GWNMoments>(compute_moments);
+        const auto traverser = m_bvh.getTraverser();
+        m_internal_moments = traverser.reduce_tree<axom::SEQ_EXEC, GWNMoments>(compute_moments);
       }
       stage_timer.stop();
       SLIC_INFO(
@@ -505,7 +506,7 @@ public:
 private:
   // For the procsesed input curves/BVH leaf nodes
   axom::Array<TriangleType> m_triangles;
-  
+
   // Only needed for fast approximation method
   axom::Array<GWNMoments> m_internal_moments;
   axom::spin::BVH<3, axom::SEQ_EXEC> m_bvh;
