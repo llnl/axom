@@ -405,15 +405,6 @@ public:
    */
   void writeVtkFile(const std::string& fileName) const;
 
-  /*!
-   * \brief Iterate over the tree, invoking the leaf action at each leaf node to
-   *        produce a value and then iterate back up the tree, combining nodes
-   *        using a "+" reduction. Return the Array that contains values for
-   *        all tree nodes.
-   */
-  template <typename FieldType, typename LeafAction>
-  axom::Array<FieldType> reduceTree(LeafAction&& lf) const;
-
 private:
   /// \name Private Members
   /// @{
@@ -584,16 +575,6 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::writeVtkFile(const std::string& fil
   SLIC_ASSERT(m_bvh != nullptr);
 
   m_bvh->writeVtkFileImpl(fileName);
-}
-
-//------------------------------------------------------------------------------
-template <int NDIMS, typename ExecSpace, typename FloatType, BVHType Impl>
-template <typename FieldType, typename LeafAction>
-axom::Array<FieldType> BVH<NDIMS, ExecSpace, FloatType, Impl>::reduceTree(LeafAction&& lf) const
-{
-  SLIC_ASSERT(m_bvh != nullptr);
-
-  return m_bvh->template reduceTreeImpl<FieldType, LeafAction>(lf, m_AllocatorID);
 }
 
 }  // namespace spin

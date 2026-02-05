@@ -43,13 +43,20 @@ namespace lbvh = internal::linear_bvh;
  * \brief Traverse a tree to perform user-specified actions at the
  * leaves, while limiting the search to branches satisfying a
  * user-provided predicate.
+ * 
+ * \brief Reduce a tree by invoking a user-specified leaf action at 
+ * each leaf node, then iterating up the tree so the value at each node
+ * is a sum of the value for its children.
  *
  * To initiate traversals, use \a traverse_tree.  It requires
  * -# an action functor to call at the leaves,
  * -# a predicate functor to decide whether to descend a branch and
  * -# some data to pass to the functors
  *
- * Both functors should only access memory that's available to the
+ * To initiate reductions, use \a reduce_tree.  It requires
+ * -# an action functor to call at the leaves,
+ *
+ * All functors should only access memory that's available to the
  * execution space.  For example, GPU execution should access only
  * device and unified memory.
  *
@@ -103,7 +110,89 @@ public:
     lbvh::bvh_traverse(m_inner_nodes, m_inner_node_children, m_leaf_nodes, p, predicate, lf, noTraversePref);
   }
 
+  /*!
+   * \brief Iterate over the tree, invoking the leaf action at each leaf node to
+   *        produce a value and then iterate back up the tree, combining nodes
+   *        using a "+" reduction. Return the Array that contains values for
+   *        all tree nodes.
+   *
+   * \param lf The function to invoke on a leaf node to make its data.
+   * \param allocatorID The allocator to use to allocate array data.
+   *
+   * \return An Array that contains the reduced data for all nodes in the BVH.
+   */
+  template <typename ExecSpace, typename FieldType, typename LeafAction>
+  axom::Array<FieldType> reduce_tree(LeafAction&& lf,
+                                     int allocatorID = axom::getDefaultAllocatorID()) const
+  {
+    // Make a field for all of the nodes (the return field).
+    axom::Array<FieldType> reducedField(m_inner_nodes.size(), m_inner_nodes.size(), allocatorID);
+
+    if constexpr(std::is_same_v<ExecSpace, axom::SEQ_EXEC>)
+    {
+      reduce_recursion(std::forward<LeafAction>(lf), reducedField.view(), 0);
+      reduce_recursion(std::forward<LeafAction>(lf), reducedField.view(), 1);
+    }
+    else
+    {
+      // Do it in 2 stages.
+
+      // Make a field for just the leaf data. Compute it in parallel.
+      axom::Array<FieldType> leafField(m_leaf_nodes.size(), m_leaf_nodes.size(), allocatorID);
+      auto leafFieldView = leafField.view();
+      const std::int32_t* leaf_nodes_data = m_leaf_nodes.data();
+      axom::for_all<ExecSpace>(m_leaf_nodes.size(), [&](axom::IndexType currentNode) {
+        const auto idx = leaf_nodes_data[currentNode];
+        leafFieldView[idx] = lf(static_cast<std::int32_t>(currentNode), leaf_nodes_data);
+      });
+
+      // Return the precomputed values in the reduction.
+      auto returnLeafValue =
+        AXOM_LAMBDA(std::int32_t currentNode, const std::int32_t* leafNodes)->FieldType
+      {
+        const auto idx = leafNodes[currentNode];
+        return leafFieldView[idx];
+      };
+
+      // TODO: Replace this with GPU-compatible code.
+      reduce_recursion(returnLeafValue, reducedField.view(), 0);
+      reduce_recursion(returnLeafValue, reducedField.view(), 1);
+    }
+
+    return reducedField;
+  }
+
 private:
+  /*!
+   * \brief This is a helper method used in reduce_tree.
+   *
+   * \param lf The function to invoke on a leaf node to make its data.
+   * \param node_data The view that contains the traversal order for leaf nodes.
+   * \param current_node The current node.
+   */
+  template <typename FieldType, typename LeafAction>
+  void reduce_recursion(LeafAction&& lf,
+                        axom::ArrayView<FieldType> node_data,
+                        std::int32_t current_node) const
+  {
+    auto child_index = m_inner_node_children[current_node];
+
+    // Check if node is a leaf
+    if(child_index < 0)
+    {
+      node_data[current_node] = lf(-child_index - 1, m_leaf_nodes.data());
+
+      return;
+    }
+
+    // Populate children
+    reduce_recursion(std::forward<LeafAction>(lf), node_data, child_index + 0);
+    reduce_recursion(std::forward<LeafAction>(lf), node_data, child_index + 1);
+
+    // Sum to get value for current node
+    node_data[current_node] = node_data[child_index + 0] + node_data[child_index + 1];
+  }
+
   axom::ArrayView<const BoxType> m_inner_nodes;  // BVH bins including leafs
   axom::ArrayView<const std::int32_t> m_inner_node_children;
   axom::ArrayView<const std::int32_t> m_leaf_nodes;  // leaf data
@@ -167,33 +256,7 @@ public:
     return TraverserType(m_inner_nodes.view(), m_inner_node_children.view(), m_leaf_nodes.view());
   }
 
-  /*!
-   * \brief This method implements a reduction over the tree where the passed function
-   *        is used to generate data at the leaf nodes, after which, interior nodes
-   *        are computed by adding their 2 children with the FieldType's '+' operator.
-   *        An Array containing data for all tree nodes is returned.
-   *
-   * \param lf The function to invoke on a leaf node to make its data.
-   * \param allocatorID The allocator to use to allocate array data.
-   *
-   * \return An Array that contains the reduced data for all nodes in the BVH.
-   */
-  template <typename FieldType, typename LeafAction>
-  axom::Array<FieldType> reduceTreeImpl(LeafAction&& lf, int allocatorID) const;
-
 private:
-  /*!
-   * \brief This is a helper method used in reduceTreeImpl.
-   *
-   * \param lf The function to invoke on a leaf node to make its data.
-   * \param node_data The view that contains the traversal order for leaf nodes.
-   * \param current_node The current node.
-   */
-  template <typename FieldType, typename LeafAction>
-  void reduce_recursion(LeafAction&& lf,
-                        axom::ArrayView<FieldType> node_data,
-                        std::int32_t current_node) const;
-
   void allocate(std::int32_t size, int allocID)
   {
     AXOM_ANNOTATE_SCOPE("LinearBVH::allocate");
@@ -479,72 +542,6 @@ void LinearBVH<FloatType, NDIMS, ExecSpace>::writeVtkFileImpl(const std::string&
 
   // STEP 7: close file
   ofs.close();
-}
-
-template <typename FloatType, int NDIMS, typename ExecSpace>
-template <typename FieldType, typename LeafAction>
-axom::Array<FieldType> LinearBVH<FloatType, NDIMS, ExecSpace>::reduceTreeImpl(LeafAction&& lf,
-                                                                              int allocatorID) const
-{
-  // Make a field for all of the nodes (the return field).
-  axom::Array<FieldType> reducedField(m_inner_nodes.size(), m_inner_nodes.size(), allocatorID);
-
-  if constexpr(std::is_same_v<ExecSpace, axom::SEQ_EXEC>)
-  {
-    reduce_recursion(std::forward<LeafAction>(lf), reducedField.view(), 0);
-    reduce_recursion(std::forward<LeafAction>(lf), reducedField.view(), 1);
-  }
-  else
-  {
-    // Do it in 2 stages.
-
-    // Make a field for just the leaf data. Compute it in parallel.
-    axom::Array<FieldType> leafField(m_leaf_nodes.size(), m_leaf_nodes.size(), allocatorID);
-    auto leafFieldView = leafField.view();
-    const std::int32_t* leaf_nodes_data = m_leaf_nodes.data();
-    axom::for_all<ExecSpace>(m_leaf_nodes.size(), [&](axom::IndexType currentNode) {
-      const auto idx = leaf_nodes_data[currentNode];
-      leafFieldView[idx] = lf(static_cast<std::int32_t>(currentNode), leaf_nodes_data);
-    });
-
-    // Return the precomputed values in the reduction.
-    auto returnLeafValue =
-      AXOM_LAMBDA(std::int32_t currentNode, const std::int32_t* leafNodes)->FieldType
-    {
-      const auto idx = leafNodes[currentNode];
-      return leafFieldView[idx];
-    };
-
-    // TODO: Replace this with GPU-compatible code.
-    reduce_recursion(returnLeafValue, reducedField.view(), 0);
-    reduce_recursion(returnLeafValue, reducedField.view(), 1);
-  }
-
-  return reducedField;
-}
-
-template <typename FloatType, int NDIMS, typename ExecSpace>
-template <typename FieldType, typename LeafAction>
-void LinearBVH<FloatType, NDIMS, ExecSpace>::reduce_recursion(LeafAction&& lf,
-                                                              axom::ArrayView<FieldType> node_data,
-                                                              std::int32_t current_node) const
-{
-  auto child_index = m_inner_node_children[current_node];
-
-  // Check if node is a leaf
-  if(child_index < 0)
-  {
-    node_data[current_node] = lf(-child_index - 1, m_leaf_nodes.data());
-
-    return;
-  }
-
-  // Populate children
-  reduce_recursion(std::forward<LeafAction>(lf), node_data, child_index + 0);
-  reduce_recursion(std::forward<LeafAction>(lf), node_data, child_index + 1);
-
-  // Sum to get value for current node
-  node_data[current_node] = node_data[child_index + 0] + node_data[child_index + 1];
 }
 
 }  // namespace policy
