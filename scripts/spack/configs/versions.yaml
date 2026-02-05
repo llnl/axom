@@ -6,11 +6,10 @@ packages:
   adiak:
     require: 
       - spec: "@0.4.0"
-  # Newer commit than 2.14.0 that fixes rocprofiler dependency
   caliper:
     require:
-      - spec: "@git.7e5b7a5c0eacc077f9b842abf41c9fc7b996ce0c=master"
-  # v2025.12.0
+      - spec: "@2.14.0"
+  # v2025.12
   camp:
     require:
       - spec: "@git.a8caefa9f4c811b1a114b4ed2c9b681d40f12325=main"
@@ -36,7 +35,6 @@ packages:
   scr:
     require:
       - spec: "@3.0.1"
-  # v2025.12.0
   umpire:
     require:
-      - spec: "@git.0372fbd6e1f17d7e6dd72693f8b857f3ec7559e9=develop"
+      - spec: "@2025.12.0"
