@@ -573,7 +573,7 @@ inline void SignedDistance<NDIMS, ExecSpace>::computeDistances(int npts,
         checkCandidate(qpt, curr_min, candidate_idx, surfaceData, surf_pts, computeSigns);
       };
 
-      auto traversePredicate = [&](const PointType& p, const BoxType& bb, std::int32_t) -> bool {
+      auto traversePredicate = [&](const PointType& p, const BoxType& bb) -> bool {
         return axom::primal::squared_distance(p, bb) <= curr_min.minSqDist;
       };
 

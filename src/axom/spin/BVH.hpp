@@ -497,7 +497,7 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findPoints(axom::ArrayView<IndexTyp
   SLIC_ASSERT(m_bvh != nullptr);
 
   // Define traversal predicates
-  auto predicate = [=] AXOM_HOST_DEVICE(const PointType& p, const BoxType& bb, std::int32_t) -> bool {
+  auto predicate = [=] AXOM_HOST_DEVICE(const PointType& p, const BoxType& bb) -> bool {
     return bb.contains(p);
   };
 
@@ -527,7 +527,7 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findRays(axom::ArrayView<IndexType>
   const FloatType TOL = m_tolerance;
 
   // Define traversal predicates
-  auto predicate = [=] AXOM_HOST_DEVICE(const RayType& r, const BoxType& bb, std::int32_t) -> bool {
+  auto predicate = [=] AXOM_HOST_DEVICE(const RayType& r, const BoxType& bb) -> bool {
     primal::Point<FloatType, NDIMS> tmp;
     return primal::detail::intersect_ray(r, bb, tmp, TOL);
   };
@@ -556,7 +556,7 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findBoundingBoxes(axom::ArrayView<I
   SLIC_ASSERT(m_bvh != nullptr);
 
   // STEP 2: define traversal predicates
-  auto predicate = [=] AXOM_HOST_DEVICE(const BoxType& bb1, const BoxType& bb2, std::int32_t) -> bool {
+  auto predicate = [=] AXOM_HOST_DEVICE(const BoxType& bb1, const BoxType& bb2) -> bool {
     return bb1.intersectsWith(bb2);
   };
 

@@ -1509,7 +1509,7 @@ void bvh_compute_point_distances_2d(BVHType& bvh,
       };
 
       // Borrowed from DistributedClosestPoint.
-      auto traversePredicate = [&](const PointType& p, const BoxType& bb, std::int32_t) -> bool {
+      auto traversePredicate = [&](const PointType& p, const BoxType& bb) -> bool {
         auto sqDist = squared_distance(p, bb);
         return sqDist <= curr_min.minSqDist;
       };
