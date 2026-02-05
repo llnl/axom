@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -74,6 +75,10 @@ void about(std::ostream &oss)
 
     comps.push_back("core");
 
+#ifdef AXOM_USE_BUMP
+    comps.push_back("bump");
+#endif
+
 #ifdef AXOM_USE_INLET
     comps.push_back("inlet");
 #endif
@@ -88,6 +93,10 @@ void about(std::ostream &oss)
 
 #ifdef AXOM_USE_MINT
     comps.push_back("mint");
+#endif
+
+#ifdef AXOM_USE_MIR
+    comps.push_back("mir");
 #endif
 
 #ifdef AXOM_USE_PRIMAL

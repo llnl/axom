@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -18,7 +19,7 @@
 #endif
 
 #if !defined(AXOM_USE_MFEM) && !defined(AXOM_USE_CONDUIT)
-  #error Shaping functionality requires Axom to be configured with Conduit or MFEM and the AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION option
+  #error Shaping functionality requires Axom to be configured with Conduit or MFEM
 #endif
 
 #include "axom/sidre.hpp"

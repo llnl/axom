@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -23,6 +24,7 @@ spack:
 
   toolchains:
     rocm_6_4_2:
+    - spec: fflags=-Mfreeform
     - spec: '%c=llvm-amdgpu@6.4.2'
       when: '%c'
     - spec: '%cxx=llvm-amdgpu@6.4.2'
@@ -32,6 +34,7 @@ spack:
     - spec: '%cray-mpich@8.1.29.rocm_6_4_2'
       when: '%mpi'
     rocm_6_3_1:
+    - spec: fflags=-Mfreeform
     - spec: '%c=llvm-amdgpu@6.3.1'
       when: '%c'
     - spec: '%cxx=llvm-amdgpu@6.3.1'
@@ -41,6 +44,8 @@ spack:
     - spec: '%cray-mpich@8.1.29.rocm_6_3_1'
       when: '%mpi'
     cce_20:
+    # Flag for lowercase Fortran module names
+    - spec: fflags=-ef
     - spec: '%c=cce@20.0.0'
       when: '%c'
     - spec: '%cxx=cce@20.0.0'
@@ -67,28 +72,23 @@ spack:
     llvm-amdgpu:
       externals:
       - spec: llvm-amdgpu@6.3.1
-        prefix: /opt/rocm-6.3.1/llvm
+        prefix: /opt/rocm-6.3.1
         extra_attributes:
           compilers:
             c: /opt/rocm-6.3.1/llvm/bin/amdclang
             cxx: /opt/rocm-6.3.1/llvm/bin/amdclang++
             fortran: /opt/rocm-6.3.1/llvm/bin/amdflang
-          flags:
-            fflags: -Mfreeform
           environment: {}
           extra_rpaths: []
       - spec: llvm-amdgpu@6.4.2
-        prefix: /opt/rocm-6.4.2/llvm
+        prefix: /opt/rocm-6.4.2
         extra_attributes:
           compilers:
             c: /opt/rocm-6.4.2/llvm/bin/amdclang
             cxx: /opt/rocm-6.4.2/llvm/bin/amdclang++
             fortran: /opt/rocm-6.4.2/llvm/bin/amdflang
-          flags:
-            fflags: -Mfreeform
           environment: {}
           extra_rpaths: []
-
     cce:
       externals:
       - spec: cce@20.0.0
@@ -98,9 +98,6 @@ spack:
             c: /usr/tce/packages/cce-tce/cce-20.0.0/bin/craycc
             cxx: /usr/tce/packages/cce-tce/cce-20.0.0/bin/crayCC
             fortran: /usr/tce/packages/cce-tce/cce-20.0.0/bin/crayftn
-          # Flag for lowercase Fortran module names
-          flags:
-            fflags: -ef
           environment: {}
           extra_rpaths: []
 
@@ -392,17 +389,17 @@ spack:
     # Devtools are built on rzvernal for compatibility with both
     # rzvernal and rzadams.
     cmake:
-      version: [3.24.2]
+      version: [3.29.2]
       buildable: false
       externals:
-      - spec: cmake@3.24.2
-        prefix: /usr/tce
+      - spec: cmake@3.29.2
+        prefix: /usr/tce/packages/cmake/cmake-3.29.2
     py-shroud:
-      version: [0.13.0]
+      version: [0.14.0]
       buildable: false
       externals:
-      - spec: py-shroud@0.13.0
-        prefix: /collab/usr/gapps/shroud/public/toss_4_x86_64_ib_cray/shroud-0.13.0
+      - spec: py-shroud@0.14.0
+        prefix: /collab/usr/gapps/shroud/public/toss_4_x86_64_ib_cray/shroud-0.14.0
     cppcheck:
       version: [2.18]
       buildable: false

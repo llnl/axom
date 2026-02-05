@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -20,6 +21,7 @@
 #include "axom/export/slic.h"
 
 // C/C++ includes
+#include <exception>
 #include <iostream>
 #include <sstream>
 
@@ -192,6 +194,59 @@ bool isAbortOnWarningsEnabled();
  *          Collective calls may cause the program to hang on abort.
  */
 void setAbortFunction(AbortFunctionPtr abort_func);
+
+/*!
+ * \brief Gets the function called when program abort is requested.
+ *
+ * \return Pointer to the currently registered abort function.
+ * \pre slic::isInitialized() == true.
+ */
+AbortFunctionPtr getAbortFunction();
+
+/// \brief Exception thrown by axom::slic::ScopedAbortToThrow when SLIC aborts.
+struct SlicAbortException final : std::exception
+{
+  const char* what() const noexcept override { return "SLIC abort"; }
+};
+
+/*!
+ * \brief RAII helper that converts SLIC aborts into a C++ exception.
+ *
+ * The previous abort function and abort-on-error state are restored 
+ * when this object goes out of scope.
+ * 
+ * One use of this is for unit tests that want to validate 
+ * SLIC_ERROR/SLIC_ASSERT behavior without using death tests.
+ */
+class ScopedAbortToThrow
+{
+public:
+  ScopedAbortToThrow()
+    : m_prev_abort_on_error(axom::slic::isAbortOnErrorsEnabled())
+    , m_prev_abort_function(axom::slic::getAbortFunction())
+  {
+    axom::slic::enableAbortOnError();
+    axom::slic::setAbortFunction(&ScopedAbortToThrow::abort_to_throw);
+  }
+
+  ScopedAbortToThrow(const ScopedAbortToThrow&) = delete;
+  ScopedAbortToThrow& operator=(const ScopedAbortToThrow&) = delete;
+
+  ~ScopedAbortToThrow()
+  {
+    if(axom::slic::isInitialized())
+    {
+      axom::slic::setAbortFunction(m_prev_abort_function);
+      axom::slic::setAbortOnError(m_prev_abort_on_error);
+    }
+  }
+
+private:
+  static void abort_to_throw() { throw SlicAbortException {}; }
+
+  bool m_prev_abort_on_error {false};
+  AbortFunctionPtr m_prev_abort_function;
+};
 
 /*!
  * \brief Adds the given stream to the given level.

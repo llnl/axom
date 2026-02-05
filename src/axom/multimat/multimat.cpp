@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -687,7 +688,7 @@ void MultiMat::convertToDynamic()
   // Save what the current layout is for later
   //m_static_layout = Layout { m_dataLayout, m_sparsityLayout };  //old version with single layout for all MM
   m_layout_when_static.resize(m_fieldDataLayoutVec.size());
-  const int SZ = m_fieldDataLayoutVec.size();
+  const int SZ = static_cast<int>(m_fieldDataLayoutVec.size());
   for(auto i = 0; i < SZ; i++)
   {
     m_layout_when_static[i].data_layout = m_fieldDataLayoutVec[i];
@@ -776,7 +777,7 @@ void MultiMat::convertToStatic()
     {
       auto& rel_vec = relDyn[i];
       rel_beginvec[i] = rel_data_size;
-      rel_data_size += rel_vec.size();
+      rel_data_size += static_cast<int>(rel_vec.size());
     }
     rel_beginvec.back() = rel_data_size;
     rel_indicesVec.resize(rel_data_size);
@@ -811,7 +812,7 @@ void MultiMat::convertToStatic()
 
   //Change each field to their corresponding sparsity
   //if (m_static_layout.sparsity_layout == SparsityLayout::SPARSE) convertLayoutToSparse();
-  const int SZ = m_layout_when_static.size();
+  const int SZ = static_cast<int>(m_layout_when_static.size());
   for(auto i = 0; i < SZ; i++)
   {
     if(m_layout_when_static[i].sparsity_layout == SparsityLayout::SPARSE)

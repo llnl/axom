@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -24,6 +25,8 @@
   #include "axom/sidre.hpp"
   #include "axom/mint/deprecated/SidreMCArray.hpp"
 #endif
+
+#include "axom/mint/utils/ArrayWrapper.hpp"
 
 namespace axom
 {
@@ -161,8 +164,8 @@ public:
     SLIC_ERROR_IF(cellTypeToInt(m_cell_type) >= NUM_CELL_TYPES, "Unknown cell type.");
 
     m_stride = getCellInfo(cell_type).num_nodes;
-    m_values = std::make_unique<axom::Array<IndexType, 2>>(0, m_stride);
-    m_values->reserve(ID_capacity * m_stride);
+    m_values = axom::Array<IndexType, 2>(0, m_stride);
+    m_values.reserve(ID_capacity * m_stride);
   }
 
   /*!
@@ -182,8 +185,8 @@ public:
   {
     SLIC_ERROR_IF(stride <= 0, "Stride must be greater than zero: " << stride);
 
-    m_values = std::make_unique<axom::Array<IndexType, 2>>(0, m_stride);
-    m_values->reserve(ID_capacity * m_stride);
+    m_values = axom::Array<IndexType, 2>(0, m_stride);
+    m_values.reserve(ID_capacity * m_stride);
   }
 
   /// @}
@@ -222,7 +225,7 @@ public:
     SLIC_ERROR_IF(cellTypeToInt(m_cell_type) >= NUM_CELL_TYPES, "Unknown cell type.");
 
     m_stride = getCellInfo(cell_type).num_nodes;
-    m_values.reset(new ExternalArray<IndexType, 2>(values, {n_IDs, m_stride}, ID_capacity * m_stride));
+    m_values = ExternalArray<IndexType, 2>(values, {n_IDs, m_stride}, ID_capacity * m_stride);
   }
 
   /*!
@@ -252,7 +255,7 @@ public:
     , m_stride(stride)
     , m_storageMode(StorageMode::External)
   {
-    m_values.reset(new ExternalArray<IndexType, 2>(values, {n_IDs, m_stride}, ID_capacity * m_stride));
+    m_values = ExternalArray<IndexType, 2>(values, {n_IDs, m_stride}, ID_capacity * m_stride);
   }
 
   /// @}
@@ -278,7 +281,6 @@ public:
     : m_cell_type(UNDEFINED_CELL)
     , m_stride(-1)
     , m_storageMode(StorageMode::Sidre)
-    , m_values(nullptr)
   {
     m_cell_type = internal::initializeFromGroup(group, m_values);
     m_stride = internal::getStride(group);
@@ -292,8 +294,8 @@ public:
     SLIC_ERROR_IF(m_stride <= 0, "Stride must be greater than zero.");
 
     SLIC_ERROR_IF(
-      m_values->shape()[1] != m_stride,
-      "values array must have " << m_stride << " components, is " << m_values->shape()[1] << ".");
+      m_values.shape()[1] != m_stride,
+      "values array must have " << m_stride << " components, is " << m_values.shape()[1] << ".");
   }
 
   /*!
@@ -320,7 +322,6 @@ public:
     : m_cell_type(cell_type)
     , m_stride(getCellInfo(m_cell_type).num_nodes)
     , m_storageMode(StorageMode::Sidre)
-    , m_values(nullptr)
   {
     SLIC_ERROR_IF(m_cell_type == UNDEFINED_CELL, "Cannot have an undefined cell type.");
 
@@ -333,9 +334,7 @@ public:
     sidre::View* connec_view = elems_group->getView("connectivity");
     axom::IndexType element_capacity =
       ID_capacity == USE_DEFAULT ? USE_DEFAULT : ID_capacity * m_stride;
-    m_values =
-      std::make_unique<sidre::MCArray<IndexType>>(connec_view, 0, m_stride, element_capacity);
-    SLIC_ASSERT(m_values != nullptr);
+    m_values = sidre::MCArray<IndexType>(connec_view, 0, m_stride, element_capacity);
   }
 
   /*!
@@ -374,8 +373,7 @@ public:
     sidre::View* connec_view = elems_group->getView("connectivity");
     axom::IndexType element_capacity =
       ID_capacity == USE_DEFAULT ? USE_DEFAULT : ID_capacity * m_stride;
-    m_values =
-      std::make_unique<sidre::MCArray<IndexType>>(connec_view, 0, m_stride, element_capacity);
+    m_values = sidre::MCArray<IndexType>(connec_view, 0, m_stride, element_capacity);
   }
 
 #endif
@@ -388,17 +386,17 @@ public:
   /*!
    * \brief Returns the total number of IDs.
    */
-  IndexType getNumberOfIDs() const { return m_values->shape()[0]; }
+  IndexType getNumberOfIDs() const { return m_values.shape()[0]; }
 
   /*!
    * \brief Returns the number of IDs available for storage without resizing.
    */
-  IndexType getIDCapacity() const { return m_values->capacity() / m_stride; }
+  IndexType getIDCapacity() const { return m_values.capacity() / m_stride; }
 
   /*!
    * \brief Returns the number of values in this ConnectivityArray instance.
    */
-  IndexType getNumberOfValues() const { return m_values->size(); }
+  IndexType getNumberOfValues() const { return m_values.size(); }
 
   /*!
    * \brief Returns the number of values available for storage without resizing.
@@ -416,10 +414,10 @@ public:
    */
   void reserve(IndexType ID_capacity, IndexType AXOM_UNUSED_PARAM(value_capacity) = 0)
   {
-    SLIC_ERROR_IF(isExternal() && ID_capacity > m_values->capacity(),
+    SLIC_ERROR_IF(isExternal() && ID_capacity > m_values.capacity(),
                   "cannot exceed initial capacity of external buffer!");
 
-    m_values->reserve(ID_capacity * m_stride);
+    m_values.reserve(ID_capacity * m_stride);
   }
 
   /*!
@@ -432,7 +430,7 @@ public:
    */
   void resize(IndexType ID_size, IndexType AXOM_UNUSED_PARAM(value_size) = 0)
   {
-    m_values->resize(ID_size, m_stride);
+    m_values.resize(ID_size, m_stride);
   }
 
   /*!
@@ -440,12 +438,12 @@ public:
    *
    * \post getIDCapacity() == getNumberOfIDs()
    */
-  void shrink() { m_values->shrink(); }
+  void shrink() { m_values.shrink(); }
 
   /*!
    * \brief Get the resize ratio.
    */
-  double getResizeRatio() const { return m_values->getResizeRatio(); }
+  double getResizeRatio() const { return m_values.getResizeRatio(); }
 
   /*!
    * \brief Set the resize ratio.
@@ -454,7 +452,7 @@ public:
    *
    * \post getResizeRatio() == ratio
    */
-  void setResizeRatio(double ratio) { m_values->setResizeRatio(ratio); }
+  void setResizeRatio(double ratio) { m_values.setResizeRatio(ratio); }
 
   /*!
    * \brief Checks if this CellConnecitivity instance has a variable number of
@@ -466,7 +464,7 @@ public:
   /*!
    * \brief Return true if this ConnectivityArray instance is empty.
    */
-  bool empty() const { return m_values->empty(); }
+  bool empty() const { return m_values.empty(); }
 
   /*!
    * \brief Return true iff constructed via the external constructor.
@@ -490,8 +488,8 @@ public:
       return nullptr;
     }
 
-    return static_cast<sidre::MCArray<IndexType>*>(m_values.get())
-      ->getView()
+    return std::get<sidre::MCArray<IndexType>>(m_values.getVariant())
+      .getView()
       ->getOwningGroup()
       ->getParent();
   }
@@ -532,13 +530,13 @@ public:
   IndexType* operator[](IndexType ID)
   {
     SLIC_ASSERT((ID >= 0) && (ID < getNumberOfIDs()));
-    return m_values->data() + ID * m_stride;
+    return m_values.data() + ID * m_stride;
   }
 
   const IndexType* operator[](IndexType ID) const
   {
     SLIC_ASSERT((ID >= 0) && (ID < getNumberOfIDs()));
-    return m_values->data() + ID * m_stride;
+    return m_values.data() + ID * m_stride;
   }
 
   /// @}
@@ -549,9 +547,9 @@ public:
    */
   /// @{
 
-  IndexType* getValuePtr() { return m_values->data(); }
+  IndexType* getValuePtr() { return m_values.data(); }
 
-  const IndexType* getValuePtr() const { return m_values->data(); }
+  const IndexType* getValuePtr() const { return m_values.data(); }
 
   /// @}
 
@@ -617,7 +615,7 @@ public:
   {
     SLIC_ASSERT(values != nullptr);
     SLIC_ASSERT(n_IDs >= 0);
-    m_values->append(ArrayView<const IndexType, 2>(values, {n_IDs, m_stride}));
+    m_values.append(ArrayView<const IndexType, 2>(values, {n_IDs, m_stride}));
   }
 
   /*!
@@ -635,7 +633,7 @@ public:
     SLIC_ASSERT(ID >= 0);
     SLIC_ASSERT(ID < getNumberOfIDs());
     SLIC_ASSERT(values != nullptr);
-    m_values->set(values, m_stride, ID * m_stride);
+    m_values.set(values, m_stride, ID * m_stride);
   }
 
   /*!
@@ -654,7 +652,7 @@ public:
     SLIC_ASSERT(start_ID >= 0);
     SLIC_ASSERT(start_ID + n_IDs <= getNumberOfIDs());
     SLIC_ASSERT(values != nullptr);
-    m_values->set(values, n_IDs * m_stride, start_ID * m_stride);
+    m_values.set(values, n_IDs * m_stride, start_ID * m_stride);
   }
 
   /*!
@@ -700,7 +698,7 @@ public:
     SLIC_ASSERT(start_ID >= 0);
     SLIC_ASSERT(start_ID <= getNumberOfIDs());
     SLIC_ASSERT(values != nullptr);
-    m_values->insert(start_ID * m_stride, ArrayView<const IndexType, 2>(values, {n_IDs, m_stride}));
+    m_values.insert(start_ID * m_stride, ArrayView<const IndexType, 2>(values, {n_IDs, m_stride}));
   }
 
   /// @}
@@ -709,11 +707,7 @@ private:
   CellType m_cell_type;
   IndexType m_stride;
   StorageMode m_storageMode;
-  // We keep a unique_ptr to an axom::Array to polymorphically hold:
-  //  * axom::Array if we own the memory
-  //  * sidre::Array if the memory is stored in Sidre
-  //  * mint::utilities::ExternalArray if the memory is externally-owned
-  std::unique_ptr<axom::Array<IndexType, 2>> m_values;
+  detail::ArrayWrapper<IndexType, 2> m_values;
 
   DISABLE_COPY_AND_ASSIGNMENT(ConnectivityArray);
   DISABLE_MOVE_AND_ASSIGNMENT(ConnectivityArray);

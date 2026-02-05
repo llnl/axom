@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -24,9 +25,16 @@ static constexpr int shapes_for_dimension(int dimension)
   int shapes = 0;
   switch(dimension)
   {
+  case 0:
+    axom::utilities::setBitOn(shapes, Point_ShapeID);
+    break;
+  case 1:
+    axom::utilities::setBitOn(shapes, Line_ShapeID);
+    break;
   case 2:
     axom::utilities::setBitOn(shapes, Tri_ShapeID);
     axom::utilities::setBitOn(shapes, Quad_ShapeID);
+    axom::utilities::setBitOn(shapes, Polygon_ShapeID);
     axom::utilities::setBitOn(shapes, Mixed_ShapeID);
     break;
   case 3:

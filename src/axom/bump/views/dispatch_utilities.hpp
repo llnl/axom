@@ -1,10 +1,13 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #ifndef AXOM_BUMP_DISPATCH_UTILITIES_HPP_
 #define AXOM_BUMP_DISPATCH_UTILITIES_HPP_
+
+#include <conduit/conduit_node.hpp>
 
 namespace axom
 {
@@ -12,32 +15,11 @@ namespace bump
 {
 namespace views
 {
-#if __cplusplus >= 201703L
-// C++17 and later.
 template <typename... Dimensions>
 constexpr int encode_dimensions(Dimensions... dims)
 {
   return (... | dims);
 }
-#else
-template <typename T>
-constexpr int encode_dimensions_impl(T arg)
-{
-  return arg;
-}
-
-template <typename T, typename... Dimensions>
-constexpr int encode_dimensions_impl(T arg, Dimensions... dims)
-{
-  return (arg | encode_dimensions_impl(dims...));
-}
-
-template <typename... Dimensions>
-constexpr int encode_dimensions(Dimensions... dims)
-{
-  return encode_dimensions_impl(dims...);
-}
-#endif
 
 template <typename... Dimensions>
 constexpr int select_dimensions(Dimensions... dims)
@@ -46,6 +28,16 @@ constexpr int select_dimensions(Dimensions... dims)
 }
 
 constexpr bool dimension_selected(int encoded_dims, int dim) { return encoded_dims & (1 << dim); }
+
+/*!
+ * \brief Call Blueprint mesh verify functions and convert the output to SLIC_ERROR
+ *        if the verify method failed.
+ *
+ * \param obj The node that contains the object being checked.
+ * \param protocol The name of the item to check in the mesh. If the string is empty,
+ *                 \a obj node is treated as a mesh and it all gets checked.
+ */
+void verify(const conduit::Node &obj, const std::string &protocol = std::string());
 
 }  // end namespace views
 }  // end namespace bump

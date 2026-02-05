@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -28,12 +29,21 @@ namespace axom
 namespace sina
 {
 
+// Definition with initialization
+CurveSet::CurveOrder sinaDefaultCurveOrder = CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST;
+
+// Function to set the default curve order
+void setDefaultCurveOrder(CurveSet::CurveOrder order) { sinaDefaultCurveOrder = order; }
+
 namespace
 {
 
 constexpr auto INDEPENDENT_KEY = "independent";
 constexpr auto DEPENDENT_KEY = "dependent";
 
+/**
+ * Reset the default sinaCurveOrder, all records created after this will us e that
+ */
 /**
  * Add a curve to the given curve map.
  *
@@ -46,16 +56,16 @@ constexpr auto DEPENDENT_KEY = "dependent";
  */
 void addCurve(Curve &&curve, CurveSet::CurveMap &curves, std::vector<std::string> &nameList)
 {
-  auto &curveName = curve.getName();
+  std::string curveName = curve.getName();  // Make a COPY before moving
   auto existing = curves.find(curveName);
   if(existing == curves.end())
   {
-    curves.insert(std::make_pair(curveName, curve));
-    nameList.emplace_back(curveName);
+    curves.insert(std::make_pair(curveName, std::move(curve)));  // Explicit move
+    nameList.emplace_back(std::move(curveName));                 // Move the copy into the list
   }
   else
   {
-    existing->second = curve;
+    existing->second = std::move(curve);  // Explicit move
   }
 }
 
@@ -202,6 +212,8 @@ conduit::Node CurveSet::toNode(CurveOrder curveOrder) const
   asNode[DEPENDENT_KEY] = createCurveMapNode(dependentCurves, orderedDependentCurveNames, curveOrder);
   return asNode;
 }
+
+conduit::Node CurveSet::toNode() const { return toNode(sinaDefaultCurveOrder); }
 
 }  // namespace sina
 }  // namespace axom

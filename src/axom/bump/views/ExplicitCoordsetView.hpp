@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -38,6 +39,12 @@ public:
 
   /*!
    * \brief Constructor
+   */
+  AXOM_HOST_DEVICE
+  ExplicitCoordsetView() : m_coordinates() { }
+
+  /*!
+   * \brief Constructor
    *
    * \param x The first coordinate component.
    * \param y The second coordinate component.
@@ -46,7 +53,9 @@ public:
   ExplicitCoordsetView(const axom::ArrayView<DataType> &x, const axom::ArrayView<DataType> &y)
     : m_coordinates {x, y}
   {
-    SLIC_ASSERT_MSG(x.size() == y.size(), "Coordinate size mismatch.");
+#if !defined(AXOM_DEVICE_CODE)
+    SLIC_ERROR_IF(x.size() != y.size(), "Coordinate size mismatch.");
+#endif
   }
 
   /*!
@@ -107,6 +116,12 @@ public:
 
   /*!
    * \brief Constructor
+   */
+  AXOM_HOST_DEVICE
+  ExplicitCoordsetView() : m_coordinates() { }
+
+  /*!
+   * \brief Constructor
    *
    * \param x The first coordinate component.
    * \param y The second coordinate component.
@@ -118,7 +133,9 @@ public:
                        const axom::ArrayView<DataType> &z)
     : m_coordinates {x, y, z}
   {
-    SLIC_ASSERT_MSG(x.size() == y.size() && x.size() == z.size(), "Coordinate size mismatch.");
+#if !defined(AXOM_DEVICE_CODE)
+    SLIC_ERROR_IF(x.size() != y.size() || x.size() != z.size(), "Coordinate size mismatch.");
+#endif
   }
 
   /*!

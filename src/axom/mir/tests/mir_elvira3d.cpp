@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -300,20 +301,17 @@ struct test_Elvira3D
     axom::for_all<ExecSpace>(
       matsetView.numberOfZones(),
       AXOM_LAMBDA(axom::IndexType zi) {
-        // Get the materials for this zone.
-        typename MatsetView::IDList ids;
-        typename MatsetView::VFList vfs;
-        matsetView.zoneMaterials(zi, ids, vfs);
-
         // Add the material volumes to the total volumes.
-        for(axom::IndexType i = 0; i < ids.size(); i++)
+        const auto end = matsetView.endZone(zi);
+        for(auto zoneMat = matsetView.beginZone(zi); zoneMat != end; zoneMat++)
         {
-          auto index = axom::utilities::binary_search(sortedIdsView, ids[i]);
+          auto index = axom::utilities::binary_search(sortedIdsView, zoneMat.material_id());
           // RelWithDebInfo workaround - "sortedIdsView.size()" substitutes lambda capture device failure for "nmats"
           SLIC_ASSERT(index >= 0 && index < sortedIdsView.size());
 
           // Use an atomic to sum the value.
-          axom::atomicAdd<ExecSpace>(totalVolumeView.data() + index, zoneVolumes[zi] * vfs[i]);
+          axom::atomicAdd<ExecSpace>(totalVolumeView.data() + index,
+                                     zoneVolumes[zi] * zoneMat.volume_fraction());
         }
       });
 

@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -48,6 +49,11 @@ if(AXOM_ENABLE_TESTS)
     endif()
 
     foreach(_policy ${_policies})
+        set(_num_threads)
+        if(_policy STREQUAL "omp")
+            set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+        endif()
+
         foreach(_testnum ${_test_numbers})
             set(_testname "mir_tutorial_simple_${_policy}_${_testnum}")
             axom_add_test(
@@ -56,7 +62,7 @@ if(AXOM_ENABLE_TESTS)
                     --test-case ${_testnum}
                     --policy ${_policy}
                     --disable-write
-                )
+                NUM_OMP_THREADS ${_num_threads})
 
             set_tests_properties(${_testname} PROPERTIES
                 PASS_REGULAR_EXPRESSION  "Reconstruction time:")

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 #ifndef AXOM_BUMP_SELECTED_ZONES_HPP_
@@ -28,7 +29,7 @@ public:
    * \brief Constructor
    *
    * \param nzones The total number of zones in the associated topology.
-   * \param n_options The node that contains the clipping options.
+   * \param n_options The node that contains the options.
    * \param selectionKey The name of the node with the selection data in the options.
    *
    * The n_options node contains options that influence how the class runs.
@@ -44,11 +45,12 @@ public:
   SelectedZones(axom::IndexType nzones,
                 const conduit::Node &n_options,
                 const std::string &selectionKey = std::string("selectedZones"))
-    : m_selectedZones()
+    : m_selectionKey(selectionKey)
+    , m_selectedZones()
     , m_selectedZonesView()
     , m_sorted(true)
   {
-    buildSelectedZones(nzones, n_options, selectionKey);
+    buildSelectedZones(nzones, n_options);
   }
 
   /*!
@@ -65,6 +67,13 @@ public:
    */
   const axom::ArrayView<axom::IndexType> &view() const { return m_selectedZonesView; }
 
+  /*!
+   * \brief Return the selection key for the options.
+   *
+   * \return The name of the key in the options that this class looks for.
+   */
+  const std::string &selectionKey() const { return m_selectionKey; }
+
 // The following members are protected (unless using CUDA)
 #if !defined(__CUDACC__)
 protected:
@@ -78,23 +87,20 @@ protected:
    *
    * \param nzones The total number of zones that are possible.
    * \param n_options A Conduit node that contains the selection.
-   * \param selectionKey The name of the node with the selection data in the options.
    *
    * \note selectedZones should contain local zone numbers, which in the case of
    *       strided-structured indexing are the [0..n) zone numbers that exist only
    *       within the selected window.
    */
-  void buildSelectedZones(axom::IndexType nzones,
-                          const conduit::Node &n_options,
-                          const std::string &selectionKey)
+  void buildSelectedZones(axom::IndexType nzones, const conduit::Node &n_options)
   {
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
 
-    if(n_options.has_path(selectionKey))
+    if(n_options.has_path(m_selectionKey))
     {
       // Store the zone list in m_selectedZones.
       int badValueCount = 0;
-      views::IndexNode_to_ArrayView(n_options[selectionKey], [&](auto zonesView) {
+      views::IndexNode_to_ArrayView(n_options[m_selectionKey], [&](auto zonesView) {
         // It probably does not make sense to request more zones than we have in the mesh.
         SLIC_ASSERT(zonesView.size() <= nzones);
 
@@ -103,7 +109,7 @@ protected:
 
       if(badValueCount > 0)
       {
-        SLIC_ERROR(axom::fmt::format("Out of range {} values.", selectionKey));
+        SLIC_ERROR(axom::fmt::format("Out of range {} values.", m_selectionKey));
       }
     }
     else
@@ -162,6 +168,7 @@ protected:
 protected:
 #endif
 
+  std::string m_selectionKey;
   axom::Array<axom::IndexType> m_selectedZones;  // Storage for a list of selected zone ids.
   axom::ArrayView<axom::IndexType> m_selectedZonesView;
   bool m_sorted;

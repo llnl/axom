@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -405,6 +406,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const VariableShape<T, 3> &shape1,
  * \tparam SrcMatsetView The view type for the source matset.
  * \tparam TargetTopologyView The view type for the target topology.
  * \tparam TargetCoordsetView The view type for the target coordset.
+ * \tparam MAX_VERTS_2D The maximum number of vertices allowed in a polygon. This
+ *                      value is used only in 2D.
  * \tparam makeFaces Make faces instead of proper Polyhedron zones when polyhedra
  *                   are involved. This enables faster conversion between Blueprint
  *                   and Axom since making planes is less complicated than Axom's
@@ -421,6 +424,7 @@ template <typename ExecSpace,
           typename SrcMatsetView,
           typename TargetTopologyView,
           typename TargetCoordsetView,
+          int MAX_VERTS_2D = 12,
           bool makeFaces = true>
 class TopologyMapper
 {
@@ -428,8 +432,8 @@ public:
   static_assert(SrcCoordsetView::dimension() == TargetCoordsetView::dimension(),
                 "coordset dimension mismatch");
 
-  using SrcShapeView = PrimalAdaptor<SrcTopologyView, SrcCoordsetView, makeFaces>;
-  using TargetShapeView = PrimalAdaptor<TargetTopologyView, TargetCoordsetView>;
+  using SrcShapeView = PrimalAdaptor<SrcTopologyView, SrcCoordsetView, MAX_VERTS_2D, makeFaces>;
+  using TargetShapeView = PrimalAdaptor<TargetTopologyView, TargetCoordsetView, MAX_VERTS_2D>;
 
   /**
    * \brief Constructor
@@ -620,8 +624,12 @@ public:
     axom::for_all<ExecSpace>(
       targetSelectionView.size(),
       AXOM_LAMBDA(axom::IndexType index) {
+        SLIC_ASSERT(index >= 0 && index < targetSelectionView.size());
+
         // Get the target zone as a primal shape.
         const axom::IndexType zi = targetSelectionView[index];
+        SLIC_ASSERT(zi >= 0 && zi < targetView.numberOfZones());
+
         const auto targetBBox = targetView.getBoundingBox(zi);
         const auto targetShape = targetView.getShape(zi);
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
@@ -635,7 +643,10 @@ public:
         // Handle intersection in-depth of the bounding boxes intersected.
         auto handleIntersection = [&](std::int32_t currentNode, const std::int32_t *leafNodes) {
           const auto srcBboxIndex = leafNodes[currentNode];
+          SLIC_ASSERT(srcBboxIndex >= 0 && srcBboxIndex < srcSelectionView.size());
+
           const auto srcZone = srcSelectionView[srcBboxIndex];
+          SLIC_ASSERT(srcZone >= 0 && srcZone < srcView.numberOfZones());
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
           std::cout << "handleIntersection: targetZone=" << zi << ", srcZone=" << srcZone
                     << std::endl;
@@ -653,11 +664,9 @@ public:
 
             // Get the src material - there should just be one because we assume
             // that a clean matset is being mapped.
-            typename SrcMatsetView::IDList zoneMatIds;
-            typename SrcMatsetView::VFList zoneMatVFs;
-            srcMatsetView.zoneMaterials(srcZone, zoneMatIds, zoneMatVFs);
-            SLIC_ASSERT(zoneMatIds.size() == 1);
-            const auto mat = zoneMatIds[0];
+            auto zoneMat = srcMatsetView.beginZone(srcZone);
+            SLIC_ASSERT(zoneMat.size() == 1);
+            const auto mat = zoneMat.material_id();
 
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
             std::cout << "\tintersection:" << std::endl

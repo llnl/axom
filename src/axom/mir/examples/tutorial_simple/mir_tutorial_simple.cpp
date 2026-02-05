@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -43,11 +44,12 @@ struct Input
   axom::CLI::App m_app {};
 
   /// Parse command line.
-  int parse(int argc, char **argv)
+  void parse(int argc, char **argv)
   {
     m_app.add_option("--test-case", m_test_case)
       ->check(axom::CLI::Range(1, 5))
-      ->description("Select the test case.");
+      ->description("Select the test case.")
+      ->capture_default_str();
 
     m_output_dir = axom::utilities::filesystem::getCWD();
     m_app.add_option("--output-dir", m_output_dir)
@@ -60,17 +62,18 @@ struct Input
       ->description("The number of iterations for MIR");
 
     m_app.add_option("--iter-percent", m_iter_percent)
-      ->check(axom::CLI::Bound(1.e-6, 10.)
+      ->check(axom::CLI::Bound(1.e-6, 10.))
       ->description("The percent error for iterative MIR");
 #endif
 
-    m_app.add_flag("--verbose", m_verbose)->description("Verbose output");
-    m_app.add_flag("--disable-write", m_disable_write)->description("Disable writing data files");
+    m_app.add_flag("-v,--verbose", m_verbose)->description("Verbose output")->capture_default_str();
+    m_app.add_flag("--disable-write", m_disable_write)
+      ->description("Disable writing data files")
+      ->capture_default_str();
 
 #if defined(AXOM_USE_CALIPER)
     m_app.add_option("--caliper", m_annotationMode)
-      ->description(
-        "caliper annotation mode. Valid options include 'none' and 'report'. ")
+      ->description("caliper annotation mode. Valid options include 'none' and 'report'. ")
       ->capture_default_str()
       ->check(axom::utilities::ValidCaliperMode);
 #endif
@@ -91,24 +94,9 @@ struct Input
 #endif
     m_app.add_option("-p, --policy", m_policy, pol_sstr.str())
       ->capture_default_str()
-      ->transform(
-        axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
+      ->transform(axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
 
-    // Parse command line options.
-    try
-    {
-      m_app.parse(argc, argv);
-    }
-    catch(const axom::CLI::CallForHelp &e)
-    {
-      std::cout << m_app.help() << std::endl;
-    }
-    catch(const axom::CLI::ParseError &e)
-    {
-      return m_app.exit(e);
-    }
-
-    return 0;
+    m_app.parse(argc, argv);
   }
 
   bool shouldIterate() const { return m_should_iterate; }
@@ -137,11 +125,15 @@ int main(int argc, char **argv)
 
   // Parse arguments
   Input params;
-  int retval = params.parse(argc, argv);
-  if(retval != 0)
+  try
   {
-    return retval;
+    params.parse(argc, argv);
   }
+  catch(const axom::CLI::ParseError &e)
+  {
+    return params.m_app.exit(e);
+  }
+
 #if defined(AXOM_USE_CALIPER)
   axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(params.m_annotationMode);
 #endif
@@ -212,6 +204,8 @@ int main(int argc, char **argv)
   options["iterate"] = params.shouldIterate() ? 1 : 0;
   options["iterate_percentage"] = params.iterPercentage();
 #endif
+
+  int retval {};
 
   // Run MIR. Note - the runMIR_xxx functions currently handle just the
   // topology types that are created by MeshTester: unstructured (tet, quad, hex).

@@ -1,0 +1,29 @@
+--- fmt/include/fmt/format.h	2026-01-13 13:48:05.116765000 -0800
++++ format.h	2026-01-13 13:48:05.506544000 -0800
+@@ -1650,9 +1650,14 @@
+   return {multiply(x.f, y.f), x.e + y.e + 64};
+ }
+ 
++// BEGIN AXOM BUGFIX
+ template <typename T, bool doublish = num_bits<T>() == num_bits<double>()>
+ using convert_float_result =
+-    conditional_t<std::is_same<T, float>::value || doublish, double, T>;
++    conditional_t<std::is_same<T, float>::value ||
++                      std::numeric_limits<T>::digits ==
++                          std::numeric_limits<double>::digits,
++                  double, T>;
++// END AXOM BUGFIX
+ 
+ template <typename T>
+ constexpr auto convert_float(T value) -> convert_float_result<T> {
+@@ -2746,7 +2751,9 @@
+   }
+ 
+  public:
+-  FMT_CONSTEXPR bigint() : exp_(0) {}
++  // BEGIN AXOM BUGFIX
++  FMT_CONSTEXPR20 bigint() : exp_(0) {}
++  // END AXOM BUGFIX
+   explicit bigint(uint64_t n) { assign(n); }
+ 
+   bigint(const bigint&) = delete;

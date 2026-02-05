@@ -1,13 +1,21 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "gtest/gtest.h"
+#include "axom/config.hpp"
 #include "axom/core/Types.hpp"
+#include "axom/core/utilities/FileUtilities.hpp"
 #include "axom/sidre/core/ConduitMemory.hpp"
 #include "axom/slic.hpp"
 #include "axom/sidre.hpp"
+
+#include "conduit_relay.hpp"
+
+#include <map>
+#include <set>
 
 using axom::sidre::Buffer;
 using axom::sidre::CHAR8_STR_ID;
@@ -359,16 +367,6 @@ TEST(sidre_view, scalar_view)
   s0view->deallocate();
 
   View* empty = root->createView("empty");
-#if 0
-  try
-  {
-    int* j = empty->getScalar();
-    //int j = empty->getScalar();
-    EXPECT_EQ(0, *j);
-  }
-  catch ( conduit::Error e)
-  {}
-#endif
   const char* svalue = empty->getString();
   EXPECT_EQ(nullptr, svalue);
 
@@ -376,6 +374,87 @@ TEST(sidre_view, scalar_view)
 }
 
 //------------------------------------------------------------------------------
+
+TEST(sidre_view, io_state_string_compatibility)
+{
+  namespace fs = axom::utilities::filesystem;
+
+  DataStore ds;
+  Group* root = ds.getRoot();
+
+#if defined(AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING)
+  const std::string expected_scalar_state = "SCALAR";
+#else
+  const std::string expected_scalar_state = "TUPLE";
+#endif
+
+  root->createView("scalar")->setScalar(42);
+
+  axom::Array<int> tuple_values(2, 0);
+  tuple_values[0] = 1;
+  tuple_values[1] = 2;
+  root->createView("tuple")->setTuple(tuple_values.view());
+
+  fs::TempFile tmp_file("sidre_view_io_state_compat", ".sidre.json");
+  ASSERT_TRUE(root->save(tmp_file.getPath(), "sidre_json"));
+
+  conduit::Node n;
+  conduit::relay::io::load(tmp_file.getPath(), "json", n);
+  ASSERT_TRUE(n.has_path("sidre/views/scalar/state"));
+  ASSERT_TRUE(n.has_path("sidre/views/tuple/state"));
+  EXPECT_EQ(expected_scalar_state, n["sidre/views/scalar/state"].as_string());
+  EXPECT_EQ(std::string("TUPLE"), n["sidre/views/tuple/state"].as_string());
+}
+
+TEST(sidre_view, io_import_accepts_scalar_state_string)
+{
+  namespace fs = axom::utilities::filesystem;
+
+  DataStore ds;
+  Group* root = ds.getRoot();
+  root->createView("scalar")->setScalar(7);
+
+  fs::TempFile tmp_file("sidre_view_io_import_accepts_scalar", ".sidre.json");
+  ASSERT_TRUE(root->save(tmp_file.getPath(), "sidre_json"));
+
+  conduit::Node n;
+  conduit::relay::io::load(tmp_file.getPath(), "json", n);
+  ASSERT_TRUE(n.has_path("sidre/views/scalar/state"));
+  n["sidre/views/scalar/state"] = "SCALAR";
+
+  fs::TempFile patched_file("sidre_view_io_import_accepts_scalar_patched", ".sidre.json");
+  conduit::relay::io::save(n, patched_file.getPath(), "json");
+
+  DataStore ds2;
+  Group* root2 = ds2.getRoot();
+  ASSERT_TRUE(root2->load(patched_file.getPath(), "sidre_json"));
+
+  View* v = root2->getView("scalar");
+  ASSERT_NE(v, nullptr);
+  EXPECT_TRUE(v->isScalar());
+  EXPECT_EQ(7, v->getNode().to_int64());
+}
+
+TEST(sidre_view, io_roundtrip_scalar_state_string)
+{
+  namespace fs = axom::utilities::filesystem;
+
+  DataStore ds;
+  Group* root = ds.getRoot();
+  root->createView("scalar")->setScalar(7);
+
+  fs::TempFile tmp_file("sidre_view_io_roundtrip_scalar", ".sidre.json");
+  ASSERT_TRUE(root->save(tmp_file.getPath(), "sidre_json"));
+
+  DataStore ds2;
+  Group* root2 = ds2.getRoot();
+  ASSERT_TRUE(root2->load(tmp_file.getPath(), "sidre_json"));
+
+  View* v = root2->getView("scalar");
+  ASSERT_NE(v, nullptr);
+  EXPECT_TRUE(v->isScalar());
+  EXPECT_EQ(7, v->getNode().to_int64());
+}
 
 // Most tests deallocate via the DataStore destructor
 // This is an explicit deallocate test
@@ -2014,6 +2093,58 @@ TEST(sidre_view, deep_copy_to_conduit)
 
     ds.getRoot()->destroyGroup("src");
   }
+}
+
+//------------------------------------------------------------------------------
+
+TEST(sidre_view, deep_copy_to_conduit_with_allocid)
+{
+  using axom::sidre::ConduitMemory;
+
+  std::vector<int> allocIds = getKnownAllocIds();
+  for(std::size_t si = 0; si < allocIds.size(); ++si)
+  {
+    auto aId = allocIds[si];
+    auto cId = ConduitMemory::axomAllocIdToConduit(aId);
+    std::cout << "si=" << si << "  axomAllocId=" << aId << "  conduitAllocId=" << cId << std::endl;
+  }
+  if(allocIds.size() < 2)
+  {
+    std::cout << "Skipping test deep_copy_to_conduit_with_allocid."
+                 "At least 2 allocators are needed to test."
+              << std::endl;
+    return;
+  }
+
+  DataStore ds;
+
+  Group* srcGrp = ds.getRoot()->createGroup("src");
+  View* srcView = srcGrp->createView("a");
+  srcView->setScalar(int(15));
+
+  // Copy srcView to conduit destinations, varying the allocator.
+  for(std::size_t si = 0; si < allocIds.size(); ++si)
+  {
+    // dst1 uses default Conduit allocator
+    conduit::Node dst1;
+    auto defaultConduitAllocId = dst1.allocator();
+    srcView->deepCopyToConduit(dst1);
+    EXPECT_EQ(dst1.allocator(), defaultConduitAllocId);
+
+    // dst2 sets and uses allocator allocIds[si]
+    conduit::Node dst2;
+    dst2.set_allocator(ConduitMemory::axomAllocIdToConduit(allocIds[si]));
+    srcView->deepCopyToConduit(dst2);
+    EXPECT_EQ(ConduitMemory::conduitAllocIdToAxom(dst2.allocator()), allocIds[si]);
+
+    // dst3 sets allocator allocIds[si] but overrides it in the copy
+    conduit::Node dst3;
+    dst3.set_allocator(ConduitMemory::axomAllocIdToConduit(allocIds[si]));
+    srcView->deepCopyToConduit(dst3, allocIds[0]);
+    EXPECT_EQ(ConduitMemory::conduitAllocIdToAxom(dst3.allocator()), allocIds[0]);
+  }
+
+  ds.getRoot()->destroyGroup("src");
 }
 
 //------------------------------------------------------------------------------

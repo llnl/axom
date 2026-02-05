@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -29,9 +30,10 @@ void braid3d_mat_test(const std::string &type, const std::string &mattype, const
   axom::StackArray<axom::IndexType, 3> zoneDims {dims[0] - 1, dims[1] - 1, dims[2] - 1};
 
   // Create the data
+  const bool cleanMats = false;
   conduit::Node hostMesh, deviceMesh;
   axom::blueprint::testing::data::braid(type, dims, hostMesh);
-  axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, hostMesh);
+  axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, cleanMats, hostMesh);
   utils::copy<ExecSpace>(deviceMesh, hostMesh);
   TestApp.saveVisualization(name + "_orig", hostMesh);
 

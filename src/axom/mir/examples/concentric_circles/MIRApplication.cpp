@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -42,7 +43,8 @@ int MIRApplication::initialize(int argc, char **argv)
   app.add_option("--gridsize", gridSize)
     ->check(axom::CLI::PositiveNumber)
     ->description("The number of zones along an axis.");
-  app.add_option("--method", method)->description("The MIR method name (equiz, elvira)");
+  app.add_option("--method", method)
+    ->description("The MIR method (or operation) name (equiz, elvira, traversal)");
   app.add_option("--numcircles", numCircles)
     ->check(axom::CLI::PositiveNumber)
     ->description("The number of circles to use for material creation.");
@@ -108,6 +110,7 @@ int MIRApplication::initialize(int argc, char **argv)
 int MIRApplication::execute()
 {
   axom::slic::SimpleLogger logger(axom::slic::message::Info);
+  axom::slic::setLoggingMsgLevel(axom::slic::message::Debug);
 
   if(handler)
   {
@@ -172,6 +175,7 @@ int MIRApplication::runMIR()
   }
 
   // Begin material interface reconstruction
+  timer.reset();
   timer.start();
   conduit::Node options, resultMesh;
   options["matset"] = "mat";

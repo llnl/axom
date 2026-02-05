@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -87,6 +88,38 @@ enum RuntimePolicy
   raja_omp = 2,
   raja_cuda = 3,
   raja_hip = 4
+};
+
+template <>
+struct axom::fmt::formatter<RuntimePolicy> : axom::fmt::formatter<std::string>
+{
+  template <typename FormatContext>
+  auto format(const RuntimePolicy& policy, FormatContext& ctx) const
+  {
+    std::string name = "unknown";
+    switch(policy)
+    {
+    case seq:
+      name = "seq";
+      break;
+    case raja_seq:
+      name = "raja_seq";
+      break;
+    case raja_omp:
+      name = "raja_omp";
+      break;
+    case raja_cuda:
+      name = "raja_cuda";
+      break;
+    case raja_hip:
+      name = "raja_hip";
+      break;
+    default:
+      name = "unknown";
+      break;
+    }
+    return axom::fmt::formatter<std::string>::format(name, ctx);
+  }
 };
 
 struct Input
@@ -252,7 +285,7 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
     }());
 
   const std::string policy_str = (method == "naive" || method == "bvh")
-    ? axom::fmt::format("\n  policy = {} {}", policy,
+    ? axom::fmt::format("\n  policy = {} {}", static_cast<int>(policy),
       [this]() -> std::string {
         switch(this->policy)
         {

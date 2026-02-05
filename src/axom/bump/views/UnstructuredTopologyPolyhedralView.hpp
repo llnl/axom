@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -17,6 +18,7 @@ namespace bump
 {
 namespace views
 {
+
 /*!
  * \brief This class implements a view for Blueprint polyhedral topologies.
  */
@@ -48,7 +50,18 @@ public:
       , m_element_sizes(element_sizes)
       , m_element_offsets(element_offsets)
       , m_indexing(element_sizes.size())
-    { }
+    {
+#if !defined(AXOM_DEVICE_CODE)
+      SLIC_ERROR_IF(subelement_conn.empty() && !subelement_sizes.empty(),
+                    "Array views for subelements are inconsistent.");
+      SLIC_ERROR_IF(subelement_sizes.size() != subelement_offsets.size(),
+                    "Array views for subelement sizes,offsets have different sizes.");
+      SLIC_ERROR_IF(element_conn.empty() && !element_sizes.empty(),
+                    "Array views for elements are inconsistent.");
+      SLIC_ERROR_IF(element_sizes.size() != element_offsets.size(),
+                    "Array views for element sizes,offsets have different sizes.");
+#endif
+    }
 
     /// Copy Constructor
     AXOM_HOST_DEVICE
@@ -74,13 +87,9 @@ public:
   /*!
    * \brief This struct provides data about Zone i's shape.
    */
-  struct PolyhedronShape
+  struct PolyhedronShape : public PolyhedronTraits
   {
     constexpr static IndexType MaximumNumberOfIds = 20 * 3;
-
-    AXOM_HOST_DEVICE constexpr static bool is_polyhedral() { return true; }
-    AXOM_HOST_DEVICE constexpr static int id() { return Polyhedron_ShapeID; }
-    AXOM_HOST_DEVICE constexpr static const char *name() { return "polyhedral"; }
 
     /// Constructor.
     AXOM_HOST_DEVICE PolyhedronShape(const PolyhedronData &obj, axom::IndexType zi)

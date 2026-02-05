@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -1476,6 +1477,15 @@ bool Group::createNativeLayout(Node& n, const Attribute* attr) const
  */
 bool Group::deepCopyToConduit(Node& dst, int tupleAllocId, int arrayAllocId, const Attribute* attr) const
 {
+  if(tupleAllocId == INVALID_ALLOCATOR_ID)
+  {
+    tupleAllocId = ConduitMemory::conduitAllocIdToAxom(dst.allocator());
+  }
+  if(arrayAllocId == INVALID_ALLOCATOR_ID)
+  {
+    arrayAllocId = ConduitMemory::conduitAllocIdToAxom(dst.allocator());
+  }
+
   dst.set(DataType::object());
   bool hasSavedViews = false;
 

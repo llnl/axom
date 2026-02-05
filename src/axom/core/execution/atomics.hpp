@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -139,12 +140,20 @@ namespace axom
 struct auto_atomic
 { };
 
+template <typename ExecSpace>
+struct is_serial_atomic_exec
+{
+  static constexpr bool value =
+    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
+};
+
+template <typename ExecSpace>
+constexpr bool is_serial_atomic_exec_v = is_serial_atomic_exec<ExecSpace>::value;
+
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicAdd(T* address, T value)
 {
-  constexpr bool is_serial =
-    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
-  AXOM_STATIC_ASSERT(is_serial);
+  static_assert(is_serial_atomic_exec_v<ExecSpace>);
   const T retval = *address;
   *address += value;
   return retval;
@@ -153,9 +162,7 @@ inline AXOM_HOST_DEVICE T atomicAdd(T* address, T value)
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicSub(T* address, T value)
 {
-  constexpr bool is_serial =
-    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
-  AXOM_STATIC_ASSERT(is_serial);
+  static_assert(is_serial_atomic_exec_v<ExecSpace>);
   const T retval = *address;
   *address -= value;
   return retval;
@@ -164,9 +171,7 @@ inline AXOM_HOST_DEVICE T atomicSub(T* address, T value)
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicMin(T* address, T value)
 {
-  constexpr bool is_serial =
-    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
-  AXOM_STATIC_ASSERT(is_serial);
+  static_assert(is_serial_atomic_exec_v<ExecSpace>);
   const T retval = *address;
   *address = axom::utilities::min(*address, value);
   return retval;
@@ -175,9 +180,7 @@ inline AXOM_HOST_DEVICE T atomicMin(T* address, T value)
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicMax(T* address, T value)
 {
-  constexpr bool is_serial =
-    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
-  AXOM_STATIC_ASSERT(is_serial);
+  static_assert(is_serial_atomic_exec_v<ExecSpace>);
   const T retval = *address;
   *address = axom::utilities::max(*address, value);
   return retval;
@@ -186,9 +189,7 @@ inline AXOM_HOST_DEVICE T atomicMax(T* address, T value)
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicAnd(T* address, T value)
 {
-  constexpr bool is_serial =
-    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
-  AXOM_STATIC_ASSERT(is_serial);
+  static_assert(is_serial_atomic_exec_v<ExecSpace>);
   const T retval = *address;
   *address &= value;
   return retval;
@@ -197,9 +198,7 @@ inline AXOM_HOST_DEVICE T atomicAnd(T* address, T value)
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicOr(T* address, T value)
 {
-  constexpr bool is_serial =
-    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
-  AXOM_STATIC_ASSERT(is_serial);
+  static_assert(is_serial_atomic_exec_v<ExecSpace>);
   const T retval = *address;
   *address |= value;
   return retval;
@@ -208,9 +207,7 @@ inline AXOM_HOST_DEVICE T atomicOr(T* address, T value)
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicXor(T* address, T value)
 {
-  constexpr bool is_serial =
-    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
-  AXOM_STATIC_ASSERT(is_serial);
+  static_assert(is_serial_atomic_exec_v<ExecSpace>);
   const T retval = *address;
   *address ^= value;
   return retval;
@@ -219,9 +216,7 @@ inline AXOM_HOST_DEVICE T atomicXor(T* address, T value)
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicExchange(T* address, T value)
 {
-  constexpr bool is_serial =
-    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
-  AXOM_STATIC_ASSERT(is_serial);
+  static_assert(is_serial_atomic_exec_v<ExecSpace>);
   const T retval = *address;
   *address = value;
   return retval;
@@ -230,9 +225,7 @@ inline AXOM_HOST_DEVICE T atomicExchange(T* address, T value)
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicLoad(T* address)
 {
-  constexpr bool is_serial =
-    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
-  AXOM_STATIC_ASSERT(is_serial);
+  static_assert(is_serial_atomic_exec_v<ExecSpace>);
   const T retval = *address;
   return retval;
 }
@@ -240,10 +233,7 @@ inline AXOM_HOST_DEVICE T atomicLoad(T* address)
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE void atomicStore(T* address, T value)
 {
-  constexpr bool is_serial =
-    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
-  AXOM_STATIC_ASSERT(is_serial);
-  const T retval = *address;
+  static_assert(is_serial_atomic_exec_v<ExecSpace>);
   *address = value;
 }
 

@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -154,35 +155,35 @@ properly queried:
 Appending Documents to Existing Sina Files
 ------------------------------------------
 
-It's normal during a simulation to need to dump data multiple times, ex: collect quantities
+It's normal during a simulation to need to dump data multiple times, for example, to collect quantities
 at certain milestones, write timeseries once they reach a certain length, or add new sets
-of curves. The append methods such as ``appendDocumentToHDF5()`` cover this case. Simply write your
+of curves. The append methods such as ``appendDocument()`` cover this case. Simply write your
 first document to the filesystem, and when you reach a point where you would like to write another,
 use an append function matching the filetype (JSON is recommended for small files, namely anything
 not involving timeseries, and HDF5 for anything beefier). There's some nuance to how appending works:
 
-- If your new document contains records not present in the file on disk, it will add them in.
-This is generally how you'll want to do snapshots; it determines whether records match by checking the ID,
-so as long as each snapshot has a unique ID, they'll accumulate in the target file.
+- If your new document contains records not present in the file on disk, it will add them.
+  This is generally how you'll want to do snapshots; it determines whether records match by checking the ID,
+  so as long as each snapshot has a unique ID, they'll accumulate in the target file.
 
 - If your new document contains records that ARE present in the file on disk, it will attempt to merge
-the data they contain. This is most useful when you have a longer-running simulation where you want
-to accumulate timeseries values. Simply ensure that the record containing new values has the same
-ID as the one containing what you have so far.
+  the data they contain. This is most useful when you have a longer-running simulation where you want
+  to accumulate timeseries values. Simply ensure that the record containing new values has the same
+  ID as the one containing what you have so far.
 
-    - For data, files, user defined, and anything else that isn't curve sets or libraries: Sina will
-    go through field-by-field. If there's a field not already present (ex: runtime), then it will be added in.
-    If it IS already present, an optional argument allows you to define the behavior. By default, newest wins,
-    but you can also have oldest win or refuse the write.
+- For data, files, user defined, and anything else that isn't curve sets or libraries, it will
+  go through field-by-field. If there's a field not already present, it will be added.
+  If it IS already present, an optional argument allows you to define the behavior. By default, newest wins,
+  but you can also have oldest win or refuse the write.
 
-    - For curve sets: Sina will append new values to the existing dependents/independents. There is some
-    checking to ensure all timeseries WITHIN A CURVE SET end up the same length, so while it is possible
-    to add new dependents (or independents) to a set of curves while a simulation is running, ensure that
-    you're backfilling the required number of values (ex: you dump every 10 cycles, you've dumped 20 times, each
-    curve has 200 values. If on your next dump you also add brand_new_curve, it MUST have 210 values.) You'll
-    almost always want to define curves up front and simply add in new values.
+- For curve sets, it will append new values to the existing dependents/independents. There is some
+  checking to ensure all timeseries WITHIN A CURVE SET end up the same length, so while it is possible
+  to add new dependents (or independents) to a set of curves while a simulation is running, ensure that
+  you're backfilling the required number of values (ex: you dump every 10 cycles, you've dumped 20 times, each
+  curve has 200 values. If on your next dump you also add brand_new_curve, it MUST have 210 values.) You'll
+  almost always want to define curves up front and add in new values.
 
-    - For library_data, append will recurse, fulfilling a and b above.
+- For library_data, append will recurse, following the above rules.
 
 In general, appending is very powerful, but a bit complicated; if Sina encounters any issues, it will
 write them to the returned conduit node for troubleshooting.

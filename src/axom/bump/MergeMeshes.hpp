@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 #ifndef AXOM_BUMP_MERGE_MESHES_HPP_
@@ -482,7 +483,7 @@ protected:
   {
     // Check the shape types.
     std::map<std::string, int> shape_map = buildShapeMap(inputs);
-    if(shape_map.find("polyhedral") != shape_map.end())
+    if(shape_map.find(views::PolyhedronTraits::name()) != shape_map.end())
     {
       // At least one input was polyhedral. Force all polyhedral output.
       mergeTopologiesPolyhedral(inputs, n_options, output);
@@ -516,10 +517,10 @@ protected:
 
     // If there are polygon shapes then assume that the rest of the shapes
     // are 2D and should be promoted to polygons.
-    if(shape_map.find("polygonal") != shape_map.end() && shape_map.size() > 1)
+    if(shape_map.find(views::PolygonTraits::name()) != shape_map.end() && shape_map.size() > 1)
     {
       shape_map.clear();
-      shape_map["polygonal"] = axom::bump::views::shapeNameToID("polygonal");
+      shape_map[views::PolygonTraits::name()] = views::PolygonTraits::id();
     }
 
     conduit::Node *n_newTopoPtr = nullptr;
@@ -527,7 +528,6 @@ protected:
     for(axom::IndexType i = 0; i < n; i++)
     {
       const conduit::Node &n_srcTopo = getTopology(inputs[i]);
-
       const std::string srcShape = n_srcTopo.fetch_existing("elements/shape").as_string();
       const conduit::Node &n_srcConn = n_srcTopo.fetch_existing("elements/connectivity");
       const conduit::Node &n_srcSizes = n_srcTopo.fetch_existing("elements/sizes");
@@ -703,28 +703,28 @@ protected:
         views::IndexNode_to_ArrayView(n_elem_conn, [&](auto connView) {
           using ConnectivityType = typename decltype(connView)::value_type;
 
-          if(shape == "tet")
+          if(shape == views::TetTraits::name())
           {
             using TetShape = views::TetShape<ConnectivityType>;
             auto topologyView =
               views::make_unstructured_single_shape_topology<TetShape>::view(n_srcTopo);
             makePolyhedralMesh(topologyView, n_srcTopo, n_phTopo);
           }
-          else if(shape == "pyramid")
+          else if(shape == views::PyramidTraits::name())
           {
             using PyramidShape = views::PyramidShape<ConnectivityType>;
             auto topologyView =
               views::make_unstructured_single_shape_topology<PyramidShape>::view(n_srcTopo);
             makePolyhedralMesh(topologyView, n_srcTopo, n_phTopo);
           }
-          else if(shape == "wedge")
+          else if(shape == views::WedgeTraits::name())
           {
             using WedgeShape = views::WedgeShape<ConnectivityType>;
             auto topologyView =
               views::make_unstructured_single_shape_topology<WedgeShape>::view(n_srcTopo);
             makePolyhedralMesh(topologyView, n_srcTopo, n_phTopo);
           }
-          else if(shape == "hex")
+          else if(shape == views::HexTraits::name())
           {
             using HexShape = views::HexShape<ConnectivityType>;
             auto topologyView =
@@ -1811,8 +1811,6 @@ private:
                         axom::IndexType nzones,
                         axom::IndexType zOffset) const
   {
-    using IDList = typename decltype(matsetView)::IDList;
-    using VFList = typename decltype(matsetView)::VFList;
     using MatID = typename decltype(matsetView)::IndexType;
 
     // Make some maps for renumbering material numbers.
@@ -1844,19 +1842,18 @@ private:
       nzones,
       AXOM_LAMBDA(axom::IndexType zoneIndex) {
         // Get this zone's materials.
-        IDList ids;
-        VFList vfs;
-        matsetView.zoneMaterials(zoneIndex, ids, vfs);
+        auto zoneMat = matsetView.beginZone(zoneIndex);
+        const auto nmats = zoneMat.size();
 
         // Store the materials in the new material.
         const auto zoneStart = offsetsView[zOffset + zoneIndex];
-        for(axom::IndexType mi = 0; mi < ids.size(); mi++)
+        for(axom::IndexType mi = 0; mi < nmats; mi++, zoneMat++)
         {
           const auto destIndex = zoneStart + mi;
-          volumeFractionsView[destIndex] = vfs[mi];
+          volumeFractionsView[destIndex] = zoneMat.volume_fraction();
 
           // Get the index of the material number in the local map.
-          const auto mapIndex = axom::utilities::binary_search(localView, ids[mi]);
+          const auto mapIndex = axom::utilities::binary_search(localView, zoneMat.material_id());
           SLIC_ASSERT(mapIndex != -1);
           // We'll store the all materials number.
           const auto allMatno = allView[mapIndex];

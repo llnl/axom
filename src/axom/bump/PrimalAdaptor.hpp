@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -310,14 +311,15 @@ struct AdaptPolyhedron<TopologyView, CoordsetView, true>
  *
  * \tparam TopologyView The topology view type.
  * \tparam CoordsetView The coordset view type.
+ * \tparam MAX_VERTS_2D The maximum number of vertices allowed in a polygon.
  * \tparam makeFaces Whether to make faces for polyhedral shapes or to make primal::Polyhedron.
  */
-template <typename TopologyView, typename CoordsetView, bool makeFaces = false>
+template <typename TopologyView, typename CoordsetView, int MAX_VERTS_2D = 12, bool makeFaces = false>
 struct PrimalAdaptor
 {
   using value_type = typename CoordsetView::value_type;
   using Polygon =
-    axom::primal::Polygon<value_type, CoordsetView::dimension(), axom::primal::PolygonArray::Static>;
+    axom::primal::Polygon<value_type, CoordsetView::dimension(), axom::primal::PolygonArray::Static, MAX_VERTS_2D>;
   using Tetrahedron = axom::primal::Tetrahedron<value_type, CoordsetView::dimension()>;
   using Hexahedron = axom::primal::Hexahedron<value_type, CoordsetView::dimension()>;
   using Polyhedron =

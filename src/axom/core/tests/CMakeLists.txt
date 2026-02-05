@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -39,6 +40,7 @@ set(core_serial_tests
     numerics_eigen_sort.hpp
     numerics_floating_point_limits.hpp
     numerics_jacobi_eigensolve.hpp
+    numerics_quadrature.hpp
     numerics_linear_solve.hpp
     numerics_lu.hpp
     numerics_matrix.hpp
@@ -77,9 +79,15 @@ axom_add_executable(NAME       core_serial_tests
                     FOLDER     axom/core/tests )
 
 foreach(test_suite ${core_serial_tests})
+    set(_num_threads)
+    if(test_suite MATCHES "(for_all|device)" AND AXOM_ENABLE_OPENMP)
+        set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+    endif()
+
     get_filename_component( test_suite ${test_suite} NAME_WE )
-    axom_add_test( NAME    ${test_suite}_serial
-                   COMMAND core_serial_tests --gtest_filter=${test_suite}* )
+    axom_add_test( NAME            ${test_suite}_serial
+                   COMMAND         core_serial_tests --gtest_filter=${test_suite}*
+                   NUM_OMP_THREADS ${_num_threads})
 endforeach()
 
 #------------------------------------------------------------------------------
@@ -104,6 +112,7 @@ axom_add_test( NAME    core_collections
 if (AXOM_ENABLE_MPI)
   set( core_mpi_tests
        core_types.hpp
+       core_shared_memory.hpp
        )
 
   axom_add_executable(NAME       core_mpi_tests
@@ -117,7 +126,7 @@ if (AXOM_ENABLE_MPI)
     get_filename_component( test_suite ${test_suite} NAME_WE )
     axom_add_test( NAME          ${test_suite}_mpi
                    COMMAND       core_mpi_tests --gtest_filter=${test_suite}*
-                   NUM_MPI_TASKS 1 )
+                   NUM_MPI_TASKS 2 )
   endforeach()
 endif()
 
@@ -138,9 +147,9 @@ if (AXOM_ENABLE_OPENMP AND RAJA_FOUND)
 
   foreach( test_suite ${core_openmp_tests} )
     get_filename_component( test_suite ${test_suite} NAME_WE )
-    axom_add_test( NAME          ${test_suite}_openmp
-                   COMMAND       core_openmp_tests --gtest_filter=${test_suite}*
-                   NUM_OMP_THREADS 24 )
+    axom_add_test( NAME            ${test_suite}_openmp
+                   COMMAND         core_openmp_tests --gtest_filter=${test_suite}*
+                   NUM_OMP_THREADS ${AXOM_TEST_NUM_OMP_THREADS} )
   endforeach()
 endif()
 
@@ -181,14 +190,16 @@ axom_add_executable(NAME       utils_annotations_test
 
 foreach(_mode none report counts gputx)
   set(_test_name utils_annotations_${_mode}_test)
+
+  set(_num_ranks 1)
   if(AXOM_ENABLE_MPI)
-    axom_add_test(NAME    ${_test_name}
-                  COMMAND utils_annotations_test -m ${_mode}
-                  NUM_MPI_TASKS 2)
-  else()
-    axom_add_test(NAME    ${_test_name}
-                  COMMAND utils_annotations_test -m ${_mode})
+    set(_num_ranks 2)
   endif()
+
+  axom_add_test(NAME    ${_test_name}
+                COMMAND utils_annotations_test -m ${_mode}
+                NUM_MPI_TASKS ${_num_ranks})
+
   set_property(TEST ${_test_name}
                APPEND PROPERTY ENVIRONMENT  "CALI_LOG_VERBOSITY=2")
 endforeach()

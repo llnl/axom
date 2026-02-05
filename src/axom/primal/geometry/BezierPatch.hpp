@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -329,8 +330,11 @@ public:
   /// Retrieves the vector of control points at index \a idx
   const PointType& operator()(int ui, int vi) const { return m_controlPoints(ui, vi); }
 
-  /// Returns a copy of the Bezier patch's control points
-  CoordsMat getControlPoints() const { return m_controlPoints; }
+  /// Returns a reference to the Bezier patch's control points
+  CoordsMat& getControlPoints() { return m_controlPoints; }
+
+  /// Returns a const reference to the Bezier patch's control points
+  const CoordsMat& getControlPoints() const { return m_controlPoints; }
 
   /*!
    * \brief Get a specific weight
@@ -362,8 +366,11 @@ public:
     m_weights(ui, vi) = weight;
   };
 
-  /// Returns a copy of the Bezier patch's weights
-  WeightsMat getWeights() const { return m_weights; }
+  /// Returns a reference to the Bezier patch's weights
+  WeightsMat& getWeights() { return m_weights; }
+
+  /// Returns a const reference to the Bezier patch's weights
+  const WeightsMat& getWeights() const { return m_weights; }
 
   /// Returns an axis-aligned bounding box containing the Bezier patch
   BoundingBoxType boundingBox() const

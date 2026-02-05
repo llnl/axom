@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -20,10 +21,9 @@
 #include "axom/fmt.hpp"
 #include "axom/CLI11.hpp"
 
-// NOTE: The shaping driver requires Axom to be configured with conduit or mfem and
-// the AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION CMake option
+// NOTE: The shaping driver requires Axom to be configured with conduit or mfem.
 #if !defined(AXOM_USE_MFEM) && !defined(AXOM_USE_CONDUIT)
-  #error Shaping functionality requires Axom to be configured with Conduit or MFEM and the AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION option
+  #error Shaping functionality requires Axom to be configured with Conduit or MFEM
 #endif
 
 #include "mfem.hpp"
@@ -501,10 +501,6 @@ int main(int argc, char** argv)
                         axom::fmt::join(errs, "\n")));
 
     finalizeLogger();
-
-#ifdef AXOM_USE_MPI
-    MPI_Finalize();
-#endif
     exit(1);
   }
 

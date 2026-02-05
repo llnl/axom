@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -270,9 +271,9 @@ TEST(utils_fileUtilities, TempFile_two)
 
 TEST(utils_fileUtilities, TempFile_extension)
 {
-  for(const std::string& nm : {"", "foo"})
+  for(const auto nm : {"", "foo"})
   {
-    for(const std::string& ext : {"", ".json", "json"})
+    for(const auto ext : {"", ".json", "json"})
     {
       fs::TempFile temp(nm, ext);
 

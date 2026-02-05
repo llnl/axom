@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -14,8 +15,9 @@ def create_datastore(region):
 	ds = pysidre.DataStore()
 	root = ds.getRoot()
 
-	# TODO - Implement Attributes for python
 	# Create two attributes
+	ds.createAttributeScalar("vis", 0)
+	ds.createAttributeScalar("restart", 1)
 
 	# Create group children of root group
 	state = root.createGroup("state")
@@ -55,6 +57,10 @@ def create_datastore(region):
 	"""
 	temp = fields.createViewAndAllocate("temp", pysidre.TypeID.DOUBLE_ID, eltcount)
 	rho = fields.createViewAndAllocate("rho", pysidre.TypeID.DOUBLE_ID, eltcount)
+
+	# Explicitly set values for the "vis" Attribute on the "temp" and "rho" buffers.
+	temp.setAttributeScalar("vis", 1)
+	rho.setAttributeScalar("vis", 1)
 
 	# The "fields" Group also contains a child Group "ext" which holds a pointer
 	# to an externally owned integer array.  Although Sidre does not own the
@@ -101,8 +107,48 @@ def access_datastore(ds):
 
 	return ds
 
+def iterate_datastore(ds):
+	fill_line = "=" * 80
+	print(fill_line)
+
+	# iterate through the attributes in ds
+	print("The datastore has the following attributes:")
+	for attr in ds.attributes():
+		print(f"* [{attr.getIndex()}] '{attr.getName()}' of type "
+			  f"{attr.getTypeID()} "
+
+			  # Requires conduit::Node information
+			  # f"and default value: {attr.getDefaultNodeRef().to_yaml()}\n"
+			  )
+
+	# iterate through the buffers in ds
+	print(fill_line)
+	print("The datastore has the following buffers:")
+	for buff in ds.buffers():
+		print(f"* [{buff.getIndex()}] "
+			  f"{'Allocated' if buff.isAllocated() else 'Unallocated'} buffer with "
+			  f"{buff.getNumElements()} elements of type {buff.getTypeID()} with "
+			  f"{buff.getNumViews()} views")
+	print(fill_line)
+
+	# iterate through the groups of the root group
+	print("The root group has the following groups:")
+	for grp in ds.getRoot().groups():
+		print(f"* [{grp.getIndex()}] '{grp.getName()}' with "
+			  f"{grp.getNumGroups()} groups and {grp.getNumViews()} views")
+	print(fill_line)
+
+	# iterate through the views of the 'state' group
+	print("The 'state' group has the following views:")
+	for view in ds.getRoot().getGroup("state").views():
+		print(f"* [{view.getIndex()}] '{view.getName()}' -- "
+			  f"{'Allocated' if view.isAllocated() else 'Unallocated'} view of type "
+			  f"{view.getTypeID()} and {view.getNumElements()} elements")
+	print(fill_line)
+
 
 if __name__=="__main__":
 	region = np.zeros(3375, dtype = int)
 	ds = create_datastore(region)
 	access_datastore(ds)
+	iterate_datastore(ds)

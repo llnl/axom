@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -50,6 +51,7 @@ set( primal_headers
     ## operators
     operators/clip.hpp
     operators/closest_point.hpp
+    operators/evaluate_integral.hpp
     operators/intersect.hpp
     operators/intersection_volume.hpp
     operators/orientation.hpp
@@ -66,6 +68,7 @@ set( primal_headers
 
     operators/detail/clip_impl.hpp
     operators/detail/compute_moments_impl.hpp
+    operators/detail/evaluate_integral_impl.hpp
     operators/detail/fuzzy_comparators.hpp
     operators/detail/intersect_bezier_impl.hpp
     operators/detail/intersect_bounding_box_impl.hpp
@@ -74,6 +77,8 @@ set( primal_headers
     operators/detail/intersect_ray_impl.hpp
     operators/detail/winding_number_2d_impl.hpp
     operators/detail/winding_number_2d_memoization.hpp
+    operators/detail/winding_number_3d_impl.hpp
+    operators/detail/winding_number_3d_memoization.hpp
 
     ## utils
     utils/ZipIndexable.hpp
@@ -82,15 +87,6 @@ set( primal_headers
     utils/ZipRay.hpp
     utils/ZipVector.hpp
    )
-
-blt_list_append(
-    TO       primal_headers 
-    ELEMENTS operators/evaluate_integral.hpp
-             operators/detail/evaluate_integral_impl.hpp
-             operators/detail/winding_number_3d_impl.hpp
-             operators/detail/winding_number_3d_memoization.hpp
-    IF       MFEM_FOUND 
-               )
 
 #------------------------------------------------------------------------------
 # Build and install the library

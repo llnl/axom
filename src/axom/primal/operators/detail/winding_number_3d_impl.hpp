@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -16,16 +17,13 @@
 #include "axom/primal/operators/squared_distance.hpp"
 
 #include "axom/core/numerics/transforms.hpp"
+#include "axom/core/numerics/quadrature.hpp"
 
 #include "axom/primal/operators/detail/winding_number_3d_memoization.hpp"
 
 // C++ includes
 #include <math.h>
-
-// MFEM includes
-#ifdef AXOM_USE_MFEM
-  #include "mfem.hpp"
-#endif
+#include <optional>
 
 namespace axom
 {
@@ -58,8 +56,8 @@ enum class DiscontinuityAxis
  */
 template <typename NURBSType, typename T>
 void degenerate_surface_processing(const NURBSType& nurbs,
-                                   const axom::Array<T> up,
-                                   const axom::Array<T> vp,
+                                   const axom::Array<T>& up,
+                                   const axom::Array<T>& vp,
                                    const T clip_radius,
                                    NURBSPatch<T, 3>& out_patch1,
                                    NURBSPatch<T, 3>& out_patch2)
@@ -158,7 +156,7 @@ Vector<T, 3> rotate_vector_origin(const numerics::Matrix<T>& matx, const Vector<
  * \brief Adaptively evaluate the integral of the "anti-curl" of the GWN integrand
  *
  * \param [in] query The query point
- * \param [in] nurbs The NURBSPatchGWNCache object contianing the trimming curves
+ * \param [in] nurbs The NURBSPatchGWNCache object containing the trimming curves
  * \param [in] curve_index The curve on the patch which we want to integrate
  * \param [in] quad_npts The number of quadrature points at each level
  * \param [in] refinement_level The current subdivision levels 
@@ -183,14 +181,14 @@ double stokes_gwn_adaptive(const Point<T, 3>& query,
                            const double quad_coarse,
                            const double quad_tol)
 {
-  auto trimming_curve_data_1 = nurbs.getTrimmingCurveQuadratureData(curve_index,
-                                                                    quad_npts,
-                                                                    refinement_level + 1,
-                                                                    2 * refinement_index);
-  auto trimming_curve_data_2 = nurbs.getTrimmingCurveQuadratureData(curve_index,
-                                                                    quad_npts,
-                                                                    refinement_level + 1,
-                                                                    2 * refinement_index + 1);
+  const auto& trimming_curve_data_1 = nurbs.getTrimmingCurveQuadratureData(curve_index,
+                                                                           quad_npts,
+                                                                           refinement_level + 1,
+                                                                           2 * refinement_index);
+  const auto& trimming_curve_data_2 = nurbs.getTrimmingCurveQuadratureData(curve_index,
+                                                                           quad_npts,
+                                                                           refinement_level + 1,
+                                                                           2 * refinement_index + 1);
 
   double quad_fine_1 = stokes_gwn_component(query, ax, rotator, trimming_curve_data_1);
   double quad_fine_2 = stokes_gwn_component(query, ax, rotator, trimming_curve_data_2);
@@ -320,20 +318,17 @@ double stokes_gwn_component(const Point<T, 3>& query,
                             const TrimmingCurveQuadratureData<T>& trimming_curve_data)
 {
   double this_quad = 0;
+
+  const bool is_rotated = (ax == DiscontinuityAxis::rotated);
   for(int q = 0; q < trimming_curve_data.getNumPoints(); ++q)
   {
-    Vector<T, 3> node, node_dt;
-    if(ax == DiscontinuityAxis::rotated)
-    {
-      node =
-        Vector<T, 3>(query, rotate_point(rotator, query, trimming_curve_data.getQuadraturePoint(q)));
-      node_dt = rotate_vector_origin(rotator, trimming_curve_data.getQuadratureTangent(q));
-    }
-    else
-    {
-      node = Vector<T, 3>(query, trimming_curve_data.getQuadraturePoint(q));
-      node_dt = Vector<T, 3>(trimming_curve_data.getQuadratureTangent(q));
-    }
+    const Vector<T, 3> node = is_rotated
+      ? rotate_point(rotator, query, trimming_curve_data.getQuadraturePoint(q)) - query
+      : trimming_curve_data.getQuadraturePoint(q) - query;
+
+    const Vector<T, 3> node_dt = is_rotated
+      ? rotate_vector_origin(rotator, trimming_curve_data.getQuadratureTangent(q))
+      : trimming_curve_data.getQuadratureTangent(q);
 
     const double node_norm = node.norm();
     const double quad_weight = trimming_curve_data.getQuadratureWeight(q);
@@ -392,8 +387,8 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
   for(int n = 0; n < nurbs.getNumTrimmingCurves(); ++n)
   {
     // Get the quadrature points for the curve on the patch without any refinement
-    auto trimming_curve_data = nurbs.getTrimmingCurveQuadratureData(n, quad_npts, 0, 0);
-    double quad_coarse = stokes_gwn_component(query, ax, rotator, trimming_curve_data);
+    const auto& trimming_curve_data = nurbs.getTrimmingCurveQuadratureData(n, quad_npts, 0, 0);
+    const double quad_coarse = stokes_gwn_component(query, ax, rotator, trimming_curve_data);
 
     quad += gwn_modulo *
       stokes_gwn_adaptive(query, nurbs, n, quad_npts, 0, 0, ax, rotator, quad_coarse, quad_tol);
@@ -406,7 +401,7 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
  * \brief Overload of stokes_gwn_evaluate if NURBSPatch is not memoized
  *
  * \param [in] query The query point
- * \param [in] nurbs The NURBSPatch object contianing the trimming curves
+ * \param [in] nurbs The NURBSPatch object containing the trimming curves
  * \param [in] quad_npts The number of points used in each Gaussian quadrature
  * \param [in] ax The axis (relative to query) denoting which anti-curl we use
  * \param [in] rotator This is the rotation matrix to use if ax == DiscontinuityAxis::rotated
@@ -425,18 +420,25 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
                            const numerics::Matrix<T>& rotator,
                            const double quad_tol)
 {
-  auto nurbs_rotated(nurbs);
+  // Only copy/rotate the patch when needed; otherwise work directly with `nurbs`.
+  const NURBSPatch<T, 3>* nurbs_eval = &nurbs;
+  std::optional<NURBSPatch<T, 3>> rotated_patch;
 
   if(ax == DiscontinuityAxis::rotated)
   {
+    rotated_patch.emplace(nurbs);
+    auto& rotated = *rotated_patch;
+
     const auto patch_shape = nurbs.getControlPoints().shape();
     for(int i = 0; i < patch_shape[0]; ++i)
     {
       for(int j = 0; j < patch_shape[1]; ++j)
       {
-        nurbs_rotated(i, j) = rotate_point(rotator, query, nurbs(i, j));
+        rotated(i, j) = rotate_point(rotator, query, nurbs(i, j));
       }
     }
+
+    nurbs_eval = &rotated;
 
     // Change the rotation axis so we don't rotate a second time
     ax = DiscontinuityAxis::z;
@@ -445,14 +447,14 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
   constexpr double gwn_modulo = 0.25 * M_1_PI;
 
   double quad = 0;
-  for(int n = 0; n < nurbs.getNumTrimmingCurves(); ++n)
+  for(int n = 0; n < nurbs_eval->getNumTrimmingCurves(); ++n)
   {
     // Get the quadrature points for the curve on the *rotated* patch without any refinement
-    auto trimming_curve_data = TrimmingCurveQuadratureData<T>(nurbs_rotated, n, quad_npts, 0, 0);
-    double quad_coarse = stokes_gwn_component(query, ax, rotator, trimming_curve_data);
+    const auto trimming_curve_data = TrimmingCurveQuadratureData<T>(*nurbs_eval, n, quad_npts, 0, 0);
+    const double quad_coarse = stokes_gwn_component(query, ax, rotator, trimming_curve_data);
 
     quad += gwn_modulo *
-      stokes_gwn_adaptive(query, nurbs_rotated, n, quad_npts, 0, 0, ax, rotator, quad_coarse, quad_tol);
+      stokes_gwn_adaptive(query, *nurbs_eval, n, quad_npts, 0, 0, ax, rotator, quad_coarse, quad_tol);
   }
 
   return quad;
@@ -525,13 +527,11 @@ double nurbs_winding_number(const Point<T, 3>& query,
   // Rotation matrix for the patch
   numerics::Matrix<T> rotator;
 
-  // Allocate space for the patch which contains all surface boundaries,
-  //  and any extra trimming curves added by disk extraction
-  NURBSPatch<T, 3> nurbs_modified(nurbs.getControlPoints(),
-                                  nurbs.getWeights(),
-                                  nurbs.getKnots_u(),
-                                  nurbs.getKnots_v());
-  nurbs_modified.setTrimmingCurves(nurbs.getTrimmingCurves());
+  // Lazily allocate space for the patch which contains all surface boundaries,
+  //  and any extra trimming curves added by disk extraction.
+  // Note: For most query points (relative to a patch bounding box), we exit early
+  //       and can avoid making a deep copy of the surface and trimming curves.
+  std::optional<NURBSPatch<T, 3>> nurbs_modified;
 
   // Define vector fields whose curl gives us the winding number
   DiscontinuityAxis field_direction = DiscontinuityAxis::rotated;
@@ -652,7 +652,22 @@ double nurbs_winding_number(const Point<T, 3>& query,
     const bool isHalfOpen = false, countUntrimmed = true;
 
     bool success = true;
-    intersect(discontinuity_axis, nurbs_modified, tp, up, vp, ls_tol, EPS, countUntrimmed, isHalfOpen, success);
+    nurbs_modified.emplace(nurbs.getControlPoints(),
+                           nurbs.getWeights(),
+                           nurbs.getKnots_u(),
+                           nurbs.getKnots_v());
+    nurbs_modified->setTrimmingCurves(nurbs.getTrimmingCurves());
+
+    intersect(discontinuity_axis,
+              *nurbs_modified,
+              tp,
+              up,
+              vp,
+              ls_tol,
+              EPS,
+              countUntrimmed,
+              isHalfOpen,
+              success);
 
     if(!success)
     {
@@ -660,7 +675,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
       int num_noncoincident = 0;
       for(int i = 0; i < tp.size(); ++i)
       {
-        const Point<T, 3> the_point(nurbs_modified.evaluate(up[i], vp[i]));
+        const Point<T, 3> the_point(nurbs_modified->evaluate(up[i], vp[i]));
         // If any of the intersection points are coincident with the surface,
         //  then attempt to clip out all degenerate intersections, and retry
         if(squared_distance(query, the_point) <= edge_tol_sq)
@@ -717,8 +732,8 @@ double nurbs_winding_number(const Point<T, 3>& query,
     for(int i = 0; i < up.size(); ++i)
     {
       // Compute the intersection point on the surface
-      const Point<T, 3> the_point(nurbs_modified.evaluate(up[i], vp[i]));
-      const Vector<T, 3> the_normal = nurbs_modified.normal(up[i], vp[i]);
+      const Point<T, 3> the_point(nurbs_modified->evaluate(up[i], vp[i]));
+      const Vector<T, 3> the_normal = nurbs_modified->normal(up[i], vp[i]);
 
       // Check for bad intersections, i.e.,
       //  > There normal is poorly defined (cusp)
@@ -757,15 +772,15 @@ double nurbs_winding_number(const Point<T, 3>& query,
       bool isDiskInside, isDiskOutside;
       NURBSPatch<T, 3> the_disk;
 
-      nurbs_modified.diskSplit(up[i],
-                               vp[i],
-                               disk_radius,
-                               the_disk,
-                               nurbs_modified,
-                               isDiskInside,
-                               isDiskOutside,
-                               ignoreInteriorDisk,
-                               disk_radius);
+      nurbs_modified->diskSplit(up[i],
+                                vp[i],
+                                disk_radius,
+                                the_disk,
+                                *nurbs_modified,
+                                isDiskInside,
+                                isDiskOutside,
+                                ignoreInteriorDisk,
+                                disk_radius);
 
       extraTrimming =
         extraTrimming || (!isDiskInside && !isDiskOutside) || (isDiskInside && !ignoreInteriorDisk);
@@ -816,7 +831,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
   if(extraTrimming)
   {
     the_gwn +=
-      stokes_gwn_evaluate(query, nurbs_modified, quad_npts, field_direction, rotator, quad_tol);
+      stokes_gwn_evaluate(query, *nurbs_modified, quad_npts, field_direction, rotator, quad_tol);
   }
   else
   {

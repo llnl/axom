@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -30,6 +31,10 @@ const char IGNORE_OUTPUT[] = ".*";
 #include <fstream>
 #include <sstream>
 
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
+  #include "umpire/ResourceManager.hpp"
+#endif
+
 // Aliases
 namespace quest = axom::quest;
 namespace mint = axom::mint;
@@ -46,93 +51,155 @@ using UnstructuredMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
 //------------------------------------------------------------------------------
 namespace
 {
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_MPI3)
-constexpr bool USE_MPI3_SHARED_MEMORY = true;
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
+constexpr bool USE_SHARED_MEMORY = true;
+#else
+constexpr bool USE_SHARED_MEMORY = false;
+#endif
+
+// NOTE: This test can actually be built in serial so we provide parallel and
+//       serial versions of these functions.
+#if defined(AXOM_USE_MPI)
+// Parallel versions
+int comm_rank(MPI_Comm comm)
+{
+  int rank = 0;
+  MPI_Comm_rank(comm, &rank);
+  return rank;
+}
+void barrier(MPI_Comm comm) { MPI_Barrier(comm); }
+void bcast_int(int& value, MPI_Comm comm) { MPI_Bcast(&value, 1, MPI_INT, 0, comm); }
+#else
+// Serial versions
+constexpr int MPI_COMM_WORLD = -1;
+
+int comm_rank(MPI_Comm comm) { return 0; }
+void barrier(MPI_Comm)
+{
+  // no-op
+}
+void bcast_int(int&, MPI_Comm)
+{
+  // no-op
+}
 #endif
 
 /*!
  * \brief Generate a mesh of 4 triangles along the XY plane.
  *
  * \param [in] file the file to write to.
+ * \param [in] comm The MPI communicator to use.
  *
  * \pre file.empty() == false.
  * \note Used primarily for debugging.
  */
-void generate_planar_mesh_stl_file(const std::string& file)
+void generate_planar_mesh_stl_file(const std::string& file, MPI_Comm comm = MPI_COMM_SELF)
 {
-  EXPECT_FALSE(file.empty());
+  int rank = comm_rank(comm);
+  if(rank == 0)
+  {
+    EXPECT_FALSE(file.empty());
 
-  std::ofstream ofs(file.c_str());
-  EXPECT_TRUE(ofs.is_open());
+    std::ofstream ofs(file.c_str());
+    EXPECT_TRUE(ofs.is_open());
 
-  ofs << "solid plane" << std::endl;
+    ofs << "solid plane" << std::endl;
 
-  // Triangle T1
-  ofs << "\t facet normal 0.0 0.0 1.0" << std::endl;
-  ofs << "\t\t outer loop" << std::endl;
-  ofs << "\t\t\t vertex -5.0 -5.0 0.0" << std::endl;
-  ofs << "\t\t\t vertex 5.0 -5.0 0.0" << std::endl;
-  ofs << "\t\t\t vertex 0.0  0.0 0.0" << std::endl;
-  ofs << "\t\t endloop" << std::endl;
-  ofs << "\t endfacet" << std::endl;
+    // Triangle T1
+    ofs << "\t facet normal 0.0 0.0 1.0" << std::endl;
+    ofs << "\t\t outer loop" << std::endl;
+    ofs << "\t\t\t vertex -5.0 -5.0 0.0" << std::endl;
+    ofs << "\t\t\t vertex 5.0 -5.0 0.0" << std::endl;
+    ofs << "\t\t\t vertex 0.0  0.0 0.0" << std::endl;
+    ofs << "\t\t endloop" << std::endl;
+    ofs << "\t endfacet" << std::endl;
 
-  // Triangle T2
-  ofs << "\t facet normal 0.0 0.0 1.0" << std::endl;
-  ofs << "\t\t outer loop" << std::endl;
-  ofs << "\t\t\t vertex 5.0 -5.0 0.0" << std::endl;
-  ofs << "\t\t\t vertex 5.0  5.0 0.0" << std::endl;
-  ofs << "\t\t\t vertex 0.0  0.0 0.0" << std::endl;
-  ofs << "\t\t endloop" << std::endl;
-  ofs << "\t endfacet" << std::endl;
+    // Triangle T2
+    ofs << "\t facet normal 0.0 0.0 1.0" << std::endl;
+    ofs << "\t\t outer loop" << std::endl;
+    ofs << "\t\t\t vertex 5.0 -5.0 0.0" << std::endl;
+    ofs << "\t\t\t vertex 5.0  5.0 0.0" << std::endl;
+    ofs << "\t\t\t vertex 0.0  0.0 0.0" << std::endl;
+    ofs << "\t\t endloop" << std::endl;
+    ofs << "\t endfacet" << std::endl;
 
-  // Triangle T3
-  ofs << "\t facet normal 0.0 0.0 1.0" << std::endl;
-  ofs << "\t\t outer loop" << std::endl;
-  ofs << "\t\t\t vertex  5.0 5.0 0.0" << std::endl;
-  ofs << "\t\t\t vertex -5.0 5.0 0.0" << std::endl;
-  ofs << "\t\t\t vertex  0.0 0.0 0.0" << std::endl;
-  ofs << "\t\t endloop" << std::endl;
-  ofs << "\t endfacet" << std::endl;
+    // Triangle T3
+    ofs << "\t facet normal 0.0 0.0 1.0" << std::endl;
+    ofs << "\t\t outer loop" << std::endl;
+    ofs << "\t\t\t vertex  5.0 5.0 0.0" << std::endl;
+    ofs << "\t\t\t vertex -5.0 5.0 0.0" << std::endl;
+    ofs << "\t\t\t vertex  0.0 0.0 0.0" << std::endl;
+    ofs << "\t\t endloop" << std::endl;
+    ofs << "\t endfacet" << std::endl;
 
-  // Triangle T4
-  ofs << "\t facet normal 0.0 0.0 1.0" << std::endl;
-  ofs << "\t\t outer loop" << std::endl;
-  ofs << "\t\t\t vertex -5.0  5.0 0.0" << std::endl;
-  ofs << "\t\t\t vertex -5.0 -5.0 0.0" << std::endl;
-  ofs << "\t\t\t vertex  0.0  0.0 0.0" << std::endl;
-  ofs << "\t\t endloop" << std::endl;
-  ofs << "\t endfacet" << std::endl;
+    // Triangle T4
+    ofs << "\t facet normal 0.0 0.0 1.0" << std::endl;
+    ofs << "\t\t outer loop" << std::endl;
+    ofs << "\t\t\t vertex -5.0  5.0 0.0" << std::endl;
+    ofs << "\t\t\t vertex -5.0 -5.0 0.0" << std::endl;
+    ofs << "\t\t\t vertex  0.0  0.0 0.0" << std::endl;
+    ofs << "\t\t endloop" << std::endl;
+    ofs << "\t endfacet" << std::endl;
 
-  ofs << "endsolid" << std::endl;
-  ofs.close();
+    ofs << "endsolid" << std::endl;
+    ofs.close();
+  }
+  barrier(comm);
 }
 
 /*!
  * \brief Generates a simple ASCII STL file consisting of a single triangle.
  *
  * \param [in] file the file to write to.
+ * \param [in] comm The MPI communicator to use.
  * \pre file.empty() == false.
  *
  * \note Used primarily for debugging.
  */
-void generate_stl_file(const std::string& file)
+void generate_stl_file(const std::string& file, MPI_Comm comm = MPI_COMM_SELF)
 {
-  EXPECT_FALSE(file.empty());
+  int rank = comm_rank(comm);
+  if(rank == 0)
+  {
+    EXPECT_FALSE(file.empty());
 
-  std::ofstream ofs(file.c_str());
-  EXPECT_TRUE(ofs.is_open());
+    std::ofstream ofs(file.c_str());
+    EXPECT_TRUE(ofs.is_open());
 
-  ofs << "solid triangle" << std::endl;
-  ofs << "\t facet normal 0.0 0.0 1.0" << std::endl;
-  ofs << "\t\t outer loop" << std::endl;
-  ofs << "\t\t\t vertex 0.0 0.0 0.0" << std::endl;
-  ofs << "\t\t\t vertex 1.0 0.0 0.0" << std::endl;
-  ofs << "\t\t\t vertex 0.0 1.0 0.0" << std::endl;
-  ofs << "\t\t endloop" << std::endl;
-  ofs << "\t endfacet" << std::endl;
-  ofs << "endsolid triangle" << std::endl;
+    ofs << "solid triangle" << std::endl;
+    ofs << "\t facet normal 0.0 0.0 1.0" << std::endl;
+    ofs << "\t\t outer loop" << std::endl;
+    ofs << "\t\t\t vertex 0.0 0.0 0.0" << std::endl;
+    ofs << "\t\t\t vertex 1.0 0.0 0.0" << std::endl;
+    ofs << "\t\t\t vertex 0.0 1.0 0.0" << std::endl;
+    ofs << "\t\t endloop" << std::endl;
+    ofs << "\t endfacet" << std::endl;
+    ofs << "endsolid triangle" << std::endl;
 
-  ofs.close();
+    ofs.close();
+  }
+  barrier(comm);
+}
+
+/*!
+ * \brief Remove a file using rank 0 of the supplied MPI communicator.
+ *
+ * \param fileName The name of the file to remove.
+ * \param comm The MPI communicator.
+ *
+ * \return 0 on success; non-zero otherwise.
+ */
+int removeFile(const std::string& fileName, MPI_Comm comm = MPI_COMM_WORLD)
+{
+  int retval = 0;
+  int rank = comm_rank(comm);
+  barrier(comm);
+  if(rank == 0)
+  {
+    retval = axom::utilities::filesystem::removeFile(fileName);
+  }
+  bcast_int(retval, comm);
+  return retval;
 }
 
 /*!
@@ -181,9 +248,13 @@ void getUniformMesh(const UnstructuredMesh* mesh, mint::UniformMesh*& umesh)
 
 /*!
  * \brief Tests the signed against an anlytic surface mesh input.
+ * \param [in] file The name of the STL file to write.
  * \param [in] use_shared indicates whether to use shared memory or not.
+ * \param [in] comm The MPI communicator to use.
  */
-void check_analytic_plane(bool use_shared = false)
+void check_analytic_plane(const std::string& file,
+                          bool use_shared = false,
+                          MPI_Comm comm = MPI_COMM_SELF)
 {
   // STEP 0: construct uniform box mesh
   constexpr int NDIMS = 3;
@@ -195,8 +266,7 @@ void check_analytic_plane(bool use_shared = false)
   double* err = mesh.createField<double>("err", mint::NODE_CENTERED);
 
   // STEP 1: generate planar STL mesh file
-  const std::string file = "plane.stl";
-  generate_planar_mesh_stl_file(file);
+  generate_planar_mesh_stl_file(file, comm);
 
   // STEP 2: define analytic plane corresponding to the planar mesh;
   const primal::Point<double, 3> origin {0.0, 0.0, 0.0};
@@ -206,18 +276,17 @@ void check_analytic_plane(bool use_shared = false)
   // STEP 2: initialize the signed distance
   quest::signed_distance_use_shared_memory(use_shared);
   quest::signed_distance_set_closed_surface(false);
-  quest::signed_distance_init(file);
+  quest::signed_distance_init(file, comm);
   EXPECT_TRUE(quest::signed_distance_initialized());
 
   axom::IndexType nnodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < nnodes; ++inode)
   {
-    double pt[NDIMS];
-    mesh.getNode(inode, pt);
-    primal::Point<double, NDIMS> thepoint(pt);
+    primal::Point<double, NDIMS> pt;
+    mesh.getNode(inode, pt.data());
     phi[inode] = quest::signed_distance_evaluate(pt[0], pt[1], pt[2]);
 
-    const double phi_expected = analytic_plane.signedDistance(thepoint);
+    const double phi_expected = analytic_plane.signedDistance(pt);
     EXPECT_DOUBLE_EQ(phi[inode], phi_expected);
     err[inode] = utilities::abs(phi[inode] - phi_expected);
   }
@@ -233,7 +302,7 @@ void check_analytic_plane(bool use_shared = false)
   EXPECT_FALSE(quest::signed_distance_initialized());
 
 #ifdef REMOVE_FILES
-  EXPECT_EQ(axom::utilities::filesystem::removeFile(file), 0);
+  EXPECT_EQ(removeFile(file, comm), 0);
 #endif
 }
 
@@ -338,6 +407,10 @@ TEST(quest_signed_distance_interface, initialize)
 {
   int rc = -1;
 
+  SLIC_INFO(
+    "Note: This test checks that some missing/invalid files will not work "
+    "and is expected to emit warnings");
+
   // initializing with an empty file should return a non-zero value
   rc = quest::signed_distance_init("");
   EXPECT_TRUE(rc != 0);
@@ -350,7 +423,7 @@ TEST(quest_signed_distance_interface, initialize)
 
   // generate a temp STL file
   const std::string fileName = "test_triangle.stl";
-  generate_stl_file(fileName);
+  generate_stl_file(fileName, MPI_COMM_WORLD);
 
   // test valid initialization
   quest::signed_distance_set_dimension(3);
@@ -364,7 +437,7 @@ TEST(quest_signed_distance_interface, initialize)
 
   // remove temp STL file
 #ifdef REMOVE_FILES
-  EXPECT_EQ(axom::utilities::filesystem::removeFile(fileName), 0);
+  EXPECT_EQ(removeFile(fileName, MPI_COMM_WORLD), 0);
 #endif
 }
 
@@ -408,19 +481,63 @@ TEST(quest_signed_distance_interface, get_mesh_bounds)
 //------------------------------------------------------------------------------
 TEST(quest_signed_distance_interface, analytic_plane)
 {
-  check_analytic_plane();
+  // Serial test - called independently on each rank. In order to avoid problems
+  //               writing/reading the STL file, we pass a unique name for each rank.
+  int rank = comm_rank(MPI_COMM_WORLD);
+  check_analytic_plane(axom::fmt::format("plane{}.stl", rank));
 
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_MPI3)
-  check_analytic_plane(USE_MPI3_SHARED_MEMORY);
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
+  // We are using shared memory that we want to coordinate among ranks in
+  // MPI_COMM_WORLD so pass that communicator.
+  check_analytic_plane("plane.stl", USE_SHARED_MEMORY, MPI_COMM_WORLD);
 #endif
 }
 
 //------------------------------------------------------------------------------
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_MPI3)
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
 TEST(quest_signed_distance_interface, call_twice_using_shared_memory)
 {
-  check_analytic_plane(USE_MPI3_SHARED_MEMORY);
-  check_analytic_plane(USE_MPI3_SHARED_MEMORY);
+  // We are using shared memory that we want to coordinate among ranks in
+  // MPI_COMM_WORLD so pass that communicator.
+  check_analytic_plane("plane.stl", USE_SHARED_MEMORY, MPI_COMM_WORLD);
+  check_analytic_plane("plane.stl", USE_SHARED_MEMORY, MPI_COMM_WORLD);
+}
+
+TEST(quest_signed_distance_interface, shared_memory_released_on_finalize)
+{
+  // Use a single file name coordinated among ranks so we exercise the
+  // read_stl_mesh_shared path.
+  const std::string fileName = "plane_release.stl";
+  generate_planar_mesh_stl_file(fileName, MPI_COMM_WORLD);
+
+  auto& rm = umpire::ResourceManager::getInstance();
+  auto shared_alloc = rm.getAllocator(axom::getSharedMemoryAllocatorID());
+
+  const auto baseline_current = shared_alloc.getCurrentSize();
+  const auto baseline_actual = shared_alloc.getActualSize();
+
+  quest::signed_distance_use_shared_memory(true);
+  quest::signed_distance_set_closed_surface(false);
+  const int rc = quest::signed_distance_init(fileName, MPI_COMM_WORLD);
+  EXPECT_EQ(rc, 0);
+  EXPECT_TRUE(quest::signed_distance_initialized());
+
+  // The shared-memory path should allocate the mesh buffer in shared memory.
+  EXPECT_GE(shared_alloc.getCurrentSize(), baseline_current);
+  EXPECT_GE(shared_alloc.getActualSize(), baseline_actual);
+
+  quest::signed_distance_finalize();
+  EXPECT_FALSE(quest::signed_distance_initialized());
+
+  // Ensure all ranks have released their reference to the named allocation.
+  barrier(MPI_COMM_WORLD);
+
+  EXPECT_EQ(shared_alloc.getCurrentSize(), baseline_current);
+  EXPECT_EQ(shared_alloc.getActualSize(), baseline_actual);
+
+  #ifdef REMOVE_FILES
+  EXPECT_EQ(removeFile(fileName, MPI_COMM_WORLD), 0);
+  #endif
 }
 #endif
 
@@ -642,11 +759,7 @@ TEST(quest_signed_distance_interface, analytic_sphere_with_closest_pt_and_normal
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-#ifdef AXOM_USE_MPI
-  MPI_Init(&argc, &argv);
-#endif
-
-  int result = 0;
+  axom::utilities::raii::MPIWrapper mpi_raii_wrapper(argc, argv);
 
   ::testing::InitGoogleTest(&argc, argv);
 
@@ -654,11 +767,9 @@ int main(int argc, char* argv[])
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   axom::slic::SimpleLogger logger;
 
-  result = RUN_ALL_TESTS();
+  SLIC_INFO(axom::fmt::format("USE_SHARED_MEMORY: {}", USE_SHARED_MEMORY));
 
-#ifdef AXOM_USE_MPI
-  MPI_Finalize();
-#endif
+  int result = RUN_ALL_TESTS();
 
   return result;
 }

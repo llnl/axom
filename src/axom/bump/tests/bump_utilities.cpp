@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -104,6 +105,11 @@ struct test_copy_braid
     //std::cout << std::setw(16) << "radial={" << r.first << ", " << r.second << "}\n";
     EXPECT_NEAR(r.first, 19.2450089729875, eps);
     EXPECT_NEAR(r.second, 173.205080756888, eps);
+
+    // Test copying an empty Node from device to host.
+    conduit::Node emptyDeviceMesh, emptyHostMesh;
+    utils::copy<ExecSpace>(emptyHostMesh, emptyDeviceMesh);
+    EXPECT_TRUE(emptyHostMesh.dtype().is_empty());
   }
 
   static void create(conduit::Node &mesh)

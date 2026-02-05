@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
- * other Axom Project Developers. See the top-level LICENSE file for details.
+ * Copyright (c) Lawrence Livermore National Security, LLC and other
+ * Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+ * files for dates and other details.
  *
  * SPDX-License-Identifier: (BSD-3-Clause)
  */
@@ -20,7 +21,7 @@
 #define AXOM_VERSION_MINOR @AXOM_VERSION_MINOR@
 #define AXOM_VERSION_PATCH @AXOM_VERSION_PATCH@
 #define AXOM_VERSION_FULL "@AXOM_VERSION_FULL@"
-/*NOTE: Do not add AXOM_GIT_SHA here.  This will force
+/* NOTE: Do not add AXOM_GIT_SHA here.  This will force
  * full rebuild on all local changes. It is added in axom::getVersion()
  * and axom::about(), as well as accessible from axom::gitSha().
  */
@@ -54,7 +55,6 @@
 #cmakedefine AXOM_USE_CUDA
 #cmakedefine AXOM_USE_HIP
 #cmakedefine AXOM_USE_MPI
-#cmakedefine AXOM_USE_MPI3
 #cmakedefine AXOM_USE_MPIF_HEADER
 #cmakedefine AXOM_USE_OPENMP
 
@@ -76,6 +76,11 @@
 #cmakedefine AXOM_USE_SOL
 #cmakedefine AXOM_USE_SPARSEHASH
 #cmakedefine AXOM_USE_UMPIRE
+
+/*
+ * Compiler defines for library capabilities
+ */
+#cmakedefine AXOM_USE_UMPIRE_SHARED_MEMORY
 
 /*
  * Compiler defines for third-party executables
@@ -117,6 +122,15 @@
  * AXOM_DEPRECATED_TYPES values of WARN, ALLOW and ERROR.
  */
 #cmakedefine AXOM_DEPRECATED_TYPES_N @AXOM_DEPRECATED_TYPES_N@
+
+
+/*
+ * Sidre removed the SCALAR type in favor of TUPLE, but some readers
+ * like VisIt@3.4.x still expect SCALAR. When this option is enabled,
+ * Sidre will write out SCALAR instead of TUPLE
+ * This option will be phased out in the future as readers gain support for TUPLE
+ */
+#cmakedefine AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING
 
 /*
  * Compiler defines to configure the built-in fmt library

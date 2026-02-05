@@ -1,5 +1,6 @@
-! Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-! other Axom Project Developers. See the top-level LICENSE file for details.
+! Copyright (c) Lawrence Livermore National Security, LLC and other
+! Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+! files for dates and other details.
 !
 ! SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -502,6 +503,129 @@ contains
 !--    call flds%get_group("sub")%get_view("i0")%getBuffer())
     call ds%delete()
   end subroutine view_copy_move
+
+  !------------------------------------------------------------------------------
+  ! create_view_scalar( path, value, allocID )
+  !
+  ! Verify the 3-argument overload is callable from Fortran and returns
+  ! a view with the expected scalar value.
+  !------------------------------------------------------------------------------
+  subroutine create_view_scalar_with_allocid
+    type(SidreDataStore) ds
+    type(SidreGroup) root, flds
+    type(SidreView) i0_view, f0_view, d0_view
+    integer(C_INT) alloc_id
+    integer(C_INT) i0
+    real(C_FLOAT) f0
+    real(C_DOUBLE) d0
+
+    call set_case_name("create_view_scalar_with_allocid")
+
+    ds = datastore_new()
+    root = ds%get_root()
+    flds = root%create_group("fields")
+
+    alloc_id = get_invalid_allocator_id()
+
+    i0_view = flds%create_view_scalar("i0", 1_C_INT, alloc_id)
+    f0_view = flds%create_view_scalar("f0", 100.0_C_FLOAT, alloc_id)
+    d0_view = flds%create_view_scalar("d0", 3000.0_C_DOUBLE, alloc_id)
+
+    call assert_true(flds%has_view("i0"))
+    call assert_true(flds%has_view("f0"))
+    call assert_true(flds%has_view("d0"))
+
+    i0 = i0_view%get_data_int()
+    f0 = f0_view%get_data_float()
+    d0 = d0_view%get_data_double()
+
+    call assert_equals(i0, 1)
+    call assert_equals(f0, 100.0)
+    call assert_equals(d0, 3000.0d0)
+
+    call ds%delete()
+  end subroutine create_view_scalar_with_allocid
+
+  !------------------------------------------------------------------------------
+  ! create_view_scalar( path, value, allocID=MALLOC_ALLOCATOR_ID )
+  !
+  ! Verify the 3-argument overload is callable from Fortran with a non-default
+  ! allocator id. MALLOC_ALLOCATOR_ID is -3 in Axom.
+  !------------------------------------------------------------------------------
+  subroutine create_view_scalar_with_malloc_allocid
+    type(SidreDataStore) ds
+    type(SidreGroup) root, flds
+    type(SidreView) i0_view, f0_view, d0_view
+    integer(C_INT) alloc_id
+    integer(C_INT) i0
+    real(C_FLOAT) f0
+    real(C_DOUBLE) d0
+
+    call set_case_name("create_view_scalar_with_malloc_allocid")
+
+    ds = datastore_new()
+    root = ds%get_root()
+    flds = root%create_group("fields")
+
+    alloc_id = get_malloc_allocator_id()
+
+    i0_view = flds%create_view_scalar("i0", 2_C_INT, alloc_id)
+    f0_view = flds%create_view_scalar("f0", 200.0_C_FLOAT, alloc_id)
+    d0_view = flds%create_view_scalar("d0", 6000.0_C_DOUBLE, alloc_id)
+
+    call assert_true(flds%has_view("i0"))
+    call assert_true(flds%has_view("f0"))
+    call assert_true(flds%has_view("d0"))
+
+    i0 = i0_view%get_data_int()
+    f0 = f0_view%get_data_float()
+    d0 = d0_view%get_data_double()
+
+    call assert_equals(i0, 2)
+    call assert_equals(f0, 200.0)
+    call assert_equals(d0, 6000.0d0)
+
+    call ds%delete()
+  end subroutine create_view_scalar_with_malloc_allocid
+
+  !------------------------------------------------------------------------------
+  ! create_view_string( path, value, allocID )
+  !
+  ! Verify the 3-argument overload is callable from Fortran for both
+  ! INVALID_ALLOCATOR_ID and MALLOC_ALLOCATOR_ID.
+  !------------------------------------------------------------------------------
+  subroutine create_view_string_with_allocid
+    type(SidreDataStore) ds
+    type(SidreGroup) root, flds
+    type(SidreView) s0_view, s1_view
+    character(80) s0_in, s0_out
+    character(80) s1_in, s1_out
+
+    call set_case_name("create_view_string_with_allocid")
+
+    ds = datastore_new()
+    root = ds%get_root()
+    flds = root%create_group("fields")
+
+    s0_in = "string_with_invalid_allocator"
+    s1_in = "string_with_malloc_allocator"
+
+    s0_view = flds%create_view_string("s0", trim(s0_in), get_invalid_allocator_id())
+    s1_view = flds%create_view_string("s1", trim(s1_in), get_malloc_allocator_id())
+
+    call assert_true(flds%has_view("s0"))
+    call assert_true(flds%has_view("s1"))
+
+    s0_out = " "
+    s1_out = " "
+    call s0_view%get_string(s0_out)
+    call s1_view%get_string(s1_out)
+
+    call assert_equals(trim(s0_out), trim(s0_in))
+    call assert_equals(trim(s1_out), trim(s1_in))
+
+    call ds%delete()
+  end subroutine create_view_string_with_allocid
 
   !------------------------------------------------------------------------------
   subroutine groups_move_copy
@@ -1236,6 +1360,9 @@ program fortran_test
   call create_destroy_has_group
   call group_name_collisions
   call view_copy_move
+  call create_view_scalar_with_allocid
+  call create_view_scalar_with_malloc_allocid
+  call create_view_string_with_allocid
   call groups_move_copy
   call create_destroy_view_and_data
   call create_destroy_alloc_view_and_data

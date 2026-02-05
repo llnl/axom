@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -33,15 +34,11 @@
 #include "axom/primal/operators/detail/winding_number_2d_impl.hpp"
 #include "axom/primal/operators/detail/winding_number_2d_memoization.hpp"
 
+#include "axom/primal/operators/detail/winding_number_3d_impl.hpp"
+#include "axom/primal/operators/detail/winding_number_3d_memoization.hpp"
+
 // C++ includes
 #include <cmath>
-
-// MFEM includes
-#ifdef AXOM_USE_MFEM
-  #include "mfem.hpp"
-  #include "axom/primal/operators/detail/winding_number_3d_impl.hpp"
-  #include "axom/primal/operators/detail/winding_number_3d_memoization.hpp"
-#endif
 
 namespace axom
 {
@@ -174,6 +171,7 @@ double winding_number(const Point<T, 2>& q,
 /*!
  * \brief Computes the GWN for a 2D point wrt to a 2D curved polygon
  *
+ * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] q The query point to test
  * \param [in] cpoly The CurvedPolygon object
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
@@ -183,18 +181,16 @@ double winding_number(const Point<T, 2>& q,
  * 
  * \return The GWN.
  */
-template <typename T>
+template <typename T, typename CurveType>
 double winding_number(const Point<T, 2>& q,
-                      const CurvedPolygon<T, 2>& cpoly,
+                      const CurvedPolygon<CurveType>& cpoly,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
-  bool dummy_isOnCurve = false;
-
   double ret_val = 0.0;
   for(int i = 0; i < cpoly.numEdges(); i++)
   {
-    ret_val += detail::bezier_winding_number(q, cpoly[i], dummy_isOnCurve, edge_tol, EPS);
+    ret_val += winding_number(q, cpoly[i], edge_tol, EPS);
   }
 
   return ret_val;
@@ -354,7 +350,7 @@ double winding_number(const Point<T, 2>& query,
 /*!
  * \brief Computes the GWN for an array of 2D points wrt an array of cached data for 2D NURBS curves
  *
- * \param [in] query_arr The array of query point to test
+ * \param [in] query_arr The array of query points to test
  * \param [in] nurbs_curve_arr The array of memoized curve objects
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
@@ -392,7 +388,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
 /*!
  * \brief Computes the GWN for an array of 2D points wrt an array of generic 2D curves
  *
- * \tparam CurveType The BezierCurve or NURBSCurve which represents the curve
+ * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] query_arr The array of query point to test
  * \param [in] curve_arr The array of curve objects
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
@@ -422,8 +418,9 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
 /*!
  * \brief Computes the GWN for an array of 2D points wrt to a 2D curved polygon
  *
- * \param [in] query_arr The query point to test
- * \param [in] cpoly The CurvedPolygon object
+ * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
+ * \param [in] q_arr The array of query points to test
+ * \param [in] cpoly The CurvedPolygon object of generic curves
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
@@ -434,9 +431,9 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
  * 
  * \return The GWN.
  */
-template <typename T>
-axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
-                                   const CurvedPolygon<T, 2>& cpoly,
+template <typename T, typename CurveType>
+axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
+                                   const CurvedPolygon<CurveType>& cpoly,
                                    double edge_tol = 1e-8,
                                    double EPS = 1e-8)
 {
@@ -447,14 +444,45 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
     cache_arr.emplace_back(detail::NURBSCurveGWNCache<T>(cpoly[i], edge_tol));
   }
 
-  axom::Array<double> ret_val(query_arr.size());
-  for(int n = 0; n < query_arr.size(); ++n)
+  axom::Array<double> ret_val(q_arr.size());
+  for(int n = 0; n < q_arr.size(); ++n)
   {
-    ret_val[n] = winding_number(query_arr[n], cache_arr, edge_tol, EPS);
+    ret_val[n] = winding_number(q_arr[n], cache_arr, edge_tol, EPS);
   }
 
   return ret_val;
 }
+
+/*!
+ * \brief Computes the GWN for an array of 2D points wrt to a 2D curved polygon
+ *
+ * \param [in] q_arr The array of query points to test
+ * \param [in] cpoly The CurvedPolygon object of NURBS curves with cached GWN data
+ * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ *
+ * Computes the GWN for the curved polygon by summing the GWN for each curved edge
+ * 
+ * \warning Because the cache isKdiscarded immediately after computation,
+ *  this method is not accelerated by memoization
+ * 
+ * \return The GWN.
+ */
+template <typename T>
+axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
+                                   const CurvedPolygon<detail::NURBSCurveGWNCache<T>>& cpoly,
+                                   double edge_tol = 1e-8,
+                                   double EPS = 1e-8)
+{
+  axom::Array<double> ret_val(q_arr.size());
+  for(int n = 0; n < q_arr.size(); ++n)
+  {
+    ret_val[n] = winding_number(q_arr[n], cpoly, edge_tol, EPS);
+  }
+
+  return ret_val;
+}
+
 ///@{
 //! @name Winding number operations between 3D points and primitives
 
@@ -672,8 +700,6 @@ int winding_number(const Point<T, 3>& q,
   return std::lround(wn);
 }
 
-#ifdef AXOM_USE_MFEM
-
 /*!
  * \brief Computes the GWN for a 3D point wrt a 3D NURBS patch with precomputed data
  *
@@ -866,7 +892,6 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
 
   return winding_number(query_arr, nurbs_cache_arr, edge_tol, ls_tol, quad_tol, disk_size, EPS);
 }
-#endif
 ///@}
 
 }  // namespace primal

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -7,7 +8,7 @@
 #define AXOM_MEMORYMANAGEMENT_HPP_
 
 // Axom includes
-#include "axom/config.hpp"  // for AXOM compile-time definitions
+#include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 
@@ -19,11 +20,14 @@
   #include "umpire/resource/MemoryResourceTypes.hpp"
   #include "umpire/strategy/QuickPool.hpp"
 #else
-  #include <cstring>  // for std::memcpy
-  #include <cstdlib>  // for std::malloc, std::realloc, std::free
+  #include <cstring>
+  #include <cstdlib>
 #endif
 
+#include <cstddef>
+#include <cstdlib>
 #include <iostream>
+#include <string>
 #include <type_traits>
 
 namespace axom
@@ -145,6 +149,33 @@ inline int getAllocatorIDFromPointer(const void* ptr)
 }
 
 /*!
+ * \brief Determines whether an allocator id is for shared memory.
+ *
+ * \param allocID An allocator id.
+ *
+ * \return True if the allocator id is for shared memory; false otherwise.
+ */
+bool isSharedMemoryAllocator(int allocID);
+
+/*!
+ * \brief Get the allocator ID for Axom's shared memory allocator.
+ *
+ * \param [in] minSegmentSize Minimum desired shared-memory segment size in bytes (0 to use defaults).
+ *             This value is treated as a minimum; the implementation will use the maximum
+ *             of this value and Umpire's default shared-memory segment size when creating the allocator.
+ *             This minimum is applied when creating the allocator and is ignored if the allocator
+ *             already exists (except for validation).
+ *
+ * \note The shared-memory segment size cannot be increased after creation. If the allocator already
+ * exists and \a minSegmentSize is larger than its existing segment size, this function aborts with
+ * an explanatory message.
+ *
+ * \return The allocator ID for Axom's shared memory allocator (if Axom is built with Umpire shared memory support),
+ *         or INVALID_ALLOCATOR_ID otherwise.
+ */
+int getSharedMemoryAllocatorID(std::size_t minSegmentSize = 0);
+
+/*!
  * \brief Allocates a chunk of memory of type T.
  *
  * \param [in] n the number of elements to allocate.
@@ -161,6 +192,20 @@ inline int getAllocatorIDFromPointer(const void* ptr)
  */
 template <typename T>
 inline T* allocate(std::size_t n, int allocID = getDefaultAllocatorID()) noexcept;
+
+/*!
+ * \brief Allocates a chunk of memory of type T with a user-supplied allocation name.
+ *
+ * \param [in] n the number of elements to allocate.
+ * \param [in] name allocation name (must be non-empty for shared memory allocators)
+ * \param [in] allocID the Umpire allocator to use (optional)
+ *
+ * \return pointer to the new allocation or a nullptr if allocation failed.
+ */
+template <typename T>
+inline T* allocate(std::size_t n,
+                   const std::string& name,
+                   int allocID = getDefaultAllocatorID()) noexcept;
 
 /*!
  * \brief Frees the chunk of memory pointed to by the supplied pointer, p.
@@ -251,8 +296,7 @@ inline T* allocate(std::size_t n, int allocID) noexcept
   const std::size_t numbytes = n * sizeof(T);
 
 #ifdef AXOM_USE_UMPIRE
-  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-  if(rm.isAllocator(allocID))
+  if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
   {
     umpire::Allocator allocator = rm.getAllocator(allocID);
     return static_cast<T*>(allocator.allocate(numbytes));
@@ -261,6 +305,32 @@ inline T* allocate(std::size_t n, int allocID) noexcept
 
   if(allocID == MALLOC_ALLOCATOR_ID)
   {
+    return static_cast<T*>(std::malloc(numbytes));
+  }
+
+  std::cerr << "Unrecognized allocator id " << allocID << std::endl;
+  axom::utilities::processAbort();
+
+  return nullptr;  // Silence warning.
+}
+
+template <typename T>
+inline T* allocate(std::size_t n, const std::string& name, int allocID) noexcept
+{
+  const std::size_t numbytes = n * sizeof(T);
+
+#ifdef AXOM_USE_UMPIRE
+  if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
+  {
+    umpire::Allocator allocator = rm.getAllocator(allocID);
+    return name.empty() ? static_cast<T*>(allocator.allocate(numbytes))
+                        : static_cast<T*>(allocator.allocate(name, numbytes));
+  }
+#endif
+
+  if(allocID == MALLOC_ALLOCATOR_ID)
+  {
+    AXOM_UNUSED_VAR(name);
     return static_cast<T*>(std::malloc(numbytes));
   }
 

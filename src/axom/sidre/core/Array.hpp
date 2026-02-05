@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -78,6 +79,95 @@ inline IndexType getViewShapeImpl<2>(int dim, const View* view)
   return static_cast<axom::IndexType>(dims[dim]);
 }
 
+/*!
+ * \class SidreStoragePolicy
+ *
+ * \brief Storage policy for sidre::Array.
+ *  Uses Sidre to manage buffers.
+ */
+template <typename T>
+struct SidreStoragePolicy
+{
+  /*!
+   * \brief Callback to report changes in shape of data in Array.
+   *
+   * \param [in] shape the current dimensions of the array
+   */
+  template <int Dims>
+  void onShapeUpdate(StackArray<IndexType, Dims> shape)
+  {
+    if(m_view != nullptr)
+    {
+      describeViewImpl(sidreTypeId(), shape, m_view);
+    }
+  }
+
+  /*!
+   * \brief Reallocates a buffer.
+   *
+   * \param [in] old_data pointer to the old buffer
+   * \param [in] old_capacity the capacity of the currently allocated buffer
+   * \param [in] allocator_id the allocator ID to use
+   * \param [in] new_capacity the capacity to allocate
+   * \param [in] nontrivial_move a callback to move elements that aren't
+   *  trivially copyable
+   *
+   * \return a pointer to the new buffer with moved elements
+   */
+  template <typename Func>
+  T* reallocate(T* AXOM_UNUSED_PARAM(old_data),
+                int AXOM_UNUSED_PARAM(old_capacity),
+                int AXOM_UNUSED_PARAM(allocator_id),
+                int new_capacity,
+                Func&& AXOM_UNUSED_PARAM(nontrivial_move))
+  {
+    if(m_view->isEmpty())
+    {
+      constexpr sidre::TypeID T_type = sidreTypeId();
+      m_view->allocate(T_type, new_capacity);
+    }
+    else
+    {
+      m_view->reallocate(new_capacity);
+    }
+    return static_cast<T*>(m_view->getVoidPtr());
+  }
+
+  /*!
+   * \brief Deallocator callback. Unused since Sidre manages the underlying memory.
+   */
+  void deallocate(T* AXOM_UNUSED_PARAM(data)) { }
+
+  /*!
+   * \brief Return the TypeID corresponding to T.
+   */
+  static constexpr TypeID sidreTypeId()
+  {
+    if constexpr(std::is_enum_v<T>)
+    {
+      return detail::SidreTT<typename std::underlying_type_t<T>>::id;
+    }
+    else
+    {
+      return detail::SidreTT<T>::id;
+    }
+  }
+
+  /// \brief Sets the underlying Sidre view.
+  void setView(View* view) { m_view = view; }
+
+  /*!
+   * \brief Return the underlying Sidre view.
+   */
+  /// @{
+  View* getView() { return m_view; }
+  const View* getView() const { return m_view; }
+  /// @}
+
+private:
+  View* m_view;
+};
+
 }  // namespace detail
 
 /*!
@@ -109,7 +199,7 @@ inline IndexType getViewShapeImpl<2>(int dim, const View* view)
  * \see View
  */
 template <typename T, int DIM = 1>
-class Array : public axom::Array<T, DIM>
+class Array : public axom::Array<T, DIM, MemorySpace::Dynamic, detail::SidreStoragePolicy<T>>
 {
 public:
   static_assert(DIM <= 2, "Only 1- and 2-dimensional Sidre arrays are permitted");
@@ -260,59 +350,17 @@ public:
   /*!
    * \brief Return a pointer to the View that this Array wraps.
    */
-  const View* getView() const { return m_view; }
+  const View* getView() const { return detail::SidreStoragePolicy<T>::getView(); }
 
   /// @}
 
 protected:
-  /*!
-   * \brief Update the number of elements.
-   *
-   * \param [in] new_num_elements the new number of elements.
-   */
-  virtual void updateNumElements(axom::IndexType new_num_elements);
+  using BaseArray = axom::Array<T, DIM, MemorySpace::Dynamic, detail::SidreStoragePolicy<T>>;
 
   /*!
-   * \brief Set the number of elements allocated for the data array.
-   *
-   * \param [in] capacity the new number of elements to allocate.
+   * \brief Return the TypeID corresponding to T.
    */
-  virtual void setCapacity(axom::IndexType new_capacity);
-
-  /*!
-   * \brief Reallocates the data array when the size exceeds the capacity.
-   *
-   * \param [in] new_num_elements the number of elements which exceeds the current
-   *  capacity.
-   */
-  virtual void dynamicRealloc(axom::IndexType new_num_elements);
-
-  /*!
-   * \brief Return the TypeID corresponding to T. This function
-   *  handles when T is not an enum.
-   */
-  template <typename U = T>
-  static constexpr typename std::enable_if<!std::is_enum<U>::value, TypeID>::type sidreTypeId()
-  {
-    return detail::SidreTT<U>::id;
-  }
-
-  /*!
-   * \brief Return the TypeID corresponding to T. This function handles
-   *  when T is an enum.
-   */
-  template <typename U = T>
-  static constexpr typename std::enable_if<std::is_enum<U>::value, TypeID>::type sidreTypeId()
-  {
-    return detail::SidreTT<typename std::underlying_type<U>::type>::id;
-  }
-
-  /*!
-   * \brief Applies this Array's type and dimensions to the sidre View.
-   *
-   * Calls m_view->apply(sidreTypeId(), 2, {m_num_tuples, m_num_components}).
-   */
-  void describeView();
+  static constexpr TypeID sidreTypeId() { return detail::SidreStoragePolicy<T>::sidreTypeId(); }
 
   /*!
    * \brief Given a non-empty View of dimension 2, returns the length
@@ -324,15 +372,6 @@ protected:
    * \pre 0 <= dim <= 1
    */
   axom::IndexType getViewShape(int dim) const;
-
-  /*!
-   * \brief Allocates space within the Array's View.
-   *
-   * \param [in] new_capacity the number of elements to allocate.
-   */
-  void reallocViewData(IndexType new_capacity);
-
-  View* m_view;
 };
 
 /// \brief Helper alias for multi-component arrays
@@ -345,37 +384,38 @@ using MCArray = Array<T, 2>;
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM>
-Array<T, DIM>::Array(Array<T, DIM>&& other)
-  : axom::Array<T, DIM>(static_cast<axom::Array<T, DIM>&&>(std::move(other)))
-  , m_view(other.m_view)
+Array<T, DIM>::Array(Array<T, DIM>&& other) : BaseArray(static_cast<BaseArray&&>(std::move(other)))
 {
-  other.m_view = nullptr;
+  using StoragePolicy = detail::SidreStoragePolicy<T>;
+  this->setView(other.StoragePolicy::getView());
+  other.setView(nullptr);
 }
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM>
 Array<T, DIM>& Array<T, DIM>::operator=(Array<T, DIM>&& other)
 {
-  axom::Array<T, DIM>::operator=(std::move(other));
-  m_view = other.m_view;
-  other.m_view = nullptr;
+  using StoragePolicy = detail::SidreStoragePolicy<T>;
+  BaseArray::operator=(std::move(other));
+  this->setView(other.StoragePolicy::getView());
+  other.setView(nullptr);
   return *this;
 }
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM>
 template <int SFINAE, typename std::enable_if<SFINAE == 1>::type*>
-Array<T, DIM>::Array(View* view) : axom::Array<T, 1>()
-                                 , m_view(view)
+Array<T, DIM>::Array(View* view) : BaseArray()
 {
-  SLIC_ERROR_IF(m_view == nullptr, "Provided View cannot be null.");
-  SLIC_ERROR_IF(m_view->isEmpty(), "Provided View cannot be empty.");
+  SLIC_ERROR_IF(view == nullptr, "Provided View cannot be null.");
+  SLIC_ERROR_IF(view->isEmpty(), "Provided View cannot be empty.");
+  this->setView(view);
 
   axom::StackArray<axom::IndexType, 1> newShape {getViewShape(0)};
   this->setShape(newShape);
   this->m_num_elements = newShape[0];
 
-  axom::IndexType buffer_size = m_view->getBuffer()->getNumElements();
+  axom::IndexType buffer_size = getView()->getBuffer()->getNumElements();
   this->m_capacity = buffer_size;
 
   SLIC_ERROR_IF(this->m_num_elements < 0,
@@ -387,29 +427,29 @@ Array<T, DIM>::Array(View* view) : axom::Array<T, 1>()
                                      << "cannot be greater than the tuple capacity "
                                      << "(" << this->m_capacity << ").");
 
-  TypeID view_type = m_view->getTypeID();
+  TypeID view_type = getView()->getTypeID();
   TypeID T_type = sidreTypeId();
   SLIC_ERROR_IF(view_type != T_type,
                 "View data type (" << view_type << ")"
                                    << "differs from this Array type (" << T_type << ").");
 
-  this->m_data = static_cast<T*>(m_view->getVoidPtr());
+  this->m_data = static_cast<T*>(getView()->getVoidPtr());
   SLIC_ERROR_IF(this->m_data == nullptr && this->m_capacity > 0,
                 "View returned a null pointer when the capacity " << "is greater than zero.");
 }
 
 template <typename T, int DIM>
 template <int SFINAE, typename std::enable_if<SFINAE == 2>::type*>
-Array<T, DIM>::Array(View* view) : axom::Array<T, 2>()
-                                 , m_view(view)
+Array<T, DIM>::Array(View* view) : BaseArray()
 {
-  SLIC_ERROR_IF(m_view == nullptr, "Provided View cannot be null.");
-  SLIC_ERROR_IF(m_view->isEmpty(), "Provided View cannot be empty.");
+  SLIC_ERROR_IF(view == nullptr, "Provided View cannot be null.");
+  SLIC_ERROR_IF(view->isEmpty(), "Provided View cannot be empty.");
+  this->setView(view);
 
   axom::StackArray<axom::IndexType, 2> newShape {getViewShape(0), getViewShape(1)};
   this->setShape(newShape);
 
-  axom::IndexType buffer_size = m_view->getBuffer()->getNumElements();
+  axom::IndexType buffer_size = getView()->getBuffer()->getNumElements();
   SLIC_ERROR_IF(buffer_size % this->m_shape[1] != 0,
                 "The buffer size (" << buffer_size << ") "
                                     << "is not a multiple of the number of components "
@@ -430,13 +470,13 @@ Array<T, DIM>::Array(View* view) : axom::Array<T, 2>()
                                        << "cannot be greater than the element capacity "
                                        << "(" << this->m_capacity << ").");
 
-  TypeID view_type = m_view->getTypeID();
+  TypeID view_type = getView()->getTypeID();
   TypeID T_type = sidreTypeId();
   SLIC_ERROR_IF(view_type != T_type,
                 "View data type (" << view_type << ")"
                                    << "differs from this MCArray type (" << T_type << ").");
 
-  this->m_data = static_cast<T*>(m_view->getVoidPtr());
+  this->m_data = static_cast<T*>(getView()->getVoidPtr());
   SLIC_ERROR_IF(this->m_data == nullptr && this->m_capacity > 0,
                 "View returned a null pointer when the capacity " << "is greater than zero.");
 }
@@ -445,21 +485,21 @@ Array<T, DIM>::Array(View* view) : axom::Array<T, 2>()
 template <typename T, int DIM>
 template <int SFINAE, typename std::enable_if<SFINAE == 1>::type*>
 Array<T, DIM>::Array(View* view, axom::IndexType num_elements, axom::IndexType capacity)
-  : axom::Array<T, 1>()
-  , m_view(view)
+  : BaseArray()
 {
-  SLIC_ERROR_IF(m_view == nullptr, "Provided View cannot be null.");
-  SLIC_ERROR_IF(!m_view->isEmpty(), "View must be empty.");
+  SLIC_ERROR_IF(view == nullptr, "Provided View cannot be null.");
+  SLIC_ERROR_IF(!view->isEmpty(), "View must be empty.");
   SLIC_ERROR_IF(num_elements < 0,
                 "Number of elements (" << num_elements << ") "
                                        << "cannot be negative.");
+  this->setView(view);
   this->m_num_elements = num_elements;
   IndexType real_capacity = capacity;
   if(real_capacity < this->m_num_elements)
   {
     real_capacity = this->m_num_elements;
   }
-  reallocViewData(real_capacity);
+  this->setCapacity(real_capacity);
 
   SLIC_ERROR_IF(this->m_num_elements > this->m_capacity,
                 "Number of elements (" << this->m_num_elements << ") "
@@ -476,11 +516,11 @@ Array<T, DIM>::Array(View* view,
                      axom::IndexType num_tuples,
                      axom::IndexType num_components,
                      axom::IndexType capacity)
-  : axom::Array<T, DIM>()
-  , m_view(view)
+  : BaseArray()
 {
-  SLIC_ERROR_IF(m_view == nullptr, "Provided View cannot be null.");
-  SLIC_ERROR_IF(!m_view->isEmpty(), "View must be empty.");
+  SLIC_ERROR_IF(view == nullptr, "Provided View cannot be null.");
+  SLIC_ERROR_IF(!view->isEmpty(), "View must be empty.");
+  this->setView(view);
   SLIC_ERROR_IF(num_tuples < 0,
                 "Number of tuples (" << num_tuples << ") "
                                      << "cannot be negative.");
@@ -500,7 +540,7 @@ Array<T, DIM>::Array(View* view,
   {
     real_capacity = this->m_num_elements;
   }
-  reallocViewData(real_capacity);
+  this->setCapacity(real_capacity);
 
   SLIC_ERROR_IF(this->m_num_elements > this->m_capacity,
                 "Number of elements (" << this->m_num_elements << ") "
@@ -517,86 +557,14 @@ Array<T, DIM>::Array(View* view,
 template <typename T, int DIM>
 Array<T, DIM>::~Array()
 {
-  m_view = nullptr;
-  this->m_data = nullptr;
-}
-
-//------------------------------------------------------------------------------
-template <typename T, int DIM>
-inline void Array<T, DIM>::updateNumElements(axom::IndexType new_num_elements)
-{
-  SLIC_ASSERT(new_num_elements >= 0);
-  SLIC_ASSERT(new_num_elements <= this->m_capacity);
-  this->m_num_elements = new_num_elements;
-  describeView();
-}
-
-//------------------------------------------------------------------------------
-template <typename T, int DIM>
-inline void Array<T, DIM>::setCapacity(axom::IndexType new_capacity)
-{
-  SLIC_ASSERT(new_capacity >= 0);
-
-  if(new_capacity < this->m_num_elements)
-  {
-    updateNumElements(new_capacity);
-  }
-
-  return reallocViewData(new_capacity);
-}
-
-//------------------------------------------------------------------------------
-template <typename T, int DIM>
-inline void Array<T, DIM>::dynamicRealloc(axom::IndexType new_num_elements)
-{
-  SLIC_ERROR_IF(this->m_resize_ratio < 1.0,
-                "Resize ratio of " << this->m_resize_ratio << " doesn't support dynamic resizing");
-
-  IndexType new_capacity =
-    axom::utilities::max<IndexType>(this->capacity() * this->getResizeRatio() + 0.5,
-                                    new_num_elements);
-  const IndexType block_size = this->blockSize();
-  const IndexType remainder = new_capacity % block_size;
-  if(remainder != 0)
-  {
-    new_capacity += block_size - remainder;
-  }
-  return reallocViewData(new_capacity);
-}
-
-//------------------------------------------------------------------------------
-template <typename T, int DIM>
-inline void Array<T, DIM>::describeView()
-{
-  detail::describeViewImpl(sidreTypeId(), this->shape(), m_view);
+  this->setView(nullptr);
 }
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM>
 inline axom::IndexType Array<T, DIM>::getViewShape(int dim) const
 {
-  return detail::getViewShapeImpl<DIM>(dim, m_view);
-}
-
-//------------------------------------------------------------------------------
-template <typename T, int DIM>
-inline void Array<T, DIM>::reallocViewData(IndexType new_capacity)
-{
-  if(m_view->isEmpty())
-  {
-    constexpr sidre::TypeID T_type = sidreTypeId();
-    m_view->allocate(T_type, new_capacity);
-  }
-  else
-  {
-    m_view->reallocate(new_capacity);
-  }
-
-  this->m_capacity = new_capacity;
-  describeView();
-  this->m_data = static_cast<T*>(m_view->getVoidPtr());
-
-  SLIC_ERROR_IF(this->m_data == nullptr && this->m_capacity > 0, "Array reallocation failed.");
+  return detail::getViewShapeImpl<DIM>(dim, getView());
 }
 
 } /* namespace sidre */

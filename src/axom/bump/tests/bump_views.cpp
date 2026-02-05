@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -551,9 +552,10 @@ struct test_braid2d_mat
     const axom::IndexType nzones = zoneDims[0] * zoneDims[1];
 
     // Create the data
+    const bool cleanMats = false;
     conduit::Node hostMesh, deviceMesh;
     axom::blueprint::testing::data::braid(type, dims, hostMesh);
-    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, hostMesh);
+    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, cleanMats, hostMesh);
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
     TestApp.saveVisualization(name + "_orig", hostMesh);
 
@@ -656,6 +658,78 @@ struct test_braid2d_mat
     for(int i = 0; i < nResults; i++)
     {
       EXPECT_EQ(results[i], resultsHost[i]);
+    }
+
+    // Test iterators.
+    test_matsetview_iterators(matsetView, allocatorID);
+  }
+
+  template <typename MatsetView>
+  static void test_matsetview_iterators(MatsetView matsetView, int allocatorID)
+  {
+    using ZoneIndex = typename MatsetView::ZoneIndex;
+    // Allocate results array on device.
+    const int nResults = matsetView.numberOfZones();
+    axom::Array<int> resultsArrayDevice(nResults, nResults, allocatorID);
+    auto resultsView = resultsArrayDevice.view();
+
+    axom::for_all<ExecSpace>(
+      matsetView.numberOfZones(),
+      AXOM_LAMBDA(axom::IndexType index) {
+        typename MatsetView::IDList ids {};
+        typename MatsetView::VFList vfs {};
+        matsetView.zoneMaterials(index, ids, vfs);
+
+        // Get the end iterator for the zone.
+        const auto end = matsetView.endZone(index);
+
+        int eq_count = 0;
+        int count = 0;
+
+        // Make sure the iterator is for the right zone.
+        eq_count += (end.zoneIndex() == static_cast<ZoneIndex>(index)) ? 1 : 0;
+        count++;
+
+        // Make sure incrementing the last iterator has no effect.
+        auto end2 = end;
+        end2++;
+        eq_count += (end == end2) ? 1 : 0;
+        count++;
+
+        // Make sure the iterator order is the same as for the values we got from zoneMaterials().
+        int i = 0;
+        for(auto it = matsetView.beginZone(index); it != end; it++, i++)
+        {
+          eq_count += (vfs[i] == it.volume_fraction() && ids[i] == it.material_id()) ? 1 : 0;
+          count++;
+        }
+
+        // Test ArrayView version of zoneMaterials().
+        using IndexType = typename MatsetView::IndexType;
+        using FloatType = typename MatsetView::FloatType;
+        constexpr int ARRAY_SIZE = 10;
+        IndexType idStorage[ARRAY_SIZE];
+        FloatType vfStorage[ARRAY_SIZE];
+        axom::ArrayView<IndexType> idView(idStorage, ARRAY_SIZE);
+        axom::ArrayView<FloatType> vfView(vfStorage, ARRAY_SIZE);
+        const auto nmats = matsetView.zoneMaterials(index, idView, vfView);
+        eq_count += (nmats == ids.size()) ? 1 : 0;
+        count++;
+        for(axom::IndexType j = 0; j < nmats; j++)
+        {
+          eq_count += (vfs[j] == vfView[j] && ids[j] == idView[j]) ? 1 : 0;
+          count++;
+        }
+
+        resultsView[index] = (eq_count == count) ? 1 : 0;
+      });
+
+    // Get containsView data to the host and compare results
+    std::vector<int> resultsHost(nResults);
+    axom::copy(resultsHost.data(), resultsView.data(), sizeof(int) * nResults);
+    for(int i = 0; i < nResults; i++)
+    {
+      EXPECT_EQ(resultsHost[i], 1);
     }
   }
 };

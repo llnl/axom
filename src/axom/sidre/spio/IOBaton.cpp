@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -113,7 +114,7 @@ int IOBaton::pass()
   int return_val = 0;
   if(m_rank_after_me != s_invalid_rank_id)
   {
-    int baton;
+    int baton = 0;
     int mpi_err = MPI_Ssend(&baton, 1, MPI_INT, m_rank_after_me, 0, m_mpi_comm);
     if(mpi_err != MPI_SUCCESS)
     {

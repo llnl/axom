@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for internals.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 #ifndef AXOM_MIR_ELVIRA_ALGORITHM_DETAIL_HPP_
@@ -71,6 +72,21 @@ protected:
 
 namespace detail
 {
+
+//------------------------------------------------------------------------------
+template <typename T>
+struct clip_precision
+{
+  // The default precision used in axom::primal::clip
+  static constexpr double eps = 1.e-10;
+};
+
+template <>
+struct clip_precision<double>
+{
+  // Make the axom::primal::clip more precise for double.
+  static constexpr double eps = 1.e-15;
+};
 
 //------------------------------------------------------------------------------
 /*!
@@ -162,7 +178,7 @@ AXOM_HOST_DEVICE inline ClipResultType clipToVolume(const ShapeType &shape,
     const auto P = axom::primal::Plane<T, NDIMS>(clipNormal, pt, false);
 
     // Clip the shape at the current plane.
-    clippedShape = axom::primal::clip(shape, P);
+    clippedShape = axom::primal::clip(shape, P, clip_precision<T>::eps);
 
     // Find the volume of the clipped shape.
     const double fragmentVolume = utils::ComputeShapeAmount<NDIMS>::execute(clippedShape);

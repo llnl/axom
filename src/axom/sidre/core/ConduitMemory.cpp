@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -22,7 +23,7 @@ void ConduitMemory::privateRegisterAllocator()
     axom::deallocate<char>(cPtr);
   };
   m_deallocCallback = deallocator;
-#if defined(AXOM_USE_CONDUIT_STD_FUNCTION)
+#if defined(AXOM_CONDUIT_USES_STD_FUNCTION)
   m_allocCallback = [=](size_t itemCount, size_t itemByteSize) -> void* {
     void* ptr = axom::allocate<char>(itemCount * itemByteSize, m_axomId);
     return ptr;

@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -65,8 +66,7 @@ opposed to source code changes, are done in the release candidate branch.
 Typical changes include:
 
 #. Update the version information (major, minor, and patch version numbers)
-   near the top of the ``axom/src/cmake/AxomVersion.cmake`` file and in
-   the ``axom/RELEASE`` file.
+   near the top of the ``axom/src/cmake/AxomVersion.cmake`` file.
 
 #. Make any changes that are needed, for correctness and completeness, in the
    section for the new release in the file ``axom/RELEASE-NOTES.md``. This
@@ -184,26 +184,44 @@ the history. After merging, the release candidate branch can be deleted.
    GitHub will add tarfile and zip archives consisting of the
    source files for each release. However, these files do not include any
    submodules. Consequently, a tarfile that includes all of the submodules is
-   generated manually in a separate step.
+   generated manually in a separate step described below.
 
 6: Make Release Tarfiles
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* After the release is published on GitHub, checkout the main branch locally
-  and run the command ``./scripts/make_release_tarball.sh --with-data``
-  from the top level ``axom`` directory. This will generate two tarfiles:
-  ``Axom-v0.3.1.tar.gz`` and ``AxomData-v0.3.1.tar.gz`` consisting of the axom
-  repo source and Axom data repo source, respectively.
+#. After the release is published on GitHub, checkout the main branch locally
+   and run the command ``./scripts/make_release_tarball.sh --with-data``
+   from the top level ``axom`` directory. This will generate two tarfiles: for example,
+   ``Axom-v0.3.1.tar.gz`` and ``AxomData-v0.3.1.tar.gz`` consisting of the axom
+   repo source and Axom data repo source, respectively.
 
-* Attach the tarfiles for the corresponding release, by going to the
-  `GitHub Releases section <https://github.com/LLNL/axom/releases>`_ and
-  ``Edit`` the release created in step 5 above. Click ``Paste, drop, or click to add files``
-  at the bottom of the release description section and select the
-  Axom release and data tarfiles created in the previous step. 
+#. Attach the tarfiles for the corresponding release, by going to the
+   `GitHub Releases section <https://github.com/LLNL/axom/releases>`_ and
+   ``Edit`` the release created in step 5 above. Click ``Paste, drop, or click to add files``
+   at the bottom of the release description section and select the
+   Axom release and data tarfiles created in the previous step. 
 
-* Click the ``Update release`` button.
+#. Click the ``Update release`` button.
 
-7: Merge Main to Develop
+7: Tag Axom Data Repository with Release Tag
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The `Axom Data Project <https://github.com/LLNL/axom_data>`_ is a separate
+repository from Axom that contains files used when running Axom tests that
+are also useful examples for users to explore. The Axom Data Project is 
+a submodule in the Axom Git repository. To make it clear which commit in the
+data project corresponds to each Axom release, we tag the data project commit
+with a label using the Axom release tag.
+
+After the Axom release on GitHub is complete (step 6 above), this is done 
+as follows::
+
+  > git clone git@github.com:LLNL/axom_data.git 
+  > git checkout <sha1-hash>   (if needed, where the hash is the commit in the data directory in the Axom release)
+  > git tag vMM.mm.pp  (where MM.mm.pp is the Axom release number)
+  > git push origin vMM.mm.pp
+
+8: Merge Main to Develop
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Create a pull request to merge main into develop so that changes in the 

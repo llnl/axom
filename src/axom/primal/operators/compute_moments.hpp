@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -95,7 +96,7 @@ primal::Point<T, 2> sector_centroid(const primal::BezierCurve<T, 2>& curve)
 
 /// \brief Returns the area enclosed by the CurvedPolygon
 template <typename T>
-T area(const primal::CurvedPolygon<T, 2>& poly, double tol = 1e-8)
+T area(const primal::CurvedPolygon<BezierCurve<T, 2>>& poly, double tol = 1e-8)
 {
   const int ngon = poly.numEdges();
   T A = 0.0;
@@ -119,7 +120,7 @@ T area(const primal::CurvedPolygon<T, 2>& poly, double tol = 1e-8)
 
 /// \brief Returns the centroid of the CurvedPolygon
 template <typename T>
-primal::Point<T, 2> centroid(const primal::CurvedPolygon<T, 2>& poly, double tol = 1e-8)
+primal::Point<T, 2> centroid(const primal::CurvedPolygon<BezierCurve<T, 2>>& poly, double tol = 1e-8)
 {
   using PointType = primal::Point<T, 2>;
 

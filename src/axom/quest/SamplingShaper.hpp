@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -15,14 +16,12 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
-#include "axom/slam.hpp"
 #include "axom/primal.hpp"
 #include "axom/mint.hpp"
-#include "axom/spin.hpp"
 #include "axom/klee.hpp"
 
-#ifndef AXOM_USE_MFEM
-  #error Shaping functionality requires Axom to be configured with MFEM and the AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION option
+#if !defined(AXOM_USE_MFEM) || !defined(AXOM_USE_SIDRE)
+  #error SamplingShaper requires Axom to be configured with MFEM and Sidre
 #endif
 
 #include "axom/quest/Shaper.hpp"
@@ -56,6 +55,79 @@ public:
     InOut,
     WindingNumber
   };
+
+private:
+  using InOutSampler2D = shaping::InOutSampler<2>;
+  using InOutSampler3D = shaping::InOutSampler<3>;
+  using PrimitiveSampler3D_seq = shaping::PrimitiveSampler<3, seq_exec>;
+  using PrimitiveSampler3D_omp = shaping::PrimitiveSampler<3, omp_exec>;
+  using PrimitiveSampler3D_cuda = shaping::PrimitiveSampler<3, cuda_exec>;
+  using PrimitiveSampler3D_hip = shaping::PrimitiveSampler<3, hip_exec>;
+  using WindingNumberSampler2D = shaping::WindingNumberSampler<2>;
+
+  // Type trait for any InOutSampler type
+  template <typename T>
+  struct is_inoutsampler
+    : std::bool_constant<std::is_same_v<T, InOutSampler2D> || std::is_same_v<T, InOutSampler3D>>
+  { };
+
+  template <typename T>
+  inline static constexpr bool is_inoutsampler_v = is_inoutsampler<T>::value;
+
+  // Type trait for any WindingNumberSampler type
+  template <typename T>
+  struct is_wnsampler : std::bool_constant<std::is_same_v<T, WindingNumberSampler2D>>
+  { };
+
+  template <typename T>
+  inline static constexpr bool is_wnsampler_v = is_wnsampler<T>::value;
+
+  // Type trait for any PrimitiveSampler type
+  template <typename T>
+  struct is_primitivesampler
+    : std::bool_constant<
+        std::is_same_v<T, PrimitiveSampler3D_seq> || std::is_same_v<T, PrimitiveSampler3D_omp> ||
+        std::is_same_v<T, PrimitiveSampler3D_cuda> || std::is_same_v<T, PrimitiveSampler3D_hip>>
+  { };
+
+  template <typename T>
+  inline static constexpr bool is_primitivesampler_v = is_primitivesampler<T>::value;
+
+  // Type trait to get the dimension of a sampler
+  template <typename T>
+  struct sampler_dimension
+    : std::integral_constant<int,
+                             std::is_same_v<T, InOutSampler2D>              ? 2
+                               : std::is_same_v<T, InOutSampler3D>          ? 3
+                               : std::is_same_v<T, WindingNumberSampler2D>  ? 2
+                               : std::is_same_v<T, PrimitiveSampler3D_seq>  ? 3
+                               : std::is_same_v<T, PrimitiveSampler3D_omp>  ? 3
+                               : std::is_same_v<T, PrimitiveSampler3D_cuda> ? 3
+                               : std::is_same_v<T, PrimitiveSampler3D_hip>  ? 3
+                                                                            : 0>
+  { };
+
+  template <typename T>
+  inline static constexpr int sampler_dimension_v = sampler_dimension<T>::value;
+
+  using SamplerVariant = std::variant<std::monostate,
+                                      std::unique_ptr<InOutSampler2D>,
+                                      std::unique_ptr<InOutSampler3D>,
+                                      std::unique_ptr<WindingNumberSampler2D>,
+                                      std::unique_ptr<PrimitiveSampler3D_seq>
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+                                      ,
+                                      std::unique_ptr<PrimitiveSampler3D_omp>
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+                                      ,
+                                      std::unique_ptr<PrimitiveSampler3D_cuda>
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+                                      ,
+                                      std::unique_ptr<PrimitiveSampler3D_hip>
+#endif
+                                      >;
 
 public:
   SamplingShaper(RuntimePolicy execPolicy,
@@ -117,39 +189,32 @@ public:
   }
 
 private:
-  int numSamplersInitialized(int dim) const
-  {
-    int count = 0;
-    switch(dim)
-    {
-    case 2:
-      count += m_inoutSampler2D ? 1 : 0;
-      count += m_inoutSamplerWN ? 1 : 0;
-      break;
-    case 3:
-      count += m_inoutSampler3D ? 1 : 0;
-      count += m_primitiveSampler3D_seq ? 1 : 0;
-      count += m_primitiveSampler3D_omp ? 1 : 0;
-      count += m_primitiveSampler3D_cuda ? 1 : 0;
-      count += m_primitiveSampler3D_hip ? 1 : 0;
-      break;
-    default:
-      SLIC_ERROR("Invalid dimension " << dim);
-      break;
-    }
-    return count;
-  }
+  bool hasValidSampler() const { return !std::holds_alternative<std::monostate>(m_sampler); }
 
   klee::Dimensions getShapeDimension() const
   {
-    const int count2D = numSamplersInitialized(2);
-    const int count3D = numSamplersInitialized(3);
-    SLIC_ERROR_IF(count2D + count3D < 1, "Shape not initialized");
-    SLIC_ERROR_IF(count2D > 0 && count3D > 0, "Cannot have concurrent 2D and 3D shapes");
-    SLIC_ERROR_IF(count2D > 1, "Cannot have more than one 2D");
-    SLIC_ERROR_IF(count3D > 1, "Cannot have more than one 3D");
-
-    return count2D > 0 ? klee::Dimensions::Two : klee::Dimensions::Three;
+    return std::visit(
+      [](const auto& s) {
+        using T = std::decay_t<decltype(s)>;
+        if constexpr(std::is_same_v<T, std::monostate>)
+        {
+          return klee::Dimensions::Unspecified;
+        }
+        else if constexpr(sampler_dimension_v<typename T::element_type> == 2)
+        {
+          return klee::Dimensions::Two;
+        }
+        else if constexpr(sampler_dimension_v<typename T::element_type> == 3)
+        {
+          return klee::Dimensions::Three;
+        }
+        else
+        {
+          SLIC_ERROR("Unreachable code reached in getShapeDimension().");
+          return klee::Dimensions::Unspecified;
+        }
+      },
+      m_sampler);
   }
 
   /// Determine whether it is appropriate to use the winding number sampler.
@@ -180,7 +245,12 @@ public:
       // Read the MFEM file as curved polygon contours for winding number intersection.
       quest::MFEMReader reader;
       reader.setFileName(shapePath);
-      reader.read(m_contours);
+      const int rc = reader.read(m_contours);
+
+      SLIC_ERROR_IF(rc != quest::MFEMReader::READ_SUCCESS,
+                    axom::fmt::format("Failed to read MFEM shape '{}' from file '{}'.",
+                                      shape.getName(),
+                                      shapePath));
     }
     else
     {
@@ -205,60 +275,44 @@ public:
 
     const auto& shapeName = shape.getName();
 
+    // Initialize the sampler based on shape format
     // note: ignoring the global shapeDimension for now since it's causing problems
     // reading c2c when the dimension is Three
     AXOM_UNUSED_VAR(shapeDimension);
+    const auto format = this->shapeFormat(shape);
     if(useWindingNumberSampler(shape))
     {
-      m_inoutSamplerWN =
-        std::make_unique<shaping::WindingNumberSampler<2>>(shapeName, m_contours.view());
-      m_inoutSamplerWN->computeBounds();
-      m_inoutSamplerWN->initSpatialIndex(this->m_vertexWeldThreshold);
+      m_sampler = std::make_unique<WindingNumberSampler2D>(shapeName, m_contours.view());
     }
-    else if(this->shapeFormat(shape) == "c2c" || this->shapeFormat(shape) == "mfem")
+    else if(format == "c2c" || format == "mfem")
     {
-      m_inoutSampler2D = std::make_unique<shaping::InOutSampler<2>>(shapeName, m_surfaceMesh);
-      m_inoutSampler2D->computeBounds();
-      m_inoutSampler2D->initSpatialIndex(this->m_vertexWeldThreshold);
+      m_sampler = std::make_unique<InOutSampler2D>(shapeName, m_surfaceMesh);
     }
-    else if(this->shapeFormat(shape) == "stl")
+    else if(format == "stl")
     {
-      m_inoutSampler3D = std::make_unique<shaping::InOutSampler<3>>(shapeName, m_surfaceMesh);
-      m_inoutSampler3D->computeBounds();
-      m_inoutSampler3D->initSpatialIndex(this->m_vertexWeldThreshold);
+      m_sampler = std::make_unique<InOutSampler3D>(shapeName, m_surfaceMesh);
     }
-    else if(this->shapeFormat(shape) == "proe")
+    else if(format == "proe")
     {
+      using Policy = runtime_policy::Policy;
       switch(this->getExecutionPolicy())
       {
-      case runtime_policy::Policy::seq:
-        m_primitiveSampler3D_seq =
-          std::make_unique<shaping::PrimitiveSampler<3, seq_exec>>(shapeName, m_surfaceMesh);
-        m_primitiveSampler3D_seq->computeBounds();
-        m_primitiveSampler3D_seq->initSpatialIndex();
+      case Policy::seq:
+        m_sampler = std::make_unique<PrimitiveSampler3D_seq>(shapeName, m_surfaceMesh);
         break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-      case runtime_policy::Policy::omp:
-        m_primitiveSampler3D_omp =
-          std::make_unique<shaping::PrimitiveSampler<3, omp_exec>>(shapeName, m_surfaceMesh);
-        m_primitiveSampler3D_omp->computeBounds();
-        m_primitiveSampler3D_omp->initSpatialIndex();
+      case Policy::omp:
+        m_sampler = std::make_unique<PrimitiveSampler3D_omp>(shapeName, m_surfaceMesh);
         break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-      case runtime_policy::Policy::cuda:
-        m_primitiveSampler3D_cuda =
-          std::make_unique<shaping::PrimitiveSampler<3, cuda_exec>>(shapeName, m_surfaceMesh);
-        m_primitiveSampler3D_cuda->computeBounds();
-        m_primitiveSampler3D_cuda->initSpatialIndex();
+      case Policy::cuda:
+        m_sampler = std::make_unique<PrimitiveSampler3D_cuda>(shapeName, m_surfaceMesh);
         break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-      case runtime_policy::Policy::hip:
-        m_primitiveSampler3D_hip =
-          std::make_unique<shaping::PrimitiveSampler<3, hip_exec>>(shapeName, m_surfaceMesh);
-        m_primitiveSampler3D_hip->computeBounds();
-        m_primitiveSampler3D_hip->initSpatialIndex();
+      case Policy::hip:
+        m_sampler = std::make_unique<PrimitiveSampler3D_hip>(shapeName, m_surfaceMesh);
         break;
 #endif
       default:
@@ -267,8 +321,33 @@ public:
       }
     }
 
-    // Check that one of sampling shapers (2D or 3D) is null and the other is not
-    SLIC_ASSERT((numSamplersInitialized(2) + numSamplersInitialized(3)) == 1);
+    SLIC_ASSERT(hasValidSampler());
+
+    // Use visitor to initialize the sampler
+    std::visit(
+      [this](auto& sampler) {
+        using T = std::decay_t<decltype(sampler)>;
+        if constexpr(std::is_same_v<T, std::monostate>)
+        {
+          // no op -- monostate
+        }
+        else if constexpr(is_wnsampler_v<typename T::element_type>)
+        {
+          sampler->computeBounds();
+          sampler->initSpatialIndex(this->m_vertexWeldThreshold);
+        }
+        else if constexpr(is_inoutsampler_v<typename T::element_type>)
+        {
+          sampler->computeBounds();
+          sampler->initSpatialIndex(this->m_vertexWeldThreshold);
+        }
+        else if constexpr(is_primitivesampler_v<typename T::element_type>)
+        {
+          sampler->computeBounds();
+          sampler->initSpatialIndex();
+        }
+      },
+      m_sampler);
 
     // Output some logging info and dump the mesh
     if(this->isVerbose() && this->getRank() == 0)
@@ -305,55 +384,16 @@ public:
     SLIC_INFO_ROOT(
       axom::fmt::format("{:-^80}", axom::fmt::format(" Querying for shape '{}'", shape.getName())));
 
-    switch(getShapeDimension())
-    {
-    case klee::Dimensions::Two:
-      if(useWindingNumberSampler(shape))
-      {
-        runShapeQueryImpl(m_inoutSamplerWN.get());
-      }
-      else
-      {
-        runShapeQueryImpl(m_inoutSampler2D.get());
-      }
-      break;
-    case klee::Dimensions::Three:
-      if(this->shapeFormat(shape) == "stl")
-      {
-        runShapeQueryImpl(m_inoutSampler3D.get());
-      }
-      else if(this->shapeFormat(shape) == "proe")
-      {
-        switch(this->getExecutionPolicy())
+    // Impl function allows us to handle different capabilities of each shaper
+    std::visit(
+      [this](auto& sampler) {
+        using T = std::decay_t<decltype(sampler)>;
+        if constexpr(!std::is_same_v<T, std::monostate>)
         {
-        case runtime_policy::Policy::seq:
-          runShapeQueryImpl(m_primitiveSampler3D_seq.get());
-          break;
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-        case runtime_policy::Policy::omp:
-          runShapeQueryImpl(m_primitiveSampler3D_omp.get());
-          break;
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-        case runtime_policy::Policy::cuda:
-          runShapeQueryImpl(m_primitiveSampler3D_cuda.get());
-          break;
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-        case runtime_policy::Policy::hip:
-          runShapeQueryImpl(m_primitiveSampler3D_hip.get());
-          break;
-#endif
-        default:
-          SLIC_ERROR("Unsupported execution policy for PrimitiveSampler3D");
-          break;
+          this->runShapeQueryImpl(sampler.get());
         }
-      }
-      break;
-    case klee::Dimensions::Unspecified:
-      SLIC_ERROR("Unsupported PrimitiveSampler3D requires a 2D or 3D shape");
-      break;
-    }
+      },
+      m_sampler);
   }
 
   void applyReplacementRules(const klee::Shape& shape) override
@@ -446,13 +486,7 @@ public:
   {
     AXOM_ANNOTATE_SCOPE("finalizeShapeQuery");
 
-    m_inoutSampler2D.reset();
-    m_inoutSampler3D.reset();
-    m_primitiveSampler3D_seq.reset();
-    m_primitiveSampler3D_omp.reset();
-    m_primitiveSampler3D_cuda.reset();
-    m_primitiveSampler3D_hip.reset();
-    m_inoutSamplerWN.reset();
+    m_sampler = std::monostate();  // frees memory associated w/ the sampler
 
     SLIC_WARNING_IF(
       m_surfaceMesh.use_count() > 1,
@@ -949,19 +983,9 @@ private:
   shaping::DenseTensorCollection m_inoutTensors;
   shaping::MFEMArrayCollection m_inoutArrays;
 
-  // add pointers to all possible samplers for the various dimensions and execution spaces
-  // Note: the omp, cuda and hip pointers can only be instantiated with appropriate axom congigs
-  // Note: only one of these can be instantiated within a SamplingShaper
-  // TODO: This will be a lot cleaner with a std::variant
-  std::unique_ptr<shaping::InOutSampler<2>> m_inoutSampler2D;
-  std::unique_ptr<shaping::InOutSampler<3>> m_inoutSampler3D;
-  std::unique_ptr<shaping::PrimitiveSampler<3, seq_exec>> m_primitiveSampler3D_seq;
-  std::unique_ptr<shaping::PrimitiveSampler<3, omp_exec>> m_primitiveSampler3D_omp;
-  std::unique_ptr<shaping::PrimitiveSampler<3, cuda_exec>> m_primitiveSampler3D_cuda;
-  std::unique_ptr<shaping::PrimitiveSampler<3, hip_exec>> m_primitiveSampler3D_hip;
-
-  std::unique_ptr<shaping::WindingNumberSampler<2>> m_inoutSamplerWN;
-  axom::Array<axom::primal::CurvedPolygon<double, 2>> m_contours;
+  // Holds an instance of the 2D or 3D sampler; only one can be active at a time
+  SamplerVariant m_sampler;
+  axom::Array<axom::primal::CurvedPolygon<axom::primal::NURBSCurve<double, 2>>> m_contours;
 
   std::set<std::string> m_knownMaterials;
 

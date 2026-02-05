@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -59,11 +60,31 @@ struct BezierCurveData
   auto isConvexControlPolygon() const { return m_isConvexControlPolygon; }
   auto getBoundingBox() const { return m_boundingBox; }
 
+  friend bool operator==(const BezierCurveData<T>& lhs, const BezierCurveData<T>& rhs)
+  {
+    // isConvexControlPolygon will be equal if the curves are
+    return (lhs.m_curve == rhs.m_curve) && (lhs.m_boundingBox == rhs.m_boundingBox) &&
+      (lhs.m_isConvexControlPolygon == rhs.m_isConvexControlPolygon);
+  }
+
+  friend bool operator!=(const BezierCurveData<T>& lhs, const BezierCurveData<T>& rhs)
+  {
+    return !(lhs == rhs);
+  }
+
 private:
   BezierCurve<T, 2> m_curve;
   bool m_isConvexControlPolygon;
   BoundingBox<T, 2> m_boundingBox;
 };
+
+// Forward declare the templated classes and operator functions
+template <typename T>
+class NURBSCurveGWNCache;
+
+/// \brief Overloaded output operator for Cached Curves
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const NURBSCurveGWNCache<T>& nCurveCache);
 
 /*!
  * \class NURBSCurveGWNCache
@@ -79,6 +100,12 @@ private:
 template <typename T>
 class NURBSCurveGWNCache
 {
+public:
+  using NumericType = T;
+  using PointType = typename NURBSCurve<T, 2>::PointType;
+  using VectorType = typename NURBSCurve<T, 2>::VectorType;
+  using BoundingBoxType = typename NURBSCurve<T, 2>::BoundingBoxType;
+
 public:
   NURBSCurveGWNCache() = default;
 
@@ -136,28 +163,36 @@ public:
                                                int refinementIndex,
                                                double bbExpansionAmount = 0.0) const
   {
-    auto hash_key = std::make_pair(refinementLevel, refinementIndex);
+    using Key = std::pair<int, int>;
+    auto& level_map = m_bezierSubdivisionMaps[idx];
+    const Key hash_key {refinementLevel, refinementIndex};
 
-    if(m_bezierSubdivisionMaps[idx].find(hash_key) == m_bezierSubdivisionMaps[idx].end())
+    // If already there, return it
+    if(auto it = level_map.find(hash_key); it != level_map.end())
     {
-      const BezierCurveData<T>& supercurve_data =
-        m_bezierSubdivisionMaps[idx][std::make_pair(refinementLevel - 1, refinementIndex / 2)];
-
-      BezierCurve<T, 2> sub1, sub2;
-      supercurve_data.getCurve().split(0.5, sub1, sub2);
-
-      // Make keys for the requested curve and its "sibling" in the heirarchy
-      const auto key1 = std::make_pair(refinementLevel, refinementIndex - refinementIndex % 2);
-      const auto key2 = std::make_pair(refinementLevel, refinementIndex - refinementIndex % 2 + 1);
-
-      // Populate the map
-      m_bezierSubdivisionMaps[idx][key1] =
-        BezierCurveData<T>(sub1, supercurve_data.isConvexControlPolygon(), bbExpansionAmount);
-      m_bezierSubdivisionMaps[idx][key2] =
-        BezierCurveData<T>(sub2, supercurve_data.isConvexControlPolygon(), bbExpansionAmount);
+      return it->second;
     }
 
-    return m_bezierSubdivisionMaps[idx][hash_key];
+    // Otherwise, create (refinementLevel, refinementIndex) and sibling via their parent
+    const Key parent_key {refinementLevel - 1, refinementIndex / 2};
+    auto parent_it = level_map.find(parent_key);
+    SLIC_ASSERT(parent_it != level_map.end());
+
+    const BezierCurveData<T>& supercurve_data = parent_it->second;
+    BezierCurve<T, 2> sub1, sub2;
+    supercurve_data.getCurve().split(0.5, sub1, sub2);
+
+    // Make keys for the requested curve and its "sibling" in the heirarchy
+    const int base = refinementIndex - (refinementIndex % 2);
+    const Key key1 {refinementLevel, base};
+    const Key key2 {refinementLevel, base + 1};
+
+    // Emplace both and return value associated with hash_key
+    auto [it1, ins1] =
+      level_map.try_emplace(key1, sub1, supercurve_data.isConvexControlPolygon(), bbExpansionAmount);
+    auto [it2, ins2] =
+      level_map.try_emplace(key2, sub2, supercurve_data.isConvexControlPolygon(), bbExpansionAmount);
+    return (hash_key == key1) ? it1->second : it2->second;
   }
 
   ///@{
@@ -169,9 +204,38 @@ public:
   auto getNumControlPoints() const { return m_numControlPoints; }
   auto getDegree() const { return m_degree; }
 
-  auto getInitPoint() const { return m_initPoint; }
-  auto getEndPoint() const { return m_endPoint; }
+  const auto& getInitPoint() const { return m_initPoint; }
+  const auto& getEndPoint() const { return m_endPoint; }
   //@}
+
+  friend bool operator==(const NURBSCurveGWNCache<T>& lhs, const NURBSCurveGWNCache<T>& rhs)
+  {
+    // numControlPoints, degree, and numSpans will be equal if the subdivision maps are
+    return (lhs.m_bezierSubdivisionMaps == rhs.m_bezierSubdivisionMaps) &&
+      (lhs.m_boundingBox == rhs.m_boundingBox);
+  }
+
+  friend bool operator!=(const NURBSCurveGWNCache<T>& lhs, const NURBSCurveGWNCache<T>& rhs)
+  {
+    return !(lhs == rhs);
+  }
+
+  std::ostream& print(std::ostream& os) const
+  {
+    os << "{ NURBSCurveGWNCache object with " << m_numSpans << " extracted bezier curves: ";
+
+    if(m_numSpans >= 1)
+    {
+      os << m_bezierSubdivisionMaps[0][std::make_pair(0, 0)].getCurve();
+    }
+    for(int i = 1; i < m_numSpans; ++i)
+    {
+      os << ", " << m_bezierSubdivisionMaps[i][std::make_pair(0, 0)].getCurve();
+    }
+    os << "}";
+
+    return os;
+  }
 
 private:
   BoundingBox<T, 2> m_boundingBox;
@@ -183,6 +247,13 @@ private:
 
   mutable axom::Array<std::map<std::pair<int, int>, BezierCurveData<T>>> m_bezierSubdivisionMaps;
 };
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const NURBSCurveGWNCache<T>& nCurveCache)
+{
+  nCurveCache.print(os);
+  return os;
+}
 
 }  // namespace detail
 }  // namespace primal

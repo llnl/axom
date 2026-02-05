@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -24,8 +25,9 @@ should provide Axom developers with answers to questions such as:
   * How to use the scripts for team TPL support vs. local development 
     and experimentation?
 
+===========
 Determinism
------------
+===========
 
 We strive for as close to deterministic behavior in our builds as possible.
 By this, we mean that repeated builds should be the same with respect to the 
@@ -245,7 +247,7 @@ instructions on how to update a built-in TPL are:
 
 
 CLI11
-^^^^^
++++++
 
 CLI11 is a 3rd party builtin library that Axom uses to handle command
 line processing. Axom packages the library in a header-only format. The CLI11.hpp
@@ -259,7 +261,26 @@ many small changes that can be summarized as follows:
 #. Replace "CLI::" with "axom::CLI::".
 #. Replace "Success" with "CLI11_Success". This avoids a symbol collision with X11.
 
+
+fmt
++++
+
+The fmt formatting library is used for printing program output. Axom packages the library
+in header-only format. To update fmt, modify the ``src/thirdparty/axom/fmt/update_fmt.bash``
+script to change the version number and any patches that need to be applied. The script
+will clone the fmt library and attempt to apply existing patches and update them, if possible.
+If patches cannot be applied, then you will need to update them. This is best done by
+commenting out the "apply_patches" step and steps that follow it. Run the script to clone
+the fmt repository. Next, make the same edits found in the various "*.patch" files to the
+files in the current directory. After editing a file, make a new patch:
+``patch -u fmt/include/fmt/format.h format.h > format.h.patch`` (be sure to edit the filenames).
+Repeat this process until all of the relevant patches are updated. Note that newer versions
+of fmt sometimes remove the need for the patches in Axom. Commit the patch files and run
+the script to see that they are able to patch the sources. After making the necessary fmt
+changes, build Axom on multiple platforms.
+
 .. _local-tpls-label:
+
 
 Local Third-party Library Installation
 --------------------------------------

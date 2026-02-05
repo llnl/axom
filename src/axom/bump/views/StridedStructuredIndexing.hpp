@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -85,7 +86,14 @@ struct StridedStructuredIndexing
     : m_dimensions(dims)
     , m_offsets(offsets)
     , m_strides(strides)
-  { }
+  {
+#if !defined(AXOM_DEVICE_CODE)
+    for(int d = 0; d < NDIMS; d++)
+    {
+      SLIC_ERROR_IF(m_dimensions[d] < 1, "Dimensions must greater than or equal to 1.");
+    }
+#endif
+  }
 
   /*!
    * \brief Return the number of values in the index space.

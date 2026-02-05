@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -36,6 +37,12 @@ public:
   using PointType = axom::primal::Point<DataType, NDIMS>;
 
   AXOM_HOST_DEVICE constexpr static int dimension() { return NDIMS; }
+
+  /*!
+   * \brief Constructor
+   */
+  AXOM_HOST_DEVICE
+  UniformCoordsetView() : m_indexing(), m_origin(), m_spacing() { }
 
   /*!
    * \brief Constructor
