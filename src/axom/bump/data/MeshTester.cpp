@@ -421,21 +421,21 @@ static void addCircleMaterial(const TopoView& topoView,
   center[1] = circleCenter[1];
 
   const TopoView deviceTopologyView(topoView);
-  axom::for_all<axom::SEQ_EXEC>(
-    topoView.numberOfZones(),
-    [=]/*AXOM_LAMBDA*/(axom::IndexType zoneIndex) {
-      const auto zone = deviceTopologyView.zone(zoneIndex);
-      // NOTE: node ordering shuffled because function takes different node ordering.
-      auto vf = calculatePercentOverlapMonteCarlo(numSamples,
-                                                  center,
-                                                  circleRadius,
-                                                  coordsetView[zone.getId(3)],
-                                                  coordsetView[zone.getId(0)],
-                                                  coordsetView[zone.getId(1)],
-                                                  coordsetView[zone.getId(2)]);
-      greenView[zoneIndex] = vf;
-      blueView[zoneIndex] = 1.0 - vf;
-    });
+  axom::for_all<axom::SEQ_EXEC>(topoView.numberOfZones(),
+                                [=] /*AXOM_LAMBDA*/ (axom::IndexType zoneIndex) {
+                                  const auto zone = deviceTopologyView.zone(zoneIndex);
+                                  // NOTE: node ordering shuffled because function takes different node ordering.
+                                  auto vf =
+                                    calculatePercentOverlapMonteCarlo(numSamples,
+                                                                      center,
+                                                                      circleRadius,
+                                                                      coordsetView[zone.getId(3)],
+                                                                      coordsetView[zone.getId(0)],
+                                                                      coordsetView[zone.getId(1)],
+                                                                      coordsetView[zone.getId(2)]);
+                                  greenView[zoneIndex] = vf;
+                                  blueView[zoneIndex] = 1.0 - vf;
+                                });
 
   // Figure out the material buffers from the volume fractions.
   std::vector<int> material_ids, sizes, offsets, indices;

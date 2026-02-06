@@ -462,20 +462,20 @@ void saveBaseline(const std::vector<std::string> &baselinePaths,
  *
  * \return True on success; False otherwise.
  */
-bool convert_yaml_json(const std::string &yaml_filename,
-                       const std::string &json_filename)
+bool convert_yaml_json(const std::string &yaml_filename, const std::string &json_filename)
 {
-    const std::string script_path = "convert_yaml_json.py";
+  const std::string script_path = "convert_yaml_json.py";
 
-    // 1. Write the Python converter script to ./convert_yaml_json.py
+  // 1. Write the Python converter script to ./convert_yaml_json.py
+  {
+    std::ofstream script(script_path, std::ios::trunc);
+    if(!script)
     {
-        std::ofstream script(script_path, std::ios::trunc);
-        if (!script) {
-            return false;
-        }
+      return false;
+    }
 
-        script <<
-R"(#!/usr/bin/env python3
+    script <<
+      R"(#!/usr/bin/env python3
 import sys
 import json
 
@@ -504,23 +504,25 @@ if __name__ == "__main__":
     main()
 )";
 
-        script.flush();
-        if (!script) {
-            return false;
-        }
-    }
-
-    // 2. Build the command to call Python
-    // TODO: Use Axom's Python interpreter.
-    const auto cmd = axom::fmt::format("python3 {} \"{}\" \"{}\"", script_path, yaml_filename, json_filename);
-    int ret = std::system(cmd.c_str());
-
-    if(axom::utilities::filesystem::pathExists(script_path))
+    script.flush();
+    if(!script)
     {
-      axom::utilities::filesystem::removeFile(script_path);
+      return false;
     }
+  }
 
-    return ret == 0;
+  // 2. Build the command to call Python
+  // TODO: Use Axom's Python interpreter.
+  const auto cmd =
+    axom::fmt::format("python3 {} \"{}\" \"{}\"", script_path, yaml_filename, json_filename);
+  int ret = std::system(cmd.c_str());
+
+  if(axom::utilities::filesystem::pathExists(script_path))
+  {
+    axom::utilities::filesystem::removeFile(script_path);
+  }
+
+  return ret == 0;
 }
 #endif
 

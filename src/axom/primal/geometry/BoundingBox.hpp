@@ -612,8 +612,7 @@ std::ostream& BoundingBox<T, NDIMS>::print(std::ostream& os) const
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE
-BoundingBox<T, NDIMS>& BoundingBox<T, NDIMS>::intersect(const BoundingBox& otherBox)
+AXOM_HOST_DEVICE BoundingBox<T, NDIMS>& BoundingBox<T, NDIMS>::intersect(const BoundingBox& otherBox)
 {
   for(int i = 0; i < NDIMS; ++i)
   {
@@ -631,8 +630,7 @@ BoundingBox<T, NDIMS>& BoundingBox<T, NDIMS>::intersect(const BoundingBox& other
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE
-void BoundingBox<T, NDIMS>::bisect(BoxType& right, BoxType& left, int dim) const
+AXOM_HOST_DEVICE void BoundingBox<T, NDIMS>::bisect(BoxType& right, BoxType& left, int dim) const
 {
   SLIC_ASSERT(this->isValid());
 
@@ -664,9 +662,8 @@ void BoundingBox<T, NDIMS>::bisect(BoxType& right, BoxType& left, int dim) const
 //    Implementation of static methods
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE
-inline void BoundingBox<T, NDIMS>::getPoints(const BoundingBox<T, 2>& bb,
-                                             std::vector<Point<T, 2>>& pnts)
+AXOM_HOST_DEVICE inline void BoundingBox<T, NDIMS>::getPoints(const BoundingBox<T, 2>& bb,
+                                                              std::vector<Point<T, 2>>& pnts)
 {
   pnts.resize(4);
   const Point<T, 2>& min = bb.getMin();
@@ -680,9 +677,8 @@ inline void BoundingBox<T, NDIMS>::getPoints(const BoundingBox<T, 2>& bb,
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE
-inline void BoundingBox<T, NDIMS>::getPoints(const BoundingBox<T, 3>& bb,
-                                             std::vector<Point<T, 3>>& pnts)
+AXOM_HOST_DEVICE inline void BoundingBox<T, NDIMS>::getPoints(const BoundingBox<T, 3>& bb,
+                                                              std::vector<Point<T, 3>>& pnts)
 {
   pnts.resize(8);
   const Point<T, 3>& min = bb.getMin();
