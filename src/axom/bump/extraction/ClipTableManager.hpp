@@ -24,7 +24,7 @@ class ClipTableManager : public TableManager
 {
 public:
   /// Return true since the tables can generate ST_PNT points.
-  static constexpr bool generates_points() { return true; }
+  AXOM_HOST_DEVICE static constexpr bool generates_points() { return true; }
 
 protected:
   /*!

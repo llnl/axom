@@ -18,6 +18,18 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ## [Unreleased] - Release date yyyy-mm-dd
 
+### Added
+
+### Changed
+- Primal: Axom's polygon clipping was modified to handle some corner cases.
+
+### Fixed
+
+### Removed
+
+### Deprecated
+
+
 ## [Version 0.13.0] - Release date 2026-02-05
 
 ### Added
