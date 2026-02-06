@@ -193,55 +193,34 @@ private:
   NURBSCacheArray m_nurbs_caches;
 };
 
+template <int ORDER>
 class PolylineGWN2D
 {
 public:
   using BoxType = axom::primal::BoundingBox<double, 2>;
   using CurveArrayType = axom::Array<NURBSCurve2D>;
   using SegmentType = axom::primal::Segment<double, 2>;
-  using GWNMoments = axom::quest::GWNMomentData<double, 2, 2>;
+  using GWNMoments = axom::quest::GWNMomentData<double, 2, ORDER>;
 
   PolylineGWN2D() = default;
 
-  void preprocess(const CurveArrayType& input_curves, int segmentsPerKnotSpan, bool useDirectEval)
+  void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* poly_mesh,
+                  bool useDirectEval)
   {
     axom::utilities::Timer timer(true);
     axom::utilities::Timer stage_timer(false);
 
     AXOM_ANNOTATE_SCOPE("preprocessing");
 
-    axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> poly_mesh(2, axom::mint::SEGMENT);
-
-    stage_timer.start();
-    {
-      AXOM_ANNOTATE_SCOPE("linearization");
-      axom::quest::LinearizeCurves lc;
-      lc.getLinearMeshUniform(input_curves.view(), &poly_mesh, segmentsPerKnotSpan);
-    }
-    stage_timer.stop();
-
-    const auto nlines = poly_mesh.getNumberOfCells();
-    {
-      SLIC_INFO(axom::fmt::format(
-        axom::utilities::locale(),
-        "Discretized {} curves with {} segments in each knot span for a total of {:L} segments.",
-        input_curves.size(),
-        segmentsPerKnotSpan,
-        nlines));
-      SLIC_INFO(axom::fmt::format("Preprocessing stage (linearization): {} s",
-                                  stage_timer.elapsedTimeInSec()));
-    }
-
-    stage_timer.reset();
     stage_timer.start();
     {
       AXOM_ANNOTATE_SCOPE("extract_segments");
 
-      m_segments.resize(nlines);
+      m_segments.resize(poly_mesh->getNumberOfCells());
       auto segments_view = m_segments.view();
 
       axom::mint::for_all_cells<axom::SEQ_EXEC, axom::mint::xargs::coords>(
-        &poly_mesh,
+        poly_mesh,
         AXOM_LAMBDA(axom::IndexType cellIdx,
                     const axom::numerics::Matrix<double>& coords,
                     [[maybe_unused]] const axom::IndexType* nodeIds) {
@@ -260,6 +239,7 @@ public:
       stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("bvh_init");
+        const int nlines = m_segments.size();
         axom::Array<BoxType> aabbs(nlines, nlines);
         auto aabbs_view = aabbs.view();
         const auto segments_view = m_segments.view();
@@ -298,7 +278,7 @@ public:
     SLIC_INFO(axom::fmt::format("Total preprocessing: {} s", timer.elapsedTimeInSec()));
   }
 
-  void query(mfem::DataCollection& dc, const primal::WindingTolerances& tol, const double slice_z = 0.0)
+  void query(mfem::DataCollection& dc, const primal::WindingTolerances& tol)
   {
     if(m_segments.empty())
     {
@@ -400,6 +380,7 @@ public:
   bool linearize {false};
   double segmentsPerKnotSpan {10};
   bool directPolylineEval {false};
+  int approximation_order {2};
 
   // Query mesh parameters
   std::vector<double> boxMins;
@@ -463,6 +444,12 @@ public:
         "Use direct evaluation instead of fast, heirarchical approximation? (significantly "
         "slower, slightly more precise)")
       ->capture_default_str();
+    linearize_curves_subcommand
+      ->add_option("--approximation-order",
+                   approximation_order,
+                   "The order of the Taylor expansion (lower is faster, less precise)")
+      ->expected(0, 2)
+      ->capture_default_str();
 
     auto* query_mesh_subcommand =
       app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
@@ -490,18 +477,51 @@ public:
   }
 };
 
-using WNQueryType = std::variant<DirectGWN2D, PolylineGWN2D>;
+using GWNQueryType = std::variant<DirectGWN2D, PolylineGWN2D<0>, PolylineGWN2D<1>, PolylineGWN2D<2>>;
 
 // This framework will make more sense when there are more than two types available
-WNQueryType make_wn_query(bool linearize_curves)
+GWNQueryType make_wn_query(bool linearize_curves, int approximation_order)
 {
   if(linearize_curves)
   {
-    return PolylineGWN2D {};
+    if(approximation_order == 0)
+    {
+      return PolylineGWN2D<0> {};
+    }
+    else if(approximation_order == 1)
+    {
+      return PolylineGWN2D<1> {};
+    }
+    else
+    {
+      return PolylineGWN2D<2> {};
+    }
   }
 
   return DirectGWN2D {};
 }
+
+enum class GWNQueryAlgorithmKind
+{
+  Curve,
+  Polyline
+};
+
+template <typename GWNQueryType>
+struct gwn_query_traits;
+
+template <int ORDER>
+struct gwn_query_traits<PolylineGWN2D<ORDER>>
+  : std::integral_constant<GWNQueryAlgorithmKind, GWNQueryAlgorithmKind::Polyline>
+{ };
+
+template <>
+struct gwn_query_traits<DirectGWN2D>
+  : std::integral_constant<GWNQueryAlgorithmKind, GWNQueryAlgorithmKind::Curve>
+{ };
+
+template <typename GWNQueryType>
+inline constexpr GWNQueryAlgorithmKind gwn_query_kind_v = gwn_query_traits<GWNQueryType>::value;
 
 int main(int argc, char** argv)
 {
@@ -525,6 +545,7 @@ int main(int argc, char** argv)
   axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(input.annotationMode);
   AXOM_ANNOTATE_SCOPE("winding number example");
 
+  // Read curves from the MFME mesh
   axom::Array<NURBSCurve2D> curves;
   {
     AXOM_ANNOTATE_SCOPE("read_mesh");
@@ -535,8 +556,30 @@ int main(int argc, char** argv)
     const int ret = mfem_reader.read(curves);
     if(ret != axom::quest::MFEMReader::READ_SUCCESS)
     {
+      SLIC_ERROR("Failed to read MFEM file.");
       return 1;
     }
+  }
+
+  // Linearize the input curves if asked for
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> poly_mesh(2, axom::mint::SEGMENT);
+  if(input.linearize)
+  {
+    AXOM_ANNOTATE_SCOPE("linearization");
+
+    axom::utilities::Timer timer(true);
+    axom::quest::LinearizeCurves lc;
+    lc.getLinearMeshUniform(curves.view(), &poly_mesh, input.segmentsPerKnotSpan);
+    timer.stop();
+
+    SLIC_INFO(axom::fmt::format(
+      axom::utilities::locale(),
+      "Discretized {} curves with {} segments in each knot span for a total of {:L} segments.",
+      curves.size(),
+      input.segmentsPerKnotSpan,
+      poly_mesh.getNumberOfCells()));
+    SLIC_INFO(
+      axom::fmt::format("Preprocessing stage (linearization): {} s", timer.elapsedTimeInSec()));
   }
 
   // Early return if user didn't set up a query mesh
@@ -547,7 +590,6 @@ int main(int argc, char** argv)
 
   // Extract the curves and compute their bounding boxes along the way
   BoundingBox2D bbox;
-  axom::Array<CurveGWNCache> memoized_curves;
   for(const auto& cur : curves)
   {
     bbox.addBox(cur.boundingBox());
@@ -559,7 +601,7 @@ int main(int argc, char** argv)
   mfem::DataCollection dc("winding_query");
   {
     // Create the desired winding number query instance
-    auto wn_query = make_wn_query(app.got_subcommand("linearize_curves"));
+    auto wn_query = make_wn_query(app.got_subcommand("linearize_curves"), input.approximation_order);
 
     // Generate teh query grid and fields
     generate_query_mesh(dc, bbox, input.boxMins, input.boxMaxs, input.boxResolution, input.queryOrder);
@@ -568,13 +610,13 @@ int main(int argc, char** argv)
     std::visit(
       [&](auto& wn) {
         using T = std::decay_t<decltype(wn)>;
-        if constexpr(std::is_same_v<T, DirectGWN2D>)
+        if constexpr(gwn_query_kind_v<T> == GWNQueryAlgorithmKind::Curve)
         {
           wn.preprocess(curves, input.memoized);
         }
-        else if constexpr(std::is_same_v<T, PolylineGWN2D>)
+        else if constexpr(gwn_query_kind_v<T> == GWNQueryAlgorithmKind::Polyline)
         {
-          wn.preprocess(curves, input.segmentsPerKnotSpan, input.directPolylineEval);
+          wn.preprocess(&poly_mesh, input.directPolylineEval);
         }
       },
       wn_query);

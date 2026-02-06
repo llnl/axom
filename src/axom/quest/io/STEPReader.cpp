@@ -1523,6 +1523,12 @@ std::string STEPReader::getBRepStats() const
 
 axom::primal::BoundingBox<double, 3> STEPReader::getBRepBoundingBox(bool useTriangulation) const
 {
+  if(!m_stepProcessor->isLoaded())
+  {
+    SLIC_WARNING("Cannot compute bounding box until calling STEPReader::read()");
+    return axom::primal::BoundingBox<double, 3> {};
+  }
+
   const auto shape = m_stepProcessor->getShape();
 
   Bnd_Box box;

@@ -24,6 +24,13 @@ namespace internal
 /*!
  * \brief Checks if provided InBinCheck can accept a third positional argument representing the
  *        index of `bvhBox` in the traverser's internal node list.
+ * 
+ * This is necessary because typical usage of a BVH traverser requires no access to the internal
+ *  node layout as implemented in LinearBVH, requiring a two-argument InBin predicate.
+ * However, `LinearBVHTraverser::reduce_tree` returns an array of values that are associated with 
+ *  each node, and a three-argument InBin predicate allows indexing into this array in the check.
+ * 
+ * \sa quest::fast_approximate_winding_number
  */
 template <typename InBinCheck, typename PointType, typename BoxType, typename IndexType>
 inline bool invoke_InBinCheck(InBinCheck&& B, PointType&& p, BoxType&& bvhBox, IndexType&& node_idx)
