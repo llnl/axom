@@ -1688,7 +1688,7 @@ public:
       {
         for(int j = 0; j < m; ++j)
         {
-          min_weight = std::min(min_weight, m_weights(i, j));
+          min_weight = axom::utilities::min(min_weight, m_weights(i, j));
         }
       }
 
