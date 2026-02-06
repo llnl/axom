@@ -66,8 +66,7 @@ opposed to source code changes, are done in the release candidate branch.
 Typical changes include:
 
 #. Update the version information (major, minor, and patch version numbers)
-   near the top of the ``axom/src/cmake/AxomVersion.cmake`` file and in
-   the ``axom/RELEASE`` file.
+   near the top of the ``axom/src/cmake/AxomVersion.cmake`` file.
 
 #. Make any changes that are needed, for correctness and completeness, in the
    section for the new release in the file ``axom/RELEASE-NOTES.md``. This
