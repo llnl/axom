@@ -261,7 +261,7 @@ public:
                                                tol_copy.EPS);
           }
           winding[static_cast<int>(nidx)] = wn;
-          inout[static_cast<int>(nidx)] = std::round(wn);
+          inout[static_cast<int>(nidx)] = std::lround(wn);
         });
       }
       else  // Use memoized form
@@ -281,7 +281,7 @@ public:
                                                tol_copy.EPS);
           }
           winding[static_cast<int>(nidx)] = wn;
-          inout[static_cast<int>(nidx)] = std::round(wn);
+          inout[static_cast<int>(nidx)] = std::lround(wn);
         });
       }
     }
@@ -335,18 +335,40 @@ public:
     {
       AXOM_ANNOTATE_SCOPE("extract_triangles");
 
+      // Iterate over mesh nodes and get a bounding box for the shape
+      BoundingBox3D shape_bbox;
+      BoundingBox3D* shape_bbox_ptr = &shape_bbox;
+      axom::mint::for_all_nodes<axom::SEQ_EXEC, axom::mint::xargs::xyz>(
+        tri_mesh,
+        AXOM_LAMBDA(axom::IndexType nodeIdx, double x, double y, double z) {
+          shape_bbox_ptr->addPoint(Point3D {x, y, z});
+        });
+
+      // Extract the triangles from the mesh into axom primitives,
+      //  scaled and translated so that `shape_box` is centered at the origin
+      //  and has roughly unit volume. Otherwise, small triangles introduce numerical issues
+      m_shape_center = shape_bbox.getCentroid();
+      const auto longest_dim = shape_bbox.getLongestDimension();
+      m_scale = shape_bbox.getMax()[longest_dim] - shape_bbox.getMin()[longest_dim];
+
       m_triangles.resize(ntris);
       auto triangles_view = m_triangles.view();
-
       axom::mint::for_all_cells<axom::SEQ_EXEC, axom::mint::xargs::coords>(
         tri_mesh,
         AXOM_LAMBDA(axom::IndexType cellIdx,
                     const axom::numerics::Matrix<double>& coords,
                     [[maybe_unused]] const axom::IndexType* nodeIds) {
-          triangles_view[cellIdx] =
-            TriangleType {Point3D {coords(0, 0), coords(1, 0), coords(2, 0)},
-                          Point3D {coords(0, 1), coords(1, 1), coords(2, 1)},
-                          Point3D {coords(0, 2), coords(1, 2), coords(2, 2)}};
+          const auto& ctr = m_shape_center;
+          const auto& scl = m_scale;
+          triangles_view[cellIdx] = TriangleType {Point3D {(coords(0, 0) - ctr[0]) / scl,
+                                                           (coords(1, 0) - ctr[1]) / scl,
+                                                           (coords(2, 0) - ctr[2]) / scl},
+                                                  Point3D {(coords(0, 1) - ctr[0]) / scl,
+                                                           (coords(1, 1) - ctr[1]) / scl,
+                                                           (coords(2, 1) - ctr[2]) / scl},
+                                                  Point3D {(coords(0, 2) - ctr[0]) / scl,
+                                                           (coords(1, 2) - ctr[1]) / scl,
+                                                           (coords(2, 2) - ctr[2]) / scl}};
         });
     }
     stage_timer.stop();
@@ -395,8 +417,8 @@ public:
       SLIC_INFO(
         axom::fmt::format("  Preprocessing stage (moments): {} s", stage_timer.elapsedTimeInSec()));
     }
-
     timer.stop();
+
     SLIC_INFO(axom::fmt::format("Total preprocessing: {} s", timer.elapsedTimeInSec()));
   }
 
@@ -414,9 +436,13 @@ public:
 
     const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
 
-    auto query_point = [query_mesh, slice_z](axom::IndexType idx) -> Point3D {
+    // Get the query point from the mesh, scaled to the proper normalization
+    const auto& ctr = m_shape_center;
+    const auto& scl = m_scale;
+    auto scaled_query_point = [query_mesh, slice_z, ctr, scl](axom::IndexType idx) -> Point3D {
       Point3D pt({0., 0., slice_z});
       query_mesh->GetNode(static_cast<int>(idx), pt.data());
+      pt.array() = (pt.array() - ctr.array()) / scl;
       return pt;
     };
 
@@ -434,21 +460,21 @@ public:
         const auto internal_moments_view = m_internal_moments.view();
 
         axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
-          const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
+          const double wn = axom::quest::fast_approximate_winding_number(scaled_query_point(index),
                                                                          traverser,
                                                                          triangles_view,
                                                                          internal_moments_view,
                                                                          tol_copy);
 
           winding[static_cast<int>(index)] = wn;
-          inout[static_cast<int>(index)] = std::round(wn);
+          inout[static_cast<int>(index)] = std::lround(wn);
         });
       }
       // Use direct formula
       else
       {
         axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
-          const Point3D q = query_point(static_cast<int>(index));
+          const Point3D q = scaled_query_point(static_cast<int>(index));
           double wn {};
           for(const auto& tri : m_triangles)
           {
@@ -456,7 +482,7 @@ public:
           }
 
           winding[static_cast<int>(index)] = wn;
-          inout[static_cast<int>(index)] = std::round(wn);
+          inout[static_cast<int>(index)] = std::lround(wn);
         });
       }
     }
@@ -482,6 +508,10 @@ private:
   // Only needed for fast approximation method
   axom::Array<GWNMoments> m_internal_moments;
   axom::spin::BVH<3, axom::SEQ_EXEC> m_bvh;
+
+  // Parameters for normalization
+  axom::primal::Point<double, 3> m_shape_center;
+  double m_scale;
 };
 
 //------------------------------------------------------------------------------
@@ -742,7 +772,7 @@ int main(int argc, char** argv)
   AXOM_ANNOTATE_SCOPE("3D winding number example");
 
   // Bounding box for input shape
-  BoundingBox3D bbox;
+  BoundingBox3D query_bbox;
 
   // Declare possible geometry input types
   axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tri_mesh(3, axom::mint::TRIANGLE);
@@ -767,11 +797,11 @@ int main(int argc, char** argv)
     stl_reader.getMesh(&tri_mesh);
     read_timer.stop();
 
-    BoundingBox3D* bbox_ptr = &bbox;
+    BoundingBox3D* query_bbox_ptr = &query_bbox;
     axom::mint::for_all_nodes<axom::SEQ_EXEC, axom::mint::xargs::xyz>(
       &tri_mesh,
       AXOM_LAMBDA(axom::IndexType nodeIdx, double x, double y, double z) {
-        bbox_ptr->addPoint(Point3D {x, y, z});
+        query_bbox_ptr->addPoint(Point3D {x, y, z});
       });
 
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
@@ -796,7 +826,7 @@ int main(int argc, char** argv)
     }
     read_timer.stop();
 
-    bbox = step_reader.getBRepBoundingBox();
+    query_bbox = step_reader.getBRepBoundingBox();
 
     int num_trimming_curves = 0;
     for(const auto& patch : step_reader.getPatchArray())
@@ -863,7 +893,12 @@ int main(int argc, char** argv)
     auto wn_query = make_wn_query(input);
 
     // Generate the query grid and fields
-    generate_query_mesh(dc, bbox, input.boxMins, input.boxMaxs, input.boxResolution, input.queryOrder);
+    generate_query_mesh(dc,
+                        query_bbox,
+                        input.boxMins,
+                        input.boxMaxs,
+                        input.boxResolution,
+                        input.queryOrder);
 
     // Run the preprocess
     std::visit(

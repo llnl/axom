@@ -154,7 +154,7 @@ public:
             wn += axom::primal::winding_number(q, cache, tol_copy.edge_tol, tol_copy.EPS);
           }
           winding[static_cast<int>(nidx)] = wn;
-          inout[static_cast<int>(nidx)] = std::round(wn);
+          inout[static_cast<int>(nidx)] = std::lround(wn);
         });
       }
       else  // Use memoized form
@@ -167,7 +167,7 @@ public:
             wn += axom::primal::winding_number(q, cache, tol_copy.edge_tol, tol_copy.EPS);
           }
           winding[static_cast<int>(nidx)] = wn;
-          inout[static_cast<int>(nidx)] = std::round(wn);
+          inout[static_cast<int>(nidx)] = std::lround(wn);
         });
       }
     }
@@ -319,7 +319,7 @@ public:
                                                                          tol_copy);
 
           winding[static_cast<int>(index)] = wn;
-          inout[static_cast<int>(index)] = std::round(wn);
+          inout[static_cast<int>(index)] = std::lround(wn);
         });
       }
       // Use direct formula
@@ -334,7 +334,7 @@ public:
           }
 
           winding[static_cast<int>(index)] = wn;
-          inout[static_cast<int>(index)] = std::round(wn);
+          inout[static_cast<int>(index)] = std::lround(wn);
         });
       }
     }
@@ -589,12 +589,12 @@ int main(int argc, char** argv)
   }
 
   // Extract the curves and compute their bounding boxes along the way
-  BoundingBox2D bbox;
+  BoundingBox2D query_bbox;
   for(const auto& cur : curves)
   {
-    bbox.addBox(cur.boundingBox());
+    query_bbox.addBox(cur.boundingBox());
   }
-  SLIC_INFO(axom::fmt::format("Curve mesh bounding box: {}", bbox));
+  SLIC_INFO(axom::fmt::format("Curve mesh bounding box: {}", query_bbox));
 
   // Query grid setup;
   // if user did not provide a bounding box, user input bounding box scaled by 10%
@@ -604,7 +604,12 @@ int main(int argc, char** argv)
     auto wn_query = make_wn_query(app.got_subcommand("linearize_curves"), input.approximation_order);
 
     // Generate teh query grid and fields
-    generate_query_mesh(dc, bbox, input.boxMins, input.boxMaxs, input.boxResolution, input.queryOrder);
+    generate_query_mesh(dc,
+                        query_bbox,
+                        input.boxMins,
+                        input.boxMaxs,
+                        input.boxResolution,
+                        input.queryOrder);
 
     // Run the preprocess
     std::visit(
