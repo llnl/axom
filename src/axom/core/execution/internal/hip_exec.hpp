@@ -50,7 +50,7 @@ struct execution_space<HIP_EXEC<BLOCK_SIZE, SYNCHRONOUS>>
 {
   using loop_policy = RAJA::hip_exec<BLOCK_SIZE>;
 
-  using reduce_policy = RAJA::hip_reduce;
+  using reduce_policy = RAJA::hip_reduce_atomic;
   using atomic_policy = RAJA::hip_atomic;
   using sync_policy = RAJA::hip_synchronize;
 
