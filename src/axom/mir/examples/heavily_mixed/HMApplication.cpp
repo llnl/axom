@@ -161,7 +161,7 @@ void heavily_mixed(conduit::Node &n_mesh, int dims[3], int refinement, int nmats
     conduit::int32 *destPtr = n_field.as_int32_ptr();
     axom::for_all<CPUExecSpace>(
       rdims[2],
-      AXOM_LAMBDA(int k) {
+      [&](int k) {
         const auto t = static_cast<conduit::float64>(k) / (dims[2] - 1);
         // Interpolate the window
         const conduit::float64 x0 = axom::utilities::lerp(x_min, x1_min, t);
