@@ -18,6 +18,18 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ## [Unreleased] - Release date yyyy-mm-dd
 
+### Added
+
+### Changed
+- Primal: Axom's polygon clipping was modified to handle some corner cases.
+
+### Fixed
+
+### Removed
+
+### Deprecated
+
+
 ## [Version 0.13.0] - Release date 2026-02-05
 
 ### Added
@@ -98,7 +110,6 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: `MFEMReader` can now read in multispan 1D NURBS meshes
 - fmt: Axom's built-in version of the fmt formatting library was updated to [fmt version 12.1.0](https://github.com/fmtlib/fmt/releases/tag/12.1.0).
 - Primal: Improves robustness of `linear_winding_number` by using `atan2` instead of `acos`
-- Primal: Axom's polygon clipping was modified to handle some corner cases.
 - Core: Allows users to set the minimum size for Axom's shared memory allocator in `getSharedMemoryAllocatorID()`
 - Core: Allows users to set the name of the shared memory allocation in `allocate()`
 - Quest: Adds a function to the signed distance API to set the shared memory size:  `signed_distance_set_shared_memory_size()`
