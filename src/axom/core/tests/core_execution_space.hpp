@@ -246,7 +246,7 @@ TEST(core_execution_space, check_hip_exec)
   int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Device);
   check_execution_mappings<axom::HIP_EXEC<BLOCK_SIZE>,
                            RAJA::hip_exec<BLOCK_SIZE>,
-                           RAJA::hip_reduce,
+                           RAJA::hip_reduce_atomic,
                            RAJA::hip_atomic,
                            RAJA::hip_synchronize>(allocator_id, IS_ASYNC, ON_DEVICE);
 }
