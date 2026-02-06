@@ -25,6 +25,8 @@
 #include "axom/CLI11.hpp"
 #include "axom/fmt.hpp"
 
+#include "axom/core/utilities/StringUtilities.hpp"
+
 #include "mfem.hpp"
 
 #include <algorithm>
@@ -305,60 +307,30 @@ private:
   NURBSCacheArray m_nurbs_caches;
 };
 
+template <int ORDER>
 class TriangleGWN3D
 {
 public:
   using BoxType = axom::primal::BoundingBox<double, 3>;
   using TriangleType = axom::primal::Triangle<double, 3>;
-  using GWNMoments = axom::quest::GWNMomentData<double, 3, 2>;
+  using GWNMoments = axom::quest::GWNMomentData<double, 3, ORDER>;
 
   TriangleGWN3D() = default;
 
-  void preprocess(axom::quest::STEPReader& step_reader,
-                  double linear_deflection,
-                  double angular_deflection,
-                  bool is_relative,
-                  bool useDirectEval)
+  void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* tri_mesh, bool useDirectEval)
   {
     axom::utilities::Timer timer(true);
     axom::utilities::Timer stage_timer(false);
 
     AXOM_ANNOTATE_SCOPE("preprocessing");
 
-    axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tri_mesh(3, axom::mint::TRIANGLE);
-    stage_timer.start();
-    {
-      AXOM_ANNOTATE_SCOPE("triangulation");
-      const int rc =
-        step_reader.getTriangleMesh(&tri_mesh, linear_deflection, angular_deflection, is_relative, true);
-      if(rc != 0)
-      {
-        SLIC_ERROR("Failed to triangulate STEP geometry.");
-        return;
-      }
-    }
-    stage_timer.stop();
-
-    const auto ntris = tri_mesh.getNumberOfCells();
-    {
-      SLIC_INFO(
-        axom::fmt::format(axom::utilities::locale(),
-                          "Triangulated geometry with deflection {} and angular deflection {}"
-                          " containing {:L} triangles",
-                          linear_deflection,
-                          angular_deflection,
-                          ntris));
-      SLIC_INFO(axom::fmt::format("  Preprocessing stage (triangulation): {} s",
-                                  stage_timer.elapsedTimeInSec()));
-    }
-
+    const auto ntris = tri_mesh->getNumberOfCells();
     if(ntris <= 0)
     {
       SLIC_WARNING("Triangle mesh contains no cells; skipping preprocessing.");
       return;
     }
 
-    stage_timer.reset();
     stage_timer.start();
     {
       AXOM_ANNOTATE_SCOPE("extract_triangles");
@@ -367,7 +339,7 @@ public:
       auto triangles_view = m_triangles.view();
 
       axom::mint::for_all_cells<axom::SEQ_EXEC, axom::mint::xargs::coords>(
-        &tri_mesh,
+        tri_mesh,
         AXOM_LAMBDA(axom::IndexType cellIdx,
                     const axom::numerics::Matrix<double>& coords,
                     [[maybe_unused]] const axom::IndexType* nodeIds) {
@@ -534,6 +506,7 @@ public:
   double angular_deflection {0.5};
   bool deflection_is_relative {false};
   bool directTriangleEval {false};
+  int approximation_order {2};
 
   std::vector<double> boxMins;
   std::vector<double> boxMaxs;
@@ -591,6 +564,12 @@ public:
                  directTriangleEval,
                  "Use direct evaluation instead of fast, heirarchical approximation? "
                  "(significantly slower, slightly more precise)")
+      ->capture_default_str();
+    triangulate_step_subcommand
+      ->add_option("--approximation-order",
+                   approximation_order,
+                   "The order of the Taylor expansion (lower is faster, less precise)")
+      ->expected(0, 2)
       ->capture_default_str();
 
     // Options for query tolerances; for now, only expose the line search and quadrature tolerances
@@ -694,18 +673,51 @@ public:
   }
 };
 
-using WNQueryType = std::variant<DirectGWN3D, TriangleGWN3D>;
+using GWNQueryType = std::variant<DirectGWN3D, TriangleGWN3D<0>, TriangleGWN3D<1>, TriangleGWN3D<2>>;
 
 // This framework will make more sense when there are more than two types available
-WNQueryType make_wn_query(const Input& input)
+GWNQueryType make_wn_query(Input input)
 {
   if(input.triangulate)
   {
-    return TriangleGWN3D {};
+    if(input.approximation_order == 0)
+    {
+      return TriangleGWN3D<0> {};
+    }
+    else if(input.approximation_order == 1)
+    {
+      return TriangleGWN3D<1> {};
+    }
+    else
+    {
+      return TriangleGWN3D<2> {};
+    }
   }
 
   return DirectGWN3D {};
 }
+
+enum class GWNQueryAlgorithmKind
+{
+  Surface,
+  Triangulation
+};
+
+template <typename GWNQueryType>
+struct gwn_query_traits;
+
+template <int ORDER>
+struct gwn_query_traits<TriangleGWN3D<ORDER>>
+  : std::integral_constant<GWNQueryAlgorithmKind, GWNQueryAlgorithmKind::Triangulation>
+{ };
+
+template <>
+struct gwn_query_traits<DirectGWN3D>
+  : std::integral_constant<GWNQueryAlgorithmKind, GWNQueryAlgorithmKind::Surface>
+{ };
+
+template <typename GWNQueryType>
+inline constexpr GWNQueryAlgorithmKind gwn_query_kind_v = gwn_query_traits<GWNQueryType>::value;
 
 int main(int argc, char** argv)
 {
@@ -729,36 +741,68 @@ int main(int argc, char** argv)
   axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(input.annotationMode);
   AXOM_ANNOTATE_SCOPE("3D winding number example");
 
-  // Load the Step file
-  axom::utilities::Timer step_read_timer(true);
-  axom::quest::STEPReader step_reader;
-  step_reader.setFileName(input.inputFile);
-  step_reader.setVerbosity(input.verbose);
+  // Bounding box for input shape
+  BoundingBox3D bbox;
 
+  // Declare possible geometry input types
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tri_mesh(3, axom::mint::TRIANGLE);
+  axom::Array<NURBSPatch3D> patches;
+
+  if(axom::utilities::string::endsWith(input.inputFile, ".stl"))
+  {
+    AXOM_ANNOTATE_SCOPE("read_stl");
+
+    axom::quest::STLReader stl_reader;
+    stl_reader.setFileName(input.inputFile);
+
+    axom::utilities::Timer read_timer(true);
+    const int ret = stl_reader.read();
+
+    if(ret != 0)
+    {
+      SLIC_ERROR(axom::fmt::format("Failed to read STL file '{}'", input.inputFile));
+      return 1;
+    }
+
+    stl_reader.getMesh(&tri_mesh);
+    read_timer.stop();
+
+    BoundingBox3D* bbox_ptr = &bbox;
+    axom::mint::for_all_nodes<axom::SEQ_EXEC, axom::mint::xargs::xyz>(
+      &tri_mesh,
+      AXOM_LAMBDA(axom::IndexType nodeIdx, double x, double y, double z) {
+        bbox_ptr->addPoint(Point3D {x, y, z});
+      });
+
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "Loaded {} triangles in {:.3Lf} seconds",
+                                stl_reader.getNumFaces(),
+                                read_timer.elapsed()));
+  }
+  else if(axom::utilities::string::endsWith(input.inputFile, ".step"))
   {
     AXOM_ANNOTATE_SCOPE("read_step");
 
+    axom::quest::STEPReader step_reader;
+    step_reader.setFileName(input.inputFile);
+    step_reader.setVerbosity(input.verbose);
+
+    axom::utilities::Timer read_timer(true);
     const int ret = step_reader.read(input.validate);
     if(ret != 0)
     {
       SLIC_ERROR(axom::fmt::format("Failed to read STEP file '{}'", input.inputFile));
       return 1;
     }
-  }
-  step_read_timer.stop();
+    read_timer.stop();
 
-  // Read the patches/triangles and, if a query mesh is specified, get the bbox from the reader
-  const auto& patches = step_reader.getPatchArray();
-  step_read_timer.stop();
-  {
+    bbox = step_reader.getBRepBoundingBox();
+
     int num_trimming_curves = 0;
-    for(const auto& patch : patches)
+    for(const auto& patch : step_reader.getPatchArray())
     {
       num_trimming_curves += patch.getNumTrimmingCurves();
     }
-    AXOM_ANNOTATE_METADATA("num_original_trimming_curves", num_trimming_curves, "");
-    AXOM_ANNOTATE_METADATA("num_original_patches", patches.size(), "");
-    AXOM_ANNOTATE_METADATA("units", step_reader.getFileUnits(), "");
 
     SLIC_INFO(step_reader.getBRepStats());
     SLIC_INFO(axom::fmt::format("STEP file units: {}", step_reader.getFileUnits()));
@@ -767,7 +811,42 @@ int main(int argc, char** argv)
       "Loaded {} trimmed NURBS patches (with {} trimming curves) in {:.3Lf} seconds",
       patches.size(),
       num_trimming_curves,
-      step_read_timer.elapsed()));
+      read_timer.elapsed()));
+
+    if(input.triangulate)
+    {
+      read_timer.reset();
+      read_timer.start();
+      AXOM_ANNOTATE_SCOPE("triangulation");
+      const int tc = step_reader.getTriangleMesh(&tri_mesh,
+                                                 input.linear_deflection,
+                                                 input.angular_deflection,
+                                                 input.deflection_is_relative,
+                                                 /* trimmed */ true);
+      if(tc != 0)
+      {
+        SLIC_ERROR("Failed to triangulate STEP geometry.");
+        return 1;
+      }
+      read_timer.stop();
+
+      SLIC_INFO(
+        axom::fmt::format(axom::utilities::locale(),
+                          "Triangulated geometry with deflection {} and angular deflection {}"
+                          " containing {:L} triangles in {:.3Lf} seconds",
+                          input.linear_deflection,
+                          input.angular_deflection,
+                          tri_mesh.getNumberOfCells(),
+                          read_timer.elapsed()));
+    }
+    else
+    {
+      patches = step_reader.getPatchArray();
+    }
+  }
+  else
+  {
+    SLIC_WARNING(axom::fmt::format("Unsupported file type for input {}", input.inputFile));
   }
 
   // Early return if user didn't set up a query mesh
@@ -775,8 +854,6 @@ int main(int argc, char** argv)
   {
     return 0;
   }
-
-  BoundingBox3D bbox = step_reader.getBRepBoundingBox();
 
   // Query grid setup; has some dimension-specific types;
   // if user did not provide a bounding box, user input bounding box scaled by 10%
@@ -792,17 +869,13 @@ int main(int argc, char** argv)
     std::visit(
       [&](auto& wn) {
         using T = std::decay_t<decltype(wn)>;
-        if constexpr(std::is_same_v<T, DirectGWN3D>)
+        if constexpr(gwn_query_kind_v<T> == GWNQueryAlgorithmKind::Surface)
         {
           wn.preprocess(patches, input.memoized);
         }
-        else if constexpr(std::is_same_v<T, TriangleGWN3D>)
+        else if constexpr(gwn_query_kind_v<T> == GWNQueryAlgorithmKind::Triangulation)
         {
-          wn.preprocess(step_reader,
-                        input.linear_deflection,
-                        input.angular_deflection,
-                        input.deflection_is_relative,
-                        input.directTriangleEval);
+          wn.preprocess(&tri_mesh, input.directTriangleEval);
         }
       },
       wn_query);
