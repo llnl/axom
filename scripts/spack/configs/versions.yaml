@@ -6,9 +6,10 @@ packages:
   adiak:
     require: 
       - spec: "@0.4.0"
+  # Newer commit than 2.14.0 that fixes rocprofiler dependency
   caliper:
     require:
-      - spec: "@2.14.0"
+       - spec: "@git.7e5b7a5c0eacc077f9b842abf41c9fc7b996ce0c=master"
   # v2025.12
   camp:
     require:
