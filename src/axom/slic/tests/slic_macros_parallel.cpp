@@ -1216,7 +1216,7 @@ TEST_P(SlicMacrosParallel, test_abort_warning_macros)
 //------------------------------------------------------------------------------
 TEST_P(SlicMacrosParallel, test_assert_macros)
 {
-  int expected_line_number;
+  [[maybe_unused]] int expected_line_number;
 
   slic::internal::clear_streams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
@@ -1288,7 +1288,7 @@ TEST_P(SlicMacrosParallel, test_assert_macros)
 // ------------------------------------------------------------------------------
 TEST_P(SlicMacrosParallel, test_check_macros)
 {
-  int expected_line_number;
+  [[maybe_unused]] int expected_line_number;
 
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
