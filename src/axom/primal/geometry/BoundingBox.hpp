@@ -319,7 +319,7 @@ public:
    *
    * \endverbatim
    */
-  AXOM_HOST_DEVICE static void getPoints(const BoundingBox<T, 2>& bb, std::vector<Point<T, 2>>& pnts);
+  static void getPoints(const BoundingBox<T, 2>& bb, std::vector<Point<T, 2>>& pnts);
 
   /*!
    * \brief Returns the list of points of a 3-D BoundingBox instance.
@@ -342,7 +342,7 @@ public:
    *
    * \endverbatim
    */
-  AXOM_HOST_DEVICE static void getPoints(const BoundingBox<T, 3>& bb, std::vector<Point<T, 3>>& pnts);
+  static void getPoints(const BoundingBox<T, 3>& bb, std::vector<Point<T, 3>>& pnts);
 
   /// @}
 
@@ -662,8 +662,8 @@ AXOM_HOST_DEVICE void BoundingBox<T, NDIMS>::bisect(BoxType& right, BoxType& lef
 //    Implementation of static methods
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE inline void BoundingBox<T, NDIMS>::getPoints(const BoundingBox<T, 2>& bb,
-                                                              std::vector<Point<T, 2>>& pnts)
+inline void BoundingBox<T, NDIMS>::getPoints(const BoundingBox<T, 2>& bb,
+                                             std::vector<Point<T, 2>>& pnts)
 {
   pnts.resize(4);
   const Point<T, 2>& min = bb.getMin();
@@ -677,8 +677,8 @@ AXOM_HOST_DEVICE inline void BoundingBox<T, NDIMS>::getPoints(const BoundingBox<
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE inline void BoundingBox<T, NDIMS>::getPoints(const BoundingBox<T, 3>& bb,
-                                                              std::vector<Point<T, 3>>& pnts)
+inline void BoundingBox<T, NDIMS>::getPoints(const BoundingBox<T, 3>& bb,
+                                             std::vector<Point<T, 3>>& pnts)
 {
   pnts.resize(8);
   const Point<T, 3>& min = bb.getMin();
