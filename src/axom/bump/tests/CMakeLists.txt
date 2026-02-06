@@ -48,16 +48,7 @@ foreach(test ${gtest_bump_tests})
                    COMMAND ${test_name}_test )
 endforeach()
 
-function(force_release_for_target tgt)
-  if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(${tgt} PRIVATE /O2)
-  else()
-    target_compile_options(${tgt} PRIVATE -O3 -g0)
-  endif()
-  target_compile_definitions(${tgt} PRIVATE NDEBUG)
-endfunction()
-
 if(ENABLE_HIP)
-  # Work around a problem with this test using HIP in Debug builds.
-  force_release_for_target(bump_topology_mapper_test)
+  # Work around an issue with this test using HIP in Debug builds.
+  axom_force_release_for_target(bump_topology_mapper_test)
 endif()
