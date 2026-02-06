@@ -423,7 +423,7 @@ static void addCircleMaterial(const TopoView& topoView,
   const TopoView deviceTopologyView(topoView);
   axom::for_all<axom::SEQ_EXEC>(
     topoView.numberOfZones(),
-    AXOM_LAMBDA(axom::IndexType zoneIndex) {
+    [=]/*AXOM_LAMBDA*/(axom::IndexType zoneIndex) {
       const auto zone = deviceTopologyView.zone(zoneIndex);
       // NOTE: node ordering shuffled because function takes different node ordering.
       auto vf = calculatePercentOverlapMonteCarlo(numSamples,
