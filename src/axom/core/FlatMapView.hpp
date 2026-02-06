@@ -46,7 +46,8 @@ public:
   using FlatMapType =
     std::conditional_t<IsConst, const FlatMap<KeyType, ValueType, Hash>, FlatMap<KeyType, ValueType, Hash>>;
 
-  AXOM_HOST_DEVICE FlatMapView() = default;
+  // NOTE: Defaulted construtors do not need to be marked AXOM_HOST_DEVICE
+  FlatMapView() = default;
 
   FlatMapView(FlatMapType& other)
     : m_numGroups2(other.m_numGroups2)
@@ -207,7 +208,8 @@ public:
   using reference = DataType&;
 
 public:
-  AXOM_HOST_DEVICE IteratorImpl() = default;
+  // NOTE: Defaulted construtors do not need to be marked AXOM_HOST_DEVICE
+  IteratorImpl() = default;
 
   AXOM_HOST_DEVICE IteratorImpl(const MapType& map, IndexType internalIdx)
     : m_map(map)
