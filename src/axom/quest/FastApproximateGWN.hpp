@@ -291,6 +291,11 @@ public:
   /// Return the center of the Taylor expansion
   axom::primal::Point<T, NDIMS> getCenter() const
   {
+    if(a == 0)
+    {
+      return axom::primal::Point<T, NDIMS> {};
+    }
+
     return axom::primal::Point<T, NDIMS>((ap / a).array());
   }
 
