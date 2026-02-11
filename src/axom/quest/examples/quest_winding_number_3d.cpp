@@ -29,490 +29,16 @@
 
 #include "mfem.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <cstdint>
+#include <vector>
 
 namespace primal = axom::primal;
+namespace quest = axom::quest;
 
 using Point3D = primal::Point<double, 3>;
-using BoundingBox2D = primal::BoundingBox<double, 2>;
 using BoundingBox3D = primal::BoundingBox<double, 3>;
 
-using NURBSPatch3D = axom::quest::STEPReader::NURBSPatch;
-using PatchGWNCache = primal::detail::NURBSPatchGWNCache<double>;
-
+using NURBSPatch3D = quest::STEPReader::NURBSPatch;
 using Triangle3D = primal::Triangle<double, 3>;
-
-//------------------------------------------------------------------------------
-// Compute postprocessing stats
-//------------------------------------------------------------------------------
-
-struct FieldStats
-{
-  double dof_l2 {};
-  double dof_linf {};
-  double l2 {};
-  double min {};
-  double max {};
-};
-
-FieldStats compute_field_stats(const mfem::GridFunction& gf)
-{
-  FieldStats s {};
-
-  s.dof_l2 = gf.Norml2();
-  s.dof_linf = gf.Normlinf();
-  s.min = gf.Min();
-  s.max = gf.Max();
-
-  // Compute L2 norm over the physical domain: sqrt( Integral gf^2 dOmega )
-  // We do this by assembling b_i = Integral phi_i * gf dOmega, then taking dot(gf, b).
-  auto* fes = const_cast<mfem::FiniteElementSpace*>(gf.FESpace());
-  auto* gf_ptr = const_cast<mfem::GridFunction*>(&gf);
-  mfem::GridFunctionCoefficient gf_coeff(gf_ptr);
-  mfem::LinearForm gf_sq_form(fes);
-  gf_sq_form.AddDomainIntegrator(new mfem::DomainLFIntegrator(gf_coeff));
-  gf_sq_form.Assemble();
-
-  const double integral_gf_sq = gf * gf_sq_form;
-  s.l2 = std::sqrt(std::max(0.0, integral_gf_sq));
-
-  return s;
-}
-
-struct IntegralStats
-{
-  double integral {};
-  double domain_volume {};
-};
-
-IntegralStats compute_integrals(const mfem::GridFunction& gf)
-{
-  IntegralStats s {};
-
-  auto* fes = const_cast<mfem::FiniteElementSpace*>(gf.FESpace());
-  mfem::ConstantCoefficient one(1.0);
-  mfem::LinearForm vol_form(fes);
-  vol_form.AddDomainIntegrator(new mfem::DomainLFIntegrator(one));
-  vol_form.Assemble();
-
-  s.integral = gf * vol_form;
-
-  mfem::GridFunction unity(fes);
-  unity.ProjectCoefficient(one);
-  s.domain_volume = unity * vol_form;
-
-  return s;
-}
-
-//------------------------------------------------------------------------------
-// Query-mesh helpers
-//------------------------------------------------------------------------------
-
-/// Helper function to set up the mesh and associated winding and inout fields.
-/// Uses an mfem::DataCollection to hold everything together.
-void setup_mesh(mfem::DataCollection& dc, mfem::Mesh* query_mesh, int queryOrder)
-{
-  AXOM_ANNOTATE_SCOPE("setup_mesh");
-
-  dc.SetOwnData(true);
-  dc.SetMesh(query_mesh);
-
-  const int dim = query_mesh->Dimension();
-
-  // Create grid functions for the winding field; will take care of fes and fec memory via MakeOwner()
-  auto* winding_fec = new mfem::H1Pos_FECollection(queryOrder, dim);
-  auto* winding_fes = new mfem::FiniteElementSpace(query_mesh, winding_fec, 1);
-  mfem::GridFunction* winding = new mfem::GridFunction(winding_fes);
-  winding->MakeOwner(winding_fec);
-
-  // Create grid functions for the inout field; will take care of fes and fec memory via MakeOwner()
-  auto* inout_fec = new mfem::H1Pos_FECollection(queryOrder, dim);
-  auto* inout_fes = new mfem::FiniteElementSpace(query_mesh, inout_fec, 1);
-  mfem::GridFunction* inout = new mfem::GridFunction(inout_fes);
-  inout->MakeOwner(inout_fec);
-
-  dc.RegisterField("winding", winding);
-  dc.RegisterField("inout", inout);
-}
-
-/// Query grid setup; has some dimension-specific types;
-///  if user did not provide a bounding box, user input bounding box scaled by 10%
-void generate_query_mesh(mfem::DataCollection& dc,
-                         const BoundingBox3D& bbox,
-                         const std::vector<double>& boxMins,
-                         const std::vector<double>& boxMaxs,
-                         const std::vector<int>& boxResolution,
-                         int queryOrder)
-{
-  AXOM_ANNOTATE_SCOPE("generate_query_mesh");
-
-  const int query_dim = static_cast<int>(boxResolution.size());
-  const bool has_query_box = !boxMins.empty();
-
-  SLIC_INFO(axom::fmt::format("Patch collection bounding box: {}", bbox));
-
-  constexpr double scale_factor = 1.1;
-  if(query_dim == 2)
-  {
-    using Point2D = primal::Point<double, 2>;
-    const auto query_res = axom::NumericArray<int, 2>(boxResolution.data());
-    const auto query_box = has_query_box
-      ? BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()))
-      : BoundingBox2D(Point2D({bbox.getMin()[0], bbox.getMin()[1]}),
-                      Point2D({bbox.getMax()[0], bbox.getMax()[1]}))
-          .scale(scale_factor);
-
-    SLIC_INFO(
-      axom::fmt::format("Query grid resolution {} within bounding box {}", query_res, query_box));
-
-    mfem::Mesh* query_mesh =
-      axom::quest::util::make_cartesian_mfem_mesh_2D(query_box, query_res, queryOrder);
-
-    setup_mesh(dc, query_mesh, queryOrder);
-  }
-  else
-  {
-    using Point3D = primal::Point<double, 3>;
-    const auto query_res = axom::NumericArray<int, 3>(boxResolution.data());
-    const auto query_box = has_query_box
-      ? BoundingBox3D(Point3D(boxMins.data()), Point3D(boxMaxs.data()))
-      : BoundingBox3D(bbox.getMin(), bbox.getMax()).scale(scale_factor);
-
-    SLIC_INFO(
-      axom::fmt::format("Query grid resolution {} within bounding box {}", query_res, query_box));
-
-    mfem::Mesh* query_mesh =
-      axom::quest::util::make_cartesian_mfem_mesh_3D(query_box, query_res, queryOrder);
-
-    setup_mesh(dc, query_mesh, queryOrder);
-  }
-}
-
-//------------------------------------------------------------------------------
-// Query classes
-//------------------------------------------------------------------------------
-
-class DirectGWN3D
-{
-public:
-  using PatchArrayType = axom::Array<NURBSPatch3D>;
-  using NURBSCacheArray = axom::Array<PatchGWNCache>;
-
-  DirectGWN3D() = default;
-
-  void preprocess(const PatchArrayType& input_patches, bool use_memoization)
-  {
-    m_input_patches_view = input_patches.view();
-    axom::utilities::Timer timer(true);
-    {
-      AXOM_ANNOTATE_SCOPE("preprocessing");
-      if(use_memoization)
-      {
-        m_nurbs_caches.reserve(input_patches.size());
-        for(const auto& patch : input_patches)
-        {
-          m_nurbs_caches.emplace_back(patch);
-        }
-      }
-    }
-    timer.stop();
-    AXOM_ANNOTATE_METADATA("preprocessing_time", timer.elapsed(), "");
-    SLIC_INFO(axom::fmt::format("Direct query preprocessing (memoization caches): {} s",
-                                timer.elapsedTimeInSec()));
-  }
-
-  void query(mfem::DataCollection& dc,
-             const primal::WindingTolerances& tol,
-             const double slice_z = 0.0) const
-  {
-    auto* query_mesh = dc.GetMesh();
-    auto& winding = *dc.GetField("winding");
-    auto& inout = *dc.GetField("inout");
-
-    const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
-
-    auto query_point = [query_mesh, slice_z](int idx) -> Point3D {
-      Point3D pt({0., 0., slice_z});
-      query_mesh->GetNode(idx, pt.data());
-      return pt;
-    };
-
-    axom::utilities::Timer query_timer(true);
-    {
-      AXOM_ANNOTATE_SCOPE("query");
-      const primal::WindingTolerances tol_copy = tol;
-
-      // Use non-memoized form
-      if(m_nurbs_caches.empty())
-      {
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
-          const Point3D q = query_point(static_cast<int>(nidx));
-          double wn {};
-          for(const auto& patch : m_input_patches_view)
-          {
-            wn += axom::primal::winding_number(q,
-                                               patch,
-                                               tol_copy.edge_tol,
-                                               tol_copy.ls_tol,
-                                               tol_copy.quad_tol,
-                                               tol_copy.disk_size,
-                                               tol_copy.EPS);
-          }
-          winding[static_cast<int>(nidx)] = wn;
-          inout[static_cast<int>(nidx)] = std::lround(wn);
-        });
-      }
-      else  // Use memoized form
-      {
-        const auto nurbs_patches_view = m_nurbs_caches.view();
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
-          const Point3D q = query_point(static_cast<int>(nidx));
-          double wn {};
-          for(const auto& cache : nurbs_patches_view)
-          {
-            wn += axom::primal::winding_number(q,
-                                               cache,
-                                               tol_copy.edge_tol,
-                                               tol_copy.ls_tol,
-                                               tol_copy.quad_tol,
-                                               tol_copy.disk_size,
-                                               tol_copy.EPS);
-          }
-          winding[static_cast<int>(nidx)] = wn;
-          inout[static_cast<int>(nidx)] = std::lround(wn);
-        });
-      }
-    }
-    query_timer.stop();
-
-    const double query_time_s = query_timer.elapsed();
-    const double ms_per_query = query_timer.elapsedTimeInMilliSec() / num_query_points;
-    SLIC_INFO(axom::fmt::format(
-      axom::utilities::locale(),
-      "Querying {:L} samples in winding number field with{} memoization took {:.3Lf} seconds"
-      " (@ {:.0Lf} queries per second; {:.6Lf} ms per query)",
-      num_query_points,
-      m_nurbs_caches.empty() ? "out" : "",
-      query_time_s,
-      num_query_points / query_time_s,
-      ms_per_query));
-    AXOM_ANNOTATE_METADATA("query_points", num_query_points, "");
-    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
-  }
-
-private:
-  axom::ArrayView<const NURBSPatch3D> m_input_patches_view;
-  NURBSCacheArray m_nurbs_caches;
-};
-
-template <int ORDER>
-class TriangleGWN3D
-{
-public:
-  using BoxType = axom::primal::BoundingBox<double, 3>;
-  using TriangleType = axom::primal::Triangle<double, 3>;
-  using GWNMoments = axom::quest::GWNMomentData<double, 3, ORDER>;
-
-  TriangleGWN3D() = default;
-
-  void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* tri_mesh, bool useDirectEval)
-  {
-    axom::utilities::Timer timer(true);
-    axom::utilities::Timer stage_timer(false);
-
-    AXOM_ANNOTATE_SCOPE("preprocessing");
-
-    const auto ntris = tri_mesh->getNumberOfCells();
-    if(ntris <= 0)
-    {
-      SLIC_WARNING("Triangle mesh contains no cells; skipping preprocessing.");
-      return;
-    }
-
-    stage_timer.start();
-    {
-      AXOM_ANNOTATE_SCOPE("extract_triangles");
-
-      // Iterate over mesh nodes and get a bounding box for the shape
-      BoundingBox3D shape_bbox;
-      BoundingBox3D* shape_bbox_ptr = &shape_bbox;
-      axom::mint::for_all_nodes<axom::SEQ_EXEC, axom::mint::xargs::xyz>(
-        tri_mesh,
-        AXOM_LAMBDA(axom::IndexType nodeIdx, double x, double y, double z) {
-          shape_bbox_ptr->addPoint(Point3D {x, y, z});
-        });
-
-      // Extract the triangles from the mesh into axom primitives,
-      //  scaled and translated so that `shape_box` is centered at the origin
-      //  and has roughly unit volume. Otherwise, small triangles introduce numerical issues
-      m_shape_center = shape_bbox.getCentroid();
-      const auto longest_dim = shape_bbox.getLongestDimension();
-      m_scale = shape_bbox.getMax()[longest_dim] - shape_bbox.getMin()[longest_dim];
-
-      m_triangles.resize(ntris);
-      auto triangles_view = m_triangles.view();
-      axom::mint::for_all_cells<axom::SEQ_EXEC, axom::mint::xargs::coords>(
-        tri_mesh,
-        AXOM_LAMBDA(axom::IndexType cellIdx,
-                    const axom::numerics::Matrix<double>& coords,
-                    [[maybe_unused]] const axom::IndexType* nodeIds) {
-          const auto& ctr = m_shape_center;
-          const auto& scl = m_scale;
-          triangles_view[cellIdx] = TriangleType {Point3D {(coords(0, 0) - ctr[0]) / scl,
-                                                           (coords(1, 0) - ctr[1]) / scl,
-                                                           (coords(2, 0) - ctr[2]) / scl},
-                                                  Point3D {(coords(0, 1) - ctr[0]) / scl,
-                                                           (coords(1, 1) - ctr[1]) / scl,
-                                                           (coords(2, 1) - ctr[2]) / scl},
-                                                  Point3D {(coords(0, 2) - ctr[0]) / scl,
-                                                           (coords(1, 2) - ctr[1]) / scl,
-                                                           (coords(2, 2) - ctr[2]) / scl}};
-        });
-    }
-    stage_timer.stop();
-    SLIC_INFO(axom::fmt::format("  Preprocessing stage (extract_triangles): {} s",
-                                stage_timer.elapsedTimeInSec()));
-
-    // If direct evaluation is preferred, skip BVH initialization
-    if(!useDirectEval)
-    {
-      stage_timer.reset();
-      stage_timer.start();
-      {
-        AXOM_ANNOTATE_SCOPE("bvh_init");
-        axom::Array<BoxType> aabbs(ntris, ntris);
-        auto aabbs_view = aabbs.view();
-        const auto triangles_view = m_triangles.view();
-
-        axom::for_all<axom::SEQ_EXEC>(
-          ntris,
-          AXOM_LAMBDA(axom::IndexType i) {
-            aabbs_view[i] =
-              BoxType {triangles_view[i][0], triangles_view[i][1], triangles_view[i][2]};
-          });
-        m_bvh.initialize(aabbs_view, ntris);
-      }
-      stage_timer.stop();
-      SLIC_INFO(
-        axom::fmt::format("  Preprocessing stage (bvh): {} s", stage_timer.elapsedTimeInSec()));
-
-      stage_timer.reset();
-      stage_timer.start();
-      {
-        AXOM_ANNOTATE_SCOPE("moments");
-        const auto triangles_view = m_triangles.view();
-
-        auto compute_moments = [triangles_view](std::int32_t currentNode,
-                                                const std::int32_t* leafNodes) -> GWNMoments {
-          const auto idx = leafNodes[currentNode];
-          return GWNMoments(triangles_view[idx]);
-        };
-
-        const auto traverser = m_bvh.getTraverser();
-        m_internal_moments = traverser.reduce_tree<axom::SEQ_EXEC, GWNMoments>(compute_moments);
-      }
-      stage_timer.stop();
-      SLIC_INFO(
-        axom::fmt::format("  Preprocessing stage (moments): {} s", stage_timer.elapsedTimeInSec()));
-    }
-    timer.stop();
-
-    SLIC_INFO(axom::fmt::format("Total preprocessing: {} s", timer.elapsedTimeInSec()));
-  }
-
-  void query(mfem::DataCollection& dc, const primal::WindingTolerances& tol, const double slice_z = 0.0)
-  {
-    if(m_triangles.empty())
-    {
-      SLIC_WARNING("Skipping query; triangle data is empty.");
-      return;
-    }
-
-    const auto* query_mesh = dc.GetMesh();
-    auto& winding = *dc.GetField("winding");
-    auto& inout = *dc.GetField("inout");
-
-    const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
-
-    // Get the query point from the mesh, scaled to the proper normalization
-    const auto& ctr = m_shape_center;
-    const auto& scl = m_scale;
-    auto scaled_query_point = [query_mesh, slice_z, ctr, scl](axom::IndexType idx) -> Point3D {
-      Point3D pt({0., 0., slice_z});
-      query_mesh->GetNode(static_cast<int>(idx), pt.data());
-      pt.array() = (pt.array() - ctr.array()) / scl;
-      return pt;
-    };
-
-    axom::utilities::Timer query_timer(true);
-    {
-      AXOM_ANNOTATE_SCOPE("query");
-
-      const auto triangles_view = m_triangles.view();
-      const primal::WindingTolerances tol_copy = tol;
-
-      // Use fast approximation
-      if(m_bvh.isInitialized())
-      {
-        const auto traverser = m_bvh.getTraverser();
-        const auto internal_moments_view = m_internal_moments.view();
-
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
-          const double wn = axom::quest::fast_approximate_winding_number(scaled_query_point(index),
-                                                                         traverser,
-                                                                         triangles_view,
-                                                                         internal_moments_view,
-                                                                         tol_copy);
-
-          winding[static_cast<int>(index)] = wn;
-          inout[static_cast<int>(index)] = std::lround(wn);
-        });
-      }
-      // Use direct formula
-      else
-      {
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
-          const Point3D q = scaled_query_point(static_cast<int>(index));
-          double wn {};
-          for(const auto& tri : m_triangles)
-          {
-            wn += axom::primal::winding_number(q, tri, tol_copy.edge_tol, tol_copy.EPS);
-          }
-
-          winding[static_cast<int>(index)] = wn;
-          inout[static_cast<int>(index)] = std::lround(wn);
-        });
-      }
-    }
-    query_timer.stop();
-
-    const double query_time_s = query_timer.elapsed();
-    const double ms_per_query = query_timer.elapsedTimeInMilliSec() / num_query_points;
-    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Querying {:L} samples in winding number field took {:.3Lf} seconds"
-                                " (@ {:.0Lf} queries per second; {:.5Lf} ms per query)",
-                                num_query_points,
-                                query_time_s,
-                                num_query_points / query_time_s,
-                                ms_per_query));
-    AXOM_ANNOTATE_METADATA("query_points", num_query_points, "");
-    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
-  }
-
-private:
-  // For the procsesed input curves/BVH leaf nodes
-  axom::Array<TriangleType> m_triangles;
-
-  // Only needed for fast approximation method
-  axom::Array<GWNMoments> m_internal_moments;
-  axom::spin::BVH<3, axom::SEQ_EXEC> m_bvh;
-
-  // Parameters for normalization
-  axom::primal::Point<double, 3> m_shape_center;
-  double m_scale;
-};
 
 //------------------------------------------------------------------------------
 // CLI input
@@ -596,7 +122,7 @@ public:
                  "(significantly slower, slightly more precise)")
       ->capture_default_str();
     triangulate_step_subcommand
-      ->add_option("--approximation-order",
+      ->add_option("--expansion-order",
                    approximation_order,
                    "The order of the Taylor expansion (lower is faster, less precise)")
       ->expected(0, 2)
@@ -703,51 +229,31 @@ public:
   }
 };
 
-using GWNQueryType = std::variant<DirectGWN3D, TriangleGWN3D<0>, TriangleGWN3D<1>, TriangleGWN3D<2>>;
+using GWNQueryType = std::variant<axom::quest::DirectGWN3D,
+                                  axom::quest::TriangleGWN3D<0>,
+                                  axom::quest::TriangleGWN3D<1>,
+                                  axom::quest::TriangleGWN3D<2>>;
 
-// This framework will make more sense when there are more than two types available
-GWNQueryType make_wn_query(Input input)
+GWNQueryType make_gwn_query(Input input)
 {
   if(input.triangulate)
   {
     if(input.approximation_order == 0)
     {
-      return TriangleGWN3D<0> {};
+      return axom::quest::TriangleGWN3D<0> {};
     }
     else if(input.approximation_order == 1)
     {
-      return TriangleGWN3D<1> {};
+      return axom::quest::TriangleGWN3D<1> {};
     }
     else
     {
-      return TriangleGWN3D<2> {};
+      return axom::quest::TriangleGWN3D<2> {};
     }
   }
 
-  return DirectGWN3D {};
+  return axom::quest::DirectGWN3D {};
 }
-
-enum class GWNQueryAlgorithmKind
-{
-  Surface,
-  Triangulation
-};
-
-template <typename GWNQueryType>
-struct gwn_query_traits;
-
-template <int ORDER>
-struct gwn_query_traits<TriangleGWN3D<ORDER>>
-  : std::integral_constant<GWNQueryAlgorithmKind, GWNQueryAlgorithmKind::Triangulation>
-{ };
-
-template <>
-struct gwn_query_traits<DirectGWN3D>
-  : std::integral_constant<GWNQueryAlgorithmKind, GWNQueryAlgorithmKind::Surface>
-{ };
-
-template <typename GWNQueryType>
-inline constexpr GWNQueryAlgorithmKind gwn_query_kind_v = gwn_query_traits<GWNQueryType>::value;
 
 int main(int argc, char** argv)
 {
@@ -772,7 +278,7 @@ int main(int argc, char** argv)
   AXOM_ANNOTATE_SCOPE("3D winding number example");
 
   // Bounding box for input shape
-  BoundingBox3D query_bbox;
+  BoundingBox3D shape_bbox;
 
   // Declare possible geometry input types
   axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tri_mesh(3, axom::mint::TRIANGLE);
@@ -797,11 +303,11 @@ int main(int argc, char** argv)
     stl_reader.getMesh(&tri_mesh);
     read_timer.stop();
 
-    BoundingBox3D* query_bbox_ptr = &query_bbox;
+    BoundingBox3D* shape_bbox_ptr = &shape_bbox;
     axom::mint::for_all_nodes<axom::SEQ_EXEC, axom::mint::xargs::xyz>(
       &tri_mesh,
       AXOM_LAMBDA(axom::IndexType nodeIdx, double x, double y, double z) {
-        query_bbox_ptr->addPoint(Point3D {x, y, z});
+        shape_bbox_ptr->addPoint(Point3D {x, y, z});
       });
 
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
@@ -826,7 +332,7 @@ int main(int argc, char** argv)
     }
     read_timer.stop();
 
-    query_bbox = step_reader.getBRepBoundingBox();
+    shape_bbox = step_reader.getBRepBoundingBox();
 
     int num_trimming_curves = 0;
     for(const auto& patch : step_reader.getPatchArray())
@@ -890,25 +396,25 @@ int main(int argc, char** argv)
   mfem::DataCollection dc("winding_query");
   {
     // Create the desired winding number query instance
-    auto wn_query = make_wn_query(input);
+    auto wn_query = make_gwn_query(input);
 
     // Generate the query grid and fields
-    generate_query_mesh(dc,
-                        query_bbox,
-                        input.boxMins,
-                        input.boxMaxs,
-                        input.boxResolution,
-                        input.queryOrder);
+    quest::generate_gwn_query_mesh(dc,
+                                   shape_bbox,
+                                   input.boxMins,
+                                   input.boxMaxs,
+                                   input.boxResolution,
+                                   input.queryOrder);
 
     // Run the preprocess
     std::visit(
       [&](auto& wn) {
         using T = std::decay_t<decltype(wn)>;
-        if constexpr(gwn_query_kind_v<T> == GWNQueryAlgorithmKind::Surface)
+        if constexpr(quest::gwn_input_type_v<T> == quest::GWNInputType::Surface)
         {
           wn.preprocess(patches, input.memoized);
         }
-        else if constexpr(gwn_query_kind_v<T> == GWNQueryAlgorithmKind::Triangulation)
+        else if constexpr(quest::gwn_input_type_v<T> == quest::GWNInputType::Triangulation)
         {
           wn.preprocess(&tri_mesh, input.directTriangleEval);
         }
@@ -927,9 +433,9 @@ int main(int argc, char** argv)
     auto& winding = *dc.GetField("winding");
     auto& inout = *dc.GetField("inout");
 
-    const auto winding_stats = compute_field_stats(winding);
-    const auto inout_stats = compute_field_stats(inout);
-    const auto inout_integrals = compute_integrals(inout);
+    const auto winding_stats = axom::quest::compute_field_stats(winding);
+    const auto inout_stats = axom::quest::compute_field_stats(inout);
+    const auto inout_integrals = axom::quest::compute_integrals(inout);
 
     std::int64_t pos_inout_dofs = 0;
     std::int64_t neg_inout_dofs = 0;
