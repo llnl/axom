@@ -113,6 +113,7 @@ if(MFEM_FOUND AND AXOM_ENABLE_SIDRE)
     add_quest_mfem_test(quest_point_in_cell_mfem)
     if(AXOM_DATA_DIR)
         add_quest_mfem_test(quest_mfem_reader)
+        add_quest_mfem_test(quest_winding_number_approximations)
     endif()
 endif()
 
