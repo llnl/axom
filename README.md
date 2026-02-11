@@ -8,6 +8,7 @@
 
 
 # <img src="/share/axom/logo/axom_logo_transparent.png?raw=true" width="250" valign="middle" alt="Axom"/>
+[![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/llnl/axom)
 
 [![Build Status](https://github.com/LLNL/axom/actions/workflows/ci-tests.yml/badge.svg)](https://github.com/LLNL/axom/actions/workflows/ci-tests.yml)
 [![Documentation Status](https://readthedocs.org/projects/axom/badge/?version=develop)](https://axom.readthedocs.io/en/develop/?badge=develop)
