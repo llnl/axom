@@ -674,7 +674,7 @@ void TetMeshClipper::extractClipperInfo()
   using HOST_EXEC = axom::SEQ_EXEC;
 #endif
   auto& connNode = topoNode.fetch_existing("elements/connectivity");
-  if (connNode.dtype().id() != bump::utilities::cpp2conduit<IndexType>::id)
+  if(connNode.dtype().id() != bump::utilities::cpp2conduit<IndexType>::id)
   {
     // Change connectivity index type to IndexType.
     const auto srcIndexId = connNode.dtype().id();
@@ -683,17 +683,18 @@ void TetMeshClipper::extractClipperInfo()
     conduit::Node tmpConnNode(dstConnType);
     IndexType* newPtr = static_cast<IndexType*>(tmpConnNode.data_ptr());
 
-    if (connNode.dtype().id() == bump::utilities::cpp2conduit<std::int32_t>::id)
+    if(connNode.dtype().id() == bump::utilities::cpp2conduit<std::int32_t>::id)
     {
       auto curPtr = connNode.as_int32_ptr();
       axom::for_all<HOST_EXEC>(connLen, AXOM_LAMBDA(IndexType i) { newPtr[i] = curPtr[i]; });
     }
-    else if (connNode.dtype().id() == bump::utilities::cpp2conduit<std::int64_t>::id)
+    else if(connNode.dtype().id() == bump::utilities::cpp2conduit<std::int64_t>::id)
     {
       auto curPtr = connNode.as_int64_ptr();
       axom::for_all<HOST_EXEC>(connLen, AXOM_LAMBDA(IndexType i) { newPtr[i] = curPtr[i]; });
     }
-    else {
+    else
+    {
       SLIC_ERROR(axom::fmt::format("Unrecognized connectivity index type with conduit type id {}",
                                    srcIndexId));
     }
