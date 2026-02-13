@@ -130,7 +130,7 @@ TEST(quest_winding_number_approximations, mfem_mesh_linearization)
   }
 }
 
-#ifndef AXOM_USE_OPENCASCADE
+#ifdef AXOM_USE_OPENCASCADE
 //------------------------------------------------------------------------------
 TEST(quest_winding_number_approximations, step_file_triangulation)
 {
