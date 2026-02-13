@@ -760,29 +760,7 @@ struct gwn_input_traits<axom::quest::DirectGWN3D>
 
 template <typename GWNQueryType>
 inline constexpr GWNInputType gwn_input_type_v = gwn_input_traits<GWNQueryType>::value;
-/*
-enum class GWNQueryAlgorithmKind
-{
-  Curve,
-  Polyline
-};
 
-template <typename GWNQueryType>
-struct gwn_query_traits;
-
-template <int ORDER>
-struct gwn_query_traits<PolylineGWN2D<ORDER>>
-  : std::integral_constant<GWNQueryAlgorithmKind, GWNQueryAlgorithmKind::Polyline>
-{ };
-
-template <>
-struct gwn_query_traits<DirectGWN2D>
-  : std::integral_constant<GWNQueryAlgorithmKind, GWNQueryAlgorithmKind::Curve>
-{ };
-
-template <typename GWNQueryType>
-inline constexpr GWNQueryAlgorithmKind gwn_query_kind_v = gwn_query_traits<GWNQueryType>::value;
-*/
 //------------------------------------------------------------------------------
 // Compute postprocessing stats
 //------------------------------------------------------------------------------
