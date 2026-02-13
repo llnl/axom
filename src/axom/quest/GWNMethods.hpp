@@ -20,8 +20,7 @@
 #include "axom/primal.hpp"
 
 #include "axom/quest/FastApproximateGWN.hpp"
-
-#include "axom/quest/interface/internal/QuestHelpers.hpp"
+#include "axom/quest/util/mesh_helpers.hpp"
 
 #include "axom/fmt.hpp"
 
