@@ -22,7 +22,7 @@
 #include <math.h>
 
 // For use in the 3D test cases
-#ifndef AXOM_USE_OPENCASCADE
+#ifdef AXOM_USE_OPENCASCADE
   #include "axom/quest/io/STEPReader.hpp"
 #endif
 
