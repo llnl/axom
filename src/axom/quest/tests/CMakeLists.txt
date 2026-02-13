@@ -29,10 +29,6 @@ blt_list_append(TO       quest_tests
                 IF       AXOM_DATA_DIR
                 ELEMENTS quest_meshtester.cpp)
 
-blt_list_append(TO       quest_tests
-                IF       AXOM_DATA_DIR AND MFEM_FOUND
-                ELEMENTS quest_gwn_methods.cpp)
-
 set(quest_tests_depends
     quest
     gtest
@@ -90,7 +86,7 @@ endif()
 # Tests that use MFEM when available
 #------------------------------------------------------------------------------
 
-if(MFEM_FOUND AND AXOM_ENABLE_SIDRE)
+if(MFEM_FOUND)
     function(add_quest_mfem_test test_name)
         axom_add_executable(
             NAME       ${test_name}
@@ -114,8 +110,15 @@ if(MFEM_FOUND AND AXOM_ENABLE_SIDRE)
             )
     endfunction()
 
-    add_quest_mfem_test(quest_point_in_cell_mfem)
+    if(AXOM_ENABLE_SIDRE)
+        add_quest_mfem_test(quest_point_in_cell_mfem)
+    endif()
+
     if(AXOM_DATA_DIR)
+        add_quest_mfem_test(quest_gwn_methods)
+    endif()
+
+    if(AXOM_DATA_DIR AND AXOM_ENABLE_SIDRE)
         add_quest_mfem_test(quest_mfem_reader)
     endif()
 endif()
