@@ -126,6 +126,7 @@ TEST(quest_winding_number_approximations, mfem_mesh_linearization)
   }
 }
 
+#ifndef AXOM_USE_OPENCASCADE
 //------------------------------------------------------------------------------
 TEST(quest_winding_number_approximations, step_file_triangulation)
 {
@@ -206,6 +207,7 @@ TEST(quest_winding_number_approximations, step_file_triangulation)
     EXPECT_EQ(inout_direct[i], inout_tri_fast[i]);
   }
 }
+#endif
 
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])

@@ -29,6 +29,10 @@ blt_list_append(TO       quest_tests
                 IF       AXOM_DATA_DIR
                 ELEMENTS quest_meshtester.cpp)
 
+blt_list_append(TO       quest_tests
+                IF       AXOM_DATA_DIR AND MFEM_FOUND
+                ELEMENTS quest_gwn_methods.cpp)
+
 set(quest_tests_depends
     quest
     gtest
@@ -113,7 +117,6 @@ if(MFEM_FOUND AND AXOM_ENABLE_SIDRE)
     add_quest_mfem_test(quest_point_in_cell_mfem)
     if(AXOM_DATA_DIR)
         add_quest_mfem_test(quest_mfem_reader)
-        add_quest_mfem_test(quest_winding_number_approximations)
     endif()
 endif()
 
