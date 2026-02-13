@@ -41,7 +41,7 @@
     "toss_4_x86_64_ib_cray":
     [ "+python+devtools~openmp+mfem+c2c+adiak+caliper+rocm amdgpu_target=gfx942,gfx90a %rocm_6_4_2 ^hip@6.4.2 ^hipblas@6.4.2 ^hipsparse@6.4.2 ^hsa-rocr-dev@6.4.2 ^rocprim@6.4.2 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
       "+python+devtools~openmp+mfem+c2c+adiak~caliper+rocm amdgpu_target=gfx942,gfx90a %rocm_6_3_1 ^hip@6.3.1 ^hipblas@6.3.1 ^hipsparse@6.3.1 ^hsa-rocr-dev@6.3.1 ^rocprim@6.3.1 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
-      "+python+devtools~openmp+mfem+c2c+adiak+caliper+rocm amdgpu_target=gfx942,gfx90a %cce_20 ^hip@6.4.2 ^hipblas@6.4.2 ^hipsparse@6.4.2 ^hsa-rocr-dev@6.4.2  ^rocprim@6.4.2 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion" ],
+      "+python+devtools~openmp+mfem+c2c+adiak+caliper+rocm amdgpu_target=gfx942,gfx90a %cce_20 ^hip@6.4.2 ^hipblas@6.4.2 ^hipsparse@6.4.2 ^hsa-rocr-dev@6.4.2  ^rocprim@6.4.2 ^caliper~shared ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion" ],
 
     "darwin-x86_64":
     [ "+python+devtools+mfem %clang@9.0.0" ]
