@@ -11,7 +11,6 @@
 
 #include "axom/quest/LinearizeCurves.hpp"
 #include "axom/quest/GWNMethods.hpp"
-#include "axom/quest/io/STEPReader.hpp"
 #include "axom/quest/io/MFEMReader.hpp"
 #include "axom/quest/util/mesh_helpers.hpp"
 
@@ -21,6 +20,11 @@
 
 #include <vector>
 #include <math.h>
+
+// For use in the 3D test cases
+#ifndef AXOM_USE_OPENCASCADE
+  #include "axom/quest/io/STEPReader.hpp"
+#endif
 
 //------------------------------------------------------------------------------
 std::string pjoin(const std::string &str) { return str; }
