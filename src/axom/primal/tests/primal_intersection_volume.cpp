@@ -6,6 +6,8 @@
 
 #include "axom/primal.hpp"
 
+#include "axom/fmt.hpp"
+
 #include "gtest/gtest.h"
 
 #include <algorithm>
@@ -92,10 +94,24 @@ TEST(primal_intersection_volume, hex_tet_user_regression_cases)
     const auto& tet = cases[i];
     const TetrahedronType tet_flipped(tet[1], tet[0], tet[2], tet[3]);
 
-    constexpr bool fix_orient = true;
+    constexpr bool DO_NOT_FIX_ORIENTATION = false;
+    constexpr bool TRY_FIX_ORIENTATION = true;
     const double direct_hex_tet =
-      axom::primal::intersection_volume<double>(hex, tet, EPS, fix_orient);
+      axom::primal::intersection_volume<double>(hex, tet, EPS, DO_NOT_FIX_ORIENTATION);
+    const double direct_hex_tet_fixed =
+      axom::primal::intersection_volume<double>(hex, tet, EPS, TRY_FIX_ORIENTATION);
+    const double direct_hex_tet_fixed_flipped =
+      axom::primal::intersection_volume<double>(hex, tet_flipped, EPS, TRY_FIX_ORIENTATION);
     const double ref_subdiv_hex_tet = intersection_volume_via_hex_triangulation(hex, tet, EPS);
+
+    axom::fmt::print(
+      "case {} direct={:.17e} direct_fixed={:.17e} direct_fixed_flipped={:.17e} "
+      "ref_subdiv={:.17e}\n",
+      i,
+      direct_hex_tet,
+      direct_hex_tet_fixed,
+      direct_hex_tet_fixed_flipped,
+      ref_subdiv_hex_tet);
 
     // check that intersection volumes are non-negative
     EXPECT_GT(direct_hex_tet, 0.) << "case " << i;
@@ -103,8 +119,8 @@ TEST(primal_intersection_volume, hex_tet_user_regression_cases)
 
     // check that primal::intersection_volume results matches expectations and other ways to compute it
     const double expected = expected_volumes[i];
-    EXPECT_NEAR(direct_hex_tet, expected, EPS) << "case " << i;
-    EXPECT_NEAR(direct_hex_tet, ref_subdiv_hex_tet, EPS) << "case " << i;
+    EXPECT_NEAR(direct_hex_tet_fixed, expected, EPS) << "case " << i;
+    EXPECT_NEAR(direct_hex_tet_fixed, ref_subdiv_hex_tet, EPS) << "case " << i;
   }
 }
 
