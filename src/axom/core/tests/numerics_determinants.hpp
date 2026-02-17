@@ -67,7 +67,7 @@ double det2_raw(double a00, double a01, double a10, double a11)
   return p0 - p1;
 }
 
-// "raw" implementation of 2x2 determinant for comparisons to axom::utilities::determinant
+// "raw" implementation of 3x3 determinant for comparisons to axom::utilities::determinant
 // uses `volatile` in an attempt to allide compiler optimization that internally use fma calculations
 double det3_raw(double a00,
                 double a01,
