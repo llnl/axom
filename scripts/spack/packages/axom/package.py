@@ -253,6 +253,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("py-nanobind@2.7.0")
         depends_on("py-pytest")
         depends_on("py-numpy")
+        depends_on("conduit+python")
 
     # Devtools
     with when("+devtools"):
