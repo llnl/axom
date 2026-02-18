@@ -74,7 +74,7 @@ public:
 
   /*!
    *****************************************************************************
-   * \brief Adds a Combiner to the Lumberjack.
+   * \brief Adds a Combiner to the Lumberjack object.
    *
    * Lumberjack can have multiple Combiner classes.  This is helpful when
    * you have different combining criteria for different Message classes. If
@@ -90,7 +90,7 @@ public:
 
   /*!
    *****************************************************************************
-   * \brief Removes a Combiner from the Lumberjack.
+   * \brief Removes a Combiner from the Lumberjack object.
    *
    * \param [in] combinerIdentifier The Combiner identifier that will be
    *  removed.
@@ -103,13 +103,42 @@ public:
 
   /*!
    *****************************************************************************
-   * \brief Clears all Combiner classes from the Lumberjack.
+   * \brief Clears all Combiner classes from the Lumberjack object.
    *
    * This removes and calls delete on all Combiner classes held by the
    * Lumberjack.
    *****************************************************************************
    */
   void clearCombiners();
+
+  /*!
+   *****************************************************************************
+   * \brief Adds a std::string tag to the Lumberjack object.
+   *
+   * \param [in] tag The tag that will be added.
+   *****************************************************************************
+   */
+  void addTag(const std::string tag);
+
+  /*!
+   *****************************************************************************
+   * \brief Removes a std::string tag from the Lumberjack object.
+   *
+   * \param [in] tag The tag that will be
+   *  removed.
+   *
+   *****************************************************************************
+   */
+  void removeTag(const std::string tag);
+
+  /*!
+   *****************************************************************************
+   * \brief Clears all Combiner classes from the Lumberjack object.
+   *
+   * This removes all tags held by the Lumberjack object.
+   *****************************************************************************
+   */
+  void clearTags();
 
   /*!
    *****************************************************************************
@@ -303,6 +332,7 @@ private:
   int m_ranksLimit;
   std::vector<Combiner*> m_combiners;
   std::vector<Message*> m_messages;
+  std::vector<std::string> m_tags;
 };
 
 }  // end namespace lumberjack

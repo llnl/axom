@@ -18,6 +18,7 @@
 
 // C/C++ includes
 #include <iostream>  // for std::ostream
+#include <vector>    // for std::vector
 #include <fstream>   // for ofstream
 
 // MPI
@@ -85,11 +86,22 @@ public:
    * \brief Constructs a LumberjackStream instance with the given stream
    *        Lumberjack communicator, and message formatting.
    * \param [in] stream pointer to a user-supplied ostream instance.
-   * \param [in] lj Lumberjack communicator
+   * \param [in] lj Lumberjack object
    * \param [in] format the format string.
    * \pre stream != NULL
    */
   LumberjackStream(std::ostream* stream, axom::lumberjack::Lumberjack* lj, const std::string& format);
+
+  /*!
+   * \brief Constructs a LumberjackStream instance with the given stream
+   *        Lumberjack object, and message formatting.
+   * \param [in] stream pointer to a user-supplied ostream instance.
+   * \param [in] lj Lumberjack object
+   * \param [in] format the format string.
+   * \pre stream != NULL
+   */
+  LumberjackStream(std::ostream* stream, std::vector<axom::lumberjack::Lumberjack*> lj, const std::string& format);
+
 
   /*!
    * \brief Constructs a LumberjackStream instance specified by the given
@@ -261,8 +273,8 @@ protected:
   /// \name Protected Members
   /// @{
 
-  axom::lumberjack::Lumberjack* m_lj;
-  axom::lumberjack::Communicator* m_ljComm;
+  std::vector<axom::lumberjack::Lumberjack*> m_lj;
+  std::vector<axom::lumberjack::Communicator*> m_ljComm;
   bool m_isLJOwnedBySLIC;
   bool m_isOstreamOwnedBySLIC;
   std::ostream* m_stream;
@@ -279,7 +291,7 @@ private:
    *  should be used.
    */
   LumberjackStream()
-    : m_lj(static_cast<axom::lumberjack::Lumberjack*>(nullptr))
+    : m_lj({static_cast<axom::lumberjack::Lumberjack*>(nullptr)})
     , m_stream(static_cast<std::ostream*>(nullptr)) { };
 
   DISABLE_COPY_AND_ASSIGNMENT(LumberjackStream);

@@ -94,6 +94,45 @@ void Lumberjack::clearCombiners()
   m_combiners.clear();
 }
 
+void Lumberjack::addTag(const std::string tag)
+{
+  bool identifierFound = false;
+  for(size_t i = 0; i < m_combiners.size(); ++i)
+  {
+    if(m_tags[i] == tag)
+    {
+      identifierFound = true;
+      break;
+    }
+  }
+  if(!identifierFound)
+  {
+    m_tags.push_back(tag);
+  }
+}
+
+void Lumberjack::removeTag(const std::string tag)
+{
+  int idxToBeRemoved = -1;
+  for(size_t i = 0; i < m_tags.size(); ++i)
+  {
+    if(m_tags[i] == tag)
+    {
+      idxToBeRemoved = i;
+      break;
+    }
+  }
+  if(idxToBeRemoved != -1)
+  {
+    m_tags.erase(m_tags.begin() + idxToBeRemoved);
+  }
+}
+
+void Lumberjack::clearTags()
+{
+  m_tags.clear();
+}
+
 const std::vector<Message*>& Lumberjack::getMessages() const { return m_messages; }
 
 void Lumberjack::ranksLimit(int value)
@@ -125,10 +164,21 @@ void Lumberjack::queueMessage(const std::string& text,
                               double creationTime,
                               const std::string& tag)
 {
-  const double elapsedTime = creationTime - m_communicator->startTime();
-  Message* mi =
-    new Message(text, m_communicator->rank(), fileName, lineNumber, level, elapsedTime, tag);
-  m_messages.push_back(mi);
+  if (m_tags.size() > 0) {
+    for (auto& t : m_tags) {
+      if (t == tag) {
+        const double elapsedTime = creationTime - m_communicator->startTime();
+        Message* mi =
+          new Message(text, m_communicator->rank(), fileName, lineNumber, level, elapsedTime, tag);
+        m_messages.push_back(mi);
+      }
+    }
+  } else {
+    const double elapsedTime = creationTime - m_communicator->startTime();
+    Message* mi =
+      new Message(text, m_communicator->rank(), fileName, lineNumber, level, elapsedTime, tag);
+    m_messages.push_back(mi);
+  }
 }
 
 void Lumberjack::queueMessage(const std::string& text,
@@ -140,10 +190,21 @@ void Lumberjack::queueMessage(const std::string& text,
                               double creationTime,
                               const std::string& tag)
 {
-  const double elapsedTime = creationTime - m_communicator->startTime();
-  Message* mi =
-    new Message(text, ranks, count, m_ranksLimit, fileName, lineNumber, level, elapsedTime, tag);
-  m_messages.push_back(mi);
+  if (m_tags.size() > 0) {
+    for (auto& t : m_tags) {
+      if (t == tag) {
+        const double elapsedTime = creationTime - m_communicator->startTime();
+        Message* mi =
+          new Message(text, ranks, count, m_ranksLimit, fileName, lineNumber, level, elapsedTime, tag);
+        m_messages.push_back(mi);
+      }
+    }
+  } else {
+    const double elapsedTime = creationTime - m_communicator->startTime();
+    Message* mi =
+      new Message(text, ranks, count, m_ranksLimit, fileName, lineNumber, level, elapsedTime, tag);
+    m_messages.push_back(mi);
+  }
 }
 
 void Lumberjack::pushMessagesOnce()
@@ -173,9 +234,6 @@ void Lumberjack::pushMessagesOnce()
 
   combineMessages();
 
-  std::sort(m_messages.begin(), m_messages.end(), [](Message* const a, Message* const b) {
-    return a->creationTime() < b->creationTime();
-  });
 }
 
 void Lumberjack::pushMessagesFully()
@@ -209,9 +267,6 @@ void Lumberjack::pushMessagesFully()
 
   combineMessages();
 
-  std::sort(m_messages.begin(), m_messages.end(), [](Message* const a, Message* const b) {
-    return a->creationTime() < b->creationTime();
-  });
 }
 
 bool Lumberjack::isOutputNode() { return m_communicator->isOutputNode(); }
