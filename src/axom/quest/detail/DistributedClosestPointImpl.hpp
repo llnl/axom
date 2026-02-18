@@ -920,7 +920,9 @@ public:
       m_effectiveDistanceThreshold = sqrt(sqDistanceThreshold);
 
       allSqDistanceThreshold.resize(m_nranks);
+      AXOM_ANNOTATE_BEGIN("FilterFarPartitions_gather");
       gatherPrimitiveValue(sqDistanceThreshold, allSqDistanceThreshold);
+      AXOM_ANNOTATE_END("FilterFarPartitions_gather");
       AXOM_ANNOTATE_END("FilterFarPartitions");
     }
     else {
