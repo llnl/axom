@@ -97,7 +97,7 @@ void Lumberjack::clearCombiners()
 void Lumberjack::addTag(const std::string tag)
 {
   bool identifierFound = false;
-  for(size_t i = 0; i < m_combiners.size(); ++i)
+  for(size_t i = 0; i < m_tags.size(); ++i)
   {
     if(m_tags[i] == tag)
     {

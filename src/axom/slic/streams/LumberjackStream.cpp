@@ -266,43 +266,48 @@ void LumberjackStream::write(bool local)
     if(lj->isOutputNode() || local) {
       std::vector<lumberjack::Message*> lj_messages = lj->getMessages();
       messages.insert(messages.begin(), lj_messages.begin(), lj_messages.end());
+    }
+  }
+
+  std::sort(messages.begin(), messages.end(), [](lumberjack::Message* const a, lumberjack::Message* const b) {
+    return a->creationTime() < b->creationTime();
+  });
+
+  for(const auto* curr_message : messages)
+  {
+    if(curr_message == nullptr)
+    {
+      continue;
+    }
+
+    if(m_isOstreamOwnedBySLIC && !m_opened)
+    {
+      std::ofstream* ofs = dynamic_cast<std::ofstream*>(m_stream);
+      if(ofs != nullptr)
+      {
+        ofs->open(m_file_name);
+        m_opened = true;
+      }
+    }
+
+    (*m_stream) << this->getFormatedMessage(
+      message::getLevelAsString(static_cast<message::Level>(curr_message->level())),
+      curr_message->text(),
+      curr_message->tag(),
+      curr_message->stringOfRanks(),
+      std::to_string(curr_message->count()),
+      curr_message->fileName(),
+      curr_message->lineNumber());
+  }
+
+  m_stream->flush();
+
+  for (auto* lj : m_lj) {
+    if(lj->isOutputNode() || local) {
       lj->clearMessages();
     }
-
-    std::sort(messages.begin(), messages.end(), [](lumberjack::Message* const a, lumberjack::Message* const b) {
-      return a->creationTime() < b->creationTime();
-    });
-
-    for(const auto* curr_message : messages)
-    {
-      if(curr_message == nullptr)
-      {
-        continue;
-      }
-
-      if(m_isOstreamOwnedBySLIC && !m_opened)
-      {
-        std::ofstream* ofs = dynamic_cast<std::ofstream*>(m_stream);
-        if(ofs != nullptr)
-        {
-          ofs->open(m_file_name);
-          m_opened = true;
-        }
-      }
-
-      (*m_stream) << this->getFormatedMessage(
-        message::getLevelAsString(static_cast<message::Level>(curr_message->level())),
-        curr_message->text(),
-        curr_message->tag(),
-        curr_message->stringOfRanks(),
-        std::to_string(curr_message->count()),
-        curr_message->fileName(),
-        curr_message->lineNumber());
-    }
-
-    m_stream->flush();
-
   }
+
 }
 
 //------------------------------------------------------------------------------
