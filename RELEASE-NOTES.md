@@ -24,6 +24,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Axom's polygon clipping was modified to handle some corner cases.
 
 ### Fixed
+- MPI setup in exported Axom config only requires Fortran when Axom's MPI was set up with Fortran.
+  This is in support of configs that require Fortran and MPI, but not an MPI wrapper for Fortran.
 
 ### Removed
 
