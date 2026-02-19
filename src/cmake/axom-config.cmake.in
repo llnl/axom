@@ -157,7 +157,16 @@ if(NOT AXOM_FOUND)
 
     # Load mpi targets because we require the optional Conduit mpi targets
     if(AXOM_USE_MPI)
-      find_package(MPI REQUIRED COMPONENTS @AXOM_REQUIRED_MPI_COMPONENTS@)
+      set(_axom_required_mpi_components "@AXOM_REQUIRED_MPI_COMPONENTS@")
+      if(NOT CMAKE_Fortran_COMPILER_LOADED)
+        list(REMOVE_ITEM _axom_required_mpi_components Fortran)
+      endif()
+
+      if(_axom_required_mpi_components)
+        find_package(MPI REQUIRED COMPONENTS ${_axom_required_mpi_components})
+      else()
+        find_package(MPI REQUIRED)
+      endif()
     endif()
 
     find_dependency(Conduit REQUIRED
