@@ -1363,12 +1363,8 @@ int main(int argc, char** argv)
   umpire::Allocator umpireAllocator = rm.getAllocator(umpireResourceName);
 #endif
 
-#if 1
   auto annotation_raii_wrapper =
     std::make_unique<axom::utilities::raii::AnnotationsWrapper>(params.annotationMode);
-#else
-  axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(params.annotationMode);
-#endif
   AXOM_ANNOTATE_SCOPE("Quest distributed distance query example");
 
   // Storage for meshes.
@@ -1616,9 +1612,7 @@ int main(int argc, char** argv)
   }
 
   finalizeLogger();
-#if 1
   annotation_raii_wrapper.reset();
-#endif
   MPI_Finalize();
 
   return errCount != 0;
