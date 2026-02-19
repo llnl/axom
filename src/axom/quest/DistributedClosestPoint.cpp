@@ -206,8 +206,7 @@ bool DistributedClosestPoint::generateBVHTree()
 void DistributedClosestPoint::computeClosestPoints(conduit::Node& query_node,
                                                    const std::string& topology)
 {
-  SLIC_ASSERT_MSG(m_impl,
-                  "Must call 'setObjectMesh' before calling computeClosestPoints");
+  SLIC_ASSERT_MSG(m_impl, "Must call 'setObjectMesh' before calling computeClosestPoints");
 
   SLIC_ASSERT(this->isValidBlueprint(query_node));
 
@@ -303,10 +302,7 @@ void DistributedClosestPoint::verifyTopologyName(const conduit::Node& meshNode,
   }
 }
 
-axom::IndexType DistributedClosestPoint::searchCount() const
-{
-  return m_impl->searchCount();
-}
+axom::IndexType DistributedClosestPoint::searchCount() const { return m_impl->searchCount(); }
 
 double DistributedClosestPoint::effectiveDistanceThreshold() const
 {

@@ -297,8 +297,7 @@ public:
   */
   void setSquaredDistanceThreshold(double sqThreshold)
   {
-    SLIC_ERROR_IF(sqThreshold < 0.0,
-                  "Squared distance-threshold must be non-negative.");
+    SLIC_ERROR_IF(sqThreshold < 0.0, "Squared distance-threshold must be non-negative.");
     m_sqUserDistanceThreshold = sqThreshold;
   }
 
@@ -530,18 +529,12 @@ public:
     @brief Return the number of searches done on the last query
     mesh's local partition.
   */
-  axom::IndexType searchCount() const
-  {
-    return m_searchCount;
-  }
+  axom::IndexType searchCount() const { return m_searchCount; }
   /*!
     @brief Return the effective distance threshold of the last query
     partition.
   */
-  double effectiveDistanceThreshold() const
-  {
-    return m_effectiveDistanceThreshold;
-  }
+  double effectiveDistanceThreshold() const { return m_effectiveDistanceThreshold; }
 
 protected:
   int m_allocatorID;
@@ -677,9 +670,7 @@ public:
       const int N = internal::extractSize(copySrc);
       const std::size_t nBytes = sizeof(double) * DIM * N;
 
-      axom::copy(m_objectPtCoords.data() + copiedCount,
-                 copySrc.fetch_existing("x").data_ptr(),
-                 nBytes);
+      axom::copy(m_objectPtCoords.data() + copiedCount, copySrc.fetch_existing("x").data_ptr(), nBytes);
       tmpValues.reset();
 
       domIds.fill(domainId, N, copiedCount);
@@ -694,10 +685,8 @@ public:
     PointType minPt, maxPt;
     for(int d = 0; d < DIM; ++d)
     {
-      RAJA::ReduceMin<ReducePolicy, double> minCoord(
-        std::numeric_limits<double>::max());
-      RAJA::ReduceMax<ReducePolicy, double> maxCoord(
-        -std::numeric_limits<double>::max());
+      RAJA::ReduceMin<ReducePolicy, double> minCoord(std::numeric_limits<double>::max());
+      RAJA::ReduceMax<ReducePolicy, double> maxCoord(-std::numeric_limits<double>::max());
       RAJA::forall<LoopPolicy>(
         RAJA::RangeSegment(0, ptCount),
         AXOM_LAMBDA(RAJA::Index_type n) {
@@ -710,8 +699,7 @@ public:
     m_objectBb = BoxType(minPt, maxPt);
 #else
     m_objectBb =
-      axom::primal::BoundingBox<double, DIM> {m_objectPtCoords.data(),
-                                              m_objectPtCoords.size()};
+      axom::primal::BoundingBox<double, DIM> {m_objectPtCoords.data(), m_objectPtCoords.size()};
 #endif
     gatherBoundingBoxes(m_objectBb, m_objectPartitionBbs);
 
@@ -780,13 +768,8 @@ public:
   void gatherPrimitiveValue(const T& val, axom::Array<T>& allVals) const
   {
     allVals.resize(m_nranks);
-    int errf = MPI_Allgather(&val,
-                             1,
-                             mpi_traits<T>::type,
-                             allVals.data(),
-                             1,
-                             mpi_traits<T>::type,
-                             m_mpiComm);
+    int errf =
+      MPI_Allgather(&val, 1, mpi_traits<T>::type, allVals.data(), 1, mpi_traits<T>::type, m_mpiComm);
     SLIC_ASSERT(errf == MPI_SUCCESS);
     AXOM_UNUSED_VAR(errf);
   }
@@ -863,7 +846,8 @@ public:
 
     axom::Array<double> allSqDistanceThreshold;
 
-    if (m_filterFarPartitions) {
+    if(m_filterFarPartitions)
+    {
       AXOM_ANNOTATE_BEGIN("FilterFarPartitions");
       // Compute the min of the max distance between myQueryBb and each rank's object bounding box,
       // and customize the distance threshold using this min-max.
@@ -874,8 +858,7 @@ public:
         minMaxSqDist = std::min(minMaxSqDist, maxSqDist);
       }
 
-      const double sqDistanceThreshold =
-        std::min(m_sqUserDistanceThreshold, minMaxSqDist);
+      const double sqDistanceThreshold = std::min(m_sqUserDistanceThreshold, minMaxSqDist);
       xferNodes[m_rank]->fetch("sqDistanceThreshold") = sqDistanceThreshold;
       m_effectiveDistanceThreshold = sqrt(sqDistanceThreshold);
 
@@ -885,7 +868,8 @@ public:
       AXOM_ANNOTATE_END("FilterFarPartitions_gather");
       AXOM_ANNOTATE_END("FilterFarPartitions");
     }
-    else {
+    else
+    {
       xferNodes[m_rank]->fetch("sqDistanceThreshold") = m_sqUserDistanceThreshold;
     }
 
@@ -1024,8 +1008,7 @@ private:
     int homeRank = xferNode.fetch_existing("homeRank").value();
     BoxType bb;
     get_bounding_box_from_conduit_node(bb, xferNode.fetch_existing("aabb"));
-    auto sqDistanceThreshold =
-      xferNode.fetch_existing("sqDistanceThreshold").as_double();
+    auto sqDistanceThreshold = xferNode.fetch_existing("sqDistanceThreshold").as_double();
     for(int i = 1; i < m_nranks; ++i)
     {
       int maybeNextRecip = (m_rank + i) % m_nranks;
@@ -1245,8 +1228,7 @@ private:
     @brief Compute maximum squared-distance possible between points in 2 boxes,
     or std::numeric_limits<double>::max() if either box is invalid.
   */
-  AXOM_HOST_DEVICE double maxSqDistBetweenBoxes(const BoxType& a,
-                                                const BoxType& b) const
+  AXOM_HOST_DEVICE double maxSqDistBetweenBoxes(const BoxType& a, const BoxType& b) const
   {
     if(!a.isValid() || !b.isValid())
     {

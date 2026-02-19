@@ -231,13 +231,12 @@ public:
         os << strides[d] << ",";
       }
       os << strides[DIM - 1] << ")";
-      std::cerr
-        << "ERROR: MDMapping: Non-unique strides " << os.str() << ".\n"
-        << "Caused by multi-dim array shape of 1 in some direction.\n"
-        << "It is impossible to compute index ordering.\n"
-        << "Use initializeStrides() with the stride order preference to fix.\n"
-        << "The resulting slowestDirs() depends on the preference\n"
-        << "but the array mapping will still be correct.\n";
+      std::cerr << "ERROR: MDMapping: Non-unique strides " << os.str() << ".\n"
+                << "Caused by multi-dim array shape of 1 in some direction.\n"
+                << "It is impossible to compute index ordering.\n"
+                << "Use initializeStrides() with the stride order preference to fix.\n"
+                << "The resulting slowestDirs() depends on the preference\n"
+                << "but the array mapping will still be correct.\n";
 #endif
       utilities::processAbort();
     }

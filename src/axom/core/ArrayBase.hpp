@@ -382,10 +382,9 @@ protected:
       preference, but the index ordering is dependent on the choice.
   */
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE void setShapeAndStride(
-    const StackArray<IndexType, DIM>& shape,
-    const StackArray<IndexType, DIM>& stride,
-    axom::ArrayStrideOrder orderPref = axom::ArrayStrideOrder::ROW)
+  AXOM_HOST_DEVICE void setShapeAndStride(const StackArray<IndexType, DIM>& shape,
+                                          const StackArray<IndexType, DIM>& stride,
+                                          axom::ArrayStrideOrder orderPref = axom::ArrayStrideOrder::ROW)
   {
 #ifdef AXOM_DEBUG
     validateShapeAndStride(shape, stride);

@@ -166,8 +166,8 @@ static void stridesAndOffsetsToShapes(const axom::StackArray<IType, DIM>& realSh
     paddedShape[curDir] = strides[nextDir] / strides[curDir];
   }
   const int slowestDir = strideOrder[DIM - 1];
-  paddedShape[slowestDir] = std::max(valuesCount / strides[slowestDir],
-                                     realShape[slowestDir] + offsets[slowestDir]);
+  paddedShape[slowestDir] =
+    std::max(valuesCount / strides[slowestDir], realShape[slowestDir] + offsets[slowestDir]);
 
   for(int d = 0; d < DIM; ++d)
   {

@@ -462,8 +462,7 @@ public:
                              zeroPads,
                              strideOrder);
 
-      auto ownerRankView =
-        domainView.template getFieldView<std::uint32_t>(fieldName);
+      auto ownerRankView = domainView.template getFieldView<std::uint32_t>(fieldName);
       axom::fill(ownerRankView.data(), ownerRankView.size(), m_rank);
     }
   }
@@ -476,9 +475,11 @@ public:
     auto* yView = cGroup->getView("values/y");
     auto* zView = DIM >= 3 ? cGroup->getView("values/z") : nullptr;
     const auto ptCount = xView->getNumElements();
-    axom::ArrayView<double> xs{xView->getArray(), {xView->getNumElements()}, xView->getStride()};
-    axom::ArrayView<double> ys{yView->getArray(), {yView->getNumElements()}, yView->getStride()};
-    axom::ArrayView<double> zs = zView ? axom::ArrayView<double>{zView->getArray(), {zView->getNumElements()}, zView->getStride()} : axom::ArrayView<double>{};
+    axom::ArrayView<double> xs {xView->getArray(), {xView->getNumElements()}, xView->getStride()};
+    axom::ArrayView<double> ys {yView->getArray(), {yView->getNumElements()}, yView->getStride()};
+    axom::ArrayView<double> zs = zView
+      ? axom::ArrayView<double> {zView->getArray(), {zView->getNumElements()}, zView->getStride()}
+      : axom::ArrayView<double> {};
 
     using PointType = primal::Point<double, DIM>;
     axom::Array<PointType> pts;
@@ -664,9 +665,11 @@ public:
     sidre::View* yv = cvg->getView("y");
     sidre::View* zv = ndim == 3 ? cvg->getView("z") : nullptr;
     axom::IndexType npts = xv->getNumElements();
-    axom::ArrayView<double> xp{xv->getArray(), {xv->getNumElements()}, xv->getStride()};
-    axom::ArrayView<double> yp{yv->getArray(), {yv->getNumElements()}, yv->getStride()};
-    axom::ArrayView<double> zp = zv ? axom::ArrayView<double>{zv->getArray(), {zv->getNumElements()}, zv->getStride()} : axom::ArrayView<double>{};
+    axom::ArrayView<double> xp {xv->getArray(), {xv->getNumElements()}, xv->getStride()};
+    axom::ArrayView<double> yp {yv->getArray(), {yv->getNumElements()}, yv->getStride()};
+    axom::ArrayView<double> zp = zv
+      ? axom::ArrayView<double> {zv->getArray(), {zv->getNumElements()}, zv->getStride()}
+      : axom::ArrayView<double> {};
     axom::ArrayView<double> xyzs[3] {xp, yp, zp};
     axom::Array<double, 2> rval(npts, ndim);
     for(int i = 0; i < npts; ++i)
@@ -928,9 +931,10 @@ public:
   template <int DIM>
   int checkClosestPoints(const axom::primal::Sphere<double, DIM>& sphere, const Input& params)
   {
-    if (params.swapMesh)
+    if(params.swapMesh)
     {
-      SLIC_INFO("Warning: Skipping checkClosestPoints, which doesn't work when meshes are swapped.");
+      SLIC_INFO(
+        "Warning: Skipping checkClosestPoints, which doesn't work when meshes are swapped.");
       return 0;
     }
     using PointType = axom::primal::Point<double, DIM>;
@@ -973,14 +977,10 @@ public:
 
       using IndexSet = slam::PositionSet<>;
       const PointType circleCenter {params.circleCenter.data(), DIM};
-      double zNorth =
-        params.circleRadius * std::sin(params.latRange[1] * M_PI / 180);
-      double xyNorth =
-        params.circleRadius * std::cos(params.latRange[1] * M_PI / 180);
-      double zSouth =
-        params.circleRadius * std::sin(params.latRange[0] * M_PI / 180);
-      double xySouth =
-        params.circleRadius * std::cos(params.latRange[0] * M_PI / 180);
+      double zNorth = params.circleRadius * std::sin(params.latRange[1] * M_PI / 180);
+      double xyNorth = params.circleRadius * std::cos(params.latRange[1] * M_PI / 180);
+      double zSouth = params.circleRadius * std::sin(params.latRange[0] * M_PI / 180);
+      double xySouth = params.circleRadius * std::cos(params.latRange[0] * M_PI / 180);
       for(auto i : IndexSet(queryPts.size()))
       {
         bool errf = false;
@@ -1000,13 +1000,11 @@ public:
           double qPtLat = std::atan(z / xy) * 180 / M_PI;
           if(qPtLat > params.latRange[1])
           {
-            analyticalDist = std::sqrt((z - zNorth) * (z - zNorth) +
-                                       (xy - xyNorth) * (xy - xyNorth));
+            analyticalDist = std::sqrt((z - zNorth) * (z - zNorth) + (xy - xyNorth) * (xy - xyNorth));
           }
           else if(qPtLat < params.latRange[0])
           {
-            analyticalDist = std::sqrt((z - zSouth) * (z - zSouth) +
-                                       (xy - xySouth) * (xy - xySouth));
+            analyticalDist = std::sqrt((z - zSouth) * (z - zSouth) + (xy - xySouth) * (xy - xySouth));
           }
         }
 
@@ -1366,11 +1364,10 @@ int main(int argc, char** argv)
 #endif
 
 #if 1
-  auto annotation_raii_wrapper = std::make_unique<axom::utilities::raii::AnnotationsWrapper>(
-    params.annotationMode);
+  auto annotation_raii_wrapper =
+    std::make_unique<axom::utilities::raii::AnnotationsWrapper>(params.annotationMode);
 #else
-  axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(
-    params.annotationMode);
+  axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(params.annotationMode);
 #endif
   AXOM_ANNOTATE_SCOPE("Quest distributed distance query example");
 
@@ -1383,9 +1380,8 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
 
   AXOM_ANNOTATE_BEGIN("Main: set up example");
-  QueryMeshWrapper queryMeshWrapper(
-    dataStore.getRoot()->createGroup("queryMesh", true),
-    params.meshFile);
+  QueryMeshWrapper queryMeshWrapper(dataStore.getRoot()->createGroup("queryMesh", true),
+                                    params.meshFile);
 
   if(params.isVerbose())
   {
@@ -1427,11 +1423,10 @@ int main(int argc, char** argv)
   }
   slic::flushStreams();
 
-  if (params.swapMesh)
+  if(params.swapMesh)
   {
     SLIC_INFO(axom::fmt::format("Swaping object and query meshes."));
-    std::swap(objectMeshWrapper.getParticleMesh(),
-              queryMeshWrapper.getParticleMesh());
+    std::swap(objectMeshWrapper.getParticleMesh(), queryMeshWrapper.getParticleMesh());
   }
 
   objectMeshWrapper.saveMesh(params.objectFile);
@@ -1514,18 +1509,16 @@ int main(int argc, char** argv)
   queryTimer.stop();
   AXOM_ANNOTATE_END("query.computeClosestPoints()");
 
-  auto getDoubleMinMax =
-    [](double inVal, double& minVal, double& maxVal, double& sumVal) {
-      MPI_Allreduce(&inVal, &minVal, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-      MPI_Allreduce(&inVal, &maxVal, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-      MPI_Allreduce(&inVal, &sumVal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    };
-  auto getIntMinMax =
-    [](int inVal, int& minVal, int& maxVal, int& sumVal) {
-      MPI_Allreduce(&inVal, &minVal, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
-      MPI_Allreduce(&inVal, &maxVal, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-      MPI_Allreduce(&inVal, &sumVal, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-    };
+  auto getDoubleMinMax = [](double inVal, double& minVal, double& maxVal, double& sumVal) {
+    MPI_Allreduce(&inVal, &minVal, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(&inVal, &maxVal, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&inVal, &sumVal, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  };
+  auto getIntMinMax = [](int inVal, int& minVal, int& maxVal, int& sumVal) {
+    MPI_Allreduce(&inVal, &minVal, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(&inVal, &maxVal, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(&inVal, &sumVal, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  };
 
   // Output some timing stats
   {
@@ -1547,22 +1540,21 @@ int main(int argc, char** argv)
       sumInit / num_ranks,
       minInit,
       maxInit));
-    SLIC_INFO(axom::fmt::format(
-      "Query with policy {} took {{avg:{:.5f}, min:{:.5f}, max:{:.5f}}} seconds",
-      axom::runtime_policy::s_policyToName.at(params.policy),
-      sumQuery / num_ranks,
-      minQuery,
-      maxQuery));
-    SLIC_INFO(axom::fmt::format(
-      "Search counts {{avg:{}, min:{}, max:{}}}",
-      double(sumSearchCount) / num_ranks,
-      minSearchCount,
-      maxSearchCount));
-    SLIC_INFO(axom::fmt::format(
-      "Effective distance threshold {{avg:{:.5f}, min:{:.5f}, max:{:.5f}}}",
-      sumFilterDist / num_ranks,
-      minFilterDist,
-      maxFilterDist));
+    SLIC_INFO(
+      axom::fmt::format("Query with policy {} took {{avg:{:.5f}, min:{:.5f}, max:{:.5f}}} seconds",
+                        axom::runtime_policy::s_policyToName.at(params.policy),
+                        sumQuery / num_ranks,
+                        minQuery,
+                        maxQuery));
+    SLIC_INFO(axom::fmt::format("Search counts {{avg:{}, min:{}, max:{}}}",
+                                double(sumSearchCount) / num_ranks,
+                                minSearchCount,
+                                maxSearchCount));
+    SLIC_INFO(
+      axom::fmt::format("Effective distance threshold {{avg:{:.5f}, min:{:.5f}, max:{:.5f}}}",
+                        sumFilterDist / num_ranks,
+                        minFilterDist,
+                        maxFilterDist));
   }
   slic::flushStreams();
   SLIC_INFO(axom::fmt::format("Updating closest points."));
