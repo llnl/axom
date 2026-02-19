@@ -28,6 +28,13 @@ if(AXOM_ENABLE_MPI AND ENABLE_FORTRAN)
   endif()
 endif()
 
+if(AXOM_ENABLE_MPI)
+  set(AXOM_REQUIRED_MPI_COMPONENTS C CXX)
+  if(ENABLE_FORTRAN AND MPI_Fortran_COMPILER)
+      list(APPEND AXOM_REQUIRED_MPI_COMPONENTS Fortran)
+  endif()
+endif()
+
 
 ## Add a configuration define for each enabled axom component
 foreach(comp ${AXOM_COMPONENTS_ENABLED})

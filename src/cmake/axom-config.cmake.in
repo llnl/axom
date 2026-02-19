@@ -157,7 +157,7 @@ if(NOT AXOM_FOUND)
 
     # Load mpi targets because we require the optional Conduit mpi targets
     if(AXOM_USE_MPI)
-      find_package(MPI REQUIRED)
+      find_package(MPI REQUIRED COMPONENTS @AXOM_REQUIRED_MPI_COMPONENTS@)
     endif()
 
     find_dependency(Conduit REQUIRED
