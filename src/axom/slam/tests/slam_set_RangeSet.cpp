@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -148,10 +149,8 @@ TEST(slam_range_set, iterate)
   SetType s(lowerIndex, upperIndex);
 
   SLIC_INFO("Iterating through range set of size "
-            << s.size() << "\n\twith lower element " << lowerIndex
-            << " (included in set)"
-            << "\n\twith upper element " << upperIndex
-            << " (not included in set)");
+            << s.size() << "\n\twith lower element " << lowerIndex << " (included in set)"
+            << "\n\twith upper element " << upperIndex << " (not included in set)");
   const SetPosition expectedSize = upperIndex - lowerIndex;
   EXPECT_EQ(expectedSize, s.size());
 
@@ -193,9 +192,8 @@ TEST(slam_range_set, iterate)
       for(SetIterator it = s.begin(), itEnd = s.end(); it != itEnd; ++it, ++idx)
       {
         SetElement expected = idx + lowerIndex;
-        EXPECT_EQ(expected, *it)
-          << "Iterator dereference should be equal "
-          << "to its translated position in the windowed range set";
+        EXPECT_EQ(expected, *it) << "Iterator dereference should be equal "
+                                 << "to its translated position in the windowed range set";
         sstr << *it << "\t";
       }
     }
@@ -209,9 +207,8 @@ TEST(slam_range_set, iterate)
 
         //SetPosition position = std::distance(s.begin(), iter);
         SetElement expected = idx + lowerIndex;
-        EXPECT_EQ(expected, *iter)
-          << "Iterator dereference should be equal "
-          << "to its translated position in the windowed range set";
+        EXPECT_EQ(expected, *iter) << "Iterator dereference should be equal "
+                                   << "to its translated position in the windowed range set";
         sstr << *iter << "\t";
       }
     }
@@ -225,9 +222,8 @@ TEST(slam_range_set, iterate)
 
         //SetPosition position = std::distance(s.begin(), iter);
         SetElement expected = upperIndex - idx;
-        EXPECT_EQ(expected, *iter)
-          << "Iterator dereference should be equal "
-          << "to its translated position in the windowed range set";
+        EXPECT_EQ(expected, *iter) << "Iterator dereference should be equal "
+                                   << "to its translated position in the windowed range set";
         sstr << *iter << "\t";
       }
     }
@@ -239,9 +235,8 @@ TEST(slam_range_set, iterate)
         SetIterator iter = s.begin();
         iter += idx;
         SetElement expected = idx + lowerIndex;
-        EXPECT_EQ(expected, *iter)
-          << "Iterator dereference should be equal "
-          << "to its translated position in the windowed range set";
+        EXPECT_EQ(expected, *iter) << "Iterator dereference should be equal "
+                                   << "to its translated position in the windowed range set";
         sstr << *iter << "\t";
       }
     }
@@ -253,9 +248,8 @@ TEST(slam_range_set, iterate)
         SetIterator iter = s.end();
         iter -= idx;
         SetElement expected = upperIndex - idx;
-        EXPECT_EQ(expected, *iter)
-          << "Iterator dereference should be equal "
-          << "to its translated position in the windowed range set";
+        EXPECT_EQ(expected, *iter) << "Iterator dereference should be equal "
+                                   << "to its translated position in the windowed range set";
         sstr << *iter << "\t";
       }
     }
@@ -281,9 +275,8 @@ TEST(slam_range_set, iterate)
       {
         SetElement position = std::distance(s.begin(), it);
         SetElement expected = idx;
-        EXPECT_EQ(expected, position)
-          << "Iterator distance should be equal "
-          << "to the number of times it's been incremented";
+        EXPECT_EQ(expected, position) << "Iterator distance should be equal "
+                                      << "to the number of times it's been incremented";
         sstr << idx << "\t";
       }
     }
@@ -326,8 +319,7 @@ TEST(slam_generic_range_set, virtual_parent_set)
 
   SLIC_INFO("Generating a parent set, and a subset and checking validity");
   GenericRangeSet parentSet(SetBuilder().size(MAX_SIZE));
-  GenericRangeSet childSet(
-    SetBuilder().range(lowerIndex, upperIndex).parent(&parentSet));
+  GenericRangeSet childSet(SetBuilder().range(lowerIndex, upperIndex).parent(&parentSet));
 
   SetType nonChildSet(SetType::SetBuilder().range(lowerIndex, upperIndex));
 
@@ -405,9 +397,7 @@ TEST(slam_generic_range_set, concrete_parent_set)
     EXPECT_EQ(parentSet[pos], childParSet[pos]);
   }
 
-  // Note: Equality is based on Base class Set
-  //-- it does not differentiate based on whether a set is a subset of another
-  // set
+  // Note: Equality is based on Base class Set -- it does not differentiate based on whether a set is a subset of another set
   EXPECT_EQ(childSet, nonChildSet);
 }
 
@@ -415,11 +405,10 @@ TEST(slam_generic_range_set, strided_range_set)
 {
   namespace policies = axom::slam::policies;
 
-  using GenericRangeSet =
-    axom::slam::GenericRangeSet<SetPosition,
-                                SetElement,
-                                policies::RuntimeOffset<SetPosition>,
-                                policies::RuntimeStride<SetPosition>>;
+  using GenericRangeSet = axom::slam::GenericRangeSet<SetPosition,
+                                                      SetElement,
+                                                      policies::RuntimeOffset<SetPosition>,
+                                                      policies::RuntimeStride<SetPosition>>;
   using SetBuilder = GenericRangeSet::SetBuilder;
 
   for(SetPosition strideVal = -14; strideVal <= 14; ++strideVal)
@@ -427,11 +416,10 @@ TEST(slam_generic_range_set, strided_range_set)
     const SetPosition localLower = strideVal > 0 ? lowerIndex : upperIndex;
     const SetPosition localUpper = strideVal > 0 ? upperIndex : lowerIndex;
 
-    SLIC_INFO(axom::fmt::format(
-      "testing strided_range_set with: lower: {}, upper: {}, stride: {}",
-      localLower,
-      localUpper,
-      strideVal));
+    SLIC_INFO(axom::fmt::format("testing strided_range_set with: lower: {}, upper: {}, stride: {}",
+                                localLower,
+                                localUpper,
+                                strideVal));
 
     GenericRangeSet stridedSet(SetBuilder()  //
                                  .range(localLower, localUpper)
@@ -444,19 +432,18 @@ TEST(slam_generic_range_set, strided_range_set)
       continue;
     }
 
-    SLIC_INFO(axom::fmt::format(
-      "strided_range_set: "
-      "size: {}, stride: {}, offset: {}, first index: {}, last index: {}",
-      stridedSet.size(),
-      stridedSet.stride(),
-      stridedSet.offset(),
-      stridedSet[0],
-      stridedSet[stridedSet.size() - 1]));
+    SLIC_INFO(
+      axom::fmt::format("strided_range_set: "
+                        "size: {}, stride: {}, offset: {}, first index: {}, last index: {}",
+                        stridedSet.size(),
+                        stridedSet.stride(),
+                        stridedSet.offset(),
+                        stridedSet[0],
+                        stridedSet[stridedSet.size() - 1]));
 
     EXPECT_EQ(localLower, stridedSet.offset());
     EXPECT_EQ(strideVal, stridedSet.stride());
-    if(axom::utilities::abs(localLower - localUpper) >
-       axom::utilities::abs(strideVal))
+    if(axom::utilities::abs(localLower - localUpper) > axom::utilities::abs(strideVal))
     {
       EXPECT_GT(stridedSet.size(), 1);
     }

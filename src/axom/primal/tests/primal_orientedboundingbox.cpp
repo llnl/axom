@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -9,9 +10,9 @@
 #include "gtest/gtest.h"
 
 #include "axom/config.hpp"
+#include "axom/core.hpp"
 #include "axom/slic.hpp"
 
-#include "axom/primal/geometry/NumericArray.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
@@ -122,6 +123,81 @@ TEST(primal_OBBox, obb_ctor_from_data)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_OBBox, obb_ctor_from_point_array)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using QPoint = primal::Point<CoordType, DIM>;
+  using QOBBox = primal::OrientedBoundingBox<CoordType, DIM>;
+
+  QPoint pt1;  // origin
+  QPoint pt2({1.0, 0.0, 0.0});
+  QPoint pt3({0.0, 1.0, 0.0});
+  QPoint pt4({0.0, 0.0, 1.0});
+  QPoint pt5({1.0, 1.0, 0.0});
+  QPoint pt6({1.0, 0.0, 1.0});
+  QPoint pt7({0.0, 1.0, 1.0});
+  QPoint pt8({1.0, 1.0, 1.0});
+
+  /* -1D OBB */
+  QPoint* pts_00 = nullptr;
+  QOBBox obbox00(pts_00, 0);
+
+  EXPECT_FALSE(obbox00.isValid());
+
+  /* 0D OBB */
+  QPoint pts_0d[] = {pt1};
+  QOBBox obbox0(pts_0d, 1);
+
+  EXPECT_TRUE(obbox0.isValid());
+  EXPECT_TRUE(obbox0.contains(pt1));
+
+  EXPECT_NEAR(obbox0.getCentroid()[0], 0.0, 1e-6);
+  EXPECT_NEAR(obbox0.getCentroid()[1], 0.0, 1e-6);
+  EXPECT_NEAR(obbox0.getCentroid()[2], 0.0, 1e-6);
+
+  /* 1D OBB */
+  QPoint pts_1d[] = {pt1, pt2};
+  QOBBox obbox1(pts_1d, 2);
+
+  EXPECT_TRUE(obbox1.isValid());
+  EXPECT_TRUE(obbox1.contains(pt1));
+  EXPECT_TRUE(obbox1.contains(pt2));
+
+  EXPECT_NEAR(obbox1.getCentroid()[0], 0.5, 1e-6);
+  EXPECT_NEAR(obbox1.getCentroid()[1], 0.0, 1e-6);
+  EXPECT_NEAR(obbox1.getCentroid()[2], 0.0, 1e-6);
+
+  /* 2D OBB */
+  QPoint pts_2d[] = {pt1, pt2, pt3, pt5};
+  QOBBox obbox2(pts_2d, 4);
+
+  EXPECT_TRUE(obbox2.isValid());
+  EXPECT_TRUE(obbox2.contains(pt1));
+  EXPECT_TRUE(obbox2.contains(pt2));
+  EXPECT_TRUE(obbox2.contains(pt3));
+  EXPECT_TRUE(obbox2.contains(pt5));
+
+  EXPECT_NEAR(obbox2.getCentroid()[0], 0.5, 1e-6);
+  EXPECT_NEAR(obbox2.getCentroid()[1], 0.5, 1e-6);
+  EXPECT_NEAR(obbox2.getCentroid()[2], 0.0, 1e-6);
+
+  /* 3D OBB */
+  QPoint pts_3d[] = {pt1, pt2, pt3, pt4, pt5, pt6, pt7, pt8};
+  QOBBox obbox3(pts_3d, 8);
+
+  // check containments
+  EXPECT_TRUE(obbox3.isValid());
+  for(int i = 0; i < 8; i++)
+  {
+    EXPECT_TRUE(obbox3.contains(pts_3d[i]));
+  }
+
+  // check settings
+  EXPECT_TRUE(obbox3.getCentroid() == QPoint(0.5));
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_OBBox, obb_test_clear)
 {
   constexpr int DIM = 3;
@@ -173,7 +249,7 @@ TEST(primal_OBBox, obb_test_vertices)
   QOBBox obbox1(pt1, u, e);
   std::vector<QPoint> l = obbox1.vertices();
 
-  primal::NumericArray<CoordType, DIM> v;
+  axom::NumericArray<CoordType, DIM> v;
 
   for(int i = 0; i < 2; i++)
   {

@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -23,6 +24,7 @@ variables:
 .src_build_script:
   script:
     - echo -e "\e[0Ksection_start:$(date +%s):src_build_and_test\r\e[0KSource Build and Test ${CI_PROJECT_NAME}"
+    - export  LSAN_OPTIONS=${LSAN_OPTIONS}
     - ${ALLOC_COMMAND} python3 scripts/llnl_scripts/build_src.py -v --host-config ${HOST_CONFIG} --extra-cmake-options '-DENABLE_DOCS=OFF ${EXTRA_CMAKE_OPTIONS}' --build-type ${BUILD_TYPE:-Debug} ${EXTRA_OPTIONS}
     - echo -e "\e[0Ksection_end:$(date +%s):src_build_and_test\r\e[0K"
   artifacts:
@@ -48,9 +50,10 @@ variables:
 
 # This is where jobs are included
 include:
-  - local: .gitlab/build_quartz.yml
-  - local: .gitlab/build_lassen.yml
+  - local: .gitlab/build_dane.yml
+  - local: .gitlab/build_matrix.yml
   - local: .gitlab/build_tioga.yml
+  - local: .gitlab/build_tuolumne.yml
   # ID token requirement for Gitlab 17.0+
   - project: 'lc-templates/id_tokens'
     file: 'id_tokens.yml'

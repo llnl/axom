@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -9,6 +10,7 @@
 #include "axom/config.hpp"
 #include "axom/core/MDMapping.hpp"
 #include "axom/core/Macros.hpp"
+#include "axom/core/execution/atomics.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/Types.hpp"
 #include "axom/core/ArrayBase.hpp"
@@ -30,16 +32,76 @@ struct Uninitialized
 }  // namespace ArrayOptions
 
 // Forward declare the templated classes and operator function(s)
-template <typename T, int DIM, MemorySpace SPACE>
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 class Array;
 
 namespace detail
 {
 // Static information to pass to ArrayBase
-template <typename T, int DIM, MemorySpace SPACE>
-struct ArrayTraits<Array<T, DIM, SPACE>>
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+struct ArrayTraits<Array<T, DIM, SPACE, StoragePolicy>>
 {
   constexpr static bool is_view = false;
+  constexpr static int dimension = DIM;
+};
+
+/*!
+ * \class DefaultStoragePolicy
+ *
+ * \brief Default storage policy for axom::Array.
+ *  Uses Umpire to reallocate buffers.
+ */
+template <typename T>
+struct DefaultStoragePolicy
+{
+  /*!
+   * \brief Callback to report changes in shape of data in Array.
+   *
+   * \param [in] shape the current dimensions of the array
+   */
+  template <int Dims>
+  void onShapeUpdate(StackArray<IndexType, Dims> AXOM_UNUSED_PARAM(shape))
+  { }
+
+  /*!
+   * \brief Reallocates a buffer.
+   *
+   * \param [in] old_data pointer to the old buffer
+   * \param [in] old_capacity the capacity of the currently allocated buffer
+   * \param [in] allocator_id the allocator ID to use
+   * \param [in] new_capacity the capacity to allocate
+   * \param [in] nontrivial_move a callback to move elements that aren't
+   *  trivially copyable
+   *
+   * \return a pointer to the new buffer with moved elements
+   */
+  template <typename Func>
+  T* reallocate(T* old_data,
+                int AXOM_UNUSED_PARAM(old_capacity),
+                int allocator_id,
+                int new_capacity,
+                Func&& nontrivial_move)
+  {
+    // Create a new block of memory, and move the elements over.
+    T* new_data = axom::allocate<T>(new_capacity, allocator_id);
+    nontrivial_move(new_data);
+
+    // Destroy the original array.
+    axom::deallocate(old_data);
+
+    return new_data;
+  }
+
+  /*!
+   * \brief Frees a buffer.
+   */
+  void deallocate(T* data)
+  {
+    if(data != nullptr)
+    {
+      axom::deallocate(data);
+    }
+  }
 };
 
 }  // namespace detail
@@ -94,23 +156,25 @@ struct ArrayTraits<Array<T, DIM, SPACE>>
  * \see https://github.com/facebook/folly/blob/main/folly/docs/FBVector.md#object-relocation
  *
  */
-template <typename T, int DIM = 1, MemorySpace SPACE = MemorySpace::Dynamic>
-class Array : public ArrayBase<T, DIM, Array<T, DIM, SPACE>>
+template <typename T,
+          int DIM = 1,
+          MemorySpace SPACE = MemorySpace::Dynamic,
+          typename StoragePolicy = detail::DefaultStoragePolicy<T>>
+class Array : public ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>, protected StoragePolicy
 {
 public:
   static constexpr double DEFAULT_RESIZE_RATIO = 2.0;
   static constexpr IndexType MIN_DEFAULT_CAPACITY = 32;
   using value_type = T;
   static constexpr MemorySpace space = SPACE;
-  using ArrayIterator = ArrayIteratorBase<Array<T, DIM, SPACE>, T>;
-  using ConstArrayIterator =
-    ArrayIteratorBase<const Array<T, DIM, SPACE>, const T>;
+  using ArrayIterator = ArrayIteratorBase<Array<T, DIM, SPACE, StoragePolicy>, T>;
+  using ConstArrayIterator = ArrayIteratorBase<const Array<T, DIM, SPACE, StoragePolicy>, const T>;
 
   using ArrayViewType = ArrayView<T, DIM, SPACE>;
   using ConstArrayViewType = ArrayView<const T, DIM, SPACE>;
 
 private:
-  using OpHelper = detail::ArrayOps<T, SPACE>;
+  using OpHelper = detail::ArrayOps<T>;
 
 public:
   /// \name Native Storage Array Constructors
@@ -202,17 +266,15 @@ public:
    * \post size() == num_elements
    * \post getResizeRatio() == DEFAULT_RESIZE_RATIO
    */
-  template <
-    typename... Args,
-    typename Enable = typename std::enable_if<
-      sizeof...(Args) == DIM && detail::all_types_are_integral<Args...>::value>::type>
+  template <typename... Args,
+            typename Enable = typename std::enable_if<
+              sizeof...(Args) == DIM && detail::all_types_are_integral<Args...>::value>::type>
   Array(Args... args);
 
   /// \overload
-  template <
-    typename... Args,
-    typename Enable = typename std::enable_if<
-      sizeof...(Args) == DIM && detail::all_types_are_integral<Args...>::value>::type>
+  template <typename... Args,
+            typename Enable = typename std::enable_if<
+              sizeof...(Args) == DIM && detail::all_types_are_integral<Args...>::value>::type>
   Array(ArrayOptions::Uninitialized, Args... args);
 
   /*!
@@ -222,8 +284,7 @@ public:
    * \param [in] allocator_id the ID of the allocator to use (optional)
    */
   template <int UDIM = DIM, typename Enable = typename std::enable_if<UDIM == 1>::type>
-  Array(std::initializer_list<T> elems,
-        int allocator_id = axom::detail::getAllocatorID<SPACE>());
+  Array(std::initializer_list<T> elems, int allocator_id = axom::detail::getAllocatorID<SPACE>());
 
   /*! 
    * \brief Copy constructor for an Array instance 
@@ -287,8 +348,10 @@ public:
     if(this != &other)
     {
       this->clear();
-      static_cast<ArrayBase<T, DIM, Array<T, DIM, SPACE>>&>(*this) = other;
+      static_cast<ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>&>(*this) = other;
       m_allocator_id = other.m_allocator_id;
+      m_executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+      m_arrayOps = other.m_arrayOps;
       m_resize_ratio = other.m_resize_ratio;
       setCapacity(other.capacity());
       // Use fill_range to ensure that copy constructors are invoked for each element
@@ -297,12 +360,7 @@ public:
       {
         srcSpace = axom::detail::getAllocatorSpace(other.m_allocator_id);
       }
-      OpHelper::fill_range(m_data,
-                           0,
-                           other.size(),
-                           m_allocator_id,
-                           other.data(),
-                           srcSpace);
+      m_arrayOps.fill_range(m_data, 0, other.size(), other.data(), srcSpace);
       updateNumElements(other.size());
     }
 
@@ -317,18 +375,16 @@ public:
     if(this != &other)
     {
       this->clear();
-      if(m_data != nullptr)
-      {
-        axom::deallocate(m_data);
-      }
-      static_cast<ArrayBase<T, DIM, Array<T, DIM, SPACE>>&>(*this) =
-        std::move(other);
+      StoragePolicy::deallocate(m_data);
+      static_cast<ArrayBase<T, DIM, Array>&>(*this) = std::move(other);
 
       m_data = other.m_data;
       m_num_elements = other.m_num_elements;
       m_capacity = other.m_capacity;
       m_resize_ratio = other.m_resize_ratio;
       m_allocator_id = other.m_allocator_id;
+      m_executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+      m_arrayOps = other.m_arrayOps;
 
       other.m_data = nullptr;
       other.m_num_elements = 0;
@@ -358,7 +414,7 @@ public:
   /*!
    * Destructor. Frees the associated buffer.
    */
-  virtual ~Array();
+  ~Array();
 
   /// \name Array element access operators
   /// @{
@@ -379,9 +435,8 @@ public:
     @brief Convert 1D Array into a StackArray.
   */
   template <int LENGTH1D, typename TT = T, int TDIM = DIM>
-  AXOM_HOST_DEVICE inline
-    typename std::enable_if<TDIM == 1, axom::StackArray<TT, LENGTH1D>>::type
-    to_stack_array() const
+  AXOM_HOST_DEVICE inline typename std::enable_if<TDIM == 1, axom::StackArray<TT, LENGTH1D>>::type
+  to_stack_array() const
   {
     axom::StackArray<TT, LENGTH1D> rval;
     IndexType copyCount = LENGTH1D <= m_num_elements ? LENGTH1D : m_num_elements;
@@ -430,6 +485,38 @@ public:
    * \pre pos + n <= m_num_elements.
    */
   void set(const T* elements, IndexType n, IndexType pos);
+
+  /*!
+   * \brief Set the array contents.
+   *
+   * \param [in] count The new number of elements.
+   * \param [in] value The value to store in the elements.
+   *
+   * \post Size of Array is \a count, all elements contain \a value.
+   */
+  void assign(axom::IndexType count, const T& value);
+
+  /*!
+   * \brief Replaces contents with copies of objects in [first, last).
+   *
+   * \param [in] first The iterator for the first value to use in a container.
+   * \param [in] last The last iterator to use in a container.
+   *
+   * \post Size of Array is changed to the number of items in the range
+   *       designated by the iterators (last-first), and values referenced by
+   *       the iterator range are copied into the Array.
+   */
+  template <class InputIt>
+  void assign(InputIt first, InputIt last);
+
+  /*!
+   * \brief Set the array contents using an initializer list.
+   *
+   * \param [in] elems An initializer list containing the new array values.
+   *
+   * \post The Array contains copies of the initializer list elements.
+   */
+  void assign(std::initializer_list<T> elems);
 
   /*!
    * \brief Clears the contents of the array
@@ -626,13 +713,34 @@ public:
    * \param [in] value the value to be added to the back.
    *
    * \note Reallocation is done if the new size will exceed the capacity.
-   * \note If used in a device kernel, the number of push_backs must not exceed
-   *  the capacity, since device-side reallocations aren't supported.
-   * \note Array must be allocated in unified memory if calling on the device.
-   * 
+   *
    * \pre DIM == 1
    */
-  AXOM_HOST_DEVICE void push_back(const T& value);
+  void push_back(const T& value);
+
+  /*!
+   * \brief Push a value to the back of the array.
+   *
+   * \param [in] value the value to move to the back.
+   *
+   * \note Reallocation is done if the new size will exceed the capacity.
+   *
+   * \pre DIM == 1
+   */
+  void push_back(T&& value);
+
+  /*!
+   * \brief Inserts new element at the end of the Array.
+   *
+   * \param [in] args the arguments to forward to constructor of the element.
+   *
+   * \note Reallocation is done if the new size will exceed the capacity.
+   * \note The size increases by 1.
+   *
+   * \pre DIM == 1
+   */
+  template <typename... Args>
+  void emplace_back(Args&&... args);
 
   /*!
    * \brief Push a value to the back of the array.
@@ -643,10 +751,13 @@ public:
    * \note If used in a device kernel, the number of push_backs must not exceed
    *  the capacity, since device-side reallocations aren't supported.
    * \note Array must be allocated in unified memory if calling on the device.
-   * 
+   *
    * \pre DIM == 1
    */
-  AXOM_HOST_DEVICE void push_back(T&& value);
+  /// @{
+  AXOM_HOST_DEVICE void push_back_device(const T& value);
+  AXOM_HOST_DEVICE void push_back_device(T&& value);
+  /// @}
 
   /*!
    * \brief Inserts new element at the end of the Array.
@@ -658,11 +769,11 @@ public:
    * \note If used in a device kernel, the number of push_backs must not exceed
    *  the capacity, since device-side reallocations aren't supported.
    * \note Array must be allocated in unified memory if calling on the device.
-   * 
+   *
    * \pre DIM == 1
    */
   template <typename... Args>
-  AXOM_HOST_DEVICE void emplace_back(Args&&... args);
+  AXOM_HOST_DEVICE void emplace_back_device(Args&&... args);
 
   /// @}
 
@@ -763,10 +874,9 @@ public:
    *
    * \note Reallocation is done if the new size will exceed the capacity.
    */
-  template <
-    typename... Args,
-    typename Enable = typename std::enable_if<
-      sizeof...(Args) == DIM && detail::all_types_are_integral<Args...>::value>::type>
+  template <typename... Args,
+            typename Enable = typename std::enable_if<
+              sizeof...(Args) == DIM && detail::all_types_are_integral<Args...>::value>::type>
   void resize(Args... args)
   {
     static_assert(std::is_default_constructible<T>::value,
@@ -778,10 +888,9 @@ public:
   }
 
   /// \overload
-  template <
-    typename... Args,
-    typename Enable = typename std::enable_if<
-      sizeof...(Args) == DIM && detail::all_types_are_integral<Args...>::value>::type>
+  template <typename... Args,
+            typename Enable = typename std::enable_if<
+              sizeof...(Args) == DIM && detail::all_types_are_integral<Args...>::value>::type>
   void resize(ArrayOptions::Uninitialized, Args... args)
   {
     const StackArray<IndexType, DIM> dims {{static_cast<IndexType>(args)...}};
@@ -802,7 +911,7 @@ public:
   /*!
    * \brief Exchanges the contents of this Array with the other.
    */
-  void swap(Array<T, DIM, SPACE>& other);
+  void swap(Array& other);
 
   /*!
    * \brief Get the ratio by which the capacity increases upon dynamic resize.
@@ -819,7 +928,17 @@ public:
   /*!
    * \brief Get the ID for the umpire allocator
    */
-  int getAllocatorID() const { return m_allocator_id; }
+  AXOM_HOST_DEVICE int getAllocatorID() const { return m_allocator_id; }
+
+  /*!
+   * \brief Sets the preferred space where operations on this array should be
+   *  performed.
+   *
+   *  This option only has an effect for memory which is both accessible on the
+   *  CPU and the GPU. For CUDA this is the Unified and Pinned memory spaces,
+   *  while for HIP this is the Unified, Pinned, and Device memory spaces.
+   */
+  void setDevicePreference(bool on_device) { m_executeOnGPU = on_device; }
 
   /*!
    * \brief Returns a view of the array
@@ -851,9 +970,7 @@ protected:
    * \post size() == num_elements
    * \post getResizeRatio() == DEFAULT_RESIZE_RATIO
    */
-  void initialize(IndexType num_elements,
-                  IndexType capacity,
-                  bool should_default_construct = true);
+  void initialize(IndexType num_elements, IndexType capacity, bool should_default_construct = true);
 
   /*!
    * \brief Helper function for initializing an Array instance with an existing
@@ -898,26 +1015,24 @@ protected:
   /*!
    * \brief Make space for a subsequent insertion into the array.
    *
-   * \param [in] n the number of elements to insert.
-   *
    * \note This version supports concurrent GPU insertions.
-   * \note Reallocation is not supported.
+   * \note Reallocation is not supported on the GPU.
    */
-  AXOM_DEVICE IndexType reserveForDeviceInsert(IndexType n);
+  AXOM_HOST_DEVICE IndexType reserveForPushBack();
 
   /*!
    * \brief Update the number of elements.
    *
    * \param [in] new_num_elements the new number of elements.
    */
-  virtual void updateNumElements(IndexType new_num_elements);
+  void updateNumElements(IndexType new_num_elements);
 
   /*!
    * \brief Set the number of elements allocated for the data array.
    *
    * \param [in] capacity the new number of elements to allocate.
    */
-  virtual void setCapacity(IndexType new_capacity);
+  void setCapacity(IndexType new_capacity);
 
   /*!
    * \brief Reallocates the data array when the size exceeds the capacity.
@@ -925,7 +1040,7 @@ protected:
    * \param [in] new_num_elements the number of elements which exceeds the
    *  current capacity.
    */
-  virtual void dynamicRealloc(IndexType new_num_elements);
+  void dynamicRealloc(IndexType new_num_elements);
 
   T* m_data = nullptr;
   /// \brief The full number of elements in the array
@@ -933,7 +1048,9 @@ protected:
   IndexType m_num_elements = 0;
   IndexType m_capacity = 0;
   double m_resize_ratio = DEFAULT_RESIZE_RATIO;
-  int m_allocator_id;
+  int m_allocator_id = INVALID_ALLOCATOR_ID;
+  bool m_executeOnGPU = false;
+  OpHelper m_arrayOps;
 };
 
 /// \brief Helper alias for multi-component arrays
@@ -945,65 +1062,62 @@ using MCArray = Array<T, 2>;
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-Array<T, DIM, SPACE>::Array()
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+Array<T, DIM, SPACE, StoragePolicy>::Array()
   : m_allocator_id(axom::detail::getAllocatorID<SPACE>())
+  , m_executeOnGPU(axom::isDeviceAllocator(m_allocator_id))
+  , m_arrayOps(m_allocator_id, m_executeOnGPU)
 { }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-Array<T, DIM, SPACE>::Array(const axom::StackArray<axom::IndexType, DIM>& shape,
-                            int allocator_id)
-  : ArrayBase<T, DIM, Array<T, DIM, SPACE>>(shape)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+Array<T, DIM, SPACE, StoragePolicy>::Array(const axom::StackArray<axom::IndexType, DIM>& shape,
+                                           int allocator_id)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(shape)
   , m_allocator_id(allocator_id)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU)
 {
-  initialize(detail::packProduct(shape.m_data),
-             detail::packProduct(shape.m_data),
-             false);
+  initialize(detail::packProduct(shape.m_data), detail::packProduct(shape.m_data), false);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-Array<T, DIM, SPACE>::Array(const axom::StackArray<axom::IndexType, DIM>& shape,
-                            axom::ArrayStrideOrder rowOrColumn,
-                            int allocator_id)
-  : ArrayBase<T, DIM, Array<T, DIM, SPACE>>(
-      shape,
-      MDMapping<DIM> {shape, rowOrColumn, 1})
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+Array<T, DIM, SPACE, StoragePolicy>::Array(const axom::StackArray<axom::IndexType, DIM>& shape,
+                                           axom::ArrayStrideOrder rowOrColumn,
+                                           int allocator_id)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(shape,
+                                                           MDMapping<DIM> {shape, rowOrColumn, 1})
   , m_allocator_id(allocator_id)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU)
 {
-  assert(rowOrColumn == axom::ArrayStrideOrder::ROW ||
-         rowOrColumn == axom::ArrayStrideOrder::COLUMN ||
+  assert(rowOrColumn == axom::ArrayStrideOrder::ROW || rowOrColumn == axom::ArrayStrideOrder::COLUMN ||
          (DIM == 1 && rowOrColumn == axom::ArrayStrideOrder::BOTH));
-  initialize(detail::packProduct(shape.m_data),
-             detail::packProduct(shape.m_data),
-             false);
+  initialize(detail::packProduct(shape.m_data), detail::packProduct(shape.m_data), false);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <typename DirType>
-Array<T, DIM, SPACE>::Array(const axom::StackArray<axom::IndexType, DIM>& shape,
-                            const axom::StackArray<DirType, DIM>& slowestDirs,
-                            int allocator_id)
-  : ArrayBase<T, DIM, Array<T, DIM, SPACE>>(shape, {shape, slowestDirs, 1})
+Array<T, DIM, SPACE, StoragePolicy>::Array(const axom::StackArray<axom::IndexType, DIM>& shape,
+                                           const axom::StackArray<DirType, DIM>& slowestDirs,
+                                           int allocator_id)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(shape, {shape, slowestDirs, 1})
   , m_allocator_id(allocator_id)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU)
 {
-  initialize(detail::packProduct(shape.m_data),
-             detail::packProduct(shape.m_data),
-             false);
+  initialize(detail::packProduct(shape.m_data), detail::packProduct(shape.m_data), false);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <typename... Args, typename Enable>
-Array<T, DIM, SPACE>::Array(Args... args)
-  : ArrayBase<T, DIM, Array<T, DIM, SPACE>>(
+Array<T, DIM, SPACE, StoragePolicy>::Array(Args... args)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(
       StackArray<IndexType, DIM> {{static_cast<IndexType>(args)...}})
   , m_allocator_id(axom::detail::getAllocatorID<SPACE>())
+  , m_arrayOps(m_allocator_id, m_executeOnGPU)
 {
-  static_assert(sizeof...(Args) == DIM,
-                "Array size must match number of dimensions");
+  static_assert(sizeof...(Args) == DIM, "Array size must match number of dimensions");
   // Intel hits internal compiler error when casting as part of function call
   const IndexType tmp_args[] = {static_cast<IndexType>(args)...};
   assert(detail::allNonNegative(tmp_args));
@@ -1011,15 +1125,15 @@ Array<T, DIM, SPACE>::Array(Args... args)
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <typename... Args, typename Enable>
-Array<T, DIM, SPACE>::Array(ArrayOptions::Uninitialized, Args... args)
-  : ArrayBase<T, DIM, Array<T, DIM, SPACE>>(
+Array<T, DIM, SPACE, StoragePolicy>::Array(ArrayOptions::Uninitialized, Args... args)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(
       StackArray<IndexType, DIM> {{static_cast<IndexType>(args)...}})
   , m_allocator_id(axom::detail::getAllocatorID<SPACE>())
+  , m_arrayOps(m_allocator_id, m_executeOnGPU)
 {
-  static_assert(sizeof...(Args) == DIM,
-                "Array size must match number of dimensions");
+  static_assert(sizeof...(Args) == DIM, "Array size must match number of dimensions");
   // Intel hits internal compiler error when casting as part of function call
   const IndexType tmp_args[] = {static_cast<IndexType>(args)...};
   assert(detail::allNonNegative(tmp_args));
@@ -1027,19 +1141,15 @@ Array<T, DIM, SPACE>::Array(ArrayOptions::Uninitialized, Args... args)
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-template <IndexType SFINAE_DIM,
-          MemorySpace SFINAE_SPACE,
-          typename std::enable_if<SFINAE_DIM == 1>::type*>
-Array<T, DIM, SPACE>::Array(IndexType num_elements,
-                            IndexType capacity,
-                            int allocator_id)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+template <IndexType SFINAE_DIM, MemorySpace SFINAE_SPACE, typename std::enable_if<SFINAE_DIM == 1>::type*>
+Array<T, DIM, SPACE, StoragePolicy>::Array(IndexType num_elements, IndexType capacity, int allocator_id)
   : m_allocator_id(allocator_id)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU)
 {
   // If a memory space has been explicitly set for the Array object, check that
   // the space of the user-provided allocator matches the explicit space.
-  if(SPACE != MemorySpace::Dynamic &&
-     SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
+  if(SPACE != MemorySpace::Dynamic && SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
   {
 #ifdef AXOM_DEBUG
     std::cerr << "Incorrect allocator ID was provided for an Array object with "
@@ -1047,24 +1157,23 @@ Array<T, DIM, SPACE>::Array(IndexType num_elements,
 #endif
     m_allocator_id = axom::detail::getAllocatorID<SPACE>();
   }
+  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU};
   initialize(num_elements, capacity);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-template <IndexType SFINAE_DIM,
-          MemorySpace SFINAE_SPACE,
-          typename std::enable_if<SFINAE_DIM == 1>::type*>
-Array<T, DIM, SPACE>::Array(ArrayOptions::Uninitialized,
-                            IndexType num_elements,
-                            IndexType capacity,
-                            int allocator_id)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+template <IndexType SFINAE_DIM, MemorySpace SFINAE_SPACE, typename std::enable_if<SFINAE_DIM == 1>::type*>
+Array<T, DIM, SPACE, StoragePolicy>::Array(ArrayOptions::Uninitialized,
+                                           IndexType num_elements,
+                                           IndexType capacity,
+                                           int allocator_id)
   : m_allocator_id(allocator_id)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU)
 {
   // If a memory space has been explicitly set for the Array object, check that
   // the space of the user-provided allocator matches the explicit space.
-  if(SPACE != MemorySpace::Dynamic &&
-     SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
+  if(SPACE != MemorySpace::Dynamic && SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
   {
 #ifdef AXOM_DEBUG
     std::cerr << "Incorrect allocator ID was provided for an Array object with "
@@ -1072,24 +1181,27 @@ Array<T, DIM, SPACE>::Array(ArrayOptions::Uninitialized,
 #endif
     m_allocator_id = axom::detail::getAllocatorID<SPACE>();
   }
+  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU};
   initialize(num_elements, capacity, false);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <int UDIM, typename Enable>
-Array<T, DIM, SPACE>::Array(std::initializer_list<T> elems, int allocator_id)
+Array<T, DIM, SPACE, StoragePolicy>::Array(std::initializer_list<T> elems, int allocator_id)
   : m_allocator_id(allocator_id)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU)
 {
   initialize_from_other(elems.begin(), elems.size(), MemorySpace::Dynamic, true);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-AXOM_HOST_DEVICE Array<T, DIM, SPACE>::Array(const Array& other)
-  : ArrayBase<T, DIM, Array<T, DIM, SPACE>>(
-      static_cast<const ArrayBase<T, DIM, Array<T, DIM, SPACE>>&>(other))
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+AXOM_HOST_DEVICE Array<T, DIM, SPACE, StoragePolicy>::Array(const Array& other)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(
+      static_cast<const ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>&>(other))
   , m_allocator_id(other.m_allocator_id)
+  , m_arrayOps(other.m_arrayOps)
 {
 #if defined(AXOM_DEVICE_CODE)
   #if defined(AXOM_DEBUG)
@@ -1099,10 +1211,15 @@ AXOM_HOST_DEVICE Array<T, DIM, SPACE>::Array(const Array& other)
     "Use axom::ArrayView for value captures instead.\n");
   #endif
   #if defined(__CUDA_ARCH__)
-  assert(false);
+  asm("trap;");
+  #endif
+  #if defined(__HIP_DEVICE_COMPILE__)
+  abort();
   #endif
 #else
-  initialize(other.size(), other.capacity());
+  this->setCapacity(other.capacity());
+  m_executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU};
   // Use fill_range to ensure that copy constructors are invoked for each
   // element.
   MemorySpace srcSpace = SPACE;
@@ -1110,27 +1227,26 @@ AXOM_HOST_DEVICE Array<T, DIM, SPACE>::Array(const Array& other)
   {
     srcSpace = axom::detail::getAllocatorSpace(other.m_allocator_id);
   }
-  OpHelper::fill_range(m_data,
-                       0,
-                       m_num_elements,
-                       m_allocator_id,
-                       other.data(),
-                       srcSpace);
+  m_arrayOps.fill_range(m_data, 0, other.size(), other.data(), srcSpace);
+  this->updateNumElements(other.size());
 #endif
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-Array<T, DIM, SPACE>::Array(Array&& other) noexcept
-  : ArrayBase<T, DIM, Array<T, DIM, SPACE>>(
-      static_cast<ArrayBase<T, DIM, Array<T, DIM, SPACE>>&&>(std::move(other)))
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+Array<T, DIM, SPACE, StoragePolicy>::Array(Array&& other) noexcept
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(
+      static_cast<ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>&&>(std::move(other)))
   , m_resize_ratio(0.0)
+  , m_arrayOps(other.m_arrayOps)
 {
   m_data = other.m_data;
   m_num_elements = other.m_num_elements;
   m_capacity = other.m_capacity;
   m_resize_ratio = other.m_resize_ratio;
   m_allocator_id = other.m_allocator_id;
+  m_executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU};
 
   other.m_data = nullptr;
   other.m_num_elements = 0;
@@ -1140,11 +1256,12 @@ Array<T, DIM, SPACE>::Array(Array&& other) noexcept
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <typename OtherArrayType>
-Array<T, DIM, SPACE>::Array(const ArrayBase<T, DIM, OtherArrayType>& other)
-  : ArrayBase<T, DIM, Array<T, DIM, SPACE>>(other)
+Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<T, DIM, OtherArrayType>& other)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(other)
   , m_allocator_id(static_cast<const OtherArrayType&>(other).getAllocatorID())
+  , m_arrayOps(m_allocator_id, m_executeOnGPU)
 {
   initialize_from_other(static_cast<const OtherArrayType&>(other).data(),
                         static_cast<const OtherArrayType&>(other).size(),
@@ -1153,11 +1270,12 @@ Array<T, DIM, SPACE>::Array(const ArrayBase<T, DIM, OtherArrayType>& other)
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <typename OtherArrayType>
-Array<T, DIM, SPACE>::Array(const ArrayBase<const T, DIM, OtherArrayType>& other)
-  : ArrayBase<T, DIM, Array<T, DIM, SPACE>>(other)
+Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<const T, DIM, OtherArrayType>& other)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(other)
   , m_allocator_id(static_cast<const OtherArrayType&>(other).getAllocatorID())
+  , m_arrayOps(m_allocator_id, m_executeOnGPU)
 {
   initialize_from_other(static_cast<const OtherArrayType&>(other).data(),
                         static_cast<const OtherArrayType&>(other).size(),
@@ -1166,12 +1284,13 @@ Array<T, DIM, SPACE>::Array(const ArrayBase<const T, DIM, OtherArrayType>& other
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <typename OtherArrayType>
-Array<T, DIM, SPACE>::Array(const ArrayBase<T, DIM, OtherArrayType>& other,
-                            int allocatorId)
-  : ArrayBase<T, DIM, Array<T, DIM, SPACE>>(other)
+Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<T, DIM, OtherArrayType>& other,
+                                           int allocatorId)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(other)
   , m_allocator_id(allocatorId)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU)
 {
   int src_allocator = static_cast<const OtherArrayType&>(other).getAllocatorID();
 
@@ -1182,12 +1301,13 @@ Array<T, DIM, SPACE>::Array(const ArrayBase<T, DIM, OtherArrayType>& other,
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <typename OtherArrayType>
-Array<T, DIM, SPACE>::Array(const ArrayBase<const T, DIM, OtherArrayType>& other,
-                            int allocatorId)
-  : ArrayBase<T, DIM, Array<T, DIM, SPACE>>(other)
+Array<T, DIM, SPACE, StoragePolicy>::Array(const ArrayBase<const T, DIM, OtherArrayType>& other,
+                                           int allocatorId)
+  : ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>(other)
   , m_allocator_id(allocatorId)
+  , m_arrayOps(m_allocator_id, m_executeOnGPU)
 {
   int src_allocator = static_cast<const OtherArrayType&>(other).getAllocatorID();
 
@@ -1198,73 +1318,105 @@ Array<T, DIM, SPACE>::Array(const ArrayBase<const T, DIM, OtherArrayType>& other
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-Array<T, DIM, SPACE>::~Array()
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+Array<T, DIM, SPACE, StoragePolicy>::~Array()
 {
   clear();
-  if(m_data != nullptr)
-  {
-    axom::deallocate(m_data);
-  }
+  StoragePolicy::deallocate(m_data);
 
   m_data = nullptr;
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline void Array<T, DIM, SPACE>::fill(const T& value)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::fill(const T& value)
 {
-  OpHelper::destroy(m_data, 0, m_num_elements, m_allocator_id);
-  OpHelper::fill(m_data, 0, m_num_elements, m_allocator_id, value);
+  m_arrayOps.destroy(m_data, 0, m_num_elements);
+  m_arrayOps.fill(m_data, 0, m_num_elements, value);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline void Array<T, DIM, SPACE>::fill(const T& value, IndexType n, IndexType pos)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::fill(const T& value, IndexType n, IndexType pos)
 {
   assert(pos >= 0);
   assert(pos + n <= m_num_elements);
 
-  OpHelper::destroy(m_data, pos, n, m_allocator_id);
-  OpHelper::fill(m_data, pos, n, m_allocator_id, value);
+  m_arrayOps.destroy(m_data, pos, n);
+  m_arrayOps.fill(m_data, pos, n, value);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline void Array<T, DIM, SPACE>::set(const T* elements, IndexType n, IndexType pos)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::set(const T* elements, IndexType n, IndexType pos)
 {
   assert(elements != nullptr);
   assert(pos >= 0);
   assert(pos + n <= m_num_elements);
 
-  OpHelper::destroy(m_data, pos, n, m_allocator_id);
-  OpHelper::fill_range(m_data, pos, n, m_allocator_id, elements, MemorySpace::Dynamic);
+  m_arrayOps.destroy(m_data, pos, n);
+  m_arrayOps.fill_range(m_data, pos, n, elements, MemorySpace::Dynamic);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline void Array<T, DIM, SPACE>::clear()
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::assign(axom::IndexType count, const T& value)
 {
-  OpHelper::destroy(m_data, 0, m_num_elements, m_allocator_id);
-
-  updateNumElements(0);
+  assert(count >= 0);
+  resize(count, value);
+  m_arrayOps.destroy(m_data, 0, count);
+  m_arrayOps.fill(m_data, 0, count, value);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline void Array<T, DIM, SPACE>::insert(IndexType pos, const T& value)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+template <class InputIt>
+inline void Array<T, DIM, SPACE, StoragePolicy>::assign(InputIt first, InputIt last)
+{
+  Array<T, DIM, axom::MemorySpace::Dynamic> tmp;
+  for(auto it = first; it != last; it++)
+  {
+    tmp.push_back(*it);
+  }
+  initialize_from_other(tmp.data(), tmp.size(), MemorySpace::Dynamic, true);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::assign(std::initializer_list<T> elems)
+{
+  resize(elems.size());
+  m_arrayOps.destroy(m_data, 0, elems.size());
+  m_arrayOps.fill_range(m_data, 0, elems.size(), elems.begin(), MemorySpace::Dynamic);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::clear()
+{
+  if(m_num_elements > 0)
+  {
+    m_arrayOps.destroy(m_data, 0, m_num_elements);
+
+    updateNumElements(0);
+  }
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::insert(IndexType pos, const T& value)
 {
   static_assert(DIM == 1, "Insertion not supported for multidimensional Arrays");
   reserveForInsert(1, pos);
 
-  OpHelper::emplace(m_data, pos, m_allocator_id, value);
+  m_arrayOps.emplace(m_data, pos, value);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline typename Array<T, DIM, SPACE>::ArrayIterator Array<T, DIM, SPACE>::insert(
-  Array<T, DIM, SPACE>::ArrayIterator pos,
-  const T& value)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline typename Array<T, DIM, SPACE, StoragePolicy>::ArrayIterator
+Array<T, DIM, SPACE, StoragePolicy>::insert(Array<T, DIM, SPACE, StoragePolicy>::ArrayIterator pos,
+                                            const T& value)
 {
   static_assert(DIM == 1, "Insertion not supported for multidimensional Arrays");
   assert(pos >= begin() && pos <= end());
@@ -1273,20 +1425,20 @@ inline typename Array<T, DIM, SPACE>::ArrayIterator Array<T, DIM, SPACE>::insert
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline void Array<T, DIM, SPACE>::insert(IndexType pos, IndexType n, const T* values)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::insert(IndexType pos, IndexType n, const T* values)
 {
   assert(values != nullptr);
   reserveForInsert(n, pos);
-  OpHelper::fill_range(m_data, pos, n, m_allocator_id, values, MemorySpace::Dynamic);
+  m_arrayOps.fill_range(m_data, pos, n, values, MemorySpace::Dynamic);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline typename Array<T, DIM, SPACE>::ArrayIterator Array<T, DIM, SPACE>::insert(
-  Array<T, DIM, SPACE>::ArrayIterator pos,
-  IndexType n,
-  const T* values)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline typename Array<T, DIM, SPACE, StoragePolicy>::ArrayIterator
+Array<T, DIM, SPACE, StoragePolicy>::insert(Array<T, DIM, SPACE, StoragePolicy>::ArrayIterator pos,
+                                            IndexType n,
+                                            const T* values)
 {
   static_assert(DIM == 1, "Insertion not supported for multidimensional Arrays");
   assert(pos >= begin() && pos <= end());
@@ -1295,20 +1447,20 @@ inline typename Array<T, DIM, SPACE>::ArrayIterator Array<T, DIM, SPACE>::insert
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline void Array<T, DIM, SPACE>::insert(IndexType pos, IndexType n, const T& value)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::insert(IndexType pos, IndexType n, const T& value)
 {
   static_assert(DIM == 1, "Insertion not supported for multidimensional Arrays");
   reserveForInsert(n, pos);
-  OpHelper::fill(m_data, pos, n, m_allocator_id, value);
+  m_arrayOps.fill(m_data, pos, n, value);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline typename Array<T, DIM, SPACE>::ArrayIterator Array<T, DIM, SPACE>::insert(
-  Array<T, DIM, SPACE>::ArrayIterator pos,
-  IndexType n,
-  const T& value)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline typename Array<T, DIM, SPACE, StoragePolicy>::ArrayIterator
+Array<T, DIM, SPACE, StoragePolicy>::insert(Array<T, DIM, SPACE, StoragePolicy>::ArrayIterator pos,
+                                            IndexType n,
+                                            const T& value)
 {
   static_assert(DIM == 1, "Insertion not supported for multidimensional Arrays");
   assert(pos >= begin() && pos <= end());
@@ -1317,10 +1469,10 @@ inline typename Array<T, DIM, SPACE>::ArrayIterator Array<T, DIM, SPACE>::insert
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <MemorySpace OtherSpace>
-inline void Array<T, DIM, SPACE>::insert(IndexType pos,
-                                         ArrayView<const T, DIM, OtherSpace> other)
+inline void Array<T, DIM, SPACE, StoragePolicy>::insert(IndexType pos,
+                                                        ArrayView<const T, DIM, OtherSpace> other)
 {
   // First update the dimensions
   this->updateShapeOnInsert(other.shape());
@@ -1329,27 +1481,27 @@ inline void Array<T, DIM, SPACE>::insert(IndexType pos,
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline typename Array<T, DIM, SPACE>::ArrayIterator Array<T, DIM, SPACE>::erase(
-  Array<T, DIM, SPACE>::ArrayIterator pos)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline typename Array<T, DIM, SPACE, StoragePolicy>::ArrayIterator
+Array<T, DIM, SPACE, StoragePolicy>::erase(Array<T, DIM, SPACE, StoragePolicy>::ArrayIterator pos)
 {
   assert(pos >= begin() && pos < end());
 
   IndexType posIdx = pos - begin();
 
   // Destroy element at posIdx and shift elements over by 1
-  OpHelper::destroy(m_data, posIdx, 1, m_allocator_id);
-  OpHelper::move(m_data, posIdx + 1, m_num_elements, posIdx, m_allocator_id);
+  m_arrayOps.destroy(m_data, posIdx, 1);
+  m_arrayOps.move(m_data, posIdx + 1, m_num_elements, posIdx);
   updateNumElements(m_num_elements - 1);
 
   return ArrayIterator(posIdx, this);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline typename Array<T, DIM, SPACE>::ArrayIterator Array<T, DIM, SPACE>::erase(
-  Array<T, DIM, SPACE>::ArrayIterator first,
-  Array<T, DIM, SPACE>::ArrayIterator last)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline typename Array<T, DIM, SPACE, StoragePolicy>::ArrayIterator
+Array<T, DIM, SPACE, StoragePolicy>::erase(Array<T, DIM, SPACE, StoragePolicy>::ArrayIterator first,
+                                           Array<T, DIM, SPACE, StoragePolicy>::ArrayIterator last)
 {
   assert(first >= begin() && first < end());
   assert(last >= first && last <= end());
@@ -1364,10 +1516,10 @@ inline typename Array<T, DIM, SPACE>::ArrayIterator Array<T, DIM, SPACE>::erase(
   IndexType firstIdx = first - begin();
   IndexType lastIdx = last - begin();
   IndexType nelems = last - first;
-  OpHelper::destroy(m_data, firstIdx, nelems, m_allocator_id);
+  m_arrayOps.destroy(m_data, firstIdx, nelems);
 
   // Shift [last, end) elements over
-  OpHelper::move(m_data, lastIdx, m_num_elements, firstIdx, m_allocator_id);
+  m_arrayOps.move(m_data, lastIdx, m_num_elements, firstIdx);
 
   IndexType count = lastIdx - firstIdx;
   updateNumElements(m_num_elements - count);
@@ -1375,20 +1527,20 @@ inline typename Array<T, DIM, SPACE>::ArrayIterator Array<T, DIM, SPACE>::erase(
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <typename... Args>
-inline void Array<T, DIM, SPACE>::emplace(IndexType pos, Args&&... args)
+inline void Array<T, DIM, SPACE, StoragePolicy>::emplace(IndexType pos, Args&&... args)
 {
   reserveForInsert(1, pos);
-  OpHelper::emplace(m_data, pos, m_allocator_id, std::forward<Args>(args)...);
+  m_arrayOps.emplace(m_data, pos, std::forward<Args>(args)...);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <typename... Args>
-inline typename Array<T, DIM, SPACE>::ArrayIterator Array<T, DIM, SPACE>::emplace(
-  Array<T, DIM, SPACE>::ArrayIterator pos,
-  Args&&... args)
+inline typename Array<T, DIM, SPACE, StoragePolicy>::ArrayIterator
+Array<T, DIM, SPACE, StoragePolicy>::emplace(Array<T, DIM, SPACE, StoragePolicy>::ArrayIterator pos,
+                                             Args&&... args)
 {
   assert(pos >= begin() && pos <= end());
   emplace(pos - begin(), std::forward<Args>(args)...);
@@ -1396,47 +1548,74 @@ inline typename Array<T, DIM, SPACE>::ArrayIterator Array<T, DIM, SPACE>::emplac
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-AXOM_HOST_DEVICE inline void Array<T, DIM, SPACE>::push_back(const T& value)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::push_back(const T& value)
 {
   static_assert(DIM == 1, "push_back is only supported for 1D arrays");
   emplace_back(value);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-AXOM_HOST_DEVICE inline void Array<T, DIM, SPACE>::push_back(T&& value)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::push_back(T&& value)
 {
   static_assert(DIM == 1, "push_back is only supported for 1D arrays");
   emplace_back(std::move(value));
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
+AXOM_SUPPRESS_HD_WARN
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+AXOM_HOST_DEVICE inline void Array<T, DIM, SPACE, StoragePolicy>::push_back_device(const T& value)
+{
+  static_assert(DIM == 1, "push_back_device is only supported for 1D arrays");
+  emplace_back_device(value);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+AXOM_HOST_DEVICE inline void Array<T, DIM, SPACE, StoragePolicy>::push_back_device(T&& value)
+{
+  static_assert(DIM == 1, "push_back_device is only supported for 1D arrays");
+  emplace_back_device(std::move(value));
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 template <typename... Args>
-AXOM_HOST_DEVICE inline void Array<T, DIM, SPACE>::emplace_back(Args&&... args)
+inline void Array<T, DIM, SPACE, StoragePolicy>::emplace_back(Args&&... args)
 {
   static_assert(DIM == 1, "emplace_back is only supported for 1D arrays");
+  IndexType insertIndex = reserveForPushBack();
+  m_arrayOps.emplace(m_data, insertIndex, std::forward<Args>(args)...);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+template <typename... Args>
+AXOM_HOST_DEVICE inline void Array<T, DIM, SPACE, StoragePolicy>::emplace_back_device(Args&&... args)
+{
+  static_assert(DIM == 1, "emplace_back is only supported for 1D arrays");
+  IndexType insertIndex = reserveForPushBack();
 #ifdef AXOM_DEVICE_CODE
-  IndexType insertIndex = reserveForDeviceInsert(1);
   // Construct in-place in uninitialized memory.
   new(m_data + insertIndex) T(std::forward<Args>(args)...);
 #else
-  emplace(size(), std::forward<Args>(args)...);
+  m_arrayOps.emplace(m_data, insertIndex, std::forward<Args>(args)...);
 #endif
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline void Array<T, DIM, SPACE>::resizeImpl(const StackArray<IndexType, DIM>& dims,
-                                             bool construct_with_values,
-                                             const T* value)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::resizeImpl(const StackArray<IndexType, DIM>& dims,
+                                                            bool construct_with_values,
+                                                            const T* value)
 {
   assert(detail::allNonNegative(dims.m_data));
   const auto new_num_elements = detail::packProduct(dims.m_data);
 
-  static_cast<ArrayBase<T, DIM, Array<T, DIM, SPACE>>&>(*this) =
-    ArrayBase<T, DIM, Array<T, DIM, SPACE>> {dims};
+  static_cast<ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>&>(*this) =
+    ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>> {dims};
 
   const IndexType prev_num_elements = m_num_elements;
 
@@ -1450,38 +1629,28 @@ inline void Array<T, DIM, SPACE>::resizeImpl(const StackArray<IndexType, DIM>& d
     if(value)
     {
       // Copy-construct new elements with value
-      OpHelper::fill(m_data,
-                     prev_num_elements,
-                     new_num_elements - prev_num_elements,
-                     m_allocator_id,
-                     *value);
+      m_arrayOps.fill(m_data, prev_num_elements, new_num_elements - prev_num_elements, *value);
     }
     else
     {
       // Default-initialize the new elements
-      OpHelper::init(m_data,
-                     prev_num_elements,
-                     new_num_elements - prev_num_elements,
-                     m_allocator_id);
+      m_arrayOps.init(m_data, prev_num_elements, new_num_elements - prev_num_elements);
     }
   }
   else if(prev_num_elements > new_num_elements)
   {
     // Destroy any elements above new_num_elements
-    OpHelper::destroy(m_data,
-                      new_num_elements,
-                      prev_num_elements - new_num_elements,
-                      m_allocator_id);
+    m_arrayOps.destroy(m_data, new_num_elements, prev_num_elements - new_num_elements);
   }
 
   updateNumElements(new_num_elements);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline void Array<T, DIM, SPACE>::swap(Array<T, DIM, SPACE>& other)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::swap(Array<T, DIM, SPACE, StoragePolicy>& other)
 {
-  ArrayBase<T, DIM, Array<T, DIM, SPACE>>::swap(other);
+  ArrayBase<T, DIM, Array<T, DIM, SPACE, StoragePolicy>>::swap(other);
   axom::utilities::swap(m_data, other.m_data);
   axom::utilities::swap(m_num_elements, other.m_num_elements);
   axom::utilities::swap(m_capacity, other.m_capacity);
@@ -1490,10 +1659,10 @@ inline void Array<T, DIM, SPACE>::swap(Array<T, DIM, SPACE>& other)
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline void Array<T, DIM, SPACE>::initialize(IndexType num_elements,
-                                             IndexType capacity,
-                                             bool default_construct)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::initialize(IndexType num_elements,
+                                                            IndexType capacity,
+                                                            bool default_construct)
 {
   assert(num_elements >= 0);
 
@@ -1504,13 +1673,13 @@ inline void Array<T, DIM, SPACE>::initialize(IndexType num_elements,
 
   if(capacity == 0)
   {
-    capacity = (num_elements > MIN_DEFAULT_CAPACITY) ? num_elements
-                                                     : MIN_DEFAULT_CAPACITY;
+    capacity = (num_elements > MIN_DEFAULT_CAPACITY) ? num_elements : MIN_DEFAULT_CAPACITY;
   }
+  m_executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
   setCapacity(capacity);
   if(default_construct)
   {
-    OpHelper::init(m_data, 0, num_elements, m_allocator_id);
+    m_arrayOps.init(m_data, 0, num_elements);
   }
   updateNumElements(num_elements);
 
@@ -1521,8 +1690,8 @@ inline void Array<T, DIM, SPACE>::initialize(IndexType num_elements,
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline void Array<T, DIM, SPACE>::initialize_from_other(
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::initialize_from_other(
   const T* other_data,
   IndexType num_elements,
   MemorySpace other_data_space,
@@ -1530,8 +1699,7 @@ inline void Array<T, DIM, SPACE>::initialize_from_other(
 {
   // If a memory space has been explicitly set for the Array object, check that
   // the space of the user-provided allocator matches the explicit space.
-  if(SPACE != MemorySpace::Dynamic &&
-     SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
+  if(SPACE != MemorySpace::Dynamic && SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
   {
 #ifdef AXOM_DEBUG
     if(user_provided_allocator)
@@ -1542,20 +1710,18 @@ inline void Array<T, DIM, SPACE>::initialize_from_other(
 #endif
     m_allocator_id = axom::detail::getAllocatorID<SPACE>();
   }
+  m_executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  m_arrayOps = OpHelper {m_allocator_id, m_executeOnGPU};
   this->setCapacity(num_elements);
-  // Use fill_range to ensure that copy constructors are invoked for each element
-  OpHelper::fill_range(m_data,
-                       0,
-                       num_elements,
-                       m_allocator_id,
-                       other_data,
-                       other_data_space);
+  // Use fill_range to ensure that copy constructors are invoked for each
+  // element.
+  m_arrayOps.fill_range(m_data, 0, num_elements, other_data, other_data_space);
   this->updateNumElements(num_elements);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline T* Array<T, DIM, SPACE>::reserveForInsert(IndexType n, IndexType pos)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline T* Array<T, DIM, SPACE, StoragePolicy>::reserveForInsert(IndexType n, IndexType pos)
 {
   assert(n >= 0);
   assert(pos >= 0);
@@ -1572,26 +1738,29 @@ inline T* Array<T, DIM, SPACE>::reserveForInsert(IndexType n, IndexType pos)
     dynamicRealloc(new_size);
   }
 
-  OpHelper::move(m_data, pos, m_num_elements, pos + n, m_allocator_id);
+  m_arrayOps.move(m_data, pos, m_num_elements, pos + n);
 
   updateNumElements(new_size);
   return m_data + pos;
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-AXOM_DEVICE inline IndexType Array<T, DIM, SPACE>::reserveForDeviceInsert(IndexType n)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+AXOM_HOST_DEVICE inline IndexType Array<T, DIM, SPACE, StoragePolicy>::reserveForPushBack()
 {
 #ifndef AXOM_DEVICE_CODE
-  // Host path: should never be called.
-  AXOM_UNUSED_VAR(n);
-  assert(false);
-  return {};
+  if AXOM_UNLIKELY(m_num_elements >= m_capacity)
+  {
+    dynamicRealloc(m_num_elements + 1);
+  }
+  IndexType end = m_num_elements;
+  updateNumElements(m_num_elements + 1);
+  return end;
 #else
   // Device path: supports insertion while m_num_elements < m_capacity
   // Does not support insertions which require reallocating the underlying
   // buffer.
-  IndexType new_pos = RAJA::atomicAdd<RAJA::auto_atomic>(&m_num_elements, n);
+  IndexType new_pos = axom::atomicAdd<axom::auto_atomic>(&m_num_elements, IndexType {1});
   if(new_pos >= m_capacity)
   {
   #ifdef AXOM_DEBUG
@@ -1610,18 +1779,20 @@ AXOM_DEVICE inline IndexType Array<T, DIM, SPACE>::reserveForDeviceInsert(IndexT
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline void Array<T, DIM, SPACE>::updateNumElements(IndexType new_num_elements)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::updateNumElements(IndexType new_num_elements)
 {
   assert(new_num_elements >= 0);
   assert(new_num_elements <= m_capacity);
 
   m_num_elements = new_num_elements;
+  // Needed for Sidre array
+  StoragePolicy::onShapeUpdate(this->shape());
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline void Array<T, DIM, SPACE>::setCapacity(IndexType new_capacity)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::setCapacity(IndexType new_capacity)
 {
   assert(new_capacity >= 0);
 
@@ -1631,27 +1802,34 @@ inline void Array<T, DIM, SPACE>::setCapacity(IndexType new_capacity)
     // when the array is being shrunk
     updateNumElements(new_capacity);
   }
+  T* new_data =
+    StoragePolicy::reallocate(m_data, m_num_elements, m_allocator_id, new_capacity, [this](T* new_data) {
+      // Call helper method to move underlying elements if T is non-trivial.
+      m_arrayOps.realloc_move(new_data, static_cast<IndexType>(this->m_num_elements), this->m_data);
+    });
 
-  // Create a new block of memory, and move the elements over.
-  T* new_data = axom::allocate<T>(new_capacity, m_allocator_id);
-  OpHelper::realloc_move(new_data, m_num_elements, m_data, m_allocator_id);
+  if(new_data)
+  {
+    this->m_data = new_data;
+    this->m_capacity = new_capacity;
+  }
 
-  // Destroy the original array.
-  axom::deallocate(m_data);
-
-  // Set the pointer and capacity to the new memory.
-  m_data = new_data;
-  m_capacity = new_capacity;
+  // Needed for Sidre array
+  StoragePolicy::onShapeUpdate(this->shape());
 
   assert(m_data != nullptr || m_capacity <= 0);
 }
 
 //------------------------------------------------------------------------------
-template <typename T, int DIM, MemorySpace SPACE>
-inline void Array<T, DIM, SPACE>::dynamicRealloc(IndexType new_num_elements)
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::dynamicRealloc(IndexType new_num_elements)
 {
   assert(m_resize_ratio >= 1.0);
-  IndexType new_capacity = new_num_elements * m_resize_ratio + 0.5;
+
+  // Using resize strategy from LLVM libc++ (vector::__recommend()):
+  //   new_capacity = max(capacity() * resize_ratio, new_num_elements)
+  IndexType new_capacity =
+    axom::utilities::max<IndexType>(this->capacity() * m_resize_ratio + 0.5, new_num_elements);
   const IndexType block_size = this->blockSize();
   const IndexType remainder = new_capacity % block_size;
   if(remainder != 0)

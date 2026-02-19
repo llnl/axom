@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -8,10 +9,11 @@
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
+#include "axom/core/NumericLimits.hpp"
+#include "axom/core/execution/runtime_policy.hpp"
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
 #include "axom/spin.hpp"
-#include "axom/core/execution/runtime_policy.hpp"
 
 #include "axom/fmt.hpp"
 
@@ -22,7 +24,6 @@
 #include "conduit_relay_io.hpp"
 
 #include <memory>
-#include <limits>
 #include <cstdlib>
 #include <cmath>
 #include <list>
@@ -75,9 +76,7 @@ axom::ArrayView<T> ArrayView_from_Node(conduit::Node& node, int sz)
  * \warning Assumes the underlying data is an MCArray with stride 2 access
  */
 template <>
-inline axom::ArrayView<primal::Point<double, 2>> ArrayView_from_Node(
-  conduit::Node& node,
-  int sz)
+inline axom::ArrayView<primal::Point<double, 2>> ArrayView_from_Node(conduit::Node& node, int sz)
 {
   using PointType = primal::Point<double, 2>;
 
@@ -91,9 +90,7 @@ inline axom::ArrayView<primal::Point<double, 2>> ArrayView_from_Node(
  * \warning Assumes the underlying data is an MCArray with stride 3 access
  */
 template <>
-inline axom::ArrayView<primal::Point<double, 3>> ArrayView_from_Node(
-  conduit::Node& node,
-  int sz)
+inline axom::ArrayView<primal::Point<double, 3>> ArrayView_from_Node(conduit::Node& node, int sz)
 {
   using PointType = primal::Point<double, 3>;
 
@@ -223,10 +220,9 @@ inline int isend_using_schema(conduit::Node& node,
     int check_mpi_err_str_len = 0;
     MPI_Error_string(mpi_error, check_mpi_err_str_buff, &check_mpi_err_str_len);
 
-    SLIC_ERROR(
-      fmt::format("MPI call failed: error code = {} error message = {}",
-                  mpi_error,
-                  check_mpi_err_str_buff));
+    SLIC_ERROR(fmt::format("MPI call failed: error code = {} error message = {}",
+                           mpi_error,
+                           check_mpi_err_str_buff));
   }
 
   return mpi_error;
@@ -254,7 +250,7 @@ public:
     , m_mpiComm(MPI_COMM_NULL)
     , m_rank(-1)
     , m_nranks(-1)
-    , m_sqUserDistanceThreshold(std::numeric_limits<double>::max())
+    , m_sqUserDistanceThreshold(axom::numeric_limits<double>::max())
   { }
 
   virtual ~DistributedClosestPointImpl() { }
@@ -344,24 +340,18 @@ public:
     xferNode["homeRank"] = m_rank;
     xferNode["is_first"] = 1;
 
-    const bool isMultidomain =
-      conduit::blueprint::mesh::is_multi_domain(queryNode);
-    const auto domainCount =
-      conduit::blueprint::mesh::number_of_domains(queryNode);
+    const bool isMultidomain = conduit::blueprint::mesh::is_multi_domain(queryNode);
+    const auto domainCount = conduit::blueprint::mesh::number_of_domains(queryNode);
     conduit::Node& xferDoms = xferNode["xferDoms"];
     for(conduit::index_t domainNum = 0; domainNum < domainCount; ++domainNum)
     {
       auto& queryDom = isMultidomain ? queryNode.child(domainNum) : queryNode;
 
       const std::string coordsetName =
-        queryDom
-          .fetch_existing(
-            axom::fmt::format("topologies/{}/coordset", topologyName))
-          .as_string();
+        queryDom.fetch_existing(axom::fmt::format("topologies/{}/coordset", topologyName)).as_string();
       const std::string& domName = queryDom.name();
       conduit::Node& xferDom = xferDoms[domName];
-      conduit::Node& queryCoords =
-        queryDom.fetch_existing(fmt::format("coordsets/{}", coordsetName));
+      conduit::Node& queryCoords = queryDom.fetch_existing(fmt::format("coordsets/{}", coordsetName));
       conduit::Node& queryCoordsValues = queryCoords.fetch_existing("values");
 
       const int dim = internal::extractDimension(queryCoordsValues);
@@ -372,8 +362,7 @@ public:
       copy_components_to_interleaved(queryCoordsValues, xferDom["coords"]);
 
       constexpr bool isInt32 = std::is_same<axom::IndexType, std::int32_t>::value;
-      auto dtype =
-        isInt32 ? conduit::DataType::int32() : conduit::DataType::int64();
+      auto dtype = isInt32 ? conduit::DataType::int32() : conduit::DataType::int64();
       dtype.set_number_of_elements(qPtCount);
       xferDom["cp_index"].set_dtype(dtype);
       xferDom["cp_rank"].set_dtype(dtype);
@@ -388,10 +377,8 @@ public:
                                conduit::Node& queryNode,
                                const std::string& topologyName) const
   {
-    const bool isMultidomain =
-      conduit::blueprint::mesh::is_multi_domain(queryNode);
-    const auto domainCount =
-      conduit::blueprint::mesh::number_of_domains(queryNode);
+    const bool isMultidomain = conduit::blueprint::mesh::is_multi_domain(queryNode);
+    const auto domainCount = conduit::blueprint::mesh::number_of_domains(queryNode);
     conduit::Node& xferDoms = xferNode.fetch_existing("xferDoms");
     SLIC_ASSERT(xferDoms.number_of_children() == domainCount);
     for(conduit::index_t domainNum = 0; domainNum < domainCount; ++domainNum)
@@ -441,8 +428,7 @@ public:
         auto& dst = fields["cp_coords"];
         dst.set_node(genericHeaders);
         auto& dstValues = dst["values"];
-        copy_interleaved_to_components(xferDom.fetch_existing("cp_coords"),
-                                       dstValues);
+        copy_interleaved_to_components(xferDom.fetch_existing("cp_coords"), dstValues);
       }
     }
   }
@@ -452,16 +438,14 @@ public:
     necessarily interleaved) to a 1D array of interleaved values).
     If coordinates are already interleaved, copy pointer.
   */
-  void copy_components_to_interleaved(conduit::Node& components,
-                                      conduit::Node& interleaved) const
+  void copy_components_to_interleaved(conduit::Node& components, conduit::Node& interleaved) const
   {
     const int dim = getDimension();
     const int qPtCount = internal::extractSize(components);
     bool interleavedSrc = conduit::blueprint::mcarray::is_interleaved(components);
     if(interleavedSrc)
     {
-      interleaved.set_external(internal::getPointer<double>(components.child(0)),
-                               dim * qPtCount);
+      interleaved.set_external(internal::getPointer<double>(components.child(0)), dim * qPtCount);
     }
     else
     {
@@ -485,8 +469,7 @@ public:
     component-wise storage.
     This is a nop if they point to the same data.
   */
-  void copy_interleaved_to_components(const conduit::Node& interleaved,
-                                      conduit::Node& components) const
+  void copy_interleaved_to_components(const conduit::Node& interleaved, conduit::Node& components) const
   {
     const int dim = getDimension();
     const int qPtCount = interleaved.dtype().number_of_elements() / dim;
@@ -506,8 +489,7 @@ public:
   }
 
   /// Wait for some non-blocking sends (if any) to finish.
-  void check_send_requests(std::list<conduit::relay::mpi::Request>& isendRequests,
-                           bool atLeastOne) const
+  void check_send_requests(std::list<conduit::relay::mpi::Request>& isendRequests, bool atLeastOne) const
   {
     std::vector<MPI_Request> reqs;
     for(auto& isr : isendRequests)
@@ -520,19 +502,11 @@ public:
     std::vector<int> indices(reqs.size(), -1);
     if(atLeastOne)
     {
-      MPI_Waitsome(inCount,
-                   reqs.data(),
-                   &outCount,
-                   indices.data(),
-                   MPI_STATUSES_IGNORE);
+      MPI_Waitsome(inCount, reqs.data(), &outCount, indices.data(), MPI_STATUSES_IGNORE);
     }
     else
     {
-      MPI_Testsome(inCount,
-                   reqs.data(),
-                   &outCount,
-                   indices.data(),
-                   MPI_STATUSES_IGNORE);
+      MPI_Testsome(inCount, reqs.data(), &outCount, indices.data(), MPI_STATUSES_IGNORE);
     }
     indices.resize(outCount);
 
@@ -654,8 +628,7 @@ public:
 
   int getDimension() const override { return DIM; }
 
-  void importObjectPoints(const conduit::Node& mdMeshNode,
-                          const std::string& topologyName) override
+  void importObjectPoints(const conduit::Node& mdMeshNode, const std::string& topologyName) override
   {
     // TODO: See if some of the copies in this method can be optimized out.
 
@@ -666,12 +639,8 @@ public:
     for(const conduit::Node& domain : mdMeshNode.children())
     {
       const std::string coordsetName =
-        domain
-          .fetch_existing(
-            axom::fmt::format("topologies/{}/coordset", topologyName))
-          .as_string();
-      const std::string valuesPath =
-        axom::fmt::format("coordsets/{}/values", coordsetName);
+        domain.fetch_existing(axom::fmt::format("topologies/{}/coordset", topologyName)).as_string();
+      const std::string valuesPath = axom::fmt::format("coordsets/{}/values", coordsetName);
       auto& values = domain.fetch_existing(valuesPath);
       const int N = internal::extractSize(values);
       ptCount += N;
@@ -693,12 +662,8 @@ public:
       }
 
       const std::string coordsetName =
-        domain
-          .fetch_existing(
-            axom::fmt::format("topologies/{}/coordset", topologyName))
-          .as_string();
-      const std::string valuesPath =
-        axom::fmt::format("coordsets/{}/values", coordsetName);
+        domain.fetch_existing(axom::fmt::format("topologies/{}/coordset", topologyName)).as_string();
+      const std::string valuesPath = axom::fmt::format("coordsets/{}/values", coordsetName);
 
       auto& values = domain.fetch_existing(valuesPath);
 
@@ -837,9 +802,7 @@ public:
       const int qPtCount = xferDom.fetch_existing("qPtCount").value();
 
       /// Extract fields from the input node as ArrayViews
-      auto queryPts =
-        ArrayView_from_Node<PointType>(xferDom.fetch_existing("coords"),
-                                       qPtCount);
+      auto queryPts = ArrayView_from_Node<PointType>(xferDom.fetch_existing("coords"), qPtCount);
       for(const auto& p : queryPts)
       {
         rval.addPoint(p);
@@ -871,12 +834,9 @@ public:
    * a xferNode for each query domain and a BVH for each object
    * domain.
    */
-  void computeClosestPoints(conduit::Node& queryMesh,
-                            const std::string& topologyName) const override
+  void computeClosestPoints(conduit::Node& queryMesh, const std::string& topologyName) const override
   {
-    SLIC_ASSERT_MSG(
-      m_bvh,
-      "BVH tree must be initialized before calling 'computeClosestPoints");
+    SLIC_ASSERT_MSG(m_bvh, "BVH tree must be initialized before calling 'computeClosestPoints");
 
     std::map<int, std::shared_ptr<conduit::Node>> xferNodes;
 
@@ -949,11 +909,11 @@ public:
         if(r != m_rank)
         {
           const auto& otherQueryBb = allQueryBbs[r];
-          if(otherQueryBb.isValid())
+          double sqDistance = axom::primal::squared_distance(otherQueryBb, myObjectBb);
+          if(sqDistance <= m_sqUserDistanceThreshold)
           {
-            double sqDistance =
-              axom::primal::squared_distance(otherQueryBb, myObjectBb);
-            double sqDistanceThreshold = m_filterFarPartitions ? allSqDistanceThreshold[r] : m_sqUserDistanceThreshold;
+            double sqDistanceThreshold =
+              m_filterFarPartitions ? allSqDistanceThreshold[r] : m_sqUserDistanceThreshold;
             if(sqDistance <= sqDistanceThreshold)
             {
               ++remainingRecvs;
@@ -991,11 +951,7 @@ public:
         isendRequests.emplace_back(conduit::relay::mpi::Request());
         auto& req = isendRequests.back();
         AXOM_ANNOTATE_BEGIN("computeClosestPoints send");
-        relay::mpi::isend_using_schema(*xferNodes[m_rank],
-                                       firstRecipForMyQuery,
-                                       tag,
-                                       m_mpiComm,
-                                       &req);
+        relay::mpi::isend_using_schema(*xferNodes[m_rank], firstRecipForMyQuery, tag, m_mpiComm, &req);
         AXOM_ANNOTATE_END("computeClosestPoints send");
         ++remainingRecvs;
       }
@@ -1003,18 +959,13 @@ public:
 
     while(remainingRecvs > 0)
     {
-      SLIC_INFO_IF(
-        m_isVerbose,
-        fmt::format("=======  {} receives remaining =======", remainingRecvs));
+      SLIC_INFO_IF(m_isVerbose,
+                   fmt::format("=======  {} receives remaining =======", remainingRecvs));
 
       // Receive the next xferNode
-      std::shared_ptr<conduit::Node> recvXferNodePtr =
-        std::make_shared<conduit::Node>();
+      std::shared_ptr<conduit::Node> recvXferNodePtr = std::make_shared<conduit::Node>();
       AXOM_ANNOTATE_BEGIN("computeClosestPoints recv");
-      conduit::relay::mpi::recv_using_schema(*recvXferNodePtr,
-                                             MPI_ANY_SOURCE,
-                                             tag,
-                                             m_mpiComm);
+      conduit::relay::mpi::recv_using_schema(*recvXferNodePtr, MPI_ANY_SOURCE, tag, m_mpiComm);
       AXOM_ANNOTATE_END("computeClosestPoints recv");
 
       const int homeRank = recvXferNodePtr->fetch_existing("homeRank").as_int();
@@ -1039,11 +990,7 @@ public:
         int nextRecipient = next_recipient(xferNode);
         SLIC_ASSERT(nextRecipient != -1);
         AXOM_ANNOTATE_BEGIN("computeClosestPoints send");
-        relay::mpi::isend_using_schema(xferNode,
-                                       nextRecipient,
-                                       tag,
-                                       m_mpiComm,
-                                       &isendRequest);
+        relay::mpi::isend_using_schema(xferNode, nextRecipient, tag, m_mpiComm, &isendRequest);
         AXOM_ANNOTATE_END("computeClosestPoints send");
 
         // Check non-blocking sends to free memory.
@@ -1086,8 +1033,7 @@ private:
       {
         return maybeNextRecip;
       }
-      double sqDistance =
-        primal::squared_distance(bb, m_objectPartitionBbs[maybeNextRecip]);
+      double sqDistance = primal::squared_distance(bb, m_objectPartitionBbs[maybeNextRecip]);
       if(sqDistance <= sqDistanceThreshold)
       {
         return maybeNextRecip;
@@ -1124,47 +1070,34 @@ public:
       const int qPtCount = xferDom.fetch_existing("qPtCount").value();
 
       /// Extract fields from the input node as ArrayViews
-      auto queryPts =
-        ArrayView_from_Node<PointType>(xferDom.fetch_existing("coords"),
-                                       qPtCount);
+      auto queryPts = ArrayView_from_Node<PointType>(xferDom.fetch_existing("coords"), qPtCount);
       auto cpIndexes =
-        ArrayView_from_Node<axom::IndexType>(xferDom.fetch_existing("cp_index"),
-                                             qPtCount);
-      auto cpDomainIndexes = ArrayView_from_Node<axom::IndexType>(
-        xferDom.fetch_existing("cp_domain_index"),
-        qPtCount);
+        ArrayView_from_Node<axom::IndexType>(xferDom.fetch_existing("cp_index"), qPtCount);
+      auto cpDomainIndexes =
+        ArrayView_from_Node<axom::IndexType>(xferDom.fetch_existing("cp_domain_index"), qPtCount);
       auto cpRanks =
-        ArrayView_from_Node<axom::IndexType>(xferDom.fetch_existing("cp_rank"),
-                                             qPtCount);
-      auto cpCoords =
-        ArrayView_from_Node<PointType>(xferDom.fetch_existing("cp_coords"),
-                                       qPtCount);
+        ArrayView_from_Node<axom::IndexType>(xferDom.fetch_existing("cp_rank"), qPtCount);
+      auto cpCoords = ArrayView_from_Node<PointType>(xferDom.fetch_existing("cp_coords"), qPtCount);
 
       /// Create ArrayViews in ExecSpace that are compatible with fields
       // This deep-copies host memory in xferDom to device memory.
       // TODO: Avoid copying arrays (here and at the end) if both are on the host
-      auto cp_idx = is_first
-        ? axom::Array<axom::IndexType>(qPtCount, qPtCount, m_allocatorID)
-        : axom::Array<axom::IndexType>(cpIndexes, m_allocatorID);
-      auto cp_domidx = is_first
-        ? axom::Array<axom::IndexType>(qPtCount, qPtCount, m_allocatorID)
-        : axom::Array<axom::IndexType>(cpDomainIndexes, m_allocatorID);
-      auto cp_rank = is_first
-        ? axom::Array<axom::IndexType>(qPtCount, qPtCount, m_allocatorID)
-        : axom::Array<axom::IndexType>(cpRanks, m_allocatorID);
+      auto cp_idx = is_first ? axom::Array<axom::IndexType>(qPtCount, qPtCount, m_allocatorID)
+                             : axom::Array<axom::IndexType>(cpIndexes, m_allocatorID);
+      auto cp_domidx = is_first ? axom::Array<axom::IndexType>(qPtCount, qPtCount, m_allocatorID)
+                                : axom::Array<axom::IndexType>(cpDomainIndexes, m_allocatorID);
+      auto cp_rank = is_first ? axom::Array<axom::IndexType>(qPtCount, qPtCount, m_allocatorID)
+                              : axom::Array<axom::IndexType>(cpRanks, m_allocatorID);
 
       /// PROBLEM: The striding does not appear to be retained by conduit relay
       ///          We might need to transform it? or to use a single array w/ pointers into it?
-      auto cp_pos = is_first
-        ? axom::Array<PointType>(qPtCount, qPtCount, m_allocatorID)
-        : axom::Array<PointType>(cpCoords, m_allocatorID);
+      auto cp_pos = is_first ? axom::Array<PointType>(qPtCount, qPtCount, m_allocatorID)
+                             : axom::Array<PointType>(cpCoords, m_allocatorID);
 
       // DEBUG
       const bool has_cp_distance = xferDom.has_path("debug/cp_distance");
       auto minDist = has_cp_distance
-        ? ArrayView_from_Node<double>(
-            xferDom.fetch_existing("debug/cp_distance"),
-            qPtCount)
+        ? ArrayView_from_Node<double>(xferDom.fetch_existing("debug/cp_distance"), qPtCount)
         : ArrayView<double>();
 
       auto cp_dist = has_cp_distance
@@ -1178,9 +1111,9 @@ public:
         cp_rank.fill(-1);
         cp_idx.fill(-1);
         cp_domidx.fill(-1);
-        const PointType nowhere(std::numeric_limits<double>::signaling_NaN());
+        const PointType nowhere(axom::numeric_limits<double>::signaling_NaN());
         cp_pos.fill(nowhere);
-        cp_dist.fill(std::numeric_limits<double>::signaling_NaN());
+        cp_dist.fill(axom::numeric_limits<double>::signaling_NaN());
       }
       auto query_inds = cp_idx.view();
       auto query_doms = cp_domidx.view();
@@ -1198,8 +1131,13 @@ public:
         auto it = m_bvh->getTraverser();
         const int rank = m_rank;
 
-        double* sqDistThresh = axom::allocate<double>(1, m_allocatorID);
-        *sqDistThresh = xferNode.fetch("sqDistanceThreshold").as_double();
+        axom::Array<double> sqDistThresh_host(1,
+                                              1,
+                                              axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+        sqDistThresh_host[0] = m_sqUserDistanceThreshold;
+        axom::Array<double> sqDistThresh_device =
+          axom::Array<double>(sqDistThresh_host, m_allocatorID);
+        auto sqDistThresh_device_view = sqDistThresh_device.view();
 
         auto ptCoordsView = m_objectPtCoords.view();
         auto ptDomainIdsView = m_objectPtDomainIds.view();
@@ -1221,11 +1159,9 @@ public:
                 curr_min.rank = query_ranks[idx];
               }
 
-              auto checkMinDist = [&](std::int32_t current_node,
-                                      const std::int32_t* leaf_nodes) {
+              auto checkMinDist = [&](std::int32_t current_node, const std::int32_t* leaf_nodes) {
                 const int candidate_point_idx = leaf_nodes[current_node];
-                const int candidate_domain_idx =
-                  ptDomainIdsView[candidate_point_idx];
+                const int candidate_domain_idx = ptDomainIdsView[candidate_point_idx];
                 const PointType candidate_pt = ptCoordsView[candidate_point_idx];
                 const double sq_dist = squared_distance(qpt, candidate_pt);
 
@@ -1238,10 +1174,9 @@ public:
                 }
               };
 
-              auto traversePredicate = [&](const PointType& p,
-                                           const BoxType& bb) -> bool {
+              auto traversePredicate = [&](const PointType& p, const BoxType& bb) -> bool {
                 auto sqDist = squared_distance(p, bb);
-                return sqDist <= curr_min.sqDist && sqDist <= sqDistThresh[0];
+                return sqDist <= curr_min.sqDist && sqDist <= sqDistThresh_device_view[0];
               };
 
               // Traverse the tree, searching for the point with minimum distance.
@@ -1263,29 +1198,19 @@ public:
               }
             });
         }
-
-        axom::deallocate(sqDistThresh);
       }
 
-      axom::copy(cpIndexes.data(),
-                 query_inds.data(),
-                 cpIndexes.size() * sizeof(axom::IndexType));
+      axom::copy(cpIndexes.data(), query_inds.data(), cpIndexes.size() * sizeof(axom::IndexType));
       axom::copy(cpDomainIndexes.data(),
                  query_doms.data(),
                  cpDomainIndexes.size() * sizeof(axom::IndexType));
-      axom::copy(cpRanks.data(),
-                 query_ranks.data(),
-                 cpRanks.size() * sizeof(axom::IndexType));
-      axom::copy(cpCoords.data(),
-                 query_pos.data(),
-                 cpCoords.size() * sizeof(PointType));
+      axom::copy(cpRanks.data(), query_ranks.data(), cpRanks.size() * sizeof(axom::IndexType));
+      axom::copy(cpCoords.data(), query_pos.data(), cpCoords.size() * sizeof(PointType));
 
       // DEBUG
       if(has_cp_distance)
       {
-        axom::copy(minDist.data(),
-                   query_min_dist.data(),
-                   minDist.size() * sizeof(double));
+        axom::copy(minDist.data(), query_min_dist.data(), minDist.size() * sizeof(double));
       }
     }
 

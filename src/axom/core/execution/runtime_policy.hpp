@@ -1,12 +1,14 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #ifndef AXOM_CORE_EXECUTION_RUNTIME_POLICY_HPP_
 #define AXOM_CORE_EXECUTION_RUNTIME_POLICY_HPP_
 
-#include "axom/config.hpp"   /* for compile time defs. */
+#include "axom/config.hpp" /* for compile time defs. */
+#include <string>
 #include "axom/fmt/format.h" /* for axom::fmt */
 
 #include <map>
@@ -108,15 +110,9 @@ enum class Policy
   };
 // clang-format on
 
-inline Policy nameToPolicy(const std::string &name)
-{
-  return s_nameToPolicy.find(name)->second;
-}
+inline Policy nameToPolicy(const std::string &name) { return s_nameToPolicy.find(name)->second; }
 
-inline std::string policyToName(Policy policy)
-{
-  return s_policyToName.find(policy)->second;
-}
+inline std::string policyToName(Policy policy) { return s_policyToName.find(policy)->second; }
 
 /// Utility function to allow formating a Policy
 static inline auto format_as(Policy pol) { return axom::fmt::underlying(pol); }

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -13,6 +14,10 @@
 
 #include "axom/slic/core/MessageLevel.hpp"
 #include "axom/core/Macros.hpp"
+
+#if defined(AXOM_USE_MPI)
+  #include <mpi.h>
+#endif
 
 /// \name Wildcards
 /// @{
@@ -58,7 +63,8 @@ public:
    *    <li> <TAG> user-supplied tag </li>
    *    <li> <FILE> with the filename </li>
    *    <li> <LINE> with the line number </li>
-   *    <li> <LINE> with the MPI rank </li>
+   *    <li> <RANK> with the MPI rank(s) </li>
+   *    <li> <RANK_COUNT> with the number of MPI ranks </li>
    *    <li> <TIMESTAMP> date/time the message is logged </li>
    *  </ul>
    *
@@ -73,6 +79,7 @@ public:
    *         std::string( "* FILE=<FILE>\n" ) +
    *         std::string( "* LINE=<LINE>\n" ) +
    *         std::string( "* RANK=<RANK>\n" ) +
+   *         std::string( "* RANK_COUNT=<RANK_COUNT>\n" ) +
    *         std::string( "***********************************\n" );
    * \endcode
    */
@@ -119,7 +126,7 @@ public:
    *
    * \warning This method is being called before slic aborts.
    */
-  virtual void outputLocal() {};
+  virtual void outputLocal() { };
 
   /*!
    * \brief Flushes the log stream on all ranks. It's a NO-OP by default.
@@ -129,7 +136,7 @@ public:
    *  in a distributed MPI environment, where the flush is a collective
    *  operation intended for a synchronization checkpoint.
    */
-  virtual void flush() {};
+  virtual void flush() { };
 
   /*!
    * \brief Pushes messages incrementally up the log stream. NO-OP by default.
@@ -140,7 +147,32 @@ public:
    *  the push is a collective operation intended for a incrementally advancing
    *  messages through the log stream.
    */
-  virtual void push() {};
+  virtual void push() { };
+
+  /*!
+   * \brief Tests whether there are any pending messages that need to be flushed.
+   * This method should only be overriden for LogStream inherited classes that can
+   * reliably test whether pending messages exist.
+   *
+   * \return Returns true if there are pending messages that need to be flushed
+   */
+  virtual bool hasPendingMessages() { return false; };
+
+  /*!
+   * \brief Tests whether this class relies on MPI
+   *
+   * \return Returns true if this class relies on MPI
+   */
+  virtual bool isUsingMPI() { return false; }
+
+  /*!
+   * \brief Get the communicator
+   *
+   * \return Returns the communicator if it exists, or MPI_COMM_NULL otherwise
+   */
+#if defined(AXOM_USE_MPI)
+  virtual MPI_Comm comm() { return MPI_COMM_NULL; };
+#endif
 
 protected:
   /*!
@@ -151,6 +183,8 @@ protected:
    * \param [in] tagName user-supplied tag, may be MSG_IGNORE_TAG
    * \param [in] fileName filename where this message is logged, may be
    *  MSG_IGNORE_FILE to ignore this field.
+   * \param [in] rank The MPI rank(s) that emitted this message
+   * \param [in] rank_count the number of MPI ranks that emitted this message
    * \param [in] line the line number within the file where the message is
    *  logged. Likewise, may be set to MSG_IGNORE_LINE to ignore this field.
    *
@@ -161,6 +195,7 @@ protected:
                                  const std::string& message,
                                  const std::string& tagName,
                                  const std::string& rank,
+                                 const std::string& rank_count,
                                  const std::string& fileName,
                                  int line);
 

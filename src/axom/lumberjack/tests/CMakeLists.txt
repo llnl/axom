@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -13,7 +14,8 @@ set(lumberjack_serial_tests
     lumberjack_Lumberjack.hpp
     lumberjack_Message.hpp
     lumberjack_TextEqualityCombiner.hpp
-    lumberjack_TextTagCombiner.hpp )
+    lumberjack_TextTagCombiner.hpp
+    lumberjack_LineFileTagCombiner.hpp )
 
 axom_add_executable(NAME       lumberjack_serial_tests
                     SOURCES    lumberjack_serial_main.cpp
@@ -34,7 +36,8 @@ endforeach()
 #------------------------------------------------------------------------------
 set(lumberjack_mpi_tests
     lumberjack_BinaryCommunicator.hpp
-    lumberjack_RootCommunicator.hpp )
+    lumberjack_RootCommunicator.hpp
+    lumberjack_NonCollectiveRootCommunicator.hpp )
 
 axom_add_executable(NAME       lumberjack_mpi_tests
                     SOURCES    lumberjack_mpi_main.cpp
@@ -68,4 +71,17 @@ axom_add_test(NAME          lumberjack_speedTest_binary
               
 axom_add_test(NAME          lumberjack_speedTest_root
               COMMAND       lumberjack_speed_test r 10 ${lumberjack_sample_input_dir}/loremIpsum02
-              NUM_MPI_TASKS 4)       
+              NUM_MPI_TASKS 4)
+
+#------------------------------------------------------------------------------
+# Performance test without combiners
+#------------------------------------------------------------------------------
+axom_add_executable(NAME       lumberjack_speed_test_no_combiners
+                    SOURCES    lumberjack_speedTestNoCombiners.cpp
+                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                    DEPENDS_ON lumberjack
+                    FOLDER     axom/lumberjack/tests )
+
+axom_add_test(NAME          lumberjack_speedTestNoCombiners
+              COMMAND       lumberjack_speed_test_no_combiners
+              NUM_MPI_TASKS 1)

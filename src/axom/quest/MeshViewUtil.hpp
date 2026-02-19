@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -12,7 +13,9 @@
 #ifdef AXOM_USE_CONDUIT
 
   #include "axom/core.hpp"
+  #include "axom/core/NumericLimits.hpp"
   #include "axom/fmt.hpp"
+  #include "axom/slic.hpp"
   #include "conduit_blueprint.hpp"
   #include "conduit_blueprint_mcarray.hpp"
   #ifdef AXOM_USE_MPI
@@ -21,7 +24,6 @@
   #endif
 
   #include <memory>
-  #include <limits>
   #include <cstdlib>
   #include <cmath>
   #include <vector>
@@ -33,7 +35,7 @@ namespace quest
 namespace internal
 {
 template <typename T, int DIM>
-inline axom::StackArray<T, DIM> makeStackArray(T v = std::numeric_limits<T>::max())
+inline axom::StackArray<T, DIM> makeStackArray(T v = axom::numeric_limits<T>::max())
 {
   axom::StackArray<T, DIM> rval;
   for(int d = 0; d < DIM; ++d)
@@ -63,37 +65,33 @@ static inline T product(const axom::StackArray<T, DIM>& a)
   return prod;
 }
 
-//@{
+///@{
 //!@name Conversions between shape specifications and strides-and-offsets.
+
 /*!
-  @brief Convert shape specifications to blueprint-style
-  offsets and strides.
-
-  @tparam IType Index type
-  @tparam DIM Spatial dimension
-
-  @param realShape [i]
-  @param loPads [i] Ghost padding amount on low side.
-  @param hiPads [i] Ghost padding amount ont high side.
-  @param strideOrder [i] Fastest-to-slowest advancing
-    index directions.
-  @param minStride [i] Stride of fastest advancing
-    index direction.
-  @param offsets [o] Blueprint-style index offsets.
-  @param strides [o] Blueprint-style strides.
-  @param valuesCount [o] Number of values in
-    ghost-padded data.
-*/
+ * @brief Convert shape specifications to blueprint-style offsets and strides.
+ *
+ * @tparam IType Index type
+ * @tparam DIM Spatial dimension
+ *
+ * @param realShape [i]
+ * @param loPads [i] Ghost padding amount on low side.
+ * @param hiPads [i] Ghost padding amount ont high side.
+ * @param strideOrder [i] Fastest-to-slowest advancing index directions.
+ * @param minStride [i] Stride of fastest advancing index direction.
+ * @param offsets [o] Blueprint-style index offsets.
+ * @param strides [o] Blueprint-style strides.
+ * @param valuesCount [o] Number of values in ghost-padded data.
+ */
 template <typename IType, int DIM>
-static void shapesToStridesAndOffsets(
-  const axom::StackArray<IType, DIM>& realShape,
-  const axom::StackArray<IType, DIM>& loPads,
-  const axom::StackArray<IType, DIM>& hiPads,
-  const axom::StackArray<IType, DIM>& strideOrder,
-  IndexType minStride,
-  axom::StackArray<IType, DIM>& offsets,
-  axom::StackArray<IType, DIM>& strides,
-  IndexType& valuesCount)
+static void shapesToStridesAndOffsets(const axom::StackArray<IType, DIM>& realShape,
+                                      const axom::StackArray<IType, DIM>& loPads,
+                                      const axom::StackArray<IType, DIM>& hiPads,
+                                      const axom::StackArray<IType, DIM>& strideOrder,
+                                      IndexType minStride,
+                                      axom::StackArray<IType, DIM>& offsets,
+                                      axom::StackArray<IType, DIM>& strides,
+                                      IndexType& valuesCount)
 {
   axom::StackArray<IType, DIM> paddedShape;
   for(int d = 0; d < DIM; ++d)
@@ -114,27 +112,27 @@ static void shapesToStridesAndOffsets(
 }
 
 /*!
-  @brief Convert blueprint-style offsets and strides to
-  shape specifications.
-
-  @tparam IType Index type
-  @tparam DIM Spatial dimension
-
-  @param realShape [i]
-  @param offsets [i] Blueprint-style index offsets.
-  @param strides [i] Blueprint-style strides.
-  @param valuesCount [i] Number of values in
-    ghost-padded data.  If this is too small (results in
-    a negative \a hiPads for the slowest stride
-    direction), that padding will be bumped to zero.
-  @param paddedShape [o] \a realShape + \a loPads + \a hiPads
-  @param loPads [o] Ghost padding amount on low side.
-  @param hiPads [o] Ghost padding amount ont high side.
-  @param minStride [i] Stride of fastest advancing
-    index direction.
-  @param strideOrder [i] Fastest-to-slowest advancing
-    index directions.
-*/
+ * @brief Convert blueprint-style offsets and strides to
+ * shape specifications.
+ *
+ * @tparam IType Index type
+ * @tparam DIM Spatial dimension
+ *
+ * @param realShape [i]
+ * @param offsets [i] Blueprint-style index offsets.
+ * @param strides [i] Blueprint-style strides.
+ * @param valuesCount [i] Number of values in
+ *   ghost-padded data.  If this is too small (results in
+ *   a negative \a hiPads for the slowest stride
+ *   direction), that padding will be bumped to zero.
+ * @param paddedShape [o] \a realShape + \a loPads + \a hiPads
+ * @param loPads [o] Ghost padding amount on low side.
+ * @param hiPads [o] Ghost padding amount ont high side.
+ * @param minStride [i] Stride of fastest advancing
+ *   index direction.
+ * @param strideOrder [i] Fastest-to-slowest advancing
+ *   index directions.
+ */
 template <typename IType, int DIM>
 static void stridesAndOffsetsToShapes(const axom::StackArray<IType, DIM>& realShape,
                                       const axom::StackArray<IType, DIM>& offsets,
@@ -177,48 +175,47 @@ static void stridesAndOffsetsToShapes(const axom::StackArray<IType, DIM>& realSh
     hiPads[d] = paddedShape[d] - realShape[d] - loPads[d];
   }
 }
-//@}
+///@}
 
 }  // namespace internal
 
 /**
-   \brief Utility for high-level access into a blueprint mesh,
-   for structured mesh with explicit coordinates.
-
-   Note: This class was written for a specific use and supports
-   only structured domains with explicit node values.
-
-   Blueprint mesh data is sufficient but sparse, leaving users to
-   compute some intermediate data to get to high-level data of
-   interest, such as views into array data.  This class encapsulates
-   those common functions.
-
-   Views are single-domain-specific.  They don't apply to multi-domain
-   meshes.  They are also topology specific, with the topology name
-   given to the constructor.  They are valid only while their domain
-   exists with no change to its data layout.
-
-   This class recognizes potential ghost (a.k.a. phony, image) data
-   layers around the domain.  Some methods and paramenters names refer
-   to the data with ghosts, while others refer to the data without
-   hosts (a.k.a. real data).
-
-   TODO: Figure out if there's a better place for this utility.
-   It's only in axom/quest because the initial need was there.
-*/
+ * \brief Utility for high-level access into a blueprint mesh,
+ * for structured mesh with explicit coordinates.
+ *
+ * Note: This class was written for a specific use and supports
+ * only structured domains with explicit node values.
+ *
+ * Blueprint mesh data is sufficient but sparse, leaving users to
+ * compute some intermediate data to get to high-level data of
+ * interest, such as views into array data.  This class encapsulates
+ * those common functions.
+ *
+ * Views are single-domain-specific.  They don't apply to multi-domain
+ * meshes.  They are also topology specific, with the topology name
+ * given to the constructor.  They are valid only while their domain
+ * exists with no change to its data layout.
+ *
+ * This class recognizes potential ghost (a.k.a. phony, image) data
+ * layers around the domain.  Some methods and paramenters names refer
+ * to the data with ghosts, while others refer to the data without
+ * ghosts (a.k.a. real data).
+ *
+ * TODO: Figure out if there's a better place for this utility.
+ * It's only in axom/quest because the initial need was there.
+ */
 template <int DIM, axom::MemorySpace MemSpace = MemorySpace::Dynamic>
 class MeshViewUtil
 {
 public:
   using MdIndices = axom::StackArray<axom::IndexType, DIM>;
-  using CoordsViewsType =
-    axom::StackArray<axom::ArrayView<double, DIM, MemSpace>, DIM>;
-  using ConstCoordsViewsType =
-    axom::StackArray<axom::ArrayView<const double, DIM, MemSpace>, DIM>;
+  using CoordsViewsType = axom::StackArray<axom::ArrayView<double, DIM, MemSpace>, DIM>;
+  using ConstCoordsViewsType = axom::StackArray<axom::ArrayView<const double, DIM, MemSpace>, DIM>;
 
-  //@{
-  //@name Setting up
-  //!@brief Default constructor doesn't set up the view utility.
+  ///@{
+  /// @name Setting up
+
+  //! @brief Default constructor doesn't set up the view utility.
   MeshViewUtil()
     : m_dom(nullptr)
     , m_topology(nullptr)
@@ -227,15 +224,16 @@ public:
     , m_ctopology(nullptr)
     , m_ccoordset(nullptr)
   { }
+
   /*!
-    @brief Construct view of a non-const domain.
-
-    @param [in] bpDomain Blueprint single domain.
-    @param [in] topologyName Name of topology in the domain.
-
-    If \a topologyName is omitted, use the first topology.
-
-    The topology dimension must match DIM.
+   * @brief Construct view of a non-const domain.
+   *
+   * @param [in] bpDomain Blueprint single domain.
+   * @param [in] topologyName Name of topology in the domain.
+   *
+   * If \a topologyName is omitted, use the first topology.
+   *
+   * @pre The topology dimension must match DIM.
   */
   MeshViewUtil(conduit::Node& bpDomain, const std::string& topologyName = "")
     : m_dom(&bpDomain)
@@ -269,13 +267,13 @@ public:
   }
 
   /*!
-    @brief Construct view of a const domain.
-
-    @param [in] bpDomain const Blueprint single domain.
-    @param [in] topologyName Name op topology in the domain.
-
-    If \a topologyName is omitted, use the first topology.
-    The topology dimension must match DIM.
+   * @brief Construct view of a const domain.
+   *
+   * @param [in] bpDomain const Blueprint single domain.
+   * @param [in] topologyName Name op topology in the domain.
+   *
+   * If \a topologyName is omitted, use the first topology.
+   * @pre The topology dimension must match DIM.
   */
   MeshViewUtil(const conduit::Node& bpDomain, const std::string& topologyName)
     : m_cdom(&bpDomain)
@@ -301,11 +299,9 @@ public:
   }
 
   /*!
-    @brief Whether the domain is a valid one for this utility.
-
-    In addition to checking for blueprint validity (unless \a
-    checkBlueprint is false), this method checks against its own
-    requirements.
+  * @brief Whether the domain is a valid one for this utility.
+  * In addition to checking for blueprint validity (unless \a checkBlueprint is false), 
+  * this method checks against its own requirements.
   */
   bool isValid(bool checkBlueprint = false, bool printFailureCause = false) const
   {
@@ -314,8 +310,7 @@ public:
     {
       conduit::Node info;
   #ifdef AXOM_USE_MPI
-      valA =
-        conduit::blueprint::mpi::verify("mesh", *m_cdom, info, MPI_COMM_WORLD);
+      valA = conduit::blueprint::mpi::verify("mesh", *m_cdom, info, MPI_COMM_WORLD);
   #else
       valA = conduit::blueprint::verify("mesh", *m_cdom, info);
   #endif
@@ -344,14 +339,14 @@ public:
 
     return valA && valB && valC && valD;
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!@name Blueprint data organization
   /*!
-    @brief Get the named topology.
-
-    @return the Conduit node at "topologies/<topologyName>".
+   * @brief Get the named topology.
+   * 
+   * @return the Conduit node at "topologies/<topologyName>".
   */
   const conduit::Node& getTopology() { return *m_topology; }
   const conduit::Node& getTopology() const { return *m_ctopology; }
@@ -362,10 +357,10 @@ public:
 
   //! @brief Get the spatial dimension of the named topology.
   conduit::index_t getTopologyDim() const { return DIM; }
-  //@}
+  ///@}
 
-  //@{
-  //!@name General sizes and shapes of domain
+  ///@{
+  //! @name General sizes and shapes of domain
 
   //! @brief Get the number of cells in each direction of the domain.
   MdIndices getCellShape() const { return m_cellShape; }
@@ -374,16 +369,10 @@ public:
   MdIndices getNodeShape() const { return m_nodeShape; }
 
   //! @brief Return number of (real) cells.
-  axom::IndexType getCellCount() const
-  {
-    return axom::quest::internal::product(m_cellShape);
-  }
+  axom::IndexType getCellCount() const { return axom::quest::internal::product(m_cellShape); }
 
   //! @brief Return number of (real) nodes.
-  axom::IndexType getNodeCount() const
-  {
-    return axom::quest::internal::product(m_nodeShape);
-  }
+  axom::IndexType getNodeCount() const { return axom::quest::internal::product(m_nodeShape); }
 
   //! @brief Return the real (ghost-free) shape of mesh data.
   const MdIndices& getRealShape(const std::string& association)
@@ -404,21 +393,15 @@ public:
 
     return m_cellShape;
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //! @name Coordinates and field data sizes and shapes.
 
-  /*!
-    @brief Return the array strides for ghost-free nodal
-    coordinates.
-  */
+  /// @brief Return the array strides for ghost-free nodal coordinates.
   MdIndices getCoordsStrides() const { return m_coordsStrides; }
 
-  /*!
-    @brief Return the array index offsets for ghost-free nodal
-    coordinates.
-  */
+  /// @brief Return the array index offsets for ghost-free nodal coordinates.
   MdIndices getCoordsOffsets() const { return m_coordsOffsets; }
 
   //! @brief Return number of points, excluding ghosts.
@@ -431,12 +414,12 @@ public:
     axom::IndexType rval = valuesNode[0].dtype().number_of_elements();
     return rval;
   }
-  //@}
+  ///@}
 
-  //@{
-  //!@name Coords and data views
+  ///@{
+  //! @name Coords and data views
 
-  //!@brief Return the views of the DIM coordinates component data.
+  //! @brief Return the views of the DIM coordinates component data.
   CoordsViewsType getCoordsViews(bool withGhosts = false)
   {
     conduit::Node& valuesNode = getCoordSet().fetch_existing("values");
@@ -444,18 +427,14 @@ public:
     for(int d = 0; d < DIM; ++d)
     {
       auto* dataPtr = valuesNode[d].as_double_ptr();
-      rval[d] = axom::ArrayView<double, DIM, MemSpace>(dataPtr,
-                                                       m_coordsPaddedShape,
-                                                       m_coordsStrides);
+      rval[d] = axom::ArrayView<double, DIM, MemSpace>(dataPtr, m_coordsPaddedShape, m_coordsStrides);
     }
 
     if(withGhosts == false)
     {
       // Compute a view without ghosts.
       MdIndices offsets =
-        conduitIndicesToStackArray(m_ctopology->fetch_existing("elements/dims"),
-                                   "offsets",
-                                   0);
+        conduitIndicesToStackArray(m_ctopology->fetch_existing("elements/dims"), "offsets", 0);
       MdIndices counts = m_nodeShape;
       for(int d = 0; d < DIM; ++d)
       {
@@ -467,7 +446,7 @@ public:
     return rval;
   }
 
-  //!@brief Return the views of the DIM coordinates component data.
+  //! @brief Return the views of the DIM coordinates component data.
   ConstCoordsViewsType getConstCoordsViews(bool withGhosts = false) const
   {
     const conduit::Node& valuesNode = getCoordSet().fetch_existing("values");
@@ -475,17 +454,14 @@ public:
     for(int d = 0; d < DIM; ++d)
     {
       auto* dataPtr = valuesNode[d].as_double_ptr();
-      rval[d] = axom::ArrayView<const double, DIM, MemSpace>(dataPtr,
-                                                             m_coordsPaddedShape,
-                                                             m_coordsStrides);
+      rval[d] =
+        axom::ArrayView<const double, DIM, MemSpace>(dataPtr, m_coordsPaddedShape, m_coordsStrides);
     }
 
     if(withGhosts == false)
     {
       MdIndices offsets =
-        conduitIndicesToStackArray(m_ctopology->fetch_existing("elements/dims"),
-                                   "offsets",
-                                   0);
+        conduitIndicesToStackArray(m_ctopology->fetch_existing("elements/dims"), "offsets", 0);
       MdIndices counts = m_cellShape;
       for(int d = 0; d < DIM; ++d)
       {
@@ -502,18 +478,16 @@ public:
   }
 
   /*!
-    @brief Return view to a scalar field variable.
-
-    WARNING: The view returned claims an allocator id determined by
-    \a MemSpace, regardless of the memory type.
-
-    WARNING: Assuming, without checking, that the field contains
-    data of type \a T.  User is responsible for using the correct
-    type.
-  */
+   * @brief Return view to a scalar field variable.
+   *
+   * @warning view returned has an allocator id determined by
+   * \a MemSpace, regardless of the memory type.
+   *
+   * @warning Assuming, without checking, that the field contains
+   * data of type \a T.  User is responsible for using the correct type.
+   */
   template <typename T>
-  axom::ArrayView<T, DIM, MemSpace> getFieldView(const std::string& fieldName,
-                                                 bool withGhosts = false)
+  axom::ArrayView<T, DIM, MemSpace> getFieldView(const std::string& fieldName, bool withGhosts = false)
   {
     if(!m_dom)
     {
@@ -522,14 +496,12 @@ public:
         "conduit::Node.  Use getConstFieldView.");
     }
     conduit::Node& fieldNode = m_dom->fetch_existing("fields/" + fieldName);
-    const std::string association =
-      fieldNode.fetch_existing("association").as_string();
+    const std::string association = fieldNode.fetch_existing("association").as_string();
     conduit::Node& valuesNode = fieldNode.fetch_existing("values");
     const axom::IndexType valuesCount = valuesNode.dtype().number_of_elements();
 
-    SLIC_ASSERT_MSG(
-      association == "vertex" || association == "element",
-      "MeshViewUtil only supports vertex and element-based fields right now.");
+    SLIC_ASSERT_MSG(association == "vertex" || association == "element",
+                    "MeshViewUtil only supports vertex and element-based fields right now.");
     const bool onVertex = association == "vertex";
 
     const auto& realShape = onVertex ? m_nodeShape : m_cellShape;
@@ -570,30 +542,25 @@ public:
   }
 
   /*!
-    @brief Return view to a scalar field variable.
-
-    WARNING: The view returned has an allocator id determined by
-    \a MemSpace, regardless of the memory type.
-
-    WARNING: Assuming, without checking, that the field contains
-    data of type \a T.  User is responsible for using the correct
-    type.
-  */
+   * @brief Return view to a scalar field variable.
+   * 
+   * @warning The view returned has an allocator id determined by
+   * \a MemSpace, regardless of the memory type.
+   * 
+   * @warning Assuming, without checking, that the field contains
+   * data of type \a T.  User is responsible for using the correct type.
+   */
   template <typename T>
-  axom::ArrayView<const T, DIM, MemSpace> getConstFieldView(
-    const std::string& fieldName,
-    bool withGhosts = false)
+  axom::ArrayView<const T, DIM, MemSpace> getConstFieldView(const std::string& fieldName,
+                                                            bool withGhosts = false)
   {
-    const conduit::Node& fieldNode =
-      m_cdom->fetch_existing("fields/" + fieldName);
-    const std::string association =
-      fieldNode.fetch_existing("association").as_string();
+    const conduit::Node& fieldNode = m_cdom->fetch_existing("fields/" + fieldName);
+    const std::string association = fieldNode.fetch_existing("association").as_string();
     const conduit::Node& valuesNode = fieldNode.fetch_existing("values");
     const axom::IndexType valuesCount = valuesNode.dtype().number_of_elements();
 
-    SLIC_ASSERT_MSG(
-      association == "vertex" || association == "element",
-      "MeshViewUtil only supports vertex and element-based fields right now.");
+    SLIC_ASSERT_MSG(association == "vertex" || association == "element",
+                    "MeshViewUtil only supports vertex and element-based fields right now.");
     const bool onVertex = association == "vertex";
 
     const auto& realShape = onVertex ? m_nodeShape : m_cellShape;
@@ -609,14 +576,7 @@ public:
       }
     }
 
-    MdIndices offsets = conduitIndicesToStackArray(fieldNode, "offsets");
-    if(!fieldNode.has_child("offsets"))
-    {
-      for(int d = 0; d < DIM; ++d)
-      {
-        offsets[d] = 0;
-      }
-    }
+    MdIndices offsets = conduitIndicesToStackArray(fieldNode, "offsets", 0);
 
     MdIndices loPads, hiPads, paddedShape, strideOrder;
     axom::quest::internal::stridesAndOffsetsToShapes(realShape,
@@ -633,60 +593,55 @@ public:
 
     if(withGhosts == false)
     {
-      MdIndices offsets = conduitIndicesToStackArray(fieldNode, "offsets", 0);
       auto rval1 = rval;
       rval = rval1.subspan(offsets, realShape);
     }
 
     return rval;
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!@name Creating data
 
   /*!
-    @brief Create a new scalar nodal data field with specified
-    strides and offsets.
-
-    @param [in] fieldName
-    @param [in] association "vertex" or "element"
-    @param [in] dtype Conduit data type to put in the field.  If this is not
-                big enough for the strides and offsets specified, a minimally
-                sufficient size will be used to avoid negative ghost padding.
-    @param [in] strides Data strides.  Set to zero for no ghosts and default strides.
-    @param [in] offsets Data index offsets.  Set to zero for no ghosts.
-
-    Field data allocation is done by Conduit, so the data lives in
-    host memory.  Conduit currently doesn't provide a means to allocate
-    the array in device memory.
-
-    Creating a field with given strides and offsets may only be useful
-    for matching the strides and offsets of existing data.  It's more
-    natural to create the field based on ghost layer thickness and
-    index advancement order (row-major, column-major or some other).
-    Use createFieldPadded() for this.
-  */
+   * @brief Create a new scalar nodal data field with specified
+   * strides and offsets.
+   *
+   * @param [in] fieldName
+   * @param [in] association "vertex" or "element"
+   * @param [in] dtype Conduit data type to put in the field.  If this is not
+   *             big enough for the strides and offsets specified, a minimally
+   *             sufficient size will be used to avoid negative ghost padding.
+   * @param [in] strides Data strides.  Set to zero for no ghosts and default strides.
+   * @param [in] offsets Data index offsets.  Set to zero for no ghosts.
+   *
+   * Field data allocation is done by Conduit, so the data lives in
+   * host memory.  Conduit currently doesn't provide a means to allocate
+   * the array in device memory.
+   *
+   * Creating a field with given strides and offsets may only be useful
+   * for matching the strides and offsets of existing data.  It's more
+   * natural to create the field based on ghost layer thickness and
+   * index advancement order (row-major, column-major or some other).
+   * Use createFieldPadded() for this.
+   */
   void createField(const std::string& fieldName,
                    const std::string& association,
                    const conduit::DataType& dtype,
                    const MdIndices& strides,
                    const MdIndices& offsets)
   {
-    SLIC_ERROR_IF(
-      m_dom == nullptr,
-      axom::fmt::format(
-        "Cannot create field {}."
-        "  MeshViewUtil was not constructed with a non-const domain.",
-        fieldName));
-    SLIC_ERROR_IF(
-      m_dom->has_path("fields/" + fieldName),
-      axom::fmt::format("Cannot create field {}.  It already exists.", fieldName));
+    SLIC_ERROR_IF(m_dom == nullptr,
+                  axom::fmt::format("Cannot create field {}."
+                                    "  MeshViewUtil was not constructed with a non-const domain.",
+                                    fieldName));
+    SLIC_ERROR_IF(m_dom->has_path("fields/" + fieldName),
+                  axom::fmt::format("Cannot create field {}.  It already exists.", fieldName));
 
     SLIC_ERROR_IF(
       association != "vertex" && association != "element",
-      axom::fmt::format("MeshViewUtil doesn't support association '{}' yet.",
-                        association));
+      axom::fmt::format("MeshViewUtil doesn't support association '{}' yet.", association));
 
     const auto& realShape = getRealShape(association);
     MdIndices loPads, hiPads, paddedShape, strideOrder;
@@ -701,9 +656,7 @@ public:
     for(int d = 0; d < DIM; ++d)
     {
       SLIC_ERROR_IF(offsets[d] < 0 || offsets[d] > paddedShape[d] - 1,
-                    axom::fmt::format("Bad offsets {} for paddedShape {}",
-                                      offsets,
-                                      paddedShape));
+                    axom::fmt::format("Bad offsets {} for paddedShape {}", offsets, paddedShape));
     }
 
     conduit::Node& fieldNode = m_dom->fetch("fields/" + fieldName);
@@ -719,8 +672,8 @@ public:
     fieldNode["offsets"].set(conduitDtype, &tmpOffsets[0]);
 
     axom::IndexType slowDir = strideOrder[DIM - 1];
-    auto extras = dtype.number_of_elements() -
-      strides[slowDir] * (offsets[slowDir] + realShape[slowDir]);
+    auto extras =
+      dtype.number_of_elements() - strides[slowDir] * (offsets[slowDir] + realShape[slowDir]);
     if(extras < 0)
     {
       SLIC_ERROR(
@@ -732,23 +685,21 @@ public:
   }
 
   /*!
-    @brief Create a new scalar nodal data field with specified
-    ghost paddings.
-
-    @param [in] fieldName
-    @param [in] association "vertex" or "element"
-    @param [in] dtype Conduit data type to put in the field.
-      If dtype has too few elements, the minimum sufficient
-      size will be allocated.
-    @param loPads [i] Ghost padding amount on low side.
-    @param hiPads [i] Ghost padding amount ont high side.
-    @param strideOrder [i] Fastest-to-slowest advancing
-      index directions.
-
-    Field data allocation is done by Conduit, so the data lives in
-    host memory.  Conduit currently doesn't provide a means to allocate
-    the array in device memory.
-  */
+   * @brief Create a new scalar nodal data field with specified ghost paddings.
+   * 
+   * @param [in] fieldName
+   * @param [in] association "vertex" or "element"
+   * @param [in] dtype Conduit data type to put in the field.
+   *   If dtype has too few elements, the minimum sufficient
+   *   size will be allocated.
+   * @param loPads [i] Ghost padding amount on low side.
+   * @param hiPads [i] Ghost padding amount ont high side.
+   * @param strideOrder [i] Fastest-to-slowest advancing index directions.
+   * 
+   * Field data allocation is done by Conduit, so the data lives in
+   * host memory.  Conduit currently doesn't provide a means to allocate
+   * the array in device memory.
+   */
   void createField(const std::string& fieldName,
                    const std::string& association,
                    const conduit::DataType& dtype,
@@ -756,19 +707,15 @@ public:
                    const MdIndices& hiPads,
                    const MdIndices& strideOrder)
   {
-    SLIC_ERROR_IF(
-      m_dom == nullptr,
-      axom::fmt::format(
-        "Cannot create field {}."
-        "  MeshViewUtil was not constructed with a non-const domain.",
-        fieldName));
-    SLIC_ERROR_IF(
-      m_dom->has_path("fields/" + fieldName),
-      axom::fmt::format("Cannot create field {}.  It already exists.", fieldName));
+    SLIC_ERROR_IF(m_dom == nullptr,
+                  axom::fmt::format("Cannot create field {}."
+                                    "  MeshViewUtil was not constructed with a non-const domain.",
+                                    fieldName));
+    SLIC_ERROR_IF(m_dom->has_path("fields/" + fieldName),
+                  axom::fmt::format("Cannot create field {}.  It already exists.", fieldName));
 
-    SLIC_ERROR_IF(
-      association != "vertex" && association != "element",
-      axom::fmt::format("Not yet supporting association '{}'.", association));
+    SLIC_ERROR_IF(association != "vertex" && association != "element",
+                  axom::fmt::format("Not yet supporting association '{}'.", association));
 
     axom::StackArray<axom::IndexType, DIM> offsets;
     axom::StackArray<axom::IndexType, DIM> strides;
@@ -802,7 +749,7 @@ public:
     }
     fieldNode["values"].set(bumpedDtype);
   }
-  //@}
+  ///@}
 
 private:
   conduit::Node* m_dom = nullptr;
@@ -823,7 +770,7 @@ private:
   MdIndices conduitIndicesToStackArray(
     const conduit::Node& node,
     const std::string& path,
-    axom::IndexType defaultVal = std::numeric_limits<axom::IndexType>::max()) const
+    axom::IndexType defaultVal = axom::numeric_limits<axom::IndexType>::max()) const
   {
     if(node.has_path(path))
     {
@@ -848,19 +795,15 @@ private:
 
   void computeCoordsDataLayout()
   {
-    const conduit::Node& topologyDims =
-      m_ctopology->fetch_existing("elements/dims");
+    const conduit::Node& topologyDims = m_ctopology->fetch_existing("elements/dims");
 
-    const std::string coordsetName =
-      m_ctopology->fetch_existing("coordset").as_string();
-    const conduit::Node& coordsValues = m_cdom->fetch_existing(
-      axom::fmt::format("coordsets/{}/values", coordsetName));
+    const std::string coordsetName = m_ctopology->fetch_existing("coordset").as_string();
+    const conduit::Node& coordsValues =
+      m_cdom->fetch_existing(axom::fmt::format("coordsets/{}/values", coordsetName));
 
-    const axom::IndexType coordValuesCount =
-      coordsValues[0].dtype().number_of_elements();
+    const axom::IndexType coordValuesCount = coordsValues[0].dtype().number_of_elements();
 
-    const bool coordsAreInterleaved =
-      conduit::blueprint::mcarray::is_interleaved(coordsValues);
+    const bool coordsAreInterleaved = conduit::blueprint::mcarray::is_interleaved(coordsValues);
 
     for(int i = 0; i < DIM; ++i)
     {

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -14,6 +15,7 @@
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
+#include "axom/core/NumericLimits.hpp"
 #include "axom/mint.hpp"
 #include "axom/primal.hpp"
 #include "axom/spin.hpp"
@@ -72,34 +74,31 @@ struct ExecTraits
   static int getAllocatorId()
   {
 #ifdef AXOM_USE_UMPIRE
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Host);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
 #else
     return axom::getDefaultAllocatorID();
 #endif
   }
 };
 
-#ifdef AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 template <int BLK_SZ>
 struct ExecTraits<axom::CUDA_EXEC<BLK_SZ>>
 {
   static int getAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
   }
 };
 #endif
 
-#ifdef AXOM_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 template <int BLK_SZ>
 struct ExecTraits<axom::HIP_EXEC<BLK_SZ>>
 {
   static int getAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
   }
 };
 #endif
@@ -125,10 +124,7 @@ public:
   using GridCell = axom::primal::Point<IndexType, DIM>;
 
 public:
-  PointInCellTest()
-    : m_mesh(nullptr)
-    , m_allocatorID(ExecTraits<ExecSpace>::getAllocatorId())
-  { }
+  PointInCellTest() : m_mesh(nullptr), m_allocatorID(ExecTraits<ExecSpace>::getAllocatorId()) { }
 
   virtual ~PointInCellTest()
   {
@@ -148,7 +144,7 @@ public:
     double refFac = static_cast<double>(refinementFactor);
     double refLev = static_cast<double>(refinementLevel);
 
-    return static_cast<int>(std::pow(refFac, refLev));
+    return refinementLevel > 0 ? static_cast<int>(std::pow(refFac, refLev)) : 1;
   }
 
   /*! Dump mesh to disk in mfem and/or vtk format */
@@ -156,8 +152,7 @@ public:
                   bool outputMeshMFEM = OUTPUT_MESH_MFEM,
                   bool outputMeshVTK = OUTPUT_MESH_VTK)
   {
-    std::string filename =
-      axom::fmt::format("quest_point_in_cell_{}_quad", meshTypeStr);
+    std::string filename = axom::fmt::format("quest_point_in_cell_{}_quad", meshTypeStr);
 
     if(outputMeshMFEM)
     {
@@ -195,7 +190,7 @@ public:
 
     // compute minimal local mesh size
     mfem::Vector h0(fespace->GetNDofs());
-    h0 = std::numeric_limits<double>::infinity();
+    h0 = axom::numeric_limits<double>::infinity();
     {
       mfem::Array<int> dofs;
       for(int i = 0; i < fespace->GetNE(); i++)
@@ -306,19 +301,19 @@ public:
 
   /*! Tests PointInCell class using a set of random query points */
   template <typename ExpectedValueFunctor>
-  void testRandomPointsOnMesh(ExpectedValueFunctor exp,
-                              const std::string& meshTypeStr)
+  void testRandomPointsOnMesh(ExpectedValueFunctor exp, const std::string& meshTypeStr)
   {
     // Generate a PointInCell structure over the mesh
     axom::utilities::Timer constructTimer(true);
     // _quest_pic_init_start
     PointInCellType spatialIndex(m_mesh, GridCell(25).data(), m_EPS, m_allocatorID);
     // _quest_pic_init_end
-    SLIC_INFO(axom::fmt::format(
-      "Constructing index over {} quad mesh with {} elems took {} s",
-      meshTypeStr,
-      m_mesh->GetNE(),
-      constructTimer.elapsed()));
+    SLIC_INFO(
+      axom::fmt::format(axom::utilities::locale(),
+                        "Constructing index over {} quad mesh with {:L} elems took {:.3Lf} s",
+                        meshTypeStr,
+                        m_mesh->GetNE(),
+                        constructTimer.elapsed()));
 
     // Generate a set of points and query the mesh
     using PtVec = axom::Array<SpacePt>;
@@ -380,21 +375,21 @@ public:
     }
 
     // Output some diagnostics
-    SLIC_INFO(
-      axom::fmt::format("Querying {} pts on {} quad mesh took {} s "
-                        " -- rate: {} q/s (includes {} inverse xforms)",
-                        pts.size(),
-                        meshTypeStr,
-                        queryTimer.elapsed(),
-                        pts.size() / queryTimer.elapsed(),
-                        numInverseXforms));
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "Querying {:L} pts on {} quad mesh took {:.3Lf} s "
+                                " -- rate: {:.3Lf} q/s (includes {:L} inverse xforms)",
+                                pts.size(),
+                                meshTypeStr,
+                                queryTimer.elapsed(),
+                                pts.size() / queryTimer.elapsed(),
+                                numInverseXforms));
 
-    SLIC_INFO(axom::fmt::format(
-      "On {} mesh, verified plausibility in {} of {} cases ({:.1f}%)",
-      meshTypeStr,
-      numCheckedPoints,
-      pts.size(),
-      100 * static_cast<double>(numCheckedPoints) / pts.size()));
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "On {} mesh, verified plausibility in {:L} of {:L} cases ({:.1f}%)",
+                                meshTypeStr,
+                                numCheckedPoints,
+                                pts.size(),
+                                100 * static_cast<double>(numCheckedPoints) / pts.size()));
   }
 
   /*! Tests PointInCell class using isoparametric points within each cell */
@@ -403,24 +398,24 @@ public:
     int devAllocID = axom::execution_space<ExecSpace>::allocatorID();
     int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
-    std::string filename =
-      axom::fmt::format("quest_point_in_cell_{}_quad", meshTypeStr);
+    std::string filename = axom::fmt::format("quest_point_in_cell_{}_quad", meshTypeStr);
 
     // Add mesh to the grid
     axom::utilities::Timer constructTimer(true);
     PointInCellType spatialIndex(m_mesh, GridCell(25).data(), m_EPS, m_allocatorID);
-    SLIC_INFO(axom::fmt::format(
-      "Constructing index over {} quad mesh with {} elems took {} s",
-      meshTypeStr,
-      m_mesh->GetNE(),
-      constructTimer.elapsed()));
+    SLIC_INFO(
+      axom::fmt::format(axom::utilities::locale(),
+                        "Constructing index over {} quad mesh with {:L} elems took {:.3Lf} s",
+                        meshTypeStr,
+                        m_mesh->GetNE(),
+                        constructTimer.elapsed()));
 
     // Test that a fixed set of isoparametric coords on each cell
     // maps to the correct place.
     axom::Array<SpacePt> isoPts = generateIsoParTestPoints(::TEST_GRID_RES);
 
     const auto SZ = isoPts.size();
-#ifdef AXOM_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     axom::Array<SpacePt> spacePts(SZ, SZ, m_allocatorID);
     axom::Array<SpacePt> foundIso(SZ, SZ, m_allocatorID);
     axom::Array<IndexType> foundIDs(SZ, SZ, m_allocatorID);
@@ -440,9 +435,19 @@ public:
       // Reconstruct points in space from isoparametric coords on an element
       for(int idx = 0; idx < SZ; ++idx)
       {
-        spatialIndex.reconstructPoint(eltId,
-                                      isoPts[idx].data(),
-                                      spacePts[idx].data());
+        spatialIndex.reconstructPoint(eltId, isoPts[idx].data(), spacePts[idx].data());
+
+        // Check that the reconstructed point is in the bbox of its source element
+        EXPECT_TRUE(this->m_boundingBoxes[eltId].contains(spacePts[idx]));
+        EXPECT_TRUE(this->m_meshBoundingBox.contains(spacePts[idx]));
+
+        // Check that the source element is a candidate for this point in the spatial index
+        // Only currently checks on host since the API uses std::vector
+        if(!axom::execution_space<ExecSpace>::onDevice())
+        {
+          const auto arr = spatialIndex.getCandidatesForPt(spacePts[idx]);
+          EXPECT_TRUE(std::find(arr.begin(), arr.end(), eltId) != std::end(arr));
+        }
       }
 
       // locate the reconstructed points (using EXEC space)
@@ -453,9 +458,7 @@ public:
         axom::Array<SpacePt> spacePtsDevice(spacePts, devAllocID);
 
         // run device query
-        spatialIndex.locatePoints(spacePtsDevice.view(),
-                                  foundIDsDevice.data(),
-                                  foundIsoDevice.data());
+        spatialIndex.locatePoints(spacePtsDevice.view(), foundIDsDevice.data(), foundIsoDevice.data());
 
         // copy results back to host
         foundIso = axom::Array<SpacePt>(foundIsoDevice, hostAllocID);
@@ -463,9 +466,7 @@ public:
       }
       else
       {
-        spatialIndex.locatePoints(spacePts.view(),
-                                  foundIDs.data(),
-                                  foundIso.data());
+        spatialIndex.locatePoints(spacePts.view(), foundIDs.data(), foundIso.data());
       }
 
       // check results
@@ -490,9 +491,13 @@ public:
 
         // Check that we found a cell
         EXPECT_NE(MeshTraits::NO_CELL, foundCellId)
-          << "element: " << eltId << " -- isopar: " << isoparCenter
-          << " -- foundIsopar: " << foundIsoPar << " -- spacePt: " << spacePt
-          << " -- isBdry: " << (isBdry ? "yes" : "no");
+          << "element: " << eltId << "\n -- isopar: " << isoparCenter
+          << "\n -- foundIsopar: " << foundIsoPar << "\n -- spacePt: " << spacePt
+          << "\n -- isBdry: " << (isBdry ? "yes" : "no")
+          << "\n -- bbox of element: " << this->m_boundingBoxes[eltId]
+          << axom::fmt::format(
+               " ({} point)",
+               this->m_boundingBoxes[eltId].contains(spacePt) ? "contains" : "does not contain");
 
         if(!isBdry)
         {
@@ -511,9 +516,8 @@ public:
           for(int d = 0; d < DIM; ++d)
           {
             EXPECT_NEAR(isoparCenter[d], foundIsoPar[d], m_EPS)
-              << "For element " << eltId << " coord " << d
-              << "\tisoparCenter is" << isoparCenter << "\tfoundIsoPar is "
-              << foundIsoPar << "\tpoint in space " << spacePt;
+              << "For element " << eltId << " coord " << d << "\tisoparCenter is" << isoparCenter
+              << "\tfoundIsoPar is " << foundIsoPar << "\tpoint in space " << spacePt;
           }
         }
 
@@ -521,9 +525,7 @@ public:
         if(foundCellId != MeshTraits::NO_CELL)
         {
           SpacePt transformedPt;
-          spatialIndex.reconstructPoint(foundCellId,
-                                        foundIsoPar.data(),
-                                        transformedPt.data());
+          spatialIndex.reconstructPoint(foundCellId, foundIsoPar.data(), transformedPt.data());
 
           for(int d = 0; d < DIM; ++d)
           {
@@ -533,12 +535,13 @@ public:
       }
     }
 
-    SLIC_INFO(axom::fmt::format(
-      "Verifying {} pts on {} quad mesh took {} s -- rate: {} q/s",
-      SZ * m_mesh->GetNE(),
-      meshTypeStr,
-      queryTimer2.elapsed(),
-      SZ * m_mesh->GetNE() / queryTimer2.elapsed()));
+    SLIC_INFO(
+      axom::fmt::format(axom::utilities::locale(),
+                        "Verifying {:L} pts on {} quad mesh took {:.3Lf} s -- rate: {:.3Lf} q/s",
+                        SZ * m_mesh->GetNE(),
+                        meshTypeStr,
+                        queryTimer2.elapsed(),
+                        SZ * m_mesh->GetNE() / queryTimer2.elapsed()));
   }
 
   mfem::Mesh* getMesh() { return m_mesh; }
@@ -555,6 +558,9 @@ protected:
   mfem::Mesh* m_mesh;
   double m_EPS {::EPS};
   int m_allocatorID;
+
+  BBox m_meshBoundingBox;
+  axom::Array<BBox> m_boundingBoxes;
 };
 
 /*!
@@ -566,6 +572,8 @@ class PointInCell2DTest : public PointInCellTest<2, ExecSpace>
 public:
   static constexpr int DIM = 2;
   static constexpr int ELT_MULT_FAC = 4;
+
+  using typename PointInCellTest<2, ExecSpace>::mesh_tag;
 
 protected:
   virtual void SetUp()
@@ -656,10 +664,7 @@ public:
    * \param vertVal Parameter value for the mesh, default: 0.5
    * \param jitterFactor Factor by which to jitter the nodes, default: 0
    */
-  void setupTestMesh(MeshType meshType,
-                     int numRefine = 0,
-                     double vertVal = 0.5,
-                     double jitterFactor = 0.)
+  void setupTestMesh(MeshType meshType, int numRefine = 0, double vertVal = 0.5, double jitterFactor = 0.)
   {
     // Compose mesh input string
     std::stringstream sstr;
@@ -674,13 +679,13 @@ public:
     case FLAT_MESH:
       feCollName = "Linear";
       meshDescSstr << "flat";
-      sstr << axom::fmt::format(m_lowOrderVertsStr, vertVal);
+      sstr << axom::fmt::format(axom::fmt::runtime(m_lowOrderVertsStr), vertVal);
       break;
     case QUADRATIC_MESH:
       feCollName = "Quadratic";
       meshDescSstr << "curved";
 
-      sstr << axom::fmt::format(m_highOrderNodesStr,
+      sstr << axom::fmt::format(axom::fmt::runtime(m_highOrderNodesStr),
                                 vertVal,
                                 vertVal * std::sqrt(2.) / 2.,
                                 feCollName);
@@ -689,7 +694,7 @@ public:
       feCollName = "QuadraticPos";
       meshDescSstr << "curved_pos";
 
-      sstr << axom::fmt::format(m_highOrderNodesStr,
+      sstr << axom::fmt::format(axom::fmt::runtime(m_highOrderNodesStr),
                                 vertVal,
                                 vertVal * (std::sqrt(2.) - 0.5),
                                 feCollName);
@@ -698,7 +703,7 @@ public:
       feCollName = "Quadratic";
       meshDescSstr << "c_shaped";
 
-      sstr << axom::fmt::format(m_CShapedNodesStr, feCollName);
+      sstr << axom::fmt::format(axom::fmt::runtime(m_CShapedNodesStr), feCollName);
       break;
     default:
       FAIL() << "Did not provide a valid MeshType.";
@@ -723,12 +728,8 @@ public:
       this->m_meshDescriptorStr = meshDescSstr.str();
 
       SLIC_INFO(axom::fmt::format("Generating {} mfem quad mesh", feCollName)
-                << (jitterFactor > 0
-                      ? axom::fmt::format(" with jitter factor {}", jitterFactor)
-                      : "")
-                << (numRefine > 0
-                      ? axom::fmt::format(" refined to level {}.", numRefine)
-                      : "")
+                << (jitterFactor > 0 ? axom::fmt::format(" with jitter factor {}", jitterFactor) : "")
+                << (numRefine > 0 ? axom::fmt::format(" refined to level {}.", numRefine) : "")
                 << "\nDescriptor string: " << this->m_meshDescriptorStr);
     }
 
@@ -765,6 +766,13 @@ public:
 
     // Dump mesh to disk
     this->outputMesh(this->m_meshDescriptorStr);
+
+    // compute bounding boxes
+    this->m_boundingBoxes.resize(mesh->GetNE());
+    axom::quest::detail::PointInCellMeshWrapper<mesh_tag> meshWrapper(mesh);
+    meshWrapper.template computeBoundingBoxes<DIM>(1. + 1e-8,
+                                                   this->m_boundingBoxes.data(),
+                                                   this->m_meshBoundingBox);
   }
 
 private:
@@ -783,6 +791,8 @@ class PointInCell3DTest : public PointInCellTest<3, ExecSpace>
 public:
   static constexpr int DIM = 3;
   static constexpr int ELT_MULT_FAC = 8;
+
+  using typename PointInCellTest<3, ExecSpace>::mesh_tag;
 
 protected:
   virtual void SetUp()
@@ -880,10 +890,7 @@ public:
    * \param vertVal Parameter value for the mesh, default: 0.5
    * \param jitterFactor Factor by which to jitter the nodes, default: 0
    */
-  void setupTestMesh(MeshType meshType,
-                     int numRefine = 0,
-                     double vertVal = 0.5,
-                     double jitterFactor = 0.)
+  void setupTestMesh(MeshType meshType, int numRefine = 0, double vertVal = 0.5, double jitterFactor = 0.)
   {
     // Compose mesh input string
     std::stringstream sstr;
@@ -898,13 +905,13 @@ public:
     case FLAT_MESH:
       feCollName = "Linear";
       meshDescSstr << "flat";
-      sstr << axom::fmt::format(m_lowOrderVertsStr, vertVal);
+      sstr << axom::fmt::format(axom::fmt::runtime(m_lowOrderVertsStr), vertVal);
       break;
     case QUADRATIC_MESH:
       feCollName = "H1_3D_P2";  //"Quadratic";
       meshDescSstr << "curved";
 
-      sstr << axom::fmt::format(m_highOrderNodesStr,
+      sstr << axom::fmt::format(axom::fmt::runtime(m_highOrderNodesStr),
                                 vertVal,
                                 vertVal * std::sqrt(1.5),
                                 vertVal * std::sqrt(3.),
@@ -939,12 +946,8 @@ public:
       this->m_meshDescriptorStr = meshDescSstr.str();
 
       SLIC_INFO(axom::fmt::format("Generating {} mfem quad mesh", feCollName)
-                << (jitterFactor > 0
-                      ? axom::fmt::format(" with jitter factor {}", jitterFactor)
-                      : "")
-                << (numRefine > 0
-                      ? axom::fmt::format(" refined to level {}.", numRefine)
-                      : "")
+                << (jitterFactor > 0 ? axom::fmt::format(" with jitter factor {}", jitterFactor) : "")
+                << (numRefine > 0 ? axom::fmt::format(" refined to level {}.", numRefine) : "")
                 << "\nDescriptor string: " << this->m_meshDescriptorStr);
     }
 
@@ -981,6 +984,13 @@ public:
 
     // Dump mesh to disk
     this->outputMesh(this->m_meshDescriptorStr);
+
+    // compute bounding boxes
+    this->m_boundingBoxes.resize(mesh->GetNE());
+    axom::quest::detail::PointInCellMeshWrapper<mesh_tag> meshWrapper(mesh);
+    meshWrapper.template computeBoundingBoxes<DIM>(1 + 1e-8,
+                                                   this->m_boundingBoxes.data(),
+                                                   this->m_meshBoundingBox);
   }
 
 private:
@@ -1052,7 +1062,7 @@ private:
       break;
 
     case L_INF_METRIC:
-      ret = axom::primal::abs(pt.array()).max();
+      ret = axom::abs(pt.array()).max();
       break;
     }
 
@@ -1064,13 +1074,13 @@ private:
 };
 
 using ExecTypes = ::testing::Types<
-#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   axom::OMP_EXEC,
 #endif
-#ifdef AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   axom::CUDA_EXEC<256>,
 #endif
-#ifdef AXOM_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   axom::HIP_EXEC<256>,
 #endif
   axom::SEQ_EXEC>;
@@ -1108,8 +1118,7 @@ TYPED_TEST(PointInCell2DTest, pic_flat_single_quad)
     dataCol.Save();
   }
 
-  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_1_METRIC>(vertVal),
-                               meshTypeStr);
+  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_1_METRIC>(vertVal), meshTypeStr);
   this->testIsoGridPointsOnMesh(meshTypeStr);
 }
 
@@ -1124,8 +1133,7 @@ TYPED_TEST(PointInCell2DTest, pic_flat_refined_quad)
   std::string meshTypeStr = this->getMeshDescriptor();
   SCOPED_TRACE(axom::fmt::format("point_in_cell_{}", meshTypeStr));
 
-  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_1_METRIC>(vertVal),
-                               meshTypeStr);
+  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_1_METRIC>(vertVal), meshTypeStr);
   this->testIsoGridPointsOnMesh(meshTypeStr);
 }
 
@@ -1140,8 +1148,7 @@ TYPED_TEST(PointInCell2DTest, pic_curved_single_quad)
   std::string meshTypeStr = this->getMeshDescriptor();
   SCOPED_TRACE(axom::fmt::format("point_in_cell_{}", meshTypeStr));
 
-  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(vertVal),
-                               meshTypeStr);
+  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(vertVal), meshTypeStr);
   this->testIsoGridPointsOnMesh(meshTypeStr);
 }
 
@@ -1156,8 +1163,7 @@ TYPED_TEST(PointInCell2DTest, pic_curved_refined_quad)
   std::string meshTypeStr = this->getMeshDescriptor();
   SCOPED_TRACE(axom::fmt::format("point_in_cell_{}", meshTypeStr));
 
-  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(vertVal),
-                               meshTypeStr);
+  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(vertVal), meshTypeStr);
   this->testIsoGridPointsOnMesh(meshTypeStr);
 }
 
@@ -1173,8 +1179,7 @@ TYPED_TEST(PointInCell2DTest, pic_curved_single_quad_jittered)
   std::string meshTypeStr = this->getMeshDescriptor();
   SCOPED_TRACE(axom::fmt::format("point_in_cell_{}", meshTypeStr));
 
-  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(vertVal),
-                               meshTypeStr);
+  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(vertVal), meshTypeStr);
   this->testIsoGridPointsOnMesh(meshTypeStr);
 }
 
@@ -1190,8 +1195,7 @@ TYPED_TEST(PointInCell2DTest, pic_curved_refined_quad_jittered)
   std::string meshTypeStr = this->getMeshDescriptor();
   SCOPED_TRACE(axom::fmt::format("point_in_cell_{}", meshTypeStr));
 
-  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(vertVal),
-                               meshTypeStr);
+  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(vertVal), meshTypeStr);
   this->testIsoGridPointsOnMesh(meshTypeStr);
 }
 
@@ -1207,8 +1211,7 @@ TYPED_TEST(PointInCell2DTest, pic_curved_single_quad_jittered_positive)
   std::string meshTypeStr = this->getMeshDescriptor();
   SCOPED_TRACE(axom::fmt::format("point_in_cell_{}", meshTypeStr));
 
-  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(vertVal),
-                               meshTypeStr);
+  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(vertVal), meshTypeStr);
   this->testIsoGridPointsOnMesh(meshTypeStr);
 }
 
@@ -1224,8 +1227,7 @@ TYPED_TEST(PointInCell2DTest, pic_curved_refined_quad_jittered_positive)
   std::string meshTypeStr = this->getMeshDescriptor();
   SCOPED_TRACE(axom::fmt::format("point_in_cell_{}", meshTypeStr));
 
-  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(vertVal),
-                               meshTypeStr);
+  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(vertVal), meshTypeStr);
   this->testIsoGridPointsOnMesh(meshTypeStr);
 }
 
@@ -1278,20 +1280,18 @@ TYPED_TEST(PointInCell2DTest, pic_curved_quad_c_shaped)
                                 GridCell(10).data(),
                                 this->getTolerance(),
                                 this->getAllocatorId());
-  SLIC_INFO(axom::fmt::format(
-    "Constructing index over curved quad mesh1 with {} elems took {} s",
-    mesh1.GetNE(),
-    constructTimer.elapsed()));
+  SLIC_INFO(axom::fmt::format("Constructing index over curved quad mesh1 with {} elems took {} s",
+                              mesh1.GetNE(),
+                              constructTimer.elapsed()));
 
   axom::utilities::Timer constructTimer2(true);
   PointInCellType spatialIndex2(&mesh2,
                                 GridCell(10).data(),
                                 this->getTolerance(),
                                 this->getAllocatorId());
-  SLIC_INFO(axom::fmt::format(
-    "Constructing index over curved quad mesh2 with {} elems took {} s",
-    mesh2.GetNE(),
-    constructTimer2.elapsed()));
+  SLIC_INFO(axom::fmt::format("Constructing index over curved quad mesh2 with {} elems took {} s",
+                              mesh2.GetNE(),
+                              constructTimer2.elapsed()));
 
   // Create random points; for each point check that both queries agree
   SLIC_INFO("Querying random points in domain of C-shaped mesh.");
@@ -1316,8 +1316,7 @@ TYPED_TEST(PointInCell2DTest, pic_curved_quad_c_shaped)
 
     // Results should be the same
     EXPECT_EQ(isInMesh1, isInMesh2)
-      << "Point " << queryPoint << " was " << (isInMesh1 ? "in" : "not in")
-      << " mesh 1"
+      << "Point " << queryPoint << " was " << (isInMesh1 ? "in" : "not in") << " mesh 1"
       << " and was " << (isInMesh2 ? "in" : "not in") << " mesh 2"
       << " They should agree.";
 
@@ -1360,14 +1359,13 @@ TYPED_TEST(PointInCell2DTest, pic_curved_quad_c_shaped)
     }
   }
 
-  SLIC_INFO(
-    axom::fmt::format("Querying {} random pts on two C-shaped quadratic "
-                      "quad meshes took {} s -- rate: {} q/s",
-                      num_pts * 2,
-                      queryTimer.elapsed(),
-                      num_pts * 2 / queryTimer.elapsed())
-    << "\n\t (includes " << numUntransformed
-    << " transformations back into space)");
+  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                              "Querying {:L} random pts on two C-shaped quadratic "
+                              "quad meshes took {:.3Lf} s -- rate: {:.3Lf} q/s",
+                              num_pts * 2,
+                              queryTimer.elapsed(),
+                              num_pts * 2 / queryTimer.elapsed())
+            << "\n\t (includes " << numUntransformed << " transformations back into space)");
 
   /// Test that fixed set of isoparametric coords on each cell map correctly
   axom::Array<SpacePt> pts = this->generateIsoParTestPoints(10);
@@ -1383,15 +1381,13 @@ TYPED_TEST(PointInCell2DTest, pic_curved_quad_c_shaped)
     spatialIndex1.reconstructPoint(eltId, isoparCenter.data(), spacePt.data());
 
     // Check that we can find this point in mesh1
-    int foundCellId1 =
-      spatialIndex1.locatePoint(spacePt.data(), foundIsoPar1.data());
-    EXPECT_NE(MeshTraits::NO_CELL, foundCellId1)
-      << axom::fmt::format(
-           "Pt {} was transformed from mesh1 "
-           "using isoparametric coordinates {}.",
-           spacePt,
-           isoparCenter)
-      << " Failed to reverse the transformation.";
+    int foundCellId1 = spatialIndex1.locatePoint(spacePt.data(), foundIsoPar1.data());
+    EXPECT_NE(MeshTraits::NO_CELL, foundCellId1) << axom::fmt::format(
+                                                      "Pt {} was transformed from mesh1 "
+                                                      "using isoparametric coordinates {}.",
+                                                      spacePt,
+                                                      isoparCenter)
+                                                 << " Failed to reverse the transformation.";
 
     // Check that the isoparametric coordinates agree
     for(int d = 0; d < DIM; ++d)
@@ -1400,8 +1396,7 @@ TYPED_TEST(PointInCell2DTest, pic_curved_quad_c_shaped)
     }
 
     // Check that we can find this point in mesh2
-    int foundCellId2 =
-      spatialIndex2.locatePoint(spacePt.data(), foundIsoPar2.data());
+    int foundCellId2 = spatialIndex2.locatePoint(spacePt.data(), foundIsoPar2.data());
     EXPECT_NE(MeshTraits::NO_CELL, foundCellId2) << axom::fmt::format(
       "Pt {} has isoparametric coordinates {} in mesh1,"
       " should be in mesh2",
@@ -1409,12 +1404,12 @@ TYPED_TEST(PointInCell2DTest, pic_curved_quad_c_shaped)
       isoparCenter);
   }
 
-  SLIC_INFO(
-    axom::fmt::format("Verifying {} pts on curved quad jittered mesh"
-                      " took {} s -- rate: {} q/s",
-                      pts.size() * mesh2.GetNE() * 2,
-                      queryTimer2.elapsed(),
-                      pts.size() * mesh2.GetNE() * 2 / queryTimer2.elapsed()));
+  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                              "Verifying {:L} pts on curved quad jittered mesh"
+                              " took {:.3Lf} s -- rate: {:.3Lf} q/s",
+                              pts.size() * mesh2.GetNE() * 2,
+                              queryTimer2.elapsed(),
+                              pts.size() * mesh2.GetNE() * 2 / queryTimer2.elapsed()));
 }
 
 TYPED_TEST(PointInCell2DTest, pic_curved_quad_c_shaped_output_mesh)
@@ -1424,8 +1419,7 @@ TYPED_TEST(PointInCell2DTest, pic_curved_quad_c_shaped_output_mesh)
   using SpacePt = typename TestFixture::SpacePt;
   constexpr int DIM = TestFixture::DIM;
 
-  SLIC_INFO("Generating diagnostic mesh for"
-            << " C-shaped biquadratic element");
+  SLIC_INFO("Generating diagnostic mesh for" << " C-shaped biquadratic element");
 
   this->setupTestMesh(C_SHAPED_MESH);
 
@@ -1545,15 +1539,13 @@ TEST(quest_point_in_cell, printIsoparams)
     const mfem::IntegrationRule* ir = &(mfem::RefinedIntRules.Get(geom, order));
 
     const int npts = ir->GetNPoints();
-    SLIC_INFO("There are " << npts << " refinement integration points of order "
-                           << order);
+    SLIC_INFO("There are " << npts << " refinement integration points of order " << order);
 
     double x[3];
     for(int i = 0; i < npts; ++i)
     {
       ir->IntPoint(i).Get(x, dim);
-      SLIC_INFO("integration point  " << i << "\t x: " << x[0]
-                                      << "\t y: " << x[1]);
+      SLIC_INFO("integration point  " << i << "\t x: " << x[0] << "\t y: " << x[1]);
     }
   }
 }
@@ -1578,8 +1570,7 @@ TYPED_TEST(PointInCell3DTest, pic_flat_single_hex)
     dataCol.Save();
   }
 
-  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_INF_METRIC>(vertVal),
-                               meshTypeStr);
+  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_INF_METRIC>(vertVal), meshTypeStr);
   this->testIsoGridPointsOnMesh(meshTypeStr);
 }
 
@@ -1594,8 +1585,7 @@ TYPED_TEST(PointInCell3DTest, pic_flat_refined_hex)
   std::string meshTypeStr = this->getMeshDescriptor();
   SCOPED_TRACE(axom::fmt::format("point_in_cell_{}", meshTypeStr));
 
-  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_INF_METRIC>(vertVal),
-                               meshTypeStr);
+  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_INF_METRIC>(vertVal), meshTypeStr);
   this->testIsoGridPointsOnMesh(meshTypeStr);
 }
 
@@ -1619,8 +1609,7 @@ TYPED_TEST(PointInCell3DTest, pic_curved_single_hex)
   }
 
   const double radius = vertVal * std::sqrt(3);
-  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(radius),
-                               meshTypeStr);
+  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(radius), meshTypeStr);
   this->testIsoGridPointsOnMesh(meshTypeStr);
 }
 
@@ -1644,25 +1633,23 @@ TYPED_TEST(PointInCell3DTest, pic_curved_refined_hex)
   }
 
   const double radius = vertVal * std::sqrt(3);
-  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(radius),
-                               meshTypeStr);
+  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(radius), meshTypeStr);
   this->testIsoGridPointsOnMesh(meshTypeStr);
 }
 
 TYPED_TEST(PointInCell3DTest, pic_curved_refined_hex_jittered)
 {
-  const double vertVal = 0.5;
-  const double jitterFactor = .1;
-  const int numRefine = ::NREFINE;
-  const int DIM = TestFixture::DIM;
+  constexpr double vertVal = 0.5;
+  constexpr double jitterFactor = .1;
+  constexpr int numRefine = ::NREFINE;
+  constexpr int DIM = TestFixture::DIM;
 
   this->setupTestMesh(QUADRATIC_MESH, numRefine, vertVal, jitterFactor);
 
-  std::string meshTypeStr = this->getMeshDescriptor();
+  const std::string meshTypeStr = this->getMeshDescriptor();
   SCOPED_TRACE(axom::fmt::format("point_in_cell_{}", meshTypeStr));
 
-  std::string filename =
-    axom::fmt::format("quadratic_hex_mesh_refined_jittered");
+  const std::string filename = axom::fmt::format("quadratic_hex_mesh_refined_jittered");
   {
     mfem::Mesh& mesh = *this->getMesh();
 
@@ -1671,8 +1658,7 @@ TYPED_TEST(PointInCell3DTest, pic_curved_refined_hex_jittered)
   }
 
   const double radius = vertVal * std::sqrt(3);
-  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(radius),
-                               meshTypeStr);
+  this->testRandomPointsOnMesh(ExpectedValue<DIM, L_2_METRIC>(radius), meshTypeStr);
   this->testIsoGridPointsOnMesh(meshTypeStr);
 }
 
@@ -1683,13 +1669,13 @@ void printSummary()
 #else
   const std::string buildtype {"RELEASE"};
 #endif
-  SLIC_INFO(
-    axom::fmt::format("{} build; running {} test points with {} refinements; "
-                      "grid resolution factor {}",
-                      buildtype,
-                      NUM_TEST_PTS,
-                      NREFINE,
-                      TEST_GRID_RES));
+  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                              "{} build; running {:L} test points with {} refinements; "
+                              "grid resolution factor {}",
+                              buildtype,
+                              NUM_TEST_PTS,
+                              NREFINE,
+                              TEST_GRID_RES));
 }
 
 int main(int argc, char* argv[])

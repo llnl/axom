@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -82,10 +83,7 @@ public:
    * \param [in] D point corresponding to vertex D of the quadrilateral.
    */
   AXOM_HOST_DEVICE
-  Quadrilateral(const PointType& A,
-                const PointType& B,
-                const PointType& C,
-                const PointType& D)
+  Quadrilateral(const PointType& A, const PointType& B, const PointType& C, const PointType& D)
     : m_points {A, B, C, D}
   { }
 
@@ -214,17 +212,13 @@ public:
    */
   std::ostream& print(std::ostream& os) const
   {
-    os << "{" << m_points[0] << " " << m_points[1] << " " << m_points[2] << " "
-       << m_points[3] << "}";
+    os << "{" << m_points[0] << " " << m_points[1] << " " << m_points[2] << " " << m_points[3] << "}";
 
     return os;
   }
 
 private:
-  PointType m_points[NUM_QUAD_VERTS] {PointType {},
-                                      PointType {},
-                                      PointType {},
-                                      PointType {}};
+  PointType m_points[NUM_QUAD_VERTS] {PointType {}, PointType {}, PointType {}, PointType {}};
 };
 
 //------------------------------------------------------------------------------
@@ -242,8 +236,7 @@ std::ostream& operator<<(std::ostream& os, const Quadrilateral<T, NDIMS>& quad)
 
 /// Overload to format a primal::Quadrilateral using fmt
 template <typename T, int NDIMS>
-struct axom::fmt::formatter<axom::primal::Quadrilateral<T, NDIMS>>
-  : ostream_formatter
+struct axom::fmt::formatter<axom::primal::Quadrilateral<T, NDIMS>> : ostream_formatter
 { };
 
 #endif  // AXOM_PRIMAL_QUADRILATERAL_HPP_

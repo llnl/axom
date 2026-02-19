@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -75,15 +76,9 @@ struct InOutHelper
   /// Sets the verbosity parameter
   void setVerbose(bool verbose) { m_params.m_verbose = verbose; }
 
-  void setVertexWeldThreshold(double thresh)
-  {
-    m_params.m_vertexWeldThreshold = thresh;
-  }
+  void setVertexWeldThreshold(double thresh) { m_params.m_vertexWeldThreshold = thresh; }
 
-  void setSegmentsPerKnotSpan(int numSegments)
-  {
-    m_params.m_segmentsPerKnotSpan = numSegments;
-  }
+  void setSegmentsPerKnotSpan(int numSegments) { m_params.m_segmentsPerKnotSpan = numSegments; }
 
   /*!
    * Initializes the InOut query from an stl file
@@ -92,35 +87,42 @@ struct InOutHelper
    */
   int initialize(const std::string& file, MPI_Comm comm)
   {
-    mint::Mesh* mesh = nullptr;
+    mint::Mesh* tmpMeshPtr = nullptr;
     m_params.m_dimension = getDimension();
 
     // load the mesh
     int rc = QUEST_INOUT_FAILED;
+#ifdef AXOM_USE_C2C
     double revolvedVolume = 0.;
+    const bool uniform = true;
+    const double percentError = 0.;  // unused
+#endif
     switch(DIM)
     {
     case 2:
 #ifdef AXOM_USE_C2C
-      rc = internal::read_c2c_mesh_uniform(file,
-                                           numerics::Matrix<double>::identity(4),
-                                           m_params.m_segmentsPerKnotSpan,
-                                           m_params.m_vertexWeldThreshold,
-                                           mesh,
-                                           revolvedVolume,
-                                           comm);
+      rc = internal::read_c2c_mesh(file,
+                                   uniform,
+                                   numerics::Matrix<double>::identity(4),
+                                   m_params.m_segmentsPerKnotSpan,
+                                   m_params.m_vertexWeldThreshold,
+                                   percentError,
+                                   tmpMeshPtr,
+                                   revolvedVolume,
+                                   comm);
 #else
-      SLIC_WARNING(fmt::format(
-        "Cannot read contour file: C2C not enabled in this configuration.",
-        file));
+      SLIC_WARNING(
+        fmt::format("Cannot read contour file: C2C not enabled in this configuration.", file));
 #endif
       break;
     case 3:
-      rc = internal::read_stl_mesh(file, mesh, comm);
+      rc = internal::read_stl_mesh(file, tmpMeshPtr, comm);
       break;
     default:  // no-op
       break;
     }
+
+    std::shared_ptr<mint::Mesh> mesh(tmpMeshPtr);
 
     if(rc != QUEST_INOUT_SUCCESS)
     {
@@ -138,7 +140,7 @@ struct InOutHelper
    *
    * \sa inout_init
    */
-  int initialize(mint::Mesh*& mesh, MPI_Comm comm)
+  int initialize(std::shared_ptr<mint::Mesh>& mesh, MPI_Comm comm)
   {
     // initialize logger, if necessary
     internal::logger_init(m_state.m_logger_is_initialized,
@@ -147,8 +149,8 @@ struct InOutHelper
                           comm);
 
     // Update log level based on verbosity
-    internal::ScopedLogLevelChanger logLevelChanger(
-      m_params.m_verbose ? slic::message::Debug : slic::message::Warning);
+    internal::ScopedLogLevelChanger logLevelChanger(m_params.m_verbose ? slic::message::Debug
+                                                                       : slic::message::Warning);
 
     // handle mesh pointer, with some error checking
     if(mesh == nullptr)
@@ -160,9 +162,9 @@ struct InOutHelper
 
     if(m_surfaceMesh->getDimension() != getDimension())
     {
-      SLIC_WARNING("Incorrect dimensionality for mesh."
-                   << "Expected " << getDimension() << ", "
-                   << "but got " << m_surfaceMesh->getDimension());
+      SLIC_WARNING("Incorrect dimensionality for mesh." << "Expected " << getDimension() << ", "
+                                                        << "but got "
+                                                        << m_surfaceMesh->getDimension());
       return QUEST_INOUT_FAILED;
     }
 
@@ -171,7 +173,7 @@ struct InOutHelper
     m_meshCenterOfMass = SpacePt::zero();
     SpacePt pt;
 
-    const int numMeshNodes = m_surfaceMesh->getNumberOfNodes();
+    const auto numMeshNodes = m_surfaceMesh->getNumberOfNodes();
     if(numMeshNodes > 0)
     {
       for(int i = 0; i < numMeshNodes; ++i)
@@ -221,7 +223,7 @@ struct InOutHelper
     // deal with mesh
     if(m_state.m_should_delete_mesh)
     {
-      delete m_surfaceMesh;
+      m_surfaceMesh.reset();
     }
     m_surfaceMesh = nullptr;
 
@@ -240,10 +242,7 @@ struct InOutHelper
   /*!
    * Returns the precomputed mesh bounding box
    */
-  const GeometricBoundingBox& getBoundingBox() const
-  {
-    return m_meshBoundingBox;
-  }
+  const GeometricBoundingBox& getBoundingBox() const { return m_meshBoundingBox; }
 
   /*!
    * Returns the precomputed mesh center of mass
@@ -261,11 +260,7 @@ struct InOutHelper
    *
    * \sa inout_evaluate
    */
-  int within(const double* x,
-             const double* y,
-             const double* z,
-             int npoints,
-             int* res) const
+  int within(const double* x, const double* y, const double* z, int npoints, int* res) const
   {
     if(z == nullptr)
     {
@@ -294,7 +289,7 @@ struct InOutHelper
   }
 
 private:
-  mint::Mesh* m_surfaceMesh {nullptr};
+  std::shared_ptr<mint::Mesh> m_surfaceMesh {nullptr};
   InOutOctree<DIM>* m_inoutTree {nullptr};
   GeometricBoundingBox m_meshBoundingBox;
   SpacePt m_meshCenterOfMass;
@@ -319,8 +314,7 @@ static internal::InOutParameters s_inoutParams;
 bool inout_initialized()
 {
   const int dim = inout_get_dimension();
-  return (dim == 2) ? s_inoutHelper2D.isInitialized()
-                    : s_inoutHelper3D.isInitialized();
+  return (dim == 2) ? s_inoutHelper2D.isInitialized() : s_inoutHelper3D.isInitialized();
 }
 
 int inout_init(const std::string& file, MPI_Comm comm)
@@ -360,7 +354,7 @@ int inout_init(const std::string& file, MPI_Comm comm)
   return rc;
 }
 
-int inout_init(mint::Mesh*& mesh, MPI_Comm comm)
+int inout_init(std::shared_ptr<mint::Mesh>& mesh, MPI_Comm comm)
 {
   const int dim = inout_get_dimension();
   int rc = QUEST_INOUT_FAILED;
@@ -537,8 +531,7 @@ bool inout_evaluate(double x, double y, double z)
   }
 
   const int dim = inout_get_dimension();
-  return (dim == 2) ? s_inoutHelper2D.within(x, y, z)
-                    : s_inoutHelper3D.within(x, y, z);
+  return (dim == 2) ? s_inoutHelper2D.within(x, y, z) : s_inoutHelper3D.within(x, y, z);
 }
 
 int inout_evaluate(const double* x, const double* y, int npoints, int* res)
@@ -562,11 +555,7 @@ int inout_evaluate(const double* x, const double* y, int npoints, int* res)
                     : s_inoutHelper3D.within(x, y, nullptr, npoints, res);
 }
 
-int inout_evaluate(const double* x,
-                   const double* y,
-                   const double* z,
-                   int npoints,
-                   int* res)
+int inout_evaluate(const double* x, const double* y, const double* z, int npoints, int* res)
 {
   if(!inout_initialized())
   {
@@ -620,8 +609,8 @@ int inout_set_dimension(int dim)
 
   if(!(dim == 2 || dim == 3))
   {
-    SLIC_WARNING("quest inout query only supports 2D or 3D queries."
-                 << " Supplied dimension was " << dim);
+    SLIC_WARNING("quest inout query only supports 2D or 3D queries." << " Supplied dimension was "
+                                                                     << dim);
 
     return QUEST_INOUT_FAILED;
   }

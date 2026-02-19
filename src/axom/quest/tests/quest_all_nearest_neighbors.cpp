@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -26,8 +27,7 @@ void verify_array(T* standard, T* expt, int n)
 
   for(int i = 0; i < n; ++i)
   {
-    if(!axom::utilities::isNearlyEqual(static_cast<double>(standard[i]),
-                                       static_cast<double>(expt[i])))
+    if(!axom::utilities::isNearlyEqual(static_cast<double>(standard[i]), static_cast<double>(expt[i])))
     {
       ++mismatches;
       SLIC_INFO("i " << i << " std " << standard[i] << " expt " << expt[i]);
@@ -87,8 +87,7 @@ void all_nearest_neighbors_bruteforce(const double* x,
     {
       if(region[i] != region[j])
       {
-        double sqdist =
-          axom::quest::detail::squared_distance(x[i], y[i], z[i], x[j], y[j], z[j]);
+        double sqdist = axom::quest::detail::squared_distance(x[i], y[i], z[i], x[j], y[j], z[j]);
         if(sqdist < sqdistance[i] && sqdist < sqlimit)
         {
           sqdistance[i] = sqdist;
@@ -301,8 +300,8 @@ TEST(quest_all_nearnbr, file_query)
 
     SLIC_INFO("n is " << n);
 
-    if((n > 0) && (n == static_cast<int>(x.size())) &&
-       (n == static_cast<int>(y.size())) && (n == static_cast<int>(z.size())))
+    if((n > 0) && (n == static_cast<int>(x.size())) && (n == static_cast<int>(y.size())) &&
+       (n == static_cast<int>(z.size())))
     {
       double limit = 2.1;
       bfneighbor = new int[n];
@@ -318,22 +317,8 @@ TEST(quest_all_nearnbr, file_query)
 
       {
         SCOPED_TRACE("Read file, compare brute force with indexed, limit 2.1");
-        all_nearest_neighbors_bruteforce(&x[0],
-                                         &y[0],
-                                         &z[0],
-                                         &region[0],
-                                         n,
-                                         limit,
-                                         bfneighbor,
-                                         bfsqdst);
-        axom::quest::all_nearest_neighbors(&x[0],
-                                           &y[0],
-                                           &z[0],
-                                           &region[0],
-                                           n,
-                                           limit,
-                                           idxneighbor,
-                                           idxsqdst);
+        all_nearest_neighbors_bruteforce(&x[0], &y[0], &z[0], &region[0], n, limit, bfneighbor, bfsqdst);
+        axom::quest::all_nearest_neighbors(&x[0], &y[0], &z[0], &region[0], n, limit, idxneighbor, idxsqdst);
         verify_array(bfneighbor, idxneighbor, n);
         verify_array(bfsqdst, idxsqdst, n);
       }

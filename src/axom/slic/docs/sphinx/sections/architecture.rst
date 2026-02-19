@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -122,6 +123,19 @@ A concrete :ref:`LogStream` instance can be attached to one or more
 ``slic::addStreamToAllMsgLevels()``. See the `Slic Doxygen API Documentation`_
 for more details.
 
+.. _LogStreamStatusMonitor:
+
+Log Stream Status Monitor
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The primary responsibility of the :ref:`LogStreamStatusMonitor` class is to check
+for pending messages in the Logger before flushing them.  It is implemented as a
+singleton by the Logger and contains a pointer to each :ref:`LogStream` provided
+to the logger through its call to ``slic::addStreams()``.
+The :ref:`LogStreamStatusMonitor` performs an MPI reduction across ranks when it
+contains at least one MPI-based stream (such as :ref:`LumberjackStream` and
+:ref:`SynchronizedStream`) to determine if any rank has pending messages.
+
 .. _logMessageFormat:
 
 Log Message Format
@@ -151,8 +165,14 @@ The list of keywords is summarized in the table below.
 | **<TAG>**           | A string tag associated with a given message, e.g., for|
 |                     | filtering during post-processing, etc.                 |
 +---------------------+--------------------------------------------------------+
-| **<RANK>**          | The MPI rank that emitted the message. Only applicable |
-|                     | when the `Axom Toolkit`_ is compiled with MPI enabled  |
+| **<RANK>**          | The MPI rank(s) that emitted the message.              |
+|                     | Only applicable when Axom is compiled with MPI enabled |
+|                     | and with MPI-aware :ref:`LogStream` instances, such as,|
+|                     | the :ref:`SynchronizedStream` and                      |
+|                     | :ref:`LumberjackStream`.                               |
++---------------------+--------------------------------------------------------+
+| **<RANK_COUNT>**    | The number of MPI ranks that emitted the message.      |
+|                     | Only applicable when Axom is compiled with MPI enabled |
 |                     | and with MPI-aware :ref:`LogStream` instances, such as,|
 |                     | the :ref:`SynchronizedStream` and                      |
 |                     | :ref:`LumberjackStream`.                               |
@@ -221,7 +241,7 @@ Generic Output Stream
 The :ref:`GenericOutputStream`, is a concrete implementation of the
 :ref:`LogStream` base class, that can be constructed by specifying:
 
-#. A C++ ``std::ostream`` object instance, e.g., ``std::cout`, ``std::cerr`` for
+#. A C++ ``std::ostream`` object instance, e.g., ``std::cout``, ``std::cerr`` for
    console output, or to a file by passing a C++ ``std::ofstream`` object, and,
 
 #. Optionally, a string that specifies the :ref:`logMessageFormat`.
@@ -423,11 +443,12 @@ The ``MyStream`` class implements the ``LogStream::append()`` method of the
                           int line,
                           bool AXOM_UNUSED_PARAM(filtered_duplicates) )
    {
-      assert( m_stream != nillptr );
+      assert( m_stream != nullptr );
 
       (*m_stream) << this->getFormatedMessage( message::getLevelAsString(msgLevel),
                                                message,
                                                tagName,
+                                               "",
                                                "",
                                                fileName,
                                                line );

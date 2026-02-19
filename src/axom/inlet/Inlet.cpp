@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -23,32 +24,27 @@ namespace axom
 {
 namespace inlet
 {
-Container& Inlet::addStruct(const std::string& name,
-                            const std::string& description)
+Container& Inlet::addStruct(const std::string& name, const std::string& description)
 {
   return m_globalContainer.addStruct(name, description);
 }
 
-VerifiableScalar& Inlet::addBool(const std::string& name,
-                                 const std::string& description)
+VerifiableScalar& Inlet::addBool(const std::string& name, const std::string& description)
 {
   return m_globalContainer.addBool(name, description);
 }
 
-VerifiableScalar& Inlet::addDouble(const std::string& name,
-                                   const std::string& description)
+VerifiableScalar& Inlet::addDouble(const std::string& name, const std::string& description)
 {
   return m_globalContainer.addDouble(name, description);
 }
 
-VerifiableScalar& Inlet::addInt(const std::string& name,
-                                const std::string& description)
+VerifiableScalar& Inlet::addInt(const std::string& name, const std::string& description)
 {
   return m_globalContainer.addInt(name, description);
 }
 
-VerifiableScalar& Inlet::addString(const std::string& name,
-                                   const std::string& description)
+VerifiableScalar& Inlet::addString(const std::string& name, const std::string& description)
 {
   return m_globalContainer.addString(name, description);
 }
@@ -79,8 +75,7 @@ void writerHelper(Writer& writer, const Container& container)
       writerHelper(
         writer,
         *container.getChildContainers().at(
-          utilities::string::appendPrefix(container.name(),
-                                          detail::indexToString(indices[0]))));
+          utilities::string::appendPrefix(container.name(), detail::indexToString(indices[0]))));
     }
   }
   else

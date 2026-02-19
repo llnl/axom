@@ -1,18 +1,19 @@
-.. ## Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
 .. _github-label:
 
 ******************************************************
-Git/Github: Version Control and Branch Development 
+Git/GitHub: Version Control and Branch Development 
 ******************************************************
 
 This section provides information about getting started with Git and
-Github and describes some mechanics of topic branch development
+GitHub and describes some mechanics of topic branch development
 on the Axom project. For most project work, we interact with our Git 
-repository via our `Github project <https://github.com/LLNL/axom>`_.
+repository via our `GitHub project <https://github.com/LLNL/axom>`_.
 
 If you are new to the Git or want to brush up on its features, there are
 several good sources of information available on the web:
@@ -26,8 +27,8 @@ several good sources of information available on the web:
 SSH Keys
 =========
 
-If you have not used Github before, you should start by creating and adding your SSH keys to Github. 
-Github provides a good tutorial `here <https://help.github.com/en/enterprise/2.18/user/github/authenticating-to-github/adding-a-new-ssh-key-to-your-github-account>`_.
+If you have not used GitHub before, you should start by creating and adding your SSH keys to GitHub. 
+GitHub provides a good tutorial `here <https://help.github.com/en/enterprise/2.18/user/github/authenticating-to-github/adding-a-new-ssh-key-to-your-github-account>`_.
 Performing these two simple steps will make it easier for you to interact with 
 our Git repository without having to repeatedly enter login credentials. 
 
@@ -45,7 +46,7 @@ a directory that you will work in. This is done by typing::
   $ git clone --recursive git@github.com:LLNL/axom.git
 
 .. note:: You don't need to remember the URL for the Axom repo above. It can be
-          found by going to the Axom repo on our Github project and
+          found by going to the Axom repo on our GitHub project and
           clicking on the 'Clone or download' button on the upper right hand corner
           above the source.
 
@@ -105,7 +106,7 @@ If you are in Bash, you can set your environment as follows:
       $ wget https://raw.githubusercontent.com/git/git/master/contrib/completion/git-prompt.sh
       $ wget https://raw.githubusercontent.com/git/git/master/contrib/completion/git-completion.bash
 
-#. Optionally, you may want to move the files to another location. Nominaly, folks put those as 
+#. Optionally, you may want to move the files to another location. Nominally, folks put those as 
    hidden files in their home directory ::
 
       $ mv git-prompt.sh $HOME/.git-prompt.sh
@@ -168,9 +169,9 @@ a *bugfix branch*, etc. The basic workflow for performing development
 on a topic branch is:
 
   #. Create a topic branch off the develop branch and push the new branch
-     to Github.
+     to GitHub.
   #. Make changes and commit them to your branch in your local copy of the 
-     repository. Remember to push changes to the Github repo
+     repository. Remember to push changes to the GitHub repo
      regularly for backup and so you can easily recover earlier versions of
      your work if you need to do so.
   #. If you are working on your topic branch for a while, it is a good idea
@@ -199,8 +200,8 @@ Step 1 -- Create a topic branch
       $ git checkout -b feature/<userid>/my-cool-new-feature
       $ git push -u
 
-    You can also attach a Github issue number to the branch name if the work
-    you will do on the branch is related to a issue. Then, Github
+    You can also attach a GitHub issue number to the branch name if the work
+    you will do on the branch is related to a issue. Then, GitHub
     will associate the issue with the commit when you merge your branch to the
     develop branch. For example,::
 
@@ -212,13 +213,13 @@ Step 1 -- Create a topic branch
     your commits that address them.
 
     In each of these examples, the 'git push -u' command pushes the branch to
-    the Github server and it will appear in the list of branches you and 
+    the GitHub server and it will appear in the list of branches you and 
     other developers can see there.
 
 Step 2 -- Do development work
 --------------------------------
 
-    After you've created a topic branch and pushed it to Github, perform 
+    After you've created a topic branch and pushed it to GitHub, perform 
     your development work on it; i.e., edit files, add files, etc. 
     Common commands you will use are::
 
@@ -239,7 +240,7 @@ Step 2 -- Do development work
  
     .. important:: 
        You may perform several local commits before you push your work 
-       to the Github repo. Generally, it is a good idea to limit the 
+       to the GitHub repo. Generally, it is a good idea to limit the 
        amount of modifications contained in any one commit. By 
        restricting individual commits to a reasonable size that 
        contain closely related work, it is easier to refer back to 
@@ -316,7 +317,7 @@ Step 3 -- Keep current with develop
     .. important:: **Git will not let you commit a file with merge conflicts.**
                    After you resolve merge conflicts in a file, you must 
                    stage the file for commit (i.e., `git add <filename>),
-                   commit it (i.e., `git commit`), and push it to the Github
+                   commit it (i.e., `git commit`), and push it to the GitHub
                    repo (i.e., `git push`) before you can merge.
 
 .. _createpr-label:
@@ -325,23 +326,23 @@ Step 4 -- Create a pull request
 -------------------------------------
 
     When your work is complete, and you are ready to merge your topic branch 
-    to the develop branch, you must initiate a pull request in Github. Go
-    into the Axom Github project, select your branch, and click 
+    to the develop branch, you must initiate a pull request in GitHub. Go
+    into the Axom GitHub project, select your branch, and click 
     `Create pull request` in the left column. Make sure you select the correct 
     destination branch. The default destination branch in our project is set 
     up to be the develop branch. So, in most cases, you won't have to do 
     anything special.
 
     You must also select appropriate team members to review changes. Our 
-    Github project is set up to require at least one other developer to 
+    GitHub project is set up to require at least one other developer to 
     approve the pull request before a merge.
 
     .. important:: **You cannot approve your own pull request.**
 
     When your pull request is approved (see :ref:`review-label` for more
     information), you merge your topic branch to the develop branch by 
-    clicking the "merge" button in Github. If there are no merge conflicts, 
-    the merge will proceed and you are done. If there are conflicts, Github 
+    clicking the "merge" button in GitHub. If there are no merge conflicts, 
+    the merge will proceed and you are done. If there are conflicts, GitHub 
     will indicate this and will not let you merge until all conflicts are
     resolved.
 
@@ -359,14 +360,14 @@ Step 4 -- Create a pull request
       $ git commit
       $ git push
 
-    Lastly, complete the merge in Github by clicking the merge button.
+    Lastly, complete the merge in GitHub by clicking the merge button.
 
     .. important:: **To keep things tidy, please delete your topic branch in
-                   Github after it is merged if you no longer need it for
-                   further development. Github provides an option to 
+                   GitHub after it is merged if you no longer need it for
+                   further development. GitHub provides an option to 
                    automatically delete the source branch of a merge after 
                    the merge is complete. Alternatively, you can click on
-                   the Github branches tab and manually delete the branch.**
+                   the GitHub branches tab and manually delete the branch.**
 
 ================================
 Checking Out an Existing Branch

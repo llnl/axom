@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -12,7 +13,7 @@ Pull Requests and Code Reviews
 
 Before any code is merged into the develop or main branches, it
 must be tested, documented, reviewed, and accepted. Creating a pull request on
-the Axom Github project to merge a branch into develop or main 
+the Axom GitHub project to merge a branch into develop or main 
 initiates the test and review processes. All required build configurations
 and tests must pass for a pull request to be approved. Also, new tests 
 (unit, integration, etc.) must be created to exercise any new functionality 
@@ -24,7 +25,7 @@ of the Axom development team other than the originator of the pull
 request. It is recommended that several team members review pull 
 requests, especially when changes affect APIs, dependencies (within Axom
 and external), etc. Pull request reviewers can be 
-selected on Github when the pull request is created. Changes reviewed by 
+selected on GitHub when the pull request is created. Changes reviewed by 
 the team are accepted, rejected, or commented on for improvement; e.g., 
 issues to be addressed, suggested changes, etc. Pull requests can be updated
 with additional changes and commits as needed. When a pull request is 
@@ -43,7 +44,7 @@ Pull Request Summary
 To recap, here is a summary of steps in a pull request:
 
   #. When code is ready to be considered for acceptance, create a pull request
-     on the Axom Github project. Identify the appropriate reviewers 
+     on the Axom GitHub project. Identify the appropriate reviewers 
      and add them to the pull request.
 
   #. Code must build successfully and all relevant tests must pass, including
@@ -57,7 +58,7 @@ To recap, here is a summary of steps in a pull request:
 
   #. When a pull request is approved it may be merged. If the merged branch is
      no longer needed, it should be deleted. This can be done when merging
-     with Github. 
+     with GitHub. 
 
 .. _review-label:
 

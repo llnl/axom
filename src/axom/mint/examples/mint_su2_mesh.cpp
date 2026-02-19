@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -44,8 +45,7 @@ int main(int argc, char** argv)
   // STEP 0: initialize the slic logging environment
   slic::initialize();
   slic::setLoggingMsgLevel(slic::message::Debug);
-  slic::addStreamToAllMsgLevels(
-    new slic::GenericOutputStream(&std::cout, "[<LEVEL>]: <MESSAGE>\n"));
+  slic::addStreamToAllMsgLevels(new slic::GenericOutputStream(&std::cout, "[<LEVEL>]: <MESSAGE>\n"));
 
   // STEP 1: parse command line arguemnts
   parse_args(argc, argv);

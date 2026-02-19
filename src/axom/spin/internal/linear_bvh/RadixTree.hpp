@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -50,20 +51,15 @@ struct RadixTree
     m_inner_size = m_size - 1;
     std::int32_t parent_size = m_size + m_inner_size;
 
-    m_left_children =
-      axom::Array<std::int32_t>(m_inner_size, m_inner_size, allocID);
-    m_right_children =
-      axom::Array<std::int32_t>(m_inner_size, m_inner_size, allocID);
+    m_left_children = axom::Array<std::int32_t>(m_inner_size, m_inner_size, allocID);
+    m_right_children = axom::Array<std::int32_t>(m_inner_size, m_inner_size, allocID);
     m_parents = axom::Array<std::int32_t>(parent_size, parent_size, allocID);
-    m_inner_aabbs = axom::Array<BoxType>(ArrayOptions::Uninitialized {},
-                                         m_inner_size,
-                                         m_inner_size,
-                                         allocID);
+    m_inner_aabbs =
+      axom::Array<BoxType>(ArrayOptions::Uninitialized {}, m_inner_size, m_inner_size, allocID);
 
     m_leafs = axom::Array<std::int32_t>(m_size, m_size, allocID);
     m_mcodes = axom::Array<std::uint32_t>(m_size, m_size, allocID);
-    m_leaf_aabbs =
-      axom::Array<BoxType>(ArrayOptions::Uninitialized {}, m_size, m_size, allocID);
+    m_leaf_aabbs = axom::Array<BoxType>(ArrayOptions::Uninitialized {}, m_size, m_size, allocID);
   }
 };
 

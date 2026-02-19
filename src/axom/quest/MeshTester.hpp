@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -10,6 +11,7 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/primal.hpp"
+#include "axom/slic.hpp"
 #include "axom/spin.hpp"
 #include "axom/mint.hpp"
 
@@ -61,20 +63,17 @@ enum class WatertightStatus : signed char
  * Triangles that share vertex pairs (adjacent triangles in a watertight
  * surface mesh) are not reported as intersecting.  Degenerate triangles
  * are not reported as intersecting other triangles.
- *
  */
 template <typename ExecSpace, typename FloatType>
-void findTriMeshIntersectionsBVH(
-  mint::UnstructuredMesh<mint::SINGLE_SHAPE>* surface_mesh,
-  std::vector<std::pair<int, int>>& intersections,
-  std::vector<int>& degenerateIndices,
-  double intersectionThreshold = 1E-8)
+void findTriMeshIntersectionsBVH(mint::UnstructuredMesh<mint::SINGLE_SHAPE>* surface_mesh,
+                                 std::vector<std::pair<int, int>>& intersections,
+                                 std::vector<int>& degenerateIndices,
+                                 double intersectionThreshold = 1E-8)
 {
-  AXOM_ANNOTATE_SCOPE("findTriMeshIntersectionsBVH");
+  AXOM_ANNOTATE_SCOPE("quest::findTriMeshIntersectionsBVH");
 
-  SLIC_INFO("Running BVH intersection algorithm "
-            << " in execution Space: "
-            << axom::execution_space<ExecSpace>::name());
+  SLIC_INFO("Running BVH intersection algorithm " << " in execution Space: "
+                                                  << axom::execution_space<ExecSpace>::name());
 
   constexpr detail::AccelType UseBVH = detail::AccelType::BVH;
   using CandidateFinder = detail::CandidateFinder<UseBVH, ExecSpace, FloatType>;
@@ -115,22 +114,19 @@ void findTriMeshIntersectionsBVH(
  * based on the cube root of the number of cells in the mesh.
  */
 template <typename ExecSpace, typename FloatType>
-void findTriMeshIntersectionsImplicitGrid(
-  mint::UnstructuredMesh<mint::SINGLE_SHAPE>* surface_mesh,
-  std::vector<std::pair<int, int>>& intersections,
-  std::vector<int>& degenerateIndices,
-  int spatialIndexResolution = 0,
-  double intersectionThreshold = 1E-8)
+void findTriMeshIntersectionsImplicitGrid(mint::UnstructuredMesh<mint::SINGLE_SHAPE>* surface_mesh,
+                                          std::vector<std::pair<int, int>>& intersections,
+                                          std::vector<int>& degenerateIndices,
+                                          int spatialIndexResolution = 0,
+                                          double intersectionThreshold = 1E-8)
 {
-  AXOM_ANNOTATE_SCOPE("findTriMeshIntersectionsImplicitGrid");
+  AXOM_ANNOTATE_SCOPE("quest::findTriMeshIntersectionsImplicitGrid");
 
   SLIC_INFO("Running ImplicitGrid intersection algorithm "
-            << " in execution Space: "
-            << axom::execution_space<ExecSpace>::name());
+            << " in execution Space: " << axom::execution_space<ExecSpace>::name());
 
   constexpr detail::AccelType UseImplicit = detail::AccelType::ImplicitGrid;
-  using CandidateFinder =
-    detail::CandidateFinder<UseImplicit, ExecSpace, FloatType>;
+  using CandidateFinder = detail::CandidateFinder<UseImplicit, ExecSpace, FloatType>;
   CandidateFinder impl(surface_mesh, intersectionThreshold);
   impl.initialize(spatialIndexResolution);
   axom::Array<IndexType> intersectFirst, intersectSecond, degenerate;
@@ -168,22 +164,19 @@ void findTriMeshIntersectionsImplicitGrid(
  * based on the cube root of the number of cells in the mesh.
  */
 template <typename ExecSpace, typename FloatType>
-void findTriMeshIntersectionsUniformGrid(
-  mint::UnstructuredMesh<mint::SINGLE_SHAPE>* surface_mesh,
-  std::vector<std::pair<int, int>>& intersections,
-  std::vector<int>& degenerateIndices,
-  int spatialIndexResolution = 0,
-  double intersectionThreshold = 1E-8)
+void findTriMeshIntersectionsUniformGrid(mint::UnstructuredMesh<mint::SINGLE_SHAPE>* surface_mesh,
+                                         std::vector<std::pair<int, int>>& intersections,
+                                         std::vector<int>& degenerateIndices,
+                                         int spatialIndexResolution = 0,
+                                         double intersectionThreshold = 1E-8)
 {
-  AXOM_ANNOTATE_SCOPE("findTriMeshIntersectionsUniformGrid");
+  AXOM_ANNOTATE_SCOPE("quest::findTriMeshIntersectionsUniformGrid");
 
   SLIC_INFO("Running UniformGrid intersection algorithm "
-            << " in execution Space: "
-            << axom::execution_space<ExecSpace>::name());
+            << " in execution Space: " << axom::execution_space<ExecSpace>::name());
 
   constexpr detail::AccelType UseUniform = detail::AccelType::UniformGrid;
-  using CandidateFinder =
-    detail::CandidateFinder<UseUniform, ExecSpace, FloatType>;
+  using CandidateFinder = detail::CandidateFinder<UseUniform, ExecSpace, FloatType>;
   CandidateFinder impl(surface_mesh, intersectionThreshold);
   impl.initialize(spatialIndexResolution);
   axom::Array<IndexType> intersectFirst, intersectSecond, degenerate;
@@ -243,8 +236,7 @@ void findTriMeshIntersections(mint::UnstructuredMesh<mint::SINGLE_SHAPE>* surfac
  * check for holes, and remain cached with the mesh after this function
  * finishes.
  */
-WatertightStatus isSurfaceMeshWatertight(
-  mint::UnstructuredMesh<mint::SINGLE_SHAPE>* surface_mesh);
+WatertightStatus isSurfaceMeshWatertight(mint::UnstructuredMesh<mint::SINGLE_SHAPE>* surface_mesh);
 
 /*!
  * \brief Mesh repair function to weld vertices that are closer than \a eps
@@ -278,8 +270,7 @@ WatertightStatus isSurfaceMeshWatertight(
  * mesh in place.
  * \note The distance metric in this function uses the "max" norm (l_inf).
  */
-void weldTriMeshVertices(mint::UnstructuredMesh<mint::SINGLE_SHAPE>** surface_mesh,
-                         double eps);
+void weldTriMeshVertices(mint::UnstructuredMesh<mint::SINGLE_SHAPE>** surface_mesh, double eps);
 
 /// @}
 

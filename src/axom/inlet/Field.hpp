@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -249,8 +250,7 @@ private:
    * emit a SLIC_ERROR accordingly
    *****************************************************************************
   */
-  const axom::sidre::View* checkExistenceAndType(
-    const axom::sidre::DataTypeId expected) const;
+  const axom::sidre::View* checkExistenceAndType(const axom::sidre::DataTypeId expected) const;
 
   // This Field's sidre group
   axom::sidre::Group* m_sidreGroup = nullptr;
@@ -274,9 +274,8 @@ template <>
 std::string Field::get<std::string>() const;
 
 template <>
-bool Field::searchValidValues<std::string>(
-  const axom::sidre::View& view,
-  std::vector<VerificationError>* errors) const;
+bool Field::searchValidValues<std::string>(const axom::sidre::View& view,
+                                           std::vector<VerificationError>* errors) const;
 
 /*!
    *****************************************************************************

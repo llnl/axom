@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -17,6 +18,8 @@
 
 #include "axom/slic/interface/slic.hpp"
 #include "axom/fmt.hpp"
+
+#include <math.h>
 
 namespace axom
 {
@@ -50,8 +53,7 @@ class Sphere
 public:
   using PointType = primal::Point<T, NDIMS>;
 
-  static_assert((NDIMS == 2 || NDIMS == 3),
-                "A Sphere object may be defined in 2-D or 3-D");
+  static_assert((NDIMS == 2 || NDIMS == 3), "A Sphere object may be defined in 2-D or 3-D");
 
 private:
   using VectorType = primal::Vector<T, NDIMS>;
@@ -65,10 +67,8 @@ public:
    * \param [in] radius the radius of the Sphere (optional).
    * \note If a radius is not supplied, the default radius is 1.0.
    */
-  explicit Sphere(T radius = 1.0)
-    : m_center(PointType::zero())
-    , m_radius(radius)
-  { }
+  AXOM_HOST_DEVICE
+  explicit Sphere(T radius = 1.0) : m_center(PointType::zero()), m_radius(radius) { }
 
   /*!
    * \brief Constructs a Sphere with the given center and radius.
@@ -78,10 +78,8 @@ public:
    *
    * \note If a radius is not supplied, the default radius is 1.0.
    */
-  explicit Sphere(const PointType& center, T radius = 1.0)
-    : m_center(center)
-    , m_radius(radius)
-  { }
+  AXOM_HOST_DEVICE
+  explicit Sphere(const PointType& center, T radius = 1.0) : m_center(center), m_radius(radius) { }
 
   /*!
    * \brief Constructs a Sphere with the given center and radius.
@@ -93,6 +91,7 @@ public:
    *
    * \pre center != nullptr
    */
+  AXOM_HOST_DEVICE
   explicit Sphere(const T* center, T radius = 1.0);
 
   /// @}
@@ -101,6 +100,7 @@ public:
    * \brief Returns the radius of the Sphere.
    * \return r the radius of the Sphere.
    */
+  AXOM_HOST_DEVICE
   inline T getRadius() const { return m_radius; };
 
   /*!
@@ -110,7 +110,14 @@ public:
    * \note c points to an array that is NDIMS long.
    * \post c != nullptr
    */
+  AXOM_HOST_DEVICE
   inline const PointType& getCenter() const { return m_center; };
+
+  /*!
+   * \brief Returns the volume of the Sphere.
+   */
+  AXOM_HOST_DEVICE
+  inline T getVolume() const { return 4.0 / 3 * M_PI * m_radius * m_radius * m_radius; };
 
   /*!
    * \brief Computes the signed distance of a point to the Sphere's boundary.
@@ -147,6 +154,7 @@ public:
    * \see OrientationResult for the list of possible return values.
    *
    */
+  AXOM_HOST_DEVICE
   inline int getOrientation(const PointType& q, double TOL = 1.e-9) const
   {
     const T signed_distance = this->computeSignedDistance(q);
@@ -156,8 +164,7 @@ public:
       return primal::ON_BOUNDARY;
     }
 
-    return (signed_distance < T {0}) ? primal::ON_NEGATIVE_SIDE
-                                     : primal::ON_POSITIVE_SIDE;
+    return (signed_distance < T {0}) ? primal::ON_NEGATIVE_SIDE : primal::ON_POSITIVE_SIDE;
   }
 
   /*!
@@ -169,8 +176,21 @@ public:
    *
    * \return status true if the sphere intersects, false otherwise.
    */
-  inline bool intersectsWith(const Sphere<T, NDIMS>& sphere,
-                             double TOL = 1.e-9) const;
+  AXOM_HOST_DEVICE
+  inline bool intersectsWith(const Sphere<T, NDIMS>& sphere, double TOL = 1.e-9) const;
+
+  /*!
+   * \brief Tests if this sphere completely contains another sphere.
+   *
+   * \param [in] other The sphere object to check for containment
+   * \param [in] margin Amount to add to other's radius before comparing.
+   *
+   * Note: a sphere does contain itself.
+   *
+   * \return true if this sphere contains the other, false otherwise.
+   */
+  AXOM_HOST_DEVICE
+  inline bool contains(const Sphere<T, NDIMS>& other, double margin = 0.0) const;
 
   /*!
    * \brief Prints the Sphere information in the given output stream.
@@ -197,7 +217,7 @@ namespace primal
 {
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-Sphere<T, NDIMS>::Sphere(const T* center, T radius) : m_radius(radius)
+AXOM_HOST_DEVICE Sphere<T, NDIMS>::Sphere(const T* center, T radius) : m_radius(radius)
 {
   SLIC_ASSERT(center != nullptr);
   for(int i = 0; i < NDIMS; ++i)
@@ -216,16 +236,24 @@ std::ostream& Sphere<T, NDIMS>::print(std::ostream& os) const
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-inline bool Sphere<T, NDIMS>::intersectsWith(const Sphere<T, NDIMS>& sphere,
-                                             double TOL) const
+AXOM_HOST_DEVICE inline bool Sphere<T, NDIMS>::intersectsWith(const Sphere<T, NDIMS>& sphere,
+                                                              double TOL) const
 {
-  const T distance_squared =
-    VectorType(sphere.getCenter(), m_center).squared_norm();
+  const T distance_squared = VectorType(sphere.getCenter(), m_center).squared_norm();
   const T sum_of_radii = m_radius + sphere.getRadius();
   const T sum_of_radii_2 = sum_of_radii * sum_of_radii;
 
   return (distance_squared < sum_of_radii_2 ||
           utilities::isNearlyEqual(distance_squared, sum_of_radii_2, TOL));
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int NDIMS>
+AXOM_HOST_DEVICE inline bool Sphere<T, NDIMS>::contains(const Sphere<T, NDIMS>& other,
+                                                        double margin) const
+{
+  const T center_sep = VectorType(other.getCenter(), m_center).norm();
+  return (m_radius >= center_sep + other.getRadius() + margin);
 }
 
 //------------------------------------------------------------------------------

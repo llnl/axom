@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -21,20 +22,18 @@ axom_component_requires(NAME       Sidre
 set(sidre_headers
     core/Array.hpp
     core/Buffer.hpp
+    core/ConduitMemory.hpp
     core/Group.hpp
     core/DataStore.hpp
     core/View.hpp
     core/Attribute.hpp
     core/AttrValues.hpp
-    core/ItemCollection.hpp
-    core/IndexedCollection.hpp
-    core/ListCollection.hpp
-    core/MapCollection.hpp
     core/SidreTypes.hpp
     core/SidreDataTypeIds.h )
 
 set(sidre_sources
     core/Buffer.cpp
+    core/ConduitMemory.cpp
     core/Group.cpp
     core/DataStore.cpp
     core/View.cpp
@@ -76,6 +75,7 @@ if (ENABLE_FORTRAN)
         interface/c_fortran/wrapGroup.cpp
         interface/c_fortran/wrapBuffer.cpp
         interface/c_fortran/wrapView.cpp
+        interface/c_fortran/utilSidre.cpp
         interface/c_fortran/wrapfsidre.F
     )
 
@@ -88,11 +88,12 @@ if (ENABLE_FORTRAN)
         list(APPEND sidre_sources
              spio/interface/c_fortran/wrapfspio.f
              spio/interface/c_fortran/wrapIOManager.cpp
+             spio/interface/c_fortran/utilSPIO.cpp
         )
     endif()
 endif()
 
-if (MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+if (MFEM_FOUND)
     list(APPEND sidre_headers core/MFEMSidreDataCollection.hpp)
     list(APPEND sidre_sources core/MFEMSidreDataCollection.cpp)
 endif()
@@ -107,8 +108,8 @@ set(sidre_depends
 
 blt_list_append(TO sidre_depends ELEMENTS hdf5 IF HDF5_FOUND)
 blt_list_append(TO sidre_depends ELEMENTS sparsehash IF SPARSEHASH_FOUND)
-if(AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
-    blt_list_append(TO sidre_depends ELEMENTS mfem IF MFEM_FOUND)
+if(MFEM_FOUND)
+    blt_list_append(TO sidre_depends ELEMENTS mfem)
     blt_list_append(TO sidre_depends ELEMENTS fmt)
 endif()
 
@@ -136,6 +137,26 @@ if(ENABLE_FORTRAN AND AXOM_ENABLE_MPI)
     install(FILES ${CMAKE_Fortran_MODULE_DIRECTORY}/axom_spio.mod DESTINATION lib/fortran)
 endif()
 
+
+if(NANOBIND_FOUND)
+    nanobind_add_module(pysidre nanobind_sidre.cpp)
+    target_link_libraries(pysidre PRIVATE sidre)
+
+    # Use HIP executable linker flags for the python module
+    # (CMake treats modules separately from executables,
+    # executable flags not automatically applied)
+    if(AXOM_ENABLE_HIP)
+        # Make CMake compile the pysidre file with the HIP compiler.
+        set_source_files_properties(nanobind_sidre.cpp PROPERTIES LANGUAGE HIP)
+
+        string (REPLACE " " ";" MODULE_LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+        target_link_options(pysidre PRIVATE ${MODULE_LINK_FLAGS})
+    endif()
+
+    install(TARGETS pysidre LIBRARY DESTINATION lib)
+endif()
+
+
 #------------------------------------------------------------------------------
 # Add tests and examples
 #------------------------------------------------------------------------------
@@ -146,9 +167,3 @@ endif()
 if(AXOM_ENABLE_EXAMPLES)
   add_subdirectory(examples)
 endif()
-
-#------------------------------------------------------------------------------
-# Add code checks
-#------------------------------------------------------------------------------
-axom_add_code_checks(PREFIX   sidre
-                     EXCLUDES sidre/examples/lulesh2)

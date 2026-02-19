@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -11,6 +12,9 @@
 
 #ifndef AXOM_ITERBASE_HPP_
 #define AXOM_ITERBASE_HPP_
+
+#include "axom/config.hpp"
+#include "axom/core/Macros.hpp"
 
 namespace axom
 {
@@ -64,6 +68,7 @@ private:
   {
     AXOM_HOST_DEVICE accessor(const IterType& base) : IterType(base) { }
 
+    AXOM_SUPPRESS_HD_WARN
     AXOM_HOST_DEVICE
     static void adv(IterType& instance, PosType n)
     {
@@ -101,20 +106,14 @@ public:
   }
 
   /// Less than operator
-  friend bool operator<(const iterator& lhs, const iterator& rhs)
-  {
-    return lhs.m_pos < rhs.m_pos;
-  }
+  friend bool operator<(const iterator& lhs, const iterator& rhs) { return lhs.m_pos < rhs.m_pos; }
   /// Less than or equal operator
   friend bool operator<=(const iterator& lhs, const iterator& rhs)
   {
     return lhs.m_pos <= rhs.m_pos;
   }
   /// Greater than operator
-  friend bool operator>(const iterator& lhs, const iterator& rhs)
-  {
-    return lhs.m_pos > rhs.m_pos;
-  }
+  friend bool operator>(const iterator& lhs, const iterator& rhs) { return lhs.m_pos > rhs.m_pos; }
   /// Greater than or equal operator
   friend bool operator>=(const iterator& lhs, const iterator& rhs)
   {
@@ -126,6 +125,7 @@ public:
   /// \{
 
   /// Pre-increment operator
+  AXOM_SUPPRESS_HD_WARN
   AXOM_HOST_DEVICE
   IterType& operator++()
   {
@@ -154,6 +154,8 @@ public:
   }
 
   /// Addition-assignment operator
+  AXOM_SUPPRESS_HD_WARN
+  AXOM_HOST_DEVICE
   IterType& operator+=(PosType n)
   {
     adv(getIter(), n);
@@ -167,6 +169,8 @@ public:
   }
 
   /// Addition operator with iterator on left and position on right
+  AXOM_SUPPRESS_HD_WARN
+  AXOM_HOST_DEVICE
   friend IterType operator+(const IterType& it, PosType n)
   {
     IterType ret(it);
@@ -174,27 +178,15 @@ public:
     return ret;
   }
   /// Addition operator with position on left and iterator on right
-  friend IterType operator+(PosType n, const IterType& it)
-  {
-    return operator+(it, n);
-  }
+  friend IterType operator+(PosType n, const IterType& it) { return operator+(it, n); }
 
   /// Subtraction operator with iterator on left and position on right
-  friend IterType operator-(const IterType& it, PosType n)
-  {
-    return operator+(it, -n);
-  }
+  friend IterType operator-(const IterType& it, PosType n) { return operator+(it, -n); }
   /// Subtraction operator with position on left and iterator on right
-  friend IterType operator-(PosType n, const IterType& it)
-  {
-    return operator+(it, -n);
-  }
+  friend IterType operator-(PosType n, const IterType& it) { return operator+(it, -n); }
 
   /// Difference operator
-  friend PosType operator-(const IterType& a, const IterType& b)
-  {
-    return (a.m_pos - b.m_pos);
-  }
+  friend PosType operator-(const IterType& a, const IterType& b) { return (a.m_pos - b.m_pos); }
   /// \}
 
 private:
@@ -204,10 +196,7 @@ private:
 
   /// Const accessor to derived class
   AXOM_HOST_DEVICE
-  const IterType& getIter() const
-  {
-    return *static_cast<const IterType*>(this);
-  }
+  const IterType& getIter() const { return *static_cast<const IterType*>(this); }
 
 protected:
   PosType m_pos;

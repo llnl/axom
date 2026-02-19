@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -110,8 +111,7 @@ bool isValidCoordsetGroup(const sidre::Group* coordset);
  * \post blueprint::isValidTopologyGroup( topo ) == true
  *
  */
-const sidre::Group* getTopologyGroup(const sidre::Group* group,
-                                     const std::string& topo = "");
+const sidre::Group* getTopologyGroup(const sidre::Group* group, const std::string& topo = "");
 
 /*!
  * \brief Initialize the topology group.
@@ -142,8 +142,7 @@ void initializeTopologyGroup(sidre::Group* group,
  * \pre blueprint::isValidTopologyGroup( topology )
  * \post blueprint::isValidCoordsetGroup( coordset )
  */
-const sidre::Group* getCoordsetGroup(const sidre::Group* group,
-                                     const sidre::Group* topology);
+const sidre::Group* getCoordsetGroup(const sidre::Group* group, const sidre::Group* topology);
 
 /*!
  * \brief Returns the coordset group associated with the given topology group.
@@ -158,8 +157,7 @@ const sidre::Group* getCoordsetGroup(const sidre::Group* group,
  * \pre blueprint::isValidTopologyGroup( topology )
  * \post blueprint::isValidCoordsetGroup( coordset )
  */
-const sidre::Group* getCoordsetGroup(const sidre::Group* group,
-                                     const std::string& coords = "");
+const sidre::Group* getCoordsetGroup(const sidre::Group* group, const std::string& coords = "");
 
 /*!
  * \brief Returns the mesh type and dimension given a root group that conforms
@@ -269,10 +267,7 @@ void setExtent(sidre::Group* coordset, const int64 node_ext[6]);
  *
  * \see setUniformMeshProperties()
  */
-void getUniformMeshProperties(int dim,
-                              double* origin,
-                              double* spacing,
-                              const sidre::Group* coordset);
+void getUniformMeshProperties(int dim, double* origin, double* spacing, const sidre::Group* coordset);
 
 /*!
  * \brief Populates the specified Coordset & Topology groups with the metadata

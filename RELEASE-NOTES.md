@@ -1,8 +1,8 @@
 
 [comment]: # (#################################################################)
-[comment]: # (Copyright 2017-2024, Lawrence Livermore National Security, LLC)
-[comment]: # (and Axom Project Developers. See the top-level LICENSE file)
-[comment]: # (for details.)
+[comment]: # (Copyright Lawrence Livermore National Security, LLC and other)
+[comment]: # (Axom Project Contributors. See top-level LICENSE and COPYRIGHT)
+[comment]: # (files for dates and other details.)
 [comment]: #
 [comment]: # (# SPDX-License-Identifier: BSD-3-Clause)
 [comment]: # (#################################################################)
@@ -10,8 +10,7 @@
 
 # Axom Software Release Notes
 
-Notes describing significant changes in each Axom release are documented
-in this file.
+Notes describing significant changes in each Axom release are documented in this file.
 
 The format of this file is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
@@ -20,7 +19,313 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ### Added
-- Multidimenional `core::Array` supports column-major and arbitrary stride ordering,
+
+### Changed
+- Primal: Axom's polygon clipping was modified to handle some corner cases.
+
+### Fixed
+
+### Removed
+
+### Deprecated
+
+
+## [Version 0.13.0] - Release date 2026-02-05
+
+### Added
+- Adds the `AXOM_ENABLE_TUTORIALS` configuration variable (`ON` by default)
+- Adds a tutorial on shaping in Axom and associated infrastructure in `quest`, `klee`, `inlet` and `sidre`.
+- Sina: User can control curve ordering in Sina output file `setDefaultCurveOrder()` 
+- Sina: `appendDocument()` will create the document if not present or append if document exists.
+  It can also auto detects the protocol based on file's name, removing the need to call 
+  the append function that matches your protocol.
+- Adds Sina fortran functions `sina_set_curves_order` and `sina_set_record_curves_order`
+- Sidre: Added iterators and Attribute class to the Python interface.
+- Adds new optimization hint macros `AXOM_LIKELY` and `AXOM_UNLIKELY` to mark likely/unlikely
+  paths in if-statements.
+- The `axom::bump::extraction::CutField` class was added to cut Blueprint geometry using a
+  field (isosurface). The output contains polygons for 3D inputs and lines for 2D inputs.
+ resulting in geometry with reduced topological dimension.
+- The `axom::bump::extraction::PlaneSlice` class was added to cut Blueprint geometry using a
+  plane given using "origin" and "normal" values in the algorithm's options. The planar slice
+  results in polygons for 3D inputs and lines for 2D inputs.
+- Adds a reader for STEP files to `quest/io`. The geometry can either be returned
+  as an array of `NURBSPatch` with trimming curves or it can be triangulated into triangle mesh.
+- Adds a `components` variant to Axom's spack package. Users can now provide an explicit list 
+  of desired components, e.g. `components=sidre` and Spack adds any missing dependencies, 
+  e.g. the `slic` component and the `conduit` dependency. By default (when `components` is not provided, 
+  or when `components="all"`), all components are enabled. All components can be disabled via `components=none`.
+- Adds a `conduit` spack variant. Conduit was previously a required dependency in our spack package, and is now enabled by default.
+- Adds spack variants for `adiak` and `caliper`. These replace the previous `profiling` variant which enabled both at the same time.
+- Adds the `AXOM_TEST_NUM_OMP_THREADS` configuration variable to control the default OpenMP thread count for tests.
+- Slic: Adds `slic::getAbortFunction()` to return a function pointer to the abort handler called during logging functions
+- Quest: Adds a 3D winding number example and improves WN performance in 2D and 3D
+- Sidre: Added `AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING` (default `ON`) to optionally serialize scalar views 
+  with state `"SCALAR"` instead of `"TUPLE"` for compatibility with downstream readers (e.g. VisIt)
+  that don't yet support `"TUPLE"`. We expect to remove this in the future as readers adopt the `"TUPLE"` type.
+
+###  Changed
+- Version of `quest::discretize` that approximates a surface-of-revolution from a polyline
+  now respects the allocator ID of the output `Array`.  It no longer resets the ID to the
+  execution space default.
+- Updates to [RAJA version 2025.12.1](https://github.com/LLNL/RAJA/releases/tag/v2025.12.1)
+- Updates to [camp version 2025.12.0](https://github.com/LLNL/camp/releases/tag/v2025.12.0)
+- Updates to [Umpire version 2025.12.0](https://github.com/LLNL/Umpire/releases/tag/v2025.12.0)
+- Updates to [Caliper version 2.14.0](https://github.com/LLNL/Caliper/releases/tag/v2.14.0)
+- Evaluation methods for line integrals in `axom::primal` have been generalized, and 
+  `evaluate_scalar_line_integral` has been renamed to `evaluate_line_integral`.
+- Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
+  Materials are now expected to be defined only on the valid subset of zones in the mesh.
+  This more closely matches VisIt behavior.
+- Views and functions for creating views in `axom::bump` have been enhanced to better validate
+  Blueprint meshes to guard against malformed input. Likewise, runtime input checks have been
+  promoted to use `SLIC_ERROR_IF` instead of `SLIC_ASSERT` so the checks will remain in
+  optimized Axom builds.
+- The maximum number of vertices allowed in polygon primitives can now be passed as a template
+  argument to `axom::bump::TopologyMapper`, `axom::bump::PrimalAdaptor`, and
+  `axom::mir::ElviraAlgorithm`.
+- Material views in `axom::bump::views` were enhanced with `const_iterator` classes that
+  enable traversal of material data for zones so kernels do not need to use large fixed size
+  buffers to gather that data inside kernels.
+- Material views in `axom::bump::views` were enhanced with an overloaded `zoneMaterials()`
+  method that allows data to be gathered into `axom::ArrayView` objects.
+- A new `heavily_mixed` example program was added in `axom::mir` to demonstrate running MIR on
+  meshes with heavily mixed zones.
+- `saveDocument()` now has a `AUTODETECT` protocol for the file type
+- Sina fortran can now handle multiple records rather than a single record per application
+- Most Sina Fortran call can now pass the record for which the call is desired (`sina_add`, `sina_add_file`, `sina_add_curveset`, `sina_add_curve`)
+- Sina fortran `create_document_and_record` is now `sina_create_record`
+- Sina fortran `sina_write_document` now accepts a third argument that preserves records in memory so they can be written to another file (otherwise they're released from memory as soon as they're written)
+- Primal: In Bezier and NURBS classes, accessors for arrays of control points, weights and knots 
+  are now returned by (const) reference instead of returning a copy by value.
+- The `axom::bump::clipping::ClipField` and `axom::mir::EquiZAlgorithm` classes were enhanced so they can clip polygons up to 8 sides.
+- De-virtualized `axom::Array` methods to improve performance. This change may break code which
+  utilizes `axom::Array` or `sidre::Array/MCArray` in a polymorphic manner, for example by overriding
+  `Array::updateNumElements()` or `Array::dynamicRealloc()`.
+  Refer to the new `StoragePolicy` interface for substitute functionality.
+- The `axom::bump::clipping` namespace was renamed to `axom::bump::extraction` since it now
+  contains additional algorithms.
+- Updates to [mfem version 4.9](https://github.com/mfem/mfem/releases/tag/v4.9).
+  Also updates mfem's hypre dependency to [hypre version 2.27](https://github.com/hypre-space/hypre/releases/tag/v2.27.0).
+- Quest: `MFEMReader` can now read in multispan 1D NURBS meshes
+- fmt: Axom's built-in version of the fmt formatting library was updated to [fmt version 12.1.0](https://github.com/fmtlib/fmt/releases/tag/12.1.0).
+- Primal: Improves robustness of `linear_winding_number` by using `atan2` instead of `acos`
+- Core: Allows users to set the minimum size for Axom's shared memory allocator in `getSharedMemoryAllocatorID()`
+- Core: Allows users to set the name of the shared memory allocation in `allocate()`
+- Quest: Adds a function to the signed distance API to set the shared memory size:  `signed_distance_set_shared_memory_size()`
+- Sidre: Shroud-generated C/Fortran interfaces for `Group::createViewScalar()` and `Group::createViewString()` 
+  now include overloads that accept an allocator ID.
+
+###  Fixed
+- Sina's Fortran tests are now running (instead of silently failing)
+- Optimized `Array::push_back()` and `Array::emplace_back()` operations.
+- Quest: In Shaping applications, we now check return code after attempting to load a mesh
+  and throw an error for unsuccessful loads.
+- Core: Bugfix for batched insertion into a FlatMap with deleted entries
+- Quest: Sets the allocation name for shared memory in the signed distance query
+
+###  Removed
+- Removes the `AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION` CMake config variable. 
+  It is no longer needed -- we now always use MFEMSidreDataCollection in configurations with `mfem` and `sidre`.
+
+###  Deprecated
+
+
+## [Version 0.12.0] - Release date 2025-10-03
+
+### Added
+- Added a new Python interface for sidre, using nanobind to generate Python bindings.
+- Added a new "BUMP" (Blueprint Utilities for Mesh Processing) component in Axom, which includes
+  utilities that were formerly included in the Axom MIR component. BUMP is useful for writing
+  algorithms that process Blueprint meshes.
+- New `axom::MALLOC_ALLOCATOR_ID` is for using malloc and free
+  even when axom is configured with Umpire support.
+- The `axom::mir::ElviraAlgorithm` class, which performs material interface reconstruction using
+  the ELVIRA algorithm, was enhanced so it supports 3D structured mesh inputs. The output mesh is a
+  Blueprint mesh with a 3D unstructured polyhedral topology.
+- The `axom::mir::ElviraAlgorithm` class, was enhanced to accept a "plane" option that causes it
+  to return clipping plane origin and normal as fields on the mesh.
+- The `axom::mir::ElviraAlgorithm` class, was enhanced to accept a "pointmesh" option that causes it
+  to return a mesh consisting of points located at clipping plane origins for each clipped material
+  fragment, instead of returning polygonal or polyhedral meshes. This option is off by default.
+- Exposed primal clip operations for clipping various shapes with a plane.
+- Adds constructs in the `axom` namespace that wrap RAJA atomics, reductions, scans, and sorts.
+  When RAJA is not available, serial-only substitutes are provided, allowing algorithms to still
+  compile and run. These constructs are templated on the `ExecSpace` _(execution space)_ so it
+  is not necessary to query RAJA policies via the `execution_space` type traits classes.
+- 2D and 3D implementations for `axom::for_all` were added.
+- Adds `axom::FlatMapView`, a helper class associated with `axom::FlatMap` to support queries from
+  within a GPU kernel.
+- Adds `axom::FlatMap::create<ExecSpace>()` and `axom::FlatMap::insert<ExecSpace>()` to support
+  constructing or inserting a hash map over a batch of keys and values on the GPU or with OpenMP.
+- Adds support for custom allocators to `axom::FlatMap`.
+- Primal: Adds ability to perform sample-based shaping on tetrahedral shapes.
+- Improves efficiency of volume fraction computation from quadrature samples during sample-based shaping.
+- Adds a `axom::DeviceHash` type as a GPU-enabled version of the `std::hash` interface.
+- Added a new `quest::STLWriter` class that writes mint meshes to STL format.
+- Adds `assign` methods to `axom::Array`.
+- Adds `assign`, `fill`, `set` methods to `axom::ArrayView`.
+- Core: Adds a `TempFile` class to Axom's FileUtilities to help with generating temp files with unique file
+  names that can be automatically removed when the instance goes out of scope.
+- Klee: We now support optional specification of a per-shape `dimensions` field for the 
+  geometry of a shape. These can be used to override the global `dimensions` 
+  of a Klee input file.
+- Lumberjack: Added sorting of log messages by creation time.  This is now the default.
+- Slic: Added check for pending messages which is done by default when calling flushStreams() and pushStreams().
+- Sina: Records can now be provided with a curve ordering to use when writing to file. By default, all records will now use
+  oldest-first ordering (ULTRA-like)
+- Sina: Documents can optionally be written as HDF5 instead of JSON. HDF5 should provide better performance for large, curve-rich sets
+- Sina: Written documents can now be appended to. This is a flexible system with a few different uses, ex: continuous writing of timeseries, overwriting values that change over the course of a simulation, and snapshot handling. See documentation for details.
+- Adds `quest::MFEMReader` for reading 1D MFEM contours in 2D space.
+- Adds an option to `quest::SamplingShaper` to allow in/out tests based on winding numbers for MFEM contours.
+- The `shaping_driver` example program can select `--sampling inout` to do the default In/Out sampling and `--sampling windingnumber` to select winding number in/out tests for MFEM data.
+- Adds Axom-native Gauss-Legendre quadrature rules that can be used without an MFEM dependency
+
+###  Changed
+- Updates blt submodule to [BLT version 0.7.1](https://github.com/LLNL/blt/releases/tag/v0.7.1)
+- Updates to [Conduit version 0.9.5](https://github.com/LLNL/conduit/releases/tag/v0.9.5)
+- Updates to [RAJA version 2025.09.0](https://github.com/LLNL/RAJA/releases/tag/v2025.09.0)
+- Updates to [camp version 2025.09.2](https://github.com/LLNL/camp/releases/tag/v2025.09.2)
+- Updates to [Umpire version 2025.09.0](https://github.com/LLNL/Umpire/releases/tag/v2025.09.0)
+- Axom now requires `C++17` and will default to that if not specified via `BLT_CXX_STD`.
+- Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
+  since the last `reset()`.
+- Adds support for allocations using `malloc` and `free` even when Axom is configured with Umpire support.
+- Adds a new utility tool, `mesh_converter`, which converts between mesh formats. The first conversion
+  is from a Pro-E tetrahedral mesh to an STL mesh of its boundary triangles.
+- Primal: Adds a method to determine if a point is contained within a Tetrahedron.
+- The `primal::BoundingBox` class' `expand()` and `shift()` methods were modified so they do
+  nothing when called on invalid bounding boxes.
+- Updates to [MFEM version 4.8.0](https://github.com/mfem/mfem/releases/tag/v4.8)
+- Readers in Quest were moved from a `quest/readers` directory to `quest/io`.
+- Sina: Renames a Fortran module to `sina_hdf5_config` (from `hdf5_config`)
+- Spin: Uses `axom::FlatMap` in `SparseOctreeLevel` implementation. We have observed a performance regression
+  of about 20% during InOutOctree construction and queries over STL surface meshes relative to the previous sparsehash
+  implementation. Please reach out to Axom developers if this affects you while we work on fixes for these.
+- Klee: Moves source files related to IO into a new `io` subdirectory in the Klee component
+- Primal: Consolidates construction logic for `BezierCurve`, `BezierPatch`, `KnotVector`,
+  `NURBSCurve` and `NURBSPatch` classes and add overloads from `axom::ArrayView`
+- Primal: 2D and 3D winding number methods are now accelerated via memoization (dynamic caching + reuse) when supplied
+  arrays of query points
+- Core: Updates behavior of `FlatMap::reserve()` to only trigger a rehash if maximum load factor
+  would be exceeded.
+- Quest: The signed_distance functions were modified so they use Umpire's shared memory mechanisms instead of using MPI3 directly.
+- Axom's `AXOM_USE_MPI3` CMake config option and corresponding macro definition were removed.
+- When Umpire is present, Axom now detects whether it supports shared memory and defines the `AXOM_USE_UMPIRE_SHARED_MEMORY` macro if appropriate. This macro can be used to conditionally compile code involving shared memory via Umpire.
+- Quest: Moves curve linearization from the `quest::C2CReader` into `quest::LinearizeCurves` so the logic can be used with other curve data.
+- Axom's `AXOM_USE_64BIT_INDEXTYPE` CMake config option now defaults to `ON`. As a result, 
+  `axom::IndexType` defaults to `std::int64_t` instead of `std::int32_t`.
+
+###  Fixed
+- Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled
+  with GPU support. Instances where this occurs will now trigger a static assertion during compile time.
+- Fixes build with `ninja` generator
+- Primal: Fixes a `BoundingBox` constructor with zero (or fewer) points
+- Sina: Fixes configuration variables related to inclusion of `AdiakWriter.hpp` and to hdf5 support in `sina_fortran_interface.f`
+- Spin: Fixes undefined behavior in BVH tree construction associated with using signed indexes
+- Spin: Fixes undefined behavior in UniformGrid construction associated with invalid geometry bounding boxes
+- Core: Fixes undefined behavior in MapCollection when searching empty collections
+- Core: Fixes some edge cases in the `joinPath` file utility
+- Core: Fixes `FlatMap::erase()` to update reported size.
+- Core: Fixes `FlatMap::rehash()` when allocated in device-only memory.
+
+###  Deprecated
+- Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.
+
+## [Version 0.11.0] - Release date 2025-04-02
+
+###  Added
+- Added a new "Mir" Axom component for accelerated Material Interface Reconstruction (MIR) algorithms.
+  MIR algorithms take Blueprint meshes with a matset and they use the matset's material information
+  to split any input zones that contain multiple materials into zones that contain a single material.
+  The Mir component provides an implementation of the Equi-Z MIR algorithm, which is a visualization-
+  oriented algorithm that produces smooth interfaces between zones and their neighbors. The Mir
+  component also provides a 2D ELVIRA algorithm, which reconstructs polygonal shapes and preserves
+  volume fractions.
+- Support in `quest::IntersectionShaper` for Blueprint mesh stored in a `conduit::Node` or `sidre::Group`.
+- Adds new CMake configuration options, `AXOM_ENABLE_ASAN` and `AXOM_ENABLE_UBSAN`, to enable/disable AddressSanitizer and UndefinedBehaviorSanitizer respectively in Axom. Default is OFF for both.
+- A number of new `klee::Geometry` constructors are added, for the different shapes now supported.
+  This is a temporary change.  The class will be subclassed in the future to support a diversity of geometries.
+- Support some analytical shapes in `IntersectionShaper`.
+- Support generating shapes in memory (not requiring input files).
+- `sidre::View` holding array data may now be re-shaped.  See `sidre::View::reshapeArray`.
+- Sina C++ library is now a component of Axom
+- Adds optional dependency on [Open Cascade](https://dev.opencascade.org). The initial intention is 
+to use Open Cascade's file I/O capabilities in support of Quest applications.
+- Adds `primal::NURBSCurve` and `primal::NURBSPatch` classes, supported by `primal::KnotVector`.
+- Adds trimming curve support for `primal::NURBSPatch` via an array of parameter space `primal::NURBSCurve` objects,
+  where portions of the surface not bound by trimming curves in parameter space are invisible.
+- Adds a Quest example that reads in a STEP file using Open Cascade and processes its geometry
+- Adds a piecewise method to load external data using `sidre::IOManager`.  This adds new overloaded methods
+  of `loadExternalData` in `sidre::IOManager` and `sidre::Group`.
+- Adds intersection routines between `primal::Ray` objects and `primal::NURBSCurve`/`primal::NURBSPatch` objects.
+- Adds LineFileTagCombiner to Lumberjack to allow combining messages if line number, file, and tag are equal.
+- Adds some support for 2D shaping in `quest::IntersectionShaper`, using STL meshes with zero for z-coordinates or in-memory triangles as input.
+- Adds ability in Lumberjack to own and set communicators.
+- Adds `NonCollectiveRootCommunicator` to Lumberjack to provide an MPI-based communicator for logging messages non-collectively.
+- Adds initial support for 2D shaping in `quest::IntersectionShaper`, using a c2c contour as input. The contour cannot overlap, and is expected to be entirely above the x-axis.
+
+###  Changed
+- Updates blt submodule to [BLT version 0.7.0](https://github.com/LLNL/blt/releases/tag/v0.7.0)
+- Updates to [MFEM version 4.7.0](https://github.com/mfem/mfem/releases/tag/v4.7)
+- Updates to [Caliper version 2.12.1](https://github.com/LLNL/Caliper/releases/tag/v2.12.1)
+- Updates to [Conduit version 0.9.3](https://github.com/LLNL/conduit/releases/tag/v0.9.3)
+- Updates to [RAJA version 2025.03.0](https://github.com/LLNL/RAJA/releases/tag/v2025.03.0)
+- Updates to [camp version 2025.03.0](https://github.com/LLNL/camp/releases/tag/v2025.03.0)
+- Updates to [Umpire version 2025.03.0](https://github.com/LLNL/Umpire/releases/tag/v2025.03.0)
+- `primal::NumericArray` has been moved to `core`.  The header is `core/NumericArray.hpp`.
+- `quest::Shaper` and `quest::IntersectionShaper` constructors require a runtime policy.
+  Changing the policy after construction is no longer supported.
+- Importing Conduit array data into `sidre::View` now allocates destination
+  data using the `View`'s parent's allocator ID, instead of always using
+  host memory.  This is consistent with the behavior of deep-copying data
+  from Sidre.
+- ItemCollection and its child classes MapCollection, ListCollection, and IndexedCollection were moved from Sidre
+  to core.  The namespace prefix for these classes is now `axom::` instead of `axom::sidre`.  The internal usage of
+  these types within Sidre Datastore and Group is unchanged.
+- `MFEMSidreDataCollection::LoadExternalData` now takes two optional string parameters, one that is a
+  filename (defaults to the `name` member variable) and the other is a `Group` path relative to the base of
+  the Data Collection itself (defaults to the root of the `DataStore`).
+- `SLIC_ASSERT`,`SLIC_ASSERT_MSG`,`SLIC_CHECK`, and `SLIC_CHECK_MSG` macros delegate to assert() within HIP device kernels.
+
+###  Fixed
+- Fixes compilation issue with RAJA@2024.07 on 32-bit Windows configurations. 
+  This required a [RAJA fix to avoid 64-bit intrinsics](https://github.com/LLNL/RAJA/pull/1746), 
+  as well as support for 32-bit `Word`s in Slam's `BitSet` class.
+- Minor bugfix to `primal::intersect(segment, ray)` to better handle cases when segment and ray overlap or are nearly parallel.
+- Fixes a memory leak in `axom::Array` copy constructor.
+- Fixes robustness issue with the `axom::primal::clip` overload for clipping a 2D polygon against another 2D polygon.
+
+## [Version 0.10.1] - Release date 2024-10-22
+
+###  Added
+- Constructor to Axom BVH that avoids an unnecessary copy of each bounding box.
+
+###  Fixed
+- Issue with uninitialized state in axom::Array class was causing
+  host-initialization of device-allocated memory in certain situations. This
+  could cause warnings about uninitialized memory or crashes in the axom::Array
+  constructor.
+- Added a guard for sidre-related mint API usage in a quest example.
+- Removed `std::ends` usage from `SLIC_ASSERT`,`SLIC_ASSERT_MSG`,`SLIC_CHECK`,
+  and `SLIC_CHECK_MSG` macros that prevented Lumberjack from combining
+  messages.
+- Some line numbers linking file contents into the Axom Quickstart Guide were
+  incorrect causing the docs to appear incomplete.
+
+
+## [Version 0.10.0] - Release date 2024-09-27
+
+### Added
+- Added SLIC constructors that take in a `std::string` for the stream. If string is
+  interpreted as a file name, the file is not opened until SLIC flushes and the
+  stream has at least one message logged.
+- Primal: Adds a `clip()` operator overload for clipping a 2D polygon against
+  another 2D polygon.
+- Primal: Adds `Polygon::reverseOrientation()` to reverse orientation of
+  a polygon in-place.
+- Adds `StaticArray`, a wrapper for `StackArray` with a size member variable.
+- Multidimensional `core::Array` supports column-major and arbitrary stride ordering,
   in addition to the default row-major ordering.
 - Adds new `PolygonArray` and `MAX_VERTS` template parameters to `primal::Polygon` for dynamic
   or static allocation.
@@ -34,8 +339,26 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds a `closest_point` operator for finding the closest point on a `Segment`
 - Primal: Adds a `reflectPoint` method to the `Plane` primitive
 - Primal: Makes several primitive methods available in device code
+- Improves support for `axom::Array` allocated in unified and pinned memory on GPU platforms.
+  Use of GPU-based operations for Arrays allocated in a unified memory space is controlled with
+  a new method, `Array::setDevicePreference()`.
+- Adds `svg2contours` script to convert paths in an SVG file to an MFEM NURBS mesh
+- Quest: Adds an example to query winding numbers on an MFEM NURBS mesh
 
 ### Changed
+- Updates to [Conduit version 0.9.2](https://github.com/LLNL/conduit/releases/tag/v0.9.2)
+- Updates to [RAJA version 2024.07.0](https://github.com/LLNL/RAJA/releases/tag/v2024.07.0)
+- Updates to [camp version 2024.07.0](https://github.com/LLNL/camp/releases/tag/v2024.07.0)
+- Updates to [Umpire version 2024.07.0](https://github.com/LLNL/Umpire/releases/tag/v2024.07.0)
+- `axom::CLI::ExitCodes::Success` has been changed to `axom::CLI::ExitCodes::CLI11_Success`
+  to avoid conflict when X11 `#define`s `Success`.
+- `MarchingCubes` masking now uses the mask field's integer values instead of
+  converting them to booleans.  The new behavior lets you select a value to mask for.
+  If you want to continue the boolean behavior, use only 0 or 1 in your mask field.
+- Primal: `Polyhedron::centroid()` function changed to return center of mass
+  of the polyhedron. `Polyhedron::vertexMean()` added to return average of
+  polyhedron's vertices. `Polyhedron::moments()` returns the volume and centroid
+  of the polyhedron, the 0th and 1st moments respectively.
 - `quest::ArrayIndexer` is now `axom::MDMapping`, adopting conventional terminology
   and moving out of `quest`.
 - `mint::structured_exec` is now `axom::nested_for_exec`, to support nested for loops
@@ -47,12 +370,19 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   from axom's default dependencies on Windows due to incompatibility between umpire's
   external `fmt` and axom's vendored copy.
 - Turn off CMake finding dependencies on system paths.
+- `axom::Array`: trivially-copyable types with a non-trivial constructor are now initialized on the GPU.
+- SLIC no longer outputs the rank count in the `RANK` format string in parallel loggers. You can access
+  the rank count via new format option `RANK_COUNT`.
 
 ### Removed
 - Removes config option `AXOM_ENABLE_ANNOTATIONS`. Annotations are now provided by `caliper` 
   (and `adiak` for metadata) and are available when axom is configured with `CALIPER_DIR` and `ADIAK_DIR` 
   config variables.
 - Removes caching of `{PACKAGE}_FOUND` variables in `SetupAxomThirdParty.cmake`
+- We no longer test Axom with the XL compiler. So users should consider XL unsupported.
+
+### Fixed
+- `numerics::eigen_solve()` has been corrected to avoid an early return with error state.
 
 ## [Version 0.9.0] - Release date 2024-03-19
 
@@ -119,9 +449,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Version 0.8.1] - Release date 2023-08-16
 
 ### Changed
-- Updates to [RAJA version 2023.06.0][https://github.com/LLNL/RAJA/releases/tag/v2023.06.0]
-- Updates to [camp version 2023.06.0][https://github.com/LLNL/camp/releases/tag/v2023.06.0]
-- Updates to [Umpire version 2023.06.0][https://github.com/LLNL/Umpire/releases/tag/v2023.06.0]
+- Updates to [RAJA version 2023.06.0](https://github.com/LLNL/RAJA/releases/tag/v2023.06.0)
+- Updates to [camp version 2023.06.0](https://github.com/LLNL/camp/releases/tag/v2023.06.0)
+- Updates to [Umpire version 2023.06.0](https://github.com/LLNL/Umpire/releases/tag/v2023.06.0)
 
 ### Fixed
 - Fixed MFEMSidreDataCollection finite element space bug
@@ -1066,20 +1396,25 @@ fractions for the associated materials must be supplied before shaping.
 - Use this section in case of vulnerabilities
 
 
-[Unreleased]:    https://github.com/LLNL/axom/compare/v0.9.0...develop
-[Version 0.9.0]: https://github.com/LLNL/axom/compare/v0.8.1...v0.9.0
-[Version 0.8.1]: https://github.com/LLNL/axom/compare/v0.8.0...v0.8.1
-[Version 0.8.0]: https://github.com/LLNL/axom/compare/v0.7.0...v0.8.0
-[Version 0.7.0]: https://github.com/LLNL/axom/compare/v0.6.1...v0.7.0
-[Version 0.6.1]: https://github.com/LLNL/axom/compare/v0.6.0...v0.6.1
-[Version 0.6.0]: https://github.com/LLNL/axom/compare/v0.5.0...v0.6.0
-[Version 0.5.0]: https://github.com/LLNL/axom/compare/v0.4.0...v0.5.0
-[Version 0.4.0]: https://github.com/LLNL/axom/compare/v0.3.3...v0.4.0
-[Version 0.3.3]: https://github.com/LLNL/axom/compare/v0.3.2...v0.3.3
-[Version 0.3.2]: https://github.com/LLNL/axom/compare/v0.3.1...v0.3.2
-[Version 0.3.1]: https://github.com/LLNL/axom/compare/v0.3.0...v0.3.1
-[Version 0.3.0]: https://github.com/LLNL/axom/compare/v0.2.9...v0.3.0
-[Version 0.2.9]: https://github.com/LLNL/axom/compare/v0.2.8...v0.2.9
+[Unreleased]:     https://github.com/LLNL/axom/compare/v0.13.0...develop
+[Version 0.13.0]: https://github.com/LLNL/axom/compare/v0.12.0...v0.13.0
+[Version 0.12.0]: https://github.com/LLNL/axom/compare/v0.11.0...v0.12.0
+[Version 0.11.0]: https://github.com/LLNL/axom/compare/v0.10.1...v0.11.0
+[Version 0.10.1]: https://github.com/LLNL/axom/compare/v0.10.0...v0.10.1
+[Version 0.10.0]: https://github.com/LLNL/axom/compare/v0.9.0...v0.10.0
+[Version 0.9.0]:  https://github.com/LLNL/axom/compare/v0.8.1...v0.9.0
+[Version 0.8.1]:  https://github.com/LLNL/axom/compare/v0.8.0...v0.8.1
+[Version 0.8.0]:  https://github.com/LLNL/axom/compare/v0.7.0...v0.8.0
+[Version 0.7.0]:  https://github.com/LLNL/axom/compare/v0.6.1...v0.7.0
+[Version 0.6.1]:  https://github.com/LLNL/axom/compare/v0.6.0...v0.6.1
+[Version 0.6.0]:  https://github.com/LLNL/axom/compare/v0.5.0...v0.6.0
+[Version 0.5.0]:  https://github.com/LLNL/axom/compare/v0.4.0...v0.5.0
+[Version 0.4.0]:  https://github.com/LLNL/axom/compare/v0.3.3...v0.4.0
+[Version 0.3.3]:  https://github.com/LLNL/axom/compare/v0.3.2...v0.3.3
+[Version 0.3.2]:  https://github.com/LLNL/axom/compare/v0.3.1...v0.3.2
+[Version 0.3.1]:  https://github.com/LLNL/axom/compare/v0.3.0...v0.3.1
+[Version 0.3.0]:  https://github.com/LLNL/axom/compare/v0.2.9...v0.3.0
+[Version 0.2.9]:  https://github.com/LLNL/axom/compare/v0.2.8...v0.2.9
 
 [clang-format]: https://releases.llvm.org/10.0.0/tools/clang/docs/ClangFormatStyleOptions.html
 [MFEM]: https://mfem.org

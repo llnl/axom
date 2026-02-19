@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -9,7 +10,8 @@
   #error These tests should only be included when Axom is configured with C2C
 #endif
 
-#include "axom/quest/readers/C2CReader.hpp"
+#include "axom/quest/io/C2CReader.hpp"
+#include "axom/quest/LinearizeCurves.hpp"
 #include "axom/slic.hpp"
 #include "axom/mint.hpp"
 #include "axom/primal.hpp"
@@ -42,9 +44,7 @@ const std::string C2C_SPLINE_FILENAME = "test_spline.contour";
 void writeSimpleCircle(const std::string& filename)
 {
   std::ofstream c2cFile(filename, std::ios::out);
-  c2cFile
-    << "piece = circle(origin=(0cm, 0cm), radius=1cm, start=0deg, end=360deg)"
-    << std::endl;
+  c2cFile << "piece = circle(origin=(0cm, 0cm), radius=1cm, start=0deg, end=360deg)" << std::endl;
 }
 
 /// Writes out a c2c file for a line
@@ -94,8 +94,7 @@ void writeSpline(const std::string& filename)
 
   // add straight edges within first quadrant
   c2cFile << "piece = line(end=(0cm,0cm))" << std::endl;
-  c2cFile << axom::fmt::format("piece = line(end=(0cm,{}cm))", 2 * M_PI)
-          << std::endl;
+  c2cFile << axom::fmt::format("piece = line(end=(0cm,{}cm))", 2 * M_PI) << std::endl;
   c2cFile << "piece = line(end=spline_start)" << std::endl;
 }
 
@@ -127,7 +126,8 @@ TEST(quest_c2c_reader, interpolate_circle)
   MeshType* mesh = new MeshType(DIM, mint::SEGMENT);
 
   const int segmentsPerKnotSpan = 25;
-  reader.getLinearMeshUniform(mesh, segmentsPerKnotSpan);
+  axom::quest::LinearizeCurves lin;
+  lin.getLinearMeshUniform(reader.getCurvesView(), mesh, segmentsPerKnotSpan);
 
   // The circle is defined by a single NURBS curve with four spans
   SLIC_INFO(axom::fmt::format("Mesh has {} nodes and {} cells",
@@ -172,7 +172,8 @@ TEST(quest_c2c_reader, interpolate_square)
   MeshType* mesh = new MeshType(DIM, mint::SEGMENT);
 
   const int segmentsPerKnotSpan = 10;
-  reader.getLinearMeshUniform(mesh, segmentsPerKnotSpan);
+  axom::quest::LinearizeCurves lin;
+  lin.getLinearMeshUniform(reader.getCurvesView(), mesh, segmentsPerKnotSpan);
 
   SLIC_INFO(axom::fmt::format("Mesh has {} nodes and {} cells",
                               mesh->getNumberOfNodes(),
@@ -208,7 +209,8 @@ TEST(quest_c2c_reader, interpolate_spline)
   MeshType* mesh = new MeshType(DIM, mint::SEGMENT);
 
   const int segmentsPerKnotSpan = 20;
-  reader.getLinearMeshUniform(mesh, segmentsPerKnotSpan);
+  axom::quest::LinearizeCurves lin;
+  lin.getLinearMeshUniform(reader.getCurvesView(), mesh, segmentsPerKnotSpan);
 
   SLIC_INFO(axom::fmt::format("Mesh has {} nodes and {} cells",
                               mesh->getNumberOfNodes(),

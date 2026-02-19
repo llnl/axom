@@ -1,6 +1,6 @@
 **WHAT IS A DOCKERFILE?**
-Dockerfiles are used to create Docker images.  Docker images are the 'recipes' used to build virtual environments called containers. These dockerfiles all use a base Linux image that has a particular compiler installed.  These base images were created by David Beckinsale and are located on Docker Hub at this location:
-https://hub.docker.com/r/axom/compilers/tags
+Dockerfiles are used to create Docker images.  Docker images are the 'recipes' used to build virtual environments called containers. These dockerfiles all use a base Linux image that has a particular compiler installed.  These base images were created by David Beckingsale and are created from this GitHub respository:
+https://github.com/LLNL/radiuss-docker
 
 **EXPLANATION OF DOCKERFILE CONTENTS**
 The base images are accessed in these dockerfiles by the use of the 'FROM' command:

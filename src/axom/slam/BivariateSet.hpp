@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -89,13 +90,12 @@ public:
   using ElementType = typename FirstSetType::ElementType;
   using NullSetType = NullSet<PositionType, ElementType>;
 
-  using SubsetType =
-    OrderedSet<PositionType,
-               ElementType,
-               policies::RuntimeSize<PositionType>,
-               policies::RuntimeOffset<PositionType>,
-               policies::StrideOne<PositionType>,
-               policies::ArrayViewIndirection<PositionType, ElementType>>;
+  using SubsetType = OrderedSet<PositionType,
+                                ElementType,
+                                policies::RuntimeSize<PositionType>,
+                                policies::RuntimeOffset<PositionType>,
+                                policies::StrideOne<PositionType>,
+                                policies::ArrayViewIndirection<PositionType, ElementType>>;
 
   using RangeSetType = RangeSet<PositionType, ElementType>;
   using IteratorType = BivariateSetIterator<BivariateSet>;
@@ -138,8 +138,7 @@ public:
    *          element is missing from the set.
    * \pre   0 <= pos1 <= set1.size() && 0 <= pos2 <= size2.size()
    */
-  virtual PositionType findElementIndex(PositionType pos1,
-                                        PositionType pos2) const = 0;
+  virtual PositionType findElementIndex(PositionType pos1, PositionType pos2) const = 0;
 
   /**
    * \brief Search for the FlatIndex of the element given its DenseIndex.
@@ -150,9 +149,8 @@ public:
    * \return  The element's FlatIndex
    * \pre   0 <= pos1 <= set1.size() && 0 <= pos2 <= size2.size()
    */
-  AXOM_HOST_DEVICE virtual PositionType findElementFlatIndex(
-    PositionType pos1,
-    PositionType pos2) const = 0;
+  AXOM_HOST_DEVICE virtual PositionType findElementFlatIndex(PositionType pos1,
+                                                             PositionType pos2) const = 0;
 
   /**
    * \brief Searches for the first existing element given the row index (first
@@ -173,8 +171,7 @@ public:
    *
    * \return pos1  The from-set index.
    */
-  AXOM_HOST_DEVICE virtual PositionType flatToFirstIndex(
-    PositionType flatIndex) const = 0;
+  AXOM_HOST_DEVICE virtual PositionType flatToFirstIndex(PositionType flatIndex) const = 0;
 
   /**
    * \brief Given the flat index, return the associated to-set index in the
@@ -184,8 +181,7 @@ public:
    *
    * \return pos2  The to-set index.
    */
-  AXOM_HOST_DEVICE virtual PositionType flatToSecondIndex(
-    PositionType flatIndex) const = 0;
+  AXOM_HOST_DEVICE virtual PositionType flatToSecondIndex(PositionType flatIndex) const = 0;
 
   /**
    * \brief Finds the range of indices of valid elements in the second set,
@@ -213,7 +209,9 @@ public:
   {
     return getSize<FirstSetType>(m_set1);
   }
+
   /** \brief Size of the second set.   */
+  AXOM_SUPPRESS_HD_WARN
   AXOM_HOST_DEVICE inline PositionType secondSetSize() const
   {
     return getSize<SecondSetType>(m_set2);
@@ -221,6 +219,7 @@ public:
 
   /** \brief Returns pointer to the first set.   */
   const FirstSetType* getFirstSet() const { return m_set1; }
+
   /** \brief Returns pointer to the second set.   */
   const SecondSetType* getSecondSet() const { return m_set2; }
 
@@ -253,19 +252,18 @@ public:
 private:
   virtual void verifyPosition(PositionType s1, PositionType s2) const = 0;
 
+  AXOM_SUPPRESS_HD_WARN
   template <typename SetType>
-  AXOM_HOST_DEVICE
-    typename std::enable_if<std::is_abstract<SetType>::value, PositionType>::type
-    getSize(const SetType* s) const
+  AXOM_HOST_DEVICE typename std::enable_if<std::is_abstract<SetType>::value, PositionType>::type
+  getSize(const SetType* s) const
   {
     SLIC_ASSERT_MSG(s != nullptr, "nullptr in BivariateSet::getSize()");
     return s->size();
   }
 
   template <typename SetType>
-  AXOM_HOST_DEVICE
-    typename std::enable_if<!std::is_abstract<SetType>::value, PositionType>::type
-    getSize(const SetType* s) const
+  AXOM_HOST_DEVICE typename std::enable_if<!std::is_abstract<SetType>::value, PositionType>::type
+  getSize(const SetType* s) const
   {
     SLIC_ASSERT_MSG(s != nullptr, "nullptr in BivariateSet::getSize()");
     return static_cast<SetType>(*s).size();
@@ -286,8 +284,7 @@ bool BivariateSet<Set1, Set2>::isValid(bool verboseOutput) const
   {
     if(verboseOutput)
     {
-      SLIC_INFO("BivariateSet is not valid: "
-                << " Set pointers should not be null.");
+      SLIC_INFO("BivariateSet is not valid: " << " Set pointers should not be null.");
     }
     return false;
   }
@@ -301,20 +298,18 @@ bool BivariateSet<Set1, Set2>::isValid(bool verboseOutput) const
  */
 template <typename BivariateSetType>
 struct BivariateSetIterator
-  : public IteratorBase<BivariateSetIterator<BivariateSetType>,
-                        typename BivariateSetType::PositionType>
+  : public IteratorBase<BivariateSetIterator<BivariateSetType>, typename BivariateSetType::PositionType>
 {
 public:
   using IndexType = typename BivariateSetType::PositionType;
-  using BaseType =
-    IteratorBase<BivariateSetIterator<BivariateSetType>, IndexType>;
+  using BaseType = IteratorBase<BivariateSetIterator<BivariateSetType>, IndexType>;
   using difference_type = IndexType;
   using value_type = std::pair<IndexType, IndexType>;
   using reference = value_type&;
   using pointer = value_type*;
   using iterator_category = std::forward_iterator_tag;
 
-  BivariateSetIterator(const BivariateSetType* bset, IndexType flatPos = 0)
+  AXOM_HOST_DEVICE BivariateSetIterator(const BivariateSetType* bset, IndexType flatPos = 0)
     : BaseType(flatPos)
     , m_bset(bset)
   { }
@@ -329,10 +324,7 @@ public:
   IndexType firstIndex() const { return m_bset->flatToFirstIndex(flatIndex()); }
 
   /// \brief Return the second set index pointed to by this iterator.
-  IndexType secondIndex() const
-  {
-    return m_bset->flatToSecondIndex(flatIndex());
-  }
+  IndexType secondIndex() const { return m_bset->flatToSecondIndex(flatIndex()); }
 
   /// \brief Return the flat iteration index of this iterator.
   AXOM_HOST_DEVICE IndexType flatIndex() const { return this->m_pos; }
@@ -364,15 +356,14 @@ public:
 public:
   NullBivariateSet() = default;
 
-  PositionType findElementIndex(PositionType pos1,
-                                PositionType pos2 = 0) const override
+  PositionType findElementIndex(PositionType pos1, PositionType pos2 = 0) const override
   {
     verifyPosition(pos1, pos2);
     return PositionType();
   }
 
-  AXOM_HOST_DEVICE PositionType findElementFlatIndex(PositionType s1,
-                                                     PositionType s2) const override
+  AXOM_SUPPRESS_HD_WARN
+  AXOM_HOST_DEVICE PositionType findElementFlatIndex(PositionType s1, PositionType s2) const override
   {
     verifyPosition(s1, s2);
     return PositionType();
@@ -393,15 +384,13 @@ public:
     return PositionType();
   }
 
+  AXOM_SUPPRESS_HD_WARN
   AXOM_HOST_DEVICE RangeSetType elementRangeSet(PositionType) const override
   {
     return RangeSetType();
   }
 
-  AXOM_HOST_DEVICE ElementType at(PositionType) const override
-  {
-    return PositionType();
-  }
+  AXOM_HOST_DEVICE ElementType at(PositionType) const override { return PositionType(); }
 
   AXOM_HOST_DEVICE PositionType size() const override { return PositionType(); }
 
@@ -419,8 +408,7 @@ private:
   {
     SLIC_ASSERT_MSG(false,
                     "Subscripting on NullSet is never valid."
-                      << "\n\tAttempted to access item at index " << pos1 << ","
-                      << pos2 << ".");
+                      << "\n\tAttempted to access item at index " << pos1 << "," << pos2 << ".");
   }
 };
 

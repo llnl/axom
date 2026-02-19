@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -149,9 +150,9 @@ spack:
         prefix: /usr/tce/packages/cmake/cmake-3.18.0
       buildable: false
     llvm:
-      version: [10.0.0]
+      version: [14.0.5]
       buildable: false
       externals:
-      - spec: llvm@10.0.0+clang
-        prefix: /usr/tce/packages/clang/clang-10.0.0
+      - spec: llvm@14.0.5+clang+python
+        prefix: /usr/tce/packages/clang/clang-14.0.5
 

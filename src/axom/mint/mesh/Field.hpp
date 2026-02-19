@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -243,12 +244,10 @@ inline T* Field::getDataPtr(Field* field)
   // check type
   constexpr int type = field_traits<T>::type();
   int ftype = field->getType();
-  SLIC_ERROR_IF(
-    (type == UNDEFINED_FIELD_TYPE),
-    "Template argument to Field::getDataPtr() doesn't map to a supported type");
-  SLIC_ERROR_IF(
-    (type != ftype),
-    "Template argument to Field::getDataPtr() doesn't match the field type");
+  SLIC_ERROR_IF((type == UNDEFINED_FIELD_TYPE),
+                "Template argument to Field::getDataPtr() doesn't map to a supported type");
+  SLIC_ERROR_IF((type != ftype),
+                "Template argument to Field::getDataPtr() doesn't match the field type");
 
   FieldVariable<T>* f = static_cast<FieldVariable<T>*>(field);
   SLIC_ASSERT(f != nullptr);
@@ -264,12 +263,10 @@ inline const T* Field::getDataPtr(const Field* field)
   // check type
   int type = field_traits<T>::type();
   int ftype = field->getType();
-  SLIC_ERROR_IF(
-    (type == UNDEFINED_FIELD_TYPE),
-    "Template argument to Field::getDataPtr() doesn't map to a supported type");
-  SLIC_ERROR_IF(
-    (type != ftype),
-    "Template argument to Field::getDataPtr() doesn't match the field type");
+  SLIC_ERROR_IF((type == UNDEFINED_FIELD_TYPE),
+                "Template argument to Field::getDataPtr() doesn't map to a supported type");
+  SLIC_ERROR_IF((type != ftype),
+                "Template argument to Field::getDataPtr() doesn't match the field type");
 
   const FieldVariable<T>* f = static_cast<const FieldVariable<T>*>(field);
   SLIC_ASSERT(f != nullptr);

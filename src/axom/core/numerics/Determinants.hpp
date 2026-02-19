@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -33,8 +34,7 @@ inline AXOM_HOST_DEVICE
 real determinant(const real& a00, const real& a01,
                  const real& a10, const real& a11)
 {
-  const real det = a00 * a11 - a10 * a01;
-  return det;
+  return axom::utilities::fma(a00, a11, -a01*a10);
 }
 
 /*!
@@ -56,12 +56,13 @@ real determinant(const real& a00,  const real& a01,  const real& a02,
                  const real& a10,  const real& a11,  const real& a12,
                  const real& a20,  const real& a21,  const real& a22)
 {
-  const real m01 = a00 * a11 - a10 * a01;
-  const real m02 = a00 * a21 - a20 * a01;
-  const real m12 = a10 * a21 - a20 * a11;
+  const real m01 = axom::utilities::fma(a00, a11, - a10 * a01);
+  const real m02 = axom::utilities::fma(a00, a21, - a20 * a01);
+  const real m12 = axom::utilities::fma(a10, a21, - a20 * a11);
 
-  const real det = m01 * a22 - m02 * a12 + m12 * a02;
-  return det;
+  // det = m01 * a22 - m02 * a12 + m12 * a02;
+  const real t = axom::utilities::fma(-m02, a12, m12 * a02);
+  return axom::utilities::fma(m01, a22, t);
 }
 
 /*!
@@ -94,19 +95,29 @@ inline real determinant(
   const real& a20, const real& a21, const real& a22, const real& a23,
   const real& a30, const real& a31, const real& a32, const real& a33)
 {
-  const real m01 = a10 * a01 - a00 * a11;
-  const real m02 = a20 * a01 - a00 * a21;
-  const real m03 = a30 * a01 - a00 * a31;
-  const real m12 = a20 * a11 - a10 * a21;
-  const real m13 = a30 * a11 - a10 * a31;
-  const real m23 = a30 * a21 - a20 * a31;
+  /// 2x2 minors
+  const real m01 = axom::utilities::fma(a10, a01, - a00 * a11);
+  const real m02 = axom::utilities::fma(a20, a01, - a00 * a21);
+  const real m03 = axom::utilities::fma(a30, a01, - a00 * a31);
+  const real m12 = axom::utilities::fma(a20, a11, - a10 * a21);
+  const real m13 = axom::utilities::fma(a30, a11, - a10 * a31);
+  const real m23 = axom::utilities::fma(a30, a21, - a20 * a31);
 
-  const real m012 = m12 * a02 - m02 * a12 + m01 * a22;
-  const real m013 = m13 * a02 - m03 * a12 + m01 * a32;
-  const real m023 = m23 * a02 - m03 * a22 + m02 * a32;
-  const real m123 = m23 * a12 - m13 * a22 + m12 * a32;
+  /// 3x3 minors
+  // m012 = m12*a02 - m02*a12 + m01*a22
+  const real m012 = axom::utilities::fma(m01, a22, axom::utilities::fma(m12, a02,  -m02 * a12));  
+  // m013 = m13*a02 - m03*a12 + m01*a32
+  const real m013 = axom::utilities::fma(m01, a32, axom::utilities::fma(m13, a02,  -m03 * a12));  
+  // m023 = m23*a02 - m03*a22 + m02*a32
+  const real m023 = axom::utilities::fma(m02, a32, axom::utilities::fma(m23, a02,  -m03 * a22));    
+  // m123 = m23*a12 - m13*a22 + m12*a32
+  const real m123 = axom::utilities::fma(m12, a32, axom::utilities::fma(m23, a12,  -m13 * a22));
 
-  const real det = m123 * a03 - m023 * a13 + m013 * a23 - m012 * a33;
+  /// det = m123*a03 - m023*a13 + m013*a23 - m012*a33
+  // Chain to reduce rounding in the alternating sum.
+  const real t0  = axom::utilities::fma(-m023, a13,  m123 * a03); // m123*a03 - m023*a13
+  const real t1  = axom::utilities::fma( m013, a23,  t0);         // + m013*a23
+  const real det = axom::utilities::fma(-m012, a33,  t1);         // - m012*a33
   return det;
 }
 

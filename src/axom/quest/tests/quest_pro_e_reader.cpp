@@ -1,17 +1,22 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/core/utilities/FileUtilities.hpp"
-#include "axom/mint/utils/vtk_utils.hpp"  // for write_vtk
-#include "axom/quest/readers/ProEReader.hpp"
+#include "axom/core/NumericLimits.hpp"
+#include "axom/mint/utils/vtk_utils.hpp"
+#include "axom/quest/io/ProEReader.hpp"
 #include "axom/slic.hpp"
 
 // gtest includes
 #include "gtest/gtest.h"
 
 #include <fstream>
+#include <iostream>
+
+namespace fs = axom::utilities::filesystem;
 
 //------------------------------------------------------------------------------
 // HELPER METHODS
@@ -20,32 +25,32 @@ namespace
 {
 /*!
  * \brief Generates a Pro/E file consisting of a single tetrahedron
- * \param [in] file the name of the file to generate.
+ * \param [in] file the temp file to generate.
  * \pre file.empty() == false
  */
-void generate_pro_e_file(const std::string& file)
+void generate_pro_e_file(fs::TempFile& file)
 {
-  EXPECT_FALSE(file.empty());
+  EXPECT_FALSE(file.getPath().empty());
 
-  std::ofstream ofs(file.c_str());
-  EXPECT_TRUE(ofs.is_open());
+  file.open();
+  EXPECT_TRUE(file.is_open());
 
-  ofs << "# Comment header to ignore" << std::endl;
-  ofs << "# Another comment" << std::endl;
+  file << "# Comment header to ignore" << std::endl;
+  file << "# Another comment" << std::endl;
 
   // Number of nodes followed by number of tetrahedra
-  ofs << "4 1" << std::endl;
+  file << "4 1" << std::endl;
 
   // Node ID followed by xyz coordinates
-  ofs << "1 -1.0 0.0 0.0" << std::endl;
-  ofs << "2 1.0 0.0 0.0" << std::endl;
-  ofs << "3 0.0 1.0 0.0" << std::endl;
-  ofs << "4 0.0 0.0 1.0" << std::endl;
+  file << "1 -1.0 0.0 0.0" << std::endl;
+  file << "2 1.0 0.0 0.0" << std::endl;
+  file << "3 0.0 1.0 0.0" << std::endl;
+  file << "4 0.0 0.0 1.0" << std::endl;
 
   // Tetrahedron ID followed by corresponding Node IDs
-  ofs << "1 1 2 3 4" << std::endl;
+  file << "1 1 2 3 4" << std::endl;
 
-  ofs.close();
+  file.close();
 }
 
 } /* end anonymous namespace */
@@ -53,7 +58,7 @@ void generate_pro_e_file(const std::string& file)
 //------------------------------------------------------------------------------
 TEST(quest_pro_e_reader, read_missing_file)
 {
-  const std::string INVALID_FILE = "foo.proe";
+  const std::string INVALID_FILE = "nonexistent_file.proe";
   axom::quest::ProEReader reader;
   reader.setFileName(INVALID_FILE);
   int status = reader.read();
@@ -64,21 +69,18 @@ TEST(quest_pro_e_reader, read_missing_file)
 TEST(quest_pro_e_reader, read_to_invalid_mesh)
 {
   const char* IGNORE_OUTPUT = ".*";
-  const std::string filename = "tet.proe";
 
   // STEP 0: generate a temporary Pro/E file for testing
-  generate_pro_e_file(filename);
+  fs::TempFile testFile("tet", ".proe");
+  generate_pro_e_file(testFile);
 
   // STEP 1: constructs mesh object to read in the mesh to
-  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> trimesh(
-    2,
-    axom::mint::TRIANGLE);
-  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> hexmesh(3,
-                                                                 axom::mint::HEX);
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> trimesh(2, axom::mint::TRIANGLE);
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> hexmesh(3, axom::mint::HEX);
 
   // STEP 2: read in the Pro/E mesh data
   axom::quest::ProEReader reader;
-  reader.setFileName(filename);
+  reader.setFileName(testFile.getPath());
   int status = reader.read();
   EXPECT_EQ(status, 0);
 
@@ -89,9 +91,6 @@ TEST(quest_pro_e_reader, read_to_invalid_mesh)
 
   // read the Pro/E mesh data to a axom::mint::Mesh that has a different cell type
   EXPECT_DEATH_IF_SUPPORTED(reader.getMesh(&hexmesh), IGNORE_OUTPUT);
-
-  // STEP 4: remove Pro/E file
-  axom::utilities::filesystem::removeFile(filename);
 }
 
 //------------------------------------------------------------------------------
@@ -101,14 +100,13 @@ TEST(quest_pro_e_reader, read_pro_e)
   const double y_expected[] = {0.0, 0.0, 1.0, 0.0};
   const double z_expected[] = {0.0, 0.0, 0.0, 1.0};
 
-  const std::string filename = "tet.proe";
-
   // STEP 0: generate a temporary Pro/E file for testing
-  generate_pro_e_file(filename);
+  fs::TempFile testFile("tet", ".proe");
+  generate_pro_e_file(testFile);
 
   // STEP 1: create an Pro/E reader and read-in the mesh data
   axom::quest::ProEReader reader;
-  reader.setFileName(filename);
+  reader.setFileName(testFile.getPath());
   int status = reader.read();
   EXPECT_EQ(status, 0);
 
@@ -130,19 +128,10 @@ TEST(quest_pro_e_reader, read_pro_e)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                std::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                std::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                std::numeric_limits<double>::epsilon());
-  }  // END for all nodes
-
-  // STEP 4: remove temporary Pro/E file
-  axom::utilities::filesystem::removeFile(filename);
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -152,17 +141,16 @@ TEST(quest_pro_e_reader, read_pro_e_invbbox)
   const double y_expected[] = {0.0, 0.0, 1.0, 0.0};
   const double z_expected[] = {0.0, 0.0, 0.0, 1.0};
 
-  const std::string filename = "tet.proe";
-
   // STEP 0: generate a temporary Pro/E file for testing
-  generate_pro_e_file(filename);
+  fs::TempFile testFile("tet", ".proe");
+  generate_pro_e_file(testFile);
 
   // STEP 1: create an Pro/E reader and read-in the mesh data
   axom::quest::ProEReader reader;
   // invalid bounding box is the same as no bounding box: keep everything
   axom::quest::ProEReader::BBox3D invbbox;
   reader.setTetPredFromBoundingBox(invbbox, false);
-  reader.setFileName(filename);
+  reader.setFileName(testFile.getPath());
   int status = reader.read();
   EXPECT_EQ(status, 0);
 
@@ -184,19 +172,10 @@ TEST(quest_pro_e_reader, read_pro_e_invbbox)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                std::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                std::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                std::numeric_limits<double>::epsilon());
-  }  // END for all nodes
-
-  // STEP 4: remove temporary Pro/E file
-  axom::utilities::filesystem::removeFile(filename);
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -206,10 +185,9 @@ TEST(quest_pro_e_reader, read_pro_e_bbox_all)
   const double y_expected[] = {0.0, 0.0, 1.0, 0.0};
   const double z_expected[] = {0.0, 0.0, 0.0, 1.0};
 
-  const std::string filename = "tet.proe";
-
   // STEP 0: generate a temporary Pro/E file for testing
-  generate_pro_e_file(filename);
+  fs::TempFile testFile("tet", ".proe");
+  generate_pro_e_file(testFile);
 
   // STEP 1: create an Pro/E reader and read-in the mesh data
   axom::quest::ProEReader reader;
@@ -218,7 +196,7 @@ TEST(quest_pro_e_reader, read_pro_e_bbox_all)
   bbox.addPoint(axom::quest::ProEReader::Point3D {-1.5, -0.5, -0.5});
   bbox.addPoint(axom::quest::ProEReader::Point3D {1.5, 1.5, 1.5});
   reader.setTetPredFromBoundingBox(bbox, false);
-  reader.setFileName(filename);
+  reader.setFileName(testFile.getPath());
   int status = reader.read();
   EXPECT_EQ(status, 0);
 
@@ -240,19 +218,10 @@ TEST(quest_pro_e_reader, read_pro_e_bbox_all)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                std::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                std::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                std::numeric_limits<double>::epsilon());
-  }  // END for all nodes
-
-  // STEP 4: remove temporary Pro/E file
-  axom::utilities::filesystem::removeFile(filename);
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -262,10 +231,9 @@ TEST(quest_pro_e_reader, read_pro_e_bbox_some)
   const double y_expected[] = {0.0, 0.0, 1.0, 0.0};
   const double z_expected[] = {0.0, 0.0, 0.0, 1.0};
 
-  const std::string filename = "tet.proe";
-
   // STEP 0: generate a temporary Pro/E file for testing
-  generate_pro_e_file(filename);
+  fs::TempFile testFile("tet", ".proe");
+  generate_pro_e_file(testFile);
 
   // STEP 1: create an Pro/E reader and read-in the mesh data
   axom::quest::ProEReader reader;
@@ -275,7 +243,7 @@ TEST(quest_pro_e_reader, read_pro_e_bbox_some)
   bbox.addPoint(axom::quest::ProEReader::Point3D {-1.5, -0.5, -0.5});
   bbox.addPoint(axom::quest::ProEReader::Point3D {0, 1.5, 1.5});
   reader.setTetPredFromBoundingBox(bbox, false);
-  reader.setFileName(filename);
+  reader.setFileName(testFile.getPath());
   int status = reader.read();
   EXPECT_EQ(status, 0);
 
@@ -297,19 +265,10 @@ TEST(quest_pro_e_reader, read_pro_e_bbox_some)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                std::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                std::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                std::numeric_limits<double>::epsilon());
-  }  // END for all nodes
-
-  // STEP 4: remove temporary Pro/E file
-  axom::utilities::filesystem::removeFile(filename);
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -319,10 +278,9 @@ TEST(quest_pro_e_reader, read_pro_e_bbox_some_incl)
   const double y_expected[] = {0.0, 0.0, 1.0, 0.0};
   const double z_expected[] = {0.0, 0.0, 0.0, 1.0};
 
-  const std::string filename = "tet.proe";
-
   // STEP 0: generate a temporary Pro/E file for testing
-  generate_pro_e_file(filename);
+  fs::TempFile testFile("tet", ".proe");
+  generate_pro_e_file(testFile);
 
   // STEP 1: create an Pro/E reader and read-in the mesh data
   axom::quest::ProEReader reader;
@@ -332,7 +290,7 @@ TEST(quest_pro_e_reader, read_pro_e_bbox_some_incl)
   bbox.addPoint(axom::quest::ProEReader::Point3D {-1.5, -0.5, -0.5});
   bbox.addPoint(axom::quest::ProEReader::Point3D {0, 1.5, 1.5});
   reader.setTetPredFromBoundingBox(bbox);
-  reader.setFileName(filename);
+  reader.setFileName(testFile.getPath());
   int status = reader.read();
   EXPECT_EQ(status, 0);
 
@@ -354,19 +312,10 @@ TEST(quest_pro_e_reader, read_pro_e_bbox_some_incl)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                std::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                std::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                std::numeric_limits<double>::epsilon());
-  }  // END for all nodes
-
-  // STEP 4: remove temporary Pro/E file
-  axom::utilities::filesystem::removeFile(filename);
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -384,14 +333,13 @@ TEST(quest_pro_e_reader, read_pro_e_external)
 
   axom::IndexType conn[] = {-1, -1, -1, -1};
 
-  const std::string filename = "tet.proe";
-
   // STEP 0: generate a temporary Pro/E file for testing
-  generate_pro_e_file(filename);
+  fs::TempFile testFile("tet", ".proe");
+  generate_pro_e_file(testFile);
 
   // STEP 1: create a Pro/E reader and read-in the mesh data
   axom::quest::ProEReader reader;
-  reader.setFileName(filename);
+  reader.setFileName(testFile.getPath());
   int status = reader.read();
   EXPECT_EQ(status, 0);
 
@@ -413,19 +361,10 @@ TEST(quest_pro_e_reader, read_pro_e_external)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                std::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                std::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                std::numeric_limits<double>::epsilon());
-  }  // END for all nodes
-
-  // STEP 4: remove temporary Pro/E file
-  axom::utilities::filesystem::removeFile(filename);
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
+  }
 }
 
 #ifdef AXOM_DATA_DIR
@@ -434,10 +373,9 @@ TEST(quest_pro_e_reader, cup_pro_e)
 {
   constexpr int NUM_NODES = 171;
   constexpr int NUM_TETS = 574;
-  constexpr double EPS = std::numeric_limits<double>::epsilon();
+  constexpr double EPS = axom::numeric_limits<double>::epsilon();
 
   // STEP 0: Get Pro/E cup example file for testing
-  namespace fs = axom::utilities::filesystem;
   std::string cup = fs::joinPath(AXOM_DATA_DIR, "quest/cup.proe");
 
   // STEP 1: create a Pro/E reader and read-in the mesh data
@@ -547,7 +485,6 @@ TEST(quest_pro_e_reader, cup_pro_e_some)
   constexpr int NUM_BBOX_TETS = 52;
 
   // STEP 0: Get Pro/E cup example file for testing
-  namespace fs = axom::utilities::filesystem;
   std::string cup = fs::joinPath(AXOM_DATA_DIR, "quest/cup.proe");
 
   // STEP 1: create a Pro/E reader and read-in the mesh data
@@ -582,7 +519,6 @@ TEST(quest_pro_e_reader, cup_pro_e_some_incl)
   constexpr int NUM_BBOX_INCL_TETS = 298;
 
   // STEP 0: Get Pro/E cup example file for testing
-  namespace fs = axom::utilities::filesystem;
   std::string cup = fs::joinPath(AXOM_DATA_DIR, "quest/cup.proe");
 
   // STEP 1: create a Pro/E reader and read-in the mesh data

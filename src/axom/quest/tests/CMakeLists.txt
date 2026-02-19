@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -10,10 +11,12 @@ set(quest_tests
     quest_all_nearest_neighbors.cpp
     quest_inout_octree.cpp
     quest_inout_quadtree.cpp
+    quest_linearize_curves.cpp
     quest_signed_distance.cpp
     quest_discretize.cpp
     quest_pro_e_reader.cpp
     quest_stl_reader.cpp
+    quest_stl_writer.cpp
     quest_vertex_weld.cpp
    )
 
@@ -42,18 +45,17 @@ foreach(test ${quest_tests})
         FOLDER     axom/quest/tests
         )
 
+    # sets the number of threads for the quest_discretize test
+    set(_num_threads)
+    if(AXOM_ENABLE_OPENMP AND "${test_name}" STREQUAL "quest_discretize")
+        set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+    endif()
+
     axom_add_test(
         NAME ${test_name}
         COMMAND ${test_name}_test
-        )
+        NUM_OMP_THREADS ${_num_threads})
 endforeach()
-
-if(TARGET quest_discretize_test)
-    axom_add_test( NAME quest_discretize_test_openmp
-                   COMMAND quest_discretize_test
-                   NUM_OMP_THREADS 8
-                   )
-endif()
 
 #------------------------------------------------------------------------------
 # Tests that use Conduit when available
@@ -64,7 +66,7 @@ if(CONDUIT_FOUND AND AXOM_DATA_DIR)
             NAME        quest_mesh_view_util_test
             SOURCES     quest_mesh_view_util.cpp
             OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
-            DEPENDS_ON  ${quest_tests_depends} conduit
+            DEPENDS_ON  ${quest_tests_depends} conduit::conduit
             FOLDER      axom/quest/tests
             )
     set(quest_data_dir  ${AXOM_DATA_DIR}/quest)
@@ -73,8 +75,7 @@ if(CONDUIT_FOUND AND AXOM_DATA_DIR)
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND NOT WIN32)
         axom_add_test(
             NAME    quest_mesh_view_util
-            COMMAND quest_mesh_view_util_test
-                        --verbose)
+            COMMAND quest_mesh_view_util_test --verbose)
         unset(_nranks)
         unset(_test)
     endif()
@@ -85,28 +86,34 @@ endif()
 # Tests that use MFEM when available
 #------------------------------------------------------------------------------
 
-if(MFEM_FOUND)
-    set(test_name quest_point_in_cell_mfem)
-    axom_add_executable(
-        NAME       ${test_name}
-        SOURCES    ${test_name}.cpp
-        OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
-        DEPENDS_ON ${quest_tests_depends} mfem
-        FOLDER      axom/quest/tests
-        )
+if(MFEM_FOUND AND AXOM_ENABLE_SIDRE)
+    function(add_quest_mfem_test test_name)
+        axom_add_executable(
+            NAME       ${test_name}
+            SOURCES    ${test_name}.cpp
+            OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+            DEPENDS_ON ${quest_tests_depends} mfem
+            FOLDER      axom/quest/tests
+            )
 
-    string(STRIP "${AXOM_DISABLE_UNUSED_PARAMETER_WARNINGS}" MFEM_COMPILE_FLAGS)
+        string(STRIP "${AXOM_DISABLE_UNUSED_PARAMETER_WARNINGS}" MFEM_COMPILE_FLAGS)
 
-    if (AXOM_ENABLE_CUDA)
-        set(MFEM_COMPILE_FLAGS "-Xcompiler=${MFEM_COMPILE_FLAGS}")
+        if (AXOM_ENABLE_CUDA)
+            set(MFEM_COMPILE_FLAGS "-Xcompiler=${MFEM_COMPILE_FLAGS}")
+        endif()
+
+        blt_add_target_compile_flags( TO ${test_name} FLAGS "${MFEM_COMPILE_FLAGS}" )
+
+        axom_add_test(
+            NAME ${test_name}
+            COMMAND ${test_name}
+            )
+    endfunction()
+
+    add_quest_mfem_test(quest_point_in_cell_mfem)
+    if(AXOM_DATA_DIR)
+        add_quest_mfem_test(quest_mfem_reader)
     endif()
-
-    blt_add_target_compile_flags( TO ${test_name} FLAGS "${MFEM_COMPILE_FLAGS}" )
-
-    axom_add_test(
-        NAME ${test_name}
-        COMMAND ${test_name}
-        )
 endif()
 
 
@@ -140,37 +147,31 @@ foreach(test ${quest_mpi_tests})
         FOLDER     axom/quest/tests
     )
 
-    set(_numMPITasks 4)
-    if (${test_name} STREQUAL "quest_signed_distance_interface")
-        set(_numMPITasks 1)
+    # sets the number of MPI ranks; quest_inout_interface can only run w/ 1 rank
+    set(_numMPITasks 1)
+    if (AXOM_ENABLE_MPI)
+        set(_numMPITasks 4)
     endif()
-    if (${test_name} STREQUAL "quest_inout_interface")
+    if(${test_name} STREQUAL "quest_inout_interface")
         set(_numMPITasks 1)
     endif()
 
-    if (AXOM_ENABLE_MPI)
-        axom_add_test(
-            NAME ${test_name}
-            COMMAND ${test_name}_test
-            NUM_MPI_TASKS ${_numMPITasks}
-        )
-    else()
-        axom_add_test(
-            NAME ${test_name}
-            COMMAND ${test_name}_test
-        )
-    endif()
+    axom_add_test(
+        NAME ${test_name}
+        COMMAND ${test_name}_test
+        NUM_MPI_TASKS ${_numMPITasks})
 endforeach()
 
 #------------------------------------------------------------------------------
 # These tests require MPI+MFEM+C2C+Axom data+...
 #------------------------------------------------------------------------------
 if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
-              AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION
+              AND AXOM_ENABLE_SIDRE
               AND AXOM_ENABLE_KLEE AND AXOM_DATA_DIR
               AND C2C_FOUND)
     set(quest_mpi_mfem_c2c_data_tests
         quest_intersection_shaper.cpp
+        quest_intersection_shaper_dynamic.cpp
         quest_sampling_shaper.cpp
        )
     foreach(test ${quest_mpi_mfem_c2c_data_tests})
@@ -184,18 +185,112 @@ if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
         )
     endforeach()
 
-    set(_numOMPThreads 8) # limit omp parallelism
-    axom_add_test(NAME quest_intersection_shaper
-        COMMAND quest_intersection_shaper_test
+    # Invoke the intersection shaper test program as many tests that run a subset of the tests.
+    set(_policies "seq")
+    if(RAJA_FOUND)
+      blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
+      if(AXOM_USE_UMPIRE)
+        blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
+        blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
+      endif()
+    endif()
+
+    foreach(_pol ${_policies})
+      # sets the number of threads
+      set(_num_threads)
+      if(_pol STREQUAL "omp")
+          set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+      endif()
+
+      # For seq, limit the cases since the tests are somewhat slow.
+      set(caseNumbers 1 2 3 4 5)
+      if(_pol STREQUAL "seq")
+        set(caseNumbers 5)
+      endif()
+
+      foreach(caseNumber ${caseNumbers})
+        axom_add_test(NAME quest_intersection_shaper_${caseNumber}_${_pol}
+          COMMAND quest_intersection_shaper_test --casenumber ${caseNumber} --policy ${_pol}
+          NUM_MPI_TASKS 1
+          NUM_OMP_THREADS ${_num_threads})
+      endforeach()
+    endforeach()
+
+    # quest_intersection_shaper_dynamic does not take a policy argument,
+    # but uses OpenMP when enabled
+    set(_dynamic_num_threads)
+    if(AXOM_ENABLE_OPENMP)
+        set(_dynamic_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+    endif()
+
+    axom_add_test(NAME quest_intersection_shaper_dynamic
+        COMMAND quest_intersection_shaper_dynamic_test
         NUM_MPI_TASKS 1
-        NUM_OMP_THREADS ${_numOMPThreads}
+        NUM_OMP_THREADS ${_dynamic_num_threads}
     )
-    set_tests_properties(quest_intersection_shaper PROPERTIES PROCESSORS ${_numOMPThreads})
 
     axom_add_test(NAME quest_sampling_shaper
         COMMAND quest_sampling_shaper_test
         NUM_MPI_TASKS 1
     )
+
+endif()
+
+#------------------------------------------------------------------------------
+# Geometry clipping tests require Klee, Sidre, Conduit, RAJA and Bump
+#------------------------------------------------------------------------------
+if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND AXOM_ENABLE_BUMP)
+    set(quest_mesh_clipper_depends ${quest_tests_depends} conduit::conduit RAJA)
+    blt_list_append(TO quest_mesh_clipper_depends IF AXOM_ENABLE_MPI ELEMENTS conduit::conduit_mpi)
+
+    axom_add_executable(
+        NAME        quest_mesh_clipper_test
+        SOURCES     quest_mesh_clipper.cpp
+        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_mesh_clipper_depends}
+        FOLDER      axom/quest/tests
+        )
+
+    # 3D shaping tests.  No 2D shaping in this feature, at least for now.
+    set(_nranks 1)
+
+    # Run the geometry clipping test on with each enabled policy
+    set(_policies "seq")
+    if(RAJA_FOUND)
+      blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
+      blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
+      blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
+    endif()
+
+    set(_testgeoms "plane" "tet" "hex" "sphere" "tetmesh" "cupmesh" "sor" "cyl" "cone" "plane,hex,tetmesh")
+    set(_meshTypes "bpSidre" "bpConduit")
+    foreach(_meshType ${_meshTypes})
+      foreach(_policy ${_policies})
+        # sets the number of threads for the omp policy; leave empty for non-omp policies
+        set(_num_threads)
+        if(_policy STREQUAL "omp")
+            set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+        endif()
+
+        foreach(_testgeom ${_testgeoms})
+          set(_testname "quest_mesh_clipper_${_meshType}_${_policy}_${_testgeom}")
+          axom_add_test(
+            NAME ${_testname}
+            COMMAND quest_mesh_clipper_test
+                        --policy ${_policy}
+                        --verbose
+                        --testGeom ${_testgeom}
+                        -o ${_testname}
+                        --refinements 5
+                        --scale .99 .99 .99
+                        --dir 8 4 2
+                        --meshType ${_meshType}
+                        inline_mesh --min -2 -2 -2 --max 2 2 2 --res 16 16 16
+            NUM_MPI_TASKS ${_nranks}
+            NUM_OMP_THREADS ${_num_threads})
+        endforeach()
+      endforeach()
+    endforeach()
 
 endif()
 

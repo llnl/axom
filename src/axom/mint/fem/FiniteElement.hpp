@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -129,9 +130,7 @@ public:
    *  that the number of rows corresponds to the dimension of the element and
    *  number of columns corresponds to the number of nodes.
    */
-  FiniteElement(numerics::Matrix<double>& M,
-                CellType cellType,
-                bool useExternal = false);
+  FiniteElement(numerics::Matrix<double>& M, CellType cellType, bool useExternal = false);
 
   /*!
    * \brief Destructor.
@@ -161,10 +160,7 @@ public:
    *
    * \param [in] N user-supplied number for
    */
-  void setMaxSolverIterations(int numIters)
-  {
-    m_maxNewtonIterations = numIters;
-  };
+  void setMaxSolverIterations(int numIters) { m_maxNewtonIterations = numIters; };
 
   /*!
    * \brief Returns the max number of iterations used for the Newton-Raphson.

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -25,8 +26,7 @@ namespace slam
  *
  * \brief An indexed set (a tuple) of entities in a simulation
  */
-template <typename PosType = slam::DefaultPositionType,
-          typename ElemType = slam::DefaultElementType>
+template <typename PosType = slam::DefaultPositionType, typename ElemType = slam::DefaultElementType>
 class NullSet : public Set<PosType, ElemType>
 {
 public:
@@ -50,10 +50,7 @@ public:
   inline bool isSubset() const { return false; }
   const ParentSet* parentSet() const { return this; }
 
-  bool isValid(bool AXOM_UNUSED_PARAM(verboseOutput) = false) const
-  {
-    return true;
-  }
+  bool isValid(bool AXOM_UNUSED_PARAM(verboseOutput) = false) const { return true; }
 
   AXOM_HOST_DEVICE bool empty() const { return true; }
 

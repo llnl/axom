@@ -1,15 +1,15 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-
-#include <limits>
 
 #include "gtest/gtest.h"
 #include "axom/slic.hpp"
 
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/execution/for_all.hpp"
+#include "axom/core/NumericLimits.hpp"
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
@@ -25,9 +25,8 @@ void check_bb_policy()
   using PointType = primal::Point<double, DIM>;
   using VectorType = primal::Vector<double, DIM>;
 
-  BoundingBoxType* box = axom::allocate<BoundingBoxType>(
-    1,
-    axom::execution_space<ExecSpace>::allocatorID());
+  BoundingBoxType* box =
+    axom::allocate<BoundingBoxType>(1, axom::execution_space<ExecSpace>::allocatorID());
 
   axom::for_all<ExecSpace>(
     1,
@@ -62,6 +61,43 @@ TEST(primal_boundingBox, bb_default_constructor)
     << "Default constructed bounding box should not contain any points";
   EXPECT_FALSE(bbox.contains(QPoint(1000)))
     << "Default constructed bounding box should not contain any points";
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_boundingBox, bb_ctor_from_no_points)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using QPoint = primal::Point<CoordType, DIM>;
+  using QBBox = primal::BoundingBox<CoordType, DIM>;
+
+  const QBBox empty_bbox;
+
+  // Test on nullptr and zero points
+  {
+    QBBox bbox(nullptr, 0);
+
+    EXPECT_FALSE(bbox.isValid());
+    EXPECT_EQ(bbox, empty_bbox);
+  }
+
+  // Test with valid pointer and a size of zero
+  {
+    QPoint pt(2.);
+    QBBox bbox(&pt, 0);
+
+    EXPECT_FALSE(bbox.isValid());
+    EXPECT_EQ(bbox, empty_bbox);
+  }
+
+  // Test with valid pointer and a size less than zero
+  {
+    QPoint pt(2.);
+    QBBox bbox(&pt, -3);
+
+    EXPECT_FALSE(bbox.isValid());
+    EXPECT_EQ(bbox, empty_bbox);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -114,8 +150,7 @@ TEST(primal_boundingBox, bb_ctor_from_twoPoints)
   EXPECT_FALSE(bbox1.contains(outPt));
 
   //
-  SLIC_INFO("\n** Testing from pairs of points that are "
-            << "max and min of the bounding box");
+  SLIC_INFO("\n** Testing from pairs of points that are " << "max and min of the bounding box");
 
   QBBox bbox2(pt2, pt1);
 
@@ -230,8 +265,7 @@ TEST(primal_boundingBox, bb_test_clear)
   EXPECT_TRUE(bbox.contains(QPoint::midpoint(pt1, pt2)));
 
   bbox.clear();
-  EXPECT_FALSE(bbox.isValid())
-    << "After clear() the bounding box should be invalid";
+  EXPECT_FALSE(bbox.isValid()) << "After clear() the bounding box should be invalid";
   EXPECT_FALSE(bbox.contains(pt1))
     << "After clear() the bounding box should not contain any points";
   EXPECT_FALSE(bbox.contains(pt2))
@@ -349,16 +383,13 @@ TEST(primal_boundingBox, bb_add_box)
   EXPECT_TRUE(bbox1.contains(QPoint(4)))
     << "After addBox() we should now contain points in between the two "
        "bounding boxes";
-  EXPECT_FALSE(bbox1.contains(QPoint(10)))
-    << "Points outside both ranges are still outside";
+  EXPECT_FALSE(bbox1.contains(QPoint(10))) << "Points outside both ranges are still outside";
   EXPECT_TRUE(bbox1.contains(bbox2));
 
   //
   SLIC_INFO("Testing addBox() for differently arranged boxes");
-  QBBox bbox3(QPoint::make_point(1, 3, 3),
-              QPoint::make_point(3, 1, 1));  // first box in 2nd test
-  QBBox bbox4(QPoint::make_point(7, 5, 7),
-              QPoint::make_point(5, 7, 7));  // second box in 2nd test
+  QBBox bbox3(QPoint::make_point(1, 3, 3), QPoint::make_point(3, 1, 1));  // first box in 2nd test
+  QBBox bbox4(QPoint::make_point(7, 5, 7), QPoint::make_point(5, 7, 7));  // second box in 2nd test
   EXPECT_TRUE(bbox3.isValid());
   EXPECT_TRUE(bbox3.contains(QPoint::make_point(2, 3, 1)));
   EXPECT_FALSE(bbox3.contains(QPoint(4)));
@@ -450,6 +481,15 @@ TEST(primal_boundingBox, bb_contains_bb)
     EXPECT_TRUE(unit_box.contains(unit_box));
   }
 
+  // Check that invalid bbox does not contain a point.
+  EXPECT_FALSE(empty_box.contains(PointD(0.)));
+
+  // Check that 1 point bbox contains the point.
+  BBoxD bbox3;
+  bbox3.addPoint(PointD(0.));
+  EXPECT_TRUE(bbox3.contains(PointD(0.)));
+  EXPECT_TRUE(bbox3.contains(bbox3));
+
   // check contains w/ empty boxes
   {
     EXPECT_TRUE(unit_box.contains(empty_box));
@@ -523,6 +563,12 @@ TEST(primal_boundingBox, bb_expand)
   EXPECT_TRUE(bbox3.isValid());
   EXPECT_EQ(bbox3.getMin(), QPoint(-2));  // 3 + -5 == -2
   EXPECT_EQ(bbox3.getMax(), QPoint(6));   // 1 - -5 == 6
+
+  // Check that expanding an invalid bbox does nothing.
+  QBBox bbox4;
+  bbox4.expand(5.);
+  EXPECT_FALSE(bbox4.isValid());
+  EXPECT_EQ(bbox4, QBBox());
 }
 
 //------------------------------------------------------------------------------
@@ -601,6 +647,13 @@ TEST(primal_boundingBox, bb_shift)
   EXPECT_TRUE(bbox2.isValid());
   EXPECT_EQ(bbox2.getMin(), QPoint(0.5));
   EXPECT_EQ(bbox2.getMax(), QPoint(2.5));
+
+  // Show that shifting an invalid bounding box has no effect.
+  QBBox bbox3, bbox4;
+  EXPECT_FALSE(bbox3.isValid());
+  EXPECT_FALSE(bbox4.isValid());
+  bbox3.shift(QVec(10.));
+  EXPECT_EQ(bbox3, bbox4);
 }
 
 //------------------------------------------------------------------------------
@@ -612,28 +665,28 @@ TEST(primal_boundingBox, highest_lowest_values)
   // is doing the right thing in our CXX11 and pre-CXX11 compilers
 
   // Test double
-  double maxD = std::numeric_limits<double>::max();
+  double maxD = axom::numeric_limits<double>::max();
   double minD = -maxD;
-  EXPECT_EQ(maxD, std::numeric_limits<double>::max());
-  EXPECT_EQ(minD, std::numeric_limits<double>::lowest());
+  EXPECT_EQ(maxD, axom::numeric_limits<double>::max());
+  EXPECT_EQ(minD, axom::numeric_limits<double>::lowest());
 
   // Test float
-  double maxF = std::numeric_limits<float>::max();
+  double maxF = axom::numeric_limits<float>::max();
   double minF = -maxF;
-  EXPECT_EQ(maxF, std::numeric_limits<float>::max());
-  EXPECT_EQ(minF, std::numeric_limits<float>::lowest());
+  EXPECT_EQ(maxF, axom::numeric_limits<float>::max());
+  EXPECT_EQ(minF, axom::numeric_limits<float>::lowest());
 
   // Test int
-  int maxI = std::numeric_limits<int>::max();
-  int minI = std::numeric_limits<int>::min();
-  EXPECT_EQ(maxI, std::numeric_limits<int>::max());
-  EXPECT_EQ(minI, std::numeric_limits<int>::lowest());
+  int maxI = axom::numeric_limits<int>::max();
+  int minI = axom::numeric_limits<int>::min();
+  EXPECT_EQ(maxI, axom::numeric_limits<int>::max());
+  EXPECT_EQ(minI, axom::numeric_limits<int>::lowest());
 
   // Test uint
-  unsigned int maxU = std::numeric_limits<unsigned int>::max();
-  unsigned int minU = std::numeric_limits<unsigned int>::min();
-  EXPECT_EQ(maxU, std::numeric_limits<unsigned int>::max());
-  EXPECT_EQ(minU, std::numeric_limits<unsigned int>::lowest());
+  unsigned int maxU = axom::numeric_limits<unsigned int>::max();
+  unsigned int minU = axom::numeric_limits<unsigned int>::min();
+  EXPECT_EQ(maxU, axom::numeric_limits<unsigned int>::max());
+  EXPECT_EQ(minU, axom::numeric_limits<unsigned int>::lowest());
 
   // Testing that our default constructor for bounding boxes is properly setting the range.
 
@@ -693,6 +746,15 @@ TEST(primal_boundingBox, bb_bisect)
   EXPECT_EQ(PointType::make_point(1.0, 0.5), bottom.getMax());
   EXPECT_EQ(PointType::make_point(0.0, 0.5), top.getMin());
   EXPECT_EQ(bbox.getMax(), top.getMax());
+
+  // Bisect longest dimension.
+  const int longest = -1;
+  BoxType bbox2(PointType::zero(), PointType::make_point(1., 10.));
+  bbox2.bisect(bottom, top, longest);
+  EXPECT_EQ(bbox2.getMin(), bottom.getMin());
+  EXPECT_EQ(PointType::make_point(1.0, 5.), bottom.getMax());
+  EXPECT_EQ(PointType::make_point(0.0, 5.), top.getMin());
+  EXPECT_EQ(bbox2.getMax(), top.getMax());
 }
 
 //------------------------------------------------------------------------------
@@ -705,6 +767,37 @@ TEST(primal_boundingBox, bb_get_centroid)
   PointType centroid = bbox.getCentroid();
   EXPECT_DOUBLE_EQ(0.5, centroid[0]);
   EXPECT_DOUBLE_EQ(0.5, centroid[1]);
+
+  // The centroid of an invalid bbox is 0,0.
+  BoxType bbox2;
+  EXPECT_DOUBLE_EQ(bbox2.getCentroid()[0], 0.);
+  EXPECT_DOUBLE_EQ(bbox2.getCentroid()[1], 0.);
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_boundingBox, bb_intersect)
+{
+  using PointType = primal::Point<double, 2>;
+  using VectorType = primal::Vector<double, 2>;
+  using BoxType = primal::BoundingBox<double, 2>;
+
+  BoxType bbox(PointType::zero(), PointType::ones());
+  BoxType bbox2(PointType::zero(), PointType::ones());
+  bbox2.shift(VectorType(0.5));
+
+  BoxType bbox_intersect = bbox.intersect(bbox2);
+  EXPECT_DOUBLE_EQ(0.5, bbox_intersect.getMin()[0]);
+  EXPECT_DOUBLE_EQ(0.5, bbox_intersect.getMin()[1]);
+  EXPECT_DOUBLE_EQ(1., bbox_intersect.getMax()[0]);
+  EXPECT_DOUBLE_EQ(1., bbox_intersect.getMax()[1]);
+
+  // Empty bbox intersected with itself returns an invalid bbox.
+  BoxType bbox_invalid;
+  EXPECT_EQ(bbox_invalid, bbox_invalid.intersect(bbox_invalid));
+
+  // Bounding box intersected with invalid bounding box returns an invalid bounding box.
+  EXPECT_EQ(bbox_invalid, bbox_invalid.intersect(bbox));
+  EXPECT_EQ(bbox_invalid, bbox.intersect(bbox_invalid));
 }
 
 //------------------------------------------------------------------------------
@@ -713,24 +806,23 @@ AXOM_CUDA_TEST(primal_boundingBox, bb_check_policies)
   using seq_exec = axom::SEQ_EXEC;
   check_bb_policy<seq_exec>();
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && \
-  defined(RAJA_ENABLE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && defined(RAJA_ENABLE_OPENMP)
 
   using omp_exec = axom::OMP_EXEC;
   check_bb_policy<omp_exec>();
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && \
-  defined(RAJA_ENABLE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && \
+  defined(AXOM_USE_UMPIRE)
 
   using cuda_exec = axom::CUDA_EXEC<512>;
 
   check_bb_policy<cuda_exec>();
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && \
-  defined(RAJA_ENABLE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && \
+  defined(AXOM_USE_UMPIRE)
 
   using hip_exec = axom::HIP_EXEC<512>;
 

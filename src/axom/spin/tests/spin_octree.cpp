@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -12,8 +13,7 @@
 //------------------------------------------------------------------------------
 TEST(spin_octree, topological_octree_parent_child)
 {
-  SLIC_INFO(
-    "*** This test exercises the parent/child relation in spin::OctreeBase");
+  SLIC_INFO("*** This test exercises the parent/child relation in spin::OctreeBase");
 
   static const int DIM = 2;
   using CoordType = int;
@@ -101,8 +101,7 @@ TEST(spin_octree, topological_octree_refine)
 //------------------------------------------------------------------------------
 TEST(spin_octree, octree_coveringLeafBlocks)
 {
-  SLIC_INFO(
-    "*** This test exercises the coveringLeafBlock function of OctreeBase");
+  SLIC_INFO("*** This test exercises the coveringLeafBlock function of OctreeBase");
 
   static const int DIM = 2;
   using LeafNodeType = axom::spin::BlockData;
@@ -192,11 +191,9 @@ TEST(spin_octree, octree_coveringLeafBlocks)
         BlockIndex neighborBlk = blk.faceNeighbor(k);
         BlockIndex coveringBlk = octree.coveringLeafBlock(neighborBlk);
 
-        SLIC_INFO(
-          "\tFace neighbor "
-          << k << " is " << neighborBlk << " -- Covering block is " << coveringBlk
-          << (coveringBlk == BlockIndex::invalid_index() ? " -- invalid_index"
-                                                         : ""));
+        SLIC_INFO("\tFace neighbor "
+                  << k << " is " << neighborBlk << " -- Covering block is " << coveringBlk
+                  << (coveringBlk == BlockIndex::invalid_index() ? " -- invalid_index" : ""));
 
         if(octree.coveringLeafBlock(neighborBlk) != BlockIndex::invalid_index())
         {
@@ -238,8 +235,7 @@ TEST(spin_octree, octree_block_is_descendant)
     EXPECT_TRUE(blk.isDescendantOf(rootBlock));
     EXPECT_FALSE(rootBlock.isDescendantOf(blk));
 
-    EXPECT_FALSE(
-      blk.isDescendantOf(octree.child(rootBlock, (i + 1) % numChildren)));
+    EXPECT_FALSE(blk.isDescendantOf(octree.child(rootBlock, (i + 1) % numChildren)));
   }
 
   BlockIndex child3 = octree.child(rootBlock, 3);
@@ -311,8 +307,7 @@ TEST(spin_octree, count_octree_blocks)
   EXPECT_EQ(0, octree.getOctreeLevel(2).numInternalBlocks());
   EXPECT_EQ(4, octree.getOctreeLevel(2).numLeafBlocks());
 
-  SLIC_INFO(
-    "Refine another child of the root and check blocks in first few levels");
+  SLIC_INFO("Refine another child of the root and check blocks in first few levels");
   octree.refineLeaf(octree.root().child(2));
   EXPECT_EQ(4, octree.getOctreeLevel(1).numBlocks());
   EXPECT_EQ(2, octree.getOctreeLevel(1).numInternalBlocks());
@@ -322,8 +317,7 @@ TEST(spin_octree, count_octree_blocks)
   EXPECT_EQ(0, octree.getOctreeLevel(2).numInternalBlocks());
   EXPECT_EQ(8, octree.getOctreeLevel(2).numLeafBlocks());
 
-  SLIC_INFO(
-    "Refine a grandchild of the root and check blocks in first few levels");
+  SLIC_INFO("Refine a grandchild of the root and check blocks in first few levels");
   octree.refineLeaf(octree.root().child(2).child(1));
   EXPECT_EQ(4, octree.getOctreeLevel(1).numBlocks());
   EXPECT_EQ(2, octree.getOctreeLevel(1).numInternalBlocks());

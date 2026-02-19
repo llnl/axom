@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -7,6 +8,7 @@
 
 #include "axom/config.hpp"
 #include "axom/core/Types.hpp"
+#include "axom/core/NumericLimits.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/utilities/BitUtilities.hpp"
 
@@ -22,7 +24,7 @@ T random_int()
 {
   static_assert(std::is_integral<T>::value, "T must be an integral type");
 
-  constexpr T max_int = std::numeric_limits<T>::max();
+  constexpr T max_int = axom::numeric_limits<T>::max();
   constexpr double max_d = static_cast<double>(max_int);
 
   const auto val = axom::utilities::random_real(0., max_d);
@@ -54,8 +56,7 @@ TEST(core_bit_utilities, trailingZeroes)
     for(int j = i + 1; j < BITS; ++j)
     {
       std::uint64_t val2 = ::shifted(i) + ::shifted(j);
-      EXPECT_EQ(axom::utilities::countr_zero(val),
-                axom::utilities::countr_zero(val2));
+      EXPECT_EQ(axom::utilities::countr_zero(val), axom::utilities::countr_zero(val2));
     }
   }
 
@@ -158,8 +159,7 @@ TEST(core_bit_utilities, countl_zero)
     for(int j = 0; j < i; ++j)
     {
       std::int32_t val2 = ::shifted(i) + ::shifted(j);
-      EXPECT_EQ(axom::utilities::countl_zero(val),
-                axom::utilities::countl_zero(val2));
+      EXPECT_EQ(axom::utilities::countl_zero(val), axom::utilities::countl_zero(val2));
     }
   }
 
@@ -178,5 +178,31 @@ TEST(core_bit_utilities, countl_zero)
       }
     }
     EXPECT_EQ(bit, axom::utilities::countl_zero(rand_val));
+  }
+}
+
+TEST(core_bit_utilities, setbit_bitisset)
+{
+  const std::uint32_t pattern = 0xaaaaaaaa;
+  for(size_t bit = 0; bit < axom::utilities::BitTraits<std::uint32_t>::BITS_PER_WORD; bit++)
+  {
+    EXPECT_EQ(axom::utilities::bitIsSet(pattern, bit), ((bit & 1) == 1));
+  }
+
+  const bool bitvals[] = {false, true, true, false, true, true, false, true};
+  std::uint8_t value = 0;
+  for(size_t i = 0; i < axom::utilities::BitTraits<std::uint8_t>::BITS_PER_WORD; i++)
+  {
+    axom::utilities::setBit(value, i, bitvals[i]);
+    for(size_t b = 0; b <= i; b++)
+    {
+      EXPECT_EQ(axom::utilities::bitIsSet(value, b), bitvals[b]);
+    }
+  }
+
+  for(size_t i = 0; i < axom::utilities::BitTraits<std::uint8_t>::BITS_PER_WORD; i++)
+  {
+    axom::utilities::setBit(value, i, false);
+    EXPECT_EQ(axom::utilities::bitIsSet(value, i), false);
   }
 }

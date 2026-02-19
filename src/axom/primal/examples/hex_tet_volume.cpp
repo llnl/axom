@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -51,8 +52,7 @@ public:
 
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
-    std::string pol_str =
-      "Sets execution space of intersection_volume operator.";
+    std::string pol_str = "Sets execution space of intersection_volume operator.";
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
     pol_str += "\nSet to \'seq\' or 0 to use the RAJA sequential policy.";
   #ifdef AXOM_USE_OPENMP
@@ -108,52 +108,46 @@ private:
 // edge length
 HexahedronType generateCube(const PointType& point, double length)
 {
-  return HexahedronType(
-    point,
-    PointType {point[0], point[1], point[2] + length},
-    PointType {point[0] + length, point[1], point[2] + length},
-    PointType {point[0] + length, point[1], point[2]},
-    PointType {point[0], point[1] + length, point[2]},
-    PointType {point[0], point[1] + length, point[2] + length},
-    PointType {point[0] + length, point[1] + length, point[2] + length},
-    PointType {point[0] + length, point[1] + length, point[2]});
+  return HexahedronType(point,
+                        PointType {point[0], point[1], point[2] + length},
+                        PointType {point[0] + length, point[1], point[2] + length},
+                        PointType {point[0] + length, point[1], point[2]},
+                        PointType {point[0], point[1] + length, point[2]},
+                        PointType {point[0], point[1] + length, point[2] + length},
+                        PointType {point[0] + length, point[1] + length, point[2] + length},
+                        PointType {point[0] + length, point[1] + length, point[2]});
 }
 
 // Function to check intersection volumes of generated hexahedra and tetrahedra
 template <typename ExecSpace>
 void check_intersection_volumes(const Input& params)
 {
-  SLIC_INFO(axom::fmt::format(
-    "{:-^80}",
-    axom::fmt::format(
-      "Running intersection volume check in execution space: {}",
-      axom::execution_space<ExecSpace>::name())));
+  SLIC_INFO(
+    axom::fmt::format("{:-^80}",
+                      axom::fmt::format("Running intersection volume check in execution space: {}",
+                                        axom::execution_space<ExecSpace>::name())));
 
-  // Save current/default allocator
-  const int current_allocator = axom::getDefaultAllocatorID();
-
-  // Set new default allocator
-  axom::setDefaultAllocator(axom::execution_space<ExecSpace>::allocatorID());
+  // Get allocators
+  constexpr bool on_device = axom::execution_space<ExecSpace>::onDevice();
+  const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  const int device_allocator = axom::execution_space<ExecSpace>::allocatorID();
 
   // Generate hexahedra subdividing the unit cube with corner points
   // (-1,-1,-1) and (1,1,1)
   int const HEX_RESOLUTION = params.hexResolution;
   int hex_index = 0;
   int const NUM_HEXES = HEX_RESOLUTION * HEX_RESOLUTION * HEX_RESOLUTION;
-  axom::Array<HexahedronType> hexes(NUM_HEXES, NUM_HEXES);
-  const axom::ArrayView<HexahedronType> hexes_view(hexes);
+  axom::Array<HexahedronType> hexes_h(NUM_HEXES, NUM_HEXES, host_allocator);
 
   SLIC_INFO(axom::fmt::format(
     "{:-^80}",
-    axom::fmt::format(
-      "Generating {} hexahedra with hexahedra resolution set to {}",
-      NUM_HEXES,
-      HEX_RESOLUTION)));
+    axom::fmt::format("Generating {} hexahedra with hexahedra resolution set to {}",
+                      NUM_HEXES,
+                      HEX_RESOLUTION)));
 
-  SLIC_INFO(axom::fmt::format(
-    "{: ^80}",
-    "Hexahedra subdivide the unit cube with corner points (-1,-1,-1) "
-    "and (1,1,1)"));
+  SLIC_INFO(axom::fmt::format("{: ^80}",
+                              "Hexahedra subdivide the unit cube with corner points (-1,-1,-1) "
+                              "and (1,1,1)"));
 
   for(int i = 0; i < HEX_RESOLUTION; i++)
   {
@@ -162,10 +156,9 @@ void check_intersection_volumes(const Input& params)
       for(int k = 0; k < HEX_RESOLUTION; k++)
       {
         double edge_length = 2.0 / HEX_RESOLUTION;
-        hexes_view[hex_index] = generateCube(PointType {edge_length * i - 1,
-                                                        edge_length * j - 1,
-                                                        edge_length * k - 1},
-                                             edge_length);
+        hexes_h[hex_index] =
+          generateCube(PointType {edge_length * i - 1, edge_length * j - 1, edge_length * k - 1},
+                       edge_length);
         hex_index++;
       }
     }
@@ -175,21 +168,18 @@ void check_intersection_volumes(const Input& params)
   int const TET_RESOLUTION = params.tetResolution;
   int tet_index = 0;
   int const NUM_TETS = 4 * std::pow(2, TET_RESOLUTION);
-  axom::Array<TetrahedronType> tets(NUM_TETS, NUM_TETS);
-  const axom::ArrayView<TetrahedronType> tets_view(tets);
+  axom::Array<TetrahedronType> tets_h(NUM_TETS, NUM_TETS, host_allocator);
   double step_size = 1.0 / std::pow(2, TET_RESOLUTION);
 
   SLIC_INFO(axom::fmt::format(
     "{:-^80}",
-    axom::fmt::format(
-      "Generating {} tetrahedra with tetrahedra resolution set to {}",
-      NUM_TETS,
-      TET_RESOLUTION)));
+    axom::fmt::format("Generating {} tetrahedra with tetrahedra resolution set to {}",
+                      NUM_TETS,
+                      TET_RESOLUTION)));
 
   SLIC_INFO(axom::fmt::format(
     "{: ^80}",
-    axom::fmt::format(
-      "Tetrahedra are encapsulated by the unit sphere at the origin")));
+    axom::fmt::format("Tetrahedra are encapsulated by the unit sphere at the origin")));
 
   for(int i = 0; i < std::pow(2, TET_RESOLUTION); i++)
   {
@@ -211,33 +201,40 @@ void check_intersection_volumes(const Input& params)
         double x2 = axom::utilities::lerp<double>(-1.0, 1.0, step_size * (i + 1));
         double z2 = std::sqrt(1 - (x2 * x2)) * z_sign;
 
-        tets_view[tet_index] = TetrahedronType(PointType {x1, 0, z1},
-                                               PointType::zero(),
-                                               PointType {x2, 0, z2},
-                                               PointType {0, pole_sign, 0});
+        tets_h[tet_index] = TetrahedronType(PointType {x1, 0, z1},
+                                            PointType::zero(),
+                                            PointType {x2, 0, z2},
+                                            PointType {0, pole_sign, 0});
         tet_index++;
       }
     }
   }
 
   // Calculate expected sum of all tetrahedra volume
-  using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
+  axom::Array<HexahedronType> hexes_d = on_device
+    ? axom::Array<HexahedronType>(hexes_h, device_allocator)
+    : axom::Array<HexahedronType>();
+  auto hexes_view = on_device ? hexes_d.view() : hexes_h.view();
 
-  RAJA::ReduceSum<REDUCE_POL, double> total_tet_vol(0.0);
+  axom::Array<TetrahedronType> tets_d = on_device
+    ? axom::Array<TetrahedronType>(tets_h, device_allocator)
+    : axom::Array<TetrahedronType>();
+  auto tets_view = on_device ? tets_d.view() : tets_h.view();
+
+  axom::ReduceSum<ExecSpace, double> total_tet_vol(0.0);
 
   axom::for_all<ExecSpace>(
     NUM_TETS,
     AXOM_LAMBDA(axom::IndexType i) { total_tet_vol += tets_view[i].volume(); });
 
-  SLIC_INFO(
-    axom::fmt::format("{:-^80}",
-                      axom::fmt::format("Total volume of all tetrahedra is {} ",
-                                        total_tet_vol.get())));
+  SLIC_INFO(axom::fmt::format(
+    "{:-^80}",
+    axom::fmt::format("Total volume of all tetrahedra is {} ", total_tet_vol.get())));
 
   // Calculate intersection volume for each hexahedra and tetrahedra pair.
   // Typically, a spatial index (e.g. Bounding Volume Hierarchy) can be used to
   // reduce the number of operations.
-  RAJA::ReduceSum<REDUCE_POL, double> total_intersect_vol(0.0);
+  axom::ReduceSum<ExecSpace, double> total_intersect_vol(0.0);
   constexpr double EPS = 1e-10;
   constexpr bool tryFixOrientation = true;
 
@@ -266,19 +263,15 @@ void check_intersection_volumes(const Input& params)
       });
   }
 
-  SLIC_INFO(axom::fmt::format(
-    "{:-^80}",
-    axom::fmt::format("Total intersect volume between all hexahedra "
-                      "and tetrahedra is {} ",
-                      total_intersect_vol.get())));
+  SLIC_INFO(axom::fmt::format("{:-^80}",
+                              axom::fmt::format("Total intersect volume between all hexahedra "
+                                                "and tetrahedra is {} ",
+                                                total_intersect_vol.get())));
 
   SLIC_INFO(axom::fmt::format(
     "{:-^80}",
     axom::fmt::format("Difference between sums is {}",
                       std::abs(total_intersect_vol.get() - total_tet_vol.get()))));
-
-  // Reset default allocator
-  axom::setDefaultAllocator(current_allocator);
 }
 
 int main(int argc, char** argv)
@@ -288,8 +281,7 @@ int main(int argc, char** argv)
 
   // Set up and parse command line arguments
   Input params;
-  axom::CLI::App app {
-    "Example of intersection volume between hexahedra and tetrahedra"};
+  axom::CLI::App app {"Example of intersection volume between hexahedra and tetrahedra"};
 
   try
   {

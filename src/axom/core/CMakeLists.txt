@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -27,6 +28,7 @@ set(core_headers
     utilities/CommandLineUtilities.hpp
     utilities/FileUtilities.hpp
     utilities/RAII.hpp
+    utilities/Sorting.hpp
     utilities/StringUtilities.hpp
     utilities/System.hpp
     utilities/Timer.hpp
@@ -41,13 +43,16 @@ set(core_headers
     numerics/eigen_solve.hpp
     numerics/eigen_sort.hpp
     numerics/floating_point_limits.hpp
+    numerics/quadrature.hpp
     numerics/jacobi_eigensolve.hpp
     numerics/linear_solve.hpp
     numerics/matvecops.hpp
     numerics/polynomial_solvers.hpp
+    numerics/transforms.hpp
 
     ## detail
     detail/FlatTable.hpp
+    detail/FlatMapOps.hpp
 
     ## core
     AnnotationMacros.hpp
@@ -56,21 +61,35 @@ set(core_headers
     ArrayIteratorBase.hpp
     ArrayView.hpp
     MDMapping.hpp
+    IndexedCollection.hpp
+    ItemCollection.hpp
     IteratorBase.hpp
+    ListCollection.hpp
     Macros.hpp
     Map.hpp
+    MapCollection.hpp
     FlatMap.hpp
+    FlatMapView.hpp
+    FlatMapUtil.hpp
+    DeviceHash.hpp
+    NumericArray.hpp
+    NumericLimits.hpp
     Path.hpp
     RangeAdapter.hpp
     StackArray.hpp
+    StaticArray.hpp
     Types.hpp
     memory_management.hpp
 
     ## execution
+    execution/atomics.hpp
     execution/execution_space.hpp
     execution/for_all.hpp
     execution/nested_for_exec.hpp
+    execution/reductions.hpp
     execution/runtime_policy.hpp
+    execution/scans.hpp
+    execution/sorts.hpp
     execution/synchronize.hpp
 
     execution/internal/seq_exec.hpp
@@ -89,7 +108,9 @@ set(core_sources
     ${PROJECT_BINARY_DIR}/axom/core/utilities/About.cpp
 
     numerics/polynomial_solvers.cpp
+    numerics/quadrature.cpp
 
+    memory_management.cpp
     Path.cpp
     Types.cpp
     )
@@ -104,6 +125,7 @@ blt_list_append( TO core_depends ELEMENTS caliper IF CALIPER_FOUND )
 blt_list_append( TO core_depends ELEMENTS camp IF CAMP_FOUND )
 blt_list_append( TO core_depends ELEMENTS umpire IF UMPIRE_FOUND )
 blt_list_append( TO core_depends ELEMENTS RAJA IF RAJA_FOUND )
+blt_list_append( TO core_depends ELEMENTS conduit::conduit IF CONDUIT_FOUND )
 blt_list_append( TO core_depends ELEMENTS mpi IF AXOM_ENABLE_MPI )
 
 # HACK: RAJA's dependencies are not getting added to core due to a bug in
@@ -157,8 +179,3 @@ endif()
 if(AXOM_ENABLE_EXAMPLES)
   add_subdirectory(examples)
 endif()
-
-#------------------------------------------------------------------------------
-# Add code checks
-#------------------------------------------------------------------------------
-axom_add_code_checks(PREFIX core)

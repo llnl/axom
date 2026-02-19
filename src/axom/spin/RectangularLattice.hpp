@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -7,11 +8,11 @@
 #define AXOM_SPIN_RECTANGULAR_LATTICE_HPP_
 
 #include "axom/config.hpp"
+#include "axom/core/NumericArray.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 
 #include "axom/primal/constants.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
-#include "axom/primal/geometry/NumericArray.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 
@@ -122,11 +123,10 @@ public:
    */
   RectangularLattice(SpaceCoordType* origin_data, SpaceCoordType* spacing_data)
   {
-    m_origin =
-      (origin_data != nullptr) ? SpacePoint(origin_data) : SpacePoint::zero();
+    m_origin = (origin_data != nullptr) ? SpacePoint(origin_data) : SpacePoint::zero();
 
-    m_spacing = (spacing_data != nullptr) ? SpaceVector(spacing_data)
-                                          : SpaceVector(SpaceCoordType(1));
+    m_spacing =
+      (spacing_data != nullptr) ? SpaceVector(spacing_data) : SpaceVector(SpaceCoordType(1));
 
     // Note: We use an inverted spacing, m_invSpacing, for efficiency.
     // It trades divisions for multiplications and handles 0-sized spacings
@@ -150,8 +150,8 @@ public:
     {
       // Note: Always round down to negative infinity
       // uses inverted spacing, which handles zero-sized spacings
-      cell[i] = static_cast<CellCoordType>(
-        axom::utilities::floor((pt[i] - m_origin[i]) * m_invSpacing[i]));
+      cell[i] =
+        static_cast<CellCoordType>(axom::utilities::floor((pt[i] - m_origin[i]) * m_invSpacing[i]));
     }
 
     return cell;
@@ -176,9 +176,8 @@ public:
    */
   SpatialBoundingBox cellBounds(const GridCell& cell) const
   {
-    return SpatialBoundingBox(
-      spacePoint(cell),
-      spacePoint(GridCell(cell.array() + GridCell(1).array())));
+    return SpatialBoundingBox(spacePoint(cell),
+                              spacePoint(GridCell(cell.array() + GridCell(1).array())));
   }
 
   /*! Simple formatted print of a rectangular lattice */
@@ -244,10 +243,9 @@ private:
  * set to zero in that dimension.
  */
 template <int NDIMS, typename SpaceCoordType, typename CellCoordType>
-RectangularLattice<NDIMS, SpaceCoordType, CellCoordType>
-rectangular_lattice_from_bounding_box(
+RectangularLattice<NDIMS, SpaceCoordType, CellCoordType> rectangular_lattice_from_bounding_box(
   const primal::BoundingBox<SpaceCoordType, NDIMS>& bbox,
-  const primal::NumericArray<CellCoordType, NDIMS>& gridRes)
+  const NumericArray<CellCoordType, NDIMS>& gridRes)
 {
   using LatticeType = RectangularLattice<NDIMS, SpaceCoordType, CellCoordType>;
   using SpaceVector = typename LatticeType::SpaceVector;
@@ -288,9 +286,8 @@ bool operator!=(const RectangularLattice<NDIMS, SpaceCoordType, CellCoordType>& 
 
 /*! Stream output operator on a RectangularLattice */
 template <int NDIMS, typename SpaceCoordType, typename CellCoordType>
-std::ostream& operator<<(
-  std::ostream& os,
-  const RectangularLattice<NDIMS, SpaceCoordType, CellCoordType>& lattice)
+std::ostream& operator<<(std::ostream& os,
+                         const RectangularLattice<NDIMS, SpaceCoordType, CellCoordType>& lattice)
 {
   return lattice.print(os);
 }

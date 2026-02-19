@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -27,10 +28,6 @@
 #include "axom/core/StackArray.hpp"       // for axom::StackArray
 #include "axom/core/numerics/Matrix.hpp"  // for Matrix
 
-#ifdef AXOM_USE_RAJA
-  #include "RAJA/RAJA.hpp"
-#endif
-
 namespace axom
 {
 namespace mint
@@ -49,16 +46,12 @@ inline void for_all_cells_impl(xargs::index, const Mesh& m, KernelType&& kernel)
 template <typename ExecPolicy, typename KernelType>
 inline void for_all_cells(xargs::index, const Mesh& m, KernelType&& kernel)
 {
-  for_all_cells_impl<ExecPolicy>(xargs::index(),
-                                 m,
-                                 std::forward<KernelType>(kernel));
+  for_all_cells_impl<ExecPolicy>(xargs::index(), m, std::forward<KernelType>(kernel));
 }
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_cells_impl(xargs::ij,
-                               const StructuredMesh& m,
-                               KernelType&& kernel)
+inline void for_all_cells_impl(xargs::ij, const StructuredMesh& m, KernelType&& kernel)
 {
   // run-time checks
   SLIC_ERROR_IF(m.getDimension() != 2, "xargs::ij is only valid for 2D meshes!");
@@ -67,57 +60,30 @@ inline void for_all_cells_impl(xargs::ij,
   const IndexType Ni = m.getCellResolution(I_DIRECTION);
   const IndexType Nj = m.getCellResolution(J_DIRECTION);
 
-#ifdef AXOM_USE_RAJA
-
-  RAJA::RangeSegment i_range(0, Ni);
-  RAJA::RangeSegment j_range(0, Nj);
-  using exec_pol =
-    typename axom::internal::nested_for_exec<ExecPolicy>::loop2d_policy;
-
-  RAJA::kernel<exec_pol>(
-    RAJA::make_tuple(i_range, j_range),
+  axom::StackArray<IndexType, 2> i_range {{0, Ni}}, j_range {{0, Nj}};
+  axom::for_all<ExecPolicy>(
+    i_range,
+    j_range,
     AXOM_LAMBDA(IndexType i, IndexType j) {
       const IndexType cellID = i + j * jp;
       kernel(cellID, i, j);
     });
-
-#else
-
-  constexpr bool is_serial = std::is_same<ExecPolicy, axom::SEQ_EXEC>::value;
-  AXOM_STATIC_ASSERT(is_serial);
-
-  for(IndexType j = 0; j < Nj; ++j)
-  {
-    const IndexType j_offset = j * jp;
-    for(IndexType i = 0; i < Ni; ++i)
-    {
-      const IndexType cellID = i + j_offset;
-      kernel(cellID, i, j);
-    }  // END for all i
-  }    // END for all j
-
-#endif
 }
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
 inline void for_all_cells(xargs::ij, const Mesh& m, KernelType&& kernel)
 {
-  SLIC_ERROR_IF(!m.isStructured(),
-                "xargs::ij is only valid on structured meshes!");
+  SLIC_ERROR_IF(!m.isStructured(), "xargs::ij is only valid on structured meshes!");
   SLIC_ERROR_IF(m.getDimension() != 2, "xargs::ij is only valid on 2D meshes!");
 
   const StructuredMesh& sm = static_cast<const StructuredMesh&>(m);
-  for_all_cells_impl<ExecPolicy>(xargs::ij(),
-                                 sm,
-                                 std::forward<KernelType>(kernel));
+  for_all_cells_impl<ExecPolicy>(xargs::ij(), sm, std::forward<KernelType>(kernel));
 }
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_cells_impl(xargs::ijk,
-                               const StructuredMesh& m,
-                               KernelType&& kernel)
+inline void for_all_cells_impl(xargs::ijk, const StructuredMesh& m, KernelType&& kernel)
 {
   const IndexType Ni = m.getCellResolution(I_DIRECTION);
   const IndexType Nj = m.getCellResolution(J_DIRECTION);
@@ -126,63 +92,31 @@ inline void for_all_cells_impl(xargs::ijk,
   const IndexType jp = m.cellJp();
   const IndexType kp = m.cellKp();
 
-#ifdef AXOM_USE_RAJA
-
-  RAJA::RangeSegment i_range(0, Ni);
-  RAJA::RangeSegment j_range(0, Nj);
-  RAJA::RangeSegment k_range(0, Nk);
-  using exec_pol =
-    typename axom::internal::nested_for_exec<ExecPolicy>::loop3d_policy;
-
-  RAJA::kernel<exec_pol>(
-    RAJA::make_tuple(i_range, j_range, k_range),
+  axom::StackArray<IndexType, 2> i_range {{0, Ni}}, j_range {{0, Nj}}, k_range {{0, Nk}};
+  axom::for_all<ExecPolicy>(
+    i_range,
+    j_range,
+    k_range,
     AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
       const IndexType cellID = i + j * jp + k * kp;
       kernel(cellID, i, j, k);
     });
-
-#else
-
-  constexpr bool is_serial = std::is_same<ExecPolicy, axom::SEQ_EXEC>::value;
-  AXOM_STATIC_ASSERT(is_serial);
-
-  for(IndexType k = 0; k < Nk; ++k)
-  {
-    const IndexType k_offset = k * kp;
-    for(IndexType j = 0; j < Nj; ++j)
-    {
-      const IndexType j_offset = j * jp;
-      for(IndexType i = 0; i < Ni; ++i)
-      {
-        const IndexType cellID = i + j_offset + k_offset;
-        kernel(cellID, i, j, k);
-      }  // END for all i
-    }    // END for all j
-  }      // END for all k
-
-#endif
 }
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
 inline void for_all_cells(xargs::ijk, const Mesh& m, KernelType&& kernel)
 {
-  SLIC_ERROR_IF(!m.isStructured(),
-                "xargs::ijk is only valid on structured meshes!");
-  SLIC_ERROR_IF(m.getDimension() != 3,
-                "xargs::ijk is only valid for 3D structured meshes!");
+  SLIC_ERROR_IF(!m.isStructured(), "xargs::ijk is only valid on structured meshes!");
+  SLIC_ERROR_IF(m.getDimension() != 3, "xargs::ijk is only valid for 3D structured meshes!");
 
   const StructuredMesh& sm = static_cast<const StructuredMesh&>(m);
-  for_all_cells_impl<ExecPolicy>(xargs::ijk(),
-                                 sm,
-                                 std::forward<KernelType>(kernel));
+  for_all_cells_impl<ExecPolicy>(xargs::ijk(), sm, std::forward<KernelType>(kernel));
 }
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_cells_impl(xargs::nodeids,
-                               const StructuredMesh& m,
-                               KernelType&& kernel)
+inline void for_all_cells_impl(xargs::nodeids, const StructuredMesh& m, KernelType&& kernel)
 {
   const int dimension = m.getDimension();
   const IndexType nodeJp = m.nodeJp();
@@ -246,15 +180,30 @@ inline void for_all_cells_impl(xargs::nodeids,
                                const UnstructuredMesh<MIXED_SHAPE>& m,
                                KernelType&& kernel)
 {
-  const IndexType* cell_connectivity = m.getCellNodesArray();
-  const IndexType* cell_offsets = m.getCellNodesOffsetsArray();
+  constexpr bool on_device = axom::execution_space<ExecPolicy>::onDevice();
+  const int device_allocator = axom::execution_space<ExecPolicy>::allocatorID();
+
+  auto cell_connectivity_h =
+    axom::ArrayView<const IndexType>(m.getCellNodesArray(), m.getCellNodesSize());
+  auto cell_offsets_h =
+    axom::ArrayView<const IndexType>(m.getCellNodesOffsetsArray(), m.getNumberOfCells() + 1);
+
+  // Move cell connectivity and cell offsets onto device
+  axom::Array<IndexType> cell_connectivity_d = on_device
+    ? axom::Array<IndexType>(cell_connectivity_h, device_allocator)
+    : axom::Array<IndexType>();
+  auto cell_connectivity_view = on_device ? cell_connectivity_d.view() : cell_connectivity_h;
+
+  axom::Array<IndexType> cell_offsets_d =
+    on_device ? axom::Array<IndexType>(cell_offsets_h, device_allocator) : axom::Array<IndexType>();
+  auto cell_offsets_view = on_device ? cell_offsets_d.view() : cell_offsets_h;
 
   for_all_cells_impl<ExecPolicy>(
     xargs::index(),
     m,
     AXOM_LAMBDA(IndexType cellID) {
-      const IndexType N = cell_offsets[cellID + 1] - cell_offsets[cellID];
-      kernel(cellID, &cell_connectivity[cell_offsets[cellID]], N);
+      const IndexType N = cell_offsets_view[cellID + 1] - cell_offsets_view[cellID];
+      kernel(cellID, &cell_connectivity_view[cell_offsets_view[cellID]], N);
     });
 }
 
@@ -264,14 +213,25 @@ inline void for_all_cells_impl(xargs::nodeids,
                                const UnstructuredMesh<SINGLE_SHAPE>& m,
                                KernelType&& kernel)
 {
-  const IndexType* cell_connectivity = m.getCellNodesArray();
+  constexpr bool on_device = axom::execution_space<ExecPolicy>::onDevice();
+  const int device_allocator = axom::execution_space<ExecPolicy>::allocatorID();
+
+  auto cell_connectivity_h =
+    axom::ArrayView<const IndexType>(m.getCellNodesArray(), m.getCellNodesSize());
+
+  // Move cell connectivity onto device
+  axom::Array<IndexType> cell_connectivity_d = on_device
+    ? axom::Array<IndexType>(cell_connectivity_h, device_allocator)
+    : axom::Array<IndexType>();
+  auto cell_connectivity_view = on_device ? cell_connectivity_d.view() : cell_connectivity_h;
+
   const IndexType stride = m.getNumberOfCellNodes();
 
   for_all_cells_impl<ExecPolicy>(
     xargs::index(),
     m,
     AXOM_LAMBDA(IndexType cellID) {
-      kernel(cellID, &cell_connectivity[cellID * stride], stride);
+      kernel(cellID, &cell_connectivity_view[cellID * stride], stride);
     });
 }
 
@@ -282,33 +242,23 @@ inline void for_all_cells(xargs::nodeids, const Mesh& m, KernelType&& kernel)
   if(m.isStructured())
   {
     const StructuredMesh& sm = static_cast<const StructuredMesh&>(m);
-    for_all_cells_impl<ExecPolicy>(xargs::nodeids(),
-                                   sm,
-                                   std::forward<KernelType>(kernel));
+    for_all_cells_impl<ExecPolicy>(xargs::nodeids(), sm, std::forward<KernelType>(kernel));
   }
   else if(m.hasMixedCellTypes())
   {
-    const UnstructuredMesh<MIXED_SHAPE>& um =
-      static_cast<const UnstructuredMesh<MIXED_SHAPE>&>(m);
-    for_all_cells_impl<ExecPolicy>(xargs::nodeids(),
-                                   um,
-                                   std::forward<KernelType>(kernel));
+    const UnstructuredMesh<MIXED_SHAPE>& um = static_cast<const UnstructuredMesh<MIXED_SHAPE>&>(m);
+    for_all_cells_impl<ExecPolicy>(xargs::nodeids(), um, std::forward<KernelType>(kernel));
   }
   else
   {
-    const UnstructuredMesh<SINGLE_SHAPE>& um =
-      static_cast<const UnstructuredMesh<SINGLE_SHAPE>&>(m);
-    for_all_cells_impl<ExecPolicy>(xargs::nodeids(),
-                                   um,
-                                   std::forward<KernelType>(kernel));
+    const UnstructuredMesh<SINGLE_SHAPE>& um = static_cast<const UnstructuredMesh<SINGLE_SHAPE>&>(m);
+    for_all_cells_impl<ExecPolicy>(xargs::nodeids(), um, std::forward<KernelType>(kernel));
   }
 }
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_cells_impl(xargs::faceids,
-                               const StructuredMesh& m,
-                               KernelType&& kernel)
+inline void for_all_cells_impl(xargs::faceids, const StructuredMesh& m, KernelType&& kernel)
 {
   const int dimension = m.getDimension();
   const IndexType ICellResolution = m.getCellResolution(I_DIRECTION);
@@ -344,10 +294,7 @@ inline void for_all_cells_impl(xargs::faceids,
     for_all_cells_impl<ExecPolicy>(
       xargs::ijk(),
       m,
-      AXOM_LAMBDA(IndexType cellID,
-                  IndexType AXOM_UNUSED_PARAM(i),
-                  IndexType j,
-                  IndexType k) {
+      AXOM_LAMBDA(IndexType cellID, IndexType AXOM_UNUSED_PARAM(i), IndexType j, IndexType k) {
         IndexType faces[6];
 
         /* The I_DIRECTION faces */
@@ -373,14 +320,26 @@ inline void for_all_cells_impl(xargs::faceids,
                                const UnstructuredMesh<SINGLE_SHAPE>& m,
                                KernelType&& kernel)
 {
-  const IndexType* cells_to_faces = m.getCellFacesArray();
+  constexpr bool on_device = axom::execution_space<ExecPolicy>::onDevice();
+  const int device_allocator = axom::execution_space<ExecPolicy>::allocatorID();
+
   const IndexType num_faces = m.getNumberOfCellFaces();
+
+  // extract cells_to_faces into an axom::ArrayView
+  auto cells_to_faces_h =
+    axom::ArrayView<const IndexType>(m.getCellFacesArray(), m.getCellNodesSize());
+
+  // Move cells_to_faces values onto device
+  axom::Array<IndexType> cells_to_faces_d = on_device
+    ? axom::Array<IndexType>(cells_to_faces_h, device_allocator)
+    : axom::Array<IndexType>();
+  auto cells_to_faces_v = on_device ? cells_to_faces_d.view() : cells_to_faces_h;
 
   for_all_cells_impl<ExecPolicy>(
     xargs::index(),
     m,
     AXOM_LAMBDA(IndexType cellID) {
-      kernel(cellID, cells_to_faces + cellID * num_faces, num_faces);
+      kernel(cellID, cells_to_faces_v.data() + cellID * num_faces, num_faces);
     });
 }
 
@@ -390,15 +349,31 @@ inline void for_all_cells_impl(xargs::faceids,
                                const UnstructuredMesh<MIXED_SHAPE>& m,
                                KernelType&& kernel)
 {
-  const IndexType* cells_to_faces = m.getCellFacesArray();
-  const IndexType* offsets = m.getCellFacesOffsetsArray();
+  constexpr bool on_device = axom::execution_space<ExecPolicy>::onDevice();
+  const int device_allocator = axom::execution_space<ExecPolicy>::allocatorID();
+
+  // extract cells_to_faces and offsets into an axom::ArrayView
+  auto cells_to_faces_h =
+    axom::ArrayView<const IndexType>(m.getCellFacesArray(), m.getCellNodesSize());
+  auto offsets_h =
+    axom::ArrayView<const IndexType>(m.getCellFacesOffsetsArray(), m.getNumberOfCells() + 1);
+
+  // Move cells_to_faces and offsets values onto device
+  axom::Array<IndexType> cells_to_faces_d = on_device
+    ? axom::Array<IndexType>(cells_to_faces_h, device_allocator)
+    : axom::Array<IndexType>();
+  auto cells_to_faces_v = on_device ? cells_to_faces_d.view() : cells_to_faces_h;
+
+  axom::Array<IndexType> offsets_d =
+    on_device ? axom::Array<IndexType>(offsets_h, device_allocator) : axom::Array<IndexType>();
+  auto offsets_v = on_device ? offsets_d.view() : offsets_h;
 
   for_all_cells_impl<ExecPolicy>(
     xargs::index(),
     m,
     AXOM_LAMBDA(IndexType cellID) {
-      const IndexType num_faces = offsets[cellID + 1] - offsets[cellID];
-      kernel(cellID, cells_to_faces + offsets[cellID], num_faces);
+      const IndexType num_faces = offsets_v[cellID + 1] - offsets_v[cellID];
+      kernel(cellID, cells_to_faces_v.data() + offsets_v[cellID], num_faces);
     });
 }
 
@@ -406,40 +381,29 @@ inline void for_all_cells_impl(xargs::faceids,
 template <typename ExecPolicy, typename KernelType>
 inline void for_all_cells(xargs::faceids, const Mesh& m, KernelType&& kernel)
 {
-  SLIC_ERROR_IF(
-    m.getDimension() == 1,
-    "For all cells with face IDs only supported for 2D and 3D meshes");
+  SLIC_ERROR_IF(m.getDimension() == 1,
+                "For all cells with face IDs only supported for 2D and 3D meshes");
 
   if(m.isStructured())
   {
     const StructuredMesh& sm = static_cast<const StructuredMesh&>(m);
-    for_all_cells_impl<ExecPolicy>(xargs::faceids(),
-                                   sm,
-                                   std::forward<KernelType>(kernel));
+    for_all_cells_impl<ExecPolicy>(xargs::faceids(), sm, std::forward<KernelType>(kernel));
   }
   else if(m.hasMixedCellTypes())
   {
-    const UnstructuredMesh<MIXED_SHAPE>& um =
-      static_cast<const UnstructuredMesh<MIXED_SHAPE>&>(m);
-    for_all_cells_impl<ExecPolicy>(xargs::faceids(),
-                                   um,
-                                   std::forward<KernelType>(kernel));
+    const UnstructuredMesh<MIXED_SHAPE>& um = static_cast<const UnstructuredMesh<MIXED_SHAPE>&>(m);
+    for_all_cells_impl<ExecPolicy>(xargs::faceids(), um, std::forward<KernelType>(kernel));
   }
   else
   {
-    const UnstructuredMesh<SINGLE_SHAPE>& um =
-      static_cast<const UnstructuredMesh<SINGLE_SHAPE>&>(m);
-    for_all_cells_impl<ExecPolicy>(xargs::faceids(),
-                                   um,
-                                   std::forward<KernelType>(kernel));
+    const UnstructuredMesh<SINGLE_SHAPE>& um = static_cast<const UnstructuredMesh<SINGLE_SHAPE>&>(m);
+    for_all_cells_impl<ExecPolicy>(xargs::faceids(), um, std::forward<KernelType>(kernel));
   }
 }
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_cells_impl(xargs::coords,
-                               const UniformMesh& m,
-                               KernelType&& kernel)
+inline void for_all_cells_impl(xargs::coords, const UniformMesh& m, KernelType&& kernel)
 {
   constexpr bool NO_COPY = true;
 
@@ -514,14 +478,12 @@ inline void for_all_cells_impl(xargs::coords,
                                       n0 + nodeJp + nodeKp};
 
         double coords[24] = {
-          x0 + i * dx,       y0 + j * dy,       z0 + k * dz,
-          x0 + (i + 1) * dx, y0 + j * dy,       z0 + k * dz,
-          x0 + (i + 1) * dx, y0 + (j + 1) * dy, z0 + k * dz,
-          x0 + i * dx,       y0 + (j + 1) * dy, z0 + k * dz,
-          x0 + i * dx,       y0 + j * dy,       z0 + (k + 1) * dz,
-          x0 + (i + 1) * dx, y0 + j * dy,       z0 + (k + 1) * dz,
-          x0 + (i + 1) * dx, y0 + (j + 1) * dy, z0 + (k + 1) * dz,
-          x0 + i * dx,       y0 + (j + 1) * dy, z0 + (k + 1) * dz};
+          x0 + i * dx,       y0 + j * dy,       z0 + k * dz,       x0 + (i + 1) * dx,
+          y0 + j * dy,       z0 + k * dz,       x0 + (i + 1) * dx, y0 + (j + 1) * dy,
+          z0 + k * dz,       x0 + i * dx,       y0 + (j + 1) * dy, z0 + k * dz,
+          x0 + i * dx,       y0 + j * dy,       z0 + (k + 1) * dz, x0 + (i + 1) * dx,
+          y0 + j * dy,       z0 + (k + 1) * dz, x0 + (i + 1) * dx, y0 + (j + 1) * dy,
+          z0 + (k + 1) * dz, x0 + i * dx,       y0 + (j + 1) * dy, z0 + (k + 1) * dz};
 
         numerics::Matrix<double> coordsMatrix(dimension, 8, coords, NO_COPY);
         kernel(cellID, coordsMatrix, nodeIDs);
@@ -531,16 +493,25 @@ inline void for_all_cells_impl(xargs::coords,
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_cells_impl(xargs::coords,
-                               const RectilinearMesh& m,
-                               KernelType&& kernel)
+inline void for_all_cells_impl(xargs::coords, const RectilinearMesh& m, KernelType&& kernel)
 {
   constexpr bool NO_COPY = true;
+
+  constexpr bool on_device = axom::execution_space<ExecPolicy>::onDevice();
+  const int device_allocator = axom::execution_space<ExecPolicy>::allocatorID();
 
   const int dimension = m.getDimension();
   const IndexType nodeJp = m.nodeJp();
   const IndexType nodeKp = m.nodeKp();
-  const double* x = m.getCoordinateArray(X_COORDINATE);
+
+  // Extract x coordinate values into an axom::ArrayView
+  auto x_vals_h = axom::ArrayView<const double>(m.getCoordinateArray(X_COORDINATE),
+                                                m.getNodeResolution(X_COORDINATE));
+
+  // Move x values onto device
+  axom::Array<double> x_vals_d =
+    on_device ? axom::Array<double>(x_vals_h, device_allocator) : axom::Array<double>();
+  auto x_vals_view = on_device ? x_vals_d.view() : x_vals_h;
 
   if(dimension == 1)
   {
@@ -549,7 +520,7 @@ inline void for_all_cells_impl(xargs::coords,
       m,
       AXOM_LAMBDA(IndexType cellID) {
         const IndexType nodeIDs[2] = {cellID, cellID + 1};
-        double coords[2] = {x[nodeIDs[0]], x[nodeIDs[1]]};
+        double coords[2] = {x_vals_view[nodeIDs[0]], x_vals_view[nodeIDs[1]]};
 
         numerics::Matrix<double> coordsMatrix(dimension, 2, coords, NO_COPY);
         kernel(cellID, coordsMatrix, nodeIDs);
@@ -557,7 +528,15 @@ inline void for_all_cells_impl(xargs::coords,
   }
   else if(dimension == 2)
   {
-    const double* y = m.getCoordinateArray(Y_COORDINATE);
+    // Extract y coordinate values into an axom::ArrayView
+    auto y_vals_h = axom::ArrayView<const double>(m.getCoordinateArray(Y_COORDINATE),
+                                                  m.getNodeResolution(Y_COORDINATE));
+
+    // Move y values onto device
+    axom::Array<double> y_vals_d =
+      on_device ? axom::Array<double>(y_vals_h, device_allocator) : axom::Array<double>();
+    auto y_vals_view = on_device ? y_vals_d.view() : y_vals_h;
+
     for_all_cells_impl<ExecPolicy>(
       xargs::ij(),
       m,
@@ -565,8 +544,14 @@ inline void for_all_cells_impl(xargs::coords,
         const IndexType n0 = i + j * nodeJp;
         const IndexType nodeIDs[4] = {n0, n0 + 1, n0 + 1 + nodeJp, n0 + nodeJp};
 
-        double coords[8] =
-          {x[i], y[j], x[i + 1], y[j], x[i + 1], y[j + 1], x[i], y[j + 1]};
+        double coords[8] = {x_vals_view[i],
+                            y_vals_view[j],
+                            x_vals_view[i + 1],
+                            y_vals_view[j],
+                            x_vals_view[i + 1],
+                            y_vals_view[j + 1],
+                            x_vals_view[i],
+                            y_vals_view[j + 1]};
 
         numerics::Matrix<double> coordsMatrix(dimension, 4, coords, NO_COPY);
         kernel(cellID, coordsMatrix, nodeIDs);
@@ -575,8 +560,22 @@ inline void for_all_cells_impl(xargs::coords,
   else
   {
     SLIC_ASSERT(dimension == 3);
-    const double* y = m.getCoordinateArray(Y_COORDINATE);
-    const double* z = m.getCoordinateArray(Z_COORDINATE);
+
+    // Extract yz coordinate values into an axom::ArrayView
+    auto y_vals_h = axom::ArrayView<const double>(m.getCoordinateArray(Y_COORDINATE),
+                                                  m.getNodeResolution(Y_COORDINATE));
+    auto z_vals_h = axom::ArrayView<const double>(m.getCoordinateArray(Z_COORDINATE),
+                                                  m.getNodeResolution(Z_COORDINATE));
+
+    // Move yz values onto device
+    axom::Array<double> y_vals_d =
+      on_device ? axom::Array<double>(y_vals_h, device_allocator) : axom::Array<double>();
+    axom::Array<double> z_vals_d =
+      on_device ? axom::Array<double>(z_vals_h, device_allocator) : axom::Array<double>();
+
+    auto y_vals_view = on_device ? y_vals_d.view() : y_vals_h;
+    auto z_vals_view = on_device ? z_vals_d.view() : z_vals_h;
+
     for_all_cells_impl<ExecPolicy>(
       xargs::ijk(),
       m,
@@ -591,11 +590,13 @@ inline void for_all_cells_impl(xargs::coords,
                                       n0 + 1 + nodeJp + nodeKp,
                                       n0 + nodeJp + nodeKp};
 
-        double coords[24] = {x[i],     y[j],     z[k],     x[i + 1], y[j],
-                             z[k],     x[i + 1], y[j + 1], z[k],     x[i],
-                             y[j + 1], z[k],     x[i],     y[j],     z[k + 1],
-                             x[i + 1], y[j],     z[k + 1], x[i + 1], y[j + 1],
-                             z[k + 1], x[i],     y[j + 1], z[k + 1]};
+        double coords[24] = {
+          x_vals_view[i],     y_vals_view[j],     z_vals_view[k],     x_vals_view[i + 1],
+          y_vals_view[j],     z_vals_view[k],     x_vals_view[i + 1], y_vals_view[j + 1],
+          z_vals_view[k],     x_vals_view[i],     y_vals_view[j + 1], z_vals_view[k],
+          x_vals_view[i],     y_vals_view[j],     z_vals_view[k + 1], x_vals_view[i + 1],
+          y_vals_view[j],     z_vals_view[k + 1], x_vals_view[i + 1], y_vals_view[j + 1],
+          z_vals_view[k + 1], x_vals_view[i],     y_vals_view[j + 1], z_vals_view[k + 1]};
 
         numerics::Matrix<double> coordsMatrix(dimension, 8, coords, NO_COPY);
         kernel(cellID, coordsMatrix, nodeIDs);
@@ -614,17 +615,13 @@ struct for_all_cell_nodes_functor
     constexpr bool valid_mesh_type = std::is_base_of<Mesh, MeshType>::value;
     AXOM_STATIC_ASSERT(valid_mesh_type);
 
-    for_all_cells_impl<ExecPolicy>(xargs::nodeids(),
-                                   m,
-                                   std::forward<KernelType>(kernel));
+    for_all_cells_impl<ExecPolicy>(xargs::nodeids(), m, std::forward<KernelType>(kernel));
   }
 };
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType>
-inline void for_all_cells_impl(xargs::coords,
-                               const CurvilinearMesh& m,
-                               KernelType&& kernel)
+inline void for_all_cells_impl(xargs::coords, const CurvilinearMesh& m, KernelType&& kernel)
 {
   const int dimension = m.getDimension();
   if(dimension == 1)
@@ -649,24 +646,31 @@ inline void for_all_cells_impl(xargs::coords,
 
 //------------------------------------------------------------------------------
 template <typename ExecPolicy, typename KernelType, Topology TOPO>
-inline void for_all_cells_impl(xargs::coords,
-                               const UnstructuredMesh<TOPO>& m,
-                               KernelType&& kernel)
+inline void for_all_cells_impl(xargs::coords, const UnstructuredMesh<TOPO>& m, KernelType&& kernel)
 {
   constexpr bool NO_COPY = true;
 
+  constexpr bool on_device = axom::execution_space<ExecPolicy>::onDevice();
+  const int device_allocator = axom::execution_space<ExecPolicy>::allocatorID();
+  IndexType coordinate_size = m.getNumberOfNodes();
+
   const int dimension = m.getDimension();
-  const double* x = m.getCoordinateArray(X_COORDINATE);
+
+  // Extract x coordinate values into an axom::ArrayView
+  auto x_vals_h = axom::ArrayView<const double>(m.getCoordinateArray(X_COORDINATE), coordinate_size);
+
+  // Move x values onto device
+  axom::Array<double> x_vals_d =
+    on_device ? axom::Array<double>(x_vals_h, device_allocator) : axom::Array<double>();
+  auto x_vals_view = on_device ? x_vals_d.view() : x_vals_h;
 
   if(dimension == 1)
   {
     for_all_cells_impl<ExecPolicy>(
       xargs::nodeids(),
       m,
-      AXOM_LAMBDA(IndexType cellID,
-                  const IndexType* nodeIDs,
-                  IndexType AXOM_UNUSED_PARAM(numNodes)) {
-        double coords[2] = {x[nodeIDs[0]], x[nodeIDs[1]]};
+      AXOM_LAMBDA(IndexType cellID, const IndexType* nodeIDs, IndexType AXOM_UNUSED_PARAM(numNodes)) {
+        double coords[2] = {x_vals_view[nodeIDs[0]], x_vals_view[nodeIDs[1]]};
 
         numerics::Matrix<double> coordsMatrix(dimension, 2, coords, NO_COPY);
         kernel(cellID, coordsMatrix, nodeIDs);
@@ -674,7 +678,15 @@ inline void for_all_cells_impl(xargs::coords,
   }
   else if(dimension == 2)
   {
-    const double* y = m.getCoordinateArray(Y_COORDINATE);
+    // Extract y coordinate values into an axom::ArrayView
+    auto y_vals_h =
+      axom::ArrayView<const double>(m.getCoordinateArray(Y_COORDINATE), coordinate_size);
+
+    // Move y values onto device
+    axom::Array<double> y_vals_d =
+      on_device ? axom::Array<double>(y_vals_h, device_allocator) : axom::Array<double>();
+    auto y_vals_view = on_device ? y_vals_d.view() : y_vals_h;
+
     for_all_cells_impl<ExecPolicy>(
       xargs::nodeids(),
       m,
@@ -683,8 +695,8 @@ inline void for_all_cells_impl(xargs::coords,
         for(int i = 0; i < numNodes; ++i)
         {
           const IndexType nodeID = nodeIDs[i];
-          coords[2 * i] = x[nodeID];
-          coords[2 * i + 1] = y[nodeID];
+          coords[2 * i] = x_vals_view[nodeID];
+          coords[2 * i + 1] = y_vals_view[nodeID];
         }
 
         numerics::Matrix<double> coordsMatrix(dimension, numNodes, coords, NO_COPY);
@@ -694,8 +706,22 @@ inline void for_all_cells_impl(xargs::coords,
   else
   {
     SLIC_ASSERT(dimension == 3);
-    const double* y = m.getCoordinateArray(Y_COORDINATE);
-    const double* z = m.getCoordinateArray(Z_COORDINATE);
+
+    // Extract coordinate values into an axom::ArrayView
+    auto y_vals_h =
+      axom::ArrayView<const double>(m.getCoordinateArray(Y_COORDINATE), coordinate_size);
+    auto z_vals_h =
+      axom::ArrayView<const double>(m.getCoordinateArray(Z_COORDINATE), coordinate_size);
+
+    // Move yz values onto device
+    axom::Array<double> y_vals_d =
+      on_device ? axom::Array<double>(y_vals_h, device_allocator) : axom::Array<double>();
+    auto y_vals_view = on_device ? y_vals_d.view() : y_vals_h;
+
+    axom::Array<double> z_vals_d =
+      on_device ? axom::Array<double>(z_vals_h, device_allocator) : axom::Array<double>();
+    auto z_vals_view = on_device ? z_vals_d.view() : z_vals_h;
+
     for_all_cells_impl<ExecPolicy>(
       xargs::nodeids(),
       m,
@@ -704,9 +730,9 @@ inline void for_all_cells_impl(xargs::coords,
         for(int i = 0; i < numNodes; ++i)
         {
           const IndexType nodeID = nodeIDs[i];
-          coords[3 * i] = x[nodeID];
-          coords[3 * i + 1] = y[nodeID];
-          coords[3 * i + 2] = z[nodeID];
+          coords[3 * i] = x_vals_view[nodeID];
+          coords[3 * i + 1] = y_vals_view[nodeID];
+          coords[3 * i + 2] = z_vals_view[nodeID];
         }
 
         numerics::Matrix<double> coordsMatrix(dimension, numNodes, coords, NO_COPY);
@@ -722,43 +748,32 @@ inline void for_all_cells(xargs::coords, const Mesh& m, KernelType&& kernel)
   if(m.getMeshType() == STRUCTURED_UNIFORM_MESH)
   {
     const UniformMesh& um = static_cast<const UniformMesh&>(m);
-    for_all_cells_impl<ExecPolicy>(xargs::coords(),
-                                   um,
-                                   std::forward<KernelType>(kernel));
+    for_all_cells_impl<ExecPolicy>(xargs::coords(), um, std::forward<KernelType>(kernel));
   }
   else if(m.getMeshType() == STRUCTURED_RECTILINEAR_MESH)
   {
     const RectilinearMesh& rm = static_cast<const RectilinearMesh&>(m);
-    for_all_cells_impl<ExecPolicy>(xargs::coords(),
-                                   rm,
-                                   std::forward<KernelType>(kernel));
+    for_all_cells_impl<ExecPolicy>(xargs::coords(), rm, std::forward<KernelType>(kernel));
   }
   else if(m.getMeshType() == STRUCTURED_CURVILINEAR_MESH)
   {
     const CurvilinearMesh& cm = static_cast<const CurvilinearMesh&>(m);
-    for_all_cells_impl<ExecPolicy>(xargs::coords(),
-                                   cm,
-                                   std::forward<KernelType>(kernel));
+    for_all_cells_impl<ExecPolicy>(xargs::coords(), cm, std::forward<KernelType>(kernel));
   }
   else if(m.getMeshType() == UNSTRUCTURED_MESH)
   {
     if(m.hasMixedCellTypes())
     {
-      const UnstructuredMesh<MIXED_SHAPE>& um =
-        static_cast<const UnstructuredMesh<MIXED_SHAPE>&>(m);
+      const UnstructuredMesh<MIXED_SHAPE>& um = static_cast<const UnstructuredMesh<MIXED_SHAPE>&>(m);
 
-      for_all_cells_impl<ExecPolicy>(xargs::coords(),
-                                     um,
-                                     std::forward<KernelType>(kernel));
+      for_all_cells_impl<ExecPolicy>(xargs::coords(), um, std::forward<KernelType>(kernel));
     }
     else
     {
       const UnstructuredMesh<SINGLE_SHAPE>& um =
         static_cast<const UnstructuredMesh<SINGLE_SHAPE>&>(m);
 
-      for_all_cells_impl<ExecPolicy>(xargs::coords(),
-                                     um,
-                                     std::forward<KernelType>(kernel));
+      for_all_cells_impl<ExecPolicy>(xargs::coords(), um, std::forward<KernelType>(kernel));
     }
   }
   else

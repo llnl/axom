@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -48,9 +49,7 @@ namespace primal
  * \sa OrientationResult
  */
 template <typename T>
-inline int orientation(const Point<T, 3>& p,
-                       const Triangle<T, 3>& tri,
-                       double EPS = 1e-9)
+inline int orientation(const Point<T, 3>& p, const Triangle<T, 3>& tri, double EPS = 1e-9)
 {
   const Vector<T, 3> A(p, tri[0]);
   const Vector<T, 3> B(p, tri[1]);
@@ -89,9 +88,7 @@ inline int orientation(const Point<T, 3>& p,
  * \sa OrientationResult
  */
 template <typename T>
-inline int orientation(const Point<T, 2>& p,
-                       const Segment<T, 2>& seg,
-                       double EPS = 1e-9)
+inline int orientation(const Point<T, 2>& p, const Segment<T, 2>& seg, double EPS = 1e-9)
 {
   const Vector<T, 2> A(p, seg[0]);
   const Vector<T, 2> B(p, seg[1]);

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -11,6 +12,8 @@
 #include "axom/core/Macros.hpp"
 #include "axom/core/Types.hpp"
 #include "axom/core/utilities/Utilities.hpp"
+#include "axom/core/execution/reductions.hpp"
+#include "axom/slic.hpp"
 
 // primal includes
 #include "axom/spin/BVH.hpp"
@@ -74,8 +77,7 @@ struct UcdMeshData
    *
    * \return pointer to the node IDs in the underlying cell node array.
    */
-  AXOM_HOST_DEVICE const IndexType* getCellNodeIDs(IndexType cellId,
-                                                   int& nnodes) const
+  AXOM_HOST_DEVICE const IndexType* getCellNodeIDs(IndexType cellId, int& nnodes) const
   {
     SLIC_ASSERT(cells_to_nodes != nullptr);
     int cellBegin;
@@ -163,8 +165,7 @@ private:
     /// Closest point on element
     PointType minPt {};
     /// Type of the closest point
-    detail::ClosestPointLocType minType {
-      detail::ClosestPointLocType::uninitialized};
+    detail::ClosestPointLocType minType {detail::ClosestPointLocType::uninitialized};
     /// Index within mesh of closest element
     int minElem;
     /// Contains geometry of the closest element
@@ -385,8 +386,7 @@ private:
    *
    * \return 1.0 if outside, -1.0 if inside
    */
-  AXOM_HOST_DEVICE static double computeSign(const PointType& qpt,
-                                             const MinCandidate& currMin);
+  AXOM_HOST_DEVICE static double computeSign(const PointType& qpt, const MinCandidate& currMin);
 
 private:
   bool m_isInputWatertight;        /*!< indicates if input is watertight     */
@@ -427,8 +427,7 @@ SignedDistance<NDIMS, ExecSpace>::SignedDistance(const mint::Mesh* surfaceMesh,
 
 //------------------------------------------------------------------------------
 template <int NDIMS, typename ExecSpace>
-bool SignedDistance<NDIMS, ExecSpace>::setMesh(const mint::Mesh* surfaceMesh,
-                                               int allocatorID)
+bool SignedDistance<NDIMS, ExecSpace>::setMesh(const mint::Mesh* surfaceMesh, int allocatorID)
 {
   AXOM_ANNOTATE_SCOPE("SignedDistance::setMesh");
   SLIC_ASSERT(surfaceMesh != nullptr);
@@ -456,15 +455,11 @@ bool SignedDistance<NDIMS, ExecSpace>::setMesh(const mint::Mesh* surfaceMesh,
   // compute bounding box of surface mesh
   // NOTE: this should be changed to an oriented bounding box in the future.
 #ifdef AXOM_USE_RAJA
-  using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-
   double minInit = numerics::floating_point_limits<double>::max();
   double maxInit = numerics::floating_point_limits<double>::lowest();
-  RAJA::ReduceMin<reduce_policy, double> xmin(minInit), ymin(minInit),
-    zmin(minInit);
+  axom::ReduceMin<ExecSpace, double> xmin(minInit), ymin(minInit), zmin(minInit);
 
-  RAJA::ReduceMax<reduce_policy, double> xmax(maxInit), ymax(maxInit),
-    zmax(maxInit);
+  axom::ReduceMax<ExecSpace, double> xmax(maxInit), ymax(maxInit), zmax(maxInit);
 
   for_all<ExecSpace>(
     nnodes,
@@ -510,8 +505,7 @@ bool SignedDistance<NDIMS, ExecSpace>::setMesh(const mint::Mesh* surfaceMesh,
 
 //------------------------------------------------------------------------------
 template <int NDIMS, typename ExecSpace>
-inline double SignedDistance<NDIMS, ExecSpace>::computeDistance(
-  const PointType& pt) const
+inline double SignedDistance<NDIMS, ExecSpace>::computeDistance(const PointType& pt) const
 {
   double dist;
   this->computeDistances(1, &pt, &dist, nullptr, nullptr);
@@ -520,10 +514,9 @@ inline double SignedDistance<NDIMS, ExecSpace>::computeDistance(
 
 //------------------------------------------------------------------------------
 template <int NDIMS, typename ExecSpace>
-inline double SignedDistance<NDIMS, ExecSpace>::computeDistance(
-  const PointType& queryPnt,
-  PointType& closestPnt,
-  VectorType& surfaceNormal) const
+inline double SignedDistance<NDIMS, ExecSpace>::computeDistance(const PointType& queryPnt,
+                                                                PointType& closestPnt,
+                                                                VectorType& surfaceNormal) const
 {
   double dist;
   this->computeDistances(1, &queryPnt, &dist, &closestPnt, &surfaceNormal);
@@ -533,12 +526,11 @@ inline double SignedDistance<NDIMS, ExecSpace>::computeDistance(
 //------------------------------------------------------------------------------
 template <int NDIMS, typename ExecSpace>
 template <typename PointIndexable>
-inline void SignedDistance<NDIMS, ExecSpace>::computeDistances(
-  int npts,
-  PointIndexable queryPts,
-  double* outSgnDist,
-  PointType* outClosestPts,
-  VectorType* outNormals) const
+inline void SignedDistance<NDIMS, ExecSpace>::computeDistances(int npts,
+                                                               PointIndexable queryPts,
+                                                               double* outSgnDist,
+                                                               PointType* outClosestPts,
+                                                               VectorType* outNormals) const
 {
   SLIC_ASSERT(npts > 0);
   SLIC_ASSERT(m_surfaceMesh != nullptr);
@@ -575,16 +567,10 @@ inline void SignedDistance<NDIMS, ExecSpace>::computeDistances(
 
       MinCandidate curr_min {};
 
-      auto searchMinDist = [&](std::int32_t current_node,
-                               const std::int32_t* leaf_nodes) {
+      auto searchMinDist = [&](std::int32_t current_node, const std::int32_t* leaf_nodes) {
         int candidate_idx = leaf_nodes[current_node];
 
-        checkCandidate(qpt,
-                       curr_min,
-                       candidate_idx,
-                       surfaceData,
-                       surf_pts,
-                       computeSigns);
+        checkCandidate(qpt, curr_min, candidate_idx, surfaceData, surf_pts, computeSigns);
       };
 
       auto traversePredicate = [&](const PointType& p, const BoxType& bb) -> bool {
@@ -629,8 +615,7 @@ SignedDistance<NDIMS, ExecSpace>::getCellBoundingBox(axom::IndexType icell,
   // line segments in 2-D.
   const mint::CellType cellType = mesh.getCellType(icell);
   AXOM_UNUSED_VAR(cellType);  // silence warning in release configs
-  SLIC_ASSERT(cellType == mint::TRIANGLE || cellType == mint::QUAD ||
-              cellType == mint::SEGMENT);
+  SLIC_ASSERT(cellType == mint::TRIANGLE || cellType == mint::QUAD || cellType == mint::SEGMENT);
 
   // Get the cell node IDs that make up the cell
   int nnodes;
@@ -664,14 +649,12 @@ AXOM_HOST_DEVICE inline void SignedDistance<NDIMS, ExecSpace>::checkCandidate(
   TriangleType surface_elems[2];
 
   int num_candidates = 1;
-  surface_elems[0] =
-    TriangleType {meshPts[nodes[0]], meshPts[nodes[1]], meshPts[nodes[2]]};
+  surface_elems[0] = TriangleType {meshPts[nodes[0]], meshPts[nodes[1]], meshPts[nodes[2]]};
 
   if(nnodes == 4)
   {
     num_candidates = 2;
-    surface_elems[1] =
-      TriangleType {meshPts[nodes[0]], meshPts[nodes[2]], meshPts[nodes[3]]};
+    surface_elems[1] = TriangleType {meshPts[nodes[0]], meshPts[nodes[2]], meshPts[nodes[3]]};
   }
 
   using axom::primal::closest_point;
@@ -684,8 +667,7 @@ AXOM_HOST_DEVICE inline void SignedDistance<NDIMS, ExecSpace>::checkCandidate(
   for(int ei = 0; ei < num_candidates; ei++)
   {
     int candidate_loc;
-    PointType candidate_pt =
-      closest_point(qpt, surface_elems[ei], &candidate_loc, EPS);
+    PointType candidate_pt = closest_point(qpt, surface_elems[ei], &candidate_loc, EPS);
     double sq_dist = squared_distance(qpt, candidate_pt);
 
     // Check the type of intersection we found
@@ -723,8 +705,7 @@ AXOM_HOST_DEVICE inline void SignedDistance<NDIMS, ExecSpace>::checkCandidate(
     }
     else
     {
-      shouldUpdateNormals = computeNormal && is_cpt_shared &&
-        (currMin.minType == cpt_type) &&
+      shouldUpdateNormals = computeNormal && is_cpt_shared && (currMin.minType == cpt_type) &&
         isNearlyEqual(squared_distance(candidate_pt, currMin.minPt), 0., EPS);
     }
 
@@ -762,16 +743,14 @@ SignedDistance<NDIMS, ExecSpace>::getSurfaceNormal(const MinCandidate& currMin)
 {
   // Closest point is either internal to a face of the surface or, for points on
   // a boundary edge or vertex, we already computed the (pseudo)-normal during the traversal
-  return (currMin.minType == detail::ClosestPointLocType::face)
-    ? currMin.minTri.normal()
-    : currMin.sumNormals;
+  return (currMin.minType == detail::ClosestPointLocType::face) ? currMin.minTri.normal()
+                                                                : currMin.sumNormals;
 }
 
 //------------------------------------------------------------------------------
 template <int NDIMS, typename ExecSpace>
-AXOM_HOST_DEVICE inline double SignedDistance<NDIMS, ExecSpace>::computeSign(
-  const PointType& qpt,
-  const MinCandidate& currMin)
+AXOM_HOST_DEVICE inline double SignedDistance<NDIMS, ExecSpace>::computeSign(const PointType& qpt,
+                                                                             const MinCandidate& currMin)
 {
   // Get the pseudo-normal at the closest point
   const VectorType n = getSurfaceNormal(currMin);

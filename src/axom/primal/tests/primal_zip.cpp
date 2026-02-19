@@ -1,11 +1,13 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/config.hpp"
 
 #include "axom/core/execution/for_all.hpp"
+#include "axom/core/execution/runtime_policy.hpp"
 #include "axom/core/memory_management.hpp"
 #include "axom/slic.hpp"
 
@@ -61,9 +63,7 @@ void check_zip_points_3d()
   axom::for_all<ExecSpace>(
     0,
     N,
-    AXOM_LAMBDA(int idx) {
-      valid[idx] = (it[idx] == PrimitiveType {x[idx], y[idx], z[idx]});
-    });
+    AXOM_LAMBDA(int idx) { valid[idx] = (it[idx] == PrimitiveType {x[idx], y[idx], z[idx]}); });
 
   axom::copy(&valid_host, valid, N * sizeof(bool));
 
@@ -110,9 +110,7 @@ void check_zip_points_2d_from_3d()
   axom::for_all<ExecSpace>(
     0,
     N,
-    AXOM_LAMBDA(int idx) {
-      valid[idx] = (it[idx] == PointType {x[idx], y[idx]});
-    });
+    AXOM_LAMBDA(int idx) { valid[idx] = (it[idx] == PointType {x[idx], y[idx]}); });
 
   axom::copy(&valid_host, valid, N * sizeof(bool));
 
@@ -158,9 +156,7 @@ void check_zip_vectors_2d_from_3d()
   axom::for_all<ExecSpace>(
     0,
     N,
-    AXOM_LAMBDA(int idx) {
-      valid[idx] = (it[idx] == PointType {x[idx], y[idx]});
-    });
+    AXOM_LAMBDA(int idx) { valid[idx] = (it[idx] == PointType {x[idx], y[idx]}); });
 
   axom::copy(&valid_host, valid, N * sizeof(bool));
 
@@ -361,8 +357,8 @@ void check_zip_rays_3d()
       PointType orig {xo[idx], yo[idx], zo[idx]};
       VectorType dir {xd[idx], yd[idx], zd[idx]};
       RayType actual(orig, dir);
-      valid[idx] = (it[idx].origin() == actual.origin()) &&
-        (it[idx].direction() == actual.direction());
+      valid[idx] =
+        (it[idx].origin() == actual.origin()) && (it[idx].direction() == actual.direction());
     });
 
   axom::copy(&valid_host, valid, N * sizeof(bool));
@@ -440,8 +436,8 @@ void check_zip_rays_2d_from_3d()
       PointType orig {xo[idx], yo[idx]};
       VectorType dir {xd[idx], yd[idx]};
       RayType actual(orig, dir);
-      valid[idx] = (it[idx].origin() == actual.origin()) &&
-        (it[idx].direction() == actual.direction());
+      valid[idx] =
+        (it[idx].origin() == actual.origin()) && (it[idx].direction() == actual.direction());
     });
 
   axom::copy(&valid_host, valid, N * sizeof(bool));
@@ -538,7 +534,7 @@ TEST(primal_zip, zip_rays_2d_from_3d)
   check_zip_rays_2d_from_3d<ExecSpace>();
 }
 
-#ifdef AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 AXOM_CUDA_TEST(primal_zip, zip_points_3d_cuda)
 {
   using PointType = primal::Point<double, 3>;
@@ -598,7 +594,7 @@ TEST(primal_zip, zip_rays_2d_from_3d_cuda)
 }
 #endif
 
-#ifdef AXOM_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(primal_zip, zip_points_3d_hip)
 {
   using PointType = primal::Point<double, 3>;

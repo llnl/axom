@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -41,7 +42,7 @@ public:
    * \brief Virtual destructor.
    *****************************************************************************
    */
-  virtual ~Combiner() {};
+  virtual ~Combiner() { };
 
   /*!
    *****************************************************************************
@@ -60,8 +61,7 @@ public:
    * \param [in] rightMessage The right Message to be compared.
    *****************************************************************************
    */
-  virtual bool shouldMessagesBeCombined(const Message& leftMessage,
-                                        const Message& rightMessage) = 0;
+  virtual bool shouldMessagesBeCombined(const Message& leftMessage, const Message& rightMessage) = 0;
 
   /*!
    *****************************************************************************
@@ -73,9 +73,7 @@ public:
    *  in combined Messages. Message::rankCount is always incremented.
    *****************************************************************************
    */
-  virtual void combine(Message& combined,
-                       const Message& combinee,
-                       const int ranksLimit) = 0;
+  virtual void combine(Message& combined, const Message& combinee, const int ranksLimit) = 0;
 };
 
 }  // end namespace lumberjack

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -47,5 +48,7 @@ TEST(numerics_floating_point_limits, consistency_with_standard_numeric_limits)
 {
   check_type_limits<float>("float");
   check_type_limits<double>("double");
+#if !defined(AXOM_DEVICE_CODE)
   check_type_limits<long double>("long double");
+#endif
 }

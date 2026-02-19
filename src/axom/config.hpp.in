@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
- * other Axom Project Developers. See the top-level LICENSE file for details.
+ * Copyright (c) Lawrence Livermore National Security, LLC and other
+ * Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+ * files for dates and other details.
  *
  * SPDX-License-Identifier: (BSD-3-Clause)
  */
@@ -13,27 +14,24 @@
  *       since it might be included from a C file
  */
 
-
 /*
  * Axom Version Information
  */
 #define AXOM_VERSION_MAJOR @AXOM_VERSION_MAJOR@
 #define AXOM_VERSION_MINOR @AXOM_VERSION_MINOR@
 #define AXOM_VERSION_PATCH @AXOM_VERSION_PATCH@
-#define AXOM_VERSION_FULL  "@AXOM_VERSION_FULL@"
-/*NOTE: Do not add AXOM_GIT_SHA here.  This will force
+#define AXOM_VERSION_FULL "@AXOM_VERSION_FULL@"
+/* NOTE: Do not add AXOM_GIT_SHA here.  This will force
  * full rebuild on all local changes. It is added in axom::getVersion()
  * and axom::about(), as well as accessible from axom::gitSha().
  */
 
-
 /*
  * Axom source location
  */
-#define AXOM_SRC_DIR "@AXOM_SRC_DIR@"
-#define AXOM_BIN_DIR "@AXOM_BIN_DIR@"
-#cmakedefine AXOM_DATA_DIR "@AXOM_DATA_DIR@"
-
+#define AXOM_SRC_DIR "@AXOM_SRC_DIR_NATIVE@"
+#define AXOM_BIN_DIR "@AXOM_BIN_DIR_NATIVE@"
+#cmakedefine AXOM_DATA_DIR "@AXOM_DATA_DIR_NATIVE@"
 
 /*
  * Platform specific definitions
@@ -46,7 +44,6 @@
 #cmakedefine AXOM_USE_64BIT_INDEXTYPE
 #endif
 
-
 /*
  * Compiler tests
  */
@@ -58,10 +55,8 @@
 #cmakedefine AXOM_USE_CUDA
 #cmakedefine AXOM_USE_HIP
 #cmakedefine AXOM_USE_MPI
-#cmakedefine AXOM_USE_MPI3
 #cmakedefine AXOM_USE_MPIF_HEADER
 #cmakedefine AXOM_USE_OPENMP
-
 
 /*
  * Compiler defines for libraries (built-in and third party)
@@ -75,11 +70,17 @@
 #cmakedefine AXOM_USE_HDF5
 #cmakedefine AXOM_USE_LUA
 #cmakedefine AXOM_USE_MFEM
+#cmakedefine AXOM_USE_OPENCASCADE
 #cmakedefine AXOM_USE_RAJA
 #cmakedefine AXOM_USE_SCR
 #cmakedefine AXOM_USE_SOL
 #cmakedefine AXOM_USE_SPARSEHASH
 #cmakedefine AXOM_USE_UMPIRE
+
+/*
+ * Compiler defines for library capabilities
+ */
+#cmakedefine AXOM_USE_UMPIRE_SHARED_MEMORY
 
 /*
  * Compiler defines for third-party executables
@@ -97,17 +98,19 @@
 #define NOMINMAX
 #endif
 
-
 /*
  * Compiler defines for Axom components
  */
+#cmakedefine AXOM_USE_BUMP
 #cmakedefine AXOM_USE_INLET
 #cmakedefine AXOM_USE_KLEE
 #cmakedefine AXOM_USE_LUMBERJACK
 #cmakedefine AXOM_USE_MINT
+#cmakedefine AXOM_USE_MIR
 #cmakedefine AXOM_USE_PRIMAL
 #cmakedefine AXOM_USE_QUEST
 #cmakedefine AXOM_USE_SIDRE
+#cmakedefine AXOM_USE_SINA
 #cmakedefine AXOM_USE_SLAM
 #cmakedefine AXOM_USE_SLIC
 #cmakedefine AXOM_USE_SPIN
@@ -122,6 +125,14 @@
 
 
 /*
+ * Sidre removed the SCALAR type in favor of TUPLE, but some readers
+ * like VisIt@3.4.x still expect SCALAR. When this option is enabled,
+ * Sidre will write out SCALAR instead of TUPLE
+ * This option will be phased out in the future as readers gain support for TUPLE
+ */
+#cmakedefine AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING
+
+/*
  * Compiler defines to configure the built-in fmt library
  */
 #cmakedefine01 AXOM_FMT_EXCEPTIONS
@@ -133,11 +144,9 @@
 #cmakedefine SPARSEHASH_HASHFUN_HEADER @SPARSEHASH_HASHFUN_HEADER@
 #cmakedefine SPARSEHASH_HASHFUN_NAMESPACE @SPARSEHASH_HASHFUN_NAMESPACE@
 
-
 /*
  * Disable some MSVC warnings related to shared libraries, if applicable
  */
 @AXOM_MSVC_PRAGMAS@
 
-
-#endif  /* AXOM_COMMON_CONFIG_HPP */
+#endif /* AXOM_COMMON_CONFIG_HPP */

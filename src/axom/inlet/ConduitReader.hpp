@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -59,31 +60,24 @@ public:
 
   ReaderResult getString(const std::string& id, std::string& value) override;
 
-  ReaderResult getIntMap(const std::string& id,
-                         std::unordered_map<int, int>& values) override;
-  ReaderResult getIntMap(const std::string& id,
-                         std::unordered_map<VariantKey, int>& values) override;
+  ReaderResult getIntMap(const std::string& id, std::unordered_map<int, int>& values) override;
+  ReaderResult getIntMap(const std::string& id, std::unordered_map<VariantKey, int>& values) override;
 
-  ReaderResult getDoubleMap(const std::string& id,
-                            std::unordered_map<int, double>& values) override;
+  ReaderResult getDoubleMap(const std::string& id, std::unordered_map<int, double>& values) override;
   ReaderResult getDoubleMap(const std::string& id,
                             std::unordered_map<VariantKey, double>& values) override;
 
-  ReaderResult getBoolMap(const std::string& id,
-                          std::unordered_map<int, bool>& values) override;
+  ReaderResult getBoolMap(const std::string& id, std::unordered_map<int, bool>& values) override;
   ReaderResult getBoolMap(const std::string& id,
                           std::unordered_map<VariantKey, bool>& values) override;
 
   ReaderResult getStringMap(const std::string& id,
                             std::unordered_map<int, std::string>& values) override;
-  ReaderResult getStringMap(
-    const std::string& id,
-    std::unordered_map<VariantKey, std::string>& values) override;
+  ReaderResult getStringMap(const std::string& id,
+                            std::unordered_map<VariantKey, std::string>& values) override;
 
-  ReaderResult getIndices(const std::string& id,
-                          std::vector<int>& indices) override;
-  ReaderResult getIndices(const std::string& id,
-                          std::vector<VariantKey>& indices) override;
+  ReaderResult getIndices(const std::string& id, std::vector<int>& indices) override;
+  ReaderResult getIndices(const std::string& id, std::vector<VariantKey>& indices) override;
 
   /*!
    *****************************************************************************
@@ -118,12 +112,10 @@ private:
   ReaderResult getValue(const conduit::Node* node, bool& value);
 
   template <typename T>
-  ReaderResult getDictionary(const std::string& id,
-                             std::unordered_map<VariantKey, T>& values);
+  ReaderResult getDictionary(const std::string& id, std::unordered_map<VariantKey, T>& values);
 
   template <typename T>
-  ReaderResult getArray(const std::string& id,
-                        std::unordered_map<int, T>& values);
+  ReaderResult getArray(const std::string& id, std::unordered_map<int, T>& values);
   conduit::Node m_root;
   const std::string m_protocol;
 };

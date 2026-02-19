@@ -1,0 +1,308 @@
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
+#
+# SPDX-License-Identifier: (BSD-3-Clause)
+
+spack:
+  config:
+    install_tree:
+      root: $spack/..
+      projections:
+        all: '{compiler.name}-{compiler.version}/{name}-{version}-{hash}'
+    misc_cache: $spack/../misc_cache
+    test_stage: $spack/../test_stage
+    build_stage::
+    - $spack/../build_stage
+
+  view:
+    default:
+      root: ../view
+      select: [llvm, cppcheck, doxygen, py-sphinx, python, ^python]
+      projections:
+        all: '{name}-{version}'
+
+  # Devtools are built on rzvernal for compatibility with both
+  # rzvernal and rzadams.
+  toolchains:
+    gcc_13:
+    - spec: '%c=gcc'
+      when: '%c'
+    - spec: '%cxx=gcc'
+      when: '%cxx'
+    - spec: '%fortran=gcc'
+      when: '%fortran'
+    - spec: '%cray-mpich@8.1.29'
+      when: '%mpi'
+
+  packages:
+    all:
+      providers:
+        blas: [netlib-lapack]
+        lapack: [netlib-lapack]
+        mpi: [cray-mpich]
+        gl: [opengl]
+        glu: [openglu]
+
+    #Compiler packages
+    gcc:
+      externals:
+      - spec: gcc@13.3.1 languages:=c,c++,fortran
+        prefix: /usr/tce/packages/gcc/gcc-13.3.1
+        extra_attributes:
+          compilers:
+            c: /usr/tce/packages/gcc/gcc-13.3.1/bin/gcc
+            cxx: /usr/tce/packages/gcc/gcc-13.3.1/bin/g++
+            fortran: /usr/tce/packages/gcc/gcc-13.3.1/bin/gfortran
+
+    hip:
+      version: [6.1.2]
+      buildable: false
+      externals:
+      - spec: hip@6.1.2
+        prefix: /opt/rocm-6.1.2/hip
+
+    llvm-amdgpu:
+      version: [6.1.2]
+      buildable: false
+      externals:
+      - spec: llvm-amdgpu@6.1.2
+        prefix: /opt/rocm-6.1.2/llvm
+
+    hsa-rocr-dev:
+      version: [6.1.2]
+      buildable: false
+      externals:
+      - spec: hsa-rocr-dev@6.1.2
+        prefix: /opt/rocm-6.1.2/
+
+    rocblas:
+      version: [6.1.2]
+      buildable: false
+      externals:
+      - spec: rocblas@6.1.2
+        prefix: /opt/rocm-6.1.2/
+
+    rocminfo:
+      version: [6.1.2]
+      buildable: false
+      externals:
+      - spec: rocminfo@6.1.2
+        prefix: /opt/rocm-6.1.2
+
+    rocprim:
+      version: [6.1.2]
+      buildable: false
+      externals:
+      - spec: rocprim@6.1.2
+        prefix: /opt/rocm-6.1.2/
+
+    rocm-device-libs:
+      version: [6.1.2]
+      buildable: false
+      externals:
+      - spec: rocm-device-libs@6.1.2
+        prefix: /opt/rocm-6.1.2/
+
+    # Lock down which MPI we are using
+    mpi:
+      buildable: false
+    cray-mpich:
+      buildable: false
+      externals:
+      - spec: cray-mpich@8.1.29
+        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-gcc-13.3.1/
+
+    # blas is a bit more complicated because its a virtual package so fake it with
+    # the following per spack docs
+    netlib-lapack:
+      buildable: false
+      externals:
+      - spec: netlib-lapack@3.6.1
+        prefix: /usr
+
+    # System level packages to not build
+    autoconf:
+      buildable: false
+      externals:
+      - spec: autoconf@2.69
+        prefix: /usr
+    automake:
+      externals:
+      - spec: automake@1.16.1
+        prefix: /usr
+      buildable: false
+    binutils:
+      externals:
+      - spec: binutils@2.40~gold~headers
+        prefix: /opt/cray/pe/cce/18.0.0/binutils/x86_64/x86_64-pc-linux-gnu
+      - spec: binutils@2.30.123~gold+headers
+        prefix: /usr
+      buildable: false
+    bison:
+      externals:
+      - spec: bison@3.0.4
+        prefix: /usr
+      buildable: false
+    bzip2:
+      buildable: false
+      externals:
+      - spec: bzip2@1.0.6
+        prefix: /usr
+    curl:
+      buildable: false
+      externals:
+      - spec: curl@7.61.1
+        prefix: /usr
+    diffutils:
+      externals:
+      - spec: diffutils@3.6
+        prefix: /usr
+      buildable: false
+    elfutils:
+      buildable: false
+      externals:
+      - spec: elfutils@0.176
+        prefix: /usr
+    expat:
+      buildable: false
+      externals:
+      - spec: expat@2.2.5
+        prefix: /usr
+    epoxy:
+      buildable: false
+      externals:
+      - spec: epoxy@1.5.2
+        prefix: /usr
+    findutils:
+      externals:
+      - spec: findutils@4.6.0
+        prefix: /usr
+      buildable: false
+    flex:
+      externals:
+      - spec: flex@2.6.1+lex
+        prefix: /usr
+      buildable: false
+    gettext:
+      buildable: false
+      externals:
+      - spec: gettext@0.19.8.1
+        prefix: /usr
+    ghostscript:
+      externals:
+      - spec: ghostscript@9.27
+        prefix: /usr
+      buildable: false
+    gmake:
+      buildable: false
+      externals:
+      - spec: gmake@4.2.1
+        prefix: /usr
+    groff:
+      externals:
+      - spec: groff@1.22.3
+        prefix: /usr
+      buildable: false
+    graphviz:
+      buildable: false
+      externals:
+      - spec: graphviz@2.30.1
+        prefix: /usr
+    hwloc:
+      externals:
+      - spec: hwloc@2.11.1
+        prefix: /usr
+      buildable: false
+    libtool:
+      externals:
+      - spec: libtool@2.4.6
+        prefix: /usr
+      buildable: false
+    libunwind:
+      buildable: false
+      externals:
+      - spec: libunwind@8.0.1
+        prefix: /usr
+    libx11:
+      buildable: false
+      externals:
+      - spec: libx11@1.20.4
+        prefix: /usr
+    lua:
+      buildable: false
+      externals:
+      - spec: lua@5.3.4
+        prefix: /usr
+    m4:
+      externals:
+      - spec: m4@1.4.18
+        prefix: /usr
+      buildable: false
+    ninja:
+      buildable: false
+      externals:
+      - spec: ninja@1.10.2
+        prefix: /usr/tce/packages/ninja/ninja-1.10.2
+    ncurses:
+      externals:
+      - spec: ncurses@6.1.20180224+termlib abi=6
+        prefix: /usr
+      buildable: false
+    openssl:
+      externals:
+      - spec: openssl@1.1.1k
+        prefix: /usr
+      buildable: false
+    perl:
+      externals:
+      - spec: perl@5.26.3+cpanm+opcode+open+shared+threads
+        prefix: /usr
+      buildable: false
+    pkg-config:
+      buildable: false
+      externals:
+      - spec: pkg-config@0.27.1
+        prefix: /usr
+    readline:
+      buildable: false
+      externals:
+      - spec: readline@7.0
+        prefix: /usr
+    swig:
+      externals:
+      - spec: swig@3.0.12
+        prefix: /usr
+      buildable: false
+    tar:
+      externals:
+      - spec: tar@1.30
+        prefix: /usr
+      buildable: false
+    unzip:
+      buildable: false
+      externals:
+      - spec: unzip@6.0
+        prefix: /usr
+    zlib:
+      externals:
+      - spec: zlib@1.2.11
+        prefix: /usr
+      buildable: false
+    zlib-api:
+      buildable: false
+
+    # Lock in versions of Devtools
+    cmake:
+      version: [3.24.2]
+      buildable: false
+      externals:
+      - spec: cmake@3.24.2
+        prefix: /usr/tce
+
+    llvm:
+      version: [19.0.0]
+      buildable: false
+      externals:
+      - spec: llvm@19.0.0
+        prefix: /usr/tce/packages/rocmcc/rocmcc-6.4.2-magic/llvm

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -39,10 +40,15 @@ int main(int argc, char** argv)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   // Initialize SLIC
-  std::string format = std::string("<MESSAGE>\n") +
-    std::string("\t<TIMESTAMP>\n") + std::string("\tLEVEL=<LEVEL>\n") +
-    std::string("\tRANKS=<RANK>\n") + std::string("\tFILE=<FILE>\n") +
-    std::string("\tLINE=<LINE>\n");
+  constexpr const char* format = R"(
+<MESSAGE>
+\t<TIMESTAMP>
+\tLEVEL=<LEVEL>
+\tRANKS=<RANK>
+\tRANK_COUNT=<RANK_COUNT>
+\tFILE=<FILE>
+\tLINE=<LINE>
+)";
   slic::initialize();
 
   // Set SLIC logging level and Lumberjack Logging stream
@@ -59,10 +65,7 @@ int main(int argc, char** argv)
     std::ostringstream oss;
     oss << "message " << i << "/" << N - 1;
 
-    slic::logMessage(getRandomEvent(0, slic::message::Num_Levels),
-                     oss.str(),
-                     __FILE__,
-                     __LINE__);
+    slic::logMessage(getRandomEvent(0, slic::message::Num_Levels), oss.str(), __FILE__, __LINE__);
 
     ++cycleCount;
     if(cycleCount > CYCLELIMIT)

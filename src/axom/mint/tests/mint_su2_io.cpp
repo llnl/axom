@@ -1,14 +1,16 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 // Mint includes
-#include "axom/mint/mesh/UniformMesh.hpp"      /* for UniformMesh */
-#include "axom/mint/mesh/UnstructuredMesh.hpp" /* for UnstructuredMesh */
-#include "axom/mint/utils/su2_utils.hpp"       /* for su2 i/o */
+#include "axom/mint/mesh/UniformMesh.hpp"
+#include "axom/mint/mesh/UnstructuredMesh.hpp"
+#include "axom/mint/utils/su2_utils.hpp"
 
-// Slic includes
+// Axom includes
+#include "axom/core.hpp"
 #include "axom/slic.hpp"
 
 // gtest includes
@@ -130,7 +132,8 @@ TEST(mint_su2_io, write_read_mixed_cell_topology_mesh)
   mesh.appendCell(c2, mint::TRIANGLE);
 
   // write an SU2 file
-  const std::string su2File = "mixed_cell_mesh.su2";
+  axom::utilities::filesystem::TempFile tmpfile("mixed_cell_mesh", ".su2");
+  const std::string& su2File = tmpfile.getPath();
   int rc = mint::write_su2(&mesh, su2File);
   EXPECT_EQ(rc, 0);
 
@@ -155,7 +158,6 @@ TEST(mint_su2_io, write_read_mixed_cell_topology_mesh)
 
   // cleanup
   delete test_mesh;
-  axom::utilities::filesystem::removeFile(su2File);
 }
 
 //------------------------------------------------------------------------------
@@ -187,7 +189,8 @@ TEST(mint_su2_io, write_read_single_cell_topology_mesh)
   mesh.appendCell(c3);
 
   // write an SU2 file
-  const std::string su2File = "simple_mesh.su2";
+  axom::utilities::filesystem::TempFile tempfile("simple_mesh", ".su2");
+  const std::string& su2File = tempfile.getPath();
   int rc = mint::write_su2(&mesh, su2File);
   EXPECT_EQ(rc, 0);
 
@@ -212,7 +215,6 @@ TEST(mint_su2_io, write_read_single_cell_topology_mesh)
 
   // cleanup
   delete test_mesh;
-  axom::utilities::filesystem::removeFile(su2File);
 }
 
 //------------------------------------------------------------------------------

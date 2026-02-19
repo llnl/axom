@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -29,9 +30,9 @@ int main(int argc, char* argv[])
   MPI_Init(&argc, &argv);
   axom::slic::SimpleLogger logger;
 
-  SLIC_ERROR_IF(argc != 3,
-                "Missing command line arguments. \n\t"
-                  << "Usage: spio_IOWrite <num_files> <base_file_name>");
+  SLIC_ERROR_IF(
+    argc != 3,
+    "Missing command line arguments. \n\t" << "Usage: spio_IOWrite <num_files> <base_file_name>");
 
   size_t num_files = 0;
   std::string file_base;

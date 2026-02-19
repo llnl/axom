@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -35,6 +36,9 @@ filesystem example snippet.
    :start-after: _timer_start
    :end-before: _timer_end
    :language: C++
+
+Axom provides the NumericArray class, which implements arithmetic
+operations on numerical tuples.
 
 There are several other utility functions.  Some are numerical functions such as
 variations on ``clamp`` (ensure a variable is restricted to a given range) and

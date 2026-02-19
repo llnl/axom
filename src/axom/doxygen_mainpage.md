@@ -6,14 +6,17 @@ Axom provides libraries that address common computer science needs.  It grew fro
 # Axom components
 
 * @subpage coretop provides shared utility functionality to all components.
+* @subpage bumptop provides functionality for handling and processing Blueprint meshes.
 * @subpage inlettop provides input file functionality.
 * @subpage kleetop provides functionality to add non-conformal material regions to meshes.
 * @subpage lumberjacktop provides logging aggregation and filtering capability.
 * @subpage minttop provides a comprehensive mesh data model.
+* @subpage mirtop provides algorithms for material interface reconstruction on multimaterial meshes.
 * @subpage multimattop provides an API for managing multimaterial field data.
 * @subpage primaltop provides an API for geometric primitives and computational geometry tests.
 * @subpage questtop provides an API to query point distance and position relative to meshes.
 * @subpage sidretop provides a data store with hierarchical structure.
+* @subpage sinatop ([S]imulation [In]sight and [A]nalysis) unified output library collects data directly within codes, outputting them to a common file output format co-designed with application developers and users.
 * @subpage slamtop provides an API to construct and process meshes.
 * @subpage slictop provides infrastructure for logging application messages.
 * @subpage spintop provides spatial acceleration data structures, also known as spatial indexes.
@@ -22,13 +25,16 @@ Dependencies between components are as follows:
 - Core, Slic, and Lumberjack provide basic services to the rest of Axom and to user code 
   - Core has no dependencies, and the other modules depend on Core
   - Slic optionally depends on Lumberjack
-- Slam, Primal, Sidre, Spin, Inlet, Mint, Klee, Multimat and Quest all depend on Slic and Core
+- Bump, Slam, Primal, Sidre, Spin, Inlet, Mint, Mir, Klee, Multimat and Quest all depend on Slic and Core
+  - Bump depends on Slic, Slam, and Primal
   - Inlet depends on Sidre and Primal
   - Mint depends on Slam, and optionally Sidre
+  - Mir depends on Bump, Slic, Slam, and Primal
   - Spin depends on Primal and Slam
   - Quest depends on Slam, Primal, Spin, and Mint
   - Klee depends on Sidre, Inlet and Primal
   - Multimat depends on Slic, and Slam
+  - Sina only depends on Core
 
 The figure below summarizes the dependencies between the modules.  Solid links
 indicate hard dependencies; dashed links indicate optional dependencies.

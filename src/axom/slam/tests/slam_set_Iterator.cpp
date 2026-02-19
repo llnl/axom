@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -379,23 +380,20 @@ TEST(slam_set_iterator, modify_with_iterators)
 
   /// Print the set values
   {
-    SLIC_INFO("set 1 := {0,1,2,..., n-1},"
-              << " where n is the set's size (" << set1.size() << ")");
+    SLIC_INFO("set 1 := {0,1,2,..., n-1}," << " where n is the set's size (" << set1.size() << ")");
     for(auto& el : set1)
     {
       SLIC_INFO(el);
     }
 
-    SLIC_INFO("set 2 := {0,1,2,..., n-1},"
-              << " where n is the set's size (" << set2.size() << ")");
+    SLIC_INFO("set 2 := {0,1,2,..., n-1}," << " where n is the set's size (" << set2.size() << ")");
     for(auto& el : set2)
     {
       SLIC_INFO(el);
     }
 
-    SLIC_INFO("set 3 := { 2n -i }, "
-              << " where n is the set's size (" << set3.size() << ")"
-              << " and i is the element index");
+    SLIC_INFO("set 3 := { 2n -i }, " << " where n is the set's size (" << set3.size() << ")"
+                                     << " and i is the element index");
 
     for(auto& el : set3)
     {

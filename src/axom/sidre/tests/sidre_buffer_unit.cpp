@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -23,10 +24,7 @@ using axom::sidre::getTypeID;
 
 //------------------------------------------------------------------------------
 
-int countMismatch(unsigned int elts,
-                  int* standard,
-                  int* undertest,
-                  bool printTest = false)
+int countMismatch(unsigned int elts, int* standard, int* undertest, bool printTest = false)
 {
   int retval = 0;
 
@@ -71,11 +69,7 @@ TEST(sidre_buffer, buffer_create)
   delete ds;
 }
 
-void verifyDescribedBuffer(Buffer* buf,
-                           bool isDescribed,
-                           DataTypeId tid,
-                           int eltsize,
-                           int eltcount)
+void verifyDescribedBuffer(Buffer* buf, bool isDescribed, DataTypeId tid, int eltsize, int eltcount)
 {
   EXPECT_FALSE(buf->isAllocated());
   EXPECT_EQ(isDescribed, buf->isDescribed());
@@ -501,6 +495,8 @@ TEST(sidre_buffer, buffer_iterate)
   }
   expbufcount = 3;
   EXPECT_EQ(expbufcount, bufcount);
+
+  delete ds;
 }
 
 // Tests that alloc(0) and realloc(0) are valid and have same behavior

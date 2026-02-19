@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -30,9 +31,13 @@ foreach(src ${spio_example_sources})
         )
 endforeach()
 
-if(SCR_FOUND AND AXOM_ENABLE_TESTS)
-    # Note: This example is a combination of a test and an example due
-    # inability to run two SCR executables at the same time
+if(SCR_FOUND AND AXOM_ENABLE_TESTS AND HDF5_FOUND)
+    # Note: This example is a combination of a test and an example
+    # since we're unable to run two SCR executables at the same time
+    #
+    # The test was written against the sidre_hdf5 protocol, so disable it
+    # in configurations that do not include hdf5
+    
     axom_add_executable(
         NAME       spio_IO_SCR_Checkpoint_ex
         SOURCES    IO_SCR_Checkpoint.cpp

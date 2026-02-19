@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -51,10 +52,7 @@ void compute_centroid(mint::FiniteElement* fe, double* centroid)
 
   const int ndims = fe->getPhysicalDimension();
   const int nnodes = fe->getNumNodes();
-  numerics::Matrix<double> physical_nodes(ndims,
-                                          nnodes,
-                                          fe->getPhysicalNodes(),
-                                          true);
+  numerics::Matrix<double> physical_nodes(ndims, nnodes, fe->getPhysicalNodes(), true);
 
   if(fe->getCellType() == mint::PYRAMID)
   {
@@ -266,16 +264,10 @@ void test_forward_map(mint::FiniteElement* fe, double TOL = 1.e-9)
   int ndims = fe->getReferenceDimension();
 
   // STEP 0: get the reference coordinates
-  numerics::Matrix<double> reference_coords(ndims,
-                                            numdofs,
-                                            fe->getReferenceNodes(),
-                                            true);
+  numerics::Matrix<double> reference_coords(ndims, numdofs, fe->getReferenceNodes(), true);
 
   // STEP 1: get the physical coordinates of the element
-  numerics::Matrix<double> element_coords(ndims,
-                                          nnodes,
-                                          fe->getPhysicalNodes(),
-                                          true);
+  numerics::Matrix<double> element_coords(ndims, nnodes, fe->getPhysicalNodes(), true);
 
   // STEP 2: buffer to store the mapped physical coordinates
   numerics::Matrix<double> physical_coords(ndims, nnodes);
@@ -341,16 +333,10 @@ void test_inverse_map(mint::FiniteElement* fe, double TOL = 1.e-9)
   // STEP 0: get Matrix of physical nodes; nodal coordinates stored in columns.
   const int ndims = fe->getPhysicalDimension();
   const int nnodes = fe->getNumNodes();
-  numerics::Matrix<double> physical_nodes(ndims,
-                                          nnodes,
-                                          fe->getPhysicalNodes(),
-                                          true);
+  numerics::Matrix<double> physical_nodes(ndims, nnodes, fe->getPhysicalNodes(), true);
 
   // STEP 1: get reference coordinates
-  numerics::Matrix<double> reference_nodes(ndims,
-                                           nnodes,
-                                           fe->getReferenceNodes(),
-                                           true);
+  numerics::Matrix<double> reference_nodes(ndims, nnodes, fe->getReferenceNodes(), true);
 
   // STEP 2: allocate buffer to store the computed reference coordinates
   double* xr = new double[ndims];
@@ -413,8 +399,7 @@ void check_shape()
   EXPECT_TRUE((cell_value >= 0) && (cell_value < mint::NUM_CELL_TYPES));
   EXPECT_TRUE((BasisType >= 0) && (BasisType < MINT_NUM_BASIS_TYPES));
 
-  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / "
-                        << mint::getCellInfo(CELLTYPE).name);
+  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / " << mint::getCellInfo(CELLTYPE).name);
 
   using FEMType = typename mint::FEBasis<BasisType, CELLTYPE>;
   using ShapeFunctionType = typename FEMType::ShapeFunctionType;
@@ -450,8 +435,7 @@ void check_jacobian(double TOL = 1.e-9)
   EXPECT_TRUE((cell_value >= 0) && (cell_value < mint::NUM_CELL_TYPES));
   EXPECT_TRUE((BasisType >= 0) && (BasisType < MINT_NUM_BASIS_TYPES));
 
-  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / "
-                        << mint::getCellInfo(CELLTYPE).name);
+  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / " << mint::getCellInfo(CELLTYPE).name);
 
   const double LTOL = 0.0 - TOL;
   double det = 0.0;
@@ -524,8 +508,7 @@ void check_forward_map(double TOL = 1.e-9)
   EXPECT_TRUE((cell_value >= 0) && (cell_value < mint::NUM_CELL_TYPES));
   EXPECT_TRUE((BasisType >= 0) && (BasisType < MINT_NUM_BASIS_TYPES));
 
-  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / "
-                        << mint::getCellInfo(CELLTYPE).name);
+  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / " << mint::getCellInfo(CELLTYPE).name);
 
   // STEP 0: construct a mesh with a single element
   mint::FiniteElement* fe = nullptr;
@@ -558,8 +541,7 @@ void check_inverse_map(double TOL = 1.e-9)
   EXPECT_TRUE((cell_value >= 0) && (cell_value < mint::NUM_CELL_TYPES));
   EXPECT_TRUE((BasisType >= 0) && (BasisType < MINT_NUM_BASIS_TYPES));
 
-  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / "
-                        << mint::getCellInfo(CELLTYPE).name);
+  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / " << mint::getCellInfo(CELLTYPE).name);
 
   // STEP 0: construct a mesh with a single element
   mint::FiniteElement* fe = nullptr;
@@ -590,8 +572,7 @@ void point_in_cell(double TOL = 1.e-9)
   EXPECT_TRUE((cell_value >= 0) && (cell_value < mint::NUM_CELL_TYPES));
   EXPECT_TRUE((BasisType >= 0) && (BasisType < MINT_NUM_BASIS_TYPES));
 
-  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / "
-                        << mint::getCellInfo(CELLTYPE).name);
+  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / " << mint::getCellInfo(CELLTYPE).name);
 
   // STEP 0: construct a mesh with a single element
   mint::FiniteElement* fe = nullptr;
@@ -751,8 +732,7 @@ void check_interp(double TOL = 1.e-9)
   EXPECT_TRUE((cell_value >= 0) && (cell_value < mint::NUM_CELL_TYPES));
   EXPECT_TRUE((BasisType >= 0) && (BasisType < MINT_NUM_BASIS_TYPES));
 
-  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / "
-                        << mint::getCellInfo(CELLTYPE).name);
+  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / " << mint::getCellInfo(CELLTYPE).name);
 
   // STEP 0: construct a mesh with a single element
   mint::FiniteElement* fe = nullptr;

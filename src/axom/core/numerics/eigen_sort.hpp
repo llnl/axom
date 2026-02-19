@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -42,8 +43,7 @@ bool eigen_sort(T* lamdas, Matrix<T>& eigen_vectors);
 template <typename T>
 bool eigen_sort(T* lambdas, Matrix<T>& eigen_vectors)
 {
-  if(lambdas == nullptr || eigen_vectors.getNumRows() < 1 ||
-     eigen_vectors.getNumColumns() < 1)
+  if(lambdas == nullptr || eigen_vectors.getNumRows() < 1 || eigen_vectors.getNumColumns() < 1)
   {
     return false;
   }

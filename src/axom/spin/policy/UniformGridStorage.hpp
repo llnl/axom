@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -8,6 +9,8 @@
 
 #include "axom/core/Array.hpp"
 #include "axom/core/execution/for_all.hpp"
+#include "axom/core/execution/reductions.hpp"
+#include "axom/core/execution/scans.hpp"
 
 namespace axom
 {
@@ -43,15 +46,12 @@ struct DynamicGridStorage
   using BinRef = axom::Array<T>&;
   using ConstBinRef = const axom::Array<T>&;
 
-  DynamicGridStorage(int allocID)
-    : m_bins(0, 0, allocID)
-    , m_allocatorID(allocID)
+  DynamicGridStorage(int allocID) : m_bins(0, 0, allocID), m_allocatorID(allocID)
   {
 #ifdef AXOM_USE_UMPIRE
-    SLIC_ASSERT_MSG(
-      axom::detail::getAllocatorSpace(allocID) != MemorySpace::Device,
-      "Umpire device-only memory is not a supported allocator type for dynamic "
-      "UniformGrid storage.");
+    SLIC_ASSERT_MSG(axom::detail::getAllocatorSpace(allocID) != MemorySpace::Device,
+                    "Umpire device-only memory is not a supported allocator type for dynamic "
+                    "UniformGrid storage.");
 #endif
   }
 
@@ -60,10 +60,7 @@ struct DynamicGridStorage
   void setNumBins(IndexType nbins) { m_bins.resize(nbins); }
   IndexType getNumBins() const { return m_bins.size(); }
 
-  bool isValidIndex(IndexType index) const
-  {
-    return index >= 0 && index < getNumBins();
-  }
+  bool isValidIndex(IndexType index) const { return index >= 0 && index < getNumBins(); }
 
   template <typename ExecSpace>
   void initialize(const axom::ArrayView<const IndexType> binSizes)
@@ -73,12 +70,9 @@ struct DynamicGridStorage
     {
       m_bins.emplace_back(binSizes[i], binSizes[i], m_allocatorID);
     }
-  };
-
-  void insert(IndexType gridIdx, const T& elem)
-  {
-    m_bins[gridIdx].push_back(elem);
   }
+
+  void insert(IndexType gridIdx, const T& elem) { m_bins[gridIdx].push_back(elem); }
 
   void clear(IndexType gridIdx)
   {
@@ -121,15 +115,12 @@ struct DynamicGridView
 {
   using BaseT = typename std::remove_const<T>::type;
 
-  using BinStoreType = typename std::conditional<std::is_const<T>::value,
-                                                 const axom::Array<BaseT>,
-                                                 axom::Array<BaseT>>::type;
+  using BinStoreType =
+    typename std::conditional<std::is_const<T>::value, const axom::Array<BaseT>, axom::Array<BaseT>>::type;
 
   DynamicGridView(DynamicGridStorage<BaseT>& in) : m_bins(in.m_bins.view()) { }
 
-  DynamicGridView(const DynamicGridStorage<BaseT>& in)
-    : m_bins(in.m_bins.view())
-  { }
+  DynamicGridView(const DynamicGridStorage<BaseT>& in) : m_bins(in.m_bins.view()) { }
 
   AXOM_HOST_DEVICE IndexType getNumBins() const { return m_bins.size(); }
 
@@ -177,37 +168,15 @@ struct FlatGridStorage
   void setNumBins(IndexType nbins) { m_binOffsets.resize(nbins); }
   IndexType getNumBins() const { return m_binOffsets.size(); }
 
-  bool isValidIndex(IndexType index) const
-  {
-    return index >= 0 && index < getNumBins();
-  }
+  bool isValidIndex(IndexType index) const { return index >= 0 && index < getNumBins(); }
 
   template <typename ExecSpace>
   void initialize(const axom::ArrayView<const IndexType> binSizes)
   {
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-    using loop_pol = typename axom::execution_space<ExecSpace>::loop_policy;
-    using reduce_pol = typename axom::execution_space<ExecSpace>::reduce_policy;
-
-    RAJA::exclusive_scan<loop_pol>(
-      RAJA::make_span(binSizes.data(), binSizes.size()),
-      RAJA::make_span(m_binOffsets.data(), binSizes.size()),
-      RAJA::operators::plus<IndexType> {});
-    RAJA::ReduceSum<reduce_pol, IndexType> total_elems(0);
-    for_all<ExecSpace>(
-      binSizes.size(),
-      AXOM_LAMBDA(IndexType idx) { total_elems += binSizes[idx]; });
+    axom::exclusive_scan<ExecSpace>(binSizes, m_binOffsets);
+    axom::ReduceSum<ExecSpace, IndexType> total_elems(0);
+    for_all<ExecSpace>(binSizes.size(), AXOM_LAMBDA(IndexType idx) { total_elems += binSizes[idx]; });
     m_binData.resize(total_elems.get());
-#else
-    IndexType total_elems = binSizes[0];
-    m_binOffsets[0] = 0;
-    for(int i = 1; i < binSizes.size(); i++)
-    {
-      m_binOffsets[i] = m_binOffsets[i - 1] + binSizes[i - 1];
-      total_elems += binSizes[i];
-    }
-    m_binData.resize(total_elems);
-#endif
   }
 
   void insert(IndexType gridIdx, T elem)
@@ -232,9 +201,8 @@ struct FlatGridStorage
   void clear(IndexType gridIdx)
   {
     IndexType offset = m_binOffsets[gridIdx];
-    IndexType end = (gridIdx + 1 < m_binOffsets.size())
-      ? m_binOffsets[gridIdx + 1]
-      : m_binData.size();
+    IndexType end =
+      (gridIdx + 1 < m_binOffsets.size()) ? m_binOffsets[gridIdx + 1] : m_binData.size();
     m_binData.erase(m_binData.begin() + offset, m_binData.begin() + end);
   }
 
@@ -242,24 +210,19 @@ struct FlatGridStorage
   BinType getBinContents(IndexType gridIdx)
   {
     IndexType offset = m_binOffsets[gridIdx];
-    IndexType end = (gridIdx + 1 < m_binOffsets.size())
-      ? m_binOffsets[gridIdx + 1]
-      : m_binData.size();
+    IndexType end =
+      (gridIdx + 1 < m_binOffsets.size()) ? m_binOffsets[gridIdx + 1] : m_binData.size();
     return m_binData.view().subspan(offset, end - offset);
   }
   ConstBinType getBinContents(IndexType gridIdx) const
   {
     IndexType offset = m_binOffsets[gridIdx];
-    IndexType end = (gridIdx + 1 < m_binOffsets.size())
-      ? m_binOffsets[gridIdx + 1]
-      : m_binData.size();
+    IndexType end =
+      (gridIdx + 1 < m_binOffsets.size()) ? m_binOffsets[gridIdx + 1] : m_binData.size();
     return m_binData.view().subspan(offset, end - offset);
   }
 
-  T& get(IndexType gridIdx, IndexType binIdx)
-  {
-    return m_binData[m_binOffsets[gridIdx] + binIdx];
-  }
+  T& get(IndexType gridIdx, IndexType binIdx) { return m_binData[m_binOffsets[gridIdx] + binIdx]; }
 
   const T& get(IndexType gridIdx, IndexType binIdx) const
   {
@@ -298,9 +261,8 @@ struct FlatGridView
   {
     SLIC_ASSERT(isValidIndex(gridIdx));
     IndexType offset = m_binOffsets[gridIdx];
-    IndexType end = (gridIdx + 1 < m_binOffsets.size())
-      ? m_binOffsets[gridIdx + 1]
-      : m_binData.size();
+    IndexType end =
+      (gridIdx + 1 < m_binOffsets.size()) ? m_binOffsets[gridIdx + 1] : m_binData.size();
     return m_binData.subspan(offset, end - offset);
   }
 

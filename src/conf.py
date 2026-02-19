@@ -57,7 +57,8 @@ extensions = [
     'sphinxcontrib.jquery',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
-    'sphinx.ext.mathjax'
+    'sphinx.ext.mathjax',
+    'sphinx.ext.viewcode'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -78,7 +79,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Axom'
-copyright = u'2017-2024, Lawrence Livermore National Security, LLNS'
+copyright = u'2017-2026, Lawrence Livermore National Security, LLNS'
 
 # -- Option for numbering figures/tables/etc.-----------------------------------
 # Note: numfig requires Sphinx (1.3+)
@@ -110,7 +111,8 @@ language = 'English'
 # directories to ignore when looking for source files.
 exclude_patterns = [ '_build',
                      'cmake/blt/docs',
-                     'thirdparty']
+                     'thirdparty',
+                     'tools']
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.

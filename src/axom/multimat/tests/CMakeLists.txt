@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -24,6 +25,6 @@ foreach(test ${gtest_multimat_tests})
                         OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
                         DEPENDS_ON multimat gtest
                         FOLDER     axom/multimat/tests )
-    blt_add_test( NAME ${test_name}
-                  COMMAND ${test_name}_test )
+    axom_add_test( NAME ${test_name}
+                   COMMAND ${test_name}_test )
 endforeach()

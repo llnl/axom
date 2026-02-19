@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -24,10 +25,10 @@ namespace lumberjack
 {
 /*!
  *****************************************************************************
- * \brief Message to indicate no messages need to be sent from child node.
+ * \brief Message indicating no messages need to be sent from child node.
  *****************************************************************************
  */
-const char* const zeroMessage = "0";
+extern const char* const zeroMessage;
 
 /*!
  *****************************************************************************
@@ -73,6 +74,7 @@ public:
     , m_fileName("")
     , m_lineNumber(0)
     , m_level(0)
+    , m_creationTime(0)
     , m_tag("")
   { }
 
@@ -94,6 +96,7 @@ public:
           const std::string& fileName,
           int lineNumber,
           int level,
+          double creationTime,
           const std::string& tag)
     : m_text(text)
     , m_ranks(1, rank)
@@ -102,6 +105,7 @@ public:
     , m_fileName(fileName)
     , m_lineNumber(lineNumber)
     , m_level(level)
+    , m_creationTime(creationTime)
     , m_tag(tag)
   { }
 
@@ -128,6 +132,7 @@ public:
           const std::string& fileName,
           int lineNumber,
           int level,
+          double creationTime,
           const std::string& tag)
     : m_text(text)
     , m_ranks()
@@ -136,6 +141,7 @@ public:
     , m_fileName(fileName)
     , m_lineNumber(lineNumber)
     , m_level(level)
+    , m_creationTime(creationTime)
     , m_tag(tag)
   {
     addRanks(ranks, count, ranksLimit);
@@ -197,6 +203,13 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Returns the creation time of the Message.
+   *****************************************************************************
+   */
+  double creationTime() const;
+
+  /*!
+   *****************************************************************************
    * \brief Returns the tag of where the Message originated.
    *****************************************************************************
    */
@@ -239,6 +252,13 @@ public:
    *****************************************************************************
    */
   void level(int newLevel);
+
+  /*!
+   *****************************************************************************
+   * \brief Sets the creation time of the Message.
+   *****************************************************************************
+   */
+  void creationTime(double newCreationTime);
 
   /*!
    *****************************************************************************
@@ -310,6 +330,7 @@ private:
   std::string m_fileName;
   int m_lineNumber;
   int m_level;
+  double m_creationTime;
   std::string m_tag;
 };
 
@@ -347,9 +368,7 @@ const char* packMessages(const std::vector<Message*>& messages);
  * \param [in]  ranksLimit Limits how many ranks are tracked per Message.
  *****************************************************************************
  */
-void unpackMessages(std::vector<Message*>& messages,
-                    const char* packedMessages,
-                    const int ranksLimit);
+void unpackMessages(std::vector<Message*>& messages, const char* packedMessages, const int ranksLimit);
 
 /*!
  *****************************************************************************

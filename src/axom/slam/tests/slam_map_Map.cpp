@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -12,6 +13,7 @@
 #include <iterator>
 #include "gtest/gtest.h"
 
+#include "axom/core/execution/runtime_policy.hpp"
 #include "axom/slic.hpp"
 #include "axom/slam.hpp"
 
@@ -58,8 +60,7 @@ bool constructAndTestMap()
   EXPECT_EQ(s.size(), MAX_SET_SIZE);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("Creating " << slam::util::TypeToString<T>::to_string()
-                        << " map on the set ");
+  SLIC_INFO("Creating " << slam::util::TypeToString<T>::to_string() << " map on the set ");
 
   slam::Map<T, BaseSet> m(&s);
   EXPECT_TRUE(m.isValid());
@@ -86,10 +87,7 @@ bool constructAndTestMap()
 
 TEST(slam_map, construct_int_map) { EXPECT_TRUE(constructAndTestMap<int>()); }
 
-TEST(slam_map, construct_double_map)
-{
-  EXPECT_TRUE(constructAndTestMap<double>());
-}
+TEST(slam_map, construct_double_map) { EXPECT_TRUE(constructAndTestMap<double>()); }
 
 TEST(slam_map, out_of_bounds)
 {
@@ -105,11 +103,9 @@ TEST(slam_map, out_of_bounds)
   }
 
   // Test out of bounds
-  SLIC_INFO("Testing Map element access "
-            << "-- out of bounds access; Expecting the test to fail");
+  SLIC_INFO("Testing Map element access " << "-- out of bounds access; Expecting the test to fail");
 #ifdef AXOM_DEBUG
-  EXPECT_DEATH_IF_SUPPORTED(m[-1], "")
-    << " Accessed element -1 of Map -- out of bounds";
+  EXPECT_DEATH_IF_SUPPORTED(m[-1], "") << " Accessed element -1 of Map -- out of bounds";
   EXPECT_DEATH_IF_SUPPORTED(m[m.size()], "")
     << " Accessed element " << m.size() << " of Map -- out of bounds";
 
@@ -159,8 +155,8 @@ void constructAndTestMapWithStride(int stride)
   EXPECT_EQ(s.size(), MAX_SET_SIZE);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("\nCreating " << slam::util::TypeToString<T>::to_string()
-                          << " map with stride " << stride << " on the set ");
+  SLIC_INFO("\nCreating " << slam::util::TypeToString<T>::to_string() << " map with stride "
+                          << stride << " on the set ");
 
   using MapType = slam::Map<T, BaseSet, VecIndirection<T>, StrideType>;
   MapType m(&s, 0, stride);
@@ -186,7 +182,7 @@ void constructAndTestMapWithStride(int stride)
   {
     for(auto idx2 = 0; idx2 < stride; ++idx2)
     {
-      EXPECT_EQ(m(idx, idx2), static_cast<T>(idx * multFac + idx2 * multFac2));
+      EXPECT_DOUBLE_EQ(m(idx, idx2), static_cast<T>(idx * multFac + idx2 * multFac2));
     }
   }
 
@@ -215,8 +211,7 @@ TEST(slam_map, iterate)
   SetType s(MAX_SET_SIZE);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("Creating '" << slam::util::TypeToString<double>::to_string()
-                         << "' map on the set ");
+  SLIC_INFO("Creating '" << slam::util::TypeToString<double>::to_string() << "' map on the set ");
   RealMap m(&s);
   EXPECT_TRUE(m.isValid());
 
@@ -303,8 +298,7 @@ TEST(slam_map, iterate)
 template <typename StrideType>
 void constructAndTestMapIteratorWithStride(int stride)
 {
-  using RealMap =
-    slam::Map<double, slam::Set<>, VecIndirection<double>, StrideType>;
+  using RealMap = slam::Map<double, slam::Set<>, VecIndirection<double>, StrideType>;
 
   SetType s(MAX_SET_SIZE);
 
@@ -346,8 +340,7 @@ void constructAndTestMapIteratorWithStride(int stride)
     {
       for(auto idx2 = 0; idx2 < submap.size(); ++idx2)
       {
-        EXPECT_DOUBLE_EQ(submap[idx2],
-                         static_cast<double>(idx * multFac + idx2 * multFac2));
+        EXPECT_DOUBLE_EQ(submap[idx2], static_cast<double>(idx * multFac + idx2 * multFac2));
       }
       idx++;
     }
@@ -385,8 +378,7 @@ struct ExecTraits
   static int getAllocatorId()
   {
 #ifdef AXOM_USE_UMPIRE
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Host);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
 #else
     return axom::getDefaultAllocatorID();
 #endif
@@ -395,15 +387,14 @@ struct ExecTraits
   static int getUnifiedAllocatorId()
   {
 #ifdef AXOM_USE_UMPIRE
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Host);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
 #else
     return axom::getDefaultAllocatorID();
 #endif
   }
 };
 
-#ifdef AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 template <int BLK_SZ>
 struct ExecTraits<axom::CUDA_EXEC<BLK_SZ>>
 {
@@ -411,19 +402,17 @@ struct ExecTraits<axom::CUDA_EXEC<BLK_SZ>>
 
   static int getAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
   }
 
   static int getUnifiedAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Unified);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
   }
 };
 #endif
 
-#ifdef AXOM_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 template <int BLK_SZ>
 struct ExecTraits<axom::HIP_EXEC<BLK_SZ>>
 {
@@ -431,14 +420,12 @@ struct ExecTraits<axom::HIP_EXEC<BLK_SZ>>
 
   static int getAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
   }
 
   static int getUnifiedAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Unified);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
   }
 };
 #endif
@@ -451,12 +438,10 @@ class slam_map_templated : public ::testing::Test
 {
 public:
   using ExecSpace = ExecutionSpace;
-  using ConcreteSetType =
-    typename slam::RangeSet<SetPosition, SetElement>::ConcreteSet;
+  using ConcreteSetType = typename slam::RangeSet<SetPosition, SetElement>::ConcreteSet;
 
   using RealData = axom::Array<double>;
-  using IndirectionPolicy =
-    slam::policies::ArrayViewIndirection<SetPosition, double>;
+  using IndirectionPolicy = slam::policies::ArrayViewIndirection<SetPosition, double>;
   using StridePolicy = slam::policies::RuntimeStride<axom::IndexType>;
   using InterfacePolicy = slam::policies::ConcreteInterface;
 
@@ -523,13 +508,13 @@ protected:
 };
 
 using MyTypes = ::testing::Types<
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   axom::OMP_EXEC,
 #endif
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   axom::CUDA_EXEC<256>,
 #endif
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   axom::HIP_EXEC<256>,
 #endif
   axom::SEQ_EXEC>;
@@ -553,9 +538,7 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTestStride1)
 
   SLIC_INFO("\nSetting the elements.");
   const double multFac = 100.0001;
-  axom::for_all<ExecSpace>(
-    this->m_set.size(),
-    AXOM_LAMBDA(int index) { m(index) = index * multFac; });
+  axom::for_all<ExecSpace>(this->m_set.size(), AXOM_LAMBDA(int index) { m(index) = index * multFac; });
 
   SLIC_INFO("\nChecking the elements.");
   int totalSize = this->m_set.size() * stride;
@@ -725,8 +708,7 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTest3DStride)
         {
           for(int k = 0; k < shape[2]; k++)
           {
-            m(index, i, j, k) =
-              index * multFac + i * multFac2 + j * multFac3 + k * multFac4;
+            m(index, i, j, k) = index * multFac + i * multFac2 + j * multFac3 + k * multFac4;
           }
         }
       }
@@ -742,8 +724,7 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTest3DStride)
       {
         for(int k = 0; k < shape[2]; k++)
         {
-          double expectedValue =
-            setIdx * multFac + i * multFac2 + j * multFac3 + k * multFac4;
+          double expectedValue = setIdx * multFac + i * multFac2 + j * multFac3 + k * multFac4;
           EXPECT_DOUBLE_EQ(m(setIdx, i, j, k), expectedValue);
           EXPECT_DOUBLE_EQ(m.value(setIdx, i, j, k), expectedValue);
 
@@ -768,8 +749,7 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTest3DStride)
       {
         for(int k = 0; k < shape[2]; k++)
         {
-          double expectedValue =
-            setIdx * multFac + i * multFac2 + j * multFac3 + k * multFac4;
+          double expectedValue = setIdx * multFac + i * multFac2 + j * multFac3 + k * multFac4;
           EXPECT_DOUBLE_EQ(expectedValue, (*it)(i, j, k));
           EXPECT_DOUBLE_EQ(expectedValue, it(i, j, k));
           EXPECT_DOUBLE_EQ(expectedValue, it.value(i, j, k));

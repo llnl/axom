@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -47,10 +48,28 @@ which omits error-checking and recovery for brevity and clarity.
    :end-before: _serial_io_save_end
    :language: C++
 
-The ``loadExternalData()`` method is used to read "external" data from an HDF5 
+The ``loadExternalData()`` method is used to read external data from an HDF5 
 file created with the ``sidre_hdf5`` protocol.  This is data referred to by 
 *external* views. Such views refer to data that is not stored in Sidre buffers 
-but in an external data allocation.
+but in an external data allocation.  ``loadExternalData()`` enables the
+loading of a ``DataStore`` with external data that preserves the state that
+was originally saved.  This requires a three step process.
+
+.. literalinclude:: ../../tests/sidre_external.cpp
+   :start-after: _external_save_load_start
+   :end-before: _external_save_load_end
+   :language: C++
+
+The first step is to call ``load()`` as before.  This will load the entire
+Sidre hierarchy of groups and views stored in the file.  For views with
+external data, it will load their descriptions that were saved but it will
+*not* allocate storage or load data values for these views.  Second, the
+calling code must provide each external ``View`` a pointer to valid
+storage that will hold the external data, using ``setExternalDataPtr()``.
+It is the responsibility of the calling code to ensure that the provided
+external data pointer points to memory that is properly allocated and of
+the correct size.  Finally, ``loadExternalData()`` is called, reading the
+file again to load data values into the provided external data locations.
 
 Overloads of the ``save()`` and ``load()`` methods that take HDF5 handles and 
 the ``loadExternalData()`` method are used to implement parallel I/O through 

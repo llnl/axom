@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -12,6 +13,7 @@
 set(slic_headers
     core/Logger.hpp
     core/LogStream.hpp
+    core/LogStreamStatusMonitor.hpp
     core/MessageLevel.hpp
     core/SimpleLogger.hpp
 
@@ -26,6 +28,7 @@ set(slic_headers
 set(slic_sources
     core/Logger.cpp
     core/LogStream.cpp
+    core/LogStreamStatusMonitor.cpp    
 
     interface/slic.cpp
 
@@ -56,6 +59,7 @@ if (ENABLE_FORTRAN)
     list(APPEND slic_sources
         interface/c_fortran/wrapSLIC.cpp
         interface/c_fortran/wrapGenericOutputStream.cpp
+        interface/c_fortran/utilSLIC.cpp
         interface/c_fortran/wrapfslic.f
     )
 endif()
@@ -100,8 +104,3 @@ endif()
 if (AXOM_ENABLE_TESTS)
   add_subdirectory(tests)
 endif()
-
-#------------------------------------------------------------------------------
-# Add code checks
-#------------------------------------------------------------------------------
-axom_add_code_checks(PREFIX slic)

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -24,13 +25,10 @@ namespace
  * \return whether the container contains the value
  */
 template <typename Container>
-bool contains(const Container &container,
-              const typename Container::value_type &value)
+bool contains(const Container &container, const typename Container::value_type &value)
 {
-  using std::begin;
-  using std::end;
-  auto endIter = end(container);
-  return std::find(begin(container), endIter, value) != endIter;
+  auto endIter = std::end(container);
+  return std::find(std::begin(container), endIter, value) != endIter;
 }
 }  // unnamed namespace
 

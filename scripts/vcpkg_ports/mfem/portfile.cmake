@@ -1,8 +1,8 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO mfem/mfem
-    REF v4.6
-    SHA512 8805b4993b6f11abe7ac7dda59d0ddb2e0f5f6b09c2b9c57e665f481cd9bd6b669e63621b38989f70dc8ae38c42a7e8c4e10a1d87a4ac29d53ddd95ce79db0ae
+    REF v4.9
+    SHA512 946477c5e2f43c00f4c3bd3a1beb644c6dd20d855853599dab390f41ea4177b5652815e56ba8b238b89e8b8a314d278b8ac7ab433c4239bc56d40a6ed484c07f
     HEAD_REF master
     )
 

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -12,9 +13,17 @@
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/detail/FlatTable.hpp"
+#include "axom/core/detail/FlatMapOps.hpp"
+#include "axom/core/DeviceHash.hpp"
 
 namespace axom
 {
+/*!
+ * \brief Forward declaration of FlatMapView.
+ */
+template <typename KeyType, typename ValueType, bool IsConst, typename Hash>
+class FlatMapView;
+
 /*!
  * \class FlatMap
  *
@@ -43,13 +52,11 @@ namespace axom
  * \pre Hash is invocable with an instance of KeyType, and returns an integer
  *  value (32- or 64-bit)
  */
-template <typename KeyType, typename ValueType, typename Hash = std::hash<KeyType>>
-class FlatMap
-  : detail::flat_map::SequentialLookupPolicy<typename Hash::result_type>
+template <typename KeyType, typename ValueType, typename Hash = detail::flat_map::HashMixer64<KeyType, DeviceHash>>
+class FlatMap : detail::flat_map::SequentialLookupPolicy<typename Hash::result_type>
 {
 private:
-  using LookupPolicy =
-    detail::flat_map::SequentialLookupPolicy<typename Hash::result_type>;
+  using LookupPolicy = detail::flat_map::SequentialLookupPolicy<typename Hash::result_type>;
   using LookupPolicy::NO_MATCH;
 
   constexpr static int BucketsPerGroup = detail::flat_map::GroupBucket::Size;
@@ -62,8 +69,6 @@ private:
   template <bool Const>
   friend class IteratorImpl;
 
-  using MixedHash = detail::flat_map::HashMixer64<KeyType, Hash>;
-
 public:
   using key_type = KeyType;
   using mapped_type = ValueType;
@@ -72,17 +77,23 @@ public:
   using iterator = IteratorImpl<false>;
   using const_iterator = IteratorImpl<true>;
 
+  using View = FlatMapView<KeyType, ValueType, false, Hash>;
+  using ConstView = FlatMapView<KeyType, ValueType, true, Hash>;
+
   /*!
    * \brief Constructs a FlatMap with no elements.
+   *
+   * \param [in] allocator memory space to store metadata and key-value pairs
    */
-  FlatMap() : FlatMap(MIN_NUM_BUCKETS) { }
+  explicit FlatMap(Allocator allocator = Allocator {}) : FlatMap(MIN_NUM_BUCKETS, allocator) { }
 
   /*!
    * \brief Constructs a FlatMap with at least a given number of buckets.
    *
    * \param [in] bucket_count the minimum number of buckets to allocate
+   * \param [in] allocator memory space to store metadata and key-value pairs
    */
-  explicit FlatMap(IndexType bucket_count);
+  FlatMap(IndexType bucket_count, Allocator allocator = Allocator {});
 
   /*!
    * \brief Constructs a FlatMap with a range of elements.
@@ -93,7 +104,7 @@ public:
    */
   template <typename InputIt>
   FlatMap(InputIt first, InputIt last, IndexType bucket_count = -1)
-    : FlatMap(std::distance(first, last), first, last, bucket_count)
+    : FlatMap(std::distance(first, last), first, last, bucket_count, Allocator {})
   { }
 
   /*!
@@ -102,8 +113,7 @@ public:
    * \param [in] init a list of pairs to initialize the map with
    * \param [in] bucket_count minimum number of buckets to allocate (optional)
    */
-  explicit FlatMap(std::initializer_list<value_type> init,
-                   IndexType bucket_count = -1)
+  explicit FlatMap(std::initializer_list<value_type> init, IndexType bucket_count = -1)
     : FlatMap(init.begin(), init.end(), bucket_count)
   { }
 
@@ -119,7 +129,11 @@ public:
    *
    * \param other the FlatMap to move data from
    */
-  FlatMap& operator=(FlatMap&& other) { swap(other); }
+  FlatMap& operator=(FlatMap&& other)
+  {
+    swap(other);
+    return *this;
+  }
 
   /*!
    * \brief Copy constructor for a FlatMap instance.
@@ -130,7 +144,8 @@ public:
    * \pre ValueType must be copy-constructible
    */
   FlatMap(const FlatMap& other)
-    : m_numGroups2(other.m_numGroups2)
+    : m_allocator(other.m_allocator)
+    , m_numGroups2(other.m_numGroups2)
     , m_size(other.m_size)
     , m_metadata(other.m_metadata)
     , m_buckets(other.m_buckets.size())
@@ -143,13 +158,9 @@ public:
                   "Cannot copy an axom::FlatMap when value type is not "
                   "copy-constructible.");
     // Copy all elements.
-    const auto metadata = m_metadata.view();
-    IndexType index = this->nextValidIndex(metadata, NO_MATCH);
-    while(index < bucket_count())
-    {
-      new(&m_buckets[index].data) KeyValuePair(other.m_buckets[index].get());
-      index = this->nextValidIndex(metadata, index);
-    }
+    detail::flat_map::copyBuckets<KeyValuePair, LookupPolicy>(m_metadata.view(),
+                                                              other.m_buckets.view(),
+                                                              m_buckets.view());
   }
 
   /*!
@@ -173,18 +184,40 @@ public:
       FlatMap new_map(other);
       swap(new_map);
     }
+    return *this;
+  }
+
+  /*!
+   * \brief Copy constructor for a FlatMap instance with specified allocator.
+   *
+   * \param other the FlatMap to copy data from
+   * \param [in] allocator memory space to move data to
+   *
+   * \pre KeyType must be copy-constructible
+   * \pre ValueType must be copy-constructible
+   */
+  FlatMap(const FlatMap& other, Allocator allocator)
+    : m_allocator(allocator)
+    , m_numGroups2(other.m_numGroups2)
+    , m_size(other.m_size)
+    , m_metadata(other.m_metadata, m_allocator.getID())
+    , m_buckets(other.m_buckets.size(), other.m_buckets.size(), m_allocator.getID())
+    , m_loadCount(other.m_loadCount)
+  {
+    // Copy all elements.
+    detail::flat_map::copyBuckets<KeyValuePair, LookupPolicy>(m_metadata.view(),
+                                                              other.m_buckets.view(),
+                                                              m_buckets.view());
   }
 
   /// \brief Destructor for a FlatMap instance.
   ~FlatMap()
   {
     // Destroy all elements.
-    const auto metadata = m_metadata.view();
-    IndexType index = this->nextValidIndex(metadata, NO_MATCH);
-    while(index < bucket_count())
+    if(m_size > 0)
     {
-      m_buckets[index].get().~KeyValuePair();
-      index = this->nextValidIndex(metadata, index);
+      detail::flat_map::destroyBuckets<KeyValuePair, LookupPolicy>(m_metadata.view(),
+                                                                   m_buckets.view());
     }
 
     // Unlike in clear() we don't need to reset metadata here.
@@ -340,19 +373,14 @@ public:
   void clear()
   {
     // Destroy all elements.
-    IndexType index = this->nextValidIndex(m_metadata, NO_MATCH);
-    while(index < bucket_count())
-    {
-      m_buckets[index].get().~KeyValuePair();
-      index = this->nextValidIndex(m_metadata, index);
-    }
+    detail::flat_map::destroyBuckets<KeyValuePair, LookupPolicy>(m_metadata.view(), m_buckets.view());
 
     // Also reset metadata.
-    for(int group_index = 0; group_index < m_metadata.size(); group_index++)
-    {
-      m_metadata[group_index] = detail::flat_map::GroupBucket {};
-    }
-    m_metadata[m_metadata.size() - 1].setSentinel();
+    IndexType numGroupsRounded = 1 << m_numGroups2;
+    m_metadata.clear();
+    m_metadata.resize(numGroupsRounded, detail::flat_map::GroupBucket {});
+
+    detail::flat_map::setSentinel(m_metadata);
     m_size = 0;
     m_loadCount = 0;
   }
@@ -401,13 +429,41 @@ public:
   /*!
    * \brief Inserts a range of key-value pairs into the FlatMap.
    *
-   *  If the key already exists in the FlatMap, insertion is skipped.
-   *  Otherwise, the key-value mapping is inserted into the FlatMap.
+   *  If a key in the range already exists, assigns the value to the existing
+   *  key in the FlatMap. Otherwise, a new key-value pair is inserted into the
+   *  FlatMap.
    *
    * \param [in] first the beginning of the range of pairs
    * \param [in] last the end of the range of pairs
+   *
+   * \note If duplicate keys are present in the range, the key which appears
+   *  later in the range is updated or inserted. This is equivalent to a
+   *  sequential for-loop of insertions over the input range.
    */
   template <typename InputIt>
+  void insert(InputIt first, InputIt last);
+
+  /*!
+   * \brief Inserts a range of key-value pairs into the FlatMap.
+   *
+   *  If a key in the range already exists, assigns the value to the existing
+   *  key in the FlatMap. Otherwise, a new key-value pair is inserted into the
+   *  FlatMap.
+   *
+   * \param [in] first the beginning of the range of pairs
+   * \param [in] last the end of the range of pairs
+   *
+   * \tparam ExecSpace the execution space in which to perform the batched
+   *                   construction
+   *
+   * \pre InputIt is a random-access iterator
+   * \pre allocator is accessible from ExecSpace
+   *
+   * \note If duplicate keys are present in the range, the key which appears
+   *  later in the range is updated or inserted. This is equivalent to a
+   *  sequential for-loop of insertions over the input range.
+   */
+  template <typename ExecSpace, typename InputIt>
   void insert(InputIt first, InputIt last);
 
   /*!
@@ -542,17 +598,60 @@ public:
   double max_load_factor() const { return MAX_LOAD_FACTOR; }
 
   /*!
+   * \brief Returns the allocator ID the FlatMap is allocated with.
+   */
+  Allocator getAllocator() const { return m_allocator; }
+
+  /*!
    * \brief Explicitly rehash the FlatMap with a given number of buckets.
    *
    * \param count the minimum number of buckets to allocate for the rehash
    */
   void rehash(IndexType count)
   {
-    FlatMap rehashed(m_size,
-                     std::make_move_iterator(begin()),
-                     std::make_move_iterator(end()),
-                     count);
-    this->swap(rehashed);
+    if(m_size == 0)
+    {
+      FlatMap realloced(count, m_allocator);
+      this->swap(realloced);
+    }
+    else
+    {
+      if constexpr(std::is_trivially_copyable_v<KeyValuePair>)
+      {
+#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_GPU)
+        MemorySpace space = detail::getAllocatorSpace(m_allocator.getID());
+        if(space == MemorySpace::Device || space == MemorySpace::Unified)
+        {
+  #if !defined(AXOM_GPUCC)
+          // Similar to the issue in ArrayBase (PR #1582), using FlatMap from
+          // a GPU-enabled Axom library but with a host-only compiler results
+          // in an ODR violation.
+
+          // HACK: this looks ugly, but is the best we can do pending a DR:
+          // https://stackoverflow.com/questions/44059557/whats-the-right-way-to-call-static-assertfalse
+          // https://cplusplus.github.io/CWG/issues/2518.html
+          static_assert(std::is_pod_v<KeyType> && !std::is_pod_v<KeyType>,
+                        "Cannot instantiate device-aware FlatMap operations when file is compiled "
+                        "with a host-only compiler. Axom was built with GPU support, so you should "
+                        "build all source files using FlatMap with a CUDA/HIP compiler.");
+          using ExecSpace = axom::SEQ_EXEC;
+  #elif defined(AXOM_USE_CUDA)
+          using ExecSpace = axom::CUDA_EXEC<256>;
+  #elif defined(AXOM_USE_HIP)
+          using ExecSpace = axom::HIP_EXEC<256>;
+  #endif
+          this->parallelRehash<ExecSpace>(count);
+          return;
+        }
+#endif
+      }
+      FlatMap rehashed(m_size,
+                       std::make_move_iterator(begin()),
+                       std::make_move_iterator(end()),
+                       count,
+                       m_allocator);
+      this->swap(rehashed);
+    }
   }
 
   /*!
@@ -561,20 +660,65 @@ public:
    *
    * \param count the number of elements to fit without a rehash
    */
-  void reserve(IndexType count) { rehash(std::ceil(count / MAX_LOAD_FACTOR)); }
+  void reserve(IndexType count)
+  {
+    if(count >= max_load_factor() * bucket_count())
+    {
+      rehash(count);
+    }
+  }
+
+  /*!
+   * \brief Returns a read-only view of the FlatMap.
+   * \see FlatMapView
+   */
+  /// {@
+  View view();
+  ConstView view() const;
+  /// }@
+
+  /*!
+   * \brief Constructs and returns a FlatMap given a set of key-value pairs.
+   *
+   *  Duplicate keys are handled by selecting the last value in the values
+   *  array corresponding to the equivalent key.
+   *
+   * \param keys   [in] array of keys for the pairs to insert
+   * \param values [in] array of values for the pairs to insert
+   * \param allocator [in] allocator to use for the constructed FlatMap
+   *
+   * \tparam ExecSpace the execution space in which to perform the batched
+   *                   construction
+   *
+   * \return the constructed FlatMap
+   *
+   * \pre keys.size() == values.size()
+   * \pre {keys, values}.getAllocatorID() is accessible from ExecSpace
+   * \pre allocator is accessible from ExecSpace
+   */
+  template <typename ExecSpace>
+  static FlatMap create(axom::ArrayView<KeyType> keys,
+                        axom::ArrayView<ValueType> values,
+                        Allocator allocator = Allocator {});
 
 private:
+  friend class FlatMapView<KeyType, ValueType, false, Hash>;
+  friend class FlatMapView<KeyType, ValueType, true, Hash>;
+
   template <typename InputIt>
-  FlatMap(IndexType num_elems, InputIt first, InputIt last, IndexType bucket_count);
+  FlatMap(IndexType num_elems, InputIt first, InputIt last, IndexType bucket_count, Allocator allocator);
 
   std::pair<iterator, bool> getEmplacePos(const KeyType& key);
 
   template <typename... Args>
-  void emplaceImpl(const std::pair<iterator, bool>& pos,
-                   bool assign_on_existence,
-                   Args&&... args);
+  void emplaceImpl(const std::pair<iterator, bool>& pos, bool assign_on_existence, Args&&... args);
+
+  template <typename ExecSpace>
+  void parallelRehash(IndexType count);
 
   constexpr static IndexType MIN_NUM_BUCKETS {29};
+
+  Allocator m_allocator;
 
   IndexType m_numGroups2;  // Number of groups of 15 buckets, expressed as a power of 2
   IndexType m_size;
@@ -612,10 +756,11 @@ public:
   using reference = DataType&;
 
 public:
-  IteratorImpl(MapConstType* map, IndexType internalIdx)
-    : m_map(map)
-    , m_internalIdx(internalIdx)
+  IteratorImpl() = default;
+
+  IteratorImpl(MapConstType* map, IndexType internalIdx) : m_map(map), m_internalIdx(internalIdx)
   {
+    assert(m_map != nullptr);
     assert(m_internalIdx >= 0 && m_internalIdx <= m_map->bucket_count());
   }
 
@@ -627,13 +772,10 @@ public:
 
   friend bool operator==(const IteratorImpl& lhs, const IteratorImpl& rhs)
   {
-    return lhs.m_internalIdx == rhs.m_internalIdx;
+    return (lhs.m_map == rhs.m_map && lhs.m_internalIdx == rhs.m_internalIdx);
   }
 
-  friend bool operator!=(const IteratorImpl& lhs, const IteratorImpl& rhs)
-  {
-    return lhs.m_internalIdx != rhs.m_internalIdx;
-  }
+  friend bool operator!=(const IteratorImpl& lhs, const IteratorImpl& rhs) { return !(lhs == rhs); }
 
   IteratorImpl& operator++()
   {
@@ -650,37 +792,36 @@ public:
 
   reference operator*() const { return m_map->m_buckets[m_internalIdx].get(); }
 
-  pointer operator->() const
-  {
-    return &(m_map->m_buckets[m_internalIdx].get());
-  }
+  pointer operator->() const { return &(m_map->m_buckets[m_internalIdx].get()); }
 
 private:
-  MapConstType* m_map;
-  IndexType m_internalIdx;
+  MapConstType* m_map {nullptr};
+  IndexType m_internalIdx {0};
 };
 
 template <typename KeyType, typename ValueType, typename Hash>
-FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count)
-  : m_size(0)
+FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count, Allocator allocator)
+  : m_allocator(allocator)
+  , m_size(0)
   , m_loadCount(0)
 {
   IndexType minBuckets = MIN_NUM_BUCKETS;
-  bucket_count = axom::utilities::max(minBuckets, bucket_count);
+  bucket_count = axom::utilities::max<IndexType>(minBuckets, bucket_count / MAX_LOAD_FACTOR);
   // Get the smallest power-of-two number of groups satisfying:
   // N * GroupSize - 1 >= minBuckets
   // TODO: we should add a countl_zero overload for 64-bit integers
   {
-    std::int32_t numGroups =
-      std::ceil((bucket_count + 1) / (double)BucketsPerGroup);
-    m_numGroups2 = 31 - (axom::utilities::countl_zero(numGroups));
+    std::int32_t numGroups = std::ceil((bucket_count + 1) / (double)BucketsPerGroup);
+    m_numGroups2 = 32 - (axom::utilities::countl_zero(numGroups - 1));
   }
 
   IndexType numGroupsRounded = 1 << m_numGroups2;
   IndexType numBuckets = numGroupsRounded * BucketsPerGroup - 1;
-  m_metadata.resize(numGroupsRounded);
-  m_metadata[numGroupsRounded - 1].setSentinel();
-  m_buckets.resize(numBuckets);
+
+  using BucketType = detail::flat_map::GroupBucket;
+  m_metadata = axom::Array<BucketType>(numGroupsRounded, numGroupsRounded, m_allocator.getID());
+  detail::flat_map::setSentinel(m_metadata);
+  m_buckets = axom::Array<PairStorage>(numBuckets, numBuckets, m_allocator.getID());
 }
 
 template <typename KeyType, typename ValueType, typename Hash>
@@ -688,8 +829,9 @@ template <typename InputIt>
 FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType num_elems,
                                            InputIt first,
                                            InputIt last,
-                                           IndexType bucket_count)
-  : FlatMap(std::max(num_elems, bucket_count))
+                                           IndexType bucket_count,
+                                           Allocator allocator)
+  : FlatMap(std::max(num_elems, bucket_count), allocator)
 {
   insert(first, last);
 }
@@ -697,41 +839,34 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType num_elems,
 template <typename KeyType, typename ValueType, typename Hash>
 auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) -> iterator
 {
-  auto hash = MixedHash {}(key);
+  auto hash = Hash {}(key);
   iterator found_iter = end();
-  this->probeIndex(m_numGroups2,
-                   m_metadata,
-                   hash,
-                   [&](IndexType bucket_index) -> bool {
-                     if(this->m_buckets[bucket_index].get().first == key)
-                     {
-                       found_iter = iterator(this, bucket_index);
-                       // Stop tracking.
-                       return false;
-                     }
-                     return true;
-                   });
+  this->probeIndex(m_numGroups2, m_metadata, hash, [&](IndexType bucket_index) -> bool {
+    if(this->m_buckets[bucket_index].get().first == key)
+    {
+      found_iter = iterator(this, bucket_index);
+      // Stop tracking.
+      return false;
+    }
+    return true;
+  });
   return found_iter;
 }
 
 template <typename KeyType, typename ValueType, typename Hash>
-auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) const
-  -> const_iterator
+auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) const -> const_iterator
 {
-  auto hash = MixedHash {}(key);
+  auto hash = Hash {}(key);
   const_iterator found_iter = end();
-  this->probeIndex(m_numGroups2,
-                   m_metadata,
-                   hash,
-                   [&](IndexType bucket_index) -> bool {
-                     if(this->m_buckets[bucket_index].get().first == key)
-                     {
-                       found_iter = const_iterator(this, bucket_index);
-                       // Stop tracking.
-                       return false;
-                     }
-                     return true;
-                   });
+  this->probeIndex(m_numGroups2, m_metadata, hash, [&](IndexType bucket_index) -> bool {
+    if(this->m_buckets[bucket_index].get().first == key)
+    {
+      found_iter = const_iterator(this, bucket_index);
+      // Stop tracking.
+      return false;
+    }
+    return true;
+  });
   return found_iter;
 }
 
@@ -750,7 +885,7 @@ template <typename KeyType, typename ValueType, typename Hash>
 auto FlatMap<KeyType, ValueType, Hash>::getEmplacePos(const KeyType& key)
   -> std::pair<iterator, bool>
 {
-  auto hash = MixedHash {}(key);
+  auto hash = Hash {}(key);
 
   // If the key already exists, return the existing iterator.
   iterator existing_elem = this->find(key);
@@ -781,10 +916,9 @@ auto FlatMap<KeyType, ValueType, Hash>::getEmplacePos(const KeyType& key)
 
 template <typename KeyType, typename ValueType, typename Hash>
 template <typename... Args>
-void FlatMap<KeyType, ValueType, Hash>::emplaceImpl(
-  const std::pair<iterator, bool>& pos,
-  bool assign_on_existence,
-  Args&&... args)
+void FlatMap<KeyType, ValueType, Hash>::emplaceImpl(const std::pair<iterator, bool>& pos,
+                                                    bool assign_on_existence,
+                                                    Args&&... args)
 {
   IndexType bucketIndex = pos.first.m_internalIdx;
   bool keyExistsAlready = !pos.second;
@@ -804,7 +938,7 @@ template <typename KeyType, typename ValueType, typename Hash>
 auto FlatMap<KeyType, ValueType, Hash>::erase(const_iterator pos) -> iterator
 {
   assert(pos != end());
-  auto hash = MixedHash {}(pos->first);
+  auto hash = Hash {}(pos->first);
 
   bool midSequence = this->clearBucket(m_metadata, pos.m_internalIdx, hash);
   pos->~KeyValuePair();
@@ -812,9 +946,12 @@ auto FlatMap<KeyType, ValueType, Hash>::erase(const_iterator pos) -> iterator
   {
     m_loadCount--;
   }
+  m_size--;
   return ++iterator(this, pos.m_internalIdx);
 }
 
 }  // namespace axom
+
+#include "FlatMapUtil.hpp"
 
 #endif  // Axom_Core_FlatMap_HPP

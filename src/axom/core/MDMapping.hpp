@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -11,6 +12,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <type_traits>
 
 namespace axom
 {
@@ -48,9 +50,9 @@ public:
     @param [in] fastestStrideLength Stride in the
       fastest-changing direction.
   */
-  MDMapping(const axom::StackArray<T, DIM>& shape,
-            axom::ArrayStrideOrder arrayStrideOrder,
-            int fastestStrideLength = 1)
+  AXOM_HOST_DEVICE MDMapping(const axom::StackArray<T, DIM>& shape,
+                             axom::ArrayStrideOrder arrayStrideOrder,
+                             int fastestStrideLength = 1)
   {
     initializeShape(shape, arrayStrideOrder, fastestStrideLength);
   }
@@ -65,9 +67,9 @@ public:
       fastest-changing direction.
   */
   template <typename DirType>
-  MDMapping(const axom::StackArray<T, DIM>& shape,
-            const axom::StackArray<DirType, DIM>& slowestDirs,
-            int fastestStrideLength = 1)
+  AXOM_HOST_DEVICE MDMapping(const axom::StackArray<T, DIM>& shape,
+                             const axom::StackArray<DirType, DIM>& slowestDirs,
+                             int fastestStrideLength = 1)
   {
     initializeShape(shape, slowestDirs, fastestStrideLength);
   }
@@ -80,8 +82,8 @@ public:
     @param [in] orderSource ArrayIndex to copy stride order
       from.
   */
-  MDMapping(const axom::StackArray<T, DIM>& shape,
-            const axom::MDMapping<DIM, T>& orderSource)
+  AXOM_HOST_DEVICE MDMapping(const axom::StackArray<T, DIM>& shape,
+                             const axom::MDMapping<DIM, T>& orderSource)
   {
     initializeShape(shape, orderSource);
   }
@@ -97,7 +99,7 @@ public:
     clash with the more prevalent usage of constructing from the array's
     shape.
   */
-  MDMapping(const axom::StackArray<T, DIM>& strides) : m_strides(strides)
+  AXOM_HOST_DEVICE MDMapping(const axom::StackArray<T, DIM>& strides) : m_strides(strides)
   {
     initializeStrides(strides);
   }
@@ -116,7 +118,7 @@ public:
     shape is to be determined.  Initialize the mapping with its own
     slowestDirs() to preserve stride order as its shape changes.
   */
-  MDMapping(ArrayStrideOrder arrayStrideOrder)
+  AXOM_HOST_DEVICE MDMapping(ArrayStrideOrder arrayStrideOrder)
   {
     axom::StackArray<T, DIM> shape;
     for(int d = 0; d < DIM; ++d)
@@ -138,8 +140,7 @@ public:
                                                ArrayStrideOrder arrayStrideOrder,
                                                int fastestStrideLength = 1)
   {
-    assert(arrayStrideOrder == ArrayStrideOrder::COLUMN ||
-           arrayStrideOrder == ArrayStrideOrder::ROW ||
+    assert(arrayStrideOrder == ArrayStrideOrder::COLUMN || arrayStrideOrder == ArrayStrideOrder::ROW ||
            (DIM == 1 && arrayStrideOrder == ArrayStrideOrder::BOTH));
     assert(fastestStrideLength > 0);
 
@@ -179,10 +180,9 @@ public:
       fastest-changing direction.
   */
   template <typename DirType>
-  inline AXOM_HOST_DEVICE void initializeShape(
-    const axom::StackArray<T, DIM>& shape,
-    const axom::StackArray<DirType, DIM>& slowestDirs,
-    int fastestStrideLength = 1)
+  inline AXOM_HOST_DEVICE void initializeShape(const axom::StackArray<T, DIM>& shape,
+                                               const axom::StackArray<DirType, DIM>& slowestDirs,
+                                               int fastestStrideLength = 1)
   {
     assert(isPermutation(slowestDirs));
     for(int d = 0; d < DIM; ++d)
@@ -206,9 +206,8 @@ public:
     @param [in] orderSource ArrayIndex to copy stride order
       from.
   */
-  inline AXOM_HOST_DEVICE void initializeShape(
-    const axom::StackArray<T, DIM>& shape,
-    const axom::MDMapping<DIM, T>& orderSource)
+  inline AXOM_HOST_DEVICE void initializeShape(const axom::StackArray<T, DIM>& shape,
+                                               const axom::MDMapping<DIM, T>& orderSource)
   {
     initializeShape(shape, orderSource.slowestDirs());
   }
@@ -219,8 +218,8 @@ public:
     @param [i] strides Strides.  Values must be unique.
       If not unique, use one of the other initializers.
   */
-  inline AXOM_HOST_DEVICE void initializeStrides(
-    const axom::StackArray<T, DIM>& strides)
+  AXOM_SUPPRESS_HD_WARN
+  inline AXOM_HOST_DEVICE void initializeStrides(const axom::StackArray<T, DIM>& strides)
   {
     if(!stridesAreUnique(strides))
     {
@@ -256,18 +255,16 @@ public:
       ArrayStrideOrder::COLUMN, to use where strides
       are non-unique.
   */
-  inline AXOM_HOST_DEVICE void initializeStrides(
-    const axom::StackArray<T, DIM>& strides,
-    ArrayStrideOrder orderPref)
+  AXOM_SUPPRESS_HD_WARN
+  inline AXOM_HOST_DEVICE void initializeStrides(const axom::StackArray<T, DIM>& strides,
+                                                 ArrayStrideOrder orderPref)
   {
-    assert(orderPref == axom::ArrayStrideOrder::COLUMN ||
-           orderPref == axom::ArrayStrideOrder::ROW);
+    assert(orderPref == axom::ArrayStrideOrder::COLUMN || orderPref == axom::ArrayStrideOrder::ROW);
 
     m_strides = strides;
     for(int d = 0; d < DIM; ++d)
     {
-      m_slowestDirs[d] =
-        orderPref == axom::ArrayStrideOrder::ROW ? d : DIM - 1 - d;
+      m_slowestDirs[d] = orderPref == axom::ArrayStrideOrder::ROW ? d : DIM - 1 - d;
     }
     for(int s = 0; s < DIM; ++s)
     {
@@ -275,7 +272,7 @@ public:
       {
         if(m_strides[m_slowestDirs[s]] < m_strides[m_slowestDirs[d]])
         {
-          std::swap(m_slowestDirs[s], m_slowestDirs[d]);
+          axom::utilities::swap(m_slowestDirs[s], m_slowestDirs[d]);
         }
       }
     }
@@ -319,26 +316,19 @@ public:
 
   //!@brief Whether a StackArray represents a permutation.
   template <typename DirectionType>
-  inline AXOM_HOST_DEVICE bool isPermutation(
-    const axom::StackArray<DirectionType, DIM>& v) const
+  inline AXOM_HOST_DEVICE bool isPermutation(const axom::StackArray<DirectionType, DIM>& v) const
   {
     // v is a permutation if all its values are unique and in [0, DIM).
-    axom::StackArray<bool, DIM> found;
-    for(int d = 0; d < DIM; ++d)
+    axom::StackArray<DirectionType, DIM> values_sorted = v;
+
+    // After sorting, the values should be the sequence {0, 1, ... DIM - 1}.
+    axom::utilities::insertionSort(&values_sorted[0], DIM);
+    for(int d = 0; d < DIM; d++)
     {
-      found[d] = false;
-    }
-    for(int d = 0; d < DIM; ++d)
-    {
-      if(v[d] < 0 || v[d] >= DIM)
+      if(values_sorted[d] != d)
       {
-        return false;  // Out of range.
+        return false;
       }
-      if(found[v[d]] == true)
-      {
-        return false;  // Repeated index.
-      }
-      found[v[d]] = true;
     }
     return true;
   }
@@ -354,9 +344,8 @@ public:
     int ord = int(ArrayStrideOrder::BOTH);
     for(int d = 0; d < DIM - 1; ++d)
     {
-      ord &= m_slowestDirs[d] < m_slowestDirs[d + 1]
-        ? int(ArrayStrideOrder::ROW)
-        : int(ArrayStrideOrder::COLUMN);
+      ord &= m_slowestDirs[d] < m_slowestDirs[d + 1] ? int(ArrayStrideOrder::ROW)
+                                                     : int(ArrayStrideOrder::COLUMN);
     }
     static ArrayStrideOrder s_intToOrder[4] = {ArrayStrideOrder::ARBITRARY,
                                                ArrayStrideOrder::ROW,

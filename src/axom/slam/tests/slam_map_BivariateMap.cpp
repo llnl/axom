@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -12,6 +13,7 @@
 #include <iterator>
 #include "gtest/gtest.h"
 
+#include "axom/core/execution/runtime_policy.hpp"
 #include "axom/slic.hpp"
 #include "axom/slam.hpp"
 
@@ -34,15 +36,10 @@ using RuntimeStrideType = policies::RuntimeStride<SetPosition>;
 
 template <typename T>
 using STLIndirection = policies::STLVectorIndirection<SetPosition, T>;
-using VariableCardinality =
-  policies::VariableCardinality<SetPosition, STLIndirection<SetElement>>;
+using VariableCardinality = policies::VariableCardinality<SetPosition, STLIndirection<SetElement>>;
 
-using RelationType = slam::StaticRelation<SetPosition,
-                                          SetElement,
-                                          VariableCardinality,
-                                          STLIndirection<SetElement>,
-                                          SetType,
-                                          SetType>;
+using RelationType =
+  slam::StaticRelation<SetPosition, SetElement, VariableCardinality, STLIndirection<SetElement>, SetType, SetType>;
 
 using BivariateSetType = slam::BivariateSet<SetType, SetType>;
 using ProductSetType = slam::ProductSet<SetType, SetType>;
@@ -71,9 +68,7 @@ TEST(slam_bivariate_map, construct_empty_map)
 }
 
 template <typename T>
-AXOM_HOST_DEVICE inline T getVal(SetPosition idx1,
-                                 SetPosition idx2,
-                                 SetPosition idx3 = 0)
+AXOM_HOST_DEVICE inline T getVal(SetPosition idx1, SetPosition idx2, SetPosition idx3 = 0)
 {
   return static_cast<T>(idx1 * multFac1 + idx2 * multFac2 + idx3 * multFac3);
 }
@@ -94,8 +89,7 @@ void constructAndTestCartesianMap(int stride)
   EXPECT_EQ(s.size(), MAX_SET_SIZE1 * MAX_SET_SIZE2);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("Creating " << slam::util::TypeToString<T>::to_string()
-                        << " map on the set ");
+  SLIC_INFO("Creating " << slam::util::TypeToString<T>::to_string() << " map on the set ");
 
   BMapType m(&s, static_cast<T>(0), stride);
 
@@ -223,8 +217,7 @@ void constructAndTestRelationSetMap(int stride)
   EXPECT_EQ(indice_size, s.totalSize());
   EXPECT_TRUE(s.isValid(true));
 
-  SLIC_INFO("Creating " << slam::util::TypeToString<T>::to_string()
-                        << " map on the set ");
+  SLIC_INFO("Creating " << slam::util::TypeToString<T>::to_string() << " map on the set ");
 
   MapType m(&s, (T)0, stride);
 
@@ -321,12 +314,9 @@ TEST(slam_bivariate_map, construct_double_relset_map)
 
   constructAndTestRelationSetMap<double, BSet, IndPol, StrideOneType>(1);
 
-  constructAndTestRelationSetMap<double, BSet, IndPol, CompileTimeStrideType<1>>(
-    1);
-  constructAndTestRelationSetMap<double, BSet, IndPol, CompileTimeStrideType<2>>(
-    2);
-  constructAndTestRelationSetMap<double, BSet, IndPol, CompileTimeStrideType<3>>(
-    3);
+  constructAndTestRelationSetMap<double, BSet, IndPol, CompileTimeStrideType<1>>(1);
+  constructAndTestRelationSetMap<double, BSet, IndPol, CompileTimeStrideType<2>>(2);
+  constructAndTestRelationSetMap<double, BSet, IndPol, CompileTimeStrideType<3>>(3);
 
   constructAndTestRelationSetMap<double, BSet, IndPol, RuntimeStrideType>(1);
   constructAndTestRelationSetMap<double, BSet, IndPol, RuntimeStrideType>(2);
@@ -348,8 +338,7 @@ void constructAndTestBivariateMapIterator(int stride)
   EXPECT_EQ(s.size(), MAX_SET_SIZE1 * MAX_SET_SIZE2);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("Creating " << slam::util::TypeToString<DataType>::to_string()
-                        << " map on the set ");
+  SLIC_INFO("Creating " << slam::util::TypeToString<DataType>::to_string() << " map on the set ");
   MapType m(&s, 0.0, stride);
   EXPECT_TRUE(m.isValid());
   EXPECT_EQ(s.size(), m.totalSize());
@@ -375,7 +364,6 @@ void constructAndTestBivariateMapIterator(int stride)
   {
     int idx2 = 0;
     int compIdx = 0;
-    auto begin_iter = m.begin(idx1);
     for(auto iter = m.begin(idx1); iter != m.end(idx1); ++iter)
     {
       EXPECT_EQ(*iter, getVal<DataType>(idx1, idx2, compIdx));
@@ -390,7 +378,6 @@ void constructAndTestBivariateMapIterator(int stride)
   SLIC_INFO("Checking the elements with BivariateMap flat iterator.");
   {
     auto iter = m.begin();
-    // auto flat_idx = 0;
 
     for(auto idx1 = 0; idx1 < m.firstSetSize(); ++idx1)
     {
@@ -418,10 +405,6 @@ void constructAndTestBivariateMapIterator(int stride)
   SLIC_INFO("Checking the elements with BivariateMap range iterator.");
   {
     auto iter = m.set_begin();
-    //auto begin_iter = m.begin();
-    //auto end_iter = m.end();
-    //auto inval_iter = end_iter + 1;
-    // auto flat_idx = 0;
     for(auto idx1 = 0; idx1 < m.firstSetSize(); ++idx1)
     {
       for(auto idx2 = 0; idx2 < m.secondSetSize(); ++idx2)
@@ -475,8 +458,7 @@ void testScopedCopyBehavior(int stride)
   EXPECT_EQ(s.size(), MAX_SET_SIZE1 * MAX_SET_SIZE2);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("Creating " << slam::util::TypeToString<T>::to_string()
-                        << " map on the set ");
+  SLIC_INFO("Creating " << slam::util::TypeToString<T>::to_string() << " map on the set ");
 
   BMapType m;
   {
@@ -561,8 +543,7 @@ struct ExecTraits
   static int getAllocatorId()
   {
 #ifdef AXOM_USE_UMPIRE
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Host);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
 #else
     return axom::getDefaultAllocatorID();
 #endif
@@ -571,15 +552,14 @@ struct ExecTraits
   static int getUnifiedAllocatorId()
   {
 #ifdef AXOM_USE_UMPIRE
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Host);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
 #else
     return axom::getDefaultAllocatorID();
 #endif
   }
 };
 
-#ifdef AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 template <int BLK_SZ>
 struct ExecTraits<axom::CUDA_EXEC<BLK_SZ>>
 {
@@ -587,19 +567,17 @@ struct ExecTraits<axom::CUDA_EXEC<BLK_SZ>>
 
   static int getAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
   }
 
   static int getUnifiedAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Unified);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
   }
 };
 #endif
 
-#ifdef AXOM_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 template <int BLK_SZ>
 struct ExecTraits<axom::HIP_EXEC<BLK_SZ>>
 {
@@ -607,14 +585,12 @@ struct ExecTraits<axom::HIP_EXEC<BLK_SZ>>
 
   static int getAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
   }
 
   static int getUnifiedAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Unified);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
   }
 };
 #endif
@@ -627,30 +603,21 @@ class slam_bivariate_map_templated : public ::testing::Test
 {
 public:
   using ExecSpace = ExecutionSpace;
-  using ConcreteSetType =
-    typename slam::RangeSet<SetPosition, SetElement>::ConcreteSet;
+  using ConcreteSetType = typename slam::RangeSet<SetPosition, SetElement>::ConcreteSet;
 
   // StaticRelation template types
-  using ElemIndirection =
-    slam::policies::ArrayViewIndirection<SetPosition, SetElement>;
-  using VariableCardinality =
-    policies::VariableCardinality<SetPosition, ElemIndirection>;
-  using RelationType = slam::StaticRelation<SetPosition,
-                                            SetElement,
-                                            VariableCardinality,
-                                            ElemIndirection,
-                                            ConcreteSetType,
-                                            ConcreteSetType>;
+  using ElemIndirection = slam::policies::ArrayViewIndirection<SetPosition, SetElement>;
+  using VariableCardinality = policies::VariableCardinality<SetPosition, ElemIndirection>;
+  using RelationType =
+    slam::StaticRelation<SetPosition, SetElement, VariableCardinality, ElemIndirection, ConcreteSetType, ConcreteSetType>;
 
   // BivariateSet concrete types -- ProductSet and RelationSet
-  using ProductSetType =
-    typename slam::ProductSet<ConcreteSetType, ConcreteSetType>::ConcreteSet;
+  using ProductSetType = typename slam::ProductSet<ConcreteSetType, ConcreteSetType>::ConcreteSet;
   using RelationSetType = typename slam::RelationSet<RelationType>::ConcreteSet;
 
   // BivariateMap template types
   using RealData = axom::Array<double>;
-  using IndirectionPolicy =
-    slam::policies::ArrayViewIndirection<SetPosition, double>;
+  using IndirectionPolicy = slam::policies::ArrayViewIndirection<SetPosition, double>;
   using StridePolicy = slam::policies::RuntimeStride<int>;
   using InterfacePolicy = slam::policies::ConcreteInterface;
   using RelationMapType =
@@ -686,13 +653,13 @@ protected:
 };
 
 using MyTypes = ::testing::Types<
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   axom::OMP_EXEC,
 #endif
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   axom::CUDA_EXEC<256>,
 #endif
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   axom::HIP_EXEC<256>,
 #endif
   axom::SEQ_EXEC>;
@@ -701,8 +668,7 @@ TYPED_TEST_SUITE(slam_bivariate_map_templated, MyTypes);
 
 //----------------------------------------------------------------------
 template <typename ExecutionSpace>
-void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestCartesianMap(
-  int stride)
+void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestCartesianMap(int stride)
 {
   using MapType = CartesianMapType;
 
@@ -711,8 +677,7 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestCartesianMap
   sets[0] = ConcreteSetType(MAX_SET_SIZE1);
   sets[1] = ConcreteSetType(MAX_SET_SIZE2);
 
-  SLIC_INFO("Creating product set with size (" << MAX_SET_SIZE1 << ", "
-                                               << MAX_SET_SIZE2 << ")");
+  SLIC_INFO("Creating product set with size (" << MAX_SET_SIZE1 << ", " << MAX_SET_SIZE2 << ")");
   ProductSetType prodSet(&sets[0], &sets[1]);
   EXPECT_EQ(prodSet.size(), MAX_SET_SIZE1 * MAX_SET_SIZE2);
   EXPECT_TRUE(prodSet.isValid());
@@ -807,8 +772,7 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestCartesianMap
   sets[0] = ConcreteSetType(MAX_SET_SIZE1);
   sets[1] = ConcreteSetType(MAX_SET_SIZE2);
 
-  SLIC_INFO("Creating product set with size (" << MAX_SET_SIZE1 << ", "
-                                               << MAX_SET_SIZE2 << ")");
+  SLIC_INFO("Creating product set with size (" << MAX_SET_SIZE1 << ", " << MAX_SET_SIZE2 << ")");
   ProductSetType prodSet(&sets[0], &sets[1]);
   EXPECT_EQ(prodSet.size(), MAX_SET_SIZE1 * MAX_SET_SIZE2);
   EXPECT_TRUE(prodSet.isValid());
@@ -822,9 +786,8 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestCartesianMap
 
   RealData realBacking(backingSize, backingSize, m_unifiedAllocatorId);
 
-  SLIC_INFO(
-    axom::fmt::format("\nCreating double map with shape ({}) on the ProductSet",
-                      axom::fmt::join(shape, ", ")));
+  SLIC_INFO(axom::fmt::format("\nCreating double map with shape ({}) on the ProductSet",
+                              axom::fmt::join(shape, ", ")));
   const MapType m(prodSet, realBacking.view(), shape);
 
   EXPECT_EQ(m.stride(), flatStride);
@@ -835,12 +798,16 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestCartesianMap
       for(auto idx2 = 0; idx2 < m.secondSetSize(); idx2++)
       {
         for(int i = 0; i < shape[0]; i++)
+        {
           for(int j = 0; j < shape[1]; j++)
+          {
             for(int k = 0; k < shape[2]; k++)
             {
               int flatCompIdx = i * strides[0] + j * strides[1] + k * strides[2];
               m(idx1, idx2, i, j, k) = getVal<double>(idx1, idx2, flatCompIdx);
             }
+          }
+        }
       }
     });
 
@@ -851,7 +818,9 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestCartesianMap
     {
       int bsetIndex = idx1 * m.secondSetSize() + idx2;
       for(int i = 0; i < shape[0]; i++)
+      {
         for(int j = 0; j < shape[1]; j++)
+        {
           for(int k = 0; k < shape[2]; k++)
           {
             int flatCompIdx = i * strides[0] + j * strides[1] + k * strides[2];
@@ -866,6 +835,8 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestCartesianMap
             EXPECT_DOUBLE_EQ(*ptr, m(idx1, idx2, i, j, k));
             EXPECT_DOUBLE_EQ(*ptr, m[flatIdx]);
           }
+        }
+      }
     }
   }
 
@@ -881,7 +852,9 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestCartesianMap
     EXPECT_EQ(it.numComp(), m.stride());
 
     for(int i = 0; i < shape[0]; i++)
+    {
       for(int j = 0; j < shape[1]; j++)
+      {
         for(int k = 0; k < shape[2]; k++)
         {
           int flatCompIdx = i * strides[0] + j * strides[1] + k * strides[2];
@@ -891,13 +864,14 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestCartesianMap
           EXPECT_DOUBLE_EQ(expected_value, it(i, j, k));
           EXPECT_DOUBLE_EQ(expected_value, it.value(i, j, k));
         }
+      }
+    }
   }
 }
 
 //----------------------------------------------------------------------
 template <typename ExecutionSpace>
-void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
-  int stride)
+void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(int stride)
 {
   using MapType = RelationMapType;
 
@@ -910,9 +884,7 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
   SLIC_INFO("Creating static relation between two sets.");
   axom::Array<RelationType> rel(1, 1, m_unifiedAllocatorId);
   rel[0] = RelationType(&sets[0], &sets[1]);
-  axom::Array<SetPosition> begin_vec(MAX_SET_SIZE1 + 1,
-                                     MAX_SET_SIZE1 + 1,
-                                     m_unifiedAllocatorId);
+  axom::Array<SetPosition> begin_vec(MAX_SET_SIZE1 + 1, MAX_SET_SIZE1 + 1, m_unifiedAllocatorId);
   axom::Array<SetPosition> index_vec(0, 0, m_unifiedAllocatorId);
 
   SetPosition curIdx = 0;
@@ -946,8 +918,7 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
 
   RealData realBacking(backingSize, backingSize, m_allocatorId);
 
-  SLIC_INFO("\nCreating double map with stride " << stride
-                                                 << " on the RelationSet ");
+  SLIC_INFO("\nCreating double map with stride " << stride << " on the RelationSet ");
 
   MapType m(relSet, realBacking.view(), stride);
 
@@ -973,9 +944,7 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
 
   SLIC_INFO("\nChecking the elements with findValue().");
   {
-#ifdef AXOM_USE_RAJA
-    using ReducePol = typename axom::execution_space<ExecSpace>::reduce_policy;
-    RAJA::ReduceSum<ReducePol, int> numIncorrect(0);
+    axom::ReduceSum<ExecSpace, int> numIncorrect(0);
 
     axom::for_all<ExecSpace>(
       m.firstSetSize(),
@@ -984,8 +953,7 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
         auto relIndex = 0;
         for(auto idx2 = 0; idx2 < m.secondSetSize(); idx2++)
         {
-          bool inRelation =
-            relSubset.size() > relIndex && relSubset[relIndex] == idx2;
+          bool inRelation = relSubset.size() > relIndex && relSubset[relIndex] == idx2;
           for(auto comp = 0; comp < stride; comp++)
           {
             double* ptr = m.findValue(idx1, idx2, comp);
@@ -1007,7 +975,6 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
       });
 
     EXPECT_EQ(numIncorrect.get(), 0);
-#endif
   }
 }
 //----------------------------------------------------------------------
@@ -1030,9 +997,7 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
   SLIC_INFO("Creating static relation between two sets.");
   axom::Array<RelationType> rel(1, 1, m_unifiedAllocatorId);
   rel[0] = RelationType(&sets[0], &sets[1]);
-  axom::Array<SetPosition> begin_vec(MAX_SET_SIZE1 + 1,
-                                     MAX_SET_SIZE1 + 1,
-                                     m_unifiedAllocatorId);
+  axom::Array<SetPosition> begin_vec(MAX_SET_SIZE1 + 1, MAX_SET_SIZE1 + 1, m_unifiedAllocatorId);
   axom::Array<SetPosition> index_vec(0, 0, m_unifiedAllocatorId);
 
   SetPosition curIdx = 0;
@@ -1054,8 +1019,6 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
   rel[0].bindBeginOffsets(MAX_SET_SIZE1, begin_vec.view());
   rel[0].bindIndices(index_vec.size(), index_vec.view());
 
-  // RelationType* relPtr = &rel[0];
-
   RelationSetType relSet(&rel[0]);
   EXPECT_EQ(index_vec.size(), relSet.totalSize());
   EXPECT_TRUE(relSet.isValid());
@@ -1066,9 +1029,8 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
 
   RealData realBacking(backingSize, backingSize, m_allocatorId);
 
-  SLIC_INFO(
-    axom::fmt::format("\nCreating double map with shape ({}) on the ProductSet",
-                      axom::fmt::join(shape, ", ")));
+  SLIC_INFO(axom::fmt::format("\nCreating double map with shape ({}) on the ProductSet",
+                              axom::fmt::join(shape, ", ")));
   const MapType m(relSet, realBacking.view(), shape);
 
   EXPECT_EQ(m.stride(), flatStride);
@@ -1077,14 +1039,20 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
     AXOM_LAMBDA(int idx1) {
       auto submap = m(idx1);
       for(auto slot = 0; slot < submap.size(); slot++)
+      {
         for(int i = 0; i < shape[0]; i++)
+        {
           for(int j = 0; j < shape[1]; j++)
+          {
             for(int k = 0; k < shape[2]; k++)
             {
               int idx2 = submap.index(slot);
               int flatCompIdx = i * strides[0] + j * strides[1] + k * strides[2];
               submap(slot, i, j, k) = getVal<double>(idx1, idx2, flatCompIdx);
             }
+          }
+        }
+      }
     });
 
   SLIC_INFO("\nChecking the elements with findValue().");
@@ -1096,7 +1064,9 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
     {
       bool inRelation = submap.size() > slot && submap.index(slot) == idx2;
       for(int i = 0; i < shape[0]; i++)
+      {
         for(int j = 0; j < shape[1]; j++)
+        {
           for(int k = 0; k < shape[2]; k++)
           {
             int flatCompIdx = i * strides[0] + j * strides[1] + k * strides[2];
@@ -1115,6 +1085,8 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
               EXPECT_EQ(valuePtr, nullptr);
             }
           }
+        }
+      }
       if(inRelation)
       {
         slot++;
@@ -1134,7 +1106,9 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
     EXPECT_EQ(it.numComp(), m.stride());
 
     for(int i = 0; i < shape[0]; i++)
+    {
       for(int j = 0; j < shape[1]; j++)
+      {
         for(int k = 0; k < shape[2]; k++)
         {
           int flatCompIdx = i * strides[0] + j * strides[1] + k * strides[2];
@@ -1144,6 +1118,8 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
           EXPECT_DOUBLE_EQ(expected_value, it(i, j, k));
           EXPECT_DOUBLE_EQ(expected_value, it.value(i, j, k));
         }
+      }
+    }
   }
 }
 

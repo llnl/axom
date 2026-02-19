@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -95,8 +96,7 @@ public:
     // Some sanity checks
     SLIC_ASSERT(m_mesh != nullptr);
 
-    m_isHighOrder =
-      (m_mesh->GetNodalFESpace() != nullptr) && (m_mesh->GetNE() > 0);
+    m_isHighOrder = (m_mesh->GetNodalFESpace() != nullptr) && (m_mesh->GetNE() > 0);
   }
 
   /*! Predicate to check if the given basis is positive (i.e. Bernstein) */
@@ -109,14 +109,12 @@ public:
       return false;
     }
 
-    if(const mfem::H1_FECollection* h1Fec =
-         dynamic_cast<const mfem::H1_FECollection*>(fec))
+    if(const mfem::H1_FECollection* h1Fec = dynamic_cast<const mfem::H1_FECollection*>(fec))
     {
       return h1Fec->GetBasisType() == mfem::BasisType::Positive;
     }
 
-    if(const mfem::L2_FECollection* l2Fec =
-         dynamic_cast<const mfem::L2_FECollection*>(fec))
+    if(const mfem::L2_FECollection* l2Fec = dynamic_cast<const mfem::L2_FECollection*>(fec))
     {
       return l2Fec->GetBasisType() == mfem::BasisType::Positive;
     }
@@ -160,10 +158,7 @@ public:
     if(dynamic_cast<const mfem::L2_FECollection*>(fec))
     {
       // should we throw a not supported error here?
-      return new mfem::L2_FECollection(order,
-                                       dim,
-                                       mfem::BasisType::Positive,
-                                       mapType);
+      return new mfem::L2_FECollection(order, dim, mfem::BasisType::Positive, mapType);
     }
 
     // Attempt to find the corresponding quadratic or cubic fec
@@ -324,12 +319,12 @@ public:
     // Set up the inverse element transformation
     InvTransform invTrans(&tr);
 
+    SLIC_DEBUG_IF(m_printLevel >= 0, "Checking element " << eltIdx);
+
     invTrans.SetPrintLevel(m_printLevel);
     invTrans.SetInitialGuessType(m_initGuessType);
     invTrans.SetInitGuessRelOrder(m_grid_order);
     invTrans.SetSolverType(m_solverType);
-
-    SLIC_DEBUG_IF(m_printLevel >= 0, "Checking element " << eltIdx);
 
     // Status codes: {0 -> successful; 1 -> outside elt; 2-> did not converge}
     int err = invTrans.Transform(ptSpace, ipRef);
@@ -348,10 +343,9 @@ private:
    * \sa computeBoundingBoxes()
    */
   template <int NDIMS>
-  void computeHighOrderBoundingBoxes(
-    double bboxScaleFactor,
-    axom::primal::BoundingBox<double, NDIMS>* eltBBoxes,
-    axom::primal::BoundingBox<double, NDIMS>& meshBBox) const
+  void computeHighOrderBoundingBoxes(double bboxScaleFactor,
+                                     axom::primal::BoundingBox<double, NDIMS>* eltBBoxes,
+                                     axom::primal::BoundingBox<double, NDIMS>& meshBBox) const
   {
     using SpacePoint = axom::primal::Point<double, NDIMS>;
     using SpatialBoundingBox = axom::primal::BoundingBox<double, NDIMS>;
@@ -394,8 +388,7 @@ private:
       if(posFEColl != nullptr)
       {
         // Create a positive (Bernstein) grid function for the nodes
-        mfem::FiniteElementSpace* posFESpace =
-          new mfem::FiniteElementSpace(m_mesh, posFEColl, NDIMS);
+        mfem::FiniteElementSpace* posFESpace = new mfem::FiniteElementSpace(m_mesh, posFEColl, NDIMS);
         positiveNodes = new mfem::GridFunction(posFESpace);
 
         // m_bernsteinNodes takes ownership of posFEColl's memory
@@ -408,12 +401,11 @@ private:
     }
 
     // Output some information
-    SLIC_DEBUG("Mesh nodes fec -- "
-               << nodalFEColl->Name() << " with ordering "
-               << nodalFESpace->GetOrdering()
-               << "\n\t -- Positive nodes are fec -- "
-               << positiveNodes->FESpace()->FEColl()->Name()
-               << " with ordering " << positiveNodes->FESpace()->GetOrdering());
+    SLIC_DEBUG_ROOT("Mesh nodes fec -- "
+                    << nodalFEColl->Name() << " with ordering " << nodalFESpace->GetOrdering()
+                    << "\n\t -- Positive nodes are fec -- "
+                    << positiveNodes->FESpace()->FEColl()->Name() << " with ordering "
+                    << positiveNodes->FESpace()->GetOrdering());
 
     /// For each element, compute bounding box, and overall mesh bbox
     mfem::Array<int> dofIndices;
@@ -465,10 +457,9 @@ private:
    * \sa computeBoundingBoxes()
    */
   template <int NDIMS>
-  void computeLowOrderBoundingBoxes(
-    double bboxScaleFactor,
-    axom::primal::BoundingBox<double, NDIMS>* eltBBoxes,
-    axom::primal::BoundingBox<double, NDIMS>& meshBBox) const
+  void computeLowOrderBoundingBoxes(double bboxScaleFactor,
+                                    axom::primal::BoundingBox<double, NDIMS>* eltBBoxes,
+                                    axom::primal::BoundingBox<double, NDIMS>& meshBBox) const
   {
     using SpacePoint = axom::primal::Point<double, NDIMS>;
     using SpatialBoundingBox = axom::primal::BoundingBox<double, NDIMS>;

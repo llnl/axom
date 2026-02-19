@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -11,6 +12,7 @@
 #include "axom/sidre.hpp"
 
 #include <algorithm>
+#include <random>
 #include <set>
 
 using axom::sidre::DataStore;
@@ -34,6 +36,7 @@ int main(int argc, char* argv[])
   }
   else
   {
+    delete ds;
     return 0;
   }
 
@@ -60,9 +63,7 @@ int main(int argc, char* argv[])
   std::vector<std::string> names(num_groups);
   {
     int i = 0;
-    for(std::set<std::string>::const_iterator itr = name_set.begin();
-        itr != name_set.end();
-        ++itr)
+    for(std::set<std::string>::const_iterator itr = name_set.begin(); itr != name_set.end(); ++itr)
     {
       names[i] = *itr;
       ++i;
@@ -77,7 +78,9 @@ int main(int argc, char* argv[])
        names[i] = sstr.str();;
     }
  */
-  std::random_shuffle(names.begin(), names.end());
+  std::random_device rd;
+  std::mt19937 g(rd());
+  std::shuffle(names.begin(), names.end(), g);
 
   axom::utilities::Timer create_timer(true);
   for(size_t i = 0; i < num_groups; ++i)
@@ -87,7 +90,7 @@ int main(int argc, char* argv[])
   create_timer.stop();
   std::cout << "Create time " << create_timer.elapsed() << ".\n";
 
-  std::random_shuffle(names.begin(), names.end());
+  std::shuffle(names.begin(), names.end(), g);
 
   axom::utilities::Timer query_timer(true);
   for(size_t i = 0; i < num_groups; ++i)
@@ -100,7 +103,7 @@ int main(int argc, char* argv[])
   query_timer.stop();
   std::cout << "Query time " << query_timer.elapsed() << ".\n";
 
-  std::random_shuffle(names.begin(), names.end());
+  std::shuffle(names.begin(), names.end(), g);
 
   axom::utilities::Timer destroy_timer(true);
   for(size_t i = 0; i < num_groups; ++i)
@@ -117,7 +120,7 @@ int main(int argc, char* argv[])
     int num_shuffles = num_groups / 100;
     for(int j = 0; j < num_shuffles; ++j)
     {
-      std::random_shuffle(names.begin(), names.end());
+      std::shuffle(names.begin(), names.end(), g);
 
       mixed_timer.start();
       for(int i = 0; i < 100; ++i)

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -52,10 +53,7 @@ using CoordsVec = std::vector<Point3D>;
  * \param [in] numPoints The number of points to generate
  * \param [in] dim The number of coordinates to generate per point (2 or 3)
  */
-void generateQueryPoints(CoordsVec& queryPoints,
-                         Box3D const& bbox,
-                         int numPoints,
-                         int dim)
+void generateQueryPoints(CoordsVec& queryPoints, Box3D const& bbox, int numPoints, int dim)
 {
   using axom::utilities::random_real;
 
@@ -168,8 +166,7 @@ int main(int argc, char** argv)
     ->check(axom::CLI::NonNegativeNumber)
     ->capture_default_str();
   app.add_option("-n,--segments-per-knot-span", segmentsPerKnotSpan)
-    ->description(
-      "(2D only) Number of linear segments to generate per NURBS knot span")
+    ->description("(2D only) Number of linear segments to generate per NURBS knot span")
     ->capture_default_str()
     ->check(axom::CLI::PositiveNumber);
 
@@ -291,8 +288,8 @@ int main(int argc, char** argv)
 
   // -- Run the queries (the z-coordinate is ignored for 2D queries)
   int numInside = 0;
-  SLIC_INFO(
-    axom::fmt::format("Querying mesh with {} query points...", nQueryPoints));
+  SLIC_INFO(axom::fmt::format("Querying mesh with {} query points...", nQueryPoints));
+  timer.reset();
   timer.start();
   for(auto& pt : queryPoints)
   {
@@ -308,11 +305,11 @@ int main(int argc, char** argv)
     SLIC_INFO(axom::fmt::format("  queries took {} seconds.", timer.elapsed()));
     SLIC_INFO(axom::fmt::format("  query rate: {} queries per second.",
                                 queryPoints.size() / timer.elapsed()));
-    SLIC_INFO(axom::fmt::format(
-      "  {} of {} ({}%) of the query points were contained in the surface.",
-      numInside,
-      queryPoints.size(),
-      (100 * numInside) / static_cast<double>(queryPoints.size())));
+    SLIC_INFO(
+      axom::fmt::format("  {} of {} ({}%) of the query points were contained in the surface.",
+                        numInside,
+                        queryPoints.size(),
+                        (100 * numInside) / static_cast<double>(queryPoints.size())));
   }
 
   // -- Finalize quest_inout

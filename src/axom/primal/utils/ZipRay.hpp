@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -50,8 +51,7 @@ struct ZipBase<Ray<T, NDIMS>>
    * \pre Size2 >= NDIMS
    */
   template <size_t Size1, size_t Size2>
-  ZipBase(const T* const (&orig_arrays)[Size1],
-          const T* const (&dir_arrays)[Size2])
+  ZipBase(const T* const (&orig_arrays)[Size1], const T* const (&dir_arrays)[Size2])
   {
     AXOM_STATIC_ASSERT_MSG(Size1 >= NDIMS, "Must provide at least NDIMS arrays");
     AXOM_STATIC_ASSERT_MSG(Size2 >= NDIMS, "Must provide at least NDIMS arrays");

@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -83,20 +84,7 @@ if(AXOM_ENABLE_QUEST)
         set (_policies "raja_seq")
         blt_list_append(TO _policies ELEMENTS "raja_omp" IF AXOM_ENABLE_OPENMP)
         blt_list_append(TO _policies ELEMENTS "raja_cuda" IF AXOM_ENABLE_CUDA)
-
-        # Test with HIP policy for select optimization flags.
-        # Check for Debug flags that have been overwritten.
-        if(AXOM_ENABLE_HIP)
-            if((CMAKE_BUILD_TYPE MATCHES "(Release|RelWithDebInfo)") OR
-              (CMAKE_BUILD_TYPE MATCHES "Debug" AND
-              CMAKE_CXX_FLAGS_DEBUG MATCHES "\-O1 \-g \-DNDEBUG"))
-                list(APPEND _policies "raja_hip")
-            else()
-              message(STATUS
-                "HIP policy for mesh_tester executable is not being tested"
-              )
-            endif()
-        endif()
+        blt_list_append(TO _policies ELEMENTS "raja_hip" IF AXOM_ENABLE_HIP)
 
         foreach(_method ${_methods})
             foreach(_policy ${_policies})
@@ -122,8 +110,7 @@ endif()
 # data_collection_util is a utility that generates blueprint-conforming sidre
 # output files from an input mfem mesh
 #------------------------------------------------------------------------------
-if( AXOM_ENABLE_SIDRE AND AXOM_ENABLE_PRIMAL AND
-    MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+if(AXOM_ENABLE_SIDRE AND AXOM_ENABLE_PRIMAL AND MFEM_FOUND)
 
     set(data_collection_util
         data_collection_util.cpp
@@ -146,27 +133,21 @@ if( AXOM_ENABLE_SIDRE AND AXOM_ENABLE_PRIMAL AND
         FOLDER      axom/examples
         )
 
+    set(_nranks 1)
     if(AXOM_ENABLE_MPI)
-        axom_add_test(
-            NAME    data_collection_util_box2D
-            COMMAND data_collection_util --min -1 -1 --max 1 1 --res 16 16 -p 1
-            NUM_MPI_TASKS 2
-        )
-        axom_add_test(
-            NAME    data_collection_util_box3D
-            COMMAND data_collection_util --min -1 -1 -1 --max 1 1 1 --res 16 16 16 -p 1
-            NUM_MPI_TASKS 2
-        )
-    else()
-        axom_add_test(
-            NAME    data_collection_util_box2D
-            COMMAND data_collection_util --min -1 -1 --max 1 1 --res 16 16 -p 1
-        )
-        axom_add_test(
-            NAME    data_collection_util_box3D
-            COMMAND data_collection_util --min -1 -1 -1 --max 1 1 1 --res 16 16 16 -p 1
-        )
+        set(_nranks 2)
     endif()
+        
+    axom_add_test(
+        NAME    data_collection_util_box2D
+        COMMAND data_collection_util --min -1 -1 --max 1 1 --res 16 16 -p 1
+        NUM_MPI_TASKS ${_nranks}
+    )
+    axom_add_test(
+        NAME    data_collection_util_box3D
+        COMMAND data_collection_util --min -1 -1 -1 --max 1 1 1 --res 16 16 16 -p 1
+        NUM_MPI_TASKS ${_nranks}
+    )
 
     install(TARGETS              data_collection_util
             DESTINATION          bin
@@ -175,6 +156,62 @@ if( AXOM_ENABLE_SIDRE AND AXOM_ENABLE_PRIMAL AND
 endif()
 
 #------------------------------------------------------------------------------
-# Add code checks
+# mesh_converter is a utility that converts between mesh formats
 #------------------------------------------------------------------------------
-axom_add_code_checks(PREFIX tools)
+if(AXOM_ENABLE_QUEST)
+    set(mesh_converter_sources
+        mesh_converter.cpp
+    )
+    set(mesh_converter_depends
+        axom
+        )
+
+    axom_add_executable(
+        NAME        mesh_converter
+        SOURCES     ${mesh_converter_sources}
+        OUTPUT_DIR  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${mesh_converter_depends}
+        FOLDER      axom/examples
+        )
+    install(TARGETS              mesh_converter
+            DESTINATION          bin
+            )
+
+    # Add unit tests
+    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+        axom_add_test(
+            NAME    mesh_converter_cup
+            COMMAND mesh_converter -i "${AXOM_DATA_DIR}/quest/cup.proe" -o cup.stl)
+        set_tests_properties(mesh_converter_cup 
+            PROPERTIES PASS_REGULAR_EXPRESSION  "Retained 272 boundary faces")
+    endif()
+endif()
+
+#------------------------------------------------------------------------------
+# run_python_with_axom.sh.in is a utility that allows running python with
+# nanobind-generated extensions in the PYTHONPATH.
+# Based on Conduit's run_python_with_conduit.sh.in script.
+#------------------------------------------------------------------------------
+if(NANOBIND_FOUND)
+
+    # gen python helper to build directory
+    set(_PYEXT_DIR ${PROJECT_BINARY_DIR}/lib)
+
+    axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
+                         "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh" @ONLY)
+
+    # gen python helper to install directory
+    set(_PYEXT_DIR ${CMAKE_INSTALL_PREFIX}/lib)
+
+    axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
+                         "${CMAKE_INSTALL_PREFIX}/bin/run_python_with_axom.sh" @ONLY)
+
+    unset(_PYEXT_DIR)
+
+    # Add unit test to check script
+    if(AXOM_ENABLE_TESTS AND AXOM_ENABLE_SIDRE)
+        axom_add_test(
+            NAME    run_python_with_axom_build
+            COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import pysidre")
+    endif()
+endif()

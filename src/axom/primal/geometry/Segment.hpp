@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -28,13 +29,13 @@ class Segment;
  * \brief Equality comparison operator for Segment
  */
 template <typename T, int NDIMS>
-bool operator==(const Segment<T, NDIMS>& lhs, const Segment<T, NDIMS>& rhs);
+AXOM_HOST_DEVICE bool operator==(const Segment<T, NDIMS>& lhs, const Segment<T, NDIMS>& rhs);
 
 /*!
  * \brief Inequality comparison operator for Segment
  */
 template <typename T, int NDIMS>
-bool operator!=(const Segment<T, NDIMS>& lhs, const Segment<T, NDIMS>& rhs);
+AXOM_HOST_DEVICE bool operator!=(const Segment<T, NDIMS>& lhs, const Segment<T, NDIMS>& rhs);
 
 /*!
  * \brief Overloaded output operator for Segment
@@ -74,9 +75,7 @@ public:
    * \param A user-supplied source point
    * \param B user-supplied target point
    */
-  AXOM_HOST_DEVICE Segment(const PointType& A, const PointType& B)
-    : m_source(A)
-    , m_target(B) {};
+  AXOM_HOST_DEVICE Segment(const PointType& A, const PointType& B) : m_source(A), m_target(B) { };
 
   /*!
    * \brief Returns the source point of the segment.
@@ -89,6 +88,13 @@ public:
    * \return t the target point of the segment.
    */
   AXOM_HOST_DEVICE const PointType& target() const { return m_target; };
+
+  /*!
+   * \brief Return the number of vertices in a Segment.
+   *
+   * \return The number of vertices in a Segment.
+   */
+  AXOM_HOST_DEVICE static constexpr int numVertices() { return NUM_SEG_VERTS; }
 
   /*!
    * \brief Index operator to get the i^th vertex
@@ -122,15 +128,12 @@ public:
    * \post If \f$ t = 0, \f$ the return point \f$ P = A. \f$
    * \post If \f$ t = 1, \f$ the return point \f$ P = B. \f$
    */
-  AXOM_HOST_DEVICE PointType at(const T& t) const
-  {
-    return PointType::lerp(m_source, m_target, t);
-  }
+  AXOM_HOST_DEVICE PointType at(const T& t) const { return PointType::lerp(m_source, m_target, t); }
 
   /*!
    * \brief Returns the length of the segment
    */
-  double length() const { return VectorType(m_source, m_target).norm(); }
+  AXOM_HOST_DEVICE double length() const { return VectorType(m_source, m_target).norm(); }
 
   /*!
    * \brief Returns a vector normal to the segment
@@ -138,7 +141,7 @@ public:
    * \note Only available in 2D
    */
   template <int TDIM = NDIMS>
-  typename std::enable_if<TDIM == 2, VectorType>::type normal() const
+  AXOM_HOST_DEVICE typename std::enable_if<TDIM == 2, VectorType>::type normal() const
   {
     return VectorType {m_target[1] - m_source[1], m_source[0] - m_target[0]};
   }
@@ -146,6 +149,7 @@ public:
   /*!
    * \brief Equality comparison operator for segments
    */
+  AXOM_HOST_DEVICE
   friend inline bool operator==(const Segment& lhs, const Segment& rhs)
   {
     return lhs.m_source == rhs.m_source && lhs.m_target == rhs.m_target;
@@ -154,10 +158,8 @@ public:
   /*!
    * \brief Inequality operator for segments
    */
-  friend inline bool operator!=(const Segment& lhs, const Segment& rhs)
-  {
-    return !(lhs == rhs);
-  }
+  AXOM_HOST_DEVICE
+  friend inline bool operator!=(const Segment& lhs, const Segment& rhs) { return !(lhs == rhs); }
 
   /*!
    * \brief Simple formatted print of a segment instance

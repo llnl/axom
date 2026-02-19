@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -76,10 +77,8 @@ TEST(umpire_smoke, available_allocators)
               << ", id: " << alloc.getId()                  //
               << ", strategy: " << alloc.getStrategyName()  //
     // umpire@2022.10 introduced a function to convert a Platform to a string
-#if(UMPIRE_VERSION_MAJOR > 2022) || \
-  (UMPIRE_VERSION_MAJOR == 2022 && UMPIRE_VERSION_MINOR > 3)
-              << ", platform: "
-              << umpire::platform_to_string(alloc.getPlatform())  //
+#if (UMPIRE_VERSION_MAJOR > 2022) || (UMPIRE_VERSION_MAJOR == 2022 && UMPIRE_VERSION_MINOR > 3)
+              << ", platform: " << umpire::platform_to_string(alloc.getPlatform())  //
 #endif
               << "}\n";
   }

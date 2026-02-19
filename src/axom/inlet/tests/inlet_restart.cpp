@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -208,10 +209,7 @@ struct FromInlet<FooWithArray>
 struct BarWithFooWithArray
 {
   FooWithArray foo;
-  bool operator==(const BarWithFooWithArray& other) const
-  {
-    return foo == other.foo;
-  }
+  bool operator==(const BarWithFooWithArray& other) const { return foo == other.foo; }
 };
 
 template <>
@@ -243,12 +241,10 @@ TYPED_TEST(inlet_restart, nested_array_of_struct_containing_array)
     // No input provided - the datastore should already contain all the data
     Inlet restartInlet = createBasicInlet<TypeParam>(&ds);
     // Contiguous indexing for generality
-    std::unordered_map<int, BarWithFooWithArray> expected_bars = {
-      {0, {{{{0, 3}}}}},
-      {1, {{{{0, 2}}}}}};
+    std::unordered_map<int, BarWithFooWithArray> expected_bars = {{0, {{{{0, 3}}}}},
+                                                                  {1, {{{{0, 2}}}}}};
     ASSERT_TRUE(restartInlet.contains("bars"));
-    auto bars_with_foo =
-      restartInlet["bars"].get<std::unordered_map<int, BarWithFooWithArray>>();
+    auto bars_with_foo = restartInlet["bars"].get<std::unordered_map<int, BarWithFooWithArray>>();
     EXPECT_EQ(bars_with_foo, expected_bars);
   }
 }
@@ -274,12 +270,10 @@ TYPED_TEST(inlet_restart, nested_array_of_struct_containing_array_repeat_schema)
     auto& foo_container = bar_container.addStruct("foo");
     foo_container.addIntArray("arr", "arr's description");
     // Contiguous indexing for generality
-    std::unordered_map<int, BarWithFooWithArray> expected_bars = {
-      {0, {{{{0, 3}}}}},
-      {1, {{{{0, 2}}}}}};
+    std::unordered_map<int, BarWithFooWithArray> expected_bars = {{0, {{{{0, 3}}}}},
+                                                                  {1, {{{{0, 2}}}}}};
     ASSERT_TRUE(restartInlet.contains("bars"));
-    auto bars_with_foo =
-      restartInlet["bars"].get<std::unordered_map<int, BarWithFooWithArray>>();
+    auto bars_with_foo = restartInlet["bars"].get<std::unordered_map<int, BarWithFooWithArray>>();
     EXPECT_EQ(bars_with_foo, expected_bars);
   }
 }

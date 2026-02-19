@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -64,6 +65,7 @@ public:
    * \brief Constructs a ray object from a directed segment.
    * \param [in] S user-supplied segment.
    */
+  AXOM_HOST_DEVICE
   explicit Ray(const SegmentType& S);
 
   /*!
@@ -120,8 +122,7 @@ namespace primal
 {
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE Ray<T, NDIMS>::Ray(const PointType& origin,
-                                    const VectorType& direction)
+AXOM_HOST_DEVICE Ray<T, NDIMS>::Ray(const PointType& origin, const VectorType& direction)
   : m_origin(origin)
   , m_direction(direction.unitVector())
 {
@@ -130,7 +131,7 @@ AXOM_HOST_DEVICE Ray<T, NDIMS>::Ray(const PointType& origin,
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-Ray<T, NDIMS>::Ray(const SegmentType& S)
+AXOM_HOST_DEVICE Ray<T, NDIMS>::Ray(const SegmentType& S)
   : m_origin(S.source())
   , m_direction(VectorType(S.source(), S.target()).unitVector())
 {

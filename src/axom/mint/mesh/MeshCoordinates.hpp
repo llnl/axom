@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -129,9 +130,7 @@ public:
    * \post if capacity == USE_DEFAULT then
    *  capacity() == max(DEFAULT_CAPACITY, numNodes()*DEFAULT_RESIZE_RATIO)
    */
-  explicit MeshCoordinates(int dimension,
-                           IndexType numNodes = 0,
-                           IndexType capacity = USE_DEFAULT);
+  explicit MeshCoordinates(int dimension, IndexType numNodes = 0, IndexType capacity = USE_DEFAULT);
 
   /// @}
 
@@ -170,10 +169,7 @@ public:
                   double* y = nullptr,
                   double* z = nullptr);
 
-  MeshCoordinates(IndexType numNodes,
-                  double* x,
-                  double* y = nullptr,
-                  double* z = nullptr);
+  MeshCoordinates(IndexType numNodes, double* x, double* y = nullptr, double* z = nullptr);
   /// @}
 
   /// @}
@@ -472,11 +468,7 @@ public:
   /// @{
 
   void insert(IndexType nodeID, const double* x, const double* y, IndexType n);
-  void insert(IndexType nodeID,
-              const double* x,
-              const double* y,
-              const double* z,
-              IndexType n);
+  void insert(IndexType nodeID, const double* x, const double* y, const double* z, IndexType n);
 
   /// @}
 
@@ -518,9 +510,8 @@ public:
   double* getCoordinateArray(int dim)
   {
     SLIC_ERROR_IF(!indexInRange(dim, 0, m_ndims - 1),
-                  "invalid request for coordinate array along dimension ["
-                    << dim << "]"
-                    << "ndims=" << m_ndims);
+                  "invalid request for coordinate array along dimension [" << dim << "]"
+                                                                           << "ndims=" << m_ndims);
 
     SLIC_ASSERT(m_coordinates[dim] != nullptr);
     return m_coordinates[dim]->getData();
@@ -529,9 +520,8 @@ public:
   const double* getCoordinateArray(int dim) const
   {
     SLIC_ERROR_IF(!indexInRange(dim, 0, m_ndims - 1),
-                  "invalid request for coordinate array along dimension ["
-                    << dim << "]"
-                    << "ndims=" << m_ndims);
+                  "invalid request for coordinate array along dimension [" << dim << "]"
+                                                                           << "ndims=" << m_ndims);
 
     SLIC_ASSERT(m_coordinates[dim] != nullptr);
     return m_coordinates[dim]->getData();
@@ -570,7 +560,7 @@ private:
    */
   bool validIndex(IndexType idx) const
   {
-    return indexInRange(idx, 0, numNodes() - 1);
+    return indexInRange(static_cast<int>(idx), 0, numNodes() - 1);
   }
 
   /*!
@@ -739,10 +729,7 @@ inline void MeshCoordinates::append(const double* x, const double* y, IndexType 
 }
 
 //------------------------------------------------------------------------------
-inline void MeshCoordinates::append(const double* x,
-                                    const double* y,
-                                    const double* z,
-                                    IndexType n)
+inline void MeshCoordinates::append(const double* x, const double* y, const double* z, IndexType n)
 {
   SLIC_ASSERT(m_ndims == 3);
   SLIC_ASSERT(m_coordinates[0] != nullptr);
@@ -860,9 +847,7 @@ inline void MeshCoordinates::insert(IndexType nodeID, double x, double y, double
 }
 
 //------------------------------------------------------------------------------
-inline void MeshCoordinates::insert(IndexType nodeID,
-                                    const double* coords,
-                                    IndexType n)
+inline void MeshCoordinates::insert(IndexType nodeID, const double* coords, IndexType n)
 {
   SLIC_ASSERT(coords != nullptr);
   SLIC_ASSERT(n >= 0);
@@ -895,10 +880,7 @@ inline void MeshCoordinates::insert(IndexType nodeID,
 }
 
 //------------------------------------------------------------------------------
-inline void MeshCoordinates::insert(IndexType nodeID,
-                                    const double* x,
-                                    const double* y,
-                                    IndexType n)
+inline void MeshCoordinates::insert(IndexType nodeID, const double* x, const double* y, IndexType n)
 {
   SLIC_ASSERT(m_ndims == 2);
   SLIC_ASSERT(m_coordinates[0] != nullptr);
@@ -1021,8 +1003,7 @@ inline void MeshCoordinates::initialize(IndexType numNodes, IndexType maxCapacit
 
   for(int i = 0; i < m_ndims; ++i)
   {
-    m_coordinates[i] =
-      new axom::deprecated::MCArray<double>(numNodes, 1, maxCapacity);
+    m_coordinates[i] = new axom::deprecated::MCArray<double>(numNodes, 1, maxCapacity);
   }
 
   SLIC_ASSERT(consistencyCheck());

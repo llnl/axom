@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 #ifndef MINT_STRUCTURED_MESH_TEST_HELPERS_HPP_
@@ -30,6 +31,13 @@ namespace mint
 namespace internal
 {
 constexpr double PI = 3.14;
+
+// Always define these sizes for 3D because some of the mesh methods in mint
+// meshes do not know their dimension until runtime and may contain 1D, 2D, 3D
+// implementations so the passed buffers better be large enough - and to silence
+// potential compiler warnings to that effect.
+constexpr int MAX_FACE_NODES = 6;
+constexpr int MAX_CELL_NODES = 8;
 
 namespace
 {
@@ -303,7 +311,7 @@ inline void check_topology2D(const StructuredMesh* m)
   EXPECT_EQ(m->getNumberOfCellNodes(), 4);
 
   /* Check the cell to node map. */
-  IndexType cellNodes[4], cellNodesIJ[4];
+  IndexType cellNodes[MAX_CELL_NODES], cellNodesIJ[MAX_CELL_NODES];
   const IndexType nodeJp = m->nodeJp();
   for(IndexType j = 0; j < m->getCellResolution(1); ++j)
   {
@@ -335,7 +343,7 @@ inline void check_topology2D(const StructuredMesh* m)
 
   /* Check the cell to face map */
   const IndexType cellJp = m->cellJp();
-  IndexType cellFaces[4], cellFacesIJ[4];
+  IndexType cellFaces[MAX_FACE_NODES], cellFacesIJ[MAX_FACE_NODES];
   for(IndexType j = 0; j < m->getCellResolution(1); ++j)
   {
     for(IndexType i = 0; i < m->getCellResolution(0); ++i)
@@ -352,9 +360,9 @@ inline void check_topology2D(const StructuredMesh* m)
     }
   }
 
-  /* Check the face to node map */
-  IndexType faceNodes[2];
-  IndexType faceNodesDir[2];
+  /* Check the face to node map. */
+  IndexType faceNodes[MAX_FACE_NODES];
+  IndexType faceNodesDir[MAX_FACE_NODES];
 
   /* I-faces */
   for(IndexType j = 0; j < m->getCellResolution(1); ++j)
@@ -463,7 +471,7 @@ inline void check_topology3D(const StructuredMesh* m)
   EXPECT_EQ(m->getNumberOfCellNodes(), 8);
 
   /* Check the cell to node map. */
-  IndexType cellNodes[8], cellNodesIJK[8];
+  IndexType cellNodes[MAX_CELL_NODES], cellNodesIJK[MAX_CELL_NODES];
   const IndexType nodeJp = m->nodeJp();
   const IndexType nodeKp = m->nodeKp();
   for(IndexType k = 0; k < m->getCellResolution(2); ++k)
@@ -507,7 +515,7 @@ inline void check_topology3D(const StructuredMesh* m)
   EXPECT_EQ(m->getNumberOfFaces(), nFaces);
 
   /* Check the cell to face map */
-  IndexType cellFaces[6], cellFacesIJK[6];
+  IndexType cellFaces[MAX_FACE_NODES], cellFacesIJK[MAX_FACE_NODES];
   for(IndexType k = 0; k < m->getCellResolution(2); ++k)
   {
     for(IndexType j = 0; j < m->getCellResolution(1); ++j)
@@ -530,8 +538,8 @@ inline void check_topology3D(const StructuredMesh* m)
   }
 
   /* Check the face to node map */
-  IndexType faceNodes[4];
-  IndexType faceNodesDir[4];
+  IndexType faceNodes[MAX_FACE_NODES];
+  IndexType faceNodesDir[MAX_FACE_NODES];
 
   /* I-faces */
   for(IndexType k = 0; k < m->getCellResolution(2); ++k)
@@ -878,8 +886,7 @@ inline void check_constructor(const StructuredMesh* m,
                               const IndexType* node_dims)
 {
   SLIC_ASSERT(mesh_type == STRUCTURED_CURVILINEAR_MESH ||
-              mesh_type == STRUCTURED_RECTILINEAR_MESH ||
-              mesh_type == STRUCTURED_UNIFORM_MESH);
+              mesh_type == STRUCTURED_RECTILINEAR_MESH || mesh_type == STRUCTURED_UNIFORM_MESH);
 
   EXPECT_TRUE(m != nullptr);
   EXPECT_EQ(m->getMeshType(), mesh_type);
@@ -901,8 +908,7 @@ inline void check_constructor(const StructuredMesh* m,
     EXPECT_TRUE(m->hasExplicitCoordinates());
   }
 
-  CellType cell_type =
-    (mesh_dimension == 3) ? HEX : (mesh_dimension == 2) ? QUAD : SEGMENT;
+  CellType cell_type = (mesh_dimension == 3) ? HEX : (mesh_dimension == 2) ? QUAD : SEGMENT;
   EXPECT_EQ(m->getCellType(), cell_type);
   EXPECT_EQ(m->getNumberOfCellNodes(), getCellInfo(cell_type).num_nodes);
   EXPECT_EQ(m->getNumberOfCellFaces(), getCellInfo(cell_type).num_faces);

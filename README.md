@@ -1,7 +1,7 @@
 [comment]: # (#################################################################)
-[comment]: # (Copyright 2017-2024, Lawrence Livermore National Security, LLC)
-[comment]: # (and Axom Project Developers. See the top-level LICENSE file)
-[comment]: # (for details.)
+[comment]: # (Copyright Lawrence Livermore National Security, LLC and other)
+[comment]: # (Axom Project Contributors. See top-level LICENSE and COPYRIGHT)
+[comment]: # (files for dates and other details.)
 [comment]: #
 [comment]: # (# SPDX-License-Identifier: BSD-3-Clause)
 [comment]: # (#################################################################)
@@ -9,9 +9,9 @@
 
 # <img src="/share/axom/logo/axom_logo_transparent.png?raw=true" width="250" valign="middle" alt="Axom"/>
 
-[![Azure Pipelines Build Status](https://dev.azure.com/axom/axom/_apis/build/status/LLNL.axom?branchName=develop)](https://dev.azure.com/axom/axom/_build/latest?definitionId=1&branchName=develop)
+[![Build Status](https://github.com/LLNL/axom/actions/workflows/ci-tests.yml/badge.svg)](https://github.com/LLNL/axom/actions/workflows/ci-tests.yml)
 [![Documentation Status](https://readthedocs.org/projects/axom/badge/?version=develop)](https://axom.readthedocs.io/en/develop/?badge=develop)
-[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://github.com/LLNL/axom/blob/develop/LICENSE)
+[![License](https://img.shields.io/github/license/LLNL/axom.svg?color=blue&label=License)](https://github.com/LLNL/axom/blob/develop/LICENSE)
 [![GitHub release](https://img.shields.io/github/release/LLNL/axom.svg)](https://github.com/LLNL/axom/releases/latest)
 
 Axom provides robust, flexible software infrastructure for the development of multi-physics applications and computational tools.
@@ -19,9 +19,9 @@ Axom provides robust, flexible software infrastructure for the development of mu
 Documentation
 -------------
 
-Latest docs on Develop branch: https://axom.readthedocs.io
+To access the latest docs for Axom: https://axom.readthedocs.io/en/develop/
 
-To access docs for other versions: https://readthedocs.org/projects/axom/
+To access another version of Axom docs, please expand the sub-window on the lower right of any Axom Document page.
 
 Getting Involved
 ----------------
@@ -56,7 +56,7 @@ Thanks to all of Axom's
 License
 -------
 
-Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC. 
+Copyright (c) 2017-2026, Lawrence Livermore National Security, LLC. 
 Produced at the Lawrence Livermore National Laboratory.
 
 Copyrights and patents in the Axom project are retained by contributors.

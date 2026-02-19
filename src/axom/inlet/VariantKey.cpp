@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -41,13 +42,12 @@ VariantKey::operator int() const
 {
   if(m_type != VariantKeyType::Integer)
   {
-    SLIC_ERROR(
-      "[Inlet] Attempted to retrieve an integer from a non-integer key");
+    SLIC_ERROR("[Inlet] Attempted to retrieve an integer from a non-integer key");
   }
   return m_int;
 }
 
-VariantKey::operator const std::string &() const
+VariantKey::operator const std::string&() const
 {
   if(m_type != VariantKeyType::String)
   {

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -61,19 +62,12 @@ public:
    */
   VariantKey(const int key) : m_int(key), m_type(VariantKeyType::Integer) { }
   /// \overload
-  VariantKey(const std::string& key)
-    : m_string(key)
-    , m_type(VariantKeyType::String)
-  { }
+  VariantKey(const std::string& key) : m_string(key), m_type(VariantKeyType::String) { }
   /// \overload
-  VariantKey(std::string&& key)
-    : m_string(std::move(key))
-    , m_type(VariantKeyType::String)
-  { }
+  VariantKey(std::string&& key) : m_string(std::move(key)), m_type(VariantKeyType::String) { }
   /// \overload
   // Explicit const char[] overload required to convert to std::string instead of ptr -> int
-  VariantKey(const char key[]) : m_string(key), m_type(VariantKeyType::String)
-  { }
+  VariantKey(const char key[]) : m_string(key), m_type(VariantKeyType::String) { }
 
   /*!
    *****************************************************************************
@@ -95,7 +89,7 @@ public:
    *****************************************************************************
    */
   operator int() const;
-  operator const std::string &() const;
+  operator const std::string&() const;
 
   /*!
    *****************************************************************************

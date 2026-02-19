@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -39,8 +40,7 @@ void LogStream::replaceKey(std::string& msg,
 
   if(pos != std::string::npos)
   {
-    msg = msg.substr(0, pos) + value +
-      msg.substr(pos + key.length(), msg.length() - 1);
+    msg = msg.substr(0, pos) + value + msg.substr(pos + key.length(), msg.length() - 1);
 
   }  // END if
 }
@@ -69,6 +69,7 @@ std::string LogStream::getFormatedMessage(const std::string& msgLevel,
                                           const std::string& message,
                                           const std::string& tagName,
                                           const std::string& rank,
+                                          const std::string& rank_count,
                                           const std::string& fileName,
                                           int line)
 {
@@ -79,6 +80,7 @@ std::string LogStream::getFormatedMessage(const std::string& msgLevel,
   this->replaceKey(msg, "<TAG>", tagName);
   this->replaceKey(msg, "<FILE>", fileName);
   this->replaceKey(msg, "<RANK>", rank);
+  this->replaceKey(msg, "<RANK_COUNT>", rank_count);
 
   if(line != MSG_IGNORE_LINE)
   {

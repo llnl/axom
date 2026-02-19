@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -16,6 +17,15 @@ namespace utilities
 {
 namespace string
 {
+
+/*!
+ * \brief An invalid name string used in axom components
+ *
+ * This is an empty string that is available for axom components to compare
+ * as an invalid name.
+ */
+static const std::string InvalidName;
+
 /*!
  * \brief Tests whether a string ends with another string
  * https://stackoverflow.com/questions/20446201/how-to-check-if-string-ends-with-txt/20446257
@@ -48,8 +58,7 @@ inline bool endsWith(const std::string& str, const char suffix)
  */
 inline bool startsWith(const std::string& str, const std::string& prefix)
 {
-  return str.size() >= prefix.size() &&
-    0 == str.compare(0, prefix.size(), prefix);
+  return str.size() >= prefix.size() && 0 == str.compare(0, prefix.size(), prefix);
 }
 
 /*!
@@ -110,9 +119,7 @@ void toUpper(std::string& str);
  * 
  * Splits a string starting from the end of the string into a maximum of \a n tokens
  */
-std::vector<std::string> rsplitN(const std::string& input,
-                                 const std::size_t n,
-                                 const char delim);
+std::vector<std::string> rsplitN(const std::string& input, const std::size_t n, const char delim);
 
 /*!
 *****************************************************************************
@@ -125,9 +132,7 @@ std::vector<std::string> rsplitN(const std::string& input,
 * \return The appended string.  If @a prefix is empty, then just @a name is returned.
 *****************************************************************************
 */
-std::string appendPrefix(const std::string& prefix,
-                         const std::string& name,
-                         const char delim = '/');
+std::string appendPrefix(const std::string& prefix, const std::string& name, const char delim = '/');
 
 /*!
 *****************************************************************************
@@ -143,9 +148,7 @@ std::string appendPrefix(const std::string& prefix,
 * If the prefix is empty or not found the full @a name string is returned.
 *****************************************************************************
 */
-std::string removePrefix(const std::string& prefix,
-                         const std::string& name,
-                         const char delim = '/');
+std::string removePrefix(const std::string& prefix, const std::string& name, const char delim = '/');
 
 /*!
 *****************************************************************************
@@ -171,8 +174,7 @@ std::string removeBeforeDelimiter(const std::string& str, const char delim = '/'
 * \return The filtered string.
 *****************************************************************************
 */
-std::string removeAllInstances(const std::string& target,
-                               const std::string& substr);
+std::string removeAllInstances(const std::string& target, const std::string& substr);
 
 /*!
 *****************************************************************************

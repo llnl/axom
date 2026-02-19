@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -194,8 +195,7 @@ TEST(slam_set_positionset, iterate)
 
 TEST(slam_set_positionset, out_of_bounds_at)
 {
-  SLIC_INFO("Testing out of bounds access using at() "
-            << "-- code is expected to assert and die.");
+  SLIC_INFO("Testing out of bounds access using at() " << "-- code is expected to assert and die.");
   SetType s(MAX_SET_SIZE);
 
 #ifdef AXOM_DEBUG

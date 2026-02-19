@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -339,7 +340,7 @@
       if(!(EXP))                                                      \
       {                                                               \
         std::ostringstream __oss;                                     \
-        __oss << "Failed Assert: " << #EXP << std::ends;              \
+        __oss << "Failed Assert: " << #EXP;                           \
         axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__); \
         if(axom::slic::isAbortOnErrorsEnabled())                      \
         {                                                             \
@@ -365,19 +366,19 @@
  * \endcode
  *
  */
-  #define SLIC_ASSERT_MSG(EXP, msg)                                          \
-    do                                                                       \
-    {                                                                        \
-      if(!(EXP))                                                             \
-      {                                                                      \
-        std::ostringstream __oss;                                            \
-        __oss << "Failed Assert: " << #EXP << std::endl << msg << std::ends; \
-        axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__);        \
-        if(axom::slic::isAbortOnErrorsEnabled())                             \
-        {                                                                    \
-          axom::slic::abort();                                               \
-        }                                                                    \
-      }                                                                      \
+  #define SLIC_ASSERT_MSG(EXP, msg)                                   \
+    do                                                                \
+    {                                                                 \
+      if(!(EXP))                                                      \
+      {                                                               \
+        std::ostringstream __oss;                                     \
+        __oss << "Failed Assert: " << #EXP << std::endl << msg;       \
+        axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__); \
+        if(axom::slic::isAbortOnErrorsEnabled())                      \
+        {                                                             \
+          axom::slic::abort();                                        \
+        }                                                             \
+      }                                                               \
     } while(axom::slic::detail::false_value)
 
   ///@}
@@ -427,7 +428,7 @@
       if(!(EXP))                                                          \
       {                                                                   \
         std::ostringstream __oss;                                         \
-        __oss << "Failed Check: " << #EXP << std::ends;                   \
+        __oss << "Failed Check: " << #EXP;                                \
         if(axom::slic::debug::checksAreErrors)                            \
         {                                                                 \
           axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__);   \
@@ -463,87 +464,43 @@
  * \endcode
  *
  */
-  #define SLIC_CHECK_MSG(EXP, msg)                                          \
-    do                                                                      \
-    {                                                                       \
-      if(!(EXP))                                                            \
-      {                                                                     \
-        std::ostringstream __oss;                                           \
-        __oss << "Failed Check: " << #EXP << std::endl << msg << std::ends; \
-        if(axom::slic::debug::checksAreErrors)                              \
-        {                                                                   \
-          axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__);     \
-          if(axom::slic::isAbortOnErrorsEnabled())                          \
-          {                                                                 \
-            axom::slic::abort();                                            \
-          }                                                                 \
-        }                                                                   \
-        else                                                                \
-        {                                                                   \
-          axom::slic::logWarningMessage(__oss.str(), __FILE__, __LINE__);   \
-          if(axom::slic::isAbortOnWarningsEnabled())                        \
-          {                                                                 \
-            axom::slic::abort();                                            \
-          }                                                                 \
-        }                                                                   \
-      }                                                                     \
+  #define SLIC_CHECK_MSG(EXP, msg)                                        \
+    do                                                                    \
+    {                                                                     \
+      if(!(EXP))                                                          \
+      {                                                                   \
+        std::ostringstream __oss;                                         \
+        __oss << "Failed Check: " << #EXP << std::endl << msg;            \
+        if(axom::slic::debug::checksAreErrors)                            \
+        {                                                                 \
+          axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__);   \
+          if(axom::slic::isAbortOnErrorsEnabled())                        \
+          {                                                               \
+            axom::slic::abort();                                          \
+          }                                                               \
+        }                                                                 \
+        else                                                              \
+        {                                                                 \
+          axom::slic::logWarningMessage(__oss.str(), __FILE__, __LINE__); \
+          if(axom::slic::isAbortOnWarningsEnabled())                      \
+          {                                                               \
+            axom::slic::abort();                                          \
+          }                                                               \
+        }                                                                 \
+      }                                                                   \
     } while(axom::slic::detail::false_value)
 
 /// @}
 
-// Use assert when on device (HIP does not yet support assert())
+// Use assert when on device (note that messages are omitted).
+// Device HIP assert() tested with rocm@6.1.2
+// (ROCm support for device assert() begins with version 5.1.0).
 #elif defined(AXOM_DEBUG) && defined(AXOM_DEVICE_CODE)
-  #if !defined(__HIP_DEVICE_COMPILE__)
-    #define SLIC_ASSERT(EXP) assert(EXP)
-    #define SLIC_ASSERT_MSG(EXP, msg) assert(EXP)
-    #define SLIC_CHECK(EXP) assert(EXP)
-    #define SLIC_CHECK_MSG(EXP, msg) assert(EXP)
-  #else
-// AXOM_DEBUG is defined so the expression and message cannot be ignored
-// as they probably contain parameters that were decorated with AXOM_UNUSED_PARAM
-// which will require the expression and message to be used to avoid warnings.
-// Here we use them in a way that will not really have a runtime effect.
-// The msg code block may contain << operators so we need a stream-like object
-// but we enclose it in "if(false)" so it never executes.
-namespace axom
-{
-namespace slic
-{
-namespace internal
-{
-class blackhole
-{ };
-// Write an object to a blackhole.
-template <typename T>
-AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
-{
-  return bh;
-}
-}  // namespace internal
-}  // namespace slic
-}  // namespace axom
+  #define SLIC_ASSERT(EXP) assert(EXP)
+  #define SLIC_ASSERT_MSG(EXP, msg) assert(EXP)
+  #define SLIC_CHECK(EXP) assert(EXP)
+  #define SLIC_CHECK_MSG(EXP, msg) assert(EXP)
 
-    #define SLIC_ASSERT(EXP) ((void)(EXP))
-    #define SLIC_ASSERT_MSG(EXP, msg)            \
-      {                                          \
-        if(false)                                \
-        {                                        \
-          ((void)(EXP));                         \
-          axom::slic::internal::blackhole __oss; \
-          __oss << msg;                          \
-        }                                        \
-      }
-    #define SLIC_CHECK(EXP) ((void)(EXP))
-    #define SLIC_CHECK_MSG(EXP, msg)             \
-      {                                          \
-        if(false)                                \
-        {                                        \
-          ((void)(EXP));                         \
-          axom::slic::internal::blackhole __oss; \
-          __oss << msg;                          \
-        }                                        \
-      }
-  #endif
 #else  // turn off debug macros and asserts
 
   #define SLIC_ASSERT(ignore_EXP) ((void)0)
@@ -567,15 +524,12 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
  * \endcode
  *
  */
-#define SLIC_INFO(msg)                                \
-  do                                                  \
-  {                                                   \
-    std::ostringstream __oss;                         \
-    __oss << msg;                                     \
-    axom::slic::logMessage(axom::slic::message::Info, \
-                           __oss.str(),               \
-                           __FILE__,                  \
-                           __LINE__);                 \
+#define SLIC_INFO(msg)                                                                  \
+  do                                                                                    \
+  {                                                                                     \
+    std::ostringstream __oss;                                                           \
+    __oss << msg;                                                                       \
+    axom::slic::logMessage(axom::slic::message::Info, __oss.str(), __FILE__, __LINE__); \
   } while(axom::slic::detail::false_value)
 
 /*!
@@ -593,18 +547,12 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
  * \endcode
  *
  */
-#define SLIC_INFO_TAGGED(msg, tag)                    \
-  do                                                  \
-  {                                                   \
-    std::ostringstream __oss;                         \
-    __oss << msg;                                     \
-    axom::slic::logMessage(axom::slic::message::Info, \
-                           __oss.str(),               \
-                           tag,                       \
-                           __FILE__,                  \
-                           __LINE__,                  \
-                           false,                     \
-                           true);                     \
+#define SLIC_INFO_TAGGED(msg, tag)                                                                        \
+  do                                                                                                      \
+  {                                                                                                       \
+    std::ostringstream __oss;                                                                             \
+    __oss << msg;                                                                                         \
+    axom::slic::logMessage(axom::slic::message::Info, __oss.str(), tag, __FILE__, __LINE__, false, true); \
   } while(axom::slic::detail::false_value)
 
 /*!
@@ -622,18 +570,15 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
  * \endcode
  *
  */
-#define SLIC_INFO_IF(EXP, msg)                          \
-  do                                                    \
-  {                                                     \
-    if(EXP)                                             \
-    {                                                   \
-      std::ostringstream __oss;                         \
-      __oss << msg;                                     \
-      axom::slic::logMessage(axom::slic::message::Info, \
-                             __oss.str(),               \
-                             __FILE__,                  \
-                             __LINE__);                 \
-    }                                                   \
+#define SLIC_INFO_IF(EXP, msg)                                                            \
+  do                                                                                      \
+  {                                                                                       \
+    if(EXP)                                                                               \
+    {                                                                                     \
+      std::ostringstream __oss;                                                           \
+      __oss << msg;                                                                       \
+      axom::slic::logMessage(axom::slic::message::Info, __oss.str(), __FILE__, __LINE__); \
+    }                                                                                     \
   } while(axom::slic::detail::false_value)
 
 /*!
@@ -667,8 +612,7 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
  * \endcode
  *
  */
-#define SLIC_INFO_ROOT_IF(EXP, msg) \
-  SLIC_INFO_IF((EXP) && (axom::slic::isRoot()), msg)
+#define SLIC_INFO_ROOT_IF(EXP, msg) SLIC_INFO_IF((EXP) && (axom::slic::isRoot()), msg)
 
 #ifdef AXOM_DEBUG
 
@@ -686,15 +630,12 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
  * \endcode
  *
  */
-  #define SLIC_DEBUG(msg)                                \
-    do                                                   \
-    {                                                    \
-      std::ostringstream __oss;                          \
-      __oss << msg;                                      \
-      axom::slic::logMessage(axom::slic::message::Debug, \
-                             __oss.str(),                \
-                             __FILE__,                   \
-                             __LINE__);                  \
+  #define SLIC_DEBUG(msg)                                                                  \
+    do                                                                                     \
+    {                                                                                      \
+      std::ostringstream __oss;                                                            \
+      __oss << msg;                                                                        \
+      axom::slic::logMessage(axom::slic::message::Debug, __oss.str(), __FILE__, __LINE__); \
     } while(axom::slic::detail::false_value)
 
   /*!
@@ -712,18 +653,15 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
  * \endcode
  *
  */
-  #define SLIC_DEBUG_IF(EXP, msg)                          \
-    do                                                     \
-    {                                                      \
-      if(EXP)                                              \
-      {                                                    \
-        std::ostringstream __oss;                          \
-        __oss << msg;                                      \
-        axom::slic::logMessage(axom::slic::message::Debug, \
-                               __oss.str(),                \
-                               __FILE__,                   \
-                               __LINE__);                  \
-      }                                                    \
+  #define SLIC_DEBUG_IF(EXP, msg)                                                            \
+    do                                                                                       \
+    {                                                                                        \
+      if(EXP)                                                                                \
+      {                                                                                      \
+        std::ostringstream __oss;                                                            \
+        __oss << msg;                                                                        \
+        axom::slic::logMessage(axom::slic::message::Debug, __oss.str(), __FILE__, __LINE__); \
+      }                                                                                      \
     } while(axom::slic::detail::false_value)
 
   /*!
@@ -757,8 +695,32 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
  * \endcode
  *
  */
-  #define SLIC_DEBUG_ROOT_IF(EXP, msg) \
-    SLIC_DEBUG_IF((EXP) && (axom::slic::isRoot()), msg)
+  #define SLIC_DEBUG_ROOT_IF(EXP, msg) SLIC_DEBUG_IF((EXP) && (axom::slic::isRoot()), msg)
+
+  /*!
+ * \def SLIC_DEBUG_PRINT_CONTAINER( name, container )
+ * \brief Logs a Debug message containing the contents of the container, moving
+ *        the contents to the host if needed.
+ *
+ * \param [in] name The name of the container in the printed message.
+ * \param [in] container The container (array, vector, view).
+ *
+ * \note The SLIC_DEBUG_PRINT_CONTAINER macro is active when AXOM_DEBUG is defined.
+ *
+ * Usage:
+ * \code
+ *   axom::ArrayView<int> dataView;
+ *   SLIC_DEBUG_PRINT_CONTAINER( "dataView", dataView );
+ * \endcode
+ *
+ */
+  #define SLIC_DEBUG_PRINT_CONTAINER(name, container)                                      \
+    do                                                                                     \
+    {                                                                                      \
+      std::ostringstream __oss;                                                            \
+      axom::slic::detail::printContainer(__oss, name, container);                          \
+      axom::slic::logMessage(axom::slic::message::Debug, __oss.str(), __FILE__, __LINE__); \
+    } while(axom::slic::detail::false_value)
 
 #else  // turn off debug macros
 
@@ -766,6 +728,7 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
   #define SLIC_DEBUG_IF(ignore_EXP, ignore_msg) ((void)0)
   #define SLIC_DEBUG_ROOT(ignore_EXP) ((void)0)
   #define SLIC_DEBUG_ROOT_IF(ignore_EXP, ignore_msg) ((void)0)
+  #define SLIC_DEBUG_PRINT_CONTAINER(ignore_name, ignore_container) ((void)0)
 
 #endif
 

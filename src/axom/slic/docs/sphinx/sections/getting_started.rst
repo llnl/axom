@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -168,7 +169,7 @@ The :ref:`GenericOutputStream`,  takes two arguments in its constructor:
    will deallocate them when ``slic::finalize()`` is called.
 
 Step 5.1: Tagged Log Streams
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Slic has limited support for tags, where users can bind streams
 to user-defined tags. The bound streams only output messages with the

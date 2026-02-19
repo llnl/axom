@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -122,15 +123,13 @@ Buffer* Buffer::reallocate(IndexType num_elems)
 {
   if(!isDescribed())
   {
-    SLIC_CHECK_MSG(!isDescribed(),
-                   "Can't re-allocate Buffer with no type description.");
+    SLIC_CHECK_MSG(!isDescribed(), "Can't re-allocate Buffer with no type description.");
     return this;
   }
 
   if(num_elems < 0)
   {
-    SLIC_CHECK_MSG(num_elems >= 0,
-                   "Cannot re-allocate with number of elements < 0");
+    SLIC_CHECK_MSG(num_elems >= 0, "Cannot re-allocate with number of elements < 0");
     return this;
   }
 
@@ -139,8 +138,7 @@ Buffer* Buffer::reallocate(IndexType num_elems)
   DataType dtype(m_node.dtype());
   dtype.set_number_of_elements(num_elems);
   IndexType new_size = dtype.strided_bytes();
-  void* new_data_ptr =
-    axom::reallocate(static_cast<std::uint8_t*>(old_data_ptr), new_size);
+  void* new_data_ptr = axom::reallocate(static_cast<std::uint8_t*>(old_data_ptr), new_size);
 
   if(num_elems == 0 || new_data_ptr != nullptr)
   {
@@ -196,8 +194,7 @@ Buffer* Buffer::copyBytesIntoBuffer(void* src, IndexType nbytes)
   {
     if(src == nullptr)
     {
-      SLIC_CHECK_MSG(nbytes == 0,
-                     "Cannot copy data into Buffer from null pointer.");
+      SLIC_CHECK_MSG(nbytes == 0, "Cannot copy data into Buffer from null pointer.");
     }
     SLIC_CHECK_MSG(nbytes >= 0, "Cannot copy < 0 bytes of data into Buffer.");
     SLIC_CHECK_MSG(nbytes <= getTotalBytes(),

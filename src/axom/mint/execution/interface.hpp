@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -19,10 +20,6 @@
 
 // Slic includes
 #include "axom/slic/interface/slic.hpp"  // for SLIC macros
-
-#ifdef AXOM_USE_RAJA
-  #include "RAJA/RAJA.hpp"
-#endif
 
 // C/C++ includes
 #include <type_traits>  // for std::is_same
@@ -147,9 +144,7 @@ inline void for_all_nodes(const MeshType* m, KernelType&& kernel)
   SLIC_ASSERT(m != nullptr);
 
   // dispatch
-  internal::for_all_nodes_impl<ExecPolicy>(ArgType(),
-                                           *m,
-                                           std::forward<KernelType>(kernel));
+  internal::for_all_nodes_impl<ExecPolicy>(ArgType(), *m, std::forward<KernelType>(kernel));
 }
 
 template <typename ExecPolicy, typename ArgType = xargs::index, typename KernelType>
@@ -163,9 +158,7 @@ inline void for_all_nodes(const Mesh* m, KernelType&& kernel)
   SLIC_ASSERT(m != nullptr);
 
   //dispatch
-  internal::for_all_nodes<ExecPolicy>(ArgType(),
-                                      *m,
-                                      std::forward<KernelType>(kernel));
+  internal::for_all_nodes<ExecPolicy>(ArgType(), *m, std::forward<KernelType>(kernel));
 }
 
 /// @}
@@ -241,9 +234,7 @@ inline void for_all_cells(const MeshType* m, KernelType&& kernel)
   SLIC_ASSERT(m != nullptr);
 
   // dispatch
-  internal::for_all_cells_impl<ExecPolicy>(ArgType(),
-                                           *m,
-                                           std::forward<KernelType>(kernel));
+  internal::for_all_cells_impl<ExecPolicy>(ArgType(), *m, std::forward<KernelType>(kernel));
 }
 
 template <typename ExecPolicy, typename ArgType = xargs::index, typename KernelType>
@@ -257,9 +248,7 @@ inline void for_all_cells(const Mesh* m, KernelType&& kernel)
   SLIC_ASSERT(m != nullptr);
 
   //dispatch
-  internal::for_all_cells<ExecPolicy>(ArgType(),
-                                      *m,
-                                      std::forward<KernelType>(kernel));
+  internal::for_all_cells<ExecPolicy>(ArgType(), *m, std::forward<KernelType>(kernel));
 }
 
 /// @}
@@ -330,9 +319,7 @@ inline void for_all_faces(const MeshType* m, KernelType&& kernel)
   SLIC_ASSERT(m != nullptr);
 
   // dispatch
-  internal::for_all_faces_impl<ExecPolicy>(ArgType(),
-                                           *m,
-                                           std::forward<KernelType>(kernel));
+  internal::for_all_faces_impl<ExecPolicy>(ArgType(), *m, std::forward<KernelType>(kernel));
 }
 
 template <typename ExecPolicy, typename ArgType = xargs::index, typename KernelType>
@@ -346,9 +333,7 @@ inline void for_all_faces(const Mesh* m, KernelType&& kernel)
   SLIC_ASSERT(m != nullptr);
 
   //dispatch
-  internal::for_all_faces<ExecPolicy>(ArgType(),
-                                      *m,
-                                      std::forward<KernelType>(kernel));
+  internal::for_all_faces<ExecPolicy>(ArgType(), *m, std::forward<KernelType>(kernel));
 }
 
 /// @}

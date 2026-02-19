@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -76,10 +77,7 @@ public:
    *
    * \return Number of ranks in the set.
    */
-  int setSize() const
-  {
-    return m_my_rank < m_first_regular_set_rank ? m_set_size + 1 : m_set_size;
-  }
+  int setSize() const { return m_my_rank < m_first_regular_set_rank ? m_set_size + 1 : m_set_size; }
 
   /*!
    * \brief Tells if the local rank is the first (lowest) in its set.

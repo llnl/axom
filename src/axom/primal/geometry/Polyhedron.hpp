@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -15,7 +16,7 @@
 #include "axom/core/StackArray.hpp"
 
 #include "axom/primal/geometry/Hexahedron.hpp"
-#include "axom/primal/geometry/NumericArray.hpp"
+#include "axom/core/NumericArray.hpp"
 #include "axom/primal/geometry/Octahedron.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Tetrahedron.hpp"
@@ -73,7 +74,9 @@ public:
    */
   AXOM_HOST_DEVICE int getNumNeighbors(int vtx) const
   {
+#if !defined(__HIP_DEVICE_COMPILE__)
     SLIC_ASSERT(vtx >= 0 && vtx < MAX_VERTS);
+#endif
     return num_nbrs[vtx];
   }
 
@@ -91,7 +94,9 @@ public:
    */
   AXOM_HOST_DEVICE VertexNbrs& operator[](int vtx)
   {
+#if !defined(__HIP_DEVICE_COMPILE__)
     SLIC_ASSERT(vtx >= 0 && vtx < MAX_VERTS);
+#endif
     return getNeighbors(vtx);
   }
 
@@ -109,7 +114,9 @@ public:
    */
   AXOM_HOST_DEVICE VertexNbrs& getNeighbors(int vtx)
   {
+#if !defined(__HIP_DEVICE_COMPILE__)
     SLIC_ASSERT(vtx >= 0 && vtx < MAX_VERTS);
+#endif
     return nbrs[vtx];
   }
 
@@ -121,10 +128,11 @@ public:
    *
    * \pre vtx < MAX_VERTS
    */
-  AXOM_HOST_DEVICE void addNeighbors(std::int8_t vtx,
-                                     std::initializer_list<std::int8_t> nbrIds)
+  AXOM_HOST_DEVICE void addNeighbors(std::int8_t vtx, std::initializer_list<std::int8_t> nbrIds)
   {
+#if !defined(__HIP_DEVICE_COMPILE__)
     SLIC_ASSERT(num_nbrs[vtx] + nbrIds.size() <= MAX_NBRS_PER_VERT);
+#endif
     SLIC_ASSERT(vtx >= 0 && vtx < MAX_VERTS);
     for(std::int8_t nbr : nbrIds)
     {
@@ -144,7 +152,9 @@ public:
    */
   AXOM_HOST_DEVICE void addNeighbors(std::int8_t vtx, std::int8_t nbrId)
   {
+#if !defined(__HIP_DEVICE_COMPILE__)
     SLIC_ASSERT(num_nbrs[vtx] + 1 <= MAX_NBRS_PER_VERT);
+#endif
     SLIC_ASSERT(vtx >= 0 && vtx < MAX_VERTS);
     std::int8_t idx_insert = num_nbrs[vtx];
     nbrs[vtx][idx_insert] = nbrId;
@@ -162,13 +172,15 @@ public:
    * \pre vtx < MAX_VERTS
    * \pre pos <= num_nbrs[vtx]
    */
-  AXOM_HOST_DEVICE void insertNeighborAtPos(std::int8_t vtx,
-                                            std::int8_t nbr,
-                                            std::int8_t pos)
+  AXOM_HOST_DEVICE void insertNeighborAtPos(std::int8_t vtx, std::int8_t nbr, std::int8_t pos)
   {
+#if !defined(__HIP_DEVICE_COMPILE__)
     SLIC_ASSERT(num_nbrs[vtx] + 1 <= MAX_NBRS_PER_VERT);
-    SLIC_ASSERT(vtx >= 0 && vtx < MAX_VERTS);
     SLIC_ASSERT(pos <= num_nbrs[vtx]);
+#endif
+
+    SLIC_ASSERT(vtx >= 0 && vtx < MAX_VERTS);
+
     std::uint8_t old_nbrs[MAX_NBRS_PER_VERT];
     // copy elements from [pos, nnbrs)
     for(int ip = pos; ip < num_nbrs[vtx]; ip++)
@@ -251,11 +263,14 @@ template <typename T, int NDIMS = 3>
 class Polyhedron
 {
 public:
+  constexpr static int MAX_VERTS = NeighborCollection::MAX_VERTS;
+  constexpr static int MAX_PLANES = MAX_VERTS;
+
   using PointType = Point<T, NDIMS>;
   using VectorType = Vector<T, NDIMS>;
-  using NumArrayType = NumericArray<T, NDIMS>;
-
-  constexpr static int MAX_VERTS = NeighborCollection::MAX_VERTS;
+  using NumArrayType = axom::NumericArray<T, NDIMS>;
+  using PlaneType = Plane<T, NDIMS>;
+  using PlaneArrayType = StackArray<PlaneType, MAX_PLANES>;
 
 private:
   using Coords = StackArray<PointType, MAX_VERTS>;
@@ -332,10 +347,7 @@ public:
    * \pre vtxId < getVertices()
    */
   AXOM_HOST_DEVICE
-  void addNeighbors(int vtxId, int nbr)
-  {
-    m_neighbors.addNeighbors(vtxId, nbr);
-  }
+  void addNeighbors(int vtxId, int nbr) { m_neighbors.addNeighbors(vtxId, nbr); }
 
   /*! Clears the list of vertices and neighbors */
   AXOM_HOST_DEVICE void clear()
@@ -350,39 +362,30 @@ public:
   /*! Retrieves the vertex at index idx */
   AXOM_HOST_DEVICE PointType& operator[](int idx) { return m_vertices[idx]; }
   /*! Retrieves the vertex at index idx */
-  AXOM_HOST_DEVICE const PointType& operator[](int idx) const
-  {
-    return m_vertices[idx];
-  }
+  AXOM_HOST_DEVICE const PointType& operator[](int idx) const { return m_vertices[idx]; }
 
   /*! Retrieves the neighbors */
   AXOM_HOST_DEVICE Neighbors& getNeighbors() { return m_neighbors; }
 
-  AXOM_HOST_DEVICE int getNumNeighbors(int i) const
-  {
-    return m_neighbors.getNumNeighbors(i);
-  }
+  AXOM_HOST_DEVICE int getNumNeighbors(int i) const { return m_neighbors.getNumNeighbors(i); }
 
   /*! Retrieves the neighbors for vertex i */
   AXOM_HOST_DEVICE
   typename Neighbors::VertexNbrs& getNeighbors(int i) { return m_neighbors[i]; }
   /*! Retrieves the neighbors for vertex i */
   AXOM_HOST_DEVICE
-  const typename Neighbors::VertexNbrs& getNeighbors(int i) const
-  {
-    return m_neighbors[i];
-  }
+  const typename Neighbors::VertexNbrs& getNeighbors(int i) const { return m_neighbors[i]; }
 
   /*!
-   * \brief Computes the centroid as the average of the polyhedron's vertex
+   * \brief Computes the vertex mean as the average of the polyhedron's vertex
    *  positions
    *
-   * \return The centroid of the polyhedron's vertices
+   * \return The vertex mean of the polyhedron's vertices
    *
    * \pre  polyhedron.isValid() is true
    */
   AXOM_HOST_DEVICE
-  PointType centroid() const
+  PointType vertexMean() const
   {
     SLIC_ASSERT(isValid());
 
@@ -404,6 +407,8 @@ public:
    * \brief Helper function to find the faces of the Polyhedron, assuming the
    *        vertex neighbors are in counter-clockwise ordering.
    *
+   * \tparam ConnectivityType The type to generate for the polyhedral face data.
+   *
    * \param [out] faces is the vertex indices for faces
    * \param [out] face_offset is the offset for each face
    * \param [out] face_size is the number of vertices for each face
@@ -420,8 +425,11 @@ public:
    *
    * \pre polyhedron vertex neighbors are defined
    */
-  AXOM_HOST_DEVICE
-  void getFaces(int* faces, int* face_size, int* face_offset, int& face_count) const
+  template <typename ConnectivityType = int>
+  AXOM_HOST_DEVICE void getFaces(ConnectivityType* faces,
+                                 ConnectivityType* face_size,
+                                 ConnectivityType* face_offset,
+                                 axom::IndexType& face_count) const
   {
     std::int8_t curFaceIndex = 0;
     std::int8_t checkedSize = 0;
@@ -503,11 +511,156 @@ public:
   }
 
   /*!
+   * \brief Get the polyhedron's faces as planes.
+   *
+   * \param[out] The number of faces.
+   * \param divideNonPlanarFaces Whether to divide non-planar faces into separate planes.
+   * \param eps The tolerance used to decide whether points are close enough to a plane.
+   *
+   * \return An array of planes that describe the faces.
+   */
+  AXOM_HOST_DEVICE PlaneArrayType getFaces(axom::IndexType& numFaces,
+                                           bool divideNonPlanarFaces = true,
+                                           double eps = 1.e-8) const
+  {
+    PlaneArrayType facePlanes;
+    numFaces = 0;
+
+    // Get faces
+    int faces[MAX_VERTS * MAX_VERTS];
+    int face_size[MAX_VERTS * 2];
+    int face_offset[MAX_VERTS * 2];
+    axom::IndexType face_count;
+    getFaces<int>(faces, face_size, face_offset, face_count);
+
+    // Turn the faces to planes.
+    numFaces = 0;
+    for(axom::IndexType i = 0; i < face_count; ++i)
+    {
+      const int i_offset = face_offset[i];
+      const auto p0 = m_vertices[faces[i_offset]];
+      const auto p1 = m_vertices[faces[i_offset + 1]];
+      const auto p2 = m_vertices[faces[i_offset + 2]];
+
+      // Make a plane.
+      auto plane = axom::primal::make_plane(p0, p1, p2);
+
+      // We've already made 1 plane for the face. Treat the face as a triangle
+      // fan and add the rest of the planes, if they are different enough from
+      // the previous plane.
+      if(divideNonPlanarFaces)
+      {
+        facePlanes[numFaces] = plane;
+        numFaces = (numFaces + 1 < MAX_PLANES) ? (numFaces + 1) : numFaces;
+
+        const int extraPlanes = face_size[i] - 3;
+        for(int ep = 0; ep < extraPlanes; ep++)
+        {
+          // Get the last point in the triangle.
+          const auto ep2 = m_vertices[faces[i_offset + 3 + ep]];
+
+          // Check its signed distance vs the previous plane. If the point is far
+          // enough away, we make the plane.
+          const auto dist = plane.signedDistance(ep2);
+          if(axom::utilities::abs(dist) > eps)
+          {
+            const auto ep1 = m_vertices[faces[i_offset + 2 + ep]];
+            const auto plane2 = axom::primal::make_plane(p0, ep1, ep2);
+
+            facePlanes[numFaces] = plane2;
+            numFaces = (numFaces + 1 < MAX_PLANES) ? (numFaces + 1) : numFaces;
+
+            plane = plane2;
+          }
+        }
+      }
+      else
+      {
+        facePlanes[numFaces] = plane;
+        numFaces = (numFaces + 1 < MAX_PLANES) ? (numFaces + 1) : numFaces;
+      }
+    }
+    return facePlanes;
+  }
+
+  /*!
+   * \brief Computes the moments of the polyhedron. The 0th moment is the
+   *        volume of the polyhedron, the 1st moment is the centroid.
+   *
+   * \param [out] volume The volume of the polyhedron (0th moment)
+   * \param [out] centroid The centroid of the polyhedron (1st moment)
+   * \param [in]  should_compute_centroid If true, computes the centroid
+   *              of the polyhedron. Default is true.
+   *
+   * \note Function is based off moments() in Mike Owen's PolyClipper.
+   *
+   * \pre polyhedron vertex neighbors are defined, and polyhedron is 3D
+   *
+   * \sa volume()
+   * \sa centroid()
+   */
+  AXOM_HOST_DEVICE
+  void moments(double& volume, PointType& centroid, bool should_compute_centroid = true) const
+  {
+    volume = 0.0;
+
+    VectorType centroid_vector;
+
+    if(!isValid() || hasDuplicateVertices())
+    {
+      return;
+    }
+
+    // Computes the signed volume of tetrahedra formed from vertices of the
+    // Polyhedron faces and an arbitrary origin (the first vertex), as well
+    // as the centroid of the Polyhedron.
+    else
+    {
+      SLIC_CHECK_MSG(hasNeighbors(), "Polyhedron::moments() is only valid with vertex neighbors.");
+
+      // faces is an overestimation
+      int faces[MAX_VERTS * MAX_VERTS];
+      int face_size[MAX_VERTS * 2];
+      int face_offset[MAX_VERTS * 2];
+      axom::IndexType face_count;
+      getFaces(faces, face_size, face_offset, face_count);
+
+      const PointType& origin = m_vertices[0];
+
+      for(axom::IndexType i = 0; i < face_count; ++i)
+      {
+        const int N = face_size[i];
+        const int i_offset = face_offset[i];
+        const VectorType v0 = m_vertices[faces[i_offset]] - origin;
+
+        for(int j = 1, k = 2; j < N - 1; ++j, ++k)
+        {
+          VectorType v1 = m_vertices[faces[i_offset + j]] - origin;
+          VectorType v2 = m_vertices[faces[i_offset + k]] - origin;
+          const T curVol = VectorType::scalar_triple_product(v0, v1, v2);
+
+          volume += curVol;
+          if(should_compute_centroid)
+          {
+            centroid_vector += (v0 + v1 + v2) * curVol;
+          }
+        }
+      }
+
+      volume /= 6.;
+
+      if(should_compute_centroid)
+      {
+        centroid_vector /= (volume != 0.0) ? (24.0 * volume) : axom::primal::PRIMAL_TINY;
+        centroid = centroid_vector + origin;
+      }
+    }
+  }
+
+  /*!
    * \brief Computes the signed volume of the polyhedron.
    *
    * \return The signed volume of the polyhedron
-   *
-   * \note Function is based off moments() in Mike Owen's PolyClipper.
    *
    * \pre polyhedron vertex neighbors are defined, and polyhedron is 3D
    *
@@ -516,47 +669,10 @@ public:
   AXOM_HOST_DEVICE
   double signedVolume() const
   {
-    double retVol = 0.0;
-
-    if(!isValid() || hasDuplicateVertices())
-    {
-      return retVol;
-    }
-
-    // Computes the signed volume of tetrahedra formed from vertices of the
-    // Polyhedron faces and an arbitrary origin (the first vertex)
-    else
-    {
-      SLIC_CHECK_MSG(
-        hasNeighbors(),
-        "Polyhedron::signedVolume() is only valid with vertex neighbors.");
-
-      // faces is an overestimation
-      int faces[MAX_VERTS * MAX_VERTS];
-      int face_size[MAX_VERTS * 2];
-      int face_offset[MAX_VERTS * 2];
-      int face_count;
-      getFaces(faces, face_size, face_offset, face_count);
-
-      const PointType& origin = m_vertices[0];
-
-      for(int i = 0; i < face_count; ++i)
-      {
-        const int N = face_size[i];
-        const int i_offset = face_offset[i];
-        const VectorType v0 = m_vertices[faces[i_offset]] - origin;
-
-        for(int j = 1, k = 2; j < N - 1; ++j, ++k)
-        {
-          retVol += VectorType::scalar_triple_product(
-            v0,
-            m_vertices[faces[i_offset + j]] - origin,
-            m_vertices[faces[i_offset + k]] - origin);
-        }
-      }
-    }
-
-    return retVol / 6.;
+    double volume;
+    PointType centroid;
+    moments(volume, centroid, false);
+    return volume;
   }
 
   /*!
@@ -565,6 +681,22 @@ public:
    */
   AXOM_HOST_DEVICE
   double volume() const { return axom::utilities::abs(signedVolume()); }
+
+  /*!
+   * \brief Computes the centroid as the center of mass of the polyhedron
+   *
+   * \return The centroid of the polyhedron
+   *
+   * \pre  polyhedron.isValid() is true
+   */
+  AXOM_HOST_DEVICE
+  PointType centroid() const
+  {
+    double volume;
+    PointType centroid;
+    moments(volume, centroid);
+    return centroid;
+  }
 
   /*!
    * \brief Simple formatted print of a polyhedron instance
@@ -631,13 +763,14 @@ public:
   AXOM_HOST_DEVICE
   bool hasDuplicateVertices(double eps = 1.e-10) const
   {
+    const auto typedEPS = static_cast<T>(eps);
     for(int i = 0; i < m_num_vertices; i++)
     {
       for(int j = i + 1; j < m_num_vertices; j++)
       {
-        if(axom::utilities::isNearlyEqual(m_vertices[i][0], m_vertices[j][0], eps) &&
-           axom::utilities::isNearlyEqual(m_vertices[i][1], m_vertices[j][1], eps) &&
-           axom::utilities::isNearlyEqual(m_vertices[i][2], m_vertices[j][2], eps))
+        if(axom::utilities::isNearlyEqual(m_vertices[i][0], m_vertices[j][0], typedEPS) &&
+           axom::utilities::isNearlyEqual(m_vertices[i][1], m_vertices[j][1], typedEPS) &&
+           axom::utilities::isNearlyEqual(m_vertices[i][2], m_vertices[j][2], typedEPS))
         {
           return true;
         }
@@ -709,8 +842,7 @@ public:
    *
    */
   AXOM_HOST_DEVICE
-  static Polyhedron from_primitive(const Hexahedron<T, NDIMS>& hex,
-                                   bool tryFixOrientation = false)
+  static Polyhedron from_primitive(const Hexahedron<T, NDIMS>& hex, bool tryFixOrientation = false)
   {
     // Initialize our polyhedron to return
     Polyhedron<T, NDIMS> poly;
@@ -789,8 +921,7 @@ public:
    *
    */
   AXOM_HOST_DEVICE
-  static Polyhedron from_primitive(const Octahedron<T, NDIMS>& oct,
-                                   bool tryFixOrientation = false)
+  static Polyhedron from_primitive(const Octahedron<T, NDIMS>& oct, bool tryFixOrientation = false)
   {
     // Initialize our polyhedron to return
     Polyhedron<T, NDIMS> poly;
@@ -864,8 +995,7 @@ public:
    *
    */
   AXOM_HOST_DEVICE
-  static Polyhedron from_primitive(const Tetrahedron<T, NDIMS>& tet,
-                                   bool tryFixOrientation = false)
+  static Polyhedron from_primitive(const Tetrahedron<T, NDIMS>& tet, bool tryFixOrientation = false)
   {
     // Initialize our polyhedron to return
     Polyhedron<T, NDIMS> poly;
@@ -894,14 +1024,7 @@ public:
 
 private:
   int m_num_vertices {0};
-  Coords m_vertices {PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {}};
+  Coords m_vertices;
   Neighbors m_neighbors {};
 };
 

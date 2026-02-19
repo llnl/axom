@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -13,7 +14,7 @@ message(STATUS "Configuring Axom version ${AXOM_VERSION_FULL}")
 ## Add a definition to the generated config file for each library dependency
 ## (optional and built-in) that we might need to know about in the code. We
 ## check for vars of the form <DEP>_FOUND or ENABLE_<DEP>
-set(TPL_DEPS ADIAK C2C CALIPER CAMP CLI11 CONDUIT CUDA FMT HIP HDF5 LUA MFEM MPI OPENMP RAJA SCR SOL SPARSEHASH UMPIRE )
+set(TPL_DEPS ADIAK C2C CALIPER CAMP CLI11 CONDUIT CUDA FMT HIP HDF5 LUA MFEM MPI OPENMP OPENCASCADE RAJA SCR SOL SPARSEHASH UMPIRE ZLIB)
 foreach(dep ${TPL_DEPS})
     if( ${dep}_FOUND OR ENABLE_${dep} )
         set(AXOM_USE_${dep} TRUE  )
@@ -43,9 +44,12 @@ foreach(option MPI3)
     endif()
 endforeach()
 
-convert_to_native_escaped_file_path(${PROJECT_SOURCE_DIR} AXOM_SRC_DIR)
-convert_to_native_escaped_file_path(${PROJECT_BINARY_DIR} AXOM_BIN_DIR)
-
+# Handle paths
+convert_to_native_escaped_file_path(${PROJECT_SOURCE_DIR} AXOM_SRC_DIR_NATIVE)
+convert_to_native_escaped_file_path(${PROJECT_BINARY_DIR} AXOM_BIN_DIR_NATIVE)
+if(AXOM_DATA_DIR)
+  convert_to_native_escaped_file_path(${AXOM_DATA_DIR} AXOM_DATA_DIR_NATIVE)
+endif()
 
 #------------------------------------------------------------------------------
 # Compiler and language related configuration variables

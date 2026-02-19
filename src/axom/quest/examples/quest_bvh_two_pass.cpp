@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -39,16 +40,15 @@ enum class ExecPolicy
   HIP
 };
 
-const std::map<std::string, ExecPolicy> validExecPolicies {
-  {"seq", ExecPolicy::CPU},
+const std::map<std::string, ExecPolicy> validExecPolicies {{"seq", ExecPolicy::CPU},
 #ifdef AXOM_USE_OPENMP
-  {"omp", ExecPolicy::OpenMP},
+                                                           {"omp", ExecPolicy::OpenMP},
 #endif
 #ifdef AXOM_USE_CUDA
-  {"cuda", ExecPolicy::CUDA}
+                                                           {"cuda", ExecPolicy::CUDA}
 #endif
 #ifdef AXOM_USE_HIP
-  {"hip", ExecPolicy::HIP}
+                                                           {"hip", ExecPolicy::HIP}
 #endif
 };
 
@@ -107,15 +107,8 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
 {
   using PointType = axom::primal::Point<double, 3>;
   using BoxType = axom::primal::BoundingBox<double, 3>;
-// Intel oneAPI compiler segfaults with OpenMP RAJA scan
-#ifdef __INTEL_LLVM_COMPILER
-  using exec_pol = typename axom::execution_space<axom::SEQ_EXEC>::loop_policy;
-#else
-  using exec_pol = typename axom::execution_space<ExecSpace>::loop_policy;
-#endif
-  using reduce_pol = typename axom::execution_space<ExecSpace>::reduce_policy;
 
-  int allocatorId = axom::execution_space<ExecSpace>::allocatorID();
+  const int allocatorId = axom::execution_space<ExecSpace>::allocatorID();
 
   const int ncells = mesh->getNumberOfCells();
 
@@ -125,9 +118,7 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
   // Initialize the bounding box for each cell
   mint::for_all_cells<ExecSpace, mint::xargs::coords>(
     mesh,
-    AXOM_LAMBDA(IndexType cellIdx,
-                axom::numerics::Matrix<double> & coords,
-                const IndexType* nodeIds) {
+    AXOM_LAMBDA(IndexType cellIdx, axom::numerics::Matrix<double> & coords, const IndexType* nodeIds) {
       AXOM_UNUSED_VAR(nodeIds);
       int numNodes = coords.getNumColumns();
       BoxType aabb;
@@ -135,9 +126,7 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
       for(IndexType inode = 0; inode < numNodes; ++inode)
       {
         const double* node = coords.getColumn(inode);
-        PointType vtx {node[mint::X_COORDINATE],
-                       node[mint::Y_COORDINATE],
-                       node[mint::Z_COORDINATE]};
+        PointType vtx {node[mint::X_COORDINATE], node[mint::Y_COORDINATE], node[mint::Z_COORDINATE]};
         aabb.addPoint(vtx);
       }  // END for all cells nodes
 
@@ -158,13 +147,12 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
   // We traverse any nodes whose bounding boxes intersect the query
   // bounding box.
   // _bvh_traverse_predicate_start
-  auto bbIsect = [] AXOM_HOST_DEVICE(const BoxType& queryBbox,
-                                     const BoxType& bvhBbox) -> bool {
+  auto bbIsect = [] AXOM_HOST_DEVICE(const BoxType& queryBbox, const BoxType& bvhBbox) -> bool {
     return queryBbox.intersectsWith(bvhBbox);
   };
   // _bvh_traverse_predicate_end
 
-  RAJA::ReduceSum<reduce_pol, IndexType> total_count_reduce(0);
+  axom::ReduceSum<ExecSpace, IndexType> total_count_reduce(0);
 
   // _bvh_traverse_first_pass_start
   // Allocate arrays for offsets and counts
@@ -182,8 +170,7 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
       // Define a function that is called on every leaf node reached during
       // traversal. The function below simply counts the number of candidate
       // collisions with the given query object.
-      auto countCollisions = [&](std::int32_t currentNode,
-                                 const std::int32_t* leafNodes) {
+      auto countCollisions = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
         AXOM_UNUSED_VAR(leafNodes);
         if(currentNode > icell)
         {
@@ -201,9 +188,8 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
     });
 
   // Generate offsets
-  RAJA::exclusive_scan<exec_pol>(RAJA::make_span(counts.data(), ncells),
-                                 RAJA::make_span(offsets.data(), ncells),
-                                 RAJA::operators::plus<IndexType> {});
+  axom::exclusive_scan<ExecSpace>(counts, offsets);
+
   // _bvh_traverse_first_pass_end
 
   IndexType ncollisions = total_count_reduce.get();
@@ -224,8 +210,7 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
       IndexType offset = v_offsets[icell];
 
       // Define a leaf node function that stores the intersection candidate.
-      auto fillCollisions = [&](std::int32_t currentNode,
-                                const std::int32_t* leafs) {
+      auto fillCollisions = [&](std::int32_t currentNode, const std::int32_t* leafs) {
         if(currentNode > icell)
         {
           v_first_pair[offset] = icell;
@@ -261,8 +246,6 @@ void find_collisions_narrowphase(const mint::Mesh* mesh,
 {
   using PointType = axom::primal::Point<double, 3>;
   using TriangleType = axom::primal::Triangle<double, 3>;
-  using atomic_pol = typename axom::execution_space<ExecSpace>::atomic_policy;
-  using reduce_pol = typename axom::execution_space<ExecSpace>::reduce_policy;
 
   int allocatorId = axom::execution_space<ExecSpace>::allocatorID();
 
@@ -274,9 +257,7 @@ void find_collisions_narrowphase(const mint::Mesh* mesh,
   // Create an array with our surface mesh's triangles
   mint::for_all_cells<ExecSpace, mint::xargs::coords>(
     mesh,
-    AXOM_LAMBDA(IndexType cellIdx,
-                axom::numerics::Matrix<double> & coords,
-                const IndexType* nodeIds) {
+    AXOM_LAMBDA(IndexType cellIdx, axom::numerics::Matrix<double> & coords, const IndexType* nodeIds) {
       AXOM_UNUSED_VAR(nodeIds);
       TriangleType tri;
 
@@ -285,9 +266,7 @@ void find_collisions_narrowphase(const mint::Mesh* mesh,
       for(IndexType inode = 0; inode < numNodes; ++inode)
       {
         const double* node = coords.getColumn(inode);
-        PointType vtx {node[mint::X_COORDINATE],
-                       node[mint::Y_COORDINATE],
-                       node[mint::Z_COORDINATE]};
+        PointType vtx {node[mint::X_COORDINATE], node[mint::Y_COORDINATE], node[mint::Z_COORDINATE]};
         tri[inode] = vtx;
       }  // END for all cells nodes
 
@@ -302,7 +281,7 @@ void find_collisions_narrowphase(const mint::Mesh* mesh,
 
   axom::Array<IndexType> counter(1, 1, allocatorId);
 
-  RAJA::ReduceSum<reduce_pol, IndexType> total_count_reduce(0);
+  axom::ReduceSum<ExecSpace, IndexType> total_count_reduce(0);
 
   const auto v_counter = counter.view();
   const auto v_inFirstPair = inFirstPair.view();
@@ -318,7 +297,7 @@ void find_collisions_narrowphase(const mint::Mesh* mesh,
       IndexType secondIdx = v_inSecondPair[idx];
       if(primal::intersect(v_triangles[firstIdx], v_triangles[secondIdx], false))
       {
-        auto outIdx = RAJA::atomicAdd<atomic_pol>(&v_counter[0], IndexType {1});
+        auto outIdx = axom::atomicAdd<ExecSpace>(&v_counter[0], IndexType {1});
         // Store actually-intersecting triangle pairs sequentially in output
         // array.
         v_outFirstPair[outIdx] = firstIdx;
@@ -343,13 +322,11 @@ struct Arguments
 
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
-    app
-      .add_option("-f,--file", this->file_name, "specifies the input mesh file")
+    app.add_option("-f,--file", this->file_name, "specifies the input mesh file")
       ->check(axom::CLI::ExistingFile)
       ->required();
 
-    std::string pol_info =
-      "Sets execution space of the BVH two-pass example.\n";
+    std::string pol_info = "Sets execution space of the BVH two-pass example.\n";
     pol_info += "Set to \'seq\' to use sequential execution policy.";
 #ifdef AXOM_USE_OPENMP
     pol_info += "\nSet to \'omp\' to use an OpenMP execution policy.";
@@ -390,21 +367,6 @@ int main(int argc, char** argv)
     finalize_logger();
     return retval;
   }
-#ifdef AXOM_USE_CUDA
-  if(args.exec_space == ExecPolicy::CUDA)
-  {
-    using GPUExec = axom::CUDA_EXEC<256>;
-    axom::setDefaultAllocator(axom::execution_space<GPUExec>::allocatorID());
-  }
-#endif
-#ifdef AXOM_USE_HIP
-  if(args.exec_space == ExecPolicy::HIP)
-  {
-    using GPUExec = axom::HIP_EXEC<256>;
-    axom::setDefaultAllocator(axom::execution_space<GPUExec>::allocatorID());
-  }
-#endif
-
   std::unique_ptr<UMesh> surface_mesh;
 
   // Read file
@@ -428,21 +390,17 @@ int main(int argc, char** argv)
   switch(args.exec_space)
   {
   case ExecPolicy::CPU:
-    find_collisions_broadphase<axom::SEQ_EXEC>(surface_mesh.get(),
-                                               candFirstPair,
-                                               candSecondPair);
+    find_collisions_broadphase<axom::SEQ_EXEC>(surface_mesh.get(), candFirstPair, candSecondPair);
     find_collisions_narrowphase<axom::SEQ_EXEC>(surface_mesh.get(),
                                                 candFirstPair,
                                                 candSecondPair,
                                                 firstPair,
                                                 secondPair);
     break;
-#ifdef AXOM_USE_RAJA
-  #ifdef AXOM_USE_OPENMP
+#if defined(AXOM_USE_RAJA)
+  #if defined(AXOM_USE_OPENMP)
   case ExecPolicy::OpenMP:
-    find_collisions_broadphase<axom::OMP_EXEC>(surface_mesh.get(),
-                                               candFirstPair,
-                                               candSecondPair);
+    find_collisions_broadphase<axom::OMP_EXEC>(surface_mesh.get(), candFirstPair, candSecondPair);
     find_collisions_narrowphase<axom::OMP_EXEC>(surface_mesh.get(),
                                                 candFirstPair,
                                                 candSecondPair,
@@ -450,11 +408,9 @@ int main(int argc, char** argv)
                                                 secondPair);
     break;
   #endif
-  #ifdef AXOM_USE_CUDA
+  #if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
   case ExecPolicy::CUDA:
-    find_collisions_broadphase<axom::CUDA_EXEC<256>>(surface_mesh.get(),
-                                                     candFirstPair,
-                                                     candSecondPair);
+    find_collisions_broadphase<axom::CUDA_EXEC<256>>(surface_mesh.get(), candFirstPair, candSecondPair);
     find_collisions_narrowphase<axom::CUDA_EXEC<256>>(surface_mesh.get(),
                                                       candFirstPair,
                                                       candSecondPair,
@@ -462,11 +418,9 @@ int main(int argc, char** argv)
                                                       secondPair);
     break;
   #endif
-  #ifdef AXOM_USE_HIP
+  #if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_HIP)
   case ExecPolicy::HIP:
-    find_collisions_broadphase<axom::HIP_EXEC<256>>(surface_mesh.get(),
-                                                    candFirstPair,
-                                                    candSecondPair);
+    find_collisions_broadphase<axom::HIP_EXEC<256>>(surface_mesh.get(), candFirstPair, candSecondPair);
     find_collisions_narrowphase<axom::HIP_EXEC<256>>(surface_mesh.get(),
                                                      candFirstPair,
                                                      candSecondPair,

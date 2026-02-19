@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -141,7 +142,7 @@ int lu_decompose(Matrix<T>& LU, int* pivots)
       {
         LU(irow, jcol) -= LU(irow, i) * LU(i, jcol);
       }  // END for all columns
-    }    // END for all rows
+    }  // END for all rows
 
   }  // END for all columns
 
@@ -192,7 +193,7 @@ int lu_solve(const Matrix<T>& A, const int* pivots, const T* b, T* x)
     {
       x[i] -= A(i, j) * x[j];
     }  // END for j
-  }    // END for i
+  }  // END for i
 
   axom::deallocate(rhs);
   return LU_SUCCESS;

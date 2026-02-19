@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -12,7 +13,12 @@ namespace axom
 {
 namespace slic
 {
-GenericOutputStream::GenericOutputStream(std::ostream* os) : m_stream(os) { }
+GenericOutputStream::GenericOutputStream(std::ostream* os)
+  : m_stream(os)
+  , m_file_name()
+  , m_opened(true)
+  , m_isOstreamOwnedBySLIC(false)
+{ }
 
 //------------------------------------------------------------------------------
 GenericOutputStream::GenericOutputStream(const std::string& stream)
@@ -20,28 +26,38 @@ GenericOutputStream::GenericOutputStream(const std::string& stream)
   if(stream == "cout")
   {
     m_stream = &std::cout;
+    m_file_name = std::string();
+    m_opened = true;
+    m_isOstreamOwnedBySLIC = false;
   }
   else if(stream == "cerr")
   {
     m_stream = &std::cerr;
+    m_file_name = std::string();
+    m_opened = true;
+    m_isOstreamOwnedBySLIC = false;
   }
   else
   {
-    m_stream = new std::ofstream(stream);
+    m_stream = new std::ostringstream();
+    m_file_name = stream;
+    m_opened = false;
+    m_isOstreamOwnedBySLIC = true;
   }
 }
 
 //------------------------------------------------------------------------------
-GenericOutputStream::GenericOutputStream(std::ostream* os,
-                                         const std::string& format)
+GenericOutputStream::GenericOutputStream(std::ostream* os, const std::string& format)
   : m_stream(os)
+  , m_file_name()
+  , m_opened(true)
+  , m_isOstreamOwnedBySLIC(false)
 {
   this->setFormatString(format);
 }
 
 //------------------------------------------------------------------------------
-GenericOutputStream::GenericOutputStream(const std::string& stream,
-                                         const std::string& format)
+GenericOutputStream::GenericOutputStream(const std::string& stream, const std::string& format)
   : GenericOutputStream::GenericOutputStream(stream)
 {
   // Fix newline and tab characters if needed
@@ -53,7 +69,14 @@ GenericOutputStream::GenericOutputStream(const std::string& stream,
 }
 
 //------------------------------------------------------------------------------
-GenericOutputStream::~GenericOutputStream() { }
+GenericOutputStream::~GenericOutputStream()
+{
+  if(m_isOstreamOwnedBySLIC)
+  {
+    delete m_stream;
+    m_stream = static_cast<std::ostream*>(nullptr);
+  }
+}
 
 //------------------------------------------------------------------------------
 void GenericOutputStream::append(message::Level msgLevel,
@@ -74,15 +97,46 @@ void GenericOutputStream::append(message::Level msgLevel,
                                           message,
                                           tagName,
                                           "",
+                                          "",
                                           fileName,
                                           line);
 }
 
 //------------------------------------------------------------------------------
-void GenericOutputStream::outputLocal() { m_stream->flush(); }
+void GenericOutputStream::openBeforeFlush()
+{
+  if(m_isOstreamOwnedBySLIC && !m_opened)
+  {
+    std::ostringstream* oss = dynamic_cast<std::ostringstream*>(m_stream);
+    if(oss != nullptr)
+    {
+      // Converting stream from ostringstream to ofstream and
+      // writing ostringstream's string buffer to ofstream
+      std::string buffer = oss->str();
+      if(!buffer.empty())
+      {
+        delete m_stream;
+        m_stream = new std::ofstream(m_file_name);
+        (*m_stream) << buffer;
+        m_opened = true;
+      }
+    }
+  }
+}
 
 //------------------------------------------------------------------------------
-void GenericOutputStream::flush() { m_stream->flush(); }
+void GenericOutputStream::outputLocal()
+{
+  openBeforeFlush();
+  m_stream->flush();
+}
+
+//------------------------------------------------------------------------------
+void GenericOutputStream::flush()
+{
+  openBeforeFlush();
+  m_stream->flush();
+}
 
 } /* namespace slic */
 

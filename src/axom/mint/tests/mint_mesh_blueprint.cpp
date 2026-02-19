@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "axom/mint/mesh/blueprint.hpp"
@@ -24,9 +25,7 @@ namespace sidre = axom::sidre;
 //------------------------------------------------------------------------------
 namespace
 {
-void createExplicitCoords(sidre::Group* c1,
-                          int dimension,
-                          const std::string& type_string)
+void createExplicitCoords(sidre::Group* c1, int dimension, const std::string& type_string)
 {
   c1->createView("type")->setString(type_string);
   sidre::deprecated::MCArray<double> x(c1->createView("values/x"), 5, 1);
@@ -255,12 +254,10 @@ TEST(mint_mesh_blueprint, get_topology_and_coordset_group)
   EXPECT_TRUE(mint::blueprint::isValidTopologyGroup(topology));
   EXPECT_EQ(topology->getName(), "t1");
 
-  const sidre::Group* coordset =
-    mint::blueprint::getCoordsetGroup(root, topology);
+  const sidre::Group* coordset = mint::blueprint::getCoordsetGroup(root, topology);
   EXPECT_TRUE(mint::blueprint::isValidCoordsetGroup(coordset));
   EXPECT_EQ(coordset->getName(), "c1");
-  std::string coordset_name(
-    const_cast<sidre::View*>(topology->getView("coordset"))->getString());
+  std::string coordset_name(const_cast<sidre::View*>(topology->getView("coordset"))->getString());
   EXPECT_EQ(coordset_name, "c1");
 }
 
@@ -281,9 +278,7 @@ TEST(mint_mesh_blueprint, get_mesh_type_and_dimension)
     int mesh_type = mint::UNDEFINED_MESH;
     int dimension = -1;
     createParticleMeshOnSidre(particle_mesh_group, dim);
-    mint::blueprint::getMeshTypeAndDimension(mesh_type,
-                                             dimension,
-                                             particle_mesh_group);
+    mint::blueprint::getMeshTypeAndDimension(mesh_type, dimension, particle_mesh_group);
     EXPECT_EQ(mesh_type, mint::PARTICLE_MESH);
     EXPECT_EQ(dimension, dim);
 
@@ -291,9 +286,7 @@ TEST(mint_mesh_blueprint, get_mesh_type_and_dimension)
     mesh_type = mint::UNDEFINED_MESH;
     dimension = -1;
     createUniformMeshOnSidre(uniform_mesh_group, dim);
-    mint::blueprint::getMeshTypeAndDimension(mesh_type,
-                                             dimension,
-                                             uniform_mesh_group);
+    mint::blueprint::getMeshTypeAndDimension(mesh_type, dimension, uniform_mesh_group);
     EXPECT_EQ(mesh_type, mint::STRUCTURED_UNIFORM_MESH);
     EXPECT_EQ(dimension, dim);
 
@@ -301,9 +294,7 @@ TEST(mint_mesh_blueprint, get_mesh_type_and_dimension)
     mesh_type = mint::UNDEFINED_MESH;
     dimension = -1;
     createStructuredMeshOnSidre(structured_mesh_group, dim);
-    mint::blueprint::getMeshTypeAndDimension(mesh_type,
-                                             dimension,
-                                             structured_mesh_group);
+    mint::blueprint::getMeshTypeAndDimension(mesh_type, dimension, structured_mesh_group);
     EXPECT_EQ(mesh_type, mint::STRUCTURED_CURVILINEAR_MESH);
     EXPECT_EQ(dimension, dim);
 
@@ -311,9 +302,7 @@ TEST(mint_mesh_blueprint, get_mesh_type_and_dimension)
     mesh_type = mint::UNDEFINED_MESH;
     dimension = -1;
     createRectilinearMeshOnSidre(rectilinear_mesh_group, dim);
-    mint::blueprint::getMeshTypeAndDimension(mesh_type,
-                                             dimension,
-                                             rectilinear_mesh_group);
+    mint::blueprint::getMeshTypeAndDimension(mesh_type, dimension, rectilinear_mesh_group);
     EXPECT_EQ(mesh_type, mint::STRUCTURED_RECTILINEAR_MESH);
     EXPECT_EQ(dimension, dim);
 
@@ -321,9 +310,7 @@ TEST(mint_mesh_blueprint, get_mesh_type_and_dimension)
     mesh_type = mint::UNDEFINED_MESH;
     dimension = -1;
     createUnstructuredMeshOnSidre(unstructured_mesh_group, dim);
-    mint::blueprint::getMeshTypeAndDimension(mesh_type,
-                                             dimension,
-                                             unstructured_mesh_group);
+    mint::blueprint::getMeshTypeAndDimension(mesh_type, dimension, unstructured_mesh_group);
     EXPECT_EQ(mesh_type, mint::UNSTRUCTURED_MESH);
     EXPECT_EQ(dimension, dim);
 

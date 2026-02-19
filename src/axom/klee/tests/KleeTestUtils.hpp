@@ -1,19 +1,21 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEETESTUTILS_HPP
-#define AXOM_KLEETESTUTILS_HPP
+#ifndef AXOM_KLEE_TESTUTILS_HPP_
+#define AXOM_KLEE_TESTUTILS_HPP_
 
-#include <array>
+#include "axom/klee/GeometryOperators.hpp"
 
 #include "axom/core/numerics/Matrix.hpp"
-#include "axom/klee/GeometryOperators.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 
 #include "gmock/gmock.h"
+
+#include <array>
 
 namespace axom
 {
@@ -45,4 +47,4 @@ public:
 }  // namespace klee
 }  // namespace axom
 
-#endif  //AXOM_KLEETESTUTILS_HPP
+#endif  // AXOM_KLEE_TESTUTILS_HPP_

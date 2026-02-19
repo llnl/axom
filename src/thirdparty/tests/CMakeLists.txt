@@ -1,13 +1,11 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
 # Collection of tests for axom's built-in third party libraries
 #------------------------------------------------------------------------------
-
-# Create cmake targets for running the tests through axom's code checks
-axom_add_code_checks(PREFIX thirdparty_tests)
 
 #------------------------------------------------------------------------------
 # Smoke test for Umpire third party library
@@ -42,7 +40,7 @@ if ( RAJA_FOUND )
   axom_add_executable(NAME raja_smoke_test
                       SOURCES raja_smoke.cpp
                       OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
-                      DEPENDS_ON ${raja_smoke_dependencies}
+                      DEPENDS_ON ${raja_smoke_dependencies} core
                       FOLDER axom/thirdparty/tests )
 
   target_include_directories(raja_smoke_test PUBLIC 
@@ -63,6 +61,7 @@ if( HDF5_FOUND AND CONDUIT_FOUND)
     set( hdf5_smoke_dependencies conduit::conduit gtest )
 
     blt_list_append( TO hdf5_smoke_dependencies ELEMENTS mpi IF AXOM_ENABLE_MPI)
+    blt_list_append( TO caliper_smoke_dependencies ELEMENTS blt::hip IF AXOM_ENABLE_HIP)
 
     axom_add_executable(NAME       hdf5_smoke_test
                         SOURCES    hdf5_smoke.cpp
@@ -117,6 +116,10 @@ if (MFEM_FOUND)
         TARGET mfem_smoke_test
         APPEND_STRING PROPERTY COMPILE_FLAGS "${AXOM_DISABLE_UNUSED_PARAMETER_WARNINGS}")
 
+    target_include_directories(mfem_smoke_test PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../..>
+        $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>)
+
     axom_add_test(NAME    mfem_smoke
                   COMMAND mfem_smoke_test)
 
@@ -130,6 +133,7 @@ if ( CALIPER_FOUND )
   set( caliper_smoke_dependencies caliper gtest )
   blt_list_append( TO caliper_smoke_dependencies ELEMENTS mpi IF AXOM_ENABLE_MPI)
   blt_list_append( TO caliper_smoke_dependencies ELEMENTS cuda_runtime IF AXOM_ENABLE_CUDA)
+  blt_list_append( TO caliper_smoke_dependencies ELEMENTS blt::hip IF AXOM_ENABLE_HIP)
 
   blt_add_executable( NAME caliper_smoke_test
                       SOURCES caliper_smoke.cpp
@@ -146,6 +150,7 @@ if ( ADIAK_FOUND )
 
   set( adiak_smoke_dependencies adiak::adiak gtest )
   blt_list_append( TO adiak_smoke_dependencies ELEMENTS mpi IF AXOM_ENABLE_MPI)
+  blt_list_append( TO adiak_smoke_dependencies ELEMENTS blt::hip IF AXOM_ENABLE_HIP)
 
   blt_add_executable( NAME adiak_smoke_test
                       SOURCES adiak_smoke.cpp
@@ -243,6 +248,22 @@ if (C2C_FOUND)
 
     axom_add_test(NAME    c2c_smoke
                   COMMAND c2c_smoke_test)
+endif()
+
+#------------------------------------------------------------------------------
+# Smoke test for Open Cascade third party library
+#------------------------------------------------------------------------------
+
+if (OPENCASCADE_FOUND)
+    axom_add_executable(
+        NAME       opencascade_smoke_test
+        SOURCES    opencascade_smoke.cpp
+        OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON opencascade gtest
+        FOLDER     axom/thirdparty/tests )
+
+    axom_add_test(NAME    opencascade_smoke
+                  COMMAND opencascade_smoke_test)
 endif()
 
 #------------------------------------------------------------------------------

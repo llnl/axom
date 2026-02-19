@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -13,19 +14,14 @@
 #include "axom/spin.hpp"
 #include "axom/mint.hpp"
 
-// RAJA includes
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 // Acceleration data structure includes
 #include "axom/spin/BVH.hpp"
 #include "axom/spin/ImplicitGrid.hpp"
 
 // HACK: Workaround for known bug in gcc@8.1 which requires
 //       some lambdas in this file to have by-reference lambda capture
-#if defined(__GNUC__) && !defined(__llvm__) && !defined(__INTEL_COMPILER) && \
-  __GNUC__ == 8 && __GNUC_MINOR__ == 1
+#if defined(__GNUC__) && !defined(__llvm__) && !defined(__INTEL_COMPILER) && __GNUC__ == 8 && \
+  __GNUC_MINOR__ == 1
   #define MESH_TESTER_MUTABLE_LAMBDA [&]
 #else
   #define MESH_TESTER_MUTABLE_LAMBDA AXOM_LAMBDA
@@ -43,8 +39,7 @@ using SpatialBoundingBox = primal::BoundingBox<double, 3>;
 using UniformGrid3 = spin::UniformGrid<int, 3>;
 using Point3 = primal::Point<double, 3>;
 
-inline detail::Triangle3 getMeshTriangle(axom::IndexType i,
-                                         detail::UMesh* surface_mesh)
+inline detail::Triangle3 getMeshTriangle(axom::IndexType i, detail::UMesh* surface_mesh)
 {
   SLIC_ASSERT(surface_mesh->getNumberOfCellNodes(i) == 3);
 
@@ -88,8 +83,7 @@ struct CandidateFinderBase
   using BoxType = typename primal::BoundingBox<FloatType, 3>;
   using PointType = typename primal::Point<FloatType, 3>;
 #ifdef AXOM_USE_UMPIRE
-  static constexpr bool ExecOnDevice =
-    axom::execution_space<ExecSpace>::onDevice();
+  static constexpr bool ExecOnDevice = axom::execution_space<ExecSpace>::onDevice();
   static constexpr MemorySpace Space =
     ExecOnDevice ? axom::MemorySpace::Device : axom::MemorySpace::Host;
   static constexpr MemorySpace HostSpace = axom::MemorySpace::Host;
@@ -187,9 +181,8 @@ void CandidateFinderBase<ExecSpace, FloatType>::initialize()
       for(IndexType inode = 0; inode < 3; ++inode)
       {
         const double* node = coords.getColumn(inode);
-        tri[inode] = PointType {node[mint::X_COORDINATE],
-                                node[mint::Y_COORDINATE],
-                                node[mint::Z_COORDINATE]};
+        tri[inode] =
+          PointType {node[mint::X_COORDINATE], node[mint::Y_COORDINATE], node[mint::Z_COORDINATE]};
       }  // END for all cells nodes
 
       v_degenerate[cellIdx] = (tri.degenerate() ? 1 : 0);
@@ -212,9 +205,6 @@ void CandidateFinderBase<ExecSpace, FloatType>::findTriMeshIntersections(
   using IndexView = axom::ArrayView<IndexType, 1, Space>;
 
   using HostIndexArray = axom::Array<IndexType, 1, HostSpace>;
-#ifdef AXOM_USE_RAJA
-  using atomic_pol = typename axom::execution_space<ExecSpace>::atomic_policy;
-#endif
 
   // Get CSR arrays for candidate data
   IndexArray offsets, counts;
@@ -243,12 +233,7 @@ void CandidateFinderBase<ExecSpace, FloatType>::findTriMeshIntersections(
         {
           if(i < candidates[v_offsets[i] + j])
           {
-#ifdef AXOM_USE_RAJA
-            auto idx = RAJA::atomicAdd<atomic_pol>(&v_numValidCandidates[0],
-                                                   IndexType {1});
-#else
-            auto idx = v_numValidCandidates[0]++;
-#endif
+            auto idx = axom::atomicAdd<ExecSpace>(&v_numValidCandidates[0], IndexType {1});
             v_indices[idx] = i;
             v_validCandidates[idx] = candidates[v_offsets[i] + j];
           }
@@ -277,18 +262,9 @@ void CandidateFinderBase<ExecSpace, FloatType>::findTriMeshIntersections(
       MESH_TESTER_MUTABLE_LAMBDA(IndexType i) {
         int index = v_indices[i];
         int candidate = v_validCandidates[i];
-        if(primal::intersect(v_tris[index],
-                             v_tris[candidate],
-                             false,
-                             intersectionThreshold))
+        if(primal::intersect(v_tris[index], v_tris[candidate], false, intersectionThreshold))
         {
-#ifdef AXOM_USE_RAJA
-          auto idx =
-            RAJA::atomicAdd<atomic_pol>(&v_numIsectPairs[0], IndexType {1});
-#else
-          auto idx = v_numIsectPairs[0];
-          v_numIsectPairs[0]++;
-#endif
+          auto idx = axom::atomicAdd<ExecSpace>(&v_numIsectPairs[0], IndexType {1});
           v_firstIsectPair[idx] = index;
           v_secondIsectPair[idx] = candidate;
         }
@@ -340,11 +316,7 @@ struct CandidateFinder<AccelType::BVH, ExecSpace, FloatType>
     counts.resize(this->m_aabbs.size());
 
     // Search for intersecting bounding boxes of triangles
-    bvh.findBoundingBoxes(offsets,
-                          counts,
-                          m_currCandidates,
-                          this->m_aabbs.size(),
-                          this->m_aabbs.view());
+    bvh.findBoundingBoxes(offsets, counts, m_currCandidates, this->m_aabbs.size(), this->m_aabbs.view());
 
     return m_currCandidates;
   }
@@ -371,11 +343,8 @@ struct CandidateFinder<AccelType::ImplicitGrid, ExecSpace, FloatType>
   {
     BaseClass::initialize();
 #ifdef AXOM_USE_RAJA
-    using reduce_pol = typename axom::execution_space<ExecSpace>::reduce_policy;
-    RAJA::ReduceMin<reduce_pol, double> xmin(DBL_MAX), ymin(DBL_MAX),
-      zmin(DBL_MAX);
-    RAJA::ReduceMax<reduce_pol, double> xmax(DBL_MIN), ymax(DBL_MIN),
-      zmax(DBL_MIN);
+    axom::ReduceMin<ExecSpace, double> xmin(DBL_MAX), ymin(DBL_MAX), zmin(DBL_MAX);
+    axom::ReduceMax<ExecSpace, double> xmax(DBL_MIN), ymax(DBL_MIN), zmax(DBL_MIN);
 
     // Get the global bounding box.
     mint::for_all_nodes<ExecSpace, mint::xargs::xyz>(
@@ -410,8 +379,7 @@ struct CandidateFinder<AccelType::ImplicitGrid, ExecSpace, FloatType>
     // use the cube root of the number of triangles.
     if(spatialIndexResolution < 1)
     {
-      spatialIndexResolution =
-        static_cast<IndexType>(1 + std::pow(this->m_aabbs.size(), 1 / 3.));
+      spatialIndexResolution = static_cast<IndexType>(1 + std::pow(this->m_aabbs.size(), 1 / 3.));
     }
     m_resolutions = axom::primal::Point<IndexType, 3>(spatialIndexResolution);
   }
@@ -421,11 +389,10 @@ struct CandidateFinder<AccelType::ImplicitGrid, ExecSpace, FloatType>
     axom::Array<IndexType, 1, Space>& counts) override
   {
     int allocatorId = axom::detail::getAllocatorID<Space>();
-    axom::spin::ImplicitGrid<3, ExecSpace, IndexType> gridIndex(
-      m_globalBox,
-      &m_resolutions,
-      this->m_aabbs.size(),
-      allocatorId);
+    axom::spin::ImplicitGrid<3, ExecSpace, IndexType> gridIndex(m_globalBox,
+                                                                &m_resolutions,
+                                                                this->m_aabbs.size(),
+                                                                allocatorId);
     gridIndex.insert(this->m_aabbs.size(), this->m_aabbs.data());
 
     offsets.resize(this->m_aabbs.size());
@@ -464,10 +431,9 @@ struct CandidateFinder<AccelType::UniformGrid, ExecSpace, FloatType>
     // use the cube root of the number of triangles.
     if(spatialIndexResolution < 1)
     {
-      spatialIndexResolution =
-        static_cast<IndexType>(1 + std::pow(this->m_aabbs.size(), 1 / 3.));
+      spatialIndexResolution = static_cast<IndexType>(1 + std::pow(this->m_aabbs.size(), 1 / 3.));
     }
-    m_resolutions = axom::primal::NumericArray<int, 3>(spatialIndexResolution);
+    m_resolutions = axom::NumericArray<int, 3>(spatialIndexResolution);
   }
 
   virtual axom::ArrayView<IndexType, 1, Space> getCandidates(
@@ -478,17 +444,14 @@ struct CandidateFinder<AccelType::UniformGrid, ExecSpace, FloatType>
 
     axom::Array<IndexType, 1, Space> indices(this->m_aabbs.size());
     const auto indices_v = indices.view();
-    for_all<ExecSpace>(
-      this->m_aabbs.size(),
-      AXOM_LAMBDA(IndexType idx) { indices_v[idx] = idx; });
+    for_all<ExecSpace>(this->m_aabbs.size(), AXOM_LAMBDA(IndexType idx) { indices_v[idx] = idx; });
 
     using FlatStorage = spin::policy::FlatGridStorage<IndexType>;
 
-    spin::UniformGrid<IndexType, 3, ExecSpace, FlatStorage> gridIndex(
-      m_resolutions,
-      this->m_aabbs.view(),
-      indices.view(),
-      allocatorId);
+    spin::UniformGrid<IndexType, 3, ExecSpace, FlatStorage> gridIndex(m_resolutions,
+                                                                      this->m_aabbs.view(),
+                                                                      indices.view(),
+                                                                      allocatorId);
 
     offsets.resize(this->m_aabbs.size());
     counts.resize(this->m_aabbs.size());
@@ -498,7 +461,7 @@ struct CandidateFinder<AccelType::UniformGrid, ExecSpace, FloatType>
   }
 
   BoxType m_globalBox;
-  primal::NumericArray<int, 3> m_resolutions;
+  NumericArray<int, 3> m_resolutions;
   axom::Array<IndexType> m_currCandidates;
 };
 

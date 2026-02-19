@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -23,13 +24,13 @@
 # Template
 .src_build_on_lassen:
   variables:
-    ALLOC_TIME: "25"
+    ALLOC_TIME: "40"
   extends: [.src_build_script, .on_lassen, .src_workflow]
   needs: []
 
 .full_build_on_lassen:
   variables:
-    ALLOC_TIME: "45"
+    ALLOC_TIME: "60"
   extends: [.full_build_script, .on_lassen, .full_workflow]
   needs: []
 
@@ -59,18 +60,6 @@ lassen-gcc_8_3_1_cuda-src:
     HOST_CONFIG: "lassen-blueos_3_ppc64le_ib_p9-${COMPILER}.cmake"
   extends: [.src_build_on_lassen]
 
-lassen-xl_16_1_1-src:
-  variables:
-    COMPILER: "xl@16.1.1.1"
-    HOST_CONFIG: "lassen-blueos_3_ppc64le_ib_p9-${COMPILER}.cmake"
-  extends: [.src_build_on_lassen]
-
-lassen-xl_16_1_1_cuda-src:
-  variables:
-    COMPILER: "xl@16.1.1.2_cuda"
-    HOST_CONFIG: "lassen-blueos_3_ppc64le_ib_p9-${COMPILER}.cmake"
-  extends: [.src_build_on_lassen]
-
 ####
 # Full Build jobs
 lassen-clang_10_0_1-full:
@@ -96,18 +85,5 @@ lassen-gcc_8_3_1_cuda-full:
   variables:
     COMPILER: "gcc@8.3.1.2"
     SPEC: "%${COMPILER}~mfem+cuda"
-    EXTRA_SPEC: "cuda_arch=70"
-  extends: [.full_build_on_lassen]
-
-lassen-xl_16_1_1-full:
-  variables:
-    COMPILER: "xl@16.1.1.1"
-    SPEC: "%${COMPILER}+mfem~openmp~cpp14"
-  extends: [.full_build_on_lassen]
-
-lassen-xl_16_1_1_cuda-full:
-  variables:
-    COMPILER: "xl@16.1.1.2"
-    SPEC: "%${COMPILER}+mfem+cuda~openmp~cpp14"
     EXTRA_SPEC: "cuda_arch=70"
   extends: [.full_build_on_lassen]

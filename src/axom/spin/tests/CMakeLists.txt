@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -50,10 +51,16 @@ if (AXOM_ENABLE_MINT)
       FOLDER     axom/spin/tests
       )
 
+    # sets the number of threads for the omp policy; leave empty for non-omp policies
+    set(_num_threads)
+    if(AXOM_ENABLE_OPENMP)
+        set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+    endif()
+
     axom_add_test(
       NAME            spin_bvh
       COMMAND         spin_bvh_test
-      NUM_OMP_THREADS 4
+      NUM_OMP_THREADS ${_num_threads}
       )
 
 endif()

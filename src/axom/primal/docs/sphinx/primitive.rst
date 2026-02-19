@@ -15,8 +15,6 @@ Primal includes the following primitives:
 
 .. note:: Primitives in Axom use a right-handed coordinate system.
 
-Primal also provides the NumericArray class, which implements arithmetic
-operations on numerical tuples and supports Primal's Point and Vector classes.
 Classes in Primal are templated on coordinate type (double, float, etc.) and
 dimension.  The primitives do not inherit from a common base class.  This was a
 design choice in favor of simplicity and performance.  Geometric primitives can

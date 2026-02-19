@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -11,6 +12,7 @@
 #define SLIC_HPP_
 
 #include "axom/config.hpp"
+#include "axom/core/memory_management.hpp"
 #include "axom/slic/core/Logger.hpp"
 #include "axom/slic/core/LogStream.hpp"
 #include "axom/slic/streams/GenericOutputStream.hpp"
@@ -19,6 +21,7 @@
 #include "axom/export/slic.h"
 
 // C/C++ includes
+#include <exception>
 #include <iostream>
 #include <sstream>
 
@@ -193,6 +196,59 @@ bool isAbortOnWarningsEnabled();
 void setAbortFunction(AbortFunctionPtr abort_func);
 
 /*!
+ * \brief Gets the function called when program abort is requested.
+ *
+ * \return Pointer to the currently registered abort function.
+ * \pre slic::isInitialized() == true.
+ */
+AbortFunctionPtr getAbortFunction();
+
+/// \brief Exception thrown by axom::slic::ScopedAbortToThrow when SLIC aborts.
+struct SlicAbortException final : std::exception
+{
+  const char* what() const noexcept override { return "SLIC abort"; }
+};
+
+/*!
+ * \brief RAII helper that converts SLIC aborts into a C++ exception.
+ *
+ * The previous abort function and abort-on-error state are restored 
+ * when this object goes out of scope.
+ * 
+ * One use of this is for unit tests that want to validate 
+ * SLIC_ERROR/SLIC_ASSERT behavior without using death tests.
+ */
+class ScopedAbortToThrow
+{
+public:
+  ScopedAbortToThrow()
+    : m_prev_abort_on_error(axom::slic::isAbortOnErrorsEnabled())
+    , m_prev_abort_function(axom::slic::getAbortFunction())
+  {
+    axom::slic::enableAbortOnError();
+    axom::slic::setAbortFunction(&ScopedAbortToThrow::abort_to_throw);
+  }
+
+  ScopedAbortToThrow(const ScopedAbortToThrow&) = delete;
+  ScopedAbortToThrow& operator=(const ScopedAbortToThrow&) = delete;
+
+  ~ScopedAbortToThrow()
+  {
+    if(axom::slic::isInitialized())
+    {
+      axom::slic::setAbortFunction(m_prev_abort_function);
+      axom::slic::setAbortOnError(m_prev_abort_on_error);
+    }
+  }
+
+private:
+  static void abort_to_throw() { throw SlicAbortException {}; }
+
+  bool m_prev_abort_on_error {false};
+  AbortFunctionPtr m_prev_abort_function;
+};
+
+/*!
  * \brief Adds the given stream to the given level.
  *
  * \param [in] ls pointer to the log stream.
@@ -284,9 +340,7 @@ int getNumStreamsWithTag(const std::string& tag);
  * duplicate messages resulting from running in parallel will be filtered out.
  * Default is false.
  */
-void logMessage(message::Level level,
-                const std::string& message,
-                bool filter_duplicates = false);
+void logMessage(message::Level level, const std::string& message, bool filter_duplicates = false);
 
 /*!
  * \brief Logs the given message to all registered streams.
@@ -352,9 +406,7 @@ void logMessage(message::Level level,
  * \param [in] fileName the name of the file this message is logged from.
  * \param [in] line the line number within the file that the message is logged.
  */
-void logErrorMessage(const std::string& message,
-                     const std::string& fileName,
-                     int line);
+void logErrorMessage(const std::string& message, const std::string& fileName, int line);
 
 /*!
  * \brief Convenience method to log warning messages.
@@ -363,9 +415,7 @@ void logErrorMessage(const std::string& message,
  * \param [in] fileName the name of the file this message is logged from.
  * \param [in] line the line number within the file that the message is logged.
  */
-void logWarningMessage(const std::string& message,
-                       const std::string& fileName,
-                       int line);
+void logWarningMessage(const std::string& message, const std::string& fileName, int line);
 
 /*!
  * \brief For the current rank, outputs messages from all streams to the
@@ -418,6 +468,13 @@ void flushStreams();
 void pushStreams();
 
 /*!
+ * \brief Checks if there are any pending messages in the active logger
+ * 
+ * \return Return true if there are pending messages in the active logger
+ */
+bool hasPendingMessages();
+
+/*!
  * \brief Finalizes the slic logging environment.
  *
  * \collective
@@ -432,6 +489,59 @@ void finalize();
  * \returns a string corresponding to the stacktrace.
  */
 std::string stacktrace();
+
+namespace detail
+{
+/*!
+ * \brief Print an array to a stream, moving the data to the host, if needed.
+ *
+ * \tparam T The element type for the data array.
+ *
+ * \param os   The stream to which the data will be written.
+ * \param name The name of the data.
+ * \param data A pointer to the data.
+ * \param n    The number of elements in the array.
+ */
+template <typename T>
+void printArray(std::ostream& os, const std::string& name, const T* data, axom::IndexType n)
+{
+  // Move data into temp host array.
+  T* host = axom::allocate<T>(n);
+  if(host != nullptr)
+  {
+    axom::copy(host, data, sizeof(T) * n);
+    // Print
+    os << name << "[" << n << "] = {";
+    for(axom::IndexType ii = 0; ii < n; ii++)
+    {
+      if(ii > 0)
+      {
+        os << ", ";
+      }
+      os << host[ii];
+    }
+    os << "}";
+    // Cleanup.
+    axom::deallocate(host);
+  }
+}
+
+/*!
+ * \brief Print a container to a stream, moving the data to the host, if needed.
+ *
+ * \tparam ContainerType A container template type that supplies data() and size() methods.
+ *
+ * \param os   The stream to which the data will be written.
+ * \param name The name of the view.
+ * \param container The container to print.
+ */
+template <typename ContainerType>
+void printContainer(std::ostream& os, const std::string& name, const ContainerType& container)
+{
+  printArray(os, name, container.data(), container.size());
+}
+
+} /* namespace detail */
 
 } /* namespace slic */
 

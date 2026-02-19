@@ -1,0 +1,42 @@
+#
+# This file lists the package versions for axom's dependencies
+#
+
+packages:
+  adiak:
+    require: 
+      - spec: "@0.4.0"
+  # 2.14.0
+  caliper:
+    require:
+      - spec: "@git.9ab0e64d2e328d1fdff2ffebb53f30a899d6a598=master"
+  # v2025.12.0
+  camp:
+    require:
+      - spec: "@git.a8caefa9f4c811b1a114b4ed2c9b681d40f12325=main"
+  conduit:
+    require:
+      - spec: "@0.9.5"
+  hypre:
+    require:
+      - spec: "@2.27.0"
+  mfem:
+    require:
+      - spec: "@4.9"
+  opencascade:
+    require:
+      - spec: "@7.8.1"
+  py-jsonschema:
+    require:
+      - spec: "@:4.17" #Anything after this requires py-rpds which requires rust and adds 40 minutes
+  # v2025.12.1
+  raja:
+    require:
+      - spec: "@git.3b8b59a1e9be2e1066c0d77372b3bf5956e6d6e2=develop"
+  scr:
+    require:
+      - spec: "@3.0.1"
+  # v2025.12.0
+  umpire:
+    require:
+      - spec: "@git.0372fbd6e1f17d7e6dd72693f8b857f3ec7559e9=develop"

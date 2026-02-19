@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -96,8 +97,7 @@ public:
     m_fcnFieldName = fcnField;
     m_fcnPath = "fields/" + fcnField;
     SLIC_ASSERT(m_dom->has_path(m_fcnPath));
-    SLIC_ASSERT(m_dom->fetch_existing(m_fcnPath + "/association").as_string() ==
-                "vertex");
+    SLIC_ASSERT(m_dom->fetch_existing(m_fcnPath + "/association").as_string() == "vertex");
     SLIC_ASSERT(m_dom->has_path(m_fcnPath + "/values"));
     m_impl->setFunctionField(fcnField);
   }
@@ -105,7 +105,19 @@ public:
   void setContourValue(double contourVal)
   {
     m_contourVal = contourVal;
-    if(m_impl) m_impl->setContourValue(m_contourVal);
+    if(m_impl)
+    {
+      m_impl->setContourValue(m_contourVal);
+    }
+  }
+
+  void setMaskValue(double maskVal)
+  {
+    m_maskVal = maskVal;
+    if(m_impl)
+    {
+      m_impl->setMaskValue(m_maskVal);
+    }
   }
 
   // Methods trivially delegated to implementation.
@@ -120,16 +132,10 @@ public:
   int32_t getDomainId(int32_t defaultId) const;
 
   //!@brief Get number of cells in the generated contour mesh.
-  axom::IndexType getContourCellCount() const
-  {
-    return m_impl->getContourCellCount();
-  }
+  axom::IndexType getContourCellCount() const { return m_impl->getContourCellCount(); }
 
   //!@brief Get number of nodes in the generated contour mesh.
-  axom::IndexType getContourNodeCount() const
-  {
-    return m_ndim * getContourCellCount();
-  }
+  axom::IndexType getContourNodeCount() const { return m_ndim * getContourCellCount(); }
 
   /*!
     @brief Base class for implementations templated on dimension DIM
@@ -144,36 +150,43 @@ public:
   struct ImplBase
   {
     /*!
-      @brief Prepare internal data for operating on the given domain.
-
-      Put in here codes that can't be in MarchingCubesSingleDomain
-      due to template use (DIM and ExecSpace).
-    */
+     * @brief Prepare internal data for operating on the given domain.
+     *
+     * Put in here codes that can't be in MarchingCubesSingleDomain
+     * due to template use (DIM and ExecSpace).
+     */
     virtual void setDomain(const conduit::Node &dom,
                            const std::string &topologyName,
                            const std::string &maskPath = {}) = 0;
 
     virtual void setFunctionField(const std::string &fcnFieldName) = 0;
     virtual void setContourValue(double contourVal) = 0;
+    virtual void setMaskValue(int maskVal) = 0;
 
     virtual void setDataParallelism(MarchingCubesDataParallelism dataPar) = 0;
 
-    //@{
-    //!@name Distinct phases in contour generation.
-    //!@brief Compute the contour mesh.
-    //!@brief Mark parent cells that cross the contour value.
+    ///@{
+    //! @name Distinct phases in contour generation.
+
+    /*!
+     * @brief Compute the contour mesh.
+     * @brief Mark parent cells that cross the contour value.
+     */
     virtual void markCrossings() = 0;
+
     //!@brief Scan operations to determine counts and offsets.
     virtual void scanCrossings() = 0;
+
     //!@brief Compute contour data.
     virtual void computeFacets() = 0;
-    //@}
+    ///@}
 
-    //@{
+    ///@{
     //!@name Output methods
-    //!@brief Return number of contour mesh facets generated.
+
+    //! @brief Return number of contour mesh facets generated.
     virtual axom::IndexType getContourCellCount() const = 0;
-    //@}
+    ///@}
 
     void setOutputBuffers(axom::ArrayView<axom::IndexType, 2> &facetNodeIds,
                           axom::ArrayView<double, 2> &facetNodeCoords,
@@ -190,10 +203,10 @@ public:
 
     virtual void clearDomain() = 0;
 
-    MarchingCubesDataParallelism m_dataParallelism =
-      MarchingCubesDataParallelism::byPolicy;
+    MarchingCubesDataParallelism m_dataParallelism = MarchingCubesDataParallelism::byPolicy;
 
     double m_contourVal = 0.0;
+    int m_maskVal = 1;
     axom::ArrayView<axom::IndexType, 2> m_facetNodeIds;
     axom::ArrayView<double, 2> m_facetNodeCoords;
     axom::ArrayView<IndexType> m_facetParentIds;
@@ -203,34 +216,32 @@ public:
   ImplBase &getImpl() { return *m_impl; }
 
 private:
-  //!@brief Multi-domain implementation this object is under.
+  //! @brief Multi-domain implementation this object is under.
   MarchingCubes &m_mc;
 
   RuntimePolicy m_runtimePolicy;
   int m_allocatorID = axom::INVALID_ALLOCATOR_ID;
 
-  //@brief Choice of full or partial data-parallelism, or byPolicy.
-  MarchingCubesDataParallelism m_dataParallelism =
-    MarchingCubesDataParallelism::byPolicy;
+  //! @brief Choice of full or partial data-parallelism, or byPolicy.
+  MarchingCubesDataParallelism m_dataParallelism = MarchingCubesDataParallelism::byPolicy;
 
-  /*!
-    \brief Computational mesh as a conduit::Node.
-  */
+  //! \brief Computational mesh as a conduit::Node.
   const conduit::Node *m_dom;
   int m_ndim;
 
-  //!@brief Name of Blueprint topology in m_dom.
+  //! @brief Name of Blueprint topology in m_dom.
   std::string m_topologyName;
 
   std::string m_fcnFieldName;
-  //!@brief Path to nodal scalar function in m_dom.
+  //! @brief Path to nodal scalar function in m_dom.
   std::string m_fcnPath;
 
   std::string m_maskFieldName;
-  //!@brief Path to mask in m_dom.
+  //! @brief Path to mask in m_dom.
   std::string m_maskPath;
 
   double m_contourVal = 0.0;
+  int m_maskVal = 1;
 
   std::unique_ptr<ImplBase> m_impl;
 
@@ -241,9 +252,7 @@ private:
    */
   void setDomain(const conduit::Node &dom);
 
-  /*!
-    @brief Allocate MarchingCubesImpl object
-  */
+  /// @brief Allocate MarchingCubesImpl object
   std::unique_ptr<ImplBase> newMarchingCubesImpl();
 
 };  // class MarchingCubesSingleDomain

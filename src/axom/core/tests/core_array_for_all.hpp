@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -16,24 +17,30 @@
 
 namespace testing
 {
+template <typename ExecSpace, axom::MemorySpace SPACE = axom::MemorySpace::Dynamic>
+struct ArrayTestParams
+{
+  using TheExecSpace = ExecSpace;
+#ifdef AXOM_USE_UMPIRE
+  static constexpr axom::MemorySpace HostSpace = axom::MemorySpace::Host;
+#else
+  static constexpr axom::MemorySpace HostSpace = axom::MemorySpace::Dynamic;
+#endif
+  static constexpr axom::MemorySpace KernelSpace = SPACE;
+};
+
 //------------------------------------------------------------------------------
 //  This test harness defines some types that are useful for the tests below
 //------------------------------------------------------------------------------
-template <typename TheExecSpace>
+template <typename ExecParams>
 class core_array_for_all : public ::testing::Test
 {
 public:
-  using ExecSpace = TheExecSpace;
+  using ExecSpace = typename ExecParams::TheExecSpace;
 
   // Define some memory spaces
-#ifdef AXOM_USE_UMPIRE
-  static constexpr axom::MemorySpace host_memory = axom::MemorySpace::Host;
-#else
-  static constexpr axom::MemorySpace host_memory = axom::MemorySpace::Dynamic;
-#endif
-
-  static constexpr axom::MemorySpace exec_space_memory =
-    axom::execution_space<ExecSpace>::memory_space;
+  static constexpr axom::MemorySpace host_memory = ExecParams::HostSpace;
+  static constexpr axom::MemorySpace exec_space_memory = ExecParams::KernelSpace;
 
   // Define some Array type aliases
   template <typename T>
@@ -44,30 +51,41 @@ public:
   using DynamicArray = axom::Array<int, 1, axom::MemorySpace::Dynamic>;
   using KernelArray = axom::Array<int, 1, exec_space_memory>;
   using KernelArrayView = axom::ArrayView<int, 1, exec_space_memory>;
+
+  static int getKernelAllocatorID() { return axom::detail::getAllocatorID<exec_space_memory>(); }
 };
 
 // Generate a list of available execution types
 using MyTypes = ::testing::Types<
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
-  axom::OMP_EXEC,
+  ArrayTestParams<axom::OMP_EXEC>,
 #endif
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
-  axom::CUDA_EXEC<100>,
-  axom::CUDA_EXEC<256>,
-  axom::CUDA_EXEC<256, axom::ASYNC>,
+  ArrayTestParams<axom::CUDA_EXEC<256>, axom::MemorySpace::Device>,
+  ArrayTestParams<axom::CUDA_EXEC<256>, axom::MemorySpace::Unified>,
+  ArrayTestParams<axom::CUDA_EXEC<256>, axom::MemorySpace::Pinned>,
+  ArrayTestParams<axom::CUDA_EXEC<256, axom::ASYNC>, axom::MemorySpace::Device>,
+  ArrayTestParams<axom::CUDA_EXEC<256, axom::ASYNC>, axom::MemorySpace::Unified>,
+  ArrayTestParams<axom::CUDA_EXEC<256, axom::ASYNC>, axom::MemorySpace::Pinned>,
 #endif
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
-  axom::HIP_EXEC<100>,
-  axom::HIP_EXEC<256>,
-  axom::HIP_EXEC<256, axom::ASYNC>,
+  ArrayTestParams<axom::HIP_EXEC<256>, axom::MemorySpace::Device>,
+  ArrayTestParams<axom::HIP_EXEC<256>, axom::MemorySpace::Unified>,
+  ArrayTestParams<axom::HIP_EXEC<256>, axom::MemorySpace::Pinned>,
+  ArrayTestParams<axom::HIP_EXEC<256, axom::ASYNC>, axom::MemorySpace::Device>,
+  ArrayTestParams<axom::HIP_EXEC<256, axom::ASYNC>, axom::MemorySpace::Unified>,
+  ArrayTestParams<axom::HIP_EXEC<256, axom::ASYNC>, axom::MemorySpace::Pinned>,
 #endif
-  axom::SEQ_EXEC>;
+#if defined(AXOM_USE_UMPIRE)
+  ArrayTestParams<axom::SEQ_EXEC, axom::MemorySpace::Host>,
+#endif
+  ArrayTestParams<axom::SEQ_EXEC>>;
 
 TYPED_TEST_SUITE(core_array_for_all, MyTypes);
 
 //------------------------------------------------------------------------------
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && \
-  defined(AXOM_USE_UMPIRE) && defined(AXOM_DEBUG)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE) && \
+  defined(AXOM_DEBUG)
 AXOM_CUDA_TEST(core_array_for_all, capture_test)
 {
   using ExecSpace = axom::CUDA_EXEC<256>;
@@ -110,9 +128,7 @@ AXOM_TYPED_TEST(core_array_for_all, explicit_ArrayView)
 
   // Modify array using lambda and ArrayView
   KernelArrayView arr_view(arr);
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
+  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -142,9 +158,7 @@ AXOM_TYPED_TEST(core_array_for_all, auto_ArrayView)
   // Modify array using lambda and ArrayView
   auto arr_view = arr.view();
   EXPECT_FALSE(arr_view.empty());
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
+  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -192,9 +206,7 @@ AXOM_TYPED_TEST(core_array_for_all, auto_ArrayView_const)
   auto arrData = arr.data();
   axom::for_all<ExecSpace>(
     N,
-    AXOM_LAMBDA(axom::IndexType idx) {
-      arrData[idx] = N - kernelSourceView[idx];
-    });
+    AXOM_LAMBDA(axom::IndexType idx) { arrData[idx] = N - kernelSourceView[idx]; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -219,9 +231,7 @@ AXOM_TYPED_TEST(core_array_for_all, auto_ArrayView_const)
 
   axom::for_all<ExecSpace>(
     N,
-    AXOM_LAMBDA(axom::IndexType idx) {
-      arrConstData[idx] = N - kernelSourceConstView[idx];
-    });
+    AXOM_LAMBDA(axom::IndexType idx) { arrConstData[idx] = N - kernelSourceConstView[idx]; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -249,7 +259,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array)
   using DynamicArray = typename TestFixture::DynamicArray;
   using HostArray = typename TestFixture::HostArray;
 
-  int kernelAllocID = axom::execution_space<ExecSpace>::allocatorID();
+  int kernelAllocID = TestFixture::getKernelAllocatorID();
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   // Create an array of N items using default MemorySpace for ExecSpace
@@ -268,9 +278,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array)
 
   // Modify array using lambda and ArrayView
   auto arr_view = arr.view();
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
+  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -295,23 +303,14 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_insert)
   using HostArray = typename TestFixture::HostArray;
   using ExecSpace = typename TestFixture::ExecSpace;
 
-  int kernelAllocID = axom::execution_space<ExecSpace>::allocatorID();
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-  if(axom::execution_space<ExecSpace>::onDevice())
-  {
-    kernelAllocID = axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
-  }
-#endif
+  int kernelAllocID = TestFixture::getKernelAllocatorID();
 
   constexpr axom::IndexType N = 374;
   DynamicArray arr(N, N, kernelAllocID);
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
+  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -368,23 +367,14 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_range_insert)
   using HostArray = typename TestFixture::HostArray;
   using ExecSpace = typename TestFixture::ExecSpace;
 
-  int kernelAllocID = axom::execution_space<ExecSpace>::allocatorID();
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-  if(axom::execution_space<ExecSpace>::onDevice())
-  {
-    kernelAllocID = axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
-  }
-#endif
+  int kernelAllocID = TestFixture::getKernelAllocatorID();
 
   constexpr axom::IndexType N = 374;
   DynamicArray arr(N, N, kernelAllocID);
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
+  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -442,23 +432,14 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_range_set)
   using HostArray = typename TestFixture::HostArray;
   using ExecSpace = typename TestFixture::ExecSpace;
 
-  int kernelAllocID = axom::execution_space<ExecSpace>::allocatorID();
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-  if(axom::execution_space<ExecSpace>::onDevice())
-  {
-    kernelAllocID = axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
-  }
-#endif
+  int kernelAllocID = TestFixture::getKernelAllocatorID();
 
   constexpr axom::IndexType N = 374;
   DynamicArray arr(N, N, kernelAllocID);
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
+  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -496,16 +477,8 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_initializer_list)
 {
   using DynamicArray = typename TestFixture::DynamicArray;
   using HostArray = typename TestFixture::HostArray;
-  using ExecSpace = typename TestFixture::ExecSpace;
 
-  int kernelAllocID = axom::execution_space<ExecSpace>::allocatorID();
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-  if(axom::execution_space<ExecSpace>::onDevice())
-  {
-    kernelAllocID = axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
-  }
-#endif
+  int kernelAllocID = TestFixture::getKernelAllocatorID();
 
   // Construct array with an initializer list
   {
@@ -549,23 +522,20 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_resize)
   using HostArray = typename TestFixture::HostArray;
   using ExecSpace = typename TestFixture::ExecSpace;
 
-  int kernelAllocID = axom::execution_space<ExecSpace>::allocatorID();
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-  if(axom::execution_space<ExecSpace>::onDevice())
-  {
-    kernelAllocID = axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
-  }
-#endif
+  int kernelAllocID = TestFixture::getKernelAllocatorID();
 
   constexpr axom::IndexType N = 10;
   DynamicArray arr(N, N, kernelAllocID);
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx; });
+  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx; });
+
+  // handles synchronization, if necessary
+  if(axom::execution_space<ExecSpace>::async())
+  {
+    axom::synchronize<ExecSpace>();
+  }
 
   // Call resize without a default value. New elements in array should be set
   // to 0.
@@ -625,22 +595,12 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_resize)
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, dynamic_array_of_arrays)
 {
-  using ExecSpace = typename TestFixture::ExecSpace;
   using DynamicArray = typename TestFixture::DynamicArray;
   using HostArray = typename TestFixture::HostArray;
-  using ArrayOfArrays =
-    typename TestFixture::template DynamicTArray<DynamicArray>;
-  using HostArrayOfArrays =
-    typename TestFixture::template HostTArray<DynamicArray>;
+  using ArrayOfArrays = typename TestFixture::template DynamicTArray<DynamicArray>;
+  using HostArrayOfArrays = typename TestFixture::template HostTArray<DynamicArray>;
 
-  int kernelAllocID = axom::execution_space<ExecSpace>::allocatorID();
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-  if(axom::execution_space<ExecSpace>::onDevice())
-  {
-    kernelAllocID = axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
-  }
-#endif
+  int kernelAllocID = TestFixture::getKernelAllocatorID();
 
   constexpr axom::IndexType N = 5;
   ArrayOfArrays arr_2d(0, N, kernelAllocID);
@@ -721,19 +681,10 @@ struct NonTrivialDefaultCtor
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_default_ctor_obj)
 {
   using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray =
-    typename TestFixture::template DynamicTArray<NonTrivialDefaultCtor>;
-  using HostArray =
-    typename TestFixture::template HostTArray<NonTrivialDefaultCtor>;
+  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialDefaultCtor>;
+  using HostArray = typename TestFixture::template HostTArray<NonTrivialDefaultCtor>;
 
-  int kernelAllocID = axom::execution_space<ExecSpace>::allocatorID();
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-  if(axom::execution_space<ExecSpace>::onDevice())
-  {
-    kernelAllocID = axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
-  }
-#endif
+  int kernelAllocID = TestFixture::getKernelAllocatorID();
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   // Create an array of N items using default MemorySpace for ExecSpace
@@ -799,18 +750,10 @@ struct NonTrivialCtor
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_ctor_obj)
 {
   using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray =
-    typename TestFixture::template DynamicTArray<NonTrivialCtor>;
+  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialCtor>;
   using HostArray = typename TestFixture::template HostTArray<NonTrivialCtor>;
 
-  int kernelAllocID = axom::execution_space<ExecSpace>::allocatorID();
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-  if(axom::execution_space<ExecSpace>::onDevice())
-  {
-    kernelAllocID = axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
-  }
-#endif
+  int kernelAllocID = TestFixture::getKernelAllocatorID();
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   // Create an array of N items using default MemorySpace for ExecSpace
@@ -868,19 +811,10 @@ int NonTrivialDtor::dtor_calls {0};
 
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_dtor_obj)
 {
-  using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray =
-    typename TestFixture::template DynamicTArray<NonTrivialDtor>;
+  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialDtor>;
   using HostArray = typename TestFixture::template HostTArray<NonTrivialDtor>;
 
-  int kernelAllocID = axom::execution_space<ExecSpace>::allocatorID();
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-  if(axom::execution_space<ExecSpace>::onDevice())
-  {
-    kernelAllocID = axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
-  }
-#endif
+  int kernelAllocID = TestFixture::getKernelAllocatorID();
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   NonTrivialDtor::dtor_calls = 0;
@@ -956,19 +890,11 @@ struct NonTrivialCopyCtor
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_copy_ctor_obj)
 {
   using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray =
-    typename TestFixture::template DynamicTArray<NonTrivialCopyCtor>;
+  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialCopyCtor>;
   using IntArray = typename TestFixture::DynamicArray;
   using IntHostArray = typename TestFixture::HostArray;
 
-  int kernelAllocID = axom::execution_space<ExecSpace>::allocatorID();
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-  if(axom::execution_space<ExecSpace>::onDevice())
-  {
-    kernelAllocID = axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
-  }
-#endif
+  int kernelAllocID = TestFixture::getKernelAllocatorID();
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   // Helper function to check all values in the array for consistency
@@ -1075,19 +1001,11 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_copy_ctor_obj)
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_emplace)
 {
   using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray =
-    typename TestFixture::template DynamicTArray<NonTrivialCopyCtor>;
+  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialCopyCtor>;
   using IntArray = typename TestFixture::DynamicArray;
   using HostIntArray = typename TestFixture::HostArray;
 
-  int kernelAllocID = axom::execution_space<ExecSpace>::allocatorID();
-#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-  if(axom::execution_space<ExecSpace>::onDevice())
-  {
-    kernelAllocID = axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
-  }
-#endif
+  int kernelAllocID = TestFixture::getKernelAllocatorID();
 
   // Helper function to copy device values to a host array
   auto convert_to_host_array = [=](const DynamicArray& arr) -> HostIntArray {
@@ -1200,20 +1118,20 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
 {
   using ExecSpace = typename TestFixture::ExecSpace;
   using DynamicArray = typename TestFixture::template DynamicTArray<DeviceInsert>;
-  using DynamicArrayOfArrays =
-    typename TestFixture::template DynamicTArray<DynamicArray>;
+  using DynamicArrayOfArrays = typename TestFixture::template DynamicTArray<DynamicArray>;
 
-  int kernelAllocID = axom::execution_space<ExecSpace>::allocatorID();
+  int kernelAllocID = TestFixture::getKernelAllocatorID();
+  int umAllocID = kernelAllocID;
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
   // Use unified memory for frequent movement between device operations
   // and value checking on host
-  kernelAllocID = axom::getUmpireResourceAllocatorID(
-    umpire::resource::MemoryResourceType::Unified);
+  umAllocID = axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
 #endif
+  int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   constexpr axom::IndexType N = 374;
 
-  DynamicArrayOfArrays arr_container(1, 1, kernelAllocID);
+  DynamicArrayOfArrays arr_container(1, 1, umAllocID);
   arr_container[0] = DynamicArray(0, N, kernelAllocID);
   const auto arr_v = arr_container.view();
 
@@ -1223,21 +1141,20 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
   axom::for_all<ExecSpace>(
     N,
     AXOM_LAMBDA(axom::IndexType idx) {
-#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA) && \
-  !defined(AXOM_DEVICE_CODE)
+#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA) && !defined(AXOM_DEVICE_CODE)
       if(omp_in_parallel())
       {
   #pragma omp critical
         {
-          arr_v[0].emplace_back(3 * idx + 5);
+          arr_v[0].emplace_back_device(3 * idx + 5);
         }
       }
       else
       {
-        arr_v[0].emplace_back(3 * idx + 5);
+        arr_v[0].emplace_back_device(3 * idx + 5);
       }
 #else
-      arr_v[0].emplace_back(3 * idx + 5);
+      arr_v[0].emplace_back_device(3 * idx + 5);
 #endif
     });
 
@@ -1250,25 +1167,68 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
   EXPECT_EQ(arr_container[0].size(), N);
   EXPECT_EQ(arr_container[0].capacity(), N);
 
+  // Copy array to host.
+  DynamicArray arr_host(arr_container[0], hostAllocID);
+
   // Device-side inserts may occur in any order.
   // Sort them before we check the inserted values.
-  std::sort(arr_container[0].begin(),
-            arr_container[0].end(),
-            [](const DeviceInsert& a, const DeviceInsert& b) -> bool {
-              return a.m_value < b.m_value;
-            });
+  std::sort(arr_host.begin(), arr_host.end(), [](const DeviceInsert& a, const DeviceInsert& b) -> bool {
+    return a.m_value < b.m_value;
+  });
 
   for(int i = 0; i < N; i++)
   {
-    EXPECT_EQ(arr_container[0][i].m_value, 3 * i + 5);
+    EXPECT_EQ(arr_host[i].m_value, 3 * i + 5);
     if(axom::execution_space<ExecSpace>::onDevice())
     {
-      EXPECT_EQ(arr_container[0][i].m_host_or_device, INSERT_ON_DEVICE);
+      EXPECT_EQ(arr_host[i].m_host_or_device, INSERT_ON_DEVICE);
     }
     else
     {
-      EXPECT_EQ(arr_container[0][i].m_host_or_device, INSERT_ON_HOST);
+      EXPECT_EQ(arr_host[i].m_host_or_device, INSERT_ON_HOST);
     }
+  }
+}
+
+//------------------------------------------------------------------------------
+AXOM_TYPED_TEST(core_array_for_all, unified_mem_preference)
+{
+  using KernelArray = typename TestFixture::KernelArray;
+
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  if(TestFixture::exec_space_memory != axom::MemorySpace::Unified &&
+     TestFixture::exec_space_memory != axom::MemorySpace::Pinned)
+  {
+    GTEST_SKIP() << "Skipping test for a memory space that isn't accessible "
+                    "from both CPU and GPU.";
+  }
+#elif defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  if(TestFixture::exec_space_memory != axom::MemorySpace::Unified &&
+     TestFixture::exec_space_memory != axom::MemorySpace::Pinned &&
+     TestFixture::exec_space_memory != axom::MemorySpace::Device)
+  {
+    GTEST_SKIP() << "Skipping test for a memory space that isn't accessible "
+                    "from both CPU and GPU.";
+  }
+#else
+  GTEST_SKIP() << "Skipping test on non-GPU platform.";
+#endif
+
+  constexpr axom::IndexType N = 374;
+
+  for(bool devicePref : {false, true})
+  {
+    KernelArray arr;
+    arr.setDevicePreference(devicePref);
+
+    // Check that we can do a few miscellaneous array operations.
+    // At the moment, we can't really test that they're actually being
+    // performed on the host or the device, so just check that nothing breaks.
+    arr.resize(N);
+    KernelArray arr_copy(arr);
+    arr.push_back(1);
+    arr.insert(arr.begin(), -1);
+    arr.clear();
   }
 }
 

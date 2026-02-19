@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -32,11 +33,9 @@ TEST(C_sidre_external, create_external_view)
     ddata[ii] = idata[ii] * 2.0;
   }
 
-  SIDRE_View* iview =
-    SIDRE_Group_create_view_external(root, "idata", idata, &iview_buf);
+  SIDRE_View* iview = SIDRE_Group_create_view_external(root, "idata", idata, &iview_buf);
   SIDRE_View_apply_type_nelems(iview, SIDRE_INT_ID, len);
-  SIDRE_View* dview =
-    SIDRE_Group_create_view_external(root, "ddata", ddata, &dview_buf);
+  SIDRE_View* dview = SIDRE_Group_create_view_external(root, "ddata", ddata, &dview_buf);
   SIDRE_View_apply_type_nelems(dview, SIDRE_DOUBLE_ID, len);
   EXPECT_EQ(SIDRE_Group_get_num_views(root), 2u);
 

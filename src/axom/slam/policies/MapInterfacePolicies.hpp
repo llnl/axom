@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -37,8 +38,7 @@ struct MapInterfaceSelector<VirtualInterface, PosType>
 }  // namespace detail
 
 template <typename InterfacePolicy, typename SetPositionType>
-using MapInterface =
-  typename detail::MapInterfaceSelector<InterfacePolicy, SetPositionType>::Type;
+using MapInterface = typename detail::MapInterfaceSelector<InterfacePolicy, SetPositionType>::Type;
 
 }  // end namespace policies
 }  // end namespace slam

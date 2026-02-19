@@ -1,13 +1,13 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "gtest/gtest.h"
 
-#include <limits>
-
 #include "axom/core/Types.hpp"
+#include "axom/core/NumericLimits.hpp"
 #include "axom/sidre.hpp"
 
 using axom::sidre::DataType;
@@ -24,21 +24,20 @@ template <typename CommonType, typename SidreType>
 void testTypesForEquality()
 {
   // check if both are integral types
-  bool com_is_int = std::numeric_limits<CommonType>::is_integer;
-  bool sid_is_int = std::numeric_limits<SidreType>::is_integer;
+  bool com_is_int = axom::numeric_limits<CommonType>::is_integer;
+  bool sid_is_int = axom::numeric_limits<SidreType>::is_integer;
   EXPECT_EQ(com_is_int, sid_is_int);
 
   // check if both are signed (or both are unsigned)
-  bool com_is_signed = std::numeric_limits<CommonType>::is_signed;
-  bool sid_is_signed = std::numeric_limits<SidreType>::is_signed;
+  bool com_is_signed = axom::numeric_limits<CommonType>::is_signed;
+  bool sid_is_signed = axom::numeric_limits<SidreType>::is_signed;
   EXPECT_EQ(com_is_signed, sid_is_signed);
 
   // check that both have same number of bytes
   EXPECT_EQ(sizeof(CommonType), sizeof(SidreType));
 
   // check that both have same number of digits
-  EXPECT_EQ(std::numeric_limits<CommonType>::digits,
-            std::numeric_limits<SidreType>::digits);
+  EXPECT_EQ(axom::numeric_limits<CommonType>::digits, axom::numeric_limits<SidreType>::digits);
 }
 
 }  // namespace

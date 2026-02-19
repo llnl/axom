@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -7,6 +8,7 @@
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/FlatMap.hpp"
+#include "axom/core/execution/runtime_policy.hpp"
 
 // gtest includes
 #include "gtest/gtest.h"
@@ -48,25 +50,13 @@ TEST(core_flatmap_unit, quadratic_probing)
   }
 }
 
-inline void flatmap_get_value(double key, std::string& out)
-{
-  out = std::to_string(key);
-}
+inline void flatmap_get_value(double key, std::string& out) { out = std::to_string(key); }
 
-inline void flatmap_get_value(int key, std::string& out)
-{
-  out = std::to_string(key);
-}
+inline void flatmap_get_value(int key, std::string& out) { out = std::to_string(key); }
 
-inline void flatmap_get_value(const std::string& key, double& out)
-{
-  out = std::stod(key);
-}
+inline void flatmap_get_value(const std::string& key, double& out) { out = std::stod(key); }
 
-inline void flatmap_get_value(const std::string& key, int& out)
-{
-  out = std::stoi(key);
-}
+inline void flatmap_get_value(const std::string& key, int& out) { out = std::stoi(key); }
 
 template <typename T, typename U>
 inline void flatmap_get_value(T key, U& out)
@@ -81,6 +71,15 @@ public:
   using MapType = FlatMapType;
   using KeyType = typename FlatMapType::key_type;
   using ValueType = typename FlatMapType::mapped_type;
+
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  using DeviceExec = axom::HIP_EXEC<256>;
+#elif defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  using DeviceExec = axom::CUDA_EXEC<256>;
+#else
+  using DeviceExec = axom::SEQ_EXEC;
+#endif
+  using HostExec = axom::SEQ_EXEC;
 
   template <typename T>
   KeyType getKey(T input)
@@ -114,6 +113,60 @@ AXOM_TYPED_TEST(core_flatmap, default_init)
   MapType test_map;
   EXPECT_EQ(0, test_map.size());
   EXPECT_EQ(true, test_map.empty());
+}
+
+AXOM_TYPED_TEST(core_flatmap, iterators)
+{
+  using MapType = typename TestFixture::MapType;
+  using MapIterType = typename MapType::iterator;
+
+  MapIterType empty_iterator;
+  MapIterType empty_iterator_2;
+
+  // Default-constructed iterators should all be equivalent.
+  EXPECT_EQ(empty_iterator, empty_iterator_2);
+
+  MapType test_map;
+
+  const int NUM_ELEMS = 100;
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    auto it = test_map.emplace(key, value);
+
+    // Default-constructed iterators should not be equivalent to an actual map's
+    // iterators.
+    EXPECT_NE(empty_iterator, it.first);
+  }
+
+  MapType test_map_2 = test_map;
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+
+    auto it = test_map.find(key);
+    auto it2 = test_map_2.find(key);
+
+    // Iterators between two different maps should not be equivalent.
+    EXPECT_NE(it, it2);
+  }
+}
+
+AXOM_TYPED_TEST(core_flatmap, prealloc_buckets)
+{
+  using MapType = typename TestFixture::MapType;
+
+  const std::vector<int> sizes = {100, 400, 1000, 4000, 10000};
+
+  for(int size : sizes)
+  {
+    MapType test_map(size);
+    EXPECT_EQ(0, test_map.size());
+    EXPECT_LE(size, test_map.bucket_count() * test_map.max_load_factor());
+  }
 }
 
 AXOM_TYPED_TEST(core_flatmap, insert_only)
@@ -360,8 +413,7 @@ TEST(core_flatmap_moveonly, init_and_move_moveonly)
     test_map.emplace(i, new double {i + 10.0});
   }
 
-  axom::FlatMap<int, std::unique_ptr<double>> int_to_dbl_move =
-    std::move(test_map);
+  axom::FlatMap<int, std::unique_ptr<double>> int_to_dbl_move = std::move(test_map);
 
   EXPECT_EQ(test_map.size(), 0);
   EXPECT_EQ(test_map.load_factor(), 0);
@@ -468,6 +520,7 @@ AXOM_TYPED_TEST(core_flatmap, insert_then_delete)
   EXPECT_EQ(test_map.size(), NUM_INSERTS);
   EXPECT_GE(test_map.bucket_count(), NUM_INSERTS);
 
+  int num_deletions = 0;
   for(int i = 0; i < NUM_INSERTS; i += 3)
   {
     auto key = this->getKey(i);
@@ -480,7 +533,10 @@ AXOM_TYPED_TEST(core_flatmap, insert_then_delete)
     auto deleted_iterator = test_map.erase(iterator_to_remove);
 
     EXPECT_EQ(deleted_iterator, one_after_elem);
+    num_deletions++;
   }
+
+  EXPECT_EQ(test_map.size(), NUM_INSERTS - num_deletions);
 
   // Check consistency of values.
   for(int i = 0; i < NUM_INSERTS; i++)
@@ -525,9 +581,7 @@ AXOM_TYPED_TEST(core_flatmap, iterator_loop)
 
   int iter_count = 0;
   // Test constant iteration
-  for(typename MapType::const_iterator it = test_map.begin();
-      it != test_map.end();
-      ++it)
+  for(typename MapType::const_iterator it = test_map.begin(); it != test_map.end(); ++it)
   {
     auto pair = *it;
     auto iter_key = pair.first;
@@ -683,5 +737,198 @@ AXOM_TYPED_TEST(core_flatmap, range_for_loop_write)
     const auto key = this->getKey(i);
     const auto expected_value = this->getValue(i * 10.0 + 7.0);
     EXPECT_EQ(test_map[key], expected_value);
+  }
+}
+#if defined(AXOM_USE_HIP) || defined(AXOM_USE_CUDA)
+
+AXOM_TYPED_TEST(core_flatmap, copy_host_device)
+{
+  using MapType = typename TestFixture::MapType;
+
+  using HostExec = typename TestFixture::HostExec;
+  using DeviceExec = typename TestFixture::DeviceExec;
+
+  // CUDA failure - Skip tests if key or value is of type std::string
+  #if defined(AXOM_USE_CUDA)
+  if constexpr(std::is_same<typename TestFixture::KeyType, std::string>::value ||
+               std::is_same<typename TestFixture::ValueType, std::string>::value)
+  {
+    return;
+  }
+  #endif
+
+  const int host_alloc_id = axom::execution_space<HostExec>::allocatorID();
+  const int device_alloc_id = axom::execution_space<DeviceExec>::allocatorID();
+
+  MapType test_map(axom::Allocator {host_alloc_id});
+
+  const int NUM_ELEMS = 100;
+  const int EMPTY_CHECKS = 100;
+
+  // Create map on the host.
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    test_map.insert({key, value});
+  }
+
+  // Copy from the host to the device.
+  MapType test_map_device = MapType(test_map, axom::Allocator {device_alloc_id});
+
+  // Check that maps are equivalent with a different allocator ID.
+  EXPECT_EQ(test_map_device.getAllocator().getID(), device_alloc_id);
+  EXPECT_EQ(test_map_device.bucket_count(), test_map.bucket_count());
+  EXPECT_EQ(test_map_device.size(), test_map.size());
+
+  // Copy back to the host.
+  MapType test_map_host = MapType(test_map_device, axom::Allocator {host_alloc_id});
+
+  // Check that maps are equivalent with the same allocator ID.
+  EXPECT_EQ(test_map_host.getAllocator().getID(), host_alloc_id);
+  EXPECT_EQ(test_map_host.bucket_count(), test_map.bucket_count());
+  EXPECT_EQ(test_map_host.size(), test_map.size());
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+
+    EXPECT_EQ(test_map_host.contains(key), true);
+    EXPECT_EQ(test_map_host.count(key), 1);
+    EXPECT_EQ(test_map_host.find(key)->first, test_map.find(key)->first);
+    EXPECT_EQ(test_map_host.find(key)->second, test_map.find(key)->second);
+  }
+
+  for(int i = NUM_ELEMS; i < NUM_ELEMS + EMPTY_CHECKS; i++)
+  {
+    auto key = this->getKey(i);
+
+    EXPECT_EQ(test_map_host.contains(key), false);
+    EXPECT_EQ(test_map_host.count(key), 0);
+    EXPECT_EQ(test_map_host.find(key), test_map_host.end());
+  }
+}
+
+#endif
+
+AXOM_TYPED_TEST(core_flatmap, empty_view)
+{
+  using MapType = typename TestFixture::MapType;
+  MapType test_map;
+
+  const int EMPTY_CHECKS = 100;
+
+  // Create a read-only view from the FlatMap
+  auto view = test_map.view();
+
+  EXPECT_EQ(view.empty(), test_map.empty());
+  EXPECT_EQ(view.size(), test_map.size());
+  EXPECT_EQ(view.bucket_count(), test_map.bucket_count());
+
+  for(int i = 0; i < EMPTY_CHECKS; i++)
+  {
+    auto key = this->getKey(i);
+
+    EXPECT_EQ(view.contains(key), false);
+    EXPECT_EQ(view.count(key), 0);
+    EXPECT_EQ(view.find(key), view.end());
+  }
+}
+
+AXOM_TYPED_TEST(core_flatmap, view_iterators)
+{
+  using MapType = typename TestFixture::MapType;
+  using MapViewType = typename MapType::View;
+  using MapIterType = typename MapViewType::iterator;
+
+  MapIterType empty_iterator;
+  MapIterType empty_iterator_2;
+
+  // Default-constructed iterators should all be equivalent.
+  EXPECT_EQ(empty_iterator, empty_iterator_2);
+
+  MapType test_map;
+
+  const int NUM_ELEMS = 100;
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    test_map.emplace(key, value);
+  }
+
+  // Get a view over the test map.
+  auto test_map_view = test_map.view();
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+
+    auto it = test_map_view.find(key);
+
+    // Default-constructed iterators should not be equivalent to an actual map's
+    // iterators.
+    EXPECT_NE(it, empty_iterator);
+  }
+
+  // Get a second map view over the same test map.
+  auto test_map_view_2 = test_map.view();
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+
+    auto it = test_map_view.find(key);
+    auto it2 = test_map_view_2.find(key);
+
+    // Iterators between two view instances should compare equal if the two views
+    // point to the same underlying FlatMap.
+    EXPECT_EQ(it, it2);
+  }
+}
+
+AXOM_TYPED_TEST(core_flatmap, init_view)
+{
+  using MapType = typename TestFixture::MapType;
+  MapType test_map;
+
+  const int NUM_ELEMS = 100;
+  const int EMPTY_CHECKS = 100;
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    test_map.insert({key, value});
+  }
+
+  // Create a read-only view from the FlatMap
+  auto view = test_map.view();
+
+  EXPECT_EQ(view.empty(), test_map.empty());
+  EXPECT_EQ(view.size(), test_map.size());
+  EXPECT_EQ(view.bucket_count(), test_map.bucket_count());
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+
+    EXPECT_EQ(view.contains(key), true);
+    EXPECT_EQ(view.count(key), 1);
+    EXPECT_EQ(view.find(key)->first, test_map.find(key)->first);
+    EXPECT_EQ(view.find(key)->second, test_map.find(key)->second);
+  }
+
+  for(int i = NUM_ELEMS; i < NUM_ELEMS + EMPTY_CHECKS; i++)
+  {
+    auto key = this->getKey(i);
+
+    EXPECT_EQ(view.contains(key), false);
+    EXPECT_EQ(view.count(key), 0);
+    EXPECT_EQ(view.find(key), view.end());
   }
 }

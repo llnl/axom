@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -169,20 +170,9 @@ The top-level component directory contains a ``CMakeLists.txt``, e.g.,
 
        install(EXPORT <component name>-targets DESTINATION lib/cmake)
 
-  #. Code formatting and static analysis targets; e.g.,::
-
-       axom_add_code_checks(BASE_NAME <component name>)
-
-
-
-.. note:: Each Axom component should use the common ``clang-format``
-          configuration file defined for the project at ``src/.clang-format``. 
-          The file is used to define source code formatting options that are
-          applied when the *clang-format* tool is run on the code.
-
 
 Component src directory
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
 
 The ``CMakeLists.txt`` file in the component ``src`` directory defines:
 
@@ -308,6 +298,29 @@ The end result of properly setting up these pieces is a make target called
 ``generate_sidre_shroud`` that can be invoked to generate *sidre* API code
 in other languages Axom supports.
 
+====================================
+Python Interfaces
+====================================
+
+We use the nanobind library to generate Python APIs from our C++
+interface code. Nanobind is a python binding library that generates code
+from a *cpp* file that describes C++ functions and their interfaces.
+
+Please refer to the `nanobind documentation <https://nanobind.readthedocs.io/en/latest/>`_ for more information.
+
+The python interpreter can be launched with Axom extension(s) in the PYTHONPATH
+by running the convenience script::
+
+  ./bin/run_python_with_axom.sh <optional .py to run>
+
+.. note:: The Python interface requires Axom to be configured with nanobind
+          to build and use the interface. This requirement is different from shroud,
+          which generates interface files. Once shroud generates the interface
+          files, users are not required to configure Axom with shroud to use the
+          Fortran interface.
+
+.. warning:: nanobind's numpy interface does not currently support
+             `arbitrary Python objects <https://nanobind.readthedocs.io/en/latest/ndarray.html#limitations-related-to-dtypes>`_.
 
 ====================================
 Documentation

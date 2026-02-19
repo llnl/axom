@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 axom_component_requires(NAME       Klee
@@ -12,28 +13,28 @@ set(klee_headers
     Dimensions.hpp
     Geometry.hpp
     GeometryOperators.hpp
-    IO.hpp
     Shape.hpp
     ShapeSet.hpp
     Units.hpp
     KleeError.hpp
+    io/IO.hpp
     )
 
 set(klee_internal_headers
-    GeometryOperatorsIO.hpp
-    IOUtil.hpp
+    io/GeometryOperatorsIO.hpp
+    io/IOUtil.hpp
     )
 
 set(klee_sources
     Geometry.cpp
     GeometryOperators.cpp
-    GeometryOperatorsIO.cpp
     KleeError.cpp
-    IO.cpp
-    IOUtil.cpp
     Shape.cpp
     ShapeSet.cpp
     Units.cpp
+    io/GeometryOperatorsIO.cpp
+    io/IO.cpp
+    io/IOUtil.cpp
     )
 
 #------------------------------------------------------------------------------
@@ -61,9 +62,3 @@ axom_install_component( NAME    klee
 if (AXOM_ENABLE_TESTS AND ENABLE_GMOCK)
   add_subdirectory(tests)
 endif()
-
-#------------------------------------------------------------------------------
-# Add code checks
-#------------------------------------------------------------------------------
-axom_add_code_checks(PREFIX klee)
-

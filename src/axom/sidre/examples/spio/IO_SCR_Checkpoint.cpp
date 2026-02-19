@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -105,11 +106,7 @@ bool needCheckpoint(void)
 }
 
 /** Write a checkpoint via SCR */
-bool dumpCheckpoint(MPI_Comm comm,
-                    const std::string& file_base,
-                    int t,
-                    int num_files,
-                    DataStore* ds)
+bool dumpCheckpoint(MPI_Comm comm, const std::string& file_base, int t, int num_files, DataStore* ds)
 {
   // Tell SCR we're starting a checkpoint.
   // Each SCR output set should be given a name.
@@ -175,10 +172,7 @@ void initializeSimpleData(int my_rank, DataStore* ds)
   return;
 }
 
-bool dumpSimpleData(MPI_Comm comm,
-                    const std::string& file_base,
-                    int num_files,
-                    DataStore* ds)
+bool dumpSimpleData(MPI_Comm comm, const std::string& file_base, int num_files, DataStore* ds)
 {
   // Tell SCR we're starting an output dataset.
   // Each SCR output set should be given a name.
@@ -246,8 +240,7 @@ struct CommandLineArguments
   int m_numFiles;
   std::string m_fileBase;
 
-  CommandLineArguments() : m_numSteps(1), m_numFiles(0), m_fileBase("test.hdf")
-  { }
+  CommandLineArguments() : m_numSteps(1), m_numFiles(0), m_fileBase("test.hdf") { }
 
   void parse(int argc, char** argv, axom::CLI::App& app);
 };
@@ -255,8 +248,7 @@ struct CommandLineArguments
 /** Parse the command line arguments */
 void CommandLineArguments::parse(int argc, char** argv, axom::CLI::App& app)
 {
-  app.add_option("-s,--steps", m_numSteps, "Number of time steps")
-    ->check(axom::CLI::PositiveNumber);
+  app.add_option("-s,--steps", m_numSteps, "Number of time steps")->check(axom::CLI::PositiveNumber);
 
   app.add_option("-n,--num", m_numFiles, "Number of files per checkpoint")
     ->check(axom::CLI::PositiveNumber);
@@ -424,6 +416,9 @@ int main(int argc, char* argv[])
 
   SLIC_ASSERT(success);
   AXOM_UNUSED_VAR(success);
+
+  delete ds_output;
+  delete ds_input;
 
   MPI_Finalize();
 

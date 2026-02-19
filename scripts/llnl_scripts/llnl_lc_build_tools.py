@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -169,7 +170,11 @@ def uberenv_build(prefix, spec, project_file, mirror_path):
     if project_file:
         cmd += "--project-json=\"{0}\" ".format(project_file)
 
-    spack_tpl_build_log = pjoin(prefix,"output.log.spack.tpl.build.%s.txt" % spec.replace(" ", "_"))
+    # File names have a 255 character limit - take the first 200 characters if spec is too long
+    truncated_spec = spec[:200]
+
+    spack_tpl_build_log = pjoin(prefix,"output.log.spack.tpl.build.%s.txt" % truncated_spec.replace(" ", "_"))
+
     print("[starting tpl install of spec %s]" % spec)
     print("[log file: %s]" % spack_tpl_build_log)
     res = sexe(cmd,
@@ -181,7 +186,7 @@ def uberenv_build(prefix, spec, project_file, mirror_path):
     repo_dir = get_repo_dir()
     for file in ["spack-build-env.txt", "spack-build-out.txt", "spack-configure-args.txt"]:
         src = pjoin(repo_dir, file)
-        dst = pjoin(prefix, "{0}-{1}".format(spec.replace(" ", "_"),file))
+        dst = pjoin(prefix, "{0}-{1}".format(truncated_spec.replace(" ", "_"),file))
         if os.path.exists(src) and not os.path.exists(dst):
             shutil.move(src, dst)
 
@@ -201,17 +206,17 @@ def build_and_test_host_config(test_root, host_config,
                                test_serial = False):
     host_config_root = get_host_config_root(host_config)
     # setup build and install dirs
-    build_dir   = pjoin(test_root,"build-%s"   % host_config_root)
-    install_dir = pjoin(test_root,"install-%s" % host_config_root)
-    print("[Testing build, test, and install of host config file: %s]" % host_config)
-    print("[ build dir: %s]"   % build_dir)
-    print("[ install dir: %s]" % install_dir)
+    build_dir   = pjoin(test_root, f"build-{host_config_root}")
+    install_dir = pjoin(test_root, f"install-{host_config_root}")
+    print(f"[Testing build, test, and install of host config file: {host_config}]")
+    print(f"[ build dir: {build_dir}]")
+    print(f"[ install dir: {install_dir}]")
 
     # configure
-    cfg_output_file = pjoin(test_root,"output.log.%s.configure.txt" % host_config_root)
-    print("[starting configure of %s]" % host_config)
-    print("[log file: %s]" % cfg_output_file)
-    res = sexe("%s config-build.py -bp %s -ip %s -bt %s -hc %s %s" % (sys.executable, build_dir, install_dir, build_type, host_config, extra_cmake_options),
+    cfg_output_file = pjoin(test_root, f"output.log.{host_config_root}.configure.txt")
+    print(f"[starting configure of {host_config}]")
+    print(f"[log file: {cfg_output_file}]")
+    res = sexe(f"{sys.executable} config-build.py -bp {build_dir} -ip {install_dir} -bt {build_type} -hc {host_config} {extra_cmake_options}",
                output_file = cfg_output_file,
                echo=True)
 
@@ -220,7 +225,7 @@ def build_and_test_host_config(test_root, host_config,
             print(build_out.read())
 
     if res != 0:
-        print("[ERROR: Configure for host-config: %s failed]\n" % host_config)
+        print(f"[ERROR: Configure for host-config: {host_config} failed]\n")
         return res
 
     ####
@@ -230,8 +235,8 @@ def build_and_test_host_config(test_root, host_config,
     # build the code
     bld_output_file =  pjoin(build_dir,"output.log.make.txt")
     print("[starting build]")
-    print("[log file: %s]" % bld_output_file)
-    res = sexe("cd %s && make -j 16 VERBOSE=1 " % build_dir,
+    print(f"[log file: {bld_output_file}]")
+    res = sexe(f"cd {build_dir} && make -j 16 VERBOSE=1 ",
                 output_file = bld_output_file,
                 echo=True)
 
@@ -240,16 +245,16 @@ def build_and_test_host_config(test_root, host_config,
             print(build_out.read())
 
     if res != 0:
-        print("[ERROR: Build for host-config: %s failed]\n" % host_config)
+        print(f"[ERROR: Build for host-config: {host_config} failed]\n")
         return res
 
     # test the code
     tst_output_file = pjoin(build_dir,"output.log.make.test.txt")
     print("[starting unit tests]")
-    print("[log file: %s]" % tst_output_file)
+    print(f"[log file: {tst_output_file}]")
 
     parallel_test = "" if test_serial else "-j16"
-    tst_cmd = "cd %s && make CTEST_OUTPUT_ON_FAILURE=1 test ARGS=\"--no-compress-output -T Test -VV %s\"" % (build_dir, parallel_test)
+    tst_cmd = f"cd {build_dir} && make CTEST_OUTPUT_ON_FAILURE=1 test ARGS=\"--no-compress-output -T Test -VV {parallel_test}\""
 
     res = sexe(tst_cmd,
                output_file = tst_output_file,
@@ -270,21 +275,21 @@ def build_and_test_host_config(test_root, host_config,
         ctest_file = pjoin(build_dir, "Testing/*/Test.xml")
 
         print("[Converting CTest XML to JUnit XML]")
-        convert_cmd  = "xsltproc -o {0} {1} {2}".format(junit_file, xsl_file, ctest_file)
+        convert_cmd  = f"xsltproc -o {junit_file} {xsl_file} {ctest_file}"
         convert_res = sexe(convert_cmd, echo=True)
         if convert_res != 0:
             print("[WARNING: Converting to JUnit failed.]")
 
     if res != 0:
-        print("[ERROR: Tests for host-config: %s failed]\n" % host_config)
+        print(f"[ERROR: Tests for host-config: {host_config} failed]\n")
         return res
 
     # build the docs
     docs_output_file = pjoin(build_dir,"output.log.make.docs.txt")
     print("[starting docs generation]")
-    print("[log file: %s]" % docs_output_file)
+    print(f"[log file: {docs_output_file}]")
 
-    res = sexe("cd %s && make -j16 docs " % build_dir,
+    res = sexe(f"cd {build_dir} && make -j16 docs ",
                output_file = docs_output_file,
                echo=True)
 
@@ -293,50 +298,51 @@ def build_and_test_host_config(test_root, host_config,
             print(docs_out.read())
 
     if res != 0:
-        print("[ERROR: Docs generation for host-config: %s failed]\n\n" % host_config)
+        print(f"[ERROR: Docs generation for host-config: {host_config} failed]\n\n")
         return res
 
     # install the code
     inst_output_file = pjoin(build_dir,"output.log.make.install.txt")
     print("[starting install]")
-    print("[log file: %s]" % inst_output_file)
+    print(f"[log file: {inst_output_file}]")
 
-    res = sexe("cd %s && make -j16 install " % build_dir,
+    res = sexe(f"cd {build_dir} && make -j16 install ",
                output_file = inst_output_file,
                echo=True)
 
     if res != 0:
-        print("[ERROR: Install for host-config: %s failed]\n\n" % host_config)
+        print(f"[ERROR: Install for host-config: {host_config} failed]\n\n")
         return res
 
     # simple sanity check for make install
-    print("[checking install dir %s]" % install_dir)
-    sexe("ls %s/include" % install_dir, echo=True, error_prefix="WARNING:")
-    sexe("ls %s/lib" %     install_dir, echo=True, error_prefix="WARNING:")
-    sexe("ls %s/bin" %     install_dir, echo=True, error_prefix="WARNING:")
+    print(f"[checking install dir {install_dir}]")
+    sexe(f"ls {install_dir}/include", echo=True, error_prefix="WARNING:")
+    sexe(f"ls {install_dir}/lib",     echo=True, error_prefix="WARNING:")
+    sexe(f"ls {install_dir}/bin",     echo=True, error_prefix="WARNING:")
 
     # test the installation using installed cmake examples
     # TODO: enable tests for installed makefile-based example
     should_test_installed_cmake_example = True
     should_test_installed_blt_example = True
     should_test_installed_make_example = False
+    should_test_installed_tutorials = True
 
     if should_test_installed_cmake_example:
         install_example_dir = pjoin(install_dir, "examples", "axom", "using-with-cmake")
         install_example_output_file = pjoin(build_dir,"output.log.install_example.cmake.txt")
         print("[testing installed 'using-with-cmake' example]")
-        print("[log file: %s]" % install_example_output_file)
+        print(f"[log file: {install_example_output_file}]")
 
         example_commands = [
             "cd {0}".format(install_example_dir),
             "rm -rf build",
             "mkdir build",
             "cd build",
-            """echo "[Configuring '{}' example]" """.format("using-with-cmake"),
+            """echo "[Configuring '{0}' example]" """.format("using-with-cmake"),
             "cmake -C ../host-config.cmake ..",
-            """echo "[Building '{}' example]" """.format("using-with-cmake"),
+            """echo "[Building '{0}' example]" """.format("using-with-cmake"),
             "make ",
-            """echo "[Running '{}' example]" """.format("using-with-cmake"),
+            """echo "[Running '{0}' example]" """.format("using-with-cmake"),
             "./example",
             """echo "[Done]" """
         ]
@@ -346,7 +352,7 @@ def build_and_test_host_config(test_root, host_config,
                 echo=True)
 
         if res != 0:
-            print("[ERROR: Installed 'using-with-cmake' example for host-config: %s failed]\n\n" % host_config)
+            print(f"[ERROR: Installed 'using-with-cmake' example for host-config: {host_config} failed]\n\n")
             return res
 
 
@@ -354,18 +360,18 @@ def build_and_test_host_config(test_root, host_config,
         install_example_dir = pjoin(install_dir, "examples", "axom", "using-with-blt")
         install_example_output_file = pjoin(build_dir,"output.log.install_example.blt.txt")
         print("[testing installed 'using-with-blt' example]")
-        print("[log file: %s]" % install_example_output_file)
+        print(f"[log file: {install_example_output_file}]")
 
         example_commands = [
             "cd {0}".format(install_example_dir),
             "rm -rf build",
             "mkdir build",
             "cd build",
-            """echo "[Configuring '{}' example]" """.format("using-with-blt"),
+            """echo "[Configuring '{0}' example]" """.format("using-with-blt"),
             "cmake -C ../host-config.cmake ..",
-            """echo "[Building '{}' example]" """.format("using-with-blt"),
+            """echo "[Building '{0}' example]" """.format("using-with-blt"),
             "make ",
-            """echo "[Running '{}' example]" """.format("using-with-blt"),
+            """echo "[Running '{0}' example]" """.format("using-with-blt"),
             "./bin/example",
             """echo "[Done]" """
         ]
@@ -375,11 +381,42 @@ def build_and_test_host_config(test_root, host_config,
                 echo=True)
 
         if res != 0:
-            print("[ERROR: Installed 'using-with-blt' example for host-config: %s failed]\n\n" % host_config)
+            print(f"[ERROR: Installed 'using-with-blt' example for host-config: {host_config} failed]\n\n")
             return res
 
+    if should_test_installed_tutorials:
+        for _tut in ["radiuss_tutorial", "shaping_tutorial"]:
+            # Notes: Might require loading module for more recent cmake than the system default for some platforms
+            install_example_dir = pjoin(install_dir, "examples", "axom", _tut)
+            install_example_output_file = pjoin(build_dir, f"output.log.install_example.{_tut}.txt")
+            print(f"[testing installed '{_tut}' example]")
+            print(f"[log file: {install_example_output_file}]")
 
-    print("[SUCCESS: Build, test, and install for host-config: %s complete]\n" % host_config)
+            example_commands = [
+                f"cd {install_example_dir}",
+                "rm -rf build",
+                "mkdir build",
+                "cd build",
+                f"""echo "[Configuring '{_tut}']" """,
+                f"cmake -C ../host-config.cmake -DCMAKE_BUILD_TYPE={build_type} ..",
+                f"""echo "[Building '{_tut}']" """,
+                "make -j16",
+                f"""echo "[Running lessons for {_tut}]" """,
+                "ctest -j16",
+                """echo "[Done]" """
+            ]
+
+            local_res = sexe(" && ".join(example_commands),
+                    output_file = install_example_output_file,
+                    echo=True)
+            if local_res != 0:
+                print(f"[ERROR: Installed '{_tut}' for host-config: {host_config} failed]\n\n")
+                return local_res
+
+        return 0
+
+
+    print(f"[SUCCESS: Build, test, and install for host-config: {host_config} complete]\n")
 
     set_group_and_perms(build_dir)
     set_group_and_perms(install_dir)
@@ -560,7 +597,7 @@ def build_devtools(builds_dir, timestamp):
     project_file = "scripts/spack/devtools.json"
 
     if "toss_4" in sys_type:
-        compiler_spec = "%gcc@10.3.1"
+        compiler_spec = "%gcc_13"
     elif "blueos" in sys_type:
         compiler_spec = "%gcc@8.3.1"
 
@@ -625,8 +662,6 @@ def get_specs_for_current_machine():
         specs = specs_json[machine_name]
     else:
         specs = specs_json[sys_type]
-
-    specs = ['%' + spec for spec in specs]
 
     return specs
 
