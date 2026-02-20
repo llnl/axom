@@ -43,6 +43,7 @@ authors:
   given-names: Randolph
 - family-names: Spainhour
   given-names: Jacob
+  orcid: "https://orcid.org/0000-0001-8219-4360"
 - family-names: Taylor
   given-names: Lee
 - family-names: Weiss
@@ -52,6 +53,7 @@ authors:
   given-names: Christopher
 - family-names: Whitlock
   given-names: Brad
+  orcid: "https://orcid.org/0000-0001-6261-7522"
 - family-names: Yang
   given-names: Max
 - family-names: Zagaris

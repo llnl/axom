@@ -103,6 +103,11 @@ public:
       });
     const axom::IndexType totalFaces = reduceTotalFaces.get();
     const axom::IndexType totalFaceStorage = reduceTotalFaceStorage.get();
+    if(nzones > 0)
+    {
+      SLIC_ERROR_IF(totalFaces == 0, "ReduceSum returned 0 for totalFaces.");
+      SLIC_ERROR_IF(totalFaceStorage == 0, "ReduceSum returned 0 for totalFaceStorage.");
+    }
     AXOM_ANNOTATE_END("counting");
 
     //--------------------------------------------------------------------------

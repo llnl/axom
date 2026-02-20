@@ -70,4 +70,20 @@ bool SIDRE_name_is_valid_bufferify(char* name, int SHT_name_len)
   // splicer end function.nameIsValid_bufferify
 }
 
+int SIDRE_get_invalid_allocator_id(void)
+{
+  // splicer begin function.getInvalidAllocatorID
+  int SHC_rv = axom::sidre::getInvalidAllocatorID();
+  return SHC_rv;
+  // splicer end function.getInvalidAllocatorID
+}
+
+int SIDRE_get_malloc_allocator_id(void)
+{
+  // splicer begin function.getMallocAllocatorID
+  int SHC_rv = axom::sidre::getMallocAllocatorID();
+  return SHC_rv;
+  // splicer end function.getMallocAllocatorID
+}
+
 }  // extern "C"

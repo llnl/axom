@@ -200,6 +200,27 @@ public:
   friend inline bool operator!=(const Point& lhs, const Point& rhs) { return !(lhs == rhs); }
 
   /*!
+   * \brief Equality comparison for points that checks that each component is
+   *        compared within a tolerance. This is simpler test than distance, which
+   *        requires multiplies.
+   *
+   * \param obj The point being compared to this object.
+   * \param tol The tolerance being used.
+   *
+   * \return True if the points are equal within the tolerance, false otherwise.
+   */
+  AXOM_HOST_DEVICE
+  bool isNearlyEqual(const Point& obj, const T tol = 1.e-10) const
+  {
+    bool value = true;
+    for(int d = 0; d < NDIMS && value; d++)
+    {
+      value = value && axom::utilities::isNearlyEqual(m_components[d], obj.m_components[d], tol);
+    }
+    return value;
+  }
+
+  /*!
    * \brief Simple formatted print of a point instance
    * \param os The output stream to write to
    * \return A reference to the modified ostream

@@ -48,3 +48,7 @@ foreach(test ${gtest_bump_tests})
                    COMMAND ${test_name}_test )
 endforeach()
 
+if(ENABLE_HIP)
+  # Work around an issue with this test using HIP in Debug builds.
+  axom_force_release_for_target(bump_topology_mapper_test)
+endif()

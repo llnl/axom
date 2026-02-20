@@ -24,7 +24,7 @@ class CutTableManager : public TableManager
 {
 public:
   /// Return false since the tables cannot generate ST_PNT points.
-  static constexpr bool generates_points() { return false; }
+  AXOM_HOST_DEVICE static constexpr bool generates_points() { return false; }
 
 protected:
   /*!
