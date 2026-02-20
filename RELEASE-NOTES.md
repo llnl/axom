@@ -19,6 +19,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ### Added
+- Sidre: Added Conduit Node to the Python interface.
+- Adds yapf as a Python formatter.
 
 ### Changed
 - Primal: Axom's polygon clipping was modified to handle some corner cases.
