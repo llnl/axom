@@ -656,10 +656,98 @@ void TetMeshClipper::extractClipperInfo()
   SLIC_ERROR_IF(isMultiDomain, "TetMeshClipper does not support multi-domain tet meshes yet.");
 
   SLIC_ASSERT(conduit::blueprint::mesh::topology::dims(topoNode) == 3);
+  SLIC_ASSERT(topoNode.fetch_existing("elements/shape").as_string() == "tet");
 
   m_tetCount = conduit::blueprint::mesh::topology::length(topoNode);
 
   m_coordsetName = topoNode.fetch_existing("coordset").as_string();
+
+  bool fixOrientation = false;
+  if(m_info.has_child("fixOrientation"))
+  {
+    fixOrientation = bool(m_info.fetch_existing("fixOrientation").as_int());
+  }
+
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  using HOST_EXEC = axom::OMP_EXEC;
+#else
+  using HOST_EXEC = axom::SEQ_EXEC;
+#endif
+  auto& connNode = topoNode.fetch_existing("elements/connectivity");
+  if(connNode.dtype().id() != bump::utilities::cpp2conduit<IndexType>::id)
+  {
+    // Change connectivity index type to IndexType.
+    const auto srcIndexId = connNode.dtype().id();
+    const IndexType connLen = connNode.dtype().number_of_elements();
+    conduit::DataType dstConnType(axom::bump::utilities::cpp2conduit<IndexType>::id, connLen);
+    conduit::Node tmpConnNode(dstConnType);
+    IndexType* newPtr = static_cast<IndexType*>(tmpConnNode.data_ptr());
+
+    if(connNode.dtype().id() == bump::utilities::cpp2conduit<std::int32_t>::id)
+    {
+      auto curPtr = connNode.as_int32_ptr();
+      axom::for_all<HOST_EXEC>(connLen, AXOM_LAMBDA(IndexType i) { newPtr[i] = curPtr[i]; });
+    }
+    else if(connNode.dtype().id() == bump::utilities::cpp2conduit<std::int64_t>::id)
+    {
+      auto curPtr = connNode.as_int64_ptr();
+      axom::for_all<HOST_EXEC>(connLen, AXOM_LAMBDA(IndexType i) { newPtr[i] = curPtr[i]; });
+    }
+    else
+    {
+      SLIC_ERROR(axom::fmt::format("Unrecognized connectivity index type with conduit type id {}",
+                                   srcIndexId));
+    }
+    connNode.swap(tmpConnNode);
+  }
+
+  auto& coordSet = m_tetMesh.fetch_existing("coordsets").fetch_existing(m_coordsetName);
+  checkTetOrientations<HOST_EXEC>(connNode, coordSet, fixOrientation);
+}
+
+template <typename ExecSpace>
+void TetMeshClipper::checkTetOrientations(conduit::Node& connNode,
+                                          const conduit::Node& coordSet,
+                                          bool fixOrientation)
+{
+  const IndexType tetCount = connNode.dtype().number_of_elements() / 4;
+  axom::ArrayView<IndexType, 2> connArray(static_cast<IndexType*>(connNode.data_ptr()),
+                                          axom::StackArray<IndexType, 2> {tetCount, 4});
+
+  const IndexType pointCount = coordSet.fetch_existing("values/x").dtype().number_of_elements();
+  axom::ArrayView<const double> x(coordSet.fetch_existing("values/x").as_double_ptr(), pointCount);
+  axom::ArrayView<const double> y(coordSet.fetch_existing("values/y").as_double_ptr(), pointCount);
+  axom::ArrayView<const double> z(coordSet.fetch_existing("values/z").as_double_ptr(), pointCount);
+
+  constexpr double eps = 1e-12;
+  axom::for_all<ExecSpace>(
+    tetCount,
+    AXOM_LAMBDA(IndexType iTet) {
+      Point3DType verts[4];
+      for(int vi = 0; vi < 4; ++vi)
+      {
+        int iPoint = connArray(iTet, vi);
+        verts[vi] = Point3DType {axom::NumericArray<double, 3> {x[iPoint], y[iPoint], z[iPoint]}};
+      }
+
+      TetrahedronType tet(verts[0], verts[1], verts[2], verts[3]);
+      const auto signedVol = tet.signedVolume();
+      if(signedVol < -eps)
+      {
+        if(fixOrientation)
+        {
+          std::swap(connArray(iTet, 2), connArray(iTet, 3));
+        }
+        else
+        {
+          SLIC_ERROR(axom::fmt::format(
+            "TetMeshClipper: input tet[{}] is inverted, with volume {}.  Please fix or add "
+            "'fixOrientation: 1' to the input klee::Geometry's hierarchical data.",
+            iTet,
+            signedVol));
+        }
+      }
+    });
 }
 
 bool TetMeshClipper::isValidTetMesh(const conduit::Node& tetMesh, std::string& whyBad) const

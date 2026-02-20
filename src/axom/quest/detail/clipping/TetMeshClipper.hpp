@@ -113,6 +113,17 @@ private:
   // Extract clipper info from MeshClipperStrategy::m_info.
   void extractClipperInfo();
 
+  /*!
+   * @brief Check tet orientations, and possibly fix bad ones.
+   *
+   * If fixOrientation is true, fix inverted tets by swapping their
+   * last two vertex indices.
+   */
+  template <typename ExecSpace>
+  void checkTetOrientations(conduit::Node& connNode,
+                            const conduit::Node& coordSet,
+                            bool fixOrientation);
+
   // Check validity of tetMesh for our purposes.
   bool isValidTetMesh(const conduit::Node& tetMesh, std::string& whyBad) const;
 
