@@ -1969,13 +1969,15 @@ public:
     if(m_bpGrp)
     {
       auto fieldsGrp = m_bpGrp->getGroup("fields");
-      SLIC_ERROR_IF(fieldsGrp == nullptr, "Input blueprint mesh lacks the 'fields' Group/Node.");
-      for(auto& group : fieldsGrp->groups())
+      if(fieldsGrp != nullptr)
       {
-        std::string materialName = fieldNameToMaterialName(group.getName());
-        if(!materialName.empty())
+        for(auto& group : fieldsGrp->groups())
         {
-          materialNames.emplace_back(materialName);
+          std::string materialName = fieldNameToMaterialName(group.getName());
+          if(!materialName.empty())
+          {
+            materialNames.emplace_back(materialName);
+          }
         }
       }
     }
