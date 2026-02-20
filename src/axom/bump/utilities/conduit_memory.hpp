@@ -12,6 +12,7 @@
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/memory_management.hpp"
 #include "axom/core/NumericLimits.hpp"
+#include "axom/core/execution/synchronize.hpp"
 #include "axom/slic.hpp"
 #include "axom/export/bump.h"
 
@@ -107,8 +108,11 @@ private:
 #else
     axomAllocatorID = axom::execution_space<ExecSpace>::allocatorID();
 #endif
-
-    void *ptr = static_cast<void *>(axom::allocate<std::uint8_t>(items * item_size, axomAllocatorID));
+    void *ptr = nullptr;
+    if(items * item_size > 0)
+    {
+      ptr = static_cast<void *>(axom::allocate<std::uint8_t>(items * item_size, axomAllocatorID));
+    }
     //std::cout << axom::execution_space<ExecSpace>::name()
     //  << ": Allocated for Conduit via axom: items=" << items
     //  << ", item_size=" << item_size << ", ptr=" << ptr << std::endl;
@@ -171,6 +175,7 @@ void copy(conduit::Node &dest, const conduit::Node &src)
         src.compact_to(tmp);
         axom::copy(dest.data_ptr(), tmp.data_ptr(), tmp.dtype().bytes_compact());
       }
+      axom::synchronize<ExecSpace>();
     }
     else
     {

@@ -74,9 +74,12 @@ if(NOT AXOM_FOUND)
   set(AXOM_USE_UMPIRE         "@AXOM_USE_UMPIRE@")
   set(AXOM_USE_ZLIB           "@AXOM_USE_ZLIB@")
 
-  # Configration for Axom compiler defines
+  # Configuration for Axom compiler defines
   set(AXOM_DEBUG_DEFINE         "@AXOM_DEBUG_DEFINE@")
   set(AXOM_DEBUG_DEFINE_STRING  "@AXOM_DEBUG_DEFINE_STRING@")
+
+  # Component-specific options
+  set(AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING "@AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING@")
 
   #----------------------------------------------------------------------------
   # Bring in required dependencies for this axom configuration

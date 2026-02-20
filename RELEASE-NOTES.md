@@ -19,6 +19,20 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ### Added
+
+### Changed
+- Primal: Axom's polygon clipping was modified to handle some corner cases.
+
+### Fixed
+
+### Removed
+
+### Deprecated
+
+
+## [Version 0.13.0] - Release date 2026-02-05
+
+### Added
 - Adds the `AXOM_ENABLE_TUTORIALS` configuration variable (`ON` by default)
 - Adds a tutorial on shaping in Axom and associated infrastructure in `quest`, `klee`, `inlet` and `sidre`.
 - Sina: User can control curve ordering in Sina output file `setDefaultCurveOrder()` 
@@ -46,14 +60,18 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds the `AXOM_TEST_NUM_OMP_THREADS` configuration variable to control the default OpenMP thread count for tests.
 - Slic: Adds `slic::getAbortFunction()` to return a function pointer to the abort handler called during logging functions
 - Quest: Adds a 3D winding number example and improves WN performance in 2D and 3D
+- Sidre: Added `AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING` (default `ON`) to optionally serialize scalar views 
+  with state `"SCALAR"` instead of `"TUPLE"` for compatibility with downstream readers (e.g. VisIt)
+  that don't yet support `"TUPLE"`. We expect to remove this in the future as readers adopt the `"TUPLE"` type.
 
 ###  Changed
 - Version of `quest::discretize` that approximates a surface-of-revolution from a polyline
   now respects the allocator ID of the output `Array`.  It no longer resets the ID to the
   execution space default.
-- Updates to [RAJA version 2025.12.0](https://github.com/LLNL/RAJA/releases/tag/v2025.12.0)
+- Updates to [RAJA version 2025.12.1](https://github.com/LLNL/RAJA/releases/tag/v2025.12.1)
 - Updates to [camp version 2025.12.0](https://github.com/LLNL/camp/releases/tag/v2025.12.0)
 - Updates to [Umpire version 2025.12.0](https://github.com/LLNL/Umpire/releases/tag/v2025.12.0)
+- Updates to [Caliper version 2.14.0](https://github.com/LLNL/Caliper/releases/tag/v2.14.0)
 - Evaluation methods for line integrals in `axom::primal` have been generalized, and 
   `evaluate_scalar_line_integral` has been renamed to `evaluate_line_integral`.
 - Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
@@ -95,6 +113,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Allows users to set the minimum size for Axom's shared memory allocator in `getSharedMemoryAllocatorID()`
 - Core: Allows users to set the name of the shared memory allocation in `allocate()`
 - Quest: Adds a function to the signed distance API to set the shared memory size:  `signed_distance_set_shared_memory_size()`
+- Sidre: Shroud-generated C/Fortran interfaces for `Group::createViewScalar()` and `Group::createViewString()` 
+  now include overloads that accept an allocator ID.
 
 ###  Fixed
 - Sina's Fortran tests are now running (instead of silently failing)
@@ -1376,7 +1396,8 @@ fractions for the associated materials must be supplied before shaping.
 - Use this section in case of vulnerabilities
 
 
-[Unreleased]:     https://github.com/LLNL/axom/compare/v0.12.0...develop
+[Unreleased]:     https://github.com/LLNL/axom/compare/v0.13.0...develop
+[Version 0.13.0]: https://github.com/LLNL/axom/compare/v0.12.0...v0.13.0
 [Version 0.12.0]: https://github.com/LLNL/axom/compare/v0.11.0...v0.12.0
 [Version 0.11.0]: https://github.com/LLNL/axom/compare/v0.10.1...v0.11.0
 [Version 0.10.1]: https://github.com/LLNL/axom/compare/v0.10.0...v0.10.1

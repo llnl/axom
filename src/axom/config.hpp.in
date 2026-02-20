@@ -21,7 +21,7 @@
 #define AXOM_VERSION_MINOR @AXOM_VERSION_MINOR@
 #define AXOM_VERSION_PATCH @AXOM_VERSION_PATCH@
 #define AXOM_VERSION_FULL "@AXOM_VERSION_FULL@"
-/*NOTE: Do not add AXOM_GIT_SHA here.  This will force
+/* NOTE: Do not add AXOM_GIT_SHA here.  This will force
  * full rebuild on all local changes. It is added in axom::getVersion()
  * and axom::about(), as well as accessible from axom::gitSha().
  */
@@ -122,6 +122,15 @@
  * AXOM_DEPRECATED_TYPES values of WARN, ALLOW and ERROR.
  */
 #cmakedefine AXOM_DEPRECATED_TYPES_N @AXOM_DEPRECATED_TYPES_N@
+
+
+/*
+ * Sidre removed the SCALAR type in favor of TUPLE, but some readers
+ * like VisIt@3.4.x still expect SCALAR. When this option is enabled,
+ * Sidre will write out SCALAR instead of TUPLE
+ * This option will be phased out in the future as readers gain support for TUPLE
+ */
+#cmakedefine AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING
 
 /*
  * Compiler defines to configure the built-in fmt library
