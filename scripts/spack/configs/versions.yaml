@@ -6,10 +6,10 @@ packages:
   adiak:
     require: 
       - spec: "@0.4.0"
-  # 7/23/25 - Commit after 2.13.1 release, has fix for CUDA 12.9.1
+  # 2.14.0
   caliper:
     require:
-      - spec: "@git.527e1ae3a16487e425707e928e05c43d372e144f=master"
+      - spec: "@git.9ab0e64d2e328d1fdff2ffebb53f30a899d6a598=master"
   # v2025.12.0
   camp:
     require:
@@ -29,10 +29,10 @@ packages:
   py-jsonschema:
     require:
       - spec: "@:4.17" #Anything after this requires py-rpds which requires rust and adds 40 minutes
-  # v2025.12.0
+  # v2025.12.1
   raja:
     require:
-      - spec: "@git.e827035c630e71a9358e2f21c2f3cf6fd5fb6605=develop"
+      - spec: "@git.3b8b59a1e9be2e1066c0d77372b3bf5956e6d6e2=develop"
   scr:
     require:
       - spec: "@3.0.1"

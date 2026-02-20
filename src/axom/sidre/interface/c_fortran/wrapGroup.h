@@ -296,17 +296,83 @@ void SIDRE_Group_create_view_scalar_bufferify_double(SIDRE_Group *self,
                                                      double value,
                                                      SIDRE_View *SHC_rv);
 
-SIDRE_View *SIDRE_Group_create_view_string(SIDRE_Group *self,
-                                           const char *path,
-                                           const char *value,
-                                           SIDRE_View *SHC_rv);
+SIDRE_View *SIDRE_Group_create_view_scalar_path_value_allocID_int(SIDRE_Group *self,
+                                                                  const char *path,
+                                                                  int value,
+                                                                  int allocID,
+                                                                  SIDRE_View *SHC_rv);
 
-void SIDRE_Group_create_view_string_bufferify(SIDRE_Group *self,
-                                              char *path,
-                                              int SHT_path_len,
-                                              char *value,
-                                              int SHT_value_len,
-                                              SIDRE_View *SHC_rv);
+void SIDRE_Group_create_view_scalar_path_value_allocID_bufferify_int(SIDRE_Group *self,
+                                                                     char *path,
+                                                                     int SHT_path_len,
+                                                                     int value,
+                                                                     int allocID,
+                                                                     SIDRE_View *SHC_rv);
+
+SIDRE_View *SIDRE_Group_create_view_scalar_path_value_allocID_long(SIDRE_Group *self,
+                                                                   const char *path,
+                                                                   long value,
+                                                                   int allocID,
+                                                                   SIDRE_View *SHC_rv);
+
+void SIDRE_Group_create_view_scalar_path_value_allocID_bufferify_long(SIDRE_Group *self,
+                                                                      char *path,
+                                                                      int SHT_path_len,
+                                                                      long value,
+                                                                      int allocID,
+                                                                      SIDRE_View *SHC_rv);
+
+SIDRE_View *SIDRE_Group_create_view_scalar_path_value_allocID_float(SIDRE_Group *self,
+                                                                    const char *path,
+                                                                    float value,
+                                                                    int allocID,
+                                                                    SIDRE_View *SHC_rv);
+
+void SIDRE_Group_create_view_scalar_path_value_allocID_bufferify_float(SIDRE_Group *self,
+                                                                       char *path,
+                                                                       int SHT_path_len,
+                                                                       float value,
+                                                                       int allocID,
+                                                                       SIDRE_View *SHC_rv);
+
+SIDRE_View *SIDRE_Group_create_view_scalar_path_value_allocID_double(SIDRE_Group *self,
+                                                                     const char *path,
+                                                                     double value,
+                                                                     int allocID,
+                                                                     SIDRE_View *SHC_rv);
+
+void SIDRE_Group_create_view_scalar_path_value_allocID_bufferify_double(SIDRE_Group *self,
+                                                                        char *path,
+                                                                        int SHT_path_len,
+                                                                        double value,
+                                                                        int allocID,
+                                                                        SIDRE_View *SHC_rv);
+
+SIDRE_View *SIDRE_Group_create_view_string_path_value(SIDRE_Group *self,
+                                                      const char *path,
+                                                      const char *value,
+                                                      SIDRE_View *SHC_rv);
+
+void SIDRE_Group_create_view_string_path_value_bufferify(SIDRE_Group *self,
+                                                         char *path,
+                                                         int SHT_path_len,
+                                                         char *value,
+                                                         int SHT_value_len,
+                                                         SIDRE_View *SHC_rv);
+
+SIDRE_View *SIDRE_Group_create_view_string_path_value_allocID(SIDRE_Group *self,
+                                                              const char *path,
+                                                              const char *value,
+                                                              int allocID,
+                                                              SIDRE_View *SHC_rv);
+
+void SIDRE_Group_create_view_string_path_value_allocID_bufferify(SIDRE_Group *self,
+                                                                 char *path,
+                                                                 int SHT_path_len,
+                                                                 char *value,
+                                                                 int SHT_value_len,
+                                                                 int allocID,
+                                                                 SIDRE_View *SHC_rv);
 
 void SIDRE_Group_destroy_view(SIDRE_Group *self, const char *path);
 

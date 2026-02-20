@@ -179,6 +179,10 @@ protected:
         faceCount_reduce += faceCount;
       });
     const int faceCount = faceCount_reduce.get();
+    if(numSelectedZones > 0)
+    {
+      SLIC_ERROR_IF(faceCount == 0, "ReduceSum returned 0 for faceCount.");
+    }
     AXOM_ANNOTATE_END("identify");
 
     //--------------------------------------------------------------------------

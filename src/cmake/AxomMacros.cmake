@@ -564,3 +564,18 @@ macro(axom_configure_file _source _target)
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${_tmp_target} ${_target})
     execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${_tmp_target})
 endmacro(axom_configure_file)
+
+##------------------------------------------------------------------------------
+## axom_force_release_for_target
+##
+## This macro forces a target to be compiled in Release mode by adding compiler
+## optimization flags.
+##------------------------------------------------------------------------------
+macro(axom_force_release_for_target tgt)
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        target_compile_options(${tgt} PRIVATE /O2)
+    else()
+        target_compile_options(${tgt} PRIVATE -O3 -g0)
+    endif()
+    target_compile_definitions(${tgt} PRIVATE NDEBUG)
+endmacro(axom_force_release_for_target)
