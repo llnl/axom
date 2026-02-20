@@ -7,74 +7,76 @@
 import pysidre
 import random
 
+
 def verify_empty_group_named(dg, name):
-	assert dg.getName() == name
+    assert dg.getName() == name
 
-	assert dg.getNumGroups() == 0
-	assert not dg.hasGroup(-1)
-	assert not dg.hasGroup(0)
-	assert not dg.hasGroup(1)
-	assert not dg.hasGroup("some_name")
-	assert dg.getGroupIndex("some_other_name") == pysidre.InvalidIndex
-	assert dg.getFirstValidGroupIndex() == pysidre.InvalidIndex
-	assert dg.getNextValidGroupIndex(0) == pysidre.InvalidIndex
-	assert dg.getNextValidGroupIndex(4) == pysidre.InvalidIndex
+    assert dg.getNumGroups() == 0
+    assert not dg.hasGroup(-1)
+    assert not dg.hasGroup(0)
+    assert not dg.hasGroup(1)
+    assert not dg.hasGroup("some_name")
+    assert dg.getGroupIndex("some_other_name") == pysidre.InvalidIndex
+    assert dg.getFirstValidGroupIndex() == pysidre.InvalidIndex
+    assert dg.getNextValidGroupIndex(0) == pysidre.InvalidIndex
+    assert dg.getNextValidGroupIndex(4) == pysidre.InvalidIndex
 
-	assert dg.getNumViews() == 0
-	assert not dg.hasView(-1)
-	assert not dg.hasView(0)
-	assert not dg.hasView(1)
-	assert not dg.hasView("some_name")
-	assert dg.getViewIndex("some_other_name") == pysidre.InvalidIndex
-	assert dg.getFirstValidViewIndex() == pysidre.InvalidIndex
-	assert dg.getNextValidViewIndex(0) == pysidre.InvalidIndex
-	assert dg.getNextValidViewIndex(4) == pysidre.InvalidIndex
+    assert dg.getNumViews() == 0
+    assert not dg.hasView(-1)
+    assert not dg.hasView(0)
+    assert not dg.hasView(1)
+    assert not dg.hasView("some_name")
+    assert dg.getViewIndex("some_other_name") == pysidre.InvalidIndex
+    assert dg.getFirstValidViewIndex() == pysidre.InvalidIndex
+    assert dg.getNextValidViewIndex(0) == pysidre.InvalidIndex
+    assert dg.getNextValidViewIndex(4) == pysidre.InvalidIndex
+
 
 def verify_buffer_identity(ds, bs):
-	bufcount = len(bs)
+    bufcount = len(bs)
 
-	# Does ds contain the number of buffers we expect?
-	assert ds.getNumBuffers() == bufcount
+    # Does ds contain the number of buffers we expect?
+    assert ds.getNumBuffers() == bufcount
 
-	# Does ds contain the buffer IDs and pointers we expect?
-	iterated_count = 0
-	idx = ds.getFirstValidBufferIndex()
-	while idx != pysidre.InvalidIndex and iterated_count < bufcount:
-		assert idx in bs
-		if idx in bs:
-			assert bs[idx] == ds.getBuffer(idx)
-		idx = ds.getNextValidBufferIndex(idx)
-		iterated_count += 1
+    # Does ds contain the buffer IDs and pointers we expect?
+    iterated_count = 0
+    idx = ds.getFirstValidBufferIndex()
+    while idx != pysidre.InvalidIndex and iterated_count < bufcount:
+        assert idx in bs
+        if idx in bs:
+            assert bs[idx] == ds.getBuffer(idx)
+        idx = ds.getNextValidBufferIndex(idx)
+        iterated_count += 1
 
-	# Have we iterated over exactly the number of buffers we expect, finishing on InvalidIndex?
-	assert iterated_count == bufcount
-	assert idx == pysidre.InvalidIndex
+    # Have we iterated over exactly the number of buffers we expect, finishing on InvalidIndex?
+    assert iterated_count == bufcount
+    assert idx == pysidre.InvalidIndex
 
 
 def test_default_ctor():
-	ds = pysidre.DataStore()
+    ds = pysidre.DataStore()
 
-	# After construction, the DataStore should contain no buffers.
-	assert ds.getNumBuffers() == 0
-	assert not ds.hasBuffer(-15)
-	assert not ds.hasBuffer(-1)
-	assert not ds.hasBuffer(0)
-	assert not ds.hasBuffer(1)
-	assert not ds.hasBuffer(8)
+    # After construction, the DataStore should contain no buffers.
+    assert ds.getNumBuffers() == 0
+    assert not ds.hasBuffer(-15)
+    assert not ds.hasBuffer(-1)
+    assert not ds.hasBuffer(0)
+    assert not ds.hasBuffer(1)
+    assert not ds.hasBuffer(8)
 
-	assert ds.getFirstValidBufferIndex() == pysidre.InvalidIndex
-	assert ds.getNextValidBufferIndex(0) == pysidre.InvalidIndex
-	assert ds.getNextValidBufferIndex(4) == pysidre.InvalidIndex
+    assert ds.getFirstValidBufferIndex() == pysidre.InvalidIndex
+    assert ds.getNextValidBufferIndex(0) == pysidre.InvalidIndex
+    assert ds.getNextValidBufferIndex(4) == pysidre.InvalidIndex
 
-	# The new DataStore should contain exactly one group, the root group.
-	# The root group should be named "" and should contain no views and no groups.
-	dg = ds.getRoot()
+    # The new DataStore should contain exactly one group, the root group.
+    # The root group should be named "" and should contain no views and no groups.
+    dg = ds.getRoot()
 
-	assert dg is not None
-	assert dg == dg.getParent()
-	assert dg.getDataStore() == ds
+    assert dg is not None
+    assert dg == dg.getParent()
+    assert dg.getDataStore() == ds
 
-	verify_empty_group_named(dg, "")
+    verify_empty_group_named(dg, "")
 
 
 # The dtor destroys all buffers and deletes the root group.
@@ -388,7 +390,7 @@ def test_loop_create_delete_buffers_iterate():
 
     bs = {}
     idxlist = []
-    initbufcount = 50 # Arbitrary number of buffers
+    initbufcount = 50  # Arbitrary number of buffers
 
     # Initially, create some buffers of varying size
     for i in range(initbufcount):
@@ -398,7 +400,7 @@ def test_loop_create_delete_buffers_iterate():
         bs[idx] = b
         idxlist.append(idx)
 
-    totalrounds = 100 # Arbitrary number of rounds
+    totalrounds = 100  # Arbitrary number of rounds
     for round in range(totalrounds):
         # In each round, choose a random number of buffers to delete or create
         delta = irhall(5)

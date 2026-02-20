@@ -11,9 +11,9 @@ AddPlot("FilledBoundary", "shaping_mesh_material")
 AddOperator("MultiresControl", 0)
 fb = GetPlotOptions()
 fb.SetMultiColor(0, (255, 254, 246, 255))  # air
-fb.SetMultiColor(1, (170, 103, 89, 255))   # batter
+fb.SetMultiColor(1, (170, 103, 89, 255))  # batter
 fb.SetMultiColor(2, (255, 153, 204, 255))  # icecream
-fb.SetMultiColor(3, (255, 0, 0, 255))      # sprinkles
+fb.SetMultiColor(3, (255, 0, 0, 255))  # sprinkles
 fb.SetMultiColor(4, (255, 255, 255, 255))  # free
 SetPlotOptions(fb)
 
@@ -29,8 +29,8 @@ SetView2D(v)
 # Set the annotations.
 annot = GetAnnotationAttributes()
 annot.databaseInfoFlag = 0
-annot.backgroundColor = (255,255,255,255)
-annot.foregroundColor = (0,0,0,255)
+annot.backgroundColor = (255, 255, 255, 255)
+annot.foregroundColor = (0, 0, 0, 255)
 annot.backgroundMode = annot.Solid
 annot.userInfoFlag = 0
 SetAnnotationAttributes(annot)
