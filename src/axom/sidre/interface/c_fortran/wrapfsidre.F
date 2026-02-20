@@ -169,7 +169,12 @@ module axom_sidre
         procedure :: create_view_scalar_long => group_create_view_scalar_long
         procedure :: create_view_scalar_float => group_create_view_scalar_float
         procedure :: create_view_scalar_double => group_create_view_scalar_double
-        procedure :: create_view_string => group_create_view_string
+        procedure :: create_view_scalar_path_value_allocID_int => group_create_view_scalar_path_value_allocID_int
+        procedure :: create_view_scalar_path_value_allocID_long => group_create_view_scalar_path_value_allocID_long
+        procedure :: create_view_scalar_path_value_allocID_float => group_create_view_scalar_path_value_allocID_float
+        procedure :: create_view_scalar_path_value_allocID_double => group_create_view_scalar_path_value_allocID_double
+        procedure :: create_view_string_path_value => group_create_view_string_path_value
+        procedure :: create_view_string_path_value_allocID => group_create_view_string_path_value_allocID
         procedure :: destroy_view => group_destroy_view
         procedure :: destroy_view_and_data_name => group_destroy_view_and_data_name
         procedure :: destroy_view_and_data_index_int32_t => group_destroy_view_and_data_index_int32_t
@@ -214,7 +219,13 @@ module axom_sidre
             create_view_and_allocate_nelems_int64_t
         generic :: create_view_scalar => create_view_scalar_int,  &
             create_view_scalar_long, create_view_scalar_float,  &
-            create_view_scalar_double
+            create_view_scalar_double,  &
+            create_view_scalar_path_value_allocID_int,  &
+            create_view_scalar_path_value_allocID_long,  &
+            create_view_scalar_path_value_allocID_float,  &
+            create_view_scalar_path_value_allocID_double
+        generic :: create_view_string => create_view_string_path_value,  &
+            create_view_string_path_value_allocID
         generic :: create_view_with_shape => create_view_with_shape_base &
             , create_view_with_shape_and_buffer,  &
             create_view_with_shape_external
@@ -1409,9 +1420,126 @@ module axom_sidre
             type(SIDRE_SHROUD_capsule_data), intent(OUT) :: SHT_rv
         end subroutine c_group_create_view_scalar_bufferify_double
 
-        function c_group_create_view_string(self, path, value, SHT_rv) &
+        function c_group_create_view_scalar_path_value_allocID_int(self, &
+                path, value, allocID, SHT_rv) &
                 result(SHT_rv_ptr) &
-                bind(C, name="SIDRE_Group_create_view_string")
+                bind(C, name="SIDRE_Group_create_view_scalar_path_value_allocID_int")
+            use iso_c_binding, only : C_CHAR, C_INT, C_PTR
+            import :: SIDRE_SHROUD_capsule_data
+            implicit none
+            type(SIDRE_SHROUD_capsule_data), intent(IN) :: self
+            character(kind=C_CHAR), intent(IN) :: path(*)
+            integer(C_INT), value, intent(IN) :: value
+            integer(C_INT), value, intent(IN) :: allocID
+            type(SIDRE_SHROUD_capsule_data), intent(OUT) :: SHT_rv
+            type(C_PTR) :: SHT_rv_ptr
+        end function c_group_create_view_scalar_path_value_allocID_int
+
+        subroutine c_group_create_view_scalar_path_value_allocID_bufferify_int( &
+                self, path, SHT_path_len, value, allocID, SHT_rv) &
+                bind(C, name="SIDRE_Group_create_view_scalar_path_value_allocID_bufferify_int")
+            use iso_c_binding, only : C_CHAR, C_INT
+            import :: SIDRE_SHROUD_capsule_data
+            implicit none
+            type(SIDRE_SHROUD_capsule_data), intent(IN) :: self
+            character(kind=C_CHAR), intent(IN) :: path(*)
+            integer(C_INT), value, intent(IN) :: SHT_path_len
+            integer(C_INT), value, intent(IN) :: value
+            integer(C_INT), value, intent(IN) :: allocID
+            type(SIDRE_SHROUD_capsule_data), intent(OUT) :: SHT_rv
+        end subroutine c_group_create_view_scalar_path_value_allocID_bufferify_int
+
+        function c_group_create_view_scalar_path_value_allocID_long( &
+                self, path, value, allocID, SHT_rv) &
+                result(SHT_rv_ptr) &
+                bind(C, name="SIDRE_Group_create_view_scalar_path_value_allocID_long")
+            use iso_c_binding, only : C_CHAR, C_INT, C_LONG, C_PTR
+            import :: SIDRE_SHROUD_capsule_data
+            implicit none
+            type(SIDRE_SHROUD_capsule_data), intent(IN) :: self
+            character(kind=C_CHAR), intent(IN) :: path(*)
+            integer(C_LONG), value, intent(IN) :: value
+            integer(C_INT), value, intent(IN) :: allocID
+            type(SIDRE_SHROUD_capsule_data), intent(OUT) :: SHT_rv
+            type(C_PTR) :: SHT_rv_ptr
+        end function c_group_create_view_scalar_path_value_allocID_long
+
+        subroutine c_group_create_view_scalar_path_value_allocID_bufferify_long( &
+                self, path, SHT_path_len, value, allocID, SHT_rv) &
+                bind(C, name="SIDRE_Group_create_view_scalar_path_value_allocID_bufferify_long")
+            use iso_c_binding, only : C_CHAR, C_INT, C_LONG
+            import :: SIDRE_SHROUD_capsule_data
+            implicit none
+            type(SIDRE_SHROUD_capsule_data), intent(IN) :: self
+            character(kind=C_CHAR), intent(IN) :: path(*)
+            integer(C_INT), value, intent(IN) :: SHT_path_len
+            integer(C_LONG), value, intent(IN) :: value
+            integer(C_INT), value, intent(IN) :: allocID
+            type(SIDRE_SHROUD_capsule_data), intent(OUT) :: SHT_rv
+        end subroutine c_group_create_view_scalar_path_value_allocID_bufferify_long
+
+        function c_group_create_view_scalar_path_value_allocID_float( &
+                self, path, value, allocID, SHT_rv) &
+                result(SHT_rv_ptr) &
+                bind(C, name="SIDRE_Group_create_view_scalar_path_value_allocID_float")
+            use iso_c_binding, only : C_CHAR, C_FLOAT, C_INT, C_PTR
+            import :: SIDRE_SHROUD_capsule_data
+            implicit none
+            type(SIDRE_SHROUD_capsule_data), intent(IN) :: self
+            character(kind=C_CHAR), intent(IN) :: path(*)
+            real(C_FLOAT), value, intent(IN) :: value
+            integer(C_INT), value, intent(IN) :: allocID
+            type(SIDRE_SHROUD_capsule_data), intent(OUT) :: SHT_rv
+            type(C_PTR) :: SHT_rv_ptr
+        end function c_group_create_view_scalar_path_value_allocID_float
+
+        subroutine c_group_create_view_scalar_path_value_allocID_bufferify_float( &
+                self, path, SHT_path_len, value, allocID, SHT_rv) &
+                bind(C, name="SIDRE_Group_create_view_scalar_path_value_allocID_bufferify_float")
+            use iso_c_binding, only : C_CHAR, C_FLOAT, C_INT
+            import :: SIDRE_SHROUD_capsule_data
+            implicit none
+            type(SIDRE_SHROUD_capsule_data), intent(IN) :: self
+            character(kind=C_CHAR), intent(IN) :: path(*)
+            integer(C_INT), value, intent(IN) :: SHT_path_len
+            real(C_FLOAT), value, intent(IN) :: value
+            integer(C_INT), value, intent(IN) :: allocID
+            type(SIDRE_SHROUD_capsule_data), intent(OUT) :: SHT_rv
+        end subroutine c_group_create_view_scalar_path_value_allocID_bufferify_float
+
+        function c_group_create_view_scalar_path_value_allocID_double( &
+                self, path, value, allocID, SHT_rv) &
+                result(SHT_rv_ptr) &
+                bind(C, name="SIDRE_Group_create_view_scalar_path_value_allocID_double")
+            use iso_c_binding, only : C_CHAR, C_DOUBLE, C_INT, C_PTR
+            import :: SIDRE_SHROUD_capsule_data
+            implicit none
+            type(SIDRE_SHROUD_capsule_data), intent(IN) :: self
+            character(kind=C_CHAR), intent(IN) :: path(*)
+            real(C_DOUBLE), value, intent(IN) :: value
+            integer(C_INT), value, intent(IN) :: allocID
+            type(SIDRE_SHROUD_capsule_data), intent(OUT) :: SHT_rv
+            type(C_PTR) :: SHT_rv_ptr
+        end function c_group_create_view_scalar_path_value_allocID_double
+
+        subroutine c_group_create_view_scalar_path_value_allocID_bufferify_double( &
+                self, path, SHT_path_len, value, allocID, SHT_rv) &
+                bind(C, name="SIDRE_Group_create_view_scalar_path_value_allocID_bufferify_double")
+            use iso_c_binding, only : C_CHAR, C_DOUBLE, C_INT
+            import :: SIDRE_SHROUD_capsule_data
+            implicit none
+            type(SIDRE_SHROUD_capsule_data), intent(IN) :: self
+            character(kind=C_CHAR), intent(IN) :: path(*)
+            integer(C_INT), value, intent(IN) :: SHT_path_len
+            real(C_DOUBLE), value, intent(IN) :: value
+            integer(C_INT), value, intent(IN) :: allocID
+            type(SIDRE_SHROUD_capsule_data), intent(OUT) :: SHT_rv
+        end subroutine c_group_create_view_scalar_path_value_allocID_bufferify_double
+
+        function c_group_create_view_string_path_value(self, path, &
+                value, SHT_rv) &
+                result(SHT_rv_ptr) &
+                bind(C, name="SIDRE_Group_create_view_string_path_value")
             use iso_c_binding, only : C_CHAR, C_PTR
             import :: SIDRE_SHROUD_capsule_data
             implicit none
@@ -1420,11 +1548,11 @@ module axom_sidre
             character(kind=C_CHAR), intent(IN) :: value(*)
             type(SIDRE_SHROUD_capsule_data), intent(OUT) :: SHT_rv
             type(C_PTR) :: SHT_rv_ptr
-        end function c_group_create_view_string
+        end function c_group_create_view_string_path_value
 
-        subroutine c_group_create_view_string_bufferify(self, path, &
-                SHT_path_len, value, SHT_value_len, SHT_rv) &
-                bind(C, name="SIDRE_Group_create_view_string_bufferify")
+        subroutine c_group_create_view_string_path_value_bufferify(self, &
+                path, SHT_path_len, value, SHT_value_len, SHT_rv) &
+                bind(C, name="SIDRE_Group_create_view_string_path_value_bufferify")
             use iso_c_binding, only : C_CHAR, C_INT
             import :: SIDRE_SHROUD_capsule_data
             implicit none
@@ -1434,7 +1562,38 @@ module axom_sidre
             character(kind=C_CHAR), intent(IN) :: value(*)
             integer(C_INT), value, intent(IN) :: SHT_value_len
             type(SIDRE_SHROUD_capsule_data), intent(OUT) :: SHT_rv
-        end subroutine c_group_create_view_string_bufferify
+        end subroutine c_group_create_view_string_path_value_bufferify
+
+        function c_group_create_view_string_path_value_allocID(self, &
+                path, value, allocID, SHT_rv) &
+                result(SHT_rv_ptr) &
+                bind(C, name="SIDRE_Group_create_view_string_path_value_allocID")
+            use iso_c_binding, only : C_CHAR, C_INT, C_PTR
+            import :: SIDRE_SHROUD_capsule_data
+            implicit none
+            type(SIDRE_SHROUD_capsule_data), intent(IN) :: self
+            character(kind=C_CHAR), intent(IN) :: path(*)
+            character(kind=C_CHAR), intent(IN) :: value(*)
+            integer(C_INT), value, intent(IN) :: allocID
+            type(SIDRE_SHROUD_capsule_data), intent(OUT) :: SHT_rv
+            type(C_PTR) :: SHT_rv_ptr
+        end function c_group_create_view_string_path_value_allocID
+
+        subroutine c_group_create_view_string_path_value_allocID_bufferify( &
+                self, path, SHT_path_len, value, SHT_value_len, allocID, &
+                SHT_rv) &
+                bind(C, name="SIDRE_Group_create_view_string_path_value_allocID_bufferify")
+            use iso_c_binding, only : C_CHAR, C_INT
+            import :: SIDRE_SHROUD_capsule_data
+            implicit none
+            type(SIDRE_SHROUD_capsule_data), intent(IN) :: self
+            character(kind=C_CHAR), intent(IN) :: path(*)
+            integer(C_INT), value, intent(IN) :: SHT_path_len
+            character(kind=C_CHAR), intent(IN) :: value(*)
+            integer(C_INT), value, intent(IN) :: SHT_value_len
+            integer(C_INT), value, intent(IN) :: allocID
+            type(SIDRE_SHROUD_capsule_data), intent(OUT) :: SHT_rv
+        end subroutine c_group_create_view_string_path_value_allocID_bufferify
 
         subroutine c_group_destroy_view(self, path) &
                 bind(C, name="SIDRE_Group_destroy_view")
@@ -2731,6 +2890,22 @@ module axom_sidre
             integer(C_INT), value, intent(IN) :: SHT_name_len
             logical(C_BOOL) :: SHT_rv
         end function c_name_is_valid_bufferify
+
+        function get_invalid_allocator_id() &
+                result(SHT_rv) &
+                bind(C, name="SIDRE_get_invalid_allocator_id")
+            use iso_c_binding, only : C_INT
+            implicit none
+            integer(C_INT) :: SHT_rv
+        end function get_invalid_allocator_id
+
+        function get_malloc_allocator_id() &
+                result(SHT_rv) &
+                bind(C, name="SIDRE_get_malloc_allocator_id")
+            use iso_c_binding, only : C_INT
+            implicit none
+            integer(C_INT) :: SHT_rv
+        end function get_malloc_allocator_id
     end interface
 
     interface SidreDataStore
@@ -2798,7 +2973,16 @@ module axom_sidre
         module procedure group_create_view_scalar_long
         module procedure group_create_view_scalar_float
         module procedure group_create_view_scalar_double
+        module procedure group_create_view_scalar_path_value_allocID_int
+        module procedure group_create_view_scalar_path_value_allocID_long
+        module procedure group_create_view_scalar_path_value_allocID_float
+        module procedure group_create_view_scalar_path_value_allocID_double
     end interface group_create_view_scalar
+
+    interface group_create_view_string
+        module procedure group_create_view_string_path_value
+        module procedure group_create_view_string_path_value_allocID
+    end interface group_create_view_string
 
     interface group_create_view_with_shape
         module procedure group_create_view_with_shape_base
@@ -3643,22 +3827,110 @@ contains
         ! splicer end class.Group.method.create_view_scalar_double
     end function group_create_view_scalar_double
 
-    function group_create_view_string(obj, path, value) &
+    function group_create_view_scalar_path_value_allocID_int(obj, path, &
+            value, allocID) &
+            result(SHT_rv)
+        use iso_c_binding, only : C_INT
+        class(SidreGroup), intent(INOUT) :: obj
+        character(len=*), intent(IN) :: path
+        integer(C_INT), value, intent(IN) :: value
+        integer(C_INT), value, intent(IN) :: allocID
+        type(SidreView) :: SHT_rv
+        ! splicer begin class.Group.method.create_view_scalar_path_value_allocID_int
+        integer(C_INT) SHT_path_len
+        SHT_path_len = len(path, kind=C_INT)
+        call c_group_create_view_scalar_path_value_allocID_bufferify_int(obj%cxxmem, &
+            path, SHT_path_len, value, allocID, SHT_rv%cxxmem)
+        ! splicer end class.Group.method.create_view_scalar_path_value_allocID_int
+    end function group_create_view_scalar_path_value_allocID_int
+
+    function group_create_view_scalar_path_value_allocID_long(obj, path, &
+            value, allocID) &
+            result(SHT_rv)
+        use iso_c_binding, only : C_INT, C_LONG
+        class(SidreGroup), intent(INOUT) :: obj
+        character(len=*), intent(IN) :: path
+        integer(C_LONG), value, intent(IN) :: value
+        integer(C_INT), value, intent(IN) :: allocID
+        type(SidreView) :: SHT_rv
+        ! splicer begin class.Group.method.create_view_scalar_path_value_allocID_long
+        integer(C_INT) SHT_path_len
+        SHT_path_len = len(path, kind=C_INT)
+        call c_group_create_view_scalar_path_value_allocID_bufferify_long(obj%cxxmem, &
+            path, SHT_path_len, value, allocID, SHT_rv%cxxmem)
+        ! splicer end class.Group.method.create_view_scalar_path_value_allocID_long
+    end function group_create_view_scalar_path_value_allocID_long
+
+    function group_create_view_scalar_path_value_allocID_float(obj, &
+            path, value, allocID) &
+            result(SHT_rv)
+        use iso_c_binding, only : C_FLOAT, C_INT
+        class(SidreGroup), intent(INOUT) :: obj
+        character(len=*), intent(IN) :: path
+        real(C_FLOAT), value, intent(IN) :: value
+        integer(C_INT), value, intent(IN) :: allocID
+        type(SidreView) :: SHT_rv
+        ! splicer begin class.Group.method.create_view_scalar_path_value_allocID_float
+        integer(C_INT) SHT_path_len
+        SHT_path_len = len(path, kind=C_INT)
+        call c_group_create_view_scalar_path_value_allocID_bufferify_float(obj%cxxmem, &
+            path, SHT_path_len, value, allocID, SHT_rv%cxxmem)
+        ! splicer end class.Group.method.create_view_scalar_path_value_allocID_float
+    end function group_create_view_scalar_path_value_allocID_float
+
+    function group_create_view_scalar_path_value_allocID_double(obj, &
+            path, value, allocID) &
+            result(SHT_rv)
+        use iso_c_binding, only : C_DOUBLE, C_INT
+        class(SidreGroup), intent(INOUT) :: obj
+        character(len=*), intent(IN) :: path
+        real(C_DOUBLE), value, intent(IN) :: value
+        integer(C_INT), value, intent(IN) :: allocID
+        type(SidreView) :: SHT_rv
+        ! splicer begin class.Group.method.create_view_scalar_path_value_allocID_double
+        integer(C_INT) SHT_path_len
+        SHT_path_len = len(path, kind=C_INT)
+        call c_group_create_view_scalar_path_value_allocID_bufferify_double(obj%cxxmem, &
+            path, SHT_path_len, value, allocID, SHT_rv%cxxmem)
+        ! splicer end class.Group.method.create_view_scalar_path_value_allocID_double
+    end function group_create_view_scalar_path_value_allocID_double
+
+    function group_create_view_string_path_value(obj, path, value) &
             result(SHT_rv)
         use iso_c_binding, only : C_INT
         class(SidreGroup), intent(INOUT) :: obj
         character(len=*), intent(IN) :: path
         character(len=*), intent(IN) :: value
         type(SidreView) :: SHT_rv
-        ! splicer begin class.Group.method.create_view_string
+        ! splicer begin class.Group.method.create_view_string_path_value
         integer(C_INT) SHT_path_len
         integer(C_INT) SHT_value_len
         SHT_path_len = len(path, kind=C_INT)
         SHT_value_len = len(value, kind=C_INT)
-        call c_group_create_view_string_bufferify(obj%cxxmem, path, &
-            SHT_path_len, value, SHT_value_len, SHT_rv%cxxmem)
-        ! splicer end class.Group.method.create_view_string
-    end function group_create_view_string
+        call c_group_create_view_string_path_value_bufferify(obj%cxxmem, &
+            path, SHT_path_len, value, SHT_value_len, SHT_rv%cxxmem)
+        ! splicer end class.Group.method.create_view_string_path_value
+    end function group_create_view_string_path_value
+
+    function group_create_view_string_path_value_allocID(obj, path, &
+            value, allocID) &
+            result(SHT_rv)
+        use iso_c_binding, only : C_INT
+        class(SidreGroup), intent(INOUT) :: obj
+        character(len=*), intent(IN) :: path
+        character(len=*), intent(IN) :: value
+        integer(C_INT), value, intent(IN) :: allocID
+        type(SidreView) :: SHT_rv
+        ! splicer begin class.Group.method.create_view_string_path_value_allocID
+        integer(C_INT) SHT_path_len
+        integer(C_INT) SHT_value_len
+        SHT_path_len = len(path, kind=C_INT)
+        SHT_value_len = len(value, kind=C_INT)
+        call c_group_create_view_string_path_value_allocID_bufferify(obj%cxxmem, &
+            path, SHT_path_len, value, SHT_value_len, allocID, &
+            SHT_rv%cxxmem)
+        ! splicer end class.Group.method.create_view_string_path_value_allocID
+    end function group_create_view_string_path_value_allocID
 
     subroutine group_destroy_view(obj, path)
         use iso_c_binding, only : C_INT

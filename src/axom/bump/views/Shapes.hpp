@@ -41,6 +41,19 @@ enum
   Invalid_ShapeID = 20
 };
 
+/*!
+ * \brief Determine whether a value is a valid ShapeID.
+ *
+ * \param shapeID The value to test for validity.
+ *
+ * \return True if the value is a valid ShapeID; False otherwise.
+ */
+template <typename T>
+AXOM_HOST_DEVICE constexpr bool isValidShapeID(T shapeID)
+{
+  return shapeID >= static_cast<T>(Point_ShapeID) && shapeID <= static_cast<T>(Mixed_ShapeID);
+}
+
 /// prototype
 AXOM_HOST_DEVICE constexpr IndexType shapeDimension(int shapeId);
 
@@ -831,7 +844,7 @@ struct VariableShape
   AXOM_HOST_DEVICE
   VariableShape(int shapeId, ConnectivityStorageConstRef ids) : m_shapeId(shapeId), m_ids(ids)
   {
-    SLIC_ASSERT(shapeId >= Point_ShapeID && shapeId <= Hex_ShapeID);
+    SLIC_ASSERT(isValidShapeID(shapeId));
   }
 
   /*!
@@ -1129,19 +1142,6 @@ inline int shapeNameToID(const std::string &name)
   else if(name == "mixed")
     id = Mixed_ShapeID;
   return id;
-}
-
-/*!
- * \brief Determine whether a value is a valid ShapeID.
- *
- * \param shapeID The value to test for validity.
- *
- * \return True if the value is a valid ShapeID; False otherwise.
- */
-template <typename T>
-AXOM_HOST_DEVICE constexpr bool isValidShapeID(T shapeID)
-{
-  return shapeID >= static_cast<T>(Point_ShapeID) && shapeID <= static_cast<T>(Mixed_ShapeID);
 }
 
 /*!

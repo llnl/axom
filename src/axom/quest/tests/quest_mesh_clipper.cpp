@@ -616,7 +616,7 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string&
   tetMesh.appendNode(+lll, -lll, +lll);
   axom::IndexType conn0[4] = {0, 1, 2, 3};
   tetMesh.appendCell(conn0);
-  axom::IndexType conn1[4] = {4, 5, 7, 6};
+  axom::IndexType conn1[4] = {4, 5, 7, 6};  // intentionally inverted to exercise fixOrientation.
   tetMesh.appendCell(conn1);
   axom::IndexType conn2[4] = {1, 2, 3, 5};
   tetMesh.appendCell(conn2);

@@ -430,7 +430,12 @@ protected:
     using value_type = typename ViewType::value_type;
     axom::ReduceSum<ExecSpace, value_type> sum(0);
     axom::for_all<ExecSpace>(view.size(), AXOM_LAMBDA(axom::IndexType index) { sum += view[index]; });
-    return static_cast<axom::IndexType>(sum.get());
+    const auto total = static_cast<axom::IndexType>(sum.get());
+    if(view.size() > 0)
+    {
+      SLIC_ERROR_IF(total == 0, "ReduceSum returned 0 for total.");
+    }
+    return total;
   }
 
   /*!
@@ -1718,7 +1723,12 @@ private:
         const auto nmats = matsetView.numberOfMaterials(zoneIndex);
         matCount_reduce += nmats;
       });
-    return matCount_reduce.get();
+    const auto count = matCount_reduce.get();
+    if(nzones > 0)
+    {
+      SLIC_ERROR_IF(count == 0, "ReduceSum returned 0 for count.");
+    }
+    return count;
   }
 
   /*!

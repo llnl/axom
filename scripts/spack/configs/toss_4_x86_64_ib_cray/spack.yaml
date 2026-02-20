@@ -389,11 +389,11 @@ spack:
     # Devtools are built on rzvernal for compatibility with both
     # rzvernal and rzadams.
     cmake:
-      version: [3.24.2]
+      version: [3.29.2]
       buildable: false
       externals:
-      - spec: cmake@3.24.2
-        prefix: /usr/tce
+      - spec: cmake@3.29.2
+        prefix: /usr/tce/packages/cmake/cmake-3.29.2
     py-shroud:
       version: [0.14.0]
       buildable: false
