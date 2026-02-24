@@ -7,6 +7,7 @@
 #include "axom/config.hpp"
 
 #include "axom/core.hpp"
+#include "axom/mint.hpp"
 #include "axom/primal.hpp"
 #include "axom/quest.hpp"
 
@@ -16,6 +17,7 @@
 #include <string>
 
 namespace fs = axom::utilities::filesystem;
+namespace mint = axom::mint;
 namespace primal = axom::primal;
 namespace quest = axom::quest;
 
@@ -42,6 +44,83 @@ bool isNearInteger(double value, double eps)
   const double nearest = std::round(value);
   return std::abs(value - nearest) <= eps;
 }
+
+namespace
+{
+struct TriangleGwnEvaluator
+{
+  using Point3D = primal::Point<double, 3>;
+  using Triangle3D = primal::Triangle<double, 3>;
+  using BBox3D = primal::BoundingBox<double, 3>;
+
+  void preprocess(const mint::UnstructuredMesh<mint::SINGLE_SHAPE>& mesh)
+  {
+    const auto ntris = mesh.getNumberOfCells();
+    m_triangles.resize(ntris);
+
+    BBox3D shapeBBox;
+    BBox3D* shapeBBoxPtr = &shapeBBox;
+    mint::for_all_nodes<axom::SEQ_EXEC, mint::xargs::xyz>(
+      &mesh,
+      AXOM_LAMBDA(axom::IndexType /*nodeIdx*/, double x, double y, double z) {
+        shapeBBoxPtr->addPoint(Point3D {x, y, z});
+      });
+
+    m_shapeCenter = shapeBBox.getCentroid();
+    const auto longestDim = shapeBBox.getLongestDimension();
+    m_scale = shapeBBox.getMax()[longestDim] - shapeBBox.getMin()[longestDim];
+    if(m_scale <= 0.)
+    {
+      m_scale = 1.;
+    }
+
+    const auto& ctr = m_shapeCenter;
+    const auto scl = m_scale;
+    auto trisView = m_triangles.view();
+    mint::for_all_cells<axom::SEQ_EXEC, mint::xargs::coords>(
+      &mesh,
+      AXOM_LAMBDA(axom::IndexType cellIdx,
+                  const axom::numerics::Matrix<double>& coords,
+                  [[maybe_unused]] const axom::IndexType* nodeIds) {
+        trisView[cellIdx] =
+          Triangle3D {Point3D {(coords(0, 0) - ctr[0]) / scl,
+                               (coords(1, 0) - ctr[1]) / scl,
+                               (coords(2, 0) - ctr[2]) / scl},
+                      Point3D {(coords(0, 1) - ctr[0]) / scl,
+                               (coords(1, 1) - ctr[1]) / scl,
+                               (coords(2, 1) - ctr[2]) / scl},
+                      Point3D {(coords(0, 2) - ctr[0]) / scl,
+                               (coords(1, 2) - ctr[1]) / scl,
+                               (coords(2, 2) - ctr[2]) / scl}};
+      });
+  }
+
+  axom::Array<double> evaluate(const axom::Array<Point3D>& queryArr,
+                               const double edge_tol,
+                               const double EPS) const
+  {
+    axom::Array<double> gwnArr(queryArr.size());
+    for(int qi = 0; qi < queryArr.size(); ++qi)
+    {
+      const Point3D qScaled((queryArr[qi].array() - m_shapeCenter.array()) / m_scale);
+
+      double wn = 0.;
+      for(const auto& tri : m_triangles)
+      {
+        wn += primal::winding_number(qScaled, tri, edge_tol, EPS);
+      }
+
+      gwnArr[qi] = wn;
+    }
+
+    return gwnArr;
+  }
+
+  Point3D m_shapeCenter;
+  double m_scale {1.0};
+  axom::Array<Triangle3D> m_triangles;
+};
+}  // namespace
 
 //------------------------------------------------------------------------------
 void runStepFileTest(const std::string& stepFile)
@@ -71,9 +150,6 @@ void runStepFileTest(const std::string& stepFile)
   auto bboxMax = shapeBbox.getMax();
   const auto bboxDiag = bboxMax.array() - bboxMin.array();
 
-  const primal::WindingTolerances tol;
-  constexpr double integer_eps = 1e-3;
-
   axom::Array<primal::Point<double, 3>> query_arr(0, 27);
   for(const double fx : {0.25, 0.5, 0.75})
   {
@@ -88,6 +164,7 @@ void runStepFileTest(const std::string& stepFile)
     }
   }
 
+  const primal::WindingTolerances tol;
   const auto gwn_arr = primal::winding_number(query_arr,
                                               patches,
                                               tol.edge_tol,
@@ -97,16 +174,33 @@ void runStepFileTest(const std::string& stepFile)
                                               tol.EPS);
 
   EXPECT_EQ(gwn_arr.size(), query_arr.size());
+
+  constexpr double integer_eps = 1e-3;
   for(int i = 0; i < gwn_arr.size() && i < query_arr.size(); ++i)
   {
     const double wn = gwn_arr[i];
     EXPECT_NEAR(wn, std::round(wn), integer_eps);
   }
+
+  mint::UnstructuredMesh<mint::SINGLE_SHAPE> triMesh(3, mint::TRIANGLE);
+  stepReader.getTriangleMesh(&triMesh, 0.01, 0.5);
+
+  TriangleGwnEvaluator triEval;
+  triEval.preprocess(triMesh);
+
+  const auto tri_gwn_arr = triEval.evaluate(query_arr, tol.edge_tol, tol.EPS);
+  EXPECT_EQ(tri_gwn_arr.size(), query_arr.size());
+  for(int i = 0; i < tri_gwn_arr.size() && i < query_arr.size(); ++i)
+  {
+    const double wn = tri_gwn_arr[i];
+    EXPECT_NEAR(wn, std::round(wn), integer_eps);
+  }
 }
 
 //------------------------------------------------------------------------------
-TEST(quest_step_reader, gwn_is_near_integer_on_bbox_grid)
+TEST(quest_step_reader, orientation_check)
 {
+  // If the STEP file is read properly, then the resulting GWN should be integer-valued
   runStepFileTest("sliced_cylinder.step");
 }
 
