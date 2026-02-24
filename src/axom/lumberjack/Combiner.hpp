@@ -17,6 +17,7 @@
 #define COMBINER_HPP
 
 #include "axom/lumberjack/Message.hpp"
+#include "axom/core/Macros.hpp"
 
 namespace axom
 {
@@ -51,6 +52,20 @@ public:
    *****************************************************************************
    */
   virtual const std::string id() = 0;
+
+  /*!
+   *****************************************************************************
+   * \brief Function used by Lumberjack to indicate whether a Message class
+   * should be considered for this combiner. Default is always true.
+   *
+   * \param [in] m The Message to be considered
+   *****************************************************************************
+   */
+  virtual bool isMessageCandidateForCombiner(const Message& m)
+  {
+    AXOM_UNUSED_VAR(m);
+    return true;
+  }
 
   /*!
    *****************************************************************************

@@ -240,6 +240,8 @@ void Lumberjack::combineMessages()
   }
 
   std::vector<Message*> finalMessages;
+  std::vector<Message*> uncombinableMessages;
+
   std::vector<int> indexesToBeDeleted;
   int combinersSize = (int)m_combiners.size();
 
@@ -253,6 +255,24 @@ void Lumberjack::combineMessages()
   for(int allIndex = 1; allIndex < messagesSize; ++allIndex)
   {
     combinedMessage = false;
+
+    bool isUncombinable = true;
+
+    for(auto& c : m_combiners)
+    {
+      if(c->isMessageCandidateForCombiner(*m_messages[allIndex]))
+      {
+        isUncombinable = false;
+        break;
+      }
+    }
+
+    if(isUncombinable)
+    {
+      uncombinableMessages.push_back(m_messages[allIndex]);
+      continue;
+    }
+
     for(int finalIndex = 0; finalIndex < (int)finalMessages.size(); ++finalIndex)
     {
       for(int combinerIndex = 0; combinerIndex < combinersSize; ++combinerIndex)
@@ -279,6 +299,7 @@ void Lumberjack::combineMessages()
     }
   }
 
+  finalMessages.insert(finalMessages.end(), uncombinableMessages.begin(), uncombinableMessages.end());
   for(int i = 0; i < (int)indexesToBeDeleted.size(); ++i)
   {
     delete m_messages[indexesToBeDeleted[i]];
