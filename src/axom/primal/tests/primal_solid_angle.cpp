@@ -13,6 +13,8 @@
 
 #include "gtest/gtest.h"
 
+#include "axom/primal/geometry/detail/analytic_test_surfaces.hpp"
+
 // C++ headers
 #include <cmath>
 #include <iostream>
@@ -497,171 +499,8 @@ TEST(primal_solid_angle, planar_bezierpatch)
   }
 }
 
-axom::Array<primal::NURBSPatch<double, 3>> make_sphere_biquartic()
-{
-  using Point3D = primal::Point<double, 3>;
-  using NPatch = primal::NURBSPatch<double, 3>;
-
-  double rt2 = sqrt(2), rt3 = sqrt(3), rt6 = sqrt(6);
-
-  // Define the nodes and weights for one of six rational, biquartic Bezier patches
-  //  that compose the unit sphere. These will be rotated to form the other 5.
-  // Nodes and weights obtained from the technical report
-  // "Tiling the Sphere with Rational Bezier Patches",
-  //  James E. Cobb, University of Utah, 1988
-
-  // clang-format off
-    axom::Array<Point3D> node_data = {
-      Point3D {4*(1-rt3),     4*(1-rt3),     4*(1-rt3)}, Point3D {rt2*(rt3-4),            -rt2, rt2*(rt3-4)}, Point3D {4*(1-2*rt3)/3,   0, 4*(1-2*rt3)/3}, Point3D {rt2*(rt3-4),           rt2,   rt2*(rt3-4)}, Point3D {4*(1-rt3),     4*(rt3-1),     4*(1-rt3)},
-      Point3D {     -rt2, rt2*(rt3 - 4), rt2*(rt3 - 4)}, Point3D {(2-3*rt3)/2,     (2-3*rt3)/2,  -(rt3+6)/2}, Point3D {rt2*(2*rt3-7)/3, 0,      -5*rt6/3}, Point3D {(2-3*rt3)/2,   (3*rt3-2)/2,    -(rt3+6)/2}, Point3D {     -rt2,   rt2*(4-rt3),   rt2*(rt3-4)},
-      Point3D {        0, 4*(1-2*rt3)/3, 4*(1-2*rt3)/3}, Point3D {          0, rt2*(2*rt3-7)/3,    -5*rt6/3}, Point3D {0,               0,   4*(rt3-5)/3}, Point3D {          0, rt2*(7-2*rt3)/3,    -5*rt6/3}, Point3D {        0, 4*(2*rt3-1)/3, 4*(1-2*rt3)/3},
-      Point3D {      rt2, rt2*(rt3 - 4), rt2*(rt3 - 4)}, Point3D {(3*rt3-2)/2,     (2-3*rt3)/2,  -(rt3+6)/2}, Point3D {rt2*(7-2*rt3)/3, 0,      -5*rt6/3}, Point3D {(3*rt3-2)/2,   (3*rt3-2)/2,    -(rt3+6)/2}, Point3D {      rt2,   rt2*(4-rt3),   rt2*(rt3-4)},
-      Point3D {4*(rt3-1),     4*(1-rt3),     4*(1-rt3)}, Point3D {rt2*(4-rt3),            -rt2, rt2*(rt3-4)}, Point3D {4*(2*rt3-1)/3,   0, 4*(1-2*rt3)/3}, Point3D {rt2*(4-rt3),           rt2,   rt2*(rt3-4)}, Point3D {4*(rt3-1),     4*(rt3-1),     4*(1-rt3)}};
-  
-    axom::Array<double> weight_data = {
-           4*(3-rt3), rt2*(3*rt3-2),   4*(5-rt3)/3, rt2*(3*rt3-2),     4*(3-rt3),
-       rt2*(3*rt3-2),     (rt3+6)/2, rt2*(rt3+6)/3,     (rt3+6)/2, rt2*(3*rt3-2),
-         4*(5-rt3)/3, rt2*(rt3+6)/3, 4*(5*rt3-1)/9, rt2*(rt3+6)/3,   4*(5-rt3)/3,
-       rt2*(3*rt3-2),     (rt3+6)/2, rt2*(rt3+6)/3,     (rt3+6)/2, rt2*(3*rt3-2),
-           4*(3-rt3), rt2*(3*rt3-2),   4*(5-rt3)/3, rt2*(3*rt3-2),     4*(3-rt3)};
-  // clang-format on
-
-  axom::Array<NPatch> sphere_faces(6);
-  for(int n = 0; n < 6; ++n)
-  {
-    sphere_faces[n].setParameters(5, 5, 4, 4);
-    sphere_faces[n].makeRational();
-  }
-
-  for(int i = 0; i < 5; ++i)
-  {
-    for(int j = 0; j < 5; ++j)
-    {
-      const int idx = 5 * i + j;
-      for(int n = 0; n < 6; ++n)
-      {
-        sphere_faces[n].setWeight(i, j, weight_data[idx]);
-      }
-
-      // Set up each face by rotating one of the patch faces
-      sphere_faces[0](i, j)[0] = node_data[idx][1];
-      sphere_faces[0](i, j)[1] = node_data[idx][0];
-      sphere_faces[0](i, j)[2] = node_data[idx][2];
-      sphere_faces[0](i, j).array() /= weight_data[idx];
-
-      sphere_faces[1](i, j)[0] = -node_data[idx][0];
-      sphere_faces[1](i, j)[1] = -node_data[idx][1];
-      sphere_faces[1](i, j)[2] = -node_data[idx][2];
-      sphere_faces[1](i, j).array() /= weight_data[idx];
-
-      sphere_faces[2](i, j)[0] = node_data[idx][2];
-      sphere_faces[2](i, j)[1] = node_data[idx][1];
-      sphere_faces[2](i, j)[2] = node_data[idx][0];
-      sphere_faces[2](i, j).array() /= weight_data[idx];
-
-      sphere_faces[3](i, j)[0] = -node_data[idx][1];
-      sphere_faces[3](i, j)[1] = -node_data[idx][2];
-      sphere_faces[3](i, j)[2] = -node_data[idx][0];
-      sphere_faces[3](i, j).array() /= weight_data[idx];
-
-      sphere_faces[4](i, j)[0] = node_data[idx][0];
-      sphere_faces[4](i, j)[1] = node_data[idx][2];
-      sphere_faces[4](i, j)[2] = node_data[idx][1];
-      sphere_faces[4](i, j).array() /= weight_data[idx];
-
-      sphere_faces[5](i, j)[0] = -node_data[idx][2];
-      sphere_faces[5](i, j)[1] = -node_data[idx][0];
-      sphere_faces[5](i, j)[2] = -node_data[idx][1];
-      sphere_faces[5](i, j).array() /= weight_data[idx];
-    }
-  }
-
-  return sphere_faces;
-}
-
-axom::Array<primal::NURBSPatch<double, 3>> make_sphere_bicubic()
-{
-  // Generate a sphere using (degenerate) bicubic patches
-
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-  using BCurve = primal::BezierCurve<double, 2>;
-  using NPatch = primal::NURBSPatch<double, 3>;
-
-  double rt2 = sqrt(2);
-
-  // Define BezierCurves which, when rotated around the z-axis,
-  //  form the top and bottom halves of a sphere.
-  BCurve top_curve(2), bottom_curve(2);
-  top_curve[0] = Point2D {0.0, 1.0};
-  top_curve[1] = Point2D {1.0, 1.0};
-  top_curve[2] = Point2D {1.0, 0.0};
-
-  bottom_curve[0] = Point2D {1.0, 0.0};
-  bottom_curve[1] = Point2D {1.0, -1.0};
-  bottom_curve[2] = Point2D {0.0, -1.0};
-
-  top_curve.makeRational();
-  top_curve.setWeight(1, 1.0 / rt2);
-
-  bottom_curve.makeRational();
-  bottom_curve.setWeight(1, 1.0 / rt2);
-
-  axom::Array<NPatch> sphere_faces(8);
-  for(int n = 0; n < 8; ++n)
-  {
-    sphere_faces[n].setParameters(3, 3, 2, 2);
-    sphere_faces[n].makeRational();
-  }
-
-  for(int n = 0; n < 2; ++n)
-  {
-    auto& curve = (n == 0) ? top_curve : bottom_curve;
-
-    for(int i = 0; i <= 2; ++i)
-    {
-      // clang-format off
-      sphere_faces[4*n + 0](i, 0) = Point3D {curve[i][0], 0.0, curve[i][1]};
-      sphere_faces[4*n + 0](i, 1) = Point3D {curve[i][0], curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 0](i, 2) = Point3D {0.0, curve[i][0], curve[i][1]};
-
-      sphere_faces[4*n + 1](i, 0) = Point3D {0.0, curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 1](i, 1) = Point3D {-curve[i][0], curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 1](i, 2) = Point3D {-curve[i][0], 0.0, curve[i][1]};
-
-      sphere_faces[4*n + 2](i, 0) = Point3D {-curve[i][0], 0.0, curve[i][1]};
-      sphere_faces[4*n + 2](i, 1) = Point3D {-curve[i][0], -curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 2](i, 2) = Point3D {0.0, -curve[i][0], curve[i][1]};
-
-      sphere_faces[4*n + 3](i, 0) = Point3D {0.0, -curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 3](i, 1) = Point3D {curve[i][0], -curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 3](i, 2) = Point3D {curve[i][0], 0.0, curve[i][1]};
-
-      double the_weight = curve.isRational() ? curve.getWeight(i) : 1.0;
-
-      sphere_faces[4*n + 0].setWeight(i, 0, the_weight);
-      sphere_faces[4*n + 1].setWeight(i, 0, the_weight);
-      sphere_faces[4*n + 2].setWeight(i, 0, the_weight);
-      sphere_faces[4*n + 3].setWeight(i, 0, the_weight);
-
-      sphere_faces[4*n + 0].setWeight(i, 1, the_weight / rt2);
-      sphere_faces[4*n + 1].setWeight(i, 1, the_weight / rt2);
-      sphere_faces[4*n + 2].setWeight(i, 1, the_weight / rt2);
-      sphere_faces[4*n + 3].setWeight(i, 1, the_weight / rt2);
-
-      sphere_faces[4*n + 0].setWeight(i, 2, the_weight);
-      sphere_faces[4*n + 1].setWeight(i, 2, the_weight);
-      sphere_faces[4*n + 2].setWeight(i, 2, the_weight);
-      sphere_faces[4*n + 3].setWeight(i, 2, the_weight);
-      //clang-format on
-    }
-  }
-
-  return sphere_faces;
-}
-
 //------------------------------------------------------------------------------
-TEST(primal_integral, nurbspatch_sphere)
+TEST(primal_solid_angle, nurbspatch_sphere)
 {
   using Point3D = primal::Point<double, 3>;
   using Vector3D = primal::Vector<double, 3>;
@@ -672,22 +511,22 @@ TEST(primal_integral, nurbspatch_sphere)
 
   // Iterate over points of interest, i.e. axis/edge/vertex aligned
   Vector3D query_directions[12] = {Vector3D({0.0, 0.0, 1.0}).unitVector(),
-                                    Vector3D({0.0, 1.0, 0.0}).unitVector(), 
-                                    Vector3D({1.0, 0.0, 0.0}).unitVector(),     
-                                    Vector3D({0.0, 1.0, 1.0}).unitVector(), 
-                                    Vector3D({1.0, 0.0, 1.0}).unitVector(),      
-                                    Vector3D({1.0, 1.0, 0.0}).unitVector(),      
-                                    Vector3D({1.0, 1.0, 1.0}).unitVector(),      
-                                    Vector3D({0.0, 0.1, 1.0}).unitVector(),      
-                                    Vector3D({0.1, 1.0, 0.0}).unitVector(),      
-                                    Vector3D({1.0, 0.0, 0.1}).unitVector(),      
-                                    Vector3D({ 0.126623,-0.701415,-0.701415}).unitVector(),  
-                                    Vector3D({-0.701415, 0.126623,-0.701415}).unitVector()}; 
+                                   Vector3D({0.0, 1.0, 0.0}).unitVector(),
+                                   Vector3D({1.0, 0.0, 0.0}).unitVector(),
+                                   Vector3D({0.0, 1.0, 1.0}).unitVector(),
+                                   Vector3D({1.0, 0.0, 1.0}).unitVector(),
+                                   Vector3D({1.0, 1.0, 0.0}).unitVector(),
+                                   Vector3D({1.0, 1.0, 1.0}).unitVector(),
+                                   Vector3D({0.0, 0.1, 1.0}).unitVector(),
+                                   Vector3D({0.1, 1.0, 0.0}).unitVector(),
+                                   Vector3D({1.0, 0.0, 0.1}).unitVector(),
+                                   Vector3D({0.126623, -0.701415, -0.701415}).unitVector(),
+                                   Vector3D({-0.701415, 0.126623, -0.701415}).unitVector()};
 
   const double edge_offset = 1e-5;
   for(int i = 0; i < N; ++i)
   {
-    // Pick points that are far from the surface, 
+    // Pick points that are far from the surface,
     inner_points[i] = Point3D(0.1 * query_directions[i].array());
     inner_points[i + N] = Point3D((1.0 - edge_offset) * query_directions[i].array());
 
@@ -704,21 +543,23 @@ TEST(primal_integral, nurbspatch_sphere)
   const double quad_tol = 1e-5;
   const double disk_size = 0.01;
   const double EPS = 1e-11;
-  
+
   // Test the points on the biquartic patches
-  auto sphere_faces = make_sphere_biquartic();
+  auto sphere_faces = axom::primal::detail::make_sphere_biquartic();
 
   SLIC_INFO("Evaluating GWN for inner points");
-  auto inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
-  for (int i = 0; i < N; ++i)
+  auto inner_gwn =
+    winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
+  for(int i = 0; i < N; ++i)
   {
     EXPECT_NEAR(inner_gwn[i], 1.0, 6 * quad_tol);
     EXPECT_NEAR(inner_gwn[i + N], 1.0, 6 * quad_tol);
   }
 
   SLIC_INFO("Evaluating GWN for outer points");
-  auto outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
-  for (int i = 0; i < N; ++i)
+  auto outer_gwn =
+    winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
+  for(int i = 0; i < N; ++i)
   {
     EXPECT_NEAR(outer_gwn[i], 0.0, 6 * quad_tol);
     EXPECT_NEAR(outer_gwn[i + N], 0.0, 6 * quad_tol);
@@ -732,31 +573,31 @@ TEST(primal_integral, nurbspatch_sphere)
     EXPECT_NEAR(coincident_gwn[i], 0.5, 6 * quad_tol);
   }
 
-  // Test non-memoized version by iterating over points and surfaces 
+  // Test non-memoized version by iterating over points and surfaces
   SLIC_INFO("Evaluating GWN for inner points, non-memoized");
-  for (auto& pt : inner_points)
+  for(auto& pt : inner_points)
   {
     double the_gwn = 0.0;
-    for( auto & surf : sphere_faces )
+    for(auto& surf : sphere_faces)
     {
-      the_gwn += winding_number( pt, surf, edge_tol, ls_tol, quad_tol, disk_size, EPS );
+      the_gwn += winding_number(pt, surf, edge_tol, ls_tol, quad_tol, disk_size, EPS);
     }
 
     EXPECT_NEAR(the_gwn, 1.0, 6 * quad_tol);
   }
 
   // Test points near degenerate edges of the biquartic patches
-  sphere_faces = make_sphere_bicubic();
+  sphere_faces = axom::primal::detail::make_sphere_bicubic();
   axom::Array<Point3D> difficult_points(0, 5);
-  
+
   // Outer points
   difficult_points.emplace_back(Point3D(0.1 * query_directions[0].array()));
   difficult_points.emplace_back(Point3D((1.0 - edge_offset) * query_directions[0].array()));
-  
+
   // Inner points
   difficult_points.emplace_back(Point3D(2.1 * query_directions[0].array()));
   difficult_points.emplace_back(Point3D((1.0 + edge_offset) * query_directions[0].array()));
-  
+
   // Coincident point
   difficult_points.emplace_back(Point3D(query_directions[0].array()));
 
@@ -764,11 +605,76 @@ TEST(primal_integral, nurbspatch_sphere)
   auto difficult_gwn =
     winding_number(difficult_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
 
-  EXPECT_NEAR(difficult_gwn[0], 1.0, 8 * quad_tol); // Inner point
-  EXPECT_NEAR(difficult_gwn[1], 1.0, 8 * quad_tol); // Inner point
-  EXPECT_NEAR(difficult_gwn[2], 0.0, 8 * quad_tol); // Outer point
-  EXPECT_NEAR(difficult_gwn[3], 0.0, 8 * quad_tol); // Outer point
-  EXPECT_NEAR(difficult_gwn[4], 0.5, 8 * quad_tol); // Coincident point
+  EXPECT_NEAR(difficult_gwn[0], 1.0, 8 * quad_tol);  // Inner point
+  EXPECT_NEAR(difficult_gwn[1], 1.0, 8 * quad_tol);  // Inner point
+  EXPECT_NEAR(difficult_gwn[2], 0.0, 8 * quad_tol);  // Outer point
+  EXPECT_NEAR(difficult_gwn[3], 0.0, 8 * quad_tol);  // Outer point
+  EXPECT_NEAR(difficult_gwn[4], 0.5, 8 * quad_tol);  // Coincident point
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_solid_angle, teardrop_regression_test)
+{
+  using Point3D = primal::Point<double, 3>;
+  using Vector3D = primal::Vector<double, 3>;
+
+  const double edge_tol = 1e-6;
+  const double ls_tol = 1e-10;
+  const double quad_tol = 1e-5;
+  const double disk_size = 0.01;
+  const double EPS = 1e-11;
+
+  // Test the points on a teardrop madefor which
+  //  the bottom portion is a bicubic sphere,
+  //  the top portion is defined by the solid of revolution of a cubic Bezier curve
+  const auto teardrop_shape = axom::primal::detail::make_teardrop();
+
+  auto is_in_teardrop = [](Point3D x) -> bool {
+    const double radius = std::sqrt(x[0] * x[0] + x[1] * x[1]);
+
+    if(radius > 1.0)
+    {
+      return false;
+    }
+    else
+    {
+      // The vertical cross-section of the tip is given by 3sin(1/3 * asin(1-2x)) + x - 0.5
+      double fun = 3 * std::sin(1.0 / 3.0 * std::asin(1 - 2 * radius)) + radius - 0.5;
+      return (x[2] <= fun) &&
+        ((x[2] > -1.0) || std::sqrt(x[0] * x[0] + x[1] * x[1] + (x[2] + 1.0) * (x[2] + 1.0) <= 1.0));
+    }
+  };
+
+  // Define a grid of points
+  constexpr int npts = 21;
+  double x_pts[npts];
+  double y_pts[npts];
+  double z_pts[npts];
+
+  axom::numerics::linspace(-1.1, 1.1, x_pts, npts);
+  axom::numerics::linspace(-1.1, 1.1, y_pts, npts);
+  axom::numerics::linspace(-2.1, 1.1, z_pts, npts);
+
+  constexpr int tot_npts = npts * npts * npts;
+  axom::Array<Point3D> query_arr(0, tot_npts);
+  axom::Array<bool> true_containment_arr(0, tot_npts);
+
+  for(int n = 0; n < tot_npts; ++n)
+  {
+    const Point3D query {x_pts[(n / npts / npts) % npts], y_pts[(n / npts) % npts], z_pts[n % npts]};
+
+    query_arr.emplace_back(query);
+    true_containment_arr.emplace_back(is_in_teardrop(query));
+  }
+
+  const auto gwn_array =
+    axom::primal::winding_number(query_arr, teardrop_shape, edge_tol, ls_tol, quad_tol, disk_size, EPS);
+
+  for(int n = 0; n < tot_npts; ++n)
+  {
+    const bool calc_containment = (std::round(gwn_array[n]) != 0);
+    EXPECT_EQ(calc_containment, true_containment_arr[n]);
+  }
 }
 
 int main(int argc, char** argv)
