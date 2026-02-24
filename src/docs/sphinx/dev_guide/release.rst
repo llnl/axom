@@ -175,6 +175,8 @@ the history. After merging, the release candidate branch can be deleted.
    extra files to put in the `data` directory only if you want to run certain
    Axom tests.
 
+#. Click the checkbox at the bottom of the page that says "Set as the latest release".
+
 #. Publish the release. This will create a tag at the tip of the main
    branch and add corresponding entry in the
    `Releases section <https://github.com/LLNL/axom/releases>`_
