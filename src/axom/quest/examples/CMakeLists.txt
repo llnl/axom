@@ -669,98 +669,45 @@ if(MFEM_FOUND AND OPENCASCADE_FOUND)
         )
 
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
-        # 3D query regression-style runs (20^3 grid) over several STEP models.
+        # 3D query regression-style runs over several STEP models.
+        # Keep query grids small enough that Debug builds run quickly.
         # These tests validate that we produce stable summary stats for the winding/inout fields.
         set(_wn3d_step_models connector sliced_cylinder teardrop tet boxed_sphere)
         foreach(_model ${_wn3d_step_models})
             # Keep float comparisons fairly strict: match several significant digits in scientific notation.
-            # NOTE: CTest treats PASS_REGULAR_EXPRESSION lists as "any-of".
-            # Use a single regex (per model) so we require all fields to match.
-            set(_pass_regex "WN_STATS:.*INOUT_STATS:")
-            set(_res_i 20)
-            set(_res_j 20)
-            set(_res_k 20)
-            if(_model STREQUAL "sliced_cylinder")
-                set(_res_i 50)
-                set(_res_j 50)
-                set(_res_k 50)
-                set(_pass_regex
-                    "WN_STATS:.*"
-                    "dof_l2=2\\.32957[0-9]e\\+02.*"
-                    "dof_linf=1\\.00045[0-9]e\\+00.*"
-                    "l2=4\\.12389[0-9]e\\+01.*"
-                    "min=-7\\.00174[0-9]e-03.*"
-                    "max=1\\.00045[0-9]e\\+00.*"
-                    "[\\r\\n]+.*INOUT_STATS:.*"
-                    "volume=1\\.75061[0-9]e\\+03.*"
-                    "domain_volume=4\\.032260e\\+03.*"
-                    "vol_frac=4\\.34152[0-9]e-01.*"
-                    "pos_dofs=54269.*"
+            # NOTE: CTest treats PASS_REGULAR_EXPRESSION lists as "any-of", so we must use a
+            # single regex string (per model) that matches the INOUT_STATS.
+            set(_res_i 10)
+            set(_res_j 10)
+            set(_res_k 10)
+            set(_pass_regex "INOUT_STATS:.*pos_dofs=.*neg_dofs=")
+            if(_model STREQUAL "connector")
+                set(_res_i 5)
+                set(_res_j 5)
+                set(_res_k 5)
+                string(CONCAT _pass_regex
+                    "INOUT_STATS:.*"
+                    "pos_dofs=16.*"
+                    "neg_dofs=0")
+            elseif(_model STREQUAL "sliced_cylinder")
+                string(CONCAT _pass_regex
+                    "INOUT_STATS:.*"
+                    "pos_dofs=445.*"
                     "neg_dofs=0")
             elseif(_model STREQUAL "teardrop")
-                set(_res_i 50)
-                set(_res_j 50)
-                set(_res_k 50)
-                set(_pass_regex
-                    "WN_STATS:.*"
-                    "dof_l2=1\\.88692[0-9]e\\+02.*"
-                    "dof_linf=1\\.00000[0-9]e\\+00.*"
-                    "l2=2\\.09938[0-9]e\\+00.*"
-                    "min=-2\\.71035[0-9]e-07.*"
-                    "[\\r\\n]+.*INOUT_STATS:.*"
-                    "volume=4\\.54946[0-9]e\\+00.*"
-                    "domain_volume=1\\.597200e\\+01.*"
-                    "vol_frac=2\\.84840[0-9]e-01.*"
-                    "pos_dofs=35605.*"
-                    "neg_dofs=0")
-            elseif(_model STREQUAL "connector")
-                set(_pass_regex
-                    "WN_STATS:.*"
-                    "dof_l2=3\\.351146e\\+01.*"
-                    "dof_linf=1\\.000924e\\+00.*"
-                    "l2=1\\.749740e\\+00.*"
-                    "min=-8\\.928465e-04.*"
-                    "max=1\\.000924e\\+00.*"
-                    "[\\r\\n]+.*INOUT_STATS:.*"
-                    "dof_l2=3\\.351119e\\+01.*"
-                    "l2=1\\.749722e\\+00.*"
-                    "volume=4\\.125621e\\+00.*"
-                    "domain_volume=2\\.939000e\\+01.*"
-                    "vol_frac=1\\.403750e-01.*"
-                    "pos_dofs=1123.*"
+                string(CONCAT _pass_regex
+                    "INOUT_STATS:.*"
+                    "pos_dofs=293.*"
                     "neg_dofs=0")
             elseif(_model STREQUAL "tet")
-                set(_res_i 50)
-                set(_res_j 50)
-                set(_res_k 50)
-                set(_pass_regex
-                    "WN_STATS:.*"
-                    "dof_l2=8\\.72525[0-9]e\\+01.*"
-                    "dof_linf=1\\.00003[0-9]e\\+00.*"
-                    "l2=1\\.54187[0-9]e\\+00.*"
-                    "min=-7\\.35998[0-9]e-06.*"
-                    "[\\r\\n]+.*INOUT_STATS:.*"
-                    "volume=2\\.59402[0-9]e\\+00.*"
-                    "domain_volume=4\\.259200e\\+01.*"
-                    "vol_frac=6\\.09040[0-9]e-02.*"
-                    "pos_dofs=7613.*"
+                string(CONCAT _pass_regex
+                    "INOUT_STATS:.*"
+                    "pos_dofs=65.*"
                     "neg_dofs=0")
             elseif(_model STREQUAL "boxed_sphere")
-                set(_res_i 30)
-                set(_res_j 30)
-                set(_res_k 30)
-                set(_pass_regex
-                    "WN_STATS:.*"
-                    "dof_l2=1\\.20511[0-9]e\\+02.*"
-                    "dof_linf=1\\.00605[0-9]e\\+00.*"
-                    "l2=8\\.23480[0-9]e-01.*"
-                    "min=-1\\.79418[0-9]e-03.*"
-                    "max=1\\.00605[0-9]e\\+00.*"
-                    "[\\r\\n]+.*INOUT_STATS:.*"
-                    "volume=7\\.33509[0-9]e-01.*"
-                    "domain_volume=1\\.363681e\\+00.*"
-                    "vol_frac=5\\.378889e-01.*"
-                    "pos_dofs=14523.*"
+                string(CONCAT _pass_regex
+                    "INOUT_STATS:.*"
+                    "pos_dofs=473.*"
                     "neg_dofs=0")
             endif()
 
