@@ -743,8 +743,17 @@ TEST(primal_nurbspatch, first_second_derivatives)
   {
     for(auto v : v_pts)
     {
-      axom::Array<VectorType, 2> ders;
-      nPatch.evaluateDerivatives(u, v, 2, ders);
+      axom::Array<VectorType, 2> ders_1;
+      axom::Array<VectorType, 2> ders_2;
+      nPatch.evaluateDerivatives(u, v, 1, ders_1);
+      nPatch.evaluateDerivatives(u, v, 2, ders_2);
+
+      for(int N = 0; N < DIM; ++N)
+      {
+        EXPECT_NEAR(ders_1[0][0][N], ders_2[0][0][N], 1e-10);
+        EXPECT_NEAR(ders_1[1][0][N], ders_2[1][0][N], 1e-10);
+        EXPECT_NEAR(ders_1[0][1][N], ders_2[0][1][N], 1e-10);
+      }
 
       auto pt = nPatch.evaluate(u, v);
       auto pt_u = nPatch.isocurve_v(v).dt(u);
@@ -754,11 +763,11 @@ TEST(primal_nurbspatch, first_second_derivatives)
 
       for(int N = 0; N < DIM; ++N)
       {
-        EXPECT_NEAR(pt[N], ders[0][0][N], 1e-10);
-        EXPECT_NEAR(pt_u[N], ders[1][0][N], 1e-10);
-        EXPECT_NEAR(pt_v[N], ders[0][1][N], 1e-10);
-        EXPECT_NEAR(pt_uu[N], ders[2][0][N], 1e-10);
-        EXPECT_NEAR(pt_vv[N], ders[0][2][N], 1e-10);
+        EXPECT_NEAR(pt[N], ders_2[0][0][N], 1e-10);
+        EXPECT_NEAR(pt_u[N], ders_2[1][0][N], 1e-10);
+        EXPECT_NEAR(pt_v[N], ders_2[0][1][N], 1e-10);
+        EXPECT_NEAR(pt_uu[N], ders_2[2][0][N], 1e-10);
+        EXPECT_NEAR(pt_vv[N], ders_2[0][2][N], 1e-10);
       }
     }
   }

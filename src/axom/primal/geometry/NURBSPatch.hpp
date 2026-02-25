@@ -2198,6 +2198,111 @@ public:
     const int deg_v = getDegree_v();
     const int dv = axom::utilities::min(d, deg_v);
 
+    // Specialization for first derivatives (d == 1).
+    // This path avoids repeated dynamic allocations in the generic implementation
+    // and is performance-critical for 3D winding-number evaluations.
+    if(d == 1)
+    {
+      ders.resize(2, 2);
+      ders.fill(VectorType(0.0));
+
+      const bool isRationalPatch = isRational();
+
+      const auto span_u = m_knotvec_u.findSpan(u);
+      thread_local typename KnotVectorType::DerivativeBasisWorkspace basis_workspace_u;
+      const auto N_evals_u =
+        m_knotvec_u.derivativeBasisFunctionsBySpan(span_u, u, du, basis_workspace_u);
+
+      const auto span_v = m_knotvec_v.findSpan(v);
+      thread_local typename KnotVectorType::DerivativeBasisWorkspace basis_workspace_v;
+      const auto N_evals_v =
+        m_knotvec_v.derivativeBasisFunctionsBySpan(span_v, v, dv, basis_workspace_v);
+
+      using HomogeneousPoint = Point<T, NDIMS + 1>;
+
+      thread_local axom::Array<HomogeneousPoint> temp0;
+      thread_local axom::Array<HomogeneousPoint> temp1;
+
+      const int nv = deg_v + 1;
+      if(temp0.size() < nv)
+      {
+        temp0.resize(nv);
+        temp1.resize(nv);
+      }
+
+      for(int s = 0; s <= deg_v; ++s)
+      {
+        temp0[s] = HomogeneousPoint::zero();
+        temp1[s] = HomogeneousPoint::zero();
+
+        for(int r = 0; r <= deg_u; ++r)
+        {
+          const auto iu = span_u - deg_u + r;
+          const auto iv = span_v - deg_v + s;
+
+          const T weight = isRationalPatch ? m_weights(iu, iv) : static_cast<T>(1);
+          const auto& pt = m_controlPoints(iu, iv);
+
+          const T Nu0 = N_evals_u[0][r];
+          const T Nu1 = (du == 1) ? N_evals_u[1][r] : static_cast<T>(0);
+
+          for(int n = 0; n < NDIMS; ++n)
+          {
+            const T wpt = weight * pt[n];
+            temp0[s][n] += Nu0 * wpt;
+            temp1[s][n] += Nu1 * wpt;
+          }
+
+          temp0[s][NDIMS] += Nu0 * weight;
+          temp1[s][NDIMS] += Nu1 * weight;
+        }
+      }
+
+      HomogeneousPoint A00 = HomogeneousPoint::zero();
+      HomogeneousPoint A10 = HomogeneousPoint::zero();
+      HomogeneousPoint A01 = HomogeneousPoint::zero();
+
+      for(int s = 0; s <= deg_v; ++s)
+      {
+        const T Nv0 = N_evals_v[0][s];
+        const T Nv1 = (dv == 1) ? N_evals_v[1][s] : static_cast<T>(0);
+
+        for(int n = 0; n <= NDIMS; ++n)
+        {
+          A00[n] += Nv0 * temp0[s][n];
+          A10[n] += Nv0 * temp1[s][n];
+          A01[n] += Nv1 * temp0[s][n];
+        }
+      }
+
+      const T w = isRationalPatch ? A00[NDIMS] : static_cast<T>(1);
+
+      for(int n = 0; n < NDIMS; ++n)
+      {
+        ders[0][0][n] = isRationalPatch ? (A00[n] / w) : A00[n];
+      }
+
+      if(du == 1)
+      {
+        const T w_u = isRationalPatch ? A10[NDIMS] : static_cast<T>(0);
+        for(int n = 0; n < NDIMS; ++n)
+        {
+          ders[1][0][n] = isRationalPatch ? ((A10[n] - w_u * ders[0][0][n]) / w) : A10[n];
+        }
+      }
+
+      if(dv == 1)
+      {
+        const T w_v = isRationalPatch ? A01[NDIMS] : static_cast<T>(0);
+        for(int n = 0; n < NDIMS; ++n)
+        {
+          ders[0][1][n] = isRationalPatch ? ((A01[n] - w_v * ders[0][0][n]) / w) : A01[n];
+        }
+      }
+
+      return;
+    }
+
     // Matrix for derivatives
     ders.resize(d + 1, d + 1);
     ders.fill(VectorType(0.0));
@@ -2314,111 +2419,12 @@ public:
    */
   void evaluateFirstDerivatives(T u, T v, PointType& eval, VectorType& Du, VectorType& Dv) const
   {
-    u = axom::utilities::clampVal(u, getMinKnot_u(), getMaxKnot_u());
-    v = axom::utilities::clampVal(v, getMinKnot_v(), getMaxKnot_v());
+    thread_local axom::Array<VectorType, 2> ders;
+    evaluateDerivatives(u, v, 1, ders);
 
-    const int deg_u = getDegree_u();
-    const int deg_v = getDegree_v();
-
-    const int du = axom::utilities::min(1, deg_u);
-    const int dv = axom::utilities::min(1, deg_v);
-
-    const bool isRationalPatch = isRational();
-
-    const auto span_u = m_knotvec_u.findSpan(u);
-    thread_local typename KnotVectorType::DerivativeBasisWorkspace basis_workspace_u;
-    const auto N_evals_u =
-      m_knotvec_u.derivativeBasisFunctionsBySpan(span_u, u, du, basis_workspace_u);
-
-    const auto span_v = m_knotvec_v.findSpan(v);
-    thread_local typename KnotVectorType::DerivativeBasisWorkspace basis_workspace_v;
-    const auto N_evals_v =
-      m_knotvec_v.derivativeBasisFunctionsBySpan(span_v, v, dv, basis_workspace_v);
-
-    using HomogeneousPoint = Point<T, NDIMS + 1>;
-
-    thread_local axom::Array<HomogeneousPoint> temp0;
-    thread_local axom::Array<HomogeneousPoint> temp1;
-
-    const int nv = deg_v + 1;
-    if(temp0.size() < nv)
-    {
-      temp0.resize(nv);
-      temp1.resize(nv);
-    }
-
-    for(int s = 0; s <= deg_v; ++s)
-    {
-      temp0[s] = HomogeneousPoint::zero();
-      temp1[s] = HomogeneousPoint::zero();
-
-      for(int r = 0; r <= deg_u; ++r)
-      {
-        const auto iu = span_u - deg_u + r;
-        const auto iv = span_v - deg_v + s;
-
-        const T weight = isRationalPatch ? m_weights(iu, iv) : static_cast<T>(1);
-        const auto& pt = m_controlPoints(iu, iv);
-
-        const T Nu0 = N_evals_u[0][r];
-        const T Nu1 = (du == 1) ? N_evals_u[1][r] : static_cast<T>(0);
-
-        for(int n = 0; n < NDIMS; ++n)
-        {
-          const T wpt = weight * pt[n];
-          temp0[s][n] += Nu0 * wpt;
-          temp1[s][n] += Nu1 * wpt;
-        }
-
-        temp0[s][NDIMS] += Nu0 * weight;
-        temp1[s][NDIMS] += Nu1 * weight;
-      }
-    }
-
-    HomogeneousPoint A00 = HomogeneousPoint::zero();
-    HomogeneousPoint A10 = HomogeneousPoint::zero();
-    HomogeneousPoint A01 = HomogeneousPoint::zero();
-
-    for(int s = 0; s <= deg_v; ++s)
-    {
-      const T Nv0 = N_evals_v[0][s];
-      const T Nv1 = (dv == 1) ? N_evals_v[1][s] : static_cast<T>(0);
-
-      for(int n = 0; n <= NDIMS; ++n)
-      {
-        A00[n] += Nv0 * temp0[s][n];
-        A10[n] += Nv0 * temp1[s][n];
-        A01[n] += Nv1 * temp0[s][n];
-      }
-    }
-
-    const T w = isRationalPatch ? A00[NDIMS] : static_cast<T>(1);
-
-    for(int n = 0; n < NDIMS; ++n)
-    {
-      eval[n] = isRationalPatch ? (A00[n] / w) : A00[n];
-    }
-
-    Du = VectorType(0.0);
-    Dv = VectorType(0.0);
-
-    if(du == 1)
-    {
-      const T w_u = isRationalPatch ? A10[NDIMS] : static_cast<T>(0);
-      for(int n = 0; n < NDIMS; ++n)
-      {
-        Du[n] = isRationalPatch ? ((A10[n] - w_u * eval[n]) / w) : A10[n];
-      }
-    }
-
-    if(dv == 1)
-    {
-      const T w_v = isRationalPatch ? A01[NDIMS] : static_cast<T>(0);
-      for(int n = 0; n < NDIMS; ++n)
-      {
-        Dv[n] = isRationalPatch ? ((A01[n] - w_v * eval[n]) / w) : A01[n];
-      }
-    }
+    eval = PointType(ders[0][0].array());
+    Du = ders[1][0];
+    Dv = ders[0][1];
   }
 
   /*!
@@ -2445,7 +2451,7 @@ public:
     axom::Array<VectorType, 2> ders;
     evaluateDerivatives(u, v, 1, ders);
 
-    eval = PointType(ders[0][0]);
+    eval = PointType(ders[0][0].array());
     Du = ders[1][0];
     Dv = ders[0][1];
     DuDv = ders[1][1];
@@ -2479,7 +2485,7 @@ public:
     axom::Array<VectorType, 2> ders;
     evaluateDerivatives(u, v, 2, ders);
 
-    eval = PointType(ders[0][0]);
+    eval = PointType(ders[0][0].array());
     Du = ders[1][0];
     Dv = ders[0][1];
     DuDu = ders[2][0];
