@@ -239,11 +239,13 @@ void Lumberjack::combineMessages()
     return;
   }
 
-  std::vector<Message*> finalMessages;
+  // A list of Message candidates for each Combiner
+  int combinersSize = (int)m_combiners.size();
+  std::vector<std::vector<Message*>> finalMessages(combinersSize);
+
   std::vector<Message*> uncombinableMessages;
 
   std::vector<int> indexesToBeDeleted;
-  int combinersSize = (int)m_combiners.size();
 
   if(combinersSize == 0)
   {
@@ -251,18 +253,19 @@ void Lumberjack::combineMessages()
   }
 
   bool combinedMessage = false;
-  finalMessages.push_back(m_messages[0]);
-  for(int allIndex = 1; allIndex < messagesSize; ++allIndex)
+  for(int allIndex = 0; allIndex < messagesSize; ++allIndex)
   {
     combinedMessage = false;
 
     bool isUncombinable = true;
+    int combinerIndex = -1;
 
-    for(auto& c : m_combiners)
+    for(int c = 0; c < combinersSize; ++c)
     {
-      if(c->isMessageCandidateForCombiner(*m_messages[allIndex]))
+      if(m_combiners[c]->isMessageCandidateForCombiner(*m_messages[allIndex]))
       {
         isUncombinable = false;
+        combinerIndex = c;
         break;
       }
     }
@@ -273,38 +276,41 @@ void Lumberjack::combineMessages()
       continue;
     }
 
-    for(int finalIndex = 0; finalIndex < (int)finalMessages.size(); ++finalIndex)
+    for(int finalIndex = 0; finalIndex < (int)finalMessages[combinerIndex].size(); ++finalIndex)
     {
-      for(int combinerIndex = 0; combinerIndex < combinersSize; ++combinerIndex)
+      if(m_combiners[combinerIndex]->shouldMessagesBeCombined(
+           *finalMessages[combinerIndex][finalIndex],
+           *m_messages[allIndex]))
       {
-        if(m_combiners[combinerIndex]->shouldMessagesBeCombined(*finalMessages[finalIndex],
-                                                                *m_messages[allIndex]))
-        {
-          m_combiners[combinerIndex]->combine(*finalMessages[finalIndex],
-                                              *m_messages[allIndex],
-                                              m_ranksLimit);
-          indexesToBeDeleted.push_back(allIndex);
-          combinedMessage = true;
-          break;
-        }
-      }
-      if(combinedMessage)
-      {
+        m_combiners[combinerIndex]->combine(*finalMessages[combinerIndex][finalIndex],
+                                            *m_messages[allIndex],
+                                            m_ranksLimit);
+        indexesToBeDeleted.push_back(allIndex);
+        combinedMessage = true;
         break;
       }
     }
     if(!combinedMessage)
     {
-      finalMessages.push_back(m_messages[allIndex]);
+      finalMessages[combinerIndex].push_back(m_messages[allIndex]);
     }
   }
 
-  finalMessages.insert(finalMessages.end(), uncombinableMessages.begin(), uncombinableMessages.end());
+  std::vector<Message*> finalMessagesFlat;
+
+  for(const auto& v : finalMessages)
+  {
+    finalMessagesFlat.insert(finalMessagesFlat.end(), v.begin(), v.end());
+  }
+  finalMessagesFlat.insert(finalMessagesFlat.end(),
+                           uncombinableMessages.begin(),
+                           uncombinableMessages.end());
+
   for(int i = 0; i < (int)indexesToBeDeleted.size(); ++i)
   {
     delete m_messages[indexesToBeDeleted[i]];
   }
-  m_messages.swap(finalMessages);
+  m_messages.swap(finalMessagesFlat);
 }
 }  // end namespace lumberjack
 }  // end namespace axom
