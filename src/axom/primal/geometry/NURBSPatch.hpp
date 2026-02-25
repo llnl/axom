@@ -2198,6 +2198,11 @@ public:
     const int deg_v = getDegree_v();
     const int dv = axom::utilities::min(d, deg_v);
 
+    // Basis-derivative workspaces are needed for both axes at the same time (u and v),
+    // so keep one per axis and reuse across calls to avoid per-call allocations.
+    thread_local typename KnotVectorType::DerivativeBasisWorkspace basis_workspace_u;
+    thread_local typename KnotVectorType::DerivativeBasisWorkspace basis_workspace_v;
+
     // Specialization for first derivatives (d == 1).
     // This path avoids repeated dynamic allocations in the generic implementation
     // and is performance-critical for 3D winding-number evaluations.
@@ -2209,12 +2214,10 @@ public:
       const bool isRationalPatch = isRational();
 
       const auto span_u = m_knotvec_u.findSpan(u);
-      thread_local typename KnotVectorType::DerivativeBasisWorkspace basis_workspace_u;
       const auto N_evals_u =
         m_knotvec_u.derivativeBasisFunctionsBySpan(span_u, u, du, basis_workspace_u);
 
       const auto span_v = m_knotvec_v.findSpan(v);
-      thread_local typename KnotVectorType::DerivativeBasisWorkspace basis_workspace_v;
       const auto N_evals_v =
         m_knotvec_v.derivativeBasisFunctionsBySpan(span_v, v, dv, basis_workspace_v);
 
@@ -2316,12 +2319,10 @@ public:
 
     // Find the span of the knot vectors and basis function derivatives
     const auto span_u = m_knotvec_u.findSpan(u);
-    thread_local typename KnotVector<T>::DerivativeBasisWorkspace basis_workspace_u;
     const auto N_evals_u =
       m_knotvec_u.derivativeBasisFunctionsBySpan(span_u, u, du, basis_workspace_u);
 
     const auto span_v = m_knotvec_v.findSpan(v);
-    thread_local typename KnotVector<T>::DerivativeBasisWorkspace basis_workspace_v;
     const auto N_evals_v =
       m_knotvec_v.derivativeBasisFunctionsBySpan(span_v, v, dv, basis_workspace_v);
 
