@@ -186,7 +186,7 @@ int main(int argc, char** argv)
   bool memoized {true};
   bool vis {true};
   bool validate {false};
-  bool stats {true};
+  bool stats {false};
 
   std::vector<double> boxMins;
   std::vector<double> boxMaxs;
