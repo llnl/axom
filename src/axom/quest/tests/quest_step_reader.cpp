@@ -45,9 +45,10 @@ bool isNearInteger(double value, double eps)
   return std::abs(value - nearest) <= eps;
 }
 
-namespace
-{
-struct TriangleGwnEvaluator
+//------------------------------------------------------------------------------
+// Use a pared-down version of the TriangleGWN3D method to directly evaluate 
+//  the for a triangle mesh
+struct MiniTriangleGWN3D
 {
   using Point3D = primal::Point<double, 3>;
   using Triangle3D = primal::Triangle<double, 3>;
@@ -69,10 +70,6 @@ struct TriangleGwnEvaluator
     m_shapeCenter = shapeBBox.getCentroid();
     const auto longestDim = shapeBBox.getLongestDimension();
     m_scale = shapeBBox.getMax()[longestDim] - shapeBBox.getMin()[longestDim];
-    if(m_scale <= 0.)
-    {
-      m_scale = 1.;
-    }
 
     const auto& ctr = m_shapeCenter;
     const auto scl = m_scale;
@@ -82,16 +79,12 @@ struct TriangleGwnEvaluator
       AXOM_LAMBDA(axom::IndexType cellIdx,
                   const axom::numerics::Matrix<double>& coords,
                   [[maybe_unused]] const axom::IndexType* nodeIds) {
-        trisView[cellIdx] =
-          Triangle3D {Point3D {(coords(0, 0) - ctr[0]) / scl,
-                               (coords(1, 0) - ctr[1]) / scl,
-                               (coords(2, 0) - ctr[2]) / scl},
-                      Point3D {(coords(0, 1) - ctr[0]) / scl,
-                               (coords(1, 1) - ctr[1]) / scl,
-                               (coords(2, 1) - ctr[2]) / scl},
-                      Point3D {(coords(0, 2) - ctr[0]) / scl,
-                               (coords(1, 2) - ctr[1]) / scl,
-                               (coords(2, 2) - ctr[2]) / scl}};
+      // clang-format off
+      trisView[cellIdx] =
+          Triangle3D {Point3D {(coords(0, 0) - ctr[0]) / scl, (coords(1, 0) - ctr[1]) / scl, (coords(2, 0) - ctr[2]) / scl},
+                      Point3D {(coords(0, 1) - ctr[0]) / scl, (coords(1, 1) - ctr[1]) / scl, (coords(2, 1) - ctr[2]) / scl},
+                      Point3D {(coords(0, 2) - ctr[0]) / scl, (coords(1, 2) - ctr[1]) / scl, (coords(2, 2) - ctr[2]) / scl}};
+      // clang-format on
       });
   }
 
@@ -185,7 +178,7 @@ void runStepFileTest(const std::string& stepFile)
   mint::UnstructuredMesh<mint::SINGLE_SHAPE> triMesh(3, mint::TRIANGLE);
   stepReader.getTriangleMesh(&triMesh, 0.01, 0.5);
 
-  TriangleGwnEvaluator triEval;
+  MiniTriangleGWN3D triEval;
   triEval.preprocess(triMesh);
 
   const auto tri_gwn_arr = triEval.evaluate(query_arr, tol.edge_tol, tol.EPS);
