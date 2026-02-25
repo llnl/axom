@@ -758,11 +758,24 @@ public:
     return ders;
   }
 
+  /*!
+   * \brief Scratch storage for \a derivativeBasisFunctionsBySpan(...)
+   *
+   * Stores intermediate tables from Algorithms A2.2/A2.3 ("The NURBS Book")
+   * in contiguous, row-major buffers to avoid per-call dynamic allocations.
+   *
+   * Typical usage is to keep one instance per thread (e.g. `thread_local`) and
+   * reuse it across evaluations.
+   */
   struct DerivativeBasisWorkspace
   {
+    //! Derivative table of size `(n+1) x (p+1)` (row-major, derivative-order major)
     axom::Array<T> ders;
+    //! Basis-function triangle from Algorithm A2.2 of size `(p+1) x (p+1)` (row-major)
     axom::Array<T> ndu;
+    //! Alternating coefficient rows from Algorithm A2.3 of size `2 x (p+1)` (row-major)
     axom::Array<T> a;
+    //! Left/right distance buffers from Algorithm A2.2 of length `p+1`
     axom::Array<T> left;
     axom::Array<T> right;
 
