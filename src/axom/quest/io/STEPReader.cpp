@@ -683,12 +683,6 @@ public:
 
         patches[patchIndex] = patchProcessor.nurbsPatchGeometry();
 
-        // If the face is flipped in opencascade, we need to flip the primal primitive too
-        if(face.Orientation() == TopAbs_REVERSED)
-        {
-          patches[patchIndex].reverseOrientation_u();
-        }
-
         PatchData& patchData = m_patchData[patchIndex];
         patchData.patchIndex = patchIndex;
         patchData.wasOriginallyPeriodic_u = patchProcessor.patchWasOriginallyPeriodic_u();
@@ -872,9 +866,6 @@ public:
           const TopoDS_Edge& edge = TopoDS::Edge(edgeExp.Current());
           const int curveIndex = patch.getNumTrimmingCurves();
 
-          TopAbs_Orientation orientation = edge.Orientation();
-          const bool isReversed = (orientation == TopAbs_REVERSED);
-
           if(m_verbose)
           {
             BRepAdaptor_Curve curveAdaptor(edge);
@@ -901,10 +892,6 @@ public:
             patchData.trimmingCurves_originallyPeriodic.push_back(
               curveProcessor.curveWasOriginallyPeriodic());
 
-            if(isReversed)  // Ensure consistency of curve w.r.t. patch
-            {
-              curve.reverseOrientation();
-            }
             SLIC_ASSERT(curve.isValidNURBS());
             SLIC_ASSERT(curve.getDegree() == bsplineCurve->Degree());
 
@@ -937,13 +924,6 @@ public:
             // TODO: Check that curve control points are within UV patch after adjusting periodicity
           }
         }
-      }
-
-      // If the face is flipped, then the trimming curves all need to be reversed too
-      if(patch.isTrimmed() &&
-         TopoDS::Face(faceExp.Current()).Orientation() == TopAbs_Orientation::TopAbs_REVERSED)
-      {
-        patch.reverseTrimmingCurves();
       }
     }
   }
@@ -1142,8 +1122,6 @@ public:
     {
       TopoDS_Face face = TopoDS::Face(faceExp.Current());
 
-      const bool isReversed = (face.Orientation() == TopAbs_Orientation::TopAbs_REVERSED);
-
       // Create a triangulation of this patch
       TopLoc_Location loc;
       opencascade::handle<Poly_Triangulation> triangulation = BRep_Tool::Triangulation(face, loc);
@@ -1163,11 +1141,6 @@ public:
         Poly_Triangle triangle = triangulation->Triangle(i);
         int n1, n2, n3;
         triangle.Get(n1, n2, n3);
-
-        if(isReversed)
-        {
-          std::swap(n1, n3);
-        }
 
         gp_Pnt p1 = triangulation->Node(n1).Transformed(trsf);
         gp_Pnt p2 = triangulation->Node(n2).Transformed(trsf);
@@ -1201,8 +1174,6 @@ public:
     for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
     {
       TopoDS_Face face = TopoDS::Face(faceExp.Current());
-
-      const bool isReversed = (face.Orientation() == TopAbs_Orientation::TopAbs_REVERSED);
 
       // Get the underlying surface of the face
       opencascade::handle<Geom_Surface> surface = BRep_Tool::Surface(face);
@@ -1240,11 +1211,6 @@ public:
         Poly_Triangle triangle = triangulation->Triangle(i);
         int n1, n2, n3;
         triangle.Get(n1, n2, n3);
-
-        if(isReversed)
-        {
-          std::swap(n1, n3);
-        }
 
         gp_Pnt p1 = triangulation->Node(n1).Transformed(trsf);
         gp_Pnt p2 = triangulation->Node(n2).Transformed(trsf);
