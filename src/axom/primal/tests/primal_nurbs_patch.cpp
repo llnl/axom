@@ -774,6 +774,81 @@ TEST(primal_nurbspatch, first_second_derivatives)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_nurbspatch, linear_derivatives_mixed_partial)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using VectorType = primal::Vector<CoordType, DIM>;
+  using NURBSPatchType = primal::NURBSPatch<CoordType, DIM>;
+
+  // Construct a simple polynomial surface that is exactly representable by
+  // a (quadratic) Bezier patch:
+  //
+  //   S(u,v) = ( u, v, u*v )
+  //
+  // so that the mixed partial is constant:
+  //   S_uv(u,v) = (0, 0, 1)
+  constexpr int deg_u = 2;
+  constexpr int deg_v = 2;
+
+  NURBSPatchType patch(deg_u, deg_v);
+
+  const CoordType ctrl_u[deg_u + 1] = {0.0, 0.5, 1.0};
+  const CoordType ctrl_v[deg_v + 1] = {0.0, 0.5, 1.0};
+
+  for(int i = 0; i <= deg_u; ++i)
+  {
+    for(int j = 0; j <= deg_v; ++j)
+    {
+      patch(i, j) = PointType {ctrl_u[i], ctrl_v[j], ctrl_u[i] * ctrl_v[j]};
+    }
+  }
+
+  constexpr CoordType u = 0.25;
+  constexpr CoordType v = 0.75;
+
+  PointType eval;
+  VectorType Du, Dv, DuDv;
+  patch.evaluateLinearDerivatives(u, v, eval, Du, Dv, DuDv);
+
+  {
+    constexpr CoordType eps = 1e-12;
+
+    EXPECT_NEAR(eval[0], u, eps);
+    EXPECT_NEAR(eval[1], v, eps);
+    EXPECT_NEAR(eval[2], u * v, eps);
+
+    EXPECT_NEAR(Du[0], 1.0, eps);
+    EXPECT_NEAR(Du[1], 0.0, eps);
+    EXPECT_NEAR(Du[2], v, eps);
+
+    EXPECT_NEAR(Dv[0], 0.0, eps);
+    EXPECT_NEAR(Dv[1], 1.0, eps);
+    EXPECT_NEAR(Dv[2], u, eps);
+
+    EXPECT_NEAR(DuDv[0], 0.0, eps);
+    EXPECT_NEAR(DuDv[1], 0.0, eps);
+    EXPECT_NEAR(DuDv[2], 1.0, eps);
+  }
+
+  // Validate the mixed partial with finite differences: d/ dv (S_u).
+  {
+    constexpr CoordType eps = 1e-6;
+    PointType eval_plus, eval_minus;
+    VectorType Du_plus, Dv_plus, Du_minus, Dv_minus;
+    patch.evaluateFirstDerivatives(u, v + eps, eval_plus, Du_plus, Dv_plus);
+    patch.evaluateFirstDerivatives(u, v - eps, eval_minus, Du_minus, Dv_minus);
+
+    for(int n = 0; n < DIM; ++n)
+    {
+      const CoordType dudv_fd = (Du_plus[n] - Du_minus[n]) / (2.0 * eps);
+      EXPECT_NEAR(dudv_fd, DuDv[n], 1e-6);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_nurbspatch, knot_insertion)
 {
   SLIC_INFO("Testing NURBS Patch knot insertion");

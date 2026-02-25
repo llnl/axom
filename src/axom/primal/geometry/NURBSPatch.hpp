@@ -2450,7 +2450,8 @@ public:
                                  VectorType& DuDv) const
   {
     axom::Array<VectorType, 2> ders;
-    evaluateDerivatives(u, v, 1, ders);
+    // Need second derivatives to compute the mixed partial S_uv (a.k.a. S_vu).
+    evaluateDerivatives(u, v, 2, ders);
 
     eval = PointType(ders[0][0].array());
     Du = ders[1][0];
