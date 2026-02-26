@@ -4,7 +4,9 @@
 # Write a simple multidomain structured blueprint mesh for testing.
 
 # This script requires a conduit installation configured with python3 and hdf5.
-# Make sure PYTHONPATH includes /path/to/conduit/install/python-modules
+# Make sure PYTHONPATH includes /path/to/conduit/install/python-modules,
+# or use Axom's convenience script /path/to/axom_build_dir/bin/run_python_with_axom.sh
+# that includes Conduit in PYTHONPATH.
 
 try:
     import conduit
@@ -12,7 +14,7 @@ try:
     import conduit.relay
 except ModuleNotFoundError as e:
     print(
-        f'{e}\nMake sure your PYTHONPATH includes /path/to/conduit/install/python-modules\nConduit must be configured with python and hdf5.'
+        f'{e}\nMake sure your PYTHONPATH includes /path/to/conduit/install/python-modules\nConduit must be configured with python and hdf5.\nAlternatively, you can use the convenience script\n/path/to/axom_build_dir/bin/run_python_with_axom.sh\nthat includes Conduit in PYTHONPATH.'
     )
     exit(-1)
 
