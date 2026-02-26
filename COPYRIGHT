@@ -1,6 +1,20 @@
 Intellectual Property Notice
 ------------------------------
 
+Axom is produced at the Lawrence Livermore National Laboratory
+
+Unlimited Open Source - BSD Distribution
+LLNL-CODE-825966
+CP02462
+
+Previous open source releases:
+Unlimited Open Source - BSD Distribution
+LLNL-CODE-741217
+OCEC-17-187
+
+This file is part of Axom
+For details, see https://github.com/llnl/axom
+
 Axom is licensed under the BSD 3-Clause license
 (BSD-3-Clause or https://opensource.org/licenses/BSD-3-Clause).
 
