@@ -49,3 +49,4 @@ include and compiler define:
    quick_start
    core_concepts
    lumberjack_classes
+   performance_notes

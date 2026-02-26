@@ -239,7 +239,8 @@ void Lumberjack::combineMessages()
     return;
   }
 
-  std::vector<Message*> finalMessages;
+  std::vector<Message*> finalCandidateMessages;
+  std::vector<Message*> finalPassThroughMessages;
   std::vector<int> indexesToBeDeleted;
   int combinersSize = (int)m_combiners.size();
 
@@ -248,19 +249,69 @@ void Lumberjack::combineMessages()
     return;
   }
 
+  finalCandidateMessages.reserve(messagesSize);
+  finalPassThroughMessages.reserve(messagesSize);
+
+  auto isCandidateForAnyCombiner = [&](const Message& message) -> bool {
+    for(int combinerIndex = 0; combinerIndex < combinersSize; ++combinerIndex)
+    {
+      if(m_combiners[combinerIndex]->isMessageCandidateForCombiner(message))
+      {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  if(isCandidateForAnyCombiner(*m_messages[0]))
+  {
+    finalCandidateMessages.push_back(m_messages[0]);
+  }
+  else
+  {
+    finalPassThroughMessages.push_back(m_messages[0]);
+  }
+
   bool combinedMessage = false;
-  finalMessages.push_back(m_messages[0]);
   for(int allIndex = 1; allIndex < messagesSize; ++allIndex)
   {
     combinedMessage = false;
-    for(int finalIndex = 0; finalIndex < (int)finalMessages.size(); ++finalIndex)
+
+    // If this message is not a candidate for any combiner, it can never be
+    // combined, so we can skip the expensive duplicate checking.
+    std::vector<int> candidateCombiners;
+    candidateCombiners.reserve(combinersSize);
+    for(int combinerIndex = 0; combinerIndex < combinersSize; ++combinerIndex)
     {
-      for(int combinerIndex = 0; combinerIndex < combinersSize; ++combinerIndex)
+      if(m_combiners[combinerIndex]->isMessageCandidateForCombiner(*m_messages[allIndex]))
       {
-        if(m_combiners[combinerIndex]->shouldMessagesBeCombined(*finalMessages[finalIndex],
+        candidateCombiners.push_back(combinerIndex);
+      }
+    }
+
+    if(candidateCombiners.empty())
+    {
+      finalPassThroughMessages.push_back(m_messages[allIndex]);
+      continue;
+    }
+
+    for(int finalIndex = 0; finalIndex < (int)finalCandidateMessages.size(); ++finalIndex)
+    {
+      for(int candidateCombinerIndex = 0;
+          candidateCombinerIndex < (int)candidateCombiners.size();
+          ++candidateCombinerIndex)
+      {
+        const int combinerIndex = candidateCombiners[candidateCombinerIndex];
+        if(!m_combiners[combinerIndex]->isMessageCandidateForCombiner(
+             *finalCandidateMessages[finalIndex]))
+        {
+          continue;
+        }
+
+        if(m_combiners[combinerIndex]->shouldMessagesBeCombined(*finalCandidateMessages[finalIndex],
                                                                 *m_messages[allIndex]))
         {
-          m_combiners[combinerIndex]->combine(*finalMessages[finalIndex],
+          m_combiners[combinerIndex]->combine(*finalCandidateMessages[finalIndex],
                                               *m_messages[allIndex],
                                               m_ranksLimit);
           indexesToBeDeleted.push_back(allIndex);
@@ -275,15 +326,18 @@ void Lumberjack::combineMessages()
     }
     if(!combinedMessage)
     {
-      finalMessages.push_back(m_messages[allIndex]);
+      finalCandidateMessages.push_back(m_messages[allIndex]);
     }
   }
 
+  finalPassThroughMessages.insert(finalPassThroughMessages.end(),
+                                  finalCandidateMessages.begin(),
+                                  finalCandidateMessages.end());
   for(int i = 0; i < (int)indexesToBeDeleted.size(); ++i)
   {
     delete m_messages[indexesToBeDeleted[i]];
   }
-  m_messages.swap(finalMessages);
+  m_messages.swap(finalPassThroughMessages);
 }
 }  // end namespace lumberjack
 }  // end namespace axom

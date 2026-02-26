@@ -16,6 +16,7 @@
 #ifndef COMBINER_HPP
 #define COMBINER_HPP
 
+#include "axom/core/Macros.hpp"
 #include "axom/lumberjack/Message.hpp"
 
 namespace axom
@@ -51,6 +52,28 @@ public:
    *****************************************************************************
    */
   virtual const std::string id() = 0;
+
+  /*!
+   *****************************************************************************
+   * \brief Indicates whether a Message should be considered by this combiner.
+   *
+   * This hook enables Lumberjack to skip expensive duplicate checks for
+   * Messages that are known to never participate in combining for a given
+   * combiner (e.g., based on tag).
+   *
+   * Implementations should ensure that if two Messages could be combined by
+   * this combiner, then this function returns true for both of them.
+   *
+   * The default implementation returns true for all Messages.
+   *
+   * \param [in] message The Message to be considered.
+   *****************************************************************************
+   */
+  virtual bool isMessageCandidateForCombiner(const Message& message)
+  {
+    AXOM_UNUSED_VAR(message);
+    return true;
+  }
 
   /*!
    *****************************************************************************

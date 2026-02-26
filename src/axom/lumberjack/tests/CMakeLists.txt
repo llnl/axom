@@ -83,5 +83,16 @@ axom_add_executable(NAME       lumberjack_speed_test_no_combiners
                     FOLDER     axom/lumberjack/tests )
 
 axom_add_test(NAME          lumberjack_speedTestNoCombiners
-              COMMAND       lumberjack_speed_test_no_combiners
-              NUM_MPI_TASKS 1)
+              COMMAND       lumberjack_speed_test_no_combiners)
+
+#------------------------------------------------------------------------------
+# Performance test exercising tag-filtered combiners
+#------------------------------------------------------------------------------
+axom_add_executable(NAME       lumberjack_speed_test_tag_candidates
+                    SOURCES    lumberjack_speedTestTagCandidates.cpp
+                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                    DEPENDS_ON lumberjack
+                    FOLDER     axom/lumberjack/tests )
+
+axom_add_test(NAME          lumberjack_speedTestTagCandidates
+              COMMAND       lumberjack_speed_test_tag_candidates)
