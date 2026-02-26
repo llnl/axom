@@ -410,6 +410,7 @@ def test_as_node():
     assert node2.value() == g_dump_no
 
     # "None" is not type Attribute
+    # (different from nullptr behavior in C++, not expected to work)
     # node3 = view1a.getAttributeNodeRef(g_attr_null)
     # assert node3.schema().dtype() == DataType.empty()
 
