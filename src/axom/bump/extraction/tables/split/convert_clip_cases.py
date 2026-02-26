@@ -336,40 +336,25 @@ def make_cut_cases(sizes, offsets, shapes):
     return cutSizes, cutOffsets, cutShapes
 
 
+# yapf: disable
 def make_polygonal_clip_tables():
     tableNames = ["Clip", "clip", "clipping"]
 
     outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesQua.cpp", "Qua", 4, max_points=4)
-    write_new_tables("../clipping/ClipCasesQua.cpp", "Qua", tableNames, outSizes, outOffsets,
-                     outShapes)
+    write_new_tables("../clipping/ClipCasesQua.cpp", "Qua", tableNames, outSizes, outOffsets, outShapes)
 
-    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly5.cpp",
-                                                         "Poly5",
-                                                         5,
-                                                         max_points=5)
-    write_new_tables("../clipping/ClipCasesPoly5.cpp", "Poly5", tableNames, outSizes, outOffsets,
-                     outShapes)
+    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly5.cpp", "Poly5", 5, max_points=5)
+    write_new_tables("../clipping/ClipCasesPoly5.cpp", "Poly5", tableNames, outSizes, outOffsets, outShapes)
 
-    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly6.cpp",
-                                                         "Poly6",
-                                                         6,
-                                                         max_points=6)
-    write_new_tables("../clipping/ClipCasesPoly6.cpp", "Poly6", tableNames, outSizes, outOffsets,
-                     outShapes)
+    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly6.cpp", "Poly6", 6, max_points=6)
+    write_new_tables("../clipping/ClipCasesPoly6.cpp", "Poly6", tableNames, outSizes, outOffsets, outShapes)
 
-    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly7.cpp",
-                                                         "Poly7",
-                                                         7,
-                                                         max_points=7)
-    write_new_tables("../clipping/ClipCasesPoly7.cpp", "Poly7", tableNames, outSizes, outOffsets,
-                     outShapes)
+    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly7.cpp", "Poly7", 7, max_points=7)
+    write_new_tables("../clipping/ClipCasesPoly7.cpp", "Poly7", tableNames, outSizes, outOffsets, outShapes)
 
-    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly8.cpp",
-                                                         "Poly8",
-                                                         8,
-                                                         max_points=8)
-    write_new_tables("../clipping/ClipCasesPoly8.cpp", "Poly8", tableNames, outSizes, outOffsets,
-                     outShapes)
+    outSizes, outOffsets, outShapes = convert_clip_cases("ClipCasesPoly8.cpp", "Poly8", 8, max_points=8)
+    write_new_tables("../clipping/ClipCasesPoly8.cpp", "Poly8", tableNames, outSizes, outOffsets, outShapes)
+# yapf: enable
 
 
 def make_polygonal_cut_tables():
