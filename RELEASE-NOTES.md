@@ -24,6 +24,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ### Changed
 - Primal: Axom's polygon clipping was modified to handle some corner cases.
+- Uberenv's spack updated to v1.1.1
+- `radiuss-spack-configs` submodule removed.
 
 ### Fixed
 - Primal: Fixed `NURBSPatch::evaluateDerivatives` returning a matrix with empty values. The old behavior 
