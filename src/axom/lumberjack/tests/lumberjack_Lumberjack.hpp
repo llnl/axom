@@ -58,6 +58,30 @@ private:
   double m_startTime;
 };
 
+class TestCombiner : public axom::lumberjack::Combiner
+{
+public:
+  const std::string id() { return m_id; }
+
+  bool shouldMessagesBeCombined(const axom::lumberjack::Message& leftMessage,
+                                const axom::lumberjack::Message& rightMessage)
+  {
+    return (leftMessage.text().compare("foo") == 0 && rightMessage.text().compare("bar") == 0) ||
+      (leftMessage.text().compare("bar") == 0 && rightMessage.text().compare("foo") == 0);
+  }
+
+  void combine(axom::lumberjack::Message& combined,
+               const axom::lumberjack::Message& combinee,
+               const int ranksLimit)
+  {
+    combined.addRanks(combinee.ranks(), combinee.count(), ranksLimit);
+    combined.text("foobar");
+  }
+
+private:
+  const std::string m_id = "TestCombiner";
+};
+
 TEST(lumberjack_Lumberjack, combineMessagesNoCombiners)
 {
   int ranksLimit = 5;
@@ -86,6 +110,44 @@ TEST(lumberjack_Lumberjack, combineMessagesNoCombiners)
     EXPECT_EQ(message->text(), "Should not be combined.");
     EXPECT_EQ(message->count(), 1);
   }
+
+  lumberjack.finalize();
+  communicator.finalize();
+}
+
+TEST(lumberjack_Lumberjack, combineMessagesMultipleCombiners)
+{
+  int ranksLimit = 5;
+  TestCommunicator communicator;
+  communicator.initialize(MPI_COMM_NULL, ranksLimit);
+  axom::lumberjack::Lumberjack lumberjack;
+  lumberjack.initialize(&communicator, ranksLimit);
+
+  lumberjack.addCombiner(new TestCombiner);
+
+  lumberjack.queueMessage("bar");
+  lumberjack.queueMessage("Should be combined.");
+  lumberjack.queueMessage("foo");
+  lumberjack.queueMessage("Should be combined.");
+  lumberjack.queueMessage("Should be combined.");
+  lumberjack.queueMessage("foo");
+  lumberjack.queueMessage("bar");
+  lumberjack.queueMessage("Should be combined.");
+
+  lumberjack.pushMessagesOnce();
+
+  std::vector<axom::lumberjack::Message*> messages = lumberjack.getMessages();
+
+  EXPECT_EQ((int)messages.size(), 3);
+
+  EXPECT_EQ(messages[0]->text(), "foobar");
+  EXPECT_EQ(messages[0]->count(), 2);
+
+  EXPECT_EQ(messages[1]->text(), "Should be combined.");
+  EXPECT_EQ(messages[1]->count(), 4);
+
+  EXPECT_EQ(messages[2]->text(), "foobar");
+  EXPECT_EQ(messages[2]->count(), 2);
 
   lumberjack.finalize();
   communicator.finalize();
