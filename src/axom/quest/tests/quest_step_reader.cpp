@@ -113,7 +113,6 @@ struct MiniTriangleGWN3D
   double m_scale {1.0};
   axom::Array<Triangle3D> m_triangles;
 };
-}  // namespace
 
 //------------------------------------------------------------------------------
 void runStepFileTest(const std::string& stepFile)
@@ -122,6 +121,7 @@ void runStepFileTest(const std::string& stepFile)
   SLIC_INFO(axom::fmt::format("Testing STEP file '{}'", fileName));
 
   quest::STEPReader stepReader;
+  stepReader.setVerbosity(false);
   stepReader.setFileName(fileName);
 
   constexpr bool validate = false;
@@ -176,7 +176,7 @@ void runStepFileTest(const std::string& stepFile)
   }
 
   mint::UnstructuredMesh<mint::SINGLE_SHAPE> triMesh(3, mint::TRIANGLE);
-  stepReader.getTriangleMesh(&triMesh, 0.01, 0.5);
+  stepReader.getTriangleMesh(&triMesh);
 
   MiniTriangleGWN3D triEval;
   triEval.preprocess(triMesh);
@@ -195,6 +195,8 @@ TEST(quest_step_reader, orientation_check)
 {
   // If the STEP file is read properly, then the resulting GWN should be integer-valued
   runStepFileTest("sliced_cylinder.step");
+  runStepFileTest("nut.step");
+  runStepFileTest("boxed_sphere.step");
 }
 
 //------------------------------------------------------------------------------
