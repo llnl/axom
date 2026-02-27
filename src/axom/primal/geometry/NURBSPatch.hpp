@@ -2174,14 +2174,25 @@ public:
    *
    * \param [in] u The parameter value on the first axis
    * \param [in] v The parameter value on the second axis
-   * \param [in] d The number of derivatives to evaluate
+   * \param [in] ord The maximum (or total) order of evaluated derivatives to evaluate
    * \param [out] ders A matrix of size d+1 x d+1 containing the derivatives
-   * \param [in] evalByMaxOrder If true, only evaluate derivatives with maximum component
-   *                               order d instead of maximum total order d.
+   * \param [in] evalByTotalOrder If true, only evaluate derivatives up to total
+   *                               order d instead of maximum component order d.
    * 
    * ders[i][j] is the derivative of S with respect to u i times and v j times.
    *  For consistency, ders[0][0] contains the evaluation point stored as a vector
-   * If `evalByMaxOrder` is true, ders[i][j] == 0 whenever i + j > d
+   * 
+   * If `evalByTotalOrder` is false (default behavior), then ders contains for d == 3
+   * 
+   *        | eval ,  S_u  ,   S_uu |
+   * ders = | S_v  ,  S_uv ,  S_uuv |
+   *        | S_vv , S_vvu , S_uuvv |
+   * 
+   * If `evalByTotalOrder` is true, then ders[i][j] == 0 whenever i + j > d
+   * 
+   *        | eval , S_u  , S_uu |
+   * ders = | S_v  , S_uv ,    0 |
+   *        | S_vv ,    0 ,    0 |
    * 
    * Implementation adapted from Algorithm A3.6 on p. 111 of "The NURBS Book".
    * Rational derivatives from Algorithm A4.4 on p. 137 of "The NURBS Book".
@@ -2194,7 +2205,7 @@ public:
                            T v,
                            int d,
                            axom::Array<VectorType, 2>& ders,
-                           bool evalByMaxOrder = false) const
+                           bool evalByTotalOrder = false) const
   {
     u = axom::utilities::clampVal(u, getMinKnot_u(), getMaxKnot_u());
     v = axom::utilities::clampVal(v, getMinKnot_v(), getMaxKnot_v());
@@ -2250,7 +2261,7 @@ public:
         }
       }
 
-      const int dd = evalByMaxOrder ? axom::utilities::min(d - k, dv) : dv;
+      const int dd = evalByTotalOrder ? axom::utilities::min(d - k, dv) : dv;
       for(int l = 0; l <= dd; ++l)
       {
         for(int s = 0; s <= deg_v; ++s)
@@ -2266,7 +2277,7 @@ public:
     // Compute the derivatives of the homogeneous surface
     for(int k = 0; k <= d; ++k)
     {
-      const int dd = evalByMaxOrder ? d - k : d;
+      const int dd = evalByTotalOrder ? d - k : d;
       for(int l = 0; l <= dd; ++l)
       {
         auto v1 = Awders[k][l];
@@ -2461,8 +2472,7 @@ public:
                                  VectorType& DuDv) const
   {
     axom::Array<VectorType, 2> ders;
-    constexpr bool evalByMaxOrder = true;
-    evaluateDerivatives(u, v, 1, ders, !evalByMaxOrder);
+    evaluateDerivatives(u, v, 1, ders);
 
     eval = PointType(ders[0][0].array());
     Du = ders[1][0];
@@ -2496,8 +2506,8 @@ public:
                                  VectorType& DuDv) const
   {
     axom::Array<VectorType, 2> ders;
-    constexpr bool evalByMaxOrder = true;
-    evaluateDerivatives(u, v, 2, ders, !evalByMaxOrder);
+    constexpr bool evalByTotalOrder = true;  // To skip evaluation of ders[1][2], etc.
+    evaluateDerivatives(u, v, 2, ders, evalByTotalOrder);
 
     eval = PointType(ders[0][0].array());
     Du = ders[1][0];
@@ -2520,8 +2530,8 @@ public:
   VectorType du(T u, T v) const
   {
     axom::Array<VectorType, 2> ders;
-    constexpr bool evalByMaxOrder = true;
-    evaluateDerivatives(u, v, 1, ders, evalByMaxOrder);
+    constexpr bool evalByTotalOrder = true;  // To skip evaluation of ders[1][1]
+    evaluateDerivatives(u, v, 1, ders, evalByTotalOrder);
 
     return ders[1][0];
   }
@@ -2539,8 +2549,8 @@ public:
   VectorType dv(T u, T v) const
   {
     axom::Array<VectorType, 2> ders;
-    constexpr bool evalByMaxOrder = true;
-    evaluateDerivatives(u, v, 1, ders, evalByMaxOrder);
+    constexpr bool evalByTotalOrder = true;  // To skip evaluation of ders[1][1]
+    evaluateDerivatives(u, v, 1, ders, evalByTotalOrder);
 
     return ders[0][1];
   }
@@ -2558,8 +2568,8 @@ public:
   VectorType dudu(T u, T v) const
   {
     axom::Array<VectorType, 2> ders;
-    constexpr bool evalByMaxOrder = true;
-    evaluateDerivatives(u, v, 2, ders, evalByMaxOrder);
+    constexpr bool evalByTotalOrder = true;  // To skip evaluation of ders[1][1], etc.
+    evaluateDerivatives(u, v, 2, ders, evalByTotalOrder);
 
     return ders[2][0];
   }
@@ -2577,8 +2587,8 @@ public:
   VectorType dvdv(T u, T v) const
   {
     axom::Array<VectorType, 2> ders;
-    constexpr bool evalByMaxOrder = true;
-    evaluateDerivatives(u, v, 2, ders, evalByMaxOrder);
+    constexpr bool evalByTotalOrder = true;  // To skip evaluation of ders[1][1], etc.
+    evaluateDerivatives(u, v, 2, ders, evalByTotalOrder);
 
     return ders[0][2];
   }
@@ -2596,8 +2606,7 @@ public:
   VectorType dudv(T u, T v) const
   {
     axom::Array<VectorType, 2> ders;
-    constexpr bool evalByMaxOrder = true;
-    evaluateDerivatives(u, v, 1, ders, !evalByMaxOrder);
+    evaluateDerivatives(u, v, 1, der s);
 
     return ders[1][1];
   }
