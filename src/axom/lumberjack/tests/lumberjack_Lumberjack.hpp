@@ -92,6 +92,14 @@ public:
     return m.text().compare("foo") == 0 || m.text().compare("bar") == 0;
   }
 
+  bool shouldMessagesBeCombined(const axom::lumberjack::Message& leftMessage,
+                                const axom::lumberjack::Message& rightMessage)
+  {
+    AXOM_UNUSED_VAR(leftMessage);
+    AXOM_UNUSED_VAR(rightMessage);
+    return true;
+  }
+
 private:
   const std::string m_id = "TestCandidateCombinerA";
 };
@@ -100,11 +108,17 @@ class TestCandidateCombinerB : public axom::lumberjack::Combiner
 {
   const std::string id() { return m_id; }
 
+  bool isMessageCandidateForCombiner(const axom::lumberjack::Message& m)
+  {
+    return m.text().compare("fizz") == 0 || m.text().compare("buzz") == 0;
+  }
+
   bool shouldMessagesBeCombined(const axom::lumberjack::Message& leftMessage,
                                 const axom::lumberjack::Message& rightMessage)
   {
-    return (leftMessage.text().compare("fizz") == 0 && rightMessage.text().compare("buzz") == 0) ||
-      (leftMessage.text().compare("buzz") == 0 && rightMessage.text().compare("fizz") == 0);
+    AXOM_UNUSED_VAR(leftMessage);
+    AXOM_UNUSED_VAR(rightMessage);
+    return true;
   }
 
   void combine(axom::lumberjack::Message& combined,
@@ -113,11 +127,6 @@ class TestCandidateCombinerB : public axom::lumberjack::Combiner
   {
     combined.addRanks(combinee.ranks(), combinee.count(), ranksLimit);
     combined.text("fizzbuzz");
-  }
-
-  bool isMessageCandidateForCombiner(const axom::lumberjack::Message& m)
-  {
-    return m.text().compare("fizz") == 0 || m.text().compare("buzz") == 0;
   }
 
 private:
@@ -203,6 +212,9 @@ TEST(lumberjack_Lumberjack, combineMessagesMultipleCombinersWithCandidates)
   axom::lumberjack::Lumberjack lumberjack;
   lumberjack.initialize(&communicator, ranksLimit);
 
+  // Both test Combiners have shouldMessagesBeCombined return true for any messages.
+  // The isMessageCandidateForCombiner check filters candidates to the correct
+  // combiners and skips expensive combining check for unqualified candidates.
   lumberjack.removeCombiner("TextTagCombiner");
   lumberjack.addCombiner(new TestCandidateCombinerA);
   lumberjack.addCombiner(new TestCandidateCombinerB);

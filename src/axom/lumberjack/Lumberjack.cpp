@@ -251,23 +251,23 @@ void Lumberjack::combineMessages()
   }
 
   bool combinedMessage = false;
-  finalMessages.push_back(m_messages[0]);
-  for(int allIndex = 1; allIndex < messagesSize; ++allIndex)
+  for(int allIndex = 0; allIndex < messagesSize; ++allIndex)
   {
     combinedMessage = false;
 
-    bool isUncombinable = true;
+    // If this message is not a candidate for any combiner, it can never be
+    // combined, so we can skip the expensive duplicate checking.
+    std::vector<int> candidateCombiners;
 
-    for(auto& c : m_combiners)
+    for(int combinerIndex = 0; combinerIndex < combinersSize; ++combinerIndex)
     {
-      if(c->isMessageCandidateForCombiner(*m_messages[allIndex]))
+      if(m_combiners[combinerIndex]->isMessageCandidateForCombiner(*m_messages[allIndex]))
       {
-        isUncombinable = false;
-        break;
+        candidateCombiners.push_back(combinerIndex);
       }
     }
 
-    if(isUncombinable)
+    if(candidateCombiners.empty())
     {
       uncombinableMessages.push_back(m_messages[allIndex]);
       continue;
@@ -275,8 +275,15 @@ void Lumberjack::combineMessages()
 
     for(int finalIndex = 0; finalIndex < (int)finalMessages.size(); ++finalIndex)
     {
-      for(int combinerIndex = 0; combinerIndex < combinersSize; ++combinerIndex)
+      for(unsigned int candidateCombinerIndex = 0; candidateCombinerIndex < candidateCombiners.size();
+          ++candidateCombinerIndex)
       {
+        int combinerIndex = candidateCombiners[candidateCombinerIndex];
+        if(!m_combiners[combinerIndex]->isMessageCandidateForCombiner(*finalMessages[finalIndex]))
+        {
+          continue;
+        }
+
         if(m_combiners[combinerIndex]->shouldMessagesBeCombined(*finalMessages[finalIndex],
                                                                 *m_messages[allIndex]))
         {
