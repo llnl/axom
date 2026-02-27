@@ -195,6 +195,26 @@ inline AXOM_HOST_DEVICE T clampLower(T val, T lower)
 }
 
 /*!
+ * \brief Determine whether a value is in [0,upper).
+ * \param value The value to check in the range.
+ * \param upper The upper value for the range (non-inclusive).
+ * \return True if value is in [0,upper); False otherwise.
+ * \note For unsigned types value must be >= 0 so we do not compare against 0.
+ */
+template <typename T>
+inline constexpr AXOM_HOST_DEVICE bool inBounds_0_N(T value, T upper)
+{
+  if constexpr(std::is_integral_v<T> && !std::is_signed_v<T>)
+  {
+    return value < upper;
+  }
+  else
+  {
+    return value >= 0 && value < upper;
+  }
+}
+
+/*!
  * \brief Computes the binomial coefficient `n choose k`
  *
  * \return \f$ {n\choose k}  = n! / (k! * (n-k)!)\f$

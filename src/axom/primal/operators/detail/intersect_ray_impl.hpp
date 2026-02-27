@@ -7,8 +7,9 @@
 #ifndef AXOM_PRIMAL_INTERSECT_RAY_IMPL_HPP_
 #define AXOM_PRIMAL_INTERSECT_RAY_IMPL_HPP_
 
-// numerics includes
+// core includes
 #include "axom/core/numerics/floating_point_limits.hpp"
+#include "axom/core/utilities/Utilities.hpp"
 
 // primal includes
 #include "axom/primal/geometry/Point.hpp"
@@ -80,7 +81,7 @@ AXOM_HOST_DEVICE inline bool intersect_ray(const primal::Ray<T, 2>& R,
       const double t1 = col1[0] * ray_dir[0] + col1[1] * ray_dir[1];
       const double t2 = t1 + seg_dir.dot(ray_dir);
 
-      if(std::min(t1, t2) > 0.0)
+      if(axom::utilities::min(t1, t2) > 0.0)
       {
         // The origin is outside the segment,
         //  but the ray intersects

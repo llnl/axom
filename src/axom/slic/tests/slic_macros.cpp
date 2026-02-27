@@ -341,7 +341,7 @@ TEST(slic_macros, test_debug_macros)
 //------------------------------------------------------------------------------
 TEST(slic_macros, test_assert_macros)
 {
-  int expected_line_number;
+  [[maybe_unused]] int expected_line_number;
   EXPECT_TRUE(slic::internal::is_stream_empty());
 
   constexpr int val = 42;
@@ -384,7 +384,7 @@ TEST(slic_macros, test_assert_macros)
 //------------------------------------------------------------------------------
 TEST(slic_macros, test_check_macros)
 {
-  int expected_line_number;
+  [[maybe_unused]] int expected_line_number;
   EXPECT_TRUE(slic::internal::is_stream_empty());
 
   constexpr int val = 42;
