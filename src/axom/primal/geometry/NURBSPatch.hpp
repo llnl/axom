@@ -2606,7 +2606,7 @@ public:
   VectorType dudv(T u, T v) const
   {
     axom::Array<VectorType, 2> ders;
-    evaluateDerivatives(u, v, 1, der s);
+    evaluateDerivatives(u, v, 1, ders);
 
     return ders[1][1];
   }
