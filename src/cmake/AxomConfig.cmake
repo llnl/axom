@@ -28,6 +28,24 @@ if(AXOM_ENABLE_MPI AND ENABLE_FORTRAN)
   endif()
 endif()
 
+# Allow user to selectively enable which languages have MPI targets
+# based on enabled languages and whether they've supplied MPI_<lang>_COMPILER
+if(AXOM_ENABLE_MPI)
+  set(_axom_required_mpi_components)
+  get_property(_axom_enabled_languages GLOBAL PROPERTY ENABLED_LANGUAGES)
+
+  if("C" IN_LIST _axom_enabled_languages AND MPI_C_COMPILER)
+    list(APPEND _axom_required_mpi_components C)
+  endif()
+  if("CXX" IN_LIST _axom_enabled_languages AND MPI_CXX_COMPILER)
+    list(APPEND _axom_required_mpi_components CXX)
+  endif()
+  if("Fortran" IN_LIST _axom_enabled_languages AND MPI_Fortran_COMPILER)
+    list(APPEND _axom_required_mpi_components Fortran)
+  endif()
+  set(AXOM_REQUIRED_MPI_COMPONENTS "${_axom_required_mpi_components}")
+endif()
+
 
 ## Add a configuration define for each enabled axom component
 foreach(comp ${AXOM_COMPONENTS_ENABLED})
