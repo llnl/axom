@@ -46,7 +46,7 @@ bool isNearInteger(double value, double eps)
 }
 
 //------------------------------------------------------------------------------
-// Use a pared-down version of the TriangleGWN3D method to directly evaluate 
+// Use a pared-down version of the TriangleGWN3D method to directly evaluate
 //  the for a triangle mesh
 struct MiniTriangleGWN3D
 {
@@ -138,7 +138,7 @@ void runStepFileTest(const std::string& stepFile)
     return;
   }
 
-  const auto shapeBbox = stepReader.getBRepBoundingBox();
+  const auto shapeBbox = stepReader.getBRepBoundingBox().scale(1.1);
   auto bboxMin = shapeBbox.getMin();
   auto bboxMax = shapeBbox.getMax();
   const auto bboxDiag = bboxMax.array() - bboxMin.array();
@@ -168,6 +168,7 @@ void runStepFileTest(const std::string& stepFile)
 
   EXPECT_EQ(gwn_arr.size(), query_arr.size());
 
+  SLIC_INFO("-- Testing NURBS read through GWN --");
   constexpr double integer_eps = 1e-3;
   for(int i = 0; i < gwn_arr.size() && i < query_arr.size(); ++i)
   {
@@ -181,6 +182,7 @@ void runStepFileTest(const std::string& stepFile)
   MiniTriangleGWN3D triEval;
   triEval.preprocess(triMesh);
 
+  SLIC_INFO("-- Testing triangulation through GWN --");
   const auto tri_gwn_arr = triEval.evaluate(query_arr, tol.edge_tol, tol.EPS);
   EXPECT_EQ(tri_gwn_arr.size(), query_arr.size());
   for(int i = 0; i < tri_gwn_arr.size() && i < query_arr.size(); ++i)
@@ -191,13 +193,12 @@ void runStepFileTest(const std::string& stepFile)
 }
 
 //------------------------------------------------------------------------------
-TEST(quest_step_reader, orientation_check)
-{
-  // If the STEP file is read properly, then the resulting GWN should be integer-valued
-  runStepFileTest("sliced_cylinder.step");
-  runStepFileTest("nut.step");
-  runStepFileTest("boxed_sphere.step");
-}
+// If the STEP file is read properly, then the resulting GWN should be integer-valued
+TEST(quest_step_reader, orientation_check_cylinder) { runStepFileTest("sliced_cylinder.step"); }
+TEST(quest_step_reader, orientation_check_nut) { runStepFileTest("nut.step"); }
+TEST(quest_step_reader, orientation_check_boxed_sphere) { runStepFileTest("boxed_sphere.step"); }
+TEST(quest_step_reader, orientation_check_tet) { runStepFileTest("tet.step"); }
+TEST(quest_step_reader, orientation_check_bearings) { runStepFileTest("bearings.step"); }
 
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
