@@ -1098,55 +1098,6 @@ private:
       return TopoDS_Shape();
     }
 
-    // After conversion to NURBS, orient closed solids. If the solid is not
-    // orientable (e.g. due to missing shared-edge connectivity), try sewing
-    // faces to restore topological adjacency and retry.
-    {
-      auto orientClosedSolids = [](TopoDS_Shape& inoutShape) {
-        ShapeBuild_ReShape reshape;
-        bool didOrient = false;
-        bool sawSolid = false;
-        bool orientFailed = false;
-
-        for(TopExp_Explorer solidExp(inoutShape, TopAbs_SOLID); solidExp.More(); solidExp.Next())
-        {
-          sawSolid = true;
-          TopoDS_Solid solid = TopoDS::Solid(solidExp.Current());
-          if(BRepLib::OrientClosedSolid(solid))
-          {
-            reshape.Replace(solidExp.Current(), solid);
-            didOrient = true;
-          }
-          else
-          {
-            orientFailed = true;
-          }
-        }
-
-        if(didOrient)
-        {
-          inoutShape = reshape.Apply(inoutShape);
-        }
-
-        return sawSolid && orientFailed;
-      };
-
-      const bool needsSewingRetry = orientClosedSolids(nurbsShape);
-      if(needsSewingRetry)
-      {
-        BRepBuilderAPI_Sewing sewing(Precision::Confusion());
-        sewing.Add(nurbsShape);
-        sewing.Perform();
-
-        const TopoDS_Shape sewedShape = sewing.SewedShape();
-        if(!sewedShape.IsNull())
-        {
-          nurbsShape = sewedShape;
-          AXOM_MAYBE_UNUSED const bool _ = orientClosedSolids(nurbsShape);
-        }
-      }
-    }
-
     m_loadStatus = LoadStatus::SUCCESS;
     SLIC_INFO_IF(m_verbose,
                  axom::fmt::format("Successfully read the STEP file with {} roots", numRoots));
