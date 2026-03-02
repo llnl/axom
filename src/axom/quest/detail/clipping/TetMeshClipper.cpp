@@ -740,11 +740,15 @@ void TetMeshClipper::checkTetOrientations(conduit::Node& connNode,
         }
         else
         {
+#if defined(AXOM_DEVICE_CODE)
+          SLIC_ASSERT(!(signedVol < -eps));
+#else
           SLIC_ERROR(axom::fmt::format(
             "TetMeshClipper: input tet[{}] is inverted, with volume {}.  Please fix or add "
             "'fixOrientation: 1' to the input klee::Geometry's hierarchical data.",
             iTet,
             signedVol));
+#endif
         }
       }
     });

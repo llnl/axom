@@ -83,7 +83,7 @@ set(ENABLE_CUDA ON CACHE BOOL "")
 
 set(CMAKE_CUDA_SEPARABLE_COMPILATION ON CACHE BOOL "")
 
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -restrict --expt-extended-lambda " CACHE STRING "" FORCE)
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -restrict --expt-extended-lambda --expt-relaxed-constexpr" CACHE STRING "" FORCE)
 
 # nvcc does not like gtest's 'pthreads' flag
 
