@@ -8,7 +8,6 @@
 #include "axom/lumberjack/BinaryTreeCommunicator.hpp"
 #include "axom/lumberjack/RootCommunicator.hpp"
 #include "axom/lumberjack/Message.hpp"
-#include "axom/lumberjack/TextTagFooOnlyCombiner.hpp"
 
 #include <mpi.h>
 
@@ -97,23 +96,12 @@ int main(int argc, char** argv)
   // Start clock
   std::clock_t begin = clock();
 
-  // My quick testing - Add uncombinable messages to each Node
-  // Use a combiner that only accepts messages with tag "foo"
-  lj.removeCombiner("TextTagCombiner");
-  lj.addCombiner(new axom::lumberjack::TextTagFooOnlyCombiner);
-
-  for(int i = 0; i < 1000; i++)
-  {
-    lj.queueMessage("Rank: " + std::to_string(commRank) + " Uncombinable string "
-                             + std::to_string(i) + "\n", "test", 42, 0, 1e12, "myTag");
-  }
-
   // Queue messages into lumberjack
   int cycleCount = 0;
   int linesSize = (int)lines.size();
   for(int i = 0; i < linesSize; ++i)
   {
-    lj.queueMessage(lines[i], fileName, 42, 0, static_cast<double>(i), "foo");
+    lj.queueMessage(lines[i], static_cast<double>(i));
     ++cycleCount;
     if(cycleCount > cycleLimit)
     {
