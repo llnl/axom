@@ -5,8 +5,8 @@ Combiner Class
 
 The Combiner class is an abstract base class that defines the interface for
 all Combiner classes.  Concrete instances need to inherit from this class and
-implement these functions to be used when Message classes are combined by the
-Lumberjack class.
+must implement these functions (with the exception of isMessageCandidateForCombiner)
+to be used when Message classes are combined by the Lumberjack class.
 
 
 Functions
@@ -18,6 +18,7 @@ Name                      Description
 id                        Returns the unique differentiating identifier for the class instance.
 shouldMessagesBeCombined  Indicates if two messages should be combined.
 combine                   Combines the second message into the first.
+isMessageCandidateForCombiner Indicates if a single message should be considered by this combiner. Optional to implement, default is always True.
 ========================= ===================
 
 Concrete Instances
