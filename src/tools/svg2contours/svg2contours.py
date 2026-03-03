@@ -17,6 +17,7 @@
 
 import sys
 import os
+import json
 from svgpathtools import (
     Document,
     Path,
@@ -35,6 +36,51 @@ import re
 import argparse
 
 
+def parse_viewbox(view_box: str):
+    """Parse an SVG viewBox attribute string.
+
+    Returns a 4-tuple (min_x, min_y, width, height) as floats, or None if
+    view_box is not provided or is invalid.
+    """
+
+    if not view_box:
+        return None
+
+    # SVG spec allows whitespace and/or comma separators.
+    parts = [p for p in re.split(r"[,\s]+", view_box.strip()) if p]
+    if len(parts) != 4:
+        return None
+
+    try:
+        return tuple(map(float, parts))
+    except Exception:
+        return None
+
+
+def parse_svg_length(length: str):
+    """Parse an SVG length attribute and return its numeric value as a float.
+
+    If the value is missing or expressed as a percentage, returns None.
+    Units (e.g. 'mm', 'px') are ignored and the leading numeric portion is used.
+    """
+
+    if not length:
+        return None
+
+    length = length.strip()
+    if length.endswith("%"):
+        return None
+
+    match = re.search(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", length)
+    if not match:
+        return None
+
+    try:
+        return float(match.group(0))
+    except Exception:
+        return None
+
+
 def get_root_transform(doc: Document):
     """Create transform to convert 2D coordinate system from y pointing down to y pointing up"""
 
@@ -48,26 +94,18 @@ def get_root_transform(doc: Document):
     tf = np.identity(3)
 
     # Prefer viewBox since it defines the internal user-coordinate system used by path data.
-    if viewBox:
-        try:
-            # SVG spec allows whitespace and/or comma separators.
-            parts = [p for p in re.split(r"[,\s]+", viewBox.strip()) if p]
-            if len(parts) == 4:
-                _, min_y, _, vb_height = map(float, parts)
-                tf[1, 1] = -1
-                tf[1, 2] = 2.0 * min_y + vb_height
-                return tf
-        except Exception:
-            pass
+    parsed_viewbox = parse_viewbox(viewBox)
+    if parsed_viewbox is not None:
+        _, min_y, _, vb_height = parsed_viewbox
+        tf[1, 1] = -1
+        tf[1, 2] = 2.0 * min_y + vb_height
+        return tf
 
     # Fallback to root height attribute when viewBox is unavailable/invalid.
-    if height and not height.endswith("%"):
-        match = re.search(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", height.strip())
-        if match:
-            height_number = float(match.group(0))
-
-            tf[1, 1] = -1
-            tf[1, 2] = height_number
+    height_number = parse_svg_length(height)
+    if height_number is not None:
+        tf[1, 1] = -1
+        tf[1, 2] = height_number
 
     # Last-resort fallback: flip about y=0 when we cannot infer a reference height.
     if tf[1, 1] == 1:
@@ -295,6 +333,32 @@ class MFEMData:
             f.write("\n".join(mfem_file))
 
 
+def compute_svg_path_stats(paths):
+    stats = {
+        "paths_total": len(paths),
+        "curves_order_1": 0,
+        "curves_order_2": 0,
+        "curves_order_3": 0,
+        "elliptical_arcs": 0,
+        "unknown_segments": 0,
+    }
+
+    for p in paths:
+        for seg in p:
+            if isinstance(seg, Line):
+                stats["curves_order_1"] += 1
+            elif isinstance(seg, QuadraticBezier):
+                stats["curves_order_2"] += 1
+            elif isinstance(seg, CubicBezier):
+                stats["curves_order_3"] += 1
+            elif isinstance(seg, Arc):
+                stats["elliptical_arcs"] += 1
+            else:
+                stats["unknown_segments"] += 1
+
+    return stats
+
+
 def parse_args():
 
     parser = argparse.ArgumentParser(description="svg2contours: Convert the curves in an SVG to MFEM NURBS mesh")
@@ -317,12 +381,28 @@ def parse_args():
     )
 
     parser.add_argument(
-        "-r", "--reverse", dest="reverse_paths", default=False, action="store_true", 
-        help="reverses paths (can be helpful during coordinate system transformation from y-axis pointing down to up)"
+        "--stats",
+        dest="statsfile",
+        default=None,
+        help="Optional output JSON file with SVG curve statistics (use '-' for stdout)",
     )
 
     parser.add_argument(
-        "-v", "--verbose", dest="verbose", default=False, action="store_true", help="verbose output flag"
+        "-r",
+        "--reverse",
+        dest="reverse_paths",
+        default=False,
+        action="store_true",
+        help="reverses paths (can be helpful during coordinate system transformation from y-axis pointing down to up)",
+    )
+
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        default=False,
+        action="store_true",
+        help="verbose output flag",
     )
 
     opts = parser.parse_args()
@@ -349,6 +429,40 @@ def main():
             print(f"\t{k}: {v}")
 
     coordinate_transform = get_root_transform(doc)
+
+    ## Optionally, generate a json file w/ stats about the number of curves/paths
+    stats_file = opts.get("statsfile", None)
+    if stats_file:
+        stats = compute_svg_path_stats(paths)
+        stats["input_svg"] = os.path.relpath(input_file, os.getcwd())
+
+        root_attr = doc.tree.getroot().attrib
+        parsed_viewbox = parse_viewbox(root_attr.get("viewBox", None))
+        if parsed_viewbox is not None:
+            min_x, min_y, vb_width, vb_height = parsed_viewbox
+            stats["bounding_box"] = {
+                "min_x": min_x,
+                "min_y": min_y,
+                "max_x": min_x + vb_width,
+                "max_y": min_y + vb_height,
+            }
+        else:
+            width_number = parse_svg_length(root_attr.get("width", None))
+            height_number = parse_svg_length(root_attr.get("height", None))
+            if width_number is not None and height_number is not None:
+                stats["bounding_box"] = {
+                    "min_x": 0.0,
+                    "min_y": 0.0,
+                    "max_x": width_number,
+                    "max_y": height_number,
+                }
+
+        stats_json = json.dumps(stats, indent=2, sort_keys=True)
+        if stats_file == "-":
+            print(stats_json)
+        else:
+            with open(stats_file, mode="w", encoding="utf-8") as f:
+                f.write(stats_json + "\n")
 
     ## Process SVG paths
     if verbose:

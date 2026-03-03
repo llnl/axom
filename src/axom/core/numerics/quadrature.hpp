@@ -32,6 +32,14 @@ class QuadratureRule
   friend QuadratureRule get_gauss_legendre(int, int);
 
 public:
+  //! \brief Accessor for the full array of quadrature nodes
+  AXOM_HOST_DEVICE
+  axom::ArrayView<const double> nodes() const { return axom::ArrayView<const double>(m_nodes); }
+
+  //! \brief Accessor for the full array of quadrature weights
+  AXOM_HOST_DEVICE
+  axom::ArrayView<const double> weights() const { return axom::ArrayView<const double>(m_weights); }
+
   //! \brief Accessor for quadrature nodes
   AXOM_HOST_DEVICE
   double node(size_t idx) const { return m_nodes[idx]; };
