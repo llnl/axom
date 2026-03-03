@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -16,6 +17,7 @@
 #include "SidreDataTypeIds.h"
 #include "conduit.hpp"
 #include "axom/core/Types.hpp"
+#include "axom/core/memory_management.hpp"
 #include "axom/core/utilities/StringUtilities.hpp"
 
 #include "axom/fmt.hpp"
@@ -72,6 +74,20 @@ inline bool nameIsValid(const std::string &name)
 {
   return name != axom::utilities::string::InvalidName;
 }
+
+/*!
+ * \brief Return Axom's identifier for an invalid allocator
+ *
+ * This returns the value of \c axom::INVALID_ALLOCATOR_ID.
+ */
+inline constexpr int getInvalidAllocatorID() noexcept { return axom::INVALID_ALLOCATOR_ID; }
+
+/*!
+ * \brief Return Axom's identifier for the malloc allocator
+ *
+ * This returns the value of \c axom::MALLOC_ALLOCATOR_ID.
+ */
+inline constexpr int getMallocAllocatorID() noexcept { return axom::MALLOC_ALLOCATOR_ID; }
 
 /*!
  * \brief Enum that holds the numeric data type id options for sidre types.
@@ -201,7 +217,7 @@ struct formatter<axom::sidre::DataTypeId>
   constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
 
   template <typename FormatContext>
-  auto format(axom::sidre::DataTypeId dt, FormatContext &ctx)
+  auto format(axom::sidre::DataTypeId dt, FormatContext &ctx) const
   {
     // map enum to its name
     std::string name;

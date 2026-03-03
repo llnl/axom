@@ -1,7 +1,8 @@
 {
     "__comment__":"##############################################################################",
-    "__comment__":"# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and      ",
-    "__comment__":"# other Axom Project Developers. See the top-level LICENSE file for details.  ",
+    "__comment__":"# Copyright (c) Lawrence Livermore National Security, LLC and other           ",
+    "__comment__":"# Axom Project Contributors. See top-level LICENSE and COPYRIGHT              ",
+    "__comment__":"# files for dates and other details.                                          ",
     "__comment__":"#                                                                             ",
     "__comment__":"# SPDX-License-Identifier: (BSD-3-Clause)                                     ",
     "__comment__":"##############################################################################",
@@ -22,13 +23,13 @@
 
     "__comment__":"# Configs are for rzvector",
     "rzvector":
-    [ "+devtools+mfem+c2c+profiling+cuda cuda_arch=90 %gcc_13",
-      "+devtools+mfem+c2c+profiling+cuda cuda_arch=90 %clang_19"],
+    [ "+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %gcc_13",
+      "+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %clang_19"],
 
     "__comment__":"# Configs are for matrix",
     "matrix":
-    [ "+devtools+mfem+c2c+profiling+cuda cuda_arch=90 %gcc_13",
-      "+devtools+mfem+c2c+profiling+cuda cuda_arch=90 %clang_19"],
+    [ "+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %gcc_13",
+      "+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %clang_19"],
 
     "__comment__":"# Use amdgpu_target=gfx942 for rzadams",
     "__comment__":"# Use amdgpu_target=gfx90a for tioga/rzvernal",

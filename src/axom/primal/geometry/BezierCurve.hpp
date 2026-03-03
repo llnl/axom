@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -59,6 +60,7 @@ template <typename T, int NDIMS>
 class BezierCurve
 {
 public:
+  using NumericType = T;
   using PointType = Point<T, NDIMS>;
   using VectorType = Vector<T, NDIMS>;
   using SegmentType = Segment<T, NDIMS>;

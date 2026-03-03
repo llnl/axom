@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2023, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -45,7 +46,8 @@ public:
   using FlatMapType =
     std::conditional_t<IsConst, const FlatMap<KeyType, ValueType, Hash>, FlatMap<KeyType, ValueType, Hash>>;
 
-  AXOM_HOST_DEVICE FlatMapView() = default;
+  // NOTE: Defaulted constructors do not need to be marked AXOM_HOST_DEVICE
+  FlatMapView() = default;
 
   FlatMapView(FlatMapType& other)
     : m_numGroups2(other.m_numGroups2)
@@ -206,7 +208,8 @@ public:
   using reference = DataType&;
 
 public:
-  AXOM_HOST_DEVICE IteratorImpl() = default;
+  // NOTE: Defaulted constructors do not need to be marked AXOM_HOST_DEVICE
+  IteratorImpl() = default;
 
   AXOM_HOST_DEVICE IteratorImpl(const MapType& map, IndexType internalIdx)
     : m_map(map)

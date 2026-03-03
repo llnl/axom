@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -91,6 +92,74 @@ TEST(primal_integral, evaluate_area_integral)
   EXPECT_NEAR(evaluate_area_integral(square, const_integrand, npts), 1.0, abs_tol);
 }
 
+TEST(primal_integral, evaluate_area_integral_aggregate)
+{
+  using Point2D = primal::Point<double, 2>;
+  using BCurve = primal::BezierCurve<double, 2>;
+  using CPolygon = primal::CurvedPolygon<BCurve>;
+  using ReturnType = primal::Vector<double, 3>;
+  double abs_tol = 1e-10;
+
+  // Quadrature nodes. Should be sufficiently high to pass tests
+  int npts = 20;
+
+  // Define anonymous function for testing component-wise integration
+  //  of an function with a vector return type.
+  // This is equivalent to evaluating three separate integrands
+  //  without unnecessarily repeating geometric processing.
+  auto aggregate_integrand = [](Point2D x) -> ReturnType {
+    return ReturnType {1.0, x[0] * x[1] * x[1], std::sin(x[0] * x[1])};
+  };
+
+  // Test on triangular domain
+  Point2D trinodes1[] = {Point2D {0.0, 0.0}, Point2D {1.0, 0.0}};
+  BCurve tri1(trinodes1, 1);
+
+  Point2D trinodes2[] = {Point2D {1.0, 0.0}, Point2D {0.0, 1.0}};
+  BCurve tri2(trinodes2, 1);
+
+  Point2D trinodes3[] = {Point2D {0.0, 1.0}, Point2D {0.0, 0.0}};
+  BCurve tri3(trinodes3, 1);
+
+  BCurve triangle_edges[] = {tri1, tri2, tri3};
+  CPolygon triangle(triangle_edges, 3);
+
+  // Compare against hand computed/high-precision calculated values
+  auto observed = evaluate_area_integral(triangle, aggregate_integrand, npts);
+  auto expected = ReturnType {0.5, 1.0 / 60.0, 0.0415181074232};
+  for(int i = 0; i < 3; ++i)
+  {
+    EXPECT_NEAR(observed[i], expected[i], abs_tol);
+  }
+
+  // Test on parabolic domain (between f(x) = 1-x^2 and g(x) = x^2-1, shifted to the right 1 unit)
+  Point2D paranodes1[] = {Point2D {2.0, 0.0}, Point2D {1.0, 2.0}, Point2D {0.0, 0.0}};
+  BCurve para1(paranodes1, 2);
+
+  Point2D paranodes2[] = {Point2D {0.0, 0.0}, Point2D {1.0, -2.0}, Point2D {2.0, 0.0}};
+  BCurve para2(paranodes2, 2);
+
+  BCurve parabola_edges[] = {para1, para2};
+  CPolygon parabola_shape(parabola_edges, 2);
+
+  // Compare against hand computed/high-precision calculated values
+  observed = evaluate_area_integral(parabola_shape, aggregate_integrand, npts);
+  expected = ReturnType {8.0 / 3.0, 64.0 / 105.0, 0.0};
+  for(int i = 0; i < 3; ++i)
+  {
+    EXPECT_NEAR(observed[i], expected[i], abs_tol);
+  }
+
+  // Ensure compatibility with curved polygons
+  BCurve pedges[2] = {para1, para2};
+  CPolygon parabola_polygon(pedges, 2);
+  observed = evaluate_area_integral(parabola_polygon, aggregate_integrand, npts);
+  for(int i = 0; i < 3; ++i)
+  {
+    EXPECT_NEAR(observed[i], expected[i], abs_tol);
+  }
+}
+
 TEST(primal_integral, evaluate_line_integral_scalar)
 {
   using Point2D = primal::Point<double, 2>;
@@ -113,14 +182,10 @@ TEST(primal_integral, evaluate_line_integral_scalar)
   // Compare against hand computed/high-precision calculated values.
 
   // Constant integrand line integral is equivalent to arc-length calculation
-  EXPECT_NEAR(evaluate_scalar_line_integral(parabola_segment, const_integrand, npts),
-              6.12572661998,
-              abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(parabola_segment, const_integrand, npts), 6.12572661998, abs_tol);
 
-  EXPECT_NEAR(evaluate_scalar_line_integral(parabola_segment, poly_integrand, npts),
-              37.8010703669,
-              abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(parabola_segment, transc_integrand, npts),
+  EXPECT_NEAR(evaluate_line_integral(parabola_segment, poly_integrand, npts), 37.8010703669, abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(parabola_segment, transc_integrand, npts),
               0.495907795678,
               abs_tol);
 
@@ -140,13 +205,9 @@ TEST(primal_integral, evaluate_line_integral_scalar)
   BCurve connected_curve_edges[] = {cubic_segment, linear_segment, quadratic_segment};
   CPolygon connected_curve(connected_curve_edges, 3);
 
-  EXPECT_NEAR(evaluate_scalar_line_integral(connected_curve, const_integrand, npts),
-              8.28968500196,
-              abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(connected_curve, poly_integrand, npts),
-              -5.97565740064,
-              abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(connected_curve, transc_integrand, npts),
+  EXPECT_NEAR(evaluate_line_integral(connected_curve, const_integrand, npts), 8.28968500196, abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(connected_curve, poly_integrand, npts), -5.97565740064, abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(connected_curve, transc_integrand, npts),
               -0.574992518405,
               abs_tol);
 
@@ -154,15 +215,81 @@ TEST(primal_integral, evaluate_line_integral_scalar)
   BCurve disconnected_curve_edges[] = {cubic_segment, quadratic_segment};
   CPolygon disconnected_curve(disconnected_curve_edges, 2);
 
-  EXPECT_NEAR(evaluate_scalar_line_integral(disconnected_curve, const_integrand, npts),
+  EXPECT_NEAR(evaluate_line_integral(disconnected_curve, const_integrand, npts),
               6.05361702446,
               abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(disconnected_curve, poly_integrand, npts),
+  EXPECT_NEAR(evaluate_line_integral(disconnected_curve, poly_integrand, npts),
               -6.34833539689,
               abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(disconnected_curve, transc_integrand, npts),
+  EXPECT_NEAR(evaluate_line_integral(disconnected_curve, transc_integrand, npts),
               -0.914161242161,
               abs_tol);
+}
+
+TEST(primal_integral, evaluate_line_integral_aggregate)
+{
+  using Point2D = primal::Point<double, 2>;
+  using BCurve = primal::BezierCurve<double, 2>;
+  using CPolygon = primal::CurvedPolygon<BCurve>;
+  using ReturnType = primal::Vector<double, 3>;
+  double abs_tol = 1e-10;
+
+  // Quadrature nodes. Should be sufficiently high to pass tests
+  int npts = 30;
+
+  // Define anonymous function for testing component-wise integration
+  //  of an function with a vector return type.
+  // This is equivalent to evaluating three separate integrands
+  //  without unnecessarily repeating geometric processing.
+  auto aggregate_integrand = [](Point2D x) -> ReturnType {
+    return ReturnType {1.0, x[0] * x[1] * x[1], std::sin(x[0] * x[1])};
+  };
+
+  // Test on single parabolic segment
+  Point2D paranodes[] = {Point2D {-1.0, 1.0}, Point2D {0.5, -2.0}, Point2D {2.0, 4.0}};
+  BCurve parabola_segment(paranodes, 2);
+
+  // Compare against hand computed/high-precision calculated values.
+  auto observed = evaluate_line_integral(parabola_segment, aggregate_integrand, npts);
+  auto expected = ReturnType {6.12572661998, 37.8010703669, 0.495907795678};
+  for(int i = 0; i < 3; ++i)
+  {
+    EXPECT_NEAR(observed[i], expected[i], abs_tol);
+  }
+
+  // Test on a collection of Bezier curves
+  Point2D segnodes1[] = {Point2D {-1.0, -1.0},
+                         Point2D {-1.0 / 3.0, 1.0},
+                         Point2D {1.0 / 3.0, -1.0},
+                         Point2D {1.0, 1.0}};
+  BCurve cubic_segment(segnodes1, 3);
+
+  Point2D segnodes2[] = {Point2D {1.0, 1.0}, Point2D {-1.0, 0.0}};
+  BCurve linear_segment(segnodes2, 1);
+
+  Point2D segnodes3[] = {Point2D {-1.0, 0.0}, Point2D {-3.0, 1.0}, Point2D {-1.0, 2.0}};
+  BCurve quadratic_segment(segnodes3, 2);
+
+  BCurve connected_curve_edges[] = {cubic_segment, linear_segment, quadratic_segment};
+  CPolygon connected_curve(connected_curve_edges, 3);
+
+  observed = evaluate_line_integral(connected_curve, aggregate_integrand, npts);
+  expected = ReturnType {8.28968500196, -5.97565740064, -0.574992518405};
+  for(int i = 0; i < 3; ++i)
+  {
+    EXPECT_NEAR(observed[i], expected[i], abs_tol);
+  }
+
+  // Test algorithm on disconnected curves
+  BCurve disconnected_curve_edges[] = {cubic_segment, quadratic_segment};
+  CPolygon disconnected_curve(disconnected_curve_edges, 2);
+
+  observed = evaluate_line_integral(disconnected_curve, aggregate_integrand, npts);
+  expected = ReturnType {6.05361702446, -6.34833539689, -0.914161242161};
+  for(int i = 0; i < 3; ++i)
+  {
+    EXPECT_NEAR(observed[i], expected[i], abs_tol);
+  }
 }
 
 TEST(primal_integral, evaluate_line_integral_vector)
@@ -256,12 +383,8 @@ TEST(primal_integral, evaluate_integral_3D)
   };
 
   // Test line integral on scalar domain againt values computed with external software
-  EXPECT_NEAR(evaluate_scalar_line_integral(spatial_arc, const_integrand, npts),
-              4.09193268998,
-              abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(spatial_arc, transc_integrand, npts),
-              0.515093324547,
-              abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(spatial_arc, const_integrand, npts), 4.09193268998, abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(spatial_arc, transc_integrand, npts), 0.515093324547, abs_tol);
 
   // Test line integral on vector domain againt values computed with external software
   EXPECT_NEAR(evaluate_vector_line_integral(spatial_arc, vector_field, npts), 155.344, abs_tol);
@@ -309,12 +432,8 @@ TEST(primal_integral, evaluate_integral_rational)
   EXPECT_NEAR(evaluate_area_integral(quarter_ellipse, transc_integrand, npts), 0.472951736306, abs_tol);
 
   // Test line integral on scalar domain againt values computed with external software
-  EXPECT_NEAR(evaluate_scalar_line_integral(ellipse_arc, const_integrand, npts),
-              2.42211205514,
-              abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(ellipse_arc, transc_integrand, npts),
-              1.38837959326,
-              abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(ellipse_arc, const_integrand, npts), 2.42211205514, abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(ellipse_arc, transc_integrand, npts), 1.38837959326, abs_tol);
 
   // Test line integral on vector domain againt values computed with external software
   EXPECT_NEAR(evaluate_vector_line_integral(ellipse_arc, area_field, npts),
@@ -370,12 +489,8 @@ TEST(primal_integral, evaluate_integral_nurbs)
               abs_tol);
   EXPECT_NEAR(evaluate_area_integral(quarter_ellipse, transc_integrand, npts), 0.472951736306, abs_tol);
 
-  EXPECT_NEAR(evaluate_scalar_line_integral(ellipse_arc, const_integrand, npts),
-              2.42211205514,
-              abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(ellipse_arc, transc_integrand, npts),
-              1.38837959326,
-              abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(ellipse_arc, const_integrand, npts), 2.42211205514, abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(ellipse_arc, transc_integrand, npts), 1.38837959326, abs_tol);
 
   EXPECT_NEAR(evaluate_vector_line_integral(ellipse_arc, area_field, npts),
               M_PI * 2 * 1 / 4.0,
@@ -498,12 +613,8 @@ TEST(primal_integral, evaluate_integral_nurbs_gwn_cache)
               abs_tol);
   EXPECT_NEAR(evaluate_area_integral(quarter_ellipse, transc_integrand, npts), 0.472951736306, abs_tol);
 
-  EXPECT_NEAR(evaluate_scalar_line_integral(ellipse_arc, const_integrand, npts),
-              2.42211205514,
-              abs_tol);
-  EXPECT_NEAR(evaluate_scalar_line_integral(ellipse_arc, transc_integrand, npts),
-              1.38837959326,
-              abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(ellipse_arc, const_integrand, npts), 2.42211205514, abs_tol);
+  EXPECT_NEAR(evaluate_line_integral(ellipse_arc, transc_integrand, npts), 1.38837959326, abs_tol);
 
   EXPECT_NEAR(evaluate_vector_line_integral(ellipse_arc, area_field, npts),
               M_PI * 2 * 1 / 4.0,

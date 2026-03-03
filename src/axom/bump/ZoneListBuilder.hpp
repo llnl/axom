@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -172,7 +173,8 @@ public:
    *        per zone, maxed to the nodes. Limit the number of zones.
    *
    * \param nnodes The number of nodes in the topology's coordset.
-   * \param selectedZonesView A view containing the zone indices we're considering.
+   * \param selectedZonesView A view containing the zone indices we're considering. We pass
+   *                          it by value so it can be captured into lambdas.
    * \param[out] cleanIndices An array that will contain the list of clean material zone ids.
    * \param[out] mixedIndices An array that will contain the list of mixed material zone ids.
    *
@@ -182,7 +184,7 @@ public:
    *       considered mixed as we might have to split those zones.
    */
   void execute(axom::IndexType nnodes,
-               const SelectedZonesView &selectedZonesView,
+               const SelectedZonesView selectedZonesView,
                axom::Array<axom::IndexType> &cleanIndices,
                axom::Array<axom::IndexType> &mixedIndices) const
   {
@@ -305,12 +307,13 @@ public:
    *        per zone. This method essentially partitions the input selectedZonesView
    *        into clean and mixed lists.
    *
-   * \param selectedZonesView A view containing the zone indices we're considering.
+   * \param selectedZonesView A view containing the zone indices we're considering. We pass
+   *                          it by value so it can be captured into lambdas.
    * \param[out] cleanIndices An array that will contain the list of clean material zone ids.
    * \param[out] mixedIndices An array that will contain the list of mixed material zone ids.
    *
    */
-  void execute(const SelectedZonesView &selectedZonesView,
+  void execute(const SelectedZonesView selectedZonesView,
                axom::Array<axom::IndexType> &cleanIndices,
                axom::Array<axom::IndexType> &mixedIndices) const
   {

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for internals.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 #ifndef AXOM_MIR_EQUIZ_ALGORITHM_DETAIL_HPP_
@@ -78,7 +79,7 @@ public:
       {
         const auto nid = nodeIdsView[i];
         SLIC_ASSERT_MSG(
-          nid >= 0 && nid < static_cast<ConnectivityType>(m_matvfViews[0].size()),
+          axom::utilities::inBounds_0_N(nid, static_cast<ConnectivityType>(m_matvfViews[0].size())),
           axom::fmt::format("Node id {} is not in range [0, {}).", nid, m_matvfViews[0].size()));
 
         // clang-format off
@@ -106,10 +107,10 @@ public:
       if(zoneMatID != NULL_MATERIAL) backgroundIndex = matNumberToIndex(zoneMatID);
       // Determine the matvf view index for the current material.
       SLIC_ASSERT_MSG(
-        id0 >= 0 && id0 < static_cast<ConnectivityType>(m_matvfViews[0].size()),
+        axom::utilities::inBounds_0_N(id0, static_cast<ConnectivityType>(m_matvfViews[0].size())),
         axom::fmt::format("Node id {} is not in range [0, {}).", id0, m_matvfViews[0].size()));
       SLIC_ASSERT_MSG(
-        id1 >= 0 && id1 < static_cast<ConnectivityType>(m_matvfViews[0].size()),
+        axom::utilities::inBounds_0_N(id1, static_cast<ConnectivityType>(m_matvfViews[0].size())),
         axom::fmt::format("Node id {} is not in range [0, {}).", id1, m_matvfViews[0].size()));
 
       // Get the volume fractions for mat1, mat2 at the edge endpoints id0, id1.

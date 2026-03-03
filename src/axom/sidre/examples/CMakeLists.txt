@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -79,22 +80,20 @@ if(AXOM_ENABLE_MPI)
         endif()
     endforeach()
 
-    blt_add_test( NAME sidre_createdatastore_parallel
-                  COMMAND sidre_createdatastore_ex
-                  NUM_MPI_TASKS 4
-                  )
+    axom_add_test( NAME sidre_createdatastore_parallel
+                   COMMAND sidre_createdatastore_ex
+                   NUM_MPI_TASKS 4)
 
-    blt_add_test( NAME sidre_generateindex_parallel
-                  COMMAND sidre_generateindex_ex
-                  NUM_MPI_TASKS 4
-                  )
+    axom_add_test( NAME sidre_generateindex_parallel
+                   COMMAND sidre_generateindex_ex
+                   NUM_MPI_TASKS 4)
 
 endif()
 
 #------------------------------------------------------------------------------
 # Add MFEM Sidre DataCollection tests
 #------------------------------------------------------------------------------
-if(MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+if(MFEM_FOUND)
     set(_mfem_dc_tests
         sidre_mfem_datacollection_materials.cpp
         sidre_mfem_datacollection_restart.cpp
@@ -110,20 +109,14 @@ if(MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
             FOLDER      axom/sidre/examples)
 
         if(AXOM_ENABLE_TESTS)
-            if(AXOM_ENABLE_MPI)
-                if(MFEM_USE_MPI)
-                    set(_nranks 2)
-                else()
-                    set(_nranks 1)
-                endif()
-
-                axom_add_test( NAME ${exe_name}
-                               COMMAND ${exe_name}_ex
-                               NUM_MPI_TASKS ${_nranks})
-            else()
-                axom_add_test( NAME ${exe_name}
-                               COMMAND ${exe_name}_ex)
+            set(_nranks 1)
+            if(AXOM_ENABLE_MPI AND MFEM_USE_MPI)
+                set(_nranks 2)
             endif()
+
+            axom_add_test( NAME ${exe_name}
+                           COMMAND ${exe_name}_ex
+                           NUM_MPI_TASKS ${_nranks})
         endif()
 
     endforeach()

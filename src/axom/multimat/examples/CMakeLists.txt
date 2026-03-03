@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level COPYRIGHT file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -35,7 +36,7 @@ foreach(example_source ${multimat_example_sources})
         )
     unset(deps)
 
-    blt_add_test(
+    axom_add_test(
         NAME        multimat_${example_name}
         COMMAND     multimat_${example_name}_ex
         )

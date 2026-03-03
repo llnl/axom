@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -92,7 +93,7 @@ if (ENABLE_FORTRAN)
     endif()
 endif()
 
-if (MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+if (MFEM_FOUND)
     list(APPEND sidre_headers core/MFEMSidreDataCollection.hpp)
     list(APPEND sidre_sources core/MFEMSidreDataCollection.cpp)
 endif()
@@ -107,8 +108,8 @@ set(sidre_depends
 
 blt_list_append(TO sidre_depends ELEMENTS hdf5 IF HDF5_FOUND)
 blt_list_append(TO sidre_depends ELEMENTS sparsehash IF SPARSEHASH_FOUND)
-if(AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
-    blt_list_append(TO sidre_depends ELEMENTS mfem IF MFEM_FOUND)
+if(MFEM_FOUND)
+    blt_list_append(TO sidre_depends ELEMENTS mfem)
     blt_list_append(TO sidre_depends ELEMENTS fmt)
 endif()
 

@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -65,8 +66,7 @@ opposed to source code changes, are done in the release candidate branch.
 Typical changes include:
 
 #. Update the version information (major, minor, and patch version numbers)
-   near the top of the ``axom/src/cmake/AxomVersion.cmake`` file and in
-   the ``axom/RELEASE`` file.
+   near the top of the ``axom/src/cmake/AxomVersion.cmake`` file.
 
 #. Make any changes that are needed, for correctness and completeness, in the
    section for the new release in the file ``axom/RELEASE-NOTES.md``. This
@@ -174,6 +174,8 @@ the history. After merging, the release candidate branch can be deleted.
    submodules needed to build Axom. The `AxomData-*.tar.gz` tarball contains
    extra files to put in the `data` directory only if you want to run certain
    Axom tests.
+
+#. Click the checkbox at the bottom of the page that says "Set as the latest release".
 
 #. Publish the release. This will create a tag at the tip of the main
    branch and add corresponding entry in the

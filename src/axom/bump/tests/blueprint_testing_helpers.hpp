@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 #ifndef AXOM_BLUEPRINT_TESTING_HELPERS_HPP_
@@ -11,8 +12,11 @@
 #include <conduit/conduit_relay_io.hpp>
 #include <conduit/conduit_relay_io_blueprint.hpp>
 #include <algorithm>
+#include <cstdlib>
 #include <string>
 #include <vector>
+#include <chrono>
+#include <thread>
 
 //------------------------------------------------------------------------------
 // clang-format off
@@ -447,16 +451,166 @@ void saveBaseline(const std::vector<std::string> &baselinePaths,
   }
 }
 
+#if !defined(_WIN32)
+/*!
+ * \brief This routine converts a YAML file to a JSON file. Ordinarily, we could
+ *        use Conduit for this but this works around a case where Conduit is
+ *        failing to read certain YAML baselines.
+ *
+ * \param The YAML filename to convert.
+ * \param The output JSON filename.
+ *
+ * \return True on success; False otherwise.
+ */
+bool convert_yaml_json(const std::string &yaml_filename, const std::string &json_filename)
+{
+  const std::string script_path = "convert_yaml_json.py";
+
+  // 1. Write the Python converter script to ./convert_yaml_json.py
+  {
+    std::ofstream script(script_path, std::ios::trunc);
+    if(!script)
+    {
+      return false;
+    }
+
+    script <<
+      R"(#!/usr/bin/env python3
+import sys
+import json
+
+try:
+    import yaml
+except ImportError:
+    sys.stderr.write("PyYAML is required (pip install pyyaml)\n")
+    sys.exit(1)
+
+def main():
+    if len(sys.argv) != 3:
+        sys.stderr.write(f"Usage: {sys.argv[0]} input.yaml output.json\n")
+        sys.exit(1)
+
+    in_path, out_path = sys.argv[1], sys.argv[2]
+
+    print(f"in_path: {in_path}")
+    print(f"out_path: {out_path}")
+    with open(in_path, "rt") as f:
+        data = yaml.safe_load(f)
+
+    with open(out_path, "wt") as f:
+        json.dump(data, f, indent=2)
+
+if __name__ == "__main__":
+    main()
+)";
+
+    script.flush();
+    if(!script)
+    {
+      return false;
+    }
+  }
+
+  // 2. Build the command to call Python
+  // TODO: Use Axom's Python interpreter.
+  const auto cmd =
+    axom::fmt::format("python3 {} \"{}\" \"{}\"", script_path, yaml_filename, json_filename);
+  int ret = std::system(cmd.c_str());
+
+  if(axom::utilities::filesystem::pathExists(script_path))
+  {
+    axom::utilities::filesystem::removeFile(script_path);
+  }
+
+  return ret == 0;
+}
+#endif
+
+bool loadBaseline(const std::string &filename, const std::string &protocol, conduit::Node &n)
+{
+  bool loaded = false;
+  std::string file_with_ext(filename + "." + protocol);
+  //SLIC_INFO(axom::fmt::format("Load baseline {}", file_with_ext));
+  const int MAX_ATTEMPTS = 3;
+  for(int attempt = 0; attempt < MAX_ATTEMPTS && !loaded; attempt++)
+  {
+    if(axom::utilities::filesystem::pathExists(file_with_ext))
+    {
+      try
+      {
+        n.reset();
+        conduit::relay::io::load(file_with_ext, protocol, n);
+        loaded = true;
+      }
+      catch(conduit::Error &e)
+      {
+        if(attempt == MAX_ATTEMPTS - 1)
+        {
+          throw e;
+        }
+        else
+        {
+          SLIC_INFO(axom::fmt::format("Could not load {}! Retrying. {}", file_with_ext, e.message()));
+        }
+      }
+      catch(...)
+      {
+        if(attempt == MAX_ATTEMPTS - 1)
+        {
+          throw;
+        }
+        else
+        {
+          SLIC_INFO(axom::fmt::format("Could not load {}!", file_with_ext));
+        }
+      }
+    }
+    if(!loaded)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    }
+  }
+  return loaded;
+}
+
 bool loadBaseline(const std::string &filename, conduit::Node &n)
 {
   bool loaded = false;
-  std::string file_with_ext(filename + ".yaml");
-  //SLIC_INFO(axom::fmt::format("Load baseline {}", file_with_ext));
-  if(axom::utilities::filesystem::pathExists(file_with_ext))
+#if defined(_WIN32)
+  loaded = loadBaseline(filename, "yaml", n);
+#else
+  try
   {
-    conduit::relay::io::load(file_with_ext, "yaml", n);
-    loaded = true;
+    loaded = loadBaseline(filename, "yaml", n);
   }
+  catch(conduit::Error &e)
+  {
+    SLIC_INFO(axom::fmt::format("Could not load {}! {}", filename, e.message()));
+  }
+  catch(...)
+  {
+    SLIC_INFO(axom::fmt::format("Could not load {}!", filename));
+  }
+  // Try another format.
+  if(!loaded)
+  {
+    const std::string yaml_filename = axom::fmt::format("{}.yaml", filename);
+    if(axom::utilities::filesystem::pathExists(yaml_filename))
+    {
+      const std::string json_filename = axom::fmt::format("{}.json", filename);
+      // Try converting the baseline on the fly to JSON and using that converted file.
+      SLIC_INFO(axom::fmt::format("Attempting to convert YAML baseline to JSON {}.", json_filename));
+      if(convert_yaml_json(yaml_filename, json_filename))
+      {
+        loaded = loadBaseline(filename, "json", n);
+        if(axom::utilities::filesystem::pathExists(json_filename))
+        {
+          axom::utilities::filesystem::removeFile(json_filename);
+        }
+      }
+    }
+  }
+#endif
   return loaded;
 }
 

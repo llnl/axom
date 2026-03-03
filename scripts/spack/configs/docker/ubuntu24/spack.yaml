@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -74,9 +75,9 @@ spack:
             c: /usr/bin/gcc
             cxx: /usr/bin/g++
             fortran: /usr/bin/gfortran-13
-        flags:
-          cflags: -pthread
-          cxxflags: -pthread
+          flags:
+            cflags: -pthread
+            cxxflags: -pthread
       - spec: gcc@11.4.0 languages:=c,c++,fortran
         prefix: /usr/bin
         extra_attributes:
@@ -84,9 +85,9 @@ spack:
             c: /usr/bin/gcc
             cxx: /usr/bin/g++
             fortran: /usr/bin/gfortran-11
-        flags:
-          cflags: -pthread
-          cxxflags: -pthread
+          flags:
+            cflags: -pthread
+            cxxflags: -pthread
     llvm:
       externals:
       - spec: llvm@19.0.0+clang~lld~lldb
@@ -179,10 +180,10 @@ spack:
 
     # Globally lock in version of devtools
     cmake:
-      version: [3.23.1]
+      version: [3.24.2]
       buildable: false
       externals:
-      - spec: cmake@3.23.1
+      - spec: cmake@3.24.2
         prefix: /usr/local
     doxygen:
       version: [1.9.1]
@@ -195,4 +196,10 @@ spack:
       buildable: false
       externals:
       - spec: py-sphinx@4.3.2
+        prefix: /usr
+    python:
+      version: [3.12.3]
+      buildable: false
+      externals:
+      - spec: python@3.12.3
         prefix: /usr

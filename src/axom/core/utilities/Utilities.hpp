@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -110,6 +111,22 @@ inline AXOM_HOST_DEVICE void swap(T& a, T& b)
 }
 
 /*!
+ * \brief Returns the fused-multiply-add of a, b, and c
+ * \accelerated
+ * \param [in] a,b,c the values
+ * \return a*b+c computed using an fma operation
+ */
+template <typename T>
+inline AXOM_HOST_DEVICE T fma(const T& a, const T& b, const T& c)
+{
+#if defined(AXOM_DEVICE_CODE)
+  return ::fma(a, b, c);
+#else
+  return std::fma(a, b, c);
+#endif
+}
+
+/*!
  * \brief Returns the base 2 logarithm of the input.
  * \param [in] val The input value
  */
@@ -175,6 +192,26 @@ template <typename T>
 inline AXOM_HOST_DEVICE T clampLower(T val, T lower)
 {
   return val < lower ? lower : val;
+}
+
+/*!
+ * \brief Determine whether a value is in [0,upper).
+ * \param value The value to check in the range.
+ * \param upper The upper value for the range (non-inclusive).
+ * \return True if value is in [0,upper); False otherwise.
+ * \note For unsigned types value must be >= 0 so we do not compare against 0.
+ */
+template <typename T>
+inline constexpr AXOM_HOST_DEVICE bool inBounds_0_N(T value, T upper)
+{
+  if constexpr(std::is_integral_v<T> && !std::is_signed_v<T>)
+  {
+    return value < upper;
+  }
+  else
+  {
+    return value >= 0 && value < upper;
+  }
 }
 
 /*!
@@ -346,6 +383,18 @@ inline AXOM_HOST_DEVICE bool isNearlyEqualRelative(RealType a,
   // http://realtimecollisiondetection.net/pubs/Tolerances/
   // Note: If we use this, we must update the doxygen
   // return abs(a-b) <= max(absThresh, relThresh * maxFabs );
+}
+
+/*!
+ * \brief Sign of a value of any type that supports comparison and
+ * negation operators.
+ * \return 0 for v in [-eps, eps], -1 for v < eps and +1 for v > eps
+ */
+template <typename T>
+inline int sign_of(const T& v, const T& eps = {0})
+{
+  assert(eps >= 0);
+  return v > eps ? 1 : v < -eps ? -1 : 0;
 }
 
 /*!

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -152,6 +153,34 @@ void check_sphere_intersection()
 
 //------------------------------------------------------------------------------
 template <int NDIMS>
+void check_sphere_containment()
+{
+  using PointType = primal::Point<double, NDIMS>;
+  using SphereType = primal::Sphere<double, NDIMS>;
+
+  PointType center {3.0, 4.0, 0.0};
+  double radius = 5.0;
+
+  SphereType S0(center, radius);
+  SphereType S1(PointType {1.5, 2.0, 0.0}, radius / 2);
+  SphereType S2(S1.getCenter(), radius);
+
+  double tol = 1e-12;
+
+  // STEP 0: test fully containing
+  EXPECT_TRUE(S0.contains(S0, -tol));
+  EXPECT_TRUE(S0.contains(S1, -tol));
+
+  // STEP 1: test barely not containing.
+  EXPECT_FALSE(S0.contains(S0, tol));
+  EXPECT_FALSE(S0.contains(S1, tol));
+
+  // STEP 2: test partial containment.
+  EXPECT_FALSE(S0.contains(S2));
+}
+
+//------------------------------------------------------------------------------
+template <int NDIMS>
 void check_copy_constructor()
 {
   using PointType = primal::Point<double, NDIMS>;
@@ -242,6 +271,13 @@ TEST(primal_sphere, sphere_sphere_intersection)
 {
   check_sphere_intersection<2>();
   check_sphere_intersection<3>();
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_sphere, sphere_sphere_containment)
+{
+  check_sphere_containment<2>();
+  check_sphere_containment<3>();
 }
 
 //------------------------------------------------------------------------------

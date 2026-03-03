@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -27,7 +28,15 @@
 #include "axom/sidre.hpp"
 #include "axom/klee.hpp"
 #include "axom/quest.hpp"
+#include "axom/quest/detail/clipping/HexClipper.hpp"
+#include "axom/quest/detail/clipping/Plane3DClipper.hpp"
+#include "axom/quest/detail/clipping/MonotonicZSORClipper.hpp"
+#include "axom/quest/detail/clipping/SORClipper.hpp"
+#include "axom/quest/detail/clipping/SphereClipper.hpp"
 #include "axom/quest/detail/clipping/TetClipper.hpp"
+#include "axom/quest/detail/clipping/TetMeshClipper.hpp"
+#include "axom/quest/util/make_clipper_strategy.hpp"
+#include "axom/core/utilities/FileUtilities.hpp"
 
 #include "axom/fmt.hpp"
 #include "axom/CLI11.hpp"
@@ -64,9 +73,11 @@ namespace sidre = axom::sidre;
 using RuntimePolicy = axom::runtime_policy::Policy;
 
 #if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
-static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT64_ID;
+[[maybe_unused]] static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
+  conduit::DataType::INT64_ID;
 #else
-static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT32_ID;
+[[maybe_unused]] static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
+  conduit::DataType::INT32_ID;
 #endif
 
 /// Struct to parse and store the input parameters
@@ -101,7 +112,8 @@ public:
   // The shape to run.
   std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
-  const std::set<std::string> availableShapes {"tet"};  // More geometries to come.
+  const std::set<std::string>
+    availableShapes {"tetmesh", "cupmesh", "sphere", "cyl", "cone", "sor", "tet", "hex", "plane"};
 
   RuntimePolicy policy {RuntimePolicy::seq};
   int refinementLevel {7};
@@ -109,6 +121,8 @@ public:
   std::string annotationMode {"none"};
 
   std::string backgroundMaterial;
+
+  int screenLevel = -1;
 
   // clang-format off
   enum class MeshType { bpSidre = 0, bpConduit = 1 };
@@ -137,10 +151,14 @@ public:
 
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
+    app.add_option("--screenLevel", screenLevel)
+      ->description("Developer feature for MeshClipper.")
+      ->capture_default_str();
+
     app.add_option("-o,--outputFile", outputFile)->description("Path to output file(s)");
 
     app.add_flag("-v,--verbose,!--no-verbose", m_verboseOutput)
-      ->description("Enable/disable verbose output")
+      ->description("Enable/disable verbose output, including SLIC_DEBUG")
       ->capture_default_str();
 
     app.add_option("--meshType", meshType)
@@ -270,7 +288,8 @@ const std::string matsetName = "matset";
 const std::string coordsetName = "coords";
 int cellCount = -1;
 // Translation to individual octants (override) when running multiple shapes.
-// Except that the plane is never moved.
+// Exception: the plane always placed at the center of the box mesh
+// to facilitate finding its exact overlap volume.
 const double tDist = 0.9;  // Bias toward origin to help keep shape inside domain.
 std::vector<axom::NumericArray<double, 3>> translations {{tDist, tDist, -tDist},
                                                          {-tDist, tDist, -tDist},
@@ -387,6 +406,7 @@ void initializeLogger()
 #ifdef AXOM_USE_MPI
   int num_ranks = 1;
   MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+  SLIC_ERROR_IF(num_ranks > 1, "Sorry, this test is serial.");
   if(num_ranks > 1)
   {
     std::string fmt = "[<RANK>][<LEVEL>]: <MESSAGE>\n";
@@ -417,6 +437,394 @@ void finalizeLogger()
   }
 }
 
+/// Write blueprint mesh to disk
+void saveMesh(const conduit::Node& mesh, const std::string& filename)
+{
+  AXOM_ANNOTATE_SCOPE("save mesh (conduit)");
+
+#ifdef AXOM_USE_MPI
+  conduit::relay::mpi::io::blueprint::save_mesh(mesh, filename, "hdf5", MPI_COMM_WORLD);
+#else
+  conduit::relay::io::blueprint::save_mesh(mesh, filename, "hdf5");
+#endif
+}
+
+/// Write blueprint mesh to disk
+void saveMesh(const sidre::Group& mesh, const std::string& filename)
+{
+  AXOM_ANNOTATE_SCOPE("save mesh (sidre)");
+
+  axom::sidre::DataStore ds;
+  const sidre::Group* meshOnHost = &mesh;
+  if(mesh.getDefaultAllocatorID() != axom::execution_space<axom::SEQ_EXEC>::allocatorID())
+  {
+    meshOnHost =
+      ds.getRoot()->deepCopyGroup(&mesh, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+  }
+  conduit::Node tmpMesh;
+  meshOnHost->createNativeLayout(tmpMesh);
+  {
+    conduit::Node info;
+#ifdef AXOM_USE_MPI
+    if(!conduit::blueprint::mpi::verify("mesh", tmpMesh, info, MPI_COMM_WORLD))
+#else
+    if(!conduit::blueprint::verify("mesh", tmpMesh, info))
+#endif
+    {
+      SLIC_INFO("Invalid blueprint for mesh: \n" << info.to_yaml());
+      slic::flushStreams();
+      assert(false);
+    }
+  }
+  saveMesh(tmpMesh, filename);
+}
+
+double volumeOfTetMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& tetMesh)
+{
+  using TetType = axom::primal::Tetrahedron<double, 3>;
+  axom::StackArray<axom::IndexType, 1> nodesShape {tetMesh.getNumberOfNodes()};
+  axom::ArrayView<const double> x(tetMesh.getCoordinateArray(0), nodesShape);
+  axom::ArrayView<const double> y(tetMesh.getCoordinateArray(1), nodesShape);
+  axom::ArrayView<const double> z(tetMesh.getCoordinateArray(2), nodesShape);
+  const axom::IndexType tetCount = tetMesh.getNumberOfCells();
+  axom::Array<double> tetVolumes(tetCount, tetCount);
+  double meshVolume = 0.0;
+  for(axom::IndexType ic = 0; ic < tetCount; ++ic)
+  {
+    const axom::IndexType* nodeIds = tetMesh.getCellNodeIDs(ic);
+    TetType tet;
+    for(int j = 0; j < 4; ++j)
+    {
+      auto cornerNodeId = nodeIds[j];
+      tet[j][0] = x[cornerNodeId];
+      tet[j][1] = y[cornerNodeId];
+      tet[j][2] = z[cornerNodeId];
+    }
+    meshVolume += tet.volume();
+  }
+  return meshVolume;
+}
+
+/*
+ * For the test shapes, try to get good volume with compact shape
+ * that stays in domain when rotated (else volume check is invalid).
+ */
+
+axom::klee::Geometry createGeom_Sphere(const std::string& geomName)
+{
+  Point3D center = params.center.empty() ? Point3D {0, 0, 0} : Point3D {params.center.data()};
+  double radius = params.radius < 0 ? 1.0 : params.radius;
+  axom::primal::Sphere<double, 3> sphere {center, radius};
+
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  const axom::IndexType levelOfRefinement = params.refinementLevel;
+  axom::klee::Geometry sphereGeometry(prop, sphere, levelOfRefinement, compositeOp);
+  exactGeomVols[geomName] = vScale * 4. / 3 * M_PI * radius * radius * radius;
+  errorToleranceRel[geomName] = 1e-3;
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.0015 : 0.0001;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return sphereGeometry;
+}
+
+void fitTetMeshInsideMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& tetMesh,
+                          double extraScale = 1.0)
+{
+  using BBox3D = primal::BoundingBox<double, 3>;
+  using Pt3D = primal::Point<double, 3>;
+  using Vect3D = primal::Vector<double, 3>;
+
+  double* coords[] = {tetMesh.getCoordinateArray(0),
+                      tetMesh.getCoordinateArray(1),
+                      tetMesh.getCoordinateArray(2)};
+  const axom::IndexType vertCount = tetMesh.getNumberOfNodes();
+
+  // Compute bounding boxes of tetMesh and the test mesh.
+  BBox3D meshBox = BBox3D(Pt3D(params.boxMins.data()), Pt3D(params.boxMaxs.data()));
+  BBox3D tetMeshBox;
+  axom::for_all<axom::SEQ_EXEC>(vertCount, [&](axom::IndexType vi) {
+    Pt3D vertPt {coords[0][vi], coords[1][vi], coords[2][vi]};
+    tetMeshBox.addPoint(vertPt);
+  });
+
+  // Compute tetMesh's scaling and its resultant bounding box.
+  // Scale such that tetMesh will fit inside meshBox.
+  Vect3D tetMeshRange = tetMeshBox.range();
+  const Vect3D meshRange = meshBox.range();
+  const double scale = meshRange.array().min() / tetMeshRange.array().max();
+  tetMeshRange *= scale;
+  const Pt3D scaledTetMeshMax = meshBox.getMin() + tetMeshRange;
+  BBox3D newTetMeshBox(meshBox.getMin(), scaledTetMeshMax);
+  newTetMeshBox.scale(extraScale);
+  Vect3D shift(newTetMeshBox.getCentroid(), meshBox.getCentroid());
+  newTetMeshBox.shift(shift);
+
+  // Compute transformation from the current tetMesh's box to the scaled box.
+  const Pt3D& startMin = tetMeshBox.getMin();
+  const Pt3D& startMax = tetMeshBox.getMax();
+  Pt3D start[4] = {startMin,
+                   Pt3D {startMax[0], startMin[1], startMin[2]},
+                   Pt3D {startMin[0], startMax[1], startMin[2]},
+                   Pt3D {startMin[0], startMin[1], startMax[2]}};
+  const Pt3D& destMin = newTetMeshBox.getMin();
+  const Pt3D& destMax = newTetMeshBox.getMax();
+  Pt3D dest[4] = {destMin,
+                  Pt3D {destMax[0], destMin[1], destMin[2]},
+                  Pt3D {destMin[0], destMax[1], destMin[2]},
+                  Pt3D {destMin[0], destMin[1], destMax[2]}};
+  primal::experimental::CoordinateTransformer<double> trans(start, dest);
+
+  // Transform every tetMesh vertex.
+  axom::for_all<axom::SEQ_EXEC>(
+    vertCount,
+    AXOM_LAMBDA(axom::IndexType vi) { trans.transform(coords[0][vi], coords[1][vi], coords[2][vi]); });
+}
+
+axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string& geomName)
+{
+  // Shape a tetrahedal mesh.
+  sidre::Group* meshGroup = ds.getRoot()->createGroup(geomName);
+
+  AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
+  const std::string topo = "mesh";
+  const std::string coordset = "coords";
+
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tetMesh(3,
+                                                                 axom::mint::CellType::TET,
+                                                                 meshGroup,
+                                                                 topo,
+                                                                 coordset);
+
+  double lll = params.length < 0 ? 1.17 : params.length;
+
+  // Insert tets around origin.
+  tetMesh.appendNode(-lll, -lll, -lll);
+  tetMesh.appendNode(+lll, -lll, -lll);
+  tetMesh.appendNode(-lll, +lll, -lll);
+  tetMesh.appendNode(-lll, -lll, +lll);
+  tetMesh.appendNode(+lll, +lll, +lll);
+  tetMesh.appendNode(-lll, +lll, +lll);
+  tetMesh.appendNode(+lll, +lll, -lll);
+  tetMesh.appendNode(+lll, -lll, +lll);
+  axom::IndexType conn0[4] = {0, 1, 2, 3};
+  tetMesh.appendCell(conn0);
+  axom::IndexType conn1[4] = {4, 5, 7, 6};  // intentionally inverted to exercise fixOrientation.
+  tetMesh.appendCell(conn1);
+  axom::IndexType conn2[4] = {1, 2, 3, 5};
+  tetMesh.appendCell(conn2);
+
+  SLIC_ASSERT(axom::mint::blueprint::isValidRootGroup(meshGroup));
+  meshGroup->destroyGroup("fields");
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
+  tetMeshGeometry.asHierarchy()["fixOrientation"] = true;
+
+  exactGeomVols[geomName] = vScale * volumeOfTetMesh(tetMesh);
+  errorToleranceRel[geomName] = 0.005;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return tetMeshGeometry;
+}
+
+axom::klee::Geometry createGeom_CupMesh(sidre::DataStore& ds, const std::string& geomName)
+{
+  // Shape a tetrahedal mesh.
+  sidre::Group* meshGroup = ds.getRoot()->createGroup(geomName);
+
+  AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
+  const std::string topo = "mesh";
+  const std::string coordset = "coords";
+
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tetMesh(3,
+                                                                 axom::mint::CellType::TET,
+                                                                 meshGroup,
+                                                                 topo,
+                                                                 coordset);
+
+  axom::quest::ProEReader reader;
+  std::string proeFile = axom::utilities::filesystem::joinPath(AXOM_DATA_DIR, "quest/cup.proe");
+  reader.setFileName(proeFile);
+  int readStatus = reader.read();
+  SLIC_ASSERT(readStatus == 0);
+  reader.getMesh(&tetMesh);
+  const double extraScale = 1 / sqrt(3.0);  // to ensure tetMesh remains inside mesh when rotated.
+  fitTetMeshInsideMesh(tetMesh, extraScale);
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
+  tetMeshGeometry.asHierarchy()["fixOrientation"] = true;
+
+  exactGeomVols[geomName] = vScale * volumeOfTetMesh(tetMesh);
+  errorToleranceRel[geomName] = 0.005;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return tetMeshGeometry;
+}
+
+/*
+ * Utility function to make a SOR geometry from the specifications in the arguments.
+ */
+axom::klee::Geometry makeSorGeometry(axom::primal::Point<double, 3>& sorBase,
+                                     axom::primal::Vector<double, 3>& sorDirection,
+                                     axom::ArrayView<const double, 2> discreteFunction,
+                                     std::shared_ptr<axom::klee::CompositeOperator>& compositeOp)
+{
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  const axom::IndexType levelOfRefinement = params.refinementLevel;
+  axom::klee::Geometry sorGeometry(prop,
+                                   discreteFunction,
+                                   sorBase,
+                                   sorDirection,
+                                   levelOfRefinement,
+                                   compositeOp);
+  return sorGeometry;
+}
+
+double computeVolume_Sor(axom::ArrayView<const double, 2> discreteFunction)
+{
+  using ConeType = axom::primal::Cone<double, 3>;
+  axom::IndexType segmentCount = discreteFunction.shape()[0];
+  double vol = 0.0;
+  for(axom::IndexType s = 0; s < segmentCount - 1; ++s)
+  {
+    ConeType cone(discreteFunction(s, 1),
+                  discreteFunction(s + 1, 1),
+                  discreteFunction(s + 1, 0) - discreteFunction(s, 0));
+    vol += cone.volume();
+  }
+  return vol;
+}
+
+axom::klee::Geometry createGeom_Sor(const std::string& geomName)
+{
+  Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
+  axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
+    ? primal::Vector3D {1.0, 0.0, 0.0}
+    : primal::Vector3D {params.direction.data()};
+  // discreteFunction is discrete (z,r) pairs describing the r(z) function
+  // to be rotated around the z axis.
+  using Point2DType = axom::primal::Point<double, 2>;
+  double zLen = 0.5 * (params.length < 0 ? 2.40 : params.length);
+  double maxR = params.radius < 0 ? 1.10 : params.radius;
+  axom::Array<Point2DType> discretePts(0, 10);
+  discretePts.push_back(Point2DType({-1.0 * zLen, 1.0 * maxR}));
+  discretePts.push_back(Point2DType({0.4 * zLen, 1.0 * maxR}));
+  discretePts.push_back(Point2DType({0.4 * zLen, 0.7 * maxR}));
+  discretePts.push_back(Point2DType({1.0 * zLen, 0.7 * maxR}));
+  discretePts.push_back(Point2DType({1.0 * zLen, 0.4 * maxR}));
+  discretePts.push_back(Point2DType({0.5 * zLen, 0.4 * maxR}));
+  discretePts.push_back(Point2DType({0.5 * zLen, 0.3 * maxR}));
+  discretePts.push_back(Point2DType({0.0 * zLen, 0.3 * maxR}));
+  discretePts.push_back(Point2DType({0.0 * zLen, 0.5 * maxR}));
+  discretePts.push_back(Point2DType({0.2 * zLen, 0.5 * maxR}));
+  discretePts.push_back(Point2DType({0.2 * zLen, 0.7 * maxR}));
+  discretePts.push_back(Point2DType({-1.0 * zLen, 0.7 * maxR}));
+  axom::ArrayView<const double, 2> discreteFunction((const double*)discretePts.data(),
+                                                    discretePts.size(),
+                                                    2);
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry sorGeometry =
+    makeSorGeometry(sorBase, sorDirection, discreteFunction, compositeOp);
+  sorGeometry.asHierarchy()["screenLevel"] = params.screenLevel;
+
+  exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.007 : 0.0063;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return sorGeometry;
+}
+
+axom::klee::Geometry createGeom_Cylinder(const std::string& geomName)
+{
+  Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
+  axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
+    ? primal::Vector3D {1.0, 0.0, 0.0}
+    : primal::Vector3D {params.direction.data()};
+  // discreteFunction are discrete z-r pairs describing the function
+  // to be rotated around the z axis.
+  axom::Array<double, 2> discreteFunction({2, 2}, axom::ArrayStrideOrder::ROW);
+  double radius = params.radius < 0 ? 0.695 : params.radius;
+  double height = params.length < 0 ? 2.78 : params.length;
+  discreteFunction(0, 0) = -height / 2;
+  discreteFunction(0, 1) = radius;
+  discreteFunction(1, 0) = height / 2;
+  discreteFunction(1, 1) = radius;
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry sorGeometry =
+    makeSorGeometry(sorBase, sorDirection, discreteFunction, compositeOp);
+
+  exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.00075 : 0.00005;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return sorGeometry;
+}
+
+axom::klee::Geometry createGeom_Cone(const std::string& geomName)
+{
+  Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
+  axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
+    ? primal::Vector3D {1.0, 0.0, 0.0}
+    : primal::Vector3D {params.direction.data()};
+  // discreteFunction are discrete z-r pairs describing the function
+  // to be rotated around the z axis.
+  axom::Array<double, 2> discreteFunction({2, 2}, axom::ArrayStrideOrder::ROW);
+  double baseRadius = params.radius < 0 ? 1.23 : params.radius;
+  double topRadius = params.radius2 < 0 ? 0.176 : params.radius2;
+  double height = params.length < 0 ? 2.3 : params.length;
+  discreteFunction(0, 0) = -height / 2;
+  discreteFunction(0, 1) = baseRadius;
+  discreteFunction(1, 0) = height / 2;
+  discreteFunction(1, 1) = topRadius;
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry sorGeometry =
+    makeSorGeometry(sorBase, sorDirection, discreteFunction, compositeOp);
+
+  exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.00075 : 0.00005;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
+
+  return sorGeometry;
+}
+
 axom::klee::Geometry createGeom_Tet(const std::string& geomName)
 {
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
@@ -441,6 +849,67 @@ axom::klee::Geometry createGeom_Tet(const std::string& geomName)
   axom::klee::Geometry tetGeometry(prop, tet, compositeOp);
 
   return tetGeometry;
+}
+
+axom::klee::Geometry createGeom_Hex(const std::string& geomName)
+{
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  const double md = params.length < 0 ? 0.82 : params.length / 2;
+  const double lg = 1.2 * md;
+  const double sm = 0.8 * md;
+  const Point3D p {-lg, -md, -sm};
+  const Point3D q {+lg, -md, -sm};
+  const Point3D r {+lg, +md, -sm};
+  const Point3D s {-lg, +md, -sm};
+  const Point3D t {-lg, -md, +sm};
+  const Point3D u {+lg, -md, +sm};
+  const Point3D v {+lg, +md, +sm};
+  const Point3D w {-lg, +md, +sm};
+  const primal::Hexahedron<double, 3> hex {p, q, r, s, t, u, v, w};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+  exactGeomVols[geomName] = vScale * hex.volume();
+  errorToleranceRel[geomName] = 0.000075;
+  errorToleranceAbs[geomName] = 0.0003;
+
+  axom::klee::Geometry hexGeometry(prop, hex, compositeOp);
+
+  return hexGeometry;
+}
+
+axom::klee::Geometry createGeom_Plane(const std::string& geomName)
+{
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  // Create a plane crossing center of mesh.  No matter the normal,
+  // it cuts the mesh in half.
+  Point3D center {0.5 *
+                  (axom::NumericArray<double, 3>(params.boxMins.data()) +
+                   axom::NumericArray<double, 3>(params.boxMaxs.data()))};
+  primal::Vector<double, 3> normal = params.direction.empty()
+    ? primal::Vector3D {1.0, 0.0, 0.0}
+    : primal::Vector3D {params.direction.data()}.unitVector();
+  const primal::Plane<double, 3> plane {normal, center, true};
+
+  axom::klee::Geometry planeGeometry(prop, plane, {nullptr});
+
+  // Exact mesh overlap volume, assuming plane passes through center of box mesh.
+  using Pt3D = primal::Point<double, 3>;
+  Pt3D lower(params.boxMins.data());
+  Pt3D upper(params.boxMaxs.data());
+  auto diag = upper.array() - lower.array();
+  double meshVolume = diag[0] * diag[1] * diag[2];
+  exactGeomVols[geomName] = 0.5 * meshVolume;
+  errorToleranceRel[geomName] = 1e-6;
+  errorToleranceAbs[geomName] = 1e-8;
+
+  return planeGeometry;
 }
 
 /*!
@@ -639,49 +1108,6 @@ double sumMaterialVolumes(sidre::Group* meshGrp, const std::string& material)
   return rval;
 }
 
-/// Write blueprint mesh to disk
-void saveMesh(const conduit::Node& mesh, const std::string& filename)
-{
-  AXOM_ANNOTATE_SCOPE("save mesh (conduit)");
-
-#ifdef AXOM_USE_MPI
-  conduit::relay::mpi::io::blueprint::save_mesh(mesh, filename, "hdf5", MPI_COMM_WORLD);
-#else
-  conduit::relay::io::blueprint::save_mesh(mesh, filename, "hdf5");
-#endif
-}
-
-/// Write blueprint mesh to disk
-void saveMesh(const sidre::Group& mesh, const std::string& filename)
-{
-  AXOM_ANNOTATE_SCOPE("save mesh (sidre)");
-
-  axom::sidre::DataStore ds;
-  const sidre::Group* meshOnHost = &mesh;
-  if(mesh.getDefaultAllocatorID() != axom::execution_space<axom::SEQ_EXEC>::allocatorID())
-  {
-    meshOnHost =
-      ds.getRoot()->deepCopyGroup(&mesh, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
-  }
-  conduit::Node tmpMesh;
-  meshOnHost->createNativeLayout(tmpMesh);
-  {
-    conduit::Node info;
-#ifdef AXOM_USE_MPI
-    if(!conduit::blueprint::mpi::verify("mesh", tmpMesh, info, MPI_COMM_WORLD))
-#else
-    if(!conduit::blueprint::verify("mesh", tmpMesh, info))
-#endif
-    {
-      SLIC_INFO("Invalid blueprint for mesh: \n" << info.to_yaml());
-      slic::flushStreams();
-      assert(false);
-    }
-    // info.print();
-  }
-  saveMesh(tmpMesh, filename);
-}
-
 //!@brief Fill a sidre array View with a value.
 // No error checking.
 template <typename T>
@@ -748,9 +1174,8 @@ int main(int argc, char** argv)
 
 #ifdef AXOM_USE_MPI
     MPI_Bcast(&retval, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Finalize();
 #endif
-    exit(retval);
+    return retval;
   }
 
   if(params.testGeom.size() > 1)
@@ -815,6 +1240,7 @@ int main(int argc, char** argv)
   axom::Array<std::shared_ptr<axom::quest::experimental::MeshClipperStrategy>> geomStrategies;
   geomStrategies.reserve(params.testGeom.size());
   SLIC_ERROR_IF(params.getBoxDim() != 3, "This example is only in 3D.");
+  using quest::experimental::util::make_clipper_strategy;
   for(const auto& tg : params.testGeom)
   {
     if(geomReps.count(tg) == 0)
@@ -823,12 +1249,44 @@ int main(int argc, char** argv)
     }
     std::string name = axom::fmt::format("{}.{}", tg, geomReps[tg]++);
 
-    if(tg == "tet")
+    std::shared_ptr<quest::experimental::MeshClipperStrategy> strat;
+    if(tg == "plane")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::TetClipper>(createGeom_Tet(name), name));
+      strat = make_clipper_strategy(createGeom_Plane(name), name);
     }
-    // More geometries to come.
+    else if(tg == "hex")
+    {
+      strat = make_clipper_strategy(createGeom_Hex(name), name);
+    }
+    else if(tg == "sphere")
+    {
+      strat = make_clipper_strategy(createGeom_Sphere(name), name);
+    }
+    else if(tg == "tetmesh")
+    {
+      strat = make_clipper_strategy(createGeom_TetMesh(ds, name), name);
+    }
+    else if(tg == "cupmesh")
+    {
+      strat = make_clipper_strategy(createGeom_CupMesh(ds, name), name);
+    }
+    else if(tg == "tet")
+    {
+      strat = make_clipper_strategy(createGeom_Tet(name), name);
+    }
+    else if(tg == "cyl")
+    {
+      strat = make_clipper_strategy(createGeom_Cylinder(name), name);
+    }
+    else if(tg == "cone")
+    {
+      strat = make_clipper_strategy(createGeom_Cone(name), name);
+    }
+    else if(tg == "sor")
+    {
+      strat = make_clipper_strategy(createGeom_Sor(name), name);
+    }
+    geomStrategies.push_back(strat);
   }
 
   {
@@ -900,10 +1358,18 @@ int main(int argc, char** argv)
 
     quest::experimental::MeshClipper clipper(sMesh, geomStrategies[i]);
     clipper.setVerbose(params.isVerbose());
+    if(params.screenLevel >= 0)
+    {
+      clipper.setScreenLevel(params.screenLevel);
+    }
+    SLIC_INFO(axom::fmt::format("MeshClipper screen level: {}", clipper.getScreenLevel()));
+
     axom::Array<double> ovlap;
     AXOM_ANNOTATE_BEGIN(annotationName);
     clipper.clip(ovlap);
     AXOM_ANNOTATE_END(annotationName);
+
+    clipper.logClippingStats();
 
     // Save volume fractions in mesh, for plotting and checking.
     sMesh.setMatsetFromVolume(geomStrategies[i]->name(), ovlap.view(), false);
@@ -943,59 +1409,54 @@ int main(int argc, char** argv)
   sMesh.setFreeVolumeFractions("free");
   AXOM_ANNOTATE_END("setFreeVolumeFractions");
 
-  /*
-    Copy mesh to host check results and plot.
-  */
-  SLIC_INFO(axom::fmt::format("{:-^80}", "Copying mesh to host and write out"));
-
-  AXOM_ANNOTATE_BEGIN("Copy results to host and write out");
-
-  if(params.useBlueprintConduit())
+  if(!params.outputFile.empty())
   {
-    compMeshGrpOnHost = ds.getRoot()->createGroup("onHost");
-    compMeshGrpOnHost->setDefaultAllocator(hostAllocId);
-    compMeshGrpOnHost->importConduitTree(*sMesh.getMeshAsConduit());
-  }
-  if(params.useBlueprintSidre())
-  {
-    if(sMesh.getMeshAsSidre()->getDefaultAllocatorID() != hostAllocId)
+    SLIC_INFO(axom::fmt::format("{:-^80}", "Copying mesh to host and write out"));
+
+    AXOM_ANNOTATE_SCOPE("Copy results to host and write out");
+
+    if(params.useBlueprintConduit())
     {
       compMeshGrpOnHost = ds.getRoot()->createGroup("onHost");
       compMeshGrpOnHost->setDefaultAllocator(hostAllocId);
-      compMeshGrpOnHost->deepCopyGroup(sMesh.getMeshAsSidre(), hostAllocId);
+      compMeshGrpOnHost->importConduitTree(*sMesh.getMeshAsConduit());
     }
-    else
+    if(params.useBlueprintSidre())
     {
-      SLIC_ASSERT(sMesh.getMeshAsSidre() == compMeshGrp);
-      compMeshGrpOnHost = compMeshGrp;
+      if(sMesh.getMeshAsSidre()->getDefaultAllocatorID() != hostAllocId)
+      {
+        compMeshGrpOnHost = ds.getRoot()->createGroup("onHost");
+        compMeshGrpOnHost->setDefaultAllocator(hostAllocId);
+        compMeshGrpOnHost->deepCopyGroup(sMesh.getMeshAsSidre(), hostAllocId);
+      }
+      else
+      {
+        SLIC_ASSERT(sMesh.getMeshAsSidre() == compMeshGrp);
+        compMeshGrpOnHost = compMeshGrp;
+      }
     }
-  }
 
-  compMeshNode.reset(new conduit::Node);
-  compMeshGrpOnHost->createNativeLayout(*compMeshNode);
+    compMeshNode.reset(new conduit::Node);
+    compMeshGrpOnHost->createNativeLayout(*compMeshNode);
 
-  /*
-    Check blueprint validity.
-  */
+    /*
+      Check blueprint validity.
+    */
 
-  conduit::Node whyNotValid;
-  if(!conduit::blueprint::mesh::verify(*compMeshNode, whyNotValid))
-  {
-    SLIC_ERROR("Computational mesh is invalid after shaping:\n" + whyNotValid.to_summary_string());
-  }
+    conduit::Node whyNotValid;
+    if(!conduit::blueprint::mesh::verify(*compMeshNode, whyNotValid))
+    {
+      SLIC_ERROR("Computational mesh is invalid after shaping:\n" + whyNotValid.to_summary_string());
+    }
 
-  /*
-    Save meshes and fields
-  */
+    /*
+      Save meshes and fields
+    */
 
-  if(!params.outputFile.empty())
-  {
     std::string fileName = params.outputFile + ".volfracs";
     saveMesh(*compMeshNode, fileName);
     SLIC_INFO(axom::fmt::format("{:-^80}", "Wrote output mesh " + fileName));
   }
-
-  AXOM_ANNOTATE_END("Copy results to host and write out");
 
   /*
     Cleanup and exit

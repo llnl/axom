@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -88,6 +89,7 @@ public:
     const TopologyView topoView = m_topologyView;
     axom::ReduceSum<ExecSpace, int> connSizeReduce(0);
     axom::ReduceBitOr<ExecSpace, int> zoneTypeReduce(0);
+    constexpr int ErrorBit = 1 << ((sizeof(int) * 8) - 1);
     axom::for_all<ExecSpace>(
       m_topologyView.numberOfZones(),
       AXOM_LAMBDA(axom::IndexType zi) {
@@ -104,11 +106,22 @@ public:
           break;
         default:
           SLIC_ASSERT("Unsupported zone type");
+          // For release builds
+          zoneTypeReduce |= ErrorBit;
         }
       });
     AXOM_ANNOTATE_END("counts");
     const auto shapes = zoneTypeReduce.get();
+    if(m_topologyView.numberOfZones() > 0 && shapes == 0)
+    {
+      SLIC_ERROR("No tri or quad shapes detected.");
+    }
+    if((shapes & ErrorBit) > 0)
+    {
+      SLIC_ERROR("Unsupported zone type.");
+    }
     const axom::IndexType totalConnSize = static_cast<axom::IndexType>(nz - 1) * connSizeReduce.get();
+    SLIC_ERROR_IF(totalConnSize == 0, "Invalid connectivity size.");
     const axom::IndexType totalZones =
       static_cast<axom::IndexType>(nz - 1) * m_topologyView.numberOfZones();
     const axom::IndexType totalNodes =

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -184,6 +185,7 @@ void ShapeMesh::precomputeMeshData()
   getCellsAsHexes();
   getCellsAsTets();
   getCellVolumes();
+  getTetVolumes();
   getCellBoundingBoxes();
   getCellLengths();
   getCellNodeConnectivity();
@@ -215,6 +217,15 @@ axom::ArrayView<const double> ShapeMesh::getCellVolumes()
     computeHexVolumes();
   }
   return m_hexVolumes.view();
+}
+
+axom::ArrayView<const double> ShapeMesh::getTetVolumes()
+{
+  if(m_tetVolumes.size() != m_cellCount * NUM_TETS_PER_HEX)
+  {
+    computeTetVolumes();
+  }
+  return m_tetVolumes.view();
 }
 
 axom::ArrayView<const ShapeMesh::BoundingBox3DType> ShapeMesh::getCellBoundingBoxes()
@@ -624,6 +635,34 @@ void ShapeMesh::computeHexVolumes()
   }
 }
 
+void ShapeMesh::computeTetVolumes()
+{
+  AXOM_ANNOTATE_SCOPE("ShapeMesh::computeTetVolumes");
+  switch(m_runtimePolicy)
+  {
+  case RuntimePolicy::seq:
+    computeTetVolumesImpl<axom::SEQ_EXEC>();
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case RuntimePolicy::omp:
+    computeTetVolumesImpl<axom::OMP_EXEC>();
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case RuntimePolicy::cuda:
+    computeTetVolumesImpl<axom::CUDA_EXEC<256>>();
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case RuntimePolicy::hip:
+    computeTetVolumesImpl<axom::HIP_EXEC<256>>();
+    break;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+}
+
 void ShapeMesh::computeHexBbs()
 {
   AXOM_ANNOTATE_SCOPE("ShapeMesh::computeHexBoundingBoxes");
@@ -734,10 +773,10 @@ void ShapeMesh::computeCellsAsHexesImpl()
 
   SLIC_ASSERT(m_dim == NDIM);  // or we shouldn't be here.
 
-  auto vertexCoords = getVertexCoords3D();
-  const axom::ArrayView<const double>& vX = vertexCoords[0];
-  const axom::ArrayView<const double>& vY = vertexCoords[1];
-  const axom::ArrayView<const double>& vZ = vertexCoords[2];
+  const auto& vertexCoords = getVertexCoords3D();
+  const auto& vX = vertexCoords[0];
+  const auto& vY = vertexCoords[1];
+  const auto& vZ = vertexCoords[2];
 
   axom::ArrayView<const IndexType, 2> connView = getCellNodeConnectivity();
 
@@ -750,7 +789,6 @@ void ShapeMesh::computeCellsAsHexesImpl()
   axom::for_all<ExecSpace>(
     m_cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
-      // Set each hexahedral element vertices
       auto& hex = cellsAsHexesView[cellId];
 
       for(int vi = 0; vi < NUM_VERTS_PER_HEX; ++vi)
@@ -791,7 +829,7 @@ void ShapeMesh::computeCellsAsTetsImpl()
     AXOM_LAMBDA(axom::IndexType cellId) {
       const auto& hex = cellsAsHexesView[cellId];
       auto* firstTetPtr = &cellsAsTetsView[cellId * NUM_TETS_PER_HEX];
-      hex.triangulate(firstTetPtr);
+      hexToTets(hex, firstTetPtr);
     });
 }
 
@@ -807,6 +845,20 @@ void ShapeMesh::computeHexVolumesImpl()
   axom::for_all<ExecSpace>(
     m_cellCount,
     AXOM_LAMBDA(axom::IndexType i) { hexVolumesView[i] = cellsAsHexes[i].volume(); });
+}
+
+template <typename ExecSpace>
+void ShapeMesh::computeTetVolumesImpl()
+{
+  axom::IndexType tetCount = m_cellCount * NUM_TETS_PER_HEX;
+  m_tetVolumes = axom::Array<double>(ArrayOptions::Uninitialized(), tetCount, tetCount, m_allocId);
+
+  auto cellsAsTets = getCellsAsTets();
+
+  auto tetVolumesView = m_tetVolumes.view();
+  axom::for_all<ExecSpace>(
+    tetCount,
+    AXOM_LAMBDA(axom::IndexType i) { tetVolumesView[i] = cellsAsTets[i].volume(); });
 }
 
 template <typename ExecSpace>

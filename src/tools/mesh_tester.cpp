@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -284,7 +285,7 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
     }());
 
   const std::string policy_str = (method == "naive" || method == "bvh")
-    ? axom::fmt::format("\n  policy = {} {}", policy,
+    ? axom::fmt::format("\n  policy = {} {}", static_cast<int>(policy),
       [this]() -> std::string {
         switch(this->policy)
         {

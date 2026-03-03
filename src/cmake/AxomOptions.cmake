@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -23,7 +24,15 @@ endif()
 option(AXOM_ENABLE_SPARSEHASH "Enables Sparsehash." ON)
 option(AXOM_ENABLE_ALL_COMPONENTS "Enables all components by default" ON)
 option(AXOM_USE_64BIT_INDEXTYPE "Use 64-bit integers for axom::IndexType" ON)
-option(AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION "Enable Axom's version of the MFEM SidreDataCollection" ON)
+
+
+# When enabled (default), Sidre will serialize tuple views of size 1 with state="SCALAR" 
+# in its I/O metadata for compatibility with downstream readers (e.g. VisIt's Blueprint database plugin). 
+# When disabled, Sidre will serialize these views with state="TUPLE".
+option(AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING
+       "Write sidre View scalars with state='SCALAR' (legacy compatibility) instead of state='TUPLE'."
+       ON)
+
 
 if(NOT CMAKE_CONFIGURATION_TYPES)
     if(CMAKE_BUILD_TYPE MATCHES "(Debug|RelWithDebInfo)")
@@ -46,6 +55,16 @@ option(AXOM_ENABLE_TOOLS "Enables Axom Tools" ON)
 
 option(AXOM_ENABLE_TUTORIALS "Builds Axom tutorials as part of the Axom build" ON)
 mark_as_advanced(AXOM_ENABLE_TUTORIALS)
+
+#------------------------------------------------------------------------------
+# Test execution controls
+#------------------------------------------------------------------------------
+if(AXOM_ENABLE_OPENMP)
+    set(AXOM_TEST_NUM_OMP_THREADS 4 CACHE STRING "Default number of OpenMP threads for tests")
+else()
+    set(AXOM_TEST_NUM_OMP_THREADS 0 CACHE STRING "Default number of OpenMP threads for tests")
+endif()
+mark_as_advanced(AXOM_TEST_NUM_OMP_THREADS)
 
 #--------------------------------------------------------------------------
 # Option to control whether AXOM_DEFINE compiler define is enabled

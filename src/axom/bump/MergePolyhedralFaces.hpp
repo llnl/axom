@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 #ifndef AXOM_BUMP_MERGE_POLYHEDRAL_FACES_HPP_
@@ -77,6 +78,10 @@ public:
       se_conn.size(),
       AXOM_LAMBDA(axom::IndexType index) { reduceMaxNodeId.max(se_conn[index]); });
     const auto maxNodeId = reduceMaxNodeId.get();
+    if(se_conn.size() > 0 && maxNodeId == 0)
+    {
+      SLIC_INFO("ReduceSum returned 0 for maxNodeId.");
+    }
     AXOM_ANNOTATE_END("maxnode");
 
     //--------------------------------------------------------------------------
@@ -156,6 +161,10 @@ public:
         reduceNewSizes += size;
       });
     const axom::IndexType newSEConnSize = reduceNewSizes.get();
+    if(selectedFaces.size() > 0)
+    {
+      SLIC_ERROR_IF(newSEConnSize == 0, "ReduceSum returned 0 for newSEConnSize.");
+    }
     axom::exclusive_scan<ExecSpace>(new_se_sizes, new_se_offsets);
 
     // Allocate new_se_conn to contain the new face definitions.
@@ -193,6 +202,10 @@ public:
       elem_sizes.size(),
       AXOM_LAMBDA(axom::IndexType index) { reduceConnSize += elem_sizes[index]; });
     const auto totalConnSize = reduceConnSize.get();
+    if(elem_sizes.size() > 0)
+    {
+      SLIC_ERROR_IF(totalConnSize == 0, "ReduceSum returned 0 for totalConnSize.");
+    }
 
     if(totalConnSize == elem_conn.size())
     {

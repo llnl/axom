@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -24,12 +25,13 @@
   #endif
 #endif
 
-#if defined(AXOM_USE_MFEM) && defined(AXOM_USE_SIDRE)
+#if defined(AXOM_USE_MFEM)
   #include "axom/quest/io/MFEMReader.hpp"
   #include <mfem.hpp>
   #include <map>
 #endif
 
+#include <algorithm>
 #include <limits>
 
 namespace axom
@@ -147,6 +149,8 @@ static void create_communicators(MPI_Comm global_comm,
  * \param [out] z pointer into the buffer where the z-coordinates are stored.
  * \param [out] conn pointer into the buffer consisting the cell-connectivity.
  * \param [out] mesh_buffer raw buffer consisting of all the mesh data.
+ * \param [in] allocation_name the name of the shared memory allocation
+ * \parem [in] min_shared_mem_segment_size the minimum size (in bytes) for the shared buffer
  *
  * \return bytesize the number of bytes in the raw buffer.
  *
@@ -168,13 +172,19 @@ static size_t allocate_shared_buffer(const axom::IndexType mesh_metadata[2],
                                      double*& y,
                                      double*& z,
                                      axom::IndexType*& conn,
-                                     unsigned char*& mesh_buffer)
+                                     unsigned char*& mesh_buffer,
+                                     const std::string& allocation_name,
+                                     std::size_t min_shared_mem_segment_size)
 {
   // Allocate the buffer.
   const axom::IndexType nnodes = mesh_metadata[0];
   const axom::IndexType nfaces = mesh_metadata[1];
   const size_t bytesize = nnodes * 3 * sizeof(double) + nfaces * 3 * sizeof(axom::IndexType);
-  mesh_buffer = allocate<unsigned char>(bytesize, getSharedMemoryAllocatorID());
+
+  constexpr std::size_t overheadBytes = 1024 * 1024;
+  const std::size_t minSegmentSize = std::max(min_shared_mem_segment_size, bytesize + overheadBytes);
+  mesh_buffer =
+    allocate<unsigned char>(bytesize, allocation_name, getSharedMemoryAllocatorID(minSegmentSize));
 
   // calculate offset to the coordinates & cell connectivity in the buffer
   int baseOffset = nnodes * sizeof(double);
@@ -188,17 +198,16 @@ static size_t allocate_shared_buffer(const axom::IndexType mesh_metadata[2],
   z = reinterpret_cast<double*>(&mesh_buffer[z_offset]);
   conn = reinterpret_cast<axom::IndexType*>(&mesh_buffer[conn_offset]);
 
-  return (bytesize);
+  return bytesize;
 }
 
-/*
- * Reads in the surface mesh from the specified file into a shared
- * memory buffer that is attached to the given MPI shared window.
- */
+/// Reads in the surface mesh from the specified file into
+/// a memory buffer shared among ranks on the same node.
 int read_stl_mesh_shared(const std::string& file,
                          MPI_Comm global_comm,
                          unsigned char*& mesh_buffer,
-                         mint::Mesh*& m)
+                         mint::Mesh*& m,
+                         std::size_t min_shared_mem_segment_size)
 {
   SLIC_ASSERT(global_comm != MPI_COMM_NULL);
 
@@ -251,7 +260,16 @@ int read_stl_mesh_shared(const std::string& file,
   double* y = nullptr;
   double* z = nullptr;
   axom::IndexType* conn = nullptr;
-  const size_t numBytes = allocate_shared_buffer(mesh_metadata, x, y, z, conn, mesh_buffer);
+  const std::string allocation_name =
+    std::string {"axom::quest::signed_distance::mesh_buffer::"} + file;
+  const size_t numBytes = allocate_shared_buffer(mesh_metadata,
+                                                 x,
+                                                 y,
+                                                 z,
+                                                 conn,
+                                                 mesh_buffer,
+                                                 allocation_name,
+                                                 min_shared_mem_segment_size);
   SLIC_ASSERT(x != nullptr);
   SLIC_ASSERT(y != nullptr);
   SLIC_ASSERT(z != nullptr);
@@ -434,7 +452,7 @@ int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
   return rc;
 }
 
-#if defined(AXOM_USE_MFEM) && defined(AXOM_USE_SIDRE)
+#if defined(AXOM_USE_MFEM)
 /*
  * Reads in the contour mesh from the specified file.
  */
@@ -494,111 +512,6 @@ int read_mfem_mesh(const std::string& file,
 #endif
 
 /// Mesh Helper Methods
-
-#if defined(AXOM_USE_MFEM)
-/*!
- * \brief Convert an MFEM zone (containing a 1D contour) to an appropriate primal curve type.
- *
- * \tparam CurveType The type of primal curve to create/return.
- * \tparam PolynomialConstructor A function that constructs CurveType using polynomial arguments.
- * \tparam RationalConstructor A function that constructs CurveType using rational arguments.
- *
- * \param mesh A pointer to the MFEM mesh that contains contours.
- * \param elem_id The id of the element that we want returned as a curve.
- * \param polynomialConstructor A function that will construct the curve as CurveType,
- *                              given polynomial arguments (points, npts, order).
- * \param rationalConstructor A function that will construct the curve as CurveType,
- *                            given rational arguments (points, weights, npts, order).
- *
- * \return An instance of CurveType that represents the MFEM element.
- */
-template <typename CurveType, typename PolynomialConstructor, typename RationalConstructor>
-CurveType segment_to_curve_impl(const mfem::Mesh* mesh,
-                                int elem_id,
-                                PolynomialConstructor&& polynomialConstructor,
-                                RationalConstructor&& rationalConstructor)
-{
-  using Point2D = axom::primal::Point<double, 2>;
-
-  const auto* fes = mesh->GetNodes()->FESpace();
-  const auto* fec = fes->FEColl();
-
-  const bool isBernstein = dynamic_cast<const mfem::H1Pos_FECollection*>(fec) != nullptr;
-  const bool isNURBS = dynamic_cast<const mfem::NURBSFECollection*>(fec) != nullptr;
-
-  SLIC_ERROR_IF(!(isBernstein || isNURBS),
-                "MFEM mesh elements must be in either the Bernstein or NURBS basis");
-
-  const int NE = isBernstein ? mesh->GetNE() : fes->GetNURBSext()->GetNP();
-  SLIC_ERROR_IF(NE < elem_id, axom::fmt::format("Mesh does not have {} elements", elem_id));
-
-  const int order = isBernstein ? fes->GetOrder(elem_id) : mesh->NURBSext->GetOrders()[elem_id];
-
-  mfem::Array<int> dofs;
-  mfem::Array<int> vdofs;
-
-  mfem::Vector weights;
-  mfem::Vector v;
-
-  fes->GetElementDofs(elem_id, dofs);
-  fes->GetElementVDofs(elem_id, vdofs);
-  mesh->GetNodes()->GetSubVector(vdofs, v);
-
-  const int p = order + 1;
-  axom::Array<Point2D> points(p, p);
-  if(isBernstein)
-  {
-    points[0] = Point2D {v[0], v[0 + p]};
-    for(int i = 2; i < order; i++)
-    {
-      points[i - 1] = Point2D {v[i], v[i + p]};
-    }
-    points[order] = Point2D {v[1], v[1 + p]};
-
-    return polynomialConstructor(points.data(), p, order);
-  }
-  else  // isNURBS
-  {
-    // temporary assumption is that there are no interior knots
-    // i.e. the NURBS curve is essentially a rational Bezier curve
-
-    for(int i = 0; i < p; i++)
-    {
-      points[i] = Point2D {v[i], v[i + p]};
-    }
-
-    fes->GetNURBSext()->GetWeights().GetSubVector(dofs, weights);
-    return rationalConstructor(points.data(), weights.GetData(), p, order);
-  }
-}
-
-primal::BezierCurve<double, 2> segment_to_curve(const mfem::Mesh* mesh, int elem_id)
-{
-  using BezierCurve2D = primal::BezierCurve<double, 2>;
-  return segment_to_curve_impl<BezierCurve2D>(
-    mesh,
-    elem_id,
-    [](const auto* points, int AXOM_UNUSED_PARAM(npts), int order) {
-      return BezierCurve2D(points, order);
-    },
-    [](const auto* points, const double* weights, int AXOM_UNUSED_PARAM(npts), int order) {
-      return BezierCurve2D(points, weights, order);
-    });
-}
-
-primal::NURBSCurve<double, 2> segment_to_nurbs(const mfem::Mesh* mesh, int elem_id)
-{
-  using NURBSCurve2D = primal::NURBSCurve<double, 2>;
-  return segment_to_curve_impl<NURBSCurve2D>(
-    mesh,
-    elem_id,
-    [](const auto* points, int npts, int order) { return NURBSCurve2D(points, npts, order); },
-    [](const auto* points, const double* weights, int npts, int order) {
-      return NURBSCurve2D(points, weights, npts, order);
-    });
-}
-
-#endif
 
 /*
  * Computes the bounds of the given mesh.

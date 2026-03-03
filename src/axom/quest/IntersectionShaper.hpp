@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -824,7 +825,8 @@ private:
         axom::fmt::format("{:-^80}", axom::fmt::format(" Refinement level set to {} ", m_level)));
 
       // Generate the Octahedra
-      // (octahedra m_octs will be on device)
+      // (Set m_octs's allocator id to where we want its data to live.)
+      m_octs = axom::Array<OctahedronType>(0, 0, axom::execution_space<ExecSpace>::allocatorID());
       const bool disc_status =
         axom::quest::discretize<ExecSpace>(polyline, polyline_size, m_level, m_octs, m_octcount);
 
@@ -1967,13 +1969,15 @@ public:
     if(m_bpGrp)
     {
       auto fieldsGrp = m_bpGrp->getGroup("fields");
-      SLIC_ERROR_IF(fieldsGrp == nullptr, "Input blueprint mesh lacks the 'fields' Group/Node.");
-      for(auto& group : fieldsGrp->groups())
+      if(fieldsGrp != nullptr)
       {
-        std::string materialName = fieldNameToMaterialName(group.getName());
-        if(!materialName.empty())
+        for(auto& group : fieldsGrp->groups())
         {
-          materialNames.emplace_back(materialName);
+          std::string materialName = fieldNameToMaterialName(group.getName());
+          if(!materialName.empty())
+          {
+            materialNames.emplace_back(materialName);
+          }
         }
       }
     }

@@ -1,8 +1,8 @@
 
 [comment]: # (#################################################################)
-[comment]: # (Copyright 2017-2025, Lawrence Livermore National Security, LLC)
-[comment]: # (and Axom Project Developers. See the top-level LICENSE file)
-[comment]: # (for details.)
+[comment]: # (Copyright Lawrence Livermore National Security, LLC and other)
+[comment]: # (Axom Project Contributors. See top-level LICENSE and COPYRIGHT)
+[comment]: # (files for dates and other details.)
 [comment]: #
 [comment]: # (# SPDX-License-Identifier: BSD-3-Clause)
 [comment]: # (#################################################################)
@@ -17,6 +17,20 @@ The format of this file is based on [Keep a Changelog](http://keepachangelog.com
 The Axom project release numbers follow [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] - Release date yyyy-mm-dd
+
+### Added
+
+### Changed
+- Primal: Axom's polygon clipping was modified to handle some corner cases.
+
+### Fixed
+
+### Removed
+
+### Deprecated
+
+
+## [Version 0.13.0] - Release date 2026-02-05
 
 ### Added
 - Adds the `AXOM_ENABLE_TUTORIALS` configuration variable (`ON` by default)
@@ -43,8 +57,23 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   or when `components="all"`), all components are enabled. All components can be disabled via `components=none`.
 - Adds a `conduit` spack variant. Conduit was previously a required dependency in our spack package, and is now enabled by default.
 - Adds spack variants for `adiak` and `caliper`. These replace the previous `profiling` variant which enabled both at the same time.
+- Adds the `AXOM_TEST_NUM_OMP_THREADS` configuration variable to control the default OpenMP thread count for tests.
+- Slic: Adds `slic::getAbortFunction()` to return a function pointer to the abort handler called during logging functions
+- Quest: Adds a 3D winding number example and improves WN performance in 2D and 3D
+- Sidre: Added `AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING` (default `ON`) to optionally serialize scalar views 
+  with state `"SCALAR"` instead of `"TUPLE"` for compatibility with downstream readers (e.g. VisIt)
+  that don't yet support `"TUPLE"`. We expect to remove this in the future as readers adopt the `"TUPLE"` type.
 
 ###  Changed
+- Version of `quest::discretize` that approximates a surface-of-revolution from a polyline
+  now respects the allocator ID of the output `Array`.  It no longer resets the ID to the
+  execution space default.
+- Updates to [RAJA version 2025.12.1](https://github.com/LLNL/RAJA/releases/tag/v2025.12.1)
+- Updates to [camp version 2025.12.0](https://github.com/LLNL/camp/releases/tag/v2025.12.0)
+- Updates to [Umpire version 2025.12.0](https://github.com/LLNL/Umpire/releases/tag/v2025.12.0)
+- Updates to [Caliper version 2.14.0](https://github.com/LLNL/Caliper/releases/tag/v2.14.0)
+- Evaluation methods for line integrals in `axom::primal` have been generalized, and 
+  `evaluate_scalar_line_integral` has been renamed to `evaluate_line_integral`.
 - Treatment of materials on strided-structured Blueprint meshes has changed in `axom::mir`.
   Materials are now expected to be defined only on the valid subset of zones in the mesh.
   This more closely matches VisIt behavior.
@@ -76,10 +105,28 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   Refer to the new `StoragePolicy` interface for substitute functionality.
 - The `axom::bump::clipping` namespace was renamed to `axom::bump::extraction` since it now
   contains additional algorithms.
+- Updates to [mfem version 4.9](https://github.com/mfem/mfem/releases/tag/v4.9).
+  Also updates mfem's hypre dependency to [hypre version 2.27](https://github.com/hypre-space/hypre/releases/tag/v2.27.0).
+- Quest: `MFEMReader` can now read in multispan 1D NURBS meshes
+- fmt: Axom's built-in version of the fmt formatting library was updated to [fmt version 12.1.0](https://github.com/fmtlib/fmt/releases/tag/12.1.0).
+- Primal: Improves robustness of `linear_winding_number` by using `atan2` instead of `acos`
+- Core: Allows users to set the minimum size for Axom's shared memory allocator in `getSharedMemoryAllocatorID()`
+- Core: Allows users to set the name of the shared memory allocation in `allocate()`
+- Quest: Adds a function to the signed distance API to set the shared memory size:  `signed_distance_set_shared_memory_size()`
+- Sidre: Shroud-generated C/Fortran interfaces for `Group::createViewScalar()` and `Group::createViewString()` 
+  now include overloads that accept an allocator ID.
 
 ###  Fixed
 - Sina's Fortran tests are now running (instead of silently failing)
 - Optimized `Array::push_back()` and `Array::emplace_back()` operations.
+- Quest: In Shaping applications, we now check return code after attempting to load a mesh
+  and throw an error for unsuccessful loads.
+- Core: Bugfix for batched insertion into a FlatMap with deleted entries
+- Quest: Sets the allocation name for shared memory in the signed distance query
+
+###  Removed
+- Removes the `AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION` CMake config variable. 
+  It is no longer needed -- we now always use MFEMSidreDataCollection in configurations with `mfem` and `sidre`.
 
 ###  Deprecated
 
@@ -135,11 +182,11 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds Axom-native Gauss-Legendre quadrature rules that can be used without an MFEM dependency
 
 ###  Changed
-- Updates blt submodule to [BLT version 0.7.1][https://github.com/LLNL/blt/releases/tag/v0.7.1]
-- Updates to [Conduit version 0.9.5][https://github.com/LLNL/conduit/releases/tag/v0.9.5]
-- Updates to [RAJA version 2025.09.0][https://github.com/LLNL/RAJA/releases/tag/v2025.09.0]
-- Updates to [camp version 2025.09.2][https://github.com/LLNL/camp/releases/tag/v2025.09.2]
-- Updates to [Umpire version 2025.09.0][https://github.com/LLNL/Umpire/releases/tag/v2025.09.0]
+- Updates blt submodule to [BLT version 0.7.1](https://github.com/LLNL/blt/releases/tag/v0.7.1)
+- Updates to [Conduit version 0.9.5](https://github.com/LLNL/conduit/releases/tag/v0.9.5)
+- Updates to [RAJA version 2025.09.0](https://github.com/LLNL/RAJA/releases/tag/v2025.09.0)
+- Updates to [camp version 2025.09.2](https://github.com/LLNL/camp/releases/tag/v2025.09.2)
+- Updates to [Umpire version 2025.09.0](https://github.com/LLNL/Umpire/releases/tag/v2025.09.0)
 - Axom now requires `C++17` and will default to that if not specified via `BLT_CXX_STD`.
 - Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
   since the last `reset()`.
@@ -149,7 +196,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds a method to determine if a point is contained within a Tetrahedron.
 - The `primal::BoundingBox` class' `expand()` and `shift()` methods were modified so they do
   nothing when called on invalid bounding boxes.
-- Updates to [MFEM version 4.8.0][https://github.com/mfem/mfem/releases/tag/v4.8]
+- Updates to [MFEM version 4.8.0](https://github.com/mfem/mfem/releases/tag/v4.8)
 - Readers in Quest were moved from a `quest/readers` directory to `quest/io`.
 - Sina: Renames a Fortran module to `sina_hdf5_config` (from `hdf5_config`)
 - Spin: Uses `axom::FlatMap` in `SparseOctreeLevel` implementation. We have observed a performance regression
@@ -219,13 +266,13 @@ to use Open Cascade's file I/O capabilities in support of Quest applications.
 - Adds initial support for 2D shaping in `quest::IntersectionShaper`, using a c2c contour as input. The contour cannot overlap, and is expected to be entirely above the x-axis.
 
 ###  Changed
-- Updates blt submodule to [BLT version 0.7.0][https://github.com/LLNL/blt/releases/tag/v0.7.0]
-- Updates to [MFEM version 4.7.0][https://github.com/mfem/mfem/releases/tag/v4.7]
-- Updates to [Caliper version 2.12.1][https://github.com/LLNL/Caliper/releases/tag/v2.12.1]
-- Updates to [Conduit version 0.9.3][https://github.com/LLNL/conduit/releases/tag/v0.9.3]
-- Updates to [RAJA version 2025.03.0][https://github.com/LLNL/RAJA/releases/tag/v2025.03.0]
-- Updates to [camp version 2025.03.0][https://github.com/LLNL/camp/releases/tag/v2025.03.0]
-- Updates to [Umpire version 2025.03.0][https://github.com/LLNL/Umpire/releases/tag/v2025.03.0]
+- Updates blt submodule to [BLT version 0.7.0](https://github.com/LLNL/blt/releases/tag/v0.7.0)
+- Updates to [MFEM version 4.7.0](https://github.com/mfem/mfem/releases/tag/v4.7)
+- Updates to [Caliper version 2.12.1](https://github.com/LLNL/Caliper/releases/tag/v2.12.1)
+- Updates to [Conduit version 0.9.3](https://github.com/LLNL/conduit/releases/tag/v0.9.3)
+- Updates to [RAJA version 2025.03.0](https://github.com/LLNL/RAJA/releases/tag/v2025.03.0)
+- Updates to [camp version 2025.03.0](https://github.com/LLNL/camp/releases/tag/v2025.03.0)
+- Updates to [Umpire version 2025.03.0](https://github.com/LLNL/Umpire/releases/tag/v2025.03.0)
 - `primal::NumericArray` has been moved to `core`.  The header is `core/NumericArray.hpp`.
 - `quest::Shaper` and `quest::IntersectionShaper` constructors require a runtime policy.
   Changing the policy after construction is no longer supported.
@@ -299,10 +346,10 @@ to use Open Cascade's file I/O capabilities in support of Quest applications.
 - Quest: Adds an example to query winding numbers on an MFEM NURBS mesh
 
 ### Changed
-- Updates to [Conduit version 0.9.2][https://github.com/LLNL/conduit/releases/tag/v0.9.2]
-- Updates to [RAJA version 2024.07.0][https://github.com/LLNL/RAJA/releases/tag/v2024.07.0]
-- Updates to [camp version 2024.07.0][https://github.com/LLNL/camp/releases/tag/v2024.07.0]
-- Updates to [Umpire version 2024.07.0][https://github.com/LLNL/Umpire/releases/tag/v2024.07.0]
+- Updates to [Conduit version 0.9.2](https://github.com/LLNL/conduit/releases/tag/v0.9.2)
+- Updates to [RAJA version 2024.07.0](https://github.com/LLNL/RAJA/releases/tag/v2024.07.0)
+- Updates to [camp version 2024.07.0](https://github.com/LLNL/camp/releases/tag/v2024.07.0)
+- Updates to [Umpire version 2024.07.0](https://github.com/LLNL/Umpire/releases/tag/v2024.07.0)
 - `axom::CLI::ExitCodes::Success` has been changed to `axom::CLI::ExitCodes::CLI11_Success`
   to avoid conflict when X11 `#define`s `Success`.
 - `MarchingCubes` masking now uses the mask field's integer values instead of
@@ -402,9 +449,9 @@ to use Open Cascade's file I/O capabilities in support of Quest applications.
 ## [Version 0.8.1] - Release date 2023-08-16
 
 ### Changed
-- Updates to [RAJA version 2023.06.0][https://github.com/LLNL/RAJA/releases/tag/v2023.06.0]
-- Updates to [camp version 2023.06.0][https://github.com/LLNL/camp/releases/tag/v2023.06.0]
-- Updates to [Umpire version 2023.06.0][https://github.com/LLNL/Umpire/releases/tag/v2023.06.0]
+- Updates to [RAJA version 2023.06.0](https://github.com/LLNL/RAJA/releases/tag/v2023.06.0)
+- Updates to [camp version 2023.06.0](https://github.com/LLNL/camp/releases/tag/v2023.06.0)
+- Updates to [Umpire version 2023.06.0](https://github.com/LLNL/Umpire/releases/tag/v2023.06.0)
 
 ### Fixed
 - Fixed MFEMSidreDataCollection finite element space bug
@@ -1349,7 +1396,8 @@ fractions for the associated materials must be supplied before shaping.
 - Use this section in case of vulnerabilities
 
 
-[Unreleased]:     https://github.com/LLNL/axom/compare/v0.12.0...develop
+[Unreleased]:     https://github.com/LLNL/axom/compare/v0.13.0...develop
+[Version 0.13.0]: https://github.com/LLNL/axom/compare/v0.12.0...v0.13.0
 [Version 0.12.0]: https://github.com/LLNL/axom/compare/v0.11.0...v0.12.0
 [Version 0.11.0]: https://github.com/LLNL/axom/compare/v0.10.1...v0.11.0
 [Version 0.10.1]: https://github.com/LLNL/axom/compare/v0.10.0...v0.10.1

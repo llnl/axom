@@ -3,8 +3,9 @@
 #
 copyright:
   -
-  - Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-  - other Axom Project Developers. See the top-level LICENSE file for details.
+  - Copyright (c) Lawrence Livermore National Security, LLC and other
+  - Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+  - files for dates and other details.
   -
   - "SPDX-License-Identifier: (BSD-3-Clause)"
 
@@ -377,6 +378,8 @@ declarations:
 
 #  - decl: View *createViewAndAllocate( const std::string& path, const DataType& dtype)
 
+  # Shroud 0.14 does not support default arguments on templated functions. 
+  # Use explicit overloads for the optional allocID parameter instead
   - decl: |
       template<typename ScalarType>
       View *createViewScalar( const std::string& path, ScalarType value)
@@ -388,8 +391,25 @@ declarations:
     C_error_pattern: C_null_to_error_capsule
     PY_error_pattern: PY_null_to_none
 
+  - decl: |
+      template<typename ScalarType>
+      View *createViewScalar( const std::string& path, ScalarType value, int allocID)
+    cxx_template:
+    - instantiation: <int>
+    - instantiation: <long>
+    - instantiation: <float>
+    - instantiation: <double>
+    format:
+      function_suffix: _path_value_allocID
+    C_error_pattern: C_null_to_error_capsule
+    PY_error_pattern: PY_null_to_none
+
   - decl: View *createViewString( const std::string& path,
-                                  const std::string& value)
+                                  const std::string& value,
+                                  int allocID = INVALID_ALLOCATOR_ID)
+    default_arg_suffix:
+    - _path_value
+    - _path_value_allocID
     C_error_pattern: C_null_to_error_capsule
     PY_error_pattern: PY_null_to_none
 
@@ -761,6 +781,10 @@ declarations:
     - "return name != NULL;"
     f:
     - 'SHT_rv = name .ne. " "'
+
+- decl: int getInvalidAllocatorID()
+
+- decl: int getMallocAllocatorID()
 
 
 ######################################################################

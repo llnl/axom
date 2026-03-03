@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -1585,6 +1586,14 @@ private:
   State getStateId(const std::string& name) const;
 
   /*!
+   * \brief Returns the string stored in sidre I/O metadata for this View's state.
+   *
+   * This preserves backward compatibility with older readers
+   * that only recognize "SCALAR" (but not "TUPLE")
+   */
+  const char* getIoStateStringName() const;
+
+  /*!
    * If allocID == INVALID_ALLOCATOR_ID, return the default allocator id,
    * which depends on the View's data semantic and owning Group.
    *
@@ -1660,7 +1669,7 @@ private:
     else
     {
       axom::Array<axom::IndexType> shape(getNumDimensions());
-      getShape(shape.size(), shape.data());
+      getShape(static_cast<int>(shape.size()), shape.data());
       os << ' ' << getVoidPtr() << " # non-host " << typeid(T).name() << " array of (" << shape[0];
       for(axom::IndexType i = 1; i < shape.size(); ++i)
       {

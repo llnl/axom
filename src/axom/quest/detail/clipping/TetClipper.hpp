@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -33,6 +34,9 @@ public:
    * \c kGeom.asHierarchy() must contain the following data:
    * - v0, v1, v2, v3: each contains a 3D coordinates of the
    *   tetrahedron vertices, in the order used by primal::Tetrahedron.
+   *   The tet may be degenerate, but not inverted (negative volume).
+   * - "fixOrientation": Whether to fix inverted tetrahedra
+   *   instead of aborting.
    */
   TetClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
@@ -40,13 +44,20 @@ public:
 
   const std::string& name() const override { return m_name; }
 
+  bool labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                       axom::Array<LabelType>& cellLabels) override;
+
+  bool labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
+                      axom::ArrayView<const axom::IndexType> cellIds,
+                      axom::Array<LabelType>& tetLabels) override;
+
   /*!
    * @copydoc MeshClipperStrategy::getGeometryAsTets()
    *
    * \c tets will have length one, because the geometry for this
    * class is a single tetrahedron.
    */
-  bool getGeometryAsTets(quest::experimental::ShapeMesh& shappeMesh,
+  bool getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh,
                          axom::Array<TetrahedronType>& tets) override;
 
 #if !defined(__CUDACC__)
@@ -54,15 +65,26 @@ private:
 #endif
   std::string m_name;
 
-  //!@brief Tetrahedron before transformation.
+  //!@brief Tetrahedron before external transformation.
   TetrahedronType m_tetBeforeTrans;
 
-  //!@brief Tetrahedron after transformation.
+  //!@brief Tetrahedron after external transformation.
   TetrahedronType m_tet;
 
-  axom::primal::BoundingBox<double, 3> m_bb;
+  //!@brief External transformation.
+  axom::primal::experimental::CoordinateTransformer<double> m_extTransformer;
 
-  axom::primal::experimental::CoordinateTransformer<double> m_transformer;
+  //!@brief Transformation of m_tet to unit tet.
+  axom::primal::experimental::CoordinateTransformer<double> m_toUnitTet;
+
+  template <typename ExecSpace>
+  void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                           axom::ArrayView<LabelType> cellLabel);
+
+  template <typename ExecSpace>
+  void labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
+                          axom::ArrayView<const axom::IndexType> cellsOnBdry,
+                          axom::ArrayView<LabelType> tetLabels);
 
   // Extract clipper info from MeshClipperStrategy::m_info.
   void extractClipperInfo();

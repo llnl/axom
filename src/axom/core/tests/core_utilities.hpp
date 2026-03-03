@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -206,4 +207,25 @@ TEST(core_utilities, sort_multiple_values)
       EXPECT_TRUE(is_decreasing(vec2));
     }
   }
+}
+
+TEST(core_utilities, sign_of)
+{
+  using axom::utilities::sign_of;
+  EXPECT_EQ(sign_of(1234), 1);
+  EXPECT_EQ(sign_of(-1234), -1);
+  EXPECT_EQ(sign_of(0), 0);
+
+  EXPECT_EQ(sign_of(0.1234), 1);
+  EXPECT_EQ(sign_of(-0.1234), -1);
+  EXPECT_EQ(sign_of(0.0), 0);
+
+  EXPECT_EQ(sign_of(1e-9), 1);
+  EXPECT_EQ(sign_of(-1e-9), -1);
+
+  EXPECT_EQ(sign_of(1e-9, 1e-12), 1);
+  EXPECT_EQ(sign_of(-1e-9, 1e-12), -1);
+
+  EXPECT_EQ(sign_of(1e-9, 1e-8), 0);
+  EXPECT_EQ(sign_of(-1e-9, 1e-8), 0);
 }

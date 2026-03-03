@@ -7,7 +7,6 @@ import shutil
 import socket
 from os.path import join as pjoin
 
-from spack.util.executable import which_string
 from spack_repo.builtin.build_systems.cached_cmake import (
     CachedCMakePackage,
     cmake_cache_option,
@@ -320,6 +319,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     conflicts("~umpire", when="+cuda")
     conflicts("~umpire", when="+rocm")
 
+    # The 'profiling' variant is deprecated after v0.12, but spack doesn't 
+    # give a reasonable error/warning message if it is set
+    conflicts("+profiling", when="@develop")
+
     conflicts("^blt@:0.3.6", when="+rocm")
 
     def flag_handler(self, name, flags):
@@ -549,19 +552,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             entries.append(cmake_cache_option("ENABLE_MPI", True))
             if spec["mpi"].name == "spectrum-mpi":
                 entries.append(cmake_cache_string("BLT_MPI_COMMAND_APPEND", "mpibind"))
-
-            # Replace /usr/bin/srun path with srun flux wrapper path on TOSS 4
-            # TODO: Remove this logic by adding `using_flux` case in
-            #  spack/lib/spack/spack/build_systems/cached_cmake.py:196 and remove hard-coded
-            #  path to srun in same file.
-            if "toss_4" in self._get_sys_type(spec):
-                srun_wrapper = which_string("srun")
-                mpi_exec_index = [
-                    index for index, entry in enumerate(entries) if "MPIEXEC_EXECUTABLE" in entry
-                ]
-                if mpi_exec_index:
-                    del entries[mpi_exec_index[0]]
-                entries.append(cmake_cache_path("MPIEXEC_EXECUTABLE", srun_wrapper))
         else:
             entries.append(cmake_cache_option("ENABLE_MPI", False))
 

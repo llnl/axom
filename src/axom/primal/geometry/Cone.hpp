@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -143,7 +144,8 @@ public:
   }
 
   /*!
-   * \brief Returns the algebraic volume of the cone
+   * \brief Returns the signed volume of the cone,
+   * which is negative if the length is negative.
    *
    * Volume is only defined when NDIMS == 3.
    */

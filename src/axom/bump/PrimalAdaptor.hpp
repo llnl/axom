@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -131,7 +132,7 @@ struct AdaptPolyhedron
     // Sort the ids.
     const axom::IndexType nnodes = uniqueNodeIds.size();
     StaticArray<int, Polyhedron::MAX_VERTS> ids;
-    SLIC_ASSERT(nnodes < Polyhedron::MAX_VERTS);
+    SLIC_ASSERT(nnodes <= Polyhedron::MAX_VERTS);
     for(axom::IndexType i = 0; i < nnodes; i++)
     {
       ids.push_back(uniqueNodeIds[i]);
@@ -326,6 +327,17 @@ struct PrimalAdaptor
   using BoundingBox = axom::primal::BoundingBox<value_type, CoordsetView::dimension()>;
 
   /*!
+   * \brief Constructor
+   *
+   * \param topologyView The topology view to use for initialization.
+   * \param coordsetView The coordset view to use for initialization.
+   */
+  AXOM_HOST_DEVICE PrimalAdaptor(const TopologyView &topologyView, const CoordsetView &coordsetView)
+    : m_topologyView(topologyView)
+    , m_coordsetView(coordsetView)
+  { }
+
+  /*!
    * \brief Return the number of zones in the associated topology view.
    * \return The number of zones in the associated topology view.
    */
@@ -435,11 +447,11 @@ struct PrimalAdaptor
       (std::is_same<ShapeType, axom::bump::views::PyramidShape<typename ShapeType::ConnectivityType>>::value ||
        std::is_same<ShapeType, axom::bump::views::WedgeShape<typename ShapeType::ConnectivityType>>::value ||
        std::is_same<ShapeType, axom::bump::views::VariableShape<typename ShapeType::ConnectivityType>>::value),
-    VariableShape<value_type, 3>>::type
+    axom::bump::VariableShape<value_type, 3>>::type
   getShape(axom::IndexType zi) const
   {
     const auto zone = m_topologyView.zone(zi);
-    VariableShape<value_type, 3> shape;
+    axom::bump::VariableShape<value_type, 3> shape;
     shape.m_shapeId = zone.id();
     for(int i = 0; i < zone.numberOfNodes(); i++)
     {

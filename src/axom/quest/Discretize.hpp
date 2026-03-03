@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -50,7 +51,8 @@ bool discretize(const SphereType& s, int levels, axom::Array<OctType>& out, int&
 /*!
  * \brief Given a 2D polyline revolved around the positive X-axis, allocate
  *   and return a list of Octahedra approximating the shape.
- * \param [in] polyline The polyline to revolve around the X-axis
+ * \param [in] polyline The polyline to revolve around the X-axis.
+ *   Data should be in a host-accessible memory space.
  * \param [in] len The number of points in \a polyline
  * \param [in] levels The number of refinements to perform, in addition to
  *   a central level-zero octahedron in each segment

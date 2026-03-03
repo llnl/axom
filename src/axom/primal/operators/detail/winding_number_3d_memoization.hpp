@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -63,7 +64,7 @@ struct TrimmingCurveQuadratureData
    * \param [in] a_refinementLevel How many subdivisions for the curve
    * \param [in] a_refinementSection Which subdivision for a given level
    */
-  TrimmingCurveQuadratureData(const NURBSPatch<T, 3> a_patch,
+  TrimmingCurveQuadratureData(const NURBSPatch<T, 3>& a_patch,
                               int a_curve_index,
                               int quad_npts,
                               int a_refinementLevel,
@@ -86,7 +87,7 @@ struct TrimmingCurveQuadratureData
     m_quadrature_tangents.resize(m_quad_npts);
     for(int q = 0; q < m_quad_npts; ++q)
     {
-      T quad_x = gl_rule.node(q) * m_span_length + curve_min_knot + span_offset;
+      const T quad_x = gl_rule.node(q) * m_span_length + curve_min_knot + span_offset;
 
       Point<T, 2> c_eval;
       Vector<T, 2> c_Dt;
@@ -101,8 +102,8 @@ struct TrimmingCurveQuadratureData
     }
   }
 
-  Point<T, 3> getQuadraturePoint(size_t idx) const { return m_quadrature_points[idx]; }
-  Vector<T, 3> getQuadratureTangent(size_t idx) const { return m_quadrature_tangents[idx]; }
+  const Point<T, 3>& getQuadraturePoint(size_t idx) const { return m_quadrature_points[idx]; }
+  const Vector<T, 3>& getQuadratureTangent(size_t idx) const { return m_quadrature_tangents[idx]; }
   double getQuadratureWeight(size_t idx) const
   {
     // Because the quadrature weights are identical for each trimming curve (up to a scaling factor),
@@ -110,7 +111,7 @@ struct TrimmingCurveQuadratureData
     const numerics::QuadratureRule& gl_rule = numerics::get_gauss_legendre(m_quad_npts);
     return gl_rule.weight(idx) * m_span_length;
   }
-  double getNumPoints() const { return m_quad_npts; }
+  int getNumPoints() const { return m_quad_npts; }
 
 private:
   axom::Array<Point<T, 3>> m_quadrature_points;
@@ -159,7 +160,7 @@ public:
     // Make a bounding box by doing (trimmed) bezier extraction,
     //  splitting the resulting bezier patches in 4,
     //  and taking a union of those bounding boxes
-    auto split_patches = m_alteredPatch.extractTrimmedBezier();
+    const auto split_patches = m_alteredPatch.extractTrimmedBezier();
 
     // Bounding boxes should be defined according to the *pre-expanded* surface,
     //  since the expanded portions are never visible
@@ -172,20 +173,14 @@ public:
         continue;  // Skip patches with no trimming curves
       }
 
-      BezierPatch<T, 3> the_patch;
-      if(m_alteredPatch.isRational())
-      {
-        the_patch = BezierPatch<T, 3>(split_patches[n].getControlPoints(),
-                                      split_patches[n].getWeights(),
-                                      split_patches[n].getDegree_u(),
-                                      split_patches[n].getDegree_v());
-      }
-      else
-      {
-        the_patch = BezierPatch<T, 3>(split_patches[n].getControlPoints(),
-                                      split_patches[n].getDegree_u(),
-                                      split_patches[n].getDegree_v());
-      }
+      const auto the_patch = m_alteredPatch.isRational()
+        ? BezierPatch<T, 3>(split_patches[n].getControlPoints(),
+                            split_patches[n].getWeights(),
+                            split_patches[n].getDegree_u(),
+                            split_patches[n].getDegree_v())
+        : BezierPatch<T, 3>(split_patches[n].getControlPoints(),
+                            split_patches[n].getDegree_u(),
+                            split_patches[n].getDegree_v());
 
       BezierPatch<T, 3> p1, p2, p3, p4;
       the_patch.split(0.5, 0.5, p1, p2, p3, p4);
@@ -202,7 +197,7 @@ public:
   }
 
   /// \brief Initialize the cache with the data for a single Bezier patch
-  NURBSPatchGWNCache(const BezierPatch<T, 3> a_patch)
+  NURBSPatchGWNCache(const BezierPatch<T, 3>& a_patch)
     : NURBSPatchGWNCache(NURBSPatch<T, 3>(a_patch))
   { }
 
@@ -210,26 +205,26 @@ public:
   //! \name Functions that mirror functionality of NURBSPatch so signatures match in GWN evaluation.
   //!
   //! By limiting access to these functions, we ensure memoized information is always accurate
-  auto getControlPoints() const { return m_alteredPatch.getControlPoints(); }
-  auto getNumControlPoints_u() const { return m_alteredPatch.getNumControlPoints_u(); }
-  auto getNumControlPoints_v() const { return m_alteredPatch.getNumControlPoints_v(); }
-  auto getWeights() const { return m_alteredPatch.getWeights(); }
-  auto getKnots_u() const { return m_alteredPatch.getKnots_u(); }
-  auto getKnots_v() const { return m_alteredPatch.getKnots_v(); }
-  auto getMinKnot_u() const { return m_alteredPatch.getMinKnot_u(); }
-  auto getMaxKnot_u() const { return m_alteredPatch.getMaxKnot_u(); }
-  auto getMinKnot_v() const { return m_alteredPatch.getMinKnot_v(); }
-  auto getMaxKnot_v() const { return m_alteredPatch.getMaxKnot_v(); }
-  auto getTrimmingCurves() const { return m_alteredPatch.getTrimmingCurves(); };
-  auto getNumTrimmingCurves() const { return m_alteredPatch.getNumTrimmingCurves(); }
-  auto getParameterSpaceDiagonal() const { return m_pboxDiag; }
+  decltype(auto) getControlPoints() const { return m_alteredPatch.getControlPoints(); }
+  int getNumControlPoints_u() const { return m_alteredPatch.getNumControlPoints_u(); }
+  int getNumControlPoints_v() const { return m_alteredPatch.getNumControlPoints_v(); }
+  decltype(auto) getWeights() const { return m_alteredPatch.getWeights(); }
+  decltype(auto) getKnots_u() const { return m_alteredPatch.getKnots_u(); }
+  decltype(auto) getKnots_v() const { return m_alteredPatch.getKnots_v(); }
+  double getMinKnot_u() const { return m_alteredPatch.getMinKnot_u(); }
+  double getMaxKnot_u() const { return m_alteredPatch.getMaxKnot_u(); }
+  double getMinKnot_v() const { return m_alteredPatch.getMinKnot_v(); }
+  double getMaxKnot_v() const { return m_alteredPatch.getMaxKnot_v(); }
+  decltype(auto) getTrimmingCurves() const { return m_alteredPatch.getTrimmingCurves(); };
+  int getNumTrimmingCurves() const { return m_alteredPatch.getNumTrimmingCurves(); }
+  decltype(auto) getParameterSpaceDiagonal() const { return m_pboxDiag; }
   //@}
 
   ///@{
   //! \name Accessors for precomputed data
-  Vector<T, 3> getAverageNormal() const { return m_averageNormal; }
-  BoundingBox<T, 3> boundingBox() const { return m_bBox; }
-  OrientedBoundingBox<T, 3> orientedBoundingBox() const { return m_oBox; }
+  const Vector<T, 3>& getAverageNormal() const { return m_averageNormal; }
+  const BoundingBox<T, 3>& boundingBox() const { return m_bBox; }
+  const OrientedBoundingBox<T, 3>& orientedBoundingBox() const { return m_oBox; }
   //@}
 
   /// \brief Creates or accesses the quadrature nodes for a given trimming curve
@@ -239,7 +234,7 @@ public:
                                                                  int refinementIndex) const
   {
     // Check to see if we have already computed the quadrature data for this curve
-    auto hash_key = std::make_pair(refinementLevel, refinementIndex);
+    const auto hash_key = std::make_pair(refinementLevel, refinementIndex);
 
     if(m_curveQuadratureMaps[curveIndex].find(hash_key) == m_curveQuadratureMaps[curveIndex].end())
     {

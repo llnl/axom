@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -61,6 +62,7 @@ template <typename T, int NDIMS>
 class NURBSCurve
 {
 public:
+  using NumericType = T;
   using PointType = Point<T, NDIMS>;
   using VectorType = Vector<T, NDIMS>;
   using SegmentType = Segment<T, NDIMS>;
@@ -404,7 +406,7 @@ public:
     for(int idx = 0; idx < n_segments; ++idx)
     {
       T theta_start = theta_0 + pi23 * idx;
-      T theta_end = std::min(theta_start + pi23, theta_1);
+      T theta_end = axom::utilities::min(theta_start + pi23, theta_1);
 
       arc_curve[1 + 2 * idx + 1] = PointType({std::cos(theta_end), std::sin(theta_end)});
 
@@ -808,7 +810,7 @@ public:
     const auto span = m_knotvec.findSpan(t, s);
 
     // Fix the maximum multiplicity of the knot
-    int r = std::min(target_multiplicity - s, p - s);
+    int r = axom::utilities::min(target_multiplicity - s, p - s);
     if(r <= 0)
     {
       return span;  // Early exit if no knots to add
@@ -1077,7 +1079,7 @@ public:
 
     const bool isCurveRational = this->isRational();
 
-    int du = std::min(d, p);
+    int du = axom::utilities::min(d, p);
     const auto span = m_knotvec.findSpan(t);
     const auto N_evals = m_knotvec.derivativeBasisFunctionsBySpan(span, t, du);
 

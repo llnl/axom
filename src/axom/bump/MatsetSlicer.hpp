@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -88,8 +89,10 @@ public:
 
     // Allocate data for the rest of the matset.
     const auto totalSize = size_reduce.get();
-    SLIC_ASSERT(totalSize > 0);
-
+    if(sizesView.size() > 0)
+    {
+      SLIC_ERROR_IF(totalSize == 0, "ReduceSum returned 0 for totalSize.");
+    }
     conduit::Node &n_indices = n_newMatset["indices"];
     n_indices.set_allocator(c2a.getConduitAllocatorID());
     n_indices.set(conduit::DataType(utils::cpp2conduit<MatsetIndex>::id, totalSize));

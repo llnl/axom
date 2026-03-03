@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -266,6 +267,10 @@ protected:
         connsize_reduce += zone.numberOfNodes();
       });
     const auto newConnSize = connsize_reduce.get();
+    if(!selectedZonesView.empty())
+    {
+      SLIC_ERROR_IF(newConnSize == 0, "ReduceSum returned 0 for newConnSize.");
+    }
 
     Sizes sizes {};
     sizes.nodes = nnodes;
@@ -305,6 +310,11 @@ protected:
     AXOM_ANNOTATE_SCOPE("compactNodeMap");
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
 
+    if(selectedZonesView.empty())
+    {
+      SLIC_INFO("No selected zones were given.");
+    }
+
     // We need to figure out which nodes to keep.
     const auto nnodes = m_coordsetView.numberOfNodes();
     axom::Array<int> mask(nnodes, nnodes, allocatorID);
@@ -328,6 +338,10 @@ protected:
         connsize_reduce += nids;
       });
     const auto newConnSize = connsize_reduce.get();
+    if(!selectedZonesView.empty())
+    {
+      SLIC_ERROR_IF(newConnSize == 0, "ReduceSum returned 0 for newConnSize.");
+    }
 
     // Count the used nodes.
     axom::ReduceSum<ExecSpace, int> mask_reduce(0);
@@ -335,6 +349,10 @@ protected:
       nnodes,
       AXOM_LAMBDA(axom::IndexType index) { mask_reduce += maskView[index]; });
     const int newNumNodes = mask_reduce.get();
+    if(nnodes > 0)
+    {
+      SLIC_ERROR_IF(newNumNodes == 0, "ReduceSum returned 0 for newNumNodes.");
+    }
 
     // Make a compact list of nodes.
     axom::Array<int> maskOffsets(nnodes, nnodes, allocatorID);

@@ -1,8 +1,9 @@
 #!/bin/sh
 "exec" "python3" "-u" "-B" "$0" "$@"
 
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -46,13 +47,31 @@ def get_root_transform(doc: Document):
 
     tf = np.identity(3)
 
+    # Prefer viewBox since it defines the internal user-coordinate system used by path data.
+    if viewBox:
+        try:
+            # SVG spec allows whitespace and/or comma separators.
+            parts = [p for p in re.split(r"[,\s]+", viewBox.strip()) if p]
+            if len(parts) == 4:
+                _, min_y, _, vb_height = map(float, parts)
+                tf[1, 1] = -1
+                tf[1, 2] = 2.0 * min_y + vb_height
+                return tf
+        except Exception:
+            pass
+
+    # Fallback to root height attribute when viewBox is unavailable/invalid.
     if height and not height.endswith("%"):
-        match = re.search(r"(\d+)", height.strip())
+        match = re.search(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", height.strip())
         if match:
-            height_number = match.group(0)
+            height_number = float(match.group(0))
 
             tf[1, 1] = -1
             tf[1, 2] = height_number
+
+    # Last-resort fallback: flip about y=0 when we cannot infer a reference height.
+    if tf[1, 1] == 1:
+        tf[1, 1] = -1
 
     return tf
 

@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/develop' }}
 
 env:
-  CLANG_DOCKER_IMAGE: axom/tpls:clang-19_10-07-25_22h-56m
-  GCC_DOCKER_IMAGE: axom/tpls:gcc-13_10-07-25_22h-57m
+  CLANG_DOCKER_IMAGE: axom/tpls:clang-19_01-29-26_21h-32m
+  GCC_DOCKER_IMAGE: axom/tpls:gcc-13_01-29-26_21h-28m
  
 jobs:
   # Hacky solution to reference env variables outside of `run` steps https://stackoverflow.com/a/74217028
@@ -37,7 +37,7 @@ jobs:
         - job_name: gcc@13.3.1, shared, benchmarks, c++20
           host_config: gcc@13.3.1.cmake
           compiler_image: ${{ needs.set_image_vars.outputs.gcc_docker_image }}
-          cmake_opts: '-DBUILD_SHARED_LIBS=ON -DBLT_CXX_STD=c++20 -DAXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION:BOOL=ON -DENABLE_BENCHMARKS:BOOL=ON'
+          cmake_opts: '-DBUILD_SHARED_LIBS=ON -DBLT_CXX_STD=c++20 -DENABLE_BENCHMARKS:BOOL=ON'
           do_build: 'yes'
           do_benchmarks: 'yes'
         - job_name: gcc@13.3.1, shared, 32bit
@@ -192,5 +192,4 @@ jobs:
         submodules: recursive
     - name: Check ${{ matrix.check_type }}
       run: ./scripts/github-actions/linux-check.sh 
-
 

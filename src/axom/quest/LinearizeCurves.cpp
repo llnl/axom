@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -150,7 +151,7 @@ double computeArcLength(const LinearizeCurves::NURBSCurve& nurbs, int npts)
   for(const auto& bezier : nurbs.extractBezier())
   {
     arcLength +=
-      primal::evaluate_scalar_line_integral(bezier, [](PointType /*x*/) -> double { return 1.; }, npts);
+      primal::evaluate_line_integral(bezier, [](PointType /*x*/) -> double { return 1.; }, npts);
   }
   return arcLength;
 }
@@ -251,7 +252,7 @@ void LinearizeCurves::getLinearMeshUniform(LinearizeCurves::CurveArrayView curve
           }
 
           // Fix end point if necessary; check against 0th vertex in mesh
-          const int endIdx = pts.size() - 1;
+          const auto endIdx = pts.size() - 1;
           mesh->getNode(0, meshPt.data());
           if(primal::squared_distance(pts[endIdx], meshPt) < EPS_SQ)
           {
@@ -260,7 +261,7 @@ void LinearizeCurves::getLinearMeshUniform(LinearizeCurves::CurveArrayView curve
         }
         else  // This is the first, and possibly only span, check its endpoint, fix if necessary
         {
-          int endIdx = pts.size() - 1;
+          const auto endIdx = pts.size() - 1;
           if(primal::squared_distance(pts[0], pts[endIdx]) < EPS_SQ)
           {
             pts[endIdx] = pts[0];
@@ -270,8 +271,8 @@ void LinearizeCurves::getLinearMeshUniform(LinearizeCurves::CurveArrayView curve
 
       // Add the new points and segments to the mesh, respecting welding checks from previous block
       {
-        const int startNode = mesh->getNumberOfNodes();
-        const int numNewNodes = pts.size();
+        const auto startNode = mesh->getNumberOfNodes();
+        const auto numNewNodes = pts.size();
         mesh->reserveNodes(startNode + numNewNodes);
 
         for(int i = 0; i < numNewNodes; ++i)
@@ -279,8 +280,8 @@ void LinearizeCurves::getLinearMeshUniform(LinearizeCurves::CurveArrayView curve
           mesh->appendNode(pts[i][0], pts[i][1]);
         }
 
-        const int startCell = mesh->getNumberOfCells();
-        const int numNewSegments = pts.size() - 1;
+        const auto startCell = mesh->getNumberOfCells();
+        const auto numNewSegments = pts.size() - 1;
         mesh->reserveCells(startCell + numNewSegments);
         for(int i = 0; i < numNewSegments; ++i)
         {

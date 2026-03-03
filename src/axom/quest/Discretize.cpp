@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -125,7 +126,7 @@ bool discretize(const SphereType& sphere, int levels, axom::Array<OctType>& out,
 
   octcount = count_sphere_octahedra(levels);
 
-  out = axom::Array<OctType>(octcount, octcount);
+  out.resize(octcount);
 
   // index points to an octahedron of the last generation.  We'll generate
   // new octahedra based on out[index].

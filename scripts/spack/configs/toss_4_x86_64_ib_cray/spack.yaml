@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-# Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -43,6 +44,7 @@ spack:
     - spec: '%cray-mpich@8.1.29.rocm_6_3_1'
       when: '%mpi'
     cce_20:
+    # Flag for lowercase Fortran module names
     - spec: fflags=-ef
     - spec: '%c=cce@20.0.0'
       when: '%c'
@@ -87,7 +89,6 @@ spack:
             fortran: /opt/rocm-6.4.2/llvm/bin/amdflang
           environment: {}
           extra_rpaths: [/opt/rocm-6.4.2/lib, /opt/rocm-6.4.2/lib/llvm/lib]
-
     cce:
       externals:
       - spec: cce@20.0.0
@@ -387,11 +388,11 @@ spack:
     # Devtools are built on rzvernal for compatibility with both
     # rzvernal and rzadams.
     cmake:
-      version: [3.24.2]
+      version: [3.29.2]
       buildable: false
       externals:
-      - spec: cmake@3.24.2
-        prefix: /usr/tce
+      - spec: cmake@3.29.2
+        prefix: /usr/tce/packages/cmake/cmake-3.29.2
     py-shroud:
       version: [0.14.0]
       buildable: false

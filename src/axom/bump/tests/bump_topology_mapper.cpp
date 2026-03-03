@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -361,6 +362,7 @@ private:
     axom::Array<axom::IndexType> shapeValues, shapeIds;
     const conduit::Node &n_srcTopo = n_dev["topologies/postmir"];
     auto shapeMap = views::buildShapeMap(n_srcTopo, shapeValues, shapeIds, allocatorID);
+    axom::synchronize<ExecSpace>();
     SrcTopologyView srcTopo(
       utils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]),
       utils::make_array_view<conduit::index_t>(n_srcTopo["elements/shapes"]),
@@ -420,6 +422,7 @@ private:
     const conduit::Node &n_srcTopo = n_dev["topologies/postmir"];
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     auto shapeMap = views::buildShapeMap(n_srcTopo, shapeValues, shapeIds, allocatorID);
+    axom::synchronize<ExecSpace>();
     SrcTopologyView srcTopo(
       utils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]),
       utils::make_array_view<conduit::index_t>(n_srcTopo["elements/shapes"]),
@@ -469,6 +472,7 @@ private:
 
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     auto shapeMap = views::buildShapeMap(n_srcTopo, shapeValues, shapeIds, allocatorID);
+    axom::synchronize<ExecSpace>();
     const auto srcConnView =
       utils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]);
     const auto srcShapesView =
@@ -517,6 +521,7 @@ private:
     const conduit::Node &n_srcTopo = n_dev["topologies/epm"];
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     auto shapeMap = views::buildShapeMap(n_srcTopo, shapeValues, shapeIds, allocatorID);
+    axom::synchronize<ExecSpace>();
     SrcTopologyView srcTopo(
       utils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]),
       utils::make_array_view<conduit::index_t>(n_srcTopo["elements/shapes"]),

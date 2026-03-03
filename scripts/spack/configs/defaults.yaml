@@ -24,7 +24,7 @@ packages:
       - spec: "~shared~examples~exercises"
   scr:
     require:
-      - spec: "~shared~tests~examples"
+      - spec: "~shared~tests~examples resource_manager=SLURM"
   umpire:
     require:
       - spec: "~examples~werror"

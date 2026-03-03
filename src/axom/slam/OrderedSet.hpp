@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -259,11 +260,13 @@ public:
 
       if(m_hasRange)
       {
-        const double str = m_stride.stride();
+        const auto str = m_stride.stride();
         const auto diff = (m_rangeUpper - m_rangeLower);
 
         // size is 0 if upper==lower, or stride is 0 or signs of diff and stride differ
-        return (diff == 0 || str == 0 || ((diff > 0) != (str > 0))) ? 0 : ceil(diff / str);
+        return (diff == 0 || str == 0 || ((diff > 0) != (str > 0)))
+          ? 0
+          : static_cast<PositionType>(ceil(diff / static_cast<double>(str)));
       }
       else
       {

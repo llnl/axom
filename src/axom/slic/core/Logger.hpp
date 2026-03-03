@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -128,6 +129,13 @@ public:
    *          Collective calls may cause the program to hang on abort.
    */
   void setAbortFunction(AbortFunctionPtr abort_func);
+
+  /*!
+   * \brief Gets the function called when program abort is requested.
+   *
+   * \return Pointer to the currently registered abort function.
+   */
+  AbortFunctionPtr getAbortFunction() const { return m_abortFunction; }
 
   /*!
    * \brief Returns the name of this logger instance.

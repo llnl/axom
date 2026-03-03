@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -152,6 +153,8 @@ axom::sidre::Group* make_unstructured_blueprint_box_mesh_2d(
  * \param runtimePolicy Runtime policy, see axom::runtime_policy.
  *        Memory in \c meshGrp must be compatible with the
  *        specified policy.
+ * \param ugTopoName Name of the unstructured topology to create.
+ *        Defaults to topoName.
  *
  * All input mesh data are expected to have the allocator id of
  * meshGrp->getDefaultAllocatorID().  On output, they will also have
@@ -160,18 +163,20 @@ axom::sidre::Group* make_unstructured_blueprint_box_mesh_2d(
  */
 void convert_blueprint_structured_explicit_to_unstructured_3d(axom::sidre::Group* meshGrp,
                                                               const std::string& topoName,
-                                                              axom::runtime_policy::Policy runtimePolicy);
+                                                              axom::runtime_policy::Policy runtimePolicy,
+                                                              const std::string& ugTopoName = "");
 
 template <typename ExecSpace>
-void convert_blueprint_structured_explicit_to_unstructured_impl_3d(axom::sidre::Group* meshGrp,
-                                                                   const std::string& topoName);
+void convert_blueprint_structured_explicit_to_unstructured_3d_impl(axom::sidre::Group* meshGrp,
+                                                                   const std::string& topoName,
+                                                                   const std::string& ugTopoName);
 
 void convert_blueprint_structured_explicit_to_unstructured_2d(axom::sidre::Group* meshGrp,
                                                               const std::string& topoName,
                                                               axom::runtime_policy::Policy runtimePolicy);
 
 template <typename ExecSpace>
-void convert_blueprint_structured_explicit_to_unstructured_impl_2d(axom::sidre::Group* meshGrp,
+void convert_blueprint_structured_explicit_to_unstructured_2d_impl(axom::sidre::Group* meshGrp,
                                                                    const std::string& topoName);
 
   #if defined(AXOM_USE_CONDUIT)

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -100,6 +101,7 @@ template <typename T>
 class NURBSCurveGWNCache
 {
 public:
+  using NumericType = T;
   using PointType = typename NURBSCurve<T, 2>::PointType;
   using VectorType = typename NURBSCurve<T, 2>::VectorType;
   using BoundingBoxType = typename NURBSCurve<T, 2>::BoundingBoxType;
@@ -161,28 +163,36 @@ public:
                                                int refinementIndex,
                                                double bbExpansionAmount = 0.0) const
   {
-    auto hash_key = std::make_pair(refinementLevel, refinementIndex);
+    using Key = std::pair<int, int>;
+    auto& level_map = m_bezierSubdivisionMaps[idx];
+    const Key hash_key {refinementLevel, refinementIndex};
 
-    if(m_bezierSubdivisionMaps[idx].find(hash_key) == m_bezierSubdivisionMaps[idx].end())
+    // If already there, return it
+    if(auto it = level_map.find(hash_key); it != level_map.end())
     {
-      const BezierCurveData<T>& supercurve_data =
-        m_bezierSubdivisionMaps[idx][std::make_pair(refinementLevel - 1, refinementIndex / 2)];
-
-      BezierCurve<T, 2> sub1, sub2;
-      supercurve_data.getCurve().split(0.5, sub1, sub2);
-
-      // Make keys for the requested curve and its "sibling" in the heirarchy
-      const auto key1 = std::make_pair(refinementLevel, refinementIndex - refinementIndex % 2);
-      const auto key2 = std::make_pair(refinementLevel, refinementIndex - refinementIndex % 2 + 1);
-
-      // Populate the map
-      m_bezierSubdivisionMaps[idx][key1] =
-        BezierCurveData<T>(sub1, supercurve_data.isConvexControlPolygon(), bbExpansionAmount);
-      m_bezierSubdivisionMaps[idx][key2] =
-        BezierCurveData<T>(sub2, supercurve_data.isConvexControlPolygon(), bbExpansionAmount);
+      return it->second;
     }
 
-    return m_bezierSubdivisionMaps[idx][hash_key];
+    // Otherwise, create (refinementLevel, refinementIndex) and sibling via their parent
+    const Key parent_key {refinementLevel - 1, refinementIndex / 2};
+    auto parent_it = level_map.find(parent_key);
+    SLIC_ASSERT(parent_it != level_map.end());
+
+    const BezierCurveData<T>& supercurve_data = parent_it->second;
+    BezierCurve<T, 2> sub1, sub2;
+    supercurve_data.getCurve().split(0.5, sub1, sub2);
+
+    // Make keys for the requested curve and its "sibling" in the heirarchy
+    const int base = refinementIndex - (refinementIndex % 2);
+    const Key key1 {refinementLevel, base};
+    const Key key2 {refinementLevel, base + 1};
+
+    // Emplace both and return value associated with hash_key
+    auto [it1, ins1] =
+      level_map.try_emplace(key1, sub1, supercurve_data.isConvexControlPolygon(), bbExpansionAmount);
+    auto [it2, ins2] =
+      level_map.try_emplace(key2, sub2, supercurve_data.isConvexControlPolygon(), bbExpansionAmount);
+    return (hash_key == key1) ? it1->second : it2->second;
   }
 
   ///@{

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -233,7 +234,7 @@ AXOM_HOST_DEVICE void poly_clip_vertices(Polyhedron<T, NDIMS>& poly,
           // A probable AMD GPU 6.3 compiler bug caused the first assert to fail.
           // The second assert is equivalent because we expect addVertex call to
           // consume the next index and increment the number of vertices.
-          // However, when the compilers no longar cause false failures, we should
+          // However, when the compilers no longer cause false failures, we should
           // restore the first assert.
           // SLIC_ASSERT(newVertexIndex == expectedVertexIndex);
           SLIC_ASSERT(newVertexIndex == poly.numVertices() - 1);
@@ -869,6 +870,36 @@ AXOM_HOST_DEVICE Polyhedron<T, NDIMS> clipTetrahedron(const Tetrahedron<T, NDIMS
 }
 
 /*!
+ * \brief Add a new vertex to a polygon if the polygon is empty or the point is
+ *        sufficiently different from the polygon start/end points.
+ *
+ * \param poly The polygon to which the point would be added.
+ * \param pt The point to add.
+ * \param typed_eps The tolerance value use to compare points.
+ */
+template <typename PolygonType, typename PointType, typename T>
+AXOM_HOST_DEVICE void clipPolygonAddVertex(PolygonType& polygon, const PointType& pt, T typed_eps)
+{
+  const auto nverts = polygon.numVertices();
+  bool addVert = nverts == 0;
+  if(nverts > 1)
+  {
+    // Make sure the new point differs from the start/end points in the polygon.
+    addVert =
+      !pt.isNearlyEqual(polygon[0], typed_eps) && !pt.isNearlyEqual(polygon[nverts - 1], typed_eps);
+  }
+  else if(nverts > 0)
+  {
+    // Make sure the new point differs from the start point in the polygon.
+    addVert = !pt.isNearlyEqual(polygon[0], typed_eps);
+  }
+  if(addVert)
+  {
+    polygon.addVertex(pt);
+  }
+}
+
+/*!
  * \brief Clips a 2D subject polygon against a clipping plane in 2D, returning
  *        their geometric intersection as a polygon.
  *
@@ -890,6 +921,7 @@ AXOM_HOST_DEVICE PolygonType clipPolygonPlaneSimple(const PolygonType& inputList
 
   PolygonType outputList;
 
+  const T typed_eps = static_cast<T>(eps);
   const int numVertices = inputList.numVertices();
   for(int iVert = 0; iVert < numVertices; iVert++)
   {
@@ -897,42 +929,51 @@ AXOM_HOST_DEVICE PolygonType clipPolygonPlaneSimple(const PolygonType& inputList
     const PointType& current_point = inputList[iVert];
     const PointType& prev_point = inputList[prevVert];
 
-    T seg_param;
-    PointType intersecting_point;
-    SegmentType subject_edge(prev_point, current_point);
-
-    const bool intersected = intersect(plane, subject_edge, seg_param, eps);
-    if(intersected)
-    {
-      intersecting_point = subject_edge.at(seg_param);
-    }
-
     const int cur_p_orientation = plane.getOrientation(current_point, eps);
     const int prev_p_orientation = plane.getOrientation(prev_point, eps);
 
-    if(cur_p_orientation == ON_POSITIVE_SIDE)
+    const bool cur_in = cur_p_orientation == ON_POSITIVE_SIDE || cur_p_orientation == ON_BOUNDARY;
+    const bool prev_in = prev_p_orientation == ON_POSITIVE_SIDE || prev_p_orientation == ON_BOUNDARY;
+
+    if(prev_in && cur_in)
     {
-      if(prev_p_orientation != ON_POSITIVE_SIDE)
-      {
-        outputList.addVertex(intersecting_point);
-      }
-      outputList.addVertex(current_point);
+      // Case 1: inside to inside
+      clipPolygonAddVertex(outputList, current_point, typed_eps);
     }
-    else if(prev_p_orientation == ON_POSITIVE_SIDE)
+    else if(prev_in && !cur_in)
     {
-      // In this branch, there has been a plane crossing from positive to negative.
+      // Case 2: inside to outside
+      T seg_param;
+      SegmentType subject_edge(prev_point, current_point);
+      const bool intersected = intersect(plane, subject_edge, seg_param, eps);
       if(intersected)
       {
-        outputList.addVertex(intersecting_point);
-      }
-      else
-      {
-        // If there was not an intersection point then it was close but not
-        // within eps tolerance. It would have been really close to current_point.
-        // Since there was a plane crossing, add current_point.
-        outputList.addVertex(current_point);
+        const auto intersecting_point = subject_edge.at(seg_param);
+        clipPolygonAddVertex(outputList, intersecting_point, typed_eps);
       }
     }
+    else if(!prev_in && cur_in)
+    {
+      // Case 3: outside to inside
+      T seg_param;
+      SegmentType subject_edge(prev_point, current_point);
+      const bool intersected = intersect(plane, subject_edge, seg_param, eps);
+      if(intersected)
+      {
+        const auto intersecting_point = subject_edge.at(seg_param);
+        clipPolygonAddVertex(outputList, intersecting_point, typed_eps);
+      }
+      clipPolygonAddVertex(outputList, current_point, typed_eps);
+    }
+    // Case 4: outside to outside
+    // emit nothing
+  }
+
+  // If the intersection produced a point or line segment, clear the output
+  // "polygon" since we are not currently interested in those intersections.
+  if(outputList.numVertices() < 3)
+  {
+    outputList.clear();
   }
 
   return outputList;
@@ -954,6 +995,8 @@ AXOM_SUPPRESS_HD_WARN
 template <typename PolygonType>
 AXOM_HOST_DEVICE PolygonType makeUniquePoints(const PolygonType& poly, double eps)
 {
+  using T = typename PolygonType::PointType::CoordType;
+  const T typed_eps = static_cast<T>(eps);
   PolygonType uniqueList;
   const int numVertices = poly.numVertices();
   for(int i = 0; i < numVertices; i++)
@@ -962,14 +1005,8 @@ AXOM_HOST_DEVICE PolygonType makeUniquePoints(const PolygonType& poly, double ep
     const auto& curPoint = poly[i];
     const auto& prevPoint = poly[prevIndex];
     // Check whether curPoint and prevPoint are far enough apart to be different.
-    // If so, add the point. NOTE: casts are needed to match eps when the polygon
-    // does not use double precision coordinates.
-    if(!axom::utilities::isNearlyEqual(static_cast<double>(curPoint[0]),
-                                       static_cast<double>(prevPoint[0]),
-                                       eps) ||
-       !axom::utilities::isNearlyEqual(static_cast<double>(curPoint[1]),
-                                       static_cast<double>(prevPoint[1]),
-                                       eps))
+    // If so, add the point.
+    if(!curPoint.isNearlyEqual(prevPoint, typed_eps))
     {
       uniqueList.addVertex(poly[i]);
     }
@@ -1023,6 +1060,12 @@ AXOM_HOST_DEVICE Polygon<T, 2, ARRAY_TYPE, MAX_VERTS> clipPolygonPolygon(
     PlaneType plane = make_plane(planePoints[iEdge], planePoints[(iEdge + 1) % numClipEdges]);
 
     outputList = clipPolygonPlaneSimple(outputList, plane, eps);
+
+    if(outputList.numVertices() == 0)
+    {
+      // No intersection because all points are gone.
+      return outputList;
+    }
   }  // end of iteration through edges of clip polygon
 
   // Remove duplicate points.
@@ -1054,7 +1097,7 @@ AXOM_HOST_DEVICE Polygon<T, 2, ARRAY_TYPE, MAX_VERTS> clipPolygonPlane(
   }
 
   // Clip the plane.
-  return makeUniquePoints(clipPolygonPlaneSimple(outputList, clipPlane, eps), eps);
+  return clipPolygonPlaneSimple(outputList, clipPlane, eps);
 }
 
 }  // namespace detail

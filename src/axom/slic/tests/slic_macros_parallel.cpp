@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -1215,7 +1216,7 @@ TEST_P(SlicMacrosParallel, test_abort_warning_macros)
 //------------------------------------------------------------------------------
 TEST_P(SlicMacrosParallel, test_assert_macros)
 {
-  int expected_line_number;
+  [[maybe_unused]] int expected_line_number;
 
   slic::internal::clear_streams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
@@ -1287,7 +1288,7 @@ TEST_P(SlicMacrosParallel, test_assert_macros)
 // ------------------------------------------------------------------------------
 TEST_P(SlicMacrosParallel, test_check_macros)
 {
-  int expected_line_number;
+  [[maybe_unused]] int expected_line_number;
 
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 

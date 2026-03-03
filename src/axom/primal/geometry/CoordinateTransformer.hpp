@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -8,6 +9,7 @@
 
 #include "axom/core/numerics/Matrix.hpp"
 #include "axom/core/utilities/Utilities.hpp"
+#include "axom/core/NumericLimits.hpp"
 #include "axom/core/numerics/floating_point_limits.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
@@ -67,6 +69,17 @@ public:
   CoordinateTransformer(const numerics::Matrix<T>& matrix) { setMatrix(matrix); }
 
   /*!
+   * @brief Construct transformer that moves 4 starting points to 4
+   * destination points.
+   * @see setByTerminusPts.
+   */
+  AXOM_HOST_DEVICE CoordinateTransformer(const primal::Point<T, 3>* startPts,
+                                         const primal::Point<T, 3>* destPts)
+  {
+    setByTerminusPts(startPts, destPts);
+  }
+
+  /*!
    * @brief Set the matrix, discarding the current transformation.
    * @param matrix [in] The transformation matrix for homogeneous
    * coordinates.
@@ -100,8 +113,10 @@ public:
    * @param [in] destPts Four destination points.
    *
    * The four starting points must define a non-degenerate volume.
-   * Else the transformation is ill-defined and the transformer
-   * is set to invalid.
+   * Else the transformation is ill-defined and the transformer is set
+   * to invalid.  If you think of each 4 points as the vertices of a
+   * tetrahedron, the transformation moves the starting tet to the
+   * destination tet.
    */
   AXOM_HOST_DEVICE void setByTerminusPts(const primal::Point<T, 3>* startPts,
                                          const primal::Point<T, 3>* destPts)
@@ -144,7 +159,7 @@ public:
    *
    * Validity can be checked with isValid().
    */
-  AXOM_HOST_DEVICE void setInvalid() { m_P[0][0] = std::numeric_limits<T>::quiet_NaN(); }
+  AXOM_HOST_DEVICE void setInvalid() { m_P[0][0] = axom::numeric_limits<T>::quiet_NaN(); }
 
   //! @brief Whether transformer is valid.
   AXOM_HOST_DEVICE bool isValid() { return !std::isnan(m_P[0][0]); }
@@ -206,7 +221,6 @@ public:
    */
   void applyRotation(const axom::primal::Vector<T, 3>& start, const axom::primal::Vector<T, 3>& end)
   {
-    // Note that the rotation matrix is not unique.
     Vector<T, 3> s = start.unitVector();
     Vector<T, 3> e = end.unitVector();
     Vector<T, 3> u;  // Rotation vector, the cross product of start and end.
@@ -214,10 +228,10 @@ public:
     const T sinT = u.norm();
     const T cosT = numerics::dot_product(s.data(), e.data(), 3);
 
-    // Degenerate: end is parallel to start.
-    // angle near 0 (identity transform) or pi.
     if(utilities::isNearlyEqual(sinT, 0.0))
     {
+      // Degenerate: end is parallel to start.
+      // angle near 0 (identity transform) or pi.
       if(cosT < 0)
       {
         setInvalid();  // Transformation is ill-defined
@@ -254,9 +268,11 @@ public:
    */
   void applyRotation(const axom::primal::Vector<T, 3>& u, T sinT, T cosT)
   {
-    const T EPS = 10 * axom::numerics::floating_point_limits<T>::epsilon();
-    SLIC_ASSERT(axom::utilities::isNearlyEqual(u.squared_norm(), 1.0, EPS));
-    T ccosT = 1 - cosT;
+    SLIC_ASSERT(
+      axom::utilities::isNearlyEqual(u.squared_norm(),
+                                     1.0,
+                                     10 * axom::numerics::floating_point_limits<T>::epsilon()));
+    const T ccosT = 1 - cosT;
 
     Matrx P;  // 3D rotation matrix.
     P[0][0] = u[0] * u[0] * ccosT + cosT;
@@ -363,7 +379,7 @@ private:
    * M = [ P v ]
    *     [ 0 1 ]
    *
-   * Store m_P[0][0] = std::numeric_limits<T>::quiet_NaN() to set this
+   * Store m_P[0][0] = axom::numeric_limits<T>::quiet_NaN() to set this
    * CoordinateTransformer as invalid.  See \a setInvalid()
    */
   Matrx m_P;
@@ -397,7 +413,7 @@ private:
     }
     else
     {
-      m[0][0] = std::numeric_limits<T>::quiet_NaN();
+      m[0][0] = axom::numeric_limits<T>::quiet_NaN();
     }
   }
 

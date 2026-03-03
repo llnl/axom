@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -322,6 +323,10 @@ private:
         count += uniqueIds.size();
       });
     const auto connSize = count.get();
+    if(topoView.numberOfZones() > 0)
+    {
+      SLIC_ERROR_IF(connSize == 0, "ReduceSum returned 0 for connSize.");
+    }
 
     // Do a scan on the size array to build an offset array.
     axom::Array<axom::IndexType> offsets(nzones, nzones, allocatorID);
