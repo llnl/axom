@@ -15,13 +15,8 @@ spack:
     build_stage::
     - $spack/../build_stage
 
-  # View to get python modules
-  view:
-    default:
-      root: ../view
-      select: [python, ^python]
-      projections:
-        all: '{name}-{version}'
+  # Regular TPLs do not need views
+  view: false
 
   include:
   - ../defaults.yaml
