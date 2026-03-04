@@ -79,12 +79,12 @@ struct MiniTriangleGWN3D
       AXOM_LAMBDA(axom::IndexType cellIdx,
                   const axom::numerics::Matrix<double>& coords,
                   [[maybe_unused]] const axom::IndexType* nodeIds) {
-      // clang-format off
+        // clang-format off
       trisView[cellIdx] =
           Triangle3D {Point3D {(coords(0, 0) - ctr[0]) / scl, (coords(1, 0) - ctr[1]) / scl, (coords(2, 0) - ctr[2]) / scl},
                       Point3D {(coords(0, 1) - ctr[0]) / scl, (coords(1, 1) - ctr[1]) / scl, (coords(2, 1) - ctr[2]) / scl},
                       Point3D {(coords(0, 2) - ctr[0]) / scl, (coords(1, 2) - ctr[1]) / scl, (coords(2, 2) - ctr[2]) / scl}};
-      // clang-format on
+        // clang-format on
       });
   }
 
@@ -115,7 +115,7 @@ struct MiniTriangleGWN3D
 };
 
 //------------------------------------------------------------------------------
-void runStepFileTest(const std::string& stepFile)
+void runStepFileTest(const std::string& stepFile, double deflection = 0.1)
 {
   const std::string fileName = pjoin(AXOM_DATA_DIR, "quest", "step", stepFile);
   SLIC_INFO(axom::fmt::format("Testing STEP file '{}'", fileName));
@@ -177,7 +177,7 @@ void runStepFileTest(const std::string& stepFile)
   }
 
   mint::UnstructuredMesh<mint::SINGLE_SHAPE> triMesh(3, mint::TRIANGLE);
-  stepReader.getTriangleMesh(&triMesh);
+  stepReader.getTriangleMesh(&triMesh, deflection);
 
   MiniTriangleGWN3D triEval;
   triEval.preprocess(triMesh);
@@ -194,11 +194,16 @@ void runStepFileTest(const std::string& stepFile)
 
 //------------------------------------------------------------------------------
 // If the STEP file is read properly, then the resulting GWN should be integer-valued
-TEST(quest_step_reader, orientation_check_cylinder) { runStepFileTest("sliced_cylinder.step"); }
-TEST(quest_step_reader, orientation_check_nut) { runStepFileTest("nut.step"); }
-TEST(quest_step_reader, orientation_check_boxed_sphere) { runStepFileTest("boxed_sphere.step"); }
-TEST(quest_step_reader, orientation_check_tet) { runStepFileTest("tet.step"); }
-TEST(quest_step_reader, orientation_check_bearings) { runStepFileTest("bearings.step"); }
+TEST(quest_step_reader, test_tet) { runStepFileTest("tet.step"); }
+TEST(quest_step_reader, test_cylinder) { runStepFileTest("sliced_cylinder.step"); }
+TEST(quest_step_reader, test_nut) { runStepFileTest("nut.step"); }
+TEST(quest_step_reader, test_bearings) { runStepFileTest("bearings.step", 0.05); }
+TEST(quest_step_reader, test_half_bsphere) { runStepFileTest("half_boxed_sphere.step"); }
+
+// These tests are more expensive and therefore should not be run in the main testing loop,
+//  but should still be checked if something changes in STEPReader.cpp
+//TEST(quest_step_reader, test_boxed_sphere) { runStepFileTest("boxed_sphere.step"); }
+//TEST(quest_step_reader, test_brace) { runStepFileTest("plate.step", 0.01); }
 
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
