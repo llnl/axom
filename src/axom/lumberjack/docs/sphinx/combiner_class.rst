@@ -12,14 +12,20 @@ to be used when Message classes are combined by the Lumberjack class.
 Functions
 ---------
 
-============================== ===================
-Name                           Description
-============================== ===================
-id                             Returns the unique differentiating identifier for the class instance.
-shouldMessagesBeCombined       Indicates if two messages should be combined.
-combine                        Combines the second message into the first.
-isMessageCandidateForCombiner  Indicates if a single message should be considered by this combiner. Optional to implement, default is always True.
-============================== ===================
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Name
+     - Description
+   * - id
+     - Returns the unique differentiating identifier for the class instance.
+   * - shouldMessagesBeCombined
+     - Indicates if two messages should be combined.
+   * - combine
+     - Combines the second message into the first.
+   * - isMessageCandidateForCombiner
+     - Indicates if a single message should be considered by this combiner. Optional to implement, default is always True.
 
 Concrete Instances
 ------------------
