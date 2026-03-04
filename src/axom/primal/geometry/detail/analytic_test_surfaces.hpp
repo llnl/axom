@@ -4,6 +4,16 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+/*!
+ * \file analytic_test_surfaces.hpp
+ *
+ * \brief Consists of methods that generate arrays of NURBSPatch objects which depict
+ *         objects whose containment decisions can be made analytically, primarily
+ *         for the purpose of testing GWN containment methods
+ *
+ * \sa primal_solid_angle.cpp
+ */
+
 #ifndef AXOM_PRIMAL_ANALYTIC_TEST_SURFACES_HPP
 #define AXOM_PRIMAL_ANALYTIC_TEST_SURFACES_HPP
 
