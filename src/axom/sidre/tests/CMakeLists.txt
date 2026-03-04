@@ -126,7 +126,8 @@ if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
                              "${TEST_OUTPUT_DIRECTORY}/${test}" COPYONLY)
 
         # Run unit test with pytest ("python3 -m pytest").
-        # Use convenience script that has pysidre and conduit added to PYTHONPATH.
+        # Use convenience script that has
+        # pytest, pysidre, and conduit added to PYTHONPATH.
         # "-p no:cacheprovider" disables caching.
         add_test (NAME    ${test_name}
           COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -m pytest -s -p no:cacheprovider ${TEST_OUTPUT_DIRECTORY}/${test}

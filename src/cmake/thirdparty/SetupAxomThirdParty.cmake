@@ -313,21 +313,39 @@ if(EXISTS ${Python_EXECUTABLE})
 
     # Check for nanobind package
     execute_process(
-        COMMAND "${Python_EXECUTABLE}" -c "import nanobind"
-        RESULT_VARIABLE NANOBIND_IMPORT_CODE
-        OUTPUT_QUIET
+      COMMAND "${CMAKE_COMMAND}" -E env
+              "PYTHONPATH=$ENV{PYTHONPATH}:${PY_NANOBIND_DIR}"
+              "${Python_EXECUTABLE}" -c "import nanobind"
+      RESULT_VARIABLE NANOBIND_IMPORT_CODE
+      OUTPUT_QUIET
     )
 
     # Get nanobind root directory
     if(NANOBIND_IMPORT_CODE EQUAL 0)
         execute_process(
-          COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
-          OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+          COMMAND "${CMAKE_COMMAND}" -E env
+                  "PYTHONPATH=$ENV{PYTHONPATH}:${PY_NANOBIND_DIR}"
+                  "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+          OUTPUT_VARIABLE nanobind_ROOT
+          OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
     endif()
 endif()
 
-if(nanobind_ROOT AND NOT CONDUIT_PYTHON_ENABLED)
-    message(FATAL_ERROR "Conduit python module is required if nanobind python module is provided.")
+if(nanobind_ROOT
+   AND
+   (NOT CONDUIT_PYTHON_ENABLED
+   OR NOT PY_NUMPY_DIR
+   OR NOT PY_PYTEST_DIR
+   OR NOT PY_PLUGGY_DIR
+   OR NOT PY_INICONFIG_DIR))
+    message(FATAL_ERROR
+      "nanobind python module requires Conduit's python module, numpy, and pytest."
+      "\nThe numpy and pytest "
+      "(and pytest's dependencies pluggy and iniconfig) "
+      "python library installation "
+      "paths can be specified with CMake variables: "
+      "PY_NUMPY_DIR, PY_PYTEST_DIR, PY_PLUGGY_DIR, PY_INICONFIG_DIR ")
 endif()
 
 # "cannot allocate memory in static TLS block" on blueos with cuda and/or clang.

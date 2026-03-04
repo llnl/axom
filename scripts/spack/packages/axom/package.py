@@ -39,15 +39,20 @@ _AXOM_COMPONENTS = (
 from spack.package import *
 
 
-def get_spec_path(spec, package_name, path_replacements={}, use_bin=False):
+def get_spec_path(spec, package_name, path_replacements={}, use_bin=False, use_lib=False):
     """Extracts the prefix path for the given spack package
     path_replacements is a dictionary with string replacements for the path.
     """
 
-    if not use_bin:
-        path = spec[package_name].prefix
-    else:
+    if use_bin and use_lib:
+        raise ValueError("Only one of use_bin or use_lib can be True")
+
+    if use_bin:
         path = spec[package_name].prefix.bin
+    elif use_lib:
+        path = spec[package_name].prefix.lib
+    else:
+        path = spec[package_name].prefix
 
     path = os.path.realpath(path)
 
@@ -659,7 +664,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         ##################################
 
         entries.append("#------------------{0}".format("-" * 60))
-        entries.append("# Devtools")
+        entries.append("# Devtools & Python")
         entries.append("#------------------{0}\n".format("-" * 60))
 
         # Add common prefix to path replacement list
@@ -711,6 +716,14 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 entries.append(
                     cmake_cache_path("%s_EXECUTABLE" % dep.upper(), pjoin(dep_bin_dir, dep))
                 )
+
+        if spec.satisfies("+python"):
+            # pytest requires pluggy and iniconfig
+            for dep in ("py-nanobind", "py-pytest", "py-numpy", "py-pluggy", "py-iniconfig"):
+                if spec.satisfies("^{0}".format(dep)):
+                    dep_dir = get_spec_path(spec, dep, path_replacements, use_lib=True)
+                    py_libdir = join_path(dep_dir, f"python{spec['python'].version.up_to(2)}", "site-packages")
+                    entries.append(cmake_cache_path("%s_DIR" % dep.upper().replace("-", "_"), py_libdir))
 
         return entries
 
