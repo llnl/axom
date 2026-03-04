@@ -27,18 +27,22 @@ namespace primal
 namespace detail
 {
 
-axom::Array<primal::NURBSPatch<double, 3>> make_sphere_biquartic()
+/*!
+ * \brief Construct a unit sphere out of six rational, biquintic, untrimmed NURBS patches.
+ * 
+ * Defines the nodes and weights for one of six rational, biquartic Bezier patches
+ *  that compose the unit sphere. These will be rotated to form the other 5.
+ * Nodes and weights obtained from the technical report
+ * "Tiling the Sphere with Rational Bezier Patches", James E. Cobb, University of Utah, 1988
+ * 
+ * \return The array of NURBS patches
+ */
+axom::Array<primal::NURBSPatch<double, 3>> make_unit_sphere_biquartic()
 {
   using Point3D = primal::Point<double, 3>;
   using NPatch = primal::NURBSPatch<double, 3>;
 
   double rt2 = sqrt(2), rt3 = sqrt(3), rt6 = sqrt(6);
-
-  // Define the nodes and weights for one of six rational, biquartic Bezier patches
-  //  that compose the unit sphere. These will be rotated to form the other 5.
-  // Nodes and weights obtained from the technical report
-  // "Tiling the Sphere with Rational Bezier Patches",
-  //  James E. Cobb, University of Utah, 1988
 
   // clang-format off
     axom::Array<Point3D> node_data = {
@@ -109,10 +113,17 @@ axom::Array<primal::NURBSPatch<double, 3>> make_sphere_biquartic()
   return sphere_faces;
 }
 
-axom::Array<primal::NURBSPatch<double, 3>> make_sphere_bicubic()
+/*!
+ * \brief Construct a unit sphere out of 8 rational, bicubic, untrimmed NURBS patches.
+ * 
+ * Defines two BezierCurves which, when rotated around the z-axis, 
+ *  forms the top and bottom halves of a sphere.
+ * Note that the resulting surfaces each have degenerate edges at the poles of the sphere
+ * 
+ * \return The array of NURBS patches
+ */
+axom::Array<primal::NURBSPatch<double, 3>> make_unit_sphere_biquadratic()
 {
-  // Generate a sphere using (degenerate) bicubic patches
-
   using Point2D = primal::Point<double, 2>;
   using Point3D = primal::Point<double, 3>;
   using BCurve = primal::BezierCurve<double, 2>;
@@ -120,8 +131,6 @@ axom::Array<primal::NURBSPatch<double, 3>> make_sphere_bicubic()
 
   double rt2 = sqrt(2);
 
-  // Define BezierCurves which, when rotated around the z-axis,
-  //  form the top and bottom halves of a sphere.
   BCurve top_curve(2), bottom_curve(2);
   top_curve[0] = Point2D {0.0, 1.0};
   top_curve[1] = Point2D {1.0, 1.0};
@@ -190,6 +199,18 @@ axom::Array<primal::NURBSPatch<double, 3>> make_sphere_bicubic()
   return sphere_faces;
 }
 
+/*!
+ * \brief Construct a "teardrop" sphere out of order (3, 3) and order (4, 3) NURBS patches.
+ * 
+ * Defines two BezierCurves which, when rotated around the z-axis, form the shape.
+ *  The bottom portion is a sphere with the same construction as `make_unit_sphere_biquadratic()`.
+ *  The top "tip" portion is made from a polynomial cubic curve for which containment is defined by
+ *   the equation y = 3sin(1/3 * asin(1-2x)) + x - 0.5
+ * 
+ * Note that the resulting surfaces each have degenerate edges at the poles of the sphere
+ * 
+ * \return The array of NURBS patches
+ */
 axom::Array<primal::NURBSPatch<double, 3>> make_teardrop()
 {
   // Generate a teardrop shape using (degenerate) bicubic patches.
