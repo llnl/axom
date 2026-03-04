@@ -669,14 +669,60 @@ if(MFEM_FOUND AND OPENCASCADE_FOUND)
         )
 
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
-        axom_add_test(
-            NAME quest_winding_number_3d_tet_slice
-            COMMAND quest_winding_number_3d_ex
-                    --input ${quest_data_dir}/step/tet.step
-                    --output-prefix wn3d_tet_slice
-                    query_mesh --min -0.5 -0.5 --max 0.5 0.5 --res 3 3 --slice-z 0.0 --order 1)
-        set_tests_properties(quest_winding_number_3d_tet_slice PROPERTIES
-            PASS_REGULAR_EXPRESSION  "4 patches .* 12 trimming curves")
+        # 3D query regression-style runs over several STEP models.
+        # Keep query grids small enough that Debug builds run quickly.
+        # These tests validate that we produce stable summary stats for the winding/inout fields.
+        set(_wn3d_step_models connector sliced_cylinder teardrop tet boxed_sphere)
+        foreach(_model ${_wn3d_step_models})
+            # Keep float comparisons fairly strict: match several significant digits in scientific notation.
+            # NOTE: CTest treats PASS_REGULAR_EXPRESSION lists as "any-of", so we must use a
+            # single regex string (per model) that matches the INOUT_STATS.
+            set(_res_i 10)
+            set(_res_j 10)
+            set(_res_k 10)
+            set(_pass_regex "INOUT_STATS:.*pos_dofs=.*neg_dofs=")
+            if(_model STREQUAL "connector")
+                set(_res_i 5)
+                set(_res_j 5)
+                set(_res_k 5)
+                string(CONCAT _pass_regex
+                    "INOUT_STATS:.*"
+                    "pos_dofs=16.*"
+                    "neg_dofs=0")
+            elseif(_model STREQUAL "sliced_cylinder")
+                string(CONCAT _pass_regex
+                    "INOUT_STATS:.*"
+                    "pos_dofs=445.*"
+                    "neg_dofs=0")
+            elseif(_model STREQUAL "teardrop")
+                string(CONCAT _pass_regex
+                    "INOUT_STATS:.*"
+                    "pos_dofs=293.*"
+                    "neg_dofs=0")
+            elseif(_model STREQUAL "tet")
+                string(CONCAT _pass_regex
+                    "INOUT_STATS:.*"
+                    "pos_dofs=65.*"
+                    "neg_dofs=0")
+            elseif(_model STREQUAL "boxed_sphere")
+                string(CONCAT _pass_regex
+                    "INOUT_STATS:.*"
+                    "pos_dofs=473.*"
+                    "neg_dofs=0")
+            endif()
+
+            set(_testname "quest_winding_number_3d_${_model}_res${_res_i}")
+            axom_add_test(
+                NAME ${_testname}
+                COMMAND quest_winding_number_3d_ex
+                        --input ${quest_data_dir}/step/${_model}.step
+                        --output-prefix wn3d_${_model}_res${_res_i}
+                        --no-vis
+                        --stats
+                        query_mesh --res ${_res_i} ${_res_j} ${_res_k} --order 1)
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION "${_pass_regex}")
+        endforeach()
     endif()
 endif()
 

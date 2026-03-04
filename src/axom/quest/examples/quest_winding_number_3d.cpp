@@ -27,6 +27,10 @@
 
 #include "mfem.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+
 namespace primal = axom::primal;
 
 using Point3D = primal::Point<double, 3>;
@@ -44,6 +48,64 @@ struct WindingTolerances
   double edge_tol {1e-8};
   double EPS {1e-8};
 };
+
+struct FieldStats
+{
+  double dof_l2 {};
+  double dof_linf {};
+  double l2 {};
+  double min {};
+  double max {};
+};
+
+FieldStats compute_field_stats(const mfem::GridFunction& gf)
+{
+  FieldStats s {};
+
+  s.dof_l2 = gf.Norml2();
+  s.dof_linf = gf.Normlinf();
+  s.min = gf.Min();
+  s.max = gf.Max();
+
+  // Compute L2 norm over the physical domain: sqrt( Integral gf^2 dOmega )
+  // We do this by assembling b_i = Integral phi_i * gf dOmega, then taking dot(gf, b).
+  auto* fes = const_cast<mfem::FiniteElementSpace*>(gf.FESpace());
+  auto* gf_ptr = const_cast<mfem::GridFunction*>(&gf);
+  mfem::GridFunctionCoefficient gf_coeff(gf_ptr);
+  mfem::LinearForm gf_sq_form(fes);
+  gf_sq_form.AddDomainIntegrator(new mfem::DomainLFIntegrator(gf_coeff));
+  gf_sq_form.Assemble();
+
+  const double integral_gf_sq = gf * gf_sq_form;
+  s.l2 = std::sqrt(std::max(0.0, integral_gf_sq));
+
+  return s;
+}
+
+struct IntegralStats
+{
+  double integral {};
+  double domain_volume {};
+};
+
+IntegralStats compute_integrals(const mfem::GridFunction& gf)
+{
+  IntegralStats s {};
+
+  auto* fes = const_cast<mfem::FiniteElementSpace*>(gf.FESpace());
+  mfem::ConstantCoefficient one(1.0);
+  mfem::LinearForm vol_form(fes);
+  vol_form.AddDomainIntegrator(new mfem::DomainLFIntegrator(one));
+  vol_form.Assemble();
+
+  s.integral = gf * vol_form;
+
+  mfem::GridFunction unity(fes);
+  unity.ProjectCoefficient(one);
+  s.domain_volume = unity * vol_form;
+
+  return s;
+}
 
 /// Helper function to set up the mesh and associated winding and inout fields.
 /// Uses an mfem::DataCollection to hold everything together.
@@ -124,6 +186,7 @@ int main(int argc, char** argv)
   bool memoized {true};
   bool vis {true};
   bool validate {false};
+  bool stats {false};
 
   std::vector<double> boxMins;
   std::vector<double> boxMaxs;
@@ -153,6 +216,8 @@ int main(int argc, char** argv)
     app.add_flag("--memoized,!--no-memoized", memoized, "Cache geometric data during query?")
       ->capture_default_str();
     app.add_flag("--vis,!--no-vis", vis, "Should we write out the results for visualization?")
+      ->capture_default_str();
+    app.add_flag("--stats,!--no-stats", stats, "Compute summary stats for query fields?")
       ->capture_default_str();
 
     // Options for query tolerances; for now, only expose the line search and quadrature tolerances
@@ -361,6 +426,9 @@ int main(int argc, char** argv)
   }
 
   // Run the query
+  double query_time_s = 0.0;
+  int ndofs = 0;
+  double ms_per_query = 0.0;
   {
     axom::utilities::Timer query_timer(true);
     if(memoized)
@@ -373,16 +441,69 @@ int main(int argc, char** argv)
     }
     query_timer.stop();
 
-    const int ndofs = dc.GetField("winding")->FESpace()->GetNDofs();
+    ndofs = dc.GetField("winding")->FESpace()->GetNDofs();
+    query_time_s = query_timer.elapsed();
+    ms_per_query = query_timer.elapsedTimeInMilliSec() / ndofs;
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
                                 "Querying {:L} samples in winding number field took {:.3Lf} seconds"
-                                " (@ {:.0Lf} queries per second; {:.2Lf} ms per query)",
+                                " (@ {:.0Lf} queries per second; {:.4Lf} ms per query)",
                                 ndofs,
-                                query_timer.elapsed(),
-                                ndofs / query_timer.elapsed(),
-                                query_timer.elapsedTimeInMilliSec() / ndofs));
+                                query_time_s,
+                                ndofs / query_time_s,
+                                ms_per_query));
     AXOM_ANNOTATE_METADATA("query_points", ndofs, "");
-    AXOM_ANNOTATE_METADATA("query_time", query_timer.elapsed(), "");
+    AXOM_ANNOTATE_METADATA("query_time", query_time_s, "");
+  }
+
+  // Postprocess query results: norms, ranges, and integral statistics
+  if(stats)
+  {
+    AXOM_ANNOTATE_SCOPE("postprocess");
+
+    auto& winding = *dc.GetField("winding");
+    auto& inout = *dc.GetField("inout");
+
+    const auto winding_stats = compute_field_stats(winding);
+    const auto inout_stats = compute_field_stats(inout);
+    const auto inout_integrals = compute_integrals(inout);
+
+    std::int64_t pos_inout_dofs = 0;
+    std::int64_t neg_inout_dofs = 0;
+    for(int i = 0; i < inout.Size(); ++i)
+    {
+      const double v = inout[i];
+      if(v > 0.0)
+      {
+        ++pos_inout_dofs;
+      }
+      else if(v < 0.0)
+      {
+        ++neg_inout_dofs;
+      }
+    }
+
+    SLIC_INFO(
+      axom::fmt::format("WN_STATS: dof_l2={:.6e} dof_linf={:.6e} l2={:.6e} min={:.6e} max={:.6e}",
+                        winding_stats.dof_l2,
+                        winding_stats.dof_linf,
+                        winding_stats.l2,
+                        winding_stats.min,
+                        winding_stats.max));
+
+    SLIC_INFO(axom::fmt::format(
+      "INOUT_STATS: dof_l2={:.6e} dof_linf={:.6e} l2={:.6e} min={:.6e} max={:.6e} volume={:.6e} "
+      "domain_volume={:.6e} vol_frac={:.6e} pos_dofs={} neg_dofs={}",
+      inout_stats.dof_l2,
+      inout_stats.dof_linf,
+      inout_stats.l2,
+      inout_stats.min,
+      inout_stats.max,
+      inout_integrals.integral,
+      inout_integrals.domain_volume,
+      (inout_integrals.domain_volume > 0.0 ? inout_integrals.integral / inout_integrals.domain_volume
+                                           : 0.0),
+      pos_inout_dofs,
+      neg_inout_dofs));
   }
 
   // Save the query mesh and fields to disk using a format that can be viewed in VisIt

@@ -30,6 +30,8 @@
 
 #include <vector>
 #include <ostream>
+#include <unordered_map>
+#include <cstdint>
 #include <math.h>
 
 #include "axom/fmt.hpp"
@@ -72,7 +74,9 @@ struct TrimmingCurveQuadratureData
     : m_quad_npts(quad_npts)
   {
     // Generate the (cached) quadrature rules in parameter space
-    const numerics::QuadratureRule& gl_rule = numerics::get_gauss_legendre(quad_npts);
+    const numerics::QuadratureRule gl_rule = numerics::get_gauss_legendre(quad_npts);
+    const auto quad_nodes = gl_rule.nodes();
+    const auto quad_weights = gl_rule.weights();
 
     auto& the_curve = a_patch.getTrimmingCurve(a_curve_index);
 
@@ -83,11 +87,14 @@ struct TrimmingCurveQuadratureData
     m_span_length = (curve_max_knot - curve_min_knot) / std::pow(2, a_refinementLevel);
     const T span_offset = m_span_length * a_refinementSection;
 
+    m_quadrature_scaled_weights.resize(m_quad_npts);
     m_quadrature_points.resize(m_quad_npts);
     m_quadrature_tangents.resize(m_quad_npts);
     for(int q = 0; q < m_quad_npts; ++q)
     {
-      const T quad_x = gl_rule.node(q) * m_span_length + curve_min_knot + span_offset;
+      m_quadrature_scaled_weights[q] = quad_weights[q] * m_span_length;
+
+      const T quad_x = quad_nodes[q] * m_span_length + curve_min_knot + span_offset;
 
       Point<T, 2> c_eval;
       Vector<T, 2> c_Dt;
@@ -104,18 +111,26 @@ struct TrimmingCurveQuadratureData
 
   const Point<T, 3>& getQuadraturePoint(size_t idx) const { return m_quadrature_points[idx]; }
   const Vector<T, 3>& getQuadratureTangent(size_t idx) const { return m_quadrature_tangents[idx]; }
-  double getQuadratureWeight(size_t idx) const
-  {
-    // Because the quadrature weights are identical for each trimming curve (up to a scaling factor),
-    //  we query the static rule instead of storing redundant weights
-    const numerics::QuadratureRule& gl_rule = numerics::get_gauss_legendre(m_quad_npts);
-    return gl_rule.weight(idx) * m_span_length;
-  }
+  double getQuadratureWeight(size_t idx) const { return m_quadrature_scaled_weights[idx]; }
   int getNumPoints() const { return m_quad_npts; }
+
+  axom::ArrayView<const Point<T, 3>> getQuadraturePoints() const
+  {
+    return m_quadrature_points.view();
+  }
+  axom::ArrayView<const Vector<T, 3>> getQuadratureTangents() const
+  {
+    return m_quadrature_tangents.view();
+  }
+  axom::ArrayView<const double> getQuadratureWeights() const
+  {
+    return m_quadrature_scaled_weights.view();
+  }
 
 private:
   axom::Array<Point<T, 3>> m_quadrature_points;
   axom::Array<Vector<T, 3>> m_quadrature_tangents;
+  axom::Array<double> m_quadrature_scaled_weights;
   T m_span_length;
   int m_quad_npts;
 };
@@ -233,19 +248,20 @@ public:
                                                                  int refinementLevel,
                                                                  int refinementIndex) const
   {
-    // Check to see if we have already computed the quadrature data for this curve
-    const auto hash_key = std::make_pair(refinementLevel, refinementIndex);
+    // Cache quadrature data per trimming curve keyed by (refinementLevel, refinementIndex).
+    // Note: `quadNPts` is fixed in the 3D winding-number implementation (currently 15).
+    const auto make_key = [](int level, int index) -> std::uint64_t {
+      return (static_cast<std::uint64_t>(static_cast<std::uint32_t>(level)) << 32) |
+        static_cast<std::uint64_t>(static_cast<std::uint32_t>(index));
+    };
 
-    if(m_curveQuadratureMaps[curveIndex].find(hash_key) == m_curveQuadratureMaps[curveIndex].end())
-    {
-      m_curveQuadratureMaps[curveIndex][hash_key] = TrimmingCurveQuadratureData<T>(m_alteredPatch,
-                                                                                   curveIndex,
-                                                                                   quadNPts,
-                                                                                   refinementLevel,
-                                                                                   refinementIndex);
-    }
+    const std::uint64_t key = make_key(refinementLevel, refinementIndex);
+    auto& curve_map = m_curveQuadratureMaps[curveIndex];
 
-    return m_curveQuadratureMaps[curveIndex][hash_key];
+    // Single lookup for both hit and miss; avoids multiple tree traversals and operator[].
+    auto [it, inserted] =
+      curve_map.try_emplace(key, m_alteredPatch, curveIndex, quadNPts, refinementLevel, refinementIndex);
+    return it->second;
   }
 
 private:
@@ -260,7 +276,7 @@ private:
   double m_pboxDiag;
 
   // Per trimming curve data, keyed by (whichRefinementLevel, whichRefinementIndex)
-  mutable axom::Array<std::map<std::pair<int, int>, TrimmingCurveQuadratureData<T>>> m_curveQuadratureMaps;
+  mutable axom::Array<std::unordered_map<std::uint64_t, TrimmingCurveQuadratureData<T>>> m_curveQuadratureMaps;
 };
 
 }  // namespace detail

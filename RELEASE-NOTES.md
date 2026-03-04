@@ -24,6 +24,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Axom's polygon clipping was modified to handle some corner cases.
 
 ### Fixed
+- Primal: Fixed `NURBSPatch::evaluateDerivatives` returning a matrix with empty values. The old behavior 
+  can be recovered with an optional flag, which is more efficient if the previously missing values are unneeded
 
 ### Removed
 

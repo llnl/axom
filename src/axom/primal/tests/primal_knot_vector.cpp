@@ -268,6 +268,62 @@ TEST(primal_knotvector, normalize)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_knotvector, derivative_basis_workspace_matches_reference)
+{
+  {
+    const int degree = 1;
+    axom::Array<double> knots {0.0, 0.0, 0.5, 1.0, 1.0};
+    primal::KnotVector<double> kv(knots, degree);
+
+    primal::KnotVector<double>::DerivativeBasisWorkspace workspace;
+
+    for(const double t : {0.25, 0.75})
+    {
+      const auto span = kv.findSpan(t);
+
+      const auto ref = kv.derivativeBasisFunctionsBySpan(span, t, 1);
+      const auto view = kv.derivativeBasisFunctionsBySpan(span, t, 1, workspace);
+
+      ASSERT_EQ(ref.size(), 2);
+      ASSERT_EQ(ref[0].size(), degree + 1);
+      ASSERT_EQ(ref[1].size(), degree + 1);
+
+      for(int j = 0; j <= degree; ++j)
+      {
+        EXPECT_NEAR(view[0][j], ref[0][j], 1e-14);
+        EXPECT_NEAR(view[1][j], ref[1][j], 1e-14);
+      }
+    }
+  }
+
+  {
+    const int degree = 2;
+    axom::Array<double> knots {0.0, 0.0, 0.0, 0.4, 1.0, 1.0, 1.0};
+    primal::KnotVector<double> kv(knots, degree);
+
+    primal::KnotVector<double>::DerivativeBasisWorkspace workspace;
+
+    for(const double t : {0.2, 0.7})
+    {
+      const auto span = kv.findSpan(t);
+
+      const auto ref = kv.derivativeBasisFunctionsBySpan(span, t, 1);
+      const auto view = kv.derivativeBasisFunctionsBySpan(span, t, 1, workspace);
+
+      ASSERT_EQ(ref.size(), 2);
+      ASSERT_EQ(ref[0].size(), degree + 1);
+      ASSERT_EQ(ref[1].size(), degree + 1);
+
+      for(int j = 0; j <= degree; ++j)
+      {
+        EXPECT_NEAR(view[0][j], ref[0][j], 1e-14);
+        EXPECT_NEAR(view[1][j], ref[1][j], 1e-14);
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_knotvector, insert_knot)
 {
   const int degree = 3;
