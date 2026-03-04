@@ -51,10 +51,15 @@ public:
   bool vis {true};
   bool stats {false};
 
+  const std::array<std::string, 2> valid_algorithms {"direct", "fast-approximation"};
+  std::string algorithm {valid_algorithms[1]};  // fast-approximation
+
   bool linearize {false};
-  double segmentsPerKnotSpan {10};
-  bool directPolylineEval {false};
   int approximation_order {2};
+
+  bool useUniformLinearization;
+  int segmentsPerKnotSpan {10};
+  double percentError {1.0};
 
   // Query mesh parameters
   std::vector<double> boxMins;
@@ -105,21 +110,30 @@ public:
 #endif
 
     // Options for triangulation of the input STEP file
-    auto* linearize_curves_subcommand = app.add_subcommand("linearize_curves")
-                                          ->description("Options for linearizing NURBS curves")
-                                          ->fallthrough();
+    auto* linearize_curves_subcommand =
+      app.add_subcommand("linearize_curves")
+        ->description("Options for linearizing NURBS curves. Default is ")
+        ->fallthrough();
 
-    linearize_curves_subcommand->add_option("--num-segments", segmentsPerKnotSpan)
-      ->description("Number of segments for each knot span of each input curve.")
-      ->check(axom::CLI::PositiveNumber)
-      ->capture_default_str();
-    linearize_curves_subcommand
-      ->add_flag(
-        "--direct,!--fast-approximation",
-        directPolylineEval,
+    auto* nsegments =
+      linearize_curves_subcommand->add_option("--num-segments", segmentsPerKnotSpan)
+        ->description(
+          "Number of segments for each knot span of each input curve for a uniform linearization.")
+        ->check(axom::CLI::PositiveNumber)
+        ->capture_default_str();
+    auto* perror =
+      linearize_curves_subcommand->add_option("--percent-error", percentError)
+        ->description(
+          "The percent of error that is acceptable to stop refinement during non-uniform "
+          "linearization.")
+        ->check(axom::CLI::Range(0.0f, 100.0f))
+        ->capture_default_str();
+    linearize_curves_subcommand->add_option("--algorithm", algorithm)
+      ->description(
         "Use direct evaluation instead of fast, heirarchical approximation? (significantly "
         "slower, slightly more precise)")
-      ->capture_default_str();
+      ->capture_default_str()
+      ->check(axom::CLI::IsMember(valid_algorithms));
     linearize_curves_subcommand
       ->add_option("--approximation-order",
                    approximation_order,
@@ -146,6 +160,10 @@ public:
     // add some requirements -- if user provides minbb or maxbb, we need both
     minbb->needs(maxbb);
     maxbb->needs(minbb);
+
+    // If a user provides a number of refinements, we can't have a percent error
+    nsegments->excludes(perror);
+    useUniformLinearization = nsegments->count() > 0;
 
     app.parse(argc, argv);
 
@@ -225,7 +243,14 @@ int main(int argc, char** argv)
 
     axom::utilities::Timer timer(true);
     axom::quest::LinearizeCurves lc;
-    lc.getLinearMeshUniform(curves.view(), &poly_mesh, input.segmentsPerKnotSpan);
+    if(input.useUniformLinearization)
+    {
+      lc.getLinearMeshUniform(curves.view(), &poly_mesh, input.segmentsPerKnotSpan);
+    }
+    else
+    {
+      lc.getLinearMeshNonUniform(curves.view(), &poly_mesh, input.percentError);
+    }
     timer.stop();
 
     SLIC_INFO(axom::fmt::format(
@@ -277,7 +302,7 @@ int main(int argc, char** argv)
         }
         else if constexpr(quest::gwn_input_type_v<T> == quest::GWNInputType::Polyline)
         {
-          wn.preprocess(&poly_mesh, input.directPolylineEval);
+          wn.preprocess(&poly_mesh, input.algorithm == "direct");
         }
       },
       wn_query);
@@ -287,7 +312,7 @@ int main(int argc, char** argv)
   }
 
   // Postprocess query results: norms, ranges, and integral statistics
-  if(input.stats)
+  if(input.stats)https://github.com/llnl/axom/pull/1791/files/c2cb5d630ca9ec51580c1e533c54752e9791cec3#diff-dd8c08ccaefce897684d219fdcaa97e1343c6195566d17b640fd993b829ec308
   {
     AXOM_ANNOTATE_SCOPE("postprocess");
 

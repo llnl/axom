@@ -57,11 +57,13 @@ public:
   bool validate {false};
   bool stats {false};
 
+  const std::array<std::string, 2> valid_algorithms {"direct", "fast-approximation"};
+  std::string algorithm {valid_algorithms[1]};  // fast-approximation
+
   bool triangulate {false};
   double linear_deflection {0.1};
   double angular_deflection {0.5};
   bool deflection_is_relative {false};
-  bool directTriangleEval {false};
   int approximation_order {2};
 
   std::vector<double> boxMins;
@@ -115,12 +117,12 @@ public:
         "Is linear deflection in relative to local edge lengths (true) or mesh units (false)")
       ->capture_default_str();
 
-    triangulate_step_subcommand
-      ->add_flag("--direct,!--fast-approximation",
-                 directTriangleEval,
-                 "Use direct evaluation instead of fast, heirarchical approximation? "
-                 "(significantly slower, slightly more precise)")
-      ->capture_default_str();
+    triangulate_step_subcommand->add_option("--algorithm", algorithm)
+      ->description(
+        "Use direct evaluation instead of fast, heirarchical approximation? (significantly "
+        "slower, slightly more precise)")
+      ->capture_default_str()
+      ->check(axom::CLI::IsMember(valid_algorithms));
     triangulate_step_subcommand
       ->add_option("--expansion-order",
                    approximation_order,
@@ -416,7 +418,7 @@ int main(int argc, char** argv)
         }
         else if constexpr(quest::gwn_input_type_v<T> == quest::GWNInputType::Triangulation)
         {
-          wn.preprocess(&tri_mesh, input.directTriangleEval);
+          wn.preprocess(&tri_mesh, input.algorithm == "direct");
         }
       },
       wn_query);
