@@ -136,9 +136,17 @@ public:
 
   DirectGWN2D() = default;
 
+  /// \brief Define view for NURBS data.
+  ///    If memoization is used, allocate a cache for each curve.
   void preprocess(const CurveArrayType& input_curves, bool use_memoization = true)
   {
     m_input_curves_view = input_curves.view();
+    if(m_input_curves_view.size() <= 0)
+    {
+      SLIC_WARNING("Quest: Input shape contains no curves; skipping preprocessing.");
+      return;
+    }
+
     axom::utilities::Timer timer(true);
     {
       AXOM_ANNOTATE_SCOPE("preprocessing");
@@ -153,12 +161,32 @@ public:
     }
     timer.stop();
     AXOM_ANNOTATE_METADATA("preprocessing_time", timer.elapsed(), "");
-    SLIC_INFO(axom::fmt::format("Direct query preprocessing (memoization caches): {} s",
+    SLIC_INFO(axom::fmt::format("Direct query preprocessing (loading curves{}): {} s",
+                                use_memoization ? " and memoization caches" : "",
                                 timer.elapsedTimeInSec()));
   }
 
+  /*!
+   * \brief Evaluate the GWN for a query grid at the DOFs of the \a dc query mesh
+   *
+   * \param [in] dc A query grid to be evaluated at the DOFs
+   * \param [in] tol A collection of possible tolerances for GWN evaluation
+   */
   void query(mfem::DataCollection& dc, const primal::WindingTolerances& tol)
   {
+    if(!dc.HasField("winding") || !dc.HasField("inout"))
+    {
+      SLIC_WARNING(
+        axom::fmt::format("Quest: Input data collection has no field `{}`. Exiting Early.",
+                          dc.HasField("winding") ? "inout" : "winding"));
+    }
+
+    if(m_input_curves_view.empty())
+    {
+      SLIC_WARNING("Quest: Skipping query; Input shape not properly initialized.");
+      return;
+    }
+
     auto* query_mesh = dc.GetMesh();
     auto& winding = *dc.GetField("winding");
     auto& inout = *dc.GetField("inout");
@@ -238,9 +266,17 @@ public:
 
   PolylineGWN2D() = default;
 
+  /// \brief Load polyline data into primal::Segments.
+  ///    If fast-approximation is used, construct BVH
   void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* poly_mesh,
                   bool useDirectEval)
   {
+    if(poly_mesh.size() <= 0)
+    {
+      SLIC_WARNING("Quest: Input mesh contains no segments; skipping preprocessing.");
+      return;
+    }
+
     axom::utilities::Timer timer(true);
     axom::utilities::Timer stage_timer(false);
 
@@ -293,12 +329,12 @@ public:
       stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("moments");
-        const auto triangles_view = m_segments.view();
+        const auto segments_view = m_segments.view();
 
-        auto compute_moments = [triangles_view](std::int32_t currentNode,
-                                                const std::int32_t* leafNodes) -> GWNMoments {
+        auto compute_moments = [segments_view](std::int32_t currentNode,
+                                               const std::int32_t* leafNodes) -> GWNMoments {
           const auto idx = leafNodes[currentNode];
-          return GWNMoments(triangles_view[idx]);
+          return GWNMoments(segments_view[idx]);
         };
 
         const auto traverser = m_bvh.getTraverser();
@@ -312,11 +348,24 @@ public:
     SLIC_INFO(axom::fmt::format("Total preprocessing: {} s", timer.elapsedTimeInSec()));
   }
 
+  /*!
+   * \brief Evaluate the GWN for a query grid at the DOFs of the \a dc query mesh
+   *
+   * \param [in] dc A query grid to be evaluated at the DOFs
+   * \param [in] tol A collection of possible tolerances for GWN evaluation
+   */
   void query(mfem::DataCollection& dc, const primal::WindingTolerances& tol)
   {
+    if(!dc.HasField("winding") || !dc.HasField("inout"))
+    {
+      SLIC_WARNING(
+        axom::fmt::format("Quest: Input data collection has no field `{}`. Exiting Early.",
+                          dc.HasField("winding") ? "inout" : "winding"));
+    }
+
     if(m_segments.empty())
     {
-      SLIC_WARNING("Skipping query; segment data is empty.");
+      SLIC_WARNING("Quest: Skipping query; Input shape not properly initialized.");
       return;
     }
 
@@ -398,7 +447,7 @@ private:
 ///@}
 
 ///@{
-/// \name Query methods for 2D GWN applications
+/// \name Query methods for 3D GWN applications
 class DirectGWN3D
 {
 public:
@@ -407,9 +456,17 @@ public:
 
   DirectGWN3D() = default;
 
+  /// \brief Define view for NURBS data.
+  ///    If memoization is used, allocate a cache for each patch.
   void preprocess(const PatchArrayType& input_patches, bool use_memoization = true)
   {
     m_input_patches_view = input_patches.view();
+    if(m_input_patches_view.size() <= 0)
+    {
+      SLIC_WARNING("Quest: Input shape contains no patches; skipping preprocessing.");
+      return;
+    }
+
     axom::utilities::Timer timer(true);
     {
       AXOM_ANNOTATE_SCOPE("preprocessing");
@@ -424,14 +481,36 @@ public:
     }
     timer.stop();
     AXOM_ANNOTATE_METADATA("preprocessing_time", timer.elapsed(), "");
-    SLIC_INFO(axom::fmt::format("Direct query preprocessing (memoization caches): {} s",
+    SLIC_INFO(axom::fmt::format("Direct query preprocessing (loading surfaces{}): {} s",
+                                use_memoization ? " and memoization caches" : "",
                                 timer.elapsedTimeInSec()));
   }
 
+  /*!
+   * \brief Evaluate the GWN for a query grid at the DOFs of the \a dc query mesh
+   *
+   * \param [in] dc A query grid to be evaluated at the DOFs
+   * \param [in] tol A collection of possible tolerances for GWN evaluation
+   * \param [in] slice_z If the dc mesh is 2D, the GWN will be evaluated on a slice 
+   *                      parallel to the x-y plane with this offset on the z-axis
+   */
   void query(mfem::DataCollection& dc,
              const primal::WindingTolerances& tol,
              const double slice_z = 0.0) const
   {
+    if(!dc.HasField("winding") || !dc.HasField("inout"))
+    {
+      SLIC_WARNING(
+        axom::fmt::format("Quest: Input data collection has no field `{}`. Exiting Early.",
+                          dc.HasField("winding") ? "inout" : "winding"));
+    }
+
+    if(m_input_patches_view.empty())
+    {
+      SLIC_WARNING("Quest: Skipping query; Input shape not properly initialized.");
+      return;
+    }
+
     auto* query_mesh = dc.GetMesh();
     auto& winding = *dc.GetField("winding");
     auto& inout = *dc.GetField("inout");
@@ -523,6 +602,8 @@ public:
 
   TriangleGWN3D() = default;
 
+  /// \brief Load mesh data into primal::Triangles.
+  ///    If fast-approximation is used, construct BVH
   void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* tri_mesh, bool useDirectEval)
   {
     axom::utilities::Timer timer(true);
@@ -533,7 +614,7 @@ public:
     const auto ntris = tri_mesh->getNumberOfCells();
     if(ntris <= 0)
     {
-      SLIC_WARNING("Triangle mesh contains no cells; skipping preprocessing.");
+      SLIC_WARNING("Quest: Input mesh contains no triangles; skipping preprocessing.");
       return;
     }
 
@@ -627,12 +708,27 @@ public:
 
     SLIC_INFO(axom::fmt::format("Total preprocessing: {} s", timer.elapsedTimeInSec()));
   }
-
+  /*!
+   * \brief Evaluate the GWN for a query grid at the DOFs of the \a dc query mesh
+   *
+   * \param [in] dc A query grid to be evaluated at the DOFs
+   * \param [in] tol A collection of possible tolerances for GWN evaluation
+   * \param [in] slice_z If the dc mesh is 2D, the GWN will be evaluated on a slice 
+   *                      parallel to the x-y plane with this offset on the z-axis
+   */
   void query(mfem::DataCollection& dc, const primal::WindingTolerances& tol, const double slice_z = 0.0)
   {
+    if(!dc.HasField("winding") || !dc.HasField("inout"))
+    {
+      SLIC_WARNING(
+        axom::fmt::format("Quest: Skipping query; Input data collection has no field `{}`.",
+                          dc.HasField("winding") ? "inout" : "winding"));
+      return;
+    }
+
     if(m_triangles.empty())
     {
-      SLIC_WARNING("Skipping query; triangle data is empty.");
+      SLIC_WARNING("Quest: Skipping query; Input shape not properly initialized.");
       return;
     }
 

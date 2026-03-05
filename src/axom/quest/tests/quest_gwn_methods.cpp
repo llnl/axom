@@ -45,7 +45,7 @@ std::string pjoin(const char *str, Args... args)
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-TEST(quest_winding_number_approximations, mfem_mesh_linearization)
+TEST(quest_gwn_methods, mfem_mesh_linearization)
 {
   using NURBSCurve2D = axom::primal::NURBSCurve<double, 2>;
   const std::string fileName = pjoin(AXOM_DATA_DIR, "contours", "svg", "mfem_logo_simp.mesh");
@@ -96,6 +96,10 @@ TEST(quest_winding_number_approximations, mfem_mesh_linearization)
   constexpr bool useDirectPolyline = true;
 
   //// Run three different kinds of GWN query ////
+  // We expect all three fields to return the same values in this case because 
+  //  of the specific arrangement of query points and linearization.
+  // In general, discretizing the shape can result in different GWN values
+  //  for query points near to individual curves. 
 
   // Direct
   SLIC_INFO("Testing Direct Evaluation");
@@ -132,7 +136,7 @@ TEST(quest_winding_number_approximations, mfem_mesh_linearization)
 
 #ifdef AXOM_USE_OPENCASCADE
 //------------------------------------------------------------------------------
-TEST(quest_winding_number_approximations, step_file_triangulation)
+TEST(quest_gwn_methods, step_file_triangulation)
 {
   const std::string fileName = pjoin(AXOM_DATA_DIR, "quest", "step", "nut.step");
 
@@ -178,7 +182,11 @@ TEST(quest_winding_number_approximations, step_file_triangulation)
   constexpr bool useDirectTriangle = true;
 
   //// Run three different kinds of GWN query ////
-
+  // We expect all three fields to return the same values in this case because
+  //  of the specific arrangement of query points and triangulation.
+  // In general, triangulating the shape can result in different GWN values
+  //  for query points near to individual surfaces. 
+  
   // Direct
   SLIC_INFO("Testing Direct Evaluation");
   axom::quest::DirectGWN3D gwn_direct {};

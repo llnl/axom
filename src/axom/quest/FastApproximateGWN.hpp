@@ -67,7 +67,10 @@ class GWNMomentData
     b_out.a = b1.a + b2.a;
     b_out.ap = b1.ap + b2.ap;
 
-    for(int i = 0; i < NumberOfEntries; ++i) b_out.rm[i] = b1.rm[i] + b2.rm[i];
+    for(int i = 0; i < NumberOfEntries; ++i)
+    {
+      b_out.rm[i] = b1.rm[i] + b2.rm[i];
+    }
 
     b_out.compute_coefficients();
 
@@ -106,7 +109,7 @@ public:
 
       if constexpr(ORD >= 2)
       {
-        constexpr auto twlv = 0.083333333333333333333333333333;
+        constexpr auto twlv = 1.0 / 12.0;
         const auto ab = axom::primal::Vector<T, 3> {a_tri[0].array() + a_tri[1].array()};
         const auto bc = axom::primal::Vector<T, 3> {a_tri[1].array() + a_tri[2].array()};
         const auto ac = axom::primal::Vector<T, 3> {a_tri[0].array() + a_tri[2].array()};
@@ -220,20 +223,9 @@ public:
         {
           const axom::primal::Vector<double, 8>
             F3 {ec[6], ec[7], ec[8], ec[9], ec[10], ec[11], ec[12], ec[13]};
-          axom::primal::Vector<double, 8> G3 {2 * pq[0] * (pq[0] * pq[0] - 3 * pq[1] * pq[1]),
-                                              2 * pq[1] * (3 * pq[0] * pq[0] - pq[1] * pq[1]),
-                                              0.0,
-                                              0.0,
-                                              0.0,
-                                              0.0,
-                                              0.0,
-                                              0.0};
-          G3[2] = G3[1];
-          G3[3] = -G3[0];
-          G3[4] = G3[1];
-          G3[5] = -G3[0];
-          G3[6] = -G3[0];
-          G3[7] = -G3[1];
+          const double g0 = 2 * pq[0] * (pq[0] * pq[0] - 3 * pq[1] * pq[1]);
+          const double g1 = 2 * pq[1] * (3 * pq[0] * pq[0] - pq[1] * pq[1]);
+          axom::primal::Vector<double, 8> G3 {g0, g1, g1, -g0, g1, -g0, -g0, -g1};
 
           const auto norm_to_6 = norm_to_4 * norm * norm;
           terms[2] = F3.dot(G3) / norm_to_6;
@@ -258,8 +250,8 @@ public:
         // clang-format off
 				axom::primal::Vector<T, 9> G2_1{ 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };
 				axom::primal::Vector<T, 9> G2_2{ pq[0] * pq[0], pq[1] * pq[0], pq[2] * pq[0],
-																				 pq[0] * pq[1], pq[1] * pq[1], pq[2] * pq[1],
-																				 pq[0] * pq[2], pq[1] * pq[2], pq[2] * pq[2] };
+                                         pq[0] * pq[1], pq[1] * pq[1], pq[2] * pq[1],
+                                         pq[0] * pq[2], pq[1] * pq[2], pq[2] * pq[2] };
         // clang-format on
 
         const auto norm_to_5 = norm_to_3 * norm * norm;
@@ -275,10 +267,11 @@ public:
           // clang-format off
 				  axom::primal::Vector<T, 27> G3_1{ 3 * pq[0], pq[1], pq[2], pq[1], pq[0], 0, pq[2], 0, pq[0], pq[1], pq[0], 0, pq[0],3 * pq[1], pq[2], 0, pq[2], pq[1], pq[2], 0, pq[0], 0, pq[2], pq[1], pq[0], pq[1], 3 * pq[2] };
 				  axom::primal::Vector<T, 27> G3_2{ pq[0] * pq[0] * pq[0], pq[0] * pq[0] * pq[1], pq[0] * pq[0] * pq[2], pq[0] * pq[1] * pq[0], pq[0] * pq[1] * pq[1], pq[0] * pq[1] * pq[2], pq[0] * pq[2] * pq[0], pq[0] * pq[2] * pq[1], pq[0] * pq[2] * pq[2],
-																					  pq[1] * pq[0] * pq[0], pq[1] * pq[0] * pq[1], pq[1] * pq[0] * pq[2], pq[1] * pq[1] * pq[0], pq[1] * pq[1] * pq[1], pq[1] * pq[1] * pq[2], pq[1] * pq[2] * pq[0], pq[1] * pq[2] * pq[1], pq[1] * pq[2] * pq[2],
-																					  pq[2] * pq[0] * pq[0], pq[2] * pq[0] * pq[1], pq[2] * pq[0] * pq[2], pq[2] * pq[1] * pq[0], pq[2] * pq[1] * pq[1], pq[2] * pq[1] * pq[2], pq[2] * pq[2] * pq[0], pq[2] * pq[2] * pq[1], pq[2] * pq[2] * pq[2] };
+                                            pq[1] * pq[0] * pq[0], pq[1] * pq[0] * pq[1], pq[1] * pq[0] * pq[2], pq[1] * pq[1] * pq[0], pq[1] * pq[1] * pq[1], pq[1] * pq[1] * pq[2], pq[1] * pq[2] * pq[0], pq[1] * pq[2] * pq[1], pq[1] * pq[2] * pq[2],
+                                            pq[2] * pq[0] * pq[0], pq[2] * pq[0] * pq[1], pq[2] * pq[0] * pq[2], pq[2] * pq[1] * pq[0], pq[2] * pq[1] * pq[1], pq[2] * pq[1] * pq[2], pq[2] * pq[2] * pq[0], pq[2] * pq[2] * pq[1], pq[2] * pq[2] * pq[2] };
           // clang-format on
 
+          // The formula in [Barill 2018] incorrectly lists (-1. / norm_to_5)
           const auto norm_to_7 = norm_to_5 * norm * norm;
           terms[2] = F3.dot(G3_1 * (-3. / norm_to_5) + G3_2 * (15. / norm_to_7));
         }
@@ -348,7 +341,7 @@ public:
 };
 
 /*!
- * \brief Evaluate a heirarchical approximation of the GWN for the shape in 
+ * \brief Evaluate a hierarchical approximation of the GWN for the shape in 
  *   `leaf_objects`, encompassed by `traverser`'s BVH
  *
  * Traverse the BVH at the input `query`. 
@@ -368,6 +361,12 @@ public:
  *                               of the BVH tree, each representing a cluster of leaf objects
  * \param [in] wt A structure of possible tolerances for GWN evaluation to permit
  *                 flexible evaluation for many different type of leaf objects
+ * \param [in] beta An "accuracy parameter" which scales at what distance from an AABB a query
+ *                   point is considered to be "far-away".
+ * 
+ * The default parameter beta = 2.0 is suggested by the work 
+ * "Fast Winding Numbers for Soups and Clouds" by Barill et al. (2018)
+ * 
  * \return The approximated GWN at the query point
  */
 template <typename T, int NDIMS, int ORD, typename LeafGeometry, typename TraverserType>
@@ -375,7 +374,8 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
                                        const TraverserType& traverser,
                                        const ArrayView<LeafGeometry>& leaf_objects,
                                        const ArrayView<GWNMomentData<T, NDIMS, ORD>>& internal_moments,
-                                       const primal::WindingTolerances& wt)
+                                       const primal::WindingTolerances& wt,
+                                       double beta = 2.0)
 {
   double gwn = 0.0;
 
@@ -383,10 +383,9 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
   const auto internal_moments_view = internal_moments;
   using LeafGeom = std::decay_t<LeafGeometry>;
 
-  auto bbContain = [&gwn, &internal_moments_view](const primal::Point<T, NDIMS>& query,
-                                                  const primal::BoundingBox<T, NDIMS>& bvhBbox,
-                                                  std::int32_t node_index) -> bool {
-    constexpr double beta = 2.0;
+  auto bbContain = [&gwn, &internal_moments_view, &beta](const primal::Point<T, NDIMS>& query,
+                                                         const primal::BoundingBox<T, NDIMS>& bvhBbox,
+                                                         std::int32_t node_index) -> bool {
     const bool near_tree =
       axom::primal::squared_distance(query, internal_moments_view[node_index].getCenter()) <
       beta * beta * bvhBbox.range().squared_norm() / 4;
