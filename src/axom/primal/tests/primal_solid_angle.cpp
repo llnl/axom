@@ -545,7 +545,7 @@ TEST(primal_solid_angle, nurbspatch_sphere)
   const double EPS = 1e-11;
 
   // Test the points on the biquartic patches
-  auto sphere_faces = axom::primal::detail::make_sphere_biquartic();
+  auto sphere_faces = axom::primal::detail::make_unit_sphere_biquartic();
 
   SLIC_INFO("Evaluating GWN for inner points");
   auto inner_gwn =
@@ -586,8 +586,8 @@ TEST(primal_solid_angle, nurbspatch_sphere)
     EXPECT_NEAR(the_gwn, 1.0, 6 * quad_tol);
   }
 
-  // Test points near degenerate edges of the biquartic patches
-  sphere_faces = axom::primal::detail::make_sphere_bicubic();
+  // Test points near degenerate edges of the biquadratic patches
+  sphere_faces = axom::primal::detail::make_unit_sphere_biquadratic();
   axom::Array<Point3D> difficult_points(0, 5);
 
   // Outer points
@@ -624,7 +624,7 @@ TEST(primal_solid_angle, teardrop_regression_test)
   const double disk_size = 0.01;
   const double EPS = 1e-11;
 
-  // Test the points on a teardrop madefor which
+  // Test the points on a teardrop for which
   //  the bottom portion is a bicubic sphere,
   //  the top portion is defined by the solid of revolution of a cubic Bezier curve
   const auto teardrop_shape = axom::primal::detail::make_teardrop();

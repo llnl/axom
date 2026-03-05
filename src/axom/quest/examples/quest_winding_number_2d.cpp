@@ -43,7 +43,7 @@ class Input
 {
 public:
   std::string inputFile;
-  std::string outputPrefix = {"winding"};
+  std::string outputPrefix = {"winding2d"};
 
   bool verbose {false};
   std::string annotationMode {"none"};
@@ -219,7 +219,7 @@ int main(int argc, char** argv)
   axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(input.annotationMode);
   AXOM_ANNOTATE_SCOPE("winding number example");
 
-  // Read curves from the MFME mesh
+  // Read curves from the MFEM mesh
   axom::Array<NURBSCurve2D> curves;
   {
     AXOM_ANNOTATE_SCOPE("read_mesh");
@@ -312,7 +312,7 @@ int main(int argc, char** argv)
   }
 
   // Postprocess query results: norms, ranges, and integral statistics
-  if(input.stats)https://github.com/llnl/axom/pull/1791/files/c2cb5d630ca9ec51580c1e533c54752e9791cec3#diff-dd8c08ccaefce897684d219fdcaa97e1343c6195566d17b640fd993b829ec308
+  if(input.stats)
   {
     AXOM_ANNOTATE_SCOPE("postprocess");
 

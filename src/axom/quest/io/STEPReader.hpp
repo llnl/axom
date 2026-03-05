@@ -72,7 +72,7 @@ public:
   /// Returns some information about the loaded BRep
   std::string getBRepStats() const;
 
-  /// Returns an AABB for the loaded BRep
+  /// Returns an AABB for the loaded BRep as evaluated by OpenCascade
   axom::primal::BoundingBox<double, 3> getBRepBoundingBox(bool useTriangulation = false) const;
 
   /*!
