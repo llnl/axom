@@ -311,7 +311,7 @@ if(EXISTS ${Python_EXECUTABLE})
     message(STATUS "Python include dir: ${Python_INCLUDE_DIRS}")
     message(STATUS "Python library: ${Python_LIBRARIES}")
 
-    # Check for nanobind package
+    # Check for just nanobind package
     execute_process(
       COMMAND "${CMAKE_COMMAND}" -E env
               "PYTHONPATH=$ENV{PYTHONPATH}:${PY_NANOBIND_DIR}"
@@ -330,22 +330,36 @@ if(EXISTS ${Python_EXECUTABLE})
           OUTPUT_STRIP_TRAILING_WHITESPACE
         )
     endif()
+
+    # Check if python environment potentially contains all
+    # required dependencies
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E env
+              "${Python_EXECUTABLE}" -c "import nanobind, conduit, numpy, pytest"
+      RESULT_VARIABLE PY_ENV_IMPORT_CODE
+      OUTPUT_QUIET
+      ERROR_QUIET
+    )
 endif()
 
-if(nanobind_ROOT
+# If python environment does not contain required modules, check if
+# library installation paths were provided instead.
+if((NOT PY_ENV_IMPORT_CODE EQUAL 0)
    AND
-   (NOT CONDUIT_PYTHON_ENABLED
+   nanobind_ROOT
+   AND
+   (NOT PY_NANOBIND_DIR
+   OR NOT CONDUIT_PYTHON_MODULE_DIR
    OR NOT PY_NUMPY_DIR
    OR NOT PY_PYTEST_DIR
    OR NOT PY_PLUGGY_DIR
    OR NOT PY_INICONFIG_DIR))
     message(FATAL_ERROR
-      "nanobind python module requires Conduit's python module, numpy, and pytest."
-      "\nThe numpy and pytest "
+      "Axom's python extensions require nanobind, numpy, pytest, and conduit."
+      "\nThe python library installation paths "
       "(and pytest's dependencies pluggy and iniconfig) "
-      "python library installation "
-      "paths can be specified with CMake variables: "
-      "PY_NUMPY_DIR, PY_PYTEST_DIR, PY_PLUGGY_DIR, PY_INICONFIG_DIR ")
+      "can be specified with CMake variables: "
+      "PY_NANOBIND_DIR, CONDUIT_PYTHON_MODULE_DIR, PY_NUMPY_DIR, PY_PYTEST_DIR, PY_PLUGGY_DIR, PY_INICONFIG_DIR ")
 endif()
 
 # "cannot allocate memory in static TLS block" on blueos with cuda and/or clang.
