@@ -919,8 +919,8 @@ public:
 
     // Compute sizes and offsets
     computeSizes(tableViews, builder, zoneData, nodeData, fragmentData, opts, selectedZones);
-    computeFragmentSizes(fragmentData, selectedZones);
     computeFragmentOffsets(fragmentData);
+    computeFragmentSizes(fragmentData, selectedZones);
 
     // Compute original node count that we're preserving, make node maps.
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
@@ -1308,33 +1308,6 @@ private:
   }
 
   /*!
-   * \brief Compute the total number of fragments and their size.
-   *
-   * \param[inout] fragmentData The object that contains data about the zone fragments.
-   */
-  void computeFragmentSizes(FragmentData &fragmentData, const SelectedZones &selectedZones) const
-  {
-    AXOM_ANNOTATE_SCOPE("computeFragmentSizes");
-    const auto nzones = selectedZones.view().size();
-
-    // Sum the number of fragments.
-    axom::ReduceSum<ExecSpace, IndexType> fragment_sum(0);
-    const auto fragmentsView = fragmentData.m_fragmentsView;
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType szIndex) { fragment_sum += fragmentsView[szIndex]; });
-    fragmentData.m_finalNumZones = fragment_sum.get();
-
-    // Sum the fragment connectivity sizes.
-    axom::ReduceSum<ExecSpace, IndexType> fragment_nids_sum(0);
-    const auto fragmentsSizeView = fragmentData.m_fragmentsSizeView;
-    axom::for_all<ExecSpace>(
-      nzones,
-      AXOM_LAMBDA(axom::IndexType szIndex) { fragment_nids_sum += fragmentsSizeView[szIndex]; });
-    fragmentData.m_finalConnSize = fragment_nids_sum.get();
-  }
-
-  /*!
    * \brief Compute fragment offsets.
    *
    * \param[inout] fragmentData The object that contains data about the zone fragments.
@@ -1358,6 +1331,41 @@ private:
       "-------------------------------------------------------------"
       "-----------");
 #endif
+  }
+
+  /*!
+   * \brief Compute the total number of fragments and their size.
+   *
+   * \param[inout] fragmentData The object that contains data about the zone fragments.
+   */
+  void computeFragmentSizes(FragmentData &fragmentData, const SelectedZones &selectedZones) const
+  {
+    AXOM_ANNOTATE_SCOPE("computeFragmentSizes");
+    const auto nzones = selectedZones.view().size();
+    if constexpr(axom::execution_space<ExecSpace>::onDevice())
+    {
+      // Sum the number of fragments as well as the fragment connectivity sizes.
+      axom::ReduceSum<ExecSpace, IndexType> fragment_sum(0);
+      axom::ReduceSum<ExecSpace, IndexType> fragment_nids_sum(0);
+      const auto fragmentsView = fragmentData.m_fragmentsView;
+      const auto fragmentsSizeView = fragmentData.m_fragmentsSizeView;
+      axom::for_all<ExecSpace>(
+        nzones,
+        AXOM_LAMBDA(axom::IndexType szIndex)
+      {
+        fragment_sum += fragmentsView[szIndex];
+        fragment_nids_sum += fragmentsSizeView[szIndex];
+      });
+
+      fragmentData.m_finalNumZones = fragment_sum.get();
+      fragmentData.m_finalConnSize = fragment_nids_sum.get();
+    }
+    else
+    {
+      // Use results of computeFragmentOffsets to compute the final sizes so we can skip reductions.
+      fragmentData.m_finalNumZones = fragmentData.m_fragmentOffsetsView[nzones - 1] + fragmentData.m_fragmentsView[nzones - 1];
+      fragmentData.m_finalConnSize = fragmentData.m_fragmentSizeOffsetsView[nzones - 1] + fragmentData.m_fragmentsSizeView[nzones - 1];
+    }
   }
 
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
