@@ -65,9 +65,10 @@ public:
 
     const conduit::Node &n_input_values = n_input["values"];
     conduit::Node &n_output_values = n_output["values"];
-    if(n_input_values.number_of_children() > 0)
+    const conduit::index_t nc = n_input_values.number_of_children();
+    if(nc > 0)
     {
-      for(conduit::index_t i = 0; i < n_input_values.number_of_children(); i++)
+      for(conduit::index_t i = 0; i < nc; i++)
       {
         const conduit::Node &n_comp = n_input_values[i];
         conduit::Node &n_out_comp = n_output_values[n_comp.name()];
