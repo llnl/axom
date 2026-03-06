@@ -52,50 +52,71 @@ struct BuildRelation
     using value_type = typename ViewType::value_type;
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
 
-    // Make a copy of the nodes that we'll use as keys.
+    AXOM_ANNOTATE_BEGIN("alloc");
     const auto n = nodesView.size();
-    axom::Array<value_type> keys(n, n, allocatorID);
+    axom::Array<value_type> keys(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
+    axom::Array<axom::IndexType> mask(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
+    axom::Array<axom::IndexType> dest_offsets(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
+    AXOM_ANNOTATE_END("alloc");
+
+    // Make a copy of the nodes that we'll use as keys.
     auto keysView = keys.view();
-    axom::for_all<ExecSpace>(n, AXOM_LAMBDA(axom::IndexType i) { keysView[i] = nodesView[i]; });
+    {
+      AXOM_ANNOTATE_SCOPE("init");
+      axom::for_all<ExecSpace>(n, AXOM_LAMBDA(axom::IndexType i) { keysView[i] = nodesView[i]; });
+    }
 
     // Sort the keys, zones in place. This sorts the zonesView which we want for output.
-    axom::sort_pairs<ExecSpace>(keysView, zonesView);
+    {
+      AXOM_ANNOTATE_SCOPE("sort");
+      axom::sort_pairs<ExecSpace>(keysView, zonesView);
+    }
 
     // Make a mask array for where differences occur.
-    axom::Array<axom::IndexType> mask(n, n, allocatorID);
     auto maskView = mask.view();
-    axom::for_all<ExecSpace>(
-      n,
-      AXOM_LAMBDA(axom::IndexType i) {
-        maskView[i] = (i >= 1) ? ((keysView[i] != keysView[i - 1]) ? 1 : 0) : 1;
-      });
+    {
+      AXOM_ANNOTATE_SCOPE("mask");
+      axom::for_all<ExecSpace>(
+        n,
+        AXOM_LAMBDA(axom::IndexType i) {
+          maskView[i] = (i >= 1) ? ((keysView[i] != keysView[i - 1]) ? 1 : 0) : 1;
+        });
+    }
 
     // Do a scan on the mask array to build an offset array.
-    axom::Array<axom::IndexType> dest_offsets(n, n, allocatorID);
     auto dest_offsetsView = dest_offsets.view();
-    axom::exclusive_scan<ExecSpace>(maskView, dest_offsetsView);
+    {
+      AXOM_ANNOTATE_SCOPE("scan");
+      axom::exclusive_scan<ExecSpace>(maskView, dest_offsetsView);
+    }
 
     // Build the offsets to each node's zone ids.
-    axom::for_all<ExecSpace>(
-      offsetsView.size(),
-      AXOM_LAMBDA(axom::IndexType i) { offsetsView[i] = 0; });
-    axom::for_all<ExecSpace>(
-      n,
-      AXOM_LAMBDA(axom::IndexType i) {
-        if(maskView[i])
-        {
-          offsetsView[dest_offsetsView[i]] = i;
-        }
-      });
+    {
+      AXOM_ANNOTATE_SCOPE("offsets");
+      axom::for_all<ExecSpace>(
+        offsetsView.size(),
+        AXOM_LAMBDA(axom::IndexType i) { offsetsView[i] = 0; });
+      axom::for_all<ExecSpace>(
+        n,
+        AXOM_LAMBDA(axom::IndexType i) {
+          if(maskView[i])
+          {
+            offsetsView[dest_offsetsView[i]] = i;
+          }
+        });
+    }
 
     // Compute sizes from offsets.
-    const value_type totalSize = nodesView.size();
-    axom::for_all<ExecSpace>(
-      offsetsView.size(),
-      AXOM_LAMBDA(axom::IndexType i) {
-        sizesView[i] = (i < offsetsView.size() - 1) ? (offsetsView[i + 1] - offsetsView[i])
-                                                    : (totalSize - offsetsView[i]);
-      });
+    {
+      AXOM_ANNOTATE_SCOPE("sizes");
+      const value_type totalSize = nodesView.size();
+      axom::for_all<ExecSpace>(
+        offsetsView.size(),
+        AXOM_LAMBDA(axom::IndexType i) {
+          sizesView[i] = (i < offsetsView.size() - 1) ? (offsetsView[i + 1] - offsetsView[i])
+                                                      : (totalSize - offsetsView[i]);
+        });
+    }
   }
 };
 
