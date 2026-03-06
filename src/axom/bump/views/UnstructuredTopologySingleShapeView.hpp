@@ -138,18 +138,14 @@ public:
   {
     SLIC_ASSERT(zoneIndex < numberOfZones());
 
-    ConnectivityView shapeIdsView {};
     if(m_sizesView.empty())
     {
-      shapeIdsView = ConnectivityView(m_connectivityView.data() + ShapeType::zoneOffset(zoneIndex),
-                                      ShapeType::numberOfNodes());
+      return ShapeType(ConnectivityView(m_connectivityView.data() + ShapeType::zoneOffset(zoneIndex),
+                                        ShapeType::numberOfNodes()));
     }
-    else
-    {
-      shapeIdsView = ConnectivityView(m_connectivityView.data() + m_offsetsView[zoneIndex],
-                                      m_sizesView[zoneIndex]);
-    }
-    return ShapeType(shapeIdsView);
+
+    return ShapeType(ConnectivityView(m_connectivityView.data() + m_offsetsView[zoneIndex],
+                                      m_sizesView[zoneIndex]));
   }
   /// @}
 
