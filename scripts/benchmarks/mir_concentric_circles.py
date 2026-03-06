@@ -14,7 +14,7 @@ def lrun(np):
 # Parallel options use 4 ranks per node since that is how many GPUs there are.
 runs = {
   "build-rzansel-blueos_3_ppc64le_ib_p9-clang@10.0.1.2_cuda-release" : {"policies":["seq", "omp", "cuda"], "launch":lrun},
-  "build-rzwhippet-toss_4_x86_64_ib-clang@14.0.6-release" : {"policies":["seq", "omp"], "launch":srun},
+  "build-rzwhippet-toss_4_x86_64_ib-llvm@19.1.3-release" : {"policies":["seq", "omp"], "launch":srun},
   "build-rzwhippet-toss_4_x86_64_ib-gcc@10.3.1-release" : {"policies":["seq", "omp"], "launch":srun},
   "build-rzwhippet-toss_4_x86_64_ib-intel@2022.1.0-release" : {"policies":["seq", "omp"], "launch":srun},
   "build-rzvernal-toss_4_x86_64_ib_cray-rocmcc@6.2.1_hip-release" : {"policies":["seq", "hip"], "launch":srun},
@@ -39,6 +39,10 @@ def generate(params):
     f.write("#!/bin/bash\n\n")
     f.write("CONCENTRIC_CIRCLES=./examples/mir_concentric_circles\n")
     f.write("CONCENTRIC_CIRCLES_MPI=./examples/mir_concentric_circles_mpi\n\n")
+
+    f.write("export OMP_PLACES=cores\n")
+    f.write("export OMP_PROC_BIND=spread\n")
+    f.write("export OMP_DYNAMIC=FALSE\n")
 
     dimension = params["dimension"]
     trials = params["trials"]
