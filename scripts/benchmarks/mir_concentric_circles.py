@@ -248,6 +248,7 @@ def plot(params):
 
   dimension = params["dimension"]
   method = params["method"]
+  doLabels = params["labels"]
 
   # Add labels and title
   plt.xlabel('Number of Zones', fontsize=24)
@@ -271,6 +272,31 @@ def plot(params):
   except ValueError:
     print(f"There was an error, probably because the benchmark is still running. {columns}")
     raise
+
+  # Add labels
+  if doLabels and len(columns) == 3:
+    x1, y1 = make_series(columns[0][1:], columns[1][1:])
+    x2, y2 = make_series(columns[0][1:], columns[2][1:])
+    xa = []
+    ya = []
+    labels = []
+    idx = 0
+    for i in range(len(x1)):
+      # Where series 1 (SEQ) > series 2 (OMP)
+      if y1[i] > y2[i]:
+        xa.append(x2[i])
+        ya.append(y2[i])
+        labels.append(f"{math.trunc(100. * y1[i] / y2[i]) / 100.:.2f}x")
+        plt.annotate(
+          labels[idx],
+          (xa[idx], ya[idx]),
+          xytext=(6, -6), textcoords="offset points",  # pixel offset
+          ha="left", va="bottom",
+          fontsize=10,
+          bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8),
+          arrowprops=dict(arrowstyle="-", color="0.3", lw=0.8)
+        )
+        idx = idx + 1
 
   # Show the plot
   plt.grid(True)
@@ -330,6 +356,13 @@ def get_params():
     required=False
     )
 
+  parser.add_argument(
+    "--labels",
+    action="store_true",
+    help="Boolean flag to indicate whether to draw speedup labels",
+    required=False
+    )
+
   args = parser.parse_args()
 
   # Convert the comma-separated string into a tuple of integers
@@ -372,6 +405,11 @@ def get_params():
     params["trials"] = max(1, args.trials)
   else:
     params["trials"] = 1
+
+  if args.labels is not None:
+    params["labels"] = args.labels
+  else:
+    params["labels"] = False
 
   # Generate some sizes.
   sides = (50, 100, 200, 500, 1000, 1500, 2000, 4000, 8000)
