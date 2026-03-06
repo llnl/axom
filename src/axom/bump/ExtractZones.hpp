@@ -187,7 +187,7 @@ protected:
       {
         const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
         const auto n = selectedZonesView.size() + extra.zones;
-        m_zoneSlice = axom::Array<axom::IndexType>(n, n, allocatorID);
+        m_zoneSlice = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
         view = m_zoneSlice.view();
         axom::copy(view.data(),
                    selectedZonesView.data(),
@@ -257,16 +257,25 @@ protected:
     const auto nnodes = m_coordsetView.numberOfNodes();
 
     // Figure out the topology size based on selected zones.
-    axom::ReduceSum<ExecSpace, int> connsize_reduce(0);
-    const TopologyView deviceTopologyView(m_topologyView);
-    axom::for_all<ExecSpace>(
-      selectedZonesView.size(),
-      AXOM_LAMBDA(axom::IndexType szIndex) {
-        const auto zoneIndex = selectedZonesView[szIndex];
-        const auto zone = deviceTopologyView.zone(zoneIndex);
-        connsize_reduce += zone.numberOfNodes();
-      });
-    const auto newConnSize = connsize_reduce.get();
+    axom::IndexType newConnSize {};
+    if constexpr(!TopologyView::ShapeType::is_variable_size())
+    {
+      // If all shapes are the same size then we do not have to examine each zone.
+      newConnSize = selectedZonesView.size() * TopologyView::ShapeType::numberOfNodes();
+    }
+    else
+    {
+      axom::ReduceSum<ExecSpace, int> connsize_reduce(0);
+      const TopologyView deviceTopologyView(m_topologyView);
+      axom::for_all<ExecSpace>(
+        selectedZonesView.size(),
+        AXOM_LAMBDA(axom::IndexType szIndex) {
+          const auto zoneIndex = selectedZonesView[szIndex];
+          const auto zone = deviceTopologyView.zone(zoneIndex);
+          connsize_reduce += zone.numberOfNodes();
+        });
+      newConnSize = connsize_reduce.get();
+    }
     if(!selectedZonesView.empty())
     {
       SLIC_ERROR_IF(newConnSize == 0, "ReduceSum returned 0 for newConnSize.");
@@ -277,11 +286,12 @@ protected:
     sizes.zones = selectedZonesView.size();
     sizes.connectivity = newConnSize;
 
+    const auto nodeSliceSize = sizes.nodes + extra.nodes;
     nodeSlice =
-      axom::Array<axom::IndexType>(sizes.nodes + extra.nodes, sizes.nodes + extra.nodes, allocatorID);
+      axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nodeSliceSize, nodeSliceSize, allocatorID);
     auto nodeSliceView = nodeSlice.view();
     axom::for_all<ExecSpace>(
-      sizes.nodes + extra.nodes,
+      nodeSliceSize,
       AXOM_LAMBDA(axom::IndexType index) {
         nodeSliceView[index] = (index < sizes.nodes) ? index : 0;
       });
@@ -317,7 +327,7 @@ protected:
 
     // We need to figure out which nodes to keep.
     const auto nnodes = m_coordsetView.numberOfNodes();
-    axom::Array<int> mask(nnodes, nnodes, allocatorID);
+    axom::Array<int> mask(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
     auto maskView = mask.view();
     mask.fill(0);
 
@@ -343,26 +353,34 @@ protected:
       SLIC_ERROR_IF(newConnSize == 0, "ReduceSum returned 0 for newConnSize.");
     }
 
+    // Make a compact list of nodes.
+    axom::Array<int> maskOffsets(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
+    auto maskOffsetsView = maskOffsets.view();
+    axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
+
     // Count the used nodes.
-    axom::ReduceSum<ExecSpace, int> mask_reduce(0);
-    axom::for_all<ExecSpace>(
-      nnodes,
-      AXOM_LAMBDA(axom::IndexType index) { mask_reduce += maskView[index]; });
-    const int newNumNodes = mask_reduce.get();
+    int newNumNodes {};
+    if constexpr(axom::execution_space<ExecSpace>::onDevice())
+    {
+      axom::ReduceSum<ExecSpace, int> mask_reduce(0);
+      axom::for_all<ExecSpace>(
+        nnodes,
+        AXOM_LAMBDA(axom::IndexType index) { mask_reduce += maskView[index]; });
+      newNumNodes = mask_reduce.get();
+    }
+    else
+    {
+      newNumNodes = maskOffsetsView[nnodes - 1] + maskView[nnodes - 1];
+    }
     if(nnodes > 0)
     {
       SLIC_ERROR_IF(newNumNodes == 0, "ReduceSum returned 0 for newNumNodes.");
     }
 
-    // Make a compact list of nodes.
-    axom::Array<int> maskOffsets(nnodes, nnodes, allocatorID);
-    auto maskOffsetsView = maskOffsets.view();
-    axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
-
     // Make an array of original node ids that we can use to "slice" the nodal data.
-    old2new = axom::Array<ConnectivityType>(nnodes, nnodes, allocatorID);
+    old2new = axom::Array<ConnectivityType>(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
     nodeSlice =
-      axom::Array<axom::IndexType>(newNumNodes + extra.nodes, newNumNodes + extra.nodes, allocatorID);
+      axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), newNumNodes + extra.nodes, newNumNodes + extra.nodes, allocatorID);
     auto old2newView = old2new.view();
     auto nodeSliceView = nodeSlice.view();
     axom::for_all<ExecSpace>(
