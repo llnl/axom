@@ -1020,7 +1020,7 @@ protected:
 
     // Compress out any gaps in the offsets by making new offsets from the sizes.
     // This makes the code able to handle meshes that have gaps in its connectivity array.
-    axom::Array<value_type> actualOffsets(srcSizesView.size(), srcSizesView.size(), allocatorID);
+    axom::Array<value_type> actualOffsets(axom::ArrayOptions::Uninitialized(), srcSizesView.size(), srcSizesView.size(), allocatorID);
     auto actualOffsetsView = actualOffsets.view();
     axom::exclusive_scan<ExecSpace>(srcSizesView, actualOffsetsView);
 
@@ -1034,7 +1034,8 @@ protected:
         AXOM_LAMBDA(axom::IndexType index) {
           const auto destOffset = connOffset + actualOffsetsView[index];
           const auto srcOffset = srcOffsetsView[index];
-          for(value_type j = 0; j < srcSizesView[index]; j++)
+          const value_type jmax = srcSizesView[index];
+          for(value_type j = 0; j < jmax; j++)
           {
             const auto nodeId = srcConnView[srcOffset + j];
             const auto newNodeId = nodeMapView[nodeId];
@@ -1049,7 +1050,8 @@ protected:
         AXOM_LAMBDA(axom::IndexType index) {
           const auto destOffset = connOffset + actualOffsetsView[index];
           const auto srcOffset = srcOffsetsView[index];
-          for(value_type j = 0; j < srcSizesView[index]; j++)
+          const value_type jmax = srcSizesView[index];
+          for(value_type j = 0; j < jmax; j++)
           {
             connView[destOffset + j] = coordOffset + srcConnView[srcOffset + j];
           }
