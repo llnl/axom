@@ -226,7 +226,7 @@ def lineProps(name):
   #purple = "#8811aa"
   hostColor = {"rzwhippet" : red, "rzvernal" : green, "rzadams" : blue,
                "dane" : red, "matrix" : green, "tioga": orange, "tuolumne" : blue}
-  policyStyle = {"seq" : "--", "omp": ":", "cuda" : "-", "hip" : "-"}
+  policyStyle = {"seq" : "-", "omp": ":", "cuda" : "--", "hip" : "--"}
   policyMark = {"seq" : "o", "omp": "s", "cuda" : "^", "hip" : "^"}
   color = "b"
   style = "-"
@@ -303,12 +303,21 @@ def plot(params):
       return darkenColor(r,g,b)
     return lightenColor(r,g,b)
 
+  def valid_column(column):
+    valid = False
+    for i in range(1, len(column)):
+      if column[i] != "":
+        valid = True
+    return valid
+
   # Make columns from the data
   columns = make_columns(params)
 
   # Count how many plots would use the normal legend name
   counts = {}
   for c in range(1, len(columns)):
+    if not valid_column(columns[c]):
+      continue
     sn = seriesName(columns[c][0])
     if sn in counts:
       count, _ = counts[sn]
