@@ -974,7 +974,19 @@ public:
 #endif
     {
       AXOM_ANNOTATE_SCOPE("unique");
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+      if constexpr(std::is_same_v<ExecSpace, axom::OMP_EXEC>)
+      {
+        // The serial version Unique specialization is faster
+        axom::bump::Unique<axom::SEQ_EXEC, KeyType>::execute(builder.blendNames(), uNames, uIndices);
+      }
+      else
+      {
+        axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(), uNames, uIndices);
+      }
+#else
       axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(), uNames, uIndices);
+#endif
       builder.setUniqueNames(uNames.view(), uIndices.view());
 
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
@@ -1048,7 +1060,8 @@ public:
     if(numElementFields > 0)
     {
       AXOM_ANNOTATE_SCOPE("sliceIndices");
-      sliceIndices = axom::Array<IndexType>(fragmentData.m_finalNumZones,
+      sliceIndices = axom::Array<IndexType>(// zero-filled
+                                            fragmentData.m_finalNumZones,
                                             fragmentData.m_finalNumZones,
                                             allocatorID);
       auto sliceIndicesView = sliceIndices.view();
@@ -1060,7 +1073,8 @@ public:
         AXOM_LAMBDA(axom::IndexType index) {
           const auto zoneIndex = selectedZonesView[index];
           const auto start = fragmentData.m_fragmentOffsetsView[index];
-          for(int i = 0; i < fragmentData.m_fragmentsView[index]; i++)
+          const int n = fragmentData.m_fragmentsView[index];
+          for(int i = 0; i < n; i++)
           {
             sliceIndicesView[start + i] = zoneIndex;
           }
@@ -2016,6 +2030,7 @@ private:
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     if constexpr(std::is_same_v<ExecSpace, axom::OMP_EXEC>)
     {
+      AXOM_ANNOTATE_SCOPE("makeFieldsInParallel");
       constexpr axom::IndexType SIZE_CUTOFF = 4000000;
       const auto size = axom::utilities::max(axom::bump::NumberOfValues(blend), axom::bump::NumberOfValues(slice));
       if(size < SIZE_CUTOFF)
@@ -2115,7 +2130,6 @@ private:
                             const conduit::Node &n_fields,
                             conduit::Node &n_out_fields) const
   {
-    AXOM_ANNOTATE_SCOPE("makeFieldsInParallel");
     // Set up output fields.
     int numFields = static_cast<int>(fieldMap.size());
     if(numFields > 0)
