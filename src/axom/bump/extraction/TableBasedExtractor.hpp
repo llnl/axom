@@ -858,9 +858,10 @@ public:
 
     // Allocate some memory and store views in ZoneData, FragmentData.
     AXOM_ANNOTATE_BEGIN("allocation");
-    axom::Array<int> caseNumbers(nzones, nzones,
+    axom::Array<int> caseNumbers(axom::ArrayOptions::Uninitialized(), nzones, nzones,
                                  allocatorID);  // The table case for a zone.
     axom::Array<BitSet> pointsUsed(
+      axom::ArrayOptions::Uninitialized(),
       nzones,
       nzones,
       allocatorID);  // Which points are used over all selected fragments in a zone
@@ -872,21 +873,23 @@ public:
     NodeData nodeData;
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
     const auto nnodes = m_coordsetView.numberOfNodes();
-    axom::Array<int> nodeUsed(nnodes, nnodes, allocatorID);
+    axom::Array<int> nodeUsed(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
     nodeData.m_nodeUsedView = nodeUsed.view();
 #endif
 
     // Allocate some memory and store views in FragmentData.
     axom::Array<IndexType> fragments(
+      axom::ArrayOptions::Uninitialized(),
       nzones,
       nzones,
       allocatorID);  // The number of fragments (child zones) produced for a zone.
     axom::Array<IndexType> fragmentsSize(
+      axom::ArrayOptions::Uninitialized(),
       nzones,
       nzones,
       allocatorID);  // The connectivity size for all selected fragments in a zone.
-    axom::Array<IndexType> fragmentOffsets(nzones, nzones, allocatorID);
-    axom::Array<IndexType> fragmentSizeOffsets(nzones, nzones, allocatorID);
+    axom::Array<IndexType> fragmentOffsets(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
+    axom::Array<IndexType> fragmentSizeOffsets(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
 
     FragmentData fragmentData;
     fragmentData.m_fragmentsView = fragments.view();
@@ -894,16 +897,20 @@ public:
     fragmentData.m_fragmentOffsetsView = fragmentOffsets.view();
     fragmentData.m_fragmentSizeOffsetsView = fragmentSizeOffsets.view();
 
-    axom::Array<IndexType> blendGroups(nzones,
+    axom::Array<IndexType> blendGroups(axom::ArrayOptions::Uninitialized(),
+                                       nzones,
                                        nzones,
                                        allocatorID);  // Number of blend groups in a zone.
-    axom::Array<IndexType> blendGroupsLen(nzones,
+    axom::Array<IndexType> blendGroupsLen(axom::ArrayOptions::Uninitialized(),
+                                          nzones,
                                           nzones,
                                           allocatorID);  // Length of the blend groups in a zone.
-    axom::Array<IndexType> blendOffset(nzones,
+    axom::Array<IndexType> blendOffset(axom::ArrayOptions::Uninitialized(),
+                                       nzones,
                                        nzones,
                                        allocatorID);  // Start of zone's blend group indices
     axom::Array<IndexType> blendGroupOffsets(
+      axom::ArrayOptions::Uninitialized(),
       nzones,
       nzones,
       allocatorID);  // Start of zone's blend group offsets in definitions.
@@ -967,7 +974,19 @@ public:
 #endif
     {
       AXOM_ANNOTATE_SCOPE("unique");
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+      if constexpr(std::is_same_v<ExecSpace, axom::OMP_EXEC>)
+      {
+        // The serial version Unique specialization is faster
+        axom::bump::Unique<axom::SEQ_EXEC, KeyType>::execute(builder.blendNames(), uNames, uIndices);
+      }
+      else
+      {
+        axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(), uNames, uIndices);
+      }
+#else
       axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(), uNames, uIndices);
+#endif
       builder.setUniqueNames(uNames.view(), uIndices.view());
 
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
@@ -1041,7 +1060,8 @@ public:
     if(numElementFields > 0)
     {
       AXOM_ANNOTATE_SCOPE("sliceIndices");
-      sliceIndices = axom::Array<IndexType>(fragmentData.m_finalNumZones,
+      sliceIndices = axom::Array<IndexType>(// zero-filled
+                                            fragmentData.m_finalNumZones,
                                             fragmentData.m_finalNumZones,
                                             allocatorID);
       auto sliceIndicesView = sliceIndices.view();
@@ -1053,7 +1073,8 @@ public:
         AXOM_LAMBDA(axom::IndexType index) {
           const auto zoneIndex = selectedZonesView[index];
           const auto start = fragmentData.m_fragmentOffsetsView[index];
-          for(int i = 0; i < fragmentData.m_fragmentsView[index]; i++)
+          const int n = fragmentData.m_fragmentsView[index];
+          for(int i = 0; i < n; i++)
           {
             sliceIndicesView[start + i] = zoneIndex;
           }
@@ -1399,7 +1420,7 @@ private:
 
     // Make offsets into a compact array.
     const auto nnodes = nodeData.m_nodeUsedView.size();
-    axom::Array<int> nodeOffsets(nnodes, nnodes, allocatorID);
+    axom::Array<int> nodeOffsets(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
     auto nodeOffsetsView = nodeOffsets.view();
     axom::exclusive_scan<ExecSpace>(nodeData.m_nodeUsedView, nodeOffsetsView);
 
@@ -2005,50 +2026,132 @@ private:
                   conduit::Node &n_out_fields) const
   {
     AXOM_ANNOTATE_SCOPE("makeFields");
-    constexpr bool ss = axom::bump::views::view_traits<TopologyView>::supports_strided_structured();
-
-    for(auto it = fieldMap.begin(); it != fieldMap.end(); it++)
+    bool handled = false;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+    if constexpr(std::is_same_v<ExecSpace, axom::OMP_EXEC>)
     {
-      const conduit::Node &n_field = n_fields.fetch_existing(it->first);
-      const std::string association = n_field["association"].as_string();
-      if(association == "element")
+      AXOM_ANNOTATE_SCOPE("makeFieldsInParallel");
+      constexpr axom::IndexType SIZE_CUTOFF = 4000000;
+      const auto size = axom::utilities::max(axom::bump::NumberOfValues(blend), axom::bump::NumberOfValues(slice));
+      if(size < SIZE_CUTOFF)
       {
-        // Conditionally support strided-structured.
-        bool handled =
-          detail::StridedStructuredFields<ss, ExecSpace, TopologyView>::sliceElementField(
-            m_topologyView,
-            slice,
-            n_field,
-            n_out_fields[it->second]);
-
-        if(!handled)
-        {
-          axom::bump::FieldSlicer<ExecSpace> s;
-          s.execute(slice, n_field, n_out_fields[it->second]);
-        }
-
-        n_out_fields[it->second]["topology"] = topologyName;
+        // Make the fields at the same time using axom::SEQ_EXEC kernels to copy data.
+        makeFieldsInParallel(blend, slice, topologyName, fieldMap, n_fields, n_out_fields);
+        handled = true;
       }
-      else if(association == "vertex")
+    }
+#endif
+    if(!handled)
+    {
+      // Make the fields one at a time using ExecSpace kernels to copy data.
+      for(auto it = fieldMap.begin(); it != fieldMap.end(); it++)
       {
-        // Conditionally support strided-structured.
-        bool handled = detail::StridedStructuredFields<ss, ExecSpace, TopologyView>::blendVertexField(
-          m_topologyView,
-          blend,
-          n_field,
-          n_out_fields[it->second]);
-
-        if(!handled)
-        {
-          // Blend the field normally.
-          axom::bump::FieldBlender<ExecSpace, axom::bump::SelectSubsetPolicy> b;
-          b.execute(blend, n_field, n_out_fields[it->second]);
-        }
-
-        n_out_fields[it->second]["topology"] = topologyName;
+        const conduit::Node &n_field = n_fields.fetch_existing(it->first);
+        conduit::Node &n_out_field = n_out_fields[it->second];
+        makeSingleField<ExecSpace>(blend, slice, topologyName, n_field, n_out_field);
       }
     }
   }
+
+  /*!
+   * \brief Make a single new field for the output topology.
+   *
+   * \tparam FieldExecSpace the execution space used to copy data.
+   *
+   * \param blend The BlendData that we need to construct the new vertex fields.
+   * \param slice The SliceData we need to construct new element fields.
+   * \param topologyName The name of the new field's topology.
+   * \param n_field The source field.
+   * \param[out] n_out_field The node that will contain the new field.
+   */
+  template <typename FieldExecSpace = ExecSpace>
+  void makeSingleField(const BlendData &blend,
+                       const SliceData &slice,
+                       const std::string &topologyName,
+                       const conduit::Node &n_field,
+                       conduit::Node &n_out_field) const
+  {
+    constexpr bool ss = axom::bump::views::view_traits<TopologyView>::supports_strided_structured();
+    const std::string association = n_field["association"].as_string();
+
+    if(association == "element")
+    {
+      // Conditionally support strided-structured.
+      bool handled =
+        detail::StridedStructuredFields<ss, FieldExecSpace, TopologyView>::sliceElementField(
+          m_topologyView,
+          slice,
+          n_field,
+          n_out_field);
+
+      if(!handled)
+      {
+        axom::bump::FieldSlicer<FieldExecSpace> s;
+        s.execute(slice, n_field, n_out_field);
+      }
+
+      n_out_field["topology"] = topologyName;
+    }
+    else if(association == "vertex")
+    {
+      // Conditionally support strided-structured.
+      bool handled = detail::StridedStructuredFields<ss, FieldExecSpace, TopologyView>::blendVertexField(
+        m_topologyView,
+        blend,
+        n_field,
+        n_out_field);
+
+      if(!handled)
+      {
+        // Blend the field normally.
+        axom::bump::FieldBlender<FieldExecSpace, axom::bump::SelectSubsetPolicy> b;
+        b.execute(blend, n_field, n_out_field);
+      }
+
+      n_out_field["topology"] = topologyName;
+    }
+  }
+
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  /*!
+   * \brief Make new fields for the output topology.
+   *
+   * \param blend The BlendData that we need to construct the new vertex fields.
+   * \param slice The SliceData we need to construct new element fields.
+   * \param topologyName The name of the new field's topology.
+   * \param fieldMap A map containing the names of the fields that we'll operate on.
+   * \param n_fields The source fields.
+   * \param[out] n_out_fields The node that will contain the new fields.
+   */
+  void makeFieldsInParallel(const BlendData &blend,
+                            const SliceData &slice,
+                            const std::string &topologyName,
+                            const std::map<std::string, std::string> &fieldMap,
+                            const conduit::Node &n_fields,
+                            conduit::Node &n_out_fields) const
+  {
+    // Set up output fields.
+    int numFields = static_cast<int>(fieldMap.size());
+    if(numFields > 0)
+    {
+      axom::Array<const conduit::Node *> inFields(numFields, numFields);
+      axom::Array<conduit::Node *> outFields(numFields, numFields);
+      axom::IndexType i = 0;
+      for(auto it = fieldMap.begin(); it != fieldMap.end(); it++, i++)
+      {
+        inFields[i] = n_fields.fetch_ptr(it->first);
+        // Make output field.
+        outFields[i] = n_out_fields.fetch_ptr(it->second);
+      }
+
+      // Try and make fields in parallel.
+      axom::for_all<axom::OMP_EXEC>(inFields.size(), [&](axom::IndexType index)
+      {
+        makeSingleField<axom::SEQ_EXEC>(blend, slice, topologyName, *inFields[index], *outFields[index]);
+      });
+    }
+  }
+#endif
 
   /*!
    * \brief Make an originalElements field so we can know each output zone's original zone number in the input mesh.

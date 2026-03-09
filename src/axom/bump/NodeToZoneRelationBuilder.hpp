@@ -17,6 +17,7 @@
 #include <conduit/conduit_blueprint.hpp>
 #include <conduit/conduit_blueprint_mesh_utils.hpp>
 
+#include <cstring>
 #include <map>
 #include <vector>
 
@@ -27,10 +28,10 @@ namespace bump
 namespace details
 {
 /*!
- * \brief Build the node to zone relation.
+ * \brief Implementation for building the node to zone relation.
  */
 template <typename ExecSpace, typename ViewType>
-struct BuildRelation
+struct BuildRelationImpl
 {
   /*!
    * \brief Given views that contain the nodes and zones, sort the zones using the
@@ -122,51 +123,97 @@ struct BuildRelation
 
 /// Partial specialization for axom::SEQ_EXEC.
 template <typename ViewType>
-struct BuildRelation<axom::SEQ_EXEC, ViewType>
+struct BuildRelationImpl<axom::SEQ_EXEC, ViewType>
 {
   static void execute(ViewType nodesView, ViewType zonesView, ViewType sizesView, ViewType offsetsView)
   {
     AXOM_ANNOTATE_SCOPE("FillZonesAndOffsets");
+
     SLIC_ASSERT(nodesView.size() == zonesView.size());
     using value_type = typename ViewType::value_type;
     using ExecSpace = axom::SEQ_EXEC;
     const int allocatorID = execution_space<ExecSpace>::allocatorID();
 
-    // Count how many times a node is used.
-    axom::for_all<ExecSpace>(
-      sizesView.size(),
-      AXOM_LAMBDA(axom::IndexType index) { sizesView[index] = 0; });
-    axom::for_all<ExecSpace>(
-      nodesView.size(),
-      AXOM_LAMBDA(axom::IndexType index) {
-        // Works because ExecSpace=SEQ_EXEC.
-        sizesView[nodesView[index]]++;
-      });
-    // Make offsets
-    axom::exclusive_scan<ExecSpace>(sizesView, offsetsView);
+    // NOTE: Make it more "native" for a little more performance.
 
-    axom::for_all<ExecSpace>(
-      sizesView.size(),
-      AXOM_LAMBDA(axom::IndexType index) { sizesView[index] = 0; });
+    const auto sizesViewSize = sizesView.size();
+    memset(sizesView.data(), 0, sizesViewSize * sizeof(value_type));
+    // Make sizes
+    const auto nodesViewSize = nodesView.size();
+    for(axom::IndexType index = 0; index < nodesViewSize; index++)
+    {
+      sizesView[nodesView[index]]++;
+    }
+    // Make offsets
+    axom::IndexType offset = 0;
+    for(axom::IndexType i = 0; i < sizesViewSize; i++)
+    {
+      offsetsView[i] = offset;
+      offset += sizesView[i];
+    }
+
+    memset(sizesView.data(), 0, sizesViewSize * sizeof(value_type));
 
     // Make a copy of zonesView so we can reorganize zonesView.
-    axom::Array<value_type> zcopy(zonesView.size(), zonesView.size(), allocatorID);
-    axom::copy(zcopy.data(), zonesView.data(), zonesView.size() * sizeof(value_type));
+    axom::Array<value_type> zcopy(axom::ArrayOptions::Uninitialized(), zonesView.size(), zonesView.size(), allocatorID);
+    memcpy(zcopy.data(), zonesView.data(), zonesView.size() * sizeof(value_type));
     auto zcopyView = zcopy.view();
 
     // Fill in zonesView, sizesView with each node's zones.
-    axom::for_all<ExecSpace>(
-      nodesView.size(),
-      AXOM_LAMBDA(axom::IndexType index) {
-        const auto ni = nodesView[index];
-        const auto destOffset = offsetsView[ni] + sizesView[ni];
-        zonesView[destOffset] = zcopyView[index];
-        // Works because ExecSpace=SEQ_EXEC.
-        sizesView[ni]++;
-      });
+    for(axom::IndexType index = 0; index < nodesViewSize; index++)
+    {
+      const auto ni = nodesView[index];
+      const auto destOffset = offsetsView[ni] + sizesView[ni];
+      zonesView[destOffset] = zcopyView[index];
+      sizesView[ni]++;
+    }
   }
 };
 
+/*!
+ * \brief Interface for building node to zone relation.
+ */
+template <typename ExecSpace, typename ViewType>
+struct BuildRelation
+{
+  /*!
+   * \brief Given views that contain the nodes and zones, sort the zones using the
+   *        node numbers to produce a list of zones for each node and an offsets array
+   *        that points to the start of each list of zones.
+   *
+   * \param[in]    nodesView   A view that contains the set of all of the nodes in the topology (the connectivity)
+   * \param[inout] zonesView   A view (same size as \a nodesView) that contains the zone number of each node.
+   * \param[out]   sizesView A view that we fill with sizes.
+   * \param[out]   offsetsView A view that we fill with offsets so offsetsView[i] points to the start of the i'th list in \a zonesView.
+   */
+  static inline void execute(ViewType nodesView, ViewType zonesView, ViewType sizesView, ViewType offsetsView)
+  {
+    BuildRelationImpl<ExecSpace, ViewType>::execute(nodesView, zonesView, sizesView, offsetsView);
+  }
+};
+
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+/// Partial specialization for axom::OMP_EXEC
+template <typename ViewType>
+struct BuildRelation<axom::OMP_EXEC, ViewType>
+{
+  /*!
+   * \brief Given views that contain the nodes and zones, sort the zones using the
+   *        node numbers to produce a list of zones for each node and an offsets array
+   *        that points to the start of each list of zones.
+   *
+   * \param[in]    nodesView   A view that contains the set of all of the nodes in the topology (the connectivity)
+   * \param[inout] zonesView   A view (same size as \a nodesView) that contains the zone number of each node.
+   * \param[out]   sizesView A view that we fill with sizes.
+   * \param[out]   offsetsView A view that we fill with offsets so offsetsView[i] points to the start of the i'th list in \a zonesView.
+   */
+  static void execute(ViewType nodesView, ViewType zonesView, ViewType sizesView, ViewType offsetsView)
+  {
+    // Call serial implementation for now because it is faster.
+    BuildRelationImpl<axom::SEQ_EXEC, ViewType>::execute(nodesView, zonesView, sizesView, offsetsView);
+  }
+};
+#endif
 }  // end namespace details
 
 /*!

@@ -110,8 +110,8 @@ struct Unique
 
     // Make a copy of the keys and make original indices.
     const auto n = keys_orig_view.size();
-    axom::Array<KeyType> keys(n, n, allocatorID);
-    axom::Array<axom::IndexType> indices(n, n, allocatorID);
+    axom::Array<KeyType> keys(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
+    axom::Array<axom::IndexType> indices(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
     auto keys_view = keys.view();
     auto indices_view = indices.view();
     axom::for_all<ExecSpace>(
@@ -132,7 +132,7 @@ struct Unique
     axom::stable_sort_pairs<ExecSpace>(keys_view, indices_view);
 
     // Make a mask array for where differences occur.
-    axom::Array<axom::IndexType> mask(n, n, allocatorID);
+    axom::Array<axom::IndexType> mask(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
     auto mask_view = mask.view();
     axom::ReduceSum<ExecSpace, axom::IndexType> mask_sum(0);
     axom::for_all<ExecSpace>(
@@ -161,8 +161,8 @@ struct Unique
 
     // Allocate the output arrays.
     const axom::IndexType newsize = mask_sum.get();
-    skeys = axom::Array<KeyType>(newsize, newsize, allocatorID);
-    sindices = axom::Array<axom::IndexType>(newsize, newsize, allocatorID);
+    skeys = axom::Array<KeyType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);
+    sindices = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);
 
     // Iterate over the mask/offsets to store values at the right
     // offset in the new array.
@@ -231,8 +231,8 @@ struct Unique<axom::SEQ_EXEC, KeyType>
     // Allocate the output arrays and populate them
     const axom::IndexType newsize = unique_vector.size();
     const int allocatorID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-    skeys = axom::Array<KeyType>(newsize, newsize, allocatorID);
-    sindices = axom::Array<axom::IndexType>(newsize, newsize, allocatorID);
+    skeys = axom::Array<KeyType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);
+    sindices = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);
 
     for(axom::IndexType index = 0; index < newsize; ++index)
     {
