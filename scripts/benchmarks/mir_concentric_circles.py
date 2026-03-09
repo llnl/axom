@@ -20,7 +20,7 @@ runs = {
   "build-rzvernal-toss_4_x86_64_ib_cray-rocmcc@6.2.1_hip-release" : {"policies":["seq", "hip"], "launch":srun},
   "build-rzvernal-toss_4_x86_64_ib_cray-clang@17.0.0_hip-release" : {"policies":["seq", "hip"], "launch":srun},
   "build-rzadams-toss_4_x86_64_ib_cray-cce@18.0.0_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
-  "build-rzadams-toss_4_x86_64_ib_cray-rocmcc@6.2.1_hip-release" :{"policies":["seq", "hip"], "launch":flux_run}
+  "build-rzadams-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.2_hip-release" :{"policies":["seq", "hip"], "launch":flux_run}
 }
 
 def generate(params):
@@ -72,7 +72,10 @@ def read_timings(filename, searchKey):
   retval = "" # no data
   try:
     lines = open(filename, "rt").readlines()
-    print(f"Reading {filename}")
+    msg = ""
+    if searchKey.find("Algorithm") == -1:
+      msg = f" Getting '{searchKey}' value."
+    print(f"Reading {filename}.{msg}")
     for line in lines:
       pos = line.find(searchKey)
       if pos != -1:
@@ -117,10 +120,7 @@ def make_columns(params):
       avg = value
     return avg
 
-  # Measure just the MIR algorithm
-  searchKey = "EquizAlgorithm"
-  if params["method"] == "elvira":
-    searchKey = "ElviraAlgorithm"
+  searchKey = params["searchKey"]
 
   columns = []
   # Add NumZones column (either square or cube of s, depending on dimension)
@@ -248,12 +248,16 @@ def plot(params):
 
   dimension = params["dimension"]
   method = params["method"]
+  searchKey = params["searchKey"]
+  if searchKey.find("Algorithm") != -1:
+    # more concise
+    searchKey = method
   doLabels = params["labels"]
 
   # Add labels and title
   plt.xlabel('Number of Zones', fontsize=24)
   plt.ylabel('Time (s)', fontsize=24)
-  plt.title(f'{dimension}D MIR Timings ({method})', fontsize=28)
+  plt.title(f'{dimension}D MIR Timings ({searchKey})', fontsize=28)
   xlabels = make_series(columns[0][1:], columns[0][1:])[0]
   plt.xticks(ticks=xlabels, labels=xlabels, fontsize=18)
   plt.yticks(fontsize=18)
@@ -275,6 +279,12 @@ def plot(params):
 
   # Add labels
   if doLabels and len(columns) == 3:
+    def findIndex(seq, value):
+      eps = 1.e-8
+      for i in range(len(seq)):
+        if math.fabs(value - seq[i]) < eps:
+          return i
+      return -1
     x1, y1 = make_series(columns[0][1:], columns[1][1:])
     x2, y2 = make_series(columns[0][1:], columns[2][1:])
     xa = []
@@ -283,9 +293,10 @@ def plot(params):
     idx = 0
     for i in range(len(x1)):
       # Where series 1 (SEQ) > series 2 (OMP)
-      if y1[i] > y2[i]:
-        xa.append(x2[i])
-        ya.append(y2[i])
+      j = findIndex(x2, x1[i])
+      if j != -1 and y1[i] > y2[j]:
+        xa.append(x2[j])
+        ya.append(y2[j])
         labels.append(f"{math.trunc(100. * y1[i] / y2[i]) / 100.:.2f}x")
         plt.annotate(
           labels[idx],
@@ -350,6 +361,13 @@ def get_params():
   )
 
   parser.add_argument(
+    "--key",
+    type=str,
+    help="Name of the caliper timings to extract from the logs",
+    required=False
+  )
+
+  parser.add_argument(
     "--trials",
     type=int,
     help="Number of times to run MIR",
@@ -410,6 +428,15 @@ def get_params():
     params["labels"] = args.labels
   else:
     params["labels"] = False
+
+  if args.key is not None:
+    params["searchKey"] = args.key
+  else:
+    # Default to MIR algorithm timings
+    if params["method"] == "elvira":
+      params["searchKey"] = "ElviraAlgorithm"
+    else:
+      params["searchKey"] = "EquizAlgorithm"
 
   # Generate some sizes.
   sides = (50, 100, 200, 500, 1000, 1500, 2000, 4000, 8000)
