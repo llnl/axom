@@ -13,6 +13,9 @@ def lrun(np):
 
 # Parallel options use 4 ranks per node since that is how many GPUs there are.
 runs = {
+  "build-dane-toss_4_x86_64_ib-gcc@13.3.1-release" : {"policies":["seq", "omp"], "launch":srun},
+  "build-dane-toss_4_x86_64_ib-intel-oneapi-compilers@2025.2.0-release" : {"policies":["seq", "omp"], "launch":srun},
+  "build-dane-toss_4_x86_64_ib-llvm@19.1.3-release" : {"policies":["seq", "omp"], "launch":srun},
   "build-matrix-toss_4_x86_64_ib-gcc@13.3.1_cuda-release" : {"policies":["seq", "cuda"], "launch":srun},
   "build-matrix-toss_4_x86_64_ib-llvm@19.1.3_cuda-release" : {"policies":["seq", "cuda"], "launch":srun},
   "build-rzwhippet-toss_4_x86_64_ib-llvm@19.1.3-release" : {"policies":["seq", "omp"], "launch":srun},
@@ -194,9 +197,17 @@ def make_csv(params, outputfile):
     f.write(f"{line}\n")
   f.close()
 
-def seriesName(name):
+def seriesName(name, includeCompiler = False):
   policies = {"SEQ" : "Serial", "OMP": "OpenMP", "CUDA" : "CUDA", "HIP" : "HIP"}
-  newName = name[:name.find("-")]
+  if includeCompiler:
+    d0 = name.find("-")
+    d1 = name.rfind("-")
+    s0 = name.rfind(" ")
+    hostName = name[:d0]
+    compName = name[d1 + 1:s0]
+    newName = f"{hostName} {compName}"
+  else:
+    newName = name[:name.find("-")]
   for p in policies.keys():
     if name[-len(p) - 1:] == " " + p:
       newName = newName + " " + policies[p]
@@ -207,7 +218,14 @@ def lineProps(name):
   """
   Make line properties when given a series name.
   """
-  hostColor = {"rzansel" : "g", "rzwhippet" : "r", "rzvernal" : "o", "rzadams" : "b"}
+  red = "#ff0000"
+  green = "#00aa00"
+  blue = "#0000ff"
+  orange = "#ff6622"
+  #magenta = "#ff00ff"
+  #purple = "#8811aa"
+  hostColor = {"rzwhippet" : red, "rzvernal" : green, "rzadams" : blue,
+               "dane" : red, "matrix" : green, "tioga": orange, "tuolumne" : blue}
   policyStyle = {"seq" : "--", "omp": ":", "cuda" : "-", "hip" : "-"}
   policyMark = {"seq" : "o", "omp": "s", "cuda" : "^", "hip" : "^"}
   color = "b"
@@ -223,6 +241,25 @@ def lineProps(name):
            break
        break
   return color, style, mark
+
+def hex_to_rgb(hex_color: str):
+    """
+    Convert a color in "#rrggbb" (or "rrggbb") format to an (r, g, b) tuple.
+    """
+    s = hex_color.strip()
+    if s.startswith("#"):
+        s = s[1:]
+    if len(s) != 6:
+        raise ValueError(f"Expected 6 hex digits, got {len(s)}: {hex_color!r}")
+
+    try:
+        r = int(s[0:2], 16)
+        g = int(s[2:4], 16)
+        b = int(s[4:6], 16)
+    except ValueError as e:
+        raise ValueError(f"Invalid hex color: {hex_color!r}") from e
+
+    return (r, g, b)
 
 def plot(params):
   """
@@ -243,14 +280,54 @@ def plot(params):
         break
     return x,y
 
+  def rgbToColor(r,g,b):
+     return "#%02x%02x%02x" % (r,g,b)
+
+  def lightenColor(r,g,b):
+     def clamp255(value):
+        if value > 255:
+          return 255
+        return int(value)
+     scale = 1.3
+     return rgbToColor(clamp255(r * scale), clamp255(g * scale), clamp255(b * scale))
+
+  def darkenColor(r,g,b):
+     scale = 0.7
+     return rgbToColor(int(r * scale), int(g * scale), int(b * scale))
+
+  def modifyColor(color, index):
+    if index == 0:
+      return color
+    r,g,b = hex_to_rgb(color)
+    if index == 1:
+      return darkenColor(r,g,b)
+    return lightenColor(r,g,b)
+
+  # Make columns from the data
   columns = make_columns(params)
+
+  # Count how many plots would use the normal legend name
+  counts = {}
+  for c in range(1, len(columns)):
+    sn = seriesName(columns[c][0])
+    if sn in counts:
+      count, _ = counts[sn]
+      counts[sn] = (count + 1, 0)
+    else:
+      counts[sn] = (1, 0)
 
   import matplotlib.pyplot as plt
   for c in range(1, len(columns)):
     x, y = make_series(columns[0][1:], columns[c][1:])
     if len(x) > 0:
       color, style, mark = lineProps(columns[c][0])
-      plt.plot(x, y, marker=mark, linestyle=style, color=color, linewidth=2., label=seriesName(columns[c][0]))
+      sn = seriesName(columns[c][0])
+      if counts[sn][0] > 1:
+        oldsn = sn
+        sn = seriesName(columns[c][0], True)
+        color = modifyColor(color, counts[oldsn][1])
+        counts[oldsn] = (counts[oldsn][0], counts[oldsn][1] + 1)
+      plt.plot(x, y, marker=mark, linestyle=style, color=color, linewidth=2., label=sn)
 
   dimension = params["dimension"]
   method = params["method"]
