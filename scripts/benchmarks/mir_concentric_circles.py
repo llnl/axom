@@ -13,15 +13,21 @@ def lrun(np):
 
 # Parallel options use 4 ranks per node since that is how many GPUs there are.
 runs = {
-  "build-rzansel-blueos_3_ppc64le_ib_p9-clang@10.0.1.2_cuda-release" : {"policies":["seq", "omp", "cuda"], "launch":lrun},
+  "build-matrix-toss_4_x86_64_ib-gcc@13.3.1_cuda-release" : {"policies":["seq", "cuda"], "launch":srun},
+  "build-matrix-toss_4_x86_64_ib-llvm@19.1.3_cuda-release" : {"policies":["seq", "cuda"], "launch":srun},
   "build-rzwhippet-toss_4_x86_64_ib-llvm@19.1.3-release" : {"policies":["seq", "omp"], "launch":srun},
-  "build-rzwhippet-toss_4_x86_64_ib-gcc@10.3.1-release" : {"policies":["seq", "omp"], "launch":srun},
-  "build-rzwhippet-toss_4_x86_64_ib-intel@2022.1.0-release" : {"policies":["seq", "omp"], "launch":srun},
-  "build-rzvernal-toss_4_x86_64_ib_cray-rocmcc@6.2.1_hip-release" : {"policies":["seq", "hip"], "launch":srun},
-  "build-rzvernal-toss_4_x86_64_ib_cray-clang@17.0.0_hip-release" : {"policies":["seq", "hip"], "launch":srun},
-  "build-rzadams-toss_4_x86_64_ib_cray-cce@18.0.0_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
-  "build-rzadams-toss_4_x86_64_ib_cray-rocmcc@6.2.1_hip-release" :{"policies":["seq", "hip"], "launch":flux_run}
-}
+  "build-rzwhippet-toss_4_x86_64_ib-gcc@13.3.1-release" : {"policies":["seq", "omp"], "launch":srun},
+  "build-rzwhippet-toss_4_x86_64_ib-intel-oneapi-compilers@2025.2.0-release" : {"policies":["seq", "omp"], "launch":srun},
+  "build-rzvernal-toss_4_x86_64_ib_cray-cce@20.0.0_hip-release" : {"policies":["seq", "hip"], "launch":srun},
+  "build-rzvernal-toss_4_x86_64_ib_cray-llvm-amdgpu@6.3.1_hip-release" : {"policies":["seq", "hip"], "launch":srun},
+  "build-rzvernal-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.2_hip-release" : {"policies":["seq", "hip"], "launch":srun},
+  "build-rzadams-toss_4_x86_64_ib_cray-cce@20.0.0_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-rzadams-toss_4_x86_64_ib_cray-llvm-amdgpu@6.3.1_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-rzadams-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.2_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-tioga-toss_4_x86_64_ib_cray-cce@20.0.0_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-tioga-toss_4_x86_64_ib_cray-llvm-amdgpu@6.3.1_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-tioga-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.2_hip-release" :{"policies":["seq", "hip"], "launch":flux_run}
+}  
 
 def generate(params):
   """
