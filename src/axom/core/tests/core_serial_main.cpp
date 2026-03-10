@@ -16,6 +16,7 @@
 #include "core_bit_utilities.hpp"
 #include "core_device_hash.hpp"
 #include "core_execution_for_all.hpp"
+#include "core_execution_scans.hpp"
 #include "core_execution_space.hpp"
 #include "core_map.hpp"
 #include "core_flatmap.hpp"
