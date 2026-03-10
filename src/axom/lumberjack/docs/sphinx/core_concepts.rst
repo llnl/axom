@@ -21,7 +21,7 @@ Combiners and register them with Lumberjack.  The idea is that each Combiner wou
 its own criteria for whether a Message should be combined and how to combine that specific
 Message with another of the same type.
 
-Combiner's have three main functions: shouldMessagesBeCombined, combine, and optionally isMessageCandidateForCombiner.
+Combiners have three main functions: shouldMessagesBeCombined, combine, and optionally isMessageCandidateForCombiner.
 
 The function shouldMessagesBeCombined, returns True if the pair of messages satisfy the associated criteria.  For example in the TextTagCombiner,
 if the Text strings and tag strings are exactly equal, it signals they should be combined.
