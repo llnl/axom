@@ -208,7 +208,7 @@ if(NANOBIND_FOUND)
 
     unset(_PYEXT_DIR)
 
-    # Add unit test to check script
+    # Add smoke test to check script
     if(AXOM_ENABLE_TESTS AND AXOM_ENABLE_SIDRE)
         axom_add_test(
             NAME    run_python_with_axom_build
