@@ -22,6 +22,7 @@
 #endif
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <limits>
 #include <map>
@@ -217,6 +218,27 @@ MapType make_filled_map(const std::vector<std::pair<KeyType, ValueType>>& pairs)
   return map;
 }
 
+template <typename Key, typename Value, typename Hash>
+axom::FlatMap<Key, Value, Hash> make_filled_flatmap_with_target_load_factor(
+  const std::vector<std::pair<KeyType, ValueType>>& pairs,
+  double target_load_factor)
+{
+  using MapType = axom::FlatMap<Key, Value, Hash>;
+  MapType map;
+
+  const double max_lf = map.max_load_factor();
+  const double lf = std::max(1e-3, std::min(target_load_factor, max_lf));
+  const double n = static_cast<double>(pairs.size());
+
+  // FlatMap's ctor/rehash argument is scaled internally by max_load_factor.
+  // To target load factor `lf` for `n` elements, scale the count accordingly.
+  const axom::IndexType rehash_count = static_cast<axom::IndexType>(std::ceil((n * max_lf) / lf));
+
+  map.rehash(rehash_count);
+  map.insert(pairs.begin(), pairs.end());
+  return map;
+}
+
 template <typename MapType>
 void BM_Insert_StartEmpty(benchmark::State& state)
 {
@@ -287,6 +309,32 @@ void BM_Find_Miss(benchmark::State& state)
       misses += (map.find(k) == map.end()) ? 1 : 0;
     }
     benchmark::DoNotOptimize(misses);
+  }
+}
+
+template <typename Hash>
+void BM_FlatMap_Find_Hit_TargetLoad(benchmark::State& state, double target_load_factor)
+{
+  using MapType = axom::FlatMap<KeyType, ValueType, Hash>;
+
+  const int n = state.range(0);
+  const auto keys = make_shuffled_keys(n, 0xC0FFEEULL);
+  const auto pairs = make_pairs(keys);
+  const MapType map =
+    make_filled_flatmap_with_target_load_factor<KeyType, ValueType, Hash>(pairs, target_load_factor);
+
+  for(auto _ : state)
+  {
+    ValueType sum = 0;
+    for(KeyType k : keys)
+    {
+      auto it = map.find(k);
+      if(it != map.end())
+      {
+        sum += it->second;
+      }
+    }
+    benchmark::DoNotOptimize(sum);
   }
 }
 
@@ -528,6 +576,23 @@ int main(int argc, char* argv[])
   RegisterFlatMapPrehashedBenchmarks();
   using FastHash = axom::detail::flat_map::FastHashMixer64<KeyType, axom::DeviceHash>;
   RegisterBenchmarksFor<axom::FlatMap<KeyType, ValueType, FastHash>>("axom::FlatMapFastHash");
+
+  // Explore the impact of lower load factors on successful lookups.
+  // This trades memory for potentially fewer probes and fewer cache misses.
+  using DefaultHash = axom::FlatMap<KeyType, ValueType>::hasher;
+  benchmark::RegisterBenchmark("axom::FlatMap::find_hit_lf0p50", [](benchmark::State& st) {
+    BM_FlatMap_Find_Hit_TargetLoad<DefaultHash>(st, 0.50);
+  })->Apply(CustomArgs);
+  benchmark::RegisterBenchmark("axom::FlatMap::find_hit_lf0p70", [](benchmark::State& st) {
+    BM_FlatMap_Find_Hit_TargetLoad<DefaultHash>(st, 0.70);
+  })->Apply(CustomArgs);
+  benchmark::RegisterBenchmark("axom::FlatMapFastHash::find_hit_lf0p50", [](benchmark::State& st) {
+    BM_FlatMap_Find_Hit_TargetLoad<FastHash>(st, 0.50);
+  })->Apply(CustomArgs);
+  benchmark::RegisterBenchmark("axom::FlatMapFastHash::find_hit_lf0p70", [](benchmark::State& st) {
+    BM_FlatMap_Find_Hit_TargetLoad<FastHash>(st, 0.70);
+  })->Apply(CustomArgs);
+
   RegisterBenchmarksFor<std::unordered_map<KeyType, ValueType>>("std::unordered_map");
   RegisterBenchmarksFor<std::map<KeyType, ValueType>>("std::map");
 
