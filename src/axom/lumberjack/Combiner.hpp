@@ -56,14 +56,14 @@ public:
   /*!
    *****************************************************************************
    * \brief Function used by Lumberjack to indicate whether a Message class
-   * should be considered for this combiner. Default is always true.
+   * should be considered for this combiner. Default is true in the base class.
    *
-   * \param [in] m The Message to be considered
+   * \param [in] The Message to be considered. Unused in the base class
+   * but likely used in derived classes.   
    *****************************************************************************
    */
-  virtual bool isMessageCandidateForCombiner(const Message& m)
+  virtual bool isMessageCandidateForCombiner(const Message&)
   {
-    AXOM_UNUSED_VAR(m);
     return true;
   }
 
