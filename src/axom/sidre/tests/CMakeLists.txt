@@ -121,17 +121,10 @@ if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
     foreach(test ${python_sidre_tests})
         get_filename_component( test_name ${test} NAME_WE )
 
-        # Copy python test file to build
-        axom_configure_file ("${test}"
-                             "${TEST_OUTPUT_DIRECTORY}/${test}" COPYONLY)
-
-        # Run unit test with pytest ("python3 -m pytest").
-        # Use convenience script that has
-        # pytest, pysidre, and conduit added to PYTHONPATH.
-        # "-p no:cacheprovider" disables caching.
-        add_test (NAME    ${test_name}
-          COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -m pytest -s -p no:cacheprovider ${TEST_OUTPUT_DIRECTORY}/${test}
-        )
+        axom_add_python_test( NAME ${test_name}
+                              SOURCE ${test}
+                              OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                              )
     endforeach()
 endif()
 

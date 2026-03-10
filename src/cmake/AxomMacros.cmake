@@ -567,6 +567,38 @@ macro(axom_configure_file _source _target)
 endmacro(axom_configure_file)
 
 ##------------------------------------------------------------------------------
+## axom_add_python_test(NAME       [name]
+##                      SOURCE     [source]
+##                      OUTPUT_DIR [dir])
+##
+## Wrapper around add_test() that handles functionality
+## that Axom applies to all python tests.
+##------------------------------------------------------------------------------
+macro(axom_add_python_test)
+
+    set(options)
+    set(singleValueArgs NAME SOURCE OUTPUT_DIR)
+    set(multiValueArgs)
+
+    # Parse the arguments to the macro
+    cmake_parse_arguments(arg
+         "${options}" "${singleValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    # Copy python test file to build
+    axom_configure_file ("${arg_SOURCE}"
+                         "${arg_OUTPUT_DIR}/${arg_SOURCE}" COPYONLY)
+
+    # Run unit test with pytest ("python3 -m pytest").
+    # Use convenience script that has
+    # pytest, pysidre, and conduit added to PYTHONPATH.
+    # "-p no:cacheprovider" disables caching.
+    add_test (NAME    ${arg_NAME}
+      COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -m pytest -s -p no:cacheprovider ${arg_OUTPUT_DIR}/${arg_SOURCE}
+    )
+
+endmacro(axom_add_python_test)
+
+##------------------------------------------------------------------------------
 ## axom_force_release_for_target
 ##
 ## This macro forces a target to be compiled in Release mode by adding compiler
