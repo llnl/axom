@@ -78,7 +78,10 @@ int main()
   lumberjack.removeCombiner("TextTagCombiner");
   lumberjack.addCombiner(new CombinerTagA);
 
+  // Combinable message
   lumberjack.queueMessage("Should be combined.", "", 0, 0, 0.0, "tagA");
+
+  // Unique, uncombinable messages (different text)
   for(int i = 0; i < 10000; i++)
   {
     lumberjack.queueMessage("Unique message " + std::to_string(i) + " is not combinable ",
@@ -93,6 +96,9 @@ int main()
   std::clock_t begin = clock();
   lumberjack.pushMessagesOnce();
   std::clock_t end = clock();
+
+  std::cout << "After combining, there are " << lumberjack.getMessages().size() << " messages."
+            << std::endl;
 
   lumberjack.finalize();
   communicator.finalize();

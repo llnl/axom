@@ -97,4 +97,5 @@ axom_add_executable(NAME       lumberjack_speed_test_skip_noncombinable
 
 axom_add_test(NAME          lumberjack_speedTestSkipNoncombinable
               COMMAND       lumberjack_speed_test_skip_noncombinable
-              NUM_MPI_TASKS 1)
+              NUM_MPI_TASKS 1
+              PASS_REGULAR_EXPRESSION "After combining, there are 10,?001 messages.")
