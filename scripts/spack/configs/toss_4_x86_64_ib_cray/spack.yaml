@@ -185,7 +185,7 @@ spack:
       - spec: cray-mpich@8.1.29.rocm_6_4_3+slurm
         prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-rocmcc-6.4.3/
       - spec: cray-mpich@8.1.32.cce_20+slurm
-        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.32-rocmcc-6.4.3-cce-20.0.0/
+        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.32-rocmcc-6.4.3/
 
     # blas is a bit more complicated because its a virtual package so fake it with
     # the following per spack docs
