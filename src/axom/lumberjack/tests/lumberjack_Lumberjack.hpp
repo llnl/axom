@@ -64,7 +64,7 @@ public:
   const std::string id() { return m_id; }
 
   bool shouldMessagesBeCombined(const axom::lumberjack::Message& leftMessage,
-                                const axom::lumberjack::Message& rightMessage)
+                                const axom::lumberjack::Message& rightMessage) override
   {
     return (leftMessage.text().compare("foo") == 0 && rightMessage.text().compare("bar") == 0) ||
       (leftMessage.text().compare("bar") == 0 && rightMessage.text().compare("foo") == 0);
@@ -72,7 +72,7 @@ public:
 
   void combine(axom::lumberjack::Message& combined,
                const axom::lumberjack::Message& combinee,
-               const int ranksLimit)
+               const int ranksLimit) override
   {
     combined.addRanks(combinee.ranks(), combinee.count(), ranksLimit);
     combined.text("foobar");
@@ -87,13 +87,13 @@ class TestCandidateCombinerA : public TestCombiner
 public:
   const std::string id() { return m_id; }
 
-  bool isMessageCandidateForCombiner(const axom::lumberjack::Message& m)
+  bool isMessageCandidateForCombiner(const axom::lumberjack::Message& m) override
   {
     return m.text().compare("foo") == 0 || m.text().compare("bar") == 0;
   }
 
   bool shouldMessagesBeCombined(const axom::lumberjack::Message& leftMessage,
-                                const axom::lumberjack::Message& rightMessage)
+                                const axom::lumberjack::Message& rightMessage) override
   {
     AXOM_UNUSED_VAR(leftMessage);
     AXOM_UNUSED_VAR(rightMessage);
@@ -108,13 +108,13 @@ class TestCandidateCombinerB : public axom::lumberjack::Combiner
 {
   const std::string id() { return m_id; }
 
-  bool isMessageCandidateForCombiner(const axom::lumberjack::Message& m)
+  bool isMessageCandidateForCombiner(const axom::lumberjack::Message& m) override
   {
     return m.text().compare("fizz") == 0 || m.text().compare("buzz") == 0;
   }
 
   bool shouldMessagesBeCombined(const axom::lumberjack::Message& leftMessage,
-                                const axom::lumberjack::Message& rightMessage)
+                                const axom::lumberjack::Message& rightMessage) override
   {
     AXOM_UNUSED_VAR(leftMessage);
     AXOM_UNUSED_VAR(rightMessage);
@@ -123,7 +123,7 @@ class TestCandidateCombinerB : public axom::lumberjack::Combiner
 
   void combine(axom::lumberjack::Message& combined,
                const axom::lumberjack::Message& combinee,
-               const int ranksLimit)
+               const int ranksLimit) override
   {
     combined.addRanks(combinee.ranks(), combinee.count(), ranksLimit);
     combined.text("fizzbuzz");
