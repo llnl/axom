@@ -6,6 +6,8 @@
 
 #include "gtest/gtest.h"
 
+#include "axom/core/Macros.hpp"
+
 #include "axom/lumberjack/Lumberjack.hpp"
 
 #include "axom/lumberjack/Communicator.hpp"

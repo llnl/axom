@@ -17,7 +17,6 @@
 #define COMBINER_HPP
 
 #include "axom/lumberjack/Message.hpp"
-#include "axom/core/Macros.hpp"
 
 namespace axom
 {
@@ -62,10 +61,7 @@ public:
    * but likely used in derived classes.   
    *****************************************************************************
    */
-  virtual bool isMessageCandidateForCombiner(const Message&)
-  {
-    return true;
-  }
+  virtual bool isMessageCandidateForCombiner(const Message&) { return true; }
 
   /*!
    *****************************************************************************
