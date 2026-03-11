@@ -19,6 +19,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ### Added
+- Lumberjack: Adds optional virtual function `isMessageCandidateForCombiner()` to the Combiner class that checks if a single given Message is a candidate for the Combiner (returns true by default).
 - Sidre: Added Conduit Node to the Python interface.
 - Adds yapf as a Python formatter.
 

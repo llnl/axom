@@ -271,7 +271,7 @@ script to change the version number and any patches that need to be applied. The
 will clone the fmt library and attempt to apply existing patches and update them, if possible.
 If patches cannot be applied, then you will need to update them. This is best done by
 commenting out the "apply_patches" step and steps that follow it. Run the script to clone
-the fmt repository. Next, make the same edits found in the various "*.patch" files to the
+the fmt repository. Next, make the same edits found in the various "\*.patch" files to the
 files in the current directory. After editing a file, make a new patch:
 ``patch -u fmt/include/fmt/format.h format.h > format.h.patch`` (be sure to edit the filenames).
 Repeat this process until all of the relevant patches are updated. Note that newer versions

@@ -6,6 +6,8 @@
 
 #include "gtest/gtest.h"
 
+#include "axom/core/Macros.hpp"
+
 #include "axom/lumberjack/Lumberjack.hpp"
 
 #include "axom/lumberjack/Communicator.hpp"
@@ -64,7 +66,7 @@ public:
   const std::string id() { return m_id; }
 
   bool shouldMessagesBeCombined(const axom::lumberjack::Message& leftMessage,
-                                const axom::lumberjack::Message& rightMessage)
+                                const axom::lumberjack::Message& rightMessage) override
   {
     return (leftMessage.text().compare("foo") == 0 && rightMessage.text().compare("bar") == 0) ||
       (leftMessage.text().compare("bar") == 0 && rightMessage.text().compare("foo") == 0);
@@ -72,7 +74,7 @@ public:
 
   void combine(axom::lumberjack::Message& combined,
                const axom::lumberjack::Message& combinee,
-               const int ranksLimit)
+               const int ranksLimit) override
   {
     combined.addRanks(combinee.ranks(), combinee.count(), ranksLimit);
     combined.text("foobar");
@@ -80,6 +82,57 @@ public:
 
 private:
   const std::string m_id = "TestCombiner";
+};
+
+class TestCandidateCombinerA : public TestCombiner
+{
+public:
+  const std::string id() { return m_id; }
+
+  bool isMessageCandidateForCombiner(const axom::lumberjack::Message& m) override
+  {
+    return m.text().compare("foo") == 0 || m.text().compare("bar") == 0;
+  }
+
+  bool shouldMessagesBeCombined(const axom::lumberjack::Message& leftMessage,
+                                const axom::lumberjack::Message& rightMessage) override
+  {
+    AXOM_UNUSED_VAR(leftMessage);
+    AXOM_UNUSED_VAR(rightMessage);
+    return true;
+  }
+
+private:
+  const std::string m_id = "TestCandidateCombinerA";
+};
+
+class TestCandidateCombinerB : public axom::lumberjack::Combiner
+{
+  const std::string id() { return m_id; }
+
+  bool isMessageCandidateForCombiner(const axom::lumberjack::Message& m) override
+  {
+    return m.text().compare("fizz") == 0 || m.text().compare("buzz") == 0;
+  }
+
+  bool shouldMessagesBeCombined(const axom::lumberjack::Message& leftMessage,
+                                const axom::lumberjack::Message& rightMessage) override
+  {
+    AXOM_UNUSED_VAR(leftMessage);
+    AXOM_UNUSED_VAR(rightMessage);
+    return true;
+  }
+
+  void combine(axom::lumberjack::Message& combined,
+               const axom::lumberjack::Message& combinee,
+               const int ranksLimit) override
+  {
+    combined.addRanks(combinee.ranks(), combinee.count(), ranksLimit);
+    combined.text("fizzbuzz");
+  }
+
+private:
+  const std::string m_id = "TestCandidateCombinerB";
 };
 
 TEST(lumberjack_Lumberjack, combineMessagesNoCombiners)
@@ -148,6 +201,55 @@ TEST(lumberjack_Lumberjack, combineMessagesMultipleCombiners)
 
   EXPECT_EQ(messages[2]->text(), "foobar");
   EXPECT_EQ(messages[2]->count(), 2);
+
+  lumberjack.finalize();
+  communicator.finalize();
+}
+
+TEST(lumberjack_Lumberjack, combineMessagesMultipleCombinersWithCandidates)
+{
+  int ranksLimit = 5;
+  TestCommunicator communicator;
+  communicator.initialize(MPI_COMM_NULL, ranksLimit);
+  axom::lumberjack::Lumberjack lumberjack;
+  lumberjack.initialize(&communicator, ranksLimit);
+
+  // Both test Combiners have shouldMessagesBeCombined return true for any messages.
+  // The isMessageCandidateForCombiner check filters candidates to the correct
+  // combiners and skips expensive combining check for unqualified candidates.
+  lumberjack.removeCombiner("TextTagCombiner");
+  lumberjack.addCombiner(new TestCandidateCombinerA);
+  lumberjack.addCombiner(new TestCandidateCombinerB);
+
+  // Messages that will skip the combine step
+  for(int i = 0; i < 10000; i++)
+  {
+    lumberjack.queueMessage("Should not be combined.", i);
+  }
+
+  // Messages to be combined
+  lumberjack.queueMessage("foo", 10000);
+  lumberjack.queueMessage("bar", 10000);
+  lumberjack.queueMessage("buzz", 10001);
+  lumberjack.queueMessage("fizz", 10001);
+
+  // Messages are sorted by creation time
+  lumberjack.pushMessagesOnce();
+
+  std::vector<axom::lumberjack::Message*> messages = lumberjack.getMessages();
+
+  EXPECT_EQ((int)messages.size(), 10002);
+
+  EXPECT_EQ(messages[10000]->text(), "foobar");
+  EXPECT_EQ(messages[10000]->count(), 2);
+  EXPECT_EQ(messages[10001]->text(), "fizzbuzz");
+  EXPECT_EQ(messages[10001]->count(), 2);
+
+  for(int i = 0; i < 10000; i++)
+  {
+    EXPECT_EQ(messages[i]->text(), "Should not be combined.");
+    EXPECT_EQ(messages[i]->count(), 1);
+  }
 
   lumberjack.finalize();
   communicator.finalize();
