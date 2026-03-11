@@ -156,7 +156,9 @@ public:
    */
   AXOM_HOST_DEVICE int getAllocatorID() const
   {
+#if !defined(AXOM_DEVICE_CODE)
     determineAllocator();
+#endif
     return m_allocator_id;
   }
 
