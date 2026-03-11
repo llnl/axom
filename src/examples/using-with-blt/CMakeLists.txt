@@ -64,6 +64,10 @@ if(ENABLE_HIP)
   set(example_depends ${example_depends} blt::hip)
 endif ()
 
+if(ENABLE_CUDA)
+  set(example_depends ${example_depends} blt::cuda)
+endif ()
+
 blt_add_executable(NAME       example 
                    SOURCES    example.cpp
                    DEPENDS_ON ${example_depends})
