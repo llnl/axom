@@ -873,7 +873,7 @@ public:
     NodeData nodeData;
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
     const auto nnodes = m_coordsetView.numberOfNodes();
-    axom::Array<int> nodeUsed(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
+    axom::Array<MaskType> nodeUsed(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
     nodeData.m_nodeUsedView = nodeUsed.view();
 #endif
 
@@ -939,7 +939,7 @@ public:
     createNodeMaps(nodeData);
 
     nodeUsed.clear();
-    nodeData.m_nodeUsedView = axom::ArrayView<int>();
+    nodeData.m_nodeUsedView = axom::ArrayView<MaskType>();
 #endif
 
     // Further initialize the blend group builder.
@@ -1094,6 +1094,7 @@ public:
 private:
 #endif
   using FragmentData = detail::FragmentData;
+  using MaskType = typename std::conditional<axom::execution_space<ExecSpace>::onDevice(), int, char>::type;
 
   /*!
    * \brief Contains some per-zone data that we want to hold onto between methods.
@@ -1109,7 +1110,7 @@ private:
    */
   struct NodeData
   {
-    axom::ArrayView<int> m_nodeUsedView {};
+    axom::ArrayView<MaskType> m_nodeUsedView {};
     axom::ArrayView<IndexType> m_oldNodeToNewNodeView {};
     axom::ArrayView<IndexType> m_originalIdsView {};
   };
@@ -1183,7 +1184,7 @@ private:
     // Initialize nodeUsed data for nodes.
     axom::for_all<ExecSpace>(
       nodeData.m_nodeUsedView.size(),
-      AXOM_LAMBDA(axom::IndexType index) { nodeData.m_nodeUsedView[index] = 0; });
+      AXOM_LAMBDA(axom::IndexType index) { nodeData.m_nodeUsedView[index] = MaskType{0}; });
 
     const auto deviceIntersector = m_intersector.view();
 
@@ -1284,7 +1285,7 @@ private:
             const auto nodeId = zone.getId(pid);
 
             // NOTE: Multiple threads may write to this node but they all write the same value.
-            nodeData.m_nodeUsedView[nodeId] = 1;
+            nodeData.m_nodeUsedView[nodeId] = MaskType{1};
           }
         }
 #else
@@ -1404,7 +1405,7 @@ private:
     const auto nodeUsedView = nodeData.m_nodeUsedView;
     axom::for_all<ExecSpace>(
       nodeUsedView.size(),
-      AXOM_LAMBDA(axom::IndexType index) { nUsed_reducer += nodeUsedView[index]; });
+      AXOM_LAMBDA(axom::IndexType index) { nUsed_reducer += static_cast<int>(nodeUsedView[index]); });
     return nUsed_reducer.get();
   }
 
@@ -1420,7 +1421,7 @@ private:
 
     // Make offsets into a compact array.
     const auto nnodes = nodeData.m_nodeUsedView.size();
-    axom::Array<int> nodeOffsets(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
+    axom::Array<axom::IndexType> nodeOffsets(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
     auto nodeOffsetsView = nodeOffsets.view();
     axom::exclusive_scan<ExecSpace>(nodeData.m_nodeUsedView, nodeOffsetsView);
 
