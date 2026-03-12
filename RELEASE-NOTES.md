@@ -19,6 +19,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ### Added
+- Lumberjack: Adds optional virtual function `isMessageCandidateForCombiner()` to the Combiner class that checks if a single given Message is a candidate for the Combiner (returns true by default).
 
 ### Changed
 - Primal: Axom's polygon clipping was modified to handle some corner cases.
@@ -26,9 +27,11 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Mir: The `EquiZAlgorithm was improved so it performs better with OpenMP.
 
 ### Fixed
- - Core: the `ArrayView` class was modified so it defers initializing an internal
-   allocator id via Umpire, if present. This prevents excessive calls to Umpire,
-   which are not needed in all use cases.
+- Primal: Fixed `NURBSPatch::evaluateDerivatives` returning a matrix with empty values. The old behavior 
+  can be recovered with an optional flag, which is more efficient if the previously missing values are unneeded
+- Core: the `ArrayView` class was modified so it defers initializing an internal
+  allocator id via Umpire, if present. This prevents excessive calls to Umpire,
+  which are not needed in all use cases.
 
 ### Removed
 

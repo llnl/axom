@@ -50,6 +50,21 @@ private:
   double m_startTime;
 };
 
+// Inherits from TextTagCombiner - only messages with tag "tagA" are candidates
+class CombinerTagA : public axom::lumberjack::TextTagCombiner
+{
+public:
+  const std::string id() { return m_id; }
+
+  bool isMessageCandidateForCombiner(const axom::lumberjack::Message& m)
+  {
+    return m.tag() == "tagA";
+  }
+
+private:
+  const std::string m_id = "TagACombiner";
+};
+
 //------------------------------------------------------------------------------
 int main()
 {
@@ -59,17 +74,31 @@ int main()
   axom::lumberjack::Lumberjack lumberjack;
   lumberjack.initialize(&communicator, ranksLimit);
 
-  // Remove default combiner (no combiners now)
+  // Remove default combiner, use custom combiner
   lumberjack.removeCombiner("TextTagCombiner");
+  lumberjack.addCombiner(new CombinerTagA);
 
-  for(int i = 0; i < 100000; i++)
+  // Combinable message
+  lumberjack.queueMessage("Should be combined.", "", 0, 0, 0.0, "tagA");
+
+  // Unique, uncombinable messages (different text)
+  for(int i = 0; i < 10000; i++)
   {
-    lumberjack.queueMessage("Should not be combined.", static_cast<double>(i));
+    lumberjack.queueMessage("Unique message " + std::to_string(i) + " is not combinable ",
+                            "",
+                            0,
+                            0,
+                            1.0,
+                            "ignoreTag");
   }
+  lumberjack.queueMessage("Should be combined.", "", 0, 0, 0.0, "tagA");
 
   std::clock_t begin = clock();
   lumberjack.pushMessagesOnce();
   std::clock_t end = clock();
+
+  std::cout << "After combining, there are " << lumberjack.getMessages().size() << " messages."
+            << std::endl;
 
   lumberjack.finalize();
   communicator.finalize();

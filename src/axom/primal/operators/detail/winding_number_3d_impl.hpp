@@ -317,43 +317,98 @@ double stokes_gwn_component(const Point<T, 3>& query,
                             const numerics::Matrix<T>& rotator,
                             const TrimmingCurveQuadratureData<T>& trimming_curve_data)
 {
-  double this_quad = 0;
+  using VectorType = Vector<T, 3>;
 
-  const bool is_rotated = (ax == DiscontinuityAxis::rotated);
-  for(int q = 0; q < trimming_curve_data.getNumPoints(); ++q)
-  {
-    const Vector<T, 3> node = is_rotated
-      ? rotate_point(rotator, query, trimming_curve_data.getQuadraturePoint(q)) - query
-      : trimming_curve_data.getQuadraturePoint(q) - query;
+  const int num_pts = trimming_curve_data.getNumPoints();
+  const auto quad_points = trimming_curve_data.getQuadraturePoints();
+  const auto quad_tangents = trimming_curve_data.getQuadratureTangents();
+  const auto quad_weights = trimming_curve_data.getQuadratureWeights();
 
-    const Vector<T, 3> node_dt = is_rotated
-      ? rotate_vector_origin(rotator, trimming_curve_data.getQuadratureTangent(q))
-      : trimming_curve_data.getQuadratureTangent(q);
-
-    const double node_norm = node.norm();
-    const double quad_weight = trimming_curve_data.getQuadratureWeight(q);
-
-    // Compute one of three vector field line integrals depending on
-    //  the orientation of the original surface, indicated through ax.
-    switch(ax)
+  // Shared loop structure for the different discontinuity axes:
+  //  - build node vector (quadrature point relative to query, optionally rotated)
+  //  - build tangent vector (optionally rotated)
+  //  - accumulate weight * numerator(node, dt) / (denom(node) * ||node||)
+  auto accumulate = [&](auto&& make_node, auto&& make_dt, auto&& numer_fn, auto&& denom_fn) -> double {
+    double this_quad = 0.0;
+    for(int q = 0; q < num_pts; ++q)
     {
-    case(DiscontinuityAxis::x):
-      this_quad += quad_weight * (node[2] * node[0] * node_dt[1] - node[1] * node[0] * node_dt[2]) /
-        (node[1] * node[1] + node[2] * node[2]) / node_norm;
-      break;
-    case(DiscontinuityAxis::y):
-      this_quad += quad_weight * (node[0] * node[1] * node_dt[2] - node[2] * node[1] * node_dt[0]) /
-        (node[0] * node[0] + node[2] * node[2]) / node_norm;
-      break;
-    case(DiscontinuityAxis::z):
-    case(DiscontinuityAxis::rotated):
-      this_quad += quad_weight * (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
-        (node[0] * node[0] + node[1] * node[1]) / node_norm;
-      break;
+      const auto& node = make_node(q);
+      const auto& node_dt = make_dt(q);
+      const double inv = 1.0 / (denom_fn(node) * node.norm());
+      this_quad += quad_weights[q] * numer_fn(node, node_dt) * inv;
     }
+    return this_quad;
+  };
+
+  auto numer_x = [](const VectorType& node, const VectorType& dt) -> double {
+    return node[0] * (node[2] * dt[1] - node[1] * dt[2]);
+  };
+  auto numer_y = [](const VectorType& node, const VectorType& dt) -> double {
+    return node[1] * (node[0] * dt[2] - node[2] * dt[0]);
+  };
+  auto numer_z = [](const VectorType& node, const VectorType& dt) -> double {
+    return node[2] * (node[1] * dt[0] - node[0] * dt[1]);
+  };
+
+  auto denom_x = [](const VectorType& node) -> double {
+    return (node[1] * node[1]) + (node[2] * node[2]);
+  };
+  auto denom_y = [](const VectorType& node) -> double {
+    return (node[0] * node[0]) + (node[2] * node[2]);
+  };
+  auto denom_z = [](const VectorType& node) -> double {
+    return (node[0] * node[0]) + (node[1] * node[1]);
+  };
+
+  // Non-rotated paths share the same node/dt construction.
+  auto make_node_unrot = [&](int q) -> VectorType { return quad_points[q] - query; };
+  auto make_dt_unrot = [&](int q) -> const VectorType& { return quad_tangents[q]; };
+
+  // The axis is constant for the full loop; split into specialized loops to avoid
+  // per-iteration switching/branching overhead.
+  if(ax == DiscontinuityAxis::rotated)
+  {
+    // Rotate query-relative vectors directly; avoid the extra translate in
+    // rotate_point(..., query, P) - query.
+    const T* r = rotator.data();
+    const double r00 = r[0], r01 = r[3], r02 = r[6];
+    const double r10 = r[1], r11 = r[4], r12 = r[7];
+    const double r20 = r[2], r21 = r[5], r22 = r[8];
+
+    auto make_node_rot = [&](int q) -> VectorType {
+      const auto& qp = quad_points[q];
+      const double dx = qp[0] - query[0];
+      const double dy = qp[1] - query[1];
+      const double dz = qp[2] - query[2];
+
+      return VectorType {r00 * dx + r01 * dy + r02 * dz,
+                         r10 * dx + r11 * dy + r12 * dz,
+                         r20 * dx + r21 * dy + r22 * dz};
+    };
+
+    auto make_dt_rot = [&](int q) -> VectorType {
+      const auto& qt = quad_tangents[q];
+
+      return VectorType {r00 * qt[0] + r01 * qt[1] + r02 * qt[2],
+                         r10 * qt[0] + r11 * qt[1] + r12 * qt[2],
+                         r20 * qt[0] + r21 * qt[1] + r22 * qt[2]};
+    };
+
+    return accumulate(make_node_rot, make_dt_rot, numer_z, denom_z);
   }
 
-  return this_quad;
+  if(ax == DiscontinuityAxis::x)
+  {
+    return accumulate(make_node_unrot, make_dt_unrot, numer_x, denom_x);
+  }
+
+  if(ax == DiscontinuityAxis::y)
+  {
+    return accumulate(make_node_unrot, make_dt_unrot, numer_y, denom_y);
+  }
+
+  // Default: z-axis field.
+  return accumulate(make_node_unrot, make_dt_unrot, numer_z, denom_z);
 }
 
 /*!
