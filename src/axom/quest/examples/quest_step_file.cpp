@@ -16,6 +16,7 @@
 #include "axom/quest.hpp"
 
 #include <iostream>
+#include <fstream>
 
 #ifdef AXOM_USE_MPI
   #include <mpi.h>
@@ -343,6 +344,150 @@ private:
   int m_numFillZeros {0};
 };
 
+/**
+ * Class that writes a patch-wise MFEM NURBS mesh containing a patch's trimming curves
+ *
+ * Each trimming curve is output as a separate 1D NURBS "patch" embedded in 2D space (u,v).
+ *
+ * Note: Support for reading these meshes was added to mfem after mfem@4.9.0
+ * and is not in the current release of VisIt (visit@3.4.2)
+ */
+class PatchMFEMTrimmingCurveWriter
+{
+public:
+  PatchMFEMTrimmingCurveWriter() { }
+
+  void setOutputDirectory(const std::string& dir) { m_outputDirectory = dir; }
+  void setVerbosity(bool verbosityFlag) { m_verbose = verbosityFlag; }
+  void setNumFillZeros(int num)
+  {
+    if(num >= 0)
+    {
+      m_numFillZeros = num;
+    }
+  }
+
+  void writeMFEMForPatch(int patchIndex, const NURBSPatch& patch) const
+  {
+    const auto& curves = patch.getTrimmingCurves();
+    const int numCurves = curves.size();
+    if(numCurves == 0)
+    {
+      return;
+    }
+
+    using axom::utilities::filesystem::joinPath;
+
+    const std::string outDir = joinPath(m_outputDirectory, "mfem_trim_curves");
+    if(!axom::utilities::filesystem::pathExists(outDir))
+    {
+      axom::utilities::filesystem::makeDirsForPath(outDir);
+    }
+
+    const std::string meshFilename =
+      joinPath(outDir,
+               axom::fmt::format("trim_curves_patch_{:0{}}.mesh", patchIndex, m_numFillZeros));
+
+    std::ofstream meshFile(meshFilename);
+    if(!meshFile.is_open())
+    {
+      SLIC_WARNING(axom::fmt::format("Unable to open '{}' for writing.", meshFilename));
+      return;
+    }
+
+    axom::fmt::memory_buffer content;
+
+    axom::fmt::format_to(std::back_inserter(content), "MFEM NURBS mesh v1.0\n\n");
+    axom::fmt::format_to(std::back_inserter(content),
+                         "# Trim curves for STEP NURBSPatch {}\n",
+                         patchIndex);
+    axom::fmt::format_to(std::back_inserter(content),
+                         "# Parametric bbox: [{:.17g}, {:.17g}] x [{:.17g}, {:.17g}]\n",
+                         patch.getMinKnot_u(),
+                         patch.getMaxKnot_u(),
+                         patch.getMinKnot_v(),
+                         patch.getMaxKnot_v());
+    axom::fmt::format_to(std::back_inserter(content), "# Number of trimming curves: {}\n\n", numCurves);
+
+    axom::fmt::format_to(std::back_inserter(content), "dimension\n1\n\n");
+
+    // One element per trimming curve; each element uses its own vertex pair.
+    axom::fmt::format_to(std::back_inserter(content), "elements\n{}\n", numCurves);
+    for(int i = 0; i < numCurves; ++i)
+    {
+      const int v0 = 2 * i;
+      const int v1 = 2 * i + 1;
+      axom::fmt::format_to(std::back_inserter(content), "1 1 {} {}\n", v0, v1);
+    }
+
+    axom::fmt::format_to(std::back_inserter(content), "\nboundary\n0\n\n");
+
+    // Edge list provides the unique knotvector index and (optionally) encodes orientation.
+    axom::fmt::format_to(std::back_inserter(content), "edges\n{}\n", numCurves);
+    for(int i = 0; i < numCurves; ++i)
+    {
+      const int v0 = 2 * i;
+      const int v1 = 2 * i + 1;
+      axom::fmt::format_to(std::back_inserter(content), "{} {} {}\n", i, v0, v1);
+    }
+
+    axom::fmt::format_to(std::back_inserter(content), "\nvertices\n{}\n\n", 2 * numCurves);
+
+    axom::fmt::format_to(std::back_inserter(content), "patches\n\n");
+    for(int i = 0; i < numCurves; ++i)
+    {
+      const auto& curve = curves[i];
+      SLIC_ASSERT(curve.isValidNURBS());
+
+      const int degree = curve.getDegree();
+      const int ncp = curve.getNumControlPoints();
+      const auto& knots = curve.getKnots().getArray();
+      SLIC_ASSERT(knots.size() == ncp + degree + 1);
+
+      axom::fmt::format_to(std::back_inserter(content),
+                           "# Curve {}: {} (degree {}, {} control points)\n",
+                           i,
+                           curve.isRational() ? "rational" : "polynomial",
+                           degree,
+                           ncp);
+
+      axom::fmt::format_to(std::back_inserter(content), "knotvectors\n1\n");
+      axom::fmt::format_to(std::back_inserter(content), "{} {}", degree, ncp);
+      for(const auto& kv : knots)
+      {
+        axom::fmt::format_to(std::back_inserter(content), "  {:.17g}", kv);
+      }
+      axom::fmt::format_to(std::back_inserter(content), "\n\n");
+
+      axom::fmt::format_to(std::back_inserter(content), "dimension\n2\n\n");
+      axom::fmt::format_to(std::back_inserter(content), "controlpoints_cartesian\n");
+
+      const auto& cps = curve.getControlPoints();
+      const auto& wts = curve.getWeights();
+      for(int j = 0; j < ncp; ++j)
+      {
+        const double w = curve.isRational() ? wts[j] : 1.0;
+        axom::fmt::format_to(std::back_inserter(content),
+                             "{:.17g}  {:.17g}  {:.17g}\n",
+                             cps[j][0],
+                             cps[j][1],
+                             w);
+      }
+      axom::fmt::format_to(std::back_inserter(content), "\n");
+    }
+
+    meshFile << axom::fmt::to_string(content);
+    meshFile.close();
+
+    SLIC_INFO_IF(m_verbose, axom::fmt::format("MFEM trim-curve mesh generated: '{}'", meshFilename));
+  }
+
+private:
+  std::string m_outputDirectory;
+  bool m_verbose {false};
+  int m_numFillZeros {0};
+};
+
 #ifdef AXOM_USE_MPI
 
 // utility function to help with MPI_Allreduce calls
@@ -646,6 +791,11 @@ int main(int argc, char** argv)
     ->description("Generate SVG files for each NURBS patch?")
     ->capture_default_str();
 
+  bool output_mfem_trim_curves {false};
+  app.add_flag("--output-mfem-trim-curves", output_mfem_trim_curves)
+    ->description("Generate one MFEM NURBS mesh per trimmed patch containing its trimming curves")
+    ->capture_default_str();
+
   app.get_formatter()->column_width(50);
 
   try
@@ -841,6 +991,34 @@ int main(int argc, char** argv)
     for(int index = 0; index < numPatches; ++index)
     {
       patchProcessor.generateSVGForPatch(index, patches[index]);
+    }
+  }
+
+  //---------------------------------------------------------------------------
+  // Optionally output an MFEM patch-wise NURBS mesh for each patch's trimming curves, only on root rank
+  //---------------------------------------------------------------------------
+  if(output_mfem_trim_curves && is_root)
+  {
+    const std::string outDir = joinPath(output_dir, "mfem_trim_curves");
+    if(!axom::utilities::filesystem::pathExists(outDir))
+    {
+      axom::utilities::filesystem::makeDirsForPath(outDir);
+    }
+
+    SLIC_INFO(
+      axom::fmt::format("Generating MFEM meshes for patch trimming curves in '{}' directory", outDir));
+
+    const int numPatches = patches.size();
+    const int numFillZeros = static_cast<int>(std::log10(numPatches)) + 1;
+
+    PatchMFEMTrimmingCurveWriter writer;
+    writer.setVerbosity(verbosity);
+    writer.setOutputDirectory(output_dir);
+    writer.setNumFillZeros(numFillZeros);
+
+    for(int index = 0; index < numPatches; ++index)
+    {
+      writer.writeMFEMForPatch(index, patches[index]);
     }
   }
 
