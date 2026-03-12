@@ -79,7 +79,7 @@ spack:
             cxx: /opt/rocm-6.3.1/llvm/bin/amdclang++
             fortran: /opt/rocm-6.3.1/llvm/bin/amdflang
           environment: {}
-          extra_rpaths: []
+          extra_rpaths: [/opt/rocmc-6.3.1/lib, /opt/rocm-6.3.1/lib/llvm/lib]
       - spec: llvm-amdgpu@6.4.2
         prefix: /opt/rocm-6.4.2
         extra_attributes:
@@ -88,7 +88,7 @@ spack:
             cxx: /opt/rocm-6.4.2/llvm/bin/amdclang++
             fortran: /opt/rocm-6.4.2/llvm/bin/amdflang
           environment: {}
-          extra_rpaths: []
+          extra_rpaths: [/opt/rocm-6.4.2/lib, /opt/rocm-6.4.2/lib/llvm/lib]
     cce:
       externals:
       - spec: cce@20.0.0
@@ -99,8 +99,7 @@ spack:
             cxx: /usr/tce/packages/cce-tce/cce-20.0.0/bin/crayCC
             fortran: /usr/tce/packages/cce-tce/cce-20.0.0/bin/crayftn
           environment: {}
-          extra_rpaths: []
-
+          extra_rpaths: [/opt/cray/pe/cce/20.0.0/cce/x86_64/lib]
 
     hip:
       # version: [6.3.1, 6.4.2]
