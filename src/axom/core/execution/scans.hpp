@@ -118,7 +118,10 @@ inline void exclusive_scan_inplace(Container &&input)
   constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
   AXOM_STATIC_ASSERT(is_serial);
 
-  typename std::remove_const<typename Container::value_type>::type total {0};
+  using OutContainer = std::remove_reference_t<Container>;
+  using OutValue = std::remove_cv_t<typename OutContainer::value_type>;
+
+  OutValue total {0};
   for(IndexType i = 0; i < input.size(); ++i)
   {
     const auto tmp = input[i];
@@ -211,7 +214,10 @@ inline void inclusive_scan_inplace(Container &&input)
   constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
   AXOM_STATIC_ASSERT(is_serial);
 
-  typename std::remove_const<typename Container::value_type>::type total {0};
+  using OutContainer = std::remove_reference_t<Container>;
+  using OutValue = std::remove_cv_t<typename OutContainer::value_type>;
+
+  OutValue total {0};
   for(IndexType i = 0; i < input.size(); ++i)
   {
     total += input[i];
