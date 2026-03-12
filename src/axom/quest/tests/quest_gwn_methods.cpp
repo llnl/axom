@@ -11,6 +11,7 @@
 
 #include "axom/quest/LinearizeCurves.hpp"
 #include "axom/quest/GWNMethods.hpp"
+#include "axom/quest/FastApproximateGWN.hpp"
 #include "axom/quest/io/MFEMReader.hpp"
 #include "axom/quest/util/mesh_helpers.hpp"
 
@@ -43,6 +44,43 @@ std::string pjoin(const char *str, Args... args)
   return axom::utilities::filesystem::joinPath(std::string(str), pjoin(args...));
 }
 //------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+TEST(quest_gwn_methods, gwn_moment_data_segment_order1_hardcoded)
+{
+  using Point2D = axom::primal::Point<double, 2>;
+  using Moments = axom::quest::GWNMomentData<double, 2, 1>;
+
+  // Combine two segments into a cluster and verify raw moments, centroid, and
+  // expansion coefficients. Values are chosen to make exact expectations.
+  Moments s1(Point2D {0.0, 0.0}, Point2D {1.0, 0.0});
+  Moments s2(Point2D {0.0, 1.0}, Point2D {0.0, 2.0});
+  Moments cluster = s1 + s2;
+
+  EXPECT_DOUBLE_EQ(cluster.a, 2.0);
+  EXPECT_DOUBLE_EQ(cluster.ap[0], 0.5);
+  EXPECT_DOUBLE_EQ(cluster.ap[1], 1.5);
+
+  const auto center = cluster.getCenter();
+  EXPECT_DOUBLE_EQ(center[0], 0.25);
+  EXPECT_DOUBLE_EQ(center[1], 0.75);
+
+  // Raw moments (rm)
+  EXPECT_DOUBLE_EQ(cluster.rm[0], -1.0);   // dy
+  EXPECT_DOUBLE_EQ(cluster.rm[1], 1.0);    // dx
+  EXPECT_DOUBLE_EQ(cluster.rm[2], 0.0);    // 0.5*dy*(x0+x1)
+  EXPECT_DOUBLE_EQ(cluster.rm[3], 0.5);    // 0.5*(x1^2-x0^2)
+  EXPECT_DOUBLE_EQ(cluster.rm[4], -1.5);   // 0.5*(y0^2-y1^2)
+  EXPECT_DOUBLE_EQ(cluster.rm[5], 0.0);    // 0.5*dx*(y0+y1)
+
+  // Expansion coefficients (ec)
+  EXPECT_DOUBLE_EQ(cluster.ec[0], -1.0);
+  EXPECT_DOUBLE_EQ(cluster.ec[1], 1.0);
+  EXPECT_DOUBLE_EQ(cluster.ec[2], 0.25);
+  EXPECT_DOUBLE_EQ(cluster.ec[3], 0.25);
+  EXPECT_DOUBLE_EQ(cluster.ec[4], -0.75);
+  EXPECT_DOUBLE_EQ(cluster.ec[5], -0.75);
+}
 
 //------------------------------------------------------------------------------
 TEST(quest_gwn_methods, mfem_mesh_linearization)

@@ -1554,6 +1554,87 @@ void check_0_or_1_bbox_2d()
   bvh_compute_point_distances_2d(bvh2, src_pts, query_pts, true);
 }
 
+//------------------------------------------------------------------------------
+/*!
+ * \brief Tests LinearBVHTraverser::reduce_tree by reducing a BVH of points into
+ *        a field that counts how many points are contained in each node.
+ *
+ * For a BVH with N leaves, LinearBVH stores 2*(N-1) "node slots" in its
+ * internal representation. Exactly N of those slots correspond to leaf nodes.
+ * When each leaf contributes 1, internal nodes must reduce to a value > 1.
+ */
+template <typename ExecSpace, typename FloatType>
+void check_reduce_tree_point_counts_2d()
+{
+  constexpr int NDIMS = 2;
+
+  using BVHType = spin::BVH<NDIMS, ExecSpace, FloatType>;
+  using BoxType = typename BVHType::BoxType;
+  using PointType = typename BVHType::PointType;
+  using CountType = axom::IndexType;
+
+  const int hostAllocatorID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  const int execAllocatorID = axom::execution_space<ExecSpace>::allocatorID();
+
+  // Build a deterministic set of distinct points.
+  constexpr axom::IndexType NX = 8;
+  constexpr axom::IndexType NY = 8;
+  constexpr axom::IndexType NPTS = NX * NY;
+
+  axom::Array<BoxType> bboxes(NPTS, NPTS, hostAllocatorID);
+  axom::IndexType idx = 0;
+  for(axom::IndexType j = 0; j < NY; ++j)
+  {
+    for(axom::IndexType i = 0; i < NX; ++i, ++idx)
+    {
+      const auto x = static_cast<FloatType>(i) + static_cast<FloatType>(0.25);
+      const auto y = static_cast<FloatType>(j) + static_cast<FloatType>(0.75);
+      bboxes[idx] = BoxType(PointType {x, y});
+    }
+  }
+  EXPECT_EQ(idx, NPTS);
+
+  // Copy boxes to the execution space allocator and build the BVH.
+  axom::Array<BoxType> bboxes_exec(bboxes, execAllocatorID);
+  BVHType bvh;
+  bvh.setScaleFactor(1.0);
+  bvh.initialize(bboxes_exec.view(), NPTS);
+
+  // Reduce the BVH into a field that counts points per node.
+  const auto traverser = bvh.getTraverser();
+  auto leafToOne = AXOM_LAMBDA(std::int32_t AXOM_UNUSED_PARAM(leafNode),
+                               const std::int32_t* AXOM_UNUSED_PARAM(leafNodes))
+                     ->CountType { return static_cast<CountType>(1); };
+
+  axom::Array<CountType> counts =
+    traverser.template reduce_tree<ExecSpace, CountType>(leafToOne, hostAllocatorID);
+
+  // For a BVH with N leaves, LinearBVH stores 2*(N-1) node slots.
+  ASSERT_EQ(counts.size(), static_cast<axom::IndexType>(2 * (NPTS - 1)));
+
+  // The implicit root's children live at indices 0 and 1.
+  ASSERT_EQ(counts[0] + counts[1], NPTS);
+
+  // There should be exactly N leaf nodes, each with a reduced count of 1.
+  axom::IndexType nleaf_nodes = 0;
+  for(axom::IndexType n = 0; n < counts.size(); ++n)
+  {
+    EXPECT_GE(counts[n], 1);
+    EXPECT_LE(counts[n], NPTS);
+
+    if(counts[n] == 1)
+    {
+      ++nleaf_nodes;
+    }
+    else
+    {
+      EXPECT_GT(counts[n], 1);
+    }
+  }
+
+  EXPECT_EQ(nleaf_nodes, NPTS);
+}
+
 } /* end unnamed namespace */
 
 //------------------------------------------------------------------------------
@@ -1671,6 +1752,13 @@ TEST(spin_bvh, single_bbox_sequential)
 }
 
 //------------------------------------------------------------------------------
+TEST(spin_bvh, reduce_tree_point_counts_sequential)
+{
+  check_reduce_tree_point_counts_2d<axom::SEQ_EXEC, double>();
+  check_reduce_tree_point_counts_2d<axom::SEQ_EXEC, float>();
+}
+
+//------------------------------------------------------------------------------
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
 
 TEST(spin_bvh, build2D_omp)
@@ -1757,6 +1845,13 @@ TEST(spin_bvh, single_bbox_omp)
 {
   check_0_or_1_bbox_2d<axom::OMP_EXEC, double>();
   check_0_or_1_bbox_2d<axom::OMP_EXEC, float>();
+}
+
+//------------------------------------------------------------------------------
+TEST(spin_bvh, reduce_tree_point_counts_omp)
+{
+  check_reduce_tree_point_counts_2d<axom::OMP_EXEC, double>();
+  check_reduce_tree_point_counts_2d<axom::OMP_EXEC, float>();
 }
 
 #endif

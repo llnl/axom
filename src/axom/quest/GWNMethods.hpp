@@ -271,7 +271,7 @@ public:
   void preprocess(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* poly_mesh,
                   bool useDirectEval)
   {
-    if(poly_mesh.size() <= 0)
+    if(poly_mesh == nullptr || poly_mesh->getNumberOfCells() <= 0)
     {
       SLIC_WARNING("Quest: Input mesh contains no segments; skipping preprocessing.");
       return;
