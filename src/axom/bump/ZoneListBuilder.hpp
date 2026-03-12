@@ -103,15 +103,16 @@ public:
       AXOM_LAMBDA(axom::IndexType zoneIndex) {
         const auto zone = deviceTopologyView.zone(zoneIndex);
 
-        bool clean = true;
+        MaskType clean {1};
         const axom::IndexType nnodesThisZone = zone.numberOfNodes();
-        for(axom::IndexType i = 0; i < nnodesThisZone && clean; i++)
+        const auto &zoneNodeIds = zone.getIdsStorage();
+        for(axom::IndexType i = 0; i < nnodesThisZone; i++)
         {
-          const auto nodeId = zone.getId(i);
-          clean = clean && (nMatsPerNodeView[nodeId] == 1);
+          const auto nodeId = zoneNodeIds[i];
+          clean &= (nMatsPerNodeView[nodeId] == 1) ? MaskType{1} : MaskType{0};
         }
 
-        maskView[zoneIndex] = clean ? MaskType {1} : MaskType {0};
+        maskView[zoneIndex] = clean;
       });
     AXOM_ANNOTATE_END("mask");
 
@@ -276,15 +277,15 @@ public:
         const auto zoneIndex = selectedZonesView[szIndex];
         const auto zone = deviceTopologyView.zone(zoneIndex);
 
-        bool clean = true;
+        MaskType clean {1};
         const axom::IndexType nnodesThisZone = zone.numberOfNodes();
-        for(axom::IndexType i = 0; i < nnodesThisZone && clean; i++)
+        for(axom::IndexType i = 0; i < nnodesThisZone; i++)
         {
           const auto nodeId = zone.getId(i);
-          clean = clean && (nMatsPerNodeView[nodeId] == 1);
+          clean &= (nMatsPerNodeView[nodeId] == 1) ? MaskType {1} : MaskType {0};
         }
 
-        maskView[szIndex] = clean ? MaskType {1} : MaskType {0};
+        maskView[szIndex] = clean;
       });
     AXOM_ANNOTATE_END("mask");
 
