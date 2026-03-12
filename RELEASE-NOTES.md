@@ -22,8 +22,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ### Changed
 - Primal: Axom's polygon clipping was modified to handle some corner cases.
+- Bump: Several Bump algorithms were improved so they perform better with OpenMP.
+- Mir: The `EquiZAlgorithm was improved so it performs better with OpenMP.
 
 ### Fixed
+ - Core: the `ArrayView` class was modified so it defers initializing an internal
+   allocator id via Umpire, if present. This prevents excessive calls to Umpire,
+   which are not needed in all use cases.
 
 ### Removed
 
