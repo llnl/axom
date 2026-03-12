@@ -19,6 +19,15 @@
 #include <string>
 #include <memory>
 
+// MFEM does not support reading patch-based 1D NURBS meshes until after the v4.9
+// release. Prefer patch-based extraction only when the MFEM version is new
+// enough, otherwise fall back to element-based extraction.
+#ifndef MFEM_VERSION
+  #define MFEM_VERSION 0
+#endif
+
+#define AXOM_MFEM_MIN_VERSION_PATCH_BASED_1D_NURBS 40901
+
 namespace axom
 {
 namespace quest
@@ -68,17 +77,7 @@ int read_mfem(const std::string &fileName,
     return MFEMReader::READ_FAILED;
   }
 
-  // lambda to extract the knot vector associated with curve idx. Converts from mfem::KnotVector to primal::KnotVector
-  auto get_knots = [&mesh](int idx) -> primal::KnotVector<double> {
-    mfem::Array<const mfem::KnotVector *> kvs;
-    mesh->NURBSext->GetPatchKnotVectors(idx, kvs);
-    const mfem::KnotVector &kv = *kvs[0];
-
-    axom::ArrayView<const double> knots_view(&kv[0], kv.Size());
-    return primal::KnotVector<double>(knots_view, kv.GetOrder());
-  };
-
-  // lambda to extract the control points for curve idx from the mfem mesh as an array of primal::Point
+  // lambda to extract the control points for element idx from the mfem mesh as an array of primal::Point
   using ControlPoint = primal::Point<double, 2>;
   auto get_controlpoints = [nodes, fes](int idx) -> axom::Array<ControlPoint> {
     mfem::Array<int> vdofs;
@@ -98,20 +97,75 @@ int read_mfem(const std::string &fileName,
     return cp;
   };
 
+#if MFEM_VERSION >= AXOM_MFEM_MIN_VERSION_PATCH_BASED_1D_NURBS
+  // lambda to extract the knot vector associated with curve idx. Converts from mfem::KnotVector to primal::KnotVector
+  auto get_knots = [&mesh](int idx) -> primal::KnotVector<double> {
+    mfem::Array<const mfem::KnotVector *> kvs;
+    mesh->NURBSext->GetPatchKnotVectors(idx, kvs);
+    const mfem::KnotVector &kv = *kvs[0];
+
+    axom::ArrayView<const double> knots_view(&kv[0], kv.Size());
+    return primal::KnotVector<double>(knots_view, kv.GetOrder());
+  };
+
   // lambda to extract the weights for curve idx from the mfem mesh
-  auto get_weights = [&mesh, fes](int idx) -> axom::Array<double> {
+  // Patch-based NURBS meshes can have multiple elements (knot spans) per patch.
+  // For robust extraction, build control points/weights from patch DOFs (not element DOFs).
+  auto get_patch_controlpoints = [nodes, fes, &mesh](int patchId) -> axom::Array<ControlPoint> {
     mfem::Array<int> dofs;
-    fes->GetElementDofs(idx, dofs);
+    mesh->NURBSext->GetPatchDofs(patchId, dofs);
 
-    const int NW = dofs.Size();
-    axom::Array<double> w(NW, NW);
+    mfem::Array<int> vdofs(dofs);
+    fes->DofsToVDofs(vdofs);
 
-    // wrap our array's buffer w/ an mfem::Vector for GetSubVector
-    mfem::Vector mfem_vec_weights(w.data(), NW);
+    mfem::Vector v;
+    nodes->GetSubVector(vdofs, v);
+    const auto ord = fes->GetOrdering();
+
+    const int ncp = dofs.Size();
+    axom::Array<ControlPoint> cp(0, ncp);
+    for(int i = 0; i < ncp; ++i)
+    {
+      ord == mfem::Ordering::byVDIM ? cp.push_back({v[i], v[i + ncp]})
+                                    : cp.push_back({v[2 * i], v[2 * i + 1]});
+    }
+
+    return cp;
+  };
+
+  auto get_patch_weights = [&mesh](int patchId) -> axom::Array<double> {
+    mfem::Array<int> dofs;
+    mesh->NURBSext->GetPatchDofs(patchId, dofs);
+
+    const int nw = dofs.Size();
+    axom::Array<double> w(nw, nw);
+
+    mfem::Vector mfem_vec_weights(w.data(), nw);
     mesh->NURBSext->GetWeights().GetSubVector(dofs, mfem_vec_weights);
 
     return w;
   };
+#endif
+
+#if MFEM_VERSION < AXOM_MFEM_MIN_VERSION_PATCH_BASED_1D_NURBS
+  auto get_element_weights = [fes, &mesh](int elemId) -> axom::Array<double> {
+    mfem::Array<int> dofs;
+    fes->GetElementDofs(elemId, dofs);
+
+    const int nw = dofs.Size();
+    axom::Array<double> w(nw, nw);
+
+    mfem::Vector mfem_vec_weights(w.data(), nw);
+    mesh->NURBSext->GetWeights().GetSubVector(dofs, mfem_vec_weights);
+
+    return w;
+  };
+
+  auto get_element_degree = [fes, &mesh](int elemId) -> int {
+    const mfem::Array<int> &orders = mesh->NURBSext->GetOrders();
+    return (elemId < orders.Size()) ? orders[elemId] : fes->GetOrder(elemId);
+  };
+#endif
 
   // lambda to check if the weights correspond to a rational curve. If they are all equal it is not rational
   auto is_rational = [](const axom::Array<double> &weights) -> bool {
@@ -138,18 +192,40 @@ int read_mfem(const std::string &fileName,
   const bool isNURBS = dynamic_cast<const mfem::NURBSFECollection *>(fec) != nullptr;
   if(isNURBS)
   {
+#if MFEM_VERSION >= AXOM_MFEM_MIN_VERSION_PATCH_BASED_1D_NURBS
+    // When MFEM can read patch-based 1D NURBS meshes, prefer reading curves from
+    // patches (which can contain multiple knot spans). This patch-based
+    // extraction is also compatible with older MFEM NURBS mesh v1.0 files.
     const int num_patches = fes->GetNURBSext()->GetNP();
     for(int patchId = 0; patchId < num_patches; ++patchId)
     {
       const int attribute = mesh->GetPatchAttribute(patchId);
 
       const auto kv = get_knots(patchId);
-      const auto cp = get_controlpoints(patchId);
-      const auto w = get_weights(patchId);
+      const auto cp = get_patch_controlpoints(patchId);
+      const auto w = get_patch_weights(patchId);
 
       is_rational(w) ? curvemap[attribute].push_back({cp, w, kv})
                      : curvemap[attribute].push_back({cp, kv});
     }
+#else
+    {
+      // MFEM versions prior to AXOM_MFEM_MIN_VERSION_PATCH_BASED_1D_NURBS do not
+      // support reading patch-based 1D NURBS meshes. In that case, treat each
+      // MFEM element as a single (rational) Bezier span.
+      for(int zoneId = 0; zoneId < mesh->GetNE(); ++zoneId)
+      {
+        const int attribute = mesh->GetAttribute(zoneId);
+        const int degree = get_element_degree(zoneId);
+
+        const auto cp = get_controlpoints(zoneId);
+        const auto w = get_element_weights(zoneId);
+
+        is_rational(w) ? curvemap[attribute].push_back({cp, w, degree})
+                       : curvemap[attribute].push_back({cp, degree});
+      }
+    }
+#endif
   }
   else
   {
