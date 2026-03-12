@@ -38,7 +38,7 @@ struct TimedForAll
    * \param n The number it items in the loop.
    * \param kernel The kernel to execute.
    */
-  static void execute(const std::string &name, axom::IndexType n, KernelType &&kernel)
+  static void execute([[maybe_unused]] const std::string &name, axom::IndexType n, KernelType &&kernel)
   {
     AXOM_ANNOTATE_SCOPE(name);
     axom::for_all<ExecSpace>(n, std::forward<KernelType>(kernel));
