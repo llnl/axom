@@ -20,6 +20,7 @@
 #include "axom/bump/HashNaming.hpp"
 #include "axom/bump/SelectedZones.hpp"
 #include "axom/bump/Unique.hpp"
+#include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/views/Shapes.hpp"
 #include "axom/bump/views/view_traits.hpp"
 #include "axom/slic.hpp"
@@ -331,6 +332,7 @@ struct FragmentOperations
  *
  * \tparam ExecSpace The execution space.
  * \tparam DataView The type of data view that is operated on.
+ * \tparam MaskType The typed used to store mask data.
  *
  * \param n_src The Conduit node that contains the data.
  * \param srcView A view that wraps the input Conduit data.
@@ -338,11 +340,11 @@ struct FragmentOperations
  * \param maskView The mask for valid data elements.
  * \param maskOffsetsView The offsets view to indicate where to write the new data.
  */
-template <typename ExecSpace, typename DataView>
+template <typename ExecSpace, typename DataView, typename MaskType>
 DataView filter(conduit::Node &n_src,
                 DataView srcView,
                 axom::IndexType newSize,
-                axom::ArrayView<int> maskView,
+                axom::ArrayView<MaskType> maskView,
                 axom::ArrayView<int> maskOffsetsView)
 {
   using value_type = typename DataView::value_type;
@@ -474,6 +476,7 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
                               axom::ArrayView<int> &colorView)
   {
     AXOM_ANNOTATE_SCOPE("filterZeroSizes");
+    using MaskType = typename axom::bump::utilities::mask_traits<ExecSpace, int>::type;
 
     // There were degenerates so the expected number of fragments per zone (m_fragmentsView)
     // was adjusted down. That means redoing the offsets. These need to be up
@@ -482,7 +485,7 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
 
     // Use sizesView to make a mask that has 1's where size > 0.
     axom::IndexType nz = fragmentData.m_finalNumZones;
-    axom::Array<int> mask(nz, nz, axom::execution_space<ExecSpace>::allocatorID());
+    axom::Array<MaskType> mask(nz, nz, axom::execution_space<ExecSpace>::allocatorID());
     axom::Array<int> maskOffsets(nz, nz, axom::execution_space<ExecSpace>::allocatorID());
     auto maskView = mask.view();
     auto maskOffsetsView = maskOffsets.view();
@@ -492,7 +495,7 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
       nz,
       AXOM_LAMBDA(axom::IndexType index) {
         const int ival = (deviceSizesView[index] > 0) ? 1 : 0;
-        maskView[index] = ival;
+        maskView[index] = static_cast<MaskType>(ival);
         mask_reduce += ival;
       });
     const axom::IndexType filteredZoneCount = mask_reduce.get();
@@ -1094,7 +1097,7 @@ public:
 private:
 #endif
   using FragmentData = detail::FragmentData;
-  using MaskType = typename std::conditional<axom::execution_space<ExecSpace>::onDevice(), int, char>::type;
+  using MaskType = typename axom::bump::utilities::mask_traits<ExecSpace, int>::type;
 
   /*!
    * \brief Contains some per-zone data that we want to hold onto between methods.

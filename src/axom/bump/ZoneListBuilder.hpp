@@ -26,6 +26,7 @@ namespace bump
 template <typename ExecSpace, typename TopologyView, typename MatsetView>
 class ZoneListBuilder
 {
+  using MaskType = typename axom::bump::utilities::mask_traits<ExecSpace, int>::type;
 public:
   using SelectedZonesView = axom::ArrayView<axom::IndexType>;
   using ZoneType = typename TopologyView::ShapeType;
@@ -94,7 +95,7 @@ public:
     // Now, mark all zones that have 1 mat per node as clean.
     AXOM_ANNOTATE_BEGIN("mask");
     const auto nzones = m_topologyView.numberOfZones();
-    axom::Array<int> mask(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
+    axom::Array<MaskType> mask(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
     auto maskView = mask.view();
     axom::for_all<ExecSpace>(
       nzones,
@@ -109,7 +110,7 @@ public:
           clean = clean && (nMatsPerNodeView[nodeId] == 1);
         }
 
-        maskView[zoneIndex] = clean ? 1 : 0;
+        maskView[zoneIndex] = clean ? MaskType{1} : MaskType{0};
       });
     AXOM_ANNOTATE_END("mask");
 
@@ -125,7 +126,7 @@ public:
         axom::ReduceSum<ExecSpace, int> mask_reduce(0);
         axom::for_all<ExecSpace>(
           nzones,
-          AXOM_LAMBDA(axom::IndexType zoneIndex) { mask_reduce += maskView[zoneIndex]; });
+          AXOM_LAMBDA(axom::IndexType zoneIndex) { mask_reduce += static_cast<int>(maskView[zoneIndex]); });
         nClean = mask_reduce.get();
       }
       else
@@ -137,7 +138,7 @@ public:
         maskOffsetsView = maskOffsets.view();
         axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
 
-        nClean = maskOffsetsView[nzones - 1] + maskView[nzones - 1];
+        nClean = maskOffsetsView[nzones - 1] + static_cast<int>(maskView[nzones - 1]);
       }
     }
 
@@ -170,7 +171,7 @@ public:
       AXOM_ANNOTATE_BEGIN("mixedIndices");
       axom::for_all<ExecSpace>(
         nzones,
-        AXOM_LAMBDA(axom::IndexType index) { maskView[index] = (maskView[index] == 1) ? 0 : 1; });
+        AXOM_LAMBDA(axom::IndexType index) { maskView[index] = (maskView[index] == MaskType{1}) ? MaskType{0} : MaskType{1}; });
       axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
       const int nMixed = nzones - nClean;
       mixedIndices = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nMixed, nMixed, allocatorID);
@@ -257,7 +258,7 @@ public:
     // Now, mark all selected zones that have 1 mat per node as clean.
     AXOM_ANNOTATE_BEGIN("mask");
     const auto nzones = selectedZonesView.size();
-    axom::Array<int> mask(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
+    axom::Array<MaskType> mask(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
     auto maskView = mask.view();
     axom::for_all<ExecSpace>(
       nzones,
@@ -273,7 +274,7 @@ public:
           clean = clean && (nMatsPerNodeView[nodeId] == 1);
         }
 
-        maskView[szIndex] = clean ? 1 : 0;
+        maskView[szIndex] = clean ? MaskType{1} : MaskType{0};
       });
     AXOM_ANNOTATE_END("mask");
 
@@ -289,7 +290,7 @@ public:
         axom::ReduceSum<ExecSpace, int> mask_reduce(0);
         axom::for_all<ExecSpace>(
           nzones,
-          AXOM_LAMBDA(axom::IndexType szIndex) { mask_reduce += maskView[szIndex]; });
+          AXOM_LAMBDA(axom::IndexType szIndex) { mask_reduce += static_cast<int>(maskView[szIndex]); });
         nClean = mask_reduce.get();
       }
       else
@@ -301,7 +302,7 @@ public:
         maskOffsetsView = maskOffsets.view();
         axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
 
-        nClean = maskOffsetsView[nzones - 1] + maskView[nzones - 1];
+        nClean = maskOffsetsView[nzones - 1] + static_cast<int>(maskView[nzones - 1]);
       }
     }
 
@@ -334,7 +335,7 @@ public:
       AXOM_ANNOTATE_BEGIN("mixedIndices");
       axom::for_all<ExecSpace>(
         nzones,
-        AXOM_LAMBDA(axom::IndexType index) { maskView[index] = (maskView[index] == 1) ? 0 : 1; });
+        AXOM_LAMBDA(axom::IndexType index) { maskView[index] = (maskView[index] == MaskType{1}) ? MaskType{0} : MaskType{1}; });
       axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
       const int nMixed = nzones - nClean;
       mixedIndices = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nMixed, nMixed, allocatorID);
@@ -383,7 +384,7 @@ public:
 
     AXOM_ANNOTATE_BEGIN("mask");
     const auto nzones = selectedZonesView.size();
-    axom::Array<int> mask(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
+    axom::Array<MaskType> mask(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
     auto maskView = mask.view();
     axom::ReduceSum<ExecSpace, int> mask_reduce(0);
     const MatsetView deviceMatsetView(m_matsetView);
@@ -395,7 +396,7 @@ public:
 
         // clean zone == 1, mixed zone = 0
         const int ival = (deviceMatsetView.numberOfMaterials(matZoneIndex) == 1) ? 1 : 0;
-        maskView[szIndex] = ival;
+        maskView[szIndex] = static_cast<MaskType>(ival);
         mask_reduce += ival;
       });
     AXOM_ANNOTATE_END("mask");
@@ -420,7 +421,7 @@ public:
           {
             cleanIndicesView[maskOffsetsView[szIndex]] = selectedZonesView[szIndex];
           }
-          maskView[szIndex] = (maskView[szIndex] > 0) ? 0 : 1;
+          maskView[szIndex] = (maskView[szIndex] > 0) ? MaskType{0} : MaskType{1};
         });
 
       axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);

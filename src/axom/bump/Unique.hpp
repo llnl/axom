@@ -9,6 +9,7 @@
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
+#include "axom/bump/utilities/utilities.hpp"
 
 #include <cstdint>
 #include <unordered_map>
@@ -141,7 +142,7 @@ struct Unique
     axom::stable_sort_pairs<ExecSpace>(keys_view, indices_view);
 
     // Make a mask array for where differences occur.
-    using MaskType = typename std::conditional<axom::execution_space<ExecSpace>::onDevice(), axom::IndexType, char>::type;
+    using MaskType = typename axom::bump::utilities::mask_traits<ExecSpace, axom::IndexType>::type;
     axom::Array<MaskType> mask(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
     auto mask_view = mask.view();
     axom::ReduceSum<ExecSpace, axom::IndexType> mask_sum(0);

@@ -10,6 +10,7 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/views/dispatch_unstructured_topology.hpp"
 #include "axom/bump/MakeUnstructured.hpp"
 
@@ -51,12 +52,13 @@ struct BuildRelationImpl
     SLIC_ASSERT(nodesView.size() == zonesView.size());
 
     using value_type = typename ViewType::value_type;
+    using MaskType = typename axom::bump::utilities::mask_traits<ExecSpace, axom::IndexType>::type;
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
 
     AXOM_ANNOTATE_BEGIN("alloc");
     const auto n = nodesView.size();
     axom::Array<value_type> keys(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
-    axom::Array<axom::IndexType> mask(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
+    axom::Array<MaskType> mask(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
     axom::Array<axom::IndexType> dest_offsets(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
     AXOM_ANNOTATE_END("alloc");
 
@@ -80,7 +82,7 @@ struct BuildRelationImpl
       axom::for_all<ExecSpace>(
         n,
         AXOM_LAMBDA(axom::IndexType i) {
-          maskView[i] = (i >= 1) ? ((keysView[i] != keysView[i - 1]) ? 1 : 0) : 1;
+          maskView[i] = (i >= 1) ? ((keysView[i] != keysView[i - 1]) ? MaskType{1} : MaskType{0}) : MaskType{1};
         });
     }
 
@@ -111,11 +113,12 @@ struct BuildRelationImpl
     {
       AXOM_ANNOTATE_SCOPE("sizes");
       const value_type totalSize = nodesView.size();
+      const auto offsetsViewSize_minus_1 = offsetsView.size() - 1;
       axom::for_all<ExecSpace>(
         offsetsView.size(),
         AXOM_LAMBDA(axom::IndexType i) {
-          sizesView[i] = (i < offsetsView.size() - 1) ? (offsetsView[i + 1] - offsetsView[i])
-                                                      : (totalSize - offsetsView[i]);
+          sizesView[i] = (i < offsetsViewSize_minus_1) ? (offsetsView[i + 1] - offsetsView[i])
+                                                       : (totalSize - offsetsView[i]);
         });
     }
   }
@@ -145,7 +148,7 @@ struct BuildRelationImpl<axom::SEQ_EXEC, ViewType>
       sizesView[nodesView[index]]++;
     }
     // Make offsets
-    axom::IndexType offset = 0;
+    value_type offset = 0;
     for(axom::IndexType i = 0; i < sizesViewSize; i++)
     {
       offsetsView[i] = offset;

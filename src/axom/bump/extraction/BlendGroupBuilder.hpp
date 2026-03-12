@@ -433,10 +433,11 @@ public:
 
     if(nIndices > 0)
     {
+      using MaskType = typename axom::bump::utilities::mask_traits<ExecSpace, int>::type;
       const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
 
       // Make a mask of selected indices have more than one id in their blend group.
-      axom::Array<int> mask(nIndices, nIndices, allocatorID);
+      axom::Array<MaskType> mask(nIndices, nIndices, allocatorID);
       auto maskView = mask.view();
       axom::ReduceSum<ExecSpace, int> mask_reduce(0);
       State deviceState(m_state);
@@ -445,7 +446,7 @@ public:
         AXOM_LAMBDA(axom::IndexType index) {
           const auto uniqueIndex = deviceState.m_blendUniqueIndicesView[index];
           const int m = (deviceState.m_blendGroupSizesView[uniqueIndex] > 1) ? 1 : 0;
-          maskView[index] = m;
+          maskView[index] = static_cast<MaskType>(m);
           mask_reduce += m;
         });
       // If we need to filter, do it.
