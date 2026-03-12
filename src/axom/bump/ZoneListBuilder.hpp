@@ -109,7 +109,7 @@ public:
         for(axom::IndexType i = 0; i < nnodesThisZone; i++)
         {
           const auto nodeId = zoneNodeIds[i];
-          clean &= (nMatsPerNodeView[nodeId] == 1) ? MaskType{1} : MaskType{0};
+          clean &= (nMatsPerNodeView[nodeId] == 1) ? MaskType {1} : MaskType {0};
         }
 
         maskView[zoneIndex] = clean;
