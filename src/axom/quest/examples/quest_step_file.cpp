@@ -367,7 +367,9 @@ public:
     }
   }
 
-  void writeMFEMForPatch(int patchIndex, const NURBSPatch& patch) const
+  void writeMFEMForPatch(int patchId,
+                         const NURBSPatch& patch,
+                         axom::ArrayView<const int> trimmingCurveWireIds) const
   {
     const auto& curves = patch.getTrimmingCurves();
     const int numCurves = curves.size();
@@ -375,6 +377,14 @@ public:
     {
       return;
     }
+
+    SLIC_WARNING_IF(trimmingCurveWireIds.size() != numCurves,
+                    axom::fmt::format(
+                      "Trimming curve wire id list size mismatch for patch {}: ids={}, curves={}. "
+                      "Falling back to a single wire id.",
+                      patchId,
+                      trimmingCurveWireIds.size(),
+                      numCurves));
 
     using axom::utilities::filesystem::joinPath;
 
@@ -385,8 +395,7 @@ public:
     }
 
     const std::string meshFilename =
-      joinPath(outDir,
-               axom::fmt::format("trim_curves_patch_{:0{}}.mesh", patchIndex, m_numFillZeros));
+      joinPath(outDir, axom::fmt::format("trim_curves_patch_{:0{}}.mesh", patchId, m_numFillZeros));
 
     std::ofstream meshFile(meshFilename);
     if(!meshFile.is_open())
@@ -400,7 +409,7 @@ public:
     axom::fmt::format_to(std::back_inserter(content), "MFEM NURBS mesh v1.0\n\n");
     axom::fmt::format_to(std::back_inserter(content),
                          "# Trim curves for STEP NURBSPatch {}\n",
-                         patchIndex);
+                         patchId);
     axom::fmt::format_to(std::back_inserter(content),
                          "# Parametric bbox: [{:.17g}, {:.17g}] x [{:.17g}, {:.17g}]\n",
                          patch.getMinKnot_u(),
@@ -415,9 +424,12 @@ public:
     axom::fmt::format_to(std::back_inserter(content), "elements\n{}\n", numCurves);
     for(int i = 0; i < numCurves; ++i)
     {
+      // MFEM attributes are 1-based; we store the STEP 0-based wire index + 1.
+      const int wireId = (trimmingCurveWireIds.size() == numCurves) ? trimmingCurveWireIds[i] : 0;
+      const int mfem_attribute = wireId + 1;
       const int v0 = 2 * i;
       const int v1 = 2 * i + 1;
-      axom::fmt::format_to(std::back_inserter(content), "1 1 {} {}\n", v0, v1);
+      axom::fmt::format_to(std::back_inserter(content), "{} 1 {} {}\n", mfem_attribute, v0, v1);
     }
 
     axom::fmt::format_to(std::back_inserter(content), "\nboundary\n0\n\n");
@@ -438,6 +450,8 @@ public:
     {
       const auto& curve = curves[i];
       SLIC_ASSERT(curve.isValidNURBS());
+      const int wireId = (trimmingCurveWireIds.size() == numCurves) ? trimmingCurveWireIds[i] : 0;
+      const int mfem_attribute = wireId + 1;
 
       const int degree = curve.getDegree();
       const int ncp = curve.getNumControlPoints();
@@ -445,7 +459,10 @@ public:
       SLIC_ASSERT(knots.size() == ncp + degree + 1);
 
       axom::fmt::format_to(std::back_inserter(content),
-                           "# Curve {}: {} (degree {}, {} control points)\n",
+                           "# Curve wireId={} (mfem_attribute={}, output index {}): {} (degree {}, "
+                           "{} control points)\n",
+                           wireId,
+                           mfem_attribute,
                            i,
                            curve.isRational() ? "rational" : "polynomial",
                            degree,
@@ -1018,7 +1035,8 @@ int main(int argc, char** argv)
 
     for(int index = 0; index < numPatches; ++index)
     {
-      writer.writeMFEMForPatch(index, patches[index]);
+      const int patch_id = stepReader.getPatchIds()[index];
+      writer.writeMFEMForPatch(patch_id, patches[index], stepReader.getTrimmingCurveWireIds(index));
     }
   }
 

@@ -113,9 +113,10 @@ private:
     constexpr int ARR_DIM = axom::detail::ArrayTraits<ArrayType>::dimension;
     static_assert(ARR_DIM == 1 || ARR_DIM == 2);
 
-    // Check that the value_type of the array is either double or Point<double, DIM>
+    // Check that the value_type of the array is either double, int, or Point<double, DIM>
     using value_type = typename ArrayType::value_type;
-    static_assert(std::is_same_v<value_type, double> || primal::detail::is_point_v<value_type>);
+    static_assert(std::is_same_v<value_type, double> || std::is_same_v<value_type, int> ||
+                  primal::detail::is_point_v<value_type>);
 
     const bool is_root = (m_my_rank == 0);
 
@@ -149,9 +150,9 @@ private:
     }
 
     // then, send/receive the data
-    if constexpr(std::is_same_v<value_type, double>)
+    if constexpr(std::is_same_v<value_type, double> || std::is_same_v<value_type, int>)
     {
-      // handles Array<double,1> and Array<double,2>
+      // handles Array<double,1>, Array<double,2>, and Array<int,1>
       bcast_data(arr.view());
     }
     else if constexpr(primal::detail::is_point_v<value_type>)
