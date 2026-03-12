@@ -12,10 +12,10 @@
 #include "axom/core/AnnotationMacros.hpp"
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
-#include "axom/core/Array.hpp"
-#include <iostream>
-#include <chrono>
-#include <omp.h>
+  #include "axom/core/Array.hpp"
+  #include <iostream>
+  #include <chrono>
+  #include <omp.h>
 #endif
 
 namespace axom
@@ -42,7 +42,7 @@ struct TimedForAll
   {
     AXOM_ANNOTATE_SCOPE(name);
     axom::for_all<ExecSpace>(n, std::forward<KernelType>(kernel));
-  } 
+  }
 };
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
@@ -64,9 +64,10 @@ struct TimedForAll<axom::OMP_EXEC, KernelType>
   static void execute(const std::string &name, axom::IndexType n, KernelType &&kernel)
   {
     AXOM_ANNOTATE_BEGIN(name);
-    const auto now1 = std::chrono::duration<double>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+    const auto now1 =
+      std::chrono::duration<double>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-    const int nthreads = omp_get_max_threads() + 1; // make an extra slot.
+    const int nthreads = omp_get_max_threads() + 1;  // make an extra slot.
     axom::Array<double> ompStart(nthreads, nthreads, allocatorID);
     axom::Array<double> ompEnd(nthreads, nthreads, allocatorID);
     auto ompStartView = ompStart.view();
@@ -76,26 +77,30 @@ struct TimedForAll<axom::OMP_EXEC, KernelType>
     // Save the start time as the last element in the array.
     ompStart[nthreads - 1] = now1;
 
-    auto outer = [&](axom::IndexType i)
-    {
+    auto outer = [&](axom::IndexType i) {
       // Save the start time.
       double &start = ompStartView[omp_get_thread_num()];
       if(start < 0.)
       {
-        start = std::chrono::duration<double>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+        start =
+          std::chrono::duration<double>(std::chrono::high_resolution_clock::now().time_since_epoch())
+            .count();
       }
 
       kernel(i);
 
       // Save the end time.
-      ompEndView[omp_get_thread_num()] = std::chrono::duration<double>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+      ompEndView[omp_get_thread_num()] =
+        std::chrono::duration<double>(std::chrono::high_resolution_clock::now().time_since_epoch())
+          .count();
     };
 
     // Run the outer kernel to gather timings and run the kernel.
     axom::for_all<ExecSpace>(n, outer);
 
     // Save the end time as the last element in the array.
-    ompEnd[nthreads - 1] = std::chrono::duration<double>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+    ompEnd[nthreads - 1] =
+      std::chrono::duration<double>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
     AXOM_ANNOTATE_END(name);
 
     std::cout << name << ":\n";
@@ -103,10 +108,10 @@ struct TimedForAll<axom::OMP_EXEC, KernelType>
     std::cout << "\tnthreads: " << (nthreads - 1) << "\n";
     std::cout << std::setprecision(20) << "\tstart=" << ompStart << std::endl;
     std::cout << "\tend=" << ompEnd << std::endl;
-  } 
+  }
 };
 #endif
-} // end namespace detail
+}  // end namespace detail
 
 /*!
  * \brief Execute axom::for_all and add a caliper timer (if enabled). Certain ExecSpace types may output additional timing information.

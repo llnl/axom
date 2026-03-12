@@ -187,7 +187,8 @@ protected:
       {
         const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
         const auto n = selectedZonesView.size() + extra.zones;
-        m_zoneSlice = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
+        m_zoneSlice =
+          axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
         view = m_zoneSlice.view();
         axom::copy(view.data(),
                    selectedZonesView.data(),
@@ -287,8 +288,10 @@ protected:
     sizes.connectivity = newConnSize;
 
     const auto nodeSliceSize = sizes.nodes + extra.nodes;
-    nodeSlice =
-      axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nodeSliceSize, nodeSliceSize, allocatorID);
+    nodeSlice = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(),
+                                             nodeSliceSize,
+                                             nodeSliceSize,
+                                             allocatorID);
     auto nodeSliceView = nodeSlice.view();
     axom::for_all<ExecSpace>(
       nodeSliceSize,
@@ -378,9 +381,12 @@ protected:
     }
 
     // Make an array of original node ids that we can use to "slice" the nodal data.
-    old2new = axom::Array<ConnectivityType>(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
-    nodeSlice =
-      axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), newNumNodes + extra.nodes, newNumNodes + extra.nodes, allocatorID);
+    old2new =
+      axom::Array<ConnectivityType>(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
+    nodeSlice = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(),
+                                             newNumNodes + extra.nodes,
+                                             newNumNodes + extra.nodes,
+                                             allocatorID);
     auto old2newView = old2new.view();
     auto nodeSliceView = nodeSlice.view();
     axom::for_all<ExecSpace>(

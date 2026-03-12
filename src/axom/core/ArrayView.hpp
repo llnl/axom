@@ -53,8 +53,7 @@ public:
 
   /// \brief Default constructor
   /// \note m_allocator_id is set to INVALID_ALLOCATOR_ID for now and will be set as needed later.
-  AXOM_HOST_DEVICE ArrayView() : m_allocator_id(INVALID_ALLOCATOR_ID)
-  { }
+  AXOM_HOST_DEVICE ArrayView() : m_allocator_id(INVALID_ALLOCATOR_ID) { }
 
   /*!
    * \brief Generic constructor for an ArrayView of arbitrary dimension with external data
@@ -327,7 +326,8 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(T* data,
                                                      const StackArray<IndexType, DIM>& shape,
                                                      IndexType min_stride)
   : ArrayBase<T, DIM, ArrayView<T, DIM, SPACE>>(shape, min_stride)
-  , m_data(data), m_allocator_id(INVALID_ALLOCATOR_ID)
+  , m_data(data)
+  , m_allocator_id(INVALID_ALLOCATOR_ID)
 {
 #if defined(AXOM_DEVICE_CODE) && defined(AXOM_USE_UMPIRE)
   static_assert((SPACE != MemorySpace::Constant) || std::is_const<T>::value,
@@ -350,7 +350,8 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(T* data,
                                                      const StackArray<IndexType, DIM>& shape,
                                                      const StackArray<IndexType, DIM>& stride)
   : ArrayBase<T, DIM, ArrayView<T, DIM, SPACE>>(shape, stride)
-  , m_data(data), m_allocator_id(INVALID_ALLOCATOR_ID)
+  , m_data(data)
+  , m_allocator_id(INVALID_ALLOCATOR_ID)
 {
 #if defined(AXOM_DEVICE_CODE) && defined(AXOM_USE_UMPIRE)
   static_assert((SPACE != MemorySpace::Constant) || std::is_const<T>::value,

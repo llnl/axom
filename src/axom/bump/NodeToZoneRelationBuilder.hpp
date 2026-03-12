@@ -82,7 +82,8 @@ struct BuildRelationImpl
       axom::for_all<ExecSpace>(
         n,
         AXOM_LAMBDA(axom::IndexType i) {
-          maskView[i] = (i >= 1) ? ((keysView[i] != keysView[i - 1]) ? MaskType{1} : MaskType{0}) : MaskType{1};
+          maskView[i] = (i >= 1) ? ((keysView[i] != keysView[i - 1]) ? MaskType {1} : MaskType {0})
+                                 : MaskType {1};
         });
     }
 
@@ -158,7 +159,10 @@ struct BuildRelationImpl<axom::SEQ_EXEC, ViewType>
     memset(sizesView.data(), 0, sizesViewSize * sizeof(value_type));
 
     // Make a copy of zonesView so we can reorganize zonesView.
-    axom::Array<value_type> zcopy(axom::ArrayOptions::Uninitialized(), zonesView.size(), zonesView.size(), allocatorID);
+    axom::Array<value_type> zcopy(axom::ArrayOptions::Uninitialized(),
+                                  zonesView.size(),
+                                  zonesView.size(),
+                                  allocatorID);
     memcpy(zcopy.data(), zonesView.data(), zonesView.size() * sizeof(value_type));
     auto zcopyView = zcopy.view();
 
@@ -189,7 +193,10 @@ struct BuildRelation
    * \param[out]   sizesView A view that we fill with sizes.
    * \param[out]   offsetsView A view that we fill with offsets so offsetsView[i] points to the start of the i'th list in \a zonesView.
    */
-  static inline void execute(ViewType nodesView, ViewType zonesView, ViewType sizesView, ViewType offsetsView)
+  static inline void execute(ViewType nodesView,
+                             ViewType zonesView,
+                             ViewType sizesView,
+                             ViewType offsetsView)
   {
     BuildRelationImpl<ExecSpace, ViewType>::execute(nodesView, zonesView, sizesView, offsetsView);
   }

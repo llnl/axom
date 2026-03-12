@@ -1104,7 +1104,6 @@ struct VariableShape
 
   AXOM_HOST_DEVICE constexpr static const char *name() { return "mixed"; }
 
-
   /*!
    * \brief Get the storage for the ids that make up this shape.
    *

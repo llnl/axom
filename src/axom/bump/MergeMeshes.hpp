@@ -1020,7 +1020,10 @@ protected:
 
     // Compress out any gaps in the offsets by making new offsets from the sizes.
     // This makes the code able to handle meshes that have gaps in its connectivity array.
-    axom::Array<value_type> actualOffsets(axom::ArrayOptions::Uninitialized(), srcSizesView.size(), srcSizesView.size(), allocatorID);
+    axom::Array<value_type> actualOffsets(axom::ArrayOptions::Uninitialized(),
+                                          srcSizesView.size(),
+                                          srcSizesView.size(),
+                                          allocatorID);
     auto actualOffsetsView = actualOffsets.view();
     axom::exclusive_scan<ExecSpace>(srcSizesView, actualOffsetsView);
 

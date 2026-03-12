@@ -78,7 +78,7 @@ inline void exclusive_scan(const Container1 &input, Container2 &&output)
 
   RAJA::exclusive_scan<loop_policy>(RAJA::make_span(input.data(), input.size()),
                                     RAJA::make_span(output.data(), output.size()),
-                                    RAJA::operators::plus<OutValue>{});
+                                    RAJA::operators::plus<OutValue> {});
 
 #else
   constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
@@ -171,7 +171,7 @@ inline void inclusive_scan(const Container1 &input, Container2 &&output)
   using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
   RAJA::inclusive_scan<loop_policy>(RAJA::make_span(input.data(), input.size()),
                                     RAJA::make_span(output.data(), output.size()),
-                                    RAJA::operators::plus<OutValue>{});
+                                    RAJA::operators::plus<OutValue> {});
 
 #else
   constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;

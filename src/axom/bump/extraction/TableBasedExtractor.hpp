@@ -861,7 +861,9 @@ public:
 
     // Allocate some memory and store views in ZoneData, FragmentData.
     AXOM_ANNOTATE_BEGIN("allocation");
-    axom::Array<int> caseNumbers(axom::ArrayOptions::Uninitialized(), nzones, nzones,
+    axom::Array<int> caseNumbers(axom::ArrayOptions::Uninitialized(),
+                                 nzones,
+                                 nzones,
                                  allocatorID);  // The table case for a zone.
     axom::Array<BitSet> pointsUsed(
       axom::ArrayOptions::Uninitialized(),
@@ -891,8 +893,14 @@ public:
       nzones,
       nzones,
       allocatorID);  // The connectivity size for all selected fragments in a zone.
-    axom::Array<IndexType> fragmentOffsets(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
-    axom::Array<IndexType> fragmentSizeOffsets(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
+    axom::Array<IndexType> fragmentOffsets(axom::ArrayOptions::Uninitialized(),
+                                           nzones,
+                                           nzones,
+                                           allocatorID);
+    axom::Array<IndexType> fragmentSizeOffsets(axom::ArrayOptions::Uninitialized(),
+                                               nzones,
+                                               nzones,
+                                               allocatorID);
 
     FragmentData fragmentData;
     fragmentData.m_fragmentsView = fragments.view();
@@ -1063,10 +1071,10 @@ public:
     if(numElementFields > 0)
     {
       AXOM_ANNOTATE_SCOPE("sliceIndices");
-      sliceIndices = axom::Array<IndexType>(// zero-filled
-                                            fragmentData.m_finalNumZones,
-                                            fragmentData.m_finalNumZones,
-                                            allocatorID);
+      sliceIndices = axom::Array<IndexType>(  // zero-filled
+        fragmentData.m_finalNumZones,
+        fragmentData.m_finalNumZones,
+        allocatorID);
       auto sliceIndicesView = sliceIndices.view();
 
       // Fill in sliceIndicesView.
@@ -1187,7 +1195,7 @@ private:
     // Initialize nodeUsed data for nodes.
     axom::for_all<ExecSpace>(
       nodeData.m_nodeUsedView.size(),
-      AXOM_LAMBDA(axom::IndexType index) { nodeData.m_nodeUsedView[index] = MaskType{0}; });
+      AXOM_LAMBDA(axom::IndexType index) { nodeData.m_nodeUsedView[index] = MaskType {0}; });
 
     const auto deviceIntersector = m_intersector.view();
 
@@ -1288,7 +1296,7 @@ private:
             const auto nodeId = zone.getId(pid);
 
             // NOTE: Multiple threads may write to this node but they all write the same value.
-            nodeData.m_nodeUsedView[nodeId] = MaskType{1};
+            nodeData.m_nodeUsedView[nodeId] = MaskType {1};
           }
         }
 #else
@@ -1376,11 +1384,10 @@ private:
       const auto fragmentsSizeView = fragmentData.m_fragmentsSizeView;
       axom::for_all<ExecSpace>(
         nzones,
-        AXOM_LAMBDA(axom::IndexType szIndex)
-      {
-        fragment_sum += fragmentsView[szIndex];
-        fragment_nids_sum += fragmentsSizeView[szIndex];
-      });
+        AXOM_LAMBDA(axom::IndexType szIndex) {
+          fragment_sum += fragmentsView[szIndex];
+          fragment_nids_sum += fragmentsSizeView[szIndex];
+        });
 
       fragmentData.m_finalNumZones = fragment_sum.get();
       fragmentData.m_finalConnSize = fragment_nids_sum.get();
@@ -1388,8 +1395,10 @@ private:
     else
     {
       // Use results of computeFragmentOffsets to compute the final sizes so we can skip reductions.
-      fragmentData.m_finalNumZones = fragmentData.m_fragmentOffsetsView[nzones - 1] + fragmentData.m_fragmentsView[nzones - 1];
-      fragmentData.m_finalConnSize = fragmentData.m_fragmentSizeOffsetsView[nzones - 1] + fragmentData.m_fragmentsSizeView[nzones - 1];
+      fragmentData.m_finalNumZones =
+        fragmentData.m_fragmentOffsetsView[nzones - 1] + fragmentData.m_fragmentsView[nzones - 1];
+      fragmentData.m_finalConnSize = fragmentData.m_fragmentSizeOffsetsView[nzones - 1] +
+        fragmentData.m_fragmentsSizeView[nzones - 1];
     }
   }
 
@@ -1424,7 +1433,10 @@ private:
 
     // Make offsets into a compact array.
     const auto nnodes = nodeData.m_nodeUsedView.size();
-    axom::Array<axom::IndexType> nodeOffsets(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
+    axom::Array<axom::IndexType> nodeOffsets(axom::ArrayOptions::Uninitialized(),
+                                             nnodes,
+                                             nnodes,
+                                             allocatorID);
     auto nodeOffsetsView = nodeOffsets.view();
     axom::exclusive_scan<ExecSpace>(nodeData.m_nodeUsedView, nodeOffsetsView);
 
@@ -2036,7 +2048,8 @@ private:
     {
       AXOM_ANNOTATE_SCOPE("makeFieldsInParallel");
       constexpr axom::IndexType SIZE_CUTOFF = 4000000;
-      const auto size = axom::utilities::max(axom::bump::NumberOfValues(blend), axom::bump::NumberOfValues(slice));
+      const auto size =
+        axom::utilities::max(axom::bump::NumberOfValues(blend), axom::bump::NumberOfValues(slice));
       if(size < SIZE_CUTOFF)
       {
         // Make the fields at the same time using axom::SEQ_EXEC kernels to copy data.
@@ -2099,11 +2112,12 @@ private:
     else if(association == "vertex")
     {
       // Conditionally support strided-structured.
-      bool handled = detail::StridedStructuredFields<ss, FieldExecSpace, TopologyView>::blendVertexField(
-        m_topologyView,
-        blend,
-        n_field,
-        n_out_field);
+      bool handled =
+        detail::StridedStructuredFields<ss, FieldExecSpace, TopologyView>::blendVertexField(
+          m_topologyView,
+          blend,
+          n_field,
+          n_out_field);
 
       if(!handled)
       {
@@ -2149,8 +2163,7 @@ private:
       }
 
       // Try and make fields in parallel.
-      axom::for_all<axom::OMP_EXEC>(inFields.size(), [&](axom::IndexType index)
-      {
+      axom::for_all<axom::OMP_EXEC>(inFields.size(), [&](axom::IndexType index) {
         makeSingleField<axom::SEQ_EXEC>(blend, slice, topologyName, *inFields[index], *outFields[index]);
       });
     }

@@ -33,10 +33,7 @@ struct SliceData
  * \return The number of values made from the SliceData.
  */
 AXOM_HOST_DEVICE
-inline axom::IndexType NumberOfValues(const SliceData &slice)
-{
-  return slice.m_indicesView.size();
-}
+inline axom::IndexType NumberOfValues(const SliceData &slice) { return slice.m_indicesView.size(); }
 
 /*!
  * \accelerated

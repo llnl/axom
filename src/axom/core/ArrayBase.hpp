@@ -731,8 +731,7 @@ inline std::ostream& print(std::ostream& os, const ArrayBase<T, DIM, ArrayType>&
   os << "[ ";
   for(IndexType i = 0; i < static_cast<const ArrayType&>(array).size(); i++)
   {
-    if(i > 0)
-      os << ", ";
+    if(i > 0) os << ", ";
     os << data[i];
   }
   os << " ]";

@@ -32,8 +32,9 @@ struct mask_traits
   static constexpr bool is_hip()
   {
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-    constexpr int BLOCK_SIZE = 256; // The size here does not matter.
-    return std::string_view(axom::execution_space<ExecSpace>::name()) == std::string_view(axom::execution_space<axom::HIP_EXEC<BLOCK_SIZE>>::name());
+    constexpr int BLOCK_SIZE = 256;  // The size here does not matter.
+    return std::string_view(axom::execution_space<ExecSpace>::name()) ==
+      std::string_view(axom::execution_space<axom::HIP_EXEC<BLOCK_SIZE>>::name());
 #else
     return false;
 #endif

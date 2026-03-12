@@ -37,7 +37,8 @@ template <typename ExecSpace, typename ContainerType>
 void printContainer(const std::string &name, const ContainerType &container)
 {
   using value_type = typename ContainerType::value_type;
-  using printed_type = typename std::conditional<std::is_same_v<value_type, char>, int, value_type>::type;
+  using printed_type =
+    typename std::conditional<std::is_same_v<value_type, char>, int, value_type>::type;
 
   if constexpr(axom::execution_space<ExecSpace>::onDevice())
   {
@@ -149,7 +150,9 @@ struct Unique
     axom::for_all<ExecSpace>(
       n,
       AXOM_LAMBDA(axom::IndexType i) {
-        const MaskType m = (i >= 1) ? ((keys_view[i] != keys_view[i - 1]) ? MaskType{1} : MaskType{0}) : MaskType{1};
+        const MaskType m = (i >= 1)
+          ? ((keys_view[i] != keys_view[i - 1]) ? MaskType {1} : MaskType {0})
+          : MaskType {1};
         mask_view[i] = m;
         mask_sum += static_cast<axom::IndexType>(m);
       });
@@ -170,7 +173,8 @@ struct Unique
     // Allocate the output arrays.
     const axom::IndexType newsize = mask_sum.get();
     skeys = axom::Array<KeyType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);
-    sindices = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);
+    sindices =
+      axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);
 
     // Iterate over the mask/offsets to store values at the right
     // offset in the new array.
@@ -237,7 +241,8 @@ struct Unique<axom::SEQ_EXEC, KeyType>
     const axom::IndexType newsize = unique_vector.size();
     const int allocatorID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
     skeys = axom::Array<KeyType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);
-    sindices = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);
+    sindices =
+      axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);
 
     for(axom::IndexType index = 0; index < newsize; ++index)
     {
