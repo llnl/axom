@@ -12,6 +12,7 @@
 #include "gtest/gtest.h"
 
 #include <algorithm>
+#include <cstdlib>
 
 namespace
 {
@@ -1143,6 +1144,17 @@ TEST(core_array, checkResize)
       ::check_resize(v_double);
     }
   }
+}
+
+//------------------------------------------------------------------------------
+TEST(core_array, insertZeroCountNullptrDoesNotAssert)
+{
+  axom::Array<int> v(0, 1);
+  v.push_back(10);
+  // This should not assert
+  v.insert(1, 0, static_cast<const int*>(nullptr));
+  EXPECT_EQ(v.size(), 1);
+  EXPECT_EQ(v[0], 10);
 }
 
 //------------------------------------------------------------------------------
