@@ -46,7 +46,7 @@ std::string pjoin(const char *str, Args... args)
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-TEST(quest_gwn_methods, gwn_moment_data_segment_order2_hardcoded)
+TEST(quest_gwn_methods, gwn_moment_data_segment)
 {
   using Point2D = axom::primal::Point<double, 2>;
   using Moments = axom::quest::GWNMomentData<double, 2, 2>;
@@ -68,12 +68,12 @@ TEST(quest_gwn_methods, gwn_moment_data_segment_order2_hardcoded)
   EXPECT_NEAR(center[1], 0.75, EPS);
 
   // Raw moments (rm)
-  EXPECT_NEAR(cluster.rm[0], -1.0, EPS);   // dy
-  EXPECT_NEAR(cluster.rm[1], 1.0, EPS);    // dx
-  EXPECT_NEAR(cluster.rm[2], 0.0, EPS);    // 0.5*dy*(x0+x1)
-  EXPECT_NEAR(cluster.rm[3], 0.5, EPS);    // 0.5*(x1^2-x0^2)
-  EXPECT_NEAR(cluster.rm[4], -1.5, EPS);   // 0.5*(y0^2-y1^2)
-  EXPECT_NEAR(cluster.rm[5], 0.0, EPS);    // 0.5*dx*(y0+y1)
+  EXPECT_NEAR(cluster.rm[0], -1.0, EPS);  // dy
+  EXPECT_NEAR(cluster.rm[1], 1.0, EPS);   // dx
+  EXPECT_NEAR(cluster.rm[2], 0.0, EPS);   // 0.5*dy*(x0+x1)
+  EXPECT_NEAR(cluster.rm[3], 0.5, EPS);   // 0.5*(x1^2-x0^2)
+  EXPECT_NEAR(cluster.rm[4], -1.5, EPS);  // 0.5*(y0^2-y1^2)
+  EXPECT_NEAR(cluster.rm[5], 0.0, EPS);   // 0.5*dx*(y0+y1)
   EXPECT_NEAR(cluster.rm[6], 0.0, EPS);
   EXPECT_NEAR(cluster.rm[7], 0.0, EPS);
   EXPECT_NEAR(cluster.rm[8], 0.0, EPS);
@@ -98,10 +98,16 @@ TEST(quest_gwn_methods, gwn_moment_data_segment_order2_hardcoded)
   EXPECT_NEAR(cluster.ec[11], -3.0 / 32.0, EPS);
   EXPECT_NEAR(cluster.ec[12], 27.0 / 32.0, EPS);
   EXPECT_NEAR(cluster.ec[13], 9.0 / 32.0, EPS);
+
+  // Verify that cluster raw moments are sum of segment moments
+  for(int i = 0; i < cluster.rm.size(); ++i)
+  {
+    EXPECT_NEAR(s1.rm[i] + s2.rm[i], cluster.rm[i], EPS);
+  }
 }
 
 //------------------------------------------------------------------------------
-TEST(quest_gwn_methods, gwn_moment_data_triangle_order2_sanity)
+TEST(quest_gwn_methods, gwn_moment_data_triangle)
 {
   using Point3D = axom::primal::Point<double, 3>;
   using Tri3D = axom::primal::Triangle<double, 3>;
@@ -199,10 +205,10 @@ TEST(quest_gwn_methods, mfem_mesh_linearization)
   constexpr bool useDirectPolyline = true;
 
   //// Run three different kinds of GWN query ////
-  // We expect all three fields to return the same values in this case because 
+  // We expect all three fields to return the same values in this case because
   //  of the specific arrangement of query points and linearization.
   // In general, discretizing the shape can result in different GWN values
-  //  for query points near to individual curves. 
+  //  for query points near to individual curves.
 
   // Direct
   SLIC_INFO("Testing Direct Evaluation");
@@ -288,8 +294,8 @@ TEST(quest_gwn_methods, step_file_triangulation)
   // We expect all three fields to return the same values in this case because
   //  of the specific arrangement of query points and triangulation.
   // In general, triangulating the shape can result in different GWN values
-  //  for query points near to individual surfaces. 
-  
+  //  for query points near to individual surfaces.
+
   // Direct
   SLIC_INFO("Testing Direct Evaluation");
   axom::quest::DirectGWN3D gwn_direct {};

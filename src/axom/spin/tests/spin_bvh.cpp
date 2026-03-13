@@ -1556,7 +1556,7 @@ void check_0_or_1_bbox_2d()
 
 //------------------------------------------------------------------------------
 /*!
- * \brief Tests LinearBVHTraverser::reduce_tree by reducing a BVH of points into
+ * \brief Tests LinearBVHTraverser::reduce_tree by reducing across BVH of points
  *        a field that counts how many points are contained in each node.
  *
  * For a BVH with N leaves, LinearBVH stores 2*(N-1) "node slots" in its
@@ -1602,9 +1602,10 @@ void check_reduce_tree_point_counts_2d()
 
   // Reduce the BVH into a field that counts points per node.
   const auto traverser = bvh.getTraverser();
-  auto leafToOne = AXOM_LAMBDA(std::int32_t AXOM_UNUSED_PARAM(leafNode),
-                               const std::int32_t* AXOM_UNUSED_PARAM(leafNodes))
-                     ->CountType { return static_cast<CountType>(1); };
+  auto leafToOne = AXOM_LAMBDA(std::int32_t, const std::int32_t*)->CountType
+  {
+    return static_cast<CountType>(1);
+  };
 
   axom::Array<CountType> counts =
     traverser.template reduce_tree<ExecSpace, CountType>(leafToOne, hostAllocatorID);
@@ -1615,7 +1616,7 @@ void check_reduce_tree_point_counts_2d()
   // The implicit root's children live at indices 0 and 1.
   ASSERT_EQ(counts[0] + counts[1], NPTS);
 
-  // There should be exactly N leaf nodes, each with a reduced count of 1.
+  // Each node should have a count between 1 and N, and a power of 2
   axom::IndexType nleaf_nodes = 0;
   for(axom::IndexType n = 0; n < counts.size(); ++n)
   {
@@ -1628,10 +1629,11 @@ void check_reduce_tree_point_counts_2d()
     }
     else
     {
-      EXPECT_GT(counts[n], 1);
+      EXPECT_EQ(counts[n] % 2, 0);
     }
   }
 
+  // There should be exactly N leaf nodes.
   EXPECT_EQ(nleaf_nodes, NPTS);
 }
 
