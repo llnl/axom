@@ -326,6 +326,7 @@ def plot(params):
       counts[sn] = (1, 0)
 
   import matplotlib.pyplot as plt
+  seriesLegendNames = {}
   for c in range(1, len(columns)):
     x, y = make_series(columns[0][1:], columns[c][1:])
     if len(x) > 0:
@@ -336,6 +337,7 @@ def plot(params):
         sn = seriesName(columns[c][0], True)
         color = modifyColor(color, counts[oldsn][1])
         counts[oldsn] = (counts[oldsn][0], counts[oldsn][1] + 1)
+      seriesLegendNames[c] = sn
       plt.plot(x, y, marker=mark, linestyle=style, color=color, linewidth=2., label=sn)
 
   dimension = params["dimension"]
@@ -370,36 +372,63 @@ def plot(params):
     raise
 
   # Add labels
-  if doLabels and len(columns) == 3:
+  if doLabels and len(columns) >= 2:
     def findIndex(seq, value):
       eps = 1.e-8
       for i in range(len(seq)):
         if math.fabs(value - seq[i]) < eps:
           return i
       return -1
-    x1, y1 = make_series(columns[0][1:], columns[1][1:])
-    x2, y2 = make_series(columns[0][1:], columns[2][1:])
-    xa = []
-    ya = []
-    labels = []
-    idx = 0
-    for i in range(len(x1)):
-      # Where series 1 (SEQ) > series 2 (OMP)
-      j = findIndex(x2, x1[i])
-      if j != -1 and y1[i] > y2[j]:
-        xa.append(x2[j])
-        ya.append(y2[j])
-        labels.append(f"{math.trunc(100. * y1[i] / y2[i]) / 100.:.2f}x")
-        plt.annotate(
-          labels[idx],
-          (xa[idx], ya[idx]),
-          xytext=(6, -6), textcoords="offset points",  # pixel offset
-          ha="left", va="bottom",
-          fontsize=10,
-          bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8),
-          arrowprops=dict(arrowstyle="-", color="0.3", lw=0.8)
-        )
-        idx = idx + 1
+
+    # Group the related series.
+    seriesGroups = {}
+    seriesSer = {}
+    for c in seriesLegendNames.keys():
+      sn = seriesLegendNames[c]
+      host = sn[:sn.rfind(" ")]
+      if host in seriesGroups:
+        seriesGroups[host].append(c)
+      else:
+        seriesGroups[host] = [c]
+      if sn.find("Serial") != -1:
+        seriesSer[host] = c
+
+    # Go through groups
+    for host in seriesGroups:
+      if not host in seriesSer:
+        continue
+
+      # The serial column
+      cser = seriesSer[host]
+
+      # Compare other columns against the serial column
+      for c in seriesGroups[host]:
+        if cser == c:
+          continue
+
+        x1, y1 = make_series(columns[0][1:], columns[cser][1:])
+        x2, y2 = make_series(columns[0][1:], columns[c][1:])
+        xa = []
+        ya = []
+        labels = []
+        idx = 0
+        for i in range(len(x1)):
+          # Where series 1 (SEQ) > series 2 (OMP)
+          j = findIndex(x2, x1[i])
+          if j != -1 and y1[i] > y2[j]:
+            xa.append(x2[j])
+            ya.append(y2[j])
+            labels.append(f"{math.trunc(100. * y1[i] / y2[i]) / 100.:.2f}x")
+            plt.annotate(
+              labels[idx],
+              (xa[idx], ya[idx]),
+              xytext=(6, -6), textcoords="offset points",  # pixel offset
+              ha="left", va="bottom",
+              fontsize=10,
+              bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8),
+              arrowprops=dict(arrowstyle="-", color="0.3", lw=0.8)
+            )
+            idx = idx + 1
 
   # Show the plot
   plt.grid(True)
