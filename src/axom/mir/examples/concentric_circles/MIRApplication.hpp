@@ -60,6 +60,19 @@ protected:
   virtual void saveMesh(const conduit::Node &n_mesh, const std::string &path);
 
   /*!
+   * \brief Make a new allocator with an initial size we think is adequate for
+   *        the mesh and MIR operations.
+   *
+   * \brief allocatorName An allocator name like "HIP".
+   */
+  void installAllocator(const std::string &allocatorName);
+
+  /*!
+   * \brief Prints information about Axom's default allocator.
+   */
+  void printAllocatorInformation() const;
+
+  /*!
    * \brief A static error handler for Conduit.
    */
   static void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1);
