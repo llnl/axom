@@ -11,6 +11,7 @@
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/bump/FieldSlicer.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 #include <conduit.hpp>
 
@@ -34,7 +35,24 @@ public:
   /*!
    * \brief Constructor.
    */
-  MatsetSlicer(const MatsetView &matsetView) : m_matsetView(matsetView) { }
+  MatsetSlicer(const MatsetView &matsetView)
+    : m_matsetView(matsetView)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
+  { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id) { m_allocator_id = allocator_id; }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /*!
    * \brief Slice the input matset and output a new matset.
@@ -59,17 +77,18 @@ public:
       if(n_matset.has_child(keys[i])) n_newMatset[keys[i]] = n_matset.fetch_existing(keys[i]);
     }
 
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     // Allocate sizes/offsets.
     AXOM_ANNOTATE_BEGIN("alloc");
     conduit::Node &n_sizes = n_newMatset["sizes"];
-    n_sizes.set_allocator(c2a.getConduitAllocatorID());
+    n_sizes.set_allocator(conduitAllocatorId);
     n_sizes.set(conduit::DataType(utils::cpp2conduit<MatsetIndex>::id, selectedZonesView.size()));
     auto sizesView = utils::make_array_view<MatsetIndex>(n_sizes);
 
     conduit::Node &n_offsets = n_newMatset["offsets"];
-    n_offsets.set_allocator(c2a.getConduitAllocatorID());
+    n_offsets.set_allocator(conduitAllocatorId);
     n_offsets.set(conduit::DataType(utils::cpp2conduit<MatsetIndex>::id, selectedZonesView.size()));
     auto offsetsView = utils::make_array_view<MatsetIndex>(n_offsets);
     AXOM_ANNOTATE_END("alloc");
@@ -123,17 +142,17 @@ public:
       SLIC_ERROR_IF(totalSize == 0, "ReduceSum returned 0 for totalSize.");
     }
     conduit::Node &n_indices = n_newMatset["indices"];
-    n_indices.set_allocator(c2a.getConduitAllocatorID());
+    n_indices.set_allocator(conduitAllocatorId);
     n_indices.set(conduit::DataType(utils::cpp2conduit<MatsetIndex>::id, totalSize));
     auto indicesView = utils::make_array_view<MatsetIndex>(n_indices);
 
     conduit::Node &n_material_ids = n_newMatset["material_ids"];
-    n_material_ids.set_allocator(c2a.getConduitAllocatorID());
+    n_material_ids.set_allocator(conduitAllocatorId);
     n_material_ids.set(conduit::DataType(utils::cpp2conduit<MatsetIndex>::id, totalSize));
     auto materialIdsView = utils::make_array_view<MatsetIndex>(n_material_ids);
 
     conduit::Node &n_volume_fractions = n_newMatset["volume_fractions"];
-    n_volume_fractions.set_allocator(c2a.getConduitAllocatorID());
+    n_volume_fractions.set_allocator(conduitAllocatorId);
     n_volume_fractions.set(conduit::DataType(utils::cpp2conduit<MatsetFloat>::id, totalSize));
     auto volumeFractionsView = utils::make_array_view<MatsetFloat>(n_volume_fractions);
     AXOM_ANNOTATE_END("alloc2");
@@ -160,6 +179,7 @@ public:
 
 private:
   MatsetView m_matsetView;
+  int m_allocator_id;
 };
 
 }  // end namespace bump

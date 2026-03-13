@@ -11,6 +11,7 @@
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/HashNaming.hpp"
 #include "axom/bump/Unique.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -47,14 +48,15 @@ public:
    *
    * \param n_topology The topology to modify.
    */
-  static void execute(conduit::Node &n_topo)
+  static void execute(conduit::Node &n_topo,
+                      int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
     SLIC_ASSERT(n_topo.fetch_existing("elements/shape").as_string() == "polyhedral");
     namespace utils = axom::bump::utilities;
 
     AXOM_ANNOTATE_SCOPE("MergePolyhedralFaces");
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-    const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const auto allocatorID = allocator_id;
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocatorID);
 
     // Get the data from the topology and make views.
     conduit::Node &n_elem_conn = n_topo["elements/connectivity"];
@@ -132,7 +134,10 @@ public:
     axom::Array<axom::IndexType> selectedFaces;
 
     // Make faces unique.
-    axom::bump::Unique<ExecSpace, KeyType>::execute(faceNamesView, uniqueKeys, selectedFaces);
+    axom::bump::Unique<ExecSpace, KeyType>::execute(faceNamesView,
+                                                    uniqueKeys,
+                                                    selectedFaces,
+                                                    allocatorID);
     const auto uniqueKeysView = uniqueKeys.view();
     const auto selectedFacesView = selectedFaces.view();
     AXOM_ANNOTATE_END("unique");
@@ -140,13 +145,13 @@ public:
     //--------------------------------------------------------------------------
     AXOM_ANNOTATE_BEGIN("rewriting_subelements");
     conduit::Node n_new_se_sizes;
-    n_new_se_sizes.set_allocator(c2a.getConduitAllocatorID());
+    n_new_se_sizes.set_allocator(conduitAllocatorId);
     n_new_se_sizes.set(
       conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, selectedFaces.size()));
     auto new_se_sizes = utils::make_array_view<ConnectivityType>(n_new_se_sizes);
 
     conduit::Node n_new_se_offsets;
-    n_new_se_offsets.set_allocator(c2a.getConduitAllocatorID());
+    n_new_se_offsets.set_allocator(conduitAllocatorId);
     n_new_se_offsets.set(
       conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, selectedFaces.size()));
     auto new_se_offsets = utils::make_array_view<ConnectivityType>(n_new_se_offsets);
@@ -169,7 +174,7 @@ public:
 
     // Allocate new_se_conn to contain the new face definitions.
     conduit::Node n_new_se_conn;
-    n_new_se_conn.set_allocator(c2a.getConduitAllocatorID());
+    n_new_se_conn.set_allocator(conduitAllocatorId);
     n_new_se_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, newSEConnSize));
     auto new_se_conn = utils::make_array_view<ConnectivityType>(n_new_se_conn);
 
@@ -232,12 +237,12 @@ public:
       // contains gaps. We can rewrite it and the offsets.
 
       conduit::Node n_new_elem_conn;
-      n_new_elem_conn.set_allocator(c2a.getConduitAllocatorID());
+      n_new_elem_conn.set_allocator(conduitAllocatorId);
       n_new_elem_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalConnSize));
       auto new_elem_conn = utils::make_array_view<ConnectivityType>(n_new_elem_conn);
 
       conduit::Node n_new_elem_offsets;
-      n_new_elem_offsets.set_allocator(c2a.getConduitAllocatorID());
+      n_new_elem_offsets.set_allocator(conduitAllocatorId);
       n_new_elem_offsets.set(
         conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, elem_sizes.size()));
       auto new_elem_offsets = utils::make_array_view<ConnectivityType>(n_new_elem_offsets);

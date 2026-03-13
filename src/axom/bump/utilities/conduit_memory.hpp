@@ -14,6 +14,7 @@
 #include "axom/core/NumericLimits.hpp"
 #include "axom/core/execution/synchronize.hpp"
 #include "axom/slic.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 #include "axom/export/bump.h"
 
 #include <conduit/conduit.hpp>
@@ -131,6 +132,8 @@ private:
 };
 
 //------------------------------------------------------------------------------
+namespace internal
+{
 /*!
  * \brief Copies a Conduit tree in the \a src node to a new Conduit \a dest node,
  *        making sure to allocate array data in the appropriate memory space for
@@ -140,29 +143,30 @@ private:
  *
  * \param dest The conduit node that will receive the copied data.
  * \param src The source data to be copied.
+ * \param destAllocatorID The allocator for the destination. It defaults to the allocator for ExecSpace.
  */
 template <typename ExecSpace>
-void copy(conduit::Node &dest, const conduit::Node &src)
+void copyImpl(conduit::Node &dest, const conduit::Node &src, int destAllocatorID, bool destAllocatorForDevice)
 {
-  ConduitAllocateThroughAxom<ExecSpace> c2a;
   dest.reset();
   if(src.number_of_children() > 0)
   {
     for(conduit::index_t i = 0; i < src.number_of_children(); i++)
     {
-      copy<ExecSpace>(dest[src[i].name()], src[i]);
+      copyImpl<ExecSpace>(dest[src[i].name()], src[i], destAllocatorID, destAllocatorForDevice);
     }
   }
   else
   {
-    const int allocatorID = axom::getAllocatorIDFromPointer(src.data_ptr());
-    bool deviceAllocated =
-      (allocatorID == INVALID_ALLOCATOR_ID) ? false : isDeviceAllocator(allocatorID);
-    if(deviceAllocated || (!src.dtype().is_string() && src.dtype().number_of_elements() > 1))
+    const int srcAllocatorID = axom::getAllocatorIDFromPointer(src.data_ptr());
+    const bool srcDataOnDevice = (srcAllocatorID == INVALID_ALLOCATOR_ID) ? false : isDeviceAllocator(srcAllocatorID);
+    const bool deviceInvolved = srcDataOnDevice || destAllocatorForDevice;
+
+    if(deviceInvolved || (!src.dtype().is_string() && src.dtype().number_of_elements() > 1))
     {
       // Allocate the node's memory in the right place.
       dest.reset();
-      dest.set_allocator(c2a.getConduitAllocatorID());
+      dest.set_allocator(axom::sidre::ConduitMemory::axomAllocIdToConduit(destAllocatorID));
       dest.set(conduit::DataType(src.dtype().id(), src.dtype().number_of_elements()));
 
       // Copy the data to the destination node. Axom uses Umpire to manage that.
@@ -183,6 +187,26 @@ void copy(conduit::Node &dest, const conduit::Node &src)
       dest.set(src);
     }
   }
+}
+
+} // end namespace internal
+
+/*!
+ * \brief Copies a Conduit tree in the \a src node to a new Conduit \a dest node,
+ *        making sure to allocate array data in the appropriate memory space for
+ *        the execution space.
+ *
+ * \tparam ExecSpace The destination execution space (e.g. axom::SEQ_EXEC).
+ *
+ * \param dest The conduit node that will receive the copied data.
+ * \param src The source data to be copied.
+ * \param destAllocatorID The allocator for the destination. It defaults to the allocator for ExecSpace.
+ */
+template <typename ExecSpace>
+void copy(conduit::Node &dest, const conduit::Node &src, int destAllocatorID = axom::execution_space<ExecSpace>::allocatorID())
+{
+  const bool destAllocatorForDevice = isDeviceAllocator(destAllocatorID);
+  internal::copyImpl<ExecSpace>(dest, src, destAllocatorID, destAllocatorForDevice);
 }
 
 //------------------------------------------------------------------------------

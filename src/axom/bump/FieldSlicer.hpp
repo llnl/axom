@@ -10,6 +10,7 @@
 #include "axom/bump/views/NodeArrayView.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/IndexingPolicies.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -50,13 +51,33 @@ class FieldSlicer
 {
 public:
   /// Constructor
-  FieldSlicer() : m_indexing() { }
+  FieldSlicer()
+    : m_indexing()
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
+  { }
 
   /*!
    * \brief Constructor
    * \param indexing An object used to transform node indices.
    */
-  FieldSlicer(const IndexingPolicy &indexing) : m_indexing(indexing) { }
+  FieldSlicer(const IndexingPolicy &indexing)
+    : m_indexing(indexing)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
+  { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id) { m_allocator_id = allocator_id; }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /*!
    * \brief Execute the slice on the \a n_input field and store the new sliced field in \a n_output.
@@ -110,9 +131,8 @@ private:
     namespace utils = axom::bump::utilities;
     const auto outputSize = slice.m_indicesView.size();
 
-    // Allocate Conduit data through Axom.
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-    n_output_values.set_allocator(c2a.getConduitAllocatorID());
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
+    n_output_values.set_allocator(conduitAllocatorId);
     n_output_values.set(conduit::DataType(n_values.dtype().id(), outputSize));
 
     views::Node_to_ArrayView_same(n_values, n_output_values, [&](auto valuesView, auto outputView) {
@@ -150,6 +170,7 @@ private:
 #endif
 
   IndexingPolicy m_indexing {};
+  int m_allocator_id;
 };
 
 }  // end namespace bump

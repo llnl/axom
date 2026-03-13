@@ -41,7 +41,22 @@ public:
   ZoneListBuilder(const TopologyView &topoView, const MatsetView &matsetView)
     : m_topologyView(topoView)
     , m_matsetView(matsetView)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id) { m_allocator_id = allocator_id; }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /*!
    * \brief Build the list of clean and mixed zones using the number of materials
@@ -61,7 +76,7 @@ public:
                axom::Array<axom::IndexType> &mixedIndices) const
   {
     AXOM_ANNOTATE_SCOPE("ZoneListBuilder.1");
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = getAllocatorID();
 
     AXOM_ANNOTATE_BEGIN("nMatsPerNode");
     axom::Array<int> nMatsPerNode(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
@@ -234,7 +249,7 @@ public:
     AXOM_ANNOTATE_SCOPE("ZoneListBuilder.2");
     SLIC_ASSERT(selectedZonesView.size() > 0);
 
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = getAllocatorID();
 
     AXOM_ANNOTATE_BEGIN("nMatsPerNode");
     axom::Array<int> nMatsPerNode(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
@@ -400,7 +415,7 @@ public:
                axom::Array<axom::IndexType> &mixedIndices) const
   {
     AXOM_ANNOTATE_SCOPE("ZoneListBuilder.3");
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = getAllocatorID();
 
     AXOM_ANNOTATE_BEGIN("mask");
     const auto nzones = selectedZonesView.size();
@@ -497,6 +512,7 @@ public:
 private:
   TopologyView m_topologyView;
   MatsetView m_matsetView;
+  int m_allocator_id;
 };
 
 }  // end namespace bump

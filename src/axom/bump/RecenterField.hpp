@@ -10,6 +10,7 @@
 #include "axom/core.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
 #include "axom/bump/utilities/utilities.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 #include <conduit/conduit.hpp>
 #include <conduit/conduit_blueprint.hpp>
@@ -28,6 +29,21 @@ template <typename ExecSpace>
 class RecenterField
 {
 public:
+  RecenterField() : m_allocator_id(axom::execution_space<ExecSpace>::allocatorID()) { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id) { m_allocator_id = allocator_id; }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
   /*!
    * \brief Convert the input field to a different association type using the o2mrelation and store the new field in the output field.
    *
@@ -88,10 +104,10 @@ private:
       n_sizes,
       n_offsets,
       [&](auto relView, auto sizesView, auto offsetsView) {
-        // Allocate Conduit data through Axom.
+        const auto conduitAllocatorId =
+          axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
         const auto relSize = sizesView.size();
-        utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-        n_out.set_allocator(c2a.getConduitAllocatorID());
+        n_out.set_allocator(conduitAllocatorId);
         n_out.set(conduit::DataType(n_comp.dtype().id(), relSize));
 
         views::Node_to_ArrayView_same(n_out, n_comp, [&](auto outView, auto compView) {
@@ -135,6 +151,9 @@ private:
         outView[relIndex] = static_cast<Precision>(sum / n);
       });
   }
+
+private:
+  int m_allocator_id;
 };
 
 }  // end namespace bump
