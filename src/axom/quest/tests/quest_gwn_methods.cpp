@@ -46,10 +46,12 @@ std::string pjoin(const char *str, Args... args)
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-TEST(quest_gwn_methods, gwn_moment_data_segment_order1_hardcoded)
+TEST(quest_gwn_methods, gwn_moment_data_segment_order2_hardcoded)
 {
   using Point2D = axom::primal::Point<double, 2>;
-  using Moments = axom::quest::GWNMomentData<double, 2, 1>;
+  using Moments = axom::quest::GWNMomentData<double, 2, 2>;
+
+  constexpr double EPS = 1e-14;
 
   // Combine two segments into a cluster and verify raw moments, centroid, and
   // expansion coefficients. Values are chosen to make exact expectations.
@@ -57,29 +59,92 @@ TEST(quest_gwn_methods, gwn_moment_data_segment_order1_hardcoded)
   Moments s2(Point2D {0.0, 1.0}, Point2D {0.0, 2.0});
   Moments cluster = s1 + s2;
 
-  EXPECT_DOUBLE_EQ(cluster.a, 2.0);
-  EXPECT_DOUBLE_EQ(cluster.ap[0], 0.5);
-  EXPECT_DOUBLE_EQ(cluster.ap[1], 1.5);
+  EXPECT_NEAR(cluster.a, 2.0, EPS);
+  EXPECT_NEAR(cluster.ap[0], 0.5, EPS);
+  EXPECT_NEAR(cluster.ap[1], 1.5, EPS);
 
   const auto center = cluster.getCenter();
-  EXPECT_DOUBLE_EQ(center[0], 0.25);
-  EXPECT_DOUBLE_EQ(center[1], 0.75);
+  EXPECT_NEAR(center[0], 0.25, EPS);
+  EXPECT_NEAR(center[1], 0.75, EPS);
 
   // Raw moments (rm)
-  EXPECT_DOUBLE_EQ(cluster.rm[0], -1.0);   // dy
-  EXPECT_DOUBLE_EQ(cluster.rm[1], 1.0);    // dx
-  EXPECT_DOUBLE_EQ(cluster.rm[2], 0.0);    // 0.5*dy*(x0+x1)
-  EXPECT_DOUBLE_EQ(cluster.rm[3], 0.5);    // 0.5*(x1^2-x0^2)
-  EXPECT_DOUBLE_EQ(cluster.rm[4], -1.5);   // 0.5*(y0^2-y1^2)
-  EXPECT_DOUBLE_EQ(cluster.rm[5], 0.0);    // 0.5*dx*(y0+y1)
+  EXPECT_NEAR(cluster.rm[0], -1.0, EPS);   // dy
+  EXPECT_NEAR(cluster.rm[1], 1.0, EPS);    // dx
+  EXPECT_NEAR(cluster.rm[2], 0.0, EPS);    // 0.5*dy*(x0+x1)
+  EXPECT_NEAR(cluster.rm[3], 0.5, EPS);    // 0.5*(x1^2-x0^2)
+  EXPECT_NEAR(cluster.rm[4], -1.5, EPS);   // 0.5*(y0^2-y1^2)
+  EXPECT_NEAR(cluster.rm[5], 0.0, EPS);    // 0.5*dx*(y0+y1)
+  EXPECT_NEAR(cluster.rm[6], 0.0, EPS);
+  EXPECT_NEAR(cluster.rm[7], 0.0, EPS);
+  EXPECT_NEAR(cluster.rm[8], 0.0, EPS);
+  EXPECT_NEAR(cluster.rm[9], -7.0 / 3.0, EPS);
+  EXPECT_NEAR(cluster.rm[10], 1.0 / 3.0, EPS);
+  EXPECT_NEAR(cluster.rm[11], 0.0, EPS);
+  EXPECT_NEAR(cluster.rm[12], 0.0, EPS);
+  EXPECT_NEAR(cluster.rm[13], 0.0, EPS);
 
   // Expansion coefficients (ec)
-  EXPECT_DOUBLE_EQ(cluster.ec[0], -1.0);
-  EXPECT_DOUBLE_EQ(cluster.ec[1], 1.0);
-  EXPECT_DOUBLE_EQ(cluster.ec[2], 0.25);
-  EXPECT_DOUBLE_EQ(cluster.ec[3], 0.25);
-  EXPECT_DOUBLE_EQ(cluster.ec[4], -0.75);
-  EXPECT_DOUBLE_EQ(cluster.ec[5], -0.75);
+  EXPECT_NEAR(cluster.ec[0], -1.0, EPS);
+  EXPECT_NEAR(cluster.ec[1], 1.0, EPS);
+  EXPECT_NEAR(cluster.ec[2], 0.25, EPS);
+  EXPECT_NEAR(cluster.ec[3], 0.25, EPS);
+  EXPECT_NEAR(cluster.ec[4], -0.75, EPS);
+  EXPECT_NEAR(cluster.ec[5], -0.75, EPS);
+  EXPECT_NEAR(cluster.ec[6], -1.0 / 32.0, EPS);
+  EXPECT_NEAR(cluster.ec[7], -3.0 / 32.0, EPS);
+  EXPECT_NEAR(cluster.ec[8], 3.0 / 32.0, EPS);
+  EXPECT_NEAR(cluster.ec[9], -121.0 / 96.0, EPS);
+  EXPECT_NEAR(cluster.ec[10], 25.0 / 96.0, EPS);
+  EXPECT_NEAR(cluster.ec[11], -3.0 / 32.0, EPS);
+  EXPECT_NEAR(cluster.ec[12], 27.0 / 32.0, EPS);
+  EXPECT_NEAR(cluster.ec[13], 9.0 / 32.0, EPS);
+}
+
+//------------------------------------------------------------------------------
+TEST(quest_gwn_methods, gwn_moment_data_triangle_order2_sanity)
+{
+  using Point3D = axom::primal::Point<double, 3>;
+  using Tri3D = axom::primal::Triangle<double, 3>;
+  using Moments = axom::quest::GWNMomentData<double, 3, 2>;
+
+  constexpr double EPS = 1e-14;
+
+  // Right triangle in the XY plane.
+  const Tri3D tri(Point3D {0.0, 0.0, 0.0}, Point3D {1.0, 0.0, 0.0}, Point3D {0.0, 1.0, 0.0});
+  const Moments m(tri);
+
+  // Area and centroid accumulation.
+  EXPECT_NEAR(m.a, 0.5, EPS);
+  EXPECT_NEAR(m.ap[0], 1.0 / 6.0, EPS);
+  EXPECT_NEAR(m.ap[1], 1.0 / 6.0, EPS);
+  EXPECT_NEAR(m.ap[2], 0.0, EPS);
+
+  const auto center = m.getCenter();
+  EXPECT_NEAR(center[0], 1.0 / 3.0, EPS);
+  EXPECT_NEAR(center[1], 1.0 / 3.0, EPS);
+  EXPECT_NEAR(center[2], 0.0, EPS);
+
+  // Selected raw moments (rm): normal-only and a few higher-order entries.
+  EXPECT_NEAR(m.rm[0], 0.0, EPS);
+  EXPECT_NEAR(m.rm[1], 0.0, EPS);
+  EXPECT_NEAR(m.rm[2], 0.5, EPS);
+  EXPECT_NEAR(m.rm[5], 1.0 / 6.0, EPS);
+  EXPECT_NEAR(m.rm[8], 1.0 / 6.0, EPS);
+  EXPECT_NEAR(m.rm[14], 1.0 / 12.0, EPS);
+  EXPECT_NEAR(m.rm[17], 1.0 / 24.0, EPS);
+  EXPECT_NEAR(m.rm[23], 1.0 / 24.0, EPS);
+  EXPECT_NEAR(m.rm[26], 1.0 / 12.0, EPS);
+
+  // Selected expansion coefficients (ec): first-order terms cancel at centroid.
+  EXPECT_NEAR(m.ec[0], 0.0, EPS);
+  EXPECT_NEAR(m.ec[1], 0.0, EPS);
+  EXPECT_NEAR(m.ec[2], 0.5, EPS);
+  EXPECT_NEAR(m.ec[5], 0.0, EPS);
+  EXPECT_NEAR(m.ec[8], 0.0, EPS);
+  EXPECT_NEAR(m.ec[14], 1.0 / 72.0, EPS);
+  EXPECT_NEAR(m.ec[17], -1.0 / 144.0, EPS);
+  EXPECT_NEAR(m.ec[23], -1.0 / 144.0, EPS);
+  EXPECT_NEAR(m.ec[26], 1.0 / 72.0, EPS);
 }
 
 //------------------------------------------------------------------------------
