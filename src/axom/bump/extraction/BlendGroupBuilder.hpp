@@ -30,9 +30,7 @@ class BlendGroupBuilder
 public:
   using KeyType = typename NamingPolicyView::KeyType;
 
-  BlendGroupBuilder()
-    : m_state()
-    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
+  BlendGroupBuilder() : m_state(), m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
 
   /*!

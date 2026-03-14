@@ -51,10 +51,7 @@ class FieldSlicer
 {
 public:
   /// Constructor
-  FieldSlicer()
-    : m_indexing()
-    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
-  { }
+  FieldSlicer() : m_indexing(), m_allocator_id(axom::execution_space<ExecSpace>::allocatorID()) { }
 
   /*!
    * \brief Constructor
@@ -131,7 +128,8 @@ private:
     namespace utils = axom::bump::utilities;
     const auto outputSize = slice.m_indicesView.size();
 
-    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
     n_output_values.set_allocator(conduitAllocatorId);
     n_output_values.set(conduit::DataType(n_values.dtype().id(), outputSize));
 

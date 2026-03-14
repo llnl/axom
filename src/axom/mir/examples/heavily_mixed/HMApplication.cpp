@@ -426,32 +426,33 @@ int HMApplication::installAllocator(const std::string &allocatorName)
   const auto nzones = static_cast<size_t>(m_dims[0] * m_dims[1] * m_dims[2]);
   const auto nnodes = static_cast<size_t>((m_dims[0] + 1) * (m_dims[1] + 1) * (m_dims[2] + 1));
   const auto topoSizeBytes = 0;
-  const auto coordSizeBytes = static_cast<size_t>((m_dims[0] + m_dims[1] + m_dims[2] + 3) * sizeof(FloatType));
+  const auto coordSizeBytes =
+    static_cast<size_t>((m_dims[0] + m_dims[1] + m_dims[2] + 3) * sizeof(FloatType));
   const auto mixFraction = 5.;
-  const auto matsetSizeBytes = (((nzones * mixFraction) * 2) * sizeof(int)) + 
-                               (((nzones * mixFraction) * 1) * sizeof(double)) +
-                               ((nzones * 2) * sizeof(int));
+  const auto matsetSizeBytes = (((nzones * mixFraction) * 2) * sizeof(int)) +
+    (((nzones * mixFraction) * 1) * sizeof(double)) + ((nzones * 2) * sizeof(int));
   const auto fieldsSizeBytes = static_cast<size_t>((nzones * 2 + nnodes * 2) * sizeof(FloatType));
   const auto estMeshSizeBytes = topoSizeBytes + coordSizeBytes + matsetSizeBytes + fieldsSizeBytes;
   // Estimate pool size
   const auto initialPoolSizeBytes = estMeshSizeBytes;
   const std::string newName = allocatorName + "_POOL";
-  SLIC_INFO(axom::fmt::format("Creating pool allocator {} with {} bytes.", newName, initialPoolSizeBytes));
+  SLIC_INFO(
+    axom::fmt::format("Creating pool allocator {} with {} bytes.", newName, initialPoolSizeBytes));
 
-  auto& rm = umpire::ResourceManager::getInstance();
+  auto &rm = umpire::ResourceManager::getInstance();
   umpire::Allocator allocator = rm.getAllocator(allocatorName);
 
   // Create a pool on top of the allocator.
   auto pooled = rm.makeAllocator<umpire::strategy::QuickPool>(
     newName,
     allocator,
-    initialPoolSizeBytes, // first_minimum_pool_allocation_size
-    1<<20, // next_minimum_pool_allocation_size = 1 MiB chunks
-    256 // alignment
+    initialPoolSizeBytes,  // first_minimum_pool_allocation_size
+    1 << 20,               // next_minimum_pool_allocation_size = 1 MiB chunks
+    256                    // alignment
   );
 
   allocator_id = pooled.getId();
-#endif 
+#endif
   return allocator_id;
 }
 
@@ -461,7 +462,7 @@ void HMApplication::printAllocatorInformation(int allocator_id) const
 #if defined(AXOM_USE_UMPIRE)
   try
   {
-    auto& rm = umpire::ResourceManager::getInstance();
+    auto &rm = umpire::ResourceManager::getInstance();
     umpire::Allocator allocator = rm.getAllocator(allocator_id);
     SLIC_INFO("Allocator Information:");
     SLIC_INFO(axom::fmt::format("\tname: {}", allocator.getName()));

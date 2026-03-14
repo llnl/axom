@@ -140,7 +140,8 @@ protected:
   template <typename ZonesViewType>
   int buildSelectedZones(ZonesViewType zonesView, axom::IndexType nzones)
   {
-    m_selectedZones = axom::Array<axom::IndexType>(zonesView.size(), zonesView.size(), m_allocator_id);
+    m_selectedZones =
+      axom::Array<axom::IndexType>(zonesView.size(), zonesView.size(), m_allocator_id);
     auto szView = m_selectedZonesView = m_selectedZones.view();
     axom::for_all<ExecSpace>(
       szView.size(),

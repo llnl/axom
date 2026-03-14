@@ -185,7 +185,10 @@ protected:
 
     // _bump_utilities_selectedzones_begin
     // Get selected zones from the options.
-    bump::SelectedZones<ExecSpace> selectedZones(m_topologyView.numberOfZones(), n_options_copy, "selectedZones", getAllocatorID());
+    bump::SelectedZones<ExecSpace> selectedZones(m_topologyView.numberOfZones(),
+                                                 n_options_copy,
+                                                 "selectedZones",
+                                                 getAllocatorID());
     const auto selectedZonesView = selectedZones.view();
     // _bump_utilities_selectedzones_end
 
@@ -385,7 +388,8 @@ protected:
   {
     AXOM_ANNOTATE_SCOPE("addOriginal");
     namespace utils = axom::bump::utilities;
-    const auto conduitAllocatorID = axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
+    const auto conduitAllocatorID =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     const auto nvalues = selectedZonesView.size();
 
@@ -858,7 +862,14 @@ protected:
 
     // Make the builder that will set up the Blueprint output.
     Builder build;
-    build.allocate(numFragments, maxCuts, n_newCoordset, n_newTopo, n_newFields, n_newMatset, n_options, getAllocatorID());
+    build.allocate(numFragments,
+                   maxCuts,
+                   n_newCoordset,
+                   n_newTopo,
+                   n_newFields,
+                   n_newMatset,
+                   n_options,
+                   getAllocatorID());
     if(n_matset.has_path("material_map"))
     {
       n_newMatset["material_map"].set(n_matset["material_map"]);

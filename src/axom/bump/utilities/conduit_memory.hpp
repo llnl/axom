@@ -76,7 +76,10 @@ namespace internal
  * \param destAllocatorID The allocator for the destination. It defaults to the allocator for ExecSpace.
  */
 template <typename ExecSpace>
-void copyImpl(conduit::Node &dest, const conduit::Node &src, int destAllocatorID, bool destAllocatorForDevice)
+void copyImpl(conduit::Node &dest,
+              const conduit::Node &src,
+              int destAllocatorID,
+              bool destAllocatorForDevice)
 {
   dest.reset();
   if(src.number_of_children() > 0)
@@ -89,7 +92,8 @@ void copyImpl(conduit::Node &dest, const conduit::Node &src, int destAllocatorID
   else
   {
     const int srcAllocatorID = axom::getAllocatorIDFromPointer(src.data_ptr());
-    const bool srcDataOnDevice = (srcAllocatorID == INVALID_ALLOCATOR_ID) ? false : isDeviceAllocator(srcAllocatorID);
+    const bool srcDataOnDevice =
+      (srcAllocatorID == INVALID_ALLOCATOR_ID) ? false : isDeviceAllocator(srcAllocatorID);
     const bool deviceInvolved = srcDataOnDevice || destAllocatorForDevice;
 
     if(deviceInvolved || (!src.dtype().is_string() && src.dtype().number_of_elements() > 1))
@@ -119,7 +123,7 @@ void copyImpl(conduit::Node &dest, const conduit::Node &src, int destAllocatorID
   }
 }
 
-} // end namespace internal
+}  // end namespace internal
 
 /*!
  * \brief Copies a Conduit tree in the \a src node to a new Conduit \a dest node,
@@ -133,7 +137,9 @@ void copyImpl(conduit::Node &dest, const conduit::Node &src, int destAllocatorID
  * \param destAllocatorID The allocator for the destination. It defaults to the allocator for ExecSpace.
  */
 template <typename ExecSpace>
-void copy(conduit::Node &dest, const conduit::Node &src, int destAllocatorID = axom::execution_space<ExecSpace>::allocatorID())
+void copy(conduit::Node &dest,
+          const conduit::Node &src,
+          int destAllocatorID = axom::execution_space<ExecSpace>::allocatorID())
 {
   const bool destAllocatorForDevice = isDeviceAllocator(destAllocatorID);
   internal::copyImpl<ExecSpace>(dest, src, destAllocatorID, destAllocatorForDevice);

@@ -25,8 +25,8 @@ struct test_conduit_allocate
 {
   static void test()
   {
-    const auto conduitAllocatorId =
-      axom::sidre::ConduitMemory::axomAllocIdToConduit(axom::execution_space<ExecSpace>::allocatorID());
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(
+      axom::execution_space<ExecSpace>::allocatorID());
 
     EXPECT_TRUE(conduitAllocatorId > 0);
 

@@ -287,8 +287,7 @@ public:
                 int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
     namespace utils = axom::bump::utilities;
-    const auto conduitAllocatorId =
-      axom::sidre::ConduitMemory::axomAllocIdToConduit(allocator_id);
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocator_id);
 
     // Handle options
     ELVIRAOptions opts(n_options);
@@ -583,8 +582,7 @@ public:
                 int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
     namespace utils = axom::bump::utilities;
-    const auto conduitAllocatorId =
-      axom::sidre::ConduitMemory::axomAllocIdToConduit(allocator_id);
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocator_id);
 
     // Handle options
     ELVIRAOptions opts(n_options);

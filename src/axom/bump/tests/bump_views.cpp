@@ -290,8 +290,8 @@ struct test_node_to_arrayview
                              conduit::DataType::FLOAT64_ID};
     constexpr int n = 16;
 
-    const auto conduitAllocatorId =
-      axom::sidre::ConduitMemory::axomAllocIdToConduit(axom::execution_space<ExecSpace>::allocatorID());
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(
+      axom::execution_space<ExecSpace>::allocatorID());
 
     for(int dtype : dtypes)
     {

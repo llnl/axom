@@ -622,12 +622,12 @@ struct StridedStructuredFields
    * \param n_field The field being sliced.
    * \param n_newField The node that will contain the new field.
    */
-  static bool sliceElementField(const TopologyView &AXOM_UNUSED_PARAM(topologyView),
-                                const axom::bump::SliceData &AXOM_UNUSED_PARAM(slice),
-                                const conduit::Node &AXOM_UNUSED_PARAM(n_field),
-                                conduit::Node &AXOM_UNUSED_PARAM(n_newField),
-                                int AXOM_UNUSED_PARAM(allocator_id) =
-                                  axom::execution_space<ExecSpace>::allocatorID())
+  static bool sliceElementField(
+    const TopologyView &AXOM_UNUSED_PARAM(topologyView),
+    const axom::bump::SliceData &AXOM_UNUSED_PARAM(slice),
+    const conduit::Node &AXOM_UNUSED_PARAM(n_field),
+    conduit::Node &AXOM_UNUSED_PARAM(n_newField),
+    int AXOM_UNUSED_PARAM(allocator_id) = axom::execution_space<ExecSpace>::allocatorID())
   {
     return false;
   }
@@ -640,12 +640,12 @@ struct StridedStructuredFields
    * \param n_field The field being sliced.
    * \param n_newField The node that will contain the new field.
    */
-  static bool blendVertexField(const TopologyView &AXOM_UNUSED_PARAM(topologyView),
-                               const axom::bump::BlendData &AXOM_UNUSED_PARAM(blend),
-                               const conduit::Node &AXOM_UNUSED_PARAM(n_field),
-                               conduit::Node &AXOM_UNUSED_PARAM(n_newField),
-                               int AXOM_UNUSED_PARAM(allocator_id) =
-                                 axom::execution_space<ExecSpace>::allocatorID())
+  static bool blendVertexField(
+    const TopologyView &AXOM_UNUSED_PARAM(topologyView),
+    const axom::bump::BlendData &AXOM_UNUSED_PARAM(blend),
+    const conduit::Node &AXOM_UNUSED_PARAM(n_field),
+    conduit::Node &AXOM_UNUSED_PARAM(n_newField),
+    int AXOM_UNUSED_PARAM(allocator_id) = axom::execution_space<ExecSpace>::allocatorID())
   {
     return false;
   }
@@ -1698,7 +1698,8 @@ private:
 
     namespace utils = axom::bump::utilities;
     constexpr auto connTypeID = utils::cpp2conduit<ConnectivityType>::id;
-    const auto conduitAllocatorID = axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
+    const auto conduitAllocatorID =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     // Allocate connectivity.
     conduit::Node &n_conn = n_newTopo["elements/connectivity"];
@@ -2230,7 +2231,8 @@ private:
     namespace utils = axom::bump::utilities;
     constexpr auto connTypeID = utils::cpp2conduit<ConnectivityType>::id;
 
-    const auto conduitAllocatorID = axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
+    const auto conduitAllocatorID =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     const auto selectedZonesView = selectedZones.view();
     const auto nzones = selectedZonesView.size();
