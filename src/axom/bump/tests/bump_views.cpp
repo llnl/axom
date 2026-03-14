@@ -289,12 +289,15 @@ struct test_node_to_arrayview
                              conduit::DataType::FLOAT32_ID,
                              conduit::DataType::FLOAT64_ID};
     constexpr int n = 16;
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(axom::execution_space<ExecSpace>::allocatorID());
+
     for(int dtype : dtypes)
     {
       // Make a node and fill it with data.
       conduit::Node n_data;
-      n_data.set_allocator(c2a.getConduitAllocatorID());
+      n_data.set_allocator(conduitAllocatorId);
       n_data.set(conduit::DataType(dtype, n));
 
       int sumValues = 0;

@@ -96,10 +96,19 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
     return -4;
   }
 
+  // See whether we were passed a custom allocator to use.
+  int allocator_id = axom::execution_space<ExecSpace>::allocatorID();
+  if(options.has_path("allocator_id"))
+  {
+    allocator_id = options["allocator_id"].to_int();
+    SLIC_INFO(axom::fmt::format("Using custom allocator {}", allocator_id));
+  }
+
   conduit::Node deviceMesh;
   {
     AXOM_ANNOTATE_SCOPE("host->device");
-    utils::copy<ExecSpace>(deviceMesh, hostMesh);
+    // Pass allocator_id since it might be custom for device.
+    utils::copy<ExecSpace>(deviceMesh, hostMesh, allocator_id);
   }
 
   const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
@@ -126,6 +135,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
 
       using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
       MIR m(topologyView, coordsetView, matsetView);
+      m.setAllocatorID(allocator_id);
       m.execute(deviceMesh, options, deviceResult);
       // _equiz_mir_end
     }
@@ -145,6 +155,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
 
       using MIR = axom::mir::ElviraAlgorithm<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>;
       MIR m(topologyView, coordsetView, matsetView);
+      m.setAllocatorID(allocator_id);
       m.execute(deviceMesh, options, deviceResult);
     }
     else if(method == "traversal")

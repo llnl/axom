@@ -122,10 +122,25 @@ public:
     , m_topologyView(topoView)
     , m_coordsetView(coordsetView)
     , m_matsetView(matsetView)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
 
   /// Destructor
   virtual ~ElviraAlgorithm() = default;
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id) { m_allocator_id = allocator_id; }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
 // The following members are protected (unless using CUDA)
 #if !defined(__CUDACC__)
@@ -165,18 +180,19 @@ protected:
 
     // Copy the options to make sure they are in the right memory space.
     conduit::Node n_options_copy;
-    utils::copy<ExecSpace>(n_options_copy, n_options);
+    utils::copy<ExecSpace>(n_options_copy, n_options, getAllocatorID());
     n_options_copy["topology"] = n_topo.name();
 
     // _bump_utilities_selectedzones_begin
     // Get selected zones from the options.
-    bump::SelectedZones<ExecSpace> selectedZones(m_topologyView.numberOfZones(), n_options_copy);
+    bump::SelectedZones<ExecSpace> selectedZones(m_topologyView.numberOfZones(), n_options_copy, "selectedZones", getAllocatorID());
     const auto selectedZonesView = selectedZones.view();
     // _bump_utilities_selectedzones_end
 
     // Partition the selected zones into clean, mixed lists.
     axom::Array<axom::IndexType> cleanZones, mixedZones;
     bump::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(m_topologyView, m_matsetView);
+    zlb.setAllocatorID(getAllocatorID());
     zlb.execute(selectedZonesView, cleanZones, mixedZones);
     SLIC_ASSERT((cleanZones.size() + mixedZones.size()) == selectedZonesView.size());
     SLIC_INFO(
@@ -349,6 +365,7 @@ protected:
     conduit::Node mmOpts;
     mmOpts["topologyName"] = topoName;
     MergeMeshes mm;
+    mm.setAllocatorID(getAllocatorID());
     mm.execute(inputs, mmOpts, n_merged);
   }
 
@@ -368,14 +385,14 @@ protected:
   {
     AXOM_ANNOTATE_SCOPE("addOriginal");
     namespace utils = axom::bump::utilities;
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    const auto conduitAllocatorID = axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     const auto nvalues = selectedZonesView.size();
 
     // Add a new field for the original ids.
     n_field["topology"] = topoName;
     n_field["association"] = association;
-    n_field["values"].set_allocator(c2a.getConduitAllocatorID());
+    n_field["values"].set_allocator(conduitAllocatorID);
     n_field["values"].set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, nvalues));
     auto view = utils::make_array_view<ConnectivityType>(n_field["values"]);
     axom::for_all<ExecSpace>(
@@ -417,6 +434,7 @@ protected:
       // _bump_utilities_makepointmesh_begin
       // Make a point mesh of the selected zones.
       bump::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(m_topologyView, m_coordsetView);
+      pm.setAllocatorID(getAllocatorID());
       pm.execute(cleanZones, n_topology, n_coordset, n_options, n_cleanOutput);
       // _bump_utilities_makepointmesh_end
 
@@ -424,6 +442,7 @@ protected:
       bump::MatsetSlicer<ExecSpace, MatsetView> mslicer(m_matsetView);
       bump::SliceData slice;
       slice.m_indicesView = cleanZones;
+      mslicer.setAllocatorID(getAllocatorID());
       mslicer.execute(slice, n_matset, n_cleanOutput["matsets/" + opts.matsetName(n_matset.name())]);
 
       // Add an originalElements array.
@@ -457,7 +476,8 @@ protected:
                               m_topologyView,
                               m_coordsetView,
                               m_matsetView,
-                              n_cleanOutput);
+                              n_cleanOutput,
+                              getAllocatorID());
     }
 
 #if defined(AXOM_ELVIRA_DEBUG)
@@ -497,7 +517,6 @@ protected:
   {
     AXOM_ANNOTATE_SCOPE("processMixedZones");
     namespace utils = axom::bump::utilities;
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     // Note: MSVC needs constexpr lambda capture to be marked `static` even though constexpr should suffice
     static constexpr int NDIMS = TopologyView::dimension();
 
@@ -545,8 +564,8 @@ protected:
     AXOM_ANNOTATE_BEGIN("counting");
 
     const auto nzones = mixedZonesView.size();
-    axom::Array<axom::IndexType> matCount(nzones, nzones, allocatorID);
-    axom::Array<axom::IndexType> matZone(nzones, nzones, allocatorID);
+    axom::Array<axom::IndexType> matCount(nzones, nzones, getAllocatorID());
+    axom::Array<axom::IndexType> matZone(nzones, nzones, getAllocatorID());
     auto matCountView = matCount.view();
     auto matZoneView = matZone.view();
 
@@ -602,7 +621,7 @@ protected:
 
     //--------------------------------------------------------------------------
     AXOM_ANNOTATE_BEGIN("offsets");
-    axom::Array<axom::IndexType> matOffset(nzones, nzones, allocatorID);
+    axom::Array<axom::IndexType> matOffset(nzones, nzones, getAllocatorID());
     auto matOffsetView = matOffset.view();
     axom::exclusive_scan<ExecSpace>(matCountView, matOffsetView);
 #if defined(AXOM_ELVIRA_GATHER_INFO)
@@ -623,6 +642,7 @@ protected:
     // _bump_utilities_makezonecenters_begin
     bump::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView, m_coordsetView);
     conduit::Node n_zcfield;
+    zc.setAllocatorID(getAllocatorID());
     zc.execute(n_topo, n_coordset, n_zcfield);
     // _bump_utilities_makezonecenters_end
     axom::ArrayView<CoordType> xview, yview, zview;
@@ -648,24 +668,24 @@ protected:
     AXOM_ANNOTATE_BEGIN("stencil");
     const auto numFragmentsStencil = numFragments * StencilSize;
 
-    axom::Array<double> fragmentVFStencil(numFragmentsStencil, numFragmentsStencil, allocatorID);
+    axom::Array<double> fragmentVFStencil(numFragmentsStencil, numFragmentsStencil, getAllocatorID());
     auto fragmentVFStencilView = fragmentVFStencil.view();
 
     // Sorted material ids / vfs for each zone.
     axom::Array<typename MatsetView::IndexType> sortedMaterialIds(numFragments,
                                                                   numFragments,
-                                                                  allocatorID);
+                                                                  getAllocatorID());
     axom::Array<typename MatsetView::FloatType> sortedMaterialVfs(numFragments,
                                                                   numFragments,
-                                                                  allocatorID);
+                                                                  getAllocatorID());
     auto sortedMaterialIdsView = sortedMaterialIds.view();
     auto sortedMaterialVfsView = sortedMaterialVfs.view();
 
     // Coordinate stencil data for each zone.
     const auto nzonesStencil = nzones * StencilSize;
-    axom::Array<double> xcStencil(nzonesStencil, nzonesStencil, allocatorID);
-    axom::Array<double> ycStencil(nzonesStencil, nzonesStencil, allocatorID);
-    axom::Array<double> zcStencil(nzonesStencil, nzonesStencil, allocatorID);
+    axom::Array<double> xcStencil(nzonesStencil, nzonesStencil, getAllocatorID());
+    axom::Array<double> ycStencil(nzonesStencil, nzonesStencil, getAllocatorID());
+    axom::Array<double> zcStencil(nzonesStencil, nzonesStencil, getAllocatorID());
     auto xcStencilView = xcStencil.view();
     auto ycStencilView = ycStencil.view();
     auto zcStencilView = zcStencil.view();
@@ -747,7 +767,7 @@ protected:
     //--------------------------------------------------------------------------
     AXOM_ANNOTATE_BEGIN("vectors");
     const auto vecSize = numFragments * numVectorComponents;
-    axom::Array<double> fragmentVectors(vecSize, vecSize, allocatorID);
+    axom::Array<double> fragmentVectors(vecSize, vecSize, getAllocatorID());
     auto fragmentVectorsView = fragmentVectors.view();
 
 #if defined(AXOM_ELVIRA_GATHER_INFO)
@@ -838,7 +858,7 @@ protected:
 
     // Make the builder that will set up the Blueprint output.
     Builder build;
-    build.allocate(numFragments, maxCuts, n_newCoordset, n_newTopo, n_newFields, n_newMatset, n_options);
+    build.allocate(numFragments, maxCuts, n_newCoordset, n_newTopo, n_newFields, n_newMatset, n_options, getAllocatorID());
     if(n_matset.has_path("material_map"))
     {
       n_newMatset["material_map"].set(n_matset["material_map"]);
@@ -1092,6 +1112,7 @@ private:
   TopologyView m_topologyView;
   CoordsetView m_coordsetView;
   MatsetView m_matsetView;
+  int m_allocator_id;
 };
 
 }  // end namespace mir
