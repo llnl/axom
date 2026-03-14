@@ -143,16 +143,16 @@ void runStepFileTest(const std::string& stepFile, double deflection = 0.1)
   auto bboxMax = shapeBbox.getMax();
   const auto bboxDiag = bboxMax.array() - bboxMin.array();
 
-  axom::Array<primal::Point<double, 3>> query_arr(0, 27);
-  for(const double fx : {0.25, 0.5, 0.75})
+  axom::Array<primal::Point<double, 3>> query_arr;
+  for(const double fx : {0.11, 0.251, 0.51, 0.751, 0.91})
   {
-    for(const double fy : {0.25, 0.5, 0.75})
+    for(const double fy : {0.11, 0.251, 0.51, 0.751, 0.91})
     {
-      for(const double fz : {0.25, 0.5, 0.75})
+      for(const double fz : {0.11, 0.251, 0.51, 0.751, 0.91})
       {
-        query_arr.emplace_back(primal::Point<double, 3>({bboxMin[0] + fx * bboxDiag[0],
-                                                         bboxMin[1] + fy * bboxDiag[1],
-                                                         bboxMin[2] + fz * bboxDiag[2]}));
+        query_arr.push_back(primal::Point<double, 3>({bboxMin[0] + fx * bboxDiag[0],
+                                                      bboxMin[1] + fy * bboxDiag[1],
+                                                      bboxMin[2] + fz * bboxDiag[2]}));
       }
     }
   }
@@ -198,12 +198,11 @@ TEST(quest_step_reader, test_tet) { runStepFileTest("tet.step"); }
 TEST(quest_step_reader, test_cylinder) { runStepFileTest("sliced_cylinder.step"); }
 TEST(quest_step_reader, test_nut) { runStepFileTest("nut.step"); }
 TEST(quest_step_reader, test_bearings) { runStepFileTest("bearings.step", 0.05); }
-TEST(quest_step_reader, test_half_bsphere) { runStepFileTest("half_boxed_sphere.step"); }
 
 // These tests are more expensive and therefore should not be run in the main testing loop,
 //  but should still be checked if something changes in STEPReader.cpp
-//TEST(quest_step_reader, test_boxed_sphere) { runStepFileTest("boxed_sphere.step"); }
-//TEST(quest_step_reader, test_brace) { runStepFileTest("plate.step", 0.01); }
+TEST(quest_step_reader, test_boxed_sphere) { runStepFileTest("boxed_sphere.step"); }
+TEST(quest_step_reader, test_brace) { runStepFileTest("plate.step", 0.01); }
 
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
