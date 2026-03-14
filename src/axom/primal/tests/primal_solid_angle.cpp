@@ -616,7 +616,6 @@ TEST(primal_solid_angle, nurbspatch_sphere)
 TEST(primal_solid_angle, teardrop_regression_test)
 {
   using Point3D = primal::Point<double, 3>;
-  using Vector3D = primal::Vector<double, 3>;
 
   const double edge_tol = 1e-6;
   const double ls_tol = 1e-10;

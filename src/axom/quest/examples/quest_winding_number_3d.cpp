@@ -308,7 +308,7 @@ int main(int argc, char** argv)
     BoundingBox3D* shape_bbox_ptr = &shape_bbox;
     axom::mint::for_all_nodes<axom::SEQ_EXEC, axom::mint::xargs::xyz>(
       &tri_mesh,
-      AXOM_LAMBDA(axom::IndexType nodeIdx, double x, double y, double z) {
+      AXOM_LAMBDA(axom::IndexType, double x, double y, double z) {
         shape_bbox_ptr->addPoint(Point3D {x, y, z});
       });
 

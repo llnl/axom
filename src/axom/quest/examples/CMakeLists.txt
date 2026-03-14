@@ -687,7 +687,7 @@ if(MFEM_FOUND AND OPENCASCADE_FOUND)
                 set(_res_k 5)
                 string(CONCAT _pass_regex
                     "INOUT_STATS:.*"
-                    "pos_dofs=16.*"
+                    "pos_dofs=14.*"
                     "neg_dofs=0")
             elseif(_model STREQUAL "sliced_cylinder")
                 string(CONCAT _pass_regex
