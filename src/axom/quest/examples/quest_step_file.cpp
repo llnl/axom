@@ -925,8 +925,11 @@ int main(int argc, char** argv)
       axom::fmt::format("Validate the model while reading it in? (default: {})", validate_model))
     ->capture_default_str();
 
+  // Output options -----------------------------------------------------------
+  auto* output_opts = app.add_option_group("Output", "Parameters associated with output");
+
   std::string output_dir = "step_output";
-  app.add_option("-o,--output-dir", output_dir)
+  output_opts->add_option("-o,--out,--output-dir", output_dir)
     ->description("Output directory for generated meshes")
     ->capture_default_str()
     ->check([](const std::string& dir) -> std::string {
@@ -937,54 +940,55 @@ int main(int argc, char** argv)
       return std::string();
     });
 
-  TriangleMeshOutputType output_trimmed {TriangleMeshOutputType::VTK};
-  app.add_option("--output-trimmed", output_trimmed)
+  bool output_svg {false};
+  output_opts->add_flag("--svg,--output-svg", output_svg)
+    ->description("Generate SVG files for each NURBS patch")
+    ->capture_default_str();
+
+  bool output_mfem_trim_curves {false};
+  output_opts->add_flag("--mfem-trim-curves,--output-mfem-trim-curves", output_mfem_trim_curves)
+    ->description("Generate one MFEM NURBS mesh per trimmed patch containing its trimming curves")
+    ->capture_default_str();
+
+  bool output_trim_curve_stats_json {false};
+  output_opts->add_flag("--stats-json,--output-trim-curve-stats-json", output_trim_curve_stats_json)
+    ->description("Generate one JSON stats file per patch summarizing its trimming curves")
+    ->capture_default_str();
+
+  bool skip_trivial_trimmed_patches {false};
+  output_opts
+    ->add_flag("--skip-trivial,--skip-trivial-trimmed-patches", skip_trivial_trimmed_patches)
+    ->description("Skip patch-wise SVG/MFEM outputs for trivially-trimmed patches")
+    ->capture_default_str();
+
+  // Triangulation options ----------------------------------------------------
+  auto* tri_opts = app.add_option_group("Triangulation", "Parameters associated with triangulation");
+
+  TriangleMeshOutputType output_trimmed {TriangleMeshOutputType::NONE};
+  tri_opts->add_option("--tri.trimmed,--output-trimmed", output_trimmed)
     ->description("Output format for trimmed model triangulation: 'none', 'vtk', 'stl'")
     ->capture_default_str()
     ->transform(axom::CLI::CheckedTransformer(validTriangleMeshOutputs));
 
   TriangleMeshOutputType output_untrimmed {TriangleMeshOutputType::NONE};
-  app.add_option("--output-untrimmed", output_untrimmed)
+  tri_opts->add_option("--tri.untrimmed,--output-untrimmed", output_untrimmed)
     ->description("Output format for untrimmed model triangulation: 'none', 'vtk', 'stl'")
     ->capture_default_str()
     ->transform(axom::CLI::CheckedTransformer(validTriangleMeshOutputs));
 
   double deflection {.1};
-  app.add_option("--deflection", deflection)
+  tri_opts->add_option("--deflection", deflection)
     ->description("Max distance between actual geometry and triangulated geometry")
     ->capture_default_str();
 
   bool relative_deflection {false};
-  app.add_flag("--relative", relative_deflection)
+  tri_opts->add_flag("--relative", relative_deflection)
     ->description("Use relative deflection instead of absolute?")
     ->capture_default_str();
 
   double angular_deflection {0.5};
-  app.add_option("--angular-deflection", angular_deflection)
+  tri_opts->add_option("--angular-deflection", angular_deflection)
     ->description("Angular deflection between adjacent normals when triangulating surfaces")
-    ->capture_default_str();
-
-  bool output_svg {false};
-  app.add_flag("--output-svg", output_svg)
-    ->description("Generate SVG files for each NURBS patch?")
-    ->capture_default_str();
-
-  bool output_mfem_trim_curves {false};
-  app.add_flag("--output-mfem-trim-curves", output_mfem_trim_curves)
-    ->description("Generate one MFEM NURBS mesh per trimmed patch containing its trimming curves")
-    ->capture_default_str();
-
-  bool skip_trivial_trimmed_patches {false};
-  app.add_flag("--skip-trivial-trimmed-patches", skip_trivial_trimmed_patches)
-    ->description(
-      "Skip patch-wise outputs for trivially-trimmed patches (4 axis-aligned linear boundary "
-      "curves). "
-      "Applies to SVG and MFEM trim-curve meshes when enabled.")
-    ->capture_default_str();
-
-  bool output_trim_curve_stats_json {false};
-  app.add_flag("--output-trim-curve-stats-json", output_trim_curve_stats_json)
-    ->description("Generate one JSON stats file per patch summarizing its trimming curves")
     ->capture_default_str();
 
   app.get_formatter()->column_width(50);
@@ -1009,8 +1013,11 @@ int main(int argc, char** argv)
 #endif
   }
 
-  // Ensure output directory exists
-  if(is_root && !axom::utilities::filesystem::pathExists(output_dir))
+  // Ensure output directory exists iff we will write anything.
+  const bool will_write_output = (output_trimmed != TriangleMeshOutputType::NONE) ||
+    (output_untrimmed != TriangleMeshOutputType::NONE) || output_svg || output_mfem_trim_curves ||
+    output_trim_curve_stats_json;
+  if(is_root && will_write_output && !axom::utilities::filesystem::pathExists(output_dir))
   {
     axom::utilities::filesystem::makeDirsForPath(output_dir);
   }
