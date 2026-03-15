@@ -79,12 +79,16 @@ int PSTEPReader::read(bool validate_model)
         }
       }
 
-      // Broadcast stable ids that match the input STEP enumeration.
+      // Broadcast stable ids that match the input STEP enumeration
       bcast_array(m_patchIds);
       for(auto& wire_ids : m_trimmingCurveWireIds)
       {
         bcast_array(wire_ids);
       }
+
+      // Broadcast periodicity flags for each patch
+      bcast_array(m_patchOriginallyPeriodic_u);
+      bcast_array(m_patchOriginallyPeriodic_v);
     }
     break;
   //handle other ranks
@@ -153,7 +157,7 @@ int PSTEPReader::read(bool validate_model)
         }
       }
 
-      // Receive stable ids that match the input STEP enumeration.
+      // Receive stable ids that match the input STEP enumeration
       bcast_array(m_patchIds);
       m_trimmingCurveWireIds.clear();
       m_trimmingCurveWireIds.resize(numPatches);
@@ -161,6 +165,10 @@ int PSTEPReader::read(bool validate_model)
       {
         bcast_array(m_trimmingCurveWireIds[i]);
       }
+
+      // Receive periodicity flags for each patch
+      bcast_array(m_patchOriginallyPeriodic_u);
+      bcast_array(m_patchOriginallyPeriodic_v);
     }
     break;
   }

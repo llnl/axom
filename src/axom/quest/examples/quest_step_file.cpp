@@ -533,7 +533,9 @@ public:
 
   void writeStatsForPatch(int patchId,
                           const NURBSPatch& patch,
-                          axom::ArrayView<const int> trimmingCurveWireIds) const
+                          axom::ArrayView<const int> trimmingCurveWireIds,
+                          bool was_originally_periodic_u,
+                          bool was_originally_periodic_v) const
   {
     const auto& curves = patch.getTrimmingCurves();
     const int numCurves = curves.size();
@@ -606,6 +608,12 @@ public:
     axom::fmt::format_to(std::back_inserter(content),
                          "  \"is_trivially_trimmed\": {},\n",
                          is_trivially_trimmed ? "true" : "false");
+    axom::fmt::format_to(std::back_inserter(content),
+                         "  \"was_originally_periodic_u\": {},\n",
+                         was_originally_periodic_u ? "true" : "false");
+    axom::fmt::format_to(std::back_inserter(content),
+                         "  \"was_originally_periodic_v\": {},\n",
+                         was_originally_periodic_v ? "true" : "false");
     axom::fmt::format_to(std::back_inserter(content),
                          "  \"num_knot_spans_u\": {},\n",
                          num_knot_spans_u);
@@ -1242,7 +1250,11 @@ int main(int argc, char** argv)
     {
       const int patch_id = stepReader.getPatchIds()[index];
       const auto wire_ids = stepReader.getTrimmingCurveWireIds(index);
-      stats_writer.writeStatsForPatch(patch_id, patches[index], wire_ids);
+      stats_writer.writeStatsForPatch(patch_id,
+                                      patches[index],
+                                      wire_ids,
+                                      stepReader.patchWasOriginallyPeriodic_u(index),
+                                      stepReader.patchWasOriginallyPeriodic_v(index));
     }
   }
 

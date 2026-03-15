@@ -86,6 +86,12 @@ public:
    */
   axom::ArrayView<const int> getTrimmingCurveWireIds(int patchArrayIndex) const;
 
+  /// \brief Returns whether the input STEP surface was originally periodic in u for this patch
+  bool patchWasOriginallyPeriodic_u(int patchArrayIndex) const;
+
+  /// \brief Returns whether the input STEP surface was originally periodic in v for this patch
+  bool patchWasOriginallyPeriodic_v(int patchArrayIndex) const;
+
   /// Returns some information about the loaded BRep
   std::string getBRepStats() const;
 
@@ -124,6 +130,8 @@ protected:
   PatchArray m_patches;
   IndexArray m_patchIds;
   axom::Array<IndexArray> m_trimmingCurveWireIds;
+  IndexArray m_patchOriginallyPeriodic_u;
+  IndexArray m_patchOriginallyPeriodic_v;
 };
 
 }  // namespace quest

@@ -1576,6 +1576,18 @@ STEPReader::~STEPReader()
   }
 }
 
+bool STEPReader::patchWasOriginallyPeriodic_u(int patchArrayIndex) const
+{
+  SLIC_ASSERT(patchArrayIndex >= 0 && patchArrayIndex < m_patchOriginallyPeriodic_u.size());
+  return m_patchOriginallyPeriodic_u[patchArrayIndex] != 0;
+}
+
+bool STEPReader::patchWasOriginallyPeriodic_v(int patchArrayIndex) const
+{
+  SLIC_ASSERT(patchArrayIndex >= 0 && patchArrayIndex < m_patchOriginallyPeriodic_v.size());
+  return m_patchOriginallyPeriodic_v[patchArrayIndex] != 0;
+}
+
 int STEPReader::read(bool validate_model)
 {
   m_stepProcessor = new internal::StepFileProcessor(m_fileName, m_verbosity);
@@ -1598,6 +1610,12 @@ int STEPReader::read(bool validate_model)
   m_patchIds.resize(m_patches.size());
   m_trimmingCurveWireIds.clear();
   m_trimmingCurveWireIds.resize(m_patches.size());
+  m_patchOriginallyPeriodic_u.clear();
+  m_patchOriginallyPeriodic_u.resize(m_patches.size());
+  m_patchOriginallyPeriodic_u.fill(0);
+  m_patchOriginallyPeriodic_v.clear();
+  m_patchOriginallyPeriodic_v.resize(m_patches.size());
+  m_patchOriginallyPeriodic_v.fill(0);
 
   const auto& patchDataMap = m_stepProcessor->getPatchDataMap();
   for(int patchArrayIndex = 0; patchArrayIndex < m_patches.size(); ++patchArrayIndex)
@@ -1610,6 +1628,8 @@ int STEPReader::read(bool validate_model)
     if(it != patchDataMap.end())
     {
       m_trimmingCurveWireIds[patchArrayIndex] = it->second.trimmingCurves_wireIds;
+      m_patchOriginallyPeriodic_u[patchArrayIndex] = it->second.wasOriginallyPeriodic_u ? 1 : 0;
+      m_patchOriginallyPeriodic_v[patchArrayIndex] = it->second.wasOriginallyPeriodic_v ? 1 : 0;
     }
   }
 
