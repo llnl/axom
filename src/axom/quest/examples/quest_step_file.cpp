@@ -537,6 +537,10 @@ public:
   {
     const auto& curves = patch.getTrimmingCurves();
     const int numCurves = curves.size();
+    const bool is_trivially_trimmed = patch.isTriviallyTrimmed();
+
+    const int num_knot_spans_u = static_cast<int>(patch.getKnots_u().getNumKnotSpans());
+    const int num_knot_spans_v = static_cast<int>(patch.getKnots_v().getNumKnotSpans());
 
     int minOrder = 0;
     int maxOrder = 0;
@@ -599,6 +603,15 @@ public:
     axom::fmt::memory_buffer content;
     axom::fmt::format_to(std::back_inserter(content), "{{\n");
     axom::fmt::format_to(std::back_inserter(content), "  \"patch_id\": {},\n", patchId);
+    axom::fmt::format_to(std::back_inserter(content),
+                         "  \"is_trivially_trimmed\": {},\n",
+                         is_trivially_trimmed ? "true" : "false");
+    axom::fmt::format_to(std::back_inserter(content),
+                         "  \"num_knot_spans_u\": {},\n",
+                         num_knot_spans_u);
+    axom::fmt::format_to(std::back_inserter(content),
+                         "  \"num_knot_spans_v\": {},\n",
+                         num_knot_spans_v);
     axom::fmt::format_to(std::back_inserter(content), "  \"num_wires\": {},\n", numWires);
     axom::fmt::format_to(std::back_inserter(content), "  \"num_trimming_curves\": {},\n", numCurves);
     axom::fmt::format_to(std::back_inserter(content), "  \"min_curve_order\": {},\n", minOrder);
@@ -958,7 +971,7 @@ int main(int argc, char** argv)
     ->description(
       "Skip patch-wise outputs for trivially-trimmed patches (4 axis-aligned linear boundary "
       "curves). "
-      "Applies to SVG, MFEM trim-curve meshes and trim-curve stats JSON when enabled.")
+      "Applies to SVG and MFEM trim-curve meshes when enabled.")
     ->capture_default_str();
 
   bool output_trim_curve_stats_json {false};
@@ -1229,11 +1242,6 @@ int main(int argc, char** argv)
     {
       const int patch_id = stepReader.getPatchIds()[index];
       const auto wire_ids = stepReader.getTrimmingCurveWireIds(index);
-      if(skip_trivial_trimmed_patches && patches[index].isTriviallyTrimmed())
-      {
-        continue;
-      }
-
       stats_writer.writeStatsForPatch(patch_id, patches[index], wire_ids);
     }
   }
