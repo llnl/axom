@@ -12,6 +12,13 @@
  description: 
   Reads in an SVG document and outputs an MFEM NURBS mesh.
   Depends on the svgpathtools module
+
+ notes:
+  - By default, all SVG curve segments are output as cubic NURBS (degree 3) for
+    compatibility with older MFEM/VisIt workflows.
+  - This script optionally supports MFEM's newer "patches" NURBS mesh format
+    for 1D NURBS segments embedded in 2D. Support for reading patch-based 1D
+    NURBS meshes was added to MFEM after MFEM 4.9.0.
 """
 
 import sys
@@ -127,6 +134,18 @@ def transform_cubic(cubic: CubicBezier, tf):
     return bpoints2bezier([to_complex(tf.dot(to_point(p))) for p in cubic.bpoints()])
 
 
+def transform_segment(seg, tf):
+    """Apply transformation `tf` to a Line/QuadraticBezier/CubicBezier segment."""
+
+    def to_point(p):
+        return np.array([[p.real], [p.imag], [1.0]])
+
+    def to_complex(v):
+        return v.item(0) + 1j * v.item(1)
+
+    return bpoints2bezier([to_complex(tf.dot(to_point(p))) for p in seg.bpoints()])
+
+
 def lerp(a, b, t):
     """linear interpolation from a to b with parameter t, typically between 0 and 1"""
     return (1 - t) * a + t * b
@@ -240,6 +259,39 @@ def segment_as_cubic(seg, reverse_paths: bool):
     return (cubic, weights)
 
 
+def segment_as_native_nurbs(seg, reverse_paths: bool):
+    """Convert an svgpathtools segment to a (Bezier) NURBS segment (degree 1/2/3) when possible.
+
+    For elliptical arcs, this returns a rational cubic Bezier segment.
+    Returns (segment, weights, degree).
+    """
+
+    if isinstance(seg, Line):
+        out_seg = seg
+        weights = [1, 1]
+        degree = 1
+    elif isinstance(seg, QuadraticBezier):
+        out_seg = seg
+        weights = [1, 1, 1]
+        degree = 2
+    elif isinstance(seg, CubicBezier):
+        out_seg = seg
+        weights = [1, 1, 1, 1]
+        degree = 3
+    elif isinstance(seg, Arc):
+        cubic, weights = arc_to_cubic(seg)
+        out_seg = cubic
+        degree = 3
+    else:
+        raise Exception(f"'{type(seg)}' type not supported yet")
+
+    if reverse_paths:
+        out_seg = out_seg.reversed()
+        weights.reverse()
+
+    return (out_seg, weights, degree)
+
+
 def dist_to_ellipse(center, radius, angle, pt):
     cx, cy = center.real, center.imag
     rx, ry = radius.real, radius.imag
@@ -330,6 +382,83 @@ class MFEMData:
             f.write("\n".join(mfem_file))
 
 
+class MFEMPatchesData:
+
+    def __init__(self):
+        self.elem_cnt = 0
+        self.vert_cnt = 0
+        self.elems = []
+        self.edges = []
+        self.patches = []
+
+    @staticmethod
+    def _bezier_knotvector(degree: int):
+        # Bezier knot vector on [0,1]
+        return [0] * (degree + 1) + [1] * (degree + 1)
+
+    def add_bezier(self, seg, degree: int, weights, attrib: int):
+        v0 = self.vert_cnt
+        v1 = self.vert_cnt + 1
+        self.elems.append(" ".join(map(str, [attrib, 1, v0, v1])))
+        self.edges.append(f"{self.elem_cnt} {v0} {v1}")
+        self.vert_cnt += 2
+        self.elem_cnt += 1
+
+        cps = seg.bpoints()
+        if len(cps) != degree + 1:
+            raise Exception(
+                f"Expected {degree + 1} control points for degree {degree}, got {len(cps)}")
+        if len(weights) != len(cps):
+            raise Exception(f"Expected {len(cps)} weights, got {len(weights)}")
+
+        knots = self._bezier_knotvector(degree)
+
+        patch_lines = []
+        patch_lines.append("")
+        patch_lines.append(
+            f"# Patch {self.elem_cnt - 1}: degree {degree} ({len(cps)} control points)")
+        patch_lines.append("knotvectors")
+        patch_lines.append("1")
+        patch_lines.append("{} {}  {}".format(
+            degree,
+            len(cps),
+            " ".join(str(k) for k in knots),
+        ))
+        patch_lines.append("")
+        patch_lines.append("dimension")
+        patch_lines.append("2")
+        patch_lines.append("")
+        patch_lines.append("controlpoints")
+        for (cp, w) in zip(cps, weights):
+            patch_lines.append(f"{cp.real}  {cp.imag}  {w}")
+        patch_lines.append("")
+
+        self.patches.append("\n".join(patch_lines))
+
+    def write_file(self, filename):
+        mfem_file = []
+
+        mfem_file.extend([
+            "MFEM NURBS mesh v1.0",
+            "",
+            "#",
+            "# Patch-based 1D NURBS segments embedded in 2D.",
+            "# NOTE: MFEM support for reading patch-based 1D NURBS meshes was added after MFEM 4.9.0.",
+            "#",
+            "",
+        ])
+
+        mfem_file.extend(["dimension", "1", ""])
+        mfem_file.extend(["elements", f"{self.elem_cnt}", "\n".join(self.elems), ""])
+        mfem_file.extend(["boundary", "0", ""])
+        mfem_file.extend(["edges", f"{self.elem_cnt}", "\n".join(self.edges), ""])
+        mfem_file.extend(["vertices", f"{self.vert_cnt}", ""])
+        mfem_file.extend(["patches", "\n".join(self.patches)])
+
+        with open(filename, mode="w") as f:
+            f.write("\n".join(mfem_file))
+
+
 def compute_svg_path_stats(paths):
     stats = {
         "paths_total": len(paths),
@@ -376,6 +505,18 @@ def parse_args():
         dest="outputfile",
         default="drawing.mesh",
         help="Output file in mfem NURBS mesh format (*.mesh)",
+    )
+
+    parser.add_argument(
+        "--mfem-patches",
+        dest="mfem_patches",
+        default=False,
+        action="store_true",
+        help=
+        ("Write the newer MFEM NURBS 'patches' mesh format for 1D segments embedded in 2D "
+         "(requires MFEM > 4.9.0 to read). When enabled, Lines/Quadratic/Cubic segments are "
+         "written using degree 1/2/3 respectively; elliptical arcs are written as rational cubics."
+         ),
     )
 
     parser.add_argument(
@@ -468,6 +609,8 @@ def main():
         print("SVG paths: \n", paths)
 
     mfem_data = MFEMData()
+    mfem_patches = opts.get("mfem_patches", False)
+    mfem_patches_data = MFEMPatchesData() if mfem_patches else None
 
     for p_idx, p in enumerate(paths):
         # print(f"""reading {p_idx=} {p=} \n w/ {p.d()=}""")
@@ -491,23 +634,43 @@ def main():
                 # in `arc_to_cubic` algorithm
                 arc1, arc2 = seg.split(0.5)
 
-                cubic, weights = segment_as_cubic(arc1, reverse_paths)
-                xformed_cubic = transform_cubic(cubic, coordinate_transform)
-                mfem_data.add_cubic_bezier(xformed_cubic, weights, attrib)
+                if mfem_patches:
+                    seg1, weights1, degree1 = segment_as_native_nurbs(arc1, reverse_paths)
+                    xformed_seg1 = transform_segment(seg1, coordinate_transform)
+                    mfem_patches_data.add_bezier(xformed_seg1, degree1, weights1, attrib)
 
-                cubic, weights = segment_as_cubic(arc2, reverse_paths)
-                xformed_cubic = transform_cubic(cubic, coordinate_transform)
-                mfem_data.add_cubic_bezier(xformed_cubic, weights, attrib)
+                    seg2, weights2, degree2 = segment_as_native_nurbs(arc2, reverse_paths)
+                    xformed_seg2 = transform_segment(seg2, coordinate_transform)
+                    mfem_patches_data.add_bezier(xformed_seg2, degree2, weights2, attrib)
+                else:
+                    cubic, weights = segment_as_cubic(arc1, reverse_paths)
+                    xformed_cubic = transform_cubic(cubic, coordinate_transform)
+                    mfem_data.add_cubic_bezier(xformed_cubic, weights, attrib)
+
+                    cubic, weights = segment_as_cubic(arc2, reverse_paths)
+                    xformed_cubic = transform_cubic(cubic, coordinate_transform)
+                    mfem_data.add_cubic_bezier(xformed_cubic, weights, attrib)
             else:
-                cubic, weights = segment_as_cubic(seg, reverse_paths)
-                xformed_cubic = transform_cubic(cubic, coordinate_transform)
-                mfem_data.add_cubic_bezier(xformed_cubic, weights, attrib)
+                if mfem_patches:
+                    seg0, weights0, degree0 = segment_as_native_nurbs(seg, reverse_paths)
+                    xformed_seg0 = transform_segment(seg0, coordinate_transform)
+                    mfem_patches_data.add_bezier(xformed_seg0, degree0, weights0, attrib)
+                else:
+                    cubic, weights = segment_as_cubic(seg, reverse_paths)
+                    xformed_cubic = transform_cubic(cubic, coordinate_transform)
+                    mfem_data.add_cubic_bezier(xformed_cubic, weights, attrib)
 
     output_file = opts["outputfile"]
-    mfem_data.write_file(output_file)
-    print(
-        f"Wrote '{output_file}' with {mfem_data.vert_cnt} vertices and NURBS {mfem_data.elem_cnt} elements"
-    )
+    if mfem_patches:
+        mfem_patches_data.write_file(output_file)
+        print(
+            f"Wrote '{output_file}' with {mfem_patches_data.vert_cnt} vertices and NURBS {mfem_patches_data.elem_cnt} elements (patches format)"
+        )
+    else:
+        mfem_data.write_file(output_file)
+        print(
+            f"Wrote '{output_file}' with {mfem_data.vert_cnt} vertices and NURBS {mfem_data.elem_cnt} elements"
+        )
 
 
 if __name__ == "__main__":
