@@ -19,6 +19,56 @@
 namespace primal = axom::primal;
 
 //------------------------------------------------------------------------------
+TEST(primal_nurbscurve, is_linear_predicate)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  constexpr double tol = 1e-12;
+
+  // Degree-1 segment
+  {
+    NURBSCurveType c(2, 1);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {1.0, 0.0};
+    EXPECT_TRUE(c.isLinear(tol));
+  }
+
+  // Degree-2, collinear control polygon
+  {
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.5, 0.0};
+    c[2] = PointType {1.0, 0.0};
+    EXPECT_TRUE(c.isLinear(tol));
+  }
+
+  // Degree-2, non-collinear interior point
+  {
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.5, 1e-3};
+    c[2] = PointType {1.0, 0.0};
+    EXPECT_FALSE(c.isLinear(tol));
+  }
+
+  // Rational, collinear should still be linear
+  {
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.5, 0.0};
+    c[2] = PointType {1.0, 0.0};
+    c.makeRational();
+    c.setWeight(0, 1.0);
+    c.setWeight(1, 2.0);
+    c.setWeight(2, 0.5);
+    EXPECT_TRUE(c.isLinear(tol));
+  }
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_nurbscurve, default_constructor)
 {
   constexpr int DIM = 3;

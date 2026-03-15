@@ -680,6 +680,54 @@ public:
     return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
+  /*!
+   * \brief Predicate to check if the NURBS curve is approximately linear
+   *
+   * This function checks if the interior control points of the NURBSCurve
+   * are approximately on the line segment defined by its two endpoints.
+   *
+   * \param [in] tol Threshold for squared distance
+   * \param [in] useStrictLinear If true, checks that the control points are
+   *   evenly spaced along the line and not too far from the line
+   * \return True if curve is near-linear
+   */
+  bool isLinear(double tol = 1e-8, bool useStrictLinear = false) const
+  {
+    const int npts = getNumControlPoints();
+    if(npts <= 2)
+    {
+      return true;
+    }
+
+    const int end_idx = npts - 1;
+
+    if(useStrictLinear)
+    {
+      for(int p = 1; p < end_idx; ++p)
+      {
+        const double t = p / static_cast<T>(end_idx);
+        PointType the_pt = PointType::lerp(m_controlPoints[0], m_controlPoints[end_idx], t);
+        if(squared_distance(m_controlPoints[p], the_pt) > tol)
+        {
+          return false;
+        }
+      }
+    }
+    else
+    {
+      SegmentType seg(m_controlPoints[0], m_controlPoints[end_idx]);
+      for(int p = 1; p < end_idx; ++p)
+      {
+        if(squared_distance(m_controlPoints[p], seg) > tol)
+        {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
   ///@}
 
   ///@{
