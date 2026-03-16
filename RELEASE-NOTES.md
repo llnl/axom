@@ -25,7 +25,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Axom's polygon clipping was modified to handle some corner cases.
 - Bump: Several Bump algorithms were improved so they perform better with OpenMP.
 - Mir: The `EquiZAlgorithm was improved so it performs better with OpenMP.
-- Many algorithms in Bump and Mir have been enhanced with `setAllocatorID()` methods so users force the use of custom allocators.
+- Many algorithms in Bump and Mir have been enhanced with `setAllocatorID()` methods to permit use of custom allocators.
 
 ### Fixed
 - Primal: Fixed `NURBSPatch::evaluateDerivatives` returning a matrix with empty values. The old behavior 

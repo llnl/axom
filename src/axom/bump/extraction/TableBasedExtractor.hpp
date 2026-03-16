@@ -1025,14 +1025,23 @@ public:
       if constexpr(std::is_same_v<ExecSpace, axom::OMP_EXEC>)
       {
         // The serial version Unique specialization is faster
-        axom::bump::Unique<axom::SEQ_EXEC, KeyType>::execute(builder.blendNames(), uNames, uIndices);
+        axom::bump::Unique<axom::SEQ_EXEC, KeyType>::execute(builder.blendNames(),
+                                                             uNames,
+                                                             uIndices,
+                                                             allocatorID);
       }
       else
       {
-        axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(), uNames, uIndices);
+        axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(),
+                                                        uNames,
+                                                        uIndices,
+                                                        allocatorID);
       }
 #else
-      axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(), uNames, uIndices);
+      axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(),
+                                                      uNames,
+                                                      uIndices,
+                                                      allocatorID);
 #endif
       builder.setUniqueNames(uNames.view(), uIndices.view());
 

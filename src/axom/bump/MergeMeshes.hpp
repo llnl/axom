@@ -787,10 +787,11 @@ protected:
 
     // Make a polyhedral mesh from the input mesh.
     MakePolyhedralTopology<ExecSpace, TopologyView> makePH(topologyView);
+    makePH.setAllocatorID(getAllocatorID());
     makePH.execute(n_srcTopo, n_phTopo);
 
     // Improve the mesh by merging like faces.
-    MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_phTopo);
+    MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_phTopo, getAllocatorID());
   }
 
   /*!
