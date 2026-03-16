@@ -564,6 +564,68 @@ TEST(primal_integral, evaluate_nurbs_surface_normal)
   }
 }
 
+TEST(primal_integral, evaluate_patch_surface_and_volume_integrals)
+{
+  using Point2D = primal::Point<double, 2>;
+  using Point3D = primal::Point<double, 3>;
+  using BPatch = primal::BezierPatch<double, 3>;
+
+  auto make_bilinear_patch =
+    [](const Point3D& p00, const Point3D& p10, const Point3D& p01, const Point3D& p11) {
+      Point3D control_points[] = {p00, p01, p10, p11};
+      return BPatch(control_points, 1, 1);
+    };
+
+  axom::Array<BPatch> cube_faces(6);
+  cube_faces[0] = make_bilinear_patch({0., 0., 0.}, {0., 1., 0.}, {1., 0., 0.}, {1., 1., 0.});
+  cube_faces[1] = make_bilinear_patch({0., 0., 1.}, {1., 0., 1.}, {0., 1., 1.}, {1., 1., 1.});
+  cube_faces[2] = make_bilinear_patch({0., 0., 0.}, {0., 0., 1.}, {0., 1., 0.}, {0., 1., 1.});
+  cube_faces[3] = make_bilinear_patch({1., 0., 0.}, {1., 1., 0.}, {1., 0., 1.}, {1., 1., 1.});
+  cube_faces[4] = make_bilinear_patch({0., 0., 0.}, {1., 0., 0.}, {0., 0., 1.}, {1., 0., 1.});
+  cube_faces[5] = make_bilinear_patch({0., 1., 0.}, {0., 1., 1.}, {1., 1., 0.}, {1., 1., 1.});
+
+  auto const_integrand = [](Point3D /*x*/) -> double { return 1.0; };
+  auto z_integrand = [](Point3D x) -> double { return x[2]; };
+
+  constexpr int npts = 6;
+  constexpr double abs_tol = 1e-10;
+
+  EXPECT_NEAR(evaluate_surface_integral(cube_faces, const_integrand, npts), 6.0, abs_tol);
+  EXPECT_NEAR(evaluate_volume_integral(cube_faces, const_integrand, npts), 1.0, abs_tol);
+  EXPECT_NEAR(evaluate_volume_integral(cube_faces, z_integrand, npts), 0.5, abs_tol);
+}
+
+TEST(primal_integral, evaluate_trimmed_nurbs_patch_surface_integral)
+{
+  using Point2D = primal::Point<double, 2>;
+  using Point3D = primal::Point<double, 3>;
+  using NPatch = primal::NURBSPatch<double, 3>;
+  using TrimmingCurve = primal::NURBSCurve<double, 2>;
+
+  Point3D control_points[] = {Point3D {0.0, 0.0, 0.0},
+                              Point3D {0.0, 1.0, 0.0},
+                              Point3D {1.0, 0.0, 0.0},
+                              Point3D {1.0, 1.0, 0.0}};
+
+  NPatch patch(control_points, 2, 2, 1, 1);
+
+  axom::Array<Point2D> trim_pts {Point2D {0.25, 0.25},
+                                 Point2D {0.75, 0.25},
+                                 Point2D {0.75, 0.75},
+                                 Point2D {0.25, 0.75},
+                                 Point2D {0.25, 0.25}};
+  patch.addTrimmingCurve(TrimmingCurve(trim_pts, 1));
+
+  auto const_integrand = [](Point3D /*x*/) -> double { return 1.0; };
+  auto linear_integrand = [](Point3D x) -> double { return x[0] + x[1]; };
+
+  constexpr int npts = 8;
+  constexpr double abs_tol = 1e-10;
+
+  EXPECT_NEAR(evaluate_surface_integral(patch, const_integrand, npts), 0.25, abs_tol);
+  EXPECT_NEAR(evaluate_surface_integral(patch, linear_integrand, npts), 0.25, abs_tol);
+}
+
 TEST(primal_integral, evaluate_integral_nurbs_gwn_cache)
 {
   using Point2D = primal::Point<double, 2>;

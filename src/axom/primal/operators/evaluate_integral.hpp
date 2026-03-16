@@ -374,6 +374,237 @@ LambdaRetType evaluate_area_integral(const axom::Array<CurveType>& carray,
 }
 //@}
 
+///@{
+/// \name Evaluates scalar-field surface integrals for functions f : R^3 -> R^m
+
+template <typename Lambda,
+          typename T,
+          typename LambdaRetType = std::invoke_result_t<Lambda, typename BezierPatch<T, 3>::PointType>>
+LambdaRetType evaluate_surface_integral(const primal::BezierPatch<T, 3>& patch,
+                                        Lambda&& integrand,
+                                        int npts)
+{
+  static_assert(detail::internal::is_integrable_v<T, LambdaRetType>,
+                "evaluate_integral methods require addition and scalar multiplication for lambda "
+                "function return type");
+
+  return detail::evaluate_surface_integral_component(patch, std::forward<Lambda>(integrand), npts);
+}
+
+template <typename Lambda,
+          typename T,
+          typename LambdaRetType = std::invoke_result_t<Lambda, typename NURBSPatch<T, 3>::PointType>>
+LambdaRetType evaluate_surface_integral(const primal::NURBSPatch<T, 3>& patch,
+                                        Lambda&& integrand,
+                                        int npts_Q,
+                                        int npts_P = 0)
+{
+  static_assert(detail::internal::is_integrable_v<T, LambdaRetType>,
+                "evaluate_integral methods require addition and scalar multiplication for lambda "
+                "function return type");
+
+  if(npts_P <= 0)
+  {
+    npts_P = npts_Q;
+  }
+
+  return detail::evaluate_surface_integral_component(patch,
+                                                     std::forward<Lambda>(integrand),
+                                                     npts_Q,
+                                                     npts_P);
+}
+
+template <typename Lambda,
+          typename T,
+          typename LambdaRetType = std::invoke_result_t<Lambda, typename BezierPatch<T, 3>::PointType>>
+LambdaRetType evaluate_surface_integral(const axom::Array<BezierPatch<T, 3>>& patches,
+                                        Lambda&& integrand,
+                                        int npts)
+{
+  static_assert(detail::internal::is_integrable_v<T, LambdaRetType>,
+                "evaluate_integral methods require addition and scalar multiplication for lambda "
+                "function return type");
+
+  LambdaRetType total_integral = LambdaRetType {};
+  for(int i = 0; i < patches.size(); ++i)
+  {
+    total_integral += detail::evaluate_surface_integral_component(patches[i], integrand, npts);
+  }
+
+  return total_integral;
+}
+
+template <typename Lambda,
+          typename T,
+          typename LambdaRetType = std::invoke_result_t<Lambda, typename NURBSPatch<T, 3>::PointType>>
+LambdaRetType evaluate_surface_integral(const axom::Array<NURBSPatch<T, 3>>& patches,
+                                        Lambda&& integrand,
+                                        int npts_Q,
+                                        int npts_P = 0)
+{
+  static_assert(detail::internal::is_integrable_v<T, LambdaRetType>,
+                "evaluate_integral methods require addition and scalar multiplication for lambda "
+                "function return type");
+
+  if(npts_P <= 0)
+  {
+    npts_P = npts_Q;
+  }
+
+  LambdaRetType total_integral = LambdaRetType {};
+  for(int i = 0; i < patches.size(); ++i)
+  {
+    total_integral +=
+      detail::evaluate_surface_integral_component(patches[i], integrand, npts_Q, npts_P);
+  }
+
+  return total_integral;
+}
+//@}
+
+///@{
+/// \name Evaluates scalar-field volume integrals for functions f : R^3 -> R^m
+
+template <typename Lambda,
+          typename T,
+          typename LambdaRetType = std::invoke_result_t<Lambda, typename BezierPatch<T, 3>::PointType>>
+LambdaRetType evaluate_volume_integral(const primal::BezierPatch<T, 3>& patch,
+                                       Lambda&& integrand,
+                                       int npts_uv,
+                                       int npts_z = 0)
+{
+  static_assert(detail::internal::is_integrable_v<T, LambdaRetType>,
+                "evaluate_integral methods require addition and scalar multiplication for lambda "
+                "function return type");
+
+  if(npts_z <= 0)
+  {
+    npts_z = npts_uv;
+  }
+
+  return detail::evaluate_volume_integral_component(patch,
+                                                    std::forward<Lambda>(integrand),
+                                                    patch.boundingBox().getMin()[2],
+                                                    npts_uv,
+                                                    npts_z);
+}
+
+template <typename Lambda,
+          typename T,
+          typename LambdaRetType = std::invoke_result_t<Lambda, typename NURBSPatch<T, 3>::PointType>>
+LambdaRetType evaluate_volume_integral(const primal::NURBSPatch<T, 3>& patch,
+                                       Lambda&& integrand,
+                                       int npts_Q,
+                                       int npts_P = 0,
+                                       int npts_Z = 0)
+{
+  static_assert(detail::internal::is_integrable_v<T, LambdaRetType>,
+                "evaluate_integral methods require addition and scalar multiplication for lambda "
+                "function return type");
+
+  if(npts_P <= 0)
+  {
+    npts_P = npts_Q;
+  }
+  if(npts_Z <= 0)
+  {
+    npts_Z = npts_Q;
+  }
+
+  return detail::evaluate_volume_integral_component(patch,
+                                                    std::forward<Lambda>(integrand),
+                                                    patch.boundingBox().getMin()[2],
+                                                    npts_Q,
+                                                    npts_P,
+                                                    npts_Z);
+}
+
+template <typename Lambda,
+          typename T,
+          typename LambdaRetType = std::invoke_result_t<Lambda, typename BezierPatch<T, 3>::PointType>>
+LambdaRetType evaluate_volume_integral(const axom::Array<BezierPatch<T, 3>>& patches,
+                                       Lambda&& integrand,
+                                       int npts_uv,
+                                       int npts_z = 0)
+{
+  static_assert(detail::internal::is_integrable_v<T, LambdaRetType>,
+                "evaluate_integral methods require addition and scalar multiplication for lambda "
+                "function return type");
+
+  if(npts_z <= 0)
+  {
+    npts_z = npts_uv;
+  }
+
+  if(patches.empty())
+  {
+    return LambdaRetType {};
+  }
+
+  T lower_bound_z = patches[0].boundingBox().getMin()[2];
+  for(int i = 1; i < patches.size(); ++i)
+  {
+    lower_bound_z = axom::utilities::min(lower_bound_z, patches[i].boundingBox().getMin()[2]);
+  }
+
+  LambdaRetType total_integral = LambdaRetType {};
+  for(int i = 0; i < patches.size(); ++i)
+  {
+    total_integral +=
+      detail::evaluate_volume_integral_component(patches[i], integrand, lower_bound_z, npts_uv, npts_z);
+  }
+
+  return total_integral;
+}
+
+template <typename Lambda,
+          typename T,
+          typename LambdaRetType = std::invoke_result_t<Lambda, typename NURBSPatch<T, 3>::PointType>>
+LambdaRetType evaluate_volume_integral(const axom::Array<NURBSPatch<T, 3>>& patches,
+                                       Lambda&& integrand,
+                                       int npts_Q,
+                                       int npts_P = 0,
+                                       int npts_Z = 0)
+{
+  static_assert(detail::internal::is_integrable_v<T, LambdaRetType>,
+                "evaluate_integral methods require addition and scalar multiplication for lambda "
+                "function return type");
+
+  if(npts_P <= 0)
+  {
+    npts_P = npts_Q;
+  }
+  if(npts_Z <= 0)
+  {
+    npts_Z = npts_Q;
+  }
+
+  if(patches.empty())
+  {
+    return LambdaRetType {};
+  }
+
+  T lower_bound_z = patches[0].boundingBox().getMin()[2];
+  for(int i = 1; i < patches.size(); ++i)
+  {
+    lower_bound_z = axom::utilities::min(lower_bound_z, patches[i].boundingBox().getMin()[2]);
+  }
+
+  LambdaRetType total_integral = LambdaRetType {};
+  for(int i = 0; i < patches.size(); ++i)
+  {
+    total_integral += detail::evaluate_volume_integral_component(patches[i],
+                                                                 integrand,
+                                                                 lower_bound_z,
+                                                                 npts_Q,
+                                                                 npts_P,
+                                                                 npts_Z);
+  }
+
+  return total_integral;
+}
+//@}
+
 }  // namespace primal
 }  // end namespace axom
 
