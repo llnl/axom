@@ -21,6 +21,11 @@ namespace mint = axom::mint;
 namespace primal = axom::primal;
 namespace quest = axom::quest;
 
+// Enable code to apply test to larger files
+//  and check orientation of trimming curves
+//#define AXOM_TEST_EXPENSIVE_STEP
+//#define AXOM_TEST_PATCH_ORIENTATION
+
 //------------------------------------------------------------------------------
 std::string pjoin(const std::string& str) { return str; }
 
@@ -36,13 +41,6 @@ template <typename... Args>
 std::string pjoin(const char* str, Args... args)
 {
   return fs::joinPath(std::string(str), pjoin(args...));
-}
-
-//------------------------------------------------------------------------------
-bool isNearInteger(double value, double eps)
-{
-  const double nearest = std::round(value);
-  return std::abs(value - nearest) <= eps;
 }
 
 //------------------------------------------------------------------------------
@@ -80,10 +78,9 @@ struct MiniTriangleGWN3D
                   const axom::numerics::Matrix<double>& coords,
                   [[maybe_unused]] const axom::IndexType* nodeIds) {
         // clang-format off
-      trisView[cellIdx] =
-          Triangle3D {Point3D {(coords(0, 0) - ctr[0]) / scl, (coords(1, 0) - ctr[1]) / scl, (coords(2, 0) - ctr[2]) / scl},
-                      Point3D {(coords(0, 1) - ctr[0]) / scl, (coords(1, 1) - ctr[1]) / scl, (coords(2, 1) - ctr[2]) / scl},
-                      Point3D {(coords(0, 2) - ctr[0]) / scl, (coords(1, 2) - ctr[1]) / scl, (coords(2, 2) - ctr[2]) / scl}};
+        trisView[cellIdx] = Triangle3D {Point3D {(coords(0, 0) - ctr[0]) / scl, (coords(1, 0) - ctr[1]) / scl, (coords(2, 0) - ctr[2]) / scl},
+                                        Point3D {(coords(0, 1) - ctr[0]) / scl, (coords(1, 1) - ctr[1]) / scl, (coords(2, 1) - ctr[2]) / scl},
+                                        Point3D {(coords(0, 2) - ctr[0]) / scl, (coords(1, 2) - ctr[1]) / scl, (coords(2, 2) - ctr[2]) / scl}};
         // clang-format on
       });
   }
@@ -115,7 +112,7 @@ struct MiniTriangleGWN3D
 };
 
 //------------------------------------------------------------------------------
-void runSinglePatchTest(const axom::primal::NURBSPatch<double, 3>& patch, int idx)
+void testSinglePatchOrientation(const axom::primal::NURBSPatch<double, 3>& patch, int idx)
 {
   // This function evaluates the 2D GWN in the patch parameter space on a grid of points
   //  to verify that the value is near a nonnegative integer, i.e. the trimming curves
@@ -223,17 +220,17 @@ void runStepFileTest(const std::string& stepFile, double deflection = 0.1)
     EXPECT_NEAR(wn, std::round(wn), integer_eps);
   }
 
+#ifdef AXOM_TEST_PATCH_ORIENTATION
   // Applying this function uniformly to every patch in the surface can help point out
   //  some issues while debugging, but will also catch cases where trimming curves don't
-  //  form closed loops, which the STEPReader isn't expected to correct.
+  //  form closed loops, which the STEPReader isn't expected to handle or correct.
 
-  /*
   SLIC_INFO("-- Testing NURBS read through Patch GWN --");
   for(int i = 0; i < patches.size(); ++i)
   {
-    runSinglePatchTest(patches[i], i);
+    testSinglePatchOrientation(patches[i], i);
   }
-  */
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -244,10 +241,12 @@ TEST(quest_step_reader, test_nut) { runStepFileTest("nut.step"); }
 TEST(quest_step_reader, test_bearings) { runStepFileTest("bearings.step", 0.05); }
 TEST(quest_step_reader, test_bolt_clip) { runStepFileTest("bolt_clip.step"); }
 
+#ifdef AXOM_TEST_EXPENSIVE_STEP
 // These tests are more expensive and therefore should not be run in the main testing loop,
 //  but should still be checked if something changes in STEPReader.cpp
-//TEST(quest_step_reader, test_boxed_sphere) { runStepFileTest("boxed_sphere.step"); }
-//TEST(quest_step_reader, test_plate) { runStepFileTest("plate.step", 0.01); }
+TEST(quest_step_reader, test_boxed_sphere) { runStepFileTest("boxed_sphere.step"); }
+TEST(quest_step_reader, test_plate) { runStepFileTest("plate.step", 0.01); }
+#endif
 
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
