@@ -293,7 +293,7 @@ public:
         poly_mesh,
         AXOM_LAMBDA(axom::IndexType cellIdx,
                     const axom::numerics::Matrix<double>& coords,
-                    [[maybe_unused]] const axom::IndexType* nodeIds) {
+                    const axom::IndexType* /*nodeIds*/) {
           segments_view[cellIdx] =
             SegmentType {Point2D {coords(0, 0), coords(1, 0)}, Point2D {coords(0, 1), coords(1, 1)}};
         });
@@ -644,7 +644,7 @@ public:
         tri_mesh,
         AXOM_LAMBDA(axom::IndexType cellIdx,
                     const axom::numerics::Matrix<double>& coords,
-                    [[maybe_unused]] const axom::IndexType* nodeIds) {
+                    const axom::IndexType* /*nodeIds*/) {
           const auto& ctr = m_shape_center;
           const auto& scl = m_scale;
           triangles_view[cellIdx] = TriangleType {Point3D {(coords(0, 0) - ctr[0]) / scl,
