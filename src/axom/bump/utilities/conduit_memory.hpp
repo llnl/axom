@@ -62,6 +62,17 @@ inline axom::ArrayView<T> make_array_view(const conduit::Node &n)
 /// @}
 
 //------------------------------------------------------------------------------
+/*!
+ * \brief Returns whether the data pointer in the Conduit node appears to be
+ *        allocated on a device.
+ *
+ * \param n The node whose data we're checking for device allocation.
+ *
+ * \return True if the data looks device-allocated; false otherwise.
+ */
+bool isDeviceAllocated(const conduit::Node &n);
+
+//------------------------------------------------------------------------------
 namespace internal
 {
 /*!

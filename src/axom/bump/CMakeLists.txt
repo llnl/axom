@@ -123,6 +123,7 @@ set(bump_sources
     extraction/tables/cutting/CutCasesWedge.cpp
     data/MeshTester.cpp
     io/save.cpp
+    utilities/conduit_memory.cpp
     utilities/conduit_traits.cpp
     utilities/blueprint_utilities.cpp
     views/MaterialView.cpp
