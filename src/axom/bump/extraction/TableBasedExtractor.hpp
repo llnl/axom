@@ -807,6 +807,9 @@ public:
    */
   void setAllocatorID(int allocator_id)
   {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
     m_allocator_id = allocator_id;
     m_tableManager.setAllocatorID(allocator_id);
   }
