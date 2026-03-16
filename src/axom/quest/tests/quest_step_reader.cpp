@@ -117,10 +117,10 @@ struct MiniTriangleGWN3D
 //------------------------------------------------------------------------------
 void runSinglePatchTest(const axom::primal::NURBSPatch<double, 3>& patch, int idx)
 {
-  // This function evaluates the 2D GWN in the patch parameter space on a grid of points 
+  // This function evaluates the 2D GWN in the patch parameter space on a grid of points
   //  to verify that the value is near a nonnegative integer, i.e. the trimming curves
   //  form closed, CCW oriented loops
- 
+
   constexpr int npts = 10;
   double u_pts[npts], v_pts[npts];
   axom::numerics::linspace(patch.getMinKnot_u() - 0.11, patch.getMaxKnot_u() + 0.102, u_pts, npts);
@@ -242,11 +242,12 @@ TEST(quest_step_reader, test_tet) { runStepFileTest("tet.step"); }
 TEST(quest_step_reader, test_cylinder) { runStepFileTest("sliced_cylinder.step"); }
 TEST(quest_step_reader, test_nut) { runStepFileTest("nut.step"); }
 TEST(quest_step_reader, test_bearings) { runStepFileTest("bearings.step", 0.05); }
+TEST(quest_step_reader, test_bolt_clip) { runStepFileTest("bolt_clip.step"); }
 
 // These tests are more expensive and therefore should not be run in the main testing loop,
 //  but should still be checked if something changes in STEPReader.cpp
-TEST(quest_step_reader, test_boxed_sphere) { runStepFileTest("boxed_sphere.step"); }
-TEST(quest_step_reader, test_plate) { runStepFileTest("plate.step", 0.01); }
+//TEST(quest_step_reader, test_boxed_sphere) { runStepFileTest("boxed_sphere.step"); }
+//TEST(quest_step_reader, test_plate) { runStepFileTest("plate.step", 0.01); }
 
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
