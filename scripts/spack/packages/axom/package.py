@@ -39,15 +39,20 @@ _AXOM_COMPONENTS = (
 from spack.package import *
 
 
-def get_spec_path(spec, package_name, path_replacements={}, use_bin=False):
+def get_spec_path(spec, package_name, path_replacements={}, use_bin=False, use_lib=False):
     """Extracts the prefix path for the given spack package
     path_replacements is a dictionary with string replacements for the path.
     """
 
-    if not use_bin:
-        path = spec[package_name].prefix
-    else:
+    if use_bin and use_lib:
+        raise ValueError("Only one of use_bin or use_lib can be True")
+
+    if use_bin:
         path = spec[package_name].prefix.bin
+    elif use_lib:
+        path = spec[package_name].prefix.lib
+    else:
+        path = spec[package_name].prefix
 
     path = os.path.realpath(path)
 
@@ -180,9 +185,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             depends_on("conduit+{0}".format(_var), when="+{0}".format(_var))
             depends_on("conduit~{0}".format(_var), when="~{0}".format(_var))
 
-        depends_on("conduit+python", when="+devtools")
-        depends_on("conduit~python", when="~devtools")
-
     depends_on("hdf5", when="+hdf5")
 
     depends_on("lua", when="+lua")
@@ -229,14 +231,14 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         ext_cuda_dep = f"+cuda cuda_arch={val}"
         depends_on(f"raja {ext_cuda_dep}", when=f"+raja {ext_cuda_dep}")
         depends_on(f"umpire {ext_cuda_dep}", when=f"+umpire {ext_cuda_dep}")
-        depends_on(f"caliper {ext_cuda_dep}", when=f"^caliper {ext_cuda_dep}")
+        depends_on(f"caliper {ext_cuda_dep}", when=f"{ext_cuda_dep} ^caliper")
         depends_on(f"mfem {ext_cuda_dep}", when=f"+mfem {ext_cuda_dep}")
 
     for val in ROCmPackage.amdgpu_targets:
         ext_rocm_dep = f"+rocm amdgpu_target={val}"
         depends_on(f"raja {ext_rocm_dep}", when=f"+raja {ext_rocm_dep}")
         depends_on(f"umpire {ext_rocm_dep}", when=f"+umpire {ext_rocm_dep}")
-        depends_on(f"caliper {ext_rocm_dep}", when=f"^caliper {ext_rocm_dep}")
+        depends_on(f"caliper {ext_rocm_dep}", when=f"{ext_rocm_dep} ^caliper")
         depends_on(f"mfem {ext_rocm_dep}", when=f"+mfem {ext_rocm_dep}")
 
     depends_on("rocprim", when="+rocm")
@@ -251,6 +253,13 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     depends_on("python", when="+python")
 
+    # Python
+    with when("+python"):
+        depends_on("py-nanobind@2.7.0")
+        depends_on("py-pytest")
+        depends_on("py-numpy")
+        depends_on("conduit+python")
+
     # Devtools
     with when("+devtools"):
         depends_on("cppcheck")
@@ -259,8 +268,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("python")
         depends_on("py-sphinx")
         depends_on("py-shroud")
-        depends_on("py-pytest")
         depends_on("py-jsonschema")
+        depends_on("py-yapf")
 
         # Need clang@19 for clang-format
         # (ENABLE_CLANGFORMAT will be OFF if not the exact version)
@@ -655,7 +664,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         ##################################
 
         entries.append("#------------------{0}".format("-" * 60))
-        entries.append("# Devtools")
+        entries.append("# Devtools & Python")
         entries.append("#------------------{0}\n".format("-" * 60))
 
         # Add common prefix to path replacement list
@@ -673,6 +682,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             entries.append(cmake_cache_option("ENABLE_CLANGFORMAT", False))
 
         if spec.satisfies("+python") or spec.satisfies("+devtools"):
+            # Get path to python executable
             python_bin_dir = get_spec_path(spec, "python", path_replacements, use_bin=True)
             entries.append(cmake_cache_path("Python_EXECUTABLE", pjoin(python_bin_dir, "python3")))
 
@@ -690,6 +700,12 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 cmake_cache_path("SPHINX_EXECUTABLE", pjoin(sphinx_bin_dir, "sphinx-build"))
             )
 
+        if spec.satisfies("^py-yapf"):
+            yapf_bin_dir = get_spec_path(spec, "py-yapf", path_replacements, use_bin=True)
+            entries.append(
+                cmake_cache_path("YAPF_EXECUTABLE", pjoin(yapf_bin_dir, "yapf"))
+            )
+
         if spec.satisfies("^py-shroud"):
             shroud_bin_dir = get_spec_path(spec, "py-shroud", path_replacements, use_bin=True)
             entries.append(cmake_cache_path("SHROUD_EXECUTABLE", pjoin(shroud_bin_dir, "shroud")))
@@ -700,6 +716,14 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 entries.append(
                     cmake_cache_path("%s_EXECUTABLE" % dep.upper(), pjoin(dep_bin_dir, dep))
                 )
+
+        if spec.satisfies("+python"):
+            # pytest requires pluggy and iniconfig
+            for dep in ("py-nanobind", "py-pytest", "py-numpy", "py-pluggy", "py-iniconfig"):
+                if spec.satisfies("^{0}".format(dep)):
+                    dep_dir = get_spec_path(spec, dep, path_replacements, use_lib=True)
+                    py_libdir = join_path(dep_dir, f"python{spec['python'].version.up_to(2)}", "site-packages")
+                    entries.append(cmake_cache_path("%s_DIR" % dep.upper().replace("-", "_"), py_libdir))
 
         return entries
 

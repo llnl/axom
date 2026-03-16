@@ -20,9 +20,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ### Added
 - Lumberjack: Adds optional virtual function `isMessageCandidateForCombiner()` to the Combiner class that checks if a single given Message is a candidate for the Combiner (returns true by default).
+- Sidre: Added Conduit Node to the Python interface.
+- Adds yapf as a Python formatter.
 
 ### Changed
 - Primal: Axom's polygon clipping was modified to handle some corner cases.
+- Uberenv's spack updated to v1.1.1
+- `radiuss-spack-configs` submodule removed.
 
 ### Fixed
 - Primal: Fixed `NURBSPatch::evaluateDerivatives` returning a matrix with empty values. The old behavior 

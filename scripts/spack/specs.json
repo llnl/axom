@@ -15,31 +15,34 @@
     "__comment__":"##############################################################################",
 
     "__comment__":"# mfem disabled for intel (icpx compiler error)",
+    "__comment__":"# python disabled for intel (mixed compiler conduit/caliper MPI spack compiler error)",
     "__comment__":"# Configs are for dane/rzwhippet",
+    "__comment__":"# Order matters - if ~python spec is built last this removes view of python",
     "toss_4_x86_64_ib":
-    [ "+devtools+hdf5+mfem+c2c+scr+adiak+caliper %gcc_13",
-      "+devtools+hdf5+mfem+c2c+scr+adiak+caliper+opencascade %clang_19",
-      "+devtools+hdf5~mfem+c2c+adiak+caliper %intel_25" ],
+    [ "~python+devtools+hdf5~mfem+c2c+adiak+caliper %intel_25",
+      "+python+devtools+hdf5+mfem+c2c+scr+adiak+caliper %gcc_13",
+      "+python+devtools+hdf5+mfem+c2c+scr+adiak+caliper+opencascade %clang_19"],
 
     "__comment__":"# Configs are for rzvector",
     "rzvector":
-    [ "+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %gcc_13",
-      "+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %clang_19"],
+    [ "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %gcc_13",
+      "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %clang_19"],
 
     "__comment__":"# Configs are for matrix",
     "matrix":
-    [ "+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %gcc_13",
-      "+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %clang_19"],
+    [ "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %gcc_13",
+      "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %clang_19"],
 
     "__comment__":"# Use amdgpu_target=gfx942 for rzadams",
     "__comment__":"# Use amdgpu_target=gfx90a for tioga/rzvernal",
     "__comment__":"# Use amdgpu_target=gfx908 for rznevada",
     "__comment__":"# -Wno-int-conversion flag needed for building HDF5",
+    "__comment__":"# caliper disabled for rocm@6.3.1, fails to compile",
     "toss_4_x86_64_ib_cray":
-    [ "+devtools~openmp+mfem+c2c+adiak+caliper+rocm amdgpu_target=gfx942,gfx90a %rocm_6_4_2 ^hip@6.4.2 ^hipblas@6.4.2 ^hipsparse@6.4.2 ^hsa-rocr-dev@6.4.2 ^rocprim@6.4.2 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
-      "+devtools~openmp+mfem+c2c+adiak+caliper+rocm amdgpu_target=gfx942,gfx90a %rocm_6_3_1 ^hip@6.3.1 ^hipblas@6.3.1 ^hipsparse@6.3.1 ^hsa-rocr-dev@6.3.1 ^rocprim@6.3.1 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
-      "+devtools~openmp+mfem+c2c+adiak+caliper+rocm amdgpu_target=gfx942,gfx90a %cce_20 ^hip@6.4.2 ^hipblas@6.4.2 ^hipsparse@6.4.2 ^hsa-rocr-dev@6.4.2  ^rocprim@6.4.2 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion" ],
+    [ "+python+devtools~openmp+mfem+c2c+adiak+caliper+rocm amdgpu_target=gfx942,gfx90a %rocm_6_4_3 ^hip@6.4.3 ^hipblas@6.4.3 ^hipsparse@6.4.3 ^hsa-rocr-dev@6.4.3 ^rocprim@6.4.3 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
+      "+python+devtools~openmp+mfem+c2c+adiak~caliper+rocm amdgpu_target=gfx942,gfx90a %rocm_6_3_1 ^hip@6.3.1 ^hipblas@6.3.1 ^hipsparse@6.3.1 ^hsa-rocr-dev@6.3.1 ^rocprim@6.3.1 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
+      "+python+devtools~openmp+mfem+c2c+adiak+caliper+rocm amdgpu_target=gfx942,gfx90a %cce_20 ^hip@6.4.3 ^hipblas@6.4.3 ^hipsparse@6.4.3 ^hsa-rocr-dev@6.4.3  ^rocprim@6.4.3 ^caliper~shared ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion" ],
 
     "darwin-x86_64":
-    [ "clang@9.0.0+devtools+mfem" ]
+    [ "+python+devtools+mfem %clang@9.0.0" ]
 }

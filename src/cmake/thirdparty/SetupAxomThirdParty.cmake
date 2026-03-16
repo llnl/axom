@@ -311,19 +311,55 @@ if(EXISTS ${Python_EXECUTABLE})
     message(STATUS "Python include dir: ${Python_INCLUDE_DIRS}")
     message(STATUS "Python library: ${Python_LIBRARIES}")
 
-    # Check for nanobind package
+    # Check for just nanobind package
     execute_process(
-        COMMAND "${Python_EXECUTABLE}" -c "import nanobind"
-        RESULT_VARIABLE NANOBIND_IMPORT_CODE
-        OUTPUT_QUIET
+      COMMAND "${CMAKE_COMMAND}" -E env
+              "PYTHONPATH=$ENV{PYTHONPATH}:${PY_NANOBIND_DIR}"
+              "${Python_EXECUTABLE}" -c "import nanobind"
+      RESULT_VARIABLE NANOBIND_IMPORT_CODE
+      OUTPUT_QUIET
     )
 
     # Get nanobind root directory
     if(NANOBIND_IMPORT_CODE EQUAL 0)
         execute_process(
-          COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
-          OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+          COMMAND "${CMAKE_COMMAND}" -E env
+                  "PYTHONPATH=$ENV{PYTHONPATH}:${PY_NANOBIND_DIR}"
+                  "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+          OUTPUT_VARIABLE nanobind_ROOT
+          OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
     endif()
+
+    # Check if python environment potentially contains all
+    # required dependencies
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E env
+              "${Python_EXECUTABLE}" -c "import nanobind, conduit, numpy, pytest"
+      RESULT_VARIABLE PY_ENV_IMPORT_CODE
+      OUTPUT_QUIET
+      ERROR_QUIET
+    )
+endif()
+
+# If python environment does not contain required modules, check if
+# library installation paths were provided instead.
+if((NOT PY_ENV_IMPORT_CODE EQUAL 0)
+   AND
+   nanobind_ROOT
+   AND
+   (NOT PY_NANOBIND_DIR
+   OR NOT CONDUIT_PYTHON_MODULE_DIR
+   OR NOT PY_NUMPY_DIR
+   OR NOT PY_PYTEST_DIR
+   OR NOT PY_PLUGGY_DIR
+   OR NOT PY_INICONFIG_DIR))
+    message(FATAL_ERROR
+      "Axom's python extensions require nanobind, numpy, pytest, and conduit."
+      "\nThe python library installation paths "
+      "(and pytest's dependencies pluggy and iniconfig) "
+      "can be specified with CMake variables: "
+      "PY_NANOBIND_DIR, CONDUIT_PYTHON_MODULE_DIR, PY_NUMPY_DIR, PY_PYTEST_DIR, PY_PLUGGY_DIR, PY_INICONFIG_DIR ")
 endif()
 
 # "cannot allocate memory in static TLS block" on blueos with cuda and/or clang.
