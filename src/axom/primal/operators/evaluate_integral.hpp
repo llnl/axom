@@ -377,6 +377,17 @@ LambdaRetType evaluate_area_integral(const axom::Array<CurveType>& carray,
 ///@{
 /// \name Evaluates scalar-field surface integrals for functions f : R^3 -> R^m
 
+/*!
+ * \brief Evaluate a scalar surface integral on a single Bezier patch.
+ *
+ * Uses tensor-product Gauss-Legendre quadrature in the patch parameter space.
+ *
+ * \param [in] patch the Bezier patch
+ * \param [in] integrand callable representing the integrand
+ * \param [in] npts the number of quadrature points in each parametric direction
+ *
+ * \pre The patch parameterization must be valid on its full parameter domain.
+ */
 template <typename Lambda,
           typename T,
           typename LambdaRetType = std::invoke_result_t<Lambda, typename BezierPatch<T, 3>::PointType>>
@@ -391,6 +402,24 @@ LambdaRetType evaluate_surface_integral(const primal::BezierPatch<T, 3>& patch,
   return detail::evaluate_surface_integral_component(patch, std::forward<Lambda>(integrand), npts);
 }
 
+/*!
+ * \brief Evaluate a scalar surface integral on a single NURBS patch.
+ *
+ * Untrimmed patches are integrated by Bezier extraction followed by tensor-product
+ * Gauss-Legendre quadrature. Trimmed patches are integrated by reducing the
+ * parameter-space area integral to line integrals over the trimming curves.
+ *
+ * \param [in] patch the NURBS patch
+ * \param [in] integrand callable representing the integrand
+ * \param [in] npts_Q the number of quadrature points on each trimming curve or
+ *                    in each parametric direction for untrimmed Bezier pieces
+ * \param [in] npts_P the number of quadrature points used for numerical
+ *                    antidifferentiation in parameter space
+ *
+ * \pre The patch parameterization must be valid on its full parameter domain.
+ * \pre If the patch is trimmed, its trimming curves must bound the intended
+ *      interior region in parameter space.
+ */
 template <typename Lambda,
           typename T,
           typename LambdaRetType = std::invoke_result_t<Lambda, typename NURBSPatch<T, 3>::PointType>>
@@ -414,6 +443,17 @@ LambdaRetType evaluate_surface_integral(const primal::NURBSPatch<T, 3>& patch,
                                                      npts_P);
 }
 
+/*!
+ * \brief Evaluate a scalar surface integral on a collection of Bezier patches.
+ *
+ * The result is the sum of the surface integrals over each patch in the array.
+ *
+ * \param [in] patches the patch collection
+ * \param [in] integrand callable representing the integrand
+ * \param [in] npts the number of quadrature points in each parametric direction
+ *
+ * \pre Each patch parameterization must be valid on its full parameter domain.
+ */
 template <typename Lambda,
           typename T,
           typename LambdaRetType = std::invoke_result_t<Lambda, typename BezierPatch<T, 3>::PointType>>
@@ -434,6 +474,22 @@ LambdaRetType evaluate_surface_integral(const axom::Array<BezierPatch<T, 3>>& pa
   return total_integral;
 }
 
+/*!
+ * \brief Evaluate a scalar surface integral on a collection of NURBS patches.
+ *
+ * The result is the sum of the surface integrals over each patch in the array.
+ *
+ * \param [in] patches the patch collection
+ * \param [in] integrand callable representing the integrand
+ * \param [in] npts_Q the number of quadrature points on each trimming curve or
+ *                    in each parametric direction for untrimmed Bezier pieces
+ * \param [in] npts_P the number of quadrature points used for numerical
+ *                    antidifferentiation in parameter space
+ *
+ * \pre Each patch parameterization must be valid on its full parameter domain.
+ * \pre Any trimmed patch in the array must have trimming curves that bound its
+ *      intended interior region in parameter space.
+ */
 template <typename Lambda,
           typename T,
           typename LambdaRetType = std::invoke_result_t<Lambda, typename NURBSPatch<T, 3>::PointType>>
@@ -465,6 +521,22 @@ LambdaRetType evaluate_surface_integral(const axom::Array<NURBSPatch<T, 3>>& pat
 ///@{
 /// \name Evaluates scalar-field volume integrals for functions f : R^3 -> R^m
 
+/*!
+ * \brief Evaluate a scalar volume-integral contribution from a single Bezier patch.
+ *
+ * This applies the Stokes-based reduction used for the full volume algorithm to
+ * one patch using a z-directed numerical antiderivative.
+ *
+ * \param [in] patch the Bezier patch
+ * \param [in] integrand callable representing the integrand
+ * \param [in] npts_uv the number of quadrature points in each patch parameter direction
+ * \param [in] npts_z the number of quadrature points used for numerical
+ *                    antidifferentiation in z
+ *
+ * \pre The patch parameterization must be valid on its full parameter domain.
+ * \pre The returned value is geometrically meaningful as a volume only when this
+ *      patch is interpreted as part of a closed, consistently oriented boundary.
+ */
 template <typename Lambda,
           typename T,
           typename LambdaRetType = std::invoke_result_t<Lambda, typename BezierPatch<T, 3>::PointType>>
@@ -489,6 +561,28 @@ LambdaRetType evaluate_volume_integral(const primal::BezierPatch<T, 3>& patch,
                                                     npts_z);
 }
 
+/*!
+ * \brief Evaluate a scalar volume-integral contribution from a single NURBS patch.
+ *
+ * Trimmed patches use the same Green/Stokes reduction as the surface-integral
+ * algorithm, combined with a z-directed numerical antiderivative for the volume
+ * reduction.
+ *
+ * \param [in] patch the NURBS patch
+ * \param [in] integrand callable representing the integrand
+ * \param [in] npts_Q the number of quadrature points on each trimming curve or
+ *                    in each parametric direction for untrimmed Bezier pieces
+ * \param [in] npts_P the number of quadrature points used for numerical
+ *                    antidifferentiation in parameter space
+ * \param [in] npts_Z the number of quadrature points used for numerical
+ *                    antidifferentiation in z
+ *
+ * \pre The patch parameterization must be valid on its full parameter domain.
+ * \pre If the patch is trimmed, its trimming curves must bound the intended
+ *      interior region in parameter space.
+ * \pre The returned value is geometrically meaningful as a volume only when this
+ *      patch is interpreted as part of a closed, consistently oriented boundary.
+ */
 template <typename Lambda,
           typename T,
           typename LambdaRetType = std::invoke_result_t<Lambda, typename NURBSPatch<T, 3>::PointType>>
@@ -519,6 +613,22 @@ LambdaRetType evaluate_volume_integral(const primal::NURBSPatch<T, 3>& patch,
                                                     npts_Z);
 }
 
+/*!
+ * \brief Evaluate a scalar volume integral over a collection of Bezier patches.
+ *
+ * The result is obtained by summing the Stokes-based contribution from each
+ * patch in the collection.
+ *
+ * \param [in] patches the patch collection
+ * \param [in] integrand callable representing the integrand
+ * \param [in] npts_uv the number of quadrature points in each patch parameter direction
+ * \param [in] npts_z the number of quadrature points used for numerical
+ *                    antidifferentiation in z
+ *
+ * \pre Each patch parameterization must be valid on its full parameter domain.
+ * \pre The patch collection must represent a closed, consistently oriented
+ *      boundary of the target volume.
+ */
 template <typename Lambda,
           typename T,
           typename LambdaRetType = std::invoke_result_t<Lambda, typename BezierPatch<T, 3>::PointType>>
@@ -557,6 +667,27 @@ LambdaRetType evaluate_volume_integral(const axom::Array<BezierPatch<T, 3>>& pat
   return total_integral;
 }
 
+/*!
+ * \brief Evaluate a scalar volume integral over a collection of NURBS patches.
+ *
+ * The result is obtained by summing the Stokes-based contribution from each
+ * patch in the collection.
+ *
+ * \param [in] patches the patch collection
+ * \param [in] integrand callable representing the integrand
+ * \param [in] npts_Q the number of quadrature points on each trimming curve or
+ *                    in each parametric direction for untrimmed Bezier pieces
+ * \param [in] npts_P the number of quadrature points used for numerical
+ *                    antidifferentiation in parameter space
+ * \param [in] npts_Z the number of quadrature points used for numerical
+ *                    antidifferentiation in z
+ *
+ * \pre Each patch parameterization must be valid on its full parameter domain.
+ * \pre Any trimmed patch in the array must have trimming curves that bound its
+ *      intended interior region in parameter space.
+ * \pre The patch collection must represent a closed, consistently oriented
+ *      boundary of the target volume.
+ */
 template <typename Lambda,
           typename T,
           typename LambdaRetType = std::invoke_result_t<Lambda, typename NURBSPatch<T, 3>::PointType>>
