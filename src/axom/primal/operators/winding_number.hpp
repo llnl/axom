@@ -373,7 +373,7 @@ double winding_number(const Point<T, 2>& query,
  */
 template <typename T>
 axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
-                                   const axom::Array<detail::NURBSCurveGWNCache<T>>& nurbs_curve_arr,
+                                   const axom::Array<detail::NURBSCurveGWNCache<T>>& nurbs_cache_arr,
                                    double edge_tol = 1e-8,
                                    double EPS = 1e-8)
 {
@@ -383,13 +383,19 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
   {
     ret_val[n] = 0.0;
 
-    for(int i = 0; i < nurbs_curve_arr.size(); ++i)
+    for(int i = 0; i < nurbs_cache_arr.size(); ++i)
     {
-      ret_val[n] += detail::bezier_winding_number_memoized(query_arr[n],
-                                                           nurbs_curve_arr[i],
-                                                           dummy_isOnCurve,
-                                                           edge_tol,
-                                                           EPS);
+      for(int k = 0; k < nurbs_cache_arr[i].getNumKnotSpans(); ++k)
+      {
+        ret_val[n] += detail::bezier_winding_number_memoized(query_arr[n],
+                                                             nurbs_cache_arr[i],
+                                                             k,
+                                                             0,
+                                                             0,
+                                                             dummy_isOnCurve,
+                                                             edge_tol,
+                                                             EPS);
+      }
     }
   }
 

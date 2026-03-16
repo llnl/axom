@@ -115,6 +115,38 @@ struct MiniTriangleGWN3D
 };
 
 //------------------------------------------------------------------------------
+void runSinglePatchTest(const axom::primal::NURBSPatch<double, 3>& patch, int idx)
+{
+  // This function evaluates the 2D GWN in the patch parameter space on a grid of points 
+  //  to verify that the value is near a nonnegative integer, i.e. the trimming curves
+  //  form closed, CCW oriented loops
+ 
+  constexpr int npts = 10;
+  double u_pts[npts], v_pts[npts];
+  axom::numerics::linspace(patch.getMinKnot_u() - 0.11, patch.getMaxKnot_u() + 0.102, u_pts, npts);
+  axom::numerics::linspace(patch.getMinKnot_v() - 0.12, patch.getMaxKnot_v() + 0.101, v_pts, npts);
+
+  axom::Array<axom::primal::Point<double, 2>> query_arr;
+  for(auto u : u_pts)
+  {
+    for(auto v : v_pts)
+    {
+      query_arr.push_back(axom::primal::Point<double, 2> {u, v});
+    }
+  }
+
+  auto gwn_arr = axom::primal::winding_number(query_arr, patch.getTrimmingCurves());
+
+  constexpr double integer_eps = 1e-3;
+  for(auto wn : gwn_arr)
+  {
+    EXPECT_NEAR(wn, std::round(wn), integer_eps)
+      << axom::fmt::format("Patch {} has GWN not near integers\n", idx);
+    EXPECT_GE(std::round(wn), 0) << axom::fmt::format("Patch {} has GWN not near integers\n", idx);
+  }
+}
+
+//------------------------------------------------------------------------------
 void runStepFileTest(const std::string& stepFile, double deflection = 0.1)
 {
   const std::string fileName = pjoin(AXOM_DATA_DIR, "quest", "step", stepFile);
@@ -144,11 +176,11 @@ void runStepFileTest(const std::string& stepFile, double deflection = 0.1)
   const auto bboxDiag = bboxMax.array() - bboxMin.array();
 
   axom::Array<primal::Point<double, 3>> query_arr;
-  for(const double fx : {0.11, 0.251, 0.51, 0.751, 0.91})
+  for(const double fx : {0.11, 0.251, 0.52, 0.731, 0.91})
   {
-    for(const double fy : {0.11, 0.251, 0.51, 0.751, 0.91})
+    for(const double fy : {0.09, 0.249, 0.51, 0.75, 0.81})
     {
-      for(const double fz : {0.11, 0.251, 0.51, 0.751, 0.91})
+      for(const double fz : {0.105, 0.25, 0.5, 0.751, 0.901})
       {
         query_arr.push_back(primal::Point<double, 3>({bboxMin[0] + fx * bboxDiag[0],
                                                       bboxMin[1] + fy * bboxDiag[1],
@@ -190,6 +222,18 @@ void runStepFileTest(const std::string& stepFile, double deflection = 0.1)
     const double wn = tri_gwn_arr[i];
     EXPECT_NEAR(wn, std::round(wn), integer_eps);
   }
+
+  // Applying this function uniformly to every patch in the surface can help point out
+  //  some issues while debugging, but will also catch cases where trimming curves don't
+  //  form closed loops, which the STEPReader isn't expected to correct.
+
+  /*
+  SLIC_INFO("-- Testing NURBS read through Patch GWN --");
+  for(int i = 0; i < patches.size(); ++i)
+  {
+    runSinglePatchTest(patches[i], i);
+  }
+  */
 }
 
 //------------------------------------------------------------------------------
@@ -202,7 +246,7 @@ TEST(quest_step_reader, test_bearings) { runStepFileTest("bearings.step", 0.05);
 // These tests are more expensive and therefore should not be run in the main testing loop,
 //  but should still be checked if something changes in STEPReader.cpp
 TEST(quest_step_reader, test_boxed_sphere) { runStepFileTest("boxed_sphere.step"); }
-TEST(quest_step_reader, test_brace) { runStepFileTest("plate.step", 0.01); }
+TEST(quest_step_reader, test_plate) { runStepFileTest("plate.step", 0.01); }
 
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
