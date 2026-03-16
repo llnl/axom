@@ -55,8 +55,7 @@ if (“${PROJECT_SOURCE_DIR}” STREQUAL “${CMAKE_SOURCE_DIR}”)
         VALGRIND
         ASTYLE
         CMAKEFORMAT
-        UNCRUSTIFY
-        YAPF)
+        UNCRUSTIFY)
     foreach(_tool ${_unused_blt_tools})
         set(ENABLE_${_tool} OFF CACHE BOOL "")
     endforeach()
@@ -69,7 +68,8 @@ if (“${PROJECT_SOURCE_DIR}” STREQUAL “${CMAKE_SOURCE_DIR}”)
         CLANGAPPLYREPLACEMENTS
         CPPCHECK
         DOXYGEN
-        SPHINX)
+        SPHINX
+        YAPF)
     foreach(_tool ${_used_blt_tools})
         if(NOT ${_tool}_EXECUTABLE)
             set(ENABLE_${_tool} OFF CACHE BOOL "")
@@ -79,6 +79,7 @@ if (“${PROJECT_SOURCE_DIR}” STREQUAL “${CMAKE_SOURCE_DIR}”)
     endforeach()
 
     set(BLT_REQUIRED_CLANGFORMAT_VERSION  "19" CACHE STRING "")
+    set(BLT_REQUIRED_YAPF_VERSION  "0.43.0" CACHE STRING "")
     configure_file(${CMAKE_CURRENT_SOURCE_DIR}/.clang-tidy 
                    ${CMAKE_CURRENT_BINARY_DIR}/.clang-tidy
                    COPYONLY)

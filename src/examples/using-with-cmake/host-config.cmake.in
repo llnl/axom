@@ -49,6 +49,7 @@ endif()
 set(ENABLE_HIP                @ENABLE_HIP@                  CACHE BOOL "")
 
 if(ENABLE_HIP)
+  set(CMAKE_PREFIX_PATH         "@ROCM_PATH@"                 CACHE STRING "")
   set(CMAKE_HIP_COMPILER        "@CMAKE_HIP_COMPILER@"        CACHE PATH "")
   set(ROCM_PATH                 "@ROCM_PATH@"                 CACHE PATH "")
   set(ROCM_ROOT_DIR             "@ROCM_ROOT_DIR@"             CACHE PATH "")
