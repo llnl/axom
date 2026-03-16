@@ -95,12 +95,16 @@ void copyImpl(conduit::Node &dest,
     const bool srcDataOnDevice =
       (srcAllocatorID == INVALID_ALLOCATOR_ID) ? false : isDeviceAllocator(srcAllocatorID);
     const bool deviceInvolved = srcDataOnDevice || destAllocatorForDevice;
-
-    if(deviceInvolved || (!src.dtype().is_string() && src.dtype().number_of_elements() > 1))
+    const bool isArray = (!src.dtype().is_string() && src.dtype().number_of_elements() > 1);
+    if(deviceInvolved || isArray)
     {
       // Allocate the node's memory in the right place.
       dest.reset();
-      dest.set_allocator(axom::sidre::ConduitMemory::axomAllocIdToConduit(destAllocatorID));
+      if(isArray)
+      {
+        // Just set the allocator for array data. Otherwise not setting makes it in host memory.
+        dest.set_allocator(axom::sidre::ConduitMemory::axomAllocIdToConduit(destAllocatorID));
+      }
       dest.set(conduit::DataType(src.dtype().id(), src.dtype().number_of_elements()));
 
       // Copy the data to the destination node. Axom uses Umpire to manage that.
