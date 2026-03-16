@@ -22,6 +22,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Lumberjack: Adds optional virtual function `isMessageCandidateForCombiner()` to the Combiner class that checks if a single given Message is a candidate for the Combiner (returns true by default).
 - Sidre: Added Conduit Node to the Python interface.
 - Adds yapf as a Python formatter.
+- Quest: Adds fast GWN methods for STL/Triangulated STEP input and linearized NURBS Curve input which leverage error-controlled approximation and a spatial index (BVH).
 
 ### Changed
 - Primal: Axom's polygon clipping was modified to handle some corner cases.
