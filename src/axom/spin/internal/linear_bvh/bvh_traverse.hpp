@@ -33,7 +33,10 @@ namespace internal
  * \sa quest::fast_approximate_winding_number
  */
 template <typename InBinCheck, typename PointType, typename BoxType, typename IndexType>
-inline bool invoke_InBinCheck(InBinCheck&& B, PointType&& p, BoxType&& bvhBox, IndexType&& node_idx)
+AXOM_HOST_DEVICE inline bool invoke_InBinCheck(InBinCheck&& B,
+                                               PointType&& p,
+                                               BoxType&& bvhBox,
+                                               IndexType&& node_idx)
 {
   // Case 1: InBinCheck is invokable as B( p, bvhBox, node_idx )
   if constexpr(std::is_invocable_v<InBinCheck, PointType, BoxType, IndexType>)
