@@ -10,4 +10,4 @@
 ## Convenience script that runs python interpreter with Axom extension(s) in
 ## the PYTHONPATH.
 ##-----------------------------------------------------------------------------
-env PYTHONPATH=$PYTHONPATH:@_PYEXT_DIR@ @Python_EXECUTABLE@ "$@"
+env PYTHONPATH=@_PYEXT_DIR@:@CONDUIT_PYTHON_MODULE_DIR@:@PY_NANOBIND_DIR@:@PY_NUMPY_DIR@:@PY_PYTEST_DIR@:@PY_PLUGGY_DIR@:@PY_INICONFIG_DIR@:$PYTHONPATH @Python_EXECUTABLE@ "$@"

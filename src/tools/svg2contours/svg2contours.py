@@ -6,7 +6,6 @@
 # files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
-
 """
  file: svg2contours.py
 
@@ -247,7 +246,7 @@ def dist_to_ellipse(center, radius, angle, pt):
 
     rot = np.exp(-1j * np.radians(angle))
     transformed_pt = rot * complex(pt.real - cx, pt.imag - cy)
-    return transformed_pt.real**2 / rx**2 + transformed_pt.imag**2 / ry**2 - 1
+    return transformed_pt.real ** 2 / rx ** 2 + transformed_pt.imag ** 2 / ry ** 2 - 1
 
 
 class MFEMData:
@@ -277,30 +276,30 @@ class MFEMData:
         self.knots.append("3 4 0 0 0 0 1 1 1 1")
         self.wgts_ends.append(f"{weights[0]} {weights[3]}")
         self.wgts_ints.append(f"{weights[2]} {weights[1]}")
-        self.dof_ends.append(" ".join(map(str, [cubic.start.real, cubic.start.imag, cubic.end.real, cubic.end.imag])))
-        self.dof_ints.append(
-            " ".join(map(str, [cubic.control2.real, cubic.control2.imag, cubic.control1.real, cubic.control1.imag]))
-        )
+        self.dof_ends.append(" ".join(
+            map(str, [cubic.start.real, cubic.start.imag, cubic.end.real, cubic.end.imag])))
+        self.dof_ints.append(" ".join(
+            map(str, [
+                cubic.control2.real, cubic.control2.imag, cubic.control1.real, cubic.control1.imag
+            ])))
 
     def write_file(self, filename):
         mfem_file = []
 
-        mfem_file.extend(
-            [
-                "MFEM NURBS mesh v1.0",
-                "",
-                "# MFEM Geometry Types (see fem/geom.hpp):",
-                "#",
-                "# SEGMENT = 1 | SQUARE = 3 | CUBE = 5",
-                "#",
-                "# element: <attr> 1 <v0> <v1>",
-                "# edge: <idx++> 0 1  <-- idx increases by one each time",
-                "# knotvector: <order> <num_ctrl_pts> [knots]; sizeof(knots) is 1+order+num_ctrl_pts",
-                "# weights: array of weights corresponding to the NURBS element",
-                "# FES: list of control points; vertex control points at top, then interior control points",
-                "",
-            ]
-        )
+        mfem_file.extend([
+            "MFEM NURBS mesh v1.0",
+            "",
+            "# MFEM Geometry Types (see fem/geom.hpp):",
+            "#",
+            "# SEGMENT = 1 | SQUARE = 3 | CUBE = 5",
+            "#",
+            "# element: <attr> 1 <v0> <v1>",
+            "# edge: <idx++> 0 1  <-- idx increases by one each time",
+            "# knotvector: <order> <num_ctrl_pts> [knots]; sizeof(knots) is 1+order+num_ctrl_pts",
+            "# weights: array of weights corresponding to the NURBS element",
+            "# FES: list of control points; vertex control points at top, then interior control points",
+            "",
+        ])
 
         mfem_file.extend(["dimension", "1", ""])
 
@@ -316,18 +315,16 @@ class MFEMData:
 
         mfem_file.extend(["weights", "\n".join(self.wgts_ends), "\n".join(self.wgts_ints), ""])
 
-        mfem_file.extend(
-            [
-                "FiniteElementSpace",
-                "FiniteElementCollection: NURBS",
-                "VDim: 2",
-                "Ordering: 1",
-                "",
-                "\n".join(self.dof_ends),
-                "\n".join(self.dof_ints),
-                "",
-            ]
-        )
+        mfem_file.extend([
+            "FiniteElementSpace",
+            "FiniteElementCollection: NURBS",
+            "VDim: 2",
+            "Ordering: 1",
+            "",
+            "\n".join(self.dof_ends),
+            "\n".join(self.dof_ints),
+            "",
+        ])
 
         with open(filename, mode="w") as f:
             f.write("\n".join(mfem_file))
@@ -361,7 +358,8 @@ def compute_svg_path_stats(paths):
 
 def parse_args():
 
-    parser = argparse.ArgumentParser(description="svg2contours: Convert the curves in an SVG to MFEM NURBS mesh")
+    parser = argparse.ArgumentParser(
+        description="svg2contours: Convert the curves in an SVG to MFEM NURBS mesh")
 
     parser.add_argument(
         "-i",
@@ -393,7 +391,8 @@ def parse_args():
         dest="reverse_paths",
         default=False,
         action="store_true",
-        help="reverses paths (can be helpful during coordinate system transformation from y-axis pointing down to up)",
+        help=
+        "reverses paths (can be helpful during coordinate system transformation from y-axis pointing down to up)",
     )
 
     parser.add_argument(
@@ -506,7 +505,9 @@ def main():
 
     output_file = opts["outputfile"]
     mfem_data.write_file(output_file)
-    print(f"Wrote '{output_file}' with {mfem_data.vert_cnt} vertices and NURBS {mfem_data.elem_cnt} elements")
+    print(
+        f"Wrote '{output_file}' with {mfem_data.vert_cnt} vertices and NURBS {mfem_data.elem_cnt} elements"
+    )
 
 
 if __name__ == "__main__":

@@ -356,13 +356,13 @@ spack:
       buildable: false
       externals:
       - spec: cppcheck@2.18.0
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/gcc-13.3.1/cppcheck-2.18.0-d2tmb7ls2d5vgh6vhcyohecwcu6msopb/
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2026_02_17_14_42_14/gcc-13.3.1/cppcheck-2.18.0-i3p56kpf66xzj4wm5kfqxyc4vgox7gb3/
     doxygen:
-      version: [1.13.2]
+      version: [1.15.0]
       buildable: false
       externals:
-      - spec: doxygen@1.13.2
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/doxygen-1.13.2
+      - spec: doxygen@1.15.0
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2026_02_17_14_42_14/view/doxygen-1.15.0
     py-shroud:
       version: [0.14.0]
       buildable: false
@@ -374,41 +374,20 @@ spack:
       buildable: false
       externals:
       - spec: py-sphinx@4.4.0
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2026_02_17_14_42_14/view/python-3.13.11/
     python:
       buildable: false
       externals:
-      - spec: python@3.13.5
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
-
-    # Other python externals built by devtools for conduit
-    py-pytest:
-      buildable: false
-      externals:
-      - spec: py-pytest@8.2.1
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
+      - spec: python@3.13.11
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2026_02_17_14_42_14/view/python-3.13.11/
     py-jsonschema:
       buildable: false
       externals:
       - spec: py-jsonschema@4.17.3
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
-    python-venv:
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2026_02_17_14_42_14/view/python-3.13.11/
+    py-yapf:
       buildable: false
       externals:
-      - spec: python-venv@1.0
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
-    py-pyproject-metadata:
-      buildable: false
-      externals:
-      - spec: py-pyproject-metadata@0.17.1
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
-    py-meson-python:
-      buildable: false
-      externals:
-      - spec: py-meson-python@0.16.0
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
-    py-numpy:
-      buildable: false
-      externals:
-      - spec: py-numpy@2.3.2
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2025_09_25_11_33_37/view/python-3.13.5/
+      - spec: py-yapf@0.43.0
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2026_02_17_14_42_14/view/python-3.13.11/
+

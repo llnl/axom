@@ -1502,9 +1502,9 @@ axom::Array<DataType> TransposeDenseImpl(const MultiMat::DenseField2D<DataType> 
 
   // Note: even though this is a dense field, we iterate over the relation set
   // in order to only copy over filled-in slots.
-  ExecLambdaForMemory(
+  // Note: Execute sequentially to avoid intermittent error with HIP
+  axom::for_all<axom::SEQ_EXEC>(
     relationSet->totalSize() * stride,
-    allocatorId,
     AXOM_LAMBDA(int index) {
       int flatIdx = index / stride;
       int comp = index % stride;
