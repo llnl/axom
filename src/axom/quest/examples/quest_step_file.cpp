@@ -1178,7 +1178,7 @@ int main(int argc, char** argv)
       output_dir));
 
     const int numPatches = patches.size();
-    const int numFillZeros = static_cast<int>(std::log10(numPatches)) + 1;
+    const int numFillZeros = (numPatches > 0) ? static_cast<int>(std::log10(numPatches)) + 1 : 1;
 
     PatchParametricSpaceProcessor patchProcessor;
     patchProcessor.setUnits(stepReader.getFileUnits());
@@ -1211,7 +1211,7 @@ int main(int argc, char** argv)
       axom::fmt::format("Generating MFEM meshes for patch trimming curves in '{}' directory", outDir));
 
     const int numPatches = patches.size();
-    const int numFillZeros = static_cast<int>(std::log10(numPatches)) + 1;
+    const int numFillZeros = (numPatches > 0) ? static_cast<int>(std::log10(numPatches)) + 1 : 1;
 
     PatchMFEMTrimmingCurveWriter writer;
     writer.setVerbosity(verbosity);
@@ -1246,7 +1246,7 @@ int main(int argc, char** argv)
       axom::fmt::format("Generating JSON trim-curve stats for patches in '{}' directory", outDir));
 
     const int numPatches = patches.size();
-    const int numFillZeros = static_cast<int>(std::log10(numPatches)) + 1;
+    const int numFillZeros = (numPatches > 0) ? static_cast<int>(std::log10(numPatches)) + 1 : 1;
 
     PatchTrimmingCurveStatsWriter stats_writer;
     stats_writer.setVerbosity(verbosity);
