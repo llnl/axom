@@ -2861,7 +2861,7 @@ public:
     };
 
     auto sq = [](double x) -> double { return x * x; };
-    auto near = [&](double a, double b) -> bool { return sq(a - b) <= tol; };
+    auto is_near = [&](double a, double b) -> bool { return sq(a - b) <= tol; };
 
     enum BoundMask : unsigned int
     {
@@ -2876,19 +2876,19 @@ public:
 
     auto bound_mask = [&](double u, double v) -> unsigned int {
       unsigned int m = 0u;
-      if(near(u, min_u))
+      if(is_near(u, min_u))
       {
         m |= UMin;
       }
-      if(near(u, max_u))
+      if(is_near(u, max_u))
       {
         m |= UMax;
       }
-      if(near(v, min_v))
+      if(is_near(v, min_v))
       {
         m |= VMin;
       }
-      if(near(v, max_v))
+      if(is_near(v, max_v))
       {
         m |= VMax;
       }
