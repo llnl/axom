@@ -664,20 +664,20 @@ struct test_braid2d_mat
     }
 
     // Test iterators.
-    test_matsetview_iterators(matsetView, allocatorID);
+    test_matsetview_iterators(nzones, matsetView, allocatorID);
   }
 
   template <typename MatsetView>
-  static void test_matsetview_iterators(MatsetView matsetView, int allocatorID)
+  static void test_matsetview_iterators(axom::IndexType nzones, MatsetView matsetView, int allocatorID)
   {
     using ZoneIndex = typename MatsetView::ZoneIndex;
     // Allocate results array on device.
-    const int nResults = matsetView.numberOfZones();
+    const auto nResults = nzones;
     axom::Array<int> resultsArrayDevice(nResults, nResults, allocatorID);
     auto resultsView = resultsArrayDevice.view();
 
     axom::for_all<ExecSpace>(
-      matsetView.numberOfZones(),
+      nzones,
       AXOM_LAMBDA(axom::IndexType index) {
         typename MatsetView::IDList ids {};
         typename MatsetView::VFList vfs {};
