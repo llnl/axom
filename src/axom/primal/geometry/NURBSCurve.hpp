@@ -700,14 +700,13 @@ public:
     }
 
     const int end_idx = npts - 1;
-
     if(useStrictLinear)
     {
       for(int p = 1; p < end_idx; ++p)
       {
-        const double t = p / static_cast<T>(end_idx);
-        PointType the_pt = PointType::lerp(m_controlPoints[0], m_controlPoints[end_idx], t);
-        if(squared_distance(m_controlPoints[p], the_pt) > tol)
+        if(const double t = p / static_cast<T>(end_idx);
+           squared_distance(m_controlPoints[p],
+                            PointType::lerp(m_controlPoints[0], m_controlPoints[end_idx], t)) > tol)
         {
           return false;
         }
@@ -715,7 +714,7 @@ public:
     }
     else
     {
-      SegmentType seg(m_controlPoints[0], m_controlPoints[end_idx]);
+      const SegmentType seg(m_controlPoints[0], m_controlPoints[end_idx]);
       for(int p = 1; p < end_idx; ++p)
       {
         if(squared_distance(m_controlPoints[p], seg) > tol)

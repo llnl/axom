@@ -248,9 +248,7 @@ def arc_to_quadratic_beziers(arc: Arc, *, max_sweep_angle_rad: float = np.pi / 2
       - Rational quadratics represent conic sections exactly.
       - We subdivide the arc into pieces (default: <= 90 degrees) to keep the
         interior weight bounded away from zero.
-      - This function avoids relying on svgpathtools' internal angle units for
-        `arc.theta` / `arc.delta` (which may be degrees depending on version).
-        Instead, it reconstructs the start angle and sweep angle from the arc's
+      - This function reconstructs the start angle and sweep angle from the arc's
         start/end points in the ellipse's local parameter space, then selects
         the correct branch using `arc.point(0.5)` (and `arc.large_arc` as a hint).
     Returns:
@@ -347,7 +345,7 @@ def arc_to_quadratic_beziers(arc: Arc, *, max_sweep_angle_rad: float = np.pi / 2
 
         pieces.append(quad)
 
-    # Match legacy `arc_to_cubic` orientation handling: reverse when sweep flag is not set.
+    # Match `arc_to_cubic` orientation handling: reverse when sweep flag is not set.
     if not getattr(arc, "sweep", True):
         pieces = [(q.reversed(), list(reversed(w))) for (q, w) in reversed(pieces)]
 
@@ -532,6 +530,7 @@ class MFEMPatchesData:
         """Merge quadratic rational Bezier spans into a single quadratic multi-span NURBS patch.
 
         This uses internal knot multiplicity=degree (2), so each span remains a Bezier segment.
+        Note: It would be better to fix the knots/weights to keep it C1
         Returns (cps, weights, knots).
         """
 
