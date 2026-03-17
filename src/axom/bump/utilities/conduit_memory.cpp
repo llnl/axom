@@ -18,4 +18,4 @@ bool isDeviceAllocated(const conduit::Node &n)
 #endif
 }
 
-} // end namespace axom::bump::utilities
+}  // end namespace axom::bump::utilities
