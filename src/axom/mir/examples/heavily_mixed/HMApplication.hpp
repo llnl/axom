@@ -54,19 +54,11 @@ protected:
   virtual void saveMesh(const conduit::Node &n_mesh, const std::string &path);
 
   /*!
-   * \brief Make a new allocator with an initial size we think is adequate for
-   *        the mesh and MIR operations.
+   * \brief Estimate memory needed to perform MIR operations.
    *
-   * \brief allocatorName An allocator name like "HIP".
-   *
-   * \return An allocator id.
+   * \return A size in bytes.
    */
-  int installAllocator(const std::string &allocatorName);
-
-  /*!
-   * \brief Prints information about an allocator.
-   */
-  void printAllocatorInformation(int allocator_id) const;
+  size_t estimateMemoryPoolSize() const;
 
   /*!
    * \brief A static error handler for Conduit.

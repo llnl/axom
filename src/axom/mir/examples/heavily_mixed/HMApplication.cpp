@@ -386,16 +386,15 @@ int HMApplication::runMIR()
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   else if(m_policy == RuntimePolicy::cuda)
   {
+    options["pool_size"] = estimateMemoryPoolSize();
     retval = runMIR_cuda(dimension, mesh, options, resultMesh);
   }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   else if(m_policy == RuntimePolicy::hip)
   {
-    // Installing a pool allocator can improve performance.
-    const int allocator_id = installAllocator("DEVICE");
+    options["pool_size"] = estimateMemoryPoolSize();
     retval = runMIR_hip(dimension, mesh, options, resultMesh);
-    printAllocatorInformation(allocator_id);
   }
 #endif
   else
@@ -417,10 +416,8 @@ int HMApplication::runMIR()
 }
 
 //--------------------------------------------------------------------------------
-int HMApplication::installAllocator(const std::string &allocatorName)
+size_t HMApplication::estimateMemoryPoolSize() const
 {
-  int allocator_id = axom::getDefaultAllocatorID();
-#if defined(AXOM_USE_UMPIRE)
   // Estimate the mesh size
   using FloatType = conduit::float64;
   const auto nzones = static_cast<size_t>(m_dims[0] * m_dims[1] * m_dims[2]);
@@ -435,47 +432,7 @@ int HMApplication::installAllocator(const std::string &allocatorName)
   const auto estMeshSizeBytes = topoSizeBytes + coordSizeBytes + matsetSizeBytes + fieldsSizeBytes;
   // Estimate pool size
   const auto initialPoolSizeBytes = estMeshSizeBytes;
-  const std::string newName = allocatorName + "_POOL";
-  SLIC_INFO(
-    axom::fmt::format("Creating pool allocator {} with {} bytes.", newName, initialPoolSizeBytes));
-
-  auto &rm = umpire::ResourceManager::getInstance();
-  umpire::Allocator allocator = rm.getAllocator(allocatorName);
-
-  // Create a pool on top of the allocator.
-  auto pooled = rm.makeAllocator<umpire::strategy::QuickPool>(
-    newName,
-    allocator,
-    initialPoolSizeBytes,  // first_minimum_pool_allocation_size
-    1 << 20,               // next_minimum_pool_allocation_size = 1 MiB chunks
-    256                    // alignment
-  );
-
-  allocator_id = pooled.getId();
-#endif
-  return allocator_id;
-}
-
-//--------------------------------------------------------------------------------
-void HMApplication::printAllocatorInformation(int allocator_id) const
-{
-#if defined(AXOM_USE_UMPIRE)
-  try
-  {
-    auto &rm = umpire::ResourceManager::getInstance();
-    umpire::Allocator allocator = rm.getAllocator(allocator_id);
-    SLIC_INFO("Allocator Information:");
-    SLIC_INFO(axom::fmt::format("\tname: {}", allocator.getName()));
-    SLIC_INFO(axom::fmt::format("\thighwatermark: {}", allocator.getHighWatermark()));
-    SLIC_INFO(axom::fmt::format("\tcurrentsize: {}", allocator.getCurrentSize()));
-    SLIC_INFO(axom::fmt::format("\tactualsize: {}", allocator.getActualSize()));
-    SLIC_INFO(axom::fmt::format("\tallocationcount: {}", allocator.getAllocationCount()));
-  }
-  catch(...)
-  {
-    SLIC_ERROR("Allocator information could not be retrieved.");
-  }
-#endif
+  return initialPoolSizeBytes;
 }
 
 //--------------------------------------------------------------------------------

@@ -196,17 +196,15 @@ int MIRApplication::runMIR()
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   else if(policy == RuntimePolicy::cuda)
   {
+    options["pool_size"] = estimateMemoryPoolSize();
     retval = runMIR_cuda(dimension, mesh, options, resultMesh);
   }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   else if(policy == RuntimePolicy::hip)
   {
-    // Installing a pool allocator can improve performance.
-    const int allocator_id = installAllocator("DEVICE");
-    options["allocator_id"] = allocator_id;
+    options["pool_size"] = estimateMemoryPoolSize();
     retval = runMIR_hip(dimension, mesh, options, resultMesh);
-    printAllocatorInformation(allocator_id);
   }
 #endif
   else
@@ -228,10 +226,8 @@ int MIRApplication::runMIR()
 }
 
 //--------------------------------------------------------------------------------
-int MIRApplication::installAllocator(const std::string &allocatorName)
+size_t MIRApplication::estimateMemoryPoolSize() const
 {
-  int allocator_id = axom::getDefaultAllocatorID();
-#if defined(AXOM_USE_UMPIRE)
   // Estimate the mesh size
   using FloatType = float;
   using ConnType = int;
@@ -246,61 +242,7 @@ int MIRApplication::installAllocator(const std::string &allocatorName)
   const auto estMeshSizeBytes = topoSizeBytes + coordSizeBytes + matsetSizeBytes;
   // Estimate pool size
   const auto initialPoolSizeBytes = estMeshSizeBytes;
-  const std::string newName = allocatorName + "_POOL";
-  SLIC_INFO(
-    axom::fmt::format("Creating pool allocator {} with {} bytes.", newName, initialPoolSizeBytes));
-
-  auto &rm = umpire::ResourceManager::getInstance();
-  #if 0
-  SLIC_INFO("Resource names:");
-  for(const auto &name : rm.getResourceNames())
-  {
-    SLIC_INFO(axom::fmt::format("\t{}", name));
-  }
-  SLIC_INFO("Allocator names:");
-  for(const auto &name : rm.getAllocatorNames())
-  {
-    SLIC_INFO(axom::fmt::format("\t{}, id={}", name, rm.getAllocator(name).getId()));
-  }
-  SLIC_INFO(axom::fmt::format("Default allocator: {}", rm.getDefaultAllocator().getName()));
-  #endif
-
-  umpire::Allocator allocator = rm.getAllocator(allocatorName);
-
-  // Create a pool on top of the allocator.
-  auto pooled = rm.makeAllocator<umpire::strategy::QuickPool>(
-    newName,
-    allocator,
-    initialPoolSizeBytes,  // first_minimum_pool_allocation_size
-    1 << 20,               // next_minimum_pool_allocation_size = 1 MiB chunks
-    256                    // alignment
-  );
-
-  allocator_id = pooled.getId();
-#endif
-  return allocator_id;
-}
-
-//--------------------------------------------------------------------------------
-void MIRApplication::printAllocatorInformation(int allocator_id) const
-{
-#if defined(AXOM_USE_UMPIRE)
-  try
-  {
-    auto &rm = umpire::ResourceManager::getInstance();
-    umpire::Allocator allocator = rm.getAllocator(allocator_id);
-    SLIC_INFO("Allocator Information:");
-    SLIC_INFO(axom::fmt::format("\tname: {}", allocator.getName()));
-    SLIC_INFO(axom::fmt::format("\thighwatermark: {}", allocator.getHighWatermark()));
-    SLIC_INFO(axom::fmt::format("\tcurrentsize: {}", allocator.getCurrentSize()));
-    SLIC_INFO(axom::fmt::format("\tactualsize: {}", allocator.getActualSize()));
-    SLIC_INFO(axom::fmt::format("\tallocationcount: {}", allocator.getAllocationCount()));
-  }
-  catch(...)
-  {
-    SLIC_ERROR("Allocator information could not be retrieved.");
-  }
-#endif
+  return initialPoolSizeBytes;
 }
 
 //--------------------------------------------------------------------------------
