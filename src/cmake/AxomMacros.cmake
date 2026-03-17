@@ -34,7 +34,7 @@ macro(axom_add_code_checks)
         set(_base_dirs "axom" "examples" "thirdparty/tests" "tools")
         set(_ext_expressions "*.cpp" "*.hpp" "*.inl"
                              "*.cxx" "*.hxx" "*.cc" "*.c" "*.h" "*.hh"
-                             "*.F" "*.f" "*.f90" "*.F90")
+                             "*.F" "*.f" "*.f90" "*.F90" "*.py")
 
         set(_glob_expressions)
         foreach(_exp ${_ext_expressions})
@@ -59,10 +59,11 @@ macro(axom_add_code_checks)
         blt_add_code_checks(PREFIX          axom
                             SOURCES         ${_sources}
                             CLANGFORMAT_CFG_FILE ${PROJECT_SOURCE_DIR}/.clang-format
+                            YAPF_CFG_FILE ${PROJECT_SOURCE_DIR}/.style.yapf
                             CPPCHECK_FLAGS  --enable=all --inconclusive)
 
         # Set FOLDER property for code check targets
-        foreach(_suffix clangformat_check clangformat_style clang_tidy_check clang_tidy_style)
+        foreach(_suffix clangformat_check clangformat_style clang_tidy_check clang_tidy_style yapf_check yapf_style)
             set(_tgt ${arg_PREFIX}_${_suffix})
             if(TARGET ${_tgt}) 
                 set_target_properties(${_tgt} PROPERTIES FOLDER "axom/code_checks")
@@ -564,6 +565,38 @@ macro(axom_configure_file _source _target)
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${_tmp_target} ${_target})
     execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${_tmp_target})
 endmacro(axom_configure_file)
+
+##------------------------------------------------------------------------------
+## axom_add_python_test(NAME       [name]
+##                      SOURCE     [source]
+##                      OUTPUT_DIR [dir])
+##
+## Wrapper around add_test() that handles functionality
+## that Axom applies to all python tests.
+##------------------------------------------------------------------------------
+macro(axom_add_python_test)
+
+    set(options)
+    set(singleValueArgs NAME SOURCE OUTPUT_DIR)
+    set(multiValueArgs)
+
+    # Parse the arguments to the macro
+    cmake_parse_arguments(arg
+         "${options}" "${singleValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    # Copy python test file to build
+    axom_configure_file ("${arg_SOURCE}"
+                         "${arg_OUTPUT_DIR}/${arg_SOURCE}" COPYONLY)
+
+    # Run unit test with pytest ("python3 -m pytest").
+    # Use convenience script that has
+    # pytest, pysidre, and conduit added to PYTHONPATH.
+    # "-p no:cacheprovider" disables caching.
+    add_test (NAME    ${arg_NAME}
+      COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -m pytest -s -p no:cacheprovider ${arg_OUTPUT_DIR}/${arg_SOURCE}
+    )
+
+endmacro(axom_add_python_test)
 
 ##------------------------------------------------------------------------------
 ## axom_force_release_for_target

@@ -4,28 +4,28 @@
 # CMake executable path: /usr/local/bin/cmake
 #------------------------------------------------------------------------------
 
-set(CMAKE_PREFIX_PATH "/home/axom/axom_tpls/gcc-13.3.1/blt-develop-flnqp2mcfgnsgymaf6yzrhz22yvzjtjw;/home/axom/axom_tpls/gcc-13.3.1/caliper-git.9ab0e64d2e328d1fdff2ffebb53f30a899d6a598_master-qape4nbgv2dfrr434okzfvug2hnbo7zy;/home/axom/axom_tpls/gcc-13.3.1/conduit-0.9.5-qaqzvfbhsyuf26r7pzwvkbodxkbhc4ce;/home/axom/axom_tpls/gcc-13.3.1/gmake-4.4.1-tjczf2ynnhpvawcbqcpalnwys2gg2lyz;/home/axom/axom_tpls/gcc-13.3.1/mfem-4.9.0-wixcnzqq6h4lmjqy7cwddru5izcsigsm;/home/axom/axom_tpls/gcc-13.3.1/raja-git.3b8b59a1e9be2e1066c0d77372b3bf5956e6d6e2_develop-vatdye3hlcis5podnfqfyp4gbipdafao;/home/axom/axom_tpls/gcc-13.3.1/umpire-git.0372fbd6e1f17d7e6dd72693f8b857f3ec7559e9_develop-dlv7k7vybnhfmwqh5a465szaftwfziag;/home/axom/axom_tpls/gcc-13.3.1/adiak-0.4.0-jnixqwnm6yzomk7y6c5b3lpyxeyuwsfa;/home/axom/axom_tpls/gcc-13.3.1/elfutils-0.193-5x4zh6qz6s27di5igast2pebvp2c3o2b;/home/axom/axom_tpls/gcc-13.3.1/libunwind-1.8.3-ua7hxrqqb2jh2g56voomcaaxez5sqopd;/home/axom/axom_tpls/gcc-13.3.1/hdf5-1.8.23-tgy3ysytlz3pduqd67mg2awfbhonetwm;/home/axom/axom_tpls/gcc-13.3.1/parmetis-4.0.3-itx2towtppihssp56monbeklfjwo55md;/home/axom/axom_tpls/gcc-13.3.1/hypre-2.27.0-nvbecjpz7sxoh5voibt3dgacekdkk2yw;/home/axom/axom_tpls/gcc-13.3.1/camp-git.a8caefa9f4c811b1a114b4ed2c9b681d40f12325_main-2foz7sirxtrijry5kitjygm6atik2r7c;/home/axom/axom_tpls/gcc-13.3.1/fmt-11.0.2-ddx3vhdjkv44pcgjxjdxn3mnrksukecb;/home/axom/axom_tpls/gcc-13.3.1/zstd-1.5.7-3f2efmy53ft33z4c3q3b3ud6j2viebme;/home/axom/axom_tpls/gcc-13.3.1/metis-5.1.0-6r2rgfbbtpfazuunu6dfuafod2vj5xg5;/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-xgkrn5xilxs6yr4qi7oydfsh7h42qgdb;/home/axom/axom_tpls/gcc-13.3.1/hwloc-2.12.2-ybsdkqaecewutivmgwtrp5yf53j75rau;/home/axom/axom_tpls/gcc-13.3.1/libfabric-2.4.0-x6hjxuymg2y7fto7necipdblkze755st;/home/axom/axom_tpls/gcc-13.3.1/yaksa-0.4-avq7yk45gzqhgnmnzajxuofo3xijywjt;/home/axom/axom_tpls/gcc-13.3.1/libpciaccess-0.17-nmgolbdkswy3wju5lu4spsmmhaqj3rel;/home/axom/axom_tpls/gcc-13.3.1/libxml2-2.13.5-ioievapch2djnca62jmelkfm3jv2sola;/home/axom/axom_tpls/gcc-13.3.1/ncurses-6.5-20250705-syiycw6sptzlabpov7nmen4pccrhwysg;/home/axom/axom_tpls/gcc-13.3.1/libiconv-1.18-hwetls7oc7codnjqhd55vniyymvimzic;/home/axom/axom_tpls/gcc-13.3.1/xz-5.6.3-wih3db5qawrculrfsvwsglqnoom2il2s;/home/axom/axom_tpls/gcc-13.3.1/zlib-ng-2.2.4-ft2vb2ugjfjep3rbssesfox4ndybuohq;/home/axom/axom_tpls/none-none/gcc-runtime-13.3.1-mm3jlyl7p3xtid43tsijumtt2mx65pox;/home/axom/axom_tpls/none-none/compiler-wrapper-1.0-zi6ke3figxbt6vlltwinxhvhrnky2skj" CACHE STRING "")
+set(CMAKE_PREFIX_PATH "/home/axom/axom_tpls/gcc-13.3.1/blt-0.7.1-tp6erawewp4l2ewllhglzso5fnjudoja;/home/axom/axom_tpls/gcc-13.3.1/caliper-git.7e5b7a5c0eacc077f9b842abf41c9fc7b996ce0c_master-qollf3jglv6wxat4uffls42u2t2biu43;/home/axom/axom_tpls/gcc-13.3.1/conduit-0.9.5-e72kkuzpsp2ct2warb23dw63rjbwyuy7;/home/axom/axom_tpls/gcc-13.3.1/gmake-4.4.1-jclt3ixkhzk7gh4qz7bph3nqno2d2tan;/home/axom/axom_tpls/gcc-13.3.1/mfem-4.9.0-27y23akm3yqlnmn3y4ujuiif7ch3d42x;/home/axom/axom_tpls/gcc-13.3.1/raja-git.3b8b59a1e9be2e1066c0d77372b3bf5956e6d6e2_develop-xk3wk7pkfxfmczqsud2zgvoaynygae7x;/home/axom/axom_tpls/gcc-13.3.1/umpire-2025.12.0-eg7ottka4ejtla2sshmo5fbnz6ievmht;/home/axom/axom_tpls/gcc-13.3.1/adiak-0.4.0-7tvwkbkbsrz7pg7cmzjbgpakeqwxiwfn;/home/axom/axom_tpls/gcc-13.3.1/elfutils-0.193-yvyizihf3ovzcrz2xspbo3xqpcsgpciw;/home/axom/axom_tpls/gcc-13.3.1/libunwind-1.8.3-dms6jlqrs6yvgwf454ezco5mszpn4fny;/home/axom/axom_tpls/gcc-13.3.1/hdf5-1.8.23-c5fghc2avhw2ujuhxb32akojoz62ulww;/home/axom/axom_tpls/gcc-13.3.1/parmetis-4.0.3-fwggxdxmzfdyu4zuwzps2iy4ku5nlzbq;/home/axom/axom_tpls/gcc-13.3.1/hypre-2.27.0-yukxydlpq2lrtkdzhpyvnyfxo6u62dqh;/home/axom/axom_tpls/gcc-13.3.1/camp-git.a8caefa9f4c811b1a114b4ed2c9b681d40f12325_main-gdtpys6nyl4kfgvwd5d46hh7mrx4c64f;/home/axom/axom_tpls/gcc-13.3.1/fmt-11.0.2-auzpmart4pgyllfizbgbrmi7vo5l7imm;/home/axom/axom_tpls/gcc-13.3.1/zstd-1.5.7-ynwtbrjy4fy7fmg4mnoq7inn6j36z2lo;/home/axom/axom_tpls/gcc-13.3.1/metis-5.1.0-ngjvzo5djlp4rtpsh2rro63istec4tks;/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-oafwifl7wossiwmdg3osevy3h42nehm5;/home/axom/axom_tpls/gcc-13.3.1/hwloc-2.12.2-r6jiv64detpwvvobvcpbxqsgbyz4an7b;/home/axom/axom_tpls/gcc-13.3.1/libfabric-2.4.0-glityu7f5kxxo72mbpnt2h54aowe2o7j;/home/axom/axom_tpls/gcc-13.3.1/yaksa-0.4-2nqzb7ap73wiacj77ktkz5qh33s3h7cj;/home/axom/axom_tpls/gcc-13.3.1/libpciaccess-0.17-e7jficwldulh2dbp7l742wedsof3d6h5;/home/axom/axom_tpls/gcc-13.3.1/libxml2-2.13.5-wj6jpg6gipn4cjol77o5bwppiymtifjj;/home/axom/axom_tpls/gcc-13.3.1/ncurses-6.5-20250705-izsjfkqb573w7lny6vvdbt57lctv2j22;/home/axom/axom_tpls/gcc-13.3.1/libiconv-1.18-nwihe6gonhf3rig4qghahxqrdzcpxzp2;/home/axom/axom_tpls/gcc-13.3.1/xz-5.6.3-t6r2wp2e2kybjuus2yzlqap6khgwvw73;/home/axom/axom_tpls/gcc-13.3.1/zlib-ng-2.3.2-xturc74asm73dunfzuwguafjrucw75ae;/home/axom/axom_tpls/none-none/gcc-runtime-13.3.1-ahhevkdxsqek4foiubajeiisj7ryali4;/home/axom/axom_tpls/none-none/compiler-wrapper-1.0-u5fjo4cce7cqt6425ipfxnafausfog7z" CACHE STRING "")
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH "ON" CACHE STRING "")
 
-set(CMAKE_BUILD_RPATH "/home/axom/axom_tpls/gcc-13.3.1/axom-develop-2ood2phuo6rrmzrhzq3s3plcecafkn2u/lib;/home/axom/axom_tpls/gcc-13.3.1/axom-develop-2ood2phuo6rrmzrhzq3s3plcecafkn2u/lib64;;" CACHE STRING "")
+set(CMAKE_BUILD_RPATH "/home/axom/axom_tpls/gcc-13.3.1/axom-develop-ofy2ds6xm3ggsfnnn2bzwtfoyqooykov/lib;/home/axom/axom_tpls/gcc-13.3.1/axom-develop-ofy2ds6xm3ggsfnnn2bzwtfoyqooykov/lib64;;" CACHE STRING "")
 
-set(CMAKE_INSTALL_RPATH "/home/axom/axom_tpls/gcc-13.3.1/axom-develop-2ood2phuo6rrmzrhzq3s3plcecafkn2u/lib;/home/axom/axom_tpls/gcc-13.3.1/axom-develop-2ood2phuo6rrmzrhzq3s3plcecafkn2u/lib64;;" CACHE STRING "")
+set(CMAKE_INSTALL_RPATH "/home/axom/axom_tpls/gcc-13.3.1/axom-develop-ofy2ds6xm3ggsfnnn2bzwtfoyqooykov/lib;/home/axom/axom_tpls/gcc-13.3.1/axom-develop-ofy2ds6xm3ggsfnnn2bzwtfoyqooykov/lib64;;" CACHE STRING "")
 
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "")
 
 #------------------------------------------------------------------------------
 # Compilers
 #------------------------------------------------------------------------------
-# Compiler Spec: gcc@13.3.1/kzjnfqqy6k3yhzcf5flpyszvsork7cwg
+# Compiler Spec: gcc@13.3.1/3ueirnbsml6vw26zpzmeekt6nwal4lhw
 #------------------------------------------------------------------------------
 if(DEFINED ENV{SPACK_CC})
 
-  set(CMAKE_C_COMPILER "/home/axom/axom_tpls/none-none/compiler-wrapper-1.0-zi6ke3figxbt6vlltwinxhvhrnky2skj/libexec/spack/gcc/gcc" CACHE PATH "")
+  set(CMAKE_C_COMPILER "/home/axom/axom_tpls/none-none/compiler-wrapper-1.0-u5fjo4cce7cqt6425ipfxnafausfog7z/libexec/spack/gcc/gcc" CACHE PATH "")
 
-  set(CMAKE_CXX_COMPILER "/home/axom/axom_tpls/none-none/compiler-wrapper-1.0-zi6ke3figxbt6vlltwinxhvhrnky2skj/libexec/spack/gcc/g++" CACHE PATH "")
+  set(CMAKE_CXX_COMPILER "/home/axom/axom_tpls/none-none/compiler-wrapper-1.0-u5fjo4cce7cqt6425ipfxnafausfog7z/libexec/spack/gcc/g++" CACHE PATH "")
 
-  set(CMAKE_Fortran_COMPILER "/home/axom/axom_tpls/none-none/compiler-wrapper-1.0-zi6ke3figxbt6vlltwinxhvhrnky2skj/libexec/spack/gcc/gfortran" CACHE PATH "")
+  set(CMAKE_Fortran_COMPILER "/home/axom/axom_tpls/none-none/compiler-wrapper-1.0-u5fjo4cce7cqt6425ipfxnafausfog7z/libexec/spack/gcc/gfortran" CACHE PATH "")
 
 else()
 
@@ -47,13 +47,13 @@ set(ENABLE_FORTRAN ON CACHE BOOL "")
 # MPI
 #------------------------------------------------------------------------------
 
-set(MPI_C_COMPILER "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-xgkrn5xilxs6yr4qi7oydfsh7h42qgdb/bin/mpicc" CACHE PATH "")
+set(MPI_C_COMPILER "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-oafwifl7wossiwmdg3osevy3h42nehm5/bin/mpicc" CACHE PATH "")
 
-set(MPI_CXX_COMPILER "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-xgkrn5xilxs6yr4qi7oydfsh7h42qgdb/bin/mpicxx" CACHE PATH "")
+set(MPI_CXX_COMPILER "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-oafwifl7wossiwmdg3osevy3h42nehm5/bin/mpicxx" CACHE PATH "")
 
-set(MPI_Fortran_COMPILER "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-xgkrn5xilxs6yr4qi7oydfsh7h42qgdb/bin/mpif90" CACHE PATH "")
+set(MPI_Fortran_COMPILER "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-oafwifl7wossiwmdg3osevy3h42nehm5/bin/mpif90" CACHE PATH "")
 
-set(MPIEXEC_EXECUTABLE "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-xgkrn5xilxs6yr4qi7oydfsh7h42qgdb/bin/mpirun" CACHE PATH "")
+set(MPIEXEC_EXECUTABLE "/home/axom/axom_tpls/gcc-13.3.1/mpich-4.2.0-oafwifl7wossiwmdg3osevy3h42nehm5/bin/mpirun" CACHE PATH "")
 
 set(MPIEXEC_NUMPROC_FLAG "-np" CACHE STRING "")
 
@@ -77,27 +77,27 @@ set(ENABLE_GTEST_DEATH_TESTS ON CACHE BOOL "")
 
 set(TPL_ROOT "/home/axom/axom_tpls/gcc-13.3.1" CACHE PATH "")
 
-set(CONDUIT_DIR "${TPL_ROOT}/conduit-0.9.5-qaqzvfbhsyuf26r7pzwvkbodxkbhc4ce" CACHE PATH "")
+set(CONDUIT_DIR "${TPL_ROOT}/conduit-0.9.5-e72kkuzpsp2ct2warb23dw63rjbwyuy7" CACHE PATH "")
 
 # C2C not built
 
-set(MFEM_DIR "${TPL_ROOT}/mfem-4.9.0-wixcnzqq6h4lmjqy7cwddru5izcsigsm" CACHE PATH "")
+set(MFEM_DIR "${TPL_ROOT}/mfem-4.9.0-27y23akm3yqlnmn3y4ujuiif7ch3d42x" CACHE PATH "")
 
-set(HDF5_DIR "${TPL_ROOT}/hdf5-1.8.23-tgy3ysytlz3pduqd67mg2awfbhonetwm" CACHE PATH "")
+set(HDF5_DIR "${TPL_ROOT}/hdf5-1.8.23-c5fghc2avhw2ujuhxb32akojoz62ulww" CACHE PATH "")
 
 set(LUA_DIR "/usr" CACHE PATH "")
 
-set(RAJA_DIR "${TPL_ROOT}/raja-git.3b8b59a1e9be2e1066c0d77372b3bf5956e6d6e2_develop-vatdye3hlcis5podnfqfyp4gbipdafao" CACHE PATH "")
+set(RAJA_DIR "${TPL_ROOT}/raja-git.3b8b59a1e9be2e1066c0d77372b3bf5956e6d6e2_develop-xk3wk7pkfxfmczqsud2zgvoaynygae7x" CACHE PATH "")
 
-set(UMPIRE_DIR "${TPL_ROOT}/umpire-git.0372fbd6e1f17d7e6dd72693f8b857f3ec7559e9_develop-dlv7k7vybnhfmwqh5a465szaftwfziag" CACHE PATH "")
+set(UMPIRE_DIR "${TPL_ROOT}/umpire-2025.12.0-eg7ottka4ejtla2sshmo5fbnz6ievmht" CACHE PATH "")
 
 # OPENCASCADE not built
 
-set(ADIAK_DIR "${TPL_ROOT}/adiak-0.4.0-jnixqwnm6yzomk7y6c5b3lpyxeyuwsfa" CACHE PATH "")
+set(ADIAK_DIR "${TPL_ROOT}/adiak-0.4.0-7tvwkbkbsrz7pg7cmzjbgpakeqwxiwfn" CACHE PATH "")
 
-set(CALIPER_DIR "${TPL_ROOT}/caliper-git.9ab0e64d2e328d1fdff2ffebb53f30a899d6a598_master-qape4nbgv2dfrr434okzfvug2hnbo7zy" CACHE PATH "")
+set(CALIPER_DIR "${TPL_ROOT}/caliper-git.7e5b7a5c0eacc077f9b842abf41c9fc7b996ce0c_master-qollf3jglv6wxat4uffls42u2t2biu43" CACHE PATH "")
 
-set(CAMP_DIR "${TPL_ROOT}/camp-git.a8caefa9f4c811b1a114b4ed2c9b681d40f12325_main-2foz7sirxtrijry5kitjygm6atik2r7c" CACHE PATH "")
+set(CAMP_DIR "${TPL_ROOT}/camp-git.a8caefa9f4c811b1a114b4ed2c9b681d40f12325_main-gdtpys6nyl4kfgvwd5d46hh7mrx4c64f" CACHE PATH "")
 
 # scr not built
 

@@ -74,6 +74,11 @@ if (ENABLE_HIP)
     set_source_files_properties(example.cpp PROPERTIES LANGUAGE HIP)
 endif()
 
+# Compile as CUDA source if enabled
+if (ENABLE_CUDA)
+    set_source_files_properties(example.cpp PROPERTIES LANGUAGE CUDA)
+endif()
+
 # setup the axom include path
 target_include_directories(example PRIVATE ${AXOM_INCLUDE_DIRS})
 

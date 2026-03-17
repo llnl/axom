@@ -12,7 +12,7 @@ AddOperator("MultiresControl", 0)
 fb = GetPlotOptions()
 fb.SetMultiColor(0, (244, 204, 153, 255))  # void
 fb.SetMultiColor(1, (128, 128, 128, 255))  # steel
-fb.SetMultiColor(2, (0, 0, 255, 255))      # free
+fb.SetMultiColor(2, (0, 0, 255, 255))  # free
 SetPlotOptions(fb)
 mrc = MultiresControlAttributes()
 mrc.resolution = 10
@@ -72,8 +72,8 @@ DrawPlots()
 # Turn off some annotations.
 annot = GetAnnotationAttributes()
 annot.databaseInfoFlag = 0
-annot.backgroundColor = (255,255,255,255)
-annot.foregroundColor = (0,0,0,255)
+annot.backgroundColor = (255, 255, 255, 255)
+annot.foregroundColor = (0, 0, 0, 255)
 annot.backgroundMode = annot.Solid
 annot.userInfoFlag = 0
 SetAnnotationAttributes(annot)

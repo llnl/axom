@@ -119,6 +119,9 @@ if(AXOM_ENABLE_MPI)
     blt_list_append(TO sidre_depends ELEMENTS scr IF SCR_FOUND)
 endif()
 
+if(NANOBIND_FOUND)
+    list(APPEND sidre_depends conduit::conduit_python)
+endif()
 
 axom_add_library(NAME       sidre
                  SOURCES    ${sidre_sources}
