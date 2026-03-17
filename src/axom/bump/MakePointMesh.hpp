@@ -7,6 +7,7 @@
 #define AXOM_BUMP_MAKE_POINT_MESH_
 
 #include "axom/core.hpp"
+#include "axom/slic.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/MakeZoneCenters.hpp"
 #include "axom/bump/Options.hpp"
@@ -43,7 +44,13 @@ struct MakePointMesh
    *
    * \param allocator_id The allocator id to use when allocating memory.
    */
-  void setAllocatorID(int allocator_id) { m_allocator_id = allocator_id; }
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
 
   /*!
    * \brief Get the allocator id to use when allocating memory.

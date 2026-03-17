@@ -807,6 +807,9 @@ public:
    */
   void setAllocatorID(int allocator_id)
   {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
     m_allocator_id = allocator_id;
     m_tableManager.setAllocatorID(allocator_id);
   }
@@ -1025,14 +1028,23 @@ public:
       if constexpr(std::is_same_v<ExecSpace, axom::OMP_EXEC>)
       {
         // The serial version Unique specialization is faster
-        axom::bump::Unique<axom::SEQ_EXEC, KeyType>::execute(builder.blendNames(), uNames, uIndices);
+        axom::bump::Unique<axom::SEQ_EXEC, KeyType>::execute(builder.blendNames(),
+                                                             uNames,
+                                                             uIndices,
+                                                             allocatorID);
       }
       else
       {
-        axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(), uNames, uIndices);
+        axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(),
+                                                        uNames,
+                                                        uIndices,
+                                                        allocatorID);
       }
 #else
-      axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(), uNames, uIndices);
+      axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(),
+                                                      uNames,
+                                                      uIndices,
+                                                      allocatorID);
 #endif
       builder.setUniqueNames(uNames.view(), uIndices.view());
 
