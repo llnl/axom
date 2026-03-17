@@ -22,12 +22,16 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Functions to evaluate surface and volume integrals over collections of `BezierPatch` and `NURBSPatch` objects.
 - Quest: An example to evaluate surface and volume integrals over a STEP model
   and to fit a ellipsoid or oriented bounding box to a model based on its low order moments.
+- Primal: Adds `NURBSCurve::isLinear()` to check if a curve is (nearly) flat (corresponding to `BezierCurve::isLinear()`)
+- Primal: Adds `NURBSPatch::isTriviallyTrimmed()` to check if the trimming curves for a patch lie on the patch boundaries
+- Quest: Adds support for reading mfem files with variable order NURBS curves (requires mfem>4.9).
 
 ### Removed
 
 ### Deprecated
 
 ### Changed
+- Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
 
 ### Fixed
 
