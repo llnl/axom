@@ -256,7 +256,7 @@ private:
   NURBSCacheArray m_nurbs_caches;
 };
 
-template <int ORDER>
+template <typename ExecSpace, int ORDER>
 class PolylineGWN2D
 {
 public:
@@ -291,7 +291,7 @@ public:
       m_segments.resize(poly_mesh->getNumberOfCells());
       auto segments_view = m_segments.view();
 
-      axom::mint::for_all_cells<axom::SEQ_EXEC, axom::mint::xargs::coords>(
+      axom::mint::for_all_cells<ExecSpace, axom::mint::xargs::coords>(
         poly_mesh,
         AXOM_LAMBDA(axom::IndexType cellIdx,
                     const axom::numerics::Matrix<double>& coords,
@@ -316,7 +316,7 @@ public:
         auto aabbs_view = aabbs.view();
         const auto segments_view = m_segments.view();
 
-        axom::for_all<axom::SEQ_EXEC>(
+        axom::for_all<ExecSpace>(
           nlines,
           AXOM_LAMBDA(axom::IndexType i) {
             aabbs_view[i] = BoxType {segments_view[i].source(), segments_view[i].target()};
@@ -340,7 +340,7 @@ public:
         };
 
         const auto traverser = m_bvh.getTraverser();
-        m_internal_moments = traverser.reduce_tree<axom::SEQ_EXEC, GWNMoments>(compute_moments);
+        m_internal_moments = traverser.reduce_tree<ExecSpace, GWNMoments>(compute_moments);
       }
       stage_timer.stop();
       SLIC_INFO(
@@ -396,7 +396,7 @@ public:
         const auto traverser = m_bvh.getTraverser();
         const auto internal_moments_view = m_internal_moments.view();
 
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+        axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
           const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
                                                                          traverser,
                                                                          segments_view,
@@ -410,7 +410,7 @@ public:
       // Use direct formula
       else
       {
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+        axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
           const axom::primal::Point<double, 2> q = query_point(static_cast<int>(index));
           double wn {};
           for(const auto& seg : segments_view)
@@ -444,7 +444,7 @@ private:
 
   // Only needed for fast approximation method
   axom::Array<GWNMoments> m_internal_moments;
-  axom::spin::BVH<2, axom::SEQ_EXEC> m_bvh;
+  axom::spin::BVH<2, ExecSpace> m_bvh;
 };
 ///@}
 
@@ -837,8 +837,8 @@ enum class GWNInputType
 template <typename GWNQueryType>
 struct gwn_input_traits;
 
-template <int ORDER>
-struct gwn_input_traits<axom::quest::PolylineGWN2D<ORDER>>
+template <typename ExecSpace, int ORDER>
+struct gwn_input_traits<axom::quest::PolylineGWN2D<ExecSpace, ORDER>>
   : std::integral_constant<GWNInputType, GWNInputType::Polyline>
 { };
 
