@@ -243,13 +243,20 @@ def build_and_test_host_config(test_root, host_config,
     bld_output_file =  pjoin(build_dir, f"output.log.{build_log_id}.txt")
     print("[starting build]")
     print(f"[log file: {bld_output_file}]")
-    res = sexe(f"cd {build_dir} && {verbose_build_cmd}",
+    res = sexe(f"cd {build_dir} && {build_cmd}",
                 output_file = bld_output_file,
                 echo=True)
 
     if report_to_stdout:
         with open(bld_output_file, 'r', encoding='utf8') as build_out:
             print(build_out.read())
+
+    if res != 0:
+        print("[==================================================================]")
+        print("[ Non-verbose build failed. Re-running with verbose output. ]")
+        print("[==================================================================]")
+        res = sexe(f"cd {build_dir} && {verbose_build_cmd}",
+                   echo=True)
 
     if res != 0:
         print(f"[ERROR: Build for host-config: {host_config} failed]\n")

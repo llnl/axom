@@ -37,4 +37,4 @@ RUN cp ./axom_repo/*.cmake /home/axom/export_hostconfig
 
 # Make sure the new hostconfig worked
 # Note: having high job slots causes build log to disappear and job to fail
-RUN cd axom_repo && python3 config-build.py --ninja -hc *.cmake -bp build && cd build && ninja -j4 -v && ctest --output-on-failure -T Test -VV -j4 && cd /home/axom && rm -rf axom_repo
+RUN cd axom_repo && python3 config-build.py --ninja -hc *.cmake -bp build && cd build && (ninja -j4 || (echo && echo "==================================================================" && echo " Non-verbose build failed. Re-running with verbose output." && echo "==================================================================" && echo && ninja -j4 -v)) && ctest --output-on-failure -T Test -VV -j4 && cd /home/axom && rm -rf axom_repo
