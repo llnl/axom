@@ -40,14 +40,14 @@ TEST(mir_equiz, materialinformation)
 
   auto mi = axom::bump::views::materials(matset);
   EXPECT_EQ(mi.size(), 3);
-  EXPECT_EQ(mi[0].number, 1);
-  EXPECT_EQ(mi[0].name, "a");
+  EXPECT_EQ(mi[0].m_number, 1);
+  EXPECT_EQ(mi[0].m_name, "a");
 
-  EXPECT_EQ(mi[1].number, 2);
-  EXPECT_EQ(mi[1].name, "b");
+  EXPECT_EQ(mi[1].m_number, 2);
+  EXPECT_EQ(mi[1].m_name, "b");
 
-  EXPECT_EQ(mi[2].number, 0);
-  EXPECT_EQ(mi[2].name, "c");
+  EXPECT_EQ(mi[2].m_number, 0);
+  EXPECT_EQ(mi[2].m_name, "c");
 }
 
 //------------------------------------------------------------------------------

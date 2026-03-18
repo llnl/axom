@@ -152,80 +152,80 @@ private:
   {
     // We're allowing selectedIndicesView to be used to select specific blend
     // groups. If the user did not provide that, use all blend groups.
-    const auto origSize = blend.m_originalIdsView.size();
-    const auto blendSize = SelectionPolicy::size(blend);
-    const auto outputSize = origSize + blendSize;
+    const auto orig_size = blend.m_originalIdsView.size();
+    const auto blend_size = SelectionPolicy::size(blend);
+    const auto output_size = orig_size + blend_size;
 
-    const auto conduitAllocatorId =
+    const auto conduit_allocator_id =
       axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
-    n_output_values.set_allocator(conduitAllocatorId);
-    n_output_values.set(conduit::DataType(n_values.dtype().id(), outputSize));
+    n_output_values.set_allocator(conduit_allocator_id);
+    n_output_values.set(conduit::DataType(n_values.dtype().id(), output_size));
 
-    views::Node_to_ArrayView_same(n_values, n_output_values, [&](auto compView, auto outView) {
-      blendSingleComponentImpl(blend, compView, outView);
+    views::nodeToArrayViewSame(n_values, n_output_values, [&](auto comp_view, auto out_view) {
+      blendSingleComponentImpl(blend, comp_view, out_view);
     });
   }
 
   /*!
    * \brief Slice the source view and copy values into the output view.
    *
-   * \param valuesView The source values view.
-   * \param outputView The output values view.
+   * \param comp_view The source values view.
+   * \param out_view The output values view.
    *
    * \note This method was broken out into a template member method since nvcc
    *       would not instantiate the lambda for axom::for_all() from an anonymous
    *       lambda.
    */
   template <typename SrcView, typename OutputView>
-  void blendSingleComponentImpl(const BlendData &blend, SrcView compView, OutputView outView) const
+  void blendSingleComponentImpl(const BlendData &blend, SrcView comp_view, OutputView out_view) const
   {
-    using value_type = typename decltype(compView)::value_type;
+    using value_type = typename decltype(comp_view)::value_type;
     using accum_type = typename utilities::accumulation_traits<value_type>::type;
 
     // We're allowing selectedIndicesView to be used to select specific blend
     // groups. If the user did not provide that, use all blend groups.
-    const auto origSize = blend.m_originalIdsView.size();
-    const auto blendSize = SelectionPolicy::size(blend);
-    //    const auto outputSize = origSize + blendSize;
+    const auto orig_size = blend.m_originalIdsView.size();
+    const auto blend_size = SelectionPolicy::size(blend);
+    //    const auto output_size = orig_size + blend_size;
 
-    const IndexingPolicy deviceIndexing(m_indexing);
-    const BlendData deviceBlend(blend);
+    const IndexingPolicy device_indexing(m_indexing);
+    const BlendData device_blend(blend);
 
     // Copy over some original values to the start of the array.
     axom::for_all<ExecSpace>(
-      origSize,
+      orig_size,
       AXOM_LAMBDA(axom::IndexType index) {
-        const auto srcIndex = deviceBlend.m_originalIdsView[index];
-        outView[index] = compView[srcIndex];
+        const auto src_index = device_blend.m_originalIdsView[index];
+        out_view[index] = comp_view[src_index];
       });
 
     // Append blended values to the end of the array.
     axom::for_all<ExecSpace>(
-      blendSize,
+      blend_size,
       AXOM_LAMBDA(axom::IndexType bgid) {
         // Get the blend group index we want.
-        const auto selectedIndex = SelectionPolicy::selectedIndex(deviceBlend, bgid);
-        const auto start = deviceBlend.m_blendGroupStartView[selectedIndex];
-        const auto nValues = deviceBlend.m_blendGroupSizesView[selectedIndex];
-        const auto destIndex = origSize + bgid;
-        if(nValues == 1)
+        const auto selected_index = SelectionPolicy::selectedIndex(device_blend, bgid);
+        const auto start = device_blend.m_blendGroupStartView[selected_index];
+        const auto n_values = device_blend.m_blendGroupSizesView[selected_index];
+        const auto dest_index = orig_size + bgid;
+        if(n_values == 1)
         {
-          const auto index = deviceBlend.m_blendIdsView[start];
-          const auto srcIndex = deviceIndexing[index];
-          outView[destIndex] = compView[srcIndex];
+          const auto index = device_blend.m_blendIdsView[start];
+          const auto src_index = device_indexing[index];
+          out_view[dest_index] = comp_view[src_index];
         }
         else
         {
-          const auto end = start + nValues;
+          const auto end = start + n_values;
           accum_type blended = 0;
           for(IndexType i = start; i < end; i++)
           {
-            const auto index = deviceBlend.m_blendIdsView[i];
-            const auto weight = deviceBlend.m_blendCoeffView[i];
-            const auto srcIndex = deviceIndexing[index];
-            blended += static_cast<accum_type>(compView[srcIndex]) * weight;
+            const auto index = device_blend.m_blendIdsView[i];
+            const auto weight = device_blend.m_blendCoeffView[i];
+            const auto src_index = device_indexing[index];
+            blended += static_cast<accum_type>(comp_view[src_index]) * weight;
           }
-          outView[destIndex] = static_cast<value_type>(blended);
+          out_view[dest_index] = static_cast<value_type>(blended);
         }
       });
   }

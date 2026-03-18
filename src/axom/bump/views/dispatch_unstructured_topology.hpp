@@ -133,7 +133,7 @@ void dispatch_unstructured_polyhedral_topology(const conduit::Node &topo, FuncTy
   const std::string shape = topo["elements/shape"].as_string();
   if(shape == "polyhedral")
   {
-    IndexNode_to_ArrayView_same(  //
+    indexNodeToArrayViewSame(  //
       topo["subelements/connectivity"],
       topo["subelements/sizes"],
       topo["subelements/offsets"],
@@ -192,7 +192,7 @@ void dispatch_unstructured_mixed_topology(const conduit::Node &topo, FuncType &&
   const std::string shape = topo["elements/shape"].as_string();
   if(shape == "mixed")
   {
-    IndexNode_to_ArrayView_same(
+    indexNodeToArrayViewSame(
       topo["elements/connectivity"],
       topo["elements/shapes"],
       topo["elements/sizes"],
@@ -599,7 +599,7 @@ template <int ShapeTypes = AnyShape, typename FuncType>
 void dispatch_unstructured_topology(const conduit::Node &topo, FuncType &&func)
 {
   verify(topo, "topology");
-  IndexNode_to_ArrayView(topo["elements/connectivity"], [&](auto connView) {
+  indexNodeToArrayView(topo["elements/connectivity"], [&](auto connView) {
     using ConnType = typename decltype(connView)::value_type;
     typed_dispatch_unstructured_topology<ConnType, ShapeTypes>(topo, func);
   });

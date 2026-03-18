@@ -35,7 +35,7 @@ struct SliceData
  * \return The number of values made from the SliceData.
  */
 AXOM_HOST_DEVICE
-inline axom::IndexType NumberOfValues(const SliceData &slice) { return slice.m_indicesView.size(); }
+inline axom::IndexType numberOfValues(const SliceData &slice) { return slice.m_indicesView.size(); }
 
 /*!
  * \accelerated
@@ -133,39 +133,41 @@ private:
                             conduit::Node &n_output_values) const
   {
     namespace utils = axom::bump::utilities;
-    const auto outputSize = slice.m_indicesView.size();
+    const auto output_size = slice.m_indicesView.size();
 
-    const auto conduitAllocatorId =
+    const auto conduit_allocator_id =
       axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
-    n_output_values.set_allocator(conduitAllocatorId);
-    n_output_values.set(conduit::DataType(n_values.dtype().id(), outputSize));
+    n_output_values.set_allocator(conduit_allocator_id);
+    n_output_values.set(conduit::DataType(n_values.dtype().id(), output_size));
 
-    views::Node_to_ArrayView_same(n_values, n_output_values, [&](auto valuesView, auto outputView) {
-      sliceSingleComponentImpl(slice, valuesView, outputView);
+    views::nodeToArrayViewSame(n_values, n_output_values, [&](auto values_view, auto output_view) {
+      sliceSingleComponentImpl(slice, values_view, output_view);
     });
   }
 
   /*!
    * \brief Slice the source view and copy values into the output view.
    *
-   * \param valuesView The source values view.
-   * \param outputView The output values view.
+   * \param values_view The source values view.
+   * \param output_view The output values view.
    *
    * \note This method was broken out into a template member method since nvcc
    *       would not instantiate the lambda for axom::for_all() from an anonymous
    *       lambda.
    */
   template <typename ValuesView, typename OutputView>
-  void sliceSingleComponentImpl(const SliceData &slice, ValuesView valuesView, OutputView outputView) const
+  void sliceSingleComponentImpl(const SliceData &slice,
+                                ValuesView values_view,
+                                OutputView output_view) const
   {
-    IndexingPolicy deviceIndexing(m_indexing);
-    SliceData deviceSlice(slice);
+    IndexingPolicy device_indexing(m_indexing);
+    SliceData device_slice(slice);
     axom::for_all<ExecSpace>(
-      outputView.size(),
+      output_view.size(),
       AXOM_LAMBDA(axom::IndexType index) {
-        const auto zoneIndex = deviceSlice.m_indicesView[index];
-        const auto transformedIndex = deviceIndexing[zoneIndex];
-        outputView[index] = valuesView[transformedIndex];
+        const auto zone_index = device_slice.m_indicesView[index];
+        const auto transformed_index = device_indexing[zone_index];
+        output_view[index] = values_view[transformed_index];
       });
   }
 

@@ -301,7 +301,7 @@ struct test_node_to_arrayview
       n_data.set(conduit::DataType(dtype, n));
 
       int sumValues = 0;
-      axom::bump::views::Node_to_ArrayView(n_data, [&](auto dataView) {
+      axom::bump::views::nodeToArrayView(n_data, [&](auto dataView) {
         sumValues = testBody(dataView, n);
       });
 
@@ -501,8 +501,8 @@ struct test_strided_structured
           actualNodesView[zoneIndex * 4 + i] = ids[i];
 
           // Get the logical local id for the id.
-          const auto index = nodeIndexing.GlobalToLocal(ids[i]);
-          const auto logical = nodeIndexing.IndexToLogicalIndex(index);
+          const auto index = nodeIndexing.globalToLocal(ids[i]);
+          const auto logical = nodeIndexing.indexToLogicalIndex(index);
           logicalNodesView[(zoneIndex * 4 + i) * 2 + 0] = logical[0];
           logicalNodesView[(zoneIndex * 4 + i) * 2 + 1] = logical[1];
         }

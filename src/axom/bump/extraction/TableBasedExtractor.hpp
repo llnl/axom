@@ -64,7 +64,7 @@ namespace detail
  * \return The ShapeID value that matches the st_index, or 0 if there is no match.
  */
 template <typename IntegerType>
-AXOM_HOST_DEVICE inline constexpr IntegerType ST_Index_to_ShapeID(IntegerType st_index)
+AXOM_HOST_DEVICE inline constexpr IntegerType stIndexToShapeID(IntegerType st_index)
 {
   IntegerType shapeID = 0;
   switch(st_index)
@@ -278,7 +278,7 @@ struct FragmentOperations
     }
     const auto nIdsThisFragment = fragmentSize - 2;
     size = nIdsThisFragment;
-    shape = detail::ST_Index_to_ShapeID(fragmentShape);
+    shape = detail::stIndexToShapeID(fragmentShape);
     color = fragment[1] - COLOR0;
     return true;
   }
@@ -434,7 +434,7 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
     }
 
     // Determine the shape from the number of ids we admitted.
-    shape = detail::ST_Index_to_ShapeID(fragmentShape);
+    shape = detail::stIndexToShapeID(fragmentShape);
     shape = (nIdsThisFragment == 3) ? static_cast<ConnectivityType>(views::Tri_ShapeID) : shape;
     shape = (nIdsThisFragment == 4) ? static_cast<ConnectivityType>(views::Quad_ShapeID) : shape;
     shape = (nIdsThisFragment > 4) ? static_cast<ConnectivityType>(views::Polygon_ShapeID) : shape;
@@ -2095,7 +2095,7 @@ private:
       AXOM_ANNOTATE_SCOPE("makeFieldsInParallel");
       constexpr axom::IndexType SIZE_CUTOFF = 4000000;
       const auto size =
-        axom::utilities::max(axom::bump::NumberOfValues(blend), axom::bump::NumberOfValues(slice));
+        axom::utilities::max(axom::bump::numberOfValues(blend), axom::bump::numberOfValues(slice));
       if(size < SIZE_CUTOFF)
       {
         // Make the fields at the same time using axom::SEQ_EXEC kernels to copy data.
@@ -2255,7 +2255,7 @@ private:
       // originalElements already exists. We need to map it forward.
       const conduit::Node &n_orig = n_fields[originalElements];
       const conduit::Node &n_orig_values = n_orig["values"];
-      views::IndexNode_to_ArrayView(n_orig_values, [&](auto origValuesView) {
+      views::indexNodeToArrayView(n_orig_values, [&](auto origValuesView) {
         using value_type = typename decltype(origValuesView)::value_type;
         conduit::Node &n_origElem = n_newFields[originalElements];
         n_origElem["association"] = "element";

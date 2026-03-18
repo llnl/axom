@@ -296,12 +296,12 @@ public:
     m_view.m_makePointMesh = opts.pointmesh();
 
     // Figure out the max fragment size.
-    m_view.m_MAX_POINTS_PER_FRAGMENT = 4 + maxCuts;
+    m_view.m_maxPointsPerFragment = 4 + maxCuts;
 
     // Vary the number of coord values depending on whether or not we're making
     // a point mesh.
     const auto numCoordValues =
-      m_view.m_makePointMesh ? numFragments : (numFragments * m_view.m_MAX_POINTS_PER_FRAGMENT);
+      m_view.m_makePointMesh ? numFragments : (numFragments * m_view.m_maxPointsPerFragment);
 
     // Set up coordset and allocate data arrays.
     // Note that we overallocate the number of nodes to numCoordValues.
@@ -437,7 +437,7 @@ public:
                   const double *planeNormal) const
     {
       const int nverts = shape.numVertices();
-      SLIC_ASSERT(nverts <= m_MAX_POINTS_PER_FRAGMENT);
+      SLIC_ASSERT(nverts <= m_maxPointsPerFragment);
 
       if(m_makePointMesh)
       {
@@ -453,7 +453,7 @@ public:
       else
       {
         // Copy coordinates into coordinate arrays. We might end up with unreferenced coordinates for now.
-        auto coordOffset = fragmentOffset * m_MAX_POINTS_PER_FRAGMENT;
+        auto coordOffset = fragmentOffset * m_maxPointsPerFragment;
         for(int i = 0; i < nverts; i++)
         {
           m_x[coordOffset + i] = shape[i][0];
@@ -461,7 +461,7 @@ public:
         }
 
         // Make connectivity.
-        auto connOffset = fragmentOffset * m_MAX_POINTS_PER_FRAGMENT;
+        auto connOffset = fragmentOffset * m_maxPointsPerFragment;
         for(int i = 0; i < nverts; i++)
         {
           auto idx = static_cast<ConnectivityType>(connOffset + i);
@@ -513,7 +513,7 @@ public:
     bool m_makePlane {false};
     bool m_makePointMesh {false};
 
-    axom::IndexType m_MAX_POINTS_PER_FRAGMENT {0};
+    axom::IndexType m_maxPointsPerFragment {0};
   };
 
   /*!
@@ -592,14 +592,14 @@ public:
 
     // Figure out some fragment size information given maxCuts, the max number of
     // times a zone will be cut.
-    m_view.m_MAX_POINTS_PER_FACE = 6 + maxCuts;
-    m_view.m_MAX_FACES_PER_FRAGMENT = 6 + maxCuts;
-    m_view.m_MAX_POINTS_PER_FRAGMENT = 8 + maxCuts * 2;
+    m_view.m_maxPointsPerFace = 6 + maxCuts;
+    m_view.m_maxFacesPerFragment = 6 + maxCuts;
+    m_view.m_maxPointsPerFragment = 8 + maxCuts * 2;
 
     // Set up coordset and allocate data arrays.
     // Note that we overallocate the number of nodes to numCoordValues.
     const auto numCoordValues =
-      m_view.m_makePointMesh ? numFragments : (numFragments * m_view.m_MAX_POINTS_PER_FRAGMENT);
+      m_view.m_makePointMesh ? numFragments : (numFragments * m_view.m_maxPointsPerFragment);
     n_coordset["type"] = "explicit";
     n_coordset["values/x"].set_allocator(conduitAllocatorId);
     n_coordset["values/x"].set(conduit::DataType(utils::cpp2conduit<CoordType>::id, numCoordValues));
@@ -630,7 +630,7 @@ public:
       : axom::numeric_limits<ConnectivityType>::max();
     {
       const auto numConnValues =
-        m_view.m_makePointMesh ? numFragments : (numFragments * m_view.m_MAX_FACES_PER_FRAGMENT);
+        m_view.m_makePointMesh ? numFragments : (numFragments * m_view.m_maxFacesPerFragment);
       n_topology["type"] = "unstructured";
       n_topology["elements/shape"] = m_view.m_makePointMesh ? "point" : "polyhedral";
       conduit::Node &n_conn = n_topology["elements/connectivity"];
@@ -661,7 +661,7 @@ public:
       conduit::Node &n_se_conn = n_topology["subelements/connectivity"];
       n_se_conn.set_allocator(conduitAllocatorId);
       const auto seConnSize =
-        numFragments * m_view.m_MAX_FACES_PER_FRAGMENT * m_view.m_MAX_POINTS_PER_FACE;
+        numFragments * m_view.m_maxFacesPerFragment * m_view.m_maxPointsPerFace;
       n_se_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, seConnSize));
       m_view.m_subelement_connectivity = utils::make_array_view<ConnectivityType>(n_se_conn);
       {
@@ -673,20 +673,20 @@ public:
       conduit::Node &n_se_sizes = n_topology["subelements/sizes"];
       n_se_sizes.set_allocator(conduitAllocatorId);
       n_se_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id,
-                                       numFragments * m_view.m_MAX_FACES_PER_FRAGMENT));
+                                       numFragments * m_view.m_maxFacesPerFragment));
       m_view.m_subelement_sizes = utils::make_array_view<ConnectivityType>(n_se_sizes);
 
       conduit::Node &n_se_offsets = n_topology["subelements/offsets"];
       n_se_offsets.set_allocator(conduitAllocatorId);
       n_se_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id,
-                                         numFragments * m_view.m_MAX_FACES_PER_FRAGMENT));
+                                         numFragments * m_view.m_maxFacesPerFragment));
       m_view.m_subelement_offsets = utils::make_array_view<ConnectivityType>(n_se_offsets);
 
       {
         const auto dev_subelement_sizes = m_view.m_subelement_sizes;
         const auto dev_subelement_offsets = m_view.m_subelement_offsets;
         axom::for_all<ExecSpace>(
-          numFragments * m_view.m_MAX_FACES_PER_FRAGMENT,
+          numFragments * m_view.m_maxFacesPerFragment,
           AXOM_LAMBDA(axom::IndexType index) {
             dev_subelement_sizes[index] = ConnectivityType {0};
             dev_subelement_offsets[index] = UnusedValue;
@@ -790,7 +790,7 @@ public:
                   const double *planeNormal) const
     {
       const int nverts = shape.numVertices();
-      SLIC_ASSERT(nverts <= m_MAX_POINTS_PER_FRAGMENT);
+      SLIC_ASSERT(nverts <= m_maxPointsPerFragment);
 
       if(m_makePointMesh)
       {
@@ -806,7 +806,7 @@ public:
       {
         // Copy coordinates into coordinate arrays. We might end up with unreferenced
         // coordinates for now.
-        const auto coordOffset = fragmentOffset * m_MAX_POINTS_PER_FRAGMENT;
+        const auto coordOffset = fragmentOffset * m_maxPointsPerFragment;
         for(int i = 0; i < nverts; i++)
         {
           const auto destIndex = coordOffset + i;
@@ -817,9 +817,9 @@ public:
         }
 
         // Get pointers to where this shape's faces should be stored in the subelement data.
-        const auto faceOffset = fragmentOffset * m_MAX_FACES_PER_FRAGMENT;
+        const auto faceOffset = fragmentOffset * m_maxFacesPerFragment;
         ConnectivityType *subelement_connectivity = m_subelement_connectivity.data() +
-          fragmentOffset * (m_MAX_FACES_PER_FRAGMENT * m_MAX_POINTS_PER_FACE);
+          fragmentOffset * (m_maxFacesPerFragment * m_maxPointsPerFace);
         ConnectivityType *subelement_sizes = m_subelement_sizes.data() + faceOffset;
         ConnectivityType *subelement_offsets = m_subelement_offsets.data() + faceOffset;
         axom::IndexType numFaces;
@@ -832,17 +832,17 @@ public:
         std::stringstream ss;
         ss << "addShape: zoneIndex=" << zoneIndex << ", fragmentOffset=" << fragmentOffset
            << ", nverts=" << nverts << ", numFaces=" << numFaces << ", subelement_connectivity={";
-        for(int i = 0; i < m_MAX_FACES_PER_FRAGMENT * m_MAX_POINTS_PER_FACE; i++)
+        for(int i = 0; i < m_maxFacesPerFragment * m_maxPointsPerFace; i++)
         {
           ss << subelement_connectivity[i] << ", ";
         }
         ss << "}, subelement_sizes={";
-        for(int i = 0; i < m_MAX_FACES_PER_FRAGMENT; i++)
+        for(int i = 0; i < m_maxFacesPerFragment; i++)
         {
           ss << subelement_sizes[i] << ", ";
         }
         ss << "}, subelement_offsets={";
-        for(int i = 0; i < m_MAX_FACES_PER_FRAGMENT; i++)
+        for(int i = 0; i < m_maxFacesPerFragment; i++)
         {
           ss << subelement_offsets[i] << ", ";
         }
@@ -853,28 +853,28 @@ public:
         axom::IndexType index = 0;
         for(axom::IndexType f = 0; f < numFaces; f++)
         {
-          subelement_offsets[f] += fragmentOffset * m_MAX_POINTS_PER_FACE * m_MAX_FACES_PER_FRAGMENT;
+          subelement_offsets[f] += fragmentOffset * m_maxPointsPerFace * m_maxFacesPerFragment;
 
 #if !defined(AXOM_DEVICE_CODE)
           SLIC_ASSERT_MSG(
-            subelement_sizes[f] <= m_MAX_POINTS_PER_FACE,
+            subelement_sizes[f] <= m_maxPointsPerFace,
             axom::fmt::format(
               "Zone {} has {} points in face {} but should have no more than {} points. shape={}",
               zoneIndex,
               subelement_sizes[f],
               f,
-              m_MAX_POINTS_PER_FACE,
+              m_maxPointsPerFace,
               shape));
 #endif
 
           for(ConnectivityType i = 0; i < subelement_sizes[f]; i++)
           {
-            subelement_connectivity[index++] += fragmentOffset * m_MAX_POINTS_PER_FRAGMENT;
+            subelement_connectivity[index++] += fragmentOffset * m_maxPointsPerFragment;
           }
         }
 
         // Make connectivity.
-        auto connOffset = fragmentOffset * m_MAX_FACES_PER_FRAGMENT;
+        auto connOffset = fragmentOffset * m_maxFacesPerFragment;
         for(axom::IndexType i = 0; i < numFaces; i++)
         {
           const auto idx = static_cast<ConnectivityType>(connOffset + i);
@@ -927,9 +927,9 @@ public:
     bool m_makePointMesh {false};
 
     // Fragment sizing information
-    axom::IndexType m_MAX_POINTS_PER_FACE {0};
-    axom::IndexType m_MAX_FACES_PER_FRAGMENT {0};
-    axom::IndexType m_MAX_POINTS_PER_FRAGMENT {0};
+    axom::IndexType m_maxPointsPerFace {0};
+    axom::IndexType m_maxFacesPerFragment {0};
+    axom::IndexType m_maxPointsPerFragment {0};
   };
 
   /*!

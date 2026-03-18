@@ -35,7 +35,7 @@ struct MeshInput
   conduit::Node *m_input {nullptr};                   //!< Pointer to Blueprint mesh.
   axom::ArrayView<axom::IndexType> m_nodeMapView {};  //!< Map for mesh nodeIds to nodeIds in final mesh.
   axom::ArrayView<axom::IndexType> m_nodeSliceView {};  //!< Node ids to be extracted and added to final mesh.
-  std::string topologyName {};                          //!< The name of the topology to use.
+  std::string m_topologyName {};                        //!< The name of the topology to use.
 };
 
 /*!
@@ -110,10 +110,10 @@ protected:
    */
   struct FieldInformation
   {
-    std::string topology;
-    std::string association;
-    int dtype;
-    std::vector<std::string> components;
+    std::string m_topology;
+    std::string m_association;
+    int m_dtype;
+    std::vector<std::string> m_components;
   };
 
   /*!
@@ -133,11 +133,11 @@ protected:
       {
         if(inputs[i].m_input == nullptr) return false;
 
-        if(inputs[i].topologyName.empty())
+        if(inputs[i].m_topologyName.empty())
         {
           // If we did not specify which topology, make sure that there is only 1.
           const char *keys[] = {"coordsets", "topologies", "matsets"};
-          if(inputs[i].topologyName.empty())
+          if(inputs[i].m_topologyName.empty())
           {
             for(int k = 0; k < 3; k++)
             {
@@ -196,9 +196,9 @@ protected:
    */
   const conduit::Node &getTopology(const MeshInput &input) const
   {
-    if(!input.topologyName.empty())
+    if(!input.m_topologyName.empty())
     {
-      return input.m_input->fetch_existing("topologies/" + input.topologyName);
+      return input.m_input->fetch_existing("topologies/" + input.m_topologyName);
     }
     return input.m_input->fetch_existing("topologies")[0];
   }
@@ -281,7 +281,7 @@ protected:
       }
 
       // Copy this input's coordinates into the new coordset.
-      axom::bump::views::FloatNode_to_ArrayView(n_srcValues[0], [&](auto comp0) {
+      axom::bump::views::floatNodeToArrayView(n_srcValues[0], [&](auto comp0) {
         using FloatType = typename decltype(comp0)::value_type;
         for(int c = 0; c < nComps; c++)
         {
@@ -431,7 +431,7 @@ protected:
       // array, we sum the sizes. This is needed because connectivity might
       // have unused elements in it.
       axom::IndexType connLength = 0;
-      axom::bump::views::IndexNode_to_ArrayView(n_size, [&](auto sizesView) {
+      axom::bump::views::indexNodeToArrayView(n_size, [&](auto sizesView) {
         connLength = sumArrayView(sizesView);
       });
       totalConnLength += connLength;
@@ -608,7 +608,7 @@ protected:
       }
 
       // Copy this input's connectivity into the new topology.
-      axom::bump::views::IndexNode_to_ArrayView_same(
+      axom::bump::views::indexNodeToArrayViewSame(
         n_srcConn,
         n_srcSizes,
         n_srcOffsets,
@@ -632,7 +632,7 @@ protected:
         });
 
       // Copy this input's sizes into the new topology.
-      axom::bump::views::IndexNode_to_ArrayView(n_srcSizes, [&](auto srcSizesView) {
+      axom::bump::views::indexNodeToArrayView(n_srcSizes, [&](auto srcSizesView) {
         using ConnType = typename decltype(srcSizesView)::value_type;
         conduit::Node &n_newSizes = n_newTopoPtr->fetch_existing("elements/sizes");
         auto sizesView = utils::make_array_view<ConnType>(n_newSizes);
@@ -651,7 +651,7 @@ protected:
         {
           const conduit::Node &n_srcShapes = n_srcTopo.fetch_existing("elements/shapes");
 
-          axom::bump::views::IndexNode_to_ArrayView(n_srcShapes, [&](auto srcShapesView) {
+          axom::bump::views::indexNodeToArrayView(n_srcShapes, [&](auto srcShapesView) {
             using ConnType = typename decltype(srcShapesView)::value_type;
             conduit::Node &n_newShapes = n_newTopoPtr->fetch_existing("elements/shapes");
             auto shapesView = utils::make_array_view<ConnType>(n_newShapes);
@@ -667,7 +667,7 @@ protected:
           const conduit::Node &n_srcSizes = n_srcTopo.fetch_existing("elements/sizes");
           axom::IndexType nz = n_srcSizes.dtype().number_of_elements();
           conduit::Node &n_newShapes = n_newTopoPtr->fetch_existing("elements/shapes");
-          axom::bump::views::IndexNode_to_ArrayView(n_newShapes, [&](auto shapesView) {
+          axom::bump::views::indexNodeToArrayView(n_newShapes, [&](auto shapesView) {
             const int shapeId = axom::bump::views::shapeNameToID(srcShape);
             mergeTopology_default_shapes(shapesOffset, shapesView, nz, shapeId);
             shapesOffset += nz;
@@ -678,7 +678,7 @@ protected:
 
     // Make new offsets from the sizes.
     conduit::Node &n_newSizes = n_newTopoPtr->fetch_existing("elements/sizes");
-    axom::bump::views::IndexNode_to_ArrayView(n_newSizes, [&](auto sizesView) {
+    axom::bump::views::indexNodeToArrayView(n_newSizes, [&](auto sizesView) {
       using ConnType = typename decltype(sizesView)::value_type;
       conduit::Node &n_newOffsets = n_newTopoPtr->fetch_existing("elements/offsets");
       auto offsetsView = utils::make_array_view<ConnType>(n_newOffsets);
@@ -709,7 +709,7 @@ protected:
 
       // Make a new mesh input node and a topology node under it.
       phInputs[i].m_input = new conduit::Node;
-      phInputs[i].topologyName = inputs[i].topologyName;
+      phInputs[i].m_topologyName = inputs[i].m_topologyName;
       conduit::Node &n_phTopo = phInputs[i].m_input->operator[]("topologies/" + n_srcTopo.name());
       conduit::Node &n_phCoordset =
         phInputs[i].m_input->operator[]("coordsets/" + n_srcCoordset.name());
@@ -727,7 +727,7 @@ protected:
         // Convert the mesh to polyhedral.
         const std::string shape = n_srcTopo.fetch_existing("elements/shape").as_string();
         const conduit::Node &n_elem_conn = n_srcTopo.fetch_existing("elements/connectivity");
-        views::IndexNode_to_ArrayView(n_elem_conn, [&](auto connView) {
+        views::indexNodeToArrayView(n_elem_conn, [&](auto connView) {
           using ConnectivityType = typename decltype(connView)::value_type;
 
           if(shape == views::TetTraits::name())
@@ -925,7 +925,7 @@ protected:
       }
 
       // Copy this input's element connectivity into the new topology.
-      axom::bump::views::IndexNode_to_ArrayView_same(
+      axom::bump::views::indexNodeToArrayViewSame(
         n_srcConn,
         n_srcSizes,
         n_srcOffsets,
@@ -951,7 +951,7 @@ protected:
         });
 
       // Copy this input's sizes into the new topology.
-      axom::bump::views::IndexNode_to_ArrayView(n_srcSizes, [&](auto srcSizesView) {
+      axom::bump::views::indexNodeToArrayView(n_srcSizes, [&](auto srcSizesView) {
         using ConnType = typename decltype(srcSizesView)::value_type;
         conduit::Node &n_newSizes = n_newTopoPtr->fetch_existing("elements/sizes");
         auto sizesView = utils::make_array_view<ConnType>(n_newSizes);
@@ -962,7 +962,7 @@ protected:
       });
 
       // Copy this input's subelement connectivity into the new topology.
-      axom::bump::views::IndexNode_to_ArrayView_same(
+      axom::bump::views::indexNodeToArrayViewSame(
         n_srcSEConn,
         n_srcSESizes,
         n_srcSEOffsets,
@@ -987,7 +987,7 @@ protected:
         });
 
       // Copy this input's subelement sizes into the new topology.
-      axom::bump::views::IndexNode_to_ArrayView(n_srcSESizes, [&](auto srcSESizesView) {
+      axom::bump::views::indexNodeToArrayView(n_srcSESizes, [&](auto srcSESizesView) {
         using ConnType = typename decltype(srcSESizesView)::value_type;
         conduit::Node &n_newSESizes = n_newTopoPtr->fetch_existing("subelements/sizes");
         auto seSizesView = utils::make_array_view<ConnType>(n_newSESizes);
@@ -1001,7 +1001,7 @@ protected:
     // Make new offsets from the sizes.
     conduit::Node &n_newSizes = n_newTopoPtr->fetch_existing("elements/sizes");
     conduit::Node &n_newSESizes = n_newTopoPtr->fetch_existing("subelements/sizes");
-    axom::bump::views::IndexNode_to_ArrayView_same(
+    axom::bump::views::indexNodeToArrayViewSame(
       n_newSizes,
       n_newSESizes,
       [&](auto sizesView, auto seSizesView) {
@@ -1178,19 +1178,19 @@ protected:
             const conduit::Node &n_field = n_fields[c];
             const conduit::Node &n_values = n_field.fetch_existing("values");
             FieldInformation fi;
-            fi.topology = n_field.fetch_existing("topology").as_string();
-            fi.association = n_field.fetch_existing("association").as_string();
+            fi.m_topology = n_field.fetch_existing("topology").as_string();
+            fi.m_association = n_field.fetch_existing("association").as_string();
             if(n_values.number_of_children() > 0)
             {
               for(conduit::index_t comp = 0; comp < n_values.number_of_children(); comp++)
               {
-                fi.components.push_back(n_values[comp].name());
-                fi.dtype = n_values[comp].dtype().id();
+                fi.m_components.push_back(n_values[comp].name());
+                fi.m_dtype = n_values[comp].dtype().id();
               }
             }
             else
             {
-              fi.dtype = n_values.dtype().id();
+              fi.m_dtype = n_values.dtype().id();
             }
             fieldInfo[n_field.name()] = fi;
           }
@@ -1204,42 +1204,42 @@ protected:
       for(auto it = fieldInfo.begin(); it != fieldInfo.end(); it++)
       {
         conduit::Node &n_newField = n_newFields[it->first];
-        n_newField["association"] = it->second.association;
-        n_newField["topology"] = it->second.topology;
+        n_newField["association"] = it->second.m_association;
+        n_newField["topology"] = it->second.m_topology;
         conduit::Node &n_values = n_newField["values"];
-        if(it->second.components.empty())
+        if(it->second.m_components.empty())
         {
           // Scalar
           conduit::Node &n_values = n_newField["values"];
           n_values.set_allocator(conduitAllocatorId);
           const std::string srcPath("fields/" + it->first + "/values");
-          if(it->second.association == "element")
+          if(it->second.m_association == "element")
           {
-            n_values.set(conduit::DataType(it->second.dtype, totalZones));
+            n_values.set(conduit::DataType(it->second.m_dtype, totalZones));
             copyZonal(inputs, n_values, srcPath);
           }
-          else if(it->second.association == "vertex")
+          else if(it->second.m_association == "vertex")
           {
-            n_values.set(conduit::DataType(it->second.dtype, totalNodes));
+            n_values.set(conduit::DataType(it->second.m_dtype, totalNodes));
             copyNodal(inputs, n_values, srcPath);
           }
         }
         else
         {
           // Vector
-          for(size_t ci = 0; ci < it->second.components.size(); ci++)
+          for(size_t ci = 0; ci < it->second.m_components.size(); ci++)
           {
-            conduit::Node &n_comp = n_values[it->second.components[ci]];
+            conduit::Node &n_comp = n_values[it->second.m_components[ci]];
             n_comp.set_allocator(conduitAllocatorId);
-            const std::string srcPath("fields/" + it->first + "/values/" + it->second.components[ci]);
-            if(it->second.association == "element")
+            const std::string srcPath("fields/" + it->first + "/values/" + it->second.m_components[ci]);
+            if(it->second.m_association == "element")
             {
-              n_comp.set(conduit::DataType(it->second.dtype, totalZones));
+              n_comp.set(conduit::DataType(it->second.m_dtype, totalZones));
               copyZonal(inputs, n_comp, srcPath);
             }
-            else if(it->second.association == "vertex")
+            else if(it->second.m_association == "vertex")
             {
-              n_comp.set(conduit::DataType(it->second.dtype, totalNodes));
+              n_comp.set(conduit::DataType(it->second.m_dtype, totalNodes));
               copyNodal(inputs, n_comp, srcPath);
             }
           }
@@ -1267,13 +1267,13 @@ protected:
       if(inputs[i].m_input->has_path(srcPath))
       {
         const conduit::Node &n_src_values = inputs[i].m_input->fetch_existing(srcPath);
-        axom::bump::views::Node_to_ArrayView(n_values, n_src_values, [&](auto destView, auto srcView) {
+        axom::bump::views::nodeToArrayView(n_values, n_src_values, [&](auto destView, auto srcView) {
           copyZonal_copy(nzones, offset, destView, srcView);
         });
       }
       else
       {
-        axom::bump::views::Node_to_ArrayView(n_values, [&](auto destView) {
+        axom::bump::views::nodeToArrayView(n_values, [&](auto destView) {
           fillValues(nzones, offset, destView);
         });
       }
@@ -1343,13 +1343,13 @@ protected:
       {
         const conduit::Node &n_src_values = inputs[i].m_input->fetch_existing(srcPath);
 
-        axom::bump::views::Node_to_ArrayView(n_src_values, n_values, [&](auto srcView, auto destView) {
+        axom::bump::views::nodeToArrayView(n_src_values, n_values, [&](auto srcView, auto destView) {
           copyNodal_copy(inputs[i].m_nodeSliceView, nnodes, offset, destView, srcView);
         });
       }
       else
       {
-        axom::bump::views::Node_to_ArrayView(n_values, [&](auto destView) {
+        axom::bump::views::nodeToArrayView(n_values, [&](auto destView) {
           fillValues(nnodes, offset, destView);
         });
       }
@@ -1439,13 +1439,13 @@ public:
                FuncType &&func)
   {
     // Support various types of material data.
-    axom::bump::views::IndexNode_to_ArrayView_same(
+    axom::bump::views::indexNodeToArrayViewSame(
       n_material_ids,
       n_sizes,
       n_offsets,
       n_indices,
       [&](auto materialIdsView, auto sizesView, auto offsetsView, auto indicesView) {
-        axom::bump::views::FloatNode_to_ArrayView(n_volume_fractions, [&](auto volumeFractionsView) {
+        axom::bump::views::floatNodeToArrayView(n_volume_fractions, [&](auto volumeFractionsView) {
           // Invoke a function that can use these views.
           func(materialIdsView, sizesView, offsetsView, indicesView, volumeFractionsView);
         });
@@ -1571,9 +1571,9 @@ private:
         auto matInfo = axom::bump::views::materials(n_matset);
         for(const auto &info : matInfo)
         {
-          if(allMats.find(info.name) == allMats.end())
+          if(allMats.find(info.m_name) == allMats.end())
           {
-            allMats[info.name] = nmats++;
+            allMats[info.m_name] = nmats++;
           }
         }
         hasMatsets = true;
@@ -1860,10 +1860,10 @@ private:
     std::map<MatID, MatID> localToAll;
     for(const auto &info : localMaterialMap)
     {
-      const auto it = allMats.find(info.name);
+      const auto it = allMats.find(info.m_name);
       SLIC_ASSERT(it != allMats.end());
       MatID matno = it->second;
-      localToAll[info.number] = matno;
+      localToAll[info.m_number] = matno;
     }
     std::vector<MatID> localVec, allVec;
     for(auto it = localToAll.begin(); it != localToAll.end(); it++)
