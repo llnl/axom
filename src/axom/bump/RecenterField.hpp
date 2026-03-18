@@ -58,9 +58,7 @@ public:
    * \param relation    The node that contains an o2mrelation with nodes to zones.
    * \param out_field[out] The node that will contain the new field.
    */
-  void execute(const conduit::Node &field,
-               const conduit::Node &relation,
-               conduit::Node &out_field) const
+  void execute(const conduit::Node &field, const conduit::Node &relation, conduit::Node &out_field) const
   {
     const std::string association = field.fetch_existing("association").as_string();
 

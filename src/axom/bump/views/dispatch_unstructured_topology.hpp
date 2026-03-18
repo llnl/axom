@@ -192,30 +192,29 @@ void dispatch_unstructured_mixed_topology(const conduit::Node &topo, FuncType &&
   const std::string shape = topo["elements/shape"].as_string();
   if(shape == "mixed")
   {
-    indexNodeToArrayViewSame(
-      topo["elements/connectivity"],
-      topo["elements/shapes"],
-      topo["elements/sizes"],
-      topo["elements/offsets"],
-      [&](auto connView, auto shapesView, auto sizesView, auto offsetsView) {
-        using ConnType = typename decltype(connView)::value_type;
+    indexNodeToArrayViewSame(topo["elements/connectivity"],
+                             topo["elements/shapes"],
+                             topo["elements/sizes"],
+                             topo["elements/offsets"],
+                             [&](auto connView, auto shapesView, auto sizesView, auto offsetsView) {
+                               using ConnType = typename decltype(connView)::value_type;
 
-        // Get the allocator that allocated the connectivity. The shape map data
-        // need to go into the same memory space.
-        const int allocatorID =
-          axom::getAllocatorIDFromPointer(topo["elements/connectivity"].data_ptr());
+                               // Get the allocator that allocated the connectivity. The shape map data
+                               // need to go into the same memory space.
+                               const int allocatorID = axom::getAllocatorIDFromPointer(
+                                 topo["elements/connectivity"].data_ptr());
 
-        // Make the shape map.
-        axom::Array<IndexType> values, ids;
-        auto shapeMap = buildShapeMap(topo, values, ids, allocatorID);
+                               // Make the shape map.
+                               axom::Array<IndexType> values, ids;
+                               auto shapeMap = buildShapeMap(topo, values, ids, allocatorID);
 
-        UnstructuredTopologyMixedShapeView<ConnType> ugView(connView,
-                                                            shapesView,
-                                                            sizesView,
-                                                            offsetsView,
-                                                            shapeMap);
-        func(shape, ugView);
-      });
+                               UnstructuredTopologyMixedShapeView<ConnType> ugView(connView,
+                                                                                   shapesView,
+                                                                                   sizesView,
+                                                                                   offsetsView,
+                                                                                   shapeMap);
+                               func(shape, ugView);
+                             });
   }
 }
 

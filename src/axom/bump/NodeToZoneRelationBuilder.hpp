@@ -332,13 +332,12 @@ public:
         n_offsets.set(conduit::DataType(intTypeId, nnodes));
 
         // Make zones for each node
-        views::indexNodeToArrayViewSame(
-          n_zones,
-          n_topo_sizes,
-          n_topo_offsets,
-          [&](auto zonesView, auto sizesView, auto offsetsView) {
-            fillZonesMixed(nzones, zonesView, sizesView, offsetsView);
-          });
+        views::indexNodeToArrayViewSame(n_zones,
+                                        n_topo_sizes,
+                                        n_topo_offsets,
+                                        [&](auto zonesView, auto sizesView, auto offsetsView) {
+                                          fillZonesMixed(nzones, zonesView, sizesView, offsetsView);
+                                        });
 
         views::indexNodeToArrayViewSame(
           n_connectivity,

@@ -301,9 +301,8 @@ struct test_node_to_arrayview
       n_data.set(conduit::DataType(dtype, n));
 
       int sumValues = 0;
-      axom::bump::views::nodeToArrayView(n_data, [&](auto dataView) {
-        sumValues = testBody(dataView, n);
-      });
+      axom::bump::views::nodeToArrayView(n_data,
+                                         [&](auto dataView) { sumValues = testBody(dataView, n); });
 
       EXPECT_EQ(sumValues, sum(n));
     }
@@ -347,14 +346,13 @@ TEST(bump_views, node_to_arrayview_interleaved_seq)
   constexpr conduit::index_t n = 4;
   axom::Array<double> interleaved {{-1., 10., -2., 20., -3., 30., -4., 40., -5.}};
   conduit::Node n_data;
-  n_data.set_external(
-    conduit::DataType(conduit::DataType::FLOAT64_ID,
-                      n,
-                      sizeof(double),
-                      2 * sizeof(double),
-                      sizeof(double),
-                      conduit::Endianness::DEFAULT_ID),
-    interleaved.data());
+  n_data.set_external(conduit::DataType(conduit::DataType::FLOAT64_ID,
+                                        n,
+                                        sizeof(double),
+                                        2 * sizeof(double),
+                                        sizeof(double),
+                                        conduit::Endianness::DEFAULT_ID),
+                      interleaved.data());
 
   int sumValues = 0;
   axom::bump::views::nodeToArrayView(n_data, [&](auto dataView) {

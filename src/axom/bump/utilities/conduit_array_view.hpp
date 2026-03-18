@@ -43,10 +43,9 @@ inline axom::ArrayView<T> make_conduit_array_view(conduit::Node &n)
 
   auto *data = static_cast<T *>(n.element_ptr(0));
   const auto stride = stride_bytes / static_cast<conduit::index_t>(sizeof(T));
-  return axom::ArrayView<T>(
-    data,
-    axom::StackArray<axom::IndexType, 1> {{n.dtype().number_of_elements()}},
-    axom::StackArray<axom::IndexType, 1> {{stride}});
+  return axom::ArrayView<T>(data,
+                            axom::StackArray<axom::IndexType, 1> {{n.dtype().number_of_elements()}},
+                            axom::StackArray<axom::IndexType, 1> {{stride}});
 }
 
 template <typename T>
@@ -64,10 +63,9 @@ inline axom::ArrayView<T> make_conduit_array_view(const conduit::Node &n)
 
   auto *data = const_cast<T *>(static_cast<const T *>(n.element_ptr(0)));
   const auto stride = stride_bytes / static_cast<conduit::index_t>(sizeof(T));
-  return axom::ArrayView<T>(
-    data,
-    axom::StackArray<axom::IndexType, 1> {{n.dtype().number_of_elements()}},
-    axom::StackArray<axom::IndexType, 1> {{stride}});
+  return axom::ArrayView<T>(data,
+                            axom::StackArray<axom::IndexType, 1> {{n.dtype().number_of_elements()}},
+                            axom::StackArray<axom::IndexType, 1> {{stride}});
 }
 
 }  // namespace detail

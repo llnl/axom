@@ -660,8 +660,7 @@ public:
       n_topology["subelements/shape"] = "polygonal";
       conduit::Node &n_se_conn = n_topology["subelements/connectivity"];
       n_se_conn.set_allocator(conduitAllocatorId);
-      const auto seConnSize =
-        numFragments * m_view.m_maxFacesPerFragment * m_view.m_maxPointsPerFace;
+      const auto seConnSize = numFragments * m_view.m_maxFacesPerFragment * m_view.m_maxPointsPerFace;
       n_se_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, seConnSize));
       m_view.m_subelement_connectivity = utils::make_array_view<ConnectivityType>(n_se_conn);
       {

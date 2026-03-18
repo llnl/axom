@@ -1231,7 +1231,8 @@ protected:
           {
             conduit::Node &n_comp = n_values[it->second.m_components[ci]];
             n_comp.set_allocator(conduitAllocatorId);
-            const std::string srcPath("fields/" + it->first + "/values/" + it->second.m_components[ci]);
+            const std::string srcPath("fields/" + it->first + "/values/" +
+                                      it->second.m_components[ci]);
             if(it->second.m_association == "element")
             {
               n_comp.set(conduit::DataType(it->second.m_dtype, totalZones));
