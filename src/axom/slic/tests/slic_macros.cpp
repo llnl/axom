@@ -370,6 +370,9 @@ TEST(slic_macros, test_debug_macros)
   SLIC_DEBUG_IF_ONCE(true, "this message is logged!");
 
   axom::slic::setIsRoot(true);
+  SLIC_DEBUG_ROOT(true, "this message is logged!");
+  SLIC_DEBUG_ROOT_ONCE(true, "this message is logged!");
+
   SLIC_DEBUG_ROOT_IF(true, "this message is logged!");
   SLIC_DEBUG_ROOT_IF_ONCE(true, "this message is logged!");
 
