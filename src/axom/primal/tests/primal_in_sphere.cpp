@@ -51,10 +51,14 @@ TEST(primal_in_sphere, test_in_sphere_2d)
     PointType q1 {1, 1};
     EXPECT_FALSE(in_sphere(q1, p0, p1, p2));
     EXPECT_FALSE(in_sphere(q1, tri));
+    EXPECT_TRUE(in_sphere(q1, p0, p1, p2, 1e-8, true));
+    EXPECT_TRUE(in_sphere(q1, tri, 1e-8, true));
 
     PointType q2 {0, 1};
     EXPECT_FALSE(in_sphere(q2, p0, p1, p2));
     EXPECT_FALSE(in_sphere(q2, tri));
+    EXPECT_TRUE(in_sphere(q2, p0, p1, p2, 1e-8, true));
+    EXPECT_TRUE(in_sphere(q2, tri, 1e-8, true));
   }
 
   // Test some points that are outside the circumcircle
@@ -98,10 +102,14 @@ TEST(primal_in_sphere, test_in_sphere_3d)
     PointType q1 {1, 1, 1};
     EXPECT_FALSE(in_sphere(q1, p0, p1, p2, p3));
     EXPECT_FALSE(in_sphere(q1, tet));
+    EXPECT_TRUE(in_sphere(q1, p0, p1, p2, p3, 1e-8, true));
+    EXPECT_TRUE(in_sphere(q1, tet, 1e-8, true));
 
     PointType q2 {-1, 1, 1};
     EXPECT_FALSE(in_sphere(q2, p0, p1, p2, p3));
     EXPECT_FALSE(in_sphere(q2, tet));
+    EXPECT_TRUE(in_sphere(q2, p0, p1, p2, p3, 1e-8, true));
+    EXPECT_TRUE(in_sphere(q2, tet, 1e-8, true));
   }
 
   // Test some points that are outside the circumsphere

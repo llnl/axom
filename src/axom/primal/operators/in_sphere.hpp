@@ -37,6 +37,8 @@ namespace primal
  * \param [in] p1 the second vertex of the triangle
  * \param [in] p2 the third vertex of the triangle
  * \param [in] EPS tolerance for determining if \a q is on the boundary. Default: 1e-8.
+ * \param [in] includeBoundary if true, points on the circumcircle are treated
+ *  as inside. Default: false.
  * \return true if the point is inside the circumcircle, false if it is on
  * the circle's boundary or outside the circle
  */
@@ -45,7 +47,8 @@ inline bool in_sphere(const Point<T, 2>& q,
                       const Point<T, 2>& p0,
                       const Point<T, 2>& p1,
                       const Point<T, 2>& p2,
-                      double EPS = 1e-8)
+                      double EPS = 1e-8,
+                      bool includeBoundary = false)
 {
   const auto ba = p1 - p0;
   const auto ca = p2 - p0;
@@ -58,7 +61,7 @@ inline bool in_sphere(const Point<T, 2>& q,
     qa[0], qa[1], qa.squared_norm());
   // clang-format on
 
-  return axom::utilities::isNearlyEqual(det, 0., EPS) ? false : (det < 0);
+  return includeBoundary ? (det < 0 || axom::utilities::isNearlyEqual(det, 0., EPS)) : (det < 0);
 }
 
 /*!
@@ -67,12 +70,17 @@ inline bool in_sphere(const Point<T, 2>& q,
  * \param [in] q the query point
  * \param [in] tri the triangle
  * \param [in] EPS tolerance for determining if \a q is on the boundary. Default: 1e-8.
+ * \param [in] includeBoundary if true, points on the circumcircle are treated
+ *  as inside. Default: false.
  * \see in_sphere
  */
 template <typename T>
-inline bool in_sphere(const Point<T, 2>& q, const Triangle<T, 2>& tri, double EPS = 1e-8)
+inline bool in_sphere(const Point<T, 2>& q,
+                      const Triangle<T, 2>& tri,
+                      double EPS = 1e-8,
+                      bool includeBoundary = false)
 {
-  return in_sphere(q, tri[0], tri[1], tri[2], EPS);
+  return in_sphere(q, tri[0], tri[1], tri[2], EPS, includeBoundary);
 }
 
 /*!
@@ -88,6 +96,8 @@ inline bool in_sphere(const Point<T, 2>& q, const Triangle<T, 2>& tri, double EP
  * \param [in] p2 the third vertex of the tetrahedron
  * \param [in] p3 the fourth vertex of the tetrahedron
  * \param [in] EPS tolerance for determining if \a q is on the boundary. Default: 1e-8.
+ * \param [in] includeBoundary if true, points on the circumsphere are treated
+ *  as inside. Default: false.
  * \return true if the point is inside the circumsphere, false if it is on
  * the sphere's boundary or outside the sphere
  */
@@ -97,7 +107,8 @@ inline bool in_sphere(const Point<T, 3>& q,
                       const Point<T, 3>& p1,
                       const Point<T, 3>& p2,
                       const Point<T, 3>& p3,
-                      double EPS = 1e-8)
+                      double EPS = 1e-8,
+                      bool includeBoundary = false)
 {
   const auto ba = p1 - p0;
   const auto ca = p2 - p0;
@@ -112,7 +123,7 @@ inline bool in_sphere(const Point<T, 3>& q,
     qa[0], qa[1], qa[2], qa.squared_norm());
   // clang-format on
 
-  return axom::utilities::isNearlyEqual(det, 0., EPS) ? false : (det < 0);
+  return includeBoundary ? (det < 0 || axom::utilities::isNearlyEqual(det, 0., EPS)) : (det < 0);
 }
 
 /*!
@@ -121,12 +132,17 @@ inline bool in_sphere(const Point<T, 3>& q,
  * \param [in] q the query point
  * \param [in] tet the tetrahedron
  * \param [in] EPS tolerance for determining if \a q is on the boundary. Default: 1e-8.
+ * \param [in] includeBoundary if true, points on the circumsphere are treated
+ *  as inside. Default: false.
  * \see in_sphere
  */
 template <typename T>
-inline bool in_sphere(const Point<T, 3>& q, const Tetrahedron<T, 3>& tet, double EPS = 1e-8)
+inline bool in_sphere(const Point<T, 3>& q,
+                      const Tetrahedron<T, 3>& tet,
+                      double EPS = 1e-8,
+                      bool includeBoundary = false)
 {
-  return in_sphere(q, tet[0], tet[1], tet[2], tet[3], EPS);
+  return in_sphere(q, tet[0], tet[1], tet[2], tet[3], EPS, includeBoundary);
 }
 
 /*!
