@@ -556,6 +556,16 @@ if(AXOM_ENABLE_SIDRE)
                 COMMAND quest_scattered_interpolation_ex -d ${d} -n 10000 -q 20000
                 )
         endforeach()
+
+        axom_add_test(
+            NAME quest_scattered_interpolation_grid_2d_test
+            COMMAND quest_scattered_interpolation_ex -d 2 --grid-res 5 5 -q 200
+            )
+
+        axom_add_test(
+            NAME quest_scattered_interpolation_grid_3d_test
+            COMMAND quest_scattered_interpolation_ex -d 3 --grid-res 3 3 3 -q 200
+            )
     endif()
 endif()
 

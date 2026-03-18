@@ -417,12 +417,14 @@ private:
 struct Input
 {
   std::string outputFile {"scattered_interpolation"};
+  std::string delaunayFile;
   std::string inputFile;
 
   bool verboseOutput {false};
   int numRandPoints {20};
   int numQueryPoints {20};
   int dimension {2};
+  std::vector<int> inputGridResolution;
   std::vector<double> boundsMin;
   std::vector<double> boundsMax;
   std::string outputProtocol = sidre::Group::getDefaultIOProtocol();
@@ -437,6 +439,12 @@ struct Input
 
 public:
   bool hasInputMesh() const { return !inputFile.empty(); }
+  bool useRegularGrid() const { return !inputGridResolution.empty(); }
+  bool shouldExportDelaunay() const { return verboseOutput || !delaunayFile.empty(); }
+  std::string getDelaunayOutputFile() const
+  {
+    return delaunayFile.empty() ? outputFile + "_delaunay.vtk" : delaunayFile;
+  }
 
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
@@ -445,25 +453,31 @@ public:
       ->capture_default_str();
 
     // Options for input data
-    // Either provide `-n` and `-d`; or `-i` (input mesh)
     auto input_grp = app.add_option_group("Input",
-                                          "Parameters associated with input data.\n"
-                                          "If an input mesh is provided, it will override the "
-                                          "`-n` and `-d` options.");
-
-    input_grp->add_option("-n,--nrandpt", numRandPoints)
-      ->description("The number of points to generate for the input mesh")
-      ->capture_default_str();
+                                          "Choose at most one input source: "
+                                          "random points (`--nrandpt`), a regular grid "
+                                          "(`--grid-res`), or an input mesh (`--infile`). "
+                                          "If none is provided, the default random-point "
+                                          "count is used.");
 
     input_grp->add_option("-d,--dim", dimension)
-      ->description(
-        "The dimension of the mesh. 2 for triangle mesh in 2D; "
-        "3 for tetrahedral mesh in 3D")
+      ->description("The dimension of the input")
       ->capture_default_str();
 
-    input_grp->add_option("-i,--infile", inputFile)
-      ->description("Input point mesh with associated scalar fields")
-      ->check(axom::CLI::ExistingFile);
+    auto* randpt_opt = input_grp->add_option("-n,--nrandpt", numRandPoints);
+    randpt_opt->description("Generate the input using this many random points")->capture_default_str();
+
+    auto* grid_opt = input_grp->add_option("--grid-res", inputGridResolution);
+    grid_opt->description("Generate input along a regular grid with resolution (nx,ny[,nz])")
+      ->expected(2, 3)
+      ->check(axom::CLI::PositiveNumber);
+
+    auto* infile_opt = input_grp->add_option("-i,--infile", inputFile);
+    infile_opt->description("Read the input from a file")->check(axom::CLI::ExistingFile);
+
+    randpt_opt->excludes(grid_opt);
+    randpt_opt->excludes(infile_opt);
+    grid_opt->excludes(infile_opt);
 
     // Options for defining the query data
     auto query_grp =
@@ -492,6 +506,9 @@ public:
       ->description("The output file")
       ->capture_default_str();
 
+    output_grp->add_option("--delaunay-file", delaunayFile)
+      ->description("Optional name for exported Delaunay triangulation VTK file");
+
     output_grp->add_option("-p,--protocol", outputProtocol)
       ->description("Set the output protocol for sidre point meshes")
       ->capture_default_str()
@@ -503,6 +520,23 @@ public:
 
     // could throw an exception
     app.parse(argc, argv);
+
+    if(!hasInputMesh() && useRegularGrid())
+    {
+      if(dimension != static_cast<int>(inputGridResolution.size()))
+      {
+        SLIC_WARNING(axom::fmt::format("Overriding requested dimension {} with grid dimension {}",
+                                       dimension,
+                                       inputGridResolution.size()));
+        dimension = inputGridResolution.size();
+      }
+
+      for(int res : inputGridResolution)
+      {
+        SLIC_ERROR_IF(res < 2,
+                      "Regular-grid input requires at least two points along each dimension.");
+      }
+    }
 
     // If user doesn't provide bounds, default to unit cube
     if(boundsMin.empty())
@@ -520,20 +554,26 @@ public:
     {{
       dimension: {}
       nrandpt: {}
+      grid resolution: [{}]
       inputFile: '{}'
       nquerypt: {}
       bounding box min: {{{}}}
       bounding box max: {{{}}}
       outfile = '{}'
+      export delaunay = {}
+      delaunay file = '{}'
       output protocol = '{}'
     }})",
                                 dimension,
                                 numRandPoints,
+                                axom::fmt::join(inputGridResolution, ", "),
                                 inputFile,
                                 numQueryPoints,
                                 axom::fmt::join(boundsMin, ", "),
                                 axom::fmt::join(boundsMax, ", "),
                                 outputFile,
+                                shouldExportDelaunay(),
+                                shouldExportDelaunay() ? getDelaunayOutputFile() : "",
                                 outputProtocol));
 
     axom::slic::setLoggingMsgLevel(verboseOutput ? axom::slic::message::Debug
@@ -563,6 +603,46 @@ axom::Array<primal::Point<double, DIM>> generatePts(int numPts,
     {
       pt[d] = random_real(bbox.getMin()[d], bbox.getMax()[d]);
     }
+  }
+
+  return pts;
+}
+
+template <int DIM>
+axom::Array<primal::Point<double, DIM>> generateGridPts(const std::vector<int>& grid_res,
+                                                        const std::vector<double>& bb_min,
+                                                        const std::vector<double>& bb_max)
+{
+  using PointType = typename primal::Point<double, DIM>;
+  using BoundingBox = typename primal::BoundingBox<double, DIM>;
+
+  SLIC_ASSERT(static_cast<int>(grid_res.size()) == DIM);
+
+  int numPts = 1;
+  for(int d = 0; d < DIM; ++d)
+  {
+    numPts *= grid_res[d];
+  }
+
+  axom::Array<PointType> pts(numPts, numPts);
+  BoundingBox bbox {PointType(bb_min.data()), PointType(bb_max.data())};
+
+  for(int idx = 0; idx < numPts; ++idx)
+  {
+    int remaining = idx;
+    PointType pt;
+
+    for(int d = 0; d < DIM; ++d)
+    {
+      const int res = grid_res[d];
+      const int gridIdx = remaining % res;
+      remaining /= res;
+
+      const double t = static_cast<double>(gridIdx) / static_cast<double>(res - 1);
+      pt[d] = bbox.getMin()[d] + t * (bbox.getMax()[d] - bbox.getMin()[d]);
+    }
+
+    pts[idx] = pt;
   }
 
   return pts;
@@ -608,7 +688,15 @@ void initializeInputMesh(Input& params, internal::blueprint::PointMesh& inputMes
   }
   else
   {
-    inputMesh.setPoints(generatePts<DIM>(params.numRandPoints, params.boundsMin, params.boundsMax));
+    if(params.useRegularGrid())
+    {
+      inputMesh.setPoints(
+        generateGridPts<DIM>(params.inputGridResolution, params.boundsMin, params.boundsMax));
+    }
+    else
+    {
+      inputMesh.setPoints(generatePts<DIM>(params.numRandPoints, params.boundsMin, params.boundsMax));
+    }
 
     // Extract coordinate positions as scalar fields
     const int nPts = inputMesh.numPoints();
@@ -637,6 +725,8 @@ void initializeInputMesh(Input& params, internal::blueprint::PointMesh& inputMes
         pos_z[i] = pt[DIM - 1];
       }
     }
+
+    params.numRandPoints = nPts;
   }
 }
 
@@ -891,17 +981,19 @@ int main(int argc, char** argv)
                       numVerts / timer.elapsedTimeInSec()));
 
   // Dump the Delaunay complex to disk as a vtk file
-  if(params.verboseOutput)
+  if(params.shouldExportDelaunay())
   {
+    const std::string delaunayFile = params.getDelaunayOutputFile();
     switch(params.dimension)
     {
     case 2:
-      scattered_2d->exportDelaunayComplex(bp_input, "delaunay_2d.vtk");
+      scattered_2d->exportDelaunayComplex(bp_input, std::string(delaunayFile));
       break;
     case 3:
-      scattered_3d->exportDelaunayComplex(bp_input, "delaunay_3d.vtk");
+      scattered_3d->exportDelaunayComplex(bp_input, std::string(delaunayFile));
       break;
     }
+    SLIC_INFO(axom::fmt::format("Exported Delaunay triangulation to '{}'.", delaunayFile));
   }
 
   // Find the simplices containing each of the query points
