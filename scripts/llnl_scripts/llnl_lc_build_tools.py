@@ -203,8 +203,15 @@ def build_and_test_host_config(test_root, host_config,
                                report_to_stdout = False,
                                extra_cmake_options = "",
                                build_type = "Debug",
-                               test_serial = False):
+                               test_serial = False,
+                               use_ninja = False):
     host_config_root = get_host_config_root(host_config)
+    build_tool = "ninja" if use_ninja else "make"
+    build_tool_flags = "-j16"
+    build_log_id = build_tool
+    configure_generator_flag = "--ninja" if use_ninja else ""
+    build_cmd = f"{build_tool} {build_tool_flags}"
+    verbose_build_cmd = f"{build_cmd} -v" if use_ninja else f"{build_cmd} VERBOSE=1"
     # setup build and install dirs
     build_dir   = pjoin(test_root, f"build-{host_config_root}")
     install_dir = pjoin(test_root, f"install-{host_config_root}")
@@ -216,7 +223,7 @@ def build_and_test_host_config(test_root, host_config,
     cfg_output_file = pjoin(test_root, f"output.log.{host_config_root}.configure.txt")
     print(f"[starting configure of {host_config}]")
     print(f"[log file: {cfg_output_file}]")
-    res = sexe(f"{sys.executable} config-build.py -bp {build_dir} -ip {install_dir} -bt {build_type} -hc {host_config} {extra_cmake_options}",
+    res = sexe(f"{sys.executable} config-build.py -bp {build_dir} -ip {install_dir} -bt {build_type} -hc {host_config} {configure_generator_flag} {extra_cmake_options}",
                output_file = cfg_output_file,
                echo=True)
 
@@ -233,10 +240,10 @@ def build_and_test_host_config(test_root, host_config,
     ####
 
     # build the code
-    bld_output_file =  pjoin(build_dir,"output.log.make.txt")
+    bld_output_file =  pjoin(build_dir, f"output.log.{build_log_id}.txt")
     print("[starting build]")
     print(f"[log file: {bld_output_file}]")
-    res = sexe(f"cd {build_dir} && make -j 16 VERBOSE=1 ",
+    res = sexe(f"cd {build_dir} && {verbose_build_cmd}",
                 output_file = bld_output_file,
                 echo=True)
 
@@ -249,12 +256,12 @@ def build_and_test_host_config(test_root, host_config,
         return res
 
     # test the code
-    tst_output_file = pjoin(build_dir,"output.log.make.test.txt")
+    tst_output_file = pjoin(build_dir, f"output.log.{build_log_id}.test.txt")
     print("[starting unit tests]")
     print(f"[log file: {tst_output_file}]")
 
     parallel_test = "" if test_serial else "-j16"
-    tst_cmd = f"cd {build_dir} && make CTEST_OUTPUT_ON_FAILURE=1 test ARGS=\"--no-compress-output -T Test -VV {parallel_test}\""
+    tst_cmd = f"cd {build_dir} && CTEST_OUTPUT_ON_FAILURE=1 ctest --no-compress-output -T Test -VV {parallel_test}"
 
     res = sexe(tst_cmd,
                output_file = tst_output_file,
@@ -285,11 +292,11 @@ def build_and_test_host_config(test_root, host_config,
         return res
 
     # build the docs
-    docs_output_file = pjoin(build_dir,"output.log.make.docs.txt")
+    docs_output_file = pjoin(build_dir, f"output.log.{build_log_id}.docs.txt")
     print("[starting docs generation]")
     print(f"[log file: {docs_output_file}]")
 
-    res = sexe(f"cd {build_dir} && make -j16 docs ",
+    res = sexe(f"cd {build_dir} && {build_cmd} docs",
                output_file = docs_output_file,
                echo=True)
 
@@ -302,11 +309,11 @@ def build_and_test_host_config(test_root, host_config,
         return res
 
     # install the code
-    inst_output_file = pjoin(build_dir,"output.log.make.install.txt")
+    inst_output_file = pjoin(build_dir, f"output.log.{build_log_id}.install.txt")
     print("[starting install]")
     print(f"[log file: {inst_output_file}]")
 
-    res = sexe(f"cd {build_dir} && make -j16 install ",
+    res = sexe(f"cd {build_dir} && {build_cmd} install",
                output_file = inst_output_file,
                echo=True)
 
@@ -341,7 +348,7 @@ def build_and_test_host_config(test_root, host_config,
             """echo "[Configuring '{0}' example]" """.format("using-with-cmake"),
             "cmake -C ../host-config.cmake ..",
             """echo "[Building '{0}' example]" """.format("using-with-cmake"),
-            "make ",
+            build_cmd,
             """echo "[Running '{0}' example]" """.format("using-with-cmake"),
             "./example",
             """echo "[Done]" """
@@ -370,7 +377,7 @@ def build_and_test_host_config(test_root, host_config,
             """echo "[Configuring '{0}' example]" """.format("using-with-blt"),
             "cmake -C ../host-config.cmake ..",
             """echo "[Building '{0}' example]" """.format("using-with-blt"),
-            "make ",
+            build_cmd,
             """echo "[Running '{0}' example]" """.format("using-with-blt"),
             "./bin/example",
             """echo "[Done]" """
@@ -400,7 +407,7 @@ def build_and_test_host_config(test_root, host_config,
                 f"""echo "[Configuring '{_tut}']" """,
                 f"cmake -C ../host-config.cmake -DCMAKE_BUILD_TYPE={build_type} ..",
                 f"""echo "[Building '{_tut}']" """,
-                "make -j16",
+                build_cmd,
                 f"""echo "[Running lessons for {_tut}]" """,
                 "ctest -j16",
                 """echo "[Done]" """
@@ -430,7 +437,8 @@ def build_and_test_host_configs(prefix,
                                 report_to_stdout = False,
                                 extra_cmake_options = "",
                                 build_type = "Debug",
-                                test_serial = False):
+                                test_serial = False,
+                                use_ninja = False):
     host_configs = get_host_configs_for_current_machine(prefix, use_generated_host_configs)
     if len(host_configs) == 0:
         log_failure(prefix,"[ERROR: No host configs found at %s]" % prefix)
@@ -453,7 +461,8 @@ def build_and_test_host_configs(prefix,
                                       report_to_stdout = report_to_stdout,
                                       extra_cmake_options=extra_cmake_options,
                                       build_type = build_type,
-                                      test_serial = test_serial) == 0:
+                                      test_serial = test_serial,
+                                      use_ninja = use_ninja) == 0:
             ok.append(host_config)
             log_success(build_dir, "[Success: Built host-config: {0}]".format(host_config), timestamp)
         else:

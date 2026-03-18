@@ -45,6 +45,11 @@ def parse_args():
                         dest="testserial",
                         default=False,
                         help="Run unit tests serially")
+    parser.add_argument("--ninja",
+                        action="store_true",
+                        dest="ninja",
+                        default=False,
+                        help="Use the Ninja generator and build tool")
     # Extra cmake options to pass to config build
     parser.add_argument("--extra-cmake-options",
                         dest="extra_cmake_options",
@@ -107,7 +112,8 @@ def main():
                                               report_to_stdout = opts["verbose"],
                                               extra_cmake_options = opts["extra_cmake_options"],
                                               build_type = opts["buildtype"],
-                                              test_serial = opts["testserial"])
+                                              test_serial = opts["testserial"],
+                                              use_ninja = opts["ninja"])
         # Otherwise try to build a specific host-config
         else:
             # Command-line arg has highest priority
@@ -164,7 +170,8 @@ def main():
                                              report_to_stdout = opts["verbose"],
                                              extra_cmake_options = opts["extra_cmake_options"],
                                              build_type = opts["buildtype"],
-                                             test_serial = opts["testserial"])
+                                             test_serial = opts["testserial"],
+                                             use_ninja = opts["ninja"])
 
     finally:
         os.chdir(original_wd)

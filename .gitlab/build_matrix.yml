@@ -26,6 +26,7 @@
 .src_build_on_matrix:
   variables:
     ALLOC_TIME: "40"
+    EXTRA_OPTIONS: "--ninja"
   extends: [.src_build_script, .on_matrix, .src_workflow]
   needs: []
 

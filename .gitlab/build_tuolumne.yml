@@ -25,6 +25,7 @@
   variables:
     ALLOC_TIME: "60"
     NUM_NODES: "1"
+    EXTRA_OPTIONS: "--ninja"
   extends: [.src_build_script, .on_tuolumne, .src_workflow]
   needs: []
 
