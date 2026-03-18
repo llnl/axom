@@ -486,6 +486,22 @@
 #define SLIC_INFO(msg) SLIC_INFO_IF(true, msg)
 
 /*!
+ * \def SLIC_INFO_ONCE( msg )
+ * \brief Logs an Info message only once per call site.
+ *
+ * \param [in] msg user-supplied message
+ *
+ * \note The SLIC_INFO_ONCE macro is always active.
+ *
+ * Usage:
+ * \code
+ *   SLIC_INFO_ONCE( "informative text goes here" );
+ * \endcode
+ *
+ */
+#define SLIC_INFO_ONCE(msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_INFO_IF, true, msg)
+
+/*!
  * \def SLIC_INFO_TAGGED( msg, tag )
  * \brief Logs an Info message to a tagged stream
  *
@@ -506,6 +522,32 @@
     std::ostringstream __oss;                                                                             \
     __oss << msg;                                                                                         \
     axom::slic::logMessage(axom::slic::message::Info, __oss.str(), tag, __FILE__, __LINE__, false, true); \
+  } while(axom::slic::detail::false_value)
+
+/*!
+ * \def SLIC_INFO_TAGGED_ONCE( msg, tag )
+ * \brief Logs an Info message to a tagged stream only once per call site.
+ *
+ * \param [in] msg user-supplied message
+ * \param [in] tag user-supplied tag
+ *
+ * \note The SLIC_INFO_TAGGED_ONCE macro is always active.
+ *
+ * Usage:
+ * \code
+ *   SLIC_INFO_TAGGED_ONCE("informative text goes here", "tag");
+ * \endcode
+ *
+ */
+#define SLIC_INFO_TAGGED_ONCE(msg, tag) \
+  do                                    \
+  {                                     \
+    static bool once = true;            \
+    if(once)                            \
+    {                                   \
+      SLIC_INFO_TAGGED(msg, tag);       \
+      once = false;                     \
+    }                                   \
   } while(axom::slic::detail::false_value)
 
 /*!
@@ -535,6 +577,23 @@
   } while(axom::slic::detail::false_value)
 
 /*!
+ * \def SLIC_INFO_IF_ONCE( EXP, msg )
+ * \brief Logs an Info message iff EXP is true, only once per call site.
+ *
+ * \param [in] EXP user-supplied boolean expression.
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_INFO_IF_ONCE macro is always active.
+ *
+ * Usage:
+ * \code
+ *   SLIC_INFO_IF_ONCE( (val < 0), "my_val should always be positive" );
+ * \endcode
+ *
+ */
+#define SLIC_INFO_IF_ONCE(EXP, msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_INFO_IF, EXP, msg)
+
+/*!
  * \def SLIC_INFO_ROOT( msg )
  * \brief Logs an Info message if on root
  *
@@ -549,6 +608,22 @@
  *
  */
 #define SLIC_INFO_ROOT(msg) SLIC_INFO_IF(axom::slic::isRoot(), msg)
+
+/*!
+ * \def SLIC_INFO_ROOT_ONCE( msg )
+ * \brief Logs an Info message if on root, only once per call site.
+ *
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_INFO_ROOT_ONCE macro is always active.
+ *
+ * Usage:
+ * \code
+ *   SLIC_INFO_ROOT_ONCE( "informative text goes here" );
+ * \endcode
+ *
+ */
+#define SLIC_INFO_ROOT_ONCE(msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_INFO_ROOT, axom::slic::isRoot(), msg)
 
 /*!
  * \def SLIC_INFO_ROOT_IF( EXP, msg )
@@ -566,6 +641,24 @@
  *
  */
 #define SLIC_INFO_ROOT_IF(EXP, msg) SLIC_INFO_IF((EXP) && (axom::slic::isRoot()), msg)
+
+/*!
+ * \def SLIC_INFO_ROOT_IF_ONCE( EXP, msg )
+ * \brief Logs an Info message if on root and iff EXP is true, only once per call site.
+ *
+ * \param [in] EXP user-supplied boolean expression.
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_INFO_ROOT_IF_ONCE macro is always active.
+ *
+ * Usage:
+ * \code
+ *   SLIC_INFO_ROOT_IF_ONCE( (val < 0), "my_val should always be positive" );
+ * \endcode
+ *
+ */
+#define SLIC_INFO_ROOT_IF_ONCE(EXP, msg) \
+  SLIC_DETAIL_LOG_IF_ONCE(SLIC_INFO_ROOT_IF, (EXP) && (axom::slic::isRoot()), msg)
 
 #ifdef AXOM_DEBUG
 

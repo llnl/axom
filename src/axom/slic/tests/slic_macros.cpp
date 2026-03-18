@@ -155,7 +155,7 @@ void check_level_msg_line_file(const std::string& level, const std::string& mess
     check_level_msg_line_file(level, message, expected_line); \
   } while(false)
 
-// Convenience test macro that checks SLIC_*_ONCE macro has logged one message
+// Convenience test macro that checks SLIC_*_ONCE macro logs one message
 #define EXPECT_SLIC_ONCE(macro_call, level, message)                     \
   do                                                                     \
   {                                                                      \
@@ -280,19 +280,34 @@ TEST(slic_macros, test_info_macros)
   EXPECT_TRUE(slic::internal::is_stream_empty());
   EXPECT_SLIC_LOG(SLIC_INFO("test info message"), "INFO", "test info message");
 
+  EXPECT_SLIC_ONCE(SLIC_INFO_ONCE("this info message once"), "INFO", "this info message once");
+
   SLIC_INFO_IF(false, "this message should not be logged!");
   EXPECT_TRUE(slic::internal::is_stream_empty());
 
+  SLIC_INFO_IF_ONCE(false, "this message should not be logged!");
+  EXPECT_TRUE(slic::internal::is_stream_empty());
+
   EXPECT_SLIC_LOG(SLIC_INFO_IF(true, "this message is logged!"), "INFO", "this message is logged!");
+
+  EXPECT_SLIC_ONCE(SLIC_INFO_IF_ONCE(true, "this message is logged once!"),
+                   "INFO",
+                   "this message is logged once!");
 
   // is root, but conditional is false -> no message
   axom::slic::setIsRoot(true);
   SLIC_INFO_ROOT_IF(false, "this message should not be logged!");
   EXPECT_TRUE(slic::internal::is_stream_empty());
 
+  SLIC_INFO_ROOT_IF_ONCE(false, "this message should not be logged!");
+  EXPECT_TRUE(slic::internal::is_stream_empty());
+
   // is not root, and conditional is true -> no message
   axom::slic::setIsRoot(false);
   SLIC_INFO_ROOT_IF(true, "this message should not be logged!");
+  EXPECT_TRUE(slic::internal::is_stream_empty());
+
+  SLIC_INFO_ROOT_IF_ONCE(true, "this message should not be logged!");
   EXPECT_TRUE(slic::internal::is_stream_empty());
 }
 
@@ -433,10 +448,22 @@ TEST(slic_macros, test_tagged_macros)
   check_tag(slic::internal::test_stream.str(), "myTag");
   check_level_msg_line_file("INFO", "test tagged info message", expected_line_number);
 
+  for(int i = 0; i < 2; i++)
+  {
+    SLIC_INFO_TAGGED_ONCE("test tagged info message once", "myTag");
+  }
+  expected_line_number = __LINE__ - 2;
+
+  EXPECT_EQ(check_count(slic::internal::test_stream.str(), "INFO"), 1);
+  check_tag(slic::internal::test_stream.str(), "myTag");
+  check_level_msg_line_file("INFO", "test tagged info message once", expected_line_number);
+
   SLIC_INFO_TAGGED("this message should not be logged (no tag given)!", "");
+  SLIC_INFO_TAGGED_ONCE("this message should not be logged (no tag given)!", "");
   EXPECT_TRUE(slic::internal::is_stream_empty());
 
   SLIC_INFO_TAGGED("this message should not be logged (tag DNE)!", "tag404");
+  SLIC_INFO_TAGGED_ONCE("this message should not be logged (tag DNE)!", "tag404");
   EXPECT_TRUE(slic::internal::is_stream_empty());
 }
 
