@@ -118,6 +118,27 @@ void check_tag(const std::string& msg, const std::string& expected_tag)
   EXPECT_EQ(tag, expected_tag);
 }
 
+//------------------------------------------------------------------------------
+void check_level_msg_line_file(const std::string& level, const std::string& message, int expected_line)
+{
+  EXPECT_FALSE(slic::internal::is_stream_empty());
+  const std::string str = slic::internal::test_stream.str();
+  check_level(str, level);
+  check_msg(str, message);
+  check_line(str, expected_line);
+  check_file(str);
+  slic::internal::clear();
+}
+
+// Convenience test macro that checks slic macro has logged a message
+#define EXPECT_SLIC_LOG(macro_call, level, message)           \
+  do                                                          \
+  {                                                           \
+    const int expected_line = __LINE__;                       \
+    macro_call;                                               \
+    check_level_msg_line_file(level, message, expected_line); \
+  } while(false)
+
 }  // end anonymous namespace
 
 //------------------------------------------------------------------------------
@@ -125,29 +146,15 @@ void check_tag(const std::string& msg, const std::string& expected_tag)
 //------------------------------------------------------------------------------
 TEST(slic_macros, test_error_macros)
 {
-  int expected_line_number;
-
   EXPECT_TRUE(slic::internal::is_stream_empty());
-  SLIC_ERROR("test error message");
-  expected_line_number = __LINE__ - 1;
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "ERROR");
-  check_msg(slic::internal::test_stream.str(), "test error message");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
-  slic::internal::clear();
+  EXPECT_SLIC_LOG(SLIC_ERROR("test error message"), "ERROR", "test error message");
 
   SLIC_ERROR_IF(false, "this message should not be logged!");
   EXPECT_TRUE(slic::internal::is_stream_empty());
 
-  SLIC_ERROR_IF(true, "this message is logged!");
-  expected_line_number = __LINE__ - 1;
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "ERROR");
-  check_msg(slic::internal::test_stream.str(), "this message is logged!");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
-  slic::internal::clear();
+  EXPECT_SLIC_LOG(SLIC_ERROR_IF(true, "this message is logged!"),
+                  "ERROR",
+                  "this message is logged!");
 
   // Check selective filtering based on root == false
   axom::slic::setIsRoot(false);
@@ -157,13 +164,9 @@ TEST(slic_macros, test_error_macros)
   // Check selective filter based on root == true
   axom::slic::setIsRoot(true);
   SLIC_ERROR_ROOT_IF(true, "this message is logged!");
-  expected_line_number = __LINE__ - 1;
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "ERROR");
-  check_msg(slic::internal::test_stream.str(), "this message is logged!");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
-  slic::internal::clear();
+  EXPECT_SLIC_LOG(SLIC_ERROR_ROOT_IF(true, "this message is logged!"),
+                  "ERROR",
+                  "this message is logged!");
 
   // is root, but conditional is false -> no message
   axom::slic::setIsRoot(true);
@@ -179,29 +182,15 @@ TEST(slic_macros, test_error_macros)
 //------------------------------------------------------------------------------
 TEST(slic_macros, test_warning_macros)
 {
-  int expected_line_number;
-
   EXPECT_TRUE(slic::internal::is_stream_empty());
-  SLIC_WARNING("test warning message");
-  expected_line_number = __LINE__ - 1;
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "WARNING");
-  check_msg(slic::internal::test_stream.str(), "test warning message");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
-  slic::internal::clear();
+  EXPECT_SLIC_LOG(SLIC_WARNING("test warning message"), "WARNING", "test warning message");
 
   SLIC_WARNING_IF(false, "this message should not be logged!");
   EXPECT_TRUE(slic::internal::is_stream_empty());
 
-  SLIC_WARNING_IF(true, "this message is logged!");
-  expected_line_number = __LINE__ - 1;
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "WARNING");
-  check_msg(slic::internal::test_stream.str(), "this message is logged!");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
-  slic::internal::clear();
+  EXPECT_SLIC_LOG(SLIC_WARNING_IF(true, "this message is logged!"),
+                  "WARNING",
+                  "this message is logged!");
 
   // Check selective filtering based on root == false
   axom::slic::setIsRoot(false);
@@ -210,14 +199,9 @@ TEST(slic_macros, test_warning_macros)
 
   // Check selective filter based on root == true
   axom::slic::setIsRoot(true);
-  SLIC_WARNING_ROOT_IF(true, "this message is logged!");
-  expected_line_number = __LINE__ - 1;
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "WARNING");
-  check_msg(slic::internal::test_stream.str(), "this message is logged!");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
-  slic::internal::clear();
+  EXPECT_SLIC_LOG(SLIC_WARNING_ROOT_IF(true, "this message is logged!"),
+                  "WARNING",
+                  "this message is logged!");
 
   // is root, but conditional is false -> no message
   axom::slic::setIsRoot(true);
@@ -233,29 +217,13 @@ TEST(slic_macros, test_warning_macros)
 //------------------------------------------------------------------------------
 TEST(slic_macros, test_info_macros)
 {
-  int expected_line_number;
-
   EXPECT_TRUE(slic::internal::is_stream_empty());
-  SLIC_INFO("test info message");
-  expected_line_number = __LINE__ - 1;
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "INFO");
-  check_msg(slic::internal::test_stream.str(), "test info message");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
-  slic::internal::clear();
+  EXPECT_SLIC_LOG(SLIC_INFO("test info message"), "INFO", "test info message");
 
   SLIC_INFO_IF(false, "this message should not be logged!");
   EXPECT_TRUE(slic::internal::is_stream_empty());
 
-  SLIC_INFO_IF(true, "this message is logged!");
-  expected_line_number = __LINE__ - 1;
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "INFO");
-  check_msg(slic::internal::test_stream.str(), "this message is logged!");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
-  slic::internal::clear();
+  EXPECT_SLIC_LOG(SLIC_INFO_IF(true, "this message is logged!"), "INFO", "this message is logged!");
 
   // is root, but conditional is false -> no message
   axom::slic::setIsRoot(true);
@@ -277,12 +245,7 @@ TEST(slic_macros, test_debug_macros)
   SLIC_DEBUG("test debug message");
   expected_line_number = __LINE__ - 1;
 #ifdef AXOM_DEBUG
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "DEBUG");
-  check_msg(slic::internal::test_stream.str(), "test debug message");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
-  slic::internal::clear();
+  check_level_msg_line_file("DEBUG", "test debug message", expected_line_number);
 #else
   // SLIC_DEBUG macros only log messages when AXOM_DEBUG is defined
   EXPECT_TRUE(slic::internal::is_stream_empty());
@@ -294,12 +257,7 @@ TEST(slic_macros, test_debug_macros)
   SLIC_DEBUG_IF(true, "this message is logged!");
   expected_line_number = __LINE__ - 1;
 #ifdef AXOM_DEBUG
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "DEBUG");
-  check_msg(slic::internal::test_stream.str(), "this message is logged!");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
-  slic::internal::clear();
+  check_level_msg_line_file("DEBUG", "this message is logged!", expected_line_number);
 #else
   // SLIC_DEBUG macros only log messages when AXOM_DEBUG is defined
   EXPECT_TRUE(slic::internal::is_stream_empty());
@@ -315,12 +273,7 @@ TEST(slic_macros, test_debug_macros)
   SLIC_DEBUG_ROOT_IF(true, "this message is logged!");
   expected_line_number = __LINE__ - 1;
 #ifdef AXOM_DEBUG
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "DEBUG");
-  check_msg(slic::internal::test_stream.str(), "this message is logged!");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
-  slic::internal::clear();
+  check_level_msg_line_file("DEBUG", "this message is logged!", expected_line_number);
 #else
   // SLIC_DEBUG macros only log messages when AXOM_DEBUG is defined
   EXPECT_TRUE(slic::internal::is_stream_empty());
@@ -348,12 +301,7 @@ TEST(slic_macros, test_assert_macros)
   SLIC_ASSERT(val < 0);
   expected_line_number = __LINE__ - 1;
 #if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "ERROR");
-  check_msg(slic::internal::test_stream.str(), "Failed Assert: val < 0");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
-  slic::internal::clear();
+  check_level_msg_line_file("ERROR", "Failed Assert: val < 0", expected_line_number);
 #else
   // SLIC_ASSERT macros only log messages when AXOM_DEBUG is defined
   AXOM_UNUSED_VAR(val);
@@ -367,12 +315,9 @@ TEST(slic_macros, test_assert_macros)
   SLIC_ASSERT_MSG(val < 0, "val should be negative!");
   expected_line_number = __LINE__ - 1;
 #if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "ERROR");
-  check_msg(slic::internal::test_stream.str(), "Failed Assert: val < 0\nval should be negative!");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
-  slic::internal::clear();
+  check_level_msg_line_file("ERROR",
+                            "Failed Assert: val < 0\nval should be negative!",
+                            expected_line_number);
 #else
   // SLIC_ASSERT macros only log messages when AXOM_DEBUG is defined
   AXOM_UNUSED_VAR(val);
@@ -391,12 +336,7 @@ TEST(slic_macros, test_check_macros)
   SLIC_CHECK(val < 0);
   expected_line_number = __LINE__ - 1;
 #if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "WARNING");
-  check_msg(slic::internal::test_stream.str(), "Failed Check: val < 0");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
-  slic::internal::clear();
+  check_level_msg_line_file("WARNING", "Failed Check: val < 0", expected_line_number);
 #else
   // SLIC_CHECK macros only log messages when AXOM_DEBUG is defined
   AXOM_UNUSED_VAR(val);
@@ -410,12 +350,9 @@ TEST(slic_macros, test_check_macros)
   SLIC_CHECK_MSG(val < 0, "val should be negative!");
   expected_line_number = __LINE__ - 1;
 #if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "WARNING");
-  check_msg(slic::internal::test_stream.str(), "Failed Check: val < 0\nval should be negative!");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
-  slic::internal::clear();
+  check_level_msg_line_file("WARNING",
+                            "Failed Check: val < 0\nval should be negative!",
+                            expected_line_number);
 #else
   // SLIC_CHECK macros only log messages when AXOM_DEBUG is defined
   AXOM_UNUSED_VAR(val);
@@ -432,13 +369,9 @@ TEST(slic_macros, test_tagged_macros)
   EXPECT_TRUE(slic::internal::is_stream_empty());
   SLIC_INFO_TAGGED("test tagged info message", "myTag");
   expected_line_number = __LINE__ - 1;
-  EXPECT_FALSE(slic::internal::is_stream_empty());
-  check_level(slic::internal::test_stream.str(), "INFO");
-  check_msg(slic::internal::test_stream.str(), "test tagged info message");
-  check_file(slic::internal::test_stream.str());
-  check_line(slic::internal::test_stream.str(), expected_line_number);
+
   check_tag(slic::internal::test_stream.str(), "myTag");
-  slic::internal::clear();
+  check_level_msg_line_file("INFO", "test tagged info message", expected_line_number);
 
   SLIC_INFO_TAGGED("this message should not be logged (no tag given)!", "");
   EXPECT_TRUE(slic::internal::is_stream_empty());
