@@ -292,7 +292,7 @@
  *
  */
 #define SLIC_WARNING_ROOT_IF_ONCE(EXP, msg) \
-  SLIC_DETAIL_LOG_IF_ONCE(SLIC_WARNING_ROOT_IF, (EXP) && (axom::slic::isRoot()), msg)
+  SLIC_DETAIL_LOG_IF_ONCE(SLIC_WARNING_IF, (EXP) && (axom::slic::isRoot()), msg)
 
 ///@}
 
@@ -623,7 +623,7 @@
  * \endcode
  *
  */
-#define SLIC_INFO_ROOT_ONCE(msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_INFO_ROOT, axom::slic::isRoot(), msg)
+#define SLIC_INFO_ROOT_ONCE(msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_INFO_IF, axom::slic::isRoot(), msg)
 
 /*!
  * \def SLIC_INFO_ROOT_IF( EXP, msg )
@@ -658,7 +658,7 @@
  *
  */
 #define SLIC_INFO_ROOT_IF_ONCE(EXP, msg) \
-  SLIC_DETAIL_LOG_IF_ONCE(SLIC_INFO_ROOT_IF, (EXP) && (axom::slic::isRoot()), msg)
+  SLIC_DETAIL_LOG_IF_ONCE(SLIC_INFO_IF, (EXP) && (axom::slic::isRoot()), msg)
 
 #ifdef AXOM_DEBUG
 
@@ -677,6 +677,22 @@
  *
  */
   #define SLIC_DEBUG(msg) SLIC_DEBUG_IF(true, msg)
+
+  /*!
+ * \def SLIC_DEBUG_ONCE( msg )
+ * \brief Logs a Debug message only once per call site.
+ *
+ * \param [in] msg user-supplied message
+ *
+ * \note The SLIC_DEBUG_ONCE macro is active when AXOM_DEBUG is defined.
+ *
+ * Usage:
+ * \code
+ *   SLIC_DEBUG_ONCE( "debug message goes here" );
+ * \endcode
+ *
+ */
+  #define SLIC_DEBUG_ONCE(msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_DEBUG_IF, true, msg)
 
   /*!
  * \def SLIC_DEBUG_IF( EXP, msg )
@@ -705,6 +721,23 @@
     } while(axom::slic::detail::false_value)
 
   /*!
+ * \def SLIC_DEBUG_IF_ONCE( EXP, msg )
+ * \brief Logs an Debug message iff EXP is true only once per call site.
+ *
+ * \param [in] EXP user-supplied boolean expression.
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_DEBUG_IF_ONCE macro is active when AXOM_DEBUG is defined.
+ *
+ * Usage:
+ * \code
+ *   SLIC_DEBUG_IF_ONCE( (val < 0), "my_val should always be positive" );
+ * \endcode
+ *
+ */
+  #define SLIC_DEBUG_IF_ONCE(EXP, msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_DEBUG_IF, EXP, msg)
+
+  /*!
  * \def SLIC_DEBUG_ROOT( msg )
  * \brief Logs a Debug message if on root
  *
@@ -719,6 +752,23 @@
  *
  */
   #define SLIC_DEBUG_ROOT(msg) SLIC_DEBUG_IF(axom::slic::isRoot(), msg)
+
+  /*!
+ * \def SLIC_DEBUG_ROOT_ONCE( msg )
+ * \brief Logs a Debug message if on root only once per call site.
+ *
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_DEBUG_ROOT_ONCE macro is active when AXOM_DEBUG is defined.
+ *
+ * Usage:
+ * \code
+ *   SLIC_DEBUG_ROOT_ONCE( "informative text goes here" );
+ * \endcode
+ *
+ */
+  #define SLIC_DEBUG_ROOT_ONCE(msg) \
+    SLIC_DETAIL_LOG_IF_ONCE(SLIC_DEBUG_IF, axom::slic::isRoot(), msg)
 
   /*!
  * \def SLIC_DEBUG_ROOT_IF( EXP, msg )
@@ -736,6 +786,24 @@
  *
  */
   #define SLIC_DEBUG_ROOT_IF(EXP, msg) SLIC_DEBUG_IF((EXP) && (axom::slic::isRoot()), msg)
+
+  /*!
+ * \def SLIC_DEBUG_ROOT_IF_ONCE( EXP, msg )
+ * \brief Logs a Debug message if on root and iff EXP is true, only once per call site.
+ *
+ * \param [in] EXP user-supplied boolean expression.
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_DEBUG_ROOT_IF_ONCE macro is active when AXOM_DEBUG is defined.
+ *
+ * Usage:
+ * \code
+ *   SLIC_DEBUG_ROOT_IF_ONCE( (val < 0), "my_val should always be positive" );
+ * \endcode
+ *
+ */
+  #define SLIC_DEBUG_ROOT_IF_ONCE(EXP, msg) \
+    SLIC_DETAIL_LOG_IF_ONCE(SLIC_DEBUG_IF, (EXP) && (axom::slic::isRoot()), msg)
 
   /*!
  * \def SLIC_DEBUG_PRINT_CONTAINER( name, container )
@@ -762,13 +830,46 @@
       axom::slic::logMessage(axom::slic::message::Debug, __oss.str(), __FILE__, __LINE__); \
     } while(axom::slic::detail::false_value)
 
+  /*!
+ * \def SLIC_DEBUG_PRINT_CONTAINER_ONCE( name, container )
+ * \brief Logs a Debug message containing the contents of the container, moving
+ *        the contents to the host if needed. Called only once per call site.
+ *
+ * \param [in] name The name of the container in the printed message.
+ * \param [in] container The container (array, vector, view).
+ *
+ * \note The SLIC_DEBUG_PRINT_CONTAINER_ONCE macro is active when AXOM_DEBUG is defined.
+ *
+ * Usage:
+ * \code
+ *   axom::ArrayView<int> dataView;
+ *   SLIC_DEBUG_PRINT_CONTAINER_ONCE( "dataView", dataView );
+ * \endcode
+ *
+ */
+  #define SLIC_DEBUG_PRINT_CONTAINER_ONCE(name, container) \
+    do                                                     \
+    {                                                      \
+      static bool once = true;                             \
+      if(once)                                             \
+      {                                                    \
+        SLIC_DEBUG_PRINT_CONTAINER(name, container);       \
+        once = false;                                      \
+      }                                                    \
+    } while(axom::slic::detail::false_value)
+
 #else  // turn off debug macros
 
   #define SLIC_DEBUG(ignore_EXP) ((void)0)
+  #define SLIC_DEBUG_ONCE(ignore_EXP) ((void)0)
   #define SLIC_DEBUG_IF(ignore_EXP, ignore_msg) ((void)0)
+  #define SLIC_DEBUG_IF_ONCE(ignore_EXP, ignore_msg) ((void)0)
   #define SLIC_DEBUG_ROOT(ignore_EXP) ((void)0)
+  #define SLIC_DEBUG_ROOT_ONCE(ignore_EXP) ((void)0)
   #define SLIC_DEBUG_ROOT_IF(ignore_EXP, ignore_msg) ((void)0)
+  #define SLIC_DEBUG_ROOT_IF_ONCE(ignore_EXP, ignore_msg) ((void)0)
   #define SLIC_DEBUG_PRINT_CONTAINER(ignore_name, ignore_container) ((void)0)
+  #define SLIC_DEBUG_PRINT_CONTAINER_ONCE(ignore_name, ignore_container) ((void)0)
 
 #endif
 
