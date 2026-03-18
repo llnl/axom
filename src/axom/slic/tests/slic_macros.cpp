@@ -119,6 +119,22 @@ void check_tag(const std::string& msg, const std::string& expected_tag)
 }
 
 //------------------------------------------------------------------------------
+int check_count(const std::string& msg, const std::string& expected_level)
+{
+  EXPECT_FALSE(msg.empty());
+
+  int count = 0;
+  for(size_t pos = msg.find(expected_level); pos != std::string::npos;
+      pos = msg.find(expected_level, pos + expected_level.size()))
+  {
+    ++count;
+  }
+  return count;
+}
+
+//------------------------------------------------------------------------------
+// Checks level, message, line number, and file location.
+// Clears stream when finished.
 void check_level_msg_line_file(const std::string& level, const std::string& message, int expected_line)
 {
   EXPECT_FALSE(slic::internal::is_stream_empty());
@@ -137,6 +153,19 @@ void check_level_msg_line_file(const std::string& level, const std::string& mess
     const int expected_line = __LINE__;                       \
     macro_call;                                               \
     check_level_msg_line_file(level, message, expected_line); \
+  } while(false)
+
+// Convenience test macro that checks SLIC_*_ONCE macro has logged one message
+#define EXPECT_SLIC_ONCE(macro_call, level, message)                     \
+  do                                                                     \
+  {                                                                      \
+    const int expected_line = __LINE__;                                  \
+    for(int i = 0; i < 2; i++)                                           \
+    {                                                                    \
+      macro_call;                                                        \
+    }                                                                    \
+    EXPECT_EQ(check_count(slic::internal::test_stream.str(), level), 1); \
+    check_level_msg_line_file(level, message, expected_line);            \
   } while(false)
 
 }  // end anonymous namespace
@@ -185,16 +214,37 @@ TEST(slic_macros, test_warning_macros)
   EXPECT_TRUE(slic::internal::is_stream_empty());
   EXPECT_SLIC_LOG(SLIC_WARNING("test warning message"), "WARNING", "test warning message");
 
+  // Called once per call site
+  EXPECT_SLIC_ONCE(SLIC_WARNING_ONCE("test warning message once"),
+                   "WARNING",
+                   "test warning message once");
+
+  // Two different call sites, will have two messages
+  SLIC_WARNING_ONCE("test warning message #1");
+  SLIC_WARNING_ONCE("test warning message #2");
+  EXPECT_EQ(check_count(slic::internal::test_stream.str(), "WARNING"), 2);
+  slic::internal::clear();
+
   SLIC_WARNING_IF(false, "this message should not be logged!");
+  EXPECT_TRUE(slic::internal::is_stream_empty());
+
+  SLIC_WARNING_IF_ONCE(false, "this message should not be logged!");
   EXPECT_TRUE(slic::internal::is_stream_empty());
 
   EXPECT_SLIC_LOG(SLIC_WARNING_IF(true, "this message is logged!"),
                   "WARNING",
                   "this message is logged!");
 
+  EXPECT_SLIC_ONCE(SLIC_WARNING_IF_ONCE(true, "this message is logged once!"),
+                   "WARNING",
+                   "this message is logged once!");
+
   // Check selective filtering based on root == false
   axom::slic::setIsRoot(false);
   SLIC_WARNING_ROOT_IF(false, "this message should not be logged!");
+  EXPECT_TRUE(slic::internal::is_stream_empty());
+
+  SLIC_WARNING_ROOT_IF_ONCE(false, "this message should not be logged!");
   EXPECT_TRUE(slic::internal::is_stream_empty());
 
   // Check selective filter based on root == true
@@ -203,14 +253,24 @@ TEST(slic_macros, test_warning_macros)
                   "WARNING",
                   "this message is logged!");
 
+  EXPECT_SLIC_ONCE(SLIC_WARNING_ROOT_IF_ONCE(true, "this message is logged once!"),
+                   "WARNING",
+                   "this message is logged once!");
+
   // is root, but conditional is false -> no message
   axom::slic::setIsRoot(true);
   SLIC_WARNING_ROOT_IF(false, "this message should not be logged!");
   EXPECT_TRUE(slic::internal::is_stream_empty());
 
+  SLIC_WARNING_ROOT_IF_ONCE(false, "this message should not be logged!");
+  EXPECT_TRUE(slic::internal::is_stream_empty());
+
   // is not root, and conditional is true -> no message
   axom::slic::setIsRoot(false);
   SLIC_WARNING_ROOT_IF(true, "this message should not be logged!");
+  EXPECT_TRUE(slic::internal::is_stream_empty());
+
+  SLIC_WARNING_ROOT_IF_ONCE(true, "this message should not be logged!");
   EXPECT_TRUE(slic::internal::is_stream_empty());
 }
 

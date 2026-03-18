@@ -148,6 +148,23 @@
 #define SLIC_WARNING(msg) SLIC_WARNING_IF(true, msg)
 
 /*!
+ * \def SLIC_WARNING_ONCE( msg )
+ * \brief Logs a warning message only once per call site.
+ *
+ * \param [in] msg user-supplied message
+ *
+ * \note The SLIC_WARNING_ONCE macro is always active.
+ * \note Aborts the application when `slic::enableAbortOnWarning()`
+ *
+ * Usage:
+ * \code
+ *   SLIC_WARNING_ONCE( "my_val should always be positive" );
+ * \endcode
+ *
+ */
+#define SLIC_WARNING_ONCE(msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_WARNING_IF, true, msg)
+
+/*!
  * \def SLIC_WARNING_IF( EXP, msg )
  * \brief Logs a warning iff EXP is true
  *
@@ -179,6 +196,24 @@
   } while(axom::slic::detail::false_value)
 
 /*!
+ * \def SLIC_WARNING_IF_ONCE( EXP, msg )
+ * \brief Logs a warning iff EXP is true, and only once per call site.
+ *
+ * \param [in] EXP user-supplied boolean expression.
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_WARNING_IF_ONCE macro is always active.
+ * \note Aborts the application when `slic::enableAbortOnWarning()`
+ *
+ * Usage:
+ * \code
+ *   SLIC_WARNING_IF_ONCE( (val < 0), "my_val should always be positive" );
+ * \endcode
+ *
+ */
+#define SLIC_WARNING_IF_ONCE(EXP, msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_WARNING_IF, EXP, msg)
+
+/*!
  * \def SLIC_WARNING_ROOT( msg )
  * \brief Macro that logs given warning message only on root.
  *
@@ -196,6 +231,26 @@
  *
  */
 #define SLIC_WARNING_ROOT(msg) SLIC_WARNING_IF(axom::slic::isRoot(), msg)
+
+/*!
+ * \def SLIC_WARNING_ROOT_ONCE( msg )
+ * \brief Macro that logs given warning message only on root, and only once per call site.
+ *
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_WARNING_ROOT_ONCE macro is always active.
+ * \note By default, all ranks are considered to be root.
+ *       Must call `axom::slic::initialize(is_root={true|false})`
+ *       or set via `axom::slic::setIsRoot({true|false})` to filter based on root.
+ *
+ * Usage:
+ * \code
+ *   SLIC_WARNING_ROOT_ONCE( "A warning has occurred!" );
+ * \endcode
+ *
+ */
+#define SLIC_WARNING_ROOT_ONCE(msg) \
+  SLIC_DETAIL_LOG_IF_ONCE(SLIC_WARNING_IF, axom::slic::isRoot(), msg)
 
 /*!
  * \def SLIC_WARNING_ROOT_IF( EXP, msg )
@@ -216,6 +271,28 @@
  *
  */
 #define SLIC_WARNING_ROOT_IF(EXP, msg) SLIC_WARNING_IF((EXP) && (axom::slic::isRoot()), msg)
+
+/*!
+ * \def SLIC_WARNING_ROOT_IF_ONCE( EXP, msg )
+ * \brief Macro that logs given warning message only on root iff EXP is true,
+ *        and only once per call site.
+ *
+ * \param [in] EXP user-supplied boolean expression.
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_WARNING_ROOT_IF_ONCE macro is always active.
+ * \note By default, all ranks are considered to be root.
+ *       Must call `axom::slic::initialize(is_root={true|false})`
+ *       or set via `axom::slic::setIsRoot({true|false})` to filter based on root.
+ *
+ * Usage:
+ * \code
+ *   SLIC_WARNING_ROOT_IF_ONCE( (val < 0), "my_val should always be positive" );
+ * \endcode
+ *
+ */
+#define SLIC_WARNING_ROOT_IF_ONCE(EXP, msg) \
+  SLIC_DETAIL_LOG_IF_ONCE(SLIC_WARNING_ROOT_IF, (EXP) && (axom::slic::isRoot()), msg)
 
 ///@}
 
@@ -601,6 +678,26 @@
   #define SLIC_DEBUG_PRINT_CONTAINER(ignore_name, ignore_container) ((void)0)
 
 #endif
+
+/*!
+ * \brief Helper macro to define SLIC_*_ONCE macros that log only the first
+ *        time they are used.
+ *
+ * \param [in] macro the macro to call.
+ * \param [in] EXP user-supplied boolean expression.
+ * \param [in] msg user-supplied message.
+ *
+ */
+#define SLIC_DETAIL_LOG_IF_ONCE(macro, EXP, msg) \
+  do                                             \
+  {                                              \
+    static bool once = true;                     \
+    if(once)                                     \
+    {                                            \
+      macro(EXP, msg);                           \
+      once = false;                              \
+    }                                            \
+  } while(axom::slic::detail::false_value)
 
 namespace axom
 {
