@@ -38,6 +38,9 @@ function print_timing_summary () {
     local status="$1"
     local total_seconds=$(( $(date +%s) - TOTAL_START_SECONDS ))
 
+    # Disable shell tracing so the summary is readable in CI logs.
+    set +x
+
     echo
     echo "=================================================================="
     echo " Stage Timing Summary"
@@ -85,7 +88,7 @@ BUILD_SECONDS=""
 TEST_SECONDS=""
 BENCHMARKS_SECONDS=""
 MEMCHECK_SECONDS=""
-trap 'print_timing_summary "$?"' EXIT
+trap 'status=$?; set +x; print_timing_summary "$status"' EXIT
 
 
 if [[ "$DO_BUILD" == "yes" ]] ; then
