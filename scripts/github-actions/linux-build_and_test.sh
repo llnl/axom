@@ -23,33 +23,45 @@ echo "USER="`id -u -n`
 echo "PWD="`pwd`
 echo "HOST_CONFIG=$HOST_CONFIG"
 echo "CMAKE_EXTRA_FLAGS=$CMAKE_EXTRA_FLAGS"
+echo "USE_NINJA=$USE_NINJA"
 echo "~~~~~~~~~~~~~~~~~~~~~~"
 
 export BUILD_TYPE=${BUILD_TYPE:-Debug}
+export USE_NINJA=${USE_NINJA:-no}
 
 
 if [[ "$DO_BUILD" == "yes" ]] ; then
     echo "~~~~~~ FIND NUMPROCS ~~~~~~~~"
     NUMPROCS=`python3 -c "import os; print(f'{os.cpu_count()}')"`
     NUM_BUILD_PROCS=`python3 -c "import os; print(f'{max(2, os.cpu_count() * 8 // 10)}')"`
+    BUILD_GENERATOR_FLAG=""
+    BUILD_TOOL="make"
+    if [[ "$USE_NINJA" == "yes" ]] ; then
+        BUILD_GENERATOR_FLAG="--ninja"
+        BUILD_TOOL="ninja"
+    fi
 
     echo "~~~~~~ RUNNING CMAKE ~~~~~~~~"
-    or_die python3 ./config-build.py -bp builddir -hc ./host-configs/docker/${HOST_CONFIG} -bt ${BUILD_TYPE} -DENABLE_GTEST_DEATH_TESTS=ON ${CMAKE_EXTRA_FLAGS}
+    or_die python3 ./config-build.py -bp builddir -hc ./host-configs/docker/${HOST_CONFIG} -bt ${BUILD_TYPE} ${BUILD_GENERATOR_FLAG} -DENABLE_GTEST_DEATH_TESTS=ON ${CMAKE_EXTRA_FLAGS}
     or_die cd builddir
 
     echo "~~~~~~ BUILDING ~~~~~~~~"
     if [[ ${CMAKE_EXTRA_FLAGS} == *COVERAGE* ]] ; then
-        or_die make -j $NUM_BUILD_PROCS
+        or_die ${BUILD_TOOL} -j $NUM_BUILD_PROCS
     else
-        or_die make -j $NUM_BUILD_PROCS VERBOSE=1
+        if [[ "$BUILD_TOOL" == "ninja" ]] ; then
+            or_die ninja -j $NUM_BUILD_PROCS -v
+        else
+            or_die make -j $NUM_BUILD_PROCS VERBOSE=1
+        fi
     fi
 
     echo "~~~~~~ RUNNING TESTS ~~~~~~~~"
-    make CTEST_OUTPUT_ON_FAILURE=1 test ARGS='-T Test -VV -j$NUM_BUILD_PROCS'
+    or_die ctest --output-on-failure -T Test -VV -j $NUM_BUILD_PROCS
 
     if [[ "${DO_BENCHMARKS}" == "yes" ]] ; then
         echo "~~~~~~ RUNNING BENCHMARKS ~~~~~~~~"
-        make CTEST_OUTPUT_ON_FAILURE=1 run_benchmarks
+        or_die ${BUILD_TOOL} -j $NUM_BUILD_PROCS run_benchmarks
     fi
 
     if [[ "${DO_MEMCHECK}" == "yes" ]] ; then
@@ -57,4 +69,3 @@ if [[ "$DO_BUILD" == "yes" ]] ; then
         or_die ctest -T memcheck
     fi
 fi
-
