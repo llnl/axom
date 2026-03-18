@@ -63,7 +63,7 @@ private:
 class TestCombiner : public axom::lumberjack::Combiner
 {
 public:
-  const std::string id() { return m_id; }
+  const std::string id() override { return m_id; }
 
   bool shouldMessagesBeCombined(const axom::lumberjack::Message& leftMessage,
                                 const axom::lumberjack::Message& rightMessage) override
@@ -87,7 +87,7 @@ private:
 class TestCandidateCombinerA : public TestCombiner
 {
 public:
-  const std::string id() { return m_id; }
+  const std::string id() override { return m_id; }
 
   bool isMessageCandidateForCombiner(const axom::lumberjack::Message& m) override
   {
@@ -108,7 +108,7 @@ private:
 
 class TestCandidateCombinerB : public axom::lumberjack::Combiner
 {
-  const std::string id() { return m_id; }
+  const std::string id() override { return m_id; }
 
   bool isMessageCandidateForCombiner(const axom::lumberjack::Message& m) override
   {
