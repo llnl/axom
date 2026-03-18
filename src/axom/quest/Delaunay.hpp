@@ -596,7 +596,8 @@ private:
    * \brief Find the Delaunay cavity: the elements whose circumspheres contain the query point
    *
    * \details This function starts from an element \a element_i and searches through
-   * neighboring elements for a list of element indices whose circumspheres contains the query point.
+   * neighboring elements for a list of element indices whose circumspheres
+   * contain or touch the query point.
    * It also finds the faces on the boundaries of the cavity to help with filling the cavity
    * in the \a delaunayBall function.  
    *
@@ -610,8 +611,10 @@ private:
       IndexArray stack;
       stack.reserve(reserveSize);
 
-      // add first element (if valid and point is in its circumsphere)
-      if(m_mesh.isValidElement(element_i) && isPointInSphere(query_pt, element_i))
+      // The containing element always belongs to the cavity. Seed it
+      // unconditionally so co-circular/co-spherical insertions cannot leave
+      // the cavity empty when the point lies on a circumsphere boundary.
+      if(m_mesh.isValidElement(element_i))
       {
         m_checked_element_set.insert(element_i);
         cavity_elems.insert(element_i);
@@ -636,7 +639,7 @@ private:
             // neighbor is valid; check circumsphere (if necesary), and add to cavity as appropriate
             if(m_checked_element_set.insert(nbr).second)
             {
-              if(isPointInSphere(query_pt, nbr))
+              if(isPointInCircumsphere(query_pt, nbr))
               {
                 cavity_elems.insert(nbr);
                 stack.push_back(nbr);
@@ -725,8 +728,10 @@ private:
     /// \brief Returns the number of elements removed during this insertion
     int numRemovedElements() const { return cavity_elems.size(); }
 
-    /// \brief Helper function returns true if the query point is in the sphere formed by the element vertices
-    bool isPointInSphere(const PointType& query_pt, IndexType element_idx) const;
+    /// \brief Returns true when the query point is inside or on the element circumsphere
+    /// \note Uses an inclusive determinant-based in-sphere test to avoid
+    /// recomputing explicit circumspheres during cavity traversal.
+    bool isPointInCircumsphere(const PointType& query_pt, IndexType element_idx) const;
 
   public:
     // we create a surface mesh
@@ -849,29 +854,71 @@ inline Delaunay<3>::BaryCoordType Delaunay<3>::getBaryCoords(IndexType element_i
   return tet.physToBarycentric(query_pt);
 }
 
-// 2D specialization for isPointInSphere(...)
+// 2D specialization for isPointInCircumsphere(...)
 template <>
-inline bool Delaunay<2>::InsertionHelper::isPointInSphere(const PointType& query_pt,
-                                                          IndexType element_idx) const
+inline bool Delaunay<2>::InsertionHelper::isPointInCircumsphere(const PointType& query_pt,
+                                                                IndexType element_idx) const
 {
   const auto verts = m_mesh.boundaryVertices(element_idx);
   const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
   const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
   const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
-  return primal::in_sphere(query_pt, p0, p1, p2, 0.);
+
+  const auto ba = p1 - p0;
+  const auto ca = p2 - p0;
+  const auto qa = query_pt - p0;
+
+  // Mirror primal::in_sphere(), but include the circumsphere boundary in the
+  // cavity so co-circular insertions do not get stranded by a strict test.
+  const double det = axom::numerics::determinant(ba[0],
+                                                 ba[1],
+                                                 ba.squared_norm(),
+                                                 ca[0],
+                                                 ca[1],
+                                                 ca.squared_norm(),
+                                                 qa[0],
+                                                 qa[1],
+                                                 qa.squared_norm());
+
+  return det < 0. || axom::utilities::isNearlyEqual(det, 0., primal::PRIMAL_TINY);
 }
 
-// 3D specialization for isPointInSphere(...)
+// 3D specialization for isPointInCircumsphere(...)
 template <>
-inline bool Delaunay<3>::InsertionHelper::isPointInSphere(const PointType& query_pt,
-                                                          IndexType element_idx) const
+inline bool Delaunay<3>::InsertionHelper::isPointInCircumsphere(const PointType& query_pt,
+                                                                IndexType element_idx) const
 {
   const auto verts = m_mesh.boundaryVertices(element_idx);
   const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
   const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
   const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
   const PointType& p3 = m_mesh.getVertexPosition(verts[3]);
-  return primal::in_sphere(query_pt, p0, p1, p2, p3, 0.);
+
+  const auto ba = p1 - p0;
+  const auto ca = p2 - p0;
+  const auto da = p3 - p0;
+  const auto qa = query_pt - p0;
+
+  // Mirror primal::in_sphere(), but include the circumsphere boundary in the
+  // cavity so co-spherical insertions do not get stranded by a strict test.
+  const double det = axom::numerics::determinant(ba[0],
+                                                 ba[1],
+                                                 ba[2],
+                                                 ba.squared_norm(),
+                                                 ca[0],
+                                                 ca[1],
+                                                 ca[2],
+                                                 ca.squared_norm(),
+                                                 da[0],
+                                                 da[1],
+                                                 da[2],
+                                                 da.squared_norm(),
+                                                 qa[0],
+                                                 qa[1],
+                                                 qa[2],
+                                                 qa.squared_norm());
+
+  return det < 0. || axom::utilities::isNearlyEqual(det, 0., primal::PRIMAL_TINY);
 }
 
 }  // end namespace quest
