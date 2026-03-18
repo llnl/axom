@@ -91,6 +91,33 @@ TEST(quest_delaunay, regular_grid_2d)
   expectValidDelaunay(dt, points, 8);
 }
 
+TEST(quest_delaunay, boundary_location_regular_grid_2d)
+{
+  using PointType = typename DelaunayType<2>::PointType;
+  using BoundingBox = typename DelaunayType<2>::BoundingBox;
+
+  constexpr int NX = 20;
+  constexpr int NY = 20;
+
+  DelaunayType<2> dt;
+  dt.initializeBoundary(BoundingBox(PointType {-1.0, -1.0}, PointType {2.0, 2.0}));
+
+  std::vector<PointType> points;
+  points.reserve(NX * NY);
+
+  for(int y = 0; y < NY; ++y)
+  {
+    for(int x = 0; x < NX; ++x)
+    {
+      points.push_back(
+        PointType {static_cast<double>(x) / (NX - 1), static_cast<double>(y) / (NY - 1)});
+    }
+  }
+
+  insertPoints(dt, points);
+  expectValidDelaunay(dt, points, 2 * (NX - 1) * (NY - 1));
+}
+
 TEST(quest_delaunay, cospherical_cube_3d)
 {
   using PointType = typename DelaunayType<3>::PointType;
