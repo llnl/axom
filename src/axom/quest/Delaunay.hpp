@@ -37,6 +37,7 @@ class Delaunay
 {
 public:
   AXOM_STATIC_ASSERT_MSG(DIM == 2 || DIM == 3, "The template parameter DIM can only be 2 or 3. ");
+  static constexpr double BARY_EPS = 1e-12;
 
   using DataType = double;
 
@@ -126,8 +127,24 @@ public:
 
     // Run the insertion operation by finding invalidated elements around the point (the "cavity")
     // and replacing them with new valid elements (the Delaunay "ball")
+    IndexArray seed_elements;
+    seed_elements.push_back(element_i);
+
+    const BaryCoordType bary_coord = getBaryCoords(element_i, new_pt);
+    for(int i = 0; i < VERT_PER_ELEMENT; ++i)
+    {
+      if(axom::utilities::abs(bary_coord[i]) <= BARY_EPS)
+      {
+        const IndexType nbr = m_mesh.adjacentElements(element_i)[ModularFaceIndex(i) + 1];
+        if(m_mesh.isValidElement(nbr))
+        {
+          seed_elements.push_back(nbr);
+        }
+      }
+    }
+
     InsertionHelper insertionHelper(m_mesh);
-    insertionHelper.findCavityElements(new_pt, element_i);
+    insertionHelper.findCavityElements(new_pt, seed_elements);
     insertionHelper.createCavity();
     IndexType new_pt_i = m_mesh.addVertex(new_pt);
     insertionHelper.delaunayBall(new_pt_i);
@@ -426,7 +443,7 @@ public:
       //Use modular index since it could wrap around to 0
       ModularFaceIndex modular_idx(bary_coord.array().argMin());
 
-      if(bary_coord[modular_idx] >= 0)  // inside if smallest bary coord positive
+      if(bary_coord[modular_idx] >= -BARY_EPS)
       {
         return element_i;
       }
@@ -604,21 +621,24 @@ private:
    * \param query_pt the query point
    * \param element_i the element to start the search at
    */
-    void findCavityElements(const PointType& query_pt, IndexType element_i)
+    void findCavityElements(const PointType& query_pt, const IndexArray& seed_elements)
     {
       constexpr int reserveSize = (DIM == 2) ? 16 : 64;
 
       IndexArray stack;
       stack.reserve(reserveSize);
 
-      // The containing element always belongs to the cavity. Seed it
-      // unconditionally so co-circular/co-spherical insertions cannot leave
-      // the cavity empty when the point lies on a circumsphere boundary.
-      if(m_mesh.isValidElement(element_i))
+      // Seed the cavity with the containing element, and with any face-adjacent
+      // neighbors when the insertion point lies on the containing simplex
+      // boundary. This avoids repeatedly retriangulating structured inputs that
+      // insert directly onto existing edges/faces.
+      for(const IndexType element_i : seed_elements)
       {
-        m_checked_element_set.insert(element_i);
-        cavity_elems.insert(element_i);
-        stack.push_back(element_i);
+        if(m_mesh.isValidElement(element_i) && m_checked_element_set.insert(element_i).second)
+        {
+          cavity_elems.insert(element_i);
+          stack.push_back(element_i);
+        }
       }
 
       while(!stack.empty())
@@ -861,7 +881,7 @@ inline bool Delaunay<DIM>::InsertionHelper::isPointInCircumsphere(const PointTyp
     const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
     const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
     const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
-    return primal::in_sphere(query_pt, p0, p1, p2, primal::PRIMAL_TINY, true);
+    return primal::in_sphere(query_pt, p0, p1, p2, primal::PRIMAL_TINY, false);
   }
   else
   {
@@ -869,7 +889,7 @@ inline bool Delaunay<DIM>::InsertionHelper::isPointInCircumsphere(const PointTyp
     const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
     const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
     const PointType& p3 = m_mesh.getVertexPosition(verts[3]);
-    return primal::in_sphere(query_pt, p0, p1, p2, p3, primal::PRIMAL_TINY, true);
+    return primal::in_sphere(query_pt, p0, p1, p2, p3, primal::PRIMAL_TINY, false);
   }
 }
 
