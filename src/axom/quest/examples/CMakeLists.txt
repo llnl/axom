@@ -559,7 +559,7 @@ if(AXOM_ENABLE_SIDRE)
 
         axom_add_test(
             NAME quest_scattered_interpolation_grid_2d_test
-            COMMAND quest_scattered_interpolation_ex -d 2 --grid-res 5 5 -q 200
+            COMMAND quest_scattered_interpolation_ex -d 2 --grid-res 20 20 -q 200
             )
 
         axom_add_test(
