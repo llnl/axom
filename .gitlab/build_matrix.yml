@@ -20,6 +20,7 @@
     - when: on_success
   before_script:
     - module load cmake/3.26
+    - module load ninja
 
 ####
 # Template
