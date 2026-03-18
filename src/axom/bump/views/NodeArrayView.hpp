@@ -7,6 +7,7 @@
 #ifndef AXOM_BUMP_VIEWS_NODE_ARRAY_VIEW_HPP_
 #define AXOM_BUMP_VIEWS_NODE_ARRAY_VIEW_HPP_
 
+#include "axom/bump/utilities/conduit_array_view.hpp"
 #include "axom/slic/interface/slic.hpp"
 
 #include <conduit/conduit.hpp>
@@ -77,7 +78,6 @@ constexpr int select_float_types()
   return select_types(conduit::DataType::FLOAT32_ID, conduit::DataType::FLOAT64_ID);
 }
 
-// NOTE: These helpers still assume dense, non-strided Conduit arrays.
 // NOTE: Const Conduit nodes still expose mutable ArrayViews for compatibility.
 
 #define AXOM_BUMP_NODE_ARRAY_VIEW_TYPES(MACRO)                                  \
@@ -113,16 +113,10 @@ AXOM_BUMP_NODE_ARRAY_VIEW_TYPES(AXOM_BUMP_DECLARE_NODE_TYPE_TRAITS)
 
 #undef AXOM_BUMP_DECLARE_NODE_TYPE_TRAITS
 
-template <typename T, typename NodeType>
-axom::ArrayView<T> make_array_view(NodeType &n)
-{
-  return axom::ArrayView<T>(NodeTypeTraits<T>::data(n), n.dtype().number_of_elements());
-}
-
 template <bool Enabled, typename T, typename FuncType, typename NodeType>
 std::enable_if_t<Enabled, void> invoke_single_array_view(NodeType &n, FuncType &&func)
 {
-  func(make_array_view<T>(n));
+  func(axom::bump::utilities::detail::make_conduit_array_view<T>(n));
 }
 
 template <bool Enabled, typename T, typename FuncType, typename NodeType>
@@ -135,7 +129,7 @@ std::enable_if_t<!Enabled, void> invoke_single_array_view(NodeType &AXOM_UNUSED_
 template <bool Enabled, typename T, typename FuncType, typename... NodeTypes>
 std::enable_if_t<Enabled, void> invoke_same_array_views(FuncType &&func, NodeTypes &&...nodes)
 {
-  func(make_array_view<T>(nodes)...);
+  func(axom::bump::utilities::detail::make_conduit_array_view<T>(nodes)...);
 }
 
 template <bool Enabled, typename T, typename FuncType, typename... NodeTypes>

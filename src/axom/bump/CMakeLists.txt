@@ -37,6 +37,7 @@ set(bump_headers
     extraction/TableManager.hpp
     data/MeshTester.hpp
     io/save.hpp
+    utilities/conduit_array_view.hpp
     utilities/blueprint_utilities.hpp
     utilities/conduit_memory.hpp
     utilities/conduit_traits.hpp
@@ -156,4 +157,3 @@ axom_install_component(NAME    bump
 if (AXOM_ENABLE_TESTS)
   add_subdirectory(tests)
 endif()
-

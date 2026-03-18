@@ -342,6 +342,49 @@ TEST(bump_views, node_to_arrayview_hip) { test_node_to_arrayview<hip_exec>::test
 #endif
 
 //------------------------------------------------------------------------------
+TEST(bump_views, node_to_arrayview_interleaved_seq)
+{
+  constexpr conduit::index_t n = 4;
+  axom::Array<double> interleaved {{-1., 10., -2., 20., -3., 30., -4., 40., -5.}};
+  conduit::Node n_data;
+  n_data.set_external(
+    conduit::DataType(conduit::DataType::FLOAT64_ID,
+                      n,
+                      sizeof(double),
+                      2 * sizeof(double),
+                      sizeof(double),
+                      conduit::Endianness::DEFAULT_ID),
+    interleaved.data());
+
+  int sumValues = 0;
+  axom::bump::views::nodeToArrayView(n_data, [&](auto dataView) {
+    EXPECT_EQ(dataView.size(), n);
+    axom::for_all<seq_exec>(
+      n,
+      AXOM_LAMBDA(axom::IndexType index) {
+        dataView[index] = static_cast<double>((index + 1) * 100);
+      });
+
+    axom::ReduceSum<seq_exec, double> sumValuesReduce(0.);
+    axom::for_all<seq_exec>(
+      n,
+      AXOM_LAMBDA(axom::IndexType index) { sumValuesReduce += dataView[index]; });
+    sumValues = static_cast<int>(sumValuesReduce.get());
+  });
+
+  EXPECT_EQ(sumValues, 1000);
+  EXPECT_EQ(interleaved[0], -1.);
+  EXPECT_EQ(interleaved[1], 100.);
+  EXPECT_EQ(interleaved[2], -2.);
+  EXPECT_EQ(interleaved[3], 200.);
+  EXPECT_EQ(interleaved[4], -3.);
+  EXPECT_EQ(interleaved[5], 300.);
+  EXPECT_EQ(interleaved[6], -4.);
+  EXPECT_EQ(interleaved[7], 400.);
+  EXPECT_EQ(interleaved[8], -5.);
+}
+
+//------------------------------------------------------------------------------
 TEST(bump_views, explicit_coordsetview)
 {
   axom::Array<float> x {{0., 1., 2., 3., 4., 5.}};

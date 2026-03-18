@@ -71,6 +71,41 @@ TEST(bump_blueprint_utilities, allocate_hip) { test_conduit_allocate<hip_exec>::
 #endif
 
 //------------------------------------------------------------------------------
+TEST(bump_blueprint_utilities, make_array_view_interleaved_seq)
+{
+  constexpr conduit::index_t n = 4;
+  axom::Array<double> interleaved {{-1., 10., -2., 20., -3., 30., -4., 40., -5.}};
+  conduit::Node n_data;
+  n_data.set_external(
+    conduit::DataType(conduit::DataType::FLOAT64_ID,
+                      n,
+                      sizeof(double),
+                      2 * sizeof(double),
+                      sizeof(double),
+                      conduit::Endianness::DEFAULT_ID),
+    interleaved.data());
+
+  auto view = utils::make_array_view<double>(n_data);
+  EXPECT_EQ(view.size(), n);
+
+  axom::for_all<seq_exec>(
+    n,
+    AXOM_LAMBDA(axom::IndexType index) {
+      view[index] = static_cast<double>((index + 1) * 100);
+    });
+
+  EXPECT_EQ(interleaved[0], -1.);
+  EXPECT_EQ(interleaved[1], 100.);
+  EXPECT_EQ(interleaved[2], -2.);
+  EXPECT_EQ(interleaved[3], 200.);
+  EXPECT_EQ(interleaved[4], -3.);
+  EXPECT_EQ(interleaved[5], 300.);
+  EXPECT_EQ(interleaved[6], -4.);
+  EXPECT_EQ(interleaved[7], 400.);
+  EXPECT_EQ(interleaved[8], -5.);
+}
+
+//------------------------------------------------------------------------------
 template <typename ExecSpace>
 struct test_copy_braid
 {

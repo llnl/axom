@@ -7,6 +7,7 @@
 #ifndef AXOM_BUMP_CONDUIT_MEMORY_HPP_
 #define AXOM_BUMP_CONDUIT_MEMORY_HPP_
 
+#include "axom/bump/utilities/conduit_array_view.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/core/Array.hpp"
 #include "axom/core/ArrayView.hpp"
@@ -42,22 +43,13 @@ namespace utilities
 template <typename T>
 inline axom::ArrayView<T> make_array_view(conduit::Node &n)
 {
-  SLIC_ASSERT_MSG(cpp2conduit<T>::id == n.dtype().id(),
-                  axom::fmt::format("Cannot create ArrayView<{}> for Conduit {} data.",
-                                    cpp2conduit<T>::name,
-                                    n.dtype().name()));
-  return axom::ArrayView<T>(static_cast<T *>(n.data_ptr()), n.dtype().number_of_elements());
+  return detail::make_conduit_array_view<T>(n);
 }
 
 template <typename T>
 inline axom::ArrayView<T> make_array_view(const conduit::Node &n)
 {
-  SLIC_ASSERT_MSG(cpp2conduit<T>::id == n.dtype().id(),
-                  axom::fmt::format("Cannot create ArrayView<{}> for Conduit {} data.",
-                                    cpp2conduit<T>::name,
-                                    n.dtype().name()));
-  return axom::ArrayView<T>(static_cast<T *>(const_cast<void *>(n.data_ptr())),
-                            n.dtype().number_of_elements());
+  return detail::make_conduit_array_view<T>(n);
 }
 /// @}
 
