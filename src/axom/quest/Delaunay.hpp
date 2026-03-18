@@ -825,56 +825,52 @@ inline void Delaunay<3>::generateInitialMesh(std::vector<DataType>& points,
   elem.swap(el);
 }
 
-// 2D specialization for getBaryCoords(...)
-template <>
-inline Delaunay<2>::BaryCoordType Delaunay<2>::getBaryCoords(IndexType element_idx,
-                                                             const PointType& query_pt) const
+template <int DIM>
+inline typename Delaunay<DIM>::BaryCoordType Delaunay<DIM>::getBaryCoords(IndexType element_idx,
+                                                                          const PointType& query_pt) const
 {
   const auto verts = m_mesh.boundaryVertices(element_idx);
-  const ElementType tri(m_mesh.getVertexPosition(verts[0]),
-                        m_mesh.getVertexPosition(verts[1]),
-                        m_mesh.getVertexPosition(verts[2]));
 
-  return tri.physToBarycentric(query_pt);
+  if constexpr(DIM == 2)
+  {
+    const ElementType tri(m_mesh.getVertexPosition(verts[0]),
+                          m_mesh.getVertexPosition(verts[1]),
+                          m_mesh.getVertexPosition(verts[2]));
+
+    return tri.physToBarycentric(query_pt);
+  }
+  else
+  {
+    const ElementType tet(m_mesh.getVertexPosition(verts[0]),
+                          m_mesh.getVertexPosition(verts[1]),
+                          m_mesh.getVertexPosition(verts[2]),
+                          m_mesh.getVertexPosition(verts[3]));
+
+    return tet.physToBarycentric(query_pt);
+  }
 }
 
-// 3D specialization for getBaryCoords(...)
-template <>
-inline Delaunay<3>::BaryCoordType Delaunay<3>::getBaryCoords(IndexType element_idx,
-                                                             const PointType& query_pt) const
+template <int DIM>
+inline bool Delaunay<DIM>::InsertionHelper::isPointInCircumsphere(const PointType& query_pt,
+                                                                  IndexType element_idx) const
 {
   const auto verts = m_mesh.boundaryVertices(element_idx);
-  const ElementType tet(m_mesh.getVertexPosition(verts[0]),
-                        m_mesh.getVertexPosition(verts[1]),
-                        m_mesh.getVertexPosition(verts[2]),
-                        m_mesh.getVertexPosition(verts[3]));
 
-  return tet.physToBarycentric(query_pt);
-}
-
-// 2D specialization for isPointInCircumsphere(...)
-template <>
-inline bool Delaunay<2>::InsertionHelper::isPointInCircumsphere(const PointType& query_pt,
-                                                                IndexType element_idx) const
-{
-  const auto verts = m_mesh.boundaryVertices(element_idx);
-  const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
-  const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
-  const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
-  return primal::in_sphere(query_pt, p0, p1, p2, primal::PRIMAL_TINY, true);
-}
-
-// 3D specialization for isPointInCircumsphere(...)
-template <>
-inline bool Delaunay<3>::InsertionHelper::isPointInCircumsphere(const PointType& query_pt,
-                                                                IndexType element_idx) const
-{
-  const auto verts = m_mesh.boundaryVertices(element_idx);
-  const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
-  const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
-  const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
-  const PointType& p3 = m_mesh.getVertexPosition(verts[3]);
-  return primal::in_sphere(query_pt, p0, p1, p2, p3, primal::PRIMAL_TINY, true);
+  if constexpr(DIM == 2)
+  {
+    const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
+    const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
+    const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
+    return primal::in_sphere(query_pt, p0, p1, p2, primal::PRIMAL_TINY, true);
+  }
+  else
+  {
+    const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
+    const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
+    const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
+    const PointType& p3 = m_mesh.getVertexPosition(verts[3]);
+    return primal::in_sphere(query_pt, p0, p1, p2, p3, primal::PRIMAL_TINY, true);
+  }
 }
 
 }  // end namespace quest
