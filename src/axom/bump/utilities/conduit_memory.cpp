@@ -9,7 +9,7 @@
 namespace axom::bump::utilities
 {
 
-bool isDeviceAllocated(const conduit::Node &n)
+bool isDeviceAllocated([[maybe_unused]] const conduit::Node &n)
 {
 #if defined(AXOM_USE_UMPIRE)
   return isDeviceAllocator(axom::getAllocatorIDFromPointer(n.data_ptr()));

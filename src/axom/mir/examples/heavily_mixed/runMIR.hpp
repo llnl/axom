@@ -13,7 +13,7 @@
 
 //--------------------------------------------------------------------------------
 template <typename ExecSpace>
-int installAllocator(size_t initialPoolSizeBytes)
+int installAllocator([[maybe_unused]] size_t initialPoolSizeBytes)
 {
   int allocator_id = axom::execution_space<ExecSpace>::allocatorID();
 #if defined(AXOM_USE_UMPIRE)
