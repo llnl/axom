@@ -226,6 +226,7 @@ def build_and_test_host_config(test_root, host_config,
     build_tool_flags = "-j16"
     build_log_id = build_tool
     configure_generator_flag = "--ninja" if use_ninja else ""
+    downstream_generator_flag = '-G "Ninja"' if use_ninja else ""
     build_cmd = build_tool if use_ninja else f"{build_tool} {build_tool_flags}"
     verbose_build_cmd = f"{build_cmd} -v" if use_ninja else f"{build_cmd} VERBOSE=1"
     # setup build and install dirs
@@ -384,7 +385,7 @@ def build_and_test_host_config(test_root, host_config,
             "mkdir build",
             "cd build",
             """echo "[Configuring '{0}' example]" """.format("using-with-cmake"),
-            "cmake -C ../host-config.cmake ..",
+            f"cmake {downstream_generator_flag} -C ../host-config.cmake ..".strip(),
             """echo "[Building '{0}' example]" """.format("using-with-cmake"),
             build_cmd,
             """echo "[Running '{0}' example]" """.format("using-with-cmake"),
@@ -416,7 +417,7 @@ def build_and_test_host_config(test_root, host_config,
             "mkdir build",
             "cd build",
             """echo "[Configuring '{0}' example]" """.format("using-with-blt"),
-            "cmake -C ../host-config.cmake ..",
+            f"cmake {downstream_generator_flag} -C ../host-config.cmake ..".strip(),
             """echo "[Building '{0}' example]" """.format("using-with-blt"),
             build_cmd,
             """echo "[Running '{0}' example]" """.format("using-with-blt"),
@@ -450,7 +451,7 @@ def build_and_test_host_config(test_root, host_config,
                 "mkdir build",
                 "cd build",
                 f"""echo "[Configuring '{_tut}']" """,
-                f"cmake -C ../host-config.cmake -DCMAKE_BUILD_TYPE={build_type} ..",
+                f"cmake {downstream_generator_flag} -C ../host-config.cmake -DCMAKE_BUILD_TYPE={build_type} ..".strip(),
                 f"""echo "[Building '{_tut}']" """,
                 build_cmd,
                 f"""echo "[Running lessons for {_tut}]" """,
