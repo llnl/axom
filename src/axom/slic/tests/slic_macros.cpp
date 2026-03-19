@@ -512,6 +512,48 @@ TEST(slic_macros, test_tagged_macros)
 }
 
 //------------------------------------------------------------------------------
+TEST(slic_macros, test_if_once_macros)
+{
+  // Check that message is logged when condition is satisfied only once
+  for(int i = 0; i < 3; i++)
+  {
+    SLIC_INFO_IF_ONCE(i > 0, i << "th message is logged!");
+  }
+  int expected_line_number = __LINE__ - 2;
+  EXPECT_EQ(check_count(slic::internal::test_stream.str(), "INFO"), 1);
+  check_level_msg_line_file("INFO", "1th message is logged", expected_line_number);
+
+  axom::slic::setIsRoot(true);
+  for(int i = 0; i < 3; i++)
+  {
+    SLIC_INFO_ROOT_IF_ONCE(i > 0, i << "th message is logged!");
+  }
+  expected_line_number = __LINE__ - 2;
+  EXPECT_EQ(check_count(slic::internal::test_stream.str(), "INFO"), 1);
+  check_level_msg_line_file("INFO", "1th message is logged", expected_line_number);
+
+  // Two call-sites have a single message each
+  for(int i = 0; i < 3; i++)
+  {
+    SLIC_INFO_IF_ONCE(i == 0, "message 1 logs " << i);
+    SLIC_INFO_IF_ONCE(i > 0, "message 2 logs " << i);
+  }
+  int msg_1_line = __LINE__ - 2;
+  int msg_2_line = __LINE__ - 3;
+
+  EXPECT_FALSE(slic::internal::is_stream_empty());
+  const std::string str = slic::internal::test_stream.str();
+  EXPECT_EQ(check_count(str, "INFO"), 2);
+  check_level(str, "INFO");
+  check_msg(str, "message 1 logs 0");
+  check_msg(str.substr(str.size() / 2), "message 2 logs 1");
+  check_line(str, msg_1_line);
+  check_line(str, msg_2_line);
+  check_file(str);
+  slic::internal::clear();
+}
+
+//------------------------------------------------------------------------------
 TEST(slic_macros, test_macros_file_output)
 {
   int expected_line_number;

@@ -886,10 +886,13 @@
   do                                             \
   {                                              \
     static bool once = true;                     \
-    if(once)                                     \
+    if(EXP)                                      \
     {                                            \
-      macro(EXP, msg);                           \
-      once = false;                              \
+      if(once)                                   \
+      {                                          \
+        macro(true, msg);                        \
+        once = false;                            \
+      }                                          \
     }                                            \
   } while(axom::slic::detail::false_value)
 
