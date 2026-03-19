@@ -423,6 +423,10 @@ public:
     PointLocationStatus status {PointLocationStatus::Failed};
   };
 
+  static constexpr int QUERY_SEARCH_RADIUS = 6;
+  static constexpr int QUERY_CANDIDATE_LIMIT = 128;
+  static constexpr int WALK_NEIGHBORHOOD_LAYERS = 2;
+
   /// \brief Find the index of the element that contains the query point, or the element closest to the point.
   IndexType findContainingElement(const PointType& query_pt, bool warnOnInvalid = true) const
   {
@@ -440,94 +444,36 @@ public:
       return INVALID_INDEX;
     }
 
-    constexpr int query_search_radius = 6;
-    constexpr int query_candidate_limit = 128;
+    const bool use_query_fallbacks = !warnOnInvalid && DIM == 3;
+    std::vector<IndexType> candidate_elements = getInitialCandidateElements(query_pt);
+    std::vector<IndexType> walked_elements;
+    PointLocationResult walk_result =
+      walkCandidateElements(query_pt,
+                            candidate_elements,
+                            0,
+                            use_query_fallbacks ? &walked_elements : nullptr);
 
-    std::vector<IndexType> candidate_elements;
-    auto appendCandidateElements = [&](const std::vector<IndexType>& candidate_vertices) {
-      for(const auto vertex_i : candidate_vertices)
-      {
-        const IndexType element_i = m_mesh.coboundaryElement(vertex_i);
-        if(isSearchableElement(element_i) &&
-           std::find(candidate_elements.begin(), candidate_elements.end(), element_i) ==
-             candidate_elements.end())
-        {
-          candidate_elements.push_back(element_i);
-        }
-      }
-    };
-
+    if(walk_result.status == PointLocationStatus::Found)
     {
-      const IndexType initial_vertex = m_element_finder.getNearbyVertex(query_pt);
-      if(m_mesh.isValidVertex(initial_vertex))
-      {
-        appendCandidateElements(std::vector<IndexType> {initial_vertex});
-      }
-
-      if(candidate_elements.empty())
-      {
-        for(auto elem : m_mesh.elements().positions())
-        {
-          if(isSearchableElement(elem))
-          {
-            candidate_elements.push_back(elem);
-            break;
-          }
-        }
-      }
+      return walk_result.element_idx;
     }
 
-    std::vector<IndexType> walked_elements;
-    for(std::size_t idx = 0; idx < candidate_elements.size(); ++idx)
+    if(walk_result.status == PointLocationStatus::Outside)
     {
-      std::vector<IndexType>* visited_elements =
-        (!warnOnInvalid && DIM == 3 && idx == 0) ? &walked_elements : nullptr;
-      const PointLocationResult walk_result =
-        walkToContainingElement(query_pt, candidate_elements[idx], visited_elements);
+      return INVALID_INDEX;
+    }
+
+    if(use_query_fallbacks)
+    {
+      walk_result =
+        findContainingElementWithQueryFallbacks(query_pt, candidate_elements, walked_elements);
       if(walk_result.status == PointLocationStatus::Found)
       {
         return walk_result.element_idx;
       }
-
       if(walk_result.status == PointLocationStatus::Outside)
       {
         return INVALID_INDEX;
-      }
-    }
-
-    if(!warnOnInvalid && DIM == 3)
-    {
-      const IndexType walk_region_elem =
-        findContainingElementFromNeighbors(query_pt, walked_elements);
-      if(walk_region_elem != INVALID_INDEX)
-      {
-        return walk_region_elem;
-      }
-
-      const auto fallback_vertices = m_element_finder.getNearbyVertices(
-        m_mesh, query_pt, query_search_radius, query_candidate_limit);
-      const std::size_t initial_candidate_count = candidate_elements.size();
-      appendCandidateElements(fallback_vertices);
-
-      for(std::size_t idx = initial_candidate_count; idx < candidate_elements.size(); ++idx)
-      {
-        const PointLocationResult walk_result =
-          walkToContainingElement(query_pt, candidate_elements[idx]);
-        if(walk_result.status == PointLocationStatus::Found)
-        {
-          return walk_result.element_idx;
-        }
-
-        if(walk_result.status == PointLocationStatus::Outside)
-        {
-          return INVALID_INDEX;
-        }
-      }
-
-      const IndexType nearby_elem = findContainingElementNearby(query_pt, fallback_vertices);
-      if(nearby_elem != INVALID_INDEX)
-      {
-        return nearby_elem;
       }
     }
 
@@ -574,10 +520,9 @@ public:
     }
     else
     {
-      const double max_abs_coord =
-        axom::utilities::max(axom::utilities::abs(pt[0]),
-                             axom::utilities::max(axom::utilities::abs(pt[1]),
-                                                  axom::utilities::abs(pt[2])));
+      const double max_abs_coord = axom::utilities::max(
+        axom::utilities::abs(pt[0]),
+        axom::utilities::max(axom::utilities::abs(pt[1]), axom::utilities::abs(pt[2])));
       const double scale = PREDICATE_PERTURB_EPS * (1. + max_abs_coord);
 
       PointType perturbed = pt;
@@ -593,10 +538,9 @@ public:
   }
 
   /// \brief Walk from a starting element until the containing element is found or the walk cycles
-  PointLocationResult walkToContainingElement(
-    const PointType& query_pt,
-    IndexType start_element,
-    std::vector<IndexType>* visited_elements_out = nullptr) const
+  PointLocationResult walkToContainingElement(const PointType& query_pt,
+                                              IndexType start_element,
+                                              std::vector<IndexType>* visited_elements_out = nullptr) const
   {
     if(!isSearchableElement(start_element))
     {
@@ -647,6 +591,104 @@ public:
     }
   }
 
+  void appendCandidateElement(std::vector<IndexType>& candidate_elements, IndexType vertex_i) const
+  {
+    const IndexType element_i = m_mesh.coboundaryElement(vertex_i);
+    if(isSearchableElement(element_i) &&
+       std::find(candidate_elements.begin(), candidate_elements.end(), element_i) ==
+         candidate_elements.end())
+    {
+      candidate_elements.push_back(element_i);
+    }
+  }
+
+  void appendCandidateElementsFromVertices(std::vector<IndexType>& candidate_elements,
+                                           const std::vector<IndexType>& candidate_vertices) const
+  {
+    for(const auto vertex_i : candidate_vertices)
+    {
+      appendCandidateElement(candidate_elements, vertex_i);
+    }
+  }
+
+  std::vector<IndexType> getInitialCandidateElements(const PointType& query_pt) const
+  {
+    std::vector<IndexType> candidate_elements;
+    candidate_elements.reserve(1);
+
+    const IndexType initial_vertex = m_element_finder.getNearbyVertex(query_pt);
+    if(m_mesh.isValidVertex(initial_vertex))
+    {
+      appendCandidateElement(candidate_elements, initial_vertex);
+    }
+
+    if(candidate_elements.empty())
+    {
+      for(auto elem : m_mesh.elements().positions())
+      {
+        if(isSearchableElement(elem))
+        {
+          candidate_elements.push_back(elem);
+          break;
+        }
+      }
+    }
+
+    return candidate_elements;
+  }
+
+  PointLocationResult walkCandidateElements(const PointType& query_pt,
+                                            const std::vector<IndexType>& candidate_elements,
+                                            std::size_t start_idx = 0,
+                                            std::vector<IndexType>* walked_elements = nullptr) const
+  {
+    for(std::size_t idx = start_idx; idx < candidate_elements.size(); ++idx)
+    {
+      std::vector<IndexType>* visited_elements =
+        (walked_elements != nullptr && idx == start_idx) ? walked_elements : nullptr;
+      PointLocationResult walk_result =
+        walkToContainingElement(query_pt, candidate_elements[idx], visited_elements);
+      if(walk_result.status != PointLocationStatus::Failed)
+      {
+        return walk_result;
+      }
+    }
+
+    return {};
+  }
+
+  PointLocationResult findContainingElementWithQueryFallbacks(
+    const PointType& query_pt,
+    std::vector<IndexType>& candidate_elements,
+    const std::vector<IndexType>& walked_elements) const
+  {
+    const IndexType walk_region_elem = findContainingElementFromNeighbors(query_pt, walked_elements);
+    if(walk_region_elem != INVALID_INDEX)
+    {
+      return {walk_region_elem, PointLocationStatus::Found};
+    }
+
+    const auto fallback_vertices =
+      m_element_finder.getNearbyVertices(m_mesh, query_pt, QUERY_SEARCH_RADIUS, QUERY_CANDIDATE_LIMIT);
+    const std::size_t initial_candidate_count = candidate_elements.size();
+    appendCandidateElementsFromVertices(candidate_elements, fallback_vertices);
+
+    PointLocationResult walk_result =
+      walkCandidateElements(query_pt, candidate_elements, initial_candidate_count);
+    if(walk_result.status != PointLocationStatus::Failed)
+    {
+      return walk_result;
+    }
+
+    const IndexType nearby_elem = findContainingElementNearby(query_pt, fallback_vertices);
+    if(nearby_elem != INVALID_INDEX)
+    {
+      return {nearby_elem, PointLocationStatus::Found};
+    }
+
+    return {};
+  }
+
   /// \brief Scan a small adjacency region around a failed directed walk before falling back to a full scan
   IndexType findContainingElementFromNeighbors(const PointType& query_pt,
                                                const std::vector<IndexType>& seed_elements) const
@@ -656,9 +698,8 @@ public:
       return INVALID_INDEX;
     }
 
-    constexpr int num_layers = 2;
     std::vector<IndexType> nearby_elements;
-    nearby_elements.reserve(seed_elements.size() * (1 + num_layers * VERT_PER_ELEMENT));
+    nearby_elements.reserve(seed_elements.size() * (1 + WALK_NEIGHBORHOOD_LAYERS * VERT_PER_ELEMENT));
 
     auto appendUniqueElement = [&](IndexType element_idx, std::vector<IndexType>& frontier) {
       if(isSearchableElement(element_idx) &&
@@ -677,7 +718,7 @@ public:
       appendUniqueElement(element_idx, frontier);
     }
 
-    for(int layer = 0; layer < num_layers && !frontier.empty(); ++layer)
+    for(int layer = 0; layer < WALK_NEIGHBORHOOD_LAYERS && !frontier.empty(); ++layer)
     {
       std::vector<IndexType> next_frontier;
       next_frontier.reserve(frontier.size() * VERT_PER_ELEMENT);
@@ -892,8 +933,7 @@ private:
         const IndexType vertex_idx = flatIndex(candidate_cell);
         if(mesh.isValidVertex(vertex_idx))
         {
-          const double sq_dist =
-            primal::squared_distance(mesh.getVertexPosition(vertex_idx), pt);
+          const double sq_dist = primal::squared_distance(mesh.getVertexPosition(vertex_idx), pt);
           candidates.emplace_back(sq_dist, vertex_idx);
         }
       };
@@ -952,12 +992,13 @@ private:
         }
       }
 
-      std::sort(candidates.begin(),
-                candidates.end(),
-                [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
+      std::sort(candidates.begin(), candidates.end(), [](const auto& lhs, const auto& rhs) {
+        return lhs.first < rhs.first;
+      });
 
       std::vector<IndexType> nearby_vertices;
-      nearby_vertices.reserve(axom::utilities::min(max_candidates, static_cast<int>(candidates.size())));
+      nearby_vertices.reserve(
+        axom::utilities::min(max_candidates, static_cast<int>(candidates.size())));
       for(const auto& candidate : candidates)
       {
         nearby_vertices.push_back(candidate.second);
