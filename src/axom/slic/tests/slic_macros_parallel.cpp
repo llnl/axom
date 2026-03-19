@@ -407,9 +407,10 @@ TEST_P(SlicMacrosParallel, test_error_macros)
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
-  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_ERROR_IF(true, "this message is logged!"),
-                            "ERROR",
-                            "this message is logged!");
+  // Single line - Placement of ")" matters for __LINE__ for slic call and checking
+  // clang-format off
+  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_ERROR_IF(true, "this message is logged!"), "ERROR", "this message is logged!");
+  // clang-format on
 
   // Check selective filtering based on root == false
   axom::slic::setIsRoot(false);
@@ -419,9 +420,9 @@ TEST_P(SlicMacrosParallel, test_error_macros)
 
   // Check selective filter based on root == true
   axom::slic::setIsRoot(true);
-  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_ERROR_ROOT_IF(true, "this message is logged!"),
-                            "ERROR",
-                            "this message is logged!");
+  // clang-format off
+  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_ERROR_ROOT_IF(true, "this message is logged!"), "ERROR", "this message is logged!");
+  // clang-format on
 
   // is root, but conditional is false -> no message
   axom::slic::setIsRoot(true);
@@ -435,15 +436,13 @@ TEST_P(SlicMacrosParallel, test_error_macros)
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
+  // clang-format off
   // Check for message only on root
-  EXPECT_SLIC_LOG_ROOT(SLIC_ERROR_ROOT_IF(true, "this message is logged!"),
-                       "ERROR",
-                       "this message is logged!");
+  EXPECT_SLIC_LOG_ROOT(SLIC_ERROR_ROOT_IF(true, "this message is logged!"), "ERROR", "this message is logged!");
 
   // Check for message on every even rank only
-  EXPECT_SLIC_LOG_EVEN(SLIC_ERROR_IF((rank % 2) == 0, "this message is logged!"),
-                       "ERROR",
-                       "this message is logged!");
+  EXPECT_SLIC_LOG_EVEN(SLIC_ERROR_IF((rank % 2) == 0, "this message is logged!"), "ERROR", "this message is logged!");
+  // clang-format on
 }
 
 //------------------------------------------------------------------------------
@@ -457,9 +456,10 @@ TEST_P(SlicMacrosParallel, test_warning_macros)
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
-  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_WARNING_IF(true, "this message is logged!"),
-                            "WARNING",
-                            "this message is logged!");
+  // Single line - Placement of ")" matters for __LINE__ for slic call and checking
+  // clang-format off
+  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_WARNING_IF(true, "this message is logged!"), "WARNING", "this message is logged!");
+  // clang-format on
 
   // Check selective filtering based on root == false
   axom::slic::setIsRoot(false);
@@ -469,9 +469,9 @@ TEST_P(SlicMacrosParallel, test_warning_macros)
 
   // Check selective filter based on root == true
   axom::slic::setIsRoot(true);
-  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_WARNING_ROOT_IF(true, "this message is logged!"),
-                            "WARNING",
-                            "this message is logged!");
+  // clang-format off
+  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_WARNING_ROOT_IF(true, "this message is logged!"), "WARNING", "this message is logged!");
+  // clang-format on
 
   // is root, but conditional is false -> no message
   axom::slic::setIsRoot(true);
@@ -485,15 +485,13 @@ TEST_P(SlicMacrosParallel, test_warning_macros)
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
+  // clang-format off
   // Check for message only on root
-  EXPECT_SLIC_LOG_ROOT(SLIC_WARNING_ROOT_IF(true, "this message is logged!"),
-                       "WARNING",
-                       "this message is logged!");
+  EXPECT_SLIC_LOG_ROOT(SLIC_WARNING_ROOT_IF(true, "this message is logged!"), "WARNING", "this message is logged!");
 
   // Check for message on every even rank only
-  EXPECT_SLIC_LOG_EVEN(SLIC_WARNING_IF((rank % 2) == 0, "this message is logged!"),
-                       "WARNING",
-                       "this message is logged!");
+  EXPECT_SLIC_LOG_EVEN(SLIC_WARNING_IF((rank % 2) == 0, "this message is logged!"), "WARNING", "this message is logged!");
+  // clang-format on
 }
 
 //------------------------------------------------------------------------------
@@ -583,9 +581,10 @@ TEST_P(SlicMacrosParallel, test_info_macros)
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
-  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_INFO_IF(true, "this message is logged!"),
-                            "INFO",
-                            "this message is logged!");
+  // Single line - Placement of ")" matters for __LINE__ for slic call and checking
+  // clang-format off
+  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_INFO_IF(true, "this message is logged!"), "INFO", "this message is logged!");
+  // clang-format on
 
   // Check selective filtering based on root == false
   axom::slic::setIsRoot(false);
@@ -595,9 +594,9 @@ TEST_P(SlicMacrosParallel, test_info_macros)
 
   // Check selective filter based on root == true
   axom::slic::setIsRoot(true);
-  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_INFO_ROOT_IF(true, "this message is logged!"),
-                            "INFO",
-                            "this message is logged!");
+  // clang-format off
+  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_INFO_ROOT_IF(true, "this message is logged!"), "INFO", "this message is logged!");
+  // clang-format on
 
   // is root, but conditional is false -> no message
   axom::slic::setIsRoot(true);
@@ -611,15 +610,13 @@ TEST_P(SlicMacrosParallel, test_info_macros)
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
+  // clang-format off
   // Check for message only on root
-  EXPECT_SLIC_LOG_ROOT(SLIC_INFO_ROOT_IF(true, "this message is logged!"),
-                       "INFO",
-                       "this message is logged!");
+  EXPECT_SLIC_LOG_ROOT(SLIC_INFO_ROOT_IF(true, "this message is logged!"), "INFO", "this message is logged!");
 
   // Check for message on every even rank only
-  EXPECT_SLIC_LOG_EVEN(SLIC_INFO_IF((rank % 2) == 0, "this message is logged!"),
-                       "INFO",
-                       "this message is logged!");
+  EXPECT_SLIC_LOG_EVEN(SLIC_INFO_IF((rank % 2) == 0, "this message is logged!"), "INFO", "this message is logged!");
+  // clang-format on
 }
 
 //------------------------------------------------------------------------------
@@ -631,25 +628,20 @@ TEST_P(SlicMacrosParallel, test_debug_macros)
 
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_DEBUG("test debug message"), "DEBUG", "test debug message");
 
-  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_DEBUG_IF(true, "this message is logged!"),
-                            "DEBUG",
-                            "this message is logged!");
+  // Single line - Placement of ")" matters for __LINE__ for slic call and checking
+  // clang-format off
+  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_DEBUG_IF(true, "this message is logged!"), "DEBUG", "this message is logged!");
 
   // Check selective filter based on root == true
   axom::slic::setIsRoot(true);
-  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_DEBUG_ROOT_IF(true, "this message is logged!"),
-                            "DEBUG",
-                            "this message is logged!");
+  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_DEBUG_ROOT_IF(true, "this message is logged!"), "DEBUG", "this message is logged!");
 
   // Check for message only on root
-  EXPECT_SLIC_LOG_ROOT(SLIC_DEBUG_ROOT_IF(true, "this message is logged!"),
-                       "DEBUG",
-                       "this message is logged!");
+  EXPECT_SLIC_LOG_ROOT(SLIC_DEBUG_ROOT_IF(true, "this message is logged!"), "DEBUG", "this message is logged!");
 
   // Check for message on every even rank only
-  EXPECT_SLIC_LOG_EVEN(SLIC_DEBUG_IF((rank % 2) == 0, "this message is logged!"),
-                       "DEBUG",
-                       "this message is logged!");
+  EXPECT_SLIC_LOG_EVEN(SLIC_DEBUG_IF((rank % 2) == 0, "this message is logged!"), "DEBUG", "this message is logged!");
+  // clang-format on
 
 #else
   // SLIC_DEBUG macros only log messages when AXOM_DEBUG is defined
@@ -963,9 +955,10 @@ TEST_P(SlicMacrosParallel, test_assert_macros)
 
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_ASSERT(val < 0), "ERROR", "Failed Assert: val < 0");
 
-  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_ASSERT_MSG(val < 0, "val should be negative!"),
-                            "ERROR",
-                            "Failed Assert: val < 0\nval should be negative!");
+  // Single line - Placement of ")" matters for __LINE__ for slic call and checking
+  // clang-format off
+  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_ASSERT_MSG(val < 0, "val should be negative!"), "ERROR", "Failed Assert: val < 0\nval should be negative!");
+  // clang-format on
 
 #else
   // SLIC_ASSERT macros only log messages when AXOM_DEBUG is defined
@@ -994,9 +987,10 @@ TEST_P(SlicMacrosParallel, test_check_macros)
 #if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_CHECK(val < 0), "WARNING", "Failed Check: val < 0");
 
-  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_CHECK_MSG(val < 0, "val should be negative!"),
-                            "WARNING",
-                            "Failed Check: val < 0\nval should be negative!");
+  // Single line - Placement of ")" matters for __LINE__ for slic call and checking
+  // clang-format off
+  EXPECT_SLIC_LOG_ALL_RANKS(SLIC_CHECK_MSG(val < 0, "val should be negative!"), "WARNING", "Failed Check: val < 0\nval should be negative!");
+  // clang-format on
 
 #else
   // SLIC_CHECK macros only log messages when AXOM_DEBUG is defined

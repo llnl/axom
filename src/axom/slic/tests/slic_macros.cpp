@@ -182,9 +182,10 @@ TEST(slic_macros, test_error_macros)
   SLIC_ERROR_IF(false, "this message should not be logged!");
   EXPECT_TRUE(slic::internal::is_stream_empty());
 
-  EXPECT_SLIC_LOG(SLIC_ERROR_IF(true, "this message is logged!"),
-                  "ERROR",
-                  "this message is logged!");
+  // Single line - Placement of ")" matters for __LINE__ for slic call and checking
+  // clang-format off
+  EXPECT_SLIC_LOG(SLIC_ERROR_IF(true, "this message is logged!"), "ERROR", "this message is logged!");
+  // clang-format on
 
   // Check selective filtering based on root == false
   axom::slic::setIsRoot(false);
@@ -194,9 +195,10 @@ TEST(slic_macros, test_error_macros)
   // Check selective filter based on root == true
   axom::slic::setIsRoot(true);
   SLIC_ERROR_ROOT_IF(true, "this message is logged!");
-  EXPECT_SLIC_LOG(SLIC_ERROR_ROOT_IF(true, "this message is logged!"),
-                  "ERROR",
-                  "this message is logged!");
+
+  // clang-format off
+  EXPECT_SLIC_LOG(SLIC_ERROR_ROOT_IF(true, "this message is logged!"), "ERROR", "this message is logged!");
+  // clang-format on
 
   // is root, but conditional is false -> no message
   axom::slic::setIsRoot(true);
@@ -216,9 +218,10 @@ TEST(slic_macros, test_warning_macros)
   EXPECT_SLIC_LOG(SLIC_WARNING("test warning message"), "WARNING", "test warning message");
 
   // Called once per call site
-  EXPECT_SLIC_ONCE(SLIC_WARNING_ONCE("test warning message once"),
-                   "WARNING",
-                   "test warning message once");
+  // Single line - Placement of ")" matters for __LINE__ for slic call and checking
+  // clang-format off
+  EXPECT_SLIC_ONCE(SLIC_WARNING_ONCE("test warning message once"), "WARNING", "test warning message once");
+  // clang-format on
 
   // Two different call sites, will have two messages
   SLIC_WARNING_ONCE("test warning message #1");
@@ -232,13 +235,11 @@ TEST(slic_macros, test_warning_macros)
   SLIC_WARNING_IF_ONCE(false, "this message should not be logged!");
   EXPECT_TRUE(slic::internal::is_stream_empty());
 
-  EXPECT_SLIC_LOG(SLIC_WARNING_IF(true, "this message is logged!"),
-                  "WARNING",
-                  "this message is logged!");
+  // clang-format off
+  EXPECT_SLIC_LOG(SLIC_WARNING_IF(true, "this message is logged!"), "WARNING", "this message is logged!");
 
-  EXPECT_SLIC_ONCE(SLIC_WARNING_IF_ONCE(true, "this message is logged once!"),
-                   "WARNING",
-                   "this message is logged once!");
+  EXPECT_SLIC_ONCE(SLIC_WARNING_IF_ONCE(true, "this message is logged once!"), "WARNING", "this message is logged once!");
+  // clang-format on
 
   // Check selective filtering based on root == false
   axom::slic::setIsRoot(false);
@@ -249,22 +250,16 @@ TEST(slic_macros, test_warning_macros)
   EXPECT_TRUE(slic::internal::is_stream_empty());
 
   axom::slic::setIsRoot(true);
-  EXPECT_SLIC_LOG(SLIC_WARNING_ROOT("this message is logged on root!"),
-                  "WARNING",
-                  "this message is logged on root!");
+  // clang-format off
+  EXPECT_SLIC_LOG(SLIC_WARNING_ROOT("this message is logged on root!"), "WARNING", "this message is logged on root!");
 
-  EXPECT_SLIC_ONCE(SLIC_WARNING_ROOT_ONCE("this message is logged on root once!"),
-                   "WARNING",
-                   "this message is logged on root once!");
+  EXPECT_SLIC_ONCE(SLIC_WARNING_ROOT_ONCE("this message is logged on root once!"), "WARNING", "this message is logged on root once!");
 
   // Check selective filter based on root == true
-  EXPECT_SLIC_LOG(SLIC_WARNING_ROOT_IF(true, "this message is logged!"),
-                  "WARNING",
-                  "this message is logged!");
+  EXPECT_SLIC_LOG(SLIC_WARNING_ROOT_IF(true, "this message is logged!"), "WARNING", "this message is logged!");
 
-  EXPECT_SLIC_ONCE(SLIC_WARNING_ROOT_IF_ONCE(true, "this message is logged once!"),
-                   "WARNING",
-                   "this message is logged once!");
+  EXPECT_SLIC_ONCE(SLIC_WARNING_ROOT_IF_ONCE(true, "this message is logged once!"), "WARNING", "this message is logged once!");
+  // clang-format on
 
   // is root, but conditional is false -> no message
   axom::slic::setIsRoot(true);
@@ -299,18 +294,17 @@ TEST(slic_macros, test_info_macros)
 
   EXPECT_SLIC_LOG(SLIC_INFO_IF(true, "this message is logged!"), "INFO", "this message is logged!");
 
-  EXPECT_SLIC_ONCE(SLIC_INFO_IF_ONCE(true, "this message is logged once!"),
-                   "INFO",
-                   "this message is logged once!");
+  // Single line - Placement of ")" matters for __LINE__ for slic call and checking
+  // clang-format off
+  EXPECT_SLIC_ONCE(SLIC_INFO_IF_ONCE(true, "this message is logged once!"), "INFO", "this message is logged once!");
+  // clang-format on
 
   axom::slic::setIsRoot(true);
-  EXPECT_SLIC_LOG(SLIC_INFO_ROOT("this message is logged on root!"),
-                  "INFO",
-                  "this message is logged on root!");
+  // clang-format off
+  EXPECT_SLIC_LOG(SLIC_INFO_ROOT("this message is logged on root!"), "INFO", "this message is logged on root!");
 
-  EXPECT_SLIC_ONCE(SLIC_INFO_ROOT_ONCE("this message is logged on root once!"),
-                   "INFO",
-                   "this message is logged on root once!");
+  EXPECT_SLIC_ONCE(SLIC_INFO_ROOT_ONCE("this message is logged on root once!"), "INFO", "this message is logged on root once!");
+  // clang-format on
 
   // is root, but conditional is false -> no message
   SLIC_INFO_ROOT_IF(false, "this message should not be logged!");
@@ -337,29 +331,24 @@ TEST(slic_macros, test_debug_macros)
 
   EXPECT_SLIC_ONCE(SLIC_DEBUG_ONCE("test debug message once"), "DEBUG", "test debug message once");
 
-  EXPECT_SLIC_LOG(SLIC_DEBUG_IF(true, "this message is logged!"),
-                  "DEBUG",
-                  "this message is logged!");
+  // Single line - Placement of ")" matters for __LINE__ for slic call and checking
+  // clang-format off
+  EXPECT_SLIC_LOG(SLIC_DEBUG_IF(true, "this message is logged!"), "DEBUG", "this message is logged!");
 
-  EXPECT_SLIC_ONCE(SLIC_DEBUG_IF_ONCE(true, "this message is logged once!"),
-                   "DEBUG",
-                   "this message is logged once!");
+  EXPECT_SLIC_ONCE(SLIC_DEBUG_IF_ONCE(true, "this message is logged once!"), "DEBUG", "this message is logged once!");
+  // clang-format on
 
   axom::slic::setIsRoot(true);
   EXPECT_SLIC_LOG(SLIC_DEBUG_ROOT("this message is logged!"), "DEBUG", "this message is logged!");
 
-  EXPECT_SLIC_ONCE(SLIC_DEBUG_ROOT_ONCE("this message is logged once!"),
-                   "DEBUG",
-                   "this message is logged once!");
+  // clang-format off
+  EXPECT_SLIC_ONCE(SLIC_DEBUG_ROOT_ONCE("this message is logged once!"), "DEBUG", "this message is logged once!");
 
   // Check selective filter based on root == true
-  EXPECT_SLIC_LOG(SLIC_DEBUG_ROOT_IF(true, "this message is logged!"),
-                  "DEBUG",
-                  "this message is logged!");
+  EXPECT_SLIC_LOG(SLIC_DEBUG_ROOT_IF(true, "this message is logged!"), "DEBUG", "this message is logged!");
 
-  EXPECT_SLIC_ONCE(SLIC_DEBUG_ROOT_IF_ONCE(true, "this message is logged once!"),
-                   "DEBUG",
-                   "this message is logged once!");
+  EXPECT_SLIC_ONCE(SLIC_DEBUG_ROOT_IF_ONCE(true, "this message is logged once!"), "DEBUG", "this message is logged once!");
+  // clang-format on
 
 #else
   // SLIC_DEBUG macros only log messages when AXOM_DEBUG is defined
