@@ -19,6 +19,7 @@
 #include <list>
 #include <vector>
 #include <set>
+#include <algorithm>
 #include <cstdlib>
 #include <cmath>
 #include <limits>
@@ -389,6 +390,39 @@ public:
     return valid;
   }
 
+  /// \brief Returns true when an element and all of its vertices are valid for point-location predicates
+  bool isSearchableElement(IndexType element_idx) const
+  {
+    if(!m_mesh.isValidElement(element_idx))
+    {
+      return false;
+    }
+
+    const auto verts = m_mesh.boundaryVertices(element_idx);
+    for(auto idx : verts.positions())
+    {
+      if(!m_mesh.isValidVertex(verts[idx]))
+      {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  enum class PointLocationStatus
+  {
+    Found,
+    Outside,
+    Failed
+  };
+
+  struct PointLocationResult
+  {
+    IndexType element_idx {INVALID_INDEX};
+    PointLocationStatus status {PointLocationStatus::Failed};
+  };
+
   /// \brief Find the index of the element that contains the query point, or the element closest to the point.
   IndexType findContainingElement(const PointType& query_pt, bool warnOnInvalid = true) const
   {
@@ -406,63 +440,98 @@ public:
       return INVALID_INDEX;
     }
 
-    // Find a starting element using ElementFinder helper class
-    IndexType element_i = INVALID_INDEX;
+    constexpr int query_search_radius = 6;
+    constexpr int query_candidate_limit = 128;
+
+    std::vector<IndexType> candidate_elements;
+    auto appendCandidateElements = [&](const std::vector<IndexType>& candidate_vertices) {
+      for(const auto vertex_i : candidate_vertices)
+      {
+        const IndexType element_i = m_mesh.coboundaryElement(vertex_i);
+        if(isSearchableElement(element_i) &&
+           std::find(candidate_elements.begin(), candidate_elements.end(), element_i) ==
+             candidate_elements.end())
+        {
+          candidate_elements.push_back(element_i);
+        }
+      }
+    };
+
     {
-      const auto vertex_i = m_element_finder.getNearbyVertex(query_pt);
-      if(m_mesh.isValidVertex(vertex_i))
+      const IndexType initial_vertex = m_element_finder.getNearbyVertex(query_pt);
+      if(m_mesh.isValidVertex(initial_vertex))
       {
-        element_i = m_mesh.coboundaryElement(vertex_i);
+        appendCandidateElements(std::vector<IndexType> {initial_vertex});
       }
 
-      // Fallback -- start from last valid element that was inserted
-      if(!m_mesh.isValidElement(element_i))
+      if(candidate_elements.empty())
       {
-        element_i = m_mesh.getValidElementIndex();
+        for(auto elem : m_mesh.elements().positions())
+        {
+          if(isSearchableElement(elem))
+          {
+            candidate_elements.push_back(elem);
+            break;
+          }
+        }
       }
-
-      SLIC_ASSERT(m_mesh.isValidElement(element_i));
     }
 
-    static constexpr int MAX_WALK_STEPS = 256;
-    std::set<IndexType> visited_elements;
-    while(1)
+    std::vector<IndexType> walked_elements;
+    for(std::size_t idx = 0; idx < candidate_elements.size(); ++idx)
     {
-      if(!visited_elements.insert(element_i).second)
+      std::vector<IndexType>* visited_elements =
+        (!warnOnInvalid && DIM == 3 && idx == 0) ? &walked_elements : nullptr;
+      const PointLocationResult walk_result =
+        walkToContainingElement(query_pt, candidate_elements[idx], visited_elements);
+      if(walk_result.status == PointLocationStatus::Found)
       {
-        return findContainingElementLinear(query_pt, warnOnInvalid);
+        return walk_result.element_idx;
       }
 
-      const BaryCoordType bary_coord = getBaryCoords(element_i, query_pt);
-
-      //Find the index of the most negative barycentric coord
-      //Use modular index since it could wrap around to 0
-      ModularFaceIndex modular_idx(bary_coord.array().argMin());
-
-      if(bary_coord[modular_idx] >= -BARY_EPS)
+      if(walk_result.status == PointLocationStatus::Outside)
       {
-        return element_i;
-      }
-
-      if(static_cast<int>(visited_elements.size()) >= MAX_WALK_STEPS)
-      {
-        return findContainingElementLinear(query_pt, warnOnInvalid);
-      }
-
-      // else, move to that neighbor
-      element_i = m_mesh.adjacentElements(element_i)[modular_idx + 1];
-
-      // Either there is a hole in the m_mesh, or the point is outside of the m_mesh.
-      // Logically, this should never happen.
-      if(!m_mesh.isValidElement(element_i))
-      {
-        SLIC_WARNING_IF(warnOnInvalid,
-                        fmt::format("Entered invalid element in "
-                                    "Delaunay::findContainingElement(). Underlying mesh {} valid",
-                                    m_mesh.isValid() ? "is" : "is not"));
         return INVALID_INDEX;
       }
     }
+
+    if(!warnOnInvalid && DIM == 3)
+    {
+      const IndexType walk_region_elem =
+        findContainingElementFromNeighbors(query_pt, walked_elements);
+      if(walk_region_elem != INVALID_INDEX)
+      {
+        return walk_region_elem;
+      }
+
+      const auto fallback_vertices = m_element_finder.getNearbyVertices(
+        m_mesh, query_pt, query_search_radius, query_candidate_limit);
+      const std::size_t initial_candidate_count = candidate_elements.size();
+      appendCandidateElements(fallback_vertices);
+
+      for(std::size_t idx = initial_candidate_count; idx < candidate_elements.size(); ++idx)
+      {
+        const PointLocationResult walk_result =
+          walkToContainingElement(query_pt, candidate_elements[idx]);
+        if(walk_result.status == PointLocationStatus::Found)
+        {
+          return walk_result.element_idx;
+        }
+
+        if(walk_result.status == PointLocationStatus::Outside)
+        {
+          return INVALID_INDEX;
+        }
+      }
+
+      const IndexType nearby_elem = findContainingElementNearby(query_pt, fallback_vertices);
+      if(nearby_elem != INVALID_INDEX)
+      {
+        return nearby_elem;
+      }
+    }
+
+    return findContainingElementLinear(query_pt, warnOnInvalid);
   }
 
   /**
@@ -523,6 +592,129 @@ public:
     }
   }
 
+  /// \brief Walk from a starting element until the containing element is found or the walk cycles
+  PointLocationResult walkToContainingElement(
+    const PointType& query_pt,
+    IndexType start_element,
+    std::vector<IndexType>* visited_elements_out = nullptr) const
+  {
+    if(!isSearchableElement(start_element))
+    {
+      return {};
+    }
+
+    static constexpr int MAX_WALK_STEPS = 256;
+    std::vector<IndexType> local_visited_elements;
+    std::vector<IndexType>& visited_elements =
+      visited_elements_out != nullptr ? *visited_elements_out : local_visited_elements;
+    visited_elements.clear();
+    visited_elements.reserve(MAX_WALK_STEPS);
+    IndexType element_i = start_element;
+
+    while(1)
+    {
+      if(std::find(visited_elements.begin(), visited_elements.end(), element_i) !=
+         visited_elements.end())
+      {
+        return {};
+      }
+      visited_elements.push_back(element_i);
+
+      const BaryCoordType bary_coord = getBaryCoords(element_i, query_pt);
+      ModularFaceIndex modular_idx(bary_coord.array().argMin());
+
+      if(bary_coord[modular_idx] >= -BARY_EPS)
+      {
+        return {element_i, PointLocationStatus::Found};
+      }
+
+      if(static_cast<int>(visited_elements.size()) >= MAX_WALK_STEPS)
+      {
+        return {};
+      }
+
+      const IndexType next_element = m_mesh.adjacentElements(element_i)[modular_idx + 1];
+      if(!m_mesh.isValidElement(next_element))
+      {
+        return {INVALID_INDEX, PointLocationStatus::Outside};
+      }
+
+      element_i = next_element;
+      if(!isSearchableElement(element_i))
+      {
+        return {};
+      }
+    }
+  }
+
+  /// \brief Scan a small adjacency region around a failed directed walk before falling back to a full scan
+  IndexType findContainingElementFromNeighbors(const PointType& query_pt,
+                                               const std::vector<IndexType>& seed_elements) const
+  {
+    if(seed_elements.empty())
+    {
+      return INVALID_INDEX;
+    }
+
+    constexpr int num_layers = 2;
+    std::vector<IndexType> nearby_elements;
+    nearby_elements.reserve(seed_elements.size() * (1 + num_layers * VERT_PER_ELEMENT));
+
+    auto appendUniqueElement = [&](IndexType element_idx, std::vector<IndexType>& frontier) {
+      if(isSearchableElement(element_idx) &&
+         std::find(nearby_elements.begin(), nearby_elements.end(), element_idx) ==
+           nearby_elements.end())
+      {
+        nearby_elements.push_back(element_idx);
+        frontier.push_back(element_idx);
+      }
+    };
+
+    std::vector<IndexType> frontier;
+    frontier.reserve(seed_elements.size());
+    for(const IndexType element_idx : seed_elements)
+    {
+      appendUniqueElement(element_idx, frontier);
+    }
+
+    for(int layer = 0; layer < num_layers && !frontier.empty(); ++layer)
+    {
+      std::vector<IndexType> next_frontier;
+      next_frontier.reserve(frontier.size() * VERT_PER_ELEMENT);
+
+      for(const IndexType element_idx : frontier)
+      {
+        const auto neighbors = m_mesh.adjacentElements(element_idx);
+        for(int i = 0; i < VERT_PER_ELEMENT; ++i)
+        {
+          appendUniqueElement(neighbors[ModularFaceIndex(i) + 1], next_frontier);
+        }
+      }
+
+      frontier.swap(next_frontier);
+    }
+
+    IndexType best_element = INVALID_INDEX;
+    DataType best_min_bary = -std::numeric_limits<DataType>::max();
+    for(const IndexType element_idx : nearby_elements)
+    {
+      const BaryCoordType bary_coord = getBaryCoords(element_idx, query_pt);
+      const DataType min_bary = bary_coord[bary_coord.array().argMin()];
+      if(min_bary > best_min_bary)
+      {
+        best_min_bary = min_bary;
+        best_element = element_idx;
+      }
+
+      if(min_bary >= -BARY_EPS)
+      {
+        return element_idx;
+      }
+    }
+
+    return INVALID_INDEX;
+  }
+
   /// \brief Falls back to a linear scan when directed point location cycles on a boundary feature
   IndexType findContainingElementLinear(const PointType& query_pt, bool warnOnInvalid) const
   {
@@ -531,7 +723,7 @@ public:
 
     for(auto element_idx : m_mesh.elements().positions())
     {
-      if(!m_mesh.isValidElement(element_idx))
+      if(!isSearchableElement(element_idx))
       {
         continue;
       }
@@ -556,7 +748,55 @@ public:
                                 "coordinate {:.17g}",
                                 query_pt,
                                 best_min_bary));
+
     return best_element;
+  }
+
+  /// \brief Scan the stars of nearby seed vertices as a cheaper local fallback for query point location
+  IndexType findContainingElementNearby(const PointType& query_pt,
+                                        const std::vector<IndexType>& nearby_vertices) const
+  {
+    std::vector<IndexType> nearby_elements;
+    for(const IndexType vertex_idx : nearby_vertices)
+    {
+      if(!m_mesh.isValidVertex(vertex_idx))
+      {
+        continue;
+      }
+
+      const auto star = m_mesh.vertexStar(vertex_idx);
+      for(const IndexType elem : star)
+      {
+        if(isSearchableElement(elem))
+        {
+          nearby_elements.push_back(elem);
+        }
+      }
+    }
+
+    std::sort(nearby_elements.begin(), nearby_elements.end());
+    nearby_elements.erase(std::unique(nearby_elements.begin(), nearby_elements.end()),
+                          nearby_elements.end());
+
+    IndexType best_element = INVALID_INDEX;
+    DataType best_min_bary = -std::numeric_limits<DataType>::max();
+    for(const IndexType element_idx : nearby_elements)
+    {
+      const BaryCoordType bary_coord = getBaryCoords(element_idx, query_pt);
+      const DataType min_bary = bary_coord[bary_coord.array().argMin()];
+      if(min_bary > best_min_bary)
+      {
+        best_min_bary = min_bary;
+        best_element = element_idx;
+      }
+
+      if(min_bary >= -BARY_EPS)
+      {
+        return element_idx;
+      }
+    }
+
+    return INVALID_INDEX;
   }
 
 private:
@@ -640,6 +880,97 @@ private:
      * \note Some bins might not point to a vertex, so users should check
      * that the returned index is a valid vertex, e.g. using \a mesh.isValidVertex(vertex_id)
      */
+    inline std::vector<IndexType> getNearbyVertices(const IAMeshType& mesh,
+                                                    const PointType& pt,
+                                                    int search_radius = 1,
+                                                    int max_candidates = 1) const
+    {
+      const auto cell = m_lattice.gridCell(pt);
+      std::vector<std::pair<double, IndexType>> candidates;
+
+      auto tryCandidate = [&](const typename LatticeType::GridCell& candidate_cell) {
+        const IndexType vertex_idx = flatIndex(candidate_cell);
+        if(mesh.isValidVertex(vertex_idx))
+        {
+          const double sq_dist =
+            primal::squared_distance(mesh.getVertexPosition(vertex_idx), pt);
+          candidates.emplace_back(sq_dist, vertex_idx);
+        }
+      };
+
+      if constexpr(DIM == 2)
+      {
+        for(int dj = -search_radius; dj <= search_radius; ++dj)
+        {
+          const IndexType j = cell[1] + dj;
+          if(j < 0 || j >= m_bins.shape()[1])
+          {
+            continue;
+          }
+
+          for(int di = -search_radius; di <= search_radius; ++di)
+          {
+            const IndexType i = cell[0] + di;
+            if(i < 0 || i >= m_bins.shape()[0])
+            {
+              continue;
+            }
+
+            tryCandidate(typename LatticeType::GridCell {{i, j}});
+          }
+        }
+      }
+      else
+      {
+        for(int dk = -search_radius; dk <= search_radius; ++dk)
+        {
+          const IndexType k = cell[2] + dk;
+          if(k < 0 || k >= m_bins.shape()[2])
+          {
+            continue;
+          }
+
+          for(int dj = -search_radius; dj <= search_radius; ++dj)
+          {
+            const IndexType j = cell[1] + dj;
+            if(j < 0 || j >= m_bins.shape()[1])
+            {
+              continue;
+            }
+
+            for(int di = -search_radius; di <= search_radius; ++di)
+            {
+              const IndexType i = cell[0] + di;
+              if(i < 0 || i >= m_bins.shape()[0])
+              {
+                continue;
+              }
+
+              tryCandidate(typename LatticeType::GridCell {{i, j, k}});
+            }
+          }
+        }
+      }
+
+      std::sort(candidates.begin(),
+                candidates.end(),
+                [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
+
+      std::vector<IndexType> nearby_vertices;
+      nearby_vertices.reserve(axom::utilities::min(max_candidates, static_cast<int>(candidates.size())));
+      for(const auto& candidate : candidates)
+      {
+        nearby_vertices.push_back(candidate.second);
+        if(static_cast<int>(nearby_vertices.size()) == max_candidates)
+        {
+          break;
+        }
+      }
+
+      return nearby_vertices;
+    }
+
+    /// \brief Returns the index of the vertex in the bin containing point \a pt
     inline IndexType getNearbyVertex(const PointType& pt) const
     {
       const auto cell = m_lattice.gridCell(pt);
