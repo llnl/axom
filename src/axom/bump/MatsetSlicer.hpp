@@ -62,6 +62,7 @@ public:
     utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     // Allocate sizes/offsets.
+    AXOM_ANNOTATE_BEGIN("alloc");
     conduit::Node &n_sizes = n_newMatset["sizes"];
     n_sizes.set_allocator(c2a.getConduitAllocatorID());
     n_sizes.set(conduit::DataType(utils::cpp2conduit<MatsetIndex>::id, selectedZonesView.size()));
@@ -71,24 +72,52 @@ public:
     n_offsets.set_allocator(c2a.getConduitAllocatorID());
     n_offsets.set(conduit::DataType(utils::cpp2conduit<MatsetIndex>::id, selectedZonesView.size()));
     auto offsetsView = utils::make_array_view<MatsetIndex>(n_offsets);
+    AXOM_ANNOTATE_END("alloc");
 
     // Figure out overall size of the matset zones we're keeping.
+    AXOM_ANNOTATE_BEGIN("size");
     MatsetView deviceMatsetView(m_matsetView);
     const axom::ArrayView<axom::IndexType> deviceSelectedZonesView(selectedZonesView);
-    axom::for_all<ExecSpace>(
-      selectedZonesView.size(),
-      AXOM_LAMBDA(axom::IndexType index) {
-        const auto nmats = deviceMatsetView.numberOfMaterials(deviceSelectedZonesView[index]);
-        sizesView[index] = nmats;
-      });
-    axom::ReduceSum<ExecSpace, MatsetIndex> size_reduce(0);
-    axom::for_all<ExecSpace>(
-      sizesView.size(),
-      AXOM_LAMBDA(axom::IndexType index) { size_reduce += sizesView[index]; });
-    axom::exclusive_scan<ExecSpace>(sizesView, offsetsView);
+    axom::IndexType totalSize {};
+    if constexpr(axom::execution_space<ExecSpace>::onDevice())
+    {
+      axom::ReduceSum<ExecSpace, MatsetIndex> size_reduce(0);
+      axom::for_all<ExecSpace>(
+        selectedZonesView.size(),
+        AXOM_LAMBDA(axom::IndexType index) {
+          const auto nmats = deviceMatsetView.numberOfMaterials(deviceSelectedZonesView[index]);
+          sizesView[index] = nmats;
+          size_reduce += nmats;
+        });
+      totalSize = size_reduce.get();
+    }
+    else
+    {
+      axom::for_all<ExecSpace>(
+        selectedZonesView.size(),
+        AXOM_LAMBDA(axom::IndexType index) {
+          const auto nmats = deviceMatsetView.numberOfMaterials(deviceSelectedZonesView[index]);
+          sizesView[index] = nmats;
+        });
+    }
+    AXOM_ANNOTATE_END("size");
+
+    {
+      AXOM_ANNOTATE_SCOPE("scan");
+      axom::exclusive_scan<ExecSpace>(sizesView, offsetsView);
+    }
+
+    AXOM_ANNOTATE_BEGIN("alloc2");
+    if constexpr(!axom::execution_space<ExecSpace>::onDevice())
+    {
+      if(sizesView.size() > 0)
+      {
+        const auto lastIndex = sizesView.size() - 1;
+        totalSize = offsetsView[lastIndex] + sizesView[lastIndex];
+      }
+    }
 
     // Allocate data for the rest of the matset.
-    const auto totalSize = size_reduce.get();
     if(sizesView.size() > 0)
     {
       SLIC_ERROR_IF(totalSize == 0, "ReduceSum returned 0 for totalSize.");
@@ -107,8 +136,10 @@ public:
     n_volume_fractions.set_allocator(c2a.getConduitAllocatorID());
     n_volume_fractions.set(conduit::DataType(utils::cpp2conduit<MatsetFloat>::id, totalSize));
     auto volumeFractionsView = utils::make_array_view<MatsetFloat>(n_volume_fractions);
+    AXOM_ANNOTATE_END("alloc2");
 
     // Fill in the matset data with the zones we're keeping.
+    AXOM_ANNOTATE_BEGIN("copy");
     axom::for_all<ExecSpace>(
       selectedZonesView.size(),
       AXOM_LAMBDA(axom::IndexType index) {
@@ -124,6 +155,7 @@ public:
           indicesView[destIndex] = destIndex;
         }
       });
+    AXOM_ANNOTATE_END("copy");
   }
 
 private:

@@ -9,6 +9,7 @@
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
+#include "axom/bump/utilities/utilities.hpp"
 
 #include <cstdint>
 #include <unordered_map>
@@ -30,21 +31,34 @@ namespace detail
  * \brief Print a container.
  *
  * \param name The name to print for the container.
- * \param container The container whose data will be printed.
+ * \param container The container (usually a view) whose data will be printed.
  */
-template <typename ContainerType>
+template <typename ExecSpace, typename ContainerType>
 void printContainer(const std::string &name, const ContainerType &container)
 {
-  std::cout << name << "=[";
-  for(axom::IndexType i = 0; i < container.size(); i++)
+  using value_type = typename ContainerType::value_type;
+  using printed_type =
+    typename std::conditional<std::is_same_v<value_type, char>, int, value_type>::type;
+
+  if constexpr(axom::execution_space<ExecSpace>::onDevice())
   {
-    if(i > 0)
-    {
-      std::cout << ", ";
-    }
-    std::cout << container[i];
+    axom::Array<value_type> hostData(container.size(), container.size());
+    axom::copy(hostData.data(), container.data(), sizeof(value_type) * container.size());
+    printContainer<axom::SEQ_EXEC>(name, hostData);
   }
-  std::cout << "]\n";
+  else
+  {
+    std::cout << name << "=[";
+    for(axom::IndexType i = 0; i < container.size(); i++)
+    {
+      if(i > 0)
+      {
+        std::cout << ", ";
+      }
+      std::cout << static_cast<printed_type>(container[i]);
+    }
+    std::cout << "]\n";
+  }
 }
 
 /*!
@@ -110,8 +124,8 @@ struct Unique
 
     // Make a copy of the keys and make original indices.
     const auto n = keys_orig_view.size();
-    axom::Array<KeyType> keys(n, n, allocatorID);
-    axom::Array<axom::IndexType> indices(n, n, allocatorID);
+    axom::Array<KeyType> keys(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
+    axom::Array<axom::IndexType> indices(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
     auto keys_view = keys.view();
     auto indices_view = indices.view();
     axom::for_all<ExecSpace>(
@@ -122,25 +136,25 @@ struct Unique
       });
 #if defined(AXOM_DEBUG_UNIQUE)
     // Input values
-    if(!axom::execution_space<ExecSpace>::onDevice())
-    {
-      detail::printContainer("keys", keys_view);
-      detail::printContainer("indices", indices_view);
-    }
+    detail::printContainer<ExecSpace>("keys", keys_view);
+    detail::printContainer<ExecSpace>("indices", indices_view);
 #endif
     // Sort the keys, indices in place.
     axom::stable_sort_pairs<ExecSpace>(keys_view, indices_view);
 
     // Make a mask array for where differences occur.
-    axom::Array<axom::IndexType> mask(n, n, allocatorID);
+    using MaskType = typename axom::bump::utilities::mask_traits<ExecSpace, axom::IndexType>::type;
+    axom::Array<MaskType> mask(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
     auto mask_view = mask.view();
     axom::ReduceSum<ExecSpace, axom::IndexType> mask_sum(0);
     axom::for_all<ExecSpace>(
       n,
       AXOM_LAMBDA(axom::IndexType i) {
-        const axom::IndexType m = (i >= 1) ? ((keys_view[i] != keys_view[i - 1]) ? 1 : 0) : 1;
+        const MaskType m = (i >= 1)
+          ? ((keys_view[i] != keys_view[i - 1]) ? MaskType {1} : MaskType {0})
+          : MaskType {1};
         mask_view[i] = m;
-        mask_sum += m;
+        mask_sum += static_cast<axom::IndexType>(m);
       });
 
     // Do a scan on the mask array to build an offset array.
@@ -150,19 +164,17 @@ struct Unique
 
 #if defined(AXOM_DEBUG_UNIQUE)
     // Post-sorting values.
-    if(!axom::execution_space<ExecSpace>::onDevice())
-    {
-      detail::printContainer("sorted_keys", keys_view);
-      detail::printContainer("sorted_indices", indices_view);
-      detail::printContainer("mask", mask_view);
-      detail::printContainer("offsets", offsets_view);
-    }
+    detail::printContainer<ExecSpace>("sorted_keys", keys_view);
+    detail::printContainer<ExecSpace>("sorted_indices", indices_view);
+    detail::printContainer<ExecSpace>("mask", mask_view);
+    detail::printContainer<ExecSpace>("offsets", offsets_view);
 #endif
 
     // Allocate the output arrays.
     const axom::IndexType newsize = mask_sum.get();
-    skeys = axom::Array<KeyType>(newsize, newsize, allocatorID);
-    sindices = axom::Array<axom::IndexType>(newsize, newsize, allocatorID);
+    skeys = axom::Array<KeyType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);
+    sindices =
+      axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);
 
     // Iterate over the mask/offsets to store values at the right
     // offset in the new array.
@@ -180,11 +192,8 @@ struct Unique
 
 #if defined(AXOM_DEBUG_UNIQUE)
     // Output values
-    if(!axom::execution_space<ExecSpace>::onDevice())
-    {
-      detail::printContainer("skeys", skeys_view);
-      detail::printContainer("sindices", sindices_view);
-    }
+    detail::printContainer<ExecSpace>("skeys", skeys_view);
+    detail::printContainer<ExecSpace>("sindices", sindices_view);
 #endif
   }
 };
@@ -231,8 +240,9 @@ struct Unique<axom::SEQ_EXEC, KeyType>
     // Allocate the output arrays and populate them
     const axom::IndexType newsize = unique_vector.size();
     const int allocatorID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-    skeys = axom::Array<KeyType>(newsize, newsize, allocatorID);
-    sindices = axom::Array<axom::IndexType>(newsize, newsize, allocatorID);
+    skeys = axom::Array<KeyType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);
+    sindices =
+      axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);
 
     for(axom::IndexType index = 0; index < newsize; ++index)
     {

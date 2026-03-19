@@ -91,6 +91,7 @@ set(core_headers
     execution/scans.hpp
     execution/sorts.hpp
     execution/synchronize.hpp
+    execution/timed_for_all.hpp
 
     execution/internal/seq_exec.hpp
     execution/internal/omp_exec.hpp
