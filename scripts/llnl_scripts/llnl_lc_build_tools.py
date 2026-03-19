@@ -226,7 +226,7 @@ def build_and_test_host_config(test_root, host_config,
     build_tool_flags = "-j16"
     build_log_id = build_tool
     configure_generator_flag = "--ninja" if use_ninja else ""
-    build_cmd = f"{build_tool} {build_tool_flags}"
+    build_cmd = build_tool if use_ninja else f"{build_tool} {build_tool_flags}"
     verbose_build_cmd = f"{build_cmd} -v" if use_ninja else f"{build_cmd} VERBOSE=1"
     # setup build and install dirs
     build_dir   = pjoin(test_root, f"build-{host_config_root}")
