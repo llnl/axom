@@ -29,7 +29,7 @@ variables:
     - export  LSAN_OPTIONS=${LSAN_OPTIONS}
     - export SELECTED_EXTRA_CMAKE_OPTIONS="-DENABLE_DOCS=OFF ${EXTRA_CMAKE_OPTIONS}"
     - if [ "${USE_LLD}" = "ON" ]; then export SELECTED_EXTRA_CMAKE_OPTIONS="${SELECTED_EXTRA_CMAKE_OPTIONS} ${LLD_EXTRA_CMAKE_OPTIONS}"; fi
-    - echo "[INFO: Extra CMake options: ${SELECTED_EXTRA_CMAKE_OPTIONS}]"
+    - 'echo "[INFO: Extra CMake options: ${SELECTED_EXTRA_CMAKE_OPTIONS}]"'
     - ${ALLOC_COMMAND} python3 scripts/llnl_scripts/build_src.py -v --host-config ${HOST_CONFIG} --extra-cmake-options "${SELECTED_EXTRA_CMAKE_OPTIONS}" --build-type ${BUILD_TYPE:-Debug} ${EXTRA_OPTIONS}
     - echo -e "\e[0Ksection_end:$(date +%s):src_build_and_test\r\e[0K"
   artifacts:
