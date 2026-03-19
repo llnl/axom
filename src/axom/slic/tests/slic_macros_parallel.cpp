@@ -187,6 +187,21 @@ void check_rank_count(const std::string& msg, const std::string& stream_type, in
 }
 
 //------------------------------------------------------------------------------
+// Use level to determine number of messages - used for SLIC_*_ONCE macros
+int check_msg_count(const std::string& msg, const std::string& expected_level)
+{
+  EXPECT_FALSE(msg.empty());
+
+  int count = 0;
+  for(size_t pos = msg.find(expected_level); pos != std::string::npos;
+      pos = msg.find(expected_level, pos + expected_level.size()))
+  {
+    ++count;
+  }
+  return count;
+}
+
+//------------------------------------------------------------------------------
 // Checks message logged on all ranks
 void check_all_ranks(const std::string& stream_type,
                      const std::string& level,
@@ -448,6 +463,8 @@ TEST_P(SlicMacrosParallel, test_error_macros)
 //------------------------------------------------------------------------------
 TEST_P(SlicMacrosParallel, test_warning_macros)
 {
+  int expected_line_number;
+
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_WARNING("test warning message"), "WARNING", "test warning message");
@@ -455,6 +472,31 @@ TEST_P(SlicMacrosParallel, test_warning_macros)
   SLIC_WARNING_IF(false, "this message should not be logged!");
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
+
+  // Called once per call site; since this test is ran for parameters
+  // Synchronized and Lumberjack, a separate call site is needed for each parameter,
+  // otherwise ONCE macro logs nothing when its Lumberjack's turn to run.
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_WARNING_ONCE("test warning message " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_WARNING_ONCE("test warning message " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(GetParam() == "Synchronized" || (GetParam() == "Lumberjack" && rank == 0))
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "WARNING"), 1);
+  }
+  check_all_ranks(GetParam(), "WARNING", "test warning message 0", expected_line_number, rank, nranks);
+  slic::internal::clear_streams();
 
   // Single line - Placement of ")" matters for __LINE__ for slic call and checking
   // clang-format off
