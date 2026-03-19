@@ -78,10 +78,12 @@ echo "PWD="`pwd`
 echo "HOST_CONFIG=$HOST_CONFIG"
 echo "CMAKE_EXTRA_FLAGS=$CMAKE_EXTRA_FLAGS"
 echo "USE_NINJA=$USE_NINJA"
+echo "USE_LLD=$USE_LLD"
 echo "~~~~~~~~~~~~~~~~~~~~~~"
 
 export BUILD_TYPE=${BUILD_TYPE:-Debug}
 export USE_NINJA=${USE_NINJA:-no}
+export USE_LLD=${USE_LLD:-no}
 TOTAL_START_SECONDS=$(date +%s)
 CONFIGURE_SECONDS=""
 BUILD_SECONDS=""
@@ -104,6 +106,9 @@ if [[ "$DO_BUILD" == "yes" ]] ; then
         BUILD_TOOL="ninja"
         BUILD_CMD="ninja"
         VERBOSE_BUILD_CMD="ninja -v"
+    fi
+    if [[ "$USE_LLD" == "yes" ]] ; then
+        CMAKE_EXTRA_FLAGS="${CMAKE_EXTRA_FLAGS} ${LLD_CMAKE_FLAGS}"
     fi
 
     echo "~~~~~~ RUNNING CMAKE ~~~~~~~~"
