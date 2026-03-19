@@ -21,6 +21,7 @@
 #include <set>
 #include <cstdlib>
 #include <cmath>
+#include <limits>
 
 namespace axom
 {
@@ -55,6 +56,7 @@ public:
 
   static constexpr int VERT_PER_ELEMENT = DIM + 1;
   static constexpr IndexType INVALID_INDEX = -1;
+  static constexpr double PREDICATE_PERTURB_EPS = 1e-10;
 
 private:
   using ModularFaceIndex =
@@ -127,21 +129,8 @@ public:
 
     // Run the insertion operation by finding invalidated elements around the point (the "cavity")
     // and replacing them with new valid elements (the Delaunay "ball")
-    IndexArray seed_elements;
-    seed_elements.push_back(element_i);
-
-    const BaryCoordType bary_coord = getBaryCoords(element_i, new_pt);
-    for(int i = 0; i < VERT_PER_ELEMENT; ++i)
-    {
-      if(axom::utilities::abs(bary_coord[i]) <= BARY_EPS)
-      {
-        const IndexType nbr = m_mesh.adjacentElements(element_i)[ModularFaceIndex(i) + 1];
-        if(m_mesh.isValidElement(nbr))
-        {
-          seed_elements.push_back(nbr);
-        }
-      }
-    }
+    const BaryCoordType bary_coord = getRawBaryCoords(element_i, new_pt);
+    const IndexArray seed_elements = getSeedElements(element_i, bary_coord);
 
     InsertionHelper insertionHelper(m_mesh);
     insertionHelper.findCavityElements(new_pt, seed_elements);
@@ -435,8 +424,15 @@ public:
       SLIC_ASSERT(m_mesh.isValidElement(element_i));
     }
 
+    static constexpr int MAX_WALK_STEPS = 256;
+    std::set<IndexType> visited_elements;
     while(1)
     {
+      if(!visited_elements.insert(element_i).second)
+      {
+        return findContainingElementLinear(query_pt, warnOnInvalid);
+      }
+
       const BaryCoordType bary_coord = getBaryCoords(element_i, query_pt);
 
       //Find the index of the most negative barycentric coord
@@ -446,6 +442,11 @@ public:
       if(bary_coord[modular_idx] >= -BARY_EPS)
       {
         return element_i;
+      }
+
+      if(static_cast<int>(visited_elements.size()) >= MAX_WALK_STEPS)
+      {
+        return findContainingElementLinear(query_pt, warnOnInvalid);
       }
 
       // else, move to that neighbor
@@ -468,6 +469,95 @@ public:
    * \brief helper function to retrieve the barycentric coordinate of the query point in the element
    */
   BaryCoordType getBaryCoords(IndexType element_idx, const PointType& q_pt) const;
+
+  /**
+   * \brief helper function to retrieve the barycentric coordinate of the query point
+   * in the element without predicate perturbation
+   */
+  BaryCoordType getRawBaryCoords(IndexType element_idx, const PointType& q_pt) const;
+
+  /// \brief Returns cavity seed elements based on the simplex feature containing the query point
+  IndexArray getSeedElements(IndexType element_idx, const BaryCoordType& bary_coord) const
+  {
+    IndexArray seed_elements;
+    seed_elements.push_back(element_idx);
+
+    for(int i = 0; i < VERT_PER_ELEMENT; ++i)
+    {
+      if(axom::utilities::abs(bary_coord[i]) <= BARY_EPS)
+      {
+        const IndexType nbr = m_mesh.adjacentElements(element_idx)[ModularFaceIndex(i) + 1];
+        if(m_mesh.isValidElement(nbr))
+        {
+          seed_elements.push_back(nbr);
+        }
+      }
+    }
+
+    return seed_elements;
+  }
+
+  static PointType perturbPointForPredicates(const PointType& pt)
+  {
+    if constexpr(DIM == 2)
+    {
+      return pt;
+    }
+    else
+    {
+      const double max_abs_coord =
+        axom::utilities::max(axom::utilities::abs(pt[0]),
+                             axom::utilities::max(axom::utilities::abs(pt[1]),
+                                                  axom::utilities::abs(pt[2])));
+      const double scale = PREDICATE_PERTURB_EPS * (1. + max_abs_coord);
+
+      PointType perturbed = pt;
+      const double x = pt[0];
+      const double y = pt[1];
+      const double z = pt[2];
+
+      perturbed[0] += scale * (0.125 + y + z * z);
+      perturbed[1] += scale * (0.25 + z + x * x);
+      perturbed[2] += scale * (0.5 + x + y * y);
+      return perturbed;
+    }
+  }
+
+  /// \brief Falls back to a linear scan when directed point location cycles on a boundary feature
+  IndexType findContainingElementLinear(const PointType& query_pt, bool warnOnInvalid) const
+  {
+    IndexType best_element = INVALID_INDEX;
+    DataType best_min_bary = -std::numeric_limits<DataType>::max();
+
+    for(auto element_idx : m_mesh.elements().positions())
+    {
+      if(!m_mesh.isValidElement(element_idx))
+      {
+        continue;
+      }
+
+      const BaryCoordType bary_coord = getBaryCoords(element_idx, query_pt);
+      const DataType min_bary = bary_coord[bary_coord.array().argMin()];
+      if(min_bary > best_min_bary)
+      {
+        best_min_bary = min_bary;
+        best_element = element_idx;
+      }
+
+      if(min_bary >= -BARY_EPS)
+      {
+        return element_idx;
+      }
+    }
+
+    SLIC_WARNING_IF(warnOnInvalid,
+                    fmt::format("Unable to locate containing element for point {} after exhaustive "
+                                "neighbor search; returning closest candidate with min barycentric "
+                                "coordinate {:.17g}",
+                                query_pt,
+                                best_min_bary));
+    return best_element;
+  }
 
 private:
   /// \brief Predicate for when to compact internal mesh data structures after removing elements
@@ -643,7 +733,7 @@ private:
 
       while(!stack.empty())
       {
-        IndexType element_idx = stack.back();
+        const IndexType element_idx = stack.back();
         stack.pop_back();
 
         // Invariant: this element is valid, was checked and is in the cavity
@@ -850,6 +940,32 @@ inline typename Delaunay<DIM>::BaryCoordType Delaunay<DIM>::getBaryCoords(IndexT
                                                                           const PointType& query_pt) const
 {
   const auto verts = m_mesh.boundaryVertices(element_idx);
+  const PointType perturbed_query = perturbPointForPredicates(query_pt);
+
+  if constexpr(DIM == 2)
+  {
+    const ElementType tri(m_mesh.getVertexPosition(verts[0]),
+                          m_mesh.getVertexPosition(verts[1]),
+                          m_mesh.getVertexPosition(verts[2]));
+
+    return tri.physToBarycentric(perturbed_query);
+  }
+  else
+  {
+    const ElementType tet(perturbPointForPredicates(m_mesh.getVertexPosition(verts[0])),
+                          perturbPointForPredicates(m_mesh.getVertexPosition(verts[1])),
+                          perturbPointForPredicates(m_mesh.getVertexPosition(verts[2])),
+                          perturbPointForPredicates(m_mesh.getVertexPosition(verts[3])));
+
+    return tet.physToBarycentric(perturbed_query);
+  }
+}
+
+template <int DIM>
+inline typename Delaunay<DIM>::BaryCoordType Delaunay<DIM>::getRawBaryCoords(IndexType element_idx,
+                                                                             const PointType& query_pt) const
+{
+  const auto verts = m_mesh.boundaryVertices(element_idx);
 
   if constexpr(DIM == 2)
   {
@@ -875,21 +991,22 @@ inline bool Delaunay<DIM>::InsertionHelper::isPointInCircumsphere(const PointTyp
                                                                   IndexType element_idx) const
 {
   const auto verts = m_mesh.boundaryVertices(element_idx);
+  const PointType perturbed_query = Delaunay<DIM>::perturbPointForPredicates(query_pt);
 
   if constexpr(DIM == 2)
   {
     const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
     const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
     const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
-    return primal::in_sphere(query_pt, p0, p1, p2, primal::PRIMAL_TINY, false);
+    return primal::in_sphere(perturbed_query, p0, p1, p2, primal::PRIMAL_TINY, false);
   }
   else
   {
-    const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
-    const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
-    const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
-    const PointType& p3 = m_mesh.getVertexPosition(verts[3]);
-    return primal::in_sphere(query_pt, p0, p1, p2, p3, primal::PRIMAL_TINY, false);
+    const PointType p0 = Delaunay<DIM>::perturbPointForPredicates(m_mesh.getVertexPosition(verts[0]));
+    const PointType p1 = Delaunay<DIM>::perturbPointForPredicates(m_mesh.getVertexPosition(verts[1]));
+    const PointType p2 = Delaunay<DIM>::perturbPointForPredicates(m_mesh.getVertexPosition(verts[2]));
+    const PointType p3 = Delaunay<DIM>::perturbPointForPredicates(m_mesh.getVertexPosition(verts[3]));
+    return primal::in_sphere(perturbed_query, p0, p1, p2, p3, primal::PRIMAL_TINY, true);
   }
 }
 
