@@ -102,8 +102,8 @@ if [[ "$DO_BUILD" == "yes" ]] ; then
     if [[ "$USE_NINJA" == "yes" ]] ; then
         BUILD_GENERATOR_FLAG="--ninja"
         BUILD_TOOL="ninja"
-        BUILD_CMD="ninja -j $NUM_BUILD_PROCS"
-        VERBOSE_BUILD_CMD="ninja -j $NUM_BUILD_PROCS -v"
+        BUILD_CMD="ninja"
+        VERBOSE_BUILD_CMD="ninja -v"
     fi
 
     echo "~~~~~~ RUNNING CMAKE ~~~~~~~~"

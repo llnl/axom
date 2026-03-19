@@ -50,7 +50,7 @@ RUN cd ${HOME}/axom_repo && python3 config-build.py --ninja -hc *cuda.cmake \
                                                     -DCMAKE_EXE_LINKER_FLAGS=-fno-lto  \
                                                     -bt Release \
                          && cd ${HOME}/axom_repo/build-release \
-                         && (ninja -j4 install || (echo && echo "==================================================================" && echo " Non-verbose install failed. Re-running with verbose output." && echo "==================================================================" && echo && ninja -j4 -v install))
+                         && (ninja install || (echo && echo "==================================================================" && echo " Non-verbose install failed. Re-running with verbose output." && echo "==================================================================" && echo && ninja -v install))
 
 # Install VisIt binary
 # Download tarball, installer, test script, perform installation and cleanup
