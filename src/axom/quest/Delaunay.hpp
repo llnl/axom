@@ -20,6 +20,7 @@
 #include <vector>
 #include <set>
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <cmath>
 #include <limits>
@@ -57,7 +58,6 @@ public:
 
   static constexpr int VERT_PER_ELEMENT = DIM + 1;
   static constexpr IndexType INVALID_INDEX = -1;
-  static constexpr double PREDICATE_PERTURB_EPS = 1e-10;
 
 private:
   using ModularFaceIndex =
@@ -130,7 +130,7 @@ public:
 
     // Run the insertion operation by finding invalidated elements around the point (the "cavity")
     // and replacing them with new valid elements (the Delaunay "ball")
-    const BaryCoordType bary_coord = getRawBaryCoords(element_i, new_pt);
+    const BaryCoordType bary_coord = getBaryCoords(element_i, new_pt);
     const IndexArray seed_elements = getSeedElements(element_i, bary_coord);
 
     InsertionHelper insertionHelper(m_mesh);
@@ -423,6 +423,8 @@ public:
     PointLocationStatus status {PointLocationStatus::Failed};
   };
 
+  // These broader fallbacks are only used for 3D query point location after the
+  // initial directed walk fails. Insertions stay on the cheaper local path.
   static constexpr int QUERY_SEARCH_RADIUS = 6;
   static constexpr int QUERY_CANDIDATE_LIMIT = 128;
   static constexpr int WALK_NEIGHBORHOOD_LAYERS = 2;
@@ -444,6 +446,8 @@ public:
       return INVALID_INDEX;
     }
 
+    // Query mode (`warnOnInvalid == false`) accepts points outside the convex hull,
+    // so it uses broader 3D recovery steps before falling back to a full scan.
     const bool use_query_fallbacks = !warnOnInvalid && DIM == 3;
     std::vector<IndexType> candidate_elements = getInitialCandidateElements(query_pt);
     std::vector<IndexType> walked_elements;
@@ -485,12 +489,6 @@ public:
    */
   BaryCoordType getBaryCoords(IndexType element_idx, const PointType& q_pt) const;
 
-  /**
-   * \brief helper function to retrieve the barycentric coordinate of the query point
-   * in the element without predicate perturbation
-   */
-  BaryCoordType getRawBaryCoords(IndexType element_idx, const PointType& q_pt) const;
-
   /// \brief Returns cavity seed elements based on the simplex feature containing the query point
   IndexArray getSeedElements(IndexType element_idx, const BaryCoordType& bary_coord) const
   {
@@ -512,29 +510,173 @@ public:
     return seed_elements;
   }
 
-  static PointType perturbPointForPredicates(const PointType& pt)
+  static int signWithTolerance(double value, double tolerance)
   {
-    if constexpr(DIM == 2)
-    {
-      return pt;
-    }
-    else
-    {
-      const double max_abs_coord = axom::utilities::max(
-        axom::utilities::abs(pt[0]),
-        axom::utilities::max(axom::utilities::abs(pt[1]), axom::utilities::abs(pt[2])));
-      const double scale = PREDICATE_PERTURB_EPS * (1. + max_abs_coord);
+    return value > tolerance ? 1 : (value < -tolerance ? -1 : 0);
+  }
 
-      PointType perturbed = pt;
-      const double x = pt[0];
-      const double y = pt[1];
-      const double z = pt[2];
-
-      perturbed[0] += scale * (0.125 + y + z * z);
-      perturbed[1] += scale * (0.25 + z + x * x);
-      perturbed[2] += scale * (0.5 + x + y * y);
-      return perturbed;
+  static double getPointMagnitudeScale(const std::array<PointType, 4>& pts)
+  {
+    double max_abs_coord = 1.;
+    for(const auto& pt : pts)
+    {
+      for(int dim = 0; dim < DIM; ++dim)
+      {
+        max_abs_coord = axom::utilities::max(max_abs_coord, axom::utilities::abs(pt[dim]));
+      }
     }
+
+    return max_abs_coord;
+  }
+
+  static double orientationTolerance(const std::array<PointType, 4>& pts)
+  {
+    const double scale = getPointMagnitudeScale(pts);
+    return 64. * std::numeric_limits<double>::epsilon() * scale * scale * scale;
+  }
+
+  static double determinant3(const PointType& p0, const PointType& p1, const PointType& p2)
+  {
+    return axom::numerics::determinant(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]);
+  }
+
+  static double orientationDeterminant(const std::array<PointType, 4>& pts)
+  {
+    return axom::numerics::determinant(pts[0][0],
+                                       pts[0][1],
+                                       pts[0][2],
+                                       1.,
+                                       pts[1][0],
+                                       pts[1][1],
+                                       pts[1][2],
+                                       1.,
+                                       pts[2][0],
+                                       pts[2][1],
+                                       pts[2][2],
+                                       1.,
+                                       pts[3][0],
+                                       pts[3][1],
+                                       pts[3][2],
+                                       1.);
+  }
+
+  static int symbolicOrientationSign(const std::array<PointType, 4>& pts,
+                                     const std::array<IndexType, 4>& ranks)
+  {
+    // Simulation-of-simplicity style tie-break: if the 4x4 orientation
+    // determinant is effectively zero, use the earliest nonzero cofactor in a
+    // fixed symbolic rank order to choose one consistent sign.
+    const double det = orientationDeterminant(pts);
+
+    const int det_sign = signWithTolerance(det, orientationTolerance(pts));
+    if(det_sign != 0)
+    {
+      return det_sign;
+    }
+
+    const std::array<double, 4> cofactors {-determinant3(pts[1], pts[2], pts[3]),
+                                           determinant3(pts[0], pts[2], pts[3]),
+                                           -determinant3(pts[0], pts[1], pts[3]),
+                                           determinant3(pts[0], pts[1], pts[2])};
+
+    std::array<int, 4> order {{0, 1, 2, 3}};
+    std::sort(order.begin(), order.end(), [&](int lhs, int rhs) { return ranks[lhs] < ranks[rhs]; });
+
+    const double cofactor_tol = 64. * std::numeric_limits<double>::epsilon() *
+      axom::utilities::max(1., orientationTolerance(pts));
+    for(const int row : order)
+    {
+      const int sign = signWithTolerance(cofactors[row], cofactor_tol);
+      if(sign != 0)
+      {
+        return sign;
+      }
+    }
+
+    return 0;
+  }
+
+  int getBarycentricSign(IndexType element_idx,
+                         const PointType& query_pt,
+                         const BaryCoordType& bary_coord,
+                         int bary_idx) const
+  {
+    const double value = bary_coord[bary_idx];
+    if(axom::utilities::abs(value) > BARY_EPS || DIM == 2)
+    {
+      return signWithTolerance(value, BARY_EPS);
+    }
+
+    // The only ambiguous case is a near-zero barycentric coordinate. Interpret
+    // that face test symbolically by replacing the corresponding tetrahedron
+    // vertex with the query point and evaluating the signed orientation.
+    const auto verts = m_mesh.boundaryVertices(element_idx);
+    const std::array<PointType, 4> pts {
+      {bary_idx == 0 ? query_pt : m_mesh.getVertexPosition(verts[0]),
+       bary_idx == 1 ? query_pt : m_mesh.getVertexPosition(verts[1]),
+       bary_idx == 2 ? query_pt : m_mesh.getVertexPosition(verts[2]),
+       bary_idx == 3 ? query_pt : m_mesh.getVertexPosition(verts[3])}};
+
+    const IndexType query_rank = 1 +
+      axom::utilities::max(axom::utilities::max(verts[0], verts[1]),
+                           axom::utilities::max(verts[2], verts[3]));
+    // Give the query point the highest symbolic rank so zero-case face tests
+    // resolve deterministically without changing the stored simplex ordering.
+    const std::array<IndexType, 4> ranks {{bary_idx == 0 ? query_rank : verts[0],
+                                           bary_idx == 1 ? query_rank : verts[1],
+                                           bary_idx == 2 ? query_rank : verts[2],
+                                           bary_idx == 3 ? query_rank : verts[3]}};
+
+    const std::array<PointType, 4> tet_pts {{m_mesh.getVertexPosition(verts[0]),
+                                             m_mesh.getVertexPosition(verts[1]),
+                                             m_mesh.getVertexPosition(verts[2]),
+                                             m_mesh.getVertexPosition(verts[3])}};
+    const std::array<IndexType, 4> tet_ranks {{verts[0], verts[1], verts[2], verts[3]}};
+
+    const int numerator_sign = symbolicOrientationSign(pts, ranks);
+    const int denominator_sign = symbolicOrientationSign(tet_pts, tet_ranks);
+    return numerator_sign * denominator_sign;
+  }
+
+  bool isPointInsideForLocation(IndexType element_idx,
+                                const PointType& query_pt,
+                                const BaryCoordType& bary_coord,
+                                ModularFaceIndex* exit_face = nullptr) const
+  {
+    int first_symbolic_negative = -1;
+    ModularFaceIndex min_face(bary_coord.array().argMin());
+
+    for(int i = 0; i < VERT_PER_ELEMENT; ++i)
+    {
+      if(bary_coord[i] < -BARY_EPS)
+      {
+        if(exit_face != nullptr)
+        {
+          *exit_face = min_face;
+        }
+        return false;
+      }
+
+      if(axom::utilities::abs(bary_coord[i]) <= BARY_EPS &&
+         getBarycentricSign(element_idx, query_pt, bary_coord, i) < 0)
+      {
+        if(first_symbolic_negative < 0)
+        {
+          first_symbolic_negative = i;
+        }
+      }
+    }
+
+    if(first_symbolic_negative >= 0)
+    {
+      if(exit_face != nullptr)
+      {
+        *exit_face = ModularFaceIndex(first_symbolic_negative);
+      }
+      return false;
+    }
+
+    return true;
   }
 
   /// \brief Walk from a starting element until the containing element is found or the walk cycles
@@ -565,9 +707,8 @@ public:
       visited_elements.push_back(element_i);
 
       const BaryCoordType bary_coord = getBaryCoords(element_i, query_pt);
-      ModularFaceIndex modular_idx(bary_coord.array().argMin());
-
-      if(bary_coord[modular_idx] >= -BARY_EPS)
+      ModularFaceIndex modular_idx(0);
+      if(isPointInsideForLocation(element_i, query_pt, bary_coord, &modular_idx))
       {
         return {element_i, PointLocationStatus::Found};
       }
@@ -735,18 +876,13 @@ public:
       frontier.swap(next_frontier);
     }
 
-    IndexType best_element = INVALID_INDEX;
-    DataType best_min_bary = -std::numeric_limits<DataType>::max();
     for(const IndexType element_idx : nearby_elements)
     {
       const BaryCoordType bary_coord = getBaryCoords(element_idx, query_pt);
       const DataType min_bary = bary_coord[bary_coord.array().argMin()];
-      if(min_bary > best_min_bary)
-      {
-        best_min_bary = min_bary;
-        best_element = element_idx;
-      }
-
+      // Keep this recovery step strict: it only succeeds on a true containing
+      // element. Broader "closest element" behavior stays in the final linear
+      // fallback so outside-hull queries can still exit cleanly.
       if(min_bary >= -BARY_EPS)
       {
         return element_idx;
@@ -756,7 +892,7 @@ public:
     return INVALID_INDEX;
   }
 
-  /// \brief Falls back to a linear scan when directed point location cycles on a boundary feature
+  /// \brief Last-resort exhaustive scan used when the cheaper local search path cannot classify the point
   IndexType findContainingElementLinear(const PointType& query_pt, bool warnOnInvalid) const
   {
     IndexType best_element = INVALID_INDEX;
@@ -819,18 +955,10 @@ public:
     nearby_elements.erase(std::unique(nearby_elements.begin(), nearby_elements.end()),
                           nearby_elements.end());
 
-    IndexType best_element = INVALID_INDEX;
-    DataType best_min_bary = -std::numeric_limits<DataType>::max();
     for(const IndexType element_idx : nearby_elements)
     {
       const BaryCoordType bary_coord = getBaryCoords(element_idx, query_pt);
       const DataType min_bary = bary_coord[bary_coord.array().argMin()];
-      if(min_bary > best_min_bary)
-      {
-        best_min_bary = min_bary;
-        best_element = element_idx;
-      }
-
       if(min_bary >= -BARY_EPS)
       {
         return element_idx;
@@ -1312,32 +1440,6 @@ inline typename Delaunay<DIM>::BaryCoordType Delaunay<DIM>::getBaryCoords(IndexT
                                                                           const PointType& query_pt) const
 {
   const auto verts = m_mesh.boundaryVertices(element_idx);
-  const PointType perturbed_query = perturbPointForPredicates(query_pt);
-
-  if constexpr(DIM == 2)
-  {
-    const ElementType tri(m_mesh.getVertexPosition(verts[0]),
-                          m_mesh.getVertexPosition(verts[1]),
-                          m_mesh.getVertexPosition(verts[2]));
-
-    return tri.physToBarycentric(perturbed_query);
-  }
-  else
-  {
-    const ElementType tet(perturbPointForPredicates(m_mesh.getVertexPosition(verts[0])),
-                          perturbPointForPredicates(m_mesh.getVertexPosition(verts[1])),
-                          perturbPointForPredicates(m_mesh.getVertexPosition(verts[2])),
-                          perturbPointForPredicates(m_mesh.getVertexPosition(verts[3])));
-
-    return tet.physToBarycentric(perturbed_query);
-  }
-}
-
-template <int DIM>
-inline typename Delaunay<DIM>::BaryCoordType Delaunay<DIM>::getRawBaryCoords(IndexType element_idx,
-                                                                             const PointType& query_pt) const
-{
-  const auto verts = m_mesh.boundaryVertices(element_idx);
 
   if constexpr(DIM == 2)
   {
@@ -1363,22 +1465,92 @@ inline bool Delaunay<DIM>::InsertionHelper::isPointInCircumsphere(const PointTyp
                                                                   IndexType element_idx) const
 {
   const auto verts = m_mesh.boundaryVertices(element_idx);
-  const PointType perturbed_query = Delaunay<DIM>::perturbPointForPredicates(query_pt);
 
   if constexpr(DIM == 2)
   {
     const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
     const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
     const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
-    return primal::in_sphere(perturbed_query, p0, p1, p2, primal::PRIMAL_TINY, false);
+    return primal::in_sphere(query_pt, p0, p1, p2, primal::PRIMAL_TINY, false);
   }
   else
   {
-    const PointType p0 = Delaunay<DIM>::perturbPointForPredicates(m_mesh.getVertexPosition(verts[0]));
-    const PointType p1 = Delaunay<DIM>::perturbPointForPredicates(m_mesh.getVertexPosition(verts[1]));
-    const PointType p2 = Delaunay<DIM>::perturbPointForPredicates(m_mesh.getVertexPosition(verts[2]));
-    const PointType p3 = Delaunay<DIM>::perturbPointForPredicates(m_mesh.getVertexPosition(verts[3]));
-    return primal::in_sphere(perturbed_query, p0, p1, p2, p3, primal::PRIMAL_TINY, true);
+    const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
+    const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
+    const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
+    const PointType& p3 = m_mesh.getVertexPosition(verts[3]);
+
+    const auto ba = p1 - p0;
+    const auto ca = p2 - p0;
+    const auto da = p3 - p0;
+    const auto qa = query_pt - p0;
+
+    const double det = axom::numerics::determinant(ba[0],
+                                                   ba[1],
+                                                   ba[2],
+                                                   ba.squared_norm(),
+                                                   ca[0],
+                                                   ca[1],
+                                                   ca[2],
+                                                   ca.squared_norm(),
+                                                   da[0],
+                                                   da[1],
+                                                   da[2],
+                                                   da.squared_norm(),
+                                                   qa[0],
+                                                   qa[1],
+                                                   qa[2],
+                                                   qa.squared_norm());
+
+    const double scale = axom::utilities::max(
+      1.,
+      axom::utilities::max(
+        ba.norm(),
+        axom::utilities::max(ca.norm(), axom::utilities::max(da.norm(), qa.norm()))));
+    const double det_tol =
+      128. * std::numeric_limits<double>::epsilon() * scale * scale * scale * scale;
+    const int det_sign = Delaunay<DIM>::signWithTolerance(det, det_tol);
+    if(det_sign != 0)
+    {
+      return det_sign < 0;
+    }
+
+    // Resolve exact co-spherical ties symbolically from the lifted determinant
+    // cofactors, ordered by the fixed vertex/query ranks. The query point gets
+    // the highest rank so exact ties choose one deterministic inclusive result
+    // without perturbing coordinates.
+    const IndexType query_rank = 1 +
+      axom::utilities::max(axom::utilities::max(verts[0], verts[1]),
+                           axom::utilities::max(verts[2], verts[3]));
+    const std::array<PointType, 5> lifted_pts {{p0, p1, p2, p3, query_pt}};
+    const std::array<IndexType, 5> ranks {{verts[0], verts[1], verts[2], verts[3], query_rank}};
+    std::array<int, 5> order {{0, 1, 2, 3, 4}};
+    std::sort(order.begin(), order.end(), [&](int lhs, int rhs) { return ranks[lhs] < ranks[rhs]; });
+
+    const double cofactor_tol = 128. * std::numeric_limits<double>::epsilon() * scale * scale * scale;
+    for(const int row : order)
+    {
+      std::array<PointType, 4> cofactor_pts;
+      int next_idx = 0;
+      for(int pt_idx = 0; pt_idx < 5; ++pt_idx)
+      {
+        if(pt_idx == row)
+        {
+          continue;
+        }
+        cofactor_pts[next_idx++] = lifted_pts[pt_idx];
+      }
+
+      const double cofactor =
+        ((row + 3) % 2 == 0 ? 1. : -1.) * Delaunay<DIM>::orientationDeterminant(cofactor_pts);
+      const int sign = Delaunay<DIM>::signWithTolerance(cofactor, cofactor_tol);
+      if(sign != 0)
+      {
+        return sign < 0;
+      }
+    }
+
+    return true;
   }
 }
 
