@@ -145,6 +145,45 @@ TEST(quest_delaunay, cospherical_cube_3d)
   expectValidDelaunay(dt, points);
 }
 
+TEST(quest_delaunay, boundary_location_regular_grid_3d)
+{
+  using PointType = typename DelaunayType<3>::PointType;
+  using BoundingBox = typename DelaunayType<3>::BoundingBox;
+
+  const double one_third = 1. / 3.;
+  const double two_thirds = 2. / 3.;
+
+  DelaunayType<3> dt;
+  dt.initializeBoundary(BoundingBox(PointType {-0.5, -0.5, -0.5}, PointType {1.5, 1.5, 1.5}));
+
+  std::vector<PointType> inserted_points {PointType {0., two_thirds, 1.},
+                                          PointType {0., two_thirds, one_third},
+                                          PointType {two_thirds, two_thirds, one_third},
+                                          PointType {two_thirds, two_thirds, two_thirds},
+                                          PointType {one_third, one_third, one_third},
+                                          PointType {0., 1., 1.},
+                                          PointType {one_third, 1., one_third},
+                                          PointType {two_thirds, 1., one_third},
+                                          PointType {0., 0., two_thirds},
+                                          PointType {one_third, two_thirds, two_thirds},
+                                          PointType {1., 1., 0.},
+                                          PointType {0., 0., 1.},
+                                          PointType {one_third, 0., 1.},
+                                          PointType {0., one_third, one_third},
+                                          PointType {two_thirds, 0., one_third},
+                                          PointType {one_third, two_thirds, one_third}};
+
+  insertPoints(dt, inserted_points);
+
+  const PointType query_pt {one_third, 0., two_thirds};
+  EXPECT_NE(DelaunayType<3>::INVALID_INDEX, dt.findContainingElement(query_pt));
+
+  inserted_points.push_back(query_pt);
+  dt.insertPoint(query_pt);
+
+  expectValidDelaunay(dt, inserted_points);
+}
+
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 
