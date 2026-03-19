@@ -969,6 +969,8 @@ TEST_P(SlicMacrosParallel, test_assert_macros)
 
 #else
   // SLIC_ASSERT macros only log messages when AXOM_DEBUG is defined
+  AXOM_UNUSED_VAR(val);
+
   SLIC_ASSERT(val < 0);
 
   SLIC_ASSERT_MSG(val < 0, "val should be negative!");
@@ -998,6 +1000,8 @@ TEST_P(SlicMacrosParallel, test_check_macros)
 
 #else
   // SLIC_CHECK macros only log messages when AXOM_DEBUG is defined
+  AXOM_UNUSED_VAR(val);
+
   SLIC_CHECK(val < 0);
 
   SLIC_CHECK_MSG(val < 0, "val should be negative!");

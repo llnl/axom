@@ -139,6 +139,7 @@ void check_level_msg_line_file(const std::string& level, const std::string& mess
 {
   EXPECT_FALSE(slic::internal::is_stream_empty());
   const std::string str = slic::internal::test_stream.str();
+
   check_level(str, level);
   check_msg(str, message);
   check_line(str, expected_line);
@@ -370,8 +371,8 @@ TEST(slic_macros, test_debug_macros)
   SLIC_DEBUG_IF_ONCE(true, "this message is logged!");
 
   axom::slic::setIsRoot(true);
-  SLIC_DEBUG_ROOT(true, "this message is logged!");
-  SLIC_DEBUG_ROOT_ONCE(true, "this message is logged!");
+  SLIC_DEBUG_ROOT("this message is logged!");
+  SLIC_DEBUG_ROOT_ONCE("this message is logged!");
 
   SLIC_DEBUG_ROOT_IF(true, "this message is logged!");
   SLIC_DEBUG_ROOT_IF_ONCE(true, "this message is logged!");
