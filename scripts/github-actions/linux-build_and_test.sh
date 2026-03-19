@@ -81,6 +81,16 @@ echo "USE_NINJA=$USE_NINJA"
 echo "USE_LLD=$USE_LLD"
 echo "~~~~~~~~~~~~~~~~~~~~~~"
 
+echo "~~~~ linker info ~~~~"
+which lld || true
+which ld.lld || true
+if [[ -e /usr/bin/ld.lld ]] ; then
+    ls -l /usr/bin/ld.lld
+else
+    echo "/usr/bin/ld.lld not found"
+fi
+echo "~~~~~~~~~~~~~~~~~~~~~"
+
 export BUILD_TYPE=${BUILD_TYPE:-Debug}
 export USE_NINJA=${USE_NINJA:-no}
 export USE_LLD=${USE_LLD:-no}
