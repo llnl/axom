@@ -22,6 +22,7 @@
 #include <map>
 #include <algorithm>
 #include <array>
+#include <memory>
 #include <cstdlib>
 #include <cmath>
 #include <limits>
@@ -90,6 +91,79 @@ private:
   InsertionValidationMode m_insertion_validation_mode;
 
   ElementFinder m_element_finder;
+  IndexType m_next_regrid_vertex_count {0};
+  mutable slam::BitSet m_walk_visited;
+  std::uint64_t m_total_removed_elements {0};
+  std::uint64_t m_max_removed_elements {0};
+  std::uint64_t m_num_insertions {0};
+  bool m_collect_location_stats {false};
+  mutable std::uint64_t m_num_walk_calls {0};
+  mutable std::uint64_t m_num_walk_found {0};
+  mutable std::uint64_t m_num_walk_outside {0};
+  mutable std::uint64_t m_num_walk_failed {0};
+  mutable std::uint64_t m_total_walk_steps {0};
+  mutable std::uint64_t m_max_walk_steps {0};
+  mutable std::uint64_t m_num_linear_fallbacks {0};
+  mutable std::uint64_t m_num_empty_seed_fallbacks {0};
+
+  // Scratch buffers used by point location to avoid per-call heap allocations.
+  // Delaunay is not thread-safe, so these are safe to reuse between calls.
+  mutable std::vector<IndexType> m_candidate_elements_scratch;
+  mutable std::vector<IndexType> m_walked_elements_scratch;
+  mutable std::vector<IndexType> m_walk_local_elements_scratch;
+  mutable std::vector<IndexType> m_initial_vertices_scratch;
+  mutable std::vector<IndexType> m_fallback_vertices_scratch;
+  std::unique_ptr<InsertionHelper> m_insertion_helper;
+
+public:
+  struct InsertionStats
+  {
+    std::uint64_t insertions {0};
+    std::uint64_t total_removed {0};
+    std::uint64_t max_removed {0};
+    double mean_removed() const
+    {
+      return insertions > 0 ? static_cast<double>(total_removed) / static_cast<double>(insertions)
+                            : 0.0;
+    }
+  };
+
+  InsertionStats getInsertionStats() const
+  {
+    return {m_num_insertions, m_total_removed_elements, m_max_removed_elements};
+  }
+
+  struct PointLocationStats
+  {
+    std::uint64_t walk_calls {0};
+    std::uint64_t walk_found {0};
+    std::uint64_t walk_outside {0};
+    std::uint64_t walk_failed {0};
+    std::uint64_t total_walk_steps {0};
+    std::uint64_t max_walk_steps {0};
+    std::uint64_t linear_fallbacks {0};
+    std::uint64_t empty_seed_fallbacks {0};
+
+    double mean_walk_steps() const
+    {
+      return walk_calls > 0 ? static_cast<double>(total_walk_steps) / static_cast<double>(walk_calls)
+                            : 0.0;
+    }
+  };
+
+  void setCollectPointLocationStats(bool enabled) { m_collect_location_stats = enabled; }
+
+  PointLocationStats getPointLocationStats() const
+  {
+    return {m_num_walk_calls,
+            m_num_walk_found,
+            m_num_walk_outside,
+            m_num_walk_failed,
+            m_total_walk_steps,
+            m_max_walk_steps,
+            m_num_linear_fallbacks,
+            m_num_empty_seed_fallbacks};
+  }
 
 public:
   /**
@@ -118,18 +192,30 @@ public:
    * \brief Defines the boundary of the triangulation.
    * \details subsequent points added to the triangulation must not be outside of this boundary.
    */
-  void initializeBoundary(const BoundingBox& bb)
+  void initializeBoundary(const BoundingBox& bb);
+
+  /// \brief Reserve storage for an expected number of inserted points.
+  ///
+  /// Uses a dimension-specific heuristic for the total simplex count so large
+  /// bulk-builds can avoid repeated mesh-container reallocations.
+  void reserveForPointCount(IndexType num_points)
   {
-    std::vector<DataType> points;
-    IndexArray elem;
+    if(!m_has_boundary || num_points <= 0)
+    {
+      return;
+    }
 
-    generateInitialMesh(points, elem, bb);
+    const IndexType expected_vertices = m_mesh.vertices().size() + num_points;
+    constexpr double ELEMENTS_PER_POINT = DIM == 2 ? 3.0 : 9.0;
+    const IndexType expected_elements = m_mesh.elements().size() +
+      static_cast<IndexType>(std::ceil(ELEMENTS_PER_POINT * static_cast<double>(num_points)));
 
-    m_mesh = IAMeshType(points, elem);
-    m_element_finder.recomputeGrid(m_mesh, bb);
-
-    m_bounding_box = bb;
-    m_has_boundary = true;
+    m_mesh.reserveVertices(expected_vertices);
+    m_mesh.reserveElements(expected_elements);
+    if(m_walk_visited.size() < static_cast<int>(expected_elements))
+    {
+      m_walk_visited = slam::BitSet(static_cast<int>(expected_elements));
+    }
   }
 
   /**
@@ -141,51 +227,7 @@ public:
    *
    * \pre The current mesh must already be Delaunay.
    */
-  void insertPoint(const PointType& new_pt)
-  {
-    //Make sure initializeBoundary(...) is called first
-    SLIC_ASSERT_MSG(m_has_boundary, "Error: Need a predefined boundary box prior to adding points.");
-
-    //Make sure the new point is inside the boundary box
-    SLIC_ASSERT_MSG(m_bounding_box.contains(new_pt),
-                    "Error: new point is outside of the boundary box.");
-
-    // Find the mesh element containing the insertion point
-    IndexType element_i = findContainingElement(new_pt);
-
-    if(element_i == INVALID_INDEX)
-    {
-      SLIC_WARNING(
-        fmt::format("Could not insert point {} into Delaunay triangulation: "
-                    "Element containing that point was not found",
-                    new_pt));
-      return;
-    }
-
-    // Run the insertion operation by finding invalidated elements around the point (the "cavity")
-    // and replacing them with new valid elements (the Delaunay "ball")
-    const BaryCoordType bary_coord = getBaryCoords(element_i, new_pt);
-    const IndexArray seed_elements = getSeedElements(element_i, bary_coord);
-    validateInsertionSeed(element_i, new_pt, bary_coord, seed_elements);
-
-    InsertionHelper insertionHelper(m_mesh);
-    insertionHelper.findCavityElements(new_pt, seed_elements);
-    validateCavityBoundary(insertionHelper);
-    insertionHelper.createCavity();
-    IndexType new_pt_i = m_mesh.addVertex(new_pt);
-    insertionHelper.delaunayBall(new_pt_i);
-    validateInsertedBall(new_pt_i, insertionHelper);
-    validateInsertionResult();
-
-    m_element_finder.updateBin(new_pt, new_pt_i);
-    m_num_removed_elements_since_last_compact += insertionHelper.numRemovedElements();
-
-    // Compact the mesh if there are too many removed elements
-    if(shouldCompactMesh())
-    {
-      this->compactMesh();
-    }
-  }
+  void insertPoint(const PointType& new_pt);
 
   template <int TDIM = DIM>
   typename std::enable_if<TDIM == 2, ElementType>::type getElement(int element_index) const
@@ -853,16 +895,11 @@ public:
       return INVALID_INDEX;
     }
 
-    // Query mode (`warnOnInvalid == false`) accepts points outside the convex hull,
-    // so it uses broader 3D recovery steps before falling back to a full scan.
-    const bool use_query_fallbacks = !warnOnInvalid && DIM == 3;
-    std::vector<IndexType> candidate_elements = getInitialCandidateElements(query_pt);
-    std::vector<IndexType> walked_elements;
+    m_candidate_elements_scratch.clear();
+    getInitialCandidateElements(query_pt, m_candidate_elements_scratch);
+    m_walked_elements_scratch.clear();
     PointLocationResult walk_result =
-      walkCandidateElements(query_pt,
-                            candidate_elements,
-                            0,
-                            use_query_fallbacks ? &walked_elements : nullptr);
+      walkCandidateElements(query_pt, m_candidate_elements_scratch, 0, &m_walked_elements_scratch);
 
     if(walk_result.status == PointLocationStatus::Found)
     {
@@ -874,20 +911,25 @@ public:
       return INVALID_INDEX;
     }
 
-    if(use_query_fallbacks)
+    // Local recovery before falling back to a global scan. These steps are
+    // intentionally conservative: they only succeed when they find a simplex
+    // whose barycentric coordinates are non-negative (up to tolerance).
+    if(!m_candidate_elements_scratch.empty())
     {
-      walk_result =
-        findContainingElementWithQueryFallbacks(query_pt, candidate_elements, walked_elements);
-      if(walk_result.status == PointLocationStatus::Found)
+      const PointLocationResult fallback_result =
+        findContainingElementWithQueryFallbacks(query_pt,
+                                                m_candidate_elements_scratch,
+                                                m_walked_elements_scratch);
+      if(fallback_result.status == PointLocationStatus::Found)
       {
-        return walk_result.element_idx;
-      }
-      if(walk_result.status == PointLocationStatus::Outside)
-      {
-        return INVALID_INDEX;
+        return fallback_result.element_idx;
       }
     }
 
+    if(m_collect_location_stats)
+    {
+      ++m_num_linear_fallbacks;
+    }
     return findContainingElementLinear(query_pt, warnOnInvalid);
   }
 
@@ -1136,43 +1178,94 @@ public:
     }
 
     static constexpr int MAX_WALK_STEPS = 256;
-    std::vector<IndexType> local_visited_elements;
     std::vector<IndexType>& visited_elements =
-      visited_elements_out != nullptr ? *visited_elements_out : local_visited_elements;
+      visited_elements_out != nullptr ? *visited_elements_out : m_walk_local_elements_scratch;
     visited_elements.clear();
-    visited_elements.reserve(MAX_WALK_STEPS);
+    if(static_cast<int>(visited_elements.capacity()) < MAX_WALK_STEPS)
+    {
+      visited_elements.reserve(MAX_WALK_STEPS);
+    }
     IndexType element_i = start_element;
+
+    if(m_walk_visited.size() < static_cast<int>(m_mesh.elements().size()))
+    {
+      m_walk_visited = slam::BitSet(static_cast<int>(m_mesh.elements().size()));
+    }
+
+    auto clearVisitedBits = [&]() {
+      for(const IndexType visited : visited_elements)
+      {
+        m_walk_visited.clear(static_cast<int>(visited));
+      }
+    };
+
+    int step_count = 0;
+
+    auto recordWalk = [&](PointLocationStatus status) {
+      if(!m_collect_location_stats)
+      {
+        return;
+      }
+
+      ++m_num_walk_calls;
+      m_total_walk_steps += static_cast<std::uint64_t>(step_count);
+      m_max_walk_steps =
+        axom::utilities::max(m_max_walk_steps, static_cast<std::uint64_t>(step_count));
+      switch(status)
+      {
+      case PointLocationStatus::Found:
+        ++m_num_walk_found;
+        break;
+      case PointLocationStatus::Outside:
+        ++m_num_walk_outside;
+        break;
+      default:
+        ++m_num_walk_failed;
+        break;
+      }
+    };
 
     while(1)
     {
-      if(std::find(visited_elements.begin(), visited_elements.end(), element_i) !=
-         visited_elements.end())
+      ++step_count;
+      if(m_walk_visited.test(static_cast<int>(element_i)))
       {
+        recordWalk(PointLocationStatus::Failed);
+        clearVisitedBits();
         return {};
       }
+      m_walk_visited.set(static_cast<int>(element_i));
       visited_elements.push_back(element_i);
 
       const BaryCoordType bary_coord = getBaryCoords(element_i, query_pt);
       ModularFaceIndex modular_idx(0);
       if(isPointInsideForLocation(element_i, query_pt, bary_coord, &modular_idx))
       {
+        recordWalk(PointLocationStatus::Found);
+        clearVisitedBits();
         return {element_i, PointLocationStatus::Found};
       }
 
       if(static_cast<int>(visited_elements.size()) >= MAX_WALK_STEPS)
       {
+        recordWalk(PointLocationStatus::Failed);
+        clearVisitedBits();
         return {};
       }
 
       const IndexType next_element = m_mesh.adjacentElements(element_i)[modular_idx + 1];
       if(!m_mesh.isValidElement(next_element))
       {
+        recordWalk(PointLocationStatus::Outside);
+        clearVisitedBits();
         return {INVALID_INDEX, PointLocationStatus::Outside};
       }
 
       element_i = next_element;
       if(!isSearchableElement(element_i))
       {
+        recordWalk(PointLocationStatus::Failed);
+        clearVisitedBits();
         return {};
       }
     }
@@ -1198,19 +1291,31 @@ public:
     }
   }
 
-  std::vector<IndexType> getInitialCandidateElements(const PointType& query_pt) const
+  void getInitialCandidateElements(const PointType& query_pt,
+                                   std::vector<IndexType>& candidate_elements) const
   {
-    std::vector<IndexType> candidate_elements;
-    candidate_elements.reserve(1);
+    candidate_elements.clear();
+    candidate_elements.reserve(16);
 
-    const IndexType initial_vertex = m_element_finder.getNearbyVertex(query_pt);
-    if(m_mesh.isValidVertex(initial_vertex))
-    {
-      appendCandidateElement(candidate_elements, initial_vertex);
-    }
+    // Prefer a small set of vertices from nearby bins rather than a single bin
+    // representative. For large meshes, a single cached vertex can be far (in
+    // terms of simplex-to-simplex walks) from the query point even if it lies
+    // in the same bin; providing a few local candidates keeps directed walks
+    // short and avoids expensive fallbacks.
+    m_initial_vertices_scratch.clear();
+    m_element_finder.getNearbyVertices(m_mesh,
+                                       query_pt,
+                                       m_initial_vertices_scratch,
+                                       /*search_radius=*/1,
+                                       /*max_candidates=*/8);
+    appendCandidateElementsFromVertices(candidate_elements, m_initial_vertices_scratch);
 
     if(candidate_elements.empty())
     {
+      if(m_collect_location_stats)
+      {
+        ++m_num_empty_seed_fallbacks;
+      }
       for(auto elem : m_mesh.elements().positions())
       {
         if(isSearchableElement(elem))
@@ -1220,8 +1325,6 @@ public:
         }
       }
     }
-
-    return candidate_elements;
   }
 
   PointLocationResult walkCandidateElements(const PointType& query_pt,
@@ -1255,10 +1358,15 @@ public:
       return {walk_region_elem, PointLocationStatus::Found};
     }
 
-    const auto fallback_vertices =
-      m_element_finder.getNearbyVertices(m_mesh, query_pt, QUERY_SEARCH_RADIUS, QUERY_CANDIDATE_LIMIT);
+    m_fallback_vertices_scratch.clear();
+    m_element_finder.getNearbyVertices(m_mesh,
+                                       query_pt,
+                                       m_fallback_vertices_scratch,
+                                       QUERY_SEARCH_RADIUS,
+                                       QUERY_CANDIDATE_LIMIT);
     const std::size_t initial_candidate_count = candidate_elements.size();
-    appendCandidateElementsFromVertices(candidate_elements, fallback_vertices);
+    candidate_elements.reserve(candidate_elements.size() + m_fallback_vertices_scratch.size());
+    appendCandidateElementsFromVertices(candidate_elements, m_fallback_vertices_scratch);
 
     PointLocationResult walk_result =
       walkCandidateElements(query_pt, candidate_elements, initial_candidate_count);
@@ -1267,7 +1375,7 @@ public:
       return walk_result;
     }
 
-    const IndexType nearby_elem = findContainingElementNearby(query_pt, fallback_vertices);
+    const IndexType nearby_elem = findContainingElementNearby(query_pt, m_fallback_vertices_scratch);
     if(nearby_elem != INVALID_INDEX)
     {
       return {nearby_elem, PointLocationStatus::Found};
@@ -1430,6 +1538,13 @@ private:
     m_mesh.compact();
     m_num_removed_elements_since_last_compact = 0;
     m_element_finder.recomputeGrid(m_mesh, m_bounding_box);
+    if(m_next_regrid_vertex_count > 0)
+    {
+      while(m_next_regrid_vertex_count <= m_mesh.vertices().size())
+      {
+        m_next_regrid_vertex_count *= 2;
+      }
+    }
   }
 
   /**
@@ -1458,12 +1573,17 @@ private:
     {
       const auto& verts = mesh.vertices();
 
-      // Use heuristic for resolution in each dimension to minimize storage
-      // Use 2*square root of nth root (n==DIM)
-      // e.g. for 1,000,000 verts in 2D, sqrt root is 1000, leading to ~ 60^2 grid w/ ~250 verts per bin
-      // e.g. for 1,000,000 verts in 3D, cube root is 100, leading to a 20^3 grid w/ ~125 verts per bin
-      const double res_root = std::pow(verts.size(), 1.0 / DIM);
-      const IndexType res = axom::utilities::max(2, 2 * static_cast<int>(std::sqrt(res_root)));
+      // Choose the grid resolution so that each bin contains ~O(1) points per
+      // dimension on average. This keeps the "nearby bin" seed used by point
+      // insertion and query walks close (in terms of simplex adjacency hops)
+      // even for very large point sets.
+      //
+      // Target occupancy is ~ 4^DIM points per bin (16 in 2D, 64 in 3D).
+      constexpr double BIN_SIDE_SPACING = 4.0;
+      const double res_root = std::pow(static_cast<double>(verts.size()), 1.0 / DIM);
+      const IndexType res =
+        axom::utilities::max(IndexType {2},
+                             static_cast<IndexType>(std::ceil(res_root / BIN_SIDE_SPACING)));
 
       auto expandedBB = BoundingBox(bb).scale(1.05);
 
@@ -1482,9 +1602,22 @@ private:
           continue;
         }
 
+        // Skip vertices that are no longer incident to any valid element (can
+        // occur for interior vertices of removed cavities). Using them as
+        // point-location seeds forces expensive global fallbacks.
+        const IndexType coboundary = mesh.coboundaryElement(idx);
+        if(!mesh.isValidElement(coboundary))
+        {
+          continue;
+        }
+
         const auto& pos = mesh.getVertexPosition(idx);
         const auto cell = m_lattice.gridCell(pos);
-        flatIndex(cell) = idx;
+        IndexType& slot = flatIndex(cell);
+        if(!mesh.isValidVertex(slot) || !mesh.isValidElement(mesh.coboundaryElement(slot)))
+        {
+          slot = idx;
+        }
       }
     }
 
@@ -1495,20 +1628,24 @@ private:
      * \note Some bins might not point to a vertex, so users should check
      * that the returned index is a valid vertex, e.g. using \a mesh.isValidVertex(vertex_id)
      */
-    inline std::vector<IndexType> getNearbyVertices(const IAMeshType& mesh,
-                                                    const PointType& pt,
-                                                    int search_radius = 1,
-                                                    int max_candidates = 1) const
+    inline void getNearbyVertices(const IAMeshType& mesh,
+                                  const PointType& pt,
+                                  std::vector<IndexType>& nearby_vertices,
+                                  int search_radius = 1,
+                                  int max_candidates = 1) const
     {
       const auto cell = m_lattice.gridCell(pt);
-      std::vector<std::pair<double, IndexType>> candidates;
+      m_candidate_scratch.clear();
+      const int span = 2 * search_radius + 1;
+      const int max_bins = (DIM == 2) ? (span * span) : (span * span * span);
+      m_candidate_scratch.reserve(static_cast<std::size_t>(max_bins));
 
       auto tryCandidate = [&](const typename LatticeType::GridCell& candidate_cell) {
         const IndexType vertex_idx = flatIndex(candidate_cell);
-        if(mesh.isValidVertex(vertex_idx))
+        if(mesh.isValidVertex(vertex_idx) && mesh.isValidElement(mesh.coboundaryElement(vertex_idx)))
         {
           const double sq_dist = primal::squared_distance(mesh.getVertexPosition(vertex_idx), pt);
-          candidates.emplace_back(sq_dist, vertex_idx);
+          m_candidate_scratch.emplace_back(sq_dist, vertex_idx);
         }
       };
 
@@ -1566,23 +1703,27 @@ private:
         }
       }
 
-      std::sort(candidates.begin(), candidates.end(), [](const auto& lhs, const auto& rhs) {
-        return lhs.first < rhs.first;
-      });
-
-      std::vector<IndexType> nearby_vertices;
-      nearby_vertices.reserve(
-        axom::utilities::min(max_candidates, static_cast<int>(candidates.size())));
-      for(const auto& candidate : candidates)
+      if(static_cast<int>(m_candidate_scratch.size()) > max_candidates)
       {
-        nearby_vertices.push_back(candidate.second);
-        if(static_cast<int>(nearby_vertices.size()) == max_candidates)
-        {
-          break;
-        }
+        auto kth = m_candidate_scratch.begin() + max_candidates;
+        std::nth_element(m_candidate_scratch.begin(),
+                         kth,
+                         m_candidate_scratch.end(),
+                         [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
+        m_candidate_scratch.resize(static_cast<std::size_t>(max_candidates));
       }
 
-      return nearby_vertices;
+      std::sort(m_candidate_scratch.begin(),
+                m_candidate_scratch.end(),
+                [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
+
+      nearby_vertices.clear();
+      nearby_vertices.reserve(
+        axom::utilities::min(max_candidates, static_cast<int>(m_candidate_scratch.size())));
+      for(const auto& candidate : m_candidate_scratch)
+      {
+        nearby_vertices.push_back(candidate.second);
+      }
     }
 
     /// \brief Returns the index of the vertex in the bin containing point \a pt
@@ -1630,20 +1771,28 @@ private:
   private:
     axom::Array<IndexType, DIM> m_bins;
     LatticeType m_lattice;
+    mutable std::vector<std::pair<double, IndexType>> m_candidate_scratch;
   };
 
   /// Helper struct to locally insert a new point into a Delaunay complex while keeping the mesh Delaunay
   struct InsertionHelper
   {
   public:
-    InsertionHelper(IAMeshType& mesh)
-      : m_mesh(mesh)
-      , facet_set(0)
-      , fv_rel(&facet_set, &m_mesh.vertices())
-      , fc_rel(&facet_set, &m_mesh.elements())
-      , cavity_elems(0)
-      , inserted_elems(0)
-    { }
+    struct BoundaryFacet
+    {
+      std::array<IndexType, VERTS_PER_FACET> vertices {};
+      IndexType neighbor {IAMeshType::ElementAdjacencyRelation::INVALID_INDEX};
+    };
+
+    InsertionHelper(IAMeshType& mesh) : m_mesh(mesh) { }
+
+    void reset()
+    {
+      boundary_facets.clear();
+      cavity_elems.clear();
+      inserted_elems.clear();
+      m_stack.clear();
+    }
 
     /**
    * \brief Find the Delaunay cavity: the elements whose circumspheres contain the query point
@@ -1661,8 +1810,22 @@ private:
     {
       constexpr int reserveSize = (DIM == 2) ? 16 : 64;
 
-      IndexArray stack;
-      stack.reserve(reserveSize);
+      if(m_stack.capacity() < reserveSize)
+      {
+        m_stack.reserve(reserveSize);
+      }
+      if(cavity_elems.capacity() < reserveSize)
+      {
+        cavity_elems.reserve(reserveSize);
+      }
+      if(boundary_facets.capacity() < reserveSize)
+      {
+        boundary_facets.reserve(reserveSize);
+      }
+      if(inserted_elems.capacity() < reserveSize)
+      {
+        inserted_elems.reserve(reserveSize);
+      }
 
       // Seed the cavity with the containing element, and with any face-adjacent
       // neighbors when the insertion point lies on the containing simplex
@@ -1670,17 +1833,17 @@ private:
       // insert directly onto existing edges/faces.
       for(const IndexType element_i : seed_elements)
       {
-        if(m_mesh.isValidElement(element_i) && m_checked_element_set.insert(element_i).second)
+        if(m_mesh.isValidElement(element_i) && !containsCavityElement(element_i))
         {
-          cavity_elems.insert(element_i);
-          stack.push_back(element_i);
+          cavity_elems.push_back(element_i);
+          m_stack.push_back(element_i);
         }
       }
 
-      while(!stack.empty())
+      while(!m_stack.empty())
       {
-        const IndexType element_idx = stack.back();
-        stack.pop_back();
+        const IndexType element_idx = m_stack.back();
+        m_stack.pop_back();
 
         // Invariant: this element is valid, was checked and is in the cavity
         // Each neighbor is either in the cavity or the shared face is on the cavity boundary
@@ -1692,51 +1855,47 @@ private:
           // invalid neighbor means face is on domain boundary, and thus on cavity boundary
           if(m_mesh.isValidElement(nbr))
           {
-            // neighbor is valid; check circumsphere (if necesary), and add to cavity as appropriate
-            if(m_checked_element_set.insert(nbr).second)
-            {
-              if(isPointInCircumsphere(query_pt, nbr))
-              {
-                cavity_elems.insert(nbr);
-                stack.push_back(nbr);
-                continue;  // face is internal to cavity, nothing left to do for this face
-              }
-            }
-            // check if neighbor is already in the cavity
-            else if(cavity_elems.findIndex(nbr) != ElementSet::INVALID_ENTRY)
+            // If the neighbor is already in the cavity, the shared face is
+            // internal and not part of the cavity boundary.
+            if(containsCavityElement(nbr))
             {
               continue;  // both elem and neighbor along face are in cavity
+            }
+
+            // neighbor is valid but not in cavity; check circumsphere and add when appropriate
+            if(isPointInCircumsphere(query_pt, nbr))
+            {
+              cavity_elems.push_back(nbr);
+              m_stack.push_back(nbr);
+              continue;  // face is internal to cavity, nothing left to do for this face
             }
           }
 
           // if we got here, the face is on the boundary of the Delaunay cavity
-          // add it to facet sets and associated relations
+          // add it to the boundary facet list
           {
-            auto fIdx = facet_set.insert();
-            fv_rel.updateSizes();
-            fc_rel.updateSizes();
-
             const auto bdry = m_mesh.boundaryVertices(element_idx);
 
-            auto faceVerts = fv_rel[fIdx];
             typename IAMeshType::ModularVertexIndex mod_idx(n_idx);
+            BoundaryFacet facet;
             for(int i = 0; i < VERTS_PER_FACET; i++)
             {
-              faceVerts[i] = bdry[mod_idx++];
+              facet.vertices[i] = bdry[mod_idx++];
             }
             //For tetrahedron, if the element face is odd, reverse vertex order
             if(DIM == 3 && n_idx % 2 == 1)
             {
-              axom::utilities::swap(faceVerts[1], faceVerts[2]);
+              axom::utilities::swap(facet.vertices[1], facet.vertices[2]);
             }
 
-            fc_rel.insert(fIdx, nbr);
+            facet.neighbor = nbr;
+            boundary_facets.push_back(facet);
           }
         }
       }
 
       SLIC_ASSERT_MSG(!cavity_elems.empty(), "Error: New point is not contained in the mesh");
-      SLIC_ASSERT(!facet_set.empty());
+      SLIC_ASSERT(!boundary_facets.empty());
     }
 
     /**
@@ -1744,7 +1903,7 @@ private:
     */
     void createCavity()
     {
-      for(auto elem : cavity_elems)
+      for(const auto elem : cavity_elems)
       {
         m_mesh.removeElement(elem);
       }
@@ -1753,7 +1912,7 @@ private:
     /// \brief Fill in the Delaunay cavity with new elements containing the insertion point
     void delaunayBall(IndexType new_pt_i)
     {
-      const int numFaces = facet_set.size();
+      const int numFaces = static_cast<int>(boundary_facets.size());
       const IndexType invalid_neighbor = IAMeshType::ElementAdjacencyRelation::INVALID_INDEX;
 
       IndexType vlist[VERT_PER_ELEMENT] {};
@@ -1763,14 +1922,14 @@ private:
         // Create a new element from the face and the inserted point
         for(int d = 0; d < VERTS_PER_FACET; ++d)
         {
-          vlist[d] = fv_rel[i][d];
+          vlist[d] = boundary_facets[static_cast<std::size_t>(i)].vertices[d];
         }
         vlist[VERTS_PER_FACET] = new_pt_i;
 
         // Face 0 is the cavity boundary face opposite the inserted point.
         // The remaining faces stay invalid until fixVertexNeighborhood() stitches
         // the new ball together around the inserted vertex.
-        const auto nID = fc_rel[i][0];
+        const auto nID = boundary_facets[static_cast<std::size_t>(i)].neighbor;
         for(int d = 0; d < VERT_PER_ELEMENT; ++d)
         {
           neighbors[d] = invalid_neighbor;
@@ -1778,51 +1937,145 @@ private:
         neighbors[0] = nID;
 
         IndexType new_el = m_mesh.addElement(vlist, neighbors);
-        inserted_elems.insert(new_el);
+        inserted_elems.push_back(new_el);
       }
 
       // Fix neighborhood around the new point
-      m_mesh.fixVertexNeighborhood(new_pt_i, inserted_elems.data());
+      m_mesh.fixVertexNeighborhood(new_pt_i, inserted_elems);
     }
 
     /// \brief Returns the number of elements removed during this insertion
-    int numRemovedElements() const { return cavity_elems.size(); }
+    int numRemovedElements() const { return static_cast<int>(cavity_elems.size()); }
+
+    bool containsCavityElement(IndexType element_idx) const
+    {
+      return std::find(cavity_elems.begin(), cavity_elems.end(), element_idx) != cavity_elems.end();
+    }
 
     /// \brief Returns true when the query point is inside or on the element circumsphere
     bool isPointInCircumsphere(const PointType& query_pt, IndexType element_idx) const;
 
   public:
-    // we create a surface mesh
-    // sets: vertex, facet
-    using PositionType = typename IAMeshType::PositionType;
-    using ElementType = typename IAMeshType::ElementType;
-
-    using ElementSet = typename IAMeshType::ElementSet;
-    using VertexSet = typename IAMeshType::VertexSet;
-    using FacetSet = slam::DynamicSet<PositionType, ElementType>;
-
-    // relations: facet->vertex, facet->cell
-    static constexpr int VERTS_PER_FACET = IAMeshType::VERTS_PER_ELEM - 1;
-    using FacetBoundaryRelation =
-      typename IAMeshType::template IADynamicConstantRelation<VERTS_PER_FACET>;
-    using FacetCoboundaryRelation = typename IAMeshType::template IADynamicConstantRelation<1>;
-
-  public:
     IAMeshType& m_mesh;
 
-    FacetSet facet_set;
-    FacetBoundaryRelation fv_rel;
-    FacetCoboundaryRelation fc_rel;
+    std::vector<BoundaryFacet> boundary_facets;
+    std::vector<IndexType> cavity_elems;
+    std::vector<IndexType> inserted_elems;
 
-    ElementSet cavity_elems;
-    ElementSet inserted_elems;
-
-    std::set<IndexType> m_checked_element_set;
+    IndexArray m_stack;
   };
 };
 
 template <int DIM>
 constexpr typename Delaunay<DIM>::IndexType Delaunay<DIM>::INVALID_INDEX;
+
+template <int DIM>
+void Delaunay<DIM>::initializeBoundary(const BoundingBox& bb)
+{
+  std::vector<DataType> points;
+  IndexArray elem;
+
+  generateInitialMesh(points, elem, bb);
+
+  m_mesh = IAMeshType(points, elem);
+  m_element_finder.recomputeGrid(m_mesh, bb);
+  m_next_regrid_vertex_count = 1024;
+  m_walk_visited = slam::BitSet(static_cast<int>(m_mesh.elements().size()));
+  m_total_removed_elements = 0;
+  m_max_removed_elements = 0;
+  m_num_insertions = 0;
+  m_num_walk_calls = 0;
+  m_num_walk_found = 0;
+  m_num_walk_outside = 0;
+  m_num_walk_failed = 0;
+  m_total_walk_steps = 0;
+  m_max_walk_steps = 0;
+  m_num_linear_fallbacks = 0;
+  m_num_empty_seed_fallbacks = 0;
+
+  m_candidate_elements_scratch.clear();
+  m_candidate_elements_scratch.reserve(QUERY_CANDIDATE_LIMIT);
+  m_walked_elements_scratch.clear();
+  m_walked_elements_scratch.reserve(256);
+  m_walk_local_elements_scratch.clear();
+  m_walk_local_elements_scratch.reserve(256);
+  m_initial_vertices_scratch.clear();
+  m_initial_vertices_scratch.reserve(8);
+  m_fallback_vertices_scratch.clear();
+  m_fallback_vertices_scratch.reserve(QUERY_CANDIDATE_LIMIT);
+
+  if(!m_insertion_helper)
+  {
+    m_insertion_helper = std::make_unique<InsertionHelper>(m_mesh);
+  }
+
+  m_bounding_box = bb;
+  m_has_boundary = true;
+}
+
+template <int DIM>
+void Delaunay<DIM>::insertPoint(const PointType& new_pt)
+{
+  //Make sure initializeBoundary(...) is called first
+  SLIC_ASSERT_MSG(m_has_boundary, "Error: Need a predefined boundary box prior to adding points.");
+  SLIC_ASSERT_MSG(m_insertion_helper != nullptr,
+                  "Error: Insertion helper was not initialized. "
+                  "Delaunay::initializeBoundary() needs to be called first.");
+
+  //Make sure the new point is inside the boundary box
+  SLIC_ASSERT_MSG(m_bounding_box.contains(new_pt),
+                  "Error: new point is outside of the boundary box.");
+
+  // Find the mesh element containing the insertion point
+  IndexType element_i = findContainingElement(new_pt);
+
+  if(element_i == INVALID_INDEX)
+  {
+    SLIC_WARNING(
+      fmt::format("Could not insert point {} into Delaunay triangulation: "
+                  "Element containing that point was not found",
+                  new_pt));
+    return;
+  }
+
+  // Run the insertion operation by finding invalidated elements around the point (the "cavity")
+  // and replacing them with new valid elements (the Delaunay "ball")
+  const BaryCoordType bary_coord = getBaryCoords(element_i, new_pt);
+  const IndexArray seed_elements = getSeedElements(element_i, bary_coord);
+  validateInsertionSeed(element_i, new_pt, bary_coord, seed_elements);
+
+  auto& insertionHelper = *m_insertion_helper;
+  insertionHelper.reset();
+  insertionHelper.findCavityElements(new_pt, seed_elements);
+  ++m_num_insertions;
+  m_total_removed_elements += static_cast<std::uint64_t>(insertionHelper.numRemovedElements());
+  m_max_removed_elements =
+    axom::utilities::max(m_max_removed_elements,
+                         static_cast<std::uint64_t>(insertionHelper.numRemovedElements()));
+  validateCavityBoundary(insertionHelper);
+  insertionHelper.createCavity();
+  IndexType new_pt_i = m_mesh.addVertex(new_pt);
+  insertionHelper.delaunayBall(new_pt_i);
+  validateInsertedBall(new_pt_i, insertionHelper);
+  validateInsertionResult();
+
+  m_element_finder.updateBin(new_pt, new_pt_i);
+  m_num_removed_elements_since_last_compact += insertionHelper.numRemovedElements();
+  if(m_next_regrid_vertex_count > 0 && m_mesh.vertices().size() >= m_next_regrid_vertex_count)
+  {
+    m_element_finder.recomputeGrid(m_mesh, m_bounding_box);
+    while(m_next_regrid_vertex_count <= m_mesh.vertices().size())
+    {
+      m_next_regrid_vertex_count *= 2;
+    }
+  }
+
+  // Compact the mesh if there are too many removed elements
+  if(shouldCompactMesh())
+  {
+    this->compactMesh();
+  }
+}
 
 template <int DIM>
 void Delaunay<DIM>::validateCavityBoundary(const InsertionHelper& insertion_helper) const
@@ -1834,8 +2087,8 @@ void Delaunay<DIM>::validateCavityBoundary(const InsertionHelper& insertion_help
 
   // Cavity boundary invariant:
   // - Every cavity face that borders a non-cavity neighbor (or the temporary
-  //   bounding-box boundary) must appear exactly once in `facet_set`.
-  // - The facet's recorded neighbor (`fc_rel`) must match the mesh adjacency.
+  //   bounding-box boundary) must appear exactly once in `boundary_facets`.
+  // - The facet's recorded neighbor must match the mesh adjacency.
   struct FacetInfo
   {
     IndexType neighbor_idx {INVALID_INDEX};
@@ -1846,11 +2099,10 @@ void Delaunay<DIM>::validateCavityBoundary(const InsertionHelper& insertion_help
   bool valid = true;
   std::map<FacetKey, FacetInfo> cavity_boundary;
 
-  for(auto facet_idx : insertion_helper.facet_set.positions())
+  for(const auto& facet : insertion_helper.boundary_facets)
   {
-    const FacetKey facet_key = makeSortedFaceKey(insertion_helper.fv_rel[facet_idx]);
-    const auto insert_status =
-      cavity_boundary.insert({facet_key, {insertion_helper.fc_rel[facet_idx][0], false}});
+    const FacetKey facet_key = makeSortedFaceKey(facet.vertices);
+    const auto insert_status = cavity_boundary.insert({facet_key, {facet.neighbor, false}});
     if(!insert_status.second)
     {
       fmt::format_to(std::back_inserter(out),
@@ -1866,9 +2118,7 @@ void Delaunay<DIM>::validateCavityBoundary(const InsertionHelper& insertion_help
     for(int facet_idx = 0; facet_idx < VERT_PER_ELEMENT; ++facet_idx)
     {
       const IndexType neighbor_idx = neighbors[facet_idx];
-      if(m_mesh.isValidElement(neighbor_idx) &&
-         insertion_helper.cavity_elems.findIndex(neighbor_idx) !=
-           InsertionHelper::ElementSet::INVALID_ENTRY)
+      if(m_mesh.isValidElement(neighbor_idx) && insertion_helper.containsCavityElement(neighbor_idx))
       {
         continue;
       }
@@ -1948,20 +2198,19 @@ void Delaunay<DIM>::validateInsertedBall(IndexType new_pt_i,
   std::map<FacetKey, BoundaryFacetInfo> cavity_boundary;
   std::map<FacetKey, std::vector<FacetRecord>> inserted_faces;
 
-  if(insertion_helper.inserted_elems.size() != insertion_helper.facet_set.size())
+  if(insertion_helper.inserted_elems.size() != insertion_helper.boundary_facets.size())
   {
     fmt::format_to(
       std::back_inserter(out),
       "\n\tInserted ball element count {} does not match cavity boundary facet count {}",
       insertion_helper.inserted_elems.size(),
-      insertion_helper.facet_set.size());
+      insertion_helper.boundary_facets.size());
     valid = false;
   }
 
-  for(auto facet_idx : insertion_helper.facet_set.positions())
+  for(const auto& facet : insertion_helper.boundary_facets)
   {
-    cavity_boundary.insert({makeSortedFaceKey(insertion_helper.fv_rel[facet_idx]),
-                            {insertion_helper.fc_rel[facet_idx][0], false}});
+    cavity_boundary.insert({makeSortedFaceKey(facet.vertices), {facet.neighbor, false}});
   }
 
   for(const IndexType element_idx : insertion_helper.inserted_elems)
