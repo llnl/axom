@@ -21,11 +21,73 @@
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Triangle.hpp"
 #include "axom/primal/geometry/Tetrahedron.hpp"
+#include "axom/primal/geometry/OrientationResult.hpp"
+
+#include "axom/primal/operators/detail/predicate_determinants.hpp"
 
 namespace axom
 {
 namespace primal
 {
+namespace robust
+{
+/*!
+ * \brief Classifies a query point against a 2D triangle's circumcircle.
+ *
+ * \return ON_NEGATIVE_SIDE if inside, ON_POSITIVE_SIDE if outside, ON_BOUNDARY otherwise.
+ */
+template <typename T>
+inline int in_sphere(const Point<T, 2>& q,
+                     const Point<T, 2>& p0,
+                     const Point<T, 2>& p1,
+                     const Point<T, 2>& p2,
+                     double EPS = 1e-8)
+{
+  const double det = detail::in_sphere_determinant(q, p0, p1, p2);
+  if(axom::utilities::isNearlyEqual(det, 0., EPS))
+  {
+    return primal::ON_BOUNDARY;
+  }
+
+  return det < 0. ? primal::ON_NEGATIVE_SIDE : primal::ON_POSITIVE_SIDE;
+}
+
+template <typename T>
+inline int in_sphere(const Point<T, 2>& q, const Triangle<T, 2>& tri, double EPS = 1e-8)
+{
+  return robust::in_sphere(q, tri[0], tri[1], tri[2], EPS);
+}
+
+/*!
+ * \brief Classifies a query point against a 3D tetrahedron's circumsphere.
+ *
+ * \return ON_NEGATIVE_SIDE if inside, ON_POSITIVE_SIDE if outside, ON_BOUNDARY otherwise.
+ */
+template <typename T>
+inline int in_sphere(const Point<T, 3>& q,
+                     const Point<T, 3>& p0,
+                     const Point<T, 3>& p1,
+                     const Point<T, 3>& p2,
+                     const Point<T, 3>& p3,
+                     double EPS = 1e-8)
+{
+  const double det = detail::in_sphere_determinant(q, p0, p1, p2, p3);
+  if(axom::utilities::isNearlyEqual(det, 0., EPS))
+  {
+    return primal::ON_BOUNDARY;
+  }
+
+  return det < 0. ? primal::ON_NEGATIVE_SIDE : primal::ON_POSITIVE_SIDE;
+}
+
+template <typename T>
+inline int in_sphere(const Point<T, 3>& q, const Tetrahedron<T, 3>& tet, double EPS = 1e-8)
+{
+  return robust::in_sphere(q, tet[0], tet[1], tet[2], tet[3], EPS);
+}
+
+}  // namespace robust
+
 /*!
  * \brief Tests whether a query point lies inside a 2D triangle's circumcircle
  *
@@ -50,18 +112,8 @@ inline bool in_sphere(const Point<T, 2>& q,
                       double EPS = 1e-8,
                       bool includeBoundary = false)
 {
-  const auto ba = p1 - p0;
-  const auto ca = p2 - p0;
-  const auto qa = q - p0;
-
-  // clang-format off
-  const double det = axom::numerics::determinant(
-    ba[0], ba[1], ba.squared_norm(),
-    ca[0], ca[1], ca.squared_norm(),
-    qa[0], qa[1], qa.squared_norm());
-  // clang-format on
-
-  return includeBoundary ? (det < 0 || axom::utilities::isNearlyEqual(det, 0., EPS)) : (det < 0);
+  const int res = robust::in_sphere(q, p0, p1, p2, EPS);
+  return includeBoundary ? (res != primal::ON_POSITIVE_SIDE) : (res == primal::ON_NEGATIVE_SIDE);
 }
 
 /*!
@@ -110,20 +162,8 @@ inline bool in_sphere(const Point<T, 3>& q,
                       double EPS = 1e-8,
                       bool includeBoundary = false)
 {
-  const auto ba = p1 - p0;
-  const auto ca = p2 - p0;
-  const auto da = p3 - p0;
-  const auto qa = q - p0;
-
-  // clang-format off
-  const double det = axom::numerics::determinant(
-    ba[0], ba[1], ba[2], ba.squared_norm(),
-    ca[0], ca[1], ca[2], ca.squared_norm(),
-    da[0], da[1], da[2], da.squared_norm(),
-    qa[0], qa[1], qa[2], qa.squared_norm());
-  // clang-format on
-
-  return includeBoundary ? (det < 0 || axom::utilities::isNearlyEqual(det, 0., EPS)) : (det < 0);
+  const int res = robust::in_sphere(q, p0, p1, p2, p3, EPS);
+  return includeBoundary ? (res != primal::ON_POSITIVE_SIDE) : (res == primal::ON_NEGATIVE_SIDE);
 }
 
 /*!

@@ -534,7 +534,7 @@ public:
 
       // check orientations of top simplices
       const auto orient = evaluateElementOrientationDeterminant(element_idx);
-      if(orient.location != OrientationLocation::Positive)
+      if(orient.orientation != primal::ON_POSITIVE_SIDE)
       {
         if(verboseOutput)
         {
@@ -925,122 +925,12 @@ public:
   //-----------------------------------------------------------------------------
   // In-sphere predicate helpers
   //
-  // These helpers centralize the raw in-sphere determinants and their
-  // classification into {inside/outside/boundary} results.
-  //
-  // Convention: we follow primal::in_sphere(): a negative determinant means the
-  // query point is inside the circumsphere (for our consistently oriented
-  // simplices).
+  // Delaunay uses determinant-based in-sphere tests for both cavity growth and
+  // global empty-circumsphere validation. We rely on primal::robust::in_sphere()
+  // to classify {inside, outside, on boundary} and only compute a
+  // scale-dependent determinant tolerance here.
   //-----------------------------------------------------------------------------
-
-  enum class InSphereLocation : int
-  {
-    Inside = -1,
-    OnBoundary = 0,
-    Outside = 1
-  };
-
-  struct InSphereEval
-  {
-    double det {0.};
-    double tol {0.};
-    InSphereLocation location {InSphereLocation::OnBoundary};
-  };
-
-  static InSphereLocation classifyInSphereDeterminant(double det, double tol)
-  {
-    const int sign = signWithTolerance(det, tol);
-    return sign < 0 ? InSphereLocation::Inside
-                    : (sign > 0 ? InSphereLocation::Outside : InSphereLocation::OnBoundary);
-  }
-
-  //-----------------------------------------------------------------------------
-  // Simplex orientation helpers
-  //
-  // Use the same determinant/tolerance pattern to validate simplex orientation.
-  // This returns the raw (unscaled) determinants:
-  // - 2D: determinant is twice signed area
-  // - 3D: determinant is six times signed volume
-  //-----------------------------------------------------------------------------
-  enum class OrientationLocation : int
-  {
-    Negative = -1,
-    OnBoundary = 0,
-    Positive = 1
-  };
-
-  struct OrientationEval
-  {
-    double det {0.};
-    double tol {0.};
-    OrientationLocation location {OrientationLocation::OnBoundary};
-  };
-
-  static OrientationLocation classifyOrientationDeterminant(double det, double tol)
-  {
-    const int sign = signWithTolerance(det, tol);
-    return sign < 0 ? OrientationLocation::Negative
-                    : (sign > 0 ? OrientationLocation::Positive : OrientationLocation::OnBoundary);
-  }
-
-  OrientationEval evaluateElementOrientationDeterminant(IndexType element_idx) const
-  {
-    const double scale = (DIM == 2) ? 2. : 6.;
-    const double det = scale * getElementSignedMeasure(element_idx);
-    const double tol = scale * getElementMeasureTolerance();
-    return {det, tol, classifyOrientationDeterminant(det, tol)};
-  }
-
-  static double inSphereDeterminant2D(const PointType& q,
-                                      const PointType& p0,
-                                      const PointType& p1,
-                                      const PointType& p2)
-  {
-    const auto ba = p1 - p0;
-    const auto ca = p2 - p0;
-    const auto qa = q - p0;
-
-    return axom::numerics::determinant(ba[0],
-                                       ba[1],
-                                       ba.squared_norm(),
-                                       ca[0],
-                                       ca[1],
-                                       ca.squared_norm(),
-                                       qa[0],
-                                       qa[1],
-                                       qa.squared_norm());
-  }
-
-  static double inSphereDeterminant3D(const PointType& q,
-                                      const PointType& p0,
-                                      const PointType& p1,
-                                      const PointType& p2,
-                                      const PointType& p3)
-  {
-    const auto ba = p1 - p0;
-    const auto ca = p2 - p0;
-    const auto da = p3 - p0;
-    const auto qa = q - p0;
-
-    return axom::numerics::determinant(ba[0],
-                                       ba[1],
-                                       ba[2],
-                                       ba.squared_norm(),
-                                       ca[0],
-                                       ca[1],
-                                       ca[2],
-                                       ca.squared_norm(),
-                                       da[0],
-                                       da[1],
-                                       da[2],
-                                       da.squared_norm(),
-                                       qa[0],
-                                       qa[1],
-                                       qa[2],
-                                       qa.squared_norm());
-  }
-
-  static double inSphereTolerance(double scale)
+  static double inSphereDeterminantTolerance(double scale)
   {
     // Determinant magnitude scales like length^(DIM+2): L^4 in 2D, L^5 in 3D.
     const double k = 128.;
@@ -1052,6 +942,85 @@ public:
     {
       return k * std::numeric_limits<double>::epsilon() * scale * scale * scale * scale * scale;
     }
+  }
+
+  static int inSphereOrientationOnMesh(const IAMeshType& mesh, const PointType& q, IndexType element_idx)
+  {
+    const auto verts = mesh.boundaryVertices(element_idx);
+
+    if constexpr(DIM == 2)
+    {
+      const PointType& p0 = mesh.getVertexPosition(verts[0]);
+      const PointType& p1 = mesh.getVertexPosition(verts[1]);
+      const PointType& p2 = mesh.getVertexPosition(verts[2]);
+
+      const auto ba = p1 - p0;
+      const auto ca = p2 - p0;
+      const auto qa = q - p0;
+      const double scale = axom::utilities::max(
+        1.,
+        axom::utilities::max(ba.norm(), axom::utilities::max(ca.norm(), qa.norm())));
+      const double eps = inSphereDeterminantTolerance(scale);
+
+      return primal::robust::in_sphere(q, p0, p1, p2, eps);
+    }
+    else
+    {
+      const PointType& p0 = mesh.getVertexPosition(verts[0]);
+      const PointType& p1 = mesh.getVertexPosition(verts[1]);
+      const PointType& p2 = mesh.getVertexPosition(verts[2]);
+      const PointType& p3 = mesh.getVertexPosition(verts[3]);
+
+      const auto ba = p1 - p0;
+      const auto ca = p2 - p0;
+      const auto da = p3 - p0;
+      const auto qa = q - p0;
+      const double scale = axom::utilities::max(
+        1.,
+        axom::utilities::max(
+          ba.norm(),
+          axom::utilities::max(ca.norm(), axom::utilities::max(da.norm(), qa.norm()))));
+      const double eps = inSphereDeterminantTolerance(scale);
+
+      return primal::robust::in_sphere(q, p0, p1, p2, p3, eps);
+    }
+  }
+
+  static bool isPointInSphereOnMesh(const IAMeshType& mesh,
+                                    const PointType& q,
+                                    IndexType element_idx,
+                                    bool includeBoundary)
+  {
+    const int res = inSphereOrientationOnMesh(mesh, q, element_idx);
+    return includeBoundary ? (res != primal::ON_POSITIVE_SIDE) : (res == primal::ON_NEGATIVE_SIDE);
+  }
+
+  //-----------------------------------------------------------------------------
+  // Simplex orientation helpers
+  //
+  // Validate that simplices are positively oriented using the same
+  // determinant/tolerance pattern (determinants are 2*area in 2D and 6*volume in 3D).
+  //-----------------------------------------------------------------------------
+  struct OrientationEval
+  {
+    double det {0.};
+    double tol {0.};
+    int orientation {primal::ON_BOUNDARY};
+  };
+
+  static int classifyOrientationDeterminant(double det, double tol)
+  {
+    const int sign = signWithTolerance(det, tol);
+    return sign < 0 ? primal::ON_NEGATIVE_SIDE
+                    : (sign > 0 ? primal::ON_POSITIVE_SIDE : primal::ON_BOUNDARY);
+  }
+
+  OrientationEval evaluateElementOrientationDeterminant(IndexType element_idx) const
+  {
+    const double scale = (DIM == 2) ? 2. : 6.;
+    const double det = scale * getElementSignedMeasure(element_idx);
+    const double tol = scale * getElementMeasureTolerance();
+    return {det, tol, classifyOrientationDeterminant(det, tol)};
   }
 
   BaryCoordType getRawBarycentricDeterminants(IndexType element_idx, const PointType& query_pt) const
@@ -1095,64 +1064,6 @@ public:
     {
       return k * std::numeric_limits<double>::epsilon() * scale * scale * scale;
     }
-  }
-
-  static InSphereEval evaluateInSphereOnMesh(const IAMeshType& mesh,
-                                             const PointType& q,
-                                             IndexType element_idx)
-  {
-    const auto verts = mesh.boundaryVertices(element_idx);
-
-    if constexpr(DIM == 2)
-    {
-      const PointType& p0 = mesh.getVertexPosition(verts[0]);
-      const PointType& p1 = mesh.getVertexPosition(verts[1]);
-      const PointType& p2 = mesh.getVertexPosition(verts[2]);
-
-      const auto ba = p1 - p0;
-      const auto ca = p2 - p0;
-      const auto qa = q - p0;
-
-      const double det = inSphereDeterminant2D(q, p0, p1, p2);
-      const double scale = axom::utilities::max(
-        1.,
-        axom::utilities::max(ba.norm(), axom::utilities::max(ca.norm(), qa.norm())));
-      const double tol = inSphereTolerance(scale);
-
-      return {det, tol, classifyInSphereDeterminant(det, tol)};
-    }
-    else
-    {
-      const PointType& p0 = mesh.getVertexPosition(verts[0]);
-      const PointType& p1 = mesh.getVertexPosition(verts[1]);
-      const PointType& p2 = mesh.getVertexPosition(verts[2]);
-      const PointType& p3 = mesh.getVertexPosition(verts[3]);
-
-      const auto ba = p1 - p0;
-      const auto ca = p2 - p0;
-      const auto da = p3 - p0;
-      const auto qa = q - p0;
-
-      const double det = inSphereDeterminant3D(q, p0, p1, p2, p3);
-      const double scale = axom::utilities::max(
-        1.,
-        axom::utilities::max(
-          ba.norm(),
-          axom::utilities::max(ca.norm(), axom::utilities::max(da.norm(), qa.norm()))));
-      const double tol = inSphereTolerance(scale);
-
-      return {det, tol, classifyInSphereDeterminant(det, tol)};
-    }
-  }
-
-  static bool isPointInSphereOnMesh(const IAMeshType& mesh,
-                                    const PointType& q,
-                                    IndexType element_idx,
-                                    bool includeBoundary)
-  {
-    const auto eval = evaluateInSphereOnMesh(mesh, q, element_idx);
-    return includeBoundary ? (eval.location != InSphereLocation::Outside)
-                           : (eval.location == InSphereLocation::Inside);
   }
 
   bool isPointInsideForLocation(IndexType element_idx,
@@ -2073,7 +1984,7 @@ void Delaunay<DIM>::validateInsertedBall(IndexType new_pt_i,
     }
 
     const auto orient = evaluateElementOrientationDeterminant(element_idx);
-    if(orient.location != OrientationLocation::Positive)
+    if(orient.orientation != primal::ON_POSITIVE_SIDE)
     {
       fmt::format_to(
         std::back_inserter(out),
