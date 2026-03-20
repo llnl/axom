@@ -29,12 +29,12 @@ MeshClipper::MeshClipper(quest::experimental::ShapeMesh& shapeMesh,
   , m_screenLevel(3)
 {
   // Initialize statistics used by this class.
-  m_counterStats["cellsIn"].set(axom::IndexType{0});
-  m_counterStats["cellsOn"].set(axom::IndexType{0});
-  m_counterStats["cellsOut"].set(axom::IndexType{0});
-  m_counterStats["tetsIn"].set(axom::IndexType{0});
-  m_counterStats["tetsOn"].set(axom::IndexType{0});
-  m_counterStats["tetsOut"].set(axom::IndexType{0});
+  m_counterStats["cellsIn"].set(axom::IndexType {0});
+  m_counterStats["cellsOn"].set(axom::IndexType {0});
+  m_counterStats["cellsOut"].set(axom::IndexType {0});
+  m_counterStats["tetsIn"].set(axom::IndexType {0});
+  m_counterStats["tetsOn"].set(axom::IndexType {0});
+  m_counterStats["tetsOut"].set(axom::IndexType {0});
 }
 
 void MeshClipper::clip(axom::Array<double>& ovlap)
@@ -67,9 +67,8 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
   SLIC_ASSERT(ovlap.size() == m_shapeMesh.getCellCount());
   SLIC_ASSERT(ovlap.getAllocatorID() == m_shapeMesh.getAllocatorID());
 
-  auto getIndexTypeReference = [](conduit::Node &n) -> axom::IndexType &
-  {
-    axom::IndexType *ptr = n.value();
+  auto getIndexTypeReference = [](conduit::Node& n) -> axom::IndexType& {
+    axom::IndexType* ptr = n.value();
     return *ptr;
   };
 
