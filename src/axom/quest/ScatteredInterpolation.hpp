@@ -20,7 +20,13 @@
 #include "conduit.hpp"
 #include "conduit_blueprint.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <limits>
+#include <random>
+#include <utility>
+#include <vector>
 
 namespace
 {
@@ -293,15 +299,36 @@ private:
     // Each point has a 50% chance of being at the max level; of the remaining points
     // from the previous level, there's a 50% chance of being at the current level.
     // Any remaining points are at level 0.
-    auto computeLevel = [nlevels]() {
-      for(int level = nlevels; level > 0; --level)
+    //
+    // Implementation note:
+    // The original implementation used repeated calls to `random_real()` to
+    // simulate coin flips. At large N, this becomes costly (millions of calls
+    // into `std::uniform_real_distribution`). We can generate the same level
+    // distribution using a single 64-bit random integer per point:
+    // - Take the top `nlevels` bits.
+    // - The BRIO level is the position of the highest set bit (1..nlevels), or 0 if all are 0.
+    std::random_device rd;
+    std::mt19937_64 mt(rd());
+    auto computeLevel = [&mt, nlevels]() -> int {
+      constexpr int RNG_BITS = 64;
+      AXOM_STATIC_ASSERT_MSG(std::numeric_limits<std::uint64_t>::digits == RNG_BITS,
+                             "Expected 64-bit RNG output");
+
+      const int used_bits = axom::utilities::min(nlevels, RNG_BITS);
+      std::uint64_t bits = mt();
+      if(used_bits < RNG_BITS)
       {
-        if(axom::utilities::random_real(0., 1.) <= 0.5)
-        {
-          return level;
-        }
+        bits >>= (RNG_BITS - used_bits);
       }
-      return 0;
+
+      if(bits == 0)
+      {
+        return 0;
+      }
+
+      // level in [1, used_bits]
+      const int level = RNG_BITS - __builtin_clzll(bits);
+      return axom::utilities::min(level, nlevels);
     };
 
     // We use a Morton index, quantized over the mesh bounding box to
@@ -315,20 +342,59 @@ private:
     auto quantizer =
       spin::rectangular_lattice_from_bounding_box<DIM, CoordType, QuantizedCoordType>(bb, res);
 
-    // Add points and sort following BRIO
-    axom::Array<BrioComparator> brio(0, npts);
-    for(int idx = 0; idx < npts; ++idx)
-    {
-      brio.emplace_back(
-        BrioComparator(idx, computeLevel(), MortonizerType::mortonize(quantizer.gridCell(pts[idx]))));
-    }
-    std::sort(brio.begin(), brio.end());
+    // Phase 1: compute keys and count points per level (for a counting-sort by level).
+    std::vector<std::uint8_t> levels(static_cast<std::size_t>(npts));
+    std::vector<std::pair<MortonIndexType, axom::IndexType>> keys(static_cast<std::size_t>(npts));
+    std::vector<axom::IndexType> level_counts(static_cast<std::size_t>(nlevels + 1), 0);
 
-    // extract and return the reordered points
-    axom::Array<axom::IndexType> reordered(0, npts);
     for(int idx = 0; idx < npts; ++idx)
     {
-      reordered.push_back(brio[idx].m_index);
+      const int level = computeLevel();
+      levels[static_cast<std::size_t>(idx)] = static_cast<std::uint8_t>(level);
+      ++level_counts[static_cast<std::size_t>(level)];
+
+      keys[static_cast<std::size_t>(idx)] = {MortonizerType::mortonize(quantizer.gridCell(pts[idx])),
+                                             idx};
+    }
+
+    // Phase 2: counting-sort keys by level into a single contiguous array in level order.
+    std::vector<axom::IndexType> level_offsets(static_cast<std::size_t>(nlevels + 1), 0);
+    for(int level = 1; level <= nlevels; ++level)
+    {
+      level_offsets[static_cast<std::size_t>(level)] =
+        level_offsets[static_cast<std::size_t>(level - 1)] +
+        level_counts[static_cast<std::size_t>(level - 1)];
+    }
+    std::vector<axom::IndexType> level_write = level_offsets;
+
+    std::vector<std::pair<MortonIndexType, axom::IndexType>> bucketed(static_cast<std::size_t>(npts));
+    for(int idx = 0; idx < npts; ++idx)
+    {
+      const int level = static_cast<int>(levels[static_cast<std::size_t>(idx)]);
+      const axom::IndexType out_pos = level_write[static_cast<std::size_t>(level)]++;
+      bucketed[static_cast<std::size_t>(out_pos)] = keys[static_cast<std::size_t>(idx)];
+    }
+
+    // Phase 3: sort within each level by Morton index.
+    for(int level = 0; level <= nlevels; ++level)
+    {
+      const axom::IndexType begin = level_offsets[static_cast<std::size_t>(level)];
+      const axom::IndexType end = begin + level_counts[static_cast<std::size_t>(level)];
+      if(end - begin <= 1)
+      {
+        continue;
+      }
+
+      auto first = bucketed.begin() + begin;
+      auto last = bucketed.begin() + end;
+      std::sort(first, last, [](const auto& lhs, const auto& rhs) { return lhs.first < rhs.first; });
+    }
+
+    // Extract and return the reordered point indices.
+    axom::Array<axom::IndexType> reordered(npts, npts);
+    for(int idx = 0; idx < npts; ++idx)
+    {
+      reordered[idx] = bucketed[static_cast<std::size_t>(idx)].second;
     }
 
     return reordered;
@@ -361,7 +427,22 @@ public:
 
     // Reorder the points according to the Biased Random Insertion Order (BRIO) algorithm
     // and store the mapping since we'll need to apply it during interpolation
+    const bool report_timing = std::getenv("AXOM_SCATTERED_INTERP_TIMING") != nullptr;
+    m_delaunay.setCollectPointLocationStats(report_timing);
+    axom::utilities::Timer phase_timer(false);
+    if(report_timing)
+    {
+      phase_timer.start();
+    }
+
     m_brio_data = computeInsertionOrder(coords, m_bounding_box);
+
+    if(report_timing)
+    {
+      phase_timer.stop();
+      SLIC_INFO(axom::fmt::format("ScatteredInterpolation BRIO ordering: {:.6f} sec",
+                                  phase_timer.elapsedTimeInSec()));
+    }
     m_brio =
       VertexIndirectionSet(typename VertexIndirectionSet::SetBuilder().size(npts).data(&m_brio_data));
 
@@ -370,9 +451,37 @@ public:
     bb.scale(1.5);
 
     m_delaunay.initializeBoundary(bb);
+    m_delaunay.reserveForPointCount(npts);
+
+    if(report_timing)
+    {
+      phase_timer.reset();
+      phase_timer.start();
+    }
     for(int i = 0; i < npts; ++i)
     {
       m_delaunay.insertPoint(coords[m_brio[i]]);
+    }
+    if(report_timing)
+    {
+      phase_timer.stop();
+      SLIC_INFO(axom::fmt::format("ScatteredInterpolation Delaunay insertion: {:.6f} sec",
+                                  phase_timer.elapsedTimeInSec()));
+      const auto stats = m_delaunay.getInsertionStats();
+      SLIC_INFO(axom::fmt::format(
+        "ScatteredInterpolation Delaunay cavity removals: mean {:.2f}, max {}, over {} insertions",
+        stats.mean_removed(),
+        stats.max_removed,
+        stats.insertions));
+      const auto location_stats = m_delaunay.getPointLocationStats();
+      SLIC_INFO(axom::fmt::format(
+        "ScatteredInterpolation point location: walks {}, mean steps {:.2f}, max steps {}, "
+        "linear fallbacks {}, empty-seed fallbacks {}",
+        location_stats.walk_calls,
+        location_stats.mean_walk_steps(),
+        location_stats.max_walk_steps,
+        location_stats.linear_fallbacks,
+        location_stats.empty_seed_fallbacks));
     }
 
     m_delaunay.removeBoundary();
