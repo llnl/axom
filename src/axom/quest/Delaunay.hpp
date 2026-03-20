@@ -1788,6 +1788,14 @@ private:
 
     void reset()
     {
+      for(const IndexType element_idx : cavity_elems)
+      {
+        if(element_idx >= 0 && static_cast<std::size_t>(element_idx) < m_cavity_membership.size())
+        {
+          m_cavity_membership[static_cast<std::size_t>(element_idx)] = 0;
+        }
+      }
+
       boundary_facets.clear();
       cavity_elems.clear();
       inserted_elems.clear();
@@ -1809,6 +1817,7 @@ private:
     void findCavityElements(const PointType& query_pt, const IndexArray& seed_elements)
     {
       constexpr int reserveSize = (DIM == 2) ? 16 : 64;
+      ensureCavityMembershipCapacity();
 
       if(m_stack.capacity() < reserveSize)
       {
@@ -1833,10 +1842,9 @@ private:
       // insert directly onto existing edges/faces.
       for(const IndexType element_i : seed_elements)
       {
-        if(m_mesh.isValidElement(element_i) && !containsCavityElement(element_i))
+        if(m_mesh.isValidElement(element_i))
         {
-          cavity_elems.push_back(element_i);
-          m_stack.push_back(element_i);
+          addCavityElement(element_i);
         }
       }
 
@@ -1865,8 +1873,7 @@ private:
             // neighbor is valid but not in cavity; check circumsphere and add when appropriate
             if(isPointInCircumsphere(query_pt, nbr))
             {
-              cavity_elems.push_back(nbr);
-              m_stack.push_back(nbr);
+              addCavityElement(nbr);
               continue;  // face is internal to cavity, nothing left to do for this face
             }
           }
@@ -1949,7 +1956,8 @@ private:
 
     bool containsCavityElement(IndexType element_idx) const
     {
-      return std::find(cavity_elems.begin(), cavity_elems.end(), element_idx) != cavity_elems.end();
+      return element_idx >= 0 && static_cast<std::size_t>(element_idx) < m_cavity_membership.size() &&
+        m_cavity_membership[static_cast<std::size_t>(element_idx)] != 0;
     }
 
     /// \brief Returns true when the query point is inside or on the element circumsphere
@@ -1963,6 +1971,31 @@ private:
     std::vector<IndexType> inserted_elems;
 
     IndexArray m_stack;
+
+  private:
+    void ensureCavityMembershipCapacity()
+    {
+      const std::size_t required_size = static_cast<std::size_t>(m_mesh.elements().size());
+      if(m_cavity_membership.size() < required_size)
+      {
+        m_cavity_membership.resize(required_size, 0);
+      }
+    }
+
+    void addCavityElement(IndexType element_idx)
+    {
+      ensureCavityMembershipCapacity();
+      if(containsCavityElement(element_idx))
+      {
+        return;
+      }
+
+      m_cavity_membership[static_cast<std::size_t>(element_idx)] = 1;
+      cavity_elems.push_back(element_idx);
+      m_stack.push_back(element_idx);
+    }
+
+    std::vector<unsigned char> m_cavity_membership;
   };
 };
 
