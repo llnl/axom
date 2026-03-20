@@ -20,9 +20,6 @@ void ConduitMemory::privateRegisterAllocator()
   using conduit::utils::register_allocator;
   auto deallocator = [](void* ptr) -> void {
     char* cPtr = (char*)(ptr);
-    //std::cout << axom::execution_space<ExecSpace>::name()
-    //  << ": Dellocating for Conduit via axom: allocator=" << axomId
-    //  << ", ptr=" << ptr << std::endl;
     axom::deallocate<char>(cPtr);
   };
   m_deallocCallback = deallocator;
@@ -30,9 +27,6 @@ void ConduitMemory::privateRegisterAllocator()
   const auto axomId = m_axomId;
   m_allocCallback = [=](size_t itemCount, size_t itemByteSize) -> void* {
     void* ptr = axom::allocate<char>(itemCount * itemByteSize, axomId);
-    //std::cout << "Allocated for Conduit via axom: allocator=" << axomId
-    //          << ", itemCount=" << itemCount
-    //          << ", itemByteSize=" << itemByteSize << ", ptr=" << ptr << std::endl;
     return ptr;
   };
   m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
