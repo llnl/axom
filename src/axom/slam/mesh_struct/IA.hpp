@@ -31,6 +31,8 @@
 #include "axom/slam/DynamicMap.hpp"
 #include "axom/slam/FieldRegistry.hpp"
 
+#include <array>
+
 namespace axom
 {
 namespace slam
@@ -116,6 +118,15 @@ public:
   using ModularFacetIndex =
     slam::ModularInt<slam::policies::CompileTimeSize<IndexType, VERTS_PER_ELEM>>;
 
+  using FacetKey = std::array<IndexType, VERTS_PER_ELEM - 1>;
+
+  struct FacetRecord
+  {
+    IndexType element_idx {INVALID_ELEMENT_INDEX};
+    IndexType facet_idx {INVALID_ELEMENT_INDEX};
+    IndexType neighbor_idx {INVALID_ELEMENT_INDEX};
+  };
+
 public:
   /// \brief Default Constructor for an empty mesh
   IAMesh();
@@ -134,6 +145,20 @@ public:
    * \note Valid meshes are not necessarily manifold.
    */
   bool isValid(bool verboseOutput = false) const;
+
+  /**
+   * \brief Checks that the simplicial complex is conforming (manifold faces and consistent adjacencies)
+   *
+   * This is stricter than \a isValid(): it verifies that each facet is used by
+   * at most two elements and that element adjacencies are reciprocal across
+   * shared facets.
+   *
+   * \note This function does not validate geometric orientation/volume.
+   */
+  bool isConforming(bool verboseOutput = false) const;
+
+  /// \brief Returns a canonical (sorted) facet key for element \a element_idx and local facet \a facet_idx
+  FacetKey getSortedFacetKey(IndexType element_idx, IndexType facet_idx) const;
 
   /// \name Accessors for encoded Sets, Relations and Maps
   /// @{

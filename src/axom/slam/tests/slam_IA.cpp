@@ -18,6 +18,8 @@
 #include "axom/slam/mesh_struct/IA.hpp"
 #include "axom/slam/Utilities.hpp"
 
+#include <map>
+
 namespace slam = axom::slam;
 
 namespace
@@ -166,6 +168,34 @@ bool isAdjacent(const IAMeshType& ia_mesh, IndexType el_1, IndexType el_2)
     }
   }
   return false;
+}
+
+template <typename IAMeshType>
+void connectSharedFacets(IAMeshType& ia_mesh)
+{
+  using FacetKey = typename IAMeshType::FacetKey;
+  using FaceRef = std::pair<IndexType, IndexType>;
+
+  std::map<FacetKey, FaceRef> first_facet;
+  for(auto element_idx : ia_mesh.elements().positions())
+  {
+    if(!ia_mesh.isValidElement(element_idx))
+    {
+      continue;
+    }
+
+    for(IndexType face_idx = 0; face_idx < IAMeshType::VERTS_PER_ELEM; ++face_idx)
+    {
+      const FacetKey key = ia_mesh.getSortedFacetKey(element_idx, face_idx);
+      const auto insert_status = first_facet.insert({key, {element_idx, face_idx}});
+      if(!insert_status.second)
+      {
+        const auto other = insert_status.first->second;
+        ia_mesh.adjacentElements(element_idx)[face_idx] = other.first;
+        ia_mesh.adjacentElements(other.first)[other.second] = element_idx;
+      }
+    }
+  }
 }
 
 }  // end anonymous namespace
@@ -493,6 +523,101 @@ TEST(slam_IA, tri_mesh_remove_vert_and_compact)
   EXPECT_EQ(basic_mesh_data.numVertices() - 1, ia_mesh.getNumberOfValidVertices());
 }
 
+TEST(slam_IA, conforming_tri_mesh)
+{
+  constexpr int TDIM = 2;
+  constexpr int SDIM = 3;
+  using IAMeshType = slam::IAMesh<TDIM, SDIM, PointType>;
+
+  BasicTriMeshData basic_mesh_data;
+  IAMeshType ia_mesh(basic_mesh_data.points, basic_mesh_data.elem);
+
+  EXPECT_TRUE(ia_mesh.isValid());
+  EXPECT_TRUE(ia_mesh.isConforming(true));
+}
+
+TEST(slam_IA, non_manifold_edge_detected_2d)
+{
+  constexpr int TDIM = 2;
+  constexpr int SDIM = 3;
+  using IAMeshType = slam::IAMesh<TDIM, SDIM, PointType>;
+
+  IAMeshType ia_mesh;
+  const std::vector<PointType> pts {PointType {0., 0., 0.},
+                                    PointType {1., 0., 0.},
+                                    PointType {0.5, 1., 0.},
+                                    PointType {0.5, -1., 0.},
+                                    PointType {0.5, 0., 1.}};
+  for(const auto& p : pts)
+  {
+    ia_mesh.addVertex(p);
+  }
+
+  const IndexType invalid = IAMeshType::ElementAdjacencyRelation::INVALID_INDEX;
+  IndexType neighbors[3] {invalid, invalid, invalid};
+  IndexType tri0[3] {0, 1, 2};
+  IndexType tri1[3] {0, 1, 3};
+  IndexType tri2[3] {0, 1, 4};
+  ia_mesh.addElement(tri0, neighbors);
+  ia_mesh.addElement(tri1, neighbors);
+  ia_mesh.addElement(tri2, neighbors);
+
+  EXPECT_TRUE(ia_mesh.isValid());
+  EXPECT_FALSE(ia_mesh.isConforming(true));
+}
+
+TEST(slam_IA, inconsistent_adjacency_detected_2d)
+{
+  constexpr int TDIM = 2;
+  constexpr int SDIM = 3;
+  using IAMeshType = slam::IAMesh<TDIM, SDIM, PointType>;
+
+  IAMeshType ia_mesh;
+  const std::vector<PointType> pts {PointType {0., 0., 0.},
+                                    PointType {1., 0., 0.},
+                                    PointType {0., 1., 0.},
+                                    PointType {1., 1., 0.}};
+  for(const auto& p : pts)
+  {
+    ia_mesh.addVertex(p);
+  }
+
+  const IndexType invalid = IAMeshType::ElementAdjacencyRelation::INVALID_INDEX;
+  IndexType neighbors[3] {invalid, invalid, invalid};
+  IndexType tri0[3] {0, 1, 2};
+  IndexType tri1[3] {2, 1, 3};
+  const IndexType e0 = ia_mesh.addElement(tri0, neighbors);
+  const IndexType e1 = ia_mesh.addElement(tri1, neighbors);
+
+  connectSharedFacets(ia_mesh);
+
+  // Break reciprocity on the shared edge: one side points to a neighbor, the other does not.
+  typename IAMeshType::FacetKey shared_key {};
+  bool found_shared_face = false;
+  for(IndexType face_idx = 0; face_idx < IAMeshType::VERTS_PER_ELEM; ++face_idx)
+  {
+    if(ia_mesh.adjacentElements(e0)[face_idx] == e1)
+    {
+      shared_key = ia_mesh.getSortedFacetKey(e0, face_idx);
+      found_shared_face = true;
+      break;
+    }
+  }
+  ASSERT_TRUE(found_shared_face);
+
+  for(IndexType face_idx = 0; face_idx < IAMeshType::VERTS_PER_ELEM; ++face_idx)
+  {
+    if(ia_mesh.getSortedFacetKey(e1, face_idx) == shared_key)
+    {
+      ia_mesh.adjacentElements(e1)[face_idx] = invalid;
+      break;
+    }
+  }
+
+  EXPECT_TRUE(ia_mesh.isValid());
+  EXPECT_FALSE(ia_mesh.isConforming(true));
+}
+
 TEST(slam_IA, basic_tet_mesh)
 {
   SLIC_INFO("Testing constructing basic tetrahedral mesh...");
@@ -546,6 +671,72 @@ TEST(slam_IA, basic_tet_mesh)
   ia_mesh.print_all();
 
   SLIC_INFO("Done");
+}
+
+TEST(slam_IA, conforming_tet_mesh)
+{
+  constexpr int TDIM = 3;
+  constexpr int SDIM = 3;
+  using IAMeshType = slam::IAMesh<TDIM, SDIM, PointType>;
+
+  BasicTetMeshData basic_mesh_data;
+  IAMeshType ia_mesh(basic_mesh_data.points, basic_mesh_data.elem);
+
+  EXPECT_TRUE(ia_mesh.isValid());
+  EXPECT_TRUE(ia_mesh.isConforming(true));
+}
+
+TEST(slam_IA, inconsistent_adjacency_detected_3d)
+{
+  constexpr int TDIM = 3;
+  constexpr int SDIM = 3;
+  using IAMeshType = slam::IAMesh<TDIM, SDIM, PointType>;
+
+  IAMeshType ia_mesh;
+  const std::vector<PointType> pts {PointType {0., 0., 0.},
+                                    PointType {1., 0., 0.},
+                                    PointType {0., 1., 0.},
+                                    PointType {0., 0., 1.},
+                                    PointType {0., 0., -1.}};
+  for(const auto& p : pts)
+  {
+    ia_mesh.addVertex(p);
+  }
+
+  const IndexType invalid = IAMeshType::ElementAdjacencyRelation::INVALID_INDEX;
+  IndexType neighbors[4] {invalid, invalid, invalid, invalid};
+  IndexType tet0[4] {0, 1, 2, 3};
+  IndexType tet1[4] {0, 1, 2, 4};
+  const IndexType e0 = ia_mesh.addElement(tet0, neighbors);
+  const IndexType e1 = ia_mesh.addElement(tet1, neighbors);
+
+  connectSharedFacets(ia_mesh);
+
+  // Break reciprocity on the shared face.
+  typename IAMeshType::FacetKey shared_key {};
+  bool found_shared_face = false;
+  for(IndexType face_idx = 0; face_idx < IAMeshType::VERTS_PER_ELEM; ++face_idx)
+  {
+    if(ia_mesh.adjacentElements(e0)[face_idx] == e1)
+    {
+      shared_key = ia_mesh.getSortedFacetKey(e0, face_idx);
+      found_shared_face = true;
+      break;
+    }
+  }
+  ASSERT_TRUE(found_shared_face);
+
+  for(IndexType face_idx = 0; face_idx < IAMeshType::VERTS_PER_ELEM; ++face_idx)
+  {
+    if(ia_mesh.getSortedFacetKey(e1, face_idx) == shared_key)
+    {
+      ia_mesh.adjacentElements(e1)[face_idx] = invalid;
+      break;
+    }
+  }
+
+  EXPECT_TRUE(ia_mesh.isValid());
+  EXPECT_FALSE(ia_mesh.isConforming(true));
 }
 
 TEST(slam_IA, dynamically_build_tet_mesh)
