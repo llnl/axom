@@ -168,35 +168,25 @@ private:
 #endif
 
   /*!
-   * \brief Get fixed number of array values from a Conduit node in a way that should
-   *        not matter whether the data are in host or device memory.
+   * \brief Get fixed number of floating point array values from a Conduit node in a
+   *        way that should not matter whether the data are in host or device memory.
    *
    * \param n The Conduit node with the data.
    * \param[out] values An output array of the data on the host, converted to value_type.
    */
   void getArrayValues(const conduit::Node &n, value_type values[NDIMS]) const
   {
-    if(n.dtype().is_float32())
+    SLIC_ERROR_IF(n.dtype().number_of_elements() != NDIMS, "Incompatible sizes.");
+
+    // Make sure the data are on the host.
+    conduit::Node hostNode;
+    axom::bump::utilities::copy<axom::SEQ_EXEC>(hostNode, n);
+
+    // Copy the values into output values
+    const auto hostAccessor = hostNode.as_double_accessor();
+    for(int i = 0; i < NDIMS; i++)
     {
-      conduit::float32 hostData[NDIMS];
-      axom::copy(hostData, n.data_ptr(), NDIMS * sizeof(conduit::float32));
-      for(int i = 0; i < NDIMS; i++)
-      {
-        values[i] = static_cast<value_type>(hostData[i]);
-      }
-    }
-    else if(n.dtype().is_float64())
-    {
-      conduit::float64 hostData[NDIMS];
-      axom::copy(hostData, n.data_ptr(), NDIMS * sizeof(conduit::float64));
-      for(int i = 0; i < NDIMS; i++)
-      {
-        values[i] = static_cast<value_type>(hostData[i]);
-      }
-    }
-    else
-    {
-      SLIC_ERROR(axom::fmt::format("{} did not contain doubles or floats.", n.name()));
+      values[i] = static_cast<value_type>(hostAccessor[i]);
     }
   }
 
