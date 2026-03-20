@@ -11,7 +11,7 @@ variables:
   FULL_BUILD_ROOT: ${CI_BUILDS_DIR}/axom/${CI_JOB_NAME}
   SLURM_OVERLAP: 1
   USE_LLD: "OFF"
-  LLD_EXTRA_CMAKE_OPTIONS: "-DBLT_EXE_LINKER_FLAGS=-fuse-ld=lld"
+  LLD_EXTRA_CMAKE_OPTIONS: "-DAXOM_CXX_EXE_LINKER_FLAGS=--ld-path=/usr/bin/ld.lld"
 
 .src_workflow:
   rules:

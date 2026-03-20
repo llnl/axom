@@ -55,7 +55,7 @@ jobs:
           host_config: llvm@19.0.0.cmake
           compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
           cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DENABLE_BENCHMARKS:BOOL=ON'
-          use_lld: 'yes'
+          use_lld: 'no'
           do_build: 'yes'
           do_benchmarks: 'yes'
         include:
@@ -65,7 +65,7 @@ jobs:
             host_config: llvm@19.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF -U RAJA_DIR'
-            use_lld: 'yes'
+            use_lld: 'no'
             do_build: 'yes'
             do_benchmarks: 'no'
         - build_type: Debug
@@ -74,7 +74,7 @@ jobs:
             host_config: llvm@19.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -U UMPIRE_DIR'
-            use_lld: 'yes'
+            use_lld: 'no'
             do_build: 'yes'
             do_benchmarks: 'no'
         - build_type: Debug
@@ -83,7 +83,7 @@ jobs:
             host_config: llvm@19.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF -U RAJA_DIR -U UMPIRE_DIR'
-            use_lld: 'yes'
+            use_lld: 'no'
             do_build: 'yes'
             do_benchmarks: 'no'
         - build_type: Debug
@@ -92,7 +92,7 @@ jobs:
             host_config: llvm@19.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -U CALIPER_DIR -U ADIAK_DIR'
-            use_lld: 'yes'
+            use_lld: 'no'
             do_build: 'yes'
             do_benchmarks: 'no'
     name: ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
