@@ -396,10 +396,11 @@ public:
   /// \name Functions that modify the set cardinality
   /// @{
 
-  /**
-   * \brief Insert an entry at the end of the set with value = ( size()-1 )
-   */
+  /// \brief Insert an entry at the end of the set with value = ( size()-1 )
   IndexType insert() { return insert(size()); }
+
+  /// \brief Reserves storage for at least \a sz entries.
+  void reserve(PositionType sz) { m_data.reserve(sz); }
 
   /**
    * \brief Insert an entry at the end of the set with the given value.
