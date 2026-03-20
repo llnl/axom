@@ -135,6 +135,7 @@ void run_delaunay(const Input& params)
   // Create initial Delaunay triangulation over bounding box
   Delaunay dt;
   dt.initializeBoundary(bbox);
+  dt.reserveForPointCount(numPoints);
 
   // Incrementally insert random points within bounding box
   for(int i = 0; i < numPoints; ++i)
