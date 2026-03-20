@@ -384,6 +384,12 @@ public:
     }
   }
 
+  /// \brief Reserves storage for at least \a fromSetSize relation entries.
+  void reserve(SetPosition fromSetSize)
+  {
+    m_relationsVec.reserve(fromSetSize * relationCardinality());
+  }
+
   void updateSizes()
   {
     m_currentFromSize = m_fromSet->size();
