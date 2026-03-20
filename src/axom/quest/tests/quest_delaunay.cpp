@@ -49,6 +49,14 @@ void expectValidDelaunay(DelaunayType<DIM>& dt,
   }
 }
 
+template <int DIM>
+void expectConformingMesh(const DelaunayType<DIM>& dt)
+{
+  EXPECT_TRUE(dt.getMeshData()->isValid(true));
+  EXPECT_TRUE(dt.getMeshData()->isConforming(true));
+  EXPECT_TRUE(dt.isConforming(true));
+}
+
 }  // namespace
 
 TEST(quest_delaunay, cocircular_square_2d)
@@ -242,6 +250,62 @@ TEST(quest_delaunay, query_outside_convex_hull_returns_invalid_3d)
   const PointType inside_bbox_outside_hull {0.8, 0.8, 0.8};
   EXPECT_EQ(DelaunayType<3>::INVALID_INDEX,
             dt.findContainingElement(inside_bbox_outside_hull, false));
+}
+
+TEST(quest_delaunay, insertion_validation_regular_grid_3d)
+{
+  using PointType = typename DelaunayType<3>::PointType;
+  using BoundingBox = typename DelaunayType<3>::BoundingBox;
+  using ValidationMode = typename DelaunayType<3>::InsertionValidationMode;
+
+  DelaunayType<3> dt;
+  dt.initializeBoundary(BoundingBox(PointType {-0.5, -0.5, -0.5}, PointType {1.5, 1.5, 1.5}));
+  dt.setInsertionValidationMode(ValidationMode::ConformingMesh);
+
+  std::vector<PointType> points;
+  points.reserve(4 * 4 * 4);
+  for(int z = 0; z < 4; ++z)
+  {
+    for(int y = 0; y < 4; ++y)
+    {
+      for(int x = 0; x < 4; ++x)
+      {
+        points.push_back(PointType {x / 3., y / 3., z / 3.});
+      }
+    }
+  }
+
+  insertPoints(dt, points);
+  expectConformingMesh(dt);
+  expectValidDelaunay(dt, points);
+}
+
+TEST(quest_delaunay, insertion_validation_full_small_grid_3d)
+{
+  using PointType = typename DelaunayType<3>::PointType;
+  using BoundingBox = typename DelaunayType<3>::BoundingBox;
+  using ValidationMode = typename DelaunayType<3>::InsertionValidationMode;
+
+  DelaunayType<3> dt;
+  dt.initializeBoundary(BoundingBox(PointType {-0.5, -0.5, -0.5}, PointType {1.5, 1.5, 1.5}));
+  dt.setInsertionValidationMode(ValidationMode::Full);
+
+  std::vector<PointType> points;
+  points.reserve(3 * 3 * 3);
+  for(int z = 0; z < 3; ++z)
+  {
+    for(int y = 0; y < 3; ++y)
+    {
+      for(int x = 0; x < 3; ++x)
+      {
+        points.push_back(PointType {x / 2., y / 2., z / 2.});
+      }
+    }
+  }
+
+  insertPoints(dt, points);
+  expectConformingMesh(dt);
+  expectValidDelaunay(dt, points);
 }
 
 //------------------------------------------------------------------------------

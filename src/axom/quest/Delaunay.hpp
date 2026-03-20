@@ -19,6 +19,7 @@
 #include <list>
 #include <vector>
 #include <set>
+#include <map>
 #include <algorithm>
 #include <array>
 #include <cstdlib>
@@ -57,19 +58,36 @@ public:
   using IndexPairType = std::pair<IndexType, IndexType>;
 
   static constexpr int VERT_PER_ELEMENT = DIM + 1;
+  static constexpr int VERTS_PER_FACET = VERT_PER_ELEMENT - 1;
   static constexpr IndexType INVALID_INDEX = -1;
+
+  enum class InsertionValidationMode
+  {
+    /// No additional insertion-time validation beyond existing asserts.
+    None,
+    /// Checks local cavity/ball invariants and that the resulting IA mesh is conforming.
+    /// Intended for debugging and unit tests.
+    ConformingMesh,
+    /// Additionally runs a global empty-circumsphere check after each insertion (very expensive).
+    Full
+  };
 
 private:
   using ModularFaceIndex =
     slam::ModularInt<slam::policies::CompileTimeSize<IndexType, VERT_PER_ELEMENT>>;
 
+  using FacetKey = typename IAMeshType::FacetKey;
+  using FacetRecord = typename IAMeshType::FacetRecord;
+
 private:
   struct ElementFinder;
+  struct InsertionHelper;
 
   IAMeshType m_mesh;
   BoundingBox m_bounding_box;
   bool m_has_boundary;
   int m_num_removed_elements_since_last_compact;
+  InsertionValidationMode m_insertion_validation_mode;
 
   ElementFinder m_element_finder;
 
@@ -78,7 +96,23 @@ public:
    * \brief Default constructor
    * \note User must call initializeBoundary(BoundingBox) before adding points.
    */
-  Delaunay() : m_has_boundary(false), m_num_removed_elements_since_last_compact(0) { }
+  Delaunay()
+    : m_has_boundary(false)
+    , m_num_removed_elements_since_last_compact(0)
+    , m_insertion_validation_mode(InsertionValidationMode::None)
+  { }
+
+  /// \brief Controls the amount of validation performed around each point insertion
+  ///
+  /// \note This is intended for debugging. `InsertionValidationMode::Full` is a diagnostic mode
+  /// and should not be enabled in performance-sensitive runs.
+  void setInsertionValidationMode(InsertionValidationMode mode)
+  {
+    m_insertion_validation_mode = mode;
+  }
+
+  /// \brief Returns the current insertion validation mode
+  InsertionValidationMode getInsertionValidationMode() const { return m_insertion_validation_mode; }
 
   /**
    * \brief Defines the boundary of the triangulation.
@@ -132,12 +166,16 @@ public:
     // and replacing them with new valid elements (the Delaunay "ball")
     const BaryCoordType bary_coord = getBaryCoords(element_i, new_pt);
     const IndexArray seed_elements = getSeedElements(element_i, bary_coord);
+    validateInsertionSeed(element_i, new_pt, bary_coord, seed_elements);
 
     InsertionHelper insertionHelper(m_mesh);
     insertionHelper.findCavityElements(new_pt, seed_elements);
+    validateCavityBoundary(insertionHelper);
     insertionHelper.createCavity();
     IndexType new_pt_i = m_mesh.addVertex(new_pt);
     insertionHelper.delaunayBall(new_pt_i);
+    validateInsertedBall(new_pt_i, insertionHelper);
+    validateInsertionResult();
 
     m_element_finder.updateBin(new_pt, new_pt_i);
     m_num_removed_elements_since_last_compact += insertionHelper.numRemovedElements();
@@ -390,6 +428,292 @@ public:
     return valid;
   }
 
+  /**
+   * \brief Checks that the underlying mesh is conforming and consistently oriented
+   *
+   * Topological conformity (manifold facets and reciprocal adjacencies) is
+   * delegated to `slam::IAMesh::isConforming()`. This routine additionally
+   * verifies that the simplices remain positively oriented, and (when the
+   * initial bounding-box boundary is still present) that boundary facets lie on
+   * that bounding box.
+   */
+  bool isConforming(bool verboseOutput = false) const
+  {
+    fmt::memory_buffer out;
+
+    bool valid = m_mesh.isConforming(verboseOutput);
+
+    // Geometry-specific checks that do not belong in slam::IAMesh.
+    for(auto element_idx : m_mesh.elements().positions())
+    {
+      if(!m_mesh.isValidElement(element_idx))
+      {
+        continue;
+      }
+
+      // check orientations of top simplices
+      const double signed_measure = getElementSignedMeasure(element_idx);
+      if(signed_measure <= getElementMeasureTolerance())
+      {
+        if(verboseOutput)
+        {
+          fmt::format_to(std::back_inserter(out),
+                         "\n\tElement {} has non-positive signed measure {:.17g}",
+                         element_idx,
+                         signed_measure);
+        }
+        valid = false;
+      }
+
+      // check that boundary elements are not on the Delaunay bounding box
+      if(m_has_boundary)
+      {
+        const auto neighbors = m_mesh.adjacentElements(element_idx);
+        for(int facet_idx = 0; facet_idx < VERT_PER_ELEMENT; ++facet_idx)
+        {
+          if(m_mesh.isValidElement(neighbors[facet_idx]))
+          {
+            continue;
+          }
+
+          const FacetKey facet_key = m_mesh.getSortedFacetKey(element_idx, facet_idx);
+          if(!isFacetOnBoundingBox(facet_key))
+          {
+            if(verboseOutput)
+            {
+              fmt::format_to(std::back_inserter(out),
+                             "\n\tBoundary facet {} is not on the initial bounding box",
+                             facetKeyString(facet_key));
+            }
+            valid = false;
+          }
+        }
+      }
+    }
+
+    if(verboseOutput)
+    {
+      if(valid)
+      {
+        SLIC_INFO("Delaunay mesh was conforming");
+      }
+      else
+      {
+        SLIC_INFO("Delaunay mesh was NOT conforming. Summary: " << fmt::to_string(out));
+      }
+    }
+
+    return valid;
+  }
+
+private:
+  template <typename FacetSubsetType>
+  static FacetKey makeSortedFaceKey(const FacetSubsetType& facet)
+  {
+    // Canonical key for a simplex facet: store the vertex ids in sorted order
+    // so the same topological facet is mapped identically regardless of
+    // orientation or local indexing.
+    FacetKey key {};
+    for(int i = 0; i < VERTS_PER_FACET; ++i)
+    {
+      key[i] = facet[i];
+    }
+    std::sort(key.begin(), key.end());
+    return key;
+  }
+
+  static std::string facetKeyString(const FacetKey& facet_key)
+  {
+    return fmt::format("[{}]", fmt::join(facet_key, ", "));
+  }
+
+  double getBoundaryCoordinateTolerance() const
+  {
+    const auto min_pt = m_bounding_box.getMin();
+    const auto max_pt = m_bounding_box.getMax();
+
+    double max_extent = 1.;
+    for(int dim = 0; dim < DIM; ++dim)
+    {
+      max_extent = axom::utilities::max(max_extent, max_pt[dim] - min_pt[dim]);
+    }
+
+    return 64. * std::numeric_limits<double>::epsilon() * max_extent;
+  }
+
+  bool isFacetOnBoundingBox(const FacetKey& facet_key) const
+  {
+    // During incremental construction, the triangulation includes an initial
+    // bounding box (or cube) to guarantee the domain is closed. When that
+    // temporary boundary is present, any facet with an invalid neighbor must
+    // lie on one of the bounding box planes within a small coordinate tolerance.
+    const auto& min_pt = m_bounding_box.getMin();
+    const auto& max_pt = m_bounding_box.getMax();
+    const double tol = getBoundaryCoordinateTolerance();
+
+    for(int dim = 0; dim < DIM; ++dim)
+    {
+      bool on_min_face = true;
+      bool on_max_face = true;
+      for(const IndexType vertex_idx : facet_key)
+      {
+        const auto& vertex = m_mesh.getVertexPosition(vertex_idx);
+        on_min_face &= axom::utilities::abs(vertex[dim] - min_pt[dim]) <= tol;
+        on_max_face &= axom::utilities::abs(vertex[dim] - max_pt[dim]) <= tol;
+      }
+
+      if(on_min_face || on_max_face)
+      {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  double getElementSignedMeasure(IndexType element_idx) const
+  {
+    if constexpr(DIM == 2)
+    {
+      return getElement(element_idx).signedArea();
+    }
+    else
+    {
+      return getElement(element_idx).signedVolume();
+    }
+  }
+
+  double getElementMeasureTolerance() const
+  {
+    const double scale = axom::utilities::max(1., m_bounding_box.range().norm());
+    return 256. * std::numeric_limits<double>::epsilon() * std::pow(scale, static_cast<double>(DIM));
+  }
+
+  /**
+   * \brief Validates the point-location result and cavity seed selection before building the cavity
+   *
+   * This is a light-weight check meant to catch point-location failures early:
+   * - the reported containing element must be searchable and contain the point
+   * - the seed set must include that element (and may include face-adjacent neighbors)
+   */
+  void validateInsertionSeed(IndexType element_idx,
+                             const PointType& query_pt,
+                             const BaryCoordType& bary_coord,
+                             const IndexArray& seed_elements) const
+  {
+    if(m_insertion_validation_mode == InsertionValidationMode::None)
+    {
+      return;
+    }
+
+    fmt::memory_buffer out;
+    bool valid = true;
+
+    if(!isSearchableElement(element_idx))
+    {
+      fmt::format_to(std::back_inserter(out),
+                     "\n\tContaining element {} is not searchable",
+                     element_idx);
+      valid = false;
+    }
+
+    if(!isPointInsideForLocation(element_idx, query_pt, bary_coord))
+    {
+      fmt::format_to(std::back_inserter(out),
+                     "\n\tPoint {} is not inside containing element {}",
+                     query_pt,
+                     element_idx);
+      valid = false;
+    }
+
+    if(seed_elements.empty())
+    {
+      fmt::format_to(std::back_inserter(out), "\n\tNo cavity seed elements were generated");
+      valid = false;
+    }
+
+    bool found_containing_element = false;
+    for(const IndexType seed_element : seed_elements)
+    {
+      found_containing_element |= (seed_element == element_idx);
+      if(!m_mesh.isValidElement(seed_element))
+      {
+        fmt::format_to(std::back_inserter(out), "\n\tSeed element {} is invalid", seed_element);
+        valid = false;
+      }
+    }
+
+    if(!found_containing_element)
+    {
+      fmt::format_to(std::back_inserter(out),
+                     "\n\tContaining element {} is missing from the seed set",
+                     element_idx);
+      valid = false;
+    }
+
+    SLIC_ERROR_IF(!valid, "Delaunay insertion seed validation failed:" << fmt::to_string(out));
+  }
+
+  /**
+   * \brief Validates that the cavity boundary facets match the faces between cavity and non-cavity elements
+   *
+   * The `InsertionHelper` collects a boundary facet for every cavity face that borders either:
+   * - an element outside the cavity, or
+   * - the temporary bounding-box boundary (invalid neighbor).
+   */
+  void validateCavityBoundary(const InsertionHelper& insertion_helper) const;
+
+  /**
+   * \brief Validates that the inserted ball covers the cavity boundary and is internally stitched
+   *
+   * Each inserted simplex must contain `new_pt_i`. Boundary facets must appear
+   * exactly once among the inserted elements and point to the recorded outside
+   * neighbor. Internal facets must be paired with reciprocal adjacency.
+   */
+  void validateInsertedBall(IndexType new_pt_i, const InsertionHelper& insertion_helper) const;
+
+  /**
+   * \brief Validates that the global mesh invariants still hold after insertion
+   *
+   * `ConformingMesh` checks IA validity and topological conformity, plus
+   *  Delaunay's geometry-specific checks (positive simplex orientation and
+   *  bounding-box boundary consistency while the fake boundary exists).
+   * `Full` additionally runs the global Delaunay empty-circumsphere validation.
+   */
+  void validateInsertionResult() const
+  {
+    if(m_insertion_validation_mode == InsertionValidationMode::None)
+    {
+      return;
+    }
+
+    // Note: These checks are intentionally global and can be expensive. They
+    // are only enabled when the caller opts into insertion validation.
+    if(!m_mesh.isValid(false))
+    {
+      m_mesh.isValid(true);
+      SLIC_ERROR("Delaunay insertion produced an invalid IAMesh");
+    }
+
+    if(!isConforming(false))
+    {
+      isConforming(true);
+      SLIC_ERROR("Delaunay insertion produced a non-conforming triangulation");
+    }
+
+    if(m_insertion_validation_mode == InsertionValidationMode::Full)
+    {
+      if(!isValid(false))
+      {
+        isValid(true);
+        SLIC_ERROR(
+          "Delaunay insertion produced a triangulation that violates the empty-circumsphere "
+          "condition");
+      }
+    }
+  }
+
+public:
   /// \brief Returns true when an element and all of its vertices are valid for point-location predicates
   bool isSearchableElement(IndexType element_idx) const
   {
@@ -1308,6 +1632,7 @@ private:
     void delaunayBall(IndexType new_pt_i)
     {
       const int numFaces = facet_set.size();
+      const IndexType invalid_neighbor = IAMeshType::ElementAdjacencyRelation::INVALID_INDEX;
 
       IndexType vlist[VERT_PER_ELEMENT] {};
       IndexType neighbors[VERT_PER_ELEMENT] {};
@@ -1320,12 +1645,15 @@ private:
         }
         vlist[VERTS_PER_FACET] = new_pt_i;
 
-        // set all neighbors to nID; they'll be fixed in the fixVertexNeighborhood function below
+        // Face 0 is the cavity boundary face opposite the inserted point.
+        // The remaining faces stay invalid until fixVertexNeighborhood() stitches
+        // the new ball together around the inserted vertex.
         const auto nID = fc_rel[i][0];
-        for(int d = 0; d < VERTS_PER_FACET; ++d)
+        for(int d = 0; d < VERT_PER_ELEMENT; ++d)
         {
-          neighbors[d] = nID;
+          neighbors[d] = invalid_neighbor;
         }
+        neighbors[0] = nID;
 
         IndexType new_el = m_mesh.addElement(vlist, neighbors);
         inserted_elems.insert(new_el);
@@ -1373,6 +1701,235 @@ private:
 
 template <int DIM>
 constexpr typename Delaunay<DIM>::IndexType Delaunay<DIM>::INVALID_INDEX;
+
+template <int DIM>
+void Delaunay<DIM>::validateCavityBoundary(const InsertionHelper& insertion_helper) const
+{
+  if(m_insertion_validation_mode == InsertionValidationMode::None)
+  {
+    return;
+  }
+
+  // Cavity boundary invariant:
+  // - Every cavity face that borders a non-cavity neighbor (or the temporary
+  //   bounding-box boundary) must appear exactly once in `facet_set`.
+  // - The facet's recorded neighbor (`fc_rel`) must match the mesh adjacency.
+  struct FacetInfo
+  {
+    IndexType neighbor_idx {INVALID_INDEX};
+    bool matched {false};
+  };
+
+  fmt::memory_buffer out;
+  bool valid = true;
+  std::map<FacetKey, FacetInfo> cavity_boundary;
+
+  for(auto facet_idx : insertion_helper.facet_set.positions())
+  {
+    const FacetKey facet_key = makeSortedFaceKey(insertion_helper.fv_rel[facet_idx]);
+    const auto insert_status =
+      cavity_boundary.insert({facet_key, {insertion_helper.fc_rel[facet_idx][0], false}});
+    if(!insert_status.second)
+    {
+      fmt::format_to(std::back_inserter(out),
+                     "\n\tCavity boundary facet {} was recorded more than once",
+                     facetKeyString(facet_key));
+      valid = false;
+    }
+  }
+
+  for(const IndexType cavity_element : insertion_helper.cavity_elems)
+  {
+    const auto neighbors = m_mesh.adjacentElements(cavity_element);
+    for(int facet_idx = 0; facet_idx < VERT_PER_ELEMENT; ++facet_idx)
+    {
+      const IndexType neighbor_idx = neighbors[facet_idx];
+      if(m_mesh.isValidElement(neighbor_idx) &&
+         insertion_helper.cavity_elems.findIndex(neighbor_idx) !=
+           InsertionHelper::ElementSet::INVALID_ENTRY)
+      {
+        continue;
+      }
+
+      const FacetKey facet_key = m_mesh.getSortedFacetKey(cavity_element, facet_idx);
+      auto facet_it = cavity_boundary.find(facet_key);
+      if(facet_it == cavity_boundary.end())
+      {
+        fmt::format_to(std::back_inserter(out),
+                       "\n\tCavity facet {} on element {} face {} is missing from the "
+                       "boundary facet set",
+                       facetKeyString(facet_key),
+                       cavity_element,
+                       facet_idx);
+        valid = false;
+        continue;
+      }
+
+      if(facet_it->second.neighbor_idx != neighbor_idx)
+      {
+        fmt::format_to(std::back_inserter(out),
+                       "\n\tCavity face {} expects neighbor {} but facet relation stores {}",
+                       facetKeyString(facet_key),
+                       neighbor_idx,
+                       facet_it->second.neighbor_idx);
+        valid = false;
+      }
+
+      if(!m_mesh.isValidElement(neighbor_idx) && m_has_boundary && !isFacetOnBoundingBox(facet_key))
+      {
+        fmt::format_to(std::back_inserter(out),
+                       "\n\tCavity boundary face {} exits the mesh away from the bounding box",
+                       facetKeyString(facet_key));
+        valid = false;
+      }
+
+      facet_it->second.matched = true;
+    }
+  }
+
+  for(const auto& facet_entry : cavity_boundary)
+  {
+    if(!facet_entry.second.matched)
+    {
+      fmt::format_to(std::back_inserter(out),
+                     "\n\tFacet {} does not correspond to a cavity boundary face",
+                     facetKeyString(facet_entry.first));
+      valid = false;
+    }
+  }
+
+  SLIC_ERROR_IF(!valid, "Delaunay cavity validation failed:" << fmt::to_string(out));
+}
+
+template <int DIM>
+void Delaunay<DIM>::validateInsertedBall(IndexType new_pt_i,
+                                         const InsertionHelper& insertion_helper) const
+{
+  if(m_insertion_validation_mode == InsertionValidationMode::None)
+  {
+    return;
+  }
+
+  // Ball invariant:
+  // - Every inserted element contains `new_pt_i` and is positively oriented.
+  // - Each cavity boundary facet is covered by exactly one inserted element and
+  //   points to the recorded outside neighbor.
+  // - All remaining facets are internal to the ball and are paired with reciprocal adjacencies.
+  struct BoundaryFacetInfo
+  {
+    IndexType neighbor_idx {INVALID_INDEX};
+    bool matched {false};
+  };
+
+  fmt::memory_buffer out;
+  bool valid = true;
+  std::map<FacetKey, BoundaryFacetInfo> cavity_boundary;
+  std::map<FacetKey, std::vector<FacetRecord>> inserted_faces;
+
+  if(insertion_helper.inserted_elems.size() != insertion_helper.facet_set.size())
+  {
+    fmt::format_to(
+      std::back_inserter(out),
+      "\n\tInserted ball element count {} does not match cavity boundary facet count {}",
+      insertion_helper.inserted_elems.size(),
+      insertion_helper.facet_set.size());
+    valid = false;
+  }
+
+  for(auto facet_idx : insertion_helper.facet_set.positions())
+  {
+    cavity_boundary.insert({makeSortedFaceKey(insertion_helper.fv_rel[facet_idx]),
+                            {insertion_helper.fc_rel[facet_idx][0], false}});
+  }
+
+  for(const IndexType element_idx : insertion_helper.inserted_elems)
+  {
+    if(!m_mesh.isValidElement(element_idx))
+    {
+      fmt::format_to(std::back_inserter(out), "\n\tInserted element {} is invalid", element_idx);
+      valid = false;
+      continue;
+    }
+
+    const auto verts = m_mesh.boundaryVertices(element_idx);
+    if(!slam::is_subset(new_pt_i, verts))
+    {
+      fmt::format_to(std::back_inserter(out),
+                     "\n\tInserted element {} does not contain the new vertex {}",
+                     element_idx,
+                     new_pt_i);
+      valid = false;
+    }
+
+    const double signed_measure = getElementSignedMeasure(element_idx);
+    if(signed_measure <= getElementMeasureTolerance())
+    {
+      fmt::format_to(std::back_inserter(out),
+                     "\n\tInserted element {} has non-positive signed measure {:.17g}",
+                     element_idx,
+                     signed_measure);
+      valid = false;
+    }
+
+    const auto neighbors = m_mesh.adjacentElements(element_idx);
+    for(int facet_idx = 0; facet_idx < VERT_PER_ELEMENT; ++facet_idx)
+    {
+      inserted_faces[m_mesh.getSortedFacetKey(element_idx, facet_idx)].push_back(
+        {element_idx, facet_idx, neighbors[facet_idx]});
+    }
+  }
+
+  for(auto& face_entry : inserted_faces)
+  {
+    auto cavity_it = cavity_boundary.find(face_entry.first);
+    auto& records = face_entry.second;
+    if(cavity_it != cavity_boundary.end())
+    {
+      if(records.size() != 1)
+      {
+        fmt::format_to(std::back_inserter(out),
+                       "\n\tBoundary face {} of the inserted ball is used by {} new elements",
+                       facetKeyString(face_entry.first),
+                       records.size());
+        valid = false;
+        continue;
+      }
+
+      if(records.front().neighbor_idx != cavity_it->second.neighbor_idx)
+      {
+        fmt::format_to(std::back_inserter(out),
+                       "\n\tInserted boundary face {} points to neighbor {} instead of {}",
+                       facetKeyString(face_entry.first),
+                       records.front().neighbor_idx,
+                       cavity_it->second.neighbor_idx);
+        valid = false;
+      }
+
+      cavity_it->second.matched = true;
+    }
+    else if(records.size() != 2 || records[0].neighbor_idx != records[1].element_idx ||
+            records[1].neighbor_idx != records[0].element_idx)
+    {
+      fmt::format_to(std::back_inserter(out),
+                     "\n\tInternal face {} of the inserted ball has inconsistent adjacency",
+                     facetKeyString(face_entry.first));
+      valid = false;
+    }
+  }
+
+  for(const auto& facet_entry : cavity_boundary)
+  {
+    if(!facet_entry.second.matched)
+    {
+      fmt::format_to(std::back_inserter(out),
+                     "\n\tCavity boundary face {} was not covered by the inserted ball",
+                     facetKeyString(facet_entry.first));
+      valid = false;
+    }
+  }
+
+  SLIC_ERROR_IF(!valid, "Delaunay ball validation failed:" << fmt::to_string(out));
+}
 
 //--------------------------------------------------------------------------------
 // Below are 2D and 3D specializations for methods in the Delaunay class
