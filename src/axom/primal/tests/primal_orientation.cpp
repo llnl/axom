@@ -51,14 +51,19 @@ TEST(primal_orientation, orient3D)
       // check orientation of a few offset points
       // Without offset, the point should be on the same plane
       EXPECT_EQ(primal::ON_BOUNDARY, primal::orientation(phys, tri));
+      EXPECT_EQ(primal::orientation(phys, tri), primal::robust::orientation(phys, tri));
 
       // Offset along negative normal should have negative orientation
       EXPECT_EQ(primal::ON_NEGATIVE_SIDE, primal::orientation(phys - normal, tri));
       EXPECT_EQ(primal::ON_NEGATIVE_SIDE, primal::orientation(phys - 0.25 * normal, tri));
+      EXPECT_EQ(primal::orientation(phys - normal, tri),
+                primal::robust::orientation(phys - normal, tri));
 
       // Offset along positive normal should have positive orientation
       EXPECT_EQ(primal::ON_POSITIVE_SIDE, primal::orientation(phys + normal, tri));
       EXPECT_EQ(primal::ON_POSITIVE_SIDE, primal::orientation(phys + 0.25 * normal, tri));
+      EXPECT_EQ(primal::orientation(phys + normal, tri),
+                primal::robust::orientation(phys + normal, tri));
 
       // check that orientation is equivalent to half-space definition
       {
@@ -96,11 +101,15 @@ TEST(primal_orientation, orient3D)
         EXPECT_EQ(primal::ON_BOUNDARY, primal::orientation(phys - smallOff * unitNormal, tri, TOL));
         EXPECT_EQ(primal::ON_NEGATIVE_SIDE,
                   primal::orientation(phys - largeOff * unitNormal, tri, TOL));
+        EXPECT_EQ(primal::orientation(phys - largeOff * unitNormal, tri, TOL),
+                  primal::robust::orientation(phys - largeOff * unitNormal, tri, TOL));
 
         EXPECT_EQ(primal::ON_BOUNDARY, primal::orientation(phys + smallOff * unitNormal, tri, TOL));
 
         EXPECT_EQ(primal::ON_POSITIVE_SIDE,
                   primal::orientation(phys + largeOff * unitNormal, tri, TOL));
+        EXPECT_EQ(primal::orientation(phys + largeOff * unitNormal, tri, TOL),
+                  primal::robust::orientation(phys + largeOff * unitNormal, tri, TOL));
       }
     }
   }
@@ -133,14 +142,19 @@ TEST(primal_orientation, orient2D)
       // check orientation of a few offset points
       // Without offset, the point should be on the same plane
       EXPECT_EQ(primal::ON_BOUNDARY, primal::orientation(phys, seg));
+      EXPECT_EQ(primal::orientation(phys, seg), primal::robust::orientation(phys, seg));
 
       // Offset along negative normal should have negative orientation
       EXPECT_EQ(primal::ON_NEGATIVE_SIDE, primal::orientation(phys - normal, seg));
       EXPECT_EQ(primal::ON_NEGATIVE_SIDE, primal::orientation(phys - 0.25 * normal, seg));
+      EXPECT_EQ(primal::orientation(phys - normal, seg),
+                primal::robust::orientation(phys - normal, seg));
 
       // Offset along positive normal should have positive orientation
       EXPECT_EQ(primal::ON_POSITIVE_SIDE, primal::orientation(phys + normal, seg));
       EXPECT_EQ(primal::ON_POSITIVE_SIDE, primal::orientation(phys + 0.25 * normal, seg));
+      EXPECT_EQ(primal::orientation(phys + normal, seg),
+                primal::robust::orientation(phys + normal, seg));
 
       // check that orientation is equivalent to half-space definition
       {
@@ -182,6 +196,8 @@ TEST(primal_orientation, orient2D)
         EXPECT_EQ(primal::ON_BOUNDARY, primal::orientation(phys + smallOff * unitNormal, seg, TOL));
         EXPECT_EQ(primal::ON_POSITIVE_SIDE,
                   primal::orientation(phys + largeOff * unitNormal, seg, TOL));
+        EXPECT_EQ(primal::orientation(phys + largeOff * unitNormal, seg, TOL),
+                  primal::robust::orientation(phys + largeOff * unitNormal, seg, TOL));
       }
     }
   }

@@ -24,12 +24,56 @@
 #include "axom/primal/geometry/Triangle.hpp"
 #include "axom/primal/geometry/OrientationResult.hpp"
 
+#include "axom/primal/operators/detail/predicate_determinants.hpp"
+
 #include "axom/slic/interface/slic.hpp"
 
 namespace axom
 {
 namespace primal
 {
+namespace robust
+{
+/*!
+ * \brief Computes the orientation of a point \a p with respect to an oriented triangle \a tri.
+ *
+ * \return ON_BOUNDARY if within tolerance, ON_POSITIVE_SIDE / ON_NEGATIVE_SIDE otherwise.
+ */
+template <typename T>
+inline int orientation(const Point<T, 3>& p, const Triangle<T, 3>& tri, double EPS = 1e-9)
+{
+  const double det = detail::orientation_determinant(p, tri[0], tri[1], tri[2]);
+
+  if(axom::utilities::isNearlyEqual(det, 0., EPS))
+  {
+    return primal::ON_BOUNDARY;
+  }
+
+  // Preserve existing convention: det < 0 implies ON_POSITIVE_SIDE.
+  return det < 0. ? primal::ON_POSITIVE_SIDE : primal::ON_NEGATIVE_SIDE;
+}
+
+/*!
+ * \brief Computes the orientation of a point \a p with respect to an oriented segment \a seg.
+ *
+ * \return ON_BOUNDARY if within tolerance, ON_POSITIVE_SIDE / ON_NEGATIVE_SIDE otherwise.
+ */
+template <typename T>
+inline int orientation(const Point<T, 2>& p, const Segment<T, 2>& seg, double EPS = 1e-9)
+{
+  const double det = detail::orientation_determinant(p, seg[0], seg[1]);
+
+  if(axom::utilities::isNearlyEqual(det, 0., EPS))
+  {
+    return primal::ON_BOUNDARY;
+  }
+
+  // Preserve existing convention: det < 0 implies ON_POSITIVE_SIDE.
+  return det < 0. ? primal::ON_POSITIVE_SIDE : primal::ON_NEGATIVE_SIDE;
+}
+
+}  // namespace robust
+
 /*!
  * \brief Computes the orientation of a point \a p with respect to an
  *  oriented triangle \a tri
@@ -51,22 +95,7 @@ namespace primal
 template <typename T>
 inline int orientation(const Point<T, 3>& p, const Triangle<T, 3>& tri, double EPS = 1e-9)
 {
-  const Vector<T, 3> A(p, tri[0]);
-  const Vector<T, 3> B(p, tri[1]);
-  const Vector<T, 3> C(p, tri[2]);
-
-  // clang-format off
-  double det = numerics::determinant( A[0], A[1], A[2],
-                                      B[0], B[1], B[2],
-                                      C[0], C[1], C[2]);
-  // clang-format on
-
-  if(axom::utilities::isNearlyEqual(det, 0., EPS))
-  {
-    return primal::ON_BOUNDARY;
-  }
-
-  return det < 0. ? primal::ON_POSITIVE_SIDE : primal::ON_NEGATIVE_SIDE;
+  return robust::orientation(p, tri, EPS);
 }
 
 /*!
@@ -90,20 +119,7 @@ inline int orientation(const Point<T, 3>& p, const Triangle<T, 3>& tri, double E
 template <typename T>
 inline int orientation(const Point<T, 2>& p, const Segment<T, 2>& seg, double EPS = 1e-9)
 {
-  const Vector<T, 2> A(p, seg[0]);
-  const Vector<T, 2> B(p, seg[1]);
-
-  // clang-format off
-  double det = numerics::determinant( A[0], A[1],
-                                      B[0], B[1]);
-  // clang-format on
-
-  if(axom::utilities::isNearlyEqual(det, 0., EPS))
-  {
-    return primal::ON_BOUNDARY;
-  }
-
-  return det < 0. ? primal::ON_POSITIVE_SIDE : primal::ON_NEGATIVE_SIDE;
+  return robust::orientation(p, seg, EPS);
 }
 
 }  // namespace primal
