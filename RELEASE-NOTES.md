@@ -36,6 +36,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: the `ArrayView` class was modified so it defers initializing an internal
   allocator id via Umpire, if present. This prevents excessive calls to Umpire,
   which are not needed in all use cases.
+- Quest: A compilation problem with `-DAXOM_NO_INT64_T=1` was fixed.
 
 ### Removed
 

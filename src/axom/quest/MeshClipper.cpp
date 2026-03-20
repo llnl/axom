@@ -284,19 +284,20 @@ conduit::Node MeshClipper::getGlobalClippingStats() const
 
 #if defined(AXOM_USE_MPI)
   // Do sum and max reductions.
-  axom::Array<std::int64_t> sums(0, sumNode.number_of_children());
+  axom::Array<axom::IndexType> sums(0, sumNode.number_of_children());
   for(int i = 0; i < sumNode.number_of_children(); ++i)
   {
-    sums.push_back(locNode.child(i).as_int64());
+    const axom::IndexType value = locNode.child(i).value();
+    sums.push_back(value);
   }
-  axom::Array<std::int64_t> maxs(sums);
+  axom::Array<axom::IndexType> maxs(sums);
   globalReduce(maxs, MPI_MAX);
   globalReduce(sums, MPI_SUM);
 
   for(int i = 0; i < sumNode.number_of_children(); ++i)
   {
-    *maxNode.child(i).as_int64_ptr() = maxs[i];
-    *sumNode.child(i).as_int64_ptr() = sums[i];
+    maxNode.child(i).set(maxs[i]);
+    sumNode.child(i).set(sums[i]);
   }
 #endif
 
