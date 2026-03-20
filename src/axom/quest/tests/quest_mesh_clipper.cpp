@@ -654,6 +654,7 @@ axom::klee::Geometry createGeom_CupMesh(sidre::DataStore& ds, const std::string&
   std::string proeFile = axom::utilities::filesystem::joinPath(AXOM_DATA_DIR, "quest/cup.proe");
   reader.setFileName(proeFile);
   int readStatus = reader.read();
+  AXOM_UNUSED_VAR(readStatus);
   SLIC_ASSERT(readStatus == 0);
   reader.getMesh(&tetMesh);
   const double extraScale = 1 / sqrt(3.0);  // to ensure tetMesh remains inside mesh when rotated.
