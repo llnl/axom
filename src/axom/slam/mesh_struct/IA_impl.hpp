@@ -24,6 +24,7 @@
 #include <map>
 #include <array>
 #include <algorithm>
+#include <memory>
 
 namespace axom
 {
@@ -596,7 +597,8 @@ void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
   };
 
   const IndexType totalVerts = elements().size();
-  std::vector<FaceLinkMapping> mapping;
+  static thread_local std::vector<FaceLinkMapping> mapping;
+  mapping.clear();
   mapping.reserve(TDIM * new_elements.size());
 
   // helper lambda for determining if a face on one element (given by boundary verts nbr_verts)
@@ -704,8 +706,8 @@ void IAMesh<TDIM, SDIM, P>::compact()
   constexpr IndexType INVALID_ELEMENT = ElementSet::INVALID_ENTRY;
 
   //Construct an array that maps original set indices to new compacted indices
-  IndexArray vertex_set_map(vertex_set.size(), INVALID_VERTEX);
-  IndexArray element_set_map(element_set.size(), INVALID_ELEMENT);
+  std::unique_ptr<IndexType[]> vertex_set_map(new IndexType[vertex_set.size()]);
+  std::unique_ptr<IndexType[]> element_set_map(new IndexType[element_set.size()]);
 
   int v_count = 0;
   for(auto v : vertex_set.positions())
@@ -728,15 +730,15 @@ void IAMesh<TDIM, SDIM, P>::compact()
   //update the EV boundary relation
   for(auto e : element_set.positions())
   {
-    const auto new_e = element_set_map[e];
-    if(new_e != INVALID_ELEMENT)
+    if(element_set.isValidEntry(e))
     {
+      const auto new_e = element_set_map[e];
       const auto ev_old = ev_rel[e];
       auto ev_new = ev_rel[new_e];
       for(auto i : ev_new.positions())
       {
         const auto old = ev_old[i];
-        ev_new[i] = (old != INVALID_VERTEX) ? vertex_set_map[old] : INVALID_VERTEX;
+        ev_new[i] = vertex_set.isValidEntry(old) ? vertex_set_map[old] : INVALID_VERTEX;
       }
     }
   }
@@ -744,27 +746,27 @@ void IAMesh<TDIM, SDIM, P>::compact()
   //update the VE coboundary relation
   for(auto v : vertex_set.positions())
   {
-    const auto new_v = vertex_set_map[v];
-    if(new_v != INVALID_VERTEX)
+    if(vertex_set.isValidEntry(v))
     {
+      const auto new_v = vertex_set_map[v];
       // cardinality of VE relation is 1
       const auto old = ve_rel[v][0];
-      ve_rel[new_v][0] = (old != INVALID_ELEMENT) ? element_set_map[old] : INVALID_ELEMENT;
+      ve_rel[new_v][0] = element_set.isValidEntry(old) ? element_set_map[old] : INVALID_ELEMENT;
     }
   }
 
   //update the EE adjacency relation
   for(auto e : element_set.positions())
   {
-    int new_e = element_set_map[e];
-    if(new_e != INVALID_ELEMENT)
+    if(element_set.isValidEntry(e))
     {
+      const auto new_e = element_set_map[e];
       const auto ee_old = ee_rel[e];
       auto ee_new = ee_rel[new_e];
       for(auto i : ee_new.positions())
       {
         const auto old = ee_old[i];
-        ee_new[i] = (old != INVALID_ELEMENT) ? element_set_map[old] : INVALID_ELEMENT;
+        ee_new[i] = element_set.isValidEntry(old) ? element_set_map[old] : INVALID_ELEMENT;
       }
     }
   }
@@ -772,9 +774,9 @@ void IAMesh<TDIM, SDIM, P>::compact()
   //Update the coordinate positions map
   for(auto v : vertex_set.positions())
   {
-    int new_entry_index = vertex_set_map[v];
-    if(new_entry_index != INVALID_VERTEX)
+    if(vertex_set.isValidEntry(v))
     {
+      const IndexType new_entry_index = vertex_set_map[v];
       vcoord_map[new_entry_index] = vcoord_map[v];
     }
   }
@@ -787,6 +789,22 @@ void IAMesh<TDIM, SDIM, P>::compact()
   ve_rel.updateSizes();
   ee_rel.updateSizes();
   vcoord_map.resize(v_count);
+}
+
+template <int TDIM, int SDIM, typename P>
+void IAMesh<TDIM, SDIM, P>::reserveVertices(IndexType vertex_capacity)
+{
+  vertex_set.reserve(vertex_capacity);
+  ve_rel.reserve(vertex_capacity);
+  vcoord_map.reserve(vertex_capacity);
+}
+
+template <int TDIM, int SDIM, typename P>
+void IAMesh<TDIM, SDIM, P>::reserveElements(IndexType element_capacity)
+{
+  element_set.reserve(element_capacity);
+  ev_rel.reserve(element_capacity);
+  ee_rel.reserve(element_capacity);
 }
 
 template <int TDIM, int SDIM, typename P>
