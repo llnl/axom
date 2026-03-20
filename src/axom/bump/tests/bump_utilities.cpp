@@ -59,19 +59,19 @@ struct test_conduit_allocate
   }
 };
 
-TEST(bump_blueprint_utilities, allocate_seq) { test_conduit_allocate<seq_exec>::test(); }
+TEST(bump_utilities, allocate_seq) { test_conduit_allocate<seq_exec>::test(); }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(bump_blueprint_utilities, allocate_omp) { test_conduit_allocate<omp_exec>::test(); }
+TEST(bump_utilities, allocate_omp) { test_conduit_allocate<omp_exec>::test(); }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(bump_blueprint_utilities, allocate_cuda) { test_conduit_allocate<cuda_exec>::test(); }
+TEST(bump_utilities, allocate_cuda) { test_conduit_allocate<cuda_exec>::test(); }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(bump_blueprint_utilities, allocate_hip) { test_conduit_allocate<hip_exec>::test(); }
+TEST(bump_utilities, allocate_hip) { test_conduit_allocate<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
-TEST(bump_blueprint_utilities, make_array_view_interleaved_seq)
+TEST(bump_utilities, make_array_view_interleaved_seq)
 {
   constexpr conduit::index_t n = 4;
   axom::Array<double> interleaved {{-1., 10., -2., 20., -3., 30., -4., 40., -5.}};
@@ -153,16 +153,16 @@ struct test_copy_braid
   }
 };
 
-TEST(bump_blueprint_utilities, copy_seq) { test_copy_braid<seq_exec>::test(); }
+TEST(bump_utilities, copy_seq) { test_copy_braid<seq_exec>::test(); }
 
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(bump_blueprint_utilities, copy_omp) { test_copy_braid<omp_exec>::test(); }
+TEST(bump_utilities, copy_omp) { test_copy_braid<omp_exec>::test(); }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(bump_blueprint_utilities, copy_cuda) { test_copy_braid<cuda_exec>::test(); }
+TEST(bump_utilities, copy_cuda) { test_copy_braid<cuda_exec>::test(); }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(bump_blueprint_utilities, copy_hip) { test_copy_braid<hip_exec>::test(); }
+TEST(bump_utilities, copy_hip) { test_copy_braid<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
