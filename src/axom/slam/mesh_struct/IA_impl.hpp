@@ -14,6 +14,7 @@
  */
 
 #include "axom/core/Macros.hpp"
+#include "axom/core/StaticArray.hpp"
 #include "axom/slam/policies/SizePolicies.hpp"
 #include "axom/slam/ModularInt.hpp"
 
@@ -21,6 +22,8 @@
 
 #include <vector>
 #include <map>
+#include <array>
+#include <algorithm>
 
 namespace axom
 {
@@ -892,6 +895,183 @@ bool IAMesh<TDIM, SDIM, P>::isValid(bool verboseOutput) const
   }
 
   return bValid;
+}
+
+template <int TDIM, int SDIM, typename P>
+typename IAMesh<TDIM, SDIM, P>::FacetKey IAMesh<TDIM, SDIM, P>::getSortedFacetKey(
+  IndexType element_idx,
+  IndexType facet_idx) const
+{
+  FacetKey key {};
+  if(!element_set.isValidEntry(element_idx))
+  {
+    return key;
+  }
+
+  SLIC_ASSERT_MSG(0 <= facet_idx && facet_idx < VERTS_PER_ELEM, "Face index is invalid.");
+
+  const auto verts = ev_rel[element_idx];
+  ModularVertexIndex mod_face(facet_idx);
+  for(int i = 0; i < VERTS_PER_ELEM - 1; ++i)
+  {
+    key[i] = verts[mod_face + i];
+  }
+
+  std::sort(key.begin(), key.end());
+  return key;
+}
+
+template <int TDIM, int SDIM, typename P>
+bool IAMesh<TDIM, SDIM, P>::isConforming(bool verboseOutput) const
+{
+  fmt::memory_buffer out;
+
+  bool valid = isValid(verboseOutput);
+
+  struct FacetBucket
+  {
+    axom::StaticArray<FacetRecord, 2> records;
+    int incident_count {0};
+  };
+
+  std::map<FacetKey, FacetBucket> facet_records;
+
+  auto facetKeyString = [](const FacetKey& facet_key) {
+    return fmt::format("[{}]", fmt::join(facet_key, ", "));
+  };
+
+  for(auto element_idx : elements().positions())
+  {
+    if(!isValidElement(element_idx))
+    {
+      continue;
+    }
+
+    // check that element vertices are all valid and non-repeating
+    const auto verts = boundaryVertices(element_idx);
+    for(int i = 0; i < VERTS_PER_ELEM; ++i)
+    {
+      if(!isValidVertex(verts[i]))
+      {
+        if(verboseOutput)
+        {
+          fmt::format_to(std::back_inserter(out),
+                         "\n\tElement {} references invalid vertex {}",
+                         element_idx,
+                         verts[i]);
+        }
+        valid = false;
+      }
+
+      for(int j = i + 1; j < VERTS_PER_ELEM; ++j)
+      {
+        if(verts[i] == verts[j])
+        {
+          if(verboseOutput)
+          {
+            fmt::format_to(std::back_inserter(out),
+                           "\n\tElement {} repeats vertex {}",
+                           element_idx,
+                           verts[i]);
+          }
+          valid = false;
+        }
+      }
+    }
+
+    // build facet-element co-boundary in facet_records
+    const auto neighbors = adjacentElements(element_idx);
+    for(int facet_idx = 0; facet_idx < VERTS_PER_ELEM; ++facet_idx)
+    {
+      const FacetKey facet_key = getSortedFacetKey(element_idx, facet_idx);
+      FacetBucket& bucket = facet_records[facet_key];
+      bucket.incident_count++;
+      if(bucket.incident_count <= 2)
+      {
+        bucket.records.push_back({element_idx, facet_idx, neighbors[facet_idx]});
+      }
+      else
+      {
+        if(verboseOutput && bucket.incident_count == 3)
+        {
+          fmt::format_to(std::back_inserter(out),
+                         "\n\tFacet {} is non-manifold (>=3 incident elements); "
+                         "first two are ({}:{}) and ({}:{})",
+                         facetKeyString(facet_key),
+                         bucket.records[0].element_idx,
+                         bucket.records[0].facet_idx,
+                         bucket.records[1].element_idx,
+                         bucket.records[1].facet_idx);
+        }
+        valid = false;
+      }
+    }
+  }
+
+  // check for valid facet-coboundary relation
+  // each facet is referenced once if it is on mesh boundary;
+  // and twice otherwise, with consistent adjacencies
+  for(const auto& [facet_key, bucket] : facet_records)
+  {
+    if(bucket.incident_count == 1)
+    {
+      const FacetRecord& record = bucket.records[0];
+      if(isValidElement(record.neighbor_idx))
+      {
+        if(verboseOutput)
+        {
+          fmt::format_to(std::back_inserter(out),
+                         "\n\tBoundary face {} on element {} facet {} points to neighbor {}",
+                         facetKeyString(facet_key),
+                         record.element_idx,
+                         record.facet_idx,
+                         record.neighbor_idx);
+        }
+        valid = false;
+      }
+    }
+    else if(bucket.incident_count == 2)
+    {
+      const FacetRecord& lhs = bucket.records[0];
+      const FacetRecord& rhs = bucket.records[1];
+      if(lhs.element_idx == rhs.element_idx || lhs.neighbor_idx != rhs.element_idx ||
+         rhs.neighbor_idx != lhs.element_idx)
+      {
+        if(verboseOutput)
+        {
+          fmt::format_to(std::back_inserter(out),
+                         "\n\tInterior facet {} has inconsistent adjacency: "
+                         "({}:{}) -> {}, ({}:{}) -> {}",
+                         facetKeyString(facet_key),
+                         lhs.element_idx,
+                         lhs.facet_idx,
+                         lhs.neighbor_idx,
+                         rhs.element_idx,
+                         rhs.facet_idx,
+                         rhs.neighbor_idx);
+        }
+        valid = false;
+      }
+    }
+    else
+    {
+      // bucket.incident_count > 2 was already reported, if requested
+    }
+  }
+
+  if(verboseOutput)
+  {
+    if(valid)
+    {
+      SLIC_INFO("IA mesh was conforming");
+    }
+    else
+    {
+      SLIC_INFO("IA mesh was not conforming.\n Summary: " << fmt::to_string(out));
+    }
+  }
+
+  return valid;
 }
 
 }  // end namespace slam
