@@ -283,11 +283,11 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     for c in _AXOM_COMPONENTS:
         conflicts(f"components={c}", when="components=none")
 
-    requires("components=slic,spin,primal", when="components=bump")
+    requires("components=sidre,slic,spin,primal", when="components=bump")
     requires("components=sidre,slic,primal", when="components=inlet")
     requires("components=sidre,slic,inlet,primal", when="components=klee")
     requires("components=slic,slam", when="components=mint")
-    requires("components=bump,slic,slam,primal", when="components=mir")
+    requires("components=bump,sidre,slic,slam,primal", when="components=mir")
     requires("components=slic,slam", when="components=multimat")
     requires("components=slic", when="components=primal")
     requires("components=slic,slam,primal,mint,spin", when="components=quest")

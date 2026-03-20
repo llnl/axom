@@ -59,6 +59,34 @@ void test_matset_traversal(MatsetView matsetView)
                               (axom::utilities::abs(vf1 - vf2) < eps) ? "pass" : "fail"));
 }
 
+//--------------------------------------------------------------------------------
+template <typename ExecSpace>
+int installAllocator(size_t initialPoolSizeBytes)
+{
+  int allocator_id = axom::execution_space<ExecSpace>::allocatorID();
+#if defined(AXOM_USE_UMPIRE)
+  auto &rm = umpire::ResourceManager::getInstance();
+  umpire::Allocator allocator = rm.getAllocator(allocator_id);
+
+  const std::string newName = allocator.getName() + "_POOL";
+  SLIC_INFO(
+    axom::fmt::format("Creating pool allocator {} with {} bytes.", newName, initialPoolSizeBytes));
+
+  // Create a pool on top of the allocator.
+  auto pooled = rm.makeAllocator<umpire::strategy::QuickPool>(
+    newName,
+    allocator,
+    initialPoolSizeBytes,  // first_minimum_pool_allocation_size
+    1 << 20,               // next_minimum_pool_allocation_size = 1 MiB chunks
+    256                    // alignment
+  );
+
+  allocator_id = pooled.getId();
+#endif
+  return allocator_id;
+}
+
+//--------------------------------------------------------------------------------
 template <typename ExecSpace, int NDIMS>
 int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit::Node &hostResult)
 {
@@ -96,10 +124,20 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
     return -4;
   }
 
+  // See whether we were directed to make a memory pool.
+  int allocator_id = axom::execution_space<ExecSpace>::allocatorID();
+  if(options.has_path("pool_size"))
+  {
+    const auto pool_size = options["pool_size"].to_uint64();
+    allocator_id = installAllocator<ExecSpace>(pool_size);
+    SLIC_INFO(axom::fmt::format("Using custom allocator {}", allocator_id));
+  }
+
   conduit::Node deviceMesh;
   {
     AXOM_ANNOTATE_SCOPE("host->device");
-    utils::copy<ExecSpace>(deviceMesh, hostMesh);
+    // Pass allocator_id since it might be custom for device.
+    utils::copy<ExecSpace>(deviceMesh, hostMesh, allocator_id);
   }
 
   const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
@@ -126,6 +164,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
 
       using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
       MIR m(topologyView, coordsetView, matsetView);
+      m.setAllocatorID(allocator_id);
       m.execute(deviceMesh, options, deviceResult);
       // _equiz_mir_end
     }
@@ -145,6 +184,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
 
       using MIR = axom::mir::ElviraAlgorithm<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>;
       MIR m(topologyView, coordsetView, matsetView);
+      m.setAllocatorID(allocator_id);
       m.execute(deviceMesh, options, deviceResult);
     }
     else if(method == "traversal")
@@ -162,6 +202,27 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
   {
     AXOM_ANNOTATE_SCOPE("device->host");
     utils::copy<axom::SEQ_EXEC>(hostResult, deviceResult);
+  }
+
+  if(options.has_path("pool_size"))
+  {
+#if defined(AXOM_USE_UMPIRE)
+    try
+    {
+      auto &rm = umpire::ResourceManager::getInstance();
+      umpire::Allocator allocator = rm.getAllocator(allocator_id);
+      SLIC_INFO("Allocator Information:");
+      SLIC_INFO(axom::fmt::format("\tname: {}", allocator.getName()));
+      SLIC_INFO(axom::fmt::format("\thighwatermark: {}", allocator.getHighWatermark()));
+      SLIC_INFO(axom::fmt::format("\tcurrentsize: {}", allocator.getCurrentSize()));
+      SLIC_INFO(axom::fmt::format("\tactualsize: {}", allocator.getActualSize()));
+      SLIC_INFO(axom::fmt::format("\tallocationcount: {}", allocator.getAllocationCount()));
+    }
+    catch(...)
+    {
+      SLIC_ERROR("Allocator information could not be retrieved.");
+    }
+#endif
   }
 
   return 0;

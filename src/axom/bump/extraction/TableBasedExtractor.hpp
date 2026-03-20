@@ -24,6 +24,7 @@
 #include "axom/bump/views/Shapes.hpp"
 #include "axom/bump/views/view_traits.hpp"
 #include "axom/slic.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 #include <conduit/conduit.hpp>
 #include <conduit/conduit_blueprint_mesh_utils.hpp>
@@ -295,6 +296,7 @@ struct FragmentOperations
    * \param[inout] offsetsView The view that wraps offsets (can change on output).
    * \param[inout] shapesView The view that wraps shapes (can change on output).
    * \param[inout] colorView The view that wraps colors (can change on output).
+   * \param allocator_id The allocator to use.
    */
   static void filterZeroSizes(FragmentData &AXOM_UNUSED_PARAM(fragmentData),
                               conduit::Node &AXOM_UNUSED_PARAM(n_sizes),
@@ -304,7 +306,8 @@ struct FragmentOperations
                               axom::ArrayView<ConnectivityType> &AXOM_UNUSED_PARAM(sizesView),
                               axom::ArrayView<ConnectivityType> &AXOM_UNUSED_PARAM(offsetsView),
                               axom::ArrayView<ConnectivityType> &AXOM_UNUSED_PARAM(shapesView),
-                              axom::ArrayView<int> &AXOM_UNUSED_PARAM(colorView))
+                              axom::ArrayView<int> &AXOM_UNUSED_PARAM(colorView),
+                              int AXOM_UNUSED_PARAM(allocator_id))
   { }
 
   /*!
@@ -345,14 +348,13 @@ DataView filter(conduit::Node &n_src,
                 DataView srcView,
                 axom::IndexType newSize,
                 axom::ArrayView<MaskType> maskView,
-                axom::ArrayView<int> maskOffsetsView)
+                axom::ArrayView<int> maskOffsetsView,
+                int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
 {
   using value_type = typename DataView::value_type;
   namespace utils = axom::bump::utilities;
 
-  // Get the ID of a Conduit allocator that will allocate through Axom with device allocator allocatorID.
-  utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-  const int conduitAllocatorID = c2a.getConduitAllocatorID();
+  const auto conduitAllocatorID = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocator_id);
 
   conduit::Node n_values;
   n_values.set_allocator(conduitAllocatorID);
@@ -464,6 +466,7 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
    * \param[inout] offsetsView The view that wraps offsets (can change on output).
    * \param[inout] shapesView The view that wraps shapes (can change on output).
    * \param[inout] colorView The view that wraps colors (can change on output).
+   * \param allocator_id The allocator to use.
    */
   static void filterZeroSizes(FragmentData &fragmentData,
                               conduit::Node &n_sizes,
@@ -473,7 +476,8 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
                               axom::ArrayView<ConnectivityType> &sizesView,
                               axom::ArrayView<ConnectivityType> &offsetsView,
                               axom::ArrayView<ConnectivityType> &shapesView,
-                              axom::ArrayView<int> &colorView)
+                              axom::ArrayView<int> &colorView,
+                              int allocator_id)
   {
     AXOM_ANNOTATE_SCOPE("filterZeroSizes");
     using MaskType = typename axom::bump::utilities::mask_traits<ExecSpace, int>::type;
@@ -485,8 +489,8 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
 
     // Use sizesView to make a mask that has 1's where size > 0.
     axom::IndexType nz = fragmentData.m_finalNumZones;
-    axom::Array<MaskType> mask(nz, nz, axom::execution_space<ExecSpace>::allocatorID());
-    axom::Array<int> maskOffsets(nz, nz, axom::execution_space<ExecSpace>::allocatorID());
+    axom::Array<MaskType> mask(nz, nz, allocator_id);
+    axom::Array<int> maskOffsets(nz, nz, allocator_id);
     auto maskView = mask.view();
     auto maskOffsetsView = maskOffsets.view();
     axom::ReduceSum<ExecSpace, axom::IndexType> mask_reduce(0);
@@ -508,22 +512,26 @@ struct FragmentOperations<2, ExecSpace, ConnectivityType>
                                                                      sizesView,
                                                                      filteredZoneCount,
                                                                      maskView,
-                                                                     maskOffsetsView);
+                                                                     maskOffsetsView,
+                                                                     allocator_id);
     offsetsView = filter<ExecSpace, axom::ArrayView<ConnectivityType>>(n_offsets,
                                                                        offsetsView,
                                                                        filteredZoneCount,
                                                                        maskView,
-                                                                       maskOffsetsView);
+                                                                       maskOffsetsView,
+                                                                       allocator_id);
     shapesView = filter<ExecSpace, axom::ArrayView<ConnectivityType>>(n_shapes,
                                                                       shapesView,
                                                                       filteredZoneCount,
                                                                       maskView,
-                                                                      maskOffsetsView);
+                                                                      maskOffsetsView,
+                                                                      allocator_id);
     colorView = filter<ExecSpace, axom::ArrayView<int>>(n_color,
                                                         colorView,
                                                         filteredZoneCount,
                                                         maskView,
-                                                        maskOffsetsView);
+                                                        maskOffsetsView,
+                                                        allocator_id);
 
     // Record the filtered size.
     fragmentData.m_finalNumZones = filteredZoneCount;
@@ -614,10 +622,12 @@ struct StridedStructuredFields
    * \param n_field The field being sliced.
    * \param n_newField The node that will contain the new field.
    */
-  static bool sliceElementField(const TopologyView &AXOM_UNUSED_PARAM(topologyView),
-                                const axom::bump::SliceData &AXOM_UNUSED_PARAM(slice),
-                                const conduit::Node &AXOM_UNUSED_PARAM(n_field),
-                                conduit::Node &AXOM_UNUSED_PARAM(n_newField))
+  static bool sliceElementField(
+    const TopologyView &AXOM_UNUSED_PARAM(topologyView),
+    const axom::bump::SliceData &AXOM_UNUSED_PARAM(slice),
+    const conduit::Node &AXOM_UNUSED_PARAM(n_field),
+    conduit::Node &AXOM_UNUSED_PARAM(n_newField),
+    int AXOM_UNUSED_PARAM(allocator_id) = axom::execution_space<ExecSpace>::allocatorID())
   {
     return false;
   }
@@ -630,10 +640,12 @@ struct StridedStructuredFields
    * \param n_field The field being sliced.
    * \param n_newField The node that will contain the new field.
    */
-  static bool blendVertexField(const TopologyView &AXOM_UNUSED_PARAM(topologyView),
-                               const axom::bump::BlendData &AXOM_UNUSED_PARAM(blend),
-                               const conduit::Node &AXOM_UNUSED_PARAM(n_field),
-                               conduit::Node &AXOM_UNUSED_PARAM(n_newField))
+  static bool blendVertexField(
+    const TopologyView &AXOM_UNUSED_PARAM(topologyView),
+    const axom::bump::BlendData &AXOM_UNUSED_PARAM(blend),
+    const conduit::Node &AXOM_UNUSED_PARAM(n_field),
+    conduit::Node &AXOM_UNUSED_PARAM(n_newField),
+    int AXOM_UNUSED_PARAM(allocator_id) = axom::execution_space<ExecSpace>::allocatorID())
   {
     return false;
   }
@@ -663,7 +675,8 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
   static bool sliceElementField(const TopologyView &topologyView,
                                 const axom::bump::SliceData &slice,
                                 const conduit::Node &n_field,
-                                conduit::Node &n_newField)
+                                conduit::Node &n_newField,
+                                int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
     bool handled = false;
     if(n_field.has_path("offsets") && n_field.has_path("strides"))
@@ -675,6 +688,7 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
       indexing.update(n_field);
 
       axom::bump::FieldSlicer<ExecSpace, IndexingPolicy> s(indexing);
+      s.setAllocatorID(allocator_id);
       s.execute(slice, n_field, n_newField);
       handled = true;
     }
@@ -692,7 +706,8 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
   static bool blendVertexField(const TopologyView &topologyView,
                                const axom::bump::BlendData &blend,
                                const conduit::Node &n_field,
-                               conduit::Node &n_newField)
+                               conduit::Node &n_newField,
+                               int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
     bool handled = false;
     if(n_field.has_path("offsets") && n_field.has_path("strides"))
@@ -714,6 +729,7 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
         // Blend the field.
         axom::bump::FieldBlender<ExecSpace, axom::bump::SelectSubsetPolicy, IndexingPolicy> b(
           indexing);
+        b.setAllocatorID(allocator_id);
         b.execute(blend, n_field, n_newField);
         handled = true;
       }
@@ -779,9 +795,31 @@ public:
     , m_intersector(intersector)
     , m_tableManager()
     , m_naming()
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   {
-    m_tableManager.setAllocatorID(axom::execution_space<ExecSpace>::allocatorID());
+    m_tableManager.setAllocatorID(m_allocator_id);
   }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+    m_tableManager.setAllocatorID(allocator_id);
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /*!
    * \brief Allow the user to pass in a NamingPolicy to use when making blend group names.
@@ -834,7 +872,7 @@ public:
                conduit::Node &n_newFields)
   {
     namespace utils = axom::bump::utilities;
-    const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const auto allocatorID = getAllocatorID();
     AXOM_ANNOTATE_SCOPE("TableBasedExtractor");
 
     const std::string newTopologyName = n_newTopo.name();
@@ -845,7 +883,7 @@ public:
 
     // Make the selected zones and get the size.
     ExtractorOptions opts(n_options);
-    SelectedZones selectedZones(m_topologyView.numberOfZones(), n_options);
+    SelectedZones selectedZones(m_topologyView.numberOfZones(), n_options, "selectedZones", allocatorID);
     const auto nzones = selectedZones.view().size();
 
     // Give the intersector a chance to further initialize.
@@ -932,6 +970,7 @@ public:
 
     // Make an object to help manage building the blend groups.
     BlendGroupBuilderType builder;
+    builder.setAllocatorID(allocatorID);
     builder.setNamingPolicy(m_naming.view());
     builder.setBlendGroupSizes(blendGroups.view(), blendGroupsLen.view());
 
@@ -989,14 +1028,23 @@ public:
       if constexpr(std::is_same_v<ExecSpace, axom::OMP_EXEC>)
       {
         // The serial version Unique specialization is faster
-        axom::bump::Unique<axom::SEQ_EXEC, KeyType>::execute(builder.blendNames(), uNames, uIndices);
+        axom::bump::Unique<axom::SEQ_EXEC, KeyType>::execute(builder.blendNames(),
+                                                             uNames,
+                                                             uIndices,
+                                                             allocatorID);
       }
       else
       {
-        axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(), uNames, uIndices);
+        axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(),
+                                                        uNames,
+                                                        uIndices,
+                                                        allocatorID);
       }
 #else
-      axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(), uNames, uIndices);
+      axom::bump::Unique<ExecSpace, KeyType>::execute(builder.blendNames(),
+                                                      uNames,
+                                                      uIndices,
+                                                      allocatorID);
 #endif
       builder.setUniqueNames(uNames.view(), uIndices.view());
 
@@ -1429,7 +1477,7 @@ private:
   void createNodeMaps(NodeData nodeData) const
   {
     AXOM_ANNOTATE_SCOPE("createNodeMaps");
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = getAllocatorID();
 
     // Make offsets into a compact array.
     const auto nnodes = nodeData.m_nodeUsedView.size();
@@ -1660,19 +1708,16 @@ private:
     n_newTopo["type"] = "unstructured";
     n_newTopo["coordset"] = n_newCoordset.name();
 
-    // Get the ID of a Conduit allocator that will allocate through Axom with device allocator allocatorID.
-    // _bump_utilities_c2a_begin
     namespace utils = axom::bump::utilities;
     constexpr auto connTypeID = utils::cpp2conduit<ConnectivityType>::id;
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-    const int conduitAllocatorID = c2a.getConduitAllocatorID();
+    const auto conduitAllocatorID =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     // Allocate connectivity.
     conduit::Node &n_conn = n_newTopo["elements/connectivity"];
     n_conn.set_allocator(conduitAllocatorID);
     n_conn.set(conduit::DataType(connTypeID, fragmentData.m_finalConnSize));
     auto connView = utils::make_array_view<ConnectivityType>(n_conn);
-    // _bump_utilities_c2a_end
 
     // Allocate shapes.
     conduit::Node &n_shapes = n_newTopo["elements/shapes"];
@@ -1914,7 +1959,8 @@ private:
                                    sizesView,
                                    offsetsView,
                                    shapesView,
-                                   colorView);
+                                   colorView,
+                                   getAllocatorID());
     }
 #endif
 
@@ -2020,7 +2066,7 @@ private:
     AXOM_ANNOTATE_SCOPE("makeCoordset");
     // _bump_utilities_coordsetblender_begin
     axom::bump::CoordsetBlender<ExecSpace, CoordsetView, axom::bump::SelectSubsetPolicy> cb;
-    cb.execute(blend, m_coordsetView, n_coordset, n_newCoordset);
+    cb.execute(blend, m_coordsetView, n_coordset, n_newCoordset, getAllocatorID());
     // _bump_utilities_coordsetblender_end
   }
 
@@ -2099,11 +2145,13 @@ private:
           m_topologyView,
           slice,
           n_field,
-          n_out_field);
+          n_out_field,
+          getAllocatorID());
 
       if(!handled)
       {
         axom::bump::FieldSlicer<FieldExecSpace> s;
+        s.setAllocatorID(getAllocatorID());
         s.execute(slice, n_field, n_out_field);
       }
 
@@ -2117,12 +2165,14 @@ private:
           m_topologyView,
           blend,
           n_field,
-          n_out_field);
+          n_out_field,
+          getAllocatorID());
 
       if(!handled)
       {
         // Blend the field normally.
         axom::bump::FieldBlender<FieldExecSpace, axom::bump::SelectSubsetPolicy> b;
+        b.setAllocatorID(getAllocatorID());
         b.execute(blend, n_field, n_out_field);
       }
 
@@ -2193,8 +2243,8 @@ private:
     namespace utils = axom::bump::utilities;
     constexpr auto connTypeID = utils::cpp2conduit<ConnectivityType>::id;
 
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-    const int conduitAllocatorID = c2a.getConduitAllocatorID();
+    const auto conduitAllocatorID =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     const auto selectedZonesView = selectedZones.view();
     const auto nzones = selectedZonesView.size();
@@ -2358,13 +2408,13 @@ private:
       else
       {
         // Make the field for the first time.
-        // Allocate Conduit data through Axom.
-        utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+        const auto conduitAllocatorId =
+          axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
         conduit::Node &n_new_nodes = n_newFields[newNodes];
         n_new_nodes["topology"] = topoName;
         n_new_nodes["association"] = "vertex";
         conduit::Node &n_new_nodes_values = n_new_nodes["values"];
-        n_new_nodes_values.set_allocator(c2a.getConduitAllocatorID());
+        n_new_nodes_values.set_allocator(conduitAllocatorId);
         n_new_nodes_values.set(conduit::DataType(utils::cpp2conduit<Precision>::id, outputSize));
         auto valuesView = utils::make_array_view<Precision>(n_new_nodes_values);
 
@@ -2386,6 +2436,7 @@ private:
   Intersector m_intersector {};
   TableManagerType m_tableManager {};
   NamingPolicy m_naming {};
+  int m_allocator_id {};
 };
 
 }  // end namespace extraction

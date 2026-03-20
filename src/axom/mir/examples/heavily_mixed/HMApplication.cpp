@@ -377,27 +377,25 @@ int HMApplication::runMIR()
   {
     retval = runMIR_seq(dimension, mesh, options, resultMesh);
   }
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-  #if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   else if(m_policy == RuntimePolicy::omp)
   {
     retval = runMIR_omp(dimension, mesh, options, resultMesh);
   }
-  #endif
-  #if defined(AXOM_USE_CUDA)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   else if(m_policy == RuntimePolicy::cuda)
   {
-    constexpr int CUDA_BLOCK_SIZE = 256;
-    using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
+    options["pool_size"] = estimateMemoryPoolSize();
     retval = runMIR_cuda(dimension, mesh, options, resultMesh);
   }
-  #endif
-  #if defined(AXOM_USE_HIP)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   else if(m_policy == RuntimePolicy::hip)
   {
+    options["pool_size"] = estimateMemoryPoolSize();
     retval = runMIR_hip(dimension, mesh, options, resultMesh);
   }
-  #endif
 #endif
   else
   {
@@ -415,6 +413,26 @@ int HMApplication::runMIR()
   }
 
   return retval;
+}
+
+//--------------------------------------------------------------------------------
+size_t HMApplication::estimateMemoryPoolSize() const
+{
+  // Estimate the mesh size
+  using FloatType = conduit::float64;
+  const auto nzones = static_cast<size_t>(m_dims[0] * m_dims[1] * m_dims[2]);
+  const auto nnodes = static_cast<size_t>((m_dims[0] + 1) * (m_dims[1] + 1) * (m_dims[2] + 1));
+  const auto topoSizeBytes = 0;
+  const auto coordSizeBytes =
+    static_cast<size_t>((m_dims[0] + m_dims[1] + m_dims[2] + 3) * sizeof(FloatType));
+  const auto mixFraction = 5.;
+  const auto matsetSizeBytes = (((nzones * mixFraction) * 2) * sizeof(int)) +
+    (((nzones * mixFraction) * 1) * sizeof(double)) + ((nzones * 2) * sizeof(int));
+  const auto fieldsSizeBytes = static_cast<size_t>((nzones * 2 + nnodes * 2) * sizeof(FloatType));
+  const auto estMeshSizeBytes = topoSizeBytes + coordSizeBytes + matsetSizeBytes + fieldsSizeBytes;
+  // Estimate pool size
+  const auto initialPoolSizeBytes = estMeshSizeBytes;
+  return initialPoolSizeBytes;
 }
 
 //--------------------------------------------------------------------------------

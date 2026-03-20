@@ -13,6 +13,7 @@
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/views/dispatch_unstructured_topology.hpp"
 #include "axom/bump/MakeUnstructured.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 #include <conduit/conduit.hpp>
 #include <conduit/conduit_blueprint.hpp>
@@ -46,14 +47,18 @@ struct BuildRelationImpl
    *
    * \note axom::sort_pairs can be slow if there are a lot of nodes (depends on ExecSpace too).
    */
-  static void execute(ViewType nodesView, ViewType zonesView, ViewType sizesView, ViewType offsetsView)
+  static void execute(ViewType nodesView,
+                      ViewType zonesView,
+                      ViewType sizesView,
+                      ViewType offsetsView,
+                      int allocator_id)
   {
     AXOM_ANNOTATE_SCOPE("FillZonesAndOffsets");
     SLIC_ASSERT(nodesView.size() == zonesView.size());
 
     using value_type = typename ViewType::value_type;
     using MaskType = typename axom::bump::utilities::mask_traits<ExecSpace, axom::IndexType>::type;
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = allocator_id;
 
     AXOM_ANNOTATE_BEGIN("alloc");
     const auto n = nodesView.size();
@@ -129,14 +134,18 @@ struct BuildRelationImpl
 template <typename ViewType>
 struct BuildRelationImpl<axom::SEQ_EXEC, ViewType>
 {
-  static void execute(ViewType nodesView, ViewType zonesView, ViewType sizesView, ViewType offsetsView)
+  using ExecSpace = axom::SEQ_EXEC;
+
+  static void execute(ViewType nodesView,
+                      ViewType zonesView,
+                      ViewType sizesView,
+                      ViewType offsetsView,
+                      int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
     AXOM_ANNOTATE_SCOPE("FillZonesAndOffsets");
 
     SLIC_ASSERT(nodesView.size() == zonesView.size());
     using value_type = typename ViewType::value_type;
-    using ExecSpace = axom::SEQ_EXEC;
-    const int allocatorID = execution_space<ExecSpace>::allocatorID();
 
     // NOTE: Make it more "native" for a little more performance.
 
@@ -162,7 +171,7 @@ struct BuildRelationImpl<axom::SEQ_EXEC, ViewType>
     axom::Array<value_type> zcopy(axom::ArrayOptions::Uninitialized(),
                                   zonesView.size(),
                                   zonesView.size(),
-                                  allocatorID);
+                                  allocator_id);
     memcpy(zcopy.data(), zonesView.data(), zonesView.size() * sizeof(value_type));
     auto zcopyView = zcopy.view();
 
@@ -196,9 +205,14 @@ struct BuildRelation
   static inline void execute(ViewType nodesView,
                              ViewType zonesView,
                              ViewType sizesView,
-                             ViewType offsetsView)
+                             ViewType offsetsView,
+                             int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
-    BuildRelationImpl<ExecSpace, ViewType>::execute(nodesView, zonesView, sizesView, offsetsView);
+    BuildRelationImpl<ExecSpace, ViewType>::execute(nodesView,
+                                                    zonesView,
+                                                    sizesView,
+                                                    offsetsView,
+                                                    allocator_id);
   }
 };
 
@@ -217,10 +231,18 @@ struct BuildRelation<axom::OMP_EXEC, ViewType>
    * \param[out]   sizesView A view that we fill with sizes.
    * \param[out]   offsetsView A view that we fill with offsets so offsetsView[i] points to the start of the i'th list in \a zonesView.
    */
-  static void execute(ViewType nodesView, ViewType zonesView, ViewType sizesView, ViewType offsetsView)
+  static void execute(ViewType nodesView,
+                      ViewType zonesView,
+                      ViewType sizesView,
+                      ViewType offsetsView,
+                      int allocator_id = axom::execution_space<axom::OMP_EXEC>::allocatorID())
   {
     // Call serial implementation for now because it is faster.
-    BuildRelationImpl<axom::SEQ_EXEC, ViewType>::execute(nodesView, zonesView, sizesView, offsetsView);
+    BuildRelationImpl<axom::SEQ_EXEC, ViewType>::execute(nodesView,
+                                                         zonesView,
+                                                         sizesView,
+                                                         offsetsView,
+                                                         allocator_id);
   }
 };
 #endif
@@ -235,6 +257,28 @@ template <typename ExecSpace>
 class NodeToZoneRelationBuilder
 {
 public:
+  NodeToZoneRelationBuilder() : m_allocator_id(axom::execution_space<ExecSpace>::allocatorID()) { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
+
   /*!
    * \brief Build a node to zone relation and store the resulting O2M relation in the \a relation conduit node.
    *
@@ -244,12 +288,10 @@ public:
    */
   void execute(const conduit::Node &topo, const conduit::Node &coordset, conduit::Node &relation)
   {
-    namespace utils = axom::bump::utilities;
     const std::string type = topo.fetch_existing("type").as_string();
 
-    // Get the ID of a Conduit allocator that will allocate through Axom with device allocator allocatorID.
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-    const int conduitAllocatorID = c2a.getConduitAllocatorID();
+    const auto conduitAllocatorID =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     conduit::Node &n_zones = relation["zones"];
     conduit::Node &n_sizes = relation["sizes"];
@@ -309,7 +351,8 @@ public:
             details::BuildRelation<ExecSpace, ViewType>::execute(connectivityView,
                                                                  zonesView,
                                                                  sizesView,
-                                                                 offsetsView);
+                                                                 offsetsView,
+                                                                 getAllocatorID());
           });
       }
       else
@@ -336,7 +379,8 @@ public:
             details::BuildRelation<ExecSpace, ViewType>::execute(connectivityView,
                                                                  zonesView,
                                                                  sizesView,
-                                                                 offsetsView);
+                                                                 offsetsView,
+                                                                 getAllocatorID());
           });
       }
     }
@@ -345,7 +389,7 @@ public:
       // These are all structured topos of some sort. Make an unstructured representation and recurse.
 
       conduit::Node mesh;
-      MakeUnstructured<ExecSpace>::execute(topo, coordset, "newtopo", mesh);
+      MakeUnstructured<ExecSpace>::execute(topo, coordset, "newtopo", mesh, getAllocatorID());
 
       // Recurse using the unstructured mesh.
       execute(mesh.fetch_existing("topologies/newtopo"), coordset, relation);
@@ -380,10 +424,9 @@ private:
                             axom::IndexType nnodes,
                             int intTypeId) const
   {
-    namespace utils = axom::bump::utilities;
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-    const int conduitAllocatorID = c2a.getConduitAllocatorID();
-    const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const auto conduitAllocatorID =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
+    const auto allocatorID = getAllocatorID();
 
     const auto nzones = topoView.numberOfZones();
     axom::Array<axom::IndexType> sizes(nzones, nzones, allocatorID);
@@ -434,7 +477,8 @@ private:
         details::BuildRelation<ExecSpace, ViewType>::execute(connectivityView,
                                                              zonesView,
                                                              sizesView,
-                                                             offsetsView);
+                                                             offsetsView,
+                                                             getAllocatorID());
       });
   }
 
@@ -517,6 +561,9 @@ private:
       connSize,
       AXOM_LAMBDA(axom::IndexType index) { zonesView[index] = index / nodesPerShape; });
   }
+
+private:
+  int m_allocator_id;
 };
 
 }  // end namespace bump
