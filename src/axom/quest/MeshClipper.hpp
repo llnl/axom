@@ -215,9 +215,9 @@ public:
 
     //!@brief Count the number of labels of each type.
     virtual void getLabelCounts(axom::ArrayView<const LabelType> labels,
-                                std::int64_t& inCount,
-                                std::int64_t& onCount,
-                                std::int64_t& outCount) = 0;
+                                axom::IndexType& inCount,
+                                axom::IndexType& onCount,
+                                axom::IndexType& outCount) = 0;
 
     ShapeMesh& getShapeMesh() { return m_myClipper.m_shapeMesh; }
 
@@ -263,9 +263,9 @@ public:
   //!@name Convenience methods
   //!@brief Count the number of labels of each type.
   void getLabelCounts(const axom::Array<LabelType>& labels,
-                      std::int64_t& inCount,
-                      std::int64_t& onCount,
-                      std::int64_t& outCount)
+                      axom::IndexType& inCount,
+                      axom::IndexType& onCount,
+                      axom::IndexType& outCount)
   {
     m_impl->getLabelCounts(labels, inCount, onCount, outCount);
   }

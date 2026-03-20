@@ -29,12 +29,12 @@ MeshClipper::MeshClipper(quest::experimental::ShapeMesh& shapeMesh,
   , m_screenLevel(3)
 {
   // Initialize statistics used by this class.
-  m_counterStats["cellsIn"].set_int64(0);
-  m_counterStats["cellsOn"].set_int64(0);
-  m_counterStats["cellsOut"].set_int64(0);
-  m_counterStats["tetsIn"].set_int64(0);
-  m_counterStats["tetsOn"].set_int64(0);
-  m_counterStats["tetsOut"].set_int64(0);
+  m_counterStats["cellsIn"].set(axom::IndexType{0});
+  m_counterStats["cellsOn"].set(axom::IndexType{0});
+  m_counterStats["cellsOut"].set(axom::IndexType{0});
+  m_counterStats["tetsIn"].set(axom::IndexType{0});
+  m_counterStats["tetsOn"].set(axom::IndexType{0});
+  m_counterStats["tetsOut"].set(axom::IndexType{0});
 }
 
 void MeshClipper::clip(axom::Array<double>& ovlap)
@@ -67,12 +67,18 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
   SLIC_ASSERT(ovlap.size() == m_shapeMesh.getCellCount());
   SLIC_ASSERT(ovlap.getAllocatorID() == m_shapeMesh.getAllocatorID());
 
-  auto& cellsInCount = *m_counterStats["cellsIn"].as_int64_ptr();
-  auto& cellsOnCount = *m_counterStats["cellsOn"].as_int64_ptr();
-  auto& cellsOutCount = *m_counterStats["cellsOut"].as_int64_ptr();
-  auto& tetsInCount = *m_counterStats["tetsIn"].as_int64_ptr();
-  auto& tetsOnCount = *m_counterStats["tetsOn"].as_int64_ptr();
-  auto& tetsOutCount = *m_counterStats["tetsOut"].as_int64_ptr();
+  auto getIndexTypeReference = [](conduit::Node &n) -> axom::IndexType &
+  {
+    axom::IndexType *ptr = n.value();
+    return *ptr;
+  };
+
+  auto& cellsInCount = getIndexTypeReference(m_counterStats["cellsIn"]);
+  auto& cellsOnCount = getIndexTypeReference(m_counterStats["cellsOn"]);
+  auto& cellsOutCount = getIndexTypeReference(m_counterStats["cellsOut"]);
+  auto& tetsInCount = getIndexTypeReference(m_counterStats["tetsIn"]);
+  auto& tetsOnCount = getIndexTypeReference(m_counterStats["tetsOn"]);
+  auto& tetsOutCount = getIndexTypeReference(m_counterStats["tetsOut"]);
 
   // Try to label cells as inside, outside or on shape boundary
   axom::Array<LabelType> cellLabels;
@@ -260,13 +266,16 @@ void MeshClipper::accumulateClippingStats(conduit::Node& curStats, const conduit
                   "MeshClipper statistic must be integer"
                   " (at least until a need for floats arises).");
     auto& currentStat = curStats[newStat.name()];
+    const axom::IndexType newStatValue = newStat.value();
     if(currentStat.dtype().is_empty())
     {
-      currentStat.set_int64(newStat.as_int64());
+      currentStat.set(newStatValue);
     }
     else
     {
-      *currentStat.as_int64_ptr() += newStat.as_int64();
+      axom::IndexType currentStatValue = currentStat.value();
+      currentStatValue += newStatValue;
+      currentStat.set(currentStatValue);
     }
   }
 }

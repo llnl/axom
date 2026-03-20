@@ -368,7 +368,6 @@ void Plane3DClipper::specializedClipTetsImpl(quest::experimental::ShapeMesh& sha
                                              conduit::Node& statistics)
 {
   constexpr double EPS = 1e-10;
-  using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
 
   auto meshTets = shapeMesh.getCellsAsTets();
   IndexType tetCount = tetIds.size();
@@ -382,7 +381,7 @@ void Plane3DClipper::specializedClipTetsImpl(quest::experimental::ShapeMesh& sha
       const auto& tet = meshTets[tetId];
       primal::Polyhedron<double, 3> overlap = primal::clip(tet, plane, EPS);
       double vol = overlap.volume();
-      RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, vol);
+      axom::atomicAdd<ExecSpace>(ovlap.data() + cellId, vol);
     });
 
   // Because the tet screening is perfect, all tets in tetIds are on the plane.
