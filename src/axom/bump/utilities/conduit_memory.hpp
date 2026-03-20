@@ -62,7 +62,7 @@ inline axom::ArrayView<T> make_array_view(const conduit::Node &n)
  *
  * \return True if the data looks device-allocated; false otherwise.
  */
-bool isDeviceAllocated([[maybe_unused]] const conduit::Node &n);
+bool isDeviceAllocated(const conduit::Node &n);
 
 //------------------------------------------------------------------------------
 namespace internal
