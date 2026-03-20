@@ -372,6 +372,12 @@ public:
    */
   void compact();
 
+  /// \brief Reserves storage for at least \a vertex_capacity vertices.
+  void reserveVertices(IndexType vertex_capacity);
+
+  /// \brief Reserves storage for at least \a element_capacity elements.
+  void reserveElements(IndexType element_capacity);
+
   /**
    * \brief Prints the IA mesh structure, for debug purpose.
    */
