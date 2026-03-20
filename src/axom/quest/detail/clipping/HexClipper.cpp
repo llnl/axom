@@ -206,7 +206,7 @@ AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType HexClipper::polyhedronToL
   const BoundingBox3DType& vertsBb,
   const BoundingBox3DType& hexBb,
   const axom::ArrayView<const TetrahedronType>& hexTets,
-  const axom::StackArray<Triangle3DType, 24>& surfaceTriangles) const
+  const axom::StackArray<Triangle3DType, 24>& surfaceTriangles)
 {
   /*
     If vertsBb and hexBb don't intersect, nothing intersects.
