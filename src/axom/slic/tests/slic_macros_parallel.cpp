@@ -470,6 +470,7 @@ TEST_P(SlicMacrosParallel, test_warning_macros)
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_WARNING("test warning message"), "WARNING", "test warning message");
 
   SLIC_WARNING_IF(false, "this message should not be logged!");
+  SLIC_WARNING_IF_ONCE(false, "this message should not be logged!");
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
@@ -503,9 +504,32 @@ TEST_P(SlicMacrosParallel, test_warning_macros)
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_WARNING_IF(true, "this message is logged!"), "WARNING", "this message is logged!");
   // clang-format on
 
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_WARNING_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_WARNING_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(GetParam() == "Synchronized" || (GetParam() == "Lumberjack" && rank == 0))
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "WARNING"), 1);
+  }
+  check_all_ranks(GetParam(), "WARNING", "this message is logged 0", expected_line_number, rank, nranks);
+  slic::internal::clear_streams();
+
   // Check selective filtering based on root == false
   axom::slic::setIsRoot(false);
   SLIC_WARNING_ROOT_IF(false, "this message should not be logged!");
+  SLIC_WARNING_ROOT_IF_ONCE(false, "this message should not be logged!");
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
@@ -515,15 +539,39 @@ TEST_P(SlicMacrosParallel, test_warning_macros)
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_WARNING_ROOT_IF(true, "this message is logged!"), "WARNING", "this message is logged!");
   // clang-format on
 
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_WARNING_ROOT_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_WARNING_ROOT_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(GetParam() == "Synchronized" || (GetParam() == "Lumberjack" && rank == 0))
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "WARNING"), 1);
+  }
+  check_all_ranks(GetParam(), "WARNING", "this message is logged 0", expected_line_number, rank, nranks);
+  slic::internal::clear_streams();
+
   // is root, but conditional is false -> no message
   axom::slic::setIsRoot(true);
   SLIC_WARNING_ROOT_IF(false, "this message should not be logged!");
+  SLIC_WARNING_ROOT_IF_ONCE(false, "this message should not be logged!");
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
   // is not root, and conditional is true -> no message
   axom::slic::setIsRoot(false);
   SLIC_WARNING_ROOT_IF(true, "this message should not be logged!");
+  SLIC_WARNING_ROOT_IF_ONCE(true, "this message should not be logged!");
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
@@ -531,9 +579,54 @@ TEST_P(SlicMacrosParallel, test_warning_macros)
   // Check for message only on root
   EXPECT_SLIC_LOG_ROOT(SLIC_WARNING_ROOT_IF(true, "this message is logged!"), "WARNING", "this message is logged!");
 
+  axom::slic::setIsRoot(rank == 0);
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_WARNING_ROOT_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_WARNING_ROOT_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(rank == 0)
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "WARNING"), 1);
+  }
+  check_root(GetParam(), "WARNING", "this message is logged 0", expected_line_number, rank);
+  slic::internal::clear_streams();
+
   // Check for message on every even rank only
   EXPECT_SLIC_LOG_EVEN(SLIC_WARNING_IF((rank % 2) == 0, "this message is logged!"), "WARNING", "this message is logged!");
   // clang-format on
+
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_WARNING_IF_ONCE((rank % 2) == 0, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_WARNING_IF_ONCE((rank % 2) == 0, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(((rank % 2) == 0 && stream_type == "Synchronized") || (rank == 0 && stream_type == "Lumberjack"))
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "WARNING"), 1);
+  }
+  check_even(GetParam(), "WARNING", "this message is logged 0", expected_line_number, rank, nranks);
+  slic::internal::clear_streams();
 }
 
 //------------------------------------------------------------------------------
@@ -544,6 +637,31 @@ TEST_P(SlicMacrosParallel, test_info_macros)
 
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_INFO("test info message"), "INFO", "test info message");
+
+  // Called once per call site; since this test is ran for parameters
+  // Synchronized and Lumberjack, a separate call site is needed for each parameter,
+  // otherwise ONCE macro logs nothing when its Lumberjack's turn to run.
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_INFO_ONCE("test info message " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_INFO_ONCE("test info message " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(GetParam() == "Synchronized" || (GetParam() == "Lumberjack" && rank == 0))
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "INFO"), 1);
+  }
+  check_all_ranks(GetParam(), "INFO", "test info message 0", expected_line_number, rank, nranks);
+  slic::internal::clear_streams();
 
   SLIC_INFO_TAGGED("test tagged info message", "myTag");
   expected_tag_number = __LINE__ - 1;
@@ -612,14 +730,17 @@ TEST_P(SlicMacrosParallel, test_info_macros)
   slic::internal::clear_streams();
 
   SLIC_INFO_TAGGED("this message should not be logged (no tag given)!", "");
+  SLIC_INFO_TAGGED_ONCE("this message should not be logged (no tag given)!", "");
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
   SLIC_INFO_TAGGED("this message should not be logged (tag DNE)!", "tag404");
+  SLIC_INFO_TAGGED_ONCE("this message should not be logged (tag DNE)!", "tag404");
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
   SLIC_INFO_IF(false, "this message should not be logged!");
+  SLIC_INFO_IF_ONCE(false, "this message should not be logged!");
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
@@ -628,9 +749,32 @@ TEST_P(SlicMacrosParallel, test_info_macros)
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_INFO_IF(true, "this message is logged!"), "INFO", "this message is logged!");
   // clang-format on
 
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_INFO_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_INFO_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(GetParam() == "Synchronized" || (GetParam() == "Lumberjack" && rank == 0))
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "INFO"), 1);
+  }
+  check_all_ranks(GetParam(), "INFO", "this message is logged 0", expected_line_number, rank, nranks);
+  slic::internal::clear_streams();
+
   // Check selective filtering based on root == false
   axom::slic::setIsRoot(false);
   SLIC_INFO_ROOT_IF(false, "this message should not be logged!");
+  SLIC_INFO_ROOT_IF_ONCE(false, "this message should not be logged!");
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
@@ -640,15 +784,39 @@ TEST_P(SlicMacrosParallel, test_info_macros)
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_INFO_ROOT_IF(true, "this message is logged!"), "INFO", "this message is logged!");
   // clang-format on
 
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_INFO_ROOT_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_INFO_ROOT_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(GetParam() == "Synchronized" || (GetParam() == "Lumberjack" && rank == 0))
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "INFO"), 1);
+  }
+  check_all_ranks(GetParam(), "INFO", "this message is logged 0", expected_line_number, rank, nranks);
+  slic::internal::clear_streams();
+
   // is root, but conditional is false -> no message
   axom::slic::setIsRoot(true);
   SLIC_INFO_ROOT_IF(false, "this message should not be logged!");
+  SLIC_INFO_ROOT_IF_ONCE(false, "this message should not be logged!");
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
   // is not root, and conditional is true -> no message
   axom::slic::setIsRoot(false);
   SLIC_INFO_ROOT_IF(true, "this message should not be logged!");
+  SLIC_INFO_ROOT_IF_ONCE(true, "this message should not be logged!");
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
@@ -656,69 +824,240 @@ TEST_P(SlicMacrosParallel, test_info_macros)
   // Check for message only on root
   EXPECT_SLIC_LOG_ROOT(SLIC_INFO_ROOT_IF(true, "this message is logged!"), "INFO", "this message is logged!");
 
+  axom::slic::setIsRoot(rank == 0);
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_INFO_ROOT_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_INFO_ROOT_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(rank == 0)
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "INFO"), 1);
+  }
+  check_root(GetParam(), "INFO", "this message is logged 0", expected_line_number, rank);
+  slic::internal::clear_streams();
+
   // Check for message on every even rank only
   EXPECT_SLIC_LOG_EVEN(SLIC_INFO_IF((rank % 2) == 0, "this message is logged!"), "INFO", "this message is logged!");
   // clang-format on
+
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_INFO_IF_ONCE((rank % 2) == 0, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_INFO_IF_ONCE((rank % 2) == 0, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(((rank % 2) == 0 && stream_type == "Synchronized") || (rank == 0 && stream_type == "Lumberjack"))
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "INFO"), 1);
+  }
+  check_even(GetParam(), "INFO", "this message is logged 0", expected_line_number, rank, nranks);
+  slic::internal::clear_streams();
 }
 
 //------------------------------------------------------------------------------
 TEST_P(SlicMacrosParallel, test_debug_macros)
 {
+  int expected_line_number;
+
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
 #ifdef AXOM_DEBUG
 
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_DEBUG("test debug message"), "DEBUG", "test debug message");
 
+  // Called once per call site; since this test is ran for parameters
+  // Synchronized and Lumberjack, a separate call site is needed for each parameter,
+  // otherwise ONCE macro logs nothing when its Lumberjack's turn to run.
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_DEBUG_ONCE("test debug message " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_DEBUG_ONCE("test debug message " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(GetParam() == "Synchronized" || (GetParam() == "Lumberjack" && rank == 0))
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "DEBUG"), 1);
+  }
+  check_all_ranks(GetParam(), "DEBUG", "test debug message 0", expected_line_number, rank, nranks);
+  slic::internal::clear_streams();
+
   // Single line - Placement of ")" matters for __LINE__ for slic call and checking
   // clang-format off
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_DEBUG_IF(true, "this message is logged!"), "DEBUG", "this message is logged!");
+
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_DEBUG_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_DEBUG_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(GetParam() == "Synchronized" || (GetParam() == "Lumberjack" && rank == 0))
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "DEBUG"), 1);
+  }
+  check_all_ranks(GetParam(), "DEBUG", "this message is logged 0", expected_line_number, rank, nranks);
+  slic::internal::clear_streams();
 
   // Check selective filter based on root == true
   axom::slic::setIsRoot(true);
   EXPECT_SLIC_LOG_ALL_RANKS(SLIC_DEBUG_ROOT_IF(true, "this message is logged!"), "DEBUG", "this message is logged!");
 
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_DEBUG_ROOT_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_DEBUG_ROOT_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(GetParam() == "Synchronized" || (GetParam() == "Lumberjack" && rank == 0))
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "DEBUG"), 1);
+  }
+  check_all_ranks(GetParam(), "DEBUG", "this message is logged 0", expected_line_number, rank, nranks);
+  slic::internal::clear_streams();
+
   // Check for message only on root
   EXPECT_SLIC_LOG_ROOT(SLIC_DEBUG_ROOT_IF(true, "this message is logged!"), "DEBUG", "this message is logged!");
+
+  axom::slic::setIsRoot(rank == 0);
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_DEBUG_ROOT_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_DEBUG_ROOT_IF_ONCE(true, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(rank == 0)
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "DEBUG"), 1);
+  }
+  check_root(GetParam(), "DEBUG", "this message is logged 0", expected_line_number, rank);
+  slic::internal::clear_streams();
 
   // Check for message on every even rank only
   EXPECT_SLIC_LOG_EVEN(SLIC_DEBUG_IF((rank % 2) == 0, "this message is logged!"), "DEBUG", "this message is logged!");
   // clang-format on
 
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_DEBUG_IF_ONCE((rank % 2) == 0, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_DEBUG_IF_ONCE((rank % 2) == 0, "this message is logged " << i);
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(((rank % 2) == 0 && stream_type == "Synchronized") || (rank == 0 && stream_type == "Lumberjack"))
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "DEBUG"), 1);
+  }
+  check_even(GetParam(), "DEBUG", "this message is logged 0", expected_line_number, rank, nranks);
+  slic::internal::clear_streams();
+
 #else
   // SLIC_DEBUG macros only log messages when AXOM_DEBUG is defined
+  AXOM_UNUSED_VAR(expected_line_number);
+
   SLIC_DEBUG("test debug message");
+  SLIC_DEBUG_ONCE("test debug message");
 
   SLIC_DEBUG_IF(true, "this message is logged!");
+  SLIC_DEBUG_IF_ONCE(true, "this message is logged!");
 
   axom::slic::setIsRoot(true);
   SLIC_DEBUG_ROOT_IF(true, "this message is logged!");
+  SLIC_DEBUG_ROOT_IF_ONCE(true, "this message is logged!");
 
   SLIC_DEBUG_IF((rank % 2) == 0, "this message is logged!");
+  SLIC_DEBUG_IF_ONCE((rank % 2) == 0, "this message is logged!");
 
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 #endif
 
   SLIC_DEBUG_IF(false, "this message should not be logged!");
+  SLIC_DEBUG_IF_ONCE(false, "this message should not be logged!");
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
   // Check selective filtering based on root == false
   axom::slic::setIsRoot(false);
   SLIC_DEBUG_ROOT_IF(false, "this message should not be logged!");
+  SLIC_DEBUG_ROOT_IF_ONCE(false, "this message should not be logged!");
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
   // is root, but conditional is false -> no message
   axom::slic::setIsRoot(true);
   SLIC_DEBUG_ROOT_IF(false, "this message should not be logged!");
+  SLIC_DEBUG_ROOT_IF_ONCE(false, "this message should not be logged!");
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 
   // is not root, and conditional is true -> no message
   axom::slic::setIsRoot(false);
   SLIC_DEBUG_ROOT_IF(true, "this message should not be logged!");
+  SLIC_DEBUG_ROOT_IF_ONCE(true, "this message should not be logged!");
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
 }
@@ -1049,6 +1388,119 @@ TEST_P(SlicMacrosParallel, test_check_macros)
   SLIC_CHECK(val > 0);
   slic::flushStreams();
   EXPECT_TRUE(slic::internal::are_all_streams_empty());
+}
+
+//------------------------------------------------------------------------------
+TEST_P(SlicMacrosParallel, test_if_once_macros)
+{
+  int expected_line_number;
+
+  // Check that message is logged when condition is satisfied only once
+  // Called once per call site; since this test is ran for parameters
+  // Synchronized and Lumberjack, a separate call site is needed for each parameter,
+  // otherwise ONCE macro logs nothing when its Lumberjack's turn to run.
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_INFO_IF_ONCE(i > 0, i << "th message is logged!");
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_INFO_IF_ONCE(i > 0, i << "th message is logged!");
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(GetParam() == "Synchronized" || (GetParam() == "Lumberjack" && rank == 0))
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "INFO"), 1);
+  }
+  check_all_ranks(GetParam(), "INFO", "1th message is logged", expected_line_number, rank, nranks);
+  slic::internal::clear_streams();
+
+  axom::slic::setIsRoot(true);
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_INFO_ROOT_IF_ONCE(i > 0, i << "th message is logged!");
+      expected_line_number = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_INFO_ROOT_IF_ONCE(i > 0, i << "th message is logged!");
+      expected_line_number = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+  if(GetParam() == "Synchronized" || (GetParam() == "Lumberjack" && rank == 0))
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    EXPECT_EQ(check_msg_count(slic::internal::test_stream.str(), "INFO"), 1);
+  }
+  check_all_ranks(GetParam(), "INFO", "1th message is logged", expected_line_number, rank, nranks);
+  slic::internal::clear_streams();
+
+  // Two call-sites have a single message each
+  int msg_1_line;
+  int msg_2_line;
+  for(int i = 0; i < 3; i++)
+  {
+    if(GetParam() == "Synchronized")
+    {
+      SLIC_INFO_IF_ONCE(i == 0, "message 1 logs " << i);
+      msg_1_line = __LINE__ - 1;
+      SLIC_INFO_IF_ONCE(i > 0, "message 2 logs " << i);
+      msg_2_line = __LINE__ - 1;
+    }
+    else
+    {
+      SLIC_INFO_IF_ONCE(i == 0, "message 1 logs " << i);
+      msg_1_line = __LINE__ - 1;
+      SLIC_INFO_IF_ONCE(i > 0, "message 2 logs " << i);
+      msg_2_line = __LINE__ - 1;
+    }
+  }
+  slic::flushStreams();
+
+  if(GetParam() == "Synchronized" || (GetParam() == "Lumberjack" && rank == 0))
+  {
+    EXPECT_FALSE(slic::internal::are_all_streams_empty());
+    const std::string str = slic::internal::test_stream.str();
+    EXPECT_EQ(check_msg_count(str, "INFO"), 2);
+
+    check_level(str, "INFO");
+
+    std::string msg_1 = str.substr(0, str.size() / 2);
+    std::string msg_2 = str.substr(str.size() / 2);
+
+    check_level(msg_1, "INFO");
+    check_level(msg_2, "INFO");
+    check_msg(msg_1, "message 1 logs 0");
+    check_msg(msg_2, "message 2 logs 1");
+    check_line(msg_1, msg_1_line);
+    check_line(msg_2, msg_2_line);
+    check_file(msg_1);
+    check_file(msg_2);
+    if(GetParam() == "Synchronized")
+    {
+      check_rank(msg_1, rank);
+      check_rank(msg_2, rank);
+    }
+    else
+    {
+      check_ranks(msg_1, nranks);
+      check_ranks(msg_2, nranks);
+    }
+    check_rank_count(msg_1, GetParam(), nranks);
+    check_rank_count(msg_2, GetParam(), nranks);
+    check_file(msg_1);
+    check_file(msg_2);
+  }
+  slic::internal::clear_streams();
 }
 
 //------------------------------------------------------------------------------

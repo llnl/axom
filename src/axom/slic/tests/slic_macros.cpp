@@ -528,18 +528,24 @@ TEST(slic_macros, test_if_once_macros)
     SLIC_INFO_IF_ONCE(i == 0, "message 1 logs " << i);
     SLIC_INFO_IF_ONCE(i > 0, "message 2 logs " << i);
   }
-  int msg_1_line = __LINE__ - 2;
+  int msg_1_line = __LINE__ - 3;
   int msg_2_line = __LINE__ - 3;
 
   EXPECT_FALSE(slic::internal::is_stream_empty());
   const std::string str = slic::internal::test_stream.str();
   EXPECT_EQ(check_count(str, "INFO"), 2);
-  check_level(str, "INFO");
-  check_msg(str, "message 1 logs 0");
-  check_msg(str.substr(str.size() / 2), "message 2 logs 1");
-  check_line(str, msg_1_line);
-  check_line(str, msg_2_line);
-  check_file(str);
+
+  std::string msg_1 = str.substr(0, str.size() / 2);
+  std::string msg_2 = str.substr(str.size() / 2);
+
+  check_level(msg_1, "INFO");
+  check_level(msg_2, "INFO");
+  check_msg(msg_1, "message 1 logs 0");
+  check_msg(msg_2, "message 2 logs 1");
+  check_line(msg_1, msg_1_line);
+  check_line(msg_2, msg_2_line);
+  check_file(msg_1);
+  check_file(msg_2);
   slic::internal::clear();
 }
 
