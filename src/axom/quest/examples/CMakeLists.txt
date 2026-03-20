@@ -729,6 +729,14 @@ endif()
 
 if(OPENCASCADE_FOUND)
     axom_add_executable(
+        NAME        quest_step_moments_ex
+        SOURCES     quest_step_moments.cpp
+        OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
+        DEPENDS_ON  axom cli11 fmt opencascade
+        FOLDER      axom/quest/examples
+    )
+
+    axom_add_executable(
         NAME        quest_step_file_ex
         SOURCES     quest_step_file.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
@@ -741,6 +749,15 @@ if(OPENCASCADE_FOUND)
         if(AXOM_ENABLE_MPI)
             set(_num_ranks 2)
         endif()
+
+        axom_add_test(
+            NAME quest_step_moments_revolved_sphere
+            COMMAND quest_step_moments_ex -f ${quest_data_dir}/step/revolved_sphere.step
+                                         --integral both
+                                         --order 1
+                                         --npts 16)
+        set_tests_properties(quest_step_moments_revolved_sphere PROPERTIES
+            PASS_REGULAR_EXPRESSION "SUMMARY surface_m0=3\\.14159265358979[0-9]*e\\+02 volume_m0=5\\.23598775598298[0-9]*e\\+02")
 
         axom_add_test(
             NAME quest_step_file_sliced_cylinder
@@ -771,3 +788,5 @@ if(OPENCASCADE_FOUND)
 
     endif()
 endif()
+
+
