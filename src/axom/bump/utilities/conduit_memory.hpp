@@ -14,6 +14,7 @@
 #include "axom/core/NumericLimits.hpp"
 #include "axom/core/execution/synchronize.hpp"
 #include "axom/slic.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 #include "axom/export/bump.h"
 
 #include <conduit/conduit.hpp>
@@ -62,75 +63,18 @@ inline axom::ArrayView<T> make_array_view(const conduit::Node &n)
 
 //------------------------------------------------------------------------------
 /*!
- * \brief This class registers a Conduit allocator that can make Conduit allocate
- *        through Axom's allocate/deallocate functions using a specific allocator.
- *        This permits Conduit to allocate through Axom's UMPIRE logic.
+ * \brief Returns whether the data pointer in the Conduit node appears to be
+ *        allocated on a device.
  *
- * \tparam ExecSpace The execution space.
+ * \param n The node whose data we're checking for device allocation.
+ *
+ * \return True if the data looks device-allocated; false otherwise.
  */
-template <typename ExecSpace>
-class ConduitAllocateThroughAxom
-{
-public:
-  /*!
-   * \brief Get the Conduit allocator ID for this ExecSpace.
-   *
-   * \return The Conduit allocator ID for this ExecSpace.
-   */
-  static conduit::index_t getConduitAllocatorID()
-  {
-    constexpr conduit::index_t NoAllocator = -1;
-    static conduit::index_t conduitAllocatorID = NoAllocator;
-    if(conduitAllocatorID == NoAllocator)
-    {
-      conduitAllocatorID = conduit::utils::register_allocator(internal_allocate, internal_free);
-    }
-    return conduitAllocatorID;
-  }
-
-private:
-  /*!
-   * \brief A function we register with Conduit to allocate memory.
-   *
-   * \param items The number of items to allocate.
-   * \param item_size The size of each item in bytes.
-   *
-   * \brief A block of newly allocated memory large enough for the requested items.
-   */
-  static void *internal_allocate(size_t items, size_t item_size)
-  {
-    int axomAllocatorID;
-#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_GPU)
-    constexpr bool on_device = axom::execution_space<ExecSpace>::onDevice();
-
-    axomAllocatorID = on_device ? axom::getUmpireResourceAllocatorID(umpire::resource::Unified)
-                                : axom::execution_space<ExecSpace>::allocatorID();
-#else
-    axomAllocatorID = axom::execution_space<ExecSpace>::allocatorID();
-#endif
-    void *ptr = nullptr;
-    if(items * item_size > 0)
-    {
-      ptr = static_cast<void *>(axom::allocate<std::uint8_t>(items * item_size, axomAllocatorID));
-    }
-    //std::cout << axom::execution_space<ExecSpace>::name()
-    //  << ": Allocated for Conduit via axom: items=" << items
-    //  << ", item_size=" << item_size << ", ptr=" << ptr << std::endl;
-    return ptr;
-  }
-
-  /*!
-   * \brief A deallocation function we register with Conduit.
-   */
-  static void internal_free(void *ptr)
-  {
-    //std::cout << axom::execution_space<ExecSpace>::name()
-    //  << ": Dellocating for Conduit via axom: ptr=" << ptr << std::endl;
-    axom::deallocate(ptr);
-  }
-};
+bool isDeviceAllocated(const conduit::Node &n);
 
 //------------------------------------------------------------------------------
+namespace internal
+{
 /*!
  * \brief Copies a Conduit tree in the \a src node to a new Conduit \a dest node,
  *        making sure to allocate array data in the appropriate memory space for
@@ -140,29 +84,38 @@ private:
  *
  * \param dest The conduit node that will receive the copied data.
  * \param src The source data to be copied.
+ * \param destAllocatorID The allocator for the destination. It defaults to the allocator for ExecSpace.
  */
 template <typename ExecSpace>
-void copy(conduit::Node &dest, const conduit::Node &src)
+void copyImpl(conduit::Node &dest,
+              const conduit::Node &src,
+              int destAllocatorID,
+              bool destAllocatorForDevice)
 {
-  ConduitAllocateThroughAxom<ExecSpace> c2a;
   dest.reset();
   if(src.number_of_children() > 0)
   {
     for(conduit::index_t i = 0; i < src.number_of_children(); i++)
     {
-      copy<ExecSpace>(dest[src[i].name()], src[i]);
+      copyImpl<ExecSpace>(dest[src[i].name()], src[i], destAllocatorID, destAllocatorForDevice);
     }
   }
   else
   {
-    const int allocatorID = axom::getAllocatorIDFromPointer(src.data_ptr());
-    bool deviceAllocated =
-      (allocatorID == INVALID_ALLOCATOR_ID) ? false : isDeviceAllocator(allocatorID);
-    if(deviceAllocated || (!src.dtype().is_string() && src.dtype().number_of_elements() > 1))
+    const int srcAllocatorID = axom::getAllocatorIDFromPointer(src.data_ptr());
+    const bool srcDataOnDevice =
+      (srcAllocatorID == INVALID_ALLOCATOR_ID) ? false : isDeviceAllocator(srcAllocatorID);
+    const bool deviceInvolved = srcDataOnDevice || destAllocatorForDevice;
+    const bool isArray = (!src.dtype().is_string() && src.dtype().number_of_elements() > 1);
+    if(deviceInvolved || isArray)
     {
       // Allocate the node's memory in the right place.
       dest.reset();
-      dest.set_allocator(c2a.getConduitAllocatorID());
+      if(isArray)
+      {
+        // Just set the allocator for array data. Otherwise not setting makes it in host memory.
+        dest.set_allocator(axom::sidre::ConduitMemory::axomAllocIdToConduit(destAllocatorID));
+      }
       dest.set(conduit::DataType(src.dtype().id(), src.dtype().number_of_elements()));
 
       // Copy the data to the destination node. Axom uses Umpire to manage that.
@@ -183,6 +136,28 @@ void copy(conduit::Node &dest, const conduit::Node &src)
       dest.set(src);
     }
   }
+}
+
+}  // end namespace internal
+
+/*!
+ * \brief Copies a Conduit tree in the \a src node to a new Conduit \a dest node,
+ *        making sure to allocate array data in the appropriate memory space for
+ *        the execution space.
+ *
+ * \tparam ExecSpace The destination execution space (e.g. axom::SEQ_EXEC).
+ *
+ * \param dest The conduit node that will receive the copied data.
+ * \param src The source data to be copied.
+ * \param destAllocatorID The allocator for the destination. It defaults to the allocator for ExecSpace.
+ */
+template <typename ExecSpace>
+void copy(conduit::Node &dest,
+          const conduit::Node &src,
+          int destAllocatorID = axom::execution_space<ExecSpace>::allocatorID())
+{
+  const bool destAllocatorForDevice = isDeviceAllocator(destAllocatorID);
+  internal::copyImpl<ExecSpace>(dest, src, destAllocatorID, destAllocatorForDevice);
 }
 
 //------------------------------------------------------------------------------

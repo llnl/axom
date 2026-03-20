@@ -27,6 +27,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Axom's polygon clipping was modified to handle some corner cases.
 - Bump: Several Bump algorithms were improved so they perform better with OpenMP.
 - Mir: The `EquiZAlgorithm was improved so it performs better with OpenMP.
+- Many algorithms in Bump and Mir have been enhanced with `setAllocatorID()` methods to permit use of custom allocators.
 - Uberenv's spack updated to v1.1.1
 - `radiuss-spack-configs` submodule removed.
 

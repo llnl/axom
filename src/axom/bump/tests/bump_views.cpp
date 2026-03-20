@@ -289,12 +289,15 @@ struct test_node_to_arrayview
                              conduit::DataType::FLOAT32_ID,
                              conduit::DataType::FLOAT64_ID};
     constexpr int n = 16;
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(
+      axom::execution_space<ExecSpace>::allocatorID());
+
     for(int dtype : dtypes)
     {
       // Make a node and fill it with data.
       conduit::Node n_data;
-      n_data.set_allocator(c2a.getConduitAllocatorID());
+      n_data.set_allocator(conduitAllocatorId);
       n_data.set(conduit::DataType(dtype, n));
 
       int sumValues = 0;
@@ -661,20 +664,20 @@ struct test_braid2d_mat
     }
 
     // Test iterators.
-    test_matsetview_iterators(matsetView, allocatorID);
+    test_matsetview_iterators(nzones, matsetView, allocatorID);
   }
 
   template <typename MatsetView>
-  static void test_matsetview_iterators(MatsetView matsetView, int allocatorID)
+  static void test_matsetview_iterators(axom::IndexType nzones, MatsetView matsetView, int allocatorID)
   {
     using ZoneIndex = typename MatsetView::ZoneIndex;
     // Allocate results array on device.
-    const int nResults = matsetView.numberOfZones();
+    const auto nResults = nzones;
     axom::Array<int> resultsArrayDevice(nResults, nResults, allocatorID);
     auto resultsView = resultsArrayDevice.view();
 
     axom::for_all<ExecSpace>(
-      matsetView.numberOfZones(),
+      nzones,
       AXOM_LAMBDA(axom::IndexType index) {
         typename MatsetView::IDList ids {};
         typename MatsetView::VFList vfs {};

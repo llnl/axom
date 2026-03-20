@@ -118,9 +118,10 @@ struct Unique
    */
   static void execute(const axom::ArrayView<KeyType> keys_orig_view,
                       axom::Array<KeyType> &skeys,
-                      axom::Array<axom::IndexType> &sindices)
+                      axom::Array<axom::IndexType> &sindices,
+                      int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = allocator_id;
 
     // Make a copy of the keys and make original indices.
     const auto n = keys_orig_view.size();
@@ -213,7 +214,8 @@ struct Unique<axom::SEQ_EXEC, KeyType>
    */
   static void execute(const axom::ArrayView<KeyType> &keys_orig_view,
                       axom::Array<KeyType> &skeys,
-                      axom::Array<axom::IndexType> &sindices)
+                      axom::Array<axom::IndexType> &sindices,
+                      int allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID())
   {
     // Make unique values and store the indices.
     std::unordered_map<KeyType, axom::IndexType> unique_map;
@@ -239,7 +241,7 @@ struct Unique<axom::SEQ_EXEC, KeyType>
 
     // Allocate the output arrays and populate them
     const axom::IndexType newsize = unique_vector.size();
-    const int allocatorID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+    const int allocatorID = allocator_id;
     skeys = axom::Array<KeyType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);
     sindices =
       axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), newsize, newsize, allocatorID);

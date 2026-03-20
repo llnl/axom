@@ -25,12 +25,14 @@ struct test_conduit_allocate
 {
   static void test()
   {
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-    EXPECT_TRUE(c2a.getConduitAllocatorID() > 0);
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(
+      axom::execution_space<ExecSpace>::allocatorID());
+
+    EXPECT_TRUE(conduitAllocatorId > 0);
 
     constexpr int nValues = 100;
     conduit::Node n;
-    n.set_allocator(c2a.getConduitAllocatorID());
+    n.set_allocator(conduitAllocatorId);
     n.set(conduit::DataType::int32(nValues));
 
     // Make sure we can store some values into the data that were allocated.
@@ -51,7 +53,7 @@ struct test_conduit_allocate
 
     // Check zero allocation.
     n.reset();
-    n.set_allocator(c2a.getConduitAllocatorID());
+    n.set_allocator(conduitAllocatorId);
     n.set(conduit::DataType::int32(0));
     EXPECT_EQ(n.dtype().number_of_elements(), 0);
   }

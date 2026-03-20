@@ -7,11 +7,13 @@
 #define AXOM_BUMP_FIELD_BLENDER_HPP_
 
 #include "axom/core.hpp"
+#include "axom/slic.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/BlendData.hpp"
 #include "axom/bump/IndexingPolicies.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -70,13 +72,36 @@ class FieldBlender
 {
 public:
   /// Constructor
-  FieldBlender() : m_indexing() { }
+  FieldBlender() : m_indexing(), m_allocator_id(axom::execution_space<ExecSpace>::allocatorID()) { }
 
   /*!
    * \brief Constructor
    * \param indexing An object used to transform node indices.
    */
-  FieldBlender(const IndexingPolicy &indexing) : m_indexing(indexing) { }
+  FieldBlender(const IndexingPolicy &indexing)
+    : m_indexing(indexing)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
+  { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /*!
    * \brief Create a new blended field from the \a n_input field and place it in \a n_output.
@@ -131,9 +156,9 @@ private:
     const auto blendSize = SelectionPolicy::size(blend);
     const auto outputSize = origSize + blendSize;
 
-    // Allocate Conduit data through Axom.
-    utilities::ConduitAllocateThroughAxom<ExecSpace> c2a;
-    n_output_values.set_allocator(c2a.getConduitAllocatorID());
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
+    n_output_values.set_allocator(conduitAllocatorId);
     n_output_values.set(conduit::DataType(n_values.dtype().id(), outputSize));
 
     views::Node_to_ArrayView_same(n_values, n_output_values, [&](auto compView, auto outView) {
@@ -211,6 +236,7 @@ private:
 #endif
 
   IndexingPolicy m_indexing {};
+  int m_allocator_id;
 };
 
 }  // end namespace bump

@@ -36,6 +36,28 @@ public:
   using ConnectivityType = typename TopologyView::ConnectivityType;
   using ConnectivityView = axom::ArrayView<ConnectivityType>;
 
+  FieldIntersector() : m_allocator_id(axom::execution_space<ExecSpace>::allocatorID()) { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
+
   /*!
    * \brief This is a view class for FieldIntersector that can be used in device code.
    */
@@ -102,7 +124,7 @@ public:
                   const conduit::Node &n_fields)
   {
     namespace utils = axom::bump::utilities;
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = getAllocatorID();
 
     // Get the field name and value.
     FieldOptions opts(n_options);
@@ -173,6 +195,7 @@ private:
 
   axom::Array<FieldType> m_fieldData {};
   View m_view {};
+  int m_allocator_id;
 };
 
 }  // end namespace extraction

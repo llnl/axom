@@ -110,6 +110,9 @@ public:
    * \brief Initialize the object from options.
    * \param n_options The node that contains the options.
    * \param n_fields The node that contains fields.
+   *
+   * \note This is a host-side initialization, though some array data in the n_options
+   *       node may be on-device already.
    */
   void initialize(const TopologyView &AXOM_UNUSED_PARAM(topologyView),
                   const CoordsetView &coordsetView,
@@ -121,14 +124,16 @@ public:
     // Make a plane from the options.
     SLIC_ASSERT(n_options.has_child("origin"));
     SLIC_ASSERT(n_options.has_child("normal"));
-    const auto origin = n_options["origin"].as_double_accessor();
-    const auto normal = n_options["normal"].as_double_accessor();
+
+    // Get origin, normal from the options.
     value_type planeOrigin[NDIMS], planeNormal[NDIMS];
+    getArrayValues(n_options["origin"], planeOrigin);
+    getArrayValues(n_options["normal"], planeNormal);
+
     for(int i = 0; i < NDIMS; i++)
     {
-      planeOrigin[i] = static_cast<value_type>(origin[i]);
       // Reverse the normal so generated surface's normals go in same direction as the normal.
-      planeNormal[i] = -static_cast<value_type>(normal[i]);
+      planeNormal[i] = -planeNormal[i];
     }
 
     // Set the plane in the view.
@@ -161,6 +166,29 @@ public:
 #if !defined(__CUDACC__)
 private:
 #endif
+
+  /*!
+   * \brief Get fixed number of floating point array values from a Conduit node in a
+   *        way that should not matter whether the data are in host or device memory.
+   *
+   * \param n The Conduit node with the data.
+   * \param[out] values An output array of the data on the host, converted to value_type.
+   */
+  void getArrayValues(const conduit::Node &n, value_type values[NDIMS]) const
+  {
+    SLIC_ERROR_IF(n.dtype().number_of_elements() != NDIMS, "Incompatible sizes.");
+
+    // Make sure the data are on the host.
+    conduit::Node hostNode;
+    axom::bump::utilities::copy<axom::SEQ_EXEC>(hostNode, n);
+
+    // Copy the values into output values
+    const auto hostAccessor = hostNode.as_double_accessor();
+    for(int i = 0; i < NDIMS; i++)
+    {
+      values[i] = static_cast<value_type>(hostAccessor[i]);
+    }
+  }
 
   View m_view {};
 };

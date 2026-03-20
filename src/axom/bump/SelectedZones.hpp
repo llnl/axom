@@ -44,11 +44,13 @@ public:
    */
   SelectedZones(axom::IndexType nzones,
                 const conduit::Node &n_options,
-                const std::string &selectionKey = std::string("selectedZones"))
+                const std::string &selectionKey = std::string("selectedZones"),
+                int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
     : m_selectionKey(selectionKey)
     , m_selectedZones()
     , m_selectedZonesView()
     , m_sorted(true)
+    , m_allocator_id(allocator_id)
   {
     buildSelectedZones(nzones, n_options);
   }
@@ -96,8 +98,6 @@ protected:
    */
   void buildSelectedZones(axom::IndexType nzones, const conduit::Node &n_options)
   {
-    const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-
     if(n_options.has_path(m_selectionKey))
     {
       // Store the zone list in m_selectedZones.
@@ -117,7 +117,7 @@ protected:
     else
     {
       // Select all zones.
-      m_selectedZones = axom::Array<axom::IndexType>(nzones, nzones, allocatorID);
+      m_selectedZones = axom::Array<axom::IndexType>(nzones, nzones, m_allocator_id);
       auto szView = m_selectedZonesView = m_selectedZones.view();
       axom::for_all<ExecSpace>(
         nzones,
@@ -140,8 +140,8 @@ protected:
   template <typename ZonesViewType>
   int buildSelectedZones(ZonesViewType zonesView, axom::IndexType nzones)
   {
-    const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-    m_selectedZones = axom::Array<axom::IndexType>(zonesView.size(), zonesView.size(), allocatorID);
+    m_selectedZones =
+      axom::Array<axom::IndexType>(zonesView.size(), zonesView.size(), m_allocator_id);
     auto szView = m_selectedZonesView = m_selectedZones.view();
     axom::for_all<ExecSpace>(
       szView.size(),
@@ -174,6 +174,7 @@ protected:
   axom::Array<axom::IndexType> m_selectedZones;  // Storage for a list of selected zone ids.
   axom::ArrayView<axom::IndexType> m_selectedZonesView;
   bool m_sorted;
+  int m_allocator_id;
 };
 
 }  // end namespace bump

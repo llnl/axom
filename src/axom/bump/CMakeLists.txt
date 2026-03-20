@@ -11,7 +11,7 @@
 # Check necessary dependencies
 #------------------------------------------------------------------------------
 axom_component_requires(NAME       BUMP
-                        COMPONENTS SLIC SPIN PRIMAL
+                        COMPONENTS SLIC SIDRE SPIN PRIMAL
                         TPLS       Conduit)
 
 #------------------------------------------------------------------------------
@@ -123,6 +123,7 @@ set(bump_sources
     extraction/tables/cutting/CutCasesWedge.cpp
     data/MeshTester.cpp
     io/save.cpp
+    utilities/conduit_memory.cpp
     utilities/conduit_traits.cpp
     utilities/blueprint_utilities.cpp
     views/MaterialView.cpp
@@ -133,7 +134,7 @@ set(bump_sources
 #------------------------------------------------------------------------------
 # Build and install the library
 #------------------------------------------------------------------------------
-set(bump_depends_on core slic spin primal conduit::conduit)
+set(bump_depends_on core slic spin sidre primal conduit::conduit)
 blt_list_append( TO bump_depends_on ELEMENTS RAJA IF RAJA_FOUND )
 
 axom_add_library(

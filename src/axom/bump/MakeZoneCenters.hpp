@@ -12,6 +12,7 @@
 #include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 #include "axom/slic.hpp"
 
 #include <conduit/conduit.hpp>
@@ -42,7 +43,28 @@ public:
   MakeZoneCenters(const TopologyView &topologyView, const CoordsetView &coordsetView)
     : m_topologyView(topologyView)
     , m_coordsetView(coordsetView)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /*!
    * \brief Create a new field from the input topology and place it in \a n_output.
@@ -60,7 +82,7 @@ public:
                conduit::Node &n_outputField) const
   {
     const auto numZones = m_topologyView.numberOfZones();
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = getAllocatorID();
     // Select all zones.
     axom::Array<axom::IndexType> selectedZones(numZones, numZones, allocatorID);
     auto selectedZonesView = selectedZones.view();
@@ -104,8 +126,8 @@ public:
     const auto nComponents = axes.size();
     SLIC_ASSERT(PointType::DIMENSION == nComponents);
 
-    // Get the ID of a Conduit allocator that will allocate through Axom with device allocator allocatorID.
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     n_outputField.reset();
     n_outputField["association"] = "element";
@@ -121,7 +143,7 @@ public:
     {
       // Allocate data in the Conduit node and make a view.
       conduit::Node &comp = n_values[axes[i]];
-      comp.set_allocator(c2a.getConduitAllocatorID());
+      comp.set_allocator(conduitAllocatorId);
       comp.set(conduit::DataType(utils::cpp2conduit<value_type>::id, outputSize));
       compViews[i] = utils::make_array_view<value_type>(comp);
     }
@@ -158,6 +180,7 @@ public:
 private:
   TopologyView m_topologyView;
   CoordsetView m_coordsetView;
+  int m_allocator_id;
 };
 
 }  // end namespace bump
