@@ -255,25 +255,53 @@ public:
       //remove the boundary box, which will be the first 4 points for triangles, first 8 for tetrahedron
       const int num_boundary_pts = 1 << DIM;
 
-      //Collect a list of elements to remove first, because
-      //the list may be incomplete if generated during the removal.
-      IndexArray elements_to_remove;
-      for(int v = 0; v < num_boundary_pts; ++v)
-      {
-        IndexArray elems = m_mesh.vertexStar(v);
-        elements_to_remove.insert(elements_to_remove.end(), elems.begin(), elems.end());
-      }
-      for(auto e : elements_to_remove)
+      // Remove all elements incident to boundary vertices. Avoid relying on
+      // `vertexStar()` here since it may be incomplete when the mesh is not
+      // manifold around the temporary boundary.
+      for(auto e : m_mesh.elements().positions())
       {
         if(m_mesh.isValidElement(e))
         {
-          m_mesh.removeElement(e);
+          const auto verts = m_mesh.boundaryVertices(e);
+          bool touches_boundary = false;
+          for(int i = 0; i < VERT_PER_ELEMENT; ++i)
+          {
+            touches_boundary |= (verts[i] >= 0 && verts[i] < num_boundary_pts);
+          }
+
+          if(touches_boundary)
+          {
+            m_mesh.removeElement(e);
+          }
         }
       }
 
       for(int v = 0; v < num_boundary_pts; ++v)
       {
         m_mesh.removeVertex(v);
+      }
+
+      // Defensive cleanup: ensure no valid element references a removed vertex.
+      // This can happen if the boundary-vertex star is non-manifold and
+      // `removeVertex()` cannot discover all incident elements via adjacency.
+      for(auto e : m_mesh.elements().positions())
+      {
+        if(!m_mesh.isValidElement(e))
+        {
+          continue;
+        }
+
+        const auto verts = m_mesh.boundaryVertices(e);
+        bool has_invalid_vertex = false;
+        for(int i = 0; i < VERT_PER_ELEMENT; ++i)
+        {
+          has_invalid_vertex |= !m_mesh.isValidVertex(verts[i]);
+        }
+
+        if(has_invalid_vertex)
+        {
+          m_mesh.removeElement(e);
+        }
       }
 
       this->compactMesh();
@@ -304,6 +332,7 @@ public:
     bool valid = true;
 
     std::vector<std::pair<IndexType, IndexType>> invalidEntries;
+    std::vector<IndexType> invalidElements;
 
     const IndexType totalVertices = m_mesh.vertices().size();
     const IndexType totalElements = m_mesh.elements().size();
@@ -312,6 +341,32 @@ public:
 
     // An array to cache the circumspheres associated with each element
     axom::Array<typename ElementType::SphereType> circumspheres(totalElements);
+
+    auto vertexInsideCircumsphere = [&](const PointType& vertex, IndexType element_idx) {
+      // `Sphere::getOrientation()` depends on an explicitly constructed
+      // circumsphere (center + radius). For sliver tetrahedra this construction
+      // is ill-conditioned and can produce false positives when validating the
+      // empty-circumsphere property. Use the determinant-based predicate used
+      // during cavity construction and treat boundary cases as "not inside" for
+      // global validation.
+      return isPointInSphereOnMesh(m_mesh, vertex, element_idx, /*includeBoundary=*/false);
+    };
+
+    auto circumsphereSignedDistanceTol = [](const typename ElementType::SphereType& sphere,
+                                            const PointType& x) {
+      const auto& center = sphere.getCenter();
+      double scale = axom::utilities::max(1., sphere.getRadius());
+      for(int dim = 0; dim < DIM; ++dim)
+      {
+        scale = axom::utilities::max(scale, axom::utilities::abs(center[dim]));
+        scale = axom::utilities::max(scale, axom::utilities::abs(x[dim]));
+      }
+
+      // Signed distance to a sphere involves a subtraction after a norm. Use a
+      // tolerance proportional to the coordinate/radius scale to give a
+      // meaningful diagnostic in the verbose output.
+      return 256. * std::numeric_limits<double>::epsilon() * scale;
+    };
 
     // bootstrap the uniform grid using an implicit grid
     {
@@ -324,6 +379,23 @@ public:
       {
         if(m_mesh.isValidElement(element_idx))
         {
+          const auto verts = m_mesh.boundaryVertices(element_idx);
+          bool has_all_vertices = true;
+          for(int i = 0; i < VERT_PER_ELEMENT; ++i)
+          {
+            has_all_vertices &= m_mesh.isValidVertex(verts[i]);
+          }
+
+          if(!has_all_vertices)
+          {
+            valid = false;
+            if(verboseOutput)
+            {
+              invalidElements.push_back(element_idx);
+            }
+            continue;
+          }
+
           circumspheres[element_idx] = this->getElement(element_idx).circumsphere();
           const auto& sphere = circumspheres[element_idx];
           const auto& center = sphere.getCenter().array();
@@ -377,7 +449,7 @@ public:
         }
 
         // check insphere condition
-        if(circumspheres[element_idx].getOrientation(vertex) == primal::ON_NEGATIVE_SIDE)
+        if(vertexInsideCircumsphere(vertex, element_idx))
         {
           valid = false;
 
@@ -398,6 +470,13 @@ public:
       else
       {
         fmt::memory_buffer out;
+        if(!invalidElements.empty())
+        {
+          fmt::format_to(std::back_inserter(out),
+                         "\n\t{} valid elements referenced invalid vertices: {}",
+                         invalidElements.size(),
+                         fmt::join(invalidElements, ", "));
+        }
         for(const auto& pr : invalidEntries)
         {
           const auto vertex_idx = pr.first;
@@ -405,16 +484,18 @@ public:
           const auto& pos = m_mesh.getVertexPosition(vertex_idx);
           const auto element = this->getElement(element_idx);
           const auto circumsphere = element.circumsphere();
+          const double tol = circumsphereSignedDistanceTol(circumsphere, pos);
           fmt::format_to(std::back_inserter(out),
                          "\n\tVertex {} @ {}"
                          "\n\tElement {}: {} w/ circumsphere: {}"
-                         "\n\tDistance to circumcenter: {}",
+                         "\n\tDistance to circumcenter: {} (tol={})",
                          vertex_idx,
                          pos,
                          element_idx,
                          element,
                          circumsphere,
-                         circumsphere.computeSignedDistance(pos));
+                         circumsphere.computeSignedDistance(pos),
+                         tol);
         }
 
         SLIC_INFO(
@@ -452,15 +533,17 @@ public:
       }
 
       // check orientations of top simplices
-      const double signed_measure = getElementSignedMeasure(element_idx);
-      if(signed_measure <= getElementMeasureTolerance())
+      const auto orient = evaluateElementOrientationDeterminant(element_idx);
+      if(orient.location != OrientationLocation::Positive)
       {
         if(verboseOutput)
         {
-          fmt::format_to(std::back_inserter(out),
-                         "\n\tElement {} has non-positive signed measure {:.17g}",
-                         element_idx,
-                         signed_measure);
+          fmt::format_to(
+            std::back_inserter(out),
+            "\n\tElement {} has non-positive orientation determinant {:.17g} (tol={:.3g})",
+            element_idx,
+            orient.det,
+            orient.tol);
         }
         valid = false;
       }
@@ -839,127 +922,237 @@ public:
     return value > tolerance ? 1 : (value < -tolerance ? -1 : 0);
   }
 
-  static double getPointMagnitudeScale(const std::array<PointType, 4>& pts)
+  //-----------------------------------------------------------------------------
+  // In-sphere predicate helpers
+  //
+  // These helpers centralize the raw in-sphere determinants and their
+  // classification into {inside/outside/boundary} results.
+  //
+  // Convention: we follow primal::in_sphere(): a negative determinant means the
+  // query point is inside the circumsphere (for our consistently oriented
+  // simplices).
+  //-----------------------------------------------------------------------------
+
+  enum class InSphereLocation : int
   {
-    double max_abs_coord = 1.;
-    for(const auto& pt : pts)
+    Inside = -1,
+    OnBoundary = 0,
+    Outside = 1
+  };
+
+  struct InSphereEval
+  {
+    double det {0.};
+    double tol {0.};
+    InSphereLocation location {InSphereLocation::OnBoundary};
+  };
+
+  static InSphereLocation classifyInSphereDeterminant(double det, double tol)
+  {
+    const int sign = signWithTolerance(det, tol);
+    return sign < 0 ? InSphereLocation::Inside
+                    : (sign > 0 ? InSphereLocation::Outside : InSphereLocation::OnBoundary);
+  }
+
+  //-----------------------------------------------------------------------------
+  // Simplex orientation helpers
+  //
+  // Use the same determinant/tolerance pattern to validate simplex orientation.
+  // This returns the raw (unscaled) determinants:
+  // - 2D: determinant is twice signed area
+  // - 3D: determinant is six times signed volume
+  //-----------------------------------------------------------------------------
+  enum class OrientationLocation : int
+  {
+    Negative = -1,
+    OnBoundary = 0,
+    Positive = 1
+  };
+
+  struct OrientationEval
+  {
+    double det {0.};
+    double tol {0.};
+    OrientationLocation location {OrientationLocation::OnBoundary};
+  };
+
+  static OrientationLocation classifyOrientationDeterminant(double det, double tol)
+  {
+    const int sign = signWithTolerance(det, tol);
+    return sign < 0 ? OrientationLocation::Negative
+                    : (sign > 0 ? OrientationLocation::Positive : OrientationLocation::OnBoundary);
+  }
+
+  OrientationEval evaluateElementOrientationDeterminant(IndexType element_idx) const
+  {
+    const double scale = (DIM == 2) ? 2. : 6.;
+    const double det = scale * getElementSignedMeasure(element_idx);
+    const double tol = scale * getElementMeasureTolerance();
+    return {det, tol, classifyOrientationDeterminant(det, tol)};
+  }
+
+  static double inSphereDeterminant2D(const PointType& q,
+                                      const PointType& p0,
+                                      const PointType& p1,
+                                      const PointType& p2)
+  {
+    const auto ba = p1 - p0;
+    const auto ca = p2 - p0;
+    const auto qa = q - p0;
+
+    return axom::numerics::determinant(ba[0],
+                                       ba[1],
+                                       ba.squared_norm(),
+                                       ca[0],
+                                       ca[1],
+                                       ca.squared_norm(),
+                                       qa[0],
+                                       qa[1],
+                                       qa.squared_norm());
+  }
+
+  static double inSphereDeterminant3D(const PointType& q,
+                                      const PointType& p0,
+                                      const PointType& p1,
+                                      const PointType& p2,
+                                      const PointType& p3)
+  {
+    const auto ba = p1 - p0;
+    const auto ca = p2 - p0;
+    const auto da = p3 - p0;
+    const auto qa = q - p0;
+
+    return axom::numerics::determinant(ba[0],
+                                       ba[1],
+                                       ba[2],
+                                       ba.squared_norm(),
+                                       ca[0],
+                                       ca[1],
+                                       ca[2],
+                                       ca.squared_norm(),
+                                       da[0],
+                                       da[1],
+                                       da[2],
+                                       da.squared_norm(),
+                                       qa[0],
+                                       qa[1],
+                                       qa[2],
+                                       qa.squared_norm());
+  }
+
+  static double inSphereTolerance(double scale)
+  {
+    // Determinant magnitude scales like length^(DIM+2): L^4 in 2D, L^5 in 3D.
+    const double k = 128.;
+    if constexpr(DIM == 2)
     {
-      for(int dim = 0; dim < DIM; ++dim)
-      {
-        max_abs_coord = axom::utilities::max(max_abs_coord, axom::utilities::abs(pt[dim]));
-      }
+      return k * std::numeric_limits<double>::epsilon() * scale * scale * scale * scale;
     }
-
-    return max_abs_coord;
-  }
-
-  static double orientationTolerance(const std::array<PointType, 4>& pts)
-  {
-    const double scale = getPointMagnitudeScale(pts);
-    return 64. * std::numeric_limits<double>::epsilon() * scale * scale * scale;
-  }
-
-  static double determinant3(const PointType& p0, const PointType& p1, const PointType& p2)
-  {
-    return axom::numerics::determinant(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]);
-  }
-
-  static double orientationDeterminant(const std::array<PointType, 4>& pts)
-  {
-    return axom::numerics::determinant(pts[0][0],
-                                       pts[0][1],
-                                       pts[0][2],
-                                       1.,
-                                       pts[1][0],
-                                       pts[1][1],
-                                       pts[1][2],
-                                       1.,
-                                       pts[2][0],
-                                       pts[2][1],
-                                       pts[2][2],
-                                       1.,
-                                       pts[3][0],
-                                       pts[3][1],
-                                       pts[3][2],
-                                       1.);
-  }
-
-  static int symbolicOrientationSign(const std::array<PointType, 4>& pts,
-                                     const std::array<IndexType, 4>& ranks)
-  {
-    // Simulation-of-simplicity style tie-break: if the 4x4 orientation
-    // determinant is effectively zero, use the earliest nonzero cofactor in a
-    // fixed symbolic rank order to choose one consistent sign.
-    const double det = orientationDeterminant(pts);
-
-    const int det_sign = signWithTolerance(det, orientationTolerance(pts));
-    if(det_sign != 0)
+    else
     {
-      return det_sign;
+      return k * std::numeric_limits<double>::epsilon() * scale * scale * scale * scale * scale;
     }
-
-    const std::array<double, 4> cofactors {-determinant3(pts[1], pts[2], pts[3]),
-                                           determinant3(pts[0], pts[2], pts[3]),
-                                           -determinant3(pts[0], pts[1], pts[3]),
-                                           determinant3(pts[0], pts[1], pts[2])};
-
-    std::array<int, 4> order {{0, 1, 2, 3}};
-    std::sort(order.begin(), order.end(), [&](int lhs, int rhs) { return ranks[lhs] < ranks[rhs]; });
-
-    const double cofactor_tol = 64. * std::numeric_limits<double>::epsilon() *
-      axom::utilities::max(1., orientationTolerance(pts));
-    for(const int row : order)
-    {
-      const int sign = signWithTolerance(cofactors[row], cofactor_tol);
-      if(sign != 0)
-      {
-        return sign;
-      }
-    }
-
-    return 0;
   }
 
-  int getBarycentricSign(IndexType element_idx,
-                         const PointType& query_pt,
-                         const BaryCoordType& bary_coord,
-                         int bary_idx) const
+  BaryCoordType getRawBarycentricDeterminants(IndexType element_idx, const PointType& query_pt) const
   {
-    const double value = bary_coord[bary_idx];
-    if(axom::utilities::abs(value) > BARY_EPS || DIM == 2)
-    {
-      return signWithTolerance(value, BARY_EPS);
-    }
-
-    // The only ambiguous case is a near-zero barycentric coordinate. Interpret
-    // that face test symbolically by replacing the corresponding tetrahedron
-    // vertex with the query point and evaluating the signed orientation.
     const auto verts = m_mesh.boundaryVertices(element_idx);
-    const std::array<PointType, 4> pts {
-      {bary_idx == 0 ? query_pt : m_mesh.getVertexPosition(verts[0]),
-       bary_idx == 1 ? query_pt : m_mesh.getVertexPosition(verts[1]),
-       bary_idx == 2 ? query_pt : m_mesh.getVertexPosition(verts[2]),
-       bary_idx == 3 ? query_pt : m_mesh.getVertexPosition(verts[3])}};
 
-    const IndexType query_rank = 1 +
-      axom::utilities::max(axom::utilities::max(verts[0], verts[1]),
-                           axom::utilities::max(verts[2], verts[3]));
-    // Give the query point the highest symbolic rank so zero-case face tests
-    // resolve deterministically without changing the stored simplex ordering.
-    const std::array<IndexType, 4> ranks {{bary_idx == 0 ? query_rank : verts[0],
-                                           bary_idx == 1 ? query_rank : verts[1],
-                                           bary_idx == 2 ? query_rank : verts[2],
-                                           bary_idx == 3 ? query_rank : verts[3]}};
+    if constexpr(DIM == 2)
+    {
+      const ElementType tri(m_mesh.getVertexPosition(verts[0]),
+                            m_mesh.getVertexPosition(verts[1]),
+                            m_mesh.getVertexPosition(verts[2]));
+      return tri.physToBarycentric(query_pt, /*skipNormalization=*/true);
+    }
+    else
+    {
+      const ElementType tet(m_mesh.getVertexPosition(verts[0]),
+                            m_mesh.getVertexPosition(verts[1]),
+                            m_mesh.getVertexPosition(verts[2]),
+                            m_mesh.getVertexPosition(verts[3]));
+      return tet.physToBarycentric(query_pt, /*skipNormalization=*/true);
+    }
+  }
 
-    const std::array<PointType, 4> tet_pts {{m_mesh.getVertexPosition(verts[0]),
-                                             m_mesh.getVertexPosition(verts[1]),
-                                             m_mesh.getVertexPosition(verts[2]),
-                                             m_mesh.getVertexPosition(verts[3])}};
-    const std::array<IndexType, 4> tet_ranks {{verts[0], verts[1], verts[2], verts[3]}};
+  double rawBarycentricDeterminantTolerance(IndexType element_idx, const PointType& query_pt) const
+  {
+    const auto verts = m_mesh.boundaryVertices(element_idx);
 
-    const int numerator_sign = symbolicOrientationSign(pts, ranks);
-    const int denominator_sign = symbolicOrientationSign(tet_pts, tet_ranks);
-    return numerator_sign * denominator_sign;
+    double scale = 1.;
+    for(int i = 0; i < VERT_PER_ELEMENT; ++i)
+    {
+      const auto diff = m_mesh.getVertexPosition(verts[i]) - query_pt;
+      scale = axom::utilities::max(scale, diff.norm());
+    }
+
+    const double k = 64.;
+    if constexpr(DIM == 2)
+    {
+      return k * std::numeric_limits<double>::epsilon() * scale * scale;
+    }
+    else
+    {
+      return k * std::numeric_limits<double>::epsilon() * scale * scale * scale;
+    }
+  }
+
+  static InSphereEval evaluateInSphereOnMesh(const IAMeshType& mesh,
+                                             const PointType& q,
+                                             IndexType element_idx)
+  {
+    const auto verts = mesh.boundaryVertices(element_idx);
+
+    if constexpr(DIM == 2)
+    {
+      const PointType& p0 = mesh.getVertexPosition(verts[0]);
+      const PointType& p1 = mesh.getVertexPosition(verts[1]);
+      const PointType& p2 = mesh.getVertexPosition(verts[2]);
+
+      const auto ba = p1 - p0;
+      const auto ca = p2 - p0;
+      const auto qa = q - p0;
+
+      const double det = inSphereDeterminant2D(q, p0, p1, p2);
+      const double scale = axom::utilities::max(
+        1.,
+        axom::utilities::max(ba.norm(), axom::utilities::max(ca.norm(), qa.norm())));
+      const double tol = inSphereTolerance(scale);
+
+      return {det, tol, classifyInSphereDeterminant(det, tol)};
+    }
+    else
+    {
+      const PointType& p0 = mesh.getVertexPosition(verts[0]);
+      const PointType& p1 = mesh.getVertexPosition(verts[1]);
+      const PointType& p2 = mesh.getVertexPosition(verts[2]);
+      const PointType& p3 = mesh.getVertexPosition(verts[3]);
+
+      const auto ba = p1 - p0;
+      const auto ca = p2 - p0;
+      const auto da = p3 - p0;
+      const auto qa = q - p0;
+
+      const double det = inSphereDeterminant3D(q, p0, p1, p2, p3);
+      const double scale = axom::utilities::max(
+        1.,
+        axom::utilities::max(
+          ba.norm(),
+          axom::utilities::max(ca.norm(), axom::utilities::max(da.norm(), qa.norm()))));
+      const double tol = inSphereTolerance(scale);
+
+      return {det, tol, classifyInSphereDeterminant(det, tol)};
+    }
+  }
+
+  static bool isPointInSphereOnMesh(const IAMeshType& mesh,
+                                    const PointType& q,
+                                    IndexType element_idx,
+                                    bool includeBoundary)
+  {
+    const auto eval = evaluateInSphereOnMesh(mesh, q, element_idx);
+    return includeBoundary ? (eval.location != InSphereLocation::Outside)
+                           : (eval.location == InSphereLocation::Inside);
   }
 
   bool isPointInsideForLocation(IndexType element_idx,
@@ -967,9 +1160,10 @@ public:
                                 const BaryCoordType& bary_coord,
                                 ModularFaceIndex* exit_face = nullptr) const
   {
-    int first_symbolic_negative = -1;
     ModularFaceIndex min_face(bary_coord.array().argMin());
 
+    // Fast path: if any barycentric coordinate is clearly negative, the point
+    // lies outside the simplex across the most-negative face.
     for(int i = 0; i < VERT_PER_ELEMENT; ++i)
     {
       if(bary_coord[i] < -BARY_EPS)
@@ -980,22 +1174,39 @@ public:
         }
         return false;
       }
+    }
 
-      if(axom::utilities::abs(bary_coord[i]) <= BARY_EPS &&
-         getBarycentricSign(element_idx, query_pt, bary_coord, i) < 0)
+    // Ambiguous path: for near-zero barycentric coordinates, fall back to the
+    // underlying (unnormalized) determinants to decide the sign consistently.
+    int first_determinant_negative = -1;
+    if constexpr(DIM == 3)
+    {
+      bool has_near_zero = false;
+      for(int i = 0; i < VERT_PER_ELEMENT; ++i)
       {
-        if(first_symbolic_negative < 0)
+        has_near_zero |= axom::utilities::abs(bary_coord[i]) <= BARY_EPS;
+      }
+
+      if(has_near_zero)
+      {
+        const BaryCoordType raw = getRawBarycentricDeterminants(element_idx, query_pt);
+        const double tol = rawBarycentricDeterminantTolerance(element_idx, query_pt);
+        for(int i = 0; i < VERT_PER_ELEMENT; ++i)
         {
-          first_symbolic_negative = i;
+          if(axom::utilities::abs(bary_coord[i]) <= BARY_EPS && signWithTolerance(raw[i], tol) < 0)
+          {
+            first_determinant_negative = i;
+            break;
+          }
         }
       }
     }
 
-    if(first_symbolic_negative >= 0)
+    if(first_determinant_negative >= 0)
     {
       if(exit_face != nullptr)
       {
-        *exit_face = ModularFaceIndex(first_symbolic_negative);
+        *exit_face = ModularFaceIndex(first_determinant_negative);
       }
       return false;
     }
@@ -1861,13 +2072,15 @@ void Delaunay<DIM>::validateInsertedBall(IndexType new_pt_i,
       valid = false;
     }
 
-    const double signed_measure = getElementSignedMeasure(element_idx);
-    if(signed_measure <= getElementMeasureTolerance())
+    const auto orient = evaluateElementOrientationDeterminant(element_idx);
+    if(orient.location != OrientationLocation::Positive)
     {
-      fmt::format_to(std::back_inserter(out),
-                     "\n\tInserted element {} has non-positive signed measure {:.17g}",
-                     element_idx,
-                     signed_measure);
+      fmt::format_to(
+        std::back_inserter(out),
+        "\n\tInserted element {} has non-positive orientation determinant {:.17g} (tol={:.3g})",
+        element_idx,
+        orient.det,
+        orient.tol);
       valid = false;
     }
 
@@ -2021,94 +2234,10 @@ template <int DIM>
 inline bool Delaunay<DIM>::InsertionHelper::isPointInCircumsphere(const PointType& query_pt,
                                                                   IndexType element_idx) const
 {
-  const auto verts = m_mesh.boundaryVertices(element_idx);
-
-  if constexpr(DIM == 2)
-  {
-    const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
-    const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
-    const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
-    return primal::in_sphere(query_pt, p0, p1, p2, primal::PRIMAL_TINY, false);
-  }
-  else
-  {
-    const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
-    const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
-    const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
-    const PointType& p3 = m_mesh.getVertexPosition(verts[3]);
-
-    const auto ba = p1 - p0;
-    const auto ca = p2 - p0;
-    const auto da = p3 - p0;
-    const auto qa = query_pt - p0;
-
-    const double det = axom::numerics::determinant(ba[0],
-                                                   ba[1],
-                                                   ba[2],
-                                                   ba.squared_norm(),
-                                                   ca[0],
-                                                   ca[1],
-                                                   ca[2],
-                                                   ca.squared_norm(),
-                                                   da[0],
-                                                   da[1],
-                                                   da[2],
-                                                   da.squared_norm(),
-                                                   qa[0],
-                                                   qa[1],
-                                                   qa[2],
-                                                   qa.squared_norm());
-
-    const double scale = axom::utilities::max(
-      1.,
-      axom::utilities::max(
-        ba.norm(),
-        axom::utilities::max(ca.norm(), axom::utilities::max(da.norm(), qa.norm()))));
-    const double det_tol =
-      128. * std::numeric_limits<double>::epsilon() * scale * scale * scale * scale;
-    const int det_sign = Delaunay<DIM>::signWithTolerance(det, det_tol);
-    if(det_sign != 0)
-    {
-      return det_sign < 0;
-    }
-
-    // Resolve exact co-spherical ties symbolically from the lifted determinant
-    // cofactors, ordered by the fixed vertex/query ranks. The query point gets
-    // the highest rank so exact ties choose one deterministic inclusive result
-    // without perturbing coordinates.
-    const IndexType query_rank = 1 +
-      axom::utilities::max(axom::utilities::max(verts[0], verts[1]),
-                           axom::utilities::max(verts[2], verts[3]));
-    const std::array<PointType, 5> lifted_pts {{p0, p1, p2, p3, query_pt}};
-    const std::array<IndexType, 5> ranks {{verts[0], verts[1], verts[2], verts[3], query_rank}};
-    std::array<int, 5> order {{0, 1, 2, 3, 4}};
-    std::sort(order.begin(), order.end(), [&](int lhs, int rhs) { return ranks[lhs] < ranks[rhs]; });
-
-    const double cofactor_tol = 128. * std::numeric_limits<double>::epsilon() * scale * scale * scale;
-    for(const int row : order)
-    {
-      std::array<PointType, 4> cofactor_pts;
-      int next_idx = 0;
-      for(int pt_idx = 0; pt_idx < 5; ++pt_idx)
-      {
-        if(pt_idx == row)
-        {
-          continue;
-        }
-        cofactor_pts[next_idx++] = lifted_pts[pt_idx];
-      }
-
-      const double cofactor =
-        ((row + 3) % 2 == 0 ? 1. : -1.) * Delaunay<DIM>::orientationDeterminant(cofactor_pts);
-      const int sign = Delaunay<DIM>::signWithTolerance(cofactor, cofactor_tol);
-      if(sign != 0)
-      {
-        return sign < 0;
-      }
-    }
-
-    return true;
-  }
+  // The cavity is defined by elements whose circumspheres contain or touch the
+  // insertion point. Returning "true on boundary" ensures the cavity is
+  // topologically closed for co-spherical inputs (e.g. regular grids).
+  return Delaunay<DIM>::isPointInSphereOnMesh(m_mesh, query_pt, element_idx, /*includeBoundary=*/true);
 }
 
 }  // end namespace quest

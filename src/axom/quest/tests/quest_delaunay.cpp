@@ -308,6 +308,106 @@ TEST(quest_delaunay, insertion_validation_full_small_grid_3d)
   expectValidDelaunay(dt, points);
 }
 
+TEST(quest_delaunay, stress_nearly_coplanar_insertions_3d)
+{
+  using PointType = typename DelaunayType<3>::PointType;
+  using BoundingBox = typename DelaunayType<3>::BoundingBox;
+
+  // A near-coplanar point set (most points lie close to a plane) tends to
+  // generate sliver tetrahedra and near-zero orientation / in-sphere determinants
+  // This is a good stress case for point-location and cavity predicates in 3D.
+  DelaunayType<3> dt;
+  dt.initializeBoundary(BoundingBox(PointType {-1., -1., -1.}, PointType {2., 2., 2.}));
+
+  std::vector<PointType> points;
+  points.reserve(5 * 5 + 2);
+
+  constexpr double eps = 1e-6;
+  for(int y = 0; y < 5; ++y)
+  {
+    for(int x = 0; x < 5; ++x)
+    {
+      const double fx = static_cast<double>(x) / 4.;
+      const double fy = static_cast<double>(y) / 4.;
+      points.push_back(PointType {fx, fy, eps * (fx + 2. * fy)});
+    }
+  }
+
+  // Add a couple of off-plane points to ensure a full 3D convex hull.
+  points.push_back(PointType {0.2, 0.2, 0.4});
+  points.push_back(PointType {0.8, 0.6, 0.7});
+
+  insertPoints(dt, points);
+  expectValidDelaunay(dt, points);
+}
+
+TEST(quest_delaunay, stress_large_coordinate_scale_grid_3d)
+{
+  using PointType = typename DelaunayType<3>::PointType;
+  using BoundingBox = typename DelaunayType<3>::BoundingBox;
+  using ValidationMode = typename DelaunayType<3>::InsertionValidationMode;
+
+  // Large absolute coordinates with small relative spacing increase the risk
+  // of cancellation in determinant-based predicates. This is a deterministic
+  // stress case for the 3D orientation / in-sphere computations.
+  constexpr double base = 1e9;
+  constexpr double h = 1.0;
+
+  DelaunayType<3> dt;
+  dt.initializeBoundary(BoundingBox(PointType {base - 1., base - 1., base - 1.},
+                                    PointType {base + 4., base + 4., base + 4.}));
+  dt.setInsertionValidationMode(ValidationMode::Full);
+
+  std::vector<PointType> points;
+  points.reserve(4 * 4 * 4);
+  for(int z = 0; z < 4; ++z)
+  {
+    for(int y = 0; y < 4; ++y)
+    {
+      for(int x = 0; x < 4; ++x)
+      {
+        points.push_back(PointType {base + h * x, base + h * y, base + h * z});
+      }
+    }
+  }
+
+  insertPoints(dt, points);
+  expectConformingMesh(dt);
+  expectValidDelaunay(dt, points);
+}
+
+TEST(quest_delaunay, stress_large_coordinate_scale_grid_2d)
+{
+  using PointType = typename DelaunayType<2>::PointType;
+  using BoundingBox = typename DelaunayType<2>::BoundingBox;
+  using ValidationMode = typename DelaunayType<2>::InsertionValidationMode;
+
+  // Large absolute coordinates with small relative spacing increase the risk
+  // of cancellation in determinant-based predicates. This stress case mirrors
+  // the 3D test but exercises the 2D in-circle predicate.
+  constexpr double base = 1e9;
+  constexpr double h = 1.0;
+
+  DelaunayType<2> dt;
+  dt.initializeBoundary(
+    BoundingBox(PointType {base - 1., base - 1.}, PointType {base + 4., base + 4.}));
+  dt.setInsertionValidationMode(ValidationMode::Full);
+
+  std::vector<PointType> points;
+  points.reserve(4 * 4);
+  for(int y = 0; y < 4; ++y)
+  {
+    for(int x = 0; x < 4; ++x)
+    {
+      points.push_back(PointType {base + h * x, base + h * y});
+    }
+  }
+
+  insertPoints(dt, points);
+  expectConformingMesh(dt);
+  expectValidDelaunay(dt, points);
+}
+
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 
