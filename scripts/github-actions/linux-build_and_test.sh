@@ -79,6 +79,7 @@ echo "HOST_CONFIG=$HOST_CONFIG"
 echo "CMAKE_EXTRA_FLAGS=$CMAKE_EXTRA_FLAGS"
 echo "USE_NINJA=$USE_NINJA"
 echo "USE_LLD=$USE_LLD"
+echo "LLD_CMAKE_FLAGS=$LLD_CMAKE_FLAGS"
 echo "~~~~~~~~~~~~~~~~~~~~~~"
 
 echo "~~~~ linker info ~~~~"

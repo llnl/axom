@@ -8,9 +8,9 @@ set(CMAKE_PREFIX_PATH "/home/axom/axom_tpls/gcc-13.3.1/blt-0.7.1-tp6erawewp4l2ew
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH "ON" CACHE STRING "")
 
-set(CMAKE_BUILD_RPATH "/home/axom/axom_tpls/gcc-13.3.1/axom-develop-ofy2ds6xm3ggsfnnn2bzwtfoyqooykov/lib;/home/axom/axom_tpls/gcc-13.3.1/axom-develop-ofy2ds6xm3ggsfnnn2bzwtfoyqooykov/lib64;;" CACHE STRING "")
+set(CMAKE_BUILD_RPATH "/home/axom/axom_tpls/gcc-13.3.1/axom-develop-vj2h6qhht3szk7mhxrqfp7ffs7ljhcbp/lib;/home/axom/axom_tpls/gcc-13.3.1/axom-develop-vj2h6qhht3szk7mhxrqfp7ffs7ljhcbp/lib64;;" CACHE STRING "")
 
-set(CMAKE_INSTALL_RPATH "/home/axom/axom_tpls/gcc-13.3.1/axom-develop-ofy2ds6xm3ggsfnnn2bzwtfoyqooykov/lib;/home/axom/axom_tpls/gcc-13.3.1/axom-develop-ofy2ds6xm3ggsfnnn2bzwtfoyqooykov/lib64;;" CACHE STRING "")
+set(CMAKE_INSTALL_RPATH "/home/axom/axom_tpls/gcc-13.3.1/axom-develop-vj2h6qhht3szk7mhxrqfp7ffs7ljhcbp/lib;/home/axom/axom_tpls/gcc-13.3.1/axom-develop-vj2h6qhht3szk7mhxrqfp7ffs7ljhcbp/lib64;;" CACHE STRING "")
 
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "")
 
@@ -102,7 +102,7 @@ set(CAMP_DIR "${TPL_ROOT}/camp-git.a8caefa9f4c811b1a114b4ed2c9b681d40f12325_main
 # scr not built
 
 #------------------------------------------------------------------------------
-# Devtools
+# Devtools & Python
 #------------------------------------------------------------------------------
 
 # ClangFormat disabled since llvm@19 and devtools not in spec

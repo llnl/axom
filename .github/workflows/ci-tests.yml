@@ -12,9 +12,9 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/develop' }}
 
 env:
-  CLANG_DOCKER_IMAGE: axom/tpls:clang-19_02-17-26_21h-05m
-  GCC_DOCKER_IMAGE: axom/tpls:gcc-13_02-17-26_21h-05m
-  LLD_CMAKE_FLAGS: "-DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=/usr/bin/ld.lld -DCMAKE_SHARED_LINKER_FLAGS=-fuse-ld=/usr/bin/ld.lld -DCMAKE_MODULE_LINKER_FLAGS=-fuse-ld=/usr/bin/ld.lld"
+  CLANG_DOCKER_IMAGE: axom/tpls:clang-19_03-19-26_22h-14m
+  GCC_DOCKER_IMAGE: axom/tpls:gcc-13_03-19-26_22h-15m
+  LLD_CMAKE_FLAGS: "-DAXOM_CXX_EXE_LINKER_FLAGS=--ld-path=/usr/bin/ld.lld"
  
 jobs:
   # Hacky solution to reference env variables outside of `run` steps https://stackoverflow.com/a/74217028
