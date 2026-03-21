@@ -1528,8 +1528,11 @@ private:
   {
     // Note: This auto-compacting feature is hard coded.
     // It may be good to let user have control of this option in the future.
-    return m_num_removed_elements_since_last_compact > 512 &&
-      (m_num_removed_elements_since_last_compact > .2 * m_mesh.elements().size());
+    constexpr int MIN_REMOVED_ELEMENTS = DIM == 2 ? 512 : 2048;
+    constexpr double REMOVED_ELEMENT_FRACTION = DIM == 2 ? 0.25 : 0.35;
+    return m_num_removed_elements_since_last_compact > MIN_REMOVED_ELEMENTS &&
+      (m_num_removed_elements_since_last_compact >
+       REMOVED_ELEMENT_FRACTION * m_mesh.elements().size());
   }
 
   /// \brief Compacts the underlying mesh

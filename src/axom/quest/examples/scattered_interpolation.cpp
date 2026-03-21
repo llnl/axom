@@ -26,6 +26,8 @@
 
 #include <memory>
 #include <cmath>
+#include <cstdlib>
+#include <random>
 
 namespace primal = axom::primal;
 namespace quest = axom::quest;
@@ -586,8 +588,6 @@ axom::Array<primal::Point<double, DIM>> generatePts(int numPts,
                                                     const std::vector<double>& bb_min,
                                                     const std::vector<double>& bb_max)
 {
-  using axom::utilities::random_real;
-
   using PointType = typename primal::Point<double, DIM>;
   using BoundingBox = typename primal::BoundingBox<double, DIM>;
 
@@ -595,13 +595,37 @@ axom::Array<primal::Point<double, DIM>> generatePts(int numPts,
 
   BoundingBox bbox {PointType(bb_min.data()), PointType(bb_max.data())};
 
+  std::mt19937_64 mt;
+  if(const char* env = std::getenv("AXOM_SCATTERED_INTERP_SEED"))
+  {
+    char* end = nullptr;
+    const auto parsed = std::strtoull(env, &end, 10);
+    if(end != env)
+    {
+      mt.seed(static_cast<std::uint64_t>(parsed));
+    }
+    else
+    {
+      std::random_device rd;
+      mt.seed(rd());
+    }
+  }
+  else
+  {
+    std::random_device rd;
+    mt.seed(rd());
+  }
+
+  std::uniform_real_distribution<double> unit_dist(0., 1.);
+
   // generate random points within bounding box
   for(int i = 0; i < numPts; ++i)
   {
     PointType& pt = pts[i];
     for(int d = 0; d < DIM; ++d)
     {
-      pt[d] = random_real(bbox.getMin()[d], bbox.getMax()[d]);
+      const double t = unit_dist(mt);
+      pt[d] = t * (bbox.getMax()[d] - bbox.getMin()[d]) + bbox.getMin()[d];
     }
   }
 
