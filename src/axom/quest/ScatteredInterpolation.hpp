@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstdint>
 #include <limits>
 #include <random>
@@ -44,6 +45,25 @@ inline int extractSize(const conduit::Node& values_node)
 {
   SLIC_ASSERT(values_node.has_child("x"));
   return values_node["x"].dtype().number_of_elements();
+}
+
+inline bool getScatteredInterpSeed(std::uint64_t& seed)
+{
+  const char* env = std::getenv("AXOM_SCATTERED_INTERP_SEED");
+  if(env == nullptr || env[0] == '\0')
+  {
+    return false;
+  }
+
+  char* end = nullptr;
+  const auto parsed = std::strtoull(env, &end, 10);
+  if(end == env)
+  {
+    return false;
+  }
+
+  seed = static_cast<std::uint64_t>(parsed);
+  return true;
 }
 
 /**
@@ -307,8 +327,22 @@ private:
     // distribution using a single 64-bit random integer per point:
     // - Take the top `nlevels` bits.
     // - The BRIO level is the position of the highest set bit (1..nlevels), or 0 if all are 0.
-    std::random_device rd;
-    std::mt19937_64 mt(rd());
+    std::mt19937_64 mt;
+    std::uint64_t seed = 0;
+    if(::getScatteredInterpSeed(seed))
+    {
+      // Use a dimension/size-specific offset so the BRIO ordering remains
+      // reproducible without sharing the example's point-generation stream.
+      mt.seed(seed ^
+              (0x9e3779b97f4a7c15ULL + static_cast<std::uint64_t>(DIM) +
+               (static_cast<std::uint64_t>(npts) << 8)));
+    }
+    else
+    {
+      std::random_device rd;
+      mt.seed(rd());
+    }
+
     auto computeLevel = [&mt, nlevels]() -> int {
       constexpr int RNG_BITS = 64;
       AXOM_STATIC_ASSERT_MSG(std::numeric_limits<std::uint64_t>::digits == RNG_BITS,
