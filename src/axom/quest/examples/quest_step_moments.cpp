@@ -610,25 +610,6 @@ bool write_ellipsoid_vtk(const EllipsoidFit& fit,
   return mint::write_vtk(&mesh, file_path) == 0;
 }
 
-std::string format_real(double value) { return axom::fmt::format("{:.16e}", value); }
-
-std::string quote_yaml_string(const std::string& value)
-{
-  std::string escaped;
-  escaped.reserve(value.size());
-
-  for(char ch : value)
-  {
-    escaped += ch;
-    if(ch == '\'')
-    {
-      escaped += '\'';
-    }
-  }
-
-  return axom::fmt::format("'{}'", escaped);
-}
-
 std::string join_path(const std::string& prefix, const std::string& key)
 {
   return prefix.empty() ? key : axom::fmt::format("{}/{}", prefix, key);
@@ -717,23 +698,13 @@ private:
   TreeNode& fetch_path(const std::string& path)
   {
     TreeNode* node = &m_root;
-    std::size_t pos = 0;
 
-    while(pos < path.size())
+    for(const auto& key : axom::utilities::string::split(path, '/'))
     {
-      const std::size_t next = path.find('/', pos);
-      const std::string key =
-        path.substr(pos, next == std::string::npos ? std::string::npos : next - pos);
       if(!key.empty())
       {
         node = &node->fetch_child(key);
       }
-
-      if(next == std::string::npos)
-      {
-        break;
-      }
-      pos = next + 1;
     }
 
     return *node;
@@ -776,7 +747,18 @@ private:
   {
     if(const auto* string_value = std::get_if<std::string>(&value))
     {
-      return quote_yaml_string(*string_value);
+      std::string escaped;
+      escaped.reserve(string_value->size());
+      for(char ch : *string_value)
+      {
+        escaped += ch;
+        if(ch == '\'')
+        {
+          escaped += '\'';
+        }
+      }
+
+      return axom::fmt::format("'{}'", escaped);
     }
     if(const auto* integer_value = std::get_if<int>(&value))
     {
@@ -784,7 +766,7 @@ private:
     }
     if(const auto* real_value = std::get_if<double>(&value))
     {
-      return format_real(*real_value);
+      return axom::fmt::format("{:.16e}", *real_value);
     }
 
     return std::get<bool>(value) ? "true" : "false";
@@ -792,34 +774,42 @@ private:
 
   static void append_yaml(std::string& output, const TreeNode& node, int indent)
   {
+    const auto append_line = [&output](int line_indent,
+                                       const std::string& key,
+                                       const std::string* value = nullptr) {
+      axom::fmt::format_to(std::back_inserter(output), "{}{}:", std::string(line_indent * 2, ' '), key);
+      if(value != nullptr)
+      {
+        axom::fmt::format_to(std::back_inserter(output), " {}", *value);
+      }
+      output += '\n';
+    };
+
     for(const auto& key : node.child_order)
     {
       const auto it = node.children.find(key);
       SLIC_ASSERT(it != node.children.end());
       const TreeNode& child = it->second;
 
-      output += std::string(indent * 2, ' ');
-      output += key;
-      output += ':';
-
       if(child.children.empty())
       {
         if(child.has_scalar)
         {
-          output += ' ';
-          output += format_scalar(child.scalar_value);
+          const std::string value = format_scalar(child.scalar_value);
+          append_line(indent, key, &value);
         }
-        output += '\n';
+        else
+        {
+          append_line(indent, key);
+        }
         continue;
       }
 
-      output += '\n';
+      append_line(indent, key);
       if(child.has_scalar)
       {
-        output += std::string((indent + 1) * 2, ' ');
-        output += "value: ";
-        output += format_scalar(child.scalar_value);
-        output += '\n';
+        const std::string value = format_scalar(child.scalar_value);
+        append_line(indent + 1, "value", &value);
       }
       append_yaml(output, child, indent + 1);
     }
@@ -827,344 +817,283 @@ private:
 #endif
 };
 
-void add_xyz_triplet(ResultsStore& results,
-                     const std::string& prefix,
-                     const std::string& key,
-                     double x,
-                     double y,
-                     double z)
+class ResultsNode
 {
-  const std::string triplet_prefix = join_path(prefix, key);
-  results.add(triplet_prefix, "x", x);
-  results.add(triplet_prefix, "y", y);
-  results.add(triplet_prefix, "z", z);
+public:
+  ResultsNode(ResultsStore& results, std::string prefix)
+    : m_results(results)
+    , m_prefix(std::move(prefix))
+  { }
+
+  ResultsNode child(const std::string& key) const
+  {
+    return ResultsNode {m_results, join_path(m_prefix, key)};
+  }
+
+  void add(const std::string& key, const std::string& value) const
+  {
+    m_results.add(m_prefix, key, value);
+  }
+
+  void add(const std::string& key, const char* value) const { m_results.add(m_prefix, key, value); }
+
+  void add(const std::string& key, double value) const { m_results.add(m_prefix, key, value); }
+
+  void add(const std::string& key, int value) const { m_results.add(m_prefix, key, value); }
+
+  void add(const std::string& key, bool value) const { m_results.add(m_prefix, key, value); }
+
+private:
+  ResultsStore& m_results;
+  std::string m_prefix;
+};
+
+void write_xyz_triplet(const ResultsNode& node, double x, double y, double z)
+{
+  node.add("x", x);
+  node.add("y", y);
+  node.add("z", z);
 }
 
-void add_point(ResultsStore& results,
-               const std::string& prefix,
-               const std::string& key,
-               const Point3D& point)
+void write(const ResultsNode& node, const Point3D& point)
 {
-  add_xyz_triplet(results, prefix, key, point[0], point[1], point[2]);
+  write_xyz_triplet(node, point[0], point[1], point[2]);
 }
 
-void add_vector(ResultsStore& results,
-                const std::string& prefix,
-                const std::string& key,
-                const Vector3D& vector)
+void write(const ResultsNode& node, const Vector3D& vector)
 {
-  add_xyz_triplet(results, prefix, key, vector[0], vector[1], vector[2]);
+  write_xyz_triplet(node, vector[0], vector[1], vector[2]);
 }
 
-void add_axis_scalars(ResultsStore& results,
-                      const std::string& prefix,
-                      const std::string& key,
-                      double a,
-                      double b,
-                      double c)
+void write_axis_scalars(const ResultsNode& node, double a, double b, double c)
 {
-  const std::string values_prefix = join_path(prefix, key);
-  results.add(values_prefix, "axis_0", a);
-  results.add(values_prefix, "axis_1", b);
-  results.add(values_prefix, "axis_2", c);
+  node.add("axis_0", a);
+  node.add("axis_1", b);
+  node.add("axis_2", c);
 }
 
-void add_axes(ResultsStore& results,
-              const std::string& prefix,
-              const std::string& key,
-              const Vector3D* axes)
+void write_axes(const ResultsNode& node, const Vector3D* axes)
 {
-  const std::string axes_prefix = join_path(prefix, key);
   for(int i = 0; i < 3; ++i)
   {
-    add_vector(results, axes_prefix, axom::fmt::format("axis_{}", i), axes[i]);
+    write(node.child(axom::fmt::format("axis_{}", i)), axes[i]);
   }
 }
 
-void add_inertia_tensor(ResultsStore& results,
-                        const std::string& prefix,
-                        const std::string& key,
-                        const InertiaTensor& tensor)
+void write(const ResultsNode& node, const InertiaTensor& tensor)
 {
-  const std::string tensor_prefix = join_path(prefix, key);
-  results.add(tensor_prefix, "xx", tensor.xx);
-  results.add(tensor_prefix, "yy", tensor.yy);
-  results.add(tensor_prefix, "zz", tensor.zz);
-  results.add(tensor_prefix, "xy", tensor.xy);
-  results.add(tensor_prefix, "xz", tensor.xz);
-  results.add(tensor_prefix, "yz", tensor.yz);
+  node.add("xx", tensor.xx);
+  node.add("yy", tensor.yy);
+  node.add("zz", tensor.zz);
+  node.add("xy", tensor.xy);
+  node.add("xz", tensor.xz);
+  node.add("yz", tensor.yz);
 }
 
-void populate_moment_entries(ResultsStore& results, const std::string& prefix, const MomentSet& moments)
+void write(const ResultsNode& node, const MomentSet& moments)
 {
-  const std::string raw_prefix = join_path(prefix, "raw_moments");
-  results.add(raw_prefix, "measure", get_moment(moments, 0, 0, 0));
+  node.add("measure", get_moment(moments, 0, 0, 0));
 
-  const std::string entries_prefix = join_path(raw_prefix, "entries");
-  results.add(entries_prefix, "count", static_cast<int>(moments.requested_entries.size()));
-
+  const ResultsNode entries = node.child("entries");
+  entries.add("count", static_cast<int>(moments.requested_entries.size()));
   for(const auto& entry : moments.requested_entries)
   {
-    const std::string moment_prefix =
-      join_path(entries_prefix,
-                axom::fmt::format("m_{}_{}_{}", entry.index.px, entry.index.py, entry.index.pz));
-    results.add(moment_prefix, "degree", entry.index.degree);
-
-    const std::string exponents_prefix = join_path(moment_prefix, "exponents");
-    results.add(exponents_prefix, "x", entry.index.px);
-    results.add(exponents_prefix, "y", entry.index.py);
-    results.add(exponents_prefix, "z", entry.index.pz);
-    results.add(moment_prefix, "value", entry.value);
+    entries.add(axom::fmt::format("m_{}_{}_{}", entry.index.px, entry.index.py, entry.index.pz),
+                entry.value);
   }
 }
 
-void populate_mass_properties(ResultsStore& results,
-                              const std::string& prefix,
-                              const MassProperties& props)
+void write(const ResultsNode& node, const MassProperties& props)
 {
-  const std::string derived_prefix = join_path(prefix, "derived");
-  results.add(derived_prefix, "available", props.valid);
+  node.add("available", props.valid);
   if(!props.valid)
   {
-    results.add(derived_prefix, "reason", "measure_is_zero");
+    node.add("reason", "measure_is_zero");
     return;
   }
 
-  add_point(results, derived_prefix, "centroid", props.centroid);
-  add_inertia_tensor(results, derived_prefix, "inertia_origin", props.inertia_origin);
-  add_inertia_tensor(results, derived_prefix, "inertia_centroid", props.inertia_centroid);
+  write(node.child("centroid"), props.centroid);
+  write(node.child("inertia_origin"), props.inertia_origin);
+  write(node.child("inertia_centroid"), props.inertia_centroid);
 }
 
-void populate_principal_frame(ResultsStore& results,
-                              const std::string& prefix,
-                              const PrincipalFrame& frame)
+void write(const ResultsNode& node, const PrincipalFrame& frame)
 {
-  const std::string frame_prefix = join_path(prefix, "principal_frame");
-  results.add(frame_prefix, "available", frame.valid);
+  node.add("available", frame.valid);
   if(!frame.valid)
   {
-    results.add(frame_prefix, "reason", "eigensolve_failed_or_measure_is_zero");
+    node.add("reason", "eigensolve_failed_or_measure_is_zero");
     return;
   }
 
-  add_axis_scalars(results,
-                   frame_prefix,
-                   "principal_inertia",
-                   frame.principal_inertia[0],
-                   frame.principal_inertia[1],
-                   frame.principal_inertia[2]);
-  add_axis_scalars(results,
-                   frame_prefix,
-                   "principal_second_moments",
-                   frame.principal_second_moments[0],
-                   frame.principal_second_moments[1],
-                   frame.principal_second_moments[2]);
-  add_axes(results, frame_prefix, "axes", &frame.axes[0]);
+  write_axis_scalars(node.child("principal_inertia"),
+                     frame.principal_inertia[0],
+                     frame.principal_inertia[1],
+                     frame.principal_inertia[2]);
+  write_axis_scalars(node.child("principal_second_moments"),
+                     frame.principal_second_moments[0],
+                     frame.principal_second_moments[1],
+                     frame.principal_second_moments[2]);
+  write_axes(node.child("axes"), &frame.axes[0]);
 }
 
-void populate_ellipsoid_fit(ResultsStore& results,
-                            const std::string& prefix,
-                            const std::string& key,
-                            const EllipsoidFit& fit,
-                            double reference_volume,
-                            const char* assumption,
-                            const std::string& vtk_file)
+void write_assumptions(const ResultsNode& node, std::initializer_list<const char*> assumptions)
 {
-  const std::string fit_prefix = join_path(prefix, key);
-  results.add(fit_prefix, "available", fit.valid);
+  int idx = 0;
+  for(const char* assumption : assumptions)
+  {
+    node.add(axom::fmt::format("assumption_{}", idx++), assumption);
+  }
+}
+
+void write_ellipsoid_fit(const ResultsNode& node,
+                         const EllipsoidFit& fit,
+                         double reference_volume,
+                         const char* assumption,
+                         const std::string& vtk_file)
+{
+  node.add("available", fit.valid);
   if(!fit.valid)
   {
-    results.add(fit_prefix, "reason", "invalid_second_moments");
+    node.add("reason", "invalid_second_moments");
     return;
   }
 
   if(assumption != nullptr)
   {
-    results.add(fit_prefix, "assumption", assumption);
+    node.add("assumption", assumption);
   }
   if(!vtk_file.empty())
   {
-    results.add(fit_prefix, "vtk_file", vtk_file);
+    node.add("vtk_file", vtk_file);
   }
 
-  add_point(results, fit_prefix, "center", fit.centroid);
-  add_axis_scalars(results, fit_prefix, "semiaxes", fit.radii[0], fit.radii[1], fit.radii[2]);
-  add_axes(results, fit_prefix, "axes", &fit.axes[0]);
-  results.add(fit_prefix, "geometric_volume", fit.volume);
-  results.add(fit_prefix, "volume_ratio", compute_volume_ratio(fit.volume, reference_volume));
-  results.add(fit_prefix,
-              "effective_density",
-              compute_effective_density(reference_volume, fit.volume));
+  write(node.child("center"), fit.centroid);
+  write_axis_scalars(node.child("semiaxes"), fit.radii[0], fit.radii[1], fit.radii[2]);
+  write_axes(node.child("axes"), &fit.axes[0]);
+  node.add("geometric_volume", fit.volume);
+  node.add("volume_ratio", compute_volume_ratio(fit.volume, reference_volume));
+  node.add("effective_density", compute_effective_density(reference_volume, fit.volume));
 }
 
-void populate_obb_fit(ResultsStore& results,
-                      const std::string& prefix,
-                      const std::string& key,
-                      const ObbFit& fit,
-                      double reference_volume,
-                      const char* assumption)
+void write_obb_fit(const ResultsNode& node,
+                   const ObbFit& fit,
+                   double reference_volume,
+                   const char* assumption)
 {
-  const std::string fit_prefix = join_path(prefix, key);
-  results.add(fit_prefix, "available", fit.valid);
+  node.add("available", fit.valid);
   if(!fit.valid)
   {
-    results.add(fit_prefix, "reason", "invalid_second_moments");
+    node.add("reason", "invalid_second_moments");
     return;
+  }
+
+  if(assumption != nullptr)
+  {
+    node.add("assumption", assumption);
   }
 
   const auto& centroid = fit.box.getCentroid();
   const auto& extents = fit.box.getExtents();
   const auto* axes = fit.box.getAxes();
-
-  if(assumption != nullptr)
-  {
-    results.add(fit_prefix, "assumption", assumption);
-  }
-
-  add_point(results, fit_prefix, "center", centroid);
-  add_xyz_triplet(results, fit_prefix, "extents", extents[0], extents[1], extents[2]);
-  add_axes(results, fit_prefix, "axes", axes);
-  results.add(fit_prefix, "geometric_volume", fit.volume);
-  results.add(fit_prefix, "volume_ratio", compute_volume_ratio(fit.volume, reference_volume));
-  results.add(fit_prefix,
-              "effective_density",
-              compute_effective_density(reference_volume, fit.volume));
+  write(node.child("center"), centroid);
+  write_xyz_triplet(node.child("extents"), extents[0], extents[1], extents[2]);
+  write_axes(node.child("axes"), axes);
+  node.add("geometric_volume", fit.volume);
+  node.add("volume_ratio", compute_volume_ratio(fit.volume, reference_volume));
+  node.add("effective_density", compute_effective_density(reference_volume, fit.volume));
 }
 
-void populate_surface_results(ResultsStore& results,
-                              const std::string& prefix,
-                              const MomentSet& moments,
-                              const MassProperties& props)
+void write_results(ResultsStore& results,
+                   const std::string& input_file,
+                   int patch_count,
+                   const std::string& units,
+                   int requested_order,
+                   int computed_order,
+                   int quadrature_order,
+                   IntegralMode integral_mode,
+                   bool has_surface,
+                   const MomentSet& surface_moments,
+                   const MassProperties& surface_props,
+                   bool has_volume,
+                   const MomentSet& volume_moments,
+                   const MassProperties& volume_props,
+                   const PrincipalFrame& volume_frame,
+                   const EllipsoidFit& inertia_matched_ellipsoid,
+                   const EllipsoidFit& same_volume_ellipsoid,
+                   const ObbFit& inertia_matched_obb,
+                   const ObbFit& same_volume_obb,
+                   const std::string& inertia_matched_ellipsoid_vtk_file,
+                   const std::string& same_volume_ellipsoid_vtk_file)
 {
-  const std::string surface_prefix = join_path(prefix, "surface");
-  populate_moment_entries(results, surface_prefix, moments);
-  populate_mass_properties(results, surface_prefix, props);
-}
+  const ResultsNode root {results, "results"};
 
-void populate_volume_results(ResultsStore& results,
-                             const std::string& prefix,
-                             const MomentSet& moments,
-                             const MassProperties& props,
-                             const PrincipalFrame& frame,
-                             const EllipsoidFit& inertia_matched_ellipsoid,
-                             const EllipsoidFit& same_volume_ellipsoid,
-                             const ObbFit& inertia_matched_obb,
-                             const ObbFit& same_volume_obb,
-                             const std::string& inertia_matched_ellipsoid_vtk_file,
-                             const std::string& same_volume_ellipsoid_vtk_file)
-{
-  const std::string volume_prefix = join_path(prefix, "volume");
-  const std::string assumptions_prefix = join_path(volume_prefix, "assumptions");
-  results.add(
-    assumptions_prefix,
-    "assumption_0",
-    "volume properties assume the STEP model is a closed, consistently oriented boundary");
-  results.add(assumptions_prefix,
-              "assumption_1",
-              "inertia_matched fits reproduce the 0th, 1st, and 2nd moments but may not match the "
-              "geometric volume at unit density");
-  results.add(assumptions_prefix,
-              "assumption_2",
-              "same_volume_scaled fits uniformly scale the inertia_matched shape to match the "
-              "geometric volume while preserving principal directions and aspect ratios");
-  results.add(assumptions_prefix,
-              "assumption_3",
-              "oriented_boxes reported here are moment-based proxies and are not guaranteed to "
-              "bound the model");
+  const ResultsNode model = root.child("model");
+  model.add("file", input_file);
+  model.add("patches", patch_count);
+  model.add("units", units);
 
-  populate_moment_entries(results, volume_prefix, moments);
-  populate_mass_properties(results, volume_prefix, props);
-  populate_principal_frame(results, volume_prefix, frame);
+  const ResultsNode config = root.child("config");
+  config.add("requested_order", requested_order);
+  config.add("computed_order", computed_order);
+  config.add("quadrature_order", quadrature_order);
+  config.add("integral", integral_mode_name(integral_mode));
 
-  const std::string fit_prefix = join_path(volume_prefix, "fit_proxies");
-  const std::string ellipsoids_prefix = join_path(fit_prefix, "ellipsoids");
-  populate_ellipsoid_fit(results,
-                         ellipsoids_prefix,
-                         "inertia_matched",
-                         inertia_matched_ellipsoid,
-                         props.measure,
-                         nullptr,
-                         inertia_matched_ellipsoid_vtk_file);
-  populate_ellipsoid_fit(results,
-                         ellipsoids_prefix,
-                         "same_volume_scaled",
-                         same_volume_ellipsoid,
-                         props.measure,
-                         "uniformly scaled from the inertia_matched ellipsoid",
-                         same_volume_ellipsoid_vtk_file);
-
-  const std::string obb_prefix = join_path(fit_prefix, "oriented_boxes");
-  populate_obb_fit(results, obb_prefix, "inertia_matched", inertia_matched_obb, props.measure, nullptr);
-  populate_obb_fit(results,
-                   obb_prefix,
-                   "same_volume_scaled",
-                   same_volume_obb,
-                   props.measure,
-                   "uniformly scaled from the inertia_matched oriented box");
-}
-
-void populate_results_store(ResultsStore& results,
-                            const std::string& input_file,
-                            int patch_count,
-                            const std::string& units,
-                            int requested_order,
-                            int computed_order,
-                            int quadrature_order,
-                            IntegralMode integral_mode,
-                            bool has_surface,
-                            const MomentSet& surface_moments,
-                            const MassProperties& surface_props,
-                            bool has_volume,
-                            const MomentSet& volume_moments,
-                            const MassProperties& volume_props,
-                            const PrincipalFrame& volume_frame,
-                            const EllipsoidFit& inertia_matched_ellipsoid,
-                            const EllipsoidFit& same_volume_ellipsoid,
-                            const ObbFit& inertia_matched_obb,
-                            const ObbFit& same_volume_obb,
-                            const std::string& inertia_matched_ellipsoid_vtk_file,
-                            const std::string& same_volume_ellipsoid_vtk_file)
-{
-  const std::string root_prefix = "results";
-  const std::string model_prefix = join_path(root_prefix, "model");
-  results.add(model_prefix, "file", input_file);
-  results.add(model_prefix, "patches", patch_count);
-  results.add(model_prefix, "units", units);
-
-  const std::string config_prefix = join_path(root_prefix, "config");
-  results.add(config_prefix, "requested_order", requested_order);
-  results.add(config_prefix, "computed_order", computed_order);
-  results.add(config_prefix, "quadrature_order", quadrature_order);
-  results.add(config_prefix, "integral", integral_mode_name(integral_mode));
-
-  const std::string summary_prefix = join_path(root_prefix, "summary");
+  const ResultsNode summary = root.child("summary");
   if(has_surface)
   {
-    results.add(summary_prefix, "surface_measure", surface_props.measure);
+    summary.add("surface_measure", surface_props.measure);
   }
   if(has_volume)
   {
-    results.add(summary_prefix, "volume_measure", volume_props.measure);
+    summary.add("volume_measure", volume_props.measure);
   }
 
   if(has_surface)
   {
-    populate_surface_results(results, root_prefix, surface_moments, surface_props);
+    const ResultsNode surface = root.child("surface");
+    write(surface.child("raw_moments"), surface_moments);
+    write(surface.child("derived"), surface_props);
   }
 
   if(has_volume)
   {
-    populate_volume_results(results,
-                            root_prefix,
-                            volume_moments,
-                            volume_props,
-                            volume_frame,
-                            inertia_matched_ellipsoid,
-                            same_volume_ellipsoid,
-                            inertia_matched_obb,
-                            same_volume_obb,
-                            inertia_matched_ellipsoid_vtk_file,
-                            same_volume_ellipsoid_vtk_file);
+    const ResultsNode volume = root.child("volume");
+    write_assumptions(
+      volume.child("assumptions"),
+      {"volume properties assume the STEP model is a closed, consistently oriented boundary",
+       "inertia_matched fits reproduce the 0th, 1st, and 2nd moments but may not match the "
+       "geometric volume at unit density",
+       "same_volume_scaled fits uniformly scale the inertia_matched shape to match the geometric "
+       "volume while preserving principal directions and aspect ratios",
+       "oriented_boxes reported here are moment-based proxies and are not guaranteed to bound the "
+       "model"});
+    write(volume.child("raw_moments"), volume_moments);
+    write(volume.child("derived"), volume_props);
+    write(volume.child("principal_frame"), volume_frame);
+
+    const ResultsNode fit_proxies = volume.child("fit_proxies");
+    const ResultsNode ellipsoids = fit_proxies.child("ellipsoids");
+    write_ellipsoid_fit(ellipsoids.child("inertia_matched"),
+                        inertia_matched_ellipsoid,
+                        volume_props.measure,
+                        nullptr,
+                        inertia_matched_ellipsoid_vtk_file);
+    write_ellipsoid_fit(ellipsoids.child("same_volume_scaled"),
+                        same_volume_ellipsoid,
+                        volume_props.measure,
+                        "uniformly scaled from the inertia_matched ellipsoid",
+                        same_volume_ellipsoid_vtk_file);
+
+    const ResultsNode oriented_boxes = fit_proxies.child("oriented_boxes");
+    write_obb_fit(oriented_boxes.child("inertia_matched"),
+                  inertia_matched_obb,
+                  volume_props.measure,
+                  nullptr);
+    write_obb_fit(oriented_boxes.child("same_volume_scaled"),
+                  same_volume_obb,
+                  volume_props.measure,
+                  "uniformly scaled from the inertia_matched oriented box");
   }
 }
 }  // namespace
@@ -1354,27 +1283,27 @@ int main(int argc, char** argv)
     SLIC_INFO(summary);
 
     ResultsStore results;
-    populate_results_store(results,
-                           input_file,
-                           static_cast<int>(patches.size()),
-                           reader.getFileUnits(),
-                           max_degree,
-                           computed_max_degree,
-                           quadrature_order,
-                           integral_mode,
-                           should_compute_surface(integral_mode),
-                           surface_moments,
-                           surface_props,
-                           should_compute_volume(integral_mode),
-                           volume_moments,
-                           volume_props,
-                           volume_frame,
-                           inertia_matched_ellipsoid,
-                           same_volume_ellipsoid,
-                           inertia_matched_obb,
-                           same_volume_obb,
-                           inertia_matched_ellipsoid_vtk_file,
-                           same_volume_ellipsoid_vtk_file);
+    write_results(results,
+                  input_file,
+                  static_cast<int>(patches.size()),
+                  reader.getFileUnits(),
+                  max_degree,
+                  computed_max_degree,
+                  quadrature_order,
+                  integral_mode,
+                  should_compute_surface(integral_mode),
+                  surface_moments,
+                  surface_props,
+                  should_compute_volume(integral_mode),
+                  volume_moments,
+                  volume_props,
+                  volume_frame,
+                  inertia_matched_ellipsoid,
+                  same_volume_ellipsoid,
+                  inertia_matched_obb,
+                  same_volume_obb,
+                  inertia_matched_ellipsoid_vtk_file,
+                  same_volume_ellipsoid_vtk_file);
     SLIC_INFO(results.to_yaml());
   }
 
