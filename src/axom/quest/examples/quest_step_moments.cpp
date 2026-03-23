@@ -134,7 +134,9 @@ struct InertiaTensor
 struct MassProperties
 {
   bool valid {false};
+  bool orientation_reversed {false};
   double measure {};
+  double signed_measure {};
   Point3D centroid {};
   InertiaTensor inertia_origin {};
   InertiaTensor inertia_centroid {};
@@ -243,26 +245,35 @@ InertiaTensor shift_to_centroid(const InertiaTensor& inertia_origin,
   return shifted;
 }
 
-MassProperties compute_mass_properties(const MomentSet& moments)
+MassProperties compute_mass_properties(const MomentSet& moments, bool normalize_orientation = false)
 {
   MassProperties props;
-  props.measure = get_moment(moments, 0, 0, 0);
-  if(std::abs(props.measure) <= eps)
+  props.signed_measure = get_moment(moments, 0, 0, 0);
+  if(std::abs(props.signed_measure) <= eps)
   {
     return props;
   }
 
-  props.valid = true;
-  props.centroid[0] = get_moment(moments, 1, 0, 0) / props.measure;
-  props.centroid[1] = get_moment(moments, 0, 1, 0) / props.measure;
-  props.centroid[2] = get_moment(moments, 0, 0, 1) / props.measure;
+  const double orientation_sign = normalize_orientation && props.signed_measure < 0.0 ? -1.0 : 1.0;
 
-  const double xx = get_moment(moments, 2, 0, 0);
-  const double yy = get_moment(moments, 0, 2, 0);
-  const double zz = get_moment(moments, 0, 0, 2);
-  const double xy = get_moment(moments, 1, 1, 0);
-  const double xz = get_moment(moments, 1, 0, 1);
-  const double yz = get_moment(moments, 0, 1, 1);
+  props.valid = true;
+  props.orientation_reversed = orientation_sign < 0.0;
+  props.measure = orientation_sign * props.signed_measure;
+
+  const double mx = orientation_sign * get_moment(moments, 1, 0, 0);
+  const double my = orientation_sign * get_moment(moments, 0, 1, 0);
+  const double mz = orientation_sign * get_moment(moments, 0, 0, 1);
+
+  props.centroid[0] = mx / props.measure;
+  props.centroid[1] = my / props.measure;
+  props.centroid[2] = mz / props.measure;
+
+  const double xx = orientation_sign * get_moment(moments, 2, 0, 0);
+  const double yy = orientation_sign * get_moment(moments, 0, 2, 0);
+  const double zz = orientation_sign * get_moment(moments, 0, 0, 2);
+  const double xy = orientation_sign * get_moment(moments, 1, 1, 0);
+  const double xz = orientation_sign * get_moment(moments, 1, 0, 1);
+  const double yz = orientation_sign * get_moment(moments, 0, 1, 1);
 
   props.inertia_origin.xx = yy + zz;
   props.inertia_origin.yy = xx + zz;
@@ -974,6 +985,12 @@ void write(const ResultsNode& node, const MassProperties& props)
     return;
   }
 
+  if(props.orientation_reversed)
+  {
+    node.add("signed_measure", props.signed_measure);
+    node.add("orientation_reversed", props.orientation_reversed);
+  }
+
   write(node.child("centroid"), props.centroid);
   write(node.child("inertia_origin"), props.inertia_origin);
   write(node.child("inertia_centroid"), props.inertia_centroid);
@@ -1132,6 +1149,12 @@ void write_results(ResultsStore& results,
        "volume while preserving principal directions and aspect ratios",
        "oriented_boxes reported here are moment-based proxies and are not guaranteed to bound the "
        "model"});
+    if(volume_props.orientation_reversed)
+    {
+      volume.add("orientation_note",
+                 "raw volume moments indicated inward orientation; derived properties and fit "
+                 "proxies were reoriented to use a positive enclosed volume");
+    }
     write(volume.child("raw_moments"), volume_moments);
     write(volume.child("derived"), volume_props);
     write(volume.child("principal_frame"), volume_frame);
@@ -1293,7 +1316,7 @@ int main(int argc, char** argv)
       auto integrand = [idx](const Point3D& x) -> double { return evaluate_monomial(x, idx); };
       return primal::evaluate_volume_integral(patches, integrand, quadrature_order);
     });
-    volume_props = compute_mass_properties(volume_moments);
+    volume_props = compute_mass_properties(volume_moments, true);
 
     if(volume_props.valid)
     {
