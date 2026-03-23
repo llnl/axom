@@ -480,22 +480,6 @@ std::string make_ellipsoid_vtk_filename(const std::string& prefix, const std::st
   return axom::fmt::format("{}_{}.vtk", axom::utilities::string::removeSuffix(prefix, ".vtk"), variant);
 }
 
-Point3D transform_unit_sphere_point(const EllipsoidFit& fit, double x, double y, double z)
-{
-  Point3D point = fit.centroid;
-  const double local_coords[3] {x, y, z};
-
-  for(int axis = 0; axis < 3; ++axis)
-  {
-    for(int dim = 0; dim < 3; ++dim)
-    {
-      point[dim] += fit.radii[axis] * local_coords[axis] * fit.axes[axis][dim];
-    }
-  }
-
-  return point;
-}
-
 bool write_ellipsoid_vtk(const EllipsoidFit& fit,
                          const std::string& file_path,
                          int theta_resolution = 48,
@@ -516,66 +500,112 @@ bool write_ellipsoid_vtk(const EllipsoidFit& fit,
   TriMesh mesh(3, mint::TRIANGLE);
   mesh.reserve(total_nodes, total_cells);
 
-  auto append_node = [&mesh, &fit](double x, double y, double z) {
-    const Point3D point = transform_unit_sphere_point(fit, x, y, z);
-    mesh.appendNode(point[0], point[1], point[2]);
-  };
+  axom::IndexType next_node_id = 0;
 
-  append_node(0.0, 0.0, 1.0);
-  append_node(0.0, 0.0, -1.0);
-
-  for(int i = 0; i < theta_resolution; ++i)
-  {
-    const double theta = 2.0 * M_PI * static_cast<double>(i) / theta_resolution;
-    for(int j = 1; j <= num_rings; ++j)
+  auto append_node = [&mesh, &fit, &next_node_id](double x, double y, double z) {
+    // Map a point on the unit sphere into the ellipsoid's principal-axis frame.
+    Point3D point = fit.centroid;
+    const double local_coords[3] {x, y, z};
+    for(int axis = 0; axis < 3; ++axis)
     {
-      const double phi = M_PI * static_cast<double>(j) / (phi_resolution - 1);
-      const double sin_phi = std::sin(phi);
-      append_node(std::cos(theta) * sin_phi, std::sin(theta) * sin_phi, std::cos(phi));
+      for(int dim = 0; dim < 3; ++dim)
+      {
+        point[dim] += fit.radii[axis] * local_coords[axis] * fit.axes[axis][dim];
+      }
     }
-  }
 
-  auto ring_node = [num_rings](int theta_idx, int ring_idx) {
-    return 2 + theta_idx * num_rings + ring_idx;
+    mesh.appendNode(point[0], point[1], point[2]);
+    return next_node_id++;
   };
 
-  axom::IndexType cell[3];
+  auto append_ring = [&append_node, theta_resolution](std::vector<axom::IndexType>& ring, double phi) {
+    ring.clear();
 
-  for(int i = 0; i < theta_resolution; ++i)
-  {
-    const int next_i = (i + 1) % theta_resolution;
-    cell[0] = 0;
-    cell[1] = ring_node(next_i, 0);
-    cell[2] = ring_node(i, 0);
-    mesh.appendCell(cell);
-  }
+    const double sin_phi = std::sin(phi);
+    const double cos_phi = std::cos(phi);
+    if(std::abs(sin_phi) <= eps)
+    {
+      ring.push_back(append_node(0.0, 0.0, cos_phi));
+      return;
+    }
 
-  for(int ring = 0; ring < num_rings - 1; ++ring)
-  {
+    ring.reserve(theta_resolution);
     for(int i = 0; i < theta_resolution; ++i)
     {
-      const int next_i = (i + 1) % theta_resolution;
-      cell[0] = ring_node(i, ring);
-      cell[1] = ring_node(i, ring + 1);
-      cell[2] = ring_node(next_i, ring);
+      const double theta = 2.0 * M_PI * static_cast<double>(i) / theta_resolution;
+      ring.push_back(append_node(std::cos(theta) * sin_phi, std::sin(theta) * sin_phi, cos_phi));
+    }
+  };
+
+  auto append_ring_triangles = [&mesh](const std::vector<axom::IndexType>& lower_ring,
+                                       const std::vector<axom::IndexType>& upper_ring) {
+    SLIC_ASSERT(!lower_ring.empty());
+    SLIC_ASSERT(!upper_ring.empty());
+
+    axom::IndexType cell[3];
+    if(lower_ring.size() == 1)
+    {
+      const axom::IndexType pole = lower_ring.front();
+      const int ring_size = static_cast<int>(upper_ring.size());
+      for(int i = 0; i < ring_size; ++i)
+      {
+        const int next_i = (i + 1) % ring_size;
+        cell[0] = pole;
+        cell[1] = upper_ring[next_i];
+        cell[2] = upper_ring[i];
+        mesh.appendCell(cell);
+      }
+      return;
+    }
+
+    if(upper_ring.size() == 1)
+    {
+      const axom::IndexType pole = upper_ring.front();
+      const int ring_size = static_cast<int>(lower_ring.size());
+      for(int i = 0; i < ring_size; ++i)
+      {
+        const int next_i = (i + 1) % ring_size;
+        cell[0] = pole;
+        cell[1] = lower_ring[i];
+        cell[2] = lower_ring[next_i];
+        mesh.appendCell(cell);
+      }
+      return;
+    }
+
+    SLIC_ASSERT(lower_ring.size() == upper_ring.size());
+    const int ring_size = static_cast<int>(lower_ring.size());
+    for(int i = 0; i < ring_size; ++i)
+    {
+      const int next_i = (i + 1) % ring_size;
+      cell[0] = lower_ring[i];
+      cell[1] = upper_ring[i];
+      cell[2] = lower_ring[next_i];
       mesh.appendCell(cell);
 
-      cell[0] = ring_node(next_i, ring);
-      cell[1] = ring_node(i, ring + 1);
-      cell[2] = ring_node(next_i, ring + 1);
+      cell[0] = lower_ring[next_i];
+      cell[1] = upper_ring[i];
+      cell[2] = upper_ring[next_i];
       mesh.appendCell(cell);
     }
+  };
+
+  std::vector<axom::IndexType> lower_ring;
+  std::vector<axom::IndexType> upper_ring;
+  lower_ring.reserve(theta_resolution);
+  upper_ring.reserve(theta_resolution);
+
+  append_ring(lower_ring, 0.0);
+  for(int j = 1; j <= num_rings; ++j)
+  {
+    const double phi = M_PI * static_cast<double>(j) / (phi_resolution - 1);
+    append_ring(upper_ring, phi);
+    append_ring_triangles(lower_ring, upper_ring);
+    lower_ring.swap(upper_ring);
   }
 
-  const int last_ring = num_rings - 1;
-  for(int i = 0; i < theta_resolution; ++i)
-  {
-    const int next_i = (i + 1) % theta_resolution;
-    cell[0] = 1;
-    cell[1] = ring_node(i, last_ring);
-    cell[2] = ring_node(next_i, last_ring);
-    mesh.appendCell(cell);
-  }
+  append_ring(upper_ring, M_PI);
+  append_ring_triangles(lower_ring, upper_ring);
 
   return mint::write_vtk(&mesh, file_path) == 0;
 }
