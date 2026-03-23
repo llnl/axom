@@ -25,12 +25,18 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ### Changed
 - Primal: Axom's polygon clipping was modified to handle some corner cases.
+- Bump: Several Bump algorithms were improved so they perform better with OpenMP.
+- Mir: The `EquiZAlgorithm was improved so it performs better with OpenMP.
+- Many algorithms in Bump and Mir have been enhanced with `setAllocatorID()` methods to permit use of custom allocators.
 - Uberenv's spack updated to v1.1.1
 - `radiuss-spack-configs` submodule removed.
 
 ### Fixed
 - Primal: Fixed `NURBSPatch::evaluateDerivatives` returning a matrix with empty values. The old behavior 
   can be recovered with an optional flag, which is more efficient if the previously missing values are unneeded
+- Core: the `ArrayView` class was modified so it defers initializing an internal
+  allocator id via Umpire, if present. This prevents excessive calls to Umpire,
+  which are not needed in all use cases.
 
 ### Removed
 

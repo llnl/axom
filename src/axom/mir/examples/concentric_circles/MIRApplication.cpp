@@ -187,27 +187,25 @@ int MIRApplication::runMIR()
   {
     retval = runMIR_seq(dimension, mesh, options, resultMesh);
   }
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-  #if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   else if(policy == RuntimePolicy::omp)
   {
     retval = runMIR_omp(dimension, mesh, options, resultMesh);
   }
-  #endif
-  #if defined(AXOM_USE_CUDA)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   else if(policy == RuntimePolicy::cuda)
   {
-    constexpr int CUDA_BLOCK_SIZE = 256;
-    using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
+    options["pool_size"] = estimateMemoryPoolSize();
     retval = runMIR_cuda(dimension, mesh, options, resultMesh);
   }
-  #endif
-  #if defined(AXOM_USE_HIP)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   else if(policy == RuntimePolicy::hip)
   {
+    options["pool_size"] = estimateMemoryPoolSize();
     retval = runMIR_hip(dimension, mesh, options, resultMesh);
   }
-  #endif
 #endif
   else
   {
@@ -225,6 +223,26 @@ int MIRApplication::runMIR()
   }
 
   return retval;
+}
+
+//--------------------------------------------------------------------------------
+size_t MIRApplication::estimateMemoryPoolSize() const
+{
+  // Estimate the mesh size
+  using FloatType = float;
+  using ConnType = int;
+  const auto nzones = static_cast<size_t>(pow(gridSize, dimension));
+  const auto nnodes = static_cast<size_t>(pow(gridSize + 1, dimension));
+  const auto topoSizeBytes =
+    ((((dimension == 3) ? 8 : 4) * nzones) + (nzones * 2)) * sizeof(ConnType);
+  const auto coordSizeBytes = (dimension * nnodes) * sizeof(FloatType);
+  const auto mixFraction = 1.5;
+  const auto matsetSizeBytes = (((nzones * mixFraction) * 2) * sizeof(ConnType)) +
+    (((nzones * mixFraction) * 1) * sizeof(FloatType)) + ((nzones * 2) * sizeof(ConnType));
+  const auto estMeshSizeBytes = topoSizeBytes + coordSizeBytes + matsetSizeBytes;
+  // Estimate pool size
+  const auto initialPoolSizeBytes = estMeshSizeBytes;
+  return initialPoolSizeBytes;
 }
 
 //--------------------------------------------------------------------------------

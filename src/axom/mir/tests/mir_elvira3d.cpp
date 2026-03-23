@@ -287,7 +287,7 @@ struct test_Elvira3D
     int mi = 0;
     for(const auto &mat : matInfo)
     {
-      sortedIdsHost[mi++] = mat.number;
+      sortedIdsHost[mi++] = mat.m_number;
     }
     axom::utilities::Sorting<int>::sort(sortedIdsHost.data(), sortedIdsHost.size());
     axom::Array<int> sortedIds(nmats, nmats, allocatorID);

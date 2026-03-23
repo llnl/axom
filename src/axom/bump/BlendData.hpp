@@ -64,6 +64,19 @@ struct BlendData
   CoeffView m_blendCoeffView {};       //!< Weights that make up blend groups.
 };
 
+/*!
+ * \brief Return the number of blend groups in the BlendData (the number of values produced from the BlendData)
+ *
+ * \param blend The BlendData we're querying.
+ *
+ * \return The number of blend groups in the BlendData.
+ */
+AXOM_HOST_DEVICE
+inline axom::IndexType numberOfValues(const BlendData &blend)
+{
+  return blend.m_blendGroupSizesView.size();
+}
+
 }  // end namespace bump
 }  // end namespace axom
 

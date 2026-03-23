@@ -41,22 +41,22 @@ public:
 
   /// No-effect indexing transforms
 
-  AXOM_HOST_DEVICE inline axom::IndexType LocalToLocal(axom::IndexType index) const
+  AXOM_HOST_DEVICE inline axom::IndexType localToLocal(axom::IndexType index) const
   {
     return index;
   }
 
-  AXOM_HOST_DEVICE inline axom::IndexType LocalToGlobal(axom::IndexType index) const
+  AXOM_HOST_DEVICE inline axom::IndexType localToGlobal(axom::IndexType index) const
   {
     return index;
   }
 
-  AXOM_HOST_DEVICE inline axom::IndexType GlobalToLocal(axom::IndexType index) const
+  AXOM_HOST_DEVICE inline axom::IndexType globalToLocal(axom::IndexType index) const
   {
     return index;
   }
 
-  AXOM_HOST_DEVICE inline axom::IndexType GlobalToGlobal(axom::IndexType index) const
+  AXOM_HOST_DEVICE inline axom::IndexType globalToGlobal(axom::IndexType index) const
   {
     return index;
   }

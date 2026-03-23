@@ -192,7 +192,7 @@ struct braid2d_mat_test
 };
 
 //------------------------------------------------------------------------------
-TEST(mir_elvira, options)
+TEST(mir_elvira2d, options)
 {
   conduit::Node n_options;
 
@@ -208,7 +208,7 @@ TEST(mir_elvira, options)
 }
 
 //------------------------------------------------------------------------------
-TEST(mir_elvira, elvira_uniform_unibuffer_seq)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_seq)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_seq");
   const bool selectZones = false;
@@ -243,7 +243,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_seq)
   }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_seq)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_seq)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_seq");
   const bool selectZones = true;
@@ -266,7 +266,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_seq)
   }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_seq_pm)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_seq_pm)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_seq");
   const bool selectZones = false;
@@ -278,7 +278,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_seq_pm)
                                    pointMesh);
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_seq)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_pm_seq)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_seq");
   const bool selectZones = true;
@@ -291,7 +291,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_seq)
 }
 
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_elvira, elvira_uniform_unibuffer_omp)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_omp)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_omp");
   const bool selectZones = false;
@@ -325,7 +325,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_omp)
   }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_omp)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_omp)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_omp");
   const bool selectZones = true;
@@ -347,7 +347,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_omp)
   }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_pm_omp)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_pm_omp)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_omp");
   const bool selectZones = false;
@@ -359,7 +359,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_pm_omp)
                                    pointMesh);
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_omp)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_pm_omp)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_omp");
   const bool selectZones = true;
@@ -373,7 +373,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_omp)
 #endif
 
 #if defined(AXOM_USE_CUDA)
-TEST(mir_elvira, elvira_uniform_unibuffer_cuda)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_cuda)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_cuda");
   const bool selectZones = false;
@@ -407,7 +407,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_cuda)
   }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_cuda)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_cuda)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_cuda");
   const bool selectZones = true;
@@ -430,7 +430,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_cuda)
   }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_pm_cuda)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_pm_cuda)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_cuda");
   const bool selectZones = false;
@@ -442,7 +442,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_pm_cuda)
                                     pointMesh);
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_cuda)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_pm_cuda)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_cuda");
   const bool selectZones = true;
@@ -456,7 +456,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_cuda)
 #endif
 
 #if defined(AXOM_USE_HIP)
-TEST(mir_elvira, elvira_uniform_unibuffer_hip)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_hip)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_hip");
   const bool selectZones = false;
@@ -490,7 +490,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_hip)
   }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_hip)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_hip)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_hip");
   const bool selectZones = true;
@@ -512,7 +512,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_hip)
   }
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_pm_hip)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_pm_hip)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_hip");
   const bool selectZones = false;
@@ -524,7 +524,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_pm_hip)
                                    pointMesh);
 }
 
-TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_hip)
+TEST(mir_elvira2d, elvira_uniform_unibuffer_sel_pm_hip)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_hip");
   const bool selectZones = true;
