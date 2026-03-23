@@ -639,6 +639,50 @@ TEST(primal_integral, evaluate_trimmed_nurbs_patch_surface_integral)
   EXPECT_NEAR(evaluate_surface_integral(patch, linear_integrand, npts), 0.25, abs_tol);
 }
 
+TEST(primal_integral, evaluate_trimmed_nurbs_patch_surface_integral_clamps_bounds)
+{
+  using Point2D = primal::Point<double, 2>;
+  using Point3D = primal::Point<double, 3>;
+  using NPatch = primal::NURBSPatch<double, 3>;
+  using TrimmingCurve = primal::NURBSCurve<double, 2>;
+
+  Point3D control_points[] = {Point3D {0.0, 0.0, 0.0},
+                              Point3D {0.0, 1.0, 0.0},
+                              Point3D {1.0, 0.0, 0.0},
+                              Point3D {1.0, 1.0, 0.0}};
+
+  NPatch patch(control_points, 2, 2, 1, 1);
+
+  // Closed trimming loop with a control point below v-min (vmin == 0 for this patch),
+  //  but whose geometric curve remains inside the patch.
+  axom::Array<Point2D> bottom_pts {Point2D {0.25, 0.25}, Point2D {0.50, -0.05}, Point2D {0.75, 0.25}};
+  patch.addTrimmingCurve(TrimmingCurve(bottom_pts, 2));
+
+  Point2D right_pts[] = {Point2D {0.75, 0.25}, Point2D {0.75, 0.75}};
+  patch.addTrimmingCurve(TrimmingCurve(right_pts, 2, 1));
+
+  Point2D top_pts[] = {Point2D {0.75, 0.75}, Point2D {0.25, 0.75}};
+  patch.addTrimmingCurve(TrimmingCurve(top_pts, 2, 1));
+
+  Point2D left_pts[] = {Point2D {0.25, 0.75}, Point2D {0.25, 0.25}};
+  patch.addTrimmingCurve(TrimmingCurve(left_pts, 2, 1));
+
+  bool saw_clamped_node = false;
+  const double vmin = patch.getMinKnot_v();
+  auto integrand = [&saw_clamped_node, vmin](Point3D x) -> double {
+    if(x[1] == vmin)
+    {
+      saw_clamped_node = true;
+    }
+    return x[1];
+  };
+
+  constexpr int npts = 8;
+  (void)evaluate_surface_integral(patch, integrand, npts);
+
+  EXPECT_FALSE(saw_clamped_node);
+}
+
 TEST(primal_integral, evaluate_integral_nurbs_gwn_cache)
 {
   using Point2D = primal::Point<double, 2>;

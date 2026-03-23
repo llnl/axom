@@ -482,7 +482,10 @@ inline LambdaRetType evaluate_surface_integral_component(const primal::NURBSPatc
       continue;
     }
 
-    const auto lower_bound_y = detail::curve_array_lower_bound_y(curves);
+    // clamp the lower bound to lie within the parametric space of the patch
+    const auto lower_bound_y = axom::utilities::clampVal(detail::curve_array_lower_bound_y(curves),
+                                                         split_patch.getMinKnot_v(),
+                                                         split_patch.getMaxKnot_v());
     for(int i = 0; i < curves.size(); ++i)
     {
       total_integral += detail::evaluate_area_integral_component(
@@ -569,7 +572,10 @@ inline LambdaRetType evaluate_volume_integral_component(const primal::NURBSPatch
       continue;
     }
 
-    const auto lower_bound_y = detail::curve_array_lower_bound_y(curves);
+    // clamp the lower bound to lie within the parametric space of the patch
+    const auto lower_bound_y = axom::utilities::clampVal(detail::curve_array_lower_bound_y(curves),
+                                                         split_patch.getMinKnot_v(),
+                                                         split_patch.getMaxKnot_v());
     for(int i = 0; i < curves.size(); ++i)
     {
       total_integral += detail::evaluate_area_integral_component(
