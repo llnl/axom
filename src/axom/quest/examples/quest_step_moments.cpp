@@ -254,6 +254,10 @@ MassProperties compute_mass_properties(const MomentSet& moments, bool normalize_
     return props;
   }
 
+  // Closed STEP shells can be oriented inward, which flips the sign of every
+  // volume moment without changing the underlying geometry. When requested,
+  // normalize that sign here so downstream centroid/inertia fits use a
+  // positive enclosed-volume convention.
   const double orientation_sign = normalize_orientation && props.signed_measure < 0.0 ? -1.0 : 1.0;
 
   props.valid = true;
@@ -331,6 +335,9 @@ PrincipalFrame compute_principal_frame(const MassProperties& props)
     frame.axes[i][2] = eigenvectors(2, i);
   }
 
+  // In the principal basis, the centroidal inertia tensor diagonal entries are
+  // pairwise sums of the centroidal second moments. Solve that 3x3 system to
+  // recover the second moments used by the ellipsoid and OBB proxies.
   for(int i = 0; i < ndims; ++i)
   {
     frame.principal_second_moments[i] = 0.5 * (inertia_trace - 2.0 * frame.principal_inertia[i]);
@@ -358,6 +365,8 @@ bool compute_shape_dimensions(const PrincipalFrame& frame, double factor, double
 
   for(int i = 0; i < ndims; ++i)
   {
+    // The factor selects the proxy family: 5 for a uniform ellipsoid semiaxis
+    // and 3 for a box half-extent that matches the same centroidal moments.
     const double dim_sq = factor * frame.principal_second_moments[i] / frame.measure;
     if(dim_sq < -tol)
     {
@@ -1316,6 +1325,9 @@ int main(int argc, char** argv)
       auto integrand = [idx](const Point3D& x) -> double { return evaluate_monomial(x, idx); };
       return primal::evaluate_volume_integral(patches, integrand, quadrature_order);
     });
+    // Normalize inward-oriented closed shells before deriving principal axes and
+    // fit proxies so the reported volume-based quantities use the same sign
+    // convention as outward-oriented solids.
     volume_props = compute_mass_properties(volume_moments, true);
 
     if(volume_props.valid)
