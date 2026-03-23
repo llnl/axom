@@ -72,7 +72,7 @@ struct BlendData
  * \return The number of blend groups in the BlendData.
  */
 AXOM_HOST_DEVICE
-inline axom::IndexType NumberOfValues(const BlendData &blend)
+inline axom::IndexType numberOfValues(const BlendData &blend)
 {
   return blend.m_blendGroupSizesView.size();
 }

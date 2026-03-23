@@ -14,6 +14,7 @@ bool isDeviceAllocated(const conduit::Node &n)
 #if defined(AXOM_USE_UMPIRE)
   return isDeviceAllocator(axom::getAllocatorIDFromPointer(n.data_ptr()));
 #else
+  AXOM_UNUSED_VAR(n);
   return false;
 #endif
 }

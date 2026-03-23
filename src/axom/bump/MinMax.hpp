@@ -44,7 +44,7 @@ struct MinMax
     SLIC_ASSERT(n.dtype().number_of_elements() > 0);
     std::pair<ReturnType, ReturnType> retval;
 
-    axom::bump::views::Node_to_ArrayView(n, [&](auto nview) { retval = execute(nview); });
+    axom::bump::views::nodeToArrayView(n, [&](auto nview) { retval = execute(nview); });
     return retval;
   }
 

@@ -692,13 +692,13 @@ protected:
       AXOM_ANNOTATE_SCOPE("cleanup");
       for(const auto &mat : allMats)
       {
-        const std::string nodalMatName(nodalFieldName(mat.number));
+        const std::string nodalMatName(nodalFieldName(mat.m_number));
         if(n_newFields.has_child(nodalMatName))
         {
           n_newFields.remove(nodalMatName);
         }
 #if defined(AXOM_EQUIZ_DEBUG)
-        const std::string zonalMatName(zonalFieldName(mat.number));
+        const std::string zonalMatName(zonalFieldName(mat.m_number));
         if(n_newFields.has_child(zonalMatName))
         {
           n_newFields.remove(zonalMatName);
@@ -828,7 +828,7 @@ protected:
       AXOM_ANNOTATE_SCOPE("zonal");
       for(const auto &mat : mixedMats)
       {
-        const int matNumber = mat.number;
+        const int matNumber = mat.m_number;
         const std::string zonalName = zonalFieldName(matNumber);
         conduit::Node &n_zonalField = n_fields[zonalName];
         n_zonalField["topology"] = n_topo.name();
@@ -853,7 +853,7 @@ protected:
       AXOM_ANNOTATE_SCOPE("recenter");
       for(const auto &mat : mixedMats)
       {
-        const int matNumber = mat.number;
+        const int matNumber = mat.m_number;
         const std::string zonalName = zonalFieldName(matNumber);
         conduit::Node &n_zonalField = n_fields[zonalName];
 
@@ -917,7 +917,7 @@ protected:
     MatsetView deviceMatsetView(m_matsetView);
     for(const auto &mat : cleanMats)
     {
-      const int matNumber = mat.number;
+      const int matNumber = mat.m_number;
       axom::for_all<ExecSpace>(
         nzones,
         AXOM_LAMBDA(axom::IndexType zoneIndex) {
@@ -1018,12 +1018,12 @@ protected:
       for(int index = 0; index < nmats; index++)
       {
         // Add a matvf view to the intersector.
-        const std::string matFieldName = nodalFieldName(allMats[index].number);
+        const std::string matFieldName = nodalFieldName(allMats[index].m_number);
         auto matVFView =
           utils::make_array_view<MaterialVF>(n_fields.fetch_existing(matFieldName + "/values"));
         intersector.addMaterial(matVFView);
 
-        matNumber.push_back(allMats[index].number);
+        matNumber.push_back(allMats[index].m_number);
         matIndex.push_back(index);
       }
       // Sort indices by matNumber.
@@ -1035,7 +1035,7 @@ protected:
       int currentMatIndex = 0;
       for(axom::IndexType i = 0; i < matNumber.size(); i++)
       {
-        if(matNumber[i] == currentMat.number)
+        if(matNumber[i] == currentMat.m_number)
         {
           currentMatIndex = matIndex[i];
           break;
@@ -1049,7 +1049,7 @@ protected:
       axom::copy(matIndexDevice.data(), matIndex.data(), sizeof(int) * nmats);
       intersector.setMaterialNumbers(matNumberDevice.view());
       intersector.setMaterialIndices(matIndexDevice.view());
-      intersector.setCurrentMaterial(currentMat.number, currentMatIndex);
+      intersector.setCurrentMaterial(currentMat.m_number, currentMatIndex);
 
       // Store the current zone material ids and current material number into the intersector.
       intersector.setZoneMaterialID(utils::make_array_view<MaterialID>(
@@ -1115,7 +1115,7 @@ protected:
       conduit::Node &n_zonalMaterialID =
         n_newFields.fetch_existing(zonalMaterialIDName() + "/values");
       auto zonalMaterialID = utils::make_array_view<MaterialID>(n_zonalMaterialID);
-      const int currentMatNumber = currentMat.number;
+      const int currentMatNumber = currentMat.m_number;
       axom::for_all<ExecSpace>(
         nzonesNew,
         AXOM_LAMBDA(axom::IndexType zoneIndex) {

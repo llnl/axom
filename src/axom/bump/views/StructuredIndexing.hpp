@@ -116,9 +116,9 @@ public:
    * \return The global index.
    */
   AXOM_HOST_DEVICE
-  inline IndexType GlobalToGlobal(const LogicalIndex &global) const
+  inline IndexType globalToGlobal(const LogicalIndex &global) const
   {
-    return LogicalIndexToIndex(global);
+    return logicalIndexToIndex(global);
   }
 
   /*!
@@ -127,7 +127,7 @@ public:
    * \return The global logical index.
    */
   AXOM_HOST_DEVICE
-  inline LogicalIndex GlobalToGlobal(IndexType global) const { return IndexToLogicalIndex(global); }
+  inline LogicalIndex globalToGlobal(IndexType global) const { return indexToLogicalIndex(global); }
 
   /*!
    * \brief Turn global logical index to local logical index. no-op.
@@ -135,7 +135,7 @@ public:
    * \return Same as the input in this case.
    */
   AXOM_HOST_DEVICE
-  inline LogicalIndex GlobalToLocal(const LogicalIndex &index) const { return index; }
+  inline LogicalIndex globalToLocal(const LogicalIndex &index) const { return index; }
 
   /*!
    * \brief Turn global index to local index. no-op.
@@ -143,7 +143,7 @@ public:
    * \return Same as the input in this case.
    */
   AXOM_HOST_DEVICE
-  inline IndexType GlobalToLocal(IndexType index) const { return index; }
+  inline IndexType globalToLocal(IndexType index) const { return index; }
 
   /*!
    * \brief Turn local logical index to global logical index. no-op.
@@ -151,7 +151,7 @@ public:
    * \return Same as the input in this case.
    */
   AXOM_HOST_DEVICE
-  inline LogicalIndex LocalToGlobal(const LogicalIndex &index) const { return index; }
+  inline LogicalIndex localToGlobal(const LogicalIndex &index) const { return index; }
 
   /*!
    * \brief Turn local index to global index. no-op.
@@ -159,7 +159,7 @@ public:
    * \return Same as the input in this case.
    */
   AXOM_HOST_DEVICE
-  inline IndexType LocalToGlobal(IndexType index) const { return index; }
+  inline IndexType localToGlobal(IndexType index) const { return index; }
 
   /*!
    * \brief Turn an index into a logical index.
@@ -171,7 +171,7 @@ public:
   /// @{
 
   template <int _ndims = NDIMS>
-  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 1, LogicalIndex>::type IndexToLogicalIndex(
+  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 1, LogicalIndex>::type indexToLogicalIndex(
     IndexType index) const
   {
     LogicalIndex logical;
@@ -180,7 +180,7 @@ public:
   }
 
   template <int _ndims = NDIMS>
-  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 2, LogicalIndex>::type IndexToLogicalIndex(
+  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 2, LogicalIndex>::type indexToLogicalIndex(
     IndexType index) const
   {
     LogicalIndex logical;
@@ -191,7 +191,7 @@ public:
   }
 
   template <int _ndims = NDIMS>
-  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 3, LogicalIndex>::type IndexToLogicalIndex(
+  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 3, LogicalIndex>::type indexToLogicalIndex(
     IndexType index) const
   {
     LogicalIndex logical;
@@ -214,21 +214,21 @@ public:
    */
   /// @{
   template <int _ndims = NDIMS>
-  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 1, IndexType>::type LogicalIndexToIndex(
+  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 1, IndexType>::type logicalIndexToIndex(
     const LogicalIndex &logical) const
   {
     return logical[0];
   }
 
   template <int _ndims = NDIMS>
-  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 2, IndexType>::type LogicalIndexToIndex(
+  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 2, IndexType>::type logicalIndexToIndex(
     const LogicalIndex &logical) const
   {
     return logical[1] * m_dimensions[0] + logical[0];
   }
 
   template <int _ndims = NDIMS>
-  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 3, IndexType>::type LogicalIndexToIndex(
+  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 3, IndexType>::type logicalIndexToIndex(
     const LogicalIndex &logical) const
   {
     return (logical[2] * m_dimensions[1] * m_dimensions[0]) + (logical[1] * m_dimensions[0]) +
@@ -263,7 +263,7 @@ public:
    * \return True if the index is within the index, false otherwise.
    */
   AXOM_HOST_DEVICE
-  bool contains(IndexType index) const { return contains(IndexToLogicalIndex(index)); }
+  bool contains(IndexType index) const { return contains(indexToLogicalIndex(index)); }
 
   /*!
    * \brief Expand the current StructuredIndexing by one in each dimension.
@@ -306,7 +306,7 @@ public:
 
   IndexType clamp(IndexType index) const
   {
-    return LogicalIndexToIndex(clamp(IndexToLogicalIndex(index)));
+    return logicalIndexToIndex(clamp(indexToLogicalIndex(index)));
   }
   /// @}
 

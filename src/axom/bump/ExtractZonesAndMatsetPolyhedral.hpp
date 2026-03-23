@@ -136,7 +136,7 @@ protected:
       numSelectedZones,
       AXOM_LAMBDA(axom::IndexType szIndex) {
         const auto zoneIndex = selectedZonesView[szIndex];
-        const auto logicalIndex = deviceTopologyView.indexing().IndexToLogicalIndex(zoneIndex);
+        const auto logicalIndex = deviceTopologyView.indexing().indexToLogicalIndex(zoneIndex);
 
         int faceCount = 0;
         std::uint8_t zf = ZoneEmpty;
@@ -165,7 +165,7 @@ protected:
             // Get the index of the face neighbor.
             auto logicalNeighbor(logicalIndex);
             logicalNeighbor[dim] += delta;
-            const auto neighbor = deviceTopologyView.indexing().LogicalIndexToIndex(logicalNeighbor);
+            const auto neighbor = deviceTopologyView.indexing().logicalIndexToIndex(logicalNeighbor);
 
             // If that neighbor is NOT selected, we need to make the face.
             makeFace = (zoneFlagsView[neighbor] & ZoneSelected) == 0;
@@ -322,9 +322,9 @@ protected:
             // Get the index of the relevant neighbor.
             const int dim = queryFace >> 1;  // x y z x y z
             const int delta = (fi < 3) ? -1 : 1;
-            auto logicalNeighbor = deviceTopologyView.indexing().IndexToLogicalIndex(zoneIndex);
+            auto logicalNeighbor = deviceTopologyView.indexing().indexToLogicalIndex(zoneIndex);
             logicalNeighbor[dim] += delta;
-            const auto neighbor = deviceTopologyView.indexing().LogicalIndexToIndex(logicalNeighbor);
+            const auto neighbor = deviceTopologyView.indexing().logicalIndexToIndex(logicalNeighbor);
 
             // Get whether the neighbor defines the face companion.
             const auto nzf = zoneFlagsView[neighbor];

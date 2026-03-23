@@ -27,7 +27,7 @@ void ClipTableManager::loadShape(size_t shape)
                            startClipShapesTri,
                            clipShapesTri,
                            clipShapesTriSize,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_QUA)
     {
@@ -36,7 +36,7 @@ void ClipTableManager::loadShape(size_t shape)
                            startClipShapesQua,
                            clipShapesQua,
                            clipShapesQuaSize,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_POLY5)
     {
@@ -45,7 +45,7 @@ void ClipTableManager::loadShape(size_t shape)
                            startClipShapesPoly5,
                            clipShapesPoly5,
                            clipShapesPoly5Size,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_POLY6)
     {
@@ -54,7 +54,7 @@ void ClipTableManager::loadShape(size_t shape)
                            startClipShapesPoly6,
                            clipShapesPoly6,
                            clipShapesPoly6Size,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_POLY7)
     {
@@ -63,7 +63,7 @@ void ClipTableManager::loadShape(size_t shape)
                            startClipShapesPoly7,
                            clipShapesPoly7,
                            clipShapesPoly7Size,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_POLY8)
     {
@@ -72,7 +72,7 @@ void ClipTableManager::loadShape(size_t shape)
                            startClipShapesPoly8,
                            clipShapesPoly8,
                            clipShapesPoly8Size,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_TET)
     {
@@ -81,7 +81,7 @@ void ClipTableManager::loadShape(size_t shape)
                            startClipShapesTet,
                            clipShapesTet,
                            clipShapesTetSize,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_PYR)
     {
@@ -90,7 +90,7 @@ void ClipTableManager::loadShape(size_t shape)
                            startClipShapesPyr,
                            clipShapesPyr,
                            clipShapesPyrSize,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_WDG)
     {
@@ -99,7 +99,7 @@ void ClipTableManager::loadShape(size_t shape)
                            startClipShapesWdg,
                            clipShapesWdg,
                            clipShapesWdgSize,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_HEX)
     {
@@ -108,7 +108,7 @@ void ClipTableManager::loadShape(size_t shape)
                            startClipShapesHex,
                            clipShapesHex,
                            clipShapesHexSize,
-                           m_allocatorID);
+                           m_allocator_id);
     }
   }
 }

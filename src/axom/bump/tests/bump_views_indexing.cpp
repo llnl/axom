@@ -44,12 +44,12 @@ TEST(bump_views_indexing, strided_structured_indexing_2d)
     for(int i = 0; i < dims[0]; i++)
     {
       LogicalIndex logical {i, j};
-      const auto flat = indexing.LogicalIndexToIndex(logical);
-      const auto logical2 = indexing.IndexToLogicalIndex(flat);
+      const auto flat = indexing.logicalIndexToIndex(logical);
+      const auto logical2 = indexing.indexToLogicalIndex(flat);
       EXPECT_EQ(logical, logical2);
 
-      EXPECT_EQ(logical, indexing.GlobalToLocal(indexing.LocalToGlobal(logical)));
-      EXPECT_EQ(flat, indexing.GlobalToLocal(indexing.LocalToGlobal(flat)));
+      EXPECT_EQ(logical, indexing.globalToLocal(indexing.localToGlobal(logical)));
+      EXPECT_EQ(flat, indexing.globalToLocal(indexing.localToGlobal(flat)));
     }
   }
 
@@ -60,26 +60,26 @@ TEST(bump_views_indexing, strided_structured_indexing_2d)
     for(int i = 0; i < stride[1]; i++, index++)
     {
       LogicalIndex logical {i, j};
-      const auto flat = indexing.GlobalToGlobal(logical);
+      const auto flat = indexing.globalToGlobal(logical);
 
       // flat should start at 0 and increase
       EXPECT_EQ(flat, index);
 
       // Global flat back to logical.
-      LogicalIndex logical2 = indexing.GlobalToGlobal(flat);
+      LogicalIndex logical2 = indexing.globalToGlobal(flat);
       EXPECT_EQ(logical, logical2);
 
       // If we're in a valid region for the local window, try some other things.
       if(i >= origin[0] && i < origin[0] + dims[0] && j >= origin[1] && j < origin[1] + dims[1])
       {
-        const auto logicalLocal = indexing.GlobalToLocal(logical);
-        const auto flatLocal = indexing.GlobalToLocal(flat);
+        const auto logicalLocal = indexing.globalToLocal(logical);
+        const auto flatLocal = indexing.globalToLocal(flat);
 
         // Flat local back to flat global
-        EXPECT_EQ(flat, indexing.LocalToGlobal(flatLocal));
+        EXPECT_EQ(flat, indexing.localToGlobal(flatLocal));
 
         // Logical local back to logical global
-        EXPECT_EQ(logical, indexing.LocalToGlobal(logicalLocal));
+        EXPECT_EQ(logical, indexing.localToGlobal(logicalLocal));
       }
     }
   }
@@ -105,14 +105,14 @@ TEST(bump_views_indexing, strided_structured_indexing_3d)
   EXPECT_EQ(indexing.size(), dims[0] * dims[1] * dims[2]);
 
   const LogicalIndex logical0_0_0 {0, 0, 0};
-  const auto index0_0_0 = indexing.LogicalIndexToIndex(logical0_0_0);
+  const auto index0_0_0 = indexing.logicalIndexToIndex(logical0_0_0);
   EXPECT_EQ(index0_0_0, 0);
 
   const LogicalIndex logical2_2_2 {2, 2, 2};
-  const auto index2_2_2 = indexing.LogicalIndexToIndex(logical2_2_2);
+  const auto index2_2_2 = indexing.logicalIndexToIndex(logical2_2_2);
   EXPECT_EQ(index2_2_2, 2 + 2 * dims[0] + 2 * dims[0] * dims[1]);
 
-  LogicalIndex logical = indexing.IndexToLogicalIndex(index2_2_2);
+  LogicalIndex logical = indexing.indexToLogicalIndex(index2_2_2);
   EXPECT_TRUE(logical == logical2_2_2);
 
   for(int k = 0; k < dims[2]; k++)
@@ -122,8 +122,8 @@ TEST(bump_views_indexing, strided_structured_indexing_3d)
       for(int i = 0; i < dims[0]; i++)
       {
         LogicalIndex logical {i, j, k};
-        const auto flat = indexing.LogicalIndexToIndex(logical);
-        const auto logical2 = indexing.IndexToLogicalIndex(flat);
+        const auto flat = indexing.logicalIndexToIndex(logical);
+        const auto logical2 = indexing.indexToLogicalIndex(flat);
         EXPECT_EQ(logical, logical2);
       }
     }
