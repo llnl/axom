@@ -64,13 +64,13 @@ bool dispatch_material_unibuffer(const conduit::Node &matset, FuncType &&func)
   verify(matset, "matset");
   if(conduit::blueprint::mesh::matset::is_uni_buffer(matset))
   {
-    IndexNode_to_ArrayView_same(
+    indexNodeToArrayViewSame(
       matset["material_ids"],
       matset["sizes"],
       matset["offsets"],
       matset["indices"],
       [&](auto material_ids, auto sizes, auto offsets, auto indices) {
-        FloatNode_to_ArrayView(matset["volume_fractions"], [&](auto volume_fractions) {
+        floatNodeToArrayView(matset["volume_fractions"], [&](auto volume_fractions) {
           using IndexType = typename decltype(material_ids)::value_type;
           using FloatType = typename decltype(volume_fractions)::value_type;
 
@@ -130,8 +130,8 @@ bool dispatch_material_multibuffer(const conduit::Node &matset, FuncType &&func)
     {
       const conduit::Node &n_firstValues = volume_fractions[0].fetch_existing("values");
       const conduit::Node &n_firstIndices = volume_fractions[0].fetch_existing("indices");
-      IndexNode_to_ArrayView(n_firstIndices, [&](auto firstIndices) {
-        FloatNode_to_ArrayView(n_firstValues, [&](auto firstValues) {
+      indexNodeToArrayView(n_firstIndices, [&](auto firstIndices) {
+        floatNodeToArrayView(n_firstValues, [&](auto firstValues) {
           using IntElement =
             typename std::remove_const<typename decltype(firstIndices)::value_type>::type;
           using FloatElement =
@@ -190,7 +190,7 @@ bool dispatch_material_element_dominant(const conduit::Node &matset, FuncType &&
     if(volume_fractions.number_of_children() > 0)
     {
       const conduit::Node &n_firstValues = volume_fractions[0];
-      FloatNode_to_ArrayView(n_firstValues, [&](auto firstValues) {
+      floatNodeToArrayView(n_firstValues, [&](auto firstValues) {
         using FloatElement =
           typename std::remove_const<typename decltype(firstValues)::value_type>::type;
         using FloatView = axom::ArrayView<FloatElement>;
@@ -243,8 +243,8 @@ bool dispatch_material_material_dominant(const conduit::Node &matset, FuncType &
       const conduit::Node &n_firstValues = volume_fractions[0];
       const conduit::Node &n_firstIndices = element_ids[0];
 
-      IndexNode_to_ArrayView(n_firstIndices, [&](auto firstIndices) {
-        FloatNode_to_ArrayView(n_firstValues, [&](auto firstValues) {
+      indexNodeToArrayView(n_firstIndices, [&](auto firstIndices) {
+        floatNodeToArrayView(n_firstValues, [&](auto firstValues) {
           using FloatElement =
             typename std::remove_const<typename decltype(firstValues)::value_type>::type;
           using IntElement =

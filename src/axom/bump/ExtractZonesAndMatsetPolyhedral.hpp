@@ -13,6 +13,7 @@
 #include "axom/bump/CoordsetSlicer.hpp"
 #include "axom/bump/FieldSlicer.hpp"
 #include "axom/bump/MatsetSlicer.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 namespace axom
 {
@@ -89,8 +90,8 @@ protected:
   {
     AXOM_ANNOTATE_SCOPE("makeTopology(polyhedral)");
     namespace utils = axom::bump::utilities;
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    const int allocatorID = this->getAllocatorID();
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocatorID);
 
     // We know that we have a 3D structured mesh for which we need to make a
     // polyhedral output topology.
@@ -135,7 +136,7 @@ protected:
       numSelectedZones,
       AXOM_LAMBDA(axom::IndexType szIndex) {
         const auto zoneIndex = selectedZonesView[szIndex];
-        const auto logicalIndex = deviceTopologyView.indexing().IndexToLogicalIndex(zoneIndex);
+        const auto logicalIndex = deviceTopologyView.indexing().indexToLogicalIndex(zoneIndex);
 
         int faceCount = 0;
         std::uint8_t zf = ZoneEmpty;
@@ -164,7 +165,7 @@ protected:
             // Get the index of the face neighbor.
             auto logicalNeighbor(logicalIndex);
             logicalNeighbor[dim] += delta;
-            const auto neighbor = deviceTopologyView.indexing().LogicalIndexToIndex(logicalNeighbor);
+            const auto neighbor = deviceTopologyView.indexing().logicalIndexToIndex(logicalNeighbor);
 
             // If that neighbor is NOT selected, we need to make the face.
             makeFace = (zoneFlagsView[neighbor] & ZoneSelected) == 0;
@@ -202,34 +203,34 @@ protected:
     n_newTopo["subelements/shape"] = "polygonal";
 
     conduit::Node &n_conn = n_newTopo["elements/connectivity"];
-    n_conn.set_allocator(c2a.getConduitAllocatorID());
+    n_conn.set_allocator(conduitAllocatorId);
     n_conn.set(
       conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numSelectedZones * FacesPerHex));
     auto connView = utils::make_array_view<ConnectivityType>(n_conn);
 
     conduit::Node &n_sizes = n_newTopo["elements/sizes"];
-    n_sizes.set_allocator(c2a.getConduitAllocatorID());
+    n_sizes.set_allocator(conduitAllocatorId);
     n_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numSelectedZones));
     auto sizesView = utils::make_array_view<ConnectivityType>(n_sizes);
 
     conduit::Node &n_offsets = n_newTopo["elements/offsets"];
-    n_offsets.set_allocator(c2a.getConduitAllocatorID());
+    n_offsets.set_allocator(conduitAllocatorId);
     n_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numSelectedZones));
     auto offsetsView = utils::make_array_view<ConnectivityType>(n_offsets);
 
     conduit::Node &n_se_conn = n_newTopo["subelements/connectivity"];
-    n_se_conn.set_allocator(c2a.getConduitAllocatorID());
+    n_se_conn.set_allocator(conduitAllocatorId);
     n_se_conn.set(
       conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, faceCount * PointsPerQuad));
     auto seConnView = utils::make_array_view<ConnectivityType>(n_se_conn);
 
     conduit::Node &n_se_sizes = n_newTopo["subelements/sizes"];
-    n_se_sizes.set_allocator(c2a.getConduitAllocatorID());
+    n_se_sizes.set_allocator(conduitAllocatorId);
     n_se_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, faceCount));
     auto seSizesView = utils::make_array_view<ConnectivityType>(n_se_sizes);
 
     conduit::Node &n_se_offsets = n_newTopo["subelements/offsets"];
-    n_se_offsets.set_allocator(c2a.getConduitAllocatorID());
+    n_se_offsets.set_allocator(conduitAllocatorId);
     n_se_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, faceCount));
     auto seOffsetsView = utils::make_array_view<ConnectivityType>(n_se_offsets);
 
@@ -321,9 +322,9 @@ protected:
             // Get the index of the relevant neighbor.
             const int dim = queryFace >> 1;  // x y z x y z
             const int delta = (fi < 3) ? -1 : 1;
-            auto logicalNeighbor = deviceTopologyView.indexing().IndexToLogicalIndex(zoneIndex);
+            auto logicalNeighbor = deviceTopologyView.indexing().indexToLogicalIndex(zoneIndex);
             logicalNeighbor[dim] += delta;
-            const auto neighbor = deviceTopologyView.indexing().LogicalIndexToIndex(logicalNeighbor);
+            const auto neighbor = deviceTopologyView.indexing().logicalIndexToIndex(logicalNeighbor);
 
             // Get whether the neighbor defines the face companion.
             const auto nzf = zoneFlagsView[neighbor];

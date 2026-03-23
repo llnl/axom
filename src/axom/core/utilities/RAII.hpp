@@ -90,7 +90,7 @@ public:
 private:
   int m_rank {0};
   int m_numranks {1};
-  bool m_should_finalize {false};
+  [[maybe_unused]] bool m_should_finalize {false};
 };
 
 /**

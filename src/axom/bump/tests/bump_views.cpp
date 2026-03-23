@@ -289,18 +289,20 @@ struct test_node_to_arrayview
                              conduit::DataType::FLOAT32_ID,
                              conduit::DataType::FLOAT64_ID};
     constexpr int n = 16;
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(
+      axom::execution_space<ExecSpace>::allocatorID());
+
     for(int dtype : dtypes)
     {
       // Make a node and fill it with data.
       conduit::Node n_data;
-      n_data.set_allocator(c2a.getConduitAllocatorID());
+      n_data.set_allocator(conduitAllocatorId);
       n_data.set(conduit::DataType(dtype, n));
 
       int sumValues = 0;
-      axom::bump::views::Node_to_ArrayView(n_data, [&](auto dataView) {
-        sumValues = testBody(dataView, n);
-      });
+      axom::bump::views::nodeToArrayView(n_data,
+                                         [&](auto dataView) { sumValues = testBody(dataView, n); });
 
       EXPECT_EQ(sumValues, sum(n));
     }
@@ -337,6 +339,48 @@ TEST(bump_views, node_to_arrayview_cuda) { test_node_to_arrayview<cuda_exec>::te
 #if defined(AXOM_USE_HIP)
 TEST(bump_views, node_to_arrayview_hip) { test_node_to_arrayview<hip_exec>::test(); }
 #endif
+
+//------------------------------------------------------------------------------
+TEST(bump_views, node_to_arrayview_interleaved_seq)
+{
+  constexpr conduit::index_t n = 4;
+  axom::Array<double> interleaved {{-1., 10., -2., 20., -3., 30., -4., 40., -5.}};
+  conduit::Node n_data;
+  n_data.set_external(conduit::DataType(conduit::DataType::FLOAT64_ID,
+                                        n,
+                                        sizeof(double),
+                                        2 * sizeof(double),
+                                        sizeof(double),
+                                        conduit::Endianness::DEFAULT_ID),
+                      interleaved.data());
+
+  int sumValues = 0;
+  axom::bump::views::nodeToArrayView(n_data, [&](auto dataView) {
+    EXPECT_EQ(dataView.size(), n);
+    axom::for_all<seq_exec>(
+      n,
+      AXOM_LAMBDA(axom::IndexType index) {
+        dataView[index] = static_cast<double>((index + 1) * 100);
+      });
+
+    axom::ReduceSum<seq_exec, double> sumValuesReduce(0.);
+    axom::for_all<seq_exec>(
+      n,
+      AXOM_LAMBDA(axom::IndexType index) { sumValuesReduce += dataView[index]; });
+    sumValues = static_cast<int>(sumValuesReduce.get());
+  });
+
+  EXPECT_EQ(sumValues, 1000);
+  EXPECT_EQ(interleaved[0], -1.);
+  EXPECT_EQ(interleaved[1], 100.);
+  EXPECT_EQ(interleaved[2], -2.);
+  EXPECT_EQ(interleaved[3], 200.);
+  EXPECT_EQ(interleaved[4], -3.);
+  EXPECT_EQ(interleaved[5], 300.);
+  EXPECT_EQ(interleaved[6], -4.);
+  EXPECT_EQ(interleaved[7], 400.);
+  EXPECT_EQ(interleaved[8], -5.);
+}
 
 //------------------------------------------------------------------------------
 TEST(bump_views, explicit_coordsetview)
@@ -498,8 +542,8 @@ struct test_strided_structured
           actualNodesView[zoneIndex * 4 + i] = ids[i];
 
           // Get the logical local id for the id.
-          const auto index = nodeIndexing.GlobalToLocal(ids[i]);
-          const auto logical = nodeIndexing.IndexToLogicalIndex(index);
+          const auto index = nodeIndexing.globalToLocal(ids[i]);
+          const auto logical = nodeIndexing.indexToLogicalIndex(index);
           logicalNodesView[(zoneIndex * 4 + i) * 2 + 0] = logical[0];
           logicalNodesView[(zoneIndex * 4 + i) * 2 + 1] = logical[1];
         }
@@ -661,20 +705,20 @@ struct test_braid2d_mat
     }
 
     // Test iterators.
-    test_matsetview_iterators(matsetView, allocatorID);
+    test_matsetview_iterators(nzones, matsetView, allocatorID);
   }
 
   template <typename MatsetView>
-  static void test_matsetview_iterators(MatsetView matsetView, int allocatorID)
+  static void test_matsetview_iterators(axom::IndexType nzones, MatsetView matsetView, int allocatorID)
   {
     using ZoneIndex = typename MatsetView::ZoneIndex;
     // Allocate results array on device.
-    const int nResults = matsetView.numberOfZones();
+    const auto nResults = nzones;
     axom::Array<int> resultsArrayDevice(nResults, nResults, allocatorID);
     auto resultsView = resultsArrayDevice.view();
 
     axom::for_all<ExecSpace>(
-      matsetView.numberOfZones(),
+      nzones,
       AXOM_LAMBDA(axom::IndexType index) {
         typename MatsetView::IDList ids {};
         typename MatsetView::VFList vfs {};

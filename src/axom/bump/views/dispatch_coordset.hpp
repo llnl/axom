@@ -196,14 +196,14 @@ void dispatch_rectilinear_coordset(const conduit::Node &coordset, FuncType &&fun
   const conduit::Node &values = coordset["values"];
   if(values.number_of_children() == 2)
   {
-    axom::bump::views::FloatNode_to_ArrayView_same(values[0], values[1], [&](auto xView, auto yView) {
+    axom::bump::views::floatNodeToArrayViewSame(values[0], values[1], [&](auto xView, auto yView) {
       RectilinearCoordsetView2<typename decltype(xView)::value_type> coordView(xView, yView);
       func(coordView);
     });
   }
   else if(values.number_of_children() == 3)
   {
-    axom::bump::views::FloatNode_to_ArrayView_same(
+    axom::bump::views::floatNodeToArrayViewSame(
       values[0],
       values[1],
       values[2],
@@ -294,14 +294,14 @@ void dispatch_explicit_coordset(const conduit::Node &coordset, FuncType &&func)
   const conduit::Node &values = coordset["values"];
   if(values.number_of_children() == 2)
   {
-    axom::bump::views::FloatNode_to_ArrayView_same(values[0], values[1], [&](auto xView, auto yView) {
+    axom::bump::views::floatNodeToArrayViewSame(values[0], values[1], [&](auto xView, auto yView) {
       ExplicitCoordsetView<typename decltype(xView)::value_type, 2> coordView(xView, yView);
       func(coordView);
     });
   }
   else if(values.number_of_children() == 3)
   {
-    axom::bump::views::FloatNode_to_ArrayView_same(
+    axom::bump::views::floatNodeToArrayViewSame(
       values[0],
       values[1],
       values[2],
