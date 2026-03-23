@@ -159,6 +159,14 @@ macro(axom_add_executable)
                        OUTPUT_NAME ${arg_OUTPUT_NAME}
                        FOLDER      ${arg_FOLDER})
 
+    if(AXOM_C_EXE_LINKER_FLAGS)
+      target_link_options(${arg_NAME} PRIVATE
+        $<$<LINK_LANGUAGE:C>:${AXOM_C_EXE_LINKER_FLAGS}>)
+    endif()
+    if(AXOM_CXX_EXE_LINKER_FLAGS)
+      target_link_options(${arg_NAME} PRIVATE
+        $<$<LINK_LANGUAGE:CXX>:${AXOM_CXX_EXE_LINKER_FLAGS}>)
+    endif()
 endmacro(axom_add_executable)
 
 

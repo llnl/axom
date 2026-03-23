@@ -18,6 +18,7 @@
     - when: on_success
   before_script:
     - module load cmake/3.29
+    - module load ninja
 
 ####
 # Template
@@ -25,6 +26,7 @@
   variables:
     ALLOC_TIME: "60"
     NUM_NODES: "1"
+    EXTRA_OPTIONS: "--ninja"
   extends: [.src_build_script, .on_tuolumne, .src_workflow]
   needs: []
 

@@ -19,7 +19,7 @@ SHELL ["/bin/bash", "-c"]
 RUN sudo apt-get update -y
 RUN sudo apt-get install -y supervisor
 RUN sudo useradd --create-home --shell /bin/bash ${USER}
-RUN sudo apt-get install doxygen elfutils gfortran graphviz language-pack-en-base less libopenblas-dev libomp-dev mpich python3-sphinx ssh tree unzip cpio libxcursor1 libxkbcommon0 -fy
+RUN sudo apt-get install doxygen elfutils gfortran graphviz language-pack-en-base less libopenblas-dev libomp-dev lld mpich ninja-build python3-sphinx ssh tree unzip cpio libxcursor1 libxkbcommon0 -fy
 
 WORKDIR /opt/archives
 RUN sudo curl -L https://github.com/gitpod-io/openvscode-server/releases/download/openvscode-server-v1.69.1/openvscode-server-v1.69.1-linux-x64.tar.gz > \
@@ -44,13 +44,13 @@ RUN cd ${HOME}/axom_repo && python3 ./scripts/uberenv/uberenv.py --spack-env-fil
 # Note: having high job slots causes build log to disappear and job to fail
 # Omit testing step, hangs at slam_lulesh unit test (same behavior for azure pipeline images, as well)
 # Disable link-time optimization from MPI wrapper causing linkage failures
-RUN cd ${HOME}/axom_repo && python3 config-build.py -hc *cuda.cmake \
+RUN cd ${HOME}/axom_repo && python3 config-build.py --ninja -hc *cuda.cmake \
                                                     -bp ${HOME}/axom_repo/build-release \
                                                     -ip ${HOME}/axom_repo/install-release \
                                                     -DCMAKE_EXE_LINKER_FLAGS=-fno-lto  \
                                                     -bt Release \
                          && cd ${HOME}/axom_repo/build-release \
-                         && make -j4 install
+                         && (ninja install || (echo && echo "==================================================================" && echo " Non-verbose install failed. Re-running with verbose output." && echo "==================================================================" && echo && ninja -v install))
 
 # Install VisIt binary
 # Download tarball, installer, test script, perform installation and cleanup
@@ -80,4 +80,3 @@ RUN sed -i "s/XXX/${USER}/g" /etc/supervisord.conf
 RUN touch /var/log/openvscode-server.log && chown -R ${USER}:${USER} /var/log/openvscode-server.log
 
 CMD ["/usr/bin/supervisord"]
-

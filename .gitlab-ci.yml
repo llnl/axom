@@ -10,6 +10,8 @@ variables:
   BUILD_ROOT: ${CI_PROJECT_DIR}
   FULL_BUILD_ROOT: ${CI_BUILDS_DIR}/axom/${CI_JOB_NAME}
   SLURM_OVERLAP: 1
+  USE_LLD: "OFF"
+  LLD_EXTRA_CMAKE_OPTIONS: "-DAXOM_CXX_EXE_LINKER_FLAGS=--ld-path=/usr/bin/ld.lld"
 
 .src_workflow:
   rules:
@@ -25,7 +27,10 @@ variables:
   script:
     - echo -e "\e[0Ksection_start:$(date +%s):src_build_and_test\r\e[0KSource Build and Test ${CI_PROJECT_NAME}"
     - export  LSAN_OPTIONS=${LSAN_OPTIONS}
-    - ${ALLOC_COMMAND} python3 scripts/llnl_scripts/build_src.py -v --host-config ${HOST_CONFIG} --extra-cmake-options '-DENABLE_DOCS=OFF ${EXTRA_CMAKE_OPTIONS}' --build-type ${BUILD_TYPE:-Debug} ${EXTRA_OPTIONS}
+    - export SELECTED_EXTRA_CMAKE_OPTIONS="-DENABLE_DOCS=OFF ${EXTRA_CMAKE_OPTIONS}"
+    - if [ "${USE_LLD}" = "ON" ]; then export SELECTED_EXTRA_CMAKE_OPTIONS="${SELECTED_EXTRA_CMAKE_OPTIONS} ${LLD_EXTRA_CMAKE_OPTIONS}"; fi
+    - 'echo "[INFO: Extra CMake options: ${SELECTED_EXTRA_CMAKE_OPTIONS}]"'
+    - ${ALLOC_COMMAND} python3 scripts/llnl_scripts/build_src.py -v --host-config ${HOST_CONFIG} --extra-cmake-options "${SELECTED_EXTRA_CMAKE_OPTIONS}" --build-type ${BUILD_TYPE:-Debug} ${EXTRA_OPTIONS}
     - echo -e "\e[0Ksection_end:$(date +%s):src_build_and_test\r\e[0K"
   artifacts:
     expire_in: 2 weeks

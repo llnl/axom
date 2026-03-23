@@ -25,6 +25,24 @@ echo "HOST_CONFIG=$HOST_CONFIG"
 echo "CMAKE_EXTRA_FLAGS=$CMAKE_EXTRA_FLAGS"
 echo "~~~~~~~~~~~~~~~~~~~~~~"
 
+echo "~~~~ linker info ~~~~"
+lld_path="$(command -v lld || true)"
+ld_lld_path="$(command -v ld.lld || true)"
+echo "lld path=${lld_path:-not found}"
+if [[ -n "$lld_path" ]] ; then
+    readlink -f "$lld_path" || true
+fi
+echo "ld.lld path=${ld_lld_path:-not found}"
+if [[ -n "$ld_lld_path" ]] ; then
+    readlink -f "$ld_lld_path" || true
+fi
+if [[ -e /usr/bin/ld.lld ]] ; then
+    ls -l /usr/bin/ld.lld
+else
+    echo "/usr/bin/ld.lld not found"
+fi
+echo "~~~~~~~~~~~~~~~~~~~~~"
+
 echo "~~~~~~ RUNNING CMAKE ~~~~~~~~"
 cmake_args="-DCMAKE_BUILD_TYPE=Debug -DBUILD_SHARED_LIBS=ON -DENABLE_CLANGTIDY=OFF"
 

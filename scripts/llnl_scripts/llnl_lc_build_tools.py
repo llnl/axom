@@ -203,8 +203,32 @@ def build_and_test_host_config(test_root, host_config,
                                report_to_stdout = False,
                                extra_cmake_options = "",
                                build_type = "Debug",
-                               test_serial = False):
+                               test_serial = False,
+                               use_ninja = False):
+    total_start_time = time.perf_counter()
+    stage_timings = []
+
+    def record_stage(stage_name, start_time):
+        stage_timings.append((stage_name, int(time.perf_counter() - start_time)))
+
+    def print_stage_summary():
+        total_seconds = int(time.perf_counter() - total_start_time)
+        print("[==================================================================]")
+        print("[ Stage Timing Summary ]")
+        print("[==================================================================]")
+        for stage_name, seconds in stage_timings:
+            print("[ {0:<28} {1} ]".format(stage_name, convertSecondsToReadableTime(seconds)))
+        print("[ {0:<28} {1} ]".format("total", convertSecondsToReadableTime(total_seconds)))
+        print("[==================================================================]")
+
     host_config_root = get_host_config_root(host_config)
+    build_tool = "ninja" if use_ninja else "make"
+    build_tool_flags = "-j16"
+    build_log_id = build_tool
+    configure_generator_flag = "--ninja" if use_ninja else ""
+    downstream_generator_flag = '-G "Ninja"' if use_ninja else ""
+    build_cmd = build_tool if use_ninja else f"{build_tool} {build_tool_flags}"
+    verbose_build_cmd = f"{build_cmd} -v" if use_ninja else f"{build_cmd} VERBOSE=1"
     # setup build and install dirs
     build_dir   = pjoin(test_root, f"build-{host_config_root}")
     install_dir = pjoin(test_root, f"install-{host_config_root}")
@@ -216,9 +240,11 @@ def build_and_test_host_config(test_root, host_config,
     cfg_output_file = pjoin(test_root, f"output.log.{host_config_root}.configure.txt")
     print(f"[starting configure of {host_config}]")
     print(f"[log file: {cfg_output_file}]")
-    res = sexe(f"{sys.executable} config-build.py -bp {build_dir} -ip {install_dir} -bt {build_type} -hc {host_config} {extra_cmake_options}",
+    stage_start_time = time.perf_counter()
+    res = sexe(f"{sys.executable} config-build.py -bp {build_dir} -ip {install_dir} -bt {build_type} -hc {host_config} {configure_generator_flag} {extra_cmake_options}",
                output_file = cfg_output_file,
                echo=True)
+    record_stage("configure", stage_start_time)
 
     if report_to_stdout:
         with open(cfg_output_file, 'r', encoding='utf8') as build_out:
@@ -226,6 +252,7 @@ def build_and_test_host_config(test_root, host_config,
 
     if res != 0:
         print(f"[ERROR: Configure for host-config: {host_config} failed]\n")
+        print_stage_summary()
         return res
 
     ####
@@ -233,10 +260,11 @@ def build_and_test_host_config(test_root, host_config,
     ####
 
     # build the code
-    bld_output_file =  pjoin(build_dir,"output.log.make.txt")
+    bld_output_file =  pjoin(build_dir, f"output.log.{build_log_id}.txt")
     print("[starting build]")
     print(f"[log file: {bld_output_file}]")
-    res = sexe(f"cd {build_dir} && make -j 16 VERBOSE=1 ",
+    stage_start_time = time.perf_counter()
+    res = sexe(f"cd {build_dir} && {build_cmd}",
                 output_file = bld_output_file,
                 echo=True)
 
@@ -245,20 +273,31 @@ def build_and_test_host_config(test_root, host_config,
             print(build_out.read())
 
     if res != 0:
+        print("[==================================================================]")
+        print("[ Non-verbose build failed. Re-running with verbose output. ]")
+        print("[==================================================================]")
+        res = sexe(f"cd {build_dir} && {verbose_build_cmd}",
+                   echo=True)
+    record_stage("build", stage_start_time)
+
+    if res != 0:
         print(f"[ERROR: Build for host-config: {host_config} failed]\n")
+        print_stage_summary()
         return res
 
     # test the code
-    tst_output_file = pjoin(build_dir,"output.log.make.test.txt")
+    tst_output_file = pjoin(build_dir, f"output.log.{build_log_id}.test.txt")
     print("[starting unit tests]")
     print(f"[log file: {tst_output_file}]")
 
     parallel_test = "" if test_serial else "-j16"
-    tst_cmd = f"cd {build_dir} && make CTEST_OUTPUT_ON_FAILURE=1 test ARGS=\"--no-compress-output -T Test -VV {parallel_test}\""
+    tst_cmd = f"cd {build_dir} && CTEST_OUTPUT_ON_FAILURE=1 ctest --no-compress-output -T Test -VV {parallel_test}"
 
+    stage_start_time = time.perf_counter()
     res = sexe(tst_cmd,
                output_file = tst_output_file,
                echo=True)
+    record_stage("unit tests", stage_start_time)
 
     if report_to_stdout:
         with open(tst_output_file, 'r', encoding='utf8') as test_out:
@@ -282,16 +321,19 @@ def build_and_test_host_config(test_root, host_config,
 
     if res != 0:
         print(f"[ERROR: Tests for host-config: {host_config} failed]\n")
+        print_stage_summary()
         return res
 
     # build the docs
-    docs_output_file = pjoin(build_dir,"output.log.make.docs.txt")
+    docs_output_file = pjoin(build_dir, f"output.log.{build_log_id}.docs.txt")
     print("[starting docs generation]")
     print(f"[log file: {docs_output_file}]")
 
-    res = sexe(f"cd {build_dir} && make -j16 docs ",
+    stage_start_time = time.perf_counter()
+    res = sexe(f"cd {build_dir} && {build_cmd} docs",
                output_file = docs_output_file,
                echo=True)
+    record_stage("docs", stage_start_time)
 
     if report_to_stdout:
         with open(docs_output_file, 'r', encoding='utf8') as docs_out:
@@ -299,19 +341,23 @@ def build_and_test_host_config(test_root, host_config,
 
     if res != 0:
         print(f"[ERROR: Docs generation for host-config: {host_config} failed]\n\n")
+        print_stage_summary()
         return res
 
     # install the code
-    inst_output_file = pjoin(build_dir,"output.log.make.install.txt")
+    inst_output_file = pjoin(build_dir, f"output.log.{build_log_id}.install.txt")
     print("[starting install]")
     print(f"[log file: {inst_output_file}]")
 
-    res = sexe(f"cd {build_dir} && make -j16 install ",
+    stage_start_time = time.perf_counter()
+    res = sexe(f"cd {build_dir} && {build_cmd} install",
                output_file = inst_output_file,
                echo=True)
+    record_stage("install", stage_start_time)
 
     if res != 0:
         print(f"[ERROR: Install for host-config: {host_config} failed]\n\n")
+        print_stage_summary()
         return res
 
     # simple sanity check for make install
@@ -339,20 +385,23 @@ def build_and_test_host_config(test_root, host_config,
             "mkdir build",
             "cd build",
             """echo "[Configuring '{0}' example]" """.format("using-with-cmake"),
-            "cmake -C ../host-config.cmake ..",
+            f"cmake {downstream_generator_flag} -C ../host-config.cmake ..".strip(),
             """echo "[Building '{0}' example]" """.format("using-with-cmake"),
-            "make ",
+            build_cmd,
             """echo "[Running '{0}' example]" """.format("using-with-cmake"),
             "./example",
             """echo "[Done]" """
         ]
 
+        stage_start_time = time.perf_counter()
         res = sexe(" && ".join(example_commands),
                 output_file = install_example_output_file,
                 echo=True)
+        record_stage("installed cmake example", stage_start_time)
 
         if res != 0:
             print(f"[ERROR: Installed 'using-with-cmake' example for host-config: {host_config} failed]\n\n")
+            print_stage_summary()
             return res
 
 
@@ -368,23 +417,27 @@ def build_and_test_host_config(test_root, host_config,
             "mkdir build",
             "cd build",
             """echo "[Configuring '{0}' example]" """.format("using-with-blt"),
-            "cmake -C ../host-config.cmake ..",
+            f"cmake {downstream_generator_flag} -C ../host-config.cmake ..".strip(),
             """echo "[Building '{0}' example]" """.format("using-with-blt"),
-            "make ",
+            build_cmd,
             """echo "[Running '{0}' example]" """.format("using-with-blt"),
             "./bin/example",
             """echo "[Done]" """
         ]
 
+        stage_start_time = time.perf_counter()
         res = sexe(" && ".join(example_commands),
                 output_file = install_example_output_file,
                 echo=True)
+        record_stage("installed blt example", stage_start_time)
 
         if res != 0:
             print(f"[ERROR: Installed 'using-with-blt' example for host-config: {host_config} failed]\n\n")
+            print_stage_summary()
             return res
 
     if should_test_installed_tutorials:
+        stage_start_time = time.perf_counter()
         for _tut in ["radiuss_tutorial", "shaping_tutorial"]:
             # Notes: Might require loading module for more recent cmake than the system default for some platforms
             install_example_dir = pjoin(install_dir, "examples", "axom", _tut)
@@ -398,9 +451,9 @@ def build_and_test_host_config(test_root, host_config,
                 "mkdir build",
                 "cd build",
                 f"""echo "[Configuring '{_tut}']" """,
-                f"cmake -C ../host-config.cmake -DCMAKE_BUILD_TYPE={build_type} ..",
+                f"cmake {downstream_generator_flag} -C ../host-config.cmake -DCMAKE_BUILD_TYPE={build_type} ..".strip(),
                 f"""echo "[Building '{_tut}']" """,
-                "make -j16",
+                build_cmd,
                 f"""echo "[Running lessons for {_tut}]" """,
                 "ctest -j16",
                 """echo "[Done]" """
@@ -411,12 +464,17 @@ def build_and_test_host_config(test_root, host_config,
                     echo=True)
             if local_res != 0:
                 print(f"[ERROR: Installed '{_tut}' for host-config: {host_config} failed]\n\n")
+                record_stage("installed tutorials", stage_start_time)
+                print_stage_summary()
                 return local_res
 
+        record_stage("installed tutorials", stage_start_time)
+        print_stage_summary()
         return 0
 
 
     print(f"[SUCCESS: Build, test, and install for host-config: {host_config} complete]\n")
+    print_stage_summary()
 
     set_group_and_perms(build_dir)
     set_group_and_perms(install_dir)
@@ -430,7 +488,8 @@ def build_and_test_host_configs(prefix,
                                 report_to_stdout = False,
                                 extra_cmake_options = "",
                                 build_type = "Debug",
-                                test_serial = False):
+                                test_serial = False,
+                                use_ninja = False):
     host_configs = get_host_configs_for_current_machine(prefix, use_generated_host_configs)
     if len(host_configs) == 0:
         log_failure(prefix,"[ERROR: No host configs found at %s]" % prefix)
@@ -453,7 +512,8 @@ def build_and_test_host_configs(prefix,
                                       report_to_stdout = report_to_stdout,
                                       extra_cmake_options=extra_cmake_options,
                                       build_type = build_type,
-                                      test_serial = test_serial) == 0:
+                                      test_serial = test_serial,
+                                      use_ninja = use_ninja) == 0:
             ok.append(host_config)
             log_success(build_dir, "[Success: Built host-config: {0}]".format(host_config), timestamp)
         else:

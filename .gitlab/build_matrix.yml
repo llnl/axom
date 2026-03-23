@@ -20,12 +20,14 @@
     - when: on_success
   before_script:
     - module load cmake/3.26
+    - module load ninja
 
 ####
 # Template
 .src_build_on_matrix:
   variables:
     ALLOC_TIME: "40"
+    EXTRA_OPTIONS: "--ninja"
   extends: [.src_build_script, .on_matrix, .src_workflow]
   needs: []
 

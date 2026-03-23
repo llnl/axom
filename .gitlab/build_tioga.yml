@@ -18,12 +18,14 @@
     - when: on_success
   before_script:
     - module load cmake/3.29.2
+    - module load ninja
 
 ####
 # Template
 .src_build_on_tioga:
   variables:
     ALLOC_TIME: "60"
+    EXTRA_OPTIONS: "--ninja"
   extends: [.src_build_script, .on_tioga, .src_workflow]
   needs: []
 

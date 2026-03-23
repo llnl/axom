@@ -12,8 +12,9 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/develop' }}
 
 env:
-  CLANG_DOCKER_IMAGE: axom/tpls:clang-19_02-17-26_21h-05m
-  GCC_DOCKER_IMAGE: axom/tpls:gcc-13_02-17-26_21h-05m
+  CLANG_DOCKER_IMAGE: axom/tpls:clang-19_03-19-26_22h-14m
+  GCC_DOCKER_IMAGE: axom/tpls:gcc-13_03-19-26_22h-15m
+  LLD_CMAKE_FLAGS: "-DAXOM_CXX_EXE_LINKER_FLAGS=--ld-path=/usr/bin/ld.lld"
  
 jobs:
   # Hacky solution to reference env variables outside of `run` steps https://stackoverflow.com/a/74217028
@@ -29,6 +30,8 @@ jobs:
     runs-on: ubuntu-24.04
     needs:
     - set_image_vars
+    env:
+      USE_NINJA: "yes"
     strategy:
       fail-fast: true
       matrix:
@@ -38,18 +41,21 @@ jobs:
           host_config: gcc@13.3.1.cmake
           compiler_image: ${{ needs.set_image_vars.outputs.gcc_docker_image }}
           cmake_opts: '-DBUILD_SHARED_LIBS=ON -DBLT_CXX_STD=c++20 -DENABLE_BENCHMARKS:BOOL=ON'
+          use_lld: 'no'
           do_build: 'yes'
           do_benchmarks: 'yes'
         - job_name: gcc@13.3.1, shared, 32bit
           host_config: gcc@13.3.1.cmake
           compiler_image: ${{ needs.set_image_vars.outputs.gcc_docker_image }}
           cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_USE_64BIT_INDEXTYPE:BOOL=OFF'
+          use_lld: 'no'
           do_build: 'yes'
           do_benchmarks: 'no'
         - job_name: llvm@19.0.0, shared, benchmarks, quest regression
           host_config: llvm@19.0.0.cmake
           compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
           cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DENABLE_BENCHMARKS:BOOL=ON'
+          use_lld: 'no'
           do_build: 'yes'
           do_benchmarks: 'yes'
         include:
@@ -59,6 +65,7 @@ jobs:
             host_config: llvm@19.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF -U RAJA_DIR'
+            use_lld: 'no'
             do_build: 'yes'
             do_benchmarks: 'no'
         - build_type: Debug
@@ -67,6 +74,7 @@ jobs:
             host_config: llvm@19.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -U UMPIRE_DIR'
+            use_lld: 'no'
             do_build: 'yes'
             do_benchmarks: 'no'
         - build_type: Debug
@@ -75,6 +83,7 @@ jobs:
             host_config: llvm@19.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF -U RAJA_DIR -U UMPIRE_DIR'
+            use_lld: 'no'
             do_build: 'yes'
             do_benchmarks: 'no'
         - build_type: Debug
@@ -83,6 +92,7 @@ jobs:
             host_config: llvm@19.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -U CALIPER_DIR -U ADIAK_DIR'
+            use_lld: 'no'
             do_build: 'yes'
             do_benchmarks: 'no'
     name: ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
@@ -111,6 +121,9 @@ jobs:
           HOST_CONFIG=${{ matrix.config.host_config }} \
           CMAKE_EXTRA_FLAGS=" ${{ matrix.config.cmake_opts }} " \
           BUILD_TYPE=${{ matrix.build_type }} \
+          USE_NINJA=${{ env.USE_NINJA }} \
+          USE_LLD=${{ matrix.config.use_lld }} \
+          LLD_CMAKE_FLAGS="${{ env.LLD_CMAKE_FLAGS }}" \
           ./scripts/github-actions/linux-build_and_test.sh
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
@@ -192,4 +205,3 @@ jobs:
         submodules: recursive
     - name: Check ${{ matrix.check_type }}
       run: ./scripts/github-actions/linux-check.sh 
-
