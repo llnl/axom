@@ -594,7 +594,7 @@ private:
   NURBSCacheArray m_nurbs_caches;
 };
 
-template <int ORDER>
+template <typename ExecSpace, int ORDER>
 class TriangleGWN3D
 {
 public:
@@ -628,7 +628,7 @@ public:
       // Iterate over mesh nodes and get a bounding box for the shape
       BoxType shape_bbox;
       BoxType* shape_bbox_ptr = &shape_bbox;
-      axom::mint::for_all_nodes<axom::SEQ_EXEC, axom::mint::xargs::xyz>(
+      axom::mint::for_all_nodes<ExecSpace, axom::mint::xargs::xyz>(
         tri_mesh,
         AXOM_LAMBDA(axom::IndexType, double x, double y, double z) {
           shape_bbox_ptr->addPoint(Point3D {x, y, z});
@@ -645,7 +645,7 @@ public:
 
       m_triangles.resize(ntris);
       auto triangles_view = m_triangles.view();
-      axom::mint::for_all_cells<axom::SEQ_EXEC, axom::mint::xargs::coords>(
+      axom::mint::for_all_cells<ExecSpace, axom::mint::xargs::coords>(
         tri_mesh,
         AXOM_LAMBDA(axom::IndexType cellIdx,
                     const axom::numerics::Matrix<double>& coords,
@@ -677,7 +677,7 @@ public:
         auto aabbs_view = aabbs.view();
         const auto triangles_view = m_triangles.view();
 
-        axom::for_all<axom::SEQ_EXEC>(
+        axom::for_all<ExecSpace>(
           ntris,
           AXOM_LAMBDA(axom::IndexType i) {
             aabbs_view[i] =
@@ -702,7 +702,7 @@ public:
         };
 
         const auto traverser = m_bvh.getTraverser();
-        m_internal_moments = traverser.reduce_tree<axom::SEQ_EXEC, GWNMoments>(compute_moments);
+        m_internal_moments = traverser.reduce_tree<ExecSpace, GWNMoments>(compute_moments);
       }
       stage_timer.stop();
       SLIC_INFO(
@@ -766,7 +766,7 @@ public:
         const auto traverser = m_bvh.getTraverser();
         const auto internal_moments_view = m_internal_moments.view();
 
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+        axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
           const double wn = axom::quest::fast_approximate_winding_number(scaled_query_point(index),
                                                                          traverser,
                                                                          triangles_view,
@@ -780,7 +780,7 @@ public:
       // Use direct formula
       else
       {
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+        axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
           const auto q = scaled_query_point(static_cast<int>(index));
           double wn {};
           for(const auto& tri : triangles_view)
@@ -814,7 +814,7 @@ private:
 
   // Only needed for fast approximation method
   axom::Array<GWNMoments> m_internal_moments;
-  axom::spin::BVH<3, axom::SEQ_EXEC> m_bvh;
+  axom::spin::BVH<3, ExecSpace> m_bvh;
 
   // Parameters for normalization
   axom::primal::Point<double, 3> m_shape_center;
@@ -847,8 +847,8 @@ struct gwn_input_traits<axom::quest::DirectGWN2D>
   : std::integral_constant<GWNInputType, GWNInputType::Curve>
 { };
 
-template <int ORDER>
-struct gwn_input_traits<axom::quest::TriangleGWN3D<ORDER>>
+template <typename ExecSpace, int ORDER>
+struct gwn_input_traits<axom::quest::TriangleGWN3D<ExecSpace, ORDER>>
   : std::integral_constant<GWNInputType, GWNInputType::Triangulation>
 { };
 
