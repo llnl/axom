@@ -529,19 +529,23 @@ LambdaRetType evaluate_surface_integral(const axom::Array<NURBSPatch<T, 3>>& pat
  *
  * \param [in] patch the Bezier patch
  * \param [in] integrand callable representing the integrand
+ * \param [in] lower_bound_z the shared lower integration bound used for the
+ *             z-directed antiderivative across the full boundary
  * \param [in] npts_uv the number of quadrature points in each patch parameter direction
  * \param [in] npts_z the number of quadrature points used for numerical
  *                    antidifferentiation in z
  *
  * \pre The patch parameterization must be valid on its full parameter domain.
- * \pre The returned value is geometrically meaningful as a volume only when this
- *      patch is interpreted as part of a closed, consistently oriented boundary.
+ * \pre The returned value is geometrically meaningful as a volume contribution only
+ *      when this patch is interpreted as part of a closed, consistently oriented
+ *      boundary that uses the same lower integration bound.
  */
 template <typename Lambda,
           typename T,
           typename LambdaRetType = std::invoke_result_t<Lambda, typename BezierPatch<T, 3>::PointType>>
 LambdaRetType evaluate_volume_integral(const primal::BezierPatch<T, 3>& patch,
                                        Lambda&& integrand,
+                                       T lower_bound_z,
                                        int npts_uv,
                                        int npts_z = 0)
 {
@@ -556,7 +560,7 @@ LambdaRetType evaluate_volume_integral(const primal::BezierPatch<T, 3>& patch,
 
   return detail::evaluate_volume_integral_component(patch,
                                                     std::forward<Lambda>(integrand),
-                                                    patch.boundingBox().getMin()[2],
+                                                    lower_bound_z,
                                                     npts_uv,
                                                     npts_z);
 }
@@ -570,6 +574,8 @@ LambdaRetType evaluate_volume_integral(const primal::BezierPatch<T, 3>& patch,
  *
  * \param [in] patch the NURBS patch
  * \param [in] integrand callable representing the integrand
+ * \param [in] lower_bound_z the shared lower integration bound used for the
+ *             z-directed antiderivative across the full boundary
  * \param [in] npts_Q the number of quadrature points on each trimming curve or
  *                    in each parametric direction for untrimmed Bezier pieces
  * \param [in] npts_P the number of quadrature points used for numerical
@@ -580,14 +586,16 @@ LambdaRetType evaluate_volume_integral(const primal::BezierPatch<T, 3>& patch,
  * \pre The patch parameterization must be valid on its full parameter domain.
  * \pre If the patch is trimmed, its trimming curves must bound the intended
  *      interior region in parameter space.
- * \pre The returned value is geometrically meaningful as a volume only when this
- *      patch is interpreted as part of a closed, consistently oriented boundary.
+ * \pre The returned value is geometrically meaningful as a volume contribution only
+ *      when this patch is interpreted as part of a closed, consistently oriented
+ *      boundary that uses the same lower integration bound.
  */
 template <typename Lambda,
           typename T,
           typename LambdaRetType = std::invoke_result_t<Lambda, typename NURBSPatch<T, 3>::PointType>>
 LambdaRetType evaluate_volume_integral(const primal::NURBSPatch<T, 3>& patch,
                                        Lambda&& integrand,
+                                       T lower_bound_z,
                                        int npts_Q,
                                        int npts_P = 0,
                                        int npts_Z = 0)
@@ -607,7 +615,7 @@ LambdaRetType evaluate_volume_integral(const primal::NURBSPatch<T, 3>& patch,
 
   return detail::evaluate_volume_integral_component(patch,
                                                     std::forward<Lambda>(integrand),
-                                                    patch.boundingBox().getMin()[2],
+                                                    lower_bound_z,
                                                     npts_Q,
                                                     npts_P,
                                                     npts_Z);

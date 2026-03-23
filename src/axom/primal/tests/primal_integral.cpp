@@ -589,10 +589,24 @@ TEST(primal_integral, evaluate_patch_surface_and_volume_integrals)
 
   constexpr int npts = 6;
   constexpr double abs_tol = 1e-10;
+  constexpr double lower_bound_z = 0.0;
+
+  double patchwise_volume = 0.0;
+  double patchwise_z_moment = 0.0;
+  for(int i = 0; i < cube_faces.size(); ++i)
+  {
+    patchwise_volume += evaluate_volume_integral(cube_faces[i], const_integrand, lower_bound_z, npts);
+    patchwise_z_moment += evaluate_volume_integral(cube_faces[i], z_integrand, lower_bound_z, npts);
+  }
 
   EXPECT_NEAR(evaluate_surface_integral(cube_faces, const_integrand, npts), 6.0, abs_tol);
   EXPECT_NEAR(evaluate_volume_integral(cube_faces, const_integrand, npts), 1.0, abs_tol);
   EXPECT_NEAR(evaluate_volume_integral(cube_faces, z_integrand, npts), 0.5, abs_tol);
+  EXPECT_NEAR(patchwise_volume, 1.0, abs_tol);
+  EXPECT_NEAR(patchwise_z_moment, 0.5, abs_tol);
+  EXPECT_NEAR(evaluate_volume_integral(cube_faces[1], const_integrand, lower_bound_z, npts),
+              1.0,
+              abs_tol);
 }
 
 TEST(primal_integral, evaluate_trimmed_nurbs_patch_surface_integral)
