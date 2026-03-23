@@ -25,7 +25,7 @@ namespace extraction
 class TableManager
 {
 public:
-  static constexpr int NumberOfTables = ST_MAX - ST_MIN;
+  static constexpr int NUMBER_OF_TABLES = ST_MAX - ST_MIN;
 
   TableManager();
 
@@ -73,8 +73,8 @@ protected:
   virtual void loadShape(size_t shape) = 0;
 
 protected:
-  axom::StackArray<Table, NumberOfTables> m_tables {};
-  int m_allocatorID {};
+  axom::StackArray<Table, NUMBER_OF_TABLES> m_tables {};
+  int m_allocator_id {};
 };
 
 }  // end namespace extraction

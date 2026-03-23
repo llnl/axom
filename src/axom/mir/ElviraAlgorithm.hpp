@@ -366,10 +366,10 @@ protected:
     // Merge clean and MIR output.
     std::vector<axom::bump::MeshInput> inputs(2);
     inputs[0].m_input = &n_cleanOutput;
-    inputs[0].topologyName = topoName;
+    inputs[0].m_topologyName = topoName;
 
     inputs[1].m_input = &n_mirOutput;
-    inputs[1].topologyName = topoName;
+    inputs[1].m_topologyName = topoName;
 
     conduit::Node mmOpts;
     mmOpts["topologyName"] = topoName;
@@ -725,7 +725,7 @@ protected:
         axom::utilities::reverse_sort_multiple(vfs.data(), ids.data(), matCount);
 
         // Retrieve the stencil data from neighbor zones.
-        auto logical = deviceTopologyView.indexing().IndexToLogicalIndex(zoneIndex);
+        auto logical = deviceTopologyView.indexing().indexToLogicalIndex(zoneIndex);
         for(int si = 0; si < StencilSize; si++)
         {
           // Stencil neighbor logical index.
@@ -741,7 +741,7 @@ protected:
           // Clamp the neighbor to a zone that is inside the indexing space.
           neighbor = deviceTopologyView.indexing().clamp(neighbor);
           const auto neighborIndex = static_cast<typename MatsetView::ZoneIndex>(
-            deviceTopologyView.indexing().LogicalIndexToIndex(neighbor));
+            deviceTopologyView.indexing().logicalIndexToIndex(neighbor));
           const auto matNeighborIndex = static_cast<typename MatsetView::ZoneIndex>(neighborIndex);
 
           // Copy material vfs into the stencil.

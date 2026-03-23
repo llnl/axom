@@ -48,7 +48,7 @@ struct Result2D
  * \param value The input value to convert to Difference.
  * \return The converted Difference value.
  */
-inline AXOM_HOST_DEVICE Difference IntToDifference(int value)
+inline AXOM_HOST_DEVICE Difference intToDifference(int value)
 {
   return (value == 0) ? Difference::BACKWARD
                       : ((value == 2) ? Difference::FORWARD : Difference::CENTRAL);
@@ -59,7 +59,7 @@ inline AXOM_HOST_DEVICE Difference IntToDifference(int value)
  * \param value The input value to convert to int.
  * \return The converted int value.
  */
-inline AXOM_HOST_DEVICE int DifferenceToInt(Difference value)
+inline AXOM_HOST_DEVICE int differenceToInt(Difference value)
 {
   return (value == Difference::BACKWARD) ? 0 : ((value == Difference::FORWARD) ? 2 : 1);
 }
@@ -68,7 +68,7 @@ inline AXOM_HOST_DEVICE int DifferenceToInt(Difference value)
  * \param value The input value to reverse.
  * \return The reversed direction.
  */
-inline AXOM_HOST_DEVICE Difference Reverse(Difference value)
+inline AXOM_HOST_DEVICE Difference reverseDifference(Difference value)
 {
   return (value == Difference::BACKWARD)
     ? Difference::FORWARD
@@ -974,8 +974,8 @@ AXOM_HOST_DEVICE void pick_elv(Result2D<FloatType> elv2d[2], const FloatType *vf
   }
 
   // Record which differences were used.
-  elv2d[0].difference_used = IntToDifference(imin);
-  elv2d[1].difference_used = IntToDifference(jmin);
+  elv2d[0].difference_used = intToDifference(imin);
+  elv2d[1].difference_used = intToDifference(jmin);
 }
 
 /*!
@@ -1322,8 +1322,8 @@ AXOM_HOST_DEVICE void correct1(Result2D<FloatType> elv2d[2],
   const int p2 = 3 - p0 - p1;
 
   FloatType n30[3];
-  norm3d(elv2d[0].normal[DifferenceToInt(elv2d[0].difference_used)],
-         elv2d[1].normal[DifferenceToInt(elv2d[1].difference_used)],
+  norm3d(elv2d[0].normal[differenceToInt(elv2d[0].difference_used)],
+         elv2d[1].normal[differenceToInt(elv2d[1].difference_used)],
          n30);
 
   // Ensure correct order.
@@ -1356,7 +1356,7 @@ AXOM_HOST_DEVICE void correct1(Result2D<FloatType> elv2d[2],
     {
       axom::utilities::swap(upcen[0], upcen[2]);
 
-      diff[0] = Reverse(diff[0]);  // Forward <--> Backward
+      diff[0] = reverseDifference(diff[0]);  // Forward <--> Backward
 
       axom::utilities::swap(upcol[0][0], upcol[0][2]);
     }
@@ -1365,7 +1365,7 @@ AXOM_HOST_DEVICE void correct1(Result2D<FloatType> elv2d[2],
     FloatType n2a[2][2];
     for(int i = 0; i < 2; i++)
     {
-      const FloatType *n2 = elv2d[i].normal[DifferenceToInt(elv2d[i].difference_used)];
+      const FloatType *n2 = elv2d[i].normal[differenceToInt(elv2d[i].difference_used)];
       for(int k = 0; k < 2; k++)
       {
         n2a[i][k] = axom::utilities::abs(n2[k]);
