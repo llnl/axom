@@ -566,7 +566,6 @@ TEST(primal_integral, evaluate_nurbs_surface_normal)
 
 TEST(primal_integral, evaluate_patch_surface_and_volume_integrals)
 {
-  using Point2D = primal::Point<double, 2>;
   using Point3D = primal::Point<double, 3>;
   using BPatch = primal::BezierPatch<double, 3>;
 

@@ -149,14 +149,14 @@ struct PrincipalFrame
   Point3D centroid {};
   double principal_inertia[3] {};
   double principal_second_moments[3] {};
-  Vector3D axes[3] {};
+  Vector3D axes[3];
 };
 
 struct EllipsoidFit
 {
   bool valid {false};
   Point3D centroid {};
-  Vector3D axes[3] {};
+  Vector3D axes[3];
   double radii[3] {};
   double volume {};
 };
