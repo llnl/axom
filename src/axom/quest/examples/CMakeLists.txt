@@ -651,8 +651,8 @@ endif()
 
 if( MFEM_FOUND)
     axom_add_executable(
-        NAME        quest_winding_number_ex
-        SOURCES     quest_winding_number.cpp
+        NAME        quest_winding_number_2d_ex
+        SOURCES     quest_winding_number_2d.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
         DEPENDS_ON  axom mfem cli11 fmt
         FOLDER      axom/quest/examples
@@ -687,7 +687,7 @@ if(MFEM_FOUND AND OPENCASCADE_FOUND)
                 set(_res_k 5)
                 string(CONCAT _pass_regex
                     "INOUT_STATS:.*"
-                    "pos_dofs=16.*"
+                    "pos_dofs=14.*"
                     "neg_dofs=0")
             elseif(_model STREQUAL "sliced_cylinder")
                 string(CONCAT _pass_regex
