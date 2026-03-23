@@ -35,6 +35,7 @@
 #endif
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <map>
 #include <string>
@@ -69,6 +70,11 @@ const std::map<std::string, IntegralMode> s_validIntegralModes {{"surface", Inte
                                                                 {"both", IntegralMode::BOTH}};
 
 constexpr double eps = 1e-14;
+
+double clamp_near_zero(double value, double tolerance)
+{
+  return std::abs(value) <= tolerance ? 0.0 : value;
+}
 
 const char* integral_mode_name(IntegralMode mode)
 {
@@ -618,6 +624,10 @@ std::string join_path(const std::string& prefix, const std::string& key)
 class ResultsStore
 {
 public:
+  explicit ResultsStore(double zero_tolerance = 0.0) : m_zero_tolerance(zero_tolerance) { }
+
+  void set(const std::string& path, const std::array<double, 3>& value) { set_vec3(path, value); }
+
   void add(const std::string& prefix, const std::string& key, const std::string& value)
   {
     set_string(join_path(prefix, key), value);
@@ -631,6 +641,16 @@ public:
   void add(const std::string& prefix, const std::string& key, double value)
   {
     set_real(join_path(prefix, key), value);
+  }
+
+  void add(const std::string& prefix, const std::string& key, const std::array<double, 3>& value)
+  {
+    set_vec3(join_path(prefix, key), value);
+  }
+
+  void add_unclamped_real(const std::string& prefix, const std::string& key, double value)
+  {
+    set_real_unclamped(join_path(prefix, key), value);
   }
 
   void add(const std::string& prefix, const std::string& key, int value)
@@ -655,6 +675,10 @@ public:
   }
 
 private:
+  double sanitize_real(double value) const { return clamp_near_zero(value, m_zero_tolerance); }
+
+  const double m_zero_tolerance;
+
 #ifdef AXOM_USE_CONDUIT
   conduit::Node m_root;
 
@@ -662,7 +686,17 @@ private:
 
   void set_string(const std::string& path, const char* value) { m_root[path].set_string(value); }
 
-  void set_real(const std::string& path, double value) { m_root[path] = value; }
+  void set_real(const std::string& path, double value) { m_root[path] = sanitize_real(value); }
+
+  void set_vec3(const std::string& path, const std::array<double, 3>& value)
+  {
+    const std::array<double, 3> sanitized {sanitize_real(value[0]),
+                                           sanitize_real(value[1]),
+                                           sanitize_real(value[2])};
+    m_root[path].set(sanitized.data(), 3);
+  }
+
+  void set_real_unclamped(const std::string& path, double value) { m_root[path] = value; }
 
   void set_integer(const std::string& path, int value) { m_root[path] = value; }
 
@@ -671,7 +705,7 @@ private:
     m_root[path].set_string(value ? "true" : "false");
   }
 #else
-  using ScalarValue = std::variant<std::string, int, double, bool>;
+  using ScalarValue = std::variant<std::string, int, double, bool, std::array<double, 3>>;
 
   struct TreeNode
   {
@@ -726,6 +760,22 @@ private:
   {
     TreeNode& node = fetch_path(path);
     node.has_scalar = true;
+    node.scalar_value = sanitize_real(value);
+  }
+
+  void set_vec3(const std::string& path, const std::array<double, 3>& value)
+  {
+    TreeNode& node = fetch_path(path);
+    node.has_scalar = true;
+    node.scalar_value = std::array<double, 3> {sanitize_real(value[0]),
+                                               sanitize_real(value[1]),
+                                               sanitize_real(value[2])};
+  }
+
+  void set_real_unclamped(const std::string& path, double value)
+  {
+    TreeNode& node = fetch_path(path);
+    node.has_scalar = true;
     node.scalar_value = value;
   }
 
@@ -767,6 +817,13 @@ private:
     if(const auto* real_value = std::get_if<double>(&value))
     {
       return axom::fmt::format("{:.16e}", *real_value);
+    }
+    if(const auto* vec3_value = std::get_if<std::array<double, 3>>(&value))
+    {
+      return axom::fmt::format("[{:.16e}, {:.16e}, {:.16e}]",
+                               (*vec3_value)[0],
+                               (*vec3_value)[1],
+                               (*vec3_value)[2]);
     }
 
     return std::get<bool>(value) ? "true" : "false";
@@ -839,6 +896,13 @@ public:
 
   void add(const std::string& key, double value) const { m_results.add(m_prefix, key, value); }
 
+  void add(const std::string& key, const std::array<double, 3>& value) const
+  {
+    m_results.add(m_prefix, key, value);
+  }
+
+  void set(const std::array<double, 3>& value) const { m_results.set(m_prefix, value); }
+
   void add(const std::string& key, int value) const { m_results.add(m_prefix, key, value); }
 
   void add(const std::string& key, bool value) const { m_results.add(m_prefix, key, value); }
@@ -850,9 +914,7 @@ private:
 
 void write_xyz_triplet(const ResultsNode& node, double x, double y, double z)
 {
-  node.add("x", x);
-  node.add("y", y);
-  node.add("z", z);
+  node.set(std::array<double, 3> {x, y, z});
 }
 
 void write(const ResultsNode& node, const Point3D& point)
@@ -905,9 +967,9 @@ void write(const ResultsNode& node, const MomentSet& moments)
 
 void write(const ResultsNode& node, const MassProperties& props)
 {
-  node.add("available", props.valid);
   if(!props.valid)
   {
+    node.add("available", props.valid);
     node.add("reason", "measure_is_zero");
     return;
   }
@@ -919,9 +981,9 @@ void write(const ResultsNode& node, const MassProperties& props)
 
 void write(const ResultsNode& node, const PrincipalFrame& frame)
 {
-  node.add("available", frame.valid);
   if(!frame.valid)
   {
+    node.add("available", frame.valid);
     node.add("reason", "eigensolve_failed_or_measure_is_zero");
     return;
   }
@@ -952,9 +1014,9 @@ void write_ellipsoid_fit(const ResultsNode& node,
                          const char* assumption,
                          const std::string& vtk_file)
 {
-  node.add("available", fit.valid);
   if(!fit.valid)
   {
+    node.add("available", fit.valid);
     node.add("reason", "invalid_second_moments");
     return;
   }
@@ -981,9 +1043,9 @@ void write_obb_fit(const ResultsNode& node,
                    double reference_volume,
                    const char* assumption)
 {
-  node.add("available", fit.valid);
   if(!fit.valid)
   {
+    node.add("available", fit.valid);
     node.add("reason", "invalid_second_moments");
     return;
   }
@@ -1011,6 +1073,7 @@ void write_results(ResultsStore& results,
                    int requested_order,
                    int computed_order,
                    int quadrature_order,
+                   double zero_tolerance,
                    IntegralMode integral_mode,
                    bool has_surface,
                    const MomentSet& surface_moments,
@@ -1037,6 +1100,7 @@ void write_results(ResultsStore& results,
   config.add("requested_order", requested_order);
   config.add("computed_order", computed_order);
   config.add("quadrature_order", quadrature_order);
+  results.add_unclamped_real("results/config", "zero_tolerance", zero_tolerance);
   config.add("integral", integral_mode_name(integral_mode));
 
   const ResultsNode summary = root.child("summary");
@@ -1105,6 +1169,7 @@ int main(int argc, char** argv)
   int quadrature_order {0};
   bool verbose {false};
   bool validate_model {false};
+  double zero_tolerance {0.0};
   std::string ellipsoid_vtk_prefix;
   std::string annotationMode {"none"};
   IntegralMode integral_mode {IntegralMode::BOTH};
@@ -1128,6 +1193,10 @@ int main(int argc, char** argv)
     ->description("Which measures to compute: 'surface', 'volume', or 'both'")
     ->capture_default_str()
     ->transform(axom::CLI::CheckedTransformer(s_validIntegralModes));
+  app.add_option("--zero-tolerance", zero_tolerance)
+    ->description("Clamp reported floating-point values with abs(value) <= tol to exactly zero")
+    ->capture_default_str()
+    ->check(axom::CLI::NonNegativeNumber);
   app.add_flag("-v,--verbose", verbose, "Enable verbose output")->capture_default_str();
   app.add_flag("--validate", validate_model, "Run STEP model validation checks")->capture_default_str();
   app.add_option("--ellipsoid-vtk-prefix", ellipsoid_vtk_prefix)
@@ -1274,15 +1343,17 @@ int main(int argc, char** argv)
     std::string summary = "SUMMARY";
     if(should_compute_surface(integral_mode))
     {
-      summary += axom::fmt::format(" surface_m0={:.16e}", surface_props.measure);
+      summary += axom::fmt::format(" surface_m0={:.16e}",
+                                   clamp_near_zero(surface_props.measure, zero_tolerance));
     }
     if(should_compute_volume(integral_mode))
     {
-      summary += axom::fmt::format(" volume_m0={:.16e}", volume_props.measure);
+      summary += axom::fmt::format(" volume_m0={:.16e}",
+                                   clamp_near_zero(volume_props.measure, zero_tolerance));
     }
     SLIC_INFO(summary);
 
-    ResultsStore results;
+    ResultsStore results(zero_tolerance);
     write_results(results,
                   input_file,
                   static_cast<int>(patches.size()),
@@ -1290,6 +1361,7 @@ int main(int argc, char** argv)
                   max_degree,
                   computed_max_degree,
                   quadrature_order,
+                  zero_tolerance,
                   integral_mode,
                   should_compute_surface(integral_mode),
                   surface_moments,
