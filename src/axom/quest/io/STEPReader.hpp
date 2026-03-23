@@ -66,8 +66,14 @@ public:
   PatchArray& getPatchArray() { return m_patches; }
   const PatchArray& getPatchArray() const { return m_patches; }
 
+  /// Get the number of patches in the read file
+  int numPatches() { return m_patches.size(); }
+
   /// Returns some information about the loaded BRep
   std::string getBRepStats() const;
+
+  /// Returns an AABB for the loaded BRep as evaluated by OpenCascade
+  axom::primal::BoundingBox<double, 3> getBRepBoundingBox(bool useTriangulation = false) const;
 
   /*!
    * \brief Generates a triangulated representation of the STEP file as a Mint unstructured triangle mesh.

@@ -47,6 +47,8 @@ set( primal_headers
     geometry/Quadrilateral.hpp
     geometry/Vector.hpp
     geometry/construct.hpp
+    
+    geometry/detail/analytic_test_surfaces.hpp
 
     ## operators
     operators/clip.hpp

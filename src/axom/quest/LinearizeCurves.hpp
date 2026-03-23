@@ -25,7 +25,7 @@ class LinearizeCurves
 {
 public:
   using NURBSCurve = axom::primal::NURBSCurve<double, 2>;
-  using CurveArrayView = axom::ArrayView<NURBSCurve>;
+  using CurveArrayView = axom::ArrayView<const NURBSCurve>;
   using SegmentMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
 
 public:

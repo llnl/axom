@@ -54,6 +54,9 @@ set( quest_headers
     io/STLWriter.hpp
     io/ProEReader.hpp
 
+    ## Generalized Winding Numbers
+    FastApproximateGWN.hpp
+
     ## quest interface
     interface/internal/mpicomm_wrapper.hpp
     interface/internal/QuestHelpers.hpp
@@ -95,6 +98,7 @@ set( quest_sources
 
 if(MFEM_FOUND)
     list(APPEND quest_headers io/MFEMReader.hpp)
+    list(APPEND quest_headers GWNMethods.hpp)
     list(APPEND quest_sources io/MFEMReader.cpp)
 endif()
 

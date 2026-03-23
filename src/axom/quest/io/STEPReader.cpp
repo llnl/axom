@@ -26,6 +26,7 @@
 #include "opencascade/BRepLib.hxx"
 #include "opencascade/BRepMesh_IncrementalMesh.hxx"
 #include "opencascade/BRepTools.hxx"
+#include "opencascade/BRepBndLib.hxx"
 #include "opencascade/Geom_BSplineSurface.hxx"
 #include "opencascade/Geom_RectangularTrimmedSurface.hxx"
 #include "opencascade/Geom_Surface.hxx"
@@ -1518,6 +1519,29 @@ std::string STEPReader::getBRepStats() const
   }
 
   return axom::fmt::to_string(out);
+}
+
+axom::primal::BoundingBox<double, 3> STEPReader::getBRepBoundingBox(bool useTriangulation) const
+{
+  if(!m_stepProcessor->isLoaded())
+  {
+    SLIC_WARNING("Cannot compute bounding box until calling STEPReader::read()");
+    return axom::primal::BoundingBox<double, 3> {};
+  }
+
+  const auto shape = m_stepProcessor->getShape();
+
+  Bnd_Box box;
+  box.SetVoid();
+
+  BRepBndLib::Add(shape, box, useTriangulation);
+  box.SetGap(0.0);
+
+  Standard_Real xmin, ymin, zmin, xmax, ymax, zmax;
+  box.Get(xmin, ymin, zmin, xmax, ymax, zmax);
+
+  return axom::primal::BoundingBox<double, 3> {axom::primal::Point<double, 3> {xmin, ymin, zmin},
+                                               axom::primal::Point<double, 3> {xmax, ymax, zmax}};
 }
 
 STEPReader::~STEPReader()
