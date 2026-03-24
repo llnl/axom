@@ -63,7 +63,7 @@ namespace primal
 template <typename CurveType,
           typename Lambda,
           typename LambdaRetType = std::invoke_result_t<Lambda, typename CurveType::PointType>>
-LambdaRetType evaluate_line_integral(const primal::CurvedPolygon<CurveType> cpoly,
+LambdaRetType evaluate_line_integral(const primal::CurvedPolygon<CurveType>& cpoly,
                                      Lambda&& integrand,
                                      int npts)
 {
@@ -167,7 +167,7 @@ LambdaRetType evaluate_line_integral(const axom::Array<CurveType>& carray, Lambd
  * \return the value of the integral
  */
 template <typename CurveType, typename Lambda, typename FuncRetType = typename CurveType::NumericType>
-FuncRetType evaluate_vector_line_integral(const CurvedPolygon<CurveType> cpoly,
+FuncRetType evaluate_vector_line_integral(const CurvedPolygon<CurveType>& cpoly,
                                           Lambda&& vector_integrand,
                                           int npts)
 {
