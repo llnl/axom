@@ -278,8 +278,6 @@ inline T evaluate_vector_line_integral_component(const NURBSCurveGWNCache<T>& nc
 }
 //@}
 
-//@}
-
 ///@{
 /// \name Evaluates scalar-field 2D area integrals for functions f : R^2 -> R^m
 
