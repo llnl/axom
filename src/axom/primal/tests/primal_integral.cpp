@@ -760,8 +760,12 @@ TEST(primal_integral, evaluate_integral_nurbs_gwn_cache)
 #ifdef AXOM_USE_MFEM
 TEST(primal_integral, check_axom_mfem_quadrature_values)
 {
-  const int N = 200;
+  // MFEM and Axom both generate Gauss-Legendre rules, but in builds that enable
+  // `-march=native` we can see ULP-level differences in the computed nodes/weights
+  // even though the rules are equivalent for integration purposes.
+  const double fp_tol = 8 * axom::numeric_limits<double>::epsilon();
 
+  constexpr int N = 200;
   for(int npts = 1; npts <= N; ++npts)
   {
     // Generate the Axom quadrature rule
@@ -774,12 +778,8 @@ TEST(primal_integral, check_axom_mfem_quadrature_values)
     // Check that the nodes and weights are the same between the two rules
     for(int j = 0; j < npts; ++j)
     {
-      EXPECT_NEAR(axom_rule.node(j), mfem_rule.IntPoint(j).x, axom::numeric_limits<double>::epsilon());
-
-      // Relax tolerance slightly for intel-oneapi
-      EXPECT_NEAR(axom_rule.weight(j),
-                  mfem_rule.IntPoint(j).weight,
-                  10 * axom::numeric_limits<double>::epsilon());
+      EXPECT_NEAR(axom_rule.node(j), mfem_rule.IntPoint(j).x, fp_tol);
+      EXPECT_NEAR(axom_rule.weight(j), mfem_rule.IntPoint(j).weight, fp_tol);
     }
   }
 }
