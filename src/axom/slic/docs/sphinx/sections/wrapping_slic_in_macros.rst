@@ -121,18 +121,18 @@ The table below details the built-in SLIC macros as well as some notes about whe
 
    * - ``SLIC_ASSERT``
        ``SLIC_ASSERT_MSG``
-     - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined).
-       Not available in device code.
-     - Collective by default.
-       Collective after calling ``slic::enableAbortOnError()``.
-       No longer collective after calling ``slic::disableAbortOnError()``.
+     - - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined)
+       - Not available in device code
+     - - Collective by default
+       - Collective after calling ``slic::enableAbortOnError()``
+       - No longer collective after calling ``slic::disableAbortOnError()``
 
    * - ``SLIC_CHECK``
        ``SLIC_CHECK_MSG``
-     - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined).
-       Not available in device code.
-     - Not collective by default.
-       Collective after ``slic::debug::checksAreErrors`` is set to ``true`` (defaults to ``false``).
+     - - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined)
+       - Not available in device code
+     - - Not collective by default
+       - Collective after ``slic::debug::checksAreErrors`` is set to ``true``, defaults to ``false``
 
    * - ``SLIC_DEBUG``
        ``SLIC_DEBUG_IF``
@@ -142,8 +142,8 @@ The table below details the built-in SLIC macros as well as some notes about whe
        ``SLIC_DEBUG_IF_ONCE``
        ``SLIC_DEBUG_ROOT_ONCE``
        ``SLIC_DEBUG_ROOT_IF_ONCE``
-     - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined).
-     - Never
+     - - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined)
+     - - Never
 
    * - ``SLIC_INFO``
        ``SLIC_INFO_IF``
@@ -155,17 +155,17 @@ The table below details the built-in SLIC macros as well as some notes about whe
        ``SLIC_INFO_ROOT_ONCE``
        ``SLIC_INFO_ROOT_IF_ONCE``
        ``SLIC_INFO_TAGGED_ONCE``
-     - Always
-     - Never
+     - - Always
+     - - Never
 
    * - ``SLIC_ERROR``
        ``SLIC_ERROR_IF``
        ``SLIC_ERROR_ROOT``
        ``SLIC_ERROR_ROOT_IF``
-     - Always
-     - Collective by default.
-       Collective after calling ``slic::enableAbortOnError()``.
-       No longer collective after calling ``slic::disableAbortOnError()``.
+     - - Always
+     - - Collective by default
+       - Collective after calling ``slic::enableAbortOnError()``
+       - No longer collective after calling ``slic::disableAbortOnError()``
 
    * - ``SLIC_WARNING``
        ``SLIC_WARNING_IF``
@@ -175,10 +175,10 @@ The table below details the built-in SLIC macros as well as some notes about whe
        ``SLIC_WARNING_IF_ONCE``
        ``SLIC_WARNING_ROOT_ONCE``
        ``SLIC_WARNING_ROOT_IF_ONCE``
-     - Always
-     - Not collective by default.
-       Collective after calling ``slic::enableAbortOnWarning()``.
-       No longer collective after calling ``slic::disableAbortOnWarning()``.
+     - - Always
+     - - Not collective by default
+       - Collective after calling ``slic::enableAbortOnWarning()``
+       - No longer collective after calling ``slic::disableAbortOnWarning()``
 
 Doxygen generated API documentation on Macros can be found here: `SLIC Macros <../../../../../doxygen/html/slic__macros_8hpp.html>`_
 
