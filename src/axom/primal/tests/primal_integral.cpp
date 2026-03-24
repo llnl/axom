@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/primal.hpp"
+#include "axom/primal/operators/detail/evaluate_integral_impl.hpp"
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
 #include <iostream>
@@ -681,6 +682,21 @@ TEST(primal_integral, evaluate_trimmed_nurbs_patch_surface_integral_clamps_bound
   (void)evaluate_surface_integral(patch, integrand, npts);
 
   EXPECT_FALSE(saw_clamped_node);
+}
+
+TEST(primal_integral, trimming_curve_array_lower_bound_includes_all_first_control_points)
+{
+  using Point2D = primal::Point<double, 2>;
+  using TrimmingCurve = primal::NURBSCurve<double, 2>;
+
+  axom::Array<Point2D> curve0_pts {Point2D {0.0, 0.5}, Point2D {1.0, 0.6}};
+  axom::Array<Point2D> curve1_pts {Point2D {0.0, -1.0}, Point2D {1.0, 1.0}};
+
+  axom::Array<TrimmingCurve> curves;
+  curves.push_back(TrimmingCurve(curve0_pts, 1));
+  curves.push_back(TrimmingCurve(curve1_pts, 1));
+
+  EXPECT_DOUBLE_EQ(primal::detail::curve_array_lower_bound_y(curves), -1.0);
 }
 
 TEST(primal_integral, evaluate_integral_nurbs_gwn_cache)

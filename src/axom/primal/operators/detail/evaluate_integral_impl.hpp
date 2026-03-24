@@ -416,14 +416,14 @@ inline typename CurveType::NumericType curve_array_lower_bound_y(const axom::Arr
 {
   using T = typename CurveType::NumericType;
 
-  SLIC_ASSERT(!carray.empty());
+  SLIC_ASSERT(!carray.empty() && carray[0].getNumControlPoints() > 0);
 
   T lower_bound_y = carray[0][0][1];
   for(int i = 0; i < carray.size(); ++i)
   {
-    for(int j = 1; j < carray[i].getNumControlPoints(); ++j)
+    for(int j = 0; j < carray[i].getNumControlPoints(); ++j)
     {
-      lower_bound_y = std::min(lower_bound_y, carray[i][j][1]);
+      lower_bound_y = axom::utilities::min(lower_bound_y, carray[i][j][1]);
     }
   }
 
