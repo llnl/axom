@@ -78,6 +78,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     version("main", branch="main")
     version("develop", branch="develop")
+    version("0.13.0", tag="v0.13.0", commit="d00f6c66ef390ad746ae840f1074d982513611ac")
     version("0.12.0", tag="v0.12.0", commit="297544010a3dfb98145a1a85f09f9c648c00a18c")
     version("0.11.0", tag="v0.11.0", commit="685960486aa55d3a74a821ee02f6d9d9a3e67ab1")
     version("0.10.1", tag="v0.10.1", commit="6626ee1c5668176fb64dd9a52dec3e8596b3ba6b")
@@ -126,9 +127,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     variant(
         "profiling",
         default=False,
-        when="@:0.12.0",
+        when="@:0.12",
         description="Build with hooks for Adiak/Caliper performance analysis. "
-        "Deprecated -- use the adiak and/or caliper variants directly.",
+        "Deprecated -- use the adiak and/or caliper variants directly "
+        "versions 0.13.0 and onwards.",
     )
 
     # variant for Axom components
@@ -137,15 +139,16 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         description=(
             "Comma separated list of Axom components to enable. "
             "'all' enables all components; 'none' disables all components "
-            "Missing dependencies will be added (e.g. we'll add `sidre` and `conduit` for `components=inlet`)"
+            "Missing dependencies will be added (e.g. we'll add `sidre` "
+            "and `conduit` for `components=inlet`)"
         ),
         values=any_combination_of("all", *_AXOM_COMPONENTS).with_default("all"),
     )
 
     # variants for package dependencies
-    variant("adiak", default=False, description="Build with adiak")
+    variant("adiak", default=False, when="@0.13:", description="Build with adiak")
+    variant("caliper", default=False, when="@0.13:", description="Build with caliper")
     variant("c2c", default=False, description="Build with c2c")
-    variant("caliper", default=False, description="Build with caliper")
     variant("conduit", default=True, description="Build with conduit")
     variant("hdf5", default=True, description="Build with hdf5")
     variant("lua", default=True, description="Build with Lua")
@@ -175,6 +178,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     depends_on("blt", type="build")
     depends_on("blt@0.5.1:0.5.3", type="build", when="@0.6.1:0.8")
     depends_on("blt@0.6.2:", type="build", when="@0.9:")
+    depends_on("blt@0.7", type="build", when="@0.11:")
+    depends_on("blt@0.7.1:", type="build", when="@0.12:")
 
     depends_on("mpi", when="+mpi")
 
@@ -194,6 +199,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     with when("+umpire"):
         depends_on("umpire")
+        depends_on("umpire@2025.12:", when="@0.13:")
         depends_on("umpire@2025.09.0:", when="@0.10:")
         depends_on("umpire@2024.02.0:", when="@0.9:")
         depends_on("umpire@2022.03.0:2023.06", when="@0.7.0:0.8")
@@ -204,6 +210,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     with when("+raja"):
         depends_on("raja")
+        depends_on("raja@2025.12.1:", when="@0.13:")
         depends_on("raja@2025.09.0:", when="@0.10:")
         depends_on("raja@2024.02.0:", when="@0.9:")
         depends_on("raja@2022.03.0:2023.06", when="@0.7.0:0.8")
@@ -212,18 +219,31 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("raja~openmp", when="~openmp")
         depends_on("raja+openmp", when="+openmp")
 
-    # we're planning to remove support for the profiling variant, but still need to support it for now
+    # we're planning to remove support for the profiling variant,
+    # but still need to support it for now
     depends_on("adiak", when="+adiak")
     depends_on("caliper", when="+caliper")
     with when("+profiling"):
         depends_on("adiak")
         depends_on("caliper")
 
-    with when("^adiak"):
+        depends_on("caliper+cuda", when="+cuda")
+        depends_on("caliper~cuda", when="~cuda")
+
+        depends_on("caliper+rocm", when="+rocm")
+        depends_on("caliper~rocm", when="~rocm")
+
+        for dep in ["adiak", "caliper"]:
+            depends_on(f"{dep}+mpi", when="+mpi")
+            depends_on(f"{dep}~mpi", when="~mpi")
+            depends_on(f"{dep}+shared", when="+shared")
+            depends_on(f"{dep}~shared", when="~shared")
+
+    with when("+adiak"):
         for fwd in ("mpi", "shared"):
             depends_on(f"adiak+{fwd}", when=f"+{fwd}")
 
-    with when("^caliper"):
+    with when("+caliper"):
         for fwd in ("cuda", "rocm", "mpi", "shared"):
             depends_on(f"caliper+{fwd}", when=f"+{fwd}")
 
@@ -231,14 +251,17 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         ext_cuda_dep = f"+cuda cuda_arch={val}"
         depends_on(f"raja {ext_cuda_dep}", when=f"+raja {ext_cuda_dep}")
         depends_on(f"umpire {ext_cuda_dep}", when=f"+umpire {ext_cuda_dep}")
-        depends_on(f"caliper {ext_cuda_dep}", when=f"{ext_cuda_dep} ^caliper")
+        depends_on(f"caliper {ext_cuda_dep}", when=f"+caliper {ext_cuda_dep}")
+        depends_on(f"caliper {ext_cuda_dep}", when=f"+profiling {ext_cuda_dep}")
+
         depends_on(f"mfem {ext_cuda_dep}", when=f"+mfem {ext_cuda_dep}")
 
     for val in ROCmPackage.amdgpu_targets:
         ext_rocm_dep = f"+rocm amdgpu_target={val}"
         depends_on(f"raja {ext_rocm_dep}", when=f"+raja {ext_rocm_dep}")
         depends_on(f"umpire {ext_rocm_dep}", when=f"+umpire {ext_rocm_dep}")
-        depends_on(f"caliper {ext_rocm_dep}", when=f"{ext_rocm_dep} ^caliper")
+        depends_on(f"caliper {ext_rocm_dep}", when=f"+caliper {ext_rocm_dep}")
+        depends_on(f"caliper {ext_rocm_dep}", when=f"+profiling {ext_rocm_dep}")
         depends_on(f"mfem {ext_rocm_dep}", when=f"+mfem {ext_rocm_dep}")
 
     depends_on("rocprim", when="+rocm")
@@ -280,8 +303,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     # -----------------------------------------------------------------------
     # Hard inter-component dependencies taken from Axom's dependency graph.
     requires(f"components={','.join(_AXOM_COMPONENTS)}", when="components=all")
-    for c in _AXOM_COMPONENTS:
-        conflicts(f"components={c}", when="components=none")
 
     requires("components=sidre,slic,spin,primal", when="components=bump")
     requires("components=sidre,slic,primal", when="components=inlet")
@@ -321,10 +342,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     conflicts("~raja", when="+rocm")
     conflicts("~umpire", when="+cuda")
     conflicts("~umpire", when="+rocm")
-
-    # The 'profiling' variant is deprecated after v0.12, but spack doesn't 
-    # give a reasonable error/warning message if it is set
-    conflicts("+profiling", when="@develop")
 
     conflicts("^blt@:0.3.6", when="+rocm")
 
