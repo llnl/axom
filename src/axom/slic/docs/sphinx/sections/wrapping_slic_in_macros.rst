@@ -138,10 +138,12 @@ The table below details the built-in SLIC macros as well as some notes about whe
        ``SLIC_DEBUG_IF``
        ``SLIC_DEBUG_ROOT``
        ``SLIC_DEBUG_ROOT_IF``
+       ``SLIC_DEBUG_PRINT_CONTAINER``
        ``SLIC_DEBUG_ONCE``
        ``SLIC_DEBUG_IF_ONCE``
        ``SLIC_DEBUG_ROOT_ONCE``
        ``SLIC_DEBUG_ROOT_IF_ONCE``
+       ``SLIC_DEBUG_PRINT_CONTAINER_ONCE``
      - - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined)
      - - Never
 
