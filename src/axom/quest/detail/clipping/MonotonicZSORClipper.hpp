@@ -184,9 +184,9 @@ private:
    * @tparam PolyhedronType Either TetrahedronType or HexahedronType.
    */
   template <typename PolyhedronType>
-  AXOM_HOST_DEVICE BoundingBox2DType estimateBoundingBoxInRz(const PolyhedronType& vertices);
+  AXOM_HOST_DEVICE static BoundingBox2DType estimateBoundingBoxInRz(const PolyhedronType& vertices);
 
-  AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType rzBbToLabel(
+  AXOM_HOST_DEVICE static inline MeshClipperStrategy::LabelType rzBbToLabel(
     const BoundingBox2DType& bbInRz,
     const axom::ArrayView<const BoundingBox2DType>& bbOn,
     const axom::ArrayView<const BoundingBox2DType>& bbUnder);
