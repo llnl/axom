@@ -640,6 +640,8 @@ public:
       m_shape_center = shape_bbox.getCentroid();
       const auto longest_dim = shape_bbox.getLongestDimension();
       m_scale = shape_bbox.getMax()[longest_dim] - shape_bbox.getMin()[longest_dim];
+      const auto shape_center = m_shape_center;
+      const double scale = m_scale;
 
       m_triangles.resize(ntris);
       auto triangles_view = m_triangles.view();
@@ -648,17 +650,16 @@ public:
         AXOM_LAMBDA(axom::IndexType cellIdx,
                     const axom::numerics::Matrix<double>& coords,
                     const axom::IndexType* /*nodeIds*/) {
-          const auto& ctr = m_shape_center;
-          const auto& scl = m_scale;
-          triangles_view[cellIdx] = TriangleType {Point3D {(coords(0, 0) - ctr[0]) / scl,
-                                                           (coords(1, 0) - ctr[1]) / scl,
-                                                           (coords(2, 0) - ctr[2]) / scl},
-                                                  Point3D {(coords(0, 1) - ctr[0]) / scl,
-                                                           (coords(1, 1) - ctr[1]) / scl,
-                                                           (coords(2, 1) - ctr[2]) / scl},
-                                                  Point3D {(coords(0, 2) - ctr[0]) / scl,
-                                                           (coords(1, 2) - ctr[1]) / scl,
-                                                           (coords(2, 2) - ctr[2]) / scl}};
+          triangles_view[cellIdx] =
+            TriangleType {Point3D {(coords(0, 0) - shape_center[0]) / scale,
+                                   (coords(1, 0) - shape_center[1]) / scale,
+                                   (coords(2, 0) - shape_center[2]) / scale},
+                          Point3D {(coords(0, 1) - shape_center[0]) / scale,
+                                   (coords(1, 1) - shape_center[1]) / scale,
+                                   (coords(2, 1) - shape_center[2]) / scale},
+                          Point3D {(coords(0, 2) - shape_center[0]) / scale,
+                                   (coords(1, 2) - shape_center[1]) / scale,
+                                   (coords(2, 2) - shape_center[2]) / scale}};
         });
     }
     stage_timer.stop();
