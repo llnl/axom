@@ -111,38 +111,74 @@ functions are called.
 
 The table below details the built-in SLIC macros as well as some notes about when they are collective calls:
 
-+----------------------------+------------------------------------------------+----------------------------------------------------------------------------+
-| Macro                      |    Availability                                |   Collective status                                                        |
-+============================+================================================+============================================================================+
-| | ``SLIC_ASSERT``          | |   Only available in debug configurations     | | Collective by default.                                                   |
-| | ``SLIC_ASSERT_MSG``      | |   (i.e. when `AXOM_DEBUG` is defined).       | | Collective after calling ``slic::enableAbortOnError()``.                 |
-| |                          | |   Not available in device code.              | | No longer collective after calling ``slic::disableAbortOnError()``.      |
-+----------------------------+------------------------------------------------+----------------------------------------------------------------------------+
-| | ``SLIC_CHECK``           | |   Only available in debug configurations     | | Not collective by default.                                               |
-| | ``SLIC_CHECK_MSG``       | |   (i.e. when `AXOM_DEBUG` is defined).       | | Collective after ``slic::debug::checksAreErrors`` is set to ``true``,    |
-| |                          | |   Not available in device code.              | |   defaults to ``false``.                                                 |
-+----------------------------+------------------------------------------------+----------------------------------------------------------------------------+
-| | ``SLIC_DEBUG``           | |   Only available in debug configurations     | | Never                                                                    |
-| | ``SLIC_DEBUG_IF``        | |   (i.e. when `AXOM_DEBUG` is defined)        | |                                                                          |
-| | ``SLIC_DEBUG_ROOT``      | |                                              | |                                                                          |
-| | ``SLIC_DEBUG_ROOT_IF``   | |                                              | |                                                                          |
-+----------------------------+------------------------------------------------+----------------------------------------------------------------------------+
-| | ``SLIC_INFO``            | |   Always                                     | | Never                                                                    |
-| | ``SLIC_INFO_IF``         | |                                              | |                                                                          |
-| | ``SLIC_INFO_ROOT``       | |                                              | |                                                                          |
-| | ``SLIC_INFO_ROOT_IF``    | |                                              | |                                                                          |
-| | ``SLIC_INFO_TAGGED``     | |                                              | |                                                                          |
-+----------------------------+------------------------------------------------+----------------------------------------------------------------------------+
-| | ``SLIC_ERROR``           | |   Always                                     | | Collective by default.                                                   |
-| | ``SLIC_ERROR_IF``        | |                                              | | Collective after calling ``slic::enableAbortOnError()``.                 |
-| | ``SLIC_ERROR_ROOT``      | |                                              | | No longer collective after calling ``slic::disableAbortOnError()``       |
-| | ``SLIC_ERROR_ROOT_IF``   | |                                              | |                                                                          |
-+----------------------------+------------------------------------------------+----------------------------------------------------------------------------+
-| | ``SLIC_WARNING``         | |   Always                                     | | Not collective by default.                                               |
-| | ``SLIC_WARNING_IF``      | |                                              | | Collective after calling ``slic::enableAbortOnWarning()``.               |
-| | ``SLIC_WARNING_ROOT``    | |                                              | | No longer collective after calling ``slic::disableAbortOnWarning()``     |
-| | ``SLIC_WARNING_ROOT_IF`` | |                                              | |                                                                          |
-+----------------------------+------------------------------------------------+----------------------------------------------------------------------------+
+.. list-table:: SLIC macro availability and collective behavior
+   :header-rows: 1
+   :widths: 28 34 38
+
+   * - Macro
+     - Availability
+     - Collective status
+
+   * - ``SLIC_ASSERT``
+       ``SLIC_ASSERT_MSG``
+     - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined).
+       Not available in device code.
+     - Collective by default.
+       Collective after calling ``slic::enableAbortOnError()``.
+       No longer collective after calling ``slic::disableAbortOnError()``.
+
+   * - ``SLIC_CHECK``
+       ``SLIC_CHECK_MSG``
+     - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined).
+       Not available in device code.
+     - Not collective by default.
+       Collective after ``slic::debug::checksAreErrors`` is set to ``true`` (defaults to ``false``).
+
+   * - ``SLIC_DEBUG``
+       ``SLIC_DEBUG_IF``
+       ``SLIC_DEBUG_ROOT``
+       ``SLIC_DEBUG_ROOT_IF``
+       ``SLIC_DEBUG_ONCE``
+       ``SLIC_DEBUG_IF_ONCE``
+       ``SLIC_DEBUG_ROOT_ONCE``
+       ``SLIC_DEBUG_ROOT_IF_ONCE``
+     - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined).
+     - Never
+
+   * - ``SLIC_INFO``
+       ``SLIC_INFO_IF``
+       ``SLIC_INFO_ROOT``
+       ``SLIC_INFO_ROOT_IF``
+       ``SLIC_INFO_TAGGED``
+       ``SLIC_INFO_ONCE``
+       ``SLIC_INFO_IF_ONCE``
+       ``SLIC_INFO_ROOT_ONCE``
+       ``SLIC_INFO_ROOT_IF_ONCE``
+       ``SLIC_INFO_TAGGED_ONCE``
+     - Always
+     - Never
+
+   * - ``SLIC_ERROR``
+       ``SLIC_ERROR_IF``
+       ``SLIC_ERROR_ROOT``
+       ``SLIC_ERROR_ROOT_IF``
+     - Always
+     - Collective by default.
+       Collective after calling ``slic::enableAbortOnError()``.
+       No longer collective after calling ``slic::disableAbortOnError()``.
+
+   * - ``SLIC_WARNING``
+       ``SLIC_WARNING_IF``
+       ``SLIC_WARNING_ROOT``
+       ``SLIC_WARNING_ROOT_IF``
+       ``SLIC_WARNING_ONCE``
+       ``SLIC_WARNING_IF_ONCE``
+       ``SLIC_WARNING_ROOT_ONCE``
+       ``SLIC_WARNING_ROOT_IF_ONCE``
+     - Always
+     - Not collective by default.
+       Collective after calling ``slic::enableAbortOnWarning()``.
+       No longer collective after calling ``slic::disableAbortOnWarning()``.
 
 Doxygen generated API documentation on Macros can be found here: `SLIC Macros <../../../../../doxygen/html/slic__macros_8hpp.html>`_
 
@@ -157,6 +193,7 @@ Consider the following rules of thumb when choosing from the above logging macro
   (i.e. their messages will not get logged), while `SLIC_INFO` macros are always available.
 * The `SLIC_*_ROOT` variants can help reduce logging verbosity when called in an MPI application, especially if all
   MPI ranks are expected to have the same data (for example, if a value was broadcast from one rank to all the other ranks).
+* The `SLIC_*_ONCE` variants can help reduce logging verbosity when only the first invocation at a call-site is necessary.
 
 
 .. #############################################################################
