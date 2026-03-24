@@ -203,6 +203,7 @@ public:
     {
       AXOM_ANNOTATE_SCOPE("query");
       const primal::WindingTolerances tol_copy = tol;
+      const auto input_curves_view = m_input_curves_view;
 
       // Use non-memoized form
       if(m_nurbs_caches.empty())
@@ -210,7 +211,7 @@ public:
         axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
           const auto q = query_point(static_cast<int>(nidx));
           double wn {};
-          for(const auto& cache : m_input_curves_view)
+          for(const auto& cache : input_curves_view)
           {
             wn += axom::primal::winding_number(q, cache, tol_copy.edge_tol, tol_copy.EPS);
           }
@@ -220,10 +221,11 @@ public:
       }
       else  // Use memoized form
       {
+        const auto nurbs_caches_view = m_nurbs_caches.view();
         axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
           const auto q = query_point(static_cast<int>(nidx));
           double wn {};
-          for(const auto& cache : m_nurbs_caches)
+          for(const auto& cache : nurbs_caches_view)
           {
             wn += axom::primal::winding_number(q, cache, tol_copy.edge_tol, tol_copy.EPS);
           }
@@ -411,7 +413,7 @@ public:
         axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
           const axom::primal::Point<double, 2> q = query_point(static_cast<int>(index));
           double wn {};
-          for(const auto& seg : m_segments)
+          for(const auto& seg : segments_view)
           {
             wn += axom::primal::winding_number(q, seg, tol_copy.edge_tol);
           }
@@ -527,6 +529,7 @@ public:
     {
       AXOM_ANNOTATE_SCOPE("query");
       const primal::WindingTolerances tol_copy = tol;
+      const auto input_patches_view = m_input_patches_view;
 
       // Use non-memoized form
       if(m_nurbs_caches.empty())
@@ -534,7 +537,7 @@ public:
         axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
           const auto q = query_point(static_cast<int>(nidx));
           double wn {};
-          for(const auto& patch : m_input_patches_view)
+          for(const auto& patch : input_patches_view)
           {
             wn += axom::primal::winding_number(q,
                                                patch,
@@ -779,7 +782,7 @@ public:
         axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
           const auto q = scaled_query_point(static_cast<int>(index));
           double wn {};
-          for(const auto& tri : m_triangles)
+          for(const auto& tri : triangles_view)
           {
             wn += axom::primal::winding_number(q, tri, tol_copy.edge_tol, tol_copy.EPS);
           }
