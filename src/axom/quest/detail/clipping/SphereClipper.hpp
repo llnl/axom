@@ -83,8 +83,9 @@ private:
 
   //!@brief Compute LabelType for a polyhedron (hex or tet in our case).
   template <typename Polyhedron>
-  AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType polyhedronToLabel(const Polyhedron& verts,
-                                                                           const SphereType& sphere) const;
+  AXOM_HOST_DEVICE static inline MeshClipperStrategy::LabelType polyhedronToLabel(
+    const Polyhedron& verts,
+    const SphereType& sphere);
 
   void extractClipperInfo();
 
