@@ -347,6 +347,23 @@ double winding_number(const Point<T, 2>& query,
   return gwn;
 }
 
+/// \brief Overload for views
+template <typename T>
+double winding_number(const Point<T, 2>& query,
+                      const axom::ArrayView<const detail::NURBSCurveGWNCache<T>>& nurbs_curve_arr,
+                      double edge_tol = 1e-8,
+                      double EPS = 1e-8)
+{
+  double gwn = 0;
+  bool dummy_isOnCurve = false;
+  for(int i = 0; i < nurbs_curve_arr.size(); ++i)
+  {
+    gwn += winding_number(query, nurbs_curve_arr[i], dummy_isOnCurve, edge_tol, EPS);
+  }
+
+  return gwn;
+}
+
 //! \brief Overload without optional return parameter
 template <typename T>
 double winding_number(const Point<T, 2>& query,

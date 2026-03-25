@@ -410,13 +410,14 @@ public:
   }
 };
 
-using GWNQueryType = std::variant<axom::quest::DirectGWN2D,
-  axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 0>,
-  axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 1>,
-  axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 2>,
-  axom::quest::PolylineGWN2D<axom::OMP_EXEC, 0>,
-  axom::quest::PolylineGWN2D<axom::OMP_EXEC, 1>,
-  axom::quest::PolylineGWN2D<axom::OMP_EXEC, 2>>;
+using GWNQueryType = std::variant<axom::quest::DirectGWN2D<axom::SEQ_EXEC>,
+                                  axom::quest::DirectGWN2D<axom::OMP_EXEC>,
+                                  axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 0>,
+                                  axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 1>,
+                                  axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 2>,
+                                  axom::quest::PolylineGWN2D<axom::OMP_EXEC, 0>,
+                                  axom::quest::PolylineGWN2D<axom::OMP_EXEC, 1>,
+                                  axom::quest::PolylineGWN2D<axom::OMP_EXEC, 2>>;
 
 template <typename ExecSpace>
 GWNQueryType pick_gwn_method(bool linearize_curves, int approximation_order)
@@ -437,7 +438,7 @@ GWNQueryType pick_gwn_method(bool linearize_curves, int approximation_order)
     }
   }
 
-  return axom::quest::DirectGWN2D{};
+  return axom::quest::DirectGWN2D<ExecSpace> {};
 }
 
 GWNQueryType make_gwn_query(axom::runtime_policy::Policy policy,
