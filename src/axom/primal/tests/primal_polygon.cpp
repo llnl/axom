@@ -27,6 +27,32 @@ TEST(primal_polygon, empty)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_polygon, static_copy_and_assignment)
+{
+  using PolygonType = axom::primal::Polygon<double, 2, axom::primal::PolygonArray::Static, 6>;
+  using PointType = axom::primal::Point<double, 2>;
+
+  const PolygonType source({PointType {0., 0.}, PointType {1., 0.}, PointType {1., 1.}});
+
+  PolygonType copy(source);
+  PolygonType assigned;
+  assigned = source;
+
+  EXPECT_EQ(copy.numVertices(), source.numVertices());
+  EXPECT_EQ(assigned.numVertices(), source.numVertices());
+
+  for(int i = 0; i < source.numVertices(); ++i)
+  {
+    EXPECT_EQ(copy[i], source[i]);
+    EXPECT_EQ(assigned[i], source[i]);
+  }
+
+  assigned.addVertex(PointType {0., 1.});
+  EXPECT_EQ(assigned.numVertices(), 4);
+  EXPECT_EQ(source.numVertices(), 3);
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_polygon, winding_number)
 {
   using PolygonType = axom::primal::Polygon<double, 2>;
