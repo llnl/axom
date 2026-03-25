@@ -47,8 +47,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polygon<T, 2, ARRAY_TYP
                                      double eps = 1.e-10)
 {
   constexpr bool tryFixOrientation = false;
-  const auto p = axom::primal::clip(shape1, shape2, eps, tryFixOrientation);
-  return p.area();
+  // Saves returning the polygon, we return the area.
+  return axom::primal::detail::clipPolygonPolygonArea(shape1, shape2, eps, tryFixOrientation);
 }
 
 // We define various shapeOverlap methods to handle
