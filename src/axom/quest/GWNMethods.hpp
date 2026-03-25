@@ -128,11 +128,12 @@ void generate_gwn_query_mesh(mfem::DataCollection& dc,
 ///@{
 /// \name Query methods for 2D GWN applications
 
+template <typename ExecSpace>
 class DirectGWN2D
 {
 public:
   using CurveArrayType = axom::Array<axom::primal::NURBSCurve<double, 2>>;
-  using NURBSCacheArray = axom::Array<axom::primal::detail::NURBSCurveGWNCache<double>>;
+  using NURBSCacheManager = typename axom::primal::nurbs_cache_2d_traits<ExecSpace>::type;
 
   DirectGWN2D() = default;
 
@@ -152,11 +153,7 @@ public:
       AXOM_ANNOTATE_SCOPE("preprocessing");
       if(use_memoization)
       {
-        m_nurbs_caches.reserve(input_curves.size());
-        for(const auto& curv : input_curves)
-        {
-          m_nurbs_caches.emplace_back(curv);
-        }
+        m_nurbs_cache_mgr = NURBSCacheManager(input_curves);
       }
     }
     timer.stop();
@@ -206,14 +203,14 @@ public:
       const auto input_curves_view = m_input_curves_view;
 
       // Use non-memoized form
-      if(m_nurbs_caches.empty())
+      if(m_nurbs_cache_mgr.empty())
       {
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
+        axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
           const auto q = query_point(static_cast<int>(nidx));
           double wn {};
-          for(const auto& cache : input_curves_view)
+          for(const auto& curve : m_input_curves_view)
           {
-            wn += axom::primal::winding_number(q, cache, tol_copy.edge_tol, tol_copy.EPS);
+            wn += axom::primal::winding_number(q, curve, tol_copy.edge_tol, tol_copy.EPS);
           }
           winding[static_cast<int>(nidx)] = wn;
           inout[static_cast<int>(nidx)] = std::lround(wn);
@@ -221,14 +218,14 @@ public:
       }
       else  // Use memoized form
       {
-        const auto nurbs_caches_view = m_nurbs_caches.view();
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
+        const auto cache_mgr_view = m_nurbs_cache_mgr.view();
+        axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
           const auto q = query_point(static_cast<int>(nidx));
-          double wn {};
-          for(const auto& cache : nurbs_caches_view)
-          {
-            wn += axom::primal::winding_number(q, cache, tol_copy.edge_tol, tol_copy.EPS);
-          }
+          const auto caches_view = cache_mgr_view.caches();
+
+          const double wn =
+            axom::primal::winding_number(q, caches_view, tol_copy.edge_tol, tol_copy.EPS);
+
           winding[static_cast<int>(nidx)] = wn;
           inout[static_cast<int>(nidx)] = std::lround(wn);
         });
@@ -243,7 +240,7 @@ public:
       "Querying {:L} samples in winding number field with{} memoization took {:.3Lf} seconds"
       " (@ {:.0Lf} queries per second; {:.6Lf} ms per query)",
       num_query_points,
-      m_nurbs_caches.empty() ? "out" : "",
+      m_nurbs_cache_mgr.empty() ? "out" : "",
       query_time_s,
       num_query_points / query_time_s,
       ms_per_query));
@@ -253,7 +250,7 @@ public:
 
 private:
   axom::ArrayView<const axom::primal::NURBSCurve<double, 2>> m_input_curves_view;
-  NURBSCacheArray m_nurbs_caches;
+  NURBSCacheManager m_nurbs_cache_mgr;
 };
 
 template <typename ExecSpace, int ORDER>
@@ -842,8 +839,8 @@ struct gwn_input_traits<axom::quest::PolylineGWN2D<ExecSpace, ORDER>>
   : std::integral_constant<GWNInputType, GWNInputType::Polyline>
 { };
 
-template <>
-struct gwn_input_traits<axom::quest::DirectGWN2D>
+template <typename ExecSpace>
+struct gwn_input_traits<axom::quest::DirectGWN2D<ExecSpace>>
   : std::integral_constant<GWNInputType, GWNInputType::Curve>
 { };
 
