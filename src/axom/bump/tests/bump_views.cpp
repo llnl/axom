@@ -359,14 +359,14 @@ TEST(bump_views, node_to_arrayview_interleaved_seq)
     EXPECT_EQ(dataView.size(), n);
     axom::for_all<seq_exec>(
       n,
-      AXOM_LAMBDA(axom::IndexType index) {
+      AXOM_HOST_LAMBDA(axom::IndexType index) {
         dataView[index] = static_cast<double>((index + 1) * 100);
       });
 
     axom::ReduceSum<seq_exec, double> sumValuesReduce(0.);
     axom::for_all<seq_exec>(
       n,
-      AXOM_LAMBDA(axom::IndexType index) { sumValuesReduce += dataView[index]; });
+      AXOM_HOST_LAMBDA(axom::IndexType index) { sumValuesReduce += dataView[index]; });
     sumValues = static_cast<int>(sumValuesReduce.get());
   });
 
