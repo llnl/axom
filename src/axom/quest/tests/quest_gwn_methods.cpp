@@ -338,12 +338,12 @@ TEST(quest_gwn_methods, mfem_mesh_linearization)
   check_mfem_mesh_linearization<axom::SEQ_EXEC>();
 }
 
-//#ifdef AXOM_USE_OMP
-//TEST(quest_gwn_methods, mfem_mesh_linearization_omp)
-//{
-//  check_mfem_mesh_linearization<axom::OMP_EXEC>();
-//}
-//#endif
+#if defined AXOM_USE_OPENMP && defined(AXOM_USE_RAJA)
+TEST(quest_gwn_methods, mfem_mesh_linearization_omp)
+{
+  check_mfem_mesh_linearization<axom::OMP_EXEC>();
+}
+#endif
 
 #ifdef AXOM_USE_OPENCASCADE
 TEST(quest_gwn_methods, step_file_triangulation)
@@ -352,12 +352,12 @@ TEST(quest_gwn_methods, step_file_triangulation)
 }
 #endif
 
-//#if defined(AXOM_USE_OMP) && defined(AXOM_USE_OPENCASCADE)
-//TEST(quest_gwn_methods, step_file_triangulation_omp)
-//{
-//  check_step_file_triangulation<axom::OMP_EXEC>();
-//}
-//#endif
+#if defined(AXOM_USE_OPENCASCADE) && defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
+TEST(quest_gwn_methods, step_file_triangulation_omp)
+{
+  check_step_file_triangulation<axom::OMP_EXEC>();
+}
+#endif
 
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])

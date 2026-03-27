@@ -868,7 +868,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
     {
       ret_val[n] += detail::nurbs_winding_number(query_arr[n],
                                                  nurbs_arr[i],
-                                                 nurbs_arr[i].castDirection(),
+                                                 nurbs_arr[i].getCastDirection(),
                                                  edge_tol,
                                                  ls_tol,
                                                  quad_tol,
