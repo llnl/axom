@@ -43,5 +43,7 @@ foreach(test ${gtest_mir_tests})
 endforeach()
 
 if(ENABLE_HIP)
+  axom_force_release_for_target(mir_coupled_test)
   axom_force_release_for_target(mir_elvira2d_test)
+  axom_force_release_for_target(mir_equiz2d_test)
 endif()

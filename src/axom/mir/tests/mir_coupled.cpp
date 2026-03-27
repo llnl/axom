@@ -410,87 +410,87 @@ private:
 };
 
 //------------------------------------------------------------------------------
-TEST(mir_coupling, coupling_2D_sz0_ss0_seq)
+TEST(mir_coupled, coupling_2D_sz0_ss0_seq)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss0_seq");
   test_coupling<seq_exec>::test2D("coupling_2D_sz0_ss0", false, false);
 }
-TEST(mir_coupling, coupling_2D_sz0_ss1_seq)
+TEST(mir_coupled, coupling_2D_sz0_ss1_seq)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss1_seq");
   test_coupling<seq_exec>::test2D("coupling_2D_sz0_ss1", false, true);
 }
-TEST(mir_coupling, coupling_2D_sz1_ss0_seq)
+TEST(mir_coupled, coupling_2D_sz1_ss0_seq)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss0_seq");
   test_coupling<seq_exec>::test2D("coupling_2D_sz1_ss0", true, false);
 }
-TEST(mir_coupling, coupling_2D_sz1_ss1_seq)
+TEST(mir_coupled, coupling_2D_sz1_ss1_seq)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss1_seq");
   test_coupling<seq_exec>::test2D("coupling_2D_sz1_ss1", true, true);
 }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_coupling, coupling_2D_sz0_ss0_omp)
+TEST(mir_coupled, coupling_2D_sz0_ss0_omp)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss0_omp");
   test_coupling<omp_exec>::test2D("coupling_2D_sz0_ss0", false, false);
 }
-TEST(mir_coupling, coupling_2D_sz0_ss1_omp)
+TEST(mir_coupled, coupling_2D_sz0_ss1_omp)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss1_omp");
   test_coupling<omp_exec>::test2D("coupling_2D_sz0_ss1", false, true);
 }
-TEST(mir_coupling, coupling_2D_sz1_ss0_omp)
+TEST(mir_coupled, coupling_2D_sz1_ss0_omp)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss0_omp");
   test_coupling<omp_exec>::test2D("coupling_2D_sz1_ss0", true, false);
 }
-TEST(mir_coupling, coupling_2D_sz1_ss1_omp)
+TEST(mir_coupled, coupling_2D_sz1_ss1_omp)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss1_omp");
   test_coupling<omp_exec>::test2D("coupling_2D_sz1_ss1", true, true);
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_coupling, coupling_2D_sz0_ss0_cuda)
+TEST(mir_coupled, coupling_2D_sz0_ss0_cuda)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss0_cuda");
   test_coupling<cuda_exec>::test2D("coupling_2D_sz0_ss0", false, false);
 }
-TEST(mir_coupling, coupling_2D_sz0_ss1_cuda)
+TEST(mir_coupled, coupling_2D_sz0_ss1_cuda)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss1_cuda");
   test_coupling<cuda_exec>::test2D("coupling_2D_sz0_ss1", false, true);
 }
-TEST(mir_coupling, coupling_2D_sz1_ss0_cuda)
+TEST(mir_coupled, coupling_2D_sz1_ss0_cuda)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss0_cuda");
   test_coupling<cuda_exec>::test2D("coupling_2D_sz1_ss0", true, false);
 }
-TEST(mir_coupling, coupling_2D_sz1_ss1_cuda)
+TEST(mir_coupled, coupling_2D_sz1_ss1_cuda)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss1_cuda");
   test_coupling<cuda_exec>::test2D("coupling_2D_sz1_ss1", true, true);
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_coupling, coupling_2D_sz0_ss0_hip)
+TEST(mir_coupled, coupling_2D_sz0_ss0_hip)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss0_hip");
   test_coupling<hip_exec>::test2D("coupling_2D_sz0_ss0", false, false);
 }
-TEST(mir_coupling, coupling_2D_sz0_ss1_hip)
+TEST(mir_coupled, coupling_2D_sz0_ss1_hip)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss1_hip");
   test_coupling<hip_exec>::test2D("coupling_2D_sz0_ss1", false, true);
 }
-TEST(mir_coupling, coupling_2D_sz1_ss0_hip)
+TEST(mir_coupled, coupling_2D_sz1_ss0_hip)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss0_hip");
   test_coupling<hip_exec>::test2D("coupling_2D_sz1_ss0", true, false);
 }
-TEST(mir_coupling, coupling_2D_sz1_ss1_hip)
+TEST(mir_coupled, coupling_2D_sz1_ss1_hip)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz1_ss1_hip");
   test_coupling<hip_exec>::test2D("coupling_2D_sz1_ss1", true, true);
