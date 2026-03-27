@@ -447,11 +447,14 @@ private:
 
 ///@{
 /// \name Query methods for 3D GWN applications
+
+template <typename ExecSpace>
 class DirectGWN3D
 {
 public:
   using PatchArrayType = axom::Array<axom::primal::NURBSPatch<double, 3>>;
   using NURBSCacheArray = axom::Array<axom::primal::detail::NURBSPatchGWNCache<double>>;
+  using NURBSCacheManager = typename axom::primal::nurbs_cache_3d_traits<ExecSpace>::type;
 
   DirectGWN3D() = default;
 
@@ -471,11 +474,7 @@ public:
       AXOM_ANNOTATE_SCOPE("preprocessing");
       if(use_memoization)
       {
-        m_nurbs_caches.reserve(input_patches.size());
-        for(const auto& patch : input_patches)
-        {
-          m_nurbs_caches.emplace_back(patch);
-        }
+        m_nurbs_cache_mgr = NURBSCacheManager(input_patches);
       }
     }
     timer.stop();
@@ -529,9 +528,9 @@ public:
       const auto input_patches_view = m_input_patches_view;
 
       // Use non-memoized form
-      if(m_nurbs_caches.empty())
+      if(m_nurbs_cache_mgr.empty())
       {
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
+        axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
           const auto q = query_point(static_cast<int>(nidx));
           double wn {};
           for(const auto& patch : input_patches_view)
@@ -550,20 +549,19 @@ public:
       }
       else  // Use memoized form
       {
-        const auto nurbs_patches_view = m_nurbs_caches.view();
-        axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
+        const auto cache_mgr_view = m_nurbs_cache_mgr.view();
+        axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
           const auto q = query_point(static_cast<int>(nidx));
-          double wn {};
-          for(const auto& cache : nurbs_patches_view)
-          {
-            wn += axom::primal::winding_number(q,
-                                               cache,
-                                               tol_copy.edge_tol,
-                                               tol_copy.ls_tol,
-                                               tol_copy.quad_tol,
-                                               tol_copy.disk_size,
-                                               tol_copy.EPS);
-          }
+          const auto caches_view = cache_mgr_view.caches();
+
+          const double wn = axom::primal::winding_number(q,
+                                                         caches_view,
+                                                         tol_copy.edge_tol,
+                                                         tol_copy.ls_tol,
+                                                         tol_copy.quad_tol,
+                                                         tol_copy.disk_size,
+                                                         tol_copy.EPS);
+
           winding[static_cast<int>(nidx)] = wn;
           inout[static_cast<int>(nidx)] = std::lround(wn);
         });
@@ -578,7 +576,7 @@ public:
       "Querying {:L} samples in winding number field with{} memoization took {:.3Lf} seconds"
       " (@ {:.0Lf} queries per second; {:.6Lf} ms per query)",
       num_query_points,
-      m_nurbs_caches.empty() ? "out" : "",
+      m_nurbs_cache_mgr.empty() ? "out" : "",
       query_time_s,
       num_query_points / query_time_s,
       ms_per_query));
@@ -588,7 +586,7 @@ public:
 
 private:
   axom::ArrayView<const axom::primal::NURBSPatch<double, 3>> m_input_patches_view;
-  NURBSCacheArray m_nurbs_caches;
+  NURBSCacheManager m_nurbs_cache_mgr;
 };
 
 template <typename ExecSpace, int ORDER>
@@ -849,8 +847,8 @@ struct gwn_input_traits<axom::quest::TriangleGWN3D<ExecSpace, ORDER>>
   : std::integral_constant<GWNInputType, GWNInputType::Triangulation>
 { };
 
-template <>
-struct gwn_input_traits<axom::quest::DirectGWN3D>
+template <typename ExecSpace>
+struct gwn_input_traits<axom::quest::DirectGWN3D<ExecSpace>>
   : std::integral_constant<GWNInputType, GWNInputType::Surface>
 { };
 

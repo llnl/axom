@@ -475,7 +475,7 @@ int main(int argc, char** argv)
   }
 
   axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(input.annotationMode);
-  AXOM_ANNOTATE_SCOPE("winding number example");
+  AXOM_ANNOTATE_SCOPE("2D winding number example");
 
   if (!input.elevatedMeshFile.empty())
   {
