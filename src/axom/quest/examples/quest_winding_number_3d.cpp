@@ -245,7 +245,8 @@ public:
   }
 };
 
-using GWNQueryType = std::variant<axom::quest::DirectGWN3D,
+using GWNQueryType = std::variant<axom::quest::DirectGWN3D<axom::SEQ_EXEC>,
+                                  axom::quest::DirectGWN3D<axom::OMP_EXEC>,
                                   axom::quest::TriangleGWN3D<axom::SEQ_EXEC, 0>,
                                   axom::quest::TriangleGWN3D<axom::SEQ_EXEC, 1>,
                                   axom::quest::TriangleGWN3D<axom::SEQ_EXEC, 2>,
@@ -272,7 +273,7 @@ GWNQueryType pick_gwn_method(bool triangulate, int approximation_order)
     }
   }
 
-  return axom::quest::DirectGWN3D {};
+  return axom::quest::DirectGWN3D<ExecSpace> {};
 }
 
 GWNQueryType make_gwn_query(axom::runtime_policy::Policy policy,
@@ -379,7 +380,7 @@ int main(int argc, char** argv)
     SLIC_INFO(axom::fmt::format(
       axom::utilities::locale(),
       "Loaded {} trimmed NURBS patches (with {} trimming curves) in {:.3Lf} seconds",
-      patches.size(),
+      step_reader.numPatches(),
       num_trimming_curves,
       read_timer.elapsed()));
 
