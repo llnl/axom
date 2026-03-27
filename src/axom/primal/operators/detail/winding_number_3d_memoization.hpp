@@ -180,7 +180,7 @@ public:
     }
     else
     {
-      m_castDirection = m_averageNormal;
+      m_castDirection = m_averageNormal.unitVector();
     }
 
     m_pboxDiag = m_alteredPatch.getParameterSpaceDiagonal();
@@ -342,7 +342,7 @@ struct nurbs_cache_3d_traits
   using type = NURBSPatchCacheManager;
 };
 
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
 /*!
  * \brief Manage per-thread arrays of NURBSPatchGWNCache<double>
  */

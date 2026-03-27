@@ -246,13 +246,16 @@ public:
 };
 
 using GWNQueryType = std::variant<axom::quest::DirectGWN3D<axom::SEQ_EXEC>,
-                                  axom::quest::DirectGWN3D<axom::OMP_EXEC>,
                                   axom::quest::TriangleGWN3D<axom::SEQ_EXEC, 0>,
                                   axom::quest::TriangleGWN3D<axom::SEQ_EXEC, 1>,
                                   axom::quest::TriangleGWN3D<axom::SEQ_EXEC, 2>,
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+                                  axom::quest::DirectGWN3D<axom::OMP_EXEC>,
                                   axom::quest::TriangleGWN3D<axom::OMP_EXEC, 0>,
                                   axom::quest::TriangleGWN3D<axom::OMP_EXEC, 1>,
-                                  axom::quest::TriangleGWN3D<axom::OMP_EXEC, 2>>;
+                                  axom::quest::TriangleGWN3D<axom::OMP_EXEC, 2>
+#endif
+                                  >;
 
 template <typename ExecSpace>
 GWNQueryType pick_gwn_method(bool triangulate, int approximation_order)

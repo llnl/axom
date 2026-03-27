@@ -304,7 +304,7 @@ struct nurbs_cache_2d_traits
   using type = NURBSCurveCacheManager;
 };
 
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
 /*!
  * \brief Manage per-thread arrays of NURBSCurveGWNCache<double>
  */
