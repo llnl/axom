@@ -154,7 +154,8 @@ TEST(quest_gwn_methods, gwn_moment_data_triangle)
 }
 
 //------------------------------------------------------------------------------
-TEST(quest_gwn_methods, mfem_mesh_linearization)
+template <typename ExecSpace>
+void check_mfem_mesh_linearization()
 {
   using NURBSCurve2D = axom::primal::NURBSCurve<double, 2>;
   const std::string fileName = pjoin(AXOM_DATA_DIR, "contours", "svg", "mfem_logo_simp.mesh");
@@ -212,19 +213,19 @@ TEST(quest_gwn_methods, mfem_mesh_linearization)
 
   // Direct
   SLIC_INFO("Testing Direct Evaluation");
-  axom::quest::DirectGWN2D gwn_direct {};
+  axom::quest::DirectGWN2D<ExecSpace> gwn_direct {};
   gwn_direct.preprocess(curves);
   gwn_direct.query(dc[0], tol);
 
   // Linearized
   SLIC_INFO("Testing Direct Evaluation of Triangulation");
-  axom::quest::PolylineGWN2D<0> gwn_polyline {};
+  axom::quest::PolylineGWN2D<ExecSpace, 0> gwn_polyline {};
   gwn_polyline.preprocess(&poly_mesh, useDirectPolyline);
   gwn_polyline.query(dc[1], tol);
 
   // Linearized, fast approximation
   SLIC_INFO("Testing Fast-Approximate Evaluation of Triangulation");
-  axom::quest::PolylineGWN2D<0> gwn_polyline_fast {};
+  axom::quest::PolylineGWN2D<ExecSpace, 0> gwn_polyline_fast {};
   gwn_polyline_fast.preprocess(&poly_mesh, !useDirectPolyline);
   gwn_polyline_fast.query(dc[2], tol);
 
@@ -245,7 +246,8 @@ TEST(quest_gwn_methods, mfem_mesh_linearization)
 
 #ifdef AXOM_USE_OPENCASCADE
 //------------------------------------------------------------------------------
-TEST(quest_gwn_methods, step_file_triangulation)
+template <typename ExecSpace>
+void check_step_file_triangulation()
 {
   const std::string fileName = pjoin(AXOM_DATA_DIR, "quest", "step", "nut.step");
 
@@ -298,19 +300,19 @@ TEST(quest_gwn_methods, step_file_triangulation)
 
   // Direct
   SLIC_INFO("Testing Direct Evaluation");
-  axom::quest::DirectGWN3D gwn_direct {};
+  axom::quest::DirectGWN3D<ExecSpace> gwn_direct {};
   gwn_direct.preprocess(patches);
   gwn_direct.query(dc[0], tol);
 
   // Triangulated
   SLIC_INFO("Testing Direct Evaluation of Polyline");
-  axom::quest::TriangleGWN3D<0> gwn_tri {};
+  axom::quest::TriangleGWN3D<ExecSpace, 0> gwn_tri {};
   gwn_tri.preprocess(&tri_mesh, useDirectTriangle);
   gwn_tri.query(dc[1], tol);
 
   // Triangulated, fast approximation
   SLIC_INFO("Testing Fast-Approximate Evaluation of Polyline");
-  axom::quest::TriangleGWN3D<0> gwn_tri_fast {};
+  axom::quest::TriangleGWN3D<ExecSpace, 0> gwn_tri_fast {};
   gwn_tri_fast.preprocess(&tri_mesh, !useDirectTriangle);
   gwn_tri_fast.query(dc[2], tol);
 
@@ -329,6 +331,33 @@ TEST(quest_gwn_methods, step_file_triangulation)
   }
 }
 #endif
+
+//------------------------------------------------------------------------------
+TEST(quest_gwn_methods, mfem_mesh_linearization)
+{
+  check_mfem_mesh_linearization<axom::SEQ_EXEC>();
+}
+
+//#ifdef AXOM_USE_OMP
+//TEST(quest_gwn_methods, mfem_mesh_linearization_omp)
+//{
+//  check_mfem_mesh_linearization<axom::OMP_EXEC>();
+//}
+//#endif
+
+#ifdef AXOM_USE_OPENCASCADE
+TEST(quest_gwn_methods, step_file_triangulation)
+{
+  check_step_file_triangulation<axom::SEQ_EXEC>();
+}
+#endif
+
+//#if defined(AXOM_USE_OMP) && defined(AXOM_USE_OPENCASCADE)
+//TEST(quest_gwn_methods, step_file_triangulation_omp)
+//{
+//  check_step_file_triangulation<axom::OMP_EXEC>();
+//}
+//#endif
 
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])
