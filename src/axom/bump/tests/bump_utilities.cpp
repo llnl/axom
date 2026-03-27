@@ -71,7 +71,7 @@ TEST(bump_utilities, allocate_hip) { test_conduit_allocate<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
-TEST(bump_utilities, make_array_view_interleaved_seq)
+AXOM_CUDA_TEST(bump_utilities, make_array_view_interleaved_seq)
 {
   constexpr conduit::index_t n = 4;
   axom::Array<double> interleaved {{-1., 10., -2., 20., -3., 30., -4., 40., -5.}};
