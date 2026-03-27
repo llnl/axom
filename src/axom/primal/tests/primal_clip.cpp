@@ -762,10 +762,8 @@ void check_polygon_polygon_clip_reassignment(double EPS)
 
       const PolygonStatic2D subject_square(
         {Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({1.0, 1.0}), Point2D({0.0, 1.0})});
-      const PolygonStatic2D clip_rectangle({Point2D({0.5, 0.25}),
-                                            Point2D({1.5, 0.25}),
-                                            Point2D({1.5, 0.75}),
-                                            Point2D({0.5, 0.75})});
+      const PolygonStatic2D clip_rectangle(
+        {Point2D({0.5, 0.25}), Point2D({1.5, 0.25}), Point2D({1.5, 0.75}), Point2D({0.5, 0.75})});
 
       working = axom::primal::clip(subject_square, clip_rectangle, EPS);
       outputs_view[2] = working;
@@ -829,10 +827,8 @@ void check_polygon_polygon_clip_with_scratch(double EPS)
 
       const PolygonStatic2D subject_square(
         {Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({1.0, 1.0}), Point2D({0.0, 1.0})});
-      const PolygonStatic2D clip_rectangle({Point2D({0.5, 0.25}),
-                                            Point2D({1.5, 0.25}),
-                                            Point2D({1.5, 0.75}),
-                                            Point2D({0.5, 0.75})});
+      const PolygonStatic2D clip_rectangle(
+        {Point2D({0.5, 0.25}), Point2D({1.5, 0.25}), Point2D({1.5, 0.75}), Point2D({0.5, 0.75})});
 
       axom::primal::detail::clipPolygonPolygon(subject_square, clip_rectangle, working, scratch, EPS);
       outputs_view[2] = working;
@@ -876,8 +872,7 @@ void check_polygon_polygon_clip_area(double EPS)
     AXOM_LAMBDA(int i) {
       AXOM_UNUSED_VAR(i);
 
-      const PolygonStatic2D subject(
-        {Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({0.5, 1.0})});
+      const PolygonStatic2D subject({Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({0.5, 1.0})});
       const PolygonStatic2D clip(
         {Point2D({0.0, 2.0 / 3.0}), Point2D({0.5, -1.0 / 3.0}), Point2D({1.0, 2.0 / 3.0})});
 

@@ -64,7 +64,7 @@ public:
    * \brief Copy assignment operator.
    * \param obj The object to be copied.
    */
-  AXOM_HOST_DEVICE StaticArray& operator=(const StaticArray &obj)
+  AXOM_HOST_DEVICE StaticArray &operator=(const StaticArray &obj)
   {
     if(this == &obj)
     {

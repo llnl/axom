@@ -991,9 +991,7 @@ AXOM_HOST_DEVICE void clipPolygonPlaneSimple(const PolygonType& inputList,
  */
 AXOM_SUPPRESS_HD_WARN
 template <typename PolygonType>
-AXOM_HOST_DEVICE void makeUniquePoints(const PolygonType& poly,
-                                       double eps,
-                                       PolygonType& uniqueList)
+AXOM_HOST_DEVICE void makeUniquePoints(const PolygonType& poly, double eps, PolygonType& uniqueList)
 {
   using T = typename PolygonType::PointType::CoordType;
   const T typed_eps = static_cast<T>(eps);
@@ -1019,11 +1017,10 @@ AXOM_HOST_DEVICE void makeUniquePoints(const PolygonType& poly,
  */
 AXOM_SUPPRESS_HD_WARN
 template <typename T, axom::primal::PolygonArray ARRAY_TYPE, int MAX_VERTS>
-AXOM_HOST_DEVICE void clipPolygonPolygonImpl(
-  const Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& clipPolygon,
-  Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& outputPolygon,
-  Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& scratchPolygon,
-  double eps = 1.e-10)
+AXOM_HOST_DEVICE void clipPolygonPolygonImpl(const Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& clipPolygon,
+                                             Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& outputPolygon,
+                                             Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& scratchPolygon,
+                                             double eps = 1.e-10)
 {
   using PlaneType = Plane<T, 2>;
   using PolygonType = Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>;
@@ -1040,8 +1037,7 @@ AXOM_HOST_DEVICE void clipPolygonPolygonImpl(
   // Iterate through edges of clip polygon, represented as planes
   for(int iEdge = 0; iEdge < numClipEdges; iEdge++)
   {
-    PlaneType plane =
-      make_plane(clipPolygon[iEdge], clipPolygon[(iEdge + 1) % numClipEdges]);
+    PlaneType plane = make_plane(clipPolygon[iEdge], clipPolygon[(iEdge + 1) % numClipEdges]);
 
     clipPolygonPlaneSimple(*currentPolygon, plane, eps, *nextPolygon);
 
@@ -1124,29 +1120,20 @@ AXOM_HOST_DEVICE void clipPolygonPolygonWithOrientation(
  */
 AXOM_SUPPRESS_HD_WARN
 template <typename T, axom::primal::PolygonArray ARRAY_TYPE, int MAX_VERTS>
-AXOM_HOST_DEVICE void clipPolygonPolygon(
-  const Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& subjectPolygon,
-  const Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& clipPolygon,
-  Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& outputPolygon,
-  Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& scratchPolygon,
-  double eps = 1.e-10,
-  bool tryFixOrientation = false)
+AXOM_HOST_DEVICE void clipPolygonPolygon(const Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& subjectPolygon,
+                                         const Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& clipPolygon,
+                                         Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& outputPolygon,
+                                         Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& scratchPolygon,
+                                         double eps = 1.e-10,
+                                         bool tryFixOrientation = false)
 {
   if(tryFixOrientation)
   {
-    clipPolygonPolygonWithOrientation(subjectPolygon,
-                                     clipPolygon,
-                                     outputPolygon,
-                                     scratchPolygon,
-                                     eps);
+    clipPolygonPolygonWithOrientation(subjectPolygon, clipPolygon, outputPolygon, scratchPolygon, eps);
     return;
   }
 
-  clipPolygonPolygonNoOrientation(subjectPolygon,
-                                  clipPolygon,
-                                  outputPolygon,
-                                  scratchPolygon,
-                                  eps);
+  clipPolygonPolygonNoOrientation(subjectPolygon, clipPolygon, outputPolygon, scratchPolygon, eps);
 }
 
 /*!
@@ -1167,12 +1154,7 @@ AXOM_HOST_DEVICE Polygon<T, 2, ARRAY_TYPE, MAX_VERTS> clipPolygonPolygon(
 
   PolygonType outputPolygon;
   PolygonType scratchPolygon;
-  clipPolygonPolygon(subjectPolygon,
-                     clipPolygon,
-                     outputPolygon,
-                     scratchPolygon,
-                     eps,
-                     tryFixOrientation);
+  clipPolygonPolygon(subjectPolygon, clipPolygon, outputPolygon, scratchPolygon, eps, tryFixOrientation);
   return outputPolygon;
 }
 
@@ -1194,12 +1176,7 @@ AXOM_HOST_DEVICE double clipPolygonPolygonArea(
 
   PolygonType outputPolygon;
   PolygonType scratchPolygon;
-  clipPolygonPolygon(subjectPolygon,
-                     clipPolygon,
-                     outputPolygon,
-                     scratchPolygon,
-                     eps,
-                     tryFixOrientation);
+  clipPolygonPolygon(subjectPolygon, clipPolygon, outputPolygon, scratchPolygon, eps, tryFixOrientation);
   return outputPolygon.area();
 }
 

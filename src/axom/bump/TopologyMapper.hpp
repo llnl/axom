@@ -28,22 +28,22 @@
 
 #if defined(AXOM_DEVICE_CODE) && defined(AXOM_USE_HIP)
   #define AXOM_TM_ASSERT_OR_RETURN(CONDITION) \
-    do \
-    { \
-      if(!(CONDITION)) \
-      { \
-        return; \
-      } \
+    do                                        \
+    {                                         \
+      if(!(CONDITION))                        \
+      {                                       \
+        return;                               \
+      }                                       \
     } while(false)
 #else
   #define AXOM_TM_ASSERT_OR_RETURN(CONDITION) \
-    do \
-    { \
-      SLIC_ASSERT(CONDITION); \
-      if(!(CONDITION)) \
-      { \
-        return; \
-      } \
+    do                                        \
+    {                                         \
+      SLIC_ASSERT(CONDITION);                 \
+      if(!(CONDITION))                        \
+      {                                       \
+        return;                               \
+      }                                       \
     } while(false)
 #endif
 
@@ -689,7 +689,6 @@ public:
     axom::for_all<ExecSpace>(
       targetSelectionView.size(),
       AXOM_LAMBDA(axom::IndexType index) {
-
         // Get the target zone as a primal shape.
         const axom::IndexType zi = targetSelectionView[index];
         AXOM_TM_ASSERT_OR_RETURN(zi >= 0 && zi < targetView.numberOfZones());
