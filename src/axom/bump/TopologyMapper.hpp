@@ -683,27 +683,16 @@ public:
 
     // -------------------------------------------------------------------------
     // Iterate over the target zones and intersect them with source zones.
-    // NOTE: This kernel prefers using raw pointers to shrink its size.
     AXOM_ANNOTATE_BEGIN("intersection");
-    const auto *srcSelectionData = srcSelectionView.data();
-    const auto srcSelectionSize = srcSelectionView.size();
-    const auto *targetSelectionData = targetSelectionView.data();
-    const auto targetSelectionSize = targetSelectionView.size();
-    const auto srcNumZones = srcView.numberOfZones();
-    const auto targetNumZones = targetView.numberOfZones();
-    auto *materialIdsData = material_ids.data();
-    auto *volumeFractionsData = volume_fractions.data();
-    auto *sizesData = sizes.data();
     const SrcMatsetView srcMatsetView(m_srcMatsetView);
     const auto bvh_device = bvh.getTraverser();
     axom::for_all<ExecSpace>(
-      targetSelectionSize,
+      targetSelectionView.size(),
       AXOM_LAMBDA(axom::IndexType index) {
-        SLIC_ASSERT(index >= 0 && index < targetSelectionSize);
 
         // Get the target zone as a primal shape.
-        const axom::IndexType zi = targetSelectionData[index];
-        AXOM_TM_ASSERT_OR_RETURN(zi >= 0 && zi < targetNumZones);
+        const axom::IndexType zi = targetSelectionView[index];
+        AXOM_TM_ASSERT_OR_RETURN(zi >= 0 && zi < targetView.numberOfZones());
 
         const auto targetBBox = targetView.getBoundingBox(zi);
         const auto targetShape = targetView.getShape(zi);
@@ -716,29 +705,14 @@ public:
           utils::ComputeShapeAmount<TargetCoordsetView::dimension()>::execute(targetShape);
 
         // Handle intersection in-depth of the bounding boxes intersected.
-        auto handleIntersection = [srcSelectionData,
-                                   srcSelectionSize,
-                                   srcNumZones,
-                                   srcView,
-                                   targetShape,
-                                   targetAmount,
-                                   zi,
-                                   srcMatsetView,
-                                   materialIdsData,
-                                   volumeFractionsData,
-                                   sizesData,
-                                   numMaterialSlots,
-                                   nmats,
-                                   MaterialEmpty](std::int32_t currentNode,
-                                                  const std::int32_t *leafNodes) {
+        auto handleIntersection = [&](std::int32_t currentNode, const std::int32_t *leafNodes) {
           const auto srcBboxIndex = leafNodes[currentNode];
 
           // This should not happen but check that we're not given bad values.
-          AXOM_TM_ASSERT_OR_RETURN(srcBboxIndex >= 0 && srcBboxIndex < srcSelectionSize);
+          AXOM_TM_ASSERT_OR_RETURN(srcBboxIndex >= 0 && srcBboxIndex < srcSelectionView.size());
 
-          const auto srcZone = srcSelectionData[srcBboxIndex];
-          AXOM_TM_ASSERT_OR_RETURN(srcZone >= 0 && srcZone < srcNumZones);
-
+          const auto srcZone = srcSelectionView[srcBboxIndex];
+          AXOM_TM_ASSERT_OR_RETURN(srcZone >= 0 && srcZone < srcView.numberOfZones());
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
           std::cout << "handleIntersection: targetZone=" << zi << ", srcZone=" << srcZone
                     << std::endl;
@@ -771,8 +745,8 @@ public:
 #endif
 
             // Add the src material contribution into the target material.
-            MatIntType *matids = materialIdsData + zi * numMaterialSlots;
-            MatFloatType *vfs = volumeFractionsData + zi * numMaterialSlots;
+            MatIntType *matids = material_ids.data() + zi * numMaterialSlots;
+            MatFloatType *vfs = volume_fractions.data() + zi * numMaterialSlots;
             for(int m = 0; m < nmats; m++)
             {
               if(matids[m] == mat)
@@ -791,7 +765,7 @@ public:
 #endif
                 matids[m] = mat;
                 vfs[m] = vf;
-                sizesData[zi]++;
+                sizes[zi]++;
                 break;
               }
             }
@@ -888,7 +862,6 @@ public:
           indices[destIndex] = destIndex;
         }
       });
-
     // Move the reorganized data into the output.
     n_volume_fractions.move(n_new_volume_fractions);
     n_material_ids.move(n_new_material_ids);
