@@ -203,6 +203,7 @@ public:
     {
       AXOM_ANNOTATE_SCOPE("query");
       const primal::WindingTolerances tol_copy = tol;
+      const auto input_curves_view = m_input_curves_view;
 
       // Use non-memoized form
       if(m_nurbs_caches.empty())
@@ -210,7 +211,7 @@ public:
         axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
           const auto q = query_point(static_cast<int>(nidx));
           double wn {};
-          for(const auto& cache : m_input_curves_view)
+          for(const auto& cache : input_curves_view)
           {
             wn += axom::primal::winding_number(q, cache, tol_copy.edge_tol, tol_copy.EPS);
           }
@@ -220,10 +221,11 @@ public:
       }
       else  // Use memoized form
       {
+        const auto nurbs_caches_view = m_nurbs_caches.view();
         axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
           const auto q = query_point(static_cast<int>(nidx));
           double wn {};
-          for(const auto& cache : m_nurbs_caches)
+          for(const auto& cache : nurbs_caches_view)
           {
             wn += axom::primal::winding_number(q, cache, tol_copy.edge_tol, tol_copy.EPS);
           }
@@ -411,7 +413,7 @@ public:
         axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
           const axom::primal::Point<double, 2> q = query_point(static_cast<int>(index));
           double wn {};
-          for(const auto& seg : m_segments)
+          for(const auto& seg : segments_view)
           {
             wn += axom::primal::winding_number(q, seg, tol_copy.edge_tol);
           }
@@ -527,6 +529,7 @@ public:
     {
       AXOM_ANNOTATE_SCOPE("query");
       const primal::WindingTolerances tol_copy = tol;
+      const auto input_patches_view = m_input_patches_view;
 
       // Use non-memoized form
       if(m_nurbs_caches.empty())
@@ -534,7 +537,7 @@ public:
         axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
           const auto q = query_point(static_cast<int>(nidx));
           double wn {};
-          for(const auto& patch : m_input_patches_view)
+          for(const auto& patch : input_patches_view)
           {
             wn += axom::primal::winding_number(q,
                                                patch,
@@ -637,6 +640,8 @@ public:
       m_shape_center = shape_bbox.getCentroid();
       const auto longest_dim = shape_bbox.getLongestDimension();
       m_scale = shape_bbox.getMax()[longest_dim] - shape_bbox.getMin()[longest_dim];
+      const auto shape_center = m_shape_center;
+      const double scale = m_scale;
 
       m_triangles.resize(ntris);
       auto triangles_view = m_triangles.view();
@@ -645,17 +650,16 @@ public:
         AXOM_LAMBDA(axom::IndexType cellIdx,
                     const axom::numerics::Matrix<double>& coords,
                     const axom::IndexType* /*nodeIds*/) {
-          const auto& ctr = m_shape_center;
-          const auto& scl = m_scale;
-          triangles_view[cellIdx] = TriangleType {Point3D {(coords(0, 0) - ctr[0]) / scl,
-                                                           (coords(1, 0) - ctr[1]) / scl,
-                                                           (coords(2, 0) - ctr[2]) / scl},
-                                                  Point3D {(coords(0, 1) - ctr[0]) / scl,
-                                                           (coords(1, 1) - ctr[1]) / scl,
-                                                           (coords(2, 1) - ctr[2]) / scl},
-                                                  Point3D {(coords(0, 2) - ctr[0]) / scl,
-                                                           (coords(1, 2) - ctr[1]) / scl,
-                                                           (coords(2, 2) - ctr[2]) / scl}};
+          triangles_view[cellIdx] =
+            TriangleType {Point3D {(coords(0, 0) - shape_center[0]) / scale,
+                                   (coords(1, 0) - shape_center[1]) / scale,
+                                   (coords(2, 0) - shape_center[2]) / scale},
+                          Point3D {(coords(0, 1) - shape_center[0]) / scale,
+                                   (coords(1, 1) - shape_center[1]) / scale,
+                                   (coords(2, 1) - shape_center[2]) / scale},
+                          Point3D {(coords(0, 2) - shape_center[0]) / scale,
+                                   (coords(1, 2) - shape_center[1]) / scale,
+                                   (coords(2, 2) - shape_center[2]) / scale}};
         });
     }
     stage_timer.stop();
@@ -779,7 +783,7 @@ public:
         axom::for_all<axom::SEQ_EXEC>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
           const auto q = scaled_query_point(static_cast<int>(index));
           double wn {};
-          for(const auto& tri : m_triangles)
+          for(const auto& tri : triangles_view)
           {
             wn += axom::primal::winding_number(q, tri, tol_copy.edge_tol, tol_copy.EPS);
           }

@@ -26,6 +26,27 @@
 // Uncomment to emit debugging messages
 //#define AXOM_DEBUG_TOPOLOGY_MAPPER
 
+#if defined(AXOM_DEVICE_CODE) && defined(AXOM_USE_HIP)
+  #define AXOM_TM_ASSERT_OR_RETURN(CONDITION) \
+    do                                        \
+    {                                         \
+      if(!(CONDITION))                        \
+      {                                       \
+        return;                               \
+      }                                       \
+    } while(false)
+#else
+  #define AXOM_TM_ASSERT_OR_RETURN(CONDITION) \
+    do                                        \
+    {                                         \
+      SLIC_ASSERT(CONDITION);                 \
+      if(!(CONDITION))                        \
+      {                                       \
+        return;                               \
+      }                                       \
+    } while(false)
+#endif
+
 namespace axom
 {
 namespace bump
@@ -47,8 +68,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polygon<T, 2, ARRAY_TYP
                                      double eps = 1.e-10)
 {
   constexpr bool tryFixOrientation = false;
-  const auto p = axom::primal::clip(shape1, shape2, eps, tryFixOrientation);
-  return p.area();
+  // Saves returning the polygon, we return the area.
+  return axom::primal::detail::clipPolygonPolygonArea(shape1, shape2, eps, tryFixOrientation);
 }
 
 // We define various shapeOverlap methods to handle
@@ -668,11 +689,9 @@ public:
     axom::for_all<ExecSpace>(
       targetSelectionView.size(),
       AXOM_LAMBDA(axom::IndexType index) {
-        SLIC_ASSERT(index >= 0 && index < targetSelectionView.size());
-
         // Get the target zone as a primal shape.
         const axom::IndexType zi = targetSelectionView[index];
-        SLIC_ASSERT(zi >= 0 && zi < targetView.numberOfZones());
+        AXOM_TM_ASSERT_OR_RETURN(zi >= 0 && zi < targetView.numberOfZones());
 
         const auto targetBBox = targetView.getBoundingBox(zi);
         const auto targetShape = targetView.getShape(zi);
@@ -688,17 +707,11 @@ public:
         auto handleIntersection = [&](std::int32_t currentNode, const std::int32_t *leafNodes) {
           const auto srcBboxIndex = leafNodes[currentNode];
 
-        // This should not happen but check that we're not given bad values.
-#if !defined(AXOM_DEVICE_CODE)
-          SLIC_ASSERT(srcBboxIndex >= 0 && srcBboxIndex < srcSelectionView.size());
-#else
-          if(srcBboxIndex < 0 || srcBboxIndex >= srcSelectionView.size())
-          {
-            return;
-          }
-#endif
+          // This should not happen but check that we're not given bad values.
+          AXOM_TM_ASSERT_OR_RETURN(srcBboxIndex >= 0 && srcBboxIndex < srcSelectionView.size());
+
           const auto srcZone = srcSelectionView[srcBboxIndex];
-          SLIC_ASSERT(srcZone >= 0 && srcZone < srcView.numberOfZones());
+          AXOM_TM_ASSERT_OR_RETURN(srcZone >= 0 && srcZone < srcView.numberOfZones());
 #if defined(AXOM_DEBUG_TOPOLOGY_MAPPER) && !defined(AXOM_DEVICE_CODE)
           std::cout << "handleIntersection: targetZone=" << zi << ", srcZone=" << srcZone
                     << std::endl;
@@ -863,5 +876,7 @@ public:
 
 }  // namespace bump
 }  // namespace axom
+
+#undef AXOM_TM_ASSERT_OR_RETURN
 
 #endif
