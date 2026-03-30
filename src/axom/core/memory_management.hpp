@@ -36,6 +36,31 @@ namespace axom
 constexpr int INVALID_ALLOCATOR_ID = -1;  //!< Place holder for no/unknown allocator
 constexpr int MALLOC_ALLOCATOR_ID = -3;   //!< Refers to MemorySpace::Malloc
 
+/*!
+ * \brief Returns whether \a allocatorId is a valid Axom allocator id.
+ *
+ * \note When built without Umpire, the only valid allocator id is
+ *       \c axom::MALLOC_ALLOCATOR_ID.
+ */
+inline bool isValidAllocatorID(int allocatorId) noexcept
+{
+  if(allocatorId == INVALID_ALLOCATOR_ID)
+  {
+    return false;
+  }
+
+#if defined(AXOM_USE_UMPIRE)
+  if(allocatorId == MALLOC_ALLOCATOR_ID)
+  {
+    return true;
+  }
+
+  return umpire::ResourceManager::getInstance().isAllocator(allocatorId);
+#else
+  return allocatorId == MALLOC_ALLOCATOR_ID;
+#endif
+}
+
 // _memory_space_start
 /*!
  * \brief Memory spaces supported by Array-like types

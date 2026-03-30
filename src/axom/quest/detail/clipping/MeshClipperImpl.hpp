@@ -9,15 +9,10 @@
 
 #include "axom/config.hpp"
 
-#ifndef AXOM_USE_RAJA
-  #error "quest::MeshClipper requires RAJA."
-#endif
-
 #include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/quest/MeshClipper.hpp"
 #include "axom/spin/BVH.hpp"
 #include "axom/primal/geometry/CoordinateTransformer.hpp"
-#include "RAJA/RAJA.hpp"
 
 namespace axom
 {
@@ -137,7 +132,6 @@ public:
      *    the same index more than once.  Write conflicts are thus avoided.
      *    Thanks to Jason Burmark for recommending this approach.
      */
-    using ScanPolicy = typename axom::execution_space<ExecSpace>::loop_policy;
 
     const axom::IndexType labelCount = labels.size();
 
@@ -156,8 +150,7 @@ public:
         onCountReduce += isOn;
       });
 
-    RAJA::inclusive_scan_inplace<ScanPolicy>(RAJA::make_span(tmpLabels.data(), tmpLabels.size()),
-                                             RAJA::operators::plus<axom::IndexType> {});
+    axom::inclusive_scan_inplace<ExecSpace>(tmpLabelsView);
 
     // Space for output index list
     axom::IndexType onCount = onCountReduce.get();
@@ -212,14 +205,14 @@ public:
     void copyTo(conduit::Node& stats)
     {
       // Place clip counts in statistics container.
-      std::int64_t clipsInCount = inSum.get();
-      std::int64_t clipsOnCount = onSum.get();
-      std::int64_t clipsOutCount = outSum.get();
-      std::int64_t clipsMissCount = missSum.get();
-      stats["clipsIn"].set_int64(clipsInCount);
-      stats["clipsOn"].set_int64(clipsOnCount);
-      stats["clipsOut"].set_int64(clipsOutCount);
-      stats["clipsMiss"].set_int64(clipsMissCount);
+      IndexType clipsInCount = inSum.get();
+      IndexType clipsOnCount = onSum.get();
+      IndexType clipsOutCount = outSum.get();
+      IndexType clipsMissCount = missSum.get();
+      stats["clipsIn"].set(clipsInCount);
+      stats["clipsOn"].set(clipsOnCount);
+      stats["clipsOut"].set(clipsOutCount);
+      stats["clipsMiss"].set(clipsMissCount);
       stats["clipsSum"] = clipsInCount + clipsOnCount + clipsOutCount;
     }
   };
@@ -490,7 +483,7 @@ public:
     AXOM_ANNOTATE_END("MeshClipper:clipLoop");
 
     clipStats.copyTo(statistics);
-    statistics["clipsCandidates"].set_int64(candidates.size());
+    statistics["clipsCandidates"].set(static_cast<IndexType>(candidates.size()));
   }  // end of computeClipVolumes3DTets() function
 
   /*!
@@ -621,7 +614,6 @@ public:
     const ClippingStats& clipStats,
     int screenLevel)
   {
-    using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
     constexpr bool tryFixOrientation = false;
     if(screenLevel >= 3)
     {
@@ -634,7 +626,7 @@ public:
       if(geomLabel == LabelType::LABEL_IN)
       {
         auto contribVol = geomPieceVolume(geomPiece);
-        RAJA::atomicAdd<ATOMIC_POL>(overlapVolume, contribVol);
+        axom::atomicAdd<ExecSpace>(overlapVolume, contribVol);
         clipStats.inSum += 1;
         return geomLabel;
       }
@@ -647,7 +639,7 @@ public:
       // Poly is valid
       auto contribVol = poly.volume();
       SLIC_ASSERT(contribVol >= 0);
-      RAJA::atomicAdd<ATOMIC_POL>(overlapVolume, contribVol);
+      axom::atomicAdd<ExecSpace>(overlapVolume, contribVol);
     }
     else
     {
@@ -900,18 +892,16 @@ public:
   }
 
   void getLabelCounts(axom::ArrayView<const LabelType> labels,
-                      std::int64_t& inCount,
-                      std::int64_t& onCount,
-                      std::int64_t& outCount) override
+                      IndexType& inCount,
+                      IndexType& onCount,
+                      IndexType& outCount) override
   {
     AXOM_ANNOTATE_SCOPE("MeshClipper::getLabelCounts");
-    using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
-    using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
-    RAJA::ReduceSum<ReducePolicy, std::int64_t> inSum(0);
-    RAJA::ReduceSum<ReducePolicy, std::int64_t> onSum(0);
-    RAJA::ReduceSum<ReducePolicy, std::int64_t> outSum(0);
-    RAJA::forall<LoopPolicy>(
-      RAJA::RangeSegment(0, labels.size()),
+    axom::ReduceSum<ExecSpace, IndexType> inSum(0);
+    axom::ReduceSum<ExecSpace, IndexType> onSum(0);
+    axom::ReduceSum<ExecSpace, IndexType> outSum(0);
+    axom::for_all<ExecSpace>(
+      labels.size(),
       AXOM_LAMBDA(axom::IndexType cellId) {
         const auto& label = labels[cellId];
         if(label == LabelType::LABEL_OUT)
@@ -927,9 +917,9 @@ public:
           onSum += 1;
         }
       });
-    inCount = static_cast<std::int64_t>(inSum.get());
-    onCount = static_cast<std::int64_t>(onSum.get());
-    outCount = static_cast<std::int64_t>(outSum.get());
+    inCount = inSum.get();
+    onCount = onSum.get();
+    outCount = outSum.get();
   }
 
 private:

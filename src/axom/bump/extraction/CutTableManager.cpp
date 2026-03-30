@@ -27,7 +27,7 @@ void CutTableManager::loadShape(size_t shape)
                            startCutShapesTri,
                            cutShapesTri,
                            cutShapesTriSize,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_QUA)
     {
@@ -36,7 +36,7 @@ void CutTableManager::loadShape(size_t shape)
                            startCutShapesQua,
                            cutShapesQua,
                            cutShapesQuaSize,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_POLY5)
     {
@@ -45,7 +45,7 @@ void CutTableManager::loadShape(size_t shape)
                            startCutShapesPoly5,
                            cutShapesPoly5,
                            cutShapesPoly5Size,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_POLY6)
     {
@@ -54,7 +54,7 @@ void CutTableManager::loadShape(size_t shape)
                            startCutShapesPoly6,
                            cutShapesPoly6,
                            cutShapesPoly6Size,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_POLY7)
     {
@@ -63,7 +63,7 @@ void CutTableManager::loadShape(size_t shape)
                            startCutShapesPoly7,
                            cutShapesPoly7,
                            cutShapesPoly7Size,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_POLY8)
     {
@@ -72,7 +72,7 @@ void CutTableManager::loadShape(size_t shape)
                            startCutShapesPoly8,
                            cutShapesPoly8,
                            cutShapesPoly8Size,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_TET)
     {
@@ -81,7 +81,7 @@ void CutTableManager::loadShape(size_t shape)
                            startCutShapesTet,
                            cutShapesTet,
                            cutShapesTetSize,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_PYR)
     {
@@ -90,7 +90,7 @@ void CutTableManager::loadShape(size_t shape)
                            startCutShapesPyr,
                            cutShapesPyr,
                            cutShapesPyrSize,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_WDG)
     {
@@ -99,7 +99,7 @@ void CutTableManager::loadShape(size_t shape)
                            startCutShapesWdg,
                            cutShapesWdg,
                            cutShapesWdgSize,
-                           m_allocatorID);
+                           m_allocator_id);
     }
     else if(shape == ST_HEX)
     {
@@ -108,7 +108,7 @@ void CutTableManager::loadShape(size_t shape)
                            startCutShapesHex,
                            cutShapesHex,
                            cutShapesHexSize,
-                           m_allocatorID);
+                           m_allocator_id);
     }
   }
 }

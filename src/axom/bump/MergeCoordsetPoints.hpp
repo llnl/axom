@@ -93,7 +93,30 @@ public:
    *
    * \param coordsetView The coordset view that wraps the coordset to be modified.
    */
-  MergeCoordsetPoints(const CoordsetView &coordsetView) : m_coordsetView(coordsetView) { }
+  MergeCoordsetPoints(const CoordsetView &coordsetView)
+    : m_coordsetView(coordsetView)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
+  { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /*!
    * \brief Merge the coordset points using a tolerance and pass out an array of the
@@ -129,7 +152,7 @@ public:
                axom::Array<axom::IndexType> &old2new) const
   {
     namespace utils = axom::bump::utilities;
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = getAllocatorID();
 
     // If the coordset is not explicit then there is nothing to do.
     if(n_coordset["type"].as_string() != "explicit")
@@ -165,7 +188,10 @@ public:
 
     // Make points unique.
     axom::Array<KeyType> uniqueNames;
-    axom::bump::Unique<ExecSpace, KeyType>::execute(coordNamesView, uniqueNames, selectedIds);
+    axom::bump::Unique<ExecSpace, KeyType>::execute(coordNamesView,
+                                                    uniqueNames,
+                                                    selectedIds,
+                                                    allocatorID);
     const auto uniqueNamesView = uniqueNames.view();
     const auto selectedIdsView = selectedIds.view();
     AXOM_ANNOTATE_END("unique");
@@ -198,6 +224,7 @@ public:
       // Use the selectedIds to slice the coordset to make a new coordset that
       // replaces the old one.
       CoordsetSlicer<ExecSpace, CoordsetView> css(m_coordsetView);
+      css.setAllocatorID(allocatorID);
       SliceData slice;
       slice.m_indicesView = selectedIdsView;
       conduit::Node n_sliced;
@@ -298,7 +325,7 @@ public:
     namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE(axom::fmt::format("createNames<{}>", utils::cpp2conduit<Precision>::name));
 
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = getAllocatorID();
     const auto nnodes = m_coordsetView.numberOfNodes();
     const double neg_tolerance = -tolerance;
 
@@ -335,6 +362,7 @@ public:
   }
 
   CoordsetView m_coordsetView;
+  int m_allocator_id;
 };
 
 }  // end namespace bump

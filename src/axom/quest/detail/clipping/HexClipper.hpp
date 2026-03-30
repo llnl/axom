@@ -101,12 +101,12 @@ private:
    * error and the way we use it doesn't lead to real errors.
    */
   template <typename Polyhedron>
-  AXOM_HOST_DEVICE inline LabelType polyhedronToLabel(
+  AXOM_HOST_DEVICE static inline LabelType polyhedronToLabel(
     const Polyhedron& verts,
     const BoundingBox3DType& vertsBb,
     const BoundingBox3DType& hexBb,
     const axom::ArrayView<const TetrahedronType>& hexTets,
-    const axom::StackArray<Triangle3DType, 24>& surfaceTriangles) const;
+    const axom::StackArray<Triangle3DType, 24>& surfaceTriangles);
 
   void extractClipperInfo();
 

@@ -561,8 +561,8 @@ struct PolygonShape : public PolygonTraits
   using ConnectivityType = ConnType;
   using ConnectivityView = axom::ArrayView<ConnectivityType>;
   using ConnectivityStorage = ConnectivityType;
-  using ConnectivityStorageRef = ConnectivityType &;
-  using ConnectivityStorageConstRef = const ConnectivityType &;
+  using ConnectivityStorageRef = ConnectivityView &;
+  using ConnectivityStorageConstRef = const ConnectivityView &;
 
   /*!
    * \brief Construct a shape.
@@ -1103,6 +1103,20 @@ struct VariableShape
   AXOM_HOST_DEVICE ConnectivityView getIds() const { return m_ids; }
 
   AXOM_HOST_DEVICE constexpr static const char *name() { return "mixed"; }
+
+  /*!
+   * \brief Get the storage for the ids that make up this shape.
+   *
+   * \return The container for the ids that make up this shape.
+   */
+  AXOM_HOST_DEVICE ConnectivityStorageRef getIdsStorage() { return m_ids; }
+
+  /*!
+   * \brief Get the storage for the ids that make up this shape.
+   *
+   * \return The container for the ids that make up this shape.
+   */
+  AXOM_HOST_DEVICE ConnectivityStorageConstRef getIdsStorage() const { return m_ids; }
 
 private:
   int m_shapeId;

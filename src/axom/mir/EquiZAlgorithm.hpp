@@ -79,10 +79,31 @@ public:
     , m_coordsetView(coordsetView)
     , m_matsetView(matsetView)
     , m_selectionKey("selectedZones")
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
 
   /// Destructor
   virtual ~EquiZAlgorithm() = default;
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
 // The following members are protected (unless using CUDA)
 #if !defined(__CUDACC__)
@@ -121,7 +142,7 @@ protected:
 
     // Copy the options.
     conduit::Node n_options_copy;
-    utils::copy<ExecSpace>(n_options_copy, n_options);
+    utils::copy<ExecSpace>(n_options_copy, n_options, getAllocatorID());
     n_options_copy["topology"] = n_topo.name();
 
 #if defined(AXOM_EQUIZ_DEBUG)
@@ -304,6 +325,7 @@ protected:
     namespace utils = axom::bump::utilities;
     axom::bump::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(m_topologyView,
                                                                          m_matsetView);
+    zlb.setAllocatorID(getAllocatorID());
     [[maybe_unused]] axom::IndexType expectedSize = 0;
     if(n_options.has_child(m_selectionKey))
     {
@@ -364,6 +386,7 @@ protected:
     conduit::Node mmOpts;
     mmOpts["topology"] = topoName;
     MergeMeshes mm;
+    mm.setAllocatorID(getAllocatorID());
     mm.execute(inputs, mmOpts, n_merged);
   }
 
@@ -386,12 +409,13 @@ protected:
   {
     AXOM_ANNOTATE_SCOPE("addOriginal");
     namespace utils = axom::bump::utilities;
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    const auto conduitAllocatorID =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     // Add a new field for the original ids.
     n_field["topology"] = topoName;
     n_field["association"] = association;
-    n_field["values"].set_allocator(c2a.getConduitAllocatorID());
+    n_field["values"].set_allocator(conduitAllocatorID);
     n_field["values"].set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, nvalues));
     auto view = utils::make_array_view<ConnectivityType>(n_field["values"]);
     axom::for_all<ExecSpace>(
@@ -439,6 +463,7 @@ protected:
         n_ezopts[key].set(n_options[key]);
       }
     }
+    ez.setAllocatorID(getAllocatorID());
     ez.execute(cleanZones, n_root, n_ezopts, n_cleanOutput);
   #if defined(AXOM_EQUIZ_DEBUG)
     AXOM_ANNOTATE_BEGIN("saveClean");
@@ -667,13 +692,13 @@ protected:
       AXOM_ANNOTATE_SCOPE("cleanup");
       for(const auto &mat : allMats)
       {
-        const std::string nodalMatName(nodalFieldName(mat.number));
+        const std::string nodalMatName(nodalFieldName(mat.m_number));
         if(n_newFields.has_child(nodalMatName))
         {
           n_newFields.remove(nodalMatName);
         }
 #if defined(AXOM_EQUIZ_DEBUG)
-        const std::string zonalMatName(zonalFieldName(mat.number));
+        const std::string zonalMatName(zonalFieldName(mat.m_number));
         if(n_newFields.has_child(zonalMatName))
         {
           n_newFields.remove(zonalMatName);
@@ -786,13 +811,15 @@ protected:
     {
       AXOM_ANNOTATE_SCOPE("relation");
       axom::bump::NodeToZoneRelationBuilder<ExecSpace> rb;
+      rb.setAllocatorID(getAllocatorID());
       rb.execute(n_topo, n_coordset, relation);
       //printNode(relation);
       //std::cout.flush();
     }
 
     // Get the ID of a Conduit allocator that will allocate through Axom with device allocator allocatorID.
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    const auto conduitAllocatorID =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     // Make nodal VFs for each mixed material.
     const auto nzones = m_topologyView.numberOfZones();
@@ -801,12 +828,12 @@ protected:
       AXOM_ANNOTATE_SCOPE("zonal");
       for(const auto &mat : mixedMats)
       {
-        const int matNumber = mat.number;
+        const int matNumber = mat.m_number;
         const std::string zonalName = zonalFieldName(matNumber);
         conduit::Node &n_zonalField = n_fields[zonalName];
         n_zonalField["topology"] = n_topo.name();
         n_zonalField["association"] = "element";
-        n_zonalField["values"].set_allocator(c2a.getConduitAllocatorID());
+        n_zonalField["values"].set_allocator(conduitAllocatorID);
         n_zonalField["values"].set(conduit::DataType(utils::cpp2conduit<MaterialVF>::id, nzones));
         auto zonalFieldView = utils::make_array_view<MaterialVF>(n_zonalField["values"]);
 
@@ -826,7 +853,7 @@ protected:
       AXOM_ANNOTATE_SCOPE("recenter");
       for(const auto &mat : mixedMats)
       {
-        const int matNumber = mat.number;
+        const int matNumber = mat.m_number;
         const std::string zonalName = zonalFieldName(matNumber);
         conduit::Node &n_zonalField = n_fields[zonalName];
 
@@ -835,9 +862,10 @@ protected:
         conduit::Node &n_nodalField = n_fields[nodalName];
         n_nodalField["topology"] = n_topo.name();
         n_nodalField["association"] = "vertex";
-        n_nodalField["values"].set_allocator(c2a.getConduitAllocatorID());
+        n_nodalField["values"].set_allocator(conduitAllocatorID);
         n_nodalField["values"].set(conduit::DataType(utils::cpp2conduit<MaterialVF>::id, nnodes));
         axom::bump::RecenterField<ExecSpace> z2n;
+        z2n.setAllocatorID(getAllocatorID());
         z2n.execute(n_zonalField, relation, n_nodalField);
 
 #if !defined(AXOM_EQUIZ_DEBUG)
@@ -866,7 +894,8 @@ protected:
     AXOM_ANNOTATE_SCOPE("makeWorkingFields");
 
     // Get the ID of a Conduit allocator that will allocate through Axom with device allocator allocatorID.
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    const auto conduitAllocatorID =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     const auto nzones = m_topologyView.numberOfZones();
 
@@ -874,7 +903,7 @@ protected:
     conduit::Node &n_zonalIDField = n_fields[zonalMaterialIDName()];
     n_zonalIDField["topology"] = n_topo.name();
     n_zonalIDField["association"] = "element";
-    n_zonalIDField["values"].set_allocator(c2a.getConduitAllocatorID());
+    n_zonalIDField["values"].set_allocator(conduitAllocatorID);
     n_zonalIDField["values"].set(conduit::DataType(utils::cpp2conduit<MaterialID>::id, nzones));
     auto zonalIDFieldView = utils::make_array_view<MaterialID>(n_zonalIDField["values"]);
 
@@ -888,7 +917,7 @@ protected:
     MatsetView deviceMatsetView(m_matsetView);
     for(const auto &mat : cleanMats)
     {
-      const int matNumber = mat.number;
+      const int matNumber = mat.m_number;
       axom::for_all<ExecSpace>(
         nzones,
         AXOM_LAMBDA(axom::IndexType zoneIndex) {
@@ -989,12 +1018,12 @@ protected:
       for(int index = 0; index < nmats; index++)
       {
         // Add a matvf view to the intersector.
-        const std::string matFieldName = nodalFieldName(allMats[index].number);
+        const std::string matFieldName = nodalFieldName(allMats[index].m_number);
         auto matVFView =
           utils::make_array_view<MaterialVF>(n_fields.fetch_existing(matFieldName + "/values"));
         intersector.addMaterial(matVFView);
 
-        matNumber.push_back(allMats[index].number);
+        matNumber.push_back(allMats[index].m_number);
         matIndex.push_back(index);
       }
       // Sort indices by matNumber.
@@ -1006,7 +1035,7 @@ protected:
       int currentMatIndex = 0;
       for(axom::IndexType i = 0; i < matNumber.size(); i++)
       {
-        if(matNumber[i] == currentMat.number)
+        if(matNumber[i] == currentMat.m_number)
         {
           currentMatIndex = matIndex[i];
           break;
@@ -1020,7 +1049,7 @@ protected:
       axom::copy(matIndexDevice.data(), matIndex.data(), sizeof(int) * nmats);
       intersector.setMaterialNumbers(matNumberDevice.view());
       intersector.setMaterialIndices(matIndexDevice.view());
-      intersector.setCurrentMaterial(currentMat.number, currentMatIndex);
+      intersector.setCurrentMaterial(currentMat.m_number, currentMatIndex);
 
       // Store the current zone material ids and current material number into the intersector.
       intersector.setZoneMaterialID(utils::make_array_view<MaterialID>(
@@ -1066,6 +1095,7 @@ protected:
                                                     ICoordsetView,
                                                     IntersectorType>;
       ClipperType clipper(topoView, coordsetView, intersector);
+      clipper.setAllocatorID(getAllocatorID());
       clipper.execute(n_topo, n_coordset, n_fields, options, n_newTopo, n_newCoordset, n_newFields);
     }
 
@@ -1085,7 +1115,7 @@ protected:
       conduit::Node &n_zonalMaterialID =
         n_newFields.fetch_existing(zonalMaterialIDName() + "/values");
       auto zonalMaterialID = utils::make_array_view<MaterialID>(n_zonalMaterialID);
-      const int currentMatNumber = currentMat.number;
+      const int currentMatNumber = currentMat.m_number;
       axom::for_all<ExecSpace>(
         nzonesNew,
         AXOM_LAMBDA(axom::IndexType zoneIndex) {
@@ -1157,12 +1187,13 @@ protected:
     conduit::Node &n_offsets = n_newMatset["offsets"];
     conduit::Node &n_indices = n_newMatset["indices"];
 
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-    n_material_ids.set_allocator(c2a.getConduitAllocatorID());
-    n_volume_fractions.set_allocator(c2a.getConduitAllocatorID());
-    n_sizes.set_allocator(c2a.getConduitAllocatorID());
-    n_offsets.set_allocator(c2a.getConduitAllocatorID());
-    n_indices.set_allocator(c2a.getConduitAllocatorID());
+    const auto conduitAllocatorID =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
+    n_material_ids.set_allocator(conduitAllocatorID);
+    n_volume_fractions.set_allocator(conduitAllocatorID);
+    n_sizes.set_allocator(conduitAllocatorID);
+    n_offsets.set_allocator(conduitAllocatorID);
+    n_indices.set_allocator(conduitAllocatorID);
 
     // We'll store the output matset in the same types as the input matset.
     using MIntType = typename MatsetView::IndexType;
@@ -1196,6 +1227,7 @@ private:
   CoordsetView m_coordsetView;
   MatsetView m_matsetView;
   std::string m_selectionKey;
+  int m_allocator_id;
 };
 
 }  // end namespace mir

@@ -51,12 +51,6 @@
   #include "mpi.h"
 #endif
 
-// RAJA
-#if !defined(AXOM_USE_RAJA)
-  #error quest_mesh_clipper example require RAJA
-#endif
-#include "RAJA/RAJA.hpp"
-
 // C/C++ includes
 #include <string>
 #include <vector>
@@ -252,8 +246,8 @@ public:
 
       std::stringstream pol_sstr;
       pol_sstr << "Set runtime policy for intersection-based sampling method.";
+      pol_sstr << "\nSet to 'seq' or 0 to use the sequential policy.";
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-      pol_sstr << "\nSet to 'seq' or 0 to use the RAJA sequential policy.";
   #ifdef AXOM_USE_OPENMP
       pol_sstr << "\nSet to 'omp' or 1 to use the RAJA OpenMP policy.";
   #endif
@@ -1067,8 +1061,7 @@ double sumMaterialVolumesImpl(sidre::Group* meshGrp, const std::string& material
   axom::sidre::View* volFrac = meshGrp->getView(vfFieldValuesPath);
   axom::ArrayView<double> volFracView(volFrac->getArray(), cellCount);
 
-  using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
-  RAJA::ReduceSum<ReducePolicy, double> localVol(0);
+  axom::ReduceSum<ExecSpace, double> localVol(0);
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType i) { localVol += volFracView[i] * elementVolsView[i]; });
@@ -1381,8 +1374,7 @@ int main(int argc, char** argv)
       ovlap = axom::Array<double>(ovlap, hostAllocId);
     }
     auto ovlapView = ovlap.view();
-    using reduce_policy = typename axom::execution_space<axom::SEQ_EXEC>::reduce_policy;
-    RAJA::ReduceSum<reduce_policy, double> ovlapSumReduce(0.0);
+    axom::ReduceSum<axom::SEQ_EXEC, double> ovlapSumReduce(0.0);
     axom::for_all<axom::SEQ_EXEC>(
       ovlap.size(),
       AXOM_LAMBDA(axom::IndexType i) { ovlapSumReduce += ovlapView[i]; });

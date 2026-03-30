@@ -7,9 +7,11 @@
 #define AXOM_BUMP_MAKE_POINT_MESH_
 
 #include "axom/core.hpp"
+#include "axom/slic.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/MakeZoneCenters.hpp"
 #include "axom/bump/Options.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -34,7 +36,28 @@ struct MakePointMesh
   MakePointMesh(const TopologyView &topologyView, const CoordsetView &coordsetView)
     : m_topologyView(topologyView)
     , m_coordsetView(coordsetView)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /*!
    * \brief Create a new field from the input topology and place it in \a n_output.
@@ -53,7 +76,7 @@ struct MakePointMesh
                conduit::Node &n_output) const
   {
     const auto numZones = m_topologyView.numberOfZones();
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = getAllocatorID();
     // Select all zones.
     axom::Array<axom::IndexType> selectedZones(numZones, numZones, allocatorID);
     auto selectedZonesView = selectedZones.view();
@@ -82,12 +105,14 @@ struct MakePointMesh
     AXOM_ANNOTATE_SCOPE("ConvertToPointMesh");
     namespace utils = axom::bump::utilities;
     using ConnectivityType = typename TopologyView::ConnectivityType;
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
     Options opts(n_options);
 
     // Make zone centers to use for the new coordset.
     MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView, m_coordsetView);
     conduit::Node zcfield;
+    zc.setAllocatorID(getAllocatorID());
     zc.execute(selectedZonesView, n_topology, n_coordset, zcfield);
 
     // Make the zone centers be the new coordset values in the output coordset.
@@ -105,17 +130,17 @@ struct MakePointMesh
     n_output_topo["coordset"] = opts.coordsetName(n_coordset.name());
     n_output_topo["elements/shape"] = "point";
     conduit::Node &n_conn = n_output_topo["elements/connectivity"];
-    n_conn.set_allocator(c2a.getConduitAllocatorID());
+    n_conn.set_allocator(conduitAllocatorId);
     n_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numPoints));
     auto connectivity = utils::make_array_view<ConnectivityType>(n_conn);
 
     conduit::Node &n_sizes = n_output_topo["elements/sizes"];
-    n_sizes.set_allocator(c2a.getConduitAllocatorID());
+    n_sizes.set_allocator(conduitAllocatorId);
     n_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numPoints));
     auto sizes = utils::make_array_view<ConnectivityType>(n_sizes);
 
     conduit::Node &n_offsets = n_output_topo["elements/offsets"];
-    n_offsets.set_allocator(c2a.getConduitAllocatorID());
+    n_offsets.set_allocator(conduitAllocatorId);
     n_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numPoints));
     auto offsets = utils::make_array_view<ConnectivityType>(n_offsets);
     AXOM_ANNOTATE_END("allocate");
@@ -135,6 +160,7 @@ struct MakePointMesh
 private:
   TopologyView m_topologyView;
   CoordsetView m_coordsetView;
+  int m_allocator_id;
 };
 
 }  // end namespace bump

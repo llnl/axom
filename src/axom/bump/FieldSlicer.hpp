@@ -7,9 +7,11 @@
 #define AXOM_BUMP_FIELD_SLICER_HPP_
 
 #include "axom/core.hpp"
+#include "axom/slic.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/IndexingPolicies.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -26,6 +28,16 @@ struct SliceData
 };
 
 /*!
+ * \brief Return the number of values produced from the SliceData.
+ *
+ * \param slice The SliceData we're querying.
+ *
+ * \return The number of values made from the SliceData.
+ */
+AXOM_HOST_DEVICE
+inline axom::IndexType numberOfValues(const SliceData &slice) { return slice.m_indicesView.size(); }
+
+/*!
  * \accelerated
  * \class FieldSlicer
  *
@@ -40,13 +52,36 @@ class FieldSlicer
 {
 public:
   /// Constructor
-  FieldSlicer() : m_indexing() { }
+  FieldSlicer() : m_indexing(), m_allocator_id(axom::execution_space<ExecSpace>::allocatorID()) { }
 
   /*!
    * \brief Constructor
    * \param indexing An object used to transform node indices.
    */
-  FieldSlicer(const IndexingPolicy &indexing) : m_indexing(indexing) { }
+  FieldSlicer(const IndexingPolicy &indexing)
+    : m_indexing(indexing)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
+  { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /*!
    * \brief Execute the slice on the \a n_input field and store the new sliced field in \a n_output.
@@ -65,9 +100,10 @@ public:
 
     const conduit::Node &n_input_values = n_input["values"];
     conduit::Node &n_output_values = n_output["values"];
-    if(n_input_values.number_of_children() > 0)
+    const conduit::index_t nc = n_input_values.number_of_children();
+    if(nc > 0)
     {
-      for(conduit::index_t i = 0; i < n_input_values.number_of_children(); i++)
+      for(conduit::index_t i = 0; i < nc; i++)
       {
         const conduit::Node &n_comp = n_input_values[i];
         conduit::Node &n_out_comp = n_output_values[n_comp.name()];
@@ -97,39 +133,41 @@ private:
                             conduit::Node &n_output_values) const
   {
     namespace utils = axom::bump::utilities;
-    const auto outputSize = slice.m_indicesView.size();
+    const auto output_size = slice.m_indicesView.size();
 
-    // Allocate Conduit data through Axom.
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-    n_output_values.set_allocator(c2a.getConduitAllocatorID());
-    n_output_values.set(conduit::DataType(n_values.dtype().id(), outputSize));
+    const auto conduit_allocator_id =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
+    n_output_values.set_allocator(conduit_allocator_id);
+    n_output_values.set(conduit::DataType(n_values.dtype().id(), output_size));
 
-    views::Node_to_ArrayView_same(n_values, n_output_values, [&](auto valuesView, auto outputView) {
-      sliceSingleComponentImpl(slice, valuesView, outputView);
+    views::nodeToArrayViewSame(n_values, n_output_values, [&](auto values_view, auto output_view) {
+      sliceSingleComponentImpl(slice, values_view, output_view);
     });
   }
 
   /*!
    * \brief Slice the source view and copy values into the output view.
    *
-   * \param valuesView The source values view.
-   * \param outputView The output values view.
+   * \param values_view The source values view.
+   * \param output_view The output values view.
    *
    * \note This method was broken out into a template member method since nvcc
    *       would not instantiate the lambda for axom::for_all() from an anonymous
    *       lambda.
    */
   template <typename ValuesView, typename OutputView>
-  void sliceSingleComponentImpl(const SliceData &slice, ValuesView valuesView, OutputView outputView) const
+  void sliceSingleComponentImpl(const SliceData &slice,
+                                ValuesView values_view,
+                                OutputView output_view) const
   {
-    IndexingPolicy deviceIndexing(m_indexing);
-    SliceData deviceSlice(slice);
+    IndexingPolicy device_indexing(m_indexing);
+    SliceData device_slice(slice);
     axom::for_all<ExecSpace>(
-      outputView.size(),
+      output_view.size(),
       AXOM_LAMBDA(axom::IndexType index) {
-        const auto zoneIndex = deviceSlice.m_indicesView[index];
-        const auto transformedIndex = deviceIndexing[zoneIndex];
-        outputView[index] = valuesView[transformedIndex];
+        const auto zone_index = device_slice.m_indicesView[index];
+        const auto transformed_index = device_indexing[zone_index];
+        output_view[index] = values_view[transformed_index];
       });
   }
 
@@ -139,6 +177,7 @@ private:
 #endif
 
   IndexingPolicy m_indexing {};
+  int m_allocator_id;
 };
 
 }  // end namespace bump

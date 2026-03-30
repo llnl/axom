@@ -11,6 +11,7 @@
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/views/dispatch_structured_topology.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -42,11 +43,12 @@ public:
   static void execute(const conduit::Node &topo,
                       const conduit::Node &coordset,
                       const std::string &topoName,
-                      conduit::Node &mesh)
+                      conduit::Node &mesh,
+                      int allocator_id = axom::execution_space<ExecSpace>::allocatorID())
   {
     const std::string type = topo.fetch_existing("type").as_string();
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocator_id);
     namespace utils = axom::bump::utilities;
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     mesh["coordsets"][coordset.name()].set_external(coordset);
     conduit::Node &n_newtopo = mesh["topologies"][topoName];
@@ -62,9 +64,9 @@ public:
       conduit::Node &n_newconn = n_newtopo["elements/connectivity"];
       conduit::Node &n_newsizes = n_newtopo["elements/sizes"];
       conduit::Node &n_newoffsets = n_newtopo["elements/offsets"];
-      n_newconn.set_allocator(c2a.getConduitAllocatorID());
-      n_newsizes.set_allocator(c2a.getConduitAllocatorID());
-      n_newoffsets.set_allocator(c2a.getConduitAllocatorID());
+      n_newconn.set_allocator(conduitAllocatorId);
+      n_newsizes.set_allocator(conduitAllocatorId);
+      n_newoffsets.set_allocator(conduitAllocatorId);
 
       axom::bump::views::dispatch_structured_topologies(
         topo,

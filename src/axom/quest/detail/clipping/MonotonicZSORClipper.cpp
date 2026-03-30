@@ -375,11 +375,9 @@ void MonotonicZSORClipper::computeCurveBoxes(quest::experimental::ShapeMesh& sha
 
   axom::ArrayView<const double> cellLengths = shapeMesh.getCellLengths();
 
-  using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
-  using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
-  RAJA::ReduceSum<ReducePolicy, double> sumCharLength(0.0);
-  RAJA::forall<LoopPolicy>(
-    RAJA::RangeSegment(0, cellCount),
+  axom::ReduceSum<ExecSpace, double> sumCharLength(0.0);
+  axom::for_all<ExecSpace>(
+    cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) { sumCharLength += cellLengths[cellId]; });
   double avgCharLength = sumCharLength.get() / cellCount;
 
@@ -536,12 +534,10 @@ bool MonotonicZSORClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh&
   const auto cellCount = shapeMesh.getCellCount();
 
   // Compute an average characteristic length for the mesh cells.
-  using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
-  using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
   axom::ArrayView<const double> cellVolumes = shapeMesh.getCellVolumes();
-  RAJA::ReduceSum<ReducePolicy, double> sumVolume(0.0);
-  RAJA::forall<LoopPolicy>(
-    RAJA::RangeSegment(0, cellCount),
+  axom::ReduceSum<ExecSpace, double> sumVolume(0.0);
+  axom::for_all<ExecSpace>(
+    cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) { sumVolume += cellVolumes[cellId]; });
   double avgVolume = sumVolume.get() / cellCount;
   double avgCharLength = pow(avgVolume, 1. / 3);

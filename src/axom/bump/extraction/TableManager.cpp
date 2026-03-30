@@ -12,9 +12,9 @@ namespace bump
 namespace extraction
 {
 
-TableManager::TableManager() { m_allocatorID = axom::getDefaultAllocatorID(); }
+TableManager::TableManager() { m_allocator_id = axom::getDefaultAllocatorID(); }
 
-void TableManager::setAllocatorID(int allocatorID) { m_allocatorID = allocatorID; }
+void TableManager::setAllocatorID(int allocatorID) { m_allocator_id = allocatorID; }
 
 Table &TableManager::operator[](size_t shape)
 {

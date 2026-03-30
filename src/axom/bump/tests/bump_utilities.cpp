@@ -25,12 +25,14 @@ struct test_conduit_allocate
 {
   static void test()
   {
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-    EXPECT_TRUE(c2a.getConduitAllocatorID() > 0);
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(
+      axom::execution_space<ExecSpace>::allocatorID());
+
+    EXPECT_TRUE(conduitAllocatorId > 0);
 
     constexpr int nValues = 100;
     conduit::Node n;
-    n.set_allocator(c2a.getConduitAllocatorID());
+    n.set_allocator(conduitAllocatorId);
     n.set(conduit::DataType::int32(nValues));
 
     // Make sure we can store some values into the data that were allocated.
@@ -51,22 +53,54 @@ struct test_conduit_allocate
 
     // Check zero allocation.
     n.reset();
-    n.set_allocator(c2a.getConduitAllocatorID());
+    n.set_allocator(conduitAllocatorId);
     n.set(conduit::DataType::int32(0));
     EXPECT_EQ(n.dtype().number_of_elements(), 0);
   }
 };
 
-TEST(bump_blueprint_utilities, allocate_seq) { test_conduit_allocate<seq_exec>::test(); }
+TEST(bump_utilities, allocate_seq) { test_conduit_allocate<seq_exec>::test(); }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(bump_blueprint_utilities, allocate_omp) { test_conduit_allocate<omp_exec>::test(); }
+TEST(bump_utilities, allocate_omp) { test_conduit_allocate<omp_exec>::test(); }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(bump_blueprint_utilities, allocate_cuda) { test_conduit_allocate<cuda_exec>::test(); }
+TEST(bump_utilities, allocate_cuda) { test_conduit_allocate<cuda_exec>::test(); }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(bump_blueprint_utilities, allocate_hip) { test_conduit_allocate<hip_exec>::test(); }
+TEST(bump_utilities, allocate_hip) { test_conduit_allocate<hip_exec>::test(); }
 #endif
+
+//------------------------------------------------------------------------------
+AXOM_CUDA_TEST(bump_utilities, make_array_view_interleaved_seq)
+{
+  constexpr conduit::index_t n = 4;
+  axom::Array<double> interleaved {{-1., 10., -2., 20., -3., 30., -4., 40., -5.}};
+  conduit::Node n_data;
+  n_data.set_external(conduit::DataType(conduit::DataType::FLOAT64_ID,
+                                        n,
+                                        sizeof(double),
+                                        2 * sizeof(double),
+                                        sizeof(double),
+                                        conduit::Endianness::DEFAULT_ID),
+                      interleaved.data());
+
+  auto view = utils::make_array_view<double>(n_data);
+  EXPECT_EQ(view.size(), n);
+
+  axom::for_all<seq_exec>(
+    n,
+    AXOM_LAMBDA(axom::IndexType index) { view[index] = static_cast<double>((index + 1) * 100); });
+
+  EXPECT_EQ(interleaved[0], -1.);
+  EXPECT_EQ(interleaved[1], 100.);
+  EXPECT_EQ(interleaved[2], -2.);
+  EXPECT_EQ(interleaved[3], 200.);
+  EXPECT_EQ(interleaved[4], -3.);
+  EXPECT_EQ(interleaved[5], 300.);
+  EXPECT_EQ(interleaved[6], -4.);
+  EXPECT_EQ(interleaved[7], 400.);
+  EXPECT_EQ(interleaved[8], -5.);
+}
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
@@ -119,16 +153,16 @@ struct test_copy_braid
   }
 };
 
-TEST(bump_blueprint_utilities, copy_seq) { test_copy_braid<seq_exec>::test(); }
+TEST(bump_utilities, copy_seq) { test_copy_braid<seq_exec>::test(); }
 
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(bump_blueprint_utilities, copy_omp) { test_copy_braid<omp_exec>::test(); }
+TEST(bump_utilities, copy_omp) { test_copy_braid<omp_exec>::test(); }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(bump_blueprint_utilities, copy_cuda) { test_copy_braid<cuda_exec>::test(); }
+TEST(bump_utilities, copy_cuda) { test_copy_braid<cuda_exec>::test(); }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(bump_blueprint_utilities, copy_hip) { test_copy_braid<hip_exec>::test(); }
+TEST(bump_utilities, copy_hip) { test_copy_braid<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
