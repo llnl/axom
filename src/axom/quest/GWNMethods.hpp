@@ -128,11 +128,12 @@ void generate_gwn_query_mesh(mfem::DataCollection& dc,
 ///@{
 /// \name Query methods for 2D GWN applications
 
-template <typename ExecSpace>
+template <typename ExecSpace, int ORDER = 2>
 class DirectGWN2D
 {
 public:
   using BoxType = axom::primal::BoundingBox<double, 2>;
+  using GWNMoments = axom::quest::GWNMomentData<double, 2, ORDER>;
 
   using CurveType = axom::primal::NURBSCurve<double, 2>;
   using CurveArrayType = axom::Array<CurveType>;
@@ -174,10 +175,21 @@ public:
         ncurves,
         AXOM_LAMBDA(axom::IndexType i) { aabbs_view[i] = m_input_curves_view[i].boundingBox(); });
       m_bvh.initialize(aabbs_view, ncurves);
-      SLIC_INFO(axom::fmt::format("Direct query preprocessing (loading curves{}): {} s",
-                                  use_memoization ? " and memoization caches" : "",
-                                  timer.elapsedTimeInSec()));
+
+      auto curves_view = m_input_curves_view;
+      auto compute_moments = [curves_view](std::int32_t currentNode,
+                                           const std::int32_t* leafNodes) -> GWNMoments {
+        const auto idx = leafNodes[currentNode];
+        return GWNMoments(curves_view[idx]);  // TODO: Avoid repeat normal calculation
+      };
+
+      const auto traverser = m_bvh.getTraverser();
+      m_internal_moments = traverser.reduce_tree<ExecSpace, GWNMoments>(compute_moments);
     }
+
+    SLIC_INFO(axom::fmt::format("Direct query preprocessing (loading curves{}): {} s",
+                                use_memoization ? " and memoization caches" : "",
+                                timer.elapsedTimeInSec()));
   }
 
   /*!
@@ -218,33 +230,53 @@ public:
       AXOM_ANNOTATE_SCOPE("query");
       const primal::WindingTolerances tol_copy = tol;
 
-      // Use non-memoized form
-      if(m_nurbs_cache_mgr.empty())
+      // Use fast approximation
+      if(m_bvh.isInitialized())
       {
-        axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
-          const auto q = query_point(static_cast<int>(nidx));
-          double wn {};
-          for(const auto& curve : m_input_curves_view)
-          {
-            wn += axom::primal::winding_number(q, curve, tol_copy.edge_tol, tol_copy.EPS);
-          }
-          winding[static_cast<int>(nidx)] = wn;
-          inout[static_cast<int>(nidx)] = std::lround(wn);
+        const auto traverser = m_bvh.getTraverser();
+        const auto internal_moments_view = m_internal_moments.view();
+
+        axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
+          const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
+                                                                         traverser,
+                                                                         m_input_curves_view,
+                                                                         internal_moments_view,
+                                                                         tol_copy);
+          winding[static_cast<int>(index)] = wn;
+          inout[static_cast<int>(index)] = std::lround(wn);
         });
       }
-      else  // Use memoized form
+      // Use direct formula
+      else
       {
-        const auto cache_mgr_view = m_nurbs_cache_mgr.view();
-        axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
-          const auto q = query_point(static_cast<int>(nidx));
-          const auto caches_view = cache_mgr_view.caches();
+        // Use direct, non-memoized form
+        if(m_nurbs_cache_mgr.empty())
+        {
+          axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
+            const auto q = query_point(static_cast<int>(nidx));
+            double wn {};
+            for(const auto& curve : m_input_curves_view)
+            {
+              wn += axom::primal::winding_number(q, curve, tol_copy.edge_tol, tol_copy.EPS);
+            }
+            winding[static_cast<int>(nidx)] = wn;
+            inout[static_cast<int>(nidx)] = std::lround(wn);
+          });
+        }
+        else  // Use direct, memoized form
+        {
+          const auto cache_mgr_view = m_nurbs_cache_mgr.view();
+          axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
+            const auto q = query_point(static_cast<int>(nidx));
+            const auto caches_view = cache_mgr_view.caches();
 
-          const double wn =
-            axom::primal::winding_number(q, caches_view, tol_copy.edge_tol, tol_copy.EPS);
+            const double wn =
+              axom::primal::winding_number(q, caches_view, tol_copy.edge_tol, tol_copy.EPS);
 
-          winding[static_cast<int>(nidx)] = wn;
-          inout[static_cast<int>(nidx)] = std::lround(wn);
-        });
+            winding[static_cast<int>(nidx)] = wn;
+            inout[static_cast<int>(nidx)] = std::lround(wn);
+          });
+        }
       }
     }
     query_timer.stop();
@@ -266,7 +298,7 @@ public:
 
 private:
   // For the input curves/BVH leaf nodes
-  axom::ArrayView<CurveType> m_input_curves_view;
+  axom::ArrayView<const CurveType> m_input_curves_view;
   NURBSCacheManager m_nurbs_cache_mgr;
 
   // Only needed for fast approximation method
@@ -274,7 +306,7 @@ private:
   axom::spin::BVH<2, ExecSpace> m_bvh;
 };
 
-template <typename ExecSpace, int ORDER>
+template <typename ExecSpace, int ORDER = 2>
 class PolylineGWN2D
 {
 public:
@@ -610,7 +642,7 @@ private:
   NURBSCacheManager m_nurbs_cache_mgr;
 };
 
-template <typename ExecSpace, int ORDER>
+template <typename ExecSpace, int ORDER = 2>
 class TriangleGWN3D
 {
 public:

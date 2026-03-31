@@ -126,6 +126,11 @@ public:
     compute_coefficients();
   }
 
+  /// Construct moments from the endpoints of a 2D segment
+  explicit GWNMomentData(const axom::primal::NURBSCurve<T, 2>& c)
+    : GWNMomentData(c.getInitPoint(), c.getEndPoint())
+  { }
+
   /// Construct moments from a 2D Segment
   explicit GWNMomentData(const axom::primal::Segment<T, 2>& s)
     : GWNMomentData(s.source(), s.target())
@@ -403,7 +408,8 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
     }
   };
 
-  if constexpr(std::is_same_v<LeafGeom, axom::primal::Triangle<T, 3>>)
+  if constexpr(std::is_same_v<LeafGeom, axom::primal::Triangle<T, 3>> ||
+               std::is_same_v<LeafGeom, axom::primal::NURBSCurve<T, 2>>)
   {
     auto leaf_gwn = [&query, &gwn, leaf_objects_view, &wt](std::int32_t currentNode,
                                                            const std::int32_t* leafNodes) -> void {
