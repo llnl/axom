@@ -69,7 +69,7 @@ struct PatchData
   int patchIndex {-1};
   bool wasOriginallyPeriodic_u {false};
   bool wasOriginallyPeriodic_v {false};
-  bool reversed_u {false};
+  bool was_reversed_u {false};
   axom::primal::BoundingBox<double, 2> parametricBBox;
   axom::primal::BoundingBox<double, 3> physicalBBox;
   axom::Array<bool> trimmingCurves_originallyPeriodic;
@@ -701,13 +701,13 @@ public:
         patchData.patchIndex = patchIndex;
         patchData.wasOriginallyPeriodic_u = patchProcessor.patchWasOriginallyPeriodic_u();
         patchData.wasOriginallyPeriodic_v = patchProcessor.patchWasOriginallyPeriodic_v();
-        patchData.reversed_u = (face.Orientation() != TopAbs_FORWARD);
+        patchData.was_reversed_u = (face.Orientation() != TopAbs_FORWARD);
         patchData.parametricBBox = faceBoundingBox(face);
         patchData.physicalBBox = patches[patchIndex].boundingBox();
 
         // Apply the face orientation to the Axom patch so that normals are
         // consistent with the original B-Rep.
-        if(patchData.reversed_u)
+        if(patchData.was_reversed_u)
         {
           patches[patchIndex].reverseOrientation_u();
         }
@@ -921,7 +921,7 @@ public:
             SLIC_ASSERT(curve.isValidNURBS());
             SLIC_ASSERT(curve.getDegree() == bsplineCurve->Degree());
 
-            if(patchData.reversed_u)
+            if(patchData.was_reversed_u)
             {
               reflectCurve_u(curve, patch_umin, patch_umax);
             }

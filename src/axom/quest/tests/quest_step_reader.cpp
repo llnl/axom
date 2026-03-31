@@ -45,7 +45,7 @@ std::string pjoin(const char* str, Args... args)
 
 //------------------------------------------------------------------------------
 // Use a pared-down version of the TriangleGWN3D method to directly evaluate
-//  the for a triangle mesh
+//  the winding number for a triangle mesh
 struct MiniTriangleGWN3D
 {
   using Point3D = primal::Point<double, 3>;
@@ -76,7 +76,7 @@ struct MiniTriangleGWN3D
       &mesh,
       AXOM_LAMBDA(axom::IndexType cellIdx,
                   const axom::numerics::Matrix<double>& coords,
-                  [[maybe_unused]] const axom::IndexType* nodeIds) {
+                  const axom::IndexType* /*nodeIds*/) {
         // clang-format off
         trisView[cellIdx] = Triangle3D {Point3D {(coords(0, 0) - ctr[0]) / scl, (coords(1, 0) - ctr[1]) / scl, (coords(2, 0) - ctr[2]) / scl},
                                         Point3D {(coords(0, 1) - ctr[0]) / scl, (coords(1, 1) - ctr[1]) / scl, (coords(2, 1) - ctr[2]) / scl},
@@ -170,7 +170,7 @@ void runStepFileTest(const std::string& stepFile, double deflection = 0.1)
   const auto shapeBbox = stepReader.getBRepBoundingBox().scale(1.1);
   auto bboxMin = shapeBbox.getMin();
   auto bboxMax = shapeBbox.getMax();
-  const auto bboxDiag = bboxMax.array() - bboxMin.array();
+  const auto bboxDiag = bboxMax.range();
 
   axom::Array<primal::Point<double, 3>> query_arr;
   for(const double fx : {0.11, 0.251, 0.52, 0.731, 0.91})
