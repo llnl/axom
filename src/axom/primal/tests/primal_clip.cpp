@@ -722,6 +722,182 @@ void check_polygon_polygon_clip(double EPS)
   EXPECT_EQ(output_polygon_host[0].numVertices(), 6);
 }
 
+template <typename ExecPolicy>
+void check_polygon_polygon_clip_reassignment(double EPS)
+{
+  const int MAX_NUM_VERTS = 8;
+
+  using PolygonStatic2D =
+    axom::primal::Polygon<double, 2, axom::primal::PolygonArray::Static, MAX_NUM_VERTS>;
+  using Point2D = axom::primal::Point<double, 2>;
+
+  const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  const int kernel_allocator = axom::execution_space<ExecPolicy>::allocatorID();
+
+  axom::Array<PolygonStatic2D> outputs_device(3, 3, kernel_allocator);
+  auto outputs_view = outputs_device.view();
+
+  axom::for_all<ExecPolicy>(
+    1,
+    AXOM_LAMBDA(int i) {
+      AXOM_UNUSED_VAR(i);
+
+      PolygonStatic2D working;
+
+      const PolygonStatic2D subject_triangle(
+        {Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({0.5, 1.0})});
+      const PolygonStatic2D clip_triangle(
+        {Point2D({0.0, 2.0 / 3.0}), Point2D({0.5, -1.0 / 3.0}), Point2D({1.0, 2.0 / 3.0})});
+
+      working = axom::primal::clip(subject_triangle, clip_triangle, EPS);
+      outputs_view[0] = working;
+
+      const PolygonStatic2D disjoint_subject(
+        {Point2D({2.0, 2.0}), Point2D({3.0, 2.0}), Point2D({3.0, 3.0}), Point2D({2.0, 3.0})});
+      const PolygonStatic2D disjoint_clip(
+        {Point2D({-1.0, -1.0}), Point2D({0.0, -1.0}), Point2D({0.0, 0.0}), Point2D({-1.0, 0.0})});
+
+      working = axom::primal::clip(disjoint_subject, disjoint_clip, EPS);
+      outputs_view[1] = working;
+
+      const PolygonStatic2D subject_square(
+        {Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({1.0, 1.0}), Point2D({0.0, 1.0})});
+      const PolygonStatic2D clip_rectangle(
+        {Point2D({0.5, 0.25}), Point2D({1.5, 0.25}), Point2D({1.5, 0.75}), Point2D({0.5, 0.75})});
+
+      working = axom::primal::clip(subject_square, clip_rectangle, EPS);
+      outputs_view[2] = working;
+    });
+
+  if(axom::execution_space<ExecPolicy>::async())
+  {
+    axom::synchronize<ExecPolicy>();
+  }
+
+  axom::Array<PolygonStatic2D> outputs_host(outputs_device, host_allocator);
+
+  EXPECT_EQ(outputs_host[0].numVertices(), 6);
+  EXPECT_NEAR(outputs_host[0].signedArea(), 1.0 / 3.0, EPS);
+
+  EXPECT_EQ(outputs_host[1].numVertices(), 0);
+  EXPECT_FALSE(outputs_host[1].isValid());
+
+  EXPECT_EQ(outputs_host[2].numVertices(), 4);
+  EXPECT_NEAR(outputs_host[2].signedArea(), 0.25, EPS);
+}
+
+template <typename ExecPolicy>
+void check_polygon_polygon_clip_with_scratch(double EPS)
+{
+  const int MAX_NUM_VERTS = 8;
+
+  using PolygonStatic2D =
+    axom::primal::Polygon<double, 2, axom::primal::PolygonArray::Static, MAX_NUM_VERTS>;
+  using Point2D = axom::primal::Point<double, 2>;
+
+  const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  const int kernel_allocator = axom::execution_space<ExecPolicy>::allocatorID();
+
+  axom::Array<PolygonStatic2D> outputs_device(3, 3, kernel_allocator);
+  auto outputs_view = outputs_device.view();
+
+  axom::for_all<ExecPolicy>(
+    1,
+    AXOM_LAMBDA(int i) {
+      AXOM_UNUSED_VAR(i);
+
+      PolygonStatic2D working;
+      PolygonStatic2D scratch;
+
+      const PolygonStatic2D subject_triangle(
+        {Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({0.5, 1.0})});
+      const PolygonStatic2D clip_triangle(
+        {Point2D({0.0, 2.0 / 3.0}), Point2D({0.5, -1.0 / 3.0}), Point2D({1.0, 2.0 / 3.0})});
+
+      axom::primal::detail::clipPolygonPolygon(subject_triangle, clip_triangle, working, scratch, EPS);
+      outputs_view[0] = working;
+
+      const PolygonStatic2D disjoint_subject(
+        {Point2D({2.0, 2.0}), Point2D({3.0, 2.0}), Point2D({3.0, 3.0}), Point2D({2.0, 3.0})});
+      const PolygonStatic2D disjoint_clip(
+        {Point2D({-1.0, -1.0}), Point2D({0.0, -1.0}), Point2D({0.0, 0.0}), Point2D({-1.0, 0.0})});
+
+      axom::primal::detail::clipPolygonPolygon(disjoint_subject, disjoint_clip, working, scratch, EPS);
+      outputs_view[1] = working;
+
+      const PolygonStatic2D subject_square(
+        {Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({1.0, 1.0}), Point2D({0.0, 1.0})});
+      const PolygonStatic2D clip_rectangle(
+        {Point2D({0.5, 0.25}), Point2D({1.5, 0.25}), Point2D({1.5, 0.75}), Point2D({0.5, 0.75})});
+
+      axom::primal::detail::clipPolygonPolygon(subject_square, clip_rectangle, working, scratch, EPS);
+      outputs_view[2] = working;
+    });
+
+  if(axom::execution_space<ExecPolicy>::async())
+  {
+    axom::synchronize<ExecPolicy>();
+  }
+
+  axom::Array<PolygonStatic2D> outputs_host(outputs_device, host_allocator);
+
+  EXPECT_EQ(outputs_host[0].numVertices(), 6);
+  EXPECT_NEAR(outputs_host[0].signedArea(), 1.0 / 3.0, EPS);
+
+  EXPECT_EQ(outputs_host[1].numVertices(), 0);
+  EXPECT_FALSE(outputs_host[1].isValid());
+
+  EXPECT_EQ(outputs_host[2].numVertices(), 4);
+  EXPECT_NEAR(outputs_host[2].signedArea(), 0.25, EPS);
+}
+
+template <typename ExecPolicy>
+void check_polygon_polygon_clip_area(double EPS)
+{
+  constexpr bool CHECK_SIGN = true;
+  const int MAX_NUM_VERTS = 6;
+
+  using PolygonStatic2D =
+    axom::primal::Polygon<double, 2, axom::primal::PolygonArray::Static, MAX_NUM_VERTS>;
+  using Point2D = axom::primal::Point<double, 2>;
+
+  const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  const int kernel_allocator = axom::execution_space<ExecPolicy>::allocatorID();
+
+  axom::Array<double> areas_device(2, 2, kernel_allocator);
+  auto areas_view = areas_device.view();
+
+  axom::for_all<ExecPolicy>(
+    1,
+    AXOM_LAMBDA(int i) {
+      AXOM_UNUSED_VAR(i);
+
+      const PolygonStatic2D subject({Point2D({0.0, 0.0}), Point2D({1.0, 0.0}), Point2D({0.5, 1.0})});
+      const PolygonStatic2D clip(
+        {Point2D({0.0, 2.0 / 3.0}), Point2D({0.5, -1.0 / 3.0}), Point2D({1.0, 2.0 / 3.0})});
+
+      areas_view[0] = axom::primal::detail::clipPolygonPolygonArea(subject, clip, EPS);
+
+      const PolygonStatic2D reversed_subject(
+        {Point2D({0.5, 1.0}), Point2D({1.0, 0.0}), Point2D({0.0, 0.0})});
+      const PolygonStatic2D reversed_clip(
+        {Point2D({0.5, -1.0 / 3.0}), Point2D({0.0, 2.0 / 3.0}), Point2D({1.0, 2.0 / 3.0})});
+
+      areas_view[1] =
+        axom::primal::detail::clipPolygonPolygonArea(reversed_subject, reversed_clip, EPS, CHECK_SIGN);
+    });
+
+  if(axom::execution_space<ExecPolicy>::async())
+  {
+    axom::synchronize<ExecPolicy>();
+  }
+
+  axom::Array<double> areas_host(areas_device, host_allocator);
+
+  EXPECT_NEAR(areas_host[0], 1.0 / 3.0, EPS);
+  EXPECT_NEAR(areas_host[1], 1.0 / 3.0, EPS);
+}
+
 TEST(primal_clip, unit_poly_clip_vertices_sequential) { unit_check_poly_clip<axom::SEQ_EXEC>(); }
 
 TEST(primal_clip, clip_hex_tet_sequential)
@@ -746,6 +922,24 @@ TEST(primal_clip, clip_polygon_polygon_sequential)
 {
   constexpr double EPS = 1e-4;
   check_polygon_polygon_clip<axom::SEQ_EXEC>(EPS);
+}
+
+TEST(primal_clip, clip_polygon_polygon_reassignment_sequential)
+{
+  constexpr double EPS = 1e-4;
+  check_polygon_polygon_clip_reassignment<axom::SEQ_EXEC>(EPS);
+}
+
+TEST(primal_clip, clip_polygon_polygon_with_scratch_sequential)
+{
+  constexpr double EPS = 1e-4;
+  check_polygon_polygon_clip_with_scratch<axom::SEQ_EXEC>(EPS);
+}
+
+TEST(primal_clip, clip_polygon_polygon_area_sequential)
+{
+  constexpr double EPS = 1e-4;
+  check_polygon_polygon_clip_area<axom::SEQ_EXEC>(EPS);
 }
 
   #ifdef AXOM_USE_OPENMP
@@ -773,6 +967,24 @@ TEST(primal_clip, clip_polygon_polygon_omp)
 {
   constexpr double EPS = 1e-4;
   check_polygon_polygon_clip<axom::OMP_EXEC>(EPS);
+}
+
+TEST(primal_clip, clip_polygon_polygon_reassignment_omp)
+{
+  constexpr double EPS = 1e-4;
+  check_polygon_polygon_clip_reassignment<axom::OMP_EXEC>(EPS);
+}
+
+TEST(primal_clip, clip_polygon_polygon_with_scratch_omp)
+{
+  constexpr double EPS = 1e-4;
+  check_polygon_polygon_clip_with_scratch<axom::OMP_EXEC>(EPS);
+}
+
+TEST(primal_clip, clip_polygon_polygon_area_omp)
+{
+  constexpr double EPS = 1e-4;
+  check_polygon_polygon_clip_area<axom::OMP_EXEC>(EPS);
 }
   #endif /* AXOM_USE_OPENMP */
 
@@ -805,6 +1017,24 @@ TEST(primal_clip, clip_polygon_polygon_cuda)
   constexpr double EPS = 1e-4;
   check_polygon_polygon_clip<axom::CUDA_EXEC<256>>(EPS);
 }
+
+TEST(primal_clip, clip_polygon_polygon_reassignment_cuda)
+{
+  constexpr double EPS = 1e-4;
+  check_polygon_polygon_clip_reassignment<axom::CUDA_EXEC<256>>(EPS);
+}
+
+TEST(primal_clip, clip_polygon_polygon_with_scratch_cuda)
+{
+  constexpr double EPS = 1e-4;
+  check_polygon_polygon_clip_with_scratch<axom::CUDA_EXEC<256>>(EPS);
+}
+
+TEST(primal_clip, clip_polygon_polygon_area_cuda)
+{
+  constexpr double EPS = 1e-4;
+  check_polygon_polygon_clip_area<axom::CUDA_EXEC<256>>(EPS);
+}
   #endif /* AXOM_USE_CUDA */
 
   #if defined(AXOM_USE_HIP)
@@ -832,6 +1062,24 @@ TEST(primal_clip, clip_polygon_polygon_hip)
 {
   constexpr double EPS = 1e-4;
   check_polygon_polygon_clip<axom::HIP_EXEC<256>>(EPS);
+}
+
+TEST(primal_clip, clip_polygon_polygon_reassignment_hip)
+{
+  constexpr double EPS = 1e-4;
+  check_polygon_polygon_clip_reassignment<axom::HIP_EXEC<256>>(EPS);
+}
+
+TEST(primal_clip, clip_polygon_polygon_with_scratch_hip)
+{
+  constexpr double EPS = 1e-4;
+  check_polygon_polygon_clip_with_scratch<axom::HIP_EXEC<256>>(EPS);
+}
+
+TEST(primal_clip, clip_polygon_polygon_area_hip)
+{
+  constexpr double EPS = 1e-4;
+  check_polygon_polygon_clip_area<axom::HIP_EXEC<256>>(EPS);
 }
   #endif /* AXOM_USE_HIP */
 

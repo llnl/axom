@@ -45,7 +45,7 @@ if [[ "$DO_BUILD" == "yes" ]] ; then
     fi
 
     echo "~~~~~~ RUNNING TESTS ~~~~~~~~"
-    make CTEST_OUTPUT_ON_FAILURE=1 test ARGS='-T Test -VV -j$NUM_BUILD_PROCS'
+    make CTEST_OUTPUT_ON_FAILURE=1 test ARGS='-T Test --output-on-failure -j$NUM_BUILD_PROCS'
 
     if [[ "${DO_BENCHMARKS}" == "yes" ]] ; then
         echo "~~~~~~ RUNNING BENCHMARKS ~~~~~~~~"
