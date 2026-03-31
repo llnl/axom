@@ -281,6 +281,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("py-nanobind@2.7.0")
         depends_on("py-pytest")
         depends_on("py-numpy")
+        depends_on("py-mpi4py")
         depends_on("conduit+python")
 
     # Devtools
@@ -736,7 +737,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
         if spec.satisfies("+python"):
             # pytest requires pluggy and iniconfig
-            for dep in ("py-nanobind", "py-pytest", "py-numpy", "py-pluggy", "py-iniconfig"):
+            for dep in ("py-nanobind", "py-pytest", "py-numpy", "py-pluggy", "py-iniconfig", "py-mpi4py"):
                 if spec.satisfies("^{0}".format(dep)):
                     dep_dir = get_spec_path(spec, dep, path_replacements, use_lib=True)
                     py_libdir = join_path(dep_dir, f"python{spec['python'].version.up_to(2)}", "site-packages")
