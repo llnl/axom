@@ -132,14 +132,19 @@ template <typename ExecSpace>
 class DirectGWN2D
 {
 public:
-  using CurveArrayType = axom::Array<axom::primal::NURBSCurve<double, 2>>;
+  using BoxType = axom::primal::BoundingBox<double, 2>;
+
+  using CurveType = axom::primal::NURBSCurve<double, 2>;
+  using CurveArrayType = axom::Array<CurveType>;
   using NURBSCacheManager = typename axom::primal::nurbs_cache_2d_traits<ExecSpace>::type;
 
   DirectGWN2D() = default;
 
   /// \brief Define view for NURBS data.
   ///    If memoization is used, allocate a cache for each curve.
-  void preprocess(const CurveArrayType& input_curves, bool use_memoization = true)
+  void preprocess(const CurveArrayType& input_curves,
+                  bool use_direct_eval = true,
+                  bool use_memoization = true)
   {
     m_input_curves_view = input_curves.view();
     if(m_input_curves_view.size() <= 0)
@@ -158,9 +163,21 @@ public:
     }
     timer.stop();
     AXOM_ANNOTATE_METADATA("preprocessing_time", timer.elapsed(), "");
-    SLIC_INFO(axom::fmt::format("Direct query preprocessing (loading curves{}): {} s",
-                                use_memoization ? " and memoization caches" : "",
-                                timer.elapsedTimeInSec()));
+
+    if(!use_direct_eval)
+    {
+      const int ncurves = m_input_curves_view.size();
+      axom::Array<BoxType> aabbs(ncurves, ncurves);
+      auto aabbs_view = aabbs.view();
+
+      axom::for_all<ExecSpace>(
+        ncurves,
+        AXOM_LAMBDA(axom::IndexType i) { aabbs_view[i] = m_input_curves_view[i].boundingBox(); });
+      m_bvh.initialize(aabbs_view, ncurves);
+      SLIC_INFO(axom::fmt::format("Direct query preprocessing (loading curves{}): {} s",
+                                  use_memoization ? " and memoization caches" : "",
+                                  timer.elapsedTimeInSec()));
+    }
   }
 
   /*!
@@ -248,8 +265,13 @@ public:
   }
 
 private:
-  axom::ArrayView<const axom::primal::NURBSCurve<double, 2>> m_input_curves_view;
+  // For the input curves/BVH leaf nodes
+  axom::ArrayView<CurveType> m_input_curves_view;
   NURBSCacheManager m_nurbs_cache_mgr;
+
+  // Only needed for fast approximation method
+  axom::Array<GWNMoments> m_internal_moments;
+  axom::spin::BVH<2, ExecSpace> m_bvh;
 };
 
 template <typename ExecSpace, int ORDER>
