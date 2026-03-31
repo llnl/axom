@@ -902,7 +902,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
 {
   // Precompute the expansions and cast directions for each patch
   axom::Array<detail::NURBSPatchGWNCache<T>> nurbs_cache_arr(0, surf_arr.size());
-  for(autp& surf : surf_arr)
+  for(auto& surf : surf_arr)
   {
     nurbs_cache_arr.emplace_back(detail::NURBSPatchGWNCache<T>(surf));
   }
