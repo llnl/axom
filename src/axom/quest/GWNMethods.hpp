@@ -200,7 +200,6 @@ public:
     {
       AXOM_ANNOTATE_SCOPE("query");
       const primal::WindingTolerances tol_copy = tol;
-      const auto input_curves_view = m_input_curves_view;
 
       // Use non-memoized form
       if(m_nurbs_cache_mgr.empty())
@@ -337,7 +336,7 @@ public:
         };
 
         const auto traverser = m_bvh.getTraverser();
-        m_internal_moments = traverser.reduce_tree<ExecSpace, GWNMoments>(compute_moments);
+        m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
       }
       stage_timer.stop();
       SLIC_INFO(
@@ -697,7 +696,7 @@ public:
         };
 
         const auto traverser = m_bvh.getTraverser();
-        m_internal_moments = traverser.reduce_tree<ExecSpace, GWNMoments>(compute_moments);
+        m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
       }
       stage_timer.stop();
       SLIC_INFO(
