@@ -353,13 +353,14 @@ if((NOT PY_ENV_IMPORT_CODE EQUAL 0)
    OR NOT PY_NUMPY_DIR
    OR NOT PY_PYTEST_DIR
    OR NOT PY_PLUGGY_DIR
-   OR NOT PY_INICONFIG_DIR))
+   OR NOT PY_INICONFIG_DIR
+   OR NOT PY_MPI4PY_DIR))
     message(FATAL_ERROR
       "Axom's python extensions require nanobind, numpy, pytest, and conduit."
       "\nThe python library installation paths "
       "(and pytest's dependencies pluggy and iniconfig) "
       "can be specified with CMake variables: "
-      "PY_NANOBIND_DIR, CONDUIT_PYTHON_MODULE_DIR, PY_NUMPY_DIR, PY_PYTEST_DIR, PY_PLUGGY_DIR, PY_INICONFIG_DIR ")
+      "PY_NANOBIND_DIR, CONDUIT_PYTHON_MODULE_DIR, PY_NUMPY_DIR, PY_PYTEST_DIR, PY_PLUGGY_DIR, PY_INICONFIG_DIR, PY_MPI4PY_DIR ")
 endif()
 
 # "cannot allocate memory in static TLS block" on blueos with cuda and/or clang.
