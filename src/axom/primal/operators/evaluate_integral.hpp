@@ -28,6 +28,7 @@
 // Axom includes
 #include "axom/config.hpp"
 
+#include "axom/core/utilities/Utilities.hpp"
 #include "axom/primal/geometry/CurvedPolygon.hpp"
 #include "axom/primal/operators/detail/evaluate_integral_impl.hpp"
 
@@ -285,7 +286,7 @@ LambdaRetType evaluate_area_integral(const primal::CurvedPolygon<CurveType>& cpo
   {
     for(int j = 1; j < cpoly[i].getOrder() + 1; j++)
     {
-      lower_bound_y = std::min(lower_bound_y, cpoly[i][j][1]);
+      lower_bound_y = axom::utilities::min(lower_bound_y, cpoly[i][j][1]);
     }
   }
 
@@ -351,7 +352,7 @@ LambdaRetType evaluate_area_integral(const axom::Array<CurveType>& carray,
   {
     for(int j = 1; j < carray[i].getNumControlPoints(); j++)
     {
-      lower_bound_y = std::min(lower_bound_y, carray[i][j][1]);
+      lower_bound_y = axom::utilities::min(lower_bound_y, carray[i][j][1]);
     }
   }
 

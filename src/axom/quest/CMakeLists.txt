@@ -54,6 +54,9 @@ set( quest_headers
     io/STLWriter.hpp
     io/ProEReader.hpp
 
+    ## Generalized Winding Numbers
+    FastApproximateGWN.hpp
+
     ## quest interface
     interface/internal/mpicomm_wrapper.hpp
     interface/internal/QuestHelpers.hpp
@@ -95,6 +98,7 @@ set( quest_sources
 
 if(MFEM_FOUND)
     list(APPEND quest_headers io/MFEMReader.hpp)
+    list(APPEND quest_headers GWNMethods.hpp)
     list(APPEND quest_sources io/MFEMReader.cpp)
 endif()
 
@@ -168,7 +172,8 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                   detail/clipping/SphereClipper.hpp
                                   detail/clipping/MonotonicZSORClipper.hpp
                                   detail/clipping/SORClipper.hpp
-                                  detail/clipping/MeshClipperImpl.hpp)
+                                  detail/clipping/MeshClipperImpl.hpp
+                                  util/make_clipper_strategy.hpp)
 
         list(APPEND quest_sources ShapeMesh.cpp
                                   MeshClipper.cpp
@@ -179,7 +184,8 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                   detail/clipping/SphereClipper.cpp
                                   detail/clipping/MonotonicZSORClipper.cpp
                                   detail/clipping/SORClipper.cpp
-                                  detail/clipping/MeshClipperImpl.hpp)
+                                  detail/clipping/MeshClipperImpl.hpp
+                                  util/make_clipper_strategy.cpp)
 
         # MeshClipperImpl uses RAJA algorithms directly.
         list(APPEND quest_depends_on RAJA)

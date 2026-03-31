@@ -10,6 +10,7 @@
 #include "axom/core.hpp"
 #include "axom/bump.hpp"
 #include "axom/slic.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 #include <conduit.hpp>
 
@@ -44,7 +45,28 @@ public:
   ExtrudeMesh(const TopologyView &topoView, const CoordsetView &coordsetView)
     : m_topologyView(topoView)
     , m_coordsetView(coordsetView)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /*!
    * \brief Execute the extrusion algorithm.
@@ -89,6 +111,7 @@ public:
     const TopologyView topoView = m_topologyView;
     axom::ReduceSum<ExecSpace, int> connSizeReduce(0);
     axom::ReduceBitOr<ExecSpace, int> zoneTypeReduce(0);
+    constexpr int ErrorBit = 1 << ((sizeof(int) * 8) - 1);
     axom::for_all<ExecSpace>(
       m_topologyView.numberOfZones(),
       AXOM_LAMBDA(axom::IndexType zi) {
@@ -105,17 +128,29 @@ public:
           break;
         default:
           SLIC_ASSERT("Unsupported zone type");
+          // For release builds
+          zoneTypeReduce |= ErrorBit;
         }
       });
     AXOM_ANNOTATE_END("counts");
     const auto shapes = zoneTypeReduce.get();
+    if(m_topologyView.numberOfZones() > 0 && shapes == 0)
+    {
+      SLIC_ERROR("No tri or quad shapes detected.");
+    }
+    if((shapes & ErrorBit) > 0)
+    {
+      SLIC_ERROR("Unsupported zone type.");
+    }
     const axom::IndexType totalConnSize = static_cast<axom::IndexType>(nz - 1) * connSizeReduce.get();
+    SLIC_ERROR_IF(totalConnSize == 0, "Invalid connectivity size.");
     const axom::IndexType totalZones =
       static_cast<axom::IndexType>(nz - 1) * m_topologyView.numberOfZones();
     const axom::IndexType totalNodes =
       static_cast<axom::IndexType>(nz) * m_coordsetView.numberOfNodes();
 
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
 
     // Create the new coordset.
     AXOM_ANNOTATE_BEGIN("coordset");
@@ -127,7 +162,7 @@ public:
     for(int d = 0; d < 3; d++)
     {
       conduit::Node &n_value = n_outputCoordset[coordNames[d]];
-      n_value.set_allocator(c2a.getConduitAllocatorID());
+      n_value.set_allocator(conduitAllocatorId);
       n_value.set(conduit::DataType(utils::cpp2conduit<value_type>::id, totalNodes));
       values[d] = utils::make_array_view<value_type>(n_value);
     }
@@ -183,10 +218,10 @@ public:
     conduit::Node &n_offsets = n_outputTopo["elements/offsets"];
 
     using ConnectivityType = typename TopologyView::ConnectivityType;
-    n_connectivity.set_allocator(c2a.getConduitAllocatorID());
-    n_shapes.set_allocator(c2a.getConduitAllocatorID());
-    n_sizes.set_allocator(c2a.getConduitAllocatorID());
-    n_offsets.set_allocator(c2a.getConduitAllocatorID());
+    n_connectivity.set_allocator(conduitAllocatorId);
+    n_shapes.set_allocator(conduitAllocatorId);
+    n_sizes.set_allocator(conduitAllocatorId);
+    n_offsets.set_allocator(conduitAllocatorId);
 
     n_connectivity.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalConnSize));
     n_shapes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalZones));
@@ -354,12 +389,13 @@ private:
     conduit::Node &n_sizes = n_outputMatset["sizes"];
     conduit::Node &n_offsets = n_outputMatset["offsets"];
 
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-    n_material_ids.set_allocator(c2a.getConduitAllocatorID());
-    n_volume_fractions.set_allocator(c2a.getConduitAllocatorID());
-    n_indices.set_allocator(c2a.getConduitAllocatorID());
-    n_sizes.set_allocator(c2a.getConduitAllocatorID());
-    n_offsets.set_allocator(c2a.getConduitAllocatorID());
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
+    n_material_ids.set_allocator(conduitAllocatorId);
+    n_volume_fractions.set_allocator(conduitAllocatorId);
+    n_indices.set_allocator(conduitAllocatorId);
+    n_sizes.set_allocator(conduitAllocatorId);
+    n_offsets.set_allocator(conduitAllocatorId);
 
     n_material_ids.set(conduit::DataType(n_src_material_ids.dtype().id(),
                                          n_src_material_ids.dtype().number_of_elements() * (nz - 1)));
@@ -374,39 +410,39 @@ private:
                                     n_src_offsets.dtype().number_of_elements() * (nz - 1)));
 
     // Extrude the old arrays into the new arrays.
-    views::FloatNode_to_ArrayView_same(n_src_volume_fractions,
-                                       n_volume_fractions,
-                                       [&](auto srcVolumeFractionsView, auto volumeFractionsView) {
-                                         views::IndexNode_to_ArrayView_same(
-                                           n_src_material_ids,
-                                           n_src_indices,
-                                           n_src_sizes,
-                                           n_src_offsets,
-                                           n_material_ids,
-                                           n_indices,
-                                           n_sizes,
-                                           n_offsets,
-                                           [&](auto srcMaterialIdsView,
-                                               auto srcIndicesView,
-                                               auto srcSizesView,
-                                               auto srcOffsetsView,
-                                               auto materialIdsView,
-                                               auto indicesView,
-                                               auto sizesView,
-                                               auto offsetsView) {
-                                             copyMatsetData(srcVolumeFractionsView,
-                                                            volumeFractionsView,
-                                                            srcMaterialIdsView,
-                                                            srcIndicesView,
-                                                            srcSizesView,
-                                                            srcOffsetsView,
-                                                            materialIdsView,
-                                                            indicesView,
-                                                            sizesView,
-                                                            offsetsView,
-                                                            nz);
-                                           });
-                                       });
+    views::floatNodeToArrayViewSame(n_src_volume_fractions,
+                                    n_volume_fractions,
+                                    [&](auto srcVolumeFractionsView, auto volumeFractionsView) {
+                                      views::indexNodeToArrayViewSame(n_src_material_ids,
+                                                                      n_src_indices,
+                                                                      n_src_sizes,
+                                                                      n_src_offsets,
+                                                                      n_material_ids,
+                                                                      n_indices,
+                                                                      n_sizes,
+                                                                      n_offsets,
+                                                                      [&](auto srcMaterialIdsView,
+                                                                          auto srcIndicesView,
+                                                                          auto srcSizesView,
+                                                                          auto srcOffsetsView,
+                                                                          auto materialIdsView,
+                                                                          auto indicesView,
+                                                                          auto sizesView,
+                                                                          auto offsetsView) {
+                                                                        copyMatsetData(
+                                                                          srcVolumeFractionsView,
+                                                                          volumeFractionsView,
+                                                                          srcMaterialIdsView,
+                                                                          srcIndicesView,
+                                                                          srcSizesView,
+                                                                          srcOffsetsView,
+                                                                          materialIdsView,
+                                                                          indicesView,
+                                                                          sizesView,
+                                                                          offsetsView,
+                                                                          nz);
+                                                                      });
+                                    });
   }
 
   /*!
@@ -458,6 +494,7 @@ private:
 
   TopologyView m_topologyView;
   CoordsetView m_coordsetView;
+  int m_allocator_id;
 };
 
 }  // namespace bump

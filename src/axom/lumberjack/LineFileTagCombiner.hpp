@@ -45,7 +45,7 @@ public:
    *  Lumberjack to differentiate between other combiners.
    *****************************************************************************
    */
-  const std::string id() { return m_id; }
+  const std::string id() override { return m_id; }
 
   /*!
    *****************************************************************************
@@ -61,7 +61,7 @@ public:
    *****************************************************************************
    */
   bool shouldMessagesBeCombined(const axom::lumberjack::Message& leftMessage,
-                                const axom::lumberjack::Message& rightMessage)
+                                const axom::lumberjack::Message& rightMessage) override
   {
     return ((leftMessage.lineNumber() == rightMessage.lineNumber()) &&
             leftMessage.fileName().compare(rightMessage.fileName()) == 0 &&
@@ -88,7 +88,7 @@ public:
    */
   void combine(axom::lumberjack::Message& combined,
                const axom::lumberjack::Message& combinee,
-               const int ranksLimit)
+               const int ranksLimit) override
   {
     combined.addRanks(combinee.ranks(), combinee.count(), ranksLimit);
     if(combinee.creationTime() < combined.creationTime())

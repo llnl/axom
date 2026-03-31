@@ -10,18 +10,16 @@ from setuptools import setup, Extension
 
 module = Extension(
     'quest',
-    sources=[
-         'python/pyQUESTmodule.cpp'
-    ],
+    sources=['python/pyQUESTmodule.cpp'],
     language='c++',
-    include_dirs = None,
-#    libraries = ['tcl83'],
-#    library_dirs = ['/usr/local/lib'],      
-#    extra_compile_args = [ '-O0', '-g' ],
-#    extra_link_args =
+    include_dirs=None,
+    #    libraries = ['tcl83'],
+    #    library_dirs = ['/usr/local/lib'],
+    #    extra_compile_args = [ '-O0', '-g' ],
+    #    extra_link_args =
 )
 
 setup(
     name='quest',
-    ext_modules = [module],
+    ext_modules=[module],
 )

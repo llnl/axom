@@ -406,7 +406,7 @@ public:
     for(int idx = 0; idx < n_segments; ++idx)
     {
       T theta_start = theta_0 + pi23 * idx;
-      T theta_end = std::min(theta_start + pi23, theta_1);
+      T theta_end = axom::utilities::min(theta_start + pi23, theta_1);
 
       arc_curve[1 + 2 * idx + 1] = PointType({std::cos(theta_end), std::sin(theta_end)});
 
@@ -810,7 +810,7 @@ public:
     const auto span = m_knotvec.findSpan(t, s);
 
     // Fix the maximum multiplicity of the knot
-    int r = std::min(target_multiplicity - s, p - s);
+    int r = axom::utilities::min(target_multiplicity - s, p - s);
     if(r <= 0)
     {
       return span;  // Early exit if no knots to add
@@ -1079,9 +1079,10 @@ public:
 
     const bool isCurveRational = this->isRational();
 
-    int du = std::min(d, p);
+    int du = axom::utilities::min(d, p);
     const auto span = m_knotvec.findSpan(t);
-    const auto N_evals = m_knotvec.derivativeBasisFunctionsBySpan(span, t, du);
+    thread_local typename KnotVector<T>::DerivativeBasisWorkspace basis_workspace;
+    const auto N_evals = m_knotvec.derivativeBasisFunctionsBySpan(span, t, du, basis_workspace);
 
     // Store w(u) in Awders[NDIMS][0], w'(u) in Awders[NDIMS][1], ...
     axom::Array<Point<T, NDIMS + 1>> Awders(d + 1);

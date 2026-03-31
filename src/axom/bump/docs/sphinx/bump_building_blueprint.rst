@@ -11,12 +11,11 @@ Building Blueprint Output
 While views are provided to help write algorithms that process existing Blueprint data,
 the views are primarily meant to be read-only. Blueprint output from algorithms is built
 in the usual Conduit way by adding new key:value data into paths within the Conduit node
-hierarchy. Axom provides a ``ConduitAllocateThroughAxom`` object to help allocate Conduit's
-bulk data through Axom's memory allocation routines. Since data processing algorithms in
-Axom are often templated on an execution space, the ConduitAllocateThroughAxom object is
-also templated on execution space, which enables it to install various allocators for
-Conduit. To make Conduit allocate data through Axom, set a Conduit node's allocator
-to the allocator returned by ``ConduitAllocateThroughAxom::getConduitAllocatorID()``.
+hierarchy. Axom provides ``axom::sidre::ConduitMemory::axomAllocIdToConduit()`` to help
+allocate Conduit's bulk data through Axom's memory allocation routines. Since data
+processing algorithms in Axom are often templated on an execution space, pass an
+Axom allocator suitable for the execution space to the function.
+
 After setting the allocator, the node's memory can be allocated by calling the ``Node::set()``
 method and passing a ``conduit::DataType`` object that encodes the data type and size.
 After allocating data in the Conduit node, wrap the data in an ``axom::ArrayView`` using
@@ -31,8 +30,10 @@ to pass ArrayViews and not the Conduit nodes to device kernels.
     {
       namespace utils = axom::bump::utilities;
 
-      // This object registers Axom's allocation functions with Conduit.
-      utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+      // Get a Conduit allocator that allocates through Axom.
+      const auto conduitAllocatorId =
+        axom::sidre::ConduitMemory::axomAllocIdToConduit(
+          axom::execution_space<ExecSpace>::allocatorID());
 
       // Make the new field normally by adding members to the n_mesh Conduit node.
       conduit::Node &n_field = n_mesh["fields/newField"];
@@ -42,7 +43,7 @@ to pass ArrayViews and not the Conduit nodes to device kernels.
 
       // Set the allocator so Axom will be used to allocate the node's memory.
       // This is key when working on GPU platforms.
-      n_values.set_allocator(c2a.getConduitAllocatorID());
+      n_values.set_allocator(conduitAllocatorId);
 
       // Allocate memory in the right memory space for ExecSpace.
       // The cpp2conduit template gets the Conduit data type id for supported C++ types.

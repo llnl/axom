@@ -41,6 +41,19 @@ enum
   Invalid_ShapeID = 20
 };
 
+/*!
+ * \brief Determine whether a value is a valid ShapeID.
+ *
+ * \param shapeID The value to test for validity.
+ *
+ * \return True if the value is a valid ShapeID; False otherwise.
+ */
+template <typename T>
+AXOM_HOST_DEVICE constexpr bool isValidShapeID(T shapeID)
+{
+  return shapeID >= static_cast<T>(Point_ShapeID) && shapeID <= static_cast<T>(Mixed_ShapeID);
+}
+
 /// prototype
 AXOM_HOST_DEVICE constexpr IndexType shapeDimension(int shapeId);
 
@@ -548,8 +561,8 @@ struct PolygonShape : public PolygonTraits
   using ConnectivityType = ConnType;
   using ConnectivityView = axom::ArrayView<ConnectivityType>;
   using ConnectivityStorage = ConnectivityType;
-  using ConnectivityStorageRef = ConnectivityType &;
-  using ConnectivityStorageConstRef = const ConnectivityType &;
+  using ConnectivityStorageRef = ConnectivityView &;
+  using ConnectivityStorageConstRef = const ConnectivityView &;
 
   /*!
    * \brief Construct a shape.
@@ -831,7 +844,7 @@ struct VariableShape
   AXOM_HOST_DEVICE
   VariableShape(int shapeId, ConnectivityStorageConstRef ids) : m_shapeId(shapeId), m_ids(ids)
   {
-    SLIC_ASSERT(shapeId >= Point_ShapeID && shapeId <= Hex_ShapeID);
+    SLIC_ASSERT(isValidShapeID(shapeId));
   }
 
   /*!
@@ -1091,6 +1104,20 @@ struct VariableShape
 
   AXOM_HOST_DEVICE constexpr static const char *name() { return "mixed"; }
 
+  /*!
+   * \brief Get the storage for the ids that make up this shape.
+   *
+   * \return The container for the ids that make up this shape.
+   */
+  AXOM_HOST_DEVICE ConnectivityStorageRef getIdsStorage() { return m_ids; }
+
+  /*!
+   * \brief Get the storage for the ids that make up this shape.
+   *
+   * \return The container for the ids that make up this shape.
+   */
+  AXOM_HOST_DEVICE ConnectivityStorageConstRef getIdsStorage() const { return m_ids; }
+
 private:
   int m_shapeId;
   ConnectivityStorage m_ids;
@@ -1129,19 +1156,6 @@ inline int shapeNameToID(const std::string &name)
   else if(name == "mixed")
     id = Mixed_ShapeID;
   return id;
-}
-
-/*!
- * \brief Determine whether a value is a valid ShapeID.
- *
- * \param shapeID The value to test for validity.
- *
- * \return True if the value is a valid ShapeID; False otherwise.
- */
-template <typename T>
-AXOM_HOST_DEVICE constexpr bool isValidShapeID(T shapeID)
-{
-  return shapeID >= static_cast<T>(Point_ShapeID) && shapeID <= static_cast<T>(Mixed_ShapeID);
 }
 
 /*!

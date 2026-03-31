@@ -30,8 +30,8 @@ namespace views
  */
 struct Material
 {
-  int number {};
-  std::string name {};
+  int m_number {};
+  std::string m_name {};
 };
 
 using MaterialInformation = std::vector<Material>;

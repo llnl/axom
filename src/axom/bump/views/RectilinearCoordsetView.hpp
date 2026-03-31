@@ -111,7 +111,7 @@ public:
   AXOM_HOST_DEVICE
   PointType getPoint(IndexType vertex_index) const
   {
-    return getPoint(m_indexing.IndexToLogicalIndex(vertex_index));
+    return getPoint(m_indexing.indexToLogicalIndex(vertex_index));
   }
 
   /*!
@@ -134,7 +134,7 @@ public:
   AXOM_HOST_DEVICE
   PointType operator[](IndexType vertex_index) const
   {
-    return getPoint(m_indexing.IndexToLogicalIndex(vertex_index));
+    return getPoint(m_indexing.indexToLogicalIndex(vertex_index));
   }
 
 private:
@@ -238,7 +238,7 @@ public:
   AXOM_HOST_DEVICE
   PointType getPoint(IndexType vertex_index) const
   {
-    return getPoint(m_indexing.IndexToLogicalIndex(vertex_index));
+    return getPoint(m_indexing.indexToLogicalIndex(vertex_index));
   }
 
   /*!
@@ -261,7 +261,7 @@ public:
   AXOM_HOST_DEVICE
   PointType operator[](IndexType vertex_index) const
   {
-    return getPoint(m_indexing.IndexToLogicalIndex(vertex_index));
+    return getPoint(m_indexing.indexToLogicalIndex(vertex_index));
   }
 
 private:

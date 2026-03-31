@@ -18,6 +18,42 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ## [Unreleased] - Release date yyyy-mm-dd
 
+### Added
+
+### Removed
+
+### Deprecated
+
+### Changed
+
+### Fixed
+
+## [Version 0.14.0] - Release date 2026-03-31
+
+### Added
+- Lumberjack: Adds optional virtual function `isMessageCandidateForCombiner()` to the `Combiner`
+  class that checks if a single given Message is a candidate for the Combiner (returns true by default).
+- Sidre: Added Conduit `Node` to the Python interface.
+- Adds yapf as a Python formatter.
+- Quest: Adds fast GWN methods for STL/Triangulated STEP input and linearized NURBS Curve input which
+  leverage error-controlled approximation and a spatial index (BVH).
+
+### Changed
+- Primal: Axom's polygon clipping was modified to handle some corner cases.
+- Mir: The `EquiZAlgorithm` class was improved so it performs better with OpenMP.
+- Bump: Several Bump algorithms were improved so they perform better with OpenMP.
+- Many algorithms in Bump and Mir have been enhanced with `setAllocatorID()` methods to permit use of custom allocators.
+- Uberenv's spack updated to v1.1.1
+- `radiuss-spack-configs` submodule removed.
+
+### Fixed
+- Primal: Fixed `NURBSPatch::evaluateDerivatives` returning a matrix with empty values. The old behavior 
+  can be recovered with an optional flag, which is more efficient if the previously missing values are unneeded
+- Core: the `ArrayView` class was modified so it defers initializing an internal
+  allocator id via Umpire, if present. This prevents excessive calls to Umpire,
+  which are not needed in all use cases.
+- Quest: A compilation problem with `-DAXOM_NO_INT64_T=1` was fixed.
+
 ## [Version 0.13.0] - Release date 2026-02-05
 
 ### Added
@@ -1384,7 +1420,8 @@ fractions for the associated materials must be supplied before shaping.
 - Use this section in case of vulnerabilities
 
 
-[Unreleased]:     https://github.com/LLNL/axom/compare/v0.13.0...develop
+[Unreleased]:     https://github.com/LLNL/axom/compare/v0.14.0...develop
+[Version 0.14.0]: https://github.com/LLNL/axom/compare/v0.13.0...v0.14.0
 [Version 0.13.0]: https://github.com/LLNL/axom/compare/v0.12.0...v0.13.0
 [Version 0.12.0]: https://github.com/LLNL/axom/compare/v0.11.0...v0.12.0
 [Version 0.11.0]: https://github.com/LLNL/axom/compare/v0.10.1...v0.11.0

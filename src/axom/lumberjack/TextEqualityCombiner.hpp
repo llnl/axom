@@ -52,7 +52,7 @@ public:
    *  Lumberjack to differentiate between other combiners.
    *****************************************************************************
    */
-  const std::string id() { return m_id; }
+  const std::string id() override { return m_id; }
 
   /*!
    *****************************************************************************
@@ -66,7 +66,7 @@ public:
    * \param [in] rightMessage One of the Messages to be compared.
    *****************************************************************************
    */
-  bool shouldMessagesBeCombined(const Message& leftMessage, const Message& rightMessage)
+  bool shouldMessagesBeCombined(const Message& leftMessage, const Message& rightMessage) override
   {
     return (leftMessage.text().compare(rightMessage.text()) == 0);
   }
@@ -88,7 +88,7 @@ public:
    * \pre shouldMessagesBeCombined(combined, combinee) must be true
    *****************************************************************************
    */
-  void combine(Message& combined, const Message& combinee, const int ranksLimit)
+  void combine(Message& combined, const Message& combinee, const int ranksLimit) override
   {
     combined.addRanks(combinee.ranks(), combinee.count(), ranksLimit);
     if(combinee.creationTime() < combined.creationTime())

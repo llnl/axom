@@ -7,9 +7,11 @@
 #define AXOM_BUMP_MAKE_POLYHEDRAL_TOPOLOGY_HPP_
 
 #include "axom/core.hpp"
+#include "axom/slic.hpp"
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -37,7 +39,30 @@ public:
    *
    * \param topologyView The topology view that wraps the input topology.
    */
-  MakePolyhedralTopology(const TopologyView &topologyView) : m_topologyView(topologyView) { }
+  MakePolyhedralTopology(const TopologyView &topologyView)
+    : m_topologyView(topologyView)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
+  { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /**
    * \brief Make a polyhedral unstructured representation of a topology.
@@ -52,9 +77,9 @@ public:
   {
     AXOM_ANNOTATE_SCOPE("MakePolyhedralTopology");
     namespace utils = axom::bump::utilities;
-    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
-    const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const auto allocatorID = getAllocatorID();
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(allocatorID);
     const auto nzones = m_topologyView.numberOfZones();
 
     //--------------------------------------------------------------------------
@@ -66,12 +91,12 @@ public:
 
     // This node is the number of faces in each zone.
     conduit::Node &n_elem_sizes = n_newTopo["elements/sizes"];
-    n_elem_sizes.set_allocator(c2a.getConduitAllocatorID());
+    n_elem_sizes.set_allocator(conduitAllocatorId);
     n_elem_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, nzones));
     auto elem_sizes = utils::make_array_view<ConnectivityType>(n_elem_sizes);
 
     conduit::Node &n_elem_offsets = n_newTopo["elements/offsets"];
-    n_elem_offsets.set_allocator(c2a.getConduitAllocatorID());
+    n_elem_offsets.set_allocator(conduitAllocatorId);
     n_elem_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, nzones));
     auto elem_offsets = utils::make_array_view<ConnectivityType>(n_elem_offsets);
     AXOM_ANNOTATE_END("allocate");
@@ -103,6 +128,11 @@ public:
       });
     const axom::IndexType totalFaces = reduceTotalFaces.get();
     const axom::IndexType totalFaceStorage = reduceTotalFaceStorage.get();
+    if(nzones > 0)
+    {
+      SLIC_ERROR_IF(totalFaces == 0, "ReduceSum returned 0 for totalFaces.");
+      SLIC_ERROR_IF(totalFaceStorage == 0, "ReduceSum returned 0 for totalFaceStorage.");
+    }
     AXOM_ANNOTATE_END("counting");
 
     //--------------------------------------------------------------------------
@@ -115,7 +145,7 @@ public:
     //--------------------------------------------------------------------------
     AXOM_ANNOTATE_BEGIN("elements");
     conduit::Node &n_elem_conn = n_newTopo["elements/connectivity"];
-    n_elem_conn.set_allocator(c2a.getConduitAllocatorID());
+    n_elem_conn.set_allocator(conduitAllocatorId);
     n_elem_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalFaces));
     auto elem_conn = utils::make_array_view<ConnectivityType>(n_elem_conn);
     axom::for_all<ExecSpace>(
@@ -127,17 +157,17 @@ public:
     AXOM_ANNOTATE_BEGIN("subelements");
     // Allocate subelement connectivity
     conduit::Node &n_se_conn = n_newTopo["subelements/connectivity"];
-    n_se_conn.set_allocator(c2a.getConduitAllocatorID());
+    n_se_conn.set_allocator(conduitAllocatorId);
     n_se_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalFaceStorage));
     auto se_conn = utils::make_array_view<ConnectivityType>(n_se_conn);
 
     conduit::Node &n_se_sizes = n_newTopo["subelements/sizes"];
-    n_se_sizes.set_allocator(c2a.getConduitAllocatorID());
+    n_se_sizes.set_allocator(conduitAllocatorId);
     n_se_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalFaces));
     auto se_sizes = utils::make_array_view<ConnectivityType>(n_se_sizes);
 
     conduit::Node &n_se_offsets = n_newTopo["subelements/offsets"];
-    n_se_offsets.set_allocator(c2a.getConduitAllocatorID());
+    n_se_offsets.set_allocator(conduitAllocatorId);
     n_se_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalFaces));
     auto se_offsets = utils::make_array_view<ConnectivityType>(n_se_offsets);
 
@@ -168,6 +198,7 @@ public:
   }
 
   TopologyView m_topologyView;
+  int m_allocator_id;
 };
 
 }  // end namespace bump

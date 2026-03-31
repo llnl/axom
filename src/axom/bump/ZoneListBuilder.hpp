@@ -8,6 +8,7 @@
 #define AXOM_BUMP_ZONELIST_BUILDER_HPP
 
 #include "axom/core.hpp"
+#include "axom/slic.hpp"
 
 #include <conduit.hpp>
 
@@ -26,6 +27,8 @@ namespace bump
 template <typename ExecSpace, typename TopologyView, typename MatsetView>
 class ZoneListBuilder
 {
+  using MaskType = typename axom::bump::utilities::mask_traits<ExecSpace, int>::type;
+
 public:
   using SelectedZonesView = axom::ArrayView<axom::IndexType>;
   using ZoneType = typename TopologyView::ShapeType;
@@ -39,7 +42,28 @@ public:
   ZoneListBuilder(const TopologyView &topoView, const MatsetView &matsetView)
     : m_topologyView(topoView)
     , m_matsetView(matsetView)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /*!
    * \brief Build the list of clean and mixed zones using the number of materials
@@ -58,13 +82,15 @@ public:
                axom::Array<axom::IndexType> &cleanIndices,
                axom::Array<axom::IndexType> &mixedIndices) const
   {
-    AXOM_ANNOTATE_SCOPE("ZoneListBuilder");
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    AXOM_ANNOTATE_SCOPE("ZoneListBuilder.1");
+    const int allocatorID = getAllocatorID();
 
     AXOM_ANNOTATE_BEGIN("nMatsPerNode");
-    axom::Array<int> nMatsPerNode(nnodes, nnodes, allocatorID);
-    nMatsPerNode.fill(0);
+    axom::Array<int> nMatsPerNode(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
     auto nMatsPerNodeView = nMatsPerNode.view();
+    axom::for_all<ExecSpace>(
+      nnodes,
+      AXOM_LAMBDA(axom::IndexType nodeIndex) { nMatsPerNodeView[nodeIndex] = 1; });
 
     // Determine max number of materials a node might touch.
     MatsetView deviceMatsetView(m_matsetView);
@@ -72,58 +98,93 @@ public:
     axom::for_all<ExecSpace>(
       m_topologyView.numberOfZones(),
       AXOM_LAMBDA(axom::IndexType zoneIndex) {
-        const auto zone = deviceTopologyView.zone(zoneIndex);
-        const auto matZoneIndex = zoneIndex;
-        const int nmats = deviceMatsetView.numberOfMaterials(matZoneIndex);
-
-        const auto nnodesThisZone = zone.numberOfNodes();
-        int *nodeData = nMatsPerNodeView.data();
-        for(axom::IndexType i = 0; i < nnodesThisZone; i++)
+        const int nmats = deviceMatsetView.numberOfMaterials(zoneIndex);
+        if(nmats > 1)
         {
-          const auto nodeId = zone.getId(i);
-          int *nodePtr = nodeData + nodeId;
-          axom::atomicMax<ExecSpace>(nodePtr, nmats);
+          const auto zone = deviceTopologyView.zone(zoneIndex);
+          const auto nnodesThisZone = zone.numberOfNodes();
+          int *nodeData = nMatsPerNodeView.data();
+          for(axom::IndexType i = 0; i < nnodesThisZone; i++)
+          {
+            const auto nodeId = zone.getId(i);
+            int *nodePtr = nodeData + nodeId;
+            axom::atomicMax<ExecSpace>(nodePtr, nmats);
+          }
         }
       });
+    axom::synchronize<ExecSpace>();
     AXOM_ANNOTATE_END("nMatsPerNode");
 
     // Now, mark all zones that have 1 mat per node as clean.
     AXOM_ANNOTATE_BEGIN("mask");
     const auto nzones = m_topologyView.numberOfZones();
-    axom::Array<int> mask(nzones, nzones, allocatorID);
+    axom::Array<MaskType> mask(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
     auto maskView = mask.view();
-    axom::ReduceSum<ExecSpace, int> mask_reduce(0);
     axom::for_all<ExecSpace>(
-      m_topologyView.numberOfZones(),
+      nzones,
       AXOM_LAMBDA(axom::IndexType zoneIndex) {
         const auto zone = deviceTopologyView.zone(zoneIndex);
 
-        bool clean = true;
+        MaskType clean {1};
         const axom::IndexType nnodesThisZone = zone.numberOfNodes();
-        for(axom::IndexType i = 0; i < nnodesThisZone && clean; i++)
+        const auto &zoneNodeIds = zone.getIdsStorage();
+        for(axom::IndexType i = 0; i < nnodesThisZone; i++)
         {
-          const auto nodeId = zone.getId(i);
-          clean &= (nMatsPerNodeView[nodeId] == 1);
+          const auto nodeId = zoneNodeIds[i];
+          clean &= (nMatsPerNodeView[nodeId] == 1) ? MaskType {1} : MaskType {0};
         }
 
-        const int ival = clean ? 1 : 0;
-        maskView[zoneIndex] = ival;
-        mask_reduce += ival;
+        maskView[zoneIndex] = clean;
       });
     AXOM_ANNOTATE_END("mask");
 
-    const int nClean = mask_reduce.get();
+    axom::IndexType nClean = 0;
+    axom::Array<int> maskOffsets;
+    axom::ArrayView<int> maskOffsetsView;
+    if(nzones > 0)
+    {
+      AXOM_ANNOTATE_SCOPE("numClean");
+      if constexpr(axom::execution_space<ExecSpace>::onDevice())
+      {
+        // On device, use a reduction on maskView to count clean zones.
+        axom::ReduceSum<ExecSpace, int> mask_reduce(0);
+        axom::for_all<ExecSpace>(
+          nzones,
+          AXOM_LAMBDA(axom::IndexType zoneIndex) {
+            mask_reduce += static_cast<int>(maskView[zoneIndex]);
+          });
+        nClean = mask_reduce.get();
+      }
+      else
+      {
+        // Off device, do the offset scan early and use the results to compute
+        // nClean instead of a reduction.
+        AXOM_ANNOTATE_SCOPE("offsets");
+        maskOffsets =
+          axom::Array<int>(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
+        maskOffsetsView = maskOffsets.view();
+        axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
+
+        nClean = maskOffsetsView[nzones - 1] + static_cast<int>(maskView[nzones - 1]);
+      }
+    }
+
     if(nClean > 0)
     {
-      AXOM_ANNOTATE_BEGIN("offsets");
-      axom::Array<int> maskOffsets(nzones, nzones, allocatorID);
-      auto maskOffsetsView = maskOffsets.view();
-      axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
-      AXOM_ANNOTATE_END("offsets");
+      // Compute maskOffsets if we did not do it yet.
+      if(maskOffsets.empty())
+      {
+        AXOM_ANNOTATE_SCOPE("offsets");
+        maskOffsets =
+          axom::Array<int>(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
+        maskOffsetsView = maskOffsets.view();
+        axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
+      }
 
       // Make the output cleanIndices array.
       AXOM_ANNOTATE_BEGIN("cleanIndices");
-      cleanIndices = axom::Array<axom::IndexType>(nClean, nClean, allocatorID);
+      cleanIndices =
+        axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nClean, nClean, allocatorID);
       auto cleanIndicesView = cleanIndices.view();
       axom::for_all<ExecSpace>(
         nzones,
@@ -139,10 +200,13 @@ public:
       AXOM_ANNOTATE_BEGIN("mixedIndices");
       axom::for_all<ExecSpace>(
         nzones,
-        AXOM_LAMBDA(axom::IndexType index) { maskView[index] = (maskView[index] == 1) ? 0 : 1; });
+        AXOM_LAMBDA(axom::IndexType index) {
+          maskView[index] = (maskView[index] == MaskType {1}) ? MaskType {0} : MaskType {1};
+        });
       axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
       const int nMixed = nzones - nClean;
-      mixedIndices = axom::Array<axom::IndexType>(nMixed, nMixed, allocatorID);
+      mixedIndices =
+        axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nMixed, nMixed, allocatorID);
       auto mixedIndicesView = mixedIndices.view();
       axom::for_all<ExecSpace>(
         nzones,
@@ -160,7 +224,8 @@ public:
       cleanIndices = axom::Array<axom::IndexType>();
 
       // There were no clean, so it must all be mixed.
-      mixedIndices = axom::Array<axom::IndexType>(nzones, nzones, allocatorID);
+      mixedIndices =
+        axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
       auto mixedIndicesView = mixedIndices.view();
       axom::for_all<ExecSpace>(
         nzones,
@@ -173,7 +238,8 @@ public:
    *        per zone, maxed to the nodes. Limit the number of zones.
    *
    * \param nnodes The number of nodes in the topology's coordset.
-   * \param selectedZonesView A view containing the zone indices we're considering.
+   * \param selectedZonesView A view containing the zone indices we're considering. We pass
+   *                          it by value so it can be captured into lambdas.
    * \param[out] cleanIndices An array that will contain the list of clean material zone ids.
    * \param[out] mixedIndices An array that will contain the list of mixed material zone ids.
    *
@@ -183,19 +249,21 @@ public:
    *       considered mixed as we might have to split those zones.
    */
   void execute(axom::IndexType nnodes,
-               const SelectedZonesView &selectedZonesView,
+               const SelectedZonesView selectedZonesView,
                axom::Array<axom::IndexType> &cleanIndices,
                axom::Array<axom::IndexType> &mixedIndices) const
   {
-    AXOM_ANNOTATE_SCOPE("ZoneListBuilder");
+    AXOM_ANNOTATE_SCOPE("ZoneListBuilder.2");
     SLIC_ASSERT(selectedZonesView.size() > 0);
 
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocatorID = getAllocatorID();
 
     AXOM_ANNOTATE_BEGIN("nMatsPerNode");
-    axom::Array<int> nMatsPerNode(nnodes, nnodes, allocatorID);
-    nMatsPerNode.fill(0);
+    axom::Array<int> nMatsPerNode(axom::ArrayOptions::Uninitialized(), nnodes, nnodes, allocatorID);
     auto nMatsPerNodeView = nMatsPerNode.view();
+    axom::for_all<ExecSpace>(
+      nnodes,
+      AXOM_LAMBDA(axom::IndexType nodeIndex) { nMatsPerNodeView[nodeIndex] = 1; });
 
     // Determine max number of materials a node might touch.
     MatsetView deviceMatsetView(m_matsetView);
@@ -204,17 +272,18 @@ public:
       selectedZonesView.size(),
       AXOM_LAMBDA(axom::IndexType szIndex) {
         const auto zoneIndex = selectedZonesView[szIndex];
-        const auto zone = deviceTopologyView.zone(zoneIndex);
-        const auto matZoneIndex = zoneIndex;
-        const int nmats = deviceMatsetView.numberOfMaterials(matZoneIndex);
-
-        const auto nnodesThisZone = zone.numberOfNodes();
-        int *nodeData = nMatsPerNodeView.data();
-        for(axom::IndexType i = 0; i < nnodesThisZone; i++)
+        const int nmats = deviceMatsetView.numberOfMaterials(zoneIndex);
+        if(nmats > 1)
         {
-          const auto nodeId = zone.getId(i);
-          int *nodePtr = nodeData + nodeId;
-          axom::atomicMax<ExecSpace>(nodePtr, nmats);
+          const auto zone = deviceTopologyView.zone(zoneIndex);
+          const auto nnodesThisZone = zone.numberOfNodes();
+          int *nodeData = nMatsPerNodeView.data();
+          for(axom::IndexType i = 0; i < nnodesThisZone; i++)
+          {
+            const auto nodeId = zone.getId(i);
+            int *nodePtr = nodeData + nodeId;
+            axom::atomicMax<ExecSpace>(nodePtr, nmats);
+          }
         }
       });
     AXOM_ANNOTATE_END("nMatsPerNode");
@@ -222,41 +291,73 @@ public:
     // Now, mark all selected zones that have 1 mat per node as clean.
     AXOM_ANNOTATE_BEGIN("mask");
     const auto nzones = selectedZonesView.size();
-    axom::Array<int> mask(nzones, nzones, allocatorID);
+    axom::Array<MaskType> mask(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
     auto maskView = mask.view();
-    axom::ReduceSum<ExecSpace, int> mask_reduce(0);
     axom::for_all<ExecSpace>(
-      selectedZonesView.size(),
+      nzones,
       AXOM_LAMBDA(axom::IndexType szIndex) {
         const auto zoneIndex = selectedZonesView[szIndex];
         const auto zone = deviceTopologyView.zone(zoneIndex);
 
-        bool clean = true;
+        MaskType clean {1};
         const axom::IndexType nnodesThisZone = zone.numberOfNodes();
-        for(axom::IndexType i = 0; i < nnodesThisZone && clean; i++)
+        for(axom::IndexType i = 0; i < nnodesThisZone; i++)
         {
           const auto nodeId = zone.getId(i);
-          clean &= (nMatsPerNodeView[nodeId] == 1);
+          clean &= (nMatsPerNodeView[nodeId] == 1) ? MaskType {1} : MaskType {0};
         }
 
-        const int ival = clean ? 1 : 0;
-        maskView[szIndex] = ival;
-        mask_reduce += ival;
+        maskView[szIndex] = clean;
       });
     AXOM_ANNOTATE_END("mask");
 
-    const int nClean = mask_reduce.get();
+    axom::IndexType nClean = 0;
+    axom::Array<int> maskOffsets;
+    axom::ArrayView<int> maskOffsetsView;
+    if(nzones > 0)
+    {
+      AXOM_ANNOTATE_SCOPE("numClean");
+      if constexpr(axom::execution_space<ExecSpace>::onDevice())
+      {
+        // On device, use a reduction on maskView to count clean zones.
+        axom::ReduceSum<ExecSpace, int> mask_reduce(0);
+        axom::for_all<ExecSpace>(
+          nzones,
+          AXOM_LAMBDA(axom::IndexType szIndex) {
+            mask_reduce += static_cast<int>(maskView[szIndex]);
+          });
+        nClean = mask_reduce.get();
+      }
+      else
+      {
+        // Off device, do the offset scan early and use the results to compute
+        // nClean instead of a reduction.
+        AXOM_ANNOTATE_SCOPE("offsets");
+        maskOffsets =
+          axom::Array<int>(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
+        maskOffsetsView = maskOffsets.view();
+        axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
+
+        nClean = maskOffsetsView[nzones - 1] + static_cast<int>(maskView[nzones - 1]);
+      }
+    }
+
     if(nClean > 0)
     {
-      AXOM_ANNOTATE_BEGIN("offsets");
-      axom::Array<int> maskOffsets(nzones, nzones, allocatorID);
-      auto maskOffsetsView = maskOffsets.view();
-      axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
-      AXOM_ANNOTATE_END("offsets");
+      // Compute maskOffsets if we did not do it yet.
+      if(maskOffsets.empty())
+      {
+        AXOM_ANNOTATE_SCOPE("offsets");
+        maskOffsets =
+          axom::Array<int>(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
+        maskOffsetsView = maskOffsets.view();
+        axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
+      }
 
       // Make the output cleanIndices array.
       AXOM_ANNOTATE_BEGIN("cleanIndices");
-      cleanIndices = axom::Array<axom::IndexType>(nClean, nClean, allocatorID);
+      cleanIndices =
+        axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nClean, nClean, allocatorID);
       auto cleanIndicesView = cleanIndices.view();
       axom::for_all<ExecSpace>(
         nzones,
@@ -272,10 +373,13 @@ public:
       AXOM_ANNOTATE_BEGIN("mixedIndices");
       axom::for_all<ExecSpace>(
         nzones,
-        AXOM_LAMBDA(axom::IndexType index) { maskView[index] = (maskView[index] == 1) ? 0 : 1; });
+        AXOM_LAMBDA(axom::IndexType index) {
+          maskView[index] = (maskView[index] == MaskType {1}) ? MaskType {0} : MaskType {1};
+        });
       axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
       const int nMixed = nzones - nClean;
-      mixedIndices = axom::Array<axom::IndexType>(nMixed, nMixed, allocatorID);
+      mixedIndices =
+        axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nMixed, nMixed, allocatorID);
       auto mixedIndicesView = mixedIndices.view();
       axom::for_all<ExecSpace>(
         nzones,
@@ -293,7 +397,8 @@ public:
       cleanIndices = axom::Array<axom::IndexType>();
 
       // There were no clean, so it must all be mixed.
-      mixedIndices = axom::Array<axom::IndexType>(nzones, nzones, allocatorID);
+      mixedIndices =
+        axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
       auto mixedIndicesView = mixedIndices.view();
       axom::for_all<ExecSpace>(
         nzones,
@@ -306,20 +411,22 @@ public:
    *        per zone. This method essentially partitions the input selectedZonesView
    *        into clean and mixed lists.
    *
-   * \param selectedZonesView A view containing the zone indices we're considering.
+   * \param selectedZonesView A view containing the zone indices we're considering. We pass
+   *                          it by value so it can be captured into lambdas.
    * \param[out] cleanIndices An array that will contain the list of clean material zone ids.
    * \param[out] mixedIndices An array that will contain the list of mixed material zone ids.
    *
    */
-  void execute(const SelectedZonesView &selectedZonesView,
+  void execute(const SelectedZonesView selectedZonesView,
                axom::Array<axom::IndexType> &cleanIndices,
                axom::Array<axom::IndexType> &mixedIndices) const
   {
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    AXOM_ANNOTATE_SCOPE("ZoneListBuilder.3");
+    const int allocatorID = getAllocatorID();
 
     AXOM_ANNOTATE_BEGIN("mask");
     const auto nzones = selectedZonesView.size();
-    axom::Array<int> mask(nzones, nzones, allocatorID);
+    axom::Array<MaskType> mask(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
     auto maskView = mask.view();
     axom::ReduceSum<ExecSpace, int> mask_reduce(0);
     const MatsetView deviceMatsetView(m_matsetView);
@@ -331,7 +438,7 @@ public:
 
         // clean zone == 1, mixed zone = 0
         const int ival = (deviceMatsetView.numberOfMaterials(matZoneIndex) == 1) ? 1 : 0;
-        maskView[szIndex] = ival;
+        maskView[szIndex] = static_cast<MaskType>(ival);
         mask_reduce += ival;
       });
     AXOM_ANNOTATE_END("mask");
@@ -342,12 +449,15 @@ public:
     {
       AXOM_ANNOTATE_SCOPE("mixedIndices");
 
-      axom::Array<int> maskOffsets(nzones, nzones, allocatorID);
+      axom::Array<int> maskOffsets(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
       auto maskOffsetsView = maskOffsets.view();
       axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
 
       // Fill in clean zone ids.
-      cleanIndices = axom::Array<axom::IndexType>(numCleanZones, numCleanZones, allocatorID);
+      cleanIndices = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(),
+                                                  numCleanZones,
+                                                  numCleanZones,
+                                                  allocatorID);
       auto cleanIndicesView = cleanIndices.view();
       axom::for_all<ExecSpace>(
         nzones,
@@ -356,13 +466,16 @@ public:
           {
             cleanIndicesView[maskOffsetsView[szIndex]] = selectedZonesView[szIndex];
           }
-          maskView[szIndex] = (maskView[szIndex] > 0) ? 0 : 1;
+          maskView[szIndex] = (maskView[szIndex] > 0) ? MaskType {0} : MaskType {1};
         });
 
       axom::exclusive_scan<ExecSpace>(maskView, maskOffsetsView);
 
       // Fill in mixed zone ids.
-      mixedIndices = axom::Array<axom::IndexType>(numMixedZones, numMixedZones, allocatorID);
+      mixedIndices = axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(),
+                                                  numMixedZones,
+                                                  numMixedZones,
+                                                  allocatorID);
       auto mixedIndicesView = mixedIndices.view();
       axom::for_all<ExecSpace>(
         nzones,
@@ -378,7 +491,8 @@ public:
       AXOM_ANNOTATE_SCOPE("cleanIndices");
 
       // There were no mixed, so it must all be clean.
-      cleanIndices = axom::Array<axom::IndexType>(nzones, nzones, allocatorID);
+      cleanIndices =
+        axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
       auto cleanIndicesView = cleanIndices.view();
       axom::for_all<ExecSpace>(
         nzones,
@@ -393,7 +507,8 @@ public:
       cleanIndices = axom::Array<axom::IndexType>();
 
       // There were no clean, so it must all be mixed.
-      mixedIndices = axom::Array<axom::IndexType>(nzones, nzones, allocatorID);
+      mixedIndices =
+        axom::Array<axom::IndexType>(axom::ArrayOptions::Uninitialized(), nzones, nzones, allocatorID);
       auto mixedIndicesView = mixedIndices.view();
       axom::for_all<ExecSpace>(
         nzones,
@@ -404,6 +519,7 @@ public:
 private:
   TopologyView m_topologyView;
   MatsetView m_matsetView;
+  int m_allocator_id;
 };
 
 }  // end namespace bump

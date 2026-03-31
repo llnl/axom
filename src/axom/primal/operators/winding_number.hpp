@@ -44,6 +44,17 @@ namespace axom
 {
 namespace primal
 {
+
+/// Struct containing tolerances shared across GWN values with sensible defaults
+struct WindingTolerances
+{
+  double ls_tol {1e-6};
+  double quad_tol {1e-6};
+  double disk_size {0.01};
+  double edge_tol {1e-8};
+  double EPS {1e-8};
+};
+
 /*!
  * \brief Compute the GWN for a 2D point wrt a 2D line segment
  *

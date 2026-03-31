@@ -177,7 +177,7 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh
 template <typename Polyhedron>
 AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType SphereClipper::polyhedronToLabel(
   const Polyhedron& verts,
-  const SphereType& sphere) const
+  const SphereType& sphere)
 {
   /*
     If bounding box of polyhedron is more than the radius distance

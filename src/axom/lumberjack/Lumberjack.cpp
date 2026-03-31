@@ -234,29 +234,65 @@ bool Lumberjack::isCommunicatorOwned() { return m_isCommunicatorOwned; }
 void Lumberjack::combineMessages()
 {
   int messagesSize = (int)m_messages.size();
+
+  // Early exit if there is only one message
   if(messagesSize < 2)
   {
     return;
   }
 
+  // Holds messages that are candidates for any combiners
   std::vector<Message*> finalMessages;
+
+  // Holds messages that are not candidates for any combiners
+  std::vector<Message*> uncombinableMessages;
+
   std::vector<int> indexesToBeDeleted;
   int combinersSize = (int)m_combiners.size();
 
+  // Early exit if there are no combiners
   if(combinersSize == 0)
   {
     return;
   }
 
   bool combinedMessage = false;
-  finalMessages.push_back(m_messages[0]);
-  for(int allIndex = 1; allIndex < messagesSize; ++allIndex)
+  for(int allIndex = 0; allIndex < messagesSize; ++allIndex)
   {
     combinedMessage = false;
+
+    // Determine the combiners our current message is a candidate for
+    std::vector<int> candidateCombiners;
+
+    for(int combinerIndex = 0; combinerIndex < combinersSize; ++combinerIndex)
+    {
+      if(m_combiners[combinerIndex]->isMessageCandidateForCombiner(*m_messages[allIndex]))
+      {
+        candidateCombiners.push_back(combinerIndex);
+      }
+    }
+
+    // If our current message is not a candidate for any combiner, it can never be
+    // combined, so we can skip the expensive duplicate checking.
+    if(candidateCombiners.empty())
+    {
+      uncombinableMessages.push_back(m_messages[allIndex]);
+      continue;
+    }
+
+    // Find the first message that shares a combiner with our current message
+    // and the combiner says both messages should be combined. Combine messages.
     for(int finalIndex = 0; finalIndex < (int)finalMessages.size(); ++finalIndex)
     {
-      for(int combinerIndex = 0; combinerIndex < combinersSize; ++combinerIndex)
+      for(unsigned int candidateCombinerIndex = 0; candidateCombinerIndex < candidateCombiners.size();
+          ++candidateCombinerIndex)
       {
+        int combinerIndex = candidateCombiners[candidateCombinerIndex];
+        if(!m_combiners[combinerIndex]->isMessageCandidateForCombiner(*finalMessages[finalIndex]))
+        {
+          continue;
+        }
+
         if(m_combiners[combinerIndex]->shouldMessagesBeCombined(*finalMessages[finalIndex],
                                                                 *m_messages[allIndex]))
         {
@@ -273,12 +309,16 @@ void Lumberjack::combineMessages()
         break;
       }
     }
+
+    // If current message was not combined, add it to pool of candidates.
     if(!combinedMessage)
     {
       finalMessages.push_back(m_messages[allIndex]);
     }
   }
 
+  // Set m_messages to the final list of combined and uncombinable messages
+  finalMessages.insert(finalMessages.end(), uncombinableMessages.begin(), uncombinableMessages.end());
   for(int i = 0; i < (int)indexesToBeDeleted.size(); ++i)
   {
     delete m_messages[indexesToBeDeleted[i]];

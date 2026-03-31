@@ -1688,7 +1688,7 @@ public:
       {
         for(int j = 0; j < m; ++j)
         {
-          min_weight = std::min(min_weight, m_weights(i, j));
+          min_weight = axom::utilities::min(min_weight, m_weights(i, j));
         }
       }
 
@@ -2170,16 +2170,30 @@ public:
   }
 
   /*!
-   * \brief Evaluate the NURBS patch geometry and the first \a d derivatives at parameter \a u, \a v
+   * \brief Evaluate the NURBS patch geometry derivatives up to order \a d at parameter \a u, \a v
    *
    * \param [in] u The parameter value on the first axis
    * \param [in] v The parameter value on the second axis
-   * \param [in] d The number of derivatives to evaluate
+   * \param [in] ord The maximum (or total) order of evaluated derivatives to evaluate
    * \param [out] ders A matrix of size d+1 x d+1 containing the derivatives
+   * \param [in] evalByTotalOrder If true, only evaluate derivatives up to total
+   *                               order d instead of maximum component order d.
    * 
    * ders[i][j] is the derivative of S with respect to u i times and v j times.
    *  For consistency, ders[0][0] contains the evaluation point stored as a vector
-   *  
+   * 
+   * If `evalByTotalOrder` is false (default behavior), then ders contains for d == 3
+   * 
+   *        | eval ,  S_u  ,   S_uu |
+   * ders = | S_v  ,  S_uv ,  S_uuv |
+   *        | S_vv , S_vvu , S_uuvv |
+   * 
+   * If `evalByTotalOrder` is true, then ders[i][j] == 0 whenever i + j > d
+   * 
+   *        | eval , S_u  , S_uu |
+   * ders = | S_v  , S_uv ,    0 |
+   *        | S_vv ,    0 ,    0 |
+   * 
    * Implementation adapted from Algorithm A3.6 on p. 111 of "The NURBS Book".
    * Rational derivatives from Algorithm A4.4 on p. 137 of "The NURBS Book".
    * 
@@ -2187,7 +2201,11 @@ public:
    * 
    * \note If u/v is outside the knot span up this tolerance, it is clamped to the span
    */
-  void evaluateDerivatives(T u, T v, int d, axom::Array<VectorType, 2>& ders) const
+  void evaluateDerivatives(T u,
+                           T v,
+                           int d,
+                           axom::Array<VectorType, 2>& ders,
+                           bool evalByTotalOrder = false) const
   {
     u = axom::utilities::clampVal(u, getMinKnot_u(), getMaxKnot_u());
     v = axom::utilities::clampVal(v, getMinKnot_v(), getMaxKnot_v());
@@ -2197,6 +2215,11 @@ public:
 
     const int deg_v = getDegree_v();
     const int dv = axom::utilities::min(d, deg_v);
+
+    // Basis-derivative workspaces are needed for both axes at the same time (u and v),
+    // so keep one per axis and reuse across calls to avoid per-call allocations.
+    thread_local typename KnotVectorType::DerivativeBasisWorkspace basis_workspace_u;
+    thread_local typename KnotVectorType::DerivativeBasisWorkspace basis_workspace_v;
 
     // Matrix for derivatives
     ders.resize(d + 1, d + 1);
@@ -2211,10 +2234,12 @@ public:
 
     // Find the span of the knot vectors and basis function derivatives
     const auto span_u = m_knotvec_u.findSpan(u);
-    const auto N_evals_u = m_knotvec_u.derivativeBasisFunctionsBySpan(span_u, u, du);
+    const auto N_evals_u =
+      m_knotvec_u.derivativeBasisFunctionsBySpan(span_u, u, du, basis_workspace_u);
 
     const auto span_v = m_knotvec_v.findSpan(v);
-    const auto N_evals_v = m_knotvec_v.derivativeBasisFunctionsBySpan(span_v, v, dv);
+    const auto N_evals_v =
+      m_knotvec_v.derivativeBasisFunctionsBySpan(span_v, v, dv, basis_workspace_v);
 
     for(int k = 0; k <= du; ++k)
     {
@@ -2236,7 +2261,7 @@ public:
         }
       }
 
-      int dd = axom::utilities::min(d - k, dv);
+      const int dd = evalByTotalOrder ? axom::utilities::min(d - k, dv) : dv;
       for(int l = 0; l <= dd; ++l)
       {
         for(int s = 0; s <= deg_v; ++s)
@@ -2252,16 +2277,17 @@ public:
     // Compute the derivatives of the homogeneous surface
     for(int k = 0; k <= d; ++k)
     {
-      for(int l = 0; l <= d - k; ++l)
+      const int dd = evalByTotalOrder ? d - k : d;
+      for(int l = 0; l <= dd; ++l)
       {
-        auto v = Awders[k][l];
+        auto v1 = Awders[k][l];
 
         for(int j = 0; j <= l; ++j)
         {
           auto bin = axom::utilities::binomialCoefficient(l, j);
           for(int n = 0; n < NDIMS; ++n)
           {
-            v[n] -= bin * Awders[0][j][NDIMS] * ders[k][l - j][n];
+            v1[n] -= bin * Awders[0][j][NDIMS] * ders[k][l - j][n];
           }
         }
 
@@ -2270,7 +2296,7 @@ public:
           auto bin = axom::utilities::binomialCoefficient(k, i);
           for(int n = 0; n < NDIMS; ++n)
           {
-            v[n] -= bin * Awders[i][0][NDIMS] * ders[k - i][l][n];
+            v1[n] -= bin * Awders[i][0][NDIMS] * ders[k - i][l][n];
           }
 
           auto v2 = Point<T, NDIMS + 1>::zero();
@@ -2285,13 +2311,13 @@ public:
 
           for(int n = 0; n < NDIMS; ++n)
           {
-            v[n] -= bin * v2[n];
+            v1[n] -= bin * v2[n];
           }
         }
 
         for(int n = 0; n < NDIMS; ++n)
         {
-          ders[k][l][n] = v[n] / Awders[0][0][NDIMS];
+          ders[k][l][n] = v1[n] / Awders[0][0][NDIMS];
         }
       }
     }
@@ -2306,16 +2332,122 @@ public:
    * \param [out] Du The vector value of S_u(u, v)
    * \param [out] Dv The vector value of S_v(u, v)
    *
+   * Uses a specialized formula that is faster than evaluateDerivatives, avoiding
+   *  repeated dynamic allocations in the generic implementation. 
+   * This is performance-critical for 3D winding-number evaluations
+   * 
    * \pre We require evaluation of the patch at \a u and \a v between 0 and 1
    */
   void evaluateFirstDerivatives(T u, T v, PointType& eval, VectorType& Du, VectorType& Dv) const
   {
-    axom::Array<VectorType, 2> ders;
-    evaluateDerivatives(u, v, 1, ders);
+    Du = VectorType(0.0);
+    Dv = VectorType(0.0);
 
-    eval = PointType(ders[0][0].array());
-    Du = ders[1][0];
-    Dv = ders[0][1];
+    u = axom::utilities::clampVal(u, getMinKnot_u(), getMaxKnot_u());
+    v = axom::utilities::clampVal(v, getMinKnot_v(), getMaxKnot_v());
+
+    const int deg_u = getDegree_u();
+    const int du = axom::utilities::min(1, deg_u);
+
+    const int deg_v = getDegree_v();
+    const int dv = axom::utilities::min(1, deg_v);
+
+    // Basis-derivative workspaces are needed for both axes at the same time (u and v),
+    // so keep one per axis and reuse across calls to avoid per-call allocations.
+    thread_local typename KnotVectorType::DerivativeBasisWorkspace basis_workspace_u;
+    thread_local typename KnotVectorType::DerivativeBasisWorkspace basis_workspace_v;
+
+    const bool isRationalPatch = isRational();
+
+    const auto span_u = m_knotvec_u.findSpan(u);
+    const auto N_evals_u =
+      m_knotvec_u.derivativeBasisFunctionsBySpan(span_u, u, du, basis_workspace_u);
+
+    const auto span_v = m_knotvec_v.findSpan(v);
+    const auto N_evals_v =
+      m_knotvec_v.derivativeBasisFunctionsBySpan(span_v, v, dv, basis_workspace_v);
+
+    using HomogeneousPoint = Point<T, NDIMS + 1>;
+
+    thread_local axom::Array<HomogeneousPoint> temp0;
+    thread_local axom::Array<HomogeneousPoint> temp1;
+
+    const int nv = deg_v + 1;
+    if(temp0.size() < nv)
+    {
+      temp0.resize(nv);
+      temp1.resize(nv);
+    }
+
+    for(int s = 0; s <= deg_v; ++s)
+    {
+      temp0[s] = HomogeneousPoint::zero();
+      temp1[s] = HomogeneousPoint::zero();
+
+      for(int r = 0; r <= deg_u; ++r)
+      {
+        const auto iu = span_u - deg_u + r;
+        const auto iv = span_v - deg_v + s;
+
+        const T weight = isRationalPatch ? m_weights(iu, iv) : static_cast<T>(1);
+        const auto& pt = m_controlPoints(iu, iv);
+
+        const T Nu0 = N_evals_u[0][r];
+        const T Nu1 = (du == 1) ? N_evals_u[1][r] : static_cast<T>(0);
+
+        for(int n = 0; n < NDIMS; ++n)
+        {
+          const T wpt = weight * pt[n];
+          temp0[s][n] += Nu0 * wpt;
+          temp1[s][n] += Nu1 * wpt;
+        }
+
+        temp0[s][NDIMS] += Nu0 * weight;
+        temp1[s][NDIMS] += Nu1 * weight;
+      }
+    }
+
+    HomogeneousPoint A00 = HomogeneousPoint::zero();
+    HomogeneousPoint A10 = HomogeneousPoint::zero();
+    HomogeneousPoint A01 = HomogeneousPoint::zero();
+
+    for(int s = 0; s <= deg_v; ++s)
+    {
+      const T Nv0 = N_evals_v[0][s];
+      const T Nv1 = (dv == 1) ? N_evals_v[1][s] : static_cast<T>(0);
+
+      for(int n = 0; n <= NDIMS; ++n)
+      {
+        A00[n] += Nv0 * temp0[s][n];
+        A10[n] += Nv0 * temp1[s][n];
+        A01[n] += Nv1 * temp0[s][n];
+      }
+    }
+
+    const T w = isRationalPatch ? A00[NDIMS] : static_cast<T>(1);
+
+    for(int n = 0; n < NDIMS; ++n)
+    {
+      eval[n] = isRationalPatch ? (A00[n] / w) : A00[n];
+    }
+
+    if(du == 1)
+    {
+      const T w_u = isRationalPatch ? A10[NDIMS] : static_cast<T>(0);
+      for(int n = 0; n < NDIMS; ++n)
+      {
+        Du[n] = isRationalPatch ? ((A10[n] - w_u * eval[n]) / w) : A10[n];
+      }
+    }
+
+    if(dv == 1)
+    {
+      const T w_v = isRationalPatch ? A01[NDIMS] : static_cast<T>(0);
+      for(int n = 0; n < NDIMS; ++n)
+      {
+        Dv[n] = isRationalPatch ? ((A01[n] - w_v * eval[n]) / w) : A01[n];
+      }
+    }
   }
 
   /*!
@@ -2342,7 +2474,7 @@ public:
     axom::Array<VectorType, 2> ders;
     evaluateDerivatives(u, v, 1, ders);
 
-    eval = PointType(ders[0][0]);
+    eval = PointType(ders[0][0].array());
     Du = ders[1][0];
     Dv = ders[0][1];
     DuDv = ders[1][1];
@@ -2374,9 +2506,10 @@ public:
                                  VectorType& DuDv) const
   {
     axom::Array<VectorType, 2> ders;
-    evaluateDerivatives(u, v, 2, ders);
+    constexpr bool evalByTotalOrder = true;  // To skip evaluation of ders[1][2], etc.
+    evaluateDerivatives(u, v, 2, ders, evalByTotalOrder);
 
-    eval = PointType(ders[0][0]);
+    eval = PointType(ders[0][0].array());
     Du = ders[1][0];
     Dv = ders[0][1];
     DuDu = ders[2][0];
@@ -2397,7 +2530,8 @@ public:
   VectorType du(T u, T v) const
   {
     axom::Array<VectorType, 2> ders;
-    evaluateDerivatives(u, v, 1, ders);
+    constexpr bool evalByTotalOrder = true;  // To skip evaluation of ders[1][1]
+    evaluateDerivatives(u, v, 1, ders, evalByTotalOrder);
 
     return ders[1][0];
   }
@@ -2415,7 +2549,8 @@ public:
   VectorType dv(T u, T v) const
   {
     axom::Array<VectorType, 2> ders;
-    evaluateDerivatives(u, v, 1, ders);
+    constexpr bool evalByTotalOrder = true;  // To skip evaluation of ders[1][1]
+    evaluateDerivatives(u, v, 1, ders, evalByTotalOrder);
 
     return ders[0][1];
   }
@@ -2433,7 +2568,8 @@ public:
   VectorType dudu(T u, T v) const
   {
     axom::Array<VectorType, 2> ders;
-    evaluateDerivatives(u, v, 2, ders);
+    constexpr bool evalByTotalOrder = true;  // To skip evaluation of ders[1][1], etc.
+    evaluateDerivatives(u, v, 2, ders, evalByTotalOrder);
 
     return ders[2][0];
   }
@@ -2451,7 +2587,8 @@ public:
   VectorType dvdv(T u, T v) const
   {
     axom::Array<VectorType, 2> ders;
-    evaluateDerivatives(u, v, 2, ders);
+    constexpr bool evalByTotalOrder = true;  // To skip evaluation of ders[1][1], etc.
+    evaluateDerivatives(u, v, 2, ders, evalByTotalOrder);
 
     return ders[0][2];
   }
@@ -2469,7 +2606,7 @@ public:
   VectorType dudv(T u, T v) const
   {
     axom::Array<VectorType, 2> ders;
-    evaluateDerivatives(u, v, 2, ders);
+    evaluateDerivatives(u, v, 1, ders);
 
     return ders[1][1];
   }

@@ -7,6 +7,7 @@
 #define AXOM_BUMP_BLEND_GROUP_BUILDER_HPP_
 
 #include "axom/core.hpp"
+#include "axom/slic.hpp"
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/BlendData.hpp"
 
@@ -29,6 +30,29 @@ class BlendGroupBuilder
 {
 public:
   using KeyType = typename NamingPolicyView::KeyType;
+
+  BlendGroupBuilder() : m_state(), m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
+  { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
 
   /*!
    * \brief This struct holds the views that represent data for blend groups.
@@ -433,10 +457,11 @@ public:
 
     if(nIndices > 0)
     {
-      const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+      using MaskType = typename axom::bump::utilities::mask_traits<ExecSpace, int>::type;
+      const int allocatorID = getAllocatorID();
 
       // Make a mask of selected indices have more than one id in their blend group.
-      axom::Array<int> mask(nIndices, nIndices, allocatorID);
+      axom::Array<MaskType> mask(nIndices, nIndices, allocatorID);
       auto maskView = mask.view();
       axom::ReduceSum<ExecSpace, int> mask_reduce(0);
       State deviceState(m_state);
@@ -445,7 +470,7 @@ public:
         AXOM_LAMBDA(axom::IndexType index) {
           const auto uniqueIndex = deviceState.m_blendUniqueIndicesView[index];
           const int m = (deviceState.m_blendGroupSizesView[uniqueIndex] > 1) ? 1 : 0;
-          maskView[index] = m;
+          maskView[index] = static_cast<MaskType>(m);
           mask_reduce += m;
         });
       // If we need to filter, do it.
@@ -503,6 +528,7 @@ public:
 
 private:
   State m_state;
+  int m_allocator_id;
 };
 
 }  // end namespace extraction

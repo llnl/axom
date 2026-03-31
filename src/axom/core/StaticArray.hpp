@@ -36,7 +36,7 @@ public:
   AXOM_HOST_DEVICE StaticArray() : StackArray<T, N>(), m_size(0)
   {
 #if defined(AXOM_DEBUG)
-    for(axom::IndexType i = 0; i < m_size; i++)
+    for(axom::IndexType i = 0; i < N; i++)
     {
       StackArray<T, N>::m_data[i] = T {};
     }
@@ -64,8 +64,13 @@ public:
    * \brief Copy assignment operator.
    * \param obj The object to be copied.
    */
-  AXOM_HOST_DEVICE StaticArray operator=(const StaticArray &obj)
+  AXOM_HOST_DEVICE StaticArray &operator=(const StaticArray &obj)
   {
+    if(this == &obj)
+    {
+      return *this;
+    }
+
     for(axom::IndexType i = 0; i < obj.m_size; i++)
     {
       StackArray<T, N>::m_data[i] = obj.StackArray<T, N>::m_data[i];

@@ -36,6 +36,28 @@ public:
   using ConnectivityType = typename TopologyView::ConnectivityType;
   using ConnectivityView = axom::ArrayView<ConnectivityType>;
 
+  FieldIntersector() : m_allocator_id(axom::execution_space<ExecSpace>::allocatorID()) { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
+
   /*!
    * \brief This is a view class for FieldIntersector that can be used in device code.
    */
@@ -46,21 +68,21 @@ public:
      *        the appropriate table case, taking into account the field and
      *        value.
      *
-     * \param zoneIndex The zone index.
-     * \param nodeIds A view containing node ids for the zone.
+     * \param zone_index The zone index.
+     * \param node_ids A view containing node ids for the zone.
      */
     AXOM_HOST_DEVICE
-    axom::IndexType determineTableCase(axom::IndexType AXOM_UNUSED_PARAM(zoneIndex),
-                                       const ConnectivityView &nodeIds) const
+    axom::IndexType determineTableCase(axom::IndexType AXOM_UNUSED_PARAM(zone_index),
+                                       const ConnectivityView &node_ids) const
     {
-      axom::IndexType caseNumber = 0, numIds = nodeIds.size();
-      for(IndexType i = 0; i < numIds; i++)
+      axom::IndexType case_number = 0, num_ids = node_ids.size();
+      for(IndexType i = 0; i < num_ids; i++)
       {
-        const auto id = nodeIds[i];
+        const auto id = node_ids[i];
         const auto distance = m_fieldView[id] - m_fieldValue;
-        caseNumber |= (distance > 0) ? (1 << i) : 0;
+        case_number |= (distance > 0) ? (1 << i) : 0;
       }
-      return caseNumber;
+      return case_number;
     }
 
     /*!
@@ -72,7 +94,7 @@ public:
      * \return A parametric position t [0,1] where we locate \a clipValues in [d0,d1].
      */
     AXOM_HOST_DEVICE
-    FieldType computeWeight(axom::IndexType AXOM_UNUSED_PARAM(zoneIndex),
+    FieldType computeWeight(axom::IndexType AXOM_UNUSED_PARAM(zone_index),
                             ConnectivityType id0,
                             ConnectivityType id1) const
     {
@@ -102,7 +124,7 @@ public:
                   const conduit::Node &n_fields)
   {
     namespace utils = axom::bump::utilities;
-    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    const int allocator_id = getAllocatorID();
 
     // Get the field name and value.
     FieldOptions opts(n_options);
@@ -122,10 +144,10 @@ public:
     {
       // Convert to FieldType.
       const IndexType n = static_cast<IndexType>(n_field_values.dtype().number_of_elements());
-      m_fieldData = axom::Array<FieldType>(n, n, allocatorID);
+      m_fieldData = axom::Array<FieldType>(n, n, allocator_id);
       m_view.m_fieldView = m_fieldData.view();
-      views::Node_to_ArrayView(n_field_values,
-                               [&](auto clipFieldViewSrc) { copyValues(clipFieldViewSrc); });
+      views::nodeToArrayView(n_field_values,
+                             [&](auto clip_field_view_src) { copyValues(clip_field_view_src); });
     }
   }
 
@@ -158,21 +180,22 @@ private:
   /*!
    * \brief Copy values from srcView into m_fieldData.
    *
-   * \param srcView The source data view.
+   * \param src_view The source data view.
    */
   template <typename DataView>
-  void copyValues(DataView srcView)
+  void copyValues(DataView src_view)
   {
-    auto clipFieldView = m_fieldData.view();
+    auto clip_field_view = m_fieldData.view();
     axom::for_all<ExecSpace>(
-      srcView.size(),
+      src_view.size(),
       AXOM_LAMBDA(axom::IndexType index) {
-        clipFieldView[index] = static_cast<FieldType>(srcView[index]);
+        clip_field_view[index] = static_cast<FieldType>(src_view[index]);
       });
   }
 
   axom::Array<FieldType> m_fieldData {};
   View m_view {};
+  int m_allocator_id;
 };
 
 }  // end namespace extraction

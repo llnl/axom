@@ -39,15 +39,20 @@ _AXOM_COMPONENTS = (
 from spack.package import *
 
 
-def get_spec_path(spec, package_name, path_replacements={}, use_bin=False):
+def get_spec_path(spec, package_name, path_replacements={}, use_bin=False, use_lib=False):
     """Extracts the prefix path for the given spack package
     path_replacements is a dictionary with string replacements for the path.
     """
 
-    if not use_bin:
-        path = spec[package_name].prefix
-    else:
+    if use_bin and use_lib:
+        raise ValueError("Only one of use_bin or use_lib can be True")
+
+    if use_bin:
         path = spec[package_name].prefix.bin
+    elif use_lib:
+        path = spec[package_name].prefix.lib
+    else:
+        path = spec[package_name].prefix
 
     path = os.path.realpath(path)
 
@@ -73,6 +78,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     version("main", branch="main")
     version("develop", branch="develop")
+    version("0.13.0", tag="v0.13.0", commit="d00f6c66ef390ad746ae840f1074d982513611ac")
     version("0.12.0", tag="v0.12.0", commit="297544010a3dfb98145a1a85f09f9c648c00a18c")
     version("0.11.0", tag="v0.11.0", commit="685960486aa55d3a74a821ee02f6d9d9a3e67ab1")
     version("0.10.1", tag="v0.10.1", commit="6626ee1c5668176fb64dd9a52dec3e8596b3ba6b")
@@ -121,9 +127,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     variant(
         "profiling",
         default=False,
-        when="@:0.12.0",
+        when="@:0.12",
         description="Build with hooks for Adiak/Caliper performance analysis. "
-        "Deprecated -- use the adiak and/or caliper variants directly.",
+        "Deprecated -- use the adiak and/or caliper variants directly "
+        "versions 0.13.0 and onwards.",
     )
 
     # variant for Axom components
@@ -132,15 +139,16 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         description=(
             "Comma separated list of Axom components to enable. "
             "'all' enables all components; 'none' disables all components "
-            "Missing dependencies will be added (e.g. we'll add `sidre` and `conduit` for `components=inlet`)"
+            "Missing dependencies will be added (e.g. we'll add `sidre` "
+            "and `conduit` for `components=inlet`)"
         ),
         values=any_combination_of("all", *_AXOM_COMPONENTS).with_default("all"),
     )
 
     # variants for package dependencies
-    variant("adiak", default=False, description="Build with adiak")
+    variant("adiak", default=False, when="@0.13:", description="Build with adiak")
+    variant("caliper", default=False, when="@0.13:", description="Build with caliper")
     variant("c2c", default=False, description="Build with c2c")
-    variant("caliper", default=False, description="Build with caliper")
     variant("conduit", default=True, description="Build with conduit")
     variant("hdf5", default=True, description="Build with hdf5")
     variant("lua", default=True, description="Build with Lua")
@@ -170,6 +178,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     depends_on("blt", type="build")
     depends_on("blt@0.5.1:0.5.3", type="build", when="@0.6.1:0.8")
     depends_on("blt@0.6.2:", type="build", when="@0.9:")
+    depends_on("blt@0.7", type="build", when="@0.11:")
+    depends_on("blt@0.7.1:", type="build", when="@0.12:")
 
     depends_on("mpi", when="+mpi")
 
@@ -180,9 +190,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             depends_on("conduit+{0}".format(_var), when="+{0}".format(_var))
             depends_on("conduit~{0}".format(_var), when="~{0}".format(_var))
 
-        depends_on("conduit+python", when="+devtools")
-        depends_on("conduit~python", when="~devtools")
-
     depends_on("hdf5", when="+hdf5")
 
     depends_on("lua", when="+lua")
@@ -192,6 +199,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     with when("+umpire"):
         depends_on("umpire")
+        depends_on("umpire@2025.12:", when="@0.13:")
         depends_on("umpire@2025.09.0:", when="@0.10:")
         depends_on("umpire@2024.02.0:", when="@0.9:")
         depends_on("umpire@2022.03.0:2023.06", when="@0.7.0:0.8")
@@ -202,6 +210,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     with when("+raja"):
         depends_on("raja")
+        depends_on("raja@2025.12.1:", when="@0.13:")
         depends_on("raja@2025.09.0:", when="@0.10:")
         depends_on("raja@2024.02.0:", when="@0.9:")
         depends_on("raja@2022.03.0:2023.06", when="@0.7.0:0.8")
@@ -210,18 +219,31 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("raja~openmp", when="~openmp")
         depends_on("raja+openmp", when="+openmp")
 
-    # we're planning to remove support for the profiling variant, but still need to support it for now
+    # we're planning to remove support for the profiling variant,
+    # but still need to support it for now
     depends_on("adiak", when="+adiak")
     depends_on("caliper", when="+caliper")
     with when("+profiling"):
         depends_on("adiak")
         depends_on("caliper")
 
-    with when("^adiak"):
+        depends_on("caliper+cuda", when="+cuda")
+        depends_on("caliper~cuda", when="~cuda")
+
+        depends_on("caliper+rocm", when="+rocm")
+        depends_on("caliper~rocm", when="~rocm")
+
+        for dep in ["adiak", "caliper"]:
+            depends_on(f"{dep}+mpi", when="+mpi")
+            depends_on(f"{dep}~mpi", when="~mpi")
+            depends_on(f"{dep}+shared", when="+shared")
+            depends_on(f"{dep}~shared", when="~shared")
+
+    with when("+adiak"):
         for fwd in ("mpi", "shared"):
             depends_on(f"adiak+{fwd}", when=f"+{fwd}")
 
-    with when("^caliper"):
+    with when("+caliper"):
         for fwd in ("cuda", "rocm", "mpi", "shared"):
             depends_on(f"caliper+{fwd}", when=f"+{fwd}")
 
@@ -229,14 +251,17 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         ext_cuda_dep = f"+cuda cuda_arch={val}"
         depends_on(f"raja {ext_cuda_dep}", when=f"+raja {ext_cuda_dep}")
         depends_on(f"umpire {ext_cuda_dep}", when=f"+umpire {ext_cuda_dep}")
-        depends_on(f"caliper {ext_cuda_dep}", when=f"^caliper {ext_cuda_dep}")
+        depends_on(f"caliper {ext_cuda_dep}", when=f"+caliper {ext_cuda_dep}")
+        depends_on(f"caliper {ext_cuda_dep}", when=f"+profiling {ext_cuda_dep}")
+
         depends_on(f"mfem {ext_cuda_dep}", when=f"+mfem {ext_cuda_dep}")
 
     for val in ROCmPackage.amdgpu_targets:
         ext_rocm_dep = f"+rocm amdgpu_target={val}"
         depends_on(f"raja {ext_rocm_dep}", when=f"+raja {ext_rocm_dep}")
         depends_on(f"umpire {ext_rocm_dep}", when=f"+umpire {ext_rocm_dep}")
-        depends_on(f"caliper {ext_rocm_dep}", when=f"^caliper {ext_rocm_dep}")
+        depends_on(f"caliper {ext_rocm_dep}", when=f"+caliper {ext_rocm_dep}")
+        depends_on(f"caliper {ext_rocm_dep}", when=f"+profiling {ext_rocm_dep}")
         depends_on(f"mfem {ext_rocm_dep}", when=f"+mfem {ext_rocm_dep}")
 
     depends_on("rocprim", when="+rocm")
@@ -251,6 +276,13 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     depends_on("python", when="+python")
 
+    # Python
+    with when("+python"):
+        depends_on("py-nanobind@2.7.0")
+        depends_on("py-pytest")
+        depends_on("py-numpy")
+        depends_on("conduit+python")
+
     # Devtools
     with when("+devtools"):
         depends_on("cppcheck")
@@ -259,8 +291,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("python")
         depends_on("py-sphinx")
         depends_on("py-shroud")
-        depends_on("py-pytest")
         depends_on("py-jsonschema")
+        depends_on("py-yapf")
 
         # Need clang@19 for clang-format
         # (ENABLE_CLANGFORMAT will be OFF if not the exact version)
@@ -271,14 +303,12 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     # -----------------------------------------------------------------------
     # Hard inter-component dependencies taken from Axom's dependency graph.
     requires(f"components={','.join(_AXOM_COMPONENTS)}", when="components=all")
-    for c in _AXOM_COMPONENTS:
-        conflicts(f"components={c}", when="components=none")
 
-    requires("components=slic,spin,primal", when="components=bump")
+    requires("components=sidre,slic,spin,primal", when="components=bump")
     requires("components=sidre,slic,primal", when="components=inlet")
     requires("components=sidre,slic,inlet,primal", when="components=klee")
     requires("components=slic,slam", when="components=mint")
-    requires("components=bump,slic,slam,primal", when="components=mir")
+    requires("components=bump,sidre,slic,slam,primal", when="components=mir")
     requires("components=slic,slam", when="components=multimat")
     requires("components=slic", when="components=primal")
     requires("components=slic,slam,primal,mint,spin", when="components=quest")
@@ -312,10 +342,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     conflicts("~raja", when="+rocm")
     conflicts("~umpire", when="+cuda")
     conflicts("~umpire", when="+rocm")
-
-    # The 'profiling' variant is deprecated after v0.12, but spack doesn't 
-    # give a reasonable error/warning message if it is set
-    conflicts("+profiling", when="@develop")
 
     conflicts("^blt@:0.3.6", when="+rocm")
 
@@ -655,7 +681,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         ##################################
 
         entries.append("#------------------{0}".format("-" * 60))
-        entries.append("# Devtools")
+        entries.append("# Devtools & Python")
         entries.append("#------------------{0}\n".format("-" * 60))
 
         # Add common prefix to path replacement list
@@ -673,6 +699,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             entries.append(cmake_cache_option("ENABLE_CLANGFORMAT", False))
 
         if spec.satisfies("+python") or spec.satisfies("+devtools"):
+            # Get path to python executable
             python_bin_dir = get_spec_path(spec, "python", path_replacements, use_bin=True)
             entries.append(cmake_cache_path("Python_EXECUTABLE", pjoin(python_bin_dir, "python3")))
 
@@ -690,6 +717,12 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 cmake_cache_path("SPHINX_EXECUTABLE", pjoin(sphinx_bin_dir, "sphinx-build"))
             )
 
+        if spec.satisfies("^py-yapf"):
+            yapf_bin_dir = get_spec_path(spec, "py-yapf", path_replacements, use_bin=True)
+            entries.append(
+                cmake_cache_path("YAPF_EXECUTABLE", pjoin(yapf_bin_dir, "yapf"))
+            )
+
         if spec.satisfies("^py-shroud"):
             shroud_bin_dir = get_spec_path(spec, "py-shroud", path_replacements, use_bin=True)
             entries.append(cmake_cache_path("SHROUD_EXECUTABLE", pjoin(shroud_bin_dir, "shroud")))
@@ -700,6 +733,14 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 entries.append(
                     cmake_cache_path("%s_EXECUTABLE" % dep.upper(), pjoin(dep_bin_dir, dep))
                 )
+
+        if spec.satisfies("+python"):
+            # pytest requires pluggy and iniconfig
+            for dep in ("py-nanobind", "py-pytest", "py-numpy", "py-pluggy", "py-iniconfig"):
+                if spec.satisfies("^{0}".format(dep)):
+                    dep_dir = get_spec_path(spec, dep, path_replacements, use_lib=True)
+                    py_libdir = join_path(dep_dir, f"python{spec['python'].version.up_to(2)}", "site-packages")
+                    entries.append(cmake_cache_path("%s_DIR" % dep.upper().replace("-", "_"), py_libdir))
 
         return entries
 

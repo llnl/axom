@@ -14,11 +14,28 @@
 #include "axom/config.hpp"
 
 #include <cmath>
+#include <cstdint>
 
 namespace axom
 {
 namespace numerics
 {
+
+namespace
+{
+struct GaussLegendreRuleStorage
+{
+  axom::Array<double> nodes;
+  axom::Array<double> weights;
+};
+
+std::uint64_t make_gauss_legendre_key(int npts, int allocatorID)
+{
+  const auto n = static_cast<std::uint64_t>(static_cast<std::uint32_t>(npts));
+  const auto a = static_cast<std::uint64_t>(static_cast<std::uint32_t>(allocatorID));
+  return (a << 32) | n;
+}
+}  // namespace
 
 /*!
  * \brief Computes a 1D quadrature rule of Gauss-Legendre points 
@@ -149,20 +166,18 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID)
 {
   assert("Quadrature rules must have >= 1 point" && (npts >= 1));
 
-  // Define a static map that stores the GL quadrature rule for a given order
-  static std::map<std::pair<int, int>, std::pair<axom::Array<double>, axom::Array<double>>> rule_library;
+  // Store cached rules keyed by (npts, allocatorID). This cache is not thread-safe.
+  static axom::FlatMap<std::uint64_t, GaussLegendreRuleStorage> rule_library(64);
 
-  const std::pair<int, int> key = std::make_pair(npts, allocatorID);
+  const std::uint64_t key = make_gauss_legendre_key(npts, allocatorID);
 
-  auto value_it = rule_library.find(key);
-  if(value_it == rule_library.end())
+  auto [it, inserted] = rule_library.try_emplace(key);
+  if(inserted)
   {
-    auto& vals = rule_library[key];
-    compute_gauss_legendre_data(npts, vals.first, vals.second, allocatorID);
-    value_it = rule_library.find(key);
+    compute_gauss_legendre_data(npts, it->second.nodes, it->second.weights, allocatorID);
   }
 
-  return QuadratureRule {value_it->second.first.view(), value_it->second.second.view()};
+  return QuadratureRule {it->second.nodes.view(), it->second.weights.view()};
 }
 
 } /* end namespace numerics */

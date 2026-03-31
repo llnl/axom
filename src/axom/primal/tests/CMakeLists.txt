@@ -25,6 +25,7 @@ set( primal_tests
     primal_integral.cpp
     primal_intersect.cpp
     primal_intersect_impl.cpp
+    primal_intersection_volume.cpp
     primal_knot_vector.cpp
     primal_nurbs_curve.cpp
     primal_nurbs_patch.cpp

@@ -60,7 +60,7 @@ int main()
   lumberjack.initialize(&communicator, ranksLimit);
 
   // Remove default combiner (no combiners now)
-  lumberjack.removeCombiner("TextTagCreationTimeCombiner");
+  lumberjack.removeCombiner("TextTagCombiner");
 
   for(int i = 0; i < 100000; i++)
   {

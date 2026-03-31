@@ -35,6 +35,7 @@
 #include "axom/quest/detail/clipping/SphereClipper.hpp"
 #include "axom/quest/detail/clipping/TetClipper.hpp"
 #include "axom/quest/detail/clipping/TetMeshClipper.hpp"
+#include "axom/quest/util/make_clipper_strategy.hpp"
 #include "axom/core/utilities/FileUtilities.hpp"
 
 #include "axom/fmt.hpp"
@@ -49,12 +50,6 @@
 #ifdef AXOM_USE_MPI
   #include "mpi.h"
 #endif
-
-// RAJA
-#if !defined(AXOM_USE_RAJA)
-  #error quest_mesh_clipper example require RAJA
-#endif
-#include "RAJA/RAJA.hpp"
 
 // C/C++ includes
 #include <string>
@@ -251,8 +246,8 @@ public:
 
       std::stringstream pol_sstr;
       pol_sstr << "Set runtime policy for intersection-based sampling method.";
+      pol_sstr << "\nSet to 'seq' or 0 to use the sequential policy.";
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-      pol_sstr << "\nSet to 'seq' or 0 to use the RAJA sequential policy.";
   #ifdef AXOM_USE_OPENMP
       pol_sstr << "\nSet to 'omp' or 1 to use the RAJA OpenMP policy.";
   #endif
@@ -615,7 +610,7 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string&
   tetMesh.appendNode(+lll, -lll, +lll);
   axom::IndexType conn0[4] = {0, 1, 2, 3};
   tetMesh.appendCell(conn0);
-  axom::IndexType conn1[4] = {4, 5, 6, 7};
+  axom::IndexType conn1[4] = {4, 5, 7, 6};  // intentionally inverted to exercise fixOrientation.
   tetMesh.appendCell(conn1);
   axom::IndexType conn2[4] = {1, 2, 3, 5};
   tetMesh.appendCell(conn2);
@@ -1066,8 +1061,7 @@ double sumMaterialVolumesImpl(sidre::Group* meshGrp, const std::string& material
   axom::sidre::View* volFrac = meshGrp->getView(vfFieldValuesPath);
   axom::ArrayView<double> volFracView(volFrac->getArray(), cellCount);
 
-  using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
-  RAJA::ReduceSum<ReducePolicy, double> localVol(0);
+  axom::ReduceSum<ExecSpace, double> localVol(0);
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType i) { localVol += volFracView[i] * elementVolsView[i]; });
@@ -1239,6 +1233,7 @@ int main(int argc, char** argv)
   axom::Array<std::shared_ptr<axom::quest::experimental::MeshClipperStrategy>> geomStrategies;
   geomStrategies.reserve(params.testGeom.size());
   SLIC_ERROR_IF(params.getBoxDim() != 3, "This example is only in 3D.");
+  using quest::experimental::util::make_clipper_strategy;
   for(const auto& tg : params.testGeom)
   {
     if(geomReps.count(tg) == 0)
@@ -1247,55 +1242,44 @@ int main(int argc, char** argv)
     }
     std::string name = axom::fmt::format("{}.{}", tg, geomReps[tg]++);
 
+    std::shared_ptr<quest::experimental::MeshClipperStrategy> strat;
     if(tg == "plane")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::Plane3DClipper>(createGeom_Plane(name), name));
+      strat = make_clipper_strategy(createGeom_Plane(name), name);
     }
     else if(tg == "hex")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::HexClipper>(createGeom_Hex(name), name));
+      strat = make_clipper_strategy(createGeom_Hex(name), name);
     }
     else if(tg == "sphere")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::SphereClipper>(createGeom_Sphere(name), name));
+      strat = make_clipper_strategy(createGeom_Sphere(name), name);
     }
     else if(tg == "tetmesh")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::TetMeshClipper>(createGeom_TetMesh(ds, name),
-                                                                    name));
+      strat = make_clipper_strategy(createGeom_TetMesh(ds, name), name);
     }
     else if(tg == "cupmesh")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::TetMeshClipper>(createGeom_CupMesh(ds, name),
-                                                                    name));
+      strat = make_clipper_strategy(createGeom_CupMesh(ds, name), name);
     }
     else if(tg == "tet")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::TetClipper>(createGeom_Tet(name), name));
+      strat = make_clipper_strategy(createGeom_Tet(name), name);
     }
     else if(tg == "cyl")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::MonotonicZSORClipper>(createGeom_Cylinder(name),
-                                                                          name));
+      strat = make_clipper_strategy(createGeom_Cylinder(name), name);
     }
     else if(tg == "cone")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::MonotonicZSORClipper>(createGeom_Cone(name),
-                                                                          name));
+      strat = make_clipper_strategy(createGeom_Cone(name), name);
     }
     else if(tg == "sor")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::experimental::SORClipper>(createGeom_Sor(name), name));
+      strat = make_clipper_strategy(createGeom_Sor(name), name);
     }
+    geomStrategies.push_back(strat);
   }
 
   {
@@ -1390,8 +1374,7 @@ int main(int argc, char** argv)
       ovlap = axom::Array<double>(ovlap, hostAllocId);
     }
     auto ovlapView = ovlap.view();
-    using reduce_policy = typename axom::execution_space<axom::SEQ_EXEC>::reduce_policy;
-    RAJA::ReduceSum<reduce_policy, double> ovlapSumReduce(0.0);
+    axom::ReduceSum<axom::SEQ_EXEC, double> ovlapSumReduce(0.0);
     axom::for_all<axom::SEQ_EXEC>(
       ovlap.size(),
       AXOM_LAMBDA(axom::IndexType i) { ovlapSumReduce += ovlapView[i]; });
