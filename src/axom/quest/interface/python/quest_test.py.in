@@ -12,7 +12,7 @@ from __future__ import print_function
 import quest
 from mpi4py import MPI
 
-quest.signed_distance_init("@CMAKE_SOURCE_DIR@/axom/quest/data/naca0012.stl",
+quest.signed_distance_init("@CMAKE_SOURCE_DIR@/data/quest/naca0012.stl",
                            MPI.Comm)
 
 if not quest.signed_distance_initialized():

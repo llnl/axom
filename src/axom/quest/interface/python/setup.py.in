@@ -23,7 +23,7 @@ quest = Extension(
                   os.path.join(binarydir, 'include'),
                   os.path.join(mpidir, 'include')],
     extra_compile_args=['-std=c++11'],   # gcc flag
-    libraries=['quest'],
+    libraries=['axom_quest'],
     library_dirs=[libdir],
     # rpath needed to find libquest.so during import
     extra_link_args=["-Wl,-rpath," + libdir]
