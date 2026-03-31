@@ -23,7 +23,7 @@
 #include "axom/primal/geometry/BoundingBox.hpp"
 
 // For NURBSCurveGWNCache objects
-#include "axom/primal/operators/detail/winding_number_3d_memoization.hpp"
+#include "axom/primal/operators/detail/winding_number_2d_memoization.hpp"
 
 #include <vector>
 #include <ostream>

@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 /*!
- * \file evaluate_integral.hpp
+ * \file evaluate_integral_impl.hpp
  *
  * \brief Consists of methods that evaluate scalar-field integrals on curves and 
  *  regions defined by 2D curves, and vector-field integrals on curves
