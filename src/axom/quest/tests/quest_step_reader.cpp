@@ -168,9 +168,7 @@ void runStepFileTest(const std::string& stepFile, double deflection = 0.1)
   }
 
   const auto shapeBbox = stepReader.getBRepBoundingBox().scale(1.1);
-  auto bboxMin = shapeBbox.getMin();
-  auto bboxMax = shapeBbox.getMax();
-  const auto bboxDiag = bboxMax.range();
+  const auto bboxDiag = shapeBbox.range();
 
   axom::Array<primal::Point<double, 3>> query_arr;
   for(const double fx : {0.11, 0.251, 0.52, 0.731, 0.91})
@@ -179,9 +177,9 @@ void runStepFileTest(const std::string& stepFile, double deflection = 0.1)
     {
       for(const double fz : {0.105, 0.25, 0.5, 0.751, 0.901})
       {
-        query_arr.push_back(primal::Point<double, 3>({bboxMin[0] + fx * bboxDiag[0],
-                                                      bboxMin[1] + fy * bboxDiag[1],
-                                                      bboxMin[2] + fz * bboxDiag[2]}));
+        query_arr.push_back(primal::Point<double, 3>({shapeBbox.getMin()[0] + fx * bboxDiag[0],
+                                                      shapeBbox.getMin()[1] + fy * bboxDiag[1],
+                                                      shapeBbox.getMin()[2] + fz * bboxDiag[2]}));
       }
     }
   }
