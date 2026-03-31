@@ -60,17 +60,20 @@
  * \endcode
  *
  */
-#define SLIC_ERROR_IF(EXP, msg)                                   \
-  if(EXP)                                                         \
-  {                                                               \
-    std::ostringstream __oss;                                     \
-    __oss << msg;                                                 \
-    axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__); \
-    if(axom::slic::isAbortOnErrorsEnabled())                      \
-    {                                                             \
-      axom::slic::abort();                                        \
-    }                                                             \
-  }
+#define SLIC_ERROR_IF(EXP, msg)                                     \
+  do                                                                \
+  {                                                                 \
+    if(EXP)                                                         \
+    {                                                               \
+      std::ostringstream __oss;                                     \
+      __oss << msg;                                                 \
+      axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__); \
+      if(axom::slic::isAbortOnErrorsEnabled())                      \
+      {                                                             \
+        axom::slic::abort();                                        \
+      }                                                             \
+    }                                                               \
+  } while(axom::slic::detail::false_value)
 
 /*!
  * \def SLIC_ERROR_ROOT( msg )
