@@ -1146,6 +1146,17 @@ TEST(core_array, checkResize)
 }
 
 //------------------------------------------------------------------------------
+TEST(core_array, insertZeroCountNullptrDoesNotAssert)
+{
+  axom::Array<int> v(0, 1);
+  v.push_back(10);
+  // This should not assert
+  v.insert(1, 0, static_cast<const int*>(nullptr));
+  EXPECT_EQ(v.size(), 1);
+  EXPECT_EQ(v[0], 10);
+}
+
+//------------------------------------------------------------------------------
 TEST(core_array_DeathTest, checkResize)
 {
   constexpr axom::IndexType ZERO = 0;

@@ -1428,7 +1428,7 @@ Array<T, DIM, SPACE, StoragePolicy>::insert(Array<T, DIM, SPACE, StoragePolicy>:
 template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
 inline void Array<T, DIM, SPACE, StoragePolicy>::insert(IndexType pos, IndexType n, const T* values)
 {
-  assert(values != nullptr);
+  assert(n == 0 || values != nullptr);
   reserveForInsert(n, pos);
   m_arrayOps.fill_range(m_data, pos, n, values, MemorySpace::Dynamic);
 }
