@@ -302,16 +302,16 @@ class NURBSPatchCacheManager
 {
   using NURBSCache = axom::primal::detail::NURBSPatchGWNCache<double>;
   using NURBSCacheArray = axom::Array<NURBSCache>;
-  using NURBSCacheArrayView = axom::ArrayView<const NURBSCache>;
+  using NURBSCacheArrayView = axom::ArrayView<NURBSCache>;
 
-  using PatchArrayView = axom::ArrayView<const axom::primal::NURBSPatch<double, 3>>;
+  using PatchArrayView = axom::ArrayView<axom::primal::NURBSPatch<double, 3>>;
 
 public:
   NURBSPatchCacheManager() = default;
 
-  NURBSPatchCacheManager(const PatchArrayView& patchs)
+  NURBSPatchCacheManager(PatchArrayView patchs)
   {
-    for(const auto& patch : patchs)
+    for(auto& patch : patchs)
     {
       m_nurbs_caches.push_back(NURBSCache(patch));
     }
@@ -327,7 +327,7 @@ public:
   };
 
   /// Return a view of this manager to pass into a device function.
-  View view() const { return View {m_nurbs_caches.view()}; }
+  View view() { return View {m_nurbs_caches.view()}; }
 
   /// Return if the underlying array is empty
   bool empty() const { return m_nurbs_caches.empty(); }
@@ -350,15 +350,15 @@ class NURBSPatchCacheManagerOMP
 {
   using NURBSCache = axom::primal::detail::NURBSPatchGWNCache<double>;
   using NURBSCachePerThreadArray = axom::Array<axom::Array<NURBSCache>>;
-  using NURBSCachePerThreadArrayView = axom::ArrayView<const axom::Array<NURBSCache>>;
-  using NURBSCacheArrayView = axom::ArrayView<const NURBSCache>;
+  using NURBSCachePerThreadArrayView = axom::ArrayView<axom::Array<NURBSCache>>;
+  using NURBSCacheArrayView = axom::ArrayView<NURBSCache>;
 
-  using PatchArrayView = axom::ArrayView<const axom::primal::NURBSPatch<double, 3>>;
+  using PatchArrayView = axom::ArrayView<axom::primal::NURBSPatch<double, 3>>;
 
 public:
   NURBSPatchCacheManagerOMP() = default;
 
-  NURBSPatchCacheManagerOMP(const PatchArrayView& patches)
+  NURBSPatchCacheManagerOMP(PatchArrayView patches)
   {
     const int nt = omp_get_max_threads();
     m_nurbs_caches.resize(nt);
@@ -395,7 +395,7 @@ public:
   };
 
   /// Return a view of this manager to pass into a device function.
-  View view() const { return View {m_nurbs_caches.view()}; }
+  View view() { return View {m_nurbs_caches.view()}; }
 
   /// Return if the underlying array is empty
   bool empty() const { return m_nurbs_caches.empty(); }

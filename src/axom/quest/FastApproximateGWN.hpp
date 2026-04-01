@@ -126,6 +126,22 @@ public:
     compute_coefficients();
   }
 
+  /// Construct moments from a trimmed NURBS surface
+  explicit GWNMomentData(const axom::primal::NURBSPatch<T, 3>& a_patch)
+  {
+    // Track the centroid across the tree, and return the rest of the data
+    auto patch_data = a_patch.calculateSurfaceMoments(m_order);
+
+    for(int i = 0; i < NumberOfEntries; ++i) rm[i] = patch_data[i];
+
+    a = patch_data[39];
+    ax = patch_data[40];
+    ay = patch_data[41];
+    az = patch_data[42];
+
+    compute_coefficients();
+  }
+
   /// Construct moments from the endpoints of a 2D segment
   explicit GWNMomentData(const axom::primal::NURBSCurve<T, 2>& c)
     : GWNMomentData(c.getInitPoint(), c.getEndPoint())
@@ -409,7 +425,8 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
   };
 
   if constexpr(std::is_same_v<LeafGeom, axom::primal::Triangle<T, 3>> ||
-               std::is_same_v<LeafGeom, axom::primal::NURBSCurve<T, 2>>)
+               std::is_same_v<LeafGeom, axom::primal::NURBSCurve<T, 2>> ||
+               std::is_same_v<LeafGeom, axom::primal::detail::NURBSCurveGWNCache<T>>)
   {
     auto leaf_gwn = [&query, &gwn, leaf_objects_view, &wt](std::int32_t currentNode,
                                                            const std::int32_t* leafNodes) -> void {
@@ -426,6 +443,24 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
                                                            const std::int32_t* leafNodes) -> void {
       const auto idx = leafNodes[currentNode];
       gwn += axom::primal::winding_number(query, leaf_objects_view[idx], wt.edge_tol);
+    };
+
+    traverser.traverse_tree(query, leaf_gwn, bbContain);
+  }
+
+  if constexpr(std::is_same_v<LeafGeom, axom::primal::NURBSPatch<T, 3>> ||
+               std::is_same_v<LeafGeom, axom::primal::detail::NURBSPatchGWNCache<T>>)
+  {
+    auto leaf_gwn = [&query, &gwn, leaf_objects_view, &wt](std::int32_t currentNode,
+                                                           const std::int32_t* leafNodes) -> void {
+      const auto idx = leafNodes[currentNode];
+      gwn += axom::primal::winding_number(q,
+                                          leaf_objects_view[idx],
+                                          tol_copy.edge_tol,
+                                          tol_copy.ls_tol,
+                                          tol_copy.quad_tol,
+                                          tol_copy.disk_size,
+                                          tol_copy.EPS);
     };
 
     traverser.traverse_tree(query, leaf_gwn, bbContain);

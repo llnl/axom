@@ -285,11 +285,11 @@ void check_step_file_triangulation()
   const int query_order = 1;
 
   // Generate three query grids and fields
-  axom::Array<mfem::DataCollection> dc(0, 3);
-  std::string names[] = {"direct", "tri", "tri_fast"};
-  for(int i = 0; i < 3; ++i)
+  constexpr int num_queries = 6;
+  axom::Array<mfem::DataCollection> dc(0, num_queries);
+  for(int i = 0; i < num_queries; ++i)
   {
-    dc.emplace_back(axom::fmt::format("gwn_{}", names[i]));
+    dc.emplace_back(axom::fmt::format("gwn_method_{}", i));
     axom::quest::generate_gwn_query_mesh(dc[i],
                                          shape_bbox,
                                          std::vector<double> {},
@@ -300,9 +300,10 @@ void check_step_file_triangulation()
 
   // Create tolerance object
   axom::primal::WindingTolerances tol;
-  constexpr bool useDirectTriangle = true;
+  constexpr bool useDirectEvaluation = true;
+  constexpr bool useMemoization = true;
 
-  //// Run three different kinds of GWN query ////
+  //// Run six different kinds of GWN query ////
   // We expect all three fields to return the same values in this case because
   //  of the specific arrangement of query points and triangulation.
   // In general, triangulating the shape can result in different GWN values
@@ -310,34 +311,44 @@ void check_step_file_triangulation()
 
   // Direct
   SLIC_INFO("Testing Direct Evaluation");
-  axom::quest::DirectGWN3D<ExecSpace> gwn_direct {};
-  gwn_direct.preprocess(patches);
-  gwn_direct.query(dc[0], tol);
+  axom::quest::NURBSPatchGWNQuery<ExecSpace> gwn_patches {};
+  gwn_patches.preprocess(patches, useDirectEvaluation, !useMemoization);
+  gwn_patches.query(dc[0], tol);
 
-  // Triangulated
-  SLIC_INFO("Testing Direct Evaluation of Polyline");
-  axom::quest::TriangleGWN3D<ExecSpace, 0> gwn_tri {};
-  gwn_tri.preprocess(&tri_mesh, useDirectTriangle);
-  gwn_tri.query(dc[1], tol);
+  axom::quest::NURBSPatchGWNQuery<ExecSpace> gwn_patches_memoized {};
+  gwn_patches_memoized.preprocess(patches, useDirectEvaluation, useMemoization);
+  gwn_patches_memoized.query(dc[1], tol);
 
-  // Triangulated, fast approximation
-  SLIC_INFO("Testing Fast-Approximate Evaluation of Polyline");
-  axom::quest::TriangleGWN3D<ExecSpace, 0> gwn_tri_fast {};
-  gwn_tri_fast.preprocess(&tri_mesh, !useDirectTriangle);
-  gwn_tri_fast.query(dc[2], tol);
+  axom::quest::NURBSPatchGWNQuery<ExecSpace, 0> gwn_patches_fast {};
+  gwn_patches_fast.preprocess(patches, !useDirectEvaluation, !useMemoization);
+  gwn_patches_fast.query(dc[2], tol);
+
+  axom::quest::NURBSPatchGWNQuery<ExecSpace, 0> gwn_patches_fast_memoized {};
+  gwn_patches_fast_memoized.preprocess(patches, !useDirectEvaluation, useMemoization);
+  gwn_patches_fast_memoized.query(dc[3], tol);
+
+  SLIC_INFO("Testing Linearization Evaluation");
+  axom::quest::TriangleGWNQuery<ExecSpace> gwn_theater {};
+  gwn_theater.preprocess(&tri_mesh, useDirectEvaluation);
+  gwn_theater.query(dc[4], tol);
+
+  axom::quest::TriangleGWNQuery<ExecSpace, 0> gwn_theater_fast {};
+  gwn_theater_fast.preprocess(&tri_mesh, !useDirectEvaluation);
+  gwn_theater_fast.query(dc[5], tol);
 
   // Compare the in-out values between the three fields
   const auto *query_mesh = dc[0].GetMesh();
   const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
 
   auto &inout_direct = *dc[0].GetField("inout");
-  auto &inout_tri = *dc[1].GetField("inout");
-  auto &inout_tri_fast = *dc[2].GetField("inout");
-
-  for(int i = 0; i < num_query_points; ++i)
+  for(int N = 1; N < num_queries; ++N)
   {
-    EXPECT_EQ(inout_direct[i], inout_tri[i]);
-    EXPECT_EQ(inout_direct[i], inout_tri_fast[i]);
+    auto &inout_other = *dc[N].GetField("inout");
+
+    for(int i = 0; i < num_query_points; ++i)
+    {
+      EXPECT_EQ(inout_direct[i], inout_other[i]);
+    }
   }
 }
 #endif

@@ -50,31 +50,31 @@ class Input
 {
 public:
   std::string inputFile;
-  std::string outputPrefix {"winding3d"};
+  std::string outputPrefix{ "winding3d" };
 
-  bool verbose {false};
-  std::string annotationMode {"none"};
-  bool memoized {true};
-  bool vis {true};
-  bool validate {false};
-  bool stats {false};
+  bool verbose{ false };
+  std::string annotationMode{ "none" };
+  bool memoized{ true };
+  bool vis{ true };
+  bool validate{ false };
+  bool stats{ false };
 
   axom::runtime_policy::Policy policy = RuntimePolicy::seq;
 
-  const std::array<std::string, 2> valid_algorithms {"direct", "fast-approximation"};
-  std::string algorithm {valid_algorithms[1]};  // fast-approximation
+  const std::array<std::string, 2> valid_algorithms{ "direct", "fast-approximation" };
+  std::string algorithm{ valid_algorithms[1] };  // fast-approximation
 
-  bool triangulate {false};
-  double linear_deflection {0.1};
-  double angular_deflection {0.5};
-  bool deflection_is_relative {false};
-  int approximation_order {2};
+  bool triangulate{ false };
+  double linear_deflection{ 0.1 };
+  double angular_deflection{ 0.5 };
+  bool deflection_is_relative{ false };
+  int approximation_order{ 2 };
 
   std::vector<double> boxMins;
   std::vector<double> boxMaxs;
   std::vector<int> boxResolution;
-  int queryOrder {1};
-  double sliceZ {0.0};
+  int queryOrder{ 1 };
+  double sliceZ{ 0.0 };
 
   primal::WindingTolerances tol;
 
@@ -101,8 +101,8 @@ public:
 
     // Options for triangulation of the input STEP file
     auto* triangulate_step_subcommand = app.add_subcommand("triangulate_step")
-                                          ->description("Options for triangulating NURBS surfaces")
-                                          ->fallthrough();
+      ->description("Options for triangulating NURBS surfaces")
+      ->fallthrough();
 
     triangulate_step_subcommand->add_option("--linear-deflection", linear_deflection)
       ->description(
@@ -119,19 +119,6 @@ public:
         "--is-relative",
         deflection_is_relative,
         "Is linear deflection in relative to local edge lengths (true) or mesh units (false)")
-      ->capture_default_str();
-
-    triangulate_step_subcommand->add_option("--algorithm", algorithm)
-      ->description(
-        "Use direct evaluation instead of fast, heirarchical approximation? (significantly "
-        "slower, slightly more precise)")
-      ->capture_default_str()
-      ->check(axom::CLI::IsMember(valid_algorithms));
-    triangulate_step_subcommand
-      ->add_option("--expansion-order",
-                   approximation_order,
-                   "The order of the Taylor expansion (lower is faster, less precise)")
-      ->expected(0, 2)
       ->capture_default_str();
 
     // Options for query tolerances; for now, only expose the line search and quadrature tolerances
@@ -154,6 +141,19 @@ public:
     app.add_option("--eps-tol", tol.EPS)
       ->description("Additional generic tolerance parameter")
       ->check(axom::CLI::PositiveNumber)
+      ->capture_default_str();
+
+    app.add_option("--algorithm", algorithm)
+      ->description(
+        "Use direct evaluation instead of fast, heirarchical approximation? (significantly "
+        "slower, slightly more precise)")
+      ->capture_default_str()
+      ->check(axom::CLI::IsMember(valid_algorithms));
+    app
+      .add_option("--expansion-order",
+        approximation_order,
+        "The order of the Taylor expansion (lower is faster, less precise)")
+      ->expected(0, 2)
       ->capture_default_str();
 
 #ifdef AXOM_USE_CALIPER
@@ -179,11 +179,11 @@ public:
       app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
 
     auto* minbb = query_mesh_subcommand->add_option("--min", boxMins)
-                    ->description("Min bounds for box mesh (x,y[,z])")
-                    ->expected(2, 3);
+      ->description("Min bounds for box mesh (x,y[,z])")
+      ->expected(2, 3);
     auto* maxbb = query_mesh_subcommand->add_option("--max", boxMaxs)
-                    ->description("Max bounds for box mesh (x,y[,z])")
-                    ->expected(2, 3);
+      ->description("Max bounds for box mesh (x,y[,z])")
+      ->expected(2, 3);
     query_mesh_subcommand->add_option("--res", boxResolution)
       ->description("Resolution of the box mesh (i,j[,k])")
       ->expected(2, 3)
@@ -201,21 +201,21 @@ public:
 
     // let's also check that they're consistently sized w/ each other and with the resolution
     query_mesh_subcommand->callback([&]() {
-      if(const bool have_box = (minbb->count() > 0 || maxbb->count() > 0); have_box)
+      if (const bool have_box = (minbb->count() > 0 || maxbb->count() > 0); have_box)
       {
-        if(boxMins.size() != boxMaxs.size())
+        if (boxMins.size() != boxMaxs.size())
         {
           throw axom::CLI::ValidationError(
             "--min/--max",
             axom::fmt::format("must have the same number of values (2 for 2D or 3 for 3D). "
-                              "Got --min={}, --max={}",
-                              boxMins.size(),
-                              boxMaxs.size()));
+              "Got --min={}, --max={}",
+              boxMins.size(),
+              boxMaxs.size()));
         }
 
-        for(size_t d = 0; d < boxMins.size(); ++d)
+        for (size_t d = 0; d < boxMins.size(); ++d)
         {
-          if(boxMins[d] >= boxMaxs[d])
+          if (boxMins[d] >= boxMaxs[d])
           {
             throw axom::CLI::ValidationError(
               "--min/--max",
@@ -227,7 +227,7 @@ public:
           }
         }
 
-        if(boxResolution.size() != boxMins.size())
+        if (boxResolution.size() != boxMins.size())
         {
           throw axom::CLI::ValidationError(
             "--res",
@@ -237,7 +237,7 @@ public:
               boxMins.size()));
         }
       }
-    });
+      });
 
     app.parse(argc, argv);
 
@@ -245,44 +245,44 @@ public:
   }
 };
 
-using GWNQueryType = std::variant<axom::quest::DirectGWN3D<axom::SEQ_EXEC>,
-                                  axom::quest::TriangleGWN3D<axom::SEQ_EXEC, 0>,
-                                  axom::quest::TriangleGWN3D<axom::SEQ_EXEC, 1>,
-                                  axom::quest::TriangleGWN3D<axom::SEQ_EXEC, 2>
+using GWNQueryType = std::variant<axom::quest::NURBSPatchGWNQuery<axom::SEQ_EXEC>,
+  axom::quest::TriangleGWNQuery<axom::SEQ_EXEC, 0>,
+  axom::quest::TriangleGWNQuery<axom::SEQ_EXEC, 1>,
+  axom::quest::TriangleGWNQuery<axom::SEQ_EXEC, 2>
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
-                                  ,
-                                  axom::quest::DirectGWN3D<axom::OMP_EXEC>,
-                                  axom::quest::TriangleGWN3D<axom::OMP_EXEC, 0>,
-                                  axom::quest::TriangleGWN3D<axom::OMP_EXEC, 1>,
-                                  axom::quest::TriangleGWN3D<axom::OMP_EXEC, 2>
+  ,
+  axom::quest::NURBSPatchGWNQuery<axom::OMP_EXEC>,
+  axom::quest::TriangleGWNQuery<axom::OMP_EXEC, 0>,
+  axom::quest::TriangleGWNQuery<axom::OMP_EXEC, 1>,
+  axom::quest::TriangleGWNQuery<axom::OMP_EXEC, 2>
 #endif
-                                  >;
+>;
 
 template <typename ExecSpace>
 GWNQueryType pick_gwn_method(bool triangulate, int approximation_order)
 {
-  if(triangulate)
+  if (triangulate)
   {
-    if(approximation_order == 0)
+    if (approximation_order == 0)
     {
-      return axom::quest::TriangleGWN3D<ExecSpace, 0> {};
+      return axom::quest::TriangleGWNQuery<ExecSpace, 0> {};
     }
-    else if(approximation_order == 1)
+    else if (approximation_order == 1)
     {
-      return axom::quest::TriangleGWN3D<ExecSpace, 1> {};
+      return axom::quest::TriangleGWNQuery<ExecSpace, 1> {};
     }
     else  // approximation_order == 2
     {
-      return axom::quest::TriangleGWN3D<ExecSpace, 2> {};
+      return axom::quest::TriangleGWNQuery<ExecSpace, 2> {};
     }
   }
 
-  return axom::quest::DirectGWN3D<ExecSpace> {};
+  return axom::quest::NURBSPatchGWNQuery<ExecSpace> {};
 }
 
 GWNQueryType make_gwn_query(axom::runtime_policy::Policy policy,
-                            bool triangulate,
-                            int approximation_order)
+  bool triangulate,
+  int approximation_order)
 {
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
   if(policy == RuntimePolicy::omp)
@@ -302,15 +302,15 @@ int main(int argc, char** argv)
 
   // Parse command line arguments into input
   Input input;
-  axom::CLI::App app {
+  axom::CLI::App app{
     "Load a STEP file containing trimmed NURBS patches "
-    "and optionally generate a query grid of generalized winding numbers."};
+    "and optionally generate a query grid of generalized winding numbers." };
 
   try
   {
     input.parse(argc, argv, app);
   }
-  catch(const axom::CLI::ParseError& e)
+  catch (const axom::CLI::ParseError& e)
   {
     return app.exit(e);
   }
@@ -325,7 +325,7 @@ int main(int argc, char** argv)
   axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tri_mesh(3, axom::mint::TRIANGLE);
   axom::Array<NURBSPatch3D> patches;
 
-  if(axom::utilities::string::endsWith(input.inputFile, ".stl"))
+  if (axom::utilities::string::endsWith(input.inputFile, ".stl"))
   {
     AXOM_ANNOTATE_SCOPE("read_stl");
 
@@ -335,7 +335,7 @@ int main(int argc, char** argv)
     axom::utilities::Timer read_timer(true);
     const int ret = stl_reader.read();
 
-    if(ret != 0)
+    if (ret != 0)
     {
       SLIC_ERROR(axom::fmt::format("Failed to read STL file '{}'", input.inputFile));
       return 1;
@@ -348,15 +348,15 @@ int main(int argc, char** argv)
     axom::mint::for_all_nodes<axom::SEQ_EXEC, axom::mint::xargs::xyz>(
       &tri_mesh,
       AXOM_LAMBDA(axom::IndexType, double x, double y, double z) {
-        shape_bbox_ptr->addPoint(Point3D {x, y, z});
-      });
+      shape_bbox_ptr->addPoint(Point3D{ x, y, z });
+    });
 
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Loaded {} triangles in {:.3Lf} seconds",
-                                stl_reader.getNumFaces(),
-                                read_timer.elapsed()));
+      "Loaded {} triangles in {:.3Lf} seconds",
+      stl_reader.getNumFaces(),
+      read_timer.elapsed()));
   }
-  else if(axom::utilities::string::endsWith(input.inputFile, ".step"))
+  else if (axom::utilities::string::endsWith(input.inputFile, ".step"))
   {
     AXOM_ANNOTATE_SCOPE("read_step");
 
@@ -366,7 +366,7 @@ int main(int argc, char** argv)
 
     axom::utilities::Timer read_timer(true);
     const int ret = step_reader.read(input.validate);
-    if(ret != 0)
+    if (ret != 0)
     {
       SLIC_ERROR(axom::fmt::format("Failed to read STEP file '{}'", input.inputFile));
       return 1;
@@ -376,7 +376,7 @@ int main(int argc, char** argv)
     shape_bbox = step_reader.getBRepBoundingBox();
 
     int num_trimming_curves = 0;
-    for(const auto& patch : step_reader.getPatchArray())
+    for (const auto& patch : step_reader.getPatchArray())
     {
       num_trimming_curves += patch.getNumTrimmingCurves();
     }
@@ -390,17 +390,17 @@ int main(int argc, char** argv)
       num_trimming_curves,
       read_timer.elapsed()));
 
-    if(input.triangulate)
+    if (input.triangulate)
     {
       read_timer.reset();
       read_timer.start();
       AXOM_ANNOTATE_SCOPE("triangulation");
       const int tc = step_reader.getTriangleMesh(&tri_mesh,
-                                                 input.linear_deflection,
-                                                 input.angular_deflection,
-                                                 input.deflection_is_relative,
-                                                 /* trimmed */ true);
-      if(tc != 0)
+        input.linear_deflection,
+        input.angular_deflection,
+        input.deflection_is_relative,
+        /* trimmed */ true);
+      if (tc != 0)
       {
         SLIC_ERROR("Failed to triangulate STEP geometry.");
         return 1;
@@ -409,12 +409,12 @@ int main(int argc, char** argv)
 
       SLIC_INFO(
         axom::fmt::format(axom::utilities::locale(),
-                          "Triangulated geometry with deflection {} and angular deflection {}"
-                          " containing {:L} triangles in {:.3Lf} seconds",
-                          input.linear_deflection,
-                          input.angular_deflection,
-                          tri_mesh.getNumberOfCells(),
-                          read_timer.elapsed()));
+          "Triangulated geometry with deflection {} and angular deflection {}"
+          " containing {:L} triangles in {:.3Lf} seconds",
+          input.linear_deflection,
+          input.angular_deflection,
+          tri_mesh.getNumberOfCells(),
+          read_timer.elapsed()));
     }
     else
     {
@@ -427,7 +427,7 @@ int main(int argc, char** argv)
   }
 
   // Early return if user didn't set up a query mesh
-  if(input.boxResolution.empty())
+  if (input.boxResolution.empty())
   {
     return 0;
   }
@@ -441,21 +441,21 @@ int main(int argc, char** argv)
 
     // Generate the query grid and fields
     quest::generate_gwn_query_mesh(dc,
-                                   shape_bbox,
-                                   input.boxMins,
-                                   input.boxMaxs,
-                                   input.boxResolution,
-                                   input.queryOrder);
+      shape_bbox,
+      input.boxMins,
+      input.boxMaxs,
+      input.boxResolution,
+      input.queryOrder);
 
     // Run the preprocess
     std::visit(
       [&](auto& wn) {
         using T = std::decay_t<decltype(wn)>;
-        if constexpr(quest::gwn_input_type_v<T> == quest::GWNInputType::Surface)
+        if constexpr (quest::gwn_input_type_v<T> == quest::GWNInputType::Surface)
         {
-          wn.preprocess(patches, input.memoized);
+          wn.preprocess(patches, input.algorithm == "direct", input.memoized);
         }
-        else if constexpr(quest::gwn_input_type_v<T> == quest::GWNInputType::Triangulation)
+        else if constexpr (quest::gwn_input_type_v<T> == quest::GWNInputType::Triangulation)
         {
           wn.preprocess(&tri_mesh, input.algorithm == "direct");
         }
@@ -467,7 +467,7 @@ int main(int argc, char** argv)
   }
 
   // Postprocess query results: norms, ranges, and integral statistics
-  if(input.stats)
+  if (input.stats)
   {
     AXOM_ANNOTATE_SCOPE("postprocess");
 
@@ -480,14 +480,14 @@ int main(int argc, char** argv)
 
     std::int64_t pos_inout_dofs = 0;
     std::int64_t neg_inout_dofs = 0;
-    for(int i = 0; i < inout.Size(); ++i)
+    for (int i = 0; i < inout.Size(); ++i)
     {
       const double v = inout[i];
-      if(v > 0.0)
+      if (v > 0.0)
       {
         ++pos_inout_dofs;
       }
-      else if(v < 0.0)
+      else if (v < 0.0)
       {
         ++neg_inout_dofs;
       }
@@ -495,11 +495,11 @@ int main(int argc, char** argv)
 
     SLIC_INFO(
       axom::fmt::format("WN_STATS: dof_l2={:.6e} dof_linf={:.6e} l2={:.6e} min={:.6e} max={:.6e}",
-                        winding_stats.dof_l2,
-                        winding_stats.dof_linf,
-                        winding_stats.l2,
-                        winding_stats.min,
-                        winding_stats.max));
+        winding_stats.dof_l2,
+        winding_stats.dof_linf,
+        winding_stats.l2,
+        winding_stats.min,
+        winding_stats.max));
 
     SLIC_INFO(axom::fmt::format(
       "INOUT_STATS: dof_l2={:.6e} dof_linf={:.6e} l2={:.6e} min={:.6e} max={:.6e} volume={:.6e} "
@@ -512,13 +512,13 @@ int main(int argc, char** argv)
       inout_integrals.integral,
       inout_integrals.domain_volume,
       (inout_integrals.domain_volume > 0.0 ? inout_integrals.integral / inout_integrals.domain_volume
-                                           : 0.0),
+        : 0.0),
       pos_inout_dofs,
       neg_inout_dofs));
   }
 
   // Save the query mesh and fields to disk using a format that can be viewed in VisIt
-  if(input.vis)
+  if (input.vis)
   {
     AXOM_ANNOTATE_SCOPE("dump_mesh");
 
@@ -528,8 +528,8 @@ int main(int argc, char** argv)
     windingDC.Save();
 
     SLIC_INFO(axom::fmt::format("Outputting generated mesh '{}' to '{}'",
-                                windingDC.GetCollectionName(),
-                                axom::utilities::filesystem::getCWD()));
+      windingDC.GetCollectionName(),
+      axom::utilities::filesystem::getCWD()));
   }
 
   return 0;
