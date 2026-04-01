@@ -159,20 +159,20 @@ public:
 
     AXOM_ANNOTATE_SCOPE("preprocessing");
 
-    if(use_memoization)
-    {
-      stage_timer.start();
-      {
-        AXOM_ANNOTATE_SCOPE("cache_initialization");
-        m_nurbs_cache_mgr = NURBSCacheManager(m_input_curves_view);
-      }
-      stage_timer.stop();
-      SLIC_INFO(axom::fmt::format("  Preprocessing stage (cache initialization): {} s",
-                                  stage_timer.elapsedTimeInSec()));
-    }
-
     if(!use_direct_eval)
     {
+      stage_timer.reset();
+      stage_timer.start();
+      {
+        AXOM_ANNOTATE_SCOPE("subdivision");
+        m_subdivided_curves = subdivide_curves(m_input_curves_view, 0.1);
+        m_processed_curves_view = m_subdivided_curves.view();
+      }
+
+      stage_timer.stop();
+      SLIC_INFO(axom::fmt::format("  Preprocessing stage (subdivision): {} s",
+                                  stage_timer.elapsedTimeInSec()));
+
       stage_timer.reset();
       stage_timer.start();
       {
@@ -205,6 +205,24 @@ public:
       }
       stage_timer.stop();
       SLIC_INFO(axom::fmt::format("  Preprocessing stage (moment precomputation): {} s",
+                                  stage_timer.elapsedTimeInSec()));
+    }
+    else
+    {
+      // Without fast-approximation, processing is unnecessary
+      m_processed_curves_view = m_input_curves_view;
+    }
+
+    if(use_memoization)
+    {
+      stage_timer.reset();
+      stage_timer.start();
+      {
+        AXOM_ANNOTATE_SCOPE("cache_initialization");
+        m_nurbs_cache_mgr = NURBSCacheManager(m_processed_curves_view);
+      }
+      stage_timer.stop();
+      SLIC_INFO(axom::fmt::format("  Preprocessing stage (cache initialization): {} s",
                                   stage_timer.elapsedTimeInSec()));
     }
 
@@ -344,6 +362,10 @@ private:
   // For the input curves/BVH leaf nodes
   axom::ArrayView<const CurveType> m_input_curves_view;
   NURBSCacheManager m_nurbs_cache_mgr;
+
+  // For preprocessed curves
+  axom::Array<CurveType> m_subdivided_curves;
+  axom::ArrayView<const CurveType> m_processed_curves_view;
 
   // Only needed for fast approximation method
   axom::Array<GWNMoments> m_internal_moments;

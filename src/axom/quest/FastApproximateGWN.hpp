@@ -469,6 +469,77 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
   return gwn;
 }
 
+template <typename T>
+axom::Array<primal::NURBSCurve<T, 2>> subdivide_curves(
+  const axom::ArrayView<const primal::NURBSCurve<T, 2>>& input_curves_view,
+  double bbox_threshold,
+  int npasses = 10)
+{
+  using BoxType = primal::BoundingBox<T, 2>;
+  using NURBSType = primal::NURBSCurve<T, 2>;
+  using BezierType = primal::BezierCurve<T, 2>;
+
+  // Compute a bounding box of all the curves
+  axom::Array<BezierType> candidates;
+  BoxType total_bbox;
+
+  // For NURBSCurves, first do a pass of Bezier extraction
+  for(auto& curv : input_curves_view)
+  {
+    for(auto& bez : curv.extractBezier())
+    {
+      candidates.push_back(bez);
+      total_bbox.addBox(bez.boundingBox());
+    }
+  }
+
+  // Iterate over all the curves until none have a bounding box
+  //  bigger than threshold * (total_bbox's size)
+  for(int i = 0; i < npasses; ++i)
+  {
+    axom::Array<BezierType> subdivisions;
+    subdivisions.reserve(candidates.size() * 3 / 2);
+
+    BoxType new_bbox;
+
+    // If any patch is bigger than the threshold, subdivide it,
+    //  and add it to the next level. Repeat as needed.
+    const double max_range_norm = bbox_threshold * total_bbox.range().norm();
+    for(const auto& candidate : candidates)
+    {
+      if(candidate.boundingBox().range().norm() < max_range_norm)
+      {
+        new_bbox.addBox(candidate.boundingBox());
+        subdivisions.push_back(candidate);
+        continue;
+      }
+
+      BezierType subcurves[2];
+      candidate.split(0.5, subcurves[0], subcurves[1]);
+      for(int si = 0; si < 2; si++)
+      {
+        subdivisions.emplace_back(std::move(subcurves[si]));
+        new_bbox.addBox(subdivisions.back().boundingBox());
+      }
+    }
+
+    // Break if no additional subdivisions are made
+    if(candidates.size() == subdivisions.size()) break;
+
+    candidates.swap(subdivisions);
+    total_bbox = new_bbox;
+  }
+
+  // Do one final pass to turn the array of candidates into NURBS
+  axom::Array<NURBSType> candidates_nurbs(0, candidates.size());
+  for(auto& c : candidates)
+  {
+    candidates_nurbs.emplace_back(NURBSType(c));
+  }
+
+  return candidates_nurbs;
+}
+
 }  // end namespace quest
 }  // end namespace axom
 
