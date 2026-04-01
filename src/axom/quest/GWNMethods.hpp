@@ -616,7 +616,7 @@ public:
       {
         AXOM_ANNOTATE_SCOPE("moment_precomputation");
         auto compute_moments = [=](std::int32_t currentNode,
-                                              const std::int32_t* leafNodes) -> GWNMoments {
+                                   const std::int32_t* leafNodes) -> GWNMoments {
           const auto idx = leafNodes[currentNode];
           return GWNMoments(m_input_patches_view[idx]);  // TODO: Avoid repeat normal calculation
         };
@@ -645,9 +645,7 @@ public:
    * \param [in] slice_z If the dc mesh is 2D, the GWN will be evaluated on a slice 
    *                      parallel to the x-y plane with this offset on the z-axis
    */
-  void query(mfem::DataCollection& dc,
-             const primal::WindingTolerances& tol,
-             const double slice_z = 0.0) const
+  void query(mfem::DataCollection& dc, const primal::WindingTolerances& tol, const double slice_z = 0.0)
   {
     if(!dc.HasField("winding") || !dc.HasField("inout"))
     {

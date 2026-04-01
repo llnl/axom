@@ -451,13 +451,13 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
     auto leaf_gwn = [&query, &gwn, leaf_objects_view, &wt](std::int32_t currentNode,
                                                            const std::int32_t* leafNodes) -> void {
       const auto idx = leafNodes[currentNode];
-      gwn += axom::primal::winding_number(q,
+      gwn += axom::primal::winding_number(query,
                                           leaf_objects_view[idx],
-                                          tol_copy.edge_tol,
-                                          tol_copy.ls_tol,
-                                          tol_copy.quad_tol,
-                                          tol_copy.disk_size,
-                                          tol_copy.EPS);
+                                          wt.edge_tol,
+                                          wt.ls_tol,
+                                          wt.quad_tol,
+                                          wt.disk_size,
+                                          wt.EPS);
     };
 
     traverser.traverse_tree(query, leaf_gwn, bbContain);
