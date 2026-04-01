@@ -61,7 +61,7 @@ struct MiniTriangleGWN3D
     BBox3D* shapeBBoxPtr = &shapeBBox;
     mint::for_all_nodes<axom::SEQ_EXEC, mint::xargs::xyz>(
       &mesh,
-      AXOM_LAMBDA(axom::IndexType /*nodeIdx*/, double x, double y, double z) {
+      AXOM_LAMBDA(axom::IndexType AXOM_UNUSED_PARAM(nodeIdx), double x, double y, double z) {
         shapeBBoxPtr->addPoint(Point3D {x, y, z});
       });
 
@@ -76,7 +76,7 @@ struct MiniTriangleGWN3D
       &mesh,
       AXOM_LAMBDA(axom::IndexType cellIdx,
                   const axom::numerics::Matrix<double>& coords,
-                  const axom::IndexType* /*nodeIds*/) {
+                  const axom::IndexType* AXOM_UNUSED_PARAM(nodeIds)) {
         // clang-format off
         trisView[cellIdx] = Triangle3D {Point3D {(coords(0, 0) - ctr[0]) / scl, (coords(1, 0) - ctr[1]) / scl, (coords(2, 0) - ctr[2]) / scl},
                                         Point3D {(coords(0, 1) - ctr[0]) / scl, (coords(1, 1) - ctr[1]) / scl, (coords(2, 1) - ctr[2]) / scl},
