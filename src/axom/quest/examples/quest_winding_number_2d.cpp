@@ -413,8 +413,9 @@ public:
 using GWNQueryType = std::variant<axom::quest::DirectGWN2D<axom::SEQ_EXEC>,
                                   axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 0>,
                                   axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 1>,
-                                  axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 2>,
+                                  axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 2>
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+                                  ,
                                   axom::quest::DirectGWN2D<axom::OMP_EXEC>,
                                   axom::quest::PolylineGWN2D<axom::OMP_EXEC, 0>,
                                   axom::quest::PolylineGWN2D<axom::OMP_EXEC, 1>,
