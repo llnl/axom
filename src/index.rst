@@ -129,7 +129,7 @@ Component Level Dependencies
 Axom has the following inter-component dependencies:
 
 - Core has no dependencies and the other components depend on Core
-- Bump depends on Slic and Primal.
+- Bump depends on Sidre, Slic, Spin, and Primal.
 - Slic optionally depends on Lumberjack
 - Slam, Spin, Primal, Mint, Quest, and Sidre depend on Slic
 - Mint depends on Slam, and optionally Sidre
