@@ -448,11 +448,13 @@ GWNQueryType make_gwn_query(axom::runtime_policy::Policy policy,
   bool linearize_curves,
   int approximation_order)
 {
-  if (policy == RuntimePolicy::omp)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+  if(policy == RuntimePolicy::omp)
   {
     SLIC_INFO(axom::fmt::format("Using policy omp with {} threads", omp_get_max_threads()));
     return pick_gwn_method<axom::OMP_EXEC>(linearize_curves, approximation_order);
   }
+#endif
 
   SLIC_INFO("Using policy seq");
   return pick_gwn_method<axom::SEQ_EXEC>(linearize_curves, approximation_order);
