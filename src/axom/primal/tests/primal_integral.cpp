@@ -640,9 +640,11 @@ TEST(primal_integral, check_axom_mfem_quadrature_values)
     for(int j = 0; j < npts; ++j)
     {
       EXPECT_NEAR(axom_rule.node(j), mfem_rule.IntPoint(j).x, axom::numeric_limits<double>::epsilon());
+
+      // Relax tolerance slightly for intel-oneapi
       EXPECT_NEAR(axom_rule.weight(j),
                   mfem_rule.IntPoint(j).weight,
-                  axom::numeric_limits<double>::epsilon());
+                  10 * axom::numeric_limits<double>::epsilon());
     }
   }
 }
