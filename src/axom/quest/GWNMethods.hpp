@@ -164,7 +164,7 @@ public:
       stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("cache_initialization");
-        m_nurbs_cache_mgr = NURBSCacheManager(input_curves);
+        m_nurbs_cache_mgr = NURBSCacheManager(m_input_curves_view);
       }
       stage_timer.stop();
       SLIC_INFO(axom::fmt::format("  Preprocessing stage (cache initialization): {} s",
@@ -258,7 +258,7 @@ public:
       if(m_bvh.isInitialized())
       {
         const auto traverser = m_bvh.getTraverser();
-        const auto internal_moments_view = m_internal_moments.view();
+        auto internal_moments_view = m_internal_moments.view();
 
         // Use fast-approximate, non-memoized form
         if(m_nurbs_cache_mgr.empty())
@@ -278,7 +278,7 @@ public:
         {
           const auto cache_mgr_view = m_nurbs_cache_mgr.view();
           axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
-            const auto nurbs_cache_view = cache_mgr_view.cache();
+            const auto nurbs_cache_view = cache_mgr_view.caches();
             const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
                                                                            traverser,
                                                                            nurbs_cache_view,
@@ -492,7 +492,7 @@ public:
       if(m_bvh.isInitialized())
       {
         const auto traverser = m_bvh.getTraverser();
-        const auto internal_moments_view = m_internal_moments.view();
+        auto internal_moments_view = m_internal_moments.view();
 
         axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
           const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
@@ -558,7 +558,6 @@ public:
 
   using PatchType = axom::primal::NURBSPatch<double, 3>;
   using PatchArrayType = axom::Array<PatchType>;
-  using NURBSCacheArray = axom::Array<axom::primal::detail::NURBSPatchGWNCache<double>>;
   using NURBSCacheManager = typename axom::primal::nurbs_cache_3d_traits<ExecSpace>::type;
 
   NURBSPatchGWNQuery() = default;
@@ -586,7 +585,7 @@ public:
       stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("cache_initialization");
-        m_nurbs_cache_mgr = NURBSCacheManager(input_patches);
+        m_nurbs_cache_mgr = NURBSCacheManager(m_input_patches_view);
       }
       stage_timer.stop();
       SLIC_INFO(axom::fmt::format("  Preprocessing stage (cache initialization): {} s",
@@ -595,7 +594,7 @@ public:
 
     if(!use_direct_eval)
     {
-      stage_timer.restart();
+      stage_timer.reset();
       stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("bvh_initialization");
@@ -616,15 +615,14 @@ public:
       stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("moment_precomputation");
-        auto patches_view = m_input_patches_view;
-        auto compute_moments = [patches_view](std::int32_t currentNode,
+        auto compute_moments = [=](std::int32_t currentNode,
                                               const std::int32_t* leafNodes) -> GWNMoments {
           const auto idx = leafNodes[currentNode];
-          return GWNMoments(patches_view[idx]);  // TODO: Avoid repeat normal calculation
+          return GWNMoments(m_input_patches_view[idx]);  // TODO: Avoid repeat normal calculation
         };
 
         const auto traverser = m_bvh.getTraverser();
-        m_internal_moments = traverser.reduce_tree<ExecSpace, GWNMoments>(compute_moments);
+        m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
       }
       stage_timer.stop();
       SLIC_INFO(axom::fmt::format("  Preprocessing stage (moment precomputation): {} s",
@@ -780,7 +778,7 @@ public:
 
 private:
   // For the input curves/BVH leaf nodes
-  axom::ArrayView<PatchType> m_input_patches_view;
+  axom::ArrayView<const PatchType> m_input_patches_view;
   NURBSCacheManager m_nurbs_cache_mgr;
 
   // Only needed for fast approximation method
@@ -958,7 +956,7 @@ public:
       if(m_bvh.isInitialized())
       {
         const auto traverser = m_bvh.getTraverser();
-        const auto internal_moments_view = m_internal_moments.view();
+        auto internal_moments_view = m_internal_moments.view();
 
         axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
           const double wn = axom::quest::fast_approximate_winding_number(scaled_query_point(index),

@@ -129,15 +129,12 @@ public:
   /// Construct moments from a trimmed NURBS surface
   explicit GWNMomentData(const axom::primal::NURBSPatch<T, 3>& a_patch)
   {
-    // Track the centroid across the tree, and return the rest of the data
-    auto patch_data = a_patch.calculateSurfaceMoments(m_order);
+    const auto patch_data = a_patch.calculateSurfaceMoments<ORD>();
 
-    for(int i = 0; i < NumberOfEntries; ++i) rm[i] = patch_data[i];
+    a = patch_data[0];
+    ap = axom::primal::Vector<T, 3> {patch_data[0], patch_data[1], patch_data[2]};
 
-    a = patch_data[39];
-    ax = patch_data[40];
-    ay = patch_data[41];
-    az = patch_data[42];
+    for(int i = 0; i < NumberOfEntries; ++i) rm[i] = patch_data[i + 3];
 
     compute_coefficients();
   }

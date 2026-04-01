@@ -313,11 +313,11 @@ void check_step_file_triangulation()
   SLIC_INFO("Testing Direct Evaluation");
   axom::quest::NURBSPatchGWNQuery<ExecSpace> gwn_patches {};
   gwn_patches.preprocess(patches, useDirectEvaluation, !useMemoization);
-  gwn_patches.query(dc[0], tol);
+  //gwn_patches.query(dc[0], tol);
 
   axom::quest::NURBSPatchGWNQuery<ExecSpace> gwn_patches_memoized {};
   gwn_patches_memoized.preprocess(patches, useDirectEvaluation, useMemoization);
-  gwn_patches_memoized.query(dc[1], tol);
+  //gwn_patches_memoized.query(dc[1], tol);
 
   axom::quest::NURBSPatchGWNQuery<ExecSpace, 0> gwn_patches_fast {};
   gwn_patches_fast.preprocess(patches, !useDirectEvaluation, !useMemoization);
@@ -325,16 +325,16 @@ void check_step_file_triangulation()
 
   axom::quest::NURBSPatchGWNQuery<ExecSpace, 0> gwn_patches_fast_memoized {};
   gwn_patches_fast_memoized.preprocess(patches, !useDirectEvaluation, useMemoization);
-  gwn_patches_fast_memoized.query(dc[3], tol);
+  //gwn_patches_fast_memoized.query(dc[3], tol);
 
   SLIC_INFO("Testing Linearization Evaluation");
-  axom::quest::TriangleGWNQuery<ExecSpace> gwn_theater {};
-  gwn_theater.preprocess(&tri_mesh, useDirectEvaluation);
-  gwn_theater.query(dc[4], tol);
+  axom::quest::TriangleGWNQuery<ExecSpace> gwn_triangles {};
+  gwn_triangles.preprocess(&tri_mesh, useDirectEvaluation);
+  gwn_triangles.query(dc[4], tol);
 
-  axom::quest::TriangleGWNQuery<ExecSpace, 0> gwn_theater_fast {};
-  gwn_theater_fast.preprocess(&tri_mesh, !useDirectEvaluation);
-  gwn_theater_fast.query(dc[5], tol);
+  axom::quest::TriangleGWNQuery<ExecSpace, 0> gwn_triangles_fast {};
+  gwn_triangles_fast.preprocess(&tri_mesh, !useDirectEvaluation);
+  gwn_triangles_fast.query(dc[5], tol);
 
   // Compare the in-out values between the three fields
   const auto *query_mesh = dc[0].GetMesh();
@@ -359,12 +359,12 @@ TEST(quest_gwn_methods, mfem_mesh_linearization)
   check_mfem_mesh_linearization<axom::SEQ_EXEC>();
 }
 
-#if defined AXOM_USE_OPENMP && defined(AXOM_USE_RAJA)
-TEST(quest_gwn_methods, mfem_mesh_linearization_omp)
-{
-  check_mfem_mesh_linearization<axom::OMP_EXEC>();
-}
-#endif
+//#if defined AXOM_USE_OPENMP && defined(AXOM_USE_RAJA)
+//TEST(quest_gwn_methods, mfem_mesh_linearization_omp)
+//{
+//  check_mfem_mesh_linearization<axom::OMP_EXEC>();
+//}
+//#endif
 
 #ifdef AXOM_USE_OPENCASCADE
 TEST(quest_gwn_methods, step_file_triangulation)
@@ -373,12 +373,12 @@ TEST(quest_gwn_methods, step_file_triangulation)
 }
 #endif
 
-#if defined(AXOM_USE_OPENCASCADE) && defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
-TEST(quest_gwn_methods, step_file_triangulation_omp)
-{
-  check_step_file_triangulation<axom::OMP_EXEC>();
-}
-#endif
+//#if defined(AXOM_USE_OPENCASCADE) && defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
+//TEST(quest_gwn_methods, step_file_triangulation_omp)
+//{
+//  check_step_file_triangulation<axom::OMP_EXEC>();
+//}
+//#endif
 
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])

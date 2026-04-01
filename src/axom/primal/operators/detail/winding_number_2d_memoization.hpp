@@ -264,9 +264,9 @@ class NURBSCurveCacheManager
 {
   using NURBSCache = axom::primal::detail::NURBSCurveGWNCache<double>;
   using NURBSCacheArray = axom::Array<NURBSCache>;
-  using NURBSCacheArrayView = axom::ArrayView<NURBSCache>;
+  using NURBSCacheArrayView = axom::ArrayView<const NURBSCache>;
 
-  using CurveArrayView = axom::ArrayView<axom::primal::NURBSCurve<double, 2>>;
+  using CurveArrayView = axom::ArrayView<const axom::primal::NURBSCurve<double, 2>>;
 
 public:
   NURBSCurveCacheManager() = default;
@@ -289,7 +289,7 @@ public:
   };
 
   /// Return a view of this manager to pass into a device function.
-  View view() { return View {m_nurbs_caches.view()}; }
+  View view() const { return View {m_nurbs_caches.view()}; }
 
   /// Return if the underlying array is empty
   bool empty() const { return m_nurbs_caches.empty(); }
@@ -312,15 +312,15 @@ class NURBSCurveCacheManagerOMP
 {
   using NURBSCache = axom::primal::detail::NURBSCurveGWNCache<double>;
   using NURBSCachePerThreadArray = axom::Array<axom::Array<NURBSCache>>;
-  using NURBSCachePerThreadArrayView = axom::ArrayView<axom::Array<NURBSCache>>;
+  using NURBSCachePerThreadArrayView = axom::ArrayView<const axom::Array<NURBSCache>>;
   using NURBSCacheArrayView = axom::ArrayView<const NURBSCache>;
 
-  using CurveArrayView = axom::ArrayView<axom::primal::NURBSCurve<double, 2>>;
+  using CurveArrayView = axom::ArrayView<const axom::primal::NURBSCurve<double, 2>>;
 
 public:
   NURBSCurveCacheManagerOMP() = default;
 
-  NURBSCurveCacheManagerOMP(const CurveArrayView& curves, double bbExpansionAmount = 0.0)
+  NURBSCurveCacheManagerOMP(CurveArrayView curves, double bbExpansionAmount = 0.0)
   {
     const int nt = omp_get_max_threads();
     m_nurbs_caches.resize(nt);
@@ -351,7 +351,7 @@ public:
   };
 
   /// Return a view of this manager to pass into a device function.
-  View view() { return View {m_nurbs_caches.view()}; }
+  View view() const { return View {m_nurbs_caches.view()}; }
 
   /// Return if the underlying array is empty
   bool empty() const { return m_nurbs_caches.empty(); }
