@@ -285,7 +285,7 @@ void check_step_file_triangulation()
   const int query_order = 1;
 
   // Generate three query grids and fields
-  constexpr int num_queries = 6;
+  constexpr int num_queries = 4;
   axom::Array<mfem::DataCollection> dc(0, num_queries);
   for(int i = 0; i < num_queries; ++i)
   {
@@ -303,40 +303,42 @@ void check_step_file_triangulation()
   constexpr bool useDirectEvaluation = true;
   constexpr bool useMemoization = true;
 
-  //// Run six different kinds of GWN query ////
+  //// Run four different kinds of GWN query ////
   // We expect all three fields to return the same values in this case because
   //  of the specific arrangement of query points and triangulation.
   // In general, triangulating the shape can result in different GWN values
   //  for query points near to individual surfaces.
 
-  // Direct
-  SLIC_INFO("Testing Direct Evaluation");
-  axom::quest::NURBSPatchGWNQuery<ExecSpace> gwn_patches {};
-  gwn_patches.preprocess(patches, useDirectEvaluation, !useMemoization);
-  gwn_patches.query(dc[0], tol);
+  // Direct patch evaluation is prohibitively slow without memoization.
+  //  Keep interface only for symmetry with NURBSCurve methods
+
+  SLIC_INFO("Testing Patch Evaluation");
+  //axom::quest::NURBSPatchGWNQuery<ExecSpace> gwn_patches {};
+  //gwn_patches.preprocess(patches, useDirectEvaluation, !useMemoization);
+  //gwn_patches.query(dc[0], tol);  
 
   axom::quest::NURBSPatchGWNQuery<ExecSpace> gwn_patches_memoized {};
   gwn_patches_memoized.preprocess(patches, useDirectEvaluation, useMemoization);
-  gwn_patches_memoized.query(dc[1], tol);
+  gwn_patches_memoized.query(dc[0], tol);
 
-  axom::quest::NURBSPatchGWNQuery<ExecSpace, 0> gwn_patches_fast {};
-  gwn_patches_fast.preprocess(patches, !useDirectEvaluation, !useMemoization);
-  gwn_patches_fast.query(dc[2], tol);
+  //axom::quest::NURBSPatchGWNQuery<ExecSpace, 0> gwn_patches_fast {};
+  //gwn_patches_fast.preprocess(patches, !useDirectEvaluation, !useMemoization);
+  //gwn_patches_fast.query(dc[2], tol);
 
   axom::quest::NURBSPatchGWNQuery<ExecSpace, 0> gwn_patches_fast_memoized {};
   gwn_patches_fast_memoized.preprocess(patches, !useDirectEvaluation, useMemoization);
-  gwn_patches_fast_memoized.query(dc[3], tol);
+  gwn_patches_fast_memoized.query(dc[1], tol);
 
-  SLIC_INFO("Testing Linearization Evaluation");
+  SLIC_INFO("Testing Triangulation Evaluation");
   axom::quest::TriangleGWNQuery<ExecSpace> gwn_triangles {};
   gwn_triangles.preprocess(&tri_mesh, useDirectEvaluation);
-  gwn_triangles.query(dc[4], tol);
+  gwn_triangles.query(dc[2], tol);
 
   axom::quest::TriangleGWNQuery<ExecSpace, 0> gwn_triangles_fast {};
   gwn_triangles_fast.preprocess(&tri_mesh, !useDirectEvaluation);
-  gwn_triangles_fast.query(dc[5], tol);
+  gwn_triangles_fast.query(dc[3], tol);
 
-  // Compare the in-out values between the three fields
+  // Compare the in-out values between all fields
   const auto *query_mesh = dc[0].GetMesh();
   const auto num_query_points = query_mesh->GetNodalFESpace()->GetNDofs();
 

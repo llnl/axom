@@ -132,9 +132,11 @@ public:
     const auto patch_data = a_patch.calculateSurfaceMoments<ORD>();
 
     a = patch_data[0];
-    ap = axom::primal::Vector<T, 3> {patch_data[0], patch_data[1], patch_data[2]};
+    ap[0] = patch_data[1];
+    ap[1] = patch_data[2];
+    ap[2] = patch_data[3];
 
-    for(int i = 0; i < NumberOfEntries; ++i) rm[i] = patch_data[i + 3];
+    for(int i = 0; i < NumberOfEntries; ++i) rm[i] = patch_data[i + 4];
 
     compute_coefficients();
   }

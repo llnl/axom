@@ -686,6 +686,8 @@ public:
         // Use fast-approximate, non-memoized form
         if(m_nurbs_cache_mgr.empty())
         {
+          SLIC_WARNING(
+            "Quest warning: Patch GWN evaluation is prohibitively slow without memoization.");
           axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
             const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
                                                                            traverser,
@@ -718,6 +720,8 @@ public:
         // Use direct, non-memoized form
         if(m_nurbs_cache_mgr.empty())
         {
+          SLIC_WARNING(
+            "Quest warning: Patch GWN evaluation is prohibitively slow without memoization.");
           axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
             const auto q = query_point(static_cast<int>(nidx));
             double wn {};
