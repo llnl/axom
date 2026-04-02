@@ -61,7 +61,7 @@ public:
 
   axom::runtime_policy::Policy policy = RuntimePolicy::seq;
 
-  const std::array<std::string, 2> valid_algorithms{ "direct", "fast-approximation" };
+  const std::array<std::string, 2> valid_algorithms{ "direct", "fast_approximate" };
   std::string algorithm{ valid_algorithms[1] };  // fast-approximation
 
   bool triangulate{ false };

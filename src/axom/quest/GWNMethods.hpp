@@ -165,25 +165,28 @@ public:
       stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("subdivision");
-        m_subdivided_curves = subdivide_curves(m_input_curves_view, 0.1);
+        m_subdivided_curves = subdivide_curves(m_input_curves_view, 2.0);
         m_processed_curves_view = m_subdivided_curves.view();
       }
-
       stage_timer.stop();
-      SLIC_INFO(axom::fmt::format("  Preprocessing stage (subdivision): {} s",
+      SLIC_INFO(axom::fmt::format("  Preprocessing stage (subdivision {} -> {}): {} s",
+                                  m_input_curves_view.size(),
+                                  m_processed_curves_view.size(),
                                   stage_timer.elapsedTimeInSec()));
 
       stage_timer.reset();
       stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("bvh_initialization");
-        const int ncurves = m_input_curves_view.size();
+        const int ncurves = m_processed_curves_view.size();
         axom::Array<BoxType> aabbs(ncurves, ncurves);
         auto aabbs_view = aabbs.view();
 
         axom::for_all<ExecSpace>(
           ncurves,
-          AXOM_LAMBDA(axom::IndexType i) { aabbs_view[i] = m_input_curves_view[i].boundingBox(); });
+          AXOM_LAMBDA(axom::IndexType i) {
+            aabbs_view[i] = m_processed_curves_view[i].boundingBox();
+          });
         m_bvh.initialize(aabbs_view, ncurves);
       }
       stage_timer.stop();
@@ -197,7 +200,7 @@ public:
         auto compute_moments = [=](std::int32_t currentNode,
                                    const std::int32_t* leafNodes) -> GWNMoments {
           const auto idx = leafNodes[currentNode];
-          return GWNMoments(m_input_curves_view[idx]);
+          return GWNMoments(m_processed_curves_view[idx]);
         };
 
         const auto traverser = m_bvh.getTraverser();
@@ -284,7 +287,7 @@ public:
           axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
             const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
                                                                            traverser,
-                                                                           m_input_curves_view,
+                                                                           m_processed_curves_view,
                                                                            internal_moments_view,
                                                                            tol_copy);
             winding[static_cast<int>(index)] = wn;
@@ -316,7 +319,7 @@ public:
           axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
             const auto q = query_point(static_cast<int>(nidx));
             double wn {};
-            for(const auto& curve : m_input_curves_view)
+            for(const auto& curve : m_processed_curves_view)
             {
               wn += axom::primal::winding_number(q, curve, tol_copy.edge_tol, tol_copy.EPS);
             }
@@ -602,31 +605,34 @@ public:
 
     AXOM_ANNOTATE_SCOPE("preprocessing");
 
-    if(use_memoization)
-    {
-      stage_timer.start();
-      {
-        AXOM_ANNOTATE_SCOPE("cache_initialization");
-        m_nurbs_cache_mgr = NURBSCacheManager(m_input_patches_view);
-      }
-      stage_timer.stop();
-      SLIC_INFO(axom::fmt::format("  Preprocessing stage (cache initialization): {} s",
-                                  stage_timer.elapsedTimeInSec()));
-    }
-
     if(!use_direct_eval)
     {
       stage_timer.reset();
       stage_timer.start();
       {
+        AXOM_ANNOTATE_SCOPE("subdivision");
+        m_subdivided_patches = subdivide_patches(m_input_patches_view, 0.1);
+        m_processed_patches_view = m_subdivided_patches.view();
+      }
+      stage_timer.stop();
+      SLIC_INFO(axom::fmt::format("  Preprocessing stage (subdivision {} -> {}): {} s",
+                                  m_input_patches_view.size(),
+                                  m_processed_patches_view.size(),
+                                  stage_timer.elapsedTimeInSec()));
+
+      stage_timer.reset();
+      stage_timer.start();
+      {
         AXOM_ANNOTATE_SCOPE("bvh_initialization");
-        const int npatches = m_input_patches_view.size();
+        const int npatches = m_processed_patches_view.size();
         axom::Array<BoxType> aabbs(npatches, npatches);
         auto aabbs_view = aabbs.view();
 
         axom::for_all<ExecSpace>(
           npatches,
-          AXOM_LAMBDA(axom::IndexType i) { aabbs_view[i] = m_input_patches_view[i].boundingBox(); });
+          AXOM_LAMBDA(axom::IndexType i) {
+            aabbs_view[i] = m_processed_patches_view[i].boundingBox();
+          });
         m_bvh.initialize(aabbs_view, npatches);
       }
       stage_timer.stop();
@@ -640,7 +646,7 @@ public:
         auto compute_moments = [=](std::int32_t currentNode,
                                    const std::int32_t* leafNodes) -> GWNMoments {
           const auto idx = leafNodes[currentNode];
-          return GWNMoments(m_input_patches_view[idx]);  // TODO: Avoid repeat normal calculation
+          return GWNMoments(m_processed_patches_view[idx]);  // TODO: Avoid repeat normal calculation
         };
 
         const auto traverser = m_bvh.getTraverser();
@@ -648,6 +654,24 @@ public:
       }
       stage_timer.stop();
       SLIC_INFO(axom::fmt::format("  Preprocessing stage (moment precomputation): {} s",
+                                  stage_timer.elapsedTimeInSec()));
+    }
+    else
+    {
+      // Without fast-approximation, processing is unnecessary
+      m_processed_patches_view = m_input_patches_view;
+    }
+
+    if(use_memoization)
+    {
+      stage_timer.reset();
+      stage_timer.start();
+      {
+        AXOM_ANNOTATE_SCOPE("cache_initialization");
+        m_nurbs_cache_mgr = NURBSCacheManager(m_processed_patches_view);
+      }
+      stage_timer.stop();
+      SLIC_INFO(axom::fmt::format("  Preprocessing stage (cache initialization): {} s",
                                   stage_timer.elapsedTimeInSec()));
     }
 
@@ -713,7 +737,7 @@ public:
           axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType index) {
             const double wn = axom::quest::fast_approximate_winding_number(query_point(index),
                                                                            traverser,
-                                                                           m_input_patches_view,
+                                                                           m_processed_patches_view,
                                                                            internal_moments_view,
                                                                            tol_copy);
             winding[static_cast<int>(index)] = wn;
@@ -747,7 +771,7 @@ public:
           axom::for_all<ExecSpace>(num_query_points, [=, &winding, &inout](axom::IndexType nidx) {
             const auto q = query_point(static_cast<int>(nidx));
             double wn {};
-            for(const auto& patch : m_input_patches_view)
+            for(const auto& patch : m_processed_patches_view)
             {
               wn += axom::primal::winding_number(q,
                                                  patch,
@@ -804,6 +828,10 @@ private:
   // For the input curves/BVH leaf nodes
   axom::ArrayView<const PatchType> m_input_patches_view;
   NURBSCacheManager m_nurbs_cache_mgr;
+
+  // For preprocessed patches
+  axom::Array<PatchType> m_subdivided_patches;
+  axom::ArrayView<const PatchType> m_processed_patches_view;
 
   // Only needed for fast approximation method
   axom::Array<GWNMoments> m_internal_moments;

@@ -252,6 +252,26 @@ void check_mfem_mesh_linearization()
       EXPECT_EQ(inout_direct[i], inout_other[i]);
     }
   }
+
+  mfem::VisItDataCollection windingDC_0("winding_0", dc[0].GetMesh());
+  windingDC_0.RegisterField("winding", dc[0].GetField("winding"));
+  windingDC_0.RegisterField("inout", dc[0].GetField("inout"));
+  windingDC_0.Save();
+
+  mfem::VisItDataCollection windingDC_1("winding_1", dc[1].GetMesh());
+  windingDC_1.RegisterField("winding", dc[1].GetField("winding"));
+  windingDC_1.RegisterField("inout", dc[1].GetField("inout"));
+  windingDC_1.Save();
+
+  mfem::VisItDataCollection windingDC_2("winding_2", dc[2].GetMesh());
+  windingDC_2.RegisterField("winding", dc[2].GetField("winding"));
+  windingDC_2.RegisterField("inout", dc[2].GetField("inout"));
+  windingDC_2.Save();
+
+  mfem::VisItDataCollection windingDC_3("winding_3", dc[3].GetMesh());
+  windingDC_3.RegisterField("winding", dc[3].GetField("winding"));
+  windingDC_3.RegisterField("inout", dc[3].GetField("inout"));
+  windingDC_3.Save();
 }
 
 #ifdef AXOM_USE_OPENCASCADE
@@ -315,7 +335,7 @@ void check_step_file_triangulation()
   SLIC_INFO("Testing Patch Evaluation");
   //axom::quest::NURBSPatchGWNQuery<ExecSpace> gwn_patches {};
   //gwn_patches.preprocess(patches, useDirectEvaluation, !useMemoization);
-  //gwn_patches.query(dc[0], tol);  
+  //gwn_patches.query(dc[0], tol);
 
   axom::quest::NURBSPatchGWNQuery<ExecSpace> gwn_patches_memoized {};
   gwn_patches_memoized.preprocess(patches, useDirectEvaluation, useMemoization);

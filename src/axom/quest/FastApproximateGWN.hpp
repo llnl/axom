@@ -540,6 +540,87 @@ axom::Array<primal::NURBSCurve<T, 2>> subdivide_curves(
   return candidates_nurbs;
 }
 
+template <typename T>
+axom::Array<primal::NURBSPatch<T, 3>> subdivide_patches(
+  const axom::ArrayView<const primal::NURBSPatch<T, 3>>& input_patches_view,
+  double bbox_threshold,
+  int npasses = 10)
+{
+  using BoxType = primal::BoundingBox<T, 3>;
+  using NURBSType = primal::NURBSPatch<T, 3>;
+
+  axom::Array<NURBSType> candidates;
+  candidates.reserve(input_patches_view.size() * 3 / 2);
+  BoxType total_bbox;
+
+  // Create initial array of processed patches,
+  //  beginning by clipping each patch parameter space
+  //  to a bounding box of its trimming curves
+  // Then compute a bounding box of all the surfaces
+  for(auto& surf : input_patches_view)
+  {
+    // This is where we would do Bezier extraction, if the curve-curve intersection
+    //  routine were more robust :(
+    //for(auto& bez : surf.extractTrimmedBezier())
+    {
+      auto the_patch = surf;
+
+      if(the_patch.getNumTrimmingCurves() == 0) continue;
+
+      the_patch.normalize();
+      the_patch.clipToCurves();
+
+      // Re-check if the patch is empty after clipping to curve
+      if(the_patch.getNumTrimmingCurves() == 0) continue;
+
+      candidates.push_back(the_patch);
+      total_bbox.addBox(the_patch.boundingBox());
+    }
+  }
+
+  // Iterate over all the surfaces until no patch has a bounding box
+  //  bigger than threshold * (total_bbox's size)
+  for(int i = 0; i < npasses; ++i)
+  {
+    axom::Array<NURBSType> subdivisions;
+    subdivisions.reserve(candidates.size() * 3 / 2);
+
+    BoxType new_bbox;
+
+    // If any patch is bigger than the threshold, subdivide it, clip it,
+    //  and add it to the next level. Repeat as needed.
+    const double max_range_norm = bbox_threshold * total_bbox.range().norm();
+    for(const auto& candidate : candidates)
+    {
+      if(candidate.boundingBox().range().norm() < max_range_norm)
+      {
+        new_bbox.addBox(candidate.boundingBox());
+        subdivisions.push_back(candidate);
+        continue;
+      }
+
+      NURBSType subpatches[2];
+      candidate.nearBisectOnLongestAxis(subpatches[0], subpatches[1]);
+      for(int si = 0; si < 2; si++)
+      {
+        if(subpatches[si].getNumTrimmingCurves() == 0) continue;
+
+        subdivisions.emplace_back(std::move(subpatches[si]));
+        subdivisions.back().clipToCurves();
+        new_bbox.addBox(subdivisions.back().boundingBox());
+      }
+    }
+
+    // Break if no additional subdivisions are made
+    if(candidates.size() == subdivisions.size()) break;
+
+    candidates.swap(subdivisions);
+    total_bbox = new_bbox;
+  }
+
+  return candidates;
+}
+
 }  // end namespace quest
 }  // end namespace axom
 

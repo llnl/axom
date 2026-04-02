@@ -2919,6 +2919,19 @@ public:
     }
   }
 
+  void clipToCurves()
+  {
+    // Take a union of all trimming curve parameter
+    ParameterBoundingBoxType curve_bbox;
+
+    for(auto& curv : m_trimmingCurves) curve_bbox.addBox(curv.boundingBox());
+
+    uncheckedClip(curve_bbox.getMin()[0] - 1e-5,
+                  curve_bbox.getMax()[0] + 1e-5,
+                  curve_bbox.getMin()[1] - 1e-5,
+                  curve_bbox.getMax()[1] + 1e-5);
+  }
+
   ///@}
 
   ///@{
@@ -3560,6 +3573,64 @@ public:
     }
 
     return true;
+  }
+
+  void nearBisectOnLongestAxis(NURBSPatch& p1, NURBSPatch& p2) const
+  {
+    double split_val_u = (getNumKnots_u() == 2 * (getDegree_u() + 1))
+      ? 0.499 * getMinKnot_u() + 0.501 * getMaxKnot_u()
+      : getKnots_u()[getNumKnots_u() / 2];
+
+    double split_val_v = (getNumKnots_v() == 2 * (getDegree_v() + 1))
+      ? 0.502 * getMinKnot_v() + 0.498 * getMaxKnot_v()
+      : getKnots_v()[getNumKnots_v() / 2];
+
+    auto make_split_candidate = [&](bool split_in_u) {
+      NURBSPatch patches[2];
+
+      // Avoid 2D (u,v) bisection of large, slender models which can lead to 4^k patch growth.
+      // Prefer a 1D split (u or v) that most reduces the max child bbox.
+      struct Result
+      {
+        NURBSPatch patches[2];
+        double max_child_range_norm {0.0};
+      };
+
+      Result r {};
+
+      // Do an `uncheckedSplit`, which doesn't look at trimming curves
+      if(split_in_u)
+      {
+        uncheckedSplit_u(split_val_u, patches[0], patches[1]);
+      }
+      else
+      {
+        uncheckedSplit_v(split_val_v, patches[0], patches[1]);
+      }
+
+      r.patches[0] = std::move(patches[0]);
+      r.patches[1] = std::move(patches[1]);
+
+      // Bounding boxes here are only computed without trimming curves
+      r.max_child_range_norm = axom::utilities::max(r.patches[0].boundingBox().range().norm(),
+                                                    r.patches[1].boundingBox().range().norm());
+
+      return r;
+    };
+
+    const auto u_split = make_split_candidate(/*split_in_u*/ true);
+    const auto v_split = make_split_candidate(/*split_in_u*/ false);
+
+    const bool was_u_better = (u_split.max_child_range_norm <= v_split.max_child_range_norm);
+    auto* chosen = was_u_better ? &u_split : &v_split;
+
+    // Once we pick the best direction, split the trimming curves
+    p1 = std::move(chosen->patches[0]);
+    p2 = std::move(chosen->patches[1]);
+    splitTrimmingCurves(was_u_better ? split_val_u : split_val_v,
+                        was_u_better,
+                        p1.getTrimmingCurves(),
+                        p2.getTrimmingCurves());
   }
 
   /*!
