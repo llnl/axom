@@ -177,6 +177,41 @@ def test_int_buffer_from_view():
     assert dv.getTotalBytes() == NUM_BYTES_INT_32 * elem_count
 
 
+def test_view_dtype_support():
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+
+    dtype_pairs = [
+        (pysidre.TypeID.INT8_ID, np.int8),
+        (pysidre.TypeID.UINT16_ID, np.uint16),
+        (pysidre.TypeID.FLOAT32_ID, np.float32),
+    ]
+
+    for idx, (type_id, expected_dtype) in enumerate(dtype_pairs):
+        view = root.createViewAndAllocate(f"dtype_{idx}", type_id, 4)
+        assert view.getDataArray().dtype == np.dtype(expected_dtype)
+
+
+def test_replace_data_with_buffer_from_external():
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+
+    external = np.array([1, 2], dtype=np.int32)
+    view = root.createView("external", pysidre.TypeID.INT32_ID, 2, external)
+    assert view.isExternal()
+
+    replacement = ds.createBuffer(pysidre.TypeID.INT32_ID, 4)
+    replacement.allocate()
+    replacement_data = replacement.getDataArray()
+    replacement_data[:] = [3, 4, 5, 6]
+
+    view.replaceDataWithBuffer(pysidre.TypeID.INT32_ID, 4, replacement)
+
+    assert view.hasBuffer()
+    assert not view.isExternal()
+    assert list(view.getDataArray()) == [3, 4, 5, 6]
+
+
 def test_int_array_multi_view():
     ds = pysidre.DataStore()
     root = ds.getRoot()
