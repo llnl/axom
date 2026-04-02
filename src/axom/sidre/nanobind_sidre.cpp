@@ -16,6 +16,9 @@
 #include "core/View.hpp"
 #include "core/DataStore.hpp"
 #include "core/Group.hpp"
+#if defined(AXOM_USE_MPI)
+  #include "spio/IOManager.hpp"
+#endif
 
 // Separate Conduit header for python functionality
 #include "conduit_python.hpp"
@@ -31,20 +34,49 @@ namespace sidre
 // Helper to map TypeID to nanobind dtype
 nb::dlpack::dtype typeIDToDtype(DataTypeId id)
 {
-  switch(id)
+  if(id == INT8_ID)
   {
-  case INT32_ID:
-    return nb::dtype<int>();
-  case INT64_ID:
-    return nb::dtype<int64_t>();
-
-  // DOUBLE_ID also has same value
-  case FLOAT64_ID:
-    return nb::dtype<double>();
-  default:
-    SLIC_ERROR("DataTypeId unsupported for numpy");
+    return nb::dtype<std::int8_t>();
+  }
+  if(id == INT16_ID)
+  {
+    return nb::dtype<std::int16_t>();
+  }
+  if(id == INT32_ID || id == INT_ID)
+  {
+    return nb::dtype<std::int32_t>();
+  }
+  if(id == INT64_ID)
+  {
+    return nb::dtype<std::int64_t>();
+  }
+  if(id == UINT8_ID)
+  {
+    return nb::dtype<std::uint8_t>();
+  }
+  if(id == UINT16_ID)
+  {
+    return nb::dtype<std::uint16_t>();
+  }
+  if(id == UINT32_ID || id == UINT_ID)
+  {
+    return nb::dtype<std::uint32_t>();
+  }
+  if(id == UINT64_ID)
+  {
+    return nb::dtype<std::uint64_t>();
+  }
+  if(id == FLOAT32_ID || id == FLOAT_ID)
+  {
+    return nb::dtype<float>();
+  }
+  if(id == FLOAT64_ID || id == DOUBLE_ID)
+  {
     return nb::dtype<double>();
   }
+
+  SLIC_ERROR("DataTypeId unsupported for numpy");
+  return nb::dtype<double>();
 }
 
 /*!
@@ -222,6 +254,12 @@ NB_MODULE(pysidre, m_sidre)
   m_sidre.attr("AXOM_USE_HDF5") = true;
 #else
   m_sidre.attr("AXOM_USE_HDF5") = false;
+#endif
+
+#if defined(AXOM_USE_MPI)
+  m_sidre.attr("AXOM_ENABLE_MPI") = true;
+#else
+  m_sidre.attr("AXOM_ENABLE_MPI") = false;
 #endif
 
   // Bind the DataTypeId enum (TypeID alias)
@@ -514,6 +552,22 @@ NB_MODULE(pysidre, m_sidre)
          nb::overload_cast<TypeID, int, const IndexType*, Buffer*>(&View::attachBuffer),
          nb::rv_policy::reference,
          "Describe the data view and attach Buffer object")
+    .def(
+      "replaceDataWithBuffer",
+      [](View& self, TypeID type, IndexType num_elems, Buffer* buffer) {
+        if(self.hasBuffer())
+        {
+          self.attachBuffer(nullptr);
+        }
+        else if(self.isExternal())
+        {
+          self.setExternalDataPtr(nullptr);
+        }
+
+        return self.attachBuffer(type, num_elems, buffer);
+      },
+      nb::rv_policy::reference,
+      "Replace the View's current array data with a newly attached Buffer.")
 
     .def("clear", &View::clear, "Clear data and metadata from the View.")
     .def("apply", nb::overload_cast<>(&View::apply), "Apply the View's description to its data.")
@@ -1105,6 +1159,49 @@ NB_MODULE(pysidre, m_sidre)
       nb::rv_policy::reference,
       "Return default value of Attribute as Node reference.")
     .def("getTypeID", &Attribute::getTypeID, "Return type of Attribute.");
+
+#if defined(AXOM_USE_MPI)
+  nb::class_<IOManager>(m_sidre, "IOManager")
+    .def(
+      nb::new_([](bool use_scr) { return new IOManager(MPI_COMM_WORLD, use_scr); }),
+      nb::arg("use_scr") = false)
+    .def(
+      "write",
+      &IOManager::write,
+      nb::arg("group"),
+      nb::arg("num_files"),
+      nb::arg("file_base"),
+      nb::arg("protocol"),
+      nb::arg("tree_pattern") = "datagroup")
+    .def(
+      "read",
+      nb::overload_cast<Group*, const std::string&, const std::string&, bool>(&IOManager::read),
+      nb::arg("group"),
+      nb::arg("root_file"),
+      nb::arg("protocol"),
+      nb::arg("preserve_contents") = false)
+    .def(
+      "read",
+      nb::overload_cast<Group*, const std::string&, bool>(&IOManager::read),
+      nb::arg("group"),
+      nb::arg("root_file"),
+      nb::arg("preserve_contents") = false)
+    .def(
+      "loadExternalData",
+      nb::overload_cast<Group*, const std::string&>(&IOManager::loadExternalData),
+      nb::arg("group"),
+      nb::arg("root_file"))
+    .def(
+      "loadExternalData",
+      nb::overload_cast<Group*, Group*, const std::string&>(&IOManager::loadExternalData),
+      nb::arg("parent_group"),
+      nb::arg("load_group"),
+      nb::arg("root_file"))
+    .def("getNumFilesFromRoot", &IOManager::getNumFilesFromRoot, nb::arg("root_file"))
+    .def("getNumGroupsFromRoot", &IOManager::getNumGroupsFromRoot, nb::arg("root_file"))
+    .def_static("correspondingRelayProtocol", &IOManager::correspondingRelayProtocol);
+#endif
+
 }
 
 } /* end namespace sidre */

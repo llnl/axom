@@ -193,6 +193,21 @@ endif()
 # Based on Conduit's run_python_with_conduit.sh.in script.
 #------------------------------------------------------------------------------
 if(NANOBIND_FOUND)
+    set(_python_tools
+        convert_sidre_protocol.py)
+
+    foreach(_tool ${_python_tools})
+        axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/${_tool}"
+                             "${PROJECT_BINARY_DIR}/bin/${_tool}" COPYONLY)
+
+        axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/${_tool}"
+                             "${CMAKE_INSTALL_PREFIX}/bin/${_tool}" COPYONLY)
+    endforeach()
+
+    install(PROGRAMS ${_python_tools}
+            DESTINATION bin)
+
+    unset(_python_tools)
 
     # gen python helper to build directory
     set(_PYEXT_DIR ${PROJECT_BINARY_DIR}/lib)
