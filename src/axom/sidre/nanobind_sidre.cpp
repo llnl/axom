@@ -1162,46 +1162,39 @@ NB_MODULE(pysidre, m_sidre)
 
 #if defined(AXOM_USE_MPI)
   nb::class_<IOManager>(m_sidre, "IOManager")
-    .def(
-      nb::new_([](bool use_scr) { return new IOManager(MPI_COMM_WORLD, use_scr); }),
-      nb::arg("use_scr") = false)
-    .def(
-      "write",
-      &IOManager::write,
-      nb::arg("group"),
-      nb::arg("num_files"),
-      nb::arg("file_base"),
-      nb::arg("protocol"),
-      nb::arg("tree_pattern") = "datagroup")
-    .def(
-      "read",
-      nb::overload_cast<Group*, const std::string&, const std::string&, bool>(&IOManager::read),
-      nb::arg("group"),
-      nb::arg("root_file"),
-      nb::arg("protocol"),
-      nb::arg("preserve_contents") = false)
-    .def(
-      "read",
-      nb::overload_cast<Group*, const std::string&, bool>(&IOManager::read),
-      nb::arg("group"),
-      nb::arg("root_file"),
-      nb::arg("preserve_contents") = false)
-    .def(
-      "loadExternalData",
-      nb::overload_cast<Group*, const std::string&>(&IOManager::loadExternalData),
-      nb::arg("group"),
-      nb::arg("root_file"))
-    .def(
-      "loadExternalData",
-      nb::overload_cast<Group*, Group*, const std::string&>(&IOManager::loadExternalData),
-      nb::arg("parent_group"),
-      nb::arg("load_group"),
-      nb::arg("root_file"))
+    .def(nb::new_([](bool use_scr) { return new IOManager(MPI_COMM_WORLD, use_scr); }),
+         nb::arg("use_scr") = false)
+    .def("write",
+         &IOManager::write,
+         nb::arg("group"),
+         nb::arg("num_files"),
+         nb::arg("file_base"),
+         nb::arg("protocol"),
+         nb::arg("tree_pattern") = "datagroup")
+    .def("read",
+         nb::overload_cast<Group*, const std::string&, const std::string&, bool>(&IOManager::read),
+         nb::arg("group"),
+         nb::arg("root_file"),
+         nb::arg("protocol"),
+         nb::arg("preserve_contents") = false)
+    .def("read",
+         nb::overload_cast<Group*, const std::string&, bool>(&IOManager::read),
+         nb::arg("group"),
+         nb::arg("root_file"),
+         nb::arg("preserve_contents") = false)
+    .def("loadExternalData",
+         nb::overload_cast<Group*, const std::string&>(&IOManager::loadExternalData),
+         nb::arg("group"),
+         nb::arg("root_file"))
+    .def("loadExternalData",
+         nb::overload_cast<Group*, Group*, const std::string&>(&IOManager::loadExternalData),
+         nb::arg("parent_group"),
+         nb::arg("load_group"),
+         nb::arg("root_file"))
     .def("getNumFilesFromRoot", &IOManager::getNumFilesFromRoot, nb::arg("root_file"))
     .def("getNumGroupsFromRoot", &IOManager::getNumGroupsFromRoot, nb::arg("root_file"))
     .def_static("correspondingRelayProtocol", &IOManager::correspondingRelayProtocol);
 #endif
-
 }
 
 } /* end namespace sidre */
