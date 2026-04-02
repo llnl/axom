@@ -22,6 +22,7 @@
 #include <cassert>  // for assert()
 #include <cmath>    // for log2()
 
+#include <cstdint>      // for std::uint64_t
 #include <random>       // for random  number generator
 #include <type_traits>  // for std::is_floating_point()
 
@@ -243,9 +244,14 @@ inline T random_real(const T& a, const T& b)
   AXOM_STATIC_ASSERT(std::is_floating_point<T>::value);
   assert((a < b) && "invalid bounds, a < b");
 
-  static std::random_device rd;
-  static std::mt19937_64 mt(rd());
-  static std::uniform_real_distribution<T> dist(0.0, 1.0);
+  // Thread-local RNG state: avoids data races when called from threaded code.
+  thread_local std::mt19937_64 mt([]() {
+    std::random_device rd;
+    const std::uint64_t seed_hi = static_cast<std::uint64_t>(rd()) << 32;
+    const std::uint64_t seed_lo = static_cast<std::uint64_t>(rd());
+    return std::mt19937_64(seed_hi ^ seed_lo);
+  }());
+  thread_local std::uniform_real_distribution<T> dist(0.0, 1.0);
 
   T temp = dist(mt);
   return temp * (b - a) + a;
@@ -275,10 +281,24 @@ inline T random_real(const T& a, const T& b, unsigned int seed)
   AXOM_STATIC_ASSERT(std::is_floating_point<T>::value);
   assert((a < b) && "invalid bounds, a < b");
 
-  static std::mt19937_64 mt(seed);
-  static std::uniform_real_distribution<T> dist(0.0, 1.0);
+  // Thread-local RNG state: avoids data races when called from threaded code.
+  // Also supports switching seeds by re-seeding the engine.
+  struct SeededRngState
+  {
+    explicit SeededRngState(unsigned int s) : mt(s), current_seed(s) { }
+    std::mt19937_64 mt;
+    unsigned int current_seed;
+  };
 
-  double temp = dist(mt);
+  thread_local SeededRngState state(seed);
+  if(state.current_seed != seed)
+  {
+    state.mt.seed(seed);
+    state.current_seed = seed;
+  }
+  thread_local std::uniform_real_distribution<T> dist(0.0, 1.0);
+
+  T temp = dist(state.mt);
   return temp * (b - a) + a;
 }
 
