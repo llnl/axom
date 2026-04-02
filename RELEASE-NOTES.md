@@ -38,6 +38,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: Adds fast GWN methods for STL/Triangulated STEP input and linearized NURBS Curve input which
   leverage error-controlled approximation and a spatial index (BVH).
 - Slic: Adds new Slic macros that allow you to selectively print messages once per call-site. For example,
+  `SLIC_INFO_ONCE(msg)` and `SLIC_INFO_ROOT_IF_ONCE(EXP, msg)`.
 
 ### Changed
 - Primal: Axom's polygon clipping was modified to handle some corner cases.
