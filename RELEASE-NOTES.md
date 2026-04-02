@@ -53,6 +53,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   allocator id via Umpire, if present. This prevents excessive calls to Umpire,
   which are not needed in all use cases.
 - Quest: A compilation problem with `-DAXOM_NO_INT64_T=1` was fixed.
+- Quest: `STEPReader` now catches additional edge cases related to orientation of OpenCascade primitives.
 
 ## [Version 0.13.0] - Release date 2026-02-05
 

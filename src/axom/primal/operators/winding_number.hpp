@@ -227,9 +227,9 @@ double winding_number(const Point<T, 2>& q,
 {
   bool dummy_isOnCurve = false;
   double ret_val = 0.0;
-  for(int i = 0; i < carray.size(); i++)
+  for(auto& curv : carray)
   {
-    ret_val += detail::bezier_winding_number(q, carray[i], dummy_isOnCurve, edge_tol, EPS);
+    ret_val += detail::bezier_winding_number(q, curv, dummy_isOnCurve, edge_tol, EPS);
   }
 
   return ret_val;
@@ -321,7 +321,7 @@ double winding_number(const Point<T, 2>& q,
  * \brief Computes the GWN for a 2D point wrt an array of memoized data for 2D NURBS curves
  *
  * \param [in] query The query point to test
- * \param [in] nurbs_curve_arr The array of memoized curve objects
+ * \param [in] nurbs_cache_arr The array of memoized curve objects
  * \param [out] isOnCurve Set to true is the query point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
@@ -330,17 +330,17 @@ double winding_number(const Point<T, 2>& q,
  */
 template <typename T>
 double winding_number(const Point<T, 2>& query,
-                      const axom::Array<detail::NURBSCurveGWNCache<T>>& nurbs_curve_arr,
+                      const axom::Array<detail::NURBSCurveGWNCache<T>>& nurbs_cache_arr,
                       bool& isOnCurve,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
   double gwn = 0;
   isOnCurve = false;
-  for(int i = 0; i < nurbs_curve_arr.size(); ++i)
+  for(auto& the_cache : nurbs_cache_arr)
   {
     bool isOnThisCurve = false;
-    gwn += winding_number(query, nurbs_curve_arr[i], isOnThisCurve, edge_tol, EPS);
+    gwn += winding_number(query, the_cache, isOnThisCurve, edge_tol, EPS);
     isOnCurve = isOnCurve || isOnThisCurve;
   }
 
@@ -373,7 +373,7 @@ double winding_number(const Point<T, 2>& query,
  */
 template <typename T>
 axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
-                                   const axom::Array<detail::NURBSCurveGWNCache<T>>& nurbs_curve_arr,
+                                   const axom::Array<detail::NURBSCurveGWNCache<T>>& nurbs_cache_arr,
                                    double edge_tol = 1e-8,
                                    double EPS = 1e-8)
 {
@@ -383,13 +383,19 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
   {
     ret_val[n] = 0.0;
 
-    for(int i = 0; i < nurbs_curve_arr.size(); ++i)
+    for(auto& the_cache : nurbs_cache_arr)
     {
-      ret_val[n] += detail::bezier_winding_number_memoized(query_arr[n],
-                                                           nurbs_curve_arr[i],
-                                                           dummy_isOnCurve,
-                                                           edge_tol,
-                                                           EPS);
+      for(int k = 0; k < the_cache.getNumKnotSpans(); ++k)
+      {
+        ret_val[n] += detail::bezier_winding_number_memoized(query_arr[n],
+                                                             the_cache,
+                                                             k,
+                                                             0,
+                                                             0,
+                                                             dummy_isOnCurve,
+                                                             edge_tol,
+                                                             EPS);
+      }
     }
   }
 
@@ -418,9 +424,9 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
 {
   axom::Array<detail::NURBSCurveGWNCache<T>> cache_arr(0, curve_arr.size());
 
-  for(int i = 0; i < curve_arr.size(); ++i)
+  for(auto& curv : curve_arr)
   {
-    cache_arr.emplace_back(detail::NURBSCurveGWNCache<T>(curve_arr[i], edge_tol));
+    cache_arr.emplace_back(detail::NURBSCurveGWNCache<T>(curv, edge_tol));
   }
 
   return winding_number(query_arr, cache_arr, edge_tol, EPS);
@@ -896,9 +902,9 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
 {
   // Precompute the expansions and cast directions for each patch
   axom::Array<detail::NURBSPatchGWNCache<T>> nurbs_cache_arr(0, surf_arr.size());
-  for(int i = 0; i < surf_arr.size(); ++i)
+  for(auto& surf : surf_arr)
   {
-    nurbs_cache_arr.emplace_back(detail::NURBSPatchGWNCache<T>(surf_arr[i]));
+    nurbs_cache_arr.emplace_back(detail::NURBSPatchGWNCache<T>(surf));
   }
 
   return winding_number(query_arr, nurbs_cache_arr, edge_tol, ls_tol, quad_tol, disk_size, EPS);
