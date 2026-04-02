@@ -65,12 +65,11 @@ def _compare_conversion(strip_value=None):
         _run_tool(cpp_args, cpp_tmp)
         _run_tool(py_args, py_tmp)
 
-        assert (Path(cpp_tmp) / "converted.root").read_bytes() == (
-            Path(py_tmp) / "converted.root"
-        ).read_bytes()
-        assert (Path(cpp_tmp) / "converted_0000000.json").read_bytes() == (
-            Path(py_tmp) / "converted_0000000.json"
-        ).read_bytes()
+        assert (Path(cpp_tmp) / "converted.root").read_bytes() == (Path(py_tmp) /
+                                                                   "converted.root").read_bytes()
+        assert (Path(cpp_tmp) /
+                "converted_0000000.json").read_bytes() == (Path(py_tmp) /
+                                                           "converted_0000000.json").read_bytes()
 
 
 def test_convert_sidre_protocol_matches_cpp():

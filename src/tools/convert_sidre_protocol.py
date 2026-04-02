@@ -3,7 +3,6 @@
 # files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
-
 """Convert a Sidre datastore to another supported protocol."""
 
 from __future__ import annotations
@@ -15,7 +14,6 @@ from pathlib import Path
 import numpy as np
 from mpi4py import MPI
 import pysidre
-
 
 VALID_PROTOCOLS = (
     "json",
@@ -151,7 +149,8 @@ def truncate_bulk_data(group: pysidre.Group, max_size: int, verbose: bool) -> No
         if view.hasBuffer() and original_size > retained_size:
             view.apply(retained_size, view.getOffset(), view.getStride())
 
-        log(verbose, f"Truncating view {view.getPathName()} from {original_size} to {retained_size}")
+        log(verbose,
+            f"Truncating view {view.getPathName()} from {original_size} to {retained_size}")
         modify_final_values(view, original_size, retained_size)
 
     for child in iter_groups(group):
@@ -159,14 +158,12 @@ def truncate_bulk_data(group: pysidre.Group, max_size: int, verbose: bool) -> No
 
 
 def add_strip_note(root: pysidre.Group, num_elements: int) -> None:
-    note = (
-        "This datastore was created by axom's 'convert_sidre_protocol' utility "
-        f"with option '--strip {num_elements}'. To simplify debugging, the bulk "
-        f"data in this datastore has been truncated to have at most {num_elements} "
-        "original values per array. Three values have been prepended to each "
-        "array: the size of the original array, the number of retained elements "
-        "and a zero/Nan."
-    )
+    note = ("This datastore was created by axom's 'convert_sidre_protocol' utility "
+            f"with option '--strip {num_elements}'. To simplify debugging, the bulk "
+            f"data in this datastore has been truncated to have at most {num_elements} "
+            "original values per array. Three values have been prepended to each "
+            "array: the size of the original array, the number of retained elements "
+            "and a zero/Nan.")
     root.createViewString("Note", note)
 
 
