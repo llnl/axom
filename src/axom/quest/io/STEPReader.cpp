@@ -17,6 +17,7 @@
 #include "opencascade/BRep_Tool.hxx"
 #include "opencascade/BRepAdaptor_Curve.hxx"
 #include "opencascade/BRepBuilderAPI_MakeFace.hxx"
+#include "opencascade/BRepBuilderAPI_Sewing.hxx"
 #include "opencascade/BRepBuilderAPI_NurbsConvert.hxx"
 #include "opencascade/BRepCheck_Analyzer.hxx"
 #include "opencascade/BRepCheck_Edge.hxx"
@@ -26,6 +27,7 @@
 #include "opencascade/BRepLib.hxx"
 #include "opencascade/BRepMesh_IncrementalMesh.hxx"
 #include "opencascade/BRepTools.hxx"
+#include "opencascade/BRepTools_WireExplorer.hxx"
 #include "opencascade/BRepBndLib.hxx"
 #include "opencascade/Geom_BSplineSurface.hxx"
 #include "opencascade/Geom_RectangularTrimmedSurface.hxx"
@@ -49,6 +51,7 @@
 #include "opencascade/TopoDS_Edge.hxx"
 #include "opencascade/TopoDS_Face.hxx"
 #include "opencascade/TopoDS_Shape.hxx"
+#include "opencascade/TopoDS_Solid.hxx"
 #include "opencascade/TopoDS_Wire.hxx"
 #include "opencascade/TopoDS.hxx"
 
@@ -66,6 +69,7 @@ struct PatchData
   int patchIndex {-1};
   bool wasOriginallyPeriodic_u {false};
   bool wasOriginallyPeriodic_v {false};
+  bool was_reversed_u {false};
   axom::primal::BoundingBox<double, 2> parametricBBox;
   axom::primal::BoundingBox<double, 3> physicalBBox;
   axom::Array<bool> trimmingCurves_originallyPeriodic;
@@ -110,6 +114,16 @@ public:
   using PatchToTrimmingCurvesMap = std::map<int, NCurveArray>;
 
 private:
+  /// Reflect a trimming curve in u to match a u-reversed patch parameterization.
+  static void reflectCurve_u(NCurve& curve, double umin, double umax)
+  {
+    auto& ctrl = curve.getControlPoints();
+    for(int i = 0; i < ctrl.size(); ++i)
+    {
+      ctrl[i][0] = umin + umax - ctrl[i][0];
+    }
+  }
+
   /// Returns a bounding box convering the patch's knot spans in 2D parametric space
   BBox2D faceBoundingBox(const TopoDS_Face& face) const
   {
@@ -683,18 +697,20 @@ public:
 
         patches[patchIndex] = patchProcessor.nurbsPatchGeometry();
 
-        // If the face is flipped in opencascade, we need to flip the primal primitive too
-        if(face.Orientation() == TopAbs_REVERSED)
-        {
-          patches[patchIndex].reverseOrientation_u();
-        }
-
         PatchData& patchData = m_patchData[patchIndex];
         patchData.patchIndex = patchIndex;
         patchData.wasOriginallyPeriodic_u = patchProcessor.patchWasOriginallyPeriodic_u();
         patchData.wasOriginallyPeriodic_v = patchProcessor.patchWasOriginallyPeriodic_v();
+        patchData.was_reversed_u = (face.Orientation() != TopAbs_FORWARD);
         patchData.parametricBBox = faceBoundingBox(face);
         patchData.physicalBBox = patches[patchIndex].boundingBox();
+
+        // Apply the face orientation to the Axom patch so that normals are
+        // consistent with the original B-Rep.
+        if(patchData.was_reversed_u)
+        {
+          patches[patchIndex].reverseOrientation_u();
+        }
 
         if(patchData.wasOriginallyPeriodic_u || patchData.wasOriginallyPeriodic_v)
         {
@@ -849,6 +865,9 @@ public:
       PatchData& patchData = m_patchData[patchIndex];
       auto& patch = patches[patchIndex];
 
+      const double patch_umin = patch.getMinKnot_u();
+      const double patch_umax = patch.getMaxKnot_u();
+
       // Get span of this patch in u and v directions
       BBox2D patchBbox = patchData.parametricBBox;
       auto expandedPatchBbox = patchBbox;
@@ -867,13 +886,11 @@ public:
         const TopoDS_Wire& wire = TopoDS::Wire(wireExp.Current());
 
         int edgeIndex = 0;
-        for(TopExp_Explorer edgeExp(wire, TopAbs_EDGE); edgeExp.More(); edgeExp.Next(), ++edgeIndex)
+        BRepTools_WireExplorer edgeExp(wire, TopoDS::Face(faceExp.Current()));
+        for(; edgeExp.More(); edgeExp.Next(), ++edgeIndex)
         {
           const TopoDS_Edge& edge = TopoDS::Edge(edgeExp.Current());
           const int curveIndex = patch.getNumTrimmingCurves();
-
-          TopAbs_Orientation orientation = edge.Orientation();
-          const bool isReversed = (orientation == TopAbs_REVERSED);
 
           if(m_verbose)
           {
@@ -901,12 +918,18 @@ public:
             patchData.trimmingCurves_originallyPeriodic.push_back(
               curveProcessor.curveWasOriginallyPeriodic());
 
-            if(isReversed)  // Ensure consistency of curve w.r.t. patch
+            SLIC_ASSERT(curve.isValidNURBS());
+            SLIC_ASSERT(curve.getDegree() == bsplineCurve->Degree());
+
+            if(patchData.was_reversed_u)
+            {
+              reflectCurve_u(curve, patch_umin, patch_umax);
+            }
+
+            if(edge.Orientation() == TopAbs_REVERSED)
             {
               curve.reverseOrientation();
             }
-            SLIC_ASSERT(curve.isValidNURBS());
-            SLIC_ASSERT(curve.getDegree() == bsplineCurve->Degree());
 
             patch.addTrimmingCurve(curve);
 
@@ -937,13 +960,6 @@ public:
             // TODO: Check that curve control points are within UV patch after adjusting periodicity
           }
         }
-      }
-
-      // If the face is flipped, then the trimming curves all need to be reversed too
-      if(patch.isTrimmed() &&
-         TopoDS::Face(faceExp.Current()).Orientation() == TopAbs_Orientation::TopAbs_REVERSED)
-      {
-        patch.reverseTrimmingCurves();
       }
     }
   }
@@ -1141,8 +1157,7 @@ public:
     for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
     {
       TopoDS_Face face = TopoDS::Face(faceExp.Current());
-
-      const bool isReversed = (face.Orientation() == TopAbs_Orientation::TopAbs_REVERSED);
+      const bool isReversed = (face.Orientation() != TopAbs_FORWARD);
 
       // Create a triangulation of this patch
       TopLoc_Location loc;
@@ -1164,14 +1179,15 @@ public:
         int n1, n2, n3;
         triangle.Get(n1, n2, n3);
 
-        if(isReversed)
-        {
-          std::swap(n1, n3);
-        }
-
         gp_Pnt p1 = triangulation->Node(n1).Transformed(trsf);
         gp_Pnt p2 = triangulation->Node(n2).Transformed(trsf);
         gp_Pnt p3 = triangulation->Node(n3).Transformed(trsf);
+
+        // Ensure triangle orientation matches the oriented face normal.
+        if(isReversed)
+        {
+          axom::utilities::swap(p2, p3);
+        }
 
         axom::IndexType v1 = output_mesh.appendNode(p1.X(), p1.Y(), p1.Z());
         axom::IndexType v2 = output_mesh.appendNode(p2.X(), p2.Y(), p2.Z());
@@ -1201,8 +1217,7 @@ public:
     for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
     {
       TopoDS_Face face = TopoDS::Face(faceExp.Current());
-
-      const bool isReversed = (face.Orientation() == TopAbs_Orientation::TopAbs_REVERSED);
+      const bool isReversed = (face.Orientation() != TopAbs_FORWARD);
 
       // Get the underlying surface of the face
       opencascade::handle<Geom_Surface> surface = BRep_Tool::Surface(face);
@@ -1216,6 +1231,7 @@ public:
 
       // Create a new face from the untrimmed surface
       TopoDS_Face newFace = BRepBuilderAPI_MakeFace(untrimmedSurface, Precision::Confusion());
+      newFace.Orientation(face.Orientation());
 
       // Mesh the new face
       BRepMesh_IncrementalMesh mesh(newFace, m_deflection, m_deflectionIsRelative, m_angularDeflection);
@@ -1241,14 +1257,14 @@ public:
         int n1, n2, n3;
         triangle.Get(n1, n2, n3);
 
-        if(isReversed)
-        {
-          std::swap(n1, n3);
-        }
-
         gp_Pnt p1 = triangulation->Node(n1).Transformed(trsf);
         gp_Pnt p2 = triangulation->Node(n2).Transformed(trsf);
         gp_Pnt p3 = triangulation->Node(n3).Transformed(trsf);
+
+        if(isReversed)
+        {
+          axom::utilities::swap(p2, p3);
+        }
 
         axom::IndexType v1 = output_mesh.appendNode(p1.X(), p1.Y(), p1.Z());
         axom::IndexType v2 = output_mesh.appendNode(p2.X(), p2.Y(), p2.Z());
