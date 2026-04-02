@@ -23,7 +23,6 @@
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
-#include "axom/primal/geometry/GWNMomentData.hpp"
 
 #include "axom/primal/operators/is_convex.hpp"
 
@@ -318,12 +317,11 @@ class NURBSPatchCacheManager
 public:
   NURBSPatchCacheManager() = default;
 
-  template <int MOMENT_ORD>
   NURBSPatchCacheManager(PatchArrayView patches,
-                         axom::ArrayView<const axom::primal::GWNMomentData<double, 3, MOMENT_ORD>> moments)
+                         axom::ArrayView<axom::primal::Vector<double, 3>> precomputed_normals)
   {
-    SLIC_ASSERT(moments.empty() || moments.size() == patches.size());
-    const bool computeNormal = !moments.empty();
+    SLIC_ASSERT(precomputed_normals.empty() || precomputed_normals.size() == patches.size());
+    const bool computeNormal = !precomputed_normals.empty();
 
     for(auto& patch : patches)
     {
@@ -331,12 +329,12 @@ public:
     }
 
     // If we didn't comptue normals in NURBSCache constructor,
-    //  need to get them from the moments
+    //  need to use precomputed values
     if(!computeNormal)
     {
-      for(int n = 0; n < moments.size(); ++n)
+      for(int n = 0; n < precomputed_normals.size(); ++n)
       {
-        m_nurbs_caches[n].setNormal(moments[n].getNormal());
+        m_nurbs_caches[n].setNormal(std::move(precomputed_normals[n]));
       }
     }
   }
@@ -382,13 +380,11 @@ class NURBSPatchCacheManagerOMP
 public:
   NURBSPatchCacheManagerOMP() = default;
 
-  template <int MOMENT_ORD>
-  NURBSPatchCacheManagerOMP(
-    PatchArrayView patches,
-    axom::ArrayView<const axom::primal::GWNMomentData<double, 3, MOMENT_ORD>> moments)
+  NURBSPatchCacheManagerOMP(PatchArrayView patches,
+                            axom::ArrayView<axom::primal::Vector<double, 3>> precomputed_normals)
   {
-    SLIC_ASSERT(moments.empty() || moments.size() == patches.size());
-    const bool computeNormal = !moments.empty();
+    SLIC_ASSERT(precomputed_normals.empty() || precomputed_normals.size() == patches.size());
+    const bool computeNormal = precomputed_normals.empty();
 
     const int nt = omp_get_max_threads();
     m_nurbs_caches.resize(nt);
@@ -408,7 +404,9 @@ public:
     {
       axom::for_all<axom::OMP_EXEC>(
         patches.size(),
-        AXOM_LAMBDA(axom::IndexType i) { nurbs_caches_view[0][i].setNormal(moments[i].getNormal()); });
+        AXOM_LAMBDA(axom::IndexType i) {
+          nurbs_caches_view[0][i].setNormal(std::move(precomputed_normals[i]));
+        });
     }
 
     // Copy the constructed cache to the other threads' copies (less work than construction)

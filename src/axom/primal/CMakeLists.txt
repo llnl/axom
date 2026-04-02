@@ -27,7 +27,6 @@ set( primal_headers
     geometry/CoordinateTransformer.hpp
     geometry/Cone.hpp
     geometry/CurvedPolygon.hpp
-    geometry/GWNMomentData.hpp
     geometry/Hexahedron.hpp
     geometry/KnotVector.hpp
     geometry/Line.hpp

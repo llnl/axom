@@ -312,6 +312,13 @@ public:
     return axom::primal::Point<T, NDIMS>((ap / a).array());
   }
 
+  /// Return the normal if computed from 3D data
+  axom::primal::Vector<T, 3> getNormal() const
+  {
+    static_assert(NDIMS == 3, "GWN Moments for triangles are defined only for 3D");
+    return axom::primal::Vector<T, 3> {ec[0], ec[1], ec[2]};
+  }
+
 private:
   /// Transform raw moments into expansion coefficients
   void compute_coefficients()

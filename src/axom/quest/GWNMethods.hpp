@@ -600,6 +600,9 @@ public:
       return;
     }
 
+    // To use if normals are precomputed as moments, then used in caches
+    axom::Array<primal::Vector<double, 3>> precomputed_normals;
+
     axom::utilities::Timer timer(true);
     axom::utilities::Timer stage_timer(false);
 
@@ -643,10 +646,16 @@ public:
       stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("moment_precomputation");
+        precomputed_normals.resize(m_processed_patches_view.size());
+        auto normals_view = precomputed_normals.view();
+
         auto compute_moments = [=](std::int32_t currentNode,
                                    const std::int32_t* leafNodes) -> GWNMoments {
           const auto idx = leafNodes[currentNode];
-          return GWNMoments(m_processed_patches_view[idx]);  // TODO: Avoid repeat normal calculation
+          const auto leaf_moments = GWNMoments(m_processed_patches_view[idx]);
+
+          normals_view[idx] = leaf_moments.getNormal();
+          return leaf_moments;
         };
 
         const auto traverser = m_bvh.getTraverser();
@@ -668,7 +677,9 @@ public:
       stage_timer.start();
       {
         AXOM_ANNOTATE_SCOPE("cache_initialization");
-        m_nurbs_cache_mgr = NURBSCacheManager(m_processed_patches_view);
+
+        // If internal moments are already allocated, then normals are already precomputed
+        m_nurbs_cache_mgr = NURBSCacheManager(m_processed_patches_view, precomputed_normals.view());
       }
       stage_timer.stop();
       SLIC_INFO(axom::fmt::format("  Preprocessing stage (cache initialization): {} s",
