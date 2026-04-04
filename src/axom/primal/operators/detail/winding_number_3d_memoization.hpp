@@ -410,18 +410,12 @@ public:
     }
 
     // Copy the constructed cache to the other threads' copies (less work than construction)
-    axom::for_all<axom::OMP_EXEC>(
-      1,
-      nt,
-      AXOM_LAMBDA(axom::IndexType t) { nurbs_caches_view[t].resize(nurbs_caches_view[0].size()); });
-    axom::for_all<axom::OMP_EXEC>(
-      patches.size(),
-      AXOM_LAMBDA(axom::IndexType i) {
-        for(int t = 0; t < nt; t++)
-        {
-          nurbs_caches_view[t][i] = nurbs_caches_view[0][i];
-        }
-      });
+    // This should be able to be done via an axom::for_all<axom::OMP_EXEC>, 
+    //  but I ran into intermettent issues. Not sure why.
+    for(int t = 1; t < nt; ++t)
+    {
+      nurbs_caches_view[t] = nurbs_caches_view[0];
+    }
   }
 
   /// A view of the manager object.

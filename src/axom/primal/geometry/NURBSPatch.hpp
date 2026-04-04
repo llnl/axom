@@ -3300,7 +3300,7 @@ public:
     return ret_vec;
   }
 
-  template <int ORDER, int NVALS = 4 + (ORDER == 0 ? 3 : 0) + (ORDER == 1 ? 9 : 0) + (ORDER == 2 ? 27 : 0)>
+  template <int ORDER, int NVALS = 4 + (ORDER >= 0 ? 3 : 0) + (ORDER >= 1 ? 9 : 0) + (ORDER >= 2 ? 27 : 0)>
   primal::Vector<T, NVALS> calculateSurfaceMoments() const
   {
     // Need to integrate over 4 (for the coordinates and weight of the centroid)
