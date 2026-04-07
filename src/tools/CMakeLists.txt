@@ -204,9 +204,6 @@ if(NANOBIND_FOUND)
                              "${CMAKE_INSTALL_PREFIX}/bin/${_tool}" COPYONLY)
     endforeach()
 
-    install(PROGRAMS ${_python_tools}
-            DESTINATION bin)
-
     unset(_python_tools)
 
     # gen python helper to build directory
