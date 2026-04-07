@@ -99,7 +99,11 @@ spack:
             c: /usr/tce/packages/intel/intel-2025.2.0-magic/bin/icx
             cxx: /usr/tce/packages/intel/intel-2025.2.0-magic/bin/icpx
             fortran: /usr/tce/packages/intel/intel-2025.2.0-magic/bin/ifx
-          flags: {}
+          flags:
+            cflags: -fPIC
+            # Addresses floating point issues (default is fast)
+            cxxflags: -fPIC -fp-model=precise
+            fflags: -fPIC
           environment: {}
           extra_rpaths: []
 

@@ -416,9 +416,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             entries.append(cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-O1 -g"))
 
         if spec.satisfies("%oneapi"):
-            # Addresses floating point issues (default is fast)
-            entries.append(cmake_cache_string("CMAKE_CXX_FLAGS", "-fp-model=precise"))
-
             # Disable intrusive warning:
             #   icpx: remark: note that use of '-g' without any optimization-level
             #   option will turn off most compiler optimizations similar to use of
