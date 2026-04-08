@@ -19,7 +19,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ### Added
-- Primal: Functions to evaluate surface and volume integrals over collections of `BezierPatch` and `NURBSPatch` objects
+- Primal: Functions to evaluate surface and volume integrals over collections of `BezierPatch` and `NURBSPatch` objects.
 - Quest: An example to evaluate surface and volume integrals over a STEP model
   and to fit a ellipsoid or oriented bounding box to a model based on its low order moments.
 
@@ -57,11 +57,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: the `ArrayView` class was modified so it defers initializing an internal
   allocator id via Umpire, if present. This prevents excessive calls to Umpire,
   which are not needed in all use cases.
-
-### Removed
-
-### Deprecated
-
+- Quest: Fixed a compilation problem with `-DAXOM_NO_INT64_T=1`
+- Quest: `STEPReader` now catches additional edge cases related to orientation of OpenCascade primitives.
 
 ## [Version 0.13.0] - Release date 2026-02-05
 
@@ -1429,7 +1426,8 @@ fractions for the associated materials must be supplied before shaping.
 - Use this section in case of vulnerabilities
 
 
-[Unreleased]:     https://github.com/LLNL/axom/compare/v0.13.0...develop
+[Unreleased]:     https://github.com/LLNL/axom/compare/v0.14.0...develop
+[Version 0.14.0]: https://github.com/LLNL/axom/compare/v0.13.0...v0.14.0
 [Version 0.13.0]: https://github.com/LLNL/axom/compare/v0.12.0...v0.13.0
 [Version 0.12.0]: https://github.com/LLNL/axom/compare/v0.11.0...v0.12.0
 [Version 0.11.0]: https://github.com/LLNL/axom/compare/v0.10.1...v0.11.0
