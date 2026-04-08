@@ -62,31 +62,6 @@ void transform_patches(PatchArray& patches, const Matrix& transform)
   }
 }
 
-PatchArray replicate_biquartic_sphere_faces(const PatchArray& base_patches)
-{
-  EXPECT_EQ(base_patches.size(), 1);
-
-  PatchArray all_patches;
-  all_patches.push_back(base_patches[0]);
-
-  const Matrix rot_pos_y = embed_linear_transform(axom::numerics::transforms::xRotation(M_PI / 2.0));
-  const Matrix rot_neg_y = embed_linear_transform(axom::numerics::transforms::xRotation(-M_PI / 2.0));
-  const Matrix rot_pos_z = embed_linear_transform(axom::numerics::transforms::xRotation(M_PI));
-  const Matrix rot_neg_x = embed_linear_transform(axom::numerics::transforms::yRotation(M_PI / 2.0));
-  const Matrix rot_pos_x = embed_linear_transform(axom::numerics::transforms::yRotation(-M_PI / 2.0));
-
-  const Matrix rotations[] = {rot_pos_y, rot_neg_y, rot_pos_z, rot_neg_x, rot_pos_x};
-  for(const Matrix& rotation : rotations)
-  {
-    PatchArray rotated(1);
-    rotated[0] = base_patches[0];
-    transform_patches(rotated, rotation);
-    all_patches.push_back(rotated[0]);
-  }
-
-  return all_patches;
-}
-
 template <typename Lambda>
 void expect_matching_surface_values(const PatchArray& patches_a,
                                     const PatchArray& patches_b,
@@ -142,10 +117,10 @@ TEST(quest_step_quadrature, sphere_models_match_unit_sphere_moments)
   const std::string step_dir = std::string(AXOM_DATA_DIR) + "/quest/step/";
 
   auto revolved = read_step_patches(step_dir + "revolved_sphere.step");
-  auto biquartic = read_step_patches(step_dir + "biquartic_sphere_surface.step");
-  biquartic = replicate_biquartic_sphere_faces(biquartic);
+  auto biquartic = read_step_patches(step_dir + "biquartic_sphere.step");
 
   EXPECT_EQ(revolved.size(), 1);
+  EXPECT_FALSE(biquartic.empty());
   EXPECT_EQ(biquartic.size(), 6);
 
   // revolved_sphere.step is a radius-5 sphere, while the biquartic sphere patch is unit-radius.
@@ -189,8 +164,7 @@ TEST(quest_step_quadrature, transformed_sphere_models_match_expected_moments)
   const std::string step_dir = std::string(AXOM_DATA_DIR) + "/quest/step/";
 
   auto revolved = read_step_patches(step_dir + "revolved_sphere.step");
-  auto biquartic = read_step_patches(step_dir + "biquartic_sphere_surface.step");
-  biquartic = replicate_biquartic_sphere_faces(biquartic);
+  auto biquartic = read_step_patches(step_dir + "biquartic_sphere.step");
 
   transform_patches(revolved, axom::numerics::transforms::scale(1.0 / 5.0, 4));
 
