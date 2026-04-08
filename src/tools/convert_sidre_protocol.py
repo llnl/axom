@@ -85,7 +85,11 @@ def positive_int(value: str) -> int:
     return parsed
 
 
-def log(enabled: bool, message: str) -> None:
+def log_info(message: str) -> None:
+    print(message)
+
+
+def log_debug(enabled: bool, message: str) -> None:
     if enabled:
         print(message)
 
@@ -117,7 +121,7 @@ def allocate_external_data(group: pysidre.Group, holders: list[np.ndarray], verb
     # for each view
     for view in iter_views(group):
         if view.isExternal():
-            log(
+            log_debug(
                 verbose,
                 f"Allocating external storage for {view.getPathName()} "
                 f"({view.getNumElements()} elements, {view.getTotalBytes()} bytes)",
@@ -212,7 +216,7 @@ def truncate_bulk_data(group: pysidre.Group, max_size: int, verbose: bool) -> No
                 data = np.asarray(view.getDataArray()).reshape(-1)
                 view.setExternalData(view.getTypeID(), retained_size, data)
 
-            log(
+            log_debug(
                 verbose,
                 f"Truncating view {view.getPathName()} from {original_size} to {retained_size}",
             )
@@ -249,22 +253,21 @@ def main() -> int:
     datastore = pysidre.DataStore()
     root = datastore.getRoot()
 
-    log(args.verbose, f"Loading datastore from {input_path}")
+    log_info(f"Loading datastore from {input_path}")
     manager.read(root, str(input_path))
     num_files = manager.getNumFilesFromRoot(str(input_path))
 
-    log(args.verbose, "Loading external data from datastore")
+    log_info("Loading external data from datastore")
     external_holders: list[np.ndarray] = []
     allocate_external_data(root, external_holders, args.verbose)
     manager.loadExternalData(root, str(input_path))
 
     if args.strip is not None:
-        log(args.verbose, f"Truncating views to at most {args.strip} elements")
+        log_info(f"Truncating views to at most {args.strip} elements.")
         truncate_bulk_data(root, args.strip, args.verbose)
         add_strip_note(root, args.strip)
 
-    log(
-        args.verbose,
+    log_info(
         f"Writing out datastore in '{args.protocol}' protocol to file(s) with base name {args.output}",
     )
     manager.write(root, num_files, args.output, args.protocol)
