@@ -3,7 +3,22 @@
 # files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
-"""Convert a Sidre datastore to another supported protocol."""
+"""Convert a Sidre datastore from the sidre_hdf5 protocol to another protocol.
+
+Users must supply a path to a sidre_hdf5 rootfile and base name for
+the output datastores. Optional command line arguments include
+a ``--protocol`` option (the default is ``json``)
+and a ``--strip`` option to truncate the array data to at most N elements.
+The strip option also prepends each array with its original size, the new
+size and a filler entry of 0 for integer arrays or nan for floating point
+arrays. E.g. if the array had 6 entries [1.01, 2.02, 3.03, 4.04, 5.05, 6.06]
+and the user passed in ``--strip 3``, the array would be converted to
+[6, 3, nan, 1.01, 2.02, 3.03].
+
+The strip option is intended as a temporary solution to truncating
+a dataset to allow easier debugging. In the future, the conversion and
+truncation/display functionality may be separated into distinct utilities.
+"""
 
 from __future__ import annotations
 
@@ -89,7 +104,17 @@ def iter_groups(group: pysidre.Group):
         idx = group.getNextValidGroupIndex(idx)
 
 
+#
+# Allocate storage for external data of the input datastore.
+#
+# Iterates recursively through the views and groups of the provided group to
+# find the external data views and allocates the required storage within the
+# holders list.
+#
+# Also initializes the data in each allocated array to zeros.
+#
 def allocate_external_data(group: pysidre.Group, holders: list[np.ndarray], verbose: bool) -> None:
+    # for each view
     for view in iter_views(group):
         if view.isExternal():
             log(
@@ -101,6 +126,7 @@ def allocate_external_data(group: pysidre.Group, holders: list[np.ndarray], verb
             view.setExternalData(storage)
             holders.append(storage)
 
+    # for each group
     for child in iter_groups(group):
         allocate_external_data(child, holders, verbose)
 
@@ -111,6 +137,17 @@ def filler_value(dtype: np.dtype):
     return 0
 
 
+#
+# Shift the data to the right by three elements.
+#
+# The new first value will be the size of the original array.
+# The next value will be the number of retained elements and the
+# third value will be 0 for integer data and Nan for float data.
+# This is followed by the values in the truncated original dataset.
+#
+# This function creates a copy of the data since there could be
+# several views in the original dataset pointing to the same memory.
+#
 def modify_final_values(
     view: pysidre.View,
     original_size: int,
@@ -123,18 +160,25 @@ def modify_final_values(
         retained = flattened[:retained_size]
 
     retained_size = int(retained.size)
+
+    # Create a new buffer for copied data.
     datastore = view.getOwningGroup().getDataStore()
     type_id = view.getTypeID()
     new_size = retained_size + 3
     buffer = datastore.createBuffer(type_id, new_size)
     buffer.allocate()
 
+    # Explicitly set the first two elements and copy elements over.
     new_array = np.asarray(buffer.getDataArray()).reshape(-1)
     np.copyto(new_array[:2], np.asarray([original_size, retained_size]), casting="unsafe")
     new_array[2] = filler_value(new_array.dtype)
     if retained_size > 0:
         np.copyto(new_array[3:], retained, casting="unsafe")
 
+    # Update view's buffer to the new data.
+    # The C++ utility uses detachBuffer() here because this path is valid for
+    # buffer-backed views. In Python we also need to support external views, so
+    # we make the state transition explicit before attaching the new buffer.
     if view.hasBuffer():
         view.attachBuffer(None)
     elif view.isExternal():
@@ -143,21 +187,38 @@ def modify_final_values(
     view.attachBuffer(type_id, new_size, buffer)
 
 
+#
+# Recursively traverse views and groups in group and truncate views to
+# have at most max_size elements.
+#
+# Within the truncated arrays, the first element will be the size of the
+# original array, the second will be the number of retained elements and the
+# third will be 0 for integers or nan for floating points.
+# This will be followed by at most the first max_size elements of the
+# original array.
+#
 def truncate_bulk_data(group: pysidre.Group, max_size: int, verbose: bool) -> None:
+    # for each view
     for view in iter_views(group):
-        if not (view.hasBuffer() or view.isExternal()):
-            continue
+        is_array = view.hasBuffer() or view.isExternal()
 
-        original_size = view.getNumElements()
-        retained_size = min(max_size, original_size)
+        if is_array:
+            original_size = view.getNumElements()
+            retained_size = min(max_size, original_size)
 
-        if view.hasBuffer() and original_size > retained_size:
-            view.apply(retained_size, view.getOffset(), view.getStride())
+            if view.hasBuffer() and original_size > retained_size:
+                view.apply(retained_size, view.getOffset(), view.getStride())
+            elif view.isExternal() and original_size > retained_size:
+                data = np.asarray(view.getDataArray()).reshape(-1)
+                view.setExternalData(view.getTypeID(), retained_size, data)
 
-        log(verbose,
-            f"Truncating view {view.getPathName()} from {original_size} to {retained_size}")
-        modify_final_values(view, original_size, retained_size)
+            log(
+                verbose,
+                f"Truncating view {view.getPathName()} from {original_size} to {retained_size}",
+            )
+            modify_final_values(view, original_size, retained_size)
 
+    # for each group
     for child in iter_groups(group):
         truncate_bulk_data(child, max_size, verbose)
 
