@@ -135,7 +135,12 @@ def modify_final_values(
     if retained_size > 0:
         np.copyto(new_array[3:], retained, casting="unsafe")
 
-    view.replaceDataWithBuffer(type_id, new_size, buffer)
+    if view.hasBuffer():
+        view.attachBuffer(None)
+    elif view.isExternal():
+        view.setExternalData(None)
+
+    view.attachBuffer(type_id, new_size, buffer)
 
 
 def truncate_bulk_data(group: pysidre.Group, max_size: int, verbose: bool) -> None:

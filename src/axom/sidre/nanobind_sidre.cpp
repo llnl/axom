@@ -543,31 +543,23 @@ NB_MODULE(pysidre, m_sidre)
     .def("attachBuffer",
          nb::overload_cast<Buffer*>(&View::attachBuffer),
          nb::rv_policy::reference,
-         "Attach a Buffer object to the View.")
+         "Attach a Buffer object to the View.",
+         nb::arg("buffer").none())
     .def("attachBuffer",
          nb::overload_cast<TypeID, IndexType, Buffer*>(&View::attachBuffer),
          nb::rv_policy::reference,
-         "Describe the data view and attach Buffer object.")
+         "Describe the data view and attach Buffer object.",
+         nb::arg("type"),
+         nb::arg("num_elems"),
+         nb::arg("buffer").none())
     .def("attachBuffer",
          nb::overload_cast<TypeID, int, const IndexType*, Buffer*>(&View::attachBuffer),
          nb::rv_policy::reference,
-         "Describe the data view and attach Buffer object")
-    .def(
-      "replaceDataWithBuffer",
-      [](View& self, TypeID type, IndexType num_elems, Buffer* buffer) {
-        if(self.hasBuffer())
-        {
-          self.attachBuffer(nullptr);
-        }
-        else if(self.isExternal())
-        {
-          self.setExternalDataPtr(nullptr);
-        }
-
-        return self.attachBuffer(type, num_elems, buffer);
-      },
-      nb::rv_policy::reference,
-      "Replace the View's current array data with a newly attached Buffer.")
+         "Describe the data view and attach Buffer object",
+         nb::arg("type"),
+         nb::arg("ndims"),
+         nb::arg("shape"),
+         nb::arg("buffer").none())
 
     .def("clear", &View::clear, "Clear data and metadata from the View.")
     .def("apply", nb::overload_cast<>(&View::apply), "Apply the View's description to its data.")
@@ -610,6 +602,18 @@ NB_MODULE(pysidre, m_sidre)
          "Set the View to hold a string value.",
          nb::arg("value").noconvert(),
          nb::arg("allocID") = INVALID_ALLOCATOR_ID)
+    .def(
+      "setExternalData",
+      [](View& self, nb::object external_ptr) {
+        if(external_ptr.is_none())
+        {
+          return self.setExternalDataPtr(nullptr);
+        }
+        return self.setExternalDataPtr(nb::cast<nb::ndarray<>>(external_ptr).data());
+      },
+      nb::rv_policy::reference,
+      "Set the View to hold undescribed external data (numpy array).",
+      nb::arg("external_ptr").none())
     .def(
       "setExternalData",
       [](View& self, const nb::ndarray<>& external_ptr) {

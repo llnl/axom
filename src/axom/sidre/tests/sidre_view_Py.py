@@ -192,23 +192,52 @@ def test_view_dtype_support():
         assert view.getDataArray().dtype == np.dtype(expected_dtype)
 
 
-def test_replace_data_with_buffer_from_external():
+def test_detach_external_and_attach_buffer():
     ds = pysidre.DataStore()
     root = ds.getRoot()
 
     external = np.array([1, 2], dtype=np.int32)
     view = root.createView("external", pysidre.TypeID.INT32_ID, 2, external)
     assert view.isExternal()
+    assert not view.hasBuffer()
+
+    view.setExternalData(None)
+    assert view.isEmpty()
 
     replacement = ds.createBuffer(pysidre.TypeID.INT32_ID, 4)
     replacement.allocate()
     replacement_data = replacement.getDataArray()
     replacement_data[:] = [3, 4, 5, 6]
 
-    view.replaceDataWithBuffer(pysidre.TypeID.INT32_ID, 4, replacement)
+    view.attachBuffer(pysidre.TypeID.INT32_ID, 4, replacement)
 
     assert view.hasBuffer()
     assert not view.isExternal()
+    assert list(view.getDataArray()) == [3, 4, 5, 6]
+
+
+def test_detach_buffer_and_attach_buffer():
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+
+    original = ds.createBuffer(pysidre.TypeID.INT32_ID, 2)
+    original.allocate()
+    original.getDataArray()[:] = [1, 2]
+
+    view = root.createView("buffered", pysidre.TypeID.INT32_ID, 2, original)
+    assert view.hasBuffer()
+
+    view.attachBuffer(None)
+    assert view.isEmpty()
+    assert not view.hasBuffer()
+
+    replacement = ds.createBuffer(pysidre.TypeID.INT32_ID, 4)
+    replacement.allocate()
+    replacement.getDataArray()[:] = [3, 4, 5, 6]
+
+    view.attachBuffer(pysidre.TypeID.INT32_ID, 4, replacement)
+
+    assert view.hasBuffer()
     assert list(view.getDataArray()) == [3, 4, 5, 6]
 
 
