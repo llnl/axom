@@ -271,9 +271,9 @@ class NURBSCurveCacheManager
 public:
   NURBSCurveCacheManager() = default;
 
-  NURBSCurveCacheManager(const CurveArrayView& curves, double bbExpansionAmount = 0.0)
+  NURBSCurveCacheManager(CurveArrayView curves, double bbExpansionAmount = 0.0)
   {
-    for(const auto& curve : curves)
+    for(auto& curve : curves)
     {
       m_nurbs_caches.push_back(NURBSCache(curve, bbExpansionAmount));
     }
@@ -320,7 +320,7 @@ class NURBSCurveCacheManagerOMP
 public:
   NURBSCurveCacheManagerOMP() = default;
 
-  NURBSCurveCacheManagerOMP(const CurveArrayView& curves, double bbExpansionAmount = 0.0)
+  NURBSCurveCacheManagerOMP(CurveArrayView curves, double bbExpansionAmount = 0.0)
   {
     const int nt = omp_get_max_threads();
     m_nurbs_caches.resize(nt);

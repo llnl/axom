@@ -126,6 +126,26 @@ public:
     compute_coefficients();
   }
 
+  /// Construct moments from a trimmed NURBS surface
+  explicit GWNMomentData(const axom::primal::NURBSPatch<T, 3>& a_patch)
+  {
+    const auto patch_data = a_patch.template calculateSurfaceMoments<ORD>();
+
+    a = patch_data[0];
+    ap[0] = patch_data[1];
+    ap[1] = patch_data[2];
+    ap[2] = patch_data[3];
+
+    for(int i = 0; i < NumberOfEntries; ++i) rm[i] = patch_data[i + 4];
+
+    compute_coefficients();
+  }
+
+  /// Construct moments from the endpoints of a 2D segment
+  explicit GWNMomentData(const axom::primal::NURBSCurve<T, 2>& c)
+    : GWNMomentData(c.getInitPoint(), c.getEndPoint())
+  { }
+
   /// Construct moments from a 2D Segment
   explicit GWNMomentData(const axom::primal::Segment<T, 2>& s)
     : GWNMomentData(s.source(), s.target())
@@ -292,6 +312,13 @@ public:
     return axom::primal::Point<T, NDIMS>((ap / a).array());
   }
 
+  /// Return the normal if computed from 3D data
+  axom::primal::Vector<T, 3> getNormal() const
+  {
+    static_assert(NDIMS == 3, "GWN Moments for triangles are defined only for 3D");
+    return axom::primal::Vector<T, 3> {ec[0], ec[1], ec[2]};
+  }
+
 private:
   /// Transform raw moments into expansion coefficients
   void compute_coefficients()
@@ -403,7 +430,9 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
     }
   };
 
-  if constexpr(std::is_same_v<LeafGeom, axom::primal::Triangle<T, 3>>)
+  if constexpr(std::is_same_v<LeafGeom, axom::primal::Triangle<T, 3>> ||
+               std::is_same_v<LeafGeom, axom::primal::NURBSCurve<T, 2>> ||
+               std::is_same_v<LeafGeom, axom::primal::detail::NURBSCurveGWNCache<T>>)
   {
     auto leaf_gwn = [&query, &gwn, leaf_objects_view, &wt](std::int32_t currentNode,
                                                            const std::int32_t* leafNodes) -> void {
@@ -424,9 +453,179 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
 
     traverser.traverse_tree(query, leaf_gwn, bbContain);
   }
+
+  if constexpr(std::is_same_v<LeafGeom, axom::primal::NURBSPatch<T, 3>> ||
+               std::is_same_v<LeafGeom, axom::primal::detail::NURBSPatchGWNCache<T>>)
+  {
+    auto leaf_gwn = [&query, &gwn, leaf_objects_view, &wt](std::int32_t currentNode,
+                                                           const std::int32_t* leafNodes) -> void {
+      const auto idx = leafNodes[currentNode];
+      gwn += axom::primal::winding_number(query,
+                                          leaf_objects_view[idx],
+                                          wt.edge_tol,
+                                          wt.ls_tol,
+                                          wt.quad_tol,
+                                          wt.disk_size,
+                                          wt.EPS);
+    };
+
+    traverser.traverse_tree(query, leaf_gwn, bbContain);
+  }
   // Support for other leaf types forthcoming...
 
   return gwn;
+}
+
+template <typename T>
+axom::Array<primal::NURBSCurve<T, 2>> subdivide_curves(
+  const axom::ArrayView<const primal::NURBSCurve<T, 2>>& input_curves_view,
+  double bbox_threshold,
+  int npasses = 10)
+{
+  using BoxType = primal::BoundingBox<T, 2>;
+  using NURBSType = primal::NURBSCurve<T, 2>;
+  using BezierType = primal::BezierCurve<T, 2>;
+
+  // Compute a bounding box of all the curves
+  axom::Array<BezierType> candidates;
+  BoxType total_bbox;
+
+  // For NURBSCurves, first do a pass of Bezier extraction
+  for(auto& curv : input_curves_view)
+  {
+    for(auto& bez : curv.extractBezier())
+    {
+      candidates.push_back(bez);
+      total_bbox.addBox(bez.boundingBox());
+    }
+  }
+
+  // Iterate over all the curves until none have a bounding box
+  //  bigger than threshold * (total_bbox's size)
+  for(int i = 0; i < npasses; ++i)
+  {
+    axom::Array<BezierType> subdivisions;
+    subdivisions.reserve(candidates.size() * 3 / 2);
+
+    BoxType new_bbox;
+
+    // If any patch is bigger than the threshold, subdivide it,
+    //  and add it to the next level. Repeat as needed.
+    const double max_range_norm = bbox_threshold * total_bbox.range().norm();
+    for(const auto& candidate : candidates)
+    {
+      if(candidate.boundingBox().range().norm() < max_range_norm)
+      {
+        new_bbox.addBox(candidate.boundingBox());
+        subdivisions.push_back(candidate);
+        continue;
+      }
+
+      BezierType subcurves[2];
+      candidate.split(0.5, subcurves[0], subcurves[1]);
+      for(int si = 0; si < 2; si++)
+      {
+        subdivisions.emplace_back(std::move(subcurves[si]));
+        new_bbox.addBox(subdivisions.back().boundingBox());
+      }
+    }
+
+    // Break if no additional subdivisions are made
+    if(candidates.size() == subdivisions.size()) break;
+
+    candidates.swap(subdivisions);
+    total_bbox = new_bbox;
+  }
+
+  // Do one final pass to turn the array of candidates into NURBS
+  axom::Array<NURBSType> candidates_nurbs(0, candidates.size());
+  for(auto& c : candidates)
+  {
+    candidates_nurbs.emplace_back(NURBSType(c));
+  }
+
+  return candidates_nurbs;
+}
+
+template <typename T>
+axom::Array<primal::NURBSPatch<T, 3>> subdivide_patches(
+  const axom::ArrayView<const primal::NURBSPatch<T, 3>>& input_patches_view,
+  double bbox_threshold,
+  int npasses = 10)
+{
+  using BoxType = primal::BoundingBox<T, 3>;
+  using NURBSType = primal::NURBSPatch<T, 3>;
+
+  axom::Array<NURBSType> candidates;
+  candidates.reserve(input_patches_view.size() * 3 / 2);
+  BoxType total_bbox;
+
+  // Create initial array of processed patches,
+  //  beginning by clipping each patch parameter space
+  //  to a bounding box of its trimming curves
+  // Then compute a bounding box of all the surfaces
+  for(auto& surf : input_patches_view)
+  {
+    // This is where we would do Bezier extraction, if the curve-curve intersection
+    //  routine were more robust :(
+    //for(auto& bez : surf.extractTrimmedBezier())
+    {
+      auto the_patch = surf;
+
+      if(the_patch.getNumTrimmingCurves() == 0) continue;
+
+      the_patch.normalize();
+      the_patch.clipToCurves();
+
+      // Re-check if the patch is empty after clipping to curve
+      if(the_patch.getNumTrimmingCurves() == 0) continue;
+
+      candidates.push_back(the_patch);
+      total_bbox.addBox(the_patch.boundingBox());
+    }
+  }
+
+  // Iterate over all the surfaces until no patch has a bounding box
+  //  bigger than threshold * (total_bbox's size)
+  for(int i = 0; i < npasses; ++i)
+  {
+    axom::Array<NURBSType> subdivisions;
+    subdivisions.reserve(candidates.size() * 3 / 2);
+
+    BoxType new_bbox;
+
+    // If any patch is bigger than the threshold, subdivide it, clip it,
+    //  and add it to the next level. Repeat as needed.
+    const double max_range_norm = bbox_threshold * total_bbox.range().norm();
+    for(const auto& candidate : candidates)
+    {
+      if(candidate.boundingBox().range().norm() < max_range_norm)
+      {
+        new_bbox.addBox(candidate.boundingBox());
+        subdivisions.push_back(candidate);
+        continue;
+      }
+
+      NURBSType subpatches[2];
+      candidate.nearBisectOnLongestAxis(subpatches[0], subpatches[1]);
+      for(int si = 0; si < 2; si++)
+      {
+        if(subpatches[si].getNumTrimmingCurves() == 0) continue;
+
+        subdivisions.emplace_back(std::move(subpatches[si]));
+        subdivisions.back().clipToCurves();
+        new_bbox.addBox(subdivisions.back().boundingBox());
+      }
+    }
+
+    // Break if no additional subdivisions are made
+    if(candidates.size() == subdivisions.size()) break;
+
+    candidates.swap(subdivisions);
+    total_bbox = new_bbox;
+  }
+
+  return candidates;
 }
 
 }  // end namespace quest

@@ -155,32 +155,22 @@ public:
   NURBSPatchGWNCache() = default;
 
   /// \brief Initialize the cache with the data for a single NURBS patch
-  NURBSPatchGWNCache(const NURBSPatch<T, 3>& a_patch) : m_alteredPatch(a_patch)
+  NURBSPatchGWNCache(const NURBSPatch<T, 3>& a_patch, bool computeNormal = true)
+    : m_alteredPatch(a_patch)
   {
     m_alteredPatch.normalizeBySpan();
 
+    // Make trivially untrimmed if needed
     // Calculate the average normal for the untrimmed patch
     if(!m_alteredPatch.isTrimmed())
     {
-      m_averageNormal = m_alteredPatch.calculateUntrimmedPatchNormal();
       m_alteredPatch.makeTriviallyTrimmed();
     }
-    else
-    {
-      m_averageNormal = m_alteredPatch.calculateTrimmedPatchNormal();
-    }
 
-    // Cast direction is set to average normal, unless it is near zero
-    if(m_averageNormal.norm() < 1e-10)
+    if(computeNormal)
     {
-      // ...unless the average direction is zero
-      double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-      double u = axom::utilities::random_real(-1.0, 1.0);
-      m_castDirection = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
-    }
-    else
-    {
-      m_castDirection = m_averageNormal.unitVector();
+      setNormal(m_alteredPatch.isTrimmed() ? m_alteredPatch.calculateTrimmedPatchNormal()
+                                           : m_alteredPatch.calculateUntrimmedPatchNormal());
     }
 
     m_pboxDiag = m_alteredPatch.getParameterSpaceDiagonal();
@@ -250,8 +240,26 @@ public:
 
   ///@{
   //! \name Accessors for precomputed data
-  const Vector<T, 3>& getAverageNormal() const { return m_averageNormal; }
+  const Vector<T, 3>& getNormal() const { return m_normal; }
   const Vector<T, 3>& getCastDirection() const { return m_castDirection; }
+  void setNormal(const Vector<T, 3>& v)
+  {
+    m_normal = v;
+
+    // Cast direction is always set to average normal, unless it is near zero
+    if(m_normal.norm() < 1e-10)
+    {
+      // ...unless the average direction is zero
+      double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+      double u = axom::utilities::random_real(-1.0, 1.0);
+      m_castDirection = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+    }
+    else
+    {
+      m_castDirection = m_normal.unitVector();
+    }
+  }
+
   const BoundingBox<T, 3>& boundingBox() const { return m_bBox; }
   const OrientedBoundingBox<T, 3>& orientedBoundingBox() const { return m_oBox; }
   //@}
@@ -286,7 +294,7 @@ private:
   // Per patch data
   BoundingBox<T, 3> m_bBox;
   OrientedBoundingBox<T, 3> m_oBox;
-  Vector<T, 3> m_averageNormal, m_castDirection;
+  Vector<T, 3> m_normal, m_castDirection;
   double m_pboxDiag;
 
   // Per trimming curve data, keyed by (whichRefinementLevel, whichRefinementIndex)
@@ -309,11 +317,25 @@ class NURBSPatchCacheManager
 public:
   NURBSPatchCacheManager() = default;
 
-  NURBSPatchCacheManager(const PatchArrayView& patchs)
+  NURBSPatchCacheManager(PatchArrayView patches,
+                         axom::ArrayView<axom::primal::Vector<double, 3>> precomputed_normals)
   {
-    for(const auto& patch : patchs)
+    SLIC_ASSERT(precomputed_normals.empty() || precomputed_normals.size() == patches.size());
+    const bool computeNormal = !precomputed_normals.empty();
+
+    for(auto& patch : patches)
     {
-      m_nurbs_caches.push_back(NURBSCache(patch));
+      m_nurbs_caches.push_back(NURBSCache(patch, computeNormal));
+    }
+
+    // If we didn't comptue normals in NURBSCache constructor,
+    //  need to use precomputed values
+    if(!computeNormal)
+    {
+      for(int n = 0; n < precomputed_normals.size(); ++n)
+      {
+        m_nurbs_caches[n].setNormal(std::move(precomputed_normals[n]));
+      }
     }
   }
 
@@ -358,31 +380,42 @@ class NURBSPatchCacheManagerOMP
 public:
   NURBSPatchCacheManagerOMP() = default;
 
-  NURBSPatchCacheManagerOMP(const PatchArrayView& patches)
+  NURBSPatchCacheManagerOMP(PatchArrayView patches,
+                            axom::ArrayView<axom::primal::Vector<double, 3>> precomputed_normals)
   {
+    SLIC_ASSERT(precomputed_normals.empty() || precomputed_normals.size() == patches.size());
+    const bool computeNormal = precomputed_normals.empty();
+
     const int nt = omp_get_max_threads();
     m_nurbs_caches.resize(nt);
     auto nurbs_caches_view = m_nurbs_caches.view();
 
-    // Make the first one
+    // Make the first cache
     nurbs_caches_view[0].resize(patches.size());
     axom::for_all<axom::OMP_EXEC>(
       patches.size(),
-      AXOM_LAMBDA(axom::IndexType i) { nurbs_caches_view[0][i] = NURBSCache(patches[i]); });
-    SLIC_INFO("Finished the first construction");
-    // Copy the constructed cache to the other threads' copies (less work than construction)
-    axom::for_all<axom::OMP_EXEC>(
-      1,
-      nt,
-      AXOM_LAMBDA(axom::IndexType t) { nurbs_caches_view[t].resize(nurbs_caches_view[0].size()); });
-    axom::for_all<axom::OMP_EXEC>(
-      patches.size(),
       AXOM_LAMBDA(axom::IndexType i) {
-        for(int t = 0; t < nt; t++)
-        {
-          nurbs_caches_view[t][i] = nurbs_caches_view[0][i];
-        }
+        nurbs_caches_view[0][i] = NURBSCache(patches[i], computeNormal);
       });
+
+    // If we didn't comptue normals in NURBSCache constructor,
+    //  need to get them from the moments
+    if(!computeNormal)
+    {
+      axom::for_all<axom::OMP_EXEC>(
+        patches.size(),
+        AXOM_LAMBDA(axom::IndexType i) {
+          nurbs_caches_view[0][i].setNormal(std::move(precomputed_normals[i]));
+        });
+    }
+
+    // Copy the constructed cache to the other threads' copies (less work than construction)
+    // This should be able to be done via an axom::for_all<axom::OMP_EXEC>, 
+    //  but I ran into intermettent issues. Not sure why.
+    for(int t = 1; t < nt; ++t)
+    {
+      nurbs_caches_view[t] = nurbs_caches_view[0];
+    }
   }
 
   /// A view of the manager object.

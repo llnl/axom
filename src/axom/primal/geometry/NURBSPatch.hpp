@@ -2919,6 +2919,19 @@ public:
     }
   }
 
+  void clipToCurves()
+  {
+    // Take a union of all trimming curve parameter
+    ParameterBoundingBoxType curve_bbox;
+
+    for(auto& curv : m_trimmingCurves) curve_bbox.addBox(curv.boundingBox());
+
+    uncheckedClip(curve_bbox.getMin()[0] - 1e-5,
+                  curve_bbox.getMax()[0] + 1e-5,
+                  curve_bbox.getMin()[1] - 1e-5,
+                  curve_bbox.getMax()[1] + 1e-5);
+  }
+
   ///@}
 
   ///@{
@@ -3286,6 +3299,95 @@ public:
 
     return ret_vec;
   }
+
+  template <int ORDER, int NVALS = 4 + (ORDER >= 0 ? 3 : 0) + (ORDER >= 1 ? 9 : 0) + (ORDER >= 2 ? 27 : 0)>
+  primal::Vector<T, NVALS> calculateSurfaceMoments() const
+  {
+    // Need to integrate over 4 (for the coordinates and weight of the centroid)
+    //                      + 3 (for the zeroth order moments)
+    //                      + 9 (for the first order moments)
+    //                      + 27 (for the second order moments)
+    Vector<T, NVALS> ret(0.0);
+
+    // Number of quadrature points
+    constexpr int npts = 20;
+
+    // For now, doing this increases the likelihood of bad numerics,
+    //  and is largely redundant after doing the bigger subdivision routine
+
+    //for(const auto& patch : extractTrimmedBezier())
+    {
+      auto& patch = *this;
+
+      auto big_ol_integrand = [&patch](Point2D x) -> Vector<T, NVALS> {
+        Vector<T, NVALS> M(0.0);
+
+        primal::Point<T, 3> eval;
+        primal::Vector<T, 3> Du, Dv;
+        patch.evaluateFirstDerivatives(x[0], x[1], eval, Du, Dv);
+        const auto the_norm = Vector<T, 3>::cross_product(Du, Dv);
+
+        M[0] = the_norm.norm();
+        M[1] = eval[0] * the_norm.norm();
+        M[2] = eval[1] * the_norm.norm();
+        M[3] = eval[2] * the_norm.norm();
+
+        M[4] = the_norm[0];
+        M[5] = the_norm[1];
+        M[6] = the_norm[2];
+
+        if constexpr(ORDER >= 1)
+        {
+          M[7] = eval[0] * the_norm[0];
+          M[8] = eval[0] * the_norm[1];
+          M[9] = eval[0] * the_norm[2];
+          M[10] = eval[1] * the_norm[0];
+          M[11] = eval[1] * the_norm[1];
+          M[12] = eval[1] * the_norm[2];
+          M[13] = eval[2] * the_norm[0];
+          M[14] = eval[2] * the_norm[1];
+          M[15] = eval[2] * the_norm[2];
+
+          if constexpr(ORDER >= 1)
+          {
+            M[16] = eval[0] * eval[0] * the_norm[0];
+            M[17] = eval[0] * eval[0] * the_norm[1];
+            M[18] = eval[0] * eval[0] * the_norm[2];
+            M[19] = eval[0] * eval[1] * the_norm[0];
+            M[20] = eval[0] * eval[1] * the_norm[1];
+            M[21] = eval[0] * eval[1] * the_norm[2];
+            M[22] = eval[0] * eval[2] * the_norm[0];
+            M[23] = eval[0] * eval[2] * the_norm[1];
+            M[24] = eval[0] * eval[2] * the_norm[2];
+            M[25] = eval[1] * eval[0] * the_norm[0];
+            M[26] = eval[1] * eval[0] * the_norm[1];
+            M[27] = eval[1] * eval[0] * the_norm[2];
+            M[28] = eval[1] * eval[1] * the_norm[0];
+            M[29] = eval[1] * eval[1] * the_norm[1];
+            M[30] = eval[1] * eval[1] * the_norm[2];
+            M[31] = eval[1] * eval[2] * the_norm[0];
+            M[32] = eval[1] * eval[2] * the_norm[1];
+            M[33] = eval[1] * eval[2] * the_norm[2];
+            M[34] = eval[2] * eval[0] * the_norm[0];
+            M[35] = eval[2] * eval[0] * the_norm[1];
+            M[36] = eval[2] * eval[0] * the_norm[2];
+            M[37] = eval[2] * eval[1] * the_norm[0];
+            M[38] = eval[2] * eval[1] * the_norm[1];
+            M[39] = eval[2] * eval[1] * the_norm[2];
+            M[40] = eval[2] * eval[2] * the_norm[0];
+            M[41] = eval[2] * eval[2] * the_norm[1];
+            M[42] = eval[2] * eval[2] * the_norm[2];
+          }
+        }
+
+        return M;
+      };
+
+      ret += evaluate_area_integral(patch.getTrimmingCurves(), big_ol_integrand, npts);
+    }
+
+    return ret;
+  }
   //@}
 
   ///@{
@@ -3471,6 +3573,64 @@ public:
     }
 
     return true;
+  }
+
+  void nearBisectOnLongestAxis(NURBSPatch& p1, NURBSPatch& p2) const
+  {
+    double split_val_u = (getNumKnots_u() == 2 * (getDegree_u() + 1))
+      ? 0.499 * getMinKnot_u() + 0.501 * getMaxKnot_u()
+      : getKnots_u()[getNumKnots_u() / 2];
+
+    double split_val_v = (getNumKnots_v() == 2 * (getDegree_v() + 1))
+      ? 0.502 * getMinKnot_v() + 0.498 * getMaxKnot_v()
+      : getKnots_v()[getNumKnots_v() / 2];
+
+    auto make_split_candidate = [&](bool split_in_u) {
+      NURBSPatch patches[2];
+
+      // Avoid 2D (u,v) bisection of large, slender models which can lead to 4^k patch growth.
+      // Prefer a 1D split (u or v) that most reduces the max child bbox.
+      struct Result
+      {
+        NURBSPatch patches[2];
+        double max_child_range_norm {0.0};
+      };
+
+      Result r {};
+
+      // Do an `uncheckedSplit`, which doesn't look at trimming curves
+      if(split_in_u)
+      {
+        uncheckedSplit_u(split_val_u, patches[0], patches[1]);
+      }
+      else
+      {
+        uncheckedSplit_v(split_val_v, patches[0], patches[1]);
+      }
+
+      r.patches[0] = std::move(patches[0]);
+      r.patches[1] = std::move(patches[1]);
+
+      // Bounding boxes here are only computed without trimming curves
+      r.max_child_range_norm = axom::utilities::max(r.patches[0].boundingBox().range().norm(),
+                                                    r.patches[1].boundingBox().range().norm());
+
+      return r;
+    };
+
+    const auto u_split = make_split_candidate(/*split_in_u*/ true);
+    const auto v_split = make_split_candidate(/*split_in_u*/ false);
+
+    const bool was_u_better = (u_split.max_child_range_norm <= v_split.max_child_range_norm);
+    auto* chosen = was_u_better ? &u_split : &v_split;
+
+    // Once we pick the best direction, split the trimming curves
+    p1 = std::move(chosen->patches[0]);
+    p2 = std::move(chosen->patches[1]);
+    splitTrimmingCurves(was_u_better ? split_val_u : split_val_v,
+                        was_u_better,
+                        p1.getTrimmingCurves(),
+                        p2.getTrimmingCurves());
   }
 
   /*!
