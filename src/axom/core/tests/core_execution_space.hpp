@@ -9,10 +9,6 @@
 // spin includes
 #include "axom/core/execution/execution_space.hpp"
 
-#ifdef AXOM_USE_UMPIRE
-  #include "umpire/Umpire.hpp"  // for Umpire
-#endif
-
 #ifdef AXOM_USE_RAJA
   #include "RAJA/RAJA.hpp"  // for RAJA
 #endif
@@ -128,7 +124,7 @@ TEST(core_execution_space, check_seq_exec)
   constexpr bool IS_ASYNC = false;
   constexpr bool ON_DEVICE = false;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  int allocator_id = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host);
   check_execution_mappings<axom::SEQ_EXEC,
   #if RAJA_VERSION_MAJOR > 2022
                            RAJA::seq_exec,
@@ -151,7 +147,7 @@ TEST(core_execution_space, check_omp_exec)
   constexpr bool IS_ASYNC = false;
   constexpr bool ON_DEVICE = false;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  int allocator_id = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host);
   check_execution_mappings<axom::OMP_EXEC,
                            RAJA::omp_parallel_for_exec,
                            RAJA::omp_reduce,
@@ -172,7 +168,7 @@ TEST(core_execution_space, check_cuda_exec)
   constexpr bool IS_ASYNC = false;
   constexpr bool ON_DEVICE = true;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Device);
+  int allocator_id = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Device);
   check_execution_mappings<axom::CUDA_EXEC<BLOCK_SIZE>,
                            RAJA::cuda_exec<BLOCK_SIZE>,
                            RAJA::cuda_reduce,
@@ -190,7 +186,7 @@ TEST(core_execution_space, check_cuda_exec_async)
   constexpr bool IS_ASYNC = true;
   constexpr bool ON_DEVICE = true;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Device);
+  int allocator_id = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Device);
   check_execution_mappings<axom::CUDA_EXEC<BLOCK_SIZE, axom::ASYNC>,
                            RAJA::cuda_exec_async<BLOCK_SIZE>,
                            RAJA::cuda_reduce,
@@ -243,7 +239,7 @@ TEST(core_execution_space, check_hip_exec)
   constexpr bool IS_ASYNC = false;
   constexpr bool ON_DEVICE = true;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Device);
+  int allocator_id = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Device);
   check_execution_mappings<axom::HIP_EXEC<BLOCK_SIZE>,
                            RAJA::hip_exec<BLOCK_SIZE>,
                            RAJA::hip_reduce,
@@ -261,7 +257,7 @@ TEST(core_execution_space, check_hip_exec_async)
   constexpr bool IS_ASYNC = true;
   constexpr bool ON_DEVICE = true;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Device);
+  int allocator_id = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Device);
   check_execution_mappings<axom::HIP_EXEC<BLOCK_SIZE, axom::ASYNC>,
                            RAJA::hip_exec_async<BLOCK_SIZE>,
                            RAJA::hip_reduce,

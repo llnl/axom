@@ -60,10 +60,7 @@ struct execution_space<HIP_EXEC<BLOCK_SIZE, SYNCHRONOUS>>
   static constexpr bool valid() noexcept { return true; }
   static constexpr bool onDevice() noexcept { return true; }
   static constexpr char* name() noexcept { return (char*)"[HIP_EXEC]"; }
-  static int allocatorID() noexcept
-  {
-    return axom::getUmpireResourceAllocatorID(umpire::resource::Device);
-  }
+  static int allocatorID() noexcept { return axom::getAllocatorIDFromMemorySpace(memory_space); }
   static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
     return runtime_policy::Policy::hip;
@@ -101,10 +98,7 @@ struct execution_space<HIP_EXEC<BLOCK_SIZE, ASYNC>>
   static constexpr bool valid() noexcept { return true; }
   static constexpr bool onDevice() noexcept { return true; }
   static constexpr char* name() noexcept { return (char*)"[HIP_EXEC] (async)"; }
-  static int allocatorID() noexcept
-  {
-    return axom::getUmpireResourceAllocatorID(umpire::resource::Device);
-  }
+  static int allocatorID() noexcept { return axom::getAllocatorIDFromMemorySpace(memory_space); }
   static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
     return runtime_policy::Policy::hip;

@@ -78,19 +78,45 @@ enum class MemorySpace
 {
   Malloc,   //!< Host memory using malloc, free and realloc
   Dynamic,  //!< Refers to Umpire's current default allocator
-#ifdef AXOM_USE_UMPIRE
-  Host,     //!< Umpire's host memory space
-  Device,   //!< Umpire's device memory space
-  Unified,  //!< Umpire's unified memory space
-  Pinned,   //!< Umpire's pinned memory space
-  Constant  //!< Umpire's constant memory space
-#endif
+  Host,     //!< Host memory space
+  Device,   //!< Device memory space
+  Unified,  //!< Unified memory space
+  Pinned,   //!< Pinned host memory space
+  Constant  //!< Constant device memory space
 };
 // _memory_space_end
 
 // _memory_management_routines_start
 /// \name Memory Management Routines
 /// @{
+
+/*!
+ * \brief Returns whether a memory space is available in the current build.
+ *
+ * \note `MemorySpace::Malloc`, `MemorySpace::Dynamic`, and `MemorySpace::Host`
+ *       are always available. The remaining spaces require Umpire support for
+ *       the corresponding resource.
+ */
+bool isMemorySpaceAvailable(MemorySpace space) noexcept;
+
+/*!
+ * \brief Returns the allocator ID corresponding to a memory space.
+ *
+ * \note `MemorySpace::Dynamic` resolves to the current default allocator.
+ * \note `MemorySpace::Host` falls back to `MALLOC_ALLOCATOR_ID` when Axom is
+ *       built without Umpire.
+ * \note This function aborts if the requested memory space is unavailable in
+ *       the current build.
+ */
+int getAllocatorIDFromMemorySpace(MemorySpace space);
+
+/*!
+ * \brief Sets the default memory allocator using an Axom memory-space enum.
+ *
+ * \note When Axom is built without Umpire, setting the default allocator has
+ *       no effect and host-backed memory spaces resolve to malloc.
+ */
+void setDefaultAllocator(MemorySpace space);
 
 #ifdef AXOM_USE_UMPIRE
 
@@ -596,39 +622,35 @@ inline MemorySpace getAllocatorSpace(int allocatorId)
   return MemorySpace::Malloc;  // Silence warning.
 }
 
-#ifdef AXOM_USE_UMPIRE
-
 template <>
 inline int getAllocatorID<MemorySpace::Host>()
 {
-  return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+  return axom::getAllocatorIDFromMemorySpace(MemorySpace::Host);
 }
 
 template <>
 inline int getAllocatorID<MemorySpace::Device>()
 {
-  return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
+  return axom::getAllocatorIDFromMemorySpace(MemorySpace::Device);
 }
 
 template <>
 inline int getAllocatorID<MemorySpace::Unified>()
 {
-  return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
+  return axom::getAllocatorIDFromMemorySpace(MemorySpace::Unified);
 }
 
 template <>
 inline int getAllocatorID<MemorySpace::Pinned>()
 {
-  return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Pinned);
+  return axom::getAllocatorIDFromMemorySpace(MemorySpace::Pinned);
 }
 
 template <>
 inline int getAllocatorID<MemorySpace::Constant>()
 {
-  return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Constant);
+  return axom::getAllocatorIDFromMemorySpace(MemorySpace::Constant);
 }
-
-#endif
 
 }  // namespace detail
 

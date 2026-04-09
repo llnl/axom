@@ -18,6 +18,121 @@
 namespace axom
 {
 
+namespace
+{
+const char* memorySpaceName(MemorySpace space) noexcept
+{
+  switch(space)
+  {
+  case MemorySpace::Malloc:
+    return "Malloc";
+  case MemorySpace::Dynamic:
+    return "Dynamic";
+  case MemorySpace::Host:
+    return "Host";
+  case MemorySpace::Device:
+    return "Device";
+  case MemorySpace::Unified:
+    return "Unified";
+  case MemorySpace::Pinned:
+    return "Pinned";
+  case MemorySpace::Constant:
+    return "Constant";
+  }
+
+  return "Unknown";
+}
+}  // namespace
+
+bool isMemorySpaceAvailable(MemorySpace space) noexcept
+{
+  switch(space)
+  {
+  case MemorySpace::Malloc:
+  case MemorySpace::Dynamic:
+  case MemorySpace::Host:
+    return true;
+  case MemorySpace::Device:
+#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_DEVICE)
+    return true;
+#else
+    return false;
+#endif
+  case MemorySpace::Unified:
+#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_UM)
+    return true;
+#else
+    return false;
+#endif
+  case MemorySpace::Pinned:
+#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_PINNED)
+    return true;
+#else
+    return false;
+#endif
+  case MemorySpace::Constant:
+#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_CONST)
+    return true;
+#else
+    return false;
+#endif
+  }
+
+  return false;
+}
+
+int getAllocatorIDFromMemorySpace(MemorySpace space)
+{
+  switch(space)
+  {
+  case MemorySpace::Dynamic:
+    return getDefaultAllocatorID();
+  case MemorySpace::Malloc:
+    return MALLOC_ALLOCATOR_ID;
+  case MemorySpace::Host:
+#if defined(AXOM_USE_UMPIRE)
+    return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+#else
+    return MALLOC_ALLOCATOR_ID;
+#endif
+  case MemorySpace::Device:
+#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_DEVICE)
+    return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
+#else
+    break;
+#endif
+  case MemorySpace::Unified:
+#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_UM)
+    return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
+#else
+    break;
+#endif
+  case MemorySpace::Pinned:
+#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_PINNED)
+    return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Pinned);
+#else
+    break;
+#endif
+  case MemorySpace::Constant:
+#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_CONST)
+    return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Constant);
+#else
+    break;
+#endif
+  }
+
+  std::cerr << "Axom memory space \"" << memorySpaceName(space)
+            << "\" is not available in this build." << std::endl;
+  axom::utilities::processAbort();
+
+  return INVALID_ALLOCATOR_ID;  // Silence warning.
+}
+
+void setDefaultAllocator(MemorySpace space)
+{
+  setDefaultAllocator(getAllocatorIDFromMemorySpace(space));
+}
+
 bool isSharedMemoryAllocator(int allocID)
 {
   bool isShared = false;
