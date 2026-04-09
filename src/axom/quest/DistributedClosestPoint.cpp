@@ -206,11 +206,12 @@ bool DistributedClosestPoint::generateBVHTree()
 void DistributedClosestPoint::computeClosestPoints(conduit::Node& query_node,
                                                    const std::string& topology)
 {
-  SLIC_ASSERT_MSG(m_impl, "Must call 'setObjectMesh' before calling generateBVHTree");
+  SLIC_ASSERT_MSG(m_impl, "Must call 'setObjectMesh' before calling computeClosestPoints");
 
   SLIC_ASSERT(this->isValidBlueprint(query_node));
 
   m_impl->setSquaredDistanceThreshold(m_sqDistanceThreshold);
+  m_impl->setFilterFarPartitions(m_filterFarPartitions);
   m_impl->setMpiCommunicator(m_mpiComm);
   m_impl->setOutputSwitches(m_outputRank,
                             m_outputIndex,
@@ -299,6 +300,13 @@ void DistributedClosestPoint::verifyTopologyName(const conduit::Node& meshNode,
       SLIC_ERROR(errMsg);
     }
   }
+}
+
+axom::IndexType DistributedClosestPoint::searchCount() const { return m_impl->searchCount(); }
+
+double DistributedClosestPoint::effectiveDistanceThreshold() const
+{
+  return m_impl->effectiveDistanceThreshold();
 }
 
 }  // end namespace quest

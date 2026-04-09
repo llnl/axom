@@ -9,6 +9,7 @@
 
 #include "axom/config.hpp"
 #include "axom/core/execution/runtime_policy.hpp"
+// #include "axom/core/Types.hpp"
 #include "axom/slic.hpp"
 
 #include "conduit_node.hpp"
@@ -105,6 +106,21 @@ public:
   void setDistanceThreshold(double threshold);
 
   /*!
+   * @brief Sets whether to filter out far partitions.
+   * \param [in] filterFarPartitions Filter out ranks that are too far
+   *   to give productive results.
+   *
+   * Filtering examines the bounding boxes of all the partitions to
+   * exclude unproductive partition searches.  Filtering is enabled by
+   * default.  The benefits are highly configuration-dependent, but
+   * cost is typically negligible.
+   */
+  void setFilterFarPartitions(bool filterFarPartitions)
+  {
+    m_filterFarPartitions = filterFarPartitions;
+  }
+
+  /*!
     @brief Set what fields to output.
 
     @param [i] field Must be one of these:
@@ -172,6 +188,23 @@ public:
    */
   void computeClosestPoints(conduit::Node& query_node, const std::string& topology);
 
+  /*!
+    @brief Return the number of searches done on the last query
+    mesh's local partition.
+
+    This count includes 1 by the owner rank plus however many remote
+    ranks searched the partition.
+  */
+  axom::IndexType searchCount() const;
+  /*!
+    @brief Return the effective distance threshold used for the
+    last query mesh's local partition.
+
+    Due to optimizations, this may be smaller than the value set
+    in setDistanceThreshold().
+  */
+  double effectiveDistanceThreshold() const;
+
 private:
   /*!
     @brief Allocate the DistributedClosestPointImpl object, which actually does the work.
@@ -199,6 +232,7 @@ private:
   int m_dimension {-1};
   bool m_isVerbose {false};
   double m_sqDistanceThreshold;
+  bool m_filterFarPartitions {true};
 
   bool m_outputRank = true;
   bool m_outputIndex = true;
