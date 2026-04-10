@@ -22,6 +22,23 @@
 // in check_alloc_realloc_free when reallocating to 3 * ARRAY_SIZE.
 constexpr int ARRAY_SIZE = 5345;
 
+struct ScopedDefaultAllocatorState
+{
+  ScopedDefaultAllocatorState()
+    : m_defaultAllocator(axom::getDefaultAllocatorID())
+    , m_defaultHostAllocator(axom::getDefaultHostAllocatorID())
+  { }
+
+  ~ScopedDefaultAllocatorState()
+  {
+    axom::setDefaultAllocator(m_defaultAllocator);
+    axom::setDefaultHostAllocator(m_defaultHostAllocator);
+  }
+
+  int m_defaultAllocator;
+  int m_defaultHostAllocator;
+};
+
 class CopyTest : public ::testing::TestWithParam<::testing::tuple<std::string, std::string>>
 {
 public:
@@ -291,12 +308,62 @@ TEST(core_memory_management, get_allocator_id_from_memory_space)
             axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Malloc));
   EXPECT_EQ(axom::getDefaultAllocatorID(),
             axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Dynamic));
+  EXPECT_EQ(axom::getDefaultHostAllocatorID(),
+            axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
+}
+
+TEST(core_memory_management, allocator_memory_space_compatibility)
+{
+  EXPECT_TRUE(axom::isAllocatorCompatibleWithMemorySpace(axom::MALLOC_ALLOCATOR_ID,
+                                                         axom::MemorySpace::Malloc));
+  EXPECT_TRUE(axom::isAllocatorCompatibleWithMemorySpace(axom::MALLOC_ALLOCATOR_ID,
+                                                         axom::MemorySpace::Host));
+  EXPECT_TRUE(axom::isAllocatorCompatibleWithMemorySpace(axom::MALLOC_ALLOCATOR_ID,
+                                                         axom::MemorySpace::Dynamic));
 
 #ifdef AXOM_USE_UMPIRE
-  EXPECT_EQ(axom::getUmpireResourceAllocatorID(umpire::resource::Host),
-            axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
+  const int platformHostAllocatorID =
+    axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  EXPECT_TRUE(axom::isAllocatorCompatibleWithMemorySpace(platformHostAllocatorID,
+                                                         axom::MemorySpace::Host));
+  EXPECT_FALSE(axom::isAllocatorCompatibleWithMemorySpace(platformHostAllocatorID,
+                                                          axom::MemorySpace::Malloc));
+#endif
+}
+
+TEST(core_memory_management, set_get_default_host_allocator)
+{
+  ScopedDefaultAllocatorState scopedState;
+  const int defaultAllocatorID = axom::getDefaultAllocatorID();
+
+#ifdef AXOM_USE_UMPIRE
+  const int platformHostAllocatorID =
+    axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  EXPECT_EQ(platformHostAllocatorID, axom::getDefaultHostAllocatorID());
 #else
-  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
+  const int platformHostAllocatorID = axom::MALLOC_ALLOCATOR_ID;
+  EXPECT_EQ(platformHostAllocatorID, axom::getDefaultHostAllocatorID());
+#endif
+
+  axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::getDefaultHostAllocatorID());
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID,
+            axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
+  EXPECT_EQ(defaultAllocatorID, axom::getDefaultAllocatorID());
+  EXPECT_EQ(defaultAllocatorID,
+            axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Dynamic));
+
+  axom::setDefaultHostAllocator(axom::MemorySpace::Host);
+  EXPECT_EQ(platformHostAllocatorID, axom::getDefaultHostAllocatorID());
+  EXPECT_EQ(platformHostAllocatorID,
+            axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
+  EXPECT_EQ(defaultAllocatorID, axom::getDefaultAllocatorID());
+
+#ifdef AXOM_USE_UMPIRE
+  axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+  axom::setDefaultAllocator(axom::MemorySpace::Host);
+  EXPECT_EQ(platformHostAllocatorID, axom::getDefaultAllocatorID());
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::getDefaultHostAllocatorID());
 #endif
 }
 
@@ -304,8 +371,9 @@ TEST(core_memory_management, get_allocator_id_from_memory_space)
 
 TEST(core_memory_management, set_get_default_memory_space)
 {
-  const int HostAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host);
-  EXPECT_EQ(HostAllocatorID, axom::getDefaultAllocatorID());
+  ScopedDefaultAllocatorState scopedState;
+  const int HostAllocatorID = axom::getDefaultHostAllocatorID();
+  EXPECT_EQ(HostAllocatorID, axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
 
   #if defined(AXOM_USE_GPU)
 

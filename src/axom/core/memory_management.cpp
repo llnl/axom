@@ -42,6 +42,21 @@ const char* memorySpaceName(MemorySpace space) noexcept
 
   return "Unknown";
 }
+
+int platformHostAllocatorID() noexcept
+{
+#if defined(AXOM_USE_UMPIRE)
+  return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+#else
+  return MALLOC_ALLOCATOR_ID;
+#endif
+}
+
+int& defaultHostAllocatorIDStorage() noexcept
+{
+  static int allocId = platformHostAllocatorID();
+  return allocId;
+}
 }  // namespace
 
 bool isMemorySpaceAvailable(MemorySpace space) noexcept
@@ -90,11 +105,7 @@ int getAllocatorIDFromMemorySpace(MemorySpace space)
   case MemorySpace::Malloc:
     return MALLOC_ALLOCATOR_ID;
   case MemorySpace::Host:
-#if defined(AXOM_USE_UMPIRE)
-    return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
-#else
-    return MALLOC_ALLOCATOR_ID;
-#endif
+    return getDefaultHostAllocatorID();
   case MemorySpace::Device:
 #if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_DEVICE)
     return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
@@ -130,7 +141,50 @@ int getAllocatorIDFromMemorySpace(MemorySpace space)
 
 void setDefaultAllocator(MemorySpace space)
 {
+#if defined(AXOM_USE_UMPIRE)
+  if(space == MemorySpace::Host)
+  {
+    setDefaultAllocator(platformHostAllocatorID());
+    return;
+  }
+#endif
   setDefaultAllocator(getAllocatorIDFromMemorySpace(space));
+}
+
+void setDefaultHostAllocator(MemorySpace space)
+{
+  switch(space)
+  {
+  case MemorySpace::Malloc:
+    setDefaultHostAllocator(MALLOC_ALLOCATOR_ID);
+    return;
+  case MemorySpace::Host:
+    setDefaultHostAllocator(platformHostAllocatorID());
+    return;
+  default:
+    break;
+  }
+
+  std::cerr << "Axom memory space \"" << memorySpaceName(space)
+            << "\" is not a valid default host allocator." << std::endl;
+  axom::utilities::processAbort();
+}
+
+void setDefaultHostAllocator(int allocId)
+{
+  if(!isAllocatorCompatibleWithMemorySpace(allocId, MemorySpace::Host))
+  {
+    std::cerr << "Allocator id " << allocId
+              << " is not compatible with Axom's host memory space." << std::endl;
+    axom::utilities::processAbort();
+  }
+
+  defaultHostAllocatorIDStorage() = allocId;
+}
+
+int getDefaultHostAllocatorID()
+{
+  return defaultHostAllocatorIDStorage();
 }
 
 bool isSharedMemoryAllocator(int allocID)

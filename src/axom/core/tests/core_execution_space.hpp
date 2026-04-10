@@ -25,6 +25,17 @@
 //------------------------------------------------------------------------------
 namespace
 {
+struct ScopedDefaultHostAllocatorStateForExecution
+{
+  ScopedDefaultHostAllocatorStateForExecution()
+    : m_allocator(axom::getDefaultHostAllocatorID())
+  { }
+
+  ~ScopedDefaultHostAllocatorStateForExecution() { axom::setDefaultHostAllocator(m_allocator); }
+
+  int m_allocator;
+};
+
 template <typename ExecSpace>
 void check_valid()
 {
@@ -155,6 +166,18 @@ TEST(core_execution_space, check_omp_exec)
                            RAJA::omp_synchronize>(allocator_id, IS_ASYNC, ON_DEVICE);
 }
   #endif  // defined(AXOM_USE_OPENMP)
+
+TEST(core_execution_space, host_exec_uses_configured_host_allocator)
+{
+  ScopedDefaultHostAllocatorStateForExecution scopedState;
+  axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+
+  #if defined(AXOM_USE_OPENMP)
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::execution_space<axom::OMP_EXEC>::allocatorID());
+  #endif
+}
 
   //------------------------------------------------------------------------------
   #if defined(AXOM_USE_CUDA)

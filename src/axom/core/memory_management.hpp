@@ -103,8 +103,7 @@ bool isMemorySpaceAvailable(MemorySpace space) noexcept;
  * \brief Returns the allocator ID corresponding to a memory space.
  *
  * \note `MemorySpace::Dynamic` resolves to the current default allocator.
- * \note `MemorySpace::Host` falls back to `MALLOC_ALLOCATOR_ID` when Axom is
- *       built without Umpire.
+ * \note `MemorySpace::Host` resolves to Axom's current default host allocator.
  * \note This function aborts if the requested memory space is unavailable in
  *       the current build.
  */
@@ -115,8 +114,27 @@ int getAllocatorIDFromMemorySpace(MemorySpace space);
  *
  * \note When Axom is built without Umpire, setting the default allocator has
  *       no effect and host-backed memory spaces resolve to malloc.
+ * \note In Umpire builds, `MemorySpace::Host` selects Umpire's Host allocator.
+ *       Use `setDefaultHostAllocator()` to configure Axom's host-only
+ *       allocation path.
  */
 void setDefaultAllocator(MemorySpace space);
+
+/*!
+ * \brief Sets the default host allocator using an Axom memory-space enum.
+ *
+ * \note `MemorySpace::Malloc` selects Axom's malloc-backed host allocator.
+ * \note `MemorySpace::Host` resets to the platform host allocator.
+ * \note Only `MemorySpace::Malloc` and `MemorySpace::Host` are accepted.
+ */
+void setDefaultHostAllocator(MemorySpace space);
+
+/*!
+ * \brief Sets the default host allocator using an allocator ID.
+ *
+ * \note Accepted allocator IDs must be compatible with `MemorySpace::Host`.
+ */
+void setDefaultHostAllocator(int allocId);
 
 #ifdef AXOM_USE_UMPIRE
 
@@ -154,6 +172,13 @@ inline void setDefaultAllocator(umpire::resource::MemoryResourceType resource_ty
 inline void setDefaultAllocator(int allocId)
 {
 #ifdef AXOM_USE_UMPIRE
+  if(allocId == MALLOC_ALLOCATOR_ID)
+  {
+    std::cerr << "Cannot set Axom's malloc allocator as the global default "
+                 "allocator when Umpire is enabled. Use setDefaultHostAllocator() "
+                 "to configure host-side allocations." << std::endl;
+    axom::utilities::processAbort();
+  }
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
   umpire::Allocator allocator = rm.getAllocator(allocId);
   rm.setDefaultAllocator(allocator);
@@ -176,6 +201,24 @@ inline int getDefaultAllocatorID()
   return MALLOC_ALLOCATOR_ID;
 #endif
 }
+
+/*!
+ * \brief Returns the ID of the current default host allocator.
+ *
+ * \return The current default host allocator ID. This is initialized to
+ *         Umpire's Host allocator in Umpire builds, or `MALLOC_ALLOCATOR_ID`
+ *         otherwise.
+ */
+int getDefaultHostAllocatorID();
+
+/*!
+ * \brief Returns whether an allocator ID is compatible with a memory space.
+ *
+ * \note `MemorySpace::Host` accepts both host allocators and
+ *       `MALLOC_ALLOCATOR_ID`.
+ * \note `MemorySpace::Dynamic` accepts any valid allocator ID.
+ */
+bool isAllocatorCompatibleWithMemorySpace(int allocId, MemorySpace space) noexcept;
 
 /*!
  * \brief Get the allocator id from which data has been allocated.
@@ -653,6 +696,28 @@ inline int getAllocatorID<MemorySpace::Constant>()
 }
 
 }  // namespace detail
+
+inline bool isAllocatorCompatibleWithMemorySpace(int allocId, MemorySpace space) noexcept
+{
+  if(!isValidAllocatorID(allocId))
+  {
+    return false;
+  }
+
+  if(space == MemorySpace::Dynamic)
+  {
+    return true;
+  }
+
+  const auto allocSpace = detail::getAllocatorSpace(allocId);
+
+  if(space == MemorySpace::Host)
+  {
+    return allocSpace == MemorySpace::Host || allocSpace == MemorySpace::Malloc;
+  }
+
+  return allocSpace == space;
+}
 
 /*!
  * \brief Determines whether an allocator id is on device.
