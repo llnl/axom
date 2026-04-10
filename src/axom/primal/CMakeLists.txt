@@ -54,6 +54,8 @@ set( primal_headers
     operators/clip.hpp
     operators/closest_point.hpp
     operators/evaluate_integral.hpp
+    operators/evaluate_integral_curve.hpp
+    operators/evaluate_integral_surface.hpp
     operators/intersect.hpp
     operators/intersection_volume.hpp
     operators/orientation.hpp
@@ -71,6 +73,8 @@ set( primal_headers
     operators/detail/clip_impl.hpp
     operators/detail/compute_moments_impl.hpp
     operators/detail/evaluate_integral_impl.hpp
+    operators/detail/evaluate_integral_curve_impl.hpp
+    operators/detail/evaluate_integral_surface_impl.hpp
     operators/detail/fuzzy_comparators.hpp
     operators/detail/intersect_bezier_impl.hpp
     operators/detail/intersect_bounding_box_impl.hpp
