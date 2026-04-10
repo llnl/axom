@@ -66,6 +66,33 @@ TEST(primal_nurbscurve, is_linear_predicate)
     c.setWeight(2, 0.5);
     EXPECT_TRUE(c.isLinear(tol));
   }
+
+  // Strict mode requires a uniform control-point distribution along the endpoint segment
+  {
+    // evenly spaced -> strict linear
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.5, 0.0};
+    c[2] = PointType {1.0, 0.0};
+    EXPECT_TRUE(c.isLinear(tol, /*useStrictLinear=*/true));
+  }
+  {
+    // collinear but not evenly spaced -> not strict linear
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.2, 0.0};
+    c[2] = PointType {1.0, 0.0};
+    EXPECT_TRUE(c.isLinear(tol, /*useStrictLinear=*/false));
+    EXPECT_FALSE(c.isLinear(tol, /*useStrictLinear=*/true));
+  }
+  {
+    // slight deviation within tolerance should still be linear (non-strict)
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.5, 0.5e-6};  // squared distance 2.5e-13 < 1e-12
+    c[2] = PointType {1.0, 0.0};
+    EXPECT_TRUE(c.isLinear(tol, /*useStrictLinear=*/false));
+  }
 }
 
 //------------------------------------------------------------------------------
