@@ -55,11 +55,13 @@ struct BezierCurveData
     m_isConvexControlPolygon =
       knownConvex ? true : is_convex(Polygon<T, 2>(m_curve.getControlPoints()));
     m_boundingBox = m_curve.boundingBox().expand(bbExpansionAmount);
+    m_maxControlPointChordDistanceSq = computeMaxControlPointChordDistanceSq(m_curve);
   }
 
   const auto& getCurve() const { return m_curve; }
   auto isConvexControlPolygon() const { return m_isConvexControlPolygon; }
   auto getBoundingBox() const { return m_boundingBox; }
+  bool isLinear(double tol) const { return m_maxControlPointChordDistanceSq <= tol; }
 
   friend bool operator==(const BezierCurveData<T>& lhs, const BezierCurveData<T>& rhs)
   {
@@ -74,9 +76,27 @@ struct BezierCurveData
   }
 
 private:
+  static double computeMaxControlPointChordDistanceSq(const BezierCurve<T, 2>& curve)
+  {
+    const int order = curve.getOrder();
+    if(order <= 1)
+    {
+      return 0.0;
+    }
+
+    Segment<T, 2> chord(curve[0], curve[order]);
+    double maxSqDist = 0.0;
+    for(int p = 1; p < order; ++p)
+    {
+      maxSqDist = std::max(maxSqDist, squared_distance(curve[p], chord));
+    }
+    return maxSqDist;
+  }
+
   BezierCurve<T, 2> m_curve;
   bool m_isConvexControlPolygon;
   BoundingBox<T, 2> m_boundingBox;
+  double m_maxControlPointChordDistanceSq {0.0};
 };
 
 // Forward declare the templated classes and operator functions

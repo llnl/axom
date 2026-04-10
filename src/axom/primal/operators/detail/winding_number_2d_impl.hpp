@@ -319,7 +319,7 @@ double bezier_winding_number_memoized(const Point<T, 2>& q,
   auto& bezier_curve = bezier_data.getCurve();
 
   const bool outside_bbox = !bezier_data.getBoundingBox().contains(q);
-  const bool is_linear = !outside_bbox && bezier_curve.isLinear(EPS);
+  const bool is_linear = !outside_bbox && bezier_data.isLinear(EPS);
 
   // If outside a bounding box, the curve can be treated as linear between its endpoints
   if(outside_bbox || is_linear)
