@@ -316,18 +316,17 @@ TEST(core_memory_management, allocator_memory_space_compatibility)
 {
   EXPECT_TRUE(axom::isAllocatorCompatibleWithMemorySpace(axom::MALLOC_ALLOCATOR_ID,
                                                          axom::MemorySpace::Malloc));
-  EXPECT_TRUE(axom::isAllocatorCompatibleWithMemorySpace(axom::MALLOC_ALLOCATOR_ID,
-                                                         axom::MemorySpace::Host));
+  EXPECT_TRUE(
+    axom::isAllocatorCompatibleWithMemorySpace(axom::MALLOC_ALLOCATOR_ID, axom::MemorySpace::Host));
   EXPECT_TRUE(axom::isAllocatorCompatibleWithMemorySpace(axom::MALLOC_ALLOCATOR_ID,
                                                          axom::MemorySpace::Dynamic));
 
 #ifdef AXOM_USE_UMPIRE
-  const int platformHostAllocatorID =
-    axom::getUmpireResourceAllocatorID(umpire::resource::Host);
-  EXPECT_TRUE(axom::isAllocatorCompatibleWithMemorySpace(platformHostAllocatorID,
-                                                         axom::MemorySpace::Host));
-  EXPECT_FALSE(axom::isAllocatorCompatibleWithMemorySpace(platformHostAllocatorID,
-                                                          axom::MemorySpace::Malloc));
+  const int platformHostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  EXPECT_TRUE(
+    axom::isAllocatorCompatibleWithMemorySpace(platformHostAllocatorID, axom::MemorySpace::Host));
+  EXPECT_FALSE(
+    axom::isAllocatorCompatibleWithMemorySpace(platformHostAllocatorID, axom::MemorySpace::Malloc));
 #endif
 }
 
@@ -337,8 +336,7 @@ TEST(core_memory_management, set_get_default_host_allocator)
   const int defaultAllocatorID = axom::getDefaultAllocatorID();
 
 #ifdef AXOM_USE_UMPIRE
-  const int platformHostAllocatorID =
-    axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  const int platformHostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
   EXPECT_EQ(platformHostAllocatorID, axom::getDefaultHostAllocatorID());
 #else
   const int platformHostAllocatorID = axom::MALLOC_ALLOCATOR_ID;
@@ -347,16 +345,13 @@ TEST(core_memory_management, set_get_default_host_allocator)
 
   axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
   EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::getDefaultHostAllocatorID());
-  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID,
-            axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
   EXPECT_EQ(defaultAllocatorID, axom::getDefaultAllocatorID());
-  EXPECT_EQ(defaultAllocatorID,
-            axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Dynamic));
+  EXPECT_EQ(defaultAllocatorID, axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Dynamic));
 
   axom::setDefaultHostAllocator(axom::MemorySpace::Host);
   EXPECT_EQ(platformHostAllocatorID, axom::getDefaultHostAllocatorID());
-  EXPECT_EQ(platformHostAllocatorID,
-            axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
+  EXPECT_EQ(platformHostAllocatorID, axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
   EXPECT_EQ(defaultAllocatorID, axom::getDefaultAllocatorID());
 
 #ifdef AXOM_USE_UMPIRE

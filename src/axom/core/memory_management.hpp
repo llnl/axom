@@ -176,7 +176,8 @@ inline void setDefaultAllocator(int allocId)
   {
     std::cerr << "Cannot set Axom's malloc allocator as the global default "
                  "allocator when Umpire is enabled. Use setDefaultHostAllocator() "
-                 "to configure host-side allocations." << std::endl;
+                 "to configure host-side allocations."
+              << std::endl;
     axom::utilities::processAbort();
   }
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();

@@ -174,18 +174,15 @@ void setDefaultHostAllocator(int allocId)
 {
   if(!isAllocatorCompatibleWithMemorySpace(allocId, MemorySpace::Host))
   {
-    std::cerr << "Allocator id " << allocId
-              << " is not compatible with Axom's host memory space." << std::endl;
+    std::cerr << "Allocator id " << allocId << " is not compatible with Axom's host memory space."
+              << std::endl;
     axom::utilities::processAbort();
   }
 
   defaultHostAllocatorIDStorage() = allocId;
 }
 
-int getDefaultHostAllocatorID()
-{
-  return defaultHostAllocatorIDStorage();
-}
+int getDefaultHostAllocatorID() { return defaultHostAllocatorIDStorage(); }
 
 bool isSharedMemoryAllocator(int allocID)
 {

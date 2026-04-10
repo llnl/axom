@@ -27,9 +27,7 @@ namespace
 {
 struct ScopedDefaultHostAllocatorStateForExecution
 {
-  ScopedDefaultHostAllocatorStateForExecution()
-    : m_allocator(axom::getDefaultHostAllocatorID())
-  { }
+  ScopedDefaultHostAllocatorStateForExecution() : m_allocator(axom::getDefaultHostAllocatorID()) { }
 
   ~ScopedDefaultHostAllocatorStateForExecution() { axom::setDefaultHostAllocator(m_allocator); }
 
