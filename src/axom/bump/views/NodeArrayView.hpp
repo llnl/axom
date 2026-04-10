@@ -100,7 +100,7 @@ struct NodeTypeTraits;
   struct NodeTypeTraits<CppType>                                                                  \
   {                                                                                               \
     static bool matches(const conduit::Node &n) { return n.dtype().IsMethod(); }                  \
-    static CppType *data(conduit::Node & n) { return n.PtrMethod(); }                             \
+    static CppType *data(conduit::Node &n) { return n.PtrMethod(); }                              \
     static CppType *data(const conduit::Node &n) { return const_cast<CppType *>(n.PtrMethod()); } \
     static const char *label() { return Label; }                                                  \
     static int dtypeId() { return conduit::DataType::DTypeID; }                                   \

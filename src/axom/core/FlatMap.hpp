@@ -882,7 +882,8 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt first, InputIt last)
 }
 
 template <typename KeyType, typename ValueType, typename Hash>
-auto FlatMap<KeyType, ValueType, Hash>::getEmplacePos(const KeyType& key) -> std::pair<iterator, bool>
+auto FlatMap<KeyType, ValueType, Hash>::getEmplacePos(const KeyType& key)
+  -> std::pair<iterator, bool>
 {
   auto hash = Hash {}(key);
 
