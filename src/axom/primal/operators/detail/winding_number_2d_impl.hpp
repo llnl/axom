@@ -133,6 +133,21 @@ int polygon_winding_number(const Point<T, 2>& R,
  * \return The GWN
  */
 template <typename T>
+double linear_winding_number_known_off_edge(const Point<T, 2>& q,
+                                            const Point<T, 2>& c0,
+                                            const Point<T, 2>& c1)
+{
+  constexpr double gwn_modulo = 0.5 * M_1_PI;
+  const double v0x = c0[0] - q[0];
+  const double v0y = c0[1] - q[1];
+  const double v1x = c1[0] - q[0];
+  const double v1y = c1[1] - q[1];
+  const double det_01 = v0x * v1y - v0y * v1x;
+  const double dot_01 = v0x * v1x + v0y * v1y;
+  return gwn_modulo * atan2(det_01, dot_01);
+}
+
+template <typename T>
 double linear_winding_number(const Point<T, 2>& q,
                              const Point<T, 2>& c0,
                              const Point<T, 2>& c1,
@@ -303,9 +318,17 @@ double bezier_winding_number_memoized(const Point<T, 2>& q,
     nurbs_cache.getSubdivisionData(bezier_idx, refinement_level, refinement_index, edge_tol);
   auto& bezier_curve = bezier_data.getCurve();
 
+  const bool outside_bbox = !bezier_data.getBoundingBox().contains(q);
+  const bool is_linear = !outside_bbox && bezier_curve.isLinear(EPS);
+
   // If outside a bounding box, the curve can be treated as linear between its endpoints
-  if(!bezier_data.getBoundingBox().contains(q) || bezier_curve.isLinear(EPS))
+  if(outside_bbox || is_linear)
   {
+    if(outside_bbox)
+    {
+      return detail::linear_winding_number_known_off_edge(q, bezier_curve[0], bezier_curve[deg]);
+    }
+
     return detail::linear_winding_number(q, bezier_curve[0], bezier_curve[deg], isOnCurve, edge_tol);
   }
 

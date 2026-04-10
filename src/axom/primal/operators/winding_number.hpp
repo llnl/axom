@@ -284,11 +284,9 @@ double winding_number(const Point<T, 2>& query,
   // Early return is possible for most points + curves
   if(!nurbs_cache.boundingBox().contains(query))
   {
-    return detail::linear_winding_number(query,
-                                         nurbs_cache.getInitPoint(),
-                                         nurbs_cache.getEndPoint(),
-                                         isOnCurve,
-                                         edge_tol);
+    return detail::linear_winding_number_known_off_edge(query,
+                                                        nurbs_cache.getInitPoint(),
+                                                        nurbs_cache.getEndPoint());
   }
 
   double gwn = 0.0;
