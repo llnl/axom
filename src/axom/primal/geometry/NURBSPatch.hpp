@@ -2795,26 +2795,25 @@ public:
   /*!
    * \brief Predicate to check if the patch is "trivially trimmed" in parameter space.
    *
-   * A patch is considered trivially trimmed if either:
-   *  - it has no trimming curves, or
-   *  - it has exactly four trimming curves and they form an axis-aligned rectangle
-   *    on the patch's parametric boundary:
-   *    - Two curves are horizontal (v=min_v and v=max_v) and have opposite directions
-   *    - Two curves are vertical   (u=min_u and u=max_u) and have opposite directions
-   *    - Each curve is approximately linear in (u,v) space
-   *    - Curve endpoints match the patch's (min_u,max_u,min_v,max_v) corner coordinates
+   * A patch is considered trivially trimmed if it is marked as trimmed and has
+   * exactly four trimming curves that form an axis-aligned rectangle on the
+   * patch's parametric boundary:
+   *  - Two curves are horizontal (v=min_v and v=max_v) and have opposite directions
+   *  - Two curves are vertical   (u=min_u and u=max_u) and have opposite directions
+   *  - Each curve is approximately linear in (u,v) space
+   *  - Curve endpoints match the patch's (min_u,max_u,min_v,max_v) corner coordinates
    *
    * \param [in] tol Threshold for squared distance used by NURBSCurve::isLinear and
    *  for the axis-alignment check on the curve endpoints.
    */
   bool isTriviallyTrimmed(double tol = 1e-8) const
   {
-    const int ncurves = getNumTrimmingCurves();
-    if(ncurves == 0)
+    if(!isTrimmed())
     {
-      return true;
+      return false;
     }
 
+    const int ncurves = getNumTrimmingCurves();
     if(ncurves != 4)
     {
       return false;

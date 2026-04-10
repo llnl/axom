@@ -1214,8 +1214,8 @@ TEST(primal_nurbspatch, is_trivially_trimmed_predicate)
                                     PointType {1.0, 1.0, 0.0}};
   NURBSPatchType patch(controlPoints, 2, 2, 1, 1);
 
-  // No trimming curves -> trivially trimmed
-  EXPECT_TRUE(patch.isTriviallyTrimmed(tol));
+  // Untrimmed patch -> not trivially trimmed
+  EXPECT_FALSE(patch.isTriviallyTrimmed(tol));
 
   // Wrong number of curves -> not trivially trimmed
   {
@@ -1260,6 +1260,14 @@ TEST(primal_nurbspatch, is_trivially_trimmed_predicate)
     NURBSPatchType p = patch;
     p.makeTriviallyTrimmed();
     EXPECT_TRUE(p.isTriviallyTrimmed(tol));
+  }
+
+  // Marked-trimmed patch with no curves -> not trivially trimmed
+  {
+    NURBSPatchType p = patch;
+    p.makeTriviallyTrimmed();
+    p.clearTrimmingCurves();
+    EXPECT_FALSE(p.isTriviallyTrimmed(tol));
   }
 
   // Fuzzy boundary matching should succeed within tolerance
