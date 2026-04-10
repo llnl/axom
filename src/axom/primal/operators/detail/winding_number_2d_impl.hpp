@@ -133,23 +133,24 @@ int polygon_winding_number(const Point<T, 2>& R,
  *
  * \return The GWN
  */
-template <typename T>
-double linear_winding_number(const Point<T, 2>& q,
-                             const Point<T, 2>& c0,
-                             const Point<T, 2>& c1,
-                             bool& isOnEdge,
-                             double edge_tol,
-                             bool checkOnEdge = true)
+template <bool CheckOnEdge, typename T>
+double linear_winding_number_impl(const Point<T, 2>& q,
+                                  const Point<T, 2>& c0,
+                                  const Point<T, 2>& c1,
+                                  bool& isOnEdge,
+                                  double edge_tol)
 {
   constexpr double gwn_modulo = 0.5 * M_1_PI;
+
+  isOnEdge = false;
   const auto V0 = c0 - q;
   const auto V1 = c1 - q;
 
   // Measures (twice) the signed area of the triangle with vertices q, c0, c1
   const double det_01 = axom::numerics::determinant(V0[0], V1[0], V0[1], V1[1]);
+  const double dot_01 = V0.dot(V1);
 
-  isOnEdge = false;
-  if(checkOnEdge)
+  if constexpr(CheckOnEdge)
   {
     const auto seg_vec = c0 - c1;
     if(const double tol_sq = edge_tol * edge_tol, seg_sq = seg_vec.squared_norm();
@@ -168,9 +169,22 @@ double linear_winding_number(const Point<T, 2>& q,
 
       return 0;
     }
-  }
 
-  return gwn_modulo * atan2(det_01, V0.dot(V1));
+    return gwn_modulo * atan2(det_01, dot_01);
+  }
+  return gwn_modulo * atan2(det_01, dot_01);
+}
+
+template <typename T>
+double linear_winding_number(const Point<T, 2>& q,
+                             const Point<T, 2>& c0,
+                             const Point<T, 2>& c1,
+                             bool& isOnEdge,
+                             double edge_tol,
+                             bool checkOnEdge = true)
+{
+  return checkOnEdge ? linear_winding_number_impl<true>(q, c0, c1, isOnEdge, edge_tol)
+                     : linear_winding_number_impl<false>(q, c0, c1, isOnEdge, edge_tol);
 }
 
 /*!
