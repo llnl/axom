@@ -125,6 +125,7 @@ int polygon_winding_number(const Point<T, 2>& R,
  * \param [in] c1 The terminal point of the line segment
  * \param [out] isOnEdge Return flag if the point is on the boundary
  * \param [in] edge_tol The tolerance at which a point is on the line
+ * \param [in] checkOnEdge If true, perform the on-edge test before evaluating the winding contribution
  *
  * The GWN for a 2D point with respect to a 2D straight line
  * is the signed angle subtended by the query point to each endpoint.
@@ -133,54 +134,42 @@ int polygon_winding_number(const Point<T, 2>& R,
  * \return The GWN
  */
 template <typename T>
-double linear_winding_number_known_off_edge(const Point<T, 2>& q,
-                                            const Point<T, 2>& c0,
-                                            const Point<T, 2>& c1)
-{
-  constexpr double gwn_modulo = 0.5 * M_1_PI;
-  const double v0x = c0[0] - q[0];
-  const double v0y = c0[1] - q[1];
-  const double v1x = c1[0] - q[0];
-  const double v1y = c1[1] - q[1];
-  const double det_01 = v0x * v1y - v0y * v1x;
-  const double dot_01 = v0x * v1x + v0y * v1y;
-  return gwn_modulo * atan2(det_01, dot_01);
-}
-
-template <typename T>
 double linear_winding_number(const Point<T, 2>& q,
                              const Point<T, 2>& c0,
                              const Point<T, 2>& c1,
                              bool& isOnEdge,
-                             double edge_tol)
+                             double edge_tol,
+                             bool checkOnEdge = true)
 {
+  constexpr double gwn_modulo = 0.5 * M_1_PI;
   const auto V0 = c0 - q;
   const auto V1 = c1 - q;
-  const auto seg_vec = c0 - c1;
 
   // Measures (twice) the signed area of the triangle with vertices q, c0, c1
   const double det_01 = axom::numerics::determinant(V0[0], V1[0], V0[1], V1[1]);
 
-  // Compute distance from line connecting endpoints to query
   isOnEdge = false;
-  if(const double tol_sq = edge_tol * edge_tol, seg_sq = seg_vec.squared_norm();
-     det_01 * det_01 <= tol_sq * seg_sq)
+  if(checkOnEdge)
   {
-    // Check for degenerate line segment; treat as a point
-    if(axom::utilities::isNearlyEqual(seg_sq, 0.0))
+    const auto seg_vec = c0 - c1;
+    if(const double tol_sq = edge_tol * edge_tol, seg_sq = seg_vec.squared_norm();
+       det_01 * det_01 <= tol_sq * seg_sq)
     {
-      isOnEdge = (V0.squared_norm() <= tol_sq);
-    }
-    else if(const double proj_val = V0.dot(seg_vec) / seg_sq;
-            (proj_val >= 0 - edge_tol) && (proj_val <= 1 + edge_tol))
-    {
-      isOnEdge = true;
-    }
+      // Check for degenerate line segment; treat as a point.
+      if(axom::utilities::isNearlyEqual(seg_sq, 0.0))
+      {
+        isOnEdge = (V0.squared_norm() <= tol_sq);
+      }
+      else if(const double proj_val = V0.dot(seg_vec) / seg_sq;
+              (proj_val >= 0 - edge_tol) && (proj_val <= 1 + edge_tol))
+      {
+        isOnEdge = true;
+      }
 
-    return 0;
+      return 0;
+    }
   }
 
-  constexpr double gwn_modulo = 0.5 * M_1_PI;
   return gwn_modulo * atan2(det_01, V0.dot(V1));
 }
 
@@ -326,7 +315,12 @@ double bezier_winding_number_memoized(const Point<T, 2>& q,
   {
     if(outside_bbox)
     {
-      return detail::linear_winding_number_known_off_edge(q, bezier_curve[0], bezier_curve[deg]);
+      return detail::linear_winding_number(q,
+                                           bezier_curve[0],
+                                           bezier_curve[deg],
+                                           isOnCurve,
+                                           edge_tol,
+                                           true);
     }
 
     return detail::linear_winding_number(q, bezier_curve[0], bezier_curve[deg], isOnCurve, edge_tol);
@@ -604,7 +598,8 @@ double nurbs_winding_number(const Point<T, 2>& q,
                                          nurbs[0],
                                          nurbs[nurbs.getNumControlPoints() - 1],
                                          isOnCurve,
-                                         edge_tol);
+                                         edge_tol,
+                                         true);
   }
 
   // Decompose the NURBS curve into Bezier segments

@@ -61,14 +61,18 @@ struct WindingTolerances
  * \param [in] q The query point to test
  * \param [in] s The line segment
  * \param [in] edge_tol The tolerance at which a point is on the line
+ * \param [in] checkOnEdge If true, perform the on-edge test before evaluating the winding contribution
  *
  * \return The GWN
  */
 template <typename T>
-double winding_number(const Point<T, 2>& q, const Segment<T, 2>& s, double edge_tol = 1e-8)
+double winding_number(const Point<T, 2>& q,
+                      const Segment<T, 2>& s,
+                      double edge_tol = 1e-8,
+                      bool checkOnEdge = true)
 {
   bool dummy_isOnEdge = false;
-  return detail::linear_winding_number(q, s[0], s[1], dummy_isOnEdge, edge_tol);
+  return detail::linear_winding_number(q, s[0], s[1], dummy_isOnEdge, edge_tol, checkOnEdge);
 }
 
 /*!
@@ -284,9 +288,12 @@ double winding_number(const Point<T, 2>& query,
   // Early return is possible for most points + curves
   if(!nurbs_cache.boundingBox().contains(query))
   {
-    return detail::linear_winding_number_known_off_edge(query,
-                                                        nurbs_cache.getInitPoint(),
-                                                        nurbs_cache.getEndPoint());
+    return detail::linear_winding_number(query,
+                                         nurbs_cache.getInitPoint(),
+                                         nurbs_cache.getEndPoint(),
+                                         isOnCurve,
+                                         edge_tol,
+                                         false);
   }
 
   double gwn = 0.0;
