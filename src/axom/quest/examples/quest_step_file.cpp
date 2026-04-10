@@ -959,7 +959,7 @@ int main(int argc, char** argv)
   output_opts->add_flag("--skip-boring", skip_boring_patches)
     ->description(
       "Skip patch-wise SVG/MFEM/stats outputs for boring patches (trivially trimmed, invisible, or "
-      "untrimmed)")
+      "untrimmed). Does not affect triangulations.")
     ->capture_default_str();
 
   // Triangulation options ----------------------------------------------------

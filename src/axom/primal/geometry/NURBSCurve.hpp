@@ -688,7 +688,10 @@ public:
    *
    * \param [in] tol Threshold for squared distance
    * \param [in] useStrictLinear If true, checks that the control points are
-   *   evenly spaced along the line and not too far from the line
+   *   evenly spaced along the endpoint segment (in addition to being near the
+   *   segment). This is a stronger condition and may return false for curves
+   *   that are geometrically linear but have a non-uniform control-point
+   *   distribution along the segment.
    * \return True if curve is near-linear
    */
   bool isLinear(double tol = 1e-8, bool useStrictLinear = false) const

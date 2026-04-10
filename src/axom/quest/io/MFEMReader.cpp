@@ -98,22 +98,18 @@ int read_mfem(const std::string &fileName,
   };
 
 #if MFEM_VERSION >= AXOM_MFEM_MIN_VERSION_PATCH_BASED_1D_NURBS
-  // lambda to extract the knot vector associated with curve idx. Converts from mfem::KnotVector to primal::KnotVector
-  auto get_knots = [&mesh](int idx) -> primal::KnotVector<double> {
-    mfem::Array<const mfem::KnotVector *> kvs;
-    mesh->NURBSext->GetPatchKnotVectors(idx, kvs);
-    const mfem::KnotVector &kv = *kvs[0];
-
-    axom::ArrayView<const double> knots_view(&kv[0], kv.Size());
-    return primal::KnotVector<double>(knots_view, kv.GetOrder());
-  };
-
   // lambda to extract the weights for curve idx from the mfem mesh
   // Patch-based NURBS meshes can have multiple elements (knot spans) per patch.
   // For robust extraction, build control points/weights from patch DOFs (not element DOFs).
   auto get_patch_controlpoints = [nodes, fes, &mesh](int patchId) -> axom::Array<ControlPoint> {
     mfem::Array<int> dofs;
     mesh->NURBSext->GetPatchDofs(patchId, dofs);
+    if(dofs.Size() <= 0)
+    {
+      SLIC_WARNING(
+        axom::fmt::format("MFEM patch {} has no DOFs; cannot extract NURBS curve.", patchId));
+      return {};
+    }
 
     mfem::Array<int> vdofs(dofs);
     fes->DofsToVDofs(vdofs);
@@ -136,6 +132,10 @@ int read_mfem(const std::string &fileName,
   auto get_patch_weights = [&mesh](int patchId) -> axom::Array<double> {
     mfem::Array<int> dofs;
     mesh->NURBSext->GetPatchDofs(patchId, dofs);
+    if(dofs.Size() <= 0)
+    {
+      return {};
+    }
 
     const int nw = dofs.Size();
     axom::Array<double> w(nw, nw);
@@ -163,6 +163,7 @@ int read_mfem(const std::string &fileName,
 
   auto get_element_degree = [fes, &mesh](int elemId) -> int {
     const mfem::Array<int> &orders = mesh->NURBSext->GetOrders();
+    // MFEM calls this "order"; in Axom terminology this is the polynomial degree.
     return (elemId < orders.Size()) ? orders[elemId] : fes->GetOrder(elemId);
   };
 #endif
@@ -201,9 +202,32 @@ int read_mfem(const std::string &fileName,
     {
       const int attribute = mesh->GetPatchAttribute(patchId);
 
-      const auto kv = get_knots(patchId);
+      mfem::Array<const mfem::KnotVector *> kvs;
+      mesh->NURBSext->GetPatchKnotVectors(patchId, kvs);
+      if(kvs.Size() < 1 || kvs[0] == nullptr)
+      {
+        SLIC_WARNING(
+          axom::fmt::format("MFEM patch {} has no valid knot vector; cannot extract NURBS curve.",
+                            patchId));
+        return MFEMReader::READ_FAILED;
+      }
+      const mfem::KnotVector &kv0 = *kvs[0];
+      if(kv0.Size() <= 0)
+      {
+        SLIC_WARNING(
+          axom::fmt::format("MFEM patch {} has an empty knot vector; cannot extract NURBS curve.",
+                            patchId));
+        return MFEMReader::READ_FAILED;
+      }
+      axom::ArrayView<const double> knots_view(&kv0[0], kv0.Size());
+      const primal::KnotVector<double> kv(knots_view, kv0.GetOrder());
+
       const auto cp = get_patch_controlpoints(patchId);
       const auto w = get_patch_weights(patchId);
+      if(cp.empty())
+      {
+        return MFEMReader::READ_FAILED;
+      }
 
       is_rational(w) ? curvemap[attribute].push_back({cp, w, kv})
                      : curvemap[attribute].push_back({cp, kv});

@@ -152,7 +152,7 @@ private:
     // then, send/receive the data
     if constexpr(std::is_same_v<value_type, double> || std::is_same_v<value_type, int>)
     {
-      // handles Array<double,1>, Array<double,2>, and Array<int,1>
+      // handles Array<double,1>, Array<double,2>, Array<int,1>, and Array<int,2>
       bcast_data(arr.view());
     }
     else if constexpr(primal::detail::is_point_v<value_type>)

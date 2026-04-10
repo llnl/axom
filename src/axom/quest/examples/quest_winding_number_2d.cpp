@@ -46,11 +46,11 @@ namespace
 {
 /**
  * This helper class takes in an mfem mesh (potentially with variable order curves from mfem>4.9)
- * and writes out a version that is compatible with mfem@4.9 
+ * and writes out a version that is compatible with mfem@4.9
  * In particular, this allows us to visualize it with current versions of VisIt which do not yet support this feature.
- * 
- * We can remove this class once downstream appications (such as VisIt) are updated to a version of mfem
- * that support the NURBS patches format.
+ *
+ * We can remove this class once downstream applications (such as VisIt) are updated to a version of mfem
+ * that supports the NURBS patches format.
  */
 class MFEM49ElevatedNURBSMeshWriter
 {
@@ -69,7 +69,8 @@ public:
       return false;
     }
 
-    // Note: NURBS curve meshes in mfem@4.9 must all have the same degree, and their knotvectors must have the same length
+    // Note: NURBS curve meshes in mfem@4.9 must all have the same degree, and their knotvectors must have the same length.
+    // MFEM calls this quantity "order"; in Axom terminology this is the polynomial degree.
     const mfem::Array<int>& orders = mesh.NURBSext->GetOrders();
     int max_order = 0;
     for(int i = 0; i < orders.Size(); ++i)

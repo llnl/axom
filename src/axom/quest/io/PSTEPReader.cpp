@@ -42,6 +42,9 @@ int PSTEPReader::read(bool validate_model)
       bcast_int(m_patches.size());
       for(auto& patch : m_patches)
       {
+        // broadcast trimmed flag (independent from number of trimming curves)
+        const bool is_trimmed = bcast_bool(patch.isTrimmed());
+
         // broadcast u- and v- knot vector
         bcast_array(patch.getKnots_u().getArray());
 
@@ -77,6 +80,12 @@ int PSTEPReader::read(bool validate_model)
             bcast_array(cur.getWeights());
           }
         }
+
+        // Preserve the trimmed state even when there are no trimming curves.
+        if(is_trimmed)
+        {
+          patch.markAsTrimmed();
+        }
       }
 
       // Broadcast stable ids that match the input STEP enumeration
@@ -103,6 +112,8 @@ int PSTEPReader::read(bool validate_model)
       m_patches.reserve(numPatches);
       for(int i = 0; i < numPatches; ++i)
       {
+        const bool is_trimmed = bcast_bool();
+
         {
           // receive the u-knotvector
           axom::Array<double> uKnotsArr;
@@ -154,6 +165,12 @@ int PSTEPReader::read(bool validate_model)
           {
             m_patches[i].addTrimmingCurve(NURBSCurve {curControlPoints, curKnotsArr});
           }
+        }
+
+        // Preserve the trimmed state even when there are no trimming curves.
+        if(is_trimmed)
+        {
+          m_patches[i].markAsTrimmed();
         }
       }
 
