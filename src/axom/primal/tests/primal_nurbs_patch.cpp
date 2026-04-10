@@ -1417,6 +1417,73 @@ TEST(primal_nurbspatch, is_trivially_trimmed_predicate)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_nurbspatch, is_invisible_predicate)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSPatchType = primal::NURBSPatch<CoordType, DIM>;
+  using TrimmingCurveType = primal::NURBSCurve<CoordType, 2>;
+
+  // Simple bilinear patch geometry.
+  PointType controlPoints[2 * 2] = {PointType {0.0, 0.0, 0.0},
+                                    PointType {0.0, 1.0, 0.0},
+                                    PointType {1.0, 0.0, 0.0},
+                                    PointType {1.0, 1.0, 0.0}};
+  NURBSPatchType patch(controlPoints, 2, 2, 1, 1);
+
+  // Untrimmed with no curves is not considered invisible.
+  EXPECT_FALSE(patch.isTrimmed());
+  EXPECT_EQ(patch.getNumTrimmingCurves(), 0);
+  EXPECT_FALSE(patch.isInvisible());
+
+  // Trivially trimmed patch has curves and is not invisible.
+  {
+    NURBSPatchType p = patch;
+    p.makeTriviallyTrimmed();
+    EXPECT_TRUE(p.isTrimmed());
+    EXPECT_EQ(p.getNumTrimmingCurves(), 4);
+    EXPECT_FALSE(p.isInvisible());
+  }
+
+  // Marked trimmed but no curves is invisible.
+  {
+    NURBSPatchType p = patch;
+    p.makeTriviallyTrimmed();
+    p.clearTrimmingCurves();
+    EXPECT_TRUE(p.isTrimmed());
+    EXPECT_EQ(p.getNumTrimmingCurves(), 0);
+    EXPECT_TRUE(p.isInvisible());
+  }
+
+  // Setting trimming curves to an empty set marks trimmed and is invisible.
+  {
+    NURBSPatchType p = patch;
+    typename NURBSPatchType::TrimmingCurveVec empty_curves;
+    p.setTrimmingCurves(empty_curves);
+    EXPECT_TRUE(p.isTrimmed());
+    EXPECT_EQ(p.getNumTrimmingCurves(), 0);
+    EXPECT_TRUE(p.isInvisible());
+  }
+
+  // Adding any trimming curve makes it not invisible.
+  {
+    NURBSPatchType p = patch;
+    typename NURBSPatchType::TrimmingCurveVec empty_curves;
+    p.setTrimmingCurves(empty_curves);
+
+    TrimmingCurveType c(2, 1);
+    c[0] = primal::Point<CoordType, 2> {0.0, 0.0};
+    c[1] = primal::Point<CoordType, 2> {1.0, 0.0};
+    p.addTrimmingCurve(c);
+
+    EXPECT_TRUE(p.isTrimmed());
+    EXPECT_EQ(p.getNumTrimmingCurves(), 1);
+    EXPECT_FALSE(p.isInvisible());
+  }
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_nurbspatch, bezier_extraction)
 {
   SLIC_INFO("Testing NURBS Patch Bezier extraction");

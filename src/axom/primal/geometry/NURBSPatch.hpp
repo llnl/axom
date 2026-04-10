@@ -3028,6 +3028,14 @@ public:
   /// \brief use boolean flag for trimmed-ness
   bool isTrimmed() const { return m_isTrimmed; }
 
+  /*!
+   * \brief Predicate to check if the patch is entirely invisible due to trimming state.
+   *
+   * A patch is considered invisible when it is marked as trimmed, but has no
+   * trimming curves. This represents a trimmed patch whose visible region is empty.
+   */
+  bool isInvisible() const { return isTrimmed() && getNumTrimmingCurves() == 0; }
+
   /// \brief Mark as trimmed
   void markAsTrimmed() { m_isTrimmed = true; }
 

@@ -955,10 +955,11 @@ int main(int argc, char** argv)
     ->description("Generate one JSON stats file per patch summarizing its trimming curves")
     ->capture_default_str();
 
-  bool skip_trivial_trimmed_patches {false};
-  output_opts
-    ->add_flag("--skip-trivial,--skip-trivial-trimmed-patches", skip_trivial_trimmed_patches)
-    ->description("Skip patch-wise SVG/MFEM outputs for trivially-trimmed patches")
+  bool skip_boring_patches {false};
+  output_opts->add_flag("--skip-boring", skip_boring_patches)
+    ->description(
+      "Skip patch-wise SVG/MFEM/stats outputs for boring patches (trivially trimmed, invisible, or "
+      "untrimmed)")
     ->capture_default_str();
 
   // Triangulation options ----------------------------------------------------
@@ -1054,6 +1055,33 @@ int main(int argc, char** argv)
   }
 
   PatchArray& patches = stepReader.getPatchArray();
+
+  auto should_skip_patchwise_outputs = [&](const NURBSPatch& p) -> bool {
+    if(!skip_boring_patches)
+    {
+      return false;
+    }
+
+    // Skip untrimmed patches (no trimming curves).
+    if(!p.isTrimmed() && p.getNumTrimmingCurves() == 0)
+    {
+      return true;
+    }
+
+    // Skip trimmed patches with no trimming curves (empty visible region).
+    if(p.isInvisible())
+    {
+      return true;
+    }
+
+    // Skip trimmed patches whose trimming curves coincide with the patch boundary.
+    if(p.isTriviallyTrimmed())
+    {
+      return true;
+    }
+
+    return false;
+  };
 
 #ifdef AXOM_USE_MPI
   if(validate_model && !validate_patches(patches))
@@ -1188,7 +1216,7 @@ int main(int argc, char** argv)
 
     for(int index = 0; index < numPatches; ++index)
     {
-      if(skip_trivial_trimmed_patches && patches[index].isTriviallyTrimmed())
+      if(should_skip_patchwise_outputs(patches[index]))
       {
         continue;
       }
@@ -1222,7 +1250,7 @@ int main(int argc, char** argv)
     {
       const int patch_id = stepReader.getPatchIds()[index];
       const auto wire_ids = stepReader.getTrimmingCurveWireIds(index);
-      if(skip_trivial_trimmed_patches && patches[index].isTriviallyTrimmed())
+      if(should_skip_patchwise_outputs(patches[index]))
       {
         continue;
       }
@@ -1257,6 +1285,10 @@ int main(int argc, char** argv)
     {
       const int patch_id = stepReader.getPatchIds()[index];
       const auto wire_ids = stepReader.getTrimmingCurveWireIds(index);
+      if(should_skip_patchwise_outputs(patches[index]))
+      {
+        continue;
+      }
       stats_writer.writeStatsForPatch(patch_id,
                                       patches[index],
                                       wire_ids,
