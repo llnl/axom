@@ -28,6 +28,7 @@
 
 #include <vector>
 #include <ostream>
+#include <unordered_map>
 #include <math.h>
 
 #include "axom/fmt.hpp"
@@ -82,6 +83,19 @@ private:
 template <typename T>
 class NURBSCurveGWNCache;
 
+struct PairHash
+{
+  using argument_type = std::pair<int, int>;
+  using result_type = std::size_t;
+
+  result_type operator()(const argument_type& key) const noexcept
+  {
+    const auto a = static_cast<std::uint32_t>(key.first);
+    const auto b = static_cast<std::uint32_t>(key.second);
+    return (static_cast<result_type>(a) << 32) ^ static_cast<result_type>(b);
+  }
+};
+
 /// \brief Overloaded output operator for Cached Curves
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const NURBSCurveGWNCache<T>& nCurveCache);
@@ -122,8 +136,11 @@ public:
 
     for(int idx = 0; idx < m_numSpans; ++idx)
     {
-      m_bezierSubdivisionMaps[idx][std::make_pair(0, 0)] =
-        BezierCurveData<T>(beziers[idx], false, bbExpansionAmount);
+      m_bezierSubdivisionMaps[idx].reserve(32);
+      m_bezierSubdivisionMaps[idx].try_emplace(std::make_pair(0, 0),
+                                               beziers[idx],
+                                               false,
+                                               bbExpansionAmount);
     }
 
     m_initPoint = a_curve[0];
@@ -152,8 +169,8 @@ public:
       m_initPoint = a_curve[0];
       m_endPoint = a_curve[m_degree];
 
-      m_bezierSubdivisionMaps[0][std::make_pair(0, 0)] =
-        BezierCurveData<T>(a_curve, false, bbExpansionAmount);
+      m_bezierSubdivisionMaps[0].reserve(32);
+      m_bezierSubdivisionMaps[0].try_emplace(std::make_pair(0, 0), a_curve, false, bbExpansionAmount);
     }
   }
 
@@ -245,7 +262,8 @@ private:
 
   Point<T, 2> m_initPoint, m_endPoint;
 
-  mutable axom::Array<std::map<std::pair<int, int>, BezierCurveData<T>>> m_bezierSubdivisionMaps;
+  mutable axom::Array<std::unordered_map<std::pair<int, int>, BezierCurveData<T>, PairHash>>
+    m_bezierSubdivisionMaps;
 };
 
 template <typename T>
