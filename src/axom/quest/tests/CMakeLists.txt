@@ -30,6 +30,7 @@ blt_list_append(TO       quest_tests
                 ELEMENTS quest_meshtester.cpp)
 
 if(OPENCASCADE_FOUND AND AXOM_DATA_DIR)
+    list(APPEND quest_tests quest_step_quadrature.cpp)
     list(APPEND quest_tests quest_step_reader.cpp)
 endif()
 
