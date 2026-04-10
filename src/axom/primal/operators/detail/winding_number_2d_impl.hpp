@@ -320,7 +320,7 @@ double bezier_winding_number_memoized(const Point<T, 2>& q,
                                            bezier_curve[deg],
                                            isOnCurve,
                                            edge_tol,
-                                           true);
+                                           false);
     }
 
     return detail::linear_winding_number(q, bezier_curve[0], bezier_curve[deg], isOnCurve, edge_tol);
@@ -503,7 +503,12 @@ double bezier_winding_number(const Point<T, 2>& q,
   }
 
   // Early return is possible for most points + curves
-  if(!c.boundingBox().expand(edge_tol).contains(q) || c.isLinear(EPS))
+  if(!c.boundingBox().expand(edge_tol).contains(q))
+  {
+    return detail::linear_winding_number(q, c[0], c[ord], isOnCurve, edge_tol, false);
+  }
+
+  if(c.isLinear(EPS))
   {
     return detail::linear_winding_number(q, c[0], c[ord], isOnCurve, edge_tol);
   }
@@ -599,7 +604,7 @@ double nurbs_winding_number(const Point<T, 2>& q,
                                          nurbs[nurbs.getNumControlPoints() - 1],
                                          isOnCurve,
                                          edge_tol,
-                                         true);
+                                         false);
   }
 
   // Decompose the NURBS curve into Bezier segments
