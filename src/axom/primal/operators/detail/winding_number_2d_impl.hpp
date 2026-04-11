@@ -118,20 +118,41 @@ int polygon_winding_number(const Point<T, 2>& R,
 }
 
 /*!
- * \brief Compute the GWN at a 2D point wrt a 2D line segment
+ * \brief Compute the GWN at a 2D point wrt a line segment when the query is
+ *        already known to be off the segment.
+ *
+ * \param [in] q The query point to test
+ * \param [in] c0 The initial point of the line segment
+ * \param [in] c1 The terminal point of the line segment
+ *
+ * \return The GWN contribution from the segment
+ */
+template <typename T>
+double linear_winding_number_known_off_edge(const Point<T, 2>& q,
+                                            const Point<T, 2>& c0,
+                                            const Point<T, 2>& c1)
+{
+  constexpr double gwn_modulo = 0.5 * M_1_PI;
+  const double v0x = c0[0] - q[0];
+  const double v0y = c0[1] - q[1];
+  const double v1x = c1[0] - q[0];
+  const double v1y = c1[1] - q[1];
+  const double det_01 = v0x * v1y - v0y * v1x;
+  const double dot_01 = v0x * v1x + v0y * v1y;
+  return gwn_modulo * atan2(det_01, dot_01);
+}
+
+/*!
+ * \brief Internal implementation of linear_winding_number() specialized on
+ *        whether the boundary check is needed.
  *
  * \param [in] q The query point to test
  * \param [in] c0 The initial point of the line segment
  * \param [in] c1 The terminal point of the line segment
  * \param [out] isOnEdge Return flag if the point is on the boundary
  * \param [in] edge_tol The tolerance at which a point is on the line
- * \param [in] checkOnEdge If true, perform the on-edge test before evaluating the winding contribution
  *
- * The GWN for a 2D point with respect to a 2D straight line
- * is the signed angle subtended by the query point to each endpoint.
- * Colinear points return 0 for their GWN.
- *
- * \return The GWN
+ * \return The GWN contribution from the segment
  */
 template <bool CheckOnEdge, typename T>
 double linear_winding_number_impl(const Point<T, 2>& q,
@@ -146,7 +167,7 @@ double linear_winding_number_impl(const Point<T, 2>& q,
   const auto V0 = c0 - q;
   const auto V1 = c1 - q;
 
-  // Measures (twice) the signed area of the triangle with vertices q, c0, c1
+  // Measures twice the signed area of the triangle with vertices q, c0, c1.
   const double det_01 = axom::numerics::determinant(V0[0], V1[0], V0[1], V1[1]);
   const double dot_01 = V0.dot(V1);
 
@@ -172,7 +193,12 @@ double linear_winding_number_impl(const Point<T, 2>& q,
 
     return gwn_modulo * atan2(det_01, dot_01);
   }
-  return gwn_modulo * atan2(det_01, dot_01);
+  else
+  {
+    // Keep the known-off-edge path in its own helper. More unified versions
+    // of this kernel benchmarked measurably slower across our comparison suite.
+    return linear_winding_number_known_off_edge(q, c0, c1);
+  }
 }
 
 template <typename T>
