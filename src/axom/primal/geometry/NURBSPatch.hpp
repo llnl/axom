@@ -29,7 +29,6 @@
 #include "axom/primal/operators/evaluate_integral_curve.hpp"
 #include "axom/primal/operators/detail/winding_number_2d_impl.hpp"
 #include "axom/primal/operators/detail/intersect_bezier_impl.hpp"
-#include "axom/primal/operators/evaluate_integral.hpp"
 
 #include <ostream>
 #include <math.h>
