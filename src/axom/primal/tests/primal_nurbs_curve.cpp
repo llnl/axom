@@ -19,6 +19,83 @@
 namespace primal = axom::primal;
 
 //------------------------------------------------------------------------------
+TEST(primal_nurbscurve, is_linear_predicate)
+{
+  constexpr int DIM = 2;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  constexpr double tol = 1e-12;
+
+  // Degree-1 segment
+  {
+    NURBSCurveType c(2, 1);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {1.0, 0.0};
+    EXPECT_TRUE(c.isLinear(tol));
+  }
+
+  // Degree-2, collinear control polygon
+  {
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.5, 0.0};
+    c[2] = PointType {1.0, 0.0};
+    EXPECT_TRUE(c.isLinear(tol));
+  }
+
+  // Degree-2, non-collinear interior point
+  {
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.5, 1e-3};
+    c[2] = PointType {1.0, 0.0};
+    EXPECT_FALSE(c.isLinear(tol));
+  }
+
+  // Rational, collinear should still be linear
+  {
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.5, 0.0};
+    c[2] = PointType {1.0, 0.0};
+    c.makeRational();
+    c.setWeight(0, 1.0);
+    c.setWeight(1, 2.0);
+    c.setWeight(2, 0.5);
+    EXPECT_TRUE(c.isLinear(tol));
+  }
+
+  // Strict mode requires a uniform control-point distribution along the endpoint segment
+  {
+    // evenly spaced -> strict linear
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.5, 0.0};
+    c[2] = PointType {1.0, 0.0};
+    EXPECT_TRUE(c.isLinear(tol, /*useStrictLinear=*/true));
+  }
+  {
+    // collinear but not evenly spaced -> not strict linear
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.2, 0.0};
+    c[2] = PointType {1.0, 0.0};
+    EXPECT_TRUE(c.isLinear(tol, /*useStrictLinear=*/false));
+    EXPECT_FALSE(c.isLinear(tol, /*useStrictLinear=*/true));
+  }
+  {
+    // slight deviation within tolerance should still be linear (non-strict)
+    NURBSCurveType c(3, 2);
+    c[0] = PointType {0.0, 0.0};
+    c[1] = PointType {0.5, 0.5e-6};  // squared distance 2.5e-13 < 1e-12
+    c[2] = PointType {1.0, 0.0};
+    EXPECT_TRUE(c.isLinear(tol, /*useStrictLinear=*/false));
+  }
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_nurbscurve, default_constructor)
 {
   constexpr int DIM = 3;

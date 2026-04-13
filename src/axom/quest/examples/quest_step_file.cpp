@@ -16,6 +16,9 @@
 #include "axom/quest.hpp"
 
 #include <iostream>
+#include <fstream>
+#include <map>
+#include <set>
 
 #ifdef AXOM_USE_MPI
   #include <mpi.h>
@@ -343,6 +346,326 @@ private:
   int m_numFillZeros {0};
 };
 
+/**
+ * Class that writes a patch-wise MFEM NURBS mesh containing a patch's trimming curves
+ *
+ * Each trimming curve is output as a separate 1D NURBS "patch" embedded in 2D space (u,v).
+ *
+ * Note: Support for reading these meshes was added to mfem after mfem@4.9.0
+ * and is not in the current release of VisIt (visit@3.4.2)
+ */
+class PatchMFEMTrimmingCurveWriter
+{
+public:
+  PatchMFEMTrimmingCurveWriter() { }
+
+  void setOutputDirectory(const std::string& dir) { m_outputDirectory = dir; }
+  void setVerbosity(bool verbosityFlag) { m_verbose = verbosityFlag; }
+  void setNumFillZeros(int num)
+  {
+    if(num >= 0)
+    {
+      m_numFillZeros = num;
+    }
+  }
+
+  void writeMFEMForPatch(int patchId,
+                         const NURBSPatch& patch,
+                         axom::ArrayView<const int> trimmingCurveWireIds) const
+  {
+    const auto& curves = patch.getTrimmingCurves();
+    const int numCurves = curves.size();
+    if(numCurves == 0)
+    {
+      return;
+    }
+
+    SLIC_WARNING_IF(trimmingCurveWireIds.size() != numCurves,
+                    axom::fmt::format(
+                      "Trimming curve wire id list size mismatch for patch {}: ids={}, curves={}. "
+                      "Falling back to a single wire id.",
+                      patchId,
+                      trimmingCurveWireIds.size(),
+                      numCurves));
+
+    using axom::utilities::filesystem::joinPath;
+
+    const std::string outDir = joinPath(m_outputDirectory, "mfem_trim_curves");
+    if(!axom::utilities::filesystem::pathExists(outDir))
+    {
+      axom::utilities::filesystem::makeDirsForPath(outDir);
+    }
+
+    const std::string meshFilename =
+      joinPath(outDir, axom::fmt::format("trim_curves_patch_{:0{}}.mesh", patchId, m_numFillZeros));
+
+    std::ofstream meshFile(meshFilename);
+    if(!meshFile.is_open())
+    {
+      SLIC_WARNING(axom::fmt::format("Unable to open '{}' for writing.", meshFilename));
+      return;
+    }
+
+    axom::fmt::memory_buffer content;
+
+    axom::fmt::format_to(std::back_inserter(content), "MFEM NURBS mesh v1.0\n\n");
+    axom::fmt::format_to(std::back_inserter(content),
+                         "# Trim curves for STEP NURBSPatch {}\n",
+                         patchId);
+    axom::fmt::format_to(std::back_inserter(content),
+                         "# Parametric bbox: [{:.17g}, {:.17g}] x [{:.17g}, {:.17g}]\n",
+                         patch.getMinKnot_u(),
+                         patch.getMaxKnot_u(),
+                         patch.getMinKnot_v(),
+                         patch.getMaxKnot_v());
+    axom::fmt::format_to(std::back_inserter(content), "# Number of trimming curves: {}\n\n", numCurves);
+
+    axom::fmt::format_to(std::back_inserter(content), "dimension\n1\n\n");
+
+    // One element per trimming curve; each element uses its own vertex pair.
+    axom::fmt::format_to(std::back_inserter(content), "elements\n{}\n", numCurves);
+    for(int i = 0; i < numCurves; ++i)
+    {
+      // MFEM attributes are 1-based; we store the STEP 0-based wire index + 1.
+      const int wireId = (trimmingCurveWireIds.size() == numCurves) ? trimmingCurveWireIds[i] : 0;
+      const int mfem_attribute = wireId + 1;
+      const int v0 = 2 * i;
+      const int v1 = 2 * i + 1;
+      axom::fmt::format_to(std::back_inserter(content), "{} 1 {} {}\n", mfem_attribute, v0, v1);
+    }
+
+    axom::fmt::format_to(std::back_inserter(content), "\nboundary\n0\n\n");
+
+    // Edge list provides the unique knotvector index and (optionally) encodes orientation.
+    axom::fmt::format_to(std::back_inserter(content), "edges\n{}\n", numCurves);
+    for(int i = 0; i < numCurves; ++i)
+    {
+      const int v0 = 2 * i;
+      const int v1 = 2 * i + 1;
+      axom::fmt::format_to(std::back_inserter(content), "{} {} {}\n", i, v0, v1);
+    }
+
+    axom::fmt::format_to(std::back_inserter(content), "\nvertices\n{}\n\n", 2 * numCurves);
+
+    axom::fmt::format_to(std::back_inserter(content), "patches\n\n");
+    for(int i = 0; i < numCurves; ++i)
+    {
+      const auto& curve = curves[i];
+      SLIC_ASSERT(curve.isValidNURBS());
+      const int wireId = (trimmingCurveWireIds.size() == numCurves) ? trimmingCurveWireIds[i] : 0;
+      const int mfem_attribute = wireId + 1;
+
+      const int degree = curve.getDegree();
+      const int ncp = curve.getNumControlPoints();
+      const auto& knots = curve.getKnots().getArray();
+      SLIC_ASSERT(knots.size() == ncp + degree + 1);
+
+      axom::fmt::format_to(std::back_inserter(content),
+                           "# Curve wireId={} (mfem_attribute={}, output index {}): {} (degree {}, "
+                           "{} control points)\n",
+                           wireId,
+                           mfem_attribute,
+                           i,
+                           curve.isRational() ? "rational" : "polynomial",
+                           degree,
+                           ncp);
+
+      axom::fmt::format_to(std::back_inserter(content), "knotvectors\n1\n");
+      axom::fmt::format_to(std::back_inserter(content), "{} {}", degree, ncp);
+      for(const auto& kv : knots)
+      {
+        axom::fmt::format_to(std::back_inserter(content), "  {:.17g}", kv);
+      }
+      axom::fmt::format_to(std::back_inserter(content), "\n\n");
+
+      axom::fmt::format_to(std::back_inserter(content), "dimension\n2\n\n");
+      axom::fmt::format_to(std::back_inserter(content), "controlpoints_cartesian\n");
+
+      const auto& cps = curve.getControlPoints();
+      const auto& wts = curve.getWeights();
+      for(int j = 0; j < ncp; ++j)
+      {
+        const double w = curve.isRational() ? wts[j] : 1.0;
+        axom::fmt::format_to(std::back_inserter(content),
+                             "{:.17g}  {:.17g}  {:.17g}\n",
+                             cps[j][0],
+                             cps[j][1],
+                             w);
+      }
+      axom::fmt::format_to(std::back_inserter(content), "\n");
+    }
+
+    meshFile << axom::fmt::to_string(content);
+    meshFile.close();
+
+    SLIC_INFO_IF(m_verbose, axom::fmt::format("MFEM trim-curve mesh generated: '{}'", meshFilename));
+  }
+
+private:
+  std::string m_outputDirectory;
+  bool m_verbose {false};
+  int m_numFillZeros {0};
+};
+
+/**
+ * Class that writes a JSON stats file per patch summarizing trimming curves.
+ *
+ * The output includes:
+ *  - number of wires (unique STEP wire indices)
+ *  - number of trimming curves
+ *  - min/max curve orders (order = degree + 1)
+ *  - patch (u,v) knot-domain bounds
+ */
+class PatchTrimmingCurveStatsWriter
+{
+public:
+  PatchTrimmingCurveStatsWriter() { }
+
+  void setOutputDirectory(const std::string& dir) { m_outputDirectory = dir; }
+  void setVerbosity(bool verbosityFlag) { m_verbose = verbosityFlag; }
+  void setNumFillZeros(int num)
+  {
+    if(num >= 0)
+    {
+      m_numFillZeros = num;
+    }
+  }
+
+  void writeStatsForPatch(int patchId,
+                          const NURBSPatch& patch,
+                          axom::ArrayView<const int> trimmingCurveWireIds,
+                          bool was_originally_periodic_u,
+                          bool was_originally_periodic_v) const
+  {
+    const auto& curves = patch.getTrimmingCurves();
+    const int numCurves = curves.size();
+    const bool is_trivially_trimmed = patch.isTriviallyTrimmed();
+
+    const int num_knot_spans_u = static_cast<int>(patch.getKnots_u().getNumKnotSpans());
+    const int num_knot_spans_v = static_cast<int>(patch.getKnots_v().getNumKnotSpans());
+
+    int minOrder = 0;
+    int maxOrder = 0;
+    std::map<int, int> order_histogram;
+    for(int i = 0; i < numCurves; ++i)
+    {
+      const int order = curves[i].getDegree() + 1;
+      ++order_histogram[order];
+      if(i == 0)
+      {
+        minOrder = order;
+        maxOrder = order;
+      }
+      else
+      {
+        minOrder = std::min(minOrder, order);
+        maxOrder = std::max(maxOrder, order);
+      }
+    }
+
+    int numWires = 0;
+    if(numCurves == 0)
+    {
+      numWires = 0;
+    }
+    else if(trimmingCurveWireIds.size() == numCurves)
+    {
+      std::set<int> uniqueWireIds;
+      for(int i = 0; i < numCurves; ++i)
+      {
+        uniqueWireIds.insert(trimmingCurveWireIds[i]);
+      }
+      numWires = static_cast<int>(uniqueWireIds.size());
+    }
+    else
+    {
+      // If we can't trust the per-curve wire ids, conservatively report a single wire.
+      numWires = 1;
+    }
+
+    using axom::utilities::filesystem::joinPath;
+
+    const std::string outDir = joinPath(m_outputDirectory, "trim_curve_stats");
+    if(!axom::utilities::filesystem::pathExists(outDir))
+    {
+      axom::utilities::filesystem::makeDirsForPath(outDir);
+    }
+
+    const std::string statsFilename =
+      joinPath(outDir,
+               axom::fmt::format("trim_curves_patch_{:0{}}.stats.json", patchId, m_numFillZeros));
+
+    std::ofstream statsFile(statsFilename);
+    if(!statsFile.is_open())
+    {
+      SLIC_WARNING(axom::fmt::format("Unable to open '{}' for writing.", statsFilename));
+      return;
+    }
+
+    axom::fmt::memory_buffer content;
+    axom::fmt::format_to(std::back_inserter(content), "{{\n");
+    axom::fmt::format_to(std::back_inserter(content), "  \"patch_id\": {},\n", patchId);
+    axom::fmt::format_to(std::back_inserter(content),
+                         "  \"is_trivially_trimmed\": {},\n",
+                         is_trivially_trimmed ? "true" : "false");
+    axom::fmt::format_to(std::back_inserter(content),
+                         "  \"was_originally_periodic_u\": {},\n",
+                         was_originally_periodic_u ? "true" : "false");
+    axom::fmt::format_to(std::back_inserter(content),
+                         "  \"was_originally_periodic_v\": {},\n",
+                         was_originally_periodic_v ? "true" : "false");
+    axom::fmt::format_to(std::back_inserter(content),
+                         "  \"num_knot_spans_u\": {},\n",
+                         num_knot_spans_u);
+    axom::fmt::format_to(std::back_inserter(content),
+                         "  \"num_knot_spans_v\": {},\n",
+                         num_knot_spans_v);
+    axom::fmt::format_to(std::back_inserter(content), "  \"num_wires\": {},\n", numWires);
+    axom::fmt::format_to(std::back_inserter(content), "  \"num_trimming_curves\": {},\n", numCurves);
+    axom::fmt::format_to(std::back_inserter(content), "  \"min_curve_order\": {},\n", minOrder);
+    axom::fmt::format_to(std::back_inserter(content), "  \"max_curve_order\": {},\n", maxOrder);
+    axom::fmt::format_to(std::back_inserter(content), "  \"curves_by_order\": {{");
+    {
+      bool first = true;
+      for(const auto& kv : order_histogram)
+      {
+        axom::fmt::format_to(std::back_inserter(content),
+                             "{}\n    \"{}\": {}",
+                             first ? "" : ",",
+                             kv.first,
+                             kv.second);
+        first = false;
+      }
+      if(!order_histogram.empty())
+      {
+        axom::fmt::format_to(std::back_inserter(content), "\n  ");
+      }
+    }
+    axom::fmt::format_to(std::back_inserter(content), "}},\n");
+    axom::fmt::format_to(std::back_inserter(content),
+                         "  \"uv_bbox\": {{\n"
+                         "    \"min\": [{:.17g}, {:.17g}],\n"
+                         "    \"max\": [{:.17g}, {:.17g}]\n"
+                         "  }}\n",
+                         patch.getMinKnot_u(),
+                         patch.getMinKnot_v(),
+                         patch.getMaxKnot_u(),
+                         patch.getMaxKnot_v());
+    axom::fmt::format_to(std::back_inserter(content), "}}\n");
+
+    statsFile << axom::fmt::to_string(content);
+    statsFile.close();
+
+    SLIC_INFO_IF(m_verbose,
+                 axom::fmt::format("Trim-curve stats JSON generated: '{}'", statsFilename));
+  }
+
+private:
+  std::string m_outputDirectory;
+  bool m_verbose {false};
+  int m_numFillZeros {0};
+};
+
 #ifdef AXOM_USE_MPI
 
 // utility function to help with MPI_Allreduce calls
@@ -602,8 +925,11 @@ int main(int argc, char** argv)
       axom::fmt::format("Validate the model while reading it in? (default: {})", validate_model))
     ->capture_default_str();
 
+  // Output options -----------------------------------------------------------
+  auto* output_opts = app.add_option_group("Output", "Parameters associated with output");
+
   std::string output_dir = "step_output";
-  app.add_option("-o,--output-dir", output_dir)
+  output_opts->add_option("-o,--out,--output-dir", output_dir)
     ->description("Output directory for generated meshes")
     ->capture_default_str()
     ->check([](const std::string& dir) -> std::string {
@@ -614,36 +940,56 @@ int main(int argc, char** argv)
       return std::string();
     });
 
-  TriangleMeshOutputType output_trimmed {TriangleMeshOutputType::VTK};
-  app.add_option("--output-trimmed", output_trimmed)
+  bool output_svg {false};
+  output_opts->add_flag("--svg,--output-svg", output_svg)
+    ->description("Generate SVG files for each NURBS patch")
+    ->capture_default_str();
+
+  bool output_mfem_trim_curves {false};
+  output_opts->add_flag("--mfem-trim-curves,--output-mfem-trim-curves", output_mfem_trim_curves)
+    ->description("Generate one MFEM NURBS mesh per trimmed patch containing its trimming curves")
+    ->capture_default_str();
+
+  bool output_trim_curve_stats_json {false};
+  output_opts->add_flag("--stats-json,--output-trim-curve-stats-json", output_trim_curve_stats_json)
+    ->description("Generate one JSON stats file per patch summarizing its trimming curves")
+    ->capture_default_str();
+
+  bool skip_boring_patches {false};
+  output_opts->add_flag("--skip-boring", skip_boring_patches)
+    ->description(
+      "Skip patch-wise SVG/MFEM/stats outputs for boring patches (trivially trimmed, invisible, or "
+      "untrimmed). Does not affect triangulations.")
+    ->capture_default_str();
+
+  // Triangulation options ----------------------------------------------------
+  auto* tri_opts = app.add_option_group("Triangulation", "Parameters associated with triangulation");
+
+  TriangleMeshOutputType output_trimmed {TriangleMeshOutputType::NONE};
+  tri_opts->add_option("--tri.trimmed,--output-trimmed", output_trimmed)
     ->description("Output format for trimmed model triangulation: 'none', 'vtk', 'stl'")
     ->capture_default_str()
     ->transform(axom::CLI::CheckedTransformer(validTriangleMeshOutputs));
 
   TriangleMeshOutputType output_untrimmed {TriangleMeshOutputType::NONE};
-  app.add_option("--output-untrimmed", output_untrimmed)
+  tri_opts->add_option("--tri.untrimmed,--output-untrimmed", output_untrimmed)
     ->description("Output format for untrimmed model triangulation: 'none', 'vtk', 'stl'")
     ->capture_default_str()
     ->transform(axom::CLI::CheckedTransformer(validTriangleMeshOutputs));
 
   double deflection {.1};
-  app.add_option("--deflection", deflection)
+  tri_opts->add_option("--deflection", deflection)
     ->description("Max distance between actual geometry and triangulated geometry")
     ->capture_default_str();
 
   bool relative_deflection {false};
-  app.add_flag("--relative", relative_deflection)
+  tri_opts->add_flag("--relative", relative_deflection)
     ->description("Use relative deflection instead of absolute?")
     ->capture_default_str();
 
   double angular_deflection {0.5};
-  app.add_option("--angular-deflection", angular_deflection)
+  tri_opts->add_option("--angular-deflection", angular_deflection)
     ->description("Angular deflection between adjacent normals when triangulating surfaces")
-    ->capture_default_str();
-
-  bool output_svg {false};
-  app.add_flag("--output-svg", output_svg)
-    ->description("Generate SVG files for each NURBS patch?")
     ->capture_default_str();
 
   app.get_formatter()->column_width(50);
@@ -668,8 +1014,11 @@ int main(int argc, char** argv)
 #endif
   }
 
-  // Ensure output directory exists
-  if(is_root && !axom::utilities::filesystem::pathExists(output_dir))
+  // Ensure output directory exists iff we will write anything.
+  const bool will_write_output = (output_trimmed != TriangleMeshOutputType::NONE) ||
+    (output_untrimmed != TriangleMeshOutputType::NONE) || output_svg || output_mfem_trim_curves ||
+    output_trim_curve_stats_json;
+  if(is_root && will_write_output && !axom::utilities::filesystem::pathExists(output_dir))
   {
     axom::utilities::filesystem::makeDirsForPath(output_dir);
   }
@@ -706,6 +1055,33 @@ int main(int argc, char** argv)
   }
 
   PatchArray& patches = stepReader.getPatchArray();
+
+  auto should_skip_patchwise_outputs = [&](const NURBSPatch& p) -> bool {
+    if(!skip_boring_patches)
+    {
+      return false;
+    }
+
+    // Skip untrimmed patches (no trimming curves).
+    if(!p.isTrimmed() && p.getNumTrimmingCurves() == 0)
+    {
+      return true;
+    }
+
+    // Skip trimmed patches with no trimming curves (empty visible region).
+    if(p.isInvisible())
+    {
+      return true;
+    }
+
+    // Skip trimmed patches whose trimming curves coincide with the patch boundary.
+    if(p.isTriviallyTrimmed())
+    {
+      return true;
+    }
+
+    return false;
+  };
 
 #ifdef AXOM_USE_MPI
   if(validate_model && !validate_patches(patches))
@@ -830,7 +1206,7 @@ int main(int argc, char** argv)
       output_dir));
 
     const int numPatches = patches.size();
-    const int numFillZeros = static_cast<int>(std::log10(numPatches)) + 1;
+    const int numFillZeros = (numPatches > 0) ? static_cast<int>(std::log10(numPatches)) + 1 : 1;
 
     PatchParametricSpaceProcessor patchProcessor;
     patchProcessor.setUnits(stepReader.getFileUnits());
@@ -840,7 +1216,84 @@ int main(int argc, char** argv)
 
     for(int index = 0; index < numPatches; ++index)
     {
+      if(should_skip_patchwise_outputs(patches[index]))
+      {
+        continue;
+      }
       patchProcessor.generateSVGForPatch(index, patches[index]);
+    }
+  }
+
+  //---------------------------------------------------------------------------
+  // Optionally output an MFEM patch-wise NURBS mesh for each patch's trimming curves, only on root rank
+  //---------------------------------------------------------------------------
+  if(output_mfem_trim_curves && is_root)
+  {
+    const std::string outDir = joinPath(output_dir, "mfem_trim_curves");
+    if(!axom::utilities::filesystem::pathExists(outDir))
+    {
+      axom::utilities::filesystem::makeDirsForPath(outDir);
+    }
+
+    SLIC_INFO(
+      axom::fmt::format("Generating MFEM meshes for patch trimming curves in '{}' directory", outDir));
+
+    const int numPatches = patches.size();
+    const int numFillZeros = (numPatches > 0) ? static_cast<int>(std::log10(numPatches)) + 1 : 1;
+
+    PatchMFEMTrimmingCurveWriter writer;
+    writer.setVerbosity(verbosity);
+    writer.setOutputDirectory(output_dir);
+    writer.setNumFillZeros(numFillZeros);
+
+    for(int index = 0; index < numPatches; ++index)
+    {
+      const int patch_id = stepReader.getPatchIds()[index];
+      const auto wire_ids = stepReader.getTrimmingCurveWireIds(index);
+      if(should_skip_patchwise_outputs(patches[index]))
+      {
+        continue;
+      }
+
+      writer.writeMFEMForPatch(patch_id, patches[index], wire_ids);
+    }
+  }
+
+  //---------------------------------------------------------------------------
+  // Optionally output trim-curve stats JSON per patch, only on root rank
+  //---------------------------------------------------------------------------
+  if(output_trim_curve_stats_json && is_root)
+  {
+    const std::string outDir = joinPath(output_dir, "trim_curve_stats");
+    if(!axom::utilities::filesystem::pathExists(outDir))
+    {
+      axom::utilities::filesystem::makeDirsForPath(outDir);
+    }
+
+    SLIC_INFO(
+      axom::fmt::format("Generating JSON trim-curve stats for patches in '{}' directory", outDir));
+
+    const int numPatches = patches.size();
+    const int numFillZeros = (numPatches > 0) ? static_cast<int>(std::log10(numPatches)) + 1 : 1;
+
+    PatchTrimmingCurveStatsWriter stats_writer;
+    stats_writer.setVerbosity(verbosity);
+    stats_writer.setOutputDirectory(output_dir);
+    stats_writer.setNumFillZeros(numFillZeros);
+
+    for(int index = 0; index < numPatches; ++index)
+    {
+      const int patch_id = stepReader.getPatchIds()[index];
+      const auto wire_ids = stepReader.getTrimmingCurveWireIds(index);
+      if(should_skip_patchwise_outputs(patches[index]))
+      {
+        continue;
+      }
+      stats_writer.writeStatsForPatch(patch_id,
+                                      patches[index],
+                                      wire_ids,
+                                      stepReader.patchWasOriginallyPeriodic_u(index),
+                                      stepReader.patchWasOriginallyPeriodic_v(index));
     }
   }
 

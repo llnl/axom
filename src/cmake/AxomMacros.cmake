@@ -34,20 +34,57 @@ macro(axom_add_code_checks)
         set(_base_dirs "axom" "examples" "thirdparty/tests" "tools")
         set(_ext_expressions "*.cpp" "*.hpp" "*.inl"
                              "*.cxx" "*.hxx" "*.cc" "*.c" "*.h" "*.hh"
-                             "*.F" "*.f" "*.f90" "*.F90" "*.py")
+                             "*.F" "*.f" "*.f90" "*.F90"
+                             "*.py"
+                             "*.cmake" "CMakeLists.txt")
 
-        set(_glob_expressions)
-        foreach(_exp ${_ext_expressions})
-            foreach(_base_dir ${_base_dirs})
-                list(APPEND _glob_expressions "${PROJECT_SOURCE_DIR}/${_base_dir}/${_exp}")
-            endforeach()
-        endforeach()
-
-        # Glob for list of files to run code checks on
         set(_sources)
-        file(GLOB_RECURSE _sources ${_glob_expressions})
+        set(_use_git_sources FALSE)
+
+        if(COMMAND blt_is_git_repo AND COMMAND blt_git)
+            blt_is_git_repo(OUTPUT_STATE _axom_is_git_repo
+                            SOURCE_DIR ${PROJECT_SOURCE_DIR})
+            if(_axom_is_git_repo)
+                set(_use_git_sources TRUE)
+            endif()
+        endif()
+
+        if(_use_git_sources)
+            blt_git(SOURCE_DIR ${PROJECT_SOURCE_DIR}
+                    GIT_COMMAND ls-files -- ${_base_dirs}
+                    OUTPUT_VARIABLE _git_ls_files
+                    RETURN_CODE _git_ls_files_result)
+
+            if(_git_ls_files_result EQUAL 0 AND NOT _git_ls_files STREQUAL "")
+                string(REPLACE "\n" ";" _sources "${_git_ls_files}")
+
+                # Keep only files handled by BLT language filters.
+                list(FILTER _sources INCLUDE REGEX "(\\.(cpp|hpp|inl|cxx|hxx|cc|c|h|hh|f|f90|py|cmake)|\\.F90|\\.F|CMakeLists\\.txt)$")
+
+                # Make source paths absolute.
+                set(_sources_prefixed)
+                foreach(_tracked_file ${_sources})
+                    list(APPEND _sources_prefixed "${PROJECT_SOURCE_DIR}/${_tracked_file}")
+                endforeach()
+                set(_sources ${_sources_prefixed})
+            else()
+                set(_use_git_sources FALSE)
+            endif()
+        else()
+            set(_glob_expressions)
+            foreach(_exp ${_ext_expressions})
+                foreach(_base_dir ${_base_dirs})
+                    list(APPEND _glob_expressions "${PROJECT_SOURCE_DIR}/${_base_dir}/${_exp}")
+                endforeach()
+            endforeach()
+
+            # Glob for list of files to run code checks on
+            file(GLOB_RECURSE _sources ${_glob_expressions})
+        endif()
 
         # Filter out exclusions
+        # Never run checks on local python environments
+        list(FILTER _sources EXCLUDE REGEX ".*[\\\\/]\\.venv[\\\\/].*")
         set(_exclude_expressions
             "${PROJECT_SOURCE_DIR}/axom/sidre/examples/lulesh2/*"
             "${PROJECT_SOURCE_DIR}/axom/slam/examples/lulesh2.0.3/*"
