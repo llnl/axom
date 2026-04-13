@@ -14,6 +14,7 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
+#include "axom/fmt.hpp"
 
 #include "mfem.hpp"
 
@@ -23,10 +24,12 @@
 #include <fstream>
 #include <map>
 #include <string>
+#include <unordered_set>
 
 // namespace aliases
 namespace primal = axom::primal;
 namespace quest = axom::quest;
+namespace fs = axom::utilities::filesystem;
 
 //------------------------------------------------------------------------------
 std::string pjoin(const std::string &str) { return str; }
@@ -393,6 +396,124 @@ TEST(quest_mfem_reader, read_curved_polygon_noncontiguous_attributes)
 }
 
 //------------------------------------------------------------------------------
+
+#if defined(MFEM_VERSION) && (MFEM_VERSION >= 40901)
+TEST(quest_mfem_reader, read_patches_format_1d_nurbs)
+{
+  // Minimal patch-based 1D NURBS mesh embedded in 2D. MFEM support for reading
+  // patch-based 1D NURBS meshes was added after the 4.9.0 release.
+
+  fs::TempFile tmp_mesh("mfem_patches_1d_nurbs_test", ".mesh");
+
+  // Two "patches" (each corresponds to a 1D NURBS curve in (x,y)).
+  // Patch 0: degree 1, non-rational
+  // Patch 1: degree 2, rational (weights differ)
+  const std::string mesh_string = R"MFEM(
+MFEM NURBS mesh v1.0
+
+dimension
+1
+
+elements
+2
+7 1 0 1
+9 1 2 3
+
+boundary
+0
+
+edges
+2
+0 0 1
+1 2 3
+
+vertices
+4
+
+patches
+
+# Patch 0: degree 1
+knotvectors
+1
+1 2  0 0 1 1
+
+dimension
+2
+
+controlpoints
+0 0 1
+1 0 1
+
+# Patch 1: degree 2 (rational)
+knotvectors
+1
+2 3  0 0 0 1 1 1
+
+dimension
+2
+
+controlpoints
+# points (0,0), (0.5,0), (1,0) with weights (1,2,1) in homogeneous form (x*w, y*w, w)
+0 0 1
+1 0 2
+1 0 1
+)MFEM";
+
+  tmp_mesh.write(mesh_string);
+
+  quest::MFEMReader reader;
+  reader.setFileName(tmp_mesh.getPath());
+
+  axom::Array<primal::NURBSCurve<double, 2>> curves;
+  axom::Array<int> attributes;
+  EXPECT_EQ(reader.read(curves, attributes), quest::MFEMReader::READ_SUCCESS);
+
+  ASSERT_EQ(curves.size(), 2);
+  ASSERT_EQ(attributes.size(), 2);
+
+  // Attributes correspond to element attributes; ordering follows std::map key order.
+  std::unordered_set<int> attribs;
+  for(int a : attributes)
+  {
+    attribs.insert(a);
+  }
+  EXPECT_EQ(attribs.size(), 2u);
+  EXPECT_TRUE(attribs.count(7) == 1u);
+  EXPECT_TRUE(attribs.count(9) == 1u);
+
+  // Validate basic properties of the extracted curves.
+  for(int i = 0; i < curves.size(); ++i)
+  {
+    const auto &c = curves[i];
+    const int a = attributes[i];
+    ASSERT_TRUE(c.isValidNURBS());
+
+    if(a == 7)
+    {
+      EXPECT_EQ(c.getDegree(), 1);
+      EXPECT_EQ(c.getNumControlPoints(), 2);
+      EXPECT_FALSE(c.isRational());
+    }
+    else if(a == 9)
+    {
+      EXPECT_EQ(c.getDegree(), 2);
+      EXPECT_EQ(c.getNumControlPoints(), 3);
+      EXPECT_TRUE(c.isRational());
+      ASSERT_EQ(c.getWeights().size(), 3);
+      EXPECT_NE(c.getWeights()[0], c.getWeights()[1]);
+    }
+    else
+    {
+      FAIL() << "Unexpected MFEM attribute " << a;
+    }
+  }
+}
+#else
+TEST(quest_mfem_reader, read_patches_format_1d_nurbs)
+{
+  GTEST_SKIP() << "MFEM patches-format NURBS reading requires MFEM_VERSION >= 40901";
+}
+#endif
 
 int main(int argc, char *argv[])
 {

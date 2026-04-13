@@ -2792,8 +2792,249 @@ public:
   /// \brief Get number of trimming curves
   int getNumTrimmingCurves() const { return m_trimmingCurves.size(); }
 
+  /*!
+   * \brief Predicate to check if the patch is "trivially trimmed" in parameter space.
+   *
+   * A patch is considered trivially trimmed if it is marked as trimmed and has
+   * exactly four trimming curves that form an axis-aligned rectangle on the
+   * patch's parametric boundary:
+   *  - Two curves are horizontal (v=min_v and v=max_v) and have opposite directions
+   *  - Two curves are vertical   (u=min_u and u=max_u) and have opposite directions
+   *  - Each curve is approximately linear in (u,v) space
+   *  - Curve endpoints match the patch's (min_u,max_u,min_v,max_v) corner coordinates
+   *
+   * \param [in] tol Threshold for squared distance used by NURBSCurve::isLinear and
+   *  for the axis-alignment check on the curve endpoints.
+   */
+  bool isTriviallyTrimmed(double tol = 1e-8) const
+  {
+    if(!isTrimmed())
+    {
+      return false;
+    }
+
+    const int ncurves = getNumTrimmingCurves();
+    if(ncurves != 4)
+    {
+      return false;
+    }
+
+    const double min_u = static_cast<double>(getMinKnot_u());
+    const double max_u = static_cast<double>(getMaxKnot_u());
+    const double min_v = static_cast<double>(getMinKnot_v());
+    const double max_v = static_cast<double>(getMaxKnot_v());
+
+    enum Flag : unsigned int
+    {
+      // Edge placement on the patch boundary
+      HasUminVertical = 1u << 0,
+      HasUmaxVertical = 1u << 1,
+      HasVminHorizontal = 1u << 2,
+      HasVmaxHorizontal = 1u << 3,
+
+      // Edge direction coverage (opposing directions required)
+      HasHorizPosU = 1u << 4,
+      HasHorizNegU = 1u << 5,
+      HasVertPosV = 1u << 6,
+      HasVertNegV = 1u << 7,
+
+      // Corner coverage and parity (each corner must appear exactly twice across endpoints)
+      SeenCornerMinUMinV = 1u << 8,
+      SeenCornerMaxUMinV = 1u << 9,
+      SeenCornerMaxUMaxV = 1u << 10,
+      SeenCornerMinUMaxV = 1u << 11,
+
+      ParityCornerMinUMinV = 1u << 12,
+      ParityCornerMaxUMinV = 1u << 13,
+      ParityCornerMaxUMaxV = 1u << 14,
+      ParityCornerMinUMaxV = 1u << 15,
+
+      // Use these flags to define larger checks
+      HasAllEdges = HasUminVertical | HasUmaxVertical | HasVminHorizontal | HasVmaxHorizontal,
+      HasOppositeOrientations = HasHorizPosU | HasHorizNegU | HasVertPosV | HasVertNegV,
+      SeenAllCorners =
+        SeenCornerMinUMinV | SeenCornerMaxUMinV | SeenCornerMaxUMaxV | SeenCornerMinUMaxV,
+      ParityFlags =
+        ParityCornerMinUMinV | ParityCornerMaxUMinV | ParityCornerMaxUMaxV | ParityCornerMinUMaxV,
+      TriviallyTrimmedFlags = HasAllEdges | HasOppositeOrientations | SeenAllCorners
+    };
+
+    auto sq = [](double x) -> double { return x * x; };
+    auto is_near = [&](double a, double b) -> bool { return sq(a - b) <= tol; };
+
+    enum BoundMask : unsigned int
+    {
+      UMin = 1u << 0,
+      UMax = 1u << 1,
+      VMin = 1u << 2,
+      VMax = 1u << 3,
+
+      UMask = UMin | UMax,
+      VMask = VMin | VMax
+    };
+
+    auto bound_mask = [&](double u, double v) -> unsigned int {
+      unsigned int m = 0u;
+      if(is_near(u, min_u))
+      {
+        m |= UMin;
+      }
+      if(is_near(u, max_u))
+      {
+        m |= UMax;
+      }
+      if(is_near(v, min_v))
+      {
+        m |= VMin;
+      }
+      if(is_near(v, max_v))
+      {
+        m |= VMax;
+      }
+      return m;
+    };
+
+    auto toggle_corner = [](unsigned int& flags, unsigned int seen_bit, unsigned int parity_bit) {
+      flags |= seen_bit;
+      flags ^= parity_bit;
+    };
+
+    auto toggle_corner_for_mask = [&](unsigned int& flags, unsigned int mask) -> bool {
+      switch(mask)
+      {
+      case(UMin | VMin):
+        toggle_corner(flags, SeenCornerMinUMinV, ParityCornerMinUMinV);
+        return true;
+      case(UMax | VMin):
+        toggle_corner(flags, SeenCornerMaxUMinV, ParityCornerMaxUMinV);
+        return true;
+      case(UMax | VMax):
+        toggle_corner(flags, SeenCornerMaxUMaxV, ParityCornerMaxUMaxV);
+        return true;
+      case(UMin | VMax):
+        toggle_corner(flags, SeenCornerMinUMaxV, ParityCornerMinUMaxV);
+        return true;
+      default:
+        return false;
+      }
+    };
+
+    unsigned int flags = 0u;
+
+    for(int i = 0; i < ncurves; ++i)
+    {
+      const auto& c = m_trimmingCurves[i];
+      if(!c.isValidNURBS())
+      {
+        return false;
+      }
+
+      const auto& p0 = c.getInitPoint();
+      const auto& p1 = c.getEndPoint();
+      const double u0 = static_cast<double>(p0[0]);
+      const double v0 = static_cast<double>(p0[1]);
+      const double u1 = static_cast<double>(p1[0]);
+      const double v1 = static_cast<double>(p1[1]);
+
+      const unsigned int m0 = bound_mask(u0, v0);
+      const unsigned int m1 = bound_mask(u1, v1);
+
+      // Endpoints must match a corner of the patch boundary (with tolerance)
+      if(!toggle_corner_for_mask(flags, m0) || !toggle_corner_for_mask(flags, m1))
+      {
+        return false;
+      }
+
+      const unsigned int u0m = (m0 & UMask);
+      const unsigned int v0m = (m0 & VMask);
+      const unsigned int u1m = (m1 & UMask);
+      const unsigned int v1m = (m1 & VMask);
+
+      const double du = u1 - u0;
+      const double dv = v1 - v0;
+      const double du2 = du * du;
+      const double dv2 = dv * dv;
+
+      const bool is_horizontal = (dv2 <= tol) && (du2 > tol);
+      const bool is_vertical = (du2 <= tol) && (dv2 > tol);
+      if(!(is_horizontal || is_vertical))
+      {
+        return false;
+      }
+
+      if(is_horizontal)
+      {
+        // Must lie on v=min_v or v=max_v and span u=min_u..max_u
+        if(v0m != v1m)
+        {
+          return false;
+        }
+        if(!(v0m == VMin || v0m == VMax))
+        {
+          return false;
+        }
+
+        const unsigned int edge_bit = (v0m == VMin) ? HasVminHorizontal : HasVmaxHorizontal;
+        if((flags & edge_bit) != 0u)
+        {
+          return false;
+        }
+        flags |= edge_bit;
+
+        if(u0m == u1m)
+        {
+          return false;
+        }
+
+        flags |= (du > 0.0) ? HasHorizPosU : HasHorizNegU;
+      }
+      else  // is_vertical
+      {
+        // Must lie on u=min_u or u=max_u and span v=min_v..max_v
+        if(u0m != u1m)
+        {
+          return false;
+        }
+        if(!(u0m == UMin || u0m == UMax))
+        {
+          return false;
+        }
+
+        const unsigned int edge_bit = (u0m == UMin) ? HasUminVertical : HasUmaxVertical;
+        if((flags & edge_bit) != 0u)
+        {
+          return false;
+        }
+        flags |= edge_bit;
+
+        if(v0m == v1m)
+        {
+          return false;
+        }
+
+        flags |= (dv > 0.0) ? HasVertPosV : HasVertNegV;
+      }
+
+      // More expensive geometric check last.
+      if(!c.isLinear(tol))
+      {
+        return false;
+      }
+    }
+
+    return flags == TriviallyTrimmedFlags;
+  }
+
   /// \brief use boolean flag for trimmed-ness
   bool isTrimmed() const { return m_isTrimmed; }
+
+  /*!
+   * \brief Predicate to check if the patch is entirely invisible due to trimming state.
+   *
+   * A patch is considered invisible when it is marked as trimmed, but has no
+   * trimming curves. This represents a trimmed patch whose visible region is empty.
+   */
+  bool isInvisible() const { return isTrimmed() && getNumTrimmingCurves() == 0; }
 
   /// \brief Mark as trimmed
   void markAsTrimmed() { m_isTrimmed = true; }
