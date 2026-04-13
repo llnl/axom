@@ -15,6 +15,8 @@
   #endif
 #endif
 
+#include <atomic>
+
 namespace axom
 {
 
@@ -52,11 +54,19 @@ int platformHostAllocatorID() noexcept
 #endif
 }
 
-int& defaultHostAllocatorIDStorage() noexcept
+struct HostAllocatorConfig
 {
-  static int allocId = platformHostAllocatorID();
-  return allocId;
-}
+  explicit HostAllocatorConfig(int allocId) noexcept : allocatorId {allocId} { }
+
+  int get() const noexcept { return allocatorId.load(std::memory_order_relaxed); }
+
+  void set(int allocId) noexcept { allocatorId.store(allocId, std::memory_order_relaxed); }
+
+private:
+  std::atomic<int> allocatorId;
+};
+
+HostAllocatorConfig defaultHostAllocatorConfig {platformHostAllocatorID()};
 }  // namespace
 
 bool isMemorySpaceAvailable(MemorySpace space) noexcept
@@ -179,10 +189,10 @@ void setDefaultHostAllocator(int allocId)
     axom::utilities::processAbort();
   }
 
-  defaultHostAllocatorIDStorage() = allocId;
+  defaultHostAllocatorConfig.set(allocId);
 }
 
-int getDefaultHostAllocatorID() { return defaultHostAllocatorIDStorage(); }
+int getDefaultHostAllocatorID() { return defaultHostAllocatorConfig.get(); }
 
 bool isSharedMemoryAllocator(int allocID)
 {
