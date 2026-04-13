@@ -165,7 +165,7 @@ public:
       ->check(axom::utilities::ValidCaliperMode);
 #endif
     std::stringstream pol_sstr;
-    pol_sstr << "Set MIR runtime policy method.";
+    pol_sstr << "Set runtime policy method.";
     pol_sstr << "\nSet to 'seq' or 0 to use the RAJA sequential policy.";
 #ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
     pol_sstr << "\nSet to 'omp' or 1 to use the RAJA OpenMP policy.";
