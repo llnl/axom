@@ -958,6 +958,10 @@ public:
   {
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
     space = getAllocatorSpace(allocId);
+    if(space == MemorySpace::Malloc)
+    {
+      space = MemorySpace::Host;
+    }
 
     bool isUnifiedSpace = false;
     isUnifiedSpace = (space == MemorySpace::Unified || space == MemorySpace::Pinned);

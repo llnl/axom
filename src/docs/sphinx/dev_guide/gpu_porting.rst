@@ -125,6 +125,13 @@ the memory space where data in
 ``Dynamic`` allows you to define the location at run time, with some caveats
 (see :ref:`Core Containers<core-containers>` for more details and examples).
 
+``Host`` refers to Axom's current default CPU allocator. By default this is the
+platform host allocator, but it can also be configured to use Axom's
+malloc-backed allocator with ``axom::setDefaultHostAllocator()``.
+
+``Dynamic`` remains separate from ``Host``. In Umpire-enabled builds,
+``Dynamic`` continues to follow the current default Umpire allocator.
+
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Useful Links
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

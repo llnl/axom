@@ -17,11 +17,6 @@
   #error OMP_EXEC requires an OpenMP enabled RAJA
 #endif
 
-// Umpire includes
-#ifdef AXOM_USE_UMPIRE
-  #include "umpire/Umpire.hpp"
-#endif
-
 namespace axom
 {
 /*!
@@ -42,36 +37,22 @@ struct execution_space<OMP_EXEC>
   using atomic_policy = RAJA::omp_atomic;
   using sync_policy = RAJA::omp_synchronize;
 
-#ifdef AXOM_USE_UMPIRE
   static constexpr MemorySpace memory_space = MemorySpace::Host;
-#else
-  static constexpr MemorySpace memory_space = MemorySpace::Dynamic;
-#endif
 
   static constexpr bool async() noexcept { return false; }
   static constexpr bool valid() noexcept { return true; }
   static constexpr bool onDevice() noexcept { return false; }
   static constexpr char* name() noexcept { return (char*)"[OMP_EXEC]"; }
 
-  static int allocatorID() noexcept
-  {
-#ifdef AXOM_USE_UMPIRE
-    return axom::getUmpireResourceAllocatorID(umpire::resource::Host);
-#else
-    return axom::getDefaultAllocatorID();
-#endif
-  }
+  static int allocatorID() noexcept { return axom::getAllocatorIDFromMemorySpace(memory_space); }
   static constexpr runtime_policy::Policy runtimePolicy() noexcept
   {
     return runtime_policy::Policy::omp;
   }
   static bool usesMemorySpace(axom::MemorySpace m) noexcept
   {
-    return m == MemorySpace::Dynamic || m == MemorySpace::Malloc
-#ifdef AXOM_USE_UMPIRE
-      || m == MemorySpace::Host || m == MemorySpace::Unified
-#endif
-      ;
+    return m == MemorySpace::Dynamic || m == MemorySpace::Malloc || m == MemorySpace::Host ||
+      (m == MemorySpace::Unified && axom::isMemorySpaceAvailable(MemorySpace::Unified));
   }
   static bool usesAllocId(int allocId) noexcept
   {

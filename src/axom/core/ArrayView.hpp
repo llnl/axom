@@ -380,7 +380,7 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(ArrayBase<T, DIM, OtherArra
 #if !defined(AXOM_DEVICE_CODE) && defined(AXOM_DEBUG)
   // If it's not dynamic, the allocator ID from the argument array has to match the template param.
   // If that's not the case then things have gone horribly wrong somewhere.
-  if(SPACE != MemorySpace::Dynamic && SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
+  if(!axom::isAllocatorCompatibleWithMemorySpace(m_allocator_id, SPACE))
   {
     std::cerr << "Input argument allocator does not match the explicitly "
                  "provided memory space\n";
@@ -404,7 +404,7 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(
 #if !defined(AXOM_DEVICE_CODE) && defined(AXOM_DEBUG)
   // If it's not dynamic, the allocator ID from the argument array has to match the template param.
   // If that's not the case then things have gone horribly wrong somewhere.
-  if(SPACE != MemorySpace::Dynamic && SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
+  if(!axom::isAllocatorCompatibleWithMemorySpace(m_allocator_id, SPACE))
   {
     std::cerr << "Input argument allocator does not match the explicitly "
                  "provided memory space\n";

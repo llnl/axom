@@ -1149,7 +1149,7 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(IndexType num_elements, IndexType cap
 {
   // If a memory space has been explicitly set for the Array object, check that
   // the space of the user-provided allocator matches the explicit space.
-  if(SPACE != MemorySpace::Dynamic && SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
+  if(!axom::isAllocatorCompatibleWithMemorySpace(m_allocator_id, SPACE))
   {
 #ifdef AXOM_DEBUG
     std::cerr << "Incorrect allocator ID was provided for an Array object with "
@@ -1173,7 +1173,7 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(ArrayOptions::Uninitialized,
 {
   // If a memory space has been explicitly set for the Array object, check that
   // the space of the user-provided allocator matches the explicit space.
-  if(SPACE != MemorySpace::Dynamic && SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
+  if(!axom::isAllocatorCompatibleWithMemorySpace(m_allocator_id, SPACE))
   {
 #ifdef AXOM_DEBUG
     std::cerr << "Incorrect allocator ID was provided for an Array object with "
@@ -1699,7 +1699,7 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::initialize_from_other(
 {
   // If a memory space has been explicitly set for the Array object, check that
   // the space of the user-provided allocator matches the explicit space.
-  if(SPACE != MemorySpace::Dynamic && SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
+  if(!axom::isAllocatorCompatibleWithMemorySpace(m_allocator_id, SPACE))
   {
 #ifdef AXOM_DEBUG
     if(user_provided_allocator)
