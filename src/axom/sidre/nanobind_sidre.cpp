@@ -1166,10 +1166,13 @@ NB_MODULE(pysidre, m_sidre)
 
 #if defined(AXOM_USE_MPI)
   nb::class_<IOManager>(m_sidre, "IOManager")
-    .def(nb::new_([](bool use_scr) { return new IOManager(MPI_COMM_WORLD, use_scr); }),
-         nb::arg("use_scr") = false)
+    .def(
+      "__init__",
+      [](IOManager* self, bool use_scr) { new(self) IOManager(MPI_COMM_WORLD, use_scr); },
+      nb::arg("use_scr") = false)
     .def("write",
          &IOManager::write,
+         "Write a Group to output files.",
          nb::arg("group"),
          nb::arg("num_files"),
          nb::arg("file_base"),
@@ -1177,27 +1180,39 @@ NB_MODULE(pysidre, m_sidre)
          nb::arg("tree_pattern") = "datagroup")
     .def("read",
          nb::overload_cast<Group*, const std::string&, const std::string&, bool>(&IOManager::read),
+         "Read from input file.",
          nb::arg("group"),
          nb::arg("root_file"),
          nb::arg("protocol"),
          nb::arg("preserve_contents") = false)
     .def("read",
          nb::overload_cast<Group*, const std::string&, bool>(&IOManager::read),
+         "Read from a root file.",
          nb::arg("group"),
          nb::arg("root_file"),
          nb::arg("preserve_contents") = false)
     .def("loadExternalData",
          nb::overload_cast<Group*, const std::string&>(&IOManager::loadExternalData),
+         "Load external data into a group.",
          nb::arg("group"),
          nb::arg("root_file"))
     .def("loadExternalData",
          nb::overload_cast<Group*, Group*, const std::string&>(&IOManager::loadExternalData),
+         "Piecewise load of external data into a group.",
          nb::arg("parent_group"),
          nb::arg("load_group"),
          nb::arg("root_file"))
-    .def("getNumFilesFromRoot", &IOManager::getNumFilesFromRoot, nb::arg("root_file"))
-    .def("getNumGroupsFromRoot", &IOManager::getNumGroupsFromRoot, nb::arg("root_file"))
-    .def_static("correspondingRelayProtocol", &IOManager::correspondingRelayProtocol);
+    .def("getNumFilesFromRoot",
+         &IOManager::getNumFilesFromRoot,
+         "Gets the number of files in the dataset from the specified root file.",
+         nb::arg("root_file"))
+    .def("getNumGroupsFromRoot",
+         &IOManager::getNumGroupsFromRoot,
+         "Gets the number of groups in the dataset from the specified root file.",
+         nb::arg("root_file"))
+    .def_static("correspondingRelayProtocol",
+                &IOManager::correspondingRelayProtocol,
+                "Finds conduit relay protocol corresponding to a sidre protocol.");
 #endif
 }
 
