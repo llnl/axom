@@ -951,6 +951,53 @@ TEST(slam_IA, tet_mesh_remove_vert_and_compact)
   EXPECT_EQ(basic_mesh_data.numVertices() - 1, ia_mesh.getNumberOfValidVertices());
 }
 
+TEST(slam_IA, fix_vertex_neighborhood_handles_large_vertex_ids)
+{
+  const int TDIM = 3;
+  const int SDIM = 3;
+  using IAMeshType = slam::IAMesh<TDIM, SDIM, PointType>;
+
+  IAMeshType mesh;
+  for(int i = 0; i < 9; ++i)
+  {
+    mesh.addVertex(PointType(i, 0, 0));
+  }
+
+  const IndexType invalid = IAMeshType::INVALID_ELEMENT_INDEX;
+  const IndexType neighbors[4] = {invalid, invalid, invalid, invalid};
+  const IndexType tet0[4] = {1, 2, 3, 8};
+  const IndexType tet1[4] = {1, 2, 7, 8};
+  const IndexType tet2[4] = {1, 3, 7, 8};
+  const IndexType tet3[4] = {2, 3, 7, 8};
+
+  std::vector<IndexType> star;
+  star.push_back(mesh.addElement(tet0, neighbors));
+  star.push_back(mesh.addElement(tet1, neighbors));
+  star.push_back(mesh.addElement(tet2, neighbors));
+  star.push_back(mesh.addElement(tet3, neighbors));
+
+  mesh.fixVertexNeighborhood(8, star);
+
+  EXPECT_TRUE(mesh.isValid());
+  EXPECT_TRUE(mesh.isConforming());
+
+  for(std::size_t i = 0; i < star.size(); ++i)
+  {
+    int valid_neighbors = 0;
+    for(auto nbr : mesh.adjacentElements(star[i]))
+    {
+      valid_neighbors += mesh.isValidElement(nbr) ? 1 : 0;
+    }
+    EXPECT_EQ(3, valid_neighbors);
+
+    for(std::size_t j = i + 1; j < star.size(); ++j)
+    {
+      EXPECT_TRUE(isAdjacent(mesh, star[i], star[j]));
+      EXPECT_TRUE(isAdjacent(mesh, star[j], star[i]));
+    }
+  }
+}
+
 //----------------------------------------------------------------------
 
 int main(int argc, char* argv[])

@@ -25,6 +25,7 @@
 #include <array>
 #include <algorithm>
 #include <memory>
+#include <cstddef>
 
 namespace axom
 {
@@ -586,20 +587,35 @@ template <int TDIM, int SDIM, typename P>
 void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
                                                   const std::vector<IndexType>& new_elements)
 {
-  using FaceLinkVerts = axom::StackArray<IndexType, TDIM - 1>;
+  constexpr IndexType EMPTY_SLOT = INVALID_ELEMENT_INDEX;
+  constexpr IndexType TOMBSTONE_SLOT = INVALID_ELEMENT_INDEX - 1;
 
-  // Struct used to associate a collection of vertex indices with a face of the mesh
-  struct FaceLinkMapping
+  struct PendingFace
   {
-    IndexType boundary_hash;  // unique identifier for collection of face link verts
-    IndexType element_idx;    // the element containing this face
-    IndexType face_idx;       // the index of the face w.r.t. the element
+    IndexType key0 {INVALID_VERTEX_INDEX};
+    IndexType key1 {INVALID_VERTEX_INDEX};
+    IndexType element_idx {EMPTY_SLOT};
+    IndexType face_idx {INVALID_ELEMENT_INDEX};
   };
 
-  const IndexType totalVerts = elements().size();
-  static thread_local std::vector<FaceLinkMapping> mapping;
-  mapping.clear();
-  mapping.reserve(TDIM * new_elements.size());
+  static thread_local std::vector<PendingFace> pending_faces;
+  static thread_local std::vector<std::size_t> used_slots;
+  for(const auto slot : used_slots)
+  {
+    pending_faces[slot].element_idx = EMPTY_SLOT;
+  }
+  used_slots.clear();
+
+  std::size_t table_size = 8;
+  const std::size_t target_slots = std::max<std::size_t>(8, 4 * new_elements.size());
+  while(table_size < target_slots)
+  {
+    table_size <<= 1;
+  }
+  if(pending_faces.size() < table_size)
+  {
+    pending_faces.resize(table_size);
+  }
 
   // helper lambda for determining if a face on one element (given by boundary verts nbr_verts)
   // is shared with another element (given by boundary verts elem_verts)
@@ -617,6 +633,44 @@ void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
       }
       return true;
     };
+
+  auto getPendingFaceKey = [vertex_idx](const BoundarySubset& bdry, IndexType vert_i) {
+    PendingFace key;
+    for(int i = 0, idx = 0; i < TDIM; ++i)
+    {
+      if(i != vert_i && bdry[i] != vertex_idx)
+      {
+        if(idx == 0)
+        {
+          key.key0 = bdry[i];
+        }
+        else
+        {
+          key.key1 = bdry[i];
+        }
+        ++idx;
+      }
+    }
+
+    if constexpr(TDIM == 3)
+    {
+      if(key.key1 < key.key0)
+      {
+        axom::utilities::swap(key.key0, key.key1);
+      }
+    }
+
+    return key;
+  };
+
+  auto pendingFaceHash = [](IndexType key0, IndexType key1) -> std::size_t {
+    std::size_t seed = static_cast<std::size_t>(key0);
+    seed ^= static_cast<std::size_t>(key1) + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2);
+    return seed;
+  };
+
+  int num_pending_faces = 0;
+  int num_incident_faces = 0;
 
   for(auto el : new_elements)
   {
@@ -648,54 +702,60 @@ void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
       // ... or it is incident in the common vertex: vertex_idx
       else
       {
-        // Add all element-face associations to an array;
-        // we'll update the adjacencies outside this loop
-        FaceLinkVerts face_link_verts {};
-        for(int i = 0, idx = 0; i < TDIM; ++i)
+        const PendingFace face = getPendingFaceKey(bdry, vert_i);
+        const std::size_t mask = pending_faces.size() - 1;
+        std::size_t slot = pendingFaceHash(face.key0, face.key1) & mask;
+        std::size_t insert_slot = pending_faces.size();
+
+        for(;; slot = (slot + 1) & mask)
         {
-          if(i != vert_i &&          // i is a vertex in face_i
-             bdry[i] != vertex_idx)  // and not the common vertex
+          auto& pending = pending_faces[slot];
+          if(pending.element_idx == EMPTY_SLOT)
           {
-            face_link_verts[idx++] = bdry[i];
+            if(insert_slot == pending_faces.size())
+            {
+              insert_slot = slot;
+            }
+
+            auto& insert_entry = pending_faces[insert_slot];
+            insert_entry = face;
+            insert_entry.element_idx = el;
+            insert_entry.face_idx = face_i;
+            used_slots.push_back(insert_slot);
+            ++num_pending_faces;
+            break;
+          }
+
+          if(pending.element_idx == TOMBSTONE_SLOT)
+          {
+            if(insert_slot == pending_faces.size())
+            {
+              insert_slot = slot;
+            }
+            continue;
+          }
+
+          if(pending.key0 == face.key0 && pending.key1 == face.key1)
+          {
+            SLIC_ASSERT_MSG(pending.element_idx != el,
+                            "Each face in the inserted star should be shared by two elements");
+            ee_rel.modify(pending.element_idx, pending.face_idx, el);
+            ee_rel.modify(el, face_i, pending.element_idx);
+            pending.element_idx = TOMBSTONE_SLOT;
+            --num_pending_faces;
+            break;
           }
         }
-
-        FaceLinkMapping m;
-        if(TDIM == 2)
-        {
-          m.boundary_hash = face_link_verts[0];
-        }
-        else  // TDIM == 3
-        {
-          // compute unique identifier based on sorted face link vertices
-          m.boundary_hash = (face_link_verts[0] < face_link_verts[1])
-            ? face_link_verts[0] * totalVerts + face_link_verts[1]
-            : face_link_verts[1] * totalVerts + face_link_verts[0];
-        }
-
-        m.element_idx = el;
-        m.face_idx = face_i;
-        mapping.emplace_back(m);
+        ++num_incident_faces;
       }
     }
   }
 
-  SLIC_ASSERT(mapping.size() == new_elements.size() * TDIM);
-
-  // Sort by face vertices
-  std::sort(mapping.begin(), mapping.end(), [](const FaceLinkMapping& lhs, const FaceLinkMapping& rhs) {
-    return lhs.boundary_hash < rhs.boundary_hash;
-  });
-
-  // Apply neighbor data from matching face pairs
-  const int SZ = mapping.size();
-  for(int idx = 1; idx < SZ; idx += 2)
-  {
-    const auto& left = mapping[idx - 1];
-    const auto& right = mapping[idx];
-    ee_rel.modify(left.element_idx, left.face_idx, right.element_idx);
-    ee_rel.modify(right.element_idx, right.face_idx, left.element_idx);
-  }
+  AXOM_UNUSED_VAR(num_incident_faces);
+  AXOM_UNUSED_VAR(num_pending_faces);
+  SLIC_ASSERT(num_incident_faces == static_cast<int>(new_elements.size()) * TDIM);
+  SLIC_ASSERT_MSG(num_pending_faces == 0,
+                  "All faces in the inserted star should be paired exactly once");
 }
 
 // Remove all the invalid entries in the IA structure
@@ -704,84 +764,125 @@ void IAMesh<TDIM, SDIM, P>::compact()
 {
   constexpr IndexType INVALID_VERTEX = VertexSet::INVALID_ENTRY;
   constexpr IndexType INVALID_ELEMENT = ElementSet::INVALID_ENTRY;
+  const IndexType vertex_size = vertex_set.size();
+  const IndexType element_size = element_set.size();
+  const auto& vertex_data = vertex_set.data();
+  const auto& element_data = element_set.data();
+  auto& ev_data = ev_rel.data();
+  auto& ve_data = ve_rel.data();
+  auto& ee_data = ee_rel.data();
 
-  //Construct an array that maps original set indices to new compacted indices
-  std::unique_ptr<IndexType[]> vertex_set_map(new IndexType[vertex_set.size()]);
-  std::unique_ptr<IndexType[]> element_set_map(new IndexType[element_set.size()]);
-
-  int v_count = 0;
-  for(auto v : vertex_set.positions())
+  bool has_invalid_vertices = false;
+  IndexType v_count = 0;
+  for(IndexType v = 0; v < vertex_size; ++v)
   {
-    if(vertex_set.isValidEntry(v))
+    has_invalid_vertices |= vertex_data[v] == INVALID_VERTEX;
+    v_count += (vertex_data[v] != INVALID_VERTEX) ? 1 : 0;
+  }
+
+  bool has_invalid_elements = false;
+  std::unique_ptr<IndexType[]> element_set_map(new IndexType[element_size]);
+  IndexType e_count = 0;
+  for(IndexType e = 0; e < element_size; ++e)
+  {
+    if(element_data[e] != INVALID_ELEMENT)
+    {
+      element_set_map[e] = e_count++;
+    }
+    else
+    {
+      has_invalid_elements = true;
+    }
+  }
+
+  if(!has_invalid_vertices && !has_invalid_elements)
+  {
+    return;
+  }
+
+  auto remapElement = [&](IndexType old_element) {
+    return (old_element >= 0 && old_element < element_size &&
+            element_data[old_element] != INVALID_ELEMENT)
+      ? element_set_map[old_element]
+      : INVALID_ELEMENT;
+  };
+
+  if(!has_invalid_vertices)
+  {
+    for(IndexType e = 0; e < element_size; ++e)
+    {
+      if(element_data[e] == INVALID_ELEMENT)
+      {
+        continue;
+      }
+
+      const IndexType new_e = element_set_map[e];
+      const IndexType old_base = e * VERTS_PER_ELEM;
+      const IndexType new_base = new_e * VERTS_PER_ELEM;
+      for(int i = 0; i < VERTS_PER_ELEM; ++i)
+      {
+        ev_data[new_base + i] = ev_data[old_base + i];
+        ee_data[new_base + i] = remapElement(ee_data[old_base + i]);
+      }
+    }
+
+    for(IndexType v = 0; v < vertex_size; ++v)
+    {
+      ve_data[v] = remapElement(ve_data[v]);
+    }
+
+    element_set.reset(e_count);
+    ev_rel.updateSizes();
+    ee_rel.updateSizes();
+    return;
+  }
+
+  std::unique_ptr<IndexType[]> vertex_set_map(new IndexType[vertex_size]);
+  v_count = 0;
+  for(IndexType v = 0; v < vertex_size; ++v)
+  {
+    if(vertex_data[v] != INVALID_VERTEX)
     {
       vertex_set_map[v] = v_count++;
     }
   }
 
-  int e_count = 0;
-  for(auto e : element_set.positions())
+  auto remapVertex = [&](IndexType old_vertex) {
+    return (old_vertex >= 0 && old_vertex < vertex_size && vertex_data[old_vertex] != INVALID_VERTEX)
+      ? vertex_set_map[old_vertex]
+      : INVALID_VERTEX;
+  };
+
+  for(IndexType e = 0; e < element_size; ++e)
   {
-    if(element_set.isValidEntry(e))
+    if(element_data[e] == INVALID_ELEMENT)
     {
-      element_set_map[e] = e_count++;
+      continue;
+    }
+
+    const IndexType new_e = element_set_map[e];
+    const IndexType old_base = e * VERTS_PER_ELEM;
+    const IndexType new_base = new_e * VERTS_PER_ELEM;
+    for(int i = 0; i < VERTS_PER_ELEM; ++i)
+    {
+      ev_data[new_base + i] = remapVertex(ev_data[old_base + i]);
+      ee_data[new_base + i] = remapElement(ee_data[old_base + i]);
     }
   }
 
-  //update the EV boundary relation
-  for(auto e : element_set.positions())
+  auto& coord_data = vcoord_map.data();
+  for(IndexType v = 0; v < vertex_size; ++v)
   {
-    if(element_set.isValidEntry(e))
+    if(vertex_data[v] == INVALID_VERTEX)
     {
-      const auto new_e = element_set_map[e];
-      const auto ev_old = ev_rel[e];
-      auto ev_new = ev_rel[new_e];
-      for(auto i : ev_new.positions())
-      {
-        const auto old = ev_old[i];
-        ev_new[i] = vertex_set.isValidEntry(old) ? vertex_set_map[old] : INVALID_VERTEX;
-      }
+      continue;
     }
+
+    const IndexType new_v = vertex_set_map[v];
+    ve_data[new_v] = remapElement(ve_data[v]);
+    coord_data[new_v] = coord_data[v];
   }
 
-  //update the VE coboundary relation
-  for(auto v : vertex_set.positions())
-  {
-    if(vertex_set.isValidEntry(v))
-    {
-      const auto new_v = vertex_set_map[v];
-      // cardinality of VE relation is 1
-      const auto old = ve_rel[v][0];
-      ve_rel[new_v][0] = element_set.isValidEntry(old) ? element_set_map[old] : INVALID_ELEMENT;
-    }
-  }
-
-  //update the EE adjacency relation
-  for(auto e : element_set.positions())
-  {
-    if(element_set.isValidEntry(e))
-    {
-      const auto new_e = element_set_map[e];
-      const auto ee_old = ee_rel[e];
-      auto ee_new = ee_rel[new_e];
-      for(auto i : ee_new.positions())
-      {
-        const auto old = ee_old[i];
-        ee_new[i] = element_set.isValidEntry(old) ? element_set_map[old] : INVALID_ELEMENT;
-      }
-    }
-  }
-
-  //Update the coordinate positions map
-  for(auto v : vertex_set.positions())
-  {
-    if(vertex_set.isValidEntry(v))
-    {
-      const IndexType new_entry_index = vertex_set_map[v];
-      vcoord_map[new_entry_index] = vcoord_map[v];
-    }
-  }
-
-  //update the sets
   vertex_set.reset(v_count);
   element_set.reset(e_count);
 
