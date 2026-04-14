@@ -497,6 +497,39 @@ TEST(slam_IA, tri_mesh_remove_elem_and_compact)
   EXPECT_EQ(basic_mesh_data.numVertices(), ia_mesh.getNumberOfValidVertices());
 }
 
+TEST(slam_IA, tri_mesh_reuse_deleted_element_slot)
+{
+  constexpr int TDIM = 2;
+  constexpr int SDIM = 3;
+  using IAMeshType = slam::IAMesh<TDIM, SDIM, PointType>;
+
+  BasicTriMeshData basic_mesh_data;
+  IAMeshType ia_mesh(basic_mesh_data.points, basic_mesh_data.elem);
+
+  const IndexType reused_idx = 4;
+  IndexType tri[3] {0, 3, 7};
+  const IndexType invalid = IAMeshType::ElementAdjacencyRelation::INVALID_INDEX;
+  IndexType neighbors[3] {invalid, invalid, invalid};
+
+  ia_mesh.removeElement(reused_idx);
+  ASSERT_FALSE(ia_mesh.isValidElement(reused_idx));
+
+  EXPECT_EQ(reused_idx, ia_mesh.reuseElement(reused_idx, tri, neighbors));
+  EXPECT_TRUE(ia_mesh.isValidElement(reused_idx));
+
+  const auto bdry = ia_mesh.boundaryVertices(reused_idx);
+  EXPECT_EQ(tri[0], bdry[0]);
+  EXPECT_EQ(tri[1], bdry[1]);
+  EXPECT_EQ(tri[2], bdry[2]);
+
+  const auto adj = ia_mesh.adjacentElements(reused_idx);
+  EXPECT_EQ(invalid, adj[0]);
+  EXPECT_EQ(invalid, adj[1]);
+  EXPECT_EQ(invalid, adj[2]);
+
+  EXPECT_TRUE(ia_mesh.isValid());
+}
+
 TEST(slam_IA, tri_mesh_remove_vert_and_compact)
 {
   SLIC_INFO("Testing removing a vertex and compacting a triangle mesh...");

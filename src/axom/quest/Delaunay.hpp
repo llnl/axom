@@ -87,8 +87,8 @@ private:
   IAMeshType m_mesh;
   BoundingBox m_bounding_box;
   bool m_has_boundary;
-  int m_num_removed_elements_since_last_compact;
   InsertionValidationMode m_insertion_validation_mode;
+  std::vector<IndexType> m_deleted_elements;
 
   ElementFinder m_element_finder;
   IndexType m_next_regrid_vertex_count {0};
@@ -170,11 +170,7 @@ public:
    * \brief Default constructor
    * \note User must call initializeBoundary(BoundingBox) before adding points.
    */
-  Delaunay()
-    : m_has_boundary(false)
-    , m_num_removed_elements_since_last_compact(0)
-    , m_insertion_validation_mode(InsertionValidationMode::None)
-  { }
+  Delaunay() : m_has_boundary(false), m_insertion_validation_mode(InsertionValidationMode::None) { }
 
   /// \brief Controls the amount of validation performed around each point insertion
   ///
@@ -215,6 +211,10 @@ public:
     if(m_walk_visited.size() < static_cast<int>(expected_elements))
     {
       m_walk_visited = slam::BitSet(static_cast<int>(expected_elements));
+    }
+    if(static_cast<IndexType>(m_deleted_elements.capacity()) < expected_elements / 8)
+    {
+      m_deleted_elements.reserve(expected_elements / 8);
     }
   }
 
@@ -1530,16 +1530,16 @@ private:
     // It may be good to let user have control of this option in the future.
     constexpr int MIN_REMOVED_ELEMENTS = DIM == 2 ? 512 : 2048;
     constexpr double REMOVED_ELEMENT_FRACTION = DIM == 2 ? 0.25 : 0.35;
-    return m_num_removed_elements_since_last_compact > MIN_REMOVED_ELEMENTS &&
-      (m_num_removed_elements_since_last_compact >
-       REMOVED_ELEMENT_FRACTION * m_mesh.elements().size());
+    return static_cast<int>(m_deleted_elements.size()) > MIN_REMOVED_ELEMENTS &&
+      (static_cast<double>(m_deleted_elements.size()) >
+       REMOVED_ELEMENT_FRACTION * static_cast<double>(m_mesh.elements().size()));
   }
 
   /// \brief Compacts the underlying mesh
   void compactMesh()
   {
     m_mesh.compact();
-    m_num_removed_elements_since_last_compact = 0;
+    m_deleted_elements.clear();
     m_element_finder.recomputeGrid(m_mesh, m_bounding_box);
     if(m_next_regrid_vertex_count > 0)
     {
@@ -1911,16 +1911,17 @@ private:
     /**
     * \brief Remove the elements in the Delaunay cavity
     */
-    void createCavity()
+    void createCavity(std::vector<IndexType>& deleted_elements)
     {
       for(const auto elem : cavity_elems)
       {
         m_mesh.removeElement(elem);
+        deleted_elements.push_back(elem);
       }
     }
 
     /// \brief Fill in the Delaunay cavity with new elements containing the insertion point
-    void delaunayBall(IndexType new_pt_i)
+    void delaunayBall(IndexType new_pt_i, std::vector<IndexType>& deleted_elements)
     {
       const int numFaces = static_cast<int>(boundary_facets.size());
       const IndexType invalid_neighbor = IAMeshType::ElementAdjacencyRelation::INVALID_INDEX;
@@ -1946,7 +1947,17 @@ private:
         }
         neighbors[0] = nID;
 
-        IndexType new_el = m_mesh.addElement(vlist, neighbors);
+        IndexType new_el = invalid_neighbor;
+        if(!deleted_elements.empty())
+        {
+          new_el = deleted_elements.back();
+          deleted_elements.pop_back();
+          m_mesh.reuseElement(new_el, vlist, neighbors);
+        }
+        else
+        {
+          new_el = m_mesh.addElement(vlist, neighbors);
+        }
         inserted_elems.push_back(new_el);
       }
 
@@ -2039,6 +2050,8 @@ void Delaunay<DIM>::initializeBoundary(const BoundingBox& bb)
   m_initial_vertices_scratch.reserve(8);
   m_fallback_vertices_scratch.clear();
   m_fallback_vertices_scratch.reserve(QUERY_CANDIDATE_LIMIT);
+  m_deleted_elements.clear();
+  m_deleted_elements.reserve(DIM == 2 ? 128 : 512);
 
   if(!m_insertion_helper)
   {
@@ -2089,14 +2102,13 @@ void Delaunay<DIM>::insertPoint(const PointType& new_pt)
     axom::utilities::max(m_max_removed_elements,
                          static_cast<std::uint64_t>(insertionHelper.numRemovedElements()));
   validateCavityBoundary(insertionHelper);
-  insertionHelper.createCavity();
+  insertionHelper.createCavity(m_deleted_elements);
   IndexType new_pt_i = m_mesh.addVertex(new_pt);
-  insertionHelper.delaunayBall(new_pt_i);
+  insertionHelper.delaunayBall(new_pt_i, m_deleted_elements);
   validateInsertedBall(new_pt_i, insertionHelper);
   validateInsertionResult();
 
   m_element_finder.updateBin(new_pt, new_pt_i);
-  m_num_removed_elements_since_last_compact += insertionHelper.numRemovedElements();
   if(m_next_regrid_vertex_count > 0 && m_mesh.vertices().size() >= m_next_regrid_vertex_count)
   {
     m_element_finder.recomputeGrid(m_mesh, m_bounding_box);

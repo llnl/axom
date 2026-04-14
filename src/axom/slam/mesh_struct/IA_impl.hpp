@@ -584,6 +584,49 @@ typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addElement(cons
 }
 
 template <int TDIM, int SDIM, typename P>
+typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::reuseElement(IndexType element_idx,
+                                                                              const IndexType* vlist,
+                                                                              const IndexType* neighbors)
+{
+  SLIC_ASSERT_MSG(element_idx >= 0 && element_idx < element_set.size(),
+                  "Trying to reuse an out-of-range element index:" << element_idx);
+  SLIC_ASSERT_MSG(!element_set.isValidEntry(element_idx),
+                  "Trying to reuse an element slot that is already valid:" << element_idx);
+
+  for(int i = 0; i < VERTS_PER_ELEM; ++i)
+  {
+    SLIC_ASSERT_MSG(vertex_set.isValidEntry(vlist[i]),
+                    "Trying to reuse an element with invalid vertex index:" << vlist[i]);
+  }
+
+  element_set[element_idx] = element_idx;
+
+  auto bdry = ev_rel[element_idx];
+  for(int i = 0; i < VERTS_PER_ELEM; ++i)
+  {
+    bdry[i] = vlist[i];
+  }
+
+  auto adj = ee_rel[element_idx];
+  for(int i = 0; i < VERTS_PER_ELEM; ++i)
+  {
+    adj[i] = neighbors[i];
+  }
+
+  for(int i = 0; i < VERTS_PER_ELEM; ++i)
+  {
+    const IndexType v = vlist[i];
+    IndexType& cbdry = coboundaryElement(v);
+    if(!element_set.isValidEntry(cbdry))
+    {
+      cbdry = element_idx;
+    }
+  }
+
+  return element_idx;
+}
+
+template <int TDIM, int SDIM, typename P>
 void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
                                                   const std::vector<IndexType>& new_elements)
 {
