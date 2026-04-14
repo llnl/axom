@@ -84,11 +84,41 @@ private:
   struct ElementFinder;
   struct InsertionHelper;
 
+  /**
+   * \brief Lightweight LIFO pool of invalid simplex slots that can be reused
+   * during cavity retriangulation before growing the mesh element array.
+   */
+  struct RecycledElementPool
+  {
+    void reserve(IndexType count) { m_slots.reserve(count); }
+
+    void clear() { m_slots.clear(); }
+
+    void release(IndexType element_idx) { m_slots.push_back(element_idx); }
+
+    bool empty() const { return m_slots.empty(); }
+
+    IndexType size() const { return m_slots.size(); }
+
+    IndexType capacity() const { return m_slots.capacity(); }
+
+    IndexType acquire()
+    {
+      SLIC_ASSERT(!m_slots.empty());
+      const IndexType element_idx = m_slots.back();
+      m_slots.resize(m_slots.size() - 1);
+      return element_idx;
+    }
+
+  private:
+    axom::Array<IndexType> m_slots;
+  };
+
   IAMeshType m_mesh;
   BoundingBox m_bounding_box;
   bool m_has_boundary;
   InsertionValidationMode m_insertion_validation_mode;
-  std::vector<IndexType> m_deleted_elements;
+  RecycledElementPool m_deleted_elements;
 
   ElementFinder m_element_finder;
   IndexType m_next_regrid_vertex_count {0};
@@ -741,6 +771,22 @@ private:
                      element_idx);
       valid = false;
     }
+    else
+    {
+      const auto verts = m_mesh.boundaryVertices(element_idx);
+      for(auto idx : verts.positions())
+      {
+        if(!m_mesh.isValidVertex(verts[idx]))
+        {
+          fmt::format_to(std::back_inserter(out),
+                         "\n\tContaining element {} references invalid vertex {}",
+                         element_idx,
+                         verts[idx]);
+          valid = false;
+          break;
+        }
+      }
+    }
 
     if(!isPointInsideForLocation(element_idx, query_pt, bary_coord))
     {
@@ -839,24 +885,14 @@ private:
   }
 
 public:
-  /// \brief Returns true when an element and all of its vertices are valid for point-location predicates
+  /// \brief Returns true when an element slot is active and can participate in point-location
+  ///
+  /// Point-location only needs to reject tombstones here. During incremental
+  /// insertion all active simplices retain valid vertices, and `removeBoundary()`
+  /// compacts before post-build query use.
   bool isSearchableElement(IndexType element_idx) const
   {
-    if(!m_mesh.isValidElement(element_idx))
-    {
-      return false;
-    }
-
-    const auto verts = m_mesh.boundaryVertices(element_idx);
-    for(auto idx : verts.positions())
-    {
-      if(!m_mesh.isValidVertex(verts[idx]))
-      {
-        return false;
-      }
-    }
-
-    return true;
+    return m_mesh.isValidElement(element_idx);
   }
 
   enum class PointLocationStatus
@@ -1172,7 +1208,7 @@ public:
                                               IndexType start_element,
                                               std::vector<IndexType>* visited_elements_out = nullptr) const
   {
-    if(!isSearchableElement(start_element))
+    if(!m_mesh.isValidElement(start_element))
     {
       return {};
     }
@@ -1262,12 +1298,6 @@ public:
       }
 
       element_i = next_element;
-      if(!isSearchableElement(element_i))
-      {
-        recordWalk(PointLocationStatus::Failed);
-        clearVisitedBits();
-        return {};
-      }
     }
   }
 
@@ -1845,10 +1875,8 @@ private:
       // insert directly onto existing edges/faces.
       for(const IndexType element_i : seed_elements)
       {
-        if(m_mesh.isValidElement(element_i))
-        {
-          addCavityElement(element_i);
-        }
+        SLIC_ASSERT(m_mesh.isValidElement(element_i));
+        addCavityElement(element_i);
       }
 
       while(!m_stack.empty())
@@ -1911,17 +1939,17 @@ private:
     /**
     * \brief Remove the elements in the Delaunay cavity
     */
-    void createCavity(std::vector<IndexType>& deleted_elements)
+    void createCavity(RecycledElementPool& deleted_elements)
     {
       for(const auto elem : cavity_elems)
       {
         m_mesh.removeElement(elem);
-        deleted_elements.push_back(elem);
+        deleted_elements.release(elem);
       }
     }
 
     /// \brief Fill in the Delaunay cavity with new elements containing the insertion point
-    void delaunayBall(IndexType new_pt_i, std::vector<IndexType>& deleted_elements)
+    void delaunayBall(IndexType new_pt_i, RecycledElementPool& deleted_elements)
     {
       const int numFaces = static_cast<int>(boundary_facets.size());
       const IndexType invalid_neighbor = IAMeshType::ElementAdjacencyRelation::INVALID_INDEX;
@@ -1950,8 +1978,7 @@ private:
         IndexType new_el = invalid_neighbor;
         if(!deleted_elements.empty())
         {
-          new_el = deleted_elements.back();
-          deleted_elements.pop_back();
+          new_el = deleted_elements.acquire();
           m_mesh.reuseElement(new_el, vlist, neighbors);
         }
         else
