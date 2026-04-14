@@ -3,7 +3,8 @@
 # files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
-"""Convert a Sidre datastore from the sidre_hdf5 protocol to another protocol.
+"""
+Convert a Sidre datastore from the sidre_hdf5 protocol to another protocol.
 
 Users must supply a path to a sidre_hdf5 rootfile and base name for
 the output datastores. Optional command line arguments include
@@ -22,6 +23,7 @@ truncation/display functionality may be separated into distinct utilities.
 
 from __future__ import annotations
 
+import sys
 import argparse
 import math
 from pathlib import Path
@@ -65,7 +67,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "-s",
         "--strip",
-        type=positive_int,
+        type=int,
         default=None,
         help="If provided, output arrays will be stripped to first N entries",
     )
@@ -76,22 +78,6 @@ def parse_args() -> argparse.Namespace:
         help="Sets output to verbose",
     )
     return parser.parse_args()
-
-
-def positive_int(value: str) -> int:
-    parsed = int(value)
-    if parsed <= 0:
-        raise argparse.ArgumentTypeError("strip value must be positive")
-    return parsed
-
-
-def log_info(message: str) -> None:
-    print(message)
-
-
-def log_debug(enabled: bool, message: str) -> None:
-    if enabled:
-        print(message)
 
 
 def iter_views(group: pysidre.Group):
@@ -121,11 +107,10 @@ def allocate_external_data(group: pysidre.Group, holders: list[np.ndarray], verb
     # for each view
     for view in iter_views(group):
         if view.isExternal():
-            log_debug(
-                verbose,
-                f"Allocating external storage for {view.getPathName()} "
-                f"({view.getNumElements()} elements, {view.getTotalBytes()} bytes)",
-            )
+            if verbose:
+                print(
+                    f"Allocating external storage for {view.getPathName()} "
+                    f"({view.getNumElements()} elements, {view.getTotalBytes()} bytes)", )
             storage = np.zeros(view.getTotalBytes(), dtype=np.uint8)
             view.setExternalData(storage)
             holders.append(storage)
@@ -133,12 +118,6 @@ def allocate_external_data(group: pysidre.Group, holders: list[np.ndarray], verb
     # for each group
     for child in iter_groups(group):
         allocate_external_data(child, holders, verbose)
-
-
-def filler_value(dtype: np.dtype):
-    if np.issubdtype(dtype, np.floating):
-        return math.nan
-    return 0
 
 
 #
@@ -175,7 +154,7 @@ def modify_final_values(
     # Explicitly set the first two elements and copy elements over.
     new_array = np.asarray(buffer.getDataArray()).reshape(-1)
     np.copyto(new_array[:2], np.asarray([original_size, retained_size]), casting="unsafe")
-    new_array[2] = filler_value(new_array.dtype)
+    new_array[2] = math.nan if np.issubdtype(new_array.dtype, np.floating) else 0
     if retained_size > 0:
         np.copyto(new_array[3:], retained, casting="unsafe")
 
@@ -216,25 +195,15 @@ def truncate_bulk_data(group: pysidre.Group, max_size: int, verbose: bool) -> No
                 data = np.asarray(view.getDataArray()).reshape(-1)
                 view.setExternalData(view.getTypeID(), retained_size, data)
 
-            log_debug(
-                verbose,
-                f"Truncating view {view.getPathName()} from {original_size} to {retained_size}",
-            )
+            if verbose:
+                print(
+                    f"Truncating view {view.getPathName()} from {original_size} to {retained_size}",
+                )
             modify_final_values(view, original_size, retained_size)
 
     # for each group
     for child in iter_groups(group):
         truncate_bulk_data(child, max_size, verbose)
-
-
-def add_strip_note(root: pysidre.Group, num_elements: int) -> None:
-    note = ("This datastore was created by axom's 'convert_sidre_protocol' utility "
-            f"with option '--strip {num_elements}'. To simplify debugging, the bulk "
-            f"data in this datastore has been truncated to have at most {num_elements} "
-            "original values per array. Three values have been prepended to each "
-            "array: the size of the original array, the number of retained elements "
-            "and a zero/Nan.")
-    root.createViewString("Note", note)
 
 
 def main() -> int:
@@ -253,21 +222,27 @@ def main() -> int:
     datastore = pysidre.DataStore()
     root = datastore.getRoot()
 
-    log_info(f"Loading datastore from {input_path}")
+    print(f"Loading datastore from {input_path}")
     manager.read(root, str(input_path))
     num_files = manager.getNumFilesFromRoot(str(input_path))
 
-    log_info("Loading external data from datastore")
+    print("Loading external data from datastore")
     external_holders: list[np.ndarray] = []
     allocate_external_data(root, external_holders, args.verbose)
     manager.loadExternalData(root, str(input_path))
 
     if args.strip is not None:
-        log_info(f"Truncating views to at most {args.strip} elements.")
+        print(f"Truncating views to at most {args.strip} elements.")
         truncate_bulk_data(root, args.strip, args.verbose)
-        add_strip_note(root, args.strip)
+        note = ("This datastore was created by axom's 'convert_sidre_protocol' utility "
+                f"with option '--strip {args.strip}'. To simplify debugging, the bulk "
+                f"data in this datastore has been truncated to have at most {args.strip} "
+                "original values per array. Three values have been prepended to each "
+                "array: the size of the original array, the number of retained elements "
+                "and a zero/Nan.")
+        root.createViewString("Note", note)
 
-    log_info(
+    print(
         f"Writing out datastore in '{args.protocol}' protocol to file(s) with base name {args.output}",
     )
     manager.write(root, num_files, args.output, args.protocol)
@@ -279,4 +254,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())
