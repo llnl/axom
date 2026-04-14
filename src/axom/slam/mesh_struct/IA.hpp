@@ -345,6 +345,17 @@ public:
   IndexType addElement(const IndexType* vlist, const IndexType* neighbors);
 
   /**
+   * \brief Reactivates an invalid element slot with new boundary and adjacency data.
+   *
+   * \param element_idx The invalid element slot to reuse.
+   * \param vlist A pointer to the vertex indices of the recycled element.
+   * The array size should be at least VERTS_PER_ELEM.
+   * \param neighbors A pointer to the neighbor indices of the recycled element.
+   * The array size should be at least VERTS_PER_ELEM.
+   */
+  IndexType reuseElement(IndexType element_idx, const IndexType* vlist, const IndexType* neighbors);
+
+  /**
    * \brief Removes an element from the mesh
    *
    * \details If the index is invalid or out of bounds,
