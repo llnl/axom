@@ -25,78 +25,6 @@ AXOM_QUEST_DELAUNAY_FORCE_INLINE bool Delaunay<DIM>::isSearchableElement(IndexTy
 }
 
 template <int DIM>
-inline double Delaunay<DIM>::orientationTolerance(const std::array<PointType, 4>& pts)
-{
-  const double scale = getPointMagnitudeScale(pts);
-  if constexpr(DIM == 2)
-  {
-    return 64. * std::numeric_limits<double>::epsilon() * scale * scale;
-  }
-  else
-  {
-    return 64. * std::numeric_limits<double>::epsilon() * scale * scale * scale;
-  }
-}
-
-template <int DIM>
-inline double Delaunay<DIM>::orientationDeterminant(const std::array<PointType, 4>& pts)
-{
-  return axom::numerics::determinant(pts[0][0],
-                                     pts[0][1],
-                                     pts[0][2],
-                                     1.,
-                                     pts[1][0],
-                                     pts[1][1],
-                                     pts[1][2],
-                                     1.,
-                                     pts[2][0],
-                                     pts[2][1],
-                                     pts[2][2],
-                                     1.,
-                                     pts[3][0],
-                                     pts[3][1],
-                                     pts[3][2],
-                                     1.);
-}
-
-template <int DIM>
-inline int Delaunay<DIM>::symbolicOrientationSign(const std::array<PointType, 4>& pts,
-                                                  const std::array<IndexType, 4>& ranks)
-{
-  auto determinant3 = [](const PointType& p0, const PointType& p1, const PointType& p2) {
-    return axom::numerics::determinant(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]);
-  };
-
-  const double det = orientationDeterminant(pts);
-  const int det_sign = signWithTolerance(det, orientationTolerance(pts));
-  if(det_sign != 0)
-  {
-    return det_sign;
-  }
-
-  const std::array<double, 4> cofactors {-determinant3(pts[1], pts[2], pts[3]),
-                                         determinant3(pts[0], pts[2], pts[3]),
-                                         -determinant3(pts[0], pts[1], pts[3]),
-                                         determinant3(pts[0], pts[1], pts[2])};
-
-  std::array<int, 4> order {{0, 1, 2, 3}};
-  std::sort(order.begin(), order.end(), [&](int lhs, int rhs) { return ranks[lhs] < ranks[rhs]; });
-
-  const double cofactor_tol = 64. * std::numeric_limits<double>::epsilon() *
-    axom::utilities::max(1., orientationTolerance(pts));
-  for(const int row : order)
-  {
-    const int sign = signWithTolerance(cofactors[row], cofactor_tol);
-    if(sign != 0)
-    {
-      return sign;
-    }
-  }
-
-  return 0;
-}
-
-template <int DIM>
 AXOM_QUEST_DELAUNAY_FORCE_INLINE typename Delaunay<DIM>::CircumsphereEval
 Delaunay<DIM>::evaluateCircumsphereOnMesh(const IAMeshType& mesh, IndexType element_idx)
 {
@@ -178,22 +106,6 @@ AXOM_QUEST_DELAUNAY_FORCE_INLINE double Delaunay<DIM>::sphereSquaredDistanceTole
     axom::utilities::max(1., 2. * std::sqrt(axom::utilities::max(distance_sq, sphere.radius_sq)));
 
   return 256. * std::numeric_limits<double>::epsilon() * scale * local_span;
-}
-
-template <int DIM>
-template <typename SphereType>
-inline double Delaunay<DIM>::sphereSignedDistanceTolerance(const SphereType& sphere,
-                                                           const PointType& x)
-{
-  const auto& center = sphere.getCenter();
-  double scale = axom::utilities::max(1., sphere.getRadius());
-  for(int dim = 0; dim < DIM; ++dim)
-  {
-    scale = axom::utilities::max(scale, axom::utilities::abs(center[dim]));
-    scale = axom::utilities::max(scale, axom::utilities::abs(x[dim]));
-  }
-
-  return 256. * std::numeric_limits<double>::epsilon() * scale;
 }
 
 template <int DIM>
