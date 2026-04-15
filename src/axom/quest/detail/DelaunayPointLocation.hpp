@@ -4,6 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+/**
+ * \file DelaunayPointLocation.hpp
+ *
+ * \brief Defines the point-location helpers for `quest::Delaunay`.
+ */
+
 #ifndef AXOM_QUEST_DETAIL_DELAUNAY_POINT_LOCATION_HPP_
 #define AXOM_QUEST_DETAIL_DELAUNAY_POINT_LOCATION_HPP_
 

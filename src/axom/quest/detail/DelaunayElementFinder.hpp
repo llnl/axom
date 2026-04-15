@@ -4,6 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+/**
+ * \file DelaunayElementFinder.hpp
+ *
+ * \brief Defines the spatial binning helper used to seed Delaunay point
+ * location walks from nearby inserted vertices.
+ */
+
 #ifndef AXOM_QUEST_DETAIL_DELAUNAY_ELEMENT_FINDER_HPP_
 #define AXOM_QUEST_DETAIL_DELAUNAY_ELEMENT_FINDER_HPP_
 
@@ -21,6 +28,13 @@ namespace quest
 namespace detail
 {
 
+/**
+ * \brief Maintains a coarse vertex binning structure for fast point-location seeds.
+ *
+ * The Delaunay walk still performs exact simplex traversal, but this helper
+ * keeps the starting simplex close to the query point by tracking one recent
+ * vertex representative per lattice bin.
+ */
 template <int DIM, typename PointType, typename IAMeshType, typename BoundingBox, typename IndexType>
 class DelaunayElementFinder
 {
@@ -50,7 +64,7 @@ public:
 
     m_lattice = spin::rectangular_lattice_from_bounding_box(expandedBB, NumericArrayType(res));
 
-    resizeArray<DIM>(res);
+    resizeArray(res);
     m_bins.fill(INVALID_INDEX);
 
     for(auto idx : verts.positions())
@@ -201,16 +215,16 @@ private:
     return m_bins.flatIndex(idx);
   }
 
-  template <int TDIM>
-  typename std::enable_if<TDIM == 2, void>::type resizeArray(IndexType res)
+  void resizeArray(IndexType res)
   {
-    m_bins.resize(res, res);
-  }
-
-  template <int TDIM>
-  typename std::enable_if<TDIM == 3, void>::type resizeArray(IndexType res)
-  {
-    m_bins.resize(res, res, res);
+    if constexpr(DIM == 2)
+    {
+      m_bins.resize(res, res);
+    }
+    else
+    {
+      m_bins.resize(res, res, res);
+    }
   }
 
 private:
