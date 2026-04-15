@@ -4,6 +4,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+/**
+ * \file DelaunayInsertionHelper.hpp
+ *
+ * \brief Defines the cavity-construction and retriangulation helper used by
+ * incremental Delaunay insertion.
+ */
+
 #ifndef AXOM_QUEST_DETAIL_DELAUNAY_INSERTION_HELPER_HPP_
 #define AXOM_QUEST_DETAIL_DELAUNAY_INSERTION_HELPER_HPP_
 
@@ -21,6 +28,13 @@ namespace quest
 namespace detail
 {
 
+/**
+ * \brief Tracks the local cavity state for a single Bowyer-Watson insertion.
+ *
+ * The owning `quest::Delaunay` instance reuses one helper across insertions so
+ * cavity membership, boundary facets, and inserted-element scratch storage can
+ * be cleared without reallocation on every point.
+ */
 template <int DIM, typename PointType, typename BaryCoordType, typename IndexType, typename IndexArray, typename IAMeshType>
 class DelaunayInsertionHelper
 {

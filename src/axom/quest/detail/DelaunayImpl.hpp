@@ -4,6 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+/**
+ * \file DelaunayImpl.hpp
+ *
+ * \brief Defines the main incremental insertion and mesh-update routines for `quest::Delaunay`.
+ */
+
 #ifndef AXOM_QUEST_DETAIL_DELAUNAY_IMPL_HPP_
 #define AXOM_QUEST_DETAIL_DELAUNAY_IMPL_HPP_
 
@@ -33,12 +39,6 @@ inline double Delaunay<DIM>::orientationTolerance(const std::array<PointType, 4>
 }
 
 template <int DIM>
-inline double Delaunay<DIM>::determinant3(const PointType& p0, const PointType& p1, const PointType& p2)
-{
-  return axom::numerics::determinant(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]);
-}
-
-template <int DIM>
 inline double Delaunay<DIM>::orientationDeterminant(const std::array<PointType, 4>& pts)
 {
   return axom::numerics::determinant(pts[0][0],
@@ -63,6 +63,10 @@ template <int DIM>
 inline int Delaunay<DIM>::symbolicOrientationSign(const std::array<PointType, 4>& pts,
                                                   const std::array<IndexType, 4>& ranks)
 {
+  auto determinant3 = [](const PointType& p0, const PointType& p1, const PointType& p2) {
+    return axom::numerics::determinant(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]);
+  };
+
   const double det = orientationDeterminant(pts);
   const int det_sign = signWithTolerance(det, orientationTolerance(pts));
   if(det_sign != 0)
@@ -431,39 +435,35 @@ inline void Delaunay<DIM>::insertPoint(const PointType& new_pt)
   }
 }
 
-template <>
-inline void Delaunay<2>::generateInitialMesh(std::vector<DataType>& points,
-                                             std::vector<IndexType>& elem,
-                                             const BoundingBox& bb)
+template <int DIM>
+inline void Delaunay<DIM>::generateInitialMesh(std::vector<DataType>& points,
+                                               std::vector<IndexType>& elem,
+                                               const BoundingBox& bb)
 {
   const PointType& mins = bb.getMin();
   const PointType& maxs = bb.getMax();
 
-  std::vector<DataType> pt {mins[0], mins[1], mins[0], maxs[1], maxs[0], mins[1], maxs[0], maxs[1]};
+  if constexpr(DIM == 2)
+  {
+    std::vector<DataType> pt {mins[0], mins[1], mins[0], maxs[1], maxs[0], mins[1], maxs[0], maxs[1]};
+    std::vector<IndexType> el {0, 2, 1, 3, 1, 2};
 
-  std::vector<IndexType> el {0, 2, 1, 3, 1, 2};
+    points.swap(pt);
+    elem.swap(el);
+  }
+  else
+  {
+    std::vector<DataType> pt {mins[0], mins[1], mins[2], mins[0], mins[1], maxs[2],
+                              mins[0], maxs[1], mins[2], mins[0], maxs[1], maxs[2],
+                              maxs[0], mins[1], mins[2], maxs[0], mins[1], maxs[2],
+                              maxs[0], maxs[1], mins[2], maxs[0], maxs[1], maxs[2]};
 
-  points.swap(pt);
-  elem.swap(el);
-}
+    std::vector<IndexType> el {3, 2, 4, 0, 3, 4, 1, 0, 3, 2, 6, 4,
+                               3, 6, 7, 4, 3, 5, 1, 4, 3, 7, 5, 4};
 
-template <>
-inline void Delaunay<3>::generateInitialMesh(std::vector<DataType>& points,
-                                             std::vector<IndexType>& elem,
-                                             const BoundingBox& bb)
-{
-  const PointType& mins = bb.getMin();
-  const PointType& maxs = bb.getMax();
-
-  std::vector<DataType> pt {mins[0], mins[1], mins[2], mins[0], mins[1], maxs[2], mins[0], maxs[1],
-                            mins[2], mins[0], maxs[1], maxs[2], maxs[0], mins[1], mins[2], maxs[0],
-                            mins[1], maxs[2], maxs[0], maxs[1], mins[2], maxs[0], maxs[1], maxs[2]};
-
-  std::vector<IndexType> el {3, 2, 4, 0, 3, 4, 1, 0, 3, 2, 6, 4,
-                             3, 6, 7, 4, 3, 5, 1, 4, 3, 7, 5, 4};
-
-  points.swap(pt);
-  elem.swap(el);
+    points.swap(pt);
+    elem.swap(el);
+  }
 }
 
 }  // namespace quest
