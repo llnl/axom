@@ -986,14 +986,16 @@ public:
   {
     IndexArray seed_elements;
     seed_elements.push_back(element_idx);
+    constexpr IndexType invalid_element = IAMeshType::INVALID_ELEMENT_INDEX;
 
     for(int i = 0; i < VERT_PER_ELEMENT; ++i)
     {
       if(axom::utilities::abs(bary_coord[i]) <= BARY_EPS)
       {
         const IndexType nbr = m_mesh.adjacentElements(element_idx)[ModularFaceIndex(i) + 1];
-        if(m_mesh.isValidElement(nbr))
+        if(nbr != invalid_element)
         {
+          SLIC_ASSERT(m_mesh.isValidElement(nbr));
           seed_elements.push_back(nbr);
         }
       }
@@ -1338,6 +1340,8 @@ public:
                                               IndexType start_element,
                                               std::vector<IndexType>* visited_elements_out = nullptr) const
   {
+    constexpr IndexType invalid_element = IAMeshType::INVALID_ELEMENT_INDEX;
+
     if(!m_mesh.isValidElement(start_element))
     {
       return {};
@@ -1420,13 +1424,14 @@ public:
       }
 
       const IndexType next_element = m_mesh.adjacentElements(element_i)[modular_idx + 1];
-      if(!m_mesh.isValidElement(next_element))
+      if(next_element == invalid_element)
       {
         recordWalk(PointLocationStatus::Outside);
         clearVisitedBits();
         return {INVALID_INDEX, PointLocationStatus::Outside};
       }
 
+      SLIC_ASSERT(m_mesh.isValidElement(next_element));
       element_i = next_element;
     }
   }
@@ -2000,6 +2005,7 @@ private:
       {
         inserted_elems.reserve(reserveSize);
       }
+      constexpr IndexType invalid_element = IAMeshType::INVALID_ELEMENT_INDEX;
 
       // Seed the cavity with the containing element, and with any face-adjacent
       // neighbors when the insertion point lies on the containing simplex
@@ -2024,8 +2030,10 @@ private:
           const IndexType nbr = neighbors[n_idx];
 
           // invalid neighbor means face is on domain boundary, and thus on cavity boundary
-          if(m_mesh.isValidElement(nbr))
+          if(nbr != invalid_element)
           {
+            SLIC_ASSERT(m_mesh.isValidElement(nbr));
+
             // If the neighbor is already in the cavity, the shared face is
             // internal and not part of the cavity boundary.
             if(containsCavityElement(nbr))
