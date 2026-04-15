@@ -375,7 +375,7 @@ public:
    */
   inline bool isValidEntry(IndexType i) const
   {
-    return i >= 0 && i < size() && m_data[i] != INVALID_ENTRY;
+    return i >= 0 && i < SizePolicy::size() && m_data[i] != INVALID_ENTRY;
   };
 
   /**
