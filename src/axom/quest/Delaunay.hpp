@@ -1095,41 +1095,12 @@ public:
   //-----------------------------------------------------------------------------
   // In-sphere predicate helpers
   //
-  // Delaunay uses determinant-based in-sphere tests for both cavity growth and
-  // global empty-circumsphere validation. We rely on primal::robust::in_sphere()
-  // to classify {inside, outside, on boundary} and only compute a
-  // scale-dependent determinant tolerance here.
+  // Delaunay intentionally classifies points against element circumspheres
+  // using geometric signed distance rather than primal's determinant-based
+  // in-sphere classifier. This keeps cavity growth, insertion validation, and
+  // the global empty-circumsphere check consistent on ill-conditioned slivers.
+  // Raw determinant values are still exposed separately for diagnostics.
   //-----------------------------------------------------------------------------
-  static double inSphereDeterminantTolerance(double scale)
-  {
-    // The in-sphere determinant is formed from coordinate differences and
-    // squared norms, so near-cospherical slivers can lose precision based on
-    // the absolute coordinate magnitudes before translation, not just on the
-    // local edge lengths.
-    const double k = (DIM == 2) ? 128. : 512.;
-    if constexpr(DIM == 2)
-    {
-      return k * std::numeric_limits<double>::epsilon() * scale * scale * scale * scale;
-    }
-    else
-    {
-      return k * std::numeric_limits<double>::epsilon() * scale * scale * scale * scale * scale;
-    }
-  }
-
-  static double orientationDeterminantTolerance(double scale)
-  {
-    const double k = (DIM == 2) ? 128. : 512.;
-    if constexpr(DIM == 2)
-    {
-      return k * std::numeric_limits<double>::epsilon() * scale * scale;
-    }
-    else
-    {
-      return k * std::numeric_limits<double>::epsilon() * scale * scale * scale;
-    }
-  }
-
   template <typename SphereType>
   static double sphereSignedDistanceTolerance(const SphereType& sphere, const PointType& x)
   {
@@ -1193,18 +1164,18 @@ public:
 
     if constexpr(DIM == 2)
     {
-      return primal::detail::in_sphere_determinant(q,
-                                                   mesh.getVertexPosition(verts[0]),
-                                                   mesh.getVertexPosition(verts[1]),
-                                                   mesh.getVertexPosition(verts[2]));
+      return primal::in_sphere_determinant(q,
+                                           mesh.getVertexPosition(verts[0]),
+                                           mesh.getVertexPosition(verts[1]),
+                                           mesh.getVertexPosition(verts[2]));
     }
     else
     {
-      return primal::detail::in_sphere_determinant(q,
-                                                   mesh.getVertexPosition(verts[0]),
-                                                   mesh.getVertexPosition(verts[1]),
-                                                   mesh.getVertexPosition(verts[2]),
-                                                   mesh.getVertexPosition(verts[3]));
+      return primal::in_sphere_determinant(q,
+                                           mesh.getVertexPosition(verts[0]),
+                                           mesh.getVertexPosition(verts[1]),
+                                           mesh.getVertexPosition(verts[2]),
+                                           mesh.getVertexPosition(verts[3]));
     }
   }
 
@@ -2133,7 +2104,7 @@ private:
         {
           const PointType& p0 = m_mesh.getVertexPosition(vlist[0]);
           const PointType& p1 = m_mesh.getVertexPosition(vlist[1]);
-          if(primal::detail::orientation_determinant(p0, p1, new_pt) < 0.)
+          if(primal::orientation_determinant(p0, p1, new_pt) < 0.)
           {
             axom::utilities::swap(vlist[0], vlist[1]);
           }
@@ -2143,7 +2114,7 @@ private:
           const PointType& p0 = m_mesh.getVertexPosition(vlist[0]);
           const PointType& p1 = m_mesh.getVertexPosition(vlist[1]);
           const PointType& p2 = m_mesh.getVertexPosition(vlist[2]);
-          if(primal::detail::orientation_determinant(p0, p1, p2, new_pt) < 0.)
+          if(primal::orientation_determinant(p0, p1, p2, new_pt) < 0.)
           {
             axom::utilities::swap(vlist[1], vlist[2]);
           }
