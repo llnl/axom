@@ -509,13 +509,10 @@ public:
         stats.insertions));
       const auto location_stats = m_delaunay.getPointLocationStats();
       SLIC_INFO(axom::fmt::format(
-        "ScatteredInterpolation point location: walks {}, mean steps {:.2f}, max steps {}, "
-        "linear fallbacks {}, empty-seed fallbacks {}",
+        "ScatteredInterpolation point location: walks {}, mean steps {:.2f}, max steps {}",
         location_stats.walk_calls,
         location_stats.mean_walk_steps(),
-        location_stats.max_walk_steps,
-        location_stats.linear_fallbacks,
-        location_stats.empty_seed_fallbacks));
+        location_stats.max_walk_steps));
     }
 
     m_delaunay.removeBoundary();

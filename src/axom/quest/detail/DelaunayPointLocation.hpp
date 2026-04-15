@@ -290,22 +290,6 @@ AXOM_QUEST_DELAUNAY_FORCE_INLINE void Delaunay<DIM>::getInitialCandidateElements
                                      /*search_radius=*/1,
                                      /*max_candidates=*/8);
   appendCandidateElementsFromVertices(candidate_elements, m_initial_vertices_scratch);
-
-  if(candidate_elements.empty())
-  {
-    if(m_collect_location_stats)
-    {
-      ++m_num_empty_seed_fallbacks;
-    }
-    for(auto elem : m_mesh.elements().positions())
-    {
-      if(isSearchableElement(elem))
-      {
-        candidate_elements.push_back(elem);
-        break;
-      }
-    }
-  }
 }
 
 template <int DIM>
@@ -325,44 +309,6 @@ Delaunay<DIM>::walkCandidateElements(const PointType& query_pt,
     {
       return walk_result;
     }
-  }
-
-  return {};
-}
-
-template <int DIM>
-AXOM_QUEST_DELAUNAY_FORCE_INLINE typename Delaunay<DIM>::PointLocationResult
-Delaunay<DIM>::findContainingElementWithQueryFallbacks(const PointType& query_pt,
-                                                       std::vector<IndexType>& candidate_elements,
-                                                       const std::vector<IndexType>& walked_elements) const
-{
-  const IndexType walk_region_elem = findContainingElementFromNeighbors(query_pt, walked_elements);
-  if(walk_region_elem != INVALID_INDEX)
-  {
-    return {walk_region_elem, PointLocationStatus::Found};
-  }
-
-  m_fallback_vertices_scratch.clear();
-  m_element_finder.getNearbyVertices(m_mesh,
-                                     query_pt,
-                                     m_fallback_vertices_scratch,
-                                     QUERY_SEARCH_RADIUS,
-                                     QUERY_CANDIDATE_LIMIT);
-  const std::size_t initial_candidate_count = candidate_elements.size();
-  candidate_elements.reserve(candidate_elements.size() + m_fallback_vertices_scratch.size());
-  appendCandidateElementsFromVertices(candidate_elements, m_fallback_vertices_scratch);
-
-  PointLocationResult walk_result =
-    walkCandidateElements(query_pt, candidate_elements, initial_candidate_count);
-  if(walk_result.status != PointLocationStatus::Failed)
-  {
-    return walk_result;
-  }
-
-  const IndexType nearby_elem = findContainingElementNearby(query_pt, m_fallback_vertices_scratch);
-  if(nearby_elem != INVALID_INDEX)
-  {
-    return {nearby_elem, PointLocationStatus::Found};
   }
 
   return {};
@@ -417,87 +363,7 @@ Delaunay<DIM>::findContainingElementFromNeighbors(const PointType& query_pt,
   for(const IndexType element_idx : nearby_elements)
   {
     const BaryCoordType bary_coord = getBaryCoords(element_idx, query_pt);
-    const DataType min_bary = bary_coord[bary_coord.array().argMin()];
-    if(min_bary >= -BARY_EPS)
-    {
-      return element_idx;
-    }
-  }
-
-  return INVALID_INDEX;
-}
-
-template <int DIM>
-inline typename Delaunay<DIM>::IndexType Delaunay<DIM>::findContainingElementLinear(
-  const PointType& query_pt,
-  bool warnOnInvalid) const
-{
-  IndexType best_element = INVALID_INDEX;
-  DataType best_min_bary = -std::numeric_limits<DataType>::max();
-
-  for(auto element_idx : m_mesh.elements().positions())
-  {
-    if(!isSearchableElement(element_idx))
-    {
-      continue;
-    }
-
-    const BaryCoordType bary_coord = getBaryCoords(element_idx, query_pt);
-    const DataType min_bary = bary_coord[bary_coord.array().argMin()];
-    if(min_bary > best_min_bary)
-    {
-      best_min_bary = min_bary;
-      best_element = element_idx;
-    }
-
-    if(min_bary >= -BARY_EPS)
-    {
-      return element_idx;
-    }
-  }
-
-  SLIC_WARNING_IF(warnOnInvalid,
-                  fmt::format("Unable to locate containing element for point {} after exhaustive "
-                              "neighbor search; returning closest candidate with min barycentric "
-                              "coordinate {:.17g}",
-                              query_pt,
-                              best_min_bary));
-
-  return best_element;
-}
-
-template <int DIM>
-AXOM_QUEST_DELAUNAY_FORCE_INLINE typename Delaunay<DIM>::IndexType
-Delaunay<DIM>::findContainingElementNearby(const PointType& query_pt,
-                                           const std::vector<IndexType>& nearby_vertices) const
-{
-  std::vector<IndexType> nearby_elements;
-  for(const IndexType vertex_idx : nearby_vertices)
-  {
-    if(!m_mesh.isValidVertex(vertex_idx))
-    {
-      continue;
-    }
-
-    const auto star = m_mesh.vertexStar(vertex_idx);
-    for(const IndexType elem : star)
-    {
-      if(isSearchableElement(elem))
-      {
-        nearby_elements.push_back(elem);
-      }
-    }
-  }
-
-  std::sort(nearby_elements.begin(), nearby_elements.end());
-  nearby_elements.erase(std::unique(nearby_elements.begin(), nearby_elements.end()),
-                        nearby_elements.end());
-
-  for(const IndexType element_idx : nearby_elements)
-  {
-    const BaryCoordType bary_coord = getBaryCoords(element_idx, query_pt);
-    const DataType min_bary = bary_coord[bary_coord.array().argMin()];
-    if(min_bary >= -BARY_EPS)
+    if(isPointInsideForLocation(element_idx, query_pt, bary_coord))
     {
       return element_idx;
     }
@@ -539,23 +405,22 @@ inline typename Delaunay<DIM>::IndexType Delaunay<DIM>::findContainingElement(co
     return INVALID_INDEX;
   }
 
-  if(!m_candidate_elements_scratch.empty())
+  if(!m_walked_elements_scratch.empty())
   {
-    const PointLocationResult fallback_result =
-      findContainingElementWithQueryFallbacks(query_pt,
-                                              m_candidate_elements_scratch,
-                                              m_walked_elements_scratch);
-    if(fallback_result.status == PointLocationStatus::Found)
+    const IndexType walk_region_elem =
+      findContainingElementFromNeighbors(query_pt, m_walked_elements_scratch);
+    if(walk_region_elem != INVALID_INDEX)
     {
-      return fallback_result.element_idx;
+      return walk_region_elem;
     }
   }
 
-  if(m_collect_location_stats)
-  {
-    ++m_num_linear_fallbacks;
-  }
-  return findContainingElementLinear(query_pt, warnOnInvalid);
+  SLIC_WARNING_IF(warnOnInvalid,
+                  fmt::format("Unable to locate containing element for point {} after directed "
+                              "walk and local neighborhood search.",
+                              query_pt));
+
+  return INVALID_INDEX;
 }
 
 }  // namespace quest

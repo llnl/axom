@@ -131,8 +131,6 @@ public:
     std::uint64_t walk_failed {0};
     std::uint64_t total_walk_steps {0};
     std::uint64_t max_walk_steps {0};
-    std::uint64_t linear_fallbacks {0};
-    std::uint64_t empty_seed_fallbacks {0};
 
     double mean_walk_steps() const
     {
@@ -173,10 +171,8 @@ private:
   using InsertionHelper =
     detail::DelaunayInsertionHelper<DIM, PointType, BaryCoordType, IndexType, IndexArray, IAMeshType>;
 
-  // These broader fallbacks are only used for 3D query point location after the
-  // initial directed walk fails. Insertions stay on the cheaper local path.
-  static constexpr int QUERY_SEARCH_RADIUS = 6;
-  static constexpr int QUERY_CANDIDATE_LIMIT = 128;
+  // If a directed walk cycles or exhausts its local step budget, probe a small
+  // neighborhood around the visited simplices before reporting failure.
   static constexpr int WALK_NEIGHBORHOOD_LAYERS = 2;
 
   /**
@@ -228,8 +224,6 @@ private:
   mutable std::uint64_t m_num_walk_failed {0};
   mutable std::uint64_t m_total_walk_steps {0};
   mutable std::uint64_t m_max_walk_steps {0};
-  mutable std::uint64_t m_num_linear_fallbacks {0};
-  mutable std::uint64_t m_num_empty_seed_fallbacks {0};
 
   // Scratch buffers used by point location to avoid per-call heap allocations.
   // Delaunay is not thread-safe, so these are safe to reuse between calls.
@@ -237,7 +231,6 @@ private:
   mutable std::vector<IndexType> m_walked_elements_scratch;
   mutable std::vector<IndexType> m_walk_local_elements_scratch;
   mutable std::vector<IndexType> m_initial_vertices_scratch;
-  mutable std::vector<IndexType> m_fallback_vertices_scratch;
   std::unique_ptr<InsertionHelper> m_insertion_helper;
 
 public:
@@ -261,9 +254,7 @@ public:
             m_num_walk_outside,
             m_num_walk_failed,
             m_total_walk_steps,
-            m_max_walk_steps,
-            m_num_linear_fallbacks,
-            m_num_empty_seed_fallbacks};
+            m_max_walk_steps};
   }
 
   /// \brief Controls the amount of validation performed around each point insertion
@@ -565,21 +556,9 @@ private:
                                             std::size_t start_idx = 0,
                                             std::vector<IndexType>* walked_elements = nullptr) const;
 
-  PointLocationResult findContainingElementWithQueryFallbacks(
-    const PointType& query_pt,
-    std::vector<IndexType>& candidate_elements,
-    const std::vector<IndexType>& walked_elements) const;
-
   /// \brief Scan a small adjacency region around a failed directed walk before falling back to a full scan
   IndexType findContainingElementFromNeighbors(const PointType& query_pt,
                                                const std::vector<IndexType>& seed_elements) const;
-
-  /// \brief Last-resort exhaustive scan used when the cheaper local search path cannot classify the point
-  IndexType findContainingElementLinear(const PointType& query_pt, bool warnOnInvalid) const;
-
-  /// \brief Scan the stars of nearby seed vertices as a cheaper local fallback for query point location
-  IndexType findContainingElementNearby(const PointType& query_pt,
-                                        const std::vector<IndexType>& nearby_vertices) const;
 
   /**
    * \brief Helper function to fill the array with the initial mesh.

@@ -346,19 +346,15 @@ inline void Delaunay<DIM>::initializeBoundary(const BoundingBox& bb)
   m_num_walk_failed = 0;
   m_total_walk_steps = 0;
   m_max_walk_steps = 0;
-  m_num_linear_fallbacks = 0;
-  m_num_empty_seed_fallbacks = 0;
 
   m_candidate_elements_scratch.clear();
-  m_candidate_elements_scratch.reserve(QUERY_CANDIDATE_LIMIT);
+  m_candidate_elements_scratch.reserve(16);
   m_walked_elements_scratch.clear();
   m_walked_elements_scratch.reserve(256);
   m_walk_local_elements_scratch.clear();
   m_walk_local_elements_scratch.reserve(256);
   m_initial_vertices_scratch.clear();
   m_initial_vertices_scratch.reserve(8);
-  m_fallback_vertices_scratch.clear();
-  m_fallback_vertices_scratch.reserve(QUERY_CANDIDATE_LIMIT);
   m_deleted_elements.clear();
   m_deleted_elements.reserve(DIM == 2 ? 128 : 512);
 

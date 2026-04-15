@@ -214,6 +214,40 @@ TEST(quest_delaunay, boundary_location_regular_grid_2d)
   expectValidDelaunay(dt, points, 2 * (NX - 1) * (NY - 1));
 }
 
+TEST(quest_delaunay, query_location_regular_grid_2d)
+{
+  using PointType = typename DelaunayType<2>::PointType;
+  using BoundingBox = typename DelaunayType<2>::BoundingBox;
+
+  DelaunayType<2> dt;
+  dt.initializeBoundary(BoundingBox(PointType {-0.5, -0.5}, PointType {1.5, 1.5}));
+
+  std::vector<PointType> points;
+  points.reserve(4 * 4);
+  for(int y = 0; y < 4; ++y)
+  {
+    for(int x = 0; x < 4; ++x)
+    {
+      points.push_back(PointType {x / 3., y / 3.});
+    }
+  }
+
+  insertPoints(dt, points);
+  dt.removeBoundary();
+
+  const std::vector<PointType> queries {PointType {0.125, 0.125},
+                                        PointType {0.42, 0.18},
+                                        PointType {0.61, 0.27},
+                                        PointType {0.33, 0.67},
+                                        PointType {0.81, 0.55},
+                                        PointType {0.24, 0.91}};
+
+  for(const auto& query : queries)
+  {
+    EXPECT_NE(DelaunayType<2>::INVALID_INDEX, dt.findContainingElement(query, false));
+  }
+}
+
 TEST(quest_delaunay, cospherical_cube_3d)
 {
   using PointType = typename DelaunayType<3>::PointType;
