@@ -34,6 +34,10 @@ namespace detail
  * The Delaunay walk still performs exact simplex traversal, but this helper
  * keeps the starting simplex close to the query point by tracking one recent
  * vertex representative per lattice bin.
+ *
+ * The grid adapts to point set size: resolution is O(n^(1/DIM)) to maintain
+ * constant expected bin occupancy. This provides O(1) expected distance (in hops)
+ * from grid cell to query point's containing simplex.
  */
 template <int DIM, typename PointType, typename IAMeshType, typename BoundingBox, typename IndexType>
 class DelaunayElementFinder
@@ -44,6 +48,11 @@ public:
 
   explicit DelaunayElementFinder() = default;
 
+  /// \brief Rebuild the spatial bin structure based on current vertex positions
+  ///
+  /// \param mesh The current Delaunay mesh
+  /// \param bb The bounding box of the triangulation
+  /// \note Grid resolution adapts to vertex count: ~n^(1/DIM) / 4 bins per dimension
   void recomputeGrid(const IAMeshType& mesh, const BoundingBox& bb)
   {
     const auto& verts = mesh.vertices();
@@ -54,6 +63,7 @@ public:
     // even for very large point sets.
     //
     // Target occupancy is ~ 4^DIM points per bin (16 in 2D, 64 in 3D).
+    // Value of 4.0 is empirically chosen to balance grid overhead vs. walk distance.
     constexpr double BIN_SIDE_SPACING = 4.0;
     const double res_root = std::pow(static_cast<double>(verts.size()), 1.0 / DIM);
     const IndexType res =
@@ -90,6 +100,13 @@ public:
     }
   }
 
+  /// \brief Find vertices in bins near a query point, sorted by distance
+  ///
+  /// \param mesh The current Delaunay mesh
+  /// \param pt The query point
+  /// \param[out] nearby_vertices Output array of vertex indices sorted by distance to pt
+  /// \param search_radius Number of bin layers to search (1 = immediate neighbors, 2 = two layers, etc.)
+  /// \param max_candidates Maximum number of vertices to return
   inline void getNearbyVertices(const IAMeshType& mesh,
                                 const PointType& pt,
                                 std::vector<IndexType>& nearby_vertices,
@@ -188,12 +205,21 @@ public:
     }
   }
 
+  /// \brief Get the vertex stored in the bin containing a query point
+  ///
+  /// \param pt The query point
+  /// \return Vertex index of a representative vertex in that bin (or INVALID_INDEX if bin is empty)
   inline IndexType getNearbyVertex(const PointType& pt) const
   {
     const auto cell = m_lattice.gridCell(pt);
     return flatIndex(cell);
   }
 
+  /// \brief Update a bin to reference a newly inserted vertex
+  ///
+  /// \param pt The position of the newly inserted vertex
+  /// \param vertex_id The index of the newly inserted vertex
+  /// \note Called after each successful point insertion
   inline void updateBin(const PointType& pt, IndexType vertex_id)
   {
     const auto cell = m_lattice.gridCell(pt);
