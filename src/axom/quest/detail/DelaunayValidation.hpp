@@ -8,6 +8,18 @@
  * \file DelaunayValidation.hpp
  *
  * \brief Defines optional insertion-time and post-build validation helpers for `quest::Delaunay`.
+ *
+ * Implements four-tier validation system:
+ * - None: Production mode (asserts only)
+ * - Local: Validates insertion-local cavity/ball invariants
+ * - ConformingMesh: Adds topological conformity and orientation checks
+ * - Full: Adds global empty-circumsphere validation (expensive, for debugging)
+ *
+ * Also provides:
+ * - isValid(): Global Delaunay property check (empty circumsphere for all simplices)
+ * - isConforming(): Topological conformity and orientation checks
+ * - Determinant evaluation helpers with context-aware tolerances
+ * - Boundary coordinate tolerance computation
  */
 
 #ifndef AXOM_QUEST_DETAIL_DELAUNAY_VALIDATION_HPP_

@@ -57,12 +57,22 @@ namespace quest
    * and validation routines are split into companion `detail/` headers.
    *
    * A bounding box of the points needs to be defined first via \a initializeBoundary(...).
+   * The algorithm uses the Bowyer-Watson incremental insertion approach with robust
+   * geometric predicates for handling degenerate cases including regular grids and
+   * co-spherical point configurations.
+   *
+   * \note This class is not thread-safe. Multiple concurrent insertions are not supported.
+   *
+   * \tparam DIM The spatial dimension (2 for triangulation, 3 for tetrahedralization)
    */
 template <int DIM = 2>
 class Delaunay
 {
 public:
   AXOM_STATIC_ASSERT_MSG(DIM == 2 || DIM == 3, "The template parameter DIM can only be 2 or 3. ");
+
+  /// Tolerance for barycentric coordinate comparisons (distinguishes interior from boundary)
+  /// Value chosen to handle typical floating-point error accumulation in coordinate computation
   static constexpr double BARY_EPS = 1e-12;
 
   using DataType = double;
@@ -84,9 +94,10 @@ public:
   static constexpr int VERTS_PER_FACET = VERT_PER_ELEMENT - 1;
   static constexpr IndexType INVALID_INDEX = -1;
 
+  /// Controls the level of validation performed during point insertion
   enum class InsertionValidationMode
   {
-    /// No additional insertion-time validation beyond existing asserts.
+    /// No additional insertion-time validation beyond existing asserts (production mode).
     None,
     /// Checks only insertion-local seed/cavity/ball invariants.
     Local,
@@ -94,28 +105,33 @@ public:
     /// Intended for debugging and unit tests.
     ConformingMesh,
     /// Additionally runs a global empty-circumsphere check after each insertion (very expensive).
+    /// Use only for deep debugging; unsuitable for large meshes.
     Full
   };
 
+  /// Result status from point location queries
   enum class PointLocationStatus
   {
-    Found,
-    Outside,
-    Failed
+    Found,    ///< Query point was successfully located inside an element
+    Outside,  ///< Query point lies outside the triangulation boundary
+    Failed    ///< Location failed (internal error or degenerate case)
   };
 
+  /// Combined result from point location including element index and status
   struct PointLocationResult
   {
-    IndexType element_idx {INVALID_INDEX};
-    PointLocationStatus status {PointLocationStatus::Failed};
+    IndexType element_idx {INVALID_INDEX};  ///< Index of containing element (or INVALID_INDEX)
+    PointLocationStatus status {PointLocationStatus::Failed};  ///< Status of the location query
   };
 
+  /// Statistics about point insertion operations (cavity size during Bowyer-Watson insertion)
   struct InsertionStats
   {
-    std::uint64_t insertions {0};
-    std::uint64_t total_removed {0};
-    std::uint64_t max_removed {0};
+    std::uint64_t insertions {0};     ///< Total number of points inserted
+    std::uint64_t total_removed {0};  ///< Cumulative elements removed across all insertions
+    std::uint64_t max_removed {0};    ///< Maximum elements removed in a single insertion
 
+    /// Average number of elements removed per insertion (cavity size)
     double mean_removed() const
     {
       return insertions > 0 ? static_cast<double>(total_removed) / static_cast<double>(insertions)
@@ -123,15 +139,17 @@ public:
     }
   };
 
+  /// Statistics about point location query performance
   struct PointLocationStats
   {
-    std::uint64_t walk_calls {0};
-    std::uint64_t walk_found {0};
-    std::uint64_t walk_outside {0};
-    std::uint64_t walk_failed {0};
-    std::uint64_t total_walk_steps {0};
-    std::uint64_t max_walk_steps {0};
+    std::uint64_t walk_calls {0};    ///< Number of walk attempts
+    std::uint64_t walk_found {0};    ///< Walks that successfully found containing element
+    std::uint64_t walk_outside {0};  ///< Walks that terminated outside boundary
+    std::uint64_t walk_failed {0};  ///< Walks that failed (should be rare with robust implementation)
+    std::uint64_t total_walk_steps {0};  ///< Cumulative simplex-to-simplex steps across all walks
+    std::uint64_t max_walk_steps {0};    ///< Maximum steps in a single walk
 
+    /// Average number of simplex traversals per walk
     double mean_walk_steps() const
     {
       return walk_calls > 0 ? static_cast<double>(total_walk_steps) / static_cast<double>(walk_calls)
@@ -139,24 +157,28 @@ public:
     }
   };
 
+  /// Precomputed circumsphere center and squared radius for in-sphere tests
   struct CircumsphereEval
   {
-    PointType center {};
-    double radius_sq {0.};
+    PointType center {};    ///< Circumsphere center point
+    double radius_sq {0.};  ///< Squared radius (avoids sqrt in distance comparisons)
 
     CircumsphereEval() = default;
 
+    /// Construct from origin point and offset vector to center
     CircumsphereEval(const PointType& origin, const VectorType& center_offset)
       : center(origin + center_offset)
       , radius_sq(center_offset.squared_norm())
     { }
   };
 
+  /// Orientation determinant evaluation with tolerance for robust geometric tests
   struct OrientationEval
   {
-    double det {0.};
-    double tol {0.};
-    int orientation {primal::ON_BOUNDARY};
+    double det {0.};  ///< Raw determinant value
+    double tol {0.};  ///< Context-aware tolerance for this determinant
+    int orientation {
+      primal::ON_BOUNDARY};  ///< Classified orientation (ON_NEGATIVE_SIDE/ON_BOUNDARY/ON_POSITIVE_SIDE)
   };
 
 private:
@@ -171,8 +193,9 @@ private:
   using InsertionHelper =
     detail::DelaunayInsertionHelper<DIM, PointType, BaryCoordType, IndexType, IndexArray, IAMeshType>;
 
-  // If a directed walk cycles or exhausts its local step budget, probe a small
-  // neighborhood around the visited simplices before reporting failure.
+  /// Number of adjacency layers to search around visited simplices when a directed walk fails.
+  /// If a walk cycles or reaches its step budget, we probe this many layers of neighbors
+  /// before giving up. Value of 2 balances coverage vs. cost for typical meshes.
   static constexpr int WALK_NEIGHBORHOOD_LAYERS = 2;
 
   /**
@@ -240,13 +263,21 @@ public:
    */
   Delaunay() : m_has_boundary(false), m_insertion_validation_mode(InsertionValidationMode::None) { }
 
+  /// \brief Returns statistics about insertion operations
+  /// \return InsertionStats containing cavity size metrics
   InsertionStats getInsertionStats() const
   {
     return {m_num_insertions, m_total_removed_elements, m_max_removed_elements};
   }
 
+  /// \brief Enable or disable collection of point location statistics
+  /// \param enabled If true, track walk performance metrics (adds minimal overhead)
+  /// \note Stats collection is disabled by default
   void setCollectPointLocationStats(bool enabled) { m_collect_location_stats = enabled; }
 
+  /// \brief Returns statistics about point location query performance
+  /// \return PointLocationStats containing walk performance metrics
+  /// \note Returns zeros if setCollectPointLocationStats(true) was not called
   PointLocationStats getPointLocationStats() const
   {
     return {m_num_walk_calls,
@@ -271,7 +302,10 @@ public:
 
   /**
    * \brief Defines the boundary of the triangulation.
-   * \details subsequent points added to the triangulation must not be outside of this boundary.
+   * \details Subsequent points added to the triangulation must lie within this boundary.
+   *          Creates an initial bounding box triangulation (2 triangles in 2D, 6 tetrahedra in 3D).
+   * \param bb The bounding box that will contain all inserted points
+   * \pre Must be called before any points are inserted
    */
   void initializeBoundary(const BoundingBox& bb);
 
@@ -279,6 +313,9 @@ public:
   ///
   /// Uses a dimension-specific heuristic for the total simplex count so large
   /// bulk-builds can avoid repeated mesh-container reallocations.
+  /// \param num_points Expected number of points to be inserted
+  /// \note Based on Euler characteristic: 2D expects ~2n triangles for n points,
+  ///       3D expects ~6n tetrahedra. Heuristics account for bounding box and over-tessellation.
   void reserveForPointCount(IndexType num_points)
   {
     if(!m_has_boundary || num_points <= 0)
@@ -287,6 +324,9 @@ public:
     }
 
     const IndexType expected_vertices = m_mesh.vertices().size() + num_points;
+
+    // Heuristic element count: 2D triangle count ≈ 2n (Euler), 3D tet count ≈ 6n (Euler).
+    // Use conservative estimates (3.0 and 9.0) to account for boundary and over-tessellation.
     constexpr double ELEMENTS_PER_POINT = DIM == 2 ? 3.0 : 9.0;
     const IndexType expected_elements = m_mesh.elements().size() +
       static_cast<IndexType>(std::ceil(ELEMENTS_PER_POINT * static_cast<double>(num_points)));
@@ -304,16 +344,25 @@ public:
   }
 
   /**
-   * \brief Adds a new point and locally re-triangulates the mesh to ensure that it stays Delaunay
+   * \brief Adds a new point and locally re-triangulates the mesh to ensure it remains Delaunay
    *
-   * This function will traverse the mesh to find the element that contains
-   * this point, creates the Delaunay cavity, which takes out all the elements
-   * that contains the point in its sphere, and fill it with a Delaunay ball.
+   * Uses the Bowyer-Watson incremental insertion algorithm:
+   * 1. Locate the element containing the new point via directed walk
+   * 2. Expand a cavity of all elements whose circumspheres contain the new point
+   * 3. Retriangulate the cavity by connecting the new point to the cavity boundary
    *
-   * \pre The current mesh must already be Delaunay.
+   * \param new_pt The point to insert
+   * \pre initializeBoundary() must have been called
+   * \pre new_pt must lie within the bounding box
+   * \pre The current mesh must be a valid Delaunay triangulation
+   * \post The mesh remains a valid Delaunay triangulation
+   * \note If insertion fails (rare), a warning is logged and the mesh is unchanged
    */
   void insertPoint(const PointType& new_pt);
 
+  /// \brief Retrieves the geometric element (triangle or tetrahedron) at the given index
+  /// \param element_index The index of the element to retrieve
+  /// \return Triangle (2D) or Tetrahedron (3D) with vertex coordinates
   ElementType getElement(int element_index) const
   {
     const auto verts = m_mesh.boundaryVertices(element_index);
@@ -338,66 +387,98 @@ public:
   void printMesh() { m_mesh.print_all(); }
 
   /**
-   * \brief Write the m_mesh to a legacy VTK file
+   * \brief Write the mesh to a legacy VTK file for visualization
    *
-   * \param filename The name of the file to write to,
+   * \param filename The name of the file to write to
    * \note The suffix ".vtk" will be appended to the provided filename
-   * \details This function uses mint to write the m_mesh to VTK format.
+   * \note This method compacts the mesh before export to eliminate deleted elements
    */
   void writeToVTKFile(const std::string& filename);
 
   /**
-   * \brief Removes the vertices that defines the boundary of the mesh,
-   * and the elements attached to them.
+   * \brief Removes the bounding box vertices and all attached elements
    *
-   * \details After this function is called, no more points can be added to the m_mesh.
+   * The initial bounding box (created by initializeBoundary) consists of 2^DIM vertices
+   * that define a rectangular boundary. This method removes those vertices and all
+   * simplices incident to them, leaving only the Delaunay triangulation of the inserted points.
+   *
+   * \post No more points can be inserted after calling this method
+   * \post The mesh is compacted (deleted element slots are removed)
    */
   void removeBoundary();
 
-  /// \brief Get the IA mesh data pointer
+  /// \brief Get the underlying IA mesh data structure
+  /// \return Pointer to the IAMesh (for advanced users or ScatteredInterpolation)
   const IAMeshType* getMeshData() const { return &m_mesh; }
 
   /**
-   * \brief Checks that the underlying mesh is a valid Delaunay triangulation of the point set
+   * \brief Checks that the mesh satisfies the Delaunay empty-circumsphere property
    *
-   * A Delaunay triangulation is valid when none of the vertices are inside the circumspheres
-   * of any of the elements of the mesh
+   * A Delaunay triangulation is valid when no vertex lies strictly inside the
+   * circumsphere of any simplex. This method checks all vertex-simplex pairs.
+   *
+   * \param verboseOutput If true, prints detailed diagnostic information
+   * \return true if the Delaunay property holds, false otherwise
+   * \note This is an O(n·m) check where n = vertices, m = elements. Use for validation.
    */
   bool isValid(bool verboseOutput = false) const;
 
   /**
-   * \brief Checks that the underlying mesh is conforming and consistently oriented
+   * \brief Checks mesh conformity, orientation, and boundary consistency
    *
-   * Topological conformity (manifold facets and reciprocal adjacencies) is
-   * delegated to `slam::IAMesh::isConforming()`. This routine additionally
-   * verifies that the simplices remain positively oriented, and (when the
-   * initial bounding-box boundary is still present) that boundary facets lie on
-   * that bounding box.
+   * Verifies three properties:
+   * 1. Topological conformity (manifold facets, reciprocal adjacencies) via IAMesh::isConforming()
+   * 2. All simplices are positively oriented (positive signed volume/area)
+   * 3. If boundary exists, all boundary facets lie on the bounding box faces
+   *
+   * \param verboseOutput If true, prints detailed diagnostic information
+   * \return true if all checks pass, false otherwise
    */
   bool isConforming(bool verboseOutput = false) const;
 
-  /// \brief Returns true when an element slot is active and can participate in point-location
+  /// \brief Returns true if an element is active and can participate in point-location queries
   ///
-  /// Point-location only needs to reject tombstones here. During incremental
-  /// insertion all active simplices retain valid vertices, and `removeBoundary()`
-  /// compacts before post-build query use.
+  /// \param element_idx The element index to check
+  /// \return true if element is valid (not a deleted/recycled slot)
+  /// \note During insertion, all active elements have valid vertices. After removeBoundary(),
+  ///       the mesh is compacted so all element indices are valid.
   bool isSearchableElement(IndexType element_idx) const;
 
-  /// \brief Find the index of the element that contains the query point, or the element closest to the point.
+  /// \brief Locate the element containing a query point using directed walk
+  ///
+  /// \param query_pt The point to locate
+  /// \param warnOnInvalid If true, log a warning if location fails
+  /// \return Element index containing the point, or INVALID_INDEX if not found
+  /// \note Uses grid-seeded directed walk for O(n^(1/DIM)) expected performance
   IndexType findContainingElement(const PointType& query_pt, bool warnOnInvalid = true) const;
 
   /**
-   * \brief helper function to retrieve the barycentric coordinate of the query point in the element
+   * \brief Compute barycentric coordinates of a query point within an element
+   *
+   * \param element_idx The element containing (or near) the query point
+   * \param q_pt The query point
+   * \return Barycentric coordinates (DIM+1 values that sum to 1)
+   * \note If the point is inside, all coordinates are non-negative (within tolerance)
    */
   BaryCoordType getBaryCoords(IndexType element_idx, const PointType& q_pt) const;
 
-  /// \brief Returns cavity seed elements based on the simplex feature containing the query point
+  /// \brief Returns initial seed elements for cavity expansion based on point location
+  ///
+  /// If the query point lies on a face/edge of the containing element (indicated by a
+  /// barycentric coordinate near zero), the neighbor across that face is also included
+  /// as a seed. This ensures the cavity expansion starts from all elements that might
+  /// contain the point in their circumsphere.
+  ///
+  /// \param element_idx The element containing (or nearest to) the query point
+  /// \param bary_coord Barycentric coordinates of the query point in that element
+  /// \return Array of seed element indices (at least 1, possibly more if point is on boundary feature)
   IndexArray getSeedElements(IndexType element_idx, const BaryCoordType& bary_coord) const
   {
     IndexArray seed_elements;
     seed_elements.push_back(element_idx);
     constexpr IndexType invalid_element = IAMeshType::INVALID_ELEMENT_INDEX;
 
+    // If query point lies on a facet (bary coord approximately 0), include the neighbor across that facet
     for(int i = 0; i < VERT_PER_ELEMENT; ++i)
     {
       if(axom::utilities::abs(bary_coord[i]) <= BARY_EPS)
@@ -414,6 +495,10 @@ public:
     return seed_elements;
   }
 
+  /// \brief Classify a value as positive, negative, or zero within tolerance
+  /// \param value The value to classify
+  /// \param tolerance The tolerance for considering the value as zero
+  /// \return +1 if value > tolerance, -1 if value < -tolerance, 0 otherwise
   static int signWithTolerance(double value, double tolerance)
   {
     return value > tolerance ? 1 : (value < -tolerance ? -1 : 0);
