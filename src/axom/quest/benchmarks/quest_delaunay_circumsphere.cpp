@@ -42,6 +42,17 @@ using SimplexType = std::array<PointType<DIM>, DIM + 1>;
 template <int DIM>
 using SampleSet = std::array<SimplexType<DIM>, 4096>;
 
+template <int DIM>
+using IndexTuple = std::array<int, DIM + 1>;
+
+template <int DIM>
+struct IndexedSampleSet
+{
+  std::array<PointType<DIM>, (DIM + 1) * 4096> points;
+  std::array<IndexTuple<DIM>, 4096> simplices;
+  std::array<PointType<DIM>, 4096> queries;
+};
+
 double unitInterval(std::uint64_t bits)
 {
   return static_cast<double>(bits & 0xFFFFFFFFu) / static_cast<double>(0x100000000ULL);
@@ -54,6 +65,9 @@ std::uint64_t stepLcg(std::uint64_t state)
 
 template <int DIM>
 SampleSet<DIM> makeSamples();
+
+template <int DIM>
+IndexedSampleSet<DIM> makeIndexedSamples();
 
 template <>
 SampleSet<2> makeSamples<2>()
@@ -132,6 +146,62 @@ inline double consumeEval(const CircumsphereEval<DIM>& eval)
   return value;
 }
 
+template <int DIM>
+inline double manualSquaredDistance(const PointType<DIM>& a, const PointType<DIM>& b)
+{
+  double retval = 0.;
+  for(int dim = 0; dim < DIM; ++dim)
+  {
+    const double d = b[dim] - a[dim];
+    retval += d * d;
+  }
+  return retval;
+}
+
+template <>
+IndexedSampleSet<2> makeIndexedSamples<2>()
+{
+  IndexedSampleSet<2> samples;
+  const auto simplex_samples = makeSamples<2>();
+
+  for(std::size_t i = 0; i < simplex_samples.size(); ++i)
+  {
+    const int base = static_cast<int>(3 * i);
+    for(int j = 0; j < 3; ++j)
+    {
+      samples.points[base + j] = simplex_samples[i][j];
+      samples.simplices[i][j] = base + j;
+    }
+
+    const auto& p0 = simplex_samples[i][0];
+    samples.queries[i] = PointType<2> {p0[0] + 0.013, p0[1] + 0.017};
+  }
+
+  return samples;
+}
+
+template <>
+IndexedSampleSet<3> makeIndexedSamples<3>()
+{
+  IndexedSampleSet<3> samples;
+  const auto simplex_samples = makeSamples<3>();
+
+  for(std::size_t i = 0; i < simplex_samples.size(); ++i)
+  {
+    const int base = static_cast<int>(4 * i);
+    for(int j = 0; j < 4; ++j)
+    {
+      samples.points[base + j] = simplex_samples[i][j];
+      samples.simplices[i][j] = base + j;
+    }
+
+    const auto& p0 = simplex_samples[i][0];
+    samples.queries[i] = PointType<3> {p0[0] + 0.013, p0[1] + 0.017, p0[2] + 0.019};
+  }
+
+  return samples;
+}
+
 inline CircumsphereEval<2> evaluateCircumsphereScalarEdges(const SimplexType<2>& simplex)
 {
   const PointType<2>& p0 = simplex[0];
@@ -174,6 +244,38 @@ inline CircumsphereEval<2> evaluateCircumsphereVectorEdges(const SimplexType<2>&
 
   const double center_offset_x = determinant(sq0, sq1, v0[1], v1[1]) * ood;
   const double center_offset_y = -determinant(sq0, sq1, v0[0], v1[0]) * ood;
+
+  return CircumsphereEval<2>(p0, VectorType<2> {center_offset_x, center_offset_y});
+}
+
+inline CircumsphereEval<2> evaluateCircumsphereScopedVectorEdges(const SimplexType<2>& simplex)
+{
+  const PointType<2>& p0 = simplex[0];
+  const PointType<2>& p1 = simplex[1];
+  const PointType<2>& p2 = simplex[2];
+
+  double vx0, vx1, vy0, vy1, sq0, sq1;
+
+  {
+    const VectorType<2> v0(p0, p1);
+    vx0 = v0[0];
+    vy0 = v0[1];
+    sq0 = v0.squared_norm();
+  }
+
+  {
+    const VectorType<2> v1(p0, p2);
+    vx1 = v1[0];
+    vy1 = v1[1];
+    sq1 = v1.squared_norm();
+  }
+
+  const double a = determinant(vx0, vx1, vy0, vy1);
+  const double eps = (a >= 0.) ? axom::primal::PRIMAL_TINY : -axom::primal::PRIMAL_TINY;
+  const double ood = 1. / (2. * a + eps);
+
+  const double center_offset_x = determinant(sq0, sq1, vy0, vy1) * ood;
+  const double center_offset_y = -determinant(sq0, sq1, vx0, vx1) * ood;
 
   return CircumsphereEval<2>(p0, VectorType<2> {center_offset_x, center_offset_y});
 }
@@ -239,6 +341,66 @@ inline CircumsphereEval<3> evaluateCircumsphereVectorEdges(const SimplexType<3>&
   return CircumsphereEval<3>(p0, VectorType<3> {center_offset_x, center_offset_y, center_offset_z});
 }
 
+inline CircumsphereEval<3> evaluateCircumsphereScopedVectorEdges(const SimplexType<3>& simplex)
+{
+  const PointType<3>& p0 = simplex[0];
+  const PointType<3>& p1 = simplex[1];
+  const PointType<3>& p2 = simplex[2];
+  const PointType<3>& p3 = simplex[3];
+
+  double vx0, vx1, vx2;
+  double vy0, vy1, vy2;
+  double vz0, vz1, vz2;
+  double sq0, sq1, sq2;
+
+  {
+    const VectorType<3> v0(p0, p1);
+    vx0 = v0[0];
+    vy0 = v0[1];
+    vz0 = v0[2];
+    sq0 = v0.squared_norm();
+  }
+
+  {
+    const VectorType<3> v1(p0, p2);
+    vx1 = v1[0];
+    vy1 = v1[1];
+    vz1 = v1[2];
+    sq1 = v1.squared_norm();
+  }
+
+  {
+    const VectorType<3> v2(p0, p3);
+    vx2 = v2[0];
+    vy2 = v2[1];
+    vz2 = v2[2];
+    sq2 = v2.squared_norm();
+  }
+
+  const double a = determinant(vx0, vx1, vx2, vy0, vy1, vy2, vz0, vz1, vz2);
+  const double eps = (a >= 0.) ? axom::primal::PRIMAL_TINY : -axom::primal::PRIMAL_TINY;
+  const double ood = 1. / (2. * a + eps);
+
+  const double center_offset_x = determinant(sq0, sq1, sq2, vy0, vy1, vy2, vz0, vz1, vz2) * ood;
+  const double center_offset_y = determinant(sq0, sq1, sq2, vz0, vz1, vz2, vx0, vx1, vx2) * ood;
+  const double center_offset_z = determinant(sq0, sq1, sq2, vx0, vx1, vx2, vy0, vy1, vy2) * ood;
+
+  return CircumsphereEval<3>(p0, VectorType<3> {center_offset_x, center_offset_y, center_offset_z});
+}
+
+template <int DIM, typename Kernel>
+inline CircumsphereEval<DIM> evaluateIndexed(const IndexedSampleSet<DIM>& samples,
+                                             const IndexTuple<DIM>& verts,
+                                             Kernel&& kernel)
+{
+  SimplexType<DIM> simplex;
+  for(int j = 0; j < DIM + 1; ++j)
+  {
+    simplex[j] = samples.points[verts[j]];
+  }
+  return kernel(simplex);
+}
+
 template <int DIM, typename Kernel>
 void runCircumsphereBenchmark(benchmark::State& state, Kernel&& kernel)
 {
@@ -262,6 +424,54 @@ void runCircumsphereBenchmark(benchmark::State& state, Kernel&& kernel)
   state.SetItemsProcessed(static_cast<int64_t>(state.iterations()));
 }
 
+template <int DIM, typename Kernel>
+void runIndexedCircumsphereBenchmark(benchmark::State& state, Kernel&& kernel)
+{
+  const auto& samples = []() -> const IndexedSampleSet<DIM>& {
+    static const IndexedSampleSet<DIM> value = makeIndexedSamples<DIM>();
+    return value;
+  }();
+
+  const std::size_t mask = samples.simplices.size() - 1;
+  std::size_t idx = 0;
+  double checksum = 0.;
+
+  for(auto _ : state)
+  {
+    const auto& verts = samples.simplices[idx];
+    checksum += consumeEval(evaluateIndexed(samples, verts, kernel));
+    idx = (idx + 1) & mask;
+  }
+
+  benchmark::DoNotOptimize(checksum);
+  state.SetItemsProcessed(static_cast<int64_t>(state.iterations()));
+}
+
+template <int DIM, typename Kernel>
+void runQueryDistanceBenchmark(benchmark::State& state, Kernel&& kernel)
+{
+  const auto& samples = []() -> const IndexedSampleSet<DIM>& {
+    static const IndexedSampleSet<DIM> value = makeIndexedSamples<DIM>();
+    return value;
+  }();
+
+  const std::size_t mask = samples.simplices.size() - 1;
+  std::size_t idx = 0;
+  double checksum = 0.;
+
+  for(auto _ : state)
+  {
+    const auto& verts = samples.simplices[idx];
+    const PointType<DIM>& center = samples.points[verts[0]];
+    const PointType<DIM>& q = samples.queries[idx];
+    checksum += kernel(center, q);
+    idx = (idx + 1) & mask;
+  }
+
+  benchmark::DoNotOptimize(checksum);
+  state.SetItemsProcessed(static_cast<int64_t>(state.iterations()));
+}
+
 void benchmark_scalar_edges_2d(benchmark::State& state)
 {
   runCircumsphereBenchmark<2>(state, [](const SimplexType<2>& simplex) {
@@ -273,6 +483,13 @@ void benchmark_vector_edges_2d(benchmark::State& state)
 {
   runCircumsphereBenchmark<2>(state, [](const SimplexType<2>& simplex) {
     return evaluateCircumsphereVectorEdges(simplex);
+  });
+}
+
+void benchmark_scoped_vector_edges_2d(benchmark::State& state)
+{
+  runCircumsphereBenchmark<2>(state, [](const SimplexType<2>& simplex) {
+    return evaluateCircumsphereScopedVectorEdges(simplex);
   });
 }
 
@@ -290,11 +507,116 @@ void benchmark_vector_edges_3d(benchmark::State& state)
   });
 }
 
+void benchmark_scoped_vector_edges_3d(benchmark::State& state)
+{
+  runCircumsphereBenchmark<3>(state, [](const SimplexType<3>& simplex) {
+    return evaluateCircumsphereScopedVectorEdges(simplex);
+  });
+}
+
+void benchmark_indexed_scalar_edges_2d(benchmark::State& state)
+{
+  runIndexedCircumsphereBenchmark<2>(state, [](const SimplexType<2>& simplex) {
+    return evaluateCircumsphereScalarEdges(simplex);
+  });
+}
+
+void benchmark_indexed_vector_edges_2d(benchmark::State& state)
+{
+  runIndexedCircumsphereBenchmark<2>(state, [](const SimplexType<2>& simplex) {
+    return evaluateCircumsphereVectorEdges(simplex);
+  });
+}
+
+void benchmark_indexed_scoped_vector_edges_2d(benchmark::State& state)
+{
+  runIndexedCircumsphereBenchmark<2>(state, [](const SimplexType<2>& simplex) {
+    return evaluateCircumsphereScopedVectorEdges(simplex);
+  });
+}
+
+void benchmark_indexed_scalar_edges_3d(benchmark::State& state)
+{
+  runIndexedCircumsphereBenchmark<3>(state, [](const SimplexType<3>& simplex) {
+    return evaluateCircumsphereScalarEdges(simplex);
+  });
+}
+
+void benchmark_indexed_vector_edges_3d(benchmark::State& state)
+{
+  runIndexedCircumsphereBenchmark<3>(state, [](const SimplexType<3>& simplex) {
+    return evaluateCircumsphereVectorEdges(simplex);
+  });
+}
+
+void benchmark_indexed_scoped_vector_edges_3d(benchmark::State& state)
+{
+  runIndexedCircumsphereBenchmark<3>(state, [](const SimplexType<3>& simplex) {
+    return evaluateCircumsphereScopedVectorEdges(simplex);
+  });
+}
+
+void benchmark_query_vector_2d(benchmark::State& state)
+{
+  runQueryDistanceBenchmark<2>(state, [](const PointType<2>& center, const PointType<2>& q) {
+    return VectorType<2>(center, q).squared_norm();
+  });
+}
+
+void benchmark_query_squared_distance_2d(benchmark::State& state)
+{
+  runQueryDistanceBenchmark<2>(state, [](const PointType<2>& center, const PointType<2>& q) {
+    return axom::primal::squared_distance(center, q);
+  });
+}
+
+void benchmark_query_manual_squared_distance_2d(benchmark::State& state)
+{
+  runQueryDistanceBenchmark<2>(state, [](const PointType<2>& center, const PointType<2>& q) {
+    return manualSquaredDistance(center, q);
+  });
+}
+
+void benchmark_query_vector_3d(benchmark::State& state)
+{
+  runQueryDistanceBenchmark<3>(state, [](const PointType<3>& center, const PointType<3>& q) {
+    return VectorType<3>(center, q).squared_norm();
+  });
+}
+
+void benchmark_query_squared_distance_3d(benchmark::State& state)
+{
+  runQueryDistanceBenchmark<3>(state, [](const PointType<3>& center, const PointType<3>& q) {
+    return axom::primal::squared_distance(center, q);
+  });
+}
+
+void benchmark_query_manual_squared_distance_3d(benchmark::State& state)
+{
+  runQueryDistanceBenchmark<3>(state, [](const PointType<3>& center, const PointType<3>& q) {
+    return manualSquaredDistance(center, q);
+  });
+}
+
 }  // namespace
 
 BENCHMARK(benchmark_scalar_edges_2d);
 BENCHMARK(benchmark_vector_edges_2d);
+BENCHMARK(benchmark_scoped_vector_edges_2d);
 BENCHMARK(benchmark_scalar_edges_3d);
 BENCHMARK(benchmark_vector_edges_3d);
+BENCHMARK(benchmark_scoped_vector_edges_3d);
+BENCHMARK(benchmark_indexed_scalar_edges_2d);
+BENCHMARK(benchmark_indexed_vector_edges_2d);
+BENCHMARK(benchmark_indexed_scoped_vector_edges_2d);
+BENCHMARK(benchmark_indexed_scalar_edges_3d);
+BENCHMARK(benchmark_indexed_vector_edges_3d);
+BENCHMARK(benchmark_indexed_scoped_vector_edges_3d);
+BENCHMARK(benchmark_query_vector_2d);
+BENCHMARK(benchmark_query_squared_distance_2d);
+BENCHMARK(benchmark_query_manual_squared_distance_2d);
+BENCHMARK(benchmark_query_vector_3d);
+BENCHMARK(benchmark_query_squared_distance_3d);
+BENCHMARK(benchmark_query_manual_squared_distance_3d);
 
 BENCHMARK_MAIN();

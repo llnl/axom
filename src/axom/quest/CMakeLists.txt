@@ -21,6 +21,10 @@ axom_component_requires(NAME       QUEST
 set( quest_headers
 
     Delaunay.hpp
+    detail/DelaunayElementFinder.hpp
+    detail/DelaunayImpl.hpp
+    detail/DelaunayInsertionHelper.hpp
+    detail/DelaunayPointLocation.hpp
     LinearizeCurves.hpp
     SignedDistance.hpp
 
