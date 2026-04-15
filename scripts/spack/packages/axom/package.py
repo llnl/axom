@@ -335,7 +335,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     # Sidre requires conduit_blueprint_mpi.hpp
     conflicts("^conduit@:0.6.0", when="@0.5.0:")
 
-    conflicts("+openmp", when="+rocm")
     conflicts("+cuda", when="+rocm")
 
     conflicts("~raja", when="+cuda")
