@@ -47,6 +47,7 @@ public:
   using DataType = double;
 
   using PointType = primal::Point<DataType, DIM>;
+  using VectorType = primal::Vector<DataType, DIM>;
   using ElementType =
     typename std::conditional<DIM == 2, primal::Triangle<DataType, 2>, primal::Tetrahedron<DataType, 3>>::type;
   using BaryCoordType = primal::Point<DataType, DIM + 1>;
@@ -417,12 +418,9 @@ public:
     axom::Array<typename ElementType::SphereType> circumspheres(totalElements);
 
     auto vertexInsideCircumsphere = [&](const PointType& vertex, IndexType element_idx) {
-      // `Sphere::getOrientation()` depends on an explicitly constructed
-      // circumsphere (center + radius). For sliver tetrahedra this construction
-      // is ill-conditioned and can produce false positives when validating the
-      // empty-circumsphere property. Use the determinant-based predicate used
-      // during cavity construction and treat boundary cases as "not inside" for
-      // global validation.
+      // Use the same mesh-side geometric circumsphere classifier as insertion so
+      // the empty-circumsphere validation follows the exact same inside/boundary
+      // decisions. Boundary cases are treated as "not inside" for global checks.
       return isPointInSphereOnMesh(m_mesh, vertex, element_idx, /*includeBoundary=*/false);
     };
 
@@ -1098,11 +1096,110 @@ public:
   // In-sphere predicate helpers
   //
   // Delaunay intentionally classifies points against element circumspheres
-  // using geometric signed distance rather than primal's determinant-based
-  // in-sphere classifier. This keeps cavity growth, insertion validation, and
-  // the global empty-circumsphere check consistent on ill-conditioned slivers.
-  // Raw determinant values are still exposed separately for diagnostics.
+  // using a shared geometric circumsphere classifier rather than primal's
+  // determinant-based in-sphere classifier. This keeps cavity growth,
+  // insertion validation, and the global empty-circumsphere check consistent
+  // on ill-conditioned slivers while still letting the hot path avoid the
+  // explicit sphere signed-distance sqrt. Raw determinant values are still
+  // exposed separately for diagnostics.
   //-----------------------------------------------------------------------------
+  struct CircumsphereEval
+  {
+    PointType center {};
+    double radius_sq {0.};
+
+    CircumsphereEval() = default;
+
+    CircumsphereEval(const PointType& origin, const VectorType& center_offset)
+      : center(origin + center_offset)
+      , radius_sq(center_offset.squared_norm())
+    { }
+  };
+
+  static CircumsphereEval evaluateCircumsphereOnMesh(const IAMeshType& mesh, IndexType element_idx)
+  {
+    using axom::numerics::determinant;
+
+    const auto verts = mesh.boundaryVertices(element_idx);
+
+    if constexpr(DIM == 2)
+    {
+      const PointType& p0 = mesh.getVertexPosition(verts[0]);
+      const PointType& p1 = mesh.getVertexPosition(verts[1]);
+      const PointType& p2 = mesh.getVertexPosition(verts[2]);
+
+      const double vx0 = p1[0] - p0[0];
+      const double vx1 = p2[0] - p0[0];
+      const double vy0 = p1[1] - p0[1];
+      const double vy1 = p2[1] - p0[1];
+
+      const double sq0 = vx0 * vx0 + vy0 * vy0;
+      const double sq1 = vx1 * vx1 + vy1 * vy1;
+
+      const double a = determinant(vx0, vx1, vy0, vy1);
+      const double eps = (a >= 0.) ? primal::PRIMAL_TINY : -primal::PRIMAL_TINY;
+      const double ood = 1. / (2. * a + eps);
+
+      const double center_offset_x = determinant(sq0, sq1, vy0, vy1) * ood;
+      const double center_offset_y = -determinant(sq0, sq1, vx0, vx1) * ood;
+
+      return CircumsphereEval(p0, VectorType {center_offset_x, center_offset_y});
+    }
+    else
+    {
+      const PointType& p0 = mesh.getVertexPosition(verts[0]);
+      const PointType& p1 = mesh.getVertexPosition(verts[1]);
+      const PointType& p2 = mesh.getVertexPosition(verts[2]);
+      const PointType& p3 = mesh.getVertexPosition(verts[3]);
+
+      const double vx0 = p1[0] - p0[0];
+      const double vx1 = p2[0] - p0[0];
+      const double vx2 = p3[0] - p0[0];
+      const double vy0 = p1[1] - p0[1];
+      const double vy1 = p2[1] - p0[1];
+      const double vy2 = p3[1] - p0[1];
+      const double vz0 = p1[2] - p0[2];
+      const double vz1 = p2[2] - p0[2];
+      const double vz2 = p3[2] - p0[2];
+
+      const double sq0 = vx0 * vx0 + vy0 * vy0 + vz0 * vz0;
+      const double sq1 = vx1 * vx1 + vy1 * vy1 + vz1 * vz1;
+      const double sq2 = vx2 * vx2 + vy2 * vy2 + vz2 * vz2;
+
+      const double a = determinant(vx0, vx1, vx2, vy0, vy1, vy2, vz0, vz1, vz2);
+      const double eps = (a >= 0.) ? primal::PRIMAL_TINY : -primal::PRIMAL_TINY;
+      const double ood = 1. / (2. * a + eps);
+
+      const double center_offset_x = determinant(sq0, sq1, sq2, vy0, vy1, vy2, vz0, vz1, vz2) * ood;
+      const double center_offset_y = determinant(sq0, sq1, sq2, vz0, vz1, vz2, vx0, vx1, vx2) * ood;
+      const double center_offset_z = determinant(sq0, sq1, sq2, vx0, vx1, vx2, vy0, vy1, vy2) * ood;
+
+      return CircumsphereEval(p0, VectorType {center_offset_x, center_offset_y, center_offset_z});
+    }
+  }
+
+  static double sphereSquaredDistanceTolerance(const CircumsphereEval& sphere,
+                                               const PointType& x,
+                                               double distance_sq)
+  {
+    double scale = 1.;
+
+    for(int dim = 0; dim < DIM; ++dim)
+    {
+      scale = axom::utilities::max(scale, axom::utilities::abs(sphere.center[dim]));
+      scale = axom::utilities::max(scale, axom::utilities::abs(x[dim]));
+    }
+
+    const double local_span =
+      axom::utilities::max(1., 2. * std::sqrt(axom::utilities::max(distance_sq, sphere.radius_sq)));
+
+    // Since d^2 - r^2 = (d - r)(d + r), map the old signed-distance tolerance to
+    // squared distance with a local bound on (d + r) rather than another global
+    // coordinate-scale factor. This preserves the large-coordinate sliver cases
+    // that motivated the geometric classifier in the first place.
+    return 256. * std::numeric_limits<double>::epsilon() * scale * local_span;
+  }
+
   template <typename SphereType>
   static double sphereSignedDistanceTolerance(const SphereType& sphere, const PointType& x)
   {
@@ -1119,43 +1216,17 @@ public:
 
   static int inSphereOrientationOnMesh(const IAMeshType& mesh, const PointType& q, IndexType element_idx)
   {
-    const auto verts = mesh.boundaryVertices(element_idx);
+    const auto sphere = evaluateCircumsphereOnMesh(mesh, element_idx);
+    const double distance_sq = VectorType(sphere.center, q).squared_norm();
 
-    if constexpr(DIM == 2)
+    const double delta_sq = distance_sq - sphere.radius_sq;
+    const double tol = sphereSquaredDistanceTolerance(sphere, q, distance_sq);
+    if(axom::utilities::abs(delta_sq) <= tol)
     {
-      const PointType& p0 = mesh.getVertexPosition(verts[0]);
-      const PointType& p1 = mesh.getVertexPosition(verts[1]);
-      const PointType& p2 = mesh.getVertexPosition(verts[2]);
-
-      const ElementType tri(p0, p1, p2);
-      const auto sphere = tri.circumsphere();
-      const double signed_distance = sphere.computeSignedDistance(q);
-      const double tol = sphereSignedDistanceTolerance(sphere, q);
-      if(axom::utilities::abs(signed_distance) <= tol)
-      {
-        return primal::ON_BOUNDARY;
-      }
-
-      return signed_distance < 0. ? primal::ON_NEGATIVE_SIDE : primal::ON_POSITIVE_SIDE;
+      return primal::ON_BOUNDARY;
     }
-    else
-    {
-      const PointType& p0 = mesh.getVertexPosition(verts[0]);
-      const PointType& p1 = mesh.getVertexPosition(verts[1]);
-      const PointType& p2 = mesh.getVertexPosition(verts[2]);
-      const PointType& p3 = mesh.getVertexPosition(verts[3]);
 
-      const ElementType tet(p0, p1, p2, p3);
-      const auto sphere = tet.circumsphere();
-      const double signed_distance = sphere.computeSignedDistance(q);
-      const double tol = sphereSignedDistanceTolerance(sphere, q);
-      if(axom::utilities::abs(signed_distance) <= tol)
-      {
-        return primal::ON_BOUNDARY;
-      }
-
-      return signed_distance < 0. ? primal::ON_NEGATIVE_SIDE : primal::ON_POSITIVE_SIDE;
-    }
+    return delta_sq < 0. ? primal::ON_NEGATIVE_SIDE : primal::ON_POSITIVE_SIDE;
   }
 
   static double inSphereDeterminantOnMesh(const IAMeshType& mesh,
