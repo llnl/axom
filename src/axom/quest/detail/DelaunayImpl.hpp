@@ -8,6 +8,15 @@
  * \file DelaunayImpl.hpp
  *
  * \brief Defines the main incremental insertion and mesh-update routines for `quest::Delaunay`.
+ *
+ * Implements:
+ * - Circumsphere evaluation (center and squared radius from element vertices)
+ * - In-sphere orientation tests (used during Bowyer-Watson cavity expansion)
+ * - Mesh initialization (creates bounding box triangulation)
+ * - Point insertion (coordinates InsertionHelper to build cavity and ball)
+ * - Boundary removal (eliminates bounding box vertices post-construction)
+ * - Mesh compaction (removes deleted element slots)
+ * - VTK export for visualization
  */
 
 #ifndef AXOM_QUEST_DETAIL_DELAUNAY_IMPL_HPP_

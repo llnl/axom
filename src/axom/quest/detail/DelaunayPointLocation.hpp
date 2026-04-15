@@ -8,6 +8,11 @@
  * \file DelaunayPointLocation.hpp
  *
  * \brief Defines the point-location helpers for `quest::Delaunay`.
+ *
+ * Implements grid-seeded directed walk for locating query points within the
+ * triangulation. The walk traverses simplices via facet adjacencies, moving
+ * toward the query point until it is found or the walk exits the boundary.
+ * Fallback strategies handle edge cases (cycles, numerical issues).
  */
 
 #ifndef AXOM_QUEST_DETAIL_DELAUNAY_POINT_LOCATION_HPP_

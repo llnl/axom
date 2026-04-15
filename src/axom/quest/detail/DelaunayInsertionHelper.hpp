@@ -9,6 +9,13 @@
  *
  * \brief Defines the cavity-construction and retriangulation helper used by
  * incremental Delaunay insertion.
+ *
+ * Implements the Bowyer-Watson algorithm for incremental point insertion:
+ * 1. findCavityElements(): Expands cavity from seed elements using circumsphere test
+ * 2. createCavity(): Removes cavity elements from the mesh
+ * 3. delaunayBall(): Retriangulates by connecting new point to cavity boundary
+ *
+ * The helper is reused across insertions to avoid repeated allocations.
  */
 
 #ifndef AXOM_QUEST_DETAIL_DELAUNAY_INSERTION_HELPER_HPP_
@@ -34,6 +41,12 @@ namespace detail
  * The owning `quest::Delaunay` instance reuses one helper across insertions so
  * cavity membership, boundary facets, and inserted-element scratch storage can
  * be cleared without reallocation on every point.
+ *
+ * Public members track insertion state for validation:
+ * - cavity_elems: Elements whose circumspheres contain the new point
+ * - boundary_facets: Faces between cavity and non-cavity elements
+ * - inserted_elems: New simplices created by connecting new point to boundary
+ * - containing_element, containing_bary, seed_elements_debug: For diagnostics
  */
 template <int DIM, typename PointType, typename BaryCoordType, typename IndexType, typename IndexArray, typename IAMeshType>
 class DelaunayInsertionHelper
