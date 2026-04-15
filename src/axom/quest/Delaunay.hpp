@@ -419,36 +419,11 @@ public:
     return value > tolerance ? 1 : (value < -tolerance ? -1 : 0);
   }
 
-  template <std::size_t N>
-  static double getPointMagnitudeScale(const std::array<PointType, N>& pts)
-  {
-    double max_abs_coord = 1.;
-    for(const auto& pt : pts)
-    {
-      for(int dim = 0; dim < DIM; ++dim)
-      {
-        max_abs_coord = axom::utilities::max(max_abs_coord, axom::utilities::abs(pt[dim]));
-      }
-    }
-
-    return max_abs_coord;
-  }
-
-  static double orientationTolerance(const std::array<PointType, 4>& pts);
-
-  static double orientationDeterminant(const std::array<PointType, 4>& pts);
-
-  static int symbolicOrientationSign(const std::array<PointType, 4>& pts,
-                                     const std::array<IndexType, 4>& ranks);
-
   static CircumsphereEval evaluateCircumsphereOnMesh(const IAMeshType& mesh, IndexType element_idx);
 
   static double sphereSquaredDistanceTolerance(const CircumsphereEval& sphere,
                                                const PointType& x,
                                                double distance_sq);
-
-  template <typename SphereType>
-  static double sphereSignedDistanceTolerance(const SphereType& sphere, const PointType& x);
 
   static int inSphereOrientationOnMesh(const IAMeshType& mesh,
                                        const PointType& q,
