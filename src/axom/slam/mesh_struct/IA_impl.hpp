@@ -300,10 +300,11 @@ typename IAMesh<TDIM, SDIM, P>::IndexArray IAMesh<TDIM, SDIM, P>::vertexStar(Ind
     {
       // If nbr is valid, has not already been found and contains the vertex in question,
       // add it and enqueue to check neighbors.
-      if(element_set.isValidEntry(nbr)  //
-         && !is_subset(nbr, ret)        //
+      if(nbr != INVALID_ELEMENT_INDEX  //
+         && !is_subset(nbr, ret)       //
          && is_subset(vertex_idx, ev_rel[nbr]))
       {
+        SLIC_ASSERT(element_set.isValidEntry(nbr));
         ret.push_back(nbr);
         element_traverse_queue.push_back(nbr);
       }
@@ -391,8 +392,9 @@ void IAMesh<TDIM, SDIM, P>::removeElement(IndexType element_idx)
       for(auto nbr : ee_rel[element_idx])
       {
         // update to a valid neighbor that is incident in vertex_i
-        if(element_set.isValidEntry(nbr) && is_subset(vertex_i, ev_rel[nbr]))
+        if(nbr != INVALID_ELEMENT_INDEX && is_subset(vertex_i, ev_rel[nbr]))
         {
+          SLIC_ASSERT(element_set.isValidEntry(nbr));
           new_elem = nbr;
           break;
         }
@@ -407,8 +409,9 @@ void IAMesh<TDIM, SDIM, P>::removeElement(IndexType element_idx)
   //erase neighbor element's adjacency data pointing to deleted element
   for(auto nbr : ee_rel[element_idx])
   {
-    if(isValidElement(nbr))
+    if(nbr != INVALID_ELEMENT_INDEX)
     {
+      SLIC_ASSERT(isValidElement(nbr));
       auto nbr_ee = ee_rel[nbr];
       for(auto idx : nbr_ee.positions())
       {
@@ -727,14 +730,17 @@ void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
         // figure out which face this is on the neighbor
         // and update neighbor's adjacency to point to current element
         const IndexType nbr = ee_rel[el][face_i];
-        if(element_set.isValidEntry(nbr))
+        if(nbr != INVALID_ELEMENT_INDEX)
         {
+          SLIC_ASSERT(element_set.isValidEntry(nbr));
           const auto nbr_ev = ev_rel[nbr];
           auto nbr_ee = ee_rel[nbr];
 
           for(auto face_j : nbr_ev.positions())
           {
-            if(!element_set.isValidEntry(nbr_ee[face_j]) && isSharedFace(nbr_ev, face_j, bdry))
+            const IndexType nbr_face = nbr_ee[face_j];
+            SLIC_ASSERT(nbr_face == INVALID_ELEMENT_INDEX || element_set.isValidEntry(nbr_face));
+            if(nbr_face == INVALID_ELEMENT_INDEX && isSharedFace(nbr_ev, face_j, bdry))
             {
               nbr_ee[face_j] = el;
               break;
