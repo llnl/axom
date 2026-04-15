@@ -7,7 +7,7 @@
 /**
  * \file Delaunay.hpp
  *
- * \brief Defines an incremental 2D/3D Delaunay triangulation.
+ * \brief Declares the public `quest::Delaunay` incremental 2D/3D triangulation API.
  */
 
 #ifndef QUEST_DELAUNAY_H_
@@ -50,11 +50,14 @@ namespace quest
 {
 
 /**
- * \brief A class for incremental generation of a 2D or 3D Delaunay triangulation
- *
- * Construct a Delaunay triangulation incrementally by inserting points one by one.
- * A bounding box of the points needs to be defined first via \a initializeBoundary(...)
- */
+   * \brief A class for incremental generation of a 2D or 3D Delaunay triangulation
+   *
+   * Construct a Delaunay triangulation incrementally by inserting points one by one.
+   * The public API lives in this header while the larger insertion, point-location,
+   * and validation routines are split into companion `detail/` headers.
+   *
+   * A bounding box of the points needs to be defined first via \a initializeBoundary(...).
+   */
 template <int DIM = 2>
 class Delaunay
 {
@@ -320,27 +323,22 @@ public:
    */
   void insertPoint(const PointType& new_pt);
 
-  template <int TDIM = DIM>
-  typename std::enable_if<TDIM == 2, ElementType>::type getElement(int element_index) const
+  ElementType getElement(int element_index) const
   {
     const auto verts = m_mesh.boundaryVertices(element_index);
-    const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
-    const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
-    const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
-
-    return ElementType(p0, p1, p2);
-  }
-
-  template <int TDIM = DIM>
-  typename std::enable_if<TDIM == 3, ElementType>::type getElement(int element_index) const
-  {
-    const auto verts = m_mesh.boundaryVertices(element_index);
-    const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
-    const PointType& p1 = m_mesh.getVertexPosition(verts[1]);
-    const PointType& p2 = m_mesh.getVertexPosition(verts[2]);
-    const PointType& p3 = m_mesh.getVertexPosition(verts[3]);
-
-    return ElementType(p0, p1, p2, p3);
+    if constexpr(DIM == 2)
+    {
+      return ElementType(m_mesh.getVertexPosition(verts[0]),
+                         m_mesh.getVertexPosition(verts[1]),
+                         m_mesh.getVertexPosition(verts[2]));
+    }
+    else
+    {
+      return ElementType(m_mesh.getVertexPosition(verts[0]),
+                         m_mesh.getVertexPosition(verts[1]),
+                         m_mesh.getVertexPosition(verts[2]),
+                         m_mesh.getVertexPosition(verts[3]));
+    }
   }
 
   /**
@@ -446,8 +444,6 @@ public:
   }
 
   static double orientationTolerance(const std::array<PointType, 4>& pts);
-
-  static double determinant3(const PointType& p0, const PointType& p1, const PointType& p2);
 
   static double orientationDeterminant(const std::array<PointType, 4>& pts);
 

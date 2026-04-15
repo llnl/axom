@@ -4,6 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+/**
+ * \file DelaunayValidation.hpp
+ *
+ * \brief Defines optional insertion-time and post-build validation helpers for `quest::Delaunay`.
+ */
+
 #ifndef AXOM_QUEST_DETAIL_DELAUNAY_VALIDATION_HPP_
 #define AXOM_QUEST_DETAIL_DELAUNAY_VALIDATION_HPP_
 
