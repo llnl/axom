@@ -32,47 +32,30 @@ namespace axom
 {
 namespace primal
 {
-namespace robust
-{
 /*!
- * \brief Computes the orientation of a point \a p with respect to an oriented triangle \a tri.
+ * \brief Returns the raw 2D orientation determinant for three points.
  *
- * \return ON_BOUNDARY if within tolerance, ON_POSITIVE_SIDE / ON_NEGATIVE_SIDE otherwise.
+ * This determinant is twice the signed area of triangle `(a,b,c)`.
  */
 template <typename T>
-inline int orientation(const Point<T, 3>& p, const Triangle<T, 3>& tri, double EPS = 1e-9)
+inline double orientation_determinant(const Point<T, 2>& a, const Point<T, 2>& b, const Point<T, 2>& c)
 {
-  const double det = detail::orientation_determinant(p, tri[0], tri[1], tri[2]);
-
-  if(axom::utilities::isNearlyEqual(det, 0., EPS))
-  {
-    return primal::ON_BOUNDARY;
-  }
-
-  // Preserve existing convention: det < 0 implies ON_POSITIVE_SIDE.
-  return det < 0. ? primal::ON_POSITIVE_SIDE : primal::ON_NEGATIVE_SIDE;
+  return detail::orientation_determinant(a, b, c);
 }
 
 /*!
- * \brief Computes the orientation of a point \a p with respect to an oriented segment \a seg.
+ * \brief Returns the raw 3D orientation determinant for four points.
  *
- * \return ON_BOUNDARY if within tolerance, ON_POSITIVE_SIDE / ON_NEGATIVE_SIDE otherwise.
+ * This determinant is six times the signed volume of tetrahedron `(a,b,c,d)`.
  */
 template <typename T>
-inline int orientation(const Point<T, 2>& p, const Segment<T, 2>& seg, double EPS = 1e-9)
+inline double orientation_determinant(const Point<T, 3>& a,
+                                      const Point<T, 3>& b,
+                                      const Point<T, 3>& c,
+                                      const Point<T, 3>& d)
 {
-  const double det = detail::orientation_determinant(p, seg[0], seg[1]);
-
-  if(axom::utilities::isNearlyEqual(det, 0., EPS))
-  {
-    return primal::ON_BOUNDARY;
-  }
-
-  // Preserve existing convention: det < 0 implies ON_POSITIVE_SIDE.
-  return det < 0. ? primal::ON_POSITIVE_SIDE : primal::ON_NEGATIVE_SIDE;
+  return detail::orientation_determinant(a, b, c, d);
 }
-
-}  // namespace robust
 
 /*!
  * \brief Computes the orientation of a point \a p with respect to an
@@ -95,7 +78,15 @@ inline int orientation(const Point<T, 2>& p, const Segment<T, 2>& seg, double EP
 template <typename T>
 inline int orientation(const Point<T, 3>& p, const Triangle<T, 3>& tri, double EPS = 1e-9)
 {
-  return robust::orientation(p, tri, EPS);
+  const double det = detail::orientation_determinant(p, tri[0], tri[1], tri[2]);
+
+  if(axom::utilities::isNearlyEqual(det, 0., EPS))
+  {
+    return primal::ON_BOUNDARY;
+  }
+
+  // Preserve existing convention: det < 0 implies ON_POSITIVE_SIDE.
+  return det < 0. ? primal::ON_POSITIVE_SIDE : primal::ON_NEGATIVE_SIDE;
 }
 
 /*!
@@ -119,7 +110,15 @@ inline int orientation(const Point<T, 3>& p, const Triangle<T, 3>& tri, double E
 template <typename T>
 inline int orientation(const Point<T, 2>& p, const Segment<T, 2>& seg, double EPS = 1e-9)
 {
-  return robust::orientation(p, seg, EPS);
+  const double det = detail::orientation_determinant(p, seg[0], seg[1]);
+
+  if(axom::utilities::isNearlyEqual(det, 0., EPS))
+  {
+    return primal::ON_BOUNDARY;
+  }
+
+  // Preserve existing convention: det < 0 implies ON_POSITIVE_SIDE.
+  return det < 0. ? primal::ON_POSITIVE_SIDE : primal::ON_NEGATIVE_SIDE;
 }
 
 }  // namespace primal
