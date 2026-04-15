@@ -259,6 +259,34 @@ TEST(inlet_Reader_YAML, getInsideBools)
   EXPECT_EQ(value, true);
 }
 
+TEST(inlet_Reader_YAML, getInsideIntegerBackedBools)
+{
+  axom::inlet::YAMLReader reader;
+  bool result = reader.parseString(
+    "foo:\n"
+    "  zero: 0\n"
+    "  one: 1\n"
+    "  many: 7\n");
+  EXPECT_TRUE(result);
+
+  ReaderResult retValue;
+  bool value = true;
+
+  retValue = reader.getBool("foo/zero", value);
+  EXPECT_EQ(retValue, ReaderResult::Success);
+  EXPECT_EQ(value, false);
+
+  value = false;
+  retValue = reader.getBool("foo/one", value);
+  EXPECT_EQ(retValue, ReaderResult::Success);
+  EXPECT_EQ(value, true);
+
+  value = false;
+  retValue = reader.getBool("foo/many", value);
+  EXPECT_EQ(retValue, ReaderResult::Success);
+  EXPECT_EQ(value, true);
+}
+
 TEST(inlet_Reader_YAML, mixLevelContainers)
 {
   axom::inlet::YAMLReader reader;
@@ -323,6 +351,36 @@ TEST(inlet_Reader_JSON, getInsideBools)
 
   value = false;
   retValue = reader.getBool("foo/baz", value);
+  EXPECT_EQ(retValue, ReaderResult::Success);
+  EXPECT_EQ(value, true);
+}
+
+TEST(inlet_Reader_JSON, getInsideIntegerBackedBools)
+{
+  axom::inlet::JSONReader reader;
+  bool result = reader.parseString(R"({
+  "foo": {
+    "zero": 0,
+    "one": 1,
+    "many": 7
+  }
+})");
+  EXPECT_TRUE(result);
+
+  ReaderResult retValue;
+  bool value = true;
+
+  retValue = reader.getBool("foo/zero", value);
+  EXPECT_EQ(retValue, ReaderResult::Success);
+  EXPECT_EQ(value, false);
+
+  value = false;
+  retValue = reader.getBool("foo/one", value);
+  EXPECT_EQ(retValue, ReaderResult::Success);
+  EXPECT_EQ(value, true);
+
+  value = false;
+  retValue = reader.getBool("foo/many", value);
   EXPECT_EQ(retValue, ReaderResult::Success);
   EXPECT_EQ(value, true);
 }

@@ -180,6 +180,48 @@ void nameRetrievalHelper(const conduit::Node& node, std::vector<std::string>& na
   }
 }
 
+ReaderResult getScalarBoolValue(const conduit::Node* node,
+                                const std::string& protocol,
+                                bool& value)
+{
+  if(!node)
+  {
+    return ReaderResult::NotFound;
+  }
+
+  const auto& dtype = node->dtype();
+
+  if(dtype.number_of_elements() == 1 && dtype.is_integer())
+  {
+    value = (node->to_int64() != 0);
+    return ReaderResult::Success;
+  }
+
+  if(dtype.is_string())
+  {
+    std::string as_str = node->as_string();
+    utilities::string::toLower(as_str);
+    if(as_str == "true")
+    {
+      value = true;
+      return ReaderResult::Success;
+    }
+    else if(as_str == "false")
+    {
+      value = false;
+      return ReaderResult::Success;
+    }
+  }
+
+  if(protocol == "json" && dtype.is_uint8())
+  {
+    value = node->as_uint8();
+    return ReaderResult::Success;
+  }
+
+  return dtype.is_empty() ? ReaderResult::NotFound : ReaderResult::WrongType;
+}
+
 }  // namespace detail
 
 ReaderResult ConduitReader::getValue(const conduit::Node* node, int& value)
@@ -232,13 +274,10 @@ ReaderResult ConduitReader::getValue(const conduit::Node* node, bool& value)
   {
     return ReaderResult::NotFound;
   }
-  // Boolean literals don't appear to be parsed as such - they are strings
+  // Preserve the historical collection behavior: only bool-like nodes count as bools.
   if((m_protocol == "yaml") && node->dtype().is_string())
   {
     std::string as_str = node->as_string();
-    // YAML 1.2 spec, section 10.3.2
-    // FIXME: Converting the string to lowercase is not strictly correct, it
-    // allows for things like tRue and falsE
     utilities::string::toLower(as_str);
     if(as_str == "true")
     {
@@ -261,7 +300,7 @@ ReaderResult ConduitReader::getValue(const conduit::Node* node, bool& value)
 
 ReaderResult ConduitReader::getBool(const std::string& id, bool& value)
 {
-  return getValue(detail::traverseNode(m_root, id), value);
+  return detail::getScalarBoolValue(detail::traverseNode(m_root, id), m_protocol, value);
 }
 
 ReaderResult ConduitReader::getDouble(const std::string& id, double& value)
