@@ -13,8 +13,9 @@ namespace quest
 {
 
 template <int DIM>
-inline typename Delaunay<DIM>::BaryCoordType Delaunay<DIM>::getBaryCoords(IndexType element_idx,
-                                                                          const PointType& query_pt) const
+AXOM_QUEST_DELAUNAY_FORCE_INLINE typename Delaunay<DIM>::BaryCoordType Delaunay<DIM>::getBaryCoords(
+  IndexType element_idx,
+  const PointType& query_pt) const
 {
   const auto verts = m_mesh.boundaryVertices(element_idx);
 
@@ -86,10 +87,11 @@ inline double Delaunay<DIM>::rawBarycentricDeterminantTolerance(IndexType elemen
 }
 
 template <int DIM>
-inline bool Delaunay<DIM>::isPointInsideForLocation(IndexType element_idx,
-                                                    const PointType& query_pt,
-                                                    const BaryCoordType& bary_coord,
-                                                    ModularFaceIndex* exit_face) const
+AXOM_QUEST_DELAUNAY_FORCE_INLINE bool Delaunay<DIM>::isPointInsideForLocation(
+  IndexType element_idx,
+  const PointType& query_pt,
+  const BaryCoordType& bary_coord,
+  ModularFaceIndex* exit_face) const
 {
   ModularFaceIndex min_face(bary_coord.array().argMin());
 
@@ -142,10 +144,10 @@ inline bool Delaunay<DIM>::isPointInsideForLocation(IndexType element_idx,
 }
 
 template <int DIM>
-inline typename Delaunay<DIM>::PointLocationResult Delaunay<DIM>::walkToContainingElement(
-  const PointType& query_pt,
-  IndexType start_element,
-  std::vector<IndexType>* visited_elements_out) const
+AXOM_QUEST_DELAUNAY_FORCE_INLINE typename Delaunay<DIM>::PointLocationResult
+Delaunay<DIM>::walkToContainingElement(const PointType& query_pt,
+                                       IndexType start_element,
+                                       std::vector<IndexType>* visited_elements_out) const
 {
   constexpr IndexType invalid_element = IAMeshType::INVALID_ELEMENT_INDEX;
 
@@ -243,8 +245,9 @@ inline typename Delaunay<DIM>::PointLocationResult Delaunay<DIM>::walkToContaini
 }
 
 template <int DIM>
-inline void Delaunay<DIM>::appendCandidateElement(std::vector<IndexType>& candidate_elements,
-                                                  IndexType vertex_i) const
+AXOM_QUEST_DELAUNAY_FORCE_INLINE void Delaunay<DIM>::appendCandidateElement(
+  std::vector<IndexType>& candidate_elements,
+  IndexType vertex_i) const
 {
   const IndexType element_i = m_mesh.coboundaryElement(vertex_i);
   if(isSearchableElement(element_i) &&
@@ -256,7 +259,7 @@ inline void Delaunay<DIM>::appendCandidateElement(std::vector<IndexType>& candid
 }
 
 template <int DIM>
-inline void Delaunay<DIM>::appendCandidateElementsFromVertices(
+AXOM_QUEST_DELAUNAY_FORCE_INLINE void Delaunay<DIM>::appendCandidateElementsFromVertices(
   std::vector<IndexType>& candidate_elements,
   const std::vector<IndexType>& candidate_vertices) const
 {
@@ -267,8 +270,9 @@ inline void Delaunay<DIM>::appendCandidateElementsFromVertices(
 }
 
 template <int DIM>
-inline void Delaunay<DIM>::getInitialCandidateElements(const PointType& query_pt,
-                                                       std::vector<IndexType>& candidate_elements) const
+AXOM_QUEST_DELAUNAY_FORCE_INLINE void Delaunay<DIM>::getInitialCandidateElements(
+  const PointType& query_pt,
+  std::vector<IndexType>& candidate_elements) const
 {
   candidate_elements.clear();
   candidate_elements.reserve(16);
@@ -299,11 +303,11 @@ inline void Delaunay<DIM>::getInitialCandidateElements(const PointType& query_pt
 }
 
 template <int DIM>
-inline typename Delaunay<DIM>::PointLocationResult Delaunay<DIM>::walkCandidateElements(
-  const PointType& query_pt,
-  const std::vector<IndexType>& candidate_elements,
-  std::size_t start_idx,
-  std::vector<IndexType>* walked_elements) const
+AXOM_QUEST_DELAUNAY_FORCE_INLINE typename Delaunay<DIM>::PointLocationResult
+Delaunay<DIM>::walkCandidateElements(const PointType& query_pt,
+                                     const std::vector<IndexType>& candidate_elements,
+                                     std::size_t start_idx,
+                                     std::vector<IndexType>* walked_elements) const
 {
   for(std::size_t idx = start_idx; idx < candidate_elements.size(); ++idx)
   {
@@ -321,10 +325,10 @@ inline typename Delaunay<DIM>::PointLocationResult Delaunay<DIM>::walkCandidateE
 }
 
 template <int DIM>
-inline typename Delaunay<DIM>::PointLocationResult Delaunay<DIM>::findContainingElementWithQueryFallbacks(
-  const PointType& query_pt,
-  std::vector<IndexType>& candidate_elements,
-  const std::vector<IndexType>& walked_elements) const
+AXOM_QUEST_DELAUNAY_FORCE_INLINE typename Delaunay<DIM>::PointLocationResult
+Delaunay<DIM>::findContainingElementWithQueryFallbacks(const PointType& query_pt,
+                                                       std::vector<IndexType>& candidate_elements,
+                                                       const std::vector<IndexType>& walked_elements) const
 {
   const IndexType walk_region_elem = findContainingElementFromNeighbors(query_pt, walked_elements);
   if(walk_region_elem != INVALID_INDEX)
@@ -359,9 +363,9 @@ inline typename Delaunay<DIM>::PointLocationResult Delaunay<DIM>::findContaining
 }
 
 template <int DIM>
-inline typename Delaunay<DIM>::IndexType Delaunay<DIM>::findContainingElementFromNeighbors(
-  const PointType& query_pt,
-  const std::vector<IndexType>& seed_elements) const
+AXOM_QUEST_DELAUNAY_FORCE_INLINE typename Delaunay<DIM>::IndexType
+Delaunay<DIM>::findContainingElementFromNeighbors(const PointType& query_pt,
+                                                  const std::vector<IndexType>& seed_elements) const
 {
   if(seed_elements.empty())
   {
@@ -457,9 +461,9 @@ inline typename Delaunay<DIM>::IndexType Delaunay<DIM>::findContainingElementLin
 }
 
 template <int DIM>
-inline typename Delaunay<DIM>::IndexType Delaunay<DIM>::findContainingElementNearby(
-  const PointType& query_pt,
-  const std::vector<IndexType>& nearby_vertices) const
+AXOM_QUEST_DELAUNAY_FORCE_INLINE typename Delaunay<DIM>::IndexType
+Delaunay<DIM>::findContainingElementNearby(const PointType& query_pt,
+                                           const std::vector<IndexType>& nearby_vertices) const
 {
   std::vector<IndexType> nearby_elements;
   for(const IndexType vertex_idx : nearby_vertices)
