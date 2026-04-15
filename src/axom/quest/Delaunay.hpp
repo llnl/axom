@@ -36,6 +36,14 @@
 #include <utility>
 #include <vector>
 
+#if defined(_MSC_VER)
+  #define AXOM_QUEST_DELAUNAY_FORCE_INLINE __forceinline
+#elif defined(__GNUC__) || defined(__clang__)
+  #define AXOM_QUEST_DELAUNAY_FORCE_INLINE inline __attribute__((always_inline))
+#else
+  #define AXOM_QUEST_DELAUNAY_FORCE_INLINE inline
+#endif
+
 namespace axom
 {
 namespace quest
@@ -593,6 +601,9 @@ constexpr typename Delaunay<DIM>::IndexType Delaunay<DIM>::INVALID_INDEX;
 }  // namespace axom
 
 #include "detail/DelaunayPointLocation.hpp"
+#include "detail/DelaunayValidation.hpp"
 #include "detail/DelaunayImpl.hpp"
+
+#undef AXOM_QUEST_DELAUNAY_FORCE_INLINE
 
 #endif  // QUEST_DELAUNAY_H_

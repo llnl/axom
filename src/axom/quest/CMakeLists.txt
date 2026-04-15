@@ -25,6 +25,7 @@ set( quest_headers
     detail/DelaunayImpl.hpp
     detail/DelaunayInsertionHelper.hpp
     detail/DelaunayPointLocation.hpp
+    detail/DelaunayValidation.hpp
     LinearizeCurves.hpp
     SignedDistance.hpp
 
