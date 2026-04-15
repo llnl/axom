@@ -28,6 +28,11 @@ struct Input
   int numRandPoints {20};
   int numOutputSteps {0};
   int dimension {2};
+  int randomSeed {-1};
+  int validateAfter {-1};
+  bool validateLocal {false};
+  bool validateInsertions {false};
+  bool validateFull {false};
   std::vector<double> boundsMin;
   std::vector<double> boundsMax;
 
@@ -55,6 +60,23 @@ public:
     app.add_option("-o,--outfile", outputVTKFile)
       ->description("The VTK output file")
       ->capture_default_str();
+
+    app.add_option("--seed", randomSeed)
+      ->description("Optional deterministic seed for point generation");
+
+    app.add_flag("--validate-insertions", validateInsertions)
+      ->description("Validate mesh conformity after each insertion");
+
+    app.add_flag("--validate-full", validateFull)
+      ->description(
+        "Validate conformity and the empty-circumsphere condition after each insertion");
+
+    app.add_flag("--validate-local", validateLocal)
+      ->description(
+        "Validate only insertion-local cavity and ball invariants after each insertion");
+
+    app.add_option("--validate-after", validateAfter)
+      ->description("Enable insertion validation only after the given insertion index");
 
     // Optional bounding box for query region
     auto* minbb = app.add_option("--min", boundsMin)
@@ -91,7 +113,8 @@ public:
       }
     }
 
-    SLIC_INFO(axom::fmt::format(R"(Using parameter values:
+    SLIC_INFO(axom::fmt::format(
+      R"(Using parameter values:
     {{
       dimension: {}
       nrandpt: {}
@@ -99,13 +122,19 @@ public:
       bounding box max: {{{}}}
       outfile = '{}'
       intermediate output steps: {}
+      random seed: {}
+      insertion validation: {}
+      validate after insertion: {}
     }})",
-                                dimension,
-                                numRandPoints,
-                                axom::fmt::join(boundsMin, ", "),
-                                axom::fmt::join(boundsMax, ", "),
-                                outputVTKFile,
-                                numOutputSteps));
+      dimension,
+      numRandPoints,
+      axom::fmt::join(boundsMin, ", "),
+      axom::fmt::join(boundsMax, ", "),
+      outputVTKFile,
+      numOutputSteps,
+      randomSeed >= 0 ? std::to_string(randomSeed) : std::string("none"),
+      validateFull ? "full" : (validateInsertions ? "conforming" : (validateLocal ? "local" : "none")),
+      validateAfter >= 0 ? std::to_string(validateAfter) : std::string("start")));
   }
 };
 
@@ -136,14 +165,37 @@ void run_delaunay(const Input& params)
   Delaunay dt;
   dt.initializeBoundary(bbox);
   dt.reserveForPointCount(numPoints);
+  const auto validationMode = params.validateFull
+    ? Delaunay::InsertionValidationMode::Full
+    : (params.validateInsertions ? Delaunay::InsertionValidationMode::ConformingMesh
+                                 : (params.validateLocal ? Delaunay::InsertionValidationMode::Local
+                                                         : Delaunay::InsertionValidationMode::None));
+  if(validationMode != Delaunay::InsertionValidationMode::None && params.validateAfter < 0)
+  {
+    dt.setInsertionValidationMode(validationMode);
+  }
 
   // Incrementally insert random points within bounding box
   for(int i = 0; i < numPoints; ++i)
   {
+    if(validationMode != Delaunay::InsertionValidationMode::None && i == params.validateAfter)
+    {
+      dt.setInsertionValidationMode(validationMode);
+    }
+
     PointType new_pt;
     for(int d = 0; d < DIM; ++d)
     {
-      new_pt[d] = random_real(bbox.getMin()[d], bbox.getMax()[d]);
+      if(params.randomSeed >= 0)
+      {
+        const unsigned int seed = static_cast<unsigned int>(params.randomSeed) +
+          747796405u * static_cast<unsigned int>(DIM * i + d + 1);
+        new_pt[d] = random_real(bbox.getMin()[d], bbox.getMax()[d], seed);
+      }
+      else
+      {
+        new_pt[d] = random_real(bbox.getMin()[d], bbox.getMax()[d]);
+      }
     }
 
     // Insert the point into the triangulation
@@ -177,6 +229,7 @@ void run_delaunay(const Input& params)
     timer.reset();
     timer.start();
     dt.getMeshData()->isValid(true);
+    dt.isConforming(true);
     dt.isValid(true);
     timer.stop();
     SLIC_INFO(axom::fmt::format("Validation took {} seconds", timer.elapsedTimeInSec()));

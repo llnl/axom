@@ -66,6 +66,8 @@ public:
   {
     /// No additional insertion-time validation beyond existing asserts.
     None,
+    /// Checks only insertion-local seed/cavity/ball invariants.
+    Local,
     /// Checks local cavity/ball invariants and that the resulting IA mesh is conforming.
     /// Intended for debugging and unit tests.
     ConformingMesh,
@@ -858,6 +860,11 @@ private:
       return;
     }
 
+    if(m_insertion_validation_mode == InsertionValidationMode::Local)
+    {
+      return;
+    }
+
     // Note: These checks are intentionally global and can be expensive. They
     // are only enabled when the caller opts into insertion validation.
     if(!m_mesh.isValid(false))
@@ -1000,6 +1007,91 @@ public:
     return value > tolerance ? 1 : (value < -tolerance ? -1 : 0);
   }
 
+  template <std::size_t N>
+  static double getPointMagnitudeScale(const std::array<PointType, N>& pts)
+  {
+    double max_abs_coord = 1.;
+    for(const auto& pt : pts)
+    {
+      for(int dim = 0; dim < DIM; ++dim)
+      {
+        max_abs_coord = axom::utilities::max(max_abs_coord, axom::utilities::abs(pt[dim]));
+      }
+    }
+
+    return max_abs_coord;
+  }
+
+  static double orientationTolerance(const std::array<PointType, 4>& pts)
+  {
+    const double scale = getPointMagnitudeScale(pts);
+    if constexpr(DIM == 2)
+    {
+      return 64. * std::numeric_limits<double>::epsilon() * scale * scale;
+    }
+    else
+    {
+      return 64. * std::numeric_limits<double>::epsilon() * scale * scale * scale;
+    }
+  }
+
+  static double determinant3(const PointType& p0, const PointType& p1, const PointType& p2)
+  {
+    return axom::numerics::determinant(p0[0], p0[1], p0[2], p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]);
+  }
+
+  static double orientationDeterminant(const std::array<PointType, 4>& pts)
+  {
+    return axom::numerics::determinant(pts[0][0],
+                                       pts[0][1],
+                                       pts[0][2],
+                                       1.,
+                                       pts[1][0],
+                                       pts[1][1],
+                                       pts[1][2],
+                                       1.,
+                                       pts[2][0],
+                                       pts[2][1],
+                                       pts[2][2],
+                                       1.,
+                                       pts[3][0],
+                                       pts[3][1],
+                                       pts[3][2],
+                                       1.);
+  }
+
+  static int symbolicOrientationSign(const std::array<PointType, 4>& pts,
+                                     const std::array<IndexType, 4>& ranks)
+  {
+    const double det = orientationDeterminant(pts);
+    const int det_sign = signWithTolerance(det, orientationTolerance(pts));
+    if(det_sign != 0)
+    {
+      return det_sign;
+    }
+
+    const std::array<double, 4> cofactors {-determinant3(pts[1], pts[2], pts[3]),
+                                           determinant3(pts[0], pts[2], pts[3]),
+                                           -determinant3(pts[0], pts[1], pts[3]),
+                                           determinant3(pts[0], pts[1], pts[2])};
+
+    std::array<int, 4> order {{0, 1, 2, 3}};
+    std::sort(order.begin(), order.end(), [&](int lhs, int rhs) { return ranks[lhs] < ranks[rhs]; });
+
+    const double cofactor_tol = 64. * std::numeric_limits<double>::epsilon() *
+      axom::utilities::max(1., orientationTolerance(pts));
+    for(const int row : order)
+    {
+      const int sign = signWithTolerance(cofactors[row], cofactor_tol);
+      if(sign != 0)
+      {
+        return sign;
+      }
+    }
+
+    return 0;
+  }
+
   //-----------------------------------------------------------------------------
   // In-sphere predicate helpers
   //
@@ -1010,8 +1102,11 @@ public:
   //-----------------------------------------------------------------------------
   static double inSphereDeterminantTolerance(double scale)
   {
-    // Determinant magnitude scales like length^(DIM+2): L^4 in 2D, L^5 in 3D.
-    const double k = 128.;
+    // The in-sphere determinant is formed from coordinate differences and
+    // squared norms, so near-cospherical slivers can lose precision based on
+    // the absolute coordinate magnitudes before translation, not just on the
+    // local edge lengths.
+    const double k = (DIM == 2) ? 128. : 512.;
     if constexpr(DIM == 2)
     {
       return k * std::numeric_limits<double>::epsilon() * scale * scale * scale * scale;
@@ -1020,6 +1115,33 @@ public:
     {
       return k * std::numeric_limits<double>::epsilon() * scale * scale * scale * scale * scale;
     }
+  }
+
+  static double orientationDeterminantTolerance(double scale)
+  {
+    const double k = (DIM == 2) ? 128. : 512.;
+    if constexpr(DIM == 2)
+    {
+      return k * std::numeric_limits<double>::epsilon() * scale * scale;
+    }
+    else
+    {
+      return k * std::numeric_limits<double>::epsilon() * scale * scale * scale;
+    }
+  }
+
+  template <typename SphereType>
+  static double sphereSignedDistanceTolerance(const SphereType& sphere, const PointType& x)
+  {
+    const auto& center = sphere.getCenter();
+    double scale = axom::utilities::max(1., sphere.getRadius());
+    for(int dim = 0; dim < DIM; ++dim)
+    {
+      scale = axom::utilities::max(scale, axom::utilities::abs(center[dim]));
+      scale = axom::utilities::max(scale, axom::utilities::abs(x[dim]));
+    }
+
+    return 256. * std::numeric_limits<double>::epsilon() * scale;
   }
 
   static int inSphereOrientationOnMesh(const IAMeshType& mesh, const PointType& q, IndexType element_idx)
@@ -1032,15 +1154,16 @@ public:
       const PointType& p1 = mesh.getVertexPosition(verts[1]);
       const PointType& p2 = mesh.getVertexPosition(verts[2]);
 
-      const auto ba = p1 - p0;
-      const auto ca = p2 - p0;
-      const auto qa = q - p0;
-      const double scale = axom::utilities::max(
-        1.,
-        axom::utilities::max(ba.norm(), axom::utilities::max(ca.norm(), qa.norm())));
-      const double eps = inSphereDeterminantTolerance(scale);
+      const ElementType tri(p0, p1, p2);
+      const auto sphere = tri.circumsphere();
+      const double signed_distance = sphere.computeSignedDistance(q);
+      const double tol = sphereSignedDistanceTolerance(sphere, q);
+      if(axom::utilities::abs(signed_distance) <= tol)
+      {
+        return primal::ON_BOUNDARY;
+      }
 
-      return primal::robust::in_sphere(q, p0, p1, p2, eps);
+      return signed_distance < 0. ? primal::ON_NEGATIVE_SIDE : primal::ON_POSITIVE_SIDE;
     }
     else
     {
@@ -1049,18 +1172,54 @@ public:
       const PointType& p2 = mesh.getVertexPosition(verts[2]);
       const PointType& p3 = mesh.getVertexPosition(verts[3]);
 
-      const auto ba = p1 - p0;
-      const auto ca = p2 - p0;
-      const auto da = p3 - p0;
-      const auto qa = q - p0;
-      const double scale = axom::utilities::max(
-        1.,
-        axom::utilities::max(
-          ba.norm(),
-          axom::utilities::max(ca.norm(), axom::utilities::max(da.norm(), qa.norm()))));
-      const double eps = inSphereDeterminantTolerance(scale);
+      const ElementType tet(p0, p1, p2, p3);
+      const auto sphere = tet.circumsphere();
+      const double signed_distance = sphere.computeSignedDistance(q);
+      const double tol = sphereSignedDistanceTolerance(sphere, q);
+      if(axom::utilities::abs(signed_distance) <= tol)
+      {
+        return primal::ON_BOUNDARY;
+      }
 
-      return primal::robust::in_sphere(q, p0, p1, p2, p3, eps);
+      return signed_distance < 0. ? primal::ON_NEGATIVE_SIDE : primal::ON_POSITIVE_SIDE;
+    }
+  }
+
+  static double inSphereDeterminantOnMesh(const IAMeshType& mesh,
+                                          const PointType& q,
+                                          IndexType element_idx)
+  {
+    const auto verts = mesh.boundaryVertices(element_idx);
+
+    if constexpr(DIM == 2)
+    {
+      return primal::detail::in_sphere_determinant(q,
+                                                   mesh.getVertexPosition(verts[0]),
+                                                   mesh.getVertexPosition(verts[1]),
+                                                   mesh.getVertexPosition(verts[2]));
+    }
+    else
+    {
+      return primal::detail::in_sphere_determinant(q,
+                                                   mesh.getVertexPosition(verts[0]),
+                                                   mesh.getVertexPosition(verts[1]),
+                                                   mesh.getVertexPosition(verts[2]),
+                                                   mesh.getVertexPosition(verts[3]));
+    }
+  }
+
+  static const char* orientationResultName(int result)
+  {
+    switch(result)
+    {
+    case primal::ON_NEGATIVE_SIDE:
+      return "inside";
+    case primal::ON_BOUNDARY:
+      return "boundary";
+    case primal::ON_POSITIVE_SIDE:
+      return "outside";
+    default:
+      return "unknown";
     }
   }
 
@@ -1832,6 +1991,8 @@ private:
       boundary_facets.clear();
       cavity_elems.clear();
       inserted_elems.clear();
+      containing_element = INVALID_INDEX;
+      seed_elements_debug.clear();
       m_stack.clear();
     }
 
@@ -1953,6 +2114,7 @@ private:
     {
       const int numFaces = static_cast<int>(boundary_facets.size());
       const IndexType invalid_neighbor = IAMeshType::ElementAdjacencyRelation::INVALID_INDEX;
+      const PointType& new_pt = m_mesh.getVertexPosition(new_pt_i);
 
       IndexType vlist[VERT_PER_ELEMENT] {};
       IndexType neighbors[VERT_PER_ELEMENT] {};
@@ -1964,6 +2126,28 @@ private:
           vlist[d] = boundary_facets[static_cast<std::size_t>(i)].vertices[d];
         }
         vlist[VERTS_PER_FACET] = new_pt_i;
+
+        // Preserve positive simplex orientation regardless of the boundary-face
+        // ordering used to describe the cavity facet.
+        if constexpr(DIM == 2)
+        {
+          const PointType& p0 = m_mesh.getVertexPosition(vlist[0]);
+          const PointType& p1 = m_mesh.getVertexPosition(vlist[1]);
+          if(primal::detail::orientation_determinant(p0, p1, new_pt) < 0.)
+          {
+            axom::utilities::swap(vlist[0], vlist[1]);
+          }
+        }
+        else
+        {
+          const PointType& p0 = m_mesh.getVertexPosition(vlist[0]);
+          const PointType& p1 = m_mesh.getVertexPosition(vlist[1]);
+          const PointType& p2 = m_mesh.getVertexPosition(vlist[2]);
+          if(primal::detail::orientation_determinant(p0, p1, p2, new_pt) < 0.)
+          {
+            axom::utilities::swap(vlist[1], vlist[2]);
+          }
+        }
 
         // Face 0 is the cavity boundary face opposite the inserted point.
         // The remaining faces stay invalid until fixVertexNeighborhood() stitches
@@ -2010,6 +2194,9 @@ private:
     std::vector<BoundaryFacet> boundary_facets;
     std::vector<IndexType> cavity_elems;
     std::vector<IndexType> inserted_elems;
+    IndexType containing_element {INVALID_INDEX};
+    BaryCoordType containing_bary;
+    IndexArray seed_elements_debug;
 
     IndexArray m_stack;
 
@@ -2122,6 +2309,9 @@ void Delaunay<DIM>::insertPoint(const PointType& new_pt)
 
   auto& insertionHelper = *m_insertion_helper;
   insertionHelper.reset();
+  insertionHelper.containing_element = element_i;
+  insertionHelper.containing_bary = bary_coord;
+  insertionHelper.seed_elements_debug = seed_elements;
   insertionHelper.findCavityElements(new_pt, seed_elements);
   ++m_num_insertions;
   m_total_removed_elements += static_cast<std::uint64_t>(insertionHelper.numRemovedElements());
@@ -2245,7 +2435,9 @@ void Delaunay<DIM>::validateCavityBoundary(const InsertionHelper& insertion_help
     }
   }
 
-  SLIC_ERROR_IF(!valid, "Delaunay cavity validation failed:" << fmt::to_string(out));
+  SLIC_ERROR_IF(!valid,
+                "Delaunay cavity validation failed after insertion " << m_num_insertions << ":"
+                                                                     << fmt::to_string(out));
 }
 
 template <int DIM>
@@ -2272,6 +2464,23 @@ void Delaunay<DIM>::validateInsertedBall(IndexType new_pt_i,
   bool valid = true;
   std::map<FacetKey, BoundaryFacetInfo> cavity_boundary;
   std::map<FacetKey, std::vector<FacetRecord>> inserted_faces;
+  auto findOppositeVertex = [&](IndexType element_idx, const FacetKey& facet_key) {
+    const auto verts = m_mesh.boundaryVertices(element_idx);
+    for(int i = 0; i < VERT_PER_ELEMENT; ++i)
+    {
+      bool on_face = false;
+      for(int j = 0; j < VERTS_PER_FACET; ++j)
+      {
+        on_face |= (verts[i] == facet_key[j]);
+      }
+      if(!on_face)
+      {
+        return verts[i];
+      }
+    }
+
+    return INVALID_INDEX;
+  };
 
   if(insertion_helper.inserted_elems.size() != insertion_helper.boundary_facets.size())
   {
@@ -2281,6 +2490,20 @@ void Delaunay<DIM>::validateInsertedBall(IndexType new_pt_i,
       insertion_helper.inserted_elems.size(),
       insertion_helper.boundary_facets.size());
     valid = false;
+  }
+
+  if(insertion_helper.containing_element != INVALID_INDEX)
+  {
+    fmt::format_to(std::back_inserter(out),
+                   "\n\tContaining element {} barycentric coordinates {}",
+                   insertion_helper.containing_element,
+                   insertion_helper.containing_bary);
+    if(!insertion_helper.seed_elements_debug.empty())
+    {
+      fmt::format_to(std::back_inserter(out),
+                     "\n\tInsertion seeds: [{}]",
+                     fmt::join(insertion_helper.seed_elements_debug, ", "));
+    }
   }
 
   for(const auto& facet : insertion_helper.boundary_facets)
@@ -2353,6 +2576,88 @@ void Delaunay<DIM>::validateInsertedBall(IndexType new_pt_i,
         valid = false;
       }
 
+      if(m_mesh.isValidElement(cavity_it->second.neighbor_idx))
+      {
+        const IndexType inserted_opposite =
+          findOppositeVertex(records.front().element_idx, face_entry.first);
+        const IndexType neighbor_opposite =
+          findOppositeVertex(cavity_it->second.neighbor_idx, face_entry.first);
+
+        if(inserted_opposite == INVALID_INDEX || neighbor_opposite == INVALID_INDEX)
+        {
+          fmt::format_to(
+            std::back_inserter(out),
+            "\n\tCould not identify opposite vertices across inserted boundary face {}",
+            facetKeyString(face_entry.first));
+          valid = false;
+        }
+        else
+        {
+          const PointType& inserted_point = m_mesh.getVertexPosition(inserted_opposite);
+          const PointType& neighbor_point = m_mesh.getVertexPosition(neighbor_opposite);
+
+          if(isPointInSphereOnMesh(m_mesh,
+                                   inserted_point,
+                                   cavity_it->second.neighbor_idx,
+                                   /*includeBoundary=*/false))
+          {
+            const int query_in_neighbor =
+              inSphereOrientationOnMesh(m_mesh,
+                                        m_mesh.getVertexPosition(new_pt_i),
+                                        cavity_it->second.neighbor_idx);
+            const int inserted_in_neighbor =
+              inSphereOrientationOnMesh(m_mesh, inserted_point, cavity_it->second.neighbor_idx);
+            fmt::format_to(
+              std::back_inserter(out),
+              "\n\tInserted boundary face {} leaves new vertex {} inside neighbor {} "
+              "circumsphere (query {}={}, det={:.17g}; opposite {}={}, det={:.17g})",
+              facetKeyString(face_entry.first),
+              inserted_opposite,
+              cavity_it->second.neighbor_idx,
+              new_pt_i,
+              orientationResultName(query_in_neighbor),
+              inSphereDeterminantOnMesh(m_mesh,
+                                        m_mesh.getVertexPosition(new_pt_i),
+                                        cavity_it->second.neighbor_idx),
+              inserted_opposite,
+              orientationResultName(inserted_in_neighbor),
+              inSphereDeterminantOnMesh(m_mesh, inserted_point, cavity_it->second.neighbor_idx));
+            valid = false;
+          }
+
+          if(isPointInSphereOnMesh(m_mesh,
+                                   neighbor_point,
+                                   records.front().element_idx,
+                                   /*includeBoundary=*/false))
+          {
+            const int query_in_neighbor =
+              inSphereOrientationOnMesh(m_mesh,
+                                        m_mesh.getVertexPosition(new_pt_i),
+                                        cavity_it->second.neighbor_idx);
+            const int neighbor_in_inserted =
+              inSphereOrientationOnMesh(m_mesh, neighbor_point, records.front().element_idx);
+            fmt::format_to(
+              std::back_inserter(out),
+              "\n\tInserted boundary face {} leaves neighbor vertex {} inside new element {} "
+              "circumsphere (query {} in neighbor {} is {}, det={:.17g}; opposite {} in new "
+              "element is {}, det={:.17g})",
+              facetKeyString(face_entry.first),
+              neighbor_opposite,
+              records.front().element_idx,
+              new_pt_i,
+              cavity_it->second.neighbor_idx,
+              orientationResultName(query_in_neighbor),
+              inSphereDeterminantOnMesh(m_mesh,
+                                        m_mesh.getVertexPosition(new_pt_i),
+                                        cavity_it->second.neighbor_idx),
+              neighbor_opposite,
+              orientationResultName(neighbor_in_inserted),
+              inSphereDeterminantOnMesh(m_mesh, neighbor_point, records.front().element_idx));
+            valid = false;
+          }
+        }
+      }
+
       cavity_it->second.matched = true;
     }
     else if(records.size() != 2 || records[0].neighbor_idx != records[1].element_idx ||
@@ -2362,6 +2667,78 @@ void Delaunay<DIM>::validateInsertedBall(IndexType new_pt_i,
                      "\n\tInternal face {} of the inserted ball has inconsistent adjacency",
                      facetKeyString(face_entry.first));
       valid = false;
+    }
+    else
+    {
+      const IndexType lhs_opposite = findOppositeVertex(records[0].element_idx, face_entry.first);
+      const IndexType rhs_opposite = findOppositeVertex(records[1].element_idx, face_entry.first);
+
+      if(lhs_opposite == INVALID_INDEX || rhs_opposite == INVALID_INDEX)
+      {
+        fmt::format_to(std::back_inserter(out),
+                       "\n\tCould not identify opposite vertices across inserted internal face {}",
+                       facetKeyString(face_entry.first));
+        valid = false;
+      }
+      else
+      {
+        const PointType& lhs_point = m_mesh.getVertexPosition(lhs_opposite);
+        const PointType& rhs_point = m_mesh.getVertexPosition(rhs_opposite);
+
+        if(isPointInSphereOnMesh(m_mesh,
+                                 lhs_point,
+                                 records[1].element_idx,
+                                 /*includeBoundary=*/false))
+        {
+          const int query_in_rhs = inSphereOrientationOnMesh(m_mesh,
+                                                             m_mesh.getVertexPosition(new_pt_i),
+                                                             records[1].element_idx);
+          const int lhs_in_rhs = inSphereOrientationOnMesh(m_mesh, lhs_point, records[1].element_idx);
+          fmt::format_to(
+            std::back_inserter(out),
+            "\n\tInserted internal face {} leaves vertex {} inside adjacent element {} "
+            "circumsphere (query {}={}, det={:.17g}; opposite {}={}, det={:.17g})",
+            facetKeyString(face_entry.first),
+            lhs_opposite,
+            records[1].element_idx,
+            new_pt_i,
+            orientationResultName(query_in_rhs),
+            inSphereDeterminantOnMesh(m_mesh,
+                                      m_mesh.getVertexPosition(new_pt_i),
+                                      records[1].element_idx),
+            lhs_opposite,
+            orientationResultName(lhs_in_rhs),
+            inSphereDeterminantOnMesh(m_mesh, lhs_point, records[1].element_idx));
+          valid = false;
+        }
+
+        if(isPointInSphereOnMesh(m_mesh,
+                                 rhs_point,
+                                 records[0].element_idx,
+                                 /*includeBoundary=*/false))
+        {
+          const int query_in_lhs = inSphereOrientationOnMesh(m_mesh,
+                                                             m_mesh.getVertexPosition(new_pt_i),
+                                                             records[0].element_idx);
+          const int rhs_in_lhs = inSphereOrientationOnMesh(m_mesh, rhs_point, records[0].element_idx);
+          fmt::format_to(
+            std::back_inserter(out),
+            "\n\tInserted internal face {} leaves vertex {} inside adjacent element {} "
+            "circumsphere (query {}={}, det={:.17g}; opposite {}={}, det={:.17g})",
+            facetKeyString(face_entry.first),
+            rhs_opposite,
+            records[0].element_idx,
+            new_pt_i,
+            orientationResultName(query_in_lhs),
+            inSphereDeterminantOnMesh(m_mesh,
+                                      m_mesh.getVertexPosition(new_pt_i),
+                                      records[0].element_idx),
+            rhs_opposite,
+            orientationResultName(rhs_in_lhs),
+            inSphereDeterminantOnMesh(m_mesh, rhs_point, records[0].element_idx));
+          valid = false;
+        }
+      }
     }
   }
 
@@ -2376,7 +2753,9 @@ void Delaunay<DIM>::validateInsertedBall(IndexType new_pt_i,
     }
   }
 
-  SLIC_ERROR_IF(!valid, "Delaunay ball validation failed:" << fmt::to_string(out));
+  SLIC_ERROR_IF(!valid,
+                "Delaunay ball validation failed after insertion " << m_num_insertions << ":"
+                                                                   << fmt::to_string(out));
 }
 
 //--------------------------------------------------------------------------------
