@@ -17,6 +17,7 @@
 #include "axom/core/StaticArray.hpp"
 #include "axom/slam/policies/SizePolicies.hpp"
 #include "axom/slam/ModularInt.hpp"
+#include "axom/slam/mesh_struct/detail/FacetPairingMap.hpp"
 
 #include "axom/fmt.hpp"
 
@@ -629,229 +630,225 @@ typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::reuseElement(In
   return element_idx;
 }
 
+//==============================================================================
+// Helper methods for fixVertexNeighborhood
+//==============================================================================
+
+/// \brief Get the base offset for an element's boundary vertices in the flat array
+template <int TDIM, int SDIM, typename P>
+constexpr std::size_t IAMesh<TDIM, SDIM, P>::getBoundaryBase(IndexType element_idx)
+{
+  return static_cast<std::size_t>(element_idx) * VERTS_PER_ELEM;
+}
+
+/// \brief Get the flat offset for a face in the element-element adjacency array
+template <int TDIM, int SDIM, typename P>
+constexpr std::size_t IAMesh<TDIM, SDIM, P>::getFaceOffset(IndexType element_idx, int face_idx)
+{
+  return static_cast<std::size_t>(element_idx) * VERTS_PER_ELEM + face_idx;
+}
+
+/// \brief Convert skipped vertex index to face index (modular arithmetic)
+template <int TDIM, int SDIM, typename P>
+constexpr int IAMesh<TDIM, SDIM, P>::skippedVertexToFace(int skipped_vertex_idx)
+{
+  return (skipped_vertex_idx + 1) % VERTS_PER_ELEM;
+}
+
+/// \brief Get the vertex position in a face (opposite vertex for simplicial meshes)
+template <int TDIM, int SDIM, typename P>
+constexpr int IAMesh<TDIM, SDIM, P>::getVertexPositionInFace(int face_idx)
+{
+  return (face_idx == 0) ? VERTS_PER_ELEM - 1 : face_idx - 1;
+}
+
+/**
+ * \brief Create a facet key for a given face of an element.
+ *
+ * In 2D (triangles): Returns the single non-shared vertex
+ * In 3D (tetrahedra): Returns the two non-shared vertices (will be auto-sorted by FacetKey)
+ *
+ * \param element_vertices Pointer to the element's boundary vertices
+ * \param face_idx Local face index (1..VERTS_PER_ELEM-1, face 0 is boundary)
+ * \return FacetKey identifying this face
+ */
+template <int TDIM, int SDIM, typename P>
+typename detail::FacetPairingMap<TDIM, typename IAMesh<TDIM, SDIM, P>::IndexType>::KeyType
+IAMesh<TDIM, SDIM, P>::createFacetKey(const IndexType* element_vertices, int face_idx) const
+{
+  using KeyType = typename detail::FacetPairingMap<TDIM, IndexType>::KeyType;
+
+  if constexpr(TDIM == 2)
+  {
+    // 2D: face is identified by the single non-shared vertex
+    SLIC_ASSERT(face_idx == 1 || face_idx == 2);
+    return KeyType(face_idx == 1 ? element_vertices[1] : element_vertices[0]);
+  }
+  else
+  {
+    // 3D: face is identified by the two non-shared vertices
+    SLIC_ASSERT(face_idx >= 1 && face_idx <= 3);
+    IndexType key0, key1;
+    switch(face_idx)
+    {
+    case 1:
+      key0 = element_vertices[1];
+      key1 = element_vertices[2];
+      break;
+    case 2:
+      key0 = element_vertices[2];
+      key1 = element_vertices[0];
+      break;
+    default:  // face 3
+      key0 = element_vertices[0];
+      key1 = element_vertices[1];
+      break;
+    }
+    return KeyType(key0, key1);  // Auto-sorted by FacetKey constructor
+  }
+}
+
+/**
+ * \brief Find which face of a neighbor element corresponds to a given boundary face.
+ *
+ * Given an element's boundary vertices, find which face of the neighbor shares those vertices.
+ *
+ * \param neighbor_idx Index of the neighbor element
+ * \param boundary_vertices Pointer to the current element's boundary vertices
+ * \return Local face index on the neighbor element
+ */
+template <int TDIM, int SDIM, typename P>
+int IAMesh<TDIM, SDIM, P>::findNeighborFaceIndex(IndexType neighbor_idx,
+                                                 const IndexType* boundary_vertices) const
+{
+  const IndexType* const neighbor_vertices = ev_rel.data().data() + getBoundaryBase(neighbor_idx);
+
+  if constexpr(TDIM == 2)
+  {
+    // In 2D, find which vertex of the neighbor is not in {v0, v1}
+    const IndexType v0 = boundary_vertices[0];
+    const IndexType v1 = boundary_vertices[1];
+
+    for(int i = 0; i < VERTS_PER_ELEM; ++i)
+    {
+      if(neighbor_vertices[i] != v0 && neighbor_vertices[i] != v1)
+      {
+        return skippedVertexToFace(i);
+      }
+    }
+
+    SLIC_ASSERT_MSG(false, "Failed to find neighbor face in 2D");
+    return -1;
+  }
+  else
+  {
+    // In 3D, find which vertex of the neighbor is not in {v0, v1, v2}
+    const IndexType v0 = boundary_vertices[0];
+    const IndexType v1 = boundary_vertices[1];
+    const IndexType v2 = boundary_vertices[2];
+
+    for(int i = 0; i < VERTS_PER_ELEM; ++i)
+    {
+      if(neighbor_vertices[i] != v0 && neighbor_vertices[i] != v1 && neighbor_vertices[i] != v2)
+      {
+        return skippedVertexToFace(i);
+      }
+    }
+
+    SLIC_ASSERT_MSG(false, "Failed to find neighbor face in 3D");
+    return -1;
+  }
+}
+
+//==============================================================================
+// fixVertexNeighborhood - Refactored to use FacetPairingMap
+//==============================================================================
+
 template <int TDIM, int SDIM, typename P>
 void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
                                                   const std::vector<IndexType>& new_elements)
 {
-  constexpr IndexType EMPTY_SLOT = INVALID_ELEMENT_INDEX;
-  constexpr IndexType TOMBSTONE_SLOT = INVALID_ELEMENT_INDEX - 1;
+  using FacetMap = detail::FacetPairingMap<TDIM, IndexType>;
+  using FacetKey = typename FacetMap::KeyType;
+  using FacetData = typename FacetMap::DataType;
 
-  struct PendingFace
-  {
-    IndexType key0 {INVALID_VERTEX_INDEX};
-    IndexType key1 {INVALID_VERTEX_INDEX};
-    IndexType element_idx {EMPTY_SLOT};
-    IndexType face_idx {INVALID_ELEMENT_INDEX};
-    unsigned int generation {0u};
-  };
-
-  static thread_local std::vector<PendingFace> pending_faces;
-  static thread_local unsigned int pending_generation = 0u;
-  if(++pending_generation == 0u)
-  {
-    for(auto& pending : pending_faces)
-    {
-      pending.generation = 0u;
-    }
-    pending_generation = 1u;
-  }
-
-  std::size_t table_size = 8;
-  const std::size_t target_slots =
-    std::max<std::size_t>(8, (TDIM == 2 ? 4 : 8) * new_elements.size());
-  while(table_size < target_slots)
-  {
-    table_size <<= 1;
-  }
-  if(pending_faces.size() < table_size)
-  {
-    pending_faces.resize(table_size);
-  }
-
-  auto pendingFaceHash = [](IndexType key0, IndexType key1) -> std::size_t {
-    std::size_t seed = static_cast<std::size_t>(key0);
-    seed ^= static_cast<std::size_t>(key1) + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2);
-    return seed;
-  };
-
-  auto getFaceOffset = [](IndexType element_idx, int face_idx) {
-    return static_cast<std::size_t>(element_idx) * VERTS_PER_ELEM + face_idx;
-  };
-
-  auto getBoundaryBase = [](IndexType element_idx) {
-    return static_cast<std::size_t>(element_idx) * VERTS_PER_ELEM;
-  };
-
-  auto skippedVertexToFace = [](int skipped_vertex_idx) {
-    return (skipped_vertex_idx + 1) % VERTS_PER_ELEM;
-  };
+  // Prepare hash table for expected facet count
+  FacetMap facet_map;
+  facet_map.prepareForInsertions(new_elements.size());
 
   const auto& ev_data = ev_rel.data();
   auto& ee_data = ee_rel.data();
   const IndexType* const ev_ptr = ev_data.data();
 
-  auto getBoundaryNeighborFace = [&](IndexType nbr, const IndexType* bdry) {
-    const IndexType* const nbr_bdry = ev_ptr + getBoundaryBase(nbr);
-
-    if constexpr(TDIM == 2)
-    {
-      const IndexType v0 = bdry[0];
-      const IndexType v1 = bdry[1];
-
-      if(nbr_bdry[0] != v0 && nbr_bdry[0] != v1)
-      {
-        return skippedVertexToFace(0);
-      }
-      if(nbr_bdry[1] != v0 && nbr_bdry[1] != v1)
-      {
-        return skippedVertexToFace(1);
-      }
-
-      SLIC_ASSERT(nbr_bdry[2] != v0 && nbr_bdry[2] != v1);
-      return skippedVertexToFace(2);
-    }
-    else
-    {
-      const IndexType v0 = bdry[0];
-      const IndexType v1 = bdry[1];
-      const IndexType v2 = bdry[2];
-
-      if(nbr_bdry[0] != v0 && nbr_bdry[0] != v1 && nbr_bdry[0] != v2)
-      {
-        return skippedVertexToFace(0);
-      }
-      if(nbr_bdry[1] != v0 && nbr_bdry[1] != v1 && nbr_bdry[1] != v2)
-      {
-        return skippedVertexToFace(1);
-      }
-      if(nbr_bdry[2] != v0 && nbr_bdry[2] != v1 && nbr_bdry[2] != v2)
-      {
-        return skippedVertexToFace(2);
-      }
-
-      SLIC_ASSERT(nbr_bdry[3] != v0 && nbr_bdry[3] != v1 && nbr_bdry[3] != v2);
-      return skippedVertexToFace(3);
-    }
-  };
-
-  auto getPendingFaceKey = [](const IndexType* bdry, int face_idx) {
-    PendingFace key;
-
-    if constexpr(TDIM == 2)
-    {
-      SLIC_ASSERT(face_idx == 1 || face_idx == 2);
-      key.key0 = (face_idx == 1) ? bdry[1] : bdry[0];
-    }
-    else
-    {
-      SLIC_ASSERT(face_idx >= 1 && face_idx <= 3);
-      switch(face_idx)
-      {
-      case 1:
-        key.key0 = bdry[1];
-        key.key1 = bdry[2];
-        break;
-      case 2:
-        key.key0 = bdry[2];
-        key.key1 = bdry[0];
-        break;
-      default:
-        key.key0 = bdry[0];
-        key.key1 = bdry[1];
-        break;
-      }
-
-      if(key.key1 < key.key0)
-      {
-        axom::utilities::swap(key.key0, key.key1);
-      }
-    }
-
-    return key;
-  };
-
-  int num_pending_faces = 0;
+  // Statistics tracking (for validation)
+  int num_boundary_faces = 0;
   int num_incident_faces = 0;
 
-  for(auto el : new_elements)
+  // Process all faces in the new elements
+  for(IndexType element_idx : new_elements)
   {
-    const std::size_t el_base = getBoundaryBase(el);
-    const IndexType* const bdry = ev_ptr + el_base;
+    const IndexType* const element_vertices = ev_ptr + getBoundaryBase(element_idx);
 
-    for(int face_i = 0; face_i < VERTS_PER_ELEM; ++face_i)
+    for(int local_face_idx = 0; local_face_idx < VERTS_PER_ELEM; ++local_face_idx)
     {
-      // This face is either a boundary facet of the star...
-      const auto vert_i = (face_i == 0) ? VERTS_PER_ELEM - 1 : face_i - 1;
-      if(bdry[vert_i] == vertex_idx)
-      {
-        SLIC_ASSERT(face_i == 0);
-        SLIC_ASSERT(vert_i == VERTS_PER_ELEM - 1);
+      const int vertex_position = getVertexPositionInFace(local_face_idx);
 
-        // figure out which face this is on the neighbor
-        // and update neighbor's adjacency to point to current element
-        const IndexType nbr = ee_data[getFaceOffset(el, face_i)];
-        if(nbr != INVALID_ELEMENT_INDEX)
+      // Check if this face contains the vertex we're fixing
+      if(element_vertices[vertex_position] == vertex_idx)
+      {
+        // This is a BOUNDARY face of the vertex star
+        // (face 0, which is opposite the last vertex)
+        ++num_boundary_faces;
+
+        // Update neighbor's adjacency to point back to this element
+        const IndexType neighbor = ee_data[getFaceOffset(element_idx, local_face_idx)];
+        if(neighbor != INVALID_ELEMENT_INDEX)
         {
-          SLIC_ASSERT(element_set.isValidEntry(nbr));
-          const int nbr_face = getBoundaryNeighborFace(nbr, bdry);
-          const std::size_t nbr_face_offset = getFaceOffset(nbr, nbr_face);
-          SLIC_ASSERT(ee_data[nbr_face_offset] == INVALID_ELEMENT_INDEX ||
-                      ee_data[nbr_face_offset] == el);
-          ee_data[nbr_face_offset] = el;
+          SLIC_ASSERT(element_set.isValidEntry(neighbor));
+
+          // Find which face of the neighbor shares these vertices
+          const int neighbor_face_idx = findNeighborFaceIndex(neighbor, element_vertices);
+          const std::size_t neighbor_face_offset = getFaceOffset(neighbor, neighbor_face_idx);
+
+          // Update or verify neighbor's adjacency
+          SLIC_ASSERT(ee_data[neighbor_face_offset] == INVALID_ELEMENT_INDEX ||
+                      ee_data[neighbor_face_offset] == element_idx);
+          ee_data[neighbor_face_offset] = element_idx;
         }
       }
-      // ... or it is incident in the common vertex: vertex_idx
       else
       {
-        const PendingFace face = getPendingFaceKey(bdry, face_i);
-        const std::size_t mask = pending_faces.size() - 1;
-        std::size_t slot = pendingFaceHash(face.key0, face.key1) & mask;
-        std::size_t insert_slot = pending_faces.size();
-
-        for(;; slot = (slot + 1) & mask)
-        {
-          auto& pending = pending_faces[slot];
-          if(pending.generation != pending_generation)
-          {
-            auto& insert_entry =
-              pending_faces[(insert_slot == pending_faces.size()) ? slot : insert_slot];
-            insert_entry = face;
-            insert_entry.element_idx = el;
-            insert_entry.face_idx = face_i;
-            insert_entry.generation = pending_generation;
-            ++num_pending_faces;
-            break;
-          }
-
-          if(pending.element_idx == TOMBSTONE_SLOT)
-          {
-            if(insert_slot == pending_faces.size())
-            {
-              insert_slot = slot;
-            }
-            continue;
-          }
-
-          if(pending.key0 == face.key0 && pending.key1 == face.key1)
-          {
-            SLIC_ASSERT_MSG(pending.element_idx != el,
-                            "Each face in the inserted star should be shared by two elements");
-            ee_data[getFaceOffset(pending.element_idx, pending.face_idx)] = el;
-            ee_data[getFaceOffset(el, face_i)] = pending.element_idx;
-            pending.element_idx = TOMBSTONE_SLOT;
-            --num_pending_faces;
-            break;
-          }
-        }
+        // This is an INCIDENT face (touches vertex_idx but doesn't have it opposite)
         ++num_incident_faces;
+
+        // Create facet key for matching
+        const FacetKey face_key = createFacetKey(element_vertices, local_face_idx);
+
+        // Try to find matching facet from another element
+        if(auto match = facet_map.findAndRemove(face_key))
+        {
+          // Found the matching face - update both adjacencies
+          SLIC_ASSERT_MSG(match->element_idx != element_idx,
+                          "Each face in the inserted star should be shared by two elements");
+
+          ee_data[getFaceOffset(match->element_idx, match->face_idx)] = element_idx;
+          ee_data[getFaceOffset(element_idx, local_face_idx)] = match->element_idx;
+        }
+        else
+        {
+          // First time seeing this facet - store it for later matching
+          FacetData face_data(element_idx, local_face_idx);
+          facet_map.insert(face_key, face_data);
+        }
       }
     }
   }
 
+  // Validate star topology
   AXOM_UNUSED_VAR(num_incident_faces);
-  AXOM_UNUSED_VAR(num_pending_faces);
+  AXOM_UNUSED_VAR(num_boundary_faces);
   SLIC_ASSERT(num_incident_faces == static_cast<int>(new_elements.size()) * TDIM);
-  SLIC_ASSERT_MSG(num_pending_faces == 0,
+  SLIC_ASSERT_MSG(facet_map.allFacetsPaired(),
                   "All faces in the inserted star should be paired exactly once");
 }
 

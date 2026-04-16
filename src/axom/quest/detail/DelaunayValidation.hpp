@@ -467,11 +467,12 @@ inline bool Delaunay<DIM>::isConforming(bool verboseOutput) const
     {
       if(verboseOutput)
       {
-        fmt::format_to(std::back_inserter(out),
-                       "\n\tElement {} has non-positive orientation determinant {:.17g} (tol={:.3g})",
-                       element_idx,
-                       orient.det,
-                       orient.tol);
+        fmt::format_to(
+          std::back_inserter(out),
+          "\n\tElement {} has non-positive orientation determinant {:.17g} (tol={:.3g})",
+          element_idx,
+          orient.det,
+          orient.tol);
       }
       valid = false;
     }
