@@ -38,10 +38,93 @@ Inlet createBasicInlet(const std::string& luaString, bool enableDocs = true)
 }
 
 template <typename InletReader>
+std::string conduitBoolStringInput();
+
+template <>
+std::string conduitBoolStringInput<axom::inlet::YAMLReader>()
+{
+  return "value_true: \"true\"\nvalue_false: \"false\"\n";
+}
+
+template <>
+std::string conduitBoolStringInput<axom::inlet::JSONReader>()
+{
+  return R"({
+  "value_true": "true",
+  "value_false": "false"
+})";
+}
+
+template <typename InletReader>
+std::string conduitBoolIntegerInput();
+
+template <>
+std::string conduitBoolIntegerInput<axom::inlet::YAMLReader>()
+{
+  return "value_zero: 0\nvalue_one: 1\nvalue_many: 7\n";
+}
+
+template <>
+std::string conduitBoolIntegerInput<axom::inlet::JSONReader>()
+{
+  return R"({
+  "value_zero": 0,
+  "value_one": 1,
+  "value_many": 7
+})";
+}
+
+template <typename InletReader>
 class inlet_Inlet_basic : public ::testing::Test
 { };
 
 TYPED_TEST_SUITE(inlet_Inlet_basic, axom::inlet::detail::ReaderTypes);
+
+template <typename InletReader>
+class inlet_Inlet_conduit_bool : public ::testing::Test
+{ };
+
+using ConduitReaderTypes =
+  ::testing::Types<axom::inlet::YAMLReader, axom::inlet::JSONReader>;
+TYPED_TEST_SUITE(inlet_Inlet_conduit_bool, ConduitReaderTypes);
+
+TYPED_TEST(inlet_Inlet_conduit_bool, getTopLevelStringBackedBools)
+{
+  std::unique_ptr<TypeParam> reader(new TypeParam());
+  EXPECT_TRUE(reader->parseString(conduitBoolStringInput<TypeParam>()));
+  Inlet inlet(std::move(reader));
+
+  inlet.addBool("value_true", "string-backed true value");
+  inlet.addBool("value_false", "string-backed false value");
+
+  EXPECT_EQ(inlet["value_true"].type(), InletType::Bool);
+  EXPECT_EQ(inlet["value_false"].type(), InletType::Bool);
+  EXPECT_TRUE(inlet.get<bool>("value_true"));
+  EXPECT_FALSE(inlet.get<bool>("value_false"));
+  EXPECT_TRUE(static_cast<bool>(inlet["value_true"]));
+  EXPECT_FALSE(static_cast<bool>(inlet["value_false"]));
+}
+
+TYPED_TEST(inlet_Inlet_conduit_bool, getTopLevelIntegerBackedBools)
+{
+  std::unique_ptr<TypeParam> reader(new TypeParam());
+  EXPECT_TRUE(reader->parseString(conduitBoolIntegerInput<TypeParam>()));
+  Inlet inlet(std::move(reader));
+
+  inlet.addBool("value_zero", "integer-backed zero value");
+  inlet.addBool("value_one", "integer-backed one value");
+  inlet.addBool("value_many", "integer-backed nonzero value");
+
+  EXPECT_EQ(inlet["value_zero"].type(), InletType::Bool);
+  EXPECT_EQ(inlet["value_one"].type(), InletType::Bool);
+  EXPECT_EQ(inlet["value_many"].type(), InletType::Bool);
+  EXPECT_FALSE(inlet.get<bool>("value_zero"));
+  EXPECT_TRUE(inlet.get<bool>("value_one"));
+  EXPECT_TRUE(inlet.get<bool>("value_many"));
+  EXPECT_FALSE(static_cast<bool>(inlet["value_zero"]));
+  EXPECT_TRUE(static_cast<bool>(inlet["value_one"]));
+  EXPECT_TRUE(static_cast<bool>(inlet["value_many"]));
+}
 
 TYPED_TEST(inlet_Inlet_basic, getTopLevelBools)
 {
