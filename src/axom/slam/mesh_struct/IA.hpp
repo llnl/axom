@@ -415,17 +415,14 @@ private:
                                       IndexType element_i,
                                       IndexType side_i);
 
-  // Helper methods for fixVertexNeighborhood
-  static constexpr std::size_t getBoundaryBase(IndexType element_idx);
-  static constexpr std::size_t getFaceOffset(IndexType element_idx, int face_idx);
-  static constexpr int skippedVertexToFace(int skipped_vertex_idx);
-  static constexpr int getVertexPositionInFace(int face_idx);
+  /// \brief Create a facet key for matching faces during connectivity repair
+  typename detail::FacetPairingMap<TDIM, IndexType>::KeyType createFacetKey(IndexType element_idx,
+                                                                            int face_idx) const;
 
-  typename detail::FacetPairingMap<TDIM, IndexType>::KeyType createFacetKey(
-    const IndexType* element_vertices,
-    int face_idx) const;
-
-  int findNeighborFaceIndex(IndexType neighbor_idx, const IndexType* boundary_vertices) const;
+  /// \brief Find which face of a neighbor element shares vertices with a given face
+  int findNeighborFaceIndex(IndexType neighbor_idx,
+                            IndexType current_element_idx,
+                            int current_face_idx) const;
 
 private:
   VertexSet vertex_set;             //Set of vertices

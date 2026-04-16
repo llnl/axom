@@ -630,53 +630,24 @@ typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::reuseElement(In
   return element_idx;
 }
 
-//==============================================================================
-// Helper methods for fixVertexNeighborhood
-//==============================================================================
-
-/// \brief Get the base offset for an element's boundary vertices in the flat array
-template <int TDIM, int SDIM, typename P>
-constexpr std::size_t IAMesh<TDIM, SDIM, P>::getBoundaryBase(IndexType element_idx)
-{
-  return static_cast<std::size_t>(element_idx) * VERTS_PER_ELEM;
-}
-
-/// \brief Get the flat offset for a face in the element-element adjacency array
-template <int TDIM, int SDIM, typename P>
-constexpr std::size_t IAMesh<TDIM, SDIM, P>::getFaceOffset(IndexType element_idx, int face_idx)
-{
-  return static_cast<std::size_t>(element_idx) * VERTS_PER_ELEM + face_idx;
-}
-
-/// \brief Convert skipped vertex index to face index (modular arithmetic)
-template <int TDIM, int SDIM, typename P>
-constexpr int IAMesh<TDIM, SDIM, P>::skippedVertexToFace(int skipped_vertex_idx)
-{
-  return (skipped_vertex_idx + 1) % VERTS_PER_ELEM;
-}
-
-/// \brief Get the vertex position in a face (opposite vertex for simplicial meshes)
-template <int TDIM, int SDIM, typename P>
-constexpr int IAMesh<TDIM, SDIM, P>::getVertexPositionInFace(int face_idx)
-{
-  return (face_idx == 0) ? VERTS_PER_ELEM - 1 : face_idx - 1;
-}
-
 /**
  * \brief Create a facet key for a given face of an element.
  *
  * In 2D (triangles): Returns the single non-shared vertex
  * In 3D (tetrahedra): Returns the two non-shared vertices (will be auto-sorted by FacetKey)
  *
- * \param element_vertices Pointer to the element's boundary vertices
+ * \param element_idx Index of the element
  * \param face_idx Local face index (1..VERTS_PER_ELEM-1, face 0 is boundary)
  * \return FacetKey identifying this face
  */
 template <int TDIM, int SDIM, typename P>
 typename detail::FacetPairingMap<TDIM, typename IAMesh<TDIM, SDIM, P>::IndexType>::KeyType
-IAMesh<TDIM, SDIM, P>::createFacetKey(const IndexType* element_vertices, int face_idx) const
+IAMesh<TDIM, SDIM, P>::createFacetKey(IndexType element_idx, int face_idx) const
 {
   using KeyType = typename detail::FacetPairingMap<TDIM, IndexType>::KeyType;
+
+  // Get element vertices using SLAM relation accessor
+  const auto element_vertices = ev_rel[element_idx];
 
   if constexpr(TDIM == 2)
   {
@@ -709,31 +680,43 @@ IAMesh<TDIM, SDIM, P>::createFacetKey(const IndexType* element_vertices, int fac
 }
 
 /**
- * \brief Find which face of a neighbor element corresponds to a given boundary face.
+ * \brief Find which face of a neighbor element shares vertices with a given face.
  *
- * Given an element's boundary vertices, find which face of the neighbor shares those vertices.
+ * Uses SLAM's ModularInt for wraparound arithmetic and relation accessors
+ * to find which vertex is opposite to the shared face.
  *
  * \param neighbor_idx Index of the neighbor element
- * \param boundary_vertices Pointer to the current element's boundary vertices
+ * \param current_element_idx Index of the current element
+ * \param current_face_idx Local face index on the current element
  * \return Local face index on the neighbor element
  */
 template <int TDIM, int SDIM, typename P>
 int IAMesh<TDIM, SDIM, P>::findNeighborFaceIndex(IndexType neighbor_idx,
-                                                 const IndexType* boundary_vertices) const
+                                                 IndexType current_element_idx,
+                                                 int current_face_idx) const
 {
-  const IndexType* const neighbor_vertices = ev_rel.data().data() + getBoundaryBase(neighbor_idx);
+  // Get vertices using SLAM relation accessors
+  const auto current_vertices = ev_rel[current_element_idx];
+  const auto neighbor_vertices = ev_rel[neighbor_idx];
+
+  // Use ModularInt for face indexing
+  ModularFacetIndex mod_face(current_face_idx);
 
   if constexpr(TDIM == 2)
   {
-    // In 2D, find which vertex of the neighbor is not in {v0, v1}
-    const IndexType v0 = boundary_vertices[0];
-    const IndexType v1 = boundary_vertices[1];
+    // In 2D, the shared edge has two vertices (all except the opposite vertex)
+    // Face i is opposite to vertex (i-1), so the shared vertices are at positions i and i+1
+    const IndexType v0 = current_vertices[mod_face];
+    const IndexType v1 = current_vertices[mod_face + 1];
 
+    // Find which vertex of the neighbor is NOT in the shared edge
     for(int i = 0; i < VERTS_PER_ELEM; ++i)
     {
       if(neighbor_vertices[i] != v0 && neighbor_vertices[i] != v1)
       {
-        return skippedVertexToFace(i);
+        // The face opposite to vertex i is (i+1) % VERTS_PER_ELEM
+        ModularVertexIndex mod_vert(i);
+        return mod_vert + 1;
       }
     }
 
@@ -742,16 +725,20 @@ int IAMesh<TDIM, SDIM, P>::findNeighborFaceIndex(IndexType neighbor_idx,
   }
   else
   {
-    // In 3D, find which vertex of the neighbor is not in {v0, v1, v2}
-    const IndexType v0 = boundary_vertices[0];
-    const IndexType v1 = boundary_vertices[1];
-    const IndexType v2 = boundary_vertices[2];
+    // In 3D, the shared face has three vertices (all except the opposite vertex)
+    // Face i is opposite to vertex (i-1), so shared vertices are at positions i, i+1, i+2
+    const IndexType v0 = current_vertices[mod_face];
+    const IndexType v1 = current_vertices[mod_face + 1];
+    const IndexType v2 = current_vertices[mod_face + 2];
 
+    // Find which vertex of the neighbor is NOT in the shared face
     for(int i = 0; i < VERTS_PER_ELEM; ++i)
     {
       if(neighbor_vertices[i] != v0 && neighbor_vertices[i] != v1 && neighbor_vertices[i] != v2)
       {
-        return skippedVertexToFace(i);
+        // The face opposite to vertex i is (i+1) % VERTS_PER_ELEM
+        ModularVertexIndex mod_vert(i);
+        return mod_vert + 1;
       }
     }
 
@@ -776,10 +763,6 @@ void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
   FacetMap facet_map;
   facet_map.prepareForInsertions(new_elements.size());
 
-  const auto& ev_data = ev_rel.data();
-  auto& ee_data = ee_rel.data();
-  const IndexType* const ev_ptr = ev_data.data();
-
   // Statistics tracking (for validation)
   int num_boundary_faces = 0;
   int num_incident_faces = 0;
@@ -787,11 +770,15 @@ void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
   // Process all faces in the new elements
   for(IndexType element_idx : new_elements)
   {
-    const IndexType* const element_vertices = ev_ptr + getBoundaryBase(element_idx);
+    // Get element vertices and adjacencies using SLAM relation accessors
+    const auto element_vertices = ev_rel[element_idx];
+    auto element_neighbors = ee_rel[element_idx];
 
     for(int local_face_idx = 0; local_face_idx < VERTS_PER_ELEM; ++local_face_idx)
     {
-      const int vertex_position = getVertexPositionInFace(local_face_idx);
+      // Use ModularInt to find the vertex opposite to this face
+      ModularFacetIndex mod_face(local_face_idx);
+      const int vertex_position = mod_face - 1;
 
       // Check if this face contains the vertex we're fixing
       if(element_vertices[vertex_position] == vertex_idx)
@@ -801,19 +788,19 @@ void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
         ++num_boundary_faces;
 
         // Update neighbor's adjacency to point back to this element
-        const IndexType neighbor = ee_data[getFaceOffset(element_idx, local_face_idx)];
+        const IndexType neighbor = element_neighbors[local_face_idx];
         if(neighbor != INVALID_ELEMENT_INDEX)
         {
           SLIC_ASSERT(element_set.isValidEntry(neighbor));
 
           // Find which face of the neighbor shares these vertices
-          const int neighbor_face_idx = findNeighborFaceIndex(neighbor, element_vertices);
-          const std::size_t neighbor_face_offset = getFaceOffset(neighbor, neighbor_face_idx);
+          const int neighbor_face_idx = findNeighborFaceIndex(neighbor, element_idx, local_face_idx);
 
-          // Update or verify neighbor's adjacency
-          SLIC_ASSERT(ee_data[neighbor_face_offset] == INVALID_ELEMENT_INDEX ||
-                      ee_data[neighbor_face_offset] == element_idx);
-          ee_data[neighbor_face_offset] = element_idx;
+          // Update or verify neighbor's adjacency using SLAM relation accessor
+          auto neighbor_adjacencies = ee_rel[neighbor];
+          SLIC_ASSERT(neighbor_adjacencies[neighbor_face_idx] == INVALID_ELEMENT_INDEX ||
+                      neighbor_adjacencies[neighbor_face_idx] == element_idx);
+          neighbor_adjacencies[neighbor_face_idx] = element_idx;
         }
       }
       else
@@ -822,17 +809,18 @@ void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
         ++num_incident_faces;
 
         // Create facet key for matching
-        const FacetKey face_key = createFacetKey(element_vertices, local_face_idx);
+        const FacetKey face_key = createFacetKey(element_idx, local_face_idx);
 
         // Try to find matching facet from another element
         if(auto match = facet_map.findAndRemove(face_key))
         {
-          // Found the matching face - update both adjacencies
+          // Found the matching face - update both adjacencies using SLAM relation accessors
           SLIC_ASSERT_MSG(match->element_idx != element_idx,
                           "Each face in the inserted star should be shared by two elements");
 
-          ee_data[getFaceOffset(match->element_idx, match->face_idx)] = element_idx;
-          ee_data[getFaceOffset(element_idx, local_face_idx)] = match->element_idx;
+          auto match_element_neighbors = ee_rel[match->element_idx];
+          match_element_neighbors[match->face_idx] = element_idx;
+          element_neighbors[local_face_idx] = match->element_idx;
         }
         else
         {
