@@ -479,7 +479,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             # Only amdclang requires this path; cray compiler fails if this is included
             if spec.satisfies("%llvm-amdgpu"):
                 hip_link_flags += "-L{0}/lib -Wl,-rpath,{0}/lib ".format(rocm_root)
-            hip_link_flags += "-lpgmath -lompstub "
+            hip_link_flags += "-lpgmath "
 
             # Fixes for mpi for rocm until wrapper paths are fixed
             # These flags are already part of the wrapped compilers on TOSS4 systems
@@ -493,11 +493,22 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                                         self.spec.compiler.version
                                     )
 
-            # Remove extra link library for crayftn
-            if spec.satisfies("+fortran") and self.is_fortran_compiler("crayftn"):
-                entries.append(
-                    cmake_cache_string("BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE", "unwind")
-                )
+            if spec.satisfies("+fortran"):
+                link_remove_list = ""
+
+                # Remove extra link library for crayftn
+                if self.is_fortran_compiler("crayftn"):
+                    link_remove_list += "unwind "
+
+                # Remove injected OpenMP stub library
+                if spec.satisfies("+openmp"):
+                    link_remove_list += "ompstub"
+
+                if link_remove_list:
+                    entries.append(
+                        cmake_cache_string("BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE",
+                                           link_remove_list)
+                    )
 
             # Additional libraries for TOSS4
             hip_link_flags += "-lamdhip64 -lhsakmt -lhsa-runtime64 -lamd_comgr "
@@ -553,6 +564,25 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             )
 
             description = "Different OpenMP linker flag between CXX and Fortran"
+            entries.append(
+                cmake_cache_string("BLT_OPENMP_LINK_FLAGS", openmp_gen_exp, description)
+            )
+
+        if (
+            spec.satisfies("+openmp")
+            and spec.satisfies("+rocm")
+            and self.spec.satisfies("%cce")
+        ):
+            openmp_gen_exp = (
+                "$<$<NOT:$<COMPILE_LANGUAGE:Fortran>>:"
+                "-fopenmp=libomp>;$<$<COMPILE_LANGUAGE:"
+                "Fortran>:-fopenmp>"
+            )
+
+            description = "Different OpenMP compile & link flags between HIP and CXX compilers"
+            entries.append(
+                cmake_cache_string("BLT_OPENMP_COMPILE_FLAGS", openmp_gen_exp, description)
+            )
             entries.append(
                 cmake_cache_string("BLT_OPENMP_LINK_FLAGS", openmp_gen_exp, description)
             )
