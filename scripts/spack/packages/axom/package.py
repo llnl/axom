@@ -494,20 +494,21 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                                     )
 
             if spec.satisfies("+fortran"):
-                link_remove_list = ""
+                link_remove_list = []
 
                 # Remove extra link library for crayftn
                 if self.is_fortran_compiler("crayftn"):
-                    link_remove_list += "unwind "
+                    link_remove_list += ["unwind"]
 
                 # Remove injected OpenMP stub library
                 if spec.satisfies("+openmp"):
-                    link_remove_list += "ompstub"
+                    link_remove_list += ["ompstub"]
 
                 if link_remove_list:
                     entries.append(
-                        cmake_cache_string("BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE",
-                                           link_remove_list)
+                        cmake_cache_string(
+                            "BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE", ";".join(link_remove_list)
+                        )
                     )
 
             # Additional libraries for TOSS4
