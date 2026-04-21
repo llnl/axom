@@ -580,7 +580,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 "Fortran>:-fopenmp>"
             )
 
-            description = "Different OpenMP compile & link flags between HIP and CXX compilers"
+            description = "Different OpenMP compile & link flags between HIP and CXX compilers (amdclang++)"
             entries.append(
                 cmake_cache_string("BLT_OPENMP_COMPILE_FLAGS", openmp_gen_exp, description)
             )
