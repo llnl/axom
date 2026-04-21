@@ -64,6 +64,31 @@ std::string broadcastString(const std::string& str, MPI_Comm comm, int rank)
   return res;
 }
 
+#ifdef AXOM_USE_HDF5
+inline void checkHDF5Status(herr_t status)
+{
+#ifdef AXOM_DEBUG
+  SLIC_ASSERT(status >= 0);
+#else
+  AXOM_UNUSED_VAR(status);
+#endif
+}
+
+inline void closeHDF5Group(hid_t group_id)
+{
+  checkHDF5Status(H5Gclose(group_id));
+}
+
+inline void flushHDF5File(hid_t file_id)
+{
+  checkHDF5Status(H5Fflush(file_id, H5F_SCOPE_LOCAL));
+}
+
+inline void closeHDF5File(hid_t file_id)
+{
+  checkHDF5Status(H5Fclose(file_id));
+}
+#endif
 }  // end anonymous namespace
 
 namespace axom
@@ -229,15 +254,9 @@ void IOManager::write(sidre::Group* datagroup,
     SLIC_ASSERT(h5_group_id >= 0);
 
     datagroup->save(h5_group_id);
-    herr_t status;
-    AXOM_UNUSED_VAR(status);
-
-    status = H5Gclose(h5_group_id);
-    SLIC_ASSERT(status >= 0);
-    status = H5Fflush(h5_file_id, H5F_SCOPE_LOCAL);
-    SLIC_ASSERT(status >= 0);
-    status = H5Fclose(h5_file_id);
-    SLIC_ASSERT(status >= 0);
+    closeHDF5Group(h5_group_id);
+    flushHDF5File(h5_file_id);
+    closeHDF5File(h5_file_id);
 #else
     SLIC_WARNING("'sidre_hdf5' protocol only available " << "when axom is configured with hdf5");
 #endif /* AXOM_USE_HDF5 */
@@ -380,9 +399,6 @@ void IOManager::loadExternalData(sidre::Group* datagroup, const std::string& roo
   {
     if(m_my_rank < num_groups)
     {
-      herr_t errv;
-      AXOM_UNUSED_VAR(errv);
-
       std::string hdf5_name = getFileNameForRank(file_pattern, root_file, set_id);
 
       hdf5_name = getSCRPath(hdf5_name);
@@ -401,20 +417,14 @@ void IOManager::loadExternalData(sidre::Group* datagroup, const std::string& roo
 
       datagroup->loadExternalData(h5_group_id);
 
-      errv = H5Gclose(h5_group_id);
-      SLIC_ASSERT(errv >= 0);
-
-      errv = H5Fclose(h5_file_id);
-      SLIC_ASSERT(errv >= 0);
+      closeHDF5Group(h5_group_id);
+      closeHDF5File(h5_file_id);
     }
   }
   else
   {
     for(int input_rank = m_my_rank; input_rank < num_groups; input_rank += m_comm_size)
     {
-      herr_t errv;
-      AXOM_UNUSED_VAR(errv);
-
       std::string hdf5_name = getFileNameForRank(file_pattern, root_file, input_rank);
 
       hdf5_name = getSCRPath(hdf5_name);
@@ -436,11 +446,8 @@ void IOManager::loadExternalData(sidre::Group* datagroup, const std::string& roo
 
       one_rank_input->loadExternalData(h5_group_id);
 
-      errv = H5Gclose(h5_group_id);
-      SLIC_ASSERT(errv >= 0);
-
-      errv = H5Fclose(h5_file_id);
-      SLIC_ASSERT(errv >= 0);
+      closeHDF5Group(h5_group_id);
+      closeHDF5File(h5_file_id);
     }
   }
 
@@ -520,9 +527,6 @@ void IOManager::loadExternalData(sidre::Group* parent_group,
     {
       if(m_my_rank < num_groups)
       {
-        herr_t errv;
-        AXOM_UNUSED_VAR(errv);
-
         std::string hdf5_name = getFileNameForRank(file_pattern, root_file, set_id);
 
         hdf5_name = getSCRPath(hdf5_name);
@@ -541,20 +545,14 @@ void IOManager::loadExternalData(sidre::Group* parent_group,
 
         load_group->loadExternalData(h5_group_id, subpath);
 
-        errv = H5Gclose(h5_group_id);
-        SLIC_ASSERT(errv >= 0);
-
-        errv = H5Fclose(h5_file_id);
-        SLIC_ASSERT(errv >= 0);
+        closeHDF5Group(h5_group_id);
+        closeHDF5File(h5_file_id);
       }
     }
     else
     {
       for(int input_rank = m_my_rank; input_rank < num_groups; input_rank += m_comm_size)
       {
-        herr_t errv;
-        AXOM_UNUSED_VAR(errv);
-
         std::string hdf5_name = getFileNameForRank(file_pattern, root_file, input_rank);
 
         hdf5_name = getSCRPath(hdf5_name);
@@ -579,11 +577,8 @@ void IOManager::loadExternalData(sidre::Group* parent_group,
 
         one_rank_input->loadExternalData(h5_group_id, subpath);
 
-        errv = H5Gclose(h5_group_id);
-        SLIC_ASSERT(errv >= 0);
-
-        errv = H5Fclose(h5_file_id);
-        SLIC_ASSERT(errv >= 0);
+        closeHDF5Group(h5_group_id);
+        closeHDF5File(h5_file_id);
       }
     }
   }
@@ -719,9 +714,7 @@ std::string IOManager::getProtocol(const std::string& root_orig)
     if(file_id > 0)
     {
       relay_protocol = "hdf5";
-      herr_t errv = H5Fclose(file_id);
-      AXOM_UNUSED_VAR(errv);
-      SLIC_ASSERT(errv >= 0);
+      closeHDF5File(file_id);
     }
 
     // Restore error output
@@ -852,9 +845,6 @@ void IOManager::readSidreHDF5(sidre::Group* datagroup,
   {
     if(m_my_rank < num_groups)
     {
-      herr_t errv;
-      AXOM_UNUSED_VAR(errv);
-
       std::string hdf5_name = getFileNameForRank(file_pattern, root_file, set_id);
 
       hdf5_name = getSCRPath(hdf5_name);
@@ -872,11 +862,8 @@ void IOManager::readSidreHDF5(sidre::Group* datagroup,
 
       datagroup->load(h5_group_id, "sidre_hdf5", preserve_contents);
 
-      errv = H5Gclose(h5_group_id);
-      SLIC_ASSERT(errv >= 0);
-
-      errv = H5Fclose(h5_file_id);
-      SLIC_ASSERT(errv >= 0);
+      closeHDF5Group(h5_group_id);
+      closeHDF5File(h5_file_id);
     }
   }
   else
@@ -885,9 +872,6 @@ void IOManager::readSidreHDF5(sidre::Group* datagroup,
 
     for(int input_rank = m_my_rank; input_rank < num_groups; input_rank += m_comm_size)
     {
-      herr_t errv;
-      AXOM_UNUSED_VAR(errv);
-
       std::string hdf5_name = getFileNameForRank(file_pattern, root_file, input_rank);
 
       hdf5_name = getSCRPath(hdf5_name);
@@ -908,11 +892,8 @@ void IOManager::readSidreHDF5(sidre::Group* datagroup,
 
       one_rank_input->load(h5_group_id, "sidre_hdf5", preserve_contents);
 
-      errv = H5Gclose(h5_group_id);
-      SLIC_ASSERT(errv >= 0);
-
-      errv = H5Fclose(h5_file_id);
-      SLIC_ASSERT(errv >= 0);
+      closeHDF5Group(h5_group_id);
+      closeHDF5File(h5_file_id);
     }
   }
   (void)m_baton->pass();
@@ -1060,17 +1041,9 @@ void IOManager::writeGroupToRootFile(sidre::Group* group, const std::string& fil
 
   conduit::relay::io::hdf5_write(data_holder, group_id);
 
-  herr_t errv;
-  AXOM_UNUSED_VAR(errv);
-
-  errv = H5Gclose(group_id);
-  SLIC_ASSERT(errv >= 0);
-
-  errv = H5Fflush(root_file_id, H5F_SCOPE_LOCAL);
-  SLIC_ASSERT(errv >= 0);
-
-  errv = H5Fclose(root_file_id);
-  SLIC_ASSERT(errv >= 0);
+  closeHDF5Group(group_id);
+  flushHDF5File(root_file_id);
+  closeHDF5File(root_file_id);
 #else
   AXOM_UNUSED_VAR(group);
   AXOM_UNUSED_VAR(file_name);
@@ -1114,17 +1087,9 @@ void IOManager::writeGroupToRootFileAtPath(sidre::Group* group,
 
   conduit::relay::io::hdf5_write(data_holder, group_id);
 
-  herr_t errv;
-  AXOM_UNUSED_VAR(errv);
-
-  errv = H5Gclose(group_id);
-  SLIC_ASSERT(errv >= 0);
-
-  errv = H5Fflush(root_file_id, H5F_SCOPE_LOCAL);
-  SLIC_ASSERT(errv >= 0);
-
-  errv = H5Fclose(root_file_id);
-  SLIC_ASSERT(errv >= 0);
+  closeHDF5Group(group_id);
+  flushHDF5File(root_file_id);
+  closeHDF5File(root_file_id);
 #else
   AXOM_UNUSED_VAR(group);
   AXOM_UNUSED_VAR(file_name);
@@ -1164,14 +1129,8 @@ void IOManager::writeViewToRootFileAtPath(sidre::View* view,
 
   conduit::relay::io::hdf5_write(data_holder, path_id);
 
-  herr_t errv;
-  AXOM_UNUSED_VAR(errv);
-
-  errv = H5Fflush(root_file_id, H5F_SCOPE_LOCAL);
-  SLIC_ASSERT(errv >= 0);
-
-  errv = H5Fclose(root_file_id);
-  SLIC_ASSERT(errv >= 0);
+  flushHDF5File(root_file_id);
+  closeHDF5File(root_file_id);
 #else
   AXOM_UNUSED_VAR(view);
   AXOM_UNUSED_VAR(file_name);
