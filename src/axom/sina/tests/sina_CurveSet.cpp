@@ -42,11 +42,15 @@ bool operator==(Curve const &lhs, Curve const &rhs)
     lhs.getTags() == rhs.getTags() && lhs.getValues() == rhs.getValues();
   return r;
 }
+}  // namespace sina
+}  // namespace axom
 
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using sina::Curve;
+using sina::CurveSet;
+using axom::sina::testing::MatchesJsonMatcher;
+using axom::sina::testing::parseJsonValue;
 
 using ::testing::ContainerEq;
 using ::testing::ElementsAre;
@@ -375,8 +379,3 @@ TEST(CurveSet, customIndependentSortOrder)
   curveSet.applyCustomIndependentCurveOrder(newOrder);
   EXPECT_THAT(curveSet.getOrderedIndependentCurveNames(), ContainerEq(newOrder));
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom

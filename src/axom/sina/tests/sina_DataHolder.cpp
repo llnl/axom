@@ -13,14 +13,15 @@
 #include "axom/sina/core/DataHolder.hpp"
 #include "axom/sina/tests/SinaMatchers.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using sina::Curve;
+using sina::CurveSet;
+using sina::DataHolder;
+using sina::Datum;
+using sina::addStringsToNode;
+using axom::sina::testing::MatchesJsonMatcher;
+using axom::sina::testing::parseJsonValue;
 
 using ::testing::Contains;
 using ::testing::DoubleEq;
@@ -311,8 +312,3 @@ TEST(DataHolder, toNode_userDefined)
                                 int_array + userDefined["k3"].dtype().number_of_elements());
   EXPECT_THAT(udef_ints, ElementsAre(1, 2, 3));
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom

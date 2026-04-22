@@ -25,14 +25,12 @@ extern "C" {
   #include "axom/sina/core/ID.hpp"
   #include "axom/sina/core/Run.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using sina::ID;
+using sina::IDType;
+using sina::Record;
+using sina::adiakSinaCallback;
 
 using ::testing::DoubleEq;
 using ::testing::ElementsAre;
@@ -163,10 +161,5 @@ TEST_F(AdiakWriterTest, files_list)
   EXPECT_EQ(1, asNode[EXPECTED_FILES_KEY].child(fileListVal2)["tags"].number_of_children());
   EXPECT_EQ(fileListName, asNode[EXPECTED_FILES_KEY].child(fileListVal2)["tags"][0].as_string());
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom
 
 #endif  // AXOM_USE_ADIAK

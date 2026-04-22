@@ -11,14 +11,12 @@
 #include "axom/sina/core/ConduitUtil.hpp"
 #include "axom/sina/tests/SinaMatchers.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using sina::Curve;
+using sina::addStringsToNode;
+using axom::sina::testing::MatchesJsonMatcher;
+using axom::sina::testing::parseJsonValue;
 
 using ::testing::ContainerEq;
 using ::testing::ElementsAre;
@@ -119,8 +117,3 @@ TEST(Curve, toNode_optionalFields)
     })";
   EXPECT_THAT(curve.toNode(), MatchesJsonMatcher(expected));
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom

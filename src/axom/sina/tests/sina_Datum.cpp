@@ -14,14 +14,11 @@
 #include "axom/sina/core/Datum.hpp"
 #include "axom/sina/core/ConduitUtil.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using sina::Datum;
+using sina::ValueType;
+using sina::addStringsToNode;
 
 using ::testing::DoubleEq;
 using ::testing::ElementsAre;
@@ -189,8 +186,3 @@ TEST(Datum, toJson)
   EXPECT_EQ(scal_list, scal_child_vals);
   EXPECT_EQ(val_list, str_child_vals);
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom

@@ -12,14 +12,15 @@
 #include "axom/sina/core/ConduitUtil.hpp"
 #include "axom/sina/tests/SinaMatchers.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using sina::getOptionalString;
+using sina::getRequiredDouble;
+using sina::getRequiredField;
+using sina::getRequiredString;
+using sina::toDoubleVector;
+using sina::toStringVector;
+using axom::sina::testing::parseJsonValue;
 
 using ::testing::ContainerEq;
 using ::testing::DoubleEq;
@@ -255,8 +256,3 @@ TEST(ConduitUtil, toStringVector_NotListOfStrings)
     EXPECT_THAT(ex.what(), HasSubstr("someName"));
   }
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom
