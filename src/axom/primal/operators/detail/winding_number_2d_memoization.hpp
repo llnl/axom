@@ -60,7 +60,7 @@ struct BezierCurveData
 
   const auto& getCurve() const { return m_curve; }
   auto isConvexControlPolygon() const { return m_isConvexControlPolygon; }
-  auto getBoundingBox() const { return m_boundingBox; }
+  const auto& getBoundingBox() const { return m_boundingBox; }
   bool isLinear(double tol) const { return m_maxControlPointChordDistanceSq <= tol; }
 
   friend bool operator==(const BezierCurveData<T>& lhs, const BezierCurveData<T>& rhs)
@@ -237,7 +237,7 @@ public:
   //!
   //! By limiting access to these functions, we ensure memoized information is always accurate
   auto getNumKnotSpans() const { return m_numSpans; }
-  auto boundingBox() const { return m_boundingBox; }
+  const auto& boundingBox() const { return m_boundingBox; }
   auto getNumControlPoints() const { return m_numControlPoints; }
   auto getDegree() const { return m_degree; }
 
