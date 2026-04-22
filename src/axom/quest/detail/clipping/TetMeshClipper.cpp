@@ -736,7 +736,7 @@ void TetMeshClipper::checkTetOrientations(conduit::Node& connNode,
       {
         if(fixOrientation)
         {
-          std::swap(connArray(iTet, 2), connArray(iTet, 3));
+          axom::utilities::swap(connArray(iTet, 2), connArray(iTet, 3));
         }
         else
         {
