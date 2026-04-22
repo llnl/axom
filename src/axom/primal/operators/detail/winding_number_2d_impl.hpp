@@ -133,13 +133,12 @@ double linear_winding_number_known_off_edge(const Point<T, 2>& q,
                                             const Point<T, 2>& c1)
 {
   constexpr double gwn_modulo = 0.5 * M_1_PI;
-  const double v0x = c0[0] - q[0];
-  const double v0y = c0[1] - q[1];
-  const double v1x = c1[0] - q[0];
-  const double v1y = c1[1] - q[1];
-  const double det_01 = v0x * v1y - v0y * v1x;
-  const double dot_01 = v0x * v1x + v0y * v1y;
-  return gwn_modulo * atan2(det_01, dot_01);
+  const auto v0 = c0 - q;
+  const auto v1 = c1 - q;
+
+  return gwn_modulo *
+    atan2(/* det_01 */ axom::numerics::determinant(v0[0], v1[0], v0[1], v1[1]),
+          /* dot_01 */ v0.dot(v1));
 }
 
 /*!
@@ -163,17 +162,16 @@ double linear_winding_number_impl(const Point<T, 2>& q,
 {
   constexpr double gwn_modulo = 0.5 * M_1_PI;
 
-  isOnEdge = false;
-  const auto V0 = c0 - q;
-  const auto V1 = c1 - q;
-
   // Measures twice the signed area of the triangle with vertices q, c0, c1.
-  const double det_01 = axom::numerics::determinant(V0[0], V1[0], V0[1], V1[1]);
-  const double dot_01 = V0.dot(V1);
 
   if constexpr(CheckOnEdge)
   {
+    const auto V0 = c0 - q;
+    const auto V1 = c1 - q;
+    const double det_01 = axom::numerics::determinant(V0[0], V1[0], V0[1], V1[1]);
     const auto seg_vec = c0 - c1;
+
+    isOnEdge = false;
     if(const double tol_sq = edge_tol * edge_tol, seg_sq = seg_vec.squared_norm();
        det_01 * det_01 <= tol_sq * seg_sq)
     {
@@ -191,7 +189,7 @@ double linear_winding_number_impl(const Point<T, 2>& q,
       return 0;
     }
 
-    return gwn_modulo * atan2(det_01, dot_01);
+    return gwn_modulo * atan2(det_01, V0.dot(V1));
   }
   else
   {
