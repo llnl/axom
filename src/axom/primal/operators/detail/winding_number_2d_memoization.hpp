@@ -29,6 +29,7 @@
 #include <vector>
 #include <ostream>
 #include <unordered_map>
+#include <cstdint>
 #include <math.h>
 
 #include "axom/fmt.hpp"
@@ -103,19 +104,6 @@ private:
 template <typename T>
 class NURBSCurveGWNCache;
 
-struct PairHash
-{
-  using argument_type = std::pair<int, int>;
-  using result_type = std::size_t;
-
-  result_type operator()(const argument_type& key) const noexcept
-  {
-    const auto a = static_cast<std::uint32_t>(key.first);
-    const auto b = static_cast<std::uint32_t>(key.second);
-    return (static_cast<result_type>(a) << 32) ^ static_cast<result_type>(b);
-  }
-};
-
 /// \brief Overloaded output operator for Cached Curves
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const NURBSCurveGWNCache<T>& nCurveCache);
@@ -139,6 +127,9 @@ public:
   using PointType = typename NURBSCurve<T, 2>::PointType;
   using VectorType = typename NURBSCurve<T, 2>::VectorType;
   using BoundingBoxType = typename NURBSCurve<T, 2>::BoundingBoxType;
+  using SubdivisionKey = std::uint64_t;
+  using ChildSubdivisionData = std::pair<const BezierCurveData<T>*, const BezierCurveData<T>*>;
+  using SubdivisionMap = std::unordered_map<SubdivisionKey, BezierCurveData<T>>;
 
 public:
   NURBSCurveGWNCache() = default;
@@ -152,15 +143,13 @@ public:
     m_numSpans = a_curve.getNumKnotSpans();
 
     m_bezierSubdivisionMaps.resize(m_numSpans);
+    m_rootBezierData.resize(m_numSpans);
     auto beziers = a_curve.extractBezier();
 
     for(int idx = 0; idx < m_numSpans; ++idx)
     {
       m_bezierSubdivisionMaps[idx].reserve(32);
-      m_bezierSubdivisionMaps[idx].try_emplace(std::make_pair(0, 0),
-                                               beziers[idx],
-                                               false,
-                                               bbExpansionAmount);
+      m_rootBezierData[idx] = BezierCurveData<T>(beziers[idx], false, bbExpansionAmount);
     }
 
     m_initPoint = a_curve[0];
@@ -177,6 +166,7 @@ public:
     if(a_curve.getOrder() <= 0)
     {
       m_numSpans = 0;
+      m_rootBezierData.clear();
       m_bezierSubdivisionMaps.clear();
 
       m_initPoint = m_endPoint = Point<T, 2> {0.0, 0.0};
@@ -184,13 +174,14 @@ public:
     else
     {
       m_numSpans = 1;
+      m_rootBezierData.resize(1);
       m_bezierSubdivisionMaps.resize(1);
 
       m_initPoint = a_curve[0];
       m_endPoint = a_curve[m_degree];
 
       m_bezierSubdivisionMaps[0].reserve(32);
-      m_bezierSubdivisionMaps[0].try_emplace(std::make_pair(0, 0), a_curve, false, bbExpansionAmount);
+      m_rootBezierData[0] = BezierCurveData<T>(a_curve, false, bbExpansionAmount);
     }
   }
 
@@ -200,36 +191,67 @@ public:
                                                int refinementIndex,
                                                double bbExpansionAmount = 0.0) const
   {
-    using Key = std::pair<int, int>;
-    auto& level_map = m_bezierSubdivisionMaps[idx];
-    const Key hash_key {refinementLevel, refinementIndex};
+    if(refinementLevel == 0)
+    {
+      return m_rootBezierData[idx];
+    }
+
+    auto& subdivision_map = m_bezierSubdivisionMaps[idx];
+    const auto hash_key = makeSubdivisionKey(refinementLevel, refinementIndex);
 
     // If already there, return it
-    if(auto it = level_map.find(hash_key); it != level_map.end())
+    if(auto it = subdivision_map.find(hash_key); it != subdivision_map.end())
     {
       return it->second;
     }
 
     // Otherwise, create (refinementLevel, refinementIndex) and sibling via their parent
-    const Key parent_key {refinementLevel - 1, refinementIndex / 2};
-    auto parent_it = level_map.find(parent_key);
-    SLIC_ASSERT(parent_it != level_map.end());
-
-    const BezierCurveData<T>& supercurve_data = parent_it->second;
-    BezierCurve<T, 2> sub1, sub2;
-    supercurve_data.getCurve().split(0.5, sub1, sub2);
-
-    // Make keys for the requested curve and its "sibling" in the heirarchy
     const int base = refinementIndex - (refinementIndex % 2);
-    const Key key1 {refinementLevel, base};
-    const Key key2 {refinementLevel, base + 1};
+    const BezierCurveData<T>* parent_data = nullptr;
+    if(refinementLevel == 1)
+    {
+      parent_data = &m_rootBezierData[idx];
+    }
+    else
+    {
+      const auto parent_key = makeSubdivisionKey(refinementLevel - 1, refinementIndex / 2);
+      auto parent_it = subdivision_map.find(parent_key);
+      SLIC_ASSERT(parent_it != subdivision_map.end());
+      parent_data = &parent_it->second;
+    }
 
-    // Emplace both and return value associated with hash_key
-    auto [it1, ins1] =
-      level_map.try_emplace(key1, sub1, supercurve_data.isConvexControlPolygon(), bbExpansionAmount);
-    auto [it2, ins2] =
-      level_map.try_emplace(key2, sub2, supercurve_data.isConvexControlPolygon(), bbExpansionAmount);
-    return (hash_key == key1) ? it1->second : it2->second;
+    const auto [child1, child2] = insertChildSubdivisionData(subdivision_map,
+                                                             refinementLevel,
+                                                             base,
+                                                             *parent_data,
+                                                             bbExpansionAmount);
+    return (refinementIndex % 2 == 0) ? *child1 : *child2;
+  }
+
+  ChildSubdivisionData getSubdivisionChildren(int idx,
+                                              int refinementLevel,
+                                              int refinementIndex,
+                                              const BezierCurveData<T>& supercurveData,
+                                              double bbExpansionAmount = 0.0) const
+  {
+    auto& subdivision_map = m_bezierSubdivisionMaps[idx];
+    const int child_level = refinementLevel + 1;
+    const int child_base_index = 2 * refinementIndex;
+    const auto key1 = makeSubdivisionKey(child_level, child_base_index);
+
+    if(auto it1 = subdivision_map.find(key1); it1 != subdivision_map.end())
+    {
+      const auto key2 = makeSubdivisionKey(child_level, child_base_index + 1);
+      auto it2 = subdivision_map.find(key2);
+      SLIC_ASSERT(it2 != subdivision_map.end());
+      return {&it1->second, &it2->second};
+    }
+
+    return insertChildSubdivisionData(subdivision_map,
+                                      child_level,
+                                      child_base_index,
+                                      supercurveData,
+                                      bbExpansionAmount);
   }
 
   ///@{
@@ -248,7 +270,8 @@ public:
   friend bool operator==(const NURBSCurveGWNCache<T>& lhs, const NURBSCurveGWNCache<T>& rhs)
   {
     // numControlPoints, degree, and numSpans will be equal if the subdivision maps are
-    return (lhs.m_bezierSubdivisionMaps == rhs.m_bezierSubdivisionMaps) &&
+    return (lhs.m_rootBezierData == rhs.m_rootBezierData) &&
+      (lhs.m_bezierSubdivisionMaps == rhs.m_bezierSubdivisionMaps) &&
       (lhs.m_boundingBox == rhs.m_boundingBox);
   }
 
@@ -263,11 +286,11 @@ public:
 
     if(m_numSpans >= 1)
     {
-      os << m_bezierSubdivisionMaps[0][std::make_pair(0, 0)].getCurve();
+      os << m_rootBezierData[0].getCurve();
     }
     for(int i = 1; i < m_numSpans; ++i)
     {
-      os << ", " << m_bezierSubdivisionMaps[i][std::make_pair(0, 0)].getCurve();
+      os << ", " << m_rootBezierData[i].getCurve();
     }
     os << "}";
 
@@ -275,6 +298,34 @@ public:
   }
 
 private:
+  static SubdivisionKey makeSubdivisionKey(int refinementLevel, int refinementIndex)
+  {
+    return (static_cast<SubdivisionKey>(static_cast<std::uint32_t>(refinementLevel)) << 32) |
+      static_cast<SubdivisionKey>(static_cast<std::uint32_t>(refinementIndex));
+  }
+
+  static ChildSubdivisionData insertChildSubdivisionData(SubdivisionMap& subdivision_map,
+                                                         int refinementLevel,
+                                                         int refinementIndex,
+                                                         const BezierCurveData<T>& supercurveData,
+                                                         double bbExpansionAmount)
+  {
+    BezierCurve<T, 2> sub1, sub2;
+    supercurveData.getCurve().split(0.5, sub1, sub2);
+
+    const auto key1 = makeSubdivisionKey(refinementLevel, refinementIndex);
+    const auto key2 = makeSubdivisionKey(refinementLevel, refinementIndex + 1);
+
+    auto it1 = subdivision_map
+                 .try_emplace(key1, sub1, supercurveData.isConvexControlPolygon(), bbExpansionAmount)
+                 .first;
+    auto it2 = subdivision_map
+                 .try_emplace(key2, sub2, supercurveData.isConvexControlPolygon(), bbExpansionAmount)
+                 .first;
+
+    return {&it1->second, &it2->second};
+  }
+
   BoundingBox<T, 2> m_boundingBox;
   int m_numControlPoints;
   int m_degree;
@@ -282,8 +333,8 @@ private:
 
   Point<T, 2> m_initPoint, m_endPoint;
 
-  mutable axom::Array<std::unordered_map<std::pair<int, int>, BezierCurveData<T>, PairHash>>
-    m_bezierSubdivisionMaps;
+  axom::Array<BezierCurveData<T>> m_rootBezierData;
+  mutable axom::Array<SubdivisionMap> m_bezierSubdivisionMaps;
 };
 
 template <typename T>

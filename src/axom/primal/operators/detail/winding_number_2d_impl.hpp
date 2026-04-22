@@ -325,24 +325,17 @@ double convex_endpoint_winding_number(const Point<T, 2>& q,
  * \return The GWN.
  */
 template <typename T>
-double bezier_winding_number_memoized(const Point<T, 2>& q,
-                                      const NURBSCurveGWNCache<T>& nurbs_cache,
-                                      int bezier_idx,
-                                      int refinement_level,
-                                      int refinement_index,
-                                      bool& isOnCurve,
-                                      double edge_tol = 1e-8,
-                                      double EPS = 1e-8)
+double bezier_winding_number_memoized_impl(const Point<T, 2>& q,
+                                           const NURBSCurveGWNCache<T>& nurbs_cache,
+                                           int bezier_idx,
+                                           int refinement_level,
+                                           int refinement_index,
+                                           const BezierCurveData<T>& bezier_data,
+                                           bool& isOnCurve,
+                                           double edge_tol = 1e-8,
+                                           double EPS = 1e-8)
 {
-  // Early exit for degenerate curves
   const int deg = nurbs_cache.getDegree();
-  if(deg <= 0)
-  {
-    return 0.0;
-  }
-
-  auto& bezier_data =
-    nurbs_cache.getSubdivisionData(bezier_idx, refinement_level, refinement_index, edge_tol);
   auto& bezier_curve = bezier_data.getCurve();
 
   const bool outside_bbox = !bezier_data.getBoundingBox().contains(q);
@@ -374,23 +367,60 @@ double bezier_winding_number_memoized(const Point<T, 2>& q,
     return convex_endpoint_winding_number(q, bezier_curve, edge_tol, EPS);
   }
 
-  const auto gwn_half_1 = detail::bezier_winding_number_memoized(q,
-                                                                 nurbs_cache,
-                                                                 bezier_idx,
-                                                                 refinement_level + 1,
-                                                                 2 * refinement_index,
-                                                                 isOnCurve,
-                                                                 edge_tol,
-                                                                 EPS);
-  const auto gwn_half_2 = detail::bezier_winding_number_memoized(q,
-                                                                 nurbs_cache,
-                                                                 bezier_idx,
-                                                                 refinement_level + 1,
-                                                                 2 * refinement_index + 1,
-                                                                 isOnCurve,
-                                                                 edge_tol,
-                                                                 EPS);
+  const auto [child_curve_1, child_curve_2] = nurbs_cache.getSubdivisionChildren(bezier_idx,
+                                                                                 refinement_level,
+                                                                                 refinement_index,
+                                                                                 bezier_data,
+                                                                                 edge_tol);
+  const auto gwn_half_1 = detail::bezier_winding_number_memoized_impl(q,
+                                                                      nurbs_cache,
+                                                                      bezier_idx,
+                                                                      refinement_level + 1,
+                                                                      2 * refinement_index,
+                                                                      *child_curve_1,
+                                                                      isOnCurve,
+                                                                      edge_tol,
+                                                                      EPS);
+  const auto gwn_half_2 = detail::bezier_winding_number_memoized_impl(q,
+                                                                      nurbs_cache,
+                                                                      bezier_idx,
+                                                                      refinement_level + 1,
+                                                                      2 * refinement_index + 1,
+                                                                      *child_curve_2,
+                                                                      isOnCurve,
+                                                                      edge_tol,
+                                                                      EPS);
   return gwn_half_1 + gwn_half_2;
+}
+
+template <typename T>
+double bezier_winding_number_memoized(const Point<T, 2>& q,
+                                      const NURBSCurveGWNCache<T>& nurbs_cache,
+                                      int bezier_idx,
+                                      int refinement_level,
+                                      int refinement_index,
+                                      bool& isOnCurve,
+                                      double edge_tol = 1e-8,
+                                      double EPS = 1e-8)
+{
+  // Early exit for degenerate curves
+  const int deg = nurbs_cache.getDegree();
+  if(deg <= 0)
+  {
+    return 0.0;
+  }
+
+  auto& bezier_data =
+    nurbs_cache.getSubdivisionData(bezier_idx, refinement_level, refinement_index, edge_tol);
+  return detail::bezier_winding_number_memoized_impl(q,
+                                                     nurbs_cache,
+                                                     bezier_idx,
+                                                     refinement_level,
+                                                     refinement_index,
+                                                     bezier_data,
+                                                     isOnCurve,
+                                                     edge_tol,
+                                                     EPS);
 }
 
 /*!
