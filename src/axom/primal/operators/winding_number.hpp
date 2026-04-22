@@ -399,15 +399,30 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
                                    double edge_tol = 1e-8,
                                    double EPS = 1e-8)
 {
-  bool dummy_isOnCurve;
-  axom::Array<double> ret_val(query_arr.size());
-  for(int n = 0; n < query_arr.size(); ++n)
-  {
-    ret_val[n] = 0.0;
+  axom::Array<double> ret_val(query_arr.size(), query_arr.size(), 0.);
 
-    for(auto& the_cache : nurbs_cache_arr)
+  for(const auto& the_cache : nurbs_cache_arr)
+  {
+    const auto& bbox = the_cache.boundingBox();
+    const auto& init_point = the_cache.getInitPoint();
+    const auto& end_point = the_cache.getEndPoint();
+    const int num_spans = the_cache.getNumKnotSpans();
+
+    for(axom::IndexType n = 0; n < query_arr.size(); ++n)
     {
-      for(int k = 0; k < the_cache.getNumKnotSpans(); ++k)
+      bool dummy_isOnCurve = false;
+      if(!bbox.contains(query_arr[n]))
+      {
+        ret_val[n] += detail::linear_winding_number(query_arr[n],
+                                                    init_point,
+                                                    end_point,
+                                                    dummy_isOnCurve,
+                                                    edge_tol,
+                                                    false);
+        continue;
+      }
+
+      for(int k = 0; k < num_spans; ++k)
       {
         ret_val[n] += detail::bezier_winding_number_memoized(query_arr[n],
                                                              the_cache,
