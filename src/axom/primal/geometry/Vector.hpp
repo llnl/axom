@@ -202,8 +202,27 @@ public:
    * \pre A.dimension() == ndims
    */
   AXOM_HOST_DEVICE
-  Vector(const Point<T, NDIMS>& A, const Point<T, NDIMS>& B) : m_components(B.array() - A.array())
-  { }
+  Vector(const Point<T, NDIMS>& A, const Point<T, NDIMS>& B)
+  {
+    if constexpr(NDIMS == 2)
+    {
+      m_components[0] = B[0] - A[0];
+      m_components[1] = B[1] - A[1];
+    }
+    else if constexpr(NDIMS == 3)
+    {
+      m_components[0] = B[0] - A[0];
+      m_components[1] = B[1] - A[1];
+      m_components[2] = B[2] - A[2];
+    }
+    else
+    {
+      for(int i = 0; i < NDIMS; ++i)
+      {
+        m_components[i] = B[i] - A[i];
+      }
+    }
+  }
 
   /*!
    * \brief Creates a vector from an initializer list
@@ -544,12 +563,23 @@ template <typename T, int NDIMS>
 AXOM_HOST_DEVICE inline T Vector<T, NDIMS>::dot_product(const Vector<T, NDIMS>& u,
                                                         const Vector<T, NDIMS>& v)
 {
-  T res {};
-  for(int d = 0; d < NDIMS; ++d)
+  if constexpr(NDIMS == 2)
   {
-    res += u[d] * v[d];
+    return u[0] * v[0] + u[1] * v[1];
   }
-  return res;
+  else if constexpr(NDIMS == 3)
+  {
+    return u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+  }
+  else
+  {
+    T res {};
+    for(int d = 0; d < NDIMS; ++d)
+    {
+      res += u[d] * v[d];
+    }
+    return res;
+  }
 }
 
 //------------------------------------------------------------------------------
