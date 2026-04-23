@@ -73,6 +73,7 @@ struct PatchData
   axom::primal::BoundingBox<double, 2> parametricBBox;
   axom::primal::BoundingBox<double, 3> physicalBBox;
   axom::Array<bool> trimmingCurves_originallyPeriodic;
+  axom::Array<int> trimmingCurves_wireIds;
 };
 
 using PatchDataMap = std::map<int, PatchData>;
@@ -890,16 +891,14 @@ public:
         for(; edgeExp.More(); edgeExp.Next(), ++edgeIndex)
         {
           const TopoDS_Edge& edge = TopoDS::Edge(edgeExp.Current());
-          const int curveIndex = patch.getNumTrimmingCurves();
 
           if(m_verbose)
           {
             BRepAdaptor_Curve curveAdaptor(edge);
-            SLIC_INFO(axom::fmt::format("[Patch {} Wire {} Edge {} Curve {}] Curve type: '{}'",
+            SLIC_INFO(axom::fmt::format("[Patch {} Wire {} Edge {}] Curve type: '{}'",
                                         patchIndex,
                                         wireIndex,
                                         edgeIndex,
-                                        curveIndex,
                                         curveTypeMap[curveAdaptor.GetType()]));
           }
 
@@ -917,6 +916,7 @@ public:
             auto curve = curveProcessor.nurbsCurve();
             patchData.trimmingCurves_originallyPeriodic.push_back(
               curveProcessor.curveWasOriginallyPeriodic());
+            patchData.trimmingCurves_wireIds.push_back(wireIndex);
 
             SLIC_ASSERT(curve.isValidNURBS());
             SLIC_ASSERT(curve.getDegree() == bsplineCurve->Degree());
@@ -934,11 +934,10 @@ public:
             patch.addTrimmingCurve(curve);
 
             SLIC_INFO_IF(m_verbose,
-                         axom::fmt::format("[Patch {} Wire {} Edge {} Curve {}] Added curve: {}",
+                         axom::fmt::format("[Patch {} Wire {} Edge {}] Added curve: {}",
                                            patchIndex,
                                            wireIndex,
                                            edgeIndex,
-                                           curveIndex,
                                            curve));
 
             // Check to ensure that curve did not change geometrically after making non-periodic
@@ -947,14 +946,12 @@ public:
               opencascade::handle<Geom2d_BSplineCurve> origCurve =
                 Geom2dConvert::CurveToBSplineCurve(parametricCurve);
               const bool withinThreshold = curveProcessor.compareToCurve(origCurve, 25);
-              SLIC_WARNING_IF(
-                !withinThreshold,
-                axom::fmt::format("[Patch {} Wire {} Edge {} Curve {}] Trimming curve was not "
-                                  "within threshold after clamping.",
-                                  patchIndex,
-                                  wireIndex,
-                                  edgeIndex,
-                                  curveIndex));
+              SLIC_WARNING_IF(!withinThreshold,
+                              axom::fmt::format("[Patch {} Wire {} Edge {}] Trimming curve was not "
+                                                "within threshold after clamping.",
+                                                patchIndex,
+                                                wireIndex,
+                                                edgeIndex));
             }
 
             // TODO: Check that curve control points are within UV patch after adjusting periodicity
@@ -1296,6 +1293,16 @@ private:
 
 std::string STEPReader::getFileUnits() const { return m_stepProcessor->getFileUnits(); }
 
+axom::ArrayView<const int> STEPReader::getTrimmingCurveWireIds(int patchArrayIndex) const
+{
+  if(patchArrayIndex < 0 || patchArrayIndex >= static_cast<int>(m_trimmingCurveWireIds.size()))
+  {
+    return {};
+  }
+
+  return m_trimmingCurveWireIds[patchArrayIndex].view();
+}
+
 std::string STEPReader::getBRepStats() const
 {
   // early return if the step file has not been loaded
@@ -1569,6 +1576,18 @@ STEPReader::~STEPReader()
   }
 }
 
+bool STEPReader::patchWasOriginallyPeriodic_u(int patchArrayIndex) const
+{
+  SLIC_ASSERT(patchArrayIndex >= 0 && patchArrayIndex < m_patchOriginallyPeriodic_u.size());
+  return m_patchOriginallyPeriodic_u[patchArrayIndex] != 0;
+}
+
+bool STEPReader::patchWasOriginallyPeriodic_v(int patchArrayIndex) const
+{
+  SLIC_ASSERT(patchArrayIndex >= 0 && patchArrayIndex < m_patchOriginallyPeriodic_v.size());
+  return m_patchOriginallyPeriodic_v[patchArrayIndex] != 0;
+}
+
 int STEPReader::read(bool validate_model)
 {
   m_stepProcessor = new internal::StepFileProcessor(m_fileName, m_verbosity);
@@ -1584,6 +1603,35 @@ int STEPReader::read(bool validate_model)
 
   m_stepProcessor->extractPatches(m_patches);
   m_stepProcessor->extractTrimmingCurves(m_patches);
+
+  // Record stable ids that match the input STEP enumeration, even if consumers
+  // later filter/skip patches or trimming curves.
+  m_patchIds.clear();
+  m_patchIds.resize(m_patches.size());
+  m_trimmingCurveWireIds.clear();
+  m_trimmingCurveWireIds.resize(m_patches.size());
+  m_patchOriginallyPeriodic_u.clear();
+  m_patchOriginallyPeriodic_u.resize(m_patches.size());
+  m_patchOriginallyPeriodic_u.fill(0);
+  m_patchOriginallyPeriodic_v.clear();
+  m_patchOriginallyPeriodic_v.resize(m_patches.size());
+  m_patchOriginallyPeriodic_v.fill(0);
+
+  const auto& patchDataMap = m_stepProcessor->getPatchDataMap();
+  for(int patchArrayIndex = 0; patchArrayIndex < m_patches.size(); ++patchArrayIndex)
+  {
+    // Current implementation preserves patch array index == input face index.
+    // Keep this explicit mapping in case future logic filters patches.
+    m_patchIds[patchArrayIndex] = patchArrayIndex;
+
+    auto it = patchDataMap.find(patchArrayIndex);
+    if(it != patchDataMap.end())
+    {
+      m_trimmingCurveWireIds[patchArrayIndex] = it->second.trimmingCurves_wireIds;
+      m_patchOriginallyPeriodic_u[patchArrayIndex] = it->second.wasOriginallyPeriodic_u ? 1 : 0;
+      m_patchOriginallyPeriodic_v[patchArrayIndex] = it->second.wasOriginallyPeriodic_v ? 1 : 0;
+    }
+  }
 
   return 0;
 }

@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/primal.hpp"
+#include "axom/primal/operators/detail/evaluate_integral_impl.hpp"
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
 #include <iostream>
@@ -564,6 +565,140 @@ TEST(primal_integral, evaluate_nurbs_surface_normal)
   }
 }
 
+TEST(primal_integral, evaluate_patch_surface_and_volume_integrals)
+{
+  using Point3D = primal::Point<double, 3>;
+  using BPatch = primal::BezierPatch<double, 3>;
+
+  auto make_bilinear_patch =
+    [](const Point3D& p00, const Point3D& p10, const Point3D& p01, const Point3D& p11) {
+      Point3D control_points[] = {p00, p01, p10, p11};
+      return BPatch(control_points, 1, 1);
+    };
+
+  axom::Array<BPatch> cube_faces(6);
+  cube_faces[0] = make_bilinear_patch({0., 0., 0.}, {0., 1., 0.}, {1., 0., 0.}, {1., 1., 0.});
+  cube_faces[1] = make_bilinear_patch({0., 0., 1.}, {1., 0., 1.}, {0., 1., 1.}, {1., 1., 1.});
+  cube_faces[2] = make_bilinear_patch({0., 0., 0.}, {0., 0., 1.}, {0., 1., 0.}, {0., 1., 1.});
+  cube_faces[3] = make_bilinear_patch({1., 0., 0.}, {1., 1., 0.}, {1., 0., 1.}, {1., 1., 1.});
+  cube_faces[4] = make_bilinear_patch({0., 0., 0.}, {1., 0., 0.}, {0., 0., 1.}, {1., 0., 1.});
+  cube_faces[5] = make_bilinear_patch({0., 1., 0.}, {0., 1., 1.}, {1., 1., 0.}, {1., 1., 1.});
+
+  auto const_integrand = [](Point3D /*x*/) -> double { return 1.0; };
+  auto z_integrand = [](Point3D x) -> double { return x[2]; };
+
+  constexpr int npts = 6;
+  constexpr double abs_tol = 1e-10;
+  constexpr double lower_bound_z = 0.0;
+
+  double patchwise_volume = 0.0;
+  double patchwise_z_moment = 0.0;
+  for(int i = 0; i < cube_faces.size(); ++i)
+  {
+    patchwise_volume += evaluate_volume_integral(cube_faces[i], const_integrand, lower_bound_z, npts);
+    patchwise_z_moment += evaluate_volume_integral(cube_faces[i], z_integrand, lower_bound_z, npts);
+  }
+
+  EXPECT_NEAR(evaluate_surface_integral(cube_faces, const_integrand, npts), 6.0, abs_tol);
+  EXPECT_NEAR(evaluate_volume_integral(cube_faces, const_integrand, npts), 1.0, abs_tol);
+  EXPECT_NEAR(evaluate_volume_integral(cube_faces, z_integrand, npts), 0.5, abs_tol);
+  EXPECT_NEAR(patchwise_volume, 1.0, abs_tol);
+  EXPECT_NEAR(patchwise_z_moment, 0.5, abs_tol);
+  EXPECT_NEAR(evaluate_volume_integral(cube_faces[1], const_integrand, lower_bound_z, npts),
+              1.0,
+              abs_tol);
+}
+
+TEST(primal_integral, evaluate_trimmed_nurbs_patch_surface_integral)
+{
+  using Point2D = primal::Point<double, 2>;
+  using Point3D = primal::Point<double, 3>;
+  using NPatch = primal::NURBSPatch<double, 3>;
+  using TrimmingCurve = primal::NURBSCurve<double, 2>;
+
+  Point3D control_points[] = {Point3D {0.0, 0.0, 0.0},
+                              Point3D {0.0, 1.0, 0.0},
+                              Point3D {1.0, 0.0, 0.0},
+                              Point3D {1.0, 1.0, 0.0}};
+
+  NPatch patch(control_points, 2, 2, 1, 1);
+
+  axom::Array<Point2D> trim_pts {Point2D {0.25, 0.25},
+                                 Point2D {0.75, 0.25},
+                                 Point2D {0.75, 0.75},
+                                 Point2D {0.25, 0.75},
+                                 Point2D {0.25, 0.25}};
+  patch.addTrimmingCurve(TrimmingCurve(trim_pts, 1));
+
+  auto const_integrand = [](Point3D /*x*/) -> double { return 1.0; };
+  auto linear_integrand = [](Point3D x) -> double { return x[0] + x[1]; };
+
+  constexpr int npts = 8;
+  constexpr double abs_tol = 1e-10;
+
+  EXPECT_NEAR(evaluate_surface_integral(patch, const_integrand, npts), 0.25, abs_tol);
+  EXPECT_NEAR(evaluate_surface_integral(patch, linear_integrand, npts), 0.25, abs_tol);
+}
+
+TEST(primal_integral, evaluate_trimmed_nurbs_patch_surface_integral_clamps_bounds)
+{
+  using Point2D = primal::Point<double, 2>;
+  using Point3D = primal::Point<double, 3>;
+  using NPatch = primal::NURBSPatch<double, 3>;
+  using TrimmingCurve = primal::NURBSCurve<double, 2>;
+
+  Point3D control_points[] = {Point3D {0.0, 0.0, 0.0},
+                              Point3D {0.0, 1.0, 0.0},
+                              Point3D {1.0, 0.0, 0.0},
+                              Point3D {1.0, 1.0, 0.0}};
+
+  NPatch patch(control_points, 2, 2, 1, 1);
+
+  // Closed trimming loop with a control point below v-min (vmin == 0 for this patch),
+  //  but whose geometric curve remains inside the patch.
+  axom::Array<Point2D> bottom_pts {Point2D {0.25, 0.25}, Point2D {0.50, -0.05}, Point2D {0.75, 0.25}};
+  patch.addTrimmingCurve(TrimmingCurve(bottom_pts, 2));
+
+  Point2D right_pts[] = {Point2D {0.75, 0.25}, Point2D {0.75, 0.75}};
+  patch.addTrimmingCurve(TrimmingCurve(right_pts, 2, 1));
+
+  Point2D top_pts[] = {Point2D {0.75, 0.75}, Point2D {0.25, 0.75}};
+  patch.addTrimmingCurve(TrimmingCurve(top_pts, 2, 1));
+
+  Point2D left_pts[] = {Point2D {0.25, 0.75}, Point2D {0.25, 0.25}};
+  patch.addTrimmingCurve(TrimmingCurve(left_pts, 2, 1));
+
+  bool saw_clamped_node = false;
+  const double vmin = patch.getMinKnot_v();
+  auto integrand = [&saw_clamped_node, vmin](Point3D x) -> double {
+    if(x[1] == vmin)
+    {
+      saw_clamped_node = true;
+    }
+    return x[1];
+  };
+
+  constexpr int npts = 8;
+  (void)evaluate_surface_integral(patch, integrand, npts);
+
+  EXPECT_FALSE(saw_clamped_node);
+}
+
+TEST(primal_integral, trimming_curve_array_lower_bound_includes_all_first_control_points)
+{
+  using Point2D = primal::Point<double, 2>;
+  using TrimmingCurve = primal::NURBSCurve<double, 2>;
+
+  axom::Array<Point2D> curve0_pts {Point2D {0.0, 0.5}, Point2D {1.0, 0.6}};
+  axom::Array<Point2D> curve1_pts {Point2D {0.0, -1.0}, Point2D {1.0, 1.0}};
+
+  axom::Array<TrimmingCurve> curves;
+  curves.push_back(TrimmingCurve(curve0_pts, 1));
+  curves.push_back(TrimmingCurve(curve1_pts, 1));
+
+  EXPECT_DOUBLE_EQ(primal::detail::curve_array_lower_bound_y(curves), -1.0);
+}
+
 TEST(primal_integral, evaluate_integral_nurbs_gwn_cache)
 {
   using Point2D = primal::Point<double, 2>;
@@ -625,8 +760,12 @@ TEST(primal_integral, evaluate_integral_nurbs_gwn_cache)
 #ifdef AXOM_USE_MFEM
 TEST(primal_integral, check_axom_mfem_quadrature_values)
 {
-  const int N = 200;
+  // MFEM and Axom both generate Gauss-Legendre rules, but in builds that enable
+  // `-march=native` we can see ULP-level differences in the computed nodes/weights
+  // even though the rules are equivalent for integration purposes.
+  const double fp_tol = 8 * axom::numeric_limits<double>::epsilon();
 
+  constexpr int N = 200;
   for(int npts = 1; npts <= N; ++npts)
   {
     // Generate the Axom quadrature rule
@@ -639,12 +778,8 @@ TEST(primal_integral, check_axom_mfem_quadrature_values)
     // Check that the nodes and weights are the same between the two rules
     for(int j = 0; j < npts; ++j)
     {
-      EXPECT_NEAR(axom_rule.node(j), mfem_rule.IntPoint(j).x, axom::numeric_limits<double>::epsilon());
-
-      // Relax tolerance slightly for intel-oneapi
-      EXPECT_NEAR(axom_rule.weight(j),
-                  mfem_rule.IntPoint(j).weight,
-                  10 * axom::numeric_limits<double>::epsilon());
+      EXPECT_NEAR(axom_rule.node(j), mfem_rule.IntPoint(j).x, fp_tol);
+      EXPECT_NEAR(axom_rule.weight(j), mfem_rule.IntPoint(j).weight, fp_tol);
     }
   }
 }
