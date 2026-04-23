@@ -298,6 +298,43 @@ private:
   mutable axom::Array<std::unordered_map<std::uint64_t, TrimmingCurveQuadratureData<T>>> m_curveQuadratureMaps;
 };
 
+/*!
+ * \brief Computes one cast direction for a collection of cached patches.
+ *
+ * The Stokes/discontinuity correction is additive only when every patch in a
+ * stitched surface uses the same discontinuity axis. This helper derives that
+ * shared axis from the cached patch normals and adds a small fixed bias so
+ * highly symmetric assemblies do not fall back onto an axis-aligned tie.
+ *
+ * \param [in] nurbs_arr Cached patch data for one closed surface assembly
+ * \param [in] EPS Tolerance for detecting zero-length normals
+ *
+ * \return A normalized cast direction for the full patch assembly
+ */
+template <typename T>
+Vector<T, 3> surface_winding_number_cast_direction(
+  const axom::ArrayView<const NURBSPatchGWNCache<T>>& nurbs_arr,
+  const double EPS = 1e-8)
+{
+  Vector<T, 3> cast_direction {};
+  for(const auto& nurbs : nurbs_arr)
+  {
+    const auto& normal = nurbs.getNormal();
+    if(normal.norm() >= EPS)
+    {
+      const auto unit_normal = normal.unitVector();
+      cast_direction[0] += std::abs(unit_normal[0]);
+      cast_direction[1] += std::abs(unit_normal[1]);
+      cast_direction[2] += std::abs(unit_normal[2]);
+    }
+  }
+
+  const auto bias_direction = Vector<T, 3> {1.0, 2.0, 3.0}.unitVector();
+  return (cast_direction.norm() < EPS)
+    ? bias_direction
+    : (cast_direction.unitVector() + 0.1 * bias_direction).unitVector();
+}
+
 }  // namespace detail
 
 /*!
@@ -325,8 +362,8 @@ public:
       m_nurbs_caches.push_back(NURBSCache(patch, computeNormal));
     }
 
-    // If we didn't comptue normals in NURBSCache constructor,
-    //  need to use precomputed values
+    // If we didn't compute normals in the cache constructor,
+    //  overwrite them with the precomputed values from moment preprocessing.
     if(!computeNormal)
     {
       for(int n = 0; n < precomputed_normals.size(); ++n)
@@ -334,25 +371,33 @@ public:
         m_nurbs_caches[n].setNormal(std::move(precomputed_normals[n]));
       }
     }
+
+    m_surface_cast_direction =
+      detail::surface_winding_number_cast_direction<double>(m_nurbs_caches.view());
   }
 
-  /// A view of the manager object.
+  /// A lightweight view of the cache array plus the precomputed shared cast direction.
   struct View
   {
     NURBSCacheArrayView m_view;
+    axom::primal::Vector<double, 3> m_cast_direction;
 
     /// Return the NURBSCacheArrayView.
     NURBSCacheArrayView caches() const { return m_view; }
+
+    /// Return the shared cast direction for the full patch assembly.
+    const axom::primal::Vector<double, 3>& castDirection() const { return m_cast_direction; }
   };
 
   /// Return a view of this manager to pass into a device function.
-  View view() const { return View {m_nurbs_caches.view()}; }
+  View view() const { return View {m_nurbs_caches.view(), m_surface_cast_direction}; }
 
   /// Return if the underlying array is empty
   bool empty() const { return m_nurbs_caches.empty(); }
 
 private:
   NURBSCacheArray m_nurbs_caches;
+  axom::primal::Vector<double, 3> m_surface_cast_direction {};
 };
 
 template <typename ExecSpace>
@@ -395,8 +440,8 @@ public:
         nurbs_caches_view[0][i] = NURBSCache(patches[i], computeNormal);
       });
 
-    // If we didn't comptue normals in NURBSCache constructor,
-    //  need to get them from the moments
+    // If we didn't compute normals in the cache constructor,
+    //  overwrite them with the precomputed values from moment preprocessing.
     if(!computeNormal)
     {
       axom::for_all<axom::OMP_EXEC>(
@@ -413,25 +458,33 @@ public:
     {
       nurbs_caches_view[t] = nurbs_caches_view[0];
     }
+
+    m_surface_cast_direction =
+      detail::surface_winding_number_cast_direction<double>(nurbs_caches_view[0].view());
   }
 
-  /// A view of the manager object.
+  /// A lightweight view of the per-thread caches plus the shared cast direction.
   struct View
   {
     NURBSCachePerThreadArrayView m_views;
+    axom::primal::Vector<double, 3> m_cast_direction;
 
     /// Return the NURBSCacheArrayView for the current OMP thread.
     NURBSCacheArrayView caches() const { return m_views[omp_get_thread_num()].view(); }
+
+    /// Return the shared cast direction for the full patch assembly.
+    const axom::primal::Vector<double, 3>& castDirection() const { return m_cast_direction; }
   };
 
   /// Return a view of this manager to pass into a device function.
-  View view() const { return View {m_nurbs_caches.view()}; }
+  View view() const { return View {m_nurbs_caches.view(), m_surface_cast_direction}; }
 
   /// Return if the underlying array is empty
   bool empty() const { return m_nurbs_caches.empty(); }
 
 private:
   NURBSCachePerThreadArray m_nurbs_caches;
+  axom::primal::Vector<double, 3> m_surface_cast_direction {};
 };
 
 template <>

@@ -783,10 +783,17 @@ double winding_number(const Point<T, 3>& query,
                                       EPS);
 }
 
-/// \brief Overload for a single query and an ArrayView
+/*!
+ * \brief Computes the GWN for a 3D point wrt a cached patch assembly using a
+ *        caller-supplied shared cast direction.
+ *
+ * This overload is the low-level entry point for hot paths that already
+ * precomputed a surface-wide cast direction during preprocessing.
+ */
 template <typename T>
 double winding_number(const Point<T, 3>& query,
                       const axom::ArrayView<const detail::NURBSPatchGWNCache<T>>& nurbs_arr,
+                      const Vector<T, 3>& cast_direction,
                       const double edge_tol = 1e-8,
                       const double ls_tol = 1e-8,
                       const double quad_tol = 1e-8,
@@ -798,7 +805,7 @@ double winding_number(const Point<T, 3>& query,
   {
     ret_val += detail::nurbs_winding_number(query,
                                             nurbs_arr[i],
-                                            nurbs_arr[i].getCastDirection(),
+                                            cast_direction,
                                             edge_tol,
                                             ls_tol,
                                             quad_tol,
@@ -807,6 +814,26 @@ double winding_number(const Point<T, 3>& query,
   }
 
   return ret_val;
+}
+
+/*!
+ * \brief Computes the GWN for a 3D point wrt a cached patch assembly.
+ *
+ * This overload computes one shared cast direction from the cached patch
+ * normals and then reuses it for every patch in the assembly so the per-patch
+ * Stokes contributions remain additive.
+ */
+template <typename T>
+double winding_number(const Point<T, 3>& query,
+                      const axom::ArrayView<const detail::NURBSPatchGWNCache<T>>& nurbs_arr,
+                      const double edge_tol = 1e-8,
+                      const double ls_tol = 1e-8,
+                      const double quad_tol = 1e-8,
+                      const double disk_size = 0.01,
+                      const double EPS = 1e-8)
+{
+  const auto cast_direction = detail::surface_winding_number_cast_direction<T>(nurbs_arr, EPS);
+  return winding_number(query, nurbs_arr, cast_direction, edge_tol, ls_tol, quad_tol, disk_size, EPS);
 }
 
 /*!
@@ -859,8 +886,10 @@ double winding_number(const Point<T, 3>& query,
  * 
  * Computes the generalized winding number for a NURBS patch using Stokes theorem.
  * 
- * \note This method is accelerated via memoization, i.e. dynamically caching and reusing intermediate
- *   values for each curve across query points
+ * \note This method is accelerated via memoization, i.e. dynamically caching
+ *   and reusing intermediate values for each curve across query points. The
+ *   shared cast direction is computed once per surface assembly, not once per
+ *   query point.
  * 
  * \return The array of GWN values.
  */
@@ -874,26 +903,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
                                    const double EPS = 1e-8)
 {
   axom::Array<double> ret_val(query_arr.size());
-  Vector<T, 3> cast_direction {};
-  for(const auto& nurbs : nurbs_arr)
-  {
-    const auto& normal = nurbs.getNormal();
-    if(normal.norm() >= EPS)
-    {
-      const auto unit_normal = normal.unitVector();
-      cast_direction[0] += std::abs(unit_normal[0]);
-      cast_direction[1] += std::abs(unit_normal[1]);
-      cast_direction[2] += std::abs(unit_normal[2]);
-    }
-  }
-
-  // Use one deterministic cast direction for the full surface assembly so patch
-  // contributions remain additive, but derive it from the patch normals rather
-  // than hard-coding a single direction.
-  const auto bias_direction = Vector<T, 3> {1.0, 2.0, 3.0}.unitVector();
-  cast_direction = (cast_direction.norm() < EPS)
-    ? bias_direction
-    : (cast_direction.unitVector() + 0.1 * bias_direction).unitVector();
+  const auto cast_direction = detail::surface_winding_number_cast_direction<T>(nurbs_arr.view(), EPS);
 
   for(int n = 0; n < query_arr.size(); ++n)
   {

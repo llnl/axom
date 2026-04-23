@@ -803,8 +803,11 @@ public:
             const auto q = query_point(static_cast<int>(nidx));
             const auto caches_view = cache_mgr_view.caches();
 
+            // Reuse the surface-wide cast direction from preprocessing so we
+            // avoid recomputing it for every query point in this hot path.
             const double wn = axom::primal::winding_number(q,
                                                            caches_view,
+                                                           cache_mgr_view.castDirection(),
                                                            tol_copy.edge_tol,
                                                            tol_copy.ls_tol,
                                                            tol_copy.quad_tol,
