@@ -126,12 +126,14 @@ spack:
       - spec: "+shared~static"
 
     # Globally lock in version of devtools
-    cmake:
-      version: [3.23.1]
-      buildable: false
-      externals:
-      - spec: cmake@3.23.1
-        prefix: /usr/local
+
+    # RAJA needs cmake 3.24:
+    # cmake:
+    #   version: [3.23.1]
+    #   buildable: false
+    #   externals:
+    #   - spec: cmake@3.23.1
+    #     prefix: /usr/local
     doxygen:
       version: [1.8.17]
       buildable: false
