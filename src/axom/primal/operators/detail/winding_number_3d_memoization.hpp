@@ -410,7 +410,7 @@ public:
     }
 
     // Copy the constructed cache to the other threads' copies (less work than construction)
-    // This should be able to be done via an axom::for_all<axom::OMP_EXEC>, 
+    // This should be able to be done via an axom::for_all<axom::OMP_EXEC>,
     //  but I ran into intermettent issues. Not sure why.
     for(int t = 1; t < nt; ++t)
     {
