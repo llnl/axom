@@ -13,10 +13,10 @@
 
 namespace sina = axom::sina;
 
+using sina::addRunLoader;
 using sina::ID;
 using sina::IDType;
 using sina::RecordLoader;
-using sina::addRunLoader;
 
 using ::testing::HasSubstr;
 

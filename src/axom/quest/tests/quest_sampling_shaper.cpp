@@ -87,7 +87,10 @@ struct Projector32
 
 struct Projector23
 {
-  AXOM_HOST_DEVICE Point3D operator()(const Point2D& pt) const { return Point3D {pt[0], pt[1], 0.}; }
+  AXOM_HOST_DEVICE Point3D operator()(const Point2D& pt) const
+  {
+    return Point3D {pt[0], pt[1], 0.};
+  }
 };
 
 struct ScaleProjector22

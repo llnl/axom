@@ -125,9 +125,7 @@ public:
 using MyTypes = ::testing::Types<axom::FlatMap<int, double>,
                                  axom::FlatMap<int, std::string>,
                                  axom::FlatMap<std::string, double, FlatMapHostStringHash>,
-                                 axom::FlatMap<std::string,
-                                               std::string,
-                                               FlatMapHostStringHash>>;
+                                 axom::FlatMap<std::string, std::string, FlatMapHostStringHash>>;
 
 TYPED_TEST_SUITE(core_flatmap, MyTypes);
 

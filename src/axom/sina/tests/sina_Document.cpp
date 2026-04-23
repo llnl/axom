@@ -34,26 +34,26 @@
 
 namespace sina = axom::sina;
 
+using axom::sina::testing::parseJsonValue;
+using axom::sina::testing::TEST_RECORD_VALUE_KEY;
+using axom::sina::testing::TestRecord;
+using sina::appendDocumentToHDF5;
+using sina::appendDocumentToJson;
+using sina::createRecordLoaderWithAllKnownTypes;
 using sina::Document;
 using sina::File;
+using sina::getRequiredField;
+using sina::getRequiredString;
 using sina::ID;
 using sina::IDType;
+using sina::loadDocument;
 using sina::Protocol;
 using sina::Record;
 using sina::RecordLoader;
 using sina::Relationship;
-using sina::appendDocumentToHDF5;
-using sina::appendDocumentToJson;
-using sina::createRecordLoaderWithAllKnownTypes;
-using sina::getRequiredField;
-using sina::getRequiredString;
-using sina::loadDocument;
 using sina::restoreSlashes;
 using sina::saveDocument;
 using sina::validateAppendDocument;
-using axom::sina::testing::TEST_RECORD_VALUE_KEY;
-using axom::sina::testing::TestRecord;
-using axom::sina::testing::parseJsonValue;
 
 using ::testing::ElementsAre;
 using ::testing::HasSubstr;

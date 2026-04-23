@@ -14,13 +14,13 @@
 
 namespace sina = axom::sina;
 
+using axom::sina::testing::parseJsonValue;
 using sina::getOptionalString;
 using sina::getRequiredDouble;
 using sina::getRequiredField;
 using sina::getRequiredString;
 using sina::toDoubleVector;
 using sina::toStringVector;
-using axom::sina::testing::parseJsonValue;
 
 using ::testing::ContainerEq;
 using ::testing::DoubleEq;

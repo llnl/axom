@@ -67,27 +67,18 @@ std::string broadcastString(const std::string& str, MPI_Comm comm, int rank)
 #ifdef AXOM_USE_HDF5
 inline void checkHDF5Status(herr_t status)
 {
-#ifdef AXOM_DEBUG
+  #ifdef AXOM_DEBUG
   SLIC_ASSERT(status >= 0);
-#else
+  #else
   AXOM_UNUSED_VAR(status);
-#endif
+  #endif
 }
 
-inline void closeHDF5Group(hid_t group_id)
-{
-  checkHDF5Status(H5Gclose(group_id));
-}
+inline void closeHDF5Group(hid_t group_id) { checkHDF5Status(H5Gclose(group_id)); }
 
-inline void flushHDF5File(hid_t file_id)
-{
-  checkHDF5Status(H5Fflush(file_id, H5F_SCOPE_LOCAL));
-}
+inline void flushHDF5File(hid_t file_id) { checkHDF5Status(H5Fflush(file_id, H5F_SCOPE_LOCAL)); }
 
-inline void closeHDF5File(hid_t file_id)
-{
-  checkHDF5Status(H5Fclose(file_id));
-}
+inline void closeHDF5File(hid_t file_id) { checkHDF5Status(H5Fclose(file_id)); }
 #endif
 }  // end anonymous namespace
 

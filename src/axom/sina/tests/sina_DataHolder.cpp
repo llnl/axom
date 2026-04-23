@@ -15,13 +15,13 @@
 
 namespace sina = axom::sina;
 
+using axom::sina::testing::MatchesJsonMatcher;
+using axom::sina::testing::parseJsonValue;
+using sina::addStringsToNode;
 using sina::Curve;
 using sina::CurveSet;
 using sina::DataHolder;
 using sina::Datum;
-using sina::addStringsToNode;
-using axom::sina::testing::MatchesJsonMatcher;
-using axom::sina::testing::parseJsonValue;
 
 using ::testing::Contains;
 using ::testing::DoubleEq;

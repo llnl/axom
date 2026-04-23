@@ -27,10 +27,10 @@ extern "C" {
 
 namespace sina = axom::sina;
 
+using sina::adiakSinaCallback;
 using sina::ID;
 using sina::IDType;
 using sina::Record;
-using sina::adiakSinaCallback;
 
 using ::testing::DoubleEq;
 using ::testing::ElementsAre;

@@ -18,6 +18,12 @@
 
 namespace sina = axom::sina;
 
+using axom::sina::testing::MatchesJsonMatcher;
+using axom::sina::testing::parseJsonValue;
+using axom::sina::testing::TEST_RECORD_VALUE_KEY;
+using axom::sina::testing::TestRecord;
+using sina::addStringsToNode;
+using sina::createRecordLoaderWithAllKnownTypes;
 using sina::Curve;
 using sina::CurveSet;
 using sina::Datum;
@@ -26,13 +32,7 @@ using sina::ID;
 using sina::IDType;
 using sina::Record;
 using sina::RecordLoader;
-using sina::addStringsToNode;
-using sina::createRecordLoaderWithAllKnownTypes;
 using sina::setDefaultCurveOrder;
-using axom::sina::testing::MatchesJsonMatcher;
-using axom::sina::testing::TEST_RECORD_VALUE_KEY;
-using axom::sina::testing::TestRecord;
-using axom::sina::testing::parseJsonValue;
 
 using ::testing::Contains;
 using ::testing::DoubleEq;

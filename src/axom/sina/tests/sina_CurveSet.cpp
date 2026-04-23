@@ -47,10 +47,10 @@ bool operator==(Curve const &lhs, Curve const &rhs)
 
 namespace sina = axom::sina;
 
-using sina::Curve;
-using sina::CurveSet;
 using axom::sina::testing::MatchesJsonMatcher;
 using axom::sina::testing::parseJsonValue;
+using sina::Curve;
+using sina::CurveSet;
 
 using ::testing::ContainerEq;
 using ::testing::ElementsAre;

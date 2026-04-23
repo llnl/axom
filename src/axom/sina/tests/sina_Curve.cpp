@@ -13,10 +13,10 @@
 
 namespace sina = axom::sina;
 
-using sina::Curve;
-using sina::addStringsToNode;
 using axom::sina::testing::MatchesJsonMatcher;
 using axom::sina::testing::parseJsonValue;
+using sina::addStringsToNode;
+using sina::Curve;
 
 using ::testing::ContainerEq;
 using ::testing::ElementsAre;

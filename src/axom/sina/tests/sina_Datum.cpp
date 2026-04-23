@@ -16,9 +16,9 @@
 
 namespace sina = axom::sina;
 
+using sina::addStringsToNode;
 using sina::Datum;
 using sina::ValueType;
-using sina::addStringsToNode;
 
 using ::testing::DoubleEq;
 using ::testing::ElementsAre;
