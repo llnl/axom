@@ -22,6 +22,9 @@
 #include "axom/primal/operators/detail/winding_number_3d_memoization.hpp"
 
 // C++ includes
+#include <cstdint>
+#include <functional>
+#include <limits>
 #include <math.h>
 #include <optional>
 
@@ -571,18 +574,47 @@ double nurbs_winding_number(const Point<T, 3>& query,
   // Store the winding number
   double the_gwn = 0.0;
 
-  /* 
+  /*
    * To use Stokes theorem, we need to identify either a line containing the
    * query that does not intersect the surface, or one that intersects the *interior*
    * of the surface at known locations.
    */
 
-  // Lambda to generate an entirely random unit vector
-  auto random_unit = []() -> Vector<T, 3> {
-    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-    double u = axom::utilities::random_real(-1.0, 1.0);
-    return Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+  auto hash_combine = [](std::uint64_t seed, std::uint64_t value) -> std::uint64_t {
+    return seed ^ (value + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2));
   };
+
+  auto splitmix64 = [](std::uint64_t value) -> std::uint64_t {
+    value += 0x9e3779b97f4a7c15ULL;
+    value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9ULL;
+    value = (value ^ (value >> 27)) * 0x94d049bb133111ebULL;
+    return value ^ (value >> 31);
+  };
+
+  auto deterministic_unit = [&](std::uint64_t seed) -> Vector<T, 3> {
+    const std::uint64_t theta_bits = splitmix64(seed);
+    const std::uint64_t z_bits = splitmix64(theta_bits);
+    constexpr double inv_max = 1.0 / static_cast<double>(std::numeric_limits<std::uint64_t>::max());
+    const double theta = 2.0 * M_PI * static_cast<double>(theta_bits) * inv_max;
+    const double z = 2.0 * static_cast<double>(z_bits) * inv_max - 1.0;
+    const double radial_sq = 1.0 - z * z;
+    const double radial = std::sqrt(radial_sq > 0.0 ? radial_sq : 0.0);
+    return Vector<T, 3> {radial * std::cos(theta), radial * std::sin(theta), z};
+  };
+
+  auto recast_seed = [&]() -> std::uint64_t {
+    std::uint64_t seed = 0;
+    const std::hash<double> hasher {};
+    for(int dim = 0; dim < 3; ++dim)
+    {
+      seed = hash_combine(seed, static_cast<std::uint64_t>(hasher(static_cast<double>(query[dim]))));
+      seed =
+        hash_combine(seed,
+                     static_cast<std::uint64_t>(hasher(static_cast<double>(cast_direction[dim]))));
+    }
+    return seed;
+  };
+  const std::uint64_t base_seed = recast_seed();
 
   // Recasting is implemented as a loop (not recursion) to avoid stack overflows
   // in OpenMP thread stacks on pathological intersections.
@@ -594,7 +626,8 @@ double nurbs_winding_number(const Point<T, 3>& query,
     auto request_recast = [&]() -> bool {
       if(can_recast)
       {
-        cast_direction_local = random_unit();
+        cast_direction_local =
+          deterministic_unit(hash_combine(base_seed, static_cast<std::uint64_t>(recast_attempt + 1)));
         return true;
       }
       return false;
@@ -846,10 +879,12 @@ double nurbs_winding_number(const Point<T, 3>& query,
         {
           // If the disk overlapped with the trimming curves, evaluate the winding number for the disk
           //  with a cast ray that is mostly in the direction of the normal (assuming it's non-zero)
+          const auto perturbation =
+            deterministic_unit(hash_combine(base_seed, static_cast<std::uint64_t>(i + 1)));
           Vector<T, 3> new_cast_direction = the_disk.normal(up[i], vp[i]);
           new_cast_direction = (new_cast_direction.norm() < EPS)
-            ? random_unit()
-            : (new_cast_direction.unitVector() + 0.1 * random_unit()).unitVector();
+            ? perturbation
+            : (new_cast_direction.unitVector() + 0.1 * perturbation).unitVector();
 
           the_gwn += nurbs_winding_number(query,
                                           the_disk,

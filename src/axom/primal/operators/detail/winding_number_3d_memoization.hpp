@@ -249,10 +249,7 @@ public:
     // Cast direction is always set to average normal, unless it is near zero
     if(m_normal.norm() < 1e-10)
     {
-      // ...unless the average direction is zero
-      double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-      double u = axom::utilities::random_real(-1.0, 1.0);
-      m_castDirection = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+      m_castDirection = Vector<T, 3> {1.0, 2.0, 3.0}.unitVector();
     }
     else
     {
@@ -321,7 +318,7 @@ public:
                          axom::ArrayView<axom::primal::Vector<double, 3>> precomputed_normals)
   {
     SLIC_ASSERT(precomputed_normals.empty() || precomputed_normals.size() == patches.size());
-    const bool computeNormal = !precomputed_normals.empty();
+    const bool computeNormal = precomputed_normals.empty();
 
     for(auto& patch : patches)
     {

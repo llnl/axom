@@ -639,8 +639,20 @@ TEST(primal_solid_angle, teardrop_regression_test)
     {
       // The vertical cross-section of the tip is given by 3sin(1/3 * asin(1-2x)) + x - 0.5
       double fun = 3 * std::sin(1.0 / 3.0 * std::asin(1 - 2 * radius)) + radius - 0.5;
-      return (x[2] <= fun) &&
-        ((x[2] > -1.0) || std::sqrt(x[0] * x[0] + x[1] * x[1] + (x[2] + 1.0) * (x[2] + 1.0) <= 1.0));
+
+      if(x[2] > fun)
+      {
+        return false;
+      }
+
+      if(x[2] > -1.0)
+      {
+        return true;
+      }
+
+      const double dist_from_sphere_center =
+        std::sqrt(x[0] * x[0] + x[1] * x[1] + (x[2] + 1.0) * (x[2] + 1.0));
+      return dist_from_sphere_center <= 1.0;
     }
   };
 
@@ -671,8 +683,16 @@ TEST(primal_solid_angle, teardrop_regression_test)
 
   for(int n = 0; n < tot_npts; ++n)
   {
-    const bool calc_containment = (std::round(gwn_array[n]) != 0);
-    EXPECT_EQ(calc_containment, true_containment_arr[n]);
+    const double gwn = gwn_array[n];
+    const bool calc_containment = (std::round(gwn) != 0);
+    if(calc_containment != true_containment_arr[n])
+    {
+      ADD_FAILURE() << "Containment mismatch at n=" << n << " query=(" << query_arr[n][0] << ", "
+                    << query_arr[n][1] << ", " << query_arr[n][2] << ") gwn=" << gwn
+                    << " calc=" << calc_containment << " expected=" << true_containment_arr[n]
+                    << " (hint: if gwn is near 0.5, the point may be on/near the surface)";
+      break;
+    }
   }
 }
 

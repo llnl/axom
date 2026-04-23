@@ -874,6 +874,27 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
                                    const double EPS = 1e-8)
 {
   axom::Array<double> ret_val(query_arr.size());
+  Vector<T, 3> cast_direction {};
+  for(const auto& nurbs : nurbs_arr)
+  {
+    const auto& normal = nurbs.getNormal();
+    if(normal.norm() >= EPS)
+    {
+      const auto unit_normal = normal.unitVector();
+      cast_direction[0] += std::abs(unit_normal[0]);
+      cast_direction[1] += std::abs(unit_normal[1]);
+      cast_direction[2] += std::abs(unit_normal[2]);
+    }
+  }
+
+  // Use one deterministic cast direction for the full surface assembly so patch
+  // contributions remain additive, but derive it from the patch normals rather
+  // than hard-coding a single direction.
+  const auto bias_direction = Vector<T, 3> {1.0, 2.0, 3.0}.unitVector();
+  cast_direction = (cast_direction.norm() < EPS)
+    ? bias_direction
+    : (cast_direction.unitVector() + 0.1 * bias_direction).unitVector();
+
   for(int n = 0; n < query_arr.size(); ++n)
   {
     ret_val[n] = 0.0;
@@ -882,7 +903,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
     {
       ret_val[n] += detail::nurbs_winding_number(query_arr[n],
                                                  nurbs_arr[i],
-                                                 nurbs_arr[i].getCastDirection(),
+                                                 cast_direction,
                                                  edge_tol,
                                                  ls_tol,
                                                  quad_tol,
