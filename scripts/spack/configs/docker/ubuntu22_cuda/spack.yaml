@@ -50,7 +50,7 @@ spack:
         prefix: /usr/bin
         extra_attributes:
           compilers:
-            cc: /usr/bin/gcc
+            c: /usr/bin/gcc
             cxx: /usr/bin/g++
             fortran: /usr/bin/gfortran
 
