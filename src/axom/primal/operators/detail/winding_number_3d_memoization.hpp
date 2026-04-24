@@ -170,6 +170,19 @@ public:
       m_averageNormal = m_alteredPatch.calculateTrimmedPatchNormal();
     }
 
+    // Cast direction is set to average normal, unless it is near zero
+    if(m_averageNormal.norm() < 1e-10)
+    {
+      // ...unless the average direction is zero
+      double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+      double u = axom::utilities::random_real(-1.0, 1.0);
+      m_castDirection = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+    }
+    else
+    {
+      m_castDirection = m_averageNormal.unitVector();
+    }
+
     m_pboxDiag = m_alteredPatch.getParameterSpaceDiagonal();
 
     // Make a bounding box by doing (trimmed) bezier extraction,
@@ -238,6 +251,7 @@ public:
   ///@{
   //! \name Accessors for precomputed data
   const Vector<T, 3>& getAverageNormal() const { return m_averageNormal; }
+  const Vector<T, 3>& getCastDirection() const { return m_castDirection; }
   const BoundingBox<T, 3>& boundingBox() const { return m_bBox; }
   const OrientedBoundingBox<T, 3>& orientedBoundingBox() const { return m_oBox; }
   //@}
@@ -272,7 +286,7 @@ private:
   // Per patch data
   BoundingBox<T, 3> m_bBox;
   OrientedBoundingBox<T, 3> m_oBox;
-  Vector<T, 3> m_averageNormal;
+  Vector<T, 3> m_averageNormal, m_castDirection;
   double m_pboxDiag;
 
   // Per trimming curve data, keyed by (whichRefinementLevel, whichRefinementIndex)
@@ -280,6 +294,123 @@ private:
 };
 
 }  // namespace detail
+
+/*!
+ * \brief Manage an array of NURBSPatchGWNCache<double>
+ */
+class NURBSPatchCacheManager
+{
+  using NURBSCache = axom::primal::detail::NURBSPatchGWNCache<double>;
+  using NURBSCacheArray = axom::Array<NURBSCache>;
+  using NURBSCacheArrayView = axom::ArrayView<const NURBSCache>;
+
+  using PatchArrayView = axom::ArrayView<const axom::primal::NURBSPatch<double, 3>>;
+
+public:
+  NURBSPatchCacheManager() = default;
+
+  NURBSPatchCacheManager(const PatchArrayView& patchs)
+  {
+    for(const auto& patch : patchs)
+    {
+      m_nurbs_caches.push_back(NURBSCache(patch));
+    }
+  }
+
+  /// A view of the manager object.
+  struct View
+  {
+    NURBSCacheArrayView m_view;
+
+    /// Return the NURBSCacheArrayView.
+    NURBSCacheArrayView caches() const { return m_view; }
+  };
+
+  /// Return a view of this manager to pass into a device function.
+  View view() const { return View {m_nurbs_caches.view()}; }
+
+  /// Return if the underlying array is empty
+  bool empty() const { return m_nurbs_caches.empty(); }
+
+private:
+  NURBSCacheArray m_nurbs_caches;
+};
+
+template <typename ExecSpace>
+struct nurbs_cache_3d_traits
+{
+  using type = NURBSPatchCacheManager;
+};
+
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+/*!
+ * \brief Manage per-thread arrays of NURBSPatchGWNCache<double>
+ */
+class NURBSPatchCacheManagerOMP
+{
+  using NURBSCache = axom::primal::detail::NURBSPatchGWNCache<double>;
+  using NURBSCachePerThreadArray = axom::Array<axom::Array<NURBSCache>>;
+  using NURBSCachePerThreadArrayView = axom::ArrayView<const axom::Array<NURBSCache>>;
+  using NURBSCacheArrayView = axom::ArrayView<const NURBSCache>;
+
+  using PatchArrayView = axom::ArrayView<const axom::primal::NURBSPatch<double, 3>>;
+
+public:
+  NURBSPatchCacheManagerOMP() = default;
+
+  NURBSPatchCacheManagerOMP(const PatchArrayView& patches)
+  {
+    const int nt = omp_get_max_threads();
+    m_nurbs_caches.resize(nt);
+    auto nurbs_caches_view = m_nurbs_caches.view();
+
+    // Make the first one
+    nurbs_caches_view[0].resize(patches.size());
+    axom::for_all<axom::OMP_EXEC>(
+      patches.size(),
+      AXOM_LAMBDA(axom::IndexType i) { nurbs_caches_view[0][i] = NURBSCache(patches[i]); });
+    SLIC_INFO("Finished the first construction");
+    // Copy the constructed cache to the other threads' copies (less work than construction)
+    axom::for_all<axom::OMP_EXEC>(
+      1,
+      nt,
+      AXOM_LAMBDA(axom::IndexType t) { nurbs_caches_view[t].resize(nurbs_caches_view[0].size()); });
+    axom::for_all<axom::OMP_EXEC>(
+      patches.size(),
+      AXOM_LAMBDA(axom::IndexType i) {
+        for(int t = 0; t < nt; t++)
+        {
+          nurbs_caches_view[t][i] = nurbs_caches_view[0][i];
+        }
+      });
+  }
+
+  /// A view of the manager object.
+  struct View
+  {
+    NURBSCachePerThreadArrayView m_views;
+
+    /// Return the NURBSCacheArrayView for the current OMP thread.
+    NURBSCacheArrayView caches() const { return m_views[omp_get_thread_num()].view(); }
+  };
+
+  /// Return a view of this manager to pass into a device function.
+  View view() const { return View {m_nurbs_caches.view()}; }
+
+  /// Return if the underlying array is empty
+  bool empty() const { return m_nurbs_caches.empty(); }
+
+private:
+  NURBSCachePerThreadArray m_nurbs_caches;
+};
+
+template <>
+struct nurbs_cache_3d_traits<axom::OMP_EXEC>
+{
+  using type = NURBSPatchCacheManagerOMP;
+};
+#endif
+
 }  // namespace primal
 }  // namespace axom
 

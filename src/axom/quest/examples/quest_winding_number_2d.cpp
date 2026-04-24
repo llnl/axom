@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 /*!
- * \file quest_winding_number2d.cpp
+ * \file quest_winding_number_2d.cpp
  * \brief Example that computes the winding number of a grid of points
  * against a collection of 2D parametric rational curves.
  * Supports MFEM meshes in the cubic positive Bernstein basis or the (rational)
@@ -42,16 +42,18 @@ using BoundingBox2D = primal::BoundingBox<double, 2>;
 
 using NURBSCurve2D = primal::NURBSCurve<double, 2>;
 
+using RuntimePolicy = axom::runtime_policy::Policy;
+
 namespace
 {
 /**
- * This helper class takes in an mfem mesh (potentially with variable order curves from mfem>4.9)
- * and writes out a version that is compatible with mfem@4.9
- * In particular, this allows us to visualize it with current versions of VisIt which do not yet support this feature.
- *
- * We can remove this class once downstream applications (such as VisIt) are updated to a version of mfem
- * that supports the NURBS patches format.
- */
+   * This helper class takes in an mfem mesh (potentially with variable order curves from mfem>4.9)
+   * and writes out a version that is compatible with mfem@4.9
+   * In particular, this allows us to visualize it with current versions of VisIt which do not yet support this feature.
+   *
+   * We can remove this class once downstream applications (such as VisIt) are updated to a version of mfem
+   * that supports the NURBS patches format.
+   */
 class MFEM49ElevatedNURBSMeshWriter
 {
 public:
@@ -270,6 +272,8 @@ public:
   bool stats {false};
   std::string elevatedMeshFile;
 
+  axom::runtime_policy::Policy policy = RuntimePolicy::seq;
+
   const std::array<std::string, 2> valid_algorithms {"direct", "fast-approximation"};
   std::string algorithm {valid_algorithms[1]};  // fast-approximation
 
@@ -333,6 +337,16 @@ public:
       ->capture_default_str()
       ->check(axom::utilities::ValidCaliperMode);
 #endif
+    std::stringstream pol_sstr;
+    pol_sstr << "Set runtime policy method.";
+    pol_sstr << "\nSet to 'seq' or 0 to use the RAJA sequential policy.";
+#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+    pol_sstr << "\nSet to 'omp' or 1 to use the RAJA OpenMP policy.";
+#endif
+
+    app.add_option("-p, --policy", policy, pol_sstr.str())
+      ->capture_default_str()
+      ->transform(axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
 
     // Options for triangulation of the input STEP file
     auto* linearize_curves_subcommand =
@@ -396,30 +410,55 @@ public:
   }
 };
 
-using GWNQueryType = std::variant<axom::quest::DirectGWN2D,
-                                  axom::quest::PolylineGWN2D<0>,
-                                  axom::quest::PolylineGWN2D<1>,
-                                  axom::quest::PolylineGWN2D<2>>;
+using GWNQueryType = std::variant<axom::quest::DirectGWN2D<axom::SEQ_EXEC>,
+                                  axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 0>,
+                                  axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 1>,
+                                  axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 2>
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+                                  ,
+                                  axom::quest::DirectGWN2D<axom::OMP_EXEC>,
+                                  axom::quest::PolylineGWN2D<axom::OMP_EXEC, 0>,
+                                  axom::quest::PolylineGWN2D<axom::OMP_EXEC, 1>,
+                                  axom::quest::PolylineGWN2D<axom::OMP_EXEC, 2>
+#endif
+                                  >;
 
-GWNQueryType make_gwn_query(bool linearize_curves, int approximation_order)
+template <typename ExecSpace>
+GWNQueryType pick_gwn_method(bool linearize_curves, int approximation_order)
 {
   if(linearize_curves)
   {
     if(approximation_order == 0)
     {
-      return axom::quest::PolylineGWN2D<0> {};
+      return axom::quest::PolylineGWN2D<ExecSpace, 0> {};
     }
     else if(approximation_order == 1)
     {
-      return axom::quest::PolylineGWN2D<1> {};
+      return axom::quest::PolylineGWN2D<ExecSpace, 1> {};
     }
-    else
+    else  // approximation_order == 2
     {
-      return axom::quest::PolylineGWN2D<2> {};
+      return axom::quest::PolylineGWN2D<ExecSpace, 2> {};
     }
   }
 
-  return axom::quest::DirectGWN2D {};
+  return axom::quest::DirectGWN2D<ExecSpace> {};
+}
+
+GWNQueryType make_gwn_query(axom::runtime_policy::Policy policy,
+                            bool linearize_curves,
+                            int approximation_order)
+{
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+  if(policy == RuntimePolicy::omp)
+  {
+    SLIC_INFO(axom::fmt::format("Using policy omp with {} threads", omp_get_max_threads()));
+    return pick_gwn_method<axom::OMP_EXEC>(linearize_curves, approximation_order);
+  }
+#endif
+
+  SLIC_INFO("Using policy seq");
+  return pick_gwn_method<axom::SEQ_EXEC>(linearize_curves, approximation_order);
 }
 
 int main(int argc, char** argv)
@@ -442,7 +481,7 @@ int main(int argc, char** argv)
   }
 
   axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(input.annotationMode);
-  AXOM_ANNOTATE_SCOPE("winding number example");
+  AXOM_ANNOTATE_SCOPE("2D winding number example");
 
   if(!input.elevatedMeshFile.empty())
   {
@@ -515,7 +554,8 @@ int main(int argc, char** argv)
   mfem::DataCollection dc("winding_query");
   {
     // Create the desired winding number query instance
-    auto wn_query = make_gwn_query(app.got_subcommand("linearize_curves"), input.approximation_order);
+    auto wn_query =
+      make_gwn_query(input.policy, app.got_subcommand("linearize_curves"), input.approximation_order);
 
     // Generate the query grid and fields
     quest::generate_gwn_query_mesh(dc,

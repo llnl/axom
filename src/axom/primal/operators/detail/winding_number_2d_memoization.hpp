@@ -256,6 +256,117 @@ std::ostream& operator<<(std::ostream& os, const NURBSCurveGWNCache<T>& nCurveCa
 }
 
 }  // namespace detail
+
+/*!
+ * \brief Manage an array of NURBSCurveGWNCache<double>
+ */
+class NURBSCurveCacheManager
+{
+  using NURBSCache = axom::primal::detail::NURBSCurveGWNCache<double>;
+  using NURBSCacheArray = axom::Array<NURBSCache>;
+  using NURBSCacheArrayView = axom::ArrayView<const NURBSCache>;
+
+  using CurveArrayView = axom::ArrayView<const axom::primal::NURBSCurve<double, 2>>;
+
+public:
+  NURBSCurveCacheManager() = default;
+
+  NURBSCurveCacheManager(const CurveArrayView& curves, double bbExpansionAmount = 0.0)
+  {
+    for(const auto& curve : curves)
+    {
+      m_nurbs_caches.push_back(NURBSCache(curve, bbExpansionAmount));
+    }
+  }
+
+  /// A view of the manager object.
+  struct View
+  {
+    NURBSCacheArrayView m_view;
+
+    /// Return the NURBSCacheArrayView.
+    NURBSCacheArrayView caches() const { return m_view; }
+  };
+
+  /// Return a view of this manager to pass into a device function.
+  View view() const { return View {m_nurbs_caches.view()}; }
+
+  /// Return if the underlying array is empty
+  bool empty() const { return m_nurbs_caches.empty(); }
+
+private:
+  NURBSCacheArray m_nurbs_caches;
+};
+
+template <typename ExecSpace>
+struct nurbs_cache_2d_traits
+{
+  using type = NURBSCurveCacheManager;
+};
+
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+/*!
+ * \brief Manage per-thread arrays of NURBSCurveGWNCache<double>
+ */
+class NURBSCurveCacheManagerOMP
+{
+  using NURBSCache = axom::primal::detail::NURBSCurveGWNCache<double>;
+  using NURBSCachePerThreadArray = axom::Array<axom::Array<NURBSCache>>;
+  using NURBSCachePerThreadArrayView = axom::ArrayView<const axom::Array<NURBSCache>>;
+  using NURBSCacheArrayView = axom::ArrayView<const NURBSCache>;
+
+  using CurveArrayView = axom::ArrayView<const axom::primal::NURBSCurve<double, 2>>;
+
+public:
+  NURBSCurveCacheManagerOMP() = default;
+
+  NURBSCurveCacheManagerOMP(const CurveArrayView& curves, double bbExpansionAmount = 0.0)
+  {
+    const int nt = omp_get_max_threads();
+    m_nurbs_caches.resize(nt);
+    auto nurbs_caches_view = m_nurbs_caches.view();
+
+    // Make the first one
+    nurbs_caches_view[0].resize(curves.size());
+    axom::for_all<axom::OMP_EXEC>(
+      curves.size(),
+      AXOM_LAMBDA(axom::IndexType i) {
+        nurbs_caches_view[0][i] = NURBSCache(curves[i], bbExpansionAmount);
+      });
+
+    // Copy the constructed cache to the other threads' copies (less work than construction)
+    axom::for_all<axom::OMP_EXEC>(
+      1,
+      nt,
+      AXOM_LAMBDA(axom::IndexType t) { nurbs_caches_view[t] = nurbs_caches_view[0]; });
+  }
+
+  /// A view of the manager object.
+  struct View
+  {
+    NURBSCachePerThreadArrayView m_views;
+
+    /// Return the NURBSCacheArrayView for the current OMP thread.
+    NURBSCacheArrayView caches() const { return m_views[omp_get_thread_num()].view(); }
+  };
+
+  /// Return a view of this manager to pass into a device function.
+  View view() const { return View {m_nurbs_caches.view()}; }
+
+  /// Return if the underlying array is empty
+  bool empty() const { return m_nurbs_caches.empty(); }
+
+private:
+  NURBSCachePerThreadArray m_nurbs_caches;
+};
+
+template <>
+struct nurbs_cache_2d_traits<axom::OMP_EXEC>
+{
+  using type = NURBSCurveCacheManagerOMP;
+};
+#endif
+
 }  // namespace primal
 }  // namespace axom
 

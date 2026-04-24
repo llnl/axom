@@ -719,6 +719,7 @@ if(MFEM_FOUND AND OPENCASCADE_FOUND)
                         --output-prefix wn3d_${_model}_res${_res_i}
                         --no-vis
                         --stats
+                        --policy seq
                         query_mesh --res ${_res_i} ${_res_j} ${_res_k} --order 1)
             set_tests_properties(${_testname} PROPERTIES
                 PASS_REGULAR_EXPRESSION "${_pass_regex}")
