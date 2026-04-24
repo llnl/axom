@@ -203,8 +203,15 @@ public:
           return GWNMoments(m_processed_curves_view[idx]);
         };
 
-        const auto traverser = m_bvh.getTraverser();
-        m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
+        if(m_processed_curves_view.size() > 1)
+        {
+          const auto traverser = m_bvh.getTraverser();
+          m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
+        }
+        else
+        {
+          m_internal_moments.clear();
+        }
       }
       stage_timer.stop();
       SLIC_INFO(axom::fmt::format("  Preprocessing stage (moment precomputation): {} s",
@@ -458,8 +465,15 @@ public:
           return GWNMoments(segments_view[idx]);
         };
 
-        const auto traverser = m_bvh.getTraverser();
-        m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
+        if(m_processed_curves_view.size() > 1)
+        {
+          const auto traverser = m_bvh.getTraverser();
+          m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
+        }
+        else
+        {
+          m_internal_moments.clear();
+        }
       }
       stage_timer.stop();
       SLIC_INFO(axom::fmt::format("  Preprocessing stage (moment precomputation): {} s",
@@ -658,8 +672,15 @@ public:
           return leaf_moments;
         };
 
-        const auto traverser = m_bvh.getTraverser();
-        m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
+        if(m_processed_curves_view.size() > 1)
+        {
+          const auto traverser = m_bvh.getTraverser();
+          m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
+        }
+        else
+        {
+          m_internal_moments.clear();
+        }
       }
       stage_timer.stop();
       SLIC_INFO(axom::fmt::format("  Preprocessing stage (moment precomputation): {} s",
@@ -959,8 +980,15 @@ public:
           return GWNMoments(triangles_view[idx]);
         };
 
-        const auto traverser = m_bvh.getTraverser();
-        m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
+        if(m_processed_curves_view.size() > 1)
+        {
+          const auto traverser = m_bvh.getTraverser();
+          m_internal_moments = traverser.template reduce_tree<ExecSpace, GWNMoments>(compute_moments);
+        }
+        else
+        {
+          m_internal_moments.clear();
+        }
       }
       stage_timer.stop();
       SLIC_INFO(

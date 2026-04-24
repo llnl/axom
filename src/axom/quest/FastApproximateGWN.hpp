@@ -410,6 +410,11 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
   const auto internal_moments_view = internal_moments;
   using LeafGeom = std::decay_t<LeafGeometry>;
 
+  if(leaf_objects_view.empty())
+  {
+    return 0.0;
+  }
+
   auto bbContain = [&gwn, &internal_moments_view, &beta](const primal::Point<T, NDIMS>& query,
                                                          const primal::BoundingBox<T, NDIMS>& bvhBbox,
                                                          std::int32_t node_index) -> bool {
@@ -434,6 +439,11 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
                std::is_same_v<LeafGeom, axom::primal::NURBSCurve<T, 2>> ||
                std::is_same_v<LeafGeom, axom::primal::detail::NURBSCurveGWNCache<T>>)
   {
+    if(leaf_objects_view.size() == 1)
+    {
+      return axom::primal::winding_number(query, leaf_objects_view[0], wt.edge_tol, wt.EPS);
+    }
+
     auto leaf_gwn = [&query, &gwn, leaf_objects_view, &wt](std::int32_t currentNode,
                                                            const std::int32_t* leafNodes) -> void {
       const auto idx = leafNodes[currentNode];
@@ -445,6 +455,11 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
 
   if constexpr(std::is_same_v<LeafGeom, axom::primal::Segment<T, 2>>)
   {
+    if(leaf_objects_view.size() == 1)
+    {
+      return axom::primal::winding_number(query, leaf_objects_view[0], wt.edge_tol);
+    }
+
     auto leaf_gwn = [&query, &gwn, leaf_objects_view, &wt](std::int32_t currentNode,
                                                            const std::int32_t* leafNodes) -> void {
       const auto idx = leafNodes[currentNode];
@@ -457,6 +472,17 @@ double fast_approximate_winding_number(const primal::Point<T, NDIMS>& query,
   if constexpr(std::is_same_v<LeafGeom, axom::primal::NURBSPatch<T, 3>> ||
                std::is_same_v<LeafGeom, axom::primal::detail::NURBSPatchGWNCache<T>>)
   {
+    if(leaf_objects_view.size() == 1)
+    {
+      return axom::primal::winding_number(query,
+                                          leaf_objects_view[0],
+                                          wt.edge_tol,
+                                          wt.ls_tol,
+                                          wt.quad_tol,
+                                          wt.disk_size,
+                                          wt.EPS);
+    }
+
     auto leaf_gwn = [&query, &gwn, leaf_objects_view, &wt](std::int32_t currentNode,
                                                            const std::int32_t* leafNodes) -> void {
       const auto idx = leafNodes[currentNode];
