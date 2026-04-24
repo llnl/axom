@@ -40,6 +40,8 @@ using BoundingBox3D = primal::BoundingBox<double, 3>;
 using NURBSPatch3D = quest::STEPReader::NURBSPatch;
 using Triangle3D = primal::Triangle<double, 3>;
 
+using RuntimePolicy = axom::runtime_policy::Policy;
+
 //------------------------------------------------------------------------------
 // CLI input
 //------------------------------------------------------------------------------
@@ -56,6 +58,8 @@ public:
   bool vis {true};
   bool validate {false};
   bool stats {false};
+
+  axom::runtime_policy::Policy policy = RuntimePolicy::seq;
 
   const std::array<std::string, 2> valid_algorithms {"direct", "fast-approximation"};
   std::string algorithm {valid_algorithms[1]};  // fast-approximation
@@ -160,6 +164,16 @@ public:
       ->capture_default_str()
       ->check(axom::utilities::ValidCaliperMode);
 #endif
+    std::stringstream pol_sstr;
+    pol_sstr << "Set runtime policy method.";
+    pol_sstr << "\nSet to 'seq' or 0 to use the RAJA sequential policy.";
+#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+    pol_sstr << "\nSet to 'omp' or 1 to use the RAJA OpenMP policy.";
+#endif
+
+    app.add_option("-p, --policy", policy, pol_sstr.str())
+      ->capture_default_str()
+      ->transform(axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
 
     auto* query_mesh_subcommand =
       app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
@@ -231,30 +245,55 @@ public:
   }
 };
 
-using GWNQueryType = std::variant<axom::quest::DirectGWN3D,
-                                  axom::quest::TriangleGWN3D<0>,
-                                  axom::quest::TriangleGWN3D<1>,
-                                  axom::quest::TriangleGWN3D<2>>;
+using GWNQueryType = std::variant<axom::quest::DirectGWN3D<axom::SEQ_EXEC>,
+                                  axom::quest::TriangleGWN3D<axom::SEQ_EXEC, 0>,
+                                  axom::quest::TriangleGWN3D<axom::SEQ_EXEC, 1>,
+                                  axom::quest::TriangleGWN3D<axom::SEQ_EXEC, 2>
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+                                  ,
+                                  axom::quest::DirectGWN3D<axom::OMP_EXEC>,
+                                  axom::quest::TriangleGWN3D<axom::OMP_EXEC, 0>,
+                                  axom::quest::TriangleGWN3D<axom::OMP_EXEC, 1>,
+                                  axom::quest::TriangleGWN3D<axom::OMP_EXEC, 2>
+#endif
+                                  >;
 
-GWNQueryType make_gwn_query(Input input)
+template <typename ExecSpace>
+GWNQueryType pick_gwn_method(bool triangulate, int approximation_order)
 {
-  if(input.triangulate)
+  if(triangulate)
   {
-    if(input.approximation_order == 0)
+    if(approximation_order == 0)
     {
-      return axom::quest::TriangleGWN3D<0> {};
+      return axom::quest::TriangleGWN3D<ExecSpace, 0> {};
     }
-    else if(input.approximation_order == 1)
+    else if(approximation_order == 1)
     {
-      return axom::quest::TriangleGWN3D<1> {};
+      return axom::quest::TriangleGWN3D<ExecSpace, 1> {};
     }
-    else
+    else  // approximation_order == 2
     {
-      return axom::quest::TriangleGWN3D<2> {};
+      return axom::quest::TriangleGWN3D<ExecSpace, 2> {};
     }
   }
 
-  return axom::quest::DirectGWN3D {};
+  return axom::quest::DirectGWN3D<ExecSpace> {};
+}
+
+GWNQueryType make_gwn_query(axom::runtime_policy::Policy policy,
+                            bool triangulate,
+                            int approximation_order)
+{
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+  if(policy == RuntimePolicy::omp)
+  {
+    SLIC_INFO(axom::fmt::format("Using policy omp with {} threads", omp_get_max_threads()));
+    return pick_gwn_method<axom::OMP_EXEC>(triangulate, approximation_order);
+  }
+#endif
+
+  SLIC_INFO("Using policy seq");
+  return pick_gwn_method<axom::SEQ_EXEC>(triangulate, approximation_order);
 }
 
 int main(int argc, char** argv)
@@ -347,7 +386,7 @@ int main(int argc, char** argv)
     SLIC_INFO(axom::fmt::format(
       axom::utilities::locale(),
       "Loaded {} trimmed NURBS patches (with {} trimming curves) in {:.3Lf} seconds",
-      patches.size(),
+      step_reader.numPatches(),
       num_trimming_curves,
       read_timer.elapsed()));
 
@@ -398,7 +437,7 @@ int main(int argc, char** argv)
   mfem::DataCollection dc("winding_query");
   {
     // Create the desired winding number query instance
-    auto wn_query = make_gwn_query(input);
+    auto wn_query = make_gwn_query(input.policy, input.triangulate, input.approximation_order);
 
     // Generate the query grid and fields
     quest::generate_gwn_query_mesh(dc,
