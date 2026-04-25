@@ -218,6 +218,22 @@ public:
         const TransformableGeometryProperties &startProperties);
 
   /**
+   * Create a new Scale operator.
+   *
+   * \param xFactor the amount by which to scale in the x direction
+   * \param yFactor the amount by which to scale in the y direction
+   * \param zFactor the amount by which to scale in the z direction
+   * \param center The center relative to which the scaling is performed.
+   * \param startProperties the initial properties, as in the parent class. 
+   * If the number of dimensions is 2, zFactor should be 1.0, but this is not enforced.
+   */
+  Scale(double xFactor,
+        double yFactor,
+        double zFactor,
+        const primal::Point3D &center,
+        const TransformableGeometryProperties &startProperties);
+
+  /**
    * Get the scale factor in the x direction.
    *
    * \return the x scale factor
@@ -238,6 +254,14 @@ public:
    */
   double getZFactor() const { return m_zFactor; }
 
+  /**
+   * Get the scale factor in the z direction.
+   *
+   * \return the z scale factor
+   */
+  primal::Point3D &getCenter() { return m_center; }
+  const primal::Point3D &getCenter() const { return m_center; }
+
   numerics::Matrix<double> toMatrix() const override;
 
   void accept(GeometryOperatorVisitor &visitor) const override;
@@ -246,6 +270,7 @@ private:
   double m_xFactor;
   double m_yFactor;
   double m_zFactor;
+  primal::Point3D m_center;
 };
 
 /// An operator for converting units

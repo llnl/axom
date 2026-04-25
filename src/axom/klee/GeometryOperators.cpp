@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/core/numerics/matvecops.hpp"
+#include "axom/core/numerics/transforms.hpp"
 
 #include "axom/klee/GeometryOperators.hpp"
 #include "axom/klee/Units.hpp"
@@ -48,12 +49,7 @@ Translation::Translation(const primal::Vector3D &offset,
 
 numerics::Matrix<double> Translation::toMatrix() const
 {
-  auto transformation = numerics::Matrix<double>::identity(4);
-  for(int i = 0; i < 3; ++i)
-  {
-    transformation(i, 3) = m_offset[i];
-  }
-  return transformation;
+  return axom::numerics::transforms::translate(m_offset[0], m_offset[1], m_offset[2]);
 }
 
 void Translation::accept(GeometryOperatorVisitor &visitor) const { visitor.visit(*this); }
@@ -119,16 +115,25 @@ Scale::Scale(double xFactor,
   , m_xFactor {xFactor}
   , m_yFactor {yFactor}
   , m_zFactor {zFactor}
+  , m_center {0., 0., 0.}
+{ }
+
+Scale::Scale(double xFactor,
+             double yFactor,
+             double zFactor,
+             const primal::Point3D &center,
+             const TransformableGeometryProperties &startProperties)
+  : MatrixOperator {startProperties}
+  , m_xFactor {xFactor}
+  , m_yFactor {yFactor}
+  , m_zFactor {zFactor}
+  , m_center {center}
 { }
 
 numerics::Matrix<double> Scale::toMatrix() const
 {
-  auto transformation = numerics::Matrix<double>::zeros(4, 4);
-  transformation(0, 0) = m_xFactor;
-  transformation(1, 1) = m_yFactor;
-  transformation(2, 2) = m_zFactor;
-  transformation(3, 3) = 1;
-  return transformation;
+  axom::ArrayView<double> centerView(const_cast<double *>(m_center.data()), 3);
+  return axom::numerics::transforms::scale(m_xFactor, m_yFactor, m_zFactor, centerView);
 }
 
 void Scale::accept(GeometryOperatorVisitor &visitor) const { visitor.visit(*this); }
