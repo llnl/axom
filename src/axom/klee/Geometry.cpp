@@ -6,6 +6,7 @@
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/klee/GeometryOperators.hpp"
+#include "axom/klee/AffineMatrixVisitor.hpp"
 
 #include "conduit_blueprint_mesh.hpp"
 
@@ -260,7 +261,7 @@ numerics::Matrix<double> Geometry::getTransform() const
     else
     {
       AffineMatrixVisitor visitor;
-      geometryOperator->accept(visitor);
+      m_operator->accept(visitor);
       if(visitor.isValid())
       {
         transformation = visitor.getMatrix();

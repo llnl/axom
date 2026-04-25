@@ -3,13 +3,12 @@
 // files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_KLEE_AFFINE_MATRIX_VISITOR_HPP_
-#define AXOM_KLEE_AFFINE_MATRIX_VISITOR_HPP_
+#include "axom/klee/AffineMatrixVisitor.hpp"
 
 namespace axom::klee
 {
 
-AffineMatrixVisitor::AffineMatrixVisitor() : klee::GeometryOperatorVisitor(), m_isValid(false), m_matrix(4, 4) { }
+AffineMatrixVisitor::AffineMatrixVisitor() : GeometryOperatorVisitor(), m_isValid(false), m_matrix(4, 4) { }
 
   void AffineMatrixVisitor::visit(const klee::Translation& translation)
   {
@@ -44,5 +43,3 @@ AffineMatrixVisitor::AffineMatrixVisitor() : klee::GeometryOperatorVisitor(), m_
   }
 
 } // end namespace axom::klee
-
-#endif

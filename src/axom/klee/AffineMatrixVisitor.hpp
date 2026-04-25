@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 #ifndef AXOM_KLEE_AFFINE_MATRIX_VISITOR_HPP_
 #define AXOM_KLEE_AFFINE_MATRIX_VISITOR_HPP_
+#include "axom/klee/GeometryOperators.hpp"
 
 namespace axom::klee
 {
@@ -15,7 +16,7 @@ namespace axom::klee
  * This class extracts the matrix form of supported operators and marks the operator as unvalid otherwise
  * To use, check the \a isValid() function after visiting and then call the \a getMatrix() function.
  */
-class AffineMatrixVisitor : public klee::GeometryOperatorVisitor
+class AffineMatrixVisitor : public GeometryOperatorVisitor
 {
 public:
   AffineMatrixVisitor();
