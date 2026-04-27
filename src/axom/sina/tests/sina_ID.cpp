@@ -13,14 +13,11 @@
 
 #include "axom/sina/core/ID.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+namespace internal = axom::sina::internal;
+
+using sina::ID;
+using sina::IDType;
 
 using ::testing::HasSubstr;
 
@@ -104,8 +101,3 @@ TEST(IDField, toNode_global)
   EXPECT_EQ("the id", value["global name"].as_string());
   EXPECT_FALSE(value.has_child("local name"));
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom

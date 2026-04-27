@@ -19,12 +19,21 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
-namespace axom
-{
-namespace klee
-{
-namespace
-{
+namespace klee = axom::klee;
+namespace numerics = axom::numerics;
+namespace primal = axom::primal;
+namespace test = axom::klee::test;
+
+using klee::CompositeOperator;
+using klee::Dimensions;
+using klee::GeometryOperatorVisitor;
+using klee::LengthUnit;
+using klee::Rotation;
+using klee::Scale;
+using klee::SliceOperator;
+using klee::TransformableGeometryProperties;
+using klee::Translation;
+using klee::UnitConverter;
 using test::affine;
 using test::AlmostEqMatrix;
 using test::AlmostEqPoint;
@@ -42,6 +51,8 @@ using ::testing::Return;
 using primal::Point3D;
 using primal::Vector3D;
 
+namespace
+{
 template <typename ColumnVector>
 ColumnVector operator*(const numerics::Matrix<double> &matrix, const ColumnVector &rhs)
 {
@@ -50,7 +61,7 @@ ColumnVector operator*(const numerics::Matrix<double> &matrix, const ColumnVecto
     throw std::logic_error("Can't multiply entities of this size");
   }
   ColumnVector result;
-  matrix_vector_multiply(matrix, rhs.data(), result.data());
+  numerics::matrix_vector_multiply(matrix, rhs.data(), result.data());
   return result;
 }
 
@@ -69,6 +80,7 @@ primal::Point<double, 4> affinePoint(const Point3D &point3d)
 }
 
 Dimensions ALL_DIMS[] = {Dimensions::Two, Dimensions::Three};
+}  // namespace
 
 class MockVisitor : public GeometryOperatorVisitor
 {
@@ -401,6 +413,3 @@ TEST(Slice, accept)
   EXPECT_CALL(visitor, visit(Matcher<const SliceOperator &>(Ref(slice))));
   slice.accept(visitor);
 }
-}  // namespace
-}  // namespace klee
-}  // namespace axom
