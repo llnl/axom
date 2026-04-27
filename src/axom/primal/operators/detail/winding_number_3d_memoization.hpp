@@ -360,6 +360,29 @@ public:
 
   NURBSPatchCacheManagerOMP(const PatchArrayView& patches)
   {
+    initialize(patches);
+  }
+
+  /// A view of the manager object.
+  struct View
+  {
+    NURBSCachePerThreadArrayView m_views;
+
+    /// Return the NURBSCacheArrayView for the current OMP thread.
+    NURBSCacheArrayView caches() const { return m_views[omp_get_thread_num()].view(); }
+  };
+
+  /// Return a view of this manager to pass into a device function.
+  View view() const { return View {m_nurbs_caches.view()}; }
+
+  /// Return if the underlying array is empty
+  bool empty() const { return m_nurbs_caches.empty(); }
+
+#if !defined(AXOM_USE_CUDA)
+private:
+#endif
+  void initialize(const PatchArrayView& patches)
+  {
     const int nt = omp_get_max_threads();
     m_nurbs_caches.resize(nt);
     auto nurbs_caches_view = m_nurbs_caches.view();
@@ -384,21 +407,6 @@ public:
         }
       });
   }
-
-  /// A view of the manager object.
-  struct View
-  {
-    NURBSCachePerThreadArrayView m_views;
-
-    /// Return the NURBSCacheArrayView for the current OMP thread.
-    NURBSCacheArrayView caches() const { return m_views[omp_get_thread_num()].view(); }
-  };
-
-  /// Return a view of this manager to pass into a device function.
-  View view() const { return View {m_nurbs_caches.view()}; }
-
-  /// Return if the underlying array is empty
-  bool empty() const { return m_nurbs_caches.empty(); }
 
 private:
   NURBSCachePerThreadArray m_nurbs_caches;
