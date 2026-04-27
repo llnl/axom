@@ -330,7 +330,7 @@ public:
     nurbs_caches_view[0].resize(curves.size());
     axom::for_all<axom::OMP_EXEC>(
       curves.size(),
-      AXOM_LAMBDA(axom::IndexType i) {
+      AXOM_HOST_LAMBDA(axom::IndexType i) {
         nurbs_caches_view[0][i] = NURBSCache(curves[i], bbExpansionAmount);
       });
 
@@ -338,7 +338,7 @@ public:
     axom::for_all<axom::OMP_EXEC>(
       1,
       nt,
-      AXOM_LAMBDA(axom::IndexType t) { nurbs_caches_view[t] = nurbs_caches_view[0]; });
+      AXOM_HOST_LAMBDA(axom::IndexType t) { nurbs_caches_view[t] = nurbs_caches_view[0]; });
   }
 
   /// A view of the manager object.
