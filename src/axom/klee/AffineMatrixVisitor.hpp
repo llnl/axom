@@ -37,6 +37,6 @@ private:
   numerics::Matrix<double> m_matrix;
 };
 
-} // end namespace axom::klee
+}  // end namespace axom::klee
 
 #endif

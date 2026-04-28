@@ -235,7 +235,8 @@ Matrix<T> scale(T sx, T sy, const axom::ArrayView<T> &center)
 {
   assert(center.size() == 2);
   const T zero {0};
-  if(axom::utilities::isNearlyEqual(center[0], zero) && axom::utilities::isNearlyEqual(center[1], zero))
+  if(axom::utilities::isNearlyEqual(center[0], zero) &&
+     axom::utilities::isNearlyEqual(center[1], zero))
   {
     return scale(sx, sy);
   }
@@ -265,9 +266,9 @@ Matrix<T> scale(T sx, T sy, T sz, const axom::ArrayView<T> &center)
 {
   assert(center.size() == 3);
   const T zero {0};
-  if(axom::utilities::isNearlyEqual(center[0], zero)
-     && axom::utilities::isNearlyEqual(center[1], zero)
-     && axom::utilities::isNearlyEqual(center[2], zero))
+  if(axom::utilities::isNearlyEqual(center[0], zero) &&
+     axom::utilities::isNearlyEqual(center[1], zero) &&
+     axom::utilities::isNearlyEqual(center[2], zero))
   {
     return scale(sx, sy, sz, 4);
   }

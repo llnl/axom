@@ -227,7 +227,7 @@ TEST(Scale, basics)
   EXPECT_DOUBLE_EQ(0., scale.getCenter()[1]);
   EXPECT_DOUBLE_EQ(0., scale.getCenter()[2]);
 
-  Scale scale2 {2, 4, 6, Point3D{0.5, 0.5, 0.5}, {Dimensions::Three, LengthUnit::cm}};
+  Scale scale2 {2, 4, 6, Point3D {0.5, 0.5, 0.5}, {Dimensions::Three, LengthUnit::cm}};
   EXPECT_DOUBLE_EQ(2, scale2.getXFactor());
   EXPECT_DOUBLE_EQ(4, scale2.getYFactor());
   EXPECT_DOUBLE_EQ(6, scale2.getZFactor());
@@ -241,7 +241,7 @@ TEST(Scale, toMatrix)
   Scale scale {2, 3, 4, {Dimensions::Three, LengthUnit::cm}};
   EXPECT_THAT(scale.toMatrix(), AlmostEqMatrix(affine({{{2, 0, 0, 0}, {0, 3, 0, 0}, {0, 0, 4, 0}}})));
 
-  Scale scale2 {2, 2, 2, Point3D{0.5, 0.5, 0.5}, {Dimensions::Three, LengthUnit::cm}};
+  Scale scale2 {2, 2, 2, Point3D {0.5, 0.5, 0.5}, {Dimensions::Three, LengthUnit::cm}};
   EXPECT_THAT(scale2.toMatrix(),
               AlmostEqMatrix(affine({{{2, 0, 0, -0.5}, {0, 2, 0, -0.5}, {0, 0, 2, -0.5}}})));
 
@@ -263,8 +263,7 @@ TEST(Scale, toMatrix)
               AlmostEqPoint(affinePoint({1.5, 1.5, 1.5})));
   EXPECT_THAT(scale2.toMatrix() * affinePoint({0., 1., 1.}),
               AlmostEqPoint(affinePoint({-0.5, 1.5, 1.5})));
-  EXPECT_THAT(scale2.toMatrix() * affineVec({1., 1., 1.}),
-              AlmostEqVector(affineVec({2., 2., 2.})));
+  EXPECT_THAT(scale2.toMatrix() * affineVec({1., 1., 1.}), AlmostEqVector(affineVec({2., 2., 2.})));
 }
 
 TEST(Scale, accept)

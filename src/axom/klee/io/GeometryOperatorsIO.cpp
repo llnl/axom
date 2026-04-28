@@ -371,7 +371,7 @@ OpPtr parseScale(const inlet::Container &opContainer,
   {
     factors.emplace_back(1.0);
   }
-  Point3D center{0., 0., 0.};
+  Point3D center {0., 0., 0.};
   if(opContainer.contains("center"))
   {
     center = toPoint(opContainer, "center", startProperties.dimensions, Point3D {0, 0, 0});
