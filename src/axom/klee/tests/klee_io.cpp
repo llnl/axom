@@ -23,7 +23,9 @@ namespace klee
 {
 namespace
 {
+using primal::Point3D;
 using primal::Vector3D;
+using test::AlmostEqPoint;
 using test::AlmostEqVector;
 using ::testing::Contains;
 using ::testing::HasSubstr;
@@ -336,6 +338,38 @@ TEST(IOTest, readShapeSet_geometryOperators)
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
   EXPECT_EQ(LengthUnit::m, translation->getEndProperties().units);
   EXPECT_EQ(shapeSet.getDimensions(), translation->getEndProperties().dimensions);
+}
+
+TEST(IOTest, readShapeSet_geometryOperators_scaleWithCenter)
+{
+  auto shapeSet = readShapeSetFromString(R"(
+      dimensions: 2
+      shapes:
+        - name: wheel
+          material: steel
+          geometry:
+            format: test_format
+            path: path/to/file.format
+            units: m
+            operators:
+              - scale: [1.5, 2.5]
+                center: [10, 20]
+    )");
+  auto &shapes = shapeSet.getShapes();
+  ASSERT_EQ(1u, shapes.size());
+  auto &geometryOperator = shapes[0].getGeometry().getGeometryOperator();
+  ASSERT_TRUE(geometryOperator);
+
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
+  ASSERT_TRUE(composite);
+  ASSERT_EQ(1u, composite->getOperators().size());
+
+  auto scale = dynamic_cast<const Scale *>(composite->getOperators()[0].get());
+  ASSERT_NE(scale, nullptr);
+  EXPECT_DOUBLE_EQ(1.5, scale->getXFactor());
+  EXPECT_DOUBLE_EQ(2.5, scale->getYFactor());
+  EXPECT_DOUBLE_EQ(1.0, scale->getZFactor());
+  EXPECT_THAT(scale->getCenter(), AlmostEqPoint(Point3D {10, 20, 0}));
 }
 
 TEST(IOTest, readShapeSet_geometryOperatorsWithoutUnits)
