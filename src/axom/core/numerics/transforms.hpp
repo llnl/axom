@@ -234,13 +234,19 @@ template <typename T = double>
 Matrix<T> scale(T sx, T sy, const axom::ArrayView<T> &center)
 {
   assert(center.size() == 2);
+  const T zero {0};
+  if(axom::utilities::isNearlyEqual(center[0], zero) && axom::utilities::isNearlyEqual(center[1], zero))
+  {
+    return scale(sx, sy);
+  }
+
   const auto T0 = translate(-center[0], -center[1]);
   const auto S = scale(sx, sy, 3);
   const auto T1 = translate(center[0], center[1]);
 
-  Matrix<T> TS, result;
-  matrix_multiply(T0, S, TS);
-  matrix_multiply(TS, T1, result);
+  Matrix<T> TS(Matrix<T>::identity(3)), result(Matrix<T>::identity(3));
+  matrix_multiply(T1, S, TS);
+  matrix_multiply(TS, T0, result);
 
   return result;
 }
@@ -258,13 +264,21 @@ template <typename T = double>
 Matrix<T> scale(T sx, T sy, T sz, const axom::ArrayView<T> &center)
 {
   assert(center.size() == 3);
+  const T zero {0};
+  if(axom::utilities::isNearlyEqual(center[0], zero)
+     && axom::utilities::isNearlyEqual(center[1], zero)
+     && axom::utilities::isNearlyEqual(center[2], zero))
+  {
+    return scale(sx, sy, sz, 4);
+  }
+
   const auto T0 = translate(-center[0], -center[1], -center[2]);
   const auto S = scale(sx, sy, sz, 4);
   const auto T1 = translate(center[0], center[1], center[2]);
 
-  Matrix<T> TS, result;
-  matrix_multiply(T0, S, TS);
-  matrix_multiply(TS, T1, result);
+  Matrix<T> TS(Matrix<T>::identity(4)), result(Matrix<T>::identity(4));
+  matrix_multiply(T1, S, TS);
+  matrix_multiply(TS, T0, result);
 
   return result;
 }
