@@ -100,8 +100,10 @@ TEST(primal_slice, tet_plane_slice_dynamic)
   using TetType = primal::Tetrahedron<double, 3>;
   using PlaneType = primal::Plane<double, 3>;
 
-  const TetType tet {
-    Point3D {0., 0., 0.}, Point3D {1., 0., 0.}, Point3D {0., 1., 0.}, Point3D {0., 0., 1.}};
+  const TetType tet {Point3D {0., 0., 0.},
+                     Point3D {1., 0., 0.},
+                     Point3D {0., 1., 0.},
+                     Point3D {0., 0., 1.}};
 
   const auto poly = primal::slice(tet, PlaneType({0., 0., 1.}, 0.25));
   EXPECT_EQ(poly.numVertices(), 3);
@@ -124,10 +126,7 @@ TEST(primal_slice, tet_plane_slice_omp) { check_slice_policy<axom::OMP_EXEC>(); 
   #endif
 
   #ifdef AXOM_USE_CUDA
-AXOM_CUDA_TEST(primal_slice, tet_plane_slice_cuda)
-{
-  check_slice_policy<axom::CUDA_EXEC<256>>();
-}
+AXOM_CUDA_TEST(primal_slice, tet_plane_slice_cuda) { check_slice_policy<axom::CUDA_EXEC<256>>(); }
   #endif
 
   #ifdef AXOM_USE_HIP

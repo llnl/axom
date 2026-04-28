@@ -24,8 +24,9 @@ namespace detail
  * \return The polygon obtained from slicing a tetrahedron with a plane.
  */
 template <typename T, PolygonArray ARRAY_TYPE = PolygonArray::Dynamic, int MAX_VERTS = DEFAULT_MAX_NUM_VERTICES>
-AXOM_HOST_DEVICE primal::Polygon<T, 3, ARRAY_TYPE, MAX_VERTS> slice_tet_plane(const primal::Tetrahedron<T, 3>& tet,
-                                                                              const primal::Plane<T, 3>& plane)
+AXOM_HOST_DEVICE primal::Polygon<T, 3, ARRAY_TYPE, MAX_VERTS> slice_tet_plane(
+  const primal::Tetrahedron<T, 3>& tet,
+  const primal::Plane<T, 3>& plane)
 {
   Polygon<T, 3, ARRAY_TYPE, MAX_VERTS> intersectionPolygon;
 
