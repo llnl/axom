@@ -208,9 +208,21 @@ public:
    *
    * \param xFactor the amount by which to scale in the x direction
    * \param yFactor the amount by which to scale in the y direction
+   * \param startProperties the initial properties, as in the parent class.
+   *
+   * \note The scaling factor used for the 3rd dimension is 1.
+   */
+  Scale(double xFactor, double yFactor, const TransformableGeometryProperties &startProperties);
+
+  /**
+   * Create a new Scale operator.
+   *
+   * \param xFactor the amount by which to scale in the x direction
+   * \param yFactor the amount by which to scale in the y direction
    * \param zFactor the amount by which to scale in the z direction
    * \param startProperties the initial properties, as in the parent class. 
-   * If the number of dimensions is 2, zFactor should be 1.0, but this is not enforced.
+   *
+   * \note If the number of dimensions is 2, zFactor should be 1.0, but this is not enforced.
    */
   Scale(double xFactor,
         double yFactor,
@@ -222,10 +234,26 @@ public:
    *
    * \param xFactor the amount by which to scale in the x direction
    * \param yFactor the amount by which to scale in the y direction
+   * \param center The center relative to which the scaling is performed.
+   * \param startProperties the initial properties, as in the parent class.
+   *
+   * \note The scaling factor used for the 3rd dimension is 1.
+   */
+  Scale(double xFactor,
+        double yFactor,
+        const primal::Point2D &center,
+        const TransformableGeometryProperties &startProperties);
+
+  /**
+   * Create a new Scale operator.
+   *
+   * \param xFactor the amount by which to scale in the x direction
+   * \param yFactor the amount by which to scale in the y direction
    * \param zFactor the amount by which to scale in the z direction
    * \param center The center relative to which the scaling is performed.
-   * \param startProperties the initial properties, as in the parent class. 
-   * If the number of dimensions is 2, zFactor should be 1.0, but this is not enforced.
+   * \param startProperties the initial properties, as in the parent class.
+   *
+   * \note If the number of dimensions is 2, zFactor should be 1.0, but this is not enforced.
    */
   Scale(double xFactor,
         double yFactor,

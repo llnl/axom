@@ -107,6 +107,10 @@ numerics::Matrix<double> Rotation::toMatrix() const
 
 void Rotation::accept(GeometryOperatorVisitor &visitor) const { visitor.visit(*this); }
 
+Scale::Scale(double xFactor, double yFactor, const TransformableGeometryProperties &startProperties)
+  : Scale(xFactor, yFactor, 1., startProperties)
+{ }
+
 Scale::Scale(double xFactor,
              double yFactor,
              double zFactor,
@@ -116,6 +120,13 @@ Scale::Scale(double xFactor,
   , m_yFactor {yFactor}
   , m_zFactor {zFactor}
   , m_center {0., 0., 0.}
+{ }
+
+Scale::Scale(double xFactor,
+             double yFactor,
+             const primal::Point2D &center,
+             const TransformableGeometryProperties &startProperties)
+  : Scale(xFactor, yFactor, 1., primal::Point3D({center[0], center[1], 0.}), startProperties)
 { }
 
 Scale::Scale(double xFactor,

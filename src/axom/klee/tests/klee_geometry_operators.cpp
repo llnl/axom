@@ -48,6 +48,7 @@ using ::testing::Matcher;
 using ::testing::Ref;
 using ::testing::Return;
 
+using primal::Point2D;
 using primal::Point3D;
 using primal::Vector3D;
 
@@ -246,6 +247,22 @@ TEST(Scale, basics)
   EXPECT_DOUBLE_EQ(0.5, scale2.getCenter()[0]);
   EXPECT_DOUBLE_EQ(0.5, scale2.getCenter()[1]);
   EXPECT_DOUBLE_EQ(0.5, scale2.getCenter()[2]);
+
+  Scale scale3 {3, 2, {Dimensions::Two, LengthUnit::cm}};
+  EXPECT_DOUBLE_EQ(3, scale3.getXFactor());
+  EXPECT_DOUBLE_EQ(2, scale3.getYFactor());
+  EXPECT_DOUBLE_EQ(1, scale3.getZFactor());
+  EXPECT_DOUBLE_EQ(0., scale3.getCenter()[0]);
+  EXPECT_DOUBLE_EQ(0., scale3.getCenter()[1]);
+  EXPECT_DOUBLE_EQ(0., scale3.getCenter()[2]);
+
+  Scale scale4 {3, 2, Point2D {0.5, 0.5}, {Dimensions::Two, LengthUnit::cm}};
+  EXPECT_DOUBLE_EQ(3, scale4.getXFactor());
+  EXPECT_DOUBLE_EQ(2, scale4.getYFactor());
+  EXPECT_DOUBLE_EQ(1, scale4.getZFactor());
+  EXPECT_DOUBLE_EQ(0.5, scale4.getCenter()[0]);
+  EXPECT_DOUBLE_EQ(0.5, scale4.getCenter()[1]);
+  EXPECT_DOUBLE_EQ(0., scale4.getCenter()[2]);
 }
 
 TEST(Scale, toMatrix)
