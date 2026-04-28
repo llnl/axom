@@ -47,6 +47,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   leverage error-controlled approximation and a spatial index (BVH).
 - Slic: Adds new Slic macros that allow you to selectively print messages once per call-site. For example,
   `SLIC_INFO_ONCE(msg)` and `SLIC_INFO_ROOT_IF_ONCE(EXP, msg)`.
+- Primal: Adds a new `slice()` operator to slice tetrahedron with a plane, producing a polygon.
 
 ### Changed
 - Primal: Axom's polygon clipping was modified to handle some corner cases.

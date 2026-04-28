@@ -134,6 +134,172 @@ bool TriangleIntersection2D(const Triangle2& t1, const Triangle2& t2, bool inclu
 
 //------------------------------ IMPLEMENTATIONS ------------------------------
 
+/*!
+ * \brief Intersect 2 3D line segments and return true if they intersect.
+ *
+ * \param P The first line segment.
+ * \param Q The second line segment.
+ * \param[out] intersection The intersection point where the segments intersect.
+ *
+ * \return True if the line segments intersect; False otherwise.
+ */
+template <typename T>
+AXOM_HOST_DEVICE bool intersect_segment_segment(const Segment<T, 3>& P,
+                                                const Segment<T, 3>& Q,
+                                                Point<T, 3>& intersection,
+                                                const T EPS = static_cast<T>(1e-08))
+{
+  using Vector3D = primal::Vector<T, 3>;
+
+  // Use the standard segment-segment closest-points formulation on the
+  // segment directions u and v. We only report an intersection when the
+  // clamped closest points coincide within the supplied tolerance.
+  const auto u = P.target() - P.source();
+  const auto v = Q.target() - Q.source();
+  const auto w = P.source() - Q.source();
+
+  const T a = u.dot(u);
+  const T b = u.dot(v);
+  const T c = v.dot(v);
+  const T d = u.dot(w);
+  const T e = v.dot(w);
+  const T D = a * c - b * b;
+
+  intersection = Point<T, 3>();
+
+  // Handle degenerate segments first so the general path can assume both
+  // segments have nonzero length.
+  if(axom::utilities::isNearlyEqual(a, T {0}, EPS) &&
+     axom::utilities::isNearlyEqual(c, T {0}, EPS))
+  {
+    intersection = P.source();
+    return P.source().isNearlyEqual(Q.source(), EPS);
+  }
+
+  if(axom::utilities::isNearlyEqual(a, T {0}, EPS))
+  {
+    const T t = axom::utilities::clampVal(e / c, T {0}, T {1});
+    const auto qPoint = Q.at(t);
+    if(P.source().isNearlyEqual(qPoint, EPS))
+    {
+      intersection = P.source();
+      return true;
+    }
+
+    return false;
+  }
+
+  if(axom::utilities::isNearlyEqual(c, T {0}, EPS))
+  {
+    const T s = axom::utilities::clampVal(-d / a, T {0}, T {1});
+    const auto pPoint = P.at(s);
+    if(Q.source().isNearlyEqual(pPoint, EPS))
+    {
+      intersection = Q.source();
+      return true;
+    }
+
+    return false;
+  }
+
+  if(axom::utilities::isNearlyEqual(D, T {0}, EPS))
+  {
+    const auto uxw = Vector3D::cross_product(u, w);
+    // Parallel segments intersect only if they are also collinear.
+    // Compare the point-to-line distance against EPS instead of relying on
+    // Vector::is_zero()'s default tolerance.
+    if(uxw.squared_norm() > EPS * EPS * a)
+    {
+      return false;
+    }
+
+    // Collinear overlap reduces to a 1D interval overlap on P's
+    // parametrization. Return the first overlapping point on P.
+    const T t0 = (Q.source() - P.source()).dot(u) / a;
+    const T t1 = (Q.target() - P.source()).dot(u) / a;
+    const T overlapBeg = axom::utilities::max(T {0}, axom::utilities::min(t0, t1));
+    const T overlapEnd = axom::utilities::min(T {1}, axom::utilities::max(t0, t1));
+
+    if(overlapBeg <= overlapEnd + EPS)
+    {
+      intersection = P.at(overlapBeg);
+      return true;
+    }
+
+    return false;
+  }
+
+  T sN = (b * e - c * d);
+  T tN = (a * e - b * d);
+  T sD = D;
+  T tD = D;
+
+  // Clamp the unconstrained closest point on each supporting line back to the
+  // finite segment domain [0,1] x [0,1].
+  if(sN < T {0})
+  {
+    sN = T {0};
+    tN = e;
+    tD = c;
+  }
+  else if(sN > sD)
+  {
+    sN = sD;
+    tN = e + b;
+    tD = c;
+  }
+
+  if(tN < T {0})
+  {
+    tN = T {0};
+    if(-d < T {0})
+    {
+      sN = T {0};
+    }
+    else if(-d > a)
+    {
+      sN = sD;
+    }
+    else
+    {
+      sN = -d;
+      sD = a;
+    }
+  }
+  else if(tN > tD)
+  {
+    tN = tD;
+    if((-d + b) < T {0})
+    {
+      sN = T {0};
+    }
+    else if((-d + b) > a)
+    {
+      sN = sD;
+    }
+    else
+    {
+      sN = -d + b;
+      sD = a;
+    }
+  }
+
+  const T sc = axom::utilities::isNearlyEqual(sN, T {0}, EPS) ? T {0} : sN / sD;
+  const T tc = axom::utilities::isNearlyEqual(tN, T {0}, EPS) ? T {0} : tN / tD;
+
+  const auto pPoint = P.at(sc);
+  const auto qPoint = Q.at(tc);
+  // For skew segments, the closest points generally differ. Only accept the
+  // result when they collapse to the same point within tolerance.
+  if(pPoint.isNearlyEqual(qPoint, EPS))
+  {
+    intersection = pPoint;
+    return true;
+  }
+
+  return false;
+}
+
 /*! @{ @name 3D triangle-triangle intersection */
 
 /*!

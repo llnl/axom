@@ -44,6 +44,23 @@ namespace axom
 {
 namespace primal
 {
+
+/*!
+ * \brief Determines if two 3D segments intersect.
+ * \param [in] P A 3D line segment
+ * \param [in] Q A 3D line segment
+ * \param [out] intersection Intersection point of P and Q.
+ * \return true iff P intersects with Q, otherwise, false.
+ */
+template <typename T>
+AXOM_HOST_DEVICE bool intersect(const Segment<T, 3>& P,
+                                const Segment<T, 3>& Q,
+                                Point<T, 3>& intersection,
+                                const T EPS = static_cast<T>(1e-08))
+{
+  return detail::intersect_segment_segment(P, Q, intersection, EPS);
+}
+
 /// \name Triangle Intersection Routines
 /// \accelerated
 /// @{

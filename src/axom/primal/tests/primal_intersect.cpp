@@ -281,6 +281,42 @@ TEST(primal_intersect, more_ray_segment_intersection)
   }
 }
 
+TEST(primal_intersect, segment_segment_intersection)
+{
+  using Point3D = primal::Point<double, 3>;
+  using Segment3D = primal::Segment<double, 3>;
+
+  Point3D intersection;
+
+  EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {1., 1., 0.}),
+                                Segment3D(Point3D {0., 1., 0.}, Point3D {1., 0., 0.}),
+                                intersection));
+  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {0.5, 0.5, 0.}, 1e-12));
+
+  EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {1., 0., 0.}),
+                                Segment3D(Point3D {1., 0., 0.}, Point3D {1., 1., 0.}),
+                                intersection));
+  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, 1e-12));
+
+  EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
+                                Segment3D(Point3D {1., 0., 0.}, Point3D {3., 0., 0.}),
+                                intersection));
+  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, 1e-12));
+
+  EXPECT_TRUE(primal::intersect(Segment3D(Point3D {1., 0., 0.}, Point3D {1., 0., 0.}),
+                                Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
+                                intersection));
+  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, 1e-12));
+
+  EXPECT_FALSE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {1., 0., 0.}),
+                                 Segment3D(Point3D {2., 0., 0.}, Point3D {3., 0., 0.}),
+                                 intersection));
+
+  EXPECT_FALSE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {1., 0., 0.}),
+                                 Segment3D(Point3D {0.5, -1., 1.}, Point3D {0.5, 1., 1.}),
+                                 intersection));
+}
+
 TEST(primal_intersect, triangle_empty_aabb_intersection)
 {
   constexpr int DIM = 3;
