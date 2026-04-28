@@ -17,12 +17,21 @@
 #include <fstream>
 #include <sstream>
 
-namespace axom
-{
-namespace klee
-{
-namespace
-{
+namespace klee = axom::klee;
+namespace inlet = axom::inlet;
+namespace test = axom::klee::test;
+namespace primal = axom::primal;
+
+using klee::CompositeOperator;
+using klee::Dimensions;
+using klee::KleeError;
+using klee::LengthUnit;
+using klee::Rotation;
+using klee::Scale;
+using klee::ShapeSet;
+using klee::SliceOperator;
+using klee::TransformableGeometryProperties;
+using klee::Translation;
 using primal::Point3D;
 using primal::Vector3D;
 using test::AlmostEqPoint;
@@ -31,11 +40,14 @@ using ::testing::Contains;
 using ::testing::HasSubstr;
 using ::testing::Truly;
 
+namespace
+{
 ShapeSet readShapeSetFromString(const std::string &input)
 {
   std::istringstream istream(input);
-  return readShapeSet(istream);
+  return klee::readShapeSet(istream);
 }
+} // end namespace
 
 TEST(IOTest, readShapeSet_noShapes)
 {
@@ -273,7 +285,7 @@ TEST(IOTest, readShapeSet_file)
   fout << fileContents;
   fout.close();
 
-  auto shapeSet = readShapeSet(fileName);
+  auto shapeSet = klee::readShapeSet(fileName);
   EXPECT_EQ(1u, shapeSet.getShapes().size());
   EXPECT_EQ("testFile.yaml", shapeSet.getPath());
 }
@@ -686,10 +698,6 @@ TEST(IOTest, readShapeSet_namedGeometryOperators)
   ASSERT_NE(translation, nullptr);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
 }
-
-}  // namespace
-}  // namespace klee
-}  // namespace axom
 
 int main(int argc, char *argv[])
 {

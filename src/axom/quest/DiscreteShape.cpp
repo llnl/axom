@@ -522,22 +522,21 @@ void DiscreteShape::createRepresentationOfSphere()
 
   auto nodeCoordsView = nodeCoords.view();
   auto connectivityView = connectivity.view();
-  axom::for_all<axom::SEQ_EXEC>(
-    octCount,
-    AXOM_LAMBDA(axom::IndexType octIdx) {
-      TetType tetsInOct[TETS_PER_OCT];
-      axom::primal::split(octs[octIdx], tetsInOct);
-      for(int iTet = 0; iTet < TETS_PER_OCT; ++iTet)
+  for(axom::IndexType octIdx = 0; octIdx < octCount; ++octIdx)
+  {
+    TetType tetsInOct[TETS_PER_OCT];
+    axom::primal::split(octs[octIdx], tetsInOct);
+    for(int iTet = 0; iTet < TETS_PER_OCT; ++iTet)
+    {
+      axom::IndexType tetIdx = octIdx * TETS_PER_OCT + iTet;
+      for(int iNode = 0; iNode < NODES_PER_TET; ++iNode)
       {
-        axom::IndexType tetIdx = octIdx * TETS_PER_OCT + iTet;
-        for(int iNode = 0; iNode < NODES_PER_TET; ++iNode)
-        {
-          axom::IndexType nodeIdx = tetIdx * NODES_PER_TET + iNode;
-          nodeCoordsView[nodeIdx] = tetsInOct[iTet][iNode];
-          connectivityView[tetIdx][iNode] = nodeIdx;
-        }
+        axom::IndexType nodeIdx = tetIdx * NODES_PER_TET + iNode;
+        nodeCoordsView[nodeIdx] = tetsInOct[iTet][iNode];
+        connectivityView[tetIdx][iNode] = nodeIdx;
       }
-    });
+    }
+  }
 
   TetMesh* tetMesh = nullptr;
   if(m_sidreGroup != nullptr)
@@ -578,18 +577,17 @@ void DiscreteShape::createRepresentationOfSOR()
   numerics::Matrix<double> rotate = sorAxisRotMatrix(sorGeom.getSorDirection());
   const auto& translate = sorGeom.getSorOriginCoords();
   auto octsView = octs.view();
-  axom::for_all<axom::SEQ_EXEC>(
-    octCount,
-    AXOM_LAMBDA(axom::IndexType iOct) {
-      auto& oct = octsView[iOct];
-      for(int iVert = 0; iVert < OctType::NUM_VERTS; ++iVert)
-      {
-        auto& newCoords = oct[iVert];
-        auto oldCoords = newCoords;
-        numerics::matrix_vector_multiply(rotate, oldCoords.data(), newCoords.data());
-        newCoords.array() += translate.array();
-      }
-    });
+  for(axom::IndexType iOct = 0; iOct < octCount; ++iOct)
+  {
+    auto& oct = octsView[iOct];
+    for(int iVert = 0; iVert < OctType::NUM_VERTS; ++iVert)
+    {
+      auto& newCoords = oct[iVert];
+      auto oldCoords = newCoords;
+      numerics::matrix_vector_multiply(rotate, oldCoords.data(), newCoords.data());
+      newCoords.array() += translate.array();
+    }
+  }
 
   // Dump discretized octs as a tet mesh
   //

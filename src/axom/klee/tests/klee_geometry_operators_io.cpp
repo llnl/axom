@@ -19,14 +19,30 @@
 #include <memory>
 #include <unordered_map>
 
-namespace axom
-{
-namespace klee
-{
-namespace internal
-{
 namespace
 {
+namespace inlet = axom::inlet;
+namespace internal = axom::klee::internal;
+namespace klee = axom::klee;
+namespace primal = axom::primal;
+namespace sidre = axom::sidre;
+namespace test = axom::klee::test;
+
+using axom::Path;
+using internal::GeometryOperatorData;
+using internal::NamedOperatorMap;
+using internal::NamedOperatorMapData;
+using klee::CompositeOperator;
+using klee::Dimensions;
+using klee::GeometryOperator;
+using klee::KleeError;
+using klee::LengthUnit;
+using klee::Rotation;
+using klee::Scale;
+using klee::SliceOperator;
+using klee::TransformableGeometryProperties;
+using klee::Translation;
+using klee::UnitConverter;
 using primal::Point3D;
 using primal::Vector3D;
 using test::AlmostEqMatrix;
@@ -189,6 +205,7 @@ SliceOperator make_slice(Point3D origin,
 {
   return SliceOperator {origin, normal, up, startProperties};
 }
+}  // namespace
 
 TEST(GeometryOperatorsIO, readMultipleOperatorsIncluded)
 {
@@ -880,11 +897,6 @@ TEST(GeometryOperatorsIO, readNamedOperators_ref)
   auto referencedTranslation = copyOperator<Translation>(referencedOperator.getOperators()[0]);
   EXPECT_THAT(referencedTranslation.getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
 }
-
-}  // namespace
-}  // namespace internal
-}  // namespace klee
-}  // namespace axom
 
 int main(int argc, char *argv[])
 {
