@@ -28,10 +28,7 @@ void expect_matrix_near(const axom::numerics::Matrix<double>& actual,
   }
 }
 
-void expect_vector_near(const double* actual,
-                        const double* expected,
-                        int size,
-                        double tolerance = 1e-12)
+void expect_vector_near(const double* actual, const double* expected, int size, double tolerance = 1e-12)
 {
   for(int i = 0; i < size; ++i)
   {

@@ -47,7 +47,7 @@ ShapeSet readShapeSetFromString(const std::string &input)
   std::istringstream istream(input);
   return klee::readShapeSet(istream);
 }
-} // end namespace
+}  // end namespace
 
 TEST(IOTest, readShapeSet_noShapes)
 {
