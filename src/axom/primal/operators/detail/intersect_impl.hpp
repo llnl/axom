@@ -169,8 +169,7 @@ AXOM_HOST_DEVICE bool intersect_segment_segment(const Segment<T, 3>& P,
 
   // Handle degenerate segments first so the general path can assume both
   // segments have nonzero length.
-  if(axom::utilities::isNearlyEqual(a, T {0}, EPS) &&
-     axom::utilities::isNearlyEqual(c, T {0}, EPS))
+  if(axom::utilities::isNearlyEqual(a, T {0}, EPS) && axom::utilities::isNearlyEqual(c, T {0}, EPS))
   {
     intersection = P.source();
     return P.source().isNearlyEqual(Q.source(), EPS);
