@@ -48,6 +48,7 @@ using ::testing::Matcher;
 using ::testing::Ref;
 using ::testing::Return;
 
+using primal::Point2D;
 using primal::Point3D;
 using primal::Vector3D;
 
@@ -56,7 +57,7 @@ namespace
 template <typename ColumnVector>
 ColumnVector operator*(const numerics::Matrix<double> &matrix, const ColumnVector &rhs)
 {
-  if(matrix.getNumRows() != matrix.getNumRows() || matrix.getNumRows() != rhs.dimension())
+  if(matrix.getNumRows() != matrix.getNumColumns() || matrix.getNumRows() != rhs.dimension())
   {
     throw std::logic_error("Can't multiply entities of this size");
   }
@@ -235,12 +236,63 @@ TEST(Scale, basics)
   EXPECT_DOUBLE_EQ(2, scale.getXFactor());
   EXPECT_DOUBLE_EQ(3, scale.getYFactor());
   EXPECT_DOUBLE_EQ(4, scale.getZFactor());
+  EXPECT_DOUBLE_EQ(0., scale.getCenter()[0]);
+  EXPECT_DOUBLE_EQ(0., scale.getCenter()[1]);
+  EXPECT_DOUBLE_EQ(0., scale.getCenter()[2]);
+
+  Scale scale2 {2, 4, 6, Point3D {0.5, 0.5, 0.5}, {Dimensions::Three, LengthUnit::cm}};
+  EXPECT_DOUBLE_EQ(2, scale2.getXFactor());
+  EXPECT_DOUBLE_EQ(4, scale2.getYFactor());
+  EXPECT_DOUBLE_EQ(6, scale2.getZFactor());
+  EXPECT_DOUBLE_EQ(0.5, scale2.getCenter()[0]);
+  EXPECT_DOUBLE_EQ(0.5, scale2.getCenter()[1]);
+  EXPECT_DOUBLE_EQ(0.5, scale2.getCenter()[2]);
+
+  Scale scale3 {3, 2, {Dimensions::Two, LengthUnit::cm}};
+  EXPECT_DOUBLE_EQ(3, scale3.getXFactor());
+  EXPECT_DOUBLE_EQ(2, scale3.getYFactor());
+  EXPECT_DOUBLE_EQ(1, scale3.getZFactor());
+  EXPECT_DOUBLE_EQ(0., scale3.getCenter()[0]);
+  EXPECT_DOUBLE_EQ(0., scale3.getCenter()[1]);
+  EXPECT_DOUBLE_EQ(0., scale3.getCenter()[2]);
+
+  Scale scale4 {3, 2, Point2D {0.5, 0.5}, {Dimensions::Two, LengthUnit::cm}};
+  EXPECT_DOUBLE_EQ(3, scale4.getXFactor());
+  EXPECT_DOUBLE_EQ(2, scale4.getYFactor());
+  EXPECT_DOUBLE_EQ(1, scale4.getZFactor());
+  EXPECT_DOUBLE_EQ(0.5, scale4.getCenter()[0]);
+  EXPECT_DOUBLE_EQ(0.5, scale4.getCenter()[1]);
+  EXPECT_DOUBLE_EQ(0., scale4.getCenter()[2]);
 }
 
 TEST(Scale, toMatrix)
 {
   Scale scale {2, 3, 4, {Dimensions::Three, LengthUnit::cm}};
   EXPECT_THAT(scale.toMatrix(), AlmostEqMatrix(affine({{{2, 0, 0, 0}, {0, 3, 0, 0}, {0, 0, 4, 0}}})));
+
+  Scale scale2 {2, 2, 2, Point3D {0.5, 0.5, 0.5}, {Dimensions::Three, LengthUnit::cm}};
+  EXPECT_THAT(scale2.toMatrix(),
+              AlmostEqMatrix(affine({{{2, 0, 0, -0.5}, {0, 2, 0, -0.5}, {0, 0, 2, -0.5}}})));
+
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({0.5, 0.5, 0.5}),
+              AlmostEqPoint(affinePoint({0.5, 0.5, 0.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({0., 0., 0.}),
+              AlmostEqPoint(affinePoint({-0.5, -0.5, -0.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({1., 0., 0.}),
+              AlmostEqPoint(affinePoint({1.5, -0.5, -0.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({1., 1., 0.}),
+              AlmostEqPoint(affinePoint({1.5, 1.5, -0.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({0., 1., 0.}),
+              AlmostEqPoint(affinePoint({-0.5, 1.5, -0.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({0., 0., 1.}),
+              AlmostEqPoint(affinePoint({-0.5, -0.5, 1.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({1., 0., 1.}),
+              AlmostEqPoint(affinePoint({1.5, -0.5, 1.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({1., 1., 1.}),
+              AlmostEqPoint(affinePoint({1.5, 1.5, 1.5})));
+  EXPECT_THAT(scale2.toMatrix() * affinePoint({0., 1., 1.}),
+              AlmostEqPoint(affinePoint({-0.5, 1.5, 1.5})));
+  EXPECT_THAT(scale2.toMatrix() * affineVec({1., 1., 1.}), AlmostEqVector(affineVec({2., 2., 2.})));
 }
 
 TEST(Scale, accept)

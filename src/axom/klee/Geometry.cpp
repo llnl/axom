@@ -6,6 +6,7 @@
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/klee/GeometryOperators.hpp"
+#include "axom/klee/AffineMatrixVisitor.hpp"
 
 #include "conduit_blueprint_mesh.hpp"
 
@@ -226,6 +227,48 @@ const std::string& Geometry::getBlueprintTopology() const
                                     "as a blueprint mesh and/or has not been converted into one.",
                                     m_format));
   return m_topology;
+}
+
+numerics::Matrix<double> Geometry::getTransform() const
+{
+  const auto identity4x4 = numerics::Matrix<double>::identity(4);
+  numerics::Matrix<double> transformation(identity4x4);
+  if(m_operator)
+  {
+    auto composite = std::dynamic_pointer_cast<const CompositeOperator>(m_operator);
+    if(composite)
+    {
+      // Concatenate the transformations
+
+      // Why don't we multiply the matrices in CompositeOperator::addOperator()?
+      // Why keep the matrices factored and multiply them here repeatedly?
+      // Combining them would also avoid this if-else logic.  BTNG
+      for(auto op : composite->getOperators())
+      {
+        // Use visitor pattern to extract the affine matrix from supported operators
+        AffineMatrixVisitor visitor;
+        op->accept(visitor);
+        if(!visitor.isValid())
+        {
+          continue;
+        }
+        const auto& matrix = visitor.getMatrix();
+        numerics::Matrix<double> res(identity4x4);
+        numerics::matrix_multiply(matrix, transformation, res);
+        transformation = res;
+      }
+    }
+    else
+    {
+      AffineMatrixVisitor visitor;
+      m_operator->accept(visitor);
+      if(visitor.isValid())
+      {
+        transformation = visitor.getMatrix();
+      }
+    }
+  }
+  return transformation;
 }
 
 }  // namespace klee

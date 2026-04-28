@@ -391,7 +391,6 @@ protected:
 class SamplingShaperTest2D : public SamplingShaperTest
 {
 public:
-  using Point2D = primal::Point<double, 2>;
   using BBox2D = primal::BoundingBox<double, 2>;
 
 public:
@@ -518,7 +517,6 @@ public:
 class SampleTester2D : public SamplingShaperTest
 {
 public:
-  using Point2D = primal::Point<double, 2>;
   using BBox2D = primal::BoundingBox<double, 2>;
 
 public:
@@ -634,9 +632,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, basic_circle_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -684,9 +679,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, circle_projector_anisotropic)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -792,8 +784,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, disk_via_replacement_with_background)
 {
-  using Point2D = typename SamplingShaperTest2D::Point2D;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -902,8 +892,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, preshaped_materials)
 {
-  using Point2D = typename SamplingShaperTest2D::Point2D;
-
   const std::string& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -983,8 +971,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, disk_with_multiple_preshaped_materials)
 {
-  using Point2D = typename SamplingShaperTest2D::Point2D;
-
   const std::string& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -1185,9 +1171,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, contour_and_stl_2D)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
@@ -1282,8 +1265,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, contour_and_mfem_2D)
 {
-  using Point2D = primal::Point<double, 2>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   // Shape file
@@ -1685,9 +1666,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, tet_boundary_identity_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -1739,9 +1717,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, tet_doubling_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -1791,9 +1766,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, circle_2D_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
@@ -1853,9 +1825,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, contour_and_stl_3D)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
@@ -1929,9 +1898,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, shape_proe_tet_with_2D_projection)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(

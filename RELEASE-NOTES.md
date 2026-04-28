@@ -26,6 +26,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds `NURBSPatch::isTriviallyTrimmed()` to check if the trimming curves for a patch lie on the patch boundaries
 - Quest: Adds support for reading mfem files with variable order NURBS curves (requires mfem>4.9).
 - Quest: Adds OMP support for fast GWN methods for STL/Triangulated STEP input and linearized NURBS Curve input.
+- Klee: Adds an optional "center" parameter in scale operators that permits scaling relative to a custom center point.
 
 ### Removed
 

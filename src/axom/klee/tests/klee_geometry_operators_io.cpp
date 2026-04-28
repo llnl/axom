@@ -381,6 +381,18 @@ TEST(GeometryOperatorsIO, readScale_2d_array)
   EXPECT_EQ(expectedProperties, scale.getEndProperties());
 }
 
+TEST(GeometryOperatorsIO, readScale_2d_array_withCenter)
+{
+  auto scale = readSingleOperator<Scale>({Dimensions::Two, LengthUnit::cm}, R"(
+      scale: [1.2, 3.4]
+      center: [10, 20]
+    )");
+  EXPECT_DOUBLE_EQ(1.2, scale.getXFactor());
+  EXPECT_DOUBLE_EQ(3.4, scale.getYFactor());
+  EXPECT_DOUBLE_EQ(1.0, scale.getZFactor());
+  EXPECT_THAT(scale.getCenter(), AlmostEqPoint(Point3D {10, 20, 0}));
+}
+
 TEST(GeometryOperatorsIO, readScale_3d_array)
 {
   auto scale = readSingleOperator<Scale>({Dimensions::Three, LengthUnit::cm},
@@ -393,6 +405,19 @@ TEST(GeometryOperatorsIO, readScale_3d_array)
   TransformableGeometryProperties expectedProperties {Dimensions::Three, LengthUnit::cm};
   EXPECT_EQ(expectedProperties, scale.getStartProperties());
   EXPECT_EQ(expectedProperties, scale.getEndProperties());
+}
+
+TEST(GeometryOperatorsIO, readScale_3d_array_withCenter)
+{
+  auto scale = readSingleOperator<Scale>({Dimensions::Three, LengthUnit::cm},
+                                         R"(
+      scale: [1.2, 3.4, 5.6]
+      center: [4, 5, 6]
+  )");
+  EXPECT_DOUBLE_EQ(1.2, scale.getXFactor());
+  EXPECT_DOUBLE_EQ(3.4, scale.getYFactor());
+  EXPECT_DOUBLE_EQ(5.6, scale.getZFactor());
+  EXPECT_THAT(scale.getCenter(), AlmostEqPoint(Point3D {4, 5, 6}));
 }
 
 TEST(GeometryOperatorsIO, readConvertUnits)
@@ -748,6 +773,7 @@ TEST(GeometryOperatorsIO, readNamedOperators_basic)
   EXPECT_EQ(expectedScaleProperties, scale.getEndProperties());
   EXPECT_EQ(1.5, scale.getXFactor());
   EXPECT_EQ(1.5, scale.getYFactor());
+  EXPECT_THAT(scale.getCenter(), AlmostEqPoint(Point3D {0, 0, 0}));
 }
 
 TEST(GeometryOperatorsIO, readNamedOperators_invalidDimensions)
@@ -864,6 +890,7 @@ TEST(GeometryOperatorsIO, readNamedOperators_ref)
   auto scale = copyOperator<Scale>(composite->getOperators()[0]);
   EXPECT_EQ(1.5, scale.getXFactor());
   EXPECT_EQ(1.5, scale.getYFactor());
+  EXPECT_THAT(scale.getCenter(), AlmostEqPoint(Point3D {0, 0, 0}));
 
   auto referencedOperator = copyOperator<CompositeOperator>(composite->getOperators()[1]);
   ASSERT_EQ(1u, referencedOperator.getOperators().size());
