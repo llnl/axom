@@ -78,6 +78,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     version("main", branch="main")
     version("develop", branch="develop")
+    version("0.14.0", tag="v0.14.0", commit="146c8c15386a810791b7ab5c7fcb288cadea6151")
     version("0.13.0", tag="v0.13.0", commit="d00f6c66ef390ad746ae840f1074d982513611ac")
     version("0.12.0", tag="v0.12.0", commit="297544010a3dfb98145a1a85f09f9c648c00a18c")
     version("0.11.0", tag="v0.11.0", commit="685960486aa55d3a74a821ee02f6d9d9a3e67ab1")
@@ -335,7 +336,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     # Sidre requires conduit_blueprint_mpi.hpp
     conflicts("^conduit@:0.6.0", when="@0.5.0:")
 
-    conflicts("+openmp", when="+rocm")
     conflicts("+cuda", when="+rocm")
 
     conflicts("~raja", when="+cuda")
@@ -435,7 +435,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             entries.append(cmake_cache_option("CMAKE_CUDA_SEPARABLE_COMPILATION", True))
 
             # CUDA_FLAGS
-            cudaflags = "${CMAKE_CUDA_FLAGS} -restrict --expt-extended-lambda "
+            cudaflags = "${CMAKE_CUDA_FLAGS} -restrict --expt-extended-lambda --expt-relaxed-constexpr "
 
             # Pass through any cxxflags to the host compiler via nvcc's Xcompiler flag
             host_cxx_flags = spec.compiler_flags["cxxflags"]
@@ -480,7 +480,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             # Only amdclang requires this path; cray compiler fails if this is included
             if spec.satisfies("%llvm-amdgpu"):
                 hip_link_flags += "-L{0}/lib -Wl,-rpath,{0}/lib ".format(rocm_root)
-            hip_link_flags += "-lpgmath -lompstub "
+            hip_link_flags += "-lpgmath "
 
             # Fixes for mpi for rocm until wrapper paths are fixed
             # These flags are already part of the wrapped compilers on TOSS4 systems
@@ -494,11 +494,23 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                                         self.spec.compiler.version
                                     )
 
-            # Remove extra link library for crayftn
-            if spec.satisfies("+fortran") and self.is_fortran_compiler("crayftn"):
-                entries.append(
-                    cmake_cache_string("BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE", "unwind")
-                )
+            if spec.satisfies("+fortran"):
+                link_remove_list = []
+
+                # Remove extra link library for crayftn
+                if self.is_fortran_compiler("crayftn"):
+                    link_remove_list += ["unwind"]
+
+                # Remove injected OpenMP stub library
+                if spec.satisfies("+openmp"):
+                    link_remove_list += ["ompstub"]
+
+                if link_remove_list:
+                    entries.append(
+                        cmake_cache_string(
+                            "BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE", ";".join(link_remove_list)
+                        )
+                    )
 
             # Additional libraries for TOSS4
             hip_link_flags += "-lamdhip64 -lhsakmt -lhsa-runtime64 -lamd_comgr "
@@ -554,6 +566,25 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             )
 
             description = "Different OpenMP linker flag between CXX and Fortran"
+            entries.append(
+                cmake_cache_string("BLT_OPENMP_LINK_FLAGS", openmp_gen_exp, description)
+            )
+
+        if (
+            spec.satisfies("+openmp")
+            and spec.satisfies("+rocm")
+            and self.spec.satisfies("%cce")
+        ):
+            openmp_gen_exp = (
+                "$<$<NOT:$<COMPILE_LANGUAGE:Fortran>>:"
+                "-fopenmp=libomp>;$<$<COMPILE_LANGUAGE:"
+                "Fortran>:-fopenmp>"
+            )
+
+            description = "Different OpenMP compile & link flags between HIP and CXX compilers (amdclang++)"
+            entries.append(
+                cmake_cache_string("BLT_OPENMP_COMPILE_FLAGS", openmp_gen_exp, description)
+            )
             entries.append(
                 cmake_cache_string("BLT_OPENMP_LINK_FLAGS", openmp_gen_exp, description)
             )

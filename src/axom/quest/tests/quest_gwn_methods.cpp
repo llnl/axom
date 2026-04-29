@@ -338,7 +338,7 @@ TEST(quest_gwn_methods, mfem_mesh_linearization)
   check_mfem_mesh_linearization<axom::SEQ_EXEC>();
 }
 
-#if defined AXOM_USE_OPENMP && defined(AXOM_USE_RAJA)
+#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
 TEST(quest_gwn_methods, mfem_mesh_linearization_omp)
 {
   check_mfem_mesh_linearization<axom::OMP_EXEC>();
