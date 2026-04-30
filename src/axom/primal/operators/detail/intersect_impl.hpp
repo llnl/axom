@@ -140,6 +140,10 @@ bool TriangleIntersection2D(const Triangle2& t1, const Triangle2& t2, bool inclu
  * \param P The first line segment.
  * \param Q The second line segment.
  * \param[out] intersection The intersection point where the segments intersect.
+ *   For collinear overlapping segments, this stores the overlap endpoint with
+ *   the smaller parameter on \a P.
+ * \param EPS Tolerance used to detect degeneracy, collinearity, and
+ *   coincidence of the candidate intersection points.
  *
  * \return True if the line segments intersect; False otherwise.
  */

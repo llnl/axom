@@ -287,26 +287,34 @@ TEST(primal_intersect, segment_segment_intersection)
   using Segment3D = primal::Segment<double, 3>;
 
   Point3D intersection;
+  constexpr double EPS = 1e-12;
 
   EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {1., 1., 0.}),
                                 Segment3D(Point3D {0., 1., 0.}, Point3D {1., 0., 0.}),
                                 intersection));
-  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {0.5, 0.5, 0.}, 1e-12));
+  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {0.5, 0.5, 0.}, EPS));
 
   EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {1., 0., 0.}),
                                 Segment3D(Point3D {1., 0., 0.}, Point3D {1., 1., 0.}),
                                 intersection));
-  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, 1e-12));
+  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, EPS));
 
+  // Overlapping collinear segments return the overlap endpoint with the
+  // smaller parameter on the first segment argument.
   EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
                                 Segment3D(Point3D {1., 0., 0.}, Point3D {3., 0., 0.}),
                                 intersection));
-  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, 1e-12));
+  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, EPS));
+
+  EXPECT_TRUE(primal::intersect(Segment3D(Point3D {3., 0., 0.}, Point3D {1., 0., 0.}),
+                                Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
+                                intersection));
+  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {2., 0., 0.}, EPS));
 
   EXPECT_TRUE(primal::intersect(Segment3D(Point3D {1., 0., 0.}, Point3D {1., 0., 0.}),
                                 Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
                                 intersection));
-  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, 1e-12));
+  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, EPS));
 
   EXPECT_FALSE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {1., 0., 0.}),
                                  Segment3D(Point3D {2., 0., 0.}, Point3D {3., 0., 0.}),
