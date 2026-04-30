@@ -289,37 +289,64 @@ TEST(primal_intersect, segment_segment_intersection)
   Point3D intersection;
   constexpr double EPS = 1e-12;
 
+  // Proper crossing at an interior point of both segments.
   EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {1., 1., 0.}),
                                 Segment3D(Point3D {0., 1., 0.}, Point3D {1., 0., 0.}),
                                 intersection));
   EXPECT_TRUE(intersection.isNearlyEqual(Point3D {0.5, 0.5, 0.}, EPS));
 
+  // Endpoint of segment 1 coincides with an endpoint of segment 2.
   EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {1., 0., 0.}),
                                 Segment3D(Point3D {1., 0., 0.}, Point3D {1., 1., 0.}),
                                 intersection));
   EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, EPS));
 
-  // Overlapping collinear segments return the overlap endpoint with the
-  // smaller parameter on the first segment argument.
+  // Endpoint of segment 1 coincides with an interior point of segment 2.
+  EXPECT_TRUE(primal::intersect(Segment3D(Point3D {1., 0., 0.}, Point3D {2., 0., 0.}),
+                                Segment3D(Point3D {0., 0., 0.}, Point3D {3., 0., 0.}),
+                                intersection));
+  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, EPS));
+
+  // The two segments are exactly the same.
+  EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
+                                Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
+                                intersection));
+  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {0., 0., 0.}, EPS));
+
+  // The two segments are exactly the same, but the second segment swaps
+  // endpoints.
+  EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
+                                Segment3D(Point3D {2., 0., 0.}, Point3D {0., 0., 0.}),
+                                intersection));
+  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {0., 0., 0.}, EPS));
+
+  // Collinear segments partially overlap; the representative intersection
+  // point is the first point in the overlap encountered along segment 1.
   EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
                                 Segment3D(Point3D {1., 0., 0.}, Point3D {3., 0., 0.}),
                                 intersection));
   EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, EPS));
 
+  // The same partial overlap with segment 1 reversed verifies that the
+  // representative point follows segment 1's orientation.
   EXPECT_TRUE(primal::intersect(Segment3D(Point3D {3., 0., 0.}, Point3D {1., 0., 0.}),
                                 Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
                                 intersection));
   EXPECT_TRUE(intersection.isNearlyEqual(Point3D {2., 0., 0.}, EPS));
 
+  // Degenerate point-segment intersection.
   EXPECT_TRUE(primal::intersect(Segment3D(Point3D {1., 0., 0.}, Point3D {1., 0., 0.}),
                                 Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
                                 intersection));
   EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, EPS));
 
+  // Collinear segments with a gap do not intersect.
   EXPECT_FALSE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {1., 0., 0.}),
                                  Segment3D(Point3D {2., 0., 0.}, Point3D {3., 0., 0.}),
                                  intersection));
 
+  // Skew segments with closest approach away from the shared plane do not
+  // intersect.
   EXPECT_FALSE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {1., 0., 0.}),
                                  Segment3D(Point3D {0.5, -1., 1.}, Point3D {0.5, 1., 1.}),
                                  intersection));
