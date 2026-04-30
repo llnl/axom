@@ -268,11 +268,18 @@ Operators may also have additional required or optional parameters.
   :name: :code:`scale`
   :value: a vector specifying the amount by which to scale in each dimension,
     or a single value specifying by which to scale in all dimensions
+  :optional arguments:
+    :center: a point specifying the center relative to which to scale.
+      If omitted, scaling is performed relative to the origin.
   :example:
     ::
 
         # Scale by 2x in the x direction 0.5x in y, and 1.5x in z
         scale: [2.0, 0.5, 1.5]
+
+        # Scale by 2x in every direction relative to the point (1, 2, 3)
+        scale: 2.0
+        center: [1, 2, 3]
 
 * Changing Units
 
