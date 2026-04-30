@@ -346,6 +346,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     conflicts("^blt@:0.3.6", when="+rocm")
 
+    # python interface requires mpi
+    conflicts("~mpi", when="+python")
+
     def flag_handler(self, name, flags):
         if self.spec.satisfies("%cce") and name == "fflags":
             flags.append("-ef")
