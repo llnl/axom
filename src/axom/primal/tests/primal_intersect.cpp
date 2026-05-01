@@ -334,15 +334,46 @@ TEST(primal_intersect, segment_segment_intersection)
                                 intersection));
   EXPECT_TRUE(intersection.isNearlyEqual(Point3D {2., 0., 0.}, EPS));
 
+  // Collinear segments that only touch at one endpoint still intersect at
+  // that shared endpoint.
+  EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {1., 0., 0.}),
+                                Segment3D(Point3D {1., 0., 0.}, Point3D {3., 0., 0.}),
+                                intersection));
+  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, EPS));
+
   // Degenerate point-segment intersection.
   EXPECT_TRUE(primal::intersect(Segment3D(Point3D {1., 0., 0.}, Point3D {1., 0., 0.}),
                                 Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
                                 intersection));
   EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, EPS));
 
+  // Both degenerate segments intersect when they collapse to the same point.
+  EXPECT_TRUE(primal::intersect(Segment3D(Point3D {1., 2., 3.}, Point3D {1., 2., 3.}),
+                                Segment3D(Point3D {1., 2., 3.}, Point3D {1., 2., 3.}),
+                                intersection));
+  EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 2., 3.}, EPS));
+
+  // Both degenerate segments do not intersect when they collapse to different
+  // points.
+  EXPECT_FALSE(primal::intersect(Segment3D(Point3D {1., 2., 3.}, Point3D {1., 2., 3.}),
+                                 Segment3D(Point3D {1., 2., 4.}, Point3D {1., 2., 4.}),
+                                 intersection));
+
+  // A degenerate point segment does not intersect a segment that does not
+  // contain that point.
+  EXPECT_FALSE(primal::intersect(Segment3D(Point3D {2., 1., 0.}, Point3D {2., 1., 0.}),
+                                 Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
+                                 intersection));
+
   // Collinear segments with a gap do not intersect.
   EXPECT_FALSE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {1., 0., 0.}),
                                  Segment3D(Point3D {2., 0., 0.}, Point3D {3., 0., 0.}),
+                                 intersection));
+
+  // Parallel segments in the same plane do not intersect when they are not
+  // collinear.
+  EXPECT_FALSE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
+                                 Segment3D(Point3D {0., 1., 0.}, Point3D {2., 1., 0.}),
                                  intersection));
 
   // Skew segments with closest approach away from the shared plane do not
@@ -2719,6 +2750,100 @@ void check_plane_seg_intersect()
   axom::setDefaultAllocator(current_allocator);
 }
 
+template <typename ExecSpace>
+void check_segment_segment_intersect_policy()
+{
+  const int DIM = 3;
+  using PointType = primal::Point<double, DIM>;
+  using SegmentType = primal::Segment<double, DIM>;
+
+  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
+
+  const int current_allocator = axom::getDefaultAllocatorID();
+
+  umpire::Allocator allocator =
+    (axom::execution_space<ExecSpace>::onDevice()
+       ? rm.getAllocator(umpire::resource::Device)
+       : rm.getAllocator(axom::execution_space<ExecSpace>::allocatorID()));
+
+  axom::setDefaultAllocator(allocator.getId());
+
+  const int result_allocator =
+    (axom::execution_space<ExecSpace>::onDevice()
+       ? rm.getAllocator(umpire::resource::Unified).getId()
+       : axom::execution_space<ExecSpace>::allocatorID());
+
+  PointType* intersections = axom::allocate<PointType>(6, result_allocator);
+  bool* res = axom::allocate<bool>(6, result_allocator);
+
+  axom::for_all<ExecSpace>(
+    6,
+    AXOM_LAMBDA(int i) {
+      SegmentType P;
+      SegmentType Q;
+
+      // Proper crossing at an interior point of both segments.
+      if(i == 0)
+      {
+        P = SegmentType(PointType {0., 0., 0.}, PointType {1., 1., 0.});
+        Q = SegmentType(PointType {0., 1., 0.}, PointType {1., 0., 0.});
+      }
+
+      // Endpoint of segment 1 coincides with an endpoint of segment 2.
+      if(i == 1)
+      {
+        P = SegmentType(PointType {0., 0., 0.}, PointType {1., 0., 0.});
+        Q = SegmentType(PointType {1., 0., 0.}, PointType {1., 1., 0.});
+      }
+
+      // Collinear segments partially overlap.
+      if(i == 2)
+      {
+        P = SegmentType(PointType {0., 0., 0.}, PointType {2., 0., 0.});
+        Q = SegmentType(PointType {1., 0., 0.}, PointType {3., 0., 0.});
+      }
+
+      // Collinear segments that only touch at one endpoint.
+      if(i == 3)
+      {
+        P = SegmentType(PointType {0., 0., 0.}, PointType {1., 0., 0.});
+        Q = SegmentType(PointType {1., 0., 0.}, PointType {3., 0., 0.});
+      }
+
+      // Parallel but non-collinear segments in the same plane.
+      if(i == 4)
+      {
+        P = SegmentType(PointType {0., 0., 0.}, PointType {2., 0., 0.});
+        Q = SegmentType(PointType {0., 1., 0.}, PointType {2., 1., 0.});
+      }
+
+      // Skew segments in different planes.
+      if(i == 5)
+      {
+        P = SegmentType(PointType {0., 0., 0.}, PointType {1., 0., 0.});
+        Q = SegmentType(PointType {0.5, -1., 1.}, PointType {0.5, 1., 1.});
+      }
+
+      res[i] = axom::primal::intersect(P, Q, intersections[i]);
+    });
+
+  EXPECT_TRUE(res[0]);
+  EXPECT_TRUE(res[1]);
+  EXPECT_TRUE(res[2]);
+  EXPECT_TRUE(res[3]);
+  EXPECT_FALSE(res[4]);
+  EXPECT_FALSE(res[5]);
+
+  EXPECT_TRUE(intersections[0].isNearlyEqual(PointType {0.5, 0.5, 0.}, 1e-12));
+  EXPECT_TRUE(intersections[1].isNearlyEqual(PointType {1., 0., 0.}, 1e-12));
+  EXPECT_TRUE(intersections[2].isNearlyEqual(PointType {1., 0., 0.}, 1e-12));
+  EXPECT_TRUE(intersections[3].isNearlyEqual(PointType {1., 0., 0.}, 1e-12));
+
+  axom::deallocate(intersections);
+  axom::deallocate(res);
+  axom::setDefaultAllocator(current_allocator);
+}
+
 TEST(primal_intersect, plane_bb_test_intersection_sequential)
 {
   check_plane_bb_intersect<axom::SEQ_EXEC>();
@@ -2727,6 +2852,11 @@ TEST(primal_intersect, plane_bb_test_intersection_sequential)
 TEST(primal_intersect, plane_seg_test_intersection_sequential)
 {
   check_plane_seg_intersect<axom::SEQ_EXEC>();
+}
+
+TEST(primal_intersect, segment_segment_test_intersection_sequential)
+{
+  check_segment_segment_intersect_policy<axom::SEQ_EXEC>();
 }
 
   #ifdef AXOM_USE_OPENMP
@@ -2738,6 +2868,11 @@ TEST(primal_intersect, plane_bb_test_intersection_omp)
 TEST(primal_intersect, plane_seg_test_intersection_omp)
 {
   check_plane_seg_intersect<axom::OMP_EXEC>();
+}
+
+TEST(primal_intersect, segment_segment_test_intersection_omp)
+{
+  check_segment_segment_intersect_policy<axom::OMP_EXEC>();
 }
   #endif /* AXOM_USE_OPENMP */
 
@@ -2757,6 +2892,14 @@ AXOM_CUDA_TEST(primal_intersect, plane_seg_test_intersection_cuda)
 
   check_plane_seg_intersect<exec>();
 }
+
+AXOM_CUDA_TEST(primal_intersect, segment_segment_test_intersection_cuda)
+{
+  constexpr int BLOCK_SIZE = 256;
+  using exec = axom::CUDA_EXEC<BLOCK_SIZE>;
+
+  check_segment_segment_intersect_policy<exec>();
+}
   #endif /* AXOM_USE_CUDA */
 
   #ifdef AXOM_USE_HIP
@@ -2774,6 +2917,14 @@ TEST(primal_intersect, plane_seg_test_intersection_hip)
   using exec = axom::HIP_EXEC<BLOCK_SIZE>;
 
   check_plane_seg_intersect<exec>();
+}
+
+TEST(primal_intersect, segment_segment_test_intersection_hip)
+{
+  constexpr int BLOCK_SIZE = 256;
+  using exec = axom::HIP_EXEC<BLOCK_SIZE>;
+
+  check_segment_segment_intersect_policy<exec>();
 }
   #endif /* AXOM_USE_HIP */
 
