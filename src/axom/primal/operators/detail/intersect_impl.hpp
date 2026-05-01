@@ -161,13 +161,25 @@ AXOM_HOST_DEVICE bool intersect_segment_segment(const Segment<T, 3>& P,
 {
   using Vector3D = primal::Vector<T, 3>;
 
-  // Use the standard segment-segment closest-points formulation on the
-  // segment directions u and v. We only report an intersection when the
-  // clamped closest points coincide within the supplied tolerance.
+  // Use the standard closest-points formulation for two segments:
+  //
+  //   P(s) = P0 + s u
+  //   Q(t) = Q0 + t v
+  //
+  // with 0 <= s,t <= 1. The unconstrained closest points on the infinite
+  // supporting lines satisfy a small 2x2 system built from dot products of
+  // u, v, and the offset between the segment origins. We then clamp that
+  // answer back to the finite segment domains. If the resulting closest
+  // points coincide within tolerance, we report an intersection.
   const auto u = P.target() - P.source();
   const auto v = Q.target() - Q.source();
   const auto w = P.source() - Q.source();
 
+  // Dot-product coefficients for the closest-points system.
+  //  a = u.u, c = v.v are squared segment lengths
+  //  b = u.v couples the two segment directions
+  //  d = u.w, e = v.w capture the relative offset of the segment origins
+  //  D = ac - b^2 is the determinant of the 2x2 system
   const T a = u.dot(u);
   const T b = u.dot(v);
   const T c = v.dot(v);
@@ -181,12 +193,16 @@ AXOM_HOST_DEVICE bool intersect_segment_segment(const Segment<T, 3>& P,
   // segments have nonzero length.
   if(axom::utilities::isNearlyEqual(a, T {0}, EPS) && axom::utilities::isNearlyEqual(c, T {0}, EPS))
   {
+    // Both segments collapse to points, so the only possible intersection is
+    // the points coinciding.
     intersection = P.source();
     return P.source().isNearlyEqual(Q.source(), EPS);
   }
 
   if(axom::utilities::isNearlyEqual(a, T {0}, EPS))
   {
+    // P collapses to a point. Project that point onto Q, clamp to Q's finite
+    // extent, and check whether the closest point on Q is the same point.
     const T t = axom::utilities::clampVal(e / c, T {0}, T {1});
     const auto qPoint = Q.at(t);
     if(P.source().isNearlyEqual(qPoint, EPS))
@@ -200,6 +216,7 @@ AXOM_HOST_DEVICE bool intersect_segment_segment(const Segment<T, 3>& P,
 
   if(axom::utilities::isNearlyEqual(c, T {0}, EPS))
   {
+    // Q collapses to a point. This is the symmetric point-on-segment test.
     const T s = axom::utilities::clampVal(-d / a, T {0}, T {1});
     const auto pPoint = P.at(s);
     if(Q.source().isNearlyEqual(pPoint, EPS))
@@ -213,6 +230,11 @@ AXOM_HOST_DEVICE bool intersect_segment_segment(const Segment<T, 3>& P,
 
   if(axom::utilities::isNearlyEqual(D, T {0}, EPS))
   {
+    // D near zero means the segment directions are parallel or nearly so, so
+    // the 2x2 closest-points system is singular. In that case there are only
+    // two possibilities: the segments are on distinct parallel lines and do
+    // not intersect, or they are collinear and we can reduce the problem to a
+    // 1D overlap test on one segment.
     const auto uxw = Vector3D::cross_product(u, w);
     // Parallel segments intersect only if they are also collinear.
     // Compare the point-to-line distance against EPS instead of relying on
@@ -243,16 +265,24 @@ AXOM_HOST_DEVICE bool intersect_segment_segment(const Segment<T, 3>& P,
   T sD = D;
   T tD = D;
 
-  // Clamp the unconstrained closest point on each supporting line back to the
-  // finite segment domain [0,1] x [0,1].
+  // sN / sD and tN / tD are the unconstrained closest-point parameters on the
+  // infinite supporting lines. The rest of this block clamps that answer back
+  // to the finite segment box [0,1] x [0,1]. Whenever one parameter is pushed
+  // to an endpoint, the other parameter must be recomputed against that fixed
+  // endpoint so we still get the closest pair of points on the actual
+  // segments.
   if(sN < T {0})
   {
+    // Closest point on P is before P.source(), so clamp to P.source() and
+    // recompute Q's parameter against that endpoint.
     sN = T {0};
     tN = e;
     tD = c;
   }
   else if(sN > sD)
   {
+    // Closest point on P is past P.target(), so clamp to P.target() and
+    // recompute Q's parameter against that endpoint.
     sN = sD;
     tN = e + b;
     tD = c;
@@ -260,6 +290,8 @@ AXOM_HOST_DEVICE bool intersect_segment_segment(const Segment<T, 3>& P,
 
   if(tN < T {0})
   {
+    // Closest point on Q is before Q.source(), so clamp to Q.source() and
+    // recompute P's parameter against that endpoint.
     tN = T {0};
     if(-d < T {0})
     {
@@ -277,6 +309,8 @@ AXOM_HOST_DEVICE bool intersect_segment_segment(const Segment<T, 3>& P,
   }
   else if(tN > tD)
   {
+    // Closest point on Q is past Q.target(), so clamp to Q.target() and
+    // recompute P's parameter against that endpoint.
     tN = tD;
     if((-d + b) < T {0})
     {
@@ -298,8 +332,9 @@ AXOM_HOST_DEVICE bool intersect_segment_segment(const Segment<T, 3>& P,
 
   const auto pPoint = P.at(sc);
   const auto qPoint = Q.at(tc);
-  // For skew segments, the closest points generally differ. Only accept the
-  // result when they collapse to the same point within tolerance.
+  // For skew or separated segments, the closest points generally differ even
+  // after clamping. We only have an intersection when the closest pair of
+  // points on the finite segments collapses to the same point.
   if(pPoint.isNearlyEqual(qPoint, EPS))
   {
     intersection = pPoint;
