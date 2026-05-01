@@ -295,33 +295,33 @@ TEST(primal_intersect, segment_segment_intersection)
                                 intersection));
   EXPECT_TRUE(intersection.isNearlyEqual(Point3D {0.5, 0.5, 0.}, EPS));
 
-  // Endpoint of segment 1 coincides with an endpoint of segment 2.
+  // An endpoint of segment 1 coincides with an endpoint of segment 2.
   EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {1., 0., 0.}),
                                 Segment3D(Point3D {1., 0., 0.}, Point3D {1., 1., 0.}),
                                 intersection));
   EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, EPS));
 
-  // Endpoint of segment 1 coincides with an interior point of segment 2.
+  // An endpoint of segment 1 coincides with an internal point of segment 2.
   EXPECT_TRUE(primal::intersect(Segment3D(Point3D {1., 0., 0.}, Point3D {2., 0., 0.}),
                                 Segment3D(Point3D {0., 0., 0.}, Point3D {3., 0., 0.}),
                                 intersection));
   EXPECT_TRUE(intersection.isNearlyEqual(Point3D {1., 0., 0.}, EPS));
 
-  // The two segments are exactly the same.
+  // Overlap case: both segments are the same.
   EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
                                 Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
                                 intersection));
   EXPECT_TRUE(intersection.isNearlyEqual(Point3D {0., 0., 0.}, EPS));
 
-  // The two segments are exactly the same, but the second segment swaps
-  // endpoints.
+  // Overlap case: both segments are the same, but the second swaps endpoints.
   EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
                                 Segment3D(Point3D {2., 0., 0.}, Point3D {0., 0., 0.}),
                                 intersection));
   EXPECT_TRUE(intersection.isNearlyEqual(Point3D {0., 0., 0.}, EPS));
 
-  // Collinear segments partially overlap; the representative intersection
-  // point is the first point in the overlap encountered along segment 1.
+  // Overlap case: partial overlap b/w the segments. The representative
+  // intersection point is the first point in the overlap encountered along
+  // segment 1.
   EXPECT_TRUE(primal::intersect(Segment3D(Point3D {0., 0., 0.}, Point3D {2., 0., 0.}),
                                 Segment3D(Point3D {1., 0., 0.}, Point3D {3., 0., 0.}),
                                 intersection));
@@ -2788,14 +2788,14 @@ void check_segment_segment_intersect_policy()
         Q = SegmentType(PointType {0., 1., 0.}, PointType {1., 0., 0.});
       }
 
-      // Endpoint of segment 1 coincides with an endpoint of segment 2.
+      // An endpoint of segment 1 coincides with an endpoint of segment 2.
       if(i == 1)
       {
         P = SegmentType(PointType {0., 0., 0.}, PointType {1., 0., 0.});
         Q = SegmentType(PointType {1., 0., 0.}, PointType {1., 1., 0.});
       }
 
-      // Collinear segments partially overlap.
+      // Overlap case: partial overlap b/w the segments.
       if(i == 2)
       {
         P = SegmentType(PointType {0., 0., 0.}, PointType {2., 0., 0.});

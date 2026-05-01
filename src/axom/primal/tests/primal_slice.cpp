@@ -125,20 +125,20 @@ void check_slice_degenerate_policy()
     AXOM_LAMBDA(int i) {
       PlaneType plane;
 
-      // The plane intersects the tetrahedron only at vertex (0,0,0).
+      // Edge case: the plane intersects the tet on a vertex.
       if(i == 0)
       {
         plane = PlaneType({1., 1., 1.}, 0.);
       }
 
-      // The plane intersects the tetrahedron only along the edge from
+      // Edge case: the plane intersects the tet on an edge, here the edge from
       // (0,0,0) to (1,0,0).
       if(i == 1)
       {
         plane = PlaneType({0., 1., 1.}, 0.);
       }
 
-      // The plane coincides with the face z = 0 of the tetrahedron.
+      // Edge case: the plane intersects the tet on a face, here the face z = 0.
       if(i == 2)
       {
         plane = PlaneType({0., 0., 1.}, 0.);
@@ -202,20 +202,20 @@ TEST(primal_slice, tet_plane_slice_degenerate_dynamic)
                      Point3D {0., 1., 0.},
                      Point3D {0., 0., 1.}};
 
-  // The plane intersects the tetrahedron only at a single vertex.
+  // Edge case: the plane intersects the tet on a vertex.
   const auto vertex_poly = primal::slice(tet, PlaneType({1., 1., 1.}, 0.));
   EXPECT_EQ(vertex_poly.numVertices(), 1);
   EXPECT_NEAR(vertex_poly.area(), 0., EPS);
   expect_vertex_set(vertex_poly, axom::StackArray<Point3D, 1> {{Point3D {0., 0., 0.}}});
 
-  // The plane intersects the tetrahedron only along a single edge.
+  // Edge case: the plane intersects the tet on an edge.
   const auto edge_poly = primal::slice(tet, PlaneType({0., 1., 1.}, 0.));
   EXPECT_EQ(edge_poly.numVertices(), 2);
   EXPECT_NEAR(edge_poly.area(), 0., EPS);
   expect_vertex_set(edge_poly,
                     axom::StackArray<Point3D, 2> {{Point3D {0., 0., 0.}, Point3D {1., 0., 0.}}});
 
-  // The plane coincides with one face of the tetrahedron.
+  // Edge case: the plane intersects the tet on a face.
   const auto face_poly = primal::slice(tet, PlaneType({0., 0., 1.}, 0.));
   EXPECT_EQ(face_poly.numVertices(), 3);
   EXPECT_NEAR(face_poly.area(), 0.5, EPS);
@@ -236,7 +236,8 @@ TEST(primal_slice, tet_plane_slice_orientation_follows_plane)
                      Point3D {-1., 1., 1.}};
 
   // Flipping the slicing plane should preserve the vertex set while reversing
-  // the polygon orientation to keep the polygon normal aligned with the plane.
+  // the polygon orientation so the Polygon orientation matches that of the
+  // Plane.
   const PlaneType plane_pos({0., 0., 1.}, 0.);
   const PlaneType plane_neg({0., 0., -1.}, 0.);
 
