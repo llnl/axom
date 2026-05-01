@@ -142,8 +142,14 @@ bool TriangleIntersection2D(const Triangle2& t1, const Triangle2& t2, bool inclu
  * \param[out] intersection The intersection point where the segments intersect.
  *   For collinear overlapping segments, this stores the overlap endpoint with
  *   the smaller parameter on \a P.
- * \param EPS Tolerance used to detect degeneracy, collinearity, and
- *   coincidence of the candidate intersection points.
+ * \param EPS Tolerance used in several geometric comparisons in this routine.
+ *   It is used to:
+ *   - detect whether either segment is degenerate,
+ *   - detect whether the segment directions are parallel,
+ *   - test whether parallel segments are collinear,
+ *   - allow a small tolerance when checking whether collinear overlap exists,
+ *   - decide whether the closest points computed on the two segments should be
+ *     treated as the same intersection point.
  *
  * \return True if the line segments intersect; False otherwise.
  */
