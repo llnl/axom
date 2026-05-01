@@ -44,6 +44,29 @@ namespace axom
 {
 namespace primal
 {
+
+/*!
+ * \brief Determines if two 3D segments intersect.
+ * \param [in] P A 3D line segment
+ * \param [in] Q A 3D line segment
+ * \param [out] intersection Intersection point of P and Q.
+ *   When the segments are collinear and overlap over a nonzero interval,
+ *   \a intersection is set to the first point of the overlap encountered when
+ *   moving from \a P.source() to \a P.target().
+ * \param [in] EPS Tolerance used in the segment-segment intersection test.
+ * \return true iff P intersects with Q, otherwise, false.
+ * \note The value of \a intersection should be ignored when this function
+ *   returns false.
+ */
+template <typename T>
+AXOM_HOST_DEVICE bool intersect(const Segment<T, 3>& P,
+                                const Segment<T, 3>& Q,
+                                Point<T, 3>& intersection,
+                                const T EPS = static_cast<T>(1e-08))
+{
+  return detail::intersect_segment_segment(P, Q, intersection, EPS);
+}
+
 /// \name Triangle Intersection Routines
 /// \accelerated
 /// @{
