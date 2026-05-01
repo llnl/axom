@@ -9,6 +9,7 @@
 #include "axom/config.hpp"
 
 #include "axom/core/Array.hpp"
+#include "axom/core/StackArray.hpp"
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/execution/for_all.hpp"
 
@@ -16,8 +17,6 @@
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Tetrahedron.hpp"
 #include "axom/primal/operators/slice.hpp"
-
-#include <array>
 
 namespace primal = axom::primal;
 
@@ -28,17 +27,17 @@ constexpr double EPS = 1e-10;
 
 using Point3D = primal::Point<double, 3>;
 
-template <std::size_t N, typename PolygonType>
-void expect_vertex_set(const PolygonType& poly, const std::array<Point3D, N>& expected)
+template <int N, typename PolygonType>
+void expect_vertex_set(const PolygonType& poly, const axom::StackArray<Point3D, N>& expected)
 {
   ASSERT_EQ(poly.numVertices(), N);
 
   bool matched[N] = {false};
 
-  for(std::size_t i = 0; i < N; ++i)
+  for(int i = 0; i < N; ++i)
   {
     bool found = false;
-    for(std::size_t j = 0; j < N; ++j)
+    for(int j = 0; j < N; ++j)
     {
       if(!matched[j] && poly[i].isNearlyEqual(expected[j], EPS))
       {
@@ -50,6 +49,13 @@ void expect_vertex_set(const PolygonType& poly, const std::array<Point3D, N>& ex
 
     EXPECT_TRUE(found) << "Unexpected polygon vertex: " << poly[i];
   }
+}
+
+template <typename PolygonType, typename PlaneType>
+void expect_normal_aligned(const PolygonType& poly, const PlaneType& plane)
+{
+  ASSERT_GE(poly.numVertices(), 3);
+  EXPECT_GT(poly.normal().dot(plane.getNormal()), 0.);
 }
 
 template <typename ExecSpace>
@@ -87,10 +93,11 @@ void check_slice_policy()
   EXPECT_EQ(polys_host[0].numVertices(), 4);
   EXPECT_NEAR(areas_host[0], 1., EPS);
   expect_vertex_set(polys_host[0],
-                    std::array<Point3D, 4> {Point3D {-1., -1., 0.},
-                                            Point3D {-1., 0., 0.},
-                                            Point3D {0., 0., 0.},
-                                            Point3D {0., 1., 0.}});
+                    axom::StackArray<Point3D, 4> {{Point3D {-1., -1., 0.},
+                                                   Point3D {-1., 0., 0.},
+                                                   Point3D {0., 0., 0.},
+                                                   Point3D {0., 1., 0.}}});
+  expect_normal_aligned(polys_host[0], plane);
 }
 
 template <typename ExecSpace>
@@ -147,19 +154,20 @@ void check_slice_degenerate_policy()
 
   EXPECT_EQ(polys_host[0].numVertices(), 1);
   EXPECT_NEAR(areas_host[0], 0., EPS);
-  expect_vertex_set(polys_host[0], std::array<Point3D, 1> {Point3D {0., 0., 0.}});
+  expect_vertex_set(polys_host[0], axom::StackArray<Point3D, 1> {{Point3D {0., 0., 0.}}});
 
   EXPECT_EQ(polys_host[1].numVertices(), 2);
   EXPECT_NEAR(areas_host[1], 0., EPS);
   expect_vertex_set(polys_host[1],
-                    std::array<Point3D, 2> {Point3D {0., 0., 0.}, Point3D {1., 0., 0.}});
+                    axom::StackArray<Point3D, 2> {{Point3D {0., 0., 0.}, Point3D {1., 0., 0.}}});
 
   EXPECT_EQ(polys_host[2].numVertices(), 3);
   EXPECT_NEAR(areas_host[2], 0.5, EPS);
   expect_vertex_set(polys_host[2],
-                    std::array<Point3D, 3> {Point3D {0., 0., 0.},
-                                            Point3D {1., 0., 0.},
-                                            Point3D {0., 1., 0.}});
+                    axom::StackArray<Point3D, 3> {{Point3D {0., 0., 0.},
+                                                   Point3D {1., 0., 0.},
+                                                   Point3D {0., 1., 0.}}});
+  expect_normal_aligned(polys_host[2], PlaneType({0., 0., 1.}, 0.));
 }
 
 }  // namespace
@@ -178,9 +186,10 @@ TEST(primal_slice, tet_plane_slice_dynamic)
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_NEAR(poly.area(), 0.28125, EPS);
   expect_vertex_set(poly,
-                    std::array<Point3D, 3> {Point3D {0., 0., 0.25},
-                                            Point3D {0.75, 0., 0.25},
-                                            Point3D {0., 0.75, 0.25}});
+                    axom::StackArray<Point3D, 3> {{Point3D {0., 0., 0.25},
+                                                   Point3D {0.75, 0., 0.25},
+                                                   Point3D {0., 0.75, 0.25}}});
+  expect_normal_aligned(poly, PlaneType({0., 0., 1.}, 0.25));
 
   const auto empty_poly = primal::slice(tet, PlaneType({0., 0., 1.}, 2.));
   EXPECT_EQ(empty_poly.numVertices(), 0);
@@ -200,23 +209,128 @@ TEST(primal_slice, tet_plane_slice_degenerate_dynamic)
   const auto vertex_poly = primal::slice(tet, PlaneType({1., 1., 1.}, 0.));
   EXPECT_EQ(vertex_poly.numVertices(), 1);
   EXPECT_NEAR(vertex_poly.area(), 0., EPS);
-  expect_vertex_set(vertex_poly, std::array<Point3D, 1> {Point3D {0., 0., 0.}});
+  expect_vertex_set(vertex_poly, axom::StackArray<Point3D, 1> {{Point3D {0., 0., 0.}}});
 
   // The plane intersects the tetrahedron only along a single edge.
   const auto edge_poly = primal::slice(tet, PlaneType({0., 1., 1.}, 0.));
   EXPECT_EQ(edge_poly.numVertices(), 2);
   EXPECT_NEAR(edge_poly.area(), 0., EPS);
   expect_vertex_set(edge_poly,
-                    std::array<Point3D, 2> {Point3D {0., 0., 0.}, Point3D {1., 0., 0.}});
+                    axom::StackArray<Point3D, 2> {{Point3D {0., 0., 0.}, Point3D {1., 0., 0.}}});
 
   // The plane coincides with one face of the tetrahedron.
   const auto face_poly = primal::slice(tet, PlaneType({0., 0., 1.}, 0.));
   EXPECT_EQ(face_poly.numVertices(), 3);
   EXPECT_NEAR(face_poly.area(), 0.5, EPS);
   expect_vertex_set(face_poly,
-                    std::array<Point3D, 3> {Point3D {0., 0., 0.},
-                                            Point3D {1., 0., 0.},
-                                            Point3D {0., 1., 0.}});
+                    axom::StackArray<Point3D, 3> {{Point3D {0., 0., 0.},
+                                                   Point3D {1., 0., 0.},
+                                                   Point3D {0., 1., 0.}}});
+  expect_normal_aligned(face_poly, PlaneType({0., 0., 1.}, 0.));
+}
+
+TEST(primal_slice, tet_plane_slice_orientation_follows_plane)
+{
+  using TetType = primal::Tetrahedron<double, 3>;
+  using PlaneType = primal::Plane<double, 3>;
+
+  const TetType tet {Point3D {-1., -1., -1.},
+                     Point3D {1., 1., -1.},
+                     Point3D {-1., -1., 1.},
+                     Point3D {-1., 1., 1.}};
+
+  // Flipping the slicing plane should preserve the vertex set while reversing
+  // the polygon orientation to keep the polygon normal aligned with the plane.
+  const PlaneType plane_pos({0., 0., 1.}, 0.);
+  const PlaneType plane_neg({0., 0., -1.}, 0.);
+
+  const auto poly_pos = primal::slice(tet, plane_pos);
+  const auto poly_neg = primal::slice(tet, plane_neg);
+
+  expect_vertex_set(poly_pos,
+                    axom::StackArray<Point3D, 4> {{Point3D {-1., -1., 0.},
+                                                   Point3D {-1., 0., 0.},
+                                                   Point3D {0., 0., 0.},
+                                                   Point3D {0., 1., 0.}}});
+  expect_vertex_set(poly_neg,
+                    axom::StackArray<Point3D, 4> {{Point3D {-1., -1., 0.},
+                                                   Point3D {-1., 0., 0.},
+                                                   Point3D {0., 0., 0.},
+                                                   Point3D {0., 1., 0.}}});
+  expect_normal_aligned(poly_pos, plane_pos);
+  expect_normal_aligned(poly_neg, plane_neg);
+  EXPECT_LT(poly_pos.normal().dot(poly_neg.normal()), 0.);
+}
+
+TEST(primal_slice, tet_plane_slice_near_boundary_tolerance)
+{
+  using TetType = primal::Tetrahedron<double, 3>;
+  using PlaneType = primal::Plane<double, 3>;
+
+  const TetType tet {Point3D {0., 0., 0.},
+                     Point3D {1., 0., 0.},
+                     Point3D {0., 1., 0.},
+                     Point3D {0., 0., 1.}};
+
+  // A plane within the current fuzzy zero tolerance of the base face behaves
+  // like the coincident-face case and returns that face.
+  const auto fuzzy_face = primal::slice(tet, PlaneType({0., 0., 1.}, 5e-11));
+  EXPECT_EQ(fuzzy_face.numVertices(), 3);
+  EXPECT_NEAR(fuzzy_face.area(), 0.5, EPS);
+  expect_vertex_set(fuzzy_face,
+                    axom::StackArray<Point3D, 3> {{Point3D {0., 0., 0.},
+                                                   Point3D {1., 0., 0.},
+                                                   Point3D {0., 1., 0.}}});
+
+  // Moving the plane clearly away from that fuzzy interval produces the
+  // expected small triangle strictly above the base face instead.
+  const auto nearby_slice = primal::slice(tet, PlaneType({0., 0., 1.}, 1e-6));
+  EXPECT_EQ(nearby_slice.numVertices(), 3);
+  EXPECT_NEAR(nearby_slice.area(), 0.4999990000005, EPS);
+  expect_vertex_set(nearby_slice,
+                    axom::StackArray<Point3D, 3> {{Point3D {0., 0., 1e-6},
+                                                   Point3D {0.999999, 0., 1e-6},
+                                                   Point3D {0., 0.999999, 1e-6}}});
+  expect_normal_aligned(nearby_slice, PlaneType({0., 0., 1.}, 1e-6));
+}
+
+TEST(primal_slice, tet_plane_slice_degenerate_tet_repeated_vertex)
+{
+  using TetType = primal::Tetrahedron<double, 3>;
+  using PlaneType = primal::Plane<double, 3>;
+
+  const TetType degenerate_tet {Point3D {0., 0., 0.},
+                                Point3D {1., 0., 0.},
+                                Point3D {0., 1., 0.},
+                                Point3D {0., 0., 0.}};
+
+  // A tetrahedron with a repeated vertex degenerates to a triangle; slicing by
+  // that triangle's supporting plane should still return the unique face
+  // vertices rather than duplicates.
+  const auto poly = primal::slice(degenerate_tet, PlaneType({0., 0., 1.}, 0.));
+  EXPECT_EQ(poly.numVertices(), 3);
+  EXPECT_NEAR(poly.area(), 0.5, EPS);
+  expect_vertex_set(poly,
+                    axom::StackArray<Point3D, 3> {{Point3D {0., 0., 0.},
+                                                   Point3D {1., 0., 0.},
+                                                   Point3D {0., 1., 0.}}});
+  expect_normal_aligned(poly, PlaneType({0., 0., 1.}, 0.));
+}
+
+TEST(primal_slice, tet_plane_slice_invalid_plane)
+{
+  using TetType = primal::Tetrahedron<double, 3>;
+  using PlaneType = primal::Plane<double, 3>;
+
+  const TetType tet {Point3D {0., 0., 0.},
+                     Point3D {1., 0., 0.},
+                     Point3D {0., 1., 0.},
+                     Point3D {0., 0., 1.}};
+
+  // An invalid plane with zero normal does not define a meaningful slice, so
+  // the result should be empty.
+  const auto poly = primal::slice(tet, PlaneType());
+  EXPECT_EQ(poly.numVertices(), 0);
 }
 
 TEST(primal_slice, tet_plane_slice_seq) { check_slice_policy<axom::SEQ_EXEC>(); }

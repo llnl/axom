@@ -57,6 +57,11 @@ AXOM_HOST_DEVICE primal::Polygon<T, 3, ARRAY_TYPE, MAX_VERTS> slice_tet_plane(
 {
   Polygon<T, 3, ARRAY_TYPE, MAX_VERTS> intersectionPolygon;
 
+  if(!plane.isValid())
+  {
+    return intersectionPolygon;
+  }
+
   // find intersection vertices
   for(int i = 0; i < 4; ++i)
   {
@@ -105,6 +110,15 @@ AXOM_HOST_DEVICE primal::Polygon<T, 3, ARRAY_TYPE, MAX_VERTS> slice_tet_plane(
       axom::utilities::swap(intersectionPolygon[2], intersectionPolygon[3]);
     }
   }
+
+  // For nondegenerate slices, orient the polygon so its normal follows the
+  // slicing plane normal.
+  if(intersectionPolygon.numVertices() >= 3 &&
+     intersectionPolygon.normal().dot(plane.getNormal()) < T {0})
+  {
+    intersectionPolygon.reverseOrientation();
+  }
+
   return intersectionPolygon;
 }
 
