@@ -14,6 +14,33 @@ namespace primal
 namespace detail
 {
 
+template <typename PolygonType>
+AXOM_HOST_DEVICE bool polygon_has_vertex(const PolygonType& poly,
+                                         const typename PolygonType::PointType& pt,
+                                         double eps = 1e-10)
+{
+  for(int i = 0; i < poly.numVertices(); ++i)
+  {
+    if(poly[i].isNearlyEqual(pt, eps))
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+template <typename PolygonType>
+AXOM_HOST_DEVICE void add_unique_vertex(PolygonType& poly,
+                                        const typename PolygonType::PointType& pt,
+                                        double eps = 1e-10)
+{
+  if(!polygon_has_vertex(poly, pt, eps))
+  {
+    poly.addVertex(pt);
+  }
+}
+
 /*!
  * \brief Slices a 3D tetrahedron with a plane and returns the resulting
  *        polygon.
@@ -36,10 +63,32 @@ AXOM_HOST_DEVICE primal::Polygon<T, 3, ARRAY_TYPE, MAX_VERTS> slice_tet_plane(
     for(int j = i + 1; j < 4; ++j)
     {
       Segment<T, 3> edge(tet[i], tet[j]);
-      T t {};
-      if(primal::intersect(plane, edge, t))
+      const T sourceDistance = plane.signedDistance(edge.source());
+      const T targetDistance = plane.signedDistance(edge.target());
+      const bool sourceOnPlane = axom::utilities::isNearlyEqual(sourceDistance, T {0});
+      const bool targetOnPlane = axom::utilities::isNearlyEqual(targetDistance, T {0});
+
+      if(sourceOnPlane && targetOnPlane)
       {
-        intersectionPolygon.addVertex(edge.at(t));
+        add_unique_vertex(intersectionPolygon, edge.source());
+        add_unique_vertex(intersectionPolygon, edge.target());
+      }
+      else if(sourceOnPlane)
+      {
+        add_unique_vertex(intersectionPolygon, edge.source());
+      }
+      else if(targetOnPlane)
+      {
+        add_unique_vertex(intersectionPolygon, edge.target());
+      }
+      else if((sourceDistance < T {0} && targetDistance > T {0}) ||
+              (sourceDistance > T {0} && targetDistance < T {0}))
+      {
+        T t {};
+        if(primal::intersect(plane, edge, t))
+        {
+          add_unique_vertex(intersectionPolygon, edge.at(t));
+        }
       }
     }
   }
