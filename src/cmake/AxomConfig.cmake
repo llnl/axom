@@ -12,11 +12,30 @@ message(STATUS "Configuring Axom version ${AXOM_VERSION_FULL}")
 
 
 ## Add a definition to the generated config file for each library dependency
-## (optional and built-in) that we might need to know about in the code. We
-## check for vars of the form <DEP>_FOUND or ENABLE_<DEP>
+## (optional and built-in) that we might need to know about in the code.
+##
+## We check for vars of the form <DEP>_FOUND or ENABLE_<DEP>:
+##   ENABLE_<DEP> = ON      && <DEP>_FOUND = TRUE    --> AXOM_USE_<DEP> defined
+##   ENABLE_<DEP> = ON      && <DEP>_FOUND = FALSE   --> AXOM_USE_<DEP> defined
+##   ENABLE_<DEP> = ON      && <DEP>_FOUND undefined --> AXOM_USE_<DEP> defined
+##   ENABLE_<DEP> = OFF     && <DEP>_FOUND = TRUE    --> AXOM_USE_<DEP> undefined
+##   ENABLE_<DEP> = OFF     && <DEP>_FOUND = FALSE   --> AXOM_USE_<DEP> undefined
+##   ENABLE_<DEP> = OFF     && <DEP>_FOUND undefined --> AXOM_USE_<DEP> undefined
+##   ENABLE_<DEP> undefined && <DEP>_FOUND = TRUE    --> AXOM_USE_<DEP> defined
+##   ENABLE_<DEP> undefined && <DEP>_FOUND = FALSE   --> AXOM_USE_<DEP> undefined
+##   ENABLE_<DEP> undefined && <DEP>_FOUND undefined --> AXOM_USE_<DEP> undefined
+##
+## Checks first if ENABLE_<DEP> is defined ON or OFF to determine if Axom
+## will be configured with or without the dependency.
+## Allows Axom to be configured without a dependency, even when <DEP>_FOUND
+## is defined by that dependency's find_package().
+## If ENABLE_<DEP> is undefined, Axom checks if <DEP>_FOUND is a true value.
+##
 set(TPL_DEPS ADIAK C2C CALIPER CAMP CLI11 CONDUIT CUDA FMT HIP HDF5 LUA MFEM MPI OPENMP OPENCASCADE RAJA SCR SOL SPARSEHASH UMPIRE ZLIB)
 foreach(dep ${TPL_DEPS})
-    if( ${dep}_FOUND OR ENABLE_${dep} )
+    if( (DEFINED ENABLE_${dep} AND ENABLE_${dep})
+        OR
+        (NOT DEFINED ENABLE_${dep} AND ${dep}_FOUND))
         set(AXOM_USE_${dep} TRUE  )
     endif()
 endforeach()
