@@ -34,6 +34,15 @@ axom::IndexType calc_new_capacity(axom::Array<T>& v, axom::IndexType increase)
   return v.capacity();
 }
 
+struct ScopedDefaultHostAllocatorStateForArray
+{
+  ScopedDefaultHostAllocatorStateForArray() : m_allocator(axom::getDefaultHostAllocatorID()) { }
+
+  ~ScopedDefaultHostAllocatorStateForArray() { axom::setDefaultHostAllocator(m_allocator); }
+
+  int m_allocator;
+};
+
 /*!
  * \brief Check if two Arrays are copies. Does not check the resize ratio.
  * \param [in] lhs, the first Array to compare.
@@ -2233,6 +2242,52 @@ TEST(core_array, checkUninitialized)
       EXPECT_EQ(capacity * 2, arr.size());
       EXPECT_EQ(axom::getDefaultAllocatorID(), arr.getAllocatorID());
     }
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(core_array, host_space_accepts_malloc_allocator)
+{
+  ScopedDefaultHostAllocatorStateForArray scopedState;
+  axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+
+  axom::Array<int, 1, axom::MemorySpace::Host> arr(8, 8, axom::MALLOC_ALLOCATOR_ID);
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, arr.getAllocatorID());
+
+  for(int i = 0; i < arr.size(); ++i)
+  {
+    arr[i] = i;
+  }
+
+  axom::ArrayView<int, 1, axom::MemorySpace::Host> view(arr);
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, view.getAllocatorID());
+  EXPECT_EQ(arr.size(), view.size());
+
+  for(int i = 0; i < view.size(); ++i)
+  {
+    EXPECT_EQ(i, view[i]);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(core_array, host_space_copy_preserves_malloc_allocator)
+{
+  ScopedDefaultHostAllocatorStateForArray scopedState;
+  axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+
+  axom::Array<int, 1, axom::MemorySpace::Dynamic> src(8, 8, axom::MALLOC_ALLOCATOR_ID);
+  for(int i = 0; i < src.size(); ++i)
+  {
+    src[i] = 2 * i;
+  }
+
+  axom::Array<int, 1, axom::MemorySpace::Host> dst(src);
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, dst.getAllocatorID());
+  EXPECT_EQ(src.size(), dst.size());
+
+  for(int i = 0; i < dst.size(); ++i)
+  {
+    EXPECT_EQ(2 * i, dst[i]);
   }
 }
 

@@ -9,10 +9,6 @@
 // spin includes
 #include "axom/core/execution/execution_space.hpp"
 
-#ifdef AXOM_USE_UMPIRE
-  #include "umpire/Umpire.hpp"  // for Umpire
-#endif
-
 #ifdef AXOM_USE_RAJA
   #include "RAJA/RAJA.hpp"  // for RAJA
 #endif
@@ -29,6 +25,15 @@
 //------------------------------------------------------------------------------
 namespace
 {
+struct ScopedDefaultHostAllocatorStateForExecution
+{
+  ScopedDefaultHostAllocatorStateForExecution() : m_allocator(axom::getDefaultHostAllocatorID()) { }
+
+  ~ScopedDefaultHostAllocatorStateForExecution() { axom::setDefaultHostAllocator(m_allocator); }
+
+  int m_allocator;
+};
+
 template <typename ExecSpace>
 void check_valid()
 {
@@ -128,7 +133,7 @@ TEST(core_execution_space, check_seq_exec)
   constexpr bool IS_ASYNC = false;
   constexpr bool ON_DEVICE = false;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  int allocator_id = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host);
   check_execution_mappings<axom::SEQ_EXEC,
   #if RAJA_VERSION_MAJOR > 2022
                            RAJA::seq_exec,
@@ -151,7 +156,7 @@ TEST(core_execution_space, check_omp_exec)
   constexpr bool IS_ASYNC = false;
   constexpr bool ON_DEVICE = false;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  int allocator_id = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host);
   check_execution_mappings<axom::OMP_EXEC,
                            RAJA::omp_parallel_for_exec,
                            RAJA::omp_reduce,
@@ -159,6 +164,18 @@ TEST(core_execution_space, check_omp_exec)
                            RAJA::omp_synchronize>(allocator_id, IS_ASYNC, ON_DEVICE);
 }
   #endif  // defined(AXOM_USE_OPENMP)
+
+TEST(core_execution_space, host_exec_uses_configured_host_allocator)
+{
+  ScopedDefaultHostAllocatorStateForExecution scopedState;
+  axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+
+  #if defined(AXOM_USE_OPENMP)
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::execution_space<axom::OMP_EXEC>::allocatorID());
+  #endif
+}
 
   //------------------------------------------------------------------------------
   #if defined(AXOM_USE_CUDA)
@@ -172,7 +189,7 @@ TEST(core_execution_space, check_cuda_exec)
   constexpr bool IS_ASYNC = false;
   constexpr bool ON_DEVICE = true;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Device);
+  int allocator_id = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Device);
   check_execution_mappings<axom::CUDA_EXEC<BLOCK_SIZE>,
                            RAJA::cuda_exec<BLOCK_SIZE>,
                            RAJA::cuda_reduce,
@@ -190,7 +207,7 @@ TEST(core_execution_space, check_cuda_exec_async)
   constexpr bool IS_ASYNC = true;
   constexpr bool ON_DEVICE = true;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Device);
+  int allocator_id = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Device);
   check_execution_mappings<axom::CUDA_EXEC<BLOCK_SIZE, axom::ASYNC>,
                            RAJA::cuda_exec_async<BLOCK_SIZE>,
                            RAJA::cuda_reduce,
@@ -243,7 +260,7 @@ TEST(core_execution_space, check_hip_exec)
   constexpr bool IS_ASYNC = false;
   constexpr bool ON_DEVICE = true;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Device);
+  int allocator_id = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Device);
   check_execution_mappings<axom::HIP_EXEC<BLOCK_SIZE>,
                            RAJA::hip_exec<BLOCK_SIZE>,
                            RAJA::hip_reduce,
@@ -261,7 +278,7 @@ TEST(core_execution_space, check_hip_exec_async)
   constexpr bool IS_ASYNC = true;
   constexpr bool ON_DEVICE = true;
 
-  int allocator_id = axom::getUmpireResourceAllocatorID(umpire::resource::Device);
+  int allocator_id = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Device);
   check_execution_mappings<axom::HIP_EXEC<BLOCK_SIZE, axom::ASYNC>,
                            RAJA::hip_exec_async<BLOCK_SIZE>,
                            RAJA::hip_reduce,

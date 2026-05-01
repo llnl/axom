@@ -78,19 +78,63 @@ enum class MemorySpace
 {
   Malloc,   //!< Host memory using malloc, free and realloc
   Dynamic,  //!< Refers to Umpire's current default allocator
-#ifdef AXOM_USE_UMPIRE
-  Host,     //!< Umpire's host memory space
-  Device,   //!< Umpire's device memory space
-  Unified,  //!< Umpire's unified memory space
-  Pinned,   //!< Umpire's pinned memory space
-  Constant  //!< Umpire's constant memory space
-#endif
+  Host,     //!< Host memory space
+  Device,   //!< Device memory space
+  Unified,  //!< Unified memory space
+  Pinned,   //!< Pinned host memory space
+  Constant  //!< Constant device memory space
 };
 // _memory_space_end
 
 // _memory_management_routines_start
 /// \name Memory Management Routines
 /// @{
+
+/*!
+ * \brief Returns whether a memory space is available in the current build.
+ *
+ * \note `MemorySpace::Malloc`, `MemorySpace::Dynamic`, and `MemorySpace::Host`
+ *       are always available. The remaining spaces require Umpire support for
+ *       the corresponding resource.
+ */
+bool isMemorySpaceAvailable(MemorySpace space) noexcept;
+
+/*!
+ * \brief Returns the allocator ID corresponding to a memory space.
+ *
+ * \note `MemorySpace::Dynamic` resolves to the current default allocator.
+ * \note `MemorySpace::Host` resolves to Axom's current default host allocator.
+ * \note This function aborts if the requested memory space is unavailable in
+ *       the current build.
+ */
+int getAllocatorIDFromMemorySpace(MemorySpace space);
+
+/*!
+ * \brief Sets the default memory allocator using an Axom memory-space enum.
+ *
+ * \note When Axom is built without Umpire, setting the default allocator has
+ *       no effect and host-backed memory spaces resolve to malloc.
+ * \note In Umpire builds, `MemorySpace::Host` selects Umpire's Host allocator.
+ *       Use `setDefaultHostAllocator()` to configure Axom's host-only
+ *       allocation path.
+ */
+void setDefaultAllocator(MemorySpace space);
+
+/*!
+ * \brief Sets the default host allocator using an Axom memory-space enum.
+ *
+ * \note `MemorySpace::Malloc` selects Axom's malloc-backed host allocator.
+ * \note `MemorySpace::Host` resets to the platform host allocator.
+ * \note Only `MemorySpace::Malloc` and `MemorySpace::Host` are accepted.
+ */
+void setDefaultHostAllocator(MemorySpace space);
+
+/*!
+ * \brief Sets the default host allocator using an allocator ID.
+ *
+ * \note Accepted allocator IDs must be compatible with `MemorySpace::Host`.
+ */
+void setDefaultHostAllocator(int allocId);
 
 #ifdef AXOM_USE_UMPIRE
 
@@ -128,6 +172,14 @@ inline void setDefaultAllocator(umpire::resource::MemoryResourceType resource_ty
 inline void setDefaultAllocator(int allocId)
 {
 #ifdef AXOM_USE_UMPIRE
+  if(allocId == MALLOC_ALLOCATOR_ID)
+  {
+    std::cerr << "Cannot set Axom's malloc allocator as the global default "
+                 "allocator when Umpire is enabled. Use setDefaultHostAllocator() "
+                 "to configure host-side allocations."
+              << std::endl;
+    axom::utilities::processAbort();
+  }
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
   umpire::Allocator allocator = rm.getAllocator(allocId);
   rm.setDefaultAllocator(allocator);
@@ -150,6 +202,24 @@ inline int getDefaultAllocatorID()
   return MALLOC_ALLOCATOR_ID;
 #endif
 }
+
+/*!
+ * \brief Returns the ID of the current default host allocator.
+ *
+ * \return The current default host allocator ID. This is initialized to
+ *         Umpire's Host allocator in Umpire builds, or `MALLOC_ALLOCATOR_ID`
+ *         otherwise.
+ */
+int getDefaultHostAllocatorID();
+
+/*!
+ * \brief Returns whether an allocator ID is compatible with a memory space.
+ *
+ * \note `MemorySpace::Host` accepts both host allocators and
+ *       `MALLOC_ALLOCATOR_ID`.
+ * \note `MemorySpace::Dynamic` accepts any valid allocator ID.
+ */
+bool isAllocatorCompatibleWithMemorySpace(int allocId, MemorySpace space) noexcept;
 
 /*!
  * \brief Get the allocator id from which data has been allocated.
@@ -596,41 +666,59 @@ inline MemorySpace getAllocatorSpace(int allocatorId)
   return MemorySpace::Malloc;  // Silence warning.
 }
 
-#ifdef AXOM_USE_UMPIRE
-
 template <>
 inline int getAllocatorID<MemorySpace::Host>()
 {
-  return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+  return axom::getAllocatorIDFromMemorySpace(MemorySpace::Host);
 }
 
 template <>
 inline int getAllocatorID<MemorySpace::Device>()
 {
-  return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
+  return axom::getAllocatorIDFromMemorySpace(MemorySpace::Device);
 }
 
 template <>
 inline int getAllocatorID<MemorySpace::Unified>()
 {
-  return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
+  return axom::getAllocatorIDFromMemorySpace(MemorySpace::Unified);
 }
 
 template <>
 inline int getAllocatorID<MemorySpace::Pinned>()
 {
-  return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Pinned);
+  return axom::getAllocatorIDFromMemorySpace(MemorySpace::Pinned);
 }
 
 template <>
 inline int getAllocatorID<MemorySpace::Constant>()
 {
-  return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Constant);
+  return axom::getAllocatorIDFromMemorySpace(MemorySpace::Constant);
 }
 
-#endif
-
 }  // namespace detail
+
+inline bool isAllocatorCompatibleWithMemorySpace(int allocId, MemorySpace space) noexcept
+{
+  if(!isValidAllocatorID(allocId))
+  {
+    return false;
+  }
+
+  if(space == MemorySpace::Dynamic)
+  {
+    return true;
+  }
+
+  const auto allocSpace = detail::getAllocatorSpace(allocId);
+
+  if(space == MemorySpace::Host)
+  {
+    return allocSpace == MemorySpace::Host || allocSpace == MemorySpace::Malloc;
+  }
+
+  return allocSpace == space;
+}
 
 /*!
  * \brief Determines whether an allocator id is on device.
