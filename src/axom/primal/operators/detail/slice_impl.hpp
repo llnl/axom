@@ -56,44 +56,53 @@ AXOM_HOST_DEVICE primal::Polygon<T, 3, ARRAY_TYPE, MAX_VERTS> slice_tet_plane(
   const primal::Plane<T, 3>& plane)
 {
   Polygon<T, 3, ARRAY_TYPE, MAX_VERTS> intersectionPolygon;
+  const int tetEdges[6][2] = {{0, 1}, {0, 2}, {0, 3}, {1, 2}, {1, 3}, {2, 3}};
+  T signedDistances[4];
+  bool onPlane[4];
 
   if(!plane.isValid())
   {
     return intersectionPolygon;
   }
 
-  // find intersection vertices
+  // Compute the signed distance of each tet vertex to the plane once.
   for(int i = 0; i < 4; ++i)
   {
-    for(int j = i + 1; j < 4; ++j)
-    {
-      Segment<T, 3> edge(tet[i], tet[j]);
-      const T sourceDistance = plane.signedDistance(edge.source());
-      const T targetDistance = plane.signedDistance(edge.target());
-      const bool sourceOnPlane = axom::utilities::isNearlyEqual(sourceDistance, T {0});
-      const bool targetOnPlane = axom::utilities::isNearlyEqual(targetDistance, T {0});
+    signedDistances[i] = plane.signedDistance(tet[i]);
+    onPlane[i] = axom::utilities::isNearlyEqual(signedDistances[i], T {0});
+  }
 
-      if(sourceOnPlane && targetOnPlane)
+  // Check each tet edge for a crossing or an endpoint that lies on the plane.
+  for(int i = 0; i < 6; ++i)
+  {
+    const int v0 = tetEdges[i][0];
+    const int v1 = tetEdges[i][1];
+    const T sourceDistance = signedDistances[v0];
+    const T targetDistance = signedDistances[v1];
+    const bool sourceOnPlane = onPlane[v0];
+    const bool targetOnPlane = onPlane[v1];
+
+    if(sourceOnPlane && targetOnPlane)
+    {
+      add_unique_vertex(intersectionPolygon, tet[v0]);
+      add_unique_vertex(intersectionPolygon, tet[v1]);
+    }
+    else if(sourceOnPlane)
+    {
+      add_unique_vertex(intersectionPolygon, tet[v0]);
+    }
+    else if(targetOnPlane)
+    {
+      add_unique_vertex(intersectionPolygon, tet[v1]);
+    }
+    else if((sourceDistance < T {0} && targetDistance > T {0}) ||
+            (sourceDistance > T {0} && targetDistance < T {0}))
+    {
+      Segment<T, 3> edge(tet[v0], tet[v1]);
+      T t {};
+      if(primal::intersect(plane, edge, t))
       {
-        add_unique_vertex(intersectionPolygon, edge.source());
-        add_unique_vertex(intersectionPolygon, edge.target());
-      }
-      else if(sourceOnPlane)
-      {
-        add_unique_vertex(intersectionPolygon, edge.source());
-      }
-      else if(targetOnPlane)
-      {
-        add_unique_vertex(intersectionPolygon, edge.target());
-      }
-      else if((sourceDistance < T {0} && targetDistance > T {0}) ||
-              (sourceDistance > T {0} && targetDistance < T {0}))
-      {
-        T t {};
-        if(primal::intersect(plane, edge, t))
-        {
-          add_unique_vertex(intersectionPolygon, edge.at(t));
-        }
+        add_unique_vertex(intersectionPolygon, edge.at(t));
       }
     }
   }
