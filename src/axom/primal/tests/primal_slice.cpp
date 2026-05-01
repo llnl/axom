@@ -92,11 +92,10 @@ void check_slice_policy()
 
   EXPECT_EQ(polys_host[0].numVertices(), 4);
   EXPECT_NEAR(areas_host[0], 1., EPS);
-  expect_vertex_set(polys_host[0],
-                    axom::StackArray<Point3D, 4> {{Point3D {-1., -1., 0.},
-                                                   Point3D {-1., 0., 0.},
-                                                   Point3D {0., 0., 0.},
-                                                   Point3D {0., 1., 0.}}});
+  expect_vertex_set(
+    polys_host[0],
+    axom::StackArray<Point3D, 4> {
+      {Point3D {-1., -1., 0.}, Point3D {-1., 0., 0.}, Point3D {0., 0., 0.}, Point3D {0., 1., 0.}}});
   expect_normal_aligned(polys_host[0], plane);
 }
 
@@ -164,9 +163,8 @@ void check_slice_degenerate_policy()
   EXPECT_EQ(polys_host[2].numVertices(), 3);
   EXPECT_NEAR(areas_host[2], 0.5, EPS);
   expect_vertex_set(polys_host[2],
-                    axom::StackArray<Point3D, 3> {{Point3D {0., 0., 0.},
-                                                   Point3D {1., 0., 0.},
-                                                   Point3D {0., 1., 0.}}});
+                    axom::StackArray<Point3D, 3> {
+                      {Point3D {0., 0., 0.}, Point3D {1., 0., 0.}, Point3D {0., 1., 0.}}});
   expect_normal_aligned(polys_host[2], PlaneType({0., 0., 1.}, 0.));
 }
 
@@ -186,9 +184,8 @@ TEST(primal_slice, tet_plane_slice_dynamic)
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_NEAR(poly.area(), 0.28125, EPS);
   expect_vertex_set(poly,
-                    axom::StackArray<Point3D, 3> {{Point3D {0., 0., 0.25},
-                                                   Point3D {0.75, 0., 0.25},
-                                                   Point3D {0., 0.75, 0.25}}});
+                    axom::StackArray<Point3D, 3> {
+                      {Point3D {0., 0., 0.25}, Point3D {0.75, 0., 0.25}, Point3D {0., 0.75, 0.25}}});
   expect_normal_aligned(poly, PlaneType({0., 0., 1.}, 0.25));
 
   const auto empty_poly = primal::slice(tet, PlaneType({0., 0., 1.}, 2.));
@@ -223,9 +220,8 @@ TEST(primal_slice, tet_plane_slice_degenerate_dynamic)
   EXPECT_EQ(face_poly.numVertices(), 3);
   EXPECT_NEAR(face_poly.area(), 0.5, EPS);
   expect_vertex_set(face_poly,
-                    axom::StackArray<Point3D, 3> {{Point3D {0., 0., 0.},
-                                                   Point3D {1., 0., 0.},
-                                                   Point3D {0., 1., 0.}}});
+                    axom::StackArray<Point3D, 3> {
+                      {Point3D {0., 0., 0.}, Point3D {1., 0., 0.}, Point3D {0., 1., 0.}}});
   expect_normal_aligned(face_poly, PlaneType({0., 0., 1.}, 0.));
 }
 
@@ -247,16 +243,14 @@ TEST(primal_slice, tet_plane_slice_orientation_follows_plane)
   const auto poly_pos = primal::slice(tet, plane_pos);
   const auto poly_neg = primal::slice(tet, plane_neg);
 
-  expect_vertex_set(poly_pos,
-                    axom::StackArray<Point3D, 4> {{Point3D {-1., -1., 0.},
-                                                   Point3D {-1., 0., 0.},
-                                                   Point3D {0., 0., 0.},
-                                                   Point3D {0., 1., 0.}}});
-  expect_vertex_set(poly_neg,
-                    axom::StackArray<Point3D, 4> {{Point3D {-1., -1., 0.},
-                                                   Point3D {-1., 0., 0.},
-                                                   Point3D {0., 0., 0.},
-                                                   Point3D {0., 1., 0.}}});
+  expect_vertex_set(
+    poly_pos,
+    axom::StackArray<Point3D, 4> {
+      {Point3D {-1., -1., 0.}, Point3D {-1., 0., 0.}, Point3D {0., 0., 0.}, Point3D {0., 1., 0.}}});
+  expect_vertex_set(
+    poly_neg,
+    axom::StackArray<Point3D, 4> {
+      {Point3D {-1., -1., 0.}, Point3D {-1., 0., 0.}, Point3D {0., 0., 0.}, Point3D {0., 1., 0.}}});
   expect_normal_aligned(poly_pos, plane_pos);
   expect_normal_aligned(poly_neg, plane_neg);
   EXPECT_LT(poly_pos.normal().dot(poly_neg.normal()), 0.);
@@ -278,19 +272,18 @@ TEST(primal_slice, tet_plane_slice_near_boundary_tolerance)
   EXPECT_EQ(fuzzy_face.numVertices(), 3);
   EXPECT_NEAR(fuzzy_face.area(), 0.5, EPS);
   expect_vertex_set(fuzzy_face,
-                    axom::StackArray<Point3D, 3> {{Point3D {0., 0., 0.},
-                                                   Point3D {1., 0., 0.},
-                                                   Point3D {0., 1., 0.}}});
+                    axom::StackArray<Point3D, 3> {
+                      {Point3D {0., 0., 0.}, Point3D {1., 0., 0.}, Point3D {0., 1., 0.}}});
 
   // Moving the plane clearly away from that fuzzy interval produces the
   // expected small triangle strictly above the base face instead.
   const auto nearby_slice = primal::slice(tet, PlaneType({0., 0., 1.}, 1e-6));
   EXPECT_EQ(nearby_slice.numVertices(), 3);
   EXPECT_NEAR(nearby_slice.area(), 0.4999990000005, EPS);
-  expect_vertex_set(nearby_slice,
-                    axom::StackArray<Point3D, 3> {{Point3D {0., 0., 1e-6},
-                                                   Point3D {0.999999, 0., 1e-6},
-                                                   Point3D {0., 0.999999, 1e-6}}});
+  expect_vertex_set(
+    nearby_slice,
+    axom::StackArray<Point3D, 3> {
+      {Point3D {0., 0., 1e-6}, Point3D {0.999999, 0., 1e-6}, Point3D {0., 0.999999, 1e-6}}});
   expect_normal_aligned(nearby_slice, PlaneType({0., 0., 1.}, 1e-6));
 }
 
@@ -311,9 +304,8 @@ TEST(primal_slice, tet_plane_slice_degenerate_tet_repeated_vertex)
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_NEAR(poly.area(), 0.5, EPS);
   expect_vertex_set(poly,
-                    axom::StackArray<Point3D, 3> {{Point3D {0., 0., 0.},
-                                                   Point3D {1., 0., 0.},
-                                                   Point3D {0., 1., 0.}}});
+                    axom::StackArray<Point3D, 3> {
+                      {Point3D {0., 0., 0.}, Point3D {1., 0., 0.}, Point3D {0., 1., 0.}}});
   expect_normal_aligned(poly, PlaneType({0., 0., 1.}, 0.));
 }
 
@@ -335,14 +327,20 @@ TEST(primal_slice, tet_plane_slice_invalid_plane)
 
 TEST(primal_slice, tet_plane_slice_seq) { check_slice_policy<axom::SEQ_EXEC>(); }
 
-TEST(primal_slice, tet_plane_slice_degenerate_seq) { check_slice_degenerate_policy<axom::SEQ_EXEC>(); }
+TEST(primal_slice, tet_plane_slice_degenerate_seq)
+{
+  check_slice_degenerate_policy<axom::SEQ_EXEC>();
+}
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
 
   #ifdef AXOM_USE_OPENMP
 TEST(primal_slice, tet_plane_slice_omp) { check_slice_policy<axom::OMP_EXEC>(); }
 
-TEST(primal_slice, tet_plane_slice_degenerate_omp) { check_slice_degenerate_policy<axom::OMP_EXEC>(); }
+TEST(primal_slice, tet_plane_slice_degenerate_omp)
+{
+  check_slice_degenerate_policy<axom::OMP_EXEC>();
+}
   #endif
 
   #ifdef AXOM_USE_CUDA
@@ -357,7 +355,10 @@ AXOM_CUDA_TEST(primal_slice, tet_plane_slice_degenerate_cuda)
   #ifdef AXOM_USE_HIP
 TEST(primal_slice, tet_plane_slice_hip) { check_slice_policy<axom::HIP_EXEC<256>>(); }
 
-TEST(primal_slice, tet_plane_slice_degenerate_hip) { check_slice_degenerate_policy<axom::HIP_EXEC<256>>(); }
+TEST(primal_slice, tet_plane_slice_degenerate_hip)
+{
+  check_slice_degenerate_policy<axom::HIP_EXEC<256>>();
+}
   #endif
 
 #endif

@@ -2768,10 +2768,9 @@ void check_segment_segment_intersect_policy()
 
   axom::setDefaultAllocator(allocator.getId());
 
-  const int result_allocator =
-    (axom::execution_space<ExecSpace>::onDevice()
-       ? rm.getAllocator(umpire::resource::Unified).getId()
-       : axom::execution_space<ExecSpace>::allocatorID());
+  const int result_allocator = (axom::execution_space<ExecSpace>::onDevice()
+                                  ? rm.getAllocator(umpire::resource::Unified).getId()
+                                  : axom::execution_space<ExecSpace>::allocatorID());
 
   PointType* intersections = axom::allocate<PointType>(6, result_allocator);
   bool* res = axom::allocate<bool>(6, result_allocator);
