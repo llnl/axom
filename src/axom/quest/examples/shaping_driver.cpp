@@ -26,6 +26,14 @@
   #error Shaping functionality requires Axom to be configured with Conduit or MFEM
 #endif
 
+#ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
+#ifdef CONDUIT_RELAY_MPI_ENABLED
+ #include "conduit_relay_mpi_io_blueprint.hpp"
+#else
+ #include "conduit_relay_io_blueprint.hpp"
+#endif
+#endif
+
 #include "mfem.hpp"
 
 #ifdef AXOM_USE_MPI
@@ -33,6 +41,7 @@
 #endif
 
 // C/C++ includes
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <memory>
@@ -97,7 +106,9 @@ public:
   ShapingMethod shapingMethod {ShapingMethod::Sampling};
   SamplingMethod samplingMethod {SamplingMethod::InOut};
   RuntimePolicy policy {RuntimePolicy::seq};
-  int quadratureOrder {5};
+  std::vector<int> samplingResolution{5, 5, 5};
+  // We set quadratureType to Invalid to select the default method.
+  int quadratureType {static_cast<int>(mfem::Quadrature1D::Invalid)};
   int outputOrder {2};
   int samplesPerKnotSpan {25};
   int refinementLevel {7};
@@ -300,11 +311,12 @@ public:
         ->capture_default_str()
         ->check(axom::CLI::NonNegativeNumber);
 
-      sampling_options->add_option("-q,--quadrature-order", quadratureOrder)
+      sampling_options->add_option("--sampling-resolution", samplingResolution)
         ->description(
-          "Quadrature order for sampling the inout field. \n"
+          "Sampling resolution per element for the inout field (x,y,[z]). \n"
           "Determines number of samples per element in determining volume fraction field")
-        ->capture_default_str()
+        ->expected(2, 3)
+        ///->capture_default_str();
         ->check(axom::CLI::PositiveNumber);
 
       std::map<std::string, VolFracSampling> vfsamplingMap {
@@ -316,6 +328,21 @@ public:
           "Sampling either at quadrature points or collocated with degrees of freedom")
         ->capture_default_str()
         ->transform(axom::CLI::CheckedTransformer(vfsamplingMap, axom::CLI::ignore_case));
+
+      std::map<std::string, int> quadTypeMap {
+        {"default", mfem::Quadrature1D::Invalid},
+        {"gausslegendre", mfem::Quadrature1D::GaussLegendre},
+        {"gausslobatto", mfem::Quadrature1D::GaussLobatto},
+        {"openuniform", mfem::Quadrature1D::OpenUniform},
+        {"closeduniform", mfem::Quadrature1D::ClosedUniform},
+        {"openhalfuniform", mfem::Quadrature1D::OpenHalfUniform},
+        {"closedgl", mfem::Quadrature1D::ClosedGL}};
+      sampling_options->add_option("-q,--quadrature-type", quadratureType)
+        ->description(
+          "Quadrature type. \n"
+          "Selects the type of quadrature that determines point placement within elements.")
+        ->capture_default_str()
+        ->transform(axom::CLI::CheckedTransformer(quadTypeMap, axom::CLI::ignore_case));
     }
 
     // parameters that only apply to the intersection method
@@ -461,6 +488,50 @@ void finalizeLogger()
 }
 
 //------------------------------------------------------------------------------
+/// Write the quadrature points as a Blueprint mesh.
+void save_quadrature_points(mfem::QuadratureFunction *positions)
+{
+#ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
+std::cout << "save_quadrature_points(mfem::QuadratureFunction *positions)\n";
+  const int dim = positions->GetSpace()->GetMesh()->Dimension();
+
+  conduit::Node n_mesh;
+  mfem::real_t *X = const_cast<mfem::real_t *>(positions->GetData());
+  const int npts = positions->Size() / positions->GetVDim();
+
+std::cout << "NE=" << positions->GetSpace()->GetMesh()->GetNE() << std::endl;
+std::cout << "positions->Size()=" << positions->Size() << std::endl;
+std::cout << "positions->GetVDim()=" << positions->GetVDim() << std::endl;
+std::cout << "positions->Capacity()=" << positions->Capacity() << std::endl;
+std::cout << "npts=" << npts << std::endl;
+
+  const conduit::index_t stride = dim * sizeof(mfem::real_t);
+  n_mesh["coordsets/coords/type"] = "explicit";
+  n_mesh["coordsets/coords/values/x"].set_external(X, npts, 0, stride);
+  n_mesh["coordsets/coords/values/y"].set_external(X, npts, sizeof(mfem::real_t), stride);
+  if(dim > 2)
+  {
+    n_mesh["coordsets/coords/values/z"].set_external(X, npts, 2 * sizeof(mfem::real_t), stride);
+  }
+  n_mesh["topologies/points/type"] = "unstructured";
+  n_mesh["topologies/points/coordset"] = "coords";
+  n_mesh["topologies/points/elements/shape"] = "point";
+  std::vector<int> tmp(npts);
+  std::iota(tmp.begin(), tmp.end(), 0);
+  n_mesh["topologies/points/elements/connectivity"].set(tmp);
+  n_mesh["topologies/points/elements/offset"].set(tmp);
+  std::fill(tmp.begin(), tmp.end(), 1);
+  n_mesh["topologies/points/elements/sizes"].set(tmp);
+
+#ifdef CONDUIT_RELAY_MPI_ENABLED
+  conduit::relay::mpi::io::blueprint::save_mesh(n_mesh, "shaping_quadrature", "hdf5", MPI_COMM_WORLD);
+#else
+  conduit::relay::io::blueprint::save_mesh(n_mesh, "shaping_quadrature", "hdf5");
+#endif
+#endif
+}
+
+//------------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
   axom::utilities::raii::MPIWrapper mpi_raii_wrapper(argc, argv);
@@ -588,8 +659,15 @@ int main(int argc, char** argv)
   // Set specific parameters for a SamplingShaper, if appropriate
   if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
   {
+    int res[3] = {5, 5, 5};
+    for(size_t i = 0; i < std::min(size_t{3}, params.samplingResolution.size()); i++)
+    {
+      res[i] = params.samplingResolution[i];
+    }
+
     samplingShaper->setSamplingType(params.vfSampling);
-    samplingShaper->setQuadratureOrder(params.quadratureOrder);
+    samplingShaper->setSamplingResolution(res);
+    samplingShaper->setQuadratureType(params.quadratureType);
     samplingShaper->setVolumeFractionOrder(params.outputOrder);
     samplingShaper->setSamplingMethod(params.samplingMethod);
 
@@ -750,6 +828,15 @@ int main(int argc, char** argv)
   {
     AXOM_ANNOTATE_SCOPE("save shaping results");
     shaper->getDC()->Save();
+    if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
+    {
+      mfem::QuadratureFunction *positions = samplingShaper->getShapeQFunction("positions");
+      //if(params.quadratureType != static_cast<int>(mfem::Quadrature1D::Invalid))
+      if(positions)
+      {
+        save_quadrature_points(positions);
+      }
+    }
   }
 #endif
 

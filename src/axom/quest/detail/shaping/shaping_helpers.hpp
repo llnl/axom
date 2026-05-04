@@ -195,9 +195,20 @@ void replaceMaterial(mfem::QuadratureFunction* shapeQFunc,
 void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
                            mfem::QuadratureFunction* materialQFunc,
                            bool reuseExisting = true);
-
-/// Generates a quadrature function corresponding to the mesh positions
-void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFuncs, int sampleRes);
+/**
+ * \brief Generates a "position" quadrature function corresponding to the mesh positions and
+ *        store it in \a inoutQFuncs.
+ *
+ * \param mesh The mesh
+ * \param inoutQFuncs A collection of quadrature functions where the new "position" function will be added.
+ * \param sampleResolution The sample resolution in each logical dimension.
+ * \param quadratureType An int corresponding to mfem::Quadrature1D enum values. If
+ *                       Invalid is used then the default quadrature is constructed.
+ *                       Otherwise, custom quadrature is constructed using the supplied
+ *                       quadratureType -- the same type per dimension but the sampling
+ *                       can vary.
+ */
+void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFuncs, int sampleResolution[3], int quadratureType);
 
 /** 
  * Implements flux-corrected transport (FCT) to correct the solution obtained
@@ -241,6 +252,7 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
   * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
   * inout samples
   * \param [in] sampleRes The quadrature order at which to sample the inout field
+  * \param [in] quadratureType The quadrature type to use to construct the sample point locations.
   * \param [in] checkInside The function that determines whether a point is inside.
   * \param [in] projector A callback function to apply to points from the input mesh
   * before querying them on the spatial index
@@ -252,7 +264,8 @@ template <int FromDim, int ToDim, typename InsideFunc>
 void sampleInOutField(const std::string shapeName,
                       mfem::DataCollection* dc,
                       shaping::QFunctionCollection& inoutQFuncs,
-                      int sampleRes,
+                      int sampleRes[3],
+                      int quadratureType,
                       InsideFunc&& checkInside,
                       PointProjector<FromDim, ToDim> projector = {})
 {
@@ -271,7 +284,7 @@ void sampleInOutField(const std::string shapeName,
   // Generate a Quadrature Function with the geometric positions, if not already available
   if(!inoutQFuncs.Has("positions"))
   {
-    shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes);
+    shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes, quadratureType);
   }
 
   // Access the positions QFunc and associated QuadratureSpace
@@ -337,7 +350,6 @@ void sampleInOutField(const std::string shapeName,
   *
   * \param [in] shapeName The name of the shape used in making data array names.
   * \param [in] dc The data collection containing the mesh and associated query points
-  * \param [in] sampleRes The quadrature order at which to sample the inout field
   * \param [in] outputOrder The order of the output inout field
   * \param [in] checkInside The function that determines whether a point is inside.
   * \param [in] projector A callback function to apply to points from the input mesh
@@ -349,7 +361,6 @@ void sampleInOutField(const std::string shapeName,
 template <int FromDim, int ToDim, typename InsideFunc>
 void computeVolumeFractionsBaseline(const std::string& shapeName,
                                     mfem::DataCollection* dc,
-                                    int AXOM_UNUSED_PARAM(sampleRes),
                                     int outputOrder,
                                     InsideFunc&& checkInside,
                                     PointProjector<FromDim, ToDim> projector = {})

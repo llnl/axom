@@ -18,6 +18,7 @@
 #include "axom/sidre.hpp"
 #include "axom/slic.hpp"
 #include "axom/quest/SamplingShaper.hpp"
+#include "axom/quest/detail/shaping/shaping_helpers.hpp"
 #include "axom/quest/util/mesh_helpers.hpp"
 
 #ifndef AXOM_USE_MFEM
@@ -604,6 +605,34 @@ public:
     getMesh().GetBoundingBox(bbmin, bbmax);
 
     return BBox2D(Point2D(bbmin.GetData()), Point2D(bbmax.GetData()));
+  }
+};
+
+/// Test fixture for SamplingShaper tests on a single curved 2D MFEM element
+class CurvedSampleTester2D : public SamplingShaperTest
+{
+public:
+  using Point2D = primal::Point<double, 2>;
+  using BBox2D = primal::BoundingBox<double, 2>;
+
+public:
+  virtual ~CurvedSampleTester2D() { }
+
+  void SetUp() override
+  {
+    const int polynomialOrder = 2;
+    const BBox2D bbox({0., 0.}, {1., 1.});
+    const axom::NumericArray<int, 2> celldims {1, 1};
+
+    auto* mesh = quest::util::make_cartesian_mfem_mesh_2D(bbox, celldims, polynomialOrder);
+
+    m_dc.SetOwnData(true);
+    m_dc.SetMeshNodesName("positions");
+    m_dc.SetMesh(mesh);
+
+#ifdef AXOM_USE_MPI
+    m_dc.SetComm(MPI_COMM_WORLD);
+#endif
   }
 };
 
@@ -1297,7 +1326,7 @@ shapes:
   // set projector from 2D mesh points to 3D query points within STL
   this->m_shaper->setPointProjector23(Projector23 {});
 
-  this->m_shaper->setQuadratureOrder(8);
+  this->m_shaper->setSamplingResolution(8);
 
   this->runShaping();
 
@@ -1442,7 +1471,7 @@ Ordering: 1
   // Use WindingNumber shaping!
   this->m_shaper->setSamplingMethod(quest::SamplingShaper::SamplingMethod::WindingNumber);
 
-  this->m_shaper->setQuadratureOrder(8);
+  this->m_shaper->setSamplingResolution(8);
   this->runShaping();
 
   // Check that the result has a volume fraction field associated with square materials
@@ -1877,7 +1906,7 @@ shapes:
   this->m_shaper->setPointProjector32(AxisymmetricProjector32 {});
 
   // we need a higher quadrature order to resolve this shape at the (low) testing resolution
-  this->m_shaper->setQuadratureOrder(8);
+  this->m_shaper->setSamplingResolution(8);
 
   this->runShaping();
 
@@ -1951,7 +1980,7 @@ shapes:
   this->m_shaper->setPointProjector32(AxisymmetricProjector32 {});
 
   // we need a higher quadrature order to resolve this shape at the (low) testing resolution
-  this->m_shaper->setQuadratureOrder(8);
+  this->m_shaper->setSamplingResolution(8);
 
   this->runShaping();
 
@@ -2040,7 +2069,7 @@ shapes:
     this->m_shaper->setPointProjector23(PlaneProjector23 {z});
 
     // we need a higher quadrature order to resolve this shape at the (low) testing resolution
-    this->m_shaper->setQuadratureOrder(8);
+    this->m_shaper->setSamplingResolution(8);
 
     this->runShaping();
 
@@ -2138,7 +2167,7 @@ piece = line(end=start)
       this->initializeShaping(shape_file.getPath());
 
       this->m_shaper->setVolumeFractionOrder(0);
-      this->m_shaper->setQuadratureOrder(qorder);
+      this->m_shaper->setSamplingResolution(qorder);
 
       this->runShaping();
 
@@ -2185,6 +2214,62 @@ piece = line(end=start)
       if(very_verbose_output)
       {
         this->getDC().Save(testname, axom::sidre::Group::getDefaultIOProtocol());
+      }
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(CurvedSampleTester2D, positions_match_curved_mesh_for_anisotropic_custom_quadrature)
+{
+  auto& mesh = this->getMesh();
+  auto* nodes = mesh.GetNodes();
+  ASSERT_NE(nodes, nullptr);
+
+  mfem::VectorFunctionCoefficient warp(
+    2,
+    [](const mfem::Vector& x, mfem::Vector& y) {
+      constexpr double PI_LOCAL = 3.14159265358979323846;
+      y.SetSize(2);
+      y[0] = x[0] + 0.08 * std::sin(PI_LOCAL * x[0]) * std::sin(PI_LOCAL * x[1]);
+      y[1] = x[1] + 0.05 * std::sin(PI_LOCAL * x[0]) * std::sin(0.5 * PI_LOCAL * x[1]);
+    });
+  nodes->ProjectCoefficient(warp);
+
+  int sampleRes[3] = {5, 3, 1};
+  quest::shaping::QFunctionCollection qfuncs;
+  quest::shaping::generatePositionsQFunction(
+    &mesh,
+    qfuncs,
+    sampleRes,
+    static_cast<int>(mfem::Quadrature1D::OpenUniform));
+
+  auto* positions = qfuncs.Get("positions");
+  ASSERT_NE(positions, nullptr);
+
+  auto* qspace = dynamic_cast<mfem::QuadratureSpace*>(positions->GetSpace());
+  ASSERT_NE(qspace, nullptr);
+
+  const auto& ir = qspace->GetElementIntRule(0);
+  const int nq = ir.GetNPoints();
+  const auto pos = mfem::Reshape(positions->HostRead(), 2, nq, mesh.GetNE());
+
+  mfem::DenseMatrix expected(2, nq);
+  constexpr double EPS = 1e-12;
+  EXPECT_EQ(nq, sampleRes[0] * sampleRes[1]);
+
+  for(int e = 0; e < mesh.GetNE(); ++e)
+  {
+    auto* transform = qspace->GetTransformation(e);
+    transform->Transform(ir, expected);
+
+    for(int q = 0; q < nq; ++q)
+    {
+      for(int d = 0; d < 2; ++d)
+      {
+        EXPECT_NEAR(pos(d, q, e), expected(d, q), EPS)
+          << axom::fmt::format("Element {}, point {}, component {}", e, q, d);
       }
     }
   }

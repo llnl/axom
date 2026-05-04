@@ -116,7 +116,8 @@ public:
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> sampleInOutField(mfem::DataCollection* dc,
                                                         shaping::QFunctionCollection& inoutQFuncs,
-                                                        int sampleRes,
+                                                        int sampleRes[3],
+                                                        int quadratureType,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
     using PointType = primal::Point<double, DIM>;
@@ -127,6 +128,7 @@ public:
                                               dc,
                                               inoutQFuncs,
                                               sampleRes,
+                                              quadratureType,
                                               checkInside,
                                               projector);
   }
@@ -138,7 +140,8 @@ public:
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> sampleInOutField(mfem::DataCollection*,
                                                         shaping::QFunctionCollection&,
-                                                        int,
+                                                        int AXOM_UNUSED_PARAM(sampleRes)[3],
+                                                        int AXOM_UNUSED_PARAM(quadratureType),
                                                         PointProjector<FromDim, ToDim>)
   {
     static_assert(ToDim != DIM,
@@ -153,7 +156,6 @@ public:
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(
     mfem::DataCollection* dc,
-    int sampleRes,
     int outputOrder,
     PointProjector<FromDim, ToDim> projector = {})
   {
@@ -162,7 +164,6 @@ public:
     auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
     shaping::computeVolumeFractionsBaseline<FromDim, ToDim>(m_shapeName,
                                                             dc,
-                                                            sampleRes,
                                                             outputOrder,
                                                             checkInside,
                                                             projector);
@@ -175,7 +176,6 @@ public:
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(
     mfem::DataCollection* AXOM_UNUSED_PARAM(dc),
-    int AXOM_UNUSED_PARAM(sampleRes),
     int AXOM_UNUSED_PARAM(outputOrder),
     PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {

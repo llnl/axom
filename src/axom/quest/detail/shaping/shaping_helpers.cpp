@@ -135,8 +135,85 @@ void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
   }
 }
 
+mfem::QuadratureSpace *makeDefaultQuadratureSpace(mfem::Mesh* mesh, int sampleRes)
+{
+  SLIC_ASSERT(mesh != nullptr);
+  const int NE = mesh->GetNE();
+
+  if(NE < 1)
+  {
+    SLIC_WARNING("Mesh has no elements!");
+    return nullptr;
+  }
+
+  // convert requested samples into a compatible polynomial order
+  // that will use that many samples: 2n-1 and 2n-2 will work
+  // NOTE: Might be different for simplices
+  const int sampleOrder = 2 * sampleRes - 1;
+  return new mfem::QuadratureSpace(mesh, sampleOrder);
+}
+
+mfem::QuadratureSpace *makeCustomQuadratureSpace(mfem::Mesh* mesh, int sampleRes[3], int quadratureType)
+{
+  SLIC_ASSERT(mesh != nullptr);
+  const int NE = mesh->GetNE();
+  const int dim = mesh->Dimension();
+
+  if(NE < 1)
+  {
+    SLIC_WARNING("Mesh has no elements!");
+    return nullptr;
+  }
+
+  // Make custom integration rule
+  mfem::IntegrationRule *ir = nullptr, ird[3];
+  for(int d = 0; d < dim; d++)
+  {
+    SLIC_ERROR_IF(sampleRes[d] < 1, axom::fmt::format("Invalid sample value {} for dimension {}.", sampleRes[d], d));
+    switch(quadratureType)
+    {
+    case mfem::Quadrature1D::GaussLegendre:
+      mfem::QuadratureFunctions1D::GaussLegendre(sampleRes[d], &ird[d]);
+      break;
+    case mfem::Quadrature1D::GaussLobatto:
+      mfem::QuadratureFunctions1D::GaussLobatto(sampleRes[d], &ird[d]);
+      break;
+    case mfem::Quadrature1D::OpenUniform:
+      mfem::QuadratureFunctions1D::OpenUniform(sampleRes[d], &ird[d]);
+      break;
+    case mfem::Quadrature1D::ClosedUniform:
+      mfem::QuadratureFunctions1D::ClosedUniform(sampleRes[d], &ird[d]);
+      break;
+    case mfem::Quadrature1D::OpenHalfUniform:
+      mfem::QuadratureFunctions1D::OpenHalfUniform(sampleRes[d], &ird[d]);
+      break;
+    case mfem::Quadrature1D::ClosedGL:
+      mfem::QuadratureFunctions1D::ClosedGL(sampleRes[d], &ird[d]);
+      break;
+    default:
+      SLIC_ERROR(axom::fmt::format("Invalid quadrature type {}.", quadratureType));
+      break;
+    }
+  }
+  if(dim == 1)
+  {
+    ir = new mfem::IntegrationRule(ird[0]);
+  }
+  else if(dim == 2)
+  {
+    ir = new mfem::IntegrationRule(ird[0], ird[1]);
+  }
+  else if(dim == 3)
+  {
+    ir = new mfem::IntegrationRule(ird[0], ird[1], ird[2]);
+  }
+
+  return new mfem::QuadratureSpace(*mesh, *ir);
+}
+
 /// Generates a quadrature function corresponding to the mesh "positions" field
-void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFuncs, int sampleRes)
+void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFuncs,
+                                int sampleResolution[3], int quadratureType)
 {
   SLIC_ASSERT(mesh != nullptr);
   const int NE = mesh->GetNE();
@@ -148,31 +225,33 @@ void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFun
     return;
   }
 
-  // convert requested samples into a compatible polynomial order
-  // that will use that many samples: 2n-1 and 2n-2 will work
-  // NOTE: Might be different for simplices
-  const int sampleOrder = 2 * sampleRes - 1;
-  mfem::QuadratureSpace* sp = new mfem::QuadratureSpace(mesh, sampleOrder);
-
-  // TODO: Should the samples be along a uniform grid
-  //       instead of Guassian quadrature?
-  //       This would need quadrature weights for the uniform
-  //       samples -- Newton-Cotes ?
-  //       With uniform points, we could do HO polynomial fitting
-  //       Using 0s and 1s is non-oscillatory in Bernstein basis
+  // Make a quadrature space to determine the point locations in each element.
+  mfem::QuadratureSpace *sp = nullptr;
+  if(quadratureType == static_cast<int>(mfem::Quadrature1D::Invalid))
+  {
+    sp = makeDefaultQuadratureSpace(mesh, sampleResolution[0]);
+  }
+  else
+  {
+    sp = makeCustomQuadratureSpace(mesh, sampleResolution, quadratureType);
+  }
+  SLIC_ERROR_IF(sp == nullptr, "Null QuadratureSpace.");
 
   // Assume all elements have the same integration rule
   const auto& ir = sp->GetElementIntRule(0);
   const int nq = ir.GetNPoints();
-  const auto* geomFactors = mesh->GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
-  geomFactors->X.HostRead();
+std::cout << "generatePositionsQFunction: ir.GetNPoints()=" << nq << std::endl;
 
   mfem::QuadratureFunction* pos_coef = new mfem::QuadratureFunction(sp, dim);
   pos_coef->SetOwnsSpace(true);
   auto pos = mfem::Reshape(pos_coef->HostWrite(), dim, nq, NE);
 
-  // Rearrange positions into quadrature function
+  if(quadratureType == static_cast<int>(mfem::Quadrature1D::Invalid))
   {
+    const auto* geomFactors = mesh->GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
+    geomFactors->X.HostRead();
+
+    // Rearrange positions into quadrature function
     for(int i = 0; i < NE; ++i)
     {
       const int gf_elStartIdx = i * nq * dim;
@@ -180,17 +259,37 @@ void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFun
       {
         for(int k = 0; k < nq; ++k)
         {
-          //X has dims nqpts x sdim x ne
+          // X has dims nqpts x sdim x ne
           pos(j, k, i) = geomFactors->X(gf_elStartIdx + (j * nq) + k);
+        }
+      }
+    }
+
+    // Delete the geometric factors associated w/ our quadrature rule
+    mesh->DeleteGeometricFactors();
+  }
+  else
+  {
+    // MFEM's tensor quadrature interpolation assumes the same number of
+    // points in each logical dimension. For custom anisotropic tensor-product
+    // rules, map the integration points explicitly through each element.
+    mfem::DenseMatrix pointMat(dim, nq);
+    for(int i = 0; i < NE; ++i)
+    {
+      auto* transform = sp->GetTransformation(i);
+      transform->Transform(ir, pointMat);
+
+      for(int j = 0; j < dim; ++j)
+      {
+        for(int k = 0; k < nq; ++k)
+        {
+          pos(j, k, i) = pointMat(j, k);
         }
       }
     }
   }
 
-  // Delete the geometric factors associated w/ our custom quadrature rule
-  mesh->DeleteGeometricFactors();
-
-  // register positions with the QFunction collection, which wil handle its deletion
+  // register positions with the QFunction collection, which will handle its deletion
   inoutQFuncs.Register("positions", pos_coef, true);
 }
 

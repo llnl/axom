@@ -159,7 +159,42 @@ public:
 
   void setSamplingMethod(SamplingMethod samplingMethod) { m_samplingMethod = samplingMethod; }
 
-  void setQuadratureOrder(int quadratureOrder) { m_quadratureOrder = quadratureOrder; }
+  void setQuadratureType(int qtype)
+  {
+    if(qtype >= static_cast<int>(mfem::Quadrature1D::Invalid) &&
+       qtype <= static_cast<int>(mfem::Quadrature1D::ClosedGL))
+    {
+      m_quadratureType = qtype;
+    }
+    else
+    {
+      SLIC_ERROR(axom::fmt::format("Invalid quadrature type value {}", qtype));
+    }
+  }
+
+  void setSamplingResolution(int sampleRes)
+  {
+    SLIC_ASSERT(sampleRes > 0);
+    m_sampleResolution[0] = sampleRes;
+    m_sampleResolution[1] = sampleRes;
+    m_sampleResolution[2] = sampleRes;
+  }
+
+  void setSamplingResolution(int sampleRes[3])
+  {
+    SLIC_ASSERT(sampleRes[0] > 0);
+    SLIC_ASSERT(sampleRes[1] > 0);
+    SLIC_ASSERT(sampleRes[2] > 0);
+    m_sampleResolution[0] = sampleRes[0];
+    m_sampleResolution[1] = sampleRes[1];
+    m_sampleResolution[2] = sampleRes[2];
+  }
+
+  // Deprecated backward compatibility method
+  [[deprecated]] void setQuadratureOrder(int order)
+  {
+    setSamplingResolution(order);
+  }
 
   void setVolumeFractionOrder(int volfracOrder) { m_volfracOrder = volfracOrder; }
 
@@ -519,7 +554,7 @@ public:
     // ensure we have a starting quadrature field for the positions
     if(!m_inoutShapeQFuncs.Has("positions"))
     {
-      shaping::generatePositionsQFunction(mesh, m_inoutShapeQFuncs, m_quadratureOrder);
+      shaping::generatePositionsQFunction(mesh, m_inoutShapeQFuncs, m_sampleResolution, m_quadratureType);
     }
     auto* positionsQSpace = m_inoutShapeQFuncs.Get("positions")->GetSpace();
 
@@ -621,7 +656,7 @@ public:
 private:
   // Handles 2D or 3D shaping for compatible samplers, based on the template and associated parameter
   template <typename SamplerType>
-  void runShapeQueryImplSampler(SamplerType* shaper)
+  void runShapeQueryImplSampler(SamplerType* sampler)
   {
     // Sample the InOut field at the mesh quadrature points
     const int meshDim = m_dc->GetMesh()->Dimension();
@@ -633,32 +668,36 @@ private:
       case 2:
         if(meshDim == 2)
         {
-          shaper->template sampleInOutField<2, 2>(m_dc,
+          sampler->template sampleInOutField<2, 2>(m_dc,
                                                   m_inoutShapeQFuncs,
-                                                  m_quadratureOrder,
+                                                  m_sampleResolution,
+                                                  m_quadratureType,
                                                   m_projector22);
         }
         else if(meshDim == 3)
         {
-          shaper->template sampleInOutField<3, 2>(m_dc,
+          sampler->template sampleInOutField<3, 2>(m_dc,
                                                   m_inoutShapeQFuncs,
-                                                  m_quadratureOrder,
+                                                  m_sampleResolution,
+                                                  m_quadratureType,
                                                   m_projector32);
         }
         break;
       case 3:
         if(meshDim == 2)
         {
-          shaper->template sampleInOutField<2, 3>(m_dc,
+          sampler->template sampleInOutField<2, 3>(m_dc,
                                                   m_inoutShapeQFuncs,
-                                                  m_quadratureOrder,
+                                                  m_sampleResolution,
+                                                  m_quadratureType,
                                                   m_projector23);
         }
         else if(meshDim == 3)
         {
-          shaper->template sampleInOutField<3, 3>(m_dc,
+          sampler->template sampleInOutField<3, 3>(m_dc,
                                                   m_inoutShapeQFuncs,
-                                                  m_quadratureOrder,
+                                                  m_sampleResolution,
+                                                  m_quadratureType,
                                                   m_projector33);
         }
         break;
@@ -670,15 +709,13 @@ private:
       case 2:
         if(meshDim == 2)
         {
-          shaper->template computeVolumeFractionsBaseline<2, 2>(m_dc,
-                                                                m_quadratureOrder,
+          sampler->template computeVolumeFractionsBaseline<2, 2>(m_dc,
                                                                 m_volfracOrder,
                                                                 m_projector22);
         }
         else if(meshDim == 3)
         {
-          shaper->template computeVolumeFractionsBaseline<3, 2>(m_dc,
-                                                                m_quadratureOrder,
+          sampler->template computeVolumeFractionsBaseline<3, 2>(m_dc,
                                                                 m_volfracOrder,
                                                                 m_projector32);
         }
@@ -686,15 +723,13 @@ private:
       case 3:
         if(meshDim == 2)
         {
-          shaper->template computeVolumeFractionsBaseline<2, 3>(m_dc,
-                                                                m_quadratureOrder,
+          sampler->template computeVolumeFractionsBaseline<2, 3>(m_dc,
                                                                 m_volfracOrder,
                                                                 m_projector23);
         }
         else if(meshDim == 3)
         {
-          shaper->template computeVolumeFractionsBaseline<3, 3>(m_dc,
-                                                                m_quadratureOrder,
+          sampler->template computeVolumeFractionsBaseline<3, 3>(m_dc,
                                                                 m_volfracOrder,
                                                                 m_projector33);
         }
@@ -706,21 +741,21 @@ private:
 
   // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
   template <int DIM>
-  void runShapeQueryImpl(shaping::InOutSampler<DIM>* shaper)
+  void runShapeQueryImpl(shaping::InOutSampler<DIM>* sampler)
   {
-    runShapeQueryImplSampler(shaper);
+    runShapeQueryImplSampler(sampler);
   }
 
   // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
   template <int DIM>
-  void runShapeQueryImpl(shaping::WindingNumberSampler<DIM>* shaper)
+  void runShapeQueryImpl(shaping::WindingNumberSampler<DIM>* sampler)
   {
-    runShapeQueryImplSampler(shaper);
+    runShapeQueryImplSampler(sampler);
   }
 
   // Handles 2D or 3D shaping for PrimitiveSampler, based on the template and associated parameter
   template <int DIM, typename ExecSpace>
-  void runShapeQueryImpl(shaping::PrimitiveSampler<DIM, ExecSpace>* shaper)
+  void runShapeQueryImpl(shaping::PrimitiveSampler<DIM, ExecSpace>* sampler)
   {
     // Sample the InOut field at the mesh quadrature points
     const int meshDim = m_dc->GetMesh()->Dimension();
@@ -735,16 +770,18 @@ private:
       case 3:
         if(meshDim == 2)
         {
-          shaper->template sampleInOutField<2, 3>(m_dc,
+          sampler->template sampleInOutField<2, 3>(m_dc,
                                                   m_inoutShapeQFuncs,
-                                                  m_quadratureOrder,
+                                                  m_sampleResolution,
+                                                  m_quadratureType,
                                                   m_projector23);
         }
         else if(meshDim == 3)
         {
-          shaper->template sampleInOutField<3, 3>(m_dc,
+          sampler->template sampleInOutField<3, 3>(m_dc,
                                                   m_inoutShapeQFuncs,
-                                                  m_quadratureOrder,
+                                                  m_sampleResolution,
+                                                  m_quadratureType,
                                                   m_projector33);
         }
         break;
@@ -782,13 +819,13 @@ private:
     const int NE = mesh->GetNE();
     const auto geom = mesh->GetTypicalElementGeometry();
 
-    auto samples_per_dim = [=](int sampleNQ, mfem::Geometry::Type geom) -> std::string {
+    auto samples_per_dim = [=](int sampleRes[3], mfem::Geometry::Type geom) -> std::string {
       switch(geom)
       {
       case mfem::Geometry::SQUARE:
-        return axom::fmt::format(" ({} per dimension)", sqrt(sampleNQ));
+        return axom::fmt::format(" ({} * {})", sampleRes[0], sampleRes[1]);
       case mfem::Geometry::CUBE:
-        return axom::fmt::format(" ({} per dimension)", std::cbrt(sampleNQ));
+        return axom::fmt::format(" ({} * {} * {})", sampleRes[0], sampleRes[1], sampleRes[2]);
       default:
         return std::string();
       }
@@ -800,7 +837,7 @@ private:
                                      "In computeVolumeFractions(): num samples per element {}{} | "
                                      "sample polynomial order {} | total samples {:L}",
                                      sampleNQ,
-                                     samples_per_dim(sampleNQ, geom),
+                                     samples_per_dim(m_sampleResolution, geom),
                                      sampleOrder,
                                      sampleSZ));
 
@@ -995,7 +1032,8 @@ private:
   shaping::PointProjector<3, 3> m_projector33 {};
 
   shaping::VolFracSampling m_vfSampling {shaping::VolFracSampling::SAMPLE_AT_QPTS};
-  int m_quadratureOrder {5};
+  int m_quadratureType {static_cast<int>(mfem::Quadrature1D::Invalid)};
+  int m_sampleResolution[3] = {5, 5, 5};
   int m_volfracOrder {2};
   SamplingMethod m_samplingMethod {SamplingMethod::InOut};
 };

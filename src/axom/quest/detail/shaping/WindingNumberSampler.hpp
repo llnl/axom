@@ -134,6 +134,7 @@ public:
    * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
    * inout samples
    * \param [in] sampleRes The quadrature order at which to sample the inout field
+    * \param [in] quadratureType The quadrature type to use to construct the sample point locations.
    * \param [in] projector A callback function to apply to points from the input mesh
    * before querying them on the spatial index
    * 
@@ -144,7 +145,8 @@ public:
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> sampleInOutField(mfem::DataCollection* dc,
                                                         shaping::QFunctionCollection& inoutQFuncs,
-                                                        int sampleRes,
+                                                        int sampleRes[3],
+                                                        int quadratureType,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
     static_assert(axom::execution_space<ExecSpace>::onDevice() == false,
@@ -166,7 +168,7 @@ public:
     // Generate a Quadrature Function with the geometric positions, if not already available
     if(!inoutQFuncs.Has("positions"))
     {
-      shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes);
+      shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes, quadratureType);
     }
 
     // Access the positions QFunc and associated QuadratureSpace
@@ -261,7 +263,8 @@ public:
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> sampleInOutField(mfem::DataCollection*,
                                                         shaping::QFunctionCollection&,
-                                                        int,
+                                                        int AXOM_UNUSED_PARAM(sampleRes)[3],
+                                                        int AXOM_UNUSED_PARAM(quadratureType),
                                                         PointProjector<FromDim, ToDim>)
   {
     static_assert(ToDim != DIM,
@@ -276,7 +279,6 @@ public:
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(
     mfem::DataCollection* dc,
-    int sampleRes,
     int outputOrder,
     PointProjector<FromDim, ToDim> projector = {})
   {
@@ -295,7 +297,6 @@ public:
     };
     shaping::computeVolumeFractionsBaseline<FromDim, ToDim>(m_shapeName,
                                                             dc,
-                                                            sampleRes,
                                                             outputOrder,
                                                             checkInside,
                                                             projector);
@@ -308,7 +309,6 @@ public:
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(
     mfem::DataCollection* AXOM_UNUSED_PARAM(dc),
-    int AXOM_UNUSED_PARAM(sampleRes),
     int AXOM_UNUSED_PARAM(outputOrder),
     PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {
