@@ -2221,6 +2221,56 @@ piece = line(end=start)
 
 //-----------------------------------------------------------------------------
 
+TEST_F(SampleTester2D, anisotropic_closeduniform_projection_generates_volume_fractions)
+{
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: {}
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+    units: cm
+)";
+
+  const std::string rectangle_contour = R"(
+point = start
+piece = line(start=(-0.001cm, -0.001cm), end=(-0.001cm, 1.001cm))
+piece = line()
+piece = line(start=(1.001cm, 1.001cm), end=(1.001cm, -0.001cm))
+piece = line(end=start)
+)";
+
+  const std::string rect_shape = "rectShape";
+  const std::string rect_material = "rectMat";
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(rectangle_contour);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                     rect_shape,
+                                     rect_material,
+                                     contour_file.getPath()));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  int sampleRes[3] = {3, 5, 1};
+  this->m_shaper->setSamplingResolution(sampleRes);
+  this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform));
+  this->m_shaper->setVolumeFractionOrder(0);
+
+  this->runShaping();
+
+  this->checkExpectedVolumeFractions(rect_material, 1.0, 1e-12);
+}
+
+//-----------------------------------------------------------------------------
+
 TEST_F(CurvedSampleTester2D, positions_match_curved_mesh_for_anisotropic_custom_quadrature)
 {
   auto& mesh = this->getMesh();

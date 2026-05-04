@@ -955,14 +955,7 @@ private:
         b = 0.;
         b.ReadWrite();
 
-        mfem::QuadratureFunctionCoefficient qfc(*inout);
-        mfem::DomainLFIntegrator rhs(qfc, &sampleIR);
-
-        mfem::Array<int> elem_marker(fes->GetNE());
-        elem_marker.HostWrite();
-        elem_marker = 1;
-        elem_marker.ReadWrite();
-        rhs.AssembleDevice(*fes, elem_marker, b);
+        this->assembleVolumeFractionRHS(*fes, *inout, sampleIR, b);
       }
       inout->HostReadWrite();
 
@@ -1012,6 +1005,55 @@ private:
                                      static_cast<int>(fes->GetNDofs() / timer.elapsed())));
 
     vf->HostReadWrite();
+  }
+
+  bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh) const
+  {
+    if(m_quadratureType == static_cast<int>(mfem::Quadrature1D::Invalid))
+    {
+      return false;
+    }
+
+    switch(mesh.GetTypicalElementGeometry())
+    {
+    case mfem::Geometry::SQUARE:
+      return m_sampleResolution[0] != m_sampleResolution[1];
+    case mfem::Geometry::CUBE:
+      return m_sampleResolution[0] != m_sampleResolution[1] ||
+        m_sampleResolution[1] != m_sampleResolution[2];
+    default:
+      return false;
+    }
+  }
+
+  void assembleVolumeFractionRHS(const mfem::FiniteElementSpace& fes,
+                                 mfem::QuadratureFunction& inout,
+                                 const mfem::IntegrationRule& sampleIR,
+                                 mfem::Vector& b) const
+  {
+    mfem::QuadratureFunctionCoefficient qfc(inout);
+    mfem::DomainLFIntegrator rhs(qfc, &sampleIR);
+
+    if(usesAnisotropicCustomTensorQuadrature(*fes.GetMesh()))
+    {
+      mfem::Vector elemVec;
+      mfem::Array<int> elemVDofs;
+
+      for(int elem = 0; elem < fes.GetNE(); ++elem)
+      {
+        rhs.AssembleRHSElementVect(*fes.GetFE(elem), *fes.GetElementTransformation(elem), elemVec);
+        fes.GetElementVDofs(elem, elemVDofs);
+        b.AddElementVector(elemVDofs, elemVec);
+      }
+    }
+    else
+    {
+      mfem::Array<int> elem_marker(fes.GetNE());
+      elem_marker.HostWrite();
+      elem_marker = 1;
+      elem_marker.ReadWrite();
+      rhs.AssembleDevice(fes, elem_marker, b);
+    }
   }
 
 private:

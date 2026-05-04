@@ -240,7 +240,6 @@ void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFun
   // Assume all elements have the same integration rule
   const auto& ir = sp->GetElementIntRule(0);
   const int nq = ir.GetNPoints();
-std::cout << "generatePositionsQFunction: ir.GetNPoints()=" << nq << std::endl;
 
   mfem::QuadratureFunction* pos_coef = new mfem::QuadratureFunction(sp, dim);
   pos_coef->SetOwnsSpace(true);
