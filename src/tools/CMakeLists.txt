@@ -187,12 +187,13 @@ if(AXOM_ENABLE_QUEST)
     endif()
 endif()
 
-#------------------------------------------------------------------------------
-# run_python_with_axom.sh.in is a utility that allows running python with
-# nanobind-generated extensions in the PYTHONPATH.
-# Based on Conduit's run_python_with_conduit.sh.in script.
-#------------------------------------------------------------------------------
+
 if(NANOBIND_FOUND)
+    #--------------------------------------------------------------------------
+    # run_python_with_axom.sh.in is a utility that allows running python with
+    # nanobind-generated extensions in the PYTHONPATH.
+    # Based on Conduit's run_python_with_conduit.sh.in script.
+    #--------------------------------------------------------------------------
 
     # gen python helper to build directory
     set(_PYEXT_DIR ${PROJECT_BINARY_DIR}/lib)
@@ -213,5 +214,34 @@ if(NANOBIND_FOUND)
         axom_add_test(
             NAME    run_python_with_axom_build
             COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import pysidre, nanobind, conduit, numpy, pytest")
+    endif()
+
+    #--------------------------------------------------------------------------
+    # convert_sidre_protocol.py is a python version of the
+    # convert_sidre_protocol.cpp utility
+    #--------------------------------------------------------------------------
+    axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/convert_sidre_protocol.py"
+                         "${PROJECT_BINARY_DIR}/bin/convert_sidre_protocol.py" COPYONLY)
+
+    axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/convert_sidre_protocol.py"
+                         "${CMAKE_INSTALL_PREFIX}/bin/convert_sidre_protocol.py" COPYONLY)
+
+    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+
+        set(box_dir "${AXOM_DATA_DIR}/quest/box_2D_r3.root")
+
+        set(_testname "convert_sidre_protocol_py")
+        axom_add_test(
+          NAME ${_testname}
+          COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
+                  ${PROJECT_BINARY_DIR}/bin/convert_sidre_protocol.py
+                  --input ${box_dir}
+                  --output csp_output
+                  --protocol json
+                  --verbose
+        )
+
+        set_tests_properties(${_testname} PROPERTIES
+            PASS_REGULAR_EXPRESSION  "Writing out datastore")
     endif()
 endif()
