@@ -19,60 +19,6 @@ namespace axom
 {
 namespace quest
 {
-namespace internal
-{
-/*!
- * \brief Implementation of a GeometryOperatorVisitor for processing klee shape operators
- *
- * This class extracts the matrix form of supported operators and marks the operator as unvalid otherwise
- * To use, check the \a isValid() function after visiting and then call the \a getMatrix() function.
- */
-class AffineMatrixVisitor : public klee::GeometryOperatorVisitor
-{
-public:
-  AffineMatrixVisitor() : m_matrix(4, 4) { }
-
-  void visit(const klee::Translation& translation) override
-  {
-    m_matrix = translation.toMatrix();
-    m_isValid = true;
-  }
-  void visit(const klee::Rotation& rotation) override
-  {
-    m_matrix = rotation.toMatrix();
-    m_isValid = true;
-  }
-  void visit(const klee::Scale& scale) override
-  {
-    m_matrix = scale.toMatrix();
-    m_isValid = true;
-  }
-  void visit(const klee::UnitConverter& converter) override
-  {
-    m_matrix = converter.toMatrix();
-    m_isValid = true;
-  }
-
-  void visit(const klee::CompositeOperator&) override
-  {
-    SLIC_WARNING_ROOT("CompositeOperator not supported for Shaper query");
-    m_isValid = false;
-  }
-  void visit(const klee::SliceOperator&) override
-  {
-    SLIC_WARNING_ROOT("SliceOperator not yet supported for Shaper query");
-    m_isValid = false;
-  }
-
-  const numerics::Matrix<double>& getMatrix() const { return m_matrix; }
-  bool isValid() const { return m_isValid; }
-
-private:
-  bool m_isValid {false};
-  numerics::Matrix<double> m_matrix;
-};
-
-}  // end namespace internal
 
 // TODO: These were needed for linking - but why? They are constexpr.
 constexpr int DiscreteShape::DEFAULT_SAMPLES_PER_KNOT_SPAN;
@@ -714,45 +660,7 @@ void DiscreteShape::applyTransforms()
 
 numerics::Matrix<double> DiscreteShape::getTransforms() const
 {
-  const auto identity4x4 = numerics::Matrix<double>::identity(4);
-  numerics::Matrix<double> transformation(identity4x4);
-  auto& geometryOperator = m_shape.getGeometry().getGeometryOperator();
-  if(geometryOperator)
-  {
-    auto composite = std::dynamic_pointer_cast<const klee::CompositeOperator>(geometryOperator);
-    if(composite)
-    {
-      // Concatenate the transformations
-
-      // Why don't we multiply the matrices in CompositeOperator::addOperator()?
-      // Why keep the matrices factored and multiply them here repeatedly?
-      // Combining them would also avoid this if-else logic.  BTNG
-      for(auto op : composite->getOperators())
-      {
-        // Use visitor pattern to extract the affine matrix from supported operators
-        internal::AffineMatrixVisitor visitor;
-        op->accept(visitor);
-        if(!visitor.isValid())
-        {
-          continue;
-        }
-        const auto& matrix = visitor.getMatrix();
-        numerics::Matrix<double> res(identity4x4);
-        numerics::matrix_multiply(matrix, transformation, res);
-        transformation = res;
-      }
-    }
-    else
-    {
-      internal::AffineMatrixVisitor visitor;
-      geometryOperator->accept(visitor);
-      if(visitor.isValid())
-      {
-        transformation = visitor.getMatrix();
-      }
-    }
-  }
-  return transformation;
+  return m_shape.getGeometry().getTransform();
 }
 
 // Return a 3x3 matrix that rotates coordinates from the x-axis to the given direction.

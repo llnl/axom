@@ -46,6 +46,7 @@ set(core_serial_tests
     numerics_lu.hpp
     numerics_matrix.hpp
     numerics_matvecops.hpp
+    numerics_transforms.hpp
     numerics_polynomial_solvers.hpp
 
     utils_endianness.hpp
@@ -226,4 +227,3 @@ if (ENABLE_BENCHMARKS)
                       COMMAND ${test_name} --benchmark_min_time=0.0001s)
   endforeach()
 endif()
-
