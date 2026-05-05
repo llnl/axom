@@ -56,8 +56,7 @@ bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh,
   case mfem::Geometry::SQUARE:
     return sampleResolution[0] != sampleResolution[1];
   case mfem::Geometry::CUBE:
-    return sampleResolution[0] != sampleResolution[1] ||
-      sampleResolution[0] != sampleResolution[2];
+    return sampleResolution[0] != sampleResolution[1] || sampleResolution[0] != sampleResolution[2];
   default:
     return false;
   }
