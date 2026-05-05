@@ -4,12 +4,13 @@
 "package_final_phase": "initconfig",
 "package_source_dir": "../..",
 "spack_url": "https://github.com/spack/spack.git",
-"spack_commit": "6d244b3f6776b3697861c6b5cebbee376c30bff3",
+"spack_commit": "2e2169d5282d166f63e3ee4db8d4446c43cefa8a",
 "spack_configs_path": "scripts/spack/configs",
-"spack_packages_path": ["scripts/spack/radiuss-spack-configs/packages", "scripts/spack/packages"],
+"spack_packages_commit": "17ea6a6d483fc0bde1b2cca96ddaad0a10f2ef69",
+"spack_packages_path": "scripts/spack/packages",
 "spack_concretizer": "clingo",
 "vcpkg_url": "https://github.com/microsoft/vcpkg",
-"vcpkg_commit": "898b728edc5e0d12b50015f9cd18247c4257a3eb",
+"vcpkg_commit": "ce613c41372b23b1f51333815feb3edd87ef8a8b",
 "vcpkg_triplet": "x64-windows",
 "vcpkg_ports_path": "scripts/vcpkg_ports"
 }

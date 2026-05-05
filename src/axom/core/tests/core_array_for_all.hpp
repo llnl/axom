@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -51,10 +52,7 @@ public:
   using KernelArray = axom::Array<int, 1, exec_space_memory>;
   using KernelArrayView = axom::ArrayView<int, 1, exec_space_memory>;
 
-  static int getKernelAllocatorID()
-  {
-    return axom::detail::getAllocatorID<exec_space_memory>();
-  }
+  static int getKernelAllocatorID() { return axom::detail::getAllocatorID<exec_space_memory>(); }
 };
 
 // Generate a list of available execution types
@@ -86,8 +84,8 @@ using MyTypes = ::testing::Types<
 TYPED_TEST_SUITE(core_array_for_all, MyTypes);
 
 //------------------------------------------------------------------------------
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && \
-  defined(AXOM_USE_UMPIRE) && defined(AXOM_DEBUG)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE) && \
+  defined(AXOM_DEBUG)
 AXOM_CUDA_TEST(core_array_for_all, capture_test)
 {
   using ExecSpace = axom::CUDA_EXEC<256>;
@@ -130,9 +128,7 @@ AXOM_TYPED_TEST(core_array_for_all, explicit_ArrayView)
 
   // Modify array using lambda and ArrayView
   KernelArrayView arr_view(arr);
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
+  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -162,9 +158,7 @@ AXOM_TYPED_TEST(core_array_for_all, auto_ArrayView)
   // Modify array using lambda and ArrayView
   auto arr_view = arr.view();
   EXPECT_FALSE(arr_view.empty());
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
+  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -212,9 +206,7 @@ AXOM_TYPED_TEST(core_array_for_all, auto_ArrayView_const)
   auto arrData = arr.data();
   axom::for_all<ExecSpace>(
     N,
-    AXOM_LAMBDA(axom::IndexType idx) {
-      arrData[idx] = N - kernelSourceView[idx];
-    });
+    AXOM_LAMBDA(axom::IndexType idx) { arrData[idx] = N - kernelSourceView[idx]; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -239,9 +231,7 @@ AXOM_TYPED_TEST(core_array_for_all, auto_ArrayView_const)
 
   axom::for_all<ExecSpace>(
     N,
-    AXOM_LAMBDA(axom::IndexType idx) {
-      arrConstData[idx] = N - kernelSourceConstView[idx];
-    });
+    AXOM_LAMBDA(axom::IndexType idx) { arrConstData[idx] = N - kernelSourceConstView[idx]; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -288,9 +278,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array)
 
   // Modify array using lambda and ArrayView
   auto arr_view = arr.view();
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
+  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_view[idx] = N - idx; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -322,9 +310,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_insert)
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
+  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -388,9 +374,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_range_insert)
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
+  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -455,9 +439,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_range_set)
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
+  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx - 5 * idx + 7; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -495,7 +477,6 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_initializer_list)
 {
   using DynamicArray = typename TestFixture::DynamicArray;
   using HostArray = typename TestFixture::HostArray;
-  using ExecSpace = typename TestFixture::ExecSpace;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
 
@@ -548,9 +529,7 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_resize)
   auto arr_v = arr.view();
 
   // Set some elements
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx; });
+  axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType idx) { arr_v[idx] = idx; });
 
   // handles synchronization, if necessary
   if(axom::execution_space<ExecSpace>::async())
@@ -616,13 +595,10 @@ AXOM_TYPED_TEST(core_array_for_all, dynamic_array_resize)
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, dynamic_array_of_arrays)
 {
-  using ExecSpace = typename TestFixture::ExecSpace;
   using DynamicArray = typename TestFixture::DynamicArray;
   using HostArray = typename TestFixture::HostArray;
-  using ArrayOfArrays =
-    typename TestFixture::template DynamicTArray<DynamicArray>;
-  using HostArrayOfArrays =
-    typename TestFixture::template HostTArray<DynamicArray>;
+  using ArrayOfArrays = typename TestFixture::template DynamicTArray<DynamicArray>;
+  using HostArrayOfArrays = typename TestFixture::template HostTArray<DynamicArray>;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
 
@@ -705,10 +681,8 @@ struct NonTrivialDefaultCtor
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_default_ctor_obj)
 {
   using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray =
-    typename TestFixture::template DynamicTArray<NonTrivialDefaultCtor>;
-  using HostArray =
-    typename TestFixture::template HostTArray<NonTrivialDefaultCtor>;
+  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialDefaultCtor>;
+  using HostArray = typename TestFixture::template HostTArray<NonTrivialDefaultCtor>;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
@@ -776,8 +750,7 @@ struct NonTrivialCtor
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_ctor_obj)
 {
   using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray =
-    typename TestFixture::template DynamicTArray<NonTrivialCtor>;
+  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialCtor>;
   using HostArray = typename TestFixture::template HostTArray<NonTrivialCtor>;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
@@ -838,9 +811,7 @@ int NonTrivialDtor::dtor_calls {0};
 
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_dtor_obj)
 {
-  using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray =
-    typename TestFixture::template DynamicTArray<NonTrivialDtor>;
+  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialDtor>;
   using HostArray = typename TestFixture::template HostTArray<NonTrivialDtor>;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
@@ -919,8 +890,7 @@ struct NonTrivialCopyCtor
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_copy_ctor_obj)
 {
   using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray =
-    typename TestFixture::template DynamicTArray<NonTrivialCopyCtor>;
+  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialCopyCtor>;
   using IntArray = typename TestFixture::DynamicArray;
   using IntHostArray = typename TestFixture::HostArray;
 
@@ -1031,8 +1001,7 @@ AXOM_TYPED_TEST(core_array_for_all, nontrivial_copy_ctor_obj)
 AXOM_TYPED_TEST(core_array_for_all, nontrivial_emplace)
 {
   using ExecSpace = typename TestFixture::ExecSpace;
-  using DynamicArray =
-    typename TestFixture::template DynamicTArray<NonTrivialCopyCtor>;
+  using DynamicArray = typename TestFixture::template DynamicTArray<NonTrivialCopyCtor>;
   using IntArray = typename TestFixture::DynamicArray;
   using HostIntArray = typename TestFixture::HostArray;
 
@@ -1149,16 +1118,14 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
 {
   using ExecSpace = typename TestFixture::ExecSpace;
   using DynamicArray = typename TestFixture::template DynamicTArray<DeviceInsert>;
-  using DynamicArrayOfArrays =
-    typename TestFixture::template DynamicTArray<DynamicArray>;
+  using DynamicArrayOfArrays = typename TestFixture::template DynamicTArray<DynamicArray>;
 
   int kernelAllocID = TestFixture::getKernelAllocatorID();
   int umAllocID = kernelAllocID;
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
   // Use unified memory for frequent movement between device operations
   // and value checking on host
-  umAllocID = axom::getUmpireResourceAllocatorID(
-    umpire::resource::MemoryResourceType::Unified);
+  umAllocID = axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
 #endif
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
@@ -1174,21 +1141,20 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
   axom::for_all<ExecSpace>(
     N,
     AXOM_LAMBDA(axom::IndexType idx) {
-#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA) && \
-  !defined(AXOM_DEVICE_CODE)
+#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA) && !defined(AXOM_DEVICE_CODE)
       if(omp_in_parallel())
       {
   #pragma omp critical
         {
-          arr_v[0].emplace_back(3 * idx + 5);
+          arr_v[0].emplace_back_device(3 * idx + 5);
         }
       }
       else
       {
-        arr_v[0].emplace_back(3 * idx + 5);
+        arr_v[0].emplace_back_device(3 * idx + 5);
       }
 #else
-      arr_v[0].emplace_back(3 * idx + 5);
+      arr_v[0].emplace_back_device(3 * idx + 5);
 #endif
     });
 
@@ -1206,11 +1172,9 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
 
   // Device-side inserts may occur in any order.
   // Sort them before we check the inserted values.
-  std::sort(arr_host.begin(),
-            arr_host.end(),
-            [](const DeviceInsert& a, const DeviceInsert& b) -> bool {
-              return a.m_value < b.m_value;
-            });
+  std::sort(arr_host.begin(), arr_host.end(), [](const DeviceInsert& a, const DeviceInsert& b) -> bool {
+    return a.m_value < b.m_value;
+  });
 
   for(int i = 0; i < N; i++)
   {
@@ -1229,10 +1193,8 @@ AXOM_TYPED_TEST(core_array_for_all, device_insert)
 //------------------------------------------------------------------------------
 AXOM_TYPED_TEST(core_array_for_all, unified_mem_preference)
 {
-  using ExecSpace = typename TestFixture::ExecSpace;
   using KernelArray = typename TestFixture::KernelArray;
 
-  int kernelAllocID = TestFixture::getKernelAllocatorID();
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
   if(TestFixture::exec_space_memory != axom::MemorySpace::Unified &&
      TestFixture::exec_space_memory != axom::MemorySpace::Pinned)
@@ -1240,8 +1202,7 @@ AXOM_TYPED_TEST(core_array_for_all, unified_mem_preference)
     GTEST_SKIP() << "Skipping test for a memory space that isn't accessible "
                     "from both CPU and GPU.";
   }
-#elif defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && \
-  defined(AXOM_USE_UMPIRE)
+#elif defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
   if(TestFixture::exec_space_memory != axom::MemorySpace::Unified &&
      TestFixture::exec_space_memory != axom::MemorySpace::Pinned &&
      TestFixture::exec_space_memory != axom::MemorySpace::Device)

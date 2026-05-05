@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -126,9 +127,8 @@ inline T matrix_infty_norm(const Matrix<T>& A)
 template <typename T>
 inline T matrix_frobenious_norm(const Matrix<T>& A)
 {
-  AXOM_STATIC_ASSERT_MSG(
-    std::is_floating_point<T>::value,
-    "T is required to be a floating type for computing the frobenious norm");
+  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value,
+                         "T is required to be a floating type for computing the frobenious norm");
 
   const int numRows = A.getNumRows();
   const int numCols = A.getNumColumns();
@@ -147,7 +147,7 @@ inline T matrix_frobenious_norm(const Matrix<T>& A)
       const T abs_a_ij = utilities::abs(A(i, j));
       norm += abs_a_ij * abs_a_ij;
     }  // END for all columns
-  }    // END for all rows
+  }  // END for all rows
 
   norm = sqrt(norm);
   return norm;

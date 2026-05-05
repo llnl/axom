@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -9,10 +10,14 @@
 
 #include "gtest/gtest.h"
 
-namespace axom
-{
-namespace klee
-{
+namespace klee = axom::klee;
+
+using klee::Dimensions;
+using klee::Geometry;
+using klee::LengthUnit;
+using klee::Shape;
+using klee::TransformableGeometryProperties;
+
 namespace
 {
 Geometry createTestGeometry()
@@ -25,6 +30,7 @@ Geometry createTestGeometry()
                    "test path",
                    nullptr};
 }
+}  // namespace
 
 TEST(ShapeTest, replaces_no_lists_given)
 {
@@ -50,10 +56,6 @@ TEST(ShapeTest, replaces_non_replacement_list_given)
 
 TEST(ShapeTest, both_replacement_lists_given)
 {
-  EXPECT_THROW(
-    Shape("name", "material", {"replaced"}, {"not replaced"}, createTestGeometry()),
-    std::logic_error);
+  EXPECT_THROW(Shape("name", "material", {"replaced"}, {"not replaced"}, createTestGeometry()),
+               std::logic_error);
 }
-}  // namespace
-}  // namespace klee
-}  // namespace axom

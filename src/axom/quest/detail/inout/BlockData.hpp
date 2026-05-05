@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -60,13 +61,13 @@ public:
    */
   InOutBlockData() : m_idx(LEAF_BLOCK_UNCOLORED) { }
 
-  /** \brief Constructor from a given index */
+  /// \brief Constructor from a given index
   explicit InOutBlockData(int dataIdx) : m_idx(dataIdx) { }
 
-  /** \brief Copy constructor for an InOutBlockData instance */
+  /// \brief Copy constructor for an InOutBlockData instance
   InOutBlockData(const InOutBlockData& other) : m_idx(other.m_idx) { }
 
-  /** \brief Assignment operator for an InOutBlockData instance */
+  /// \brief Assignment operator for an InOutBlockData instance
   InOutBlockData& operator=(const InOutBlockData& other)
   {
     this->m_idx = other.m_idx;
@@ -81,17 +82,16 @@ public:  // API for a BlockData
    */
   bool isLeaf() const { return m_idx > INTERNAL_BLOCK; }
 
-  /** \brief Marks the associated block as internal */
+  /// \brief Marks the associated block as internal
   void setInternal() { m_idx = INTERNAL_BLOCK; }
 
-  /** \brief Marks the associated block as a non-block (i.e. not in the tree) */
+  /// \brief Marks the associated block as a non-block (i.e. not in the tree)
   void setNonBlock() { m_idx = NON_BLOCK; }
 
   /**
    * \brief Predicate to determine if the associated block is in the tree
    *
-   * \return True, if the block is in the tree (internal or leaf), False
-   * otherwise
+   * \return True, if the block is in the tree (internal or leaf), False otherwise
    */
   bool isBlock() const { return m_idx != NON_BLOCK; }
 
@@ -111,9 +111,7 @@ public:  // Other functions
    * */
   bool hasData() const { return m_idx >= 0; }
 
-  /**
-   * Returns the index of the data associated with the block
-   */
+  /// Returns the index of the data associated with the block
   const int& dataIndex() const
   {
     //SLIC_ASSERT(hasData());
@@ -134,24 +132,24 @@ public:  // Other functions
     m_idx = idx;
   }
 
-  /** Marks the block as Black (the entire domain is inside the surface) */
+  /// Marks the block as Black (the entire domain is inside the surface)
   void setBlack()
   {
     SLIC_ASSERT(isLeaf());
     m_idx = LEAF_BLOCK_BLACK;
   }
 
-  /** Marks the block as Black (the entire domain is outside the surface) */
+  /// Marks the block as Black (the entire domain is outside the surface)
   void setWhite()
   {
     SLIC_ASSERT(isLeaf());
     m_idx = LEAF_BLOCK_WHITE;
   }
 
-  /** Sets the data associated with the block to the given index idx */
+  /// Sets the data associated with the block to the given index idx
   void setData(int idx) { m_idx = idx; }
 
-  /** Marks the block as uncolored */
+  /// Marks the block as uncolored
   void setUncoloredLeaf()
   {
     SLIC_ASSERT(isLeaf());
@@ -187,13 +185,14 @@ public:  // Other functions
     return Undetermined;
   }
 
-  /** Predicate to determine if the associated block has a color
+  /** 
+   * \brief Predicate to determine if the associated block has a color
    * \return True if the block has a color, false otherwise
    * \sa color()
    */
   bool isColored() const { return color() != Undetermined; }
 
-  /** Friend function to compare equality of two InOutBlockData instances  */
+  /// Friend function to compare equality of two InOutBlockData instances
   friend bool operator==(const InOutBlockData& lhs, const InOutBlockData& rhs)
   {
     return lhs.m_idx == rhs.m_idx;
@@ -204,7 +203,7 @@ private:
 };
 
 /**
- * Free function to print an InOutBlockData to an output stream
+ * \brief Free function to print an InOutBlockData to an output stream
  * \param os The output stream to write to
  * \param iob The InOUtBlockData instance that we are writing
  */
@@ -274,9 +273,7 @@ public:
   using CellList = std::vector<CellIndex>;
 
 public:
-  /**
-   * \brief Default constructor for an InOutLeafData
-   */
+  /// \brief Default constructor for an InOutLeafData
   DynamicGrayBlockData() : m_vertIndex(NO_VERTEX), m_isLeaf(true) { }
 
   /**
@@ -285,31 +282,22 @@ public:
    * \param vInd The index of a vertex
    * (optional; default is to not set a vertex)
    */
-  DynamicGrayBlockData(VertexIndex vInd, bool isLeaf)
-    : m_vertIndex(vInd)
-    , m_isLeaf(isLeaf)
-  { }
+  DynamicGrayBlockData(VertexIndex vInd, bool isLeaf) : m_vertIndex(vInd), m_isLeaf(isLeaf) { }
 
-  /**
-   * \brief Copy constructor for an DynamicGrayBlockData instance
-   */
+  /// \brief Copy constructor for an DynamicGrayBlockData instance
   DynamicGrayBlockData(const DynamicGrayBlockData& other)
     : m_vertIndex(other.m_vertIndex)
     , m_cells(other.m_cells)
     , m_isLeaf(other.m_isLeaf)
   { }
 
-  /**
-   * \brief Assignment operator for an InOutLeafData instance
-   */
+  /// \brief Assignment operator for an InOutLeafData instance
   DynamicGrayBlockData& operator=(const DynamicGrayBlockData& other)
   {
     this->m_vertIndex = other.m_vertIndex;
 
     this->m_cells.reserve(other.m_cells.size());
-    std::copy(other.m_cells.begin(),
-              other.m_cells.end(),
-              std::back_inserter(this->m_cells));
+    std::copy(other.m_cells.begin(), other.m_cells.end(), std::back_inserter(this->m_cells));
 
     this->m_isLeaf = other.m_isLeaf;
 
@@ -331,61 +319,56 @@ public:
    * \brief Equality operator to determine if two
    * DynamicGrayBlockData instances are equivalent
    */
-  friend bool operator==(const DynamicGrayBlockData& lhs,
-                         const DynamicGrayBlockData& rhs)
+  friend bool operator==(const DynamicGrayBlockData& lhs, const DynamicGrayBlockData& rhs)
   {
     // Note: We are not checking the contents of the cells array, only the size
-    return (lhs.m_vertIndex == rhs.m_vertIndex) &&
-      (lhs.m_cells.size() == rhs.m_cells.size()) && lhs.m_isLeaf == rhs.m_isLeaf;
+    return (lhs.m_vertIndex == rhs.m_vertIndex) && (lhs.m_cells.size() == rhs.m_cells.size()) &&
+      lhs.m_isLeaf == rhs.m_isLeaf;
   }
 
 public:  // Functions related to whether this is a leaf
-  /** Predicate to determine if the associated block is a leaf in the octree */
+  /// Predicate to determine if the associated block is a leaf in the octree
   bool isLeaf() const { return m_isLeaf; }
 
-  /** Sets a flag to determine whether the associated block is a leaf or internal */
+  /// Sets a flag to determine whether the associated block is a leaf or internal
   void setLeafFlag(bool isLeaf) { m_isLeaf = isLeaf; }
 
 public:  // Functions related to the associated vertex
-  /**
-   * \brief Checks whether there is a vertex associated with this leaf
-   */
+  /// \brief Checks whether there is a vertex associated with this leaf
   bool hasVertex() const { return m_vertIndex >= 0; }
 
-  /** Sets the vertex associated with this leaf */
+  /// Sets the vertex associated with this leaf
   void setVertex(VertexIndex vInd) { m_vertIndex = vInd; }
 
-  /** Clears the associated vertex index */
+  /// Clears the associated vertex index
   void clearVertex() { m_vertIndex = NO_VERTEX; }
 
-  /** Accessor for the index of the vertex associated with this leaf */
+  /// Accessor for the index of the vertex associated with this leaf
   VertexIndex& vertexIndex() { return m_vertIndex; }
 
-  /** Constant accessor for the index of the vertex associated with this leaf */
+  /// Constant accessor for the index of the vertex associated with this leaf
   const VertexIndex& vertexIndex() const { return m_vertIndex; }
 
 public:  // Functions related to the associated triangles
-  /** Check whether this Leaf has any associated triangles */
+  /// Check whether this Leaf has any associated triangles
   bool hasCells() const { return !m_cells.empty(); }
 
   /**
-   * Reserves space for a given number of triangles
+   * \brief Reserves space for a given number of triangles
    * \param count The number of triangles for which to reserve space
    */
   void reserveCells(int count) { m_cells.reserve(count); }
 
-  /** Find the number of triangles associated with this leaf */
+  /// Find the number of triangles associated with this leaf
   int numCells() const { return static_cast<int>(m_cells.size()); }
 
-  /** Associates the surface triangle with the given index with this block */
+  /// Associates the surface triangle with the given index with this block
   void addCell(CellIndex tInd) { m_cells.push_back(tInd); }
 
-  /** Returns a const reference to the list of triangle indexes associated with
-     the block */
+  /// Returns a const reference to the list of triangle indexes associated with the block
   const CellList& cells() const { return m_cells; }
 
-  /** Returns a reference to the list of triangle indexes associated with the
-     block */
+  /// Returns a reference to the list of triangle indexes associated with the block
   CellList& cells() { return m_cells; }
 
 private:
@@ -394,11 +377,8 @@ private:
   bool m_isLeaf;
 };
 
-/**
- * Free function to print a DynamicGrayBlockData instance to an output stream
- */
-inline std::ostream& operator<<(std::ostream& os,
-                                const DynamicGrayBlockData& bData)
+/// Free function to print a DynamicGrayBlockData instance to an output stream
+inline std::ostream& operator<<(std::ostream& os, const DynamicGrayBlockData& bData)
 {
   os << "DynamicGrayBlockData{";
 

@@ -65,11 +65,37 @@ different paths would be specified.
 
 Changing Dimensions on a Per-Shape Basis
 ****************************************
-Sometimes it is useful to bring in a geometry file in a different
-dimensionality than the one you are working in. For example, you may be
-working in 2D, but may want to bring in a 3D file and then slice it
-(slices are described below). To do this, you need to specify the
+Some problem setups can require operating on shapes of different dimensions.
+
+In addition to the global :code:`dimensions` field, Klee provides a per-shape override 
+mechanism for the dimension of a shape via the :code:`geometry/dimensions` field
+
+.. code-block:: yaml
+
+    dimensions: 2
+
+    shapes:
+      - name: wheel
+        material: steel
+        geometry:
+          format: stl
+          path: wheel.stl
+          dimensions: 3
+          units: cm
+
+In the above snippet, the overall dimension of the problem is `2`, but the `wheel`
+shape is 3-dimensional.
+In such cases, the user code is responsible for conversions between
+the shape dimension (e.g. the dimension in the specified file format) and the problem dimension
+(i.e. the dimension of the computational mesh).
+
+Alternatively, some :code:`operators` (described below), can handle the conversion 
+from the shape's dimension and the problem dimension.
+For example, the input to the :code:`slice`` operator is a three-dimensional shape
+and the output is a two-dimensional shape. This is specified via the 
 :code:`start_dimensions` field on the :code:`geometry` of a :code:`shape`.
+After the `operators` have been applied, the (end) dimension of the shape
+will match that of the (global or per-shape) `dimensions`.
 
 .. code-block:: yaml
 
@@ -86,6 +112,7 @@ working in 2D, but may want to bring in a 3D file and then slice it
           operators:
             - slice:
                 x: 10
+
 
 Overlay Rules
 -------------
@@ -241,11 +268,18 @@ Operators may also have additional required or optional parameters.
   :name: :code:`scale`
   :value: a vector specifying the amount by which to scale in each dimension,
     or a single value specifying by which to scale in all dimensions
+  :optional arguments:
+    :center: a point specifying the center relative to which to scale.
+      If omitted, scaling is performed relative to the origin.
   :example:
     ::
 
         # Scale by 2x in the x direction 0.5x in y, and 1.5x in z
         scale: [2.0, 0.5, 1.5]
+
+        # Scale by 2x in every direction relative to the point (1, 2, 3)
+        scale: 2.0
+        center: [1, 2, 3]
 
 * Changing Units
 

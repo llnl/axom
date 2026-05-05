@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -51,7 +52,7 @@ public:
    *  Lumberjack to differentiate between other combiners.
    *****************************************************************************
    */
-  const std::string id() { return m_id; }
+  const std::string id() override { return m_id; }
 
   /*!
    *****************************************************************************
@@ -65,8 +66,7 @@ public:
    * \param [in] rightMessage One of the Messages to be compared.
    *****************************************************************************
    */
-  bool shouldMessagesBeCombined(const Message& leftMessage,
-                                const Message& rightMessage)
+  bool shouldMessagesBeCombined(const Message& leftMessage, const Message& rightMessage) override
   {
     return (leftMessage.text().compare(rightMessage.text()) == 0);
   }
@@ -75,8 +75,10 @@ public:
    *****************************************************************************
    * \brief Combines the combinee into the combined Message.
    *
-   * The only thing truly combined in this Combiner is the ranks from combinee
-   * to combined, since text is already equal.
+   * The only things truly combined in this Combiner are the ranks from combinee
+   * to combined and the creation time, since text is already equal.
+   * The creation time of the first message (lowest creation time) will be saved
+   * to the combined message.
    *
    * \param [in,out] combined the Message that will be modified.
    * \param [in] combinee the Message that is combined into the other.
@@ -86,9 +88,13 @@ public:
    * \pre shouldMessagesBeCombined(combined, combinee) must be true
    *****************************************************************************
    */
-  void combine(Message& combined, const Message& combinee, const int ranksLimit)
+  void combine(Message& combined, const Message& combinee, const int ranksLimit) override
   {
     combined.addRanks(combinee.ranks(), combinee.count(), ranksLimit);
+    if(combinee.creationTime() < combined.creationTime())
+    {
+      combined.creationTime(combinee.creationTime());
+    }
   }
 
 private:

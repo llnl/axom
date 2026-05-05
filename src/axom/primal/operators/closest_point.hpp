@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -260,8 +261,7 @@ AXOM_HOST_DEVICE inline Point<T, NDIMS> closest_point(const Point<T, NDIMS>& P,
   //----------------------------------------------------------------------------
   // Check if P in edge region of BC
   T va = d3 * d6 - d5 * d4;
-  if(isLeq(va, T(0), EPS) && isGeq(d4 - d3, T(0), EPS) &&
-     isGeq(d5 - d6, T(0), EPS))
+  if(isLeq(va, T(0), EPS) && isGeq(d4 - d3, T(0), EPS) && isGeq(d5 - d6, T(0), EPS))
   {
     const T w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
     const VectorType bc(B, C);

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -240,9 +241,9 @@ private:
 
   void verifyValue()
   {
-    SLIC_ASSERT_MSG(m_val >= 0 && m_val < modulus(),
-                    "ModularInt: Value must be between 0 and "
-                      << modulus() << " but value was " << m_val << ".");
+    SLIC_ASSERT_MSG(
+      m_val >= 0 && m_val < modulus(),
+      "ModularInt: Value must be between 0 and " << modulus() << " but value was " << m_val << ".");
   }
 
 private:

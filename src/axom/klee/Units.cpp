@@ -1,11 +1,12 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/klee/Units.hpp"
-
 #include "axom/inlet/Proxy.hpp"
+
+#include "axom/klee/Units.hpp"
 #include "axom/klee/KleeError.hpp"
 
 #include <stdexcept>
@@ -24,15 +25,11 @@ namespace
  */
 struct LengthUnitHash
 {
-  std::size_t operator()(LengthUnit unit) const
-  {
-    return static_cast<std::size_t>(unit);
-  }
+  std::size_t operator()(LengthUnit unit) const { return static_cast<std::size_t>(unit); }
 };
 }  // namespace
 
-LengthUnit parseLengthUnits(const std::string &unitsAsString,
-                            const std::string &path)
+LengthUnit parseLengthUnits(const std::string &unitsAsString, const std::string &path)
 {
   static const std::unordered_map<std::string, LengthUnit> UNITS_BY_NAME {
     {"km", LengthUnit::km},
@@ -83,8 +80,7 @@ double getConversionFactor(LengthUnit sourceUnits, LengthUnit targetUnits)
     {LengthUnit::inches, 2.54},
     {LengthUnit::mils, 2.54e-3}};
 
-  if(sourceUnits == LengthUnit::unspecified ||
-     targetUnits == LengthUnit::unspecified)
+  if(sourceUnits == LengthUnit::unspecified || targetUnits == LengthUnit::unspecified)
   {
     throw std::invalid_argument("Cannot convert with unspecified units");
   }

@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -16,13 +17,13 @@
       when: never
     - when: on_success
   before_script:
-    - module load cmake/3.21.1
+    - module load cmake/3.29.2
 
 ####
 # Template
 .src_build_on_tioga:
   variables:
-    ALLOC_TIME: "30"
+    ALLOC_TIME: "60"
   extends: [.src_build_script, .on_tioga, .src_workflow]
   needs: []
 
@@ -34,17 +35,17 @@
 
 ####
 # PR Build jobs
-tioga-clang_16_0_0_hip_5_6_0-src:
+tioga-llvm-amdgpu_6_3_1_hip-src:
   variables:
-    COMPILER: "clang@16.0.0_hip"
+    COMPILER: "llvm-amdgpu@6.3.1_hip"
     HOST_CONFIG: "tioga-toss_4_x86_64_ib_cray-${COMPILER}.cmake"
   extends: .src_build_on_tioga
 
 ####
 # Full Build jobs
-tioga-clang_16_0_0_hip_5_6_0-full:
+tioga-llvm-amdgpu_6_3_1_hip-full:
   variables:
-    COMPILER: "clang@16.0.0_hip"
+    COMPILER: "llvm-amdgpu@6.3.1_hip"
     SPEC: "%${COMPILER}~openmp+rocm+mfem+c2c"
-    EXTRASPEC: "amdgpu_target=gfx90a ^hip@5.6.0 ^hsa-rocr-dev@5.6.0 ^llvm-amdgpu@5.6.0 ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion"
+    EXTRASPEC: "amdgpu_target=gfx90a ^hip@6.3.1 ^hsa-rocr-dev@6.3.1 ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion"
   extends: .full_build_on_tioga

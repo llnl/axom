@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -109,13 +110,20 @@ inline AXOM_HOST_DEVICE void swap(T& a, T& b)
   b = tmp;
 }
 
-/*! 
- * \brief returns the linear interpolation of \a A and \a B at \a t. i.e. (1-t)A+tB
+/*!
+ * \brief Returns the fused-multiply-add of a, b, and c
+ * \accelerated
+ * \param [in] a,b,c the values
+ * \return a*b+c computed using an fma operation
  */
 template <typename T>
-inline AXOM_HOST_DEVICE T lerp(T A, T B, T t)
+inline AXOM_HOST_DEVICE T fma(const T& a, const T& b, const T& c)
 {
-  return (1 - t) * A + t * B;
+#if defined(AXOM_DEVICE_CODE)
+  return ::fma(a, b, c);
+#else
+  return std::fma(a, b, c);
+#endif
 }
 
 /*!
@@ -126,6 +134,20 @@ template <typename T>
 inline T log2(T val)
 {
   return static_cast<T>(std::log2(val));
+}
+
+/*!
+ * \brief Linearly interpolates between two values
+ * \param [in] val0 The first value
+ * \param [in] val2 The second value
+ * \param [in] t The interpolation parameter.
+ * \return The interpolated value
+ */
+template <typename T>
+inline AXOM_HOST_DEVICE T lerp(T v0, T v1, T t)
+{
+  constexpr T one = T(1);
+  return (one - t) * v0 + t * v1;
 }
 
 /*!
@@ -170,6 +192,26 @@ template <typename T>
 inline AXOM_HOST_DEVICE T clampLower(T val, T lower)
 {
   return val < lower ? lower : val;
+}
+
+/*!
+ * \brief Determine whether a value is in [0,upper).
+ * \param value The value to check in the range.
+ * \param upper The upper value for the range (non-inclusive).
+ * \return True if value is in [0,upper); False otherwise.
+ * \note For unsigned types value must be >= 0 so we do not compare against 0.
+ */
+template <typename T>
+inline constexpr AXOM_HOST_DEVICE bool inBounds_0_N(T value, T upper)
+{
+  if constexpr(std::is_integral_v<T> && !std::is_signed_v<T>)
+  {
+    return value < upper;
+  }
+  else
+  {
+    return value >= 0 && value < upper;
+  }
 }
 
 /*!
@@ -277,9 +319,8 @@ constexpr T byteswap(T val) noexcept
 {
   constexpr int NBYTES = sizeof(T);
 
-  AXOM_STATIC_ASSERT_MSG(
-    NBYTES == 1 || NBYTES == 2 || NBYTES == 4 || NBYTES == 8,
-    "byteswap only valid for types of size 1, 2, 4 or 8 bytes.");
+  AXOM_STATIC_ASSERT_MSG(NBYTES == 1 || NBYTES == 2 || NBYTES == 4 || NBYTES == 8,
+                         "byteswap only valid for types of size 1, 2, 4 or 8 bytes.");
 
   AXOM_STATIC_ASSERT_MSG(std::is_arithmetic<T>::value,
                          "byteswap only valid for native arithmetic types");
@@ -311,9 +352,7 @@ constexpr T byteswap(T val) noexcept
  *  false otherwise.
  */
 template <typename RealType>
-inline AXOM_HOST_DEVICE bool isNearlyEqual(RealType a,
-                                           RealType b,
-                                           RealType thresh = 1.0e-8)
+inline AXOM_HOST_DEVICE bool isNearlyEqual(RealType a, RealType b, RealType thresh = 1.0e-8)
 {
   return abs(a - b) <= thresh;
 }
@@ -347,6 +386,18 @@ inline AXOM_HOST_DEVICE bool isNearlyEqualRelative(RealType a,
 }
 
 /*!
+ * \brief Sign of a value of any type that supports comparison and
+ * negation operators.
+ * \return 0 for v in [-eps, eps], -1 for v < eps and +1 for v > eps
+ */
+template <typename T>
+inline int sign_of(const T& v, const T& eps = {0})
+{
+  assert(eps >= 0);
+  return v > eps ? 1 : v < -eps ? -1 : 0;
+}
+
+/*!
  * \brief Insertion sort of an array.
  * \accelerated
  * \param [in] array The array to sort.
@@ -356,9 +407,7 @@ inline AXOM_HOST_DEVICE bool isNearlyEqualRelative(RealType a,
  */
 AXOM_SUPPRESS_HD_WARN
 template <typename DataType, typename Predicate = std::less<DataType>>
-inline AXOM_HOST_DEVICE void insertionSort(DataType* array,
-                                           IndexType n,
-                                           Predicate cmp = {})
+inline AXOM_HOST_DEVICE void insertionSort(DataType* array, IndexType n, Predicate cmp = {})
 {
   for(int i = 1; i < n; i++)
   {
@@ -410,6 +459,97 @@ public:
     return false;
   }
 };
+
+//------------------------------------------------------------------------------
+/*!
+ * \brief Use binary search to find the index of the \a value in the supplied
+ *        sorted container.
+ *
+ * \tparam ContainerT A container or view of T. It must support size(), operator[].
+ * \tparam T The type of elements we're handling.
+ *
+ * \param[in] cont A view or container that contains the sorted search data values.
+ * \param[in] value The search value.
+ *
+ * \return The index where value was located in view or -1 if not found. If the
+ *         container contained repeats of \a value, the first index is returned.
+ */
+template <typename ContainerT, typename T>
+AXOM_HOST_DEVICE std::int32_t binary_search(const ContainerT& cont, T value)
+{
+  std::int32_t index = -1;
+  std::int32_t left = 0;
+  std::int32_t right = cont.size() - 1;
+  while(left <= right)
+  {
+    std::int32_t m = (left + right) / 2;
+    if(cont[m] < value)
+      left = m + 1;
+    else if(cont[m] > value)
+      right = m - 1;
+    else
+    {
+      index = m;
+      // Keep searching to the left to find the first value.
+      right = m - 1;
+    }
+  }
+
+  return index;
+}
+
+//------------------------------------------------------------------------------
+/*!
+ * \brief Hash a stream of bytes into a uint64_t hash value.
+ *
+ * \param[in] data The bytes to be hashed.
+ * \param[in] length The number of bytes to be hashed.
+ *
+ * \return A uint64_t hash for the byte stream.
+ *
+ * \note The byte stream is hashed using a Jenkins-hash algorithm forwards and
+ *       backwards and the two results are merged into a uint64_t. The length is
+ *       also part of the hash to guard against a lot of repeated values in the
+ *       byte stream hashing to the same thing.
+ *
+ * \note We make this function inline since it is not a template and we want to
+ *       use it in both host and device code.
+ */
+AXOM_HOST_DEVICE
+inline std::uint64_t hash_bytes(const std::uint8_t* data, std::uint32_t length)
+{
+  std::uint32_t hash = 0;
+
+  // Build the length into the hash.
+  const auto ldata = reinterpret_cast<const std::uint8_t*>(&length);
+  for(int e = 0; e < 4; e++)
+  {
+    hash += ldata[e];
+    hash += hash << 10;
+    hash ^= hash >> 6;
+  }
+
+  std::uint32_t hashr = hash;
+  for(std::uint32_t i = 0; i < length; i++)
+  {
+    hash += data[i];
+    hash += hash << 10;
+    hash ^= hash >> 6;
+
+    hashr += data[length - 1 - i];
+    hashr += hashr << 10;
+    hashr ^= hashr >> 6;
+  }
+  hash += hash << 3;
+  hash ^= hash >> 11;
+  hash += hash << 15;
+
+  hashr += hashr << 3;
+  hashr ^= hashr >> 11;
+  hashr += hashr << 15;
+
+  return (static_cast<std::uint64_t>(hash) << 32) | hashr;
+}
 
 }  // namespace utilities
 }  // namespace axom

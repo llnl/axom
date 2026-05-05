@@ -3,13 +3,17 @@
 #
 copyright:
   -
-  - Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-  - other Axom Project Developers. See the top-level LICENSE file for details.
+  - Copyright (c) Lawrence Livermore National Security, LLC and other
+  - Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+  - files for dates and other details.
   -
   - "SPDX-License-Identifier: (BSD-3-Clause)"
 
 library: Sidre
 # cxx_header: each class has its own header file
+# Header needed for nameIsValid
+cxx_header: axom/sidre/core/SidreTypes.hpp
+
 namespace: axom sidre
 
 options:
@@ -25,7 +29,6 @@ format:
   # Any C++ function which returns a string will be wrapped in
   # Fortran as a subroutine with an additional character argument
   # for the result.
-#  F_string_result_as_arg: name
   F_filename_suffix: F
 
 typemap:
@@ -44,7 +47,7 @@ declarations:
     f_type: integer(SIDRE_IndexType)
     f_kind: SIDRE_IndexType
     f_module_name: axom_sidre
-    f_c_module:
+    i_module:
       "--import--":
       -  SIDRE_IndexType
   splicer:
@@ -70,7 +73,7 @@ declarations:
     f_type: integer(TypeID)
     f_kind: TypeID
     f_module_name: axom_sidre
-    f_c_module:
+    i_module:
       "--import--":
       -  TypeID
 
@@ -90,7 +93,7 @@ declarations:
     f_type: integer(TypeIDint)
     f_kind: TypeIDint
     f_module_name: axom_sidre
-    f_c_module:
+    i_module:
       "--import--":
       -  TypeIDint
 
@@ -223,13 +226,13 @@ declarations:
     PY_error_pattern: PY_invalid_name_idx
 
   # View access and iteration methods.
-  - decl: View *getView( const std::string& path )
+  - decl: View *getView( const std::string& path ) +constfunc
     format:
       function_suffix: _from_name
     C_error_pattern: C_null_to_error_capsule
     PY_error_pattern: PY_null_to_none
 #  - decl: View const * getView( const std::string& path ) const
-  - decl: View *getView( const IndexType idx )
+  - decl: View *getView( const IndexType idx ) +constfunc
     format:
       function_suffix: _from_index
     fortran_generic:
@@ -375,6 +378,8 @@ declarations:
 
 #  - decl: View *createViewAndAllocate( const std::string& path, const DataType& dtype)
 
+  # Shroud 0.14 does not support default arguments on templated functions. 
+  # Use explicit overloads for the optional allocID parameter instead
   - decl: |
       template<typename ScalarType>
       View *createViewScalar( const std::string& path, ScalarType value)
@@ -386,8 +391,25 @@ declarations:
     C_error_pattern: C_null_to_error_capsule
     PY_error_pattern: PY_null_to_none
 
+  - decl: |
+      template<typename ScalarType>
+      View *createViewScalar( const std::string& path, ScalarType value, int allocID)
+    cxx_template:
+    - instantiation: <int>
+    - instantiation: <long>
+    - instantiation: <float>
+    - instantiation: <double>
+    format:
+      function_suffix: _path_value_allocID
+    C_error_pattern: C_null_to_error_capsule
+    PY_error_pattern: PY_null_to_none
+
   - decl: View *createViewString( const std::string& path,
-                                  const std::string& value)
+                                  const std::string& value,
+                                  int allocID = INVALID_ALLOCATOR_ID)
+    default_arg_suffix:
+    - _path_value
+    - _path_value_allocID
     C_error_pattern: C_null_to_error_capsule
     PY_error_pattern: PY_null_to_none
 
@@ -437,7 +459,7 @@ declarations:
     PY_error_pattern: PY_invalid_name_idx
 
   # Group access and iteration methods.
-  - decl: Group * getGroup( const std::string& path )
+  - decl: Group * getGroup( const std::string& path ) +constfunc
     format:
       function_suffix: _from_name
     C_error_pattern: C_null_to_error_capsule
@@ -582,7 +604,7 @@ declarations:
   - decl: Buffer* getBuffer()
 #  - decl: Buffer const* getBuffer() const
   - decl: bool isExternal() const
-  - decl: bool isAllocated()
+  - decl: bool isAllocated() const
   - decl: bool isApplied() const
   - decl: bool isDescribed() const
   - decl: bool isEmpty() const
@@ -726,9 +748,7 @@ declarations:
       function_suffix: _shape
 
   # Methods to retrieve data in a view.
-  - decl: const char * getString() +len(MAXNAMESIZE)
-    format:
-      F_string_result_as_arg: name
+  - decl: const char * getString() +len(MAXNAMESIZE)+funcarg(name)+deref(copy)
 
   - decl: |
       template<typename DataType>
@@ -762,6 +782,10 @@ declarations:
     f:
     - 'SHT_rv = name .ne. " "'
 
+- decl: int getInvalidAllocatorID()
+
+- decl: int getMallocAllocatorID()
+
 
 ######################################################################
 patterns:
@@ -780,6 +804,7 @@ patterns:
         if ({cxx_var} == nullptr) {{
             {c_var}->addr = NULL;
             {c_var}->idtor = 0; 
+            {c_var}->cmemflags = 0; 
             return NULL;
         }}
     PY_invalid_name: |

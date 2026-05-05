@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -72,8 +73,7 @@ struct VirtualParentSubset
 
   using ParentSetType = Set<>;
 
-  VirtualParentSubset(ParentSetType* parSet = &s_nullSet) : m_parentSet(parSet)
-  { }
+  VirtualParentSubset(ParentSetType* parSet = &s_nullSet) : m_parentSet(parSet) { }
 
   /**
    * \brief Checks whether the set containing this policy class is a subset
@@ -103,10 +103,9 @@ struct VirtualParentSubset
     {
       bool bValid = (m_parentSet->size() > 0);
       AXOM_UNUSED_VAR(bValid);
-      SLIC_CHECK_MSG(
-        bValid,
-        "VirtualParentSubset -- if we are a subset and input set is "
-          << "non-empty then parent set must be non-empty");
+      SLIC_CHECK_MSG(bValid,
+                     "VirtualParentSubset -- if we are a subset and input set is "
+                       << "non-empty then parent set must be non-empty");
     }
 
     // At this point, parent and child are both non-null
@@ -123,10 +122,9 @@ struct VirtualParentSubset
       {
         // For now, we only warn about the first failure '
         // Note: in the future, we might want to show all problems.
-        SLIC_CHECK_MSG(
-          verboseOutput,
-          "VirtualParentSubset :: parent set does not contain element "
-            << *beg << " so child cannot be a subset of parent");
+        SLIC_CHECK_MSG(verboseOutput,
+                       "VirtualParentSubset :: parent set does not contain element "
+                         << *beg << " so child cannot be a subset of parent");
         return false;
       }
     }
@@ -142,8 +140,7 @@ struct ConcreteParentSubset
 {
   using ParentSetType = const TheParentSetType;
 
-  ConcreteParentSubset(ParentSetType* parSet = nullptr)
-    : m_parentSet(parSet) { }
+  ConcreteParentSubset(ParentSetType* parSet = nullptr) : m_parentSet(parSet) { }
 
   /**
    * \brief Checks whether the set containing this policy class is a subset
@@ -174,9 +171,9 @@ struct ConcreteParentSubset
     {
       bool bValid = (m_parentSet->size() > 0);
       AXOM_UNUSED_VAR(bValid);
-      SLIC_CHECK_MSG(bValid,
-                     "VirtualParentSubset -- if input set is non-empty "
-                       << " parent set must be non-empty");
+      SLIC_CHECK_MSG(
+        bValid,
+        "VirtualParentSubset -- if input set is non-empty " << " parent set must be non-empty");
     }
 
     // At this point, parent and child are both non-null
@@ -191,10 +188,9 @@ struct ConcreteParentSubset
       {
         // For now, we only warn about the first failure '
         // Note: in the future, we might want to show all problems.
-        SLIC_CHECK_MSG(
-          verboseOutput,
-          "ConcreteParentSubset :: parent set does not contain element "
-            << *beg << " so child cannot be a subset of parent");
+        SLIC_CHECK_MSG(verboseOutput,
+                       "ConcreteParentSubset :: parent set does not contain element "
+                         << *beg << " so child cannot be a subset of parent");
         return false;
       }
     }

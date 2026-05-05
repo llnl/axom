@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -7,12 +8,12 @@
 #include "axom/config.hpp"
 #include "axom/core/Types.hpp"
 #include "axom/core/Macros.hpp"
+#include "axom/core/NumericLimits.hpp"
 
 // gtest includes
 #include "gtest/gtest.h"
 
 // C/C++ includes
-#include <limits>       // for std::numeric_limits
 #include <type_traits>  // for std::is_same, std::is_integral, etc.
 
 #ifndef AXOM_USE_MPI
@@ -58,11 +59,10 @@ void check_mpi_type(std::size_t expected_num_bytes, MPI_Datatype expected_mpi_ty
 
 //------------------------------------------------------------------------------
 template <typename RealType>
-void check_real_type(std::size_t expected_num_bytes,
-                     MPI_Datatype expected_mpi_type)
+void check_real_type(std::size_t expected_num_bytes, MPI_Datatype expected_mpi_type)
 {
   EXPECT_TRUE(std::is_floating_point<RealType>::value);
-  EXPECT_TRUE(std::numeric_limits<RealType>::is_signed);
+  EXPECT_TRUE(axom::numeric_limits<RealType>::is_signed);
   EXPECT_EQ(sizeof(RealType), expected_num_bytes);
 
   check_mpi_type<RealType>(expected_num_bytes, expected_mpi_type);
@@ -75,9 +75,9 @@ void check_integral_type(std::size_t expected_num_bytes,
                          int expected_num_digits,
                          MPI_Datatype expected_mpi_type)
 {
-  EXPECT_TRUE(std::numeric_limits<IntegralType>::is_integer);
-  EXPECT_EQ(std::numeric_limits<IntegralType>::is_signed, is_signed);
-  EXPECT_EQ(std::numeric_limits<IntegralType>::digits, expected_num_digits);
+  EXPECT_TRUE(axom::numeric_limits<IntegralType>::is_integer);
+  EXPECT_EQ(axom::numeric_limits<IntegralType>::is_signed, is_signed);
+  EXPECT_EQ(axom::numeric_limits<IntegralType>::digits, expected_num_digits);
   EXPECT_EQ(sizeof(IntegralType), expected_num_bytes);
 
   check_mpi_type<IntegralType>(expected_num_bytes, expected_mpi_type);
@@ -196,10 +196,7 @@ TEST(core_types, check_indextype)
 
   constexpr std::size_t EXP_BYTES = 8;
   constexpr int NUM_DIGITS = 63;
-  check_integral_type<axom::IndexType>(EXP_BYTES,
-                                       IS_SIGNED,
-                                       NUM_DIGITS,
-                                       MPI_INT64_T);
+  check_integral_type<axom::IndexType>(EXP_BYTES, IS_SIGNED, NUM_DIGITS, MPI_INT64_T);
 #else
 
   constexpr bool is_int32 = std::is_same<axom::IndexType, std::int32_t>::value;
@@ -207,10 +204,7 @@ TEST(core_types, check_indextype)
 
   constexpr std::size_t EXP_BYTES = 4;
   constexpr int NUM_DIGITS = 31;
-  check_integral_type<axom::IndexType>(EXP_BYTES,
-                                       IS_SIGNED,
-                                       NUM_DIGITS,
-                                       MPI_INT32_T);
+  check_integral_type<axom::IndexType>(EXP_BYTES, IS_SIGNED, NUM_DIGITS, MPI_INT32_T);
 
 #endif
 }

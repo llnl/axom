@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -11,8 +12,7 @@
 
 TEST(spin_spatial_octree, spatial_octree_point_location)
 {
-  SLIC_INFO("*** This test verifies that a query point falls into "
-            << " a child block.");
+  SLIC_INFO("*** This test verifies that a query point falls into " << " a child block.");
 
   static const int DIM = 3;
   using LeafNodeType = axom::spin::BlockData;
@@ -41,10 +41,9 @@ TEST(spin_spatial_octree, spatial_octree_point_location)
   EXPECT_TRUE(leafBB.contains(queryPt));
   EXPECT_TRUE(bb.contains(leafBB));
 
-  SLIC_INFO("Query pt: " << queryPt << "\n\t"
-                         << (leafBB.contains(queryPt) ? " was" : " was NOT")
-                         << " contained in bounding box " << leafBB
-                         << "\n\t of octree root " << leafBlock);
+  SLIC_INFO("Query pt: " << queryPt << "\n\t" << (leafBB.contains(queryPt) ? " was" : " was NOT")
+                         << " contained in bounding box " << leafBB << "\n\t of octree root "
+                         << leafBlock);
 
   for(int i = 0; i < octree.maxInternalLevel(); ++i)
   {
@@ -61,8 +60,8 @@ TEST(spin_spatial_octree, spatial_octree_point_location)
 
     SLIC_INFO("Level " << i << " -- Query pt: " << queryPt << "\n\t"
                        << (leafBB.contains(queryPt) ? " was" : " was not")
-                       << " contained in bounding box " << leafBB
-                       << "\n\t of leaf " << leafBlock << " in the octree. ");
+                       << " contained in bounding box " << leafBB << "\n\t of leaf " << leafBlock
+                       << " in the octree. ");
   }
 }
 

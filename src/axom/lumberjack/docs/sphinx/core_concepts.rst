@@ -21,7 +21,7 @@ Combiners and register them with Lumberjack.  The idea is that each Combiner wou
 its own criteria for whether a Message should be combined and how to combine that specific
 Message with another of the same type.
 
-Combiner's have two main functions, shouldMessagesBeCombined and combine.
+Combiners have three main functions: shouldMessagesBeCombined, combine, and optionally isMessageCandidateForCombiner.
 
 The function shouldMessagesBeCombined, returns True if the pair of messages satisfy the associated criteria.  For example in the TextTagCombiner,
 if the Text strings and tag strings are exactly equal, it signals they should be combined.
@@ -32,6 +32,11 @@ that happens is the second Message's ranks gets added to the first and the messa
 is increased.  This is because the text strings were equal.  This may not be the case
 for all Combiners that you write yourself.
 
+The optional function isMessageCandidateForCombiner is used by Lumberjack as a pre-filter
+to determine whether a single Message should be considered by a specific Combiner.
+By default the function always returns True, but custom Combiners can override it to skip
+Messages that can never match their criteria. If the function returns
+False for a Message, Lumberjack will not attempt to combine that Message using that Combiner.
 
 .. _communication_label:
 
@@ -42,9 +47,10 @@ Communicating Messages between nodes in an intelligent way is how Lumberjack sca
 logging Messages.  The :ref:`Communicator <communicator_class_label>`
 class instance handles the specifics on how the communication is implemented.  For
 example, it handles where a specific node passes its Messages and which nodes
-are allowed to output messages.  As of now, there are two implemented Communicators:
-:ref:`BinaryTreeCommunicator <binarytreecommunicator_class_label>` and
-:ref:`RootCommunicator <rootcommunicator_class_label>`.
+are allowed to output messages.  As of now, there are three implemented Communicators:
+:ref:`BinaryTreeCommunicator <binarytreecommunicator_class_label>`,
+:ref:`RootCommunicator <rootcommunicator_class_label>`, and
+:ref:`NonCollectiveRootCommunicator <noncollectiverootcommunicator_class_label>`.
 
 BinaryTreeCommunicator, as the name implies, utilizes a standard Binary Tree
 algorithm to define how the nodes are connected.  Children pass their
@@ -53,6 +59,9 @@ Messages to their parent and the root node is the only node allowed to output Me
 RootCommunicator has a very simple communication scheme that does not scale well
 but is useful in some cases for its simplicity.  All nodes connect directly
 to the root node which is also the only node allowed to output Messages.
+
+NonCollectiveRootCommunicator is similar to the RootCommunicator, but messages are
+pushed by individual ranks rather than collectively by all ranks.
 
 .. _push_label:
 

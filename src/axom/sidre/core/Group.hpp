@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -18,7 +19,10 @@
 
 // axom headers
 #include "axom/config.hpp"
+#include "axom/core/Array.hpp"
+#include "axom/core/ItemCollection.hpp"
 #include "axom/core/Macros.hpp"
+#include "axom/core/MapCollection.hpp"
 #include "axom/core/Types.hpp"
 #include "axom/slic.hpp"
 #include "axom/export/sidre.h"
@@ -40,19 +44,16 @@
 // Sidre headers
 #include "SidreTypes.hpp"
 #include "View.hpp"
-#include "ItemCollection.hpp"
+#include "ConduitMemory.hpp"
 
 namespace axom
 {
+
 namespace sidre
 {
 class Buffer;
 class Group;
 class DataStore;
-template <typename TYPE>
-class ItemCollection;
-template <typename TYPE>
-class MapCollection;
 
 /*!
  * \class Group
@@ -121,12 +122,21 @@ class MapCollection;
  * while unnamed Views should be created by passing an empty string as the
  * path argument to any of the createView methods.
  *
- *
  * \attention when Views or Groups are created, destroyed, copied, or moved,
  * indices of other Views and Groups in associated Group objects may
  * become invalid. This is analogous to iterator invalidation for STL
  * containers when the container contents change.
  *
+ * A Group has two allocators for managing memory in its hierarchy.
+ * An array allocator is intended for computational data, typically
+ * large arrays but it could be any size.  Another allocator is intended
+ * for metadata such as strings, scalars and tuples (typically small
+ * arrays, although it could be any size).  These allocators are the
+ * defaults for the hierarchy's Views and Groups, unless specifically
+ * overridden.  @see setDefaultArrayAllocator() @setDefaultTupleAllocator()
+ * Moreover only arrays (buffers and external data) are subject to
+ * shallow-copying.  Strings, scalars and tuples are always deep-copied
+ * even for hierarchy shallow-copies.
  */
 class Group
 {
@@ -141,7 +151,7 @@ public:
   using ViewCollection = ItemCollection<View>;
   using GroupCollection = ItemCollection<Group>;
 
-  //@{
+  ///@{
   //!  @name Basic query and accessor methods.
 
   /*!
@@ -156,6 +166,17 @@ public:
    */
   static const std::vector<std::string>& getValidIOProtocols()
   {
+    static const std::vector<std::string> s_io_protocols = {
+#ifdef AXOM_USE_HDF5
+      "sidre_hdf5",
+      "conduit_hdf5",
+#endif
+      "sidre_json",
+      "sidre_conduit_json",
+      "conduit_bin",
+      "conduit_json",
+      "json"};
+
     return s_io_protocols;
   }
 
@@ -263,41 +284,89 @@ public:
    */
   bool isRoot() const { return m_parent == this; }
 
-#ifdef AXOM_USE_UMPIRE
+  //! \brief Return the ID of the default array allocator id associated with this Group.
+  int getDefaultArrayAllocatorID() const { return m_default_array_alloc_id; }
 
-  /*!
-   * \brief Return the ID of the default umpire::Allocator associated with this
-   * Group.
-   */
-  int getDefaultAllocatorID() const { return m_default_allocator_id; }
-
-  /*!
-   * \brief Return the default umpire::Allocator associated with this Group.
-   */
-  umpire::Allocator getDefaultAllocator() const
+#if defined(AXOM_USE_UMPIRE)
+  //! \brief Return the default array umpire::Allocator associated with this Group.
+  umpire::Allocator getDefaultArrayAllocator() const
   {
     umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-    return rm.getAllocator(m_default_allocator_id);
+    return rm.getAllocator(m_default_array_alloc_id);
   }
 
-  /*!
-   * \brief Set the default umpire::Allocator associated with this Group.
-   */
-  Group* setDefaultAllocator(umpire::Allocator alloc)
+  //! \brief Set the default array umpire::Allocator associated with this Group.
+  Group* setDefaultArrayAllocator(umpire::Allocator alloc)
   {
-    m_default_allocator_id = alloc.getId();
-    return this;
-  }
-
-  /*!
-   * \brief Set the default umpire::Allocator associated with this Group.
-   */
-  Group* setDefaultAllocator(int allocId)
-  {
-    m_default_allocator_id = allocId;
+    setDefaultAllocator(alloc.getId());
     return this;
   }
 #endif
+
+  /*!
+   * \brief Set the default array allocator id associated with this Group.
+   *
+   * This allocator is the default for array data, even if the array is
+   * length 1.  (Note, tuples are not arrays in this specific sense.  @see
+   * setDefaultTupleAllocator(int).)
+  */
+  Group* setDefaultArrayAllocator(int allocId)
+  {
+    SLIC_ASSERT(allocId != axom::INVALID_ALLOCATOR_ID);
+    m_default_array_alloc_id = allocId;
+    return this;
+  }
+
+  //! \brief Return the ID of the default scalar/tuple allocator id associated with this Group.
+  int getDefaultTupleAllocatorID() const { return m_default_tuple_alloc_id; }
+
+#if defined(AXOM_USE_UMPIRE)
+  //! \brief Return the default scalar/tuple umpire::Allocator associated with this Group.
+  umpire::Allocator getDefaultTupleAllocator() const
+  {
+    umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
+    return rm.getAllocator(m_default_tuple_alloc_id);
+  }
+
+  //! \brief Set the default scalar/tuple umpire::Allocator associated with this Group.
+  Group* setDefaultTupleAllocator(umpire::Allocator alloc)
+  {
+    setDefaultTupleAllocator(alloc.getId());
+    return this;
+  }
+#endif
+
+  /*!
+   * \brief Set the default scalar/tuple allocator id associated with this Group.
+   *
+   * This allocator is the default for tuple data, including strings
+   * and scalars.  (Arrays are not tuples in this sense.  @see
+   * setDefaultArrayAllocator(int).)
+  */
+  Group* setDefaultTupleAllocator(int allocId)
+  {
+    SLIC_ASSERT(allocId != axom::INVALID_ALLOCATOR_ID);
+    m_default_tuple_alloc_id = allocId;
+    ConduitMemory::instanceForAxomId(m_default_tuple_alloc_id).conduitId();
+    return this;
+  }
+
+  //! \brief For backward compatibility, same as getDefaultArrayAllocatorID().
+  int getDefaultAllocatorID() const { return getDefaultArrayAllocatorID(); }
+
+#if defined(AXOM_USE_UMPIRE)
+  //! \brief For backward compatibility, same as getDefaultArrayAllocator().
+  umpire::Allocator getDefaultAllocator() const { return getDefaultArrayAllocator(); }
+
+  //! \brief For backward compatibility, same as setDefaultArrayAllocator().
+  Group* setDefaultAllocator(umpire::Allocator alloc)
+  {
+    return setDefaultArrayAllocator(alloc.getId());
+  }
+#endif
+
+  //! \brief For backward compatibility, same as setDefaultArrayAllocator().
+  Group* setDefaultAllocator(int allocId) { return setDefaultArrayAllocator(allocId); }
 
   /*!
    * \brief Insert information about data associated with Group subtree with
@@ -351,9 +420,9 @@ public:
    */
   void getDataInfo(Node& n, bool recursive = true) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View query methods.
 
   /*!
@@ -390,13 +459,12 @@ public:
    */
   const std::string& getViewName(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View access methods.
 
   /*!
-
    * \brief Return pointer to non-const View with given name or path.
    *
    * This method requires that all groups in the path exist if a path is given.
@@ -428,9 +496,9 @@ public:
    */
   const View* getView(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View iteration methods.
   //!
   //! Using these methods, a code can get the first View index and each
@@ -470,9 +538,9 @@ public:
    */
   IndexType getNextValidViewIndex(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods to create a View that has no associated data.
   //!
   //! \attention These methods do not allocate data or associate a View
@@ -518,10 +586,7 @@ public:
    *
    * \return pointer to new View object or nullptr if one is not created.
    */
-  View* createViewWithShape(const std::string& path,
-                            TypeID type,
-                            int ndims,
-                            const IndexType* shape);
+  View* createViewWithShape(const std::string& path, TypeID type, int ndims, const IndexType* shape);
 
   /*!
    * \brief Create View object with given name or path in this Group that
@@ -531,9 +596,9 @@ public:
    */
   View* createView(const std::string& path, const DataType& dtype);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods to create a View with a Buffer attached.
   //!
   //! \attention The Buffer passed to each of these methods may or may not
@@ -586,10 +651,7 @@ public:
    *
    * \sa View::attachBuffer()
    */
-  View* createView(const std::string& path,
-                   TypeID type,
-                   IndexType num_elems,
-                   Buffer* buff);
+  View* createView(const std::string& path, TypeID type, IndexType num_elems, Buffer* buff);
 
   /*!
    * \brief Create View object with given name or path in this Group that
@@ -627,9 +689,9 @@ public:
    */
   View* createView(const std::string& path, const DataType& dtype, Buffer* buff);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods to create a View with externally-owned data attached.
   //!
   //! \attention To do anything useful with a View created by one of these
@@ -676,10 +738,7 @@ public:
    *
    * \sa View::setExternalDataPtr()
    */
-  View* createView(const std::string& path,
-                   TypeID type,
-                   IndexType num_elems,
-                   void* external_ptr);
+  View* createView(const std::string& path, TypeID type, IndexType num_elems, void* external_ptr);
 
   /*!
    * \brief Create View object with given name or path in this Group that
@@ -717,13 +776,11 @@ public:
    *
    * \sa View::attachBuffer()
    */
-  View* createView(const std::string& path,
-                   const DataType& dtype,
-                   void* external_ptr);
+  View* createView(const std::string& path, const DataType& dtype, void* external_ptr);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods to create a View and allocate data for it.
   //!
   //! Each of these methods is a no-op if the given View name is an
@@ -804,12 +861,12 @@ public:
    * \sa View::setScalar()
    */
   template <typename ScalarType>
-  View* createViewScalar(const std::string& path, ScalarType value)
+  View* createViewScalar(const std::string& path, ScalarType value, int allocID = INVALID_ALLOCATOR_ID)
   {
     View* view = createView(path);
     if(view != nullptr)
     {
-      view->setScalar(value);
+      view->setScalar(value, allocID);
     }
 
     return view;
@@ -819,7 +876,7 @@ public:
    * \brief Create View object with given name or path in this Group
    * set its data to given string.
    *
-   * This is equivalent to: createView(name)->setString(value);
+   * This is equivalent to: createView(name)->setString(value, allocID);
    *
    * If given data type object is empty, data will not be allocated.
    *
@@ -827,24 +884,26 @@ public:
    *
    * \sa View::setString()
    */
-  View* createViewString(const std::string& path, const std::string& value);
+  View* createViewString(const std::string& path,
+                         const std::string& value,
+                         int allocID = INVALID_ALLOCATOR_ID);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View destruction methods.
   //!
   //! Each of these methods is a no-op if the specified View does not exist.
 
   /*!
    * \brief Destroy View with given name or path owned by this Group, but leave
-   * its data intect.
+   * its data intact.
    */
   void destroyView(const std::string& path);
 
   /*!
    * \brief Destroy View with given index owned by this Group, but leave
-   * its data intect.
+   * its data intact.
    */
   void destroyView(IndexType idx);
 
@@ -873,9 +932,9 @@ public:
    */
   void destroyViewsAndData();
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View move and copy methods.
 
   /*!
@@ -926,11 +985,13 @@ public:
    * \return pointer to the new copied View object or nullptr if a View
    * is not copied into this Group.
    */
-  View* deepCopyView(View* view, int allocID = INVALID_ALLOCATOR_ID);
+  View* deepCopyView(const View* view,
+                     int arrayAllocID = INVALID_ALLOCATOR_ID,
+                     int tupleAllocID = INVALID_ALLOCATOR_ID);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Child Group query methods.
 
   /*!
@@ -968,9 +1029,9 @@ public:
    */
   const std::string& getGroupName(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Group access and iteration methods.
 
   /*!
@@ -1005,9 +1066,9 @@ public:
    */
   const Group* getGroup(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Accessors for iterating the group and view collections.
   //!
   //! These methods can be used to iterate over the collection of groups and views
@@ -1041,7 +1102,7 @@ public:
    */
   typename GroupCollection::const_iterator_adaptor groups() const;
 
-  //@}
+  ///@}
 private:
   /*!
    * \brief Casts the views ItemCollection to a (named) MapCollection
@@ -1091,12 +1152,10 @@ private:
    *
    * \sa getDataInfo
    */
-  void getDataInfoHelper(Node& n,
-                         std::set<IndexType>& buffer_ids,
-                         bool recursive) const;
+  void getDataInfoHelper(Node& n, std::set<IndexType>& buffer_ids, bool recursive) const;
 
 public:
-  //@{
+  ///@{
   //!  @name Group iteration methods.
   //!
   //! Using these methods, a code can get the first Group index and each
@@ -1133,16 +1192,18 @@ public:
    */
   IndexType getNextValidGroupIndex(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Child Group creation and destruction methods.
 
   /*!
    * \brief Create a child Group within this Group with given name or path.
    *
-   * If name is an empty string or Group already has a child Group with
-   * given name or path, method is a no-op.
+   * If path is an empty string, method is a no-op.
+   *
+   * If Group already has a child Group with given name or path
+   * and accept_existing is false, method is a no-op.
    *
    * The optional is_list argument is used to determine if the created
    * child Group will hold items in list format.
@@ -1150,7 +1211,7 @@ public:
    * \return pointer to created Group object or nullptr if new
    * Group is not created.
    */
-  Group* createGroup(const std::string& path, bool is_list = false);
+  Group* createGroup(const std::string& path, bool is_list = false, bool accept_existing = false);
 
   /*
    * \brief Create a child Group within this Group with no name.
@@ -1234,9 +1295,9 @@ public:
    */
   void destroyGroups();
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Group move and copy methods.
 
   /*!
@@ -1253,7 +1314,7 @@ public:
 
   /*!
    * \brief Create a (shallow) copy of Group hierarchy rooted at given
-   *        Group and make it a child of this Group.
+   *        Group and make the copy a child of this Group.
    *
    * Note that all Views in the Group hierarchy are copied as well.
    *
@@ -1274,7 +1335,7 @@ public:
 
   /*!
    * \brief Create a deep copy of Group hierarchy rooted at given Group and
-   *        make it a child of this Group.
+   *        make the copy a child of this Group.
    *
    * Note that all Views in the Group hierarchy are deep copied as well.
    *
@@ -1290,16 +1351,42 @@ public:
    * If given Group pointer is null or Group already has a child Group with
    * same name as given Group, method is a no-op.
    *
-   * \sa deepCopyGroup
+   * \sa copyGroup
    *
    * \return pointer to the new copied Group object or nullptr if a Group
    * is not copied into this Group.
    */
-  Group* deepCopyGroup(Group* group, int allocID = INVALID_ALLOCATOR_ID);
+  Group* deepCopyGroup(const Group* srcGroup,
+                       int arrayAllocID = INVALID_ALLOCATOR_ID,
+                       int tupleAllocID = INVALID_ALLOCATOR_ID);
 
-  //@}
+  /*!
+   * \brief Create a deep copy of Group hierarchy rooted at given Group
+   *        directly to this group.
+   * \param [in] srcGroup Source for copy
+   *
+   * The difference between this method and deepCopyGroup(const Group*)
+   * is that this method copies into itself instead of into a new child
+   * Group.
+   *
+   * Note that all Views in the Group hierarchy are deep-copied as well.
+   *
+   * The deep copy of the Group creates a duplicate of the entire Group
+   * hierarchy and performs a deep copy of the data described by the Views
+   * in the hierarchy.
+   *
+   * The Views in the new Group hierarchy will each allocate and use
+   * new Buffers to hold their copied data. Each Buffer will be sized to
+   * receive only the data values seen by the description of the original
+   * View and will have zero offset and a strid of one.
+   *
+   * \return pointer to this.
+   */
+  Group* deepCopyGroupToSelf(const Group* srcGroup);
 
-  //@{
+  ///@}
+
+  ///@{
   //!  @name Group print methods.
 
   /*!
@@ -1322,9 +1409,17 @@ public:
    * \brief Print given number of levels of Group sub-tree
    *        starting at this Group object to an output stream.
    */
-  void printTree(const int nlevels, std::ostream& os) const;
+  void printTree(const int nlevels, std::ostream& os = std::cout) const;
 
-  //@}
+  /*!
+    * \brief Print Groups and Views in the hierarchy rooted at this group,
+    * in a way that won't crash for non-host data.
+    *
+    * If data is not host-accessible, print the pointer and a comment.
+    */
+  void hostPrint(const std::string& indent = "", std::ostream& os = std::cout) const;
+
+  ///@}
 
   /*!
    * \brief Copy description of Group hierarchy rooted at this Group to
@@ -1338,17 +1433,42 @@ public:
   /*!
    * \brief Copy Group's native layout to given Conduit node.
    *
-   * The native layout is a Conduit Node hierarchy that maps the Conduit Node
-   * data
+   * The native layout is a Conduit Node hierarchy that maps the Conduit Node data
    * externally to the Sidre View data so that it can be filled in from the data
-   * in the file (independent of file format) and can be accessed as a Conduit
-   * tree.
+   * in the file (independent of file format) and can be accessed as a Conduit tree.
+   *
+   * \return True if the Group or any of its children were added to the Node,
+   * false otherwise.
+   */
+  bool createNativeLayout(Node& n, const Attribute* attr = nullptr) const;
+
+  /*!
+   * \brief Deep-copy Group's native layout to given Conduit node.
+   *
+   * \param [out] dst
+   * \param [in] tupleAllocId overriding allocator for tuples, scalars and strings.
+   *   If equal to INVALID_ALLOCATOR_ID, don't override destination's allocator.
+   * \param [in] arrayAllocId overriding allocator for arrays.
+   *   If equal to INVALID_ALLOCATOR_ID, don't override destination's allocator.
+   * \param [in] attr copy Views that have Attribute set.
+   *
+   * This is similar to createNativeLayout, except for the leaves being
+   * deep-copied.
+   *
+   * The destination's default data allocator is used for all data,
+   * unless the overriding defaults are specified.
+   * - If \c tupleAllocId != \c INVALID_ALLOCATOR_ID, it's used for tuples,
+   *   scalars and strings.
+   * - If \c arrayAllocId != \c INVALID_ALLOCATOR_ID, it's used for arrays.
    *
    * \return True if the Group or any of its children were added to the Node,
    * false otherwise.
    *
    */
-  bool createNativeLayout(Node& n, const Attribute* attr = nullptr) const;
+  bool deepCopyToConduit(Node& dst,
+                         int tupleAllocId = INVALID_ALLOCATOR_ID,
+                         int arrayAllocId = INVALID_ALLOCATOR_ID,
+                         const Attribute* attr = nullptr) const;
 
   /*!
    * \brief Copy Group's layout to given Conduit node without data
@@ -1405,37 +1525,37 @@ public:
    */
   bool isUsingList() const { return m_is_list; }
 
-  //@{
+  ///@{
   /*!
- * @name    Group I/O methods
- *   These methods save and load Group trees to and from files.
- *   This includes the views and buffers used in by groups in the tree.
- *   We provide several "protocol" options:
- *
- *   protocols:
- *    sidre_hdf5 (default when Axom is configured with hdf5)
- *    sidre_conduit_json (default otherwise)
- *    sidre_json
- *
- *    conduit_hdf5
- *    conduit_bin
- *    conduit_json
- *    json
- *
- *   \note The sidre_hdf5 and conduit_hdf5 protocols are only available
- *   when Axom is configured with hdf5.
- *
- *   There are two overloaded versions for each of save, load, and
- *   loadExternalData.  The first of each takes a file path and is intended
- *   for use in a serial context and can be called directly using any
- *   of the supported protocols.  The second takes an hdf5 handle that
- *   has previously been created by the calling code.  These mainly exist
- *   to handle parallel I/O calls from the SPIO component.  They can only
- *   take the sidre_hdf5 or conduit_hdf5 protocols.
- *
- *   \note The hdf5 overloads are only available when Axom is configured
- *   with hdf5.
- */
+   * @name    Group I/O methods
+   *   These methods save and load Group trees to and from files.
+   *   This includes the views and buffers used in by groups in the tree.
+   *   We provide several "protocol" options:
+   *
+   *   protocols:
+   *    sidre_hdf5 (default when Axom is configured with hdf5)
+   *    sidre_conduit_json (default otherwise)
+   *    sidre_json
+   *
+   *    conduit_hdf5
+   *    conduit_bin
+   *    conduit_json
+   *    json
+   *
+   *   \note The sidre_hdf5 and conduit_hdf5 protocols are only available
+   *   when Axom is configured with hdf5.
+   *
+   *   There are two overloaded versions for each of save, load, and
+   *   loadExternalData.  The first of each takes a file path and is intended
+   *   for use in a serial context and can be called directly using any
+   *   of the supported protocols.  The second takes an hdf5 handle that
+   *   has previously been created by the calling code.  These mainly exist
+   *   to handle parallel I/O calls from the SPIO component.  They can only
+   *   take the sidre_hdf5 or conduit_hdf5 protocols.
+   *
+   *   \note The hdf5 overloads are only available when Axom is configured
+   *   with hdf5.
+   */
 
   /*!
    * \brief Save the Group to a file.
@@ -1626,7 +1746,7 @@ public:
             std::string& name_from_file);
 
   /*!
-   * \brief Load data into the Group's external views from a hdf5 handle.
+   * \brief Load data into the Group's external views from an hdf5 handle.
    *
    * No protocol argument is needed, as this only is used with the sidre_hdf5
    * protocol.  Returns true (success) if no Conduit I/O error occurred since
@@ -1638,9 +1758,25 @@ public:
    */
   bool loadExternalData(const hid_t& h5_id);
 
+  /*!
+   * \brief Load data into the Group's external views from a path into
+   *        hdf5 handle
+   *
+   * No protocol argument is needed, as this only is used with the sidre_hdf5
+   * protocol.  Returns true (success) if no Conduit I/O error occurred since
+   * this Group's DataStore was created or had its error flag cleared; false,
+   * if an error occurred at some point.
+   *
+   * \param h5_id        hdf5 handle
+   * \param group_path   Path pointing to this Group. This path must be the
+   *                     relative path from the top Group that was written
+   *                     to a file to this Group.
+   */
+  bool loadExternalData(const hid_t& h5_id, const std::string& group_path);
+
 #endif /* AXOM_USE_HDF5 */
 
-  //@}
+  ///@}
 
   /*!
    * \brief Change the name of this Group.
@@ -1684,15 +1820,15 @@ public:
    * \return                   true for success, false if the full conduit
    *                           tree is not succesfully imported.
    */
-  bool importConduitTree(const conduit::Node& node,
-                         bool preserve_contents = false);
+  bool importConduitTree(const conduit::Node& node, bool preserve_contents = false);
 
   /*!
    * \brief Import data from a conduit Node into a Group without copying arrays
    *
    * This differs from the importConduitTree in that it does not copy any
    * data held by the Node as an array.  Instead it imports the existing
-   * pointer to the array as an external pointer.
+   * pointer to the array as an external pointer.  This method defines
+   * arrays as non-string types with more than 1 element.
    *
    * This imports the hierarchy from the Node into a Sidre Group with the
    * same tree structure.
@@ -1710,15 +1846,14 @@ public:
    * \return                   true for success, false if the full conduit
    *                           tree is not succesfully imported.
    */
-  bool importConduitTreeExternal(conduit::Node& node,
-                                 bool preserve_contents = false);
+  bool importConduitTreeExternal(conduit::Node& node, bool preserve_contents = false);
 
 private:
   DISABLE_DEFAULT_CTOR(Group);
   DISABLE_COPY_AND_ASSIGNMENT(Group);
   DISABLE_MOVE_AND_ASSIGNMENT(Group);
 
-  //@{
+  ///@{
   //!  @name Private Group ctors and dtors
   //!        (callable only by DataStore and Group methods).
 
@@ -1741,9 +1876,9 @@ private:
    */
   ~Group();
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View attach and detach methods.
 
   /*!
@@ -1766,9 +1901,9 @@ private:
    */
   View* detachView(IndexType idx);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Group attach and detach methods.
 
   /*!
@@ -1778,17 +1913,19 @@ private:
 
   /*!
    * \brief Detach Child Group with given name from this Group.
+   * \return the detached Group.
    */
   Group* detachGroup(const std::string& name);
 
   /*!
    * \brief Detach Child Group with given index from this Group.
+   * \return the detached Group.
    */
   Group* detachGroup(IndexType idx);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Private Group View manipulation methods.
 
   /*!
@@ -1802,9 +1939,9 @@ private:
    */
   void destroyViewAndData(View* view);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Private Group methods for interacting with Conduit Nodes.
 
   /*!
@@ -1818,9 +1955,7 @@ private:
    * \return True if the group or any of its children have saved Views,
    * false otherwise.
    */
-  bool exportTo(conduit::Node& result,
-                const Attribute* attr,
-                bool export_buffers = true) const;
+  bool exportTo(conduit::Node& result, const Attribute* attr, bool export_buffers = true) const;
 
   /*!
    * \brief Private method to copy Group to Conduit Node.
@@ -1856,10 +1991,9 @@ private:
    * to remain the same when a tree is restored.
    *
    */
-  void importFrom(conduit::Node& node,
-                  const std::map<IndexType, IndexType>& buffer_id_map);
+  void importFrom(conduit::Node& node, const std::map<IndexType, IndexType>& buffer_id_map);
 
-  //@}
+  ///@}
 
   /*!
    * \brief Private method that returns the Group that is the next-to-last
@@ -1899,7 +2033,14 @@ private:
    * \brief Private method. If allocatorID is a valid allocator ID then return
    *  it. Otherwise return the ID of the default allocator of the owning group.
    */
-  int getValidAllocatorID(int allocatorID);
+  int getValidArrayAllocatorId(int allocatorId)
+  {
+    return allocatorId == INVALID_ALLOCATOR_ID ? m_default_array_alloc_id : allocatorId;
+  }
+  int getValidTupleAllocatorId(int allocatorId)
+  {
+    return allocatorId == INVALID_ALLOCATOR_ID ? m_default_tuple_alloc_id : allocatorId;
+  }
 
   /// Name of this Group object.
   std::string m_name;
@@ -1925,12 +2066,8 @@ private:
   /// Collection of child Groups
   GroupCollection* m_group_coll;
 
-#ifdef AXOM_USE_UMPIRE
-  int m_default_allocator_id;
-#endif
-
-  // Collection of the valid I/O protocols for save and load.
-  AXOM_SIDRE_EXPORT static const std::vector<std::string> s_io_protocols;
+  int m_default_array_alloc_id;
+  int m_default_tuple_alloc_id;
 };
 
 } /* end namespace sidre */

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -23,22 +24,19 @@ inline int getRandInt(const int start, const int end)
 
 inline slic::message::Level getRandomLevel()
 {
-  return (
-    static_cast<slic::message::Level>(getRandInt(0, slic::message::Num_Levels)));
+  return (static_cast<slic::message::Level>(getRandInt(0, slic::message::Num_Levels)));
 }
 //------------------------------------------------------------------------------
 void init()
 {
   std::string current_logger = slic::getActiveLoggerName();
 
-  std::string physicsA_format = std::string("====\n") +
-    std::string("<TIMESTAMP>\n") + std::string("====\n") +
-    std::string("[<LEVEL>]: <MESSAGE>\n") + std::string("\t FILE:<FILE>\n") +
-    std::string("\t LINE:<LINE>\n");
+  std::string physicsA_format = std::string("====\n") + std::string("<TIMESTAMP>\n") +
+    std::string("====\n") + std::string("[<LEVEL>]: <MESSAGE>\n") +
+    std::string("\t FILE:<FILE>\n") + std::string("\t LINE:<LINE>\n");
 
   physicsA_log.open("physicsA.log");
-  slic::LogStream* ls =
-    new slic::GenericOutputStream(&physicsA_log, physicsA_format);
+  slic::LogStream* ls = new slic::GenericOutputStream(&physicsA_log, physicsA_format);
 
   slic::createLogger("physicsA", slic::inherit::errors_and_warnings);
   slic::activateLogger("physicsA");

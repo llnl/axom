@@ -1,57 +1,19 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/klee/ShapeSet.hpp"
 
-#include <stdexcept>
-
 #include "gtest/gtest.h"
 
-namespace axom
-{
-namespace klee
-{
-namespace
-{
-TEST(ShapeSetTest, resolvePath_noPathSet)
-{
-  ShapeSet shapeSet;
-  EXPECT_THROW(shapeSet.resolvePath("anyPath"), std::logic_error);
-}
+#include <stdexcept>
 
-TEST(ShapeSetTest, resolvePath_startWithSimpleFileName)
-{
-  ShapeSet shapeSet;
-  shapeSet.setPath("file.yaml");
-  EXPECT_EQ("newPath.txt", shapeSet.resolvePath("newPath.txt"));
-  EXPECT_EQ("d1/d2/newPath.txt", shapeSet.resolvePath("d1/d2/newPath.txt"));
-  EXPECT_EQ("/abs/path/newPath.txt",
-            shapeSet.resolvePath("/abs/path/newPath.txt"));
-}
+namespace klee = axom::klee;
 
-TEST(ShapeSetTest, resolvePath_startWithRelativeFileName)
-{
-  ShapeSet shapeSet;
-  shapeSet.setPath("path/to/file.yaml");
-  EXPECT_EQ("path/to/newPath.txt", shapeSet.resolvePath("newPath.txt"));
-  EXPECT_EQ("path/to/d1/d2/newPath.txt",
-            shapeSet.resolvePath("d1/d2/newPath.txt"));
-  EXPECT_EQ("/abs/path/newPath.txt",
-            shapeSet.resolvePath("/abs/path/newPath.txt"));
-}
-
-TEST(ShapeSetTest, resolvePath_startWithAbsoluteFileName)
-{
-  ShapeSet shapeSet;
-  shapeSet.setPath("/path/to/file.yaml");
-  EXPECT_EQ("/path/to/newPath.txt", shapeSet.resolvePath("newPath.txt"));
-  EXPECT_EQ("/path/to/d1/d2/newPath.txt",
-            shapeSet.resolvePath("d1/d2/newPath.txt"));
-  EXPECT_EQ("/other/abs/path/newPath.txt",
-            shapeSet.resolvePath("/other/abs/path/newPath.txt"));
-}
+using klee::Dimensions;
+using klee::ShapeSet;
 
 TEST(ShapeSetTest, dimensions_getAndSet)
 {
@@ -74,7 +36,3 @@ TEST(ShapeSetTest, dimensions_getAndSet)
     EXPECT_EQ(Dimensions::Three, shapeSet.getDimensions());
   }
 }
-
-}  // namespace
-}  // namespace klee
-}  // namespace axom

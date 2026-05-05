@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -76,6 +77,126 @@ These macros can then be used in the application code as follows:
 The :ref:`SlicMacros` provide a good resource for the type of macros that an
 application may want to adopt and extend. Although these macros are tailored
 for use within the `Axom Toolkit`_, these are also callable by application code.
+
+
+.. _SlicMacros:
+
+Slic Macros Used in Axom
+^^^^^^^^^^^^^^^^^^^^^^^^^
+Slic provides a set of convenience macros that can be used to streamline
+logging within an application, as summarized in the table below.
+
+.. note::
+
+  The :ref:`SlicMacros` are not the only interface
+  to log messages with Slic. They are used within `Axom Toolkit`_ for
+  convenience. Applications or libraries that adopt Slic, typically, use the
+  C++ API directly, e.g., call ``slic::logMessage()`` and  wrap the
+  functionality in application specific macros to better suit the requirements
+  of the application.
+
+.. _CollectiveSlicMacros:
+
+Collective Slic Macros
+""""""""""""""""""""""
+
+A subset of SLIC macros are collective operations when used with
+MPI-aware :ref:`LogStream` instances such as :ref:`SynchronizedStream`
+or :ref:`LumberjackStream`.
+
+Additionally, macros such as ``SLIC_WARNING`` and ``SLIC_CHECK`` become collective
+operations when certain flags are toggled on or functions are called. Other macros
+such as ``SLIC_ERROR`` and ``SLIC_ASSERT`` can be made not collective when certain
+functions are called.
+
+The table below details the built-in SLIC macros as well as some notes about when they are collective calls:
+
+.. list-table:: SLIC macro availability and collective behavior
+   :header-rows: 1
+   :widths: 28 34 38
+
+   * - Macro
+     - Availability
+     - Collective status
+
+   * - ``SLIC_ASSERT``
+       ``SLIC_ASSERT_MSG``
+     - - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined)
+       - Not available in device code
+     - - Collective by default
+       - Collective after calling ``slic::enableAbortOnError()``
+       - No longer collective after calling ``slic::disableAbortOnError()``
+
+   * - ``SLIC_CHECK``
+       ``SLIC_CHECK_MSG``
+     - - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined)
+       - Not available in device code
+     - - Not collective by default
+       - Collective after ``slic::debug::checksAreErrors`` is set to ``true``, defaults to ``false``
+
+   * - ``SLIC_DEBUG``
+       ``SLIC_DEBUG_IF``
+       ``SLIC_DEBUG_ROOT``
+       ``SLIC_DEBUG_ROOT_IF``
+       ``SLIC_DEBUG_PRINT_CONTAINER``
+       ``SLIC_DEBUG_ONCE``
+       ``SLIC_DEBUG_IF_ONCE``
+       ``SLIC_DEBUG_ROOT_ONCE``
+       ``SLIC_DEBUG_ROOT_IF_ONCE``
+       ``SLIC_DEBUG_PRINT_CONTAINER_ONCE``
+     - - Only available in debug configurations (i.e. when ``AXOM_DEBUG`` is defined)
+     - - Never
+
+   * - ``SLIC_INFO``
+       ``SLIC_INFO_IF``
+       ``SLIC_INFO_ROOT``
+       ``SLIC_INFO_ROOT_IF``
+       ``SLIC_INFO_TAGGED``
+       ``SLIC_INFO_ONCE``
+       ``SLIC_INFO_IF_ONCE``
+       ``SLIC_INFO_ROOT_ONCE``
+       ``SLIC_INFO_ROOT_IF_ONCE``
+       ``SLIC_INFO_TAGGED_ONCE``
+     - - Always
+     - - Never
+
+   * - ``SLIC_ERROR``
+       ``SLIC_ERROR_IF``
+       ``SLIC_ERROR_ROOT``
+       ``SLIC_ERROR_ROOT_IF``
+     - - Always
+     - - Collective by default
+       - Collective after calling ``slic::enableAbortOnError()``
+       - No longer collective after calling ``slic::disableAbortOnError()``
+
+   * - ``SLIC_WARNING``
+       ``SLIC_WARNING_IF``
+       ``SLIC_WARNING_ROOT``
+       ``SLIC_WARNING_ROOT_IF``
+       ``SLIC_WARNING_ONCE``
+       ``SLIC_WARNING_IF_ONCE``
+       ``SLIC_WARNING_ROOT_ONCE``
+       ``SLIC_WARNING_ROOT_IF_ONCE``
+     - - Always
+     - - Not collective by default
+       - Collective after calling ``slic::enableAbortOnWarning()``
+       - No longer collective after calling ``slic::disableAbortOnWarning()``
+
+Doxygen generated API documentation on Macros can be found here: `SLIC Macros <../../../../../doxygen/html/slic__macros_8hpp.html>`_
+
+Consider the following rules of thumb when choosing from the above logging macros:
+
+* The `SLIC_ABORT` and `SLIC_CHECK` macros are typically used to check preconditions/postconditions of functions
+  and help catch developer errors. They are only available in debug configurations (i.e. when `AXOM_DEBUG` is available).
+* `SLIC_WARNING` and `SLIC_ERROR` are available in all configurations and can be used to check for conditions that might affect the results.
+  They are also useful for validating user inputs.
+* `SLIC_INFO` and `SLIC_DEBUG` macros are typically used to provide information about the state of an application. 
+  The `SLIC_*_IF` variants can be used to conditionally log messages. `SLIC_DEBUG` macros are compiled out in non-debug configurations 
+  (i.e. their messages will not get logged), while `SLIC_INFO` macros are always available.
+* The `SLIC_*_ROOT` variants can help reduce logging verbosity when called in an MPI application, especially if all
+  MPI ranks are expected to have the same data (for example, if a value was broadcast from one rank to all the other ranks).
+* The `SLIC_*_ONCE` variants can help reduce logging verbosity when only the first invocation at a call-site is necessary.
+
 
 .. #############################################################################
 ..  CITATIONS

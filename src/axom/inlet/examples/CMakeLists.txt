@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -40,11 +41,6 @@ foreach(example ${inlet_examples})
                         DEPENDS_ON inlet
                         FOLDER     axom/inlet/examples )
 endforeach()
-
-if (SOL_FOUND)
-    # Set file back to C++ due to nvcc compiler error
-    set_source_files_properties(lua_library.cpp PROPERTIES LANGUAGE CXX)
-endif()
 
 if (SOL_FOUND AND MFEM_FOUND)
     axom_add_executable(NAME       inlet_mfem_coefficient_ex

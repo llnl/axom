@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -45,15 +46,13 @@ using Point2D = primal::Point<double, 2>;
  *
  * This routine initializes an Array, \a out.
  */
-bool discretize(const SphereType& s,
-                int levels,
-                axom::Array<OctType>& out,
-                int& octcount);
+bool discretize(const SphereType& s, int levels, axom::Array<OctType>& out, int& octcount);
 
 /*!
  * \brief Given a 2D polyline revolved around the positive X-axis, allocate
  *   and return a list of Octahedra approximating the shape.
- * \param [in] polyline The polyline to revolve around the X-axis
+ * \param [in] polyline The polyline to revolve around the X-axis.
+ *   Data should be in a host-accessible memory space.
  * \param [in] len The number of points in \a polyline
  * \param [in] levels The number of refinements to perform, in addition to
  *   a central level-zero octahedron in each segment
@@ -69,7 +68,7 @@ bool discretize(const SphereType& s,
  * This routine initializes an Array, \a out.
  */
 template <typename ExecSpace>
-bool discretize(axom::Array<Point2D>& polyline,
+bool discretize(const axom::ArrayView<Point2D>& polyline,
                 int len,
                 int levels,
                 axom::Array<OctType>& out,
@@ -107,7 +106,7 @@ bool discretize(axom::Array<Point2D>& polyline,
  *  the caller is responsible for properly deallocating the mesh object that
  *  the return mesh pointer points to.
  */
-int mesh_from_discretized_polyline(axom::ArrayView<OctType>& octs,
+int mesh_from_discretized_polyline(const axom::ArrayView<OctType>& octs,
                                    int octcount,
                                    int segcount,
                                    mint::Mesh*& mesh);

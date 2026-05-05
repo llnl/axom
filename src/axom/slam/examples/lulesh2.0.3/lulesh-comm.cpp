@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -1918,10 +1919,15 @@ namespace slamLulesh {
           cmsg * CACHE_COHERENCE_PAD_REAL];
       Index_t idx = dx * dy * (dz - 1);
       MPI_Wait(&domain.recvRequest[pmsg + emsg + cmsg], &status);
-      for (Index_t fi = 0; fi<xferFields; ++fi)
-      {
-        (domain.*fieldData[fi])(idx) = comBuf[fi];
-      }
+
+      // Unrolled loop to bypass odd sanitizer out-of-bounds failure
+      assert(xferFields == 6);
+      (domain.*fieldData[0])(idx) = comBuf[0];
+      (domain.*fieldData[1])(idx) = comBuf[1];
+      (domain.*fieldData[2])(idx) = comBuf[2];
+      (domain.*fieldData[3])(idx) = comBuf[3];
+      (domain.*fieldData[4])(idx) = comBuf[4];
+      (domain.*fieldData[5])(idx) = comBuf[5];
       ++cmsg;
     }
     if (rowMin && colMax && planeMin && doRecv)
@@ -1946,10 +1952,15 @@ namespace slamLulesh {
           cmsg * CACHE_COHERENCE_PAD_REAL];
       Index_t idx = dx * dy * (dz - 1) + (dx - 1);
       MPI_Wait(&domain.recvRequest[pmsg + emsg + cmsg], &status);
-      for (Index_t fi = 0; fi<xferFields; ++fi)
-      {
-        (domain.*fieldData[fi])(idx) = comBuf[fi];
-      }
+
+      // Unrolled loop to bypass odd sanitizer out-of-bounds failure
+      assert(xferFields == 6);
+      (domain.*fieldData[0])(idx) = comBuf[0];
+      (domain.*fieldData[1])(idx) = comBuf[1];
+      (domain.*fieldData[2])(idx) = comBuf[2];
+      (domain.*fieldData[3])(idx) = comBuf[3];
+      (domain.*fieldData[4])(idx) = comBuf[4];
+      (domain.*fieldData[5])(idx) = comBuf[5];
       ++cmsg;
     }
     if (rowMax && colMin && planeMin && doRecv)
@@ -1974,10 +1985,15 @@ namespace slamLulesh {
           cmsg * CACHE_COHERENCE_PAD_REAL];
       Index_t idx = dx * dy * (dz - 1) + dx * (dy - 1);
       MPI_Wait(&domain.recvRequest[pmsg + emsg + cmsg], &status);
-      for (Index_t fi = 0; fi<xferFields; ++fi)
-      {
-        (domain.*fieldData[fi])(idx) = comBuf[fi];
-      }
+
+      // Unrolled loop to bypass odd sanitizer out-of-bounds failure
+      assert(xferFields == 6);
+      (domain.*fieldData[0])(idx) = comBuf[0];
+      (domain.*fieldData[1])(idx) = comBuf[1];
+      (domain.*fieldData[2])(idx) = comBuf[2];
+      (domain.*fieldData[3])(idx) = comBuf[3];
+      (domain.*fieldData[4])(idx) = comBuf[4];
+      (domain.*fieldData[5])(idx) = comBuf[5];
       ++cmsg;
     }
     if (rowMax && colMax && planeMin && doRecv)
@@ -2002,10 +2018,15 @@ namespace slamLulesh {
           cmsg * CACHE_COHERENCE_PAD_REAL];
       Index_t idx = dx * dy * dz - 1;
       MPI_Wait(&domain.recvRequest[pmsg + emsg + cmsg], &status);
-      for (Index_t fi = 0; fi<xferFields; ++fi)
-      {
-        (domain.*fieldData[fi])(idx) = comBuf[fi];
-      }
+
+      // Unrolled loop to bypass odd sanitizer out-of-bounds failure
+      assert(xferFields == 6);
+      (domain.*fieldData[0])(idx) = comBuf[0];
+      (domain.*fieldData[1])(idx) = comBuf[1];
+      (domain.*fieldData[2])(idx) = comBuf[2];
+      (domain.*fieldData[3])(idx) = comBuf[3];
+      (domain.*fieldData[4])(idx) = comBuf[4];
+      (domain.*fieldData[5])(idx) = comBuf[5];
       ++cmsg;
     }
   }

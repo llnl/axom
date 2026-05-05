@@ -1,0 +1,255 @@
+{
+    "$id" : "https://llnl.gov/sina.schema.json",
+    "$schema" : "http://json-schema.org/draft-07/schema#",
+    "title" : "Sina Schema",
+    "description" : "Sina schema for simulation data",
+    "type" : "object",
+    "definitions" : {
+      "userDefDict" : {
+          "description": "Dictionary of additional misc. values not belonging elsewhere.",
+          "type": "object"
+        },
+        "libraryDataDict" : {
+            "description": "Dictionary of libraries and associated data",
+            "type": "object",
+            "additionalProperties": {"$ref": "#/definitions/libraryType" }
+        },
+        "libraryType" : {
+            "description": "Library with associated data",
+            "type": "object",
+            "properties": {
+              "data": {"$ref": "#/definitions/dataDict" },
+              "curve_sets": {"$ref": "#/definitions/curveSetDict" },
+              "library_data": {"$ref": "#/definitions/libraryDataDict" }
+            }
+        },
+        "fileDict" : {
+            "description": "Dictionary of files associated with Record",
+            "type": "object",
+            "additionalProperties": {"$ref": "#/definitions/fileType" }
+        },
+        "fileType" : {
+            "description": "User-defined file values",
+            "type": "object",
+            "properties": {
+              "mimetype": { "type": "string" },
+              "tags": { "$ref": "#/definitions/tagArray" }
+            }
+        },
+        "stringDataArray" : {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": false
+        },
+        "scalarDataArray" : {
+            "type": "array",
+            "items": { "type": "number" },
+            "uniqueItems": false
+        },
+        "objectType" : {
+            "description": "Object being acted upon by the subject record",
+            "oneOf": [
+                {
+                    "properties": {
+                        "object": {
+                            "description": "Global id of the object record",
+                            "type": "string"
+                        }
+                    },
+                    "required": [ "object" ]
+                }, {
+                    "properties": {
+                        "local_object": {
+                            "description": "Local id of the object record",
+                            "type": "string"
+                        }
+                    },
+                    "required": [ "local_object" ]
+                }
+            ]
+        },
+        "record" : {
+            "description": "A component of application execution",
+            "allOf": [
+                { "$ref": "#/definitions/recordType" },
+                { "$ref": "#/definitions/recordIdType" },
+                { "$ref": "#/definitions/recordData" }
+            ]
+        },
+        "recordData" : {
+            "description": "Optional, indexed simulation data",
+            "properties": {
+                "files": { "$ref": "#/definitions/fileDict" },
+                "data": { "$ref": "#/definitions/dataDict" },
+                "library_data": { "$ref": "#/definitions/libraryDataDict" },
+                "curve_sets": { "$ref": "#/definitions/curveSetDict" },
+                "user_defined": { "$ref": "#/definitions/userDefDict"}
+            }
+        },
+        "recordIdType" : {
+            "oneOf": [
+                {
+                    "properties": {
+                        "id": {
+                            "description": "Unique identifier",
+                            "type": "string"
+                        }
+                    },
+                    "required": [ "id" ]
+                }, {
+                    "properties": {
+                        "local_id": {
+                            "description": "Unique, auto-assigned identifier",
+                            "type": "string"
+                        }
+                    },
+                    "required": [ "local_id" ]
+                }
+            ]
+        },
+        "recordType" : {
+            "properties": {
+                "type": {
+                    "description": "The type of record",
+                    "type": "string"
+                }
+            },
+            "required": [ "type" ]
+        },
+        "relationship" : {
+            "description": "Relationship between two records",
+            "allOf": [
+                { "$ref": "#/definitions/subjectType" },
+                {
+                    "properties": {
+                        "predicate": { "type": "string" }
+                    },
+                    "required": [ "predicate" ]
+                },
+                { "$ref": "#/definitions/objectType" }
+            ]
+        },
+        "run" : {
+            "description": "An individual simulation run",
+            "allOf": [
+                { "$ref": "#/definitions/recordIdType" },
+                {
+                    "properties": {
+                        "type": { "enum": [ "run" ] },
+                        "user": { "type": "string" },
+                        "application": { "type": "string" },
+                        "version": { "type": "string" }
+                    },
+                    "required": [ "type", "application" ]
+                },
+                { "$ref": "#/definitions/recordData" }
+            ],
+            "additionalProperties": false
+        },
+        "tagArray" : {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+        },
+        "subjectType" : {
+            "description": "Record acting on the object record",
+            "oneOf": [
+                {
+                    "properties": {
+                        "subject": {
+                            "description": "Global id of the subject record",
+                            "type": "string"
+                        }
+                    },
+                    "required": [ "subject" ]
+                }, {
+                    "properties": {
+                        "local_subject": {
+                            "description": "Local id of the subject record",
+                            "type": "string"
+                        }
+                    },
+                    "required": [ "local_subject" ]
+                }
+            ]
+        },
+        "dataDict" : {
+            "description": "Dictionary of data values",
+            "type": "object",
+            "additionalProperties": {"$ref": "#/definitions/dataType" }
+        },
+        "curveSetDict" : {
+            "description": "Dictionary describing a set of curves",
+            "type": "object",
+            "additionalProperties": {"$ref": "#/definitions/curveSetType" }
+        },
+        "dataType" : {
+            "description": "User-defined data values",
+            "type": "object",
+            "properties": {
+                "value": {
+                    "oneOf": [
+                        { "type": "string" },
+                        { "type": "number" },
+                        { "$ref": "#/definitions/scalarDataArray" },
+                        { "$ref": "#/definitions/stringDataArray" }
+                    ]
+                },
+                "units": { "type": "string" },
+                "tags": { "$ref": "#/definitions/tagArray" }
+            },
+            "required" :  [ "value" ]
+        },
+        "curveSetType" : {
+            "description": "User-defined associations of curves",
+            "type": "object",
+            "properties": {
+                "independent": {
+                    "type": "object",
+                    "additionalProperties": { "$ref": "#/definitions/curveEntryType" }
+                },
+                "dependent": {
+                    "type": "object",
+                    "additionalProperties": { "$ref": "#/definitions/curveEntryType" }
+                },
+                "dependent_order": { "$ref": "#/definitions/stringDataArray"},
+                "independent_order": { "$ref": "#/definitions/stringDataArray"},
+                "tags": { "$ref": "#/definitions/tagArray" }
+            },
+            "required" :  [ "independent", "dependent" ]
+        },
+        "curveEntryType" : {
+            "description": "Data for a single entry in a curve set",
+            "type": "object",
+            "properties": {
+                "value": { "$ref": "#/definitions/scalarDataArray" },
+                "units": { "type": "string" },
+                "tags": { "$ref": "#/definitions/tagArray" }
+            },
+            "required" :  [ "value" ]
+        }
+    },
+
+    "properties" : {
+        "records" : {
+            "description" : "Simulation metadata (e.g., runs, invocations)",
+            "type" : "array",
+            "minItems" : 1,
+            "items": {
+                "oneOf": [
+                    { "$ref": "#/definitions/record" },
+                    { "$ref": "#/definitions/run" }
+                ]
+            },
+            "uniqueItems" : true
+        },
+        "relationships" : {
+            "description" : "Associations between records",
+            "type" : "array",
+            "minItems" : 0,
+            "items": { "$ref": "#/definitions/relationship" },
+            "uniqueItems" : true
+        }
+    },
+    "required": [ "records" ]
+}

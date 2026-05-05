@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -137,7 +138,7 @@ TYPED_TEST(InOutInterfaceTest, initialize_from_mesh)
 
   EXPECT_TRUE(axom::utilities::filesystem::pathExists(this->meshfile));
 
-  axom::mint::Mesh* mesh {nullptr};
+  axom::mint::Mesh* tmpMeshPtr {nullptr};
 
   int rc = failCode;
 
@@ -147,19 +148,26 @@ TYPED_TEST(InOutInterfaceTest, initialize_from_mesh)
     int segmentsPerKnotSpan = 10;
     double weldThreshold = 1E-9;
     double revolvedVolume = 0.;
+    const bool uniform = true;
+    const double percentError = 0.;
     auto identity = axom::numerics::Matrix<double>::identity(4);
-    rc = axom::quest::internal::read_c2c_mesh_uniform(this->meshfile,
-                                                      identity,
-                                                      segmentsPerKnotSpan,
-                                                      weldThreshold,
-                                                      mesh,
-                                                      revolvedVolume);
+    rc = axom::quest::internal::read_c2c_mesh(this->meshfile,
+                                              uniform,
+                                              identity,
+                                              segmentsPerKnotSpan,
+                                              weldThreshold,
+                                              percentError,
+                                              tmpMeshPtr,
+                                              revolvedVolume);
 #endif  // AXOM_USE_C2C
   }
   else  // DIM == 3
   {
-    rc = axom::quest::internal::read_stl_mesh(this->meshfile, mesh);
+    rc = axom::quest::internal::read_stl_mesh(this->meshfile, tmpMeshPtr);
   }
+
+  std::shared_ptr<axom::mint::Mesh> mesh {tmpMeshPtr};
+  tmpMeshPtr = nullptr;
 
   EXPECT_EQ(0, rc);
 
@@ -179,8 +187,6 @@ TYPED_TEST(InOutInterfaceTest, initialize_from_mesh)
 
   // InOut should no longer  be initialized
   EXPECT_FALSE(axom::quest::inout_initialized());
-
-  delete mesh;
 }
 
 TYPED_TEST(InOutInterfaceTest, query_properties)

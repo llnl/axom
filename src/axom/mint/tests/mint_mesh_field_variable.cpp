@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -41,7 +42,7 @@ void populate_array(axom::deprecated::MCArray<T>& data)
     {
       data(i, j) = offset + j;
     }  // END for all j
-  }    // END for all i
+  }  // END for all i
 }
 
 //------------------------------------------------------------------------------
@@ -59,7 +60,7 @@ void check_array(axom::deprecated::MCArray<T>& data)
       const double expected_value = offset + j;
       EXPECT_DOUBLE_EQ(data(i, j), expected_value);
     }  // END for all j
-  }    // END for all i
+  }  // END for all i
 }
 
 //------------------------------------------------------------------------------
@@ -80,7 +81,7 @@ void populate_field_variable(mint::FieldVariable<T>& fv)
       const int idx = static_cast<int>(offset) + j;
       data[idx] = expected_value;
     }  // END for all components
-  }    // END for all tuples
+  }  // END for all tuples
 }
 
 //------------------------------------------------------------------------------
@@ -102,7 +103,7 @@ void check_field_variable(mint::FieldVariable<T>& fv)
       const int idx = static_cast<int>(offset) + j;
       EXPECT_DOUBLE_EQ(data[idx], expected_value);
     }  // END for all jj
-  }    // END for all ii
+  }  // END for all ii
 }
 
 //------------------------------------------------------------------------------
@@ -135,16 +136,14 @@ TEST(mint_mesh_field_variable_DeathTest, invalid_construction)
 
   EXPECT_EQ(mint::field_traits<invalid_type>::type(), mint::UNDEFINED_FIELD_TYPE);
 
-  EXPECT_DEATH_IF_SUPPORTED(
-    mint::FieldVariable<invalid_type>("foo",
-                                      axom::deprecated::internal::ZERO,
-                                      axom::deprecated::internal::ZERO),
-    IGNORE_OUTPUT);
-  EXPECT_DEATH_IF_SUPPORTED(
-    mint::FieldVariable<double>(EMPTY_STRING,
-                                axom::deprecated::internal::ZERO,
-                                axom::deprecated::internal::ZERO),
-    IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(mint::FieldVariable<invalid_type>("foo",
+                                                              axom::deprecated::internal::ZERO,
+                                                              axom::deprecated::internal::ZERO),
+                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(mint::FieldVariable<double>(EMPTY_STRING,
+                                                        axom::deprecated::internal::ZERO,
+                                                        axom::deprecated::internal::ZERO),
+                            IGNORE_OUTPUT);
 }
 
 //------------------------------------------------------------------------------
@@ -306,8 +305,7 @@ TEST(mint_mesh_field_variable, field_array_access)
   constexpr axom::IndexType NUM_COMPONENTS = 3;
   constexpr axom::IndexType TOTAL_SIZE = 12;
 
-  const double EXPECTED_DATA[] =
-    {10.0, 11.0, 12.0, 20.0, 21.0, 22.0, 30.0, 31.0, 32.0, 40.0, 41.0, 42.0};
+  const double EXPECTED_DATA[] = {10.0, 11.0, 12.0, 20.0, 21.0, 22.0, 30.0, 31.0, 32.0, 40.0, 41.0, 42.0};
 
   // create a field variable
   mint::FieldVariable<double> field("f", NUM_TUPLES, NUM_COMPONENTS);
@@ -326,7 +324,7 @@ TEST(mint_mesh_field_variable, field_array_access)
     {
       A(j, i) = base + j;
     }  // END for all components
-  }    // END for all tuples
+  }  // END for all tuples
 
   // check the data
   for(int i = 0; i < TOTAL_SIZE; ++i)
@@ -391,8 +389,7 @@ TEST(mint_mesh_field_variable, shrink)
   EXPECT_EQ(field.getName(), "f");
 
   const double ratio = field.getResizeRatio();
-  axom::IndexType capacity =
-    static_cast<axom::IndexType>(SMALL_NUM_TUPLES * ratio + 0.5);
+  axom::IndexType capacity = static_cast<axom::IndexType>(SMALL_NUM_TUPLES * ratio + 0.5);
 
   if(capacity < axom::deprecated::MCArray<axom::IndexType>::MIN_DEFAULT_CAPACITY)
   {

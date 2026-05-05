@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -61,8 +62,7 @@ IOBaton::IOBaton(MPI_Comm comm, int num_files, int num_groups)
   }
   else if(m_my_rank < active_comm_size)
   {
-    m_set_id =
-      m_num_larger_sets + (m_my_rank - m_first_regular_set_rank) / m_set_size;
+    m_set_id = m_num_larger_sets + (m_my_rank - m_first_regular_set_rank) / m_set_size;
     m_rank_within_set = (m_my_rank - m_first_regular_set_rank) % m_set_size;
     if(m_rank_within_set < m_set_size - 1)
     {
@@ -96,8 +96,7 @@ int IOBaton::wait()
   {
     MPI_Status mpi_stat;
     int baton;
-    int mpi_err =
-      MPI_Recv(&baton, 1, MPI_INT, m_rank_before_me, m_mpi_tag, m_mpi_comm, &mpi_stat);
+    int mpi_err = MPI_Recv(&baton, 1, MPI_INT, m_rank_before_me, m_mpi_tag, m_mpi_comm, &mpi_stat);
     if(mpi_err == MPI_SUCCESS)
     {
       return_val = m_set_id;
@@ -115,7 +114,7 @@ int IOBaton::pass()
   int return_val = 0;
   if(m_rank_after_me != s_invalid_rank_id)
   {
-    int baton;
+    int baton = 0;
     int mpi_err = MPI_Ssend(&baton, 1, MPI_INT, m_rank_after_me, 0, m_mpi_comm);
     if(mpi_err != MPI_SUCCESS)
     {

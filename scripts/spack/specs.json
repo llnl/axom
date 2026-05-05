@@ -1,7 +1,8 @@
 {
     "__comment__":"##############################################################################",
-    "__comment__":"# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and      ",
-    "__comment__":"# other Axom Project Developers. See the top-level LICENSE file for details.  ",
+    "__comment__":"# Copyright (c) Lawrence Livermore National Security, LLC and other           ",
+    "__comment__":"# Axom Project Contributors. See top-level LICENSE and COPYRIGHT              ",
+    "__comment__":"# files for dates and other details.                                          ",
     "__comment__":"#                                                                             ",
     "__comment__":"# SPDX-License-Identifier: (BSD-3-Clause)                                     ",
     "__comment__":"##############################################################################",
@@ -13,26 +14,34 @@
     "__comment__":"#                                                                             ",
     "__comment__":"##############################################################################",
 
+    "__comment__":"# For intel compiler, mfem requires given compiler flag and ",
+    "__comment__":"# compiler preferences to prevent compiler mixing",
+    "__comment__":"# Configs are for dane/rzwhippet",
     "toss_4_x86_64_ib":
-    [ "gcc@10.3.1+devtools+hdf5+mfem+c2c+scr+profiling",
-      "clang@14.0.6+devtools+hdf5+mfem+c2c+scr+profiling",
-      "intel@2022.1.0+devtools+hdf5+mfem+c2c+profiling" ],
+    [ "+python+devtools+hdf5+mfem+c2c+adiak+caliper %%intel_25 ^mfem cxxflags=-fp-speculation=safe %intel_25",
+      "+python+devtools+hdf5+mfem+c2c+scr+adiak+caliper %gcc_13",
+      "+python+devtools+hdf5+mfem+c2c+scr+adiak+caliper+opencascade %clang_19"],
 
-    "__comment__":"# Use amdgpu_target=gfx90a for tioga/rzvernal; and gfx908 for rznevada",
+    "__comment__":"# Configs are for rzvector",
+    "rzvector":
+    [ "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %gcc_13",
+      "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %clang_19"],
+
+    "__comment__":"# Configs are for matrix",
+    "matrix":
+    [ "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %gcc_13",
+      "+python+devtools+mfem+c2c+adiak+caliper+cuda cuda_arch=90 %clang_19"],
+
+    "__comment__":"# Use amdgpu_target=gfx942 for rzadams",
+    "__comment__":"# Use amdgpu_target=gfx90a for tioga/rzvernal",
+    "__comment__":"# Use amdgpu_target=gfx908 for rznevada",
     "__comment__":"# -Wno-int-conversion flag needed for building HDF5",
+    "__comment__":"# caliper disabled for rocm@6.3.1, fails to compile",
     "toss_4_x86_64_ib_cray":
-    [ "clang@16.0.0~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx90a ^hip@5.6.0 ^hsa-rocr-dev@5.6.0 ^llvm-amdgpu@5.6.0 ^rocprim@5.6.0 ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
-      "clang@17.0.0~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx90a ^hip@5.7.1 ^hsa-rocr-dev@5.7.1 ^llvm-amdgpu@5.7.1 ^rocprim@5.7.1 ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion" ],
-
-    "__comment__":"# Note: clang-ibm + raja+openmp causes runtime failures, turning it off until there is an alternative",
-    "blueos_3_ppc64le_ib_p9":
-    [ "clang@10.0.1.1+devtools+mfem+c2c+profiling",
-      "clang@10.0.1.2+devtools+mfem+c2c+profiling+cuda cuda_arch=70",
-      "gcc@8.3.1.1+devtools~mfem+c2c+profiling",
-      "gcc@8.3.1.2+devtools~mfem+c2c+profiling+cuda cuda_arch=70",
-      "xl@16.1.1.1~openmp+devtools+mfem+c2c+profiling",
-      "xl@16.1.1.2~openmp+devtools+mfem+c2c+profiling+cuda cuda_arch=70" ],
+    [ "+python+devtools+openmp+mfem+c2c+adiak+caliper+rocm amdgpu_target=gfx942,gfx90a %rocm_6_4_3 ^hip@6.4.3 ^hipblas@6.4.3 ^hipsparse@6.4.3 ^hsa-rocr-dev@6.4.3 ^rocprim@6.4.3 ^mfem+raja+umpire ^raja+openmp+rocm ^umpire+openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
+      "+python+devtools+openmp+mfem+c2c+adiak~caliper+rocm amdgpu_target=gfx942,gfx90a %rocm_6_3_1 ^hip@6.3.1 ^hipblas@6.3.1 ^hipsparse@6.3.1 ^hsa-rocr-dev@6.3.1 ^rocprim@6.3.1 ^mfem+raja+umpire ^raja+openmp+rocm ^umpire+openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
+      "+python+devtools+openmp+mfem+c2c+adiak+caliper+rocm amdgpu_target=gfx942,gfx90a %cce_20 ^hip@6.4.3 ^hipblas@6.4.3 ^hipsparse@6.4.3 ^hsa-rocr-dev@6.4.3  ^rocprim@6.4.3 ^caliper~shared ^mfem+raja+umpire ^raja+openmp+rocm ^umpire+openmp+rocm ^hdf5 cflags=-Wno-int-conversion" ],
 
     "darwin-x86_64":
-    [ "clang@9.0.0+devtools+mfem" ]
+    [ "+python+devtools+mfem %clang@9.0.0" ]
 }

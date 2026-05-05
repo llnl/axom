@@ -1,11 +1,12 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 // Axom includes
-#include "axom/core/numerics/Matrix.hpp"      // for numerics::Matrix
-#include "axom/core/utilities/Utilities.hpp"  // random_real()/isNearlyEqual
+#include "axom/core/numerics/Matrix.hpp"             // for numerics::Matrix
+#include "axom/core/utilities/Utilities.hpp"         // random_real()/isNearlyEqual
 #include "axom/core/numerics/jacobi_eigensolve.hpp"  // for jacobi_eigensolve()
 #include "axom/core/numerics/matvecops.hpp"          // for matrix operators
 
@@ -48,7 +49,7 @@ void random_symmetric_matrix_init(axom::numerics::Matrix<T>& A, T lo, T hi)
       A(i, j) = axom::utilities::random_real(lo, hi, seed);
       A(j, i) = A(i, j);
     }  // END for all j
-  }    // END for all i
+  }  // END for all i
 }
 
 //------------------------------------------------------------------------------
@@ -103,8 +104,7 @@ bool check_eigen_decomposition(const axom::numerics::Matrix<T>& A,
 
   double p1norm = axom::numerics::matrix_norm(test, axom::numerics::P1_NORM);
   double inftynorm = axom::numerics::matrix_norm(test, axom::numerics::INF_NORM);
-  double frobnorm =
-    axom::numerics::matrix_norm(test, axom::numerics::FROBENIUS_NORM);
+  double frobnorm = axom::numerics::matrix_norm(test, axom::numerics::FROBENIUS_NORM);
 
   status = status && axom::utilities::isNearlyEqual(p1norm, 0.0, TOL);
   if(do_gtest_checks)
@@ -174,13 +174,12 @@ TEST(numerics_jacobi_eigensolve, random_symmetric_matrix)
     axom::numerics::Matrix<double> V(N, N);
 
     int numIterations = 0;
-    int rc = axom::numerics::jacobi_eigensolve(
-      A_test,
-      V,
-      lambdas,
-      axom::numerics::JACOBI_DEFAULT_MAX_ITERATIONS,
-      &numIterations,
-      axom::numerics::JACOBI_DEFAULT_TOLERANCE);
+    int rc = axom::numerics::jacobi_eigensolve(A_test,
+                                               V,
+                                               lambdas,
+                                               axom::numerics::JACOBI_DEFAULT_MAX_ITERATIONS,
+                                               &numIterations,
+                                               axom::numerics::JACOBI_DEFAULT_TOLERANCE);
 
     EXPECT_EQ(rc, axom::numerics::JACOBI_EIGENSOLVE_SUCCESS);
     EXPECT_TRUE(numIterations > 0);

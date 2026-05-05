@@ -1,8 +1,10 @@
-from spack import *
-
 import os
 import socket
 
+from spack.package import *
+from spack_repo.builtin.build_systems.cmake import CMakePackage
+from spack_repo.builtin.build_systems.cmake import CMakeBuilder
+from spack_repo.builtin.build_systems.generic import Package
 
 class C2c(CMakePackage):
     """Contour Parser Library"""
@@ -30,13 +32,16 @@ class C2c(CMakePackage):
     variant('tools', default=False,
             description='Build command-line tools in addition to library')
 
+    depends_on("c", type="build")
+    depends_on("cxx", type="build")
+
     depends_on('cmake@3.8.0:', type='build')
     depends_on('doxygen', type='build', when='+docs')
     depends_on('bison@3.6.0:', type='build', when='+dev')
     depends_on('flex@2.6.0:', type='build', when='+dev')
     depends_on('nlohmann-json', when='+tools')
 
-    phases = ('hostconfig',) + spack.build_systems.cmake.CMakeBuilder.phases
+    phases = ('hostconfig',) + CMakeBuilder.phases
 
     def configure_args(self):
         spec = self.spec if self.spec is not None else ""
@@ -150,7 +155,7 @@ class C2c(CMakePackage):
         var=''
         host_config_path = "%s-%s-%s%s.cmake" % (socket.gethostname().rstrip('1234567890'),
                                                  self._get_sys_type(spec),
-                                                 spec.compiler, var)
+                                                 spec.compiler.name, var)
         dest_dir = self.stage.source_path
         host_config_path = os.path.abspath(os.path.join(dest_dir, host_config_path))
         return host_config_path

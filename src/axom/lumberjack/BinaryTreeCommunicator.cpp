@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -29,6 +30,10 @@ namespace lumberjack
 void BinaryTreeCommunicator::initialize(MPI_Comm comm, int ranksLimit)
 {
   m_mpiComm = comm;
+
+  MPI_Barrier(m_mpiComm);
+  m_startTime = MPI_Wtime();
+
   MPI_Comm_rank(m_mpiComm, &m_mpiCommRank);
   MPI_Comm_size(m_mpiComm, &m_mpiCommSize);
   m_ranksLimit = ranksLimit;
@@ -58,6 +63,8 @@ void BinaryTreeCommunicator::initialize(MPI_Comm comm, int ranksLimit)
 }
 
 void BinaryTreeCommunicator::finalize() { }
+
+MPI_Comm BinaryTreeCommunicator::comm() { return m_mpiComm; }
 
 int BinaryTreeCommunicator::rank() { return m_mpiCommRank; }
 
@@ -113,6 +120,8 @@ bool BinaryTreeCommunicator::isOutputNode()
   }
   return false;
 }
+
+double BinaryTreeCommunicator::startTime() { return m_startTime; }
 
 }  // end namespace lumberjack
 }  // end namespace axom

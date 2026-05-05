@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -53,11 +54,7 @@ std::string stacktrace()
     char outString[512];
     SymFromAddr(process, (DWORD64)(stack[i]), 0, symbol);
 
-    sprintf_s(outString,
-              "%i: %s - 0x%0X",
-              frames - i - 1,
-              symbol->Name,
-              symbol->Address);
+    sprintf_s(outString, "%i: %s - 0x%0X", frames - i - 1, symbol->Name, symbol->Address);
     oss << outString << std::endl;
   }
 

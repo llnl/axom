@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -14,6 +15,7 @@ set(serial_slic_tests
     slic_fmt.cpp
     slic_interface.cpp
     slic_macros.cpp
+    slic_scoped_abort.cpp
     slic_uninit.cpp )
 
 set(slic_tests_depends slic gtest fmt)
@@ -35,7 +37,9 @@ endforeach()
 #
 if (AXOM_ENABLE_MPI AND AXOM_ENABLE_LUMBERJACK)
     set(parallel_slic_tests
-        slic_macros_parallel.cpp )
+        slic_log_stream_status_monitor.cpp
+        slic_macros_parallel.cpp
+        slic_flush_perf.cpp)
 
     foreach(test ${parallel_slic_tests})
         get_filename_component( test_name ${test} NAME_WE )
@@ -49,7 +53,6 @@ if (AXOM_ENABLE_MPI AND AXOM_ENABLE_LUMBERJACK)
                       NUM_MPI_TASKS 4)
     endforeach()
 endif()
-
 
 #
 # Benchmarks
@@ -69,7 +72,7 @@ if (ENABLE_BENCHMARKS)
 
         blt_add_benchmark(
             NAME    ${test_name}
-            COMMAND ${test_name} --benchmark_min_time=0.0001 )
+            COMMAND ${test_name} )
     endforeach()
 endif()
 

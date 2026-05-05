@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "axom/config.hpp"                  // for compile-time definitions
@@ -37,9 +38,7 @@ void raja_basic_usage_test()
     });
 
   // add vectors
-  RAJA::forall<execution_policy>(
-    RAJA::RangeSegment(0, N),
-    AXOM_LAMBDA(int i) { c[i] = a[i] + b[i]; });
+  RAJA::forall<execution_policy>(RAJA::RangeSegment(0, N), AXOM_LAMBDA(int i) { c[i] = a[i] + b[i]; });
 
   // check result in serial
   for(int i = 0; i < N; ++i)
@@ -67,11 +66,9 @@ AXOM_CUDA_TEST(raja_smoke, basic_use)
   raja_basic_usage_test<RAJA::omp_parallel_for_exec>();
 #endif
 
-#if defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && \
-  defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && defined(AXOM_USE_UMPIRE)
   const int prev_allocator = axom::getDefaultAllocatorID();
-  const int UnifiedAllocatorID =
-    axom::getUmpireResourceAllocatorID(umpire::resource::Unified);
+  const int UnifiedAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Unified);
   axom::setDefaultAllocator(UnifiedAllocatorID);
 
   std::cout << "Testing RAJA CUDA execution" << std::endl;
@@ -81,11 +78,9 @@ AXOM_CUDA_TEST(raja_smoke, basic_use)
   axom::setDefaultAllocator(prev_allocator);
 #endif
 
-#if defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && \
-  defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && defined(AXOM_USE_UMPIRE)
   const int prev_allocator = axom::getDefaultAllocatorID();
-  const int UnifiedAllocatorID =
-    axom::getUmpireResourceAllocatorID(umpire::resource::Unified);
+  const int UnifiedAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Unified);
   axom::setDefaultAllocator(UnifiedAllocatorID);
 
   std::cout << "Testing RAJA HIP execution" << std::endl;

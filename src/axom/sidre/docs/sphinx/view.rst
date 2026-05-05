@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -55,8 +56,10 @@ stride (based on the pointer address and data type).
     casting the pointer to a proper type when accessed through the view, 
     knowing the size of the data, etc.
 
-A view may also refer to a scalar quantity or a string. Such views hold their
-data differently than the pointer cases described above.
+A view may also refer to a scalar quantity, a tuple (which is like a
+scalar but may have multiple values like an array) or a string. Such
+views hold their data differently than the pointer cases described
+above.
 
 Before we describe the Sidre ``View`` class interface, we present some view 
 concepts that describe various *states* a view can be in at any given time. 
@@ -67,8 +70,8 @@ The key view concepts that users should be aware of are:
 
   * View data description (data type, number of elements, stride, offset, etc.)
   * View data association (data lives in an attached Sidre buffer,
-    accessed via an external pointer, or is a scalar or string owned by the 
-    view)
+    accessed via an external pointer, or is a scalar, tuple or string
+    owned by the view)
   * Whether the view data description has been applied to the data
 
 The table below summarizes View data associations (rows) and view states with 
@@ -105,15 +108,16 @@ these as well; e.g., ``isEmpty()``, ``hasBuffer()``, etc. The associations are:
   * **EXTERNAL.** A view has a non-null pointer to external data; the view
     may or may not have a data description and the description, if the view 
     has one, may or may not be applied to the external data.
-  * **SCALAR.** A view was created to hold a scalar value; such a view always
+  * **TUPLE.** A view was created to hold a tuple value; such a view always
     has a valid data description, is allocated, and the description is applied.
+    A scalar value is equivalent to a 1-tuple.
   * **STRING.** A view was created to hold a string; such a view always
     has a valid data description, is allocated, and the description is applied.
 
 Note that there are specific consequences that follow from each particular
 association/state that a view is in. For example, an EMPTY view cannot have an
-attached buffer. Neither can an EXTERNAL, SCALAR or STRING view. A view that
-is EMPTY, BUFFER, SCALAR, or STRING cannot be EXTERNAL, etc.
+attached buffer. Neither can an EXTERNAL, TUPLE or STRING view. A view that
+is EMPTY, BUFFER, TUPLE, or STRING cannot be EXTERNAL, etc.
 
 The following lists summarize the ``View`` class interface:
 
@@ -145,6 +149,7 @@ Data Association Queries
  * Does view have a buffer attached?
  * Is view associated with external data?
  * Is it a scalar view?
+ * Is it a tuple view?
  * Is it a string view?
 
 Data State Queries
@@ -175,6 +180,7 @@ Data Management Operations
    and detach buffer from view.
  * Apply current view description to data or apply a new description.
  * Set view scalar value.
+ * Set view tuple value.
  * Set view string. 
  * Set external data pointer, with or without a data description. 
 
@@ -193,8 +199,8 @@ Attribute Methods
  * Get attribute associated with a view by id or name.
  * Query whether aAttribute has been set explicitly for view.
  * Reset attribute with given id or name to its default value.
- * Set attribute with given id or name to a given scalar value or string.
- * Retrieve scalar value or string of an attribute.
+ * Set attribute with given id or name to a given scalar value, tuple or string.
+ * Retrieve scalar value, tuple pointer or string of an attribute.
  * Iterate over attributes of a view.
 
 I/O Operations

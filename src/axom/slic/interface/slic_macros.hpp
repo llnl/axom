@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -41,17 +42,7 @@
  * \endcode
  *
  */
-#define SLIC_ERROR(msg)                                           \
-  do                                                              \
-  {                                                               \
-    std::ostringstream __oss;                                     \
-    __oss << msg;                                                 \
-    axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__); \
-    if(axom::slic::isAbortOnErrorsEnabled())                      \
-    {                                                             \
-      axom::slic::abort();                                        \
-    }                                                             \
-  } while(axom::slic::detail::false_value)
+#define SLIC_ERROR(msg) SLIC_ERROR_IF(true, msg)
 
 /*!
  * \def SLIC_ERROR_IF( EXP, msg )
@@ -102,20 +93,7 @@
  * \endcode
  *
  */
-#define SLIC_ERROR_ROOT(msg)                                        \
-  do                                                                \
-  {                                                                 \
-    if(axom::slic::isRoot())                                        \
-    {                                                               \
-      std::ostringstream __oss;                                     \
-      __oss << msg;                                                 \
-      axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__); \
-      if(axom::slic::isAbortOnErrorsEnabled())                      \
-      {                                                             \
-        axom::slic::abort();                                        \
-      }                                                             \
-    }                                                               \
-  } while(axom::slic::detail::false_value)
+#define SLIC_ERROR_ROOT(msg) SLIC_ERROR_IF(axom::slic::isRoot(), msg)
 
 /*!
  * \def SLIC_ERROR_ROOT_IF( EXP, msg )
@@ -135,23 +113,7 @@
  * \endcode
  *
  */
-#define SLIC_ERROR_ROOT_IF(EXP, msg)                                  \
-  do                                                                  \
-  {                                                                   \
-    if(EXP)                                                           \
-    {                                                                 \
-      if(axom::slic::isRoot())                                        \
-      {                                                               \
-        std::ostringstream __oss;                                     \
-        __oss << msg;                                                 \
-        axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__); \
-        if(axom::slic::isAbortOnErrorsEnabled())                      \
-        {                                                             \
-          axom::slic::abort();                                        \
-        }                                                             \
-      }                                                               \
-    }                                                                 \
-  } while(axom::slic::detail::false_value)
+#define SLIC_ERROR_ROOT_IF(EXP, msg) SLIC_ERROR_IF((EXP) && (axom::slic::isRoot()), msg)
 
 ///@}
 
@@ -186,17 +148,24 @@
  * \endcode
  *
  */
-#define SLIC_WARNING(msg)                                           \
-  do                                                                \
-  {                                                                 \
-    std::ostringstream __oss;                                       \
-    __oss << msg;                                                   \
-    axom::slic::logWarningMessage(__oss.str(), __FILE__, __LINE__); \
-    if(axom::slic::isAbortOnWarningsEnabled())                      \
-    {                                                               \
-      axom::slic::abort();                                          \
-    }                                                               \
-  } while(axom::slic::detail::false_value)
+#define SLIC_WARNING(msg) SLIC_WARNING_IF(true, msg)
+
+/*!
+ * \def SLIC_WARNING_ONCE( msg )
+ * \brief Logs a warning message only once per call site.
+ *
+ * \param [in] msg user-supplied message
+ *
+ * \note The SLIC_WARNING_ONCE macro is always active.
+ * \note Aborts the application when `slic::enableAbortOnWarning()`
+ *
+ * Usage:
+ * \code
+ *   SLIC_WARNING_ONCE( "my_val should always be positive" );
+ * \endcode
+ *
+ */
+#define SLIC_WARNING_ONCE(msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_WARNING_IF, true, msg)
 
 /*!
  * \def SLIC_WARNING_IF( EXP, msg )
@@ -230,6 +199,24 @@
   } while(axom::slic::detail::false_value)
 
 /*!
+ * \def SLIC_WARNING_IF_ONCE( EXP, msg )
+ * \brief Logs a warning iff EXP is true, and only once per call site.
+ *
+ * \param [in] EXP user-supplied boolean expression.
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_WARNING_IF_ONCE macro is always active.
+ * \note Aborts the application when `slic::enableAbortOnWarning()`
+ *
+ * Usage:
+ * \code
+ *   SLIC_WARNING_IF_ONCE( (val < 0), "my_val should always be positive" );
+ * \endcode
+ *
+ */
+#define SLIC_WARNING_IF_ONCE(EXP, msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_WARNING_IF, EXP, msg)
+
+/*!
  * \def SLIC_WARNING_ROOT( msg )
  * \brief Macro that logs given warning message only on root.
  *
@@ -246,20 +233,27 @@
  * \endcode
  *
  */
-#define SLIC_WARNING_ROOT(msg)                                        \
-  do                                                                  \
-  {                                                                   \
-    if(axom::slic::isRoot())                                          \
-    {                                                                 \
-      std::ostringstream __oss;                                       \
-      __oss << msg;                                                   \
-      axom::slic::logWarningMessage(__oss.str(), __FILE__, __LINE__); \
-      if(axom::slic::isAbortOnWarningsEnabled())                      \
-      {                                                               \
-        axom::slic::abort();                                          \
-      }                                                               \
-    }                                                                 \
-  } while(axom::slic::detail::false_value)
+#define SLIC_WARNING_ROOT(msg) SLIC_WARNING_IF(axom::slic::isRoot(), msg)
+
+/*!
+ * \def SLIC_WARNING_ROOT_ONCE( msg )
+ * \brief Macro that logs given warning message only on root, and only once per call site.
+ *
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_WARNING_ROOT_ONCE macro is always active.
+ * \note By default, all ranks are considered to be root.
+ *       Must call `axom::slic::initialize(is_root={true|false})`
+ *       or set via `axom::slic::setIsRoot({true|false})` to filter based on root.
+ *
+ * Usage:
+ * \code
+ *   SLIC_WARNING_ROOT_ONCE( "A warning has occurred!" );
+ * \endcode
+ *
+ */
+#define SLIC_WARNING_ROOT_ONCE(msg) \
+  SLIC_DETAIL_LOG_IF_ONCE(SLIC_WARNING_IF, axom::slic::isRoot(), msg)
 
 /*!
  * \def SLIC_WARNING_ROOT_IF( EXP, msg )
@@ -279,23 +273,29 @@
  * \endcode
  *
  */
-#define SLIC_WARNING_ROOT_IF(EXP, msg)                                  \
-  do                                                                    \
-  {                                                                     \
-    if(EXP)                                                             \
-    {                                                                   \
-      if(axom::slic::isRoot())                                          \
-      {                                                                 \
-        std::ostringstream __oss;                                       \
-        __oss << msg;                                                   \
-        axom::slic::logWarningMessage(__oss.str(), __FILE__, __LINE__); \
-        if(axom::slic::isAbortOnWarningsEnabled())                      \
-        {                                                               \
-          axom::slic::abort();                                          \
-        }                                                               \
-      }                                                                 \
-    }                                                                   \
-  } while(axom::slic::detail::false_value)
+#define SLIC_WARNING_ROOT_IF(EXP, msg) SLIC_WARNING_IF((EXP) && (axom::slic::isRoot()), msg)
+
+/*!
+ * \def SLIC_WARNING_ROOT_IF_ONCE( EXP, msg )
+ * \brief Macro that logs given warning message only on root iff EXP is true,
+ *        and only once per call site.
+ *
+ * \param [in] EXP user-supplied boolean expression.
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_WARNING_ROOT_IF_ONCE macro is always active.
+ * \note By default, all ranks are considered to be root.
+ *       Must call `axom::slic::initialize(is_root={true|false})`
+ *       or set via `axom::slic::setIsRoot({true|false})` to filter based on root.
+ *
+ * Usage:
+ * \code
+ *   SLIC_WARNING_ROOT_IF_ONCE( (val < 0), "my_val should always be positive" );
+ * \endcode
+ *
+ */
+#define SLIC_WARNING_ROOT_IF_ONCE(EXP, msg) \
+  SLIC_DETAIL_LOG_IF_ONCE(SLIC_WARNING_IF, (EXP) && (axom::slic::isRoot()), msg)
 
 ///@}
 
@@ -333,20 +333,7 @@
  * \endcode
  *
  */
-  #define SLIC_ASSERT(EXP)                                            \
-    do                                                                \
-    {                                                                 \
-      if(!(EXP))                                                      \
-      {                                                               \
-        std::ostringstream __oss;                                     \
-        __oss << "Failed Assert: " << #EXP << std::ends;              \
-        axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__); \
-        if(axom::slic::isAbortOnErrorsEnabled())                      \
-        {                                                             \
-          axom::slic::abort();                                        \
-        }                                                             \
-      }                                                               \
-    } while(axom::slic::detail::false_value)
+  #define SLIC_ASSERT(EXP) SLIC_ASSERT_MSG(EXP, "")
 
   /*!
  * \def SLIC_ASSERT_MSG( EXP, msg )
@@ -365,19 +352,19 @@
  * \endcode
  *
  */
-  #define SLIC_ASSERT_MSG(EXP, msg)                                          \
-    do                                                                       \
-    {                                                                        \
-      if(!(EXP))                                                             \
-      {                                                                      \
-        std::ostringstream __oss;                                            \
-        __oss << "Failed Assert: " << #EXP << std::endl << msg << std::ends; \
-        axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__);        \
-        if(axom::slic::isAbortOnErrorsEnabled())                             \
-        {                                                                    \
-          axom::slic::abort();                                               \
-        }                                                                    \
-      }                                                                      \
+  #define SLIC_ASSERT_MSG(EXP, msg)                                   \
+    do                                                                \
+    {                                                                 \
+      if(!(EXP))                                                      \
+      {                                                               \
+        std::ostringstream __oss;                                     \
+        __oss << "Failed Assert: " << #EXP << std::endl << msg;       \
+        axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__); \
+        if(axom::slic::isAbortOnErrorsEnabled())                      \
+        {                                                             \
+          axom::slic::abort();                                        \
+        }                                                             \
+      }                                                               \
     } while(axom::slic::detail::false_value)
 
   ///@}
@@ -421,13 +408,31 @@
  * \endcode
  *
  */
-  #define SLIC_CHECK(EXP)                                                 \
+  #define SLIC_CHECK(EXP) SLIC_CHECK_MSG(EXP, "")
+
+  /*!
+ * \def SLIC_CHECK_MSG( EXP, msg )
+ * \brief Same as SLIC_CHECK, but with a custom error message.
+ *
+ * \param [in] EXP user-supplied boolean expression.
+ * \param [in] msg user-supplied message
+ *
+ * \note This macro is only active when AXOM_DEBUG is defined.
+ * \see SLIC_DEBUG( EXP )
+ *
+ * Usage:
+ * \code
+ *   SLIC_CHECK_MSG( my_val >= 0, "my_val must always be positive" );
+ * \endcode
+ *
+ */
+  #define SLIC_CHECK_MSG(EXP, msg)                                        \
     do                                                                    \
     {                                                                     \
       if(!(EXP))                                                          \
       {                                                                   \
         std::ostringstream __oss;                                         \
-        __oss << "Failed Check: " << #EXP << std::ends;                   \
+        __oss << "Failed Check: " << #EXP << std::endl << msg;            \
         if(axom::slic::debug::checksAreErrors)                            \
         {                                                                 \
           axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__);   \
@@ -447,103 +452,17 @@
       }                                                                   \
     } while(axom::slic::detail::false_value)
 
-  /*!
- * \def SLIC_CHECK_MSG( EXP, msg )
- * \brief Same as SLIC_CHECK, but with a custom error message.
- *
- * \param [in] EXP user-supplied boolean expression.
- * \param [in] msg user-supplied message
- *
- * \note This macro is only active when AXOM_DEBUG is defined.
- * \see SLIC_DEBUG( EXP )
- *
- * Usage:
- * \code
- *   SLIC_CHECK_MSG( my_val >= 0, "my_val must always be positive" );
- * \endcode
- *
- */
-  #define SLIC_CHECK_MSG(EXP, msg)                                          \
-    do                                                                      \
-    {                                                                       \
-      if(!(EXP))                                                            \
-      {                                                                     \
-        std::ostringstream __oss;                                           \
-        __oss << "Failed Check: " << #EXP << std::endl << msg << std::ends; \
-        if(axom::slic::debug::checksAreErrors)                              \
-        {                                                                   \
-          axom::slic::logErrorMessage(__oss.str(), __FILE__, __LINE__);     \
-          if(axom::slic::isAbortOnErrorsEnabled())                          \
-          {                                                                 \
-            axom::slic::abort();                                            \
-          }                                                                 \
-        }                                                                   \
-        else                                                                \
-        {                                                                   \
-          axom::slic::logWarningMessage(__oss.str(), __FILE__, __LINE__);   \
-          if(axom::slic::isAbortOnWarningsEnabled())                        \
-          {                                                                 \
-            axom::slic::abort();                                            \
-          }                                                                 \
-        }                                                                   \
-      }                                                                     \
-    } while(axom::slic::detail::false_value)
-
 /// @}
 
-// Use assert when on device (HIP does not yet support assert())
+// Use assert when on device (note that messages are omitted).
+// Device HIP assert() tested with rocm@6.1.2
+// (ROCm support for device assert() begins with version 5.1.0).
 #elif defined(AXOM_DEBUG) && defined(AXOM_DEVICE_CODE)
-  #if !defined(__HIP_DEVICE_COMPILE__)
-    #define SLIC_ASSERT(EXP) assert(EXP)
-    #define SLIC_ASSERT_MSG(EXP, msg) assert(EXP)
-    #define SLIC_CHECK(EXP) assert(EXP)
-    #define SLIC_CHECK_MSG(EXP, msg) assert(EXP)
-  #else
-// AXOM_DEBUG is defined so the expression and message cannot be ignored
-// as they probably contain parameters that were decorated with AXOM_UNUSED_PARAM
-// which will require the expression and message to be used to avoid warnings.
-// Here we use them in a way that will not really have a runtime effect.
-// The msg code block may contain << operators so we need a stream-like object
-// but we enclose it in "if(false)" so it never executes.
-namespace axom
-{
-namespace slic
-{
-namespace internal
-{
-class blackhole
-{ };
-// Write an object to a blackhole.
-template <typename T>
-AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
-{
-  return bh;
-}
-}  // namespace internal
-}  // namespace slic
-}  // namespace axom
+  #define SLIC_ASSERT(EXP) assert(EXP)
+  #define SLIC_ASSERT_MSG(EXP, msg) assert(EXP)
+  #define SLIC_CHECK(EXP) assert(EXP)
+  #define SLIC_CHECK_MSG(EXP, msg) assert(EXP)
 
-    #define SLIC_ASSERT(EXP) ((void)(EXP))
-    #define SLIC_ASSERT_MSG(EXP, msg)            \
-      {                                          \
-        if(false)                                \
-        {                                        \
-          ((void)(EXP));                         \
-          axom::slic::internal::blackhole __oss; \
-          __oss << msg;                          \
-        }                                        \
-      }
-    #define SLIC_CHECK(EXP) ((void)(EXP))
-    #define SLIC_CHECK_MSG(EXP, msg)             \
-      {                                          \
-        if(false)                                \
-        {                                        \
-          ((void)(EXP));                         \
-          axom::slic::internal::blackhole __oss; \
-          __oss << msg;                          \
-        }                                        \
-      }
-  #endif
 #else  // turn off debug macros and asserts
 
   #define SLIC_ASSERT(ignore_EXP) ((void)0)
@@ -567,16 +486,23 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
  * \endcode
  *
  */
-#define SLIC_INFO(msg)                                \
-  do                                                  \
-  {                                                   \
-    std::ostringstream __oss;                         \
-    __oss << msg;                                     \
-    axom::slic::logMessage(axom::slic::message::Info, \
-                           __oss.str(),               \
-                           __FILE__,                  \
-                           __LINE__);                 \
-  } while(axom::slic::detail::false_value)
+#define SLIC_INFO(msg) SLIC_INFO_IF(true, msg)
+
+/*!
+ * \def SLIC_INFO_ONCE( msg )
+ * \brief Logs an Info message only once per call site.
+ *
+ * \param [in] msg user-supplied message
+ *
+ * \note The SLIC_INFO_ONCE macro is always active.
+ *
+ * Usage:
+ * \code
+ *   SLIC_INFO_ONCE( "informative text goes here" );
+ * \endcode
+ *
+ */
+#define SLIC_INFO_ONCE(msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_INFO_IF, true, msg)
 
 /*!
  * \def SLIC_INFO_TAGGED( msg, tag )
@@ -593,18 +519,38 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
  * \endcode
  *
  */
-#define SLIC_INFO_TAGGED(msg, tag)                    \
-  do                                                  \
-  {                                                   \
-    std::ostringstream __oss;                         \
-    __oss << msg;                                     \
-    axom::slic::logMessage(axom::slic::message::Info, \
-                           __oss.str(),               \
-                           tag,                       \
-                           __FILE__,                  \
-                           __LINE__,                  \
-                           false,                     \
-                           true);                     \
+#define SLIC_INFO_TAGGED(msg, tag)                                                                        \
+  do                                                                                                      \
+  {                                                                                                       \
+    std::ostringstream __oss;                                                                             \
+    __oss << msg;                                                                                         \
+    axom::slic::logMessage(axom::slic::message::Info, __oss.str(), tag, __FILE__, __LINE__, false, true); \
+  } while(axom::slic::detail::false_value)
+
+/*!
+ * \def SLIC_INFO_TAGGED_ONCE( msg, tag )
+ * \brief Logs an Info message to a tagged stream only once per call site.
+ *
+ * \param [in] msg user-supplied message
+ * \param [in] tag user-supplied tag
+ *
+ * \note The SLIC_INFO_TAGGED_ONCE macro is always active.
+ *
+ * Usage:
+ * \code
+ *   SLIC_INFO_TAGGED_ONCE("informative text goes here", "tag");
+ * \endcode
+ *
+ */
+#define SLIC_INFO_TAGGED_ONCE(msg, tag) \
+  do                                    \
+  {                                     \
+    static bool once = true;            \
+    if(once)                            \
+    {                                   \
+      SLIC_INFO_TAGGED(msg, tag);       \
+      once = false;                     \
+    }                                   \
   } while(axom::slic::detail::false_value)
 
 /*!
@@ -622,19 +568,33 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
  * \endcode
  *
  */
-#define SLIC_INFO_IF(EXP, msg)                          \
-  do                                                    \
-  {                                                     \
-    if(EXP)                                             \
-    {                                                   \
-      std::ostringstream __oss;                         \
-      __oss << msg;                                     \
-      axom::slic::logMessage(axom::slic::message::Info, \
-                             __oss.str(),               \
-                             __FILE__,                  \
-                             __LINE__);                 \
-    }                                                   \
+#define SLIC_INFO_IF(EXP, msg)                                                            \
+  do                                                                                      \
+  {                                                                                       \
+    if(EXP)                                                                               \
+    {                                                                                     \
+      std::ostringstream __oss;                                                           \
+      __oss << msg;                                                                       \
+      axom::slic::logMessage(axom::slic::message::Info, __oss.str(), __FILE__, __LINE__); \
+    }                                                                                     \
   } while(axom::slic::detail::false_value)
+
+/*!
+ * \def SLIC_INFO_IF_ONCE( EXP, msg )
+ * \brief Logs an Info message iff EXP is true, only once per call site.
+ *
+ * \param [in] EXP user-supplied boolean expression.
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_INFO_IF_ONCE macro is always active.
+ *
+ * Usage:
+ * \code
+ *   SLIC_INFO_IF_ONCE( (val < 0), "my_val should always be positive" );
+ * \endcode
+ *
+ */
+#define SLIC_INFO_IF_ONCE(EXP, msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_INFO_IF, EXP, msg)
 
 /*!
  * \def SLIC_INFO_ROOT( msg )
@@ -653,6 +613,22 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
 #define SLIC_INFO_ROOT(msg) SLIC_INFO_IF(axom::slic::isRoot(), msg)
 
 /*!
+ * \def SLIC_INFO_ROOT_ONCE( msg )
+ * \brief Logs an Info message if on root, only once per call site.
+ *
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_INFO_ROOT_ONCE macro is always active.
+ *
+ * Usage:
+ * \code
+ *   SLIC_INFO_ROOT_ONCE( "informative text goes here" );
+ * \endcode
+ *
+ */
+#define SLIC_INFO_ROOT_ONCE(msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_INFO_IF, axom::slic::isRoot(), msg)
+
+/*!
  * \def SLIC_INFO_ROOT_IF( EXP, msg )
  * \brief Logs an Info message if on root and iff EXP is true
  *
@@ -667,8 +643,25 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
  * \endcode
  *
  */
-#define SLIC_INFO_ROOT_IF(EXP, msg) \
-  SLIC_INFO_IF((EXP) && (axom::slic::isRoot()), msg)
+#define SLIC_INFO_ROOT_IF(EXP, msg) SLIC_INFO_IF((EXP) && (axom::slic::isRoot()), msg)
+
+/*!
+ * \def SLIC_INFO_ROOT_IF_ONCE( EXP, msg )
+ * \brief Logs an Info message if on root and iff EXP is true, only once per call site.
+ *
+ * \param [in] EXP user-supplied boolean expression.
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_INFO_ROOT_IF_ONCE macro is always active.
+ *
+ * Usage:
+ * \code
+ *   SLIC_INFO_ROOT_IF_ONCE( (val < 0), "my_val should always be positive" );
+ * \endcode
+ *
+ */
+#define SLIC_INFO_ROOT_IF_ONCE(EXP, msg) \
+  SLIC_DETAIL_LOG_IF_ONCE(SLIC_INFO_IF, (EXP) && (axom::slic::isRoot()), msg)
 
 #ifdef AXOM_DEBUG
 
@@ -686,16 +679,23 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
  * \endcode
  *
  */
-  #define SLIC_DEBUG(msg)                                \
-    do                                                   \
-    {                                                    \
-      std::ostringstream __oss;                          \
-      __oss << msg;                                      \
-      axom::slic::logMessage(axom::slic::message::Debug, \
-                             __oss.str(),                \
-                             __FILE__,                   \
-                             __LINE__);                  \
-    } while(axom::slic::detail::false_value)
+  #define SLIC_DEBUG(msg) SLIC_DEBUG_IF(true, msg)
+
+  /*!
+ * \def SLIC_DEBUG_ONCE( msg )
+ * \brief Logs a Debug message only once per call site.
+ *
+ * \param [in] msg user-supplied message
+ *
+ * \note The SLIC_DEBUG_ONCE macro is active when AXOM_DEBUG is defined.
+ *
+ * Usage:
+ * \code
+ *   SLIC_DEBUG_ONCE( "debug message goes here" );
+ * \endcode
+ *
+ */
+  #define SLIC_DEBUG_ONCE(msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_DEBUG_IF, true, msg)
 
   /*!
  * \def SLIC_DEBUG_IF( EXP, msg )
@@ -712,19 +712,33 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
  * \endcode
  *
  */
-  #define SLIC_DEBUG_IF(EXP, msg)                          \
-    do                                                     \
-    {                                                      \
-      if(EXP)                                              \
-      {                                                    \
-        std::ostringstream __oss;                          \
-        __oss << msg;                                      \
-        axom::slic::logMessage(axom::slic::message::Debug, \
-                               __oss.str(),                \
-                               __FILE__,                   \
-                               __LINE__);                  \
-      }                                                    \
+  #define SLIC_DEBUG_IF(EXP, msg)                                                            \
+    do                                                                                       \
+    {                                                                                        \
+      if(EXP)                                                                                \
+      {                                                                                      \
+        std::ostringstream __oss;                                                            \
+        __oss << msg;                                                                        \
+        axom::slic::logMessage(axom::slic::message::Debug, __oss.str(), __FILE__, __LINE__); \
+      }                                                                                      \
     } while(axom::slic::detail::false_value)
+
+  /*!
+ * \def SLIC_DEBUG_IF_ONCE( EXP, msg )
+ * \brief Logs an Debug message iff EXP is true only once per call site.
+ *
+ * \param [in] EXP user-supplied boolean expression.
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_DEBUG_IF_ONCE macro is active when AXOM_DEBUG is defined.
+ *
+ * Usage:
+ * \code
+ *   SLIC_DEBUG_IF_ONCE( (val < 0), "my_val should always be positive" );
+ * \endcode
+ *
+ */
+  #define SLIC_DEBUG_IF_ONCE(EXP, msg) SLIC_DETAIL_LOG_IF_ONCE(SLIC_DEBUG_IF, EXP, msg)
 
   /*!
  * \def SLIC_DEBUG_ROOT( msg )
@@ -743,6 +757,23 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
   #define SLIC_DEBUG_ROOT(msg) SLIC_DEBUG_IF(axom::slic::isRoot(), msg)
 
   /*!
+ * \def SLIC_DEBUG_ROOT_ONCE( msg )
+ * \brief Logs a Debug message if on root only once per call site.
+ *
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_DEBUG_ROOT_ONCE macro is active when AXOM_DEBUG is defined.
+ *
+ * Usage:
+ * \code
+ *   SLIC_DEBUG_ROOT_ONCE( "informative text goes here" );
+ * \endcode
+ *
+ */
+  #define SLIC_DEBUG_ROOT_ONCE(msg) \
+    SLIC_DETAIL_LOG_IF_ONCE(SLIC_DEBUG_IF, axom::slic::isRoot(), msg)
+
+  /*!
  * \def SLIC_DEBUG_ROOT_IF( EXP, msg )
  * \brief Logs a Debug message if on root and iff EXP is true
  *
@@ -757,17 +788,116 @@ AXOM_HOST_DEVICE inline blackhole &operator<<(blackhole &bh, T)
  * \endcode
  *
  */
-  #define SLIC_DEBUG_ROOT_IF(EXP, msg) \
-    SLIC_DEBUG_IF((EXP) && (axom::slic::isRoot()), msg)
+  #define SLIC_DEBUG_ROOT_IF(EXP, msg) SLIC_DEBUG_IF((EXP) && (axom::slic::isRoot()), msg)
+
+  /*!
+ * \def SLIC_DEBUG_ROOT_IF_ONCE( EXP, msg )
+ * \brief Logs a Debug message if on root and iff EXP is true, only once per call site.
+ *
+ * \param [in] EXP user-supplied boolean expression.
+ * \param [in] msg user-supplied message.
+ *
+ * \note The SLIC_DEBUG_ROOT_IF_ONCE macro is active when AXOM_DEBUG is defined.
+ *
+ * Usage:
+ * \code
+ *   SLIC_DEBUG_ROOT_IF_ONCE( (val < 0), "my_val should always be positive" );
+ * \endcode
+ *
+ */
+  #define SLIC_DEBUG_ROOT_IF_ONCE(EXP, msg) \
+    SLIC_DETAIL_LOG_IF_ONCE(SLIC_DEBUG_IF, (EXP) && (axom::slic::isRoot()), msg)
+
+  /*!
+ * \def SLIC_DEBUG_PRINT_CONTAINER( name, container )
+ * \brief Logs a Debug message containing the contents of the container, moving
+ *        the contents to the host if needed.
+ *
+ * \param [in] name The name of the container in the printed message.
+ * \param [in] container The container (array, vector, view).
+ *
+ * \note The SLIC_DEBUG_PRINT_CONTAINER macro is active when AXOM_DEBUG is defined.
+ *
+ * Usage:
+ * \code
+ *   axom::ArrayView<int> dataView;
+ *   SLIC_DEBUG_PRINT_CONTAINER( "dataView", dataView );
+ * \endcode
+ *
+ */
+  #define SLIC_DEBUG_PRINT_CONTAINER(name, container)                                      \
+    do                                                                                     \
+    {                                                                                      \
+      std::ostringstream __oss;                                                            \
+      axom::slic::detail::printContainer(__oss, name, container);                          \
+      axom::slic::logMessage(axom::slic::message::Debug, __oss.str(), __FILE__, __LINE__); \
+    } while(axom::slic::detail::false_value)
+
+  /*!
+ * \def SLIC_DEBUG_PRINT_CONTAINER_ONCE( name, container )
+ * \brief Logs a Debug message containing the contents of the container, moving
+ *        the contents to the host if needed. Called only once per call site.
+ *
+ * \param [in] name The name of the container in the printed message.
+ * \param [in] container The container (array, vector, view).
+ *
+ * \note The SLIC_DEBUG_PRINT_CONTAINER_ONCE macro is active when AXOM_DEBUG is defined.
+ *
+ * Usage:
+ * \code
+ *   axom::ArrayView<int> dataView;
+ *   SLIC_DEBUG_PRINT_CONTAINER_ONCE( "dataView", dataView );
+ * \endcode
+ *
+ */
+  #define SLIC_DEBUG_PRINT_CONTAINER_ONCE(name, container) \
+    do                                                     \
+    {                                                      \
+      static bool once = true;                             \
+      if(once)                                             \
+      {                                                    \
+        SLIC_DEBUG_PRINT_CONTAINER(name, container);       \
+        once = false;                                      \
+      }                                                    \
+    } while(axom::slic::detail::false_value)
 
 #else  // turn off debug macros
 
   #define SLIC_DEBUG(ignore_EXP) ((void)0)
+  #define SLIC_DEBUG_ONCE(ignore_EXP) ((void)0)
   #define SLIC_DEBUG_IF(ignore_EXP, ignore_msg) ((void)0)
+  #define SLIC_DEBUG_IF_ONCE(ignore_EXP, ignore_msg) ((void)0)
   #define SLIC_DEBUG_ROOT(ignore_EXP) ((void)0)
+  #define SLIC_DEBUG_ROOT_ONCE(ignore_EXP) ((void)0)
   #define SLIC_DEBUG_ROOT_IF(ignore_EXP, ignore_msg) ((void)0)
+  #define SLIC_DEBUG_ROOT_IF_ONCE(ignore_EXP, ignore_msg) ((void)0)
+  #define SLIC_DEBUG_PRINT_CONTAINER(ignore_name, ignore_container) ((void)0)
+  #define SLIC_DEBUG_PRINT_CONTAINER_ONCE(ignore_name, ignore_container) ((void)0)
 
 #endif
+
+/*!
+ * \brief Helper macro to define SLIC_*_ONCE macros that log only the first
+ *        time they are used.
+ *
+ * \param [in] macro the macro to call.
+ * \param [in] EXP user-supplied boolean expression.
+ * \param [in] msg user-supplied message.
+ *
+ */
+#define SLIC_DETAIL_LOG_IF_ONCE(macro, EXP, msg) \
+  do                                             \
+  {                                              \
+    static bool once = true;                     \
+    if(EXP)                                      \
+    {                                            \
+      if(once)                                   \
+      {                                          \
+        macro(true, msg);                        \
+        once = false;                            \
+      }                                          \
+    }                                            \
+  } while(axom::slic::detail::false_value)
 
 namespace axom
 {

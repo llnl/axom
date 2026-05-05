@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -159,6 +160,13 @@ public:
   }
 
   /*!
+   * \brief Return the number of vertices in an Octahedron.
+   *
+   * \return The number of vertices in an Octahedron.
+   */
+  AXOM_HOST_DEVICE static constexpr int numVertices() { return NUM_VERTS; }
+
+  /*!
    * \brief Index operator to get the i^th vertex
    * \param idx The index of the desired vertex
    * \pre idx is 0, 1, 2, 3, 4, or 5
@@ -198,8 +206,7 @@ public:
     {
       for(int theirvert = 0; theirvert < NUM_VERTS; ++theirvert)
       {
-        if(!matched[theirvert] &&
-           squared_distance(m_points[ourvert], other[theirvert]) < eps)
+        if(!matched[theirvert] && squared_distance(m_points[ourvert], other[theirvert]) < eps)
         {
           matched[theirvert] = 1;
         }
@@ -221,8 +228,8 @@ public:
    */
   std::ostream& print(std::ostream& os) const
   {
-    os << "{" << m_points[0] << " " << m_points[1] << " " << m_points[2] << " "
-       << m_points[3] << " " << m_points[4] << " " << m_points[5] << "}";
+    os << "{" << m_points[0] << " " << m_points[1] << " " << m_points[2] << " " << m_points[3]
+       << " " << m_points[4] << " " << m_points[5] << "}";
 
     return os;
   }

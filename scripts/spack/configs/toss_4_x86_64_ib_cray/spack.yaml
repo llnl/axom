@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -17,194 +18,174 @@ spack:
   # Regular TPLs do not need views
   view: false
 
-  compilers::
-  - compiler:
-      environment: {}
-      extra_rpaths: []
-      flags:
-        fflags: -Mfreeform
-      modules: []
-      operating_system: rhel8
-      paths:
-        cc: /opt/rocm-5.2.3/llvm/bin/amdclang
-        cxx: /opt/rocm-5.2.3/llvm/bin/amdclang++
-        f77: /opt/rocm-5.2.3/llvm/bin/amdflang
-        fc: /opt/rocm-5.2.3/llvm/bin/amdflang
-      spec: clang@14.0.0
-      target: x86_64
-  - compiler:
-      environment: {}
-      extra_rpaths: []
-      flags:
-        fflags: -Mfreeform
-      modules: []
-      operating_system: rhel8
-      paths:
-        cc: /opt/rocm-5.4.3/llvm/bin/amdclang
-        cxx: /opt/rocm-5.4.3/llvm/bin/amdclang++
-        f77: /opt/rocm-5.4.3/llvm/bin/amdflang
-        fc: /opt/rocm-5.4.3/llvm/bin/amdflang
-      spec: clang@15.0.0
-      target: x86_64
-  - compiler:
-      environment: {}
-      extra_rpaths: []
-      flags:
-        fflags: -Mfreeform
-      modules: []
-      operating_system: rhel8
-      paths:
-        cc: /opt/rocm-5.6.0/llvm/bin/amdclang
-        cxx: /opt/rocm-5.6.0/llvm/bin/amdclang++
-        f77: /opt/rocm-5.6.0/llvm/bin/amdflang
-        fc: /opt/rocm-5.6.0/llvm/bin/amdflang
-      spec: clang@16.0.0
-      target: x86_64
-  - compiler:
-      environment: {}
-      extra_rpaths: []
-      flags:
-        fflags: -Mfreeform
-      modules: []
-      operating_system: rhel8
-      paths:
-        cc: /opt/rocm-5.7.1/llvm/bin/amdclang
-        cxx: /opt/rocm-5.7.1/llvm/bin/amdclang++
-        f77: /opt/rocm-5.7.1/llvm/bin/amdflang
-        fc: /opt/rocm-5.7.1/llvm/bin/amdflang
-      spec: clang@17.0.0
-      target: x86_64
-  - compiler:
-      environment: {}
-      extra_rpaths: []
-      # Flag for lowercase Fortran module names
-      flags:
-        fflags: -ef
-      modules: []
-      operating_system: rhel8
-      paths:
-        cc: /usr/tce/packages/cce-tce/cce-15.0.1/bin/craycc
-        cxx: /usr/tce/packages/cce-tce/cce-15.0.1/bin/crayCC
-        f77: /usr/tce/packages/cce-tce/cce-15.0.1/bin/crayftn
-        fc: /usr/tce/packages/cce-tce/cce-15.0.1/bin/crayftn
-      spec: cce@15.0.1
-      target: x86_64
+  include:
+  - ../defaults.yaml
+  - ../versions.yaml
+
+  toolchains:
+    rocm_6_4_3:
+    - spec: fflags=-Mfreeform
+    - spec: '%c=llvm-amdgpu@6.4.3'
+      when: '%c'
+    - spec: '%cxx=llvm-amdgpu@6.4.3'
+      when: '%cxx'
+    - spec: '%fortran=llvm-amdgpu@6.4.3'
+      when: '%fortran'
+    - spec: '%cray-mpich@8.1.29.rocm_6.4.3'
+      when: '%mpi'
+    rocm_6_3_1:
+    - spec: fflags=-Mfreeform
+    - spec: '%c=llvm-amdgpu@6.3.1'
+      when: '%c'
+    - spec: '%cxx=llvm-amdgpu@6.3.1'
+      when: '%cxx'
+    - spec: '%fortran=llvm-amdgpu@6.3.1'
+      when: '%fortran'
+    - spec: '%cray-mpich@8.1.29.rocm_6_3_1'
+      when: '%mpi'
+    cce_20:
+    # Flag for lowercase Fortran module names
+    - spec: fflags=-ef
+    - spec: '%c=cce@20.0.0'
+      when: '%c'
+    - spec: '%cxx=cce@20.0.0'
+      when: '%cxx'
+    - spec: '%fortran=cce@20.0.0'
+      when: '%fortran'
+    - spec: '%cray-mpich@8.1.32.cce_20'
+      when: '%mpi'
 
   packages:
     all:
-      compiler: [gcc, intel, pgi, clang, xl, nag]
       providers:
         blas: [netlib-lapack]
         lapack: [netlib-lapack]
         mpi: [cray-mpich]
+        zlib-api: [zlib]
+
+    # Compiler packages
+    # Target specific AMD GPU architectures for specific machines:
+    #
+    # - Use amdgpu_target=gfx942 for rzadams
+    # - Use amdgpu_target=gfx90a for tioga/rzvernal
+    # - Use amdgpu_target=gfx908 for rznevada
+    llvm-amdgpu:
+      externals:
+      - spec: llvm-amdgpu@6.3.1
+        prefix: /opt/rocm-6.3.1
+        extra_attributes:
+          compilers:
+            c: /opt/rocm-6.3.1/llvm/bin/amdclang
+            cxx: /opt/rocm-6.3.1/llvm/bin/amdclang++
+            fortran: /opt/rocm-6.3.1/llvm/bin/amdflang
+          environment: {}
+          extra_rpaths: []
+      - spec: llvm-amdgpu@6.4.3
+        prefix: /opt/rocm-6.4.3
+        extra_attributes:
+          compilers:
+            c: /opt/rocm-6.4.3/llvm/bin/amdclang
+            cxx: /opt/rocm-6.4.3/llvm/bin/amdclang++
+            fortran: /opt/rocm-6.4.3/llvm/bin/amdflang
+          environment: {}
+          extra_rpaths: []
+    cce:
+      externals:
+      - spec: cce@20.0.0
+        prefix: /usr/tce/packages/cce-tce/cce-20.0.0
+        extra_attributes:
+          compilers:
+            c: /usr/tce/packages/cce-tce/cce-20.0.0/bin/craycc
+            cxx: /usr/tce/packages/cce-tce/cce-20.0.0/bin/crayCC
+            fortran: /usr/tce/packages/cce-tce/cce-20.0.0/bin/crayftn
+          environment: {}
+          extra_rpaths: []
+
 
     hip:
-      version: [5.2.3, 5.4.3, 5.6.0, 5.7.1]
+      # version: [6.3.1, 6.4.3]
       buildable: false
       externals:
-      - spec: hip@5.2.3
-        prefix: /opt/rocm-5.2.3/hip
-      - spec: hip@5.4.3
-        prefix: /opt/rocm-5.4.3/hip
-      - spec: hip@5.6.0
-        prefix: /opt/rocm-5.6.0/hip
-      - spec: hip@5.7.1
-        prefix: /opt/rocm-5.7.1/hip
+      - spec: hip@6.3.1
+        prefix: /opt/rocm-6.3.1
+      - spec: hip@6.4.3
+        prefix: /opt/rocm-6.4.3
 
-    llvm-amdgpu:
-      version: [5.2.3, 5.4.3, 5.6.0, 5.7.1]
+    hipblas:
       buildable: false
       externals:
-      - spec: llvm-amdgpu@5.2.3
-        prefix: /opt/rocm-5.2.3/llvm
-      - spec: llvm-amdgpu@5.4.3
-        prefix: /opt/rocm-5.4.3/llvm
-      - spec: llvm-amdgpu@5.6.0
-        prefix: /opt/rocm-5.6.0/llvm
-      - spec: llvm-amdgpu@5.7.1
-        prefix: /opt/rocm-5.7.1/llvm
+      - spec: hipblas@6.3.1
+        prefix: /opt/rocm-6.3.1
+      - spec: hipblas@6.4.3
+        prefix: /opt/rocm-6.4.3
+
+    hipsparse:
+      buildable: false
+      externals:
+      - spec: hipsparse@6.3.1
+        prefix: /opt/rocm-6.3.1
+      - spec: hipsparse@6.4.3
+        prefix: /opt/rocm-6.4.3
 
     hsa-rocr-dev:
-      version: [5.2.3, 5.4.3, 5.6.0, 5.7.1]
       buildable: false
       externals:
-      - spec: hsa-rocr-dev@5.2.3
-        prefix: /opt/rocm-5.2.3/
-      - spec: hsa-rocr-dev@5.4.3
-        prefix: /opt/rocm-5.4.3/
-      - spec: hsa-rocr-dev@5.6.0
-        prefix: /opt/rocm-5.6.0/
-      - spec: hsa-rocr-dev@5.7.1
-        prefix: /opt/rocm-5.7.1/
+      - spec: hsa-rocr-dev@6.3.1
+        prefix: /opt/rocm-6.3.1/
+      - spec: hsa-rocr-dev@6.4.3
+        prefix: /opt/rocm-6.4.3
 
     rocblas:
-      version: [5.2.3, 5.4.3, 5.6.0, 5.7.1]
       buildable: false
       externals:
-      - spec: rocblas@5.2.3
-        prefix: /opt/rocm-5.2.3/
-      - spec: rocblas@5.4.3
-        prefix: /opt/rocm-5.4.3/
-      - spec: rocblas@5.6.0
-        prefix: /opt/rocm-5.6.0/
-      - spec: rocblas@5.7.1
-        prefix: /opt/rocm-5.7.1/
+      - spec: rocblas@6.3.1
+        prefix: /opt/rocm-6.3.1/
+      - spec: rocblas@6.4.3
+        prefix: /opt/rocm-6.4.3/
 
     rocminfo:
-      version: [5.2.3, 5.4.3, 5.6.0, 5.7.1]
       buildable: false
       externals:
-      - spec: rocminfo@5.2.3
-        prefix: /opt/rocm-5.2.3/
-      - spec: rocminfo@5.4.3
-        prefix: /opt/rocm-5.4.3/
-      - spec: rocminfo@5.6.0
-        prefix: /opt/rocm-5.6.0/
-      - spec: rocminfo@5.7.1
-        prefix: /opt/rocm-5.7.1
+      - spec: rocminfo@6.3.1
+        prefix: /opt/rocm-6.3.1
+      - spec: rocminfo@6.4.3
+        prefix: /opt/rocm-6.4.3
 
     rocprim:
-      version: [5.2.3, 5.4.3, 5.6.0, 5.7.1]
       buildable: false
       externals:
-      - spec: rocprim@5.2.3
-        prefix: /opt/rocm-5.2.3/
-      - spec: rocprim@5.4.3
-        prefix: /opt/rocm-5.4.3/
-      - spec: rocprim@5.6.0
-        prefix: /opt/rocm-5.6.0/
-      - spec: rocprim@5.7.1
-        prefix: /opt/rocm-5.7.1/
+      - spec: rocprim@6.3.1
+        prefix: /opt/rocm-6.3.1/
+      - spec: rocprim@6.4.3
+        prefix: /opt/rocm-6.4.3
 
     rocm-device-libs:
-      version: [5.2.3, 5.4.3, 5.6.0, 5.7.1]
       buildable: false
       externals:
-      - spec: rocm-device-libs@5.2.3
-        prefix: /opt/rocm-5.2.3/
-      - spec: rocm-device-libs@5.4.3
-        prefix: /opt/rocm-5.4.3/
-      - spec: rocm-device-libs@5.6.0
-        prefix: /opt/rocm-5.6.0/
-      - spec: rocm-device-libs@5.7.1
-        prefix: /opt/rocm-5.7.1/
+      - spec: rocm-device-libs@6.3.1
+        prefix: /opt/rocm-6.3.1/
+      - spec: rocm-device-libs@6.4.3
+        prefix: /opt/rocm-6.4.3
+
+    rocprofiler-sdk:
+      buildable: false
+      externals:
+        - spec: rocprofiler-sdk@6.4.3
+          prefix: /opt/rocm-6.4.3
 
     # Lock down which MPI we are using
     mpi:
       buildable: false
+
     cray-mpich:
       buildable: false
       externals:
-      - spec: cray-mpich@8.1.16%clang@14.0.0+slurm
-        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.16-rocmcc-5.2.3/
-      - spec: cray-mpich@8.1.25%clang@15.0.0+slurm
-        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.25-rocmcc-5.4.3/
-      - spec: cray-mpich@8.1.25%clang@16.0.0+slurm
-        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.25-rocmcc-5.6.0/
-      - spec: cray-mpich@8.1.27%clang@17.0.0+slurm
-        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.27-rocmcc-5.7.1/
-      - spec: cray-mpich@8.1.25%cce@15.0.1+slurm
-        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.25-rocmcc-5.4.3-cce-15.0.1/
+      - spec: cray-mpich@8.1.29.rocm_6_3_1+slurm
+        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-rocmcc-6.3.1/
+      - spec: cray-mpich@8.1.29.rocm_6_4_3+slurm
+        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-rocmcc-6.4.3/
+      - spec: cray-mpich@8.1.32.cce_20+slurm
+        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.32-rocmcc-6.4.3/
 
     # blas is a bit more complicated because its a virtual package so fake it with
     # the following per spack docs
@@ -270,6 +251,11 @@ spack:
       externals:
       - spec: ghostscript@9.25
         prefix: /usr
+    git:
+      buildable: false
+      externals:
+      - spec: git@2.45.0
+        prefix: /collab/usr/global/tools/tce4/opt/git-2.45.0
     gmake:
       buildable: false
       externals:
@@ -290,11 +276,12 @@ spack:
       externals:
       - spec: libtool@2.4.2
         prefix: /usr
-    libunwind:
-      buildable: false
-      externals:
-      - spec: libunwind@8.0.1
-        prefix: /usr
+    # NOTE: disabled since fails to link inside caliper
+    # libunwind:
+    #   buildable: false
+    #   externals:
+    #   - spec: libunwind@8.0.1
+    #     prefix: /usr
     libx11:
       buildable: false
       externals:
@@ -305,6 +292,11 @@ spack:
       externals:
       - spec: m4@1.4.16
         prefix: /usr
+    ncurses:
+      externals:
+      - spec: ncurses@6.1.20180224+termlib abi=6
+        prefix: /usr
+      buildable: false
     perl:
       buildable: false
       externals:
@@ -330,11 +322,34 @@ spack:
       externals:
       - spec: unzip@6.0
         prefix: /usr
-    zlib:
-      buildable: false
+
+    # External dependencies for opencascade
+    # libx* versions found via `strings /path/to/libx*.so
+    mesa:
+      buildable: False
       externals:
-      - spec: zlib@1.2.7
-        prefix: /usr
+      - spec: mesa@23.1.4  # found via: glxinfo | grep -i version
+        prefix: /
+    libxi:
+      buildable: False
+      externals:
+      - spec: libxi@1.7.10
+        prefix: /
+    libxt:
+      buildable: False
+      externals:
+      - spec: libxt@1.1.5
+        prefix: /
+    libxext:
+      buildable: False
+      externals:
+      - spec: libxext@1.3.4
+        prefix: /
+    libxmu:
+      buildable: False
+      externals:
+      - spec: libxmu@1.1.3
+        prefix: /
 
     # External dependencies for SCR
     lsf:
@@ -359,38 +374,75 @@ spack:
       - spec: pdsh@2.33
         prefix: /usr
 
-    # Globally lock version of third party libraries
-    adiak:
-      require: "@0.4.0"
-    caliper:
-      require: "@2.10.0~kokkos"
-    camp:
-      require: "@2024.02.0"
-    conduit:
-      require: "@0.9.1~shared~test~examples~utilities"
-    hdf5:
-      variants: ~shared~mpi
-    hypre:
-      version: [2.24.0]
-    mfem:
-      require: "@4.6.0"
-    raja:
-      require: "@2024.02.0~shared~examples~exercises"
-    scr:
-      require: "@3.0.1~shared~tests~examples"
+    # Failure with cce compiler:
+    # https://github.com/besser82/libxcrypt/issues/181
+    # Fix:
+    # https://github.com/NixOS/nixpkgs/pull/309884
+    libxcrypt:
+      require:
+      - ldflags=-Wl,--undefined-version
+
+    # Some additional platform-specific constraints for third party libraries
     umpire:
-      require: "@2024.02.0~shared~examples~werror"
+      require:
+      - spec: "~shared"
+    # cce compiler requires static zlib
+    zlib:
+      require:
+      - spec: "~shared"
 
     # Lock in versions of Devtools
+    # Devtools are built on rzvernal for compatibility with both
+    # rzvernal and rzadams.
     cmake:
-      version: [3.24.2]
+      version: [3.29.2]
       buildable: false
       externals:
-      - spec: cmake@3.24.2
-        prefix: /usr/tce
+      - spec: cmake@3.29.2
+        prefix: /usr/tce/packages/cmake/cmake-3.29.2
     py-shroud:
-      version: [0.13.0]
+      version: [0.14.0]
       buildable: false
       externals:
-      - spec: py-shroud@0.13.0
-        prefix: /collab/usr/gapps/shroud/public/toss_4_x86_64_ib_cray/shroud-0.13.0
+      - spec: py-shroud@0.14.0
+        prefix: /collab/usr/gapps/shroud/public/toss_4_x86_64_ib_cray/shroud-0.14.0
+    cppcheck:
+      version: [2.18]
+      buildable: false
+      externals:
+      - spec: cppcheck@2.18.0
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2026_02_17_15_20_25/gcc-13.3.1/cppcheck-2.18.0-n6kdcwtwlrc3u3t47t7gokpyd4h6mc27
+    doxygen:
+      version: [1.15.0]
+      buildable: false
+      externals:
+      - spec: doxygen@1.15.0
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2026_02_17_15_20_25/view/doxygen-1.15.0
+    py-sphinx:
+      version: [8.0.2]
+      buildable: false
+      externals:
+      - spec: py-sphinx@8.0.2
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2026_02_17_15_20_25/view/python-3.13.11
+    python:
+      buildable: false
+      externals:
+      - spec: python@3.13.11
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2026_02_17_15_20_25/view/python-3.13.11
+    llvm:
+      version: [19.0.0]
+      buildable: false
+      externals:
+      - spec: llvm@19.0.0
+        prefix: /usr/tce/packages/rocmcc/rocmcc-6.4.3-magic/llvm
+
+    py-jsonschema:
+      buildable: false
+      externals:
+      - spec: py-jsonschema@4.17.3
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2026_02_17_15_20_25/view/python-3.13.11
+    py-yapf:
+      buildable: false
+      externals:
+      - spec: py-yapf@0.43.0
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2026_02_17_15_20_25/view/python-3.13.11

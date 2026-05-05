@@ -1,8 +1,8 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO llnl/conduit
-    REF v0.9.1
-    SHA512 fc9449952ea3521e9f76e58f13ccfa2e9a8bdc513f25b675af2d4984dd9ba8e7bed7e1d27e539a69dfda3d4fd48ea6d009ecb2e593d5b059a738da2f9b4310c9
+    REF v0.9.5
+    SHA512 c0b8e92e6eb3c42a2efc8656c488b62c2fbacbe015df7820d8eae8752deea8271db65f2d129df251a7eb97402352ff2260e3ac8e38a3c37c8606ab1096511757
     HEAD_REF develop
     PATCHES 
         "./setup_deps_vcpkg_triplet.patch"
@@ -32,9 +32,9 @@ vcpkg_configure_cmake(
 )
 
 vcpkg_install_cmake()
-vcpkg_fixup_cmake_targets(CONFIG_PATH lib/cmake
-                          TARGET_PATH share
-                          TOOLS_PATH tools/conduit)
+vcpkg_cmake_config_fixup(
+        CONFIG_PATH  lib/cmake/conduit
+        TOOLS_PATH   tools/conduit)
 vcpkg_copy_pdbs()
 
 

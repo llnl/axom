@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -15,6 +16,8 @@
 
 #include "axom/primal/operators/in_polyhedron.hpp"
 #include "axom/primal/operators/winding_number.hpp"
+
+#include "axom/core/numerics/transforms.hpp"
 
 #include <math.h>
 #include "gtest/gtest.h"
@@ -81,7 +84,7 @@ TEST(primal_polyhedron, polyhedron_unit_cube)
   int faces[NUM_FACES * 4];
   int face_size[NUM_FACES];
   int face_offset[NUM_FACES];
-  int face_count;
+  axom::IndexType face_count;
   poly.getFaces(faces, face_size, face_offset, face_count);
 
   // Verify we got the expected number of faces
@@ -97,10 +100,9 @@ TEST(primal_polyhedron, polyhedron_unit_cube)
                                       4, 5, 6, 7};
   // clang-format on
 
-  for(int f = 0; f < face_count; ++f)
+  for(axom::IndexType f = 0; f < face_count; ++f)
   {
-    for(int f_index = face_offset[f]; f_index < face_offset[f] + face_size[f];
-        f_index++)
+    for(int f_index = face_offset[f]; f_index < face_offset[f] + face_size[f]; f_index++)
     {
       EXPECT_EQ(faces[f_index], faces_expect[f_index]);
     }
@@ -120,34 +122,23 @@ TEST(primal_polyhedron, polyhedron_unit_cube)
     {
       for(double z = -0.5; z <= 1.5; z += 0.1)
       {
-        if((x >= 0.0 && x <= 1.0) && (y >= 0.0 && y <= 1.0) &&
-           (z >= 0.0 && z <= 1.0))
+        if((x >= 0.0 && x <= 1.0) && (y >= 0.0 && y <= 1.0) && (z >= 0.0 && z <= 1.0))
         {
-          EXPECT_TRUE(in_polyhedron(PointType({x, y, z}),
-                                    poly,
-                                    includeBoundary,
-                                    useNonzeroRule,
-                                    edge_tol,
-                                    EPS));
+          EXPECT_TRUE(
+            in_polyhedron(PointType({x, y, z}), poly, includeBoundary, useNonzeroRule, edge_tol, EPS));
         }
         else
         {
-          EXPECT_FALSE(in_polyhedron(PointType({x, y, z}),
-                                     poly,
-                                     includeBoundary,
-                                     useNonzeroRule,
-                                     edge_tol,
-                                     EPS));
+          EXPECT_FALSE(
+            in_polyhedron(PointType({x, y, z}), poly, includeBoundary, useNonzeroRule, edge_tol, EPS));
         }
       }
     }
   }
 
   // Verify includeBoundary behavior
-  EXPECT_TRUE(
-    in_polyhedron(poly[0], poly, includeBoundary, useNonzeroRule, edge_tol, EPS));
-  EXPECT_FALSE(
-    in_polyhedron(poly[0], poly, !includeBoundary, useNonzeroRule, edge_tol, EPS));
+  EXPECT_TRUE(in_polyhedron(poly[0], poly, includeBoundary, useNonzeroRule, edge_tol, EPS));
+  EXPECT_FALSE(in_polyhedron(poly[0], poly, !includeBoundary, useNonzeroRule, edge_tol, EPS));
 
   EXPECT_EQ(winding_number(poly[0], poly, includeBoundary, edge_tol, EPS), 1);
   EXPECT_EQ(winding_number(poly[0], poly, !includeBoundary, edge_tol, EPS), 0);
@@ -200,21 +191,13 @@ TEST(primal_polyhedron, polyhedron_tetrahedron)
     {
       if((z >= -1.0) && (z <= 1.0))
       {
-        EXPECT_TRUE(in_polyhedron(PointType({0.0, 0.0, z}),
-                                  poly,
-                                  includeBoundary,
-                                  useNonzeroRule,
-                                  edge_tol,
-                                  EPS));
+        EXPECT_TRUE(
+          in_polyhedron(PointType({0.0, 0.0, z}), poly, includeBoundary, useNonzeroRule, edge_tol, EPS));
       }
       else
       {
-        EXPECT_FALSE(in_polyhedron(PointType({0.0, 0.0, z}),
-                                   poly,
-                                   includeBoundary,
-                                   useNonzeroRule,
-                                   edge_tol,
-                                   EPS));
+        EXPECT_FALSE(
+          in_polyhedron(PointType({0.0, 0.0, z}), poly, includeBoundary, useNonzeroRule, edge_tol, EPS));
       }
     }
   }
@@ -354,10 +337,8 @@ void check_volume()
     });
 
   // Copy volume and centroid back to host
-  axom::Array<double> volume_host =
-    axom::Array<double>(volume_device, host_allocator);
-  axom::Array<PointType> centroid_host =
-    axom::Array<PointType>(centroid_device, host_allocator);
+  axom::Array<double> volume_host = axom::Array<double>(volume_device, host_allocator);
+  axom::Array<PointType> centroid_host = axom::Array<PointType>(centroid_device, host_allocator);
 
   EXPECT_EQ(volume_host[0], 1);
 
@@ -366,10 +347,7 @@ void check_volume()
   EXPECT_NEAR(0.5, centroid_host[0][2], EPS);
 }
 
-TEST(primal_polyhedron, check_volume_sequential)
-{
-  check_volume<axom::SEQ_EXEC>();
-}
+TEST(primal_polyhedron, check_volume_sequential) { check_volume<axom::SEQ_EXEC>(); }
 
   #ifdef AXOM_USE_OPENMP
 TEST(primal_polyhedron, check_volume_omp) { check_volume<axom::OMP_EXEC>(); }
@@ -592,35 +570,10 @@ TEST(primal_polyhedron, polygonal_cone)
 
   using Polygon2D = primal::Polygon<double, 2>;
   using Polyhedron3D = primal::Polyhedron<double, 3>;
-  using Vector3D = primal::Vector<double, 3>;
   using Point3D = primal::Point<double, 3>;
   using MatrixType = numerics::Matrix<double>;
 
   constexpr double EPS = 1e-8;
-
-  // Lambda to generate a 3D rotation matrix from an angle and axis
-  // Formulation from https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle
-  auto angleAxisRotMatrix = [](double theta, const Vector3D& axis) -> MatrixType {
-    const auto unitized = axis.unitVector();
-    const double x = unitized[0], y = unitized[1], z = unitized[2];
-    const double c = cos(theta), s = sin(theta), C = 1 - c;
-
-    auto matx = numerics::Matrix<double>::zeros(3, 3);
-
-    matx(0, 0) = x * x * C + c;
-    matx(0, 1) = x * y * C - z * s;
-    matx(0, 2) = x * z * C + y * s;
-
-    matx(1, 0) = y * x * C + z * s;
-    matx(1, 1) = y * y * C + c;
-    matx(1, 2) = y * z * C - x * s;
-
-    matx(2, 0) = z * x * C - y * s;
-    matx(2, 1) = z * y * C + x * s;
-    matx(2, 2) = z * z * C + c;
-
-    return matx;
-  };
 
   // Lambda to rotate the input point using the provided rotation matrix
   auto rotatePoint = [](const MatrixType& matx, const Point3D input) -> Point3D {
@@ -642,11 +595,11 @@ TEST(primal_polyhedron, polygonal_cone)
   // Create several rotated cones with a polygonal base.
   // The volume of a cone is 1/3 * base_area * height, so it should equal
   // the area of the polygon when the height is 3.
-  for(auto matx : {angleAxisRotMatrix(0., Vector3D {0, 0, 1}),
-                   angleAxisRotMatrix(M_PI / 3., Vector3D {0, 1, 0}),
-                   angleAxisRotMatrix(M_PI / 2., Vector3D {1, 1, 0}),
-                   angleAxisRotMatrix(2 * M_PI / 3., Vector3D {1, 1, 1}),
-                   angleAxisRotMatrix(7 * M_PI / 8., Vector3D {1, 0, 0})})
+  for(auto matx : {numerics::transforms::axisRotation(0., 0., 0., 1.),
+                   numerics::transforms::axisRotation(M_PI / 3., 0., 1., 0.),
+                   numerics::transforms::axisRotation(M_PI / 2., 1., 1., 0.),
+                   numerics::transforms::axisRotation(2 * M_PI / 3., 1., 1., 1.),
+                   numerics::transforms::axisRotation(7 * M_PI / 8., 1., 0., 0.)})
   {
     Polyhedron3D poly;
 
@@ -689,7 +642,7 @@ TEST(primal_polyhedron, polygonal_cone)
     int faces[FACE_IDX_SIZE];
     int face_size[NUM_FACES];
     int face_offset[NUM_FACES];
-    int face_count;
+    axom::IndexType face_count;
     poly.getFaces(faces, face_size, face_offset, face_count);
 
     // Verify we got the expected number of faces
@@ -707,8 +660,7 @@ TEST(primal_polyhedron, polygonal_cone)
 
     for(int f = 0; f < face_count; ++f)
     {
-      for(int f_index = face_offset[f]; f_index < face_offset[f] + face_size[f];
-          f_index++)
+      for(int f_index = face_offset[f]; f_index < face_offset[f] + face_size[f]; f_index++)
       {
         EXPECT_EQ(faces[f_index], faces_expect[f_index]);
       }
@@ -796,10 +748,7 @@ TEST(primal_polyhedron, polyhedron_from_primitive)
   EXPECT_NEAR(0.6666, poly.signedVolume(), EPS);
 
   // Valid tetrahedron
-  Tetrahedron3D tet(Point3D {1, 1, 1},
-                    Point3D {-1, 1, -1},
-                    Point3D {1, -1, -1},
-                    Point3D {-1, -1, 1});
+  Tetrahedron3D tet(Point3D {1, 1, 1}, Point3D {-1, 1, -1}, Point3D {1, -1, -1}, Point3D {-1, -1, 1});
 
   poly = Polyhedron3D::from_primitive(tet, false);
   EXPECT_NEAR(2.6666, poly.volume(), EPS);
@@ -873,58 +822,56 @@ TEST(primal_polyhedron, polyhedron_moments)
   EXPECT_NEAR(0.25, centroid[2], EPS);
 
   // lambda to generate an affine transformation matrix for 3D points
-  auto generateTransformMatrix3D = [&EPS](const PointType& scale,
-                                          const PointType& translate,
-                                          const VectorType& axis,
-                                          double angle) {
-    // create scaling matrix
-    auto sc_matx = TransformMatrix::identity(4);
-    {
-      sc_matx(0, 0) = scale[0];
-      sc_matx(1, 1) = scale[1];
-      sc_matx(2, 2) = scale[2];
-    }
+  auto generateTransformMatrix3D =
+    [&EPS](const PointType& scale, const PointType& translate, const VectorType& axis, double angle) {
+      // create scaling matrix
+      auto sc_matx = TransformMatrix::identity(4);
+      {
+        sc_matx(0, 0) = scale[0];
+        sc_matx(1, 1) = scale[1];
+        sc_matx(2, 2) = scale[2];
+      }
 
-    // create rotation matrix
-    auto rot_matx = TransformMatrix::zeros(4, 4);
-    {
-      const double sinT = std::sin(angle);
-      const double cosT = std::cos(angle);
+      // create rotation matrix
+      auto rot_matx = TransformMatrix::zeros(4, 4);
+      {
+        const double sinT = std::sin(angle);
+        const double cosT = std::cos(angle);
 
-      const auto unitAxis = axis.unitVector();
-      const double& ux = unitAxis[0];
-      const double& uy = unitAxis[1];
-      const double& uz = unitAxis[2];
+        const auto unitAxis = axis.unitVector();
+        const double& ux = unitAxis[0];
+        const double& uy = unitAxis[1];
+        const double& uz = unitAxis[2];
 
-      rot_matx(0, 0) = cosT + ux * ux * (1 - cosT);
-      rot_matx(0, 1) = ux * uy * (1 - cosT) - uz * sinT;
-      rot_matx(0, 2) = ux * uz * (1 - cosT) + uy * sinT;
-      rot_matx(1, 0) = uy * ux * (1 - cosT) + uz * sinT;
-      rot_matx(1, 1) = cosT + uy * uy * (1 - cosT);
-      rot_matx(1, 2) = uy * uz * (1 - cosT) - ux * sinT;
-      rot_matx(2, 0) = uz * ux * (1 - cosT) - uy * sinT;
-      rot_matx(2, 1) = uz * uy * (1 - cosT) + ux * sinT;
-      rot_matx(2, 2) = cosT + uz * uz * (1 - cosT);
-      rot_matx(3, 3) = 1;
-    }
+        rot_matx(0, 0) = cosT + ux * ux * (1 - cosT);
+        rot_matx(0, 1) = ux * uy * (1 - cosT) - uz * sinT;
+        rot_matx(0, 2) = ux * uz * (1 - cosT) + uy * sinT;
+        rot_matx(1, 0) = uy * ux * (1 - cosT) + uz * sinT;
+        rot_matx(1, 1) = cosT + uy * uy * (1 - cosT);
+        rot_matx(1, 2) = uy * uz * (1 - cosT) - ux * sinT;
+        rot_matx(2, 0) = uz * ux * (1 - cosT) - uy * sinT;
+        rot_matx(2, 1) = uz * uy * (1 - cosT) + ux * sinT;
+        rot_matx(2, 2) = cosT + uz * uz * (1 - cosT);
+        rot_matx(3, 3) = 1;
+      }
 
-    // create translation matrix
-    auto tr_matx = TransformMatrix::identity(4);
-    {
-      tr_matx(0, 3) = translate[0];
-      tr_matx(1, 3) = translate[1];
-      tr_matx(2, 3) = translate[2];
-    }
+      // create translation matrix
+      auto tr_matx = TransformMatrix::identity(4);
+      {
+        tr_matx(0, 3) = translate[0];
+        tr_matx(1, 3) = translate[1];
+        tr_matx(2, 3) = translate[2];
+      }
 
-    // multiply them to get the final transform
-    TransformMatrix affine_matx1(4, 4);
-    matrix_multiply(rot_matx, sc_matx, affine_matx1);
-    TransformMatrix affine_matx2(4, 4);
-    matrix_multiply(tr_matx, affine_matx1, affine_matx2);
+      // multiply them to get the final transform
+      TransformMatrix affine_matx1(4, 4);
+      matrix_multiply(rot_matx, sc_matx, affine_matx1);
+      TransformMatrix affine_matx2(4, 4);
+      matrix_multiply(tr_matx, affine_matx1, affine_matx2);
 
-    EXPECT_NEAR(scale[0] * scale[1] * scale[2], determinant(affine_matx2), EPS);
-    return affine_matx2;
-  };
+      EXPECT_NEAR(scale[0] * scale[1] * scale[2], determinant(affine_matx2), EPS);
+      return affine_matx2;
+    };
 
   // Omit scaling by zero, as it results in an invalid transformed polyhedron
   const auto scales = axom::Array<double>({-3., -1., -.5, 0.01, 1., 42.3});
@@ -982,10 +929,8 @@ TEST(primal_polyhedron, polyhedron_moments)
                 {
                   const auto sc = PointType {sc_x, sc_y, sc_z};
                   const auto tr = PointType {tr_x, tr_y, tr_z};
-                  auto affine_matx =
-                    generateTransformMatrix3D(sc, tr, axis, theta);
-                  auto xformed_polyhedron =
-                    transformedPolyhedron(poly, affine_matx);
+                  auto affine_matx = generateTransformMatrix3D(sc, tr, axis, theta);
+                  auto xformed_polyhedron = transformedPolyhedron(poly, affine_matx);
 
                   // Get moments of transformed polyhedron
                   centroid = PointType();
@@ -1009,6 +954,42 @@ TEST(primal_polyhedron, polyhedron_moments)
       }
     }
   }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_polyhedron, polyhedron_non_planar)
+{
+  using PolyhedronType = primal::Polyhedron<double, 3>;
+  constexpr double eps = 1.e-10;
+
+  // Top face will be non-planar.
+  PolyhedronType poly;
+  poly.addVertex({0, 0, 0});
+  poly.addVertex({1, 0, 0});
+  poly.addVertex({1, 1, 0});
+  poly.addVertex({0, 2, 0});  // Move this vertex up
+  poly.addVertex({0, 0, 1});
+  poly.addVertex({1, 0, 1});
+  poly.addVertex({1, 1, 1});
+  poly.addVertex({0, 1, 1});
+
+  poly.addNeighbors(poly[0], {1, 4, 3});
+  poly.addNeighbors(poly[1], {5, 0, 2});
+  poly.addNeighbors(poly[2], {3, 6, 1});
+  poly.addNeighbors(poly[3], {7, 2, 0});
+  poly.addNeighbors(poly[4], {5, 7, 0});
+  poly.addNeighbors(poly[5], {1, 6, 4});
+  poly.addNeighbors(poly[6], {2, 7, 5});
+  poly.addNeighbors(poly[7], {4, 6, 3});
+
+  axom::IndexType numFaces = 0;
+  const auto faces = poly.getFaces(numFaces, eps);
+  // 7 faces because the top face turned into 2 faces since it was non-planar.
+  EXPECT_EQ(7, numFaces);
+  AXOM_UNUSED_VAR(faces);
+
+  // Check volume
+  EXPECT_NEAR(poly.volume(), 7. / 6., eps);
 }
 
 //------------------------------------------------------------------------------

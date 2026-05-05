@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -33,13 +34,13 @@ using RangeSetType = slam::RangeSet<PositionType, ElementType>;
 template <typename T>
 using SuperMap = slam::Map<T, SetBase>;
 
-using OrderedSetType = axom::slam::OrderedSet<
-  PositionType,
-  ElementType,
-  slam::policies::RuntimeSize<PositionType>,
-  slam::policies::ZeroOffset<PositionType>,
-  slam::policies::StrideOne<PositionType>,
-  slam::policies::STLVectorIndirection<PositionType, ElementType>>;
+using OrderedSetType =
+  axom::slam::OrderedSet<PositionType,
+                         ElementType,
+                         slam::policies::RuntimeSize<PositionType>,
+                         slam::policies::ZeroOffset<PositionType>,
+                         slam::policies::StrideOne<PositionType>,
+                         slam::policies::STLVectorIndirection<PositionType, ElementType>>;
 
 constexpr double multFac = 1.0001;
 
@@ -60,9 +61,9 @@ struct MapForTest
     , s(OrderedSetType::SetBuilder().size(size).data(&set_data))
     , m(&s)
   {
-    SLIC_INFO("Initializing set of size "
-              << s.size() << " and '" << slam::util::TypeToString<T>::to_string()
-              << "' map on the set ");
+    SLIC_INFO("Initializing set of size " << s.size() << " and '"
+                                          << slam::util::TypeToString<T>::to_string()
+                                          << "' map on the set ");
 
     for(auto i : s.positions())
     {
@@ -147,8 +148,7 @@ bool constructAndTestSubMap()
     {
       subset_indices_data[i] = i * 2;
     }
-    OrderedSetType subset_indices =
-      OrderedSetType::SetBuilder().size(5).data(&subset_indices_data);
+    OrderedSetType subset_indices = OrderedSetType::SetBuilder().size(5).data(&subset_indices_data);
 
     SubMapType ssm(&m, subset_indices);
 
@@ -177,15 +177,9 @@ bool constructAndTestSubMap()
   return true;
 }
 
-TEST(slam_map, construct_int_submap)
-{
-  EXPECT_TRUE(constructAndTestSubMap<int>());
-}
+TEST(slam_map, construct_int_submap) { EXPECT_TRUE(constructAndTestSubMap<int>()); }
 
-TEST(slam_map, construct_double_submap)
-{
-  EXPECT_TRUE(constructAndTestSubMap<double>());
-}
+TEST(slam_map, construct_double_submap) { EXPECT_TRUE(constructAndTestSubMap<double>()); }
 
 template <typename T>
 bool constructBySubMap()
@@ -229,15 +223,9 @@ bool constructBySubMap()
   return true;
 }
 
-TEST(slam_map, construct_with_int_submap)
-{
-  EXPECT_TRUE(constructBySubMap<int>());
-}
+TEST(slam_map, construct_with_int_submap) { EXPECT_TRUE(constructBySubMap<int>()); }
 
-TEST(slam_map, construct_with_double_submap)
-{
-  EXPECT_TRUE(constructBySubMap<double>());
-}
+TEST(slam_map, construct_with_double_submap) { EXPECT_TRUE(constructBySubMap<double>()); }
 
 //----------------------------------------------------------------------
 

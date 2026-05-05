@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -9,7 +10,6 @@
 #include "axom/core.hpp"
 
 #include "axom/primal/constants.hpp"
-#include "axom/primal/geometry/NumericArray.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/primal/geometry/Sphere.hpp"
@@ -42,9 +42,7 @@ public:
 
 public:
   /// \brief Default constructor. Creates a degenerate tetrahedron.
-  AXOM_HOST_DEVICE Tetrahedron()
-    : m_points {PointType(), PointType(), PointType(), PointType()}
-  { }
+  AXOM_HOST_DEVICE Tetrahedron() : m_points {PointType(), PointType(), PointType(), PointType()} { }
 
   /*!
    * \brief Tetrahedron constructor from 4 points A,B,C,D.
@@ -58,10 +56,7 @@ public:
    * i.e. \f$ dot(B-A, cross(C-A, D-A)) \f$.
    */
   AXOM_HOST_DEVICE
-  Tetrahedron(const PointType& A,
-              const PointType& B,
-              const PointType& C,
-              const PointType& D)
+  Tetrahedron(const PointType& A, const PointType& B, const PointType& C, const PointType& D)
     : m_points {A, B, C, D}
   { }
 
@@ -117,6 +112,13 @@ public:
   }
 
   /*!
+   * \brief Return the number of vertices in a Tetrahedron.
+   *
+   * \return The number of vertices in a Tetrahedron.
+   */
+  AXOM_HOST_DEVICE static constexpr int numVertices() { return NUM_VERTS; }
+
+  /*!
    * \brief Index operator to get the i^th vertex
    * \param idx The index of the desired vertex
    * \pre idx is 0, 1, 2, or 3
@@ -160,8 +162,8 @@ public:
    * Otherwise, the sum of coordinates will be proportional to volume of the tetrahedron
    * (Specifically, they should sum to the parallelpiped volume, which is 6x the volume).
    */
-  Point<double, 4> physToBarycentric(const PointType& p,
-                                     bool skipNormalization = false) const
+  AXOM_HOST_DEVICE
+  Point<double, 4> physToBarycentric(const PointType& p, bool skipNormalization = false) const
   {
     Point<double, 4> bary;
 
@@ -194,7 +196,7 @@ public:
       bary[3] = detD * ood;
 
       // Replace the smallest entry with the difference of 1 from the sum of the others
-      const int amin = primal::abs(bary.array()).argMin();
+      const int amin = axom::abs(bary.array()).argMin();
       bary[amin] = 0.;
       bary[amin] = 1. - bary.array().sum();
     }
@@ -213,11 +215,11 @@ public:
    * \brief Returns the physical coordinates of a barycentric point
    * \param [in] bary Barycentric coordinates relative to this tetrahedron
    */
+  AXOM_HOST_DEVICE
   PointType baryToPhysical(const Point<double, 4>& bary) const
   {
-    SLIC_CHECK_MSG(
-      axom::utilities::isNearlyEqual(1., bary[0] + bary[1] + bary[2] + bary[3]),
-      "Barycentric coordinates must sum to (near) one.");
+    SLIC_CHECK_MSG(axom::utilities::isNearlyEqual(1., bary[0] + bary[1] + bary[2] + bary[3]),
+                   "Barycentric coordinates must sum to (near) one.");
 
     PointType res;
     for(int i = 0; i < NUM_VERTS; ++i)
@@ -228,6 +230,19 @@ public:
     return res;
   }
 
+  /*! 
+   * \brief Returns whether point \a p is contained within the tetrahedron (within tolerance \a eps)
+   */
+  AXOM_HOST_DEVICE
+  bool contains(const PointType& p, double eps = 1e-8) const
+  {
+    const auto bC = physToBarycentric(p);
+    return (bC[0] >= (0.0 - eps)) && (bC[0] <= (1.0 + eps))  //
+      && (bC[1] >= (0.0 - eps)) && (bC[1] <= (1.0 + eps))    //
+      && (bC[2] >= (0.0 - eps)) && (bC[2] <= (1.0 + eps))    //
+      && (bC[3] >= (0.0 - eps)) && (bC[3] <= (1.0 + eps));
+  }
+
   /*!
    * \brief Simple formatted print of a tetrahedron instance
    * \param os The output stream to write to
@@ -235,8 +250,7 @@ public:
    */
   std::ostream& print(std::ostream& os) const
   {
-    os << "{" << m_points[0] << " " << m_points[1] << " " << m_points[2] << " "
-       << m_points[3] << "}";
+    os << "{" << m_points[0] << " " << m_points[1] << " " << m_points[2] << " " << m_points[3] << "}";
 
     return os;
   }
@@ -325,11 +339,10 @@ private:
   AXOM_HOST_DEVICE
   double ppedVolume() const
   {
-    return NDIMS != 3
-      ? 0.
-      : VectorType::scalar_triple_product(m_points[1] - m_points[0],
-                                          m_points[2] - m_points[0],
-                                          m_points[3] - m_points[0]);
+    return NDIMS != 3 ? 0.
+                      : VectorType::scalar_triple_product(m_points[1] - m_points[0],
+                                                          m_points[2] - m_points[0],
+                                                          m_points[3] - m_points[0]);
   }
 
 private:
@@ -351,8 +364,7 @@ std::ostream& operator<<(std::ostream& os, const Tetrahedron<T, NDIMS>& tet)
 
 /// Overload to format a primal::Tetrahedron using fmt
 template <typename T, int NDIMS>
-struct axom::fmt::formatter<axom::primal::Tetrahedron<T, NDIMS>>
-  : ostream_formatter
+struct axom::fmt::formatter<axom::primal::Tetrahedron<T, NDIMS>> : ostream_formatter
 { };
 
 #endif  // AXOM_PRIMAL_TETRAHEDRON_HPP_

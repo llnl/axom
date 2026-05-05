@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -11,12 +12,54 @@
 #include "axom/core/Types.hpp"   // for axom types
 #include "axom/slic.hpp"         // for SLIC macros
 
+#include <type_traits>  // For template magic
+#include <utility>
+
 namespace axom
 {
 namespace spin
 {
 namespace internal
 {
+/*!
+ * \brief Checks if provided InBinCheck can accept a third positional argument representing the
+ *        index of `bvhBox` in the traverser's internal node list.
+ * 
+ * This is necessary because typical usage of a BVH traverser requires no access to the internal
+ *  node layout as implemented in LinearBVH, requiring a two-argument InBin predicate.
+ * However, `LinearBVHTraverser::reduce_tree` returns an array of values that are associated with 
+ *  each node, and a three-argument InBin predicate allows indexing into this array in the check.
+ * 
+ * \sa quest::fast_approximate_winding_number
+ */
+template <typename InBinCheck, typename PointType, typename BoxType, typename IndexType>
+AXOM_HOST_DEVICE inline bool invoke_InBinCheck(InBinCheck&& B,
+                                               PointType&& p,
+                                               BoxType&& bvhBox,
+                                               IndexType&& node_idx)
+{
+  // Case 1: InBinCheck is invokable as B( p, bvhBox, node_idx )
+  if constexpr(std::is_invocable_v<InBinCheck, PointType, BoxType, IndexType>)
+  {
+    return std::forward<InBinCheck>(B)(std::forward<PointType>(p),
+                                       std::forward<BoxType>(bvhBox),
+                                       std::forward<IndexType>(node_idx));
+  }
+  // Case 2: InBinCheck is invokable as B( p, bvhBox ), which is more common
+  else if constexpr(std::is_invocable_v<InBinCheck, PointType, BoxType>)
+  {
+    return std::forward<InBinCheck>(B)(std::forward<PointType>(p), std::forward<BoxType>(bvhBox));
+  }
+  // Case 3: Neither works
+  else
+  {
+    static_assert(std::is_invocable_v<InBinCheck, PointType, BoxType, IndexType> ||
+                    std::is_invocable_v<InBinCheck, PointType, BoxType>,
+                  "InBinCheck must be callable as B(p, bvhBox, node_idx) or B(p, bvhBox)");
+    return false;
+  }
+}
+
 namespace linear_bvh
 {
 /*!
@@ -63,12 +106,7 @@ inline bool leaf_node(const std::int32_t& nodeIdx) { return (nodeIdx < 0); }
  * device and unified memory.
  *
  */
-template <int NDIMS,
-          typename FloatType,
-          typename PrimitiveType,
-          typename InBinCheck,
-          typename LeafAction,
-          typename TraversePref>
+template <int NDIMS, typename FloatType, typename PrimitiveType, typename InBinCheck, typename LeafAction, typename TraversePref>
 AXOM_HOST_DEVICE inline void bvh_traverse(
   axom::ArrayView<const primal::BoundingBox<FloatType, NDIMS>> inner_nodes,
   axom::ArrayView<const std::int32_t> inner_node_children,
@@ -97,8 +135,10 @@ AXOM_HOST_DEVICE inline void bvh_traverse(
     {
       BBoxType left_bin = inner_nodes[current_node + 0];
       BBoxType right_bin = inner_nodes[current_node + 1];
-      const bool in_left = left_bin.isValid() ? B(p, left_bin) : false;
-      const bool in_right = right_bin.isValid() ? B(p, right_bin) : false;
+      const bool in_left =
+        left_bin.isValid() ? invoke_InBinCheck(B, p, left_bin, current_node + 0) : false;
+      const bool in_right =
+        right_bin.isValid() ? invoke_InBinCheck(B, p, right_bin, current_node + 1) : false;
       std::int32_t l_child = inner_node_children[current_node + 0];
       std::int32_t r_child = inner_node_children[current_node + 1];
       bool swap = Comp(left_bin, right_bin, p);

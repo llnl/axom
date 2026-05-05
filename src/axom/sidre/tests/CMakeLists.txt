@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -15,7 +16,6 @@ set(gtest_sidre_tests
    sidre_buffer.cpp
    sidre_buffer_unit.cpp
    sidre_class.cpp
-   sidre_collections.cpp
    sidre_datastore.cpp
    sidre_datastore_unit.cpp
    sidre_external.cpp
@@ -25,6 +25,7 @@ set(gtest_sidre_tests
    sidre_native_layout.cpp
    sidre_attribute.cpp
    sidre_mcarray.cpp
+   sidre_read_write_userdefined_data.cpp
    )
 
 set(gtest_sidre_C_tests
@@ -45,6 +46,16 @@ set(fruit_sidre_tests
    sidre_external_F.f
    sidre_opaque_F.f
    sidre_allocatable_F.f
+   )
+
+set(python_sidre_tests
+   sidre_smoke_Py.py
+   sidre_datastore_unit_Py.py
+   sidre_group_Py.py
+   sidre_buffer_Py.py
+   sidre_view_Py.py
+   sidre_external_Py.py
+   sidre_attribute_Py.py
    )
 
 set(sidre_gtests_depends_on sidre fmt gtest)
@@ -104,9 +115,23 @@ if (ENABLE_FORTRAN)
 endif()
 
 #------------------------------------------------------------------------------
+# Add Python tests
+#------------------------------------------------------------------------------
+if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
+    foreach(test ${python_sidre_tests})
+        get_filename_component( test_name ${test} NAME_WE )
+
+        axom_add_python_test( NAME ${test_name}
+                              SOURCE ${test}
+                              OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                              )
+    endforeach()
+endif()
+
+#------------------------------------------------------------------------------
 # Add MFEMSidreDataCollection tests
 #------------------------------------------------------------------------------
-if (MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+if (MFEM_FOUND)
     axom_add_executable(NAME sidre_mfem_datacollection_test
                         SOURCES sidre_mfem_datacollection.cpp
                         OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -14,20 +15,36 @@
  */
 
 #include "axom/lumberjack/Lumberjack.hpp"
+#include <algorithm>
+#include <iostream>
 
 namespace axom
 {
 namespace lumberjack
 {
-void Lumberjack::initialize(Communicator* communicator, int ranksLimit)
+void Lumberjack::initialize(Communicator* communicator, int ranksLimit, bool isCommunicatorOwned)
 {
-  m_communicator = communicator;
-  m_ranksLimit = ranksLimit;
-  m_combiners.push_back(new TextTagCombiner);
+  if(m_isInitialized == false)
+  {
+    m_isInitialized = true;
+    m_communicator = communicator;
+    m_isCommunicatorOwned = isCommunicatorOwned;
+    m_ranksLimit = ranksLimit;
+    m_combiners.push_back(new TextTagCombiner);
+  }
+  else
+  {
+    std::cerr << "Lumberjack::initialize called more than once" << std::endl;
+  }
 }
 
 void Lumberjack::finalize()
 {
+  if(m_isCommunicatorOwned && m_communicator != nullptr)
+  {
+    m_communicator->finalize();
+    delete m_communicator;
+  }
   m_communicator = nullptr;
   clearCombiners();
   clearMessages();
@@ -77,10 +94,7 @@ void Lumberjack::clearCombiners()
   m_combiners.clear();
 }
 
-const std::vector<Message*>& Lumberjack::getMessages() const
-{
-  return m_messages;
-}
+const std::vector<Message*>& Lumberjack::getMessages() const { return m_messages; }
 
 void Lumberjack::ranksLimit(int value)
 {
@@ -99,19 +113,36 @@ void Lumberjack::clearMessages()
   m_messages.clear();
 }
 
-void Lumberjack::queueMessage(const std::string& text)
+void Lumberjack::queueMessage(const std::string& text, double creationTime)
 {
-  queueMessage(text, "", -1, 0, "");
+  queueMessage(text, "", -1, 0, creationTime, "");
 }
 
 void Lumberjack::queueMessage(const std::string& text,
                               const std::string& fileName,
                               const int lineNumber,
                               int level,
+                              double creationTime,
                               const std::string& tag)
 {
+  const double elapsedTime = creationTime - m_communicator->startTime();
   Message* mi =
-    new Message(text, m_communicator->rank(), fileName, lineNumber, level, tag);
+    new Message(text, m_communicator->rank(), fileName, lineNumber, level, elapsedTime, tag);
+  m_messages.push_back(mi);
+}
+
+void Lumberjack::queueMessage(const std::string& text,
+                              const std::vector<int>& ranks,
+                              const int count,
+                              const std::string& fileName,
+                              const int lineNumber,
+                              int level,
+                              double creationTime,
+                              const std::string& tag)
+{
+  const double elapsedTime = creationTime - m_communicator->startTime();
+  Message* mi =
+    new Message(text, ranks, count, m_ranksLimit, fileName, lineNumber, level, elapsedTime, tag);
   m_messages.push_back(mi);
 }
 
@@ -128,8 +159,7 @@ void Lumberjack::pushMessagesOnce()
 
   m_communicator->push(packedMessagesToBeSent, receivedPackedMessages);
 
-  if(!m_communicator->isOutputNode() &&
-     !isPackedMessagesEmpty(packedMessagesToBeSent))
+  if(!m_communicator->isOutputNode() && !isPackedMessagesEmpty(packedMessagesToBeSent))
   {
     delete[] packedMessagesToBeSent;
   }
@@ -142,6 +172,10 @@ void Lumberjack::pushMessagesOnce()
   receivedPackedMessages.clear();
 
   combineMessages();
+
+  std::sort(m_messages.begin(), m_messages.end(), [](Message* const a, Message* const b) {
+    return a->creationTime() < b->creationTime();
+  });
 }
 
 void Lumberjack::pushMessagesFully()
@@ -160,8 +194,7 @@ void Lumberjack::pushMessagesFully()
 
     m_communicator->push(packedMessagesToBeSent, receivedPackedMessages);
 
-    if(!m_communicator->isOutputNode() &&
-       !isPackedMessagesEmpty(packedMessagesToBeSent))
+    if(!m_communicator->isOutputNode() && !isPackedMessagesEmpty(packedMessagesToBeSent))
     {
       delete[] packedMessagesToBeSent;
     }
@@ -175,33 +208,93 @@ void Lumberjack::pushMessagesFully()
   }
 
   combineMessages();
+
+  std::sort(m_messages.begin(), m_messages.end(), [](Message* const a, Message* const b) {
+    return a->creationTime() < b->creationTime();
+  });
 }
 
 bool Lumberjack::isOutputNode() { return m_communicator->isOutputNode(); }
 
+void Lumberjack::setCommunicator(Communicator* communicator, bool isCommunicatorOwned)
+{
+  if(m_isCommunicatorOwned && m_communicator != nullptr)
+  {
+    m_communicator->finalize();
+    delete m_communicator;
+  }
+  m_isCommunicatorOwned = isCommunicatorOwned;
+  m_communicator = communicator;
+}
+
+Communicator* Lumberjack::getCommunicator() { return m_communicator; }
+
+bool Lumberjack::isCommunicatorOwned() { return m_isCommunicatorOwned; }
+
 void Lumberjack::combineMessages()
 {
   int messagesSize = (int)m_messages.size();
+
+  // Early exit if there is only one message
   if(messagesSize < 2)
   {
     return;
   }
 
+  // Holds messages that are candidates for any combiners
   std::vector<Message*> finalMessages;
+
+  // Holds messages that are not candidates for any combiners
+  std::vector<Message*> uncombinableMessages;
+
   std::vector<int> indexesToBeDeleted;
   int combinersSize = (int)m_combiners.size();
+
+  // Early exit if there are no combiners
+  if(combinersSize == 0)
+  {
+    return;
+  }
+
   bool combinedMessage = false;
-  finalMessages.push_back(m_messages[0]);
-  for(int allIndex = 1; allIndex < messagesSize; ++allIndex)
+  for(int allIndex = 0; allIndex < messagesSize; ++allIndex)
   {
     combinedMessage = false;
+
+    // Determine the combiners our current message is a candidate for
+    std::vector<int> candidateCombiners;
+
+    for(int combinerIndex = 0; combinerIndex < combinersSize; ++combinerIndex)
+    {
+      if(m_combiners[combinerIndex]->isMessageCandidateForCombiner(*m_messages[allIndex]))
+      {
+        candidateCombiners.push_back(combinerIndex);
+      }
+    }
+
+    // If our current message is not a candidate for any combiner, it can never be
+    // combined, so we can skip the expensive duplicate checking.
+    if(candidateCombiners.empty())
+    {
+      uncombinableMessages.push_back(m_messages[allIndex]);
+      continue;
+    }
+
+    // Find the first message that shares a combiner with our current message
+    // and the combiner says both messages should be combined. Combine messages.
     for(int finalIndex = 0; finalIndex < (int)finalMessages.size(); ++finalIndex)
     {
-      for(int combinerIndex = 0; combinerIndex < combinersSize; ++combinerIndex)
+      for(unsigned int candidateCombinerIndex = 0; candidateCombinerIndex < candidateCombiners.size();
+          ++candidateCombinerIndex)
       {
-        if(m_combiners[combinerIndex]->shouldMessagesBeCombined(
-             *finalMessages[finalIndex],
-             *m_messages[allIndex]))
+        int combinerIndex = candidateCombiners[candidateCombinerIndex];
+        if(!m_combiners[combinerIndex]->isMessageCandidateForCombiner(*finalMessages[finalIndex]))
+        {
+          continue;
+        }
+
+        if(m_combiners[combinerIndex]->shouldMessagesBeCombined(*finalMessages[finalIndex],
+                                                                *m_messages[allIndex]))
         {
           m_combiners[combinerIndex]->combine(*finalMessages[finalIndex],
                                               *m_messages[allIndex],
@@ -216,12 +309,16 @@ void Lumberjack::combineMessages()
         break;
       }
     }
+
+    // If current message was not combined, add it to pool of candidates.
     if(!combinedMessage)
     {
       finalMessages.push_back(m_messages[allIndex]);
     }
   }
 
+  // Set m_messages to the final list of combined and uncombinable messages
+  finalMessages.insert(finalMessages.end(), uncombinableMessages.begin(), uncombinableMessages.end());
   for(int i = 0; i < (int)indexesToBeDeleted.size(); ++i)
   {
     delete m_messages[indexesToBeDeleted[i]];

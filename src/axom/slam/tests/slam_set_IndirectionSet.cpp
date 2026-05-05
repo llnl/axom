@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -128,8 +129,7 @@ public:
   void getDataBuffer(axom::ArrayView<ElemType>& ptr, int index = 0)
   {
     checkIndex(index);
-    ptr =
-      axom::ArrayView<ElemType>(mDataVec[index].data(), mDataVec[index].size());
+    ptr = axom::ArrayView<ElemType>(mDataVec[index].data(), mDataVec[index].size());
   }
 
 private:
@@ -164,11 +164,10 @@ bool compareData(axom::ArrayView<ElemType> a, axom::ArrayView<ElemType> b)
 }
 
 // Tests several types of indirection sets
-using MyTypes =
-  ::testing::Types<slam::CArrayIndirectionSet<std::int32_t, std::int64_t>,
-                   slam::VectorIndirectionSet<std::int32_t, std::int64_t>,
-                   slam::ArrayIndirectionSet<std::int32_t, std::int64_t>,
-                   slam::ArrayViewIndirectionSet<std::int32_t, std::int64_t>>;
+using MyTypes = ::testing::Types<slam::CArrayIndirectionSet<std::int32_t, std::int64_t>,
+                                 slam::VectorIndirectionSet<std::int32_t, std::int64_t>,
+                                 slam::ArrayIndirectionSet<std::int32_t, std::int64_t>,
+                                 slam::ArrayViewIndirectionSet<std::int32_t, std::int64_t>>;
 
 TYPED_TEST_SUITE(IndirectionSetTester, MyTypes);
 
@@ -195,8 +194,7 @@ TYPED_TEST(IndirectionSetTester, constuct)
     EXPECT_FALSE(s.empty());
     EXPECT_EQ(MAX_SET_SIZE, s.size());
     EXPECT_FALSE(s.hasIndirection());
-    EXPECT_FALSE(s.isValid())
-      << "IndirectionSet not valid until we set the indirection buffer";
+    EXPECT_FALSE(s.isValid()) << "IndirectionSet not valid until we set the indirection buffer";
 
     // Add data to the set
     this->getDataBuffer(s.ptr());
@@ -334,9 +332,7 @@ TYPED_TEST(IndirectionSetTester, iterate)
   {
     this->permuteData();
     std::stringstream sstr;
-    std::copy(s.begin(),
-              s.end(),
-              std::ostream_iterator<SetPosition>(sstr, "\t"));
+    std::copy(s.begin(), s.end(), std::ostream_iterator<SetPosition>(sstr, "\t"));
     SLIC_INFO("Permutation " << i << ":\t" << sstr.str());
   }
 }
@@ -486,11 +482,9 @@ TEST(slam_set_indirectionset, negative_stride)
   using VecIndPol = policies::STLVectorIndirection<SetPosition, SetElement>;
   using CArrIndPol = policies::CArrayIndirection<SetPosition, SetElement>;
 
-  using VecSet =
-    slam::OrderedSet<SetPosition, SetElement, SizePol, OffPol, StridePol, VecIndPol>;
+  using VecSet = slam::OrderedSet<SetPosition, SetElement, SizePol, OffPol, StridePol, VecIndPol>;
 
-  using CArrSet =
-    slam::OrderedSet<SetPosition, SetElement, SizePol, OffPol, StridePol, CArrIndPol>;
+  using CArrSet = slam::OrderedSet<SetPosition, SetElement, SizePol, OffPol, StridePol, CArrIndPol>;
 
   // Set up data -- an array of incrementing integers
   std::vector<SetElement> intVec(MAX_SET_SIZE);
@@ -516,10 +510,9 @@ TEST(slam_set_indirectionset, negative_stride)
     EXPECT_EQ(setSize, vSet.size());
     EXPECT_TRUE(vSet.hasIndirection());
 
-    SLIC_INFO("Ordered vector set has:"
-              << "{ size: " << vSet.size() << ", stride: " << vSet.stride()
-              << ", offset: " << vSet.offset() << ", first elt: " << vSet[0]
-              << ", last elt: " << vSet[vSet.size() - 1] << "}");
+    SLIC_INFO("Ordered vector set has:" << "{ size: " << vSet.size() << ", stride: " << vSet.stride()
+                                        << ", offset: " << vSet.offset() << ", first elt: " << vSet[0]
+                                        << ", last elt: " << vSet[vSet.size() - 1] << "}");
 
     // Test the elements
     EXPECT_EQ(intVec[setOffset], vSet[0]);
@@ -529,9 +522,9 @@ TEST(slam_set_indirectionset, negative_stride)
     }
 
     /// Several checks that sets with bad offsets and strides are invalid
-    SLIC_DEBUG_IF(bVerbose,
-                  "--- Checking isValid() on several sets with "
-                    << "bad sizes, offsets and strides.");
+    SLIC_DEBUG_IF(
+      bVerbose,
+      "--- Checking isValid() on several sets with " << "bad sizes, offsets and strides.");
     VecSet noDataVSet(VecSet::SetBuilder()  // Note: Missing a data pointer
                         .size(setSize)
                         .offset(setOffset)
@@ -576,10 +569,9 @@ TEST(slam_set_indirectionset, negative_stride)
 
     EXPECT_EQ(intVec[setOffset], cSet[0]);
 
-    SLIC_INFO("Ordered array set has:"
-              << "{ size: " << cSet.size() << ", stride: " << cSet.stride()
-              << ", offset: " << cSet.offset() << ", first elt: " << cSet[0]
-              << ", last elt: " << cSet[cSet.size() - 1] << "}");
+    SLIC_INFO("Ordered array set has:" << "{ size: " << cSet.size() << ", stride: " << cSet.stride()
+                                       << ", offset: " << cSet.offset() << ", first elt: " << cSet[0]
+                                       << ", last elt: " << cSet[cSet.size() - 1] << "}");
 
     for(int i = 0; i < cSet.size(); ++i)
     {
@@ -587,9 +579,9 @@ TEST(slam_set_indirectionset, negative_stride)
     }
 
     /// Several checks that sets with bad offsets and strides are invalid
-    SLIC_DEBUG_IF(bVerbose,
-                  "--- Checking isValid() on several sets with "
-                    << "bad sizes, offsets and strides.");
+    SLIC_DEBUG_IF(
+      bVerbose,
+      "--- Checking isValid() on several sets with " << "bad sizes, offsets and strides.");
 
     CArrSet noDataCSet(CArrSet::SetBuilder()  // Note: Missing a data pointer
                          .size(setSize)

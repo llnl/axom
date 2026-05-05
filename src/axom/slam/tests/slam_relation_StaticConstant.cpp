@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -51,22 +52,16 @@ constexpr SetPosition ELEM_STRIDE = 5;
 using CTStride = policies::CompileTimeStride<SetPosition, ELEM_STRIDE>;
 using RTStride = policies::RuntimeStride<SetPosition>;
 
-using ConstantCardinalityCT =
-  policies::ConstantCardinality<SetPosition, CTStride>;
-using ConstantCardinalityRT =
-  policies::ConstantCardinality<SetPosition, RTStride>;
+using ConstantCardinalityCT = policies::ConstantCardinality<SetPosition, CTStride>;
+using ConstantCardinalityRT = policies::ConstantCardinality<SetPosition, RTStride>;
 
 using STLIndirection = policies::STLVectorIndirection<SetPosition, SetElement>;
 using CArrayIndirection = policies::CArrayIndirection<SetPosition, SetElement>;
 
 using IndexVec = std::vector<SetPosition>;
 
-using StaticConstantRelationType = slam::StaticRelation<SetPosition,
-                                                        SetElement,
-                                                        ConstantCardinalityCT,
-                                                        STLIndirection,
-                                                        RangeSetType,
-                                                        RangeSetType>;
+using StaticConstantRelationType =
+  slam::StaticRelation<SetPosition, SetElement, ConstantCardinalityCT, STLIndirection, RangeSetType, RangeSetType>;
 
 // Use a slam::ModularInt type for more interesting test data
 using CTSize = policies::CompileTimeSize<int, ELEM_STRIDE>;
@@ -78,17 +73,12 @@ void printVector(StrType const& msg, VecType const& vec)
   std::stringstream sstr;
 
   sstr << "Array of size " << vec.size() << ": ";
-  std::copy(vec.begin(),
-            vec.end(),
-            std::ostream_iterator<SetElement>(sstr, " "));
+  std::copy(vec.begin(), vec.end(), std::ostream_iterator<SetElement>(sstr, " "));
 
   SLIC_INFO(msg << ": " << sstr.str());
 }
 
-SetPosition elementCardinality(SetPosition AXOM_UNUSED_PARAM(fromPos))
-{
-  return ELEM_STRIDE;
-}
+SetPosition elementCardinality(SetPosition AXOM_UNUSED_PARAM(fromPos)) { return ELEM_STRIDE; }
 
 /**
  * \brief Sets the value at relation element (i,j) to (i + j) % ELEM_SIZE using
@@ -184,9 +174,7 @@ void iterateRelation_begin_end(RelationType& rel)
   using RelIter = typename RelationType::RelationIterator;
 
   SLIC_INFO("Traversing relation data using iterator begin()/end() functions");
-  for(FromSetIter sIt = rel.fromSet()->begin(), sItEnd = rel.fromSet()->end();
-      sIt != sItEnd;
-      ++sIt)
+  for(FromSetIter sIt = rel.fromSet()->begin(), sItEnd = rel.fromSet()->end(); sIt != sItEnd; ++sIt)
   {
     SetPosition actualSize = rel.size(*sIt);
 
@@ -286,8 +274,7 @@ TEST(slam_relation_static_constant, construct_relation)
 
 TEST(slam_relation_static_constant, construct_builder)
 {
-  SLIC_INFO(
-    "Checking if we can instantiate a concrete StaticRelation (constant).");
+  SLIC_INFO("Checking if we can instantiate a concrete StaticRelation (constant).");
 
   using RelationBuilder = StaticConstantRelationType::RelationBuilder;
 
@@ -302,8 +289,7 @@ TEST(slam_relation_static_constant, construct_builder)
       .fromSet(&fromSet)
       .toSet(&toSet)
       .begins(RelationBuilder::BeginsSetBuilder().stride(ELEM_STRIDE))
-      .indices(
-        RelationBuilder::IndicesSetBuilder().size(offsets.size()).data(&offsets));
+      .indices(RelationBuilder::IndicesSetBuilder().size(offsets.size()).data(&offsets));
 
   EXPECT_TRUE(relation.isValid(true));
 
@@ -319,8 +305,7 @@ TEST(slam_relation_static_constant, construct_builder)
 
 TEST(slam_relation_static_constant, out_of_bounds_empty)
 {
-  SLIC_INFO("Testing access on empty relation "
-            << "-- code is expected to assert and die.");
+  SLIC_INFO("Testing access on empty relation " << "-- code is expected to assert and die.");
 
   RangeSetType fromSet(FROMSET_SIZE);
   RangeSetType toSet(TOSET_SIZE);
@@ -370,16 +355,10 @@ TEST(slam_relation_static_constant, out_of_bounds_initialized)
 
 TEST(slam_relation_static_constant, runtime_stride_STLIndirection)
 {
-  SLIC_INFO(
-    "Tests for Static Relation with runtime stride and STL Indirection");
+  SLIC_INFO("Tests for Static Relation with runtime stride and STL Indirection");
 
   using StaticConstantRelation_RT_STL =
-    slam::StaticRelation<SetPosition,
-                         SetElement,
-                         ConstantCardinalityRT,
-                         STLIndirection,
-                         RangeSetType,
-                         RangeSetType>;
+    slam::StaticRelation<SetPosition, SetElement, ConstantCardinalityRT, STLIndirection, RangeSetType, RangeSetType>;
 
   RangeSetType fromSet(FROMSET_SIZE);
   RangeSetType toSet(TOSET_SIZE);
@@ -410,15 +389,14 @@ TEST(slam_relation_static_constant, runtime_stride_STLIndirection)
 
   // -- Construction using set and relation builder objects
   using RelationBuilder = StaticConstantRelation_RT_STL::RelationBuilder;
-  StaticConstantRelation_RT_STL builderRel =
-    RelationBuilder()
-      .fromSet(&fromSet)
-      .toSet(&toSet)
-      .begins(RelationBuilder::BeginsSetBuilder()  //
-                .stride(ELEM_STRIDE))
-      .indices(RelationBuilder::IndicesSetBuilder()  //
-                 .size(relIndices.size())            //
-                 .data(&relIndices));
+  StaticConstantRelation_RT_STL builderRel = RelationBuilder()
+                                               .fromSet(&fromSet)
+                                               .toSet(&toSet)
+                                               .begins(RelationBuilder::BeginsSetBuilder()  //
+                                                         .stride(ELEM_STRIDE))
+                                               .indices(RelationBuilder::IndicesSetBuilder()  //
+                                                          .size(relIndices.size())            //
+                                                          .data(&relIndices));
   EXPECT_TRUE(builderRel.isValid(true));
 
   // Test traversal of the relation data
@@ -431,16 +409,10 @@ TEST(slam_relation_static_constant, runtime_stride_STLIndirection)
 
 TEST(slam_relation_static_constant, runtime_stride_CArrayIndirection)
 {
-  SLIC_INFO("Tests for Static Relation "
-            << " with runtime stride and C-array Indirection");
+  SLIC_INFO("Tests for Static Relation " << " with runtime stride and C-array Indirection");
 
   using StaticConstantRelation_RT_Array =
-    slam::StaticRelation<SetPosition,
-                         SetElement,
-                         ConstantCardinalityRT,
-                         CArrayIndirection,
-                         RangeSetType,
-                         RangeSetType>;
+    slam::StaticRelation<SetPosition, SetElement, ConstantCardinalityRT, CArrayIndirection, RangeSetType, RangeSetType>;
 
   RangeSetType fromSet(FROMSET_SIZE);
   RangeSetType toSet(TOSET_SIZE);
@@ -477,8 +449,7 @@ TEST(slam_relation_static_constant, runtime_stride_CArrayIndirection)
       .fromSet(&fromSet)
       .toSet(&toSet)
       .begins(RelationBuilder::BeginsSetBuilder().stride(ELEM_STRIDE))
-      .indices(
-        RelationBuilder::IndicesSetBuilder().size(relIndices.size()).data(data));
+      .indices(RelationBuilder::IndicesSetBuilder().size(relIndices.size()).data(data));
   EXPECT_TRUE(builderRel.isValid(true));
 
   // Test traversal of the relation data
@@ -491,16 +462,10 @@ TEST(slam_relation_static_constant, runtime_stride_CArrayIndirection)
 
 TEST(slam_relation_static_constant, compileTime_stride_CArrayIndirection)
 {
-  SLIC_INFO("Tests for Static Relation with "
-            << " runtime stride and C-array Indirection");
+  SLIC_INFO("Tests for Static Relation with " << " runtime stride and C-array Indirection");
 
   using StaticConstantRelation_CT_Array =
-    slam::StaticRelation<SetPosition,
-                         SetElement,
-                         ConstantCardinalityCT,
-                         CArrayIndirection,
-                         RangeSetType,
-                         RangeSetType>;
+    slam::StaticRelation<SetPosition, SetElement, ConstantCardinalityCT, CArrayIndirection, RangeSetType, RangeSetType>;
 
   RangeSetType fromSet(FROMSET_SIZE);
   RangeSetType toSet(TOSET_SIZE);
@@ -537,15 +502,14 @@ TEST(slam_relation_static_constant, compileTime_stride_CArrayIndirection)
 
   // -- Construction using set and relation builder objects
   using RelationBuilder = StaticConstantRelation_CT_Array::RelationBuilder;
-  StaticConstantRelation_CT_Array builderRel =
-    RelationBuilder()
-      .fromSet(&fromSet)
-      .toSet(&toSet)
-      .begins(RelationBuilder::BeginsSetBuilder()  //
-                .stride(ELEM_STRIDE))
-      .indices(RelationBuilder::IndicesSetBuilder()  //
-                 .size(relIndices.size())            //
-                 .data(data));
+  StaticConstantRelation_CT_Array builderRel = RelationBuilder()
+                                                 .fromSet(&fromSet)
+                                                 .toSet(&toSet)
+                                                 .begins(RelationBuilder::BeginsSetBuilder()  //
+                                                           .stride(ELEM_STRIDE))
+                                                 .indices(RelationBuilder::IndicesSetBuilder()  //
+                                                            .size(relIndices.size())            //
+                                                            .data(data));
   EXPECT_TRUE(builderRel.isValid(true));
 
   // Test traversal of the relation data

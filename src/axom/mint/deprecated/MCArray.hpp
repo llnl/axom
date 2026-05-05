@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -110,9 +111,7 @@ public:
    * \post numComponents() == num_components
    * \post getResizeRatio() == DEFAULT_RESIZE_RATIO
    */
-  MCArray(IndexType num_tuples,
-          IndexType num_components = 1,
-          IndexType capacity = 0);
+  MCArray(IndexType num_tuples, IndexType num_components = 1, IndexType capacity = 0);
 
   /// @}
 
@@ -144,10 +143,7 @@ public:
    * \note This constructor wraps the supplied buffer and does not own the data.
    *  Consequently, the MCArray instance cannot be reallocated.
    */
-  MCArray(T* data,
-          IndexType num_tuples,
-          IndexType num_components = 1,
-          IndexType capacity = 0);
+  MCArray(T* data, IndexType num_tuples, IndexType num_components = 1, IndexType capacity = 0);
 
   /// @}
 
@@ -233,10 +229,7 @@ public:
    *
    * \param [in] value the value to set to.
    */
-  void fill(const T& value)
-  {
-    std::fill_n(m_data, m_num_tuples * m_num_components, value);
-  }
+  void fill(const T& value) { std::fill_n(m_data, m_num_tuples * m_num_components, value); }
 
   /*!
    * \brief Append a value to the end of the MCArray.
@@ -423,9 +416,7 @@ protected:
    * \post numComponents() == num_components
    * \post getResizeRatio() == DEFAULT_RESIZE_RATIO
    */
-  void initialize(IndexType num_tuples,
-                  IndexType num_components,
-                  IndexType capacity);
+  void initialize(IndexType num_tuples, IndexType num_components, IndexType capacity);
 
   /*!
    * \brief Make space for a subsequent insertion into the MCArray.
@@ -467,8 +458,7 @@ protected:
   /*! \brief Test if pos and component are within bounds */
   inline bool inBounds(IndexType pos, IndexType component) const
   {
-    return (pos >= 0 && pos < m_num_tuples) &&
-      (component >= 0 && component < m_num_components);
+    return (pos >= 0 && pos < m_num_tuples) && (component >= 0 && component < m_num_components);
   }
 
   /*! \brief Test if idx is within bounds */
@@ -506,9 +496,7 @@ MCArray<T>::MCArray()
 
 //------------------------------------------------------------------------------
 template <typename T>
-MCArray<T>::MCArray(IndexType num_tuples,
-                    IndexType num_components,
-                    IndexType capacity)
+MCArray<T>::MCArray(IndexType num_tuples, IndexType num_components, IndexType capacity)
   : m_data(nullptr)
   , m_num_tuples(0)
   , m_capacity(0)
@@ -521,10 +509,7 @@ MCArray<T>::MCArray(IndexType num_tuples,
 
 //------------------------------------------------------------------------------
 template <typename T>
-MCArray<T>::MCArray(T* data,
-                    IndexType num_tuples,
-                    IndexType num_components,
-                    IndexType capacity)
+MCArray<T>::MCArray(T* data, IndexType num_tuples, IndexType num_components, IndexType capacity)
   : m_data(data)
   , m_num_tuples(num_tuples)
   , m_capacity(0)
@@ -638,9 +623,7 @@ inline void MCArray<T>::resize(IndexType new_num_tuples)
 
 //------------------------------------------------------------------------------
 template <typename T>
-inline void MCArray<T>::initialize(IndexType num_tuples,
-                                   IndexType num_components,
-                                   IndexType capacity)
+inline void MCArray<T>::initialize(IndexType num_tuples, IndexType num_components, IndexType capacity)
 {
   assert(num_tuples >= 0);
   assert(num_components > 0);
@@ -655,8 +638,7 @@ inline void MCArray<T>::initialize(IndexType num_tuples,
 
   if(capacity == 0)
   {
-    capacity =
-      (num_tuples > MIN_DEFAULT_CAPACITY) ? num_tuples : MIN_DEFAULT_CAPACITY;
+    capacity = (num_tuples > MIN_DEFAULT_CAPACITY) ? num_tuples : MIN_DEFAULT_CAPACITY;
   }
   setCapacity(capacity);
 
@@ -745,8 +727,7 @@ inline void MCArray<T>::dynamicRealloc(IndexType new_num_tuples)
   }
 
   assert(m_resize_ratio >= 1.0);
-  const IndexType new_capacity =
-    static_cast<IndexType>(new_num_tuples * m_resize_ratio + 0.5);
+  const IndexType new_capacity = static_cast<IndexType>(new_num_tuples * m_resize_ratio + 0.5);
 
   if(m_resize_ratio < 1.0)
   {

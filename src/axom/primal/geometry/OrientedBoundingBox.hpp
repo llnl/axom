@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -10,8 +11,9 @@
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
+#include "axom/core/NumericLimits.hpp"
 
-#include "axom/primal/geometry/NumericArray.hpp"
+#include "axom/core/NumericArray.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
@@ -36,8 +38,7 @@ class OrientedBoundingBox;
  * axes.
  */
 template <typename T, int NDIMS>
-bool operator==(const OrientedBoundingBox<T, NDIMS>& lhs,
-                const OrientedBoundingBox<T, NDIMS>& rhs);
+bool operator==(const OrientedBoundingBox<T, NDIMS>& lhs, const OrientedBoundingBox<T, NDIMS>& rhs);
 
 /*!
  * \brief Inequality comparison operator for oriented bounding boxes.
@@ -45,21 +46,17 @@ bool operator==(const OrientedBoundingBox<T, NDIMS>& lhs,
  * Two bounding boxes are unequal when they have different bounds
  */
 template <typename T, int NDIMS>
-bool operator!=(const OrientedBoundingBox<T, NDIMS>& lhs,
-                const OrientedBoundingBox<T, NDIMS>& rhs);
+bool operator!=(const OrientedBoundingBox<T, NDIMS>& lhs, const OrientedBoundingBox<T, NDIMS>& rhs);
 
 /*!
  * \brief Overloaded output operator for oriented bounding boxes.
  */
 template <typename T, int NDIMS>
-std::ostream& operator<<(std::ostream& os,
-                         const OrientedBoundingBox<T, NDIMS>& box);
+std::ostream& operator<<(std::ostream& os, const OrientedBoundingBox<T, NDIMS>& box);
 
 // Forward declared methods
 template <typename T, int NDIMS>
-OrientedBoundingBox<T, NDIMS> compute_oriented_bounding_box(
-  const Point<T, NDIMS>* pts,
-  int n);
+OrientedBoundingBox<T, NDIMS> compute_oriented_bounding_box(const Point<T, NDIMS>* pts, int n);
 
 ///@}
 
@@ -115,9 +112,7 @@ public:
    * \note Axes are made orthonormal, but if they don't span, some will be
    * set to 0.
    */
-  OrientedBoundingBox(const PointType& c,
-                      const VectorType (&u)[NDIMS],
-                      const VectorType& e);
+  OrientedBoundingBox(const PointType& c, const VectorType (&u)[NDIMS], const VectorType& e);
 
   /*!
    * \brief Copy Constructor.
@@ -250,8 +245,7 @@ public:
    *  operator<().
    */
   template <typename OtherType>
-  bool contains(const OrientedBoundingBox<OtherType, NDIMS>& otherOBB,
-                double EPS = 1E-8) const;
+  bool contains(const OrientedBoundingBox<OtherType, NDIMS>& otherOBB, double EPS = 1E-8) const;
 
   /*!
    * \brief Returns the same point but in the local coordinates of this OBB.
@@ -297,8 +291,7 @@ public:
    * \param [out] pnts the list of points
    * \post pnts.size() == (1 << NDIMS)
    */
-  static void getPoints(const OrientedBoundingBox<T, NDIMS>& obb,
-                        std::vector<Point<T, NDIMS>>& pnts)
+  static void getPoints(const OrientedBoundingBox<T, NDIMS>& obb, std::vector<Point<T, NDIMS>>& pnts)
   {
     pnts = obb.vertices();
   }
@@ -393,7 +386,7 @@ OrientedBoundingBox<T, NDIMS>::OrientedBoundingBox(const PointType* pts, int n)
   }
 
   numerics::Matrix<T> covar = numerics::Matrix<T>(NDIMS, NDIMS);
-  NumericArray<T, NDIMS> c;  // centroid
+  axom::NumericArray<T, NDIMS> c;  // centroid
 
   for(int i = 0; i < n; i++)
   {
@@ -402,7 +395,7 @@ OrientedBoundingBox<T, NDIMS>::OrientedBoundingBox(const PointType* pts, int n)
   c /= static_cast<T>(n);
 
   // save space for pts minus the centroid
-  NumericArray<T, NDIMS> diff;
+  axom::NumericArray<T, NDIMS> diff;
 
   for(int i = 0; i < n; i++)
   {
@@ -441,8 +434,7 @@ OrientedBoundingBox<T, NDIMS>::OrientedBoundingBox(const PointType* pts, int n)
     for(int j = 0; j < NDIMS; ++j)
     {
       diff = pts[i].array() - c;
-      dot = utilities::abs<T>(
-        numerics::dot_product<T>(&(m_u[j][0]), &diff[0], NDIMS));
+      dot = utilities::abs<T>(numerics::dot_product<T>(&(m_u[j][0]), &diff[0], NDIMS));
       if(maxima[j] < dot)
       {
         maxima[j] = dot;
@@ -490,7 +482,7 @@ OrientedBoundingBox<T, NDIMS>::OrientedBoundingBox(const OrientedBoundingBox& ot
 template <typename T, int NDIMS>
 void OrientedBoundingBox<T, NDIMS>::clear()
 {
-  (this->m_u[0])[0] = std::numeric_limits<T>::lowest();
+  (this->m_u[0])[0] = axom::numeric_limits<T>::lowest();
 }
 
 //------------------------------------------------------------------------------
@@ -571,11 +563,10 @@ OrientedBoundingBox<T, NDIMS>& OrientedBoundingBox<T, NDIMS>::scale(double scale
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-OrientedBoundingBox<T, NDIMS>& OrientedBoundingBox<T, NDIMS>::shift(
-  const Vector<T, NDIMS>& displacement)
+OrientedBoundingBox<T, NDIMS>& OrientedBoundingBox<T, NDIMS>::shift(const Vector<T, NDIMS>& displacement)
 {
-  NumericArray<T, NDIMS>& coords = (this->m_c).array();
-  NumericArray<T, NDIMS> c;
+  axom::NumericArray<T, NDIMS>& coords = (this->m_c).array();
+  axom::NumericArray<T, NDIMS> c;
   for(int i = 0; i < NDIMS; i++)
   {
     c[i] = coords[i] + displacement[i];
@@ -587,8 +578,7 @@ OrientedBoundingBox<T, NDIMS>& OrientedBoundingBox<T, NDIMS>::shift(
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-OrientedBoundingBox<T, NDIMS>& OrientedBoundingBox<T, NDIMS>::operator=(
-  const OrientedBoundingBox& rhs)
+OrientedBoundingBox<T, NDIMS>& OrientedBoundingBox<T, NDIMS>::operator=(const OrientedBoundingBox& rhs)
 {
   if(this != &rhs)
   {
@@ -607,8 +597,7 @@ OrientedBoundingBox<T, NDIMS>& OrientedBoundingBox<T, NDIMS>::operator=(
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
 template <typename OtherType>
-bool OrientedBoundingBox<T, NDIMS>::contains(const Point<OtherType, NDIMS>& otherPt,
-                                             double EPS) const
+bool OrientedBoundingBox<T, NDIMS>::contains(const Point<OtherType, NDIMS>& otherPt, double EPS) const
 {
   if(!(this->isValid()))
   {
@@ -638,9 +627,8 @@ bool OrientedBoundingBox<T, NDIMS>::contains(const Point<OtherType, NDIMS>& othe
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
 template <typename OtherType>
-bool OrientedBoundingBox<T, NDIMS>::contains(
-  const OrientedBoundingBox<OtherType, NDIMS>& otherOBB,
-  double EPS) const
+bool OrientedBoundingBox<T, NDIMS>::contains(const OrientedBoundingBox<OtherType, NDIMS>& otherOBB,
+                                             double EPS) const
 {
   std::vector<Point<T, NDIMS>> l = otherOBB.vertices();
 
@@ -699,13 +687,12 @@ Point<T, NDIMS> OrientedBoundingBox<T, NDIMS>::furthestPoint(const PointType& pt
 template <typename T, int NDIMS>
 bool OrientedBoundingBox<T, NDIMS>::isValid() const
 {
-  return !((this->m_u[0])[0] == std::numeric_limits<T>::lowest());
+  return !((this->m_u[0])[0] == axom::numeric_limits<T>::lowest());
 }
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-void OrientedBoundingBox<T, NDIMS>::bisect(OrientedBoxType& right,
-                                           OrientedBoxType& left) const
+void OrientedBoundingBox<T, NDIMS>::bisect(OrientedBoxType& right, OrientedBoxType& left) const
 {
   T max = this->m_e[0];
   int bi = 0;
@@ -727,8 +714,7 @@ void OrientedBoundingBox<T, NDIMS>::bisect(OrientedBoxType& right,
   Vector<T, NDIMS> e(this->m_e);
   e[bi] *= (static_cast<T>(0.5));
 
-  right =
-    OrientedBoundingBox<T, NDIMS>(Point<T, NDIMS>(c1.array()), this->m_u, e);
+  right = OrientedBoundingBox<T, NDIMS>(Point<T, NDIMS>(c1.array()), this->m_u, e);
   left = OrientedBoundingBox<T, NDIMS>(Point<T, NDIMS>(c2.array()), this->m_u, e);
 }
 
@@ -788,24 +774,21 @@ void OrientedBoundingBox<T, NDIMS>::checkAndFix()
 //------------------------------------------------------------------------------
 
 template <typename T, int NDIMS>
-bool operator==(const OrientedBoundingBox<T, NDIMS>& lhs,
-                const OrientedBoundingBox<T, NDIMS>& rhs)
+bool operator==(const OrientedBoundingBox<T, NDIMS>& lhs, const OrientedBoundingBox<T, NDIMS>& rhs)
 {
   return lhs.contains(rhs) && rhs.contains(lhs);
 }
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-bool operator!=(const OrientedBoundingBox<T, NDIMS>& lhs,
-                const OrientedBoundingBox<T, NDIMS>& rhs)
+bool operator!=(const OrientedBoundingBox<T, NDIMS>& lhs, const OrientedBoundingBox<T, NDIMS>& rhs)
 {
   return !(lhs == rhs);
 }
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-std::ostream& operator<<(std::ostream& os,
-                         const OrientedBoundingBox<T, NDIMS>& box)
+std::ostream& operator<<(std::ostream& os, const OrientedBoundingBox<T, NDIMS>& box)
 {
   return box.print(os);
 }

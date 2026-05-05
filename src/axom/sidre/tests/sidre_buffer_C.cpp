@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -38,8 +39,7 @@ TEST(C_sidre_buffer, alloc_buffer_for_int_array)
   SIDRE_Buffer dbuff_buf;
 
   SIDRE_DataStore* ds = SIDRE_DataStore_new(&ds_buf);
-  SIDRE_Buffer* dbuff =
-    SIDRE_DataStore_create_buffer_from_type(ds, SIDRE_INT_ID, 10, &dbuff_buf);
+  SIDRE_Buffer* dbuff = SIDRE_DataStore_create_buffer_from_type(ds, SIDRE_INT_ID, 10, &dbuff_buf);
 
   //  SIDRE_Buffer_declare(dbuff, SIDRE_INT_ID, 10);
   SIDRE_Buffer_allocate_existing(dbuff);
@@ -99,8 +99,7 @@ TEST(C_sidre_buffer, realloc_buffer)
   SIDRE_Buffer dbuff_buf;
 
   SIDRE_DataStore* ds = SIDRE_DataStore_new(&ds_buf);
-  SIDRE_Buffer* dbuff =
-    SIDRE_DataStore_create_buffer_from_type(ds, SIDRE_LONG_ID, 5, &dbuff_buf);
+  SIDRE_Buffer* dbuff = SIDRE_DataStore_create_buffer_from_type(ds, SIDRE_LONG_ID, 5, &dbuff_buf);
 
   SIDRE_Buffer_allocate_existing(dbuff);
 

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -15,6 +16,7 @@
 #ifndef COMMUNICATOR_HPP
 #define COMMUNICATOR_HPP
 
+#include <mpi.h>
 #include <vector>
 
 #include "axom/lumberjack/Combiner.hpp"
@@ -46,7 +48,7 @@ public:
    * \brief Virtual destructor.
    *****************************************************************************
    */
-  virtual ~Communicator() {};
+  virtual ~Communicator() { };
 
   /*!
    *****************************************************************************
@@ -72,6 +74,13 @@ public:
    *****************************************************************************
    */
   virtual void finalize() = 0;
+
+  /*!
+   *****************************************************************************
+   * \brief Returns the MPI communicator
+   *****************************************************************************
+   */
+  virtual MPI_Comm comm() = 0;
 
   /*!
    *****************************************************************************
@@ -142,6 +151,16 @@ public:
    *****************************************************************************
    */
   virtual bool isOutputNode() = 0;
+
+  /*!
+   *****************************************************************************
+   * \brief This function returns a start time that is consistent across ranks.
+   * This time corresponds to the time that the Communicator is initialized
+   *
+   * \return Double value that corresponds to a global start time
+   *****************************************************************************
+   */
+  virtual double startTime() = 0;
 };
 
 }  // end namespace lumberjack

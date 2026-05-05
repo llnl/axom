@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -113,10 +114,7 @@ bool operator==(const Path& lhs, const Path& rhs);
  * \param [in] rhs The second Path to compare
  * Two paths are equal if they use the same delimiter and contain the same components
  */
-inline bool operator!=(const Path& lhs, const Path& rhs)
-{
-  return !(lhs == rhs);
-}
+inline bool operator!=(const Path& lhs, const Path& rhs) { return !(lhs == rhs); }
 
 }  // end namespace axom
 

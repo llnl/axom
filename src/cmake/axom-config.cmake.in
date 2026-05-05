@@ -1,10 +1,11 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
 @PACKAGE_INIT@
 
@@ -38,16 +39,19 @@ if(NOT AXOM_FOUND)
   # Axom components
   set(AXOM_COMPONENTS_ENABLED @AXOM_COMPONENTS_ENABLED@)
 
+  set(AXOM_ENABLE_BUMP        "@AXOM_ENABLE_BUMP@")
   set(AXOM_ENABLE_INLET       "@AXOM_ENABLE_INLET@")
   set(AXOM_ENABLE_KLEE        "@AXOM_ENABLE_KLEE@")
   set(AXOM_ENABLE_LUMBERJACK  "@AXOM_ENABLE_LUMBERJACK@")
   set(AXOM_ENABLE_MINT        "@AXOM_ENABLE_MINT@")
+  set(AXOM_ENABLE_MIR         "@AXOM_ENABLE_MIR@")
   set(AXOM_ENABLE_PRIMAL      "@AXOM_ENABLE_PRIMAL@")
   set(AXOM_ENABLE_QUEST       "@AXOM_ENABLE_QUEST@")
   set(AXOM_ENABLE_SIDRE       "@AXOM_ENABLE_SIDRE@")
   set(AXOM_ENABLE_SLAM        "@AXOM_ENABLE_SLAM@")
   set(AXOM_ENABLE_SLIC        "@AXOM_ENABLE_SLIC@")
   set(AXOM_ENABLE_SPIN        "@AXOM_ENABLE_SPIN@")
+  set(AXOM_ENABLE_SINA        "@AXOM_ENABLE_SINA@")
 
   # Axom built-in TPLs
   set(AXOM_USE_CLI11          "@AXOM_USE_CLI11@")
@@ -64,13 +68,18 @@ if(NOT AXOM_FOUND)
   set(AXOM_USE_HDF5           "@AXOM_USE_HDF5@")
   set(AXOM_USE_LUA            "@AXOM_USE_LUA@")
   set(AXOM_USE_MFEM           "@AXOM_USE_MFEM@")
+  set(AXOM_USE_OPENCASCADE    "@AXOM_USE_OPENCASCADE@")
   set(AXOM_USE_RAJA           "@AXOM_USE_RAJA@")
   set(AXOM_USE_SCR            "@AXOM_USE_SCR@")
   set(AXOM_USE_UMPIRE         "@AXOM_USE_UMPIRE@")
+  set(AXOM_USE_ZLIB           "@AXOM_USE_ZLIB@")
 
-  # Configration for Axom compiler defines
+  # Configuration for Axom compiler defines
   set(AXOM_DEBUG_DEFINE         "@AXOM_DEBUG_DEFINE@")
   set(AXOM_DEBUG_DEFINE_STRING  "@AXOM_DEBUG_DEFINE_STRING@")
+
+  # Component-specific options
+  set(AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING "@AXOM_SIDRE_IO_USE_SCALAR_STATE_STRING@")
 
   #----------------------------------------------------------------------------
   # Bring in required dependencies for this axom configuration
@@ -97,7 +106,7 @@ if(NOT AXOM_FOUND)
   # c2c
   if(AXOM_USE_C2C)
     set(AXOM_C2C_DIR     "@C2C_DIR@")
-    # Note: Targets not currently imported
+    # Note: 'c2c' target is exported as 'axom::c2c'
   endif()
 
   # caliper
@@ -157,28 +166,59 @@ if(NOT AXOM_FOUND)
                     NO_SYSTEM_ENVIRONMENT_PATH)
   endif()
 
+  # zlib
+  if(AXOM_USE_ZLIB)
+    set(AXOM_ZLIB_DIR  "@ZLIB_DIR@")
+    if(NOT ZLIB_DIR) 
+      set(ZLIB_DIR ${AXOM_ZLIB_DIR}) 
+    endif()
+    if(ZLIB_DIR)
+        set(ZLIB_ROOT ${ZLIB_DIR})
+    endif()
+    find_package(ZLIB REQUIRED)
+  endif()
+
   # hdf5
   if(AXOM_USE_HDF5)
     set(AXOM_HDF5_DIR     "@HDF5_DIR@")
-    # Note: 'hdf5" target is exported as 'axom::hdf5'
+    # Note: 'hdf5' target is exported as 'axom::hdf5'
   endif()
 
   # lua
   if(AXOM_USE_LUA)
     set(AXOM_LUA_DIR     "@LUA_DIR@")
-    # Note: 'lua" target is exported as 'axom::lua'
+    # Note: 'lua' target is exported as 'axom::lua'
   endif()
 
   # mfem
   if(AXOM_USE_MFEM)
     set(AXOM_MFEM_DIR     "@MFEM_DIR@")
-    # Note: 'mfem" target is exported as 'axom::mfem'
+    if(EXISTS "${AXOM_MFEM_DIR}/lib/cmake/mfem/MFEMConfig.cmake")
+      set(MFEM_DIR ${AXOM_MFEM_DIR})
+      find_dependency(mfem REQUIRED NO_DEFAULT_PATH PATHS "${AXOM_MFEM_DIR}/lib/cmake/mfem" NAMES MFEM)
+      # MFEM include directories are added as the variable but not always added to the target itself
+      target_include_directories(mfem SYSTEM INTERFACE "${MFEM_INCLUDE_DIRS}")
+    endif()
+    # else MFEM was built with Make and not cmake so there is no cmake target to recreate
+    # Note: 'mfem' target is exported as 'axom::mfem'
+  endif()
+
+  # OpenCASCADE
+  if(AXOM_USE_OPENCASCADE)
+    set(AXOM_OPENCASCADE_DIR     "@OPENCASCADE_DIR@")
+    if(NOT OPENCASCADE_DIR)
+      set(OPENCASCADE_DIR "${AXOM_OPENCASCADE_DIR}")
+    endif()
+
+    # Re-find OpenCASCADE so imported targets like TKernel exist
+    find_dependency(OpenCASCADE CONFIG REQUIRED NO_DEFAULT_PATH
+                    HINTS "${OPENCASCADE_DIR}/lib/cmake" "${OPENCASCADE_DIR}")
   endif()
 
   # scr
   if(AXOM_USE_SCR)
     set(AXOM_SCR_DIR      "@SCR_DIR@")
-    # Note: 'scr" target is exported as 'axom::scr'
+    # Note: 'scr' target is exported as 'axom::scr'
   endif()
 
   #----------------------------------------------------------------------------

@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -29,8 +30,9 @@ Axom.
    $ python3 scripts/uberenv/uberenv.py
 
 .. note::
-  On LC machines, it is good practice to do the build step in parallel on a compute node.
-  Here is an example command: ``salloc -ppdebug -N1-1 python3 scripts/uberenv/uberenv.py``
+  On LC machines, it is good practice to do the build step in parallel on a compute node
+  (rather than using a login node). Here is an example command:
+  ``salloc -ppdebug -N1-1 python3 scripts/uberenv/uberenv.py``
 
 Unless otherwise specified, Spack will default to a compiler.  This is generally not a good idea when
 developing large codes. To specify which compiler to use, add the compiler specification to the ``--spec`` Uberenv
@@ -39,8 +41,9 @@ command line option. Supported compiler specs can be found in the Spack compiler
 
 We currently regularly test the following Spack configuration files:
 
-* Linux Ubuntu 20.04 (via Windows WSL 2)
-* TOSS 4 (On Ruby at LC)
+* Linux Ubuntu 22.04 (via Windows WSL 2)
+* TOSS 4 (On Dane at LC)
+* TOSS 4 Cray (On Tioga at LC)
 * BlueOS (On Lassen at LC)
 
 To install Axom on a new platform, it is a good idea to start with a known Spack configuration directory
@@ -77,7 +80,7 @@ Preparing Windows WSL/Ubuntu for Axom installation
 For faster installation of the Axom dependencies via Spack on Windows WSL/Ubuntu systems,
 install CMake, MPICH, openblas, OpenGL, and the various developer tools using the following commands:
 
-**Ubuntu 20.04**
+**Ubuntu 22.04**
 
 .. code-block:: bash
 
@@ -87,13 +90,13 @@ install CMake, MPICH, openblas, OpenGL, and the various developer tools using th
    $ sudo ln -s /usr/lib/x86_64-linux-gnu/* /usr/lib
 
 
-Note that the last line is required since Spack expects the system libraries to exist in a directory
-named ``lib``. During the third party library build phase, the appropriate Spack config directory
-must be specified using either:
+Note that the last line is required since Spack expects the system libraries to exist in a directory named ``lib``. 
 
-**Ubuntu 20.04**
+During the third party library build phase, the appropriate Spack config directory must be specified, e.g.:
 
-``python3 scripts/uberenv/uberenv.py --spack-env-file=scripts/spack/configs/linux_ubuntu_20/spack.yaml --prefix=path/to/install/libraries``
+.. code-block:: bash
+
+   $ python3 scripts/uberenv/uberenv.py --spack-env-file=scripts/spack/configs/linux_ubuntu_22/spack.yaml --prefix=path/to/install/libraries
 
 
 
@@ -109,7 +112,8 @@ CMake-based build system example
 
 .. literalinclude:: ../../../examples/using-with-cmake/CMakeLists.txt
    :language: cmake
-   :lines: 27-50
+   :start-after: _zerotoaxom_docs_start
+   :end-before: _zerotoaxom_docs_end
 
 See:  ``examples/axom/using-with-cmake``
 
@@ -119,7 +123,8 @@ BLT-based build system example
 
 .. literalinclude:: ../../../examples/using-with-blt/CMakeLists.txt
    :language: cmake
-   :lines: 31-61
+   :start-after: _zerotoaxom_docs_start
+   :end-before: _zerotoaxom_docs_end
 
 See:  ``examples/axom/using-with-blt``
 
@@ -129,6 +134,7 @@ Makefile-based build system example
 
 .. literalinclude:: ../../../examples/using-with-make/Makefile.in
    :language: make
-   :lines: 28-39
+   :start-after: _zerotoaxom_docs_start
+   :end-before: _zerotoaxom_docs_end
 
 See: ``examples/axom/using-with-make``

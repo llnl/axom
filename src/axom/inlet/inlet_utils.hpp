@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -23,7 +24,7 @@ enum class ReaderResult
   Success,         // Found with no issue
   NotFound,        // Path does not exist in the input file
   NotHomogeneous,  // Found, but elements of other type exist
-  WrongType  // Found, but item at specified path was not of requested type
+  WrongType        // Found, but item at specified path was not of requested type
 };
 
 /*!
@@ -87,10 +88,7 @@ void setWarningFlag(axom::sidre::Group* root);
 * \param [in] value The value of the flag
 *****************************************************************************
 */
-void setFlag(axom::sidre::Group& target,
-             axom::sidre::Group& root,
-             const std::string& flag,
-             bool value);
+void setFlag(axom::sidre::Group& target, axom::sidre::Group& root, const std::string& flag, bool value);
 
 /*!
 *****************************************************************************
@@ -105,9 +103,7 @@ void setFlag(axom::sidre::Group& target,
 * \return The value of the flag
 *****************************************************************************
 */
-bool checkFlag(const axom::sidre::Group& target,
-               axom::sidre::Group& root,
-               const std::string& flag);
+bool checkFlag(const axom::sidre::Group& target, axom::sidre::Group& root, const std::string& flag);
 
 /*!
 *****************************************************************************

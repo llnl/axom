@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -76,11 +77,10 @@ struct CompileTimeOffset
   AXOM_HOST_DEVICE CompileTimeOffset(IntType val = DEFAULT_VALUE)
   {
     AXOM_UNUSED_VAR(val);
-    SLIC_ASSERT_MSG(
-      val == INT_VAL,
-      "slam::CompileTimeOffset -- tried to initialize a compile time "
-        << "offset with value (" << val << " ) that differs from "
-        << "the template parameter of " << INT_VAL << ".");
+    SLIC_ASSERT_MSG(val == INT_VAL,
+                    "slam::CompileTimeOffset -- tried to initialize a compile time "
+                      << "offset with value (" << val << " ) that differs from "
+                      << "the template parameter of " << INT_VAL << ".");
   }
 
   AXOM_HOST_DEVICE inline IntType offset() const { return INT_VAL; }

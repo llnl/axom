@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -13,18 +14,22 @@ import sys
 
 # types to use for generic routines
 types = (
-    ( 'int',    'integer(C_INT)',  'SIDRE_INT_ID'),
-    ( 'long',   'integer(C_LONG)', 'SIDRE_LONG_ID'),
-    ( 'float',  'real(C_FLOAT)',   'SIDRE_FLOAT_ID'),
-    ( 'double', 'real(C_DOUBLE)',  'SIDRE_DOUBLE_ID'),
+    ('int', 'integer(C_INT)', 'SIDRE_INT_ID'),
+    ('long', 'integer(C_LONG)', 'SIDRE_LONG_ID'),
+    ('float', 'real(C_FLOAT)', 'SIDRE_FLOAT_ID'),
+    ('double', 'real(C_DOUBLE)', 'SIDRE_DOUBLE_ID'),
 )
 
 # maximum number of dimensions of generic routines
 maxdims = 4
 
+
 def XXnum_metabuffers():
-    return len(types) * (maxdims + 1) # include scalars
+    return len(types) * (maxdims + 1)  # include scalars
+
+
 ######################################################################
+
 
 def group_get_scalar(d):
     """Create methods on Group to get a scalar.
@@ -38,12 +43,12 @@ subroutine group_get_scalar_{typename}(grp, name, value)
     {f_type}, intent(OUT) :: value
     integer(C_INT) :: lname
     type(SIDRE_SHROUD_capsule_data) view
-    type(C_PTR) viewptr
 
     lname = len_trim(name)
-    viewptr = c_group_get_view_from_name_bufferify(grp%cxxmem, name, lname, view)
+    call c_group_get_view_from_name_bufferify(grp%cxxmem, name, lname, view)
     value = c_view_get_data_{typename}(view)
 end subroutine group_get_scalar_{typename}""".format(**d)
+
 
 def group_set_scalar(d):
     """Create methods on Group to set a scalar.
@@ -57,12 +62,12 @@ subroutine group_set_scalar_{typename}(grp, name, value)
     {f_type}, intent(IN) :: value
     integer(C_INT) :: lname
     type(SIDRE_SHROUD_capsule_data) view
-    type(C_PTR) viewptr
 
     lname = len_trim(name)
-    viewptr = c_group_get_view_from_name_bufferify(grp%cxxmem, name, lname, view)
+    call c_group_get_view_from_name_bufferify(grp%cxxmem, name, lname, view)
     call c_view_set_scalar_{typename}(view, value)
 end subroutine group_set_scalar_{typename}""".format(**d)
+
 
 def group_create_array_view(d):
     # typename - part of function name
@@ -89,7 +94,7 @@ function group_create_array_view_{typename}{nd}(grp, name, value) result(rv)
     type(SidreView) :: rv
     integer(SIDRE_IndexType) :: {extents_decl}
     integer(TypeID), parameter :: type = {sidre_type}
-    type(C_PTR) addr, viewptr
+    type(C_PTR) addr
 
     lname = len_trim(name)
 #ifdef USE_C_LOC_WITH_ASSUMED_SHAPE
@@ -98,12 +103,13 @@ function group_create_array_view_{typename}{nd}(grp, name, value) result(rv)
     call SIDRE_C_LOC(value{lower_bound}, addr)
 #endif
     {extents_asgn}
-    viewptr = c_group_create_view_external_bufferify( &
+    call c_group_create_view_external_bufferify( &
         grp%cxxmem, name, lname, addr, rv%cxxmem)
     call c_view_apply_type_shape(rv%cxxmem, type, {rank}, extents)
-end function group_create_array_view_{typename}{nd}""".format(
-        extents_decl=extents_decl,
-        extents_asgn=extents_asgn, **d)
+end function group_create_array_view_{typename}{nd}""".format(extents_decl=extents_decl,
+                                                              extents_asgn=extents_asgn,
+                                                              **d)
+
 
 def group_set_array_data_ptr(d):
     """
@@ -136,11 +142,11 @@ subroutine group_set_array_data_ptr_{typename}{nd}(grp, name, value)
     type(SIDRE_SHROUD_capsule_data) view
 !    integer(SIDRE_IndexType) :: {extents_decl}
 !    integer(C_INT), parameter :: type = {sidre_type}
-    type(C_PTR) addr, viewptr
+    type(C_PTR) addr
 
     lname = len_trim(name)
 !    {extents_asgn}
-    viewptr = c_group_get_view_from_name_bufferify(grp%cxxmem, name, lname, view)
+    call  c_group_get_view_from_name_bufferify(grp%cxxmem, name, lname, view)
     if (c_associated(view%addr)) then
 #ifdef USE_C_LOC_WITH_ASSUMED_SHAPE
         addr = c_loc(value)
@@ -150,9 +156,10 @@ subroutine group_set_array_data_ptr_{typename}{nd}(grp, name, value)
         call c_view_set_external_data_ptr_only(view, addr)
 !        call c_view_apply_type_shape(rv%cxxmem, type, {rank}, extents)
     endif
-end subroutine group_set_array_data_ptr_{typename}{nd}""".format(
-        extents_decl=extents_decl,
-        extents_asgn=extents_asgn, **d)
+end subroutine group_set_array_data_ptr_{typename}{nd}""".format(extents_decl=extents_decl,
+                                                                 extents_asgn=extents_asgn,
+                                                                 **d)
+
 
 def view_set_array_data_ptr(d):
     """
@@ -192,9 +199,10 @@ subroutine view_set_array_data_ptr_{typename}{nd}(view, value)
 #endif
     call c_view_set_external_data_ptr_only(view%cxxmem, addr)
 !    call c_view_apply_type_shape(rv%cxxmem, type, {rank}, extents)
-end subroutine view_set_array_data_ptr_{typename}{nd}""".format(
-        extents_decl=extents_decl,
-        extents_asgn=extents_asgn, **d)
+end subroutine view_set_array_data_ptr_{typename}{nd}""".format(extents_decl=extents_decl,
+                                                                extents_asgn=extents_asgn,
+                                                                **d)
+
 
 def print_get_data(d):
     # typename - part of function name
@@ -266,6 +274,7 @@ class AddMethods(object):
          gen1, &
          genn
     """
+
     def __init__(self, wrap_class):
         self.wrap_class = wrap_class
         self.lines = []
@@ -273,7 +282,8 @@ class AddMethods(object):
 
     @staticmethod
     def type_bound_procedure_part(d):
-        return 'procedure :: {stem}_{typename}{nd}{suffix} => {wrap_class}_{stem}_{typename}{nd}{suffix}'.format(**d)
+        return 'procedure :: {stem}_{typename}{nd}{suffix} => {wrap_class}_{stem}_{typename}{nd}{suffix}'.format(
+            **d)
 
     @staticmethod
     def type_bound_procedure_generic(d):
@@ -289,11 +299,11 @@ class AddMethods(object):
             extra = dict(
                 wrap_class=self.wrap_class,
                 stem=stem,
-                )
+            )
             extra.update(kwargs)
             foreach_type(lines, AddMethods.type_bound_procedure_part, scalar=scalar, **extra)
             foreach_type(generics, AddMethods.type_bound_procedure_generic, scalar=scalar, **extra)
-            
+
             lines.append('generic :: {stem} => &'.format(stem=stem))
             for gen in generics[:-1]:
                 lines.append('    ' + gen + ',  &')
@@ -315,10 +325,9 @@ def foreach_type(lines, fcn, scalar=False, **kwargs):
     lbound = []
     for nd in range(maxdims + 1):
         shape.append(':')
-        lbound.append('lbound(value,%d)' % (nd+1))
-    d = dict(
-        suffix=''     # suffix of function name
-    )
+        lbound.append('lbound(value,%d)' % (nd + 1))
+    d = dict(suffix=''  # suffix of function name
+             )
     d.update(kwargs)
     indx = 0
     for typetuple in types:
@@ -326,10 +335,10 @@ def foreach_type(lines, fcn, scalar=False, **kwargs):
 
         # scalar values
         # XXX - generic does not distinguish between pointer and non-pointer
-#        d['rank'] = -1
-#        d['nd'] = 'scalar'
-#        d['shape'] = ''
-#        lines.append(fcn(d))
+        #        d['rank'] = -1
+        #        d['nd'] = 'scalar'
+        #        d['shape'] = ''
+        #        lines.append(fcn(d))
 
         # scalar pointers
         d['index'] = indx
@@ -344,7 +353,7 @@ def foreach_type(lines, fcn, scalar=False, **kwargs):
         else:
             d['nd'] = '_scalar'
             lines.append(fcn(d))
-            for nd in range(1,maxdims+1):
+            for nd in range(1, maxdims + 1):
                 d['index'] = indx
                 indx += 1
                 d['rank'] = nd
@@ -353,7 +362,9 @@ def foreach_type(lines, fcn, scalar=False, **kwargs):
                 d['lower_bound'] = '(' + ','.join(lbound[:nd]) + ')'
                 lines.append(fcn(d))
 
+
 #----------------------------------------------------------------------
+
 
 def group_string():
     """Text for functions with get and set strings for a group.
@@ -369,10 +380,9 @@ subroutine group_get_string(grp, name, value)
     character(*), intent(OUT) :: value
     integer(C_INT) :: lname
     type(SIDRE_SHROUD_capsule_data) view
-    type(C_PTR) viewptr
 
     lname = len_trim(name)
-    viewptr = c_group_get_view_from_name_bufferify(grp%cxxmem, name, lname, view)
+    call c_group_get_view_from_name_bufferify(grp%cxxmem, name, lname, view)
     call c_view_get_string_bufferify(view, value, len(value, kind=C_INT))
 end subroutine group_get_string
 
@@ -383,16 +393,16 @@ subroutine group_set_string(grp, name, value)
     character(*), intent(IN) :: value
     integer(C_INT) :: lname
     type(SIDRE_SHROUD_capsule_data) view
-    type(C_PTR) viewptr
 
     lname = len_trim(name)
-    viewptr = c_group_get_view_from_name_bufferify(grp%cxxmem, name, lname, view)
+    call c_group_get_view_from_name_bufferify(grp%cxxmem, name, lname, view)
     call c_view_set_string_bufferify(view, value, len_trim(value, kind=C_INT))
 end subroutine group_set_string
 """
 
 
 #----------------------------------------------------------------------
+
 
 def gen_fortran():
     """Generate splicers used by Shroud.
@@ -423,7 +433,6 @@ def gen_fortran():
     print(group_string())
     print('! splicer end class.Group.additional_functions')
 
-
     # View
     t = AddMethods('view')
     t.add_method('get_data', print_get_data, suffix='_ptr')
@@ -442,6 +451,7 @@ def gen_fortran():
     for line in t.gen_body():
         print(line)
     print('! splicer end class.View.additional_functions')
+
 
 ######################################################################
 

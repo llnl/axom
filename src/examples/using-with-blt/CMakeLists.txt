@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -27,7 +28,7 @@ project(using_with_blt)
 # Define some config options
 option(EXAMPLE_VERBOSE_OUTPUT "Verbose output about imported targets" OFF)
 
-
+# _zerotoaxom_docs_start
 #------------------------------------------------------------------------------
 # Set up BLT with validity checks
 #------------------------------------------------------------------------------
@@ -57,10 +58,20 @@ find_dependency(axom REQUIRED
 # Set up example target that depends on axom
 #------------------------------------------------------------------------------
 
+set(example_depends axom axom::fmt)
+
+if(ENABLE_HIP)
+  set(example_depends ${example_depends} blt::hip)
+endif ()
+
+if(ENABLE_CUDA)
+  set(example_depends ${example_depends} blt::cuda)
+endif ()
+
 blt_add_executable(NAME       example 
                    SOURCES    example.cpp
-                   DEPENDS_ON axom axom::fmt)
-
+                   DEPENDS_ON ${example_depends})
+# _zerotoaxom_docs_end
 
 #------------------------------------------------------------------------------
 # Optionally, print out information about imported targets

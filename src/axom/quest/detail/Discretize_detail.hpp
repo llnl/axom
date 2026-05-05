@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -7,6 +8,7 @@
 #define AXOM_QUEST_DISCRETIZE_DETAIL_
 
 #include "axom/primal/constants.hpp"
+#include "math.h"
 
 namespace
 {
@@ -24,7 +26,7 @@ using SphereType = axom::quest::SphereType;
 using OctType = axom::quest::OctType;
 using Point2D = axom::quest::Point2D;
 using Point3D = axom::primal::Point<double, 3>;
-using NAType = axom::primal::NumericArray<double, 3>;
+using NAType = axom::NumericArray<double, 3>;
 
 /* Return an octahedron whose six points lie on the truncated cone
  * described by rotating the line segment ab around the positive X-axis
@@ -85,8 +87,7 @@ AXOM_HOST_DEVICE
 Point3D rescale_YZ(const Point3D &p, double new_dst)
 {
   const double cur_dst =
-    axom::utilities::clampLower(sqrt(p[1] * p[1] + p[2] * p[2]),
-                                axom::primal::PRIMAL_TINY);
+    axom::utilities::clampLower(sqrt(p[1] * p[1] + p[2] * p[2]), axom::primal::PRIMAL_TINY);
 
   Point3D retval;
   retval[0] = p[0];
@@ -148,21 +149,16 @@ inline OctType new_inscribed_prism(OctType &old_oct,
  * quadrilateral side-wall.
  */
 template <typename ExecSpace>
-int discrSeg(const Point2D &a,
-             const Point2D &b,
-             int levels,
-             axom::ArrayView<OctType> &out,
-             int idx)
+int discrSeg(const Point2D &a, const Point2D &b, int levels, axom::ArrayView<OctType> &out, int idx)
 {
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   // Assert input assumptions
-  SLIC_ASSERT(b[0] - a[0] >= 0);
   SLIC_ASSERT(a[1] >= 0);
   SLIC_ASSERT(b[1] >= 0);
 
   // Deal with degenerate segments
-  if(b[0] - a[0] < axom::primal::PRIMAL_TINY)
+  if(fabs(b[0] - a[0]) < axom::primal::PRIMAL_TINY)
   {
     return 0;
   }
@@ -261,28 +257,27 @@ namespace quest
  * less than the polyline's length).  That is exponential growth.  Use
  * appropriate caution.
  *
- * This routine initializes an Array pointed to by \a out.
+ * This routine resizes and populates an Array pointed to by \a out.
  */
 template <typename ExecSpace>
-bool discretize(axom::Array<Point2D> &polyline,
+bool discretize(const axom::ArrayView<Point2D> &polyline,
                 int pointcount,
                 int levels,
                 axom::Array<OctType> &out,
                 int &octcount)
 {
-  int allocId = axom::execution_space<ExecSpace>::allocatorID();
+  SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(out.getAllocatorID()),
+                axom::fmt::format("Execution space {} cannot access allocator id {}",
+                                  axom::execution_space<ExecSpace>::name(),
+                                  out.getAllocatorID()));
+
   // Check for invalid input.  If any segment is invalid, exit returning false.
   bool stillValid = true;
   int segmentcount = pointcount - 1;
   for(int seg = 0; seg < segmentcount && stillValid; ++seg)
   {
-    Point2D &a = polyline[seg];
-    Point2D &b = polyline[seg + 1];
-    // invalid if a.x > b.x
-    if(a[0] > b[0])
-    {
-      stillValid = false;
-    }
+    const Point2D &a = polyline[seg];
+    const Point2D &b = polyline[seg + 1];
     if(a[1] < 0 || b[1] < 0)
     {
       stillValid = false;
@@ -298,19 +293,19 @@ bool discretize(axom::Array<Point2D> &polyline,
   // That was the octahedron count for one segment.  Multiply by the number
   // of segments we will compute.
   int totaloctcount = segoctcount * segmentcount;
-  out = axom::Array<OctType>(totaloctcount, totaloctcount, allocId);
+  out.clear();
+  out.resize(axom::ArrayOptions::Uninitialized(), totaloctcount);
   axom::ArrayView<OctType> out_view = out.view();
   octcount = 0;
 
   for(int seg = 0; seg < segmentcount; ++seg)
   {
-    int segment_prism_count = discrSeg<ExecSpace>(polyline[seg],
-                                                  polyline[seg + 1],
-                                                  levels,
-                                                  out_view,
-                                                  octcount);
+    int segment_prism_count =
+      discrSeg<ExecSpace>(polyline[seg], polyline[seg + 1], levels, out_view, octcount);
     octcount += segment_prism_count;
   }
+  // octcount may be < totaloctcount if there are degenerate segments.
+  out.resize(octcount);
 
   // TODO check for errors in each segment's computation
   return true;

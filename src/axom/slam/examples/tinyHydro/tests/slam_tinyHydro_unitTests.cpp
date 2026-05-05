@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -68,7 +69,6 @@ TEST(slam_tinyHydro,test_02_density_with_prescribed_velocity)
 
   s.addPart(&p);
   Part* pp = s.getPart(0);
-  AXOM_UNUSED_VAR(pp);
 
   SLIC_INFO("**making hydro");
   Hydro h(&s);
@@ -94,11 +94,10 @@ TEST(slam_tinyHydro,test_02_density_with_prescribed_velocity)
   rhoTheory = rhoTheory * rhoTheory * rho0;
 
   double tol = 1.0e-10;
-  AXOM_UNUSED_VAR(tol);
-  SLIC_ASSERT_MSG(
+  EXPECT_TRUE(
     std::fabs(pp->rho(0) - rhoTheory) < tol
     && std::fabs(pp->rho(n - 1) - rhoTheory) < tol
-    , "FAIL -- densities are not correct\n");
+  ) << "FAIL -- densities are not correct";
 
   SLIC_INFO(" *** PASS *** " );
 }
@@ -179,18 +178,16 @@ TEST(slam_tinyHydro,test_03_gradAndForce)
 
 
   double tol = 1e-12;
-  AXOM_UNUSED_VAR(tol);
   VectorXY f12 = h.getForce(12);
   VectorXY f13 = h.getForce(13);
-  SLIC_ASSERT_MSG( std::fabs(f12.x - f13.x) < tol
-      && std::fabs(f12.y) < tol
-      && std::fabs(f13.y) < tol,
-      "force calculation FAILS --"
-      << "  f12: " << f12
-      << ", f13: " << f13
-      << ", diff in x: " << std::fabs(f12.x - f13.x)
-      << ", tolerance: " << tol
-  );
+  const bool symmetricForce = std::fabs(f12.x - f13.x) < tol
+    && std::fabs(f12.y) < tol
+    && std::fabs(f13.y) < tol;
+  EXPECT_TRUE(symmetricForce) << "force calculation FAILS --"
+    << " f12=(" << f12.x << ", " << f12.y << ")"
+    << ", f13=(" << f13.x << ", " << f13.y << ")"
+    << ", diff in x: " << std::fabs(f12.x - f13.x)
+    << ", tolerance: " << tol;
 
   SLIC_INFO("**Testing acceleration:");
 
@@ -209,20 +206,13 @@ TEST(slam_tinyHydro,test_03_gradAndForce)
   VectorXY u0 = s.u(0);
   VectorXY u11 = s.u(11);
   VectorXY u12 = s.u(12);
-  SLIC_ASSERT_MSG( std::fabs(u0.x - u12.x) < tol
-      && std::fabs(u11.y) < tol
-      && std::fabs(u12.y) < tol,
-      "acceleration/velocity calculation FAILS");
+  const bool symmetricVelocity = std::fabs(u0.x - u12.x) < tol
+    && std::fabs(u11.y) < tol
+    && std::fabs(u12.y) < tol;
+  EXPECT_TRUE(symmetricVelocity) << "acceleration/velocity calculation FAILS";
 
 
   SLIC_INFO(" *** PASS ***");
-
-  // Deal with unused variables
-  AXOM_UNUSED_VAR(f12);
-  AXOM_UNUSED_VAR(f13);
-  AXOM_UNUSED_VAR(u0);
-  AXOM_UNUSED_VAR(u11);
-  AXOM_UNUSED_VAR(u12);
 }
 
 
@@ -300,14 +290,13 @@ TEST(slam_tinyHydro,test_04_BC)
 
 
   double tol = 1e-21;
-  AXOM_UNUSED_VAR(tol);
 
-  SLIC_ASSERT_MSG( std::fabs(u0.y) < tol
+  EXPECT_TRUE( std::fabs(u0.y) < tol
       && std::fabs(u11.x) > tol
       && std::fabs(u21.x + 1.0) < tol
       && std::fabs(u120.x + 1.0) < tol
       && std::fabs(u120.y ) < tol
-      , "BC test FAILS ");
+  ) << "BC test FAILS";
 
   SLIC_INFO(" *** PASS *** " );
 }
@@ -402,13 +391,11 @@ TEST(slam_tinyHydro,test_05_newDT_Noh)
   SLIC_INFO("\tnewDT = " << dt );
 
   double tol = 1.0e-16;
-  AXOM_UNUSED_VAR( tol);
-
   double expDT = 0.1 * h.cfl;
-  AXOM_UNUSED_VAR( expDT);
 
-  SLIC_ASSERT_MSG( std::fabs(dt - expDT) < tol,
-      " newDT calculation FAILS -- expected dt = " << expDT << " but got " << dt << " instead, leaving " << dt - expDT);
+  EXPECT_TRUE( std::fabs(dt - expDT) < tol)
+    << "newDT calculation FAILS -- expected dt = " << expDT
+    << " but got " << dt << " instead, leaving " << dt - expDT;
 
   SLIC_INFO(" *** PASS *** " );
 }
@@ -476,13 +463,11 @@ TEST(slam_tinyHydro,test_05_newDT_Sedov)
   double cfl = 0.7;
   double cs = sqrt(10 * E / (4 * zonemass * 9));
   double theoryDT = cfl * L / cs;
-  AXOM_UNUSED_VAR( theoryDT);
-
   double tol = 1.0e-16;
-  AXOM_UNUSED_VAR( tol);
 
-  SLIC_ASSERT_MSG( std::fabs(dt - theoryDT) < tol,
-      " newDT calculation FAILS -- expected dt = " << theoryDT << " but code got " << dt << ". Diff:" <<  dt - theoryDT);
+  EXPECT_TRUE( std::fabs(dt - theoryDT) < tol)
+    << "newDT calculation FAILS -- expected dt = " << theoryDT
+    << " but code got " << dt << ". Diff:" << dt - theoryDT;
 
   SLIC_INFO(" *** PASS ***");
 }
@@ -558,14 +543,12 @@ TEST(slam_tinyHydro,test_06_PdV_work)
   SLIC_INFO("**done stepping. ");
 
   double tol = 1.0e-6;
-  AXOM_UNUSED_VAR(tol);
-
   double theoryRho = 1.0 / (1.0 + h.time * u0);
   double rhoCode = h.getState()->getPart(0)->rho(0);
-  AXOM_UNUSED_VAR(rhoCode);
 
-  SLIC_ASSERT_MSG( std::fabs(theoryRho - rhoCode) < tol,
-      "density calculation FAILS -- rhoCode = " << rhoCode << " but should be " << theoryRho );
+  EXPECT_TRUE( std::fabs(theoryRho - rhoCode) < tol)
+    << "density calculation FAILS -- rhoCode = " << rhoCode
+    << " but should be " << theoryRho;
 
 
   double theoryE = std::pow(theoryRho / rho0, 2.0 / 3.0); // e = e0*(rho/rho0)**(gamma-1)

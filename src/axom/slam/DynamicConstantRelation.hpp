@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -104,9 +105,7 @@ public:
    * to \a toSet
    */
   DynamicConstantRelation(FromSetType* fromSet, ToSetType* toSet)
-    : CardinalityPolicy(policies::EmptySetTraits<FromSetType>::isEmpty(fromSet)
-                          ? 0
-                          : fromSet->size())
+    : CardinalityPolicy(policies::EmptySetTraits<FromSetType>::isEmpty(fromSet) ? 0 : fromSet->size())
     , m_fromSet(fromSet)
     , m_toSet(toSet)
     , m_currentFromSize(fromSet == nullptr ? 0 : m_fromSet->size())
@@ -178,10 +177,7 @@ public:
    * \return An iterator range (begin/end pair) to the set of related
    * elements in ToSet
    */
-  RelationIteratorPair range(SetPosition fromSetInd)
-  {
-    return (*this)[fromSetInd].range();
-  }
+  RelationIteratorPair range(SetPosition fromSetInd) { return (*this)[fromSetInd].range(); }
 
   /**
    * \brief Returns a const iterator range to the set of entities in the ToSet
@@ -304,9 +300,9 @@ public:
     {
       const auto SZ = relationCardinality();
       const auto beg_idx = idx * SZ;
-      for(auto idx = beg_idx; idx < (beg_idx + SZ); ++idx)
+      for(auto i = beg_idx; i < (beg_idx + SZ); ++i)
       {
-        if(m_relationsVec[idx] != INVALID_INDEX)
+        if(m_relationsVec[i] != INVALID_INDEX)
         {
           return true;
         }
@@ -351,9 +347,8 @@ public:
     }
 
     //The entry was not inserted
-    SLIC_WARNING("Relation from "
-                 << fromSetIndex << " to " << toSetIndex
-                 << " was not inserted because the entry is full.");
+    SLIC_WARNING("Relation from " << fromSetIndex << " to " << toSetIndex
+                                  << " was not inserted because the entry is full.");
   }
 
   /**
@@ -392,8 +387,7 @@ public:
   void updateSizes()
   {
     m_currentFromSize = m_fromSet->size();
-    m_relationsVec.resize(m_currentFromSize * relationCardinality(),
-                          INVALID_INDEX);
+    m_relationsVec.resize(m_currentFromSize * relationCardinality(), INVALID_INDEX);
   }
 
   /// @}
@@ -420,15 +414,13 @@ private:
     if(s > m_currentFromSize)
     {
       m_currentFromSize = m_fromSet->size();
-      m_relationsVec.resize(m_currentFromSize * relationCardinality(),
-                            INVALID_INDEX);
+      m_relationsVec.resize(m_currentFromSize * relationCardinality(), INVALID_INDEX);
     }
 
-    SLIC_ASSERT_MSG(
-      s <= m_currentFromSize,
-      fmt::format("Expanded size {} is larger than relation's 'from' set of {}",
-                  s,
-                  m_fromSet->size()));
+    SLIC_ASSERT_MSG(s <= m_currentFromSize,
+                    fmt::format("Expanded size {} is larger than relation's 'from' set of {}",
+                                s,
+                                m_fromSet->size()));
   }
 
   /**
@@ -438,9 +430,7 @@ private:
   inline void verifyPosition(SetPosition AXOM_DEBUG_PARAM(fromSetIndex)) const
   {
     SLIC_ASSERT_MSG(fromSetIndex >= 0 && fromSetIndex < m_currentFromSize,
-                    fmt::format("Index {} out of range [0,{})",
-                                fromSetIndex,
-                                m_currentFromSize));
+                    fmt::format("Index {} out of range [0,{})", fromSetIndex, m_currentFromSize));
   }
 
 private:
@@ -453,8 +443,7 @@ private:
 
 /* Checks whether the relation is valid.  */
 template <typename PosType, typename ElemType, typename CardinalityPolicy>
-bool DynamicConstantRelation<PosType, ElemType, CardinalityPolicy>::isValid(
-  bool verboseOutput) const
+bool DynamicConstantRelation<PosType, ElemType, CardinalityPolicy>::isValid(bool verboseOutput) const
 {
   fmt::memory_buffer out;
 
@@ -524,12 +513,11 @@ bool DynamicConstantRelation<PosType, ElemType, CardinalityPolicy>::isValid(
       {
         if(verboseOutput)
         {
-          fmt::format_to(
-            std::back_inserter(out),
-            "\n\t* invalid entries in fromSet; has a valid relation at index "
-            "{}, but element not in from set. Values: {}",
-            pos,
-            (*this)[pos]);
+          fmt::format_to(std::back_inserter(out),
+                         "\n\t* invalid entries in fromSet; has a valid relation at index "
+                         "{}, but element not in from set. Values: {}",
+                         pos,
+                         (*this)[pos]);
         }
         relationdataIsValid = false;
       }

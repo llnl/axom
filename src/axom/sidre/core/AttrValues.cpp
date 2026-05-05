@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -149,9 +150,9 @@ const char* AttrValues::getString(const Attribute* attr) const
   if(attr->getTypeID() != CHAR8_STR_ID)
   {
     SLIC_CHECK_MSG(attr->getTypeID() == CHAR8_STR_ID,
-                   "getString: Called on attribute '"
-                     << attr->getName() << "' which is type "
-                     << DataType::id_to_name(attr->getTypeID()) << ".");
+                   "getString: Called on attribute '" << attr->getName() << "' which is type "
+                                                      << DataType::id_to_name(attr->getTypeID())
+                                                      << ".");
     return nullptr;
   }
 

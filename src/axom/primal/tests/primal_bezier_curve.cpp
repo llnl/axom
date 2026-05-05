@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -18,30 +19,136 @@
 namespace primal = axom::primal;
 
 //------------------------------------------------------------------------------
-TEST(primal_beziercurve, constructor)
+TEST(primal_beziercurve, sizing_constructors)
 {
-  const int DIM = 3;
+  constexpr int DIM = 3;
   using CoordType = double;
   using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
   using CoordsVec = BezierCurveType::CoordsVec;
 
+  // Testing default BezierCurve constructor w/ ord -1
   {
-    SLIC_INFO("Testing default BezierCurve constructor ");
     BezierCurveType bCurve;
 
-    int expOrder = -1;
+    constexpr int expOrder = -1;
     EXPECT_EQ(expOrder, bCurve.getOrder());
     EXPECT_EQ(expOrder + 1, bCurve.getControlPoints().size());
+    EXPECT_EQ(expOrder + 1, bCurve.getNumControlPoints());
     EXPECT_EQ(CoordsVec(), bCurve.getControlPoints());
+    EXPECT_FALSE(bCurve.isRational());
   }
 
+  // Testing BezierCurve constructor w/ different orders
+  for(int ord = -1; ord < 4; ++ord)
   {
-    SLIC_INFO("Testing BezierCurve order constructor ");
+    BezierCurveType bCurve(ord);
+    EXPECT_EQ(ord, bCurve.getOrder());
+    EXPECT_EQ(ord + 1, bCurve.getNumControlPoints());
+    EXPECT_EQ(ord + 1, static_cast<int>(bCurve.getControlPoints().size()));
+    EXPECT_FALSE(bCurve.isRational());
+  }
+}
 
-    BezierCurveType bCurve(1);
-    int expOrder = 1;
-    EXPECT_EQ(expOrder, bCurve.getOrder());
-    EXPECT_EQ(expOrder + 1, static_cast<int>(bCurve.getControlPoints().size()));
+//----------------------------------------------------------------------------------
+TEST(primal_beziercurve, point_array_constructors_polynomial)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
+  using CoordsVec = typename BezierCurveType::CoordsVec;
+
+  constexpr int order = 1;
+  PointType controlPoints[2] = {PointType {0.6, 1.2, 1.0}, PointType {0.0, 1.6, 1.8}};
+  CoordsVec pt_array {controlPoints[0], controlPoints[1]};
+
+  auto checkCurve = [&](const BezierCurveType& bCurve) {
+    EXPECT_EQ(order, bCurve.getOrder());
+    for(int p = 0; p <= bCurve.getOrder(); ++p)
+    {
+      EXPECT_EQ(controlPoints[p], bCurve[p]);
+    }
+    EXPECT_FALSE(bCurve.isRational());
+  };
+
+  // test constructor from C-array
+  {
+    BezierCurveType bCurve(controlPoints, order);
+    checkCurve(bCurve);
+  }
+
+  // test constructor from ArrayView generated from C-array
+  {
+    BezierCurveType bCurve(axom::ArrayView<PointType>(controlPoints, order + 1), order);
+    checkCurve(bCurve);
+  }
+
+  // test constructor from axom Array
+  {
+    BezierCurveType bCurve(pt_array, order);
+    checkCurve(bCurve);
+  }
+
+  // test constructor from ArrayView generated from axom Array
+  {
+    BezierCurveType bCurve(pt_array.view(), order);
+    checkCurve(bCurve);
+  }
+}
+
+//----------------------------------------------------------------------------------
+TEST(primal_beziercurve, point_array_constructors_rational)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
+  using CoordsVec = typename BezierCurveType::CoordsVec;
+  using WeightsVec = typename BezierCurveType::WeightsVec;
+
+  constexpr int order = 2;
+  PointType controlPoints[3] = {PointType {0.6, 1.2, 1.0},
+                                PointType {0.0, 1.6, 1.8},
+                                PointType {2.0, 2.6, 2.8}};
+  double weights[3] = {1., .5, 1.};
+
+  CoordsVec pts {controlPoints[0], controlPoints[1], controlPoints[2]};
+  WeightsVec wts {weights[0], weights[1], weights[2]};
+
+  auto checkCurve = [&](const BezierCurveType& bCurve) {
+    EXPECT_EQ(order, bCurve.getOrder());
+    for(int p = 0; p <= bCurve.getOrder(); ++p)
+    {
+      EXPECT_EQ(controlPoints[p], bCurve[p]);
+      EXPECT_EQ(weights[p], bCurve.getWeight(p));
+    }
+    EXPECT_TRUE(bCurve.isRational());
+  };
+
+  // test constructor from C-array
+  {
+    BezierCurveType bCurve(controlPoints, weights, order);
+    checkCurve(bCurve);
+  }
+
+  // test constructor from ArrayViews over the C-arrays
+  {
+    BezierCurveType bCurve(axom::ArrayView<PointType>(controlPoints, order + 1),
+                           axom::ArrayView<double>(weights, order + 1),
+                           order);
+    checkCurve(bCurve);
+  }
+
+  // test constructor from axom Arrays
+  {
+    BezierCurveType bCurve(pts, wts, order);
+    checkCurve(bCurve);
+  }
+
+  // test constructor from ArrayViews over the axom arrays
+  {
+    BezierCurveType bCurve(pts.view(), wts.view(), order);
+    checkCurve(bCurve);
   }
 }
 
@@ -57,55 +164,27 @@ TEST(primal_beziercurve, set_order)
 
   BezierCurveType bCurve;
   EXPECT_EQ(-1, bCurve.getOrder());
+  EXPECT_EQ(0, bCurve.getNumControlPoints());
 
   const int order = 1;
-  PointType controlPoints[2] = {PointType {0.6, 1.2, 1.0},
-                                PointType {0.0, 1.6, 1.8}};
+  PointType controlPoints[2] = {PointType {0.6, 1.2, 1.0}, PointType {0.0, 1.6, 1.8}};
 
   bCurve.setOrder(order);
   EXPECT_EQ(order, bCurve.getOrder());
+  EXPECT_EQ(order + 1, bCurve.getNumControlPoints());
 
   bCurve[0] = controlPoints[0];
   bCurve[1] = controlPoints[1];
 
   for(int p = 0; p <= bCurve.getOrder(); ++p)
   {
-    auto& pt = bCurve[p];
-    for(int i = 0; i < DIM; ++i)
-    {
-      EXPECT_DOUBLE_EQ(controlPoints[p][i], pt[i]);
-    }
+    EXPECT_EQ(controlPoints[p], bCurve[p]);
   }
 
   bCurve.clear();
   EXPECT_EQ(-1, bCurve.getOrder());
+  EXPECT_EQ(0, bCurve.getNumControlPoints());
   EXPECT_FALSE(bCurve.isRational());
-}
-
-//----------------------------------------------------------------------------------
-TEST(primal_beziercurve, point_array_constructor)
-{
-  SLIC_INFO("Testing point array constructor");
-
-  const int DIM = 3;
-  using CoordType = double;
-  using PointType = primal::Point<CoordType, DIM>;
-  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
-
-  PointType controlPoints[2] = {PointType {0.6, 1.2, 1.0},
-                                PointType {0.0, 1.6, 1.8}};
-
-  BezierCurveType bCurve(controlPoints, 1);
-
-  EXPECT_EQ(1, bCurve.getOrder());
-  for(int p = 0; p <= bCurve.getOrder(); ++p)
-  {
-    auto& pt = bCurve[p];
-    for(int i = 0; i < DIM; ++i)
-    {
-      EXPECT_DOUBLE_EQ(controlPoints[p][i], pt[i]);
-    }
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -262,8 +341,8 @@ TEST(primal_beziercurve_, batch_derivatives)
   {
     BezierCurveType curve(data, ord);
 
-    curve.evaluate_first_derivative(t, batch1_val, batch1_dt);
-    curve.evaluate_second_derivative(t, batch2_val, batch2_dt, batch2_dtdt);
+    curve.evaluateFirstDerivative(t, batch1_val, batch1_dt);
+    curve.evaluateSecondDerivative(t, batch2_val, batch2_dt, batch2_dtdt);
     for(int i = 0; i < DIM; ++i)
     {
       EXPECT_NEAR(curve.evaluate(t)[i], batch1_val[i], 1e-15);

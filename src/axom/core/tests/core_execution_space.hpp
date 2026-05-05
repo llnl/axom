@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -31,8 +32,7 @@ namespace
 template <typename ExecSpace>
 void check_valid()
 {
-  std::cout << "checking execution space:"
-            << axom::execution_space<ExecSpace>::name() << std::endl;
+  std::cout << "checking execution space:" << axom::execution_space<ExecSpace>::name() << std::endl;
 
   EXPECT_TRUE(axom::execution_space<ExecSpace>::valid());
   EXPECT_TRUE(strlen(axom::execution_space<ExecSpace>::name()) > 0);
@@ -42,29 +42,20 @@ void check_valid()
 template <typename ExecSpace>
 void check_invalid()
 {
-  std::cout << "checking execution space:"
-            << axom::execution_space<ExecSpace>::name() << std::endl;
+  std::cout << "checking execution space:" << axom::execution_space<ExecSpace>::name() << std::endl;
 
   EXPECT_FALSE(axom::execution_space<ExecSpace>::valid());
 
-  EXPECT_EQ(axom::execution_space<ExecSpace>::allocatorID(),
-            axom::INVALID_ALLOCATOR_ID);
+  EXPECT_EQ(axom::execution_space<ExecSpace>::allocatorID(), axom::INVALID_ALLOCATOR_ID);
 
   EXPECT_EQ(strcmp(axom::execution_space<ExecSpace>::name(), "[UNDEFINED]"), 0);
 }
 
 //------------------------------------------------------------------------------
-template <typename ExecSpace,
-          typename LoopPolicy,
-          typename ReducePolicy,
-          typename AtomicPolicy,
-          typename SyncPolicy>
-void check_execution_mappings(int expectedAllocatorID,
-                              bool is_async,
-                              bool is_onDevice)
+template <typename ExecSpace, typename LoopPolicy, typename ReducePolicy, typename AtomicPolicy, typename SyncPolicy>
+void check_execution_mappings(int expectedAllocatorID, bool is_async, bool is_onDevice)
 {
-  std::cout << "checking execution space: "
-            << axom::execution_space<ExecSpace>::name() << std::endl;
+  std::cout << "checking execution space: " << axom::execution_space<ExecSpace>::name() << std::endl;
 
   using loop_pol = typename axom::execution_space<ExecSpace>::loop_policy;
   using reduce_pol = typename axom::execution_space<ExecSpace>::reduce_policy;
@@ -165,9 +156,7 @@ TEST(core_execution_space, check_omp_exec)
                            RAJA::omp_parallel_for_exec,
                            RAJA::omp_reduce,
                            RAJA::omp_atomic,
-                           RAJA::omp_synchronize>(allocator_id,
-                                                  IS_ASYNC,
-                                                  ON_DEVICE);
+                           RAJA::omp_synchronize>(allocator_id, IS_ASYNC, ON_DEVICE);
 }
   #endif  // defined(AXOM_USE_OPENMP)
 
@@ -188,9 +177,7 @@ TEST(core_execution_space, check_cuda_exec)
                            RAJA::cuda_exec<BLOCK_SIZE>,
                            RAJA::cuda_reduce,
                            RAJA::cuda_atomic,
-                           RAJA::cuda_synchronize>(allocator_id,
-                                                   IS_ASYNC,
-                                                   ON_DEVICE);
+                           RAJA::cuda_synchronize>(allocator_id, IS_ASYNC, ON_DEVICE);
 }
 
 //------------------------------------------------------------------------------
@@ -208,9 +195,39 @@ TEST(core_execution_space, check_cuda_exec_async)
                            RAJA::cuda_exec_async<BLOCK_SIZE>,
                            RAJA::cuda_reduce,
                            RAJA::cuda_atomic,
-                           RAJA::cuda_synchronize>(allocator_id,
-                                                   IS_ASYNC,
-                                                   ON_DEVICE);
+                           RAJA::cuda_synchronize>(allocator_id, IS_ASYNC, ON_DEVICE);
+}
+//------------------------------------------------------------------------------
+void build(axom::Array<axom::IndexType> &values, axom::Array<axom::IndexType> &ids, int allocatorID)
+{
+  const std::vector<axom::IndexType> data {{0, 1, 2, 3}};
+  const axom::IndexType n = static_cast<axom::IndexType>(data.size());
+
+  values = axom::Array<axom::IndexType>(n, n, allocatorID);
+  ids = axom::Array<axom::IndexType>(n, n, allocatorID);
+
+  axom::copy(values.data(), data.data(), sizeof(axom::IndexType) * n);
+  axom::copy(ids.data(), data.data(), sizeof(axom::IndexType) * n);
+}
+
+template <typename ExecSpace>
+void test_check_cuda_array()
+{
+  int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+
+  axom::Array<axom::IndexType> values, ids;
+  build(values, ids, allocatorID);
+
+  EXPECT_EQ(values.size(), ids.size());
+  EXPECT_TRUE(axom::isDeviceAllocator(values.getAllocatorID()));
+  EXPECT_TRUE(axom::isDeviceAllocator(ids.getAllocatorID()));
+}
+
+TEST(core_execution_space, check_cuda_array)
+{
+  constexpr int BLOCK_SIZE = 256;
+  using ExecSpace = axom::CUDA_EXEC<BLOCK_SIZE>;
+  test_check_cuda_array<ExecSpace>();
 }
   #endif  // defined(AXOM_USE_CUDA)
 
@@ -231,9 +248,7 @@ TEST(core_execution_space, check_hip_exec)
                            RAJA::hip_exec<BLOCK_SIZE>,
                            RAJA::hip_reduce,
                            RAJA::hip_atomic,
-                           RAJA::hip_synchronize>(allocator_id,
-                                                  IS_ASYNC,
-                                                  ON_DEVICE);
+                           RAJA::hip_synchronize>(allocator_id, IS_ASYNC, ON_DEVICE);
 }
 
 //------------------------------------------------------------------------------
@@ -251,9 +266,7 @@ TEST(core_execution_space, check_hip_exec_async)
                            RAJA::hip_exec_async<BLOCK_SIZE>,
                            RAJA::hip_reduce,
                            RAJA::hip_atomic,
-                           RAJA::hip_synchronize>(allocator_id,
-                                                  IS_ASYNC,
-                                                  ON_DEVICE);
+                           RAJA::hip_synchronize>(allocator_id, IS_ASYNC, ON_DEVICE);
 }
   #endif  // defined(AXOM_USE_HIP)
 

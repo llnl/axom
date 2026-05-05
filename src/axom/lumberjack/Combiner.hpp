@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -41,7 +42,7 @@ public:
    * \brief Virtual destructor.
    *****************************************************************************
    */
-  virtual ~Combiner() {};
+  virtual ~Combiner() { };
 
   /*!
    *****************************************************************************
@@ -53,6 +54,17 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Function used by Lumberjack to indicate whether a Message class
+   * should be considered for this combiner. Default is true in the base class.
+   *
+   * \param [in] The Message to be considered. Unused in the base class
+   * but likely used in derived classes.   
+   *****************************************************************************
+   */
+  virtual bool isMessageCandidateForCombiner(const Message&) { return true; }
+
+  /*!
+   *****************************************************************************
    * \brief Function used by Lumberjack to indicate whether two Message classes
    * should be combined.  They are not actually combined by this function.
    *
@@ -60,8 +72,7 @@ public:
    * \param [in] rightMessage The right Message to be compared.
    *****************************************************************************
    */
-  virtual bool shouldMessagesBeCombined(const Message& leftMessage,
-                                        const Message& rightMessage) = 0;
+  virtual bool shouldMessagesBeCombined(const Message& leftMessage, const Message& rightMessage) = 0;
 
   /*!
    *****************************************************************************
@@ -73,9 +84,7 @@ public:
    *  in combined Messages. Message::rankCount is always incremented.
    *****************************************************************************
    */
-  virtual void combine(Message& combined,
-                       const Message& combinee,
-                       const int ranksLimit) = 0;
+  virtual void combine(Message& combined, const Message& combinee, const int ranksLimit) = 0;
 };
 
 }  // end namespace lumberjack

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -39,8 +40,7 @@ using float64 = double;
       #pragma message( \
         "warning: Using deprecated Axom types.  Please see CMake variable AXOM_DEPRECATED_TYPES")
     #else
-      #warning \
-        "Using deprecated Axom types.  Please see CMake variable AXOM_DEPRECATED_TYPES"
+      #warning "Using deprecated Axom types.  Please see CMake variable AXOM_DEPRECATED_TYPES"
     #endif
   #endif
 using int8 = std::int8_t;   /*!< 8-bit signed integer type      */
@@ -65,6 +65,8 @@ using IndexType = std::int64_t;
 #else
 using IndexType = std::int32_t;
 #endif
+
+static constexpr IndexType InvalidIndex = -1;
 
 #ifdef AXOM_USE_MPI
 

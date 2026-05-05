@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -85,8 +86,7 @@ int main(int, char**)
   {
     auto it = hSet.begin() + i;
 
-    SLIC_INFO("  " << i << ": " << hSet[i]
-                   << " -- double of index is: " << it->twiceIndex());
+    SLIC_INFO("  " << i << ": " << hSet[i] << " -- double of index is: " << it->twiceIndex());
   }
 
   // Check equality

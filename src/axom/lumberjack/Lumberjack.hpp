@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -55,9 +56,11 @@ public:
    * messages
    * \param [in] ranksLimit Limit on how many ranks are individually tracker per
    * Message.
+   * \param [in] isCommunicatorOwned When set to true, Lumberjack will be 
+   * responsible for freeing communication object when finalize() is called.
    *****************************************************************************
    */
-  void initialize(Communicator* communicator, int ranksLimit);
+  void initialize(Communicator* communicator, int ranksLimit, bool isCommunicatorOwned = false);
 
   /*!
    *****************************************************************************
@@ -169,7 +172,7 @@ public:
    *
    *****************************************************************************
    */
-  void queueMessage(const std::string& text);
+  void queueMessage(const std::string& text, double creationTime = 0.0);
 
   /*!
    *****************************************************************************
@@ -192,6 +195,34 @@ public:
                     const std::string& fileName,
                     const int lineNumber,
                     int level,
+                    double creationTime,
+                    const std::string& tag);
+
+  /*!
+   *****************************************************************************
+   * \brief Queues a message to be sent and combined
+   *
+   * This creates a Message and queues it to be sent through the Communicator
+   * to the root node with a pre-existing ranks list.  This message may be 
+   * combined with others depending on the given criteria by the already defined 
+   * Combiner classes. Depending on the behavior of the Communicator, the message 
+   * will not be outputted immediately.
+   *
+   * \param [in] text Text of the Message
+   * \param [in] text Ranks list
+   * \param [in] fileName File name of Message
+   * \param [in] lineNumber Line number of Message
+   * \param [in] level The level of the severity of the Message.
+   * \param [in] tag The tag of where the Message originated.
+   *****************************************************************************
+   */
+  void queueMessage(const std::string& text,
+                    const std::vector<int>& ranks,
+                    const int count,
+                    const std::string& fileName,
+                    const int lineNumber,
+                    int level,
+                    double creationTime,
                     const std::string& tag);
 
   /*!
@@ -229,6 +260,33 @@ public:
    */
   bool isOutputNode();
 
+  /*!
+   *****************************************************************************
+   * \brief set communicator pointer stored in object as well as ownership
+   *
+   *****************************************************************************
+   */
+  void setCommunicator(Communicator* communicator, bool isCommunicatorOwned);
+
+  /*!
+   *****************************************************************************
+   * \brief get communicator pointer stored in object
+   *
+   * \return Communicator pointer
+   *****************************************************************************
+   */
+  Communicator* getCommunicator();
+
+  /*!
+   *****************************************************************************
+   * \brief Returns Boolean flag that controls whether communicator instance is 
+   * owned by Lumberjack
+   *
+   * \return Communicator pointer
+   *****************************************************************************
+   */
+  bool isCommunicatorOwned();
+
 private:
   /*!
    *****************************************************************************
@@ -238,7 +296,10 @@ private:
    */
   void combineMessages();
 
+  bool m_isInitialized = false;
+
   Communicator* m_communicator;
+  bool m_isCommunicatorOwned;
   int m_ranksLimit;
   std::vector<Combiner*> m_combiners;
   std::vector<Message*> m_messages;

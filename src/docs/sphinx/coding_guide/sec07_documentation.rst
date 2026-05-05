@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -215,13 +216,11 @@ files.
 .. code-block:: cpp
 
    /*
-    * Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC.
-    * Produced at the Lawrence Livermore National Laboratory.
+    * Copyright (c) Lawrence Livermore National Security, LLC and other
+    * Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+    * files for dates and other details.
     *
-    * All rights reserved.
-    *
-    * This source code cannot be distributed without permission and
-    * further review from Lawrence Livermore National Laboratory.
+    * SPDX-License-Identifier: (BSD-3-Clause)
     */
 
 See :ref:`headerlayout-label` and :ref:`sourcelayout-label` for guidelines
@@ -460,13 +459,13 @@ sufficient.
 
       An example of Doxygen syntax for such a grouping is::
 
-         //@{
+         ///@{
          //! @name Setters for data members
 
          void setMember1(int arg1) { m_member1 = arg1; }
          void setMember2(int arg2) { m_member2 = arg2; }
 
-         //@}
+         ///@}
 
 
 Header file vs. source file documentation
@@ -547,13 +546,13 @@ with a single descriptive comment.
 
       An example of Doxygen syntax for such a grouping is::
 
-         //@{
+         ///@{
          //!  @name Data member description...
 
          int m_member1;
          int m_member2;
          ...
-         //@}
+         ///@}
 
 
 --------------------------------------------------------------------

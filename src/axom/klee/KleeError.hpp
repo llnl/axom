@@ -1,15 +1,16 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEEERROR_HPP
-#define AXOM_KLEEERROR_HPP
+#ifndef AXOM_KLEE_ERROR_HPP_
+#define AXOM_KLEE_ERROR_HPP_
+
+#include "axom/inlet/inlet_utils.hpp"
 
 #include <exception>
 #include <vector>
-
-#include "axom/inlet/inlet_utils.hpp"
 
 namespace axom
 {
@@ -45,10 +46,7 @@ public:
    * Get the list of all the errors.
    * @return all the errors which caused this exception
    */
-  const std::vector<inlet::VerificationError> &getErrors() const
-  {
-    return m_errors;
-  }
+  const std::vector<inlet::VerificationError> &getErrors() const { return m_errors; }
 
 private:
   std::vector<inlet::VerificationError> m_errors;
@@ -57,4 +55,4 @@ private:
 }  // namespace klee
 }  // namespace axom
 
-#endif  //AXOM_KLEEERROR_HPP
+#endif  // AXOM_KLEE_ERROR_HPP_

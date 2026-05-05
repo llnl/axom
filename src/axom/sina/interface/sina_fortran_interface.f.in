@@ -1,0 +1,332 @@
+module sina_functions
+  use iso_c_binding  ! ADD THIS LINE - needed for C interop
+  implicit none      ! ADD THIS LINE - good practice
+
+  ! MODIFY: Add AUTO_DETECT constant
+  integer, parameter :: AUTO_DETECT = -1  ! NEW
+  integer, parameter :: JSON = 0
+  integer, parameter :: HDF5 = 1
+  
+  ! ADD: New constants for merge protocols
+  integer, parameter :: SINA_MERGE_PROTOCOL_APPEND = 0
+  integer, parameter :: SINA_MERGE_PROTOCOL_KEEP_ORIGINAL = 1
+  integer, parameter :: SINA_MERGE_PROTOCOL_OVERWRITE = 2
+  integer, parameter :: SINA_MERGE_PROTOCOL_ERROR = 3
+  
+  ! ADD: New constants for curve ordering (PR #1559)
+  integer, parameter :: SINA_CURVE_ORDER_REGISTRATION_OLDEST_FIRST = 0
+  integer, parameter :: SINA_CURVE_ORDER_REGISTRATION_NEWEST_FIRST = 1
+  integer, parameter :: SINA_CURVE_ORDER_ALPHABETIC = 2
+  integer, parameter :: SINA_CURVE_ORDER_REVERSE_ALPHABETIC = 3
+
+  interface
+    
+    subroutine sina_set_default_record_type(recType) 
+      character(*) recType
+    end subroutine sina_set_default_record_type
+    
+  end interface
+
+  interface
+    
+    subroutine sina_create_record(id, recType) 
+      character(*) id
+      character(*), optional :: recType
+    end subroutine sina_create_record
+    
+  end interface
+  
+  interface
+    subroutine sina_add_file(file_nm, mime_type, rec) 
+      character(*) file_nm  
+      character(*) mime_type
+      character(*), optional ::  rec
+    end subroutine sina_add_file
+    
+  end interface
+  
+  interface sina_add
+  
+    subroutine sina_add_long(key, value, units, tags, rec)
+      character(*) key
+      integer (KIND=8) value
+      character(*) units
+      character(*) tags
+      character(*), optional :: rec
+    end subroutine sina_add_long
+    
+    subroutine sina_add_logical(key, value, units, tags, rec)
+      character(*) key
+      logical value
+      character(*) units
+      character(*) tags
+      character(*), optional ::  rec
+    end subroutine sina_add_logical
+    
+    subroutine sina_add_int(key, value, units, tags, rec)
+      character(*) key
+      integer value
+      character(*) units
+      character(*) tags
+      character(*), optional ::  rec
+    end subroutine sina_add_int
+    
+    subroutine sina_add_double(key, value, units, tags, rec)
+      character(*) key
+      double precision value
+      character(*) units
+      character(*) tags
+      character(*), optional ::  rec
+    end subroutine sina_add_double
+    subroutine sina_add_float(key, value, units, tags, rec)
+      character(*) key
+      real value
+      character(*) units
+      character(*) tags
+      character(*), optional ::  rec
+    end subroutine sina_add_float
+    subroutine sina_add_string(key, value, units, tags, rec)
+      character(*) key
+      character(*) value
+      character(*) units
+      character(*) tags
+      character(*), optional ::  rec
+    end subroutine sina_add_string
+    
+  end interface
+  interface sina_add_curveset
+  
+    subroutine sina_add_curveset(name, rec)
+      character(*) name
+      character(*), optional ::  rec
+    end subroutine sina_add_curveset
+    
+  end interface
+  
+   ! Private C interface (takes integer)
+  interface
+    subroutine sina_add_curve_double_c(name, curve, values, n, independent, rec) &
+               bind(c, name='sina_add_curve_double_')
+      use iso_c_binding
+      character(kind=c_char) :: name(*)
+      character(kind=c_char) :: curve(*)
+      real(c_double) :: values(*)
+      integer(c_int) :: n
+      integer(c_int) :: independent  ! integer in C interface
+      character(kind=c_char) :: rec(*)
+    end subroutine sina_add_curve_double_c
+    
+    subroutine sina_add_curve_float_c(name, curve, values, n, independent, rec) &
+               bind(c, name='sina_add_curve_float_')
+      use iso_c_binding
+      character(kind=c_char) :: name(*)
+      character(kind=c_char) :: curve(*)
+      real(c_float) :: values(*)
+      integer(c_int) :: n
+      integer(c_int) :: independent
+      character(kind=c_char) :: rec(*)
+    end subroutine sina_add_curve_float_c
+    
+    subroutine sina_add_curve_int_c(name, curve, values, n, independent, rec) &
+               bind(c, name='sina_add_curve_int_')
+      use iso_c_binding
+      character(kind=c_char) :: name(*)
+      character(kind=c_char) :: curve(*)
+      integer(c_int) :: values(*)
+      integer(c_int) :: n
+      integer(c_int) :: independent
+      character(kind=c_char) :: rec(*)
+    end subroutine sina_add_curve_int_c
+    
+    subroutine sina_add_curve_long_c(name, curve, values, n, independent, rec) &
+               bind(c, name='sina_add_curve_long_')
+      use iso_c_binding
+      character(kind=c_char) :: name(*)
+      character(kind=c_char) :: curve(*)
+      integer(c_long_long) :: values(*)
+      integer(c_int) :: n
+      integer(c_int) :: independent
+      character(kind=c_char) :: rec(*)
+    end subroutine sina_add_curve_long_c
+  end interface
+
+  ! Public user-friendly interface (takes logical)
+  interface sina_add_curve
+    module procedure sina_add_curve_double
+    module procedure sina_add_curve_float
+    module procedure sina_add_curve_int
+    module procedure sina_add_curve_long
+  end interface sina_add_curve
+ 
+  interface sina_write_document
+    
+    subroutine sina_write_document_all_args(file_nm, protocol, preserve, mergeProtocol) 
+      character(*) file_nm  
+      integer protocol
+      integer mergeProtocol
+      integer preserve
+    end subroutine sina_write_document_all_args
+    
+    subroutine sina_write_document_noprotocol_nopreserve_nomerge(file_nm) 
+      character(*) file_nm  
+    end subroutine sina_write_document_noprotocol_nopreserve_nomerge
+
+    subroutine sina_write_document_protocol_nopreserve_nomerge(file_nm, protocol) 
+      character(*) file_nm  
+      integer protocol
+    end subroutine sina_write_document_protocol_nopreserve_nomerge
+    
+    subroutine sina_write_document_protocol_preserve_nomerge(file_nm, protocol, preserve) 
+      character(*) file_nm  
+      integer protocol
+      integer preserve
+    end subroutine sina_write_document_protocol_preserve_nomerge
+
+  end interface sina_write_document
+    
+  interface
+    subroutine sina_set_curves_order(curve_order)
+      integer curve_order
+    end subroutine sina_set_curves_order
+  end interface
+
+  interface
+    subroutine sina_set_record_curves_order(recId, curve_order)
+      character(*) recId
+      integer curve_order
+    end subroutine sina_set_record_curves_order
+  end interface
+
+
+contains
+
+  subroutine sina_add_curve_double(name, curve, values, n, independent, rec)
+    character(*), intent(in) :: name
+    character(*), intent(in) :: curve
+    double precision, intent(in) :: values(n)
+    integer, intent(in) :: n
+    logical, intent(in) :: independent  ! User passes logical
+    character(*), optional, intent(in) :: rec
+    
+    integer(c_int) :: indep_int
+    character(:), allocatable :: name_c, curve_c, rec_c
+    
+    ! Convert logical to integer
+    if (independent) then
+      indep_int = 1
+    else
+      indep_int = 0
+    endif
+    
+    ! Prepare C strings
+    name_c = make_cstring(name)
+    curve_c = make_cstring(curve)
+    if (present(rec)) then
+      rec_c = make_cstring(rec)
+    else
+      rec_c = make_cstring('')
+    endif
+    
+    call sina_add_curve_double_c(name_c, curve_c, values, n, indep_int, rec_c)
+  end subroutine sina_add_curve_double
+
+  subroutine sina_add_curve_float(name, curve, values, n, independent, rec)
+    character(*), intent(in) :: name
+    character(*), intent(in) :: curve
+    real, intent(in) :: values(n)
+    integer, intent(in) :: n
+    logical, intent(in) :: independent
+    character(*), optional, intent(in) :: rec
+    
+    integer(c_int) :: indep_int
+    character(:), allocatable :: name_c, curve_c, rec_c
+    
+    if (independent) then
+      indep_int = 1
+    else
+      indep_int = 0
+    endif
+    
+    name_c = make_cstring(name)
+    curve_c = make_cstring(curve)
+    if (present(rec)) then
+      rec_c = make_cstring(rec)
+    else
+      rec_c = make_cstring('')
+    endif
+    
+    call sina_add_curve_float_c(name_c, curve_c, values, n, indep_int, rec_c)
+  end subroutine sina_add_curve_float
+
+  subroutine sina_add_curve_int(name, curve, values, n, independent, rec)
+    character(*), intent(in) :: name
+    character(*), intent(in) :: curve
+    integer(KIND=4), intent(in) :: values(n)
+    integer, intent(in) :: n
+    logical, intent(in) :: independent
+    character(*), optional, intent(in) :: rec
+    
+    integer(c_int) :: indep_int
+    character(:), allocatable :: name_c, curve_c, rec_c
+    
+    if (independent) then
+      indep_int = 1
+    else
+      indep_int = 0
+    endif
+    
+    name_c = make_cstring(name)
+    curve_c = make_cstring(curve)
+    if (present(rec)) then
+      rec_c = make_cstring(rec)
+    else
+      rec_c = make_cstring('')
+    endif
+    
+    call sina_add_curve_int_c(name_c, curve_c, values, n, indep_int, rec_c)
+  end subroutine sina_add_curve_int
+
+  subroutine sina_add_curve_long(name, curve, values, n, independent, rec)
+    character(*), intent(in) :: name
+    character(*), intent(in) :: curve
+    integer(KIND=8), intent(in) :: values(n)
+    integer, intent(in) :: n
+    logical, intent(in) :: independent
+    character(*), optional, intent(in) :: rec
+    
+    integer(c_int) :: indep_int
+    character(:), allocatable :: name_c, curve_c, rec_c
+    
+    if (independent) then
+      indep_int = 1
+    else
+      indep_int = 0
+    endif
+    
+    name_c = make_cstring(name)
+    curve_c = make_cstring(curve)
+    if (present(rec)) then
+      rec_c = make_cstring(rec)
+    else
+      rec_c = make_cstring('')
+    endif
+    
+    call sina_add_curve_long_c(name_c, curve_c, values, n, indep_int, rec_c)
+  end subroutine sina_add_curve_long
+
+  ! Keep your existing make_cstring function here
+  function make_cstring(fstr) result(cstr)
+    character(*), intent(in) :: fstr
+    character(len=len_trim(fstr)+1, kind=c_char) :: cstr
+    if (len_trim(fstr) > 0) then
+      cstr(1:len_trim(fstr)) = fstr(1:len_trim(fstr))
+    endif
+    cstr(len_trim(fstr)+1:len_trim(fstr)+1) = c_null_char
+  end function make_cstring
+
+
+end module sina_functions
+module sina_hdf5_config
+  implicit none
+  logical, parameter :: use_hdf5 = @AXOM_USE_HDF5_FORTRAN@
+end module sina_hdf5_config

@@ -1,0 +1,5 @@
+# Library that isn't built by us
+# To use the suppression file when running unit test:
+# LSAN_OPTIONS=suppressions=/absolute/path/to/suppressions.asan ctest
+leak:libpsm2.so.2
+leak:libmpi

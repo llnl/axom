@@ -173,6 +173,10 @@ function sets a point transformation function for the shaper.
    :end-before: _point_projection_end
    :language: C++
 
+.. literalinclude:: ../../examples/shaping_driver.cpp
+   :start-after: _point_projection_obj_begin
+   :end-before: _point_projection_obj_end
+   :language: C++
 
 .. _intersection-shaper:
 

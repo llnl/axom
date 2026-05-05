@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -35,6 +36,7 @@ int main(int argc, char* argv[])
   }
   else
   {
+    delete ds;
     return 0;
   }
 
@@ -61,9 +63,7 @@ int main(int argc, char* argv[])
   std::vector<std::string> names(num_groups);
   {
     int i = 0;
-    for(std::set<std::string>::const_iterator itr = name_set.begin();
-        itr != name_set.end();
-        ++itr)
+    for(std::set<std::string>::const_iterator itr = name_set.begin(); itr != name_set.end(); ++itr)
     {
       names[i] = *itr;
       ++i;

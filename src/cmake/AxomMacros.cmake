@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -33,20 +34,57 @@ macro(axom_add_code_checks)
         set(_base_dirs "axom" "examples" "thirdparty/tests" "tools")
         set(_ext_expressions "*.cpp" "*.hpp" "*.inl"
                              "*.cxx" "*.hxx" "*.cc" "*.c" "*.h" "*.hh"
-                             "*.F" "*.f" "*.f90" "*.F90")
+                             "*.F" "*.f" "*.f90" "*.F90"
+                             "*.py"
+                             "*.cmake" "CMakeLists.txt")
 
-        set(_glob_expressions)
-        foreach(_exp ${_ext_expressions})
-            foreach(_base_dir ${_base_dirs})
-                list(APPEND _glob_expressions "${PROJECT_SOURCE_DIR}/${_base_dir}/${_exp}")
-            endforeach()
-        endforeach()
-
-        # Glob for list of files to run code checks on
         set(_sources)
-        file(GLOB_RECURSE _sources ${_glob_expressions})
+        set(_use_git_sources FALSE)
+
+        if(COMMAND blt_is_git_repo AND COMMAND blt_git)
+            blt_is_git_repo(OUTPUT_STATE _axom_is_git_repo
+                            SOURCE_DIR ${PROJECT_SOURCE_DIR})
+            if(_axom_is_git_repo)
+                set(_use_git_sources TRUE)
+            endif()
+        endif()
+
+        if(_use_git_sources)
+            blt_git(SOURCE_DIR ${PROJECT_SOURCE_DIR}
+                    GIT_COMMAND ls-files -- ${_base_dirs}
+                    OUTPUT_VARIABLE _git_ls_files
+                    RETURN_CODE _git_ls_files_result)
+
+            if(_git_ls_files_result EQUAL 0 AND NOT _git_ls_files STREQUAL "")
+                string(REPLACE "\n" ";" _sources "${_git_ls_files}")
+
+                # Keep only files handled by BLT language filters.
+                list(FILTER _sources INCLUDE REGEX "(\\.(cpp|hpp|inl|cxx|hxx|cc|c|h|hh|f|f90|py|cmake)|\\.F90|\\.F|CMakeLists\\.txt)$")
+
+                # Make source paths absolute.
+                set(_sources_prefixed)
+                foreach(_tracked_file ${_sources})
+                    list(APPEND _sources_prefixed "${PROJECT_SOURCE_DIR}/${_tracked_file}")
+                endforeach()
+                set(_sources ${_sources_prefixed})
+            else()
+                set(_use_git_sources FALSE)
+            endif()
+        else()
+            set(_glob_expressions)
+            foreach(_exp ${_ext_expressions})
+                foreach(_base_dir ${_base_dirs})
+                    list(APPEND _glob_expressions "${PROJECT_SOURCE_DIR}/${_base_dir}/${_exp}")
+                endforeach()
+            endforeach()
+
+            # Glob for list of files to run code checks on
+            file(GLOB_RECURSE _sources ${_glob_expressions})
+        endif()
 
         # Filter out exclusions
+        # Never run checks on local python environments
+        list(FILTER _sources EXCLUDE REGEX ".*[\\\\/]\\.venv[\\\\/].*")
         set(_exclude_expressions
             "${PROJECT_SOURCE_DIR}/axom/sidre/examples/lulesh2/*"
             "${PROJECT_SOURCE_DIR}/axom/slam/examples/lulesh2.0.3/*"
@@ -58,10 +96,11 @@ macro(axom_add_code_checks)
         blt_add_code_checks(PREFIX          axom
                             SOURCES         ${_sources}
                             CLANGFORMAT_CFG_FILE ${PROJECT_SOURCE_DIR}/.clang-format
+                            YAPF_CFG_FILE ${PROJECT_SOURCE_DIR}/.style.yapf
                             CPPCHECK_FLAGS  --enable=all --inconclusive)
 
         # Set FOLDER property for code check targets
-        foreach(_suffix clangformat_check clangformat_style clang_tidy_check clang_tidy_style)
+        foreach(_suffix clangformat_check clangformat_style clang_tidy_check clang_tidy_style yapf_check yapf_style)
             set(_tgt ${arg_PREFIX}_${_suffix})
             if(TARGET ${_tgt}) 
                 set_target_properties(${_tgt} PROPERTIES FOLDER "axom/code_checks")
@@ -228,8 +267,13 @@ endmacro(axom_add_library)
 ##               NUM_OMP_THREADS [n]
 ##               CONFIGURATIONS  [config1 [config2...]])
 ##
-## Wrapper around blt_add_test() that handles functionality that Axom applies to all
-## tests.
+## Wrapper around blt_add_test() that handles functionality 
+## that Axom applies to all tests.
+##
+## Note that NUM_OMP_THREADS delegates to the corresponding argument 
+## in blt_add_test() and sets the OpenMP environment variable OMP_NUM_THREADS.
+## When AXOM_ENABLE_OPENMP is set and NUM_OMP_THREADS is not provided, 
+## this macros also sets the environment variable OMP_NUM_THREADS=1.
 ##------------------------------------------------------------------------------
 macro(axom_add_test)
 
@@ -248,15 +292,25 @@ macro(axom_add_test)
                  NUM_OMP_THREADS ${arg_NUM_OMP_THREADS}
                  CONFIGURATIONS  ${arg_CONFIGURATIONS} )
 
-    ###########################################################################
+    #--------------------------------------------------------------------------
     # Newer versions of OpenMPI require OMPI_MCA_rmaps_base_oversubscribe=1
     # to run with more tasks than actual cores
     # Since this is an OpenMPI specific env var, it shouldn't interfere
     # with other mpi implementations.
-    ###########################################################################
+    #--------------------------------------------------------------------------
     set_property(TEST ${arg_NAME}
                  APPEND
                  PROPERTY ENVIRONMENT  "OMPI_MCA_rmaps_base_oversubscribe=1")
+
+    #--------------------------------------------------------------------------
+    # Cap OpenMP parallelism for tests that do not explicitly
+    # specify NUM_OMP_THREADS to avoid accidental oversubscription
+    #--------------------------------------------------------------------------
+    if(AXOM_ENABLE_OPENMP AND (NOT arg_NUM_OMP_THREADS))
+        set_property(TEST ${arg_NAME}
+                     APPEND 
+                     PROPERTY ENVIRONMENT OMP_NUM_THREADS=1)
+    endif()
 
 endmacro(axom_add_test)
 
@@ -318,7 +372,7 @@ endmacro(axom_assert_find_succeeded)
 ## convert_to_native_escaped_file_path( path output )
 ##
 ## This macro converts a cmake path to a platform specific string literal
-## usable in C++.  (For example, on windows C:/Path will be come C:\\Path)
+## usable in C++.  (For example, on windows C:/Path will become C:\\Path)
 ##------------------------------------------------------------------------------
 
 macro(convert_to_native_escaped_file_path path output)
@@ -499,8 +553,9 @@ macro(axom_write_unified_header)
     set(_header ${PROJECT_BINARY_DIR}/include/axom/${_lcname}.hpp)
     set(_tmp_header ${_header}.tmp)
 
-    file(WRITE ${_tmp_header} "\/\/ Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-\/\/ other Axom Project Developers. See the top-level LICENSE file for details.
+    file(WRITE ${_tmp_header} "\/\/ Copyright (c) Lawrence Livermore National Security, LLC and other
+\/\/ Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+\/\/ files for dates and other details.
 \/\/
 \/\/ SPDX-License-Identifier: (BSD-3-Clause)
 \n
@@ -547,3 +602,50 @@ macro(axom_configure_file _source _target)
     execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${_tmp_target} ${_target})
     execute_process(COMMAND ${CMAKE_COMMAND} -E remove ${_tmp_target})
 endmacro(axom_configure_file)
+
+##------------------------------------------------------------------------------
+## axom_add_python_test(NAME       [name]
+##                      SOURCE     [source]
+##                      OUTPUT_DIR [dir])
+##
+## Wrapper around add_test() that handles functionality
+## that Axom applies to all python tests.
+##------------------------------------------------------------------------------
+macro(axom_add_python_test)
+
+    set(options)
+    set(singleValueArgs NAME SOURCE OUTPUT_DIR)
+    set(multiValueArgs)
+
+    # Parse the arguments to the macro
+    cmake_parse_arguments(arg
+         "${options}" "${singleValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    # Copy python test file to build
+    axom_configure_file ("${arg_SOURCE}"
+                         "${arg_OUTPUT_DIR}/${arg_SOURCE}" COPYONLY)
+
+    # Run unit test with pytest ("python3 -m pytest").
+    # Use convenience script that has
+    # pytest, pysidre, and conduit added to PYTHONPATH.
+    # "-p no:cacheprovider" disables caching.
+    add_test (NAME    ${arg_NAME}
+      COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -m pytest -s -p no:cacheprovider ${arg_OUTPUT_DIR}/${arg_SOURCE}
+    )
+
+endmacro(axom_add_python_test)
+
+##------------------------------------------------------------------------------
+## axom_force_release_for_target
+##
+## This macro forces a target to be compiled in Release mode by adding compiler
+## optimization flags.
+##------------------------------------------------------------------------------
+macro(axom_force_release_for_target tgt)
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        target_compile_options(${tgt} PRIVATE /O2)
+    else()
+        target_compile_options(${tgt} PRIVATE -O3 -g0)
+    endif()
+    target_compile_definitions(${tgt} PRIVATE NDEBUG)
+endmacro(axom_force_release_for_target)

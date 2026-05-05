@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -62,9 +63,6 @@ axom_add_library(NAME        inlet
                  HEADERS     ${inlet_headers}
                  DEPENDS_ON  ${inlet_depends}
                  FOLDER      axom/inlet )
-
-# Set file back to C++ due to nvcc compiler error
-set_source_files_properties(LuaReader.cpp PROPERTIES LANGUAGE CXX)
 
 axom_write_unified_header(NAME    inlet
                           HEADERS ${inlet_headers} )

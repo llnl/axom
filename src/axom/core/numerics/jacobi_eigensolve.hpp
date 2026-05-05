@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -72,18 +73,12 @@ int jacobi_eigensolve(Matrix<T> A,
 // IMPLEMENTATION
 //------------------------------------------------------------------------------
 template <typename T>
-int jacobi_eigensolve(Matrix<T> A,
-                      Matrix<T>& V,
-                      T* lambdas,
-                      int maxIterations,
-                      int* numIterations,
-                      T TOL)
+int jacobi_eigensolve(Matrix<T> A, Matrix<T>& V, T* lambdas, int maxIterations, int* numIterations, T TOL)
 {
   bool converged = false;
   const int n = A.getNumRows();
 
-  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value,
-                         "pre: T is a floating point type");
+  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value, "pre: T is a floating point type");
   assert("pre: input matrix must be square" && A.isSquare());
   assert("pre: can't have more eigenvectors than rows" && (n <= A.getNumRows()));
   assert("pre: lambdas vector is null" && (lambdas != nullptr));
@@ -143,8 +138,7 @@ int jacobi_eigensolve(Matrix<T> A,
         T termq = gapq + utilities::abs(lambdas[q]);
 
         // the Jacobi iteration ignores off diagonal elements close to zero
-        if(4 < iter && termp == utilities::abs(lambdas[p]) &&
-           termq == utilities::abs(lambdas[q]))
+        if(4 < iter && termp == utilities::abs(lambdas[p]) && termq == utilities::abs(lambdas[q]))
         {
           A(p, q) = 0.0;
         }
@@ -219,8 +213,8 @@ int jacobi_eigensolve(Matrix<T> A,
           }
 
         }  // END else if
-      }    // END for all q
-    }      // END for all p
+      }  // END for all q
+    }  // END for all p
 
     for(int i = 0; i < n; ++i)
     {

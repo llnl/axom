@@ -8,22 +8,31 @@ authors:
 - family-names: Capps
   given-names: Arlie
   orcid: "https://orcid.org/0000-0003-0511-2645"
+- family-names: Bergel
+  given-names: Guy
 - family-names: Carson
   given-names: Robert
 - family-names: Corbett
   given-names: Benjamin
+- family-names: Dayton
+  given-names: Alan
 - family-names: Elliott
   given-names: Noah
 - family-names: Essman
   given-names: Josh
+- family-names: Gunnarson
+  given-names: Brian
 - family-names: Gunney
   given-names: Brian
+- family-names: Haluska
+  given-names: Becky
 - family-names: Han
   given-names: Brian
 - family-names: Harrison
   given-names: Cyrus
 - family-names: Hornung
   given-names: Richard
+  orcid:  "https://orcid.org/0000-0002-9495-6972"
 - family-names: Larsen
   given-names: Matthew
 - family-names: Moody
@@ -32,6 +41,9 @@ authors:
   given-names: Esteban
 - family-names: Settgast
   given-names: Randolph
+- family-names: Spainhour
+  given-names: Jacob
+  orcid: "https://orcid.org/0000-0001-8219-4360"
 - family-names: Taylor
   given-names: Lee
 - family-names: Weiss
@@ -41,6 +53,7 @@ authors:
   given-names: Christopher
 - family-names: Whitlock
   given-names: Brad
+  orcid: "https://orcid.org/0000-0001-6261-7522"
 - family-names: Yang
   given-names: Max
 - family-names: Zagaris

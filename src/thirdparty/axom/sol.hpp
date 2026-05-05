@@ -6282,15 +6282,18 @@ namespace sol {
 			return key;
 		}
 
+		// start axom change
+		// Define keys as const char[] instead of const char8_t for C++20
 		inline decltype(auto) base_class_index_propogation_key() {
-			static const auto& key = u8"\xF0\x9F\x8C\xB2.index";
+			static const auto& key = "\xF0\x9F\x8C\xB2.index";
 			return key;
 		}
 
 		inline decltype(auto) base_class_new_index_propogation_key() {
-			static const auto& key = u8"\xF0\x9F\x8C\xB2.new_index";
+			static const auto& key = "\xF0\x9F\x8C\xB2.new_index";
 			return key;
 		}
+		// end axom change
 
 		template <typename T, typename... Bases>
 		struct inheritance {
@@ -14422,7 +14425,7 @@ namespace sol {
 	// constexpr is fine for not-clang
 
 	namespace detail {
-		template <typename R, typename... Args, typename F, typename = std::result_of_t<meta::unqualified_t<F>(Args...)>>
+		template <typename R, typename... Args, typename F, typename = std::invoke_result_t<meta::unqualified_t<F>, Args...>>
 		inline constexpr auto resolve_i(types<R(Args...)>, F &&) -> R (meta::unqualified_t<F>::*)(Args...) {
 			using Sig = R(Args...);
 			typedef meta::unqualified_t<F> Fu;
@@ -14446,7 +14449,7 @@ namespace sol {
 			return resolve_f(meta::has_deducible_signature<U>{}, std::forward<F>(f));
 		}
 
-		template <typename... Args, typename F, typename R = std::result_of_t<F&(Args...)>>
+		template <typename... Args, typename F, typename R = std::invoke_result_t<F&, Args...>>
 		inline constexpr auto resolve_i(types<Args...>, F&& f) -> decltype(resolve_i(types<R(Args...)>(), std::forward<F>(f))) {
 			return resolve_i(types<R(Args...)>(), std::forward<F>(f));
 		}
@@ -14492,7 +14495,7 @@ namespace sol {
 	// so don't use the constexpr versions inside of clang.
 
 	namespace detail {
-		template <typename R, typename... Args, typename F, typename = std::result_of_t<meta::unqualified_t<F>(Args...)>>
+		template <typename R, typename... Args, typename F, typename = std::invoke_result_t<meta::unqualified_t<F>, Args...>>
 		inline auto resolve_i(types<R(Args...)>, F &&) -> R (meta::unqualified_t<F>::*)(Args...) {
 			using Sig = R(Args...);
 			typedef meta::unqualified_t<F> Fu;
@@ -14516,7 +14519,7 @@ namespace sol {
 			return resolve_f(meta::has_deducible_signature<U>{}, std::forward<F>(f));
 		}
 
-		template <typename... Args, typename F, typename R = std::result_of_t<F&(Args...)>>
+		template <typename... Args, typename F, typename R = std::invoke_result_t<F&, Args...>>
 		inline auto resolve_i(types<Args...>, F&& f) -> decltype(resolve_i(types<R(Args...)>(), std::forward<F>(f))) {
 			return resolve_i(types<R(Args...)>(), std::forward<F>(f));
 		}
@@ -20649,7 +20652,7 @@ namespace sol {
 		}
 
 	private:
-		template <typename R, typename... Args, typename Fx, typename Key, typename = std::result_of_t<Fx(Args...)>>
+		template <typename R, typename... Args, typename Fx, typename Key, typename = std::invoke_result_t<Fx, Args...>>
 		void set_fx(types<R(Args...)>, Key&& key, Fx&& fx) {
 			set_resolved_function<R(Args...)>(std::forward<Key>(key), std::forward<Fx>(fx));
 		}

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -34,15 +35,15 @@ namespace internal
  * \param [in] connec the ConnectivityArray in question.
  * \param [in] increase the amount the number of IDs will increase by
  */
-IndexType calc_ID_capacity(const ConnectivityArray<NO_INDIRECTION>& connec,
-                           IndexType increase)
+IndexType calc_ID_capacity(const ConnectivityArray<NO_INDIRECTION>& connec, IndexType increase)
 {
   IndexType new_n_IDs = connec.getNumberOfIDs() + increase;
   if(new_n_IDs > connec.getIDCapacity())
   {
     IndexType stride = connec.getNumberOfValuesForID();
     IndexType newCapacity =
-      static_cast<IndexType>(new_n_IDs * stride * connec.getResizeRatio() + 0.5);
+      axom::utilities::max<IndexType>(connec.getValueCapacity() * connec.getResizeRatio() + 0.5,
+                                      new_n_IDs * stride);
     IndexType remainder = newCapacity % stride;
     if(remainder != 0)
     {
@@ -61,13 +62,13 @@ IndexType calc_ID_capacity(const ConnectivityArray<NO_INDIRECTION>& connec,
  * \param [in] connec the ConnectivityArray in question.
  * \param [in] increase the amount the number of IDs will increase by
  */
-IndexType calc_ID_capacity(const ConnectivityArray<TYPED_INDIRECTION>& connec,
-                           IndexType increase)
+IndexType calc_ID_capacity(const ConnectivityArray<TYPED_INDIRECTION>& connec, IndexType increase)
 {
   IndexType new_n_IDs = connec.getNumberOfIDs() + increase;
   if(new_n_IDs > connec.getIDCapacity())
   {
-    return static_cast<IndexType>(new_n_IDs * connec.getResizeRatio() + 0.5);
+    return axom::utilities::max<IndexType>(connec.getIDCapacity() * connec.getResizeRatio() + 0.5,
+                                           new_n_IDs);
   }
 
   return connec.getIDCapacity();
@@ -80,8 +81,7 @@ IndexType calc_ID_capacity(const ConnectivityArray<TYPED_INDIRECTION>& connec,
  * \param [in] connec the ConnectivityArray in question.
  * \param [in] increase the amount the number of values will increase by
  */
-IndexType calc_value_capacity(const ConnectivityArray<NO_INDIRECTION>& connec,
-                              IndexType increase)
+IndexType calc_value_capacity(const ConnectivityArray<NO_INDIRECTION>& connec, IndexType increase)
 {
   IndexType stride = getCellInfo(connec.getIDType()).num_nodes;
   return calc_ID_capacity(connec, increase / stride) * stride;
@@ -95,13 +95,13 @@ IndexType calc_value_capacity(const ConnectivityArray<NO_INDIRECTION>& connec,
  * \param [in] increase the amount the number of values will increase by
  */
 template <ConnectivityType TYPE>
-IndexType calc_value_capacity(const ConnectivityArray<TYPE>& connec,
-                              IndexType increase)
+IndexType calc_value_capacity(const ConnectivityArray<TYPE>& connec, IndexType increase)
 {
   IndexType new_n_values = connec.getNumberOfValues() + increase;
   if(new_n_values > connec.getValueCapacity())
   {
-    return static_cast<IndexType>(new_n_values * connec.getResizeRatio() + 0.5);
+    return axom::utilities::max<IndexType>(connec.getValueCapacity() * connec.getResizeRatio() + 0.5,
+                                           new_n_values);
   }
 
   return connec.getValueCapacity();
@@ -172,10 +172,7 @@ IndexType get_n_values(IndexType ID, IndexType stride, const IndexType* offsets)
  * \param [in] stride the stride of the ConnectivityArray.
  * \param [in] offsets pointer to the offsets array for the values in question.
  */
-IndexType get_n_values(IndexType startID,
-                       IndexType endID,
-                       IndexType stride,
-                       const IndexType* offsets)
+IndexType get_n_values(IndexType startID, IndexType endID, IndexType stride, const IndexType* offsets)
 {
   if(offsets == nullptr)
   {
@@ -257,8 +254,7 @@ void check_pointers(const T* p1, const T* p2, IndexType n)
  * \param [in] rhs the second ConnectivityArray to check.
  */
 template <ConnectivityType TYPE>
-void check_equality(const ConnectivityArray<TYPE>& lhs,
-                    const ConnectivityArray<TYPE>& rhs)
+void check_equality(const ConnectivityArray<TYPE>& lhs, const ConnectivityArray<TYPE>& rhs)
 {
   ASSERT_EQ(lhs.getNumberOfIDs(), rhs.getNumberOfIDs());
   ASSERT_EQ(lhs.getNumberOfValues(), rhs.getNumberOfValues());
@@ -297,8 +293,7 @@ void checkAppend(const ConnectivityArray<TYPE>& connec,
                  const CellType* types = nullptr)
 {
   const CellType cell_type = connec.getIDType();
-  const IndexType stride =
-    (cell_type == UNDEFINED_CELL) ? -1 : getCellInfo(cell_type).num_nodes;
+  const IndexType stride = (cell_type == UNDEFINED_CELL) ? -1 : getCellInfo(cell_type).num_nodes;
 
   for(IndexType ID = 0; ID < n_IDs; ++ID)
   {
@@ -329,8 +324,7 @@ void append(ConnectivityArray<TYPE>& connec,
             const CellType* types = nullptr)
 {
   const CellType cell_type = connec.getIDType();
-  const IndexType stride =
-    (cell_type == UNDEFINED_CELL) ? -1 : getCellInfo(cell_type).num_nodes;
+  const IndexType stride = (cell_type == UNDEFINED_CELL) ? -1 : getCellInfo(cell_type).num_nodes;
   const IndexType initial_n_IDs = connec.getNumberOfIDs();
 
   IndexType half_n_IDs = n_IDs / 2;
@@ -409,8 +403,7 @@ void set(ConnectivityArray<TYPE>& connec,
          const CellType* types = nullptr)
 {
   const CellType cell_type = connec.getIDType();
-  const IndexType stride =
-    (cell_type == UNDEFINED_CELL) ? -1 : getCellInfo(cell_type).num_nodes;
+  const IndexType stride = (cell_type == UNDEFINED_CELL) ? -1 : getCellInfo(cell_type).num_nodes;
   const IndexType initial_n_IDs = connec.getNumberOfIDs();
 
   /* Append the initial values. */
@@ -494,14 +487,11 @@ void testInsert(ConnectivityArray<TYPE>& connec,
                 const IndexType* offsets = nullptr,
                 const CellType* types = nullptr)
 {
-  SLIC_ERROR_IF(!connec.empty(),
-                "Insertion test requires an empty ConnectivityArray.");
-  SLIC_ERROR_IF(n_IDs % 6 != 0,
-                "Insertion test requires n_IDs to be a multiple of 6.");
+  SLIC_ERROR_IF(!connec.empty(), "Insertion test requires an empty ConnectivityArray.");
+  SLIC_ERROR_IF(n_IDs % 6 != 0, "Insertion test requires n_IDs to be a multiple of 6.");
 
   const CellType cell_type = connec.getIDType();
-  const IndexType stride =
-    (cell_type == UNDEFINED_CELL) ? -1 : getCellInfo(cell_type).num_nodes;
+  const IndexType stride = (cell_type == UNDEFINED_CELL) ? -1 : getCellInfo(cell_type).num_nodes;
 
   const IndexType half_n_IDs = n_IDs / 2;
   const IndexType third_n_IDs = n_IDs / 3;
@@ -520,8 +510,7 @@ void testInsert(ConnectivityArray<TYPE>& connec,
       const IndexType cur_ID = IDs[i];
       const IndexType insert_pos = insert_positions[i];
       const IndexType cur_n_values = get_n_values(cur_ID, stride, offsets);
-      const IndexType* cur_values =
-        get_value_ptr(cur_ID, stride, values, offsets);
+      const IndexType* cur_values = get_value_ptr(cur_ID, stride, values, offsets);
       const CellType type = get_type(cur_ID, cell_type, types);
 
       connec.insert(cur_values, insert_pos, cur_n_values, type);
@@ -545,8 +534,7 @@ void testInsert(ConnectivityArray<TYPE>& connec,
   /* Insert the rest of the front values. */
   const IndexType front_ID = 0;
   const IndexType* front_offsets = get_offset_ptr(front_ID, offsets);
-  const IndexType* front_values =
-    get_value_ptr(front_ID, stride, values, offsets);
+  const IndexType* front_values = get_value_ptr(front_ID, stride, values, offsets);
   const CellType* front_types = get_type_ptr(front_ID, types);
   connec.insertM(front_values, front_ID, sixth_n_IDs, front_offsets, front_types);
   EXPECT_EQ(connec.getNumberOfIDs(), 2 * third_n_IDs);
@@ -554,8 +542,7 @@ void testInsert(ConnectivityArray<TYPE>& connec,
   /* Insert the rest of the middle values. */
   const IndexType middle_ID = half_n_IDs;
   const IndexType* middle_offsets = get_offset_ptr(middle_ID, offsets);
-  const IndexType* middle_values =
-    get_value_ptr(middle_ID, stride, values, offsets);
+  const IndexType* middle_values = get_value_ptr(middle_ID, stride, values, offsets);
   const CellType* middle_types = get_type_ptr(middle_ID, types);
   connec.insertM(middle_values, middle_ID, sixth_n_IDs, middle_offsets, middle_types);
   EXPECT_EQ(connec.getNumberOfIDs(), 5 * sixth_n_IDs);
@@ -598,15 +585,12 @@ void testCapacity(ConnectivityArray<TYPE>& connec,
                   const IndexType* offsets = nullptr,
                   const CellType* types = nullptr)
 {
-  SLIC_ERROR_IF(!connec.empty(),
-                "Insertion test requires an empty ConnectivityArray.");
+  SLIC_ERROR_IF(!connec.empty(), "Insertion test requires an empty ConnectivityArray.");
   const CellType cell_type = connec.getIDType();
-  const IndexType stride =
-    (cell_type == UNDEFINED_CELL) ? -1 : getCellInfo(cell_type).num_nodes;
+  const IndexType stride = (cell_type == UNDEFINED_CELL) ? -1 : getCellInfo(cell_type).num_nodes;
   const IndexType half_n_IDs = n_IDs / 2;
   const IndexType n_values = get_n_values(0, n_IDs, stride, offsets);
-  const IndexType first_half_n_values =
-    get_n_values(0, half_n_IDs, stride, offsets);
+  const IndexType first_half_n_values = get_n_values(0, half_n_IDs, stride, offsets);
   IndexType cur_ID_size = connec.getNumberOfIDs();
   IndexType cur_value_size = connec.getNumberOfValues();
 
@@ -728,9 +712,7 @@ const IndexType* createValues(IndexType n_vals, const IndexType factor = 1)
  *
  * \return The number of values accounted for in the offsets array.
  */
-IndexType createOffsetsAndTypes(IndexType n_IDs,
-                                IndexType*& offsets,
-                                CellType*& types)
+IndexType createOffsetsAndTypes(IndexType n_IDs, IndexType*& offsets, CellType*& types)
 {
   offsets = new IndexType[n_IDs + 1];
   types = new CellType[n_IDs];
@@ -760,9 +742,7 @@ IndexType createOffsetsAndTypes(IndexType n_IDs,
  * \param [out] total_IDs the total number of IDs calculated.
  * \param [out] total_values the total number of values calculated.
  */
-void calcTotalIDsAndValues(IndexType max_IDs,
-                           IndexType& total_IDs,
-                           IndexType& total_values)
+void calcTotalIDsAndValues(IndexType max_IDs, IndexType& total_IDs, IndexType& total_values)
 {
   total_IDs = (max_IDs * (max_IDs + 1)) / 2;
   total_values = 0;
@@ -926,10 +906,7 @@ TEST(mint_connectivity_array, NoIndirectionNativeAppend)
   internal::testAppend(native_hex, max_IDs, values);
 
   /* Check that the number of IDs is correct. */
-  internal::checkConnectivity(native_vertex,
-                              false,
-                              total_IDs,
-                              total_IDs * vertex_stride);
+  internal::checkConnectivity(native_vertex, false, total_IDs, total_IDs * vertex_stride);
   internal::checkConnectivity(native_hex, false, total_IDs, total_IDs * hex_stride);
 
   delete[] values;
@@ -947,10 +924,7 @@ TEST(mint_connectivity_array_DeathTest, NoIndirectionExternalAppend)
 
   /* Create the external storage ConnectivityArrays to be tested. */
   IndexType* ext_vertex_values = new IndexType[total_IDs * vertex_stride];
-  ConnectivityArray<NO_INDIRECTION> ext_vertex(VERTEX,
-                                               0,
-                                               ext_vertex_values,
-                                               total_IDs);
+  ConnectivityArray<NO_INDIRECTION> ext_vertex(VERTEX, 0, ext_vertex_values, total_IDs);
   internal::checkConnectivity(ext_vertex, true, 0, 0, ext_vertex_values);
 
   IndexType* ext_hex_values = new IndexType[total_IDs * hex_stride];
@@ -962,16 +936,8 @@ TEST(mint_connectivity_array_DeathTest, NoIndirectionExternalAppend)
   internal::testAppend(ext_hex, max_IDs, values);
 
   /* Check that the number of IDs is correct. */
-  internal::checkConnectivity(ext_vertex,
-                              true,
-                              total_IDs,
-                              total_IDs * vertex_stride,
-                              ext_vertex_values);
-  internal::checkConnectivity(ext_hex,
-                              true,
-                              total_IDs,
-                              total_IDs * hex_stride,
-                              ext_hex_values);
+  internal::checkConnectivity(ext_vertex, true, total_IDs, total_IDs * vertex_stride, ext_vertex_values);
+  internal::checkConnectivity(ext_hex, true, total_IDs, total_IDs * hex_stride, ext_hex_values);
 
   /* Check that the external ConnectivityArrays cannot append any more. */
   EXPECT_DEATH_IF_SUPPORTED(ext_vertex.append(values), IGNORE_OUTPUT);
@@ -1013,14 +979,8 @@ TEST(mint_connectivity_array, NoIndirectionSidreAppend)
   internal::testAppend(sidre_hex, max_IDs, values);
 
   /* Check that the number of IDs is correct. */
-  internal::checkConnectivity(sidre_vertex,
-                              total_IDs,
-                              total_IDs * vertex_stride,
-                              vertex_group);
-  internal::checkConnectivity(sidre_hex,
-                              total_IDs,
-                              total_IDs * hex_stride,
-                              hex_group);
+  internal::checkConnectivity(sidre_vertex, total_IDs, total_IDs * vertex_stride, vertex_group);
+  internal::checkConnectivity(sidre_hex, total_IDs, total_IDs * hex_stride, hex_group);
 
   /* Check that restoring from sidre functions properly */
   internal::checkSidreConstructor(sidre_vertex);
@@ -1040,8 +1000,7 @@ TEST(mint_connectivity_array, IndirectionNativeAppend)
   /* Allocate and populate the types and offsets buffer. */
   IndexType* offsets;
   CellType* types;
-  const IndexType max_values =
-    internal::createOffsetsAndTypes(max_IDs, offsets, types);
+  const IndexType max_values = internal::createOffsetsAndTypes(max_IDs, offsets, types);
 
   /* Allocate and populate the values buffer. */
   const IndexType* values = internal::createValues(max_values);
@@ -1074,8 +1033,7 @@ TEST(mint_connectivity_array_DeathTest, IndirectionExternalAppend)
   /* Allocate and populate the types and offsets buffer. */
   IndexType* offsets;
   CellType* types;
-  const IndexType max_values =
-    internal::createOffsetsAndTypes(max_IDs, offsets, types);
+  const IndexType max_values = internal::createOffsetsAndTypes(max_IDs, offsets, types);
 
   /* Allocate and populate the values buffer. */
   const IndexType* values = internal::createValues(max_values);
@@ -1095,13 +1053,7 @@ TEST(mint_connectivity_array_DeathTest, IndirectionExternalAppend)
                                                  ext_mixed_types,
                                                  total_IDs,
                                                  total_values);
-  internal::checkConnectivity(ext_mixed,
-                              true,
-                              0,
-                              0,
-                              ext_mixed_values,
-                              ext_mixed_offsets,
-                              ext_mixed_types);
+  internal::checkConnectivity(ext_mixed, true, 0, 0, ext_mixed_values, ext_mixed_offsets, ext_mixed_types);
 
   /* Check that appending functions properly */
   internal::testAppend(ext_mixed, max_IDs, values, offsets, types);
@@ -1141,8 +1093,7 @@ TEST(mint_connectivity_array, IndirectionSidreAppend)
   /* Allocate and populate the types and offsets buffer. */
   IndexType* offsets;
   CellType* types;
-  const IndexType max_values =
-    internal::createOffsetsAndTypes(max_IDs, offsets, types);
+  const IndexType max_values = internal::createOffsetsAndTypes(max_IDs, offsets, types);
 
   /* Allocate and populate the values buffer. */
   const IndexType* values = internal::createValues(max_values);
@@ -1202,10 +1153,7 @@ TEST(mint_connectivity_array, NoIndirectionNativeSet)
   internal::testSet(native_hex, max_IDs, initial_values, values);
 
   /* Check that the number of IDs is correct. */
-  internal::checkConnectivity(native_vertex,
-                              false,
-                              total_IDs,
-                              total_IDs * vertex_stride);
+  internal::checkConnectivity(native_vertex, false, total_IDs, total_IDs * vertex_stride);
   internal::checkConnectivity(native_hex, false, total_IDs, total_IDs * hex_stride);
 
   delete[] values;
@@ -1225,10 +1173,7 @@ TEST(mint_connectivity_array, NoIndirectionExternalSet)
 
   /* Create the external storage ConnectivityArrays to be tested. */
   IndexType* ext_vertex_values = new IndexType[total_IDs * vertex_stride];
-  ConnectivityArray<NO_INDIRECTION> ext_vertex(VERTEX,
-                                               0,
-                                               ext_vertex_values,
-                                               total_IDs);
+  ConnectivityArray<NO_INDIRECTION> ext_vertex(VERTEX, 0, ext_vertex_values, total_IDs);
   internal::checkConnectivity(ext_vertex, true, 0, 0, ext_vertex_values);
 
   IndexType* ext_hex_values = new IndexType[total_IDs * hex_stride];
@@ -1240,16 +1185,8 @@ TEST(mint_connectivity_array, NoIndirectionExternalSet)
   internal::testSet(ext_hex, max_IDs, initial_values, values);
 
   /* Check that the number of IDs is correct. */
-  internal::checkConnectivity(ext_vertex,
-                              true,
-                              total_IDs,
-                              total_IDs * vertex_stride,
-                              ext_vertex_values);
-  internal::checkConnectivity(ext_hex,
-                              true,
-                              total_IDs,
-                              total_IDs * hex_stride,
-                              ext_hex_values);
+  internal::checkConnectivity(ext_vertex, true, total_IDs, total_IDs * vertex_stride, ext_vertex_values);
+  internal::checkConnectivity(ext_hex, true, total_IDs, total_IDs * hex_stride, ext_hex_values);
 
   /* Check that the external constructor functions properly. */
   internal::checkExternalConstructor(ext_vertex);
@@ -1290,14 +1227,8 @@ TEST(mint_connectivity_array, NoIndirectionSidreSet)
   internal::testSet(sidre_hex, max_IDs, initial_values, values);
 
   /* Check that the number of IDs is correct. */
-  internal::checkConnectivity(sidre_vertex,
-                              total_IDs,
-                              total_IDs * vertex_stride,
-                              vertex_group);
-  internal::checkConnectivity(sidre_hex,
-                              total_IDs,
-                              total_IDs * hex_stride,
-                              hex_group);
+  internal::checkConnectivity(sidre_vertex, total_IDs, total_IDs * vertex_stride, vertex_group);
+  internal::checkConnectivity(sidre_hex, total_IDs, total_IDs * hex_stride, hex_group);
 
   /* Check that restoring from sidre functions properly */
   internal::checkSidreConstructor(sidre_vertex);
@@ -1318,8 +1249,7 @@ TEST(mint_connectivity_array, IndirectionNativeSet)
   /* Allocate and populate the types and offsets buffer. */
   IndexType* offsets;
   CellType* types;
-  const IndexType max_values =
-    internal::createOffsetsAndTypes(max_IDs, offsets, types);
+  const IndexType max_values = internal::createOffsetsAndTypes(max_IDs, offsets, types);
 
   /* Allocate and populate the values buffer. */
   const IndexType* initial_values = internal::createValues(max_values, -1);
@@ -1354,8 +1284,7 @@ TEST(mint_connectivity_array, IndirectionExternalSet)
   /* Allocate and populate the types and offsets buffer. */
   IndexType* offsets;
   CellType* types;
-  const IndexType max_values =
-    internal::createOffsetsAndTypes(max_IDs, offsets, types);
+  const IndexType max_values = internal::createOffsetsAndTypes(max_IDs, offsets, types);
 
   /* Allocate and populate the values buffer. */
   const IndexType* initial_values = internal::createValues(max_values, -1);
@@ -1376,13 +1305,7 @@ TEST(mint_connectivity_array, IndirectionExternalSet)
                                                  ext_mixed_types,
                                                  total_IDs,
                                                  total_values);
-  internal::checkConnectivity(ext_mixed,
-                              true,
-                              0,
-                              0,
-                              ext_mixed_values,
-                              ext_mixed_offsets,
-                              ext_mixed_types);
+  internal::checkConnectivity(ext_mixed, true, 0, 0, ext_mixed_values, ext_mixed_offsets, ext_mixed_types);
 
   /* Append and set the values */
   internal::testSet(ext_mixed, max_IDs, initial_values, values, offsets, types);
@@ -1420,8 +1343,7 @@ TEST(mint_connectivity_array, IndirectionSidreSet)
   /* Allocate and populate the types and offsets buffer. */
   IndexType* offsets;
   CellType* types;
-  const IndexType max_values =
-    internal::createOffsetsAndTypes(max_IDs, offsets, types);
+  const IndexType max_values = internal::createOffsetsAndTypes(max_IDs, offsets, types);
 
   /* Allocate and populate the values buffer. */
   const IndexType* initial_values = internal::createValues(max_values, -1);
@@ -1481,10 +1403,7 @@ TEST(mint_connectivity_array, NoIndirectionNativeInsert)
   internal::testInsert(native_hex, total_IDs, values);
 
   /* Check that the number of IDs is correct. */
-  internal::checkConnectivity(native_vertex,
-                              false,
-                              total_IDs,
-                              total_IDs * vertex_stride);
+  internal::checkConnectivity(native_vertex, false, total_IDs, total_IDs * vertex_stride);
   internal::checkConnectivity(native_hex, false, total_IDs, total_IDs * hex_stride);
 
   delete[] values;
@@ -1501,10 +1420,7 @@ TEST(mint_connectivity_array_DeathTest, NoIndirectionExternalInsert)
 
   /* Create the external storage ConnectivityArrays to be tested. */
   IndexType* ext_vertex_values = new IndexType[total_IDs * vertex_stride];
-  ConnectivityArray<NO_INDIRECTION> ext_vertex(VERTEX,
-                                               0,
-                                               ext_vertex_values,
-                                               total_IDs);
+  ConnectivityArray<NO_INDIRECTION> ext_vertex(VERTEX, 0, ext_vertex_values, total_IDs);
   internal::checkConnectivity(ext_vertex, true, 0, 0, ext_vertex_values);
 
   IndexType* ext_hex_values = new IndexType[total_IDs * hex_stride];
@@ -1516,16 +1432,8 @@ TEST(mint_connectivity_array_DeathTest, NoIndirectionExternalInsert)
   internal::testInsert(ext_hex, total_IDs, values);
 
   /* Check that the number of IDs is correct. */
-  internal::checkConnectivity(ext_vertex,
-                              true,
-                              total_IDs,
-                              total_IDs * vertex_stride,
-                              ext_vertex_values);
-  internal::checkConnectivity(ext_hex,
-                              true,
-                              total_IDs,
-                              total_IDs * hex_stride,
-                              ext_hex_values);
+  internal::checkConnectivity(ext_vertex, true, total_IDs, total_IDs * vertex_stride, ext_vertex_values);
+  internal::checkConnectivity(ext_hex, true, total_IDs, total_IDs * hex_stride, ext_hex_values);
 
   /* Check that the external ConnectivityArrays cannot insert any more. */
   EXPECT_DEATH_IF_SUPPORTED(ext_vertex.insert(values, 0), IGNORE_OUTPUT);
@@ -1567,14 +1475,8 @@ TEST(mint_connectivity_array, NoIndirectionSidreInsert)
   internal::testInsert(sidre_hex, total_IDs, values);
 
   /* Check that the number of IDs is correct. */
-  internal::checkConnectivity(sidre_vertex,
-                              total_IDs,
-                              total_IDs * vertex_stride,
-                              vertex_group);
-  internal::checkConnectivity(sidre_hex,
-                              total_IDs,
-                              total_IDs * hex_stride,
-                              hex_group);
+  internal::checkConnectivity(sidre_vertex, total_IDs, total_IDs * vertex_stride, vertex_group);
+  internal::checkConnectivity(sidre_hex, total_IDs, total_IDs * hex_stride, hex_group);
 
   /* Check that restoring from sidre functions properly */
   internal::checkSidreConstructor(sidre_vertex);
@@ -1594,8 +1496,7 @@ TEST(mint_connectivity_array, IndirectionNativeInsert)
   /* Allocate and populate the types and offsets buffer. */
   IndexType* offsets;
   CellType* types;
-  const IndexType total_values =
-    internal::createOffsetsAndTypes(total_IDs, offsets, types);
+  const IndexType total_values = internal::createOffsetsAndTypes(total_IDs, offsets, types);
 
   /* Allocate and populate the values buffer. */
   const IndexType* values = internal::createValues(total_values);
@@ -1623,8 +1524,7 @@ TEST(mint_connectivity_array_DeathTest, IndirectionExternalInsert)
   /* Allocate and populate the types and offsets buffer. */
   IndexType* offsets;
   CellType* types;
-  const IndexType total_values =
-    internal::createOffsetsAndTypes(total_IDs, offsets, types);
+  const IndexType total_values = internal::createOffsetsAndTypes(total_IDs, offsets, types);
 
   /* Allocate and populate the values buffer. */
   const IndexType* values = internal::createValues(total_values);
@@ -1639,13 +1539,7 @@ TEST(mint_connectivity_array_DeathTest, IndirectionExternalInsert)
                                                  ext_mixed_types,
                                                  total_IDs,
                                                  total_values);
-  internal::checkConnectivity(ext_mixed,
-                              true,
-                              0,
-                              0,
-                              ext_mixed_values,
-                              ext_mixed_offsets,
-                              ext_mixed_types);
+  internal::checkConnectivity(ext_mixed, true, 0, 0, ext_mixed_values, ext_mixed_offsets, ext_mixed_types);
 
   /* Insert the values. */
   internal::testInsert(ext_mixed, total_IDs, values, offsets, types);
@@ -1660,8 +1554,7 @@ TEST(mint_connectivity_array_DeathTest, IndirectionExternalInsert)
                               ext_mixed_types);
 
   /* Check that the external ConnectivityArrays cannot append any more. */
-  EXPECT_DEATH_IF_SUPPORTED(ext_mixed.insert(values, 0, 1, VERTEX),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(ext_mixed.insert(values, 0, 1, VERTEX), IGNORE_OUTPUT);
 
   /* Check that the external constructor functions properly. */
   internal::checkExternalConstructor(ext_mixed);
@@ -1686,8 +1579,7 @@ TEST(mint_connectivity_array, IndirectionSidreInsert)
   /* Allocate and populate the types and offsets buffer. */
   IndexType* offsets;
   CellType* types;
-  const IndexType total_values =
-    internal::createOffsetsAndTypes(total_IDs, offsets, types);
+  const IndexType total_values = internal::createOffsetsAndTypes(total_IDs, offsets, types);
 
   /* Allocate and populate the values buffer. */
   const IndexType* values = internal::createValues(total_values);
@@ -1741,11 +1633,8 @@ TEST(mint_connectivity_array_DeathTest, NoIndirectionNativeCapacity)
     /* Append the values */
     if(ratio < 1.0)
     {
-      EXPECT_DEATH_IF_SUPPORTED(
-        internal::testCapacity(native_vertex, n_IDs, values),
-        IGNORE_OUTPUT);
-      EXPECT_DEATH_IF_SUPPORTED(internal::testCapacity(native_hex, n_IDs, values),
-                                IGNORE_OUTPUT);
+      EXPECT_DEATH_IF_SUPPORTED(internal::testCapacity(native_vertex, n_IDs, values), IGNORE_OUTPUT);
+      EXPECT_DEATH_IF_SUPPORTED(internal::testCapacity(native_hex, n_IDs, values), IGNORE_OUTPUT);
     }
     else
     {
@@ -1786,11 +1675,8 @@ TEST(mint_connectivity_array_DeathTest, NoIndirectionSidreCapacity)
     /* Append the values */
     if(ratio < 1.0)
     {
-      EXPECT_DEATH_IF_SUPPORTED(
-        internal::testCapacity(sidre_vertex, n_IDs, values),
-        IGNORE_OUTPUT);
-      EXPECT_DEATH_IF_SUPPORTED(internal::testCapacity(sidre_hex, n_IDs, values),
-                                IGNORE_OUTPUT);
+      EXPECT_DEATH_IF_SUPPORTED(internal::testCapacity(sidre_vertex, n_IDs, values), IGNORE_OUTPUT);
+      EXPECT_DEATH_IF_SUPPORTED(internal::testCapacity(sidre_hex, n_IDs, values), IGNORE_OUTPUT);
     }
     else
     {
@@ -1815,8 +1701,7 @@ TEST(mint_connectivity_array_DeathTest, IndirectionNativeCapacity)
   /* Allocate and populate the types and offsets buffer. */
   IndexType* offsets;
   CellType* types;
-  const IndexType max_values =
-    internal::createOffsetsAndTypes(n_IDs, offsets, types);
+  const IndexType max_values = internal::createOffsetsAndTypes(n_IDs, offsets, types);
 
   /* Allocate and populate the values buffer. */
   const IndexType* values = internal::createValues(max_values);
@@ -1831,9 +1716,8 @@ TEST(mint_connectivity_array_DeathTest, IndirectionNativeCapacity)
     /* Append the values */
     if(ratio < 1.0)
     {
-      EXPECT_DEATH_IF_SUPPORTED(
-        internal::testCapacity(native_mixed, n_IDs, values, offsets, types),
-        IGNORE_OUTPUT);
+      EXPECT_DEATH_IF_SUPPORTED(internal::testCapacity(native_mixed, n_IDs, values, offsets, types),
+                                IGNORE_OUTPUT);
     }
     else
     {
@@ -1858,8 +1742,7 @@ TEST(mint_connectivity_array_DeathTest, IndirectionSidreCapacity)
   /* Allocate and populate the types and offsets buffer. */
   IndexType* offsets;
   CellType* types;
-  const IndexType max_values =
-    internal::createOffsetsAndTypes(n_IDs, offsets, types);
+  const IndexType max_values = internal::createOffsetsAndTypes(n_IDs, offsets, types);
 
   /* Allocate and populate the values buffer. */
   const IndexType* values = internal::createValues(max_values);
@@ -1875,9 +1758,8 @@ TEST(mint_connectivity_array_DeathTest, IndirectionSidreCapacity)
     /* Append the values */
     if(ratio < 1.0)
     {
-      EXPECT_DEATH_IF_SUPPORTED(
-        internal::testCapacity(sidre_mixed, n_IDs, values, offsets, types),
-        IGNORE_OUTPUT);
+      EXPECT_DEATH_IF_SUPPORTED(internal::testCapacity(sidre_mixed, n_IDs, values, offsets, types),
+                                IGNORE_OUTPUT);
     }
     else
     {

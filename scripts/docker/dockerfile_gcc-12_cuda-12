@@ -1,0 +1,83 @@
+# Docker image for Axom tutorial with CUDA support.
+# Docker container runs a VS Code server accessible through a web browser.
+# Docker and openvscode setup based on the RAJA suite tutorial:
+# https://github.com/LLNL/raja-suite-tutorial/tree/main/containers/tutorial
+
+# This script can be run with the following command from the root axom directory:
+# docker build --build-arg branch=<your branch here, defaults to develop> -t "axom/tpls:gcc-12-cuda-12" -f ./scripts/docker/dockerfile_gcc-12_cuda-12 .
+
+# Command to launch openvscode server with the resulting docker image:
+# docker run --init --gpus all --restart=always -p 3000:3000 <image id>
+
+FROM ghcr.io/llnl/radiuss:cuda-12-3-ubuntu-22.04
+# Tutorial branch
+ARG branch=develop
+ARG USER=axomdev
+ENV HOME /home/${USER}
+
+SHELL ["/bin/bash", "-c"]
+RUN sudo apt-get update -y
+RUN sudo apt-get install -y supervisor
+RUN sudo useradd --create-home --shell /bin/bash ${USER}
+RUN sudo apt-get install doxygen elfutils gfortran graphviz language-pack-en-base less libopenblas-dev libomp-dev mpich python3-sphinx ssh tree unzip cpio libxcursor1 libxkbcommon0 -fy
+
+WORKDIR /opt/archives
+RUN sudo curl -L https://github.com/gitpod-io/openvscode-server/releases/download/openvscode-server-v1.69.1/openvscode-server-v1.69.1-linux-x64.tar.gz > \
+    /opt/archives/openvscode-server-v1.69.1-linux-x64.tar.gz
+RUN sudo tar xzf openvscode-server-v1.69.1-linux-x64.tar.gz && sudo chown -R ${USER}:${USER} openvscode-server-v1.69.1-linux-x64
+
+
+WORKDIR ${HOME}
+USER ${USER}
+
+# Clone axom at axom_repo directory
+RUN git clone --recursive --branch $branch https://github.com/LLNL/axom.git axom_repo
+
+# Build/install TPLs via spack and then remove the temporary build directory on success
+RUN cd ${HOME}/axom_repo && python3 ./scripts/uberenv/uberenv.py --spack-env-file=./scripts/spack/configs/docker/ubuntu22_cuda/spack.yaml \
+                                                                 --project-json=.uberenv_config.json \
+                                                                 --spec="%gcc@12.3.0+mfem+adiak+caliper+cuda cuda_arch=70 ^raja+openmp+cuda ^umpire+openmp+cuda" \
+                                                                 --prefix=${HOME}/axom_tpls -k \
+                         && rm -rf ${HOME}/axom_tpls/build_stage ${HOME}/axom_tpls/spack
+
+# Make sure the new hostconfig works with a release build
+# Note: having high job slots causes build log to disappear and job to fail
+# Omit testing step, hangs at slam_lulesh unit test (same behavior for azure pipeline images, as well)
+# Disable link-time optimization from MPI wrapper causing linkage failures
+RUN cd ${HOME}/axom_repo && python3 config-build.py -hc *cuda.cmake \
+                                                    -bp ${HOME}/axom_repo/build-release \
+                                                    -ip ${HOME}/axom_repo/install-release \
+                                                    -DCMAKE_EXE_LINKER_FLAGS=-fno-lto  \
+                                                    -bt Release \
+                         && cd ${HOME}/axom_repo/build-release \
+                         && make -j4 install
+
+# Install VisIt binary
+# Download tarball, installer, test script, perform installation and cleanup
+# Note - testing is done with command: ./visit/bin/visit -cli -nowin -s test_visit.py
+# (must be done manually; hangs when ran on Apple Silicon/ARM, x86_64/amd64 is okay)
+RUN wget https://github.com/visit-dav/visit/releases/download/v3.4.2/visit3_4_2.linux-x86_64-ubuntu22.tar.gz \
+    && wget https://github.com/visit-dav/visit/releases/download/v3.4.2/visit-install3_4_2 \
+    && wget https://raw.githubusercontent.com/visit-dav/visit/refs/heads/develop/scripts/docker/test_visit.py \
+    && chmod 777 visit-install3_4_2 \
+    && ./visit-install3_4_2 -c none 3.4.2 linux-x86_64-ubuntu22 ${HOME}/visit \
+    && rm -rf visit-install3_4_2 visit3_4_2.linux-x86_64-ubuntu22.tar.gz
+
+# Larger STL meshes for testing (optional)
+# Note: These meshes are large, copied from local directory instead of
+#        downloaded from Github.
+# COPY boxedSphere.stl car.stl porsche.stl ${HOME}/axom_repo/data/quest
+
+
+# Create symlinks for easy access to tutorial material (optional)
+# RUN ln -s ${HOME}/axom_repo/install-release/examples/axom/radiuss_tutorial/ ${HOME}/radiuss_tutorial \
+# && ln -s ${HOME}/axom_repo/data/quest ${HOME}/radiuss_tutorial/stl_meshes
+
+USER root
+ADD ./scripts/docker/supervisord.conf /etc/supervisord.conf
+RUN sed -i "s/XXX/${USER}/g" /etc/supervisord.conf
+
+RUN touch /var/log/openvscode-server.log && chown -R ${USER}:${USER} /var/log/openvscode-server.log
+
+CMD ["/usr/bin/supervisord"]
+

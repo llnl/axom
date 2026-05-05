@@ -1,0 +1,337 @@
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
+//
+// SPDX-License-Identifier: (BSD-3-Clause)
+
+#include "axom/config.hpp"
+
+#include "axom/quest/MeshClipper.hpp"
+#include "axom/quest/detail/clipping/MeshClipperImpl.hpp"
+#include "axom/core/execution/execution_space.hpp"
+#include "axom/core/execution/runtime_policy.hpp"
+#include "axom/slic/interface/slic_macros.hpp"
+#include "axom/fmt.hpp"
+
+namespace axom
+{
+namespace quest
+{
+namespace experimental
+{
+
+MeshClipper::MeshClipper(quest::experimental::ShapeMesh& shapeMesh,
+                         const std::shared_ptr<quest::experimental::MeshClipperStrategy>& strategy)
+  : m_shapeMesh(shapeMesh)
+  , m_strategy(strategy)
+  , m_impl(newImpl())
+  , m_verbose(false)
+  , m_screenLevel(3)
+{
+  // Initialize statistics used by this class.
+  m_counterStats["cellsIn"].set(axom::IndexType {0});
+  m_counterStats["cellsOn"].set(axom::IndexType {0});
+  m_counterStats["cellsOut"].set(axom::IndexType {0});
+  m_counterStats["tetsIn"].set(axom::IndexType {0});
+  m_counterStats["tetsOn"].set(axom::IndexType {0});
+  m_counterStats["tetsOut"].set(axom::IndexType {0});
+}
+
+void MeshClipper::clip(axom::Array<double>& ovlap)
+{
+  const int allocId = m_shapeMesh.getAllocatorID();
+  const axom::IndexType cellCount = m_shapeMesh.getCellCount();
+
+  // Resize output array and use appropriate allocator.
+  if(ovlap.size() < cellCount || ovlap.getAllocatorID() != allocId)
+  {
+    AXOM_ANNOTATE_SCOPE("MeshClipper:clip_alloc");
+    ovlap = axom::Array<double>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
+  }
+  clip(ovlap.view());
+}
+
+/**
+ * @brief Orchestrates the geometry clipping by using the capabilities of the
+ * MeshClipperStrategy implementation.
+ *
+ * If the strategy can label cells/tets as inside/on/outside geometry
+ * boundary, use that to reduce use of expensive primitive clipping methods.
+ *
+ * Regardless of labeling, try to use specialized clipping first.
+ * If specialized methods aren't implemented, resort to discretizing
+ * geometry into tets or octs for clipping against mesh cells.
+ */
+void MeshClipper::clip(axom::ArrayView<double> ovlap)
+{
+  SLIC_ASSERT(ovlap.size() == m_shapeMesh.getCellCount());
+  SLIC_ASSERT(ovlap.getAllocatorID() == m_shapeMesh.getAllocatorID());
+
+  auto getIndexTypeReference = [](conduit::Node& n) -> axom::IndexType& {
+    axom::IndexType* ptr = n.value();
+    return *ptr;
+  };
+
+  auto& cellsInCount = getIndexTypeReference(m_counterStats["cellsIn"]);
+  auto& cellsOnCount = getIndexTypeReference(m_counterStats["cellsOn"]);
+  auto& cellsOutCount = getIndexTypeReference(m_counterStats["cellsOut"]);
+  auto& tetsInCount = getIndexTypeReference(m_counterStats["tetsIn"]);
+  auto& tetsOnCount = getIndexTypeReference(m_counterStats["tetsOn"]);
+  auto& tetsOutCount = getIndexTypeReference(m_counterStats["tetsOut"]);
+
+  // Try to label cells as inside, outside or on shape boundary
+  axom::Array<LabelType> cellLabels;
+  bool withCellInOut = false;
+  if(m_screenLevel >= 1)
+  {
+    AXOM_ANNOTATE_BEGIN("MeshClipper:label_cells");
+    withCellInOut = m_strategy->labelCellsInOut(m_shapeMesh, cellLabels);
+    AXOM_ANNOTATE_END("MeshClipper:label_cells");
+  }
+
+  bool done = false;
+
+  if(withCellInOut)
+  {
+    SLIC_ERROR_IF(
+      cellLabels.size() != m_shapeMesh.getCellCount(),
+      axom::fmt::format("MeshClipperStrategy '{}' did not return the correct array size of {}",
+                        m_strategy->name(),
+                        m_shapeMesh.getCellCount()));
+    SLIC_ERROR_IF(cellLabels.getAllocatorID() != m_shapeMesh.getAllocatorID(),
+                  axom::fmt::format("MeshClipperStrategy '{}' failed to provide cellLabels data "
+                                    "with the required allocator id {}",
+                                    m_strategy->name(),
+                                    m_shapeMesh.getAllocatorID()));
+
+    if(m_verbose)
+    {
+      AXOM_ANNOTATE_SCOPE("MeshClipper:verbose");
+      getLabelCounts(cellLabels, cellsInCount, cellsOnCount, cellsOutCount);
+      logClippingStats();
+    }
+
+    AXOM_ANNOTATE_BEGIN("MeshClipper:process_in_out");
+
+    m_impl->initVolumeOverlaps(cellLabels.view(), ovlap);
+
+    axom::Array<axom::IndexType> cellsOnBdry;
+    m_impl->collectOnIndices(cellLabels.view(), cellsOnBdry);
+
+    axom::Array<LabelType> tetLabels;
+    bool withTetInOut = false;
+    if(m_screenLevel >= 2)
+    {
+      AXOM_ANNOTATE_BEGIN("MeshClipper:label_tets");
+      withTetInOut = m_strategy->labelTetsInOut(m_shapeMesh, cellsOnBdry.view(), tetLabels);
+      AXOM_ANNOTATE_END("MeshClipper:label_tets");
+    }
+
+    axom::Array<axom::IndexType> tetsOnBdry;
+
+    if(withTetInOut)
+    {
+      SLIC_ERROR_IF(tetLabels.size() != NUM_TETS_PER_HEX * cellsOnBdry.size(),
+                    axom::fmt::format("MeshClipperStrategy '{}' did not return the correct"
+                                      " tet label array size of {}",
+                                      m_strategy->name(),
+                                      NUM_TETS_PER_HEX * cellsOnBdry.size()));
+      SLIC_ERROR_IF(tetLabels.getAllocatorID() != m_shapeMesh.getAllocatorID(),
+                    axom::fmt::format("MeshClipperStrategy '{}' failed to provide"
+                                      "tetLabels data with the required allocator id {}",
+                                      m_strategy->name(),
+                                      m_shapeMesh.getAllocatorID()));
+
+      if(m_verbose)
+      {
+        AXOM_ANNOTATE_SCOPE("MeshClipper:verbose");
+        getLabelCounts(tetLabels, tetsInCount, tetsOnCount, tetsOutCount);
+        logClippingStats();
+      }
+
+      m_impl->collectOnIndices(tetLabels.view(), tetsOnBdry);
+      m_impl->remapTetIndices(cellsOnBdry, tetsOnBdry);
+
+      SLIC_ASSERT(tetsOnBdry.getAllocatorID() == m_shapeMesh.getAllocatorID());
+      SLIC_ASSERT(tetsOnBdry.size() <= cellsOnBdry.size() * NUM_TETS_PER_HEX);
+
+      m_impl->addVolumesOfInteriorTets(cellsOnBdry.view(), tetLabels.view(), ovlap);
+    }
+
+    AXOM_ANNOTATE_END("MeshClipper:process_in_out");
+
+    //
+    // If implementation has a specialized clip, use it.
+    //
+    AXOM_ANNOTATE_BEGIN("MeshClipper:specialized_clip");
+    if(withTetInOut)
+    {
+      done = m_strategy->specializedClipTets(m_shapeMesh, ovlap, tetsOnBdry, m_counterStats);
+    }
+    else
+    {
+      done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, cellsOnBdry, m_counterStats);
+    }
+    AXOM_ANNOTATE_END("MeshClipper:specialized_clip");
+
+    if(!done)
+    {
+      AXOM_ANNOTATE_SCOPE("MeshClipper:clip_fcn");
+      if(withTetInOut)
+      {
+        m_impl->computeClipVolumes3DTets(tetsOnBdry.view(), ovlap, m_counterStats);
+      }
+      else
+      {
+        m_impl->computeClipVolumes3D(cellsOnBdry.view(), ovlap, m_counterStats);
+      }
+    }
+  }
+  else  // !withCellInOut
+  {
+    m_impl->zeroVolumeOverlaps(ovlap);
+    AXOM_ANNOTATE_BEGIN("MeshClipper:specialized_clip");
+    done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, m_counterStats);
+    AXOM_ANNOTATE_END("MeshClipper:specialized_clip");
+
+    if(!done)
+    {
+      AXOM_ANNOTATE_SCOPE("MeshClipper:clip_fcn");
+      m_impl->computeClipVolumes3D(ovlap, m_counterStats);
+    }
+  }
+}
+
+/*!
+ * @brief Allocate an Impl for the execution-space computations
+ * of this clipper.
+ */
+std::unique_ptr<MeshClipper::Impl> MeshClipper::newImpl()
+{
+  using RuntimePolicy = axom::runtime_policy::Policy;
+
+  auto runtimePolicy = m_shapeMesh.getRuntimePolicy();
+
+  std::unique_ptr<Impl> impl;
+  if(runtimePolicy == RuntimePolicy::seq)
+  {
+    impl.reset(new detail::MeshClipperImpl<axom::SEQ_EXEC>(*this));
+  }
+#ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
+  else if(runtimePolicy == RuntimePolicy::omp)
+  {
+    impl.reset(new detail::MeshClipperImpl<axom::OMP_EXEC>(*this));
+  }
+#endif
+#ifdef AXOM_RUNTIME_POLICY_USE_CUDA
+  else if(runtimePolicy == RuntimePolicy::cuda)
+  {
+    impl.reset(new detail::MeshClipperImpl<axom::CUDA_EXEC<256>>(*this));
+  }
+#endif
+#ifdef AXOM_RUNTIME_POLICY_USE_HIP
+  else if(runtimePolicy == RuntimePolicy::hip)
+  {
+    impl.reset(new detail::MeshClipperImpl<axom::HIP_EXEC<256>>(*this));
+  }
+#endif
+  else
+  {
+    SLIC_ERROR(axom::fmt::format("MeshClipper has no impl for runtime policy {}", runtimePolicy));
+  }
+  return impl;
+}
+
+#if defined(AXOM_USE_MPI)
+template <typename T>
+void globalReduce(axom::Array<T>& values, MPI_Op reduceOp)
+{
+  axom::Array<T> localValues(values);
+  MPI_Allreduce(localValues.data(),
+                values.data(),
+                values.size(),
+                axom::mpi_traits<T>::type,
+                reduceOp,
+                MPI_COMM_WORLD);
+}
+#endif
+
+void MeshClipper::accumulateClippingStats(conduit::Node& curStats, const conduit::Node& newStats)
+{
+  for(int i = 0; i < newStats.number_of_children(); ++i)
+  {
+    const auto& newStat = newStats.child(i);
+    SLIC_ERROR_IF(!newStat.dtype().is_integer(),
+                  "MeshClipper statistic must be integer"
+                  " (at least until a need for floats arises).");
+    auto& currentStat = curStats[newStat.name()];
+    const axom::IndexType newStatValue = newStat.value();
+    if(currentStat.dtype().is_empty())
+    {
+      currentStat.set(newStatValue);
+    }
+    else
+    {
+      axom::IndexType currentStatValue = currentStat.value();
+      currentStatValue += newStatValue;
+      currentStat.set(currentStatValue);
+    }
+  }
+}
+
+conduit::Node MeshClipper::getGlobalClippingStats() const
+{
+  conduit::Node stats;
+  auto& locNode = stats["loc"];
+  auto& maxNode = stats["max"];
+  auto& sumNode = stats["sum"];
+
+  locNode.set(m_counterStats);
+  sumNode.set(m_counterStats);
+  maxNode.set(m_counterStats);
+
+#if defined(AXOM_USE_MPI)
+  // Do sum and max reductions.
+  axom::Array<axom::IndexType> sums(0, sumNode.number_of_children());
+  for(int i = 0; i < sumNode.number_of_children(); ++i)
+  {
+    const axom::IndexType value = locNode.child(i).value();
+    sums.push_back(value);
+  }
+  axom::Array<axom::IndexType> maxs(sums);
+  globalReduce(maxs, MPI_MAX);
+  globalReduce(sums, MPI_SUM);
+
+  for(int i = 0; i < sumNode.number_of_children(); ++i)
+  {
+    maxNode.child(i).set(maxs[i]);
+    sumNode.child(i).set(sums[i]);
+  }
+#endif
+
+  return stats;
+}
+
+void MeshClipper::logClippingStats(bool local, bool sum, bool max) const
+{
+  conduit::Node stats = getGlobalClippingStats();
+  if(local)
+  {
+    SLIC_INFO(std::string("MeshClipper loc-stats: ") +
+              stats["loc"].to_string("yaml", 2, 0, "", " "));
+  }
+  if(sum)
+  {
+    SLIC_INFO(std::string("MeshClipper sum-stats: ") +
+              stats["sum"].to_string("yaml", 2, 0, "", " "));
+  }
+  if(max)
+  {
+    SLIC_INFO(std::string("MeshClipper max-stats: ") +
+              stats["max"].to_string("yaml", 2, 0, "", " "));
+  }
+}
+
+}  // namespace experimental
+}  // end namespace quest
+}  // end namespace axom

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "axom/mint/config.hpp"  // for compile-time definitions
@@ -9,7 +10,7 @@
 #include "axom/mint/mesh/CellTypes.hpp"        // for CellType enum
 #include "axom/mint/mesh/RectilinearMesh.hpp"  // for RectilinearMesh
 #include "axom/mint/mesh/ParticleMesh.hpp"     // for ParticleMesh
-#include "StructuredMesh_helpers.hpp"  // for StructuredMesh test helpers
+#include "StructuredMesh_helpers.hpp"          // for StructuredMesh test helpers
 
 // Slic includes
 #include "axom/slic.hpp"
@@ -270,10 +271,7 @@ TEST(mint_mesh_rectilinear_mesh, sidre_constructor)
       break;
     default:
       EXPECT_EQ(idim, 3);
-      m = new RectilinearMesh(meshGroup,
-                              N[I_DIRECTION],
-                              N[J_DIRECTION],
-                              N[K_DIRECTION]);
+      m = new RectilinearMesh(meshGroup, N[I_DIRECTION], N[J_DIRECTION], N[K_DIRECTION]);
     }  // END switch
 
     axom::mint::internal::check_constructor(m, STRUCTURED_RECTILINEAR_MESH, idim, N);
@@ -296,9 +294,7 @@ TEST(mint_mesh_rectilinear_mesh, sidre_constructor)
 
     for(int ii = 0; ii < idim; ++ii)
     {
-      check_coordinate(m->getCoordinateArray(ii),
-                       expected_coords,
-                       m->getNodeResolution(ii));
+      check_coordinate(m->getCoordinateArray(ii), expected_coords, m->getNodeResolution(ii));
     }
 
     axom::mint::internal::check_fields(m, true);
@@ -356,8 +352,8 @@ TEST(mint_mesh_rectilinear_mesh, get_node)
         EXPECT_DOUBLE_EQ(zz[k], node[Z_COORDINATE]);
 
       }  // END for all i
-    }    // END for all j
-  }      // END for all k
+    }  // END for all j
+  }  // END for all k
 }
 
 //------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 **WHAT IS A DOCKERFILE?**
-Dockerfiles are used to create Docker images.  Docker images are the 'recipes' used to build virtual environments called containers. These dockerfiles all use a base Linux image that has a particular compiler installed.  These base images were created by David Beckinsale and are created from this GitHub respository:
+Dockerfiles are used to create Docker images.  Docker images are the 'recipes' used to build virtual environments called containers. These dockerfiles all use a base Linux image that has a particular compiler installed.  These base images were created by David Beckingsale and are created from this GitHub respository:
 https://github.com/LLNL/radiuss-docker
 
 **EXPLANATION OF DOCKERFILE CONTENTS**

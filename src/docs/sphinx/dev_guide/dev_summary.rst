@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -209,7 +210,7 @@ getting started with them.
 
   * See :ref:`gitlab-label` for more information about how we use GitLab.
 
-* **Azure Pipelines.** We use Azure Pipelines for continuous integration to ensure every code change passes a
-  level of quality before being merged.:  `Azure Pipelines <https://azure.microsoft.com/en-us/services/devops/pipelines/>`_
+* **GitHub Actions.** We use GitHub Actions for continuous integration to ensure every code change passes a
+  level of quality before being merged.:  `GitHub Actions <https://github.com/LLNL/axom/actions>`_
 
-  * See :ref:`azure_pipelines-label` for more information about how we use Azure Pipelines.
+  * See :ref:`github_actions-label` for more information about how we use GitHub Actions.

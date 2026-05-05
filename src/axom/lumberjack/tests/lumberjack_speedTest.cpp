@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -24,10 +25,8 @@ int main(int argc, char** argv)
   {
     std::cout << "Error: Wrong amount of command line arguments given. "
               << "Usage:" << std::endl
-              << "   " << argv[0]
-              << " <b|r depending on binary or root communicator>"
-              << " <num messages before push once> <file to be read>"
-              << std::endl;
+              << "   " << argv[0] << " <b|r depending on binary or root communicator>"
+              << " <num messages before push once> <file to be read>" << std::endl;
     return 1;
   }
   std::string communicatorName = "";
@@ -45,16 +44,14 @@ int main(int argc, char** argv)
   else
   {
     std::cout << "Error: First parameter must be either 'b' or 'r' for "
-              << "BinaryTreeCommunicator or RootCommunicator respectively."
-              << std::endl;
+              << "BinaryTreeCommunicator or RootCommunicator respectively." << std::endl;
     return 1;
   }
 
   std::ifstream file(fileName);
   if(!file.good())
   {
-    std::cout << "Error: Given file was unable to open: " << fileName
-              << std::endl;
+    std::cout << "Error: Given file was unable to open: " << fileName << std::endl;
     return 1;
   }
 
@@ -104,7 +101,7 @@ int main(int argc, char** argv)
   int linesSize = (int)lines.size();
   for(int i = 0; i < linesSize; ++i)
   {
-    lj.queueMessage(lines[i]);
+    lj.queueMessage(lines[i], static_cast<double>(i));
     ++cycleCount;
     if(cycleCount > cycleLimit)
     {
@@ -137,8 +134,7 @@ int main(int argc, char** argv)
   // Output elapsed time
   if(commRank == 0)
   {
-    std::cout << "Elapsed time: "
-              << ((double)(end - begin) * 1000) / CLOCKS_PER_SEC << std::endl;
+    std::cout << "Elapsed time: " << ((double)(end - begin) * 1000) / CLOCKS_PER_SEC << std::endl;
   }
 
   // Finalize lumberjack

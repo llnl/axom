@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -76,12 +77,11 @@ public:
    * or T{}
    *******************************************************************************
    */
-  template <
-    typename T,
-    typename SFINAE = typename std::enable_if<
-      detail::is_inlet_primitive<T>::value || detail::is_inlet_primitive_array<T>::value ||
-      detail::is_inlet_primitive_dict<T>::value || detail::is_std_function<T>::value ||
-      detail::is_primitive_std_vector<T>::value>::type>
+  template <typename T,
+            typename SFINAE = typename std::enable_if<
+              detail::is_inlet_primitive<T>::value || detail::is_inlet_primitive_array<T>::value ||
+              detail::is_inlet_primitive_dict<T>::value || detail::is_std_function<T>::value ||
+              detail::is_primitive_std_vector<T>::value>::type>
   operator T() const
   {
     return get<T>();
@@ -149,9 +149,7 @@ public:
    *******************************************************************************
    */
   template <typename T>
-  typename std::enable_if<!detail::is_inlet_primitive<T>::value &&
-                            !detail::is_std_function<T>::value,
-                          T>::type
+  typename std::enable_if<!detail::is_inlet_primitive<T>::value && !detail::is_std_function<T>::value, T>::type
   get() const
   {
     SLIC_ASSERT_MSG(m_container != nullptr,

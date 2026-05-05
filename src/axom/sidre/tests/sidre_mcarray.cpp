@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -34,7 +35,13 @@ axom::IndexType calc_new_capacity(MCArray<T>& v, axom::IndexType increase)
   axom::IndexType new_num_tuples = (v.size() / num_components) + increase;
   if((new_num_tuples * num_components) > v.capacity())
   {
-    return new_num_tuples * v.getResizeRatio() + 0.5;
+    axom::IndexType new_capacity = v.capacity() * v.getResizeRatio() + 0.5;
+    axom::IndexType remainder = new_capacity % num_components;
+    if(remainder > 0)
+    {
+      new_capacity += num_components - remainder;
+    }
+    return axom::utilities::max<axom::IndexType>(new_capacity / num_components, new_num_tuples);
   }
 
   return v.capacity() / num_components;
@@ -472,9 +479,7 @@ void check_resize(MCArray<T>& v)
   /* Append a bunch of tuples to fill in up to the capacity. Resize should
    * not occur. */
   old_capacity = capacity;
-  for(axom::IndexType i = size / num_components;
-      i < old_capacity / num_components;
-      ++i)
+  for(axom::IndexType i = size / num_components; i < old_capacity / num_components; ++i)
   {
     for(axom::IndexType j = 0; j < num_components; ++j)
     {
@@ -696,8 +701,7 @@ void check_emplace(MCArray<T>& v)
     EXPECT_EQ(v((size / num_components) - 10, j), T());
   }
 
-  for(axom::IndexType i = (size / num_components) - 9; i < size / num_components;
-      ++i)
+  for(axom::IndexType i = (size / num_components) - 9; i < size / num_components; ++i)
   {
     for(axom::IndexType j = 0; j < num_components; ++j)
     {
@@ -750,8 +754,7 @@ void check_emplace(MCArray<T>& v)
     EXPECT_EQ(v(size - 10, j), T());
   }
 
-  for(axom::IndexType i = (size / num_components) - 9; i < size / num_components;
-      ++i)
+  for(axom::IndexType i = (size / num_components) - 9; i < size / num_components; ++i)
   {
     for(axom::IndexType j = 0; j < num_components; ++j)
     {
@@ -912,10 +915,7 @@ TEST(sidre_core_mcarray, checkStorage)
   {
     for(axom::IndexType n_components = 1; n_components <= 4; n_components++)
     {
-      MCArray<int> v_int_sidre(root->createView("int"),
-                               ZERO,
-                               n_components,
-                               capacity * n_components);
+      MCArray<int> v_int_sidre(root->createView("int"), ZERO, n_components, capacity * n_components);
       internal::check_storage(v_int_sidre);
 
       MCArray<double> v_double_sidre(root->createView("double"),
@@ -940,10 +940,7 @@ TEST(sidre_core_mcarray, checkFill)
     axom::IndexType size = capacity / 2;
     for(axom::IndexType n_components = 1; n_components <= 4; n_components++)
     {
-      MCArray<int> v_int_sidre(root->createView("int"),
-                               size,
-                               n_components,
-                               capacity * n_components);
+      MCArray<int> v_int_sidre(root->createView("int"), size, n_components, capacity * n_components);
       internal::check_fill(v_int_sidre);
 
       MCArray<double> v_double_sidre(root->createView("double"),
@@ -968,10 +965,7 @@ TEST(sidre_core_mcarray, checkSet)
     axom::IndexType size = capacity / 2;
     for(axom::IndexType n_components = 1; n_components <= 4; n_components++)
     {
-      MCArray<int> v_int_sidre(root->createView("int"),
-                               size,
-                               n_components,
-                               capacity * n_components);
+      MCArray<int> v_int_sidre(root->createView("int"), size, n_components, capacity * n_components);
       internal::check_set(v_int_sidre);
 
       MCArray<double> v_double_sidre(root->createView("double"),
@@ -999,10 +993,7 @@ TEST(sidre_core_mcarray, checkResize)
     {
       for(axom::IndexType n_components = 1; n_components <= 4; n_components++)
       {
-        MCArray<int> v_int_sidre(root->createView("int"),
-                                 ZERO,
-                                 n_components,
-                                 capacity * n_components);
+        MCArray<int> v_int_sidre(root->createView("int"), ZERO, n_components, capacity * n_components);
         v_int_sidre.setResizeRatio(ratio);
         internal::check_resize(v_int_sidre);
 
@@ -1045,10 +1036,7 @@ TEST(sidre_core_mcarray, checkInsert)
     {
       for(axom::IndexType n_components = 1; n_components <= 3; n_components++)
       {
-        MCArray<int> v_int_sidre(root->createView("int"),
-                                 ZERO,
-                                 n_components,
-                                 capacity * n_components);
+        MCArray<int> v_int_sidre(root->createView("int"), ZERO, n_components, capacity * n_components);
         v_int_sidre.setResizeRatio(ratio);
         internal::check_insert(v_int_sidre);
 
@@ -1116,10 +1104,7 @@ TEST(sidre_core_mcarray, checkMove)
     {
       for(axom::IndexType n_components = 1; n_components <= 3; n_components++)
       {
-        MCArray<int> v_int_sidre(root->createView("int"),
-                                 ZERO,
-                                 n_components,
-                                 capacity * n_components);
+        MCArray<int> v_int_sidre(root->createView("int"), ZERO, n_components, capacity * n_components);
         v_int_sidre.setResizeRatio(ratio);
         internal::check_move(v_int_sidre);
 
@@ -1152,10 +1137,7 @@ TEST(sidre_core_mcarray, checkSidre)
     {
       for(axom::IndexType n_components = 1; n_components <= 3; n_components++)
       {
-        MCArray<int> v_int(root->createView("int"),
-                           ZERO,
-                           n_components,
-                           capacity * n_components);
+        MCArray<int> v_int(root->createView("int"), ZERO, n_components, capacity * n_components);
         v_int.setResizeRatio(ratio);
         internal::check_storage(v_int);
         internal::check_sidre(v_int);
@@ -1193,10 +1175,7 @@ TEST(sidre_core_mcarray, checkSidrePermanence)
         const double* MCArray_data_ptr;
         axom::IndexType num_values;
         { /* Begin scope */
-          MCArray<double> v(root->createView("double"),
-                            ZERO,
-                            n_components,
-                            capacity * n_components);
+          MCArray<double> v(root->createView("double"), ZERO, n_components, capacity * n_components);
           MCArray_data_ptr = v.data();
           num_values = v.size();
           v.setResizeRatio(ratio);
@@ -1214,8 +1193,7 @@ TEST(sidre_core_mcarray, checkSidrePermanence)
 
         /* Check that the data still exists in sidre */
         sidre::View* view = root->getView("double");
-        const double* view_data_ptr =
-          static_cast<const double*>(view->getVoidPtr());
+        const double* view_data_ptr = static_cast<const double*>(view->getVoidPtr());
         EXPECT_EQ(view_data_ptr, MCArray_data_ptr);
         EXPECT_EQ(view->getNumDimensions(), 2);
 

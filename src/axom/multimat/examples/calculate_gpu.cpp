@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 //
@@ -11,10 +12,6 @@
 
 #define ITERMAX 1  // we don't use this, but helper.hpp does
 #include "helper.hpp"
-
-#ifdef AXOM_USE_RAJA
-  #include "RAJA/RAJA.hpp"
-#endif
 
 #include "axom/CLI11.hpp"
 
@@ -30,13 +27,11 @@ enum class RuntimePolicy
   seq = 0,
   raja_seq = 1,
   raja_omp = 2,
-  raja_cuda = 3
+  raja_cuda = 3,
+  raja_hip = 4
 };
 
-const std::vector<std::string> policy_strs = {"seq",
-                                              "raja_seq",
-                                              "raja_omp",
-                                              "raja_cuda"};
+const std::vector<std::string> policy_strs = {"seq", "raja_seq", "raja_omp", "raja_cuda"};
 
 struct Input
 {
@@ -54,13 +49,17 @@ const std::map<std::string, RuntimePolicy> Input::s_validPolicies(
 #ifdef AXOM_USE_RAJA
    ,
    {"raja_seq", RuntimePolicy::raja_seq}
-  #ifdef AXOM_USE_OPENMP
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
    ,
    {"raja_omp", RuntimePolicy::raja_omp}
   #endif
-  #ifdef AXOM_USE_CUDA
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
    ,
    {"raja_cuda", RuntimePolicy::raja_cuda}
+  #endif
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+   ,
+   {"raja_hip", RuntimePolicy::raja_hip}
   #endif
 #endif
   });
@@ -73,11 +72,14 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
            << "(w/o RAJA).";
 #ifdef AXOM_USE_RAJA
   pol_sstr << "\nSet to \'raja_seq\' or 1 to use the RAJA sequential policy.";
-  #ifdef AXOM_USE_OPENMP
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   pol_sstr << "\nSet to \'raja_omp\' or 2 to use the RAJA OpenMP policy.";
   #endif
-  #ifdef AXOM_USE_CUDA
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   pol_sstr << "\nSet to \'raja_cuda\' or 3 to use the RAJA CUDA policy.";
+  #endif
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  pol_sstr << "\nSet to \'raja_hip\' or 4 to use the RAJA HIP policy.";
   #endif
 #endif
 
@@ -85,16 +87,10 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
     ->capture_default_str()
     ->transform(axom::CLI::CheckedTransformer(Input::s_validPolicies));
 
-  app
-    .add_option("-c,--num-cells",
-                num_cells,
-                "Sets the number of cells to generate data for.")
+  app.add_option("-c,--num-cells", num_cells, "Sets the number of cells to generate data for.")
     ->capture_default_str();
 
-  app
-    .add_option("-m,--num-mats",
-                num_mats,
-                "Sets the number of materials to generate data for.")
+  app.add_option("-m,--num-mats", num_mats, "Sets the number of materials to generate data for.")
     ->capture_default_str();
 
   app.get_formatter()->column_width(76);
@@ -103,8 +99,7 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
   app.parse(argc, argv);
 
   // Output parsed information
-  SLIC_INFO("Using parameter values: "
-            << "\n  execution policy = "s << policy_strs[(int)policy]);
+  SLIC_INFO("Using parameter values: " << "\n  execution policy = "s << policy_strs[(int)policy]);
 }
 
 int allocator_id;
@@ -136,13 +131,7 @@ void avgDensityCompactFlat(mmat::MultiMat& mm)
 
       double density_avg_slot = density[flatid] * vf[flatid];
 
-#if defined(AXOM_USE_RAJA)
-      using AtomPolicy = typename axom::execution_space<ExecSpace>::atomic_policy;
-      RAJA::atomicAdd<AtomPolicy>(&densityAvg_view[cell_id],
-                                  density_avg_slot / vol[cell_id]);
-#else
-      densityAvg_view[cell_id] += density_avg_slot / vol[cell_id];
-#endif
+      axom::atomicAdd<ExecSpace>(&densityAvg_view[cell_id], density_avg_slot / vol[cell_id]);
     });
 }
 
@@ -290,8 +279,7 @@ int main(int argc, char** argv)
   slic::setLoggingMsgLevel(slic::message::Info);
   slic::addStreamToAllMsgLevels(new slic::GenericOutputStream(&std::cout));
 
-  SLIC_INFO("Axom Version:"
-            << " [" << axom::getVersion() << "]");
+  SLIC_INFO("Axom Version:" << " [" << axom::getVersion() << "]");
 
   // Parse the command line arguments
   Input params;
@@ -360,17 +348,20 @@ int main(int argc, char** argv)
   case RuntimePolicy::raja_seq:
     traverseCells<axom::SEQ_EXEC>(mm);
     break;
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-  #ifdef AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case RuntimePolicy::raja_omp:
     traverseCells<axom::OMP_EXEC>(mm);
     break;
-  #endif
-  #ifdef AXOM_USE_CUDA
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case RuntimePolicy::raja_cuda:
     traverseCells<axom::CUDA_EXEC<256>>(mm);
     break;
-  #endif
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case RuntimePolicy::raja_hip:
+    traverseCells<axom::HIP_EXEC<256>>(mm);
+    break;
 #endif
   default:
     SLIC_ERROR("Unhandled runtime policy case");

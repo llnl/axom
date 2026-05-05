@@ -1,21 +1,30 @@
 #!/bin/sh
 "exec" "python3" "-u" "-B" "$0" "$@"
 
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
-
 """
  file: svg2contours.py
 
  description: 
   Reads in an SVG document and outputs an MFEM NURBS mesh.
   Depends on the svgpathtools module
+
+ notes:
+  - By default, all SVG curve segments are output as cubic NURBS (degree 3) for
+    compatibility with older MFEM/VisIt workflows.
+  - This script optionally supports MFEM's newer "patches" NURBS mesh format
+    for 1D NURBS segments embedded in 2D. Support for reading patch-based 1D
+    NURBS meshes was added to MFEM after MFEM 4.9.0.
 """
 
 import sys
 import os
+import json
+from typing import Optional
 from svgpathtools import (
     Document,
     Path,
@@ -34,6 +43,51 @@ import re
 import argparse
 
 
+def parse_viewbox(view_box: str):
+    """Parse an SVG viewBox attribute string.
+
+    Returns a 4-tuple (min_x, min_y, width, height) as floats, or None if
+    view_box is not provided or is invalid.
+    """
+
+    if not view_box:
+        return None
+
+    # SVG spec allows whitespace and/or comma separators.
+    parts = [p for p in re.split(r"[,\s]+", view_box.strip()) if p]
+    if len(parts) != 4:
+        return None
+
+    try:
+        return tuple(map(float, parts))
+    except Exception:
+        return None
+
+
+def parse_svg_length(length: str):
+    """Parse an SVG length attribute and return its numeric value as a float.
+
+    If the value is missing or expressed as a percentage, returns None.
+    Units (e.g. 'mm', 'px') are ignored and the leading numeric portion is used.
+    """
+
+    if not length:
+        return None
+
+    length = length.strip()
+    if length.endswith("%"):
+        return None
+
+    match = re.search(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?", length)
+    if not match:
+        return None
+
+    try:
+        return float(match.group(0))
+    except Exception:
+        return None
+
+
 def get_root_transform(doc: Document):
     """Create transform to convert 2D coordinate system from y pointing down to y pointing up"""
 
@@ -46,13 +100,23 @@ def get_root_transform(doc: Document):
 
     tf = np.identity(3)
 
-    if height and not height.endswith("%"):
-        match = re.search(r"(\d+)", height.strip())
-        if match:
-            height_number = match.group(0)
+    # Prefer viewBox since it defines the internal user-coordinate system used by path data.
+    parsed_viewbox = parse_viewbox(viewBox)
+    if parsed_viewbox is not None:
+        _, min_y, _, vb_height = parsed_viewbox
+        tf[1, 1] = -1
+        tf[1, 2] = 2.0 * min_y + vb_height
+        return tf
 
-            tf[1, 1] = -1
-            tf[1, 2] = height_number
+    # Fallback to root height attribute when viewBox is unavailable/invalid.
+    height_number = parse_svg_length(height)
+    if height_number is not None:
+        tf[1, 1] = -1
+        tf[1, 2] = height_number
+
+    # Last-resort fallback: flip about y=0 when we cannot infer a reference height.
+    if tf[1, 1] == 1:
+        tf[1, 1] = -1
 
     return tf
 
@@ -69,6 +133,18 @@ def transform_cubic(cubic: CubicBezier, tf):
         return v.item(0) + 1j * v.item(1)
 
     return bpoints2bezier([to_complex(tf.dot(to_point(p))) for p in cubic.bpoints()])
+
+
+def transform_segment(seg, tf):
+    """Apply transformation `tf` to a Line/QuadraticBezier/CubicBezier segment."""
+
+    def to_point(p):
+        return np.array([[p.real], [p.imag], [1.0]])
+
+    def to_complex(v):
+        return v.item(0) + 1j * v.item(1)
+
+    return bpoints2bezier([to_complex(tf.dot(to_point(p))) for p in seg.bpoints()])
 
 
 def lerp(a, b, t):
@@ -165,6 +241,117 @@ def arc_to_cubic(arc: Arc):
             return (CubicBezier(q_0, c_1, c_2, q_1), [3, 1, 1, 3])
 
 
+def arc_to_quadratic_beziers(arc: Arc, *, max_sweep_angle_rad: float = np.pi / 2):
+    """Convert an svgpathtools Arc to rational QuadraticBezier segments.
+
+    Notes:
+      - Rational quadratics represent conic sections exactly.
+      - We subdivide the arc into pieces (default: <= 90 degrees) to keep the
+        interior weight bounded away from zero.
+      - This function reconstructs the start angle and sweep angle from the arc's
+        start/end points in the ellipse's local parameter space, then selects
+        the correct branch using `arc.point(0.5)` (and `arc.large_arc` as a hint).
+    Returns:
+      List[(QuadraticBezier, weights)] where weights has length 3 and the degree is 2.
+    """
+
+    if max_sweep_angle_rad <= 0:
+        raise ValueError("max_sweep_angle_rad must be positive")
+
+    center = getattr(arc, "center", None)
+    radius = getattr(arc, "radius", None)
+
+    if center is None or radius is None:
+        raise Exception("Arc is missing required attributes (center/radius)")
+
+    rx = float(np.abs(radius.real))
+    ry = float(np.abs(radius.imag))
+
+    if rx == 0.0 or ry == 0.0:
+        # Degenerate arc; let caller fall back (svgpathtools generally models these as Lines).
+        return []
+
+    # We build rational quadratic pieces by using the conic (tangent intersection) construction.
+    # This avoids any ambiguity about svgpathtools' internal angle units and tends to be robust.
+
+    def cross(a: complex, b: complex) -> float:
+        return float(a.real * b.imag - a.imag * b.real)
+
+    def dot(a: complex, b: complex) -> float:
+        return float(a.real * b.real + a.imag * b.imag)
+
+    def try_quad_for_arc_piece(arc_piece: Arc):
+        p0 = arc_piece.start
+        p2 = arc_piece.end
+        m = arc_piece.point(0.5)
+
+        d0 = arc_piece.derivative(0.0)
+        d2 = arc_piece.derivative(1.0)
+
+        # Compute intersection of tangents at endpoints.
+        denom = cross(d0, d2)
+        if np.abs(denom) < 1e-14:
+            return None
+
+        # p0 + s*d0 = p2 + t*d2
+        s = cross((p2 - p0), d2) / denom
+        p1 = p0 + s * d0
+
+        # Solve for the middle weight w s.t. the rational quadratic matches the midpoint:
+        # M = (P0 + 2 w P1 + P2) / (2(1+w))  =>  2 w (M - P1) = P0 + P2 - 2 M
+        u = m - p1
+        uu = dot(u, u)
+        if uu <= 0.0:
+            return None
+
+        rhs = p0 + p2 - 2.0 * m
+        w = dot(rhs, u) / (2.0 * uu)
+
+        if not np.isfinite(w) or w <= 0.0:
+            return None
+
+        # Consistency check (least-squares residual; should be near zero for true conics).
+        res = (p0 + p2 + 2.0 * w * p1) - (2.0 * (1.0 + w) * m)
+        scale2 = max(rx, ry) ** 2
+        if dot(res, res) > 1e-8 * max(1.0, scale2):
+            return None
+
+        return (QuadraticBezier(p0, p1, p2), [1.0, float(w), 1.0])
+
+    # Split until each piece's w is at least cos(max_sweep/2) (matches the circle-arc weight bound).
+    w_min = float(np.cos(0.5 * max_sweep_angle_rad))
+    max_pieces = 1024
+
+    pieces = []
+    work = [arc]
+    while work:
+        if len(pieces) + len(work) > max_pieces:
+            return []
+
+        a = work.pop(0)
+        quad = try_quad_for_arc_piece(a)
+        if quad is None:
+            a1, a2 = a.split(0.5)
+            work.insert(0, a2)
+            work.insert(0, a1)
+            continue
+
+        _, wts = quad
+        if wts[1] < w_min - 1e-12:
+            a1, a2 = a.split(0.5)
+            work.insert(0, a2)
+            work.insert(0, a1)
+            continue
+
+        pieces.append(quad)
+
+    # Match `arc_to_cubic` orientation handling: reverse when sweep flag is not set.
+    if not getattr(arc, "sweep", True):
+        pieces = [(q.reversed(), list(reversed(w))) for (q, w) in reversed(pieces)]
+
+    return pieces
+
+
 def segment_as_cubic(seg, reverse_paths: bool):
     if isinstance(seg, Line):
         cubic, weights = line_to_cubic(seg)
@@ -184,13 +371,47 @@ def segment_as_cubic(seg, reverse_paths: bool):
     return (cubic, weights)
 
 
+def segment_as_native_nurbs_segments(seg, reverse_paths: bool):
+    """Convert an svgpathtools segment to Bezier (NURBS) segments with native degree where possible.
+
+    Returns a list of (segment, weights, degree).
+      - Line: 1 segment, degree 1
+      - QuadraticBezier: 1 segment, degree 2
+      - CubicBezier: 1 segment, degree 3
+      - Arc: 1+ rational QuadraticBezier segments (degree 2), subdivided for robustness
+    """
+
+    out = []
+    if isinstance(seg, Line):
+        out = [(seg, [1, 1], 1)]
+    elif isinstance(seg, QuadraticBezier):
+        out = [(seg, [1, 1, 1], 2)]
+    elif isinstance(seg, CubicBezier):
+        out = [(seg, [1, 1, 1, 1], 3)]
+    elif isinstance(seg, Arc):
+        quads = arc_to_quadratic_beziers(seg)
+        if not quads:
+            # Fall back to a rational cubic if the arc conversion is ill-conditioned.
+            cubic, weights = arc_to_cubic(seg)
+            out = [(cubic, weights, 3)]
+        else:
+            out = [(q, w, 2) for (q, w) in quads]
+    else:
+        raise Exception(f"'{type(seg)}' type not supported yet")
+
+    if reverse_paths:
+        out = [(s.reversed(), list(reversed(w)), d) for (s, w, d) in reversed(out)]
+
+    return out
+
+
 def dist_to_ellipse(center, radius, angle, pt):
     cx, cy = center.real, center.imag
     rx, ry = radius.real, radius.imag
 
     rot = np.exp(-1j * np.radians(angle))
     transformed_pt = rot * complex(pt.real - cx, pt.imag - cy)
-    return transformed_pt.real**2 / rx**2 + transformed_pt.imag**2 / ry**2 - 1
+    return transformed_pt.real ** 2 / rx ** 2 + transformed_pt.imag ** 2 / ry ** 2 - 1
 
 
 class MFEMData:
@@ -220,30 +441,30 @@ class MFEMData:
         self.knots.append("3 4 0 0 0 0 1 1 1 1")
         self.wgts_ends.append(f"{weights[0]} {weights[3]}")
         self.wgts_ints.append(f"{weights[2]} {weights[1]}")
-        self.dof_ends.append(" ".join(map(str, [cubic.start.real, cubic.start.imag, cubic.end.real, cubic.end.imag])))
-        self.dof_ints.append(
-            " ".join(map(str, [cubic.control2.real, cubic.control2.imag, cubic.control1.real, cubic.control1.imag]))
-        )
+        self.dof_ends.append(" ".join(
+            map(str, [cubic.start.real, cubic.start.imag, cubic.end.real, cubic.end.imag])))
+        self.dof_ints.append(" ".join(
+            map(str, [
+                cubic.control2.real, cubic.control2.imag, cubic.control1.real, cubic.control1.imag
+            ])))
 
     def write_file(self, filename):
         mfem_file = []
 
-        mfem_file.extend(
-            [
-                "MFEM NURBS mesh v1.0",
-                "",
-                "# MFEM Geometry Types (see fem/geom.hpp):",
-                "#",
-                "# SEGMENT = 1 | SQUARE = 3 | CUBE = 5",
-                "#",
-                "# element: <attr> 1 <v0> <v1>",
-                "# edge: <idx++> 0 1  <-- idx increases by one each time",
-                "# knotvector: <order> <num_ctrl_pts> [knots]; sizeof(knots) is 1+order+num_ctrl_pts",
-                "# weights: array of weights corresponding to the NURBS element",
-                "# FES: list of control points; vertex control points at top, then interior control points",
-                "",
-            ]
-        )
+        mfem_file.extend([
+            "MFEM NURBS mesh v1.0",
+            "",
+            "# MFEM Geometry Types (see fem/geom.hpp):",
+            "#",
+            "# SEGMENT = 1 | SQUARE = 3 | CUBE = 5",
+            "#",
+            "# element: <attr> 1 <v0> <v1>",
+            "# edge: <idx++> 0 1  <-- idx increases by one each time",
+            "# knotvector: <order> <num_ctrl_pts> [knots]; sizeof(knots) is 1+order+num_ctrl_pts",
+            "# weights: array of weights corresponding to the NURBS element",
+            "# FES: list of control points; vertex control points at top, then interior control points",
+            "",
+        ])
 
         mfem_file.extend(["dimension", "1", ""])
 
@@ -259,26 +480,197 @@ class MFEMData:
 
         mfem_file.extend(["weights", "\n".join(self.wgts_ends), "\n".join(self.wgts_ints), ""])
 
-        mfem_file.extend(
-            [
-                "FiniteElementSpace",
-                "FiniteElementCollection: NURBS",
-                "VDim: 2",
-                "Ordering: 1",
-                "",
-                "\n".join(self.dof_ends),
-                "\n".join(self.dof_ints),
-                "",
-            ]
-        )
+        mfem_file.extend([
+            "FiniteElementSpace",
+            "FiniteElementCollection: NURBS",
+            "VDim: 2",
+            "Ordering: 1",
+            "",
+            "\n".join(self.dof_ends),
+            "\n".join(self.dof_ints),
+            "",
+        ])
 
         with open(filename, mode="w") as f:
             f.write("\n".join(mfem_file))
 
 
+class MFEMPatchesData:
+
+    def __init__(self):
+        self.elem_cnt = 0
+        self.vert_cnt = 0
+        self.elems = []
+        self.edges = []
+        self.patches = []
+
+    @staticmethod
+    def _bezier_knotvector(degree: int):
+        # Bezier knot vector on [0,1]
+        return [0] * (degree + 1) + [1] * (degree + 1)
+
+    @staticmethod
+    def _quadratic_multispan_knotvector(num_spans: int, *, degree: int = 2):
+        if degree != 2:
+            raise ValueError("Only quadratic multispan knotvectors are supported here")
+        if num_spans < 1:
+            raise ValueError("num_spans must be >= 1")
+
+        knots = [0.0] * (degree + 1)
+        if num_spans > 1:
+            # Use multiplicity=degree at internal knots so each span is a Bezier segment.
+            for i in range(1, num_spans):
+                t = float(i) / float(num_spans)
+                knots.extend([t] * degree)
+        knots.extend([1.0] * (degree + 1))
+        return knots
+
+    @staticmethod
+    def quadratic_beziers_to_multispan(quads_with_weights):
+        """Merge quadratic rational Bezier spans into a single quadratic multi-span NURBS patch.
+
+        This uses internal knot multiplicity=degree (2), so each span remains a Bezier segment.
+        Note: It would be better to fix the knots/weights to keep it C1
+        Returns (cps, weights, knots).
+        """
+
+        num_spans = len(quads_with_weights)
+        if num_spans < 1:
+            raise ValueError("Expected at least one span")
+
+        cps = []
+        weights = []
+        for span_idx, (quad, wts) in enumerate(quads_with_weights):
+            bpts = quad.bpoints()
+            if len(bpts) != 3 or len(wts) != 3:
+                raise Exception(
+                    "Expected quadratic Bezier spans with 3 control points and 3 weights")
+            if span_idx == 0:
+                cps.extend(bpts)
+                weights.extend(wts)
+            else:
+                cps.extend(bpts[1:])
+                weights.extend(wts[1:])
+
+        knots = MFEMPatchesData._quadratic_multispan_knotvector(num_spans)
+        return cps, weights, knots
+
+    def add_nurbs_patch(self,
+                        *,
+                        cps,
+                        degree: int,
+                        weights,
+                        knots,
+                        attrib: int,
+                        patch_comment: Optional[str] = None):
+        if len(cps) != len(weights):
+            raise Exception(f"Expected {len(cps)} weights, got {len(weights)}")
+        expected_knots = 1 + degree + len(cps)
+        if len(knots) != expected_knots:
+            raise Exception(f"Expected {expected_knots} knots, got {len(knots)}")
+
+        v0 = self.vert_cnt
+        v1 = self.vert_cnt + 1
+        self.vert_cnt += 2
+
+        self.elems.append(" ".join(map(str, [attrib, 1, v0, v1])))
+        self.edges.append(f"{self.elem_cnt} {v0} {v1}")
+        self.elem_cnt += 1
+
+        patch_lines = []
+        patch_lines.append("")
+        if patch_comment:
+            patch_lines.append(f"# Patch {self.elem_cnt - 1}: {patch_comment}")
+        else:
+            patch_lines.append(
+                f"# Patch {self.elem_cnt - 1}: degree {degree} ({len(cps)} control points)")
+        patch_lines.append("knotvectors")
+        patch_lines.append("1")
+        patch_lines.append("{} {}  {}".format(
+            degree,
+            len(cps),
+            " ".join(str(k) for k in knots),
+        ))
+        patch_lines.append("")
+        patch_lines.append("dimension")
+        patch_lines.append("2")
+        patch_lines.append("")
+        patch_lines.append("controlpoints")
+        for (cp, w) in zip(cps, weights):
+            # MFEM expects NURBS control points in homogeneous form: (x*w, y*w, w).
+            ww = float(w)
+            patch_lines.append(f"{cp.real * ww}  {cp.imag * ww}  {ww}")
+        patch_lines.append("")
+
+        self.patches.append("\n".join(patch_lines))
+
+    def add_bezier(self, seg, degree: int, weights, attrib: int):
+        cps = seg.bpoints()
+        if len(cps) != degree + 1:
+            raise Exception(
+                f"Expected {degree + 1} control points for degree {degree}, got {len(cps)}")
+        self.add_nurbs_patch(
+            cps=cps,
+            degree=degree,
+            weights=weights,
+            knots=self._bezier_knotvector(degree),
+            attrib=attrib,
+        )
+
+    def write_file(self, filename):
+        mfem_file = []
+
+        mfem_file.extend([
+            "MFEM NURBS mesh v1.0",
+            "",
+            "#",
+            "# Patch-based 1D NURBS segments embedded in 2D.",
+            "# NOTE: MFEM support for reading patch-based 1D NURBS meshes was added after MFEM 4.9.0.",
+            "#",
+            "",
+        ])
+
+        mfem_file.extend(["dimension", "1", ""])
+        mfem_file.extend(["elements", f"{self.elem_cnt}", "\n".join(self.elems), ""])
+        mfem_file.extend(["boundary", "0", ""])
+        mfem_file.extend(["edges", f"{self.elem_cnt}", "\n".join(self.edges), ""])
+        mfem_file.extend(["vertices", f"{self.vert_cnt}", ""])
+        mfem_file.extend(["patches", "\n".join(self.patches)])
+
+        with open(filename, mode="w") as f:
+            f.write("\n".join(mfem_file))
+
+
+def compute_svg_path_stats(paths):
+    stats = {
+        "paths_total": len(paths),
+        "curves_order_1": 0,
+        "curves_order_2": 0,
+        "curves_order_3": 0,
+        "elliptical_arcs": 0,
+        "unknown_segments": 0,
+    }
+
+    for p in paths:
+        for seg in p:
+            if isinstance(seg, Line):
+                stats["curves_order_1"] += 1
+            elif isinstance(seg, QuadraticBezier):
+                stats["curves_order_2"] += 1
+            elif isinstance(seg, CubicBezier):
+                stats["curves_order_3"] += 1
+            elif isinstance(seg, Arc):
+                stats["elliptical_arcs"] += 1
+            else:
+                stats["unknown_segments"] += 1
+
+    return stats
+
+
 def parse_args():
 
-    parser = argparse.ArgumentParser(description="svg2contours: Convert the curves in an SVG to MFEM NURBS mesh")
+    parser = argparse.ArgumentParser(
+        description="svg2contours: Convert the curves in an SVG to MFEM NURBS mesh")
 
     parser.add_argument(
         "-i",
@@ -298,12 +690,41 @@ def parse_args():
     )
 
     parser.add_argument(
-        "-r", "--reverse", dest="reverse_paths", default=False, action="store_true", 
-        help="reverses paths (can be helpful during coordinate system transformation from y-axis pointing down to up)"
+        "--mfem-patches",
+        dest="mfem_patches",
+        default=False,
+        action="store_true",
+        help=
+        ("Write the newer MFEM NURBS 'patches' mesh format for 1D segments embedded in 2D "
+         "(requires MFEM > 4.9.0 to read). When enabled, Lines/Quadratic/Cubic segments are "
+         "written using degree 1/2/3 respectively; elliptical arcs are written as rational quadratics."
+         ),
     )
 
     parser.add_argument(
-        "-v", "--verbose", dest="verbose", default=False, action="store_true", help="verbose output flag"
+        "--stats",
+        dest="statsfile",
+        default=None,
+        help="Optional output JSON file with SVG curve statistics (use '-' for stdout)",
+    )
+
+    parser.add_argument(
+        "-r",
+        "--reverse",
+        dest="reverse_paths",
+        default=False,
+        action="store_true",
+        help=
+        "reverses paths (can be helpful during coordinate system transformation from y-axis pointing down to up)",
+    )
+
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        dest="verbose",
+        default=False,
+        action="store_true",
+        help="verbose output flag",
     )
 
     opts = parser.parse_args()
@@ -331,11 +752,47 @@ def main():
 
     coordinate_transform = get_root_transform(doc)
 
+    ## Optionally, generate a json file w/ stats about the number of curves/paths
+    stats_file = opts.get("statsfile", None)
+    if stats_file:
+        stats = compute_svg_path_stats(paths)
+        stats["input_svg"] = os.path.relpath(input_file, os.getcwd())
+
+        root_attr = doc.tree.getroot().attrib
+        parsed_viewbox = parse_viewbox(root_attr.get("viewBox", None))
+        if parsed_viewbox is not None:
+            min_x, min_y, vb_width, vb_height = parsed_viewbox
+            stats["bounding_box"] = {
+                "min_x": min_x,
+                "min_y": min_y,
+                "max_x": min_x + vb_width,
+                "max_y": min_y + vb_height,
+            }
+        else:
+            width_number = parse_svg_length(root_attr.get("width", None))
+            height_number = parse_svg_length(root_attr.get("height", None))
+            if width_number is not None and height_number is not None:
+                stats["bounding_box"] = {
+                    "min_x": 0.0,
+                    "min_y": 0.0,
+                    "max_x": width_number,
+                    "max_y": height_number,
+                }
+
+        stats_json = json.dumps(stats, indent=2, sort_keys=True)
+        if stats_file == "-":
+            print(stats_json)
+        else:
+            with open(stats_file, mode="w", encoding="utf-8") as f:
+                f.write(stats_json + "\n")
+
     ## Process SVG paths
     if verbose:
         print("SVG paths: \n", paths)
 
     mfem_data = MFEMData()
+    mfem_patches = opts.get("mfem_patches", False)
+    mfem_patches_data = MFEMPatchesData() if mfem_patches else None
 
     for p_idx, p in enumerate(paths):
         # print(f"""reading {p_idx=} {p=} \n w/ {p.d()=}""")
@@ -353,7 +810,7 @@ def main():
         for seg_idx, seg in enumerate(p):
             # print(f"""processing {seg_idx=} {seg=}""")
 
-            if isinstance(seg, Arc) and seg.large_arc and is_d_path:
+            if (not mfem_patches) and isinstance(seg, Arc) and seg.large_arc and is_d_path:
                 # split large elliptical arcs for easier processing
                 # this simplifies the derivation of the internal control points
                 # in `arc_to_cubic` algorithm
@@ -367,13 +824,45 @@ def main():
                 xformed_cubic = transform_cubic(cubic, coordinate_transform)
                 mfem_data.add_cubic_bezier(xformed_cubic, weights, attrib)
             else:
-                cubic, weights = segment_as_cubic(seg, reverse_paths)
-                xformed_cubic = transform_cubic(cubic, coordinate_transform)
-                mfem_data.add_cubic_bezier(xformed_cubic, weights, attrib)
+                if mfem_patches:
+                    out_segments = segment_as_native_nurbs_segments(seg, reverse_paths)
+                    if isinstance(seg, Arc) and len(out_segments) > 1 and all(
+                            d == 2 for (_, _, d) in out_segments):
+                        quads_with_weights = []
+                        for out_seg, weights0, _ in out_segments:
+                            xformed_seg0 = transform_segment(out_seg, coordinate_transform)
+                            quads_with_weights.append((xformed_seg0, weights0))
+
+                        cps, weights, knots = MFEMPatchesData.quadratic_beziers_to_multispan(
+                            quads_with_weights)
+                        mfem_patches_data.add_nurbs_patch(
+                            cps=cps,
+                            degree=2,
+                            weights=weights,
+                            knots=knots,
+                            attrib=attrib,
+                            patch_comment=f"quadratic (order 2, {len(out_segments)} spans)",
+                        )
+                    else:
+                        for out_seg, weights0, degree0 in out_segments:
+                            xformed_seg0 = transform_segment(out_seg, coordinate_transform)
+                            mfem_patches_data.add_bezier(xformed_seg0, degree0, weights0, attrib)
+                else:
+                    cubic, weights = segment_as_cubic(seg, reverse_paths)
+                    xformed_cubic = transform_cubic(cubic, coordinate_transform)
+                    mfem_data.add_cubic_bezier(xformed_cubic, weights, attrib)
 
     output_file = opts["outputfile"]
-    mfem_data.write_file(output_file)
-    print(f"Wrote '{output_file}' with {mfem_data.vert_cnt} vertices and NURBS {mfem_data.elem_cnt} elements")
+    if mfem_patches:
+        mfem_patches_data.write_file(output_file)
+        print(
+            f"Wrote '{output_file}' with {mfem_patches_data.vert_cnt} vertices and NURBS {mfem_patches_data.elem_cnt} elements (patches format)"
+        )
+    else:
+        mfem_data.write_file(output_file)
+        print(
+            f"Wrote '{output_file}' with {mfem_data.vert_cnt} vertices and NURBS {mfem_data.elem_cnt} elements"
+        )
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -67,19 +68,15 @@ public:
     setLoggingMsgLevel(level);
 
     // Formatting for warning, errors and fatal message
-    std::string wefFormatStr =
-      std::string("\n***********************************\n") +
+    std::string wefFormatStr = std::string("\n***********************************\n") +
       std::string("[<LEVEL> in line <LINE> of file <FILE>]\n") +
-      std::string("MESSAGE=<MESSAGE>\n") +
-      std::string("***********************************\n");
+      std::string("MESSAGE=<MESSAGE>\n") + std::string("***********************************\n");
 
     // Simple formatting for debug and info messages
     std::string diFormatStr = "[<LEVEL>] <MESSAGE> \n";
 
-    GenericOutputStream* wefStream =
-      new GenericOutputStream(&std::cout, wefFormatStr);
-    GenericOutputStream* diStream =
-      new GenericOutputStream(&std::cout, diFormatStr);
+    GenericOutputStream* wefStream = new GenericOutputStream(&std::cout, wefFormatStr);
+    GenericOutputStream* diStream = new GenericOutputStream(&std::cout, diFormatStr);
 
     addStreamToMsgLevel(wefStream, message::Error);
     addStreamToMsgLevel(wefStream, message::Warning);

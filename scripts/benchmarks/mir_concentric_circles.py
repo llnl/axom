@@ -1,0 +1,589 @@
+import os, sys
+import argparse
+import math
+
+def flux_run(np):
+  return f"flux run -n {np}"
+
+def srun(np):
+  return f"srun -n {np}"
+
+def lrun(np):
+  return f"lrun -n {np}"
+
+# Parallel options use 4 ranks per node since that is how many GPUs there are.
+runs = {
+  "build-dane-toss_4_x86_64_ib-gcc@13.3.1-release" : {"policies":["seq", "omp"], "launch":srun},
+  "build-dane-toss_4_x86_64_ib-intel-oneapi-compilers@2025.2.0-release" : {"policies":["seq", "omp"], "launch":srun},
+  "build-dane-toss_4_x86_64_ib-llvm@19.1.3-release" : {"policies":["seq", "omp"], "launch":srun},
+  "build-matrix-toss_4_x86_64_ib-gcc@13.3.1_cuda-release" : {"policies":["seq", "omp", "cuda"], "launch":srun},
+  "build-matrix-toss_4_x86_64_ib-llvm@19.1.3_cuda-release" : {"policies":["seq", "omp", "cuda"], "launch":srun},
+  "build-rzwhippet-toss_4_x86_64_ib-llvm@19.1.3-release" : {"policies":["seq", "omp"], "launch":srun},
+  "build-rzwhippet-toss_4_x86_64_ib-gcc@13.3.1-release" : {"policies":["seq", "omp"], "launch":srun},
+  "build-rzwhippet-toss_4_x86_64_ib-intel-oneapi-compilers@2025.2.0-release" : {"policies":["seq", "omp"], "launch":srun},
+  "build-rzvernal-toss_4_x86_64_ib_cray-cce@20.0.0_hip-release" : {"policies":["seq", "hip"], "launch":srun},
+  "build-rzvernal-toss_4_x86_64_ib_cray-llvm-amdgpu@6.3.1_hip-release" : {"policies":["seq", "hip"], "launch":srun},
+  "build-rzvernal-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.2_hip-release" : {"policies":["seq", "hip"], "launch":srun},
+  "build-rzadams-toss_4_x86_64_ib_cray-cce@20.0.0_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-rzadams-toss_4_x86_64_ib_cray-llvm-amdgpu@6.3.1_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-rzadams-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.2_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-tioga-toss_4_x86_64_ib_cray-cce@20.0.0_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-tioga-toss_4_x86_64_ib_cray-llvm-amdgpu@6.3.1_hip-release" :{"policies":["seq", "hip"], "launch":flux_run},
+  "build-tioga-toss_4_x86_64_ib_cray-llvm-amdgpu@6.4.2_hip-release" :{"policies":["seq", "hip"], "launch":flux_run}
+}
+
+def generate(params):
+  """
+  Generate scripts to run the program to create timings.
+  """
+  method = params["method"]
+
+  for r in runs:
+    if not os.path.exists(r):
+      print(f"Skipping {r}")
+      continue
+    filename = os.path.join(r, "run_concentric_circles.bash")
+
+    f = open(filename, "wt")
+    f.write("#!/bin/bash\n\n")
+    f.write("CONCENTRIC_CIRCLES=./examples/mir_concentric_circles\n")
+    f.write("CONCENTRIC_CIRCLES_MPI=./examples/mir_concentric_circles_mpi\n\n")
+
+    f.write("export OMP_PLACES=cores\n")
+    f.write("export OMP_PROC_BIND=spread\n")
+    f.write("export OMP_DYNAMIC=FALSE\n")
+
+    dimension = params["dimension"]
+    trials = params["trials"]
+    for s in params["sizes"]:
+      f.write(f"# Size {s}\n")
+      if len(params["parallel"]) > 0:
+        # parallel
+        for np in params["parallel"]:
+          launch = runs[r]["launch"](np)
+          for policy in runs[r]["policies"]:
+            f.write(f'echo "Running {launch} $CONCENTRIC_CIRCLES_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write"\n')
+            f.write(f'{launch} $CONCENTRIC_CIRCLES_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write > result_{policy}_np{np}_s{s}.txt\n\n')
+      else:
+        # serial
+        for policy in runs[r]["policies"]:
+          f.write(f'echo "Running --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write"\n')
+          f.write(f'$CONCENTRIC_CIRCLES --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write > result_{policy}_s{s}.txt\n\n')
+
+    f.close()
+    os.chmod(filename, 0o700)
+    print(f"Wrote {filename}")
+
+def read_timings(filename, searchKey):
+  """
+  Read a single Caliper log and pull out the timings we want.
+  """
+  retval = "" # no data
+  try:
+    lines = open(filename, "rt").readlines()
+    msg = ""
+    if searchKey.find("Algorithm") == -1:
+      msg = f" Getting '{searchKey}' value."
+    print(f"Reading {filename}.{msg}")
+    for line in lines:
+      pos = line.find(searchKey)
+      if pos != -1:
+        toks = [x for x in line.split() if x != '']
+        #print(toks)
+        try:
+          retval = float(toks[2]) # timings (I)
+        except ValueError:
+          # The line had our searchKey but was not a Caliper line.
+          continue
+        break
+  except:
+    print(f"Error reading {filename}")
+    pass
+  return retval
+
+def make_columns(params):
+  """
+  Read the available timing files and make columns of data.
+  """
+  # I was measuring runMIR before, which includes device transfers and HDF5 output.
+  # I don't want that stuff in the timings because it is not relevant to timing MIR
+  # and it can vary wildly.
+
+  def is_selected(selections, name):
+    """
+    Checks whether a name is being selected.
+    """
+    selected = True
+    if len(selections) > 0:
+      selected = False
+      for s in selections:
+        if name.find(s) != -1:
+          selected = True
+          break
+    return selected 
+
+  def average(value, trials):
+    try:
+      avg = str(float(value) / float(trials))
+    except ValueError:
+      avg = value
+    return avg
+
+  searchKey = params["searchKey"]
+
+  columns = []
+  # Add NumZones column (either square or cube of s, depending on dimension)
+  sc = ["NumZones"]
+  if params["dimension"] == 3:
+    for s in params["sizes"]:
+      sc.append(s*s*s)
+  else:
+    for s in params["sizes"]:
+      sc.append(s*s)
+  columns.append(sc)
+
+  trials = params["trials"]
+
+  # Gather data.
+  for r in sorted(runs.keys()):
+    # Make sure r exists
+    if not os.path.exists(r):
+      continue
+
+    # Gather individual data files
+    for policy in runs[r]["policies"]:
+      buildname = r[6:-8]
+      if len(params["parallel"]) > 0:
+        for np in params["parallel"]:
+          name = f"{buildname} {policy.upper()} NP={np}"
+          # Check if this name is selected
+          if not is_selected(params["selections"], name):
+             continue
+          data = [name]
+          for s in params["sizes"]:
+            filename = os.path.join(r, f"result_{policy}_np{np}_s{s}.txt")
+            value = read_timings(filename, searchKey)
+            # Timings contain #trials values so average the value.
+            avgValue = average(value, trials)
+            data.append(avgValue)
+          columns.append(data)
+      else:
+        name = f"{buildname} {policy.upper()}"
+        data = [name]
+        # Check if this name is selected
+        if not is_selected(params["selections"], name):
+           continue
+        for s in params["sizes"]:
+          filename = os.path.join(r, f"result_{policy}_s{s}.txt")
+          value = read_timings(filename, searchKey)
+          # Timings contain #trials values so average the value.
+          avgValue = average(value, trials)
+          data.append(avgValue)
+        columns.append(data)
+  return columns
+
+def make_csv(params, outputfile):
+  """
+  Read the available timing files and assemble a CSV file.
+  """
+  columns = make_columns(params)
+
+  # Write data
+  f = open(outputfile, "wt")
+  nrows = len(columns[0])
+  for i in range(nrows):
+    rowdata = [str(c[i]) for c in columns]
+    line = ",".join(rowdata)
+    f.write(f"{line}\n")
+  f.close()
+
+def seriesName(name, includeCompiler = False):
+  policies = {"SEQ" : "Serial", "OMP": "OpenMP", "CUDA" : "CUDA", "HIP" : "HIP"}
+  if includeCompiler:
+    d0 = name.find("-")
+    d1 = name.rfind("-")
+    s0 = name.rfind(" ")
+    hostName = name[:d0]
+    compName = name[d1 + 1:s0]
+    newName = f"{hostName} {compName}"
+  else:
+    newName = name[:name.find("-")]
+  for p in policies.keys():
+    if name[-len(p) - 1:] == " " + p:
+      newName = newName + " " + policies[p]
+      break
+  return newName
+
+def lineProps(name):
+  """
+  Make line properties when given a series name.
+  """
+  red = "#ff0000"
+  green = "#00aa00"
+  blue = "#0000ff"
+  orange = "#ff6622"
+  #magenta = "#ff00ff"
+  #purple = "#8811aa"
+  hostColor = {"rzwhippet" : red, "rzvernal" : green, "rzadams" : blue,
+               "dane" : red, "matrix" : green, "tioga": orange, "tuolumne" : blue}
+  policyStyle = {"seq" : "-", "omp": ":", "cuda" : "--", "hip" : "--"}
+  policyMark = {"seq" : "o", "omp": "s", "cuda" : "^", "hip" : "^"}
+  color = "b"
+  style = "-"
+  mark = "o"
+  for h in hostColor.keys():
+     if name.find(h) != -1:
+       color = hostColor[h]
+       for p in policyStyle.keys():
+         if name[-len(p) - 1:].lower() == " " + p:
+           style = policyStyle[p]
+           mark = policyMark[p]
+           break
+       break
+  return color, style, mark
+
+def hex_to_rgb(hex_color: str):
+    """
+    Convert a color in "#rrggbb" (or "rrggbb") format to an (r, g, b) tuple.
+    """
+    s = hex_color.strip()
+    if s.startswith("#"):
+        s = s[1:]
+    if len(s) != 6:
+        raise ValueError(f"Expected 6 hex digits, got {len(s)}: {hex_color!r}")
+
+    try:
+        r = int(s[0:2], 16)
+        g = int(s[2:4], 16)
+        b = int(s[4:6], 16)
+    except ValueError as e:
+        raise ValueError(f"Invalid hex color: {hex_color!r}") from e
+
+    return (r, g, b)
+
+def plot(params):
+  """
+  Read the available timing files and plot them.
+  """
+  def make_series(col1, col2):
+    n = len(col1)
+    x = []
+    y = []
+    for i in range(n):
+      try:
+        xv = float(col1[i])
+        yv = float(col2[i])
+        x.append(xv)
+        y.append(yv)
+      except ValueError:
+        # We probably did not get data. Stop processing.
+        break
+    return x,y
+
+  def rgbToColor(r,g,b):
+     return "#%02x%02x%02x" % (r,g,b)
+
+  def lightenColor(r,g,b):
+     def clamp255(value):
+        if value > 255:
+          return 255
+        return int(value)
+     scale = 1.3
+     return rgbToColor(clamp255(r * scale), clamp255(g * scale), clamp255(b * scale))
+
+  def darkenColor(r,g,b):
+     scale = 0.7
+     return rgbToColor(int(r * scale), int(g * scale), int(b * scale))
+
+  def modifyColor(color, index):
+    if index == 0:
+      return color
+    r,g,b = hex_to_rgb(color)
+    if index == 1:
+      return darkenColor(r,g,b)
+    return lightenColor(r,g,b)
+
+  def valid_column(column):
+    valid = False
+    for i in range(1, len(column)):
+      if column[i] != "":
+        valid = True
+    return valid
+
+  # Make columns from the data
+  columns = make_columns(params)
+
+  # Count how many plots would use the normal legend name
+  counts = {}
+  for c in range(1, len(columns)):
+    if not valid_column(columns[c]):
+      continue
+    sn = seriesName(columns[c][0])
+    if sn in counts:
+      count, _ = counts[sn]
+      counts[sn] = (count + 1, 0)
+    else:
+      counts[sn] = (1, 0)
+
+  import matplotlib.pyplot as plt
+  seriesLegendNames = {}
+  for c in range(1, len(columns)):
+    x, y = make_series(columns[0][1:], columns[c][1:])
+    if len(x) > 0:
+      color, style, mark = lineProps(columns[c][0])
+      sn = seriesName(columns[c][0])
+      if counts[sn][0] > 1:
+        oldsn = sn
+        sn = seriesName(columns[c][0], True)
+        color = modifyColor(color, counts[oldsn][1])
+        counts[oldsn] = (counts[oldsn][0], counts[oldsn][1] + 1)
+      seriesLegendNames[c] = sn
+      plt.plot(x, y, marker=mark, linestyle=style, color=color, linewidth=2., label=sn)
+
+  dimension = params["dimension"]
+  method = params["method"]
+  searchKey = params["searchKey"]
+  if searchKey.find("Algorithm") != -1:
+    # more concise
+    searchKey = method
+  doLabels = params["labels"]
+
+  # Add labels and title
+  plt.xlabel('Number of Zones', fontsize=24)
+  plt.ylabel('Time (s)', fontsize=24)
+  plt.title(f'{dimension}D MIR Timings ({searchKey})', fontsize=28)
+  xlabels = make_series(columns[0][1:], columns[0][1:])[0]
+  plt.xticks(ticks=xlabels, labels=xlabels, fontsize=18)
+  plt.yticks(fontsize=18)
+
+  # Set x-axis to logarithmic scale
+  plt.xscale('log')
+
+  # Set y-axis to logarithmic scale
+  plt.yscale('log')
+
+  # Add a legend
+  plt.legend(fontsize=18)
+
+  try:
+    plt.tight_layout()
+  except ValueError:
+    print(f"There was an error, probably because the benchmark is still running. {columns}")
+    raise
+
+  # Add labels
+  if doLabels and len(columns) >= 2:
+    def findIndex(seq, value):
+      eps = 1.e-8
+      for i in range(len(seq)):
+        if math.fabs(value - seq[i]) < eps:
+          return i
+      return -1
+
+    # Group the related series.
+    seriesGroups = {}
+    seriesSer = {}
+    for c in seriesLegendNames.keys():
+      sn = seriesLegendNames[c]
+      host = sn[:sn.rfind(" ")]
+      if host in seriesGroups:
+        seriesGroups[host].append(c)
+      else:
+        seriesGroups[host] = [c]
+      if sn.find("Serial") != -1:
+        seriesSer[host] = c
+
+    # Go through groups
+    for host in seriesGroups:
+      if not host in seriesSer:
+        continue
+
+      # The serial column
+      cser = seriesSer[host]
+
+      # Compare other columns against the serial column
+      for c in seriesGroups[host]:
+        if cser == c:
+          continue
+
+        x1, y1 = make_series(columns[0][1:], columns[cser][1:])
+        x2, y2 = make_series(columns[0][1:], columns[c][1:])
+        xa = []
+        ya = []
+        labels = []
+        idx = 0
+        for i in range(len(x1)):
+          # Where series 1 (SEQ) > series 2 (OMP)
+          j = findIndex(x2, x1[i])
+          if j != -1 and y1[i] > y2[j]:
+            xa.append(x2[j])
+            ya.append(y2[j])
+            labels.append(f"{math.trunc(100. * y1[i] / y2[i]) / 100.:.2f}x")
+            plt.annotate(
+              labels[idx],
+              (xa[idx], ya[idx]),
+              xytext=(6, -6), textcoords="offset points",  # pixel offset
+              ha="left", va="bottom",
+              fontsize=10,
+              bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.8),
+              arrowprops=dict(arrowstyle="-", color="0.3", lw=0.8)
+            )
+            idx = idx + 1
+
+  # Show the plot
+  plt.grid(True)
+  plt.show()
+
+def get_params():
+  """
+  Get arguments from the command line and return a dictionary.
+  """
+  parser = argparse.ArgumentParser(description="Parse args")
+  parser.add_argument(
+    "--parallel",
+    type=str,
+    help="Comma-separated list of integer values",
+    required=False
+  )
+
+  parser.add_argument(
+    "--generate",
+    action="store_true",
+    help="Boolean flag to indicate whether to generate scripts",
+    required=False
+  )
+
+  parser.add_argument(
+    "--plot",
+    action="store_true",
+    help="Boolean flag to indicate whether to plot",
+    required=False
+  )
+
+  parser.add_argument(
+    "--method",
+    type=str,
+    help="MIR method to use (e.g., 'equiz', 'elvira')",
+    required=False
+    )
+
+  parser.add_argument(
+    "--dimension",
+    type=int,
+    help="Mesh dimension to generate (2 or 3)",
+    required=False
+    )
+
+  parser.add_argument(
+    "--select",
+    type=str,
+    help="Comma-separated list of strings to select specific plot data",
+    required=False
+  )
+
+  parser.add_argument(
+    "--key",
+    type=str,
+    help="Name of the caliper timings to extract from the logs",
+    required=False
+  )
+
+  parser.add_argument(
+    "--trials",
+    type=int,
+    help="Number of times to run MIR",
+    required=False
+    )
+
+  parser.add_argument(
+    "--labels",
+    action="store_true",
+    help="Boolean flag to indicate whether to draw speedup labels",
+    required=False
+    )
+
+  args = parser.parse_args()
+
+  # Convert the comma-separated string into a tuple of integers
+  parallel = ()
+  if args.parallel is not None:
+    try:
+      parallel = tuple(int(value) for value in args.parallel.split(","))
+    except ValueError:
+      raise argparse.ArgumentTypeError("All values in --parallel must be integers.")
+
+  selections = ()
+  if args.select is not None:
+    selections = tuple(args.select.split(","))
+
+  params = {}
+  params["parallel"] = parallel
+  if args.method is not None:
+    params["method"] = args.method
+  else:
+    params["method"] = "elvira"
+
+  if args.generate:
+    params["generate"] = args.generate
+  else:
+    params["generate"] = False
+
+  if args.plot:
+    params["plot"] = args.plot
+    params["generate"] = False
+  else:
+    params["plot"] = False
+
+  params["selections"] = selections
+  if args.dimension is not None:
+    params["dimension"] = args.dimension
+  else:
+    params["dimension"] = 2
+
+  if args.trials is not None:
+    params["trials"] = max(1, args.trials)
+  else:
+    params["trials"] = 1
+
+  if args.labels is not None:
+    params["labels"] = args.labels
+  else:
+    params["labels"] = False
+
+  if args.key is not None:
+    params["searchKey"] = args.key
+  else:
+    # Default to MIR algorithm timings
+    if params["method"] == "elvira":
+      params["searchKey"] = "ElviraAlgorithm"
+    else:
+      params["searchKey"] = "EquizAlgorithm"
+
+  # Generate some sizes.
+  sides = (50, 100, 200, 500, 1000, 1500, 2000, 4000, 8000)
+  if params["dimension"] == 3:
+    # Figure out the 3D side size we need for about the same zone counts as 2D.
+    s = []
+    for side in sides:
+      s.append(int(math.ceil(math.pow(side * side, 1./3.))))
+    params["sizes"] = tuple(s)
+  else:
+    params["sizes"] = sides
+
+  return params
+
+def main():
+  params = get_params()
+
+  if params["generate"]:
+    print("Generating files...")
+    generate(params)
+  elif params["plot"]:
+    print("Plotting files...")
+    plot(params)
+  else:
+    print("Making CSV...")
+    make_csv(params, "concentric_circle_timings.csv")
+
+if __name__ == "__main__":
+  main()

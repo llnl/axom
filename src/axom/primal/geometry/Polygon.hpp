@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -43,8 +44,7 @@ class Polygon;
 
 /// \brief Overloaded output operator for polygons
 template <typename T, int NDIMS, axom::primal::PolygonArray ARRAY_TYPE, int MAX_VERTS>
-std::ostream& operator<<(std::ostream& os,
-                         const Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>& poly);
+std::ostream& operator<<(std::ostream& os, const Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>& poly);
 
 /*!
  * \class Polygon
@@ -61,10 +61,7 @@ std::ostream& operator<<(std::ostream& os,
  * \note The polygon vertices should be ordered in a counter clockwise
  *       orientation with respect to the polygon's desired normal vector
  */
-template <typename T,
-          int NDIMS,
-          PolygonArray ARRAY_TYPE = PolygonArray::Dynamic,
-          int MAX_VERTS = DEFAULT_MAX_NUM_VERTICES>
+template <typename T, int NDIMS, PolygonArray ARRAY_TYPE = PolygonArray::Dynamic, int MAX_VERTS = DEFAULT_MAX_NUM_VERTICES>
 class Polygon
 {
 public:
@@ -100,11 +97,28 @@ public:
   ~Polygon() { m_vertices.clear(); }
 
   /*!
-   * \brief Copy assignment operator for Polygon. Suppress CUDA warnings for
-   *        dynamic axom::Array.
+   * \brief Copy assignment operator for Polygon (static array specialization).
+   *        Specializations are necessary to remove warnings.
    */
-  AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE
+  template <PolygonArray P_ARRAY_TYPE = ARRAY_TYPE,
+            std::enable_if_t<P_ARRAY_TYPE == PolygonArray::Static, int> = 0>
+  AXOM_HOST_DEVICE Polygon& operator=(const Polygon& other)
+  {
+    if(this == &other)
+    {
+      return *this;
+    }
+
+    m_vertices = other.m_vertices;
+    return *this;
+  }
+
+  /*!
+   * \brief Copy assignment operator for Polygon.
+   *        (dynamic array specialization)
+   */
+  template <PolygonArray P_ARRAY_TYPE = ARRAY_TYPE,
+            std::enable_if_t<P_ARRAY_TYPE == PolygonArray::Dynamic, int> = 0>
   Polygon& operator=(const Polygon& other)
   {
     if(this == &other)
@@ -193,8 +207,25 @@ public:
    * \sa axom::StaticArray::push_back() for behavior when array type is static
    *     and the list of vertices is full.
    */
-  AXOM_HOST_DEVICE
-  void addVertex(const PointType& pt) { m_vertices.push_back(pt); }
+  /// @{
+  template <PolygonArray P_ARRAY_TYPE = ARRAY_TYPE,
+            std::enable_if_t<P_ARRAY_TYPE == PolygonArray::Static, int> = 0>
+  AXOM_HOST_DEVICE void addVertex(const PointType& pt)
+  {
+    m_vertices.push_back(pt);
+  }
+
+  template <PolygonArray P_ARRAY_TYPE = ARRAY_TYPE,
+            std::enable_if_t<P_ARRAY_TYPE == PolygonArray::Dynamic, int> = 0>
+  AXOM_HOST_DEVICE void addVertex(const PointType& pt)
+  {
+#ifdef AXOM_DEVICE_CODE
+    m_vertices.push_back_device(pt);
+#else
+    m_vertices.push_back(pt);
+#endif
+  }
+  /// @}
 
   /// Clears the list of vertices (dynamic array specialization).
   /// Specializations are necessary to remove __host__ __device__ warning for
@@ -313,8 +344,7 @@ public:
     const auto O = vertexMean();  // 'O' for (local) origin
     for(int curr = 0, prev = nVerts - 1; curr < nVerts; prev = curr++)
     {
-      sum +=
-        VectorType::cross_product(m_vertices[prev] - O, m_vertices[curr] - O);
+      sum += VectorType::cross_product(m_vertices[prev] - O, m_vertices[curr] - O);
     }
 
     return 0.5 * axom::utilities::abs(sum.norm());
@@ -397,15 +427,14 @@ public:
   bool isValid() const { return m_vertices.size() >= 3; }
 
 private:
-  ArrayType m_vertices;
+  ArrayType m_vertices {};
 };
 
 //------------------------------------------------------------------------------
 /// Free functions implementing Polygon's operators
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS, axom::primal::PolygonArray ARRAY_TYPE, int MAX_VERTS>
-std::ostream& operator<<(std::ostream& os,
-                         const Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>& poly)
+std::ostream& operator<<(std::ostream& os, const Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>& poly)
 {
   poly.print(os);
   return os;
@@ -416,8 +445,7 @@ std::ostream& operator<<(std::ostream& os,
 
 /// Overload to format a primal::Polygon using fmt
 template <typename T, int NDIMS, axom::primal::PolygonArray ARRAY_TYPE, int MAX_VERTS>
-struct axom::fmt::formatter<axom::primal::Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>>
-  : ostream_formatter
+struct axom::fmt::formatter<axom::primal::Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>> : ostream_formatter
 { };
 
 #endif  // AXOM_PRIMAL_POLYGON_HPP_

@@ -3,8 +3,9 @@ message(STATUS "CURRENT_INSTALLED_DIR -- ${CURRENT_INSTALLED_DIR}")
 message(STATUS "PORT -- ${PORT}")
 
 set(_copyright [=[
-Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-other Axom Project Developers. See the top-level LICENSE file for details.
+Copyright (c) Lawrence Livermore National Security, LLC and other
+Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+files for dates and other details.
 
 SPDX-License-Identifier: (BSD-3-Clause)
 ]=])
@@ -14,8 +15,9 @@ set(_host-config_hdr [=[
 #------------------------------------------------------------------------------
 # !!!! This is a generated file, edit at own risk !!!!
 #------------------------------------------------------------------------------
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -70,9 +72,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "")
 set(AXOM_ENABLE_TESTS ON CACHE BOOL "")
 set(AXOM_ENABLE_DOCS OFF CACHE BOOL "")
 set(AXOM_ENABLE_EXAMPLES ON CACHE BOOL "")
+set(AXOM_ENABLE_TUTORIALS ON CACHE BOOL "")
 
 if(VCPKG_TARGET_TRIPLET MATCHES "^x64")
   set(AXOM_USE_64BIT_INDEXTYPE ON CACHE BOOL "")
+else()
+  set(AXOM_USE_64BIT_INDEXTYPE OFF CACHE BOOL "")
 endif()
 
 # BLT options
@@ -167,6 +172,12 @@ set(_umpire_dep [=[
 set(UMPIRE_DIR "@CURRENT_INSTALLED_DIR@" CACHE PATH "")
 ]=])
 
+
+set(_opencascade_dep [=[
+
+set(OPENCASCADE_DIR "@CURRENT_INSTALLED_DIR@" CACHE PATH "")
+]=])
+
 set(_openmp_dep [=[
 
 # Setup OpenMP; fix MSVC linker error about unknown flag
@@ -198,7 +209,7 @@ else()
   file(APPEND ${_hc_file}.in "${_conduit_dep_off}")
 endif()
 
-foreach(_dep lua mfem openmp raja umpire)
+foreach(_dep lua mfem openmp raja umpire opencascade)
   if(${_dep} IN_LIST FEATURES)
     file(APPEND ${_hc_file}.in "${_${_dep}_dep}")
   else()

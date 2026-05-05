@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -49,6 +50,38 @@ namespace utilities
  */
 template <typename T>
 struct BitTraits;
+
+template <>
+struct BitTraits<std::int64_t>
+{
+  constexpr static int NUM_BYTES = 8;
+  constexpr static int BITS_PER_WORD = NUM_BYTES << 3;
+  constexpr static int LG_BITS_PER_WORD = 6;
+};
+
+template <>
+struct BitTraits<std::int32_t>
+{
+  constexpr static int NUM_BYTES = 4;
+  constexpr static int BITS_PER_WORD = NUM_BYTES << 3;
+  constexpr static int LG_BITS_PER_WORD = 5;
+};
+
+template <>
+struct BitTraits<std::int16_t>
+{
+  constexpr static int NUM_BYTES = 2;
+  constexpr static int BITS_PER_WORD = NUM_BYTES << 3;
+  constexpr static int LG_BITS_PER_WORD = 4;
+};
+
+template <>
+struct BitTraits<std::int8_t>
+{
+  constexpr static int NUM_BYTES = 1;
+  constexpr static int BITS_PER_WORD = NUM_BYTES << 3;
+  constexpr static int LG_BITS_PER_WORD = 3;
+};
 
 template <>
 struct BitTraits<std::uint64_t>
@@ -137,7 +170,7 @@ AXOM_HOST_DEVICE inline int popcount(std::uint64_t word) noexcept
   // Use HIP intrinsic for popcount
   return __popcll(word);
 #elif defined(_AXOM_CORE_USE_INTRINSICS_MSVC)
-  return __popcnt64(word);
+  return static_cast<int>(__popcnt64(word));
 #elif defined(_AXOM_CORE_USE_INTRINSICS_GCC) || defined(_AXOM_CORE_USE_INTRINSICS_PPC)
   return __builtin_popcountll(word);
 #else
@@ -196,6 +229,64 @@ AXOM_HOST_DEVICE inline std::int32_t countl_zero(std::int32_t word) noexcept
   /* clang-format off */
 }
 // gpu_macros_example_end
+
+/*!
+ * \brief Determine whether the \a bit is set in \a flags.
+ * \accelerated
+ *
+ * \tparam FlagType The integer type that contains the flags.
+ * \tparam BitType  The index type that stores the bit index.
+ *
+ * \param[in] flags The flags whose bit we're testing.
+ * \param[in] bit   The bit we're testing.
+ *
+ * \return True if the bit is set; false otherwise.
+ */
+template <typename FlagType, typename BitType>
+AXOM_HOST_DEVICE
+constexpr bool bitIsSet(FlagType flags, BitType bit)
+{
+  assert(static_cast<int>(bit) < BitTraits<FlagType>::BITS_PER_WORD << 3);
+  return (flags & (1 << bit)) > 0;
+}
+
+/*!
+ * \brief Set the bit in flags.
+ * \accelerated
+ *
+ * \tparam FlagType The integer type that contains the flags.
+ * \tparam BitType  The index type that stores the bit index.
+ *
+ * \param[inout] flags The flags whose bit we're setting.
+ * \param[in] bit   The bit we're setting.
+ * \param[in] value The value we're setting into the bit.
+ */
+template <typename FlagType, typename BitType>
+AXOM_HOST_DEVICE
+constexpr void setBit(FlagType &flags, BitType bit, bool value = true)
+{
+  assert(static_cast<int>(bit) < BitTraits<FlagType>::BITS_PER_WORD << 3);
+  const auto mask = 1 << bit;
+  flags = value ? (flags | mask) : (flags & ~mask);
+}
+
+/*!
+ * \brief Set the bit in flags.
+ * \accelerated
+ *
+ * \tparam FlagType The integer type that contains the flags.
+ * \tparam BitType  The index type that stores the bit index.
+ *
+ * \param[inout] flags The flags whose bit we're setting.
+ * \param[in] bit   The bit we're setting.
+ */
+template <typename FlagType, typename BitType>
+AXOM_HOST_DEVICE
+constexpr void setBitOn(FlagType &flags, BitType bit)
+{
+  assert(static_cast<int>(bit) < BitTraits<FlagType>::BITS_PER_WORD << 3);
+  flags |= (1 << bit);
+}
 
 }  // namespace utilities
 }  // namespace axom

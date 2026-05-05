@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -44,8 +45,7 @@ TEST(inlet_function, simple_vec3_to_double_raw)
   std::string testString = "function foo (v) return v.x + v.y + v.z end";
   auto inlet = createBasicInlet(testString);
 
-  auto func =
-    inlet.reader().getFunction("foo", FunctionTag::Double, {FunctionTag::Vector});
+  auto func = inlet.reader().getFunction("foo", FunctionTag::Double, {FunctionTag::Vector});
 
   EXPECT_TRUE(func);
   auto result = func.call<double>(FunctionType::Vector {1, 2, 3});
@@ -57,8 +57,7 @@ TEST(inlet_function, simple_vec3_to_vec3_raw)
   std::string testString = "function foo (v) return 2*v end";
   auto inlet = createBasicInlet(testString);
 
-  auto func =
-    inlet.reader().getFunction("foo", FunctionTag::Vector, {FunctionTag::Vector});
+  auto func = inlet.reader().getFunction("foo", FunctionTag::Vector, {FunctionTag::Vector});
 
   EXPECT_TRUE(func);
   auto result = func.call<FunctionType::Vector>(FunctionType::Vector {1, 2, 3});
@@ -72,8 +71,7 @@ TEST(inlet_function, simple_vec3_to_vec3_raw_partial_init)
   std::string testString = "function foo (v) return 2*v end";
   auto inlet = createBasicInlet(testString);
 
-  auto func =
-    inlet.reader().getFunction("foo", FunctionTag::Vector, {FunctionTag::Vector});
+  auto func = inlet.reader().getFunction("foo", FunctionTag::Vector, {FunctionTag::Vector});
 
   EXPECT_TRUE(func);
 
@@ -93,10 +91,7 @@ TEST(inlet_function, simple_vec3_to_double_through_container)
   std::string testString = "function foo (v) return v.x + v.y + v.z end";
   auto inlet = createBasicInlet(testString);
 
-  inlet.addFunction("foo",
-                    FunctionTag::Double,
-                    {FunctionTag::Vector},
-                    "foo's description");
+  inlet.addFunction("foo", FunctionTag::Double, {FunctionTag::Vector}, "foo's description");
 
   auto callable = inlet["foo"].get<std::function<double(FunctionType::Vector)>>();
   auto result = callable({1, 2, 3});
@@ -108,13 +103,9 @@ TEST(inlet_function, simple_vec3_to_vec3_through_container)
   std::string testString = "function foo (v) return 2*v end";
   auto inlet = createBasicInlet(testString);
 
-  inlet.addFunction("foo",
-                    FunctionTag::Vector,
-                    {FunctionTag::Vector},
-                    "foo's description");
+  inlet.addFunction("foo", FunctionTag::Vector, {FunctionTag::Vector}, "foo's description");
 
-  auto callable =
-    inlet["foo"].get<std::function<FunctionType::Vector(FunctionType::Vector)>>();
+  auto callable = inlet["foo"].get<std::function<FunctionType::Vector(FunctionType::Vector)>>();
   auto result = callable({1, 2, 3});
   EXPECT_FLOAT_EQ(result[0], 2);
   EXPECT_FLOAT_EQ(result[1], 4);
@@ -126,13 +117,9 @@ TEST(inlet_function, simple_double_to_double_through_container)
   std::string testString = "function foo (a) return (a * 3.4) + 9.64 end";
   auto inlet = createBasicInlet(testString);
 
-  inlet.addFunction("foo",
-                    FunctionTag::Double,
-                    {FunctionTag::Double},
-                    "foo's description");
+  inlet.addFunction("foo", FunctionTag::Double, {FunctionTag::Double}, "foo's description");
 
-  auto callable =
-    inlet["foo"].get<std::function<FunctionType::Double(FunctionType::Double)>>();
+  auto callable = inlet["foo"].get<std::function<FunctionType::Double(FunctionType::Double)>>();
   double arg = -6.37;
   double result = callable(arg);
   EXPECT_FLOAT_EQ(result, (arg * 3.4) + 9.64);
@@ -156,13 +143,9 @@ TEST(inlet_function, simple_double_to_void_through_container)
   std::string testString = "bar = 19.9; function foo (a) bar = a end";
   auto inlet = createBasicInlet(testString);
 
-  inlet.addFunction("foo",
-                    FunctionTag::Void,
-                    {FunctionTag::Double},
-                    "foo's description");
+  inlet.addFunction("foo", FunctionTag::Void, {FunctionTag::Double}, "foo's description");
 
-  auto callable =
-    inlet["foo"].get<std::function<FunctionType::Void(FunctionType::Double)>>();
+  auto callable = inlet["foo"].get<std::function<FunctionType::Void(FunctionType::Double)>>();
   double arg = -6.37;
   callable(arg);
 
@@ -181,13 +164,9 @@ TEST(inlet_function, simple_string_to_double_through_container)
     "end";
   auto inlet = createBasicInlet(testString);
 
-  inlet.addFunction("foo",
-                    FunctionTag::Double,
-                    {FunctionTag::String},
-                    "foo's description");
+  inlet.addFunction("foo", FunctionTag::Double, {FunctionTag::String}, "foo's description");
 
-  auto callable =
-    inlet["foo"].get<std::function<FunctionType::Double(FunctionType::String)>>();
+  auto callable = inlet["foo"].get<std::function<FunctionType::Double(FunctionType::String)>>();
 
   EXPECT_FLOAT_EQ(callable("a"), 9.1);
   EXPECT_FLOAT_EQ(callable("b"), -6.3);
@@ -204,13 +183,9 @@ TEST(inlet_function, simple_double_to_string_through_container)
     "end";
   auto inlet = createBasicInlet(testString);
 
-  inlet.addFunction("foo",
-                    FunctionTag::String,
-                    {FunctionTag::Double},
-                    "foo's description");
+  inlet.addFunction("foo", FunctionTag::String, {FunctionTag::Double}, "foo's description");
 
-  auto callable =
-    inlet["foo"].get<std::function<FunctionType::String(FunctionType::Double)>>();
+  auto callable = inlet["foo"].get<std::function<FunctionType::String(FunctionType::Double)>>();
   EXPECT_EQ(callable(1), "a");
   EXPECT_EQ(callable(2), "b");
   EXPECT_EQ(callable(3), "c");
@@ -221,10 +196,7 @@ TEST(inlet_function, simple_vec3_to_double_through_container_call)
   std::string testString = "function foo (v) return v.x + v.y + v.z end";
   auto inlet = createBasicInlet(testString);
 
-  inlet.addFunction("foo",
-                    FunctionTag::Double,
-                    {FunctionTag::Vector},
-                    "foo's description");
+  inlet.addFunction("foo", FunctionTag::Double, {FunctionTag::Vector}, "foo's description");
 
   auto result = inlet["foo"].call<double>(FunctionType::Vector {1, 2, 3});
   EXPECT_FLOAT_EQ(result, 6);
@@ -235,13 +207,9 @@ TEST(inlet_function, simple_vec3_to_vec3_through_container_call)
   std::string testString = "function foo (v) return 2*v end";
   auto inlet = createBasicInlet(testString);
 
-  inlet.addFunction("foo",
-                    FunctionTag::Vector,
-                    {FunctionTag::Vector},
-                    "foo's description");
+  inlet.addFunction("foo", FunctionTag::Vector, {FunctionTag::Vector}, "foo's description");
 
-  auto result =
-    inlet["foo"].call<FunctionType::Vector>(FunctionType::Vector {1, 2, 3});
+  auto result = inlet["foo"].call<FunctionType::Vector>(FunctionType::Vector {1, 2, 3});
   EXPECT_FLOAT_EQ(result[0], 2);
   EXPECT_FLOAT_EQ(result[1], 4);
   EXPECT_FLOAT_EQ(result[2], 6);
@@ -249,8 +217,7 @@ TEST(inlet_function, simple_vec3_to_vec3_through_container_call)
 
 TEST(inlet_function, simple_vec3_double_to_double_through_container_call)
 {
-  std::string testString =
-    "function foo (v, t) return t * (v.x + v.y + v.z) end";
+  std::string testString = "function foo (v, t) return t * (v.x + v.y + v.z) end";
   auto inlet = createBasicInlet(testString);
 
   inlet.addFunction("foo",
@@ -272,8 +239,7 @@ TEST(inlet_function, simple_vec3_double_to_vec3_through_container_call)
                     {FunctionTag::Vector, FunctionTag::Double},
                     "foo's description");
 
-  auto result =
-    inlet["foo"].call<FunctionType::Vector>(FunctionType::Vector {1, 2, 3}, 2.0);
+  auto result = inlet["foo"].call<FunctionType::Vector>(FunctionType::Vector {1, 2, 3}, 2.0);
   EXPECT_FLOAT_EQ(result[0], 2);
   EXPECT_FLOAT_EQ(result[1], 4);
   EXPECT_FLOAT_EQ(result[2], 6);
@@ -284,12 +250,8 @@ TEST(inlet_function, simple_vec3_to_vec3_verify_lambda_pass)
   std::string testString = "function foo (v) return 2*v end";
   auto inlet = createBasicInlet(testString);
 
-  auto& func = inlet
-                 .addFunction("foo",
-                              FunctionTag::Vector,
-                              {FunctionTag::Vector},
-                              "foo's description")
-                 .required();
+  auto& func =
+    inlet.addFunction("foo", FunctionTag::Vector, {FunctionTag::Vector}, "foo's description").required();
   func.registerVerifier([](const axom::inlet::Function& func) {
     auto result = func.call<FunctionType::Vector>(FunctionType::Vector {1, 0, 0});
     return std::abs(result[0] - 2) < 1e-5;
@@ -303,12 +265,8 @@ TEST(inlet_function, simple_vec3_to_vec3_verify_lambda_fail)
   std::string testString = "function foo (v) return 2*v end";
   auto inlet = createBasicInlet(testString);
 
-  auto& func = inlet
-                 .addFunction("foo",
-                              FunctionTag::Vector,
-                              {FunctionTag::Vector},
-                              "foo's description")
-                 .required();
+  auto& func =
+    inlet.addFunction("foo", FunctionTag::Vector, {FunctionTag::Vector}, "foo's description").required();
   func.registerVerifier([](const axom::inlet::Function& func) {
     auto result = func.call<FunctionType::Vector>(FunctionType::Vector {2, 0, 0});
     return std::abs(result[0] - 2) < 1e-5;
@@ -322,14 +280,9 @@ TEST(inlet_function, simple_vec3_to_vec3_verify_lambda_with_errors_fail)
   std::string testString = "function foo (v) return 2*v end";
   auto inlet = createBasicInlet(testString);
 
-  auto& func = inlet
-                 .addFunction("foo",
-                              FunctionTag::Vector,
-                              {FunctionTag::Vector},
-                              "foo's description")
-                 .required();
-  func.registerVerifier([](const axom::inlet::Function& func,
-                           std::vector<VerificationError>* errors) {
+  auto& func =
+    inlet.addFunction("foo", FunctionTag::Vector, {FunctionTag::Vector}, "foo's description").required();
+  func.registerVerifier([](const axom::inlet::Function& func, std::vector<VerificationError>* errors) {
     INLET_VERIFICATION_WARNING("foo", "Something bad happened", errors);
     auto result = func.call<FunctionType::Vector>(FunctionType::Vector {2, 0, 0});
     return std::abs(result[0] - 2) < 1e-5;
@@ -360,17 +313,12 @@ struct FromInlet<Foo>
 
 TEST(inlet_function, simple_vec3_to_vec3_struct)
 {
-  std::string testString =
-    "foo = { bar = true; baz = function (v) return 2*v end }";
+  std::string testString = "foo = { bar = true; baz = function (v) return 2*v end }";
   auto inlet = createBasicInlet(testString);
 
   // Define schema
   inlet.addBool("foo/bar", "bar's description");
-  inlet
-    .addFunction("foo/baz",
-                 FunctionTag::Vector,
-                 {FunctionTag::Vector},
-                 "baz's description")
+  inlet.addFunction("foo/baz", FunctionTag::Vector, {FunctionTag::Vector}, "baz's description")
     .required();
   Foo foo = inlet["foo"].get<Foo>();
   EXPECT_TRUE(foo.bar);
@@ -394,11 +342,7 @@ TEST(inlet_function, simple_vec3_to_vec3_array_of_struct)
 
   // Define schema
   arr_container.addBool("bar", "bar's description");
-  arr_container
-    .addFunction("baz",
-                 FunctionTag::Vector,
-                 {FunctionTag::Vector},
-                 "baz's description")
+  arr_container.addFunction("baz", FunctionTag::Vector, {FunctionTag::Vector}, "baz's description")
     .required();
 
   auto foos = inlet["foo"].get<std::unordered_map<int, Foo>>();
@@ -429,13 +373,9 @@ TEST(inlet_function, dimension_dependent_result)
     "end";
   auto inlet = createBasicInlet(testString);
 
-  inlet.addFunction("foo",
-                    FunctionTag::Vector,
-                    {FunctionTag::Vector},
-                    "foo's description");
+  inlet.addFunction("foo", FunctionTag::Vector, {FunctionTag::Vector}, "foo's description");
 
-  auto callable =
-    inlet["foo"].get<std::function<FunctionType::Vector(FunctionType::Vector)>>();
+  auto callable = inlet["foo"].get<std::function<FunctionType::Vector(FunctionType::Vector)>>();
 
   FunctionType::Vector input_3d({3.5, 0.5, 7.5});
   auto result = callable(input_3d);
@@ -461,10 +401,7 @@ struct FooWithScalarFunc
 template <>
 struct FromInlet<FooWithScalarFunc>
 {
-  FooWithScalarFunc operator()(const axom::inlet::Container& base)
-  {
-    return {base["foo/bar"]};
-  }
+  FooWithScalarFunc operator()(const axom::inlet::Container& base) { return {base["foo/bar"]}; }
 };
 
 TEST(inlet_function, nested_function_in_struct)
@@ -477,10 +414,7 @@ TEST(inlet_function, nested_function_in_struct)
   auto& quux_schema = inlet.addStructArray("quux");
   auto& foo_schema = quux_schema.addStruct("foo");
 
-  foo_schema.addFunction("bar",
-                         FunctionTag::Double,
-                         {FunctionTag::Double},
-                         "bar's description");
+  foo_schema.addFunction("bar", FunctionTag::Double, {FunctionTag::Double}, "bar's description");
 
   auto foos = inlet["quux"].get<std::vector<FooWithScalarFunc>>();
   EXPECT_EQ(foos.size(), 2);
@@ -527,8 +461,7 @@ TEST(inlet_function_usertype, lua_usertype_basic)
 
 TEST(inlet_function_usertype, lua_usertype_basic_ret)
 {
-  std::string testString =
-    "function func(x, y, z) return Vector.new(x, y, z) end";
+  std::string testString = "function func(x, y, z) return Vector.new(x, y, z) end";
   SolStateReader reader;
   reader.parseString(testString);
   axom::sol::protected_function func = (*reader.solState())["func"];
@@ -678,17 +611,14 @@ TEST(inlet_function_usertype, lua_usertype_basic_unit_vec)
   axom::sol::protected_function func = (*reader.solState())["func"];
   axom::inlet::FunctionType::Vector vec {1, 2, 3};
   const double l2_norm = std::sqrt((1 * 1) + (2 * 2) + (3 * 3));
-  const axom::inlet::FunctionType::Vector unit {1 / l2_norm,
-                                                2 / l2_norm,
-                                                3 / l2_norm};
+  const axom::inlet::FunctionType::Vector unit {1 / l2_norm, 2 / l2_norm, 3 / l2_norm};
   auto result = checkedCall<axom::inlet::FunctionType::Vector>(func, vec);
   EXPECT_EQ(unit, result);
 }
 
 TEST(inlet_function_usertype, lua_usertype_basic_dot)
 {
-  std::string testString =
-    "function func(vec1, vec2) return vec1:dot(vec2) end";
+  std::string testString = "function func(vec1, vec2) return vec1:dot(vec2) end";
   SolStateReader reader;
   reader.parseString(testString);
   axom::sol::protected_function func = (*reader.solState())["func"];
@@ -701,8 +631,7 @@ TEST(inlet_function_usertype, lua_usertype_basic_dot)
 
 TEST(inlet_function_usertype, lua_usertype_basic_cross)
 {
-  std::string testString =
-    "function func(vec1, vec2) return vec1:cross(vec2) end";
+  std::string testString = "function func(vec1, vec2) return vec1:cross(vec2) end";
   SolStateReader reader;
   reader.parseString(testString);
   axom::sol::protected_function func = (*reader.solState())["func"];

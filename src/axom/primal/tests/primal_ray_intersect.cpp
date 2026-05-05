@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -179,10 +180,9 @@ TEST(primal_ray_intersect, ray_aabb_intersection_3D)
         const double ny = n0[1];
         const double nz = n0[2];
         EXPECT_TRUE(intersect_ray(sx, nx, sy, ny, sz, nz, TEST_BOX3D, tmin, tmax));
-        EXPECT_FALSE(
-          intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
+        EXPECT_FALSE(intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
       }  // END for all j
-    }    // END for all i
+    }  // END for all i
   }
 
   // test TOP (+z)
@@ -204,10 +204,9 @@ TEST(primal_ray_intersect, ray_aabb_intersection_3D)
         const double ny = n0[1];
         const double nz = n0[2];
         EXPECT_TRUE(intersect_ray(sx, nx, sy, ny, sz, nz, TEST_BOX3D, tmin, tmax));
-        EXPECT_FALSE(
-          intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
+        EXPECT_FALSE(intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
       }  // END for all j
-    }    // END for all i
+    }  // END for all i
   }
 
   // test LEFT (-y)
@@ -229,10 +228,9 @@ TEST(primal_ray_intersect, ray_aabb_intersection_3D)
         const double ny = n0[1];
         const double nz = n0[2];
         EXPECT_TRUE(intersect_ray(sx, nx, sy, ny, sz, nz, TEST_BOX3D, tmin, tmax));
-        EXPECT_FALSE(
-          intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
+        EXPECT_FALSE(intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
       }  // END for all j
-    }    // END for all i
+    }  // END for all i
   }
 
   // test RIGHT (+y)
@@ -254,10 +252,9 @@ TEST(primal_ray_intersect, ray_aabb_intersection_3D)
         const double ny = n0[1];
         const double nz = n0[2];
         EXPECT_TRUE(intersect_ray(sx, nx, sy, ny, sz, nz, TEST_BOX3D, tmin, tmax));
-        EXPECT_FALSE(
-          intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
+        EXPECT_FALSE(intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
       }  // END for all j
-    }    // END for all i
+    }  // END for all i
   }
 
   // test BACK (-x)
@@ -279,10 +276,9 @@ TEST(primal_ray_intersect, ray_aabb_intersection_3D)
         const double ny = n0[1];
         const double nz = n0[2];
         EXPECT_TRUE(intersect_ray(sx, nx, sy, ny, sz, nz, TEST_BOX3D, tmin, tmax));
-        EXPECT_FALSE(
-          intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
+        EXPECT_FALSE(intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
       }  // END for all j
-    }    // END for all i
+    }  // END for all i
   }
 
   // test FRONT (+x)
@@ -304,10 +300,9 @@ TEST(primal_ray_intersect, ray_aabb_intersection_3D)
         const double ny = n0[1];
         const double nz = n0[2];
         EXPECT_TRUE(intersect_ray(sx, nx, sy, ny, sz, nz, TEST_BOX3D, tmin, tmax));
-        EXPECT_FALSE(
-          intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
+        EXPECT_FALSE(intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
       }  // END for all j
-    }    // END for all i
+    }  // END for all i
   }
 
   // Test a bunch of rays emitted from the box center
@@ -400,15 +395,15 @@ TEST(primal_ray_intersect, ray_segment_edge_cases)
 
   // Check segments oriented in same direction as ray
   //  and in opposite direction
-  SegmentType intersecting_segs[] = {
-    SegmentType(PointType({1, 2.1}), PointType({2, 4.1})),
-    SegmentType(PointType({0, 0.1}), PointType({1, 2.1})),
-    SegmentType(PointType({-1, -1.9}), PointType({1, 2.1})),
-    SegmentType(PointType({-1, -1.9}), PointType({0, 0.1})),
-    SegmentType(PointType({2, 4.1}), PointType({1, 2.1})),
-    SegmentType(PointType({1, 2.1}), PointType({0, 0.1})),
-    SegmentType(PointType({1, 2.1}), PointType({-1, -1.9})),
-    SegmentType(PointType({0, 0.1}), PointType({-1, -1.9}))};
+  SegmentType intersecting_segs[] = {SegmentType(PointType({1, 2.1}), PointType({2, 4.1})),
+                                     SegmentType(PointType({0, 0.1}), PointType({1, 2.1})),
+                                     SegmentType(PointType({-1, -1.9}), PointType({1, 2.1})),
+                                     SegmentType(PointType({-1, -1.9}), PointType({0, 0.1})),
+                                     SegmentType(PointType({2, 4.1}), PointType({1, 2.1})),
+                                     SegmentType(PointType({1, 2.1}), PointType({0, 0.1})),
+                                     SegmentType(PointType({1, 2.1}), PointType({-1, -1.9})),
+                                     SegmentType(PointType({0, 0.1}), PointType({-1, -1.9})),
+                                     SegmentType(PointType({1, 2.1}), PointType({1, 2.1}))};
 
   for(auto& seg : intersecting_segs)
   {
@@ -418,13 +413,12 @@ TEST(primal_ray_intersect, ray_segment_edge_cases)
   }
 
   // Check that parallel, but not colinear segments do not intersect
-  SegmentType not_intersecting_segs[] = {
-    SegmentType(PointType({-2, -3.9}), PointType({-1, -1.9})),
-    SegmentType(PointType({-2, -2.9}), PointType({-1, -0.9})),
-    SegmentType(PointType({-2, -2.9}), PointType({1, 3.1})),
-    SegmentType(PointType({-1, -1.9}), PointType({-2, -3.9})),
-    SegmentType(PointType({-1, -0.9}), PointType({-2, -2.9})),
-    SegmentType(PointType({1, 3.1}), PointType({-2, -2.9}))};
+  SegmentType not_intersecting_segs[] = {SegmentType(PointType({-2, -3.9}), PointType({-1, -1.9})),
+                                         SegmentType(PointType({-2, -2.9}), PointType({-1, -0.9})),
+                                         SegmentType(PointType({-2, -2.9}), PointType({1, 3.1})),
+                                         SegmentType(PointType({-1, -1.9}), PointType({-2, -3.9})),
+                                         SegmentType(PointType({-1, -0.9}), PointType({-2, -2.9})),
+                                         SegmentType(PointType({1, 3.1}), PointType({-2, -2.9}))};
 
   for(auto& seg : not_intersecting_segs)
   {

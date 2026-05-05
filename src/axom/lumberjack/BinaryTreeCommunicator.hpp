@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -64,6 +65,13 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Returns the MPI communicator
+   *****************************************************************************
+   */
+  MPI_Comm comm();
+
+  /*!
+   *****************************************************************************
    * \brief Returns the MPI rank of this node
    *****************************************************************************
    */
@@ -120,8 +128,7 @@ public:
    *
    *****************************************************************************
    */
-  void push(const char* packedMessagesToBeSent,
-            std::vector<const char*>& receivedPackedMessages);
+  void push(const char* packedMessagesToBeSent, std::vector<const char*>& receivedPackedMessages);
 
   /*!
    *****************************************************************************
@@ -133,6 +140,16 @@ public:
    */
   bool isOutputNode();
 
+  /*!
+   *****************************************************************************
+   * \brief This function returns a start time that is consistent across ranks.
+   * This time corresponds to the time that the Communicator is initialized
+   *
+   * \return Double value that corresponds to a global start time
+   *****************************************************************************
+   */
+  double startTime();
+
 private:
   MPI_Comm m_mpiComm;
   int m_mpiCommRank;
@@ -143,6 +160,7 @@ private:
   int m_leftChildRank;
   int m_rightChildRank;
   int m_childCount;
+  double m_startTime;
 };
 
 }  // end namespace lumberjack

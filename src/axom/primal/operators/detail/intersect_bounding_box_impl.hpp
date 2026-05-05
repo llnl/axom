@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -19,10 +20,10 @@ namespace detail
 /*!
  * \brief Helper routine for AABB / AABB intersection test.
  *
- * \param [in] min1 the 1st AABB min coordinate along a direction.
- * \param [in] max1 the 1st AABB max coordinate along a drection.
- * \param [in] min2 the 2nd AABB min coordinate along a direction.
- * \param [in] max2 the 2nd AABB max coordinate along a drection.
+ * \param [in] min1 the 1st AABB min coordinate along a direction
+ * \param [in] max1 the 1st AABB max coordinate along a direction
+ * \param [in] min2 the 2nd AABB min coordinate along a direction
+ * \param [in] max2 the 2nd AABB max coordinate along a direction
  *
  * \return status true if the AABB's intersect, otherwise false.
  *
@@ -37,8 +38,7 @@ AXOM_HOST_DEVICE inline bool intersect_bbox_bbox(const T& min1,
                                                  const T& min2,
                                                  const T& max2)
 {
-  bool status = ((max1 < min2 || min1 > max2) ? false : true);
-  return status;
+  return max1 >= min2 && min1 <= max2;
 }
 
 /*!

@@ -1,5 +1,5 @@
-# requires clang 10
-# https://releases.llvm.org/10.0.0/tools/clang/docs/ClangFormatStyleOptions.html
+# requires clang 14
+# https://releases.llvm.org/14.0.0/tools/clang/docs/ClangFormatStyleOptions.html
 
 BasedOnStyle: Google
 Language: Cpp
@@ -39,7 +39,7 @@ BraceWrapping:
 ConstructorInitializerAllOnOneLineOrOnePerLine: true
 ConstructorInitializerIndentWidth: 2
 ContinuationIndentWidth: 2
-ColumnLimit: 80
+ColumnLimit: 100
 
 FixNamespaceComments: true
 

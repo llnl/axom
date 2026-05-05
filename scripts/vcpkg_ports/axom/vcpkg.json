@@ -4,10 +4,12 @@
   "homepage": "https://github.com/llnl/axom",
   "description": "Host-config generator for Axom TPLs",
   "dependencies": ["blt"],
+  "$comment":"Umpire removed from default-features due to fmt link errors",
   "default-features": [
     "conduit",
     "lua",
     "mfem",
+    "opencascade",
     "openmp",
     "raja"
   ],
@@ -23,6 +25,16 @@
     "mfem": {
       "description": "mfem functionality for axom",
       "dependencies" : ["mfem"]
+    },
+    "opencascade": {
+      "description": "opencascade functionality for axom",
+      "dependencies": [
+        {
+          "name": "opencascade",
+          "default-features": false,
+          "features": []
+        }
+      ]
     },
     "raja": {
       "description": "raja functionality for axom",

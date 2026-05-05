@@ -1,5 +1,6 @@
-.. ## Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-.. ## other Axom Project Developers. See the top-level LICENSE file for details.
+.. ## Copyright (c) Lawrence Livermore National Security, LLC and other
+.. ## Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+.. ## files for dates and other details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -121,6 +122,19 @@ A concrete :ref:`LogStream` instance can be attached to one or more
 :ref:`logMessageLevel` by calling ``slic::addStreamToMsgLevel()`` and
 ``slic::addStreamToAllMsgLevels()``. See the `Slic Doxygen API Documentation`_
 for more details.
+
+.. _LogStreamStatusMonitor:
+
+Log Stream Status Monitor
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The primary responsibility of the :ref:`LogStreamStatusMonitor` class is to check
+for pending messages in the Logger before flushing them.  It is implemented as a
+singleton by the Logger and contains a pointer to each :ref:`LogStream` provided
+to the logger through its call to ``slic::addStreams()``.
+The :ref:`LogStreamStatusMonitor` performs an MPI reduction across ranks when it
+contains at least one MPI-based stream (such as :ref:`LumberjackStream` and
+:ref:`SynchronizedStream`) to determine if any rank has pending messages.
 
 .. _logMessageFormat:
 

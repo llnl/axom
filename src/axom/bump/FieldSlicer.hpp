@@ -1,0 +1,186 @@
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
+//
+// SPDX-License-Identifier: (BSD-3-Clause)
+#ifndef AXOM_BUMP_FIELD_SLICER_HPP_
+#define AXOM_BUMP_FIELD_SLICER_HPP_
+
+#include "axom/core.hpp"
+#include "axom/slic.hpp"
+#include "axom/bump/views/NodeArrayView.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/IndexingPolicies.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
+
+#include <conduit/conduit.hpp>
+
+namespace axom
+{
+namespace bump
+{
+/*!
+ * \brief Contains the indices to be sliced out of a Blueprint field.
+ */
+struct SliceData
+{
+  axom::ArrayView<IndexType> m_indicesView;
+};
+
+/*!
+ * \brief Return the number of values produced from the SliceData.
+ *
+ * \param slice The SliceData we're querying.
+ *
+ * \return The number of values made from the SliceData.
+ */
+AXOM_HOST_DEVICE
+inline axom::IndexType numberOfValues(const SliceData &slice) { return slice.m_indicesView.size(); }
+
+/*!
+ * \accelerated
+ * \class FieldSlicer
+ *
+ * \brief This class uses SliceData to generate a new sliced field from an input field.
+ *
+ * \tparam ExecSpace The execution space where the algorithm will run.
+ * \tparam IndexingPolicy A class that provides operator[] that can transform zone indices.
+ *
+ */
+template <typename ExecSpace, typename IndexingPolicy = DirectIndexing>
+class FieldSlicer
+{
+public:
+  /// Constructor
+  FieldSlicer() : m_indexing(), m_allocator_id(axom::execution_space<ExecSpace>::allocatorID()) { }
+
+  /*!
+   * \brief Constructor
+   * \param indexing An object used to transform node indices.
+   */
+  FieldSlicer(const IndexingPolicy &indexing)
+    : m_indexing(indexing)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
+  { }
+
+  /*!
+   * \brief Set the allocator id to use when allocating memory.
+   *
+   * \param allocator_id The allocator id to use when allocating memory.
+   */
+  void setAllocatorID(int allocator_id)
+  {
+    SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
+    SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(allocator_id),
+                  "Allocator id is not compatible with execution space.");
+    m_allocator_id = allocator_id;
+  }
+
+  /*!
+   * \brief Get the allocator id to use when allocating memory.
+   *
+   * \return The allocator id to use when allocating memory.
+   */
+  int getAllocatorID() const { return m_allocator_id; }
+
+  /*!
+   * \brief Execute the slice on the \a n_input field and store the new sliced field in \a n_output.
+   *
+   * \param slice    The slice data that indicates how the field will be sliced.
+   * \param n_input  A Conduit node containing the field to be sliced.
+   * \param n_output A node that will contain the sliced field.
+   *
+   * \note We assume for now that n_input != n_output.
+   */
+  void execute(const SliceData &slice, const conduit::Node &n_input, conduit::Node &n_output)
+  {
+    n_output.reset();
+    n_output["association"] = n_input["association"];
+    n_output["topology"] = n_input["topology"];
+
+    const conduit::Node &n_input_values = n_input["values"];
+    conduit::Node &n_output_values = n_output["values"];
+    const conduit::index_t nc = n_input_values.number_of_children();
+    if(nc > 0)
+    {
+      for(conduit::index_t i = 0; i < nc; i++)
+      {
+        const conduit::Node &n_comp = n_input_values[i];
+        conduit::Node &n_out_comp = n_output_values[n_comp.name()];
+        sliceSingleComponent(slice, n_comp, n_out_comp);
+      }
+    }
+    else
+    {
+      sliceSingleComponent(slice, n_input_values, n_output_values);
+    }
+  }
+
+// The following members are private (unless using CUDA)
+#if !defined(__CUDACC__)
+private:
+#endif
+
+  /*!
+   * \brief Slice data for a single field component.
+   *
+   * \param slice The SliceData that will be used to make the new field.
+   * \param n_values The input values that we're slicing.
+   * \param n_output_values The output node that will contain the new field.
+   */
+  void sliceSingleComponent(const SliceData &slice,
+                            const conduit::Node &n_values,
+                            conduit::Node &n_output_values) const
+  {
+    namespace utils = axom::bump::utilities;
+    const auto output_size = slice.m_indicesView.size();
+
+    const auto conduit_allocator_id =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(getAllocatorID());
+    n_output_values.set_allocator(conduit_allocator_id);
+    n_output_values.set(conduit::DataType(n_values.dtype().id(), output_size));
+
+    views::nodeToArrayViewSame(n_values, n_output_values, [&](auto values_view, auto output_view) {
+      sliceSingleComponentImpl(slice, values_view, output_view);
+    });
+  }
+
+  /*!
+   * \brief Slice the source view and copy values into the output view.
+   *
+   * \param values_view The source values view.
+   * \param output_view The output values view.
+   *
+   * \note This method was broken out into a template member method since nvcc
+   *       would not instantiate the lambda for axom::for_all() from an anonymous
+   *       lambda.
+   */
+  template <typename ValuesView, typename OutputView>
+  void sliceSingleComponentImpl(const SliceData &slice,
+                                ValuesView values_view,
+                                OutputView output_view) const
+  {
+    IndexingPolicy device_indexing(m_indexing);
+    SliceData device_slice(slice);
+    axom::for_all<ExecSpace>(
+      output_view.size(),
+      AXOM_LAMBDA(axom::IndexType index) {
+        const auto zone_index = device_slice.m_indicesView[index];
+        const auto transformed_index = device_indexing[zone_index];
+        output_view[index] = values_view[transformed_index];
+      });
+  }
+
+// The following members are private (unless using CUDA)
+#if !defined(__CUDACC__)
+private:
+#endif
+
+  IndexingPolicy m_indexing {};
+  int m_allocator_id;
+};
+
+}  // end namespace bump
+}  // end namespace axom
+
+#endif

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -34,24 +35,19 @@ constexpr int SET_OFFSET_2 = 2;
 
 // Template aliases to simplify specifying some sets and relations
 template <typename P, typename E, typename FromSet, typename ToSet>
-using RelType = slam::StaticRelation<P,
-                                     E,
-                                     policies::VariableCardinality<E>,
-                                     policies::STLVectorIndirection<P, E>,
-                                     FromSet,
-                                     ToSet>;
+using RelType =
+  slam::StaticRelation<P, E, policies::VariableCardinality<E>, policies::STLVectorIndirection<P, E>, FromSet, ToSet>;
 
 template <typename SetType>
 using PositionSetType =
   slam::PositionSet<typename SetType::PositionType, typename SetType::ElementType>;
 
 template <typename SetType>
-using RangeSetType =
-  slam::RangeSet<typename SetType::PositionType, typename SetType::ElementType>;
+using RangeSetType = slam::RangeSet<typename SetType::PositionType, typename SetType::ElementType>;
 
 template <typename SetType>
-using IndirSetType = slam::VectorIndirectionSet<typename SetType::PositionType,
-                                                typename SetType::ElementType>;
+using IndirSetType =
+  slam::VectorIndirectionSet<typename SetType::PositionType, typename SetType::ElementType>;
 
 // Predicate to check if b%a is zero
 // Note: Also returns true when a is zero to avoid division by zero
@@ -76,8 +72,7 @@ public:
   using ElementType = typename BSet::ElementType;
 
   using Vec = std::vector<PositionType>;
-  using RelationType =
-    ::RelType<PositionType, ElementType, FirstSetType, SecondSetType>;
+  using RelationType = ::RelType<PositionType, ElementType, FirstSetType, SecondSetType>;
 
   using PSet1 = ::PositionSetType<FirstSetType>;
   using PSet2 = ::PositionSetType<SecondSetType>;
@@ -208,15 +203,15 @@ private:
 
     // Construct the relation using this data
     using RelationBuilder = typename RelationType::RelationBuilder;
-    modRelation = RelationBuilder()
-                    .fromSet(m_set1)
-                    .toSet(m_set2)
-                    .begins(typename RelationBuilder::BeginsSetBuilder()
-                              .size(relationBegins.size())
-                              .data(&relationBegins))
-                    .indices(typename RelationBuilder::IndicesSetBuilder()
-                               .size(relationIndices.size())
-                               .data(&relationIndices));
+    modRelation =
+      RelationBuilder()
+        .fromSet(m_set1)
+        .toSet(m_set2)
+        .begins(
+          typename RelationBuilder::BeginsSetBuilder().size(relationBegins.size()).data(&relationBegins))
+        .indices(typename RelationBuilder::IndicesSetBuilder()
+                   .size(relationIndices.size())
+                   .data(&relationIndices));
 
     EXPECT_TRUE(modRelation.isValid(true));
   }
@@ -298,18 +293,18 @@ protected:
 };
 
 // Tests several types of BivariateSet that differ in their underlying set types
-using MyTypes = ::testing::Types<
-  slam::BivariateSet<>,
-  slam::BivariateSet<slam::PositionSet<>, slam::PositionSet<>>,
-  slam::BivariateSet<slam::PositionSet<>, slam::RangeSet<>>,
-  slam::BivariateSet<slam::RangeSet<>, slam::PositionSet<>>,
-  slam::BivariateSet<slam::RangeSet<>, slam::RangeSet<>>,
-  slam::BivariateSet<slam::Set<>, slam::RangeSet<>>,
-  slam::BivariateSet<slam::PositionSet<>, slam::Set<>>,
-  slam::BivariateSet<slam::VectorIndirectionSet<>, slam::VectorIndirectionSet<>>,
-  slam::BivariateSet<slam::VectorIndirectionSet<>>,
-  slam::BivariateSet<slam::VectorIndirectionSet<>, slam::RangeSet<>>,
-  slam::BivariateSet<slam::RangeSet<>, slam::VectorIndirectionSet<>>>;
+using MyTypes =
+  ::testing::Types<slam::BivariateSet<>,
+                   slam::BivariateSet<slam::PositionSet<>, slam::PositionSet<>>,
+                   slam::BivariateSet<slam::PositionSet<>, slam::RangeSet<>>,
+                   slam::BivariateSet<slam::RangeSet<>, slam::PositionSet<>>,
+                   slam::BivariateSet<slam::RangeSet<>, slam::RangeSet<>>,
+                   slam::BivariateSet<slam::Set<>, slam::RangeSet<>>,
+                   slam::BivariateSet<slam::PositionSet<>, slam::Set<>>,
+                   slam::BivariateSet<slam::VectorIndirectionSet<>, slam::VectorIndirectionSet<>>,
+                   slam::BivariateSet<slam::VectorIndirectionSet<>>,
+                   slam::BivariateSet<slam::VectorIndirectionSet<>, slam::RangeSet<>>,
+                   slam::BivariateSet<slam::RangeSet<>, slam::VectorIndirectionSet<>>>;
 TYPED_TEST_SUITE(BivariateSetTester, MyTypes);
 
 //-----------------------------------------------------------------------------
@@ -439,9 +434,7 @@ void bSetTraverseTest(slam::BivariateSet<S1, S2>* bset, bool shouldCheckMod)
     for(auto bsetElem = bset->begin(); bsetElem != bset->end(); ++bsetElem)
     {
       EXPECT_EQ(flatIndex, bsetElem.flatIndex());
-      EXPECT_EQ(flatIndex,
-                bset->findElementFlatIndex(bsetElem.firstIndex(),
-                                           bsetElem.secondIndex()));
+      EXPECT_EQ(flatIndex, bset->findElementFlatIndex(bsetElem.firstIndex(), bsetElem.secondIndex()));
       EXPECT_EQ(bsetElem.firstIndex(), bset->flatToFirstIndex(flatIndex));
       EXPECT_EQ(bsetElem.secondIndex(), bset->flatToSecondIndex(flatIndex));
 
@@ -465,13 +458,11 @@ void bSetTraverseTest(slam::BivariateSet<S1, S2>* bset, bool shouldCheckMod)
 
     // Iterate through the bivariate set as a list of indexes (i, j) in {S1, S2}
     int flatIndex = 0;
-    for(auto bsetElem = derivedSet->begin(); bsetElem != derivedSet->end();
-        ++bsetElem)
+    for(auto bsetElem = derivedSet->begin(); bsetElem != derivedSet->end(); ++bsetElem)
     {
       EXPECT_EQ(flatIndex, bsetElem.flatIndex());
       EXPECT_EQ(flatIndex,
-                derivedSet->findElementFlatIndex(bsetElem.firstIndex(),
-                                                 bsetElem.secondIndex()));
+                derivedSet->findElementFlatIndex(bsetElem.firstIndex(), bsetElem.secondIndex()));
       EXPECT_EQ(bsetElem.firstIndex(), derivedSet->flatToFirstIndex(flatIndex));
       EXPECT_EQ(bsetElem.secondIndex(), derivedSet->flatToSecondIndex(flatIndex));
 
@@ -491,8 +482,7 @@ TYPED_TEST(BivariateSetTester, traverse)
   using S2 = typename TestFixture::SecondSetType;
 
   // Test traversal functions for a ProductSet
-  SLIC_INFO("Traversing product set"
-            << "\n       ----------------------");
+  SLIC_INFO("Traversing product set" << "\n       ----------------------");
   {
     using PSet = slam::ProductSet<S1, S2>;
 
@@ -505,8 +495,7 @@ TYPED_TEST(BivariateSetTester, traverse)
 
   // Test traversal functions for a RelationSet
   std::cout << std::endl;
-  SLIC_INFO("Traversing relation set"
-            << "\n       -----------------------");
+  SLIC_INFO("Traversing relation set" << "\n       -----------------------");
   {
     using RType = typename TestFixture::RelationType;
     using RSet = slam::RelationSet<RType, S1, S2>;

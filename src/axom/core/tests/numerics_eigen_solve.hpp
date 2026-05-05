@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -36,13 +37,11 @@ TEST(numerics_eigen_solve, eigen_solve_with_diagonal_matrix)
     {
       if(j == i)
       {
-        EXPECT_NEAR(u[i * N + j] * u[i * N + j], 1., EPS)
-          << "At entry j == i == " << j;
+        EXPECT_NEAR(u[i * N + j] * u[i * N + j], 1., EPS) << "At entry j == i == " << j;
       }
       else
       {
-        EXPECT_NEAR(u[i * N + j], 0, EPS)
-          << "At entry j = " << j << ",  i = " << i;
+        EXPECT_NEAR(u[i * N + j], 0, EPS) << "At entry j = " << j << ",  i = " << i;
       }
     }
   }

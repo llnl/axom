@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -32,9 +33,8 @@ namespace numerics
 template <typename T>
 struct floating_point_limits
 {
-  AXOM_STATIC_ASSERT_MSG(
-    std::is_floating_point<T>::value,
-    "floating_point_limits< T > must be used with a floating type!");
+  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value,
+                         "floating_point_limits< T > must be used with a floating type!");
 };
 
 //------------------------------------------------------------------------------

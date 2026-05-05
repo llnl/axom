@@ -1,16 +1,19 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_GEOMETRYOPERATOR_HPP
-#define AXOM_KLEE_GEOMETRYOPERATOR_HPP
+#ifndef AXOM_KLEE_GEOMETRYOPERATOR_HPP_
+#define AXOM_KLEE_GEOMETRYOPERATOR_HPP_
 
 #include "axom/config.hpp"
 #include "axom/core/numerics/Matrix.hpp"
+
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Geometry.hpp"
 #include "axom/klee/Units.hpp"
+
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 
@@ -24,8 +27,7 @@ namespace klee
 class GeometryOperatorVisitor;
 
 /**
- * A GeometryOperator describes an operation to perform on the Geometry
- * of a Shape.
+ * \brief A GeometryOperator describes an operation to perform on the Geometry of a Shape
  *
  * There is a subclass of GeometryOperator for each operator defined in
  * the format specification. You can figure out which one you're working
@@ -47,10 +49,7 @@ public:
    *
    * \return the properties which must be true before this operator is applied
    */
-  const TransformableGeometryProperties &getStartProperties() const
-  {
-    return m_startProperties;
-  }
+  const TransformableGeometryProperties &getStartProperties() const { return m_startProperties; }
 
   /**
    * Get the properties after this operator is applied
@@ -59,8 +58,7 @@ public:
    */
   virtual TransformableGeometryProperties getEndProperties() const
   {
-    // Be default, end properties are the same as start properties, so
-    // this is correct.
+    // By default, end properties are the same as start properties, so this is correct.
     return m_startProperties;
   }
 
@@ -93,10 +91,7 @@ public:
   virtual numerics::Matrix<double> toMatrix() const = 0;
 };
 
-/**
- * A CompositeOperator is a GeometryOperator which consists of a list of
- * other operators.
- */
+/// A CompositeOperator contains a list of GeometryOperators that are applied in order
 class CompositeOperator : public GeometryOperator
 {
 public:
@@ -107,8 +102,7 @@ public:
   void accept(GeometryOperatorVisitor &visitor) const override;
 
   /**
-   * Add the given operator to the end of the list of operators in this
-   * composite.
+   * Add the given operator to the end of the list of operators in this composite.
    *
    * \param op the operator to add
    */
@@ -127,9 +121,7 @@ private:
   std::vector<OpPtr> m_operators;
 };
 
-/**
- * A Translation is a GeometryOperator which translates points.
- */
+/// A Translation is a GeometryOperator which translates points.
 class Translation : public MatrixOperator
 {
 public:
@@ -137,12 +129,10 @@ public:
    * Create a Translation.
    *
    * \param offset the amount by which to offset points
-   * \param startProperties the initial properties, as in the parent
-   * class. If the number of dimensions is 2, the 3rd entry in the offset
-   * should be zero, but this is not checked.
+   * \param startProperties the initial properties, as in the parent class. 
+   * If the number of dimensions is 2, the 3rd entry in the offset should be zero, but this is not checked.
    */
-  Translation(const primal::Vector3D &offset,
-              const TransformableGeometryProperties &startProperties);
+  Translation(const primal::Vector3D &offset, const TransformableGeometryProperties &startProperties);
 
   /**
    * Get the amount by which to offset points.
@@ -159,23 +149,18 @@ private:
   primal::Vector3D m_offset;
 };
 
-/**
- * A Rotation is a GeometryOperator which rotates points about a given
- * axis.
- */
+/// A Rotation is a GeometryOperator which rotates points about a given axis.
 class Rotation : public MatrixOperator
 {
 public:
   /**
    * Create a Rotation.
    *
-   * \param angle the angle, in degrees, by which to rotate. Rotations are
-   * counter-clockwise.
+   * \param angle the angle, in degrees, by which to rotate. Rotations are counter-clockwise.
    * \param center the center of rotation
    * \param axis the axis about which to rotate points
-   * \param startProperties the initial properties, as in the parent
-   * class. If the number of dimensions is 2, the axis should be
-   * [0, 0, 1], but this is not checked.
+   * \param startProperties the initial properties, as in the parent class. 
+   * If the number of dimensions is 2, the axis should be [0, 0, 1], but this is not checked.
    */
   Rotation(double angle,
            const primal::Point3D &center,
@@ -200,8 +185,7 @@ public:
   /**
    * The direction of the axis of rotation.
    *
-   * \return the vector, which when combined with the center, defines the
-   * axis of rotation.
+   * \return the vector, which when combined with the center, defines the axis of rotation.
    */
   const primal::Vector3D &getAxis() const { return m_axis; }
 
@@ -215,9 +199,7 @@ private:
   primal::Vector3D m_axis;
 };
 
-/**
- * A GeometryOperator for scaling shapes.
- */
+/// A GeometryOperator for scaling shapes
 class Scale : public MatrixOperator
 {
 public:
@@ -226,14 +208,57 @@ public:
    *
    * \param xFactor the amount by which to scale in the x direction
    * \param yFactor the amount by which to scale in the y direction
+   * \param startProperties the initial properties, as in the parent class.
+   *
+   * \note The scaling factor used for the 3rd dimension is 1.
+   */
+  Scale(double xFactor, double yFactor, const TransformableGeometryProperties &startProperties);
+
+  /**
+   * Create a new Scale operator.
+   *
+   * \param xFactor the amount by which to scale in the x direction
+   * \param yFactor the amount by which to scale in the y direction
    * \param zFactor the amount by which to scale in the z direction
-   * \param startProperties the initial properties, as in the parent
-   * class. If the number of dimensions is 2, zFactor should be 1.0,
-   * but this is not enforced.
+   * \param startProperties the initial properties, as in the parent class. 
+   *
+   * \note If the number of dimensions is 2, zFactor should be 1.0, but this is not enforced.
    */
   Scale(double xFactor,
         double yFactor,
         double zFactor,
+        const TransformableGeometryProperties &startProperties);
+
+  /**
+   * Create a new Scale operator.
+   *
+   * \param xFactor the amount by which to scale in the x direction
+   * \param yFactor the amount by which to scale in the y direction
+   * \param center The center relative to which the scaling is performed.
+   * \param startProperties the initial properties, as in the parent class.
+   *
+   * \note The scaling factor used for the 3rd dimension is 1.
+   */
+  Scale(double xFactor,
+        double yFactor,
+        const primal::Point2D &center,
+        const TransformableGeometryProperties &startProperties);
+
+  /**
+   * Create a new Scale operator.
+   *
+   * \param xFactor the amount by which to scale in the x direction
+   * \param yFactor the amount by which to scale in the y direction
+   * \param zFactor the amount by which to scale in the z direction
+   * \param center The center relative to which the scaling is performed.
+   * \param startProperties the initial properties, as in the parent class.
+   *
+   * \note If the number of dimensions is 2, zFactor should be 1.0, but this is not enforced.
+   */
+  Scale(double xFactor,
+        double yFactor,
+        double zFactor,
+        const primal::Point3D &center,
         const TransformableGeometryProperties &startProperties);
 
   /**
@@ -257,6 +282,14 @@ public:
    */
   double getZFactor() const { return m_zFactor; }
 
+  /**
+   * Get the scale factor in the z direction.
+   *
+   * \return the z scale factor
+   */
+  primal::Point3D &getCenter() { return m_center; }
+  const primal::Point3D &getCenter() const { return m_center; }
+
   numerics::Matrix<double> toMatrix() const override;
 
   void accept(GeometryOperatorVisitor &visitor) const override;
@@ -265,22 +298,19 @@ private:
   double m_xFactor;
   double m_yFactor;
   double m_zFactor;
+  primal::Point3D m_center;
 };
 
-/**
- * A Converter for converting units.
- */
+/// An operator for converting units
 class UnitConverter : public MatrixOperator
 {
 public:
   /**
-   * Convert from the units specified in the start properties to the
-   * given end units
-   * @param endUnits the units at the end of the operation
-   * @param startProperties the properties before the operation
+   * Convert from the units specified in the start properties to the given end units
+   * \param endUnits the units at the end of the operation
+   * \param startProperties the properties before the operation
    */
-  UnitConverter(LengthUnit endUnits,
-                const TransformableGeometryProperties &startProperties);
+  UnitConverter(LengthUnit endUnits, const TransformableGeometryProperties &startProperties);
 
   TransformableGeometryProperties getEndProperties() const override;
 
@@ -289,9 +319,8 @@ public:
   void accept(GeometryOperatorVisitor &visitor) const override;
 
   /**
-   * Get the conversion factor used to convert from the start units to the
-   * end units
-   * @return the unit conversion factor
+   * Get the conversion factor used to convert from the start units to the end units
+   * \return the unit conversion factor
    */
   double getConversionFactor() const;
 
@@ -301,8 +330,7 @@ private:
 
 /**
  * A SliceOperator takes a 3D shape and makes it 2D by defining a cut plane.
- * This plane is augmented with an origin and an "up" direction to orient
- * the slice to the x-y plane.
+ * This plane is augmented with an origin and an "up" direction to orient the slice to the x-y plane.
  */
 class SliceOperator : public MatrixOperator
 {
@@ -311,12 +339,10 @@ public:
    * Create a new Slice.
    *
    * \param origin the origin of the coordinate system
-   * \param normal a vector normal to the slice plane. Cannot be a zero
-   * vector.
-   * \param up the direction of the positive Y axis. Must be normal to
-   * the "normal" vector.
-   * \param startProperties the initial properties, as in the parent
-   * class. The number of dimensions should be 3, though this is not checked.
+   * \param normal a vector normal to the slice plane. Cannot be a zero vector.
+   * \param up the direction of the positive Y axis. Must be normal to the "normal" vector.
+   * \param startProperties the initial properties, as in the parent class. 
+   * The number of dimensions should be 3, though this is not checked.
    */
   SliceOperator(const primal::Point3D &origin,
                 const primal::Vector3D &normal,
@@ -365,7 +391,6 @@ private:
  * instances of GeometryOperator. It defines a "visit()" method for each
  * type of operator that a user can specify in the input file, as well
  * as one for CompositeOperator to work with a whole list of operators.
- *
  */
 class GeometryOperatorVisitor
 {
@@ -388,4 +413,4 @@ public:
 }  // namespace klee
 }  // namespace axom
 
-#endif  //AXOM_KLEE_GEOMETRYOPERATOR_HPP
+#endif  // AXOM_KLEE_GEOMETRYOPERATOR_HPP_

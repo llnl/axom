@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -189,6 +190,20 @@ blt_append_custom_compiler_flag(FLAGS_VAR AXOM_NINJA_FLAGS
                   CLANG       "-fcolor-diagnostics"
                   )
 
+if(AXOM_ENABLE_ASAN)
+    message(STATUS "AddressSanitizer is ON (ENABLE_ASAN)")
+    foreach(_flagvar CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_EXE_LINKER_FLAGS)
+        string(APPEND ${_flagvar} " -fsanitize=address -fno-omit-frame-pointer")
+    endforeach()
+endif()
+
+if(AXOM_ENABLE_UBSAN)
+    message(STATUS "UndefinedBehaviorSanitizer is ON (ENABLE_UBSAN)")
+    foreach(_flagvar CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_EXE_LINKER_FLAGS)
+        string(APPEND ${_flagvar} " -fsanitize=undefined -fno-sanitize-recover=all")
+    endforeach()
+endif()
+
 if(${AXOM_ENABLE_EXPORTS})
   set(CMAKE_ENABLE_EXPORTS ON)
 endif()
@@ -205,6 +220,12 @@ endif()
 # Disable warnings about conditionals over constants
 if(WIN32)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${AXOM_ALLOW_CONSTANT_CONDITIONALS}")
+endif()
+
+# Visual studio can give a warning that /bigobj is required due to the size of some object files
+if(COMPILER_FAMILY_IS_MSVC)
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /bigobj" )
+    set( CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} /bigobj" )
 endif()
 
 #------------------------------------------------------------------------------

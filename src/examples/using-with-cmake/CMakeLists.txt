@@ -1,5 +1,6 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-# other Axom Project Developers. See the top-level LICENSE file for details.
+# Copyright (c) Lawrence Livermore National Security, LLC and other
+# Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+# files for dates and other details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
@@ -30,6 +31,7 @@ project(using_with_cmake)
 
 message(STATUS "CMake Version: ${CMAKE_VERSION}")
 
+# _zerotoaxom_docs_start
 #------------------------------------------------------------------------------
 # Check for AXOM_DIR and use CMake's find_package to import axom's targets
 #------------------------------------------------------------------------------
@@ -42,19 +44,7 @@ if (ENABLE_CUDA)
 endif()
 
 if (ENABLE_HIP)
-    if (NOT ROCM_PATH)
-        find_path(ROCM_PATH
-            hip
-            ENV{ROCM_DIR}
-            ENV{ROCM_PATH}
-            ENV{HIP_PATH}
-            ${HIP_PATH}/..
-            ${HIP_ROOT_DIR}/../
-            ${ROCM_ROOT_DIR}
-            /opt/rocm)
-    endif()
-    set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${ROCM_PATH}")
-    find_package(hip REQUIRED CONFIG PATHS ${ROCM_PATH})
+    enable_language(HIP)
 endif()
 
 include(CMakeFindDependencyMacro)
@@ -79,9 +69,20 @@ endif()
 #------------------------------------------------------------------------------
 add_executable(example example.cpp)
 
+# Compile as HIP source if enabled
+if (ENABLE_HIP)
+    set_source_files_properties(example.cpp PROPERTIES LANGUAGE HIP)
+endif()
+
+# Compile as CUDA source if enabled
+if (ENABLE_CUDA)
+    set_source_files_properties(example.cpp PROPERTIES LANGUAGE CUDA)
+endif()
+
 # setup the axom include path
 target_include_directories(example PRIVATE ${AXOM_INCLUDE_DIRS})
 
 # link to axom targets
 target_link_libraries(example axom)
 target_link_libraries(example axom::fmt)
+# _zerotoaxom_docs_end

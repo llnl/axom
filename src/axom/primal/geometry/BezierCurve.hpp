@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -15,7 +16,6 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 
-#include "axom/primal/geometry/NumericArray.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/primal/geometry/Segment.hpp"
@@ -36,7 +36,7 @@ namespace primal
 template <typename T, int NDIMS>
 class BezierCurve;
 
-/*! \brief Overloaded output operator for Bezier Curves*/
+/// \brief Overloaded output operator for Bezier Curves
 template <typename T, int NDIMS>
 std::ostream& operator<<(std::ostream& os, const BezierCurve<T, NDIMS>& bCurve);
 
@@ -48,8 +48,7 @@ std::ostream& operator<<(std::ostream& os, const BezierCurve<T, NDIMS>& bCurve);
  * \tparam NDIMS the number of dimensions
  *
  * The order of a Bezier curve with N+1 control points is N.
- * The curve is approximated by the control points,
- * parametrized from t=0 to t=1.
+ * The curve is approximated by the control points, parametrized from t=0 to t=1.
  * 
  * Contains an array of positive weights to represent a rational Bezier curve.
  * Nonrational Bezier curves are identified by an empty weights array.
@@ -61,6 +60,7 @@ template <typename T, int NDIMS>
 class BezierCurve
 {
 public:
+  using NumericType = T;
   using PointType = Point<T, NDIMS>;
   using VectorType = Vector<T, NDIMS>;
   using SegmentType = Segment<T, NDIMS>;
@@ -69,149 +69,172 @@ public:
   using BoundingBoxType = BoundingBox<T, NDIMS>;
   using OrientedBoundingBoxType = OrientedBoundingBox<T, NDIMS>;
 
-  AXOM_STATIC_ASSERT_MSG(
-    (NDIMS == 1) || (NDIMS == 2) || (NDIMS == 3),
-    "A Bezier Curve object may be defined in 1-, 2-, or 3-D");
+  AXOM_STATIC_ASSERT_MSG((NDIMS == 1) || (NDIMS == 2) || (NDIMS == 3),
+                         "A Bezier Curve object may be defined in 1-, 2-, or 3-D");
 
-  AXOM_STATIC_ASSERT_MSG(
-    std::is_arithmetic<T>::value,
-    "A Bezier Curve must be defined using an arithmetic type");
+  AXOM_STATIC_ASSERT_MSG(std::is_arithmetic<T>::value,
+                         "A Bezier Curve must be defined using an arithmetic type");
 
 public:
+  ///@{
+  /**  
+   * \name Constructors for polynomial and rational Bezier curves
+   *
+   * The constructors allow for flexible initialization of BezierCurve objects from:
+   * - 1D arrays of control points and weights,
+   * - C-style arrays of control points and weights,
+   * - Specified polynomial orders,
+   * - Rational or polynomial (nonrational) curves, depending on the presence of weights.
+   *
+   * The curve is parametrized from t=0 to t=1. 
+   * 
+   * Rational curves are identified by a non-empty weights array, 
+   * and nonrational curves by an empty weights array.
+   * All weights must be greater than 0 in a rational curve.
+   */
+
   /*!
-   * \brief Constructor for a Bezier Curve that reserves space for
-   *  the given order of the curve
+   * \brief Constructor for a Bezier Curve from ArrayViews of control points and weights
+   *
+   * \param [in] controlPoints ArrayView with zero or \a ord+1 control points
+   * \param [in] weights ArrayView with zero or \a ord+1 positive weights
+   * \param [in] ord The Curve's polynomial order
+   * 
+   * If \a controlPoints is empty, we still allocate space for \a ord+1 control points
+   * \pre order \a ord is greater than or equal to -1
+   * \pre controlPoints is either empty or has size \a ord+1
+   * \pre weights is either empty or has size \a ord+1
+   * \pre controlPoints cannot be empty if weights are supplied
+   */
+  BezierCurve(axom::ArrayView<const PointType> controlPoints, axom::ArrayView<const T> weights, int ord)
+  {
+    SLIC_ASSERT(ord >= -1);
+    const int SZ = utilities::max(0, ord + 1);
+
+    SLIC_ASSERT(controlPoints.size() >= weights.size());
+
+    // note: always allocates space for the control points
+    if(controlPoints.empty())
+    {
+      m_controlPoints.resize(SZ);
+    }
+    else
+    {
+      SLIC_ASSERT(controlPoints.size() == SZ);
+      SLIC_ASSERT(controlPoints.data() != nullptr);
+      m_controlPoints = controlPoints;
+    }
+
+    // note: only allocates when weights are supplied
+    if(!weights.empty())
+    {
+      SLIC_ASSERT(weights.size() == SZ);
+      SLIC_ASSERT(weights.data() != nullptr);
+      m_weights = weights;
+      SLIC_ASSERT(isRational());
+    }
+  }
+
+  /// Constructor for a Bezier Curve from ArrayViews of (non-const) control points and weights
+  BezierCurve(axom::ArrayView<PointType> pts, axom::ArrayView<T> weights, int ord)
+    : BezierCurve(axom::ArrayView<const PointType>(pts.data(), pts.size()),
+                  axom::ArrayView<const T>(weights.data(), weights.size()),
+                  ord)
+  { }
+
+  /*!
+   * \brief Constructor for a polynomial Bezier Curve that reserves space for the control points
    *
    * \param [in] order the order of the resulting Bezier curve
    * \pre order is greater than or equal to -1.
    */
   explicit BezierCurve(int ord = -1)
-  {
-    SLIC_ASSERT(ord >= -1);
-    const int sz = utilities::max(-1, ord + 1);
-    m_controlPoints.resize(sz);
-
-    makeNonrational();
-  }
+    : BezierCurve(axom::ArrayView<PointType>(nullptr, 0), axom::ArrayView<T>(nullptr, 0), ord)
+  { }
 
   /*!
-   * \brief Constructor for a Bezier Curve from an array of coordinates
+   * \brief Constructor for a polynomial Bezier Curve from an array of coordinates
    *
    * \param [in] pts a vector with ord+1 control points
    * \param [in] ord The Curve's polynomial order
    * \pre order is greater than or equal to zero
-   *
    */
-  BezierCurve(PointType* pts, int ord)
-  {
-    SLIC_ASSERT(pts != nullptr);
-    SLIC_ASSERT(ord >= 0);
-
-    const int sz = utilities::max(0, ord + 1);
-    m_controlPoints.resize(sz);
-
-    for(int p = 0; p <= ord; ++p)
-    {
-      m_controlPoints[p] = pts[p];
-    }
-
-    makeNonrational();
-  }
+  BezierCurve(const PointType* pts, int ord)
+    : BezierCurve(axom::ArrayView<const PointType>(pts, ord + 1),
+                  axom::ArrayView<const T>(nullptr, 0),
+                  ord)
+  { }
 
   /*!
-   * \brief Constructor for a Bezier Curve from an array of coordinates
+   * \brief Constructor for a rational Bezier Curve from an array of coordinates and weights
    *
    * \param [in] pts a vector with ord+1 control points
    * \param [in] weights a vector with ord+1 positive weights
    * \param [in] ord The Curve's polynomial order
    * \pre order is greater than or equal to zero
-   *
    */
-  BezierCurve(PointType* pts, T* weights, int ord)
-  {
-    SLIC_ASSERT(pts != nullptr);
-    SLIC_ASSERT(ord >= 0);
-
-    const int sz = utilities::max(0, ord + 1);
-    m_controlPoints.resize(sz);
-    for(int p = 0; p <= ord; ++p)
-    {
-      m_controlPoints[p] = pts[p];
-    }
-
-    if(weights == nullptr)
-    {
-      makeNonrational();
-    }
-    else
-    {
-      m_weights.resize(sz);
-      for(int p = 0; p <= ord; ++p)
-      {
-        m_weights[p] = weights[p];
-      }
-      SLIC_ASSERT(isValidRational());
-    }
-  }
+  BezierCurve(const PointType* pts, const T* weights, int ord)
+    : BezierCurve(axom::ArrayView<const PointType>(pts, ord + 1),
+                  axom::ArrayView<const T>(weights, weights ? ord + 1 : 0),
+                  ord)
+  { }
 
   /*!
-   * \brief Constructor for a Bezier Curve from an vector of coordinates
+   * \brief Constructor for a Bezier Curve from an array of coordinates
    *
-   * \param [in] pts a vector with ord+1 control points
+   * \param [in] pts an array with ord+1 control points
    * \param [in] ord The Curve's polynomial order
    * \pre order is greater than or equal to zero
-   *
    */
   BezierCurve(const axom::Array<PointType>& pts, int ord)
-  {
-    SLIC_ASSERT(ord >= 0);
-
-    const int sz = utilities::max(0, ord + 1);
-    m_controlPoints.resize(sz);
-    m_controlPoints = pts;
-
-    makeNonrational();
-  }
+    : BezierCurve(pts.view(), axom::ArrayView<const T>(nullptr, 0), ord)
+  { }
 
   /*!
-   * \brief Constructor for a Rational Bezier Curve from an vector 
-   * of coordinates and weights
+   * \brief Constructor for a rational Bezier Curve from arrays of coordinates and weights
    *
-   * \param [in] pts a vector with ord+1 control points
-   * \param [in] weights a vector with ord+1 positive weights
+   * \param [in] pts an array with ord+1 control points
+   * \param [in] weights an array with ord+1 positive weights
    * \param [in] ord The Curve's polynomial order
    * \pre order is greater than or equal to zero
-   *
    */
-  BezierCurve(const axom::Array<PointType>& pts,
-              const axom::Array<T>& weights,
-              int ord)
-  {
-    SLIC_ASSERT(ord >= 0);
-    SLIC_ASSERT(pts.size() == weights.size());
+  BezierCurve(const axom::Array<PointType>& pts, const axom::Array<T>& weights, int ord)
+    : BezierCurve(pts.view(), weights.view(), ord)
+  { }
 
-    const int sz = utilities::max(0, ord + 1);
-    m_controlPoints.resize(sz);
-    m_weights.resize(sz);
+  ///@}
 
-    m_controlPoints = pts;
-    m_weights = weights;
-
-    SLIC_ASSERT(isValidRational());
-  }
+public:
+  ///@{
+  /// \name Query/modify curve properties (order, rationality, ...)
 
   /// Sets the order of the Bezier Curve
   void setOrder(int ord)
   {
-    m_controlPoints.resize(ord + 1);
+    SLIC_ASSERT((ord >= -1));
+    const int SZ = utilities::max(0, ord + 1);
+    m_controlPoints.resize(SZ);
     if(isRational())
     {
-      m_weights.resize(ord + 1);
+      m_weights.resize(SZ);
     }
   }
 
   /// Returns the order of the Bezier Curve
   int getOrder() const { return static_cast<int>(m_controlPoints.size()) - 1; }
+
+  /// Returns the number of control points of the Bezier Curve
+  int getNumControlPoints() const { return static_cast<int>(m_controlPoints.size()); }
+
+  /// Clears the list of control points, make nonrational
+  void clear()
+  {
+    m_controlPoints.clear();
+    makeNonrational();
+  }
+
+  /// Use array size as flag for rationality
+  bool isRational() const { return !m_weights.empty(); }
 
   /// Make trivially rational. If already rational, do nothing
   void makeRational()
@@ -227,21 +250,25 @@ public:
   /// Make nonrational by shrinking array of weights
   void makeNonrational() { m_weights.resize(0); }
 
-  /// Use array size as flag for rationality
-  bool isRational() const { return !m_weights.empty(); }
+  ///@}
 
-  /// Clears the list of control points, make nonrational
-  void clear()
-  {
-    m_controlPoints.clear();
-    makeNonrational();
-  }
+  ///@{
+  /// \name Query/modify curve's geometry (control points, weights, bounding box, ...)
 
   /// Retrieves the control point at index \a idx
   PointType& operator[](int idx) { return m_controlPoints[idx]; }
 
   /// Retrieves the control point at index \a idx
   const PointType& operator[](int idx) const { return m_controlPoints[idx]; }
+
+  const PointType& getInitPoint() const { return m_controlPoints[0]; }
+  const PointType& getEndPoint() const { return m_controlPoints[m_controlPoints.size() - 1]; }
+
+  /// Returns a reference to the Bezier curve's control points
+  CoordsVec& getControlPoints() { return m_controlPoints; }
+
+  /// Returns a const reference to the Bezier curve's control points
+  const CoordsVec& getControlPoints() const { return m_controlPoints; }
 
   /*!
    * \brief Get a specific weight
@@ -271,25 +298,79 @@ public:
     m_weights[idx] = weight;
   };
 
-  /// Checks equality of two Bezier Curve
-  friend inline bool operator==(const BezierCurve<T, NDIMS>& lhs,
-                                const BezierCurve<T, NDIMS>& rhs)
+  /// Returns a reference of the Bezier curve's weights
+  WeightsVec& getWeights() { return m_weights; }
+
+  /// Returns a const reference of the Bezier curve's weights
+  const WeightsVec& getWeights() const { return m_weights; }
+
+  /// Returns an axis-aligned bounding box containing the Bezier curve
+  BoundingBoxType boundingBox() const
   {
-    return (lhs.m_controlPoints == rhs.m_controlPoints) &&
-      (lhs.m_weights == rhs.m_weights);
+    return BoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
-  friend inline bool operator!=(const BezierCurve<T, NDIMS>& lhs,
-                                const BezierCurve<T, NDIMS>& rhs)
+  /// Returns an oriented bounding box containing the Bezier curve
+  OrientedBoundingBoxType orientedBoundingBox() const
   {
-    return !(lhs == rhs);
+    return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
-  /// Returns a copy of the Bezier curve's control points
-  CoordsVec getControlPoints() const { return m_controlPoints; }
+  /*!
+   * \brief Predicate to check if the Bezier curve is approximately linear
+   *
+   * This function checks if the internal control points of the BezierCurve
+   * are approximately on the line defined by its two endpoints
+   *
+   * \param [in] tol Threshold for sum of squared distances
+   * \param [in] useStrictLinear If true, checks that the control points are
+   *   evenly spaced along the line and not too far from the line
+   * \return True if curve is near-linear
+   */
+  bool isLinear(double tol = 1e-8, bool useStrictLinear = false) const
+  {
+    const int ord = getOrder();
+    if(ord <= 1)
+    {
+      return true;
+    }
 
-  /// Returns a copy of the Bezier curve's weights
-  WeightsVec getWeights() const { return m_weights; }
+    if(useStrictLinear)
+    {
+      // Check that the control points are not too far away from the line,
+      //  AND that they are evenly spaced along the line
+      for(int p = 1; p < ord; ++p)
+      {
+        double t = p / static_cast<T>(ord);
+        PointType the_pt = PointType::lerp(m_controlPoints[0], m_controlPoints[ord], t);
+
+        if(squared_distance(m_controlPoints[p], the_pt) > tol)
+        {
+          return false;
+        }
+      }
+    }
+    else
+    {
+      // Check that the control points are not too far away from the line between control points
+      SegmentType seg(m_controlPoints[0], m_controlPoints[ord]);
+
+      for(int p = 1; p < ord; ++p)  // check interior control points
+      {
+        if(squared_distance(m_controlPoints[p], seg) > tol)
+        {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  ///@}
+
+  ///@{
+  /// \name Query/modify curve parametrization
 
   /// Reverses the order of the Bezier curve's control points and weights
   void reverseOrientation()
@@ -310,19 +391,10 @@ public:
     }
   }
 
-  /// Returns an axis-aligned bounding box containing the Bezier curve
-  BoundingBoxType boundingBox() const
-  {
-    return BoundingBoxType(m_controlPoints.data(),
-                           static_cast<int>(m_controlPoints.size()));
-  }
+  ///@}
 
-  /// Returns an oriented bounding box containing the Bezier curve
-  OrientedBoundingBoxType orientedBoundingBox() const
-  {
-    return OrientedBoundingBoxType(m_controlPoints.data(),
-                                   static_cast<int>(m_controlPoints.size()));
-  }
+  ///@{
+  /// \name Functions to evaluate curve and its derivatives and normals
 
   /*!
    * \brief Evaluates a Bezier curve at a particular parameter value \a t
@@ -402,7 +474,7 @@ public:
    * \param [out] eval The value of the curve at \a t
    * \param [out] Dt The tangent vector of the curve at \a t
    */
-  void evaluate_first_derivative(T t, PointType& eval, VectorType& Dt) const
+  void evaluateFirstDerivative(T t, PointType& eval, VectorType& Dt) const
   {
     using axom::utilities::lerp;
     VectorType val;
@@ -447,8 +519,7 @@ public:
     //  which requires all first derivatives
     else
     {
-      // Store BezierPatch of projective weights, (wx, wy, wz)
-      //  and BezierPatch of weights (w)
+      // Store BezierCurves of projective weights (wx, wy, wz) and of weights (w)
       BezierCurve<T, NDIMS> projective(ord);
       BezierCurve<T, 1> weights(ord);
 
@@ -468,8 +539,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_t;
 
-      projective.evaluate_first_derivative(t, P, P_t);
-      weights.evaluate_first_derivative(t, W, W_t);
+      projective.evaluateFirstDerivative(t, P, P_t);
+      weights.evaluateFirstDerivative(t, W, W_t);
 
       for(int i = 0; i < NDIMS; ++i)
       {
@@ -532,8 +603,7 @@ public:
     //  which requires all first derivatives
     else
     {
-      // Store BezierPatch of projective weights, (wx, wy, wz)
-      //  and BezierPatch of weights (w)
+      // Store BezierCurves of projective weights (wx, wy, wz) and of weights (w)
       BezierCurve<T, NDIMS> projective(ord);
       BezierCurve<T, 1> weights(ord);
 
@@ -553,8 +623,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_t;
 
-      projective.evaluate_first_derivative(t, P, P_t);
-      weights.evaluate_first_derivative(t, W, W_t);
+      projective.evaluateFirstDerivative(t, P, P_t);
+      weights.evaluateFirstDerivative(t, W, W_t);
 
       for(int i = 0; i < NDIMS; ++i)
       {
@@ -572,10 +642,7 @@ public:
    * \param [out] eval The value of the curve at \a t
    * \param [out] Dt The tangent vector of the curve at \a t
    */
-  void evaluate_second_derivative(T t,
-                                  PointType& eval,
-                                  VectorType& Dt,
-                                  VectorType& DtDt) const
+  void evaluateSecondDerivative(T t, PointType& eval, VectorType& Dt, VectorType& DtDt) const
   {
     using axom::utilities::lerp;
     VectorType val;
@@ -618,10 +685,9 @@ public:
         }
         else
         {
-          eval[i] = (1 - t) * (1 - t) * dCarray[0] +
-            2 * (1 - t) * t * dCarray[1] + t * t * dCarray[2];
-          Dt[i] = ord *
-            ((1 - t) * (dCarray[1] - dCarray[0]) + t * (dCarray[2] - dCarray[1]));
+          eval[i] =
+            (1 - t) * (1 - t) * dCarray[0] + 2 * (1 - t) * t * dCarray[1] + t * t * dCarray[2];
+          Dt[i] = ord * ((1 - t) * (dCarray[1] - dCarray[0]) + t * (dCarray[2] - dCarray[1]));
           DtDt[i] = ord * (ord - 1) * (dCarray[2] - 2 * dCarray[1] + dCarray[0]);
         }
       }
@@ -630,8 +696,7 @@ public:
     //  which requires all first derivatives
     else
     {
-      // Store BezierPatch of projective weights, (wx, wy, wz)
-      //  and BezierPatch of weights (w)
+      // Store BezierCurves of projective weights (wx, wy, wz) and of weights (w)
       BezierCurve<T, NDIMS> projective(ord);
       BezierCurve<T, 1> weights(ord);
 
@@ -651,8 +716,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_t, W_tt;
 
-      projective.evaluate_second_derivative(t, P, P_t, P_tt);
-      weights.evaluate_second_derivative(t, W, W_t, W_tt);
+      projective.evaluateSecondDerivative(t, P, P_t, P_tt);
+      weights.evaluateSecondDerivative(t, W, W_t, W_tt);
 
       for(int i = 0; i < NDIMS; ++i)
       {
@@ -716,8 +781,7 @@ public:
     //  which requires all first derivatives
     else
     {
-      // Store BezierPatch of projective weights, (wx, wy, wz)
-      //  and BezierPatch of weights (w)
+      // Store BezierCurves of projective weights (wx, wy, wz) and of weights (w)
       BezierCurve<T, NDIMS> projective(ord);
       BezierCurve<T, 1> weights(ord);
 
@@ -737,19 +801,24 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_t, W_tt;
 
-      projective.evaluate_second_derivative(t, P, P_t, P_tt);
-      weights.evaluate_second_derivative(t, W, W_t, W_tt);
+      projective.evaluateSecondDerivative(t, P, P_t, P_tt);
+      weights.evaluateSecondDerivative(t, W, W_t, W_tt);
 
       for(int i = 0; i < NDIMS; ++i)
       {
-        val[i] = W[0] * W[0] * P_tt[i] -
-          2 * (W[0] * P_t[i] - P[i] * W_t[0]) * W_t[0] - P[i] * W[0] * W_tt[0];
+        val[i] = W[0] * W[0] * P_tt[i] - 2 * (W[0] * P_t[i] - P[i] * W_t[0]) * W_t[0] -
+          P[i] * W[0] * W_tt[0];
         val[i] /= (W[0] * W[0] * W[0]);
       }
 
       return val;
     }
   }
+
+  ///@}
+
+  ///@{
+  /// \name Functions dealing with curve subdivision
 
   /*!
    * \brief Splits a Bezier curve into two Bezier curves at a given parameter value
@@ -784,8 +853,7 @@ public:
         for(int k = 0; k <= end; ++k)
         {
           // Do linear interpolation on weights
-          double temp_weight =
-            axom::utilities::lerp(c2.getWeight(k), c2.getWeight(k + 1), t);
+          double temp_weight = axom::utilities::lerp(c2.getWeight(k), c2.getWeight(k + 1), t);
 
           for(int i = 0; i < NDIMS; ++i)
           {
@@ -820,31 +888,7 @@ public:
     return;
   }
 
-  /*!
-   * \brief Predicate to check if the Bezier curve is approximately linear
-   *
-   * This function checks if the internal control points of the BezierCurve
-   * are approximately on the line defined by its two endpoints
-   *
-   * \param [in] tol Threshold for sum of squared distances
-   * \return True if c1 is near-linear
-   */
-  bool isLinear(double tol = 1E-8) const
-  {
-    const int ord = getOrder();
-    if(ord <= 1)
-    {
-      return true;
-    }
-
-    SegmentType seg(m_controlPoints[0], m_controlPoints[ord]);
-    double sqDist = 0.0;
-    for(int p = 1; p < ord && sqDist <= tol; ++p)  // check interior control points
-    {
-      sqDist += squared_distance(m_controlPoints[p], seg);
-    }
-    return (sqDist <= tol);
-  }
+  ///@}
 
   /*!
    * \brief Simple formatted print of a Bezier Curve instance
@@ -875,6 +919,17 @@ public:
     return os;
   }
 
+  /// Checks equality of two Bezier Curve
+  friend inline bool operator==(const BezierCurve<T, NDIMS>& lhs, const BezierCurve<T, NDIMS>& rhs)
+  {
+    return (lhs.m_controlPoints == rhs.m_controlPoints) && (lhs.m_weights == rhs.m_weights);
+  }
+
+  friend inline bool operator!=(const BezierCurve<T, NDIMS>& lhs, const BezierCurve<T, NDIMS>& rhs)
+  {
+    return !(lhs == rhs);
+  }
+
 private:
   /// Check that the weights used are positive, and
   ///  that there is one for each control node
@@ -903,6 +958,7 @@ private:
     return true;
   }
 
+private:
   CoordsVec m_controlPoints;
   WeightsVec m_weights;
 };
@@ -922,8 +978,7 @@ std::ostream& operator<<(std::ostream& os, const BezierCurve<T, NDIMS>& bCurve)
 
 /// Overload to format a primal::BezierCurve using fmt
 template <typename T, int NDIMS>
-struct axom::fmt::formatter<axom::primal::BezierCurve<T, NDIMS>>
-  : ostream_formatter
+struct axom::fmt::formatter<axom::primal::BezierCurve<T, NDIMS>> : ostream_formatter
 { };
 
 #endif  // AXOM_PRIMAL_BEZIERCURVE_HPP_

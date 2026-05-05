@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -13,11 +14,15 @@
 #include "core_array_mapping.hpp"
 #include "core_utilities.hpp"
 #include "core_bit_utilities.hpp"
+#include "core_device_hash.hpp"
 #include "core_execution_for_all.hpp"
+#include "core_execution_scans.hpp"
 #include "core_execution_space.hpp"
 #include "core_map.hpp"
 #include "core_flatmap.hpp"
+#include "core_flatmap_for_all.hpp"
 #include "core_memory_management.hpp"
+#include "core_numeric_limits.hpp"
 #include "core_Path.hpp"
 #include "core_stack_array.hpp"
 #include "core_static_array.hpp"
@@ -35,7 +40,9 @@
 #include "numerics_lu.hpp"
 #include "numerics_matrix.hpp"
 #include "numerics_matvecops.hpp"
+#include "numerics_transforms.hpp"
 #include "numerics_polynomial_solvers.hpp"
+#include "numerics_quadrature.hpp"
 
 #include "utils_endianness.hpp"
 #include "utils_fileUtilities.hpp"

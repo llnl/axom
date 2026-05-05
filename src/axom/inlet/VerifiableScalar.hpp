@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -50,8 +51,8 @@ public:
    * It should report any errors via the INLET_VERIFICATION_WARNING macro,
    * passing in the given array of errors.
    */
-  using Verifier = std::function<bool(const axom::inlet::Field&,
-                                      std::vector<VerificationError>* errors)>;
+  using Verifier =
+    std::function<bool(const axom::inlet::Field&, std::vector<VerificationError>* errors)>;
 
   virtual ~VerifiableScalar() = default;
 
@@ -92,8 +93,7 @@ public:
    * \param [in] lambda The function object.
    *****************************************************************************
   */
-  VerifiableScalar& registerVerifier(
-    std::function<bool(const axom::inlet::Field&)> lambda);
+  VerifiableScalar& registerVerifier(std::function<bool(const axom::inlet::Field&)> lambda);
 
   /*!
    *****************************************************************************
@@ -242,8 +242,7 @@ public:
    * \return Reference to calling object for chaining
    *****************************************************************************
   */
-  virtual VerifiableScalar& validValues(
-    const std::initializer_list<const char*>& set) = 0;
+  virtual VerifiableScalar& validValues(const std::initializer_list<const char*>& set) = 0;
 
   /*!
    *****************************************************************************

@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -101,41 +102,34 @@ public:
    * Returns the width of an octree block at level of resolution level
    * \param level The level of resolution that we are checking
    */
-  const SpaceVector& spacingAtLevel(int level) const
-  {
-    return m_deltaLevelMap[level];
-  }
+  const SpaceVector& spacingAtLevel(int level) const { return m_deltaLevelMap[level]; }
 
   /**
    * \brief Finds the index of the leaf block covering the query point pt
    *
    * \param [in] pt The query point in space
    * \param [in] startingLevel (Optional) starting level for the query
-   * \pre pt must be in the bounding box of the octree (i.e.
-   * boundingBox.contains(pt) == true )
+   * \pre pt must be in the bounding box of the octree (i.e. boundingBox.contains(pt) == true )
    * \note The collection of leaves covers the bounding box, and the interiors
-   * of the leaves do not
-   * intersect, so every point in the bounding box should be located in a unique
-   * leaf block.
+   * of the leaves do not intersect, so every point in the bounding box 
+   * should be located in a unique leaf block.
    * \note We are assuming a half-open interval on the bounding boxes.
-   * \return The block index (i.e. grid point and level) of the leaf block
-   * containing the query point
+   * \return The block index (i.e. grid point and level) of the leaf block containing the query point
    */
   BlockIndex findLeafBlock(const SpacePt& pt, int startingLevel = -1) const
   {
-    SLIC_ASSERT_MSG(m_boundingBox.contains(pt),
-                    "SpatialOctree::findLeafNode -- Did not find "
-                      << pt << " in bounding box " << m_boundingBox);
+    SLIC_ASSERT_MSG(
+      m_boundingBox.contains(pt),
+      "SpatialOctree::findLeafNode -- Did not find " << pt << " in bounding box " << m_boundingBox);
 
-    // Perform binary search on levels to find the leaf block containing the
-    // point
+    // Perform binary search on levels to find the leaf block containing the point
     CoordType minLev = 0;
     CoordType maxLev = this->maxLeafLevel();
     CoordType lev = (startingLevel == -1) ? maxLev >> 1 : startingLevel;
 
     while(minLev <= maxLev)
     {
-      GridPt gridPt = findGridCellAtLevel(pt, lev);
+      GridPt gridPt = findGridCellAtLevel(pt, static_cast<int>(lev));
       switch(this->blockStatus(gridPt, lev))
       {
       case BlockNotInTree:
@@ -149,25 +143,22 @@ public:
         lev = (maxLev + minLev) >> 1;
         break;
       case LeafBlock:
-        return BlockIndex(gridPt, lev);
+        return BlockIndex(gridPt, static_cast<int>(lev));
       }
     }
 
-    SLIC_ASSERT_MSG(false,
-                    "Point " << pt << " not found in a leaf block of the octree");
+    SLIC_ASSERT_MSG(false, "Point " << pt << " not found in a leaf block of the octree");
 
     return BlockIndex::invalid_index();
   }
 
   /**
-   * \brief Utility function to find the quantized grid cell at level lev for
-   * query point pt
+   * \brief Utility function to find the quantized grid cell at level lev for query point pt
    *
    * \param [in] pt The point at which we are querying.
    * \param [in] lev The level or resolution.
    * \pre \f$ 0 \le lev < octree.maxLeafLevel() \f$
-   * \post Each coordinate of the returned gridPt is in range
-   *  \f$ [0, 2^{lev}) \f$
+   * \post Each coordinate of the returned gridPt is in range  \f$ [0, 2^{lev}) \f$
    * \return The grid point of the block covering this point at this level
    * \internal
    * \todo KW: Should this function be protected? Is it generally useful?
@@ -186,8 +177,7 @@ public:
       //       so truncating is equivalent to the floor function
       // Note: we need to clamp to avoid setting coordinates past the upper
       // boundaries
-      const CoordType quantCell =
-        static_cast<CoordType>((pt[i] - bbMin[i]) * invDelta[i]);
+      const CoordType quantCell = static_cast<CoordType>((pt[i] - bbMin[i]) * invDelta[i]);
       quantizedPt[i] = std::min(quantCell, highestCell);
     }
 
@@ -199,10 +189,8 @@ private:
   DISABLE_MOVE_AND_ASSIGNMENT(SpatialOctree);
 
 protected:
-  SpaceVectorLevelMap m_deltaLevelMap;     // The width of a cell at each
-                                           // level or resolution
-  SpaceVectorLevelMap m_invDeltaLevelMap;  // Its inverse is useful for
-                                           // quantizing
+  SpaceVectorLevelMap m_deltaLevelMap;     // The width of a cell at each level or resolution
+  SpaceVectorLevelMap m_invDeltaLevelMap;  // Its inverse is useful for quantizing
   GeometricBoundingBox m_boundingBox;
 };
 

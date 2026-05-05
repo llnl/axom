@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -88,9 +89,7 @@ FieldData::FieldData(int association)
 
 //------------------------------------------------------------------------------
 #ifdef AXOM_MINT_USE_SIDRE
-FieldData::FieldData(int association,
-                     sidre::Group* fields_group,
-                     const std::string& topo)
+FieldData::FieldData(int association, sidre::Group* fields_group, const std::string& topo)
   : m_association(association)
   , m_resize_ratio(axom::deprecated::MCArray<double>::DEFAULT_RESIZE_RATIO)
   , m_fields()
@@ -111,8 +110,7 @@ FieldData::FieldData(int association,
     SLIC_ERROR_IF(!gp->hasChildView("topology"),
                   "field [" << gp->getName() << "] does not conform to blueprint!"
                             << " Missing 'topology' view");
-    SLIC_ERROR_IF(!gp->getView("topology")->isString(),
-                  "topology view needs to hold a string.");
+    SLIC_ERROR_IF(!gp->getView("topology")->isString(), "topology view needs to hold a string.");
     if(gp->getView("topology")->getString() != m_topology)
     {
       continue;
@@ -175,12 +173,11 @@ FieldData::FieldData(int association,
         num_tuples = field->getNumTuples();
       }
 
-      SLIC_ERROR_IF(field->getNumTuples() != num_tuples,
-                    "Inconsistent number of tuples");
+      SLIC_ERROR_IF(field->getNumTuples() != num_tuples, "Inconsistent number of tuples");
 
       m_fields[name] = field;
     }  // END if centering
-  }    // END for all fields
+  }  // END for all fields
 }
 #endif
 
