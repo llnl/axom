@@ -402,6 +402,9 @@ int main(int argc, char** argv)
                                                         &dc);
   shaper->setVerbosity(verbose);
   shaper->setSamplingResolution(meta.sampling_resolution);
+  // This tutorial keeps MFEM's default quadrature family. For uniform sample
+  // points that cover the whole zone, including its edges, users can also call
+  // setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform)).
   shaper->setVolumeFractionOrder(meta.volume_fraction_order);
 
   shaper->setSamplingMethod(meta.sampling_method);
