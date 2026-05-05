@@ -49,6 +49,7 @@ namespace
 {
 using Point2D = primal::Point<double, 2>;
 using Point3D = primal::Point<double, 3>;
+const char IGNORE_OUTPUT[] = ".*";
 
 const std::string unit_circle_contour =
   "piece = circle(origin=(0cm, 0cm), radius=1cm, start=0deg, end=360deg)";
@@ -1084,6 +1085,40 @@ shapes:
   {
     this->getDC().Save(testname, axom::sidre::Group::getDefaultIOProtocol());
   }
+}
+
+TEST_F(SamplingShaperTest2D, replacement_background_without_initial_material_aborts)
+{
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 2
+units: cm
+
+shapes:
+- name: background
+  material: {1}
+  geometry:
+    format: none
+- name: circle_outer
+  material: {2}
+  geometry:
+    format: c2c
+    path: {0}
+    units: cm
+)";
+
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), contour_file.getPath(), "void", "disk"));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  EXPECT_DEATH_IF_SUPPORTED(this->runShaping(), IGNORE_OUTPUT);
 }
 
 TEST_F(SamplingShaperTest2D, preshaped_materials)

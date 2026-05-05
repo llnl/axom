@@ -316,7 +316,6 @@ public:
           "Sampling resolution per element for the inout field (x,y,[z]). \n"
           "Determines number of samples per element in determining volume fraction field")
         ->expected(2, 3)
-        ///->capture_default_str();
         ->check(axom::CLI::PositiveNumber);
 
       std::map<std::string, VolFracSampling> vfsamplingMap {
@@ -820,11 +819,12 @@ int main(int argc, char** argv)
   {
     AXOM_ANNOTATE_SCOPE("save shaping results");
     shaper->getDC()->Save();
+
+    // Save quadrature sample point positions as a Blueprint mesh in verbose mode.
     if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
     {
       mfem::QuadratureFunction* positions = samplingShaper->getShapeQFunction("positions");
-      //if(params.quadratureType != static_cast<int>(mfem::Quadrature1D::Invalid))
-      if(positions)
+      if(positions && params.isVerbose())
       {
         save_quadrature_points(positions);
       }

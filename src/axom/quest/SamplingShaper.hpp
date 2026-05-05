@@ -487,16 +487,26 @@ public:
       // Get inout qfunc for this shape
       shapeQFunc = m_inoutShapeQFuncs.Get(axom::fmt::format("inout_{}", shapeName));
 
-      SLIC_ASSERT_MSG(shapeQFunc != nullptr,
-                      axom::fmt::format("Missing inout samples for shape '{}'", shapeName));
+      SLIC_ERROR_IF(shapeQFunc == nullptr,
+                    axom::fmt::format("Missing inout samples for shape '{}'. "
+                                      "This indicates the shape query did not produce a "
+                                      "quadrature field before replacement rules were applied.",
+                                      shapeName));
     }
     else
     {
       // No input geometry for the shape, get inout qfunc for associated material
       shapeQFunc = m_inoutMaterialQFuncs.Get(axom::fmt::format("mat_inout_{}", thisMatName));
 
-      SLIC_ASSERT_MSG(shapeQFunc != nullptr,
-                      axom::fmt::format("Missing inout samples for material '{}'", thisMatName));
+      SLIC_ERROR_IF(shapeQFunc == nullptr,
+                    axom::fmt::format("Missing inout samples for material '{}' while applying "
+                                      "replacement rules for shape '{}', which has no input "
+                                      "geometry. Initialize that material before shaping, e.g. "
+                                      "pass '--background-material {}' in the shaping driver or "
+                                      "import initial volume fractions for it.",
+                                      thisMatName,
+                                      shapeName,
+                                      thisMatName));
     }
 
     // Create a copy of the inout samples for this shape
@@ -522,8 +532,11 @@ public:
 
       auto* otherMatQFunc =
         m_inoutMaterialQFuncs.Get(axom::fmt::format("mat_inout_{}", otherMatName));
-      SLIC_ASSERT_MSG(otherMatQFunc != nullptr,
-                      axom::fmt::format("Missing inout samples for material '{}'", otherMatName));
+      SLIC_ERROR_IF(otherMatQFunc == nullptr,
+                    axom::fmt::format("Missing inout samples for material '{}' while applying "
+                                      "replacement rules for shape '{}'.",
+                                      otherMatName,
+                                      shapeName));
 
       quest::shaping::replaceMaterial(shapeQFuncCopy, otherMatQFunc, shouldReplace);
     }
@@ -539,8 +552,11 @@ public:
     {
       // copy shape data into current material and delete the copy
       auto* matQFunc = m_inoutMaterialQFuncs.Get(materialQFuncName);
-      SLIC_ASSERT_MSG(matQFunc != nullptr,
-                      axom::fmt::format("Missing inout samples for material '{}'", thisMatName));
+      SLIC_ERROR_IF(matQFunc == nullptr,
+                    axom::fmt::format("Missing inout samples for material '{}' while updating "
+                                      "the material field for shape '{}'.",
+                                      thisMatName,
+                                      shapeName));
 
       const bool reuseExisting = shape.getGeometry().hasGeometry();
       quest::shaping::copyShapeIntoMaterial(shapeQFuncCopy, matQFunc, reuseExisting);
