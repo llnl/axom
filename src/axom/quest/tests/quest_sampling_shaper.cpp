@@ -49,7 +49,6 @@ namespace
 {
 using Point2D = primal::Point<double, 2>;
 using Point3D = primal::Point<double, 3>;
-const char IGNORE_OUTPUT[] = ".*";
 
 const std::string unit_circle_contour =
   "piece = circle(origin=(0cm, 0cm), radius=1cm, start=0deg, end=360deg)";
@@ -1118,7 +1117,8 @@ shapes:
   this->validateShapeFile(shape_file.getPath());
   this->initializeShaping(shape_file.getPath());
 
-  EXPECT_DEATH_IF_SUPPORTED(this->runShaping(), IGNORE_OUTPUT);
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(this->runShaping(), slic::SlicAbortException);
 }
 
 TEST_F(SamplingShaperTest2D, preshaped_materials)
