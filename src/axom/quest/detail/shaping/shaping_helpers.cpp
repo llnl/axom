@@ -306,9 +306,8 @@ void FCT_correct(const double* M,     // Mass matrix
   // [IN]  - M, s, m, y_min, y_max
   // [INOUT] - xy
 
-  constexpr int ND = 64;
-  using StackArray = axom::StackArray<double, ND>;
-  SLIC_ASSERT(s <= ND);
+  constexpr int STACK_CAPACITY = 64;
+  using StackArray = axom::StackArray<double, STACK_CAPACITY>;
 
   // Q0 solutions can't be adjusted conservatively. It is what it is.
   if(s == 1)
@@ -316,8 +315,35 @@ void FCT_correct(const double* M,     // Mass matrix
     return;
   }
 
+  StackArray ML_stack;
+  StackArray z_stack;
+  StackArray beta_stack;
+  axom::Array<double> ML_heap;
+  axom::Array<double> z_heap;
+  axom::Array<double> beta_heap;
+
+  double* ML = nullptr;
+  double* z = nullptr;
+  double* beta = nullptr;
+
+  if(s <= STACK_CAPACITY)
+  {
+    ML = ML_stack.data();
+    z = z_stack.data();
+    beta = beta_stack.data();
+  }
+  else
+  {
+    ML_heap.resize(s);
+    z_heap.resize(s);
+    beta_heap.resize(s);
+
+    ML = ML_heap.data();
+    z = z_heap.data();
+    beta = beta_heap.data();
+  }
+
   // Compute the lumped mass matrix in ML:  M.GetRowSums(ML);
-  StackArray ML;
   for(int r = 0; r < s; ++r)
   {
     double dot = 0.;
@@ -345,8 +371,6 @@ void FCT_correct(const double* M,     // Mass matrix
     axom::fmt::format("Average ({}) is out of bounds [{},{}]: ", y_avg, y_min - EPS, y_max + EPS));
   #endif
 
-  StackArray z;
-  StackArray beta;
   double sum_beta = 0.;
   for(int i = 0; i < s; ++i)
   {
@@ -377,8 +401,8 @@ void FCT_correct(const double* M,     // Mass matrix
 
   // NOTE: `z' and `beta' are no longer used.
   // Zero them out and reuse their memory under different aliases: gp and gm
-  auto& gp = z;
-  auto& gm = beta;
+  auto* gp = z;
+  auto* gm = beta;
   for(int t = 0; t < s; ++t)
   {
     gp[t] = 0.0;

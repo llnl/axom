@@ -2531,6 +2531,55 @@ shapes:
 
 //-----------------------------------------------------------------------------
 
+TEST_F(SampleTester3D, background_import_with_custom_openuniform_generates_volume_fractions)
+{
+  const std::string shape_template = R"(
+dimensions: 3
+
+shapes:
+- name: background
+  material: void
+  geometry:
+    format: none
+- name: {}
+  material: {}
+  geometry:
+    format: stl
+    path: {}
+)";
+
+  const std::string box_shape = "boxShape";
+  const std::string box_material = "boxMat";
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  fs::TempFile stl_file(testname, ".stl");
+  stl_file.write(oversized_unit_box_stl);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), box_shape, box_material, stl_file.getPath()));
+
+  std::map<std::string, mfem::GridFunction*> initialGridFunctions;
+  auto* vf = this->registerVolFracGridFunction("init_vf_bg", 0);
+  this->initializeVolFracGridFunction<3>(vf, [](int, const Point3D&, int) -> double { return 1.; });
+  initialGridFunctions["void"] = vf;
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath(), initialGridFunctions);
+
+  int sampleRes[3] = {3, 4, 5};
+  this->m_shaper->setSamplingResolution(sampleRes);
+  this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::OpenUniform));
+  this->m_shaper->setVolumeFractionOrder(4);
+
+  this->runShaping();
+
+  this->checkExpectedVolumeFractions(box_material, 1.0, 1e-12);
+  this->checkExpectedVolumeFractions("void", 0.0, 1e-12);
+}
+
+//-----------------------------------------------------------------------------
+
 TEST_F(CurvedSampleTester2D, positions_match_curved_mesh_for_anisotropic_custom_quadrature)
 {
   auto& mesh = this->getMesh();

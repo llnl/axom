@@ -630,8 +630,29 @@ public:
 
       auto* matQFunc = new mfem::QuadratureFunction(*positionsQSpace);
       const auto& ir = matQFunc->GetSpace()->GetIntRule(0);
-      const auto* interp = gf->FESpace()->GetQuadratureInterpolator(ir);
-      interp->Values(*gf, *matQFunc);
+
+      if(usesCustomTensorQuadrature(*mesh))
+      {
+        // Avoid MFEM's tensor quadrature interpolation path for custom quad/hex
+        // rules, which infers a single q1d from ir.GetNPoints().
+        mfem::Vector elemValues;
+        mfem::Vector qfuncValues;
+        for(int elem = 0; elem < mesh->GetNE(); ++elem)
+        {
+          gf->GetValues(elem, ir, elemValues);
+          matQFunc->GetValues(elem, qfuncValues);
+          qfuncValues = elemValues;
+        }
+      }
+      else
+      {
+        const auto* interp = gf->FESpace()->GetQuadratureInterpolator(ir);
+        SLIC_ERROR_IF(interp == nullptr,
+                      axom::fmt::format("Could not create a quadrature interpolator while "
+                                        "importing volume fractions for '{}'.",
+                                        name));
+        interp->Values(*gf, *matQFunc);
+      }
 
       const auto matName = axom::fmt::format("mat_inout_{}", name);
       m_inoutMaterialQFuncs.Register(matName, matQFunc, true);
@@ -1053,7 +1074,7 @@ private:
     vf->HostReadWrite();
   }
 
-  bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh) const
+  bool usesCustomTensorQuadrature(const mfem::Mesh& mesh) const
   {
     if(m_quadratureType == static_cast<int>(mfem::Quadrature1D::Invalid))
     {
@@ -1063,10 +1084,8 @@ private:
     switch(mesh.GetTypicalElementGeometry())
     {
     case mfem::Geometry::SQUARE:
-      return m_sampleResolution[0] != m_sampleResolution[1];
     case mfem::Geometry::CUBE:
-      return m_sampleResolution[0] != m_sampleResolution[1] ||
-        m_sampleResolution[1] != m_sampleResolution[2];
+      return true;
     default:
       return false;
     }
@@ -1080,7 +1099,7 @@ private:
     mfem::QuadratureFunctionCoefficient qfc(inout);
     mfem::DomainLFIntegrator rhs(qfc, &sampleIR);
 
-    if(usesAnisotropicCustomTensorQuadrature(*fes.GetMesh()))
+    if(usesCustomTensorQuadrature(*fes.GetMesh()))
     {
       mfem::Vector elemVec;
       mfem::Array<int> elemVDofs;
