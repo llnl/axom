@@ -42,6 +42,27 @@ private:
   std::unique_ptr<mfem::IntegrationRule> m_ir;
 };
 
+bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh,
+                                           const int sampleResolution[3],
+                                           int quadratureType)
+{
+  if(quadratureType == static_cast<int>(mfem::Quadrature1D::Invalid))
+  {
+    return false;
+  }
+
+  switch(mesh.GetTypicalElementGeometry())
+  {
+  case mfem::Geometry::SQUARE:
+    return sampleResolution[0] != sampleResolution[1];
+  case mfem::Geometry::CUBE:
+    return sampleResolution[0] != sampleResolution[1] ||
+      sampleResolution[0] != sampleResolution[2];
+  default:
+    return false;
+  }
+}
+
 }  // namespace
 
 // Utility function to either return a gf from the dc, or to allocate it through the dc
@@ -268,7 +289,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
   pos_coef->SetOwnsSpace(true);
   auto pos = mfem::Reshape(pos_coef->HostWrite(), dim, nq, NE);
 
-  if(quadratureType == static_cast<int>(mfem::Quadrature1D::Invalid))
+  if(!usesAnisotropicCustomTensorQuadrature(*mesh, sampleResolution, quadratureType))
   {
     const auto* geomFactors = mesh->GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
     geomFactors->X.HostRead();
@@ -293,7 +314,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
   else
   {
     // MFEM's tensor quadrature interpolation assumes the same number of
-    // points in each logical dimension. For custom anisotropic tensor-product
+    // points in each logical dimension. For anisotropic custom tensor-product
     // rules, map the integration points explicitly through each element.
     mfem::DenseMatrix pointMat(dim, nq);
     for(int i = 0; i < NE; ++i)

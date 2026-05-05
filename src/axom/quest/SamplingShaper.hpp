@@ -631,10 +631,12 @@ public:
       auto* matQFunc = new mfem::QuadratureFunction(*positionsQSpace);
       const auto& ir = matQFunc->GetSpace()->GetIntRule(0);
 
-      if(usesCustomTensorQuadrature(*mesh))
+      if(usesAnisotropicCustomTensorQuadrature(*mesh))
       {
-        // Avoid MFEM's tensor quadrature interpolation path for custom quad/hex
-        // rules, which infers a single q1d from ir.GetNPoints().
+        // Avoid MFEM's tensor quadrature interpolation path only for
+        // anisotropic custom quad/hex rules. MFEM infers a single q1d from
+        // ir.GetNPoints(), which cannot represent per-direction sample counts
+        // such as 3 x 5 or 3 x 5 x 2.
         mfem::Vector elemValues;
         mfem::Vector qfuncValues;
         for(int elem = 0; elem < mesh->GetNE(); ++elem)
@@ -940,7 +942,7 @@ private:
       mfem::ConstantCoefficient one_coef(1.0);
       mfem::MassIntegrator mass_integrator(one_coef, &sampleIR);
 
-      if(usesCustomTensorQuadrature(*fes->GetMesh()))
+      if(usesAnisotropicCustomTensorQuadrature(*fes->GetMesh()))
       {
         mfem::DenseMatrix elemMat;
         mass_mat->HostWrite();
@@ -1096,7 +1098,7 @@ private:
     vf->HostReadWrite();
   }
 
-  bool usesCustomTensorQuadrature(const mfem::Mesh& mesh) const
+  bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh) const
   {
     if(m_quadratureType == static_cast<int>(mfem::Quadrature1D::Invalid))
     {
@@ -1106,8 +1108,10 @@ private:
     switch(mesh.GetTypicalElementGeometry())
     {
     case mfem::Geometry::SQUARE:
+      return m_sampleResolution[0] != m_sampleResolution[1];
     case mfem::Geometry::CUBE:
-      return true;
+      return m_sampleResolution[0] != m_sampleResolution[1] ||
+        m_sampleResolution[0] != m_sampleResolution[2];
     default:
       return false;
     }
@@ -1121,7 +1125,7 @@ private:
     mfem::QuadratureFunctionCoefficient qfc(inout);
     mfem::DomainLFIntegrator rhs(qfc, &sampleIR);
 
-    if(usesCustomTensorQuadrature(*fes.GetMesh()))
+    if(usesAnisotropicCustomTensorQuadrature(*fes.GetMesh()))
     {
       mfem::Vector elemVec;
       mfem::Array<int> elemVDofs;
