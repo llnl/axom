@@ -6,7 +6,7 @@
 
 //-----------------------------------------------------------------------------
 ///
-/// file: quest_candidates_examples.cpp
+/// file: quest_candidates_example.cpp
 ///
 /// This example takes as input two Blueprint unstructured hex meshes, and
 /// finds the candidates of intersection between the meshes using a
@@ -56,9 +56,17 @@ using UMesh = axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>;
 using IndexPair = std::pair<axom::IndexType, axom::IndexType>;
 using RuntimePolicy = axom::runtime_policy::Policy;
 
+namespace
+{
 // MPI globals, set in main().
 int myRank = -1;
-int numRanks = -1;
+
+enum class MeshLoadPolicy
+{
+  Replicated,
+  OneDomainPerRankOrReplicated
+};
+}  // namespace
 
 //-----------------------------------------------------------------------------
 /// Basic RAII utility class for initializing and finalizing slic logger
@@ -111,12 +119,16 @@ struct Input
 void Input::parse(int argc, char** argv, axom::CLI::App& app)
 {
   app.add_option("-i, --infile", mesh_file_first)
-    ->description("The first input Blueprint mesh file to insert into spatial index")
+    ->description(
+      "The first input Blueprint mesh file to insert into spatial index.\n"
+      "May be single-domain on all ranks or partitioned with one domain per rank.")
     ->required()
     ->check(axom::CLI::ExistingFile);
 
   app.add_option("-q, --queryfile", mesh_file_second)
-    ->description("The second input Blueprint mesh file to query spatial index")
+    ->description(
+      "The second input Blueprint mesh file to query spatial index.\n"
+      "Must be a single-domain mesh on all ranks.")
     ->required()
     ->check(axom::CLI::ExistingFile);
 
@@ -239,7 +251,9 @@ struct HexMesh
 };
 
 template <typename ExecSpace>
-HexMesh loadBlueprintHexMesh(const std::string& mesh_path, bool verboseOutput = false)
+HexMesh loadBlueprintHexMesh(const std::string& mesh_path,
+                             MeshLoadPolicy meshLoadPolicy,
+                             bool verboseOutput = false)
 {
   AXOM_ANNOTATE_SCOPE("load Blueprint hexahedron mesh");
 
@@ -258,21 +272,34 @@ HexMesh loadBlueprintHexMesh(const std::string& mesh_path, bool verboseOutput = 
   // Load Blueprint mesh into Conduit node
   conduit::Node n_load;
 
-  // Read mesh as single domain first; if partitioned, then reset and reload with MPI
+  // Read mesh as a regular Blueprint file first. Meshes that allow
+  // partitioning may then be reloaded with MPI if they are distributed
+  // across ranks.
   conduit::relay::io::blueprint::read_mesh(mesh_path, n_load);
 
-  if(conduit::blueprint::mesh::number_of_domains(n_load) > 1)
+  const auto numDomains = conduit::blueprint::mesh::number_of_domains(n_load);
+  if(numDomains > 1)
   {
+    if(meshLoadPolicy == MeshLoadPolicy::Replicated)
+    {
+      SLIC_ERROR(axom::fmt::format(
+        "Mesh '{}' has {} domains. This mesh must be a single-domain mesh available on all ranks.",
+        mesh_path,
+        numDomains));
+    }
+
     n_load.reset();
     conduit::relay::mpi::io::blueprint::read_mesh(mesh_path, n_load, MPI_COMM_WORLD);
-  }
 
-  // Requirement that each rank has 1 domain
-  if(conduit::blueprint::mesh::number_of_domains(n_load) != 1)
-  {
-    SLIC_ERROR(axom::fmt::format("Rank {} has {} domains. Must have 1 domain per rank!\n",
-                                 myRank,
-                                 conduit::blueprint::mesh::number_of_domains(n_load)));
+    if(conduit::blueprint::mesh::number_of_domains(n_load) != 1)
+    {
+      SLIC_ERROR(
+        axom::fmt::format("Rank {} has {} local domains for '{}'. Partitioned meshes must provide "
+                          "exactly one domain per rank.",
+                          myRank,
+                          conduit::blueprint::mesh::number_of_domains(n_load),
+                          mesh_path));
+    }
   }
 
   // Check if Blueprint mesh conforms
@@ -296,6 +323,14 @@ HexMesh loadBlueprintHexMesh(const std::string& mesh_path, bool verboseOutput = 
 
   int connectivity_size =
     (n_load[0]["topologies/topo/elements/connectivity"]).dtype().number_of_elements();
+
+  if(connectivity_size % HEX_OFFSET != 0)
+  {
+    SLIC_ERROR(
+      axom::fmt::format("Hex connectivity array has {} entries; expected a multiple of {}.",
+                        connectivity_size,
+                        HEX_OFFSET));
+  }
 
   // extract hexes into an axom::Array
   auto x_vals_h = axom::ArrayView<double>(n_load[0]["coordsets/coords/values/x"].value(), num_nodes);
@@ -691,7 +726,6 @@ int main(int argc, char** argv)
 {
   axom::utilities::raii::MPIWrapper mpi_raii_wrapper(argc, argv);
   myRank = mpi_raii_wrapper.my_rank();
-  numRanks = mpi_raii_wrapper.num_ranks();
 
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   using omp_exec = axom::OMP_EXEC;
@@ -728,10 +762,9 @@ int main(int argc, char** argv)
 
 #ifdef AXOM_USE_MPI
       MPI_Bcast(&retval, 1, MPI_INT, 0, MPI_COMM_WORLD);
-      MPI_Finalize();
 #endif
 
-      exit(retval);
+      return retval;
     }
   }
 
@@ -753,21 +786,29 @@ int main(int argc, char** argv)
   {
 #ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
   case RuntimePolicy::omp:
-    insert_mesh = loadBlueprintHexMesh<omp_exec>(params.mesh_file_first, params.isVerbose());
+    insert_mesh = loadBlueprintHexMesh<omp_exec>(params.mesh_file_first,
+                                                 MeshLoadPolicy::OneDomainPerRankOrReplicated,
+                                                 params.isVerbose());
     break;
 #endif
 #ifdef AXOM_RUNTIME_POLICY_USE_CUDA
   case RuntimePolicy::cuda:
-    insert_mesh = loadBlueprintHexMesh<cuda_exec>(params.mesh_file_first, params.isVerbose());
+    insert_mesh = loadBlueprintHexMesh<cuda_exec>(params.mesh_file_first,
+                                                  MeshLoadPolicy::OneDomainPerRankOrReplicated,
+                                                  params.isVerbose());
     break;
 #endif
 #ifdef AXOM_RUNTIME_POLICY_USE_HIP
   case RuntimePolicy::hip:
-    insert_mesh = loadBlueprintHexMesh<hip_exec>(params.mesh_file_first, params.isVerbose());
+    insert_mesh = loadBlueprintHexMesh<hip_exec>(params.mesh_file_first,
+                                                 MeshLoadPolicy::OneDomainPerRankOrReplicated,
+                                                 params.isVerbose());
     break;
 #endif
   default:  // RuntimePolicy::seq
-    insert_mesh = loadBlueprintHexMesh<seq_exec>(params.mesh_file_first, params.isVerbose());
+    insert_mesh = loadBlueprintHexMesh<seq_exec>(params.mesh_file_first,
+                                                 MeshLoadPolicy::OneDomainPerRankOrReplicated,
+                                                 params.isVerbose());
     break;
   }
 
@@ -780,21 +821,29 @@ int main(int argc, char** argv)
   {
 #ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
   case RuntimePolicy::omp:
-    query_mesh = loadBlueprintHexMesh<omp_exec>(params.mesh_file_second, params.isVerbose());
+    query_mesh = loadBlueprintHexMesh<omp_exec>(params.mesh_file_second,
+                                                MeshLoadPolicy::Replicated,
+                                                params.isVerbose());
     break;
 #endif
 #ifdef AXOM_RUNTIME_POLICY_USE_CUDA
   case RuntimePolicy::cuda:
-    query_mesh = loadBlueprintHexMesh<cuda_exec>(params.mesh_file_second, params.isVerbose());
+    query_mesh = loadBlueprintHexMesh<cuda_exec>(params.mesh_file_second,
+                                                 MeshLoadPolicy::Replicated,
+                                                 params.isVerbose());
     break;
 #endif
 #ifdef AXOM_RUNTIME_POLICY_USE_HIP
   case RuntimePolicy::hip:
-    query_mesh = loadBlueprintHexMesh<hip_exec>(params.mesh_file_second, params.isVerbose());
+    query_mesh = loadBlueprintHexMesh<hip_exec>(params.mesh_file_second,
+                                                MeshLoadPolicy::Replicated,
+                                                params.isVerbose());
     break;
 #endif
   default:  // RuntimePolicy::seq
-    query_mesh = loadBlueprintHexMesh<seq_exec>(params.mesh_file_second, params.isVerbose());
+    query_mesh = loadBlueprintHexMesh<seq_exec>(params.mesh_file_second,
+                                                MeshLoadPolicy::Replicated,
+                                                params.isVerbose());
     break;
   }
 
@@ -856,7 +905,7 @@ int main(int argc, char** argv)
   }
 
   SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                              "Mesh had {:L} candidates pairs",
+                              "Mesh had {:L} candidate pairs",
                               candidatePairs.size()));
 
   // print first few pairs
@@ -867,10 +916,11 @@ int main(int argc, char** argv)
     constexpr int MAX_PRINT = 20;
     if(numCandidates > MAX_PRINT)
     {
-      candidatePairs.resize(MAX_PRINT);
+      const std::vector<IndexPair> previewPairs(candidatePairs.begin(),
+                                                candidatePairs.begin() + MAX_PRINT);
       SLIC_INFO(axom::fmt::format("First {} candidate pairs: {} ...\n",
                                   MAX_PRINT,
-                                  axom::fmt::join(candidatePairs, ", ")));
+                                  axom::fmt::join(previewPairs, ", ")));
     }
     else
     {
@@ -882,10 +932,15 @@ int main(int argc, char** argv)
     SLIC_INFO(axom::fmt::format("Writing out candidate pairs to {}...", candidates_file_name));
     std::ofstream outf(candidates_file_name);
 
-    outf << candidatePairs.size() << " candidate pairs:" << std::endl;
-    for(unsigned long i = 0; i < candidatePairs.size(); ++i)
+    if(!outf)
     {
-      outf << candidatePairs[i].first << " " << candidatePairs[i].second << std::endl;
+      SLIC_ERROR(axom::fmt::format("Failed to open '{}' for writing.", candidates_file_name));
+    }
+
+    outf << candidatePairs.size() << " candidate pairs:" << std::endl;
+    for(const auto& candidatePair : candidatePairs)
+    {
+      outf << candidatePair.first << " " << candidatePair.second << '\n';
     }
   }
 
@@ -895,7 +950,7 @@ int main(int argc, char** argv)
   if(myRank == 0)
   {
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Mesh had {:L} a total of candidates pairs across all ranks",
+                                "Mesh had {:L} candidate pairs total across all ranks",
                                 totalNumCandidates));
   }
 
