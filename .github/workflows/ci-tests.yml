@@ -94,7 +94,7 @@ jobs:
       options: --user root
     steps:
       - name: Checkout Axom
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with: 
           submodules: recursive
       - name: Print Matrix Variables
@@ -113,7 +113,7 @@ jobs:
           BUILD_TYPE=${{ matrix.build_type }} \
           ./scripts/github-actions/linux-build_and_test.sh
       - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: Test Results ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
           path: "**/Test.xml"
@@ -126,7 +126,7 @@ jobs:
       CMAKE_EXTRA_FLAGS: '-DAXOM_ENABLE_SIDRE:BOOL=OFF -DAXOM_ENABLE_INLET:BOOL=OFF -DAXOM_ENABLE_KLEE:BOOL=OFF -DAXOM_ENABLE_SINA:BOOL=OFF -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF'
     steps:
     - name: Checkout Axom
-      uses: actions/checkout@v4
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       with:
         submodules: recursive
     - name: Windows - CMake
@@ -151,7 +151,7 @@ jobs:
       CMAKE_EXTRA_FLAGS: '-DAXOM_ENABLE_SIDRE:BOOL=OFF -DAXOM_ENABLE_INLET:BOOL=OFF -DAXOM_ENABLE_KLEE:BOOL=OFF -DAXOM_ENABLE_SINA:BOOL=OFF -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF'
     steps:
       - name: Checkout Axom
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           submodules: recursive
       - name: macOS - CMake
@@ -187,7 +187,7 @@ jobs:
         HOST_CONFIG: llvm@19.0.0.cmake
     steps:
     - name: Checkout Axom
-      uses: actions/checkout@v4
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       with:
         submodules: recursive
     - name: Check ${{ matrix.check_type }}
