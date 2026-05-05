@@ -229,10 +229,7 @@ public:
   }
 
   // Deprecated backward compatibility method
-  [[deprecated]] void setQuadratureOrder(int order)
-  {
-    setSamplingResolution(order);
-  }
+  [[deprecated]] void setQuadratureOrder(int order) { setSamplingResolution(order); }
 
   void setVolumeFractionOrder(int volfracOrder) { m_volfracOrder = volfracOrder; }
 
@@ -592,7 +589,10 @@ public:
     // ensure we have a starting quadrature field for the positions
     if(!m_inoutShapeQFuncs.Has("positions"))
     {
-      shaping::generatePositionsQFunction(mesh, m_inoutShapeQFuncs, m_sampleResolution, m_quadratureType);
+      shaping::generatePositionsQFunction(mesh,
+                                          m_inoutShapeQFuncs,
+                                          m_sampleResolution,
+                                          m_quadratureType);
     }
     auto* positionsQSpace = m_inoutShapeQFuncs.Get("positions")->GetSpace();
 
@@ -707,36 +707,36 @@ private:
         if(meshDim == 2)
         {
           sampler->template sampleInOutField<2, 2>(m_dc,
-                                                  m_inoutShapeQFuncs,
-                                                  m_sampleResolution,
-                                                  m_quadratureType,
-                                                  m_projector22);
+                                                   m_inoutShapeQFuncs,
+                                                   m_sampleResolution,
+                                                   m_quadratureType,
+                                                   m_projector22);
         }
         else if(meshDim == 3)
         {
           sampler->template sampleInOutField<3, 2>(m_dc,
-                                                  m_inoutShapeQFuncs,
-                                                  m_sampleResolution,
-                                                  m_quadratureType,
-                                                  m_projector32);
+                                                   m_inoutShapeQFuncs,
+                                                   m_sampleResolution,
+                                                   m_quadratureType,
+                                                   m_projector32);
         }
         break;
       case 3:
         if(meshDim == 2)
         {
           sampler->template sampleInOutField<2, 3>(m_dc,
-                                                  m_inoutShapeQFuncs,
-                                                  m_sampleResolution,
-                                                  m_quadratureType,
-                                                  m_projector23);
+                                                   m_inoutShapeQFuncs,
+                                                   m_sampleResolution,
+                                                   m_quadratureType,
+                                                   m_projector23);
         }
         else if(meshDim == 3)
         {
           sampler->template sampleInOutField<3, 3>(m_dc,
-                                                  m_inoutShapeQFuncs,
-                                                  m_sampleResolution,
-                                                  m_quadratureType,
-                                                  m_projector33);
+                                                   m_inoutShapeQFuncs,
+                                                   m_sampleResolution,
+                                                   m_quadratureType,
+                                                   m_projector33);
         }
         break;
       }
@@ -747,29 +747,21 @@ private:
       case 2:
         if(meshDim == 2)
         {
-          sampler->template computeVolumeFractionsBaseline<2, 2>(m_dc,
-                                                                m_volfracOrder,
-                                                                m_projector22);
+          sampler->template computeVolumeFractionsBaseline<2, 2>(m_dc, m_volfracOrder, m_projector22);
         }
         else if(meshDim == 3)
         {
-          sampler->template computeVolumeFractionsBaseline<3, 2>(m_dc,
-                                                                m_volfracOrder,
-                                                                m_projector32);
+          sampler->template computeVolumeFractionsBaseline<3, 2>(m_dc, m_volfracOrder, m_projector32);
         }
         break;
       case 3:
         if(meshDim == 2)
         {
-          sampler->template computeVolumeFractionsBaseline<2, 3>(m_dc,
-                                                                m_volfracOrder,
-                                                                m_projector23);
+          sampler->template computeVolumeFractionsBaseline<2, 3>(m_dc, m_volfracOrder, m_projector23);
         }
         else if(meshDim == 3)
         {
-          sampler->template computeVolumeFractionsBaseline<3, 3>(m_dc,
-                                                                m_volfracOrder,
-                                                                m_projector33);
+          sampler->template computeVolumeFractionsBaseline<3, 3>(m_dc, m_volfracOrder, m_projector33);
         }
         break;
       }
@@ -809,18 +801,18 @@ private:
         if(meshDim == 2)
         {
           sampler->template sampleInOutField<2, 3>(m_dc,
-                                                  m_inoutShapeQFuncs,
-                                                  m_sampleResolution,
-                                                  m_quadratureType,
-                                                  m_projector23);
+                                                   m_inoutShapeQFuncs,
+                                                   m_sampleResolution,
+                                                   m_quadratureType,
+                                                   m_projector23);
         }
         else if(meshDim == 3)
         {
           sampler->template sampleInOutField<3, 3>(m_dc,
-                                                  m_inoutShapeQFuncs,
-                                                  m_sampleResolution,
-                                                  m_quadratureType,
-                                                  m_projector33);
+                                                   m_inoutShapeQFuncs,
+                                                   m_sampleResolution,
+                                                   m_quadratureType,
+                                                   m_projector33);
         }
         break;
       }

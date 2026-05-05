@@ -135,7 +135,7 @@ void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
   }
 }
 
-mfem::QuadratureSpace *makeDefaultQuadratureSpace(mfem::Mesh* mesh, int sampleRes)
+mfem::QuadratureSpace* makeDefaultQuadratureSpace(mfem::Mesh* mesh, int sampleRes)
 {
   SLIC_ASSERT(mesh != nullptr);
   const int NE = mesh->GetNE();
@@ -153,7 +153,7 @@ mfem::QuadratureSpace *makeDefaultQuadratureSpace(mfem::Mesh* mesh, int sampleRe
   return new mfem::QuadratureSpace(mesh, sampleOrder);
 }
 
-mfem::QuadratureSpace *makeCustomQuadratureSpace(mfem::Mesh* mesh, int sampleRes[3], int quadratureType)
+mfem::QuadratureSpace* makeCustomQuadratureSpace(mfem::Mesh* mesh, int sampleRes[3], int quadratureType)
 {
   SLIC_ASSERT(mesh != nullptr);
   const int NE = mesh->GetNE();
@@ -169,7 +169,8 @@ mfem::QuadratureSpace *makeCustomQuadratureSpace(mfem::Mesh* mesh, int sampleRes
   mfem::IntegrationRule *ir = nullptr, ird[3];
   for(int d = 0; d < dim; d++)
   {
-    SLIC_ERROR_IF(sampleRes[d] < 1, axom::fmt::format("Invalid sample value {} for dimension {}.", sampleRes[d], d));
+    SLIC_ERROR_IF(sampleRes[d] < 1,
+                  axom::fmt::format("Invalid sample value {} for dimension {}.", sampleRes[d], d));
     switch(quadratureType)
     {
     case mfem::Quadrature1D::GaussLegendre:
@@ -212,8 +213,10 @@ mfem::QuadratureSpace *makeCustomQuadratureSpace(mfem::Mesh* mesh, int sampleRes
 }
 
 /// Generates a quadrature function corresponding to the mesh "positions" field
-void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFuncs,
-                                int sampleResolution[3], int quadratureType)
+void generatePositionsQFunction(mfem::Mesh* mesh,
+                                QFunctionCollection& inoutQFuncs,
+                                int sampleResolution[3],
+                                int quadratureType)
 {
   SLIC_ASSERT(mesh != nullptr);
   const int NE = mesh->GetNE();
@@ -226,7 +229,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFun
   }
 
   // Make a quadrature space to determine the point locations in each element.
-  mfem::QuadratureSpace *sp = nullptr;
+  mfem::QuadratureSpace* sp = nullptr;
   if(quadratureType == static_cast<int>(mfem::Quadrature1D::Invalid))
   {
     sp = makeDefaultQuadratureSpace(mesh, sampleResolution[0]);
