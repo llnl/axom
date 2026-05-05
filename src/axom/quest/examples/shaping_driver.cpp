@@ -27,11 +27,11 @@
 #endif
 
 #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
-#ifdef CONDUIT_RELAY_MPI_ENABLED
- #include "conduit_relay_mpi_io_blueprint.hpp"
-#else
- #include "conduit_relay_io_blueprint.hpp"
-#endif
+  #ifdef CONDUIT_RELAY_MPI_ENABLED
+    #include "conduit_relay_mpi_io_blueprint.hpp"
+  #else
+    #include "conduit_relay_io_blueprint.hpp"
+  #endif
 #endif
 
 #include "mfem.hpp"
@@ -106,7 +106,7 @@ public:
   ShapingMethod shapingMethod {ShapingMethod::Sampling};
   SamplingMethod samplingMethod {SamplingMethod::InOut};
   RuntimePolicy policy {RuntimePolicy::seq};
-  std::vector<int> samplingResolution{5, 5, 5};
+  std::vector<int> samplingResolution {5, 5, 5};
   // We set quadratureType to Invalid to select the default method.
   int quadratureType {static_cast<int>(mfem::Quadrature1D::Invalid)};
   int outputOrder {2};
@@ -489,13 +489,13 @@ void finalizeLogger()
 
 //------------------------------------------------------------------------------
 /// Write the quadrature points as a Blueprint mesh.
-void save_quadrature_points(mfem::QuadratureFunction *positions)
+void save_quadrature_points(mfem::QuadratureFunction* positions)
 {
 #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
   const int dim = positions->GetSpace()->GetMesh()->Dimension();
 
   conduit::Node n_mesh;
-  mfem::real_t *X = const_cast<mfem::real_t *>(positions->GetData());
+  mfem::real_t* X = const_cast<mfem::real_t*>(positions->GetData());
   const int npts = positions->Size() / positions->GetVDim();
   const conduit::index_t stride = dim * sizeof(mfem::real_t);
   n_mesh["coordsets/coords/type"] = "explicit";
@@ -515,11 +515,11 @@ void save_quadrature_points(mfem::QuadratureFunction *positions)
   std::fill(tmp.begin(), tmp.end(), 1);
   n_mesh["topologies/points/elements/sizes"].set(tmp);
 
-#ifdef CONDUIT_RELAY_MPI_ENABLED
+  #ifdef CONDUIT_RELAY_MPI_ENABLED
   conduit::relay::mpi::io::blueprint::save_mesh(n_mesh, "shaping_quadrature", "hdf5", MPI_COMM_WORLD);
-#else
+  #else
   conduit::relay::io::blueprint::save_mesh(n_mesh, "shaping_quadrature", "hdf5");
-#endif
+  #endif
 #endif
 }
 
@@ -652,7 +652,7 @@ int main(int argc, char** argv)
   if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
   {
     int res[3] = {5, 5, 5};
-    for(size_t i = 0; i < std::min(size_t{3}, params.samplingResolution.size()); i++)
+    for(size_t i = 0; i < std::min(size_t {3}, params.samplingResolution.size()); i++)
     {
       res[i] = params.samplingResolution[i];
     }
@@ -822,7 +822,7 @@ int main(int argc, char** argv)
     shaper->getDC()->Save();
     if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
     {
-      mfem::QuadratureFunction *positions = samplingShaper->getShapeQFunction("positions");
+      mfem::QuadratureFunction* positions = samplingShaper->getShapeQFunction("positions");
       //if(params.quadratureType != static_cast<int>(mfem::Quadrature1D::Invalid))
       if(positions)
       {

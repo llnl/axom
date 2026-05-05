@@ -2512,10 +2512,8 @@ shapes:
   stl_file.write(oversized_unit_box_stl);
 
   fs::TempFile shape_file(testname, ".yaml");
-  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
-                                     box_shape,
-                                     box_material,
-                                     stl_file.getPath()));
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), box_shape, box_material, stl_file.getPath()));
 
   this->validateShapeFile(shape_file.getPath());
   this->initializeShaping(shape_file.getPath());
@@ -2538,23 +2536,20 @@ TEST_F(CurvedSampleTester2D, positions_match_curved_mesh_for_anisotropic_custom_
   auto* nodes = mesh.GetNodes();
   ASSERT_NE(nodes, nullptr);
 
-  mfem::VectorFunctionCoefficient warp(
-    2,
-    [](const mfem::Vector& x, mfem::Vector& y) {
-      constexpr double PI_LOCAL = 3.14159265358979323846;
-      y.SetSize(2);
-      y[0] = x[0] + 0.08 * std::sin(PI_LOCAL * x[0]) * std::sin(PI_LOCAL * x[1]);
-      y[1] = x[1] + 0.05 * std::sin(PI_LOCAL * x[0]) * std::sin(0.5 * PI_LOCAL * x[1]);
-    });
+  mfem::VectorFunctionCoefficient warp(2, [](const mfem::Vector& x, mfem::Vector& y) {
+    constexpr double PI_LOCAL = 3.14159265358979323846;
+    y.SetSize(2);
+    y[0] = x[0] + 0.08 * std::sin(PI_LOCAL * x[0]) * std::sin(PI_LOCAL * x[1]);
+    y[1] = x[1] + 0.05 * std::sin(PI_LOCAL * x[0]) * std::sin(0.5 * PI_LOCAL * x[1]);
+  });
   nodes->ProjectCoefficient(warp);
 
   int sampleRes[3] = {5, 3, 1};
   quest::shaping::QFunctionCollection qfuncs;
-  quest::shaping::generatePositionsQFunction(
-    &mesh,
-    qfuncs,
-    sampleRes,
-    static_cast<int>(mfem::Quadrature1D::OpenUniform));
+  quest::shaping::generatePositionsQFunction(&mesh,
+                                             qfuncs,
+                                             sampleRes,
+                                             static_cast<int>(mfem::Quadrature1D::OpenUniform));
 
   auto* positions = qfuncs.Get("positions");
   ASSERT_NE(positions, nullptr);

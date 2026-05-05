@@ -208,7 +208,10 @@ void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
  *                       quadratureType -- the same type per dimension but the sampling
  *                       can vary.
  */
-void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFuncs, int sampleResolution[3], int quadratureType);
+void generatePositionsQFunction(mfem::Mesh* mesh,
+                                QFunctionCollection& inoutQFuncs,
+                                int sampleResolution[3],
+                                int quadratureType);
 
 /** 
  * Implements flux-corrected transport (FCT) to correct the solution obtained
