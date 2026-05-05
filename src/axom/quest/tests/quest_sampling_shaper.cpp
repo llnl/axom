@@ -2629,6 +2629,8 @@ TEST_F(CurvedSampleTester2D, positions_match_curved_mesh_for_anisotropic_custom_
       }
     }
   }
+
+  qfuncs.DeleteData(true);
 }
 
 //-----------------------------------------------------------------------------

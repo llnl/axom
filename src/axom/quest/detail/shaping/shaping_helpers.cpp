@@ -13,6 +13,8 @@
 
 #include "axom/fmt.hpp"
 
+#include <memory>
+
 #if defined(AXOM_USE_MFEM)
   #include "mfem/linalg/dtensor.hpp"
 #endif
@@ -24,6 +26,23 @@ namespace quest
 namespace shaping
 {
 #if defined(AXOM_USE_MFEM)
+
+namespace
+{
+
+class OwnedQuadratureSpace : public mfem::QuadratureSpace
+{
+public:
+  OwnedQuadratureSpace(mfem::Mesh& mesh, std::unique_ptr<mfem::IntegrationRule> ir)
+    : mfem::QuadratureSpace(mesh, *ir)
+    , m_ir(std::move(ir))
+  { }
+
+private:
+  std::unique_ptr<mfem::IntegrationRule> m_ir;
+};
+
+}  // namespace
 
 // Utility function to either return a gf from the dc, or to allocate it through the dc
 mfem::GridFunction* getOrAllocateL2GridFunction(mfem::DataCollection* dc,
@@ -166,7 +185,7 @@ mfem::QuadratureSpace* makeCustomQuadratureSpace(mfem::Mesh* mesh, int sampleRes
   }
 
   // Make custom integration rule
-  mfem::IntegrationRule *ir = nullptr, ird[3];
+  mfem::IntegrationRule ird[3];
   for(int d = 0; d < dim; d++)
   {
     SLIC_ERROR_IF(sampleRes[d] < 1,
@@ -196,20 +215,21 @@ mfem::QuadratureSpace* makeCustomQuadratureSpace(mfem::Mesh* mesh, int sampleRes
       break;
     }
   }
+  std::unique_ptr<mfem::IntegrationRule> ir;
   if(dim == 1)
   {
-    ir = new mfem::IntegrationRule(ird[0]);
+    ir = std::make_unique<mfem::IntegrationRule>(ird[0]);
   }
   else if(dim == 2)
   {
-    ir = new mfem::IntegrationRule(ird[0], ird[1]);
+    ir = std::make_unique<mfem::IntegrationRule>(ird[0], ird[1]);
   }
   else if(dim == 3)
   {
-    ir = new mfem::IntegrationRule(ird[0], ird[1], ird[2]);
+    ir = std::make_unique<mfem::IntegrationRule>(ird[0], ird[1], ird[2]);
   }
 
-  return new mfem::QuadratureSpace(*mesh, *ir);
+  return new OwnedQuadratureSpace(*mesh, std::move(ir));
 }
 
 /// Generates a quadrature function corresponding to the mesh "positions" field

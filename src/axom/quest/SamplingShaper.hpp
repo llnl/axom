@@ -937,17 +937,39 @@ private:
       (*mass_mat) = 0.;
       mass_mat->ReadWrite();
 
-      const int sz = mass_mat->TotalSize();
       mfem::ConstantCoefficient one_coef(1.0);
-      mfem::MassIntegrator mass_integrator(one_coef);
+      mfem::MassIntegrator mass_integrator(one_coef, &sampleIR);
 
-      // wrap mass_mat data as vector for AssembleEA call
-      // note: AssembleEA expects the transpose, but it's ok since mass matrices are symmetric
-      mfem::Vector mass_vec;
-      mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
-      mass_vec.SetSize(sz);
-      mass_integrator.AssembleEA(*fes, mass_vec, false);
-      mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+      if(usesCustomTensorQuadrature(*fes->GetMesh()))
+      {
+        mfem::DenseMatrix elemMat;
+        mass_mat->HostWrite();
+        for(int elem = 0; elem < NE; ++elem)
+        {
+          mass_integrator.AssembleElementMatrix(*fes->GetFE(elem),
+                                                *fes->GetElementTransformation(elem),
+                                                elemMat);
+          for(int j = 0; j < dofs; ++j)
+          {
+            for(int i = 0; i < dofs; ++i)
+            {
+              (*mass_mat)(i, j, elem) = elemMat(i, j);
+            }
+          }
+        }
+      }
+      else
+      {
+        const int sz = mass_mat->TotalSize();
+
+        // wrap mass_mat data as vector for AssembleEA call
+        // note: AssembleEA expects the transpose, but it's ok since mass matrices are symmetric
+        mfem::Vector mass_vec;
+        mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+        mass_vec.SetSize(sz);
+        mass_integrator.AssembleEA(*fes, mass_vec, false);
+        mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+      }
 
       m_inoutTensors.Register(mass_matrix_name, mass_mat, true);
     }
