@@ -6,26 +6,43 @@
 
 .. _reading-mesh:
 
-*****************
-Reading in a mesh
-*****************
+*******************
+Reading in geometry
+*******************
 
-Applications commonly need to read a mesh file from disk.  Quest provides the
-``STLReader`` class, which can read binary or ASCII `STL`_ files, as well as the
-``PSTLReader`` class for use in parallel codes.  STL (stereolithography)
-is a common file format for triangle surface meshes.  The STL reader classes
-will read the file from disk and build a ``mint::Mesh`` object.  Quest also
-provides the ``ProEReader`` class, for ASCII Pro/E files containing tetrahedra,
-and the ``PProEReader`` class for use in parallel codes.  PTC Creo is a modeling
-application formerly known as Pro/ENGINEER, and its file format is in use among
-Axom's users.
+Quest contains several readers that translate geometry files into Axom data
+structures. The most common cases are STL surface meshes, Pro/E tetrahedral
+meshes, and geometry inputs used by shaping workflows such as STEP, C2C, and
+MFEM contour files.
+
+The STL and Pro/E readers produce ``mint::Mesh`` objects directly. Other
+readers expose geometry in forms that are better suited to downstream Quest
+algorithms, such as NURBS patches, NURBS curves, or curved polygons.
+
+Quest currently provides the following reader families:
+
+* ``STLReader`` and ``PSTLReader`` for ASCII or binary STL triangle meshes.
+* ``ProEReader`` and ``PProEReader`` for ASCII Pro/E tetrahedral meshes.
+* ``STEPReader`` and ``PSTEPReader`` for STEP B-Rep geometry represented as
+  trimmed NURBS patches, with optional triangulated output.
+* ``C2CReader`` and ``PC2CReader`` for C2C contour files represented as
+  NURBS curves, when Axom is built with the C2C dependency.
+* ``MFEMReader`` for MFEM contour files represented as curves or curved
+  polygons, when Axom is built with MFEM support.
 
 .. _STL: https://en.wikipedia.org/wiki/STL_(file_format)
 
 Reading an STL file
 -------------------
 
-The code examples are excerpts from the file ``<axom>/src/tools/mesh_tester.cpp``.
+STL (stereolithography) is a common file format for triangle surface meshes.
+Quest's STL readers load the file from disk and populate an
+``mint::UnstructuredMesh`` containing triangles. STL stores triangles as a
+"triangle soup", so downstream algorithms often need a cleanup pass to weld
+duplicate vertices and check for defects. The next page describes that
+workflow.
+
+The following example is excerpted from ``<axom>/src/tools/mesh_tester.cpp``.
 
 We include the STL reader header
 
@@ -61,6 +78,9 @@ underlying mesh data.  The reader may then be deleted.
 Reading a Pro/E file
 --------------------
 
+Quest's ``ProEReader`` reads ASCII Pro/E tetrahedral meshes and can optionally
+filter the tetrahedra during input.
+
 As read by Axom, an ASCII Pro/E tet file contains:
 
 - Zero or more comment lines starting with a ``#`` character
@@ -71,12 +91,11 @@ As read by Axom, an ASCII Pro/E tet file contains:
 - ``t`` lines, one for each tetrahedron; each line contains a contiguous
   integer ID starting at 1 and four integers specifying the tet's nodes
 
-Reading an ASCII Pro/E tet file is similar to reading an STL file.  The code
-examples are excerpts from the file ``<axom>/src/axom/quest/examples/quest_proe_bbox.cpp``.
-The Pro/E reader has the ability to read a subset of the mesh in the file,
-defined by a user-supplied predicate function.  The example code shows how
-to use a convenience function to specify a predicate that keeps only tets
-fully included in a user-supplied bounding box.
+Reading an ASCII Pro/E tet file is similar to reading an STL file. The code
+examples are excerpts from ``<axom>/src/axom/quest/examples/quest_proe_bbox.cpp``.
+The example demonstrates one of the reader's useful features: selecting a
+subset of the input tetrahedra using a predicate. In this case, the predicate
+keeps only tetrahedra whose nodes fall inside a user-supplied bounding box.
 
 We include the ProEReader header
 
@@ -113,3 +132,68 @@ no tetrahedron predicate, the reader reads all tets in the file.
 
 After reading the Pro/E file, the ``ProEReader::getMesh`` method gives access
 to the underlying mesh data.  The reader may then be deleted.
+
+Other Quest readers
+-------------------
+
+Quest includes several other readers that are commonly used with shaping and
+CAD-oriented workflows.
+
+``STEPReader``
+^^^^^^^^^^^^^^
+
+``STEPReader`` reads trimmed STEP surfaces using Open Cascade. It can expose
+the model as NURBS patches and trimming curves, query metadata such as patch
+IDs and bounding boxes, and generate a triangulated ``mint::UnstructuredMesh``
+approximation of the model when a surface mesh is needed.
+
+This reader is available when Axom is configured with Open Cascade support.
+The following example, excerpted from
+``<axom>/src/axom/quest/examples/quest_winding_number_3d.cpp``, reads a STEP
+file, loads its trimmed NURBS patches, and queries the model bounding box.
+
+.. literalinclude:: ../../examples/quest_winding_number_3d.cpp
+   :start-after: _read_step_file_start
+   :end-before: _read_step_file_end
+   :language: C++
+
+When a triangle mesh approximation is needed, ``STEPReader`` can also
+triangulate the loaded B-Rep:
+
+.. literalinclude:: ../../examples/quest_winding_number_3d.cpp
+   :start-after: _read_step_triangulate_start
+   :end-before: _read_step_triangulate_end
+   :language: C++
+
+``C2CReader``
+^^^^^^^^^^^^^
+
+``C2CReader`` reads contour files and stores the result as NURBS curves. This
+reader is available when Axom is configured with the C2C dependency and is
+primarily used by shaping workflows that revolve or sample contour geometry.
+
+The following example, excerpted from
+``<axom>/src/axom/quest/examples/containment_driver.cpp``, reads a contour file
+and linearizes the resulting curves into a segment mesh:
+
+.. literalinclude:: ../../examples/containment_driver.cpp
+   :start-after: _read_c2c_file_start
+   :end-before: _read_c2c_file_end
+   :language: C++
+
+``MFEMReader``
+^^^^^^^^^^^^^^
+
+``MFEMReader`` reads MFEM contour files and can return either individual curves
+or grouped curved polygons. It is available when Axom is configured with MFEM
+support. Quest uses this representation in workflows such as sampling-based
+shaping with winding-number containment tests.
+
+The following example, excerpted from
+``<axom>/src/axom/quest/examples/quest_winding_number_2d.cpp``, reads an MFEM
+contour file into an array of NURBS curves:
+
+.. literalinclude:: ../../examples/quest_winding_number_2d.cpp
+   :start-after: _read_mfem_file_start
+   :end-before: _read_mfem_file_end
+   :language: C++

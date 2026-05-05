@@ -10,15 +10,15 @@
 Isosurface Detection
 ********************
 
-Quest can generate isosurface meshes for node-centered scalar fields.
-This feature takes a structured mesh with some scalar nodal field and
-generates an ``UnstructuredMesh`` at a user-specified isovalue.  The
-isosurface mesh contains information on which elements of the field
-mesh it crosses.  The output may be useful for material surface
-reconstruction and visualization, among other things.
+Quest provides the ``quest::MarchingCubes`` class for generating contours from
+node-centered scalar fields on Conduit Blueprint meshes. In 2D, the algorithm
+produces line segments; in 3D, it produces triangles. The output contour mesh
+also records which input cell and domain generated each contour facet, which is
+useful for analysis, debugging, and downstream reconstruction workflows.
 
-We support 2D and 3D configurations.  The isosurface mesh is a
-composed of line segments in 2D and triangles in 3D.
+``MarchingCubes`` operates on Blueprint meshes in *multi-domain* form. The
+parent topology must be structured and the scalar field must be node-centered.
+The class supports both 2D and 3D inputs.
 
 .. Note::
 
@@ -40,98 +40,91 @@ composed of line segments in 2D and triangles in 3D.
    :width: 400px
 
    Planar isocontour generated using the field :math:`f(\mathbf{r}) =
-   f_0 + \mathbf{r} \cdot \mathbf{n}` and spherical contour generated
-   using the field field :math:`g(\mathbf{r}) = |\textbf{r} -
-   \textbf{r}_0|`.  Colors denote the domain index in the multi-domain
-   cubic mesh.
+   f_0 + \mathbf{r} \cdot \mathbf{n}` and spherical contour generated using
+   the field :math:`g(\mathbf{r}) = |\textbf{r} - \textbf{r}_0|`. Colors
+   denote the domain index in the multi-domain mesh.
 
-The algorithm is implemented in the class ``quest::MarchingCubes``.
+Basic workflow
+--------------
 
-The inputs are:
+The workflow is:
 
-#. The mesh containing the scalar field.  This mesh should be in
-   Conduit's blueprint format.  See
-   https://llnl-conduit.readthedocs.io/en/latest/blueprint_mesh.html
-#. The name of the blueprint coordinates data for the input mesh.
-#. The name of the scalar field data within the input mesh.
-#. The contour value.
+#. Construct a ``quest::MarchingCubes`` object with a runtime policy,
+   allocator, and data-parallel implementation choice.
+#. Call ``setMesh()`` with the Blueprint mesh and topology name. A cell mask
+   field name may also be supplied.
+#. Select the node-centered scalar field with ``setFunctionField()``.
+#. Call ``computeIsocontour()`` for each isovalue of interest.
+#. Export the contour to either a ``mint::UnstructuredMesh`` or the raw output
+   arrays.
 
-The following example shows usage of the ``MarchingCubes`` class.
-(A complete example is provided in
-``src/axom/quest/examples/quest_marching_cubes_example.cpp``.)
+The example application in
+``<axom>/src/axom/quest/examples/quest_marching_cubes_example.cpp`` uses the
+following setup:
 
-Relevant header files:
+.. literalinclude:: ../../examples/quest_marching_cubes_example.cpp
+   :start-after: _quest_marching_cubes_init_start
+   :end-before: _quest_marching_cubes_init_end
+   :language: C++
 
-.. sourcecode:: C++
+After the object is configured, the caller selects a scalar field and computes
+the contour:
 
-   #include "conduit_relay_io_blueprint.hpp"
-   #include "axom/quest/MarchingCubes.hpp"
-   #include "axom/mint/mesh/UnstructuredMesh.hpp"
+.. literalinclude:: ../../examples/quest_marching_cubes_example.cpp
+   :start-after: _quest_marching_cubes_usage_start
+   :end-before: _quest_marching_cubes_usage_end
+   :language: C++
 
-Set up the user's blueprint mesh and the ``MarchingCubes`` object:
+Output
+------
 
-The blueprint mesh must be a structured mesh in multi-domain format.
-A domain is a part of a global mesh that has been subdivided for
-reasons including parallel partitioning, geometric constraints and
-size constraints.  Any number of domains is allowed, including zero.
-(For single-domain format, see the similar
-``MarchingCubesSingleDomain`` class in the ``axom::quest`` namespace.)
+``MarchingCubes`` stores its output internally until it is exported or cleared.
+The simplest output path is to populate a ``mint::UnstructuredMesh``:
 
-Blueprint convention allows for named coordinate sets and scalar
-fields.  Here, we tell the ``MarchingCubes`` constructor that the
-topology is "mesh", and the name of the nodal scalar
-field is "scalarFieldName".
+.. literalinclude:: ../../examples/quest_marching_cubes_example.cpp
+   :start-after: _quest_marching_cubes_output_start
+   :end-before: _quest_marching_cubes_output_end
+   :language: C++
 
-The constructor's ``quest::MarchingCubesRuntimePolicy::seq`` argument
-tells ``mc`` to run sequentially on the host.  ``MarchingCubes``
-currently also supports OpenMP and GPU device executions using CUDA
-and HIP.
+The generated mesh can optionally contain:
 
-.. sourcecode:: C++
+* a field with the parent cell ID for each contour facet
+* a field with the parent domain ID for each contour facet
 
-   conduit::Node blueprintMesh = blueprint_mesh_from_user();
-   quest::MarchingCubes mc(quest::MarchingCubesRuntimePolicy::seq,
-                           blueprintMesh,
-                           "mesh",
-                           "scalarFieldName");
+If host-side ``mint`` output is not desired, the class also exposes array-based
+accessors for connectivity, node coordinates, parent cell IDs, and parent
+domain IDs. Those arrays remain in the allocator space associated with the
+``MarchingCubes`` object.
 
-Run the algorithm:
+Runtime policies and implementation choices
+-------------------------------------------
 
-.. sourcecode:: C++
+``MarchingCubes`` accepts an Axom runtime policy, so the contour generation can
+run on the CPU or on supported GPU backends. The
+``MarchingCubesDataParallelism`` enum controls which implementation is used:
 
-   double contourValue = 0.5;
-   mc.computeIsocontour(contourValue);
+* ``byPolicy`` chooses the implementation that best matches the runtime policy.
+* ``hybridParallel`` uses a partially parallel implementation that performs
+  well on CPUs.
+* ``fullParallel`` uses a more fully parallel implementation that is intended
+  for highly parallel devices.
 
-Place the isocontour in an output ``mint::UnstructuredMesh`` object:
+Masking and repeated use
+------------------------
 
-``MarchingCubes`` generates the isocontour mesh in an internal format.
-Use ``populateContourMesh`` to put it in a ``mint::UnstructuredMesh``
-object.  In the future, we will support outputs in blueprint format.
+The optional mask argument to ``setMesh()`` names a cell-centered integer field
+used to restrict contour generation. After a mask field is supplied, the caller
+can select which mask value to process by calling ``setMaskValue()`` before
+``computeIsocontour()``.
 
-``populateContourMesh`` provides two scalar fields for the generated
-mesh:
+The same ``MarchingCubes`` object can be reused for multiple fields, masks, or
+isovalues. ``computeIsocontour()`` appends new facets to the existing output,
+while ``clearOutput()`` discards the accumulated contour data.
 
-#. the ID of the cell from the input mesh that generated the
-   isocontour cell.
-#. the ID of the domain from the input mesh that generated the
-   isocontour cell.
+MPI-parallel runs
+-----------------
 
-The names of these fields are user-specified.  Use empty strings if
-you don't need these fields.  This example puts cell IDs in
-"cellIds" and domain IDs in "domainIds".
-
-.. sourcecode:: C++
-
-   mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> contourMesh;
-   mc.populateContourMesh(contourMesh, "cellIds", "domainIds");
-
-After putting the isosurface in the ``UnstructuredMesh`` object,
-the ``MarchingCubes`` object is no longer needed.
-
-MPI-parallel runs:
-
-For MPI-parallel runs, the input mesh may have local and remote
-domains.  The algorithm is local in that no data communication is
-required to run.  The output isosurface mesh uses node and cell
-numbers that are locally unique.  Users requiring these numbers to be
-globally unique should renumber them.
+For MPI-parallel runs, the input mesh may contain local and remote domains. The
+algorithm itself is local to each rank and does not require communication. The
+generated contour mesh uses locally unique node and cell numbering, so callers
+that need globally unique IDs must renumber the output.

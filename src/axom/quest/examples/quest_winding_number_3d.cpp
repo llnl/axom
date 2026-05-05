@@ -361,6 +361,7 @@ int main(int argc, char** argv)
     AXOM_ANNOTATE_SCOPE("read_step");
 
     axom::quest::STEPReader step_reader;
+    // _read_step_file_start
     step_reader.setFileName(input.inputFile);
     step_reader.setVerbosity(input.verbose);
 
@@ -374,6 +375,7 @@ int main(int argc, char** argv)
     read_timer.stop();
 
     shape_bbox = step_reader.getBRepBoundingBox();
+    // _read_step_file_end
 
     int num_trimming_curves = 0;
     for(const auto& patch : step_reader.getPatchArray())
@@ -395,6 +397,7 @@ int main(int argc, char** argv)
       read_timer.reset();
       read_timer.start();
       AXOM_ANNOTATE_SCOPE("triangulation");
+      // _read_step_triangulate_start
       const int tc = step_reader.getTriangleMesh(&tri_mesh,
                                                  input.linear_deflection,
                                                  input.angular_deflection,
@@ -405,6 +408,7 @@ int main(int argc, char** argv)
         SLIC_ERROR("Failed to triangulate STEP geometry.");
         return 1;
       }
+      // _read_step_triangulate_end
       read_timer.stop();
 
       SLIC_INFO(

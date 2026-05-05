@@ -72,6 +72,7 @@ public:
   void loadContourMesh(const std::string& inputFile, int segmentsPerKnotSpan)
   {
     AXOM_ANNOTATE_SCOPE("load c2c");
+    // _read_c2c_file_start
     quest::C2CReader reader;
     reader.setFileName(inputFile);
     reader.read();
@@ -82,6 +83,7 @@ public:
     lin.getLinearMeshUniform(reader.getCurvesView(),
                              static_cast<UMesh*>(m_surfaceMesh.get()),
                              segmentsPerKnotSpan);
+    // _read_c2c_file_end
   }
 #else
   void loadContourMesh(const std::string& inputFile, int segmentsPerKnotSpan)

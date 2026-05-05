@@ -11,19 +11,36 @@ Shaping Overview
 Shaping is the process of overlaying additional detail into a mesh by converting
 shape geometry into materials described as volume fractions within each mesh zone.
 Shaping is used when it is not feasible or practical to directly build features
-into the mesh.
+into the mesh itself.
 
 .. figure:: figs/shaping_overview.png
    :width: 800px
 
    Shaping permits details to be added into meshes.
 
+Axom's Klee component describes the models used for shaping. A Klee shape set
+contains the shape geometry reference, its material name, replacement rules, and
+any transforms that should be applied before shaping. Quest provides the
+algorithms that read those shapes, compare them against a target mesh, and
+generate the material volume fractions.
 
-Axom\'s Klee component describes the models used for shaping. Klee shapes include
-a material name, a file path that contains the shape geometry, replacement rules,
-and transforms that can be applied to the shape geometry. Axom\'s Quest component
-contains shaping infrastructure that takes the shapes from Klee and generates the
-volume fractions for the shapes on a target mesh.
+Quest provides two shaping implementations:
+
+* ``SamplingShaper`` estimates overlap by sampling points in each target zone
+  and evaluating in/out tests against the shape.
+* ``IntersectionShaper`` computes overlap geometrically by intersecting the
+  target mesh with discretized shape geometry.
+
+Both shapers share the same high-level pipeline and both write volume fractions
+as fields named ``vol_frac_<material>`` on the target mesh.
+
+For MFEM-based shaping workflows, those material fields are typically
+``mfem::GridFunction`` objects registered in the target
+``MFEMSidreDataCollection``. The caller chooses the output field order. In the
+sampling workflow, that order is set explicitly with
+``SamplingShaper::setVolumeFractionOrder()``; in the example driver, it is
+controlled by the selected output order. For Blueprint-based shaping workflows,
+the same material information is written as fields on the Blueprint mesh.
 
 
 .. _shaping-pipeline:
@@ -31,11 +48,16 @@ volume fractions for the shapes on a target mesh.
 Shaping Pipeline
 =================
 
-Shaping involves creating a target mesh and data collection, reading a shape set,
-creating a shaper, and then iterating over the shapes to pass each shape into the
-shaper. The shaper is responsible for determining overlap between the shape and
-the target mesh and producing grid functions that contain that overlap, or volume
-fraction.
+Shaping involves creating a target mesh and data collection, reading a shape
+set, creating a shaper, and then iterating over the shapes in the set. For each
+shape, the shaper loads the geometry, prepares a spatial query structure, runs
+the query against the target mesh, applies replacement rules, and cleans up any
+temporary state before moving to the next shape.
+
+.. figure:: figs/shaping_pipeline.svg
+   :width: 800px
+
+   Quest shaping pipeline from Klee shape descriptions to material volume fraction fields.
 
 First, we include relevant Axom headers:
 
@@ -51,15 +73,19 @@ First, we include relevant Axom headers:
   using slic = axom::slic;
   using sidre = axom::sidre;
 
-Axom shaping classes operate on MFEM meshes and use grid functions to represent the
-volume fraction fields that encode each shaped-in material. MFEM meshes can be loaded
-or constructed in memory.
+Quest shaping APIs operate on either:
 
- * More information on MFEM is covered at the `MFEM Examples page <https://mfem.org/features/#extensive-examples>`_.
+* MFEM meshes stored in ``sidre::MFEMSidreDataCollection`` objects
+* Blueprint meshes stored in a ``sidre::Group`` or ``conduit::Node``
 
-The MFEM mesh also needs an associated data collection, *(shapingDC)*, to contain the
-grid functions. Axom provides *MFEMSidreDataCollection*, a derived class of MFEM's
-DataCollection class that can interoperate with Axom\'s Sidre component.
+The example below uses an MFEM mesh and an ``MFEMSidreDataCollection`` to store
+the volume fraction fields.
+
+More information on MFEM is covered at the `MFEM examples page <https://mfem.org/features/#extensive-examples>`_.
+
+The MFEM mesh also needs an associated data collection, ``shapingDC``, to
+contain the grid functions. Axom provides ``MFEMSidreDataCollection``, a
+derived class of MFEM's ``DataCollection`` that interoperates with Sidre.
 
 .. literalinclude:: ../../examples/shaping_driver.cpp
    :start-after: _load_mesh_start
@@ -67,52 +93,49 @@ DataCollection class that can interoperate with Axom\'s Sidre component.
    :language: C++
 
 
-We create the desired shaper *(SamplingShaper shown here)* and set its parameters.
-Note that some parameters are common to each shaper type while others are specific to
-sampling or intersection shaping classes.
+Next, create the desired shaper and configure its parameters. Some settings live
+in the common ``Shaper`` base class and apply to both shaping methods. Examples
+include the runtime policy, the linearization density for curved geometry, the
+vertex welding threshold for surface meshes, verbosity, and the controls for
+dynamic refinement based on a percent error target.
 
-.. code-block:: yaml
-
-  auto shaper = new quest::SamplingShaper;
-  shaper->setSamplesPerKnotSpan(25);
-  shaper->setVerbosity(true);
-
-
-The shaper will operate on shapes, which can be obtained by reading a Klee shape set.
+The shaper will operate on shapes from a Klee shape set:
 
 .. code-block:: c++
 
   auto shapeSet = klee::readShapeSet("/path/to/klee/file");
 
 
-The shaper can **optionally** be pre-initialized with volume fractions from the
-calling code. This step can be skipped if the volume fractions are to be produced
-solely using shapes from Klee. Volume fraction field grid functions have a *"vol_frac_"* prefix,
-followed by the name of the material. Grid functions are registered with the
-*shapingDC* data collection and the shaper's *importInitialVolumeFractions()*
-method aids in importing the initial volume fractions onto the target mesh.
+The shaper can also be pre-initialized with volume fractions supplied by the
+calling code. This is optional, but it is useful when a simulation mesh already
+contains background or previously shaped materials. Volume fraction fields use
+the ``vol_frac_`` prefix followed by the material name.
 
 .. literalinclude:: ../../examples/shaping_driver.cpp
-   :start-after: import_volume_fractions_start
-   :end-before: import_volume_fractions_end
+   :start-after: _import_volume_fractions_start
+   :end-before: _import_volume_fractions_end
    :language: C++
 
 
-After all shaping input data have been read, the actual *shaping pipeline* can begin. This is
-where each shape is processed within the shaper and this procedure applies to both sampling
-and intersection shaping. The *loadShape()* method is called to
-make the shape be loaded from its geometry file. The *prepareShapeQuery()* method builds
-internal data structures that aid in shaping. The *runShapeQuery()* method builds the
-query mesh and intersects it with the target mesh, creating the volume fractinons for
-the shape. The *applyReplacementRules()* method incorporates the shape's volume fractions
-into the existing volume fraction grid functions, subject to the replacement rules defined
-for the shape. Finally, the *finalizeShapeQuery()* method performs internal cleanup in the
-shaper so it is ready to process the next shape.
+After the target mesh, shaper, and shape set are ready, the shaping pipeline is
+the same for both ``SamplingShaper`` and ``IntersectionShaper``. Each shape is:
+
+#. loaded from its geometry file
+#. prepared for querying
+#. queried against the target mesh
+#. applied through its replacement rules
+#. finalized so the shaper is ready for the next shape
 
 .. literalinclude:: ../../examples/shaping_driver.cpp
    :start-after: _shaping_pipeline_begin
    :end-before: _shaping_pipeline_end
    :language: C++
+
+After all shapes have been processed, the shaper adjusts the accumulated volume
+fractions so the material fields on the target mesh are ready for output. For
+MFEM targets, the result is usually a set of ``vol_frac_<material>``
+``mfem::GridFunction`` fields, one per material, that can be saved with the
+data collection or used directly by downstream code.
 
 
 .. _sampling-shaper:
@@ -120,38 +143,122 @@ shaper so it is ready to process the next shape.
 Sampling Shaper
 ---------------
 
-Quest provides a *SamplingShaper* class that takes input shapes and turns them into volume fraction
-grid functions on the target mesh using sampling-based in/out tests. The SamplingShaper works by
-iterating over each zone in the target mesh and at various points within that zone *(typically
-quadrature points)*, determining whether that point is inside or outside of a shape. These in/out
-test results are used to determine the volume overlap of the shape and the zone.
+``SamplingShaper`` creates volume fractions by sampling points inside each
+target zone and determining whether those points are inside the shape. The
+sampled results are then converted into zone-centered or higher-order volume
+fraction fields.
 
-* RZ contour shapes
-* Shapes containing geometry from STL, ProE files
-* 2D/3D target meshes
-* Can output high order volume fraction grid functions
-* Executes on the CPU
+On MFEM target meshes, these outputs are material-specific
+``mfem::GridFunction`` objects. The field order is chosen by the caller, so the
+result can be piecewise constant or higher order depending on the needs of the
+simulation or analysis workflow.
+
+``SamplingShaper`` supports:
+
+* 2D and 3D target meshes
+* STL and Pro/E geometry loaded as discrete surfaces
+* contour-based workflows, including MFEM contours and revolved shaping through
+  point projection
+* higher-order output volume fraction fields
+* CPU execution, with additional runtime-policy-dependent samplers for some
+  3D primitive workflows
 
 .. figure:: figs/sampling.png
    :width: 300px
 
    Sampling shaper tests whether points in a zone are in/out for a shape.
 
+Sampler selection
+^^^^^^^^^^^^^^^^^
+
+``SamplingShaper`` uses one of three internal sampler types to answer the
+point-vs-shape queries that drive the volume fraction calculation. The sampler
+is currently chosen primarily from the shape representation that Quest is
+working with and, in one case, from the user-selected sampling method. The
+examples below describe the current implementation without implying that the
+samplers are inherently tied to specific readers.
+
+``InOutSampler``
+""""""""""""""""
+
+The in/out sampler uses Quest's spatial-index-based containment queries on
+discrete geometry. It is the default sampler for shapes that Quest has turned
+into discrete curves or surfaces. In the current implementation, this includes:
+
+* 2D contour geometry loaded from C2C files
+* MFEM contour geometry when ``SamplingMethod::InOut`` is selected
+* 3D surface geometry loaded from STL files
+
+In practice, choose the in/out sampler when the shape is being queried through
+discrete line or surface geometry and the standard containment query is
+appropriate. In the example driver, this is the behavior selected by
+``samplingShaper->setSamplingMethod(quest::SamplingShaper::SamplingMethod::InOut);``
+or by leaving the method at its default.
+
+``PrimitiveSampler``
+""""""""""""""""""""
+
+The primitive sampler operates directly on primitive volumetric elements rather
+than a surface-based in/out query. In the current implementation, this path is
+used when Quest is sampling tetrahedral shape geometry, with a backend chosen
+from the active runtime policy.
+
+Use this path when the shape geometry is already volumetric and Quest can avoid
+going through a surface containment query. This is also the sampler family that
+maps naturally onto the supported CPU and GPU execution policies for these
+primitive-based cases.
+
+``WindingNumberSampler``
+""""""""""""""""""""""""
+
+The winding-number sampler evaluates winding numbers on a curved contour
+representation instead of using the standard in/out spatial index. In the
+current implementation, this option is available for MFEM contour geometry.
+
+Select it explicitly with
+``samplingShaper->setSamplingMethod(quest::SamplingShaper::SamplingMethod::WindingNumber);``.
+Quest will use it when the shape format is MFEM and the sampling method is set
+to ``WindingNumber``.
+
+This sampler is useful when the curved MFEM representation itself is the
+important source of truth and you want the containment query to operate on that
+curve-based model. It is currently a CPU-oriented path.
+
+For the broader direct, linearized, and fast approximate generalized
+winding-number workflows, see :doc:`Winding Numbers <winding_number>`.
+
+Curve-based workflows that need a discrete segment representation can use
+:doc:`Linearize Curves <linearize_curves>` to convert NURBS contours into a
+polyline mesh before sampling or winding-number evaluation.
+
+Summary
+"""""""
+
+In short:
+
+* choose ``InOut`` for the standard default behavior on shapes queried through
+  discrete curves or surfaces
+* choose ``WindingNumber`` when curved contour geometry should be queried
+  through winding numbers rather than the standard in/out path
+* expect ``PrimitiveSampler`` to be chosen automatically when Quest is sampling
+  supported volumetric primitive geometry
+
 
 Accuracy
 ^^^^^^^^
 
-The SamplingShaper relies on a winding number-based in/out test to compare a point against
-a shape. Ultimately, each shape is descretized into a number of smaller line segments so the algorithm
-can walk around the edges to determine the in/out value. For highly-curved shape edges, more 
-accuracy can be achieved by subdividing edges into more line segments.
-The *setSamplesPerKnotSpan()* method sets the number of sample points within each spline
-knot span (smaller intervals that make up the curved edge)and determines how many line segments are produced.
-Additionally, the number of sample points
-taken within the zone influences the accuracy of the result. The quadrature order determines the
-number of samples within a zone. The volume fraction order determines the order
-of the output volume fraction field. The shaper will convert the sampled points at the quadrature order
-to the volume fraction order when making the volume fraction grid functions.
+The main accuracy controls are:
+
+* ``setSamplesPerKnotSpan()`` controls how finely curved input geometry is
+  linearized before sampling.
+* ``setQuadratureOrder()`` controls how many sample points are used in each
+  target zone.
+* ``setVolumeFractionOrder()`` controls the polynomial order of the output
+  volume fraction field.
+
+For curved inputs, increasing the number of samples per knot span improves the
+geometric approximation of the shape. Increasing the quadrature order improves
+the overlap estimate within each target zone.
 
 .. code-block:: c++
 
@@ -163,19 +270,19 @@ to the volume fraction order when making the volume fraction grid functions.
 Point Projection
 ^^^^^^^^^^^^^^^^
 
-The SamplingShaper can use a point projection lambda function during in/out tests to transform the
-sampling point. One use case for this is to transform a 3D point from the target mesh back into a 2D
-point, allowing for revolved shaping using 2D shapes. The *setPointProjector()*
-function sets a point transformation function for the shaper.
-
-.. literalinclude:: ../../examples/shaping_driver.cpp
-   :start-after: _point_projection_begin
-   :end-before: _point_projection_end
-   :language: C++
+``SamplingShaper`` can use point projectors to map points from the target mesh
+into the coordinate system used by the shape query. One common use case is
+projecting 3D mesh points into a 2D RZ space so that a 2D contour can define a
+revolved 3D shape.
 
 .. literalinclude:: ../../examples/shaping_driver.cpp
    :start-after: _point_projection_obj_begin
    :end-before: _point_projection_obj_end
+   :language: C++
+
+.. literalinclude:: ../../examples/shaping_driver.cpp
+   :start-after: _point_projection_begin
+   :end-before: _point_projection_end
    :language: C++
 
 .. _intersection-shaper:
@@ -183,17 +290,22 @@ function sets a point transformation function for the shaper.
 Intersection Shaper
 --------------------
 
-The IntersectionShaper takes a set of 2-dimensional RZ contours and revolves them into 3D to do actual
-geometric intersections of the revolved geometry with the target mesh zones. Contour shapes are linearized
-into line segments and then revolved into truncated cones, which are approximated using a number of
-octahedra. The number of octahedra is determined by a level parameter that indicates how many times the
-shape has been refined to produce octahedra, each time more accurately covering volume of the truncated
-cone. The shaper intersects each octahedron with the zones of the target mesh to determine the volume
-fraction overlap.
+``IntersectionShaper`` computes overlap geometrically instead of sampling. It
+discretizes the shape into intersection-friendly primitives and intersects those
+primitives with the target mesh zones to compute volume fractions.
 
-* Revolves RZ contour shapes
-* 3D target meshes
-* Executes on CPU and GPU
+Depending on the input, the generated intersection geometry differs:
+
+* 2D C2C contours can be refined into segments and intersected against 2D meshes.
+* 3D shaping from 2D contours revolves the refined contour into truncated-cone
+  geometry that is approximated using octahedra.
+* Pro/E tetrahedral meshes and analytical 3D shapes are converted into
+  tetrahedral intersection geometry.
+* STL input can be used for 2D triangle-based workflows and other discrete
+  surface cases handled by the implementation.
+
+``IntersectionShaper`` supports 3D workflows on CPUs and supported GPU
+backends, and it can operate on MFEM or Blueprint target meshes.
 
 .. figure:: figs/intersection.png
    :width: 400px
@@ -203,13 +315,27 @@ fraction overlap.
 Accuracy
 ^^^^^^^^^
 
-The IntersectionShaper works by default in the same manner as the SamplingShaper in how it discretizes
-shapes into line segments. However, the IntersectionShaper can also set a percent error value that causes
-the algorithm to re-refine the shape into line segments dynamically or increase the level of cone refinement until
-the percentage of volume difference converges to less than a supplied error tolerance.
+The main accuracy controls for ``IntersectionShaper`` are the refinement level
+and the optional percent-error target. The refinement level controls how finely
+the internal intersection geometry is subdivided. When a percent error is
+provided, Quest can switch to dynamic refinement and keep refining until the
+estimated volume error falls below the requested tolerance.
 
 .. code-block:: c++
 
     shaper->setPercentError(0.02);
     shaper->setRefinementType(quest::Shaper::RefinementDynamic);
 
+Materials and replacement rules
+-------------------------------
+
+Both shapers write their results as material volume fractions on the target
+mesh. ``IntersectionShaper`` also maintains a free-material field, named
+``free`` by default, to represent any volume that has not yet been claimed by a
+user-defined material. This field is especially useful when shapes overwrite
+existing materials through replacement rules.
+
+Quest applies replacement rules from the Klee shape description when it merges
+each shape's volume fractions into the existing material state. For more on the
+``replaces`` and ``does_not_replace`` properties, see Klee's
+:ref:`Overlay Rules <klee-overlay-rules>` documentation.
