@@ -22,8 +22,8 @@
 
 // _read_stl_include1_start
 #include "axom/quest/io/STLReader.hpp"
-#include "axom/quest/io/STLWriter.hpp"
 // _read_stl_include1_end
+#include "axom/quest/io/STLWriter.hpp"
 // _check_repair_include_start
 #include "axom/quest/MeshTester.hpp"
 // _check_repair_include_end

@@ -841,9 +841,11 @@ struct ContourTestBase
       {
         AXOM_ANNOTATE_SCOPE("MCInit");
         initializationTimer.start();
+        // _quest_marching_cubes_init_start
         mcPtr =
           std::make_unique<quest::MarchingCubes>(params.policy, s_allocatorId, params.dataParallelism);
         mcPtr->setMesh(computationalMesh.asConduitNode(), "mesh", "mask");
+        // _quest_marching_cubes_init_end
         initializationTimer.stop();
       }
       auto& mc = *mcPtr;
@@ -865,6 +867,7 @@ struct ContourTestBase
                                      params.objectRepCount,
                                      i,
                                      params.contourGenCount));
+        // _quest_marching_cubes_usage_start
         mc.clearOutput();
         m_strategyFacetPrefixSum.clear();
         m_strategyFacetPrefixSum.push_back(0);
@@ -894,6 +897,7 @@ struct ContourTestBase
           }
           m_strategyFacetPrefixSum.push_back(mc.getContourFacetCount());
         }
+        // _quest_marching_cubes_usage_end
       }
       contourGenLoopTimer.stop();
     }
@@ -956,7 +960,9 @@ struct ContourTestBase
 #endif
     axom::utilities::Timer extractTimer(false);
     extractTimer.start();
+    // _quest_marching_cubes_output_start
     mc.populateContourMesh(contourMesh, m_parentCellIdField, m_domainIdField);
+    // _quest_marching_cubes_output_end
     extractTimer.stop();
     printTimingStats(extractTimer, "extract");
 
