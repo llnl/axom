@@ -492,19 +492,11 @@ void finalizeLogger()
 void save_quadrature_points(mfem::QuadratureFunction *positions)
 {
 #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
-std::cout << "save_quadrature_points(mfem::QuadratureFunction *positions)\n";
   const int dim = positions->GetSpace()->GetMesh()->Dimension();
 
   conduit::Node n_mesh;
   mfem::real_t *X = const_cast<mfem::real_t *>(positions->GetData());
   const int npts = positions->Size() / positions->GetVDim();
-
-std::cout << "NE=" << positions->GetSpace()->GetMesh()->GetNE() << std::endl;
-std::cout << "positions->Size()=" << positions->Size() << std::endl;
-std::cout << "positions->GetVDim()=" << positions->GetVDim() << std::endl;
-std::cout << "positions->Capacity()=" << positions->Capacity() << std::endl;
-std::cout << "npts=" << npts << std::endl;
-
   const conduit::index_t stride = dim * sizeof(mfem::real_t);
   n_mesh["coordsets/coords/type"] = "explicit";
   n_mesh["coordsets/coords/values/x"].set_external(X, npts, 0, stride);

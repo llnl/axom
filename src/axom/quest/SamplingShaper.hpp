@@ -159,6 +159,21 @@ public:
 
   void setSamplingMethod(SamplingMethod samplingMethod) { m_samplingMethod = samplingMethod; }
 
+  /*!
+   * \brief Sets the 1D quadrature family used to generate custom sample points.
+   *
+   * Passing `mfem::Quadrature1D::Invalid` selects Axom's default MFEM quadrature
+   * behavior. Any other accepted value must correspond to a valid
+   * `mfem::Quadrature1D` enum in the inclusive range
+   * `[mfem::Quadrature1D::Invalid, mfem::Quadrature1D::ClosedGL]`.
+   * For uniform point sampling over the full zone, including the element
+   * edges, `mfem::Quadrature1D::ClosedUniform` is often a good choice. Users
+   * can experiment with other quadrature families when different sample point
+   * patterns are desired.
+   *
+   * \param [in] qtype Integer value corresponding to an `mfem::Quadrature1D`
+   *                   enum entry.
+   */
   void setQuadratureType(int qtype)
   {
     if(qtype >= static_cast<int>(mfem::Quadrature1D::Invalid) &&
@@ -172,6 +187,17 @@ public:
     }
   }
 
+  /*!
+   * \brief Sets an isotropic sampling resolution for custom quadrature.
+   *
+   * The same positive sample count is used in each logical mesh direction.
+   * For custom quadrature families, these values specify the per-direction
+   * sample counts directly, which in turn determine the quadrature rule used
+   * in each logical direction.
+   *
+   * \param [in] sampleRes Number of sample points to use per logical
+   *                       direction.
+   */
   void setSamplingResolution(int sampleRes)
   {
     SLIC_ASSERT(sampleRes > 0);
@@ -180,6 +206,18 @@ public:
     m_sampleResolution[2] = sampleRes;
   }
 
+  /*!
+   * \brief Sets an anisotropic sampling resolution for custom quadrature.
+   *
+   * The entries correspond to the logical `I`, `J`, and `K` directions of the
+   * reference element. Each entry must be positive. For custom quadrature
+   * families, these values specify the per-direction sample counts directly,
+   * which in turn determine the quadrature rule used in each logical
+   * direction.
+   *
+   * \param [in] sampleRes Array containing the sample count per logical
+   *                       direction.
+   */
   void setSamplingResolution(int sampleRes[3])
   {
     SLIC_ASSERT(sampleRes[0] > 0);

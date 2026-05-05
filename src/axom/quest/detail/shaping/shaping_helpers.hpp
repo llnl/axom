@@ -251,7 +251,10 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
   * \param [in] dc The data collection containing the mesh and associated query points
   * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
   * inout samples
-  * \param [in] sampleRes The quadrature order at which to sample the inout field
+  * \param [in] sampleRes The sampling resolution in each logical direction.
+  * For custom quadrature families, these values specify the per-direction
+  * sample counts directly, which in turn determine the quadrature rule used
+  * in each logical direction.
   * \param [in] quadratureType The quadrature type to use to construct the sample point locations.
   * \param [in] checkInside The function that determines whether a point is inside.
   * \param [in] projector A callback function to apply to points from the input mesh
