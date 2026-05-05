@@ -18,6 +18,7 @@
 #include "axom/sidre.hpp"
 #include "axom/slic.hpp"
 #include "axom/quest/SamplingShaper.hpp"
+#include "axom/quest/detail/shaping/shaping_helpers.hpp"
 #include "axom/quest/util/mesh_helpers.hpp"
 
 #ifndef AXOM_USE_MFEM
@@ -35,6 +36,7 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
+#include <utility>
 
 namespace klee = axom::klee;
 namespace primal = axom::primal;
@@ -62,6 +64,94 @@ const std::string proe_tet_fmt_str = R"(
 3 {} {} {}
 4 {} {} {}
 1 1 2 3 4
+)";
+
+const std::string oversized_unit_box_stl = R"(solid oversized_unit_box
+facet normal 0 0 -1
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex 1.001 1.001 -0.001
+    vertex 1.001 -0.001 -0.001
+  endloop
+endfacet
+facet normal 0 0 -1
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex -0.001 1.001 -0.001
+    vertex 1.001 1.001 -0.001
+  endloop
+endfacet
+facet normal 0 0 1
+  outer loop
+    vertex -0.001 -0.001 1.001
+    vertex 1.001 -0.001 1.001
+    vertex 1.001 1.001 1.001
+  endloop
+endfacet
+facet normal 0 0 1
+  outer loop
+    vertex -0.001 -0.001 1.001
+    vertex 1.001 1.001 1.001
+    vertex -0.001 1.001 1.001
+  endloop
+endfacet
+facet normal 0 -1 0
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex 1.001 -0.001 -0.001
+    vertex 1.001 -0.001 1.001
+  endloop
+endfacet
+facet normal 0 -1 0
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex 1.001 -0.001 1.001
+    vertex -0.001 -0.001 1.001
+  endloop
+endfacet
+facet normal 0 1 0
+  outer loop
+    vertex -0.001 1.001 -0.001
+    vertex 1.001 1.001 1.001
+    vertex 1.001 1.001 -0.001
+  endloop
+endfacet
+facet normal 0 1 0
+  outer loop
+    vertex -0.001 1.001 -0.001
+    vertex -0.001 1.001 1.001
+    vertex 1.001 1.001 1.001
+  endloop
+endfacet
+facet normal -1 0 0
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex -0.001 -0.001 1.001
+    vertex -0.001 1.001 1.001
+  endloop
+endfacet
+facet normal -1 0 0
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex -0.001 1.001 1.001
+    vertex -0.001 1.001 -0.001
+  endloop
+endfacet
+facet normal 1 0 0
+  outer loop
+    vertex 1.001 -0.001 -0.001
+    vertex 1.001 1.001 1.001
+    vertex 1.001 -0.001 1.001
+  endloop
+endfacet
+facet normal 1 0 0
+  outer loop
+    vertex 1.001 -0.001 -0.001
+    vertex 1.001 1.001 -0.001
+    vertex 1.001 1.001 1.001
+  endloop
+endfacet
+endsolid oversized_unit_box
 )";
 
 // Set the following to true for verbose output and for saving vis files
@@ -144,6 +234,15 @@ struct PlaneProjector23
     return Point3D {x, y, z};
   }
 };
+
+const std::pair<const char*, int> supported_quadrature_types[] = {
+  {"default", static_cast<int>(mfem::Quadrature1D::Invalid)},
+  {"gausslegendre", static_cast<int>(mfem::Quadrature1D::GaussLegendre)},
+  {"gausslobatto", static_cast<int>(mfem::Quadrature1D::GaussLobatto)},
+  {"openuniform", static_cast<int>(mfem::Quadrature1D::OpenUniform)},
+  {"closeduniform", static_cast<int>(mfem::Quadrature1D::ClosedUniform)},
+  {"openhalfuniform", static_cast<int>(mfem::Quadrature1D::OpenHalfUniform)},
+  {"closedgl", static_cast<int>(mfem::Quadrature1D::ClosedGL)}};
 
 // Utility function to slice a tetrahedron along a plane
 primal::Polygon<double, 3> slice(const primal::Tetrahedron<double, 3>& tet,
@@ -605,6 +704,62 @@ public:
   }
 };
 
+/// Test fixture for SamplingShaper tests on a single 3D MFEM hex element
+class SampleTester3D : public SamplingShaperTest
+{
+public:
+  using Point3D = primal::Point<double, 3>;
+  using BBox3D = primal::BoundingBox<double, 3>;
+
+public:
+  virtual ~SampleTester3D() { }
+
+  void SetUp() override
+  {
+    const int polynomialOrder = 1;
+    const BBox3D bbox({0, 0, 0}, {1, 1, 1});
+    const axom::NumericArray<int, 3> celldims {1, 1, 1};
+
+    auto* mesh = quest::util::make_cartesian_mfem_mesh_3D(bbox, celldims, polynomialOrder);
+
+    m_dc.SetOwnData(true);
+    m_dc.SetMeshNodesName("positions");
+    m_dc.SetMesh(mesh);
+
+#ifdef AXOM_USE_MPI
+    m_dc.SetComm(MPI_COMM_WORLD);
+#endif
+  }
+};
+
+/// Test fixture for SamplingShaper tests on a single curved 2D MFEM element
+class CurvedSampleTester2D : public SamplingShaperTest
+{
+public:
+  using Point2D = primal::Point<double, 2>;
+  using BBox2D = primal::BoundingBox<double, 2>;
+
+public:
+  virtual ~CurvedSampleTester2D() { }
+
+  void SetUp() override
+  {
+    const int polynomialOrder = 2;
+    const BBox2D bbox({0., 0.}, {1., 1.});
+    const axom::NumericArray<int, 2> celldims {1, 1};
+
+    auto* mesh = quest::util::make_cartesian_mfem_mesh_2D(bbox, celldims, polynomialOrder);
+
+    m_dc.SetOwnData(true);
+    m_dc.SetMeshNodesName("positions");
+    m_dc.SetMesh(mesh);
+
+#ifdef AXOM_USE_MPI
+    m_dc.SetComm(MPI_COMM_WORLD);
+#endif
+  }
+};
+
 //-----------------------------------------------------------------------------
 
 TEST_F(SamplingShaperTest2D, check_mesh)
@@ -929,6 +1084,41 @@ shapes:
   {
     this->getDC().Save(testname, axom::sidre::Group::getDefaultIOProtocol());
   }
+}
+
+TEST_F(SamplingShaperTest2D, replacement_background_without_initial_material_aborts)
+{
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 2
+units: cm
+
+shapes:
+- name: background
+  material: {1}
+  geometry:
+    format: none
+- name: circle_outer
+  material: {2}
+  geometry:
+    format: c2c
+    path: {0}
+    units: cm
+)";
+
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), contour_file.getPath(), "void", "disk"));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(this->runShaping(), slic::SlicAbortException);
 }
 
 TEST_F(SamplingShaperTest2D, preshaped_materials)
@@ -1280,7 +1470,7 @@ shapes:
   // set projector from 2D mesh points to 3D query points within STL
   this->m_shaper->setPointProjector23(Projector23 {});
 
-  this->m_shaper->setQuadratureOrder(8);
+  this->m_shaper->setSamplingResolution(8);
 
   this->runShaping();
 
@@ -1423,7 +1613,7 @@ Ordering: 1
   // Use WindingNumber shaping!
   this->m_shaper->setSamplingMethod(quest::SamplingShaper::SamplingMethod::WindingNumber);
 
-  this->m_shaper->setQuadratureOrder(8);
+  this->m_shaper->setSamplingResolution(8);
   this->runShaping();
 
   // Check that the result has a volume fraction field associated with square materials
@@ -1849,7 +2039,7 @@ shapes:
   this->m_shaper->setPointProjector32(AxisymmetricProjector32 {});
 
   // we need a higher quadrature order to resolve this shape at the (low) testing resolution
-  this->m_shaper->setQuadratureOrder(8);
+  this->m_shaper->setSamplingResolution(8);
 
   this->runShaping();
 
@@ -1920,7 +2110,7 @@ shapes:
   this->m_shaper->setPointProjector32(AxisymmetricProjector32 {});
 
   // we need a higher quadrature order to resolve this shape at the (low) testing resolution
-  this->m_shaper->setQuadratureOrder(8);
+  this->m_shaper->setSamplingResolution(8);
 
   this->runShaping();
 
@@ -2006,7 +2196,7 @@ shapes:
     this->m_shaper->setPointProjector23(PlaneProjector23 {z});
 
     // we need a higher quadrature order to resolve this shape at the (low) testing resolution
-    this->m_shaper->setQuadratureOrder(8);
+    this->m_shaper->setSamplingResolution(8);
 
     this->runShaping();
 
@@ -2104,7 +2294,7 @@ piece = line(end=start)
       this->initializeShaping(shape_file.getPath());
 
       this->m_shaper->setVolumeFractionOrder(0);
-      this->m_shaper->setQuadratureOrder(qorder);
+      this->m_shaper->setSamplingResolution(qorder);
 
       this->runShaping();
 
@@ -2154,6 +2344,293 @@ piece = line(end=start)
       }
     }
   }
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SampleTester2D, anisotropic_closeduniform_projection_generates_volume_fractions)
+{
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: {}
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+    units: cm
+)";
+
+  const std::string rectangle_contour = R"(
+point = start
+piece = line(start=(-0.001cm, -0.001cm), end=(-0.001cm, 1.001cm))
+piece = line()
+piece = line(start=(1.001cm, 1.001cm), end=(1.001cm, -0.001cm))
+piece = line(end=start)
+)";
+
+  const std::string rect_shape = "rectShape";
+  const std::string rect_material = "rectMat";
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(rectangle_contour);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                     rect_shape,
+                                     rect_material,
+                                     contour_file.getPath()));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  int sampleRes[3] = {3, 5, 1};
+  this->m_shaper->setSamplingResolution(sampleRes);
+  this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform));
+  this->m_shaper->setVolumeFractionOrder(0);
+
+  this->runShaping();
+
+  this->checkExpectedVolumeFractions(rect_material, 1.0, 1e-12);
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SampleTester2D, supported_quadrature_types_generate_volume_fractions)
+{
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: {}
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+    units: cm
+)";
+
+  const std::string rectangle_contour = R"(
+point = start
+piece = line(start=(-0.001cm, -0.001cm), end=(-0.001cm, 1.001cm))
+piece = line()
+piece = line(start=(1.001cm, 1.001cm), end=(1.001cm, -0.001cm))
+piece = line(end=start)
+)";
+
+  const std::string rect_shape = "rectShape";
+  const std::string rect_material = "rectMat";
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(rectangle_contour);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                     rect_shape,
+                                     rect_material,
+                                     contour_file.getPath()));
+
+  int sampleRes[3] = {3, 5, 1};
+
+  for(const auto& quadrature : supported_quadrature_types)
+  {
+    this->validateShapeFile(shape_file.getPath());
+    this->initializeShaping(shape_file.getPath());
+
+    this->m_shaper->setSamplingResolution(sampleRes);
+    this->m_shaper->setQuadratureType(quadrature.second);
+    this->m_shaper->setVolumeFractionOrder(0);
+
+    this->runShaping();
+
+    this->checkExpectedVolumeFractions(rect_material, 1.0, 1e-12);
+
+    this->resetShaping();
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SampleTester2D, invalid_quadrature_type_values_abort)
+{
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: {}
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+)";
+
+  const std::string rect_shape = "rectShape";
+  const std::string rect_material = "rectMat";
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                     rect_shape,
+                                     rect_material,
+                                     contour_file.getPath()));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::Invalid) - 1),
+               slic::SlicAbortException);
+  EXPECT_THROW(m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedGL) + 1),
+               slic::SlicAbortException);
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SampleTester3D, anisotropic_closeduniform_projection_generates_volume_fractions)
+{
+  const std::string shape_template = R"(
+dimensions: 3
+
+shapes:
+- name: {}
+  material: {}
+  geometry:
+    format: stl
+    path: {}
+)";
+
+  const std::string box_shape = "boxShape";
+  const std::string box_material = "boxMat";
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  fs::TempFile stl_file(testname, ".stl");
+  stl_file.write(oversized_unit_box_stl);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), box_shape, box_material, stl_file.getPath()));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  int sampleRes[3] = {3, 5, 2};
+  this->m_shaper->setSamplingResolution(sampleRes);
+  this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform));
+  this->m_shaper->setVolumeFractionOrder(0);
+
+  this->runShaping();
+
+  this->checkExpectedVolumeFractions(box_material, 1.0, 1e-12);
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SampleTester3D, background_import_with_custom_openuniform_generates_volume_fractions)
+{
+  const std::string shape_template = R"(
+dimensions: 3
+
+shapes:
+- name: background
+  material: void
+  geometry:
+    format: none
+- name: {}
+  material: {}
+  geometry:
+    format: stl
+    path: {}
+)";
+
+  const std::string box_shape = "boxShape";
+  const std::string box_material = "boxMat";
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  fs::TempFile stl_file(testname, ".stl");
+  stl_file.write(oversized_unit_box_stl);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), box_shape, box_material, stl_file.getPath()));
+
+  std::map<std::string, mfem::GridFunction*> initialGridFunctions;
+  auto* vf = this->registerVolFracGridFunction("init_vf_bg", 0);
+  this->initializeVolFracGridFunction<3>(vf, [](int, const Point3D&, int) -> double { return 1.; });
+  initialGridFunctions["void"] = vf;
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath(), initialGridFunctions);
+
+  int sampleRes[3] = {3, 4, 5};
+  this->m_shaper->setSamplingResolution(sampleRes);
+  this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::OpenUniform));
+  this->m_shaper->setVolumeFractionOrder(4);
+
+  this->runShaping();
+
+  this->checkExpectedVolumeFractions(box_material, 1.0, 1e-12);
+  this->checkExpectedVolumeFractions("void", 0.0, 1e-12);
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(CurvedSampleTester2D, positions_match_curved_mesh_for_anisotropic_custom_quadrature)
+{
+  auto& mesh = this->getMesh();
+  auto* nodes = mesh.GetNodes();
+  ASSERT_NE(nodes, nullptr);
+
+  mfem::VectorFunctionCoefficient warp(2, [](const mfem::Vector& x, mfem::Vector& y) {
+    constexpr double PI_LOCAL = 3.14159265358979323846;
+    y.SetSize(2);
+    y[0] = x[0] + 0.08 * std::sin(PI_LOCAL * x[0]) * std::sin(PI_LOCAL * x[1]);
+    y[1] = x[1] + 0.05 * std::sin(PI_LOCAL * x[0]) * std::sin(0.5 * PI_LOCAL * x[1]);
+  });
+  nodes->ProjectCoefficient(warp);
+
+  int sampleRes[3] = {5, 3, 1};
+  quest::shaping::QFunctionCollection qfuncs;
+  quest::shaping::generatePositionsQFunction(&mesh,
+                                             qfuncs,
+                                             sampleRes,
+                                             static_cast<int>(mfem::Quadrature1D::OpenUniform));
+
+  auto* positions = qfuncs.Get("positions");
+  ASSERT_NE(positions, nullptr);
+
+  auto* qspace = dynamic_cast<mfem::QuadratureSpace*>(positions->GetSpace());
+  ASSERT_NE(qspace, nullptr);
+
+  const auto& ir = qspace->GetElementIntRule(0);
+  const int nq = ir.GetNPoints();
+  const auto pos = mfem::Reshape(positions->HostRead(), 2, nq, mesh.GetNE());
+
+  mfem::DenseMatrix expected(2, nq);
+  constexpr double EPS = 1e-12;
+  EXPECT_EQ(nq, sampleRes[0] * sampleRes[1]);
+
+  for(int e = 0; e < mesh.GetNE(); ++e)
+  {
+    auto* transform = qspace->GetTransformation(e);
+    transform->Transform(ir, expected);
+
+    for(int q = 0; q < nq; ++q)
+    {
+      for(int d = 0; d < 2; ++d)
+      {
+        EXPECT_NEAR(pos(d, q, e), expected(d, q), EPS)
+          << axom::fmt::format("Element {}, point {}, component {}", e, q, d);
+      }
+    }
+  }
+
+  qfuncs.DeleteData(true);
 }
 
 //-----------------------------------------------------------------------------

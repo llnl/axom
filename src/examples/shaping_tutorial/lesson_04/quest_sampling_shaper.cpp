@@ -72,7 +72,7 @@ public:
   std::string background_material;
   int volume_fraction_order {2};
   int mesh_order {1};
-  int quadrature_order {5};
+  int sampling_resolution {5};
   quest::SamplingShaper::SamplingMethod sampling_method {quest::SamplingShaper::SamplingMethod::InOut};
 
 public:
@@ -122,7 +122,7 @@ public:
       .range(1, std::numeric_limits<int>::max());
     mesh_schema.addInt("mesh_order", "Order for mesh nodes (>= 1)")
       .range(1, std::numeric_limits<int>::max());
-    mesh_schema.addInt("quadrature_order", "Order for quadrature (>= 1)")
+    mesh_schema.addInt("sampling_resolution", "Sampling resolution (>= 1)")
       .range(1, std::numeric_limits<int>::max());
 
     mesh_schema.addString("sampling_method", "Sampling method ('inout' or 'winding')")
@@ -227,9 +227,9 @@ struct FromInlet<MeshMetadata>
       result.volume_fraction_order = static_cast<int>(input_data["volume_fraction_order"]);
     }
 
-    if(input_data.contains("quadrature_order"))
+    if(input_data.contains("sampling_resolution"))
     {
-      result.quadrature_order = static_cast<int>(input_data["quadrature_order"]);
+      result.sampling_resolution = static_cast<int>(input_data["sampling_resolution"]);
     }
 
     if(input_data.contains("sampling_method"))
@@ -401,7 +401,10 @@ int main(int argc, char** argv)
                                                         shapeSet,
                                                         &dc);
   shaper->setVerbosity(verbose);
-  shaper->setQuadratureOrder(meta.quadrature_order);
+  shaper->setSamplingResolution(meta.sampling_resolution);
+  // This tutorial keeps MFEM's default quadrature family. For uniform sample
+  // points that cover the whole zone, including its edges, users can also call
+  // setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform)).
   shaper->setVolumeFractionOrder(meta.volume_fraction_order);
 
   shaper->setSamplingMethod(meta.sampling_method);

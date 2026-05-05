@@ -27,6 +27,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: Adds support for reading mfem files with variable order NURBS curves (requires mfem>4.9).
 - Quest: Adds OMP support for fast GWN methods for STL/Triangulated STEP input and linearized NURBS Curve input.
 - Klee: Adds an optional "center" parameter in scale operators that permits scaling relative to a custom center point.
+- Quest: `SamplingShaper` now supports selecting MFEM quadrature families for custom sample-point generation, including anisotropic per-direction sampling resolution on quadrilateral and hexahedral meshes.
 
 ### Removed
 

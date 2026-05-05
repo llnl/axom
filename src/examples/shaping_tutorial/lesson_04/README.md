@@ -166,11 +166,13 @@ struct MeshMetadata
   std::string background_material;
   int volume_fraction_order {2};
   int mesh_order {1};
-  int quadrature_order {5};
+  int sampling_resolution {5};
   quest::SamplingShaper::SamplingMethod sampling_method {quest::SamplingShaper::SamplingMethod::InOut};
 };
 ```
-This allows the user to set the polynomial order of the volume fraction functions via `volume_fraction_order`, the sampling order for quadrature points within each element `quadrature_order`, and the `sampling_method` -- either using an `InOutOctree` over a discretized/linearized representation of the shape, or using an approach based on winding numbers.
+This allows the user to set the polynomial order of the volume fraction functions via `volume_fraction_order`, the number of sample points per logical direction within each element via `sampling_resolution`, and the `sampling_method` -- either using an `InOutOctree` over a discretized/linearized representation of the shape, or using an approach based on winding numbers.
+
+When you want a uniform sample point pattern that spans the full zone, including the element edges, `mfem::Quadrature1D::ClosedUniform` is a useful choice with `SamplingShaper::setQuadratureType()`. Other quadrature families are also available if a different sample point pattern is desired.
 
 We also allow the user to specify a "background_material". When specified, a corresponding volume fraction field will be generated and initialized to 1 everywhere. Users can incorporate this into their input with a special "geometry/format" of "none".
 
@@ -191,7 +193,7 @@ The changes to the schema and the MeshMetadata constructor are relatively straig
       .range(1, std::numeric_limits<int>::max());
     mesh_schema.addInt("mesh_order", "Order for mesh nodes (>= 1)")
       .range(1, std::numeric_limits<int>::max());
-    mesh_schema.addInt("quadrature_order", "Order for quadrature (>= 1)")
+    mesh_schema.addInt("sampling_resolution", "Sampling resolution (>= 1)")
       .range(1, std::numeric_limits<int>::max());
 
     mesh_schema.addString("sampling_method", "Sampling method ('inout' or 'winding')")
@@ -218,9 +220,9 @@ struct FromInlet<MeshMetadata>
       result.volume_fraction_order = static_cast<int>(input_data["volume_fraction_order"]);
     }
 
-    if(input_data.contains("quadrature_order"))
+    if(input_data.contains("sampling_resolution"))
     {
-      result.quadrature_order = static_cast<int>(input_data["quadrature_order"]);
+      result.sampling_resolution = static_cast<int>(input_data["sampling_resolution"]);
     }
 
     if(input_data.contains("sampling_method"))
@@ -435,7 +437,7 @@ shapes:
    background_material = "void",
    volume_fraction_order = 2,
    mesh_order = 2,
-   quadrature_order = 5,
+   sampling_resolution = 5,
    sampling_method = "inout",
  }
 ```
@@ -533,7 +535,7 @@ shapes:
     background_material = "air",
     volume_fraction_order = 2,
     mesh_order = 2,
-    quadrature_order = 5,
+    sampling_resolution = 5,
     sampling_method = "winding",
   }
 ```
@@ -608,7 +610,7 @@ This example uses contours stored in MFEM files to approximate the shapes in Pau
     background_material = "canvas",
     volume_fraction_order = 2,
     mesh_order = 2,
-    quadrature_order = 5,
+    sampling_resolution = 5,
     sampling_method = "inout",
   }
 ```
@@ -626,7 +628,7 @@ This example uses contours stored in MFEM files to approximate the shapes in Pau
 
 ## Wrap up
 
-In this lesson, we covered shaping in Axom, focusing on the `InOutOctree` and `Winding Number` containment tests. We defined mesh metadata (orders, quadrature, sampling method) and created high-order MFEM meshes. We used background materials, replacement rules, and produced matset-aware outputs suitable for MIR in VisIt. We demonstrated the workflow with several examples. Although we didn't focus on it, everything transparently works with MPI, and much of the workflow is GPU-ready (or work is planned to port it).
+In this lesson, we covered shaping in Axom, focusing on the `InOutOctree` and `Winding Number` containment tests. We defined mesh metadata (orders, sampling resolution, sampling method) and created high-order MFEM meshes. We used background materials, replacement rules, and produced matset-aware outputs suitable for MIR in VisIt. We demonstrated the workflow with several examples. Although we didn't focus on it, everything transparently works with MPI, and much of the workflow is GPU-ready (or work is planned to port it).
 
 ## Technologies Used
 

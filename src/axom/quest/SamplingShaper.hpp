@@ -159,7 +159,77 @@ public:
 
   void setSamplingMethod(SamplingMethod samplingMethod) { m_samplingMethod = samplingMethod; }
 
-  void setQuadratureOrder(int quadratureOrder) { m_quadratureOrder = quadratureOrder; }
+  /*!
+   * \brief Sets the 1D quadrature family used to generate custom sample points.
+   *
+   * Passing `mfem::Quadrature1D::Invalid` selects Axom's default MFEM quadrature
+   * behavior. Any other accepted value must correspond to a valid
+   * `mfem::Quadrature1D` enum in the inclusive range
+   * `[mfem::Quadrature1D::Invalid, mfem::Quadrature1D::ClosedGL]`.
+   * For uniform point sampling over the full zone, including the element
+   * edges, `mfem::Quadrature1D::ClosedUniform` is often a good choice. Users
+   * can experiment with other quadrature families when different sample point
+   * patterns are desired.
+   *
+   * \param [in] qtype Integer value corresponding to an `mfem::Quadrature1D`
+   *                   enum entry.
+   */
+  void setQuadratureType(int qtype)
+  {
+    if(qtype >= static_cast<int>(mfem::Quadrature1D::Invalid) &&
+       qtype <= static_cast<int>(mfem::Quadrature1D::ClosedGL))
+    {
+      m_quadratureType = qtype;
+    }
+    else
+    {
+      SLIC_ERROR(axom::fmt::format("Invalid quadrature type value {}", qtype));
+    }
+  }
+
+  /*!
+   * \brief Sets an isotropic sampling resolution for custom quadrature.
+   *
+   * The same positive sample count is used in each logical mesh direction.
+   * For custom quadrature families, these values specify the per-direction
+   * sample counts directly, which in turn determine the quadrature rule used
+   * in each logical direction.
+   *
+   * \param [in] sampleRes Number of sample points to use per logical
+   *                       direction.
+   */
+  void setSamplingResolution(int sampleRes)
+  {
+    SLIC_ASSERT(sampleRes > 0);
+    m_sampleResolution[0] = sampleRes;
+    m_sampleResolution[1] = sampleRes;
+    m_sampleResolution[2] = sampleRes;
+  }
+
+  /*!
+   * \brief Sets an anisotropic sampling resolution for custom quadrature.
+   *
+   * The entries correspond to the logical `I`, `J`, and `K` directions of the
+   * reference element. Each entry must be positive. For custom quadrature
+   * families, these values specify the per-direction sample counts directly,
+   * which in turn determine the quadrature rule used in each logical
+   * direction.
+   *
+   * \param [in] sampleRes Array containing the sample count per logical
+   *                       direction.
+   */
+  void setSamplingResolution(int sampleRes[3])
+  {
+    SLIC_ASSERT(sampleRes[0] > 0);
+    SLIC_ASSERT(sampleRes[1] > 0);
+    SLIC_ASSERT(sampleRes[2] > 0);
+    m_sampleResolution[0] = sampleRes[0];
+    m_sampleResolution[1] = sampleRes[1];
+    m_sampleResolution[2] = sampleRes[2];
+  }
+
+  // Deprecated backward compatibility method
+  [[deprecated]] void setQuadratureOrder(int order) { setSamplingResolution(order); }
 
   void setVolumeFractionOrder(int volfracOrder) { m_volfracOrder = volfracOrder; }
 
@@ -417,16 +487,26 @@ public:
       // Get inout qfunc for this shape
       shapeQFunc = m_inoutShapeQFuncs.Get(axom::fmt::format("inout_{}", shapeName));
 
-      SLIC_ASSERT_MSG(shapeQFunc != nullptr,
-                      axom::fmt::format("Missing inout samples for shape '{}'", shapeName));
+      SLIC_ERROR_IF(shapeQFunc == nullptr,
+                    axom::fmt::format("Missing inout samples for shape '{}'. "
+                                      "This indicates the shape query did not produce a "
+                                      "quadrature field before replacement rules were applied.",
+                                      shapeName));
     }
     else
     {
       // No input geometry for the shape, get inout qfunc for associated material
       shapeQFunc = m_inoutMaterialQFuncs.Get(axom::fmt::format("mat_inout_{}", thisMatName));
 
-      SLIC_ASSERT_MSG(shapeQFunc != nullptr,
-                      axom::fmt::format("Missing inout samples for material '{}'", thisMatName));
+      SLIC_ERROR_IF(shapeQFunc == nullptr,
+                    axom::fmt::format("Missing inout samples for material '{}' while applying "
+                                      "replacement rules for shape '{}', which has no input "
+                                      "geometry. Initialize that material before shaping, e.g. "
+                                      "pass '--background-material {}' in the shaping driver or "
+                                      "import initial volume fractions for it.",
+                                      thisMatName,
+                                      shapeName,
+                                      thisMatName));
     }
 
     // Create a copy of the inout samples for this shape
@@ -452,8 +532,11 @@ public:
 
       auto* otherMatQFunc =
         m_inoutMaterialQFuncs.Get(axom::fmt::format("mat_inout_{}", otherMatName));
-      SLIC_ASSERT_MSG(otherMatQFunc != nullptr,
-                      axom::fmt::format("Missing inout samples for material '{}'", otherMatName));
+      SLIC_ERROR_IF(otherMatQFunc == nullptr,
+                    axom::fmt::format("Missing inout samples for material '{}' while applying "
+                                      "replacement rules for shape '{}'.",
+                                      otherMatName,
+                                      shapeName));
 
       quest::shaping::replaceMaterial(shapeQFuncCopy, otherMatQFunc, shouldReplace);
     }
@@ -469,8 +552,11 @@ public:
     {
       // copy shape data into current material and delete the copy
       auto* matQFunc = m_inoutMaterialQFuncs.Get(materialQFuncName);
-      SLIC_ASSERT_MSG(matQFunc != nullptr,
-                      axom::fmt::format("Missing inout samples for material '{}'", thisMatName));
+      SLIC_ERROR_IF(matQFunc == nullptr,
+                    axom::fmt::format("Missing inout samples for material '{}' while updating "
+                                      "the material field for shape '{}'.",
+                                      thisMatName,
+                                      shapeName));
 
       const bool reuseExisting = shape.getGeometry().hasGeometry();
       quest::shaping::copyShapeIntoMaterial(shapeQFuncCopy, matQFunc, reuseExisting);
@@ -519,7 +605,10 @@ public:
     // ensure we have a starting quadrature field for the positions
     if(!m_inoutShapeQFuncs.Has("positions"))
     {
-      shaping::generatePositionsQFunction(mesh, m_inoutShapeQFuncs, m_quadratureOrder);
+      shaping::generatePositionsQFunction(mesh,
+                                          m_inoutShapeQFuncs,
+                                          m_sampleResolution,
+                                          m_quadratureType);
     }
     auto* positionsQSpace = m_inoutShapeQFuncs.Get("positions")->GetSpace();
 
@@ -541,8 +630,31 @@ public:
 
       auto* matQFunc = new mfem::QuadratureFunction(*positionsQSpace);
       const auto& ir = matQFunc->GetSpace()->GetIntRule(0);
-      const auto* interp = gf->FESpace()->GetQuadratureInterpolator(ir);
-      interp->Values(*gf, *matQFunc);
+
+      if(usesAnisotropicCustomTensorQuadrature(*mesh))
+      {
+        // Avoid MFEM's tensor quadrature interpolation path only for
+        // anisotropic custom quad/hex rules. MFEM infers a single q1d from
+        // ir.GetNPoints(), which cannot represent per-direction sample counts
+        // such as 3 x 5 or 3 x 5 x 2.
+        mfem::Vector elemValues;
+        mfem::Vector qfuncValues;
+        for(int elem = 0; elem < mesh->GetNE(); ++elem)
+        {
+          gf->GetValues(elem, ir, elemValues);
+          matQFunc->GetValues(elem, qfuncValues);
+          qfuncValues = elemValues;
+        }
+      }
+      else
+      {
+        const auto* interp = gf->FESpace()->GetQuadratureInterpolator(ir);
+        SLIC_ERROR_IF(interp == nullptr,
+                      axom::fmt::format("Could not create a quadrature interpolator while "
+                                        "importing volume fractions for '{}'.",
+                                        name));
+        interp->Values(*gf, *matQFunc);
+      }
 
       const auto matName = axom::fmt::format("mat_inout_{}", name);
       m_inoutMaterialQFuncs.Register(matName, matQFunc, true);
@@ -621,7 +733,7 @@ public:
 private:
   // Handles 2D or 3D shaping for compatible samplers, based on the template and associated parameter
   template <typename SamplerType>
-  void runShapeQueryImplSampler(SamplerType* shaper)
+  void runShapeQueryImplSampler(SamplerType* sampler)
   {
     // Sample the InOut field at the mesh quadrature points
     const int meshDim = m_dc->GetMesh()->Dimension();
@@ -633,33 +745,37 @@ private:
       case 2:
         if(meshDim == 2)
         {
-          shaper->template sampleInOutField<2, 2>(m_dc,
-                                                  m_inoutShapeQFuncs,
-                                                  m_quadratureOrder,
-                                                  m_projector22);
+          sampler->template sampleInOutField<2, 2>(m_dc,
+                                                   m_inoutShapeQFuncs,
+                                                   m_sampleResolution,
+                                                   m_quadratureType,
+                                                   m_projector22);
         }
         else if(meshDim == 3)
         {
-          shaper->template sampleInOutField<3, 2>(m_dc,
-                                                  m_inoutShapeQFuncs,
-                                                  m_quadratureOrder,
-                                                  m_projector32);
+          sampler->template sampleInOutField<3, 2>(m_dc,
+                                                   m_inoutShapeQFuncs,
+                                                   m_sampleResolution,
+                                                   m_quadratureType,
+                                                   m_projector32);
         }
         break;
       case 3:
         if(meshDim == 2)
         {
-          shaper->template sampleInOutField<2, 3>(m_dc,
-                                                  m_inoutShapeQFuncs,
-                                                  m_quadratureOrder,
-                                                  m_projector23);
+          sampler->template sampleInOutField<2, 3>(m_dc,
+                                                   m_inoutShapeQFuncs,
+                                                   m_sampleResolution,
+                                                   m_quadratureType,
+                                                   m_projector23);
         }
         else if(meshDim == 3)
         {
-          shaper->template sampleInOutField<3, 3>(m_dc,
-                                                  m_inoutShapeQFuncs,
-                                                  m_quadratureOrder,
-                                                  m_projector33);
+          sampler->template sampleInOutField<3, 3>(m_dc,
+                                                   m_inoutShapeQFuncs,
+                                                   m_sampleResolution,
+                                                   m_quadratureType,
+                                                   m_projector33);
         }
         break;
       }
@@ -670,33 +786,21 @@ private:
       case 2:
         if(meshDim == 2)
         {
-          shaper->template computeVolumeFractionsBaseline<2, 2>(m_dc,
-                                                                m_quadratureOrder,
-                                                                m_volfracOrder,
-                                                                m_projector22);
+          sampler->template computeVolumeFractionsBaseline<2, 2>(m_dc, m_volfracOrder, m_projector22);
         }
         else if(meshDim == 3)
         {
-          shaper->template computeVolumeFractionsBaseline<3, 2>(m_dc,
-                                                                m_quadratureOrder,
-                                                                m_volfracOrder,
-                                                                m_projector32);
+          sampler->template computeVolumeFractionsBaseline<3, 2>(m_dc, m_volfracOrder, m_projector32);
         }
         break;
       case 3:
         if(meshDim == 2)
         {
-          shaper->template computeVolumeFractionsBaseline<2, 3>(m_dc,
-                                                                m_quadratureOrder,
-                                                                m_volfracOrder,
-                                                                m_projector23);
+          sampler->template computeVolumeFractionsBaseline<2, 3>(m_dc, m_volfracOrder, m_projector23);
         }
         else if(meshDim == 3)
         {
-          shaper->template computeVolumeFractionsBaseline<3, 3>(m_dc,
-                                                                m_quadratureOrder,
-                                                                m_volfracOrder,
-                                                                m_projector33);
+          sampler->template computeVolumeFractionsBaseline<3, 3>(m_dc, m_volfracOrder, m_projector33);
         }
         break;
       }
@@ -706,21 +810,21 @@ private:
 
   // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
   template <int DIM>
-  void runShapeQueryImpl(shaping::InOutSampler<DIM>* shaper)
+  void runShapeQueryImpl(shaping::InOutSampler<DIM>* sampler)
   {
-    runShapeQueryImplSampler(shaper);
+    runShapeQueryImplSampler(sampler);
   }
 
   // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
   template <int DIM>
-  void runShapeQueryImpl(shaping::WindingNumberSampler<DIM>* shaper)
+  void runShapeQueryImpl(shaping::WindingNumberSampler<DIM>* sampler)
   {
-    runShapeQueryImplSampler(shaper);
+    runShapeQueryImplSampler(sampler);
   }
 
   // Handles 2D or 3D shaping for PrimitiveSampler, based on the template and associated parameter
   template <int DIM, typename ExecSpace>
-  void runShapeQueryImpl(shaping::PrimitiveSampler<DIM, ExecSpace>* shaper)
+  void runShapeQueryImpl(shaping::PrimitiveSampler<DIM, ExecSpace>* sampler)
   {
     // Sample the InOut field at the mesh quadrature points
     const int meshDim = m_dc->GetMesh()->Dimension();
@@ -735,17 +839,19 @@ private:
       case 3:
         if(meshDim == 2)
         {
-          shaper->template sampleInOutField<2, 3>(m_dc,
-                                                  m_inoutShapeQFuncs,
-                                                  m_quadratureOrder,
-                                                  m_projector23);
+          sampler->template sampleInOutField<2, 3>(m_dc,
+                                                   m_inoutShapeQFuncs,
+                                                   m_sampleResolution,
+                                                   m_quadratureType,
+                                                   m_projector23);
         }
         else if(meshDim == 3)
         {
-          shaper->template sampleInOutField<3, 3>(m_dc,
-                                                  m_inoutShapeQFuncs,
-                                                  m_quadratureOrder,
-                                                  m_projector33);
+          sampler->template sampleInOutField<3, 3>(m_dc,
+                                                   m_inoutShapeQFuncs,
+                                                   m_sampleResolution,
+                                                   m_quadratureType,
+                                                   m_projector33);
         }
         break;
       }
@@ -782,13 +888,13 @@ private:
     const int NE = mesh->GetNE();
     const auto geom = mesh->GetTypicalElementGeometry();
 
-    auto samples_per_dim = [=](int sampleNQ, mfem::Geometry::Type geom) -> std::string {
+    auto samples_per_dim = [=](int sampleRes[3], mfem::Geometry::Type geom) -> std::string {
       switch(geom)
       {
       case mfem::Geometry::SQUARE:
-        return axom::fmt::format(" ({} per dimension)", sqrt(sampleNQ));
+        return axom::fmt::format(" ({} * {})", sampleRes[0], sampleRes[1]);
       case mfem::Geometry::CUBE:
-        return axom::fmt::format(" ({} per dimension)", std::cbrt(sampleNQ));
+        return axom::fmt::format(" ({} * {} * {})", sampleRes[0], sampleRes[1], sampleRes[2]);
       default:
         return std::string();
       }
@@ -800,7 +906,7 @@ private:
                                      "In computeVolumeFractions(): num samples per element {}{} | "
                                      "sample polynomial order {} | total samples {:L}",
                                      sampleNQ,
-                                     samples_per_dim(sampleNQ, geom),
+                                     samples_per_dim(m_sampleResolution, geom),
                                      sampleOrder,
                                      sampleSZ));
 
@@ -833,17 +939,39 @@ private:
       (*mass_mat) = 0.;
       mass_mat->ReadWrite();
 
-      const int sz = mass_mat->TotalSize();
       mfem::ConstantCoefficient one_coef(1.0);
-      mfem::MassIntegrator mass_integrator(one_coef);
+      mfem::MassIntegrator mass_integrator(one_coef, &sampleIR);
 
-      // wrap mass_mat data as vector for AssembleEA call
-      // note: AssembleEA expects the transpose, but it's ok since mass matrices are symmetric
-      mfem::Vector mass_vec;
-      mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
-      mass_vec.SetSize(sz);
-      mass_integrator.AssembleEA(*fes, mass_vec, false);
-      mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+      if(usesAnisotropicCustomTensorQuadrature(*fes->GetMesh()))
+      {
+        mfem::DenseMatrix elemMat;
+        mass_mat->HostWrite();
+        for(int elem = 0; elem < NE; ++elem)
+        {
+          mass_integrator.AssembleElementMatrix(*fes->GetFE(elem),
+                                                *fes->GetElementTransformation(elem),
+                                                elemMat);
+          for(int j = 0; j < dofs; ++j)
+          {
+            for(int i = 0; i < dofs; ++i)
+            {
+              (*mass_mat)(i, j, elem) = elemMat(i, j);
+            }
+          }
+        }
+      }
+      else
+      {
+        const int sz = mass_mat->TotalSize();
+
+        // wrap mass_mat data as vector for AssembleEA call
+        // note: AssembleEA expects the transpose, but it's ok since mass matrices are symmetric
+        mfem::Vector mass_vec;
+        mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+        mass_vec.SetSize(sz);
+        mass_integrator.AssembleEA(*fes, mass_vec, false);
+        mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+      }
 
       m_inoutTensors.Register(mass_matrix_name, mass_mat, true);
     }
@@ -918,14 +1046,7 @@ private:
         b = 0.;
         b.ReadWrite();
 
-        mfem::QuadratureFunctionCoefficient qfc(*inout);
-        mfem::DomainLFIntegrator rhs(qfc, &sampleIR);
-
-        mfem::Array<int> elem_marker(fes->GetNE());
-        elem_marker.HostWrite();
-        elem_marker = 1;
-        elem_marker.ReadWrite();
-        rhs.AssembleDevice(*fes, elem_marker, b);
+        this->assembleVolumeFractionRHS(*fes, *inout, sampleIR, b);
       }
       inout->HostReadWrite();
 
@@ -977,6 +1098,55 @@ private:
     vf->HostReadWrite();
   }
 
+  bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh) const
+  {
+    if(m_quadratureType == static_cast<int>(mfem::Quadrature1D::Invalid))
+    {
+      return false;
+    }
+
+    switch(mesh.GetTypicalElementGeometry())
+    {
+    case mfem::Geometry::SQUARE:
+      return m_sampleResolution[0] != m_sampleResolution[1];
+    case mfem::Geometry::CUBE:
+      return m_sampleResolution[0] != m_sampleResolution[1] ||
+        m_sampleResolution[0] != m_sampleResolution[2];
+    default:
+      return false;
+    }
+  }
+
+  void assembleVolumeFractionRHS(const mfem::FiniteElementSpace& fes,
+                                 mfem::QuadratureFunction& inout,
+                                 const mfem::IntegrationRule& sampleIR,
+                                 mfem::Vector& b) const
+  {
+    mfem::QuadratureFunctionCoefficient qfc(inout);
+    mfem::DomainLFIntegrator rhs(qfc, &sampleIR);
+
+    if(usesAnisotropicCustomTensorQuadrature(*fes.GetMesh()))
+    {
+      mfem::Vector elemVec;
+      mfem::Array<int> elemVDofs;
+
+      for(int elem = 0; elem < fes.GetNE(); ++elem)
+      {
+        rhs.AssembleRHSElementVect(*fes.GetFE(elem), *fes.GetElementTransformation(elem), elemVec);
+        fes.GetElementVDofs(elem, elemVDofs);
+        b.AddElementVector(elemVDofs, elemVec);
+      }
+    }
+    else
+    {
+      mfem::Array<int> elem_marker(fes.GetNE());
+      elem_marker.HostWrite();
+      elem_marker = 1;
+      elem_marker.ReadWrite();
+      rhs.AssembleDevice(fes, elem_marker, b);
+    }
+  }
+
 private:
   shaping::QFunctionCollection m_inoutShapeQFuncs;
   shaping::QFunctionCollection m_inoutMaterialQFuncs;
@@ -995,7 +1165,8 @@ private:
   shaping::PointProjector<3, 3> m_projector33 {};
 
   shaping::VolFracSampling m_vfSampling {shaping::VolFracSampling::SAMPLE_AT_QPTS};
-  int m_quadratureOrder {5};
+  int m_quadratureType {static_cast<int>(mfem::Quadrature1D::Invalid)};
+  int m_sampleResolution[3] = {5, 5, 5};
   int m_volfracOrder {2};
   SamplingMethod m_samplingMethod {SamplingMethod::InOut};
 };
