@@ -46,7 +46,7 @@ the same material information is written as fields on the Blueprint mesh.
 .. _shaping-pipeline:
 
 Shaping Pipeline
-=================
+----------------
 
 Shaping involves creating a target mesh and data collection, reading a shape
 set, creating a shaper, and then iterating over the shapes in the set. For each

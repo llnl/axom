@@ -6,9 +6,9 @@
 
 .. _reading-mesh:
 
-*******************
-Reading in geometry
-*******************
+****************
+Reading Geometry
+****************
 
 Quest contains several readers that translate geometry files into Axom data
 structures. The most common cases are STL surface meshes, Pro/E tetrahedral
@@ -65,15 +65,15 @@ For convenience, we use typedefs in the axom namespace.
    :end-before: _read_stl_typedefs_end
    :language: C++
 
-The following example shows usage of the STLReader class:
+The following example shows how to use ``STLReader``:
 
 .. literalinclude:: ../../../../tools/mesh_tester.cpp
    :start-after: _read_stl_file_start
    :end-before: _read_stl_file_end
    :language: C++
 
-After reading the STL file, the ``STLReader::getMesh`` method gives access to the
-underlying mesh data.  The reader may then be deleted.
+After reading the STL file, ``STLReader::getMesh()`` gives access to the
+loaded mesh data.
 
 Reading a Pro/E file
 --------------------
@@ -118,11 +118,11 @@ For convenience, we specify some type aliases.
    :end-before: _read_proe_typealiases_end
    :language: C++
 
-The following example shows how to use the ProEReader class.
+The following example shows how to use ``ProEReader``.
 Calling ``reader.setTetPredFromBoundingBox(bbox, false)``, as shown in the
 code, makes a tetrahedron predicate that accepts tets with all four nodes
-falling in ``bbox`` and rejects others.  Alternately, the user can specify
-an arbitrary predicate function with ``setTetPred()``.  If the user specifies
+falling in ``bbox`` and rejects others. Alternately, the user can specify
+an arbitrary predicate function with ``setTetPred()``. If the user specifies
 no tetrahedron predicate, the reader reads all tets in the file.
 
 .. literalinclude:: ../../examples/quest_proe_bbox.cpp
@@ -130,8 +130,8 @@ no tetrahedron predicate, the reader reads all tets in the file.
    :end-before: _read_proe_file_end
    :language: C++
 
-After reading the Pro/E file, the ``ProEReader::getMesh`` method gives access
-to the underlying mesh data.  The reader may then be deleted.
+After reading the Pro/E file, ``ProEReader::getMesh()`` gives access to the
+loaded mesh data.
 
 Other Quest readers
 -------------------

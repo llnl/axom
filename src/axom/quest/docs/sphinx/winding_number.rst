@@ -11,7 +11,7 @@ Winding Numbers
 ****************
 
 Quest provides generalized winding number workflows for querying curved and
-linearized geometry on MFEM sample meshes. These workflows are useful when the
+linearized geometry on MFEM query meshes. These workflows are useful when the
 goal is not just a binary in/out test at quadrature points, but a
 winding-number field and its derived in/out classification over a
 user-defined query mesh.
@@ -26,6 +26,23 @@ At a high level, there are two paths:
   triangles and then evaluates the same winding-number quantity on that
   discretized geometry. This path is useful when the input is already discrete
   or when a linearized representation is acceptable for the query.
+
+Basic Workflow
+--------------
+
+The 2D and 3D winding-number examples follow the same basic pattern:
+
+* choose a direct curved or linearized query method
+* generate an MFEM query mesh and its associated ``winding`` and ``inout`` fields
+* preprocess the input geometry for the selected method
+* evaluate the query on the mesh
+
+The 2D example shows this structure directly:
+
+.. literalinclude:: ../../examples/quest_winding_number_2d.cpp
+   :start-after: _gwn_query_workflow_start
+   :end-before: _gwn_query_workflow_end
+   :language: C++
 
 Fast Approximate Methods
 ------------------------
