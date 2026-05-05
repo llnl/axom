@@ -36,6 +36,7 @@
 #include <iostream>
 #include <fstream>
 #include <memory>
+#include <utility>
 
 namespace klee = axom::klee;
 namespace primal = axom::primal;
@@ -63,6 +64,94 @@ const std::string proe_tet_fmt_str = R"(
 3 {} {} {}
 4 {} {} {}
 1 1 2 3 4
+)";
+
+const std::string oversized_unit_box_stl = R"(solid oversized_unit_box
+facet normal 0 0 -1
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex 1.001 1.001 -0.001
+    vertex 1.001 -0.001 -0.001
+  endloop
+endfacet
+facet normal 0 0 -1
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex -0.001 1.001 -0.001
+    vertex 1.001 1.001 -0.001
+  endloop
+endfacet
+facet normal 0 0 1
+  outer loop
+    vertex -0.001 -0.001 1.001
+    vertex 1.001 -0.001 1.001
+    vertex 1.001 1.001 1.001
+  endloop
+endfacet
+facet normal 0 0 1
+  outer loop
+    vertex -0.001 -0.001 1.001
+    vertex 1.001 1.001 1.001
+    vertex -0.001 1.001 1.001
+  endloop
+endfacet
+facet normal 0 -1 0
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex 1.001 -0.001 -0.001
+    vertex 1.001 -0.001 1.001
+  endloop
+endfacet
+facet normal 0 -1 0
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex 1.001 -0.001 1.001
+    vertex -0.001 -0.001 1.001
+  endloop
+endfacet
+facet normal 0 1 0
+  outer loop
+    vertex -0.001 1.001 -0.001
+    vertex 1.001 1.001 1.001
+    vertex 1.001 1.001 -0.001
+  endloop
+endfacet
+facet normal 0 1 0
+  outer loop
+    vertex -0.001 1.001 -0.001
+    vertex -0.001 1.001 1.001
+    vertex 1.001 1.001 1.001
+  endloop
+endfacet
+facet normal -1 0 0
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex -0.001 -0.001 1.001
+    vertex -0.001 1.001 1.001
+  endloop
+endfacet
+facet normal -1 0 0
+  outer loop
+    vertex -0.001 -0.001 -0.001
+    vertex -0.001 1.001 1.001
+    vertex -0.001 1.001 -0.001
+  endloop
+endfacet
+facet normal 1 0 0
+  outer loop
+    vertex 1.001 -0.001 -0.001
+    vertex 1.001 1.001 1.001
+    vertex 1.001 -0.001 1.001
+  endloop
+endfacet
+facet normal 1 0 0
+  outer loop
+    vertex 1.001 -0.001 -0.001
+    vertex 1.001 1.001 -0.001
+    vertex 1.001 1.001 1.001
+  endloop
+endfacet
+endsolid oversized_unit_box
 )";
 
 // Set the following to true for verbose output and for saving vis files
@@ -145,6 +234,15 @@ struct PlaneProjector23
     return Point3D {x, y, z};
   }
 };
+
+const std::pair<const char*, int> supported_quadrature_types[] = {
+  {"default", static_cast<int>(mfem::Quadrature1D::Invalid)},
+  {"gausslegendre", static_cast<int>(mfem::Quadrature1D::GaussLegendre)},
+  {"gausslobatto", static_cast<int>(mfem::Quadrature1D::GaussLobatto)},
+  {"openuniform", static_cast<int>(mfem::Quadrature1D::OpenUniform)},
+  {"closeduniform", static_cast<int>(mfem::Quadrature1D::ClosedUniform)},
+  {"openhalfuniform", static_cast<int>(mfem::Quadrature1D::OpenHalfUniform)},
+  {"closedgl", static_cast<int>(mfem::Quadrature1D::ClosedGL)}};
 
 // Utility function to slice a tetrahedron along a plane
 primal::Polygon<double, 3> slice(const primal::Tetrahedron<double, 3>& tet,
@@ -605,6 +703,34 @@ public:
     getMesh().GetBoundingBox(bbmin, bbmax);
 
     return BBox2D(Point2D(bbmin.GetData()), Point2D(bbmax.GetData()));
+  }
+};
+
+/// Test fixture for SamplingShaper tests on a single 3D MFEM hex element
+class SampleTester3D : public SamplingShaperTest
+{
+public:
+  using Point3D = primal::Point<double, 3>;
+  using BBox3D = primal::BoundingBox<double, 3>;
+
+public:
+  virtual ~SampleTester3D() { }
+
+  void SetUp() override
+  {
+    const int polynomialOrder = 1;
+    const BBox3D bbox({0, 0, 0}, {1, 1, 1});
+    const axom::NumericArray<int, 3> celldims {1, 1, 1};
+
+    auto* mesh = quest::util::make_cartesian_mfem_mesh_3D(bbox, celldims, polynomialOrder);
+
+    m_dc.SetOwnData(true);
+    m_dc.SetMeshNodesName("positions");
+    m_dc.SetMesh(mesh);
+
+#ifdef AXOM_USE_MPI
+    m_dc.SetComm(MPI_COMM_WORLD);
+#endif
   }
 };
 
@@ -2267,6 +2393,141 @@ piece = line(end=start)
   this->runShaping();
 
   this->checkExpectedVolumeFractions(rect_material, 1.0, 1e-12);
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SampleTester2D, supported_quadrature_types_generate_volume_fractions)
+{
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: {}
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+    units: cm
+)";
+
+  const std::string rectangle_contour = R"(
+point = start
+piece = line(start=(-0.001cm, -0.001cm), end=(-0.001cm, 1.001cm))
+piece = line()
+piece = line(start=(1.001cm, 1.001cm), end=(1.001cm, -0.001cm))
+piece = line(end=start)
+)";
+
+  const std::string rect_shape = "rectShape";
+  const std::string rect_material = "rectMat";
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(rectangle_contour);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                     rect_shape,
+                                     rect_material,
+                                     contour_file.getPath()));
+
+  int sampleRes[3] = {3, 5, 1};
+
+  for(const auto& quadrature : supported_quadrature_types)
+  {
+    this->validateShapeFile(shape_file.getPath());
+    this->initializeShaping(shape_file.getPath());
+
+    this->m_shaper->setSamplingResolution(sampleRes);
+    this->m_shaper->setQuadratureType(quadrature.second);
+    this->m_shaper->setVolumeFractionOrder(0);
+
+    this->runShaping();
+
+    this->checkExpectedVolumeFractions(rect_material, 1.0, 1e-12);
+
+    this->resetShaping();
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SampleTester2D, invalid_quadrature_type_values_abort)
+{
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: {}
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+)";
+
+  const std::string rect_shape = "rectShape";
+  const std::string rect_material = "rectMat";
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                     rect_shape,
+                                     rect_material,
+                                     contour_file.getPath()));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::Invalid) - 1),
+               slic::SlicAbortException);
+  EXPECT_THROW(m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedGL) + 1),
+               slic::SlicAbortException);
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SampleTester3D, anisotropic_closeduniform_projection_generates_volume_fractions)
+{
+  const std::string shape_template = R"(
+dimensions: 3
+
+shapes:
+- name: {}
+  material: {}
+  geometry:
+    format: stl
+    path: {}
+)";
+
+  const std::string box_shape = "boxShape";
+  const std::string box_material = "boxMat";
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  fs::TempFile stl_file(testname, ".stl");
+  stl_file.write(oversized_unit_box_stl);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                     box_shape,
+                                     box_material,
+                                     stl_file.getPath()));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  int sampleRes[3] = {3, 5, 2};
+  this->m_shaper->setSamplingResolution(sampleRes);
+  this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform));
+  this->m_shaper->setVolumeFractionOrder(0);
+
+  this->runShaping();
+
+  this->checkExpectedVolumeFractions(box_material, 1.0, 1e-12);
 }
 
 //-----------------------------------------------------------------------------
