@@ -5,15 +5,22 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "shaping_helpers.hpp"
+#include "GenerateQuadratureMesh.hpp"
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
+#include "axom/core/numerics/quadrature.hpp"
 #include "axom/slic.hpp"
 #include "axom/sidre.hpp"
 
 #include "axom/fmt.hpp"
 
 #include <memory>
+
+#if defined(AXOM_USE_CONDUIT)
+  #include "axom/bump/views/dispatch_coordset.hpp"
+  #include "axom/bump/views/dispatch_unstructured_topology.hpp"
+#endif
 
 #if defined(AXOM_USE_MFEM)
   #include "mfem/linalg/dtensor.hpp"
@@ -25,6 +32,71 @@ namespace quest
 {
 namespace shaping
 {
+#if defined(AXOM_USE_CONDUIT)
+namespace
+{
+
+constexpr const char* QUADRATURE_COORDSET_NAME = "quadrature_points";
+constexpr const char* QUADRATURE_TOPOLOGY_NAME = "quadrature_points";
+constexpr const char* ORIGINAL_ELEMENTS_FIELD_NAME = "originalElements";
+
+numerics::QuadratureRule getBlueprintQuadratureRule(int npts, int quadratureType, int allocatorID)
+{
+  SLIC_ERROR_IF(npts < 1, axom::fmt::format("Invalid sample resolution {}.", npts));
+
+#if defined(AXOM_USE_MFEM)
+  switch(quadratureType)
+  {
+  case mfem::Quadrature1D::Invalid:
+  case mfem::Quadrature1D::GaussLegendre:
+    return numerics::get_gauss_legendre(npts, allocatorID);
+  case mfem::Quadrature1D::OpenUniform:
+    return numerics::get_open_uniform(npts, allocatorID);
+  case mfem::Quadrature1D::ClosedUniform:
+    return numerics::get_closed_uniform(npts, allocatorID);
+  default:
+    SLIC_ERROR(axom::fmt::format(
+      "Quadrature type {} is not supported for Blueprint quadrature meshes.", quadratureType));
+    return numerics::get_gauss_legendre(npts, allocatorID);
+  }
+#else
+  AXOM_UNUSED_VAR(quadratureType);
+  return numerics::get_gauss_legendre(npts, allocatorID);
+#endif
+}
+
+template <typename ExecSpace, typename CoordsetView>
+void buildBlueprintQuadratureMesh(const conduit::Node& topoNode,
+                                  const conduit::Node& coordsetNode,
+                                  const CoordsetView& coordsetView,
+                                  int allocatorID,
+                                  const numerics::QuadratureRule& ruleX,
+                                  const numerics::QuadratureRule& ruleY,
+                                  const numerics::QuadratureRule& ruleZ,
+                                  conduit::Node& meshNode)
+{
+  using namespace axom::bump::views;
+  constexpr int SupportedShapes = encode_shapes(Quad_ShapeID, Hex_ShapeID);
+
+  dispatch_unstructured_topology<SupportedShapes>(topoNode, [&](const auto&, auto topoView) {
+    GenerateQuadratureMesh<ExecSpace, decltype(topoView), CoordsetView> generator(topoView,
+                                                                                   coordsetView);
+    generator.setAllocatorID(allocatorID);
+    generator.execute(topoNode,
+                      coordsetNode,
+                      QUADRATURE_TOPOLOGY_NAME,
+                      QUADRATURE_COORDSET_NAME,
+                      ORIGINAL_ELEMENTS_FIELD_NAME,
+                      ruleX,
+                      ruleY,
+                      ruleZ,
+                      meshNode);
+  });
+}
+
+}  // namespace
+#endif
+
 #if defined(AXOM_USE_MFEM)
 
 namespace
@@ -346,10 +418,105 @@ void generatePositionsQFunction(SamplingMFEMState& mfemState,
 }
 
 #if defined(AXOM_USE_CONDUIT)
-void generatePositionsQFunction(BlueprintState& AXOM_UNUSED_PARAM(bpState),
-                                int AXOM_UNUSED_PARAM(sampleResolution)[3],
-                                int AXOM_UNUSED_PARAM(quadratureType))
-{ }
+void generatePositionsQFunction(BlueprintState& bpState,
+                                int sampleResolution[3],
+                                int quadratureType)
+{
+  if(bpState.m_internal_node.has_path(axom::fmt::format("topologies/{}", QUADRATURE_TOPOLOGY_NAME)))
+  {
+    return;
+  }
+
+  const conduit::Node& topoNode =
+    bpState.m_internal_node.fetch_existing("topologies").fetch_existing(bpState.m_topology_name);
+  const std::string topoType = topoNode.fetch_existing("type").as_string();
+  SLIC_ERROR_IF(topoType != "unstructured",
+                axom::fmt::format("Unsupported Blueprint topology type '{}' for quadrature mesh generation.",
+                                  topoType));
+
+  const std::string shape = topoNode.fetch_existing("elements/shape").as_string();
+  SLIC_ERROR_IF(shape != "quad" && shape != "hex",
+                axom::fmt::format("Unsupported Blueprint element shape '{}' for quadrature mesh generation.",
+                                  shape));
+
+  const std::string coordsetName = topoNode.fetch_existing("coordset").as_string();
+  const conduit::Node& coordsetNode =
+    bpState.m_internal_node.fetch_existing("coordsets").fetch_existing(coordsetName);
+  const std::string coordsetType = coordsetNode.fetch_existing("type").as_string();
+  SLIC_ERROR_IF(coordsetType != "explicit",
+                axom::fmt::format("Unsupported Blueprint coordset type '{}' for quadrature mesh generation.",
+                                  coordsetType));
+
+  int allocatorID = bpState.m_allocator_id;
+  if(!axom::execution_space<seq_exec>::usesAllocId(allocatorID) &&
+     !axom::execution_space<omp_exec>::usesAllocId(allocatorID)
+#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+     && !axom::execution_space<cuda_exec>::usesAllocId(allocatorID)
+#endif
+#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+     && !axom::execution_space<hip_exec>::usesAllocId(allocatorID)
+#endif
+  )
+  {
+    allocatorID = axom::execution_space<seq_exec>::allocatorID();
+  }
+
+  auto ruleX = getBlueprintQuadratureRule(sampleResolution[0], quadratureType, allocatorID);
+  auto ruleY = getBlueprintQuadratureRule(sampleResolution[1], quadratureType, allocatorID);
+  auto ruleZ = getBlueprintQuadratureRule(sampleResolution[2], quadratureType, allocatorID);
+
+  axom::bump::views::dispatch_explicit_coordset(coordsetNode, [&](auto coordsetView) {
+#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+    if(axom::execution_space<hip_exec>::usesAllocId(allocatorID))
+    {
+      buildBlueprintQuadratureMesh<hip_exec>(topoNode,
+                                             coordsetNode,
+                                             coordsetView,
+                                             allocatorID,
+                                             ruleX,
+                                             ruleY,
+                                             ruleZ,
+                                             bpState.m_internal_node);
+      return;
+    }
+#endif
+#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+    if(axom::execution_space<cuda_exec>::usesAllocId(allocatorID))
+    {
+      buildBlueprintQuadratureMesh<cuda_exec>(topoNode,
+                                              coordsetNode,
+                                              coordsetView,
+                                              allocatorID,
+                                              ruleX,
+                                              ruleY,
+                                              ruleZ,
+                                              bpState.m_internal_node);
+      return;
+    }
+#endif
+    if(axom::execution_space<omp_exec>::usesAllocId(allocatorID))
+    {
+      buildBlueprintQuadratureMesh<omp_exec>(topoNode,
+                                             coordsetNode,
+                                             coordsetView,
+                                             allocatorID,
+                                             ruleX,
+                                             ruleY,
+                                             ruleZ,
+                                             bpState.m_internal_node);
+      return;
+    }
+
+    buildBlueprintQuadratureMesh<seq_exec>(topoNode,
+                                           coordsetNode,
+                                           coordsetView,
+                                           allocatorID,
+                                           ruleX,
+                                           ruleY,
+                                           ruleZ,
+                                           bpState.m_internal_node);
+  });
+}
 #endif
 
 void FCT_correct(const double* M,     // Mass matrix

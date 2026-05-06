@@ -193,6 +193,7 @@ struct BlueprintState
 
   //! @brief Version of the mesh for computations.
   axom::sidre::Group* m_group_ptr {nullptr};
+  int m_allocator_id {axom::getDefaultAllocatorID()};
   std::string m_topology_name;
   //! @brief Mesh in an external Node, when provided as a Node.
   conduit::Node* m_external_node_ptr {nullptr};
@@ -275,7 +276,8 @@ void generatePositionsQFunction(SamplingMFEMState& mfemState,
 
 #if defined(AXOM_USE_CONDUIT)
 /**
- * \brief Placeholder overload for future Blueprint-backed position generation.
+ * \brief Generates a derived Blueprint quadrature point mesh for the supplied
+ *        Blueprint state.
  */
 void generatePositionsQFunction(BlueprintState& bpState,
                                 int sampleResolution[3],

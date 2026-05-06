@@ -76,6 +76,7 @@ Shaper::Shaper(RuntimePolicy execPolicy,
 {
   m_bp_state = createBlueprintState();
   m_bp_state->m_group_ptr = bpGrp;
+  m_bp_state->m_allocator_id = m_allocatorId;
   m_bp_state->m_topology_name =
     topo.empty() ? bpGrp->getGroup("topologies")->getGroupName(0) : topo;
   m_bp_state->m_external_node_ptr = nullptr;
@@ -116,6 +117,7 @@ Shaper::Shaper(RuntimePolicy execPolicy,
 
   m_bp_state = createBlueprintState();
   m_bp_state->m_group_ptr = nullptr;
+  m_bp_state->m_allocator_id = m_allocatorId;
   m_bp_state->m_topology_name =
     topo.empty() ? bpNode.fetch_existing("topologies").child(0).name() : topo;
   m_bp_state->m_external_node_ptr = &bpNode;
