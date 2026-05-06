@@ -13,7 +13,7 @@ packages:
   # v2025.12
   camp:
     require:
-      - spec: "@git.a8caefa9f4c811b1a114b4ed2c9b681d40f12325=main"
+      - spec: "@git.36b724872427cbea8f4aedab31da6af21d221cf3=main"
   conduit:
     require:
       - spec: "@0.9.5"
@@ -32,10 +32,10 @@ packages:
   # v2025.12.1
   raja:
     require:
-      - spec: "@git.3b8b59a1e9be2e1066c0d77372b3bf5956e6d6e2=develop"
+      - spec: "@git.c2573cbe8b1941a0d0f335e5f5f0e43779308215=develop"
   scr:
     require:
       - spec: "@3.0.1"
   umpire:
     require:
-      - spec: "@2025.12.0"
+      - spec: "@git.f81afcab0e07c431288e950d471aa739df68f7f7=develop"

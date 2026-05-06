@@ -113,9 +113,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     variant("tools", default=True, description="Build tools")
     variant("tutorials", default=True, description="Build tutorials")
 
-    # Hard requirement after Axom 0.6.1
-    variant("cpp14", default=True, description="Build with C++14 support")
-
     variant("fortran", default=True, description="Build with Fortran support")
 
     variant("python", default=False, description="Build python support")
@@ -161,6 +158,19 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     varmsg = "Build development tools (such as Sphinx, Doxygen, etc...)"
     variant("devtools", default=False, description=varmsg)
+
+    variant(
+        "cxxstd",
+        default="20",
+        values=("11", "14", "17", "20"),
+        description="C++ standard to build with",
+    )
+    # C++14 required as of 0.7.0
+    conflicts("cxxstd=11", when="@0.7.0:")
+    # C++17 required as of 0.12.0
+    conflicts("cxxstd=14", when="@0.12.0:")
+    # C++17 required as of unreleased 0.15.0 (Should be 0.15.0)
+    conflicts("cxxstd=17", when="@0.14.0:")
 
     # -----------------------------------------------------------------------
     # Dependencies
@@ -330,8 +340,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     # -----------------------------------------------------------------------
     # Conflicts
     # -----------------------------------------------------------------------
-    # Hard requirement after Axom 0.6.1
-    conflicts("~cpp14", when="@0.6.2:")
 
     # Conduit's cmake config files moved and < 0.4.0 can't find it
     conflicts("^conduit@0.7.2:", when="@:0.4.0")
@@ -347,6 +355,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     conflicts("~umpire", when="+rocm")
 
     conflicts("^blt@:0.3.6", when="+rocm")
+
+    # python interface requires mpi
+    conflicts("~mpi", when="+python")
 
     def flag_handler(self, name, flags):
         if self.spec.satisfies("%cce") and name == "fflags":
@@ -389,6 +400,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             special_case,
         )
 
+    @property
+    def cxx_std(self):
+        return self.spec.variants.get("cxxstd").value
+
     def initconfig_compiler_entries(self):
         spec = self.spec
         entries = super().initconfig_compiler_entries()
@@ -409,9 +424,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                     entries.append(cmake_cache_string("BLT_EXE_LINKER_FLAGS", flags, description))
         else:
             entries.append(cmake_cache_option("ENABLE_FORTRAN", False))
-
-        if spec.satisfies("+cpp14") and spec.satisfies("@:0.6.1"):
-            entries.append(cmake_cache_string("BLT_CXX_STD", "c++14", ""))
 
         # Add optimization flag workaround for builds with cray compiler
         if spec.satisfies("%cce"):
@@ -450,10 +462,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
             if spec.satisfies("^blt@:0.5.1"):
                 # This is handled internally by BLT now
-                if spec.satisfies("+cpp14"):
-                    cudaflags += " -std=c++14"
-                else:
-                    cudaflags += " -std=c++11"
+                cudaflags += " -std=c++14"
             entries.append(cmake_cache_string("CMAKE_CUDA_FLAGS", cudaflags, force=True))
 
             entries.append("# nvcc does not like gtest's 'pthreads' flag\n")
