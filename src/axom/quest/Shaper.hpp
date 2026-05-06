@@ -26,6 +26,7 @@
 #include "axom/klee.hpp"
 #include "axom/mint.hpp"
 #include "axom/quest/DiscreteShape.hpp"
+#include "axom/quest/detail/shaping/shaping_helpers.hpp"
 #include "axom/core/execution/runtime_policy.hpp"
 
 #if defined(AXOM_USE_MFEM)
@@ -50,25 +51,6 @@ class Shaper
 {
 public:
   using RuntimePolicy = axom::runtime_policy::Policy;
-#if defined(AXOM_USE_MFEM)
-  struct MFEMState
-  {
-    // For mesh represented as MFEMSidreDataCollection
-    sidre::MFEMSidreDataCollection* m_dc {nullptr};
-  };
-#endif
-#if defined(AXOM_USE_CONDUIT)
-  struct BlueprintState
-  {
-    //! @brief Version of the mesh for computations.
-    axom::sidre::Group* m_bpGrp {nullptr};
-    std::string m_bpTopo;
-    //! @brief Mesh in an external Node, when provided as a Node.
-    conduit::Node* m_bpNodeExt {nullptr};
-    //! @brief Initial copy of mesh in an internal Node storage.
-    conduit::Node m_bpNodeInt;
-  };
-#endif
 
 #if defined(AXOM_USE_MFEM)
   /// @brief Construct Shaper to operate on an MFEM mesh.
@@ -144,8 +126,14 @@ public:
   bool isVerbose() const { return m_verboseOutput; }
 
 #ifdef AXOM_USE_MFEM
-  sidre::MFEMSidreDataCollection* getDC() { return m_mfem_state->m_dc; }
-  const sidre::MFEMSidreDataCollection* getDC() const { return m_mfem_state->m_dc; }
+  sidre::MFEMSidreDataCollection* getDC()
+  {
+    return m_mfem_state != nullptr ? m_mfem_state->m_dc : nullptr;
+  }
+  const sidre::MFEMSidreDataCollection* getDC() const
+  {
+    return m_mfem_state != nullptr ? m_mfem_state->m_dc : nullptr;
+  }
 #endif
 
   /*!
@@ -253,15 +241,15 @@ protected:
   int getRank() const;
 
 #if defined(AXOM_USE_MFEM)
-  virtual std::unique_ptr<MFEMState> createMFEMState()
+  virtual std::unique_ptr<shaping::MFEMState> createMFEMState()
   {
-    return std::make_unique<MFEMState>();
+    return std::make_unique<shaping::MFEMState>();
   }
 #endif
 #if defined(AXOM_USE_CONDUIT)
-  virtual std::unique_ptr<BlueprintState> createBlueprintState()
+  virtual std::unique_ptr<shaping::BlueprintState> createBlueprintState()
   {
-    return std::make_unique<BlueprintState>();
+    return std::make_unique<shaping::BlueprintState>();
   }
 #endif
 
@@ -278,13 +266,13 @@ protected:
   std::string m_prefixPath;
 
 #if defined(AXOM_USE_MFEM)
-  std::unique_ptr<MFEMState> m_mfem_state;
+  std::unique_ptr<shaping::MFEMState> m_mfem_state;
 #endif
 #if defined(AXOM_USE_CONDUIT)
-  std::unique_ptr<BlueprintState> m_bp_state;
+  std::unique_ptr<shaping::BlueprintState> m_bp_state;
 #endif
 
-  //! @brief Number of cells in computational mesh (m_dc or m_bpGrp).
+  //! @brief Number of cells in the computational mesh.
   axom::IndexType m_cellCount;
 
   std::shared_ptr<mint::Mesh> m_surfaceMesh;

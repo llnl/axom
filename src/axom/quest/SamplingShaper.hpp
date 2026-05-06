@@ -44,7 +44,6 @@ namespace axom
 {
 namespace quest
 {
-
 /// \brief Concrete class for sample based shaping
 class SamplingShaper : public Shaper
 {
@@ -135,22 +134,11 @@ public:
                  const klee::ShapeSet& shapeSet,
                  sidre::MFEMSidreDataCollection* dc)
     : Shaper(execPolicy, allocatorId, shapeSet, dc)
-  { }
-
-  ~SamplingShaper()
   {
-    m_inoutShapeQFuncs.DeleteData(true);
-    m_inoutShapeQFuncs.clear();
-
-    m_inoutMaterialQFuncs.DeleteData(true);
-    m_inoutMaterialQFuncs.clear();
-
-    m_inoutTensors.DeleteData(true);
-    m_inoutTensors.clear();
-
-    m_inoutArrays.DeleteData(true);
-    m_inoutArrays.clear();
+    initializeSamplingMFEMState();
   }
+
+  ~SamplingShaper() override = default;
 
   ///@{
   //!  @name Functions to get and set shaping parameters related to sampling; supplements parameters in base class
@@ -250,15 +238,71 @@ public:
   /// Returns a pointer to the quadrature function associated with shape \a name if it exists, else nullptr
   mfem::QuadratureFunction* getShapeQFunction(const std::string& name) const
   {
-    return m_inoutShapeQFuncs.Get(name);
+    return shapeQFuncs().Get(name);
   }
   /// Returns a pointer to the quadrature function associated with material \a name if it exists, else nullptr
   mfem::QuadratureFunction* getMaterialQFunction(const std::string& name) const
   {
-    return m_inoutMaterialQFuncs.Get(name);
+    return materialQFuncs().Get(name);
   }
 
 private:
+  std::unique_ptr<shaping::MFEMState> createMFEMState() override
+  {
+    return std::make_unique<shaping::SamplingMFEMState>();
+  }
+
+  void initializeSamplingMFEMState()
+  {
+    // Shaper constructs its MFEM state in the base constructor, so upgrade it
+    // here rather than relying on virtual dispatch during base construction.
+    auto samplingState = std::make_unique<shaping::SamplingMFEMState>();
+    if(m_mfem_state != nullptr)
+    {
+      samplingState->m_dc = m_mfem_state->m_dc;
+    }
+    m_mfem_state = std::move(samplingState);
+  }
+
+  shaping::SamplingMFEMState& samplingMFEMState()
+  {
+    SLIC_ASSERT(m_mfem_state != nullptr);
+    return static_cast<shaping::SamplingMFEMState&>(*m_mfem_state);
+  }
+
+  const shaping::SamplingMFEMState& samplingMFEMState() const
+  {
+    SLIC_ASSERT(m_mfem_state != nullptr);
+    return static_cast<const shaping::SamplingMFEMState&>(*m_mfem_state);
+  }
+
+  shaping::QFunctionCollection& shapeQFuncs() { return samplingMFEMState().m_inoutShapeQFuncs; }
+  const shaping::QFunctionCollection& shapeQFuncs() const
+  {
+    return samplingMFEMState().m_inoutShapeQFuncs;
+  }
+
+  shaping::QFunctionCollection& materialQFuncs()
+  {
+    return samplingMFEMState().m_inoutMaterialQFuncs;
+  }
+  const shaping::QFunctionCollection& materialQFuncs() const
+  {
+    return samplingMFEMState().m_inoutMaterialQFuncs;
+  }
+
+  shaping::DenseTensorCollection& tensors() { return samplingMFEMState().m_inoutTensors; }
+  const shaping::DenseTensorCollection& tensors() const
+  {
+    return samplingMFEMState().m_inoutTensors;
+  }
+
+  shaping::MFEMArrayCollection& arrays() { return samplingMFEMState().m_inoutArrays; }
+  const shaping::MFEMArrayCollection& arrays() const
+  {
+    return samplingMFEMState().m_inoutArrays;
+  }
+
   bool hasValidSampler() const { return !std::holds_alternative<std::monostate>(m_sampler); }
 
   klee::Dimensions getShapeDimension() const
@@ -485,7 +529,7 @@ public:
     if(shape.getGeometry().hasGeometry())
     {
       // Get inout qfunc for this shape
-      shapeQFunc = m_inoutShapeQFuncs.Get(axom::fmt::format("inout_{}", shapeName));
+      shapeQFunc = shapeQFuncs().Get(axom::fmt::format("inout_{}", shapeName));
 
       SLIC_ERROR_IF(shapeQFunc == nullptr,
                     axom::fmt::format("Missing inout samples for shape '{}'. "
@@ -496,7 +540,7 @@ public:
     else
     {
       // No input geometry for the shape, get inout qfunc for associated material
-      shapeQFunc = m_inoutMaterialQFuncs.Get(axom::fmt::format("mat_inout_{}", thisMatName));
+      shapeQFunc = materialQFuncs().Get(axom::fmt::format("mat_inout_{}", thisMatName));
 
       SLIC_ERROR_IF(shapeQFunc == nullptr,
                     axom::fmt::format("Missing inout samples for material '{}' while applying "
@@ -531,7 +575,7 @@ public:
                           shouldReplace ? "yes" : "no"));
 
       auto* otherMatQFunc =
-        m_inoutMaterialQFuncs.Get(axom::fmt::format("mat_inout_{}", otherMatName));
+        materialQFuncs().Get(axom::fmt::format("mat_inout_{}", otherMatName));
       SLIC_ERROR_IF(otherMatQFunc == nullptr,
                     axom::fmt::format("Missing inout samples for material '{}' while applying "
                                       "replacement rules for shape '{}'.",
@@ -543,15 +587,15 @@ public:
 
     // Get inout qfunc for the current material
     const std::string materialQFuncName = axom::fmt::format("mat_inout_{}", thisMatName);
-    if(!m_inoutMaterialQFuncs.Has(materialQFuncName))
+    if(!materialQFuncs().Has(materialQFuncName))
     {
       // initialize material from shape inout, the QFunc registry takes ownership
-      m_inoutMaterialQFuncs.Register(materialQFuncName, shapeQFuncCopy, true);
+      materialQFuncs().Register(materialQFuncName, shapeQFuncCopy, true);
     }
     else
     {
       // copy shape data into current material and delete the copy
-      auto* matQFunc = m_inoutMaterialQFuncs.Get(materialQFuncName);
+      auto* matQFunc = materialQFuncs().Get(materialQFuncName);
       SLIC_ERROR_IF(matQFunc == nullptr,
                     axom::fmt::format("Missing inout samples for material '{}' while updating "
                                       "the material field for shape '{}'.",
@@ -600,17 +644,10 @@ public:
     internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
                                                                       : slic::message::Warning);
 
-    auto* mesh = m_dc->GetMesh();
-
-    // ensure we have a starting quadrature field for the positions
-    if(!m_inoutShapeQFuncs.Has("positions"))
-    {
-      shaping::generatePositionsQFunction(mesh,
-                                          m_inoutShapeQFuncs,
-                                          m_sampleResolution,
-                                          m_quadratureType);
-    }
-    auto* positionsQSpace = m_inoutShapeQFuncs.Get("positions")->GetSpace();
+    auto& mfemState = samplingMFEMState();
+    auto* mesh = mfemState.m_dc->GetMesh();
+    ensurePositionsQFunction(mfemState);
+    auto* positionsQSpace = mfemState.m_inoutShapeQFuncs.Get("positions")->GetSpace();
 
     // Interpolate grid functions at quadrature points & register material quad functions
     // assume all elements have same integration rule
@@ -657,7 +694,7 @@ public:
       }
 
       const auto matName = axom::fmt::format("mat_inout_{}", name);
-      m_inoutMaterialQFuncs.Register(matName, matQFunc, true);
+      materialQFuncs().Register(matName, matQFunc, true);
     }
   }
 
@@ -668,7 +705,7 @@ public:
     internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
                                                                       : slic::message::Warning);
 
-    for(auto& mat : m_inoutMaterialQFuncs)
+    for(auto& mat : materialQFuncs())
     {
       const std::string matName = mat.first;
       SLIC_INFO_ROOT(
@@ -709,8 +746,8 @@ public:
                          "\n\t* Data collection qfuncs: {}"
                          "\n\t* Known materials: {}",
                          initialMessage,
-                         axom::fmt::join(extractKeys(m_dc->GetFieldMap()), ", "),
-                         axom::fmt::join(extractKeys(m_dc->GetQFieldMap()), ", "),
+                         axom::fmt::join(extractKeys(getDC()->GetFieldMap()), ", "),
+                         axom::fmt::join(extractKeys(getDC()->GetQFieldMap()), ", "),
                          axom::fmt::join(m_knownMaterials, ", "));
 
     if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
@@ -718,25 +755,60 @@ public:
       axom::fmt::format_to(std::back_inserter(out),
                            "\n\t* Shape qfuncs: {}"
                            "\n\t* Mat qfuncs: {}",
-                           axom::fmt::join(extractKeys(m_inoutShapeQFuncs), ", "),
-                           axom::fmt::join(extractKeys(m_inoutMaterialQFuncs), ", "));
+                           axom::fmt::join(extractKeys(shapeQFuncs()), ", "),
+                           axom::fmt::join(extractKeys(materialQFuncs()), ", "));
     }
     else if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_DOFS)
     {
       axom::fmt::format_to(std::back_inserter(out),
                            "\n\t* Shaping tensors: {}",
-                           axom::fmt::join(extractKeys(m_inoutTensors), ", "));
+                           axom::fmt::join(extractKeys(tensors()), ", "));
     }
     SLIC_INFO_ROOT(axom::fmt::to_string(out));
   }
 
 private:
+  void ensurePositionsQFunction(shaping::SamplingMFEMState& mfemState)
+  {
+    if(!mfemState.m_inoutShapeQFuncs.Has("positions"))
+    {
+      shaping::generatePositionsQFunction(mfemState, m_sampleResolution, m_quadratureType);
+    }
+  }
+
+#if defined(AXOM_USE_CONDUIT)
+  void ensurePositionsQFunction(shaping::BlueprintState& bpState)
+  {
+    shaping::generatePositionsQFunction(bpState, m_sampleResolution, m_quadratureType);
+  }
+#endif
+
+  static int meshDimension(const shaping::SamplingMFEMState& mfemState)
+  {
+    return mfemState.m_dc->GetMesh()->Dimension();
+  }
+
+#if defined(AXOM_USE_CONDUIT)
+  static int meshDimension(const shaping::BlueprintState& bpState)
+  {
+    const conduit::Node& topoNode =
+      bpState.m_internal_node.fetch_existing("topologies").fetch_existing(bpState.m_topology_name);
+    const std::string coordsetName = topoNode.fetch_existing("coordset").as_string();
+    return bpState.m_internal_node["coordsets"][coordsetName]["values"].number_of_children();
+  }
+#endif
+
   // Handles 2D or 3D shaping for compatible samplers, based on the template and associated parameter
-  template <typename SamplerType>
-  void runShapeQueryImplSampler(SamplerType* sampler)
+  template <typename MeshState, typename SamplerType>
+  void runShapeQueryImplSampler(SamplerType* sampler, MeshState& meshState)
   {
     // Sample the InOut field at the mesh quadrature points
-    const int meshDim = m_dc->GetMesh()->Dimension();
+    if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
+    {
+      ensurePositionsQFunction(meshState);
+    }
+
+    const int meshDim = meshDimension(meshState);
     switch(m_vfSampling)
     {
     case shaping::VolFracSampling::SAMPLE_AT_QPTS:
@@ -745,16 +817,14 @@ private:
       case 2:
         if(meshDim == 2)
         {
-          sampler->template sampleInOutField<2, 2>(m_dc,
-                                                   m_inoutShapeQFuncs,
+          sampler->template sampleInOutField<2, 2>(meshState,
                                                    m_sampleResolution,
                                                    m_quadratureType,
                                                    m_projector22);
         }
         else if(meshDim == 3)
         {
-          sampler->template sampleInOutField<3, 2>(m_dc,
-                                                   m_inoutShapeQFuncs,
+          sampler->template sampleInOutField<3, 2>(meshState,
                                                    m_sampleResolution,
                                                    m_quadratureType,
                                                    m_projector32);
@@ -763,16 +833,14 @@ private:
       case 3:
         if(meshDim == 2)
         {
-          sampler->template sampleInOutField<2, 3>(m_dc,
-                                                   m_inoutShapeQFuncs,
+          sampler->template sampleInOutField<2, 3>(meshState,
                                                    m_sampleResolution,
                                                    m_quadratureType,
                                                    m_projector23);
         }
         else if(meshDim == 3)
         {
-          sampler->template sampleInOutField<3, 3>(m_dc,
-                                                   m_inoutShapeQFuncs,
+          sampler->template sampleInOutField<3, 3>(meshState,
                                                    m_sampleResolution,
                                                    m_quadratureType,
                                                    m_projector33);
@@ -786,21 +854,29 @@ private:
       case 2:
         if(meshDim == 2)
         {
-          sampler->template computeVolumeFractionsBaseline<2, 2>(m_dc, m_volfracOrder, m_projector22);
+          sampler->template computeVolumeFractionsBaseline<2, 2>(meshState,
+                                                                 m_volfracOrder,
+                                                                 m_projector22);
         }
         else if(meshDim == 3)
         {
-          sampler->template computeVolumeFractionsBaseline<3, 2>(m_dc, m_volfracOrder, m_projector32);
+          sampler->template computeVolumeFractionsBaseline<3, 2>(meshState,
+                                                                 m_volfracOrder,
+                                                                 m_projector32);
         }
         break;
       case 3:
         if(meshDim == 2)
         {
-          sampler->template computeVolumeFractionsBaseline<2, 3>(m_dc, m_volfracOrder, m_projector23);
+          sampler->template computeVolumeFractionsBaseline<2, 3>(meshState,
+                                                                 m_volfracOrder,
+                                                                 m_projector23);
         }
         else if(meshDim == 3)
         {
-          sampler->template computeVolumeFractionsBaseline<3, 3>(m_dc, m_volfracOrder, m_projector33);
+          sampler->template computeVolumeFractionsBaseline<3, 3>(meshState,
+                                                                 m_volfracOrder,
+                                                                 m_projector33);
         }
         break;
       }
@@ -812,22 +888,55 @@ private:
   template <int DIM>
   void runShapeQueryImpl(shaping::InOutSampler<DIM>* sampler)
   {
-    runShapeQueryImplSampler(sampler);
+#if defined(AXOM_USE_MFEM)
+    if(m_mfem_state != nullptr)
+    {
+      runShapeQueryImplSampler(sampler, samplingMFEMState());
+      return;
+    }
+#endif
+#if defined(AXOM_USE_CONDUIT)
+    if(m_bp_state != nullptr)
+    {
+      runShapeQueryImplSampler(sampler, *m_bp_state);
+      return;
+    }
+#endif
+    SLIC_ERROR("No mesh state is available for SamplingShaper.");
   }
 
   // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
   template <int DIM>
   void runShapeQueryImpl(shaping::WindingNumberSampler<DIM>* sampler)
   {
-    runShapeQueryImplSampler(sampler);
+ #if defined(AXOM_USE_MFEM)
+    if(m_mfem_state != nullptr)
+    {
+      runShapeQueryImplSampler(sampler, samplingMFEMState());
+      return;
+    }
+#endif
+#if defined(AXOM_USE_CONDUIT)
+    if(m_bp_state != nullptr)
+    {
+      runShapeQueryImplSampler(sampler, *m_bp_state);
+      return;
+    }
+#endif
+    SLIC_ERROR("No mesh state is available for SamplingShaper.");
   }
 
   // Handles 2D or 3D shaping for PrimitiveSampler, based on the template and associated parameter
   template <int DIM, typename ExecSpace>
   void runShapeQueryImpl(shaping::PrimitiveSampler<DIM, ExecSpace>* sampler)
   {
-    // Sample the InOut field at the mesh quadrature points
-    const int meshDim = m_dc->GetMesh()->Dimension();
+    auto runImpl = [this, sampler](auto& meshState) {
+      const int meshDim = meshDimension(meshState);
+      if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
+      {
+        ensurePositionsQFunction(meshState);
+      }
+
     switch(m_vfSampling)
     {
     case shaping::VolFracSampling::SAMPLE_AT_QPTS:
@@ -839,16 +948,14 @@ private:
       case 3:
         if(meshDim == 2)
         {
-          sampler->template sampleInOutField<2, 3>(m_dc,
-                                                   m_inoutShapeQFuncs,
+          sampler->template sampleInOutField<2, 3>(meshState,
                                                    m_sampleResolution,
                                                    m_quadratureType,
                                                    m_projector23);
         }
         else if(meshDim == 3)
         {
-          sampler->template sampleInOutField<3, 3>(m_dc,
-                                                   m_inoutShapeQFuncs,
+          sampler->template sampleInOutField<3, 3>(meshState,
                                                    m_sampleResolution,
                                                    m_quadratureType,
                                                    m_projector33);
@@ -860,6 +967,23 @@ private:
       SLIC_ERROR("Not implemented yet!");
       break;
     }
+    };
+
+#if defined(AXOM_USE_MFEM)
+    if(m_mfem_state != nullptr)
+    {
+      runImpl(samplingMFEMState());
+      return;
+    }
+#endif
+#if defined(AXOM_USE_CONDUIT)
+    if(m_bp_state != nullptr)
+    {
+      runImpl(*m_bp_state);
+      return;
+    }
+#endif
+    SLIC_ERROR("No mesh state is available for SamplingShaper.");
   }
 
   /**
@@ -875,7 +999,7 @@ private:
 
     // Retrieve the inout samples QFunc
     SLIC_ASSERT(axom::utilities::string::startsWith(matField, "mat_inout_"));
-    mfem::QuadratureFunction* inout = m_inoutMaterialQFuncs.Get(matField);
+    mfem::QuadratureFunction* inout = materialQFuncs().Get(matField);
 
     const auto& sampleIR = inout->GetSpace()->GetIntRule(0);  // assume all elements are the same
     const int sampleOrder = sampleIR.GetOrder();
@@ -883,7 +1007,7 @@ private:
     const int sampleSZ = inout->GetSpace()->GetSize();
 
     // extract some properties from computational mesh
-    mfem::Mesh* mesh = m_dc->GetMesh();
+    mfem::Mesh* mesh = getDC()->GetMesh();
     const int dim = mesh->Dimension();
     const int NE = mesh->GetNE();
     const auto geom = mesh->GetTypicalElementGeometry();
@@ -915,7 +1039,7 @@ private:
 
     // Access or create a registered volume fraction grid function from the data collection
     const auto vf_name = axom::fmt::format("vol_frac_{}", matField.substr(10));
-    mfem::GridFunction* vf = shaping::getOrAllocateL2GridFunction(m_dc,
+    mfem::GridFunction* vf = shaping::getOrAllocateL2GridFunction(getDC(),
                                                                   vf_name,
                                                                   m_volfracOrder,
                                                                   dim,
@@ -926,9 +1050,9 @@ private:
     // access or compute the mass matrix
     mfem::DenseTensor* mass_mat {nullptr};
     const std::string mass_matrix_name = "shaping_mass_matrix";
-    if(this->m_inoutTensors.Has(mass_matrix_name))
+    if(this->tensors().Has(mass_matrix_name))
     {
-      mass_mat = m_inoutTensors.Get(mass_matrix_name);
+      mass_mat = tensors().Get(mass_matrix_name);
     }
     else
     {
@@ -973,7 +1097,7 @@ private:
         mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
       }
 
-      m_inoutTensors.Register(mass_matrix_name, mass_mat, true);
+      tensors().Register(mass_matrix_name, mass_mat, true);
     }
     SLIC_ASSERT(mass_mat->SizeI() == dofs);
     SLIC_ASSERT(mass_mat->SizeJ() == dofs);
@@ -984,10 +1108,10 @@ private:
     mfem::Array<int>* mass_mat_pivots {nullptr};
     const std::string minv_name = "shaping_mass_matrix_inv";
     const std::string pivots_name = "shaping_mass_matrix_pivots";
-    if(this->m_inoutTensors.Has(minv_name) && this->m_inoutArrays.Has(pivots_name))
+    if(this->tensors().Has(minv_name) && this->arrays().Has(pivots_name))
     {
-      mass_mat_inv = this->m_inoutTensors.Get(minv_name);
-      mass_mat_pivots = this->m_inoutArrays.Get(pivots_name);
+      mass_mat_inv = this->tensors().Get(minv_name);
+      mass_mat_pivots = this->arrays().Get(pivots_name);
     }
     else
     {
@@ -1002,8 +1126,8 @@ private:
       mass_mat_pivots->Write();
       mfem::BatchLUFactor(*mass_mat_inv, *mass_mat_pivots);
 
-      m_inoutTensors.Register(minv_name, mass_mat_inv, true);
-      m_inoutArrays.Register(pivots_name, mass_mat_pivots, true);
+      tensors().Register(minv_name, mass_mat_inv, true);
+      arrays().Register(pivots_name, mass_mat_pivots, true);
     }
     SLIC_ASSERT(mass_mat_inv->SizeJ() == dofs);
     SLIC_ASSERT(mass_mat_inv->SizeI() == dofs);
@@ -1012,9 +1136,9 @@ private:
 
     mfem::DenseTensor* shaping_scratch_buffer {nullptr};
     const std::string scratch_buffer_name = "shaping_scratch_buffer";
-    if(this->m_inoutTensors.Has(scratch_buffer_name))
+    if(this->tensors().Has(scratch_buffer_name))
     {
-      shaping_scratch_buffer = this->m_inoutTensors.Get(scratch_buffer_name);
+      shaping_scratch_buffer = this->tensors().Get(scratch_buffer_name);
     }
     else
     {
@@ -1024,7 +1148,7 @@ private:
       shaping_scratch_buffer->HostWrite();
       (*shaping_scratch_buffer) = 0.;
 
-      m_inoutTensors.Register(scratch_buffer_name, shaping_scratch_buffer, true);
+      tensors().Register(scratch_buffer_name, shaping_scratch_buffer, true);
     }
     SLIC_ASSERT(shaping_scratch_buffer->SizeJ() == dofs);
     SLIC_ASSERT(shaping_scratch_buffer->SizeI() == dofs);
@@ -1148,11 +1272,6 @@ private:
   }
 
 private:
-  shaping::QFunctionCollection m_inoutShapeQFuncs;
-  shaping::QFunctionCollection m_inoutMaterialQFuncs;
-  shaping::DenseTensorCollection m_inoutTensors;
-  shaping::MFEMArrayCollection m_inoutArrays;
-
   // Holds an instance of the 2D or 3D sampler; only one can be active at a time
   SamplerVariant m_sampler;
   axom::Array<axom::primal::CurvedPolygon<axom::primal::NURBSCurve<double, 2>>> m_contours;

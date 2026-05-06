@@ -114,8 +114,7 @@ public:
    * \note \a ToDim must be equal to \a DIM, the dimension of the spatial index
    */
   template <int FromDim, int ToDim = DIM>
-  std::enable_if_t<ToDim == DIM, void> sampleInOutField(mfem::DataCollection* dc,
-                                                        shaping::QFunctionCollection& inoutQFuncs,
+  std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::SamplingMFEMState& mfemState,
                                                         int sampleRes[3],
                                                         int quadratureType,
                                                         PointProjector<FromDim, ToDim> projector = {})
@@ -125,8 +124,7 @@ public:
     const InOutOctreeType* octree = m_octree;
     auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
     shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
-                                              dc,
-                                              inoutQFuncs,
+                                              mfemState,
                                               sampleRes,
                                               quadratureType,
                                               checkInside,
@@ -138,8 +136,7 @@ public:
    * defined to support various callback specializations for the \a PointProjector.
    */
   template <int FromDim, int ToDim>
-  std::enable_if_t<ToDim != DIM, void> sampleInOutField(mfem::DataCollection*,
-                                                        shaping::QFunctionCollection&,
+  std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::SamplingMFEMState&,
                                                         int AXOM_UNUSED_PARAM(sampleRes)[3],
                                                         int AXOM_UNUSED_PARAM(quadratureType),
                                                         PointProjector<FromDim, ToDim>)
@@ -155,7 +152,7 @@ public:
    */
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(
-    mfem::DataCollection* dc,
+    shaping::SamplingMFEMState& mfemState,
     int outputOrder,
     PointProjector<FromDim, ToDim> projector = {})
   {
@@ -163,7 +160,7 @@ public:
     const InOutOctreeType* octree = m_octree;
     auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
     shaping::computeVolumeFractionsBaseline<FromDim, ToDim>(m_shapeName,
-                                                            dc,
+                                                            mfemState,
                                                             outputOrder,
                                                             checkInside,
                                                             projector);
@@ -175,7 +172,7 @@ public:
    */
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(
-    mfem::DataCollection* AXOM_UNUSED_PARAM(dc),
+    shaping::SamplingMFEMState& AXOM_UNUSED_PARAM(mfemState),
     int AXOM_UNUSED_PARAM(outputOrder),
     PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {
@@ -183,6 +180,21 @@ public:
                   "Do not call this function -- it only exists to appease the compiler!"
                   "Projector's return dimension (ToDim), must match class dimension (DIM)");
   }
+
+#if defined(AXOM_USE_CONDUIT)
+  template <int FromDim, int ToDim = DIM>
+  void sampleInOutField(shaping::BlueprintState& AXOM_UNUSED_PARAM(bpState),
+                        int AXOM_UNUSED_PARAM(sampleRes)[3],
+                        int AXOM_UNUSED_PARAM(quadratureType),
+                        PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector) = {})
+  { }
+
+  template <int FromDim, int ToDim = DIM>
+  void computeVolumeFractionsBaseline(shaping::BlueprintState& AXOM_UNUSED_PARAM(bpState),
+                                      int AXOM_UNUSED_PARAM(outputOrder),
+                                      PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector) = {})
+  { }
+#endif
 
 private:
   DISABLE_COPY_AND_ASSIGNMENT(InOutSampler);

@@ -335,6 +335,23 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
   inoutQFuncs.Register("positions", pos_coef, true);
 }
 
+void generatePositionsQFunction(SamplingMFEMState& mfemState,
+                                int sampleResolution[3],
+                                int quadratureType)
+{
+  generatePositionsQFunction(mfemState.m_dc->GetMesh(),
+                             mfemState.m_inoutShapeQFuncs,
+                             sampleResolution,
+                             quadratureType);
+}
+
+#if defined(AXOM_USE_CONDUIT)
+void generatePositionsQFunction(BlueprintState& AXOM_UNUSED_PARAM(bpState),
+                                int AXOM_UNUSED_PARAM(sampleResolution)[3],
+                                int AXOM_UNUSED_PARAM(quadratureType))
+{ }
+#endif
+
 void FCT_correct(const double* M,     // Mass matrix
                  const int s,         // num dofs
                  const double* m,     // rhs (incorporating the inout samples)

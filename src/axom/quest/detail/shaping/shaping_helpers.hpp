@@ -16,10 +16,14 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/primal.hpp"
+#include "axom/sidre.hpp"
 
 #if defined(AXOM_USE_MFEM)
   #include "mfem.hpp"
   #include "mfem/linalg/dtensor.hpp"
+#endif
+#if defined(AXOM_USE_CONDUIT)
+  #include "conduit_node.hpp"
 #endif
 
 namespace axom
@@ -150,6 +154,55 @@ using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
 using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
 using MFEMArrayCollection = mfem::NamedFieldsMap<mfem::Array<int>>;
 
+struct MFEMState
+{
+  virtual ~MFEMState() = default;
+
+  // For mesh represented as MFEMSidreDataCollection
+  sidre::MFEMSidreDataCollection* m_dc {nullptr};
+};
+
+struct SamplingMFEMState : public MFEMState
+{
+  ~SamplingMFEMState() override
+  {
+    m_inoutShapeQFuncs.DeleteData(true);
+    m_inoutShapeQFuncs.clear();
+
+    m_inoutMaterialQFuncs.DeleteData(true);
+    m_inoutMaterialQFuncs.clear();
+
+    m_inoutTensors.DeleteData(true);
+    m_inoutTensors.clear();
+
+    m_inoutArrays.DeleteData(true);
+    m_inoutArrays.clear();
+  }
+
+  QFunctionCollection m_inoutShapeQFuncs;
+  QFunctionCollection m_inoutMaterialQFuncs;
+  DenseTensorCollection m_inoutTensors;
+  MFEMArrayCollection m_inoutArrays;
+};
+#endif
+
+#if defined(AXOM_USE_CONDUIT)
+struct BlueprintState
+{
+  virtual ~BlueprintState() = default;
+
+  //! @brief Version of the mesh for computations.
+  axom::sidre::Group* m_group_ptr {nullptr};
+  std::string m_topology_name;
+  //! @brief Mesh in an external Node, when provided as a Node.
+  conduit::Node* m_external_node_ptr {nullptr};
+  //! @brief Internal Node representation used for blueprint operations.
+  conduit::Node m_internal_node;
+};
+#endif
+
+#if defined(AXOM_USE_MFEM)
+
 enum class VolFracSampling : int
 {
   SAMPLE_AT_DOFS,
@@ -213,6 +266,22 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
                                 int sampleResolution[3],
                                 int quadratureType);
 
+/**
+ * \brief Generates a "position" quadrature function for the supplied MFEM state.
+ */
+void generatePositionsQFunction(SamplingMFEMState& mfemState,
+                                int sampleResolution[3],
+                                int quadratureType);
+
+#if defined(AXOM_USE_CONDUIT)
+/**
+ * \brief Placeholder overload for future Blueprint-backed position generation.
+ */
+void generatePositionsQFunction(BlueprintState& bpState,
+                                int sampleResolution[3],
+                                int quadratureType);
+#endif
+
 /** 
  * Implements flux-corrected transport (FCT) to correct the solution obtained
  * when converting from inout samples (ones and zeros) to a grid function 
@@ -268,10 +337,9 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
   */
 template <int FromDim, int ToDim, typename InsideFunc>
 void sampleInOutField(const std::string shapeName,
-                      mfem::DataCollection* dc,
-                      shaping::QFunctionCollection& inoutQFuncs,
-                      int sampleRes[3],
-                      int quadratureType,
+                      shaping::SamplingMFEMState& mfemState,
+                      int AXOM_UNUSED_PARAM(sampleRes)[3],
+                      int AXOM_UNUSED_PARAM(quadratureType),
                       InsideFunc&& checkInside,
                       PointProjector<FromDim, ToDim> projector = {})
 {
@@ -282,16 +350,13 @@ void sampleInOutField(const std::string shapeName,
   SLIC_ERROR_IF(FromDim != ToDim && !projector,
                 "A projector callback function is required when FromDim != ToDim");
 
-  auto* mesh = dc->GetMesh();
+  auto* mesh = mfemState.m_dc->GetMesh();
   SLIC_ASSERT(mesh != nullptr);
   const int NE = mesh->GetNE();
   const int dim = mesh->Dimension();
 
-  // Generate a Quadrature Function with the geometric positions, if not already available
-  if(!inoutQFuncs.Has("positions"))
-  {
-    shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes, quadratureType);
-  }
+  auto& inoutQFuncs = mfemState.m_inoutShapeQFuncs;
+  SLIC_ASSERT(inoutQFuncs.Has("positions"));
 
   // Access the positions QFunc and associated QuadratureSpace
   mfem::QuadratureFunction* pos_coef = inoutQFuncs.Get("positions");
@@ -366,7 +431,7 @@ void sampleInOutField(const std::string shapeName,
   */
 template <int FromDim, int ToDim, typename InsideFunc>
 void computeVolumeFractionsBaseline(const std::string& shapeName,
-                                    mfem::DataCollection* dc,
+                                    shaping::SamplingMFEMState& mfemState,
                                     int outputOrder,
                                     InsideFunc&& checkInside,
                                     PointProjector<FromDim, ToDim> projector = {})
@@ -376,6 +441,7 @@ void computeVolumeFractionsBaseline(const std::string& shapeName,
   AXOM_ANNOTATE_SCOPE("computeVolumeFractionsBaseline");
 
   // Step 1 -- generate a QField w/ the spatial coordinates
+  mfem::DataCollection* dc = mfemState.m_dc;
   mfem::Mesh* mesh = dc->GetMesh();
   const int NE = mesh->GetNE();
   const int dim = mesh->Dimension();

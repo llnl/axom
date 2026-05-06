@@ -146,8 +146,7 @@ public:
    * \note \a ToDim must be equal to \a DIM, the dimension of the spatial index
    */
   template <int FromDim, int ToDim = DIM>
-  std::enable_if_t<ToDim == DIM, void> sampleInOutField(mfem::DataCollection* dc,
-                                                        shaping::QFunctionCollection& inoutQFuncs,
+  std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::SamplingMFEMState& mfemState,
                                                         int sampleRes[3],
                                                         int quadratureType,
                                                         PointProjector<FromDim, ToDim> projector = {})
@@ -163,16 +162,15 @@ public:
     SLIC_ERROR_IF(FromDim != ToDim && !projector,
                   "A projector callback function is required when FromDim != ToDim");
 
-    auto* mesh = dc->GetMesh();
+    auto* mesh = mfemState.m_dc->GetMesh();
     SLIC_ASSERT(mesh != nullptr);
     const int NE = mesh->GetNE();
     const int dim = mesh->Dimension();
 
-    // Generate a Quadrature Function with the geometric positions, if not already available
-    if(!inoutQFuncs.Has("positions"))
-    {
-      shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes, quadratureType);
-    }
+    AXOM_UNUSED_VAR(sampleRes);
+    AXOM_UNUSED_VAR(quadratureType);
+    auto& inoutQFuncs = mfemState.m_inoutShapeQFuncs;
+    SLIC_ASSERT(inoutQFuncs.Has("positions"));
 
     // Access the positions QFunc and associated QuadratureSpace
     mfem::QuadratureFunction* pos_coef = inoutQFuncs.Get("positions");
@@ -264,8 +262,7 @@ public:
    * defined to support various callback specializations for the \a PointProjector.
    */
   template <int FromDim, int ToDim>
-  std::enable_if_t<ToDim != DIM, void> sampleInOutField(mfem::DataCollection*,
-                                                        shaping::QFunctionCollection&,
+  std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::SamplingMFEMState&,
                                                         int AXOM_UNUSED_PARAM(sampleRes)[3],
                                                         int AXOM_UNUSED_PARAM(quadratureType),
                                                         PointProjector<FromDim, ToDim>)
@@ -281,7 +278,7 @@ public:
    */
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(
-    mfem::DataCollection* dc,
+    shaping::SamplingMFEMState& mfemState,
     int outputOrder,
     PointProjector<FromDim, ToDim> projector = {})
   {
@@ -299,7 +296,7 @@ public:
       return inside;
     };
     shaping::computeVolumeFractionsBaseline<FromDim, ToDim>(m_shapeName,
-                                                            dc,
+                                                            mfemState,
                                                             outputOrder,
                                                             checkInside,
                                                             projector);
@@ -311,7 +308,7 @@ public:
    */
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(
-    mfem::DataCollection* AXOM_UNUSED_PARAM(dc),
+    shaping::SamplingMFEMState& AXOM_UNUSED_PARAM(mfemState),
     int AXOM_UNUSED_PARAM(outputOrder),
     PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {
@@ -319,6 +316,21 @@ public:
                   "Do not call this function -- it only exists to appease the compiler!"
                   "Projector's return dimension (ToDim), must match class dimension (DIM)");
   }
+
+#if defined(AXOM_USE_CONDUIT)
+  template <int FromDim, int ToDim = DIM>
+  void sampleInOutField(shaping::BlueprintState& AXOM_UNUSED_PARAM(bpState),
+                        int AXOM_UNUSED_PARAM(sampleRes)[3],
+                        int AXOM_UNUSED_PARAM(quadratureType),
+                        PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector) = {})
+  { }
+
+  template <int FromDim, int ToDim = DIM>
+  void computeVolumeFractionsBaseline(shaping::BlueprintState& AXOM_UNUSED_PARAM(bpState),
+                                      int AXOM_UNUSED_PARAM(outputOrder),
+                                      PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector) = {})
+  { }
+#endif
 
 private:
   DISABLE_COPY_AND_ASSIGNMENT(WindingNumberSampler);

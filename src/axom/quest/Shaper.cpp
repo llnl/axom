@@ -44,7 +44,7 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   #endif
 {
   m_mfem_state = createMFEMState();
-  m_mfem_state->dc = dc;
+  m_mfem_state->m_dc = dc;
 
   #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
   m_comm = m_mfem_state->m_dc->GetComm();
@@ -75,17 +75,19 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   #endif
 {
   m_bp_state = createBlueprintState();
-  m_bp_state->m_bpGrp = bpGrp;
-  m_bp_state->m_bpTopo = topo.empty() ? bpGrp->getGroup("topologies")->getGroupName(0) : topo;
-  m_bp_state->m_bpNodeExt = nullptr;
+  m_bp_state->m_group_ptr = bpGrp;
+  m_bp_state->m_topology_name =
+    topo.empty() ? bpGrp->getGroup("topologies")->getGroupName(0) : topo;
+  m_bp_state->m_external_node_ptr = nullptr;
 
-  SLIC_ASSERT(m_bp_state->m_bpTopo != sidre::InvalidName);
+  SLIC_ASSERT(m_bp_state->m_topology_name != sidre::InvalidName);
 
   // This may take too long if there are repeated construction.
-  m_bp_state->m_bpGrp->createNativeLayout(m_bpNodeInt);
+  m_bp_state->m_group_ptr->createNativeLayout(m_bp_state->m_internal_node);
 
   m_cellCount = conduit::blueprint::mesh::topology::length(
-    m_bpNodeInt.fetch_existing("topologies").fetch_existing(m_bp_state->m_bpTopo));
+    m_bp_state->m_internal_node.fetch_existing("topologies")
+      .fetch_existing(m_bp_state->m_topology_name));
 
   setFilePath(shapeSet.getPath());
 }
@@ -113,16 +115,18 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   AXOM_ANNOTATE_SCOPE("Shaper::Shaper_Node");
 
   m_bp_state = createBlueprintState();
-  m_bp_state->m_bpGrp = nullptr;
-  m_bp_state->m_bpTopo = topo.empty() ? bpNode.fetch_existing("topologies").child(0).name() : topo;
-  m_bp_state->m_bpNodeExt = &bpNode;
+  m_bp_state->m_group_ptr = nullptr;
+  m_bp_state->m_topology_name =
+    topo.empty() ? bpNode.fetch_existing("topologies").child(0).name() : topo;
+  m_bp_state->m_external_node_ptr = &bpNode;
 
-  m_bp_state->m_bpGrp = m_dataStore.getRoot()->createGroup("internalGrp");
-  m_bp_state->m_bpGrp->setDefaultArrayAllocator(m_allocatorId);
-  m_bp_state->m_bpGrp->importConduitTreeExternal(bpNode);
+  m_bp_state->m_group_ptr = m_dataStore.getRoot()->createGroup("internalGrp");
+  m_bp_state->m_group_ptr->setDefaultArrayAllocator(m_allocatorId);
+  m_bp_state->m_group_ptr->importConduitTreeExternal(bpNode);
 
   // We want unstructured topo but can accomodate structured.
-  const conduit::Node &n_topo = bpNode.fetch_existing("topologies").fetch_existing(m_bp_state->m_bpTopo);
+  const conduit::Node& n_topo =
+    bpNode.fetch_existing("topologies").fetch_existing(m_bp_state->m_topology_name);
   const std::string topoType = n_topo.fetch_existing("type").as_string();
 
   if(topoType == "structured")
@@ -132,15 +136,17 @@ Shaper::Shaper(RuntimePolicy execPolicy,
 
     if(shapeType == "hex")
     {
-      axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_3d(m_bp_state->m_bpGrp,
-                                                                                  m_bp_state->m_bpTopo,
-                                                                                  m_execPolicy);
+      axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_3d(
+        m_bp_state->m_group_ptr,
+        m_bp_state->m_topology_name,
+        m_execPolicy);
     }
     else if(shapeType == "quad")
     {
-      axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_2d(m_bp_state->m_bpGrp,
-                                                                                  m_bp_state->m_bpTopo,
-                                                                                  m_execPolicy);
+      axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_2d(
+        m_bp_state->m_group_ptr,
+        m_bp_state->m_topology_name,
+        m_execPolicy);
     }
     else
     {
@@ -148,10 +154,10 @@ Shaper::Shaper(RuntimePolicy execPolicy,
     }
   }
 
-  m_bp_state->m_bpGrp->createNativeLayout(m_bp_state->m_bpNodeInt);
+  m_bp_state->m_group_ptr->createNativeLayout(m_bp_state->m_internal_node);
 
   m_cellCount = conduit::blueprint::mesh::topology::length(
-    bpNode.fetch_existing("topologies").fetch_existing(m_bp_state->m_bpTopo));
+    bpNode.fetch_existing("topologies").fetch_existing(m_bp_state->m_topology_name));
 
   setFilePath(shapeSet.getPath());
 }
@@ -273,23 +279,27 @@ bool Shaper::verifyInputMesh(std::string& whyBad) const
   bool rval = true;
 
 #if defined(AXOM_USE_CONDUIT)
-  if(m_bpGrp != nullptr)
+  if(m_bp_state != nullptr && m_bp_state->m_group_ptr != nullptr)
   {
     conduit::Node info;
-    // Conduit's verify should work even if m_bpNodeInt has array data on
+    // Conduit's verify should work even if m_internal_node has array data on
     // devices. because the verification doesn't dereference array data.
     // If this changes in the future, more care must be taken.
-    rval = conduit::blueprint::mesh::verify(m_bpNodeInt, info);
+    rval = conduit::blueprint::mesh::verify(m_bp_state->m_internal_node, info);
     if(rval)
     {
-      std::string topoType = m_bpNodeInt.fetch("topologies")[m_bpTopo]["type"].as_string();
+      std::string topoType =
+        m_bp_state->m_internal_node.fetch("topologies")[m_bp_state->m_topology_name]["type"]
+          .as_string();
       rval = topoType == "unstructured";
       info[0].set_string("Topology is not unstructured.");
     }
     if(rval)
     {
       std::string elemShape =
-        m_bpNodeInt.fetch("topologies")[m_bpTopo]["elements"]["shape"].as_string();
+        m_bp_state->m_internal_node.fetch("topologies")[m_bp_state->m_topology_name]["elements"]
+          ["shape"]
+          .as_string();
       rval = (elemShape == "hex") || (elemShape == "quad");
       info[0].set_string("Topology elements are not hex or quad.");
     }
@@ -298,7 +308,7 @@ bool Shaper::verifyInputMesh(std::string& whyBad) const
 #endif
 
 #if defined(AXOM_USE_MFEM)
-  if(m_dc != nullptr)
+  if(getDC() != nullptr)
   {
     // No specific requirements for MFEM mesh.
   }
