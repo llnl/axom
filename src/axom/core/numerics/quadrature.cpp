@@ -14,6 +14,7 @@
 #include "axom/config.hpp"
 
 #include <cmath>
+#include <cassert>
 #include <cstdint>
 #include <mutex>
 
@@ -22,19 +23,91 @@ namespace axom
 namespace numerics
 {
 
+void compute_gauss_legendre_data(int npts,
+                                 axom::Array<double>& nodes,
+                                 axom::Array<double>& weights,
+                                 int allocatorID);
+
 namespace
 {
-struct GaussLegendreRuleStorage
+struct RuleStorage
 {
   axom::Array<double> nodes;
   axom::Array<double> weights;
 };
 
-std::uint64_t make_gauss_legendre_key(int npts, int allocatorID)
+std::uint64_t make_rule_key(int npts, int allocatorID)
 {
   const auto n = static_cast<std::uint64_t>(static_cast<std::uint32_t>(npts));
   const auto a = static_cast<std::uint64_t>(static_cast<std::uint32_t>(allocatorID));
   return (a << 32) | n;
+}
+
+template <typename ComputeRuleData>
+RuleStorage& get_cached_rule_storage(int npts,
+                                     int allocatorID,
+                                     axom::FlatMap<std::uint64_t, RuleStorage>& rule_library,
+                                     std::mutex& rule_library_mutex,
+                                     ComputeRuleData&& computeRuleData)
+{
+  const std::lock_guard<std::mutex> lock(rule_library_mutex);
+  const std::uint64_t key = make_rule_key(npts, allocatorID);
+
+  auto [it, inserted] = rule_library.try_emplace(key);
+  if(inserted)
+  {
+    computeRuleData(npts, it->second.nodes, it->second.weights, allocatorID);
+  }
+
+  return it->second;
+}
+
+void compute_interpolatory_weights(const axom::Array<double>& nodes,
+                                   axom::Array<double>& weights,
+                                   int allocatorID)
+{
+  const int npts = nodes.size();
+  assert("Quadrature rules must have >= 1 point" && (npts >= 1));
+
+  weights = axom::Array<double>(npts, npts, allocatorID);
+
+  if(npts == 1)
+  {
+    weights[0] = 1.0;
+    return;
+  }
+
+  if(npts == 2)
+  {
+    weights[0] = 0.5;
+    weights[1] = 0.5;
+    return;
+  }
+
+  axom::Array<double> glNodes;
+  axom::Array<double> glWeights;
+  compute_gauss_legendre_data((npts + 1) / 2, glNodes, glWeights, allocatorID);
+
+  for(int j = 0; j < npts; ++j)
+  {
+    double wj = 0.0;
+    for(int q = 0; q < glNodes.size(); ++q)
+    {
+      const double x = glNodes[q];
+      double basis = 1.0;
+      for(int k = 0; k < npts; ++k)
+      {
+        if(k == j)
+        {
+          continue;
+        }
+
+        basis *= (x - nodes[k]) / (nodes[j] - nodes[k]);
+      }
+      wj += glWeights[q] * basis;
+    }
+    weights[j] = wj;
+  }
 }
 }  // namespace
 
@@ -148,6 +221,46 @@ void compute_gauss_legendre_data(int npts,
   }
 }
 
+void compute_open_uniform_data(int npts,
+                               axom::Array<double>& nodes,
+                               axom::Array<double>& weights,
+                               int allocatorID)
+{
+  assert("Quadrature rules must have >= 1 point" && (npts >= 1));
+
+  nodes = axom::Array<double>(npts, npts, allocatorID);
+  for(int i = 0; i < npts; ++i)
+  {
+    nodes[i] = static_cast<double>(i + 1) / static_cast<double>(npts + 1);
+  }
+
+  compute_interpolatory_weights(nodes, weights, allocatorID);
+}
+
+void compute_closed_uniform_data(int npts,
+                                 axom::Array<double>& nodes,
+                                 axom::Array<double>& weights,
+                                 int allocatorID)
+{
+  assert("Quadrature rules must have >= 1 point" && (npts >= 1));
+
+  nodes = axom::Array<double>(npts, npts, allocatorID);
+  if(npts == 1)
+  {
+    nodes[0] = 0.5;
+    weights = axom::Array<double>(1, 1, allocatorID);
+    weights[0] = 1.0;
+    return;
+  }
+
+  for(int i = 0; i < npts; ++i)
+  {
+    nodes[i] = static_cast<double>(i) / static_cast<double>(npts - 1);
+  }
+
+  compute_interpolatory_weights(nodes, weights, allocatorID);
+}
+
 /*!
  * \brief Computes or accesses a precomputed 1D quadrature rule of Gauss-Legendre points 
  *
@@ -168,19 +281,33 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID)
   assert("Quadrature rules must have >= 1 point" && (npts >= 1));
 
   // Store cached rules keyed by (npts, allocatorID).
-  static axom::FlatMap<std::uint64_t, GaussLegendreRuleStorage> rule_library(64);
+  static axom::FlatMap<std::uint64_t, RuleStorage> rule_library(64);
   static std::mutex rule_library_mutex;
-  const std::lock_guard<std::mutex> lock(rule_library_mutex);
+  auto& storage = get_cached_rule_storage(
+    npts, allocatorID, rule_library, rule_library_mutex, compute_gauss_legendre_data);
+  return QuadratureRule {storage.nodes.view(), storage.weights.view()};
+}
 
-  const std::uint64_t key = make_gauss_legendre_key(npts, allocatorID);
+QuadratureRule get_open_uniform(int npts, int allocatorID)
+{
+  assert("Quadrature rules must have >= 1 point" && (npts >= 1));
 
-  auto [it, inserted] = rule_library.try_emplace(key);
-  if(inserted)
-  {
-    compute_gauss_legendre_data(npts, it->second.nodes, it->second.weights, allocatorID);
-  }
+  static axom::FlatMap<std::uint64_t, RuleStorage> rule_library(64);
+  static std::mutex rule_library_mutex;
+  auto& storage = get_cached_rule_storage(
+    npts, allocatorID, rule_library, rule_library_mutex, compute_open_uniform_data);
+  return QuadratureRule {storage.nodes.view(), storage.weights.view()};
+}
 
-  return QuadratureRule {it->second.nodes.view(), it->second.weights.view()};
+QuadratureRule get_closed_uniform(int npts, int allocatorID)
+{
+  assert("Quadrature rules must have >= 1 point" && (npts >= 1));
+
+  static axom::FlatMap<std::uint64_t, RuleStorage> rule_library(64);
+  static std::mutex rule_library_mutex;
+  auto& storage = get_cached_rule_storage(
+    npts, allocatorID, rule_library, rule_library_mutex, compute_closed_uniform_data);
+  return QuadratureRule {storage.nodes.view(), storage.weights.view()};
 }
 
 } /* end namespace numerics */

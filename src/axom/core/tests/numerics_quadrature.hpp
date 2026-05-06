@@ -7,6 +7,7 @@
 #include "gtest/gtest.h"
 
 #include "axom/config.hpp"
+#include "axom/core/Array.hpp"
 #include "axom/core/numerics/quadrature.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 
@@ -136,3 +137,98 @@ TEST(numerics_quadrature, get_nodes_cuda) { test_device_quadrature<axom::CUDA_EX
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(numerics_quadrature, get_nodes_hip) { test_device_quadrature<axom::HIP_EXEC<256>>::test(); }
 #endif
+
+namespace
+{
+template <typename RuleGetter>
+void check_polynomial_exactness(RuleGetter&& getRule, int maxNpts)
+{
+  for(int npts = 1; npts <= maxNpts; ++npts)
+  {
+    const auto rule = getRule(npts);
+    const int exactDegree = npts - 1 + npts % 2;
+    axom::Array<double> coeffs(exactDegree + 1, exactDegree + 1);
+
+    for(int j = 0; j <= exactDegree; ++j)
+    {
+      coeffs[j] = axom::utilities::random_real(-1.0, 1.0, 1000 * npts + j);
+    }
+
+    double analyticResult = 0.0;
+    for(int j = 0; j <= exactDegree; ++j)
+    {
+      analyticResult += coeffs[j] / (j + 1);
+    }
+
+    auto evalPolynomial = [&coeffs, exactDegree](double x) {
+      double result = coeffs[exactDegree];
+      for(int i = exactDegree - 1; i >= 0; --i)
+      {
+        result = result * x + coeffs[i];
+      }
+      return result;
+    };
+
+    double quadratureResult = 0.0;
+    double weightSum = 0.0;
+    for(int j = 0; j < npts; ++j)
+    {
+      quadratureResult += rule.weight(j) * evalPolynomial(rule.node(j));
+      weightSum += rule.weight(j);
+      if(j > 0)
+      {
+        EXPECT_GT(rule.node(j), rule.node(j - 1));
+      }
+    }
+
+    EXPECT_NEAR(quadratureResult, analyticResult, 1e-12);
+    EXPECT_NEAR(weightSum, 1.0, 1e-12);
+  }
+}
+}  // namespace
+
+TEST(numerics_quadrature, open_uniform_small_rules)
+{
+  auto rule = axom::numerics::get_open_uniform(1);
+  ASSERT_EQ(rule.getNumPoints(), 1);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.5);
+  EXPECT_DOUBLE_EQ(rule.weight(0), 1.0);
+
+  rule = axom::numerics::get_open_uniform(3);
+  ASSERT_EQ(rule.getNumPoints(), 3);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.25);
+  EXPECT_DOUBLE_EQ(rule.node(1), 0.5);
+  EXPECT_DOUBLE_EQ(rule.node(2), 0.75);
+  EXPECT_DOUBLE_EQ(rule.weight(0), 2.0 / 3.0);
+  EXPECT_DOUBLE_EQ(rule.weight(1), -1.0 / 3.0);
+  EXPECT_DOUBLE_EQ(rule.weight(2), 2.0 / 3.0);
+}
+
+TEST(numerics_quadrature, closed_uniform_small_rules)
+{
+  auto rule = axom::numerics::get_closed_uniform(1);
+  ASSERT_EQ(rule.getNumPoints(), 1);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.5);
+  EXPECT_DOUBLE_EQ(rule.weight(0), 1.0);
+
+  rule = axom::numerics::get_closed_uniform(3);
+  ASSERT_EQ(rule.getNumPoints(), 3);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.0);
+  EXPECT_DOUBLE_EQ(rule.node(1), 0.5);
+  EXPECT_DOUBLE_EQ(rule.node(2), 1.0);
+  EXPECT_DOUBLE_EQ(rule.weight(0), 1.0 / 6.0);
+  EXPECT_DOUBLE_EQ(rule.weight(1), 4.0 / 6.0);
+  EXPECT_DOUBLE_EQ(rule.weight(2), 1.0 / 6.0);
+}
+
+TEST(numerics_quadrature, open_uniform_exactness)
+{
+  check_polynomial_exactness(
+    [](int npts) { return axom::numerics::get_open_uniform(npts); }, 10);
+}
+
+TEST(numerics_quadrature, closed_uniform_exactness)
+{
+  check_polynomial_exactness(
+    [](int npts) { return axom::numerics::get_closed_uniform(npts); }, 10);
+}

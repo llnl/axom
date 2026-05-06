@@ -30,6 +30,8 @@ class QuadratureRule
 {
   // Define friend functions so rules can only be created via get_rule() methods
   friend QuadratureRule get_gauss_legendre(int, int);
+  friend QuadratureRule get_open_uniform(int, int);
+  friend QuadratureRule get_closed_uniform(int, int);
 
 public:
   //! \brief Accessor for the full array of quadrature nodes
@@ -96,6 +98,63 @@ void compute_gauss_legendre_data(int npts,
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
  */
 QuadratureRule get_gauss_legendre(int npts, int allocatorID = axom::getDefaultAllocatorID());
+
+/*!
+ * \brief Computes a 1D quadrature rule of open uniform Newton-Cotes points.
+ *
+ * \param [in] npts The number of points in the rule
+ * \param [out] nodes The array of 1D nodes
+ * \param [out] weights The array of weights
+ *
+ * The points are placed at `x_i = (i + 1) / (npts + 1)` for `i = 0, ..., npts - 1`.
+ * This matches MFEM's `QuadratureFunctions1D::OpenUniform`.
+ *
+ * The rule order matches MFEM's convention: `npts - 1 + npts % 2`.
+ */
+void compute_open_uniform_data(int npts,
+                               axom::Array<double>& nodes,
+                               axom::Array<double>& weights,
+                               int allocatorID = axom::getDefaultAllocatorID());
+
+/*!
+ * \brief Computes or accesses a precomputed 1D quadrature rule of open uniform
+ * Newton-Cotes points.
+ *
+ * \param [in] npts The number of points in the rule
+ *
+ * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s
+ *         of stored nodes and weights
+ */
+QuadratureRule get_open_uniform(int npts, int allocatorID = axom::getDefaultAllocatorID());
+
+/*!
+ * \brief Computes a 1D quadrature rule of closed uniform Newton-Cotes points.
+ *
+ * \param [in] npts The number of points in the rule
+ * \param [out] nodes The array of 1D nodes
+ * \param [out] weights The array of weights
+ *
+ * For `npts > 1`, the points are placed at `x_i = i / (npts - 1)` for
+ * `i = 0, ..., npts - 1`. For `npts == 1`, the rule is the midpoint rule at
+ * `x = 0.5` with weight `1.0`, matching MFEM's `ClosedUniform`.
+ *
+ * The rule order matches MFEM's convention: `npts - 1 + npts % 2`.
+ */
+void compute_closed_uniform_data(int npts,
+                                 axom::Array<double>& nodes,
+                                 axom::Array<double>& weights,
+                                 int allocatorID = axom::getDefaultAllocatorID());
+
+/*!
+ * \brief Computes or accesses a precomputed 1D quadrature rule of closed
+ * uniform Newton-Cotes points.
+ *
+ * \param [in] npts The number of points in the rule
+ *
+ * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s
+ *         of stored nodes and weights
+ */
+QuadratureRule get_closed_uniform(int npts, int allocatorID = axom::getDefaultAllocatorID());
 
 } /* end namespace numerics */
 } /* end namespace axom */
