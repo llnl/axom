@@ -50,6 +50,25 @@ class Shaper
 {
 public:
   using RuntimePolicy = axom::runtime_policy::Policy;
+#if defined(AXOM_USE_MFEM)
+  struct MFEMState
+  {
+    // For mesh represented as MFEMSidreDataCollection
+    sidre::MFEMSidreDataCollection* m_dc {nullptr};
+  };
+#endif
+#if defined(AXOM_USE_CONDUIT)
+  struct BlueprintState
+  {
+    //! @brief Version of the mesh for computations.
+    axom::sidre::Group* m_bpGrp {nullptr};
+    std::string m_bpTopo;
+    //! @brief Mesh in an external Node, when provided as a Node.
+    conduit::Node* m_bpNodeExt {nullptr};
+    //! @brief Initial copy of mesh in an internal Node storage.
+    conduit::Node m_bpNodeInt;
+  };
+#endif
 
 #if defined(AXOM_USE_MFEM)
   /// @brief Construct Shaper to operate on an MFEM mesh.
@@ -59,6 +78,7 @@ public:
          sidre::MFEMSidreDataCollection* dc);
 #endif
 
+#if defined(AXOM_USE_CONDUIT)
   /*!
    * @brief Construct Shaper to operate on a blueprint-formatted mesh
    * stored in a sidre Group.
@@ -83,6 +103,7 @@ public:
          const klee::ShapeSet& shapeSet,
          conduit::Node& bpNode,
          const std::string& topo = "");
+#endif
 
   virtual ~Shaper();
 
@@ -123,8 +144,8 @@ public:
   bool isVerbose() const { return m_verboseOutput; }
 
 #ifdef AXOM_USE_MFEM
-  sidre::MFEMSidreDataCollection* getDC() { return m_dc; }
-  const sidre::MFEMSidreDataCollection* getDC() const { return m_dc; }
+  sidre::MFEMSidreDataCollection* getDC() { return m_mfem_state->m_dc; }
+  const sidre::MFEMSidreDataCollection* getDC() const { return m_mfem_state->m_dc; }
 #endif
 
   /*!
@@ -231,6 +252,19 @@ protected:
    */
   int getRank() const;
 
+#if defined(AXOM_USE_MFEM)
+  virtual std::unique_ptr<MFEMState> createMFEMState()
+  {
+    return std::make_unique<MFEMState>();
+  }
+#endif
+#if defined(AXOM_USE_CONDUIT)
+  virtual std::unique_ptr<BlueprintState> createBlueprintState()
+  {
+    return std::make_unique<BlueprintState>();
+  }
+#endif
+
 protected:
   RuntimePolicy m_execPolicy;
   int m_allocatorId;
@@ -244,18 +278,10 @@ protected:
   std::string m_prefixPath;
 
 #if defined(AXOM_USE_MFEM)
-  // For mesh represented as MFEMSidreDataCollection
-  sidre::MFEMSidreDataCollection* m_dc {nullptr};
+  std::unique_ptr<MFEMState> m_mfem_state;
 #endif
-
 #if defined(AXOM_USE_CONDUIT)
-  //! @brief Version of the mesh for computations.
-  axom::sidre::Group* m_bpGrp {nullptr};
-  const std::string m_bpTopo;
-  //! @brief Mesh in an external Node, when provided as a Node.
-  conduit::Node* m_bpNodeExt {nullptr};
-  //! @brief Initial copy of mesh in an internal Node storage.
-  conduit::Node m_bpNodeInt;
+  std::unique_ptr<BlueprintState> m_bp_state;
 #endif
 
   //! @brief Number of cells in computational mesh (m_dc or m_bpGrp).
