@@ -24,6 +24,8 @@
 #endif
 #if defined(AXOM_USE_CONDUIT)
   #include "conduit_node.hpp"
+  #include "axom/bump/utilities/conduit_memory.hpp"
+  #include "axom/bump/views/dispatch_coordset.hpp"
 #endif
 
 namespace axom
@@ -280,9 +282,9 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
 /**
  * \brief Generates a "position" quadrature function for the supplied MFEM state.
  */
-void generatePositionsQFunction(SamplingMFEMState& mfemState,
-                                int sampleResolution[3],
-                                axom::numerics::QuadratureType quadratureType);
+void generateSamplingPositions(SamplingMFEMState& mfemState,
+                               int sampleResolution[3],
+                               axom::numerics::QuadratureType quadratureType);
 
 #if defined(AXOM_USE_CONDUIT)
 /**
@@ -306,9 +308,9 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
  * \brief Generates a derived Blueprint quadrature point mesh for the supplied
  *        Blueprint state.
  */
-void generatePositionsQFunction(BlueprintState& bpState,
-                                int sampleResolution[3],
-                                axom::numerics::QuadratureType quadratureType);
+void generateSamplingPositions(BlueprintState& bpState,
+                               int sampleResolution[3],
+                               axom::numerics::QuadratureType quadratureType);
 #endif
 
 /** 
@@ -437,6 +439,87 @@ void sampleInOutField(const std::string shapeName,
     timer.elapsed(),
     static_cast<int>(numQueryPoints / timer.elapsed())));
 }
+
+#if defined(AXOM_USE_CONDUIT)
+template <int FromDim, int ToDim, typename InsideFunc>
+void sampleInOutField(const std::string& shapeName,
+                      shaping::BlueprintState& bpState,
+                      int AXOM_UNUSED_PARAM(sampleRes)[3],
+                      int AXOM_UNUSED_PARAM(quadratureType),
+                      InsideFunc&& checkInside,
+                      PointProjector<FromDim, ToDim> projector = {})
+{
+  using FromPoint = primal::Point<double, FromDim>;
+  using ToPoint = primal::Point<double, ToDim>;
+  AXOM_ANNOTATE_SCOPE("sampleInOutField");
+
+  SLIC_ERROR_IF(FromDim != ToDim && !projector,
+                "A projector callback function is required when FromDim != ToDim");
+
+  constexpr const char* quadratureCoordsetName = "quadrature_points";
+  constexpr const char* quadratureTopologyName = "quadrature_points";
+  const std::string inoutName = axom::fmt::format("inout_{}", shapeName);
+
+  conduit::Node& bpMeshNode = bpState.m_internal_node;
+  SLIC_ERROR_IF(!bpMeshNode.has_path("coordsets/quadrature_points"),
+                "Missing Blueprint quadrature coordset. Generate sampling positions first.");
+  SLIC_ERROR_IF(!bpMeshNode.has_path("topologies/quadrature_points"),
+                "Missing Blueprint quadrature topology. Generate sampling positions first.");
+
+  conduit::Node& inoutNode = bpMeshNode["fields/" + inoutName];
+  inoutNode.reset();
+  inoutNode["association"] = "element";
+  inoutNode["topology"] = quadratureTopologyName;
+
+  namespace utils = axom::bump::utilities;
+  const auto conduitAllocatorId =
+    axom::sidre::ConduitMemory::axomAllocIdToConduit(bpState.m_allocator_id);
+  conduit::Node& valuesNode = inoutNode["values"];
+  valuesNode.set_allocator(conduitAllocatorId);
+
+  axom::utilities::Timer timer(true);
+  axom::bump::views::dispatch_explicit_coordset(
+    bpMeshNode["coordsets/" + std::string(quadratureCoordsetName)], [&](auto coordsetView) {
+      using CoordsetView = typename std::decay<decltype(coordsetView)>::type;
+
+      SLIC_ERROR_IF(CoordsetView::dimension() != FromDim,
+                    axom::fmt::format("Expected {}D quadrature point coordset, got {}D.",
+                                      FromDim,
+                                      CoordsetView::dimension()));
+
+      const auto numQueryPoints = coordsetView.size();
+      valuesNode.set(conduit::DataType::float64(numQueryPoints));
+      auto inoutValues = utils::make_array_view<double>(valuesNode);
+
+      for(axom::IndexType i = 0; i < numQueryPoints; ++i)
+      {
+        FromPoint fromPt;
+        const auto coordsetPoint = coordsetView[i];
+        for(int d = 0; d < FromDim; ++d)
+        {
+          fromPt[d] = coordsetPoint[d];
+        }
+
+        const ToPoint queryPt = projector ? projector(fromPt) : ToPoint(fromPt.data());
+        inoutValues[i] = checkInside(queryPt) ? 1. : 0.;
+      }
+    });
+  timer.stop();
+
+  const auto numQueryPoints = bpMeshNode["coordsets/" + std::string(quadratureCoordsetName)]
+                                .fetch_existing("values")
+                                .child(0)
+                                .dtype()
+                                .number_of_elements();
+
+  SLIC_INFO_ROOT(axom::fmt::format(
+    axom::utilities::locale(),
+    "\t Sampling inout field '{}' took {:.3Lf} seconds (@ {:L} queries per second)",
+    inoutName,
+    timer.elapsed(),
+    static_cast<int>(numQueryPoints / timer.elapsed())));
+}
+#endif
 
 /*!
   * \brief Samples the inout field over the indexed geometry, possibly using a

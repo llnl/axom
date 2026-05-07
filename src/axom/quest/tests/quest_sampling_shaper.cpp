@@ -2633,6 +2633,30 @@ TEST_F(CurvedSampleTester2D, positions_match_curved_mesh_for_anisotropic_custom_
   qfuncs.DeleteData(true);
 }
 
+TEST_F(CurvedSampleTester2D, generate_sampling_positions_is_idempotent)
+{
+  quest::shaping::SamplingMFEMState mfemState;
+  mfemState.m_dc = &this->getDC();
+
+  int sampleRes[3] = {3, 2, 1};
+  quest::shaping::generateSamplingPositions(mfemState,
+                                            sampleRes,
+                                            axom::numerics::QuadratureType::OpenUniform);
+
+  auto* positions = mfemState.m_inoutShapeQFuncs.Get("positions");
+  ASSERT_NE(positions, nullptr);
+  auto* qspace = dynamic_cast<mfem::QuadratureSpace*>(positions->GetSpace());
+  ASSERT_NE(qspace, nullptr);
+  const int initialNumPoints = qspace->GetElementIntRule(0).GetNPoints();
+
+  quest::shaping::generateSamplingPositions(mfemState,
+                                            sampleRes,
+                                            axom::numerics::QuadratureType::ClosedUniform);
+
+  EXPECT_EQ(mfemState.m_inoutShapeQFuncs.Get("positions"), positions);
+  EXPECT_EQ(qspace->GetElementIntRule(0).GetNPoints(), initialNumPoints);
+}
+
 //-----------------------------------------------------------------------------
 
 TEST_F(SamplingShaperTest2D, loadShape_missing_c2c_file_aborts)

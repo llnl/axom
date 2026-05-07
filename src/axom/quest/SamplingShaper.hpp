@@ -643,7 +643,7 @@ public:
 
     auto& mfemState = samplingMFEMState();
     auto* mesh = mfemState.m_dc->GetMesh();
-    ensurePositionsQFunction(mfemState);
+    ensureSamplingPositions(mfemState);
     auto* positionsQSpace = mfemState.m_inoutShapeQFuncs.Get("positions")->GetSpace();
 
     // Interpolate grid functions at quadrature points & register material quad functions
@@ -765,18 +765,15 @@ public:
   }
 
 private:
-  void ensurePositionsQFunction(shaping::SamplingMFEMState& mfemState)
+  void ensureSamplingPositions(shaping::SamplingMFEMState& mfemState)
   {
-    if(!mfemState.m_inoutShapeQFuncs.Has("positions"))
-    {
-      shaping::generatePositionsQFunction(mfemState, m_sampleResolution, m_quadratureType);
-    }
+    shaping::generateSamplingPositions(mfemState, m_sampleResolution, m_quadratureType);
   }
 
 #if defined(AXOM_USE_CONDUIT)
-  void ensurePositionsQFunction(shaping::BlueprintState& bpState)
+  void ensureSamplingPositions(shaping::BlueprintState& bpState)
   {
-    shaping::generatePositionsQFunction(bpState, m_sampleResolution, m_quadratureType);
+    shaping::generateSamplingPositions(bpState, m_sampleResolution, m_quadratureType);
   }
 #endif
 
@@ -802,7 +799,7 @@ private:
     // Sample the InOut field at the mesh quadrature points
     if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
     {
-      ensurePositionsQFunction(meshState);
+      ensureSamplingPositions(meshState);
     }
 
     const int meshDim = meshDimension(meshState);
@@ -931,7 +928,7 @@ private:
       const int meshDim = meshDimension(meshState);
       if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
       {
-        ensurePositionsQFunction(meshState);
+        ensureSamplingPositions(meshState);
       }
 
     switch(m_vfSampling)

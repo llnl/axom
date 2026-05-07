@@ -191,4 +191,40 @@ TEST(quest_blueprint_quadrature_mesh, generate_open_uniform_hex_mesh)
   EXPECT_TRUE(compareArrayView(expectedOriginalElements.view(), originalElementsView));
 }
 
+TEST(quest_blueprint_quadrature_mesh, state_wrapper_generation_is_idempotent)
+{
+  conduit::Node mesh = makeQuadMesh();
+
+  axom::quest::shaping::BlueprintState bpState;
+  bpState.m_allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  bpState.m_topology_name = "mesh";
+  bpState.m_internal_node = mesh;
+
+  int sampleResolution[3] = {2, 2, 1};
+  axom::quest::shaping::generateSamplingPositions(
+    bpState,
+    sampleResolution,
+    axom::numerics::QuadratureType::ClosedUniform);
+
+  ASSERT_TRUE(bpState.m_internal_node.has_path("fields/originalElements/values"));
+  conduit::Node savedOriginalElements;
+  savedOriginalElements.set_external(
+    bpState.m_internal_node["fields/originalElements/values"]);
+
+  axom::quest::shaping::generateSamplingPositions(
+    bpState,
+    sampleResolution,
+    axom::numerics::QuadratureType::OpenUniform);
+
+  EXPECT_TRUE(bpState.m_internal_node.has_path("topologies/quadrature_points"));
+
+  namespace utils = axom::bump::utilities;
+  const auto originalElementsView = utils::make_array_view<conduit::index_t>(
+    bpState.m_internal_node["fields/originalElements/values"]);
+  const auto savedOriginalElementsView =
+    utils::make_array_view<conduit::index_t>(savedOriginalElements);
+
+  EXPECT_TRUE(compareArrayView(savedOriginalElementsView, originalElementsView));
+}
+
 #endif

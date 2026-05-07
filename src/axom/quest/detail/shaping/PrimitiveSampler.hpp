@@ -315,11 +315,19 @@ public:
 
 #if defined(AXOM_USE_CONDUIT)
   template <int FromDim, int ToDim = DIM>
-  void sampleInOutField(shaping::BlueprintState& AXOM_UNUSED_PARAM(bpState),
-                        int AXOM_UNUSED_PARAM(sampleRes)[3],
-                        int AXOM_UNUSED_PARAM(quadratureType),
-                        PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector) = {})
-  { }
+  void sampleInOutField(shaping::BlueprintState& bpState,
+                        int sampleRes[3],
+                        int quadratureType,
+                        PointProjector<FromDim, ToDim> projector = {})
+  {
+    auto checkInside = [](const primal::Point<double, DIM>&) -> bool { return false; };
+    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
+                                              bpState,
+                                              sampleRes,
+                                              quadratureType,
+                                              checkInside,
+                                              projector);
+  }
 
   template <int FromDim, int ToDim = DIM>
   void computeVolumeFractionsBaseline(shaping::BlueprintState& AXOM_UNUSED_PARAM(bpState),

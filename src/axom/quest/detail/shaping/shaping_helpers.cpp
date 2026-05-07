@@ -422,10 +422,15 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
   inoutQFuncs.Register("positions", pos_coef, true);
 }
 
-void generatePositionsQFunction(SamplingMFEMState& mfemState,
-                                int sampleResolution[3],
-                                axom::numerics::QuadratureType quadratureType)
+void generateSamplingPositions(SamplingMFEMState& mfemState,
+                               int sampleResolution[3],
+                               axom::numerics::QuadratureType quadratureType)
 {
+  if(mfemState.m_inoutShapeQFuncs.Has("positions"))
+  {
+    return;
+  }
+
   generatePositionsQFunction(mfemState.m_dc->GetMesh(),
                              mfemState.m_inoutShapeQFuncs,
                              sampleResolution,
@@ -534,10 +539,16 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
   });
 }
 
-void generatePositionsQFunction(BlueprintState& bpState,
-                                int sampleResolution[3],
-                                axom::numerics::QuadratureType quadratureType)
+void generateSamplingPositions(BlueprintState& bpState,
+                               int sampleResolution[3],
+                               axom::numerics::QuadratureType quadratureType)
 {
+  if(bpState.m_internal_node.has_path(
+       axom::fmt::format("topologies/{}", QUADRATURE_TOPOLOGY_NAME)))
+  {
+    return;
+  }
+
   generateQuadraturePointMesh(bpState.m_internal_node,
                               bpState.m_topology_name,
                               bpState.m_allocator_id,

@@ -183,11 +183,33 @@ public:
 
 #if defined(AXOM_USE_CONDUIT)
   template <int FromDim, int ToDim = DIM>
-  void sampleInOutField(shaping::BlueprintState& AXOM_UNUSED_PARAM(bpState),
-                        int AXOM_UNUSED_PARAM(sampleRes)[3],
-                        int AXOM_UNUSED_PARAM(quadratureType),
-                        PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector) = {})
-  { }
+  std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::BlueprintState& bpState,
+                                                        int sampleRes[3],
+                                                        int quadratureType,
+                                                        PointProjector<FromDim, ToDim> projector = {})
+  {
+    using PointType = primal::Point<double, DIM>;
+
+    const InOutOctreeType* octree = m_octree;
+    auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
+    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
+                                              bpState,
+                                              sampleRes,
+                                              quadratureType,
+                                              checkInside,
+                                              projector);
+  }
+
+  template <int FromDim, int ToDim>
+  std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::BlueprintState&,
+                                                        int AXOM_UNUSED_PARAM(sampleRes)[3],
+                                                        int AXOM_UNUSED_PARAM(quadratureType),
+                                                        PointProjector<FromDim, ToDim>)
+  {
+    static_assert(ToDim != DIM,
+                  "Do not call this function -- it only exists to appease the compiler!"
+                  "Projector's return dimension (ToDim), must match class dimension (DIM)");
+  }
 
   template <int FromDim, int ToDim = DIM>
   void computeVolumeFractionsBaseline(shaping::BlueprintState& AXOM_UNUSED_PARAM(bpState),

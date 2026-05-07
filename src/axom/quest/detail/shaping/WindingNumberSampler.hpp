@@ -319,11 +319,38 @@ public:
 
 #if defined(AXOM_USE_CONDUIT)
   template <int FromDim, int ToDim = DIM>
-  void sampleInOutField(shaping::BlueprintState& AXOM_UNUSED_PARAM(bpState),
-                        int AXOM_UNUSED_PARAM(sampleRes)[3],
-                        int AXOM_UNUSED_PARAM(quadratureType),
-                        PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector) = {})
-  { }
+  std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::BlueprintState& bpState,
+                                                        int sampleRes[3],
+                                                        int quadratureType,
+                                                        PointProjector<FromDim, ToDim> projector = {})
+  {
+    const auto contourCaches = m_contourCaches;
+    auto checkInside = [=](const PointType& pt) -> bool {
+      bool inside = false;
+      for(axom::IndexType i = 0; i < contourCaches.size() && !inside; i++)
+      {
+        inside |= detail::checkInside(contourCaches[i], pt);
+      }
+      return inside;
+    };
+    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
+                                              bpState,
+                                              sampleRes,
+                                              quadratureType,
+                                              checkInside,
+                                              projector);
+  }
+
+  template <int FromDim, int ToDim>
+  std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::BlueprintState&,
+                                                        int AXOM_UNUSED_PARAM(sampleRes)[3],
+                                                        int AXOM_UNUSED_PARAM(quadratureType),
+                                                        PointProjector<FromDim, ToDim>)
+  {
+    static_assert(ToDim != DIM,
+                  "Do not call this function -- it only exists to appease the compiler!"
+                  "Projector's return dimension (ToDim), must match class dimension (DIM)");
+  }
 
   template <int FromDim, int ToDim = DIM>
   void computeVolumeFractionsBaseline(shaping::BlueprintState& AXOM_UNUSED_PARAM(bpState),
