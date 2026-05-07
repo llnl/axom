@@ -137,6 +137,7 @@ public:
                const std::string& outputTopologyName,
                const std::string& outputCoordsetName,
                const std::string& originalElementsFieldName,
+               const std::string& quadratureWeightsFieldName,
                const numerics::QuadratureRule& ruleX,
                const numerics::QuadratureRule& ruleY,
                const numerics::QuadratureRule& ruleZ,
@@ -197,6 +198,15 @@ public:
     n_originalValues.set(conduit::DataType::index_t(numPoints));
     auto originalElements = utils::make_array_view<conduit::index_t>(n_originalValues);
 
+    conduit::Node& n_quadratureWeights = n_output["fields/" + quadratureWeightsFieldName];
+    n_quadratureWeights.reset();
+    n_quadratureWeights["association"] = "element";
+    n_quadratureWeights["topology"] = outputTopologyName;
+    conduit::Node& n_weightValues = n_quadratureWeights["values"];
+    n_weightValues.set_allocator(conduitAllocatorId);
+    n_weightValues.set(conduit::DataType::float64(numPoints));
+    auto quadratureWeights = utils::make_array_view<double>(n_weightValues);
+
     const TopologyView deviceTopoView(m_topologyView);
     const CoordsetView deviceCoordsetView(m_coordsetView);
 
@@ -209,12 +219,15 @@ public:
         for(int kz = 0; kz < (dim == 3 ? ruleZ.getNumPoints() : 1); ++kz)
         {
           const double zeta = dim == 3 ? ruleZ.node(kz) : 0.0;
+          const double wz = dim == 3 ? ruleZ.weight(kz) : 1.0;
           for(int jy = 0; jy < ruleY.getNumPoints(); ++jy)
           {
             const double eta = ruleY.node(jy);
+            const double wy = ruleY.weight(jy);
             for(int ix = 0; ix < ruleX.getNumPoints(); ++ix)
             {
               const double xi = ruleX.node(ix);
+              const double wx = ruleX.weight(ix);
 
               PointType pt;
               if constexpr(CoordsetView::dimension() == 2)
@@ -234,6 +247,7 @@ public:
               sizes[pointIndex] = 1;
               offsets[pointIndex] = pointIndex;
               originalElements[pointIndex] = zoneIndex;
+              quadratureWeights[pointIndex] = wx * wy * wz;
               ++pointIndex;
             }
           }

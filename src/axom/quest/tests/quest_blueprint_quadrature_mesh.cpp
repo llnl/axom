@@ -11,9 +11,11 @@
   #include "gtest/gtest.h"
 
   #include "axom/core.hpp"
+  #include "axom/quest/SamplingShaper.hpp"
   #include "axom/quest/detail/shaping/shaping_helpers.hpp"
   #include "axom/bump/utilities/conduit_memory.hpp"
   #include "axom/bump/views/dispatch_coordset.hpp"
+  #include "axom/sidre.hpp"
 
   #include "conduit.hpp"
   #include "conduit_blueprint.hpp"
@@ -129,6 +131,8 @@ TEST(quest_blueprint_quadrature_mesh, generate_closed_uniform_quad_mesh)
     mesh["topologies/quadrature_points/elements/offsets"]);
   const auto originalElementsView =
     utils::make_array_view<conduit::index_t>(mesh["fields/originalElements/values"]);
+  const auto quadratureWeightsView =
+    utils::make_array_view<double>(mesh["fields/quadratureWeights/values"]);
 
   const axom::Array<double> expectedX {{0., 1., 0., 1., 0., 1.}};
   const axom::Array<double> expectedY {{0., 0., 0.5, 0.5, 1., 1.}};
@@ -136,6 +140,7 @@ TEST(quest_blueprint_quadrature_mesh, generate_closed_uniform_quad_mesh)
   const axom::Array<conduit::index_t> expectedSizes {{1, 1, 1, 1, 1, 1}};
   const axom::Array<conduit::index_t> expectedOffsets {{0, 1, 2, 3, 4, 5}};
   const axom::Array<conduit::index_t> expectedOriginalElements {{0, 0, 0, 0, 0, 0}};
+  const axom::Array<double> expectedWeights {{1. / 12., 1. / 12., 1. / 3., 1. / 3., 1. / 12., 1. / 12.}};
 
   axom::bump::views::dispatch_explicit_coordset(
     mesh["coordsets/quadrature_points"], [&](auto coordsetView) {
@@ -149,6 +154,10 @@ TEST(quest_blueprint_quadrature_mesh, generate_closed_uniform_quad_mesh)
   EXPECT_TRUE(compareArrayView(expectedSizes.view(), sizesView));
   EXPECT_TRUE(compareArrayView(expectedOffsets.view(), offsetsView));
   EXPECT_TRUE(compareArrayView(expectedOriginalElements.view(), originalElementsView));
+  for(axom::IndexType i = 0; i < expectedWeights.size(); ++i)
+  {
+    EXPECT_NEAR(expectedWeights[i], quadratureWeightsView[i], 1e-12);
+  }
 }
 
 TEST(quest_blueprint_quadrature_mesh, generate_open_uniform_hex_mesh)
@@ -225,6 +234,101 @@ TEST(quest_blueprint_quadrature_mesh, state_wrapper_generation_is_idempotent)
     utils::make_array_view<conduit::index_t>(savedOriginalElements);
 
   EXPECT_TRUE(compareArrayView(savedOriginalElementsView, originalElementsView));
+}
+
+TEST(quest_blueprint_quadrature_mesh, blueprint_state_field_helpers_support_replacement_ops)
+{
+  conduit::Node mesh = makeQuadMesh();
+
+  axom::quest::shaping::BlueprintState bpState;
+  bpState.m_allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  bpState.m_topology_name = "mesh";
+  bpState.m_internal_node = mesh;
+
+  int sampleResolution[3] = {2, 2, 1};
+  axom::quest::shaping::generateSamplingPositions(
+    bpState,
+    sampleResolution,
+    axom::numerics::QuadratureType::ClosedUniform);
+
+  conduit::Node& shapeField = bpState.m_internal_node["fields/inout_shape"];
+  shapeField["association"] = "element";
+  shapeField["topology"] = "quadrature_points";
+  const axom::Array<double> shapeValues {{1., 0., 1., 0.}};
+  setNodeValues(shapeField["values"], shapeValues.view());
+
+  conduit::Node* materialField = bpState.createMaterialFunction("mat_inout_void");
+  ASSERT_NE(materialField, nullptr);
+  const axom::Array<double> materialValues {{1., 1., 0., 0.}};
+  setNodeValues((*materialField)["values"], materialValues.view());
+
+  conduit::Node* shapeCopy =
+    axom::quest::shaping::cloneInOutFunction(bpState.getShapeFunction("inout_shape"));
+  ASSERT_NE(shapeCopy, nullptr);
+
+  axom::quest::shaping::replaceMaterial(shapeCopy, materialField, true);
+
+  namespace utils = axom::bump::utilities;
+  const auto replacedView = utils::make_array_view<double>((*materialField)["values"]);
+  const axom::Array<double> expectedReplaced {{0., 1., 0., 0.}};
+  EXPECT_TRUE(compareArrayView(expectedReplaced.view(), replacedView));
+
+  conduit::Node* createdField = bpState.createMaterialFunction("mat_inout_created");
+  ASSERT_NE(createdField, nullptr);
+  axom::quest::shaping::copyShapeIntoMaterial(shapeCopy, createdField, false);
+
+  const auto copiedView = utils::make_array_view<double>((*createdField)["values"]);
+  EXPECT_TRUE(compareArrayView(shapeValues.view(), copiedView));
+
+  delete shapeCopy;
+}
+
+TEST(quest_blueprint_quadrature_mesh, compute_volume_fractions_for_material_from_quadrature_weights)
+{
+  conduit::Node mesh = makeQuadMesh();
+
+  axom::quest::shaping::BlueprintState bpState;
+  bpState.m_allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  bpState.m_topology_name = "mesh";
+  bpState.m_internal_node = mesh;
+
+  int sampleResolution[3] = {2, 2, 1};
+  axom::quest::shaping::generateSamplingPositions(
+    bpState,
+    sampleResolution,
+    axom::numerics::QuadratureType::ClosedUniform);
+
+  conduit::Node* materialField = bpState.createMaterialFunction("mat_inout_test");
+  ASSERT_NE(materialField, nullptr);
+
+  const axom::Array<double> materialValues {{1., 0., 1., 0.}};
+  setNodeValues((*materialField)["values"], materialValues.view());
+
+  axom::quest::shaping::computeVolumeFractionsForMaterial(bpState, "mat_inout_test");
+
+  ASSERT_TRUE(bpState.m_internal_node.has_path("fields/vol_frac_test/values"));
+  namespace utils = axom::bump::utilities;
+  const auto volFracValues =
+    utils::make_array_view<double>(bpState.m_internal_node["fields/vol_frac_test/values"]);
+
+  ASSERT_EQ(volFracValues.size(), 1);
+  EXPECT_NEAR(volFracValues[0], 0.5, 1e-12);
+}
+
+TEST(quest_blueprint_quadrature_mesh, sampling_shaper_constructs_from_blueprint_node_and_group)
+{
+  conduit::Node mesh = makeQuadMesh();
+  axom::klee::ShapeSet shapeSet;
+  const auto policy = axom::runtime_policy::Policy::seq;
+  const int allocatorId = axom::policyToDefaultAllocatorID(policy);
+
+  axom::quest::SamplingShaper nodeShaper(policy, allocatorId, shapeSet, mesh, "mesh");
+
+  axom::sidre::DataStore ds;
+  auto* meshGroup = ds.getRoot()->createGroup("mesh");
+  ASSERT_TRUE(meshGroup->importConduitTree(mesh));
+
+  axom::quest::SamplingShaper groupShaper(policy, allocatorId, shapeSet, meshGroup, "mesh");
 }
 
 #endif

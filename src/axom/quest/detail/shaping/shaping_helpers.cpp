@@ -39,6 +39,7 @@ namespace
 constexpr const char* QUADRATURE_COORDSET_NAME = "quadrature_points";
 constexpr const char* QUADRATURE_TOPOLOGY_NAME = "quadrature_points";
 constexpr const char* ORIGINAL_ELEMENTS_FIELD_NAME = "originalElements";
+constexpr const char* QUADRATURE_WEIGHTS_FIELD_NAME = "quadratureWeights";
 
 numerics::QuadratureRule getBlueprintQuadratureRule(axom::numerics::QuadratureType quadratureType,
                                                     int npts,
@@ -75,6 +76,7 @@ void buildBlueprintQuadratureMesh(const conduit::Node& topoNode,
                       QUADRATURE_TOPOLOGY_NAME,
                       QUADRATURE_COORDSET_NAME,
                       ORIGINAL_ELEMENTS_FIELD_NAME,
+                      QUADRATURE_WEIGHTS_FIELD_NAME,
                       ruleX,
                       ruleY,
                       ruleZ,
@@ -258,6 +260,12 @@ void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
   }
 }
 
+mfem::QuadratureFunction* cloneInOutFunction(const mfem::QuadratureFunction* qfunc)
+{
+  SLIC_ASSERT(qfunc != nullptr);
+  return new mfem::QuadratureFunction(*qfunc);
+}
+
 mfem::QuadratureSpace* makeDefaultQuadratureSpace(mfem::Mesh* mesh, int sampleRes)
 {
   SLIC_ASSERT(mesh != nullptr);
@@ -337,6 +345,37 @@ mfem::QuadratureSpace* makeCustomQuadratureSpace(mfem::Mesh* mesh,
   }
 
   return new OwnedQuadratureSpace(*mesh, std::move(ir));
+}
+
+void assembleVolumeFractionRHS(const mfem::FiniteElementSpace& fes,
+                               mfem::QuadratureFunction& inout,
+                               const mfem::IntegrationRule& sampleIR,
+                               bool useAnisotropicAssembly,
+                               mfem::Vector& b)
+{
+  mfem::QuadratureFunctionCoefficient qfc(inout);
+  mfem::DomainLFIntegrator rhs(qfc, &sampleIR);
+
+  if(useAnisotropicAssembly)
+  {
+    mfem::Vector elemVec;
+    mfem::Array<int> elemVDofs;
+
+    for(int elem = 0; elem < fes.GetNE(); ++elem)
+    {
+      rhs.AssembleRHSElementVect(*fes.GetFE(elem), *fes.GetElementTransformation(elem), elemVec);
+      fes.GetElementVDofs(elem, elemVDofs);
+      b.AddElementVector(elemVDofs, elemVec);
+    }
+  }
+  else
+  {
+    mfem::Array<int> elem_marker(fes.GetNE());
+    elem_marker.HostWrite();
+    elem_marker = 1;
+    elem_marker.ReadWrite();
+    rhs.AssembleDevice(fes, elem_marker, b);
+  }
 }
 
 /// Generates a quadrature function corresponding to the mesh "positions" field
@@ -435,6 +474,216 @@ void generateSamplingPositions(SamplingMFEMState& mfemState,
                              mfemState.m_inoutShapeQFuncs,
                              sampleResolution,
                              quadratureType);
+}
+
+void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
+                                       const std::string& matField,
+                                       int volfracOrder,
+                                       int sampleResolution[3],
+                                       axom::numerics::QuadratureType quadratureType)
+{
+  AXOM_ANNOTATE_SCOPE("computeVolumeFractionsForMaterial");
+
+  SLIC_ASSERT(axom::utilities::string::startsWith(matField, "mat_inout_"));
+  auto* inout = mfemState.getMaterialFunction(matField);
+  SLIC_ASSERT(inout != nullptr);
+
+  auto* dc = mfemState.m_dc;
+  SLIC_ASSERT(dc != nullptr);
+
+  const auto& sampleIR = inout->GetSpace()->GetIntRule(0);
+  const int sampleOrder = sampleIR.GetOrder();
+  const int sampleNQ = sampleIR.GetNPoints();
+  const int sampleSZ = inout->GetSpace()->GetSize();
+
+  mfem::Mesh* mesh = dc->GetMesh();
+  const int dim = mesh->Dimension();
+  const int NE = mesh->GetNE();
+  const auto geom = mesh->GetTypicalElementGeometry();
+
+  auto samples_per_dim = [=](int sampleRes[3], mfem::Geometry::Type geomType) -> std::string {
+    switch(geomType)
+    {
+    case mfem::Geometry::SQUARE:
+      return axom::fmt::format(" ({} * {})", sampleRes[0], sampleRes[1]);
+    case mfem::Geometry::CUBE:
+      return axom::fmt::format(" ({} * {} * {})", sampleRes[0], sampleRes[1], sampleRes[2]);
+    default:
+      return std::string();
+    }
+  };
+
+  SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                   "In computeVolumeFractions(): num samples per element {}{} | "
+                                   "sample polynomial order {} | total samples {:L}",
+                                   sampleNQ,
+                                   samples_per_dim(sampleResolution, geom),
+                                   sampleOrder,
+                                   sampleSZ));
+
+  SLIC_INFO_ROOT(
+    axom::fmt::format(axom::utilities::locale(), "Mesh has dim {} and {:L} elements", dim, NE));
+
+  const auto vf_name = axom::fmt::format("vol_frac_{}", matField.substr(10));
+  mfem::GridFunction* vf =
+    getOrAllocateL2GridFunction(dc, vf_name, volfracOrder, dim, mfem::BasisType::Positive);
+  const mfem::FiniteElementSpace* fes = vf->FESpace();
+  const int dofs = fes->GetTypicalFE()->GetDof();
+
+  mfem::DenseTensor* mass_mat {nullptr};
+  const std::string mass_matrix_name = "shaping_mass_matrix";
+  if(mfemState.m_inoutTensors.Has(mass_matrix_name))
+  {
+    mass_mat = mfemState.m_inoutTensors.Get(mass_matrix_name);
+  }
+  else
+  {
+    AXOM_ANNOTATE_SCOPE("mass integrator assemble");
+
+    mass_mat = new mfem::DenseTensor(dofs, dofs, NE);
+    mass_mat->HostWrite();
+    (*mass_mat) = 0.;
+    mass_mat->ReadWrite();
+
+    mfem::ConstantCoefficient one_coef(1.0);
+    mfem::MassIntegrator mass_integrator(one_coef, &sampleIR);
+
+    if(usesAnisotropicCustomTensorQuadrature(*fes->GetMesh(), sampleResolution, quadratureType))
+    {
+      mfem::DenseMatrix elemMat;
+      mass_mat->HostWrite();
+      for(int elem = 0; elem < NE; ++elem)
+      {
+        mass_integrator.AssembleElementMatrix(*fes->GetFE(elem),
+                                              *fes->GetElementTransformation(elem),
+                                              elemMat);
+        for(int j = 0; j < dofs; ++j)
+        {
+          for(int i = 0; i < dofs; ++i)
+          {
+            (*mass_mat)(i, j, elem) = elemMat(i, j);
+          }
+        }
+      }
+    }
+    else
+    {
+      const int sz = mass_mat->TotalSize();
+      mfem::Vector mass_vec;
+      mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+      mass_vec.SetSize(sz);
+      mass_integrator.AssembleEA(*fes, mass_vec, false);
+      mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+    }
+
+    mfemState.m_inoutTensors.Register(mass_matrix_name, mass_mat, true);
+  }
+
+  mfem::DenseTensor* mass_mat_inv {nullptr};
+  mfem::Array<int>* mass_mat_pivots {nullptr};
+  const std::string minv_name = "shaping_mass_matrix_inv";
+  const std::string pivots_name = "shaping_mass_matrix_pivots";
+  if(mfemState.m_inoutTensors.Has(minv_name) && mfemState.m_inoutArrays.Has(pivots_name))
+  {
+    mass_mat_inv = mfemState.m_inoutTensors.Get(minv_name);
+    mass_mat_pivots = mfemState.m_inoutArrays.Get(pivots_name);
+  }
+  else
+  {
+    AXOM_ANNOTATE_SCOPE("batch lu factor");
+
+    mass_mat->ReadWrite();
+    mass_mat_inv = new mfem::DenseTensor(*mass_mat);
+    mass_mat_pivots = new mfem::Array<int>(dofs * NE);
+
+    mass_mat_inv->ReadWrite();
+    mass_mat_pivots->Write();
+    mfem::BatchLUFactor(*mass_mat_inv, *mass_mat_pivots);
+
+    mfemState.m_inoutTensors.Register(minv_name, mass_mat_inv, true);
+    mfemState.m_inoutArrays.Register(pivots_name, mass_mat_pivots, true);
+  }
+
+  mfem::DenseTensor* shaping_scratch_buffer {nullptr};
+  const std::string scratch_buffer_name = "shaping_scratch_buffer";
+  if(mfemState.m_inoutTensors.Has(scratch_buffer_name))
+  {
+    shaping_scratch_buffer = mfemState.m_inoutTensors.Get(scratch_buffer_name);
+  }
+  else
+  {
+    shaping_scratch_buffer = new mfem::DenseTensor(dofs, dofs, NE);
+    shaping_scratch_buffer->HostWrite();
+    (*shaping_scratch_buffer) = 0.;
+    mfemState.m_inoutTensors.Register(scratch_buffer_name, shaping_scratch_buffer, true);
+  }
+
+  axom::utilities::Timer timer(true);
+  {
+    mfem::Vector b(fes->GetVSize());
+    SLIC_ASSERT(b.Size() == dofs * NE);
+    {
+      AXOM_ANNOTATE_SCOPE("domain lf integrator assemble");
+
+      inout->ReadWrite();
+      b.HostWrite();
+      b = 0.;
+      b.ReadWrite();
+
+      assembleVolumeFractionRHS(*fes,
+                                *inout,
+                                sampleIR,
+                                usesAnisotropicCustomTensorQuadrature(*fes->GetMesh(),
+                                                                      sampleResolution,
+                                                                      quadratureType),
+                                b);
+    }
+    inout->HostReadWrite();
+
+    {
+      AXOM_ANNOTATE_SCOPE("batch lu solve");
+
+      mass_mat_inv->Read();
+      mass_mat_pivots->Read();
+
+      vf->HostReadWrite();
+      (*vf) = b;
+      vf->ReadWrite();
+      mfem::BatchLUSolve(*mass_mat_inv, *mass_mat_pivots, *vf);
+    }
+    mass_mat_inv->HostReadWrite();
+    mass_mat_pivots->HostReadWrite();
+
+    constexpr double minY = 0.;
+    constexpr double maxY = 1.;
+
+    auto m_d = mfem::Reshape(mass_mat->HostReadWrite(), dofs, dofs, NE);
+    auto b_d = mfem::Reshape(b.HostReadWrite(), dofs, NE);
+    auto vf_d = mfem::Reshape(vf->HostReadWrite(), dofs, NE);
+    auto fct_mat_d = mfem::Reshape(shaping_scratch_buffer->HostReadWrite(), dofs, dofs, NE);
+
+    AXOM_ANNOTATE_BEGIN("fct project");
+    axom::for_all<axom::SEQ_EXEC>(0, NE, [=](int i) {
+      FCT_correct(&m_d(0, 0, i),
+                  dofs,
+                  &b_d(0, i),
+                  minY,
+                  maxY,
+                  &vf_d(0, i),
+                  &fct_mat_d(0, 0, i));
+    });
+    AXOM_ANNOTATE_END("fct project");
+  }
+  timer.stop();
+
+  SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                   "\t Generating volume fractions '{}' took {:.3f} seconds (@ "
+                                   "{:L} dofs processed per second)",
+                                   vf_name,
+                                   timer.elapsed(),
+                                   static_cast<int>(fes->GetNDofs() / timer.elapsed())));
+
+  vf->HostReadWrite();
 }
 
 #if defined(AXOM_USE_CONDUIT)
@@ -554,6 +803,128 @@ void generateSamplingPositions(BlueprintState& bpState,
                               bpState.m_allocator_id,
                               sampleResolution,
                               quadratureType);
+}
+
+void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::string& matField)
+{
+  AXOM_ANNOTATE_SCOPE("computeVolumeFractionsForMaterial");
+
+  SLIC_ASSERT(axom::utilities::string::startsWith(matField, "mat_inout_"));
+
+  conduit::Node* inout = bpState.getMaterialFunction(matField);
+  SLIC_ERROR_IF(inout == nullptr,
+                axom::fmt::format("Missing Blueprint material field '{}' for volume fraction projection.",
+                                  matField));
+
+  conduit::Node& bpMeshNode = bpState.m_internal_node;
+  SLIC_ERROR_IF(!bpMeshNode.has_path("fields/originalElements/values"),
+                "Missing Blueprint originalElements field for volume fraction projection.");
+  SLIC_ERROR_IF(!bpMeshNode.has_path("fields/quadratureWeights/values"),
+                "Missing Blueprint quadratureWeights field for volume fraction projection.");
+
+  const conduit::Node& topoNode =
+    bpMeshNode.fetch_existing("topologies").fetch_existing(bpState.m_topology_name);
+
+  axom::IndexType numZones = 0;
+  axom::bump::views::dispatch_unstructured_topology(
+    topoNode, [&](const auto&, auto topoView) { numZones = topoView.numberOfZones(); });
+
+  namespace utils = axom::bump::utilities;
+  const auto originalElements =
+    utils::make_array_view<conduit::index_t>(bpMeshNode["fields/originalElements/values"]);
+  const auto quadratureWeights =
+    utils::make_array_view<double>(bpMeshNode["fields/quadratureWeights/values"]);
+  const auto inoutValues = utils::make_array_view<double>(inout->fetch_existing("values"));
+
+  SLIC_ASSERT(originalElements.size() == quadratureWeights.size());
+  SLIC_ASSERT(originalElements.size() == inoutValues.size());
+
+  const std::string vfName = axom::fmt::format("vol_frac_{}", matField.substr(10));
+  conduit::Node& vfNode = bpMeshNode["fields/" + vfName];
+  vfNode.reset();
+  vfNode["association"] = "element";
+  vfNode["topology"] = bpState.m_topology_name;
+
+  const auto conduitAllocatorId =
+    axom::sidre::ConduitMemory::axomAllocIdToConduit(bpState.m_allocator_id);
+  conduit::Node& valuesNode = vfNode["values"];
+  valuesNode.set_allocator(conduitAllocatorId);
+  valuesNode.set(conduit::DataType::float64(numZones));
+  auto vfValues = utils::make_array_view<double>(valuesNode);
+
+  for(axom::IndexType zoneIdx = 0; zoneIdx < vfValues.size(); ++zoneIdx)
+  {
+    vfValues[zoneIdx] = 0.;
+  }
+
+  for(axom::IndexType pointIdx = 0; pointIdx < inoutValues.size(); ++pointIdx)
+  {
+    const conduit::index_t zoneIdx = originalElements[pointIdx];
+    SLIC_ASSERT(zoneIdx >= 0);
+    SLIC_ASSERT(zoneIdx < vfValues.size());
+    vfValues[zoneIdx] += inoutValues[pointIdx] * quadratureWeights[pointIdx];
+  }
+}
+
+void replaceMaterial(conduit::Node* shapeNode,
+                     conduit::Node* materialNode,
+                     bool shapeReplacesMaterial)
+{
+  SLIC_ASSERT(shapeNode != nullptr);
+  SLIC_ASSERT(materialNode != nullptr);
+
+  namespace utils = axom::bump::utilities;
+  auto shapeValues = utils::make_array_view<double>(shapeNode->fetch_existing("values"));
+  auto materialValues = utils::make_array_view<double>(materialNode->fetch_existing("values"));
+
+  SLIC_ASSERT(shapeValues.size() == materialValues.size());
+
+  for(axom::IndexType i = 0; i < materialValues.size(); ++i)
+  {
+    if(shapeReplacesMaterial)
+    {
+      materialValues[i] = shapeValues[i] > 0. ? 0. : materialValues[i];
+    }
+    else
+    {
+      shapeValues[i] = materialValues[i] > 0. ? 0. : shapeValues[i];
+    }
+  }
+}
+
+void copyShapeIntoMaterial(const conduit::Node* shapeNode,
+                           conduit::Node* materialNode,
+                           bool reuseExisting)
+{
+  SLIC_ASSERT(shapeNode != nullptr);
+  SLIC_ASSERT(materialNode != nullptr);
+
+  namespace utils = axom::bump::utilities;
+  const auto shapeValues = utils::make_array_view<double>(shapeNode->fetch_existing("values"));
+  auto materialValues = utils::make_array_view<double>(materialNode->fetch_existing("values"));
+
+  SLIC_ASSERT(shapeValues.size() == materialValues.size());
+
+  if(reuseExisting)
+  {
+    for(axom::IndexType i = 0; i < materialValues.size(); ++i)
+    {
+      materialValues[i] = shapeValues[i] > 0. ? 1. : materialValues[i];
+    }
+  }
+  else
+  {
+    for(axom::IndexType i = 0; i < materialValues.size(); ++i)
+    {
+      materialValues[i] = shapeValues[i];
+    }
+  }
+}
+
+conduit::Node* cloneInOutFunction(const conduit::Node* node)
+{
+  SLIC_ASSERT(node != nullptr);
+  return new conduit::Node(*node);
 }
 #endif
 

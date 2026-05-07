@@ -191,6 +191,40 @@ struct SamplingMFEMState : public MFEMState
     m_inoutArrays.clear();
   }
 
+  mfem::QuadratureFunction* getShapeFunction(const std::string& name)
+  {
+    return m_inoutShapeQFuncs.Get(name);
+  }
+
+  const mfem::QuadratureFunction* getShapeFunction(const std::string& name) const
+  {
+    return m_inoutShapeQFuncs.Get(name);
+  }
+
+  mfem::QuadratureFunction* getMaterialFunction(const std::string& name)
+  {
+    return m_inoutMaterialQFuncs.Get(name);
+  }
+
+  const mfem::QuadratureFunction* getMaterialFunction(const std::string& name) const
+  {
+    return m_inoutMaterialQFuncs.Get(name);
+  }
+
+  mfem::QuadratureFunction* createMaterialFunction(const std::string& name)
+  {
+    auto* positions = m_inoutShapeQFuncs.Get("positions");
+    SLIC_ERROR_IF(positions == nullptr,
+                  std::string("Cannot create material function '") + name +
+                    "' without positions.");
+
+    auto* qfunc = new mfem::QuadratureFunction(positions->GetSpace(), 1);
+    qfunc->HostWrite();
+    *qfunc = 0.;
+    m_inoutMaterialQFuncs.Register(name, qfunc, true);
+    return qfunc;
+  }
+
   QFunctionCollection m_inoutShapeQFuncs;
   QFunctionCollection m_inoutMaterialQFuncs;
   DenseTensorCollection m_inoutTensors;
@@ -211,6 +245,61 @@ struct BlueprintState
   conduit::Node* m_external_node_ptr {nullptr};
   //! @brief Internal Node representation used for blueprint operations.
   conduit::Node m_internal_node;
+
+  conduit::Node* getShapeFunction(const std::string& name)
+  {
+    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
+                                                      : nullptr;
+  }
+
+  const conduit::Node* getShapeFunction(const std::string& name) const
+  {
+    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
+                                                      : nullptr;
+  }
+
+  conduit::Node* getMaterialFunction(const std::string& name)
+  {
+    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
+                                                      : nullptr;
+  }
+
+  const conduit::Node* getMaterialFunction(const std::string& name) const
+  {
+    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
+                                                      : nullptr;
+  }
+
+  conduit::Node* createMaterialFunction(const std::string& name)
+  {
+    constexpr const char* quadratureTopologyName = "quadrature_points";
+    SLIC_ERROR_IF(!m_internal_node.has_path("coordsets/quadrature_points/values"),
+                  std::string("Cannot create material function '") + name +
+                    "' without quadrature points.");
+
+    conduit::Node& fieldNode = m_internal_node["fields/" + name];
+    fieldNode.reset();
+    fieldNode["association"] = "element";
+    fieldNode["topology"] = quadratureTopologyName;
+
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(m_allocator_id);
+    conduit::Node& valuesNode = fieldNode["values"];
+    valuesNode.set_allocator(conduitAllocatorId);
+
+    const conduit::Node& values =
+      m_internal_node["coordsets/quadrature_points"].fetch_existing("values");
+    const auto numValues = values.child(0).dtype().number_of_elements();
+    valuesNode.set(conduit::DataType::float64(numValues));
+
+    auto fieldValues = axom::bump::utilities::make_array_view<double>(valuesNode);
+    for(axom::IndexType i = 0; i < fieldValues.size(); ++i)
+    {
+      fieldValues[i] = 0.;
+    }
+
+    return &fieldNode;
+  }
 };
 #endif
 
@@ -261,6 +350,19 @@ void replaceMaterial(mfem::QuadratureFunction* shapeQFunc,
 void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
                            mfem::QuadratureFunction* materialQFunc,
                            bool reuseExisting = true);
+
+mfem::QuadratureFunction* cloneInOutFunction(const mfem::QuadratureFunction* qfunc);
+
+#if defined(AXOM_USE_CONDUIT)
+void replaceMaterial(conduit::Node* shapeNode, conduit::Node* materialNode, bool shouldReplace);
+
+void copyShapeIntoMaterial(const conduit::Node* shapeNode,
+                           conduit::Node* materialNode,
+                           bool reuseExisting = true);
+
+conduit::Node* cloneInOutFunction(const conduit::Node* node);
+#endif
+
 /**
  * \brief Generates a "position" quadrature function corresponding to the mesh positions and
  *        store it in \a inoutQFuncs.
@@ -285,6 +387,12 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
 void generateSamplingPositions(SamplingMFEMState& mfemState,
                                int sampleResolution[3],
                                axom::numerics::QuadratureType quadratureType);
+
+void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
+                                       const std::string& matField,
+                                       int volfracOrder,
+                                       int sampleResolution[3],
+                                       axom::numerics::QuadratureType quadratureType);
 
 #if defined(AXOM_USE_CONDUIT)
 /**
@@ -311,6 +419,8 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
 void generateSamplingPositions(BlueprintState& bpState,
                                int sampleResolution[3],
                                axom::numerics::QuadratureType quadratureType);
+
+void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::string& matField);
 #endif
 
 /** 

@@ -138,6 +138,24 @@ public:
     initializeSamplingMFEMState();
   }
 
+#if defined(AXOM_USE_CONDUIT)
+  SamplingShaper(RuntimePolicy execPolicy,
+                 int allocatorId,
+                 const klee::ShapeSet& shapeSet,
+                 sidre::Group* bpMesh,
+                 const std::string& topo = "")
+    : Shaper(execPolicy, allocatorId, shapeSet, bpMesh, topo)
+  { }
+
+  SamplingShaper(RuntimePolicy execPolicy,
+                 int allocatorId,
+                 const klee::ShapeSet& shapeSet,
+                 conduit::Node& bpNode,
+                 const std::string& topo = "")
+    : Shaper(execPolicy, allocatorId, shapeSet, bpNode, topo)
+  { }
+#endif
+
   ~SamplingShaper() override = default;
 
   ///@{
@@ -513,100 +531,21 @@ public:
 
     internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
                                                                       : slic::message::Warning);
-
-    const auto& shapeName = shape.getName();
-    const auto& thisMatName = shape.getMaterial();
-
-    SLIC_INFO_ROOT(
-      axom::fmt::format("{:-^80}",
-                        axom::fmt::format("Applying replacement rules for shape '{}'", shapeName)));
-
-    mfem::QuadratureFunction* shapeQFunc = nullptr;
-
-    if(shape.getGeometry().hasGeometry())
+#if defined(AXOM_USE_MFEM)
+    if(m_mfem_state != nullptr)
     {
-      // Get inout qfunc for this shape
-      shapeQFunc = shapeQFuncs().Get(axom::fmt::format("inout_{}", shapeName));
-
-      SLIC_ERROR_IF(shapeQFunc == nullptr,
-                    axom::fmt::format("Missing inout samples for shape '{}'. "
-                                      "This indicates the shape query did not produce a "
-                                      "quadrature field before replacement rules were applied.",
-                                      shapeName));
+      applyReplacementRulesImpl(samplingMFEMState(), shape);
+      return;
     }
-    else
+#endif
+#if defined(AXOM_USE_CONDUIT)
+    if(m_bp_state != nullptr)
     {
-      // No input geometry for the shape, get inout qfunc for associated material
-      shapeQFunc = materialQFuncs().Get(axom::fmt::format("mat_inout_{}", thisMatName));
-
-      SLIC_ERROR_IF(shapeQFunc == nullptr,
-                    axom::fmt::format("Missing inout samples for material '{}' while applying "
-                                      "replacement rules for shape '{}', which has no input "
-                                      "geometry. Initialize that material before shaping, e.g. "
-                                      "pass '--background-material {}' in the shaping driver or "
-                                      "import initial volume fractions for it.",
-                                      thisMatName,
-                                      shapeName,
-                                      thisMatName));
+      applyReplacementRulesImpl(*m_bp_state, shape);
+      return;
     }
-
-    // Create a copy of the inout samples for this shape
-    // Replacements will be applied to this and then copied into our shape's material
-    auto* shapeQFuncCopy = new mfem::QuadratureFunction(*shapeQFunc);
-
-    // apply replacement rules to all other materials
-    for(auto& otherMatName : m_knownMaterials)
-    {
-      // We'll handle the current shape's material at the end
-      if(otherMatName == thisMatName)
-      {
-        continue;
-      }
-
-      const bool shouldReplace = shape.replaces(otherMatName);
-      SLIC_INFO_ROOT(
-        axom::fmt::format("Should we replace material '{}' with shape '{}' of material '{}'? {}",
-                          otherMatName,
-                          shapeName,
-                          thisMatName,
-                          shouldReplace ? "yes" : "no"));
-
-      auto* otherMatQFunc =
-        materialQFuncs().Get(axom::fmt::format("mat_inout_{}", otherMatName));
-      SLIC_ERROR_IF(otherMatQFunc == nullptr,
-                    axom::fmt::format("Missing inout samples for material '{}' while applying "
-                                      "replacement rules for shape '{}'.",
-                                      otherMatName,
-                                      shapeName));
-
-      quest::shaping::replaceMaterial(shapeQFuncCopy, otherMatQFunc, shouldReplace);
-    }
-
-    // Get inout qfunc for the current material
-    const std::string materialQFuncName = axom::fmt::format("mat_inout_{}", thisMatName);
-    if(!materialQFuncs().Has(materialQFuncName))
-    {
-      // initialize material from shape inout, the QFunc registry takes ownership
-      materialQFuncs().Register(materialQFuncName, shapeQFuncCopy, true);
-    }
-    else
-    {
-      // copy shape data into current material and delete the copy
-      auto* matQFunc = materialQFuncs().Get(materialQFuncName);
-      SLIC_ERROR_IF(matQFunc == nullptr,
-                    axom::fmt::format("Missing inout samples for material '{}' while updating "
-                                      "the material field for shape '{}'.",
-                                      thisMatName,
-                                      shapeName));
-
-      const bool reuseExisting = shape.getGeometry().hasGeometry();
-      quest::shaping::copyShapeIntoMaterial(shapeQFuncCopy, matQFunc, reuseExisting);
-
-      delete shapeQFuncCopy;
-      shapeQFuncCopy = nullptr;
-    }
-
-    m_knownMaterials.insert(thisMatName);
+#endif
+    SLIC_ERROR("No mesh state is available for SamplingShaper.");
   }
 
   void finalizeShapeQuery() override
@@ -702,22 +641,23 @@ public:
     internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
                                                                       : slic::message::Warning);
 
-    for(auto& mat : materialQFuncs())
-    {
-      const std::string matName = mat.first;
+    auto computeVolumeFractions = [this](const std::string& matName) {
       SLIC_INFO_ROOT(
         axom::fmt::format("Generating volume fraction fields for '{}' material", matName));
 
-      // Sample the InOut field at the mesh quadrature points
       switch(m_vfSampling)
       {
       case shaping::VolFracSampling::SAMPLE_AT_QPTS:
         this->computeVolumeFractionsForMaterial(matName);
         break;
       case shaping::VolFracSampling::SAMPLE_AT_DOFS:
-        /* no-op for now */
         break;
       }
+    };
+
+    for(const auto& materialName : m_knownMaterials)
+    {
+      computeVolumeFractions(axom::fmt::format("mat_inout_{}", materialName));
     }
   }
 
@@ -980,6 +920,93 @@ private:
     SLIC_ERROR("No mesh state is available for SamplingShaper.");
   }
 
+  template <typename MeshState>
+  void applyReplacementRulesImpl(MeshState& meshState, const klee::Shape& shape)
+  {
+    const auto& shapeName = shape.getName();
+    const auto& thisMatName = shape.getMaterial();
+
+    SLIC_INFO_ROOT(
+      axom::fmt::format("{:-^80}",
+                        axom::fmt::format("Applying replacement rules for shape '{}'", shapeName)));
+
+    auto* shapeFunc = shape.getGeometry().hasGeometry()
+      ? meshState.getShapeFunction(axom::fmt::format("inout_{}", shapeName))
+      : meshState.getMaterialFunction(axom::fmt::format("mat_inout_{}", thisMatName));
+
+    if(shape.getGeometry().hasGeometry())
+    {
+      SLIC_ERROR_IF(shapeFunc == nullptr,
+                    axom::fmt::format("Missing inout samples for shape '{}'. "
+                                      "This indicates the shape query did not produce a "
+                                      "quadrature field before replacement rules were applied.",
+                                      shapeName));
+    }
+    else
+    {
+      SLIC_ERROR_IF(shapeFunc == nullptr,
+                    axom::fmt::format("Missing inout samples for material '{}' while applying "
+                                      "replacement rules for shape '{}', which has no input "
+                                      "geometry. Initialize that material before shaping, e.g. "
+                                      "pass '--background-material {}' in the shaping driver or "
+                                      "import initial volume fractions for it.",
+                                      thisMatName,
+                                      shapeName,
+                                      thisMatName));
+    }
+
+    auto* shapeFuncCopy = quest::shaping::cloneInOutFunction(shapeFunc);
+
+    for(auto& otherMatName : m_knownMaterials)
+    {
+      if(otherMatName == thisMatName)
+      {
+        continue;
+      }
+
+      const bool shouldReplace = shape.replaces(otherMatName);
+      SLIC_INFO_ROOT(
+        axom::fmt::format("Should we replace material '{}' with shape '{}' of material '{}'? {}",
+                          otherMatName,
+                          shapeName,
+                          thisMatName,
+                          shouldReplace ? "yes" : "no"));
+
+      auto* otherMatFunc =
+        meshState.getMaterialFunction(axom::fmt::format("mat_inout_{}", otherMatName));
+      SLIC_ERROR_IF(otherMatFunc == nullptr,
+                    axom::fmt::format("Missing inout samples for material '{}' while applying "
+                                      "replacement rules for shape '{}'.",
+                                      otherMatName,
+                                      shapeName));
+
+      quest::shaping::replaceMaterial(shapeFuncCopy, otherMatFunc, shouldReplace);
+    }
+
+    const std::string materialFunctionName = axom::fmt::format("mat_inout_{}", thisMatName);
+    auto* materialFunc = meshState.getMaterialFunction(materialFunctionName);
+    const bool hadExistingMaterial = (materialFunc != nullptr);
+
+    if(!hadExistingMaterial)
+    {
+      materialFunc = meshState.createMaterialFunction(materialFunctionName);
+    }
+
+    SLIC_ERROR_IF(materialFunc == nullptr,
+                  axom::fmt::format("Missing inout samples for material '{}' while updating "
+                                    "the material field for shape '{}'.",
+                                    thisMatName,
+                                    shapeName));
+
+    const bool reuseExisting = hadExistingMaterial && shape.getGeometry().hasGeometry();
+    quest::shaping::copyShapeIntoMaterial(shapeFuncCopy, materialFunc, reuseExisting);
+
+    delete shapeFuncCopy;
+    shapeFuncCopy = nullptr;
+
+    m_knownMaterials.insert(thisMatName);
+  }
+
   /**
    * \brief Compute volume fractions for a given material using its associated quadrature function.
    * 
@@ -989,231 +1016,26 @@ private:
    */
   void computeVolumeFractionsForMaterial(const std::string& matField)
   {
-    AXOM_ANNOTATE_SCOPE("computeVolumeFractionsForMaterial");
-
-    // Retrieve the inout samples QFunc
-    SLIC_ASSERT(axom::utilities::string::startsWith(matField, "mat_inout_"));
-    mfem::QuadratureFunction* inout = materialQFuncs().Get(matField);
-
-    const auto& sampleIR = inout->GetSpace()->GetIntRule(0);  // assume all elements are the same
-    const int sampleOrder = sampleIR.GetOrder();
-    const int sampleNQ = sampleIR.GetNPoints();
-    const int sampleSZ = inout->GetSpace()->GetSize();
-
-    // extract some properties from computational mesh
-    mfem::Mesh* mesh = getDC()->GetMesh();
-    const int dim = mesh->Dimension();
-    const int NE = mesh->GetNE();
-    const auto geom = mesh->GetTypicalElementGeometry();
-
-    auto samples_per_dim = [=](int sampleRes[3], mfem::Geometry::Type geom) -> std::string {
-      switch(geom)
-      {
-      case mfem::Geometry::SQUARE:
-        return axom::fmt::format(" ({} * {})", sampleRes[0], sampleRes[1]);
-      case mfem::Geometry::CUBE:
-        return axom::fmt::format(" ({} * {} * {})", sampleRes[0], sampleRes[1], sampleRes[2]);
-      default:
-        return std::string();
-      }
-    };
-
-    // print info about sampling on rank 0
-    // TODO: mpi reduce this for stats on all ranks
-    SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
-                                     "In computeVolumeFractions(): num samples per element {}{} | "
-                                     "sample polynomial order {} | total samples {:L}",
-                                     sampleNQ,
-                                     samples_per_dim(m_sampleResolution, geom),
-                                     sampleOrder,
-                                     sampleSZ));
-
-    SLIC_INFO_ROOT(
-      axom::fmt::format(axom::utilities::locale(), "Mesh has dim {} and {:L} elements", dim, NE));
-
-    // Access or create a registered volume fraction grid function from the data collection
-    const auto vf_name = axom::fmt::format("vol_frac_{}", matField.substr(10));
-    mfem::GridFunction* vf = shaping::getOrAllocateL2GridFunction(getDC(),
-                                                                  vf_name,
-                                                                  m_volfracOrder,
-                                                                  dim,
-                                                                  mfem::BasisType::Positive);
-    const mfem::FiniteElementSpace* fes = vf->FESpace();
-    const int dofs = fes->GetTypicalFE()->GetDof();
-
-    // access or compute the mass matrix
-    mfem::DenseTensor* mass_mat {nullptr};
-    const std::string mass_matrix_name = "shaping_mass_matrix";
-    if(this->tensors().Has(mass_matrix_name))
+#if defined(AXOM_USE_MFEM)
+    if(m_mfem_state != nullptr)
     {
-      mass_mat = tensors().Get(mass_matrix_name);
+      shaping::computeVolumeFractionsForMaterial(
+        samplingMFEMState(),
+        matField,
+        m_volfracOrder,
+        m_sampleResolution,
+        m_quadratureType);
+      return;
     }
-    else
+#endif
+#if defined(AXOM_USE_CONDUIT)
+    if(m_bp_state != nullptr)
     {
-      AXOM_ANNOTATE_SCOPE("mass integrator assemble");
-
-      mass_mat = new mfem::DenseTensor(dofs, dofs, NE);
-      mass_mat->HostWrite();
-      (*mass_mat) = 0.;
-      mass_mat->ReadWrite();
-
-      mfem::ConstantCoefficient one_coef(1.0);
-      mfem::MassIntegrator mass_integrator(one_coef, &sampleIR);
-
-      if(usesAnisotropicCustomTensorQuadrature(*fes->GetMesh()))
-      {
-        mfem::DenseMatrix elemMat;
-        mass_mat->HostWrite();
-        for(int elem = 0; elem < NE; ++elem)
-        {
-          mass_integrator.AssembleElementMatrix(*fes->GetFE(elem),
-                                                *fes->GetElementTransformation(elem),
-                                                elemMat);
-          for(int j = 0; j < dofs; ++j)
-          {
-            for(int i = 0; i < dofs; ++i)
-            {
-              (*mass_mat)(i, j, elem) = elemMat(i, j);
-            }
-          }
-        }
-      }
-      else
-      {
-        const int sz = mass_mat->TotalSize();
-
-        // wrap mass_mat data as vector for AssembleEA call
-        // note: AssembleEA expects the transpose, but it's ok since mass matrices are symmetric
-        mfem::Vector mass_vec;
-        mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
-        mass_vec.SetSize(sz);
-        mass_integrator.AssembleEA(*fes, mass_vec, false);
-        mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
-      }
-
-      tensors().Register(mass_matrix_name, mass_mat, true);
+      shaping::computeVolumeFractionsForMaterial(*m_bp_state, matField);
+      return;
     }
-    SLIC_ASSERT(mass_mat->SizeI() == dofs);
-    SLIC_ASSERT(mass_mat->SizeJ() == dofs);
-    SLIC_ASSERT(mass_mat->SizeK() == NE);
-
-    // access or compute LU factorization of the mass matrix
-    mfem::DenseTensor* mass_mat_inv {nullptr};
-    mfem::Array<int>* mass_mat_pivots {nullptr};
-    const std::string minv_name = "shaping_mass_matrix_inv";
-    const std::string pivots_name = "shaping_mass_matrix_pivots";
-    if(this->tensors().Has(minv_name) && this->arrays().Has(pivots_name))
-    {
-      mass_mat_inv = this->tensors().Get(minv_name);
-      mass_mat_pivots = this->arrays().Get(pivots_name);
-    }
-    else
-    {
-      AXOM_ANNOTATE_SCOPE("batch lu factor");
-
-      // Perform batched LU factorization on the mass tensor
-      mass_mat->ReadWrite();
-      mass_mat_inv = new mfem::DenseTensor(*mass_mat);
-      mass_mat_pivots = new mfem::Array<int>(dofs * NE);
-
-      mass_mat_inv->ReadWrite();
-      mass_mat_pivots->Write();
-      mfem::BatchLUFactor(*mass_mat_inv, *mass_mat_pivots);
-
-      tensors().Register(minv_name, mass_mat_inv, true);
-      arrays().Register(pivots_name, mass_mat_pivots, true);
-    }
-    SLIC_ASSERT(mass_mat_inv->SizeJ() == dofs);
-    SLIC_ASSERT(mass_mat_inv->SizeI() == dofs);
-    SLIC_ASSERT(mass_mat_inv->SizeK() == NE);
-    SLIC_ASSERT(mass_mat_pivots->Size() == dofs * NE);
-
-    mfem::DenseTensor* shaping_scratch_buffer {nullptr};
-    const std::string scratch_buffer_name = "shaping_scratch_buffer";
-    if(this->tensors().Has(scratch_buffer_name))
-    {
-      shaping_scratch_buffer = this->tensors().Get(scratch_buffer_name);
-    }
-    else
-    {
-      shaping_scratch_buffer = new mfem::DenseTensor(dofs, dofs, NE);
-      // TODO -- we only need this buffer to be Write
-      // and only in the space that FCT_project is called
-      shaping_scratch_buffer->HostWrite();
-      (*shaping_scratch_buffer) = 0.;
-
-      tensors().Register(scratch_buffer_name, shaping_scratch_buffer, true);
-    }
-    SLIC_ASSERT(shaping_scratch_buffer->SizeJ() == dofs);
-    SLIC_ASSERT(shaping_scratch_buffer->SizeI() == dofs);
-    SLIC_ASSERT(shaping_scratch_buffer->SizeK() == NE);
-
-    // Project QField onto volume fractions field using flux corrected transport (FCT)
-    // to keep the range of values between 0 and 1
-    axom::utilities::Timer timer(true);
-    {
-      // assemble the right hand side integral, incorporating the inout samples
-      mfem::Vector b(fes->GetVSize());
-      SLIC_ASSERT(b.Size() == dofs * NE);
-      {
-        AXOM_ANNOTATE_SCOPE("domain lf integrator assemble");
-
-        inout->ReadWrite();
-
-        b.HostWrite();
-        b = 0.;
-        b.ReadWrite();
-
-        this->assembleVolumeFractionRHS(*fes, *inout, sampleIR, b);
-      }
-      inout->HostReadWrite();
-
-      {
-        AXOM_ANNOTATE_SCOPE("batch lu solve");
-
-        mass_mat_inv->Read();
-        mass_mat_pivots->Read();
-
-        vf->HostReadWrite();
-        (*vf) = b;
-        vf->ReadWrite();
-        mfem::BatchLUSolve(*mass_mat_inv, *mass_mat_pivots, *vf);
-      }
-      mass_mat_inv->HostReadWrite();
-      mass_mat_pivots->HostReadWrite();
-
-      constexpr double minY = 0.;
-      constexpr double maxY = 1.;
-
-      // Reshape returns an indexable view of a multidimensional array
-      auto m_d = mfem::Reshape(mass_mat->HostReadWrite(), dofs, dofs, NE);
-      auto b_d = mfem::Reshape(b.HostReadWrite(), dofs, NE);
-      auto vf_d = mfem::Reshape(vf->HostReadWrite(), dofs, NE);
-      auto fct_mat_d = mfem::Reshape(shaping_scratch_buffer->HostReadWrite(), dofs, dofs, NE);
-
-      AXOM_ANNOTATE_BEGIN("fct project");
-      axom::for_all<axom::SEQ_EXEC>(0, NE, [=](int i) {
-        shaping::FCT_correct(&m_d(0, 0, i),
-                             dofs,
-                             &b_d(0, i),
-                             minY,
-                             maxY,
-                             &vf_d(0, i),
-                             &fct_mat_d(0, 0, i));
-      });
-      AXOM_ANNOTATE_END("fct project");
-    }
-    timer.stop();
-
-    // print stats for root rank
-    SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
-                                     "\t Generating volume fractions '{}' took {:.3f} seconds (@ "
-                                     "{:L} dofs processed per second)",
-                                     vf_name,
-                                     timer.elapsed(),
-                                     static_cast<int>(fes->GetNDofs() / timer.elapsed())));
-
-    vf->HostReadWrite();
+#endif
+    SLIC_ERROR("No mesh state is available for SamplingShaper.");
   }
 
   bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh) const
