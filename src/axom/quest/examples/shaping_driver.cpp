@@ -108,7 +108,7 @@ public:
   RuntimePolicy policy {RuntimePolicy::seq};
   std::vector<int> samplingResolution {5, 5, 5};
   // We set quadratureType to Invalid to select the default method.
-  int quadratureType {static_cast<int>(mfem::Quadrature1D::Invalid)};
+  axom::numerics::QuadratureType quadratureType {axom::numerics::QuadratureType::Invalid};
   int outputOrder {2};
   int samplesPerKnotSpan {25};
   int refinementLevel {7};
@@ -328,14 +328,14 @@ public:
         ->capture_default_str()
         ->transform(axom::CLI::CheckedTransformer(vfsamplingMap, axom::CLI::ignore_case));
 
-      std::map<std::string, int> quadTypeMap {
-        {"default", mfem::Quadrature1D::Invalid},
-        {"gausslegendre", mfem::Quadrature1D::GaussLegendre},
-        {"gausslobatto", mfem::Quadrature1D::GaussLobatto},
-        {"openuniform", mfem::Quadrature1D::OpenUniform},
-        {"closeduniform", mfem::Quadrature1D::ClosedUniform},
-        {"openhalfuniform", mfem::Quadrature1D::OpenHalfUniform},
-        {"closedgl", mfem::Quadrature1D::ClosedGL}};
+      std::map<std::string, axom::numerics::QuadratureType> quadTypeMap {
+        {"default", axom::numerics::QuadratureType::Invalid},
+        {"gausslegendre", axom::numerics::QuadratureType::GaussLegendre},
+        {"gausslobatto", axom::numerics::QuadratureType::GaussLobatto},
+        {"openuniform", axom::numerics::QuadratureType::OpenUniform},
+        {"closeduniform", axom::numerics::QuadratureType::ClosedUniform},
+        {"openhalfuniform", axom::numerics::QuadratureType::OpenHalfUniform},
+        {"closedgl", axom::numerics::QuadratureType::ClosedGL}};
       sampling_options->add_option("-q,--quadrature-type", quadratureType)
         ->description(
           "Quadrature type. \n"

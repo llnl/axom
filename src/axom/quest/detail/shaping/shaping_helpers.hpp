@@ -150,6 +150,16 @@ using PointProjector =
 
 #if defined(AXOM_USE_MFEM)
 
+/*!
+ * \brief Converts an Axom quadrature family to the corresponding MFEM
+ *        `Quadrature1D` value.
+ *
+ * \note All `axom::numerics::QuadratureType` enumerators currently map 1:1 to
+ *       MFEM names, even when Axom core numerics does not yet implement the
+ *       corresponding rule family.
+ */
+int to_mfem_quadrature_type(axom::numerics::QuadratureType quadratureType);
+
 using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
 using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
 using MFEMArrayCollection = mfem::NamedFieldsMap<mfem::Array<int>>;
@@ -265,23 +275,40 @@ void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
 void generatePositionsQFunction(mfem::Mesh* mesh,
                                 QFunctionCollection& inoutQFuncs,
                                 int sampleResolution[3],
-                                int quadratureType);
+                                axom::numerics::QuadratureType quadratureType);
 
 /**
  * \brief Generates a "position" quadrature function for the supplied MFEM state.
  */
 void generatePositionsQFunction(SamplingMFEMState& mfemState,
                                 int sampleResolution[3],
-                                int quadratureType);
+                                axom::numerics::QuadratureType quadratureType);
 
 #if defined(AXOM_USE_CONDUIT)
+/**
+ * \brief Generates a derived Blueprint quadrature point mesh within the
+ *        supplied Blueprint mesh node.
+ *
+ * \param bpMeshNode The Blueprint mesh node to augment.
+ * \param topologyName The source topology name to sample.
+ * \param allocatorID Allocator id used for generated storage.
+ * \param sampleResolution The sample resolution in each logical dimension.
+ * \param quadratureType An int corresponding to `mfem::Quadrature1D` when MFEM
+ *        is enabled, or to `axom::numerics::QuadratureType` otherwise.
+ */
+void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
+                                 const std::string& topologyName,
+                                 int allocatorID,
+                                 int sampleResolution[3],
+                                 axom::numerics::QuadratureType quadratureType);
+
 /**
  * \brief Generates a derived Blueprint quadrature point mesh for the supplied
  *        Blueprint state.
  */
 void generatePositionsQFunction(BlueprintState& bpState,
                                 int sampleResolution[3],
-                                int quadratureType);
+                                axom::numerics::QuadratureType quadratureType);
 #endif
 
 /** 

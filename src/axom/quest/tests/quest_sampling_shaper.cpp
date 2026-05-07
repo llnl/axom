@@ -235,14 +235,14 @@ struct PlaneProjector23
   }
 };
 
-const std::pair<const char*, int> supported_quadrature_types[] = {
-  {"default", static_cast<int>(mfem::Quadrature1D::Invalid)},
-  {"gausslegendre", static_cast<int>(mfem::Quadrature1D::GaussLegendre)},
-  {"gausslobatto", static_cast<int>(mfem::Quadrature1D::GaussLobatto)},
-  {"openuniform", static_cast<int>(mfem::Quadrature1D::OpenUniform)},
-  {"closeduniform", static_cast<int>(mfem::Quadrature1D::ClosedUniform)},
-  {"openhalfuniform", static_cast<int>(mfem::Quadrature1D::OpenHalfUniform)},
-  {"closedgl", static_cast<int>(mfem::Quadrature1D::ClosedGL)}};
+const std::pair<const char*, axom::numerics::QuadratureType> supported_quadrature_types[] = {
+  {"default", axom::numerics::QuadratureType::Invalid},
+  {"gausslegendre", axom::numerics::QuadratureType::GaussLegendre},
+  {"gausslobatto", axom::numerics::QuadratureType::GaussLobatto},
+  {"openuniform", axom::numerics::QuadratureType::OpenUniform},
+  {"closeduniform", axom::numerics::QuadratureType::ClosedUniform},
+  {"openhalfuniform", axom::numerics::QuadratureType::OpenHalfUniform},
+  {"closedgl", axom::numerics::QuadratureType::ClosedGL}};
 
 // Utility function to slice a tetrahedron along a plane
 primal::Polygon<double, 3> slice(const primal::Tetrahedron<double, 3>& tet,
@@ -2388,7 +2388,7 @@ piece = line(end=start)
 
   int sampleRes[3] = {3, 5, 1};
   this->m_shaper->setSamplingResolution(sampleRes);
-  this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform));
+  this->m_shaper->setQuadratureType(axom::numerics::QuadratureType::ClosedUniform);
   this->m_shaper->setVolumeFractionOrder(0);
 
   this->runShaping();
@@ -2484,9 +2484,9 @@ shapes:
   this->initializeShaping(shape_file.getPath());
 
   slic::ScopedAbortToThrow abort_guard;
-  EXPECT_THROW(m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::Invalid) - 1),
+  EXPECT_THROW(m_shaper->setQuadratureType(static_cast<axom::numerics::QuadratureType>(-2)),
                slic::SlicAbortException);
-  EXPECT_THROW(m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedGL) + 1),
+  EXPECT_THROW(m_shaper->setQuadratureType(static_cast<axom::numerics::QuadratureType>(6)),
                slic::SlicAbortException);
 }
 
@@ -2521,7 +2521,7 @@ shapes:
 
   int sampleRes[3] = {3, 5, 2};
   this->m_shaper->setSamplingResolution(sampleRes);
-  this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::ClosedUniform));
+  this->m_shaper->setQuadratureType(axom::numerics::QuadratureType::ClosedUniform);
   this->m_shaper->setVolumeFractionOrder(0);
 
   this->runShaping();
@@ -2569,7 +2569,7 @@ shapes:
 
   int sampleRes[3] = {3, 4, 5};
   this->m_shaper->setSamplingResolution(sampleRes);
-  this->m_shaper->setQuadratureType(static_cast<int>(mfem::Quadrature1D::OpenUniform));
+  this->m_shaper->setQuadratureType(axom::numerics::QuadratureType::OpenUniform);
   this->m_shaper->setVolumeFractionOrder(4);
 
   this->runShaping();
@@ -2599,7 +2599,7 @@ TEST_F(CurvedSampleTester2D, positions_match_curved_mesh_for_anisotropic_custom_
   quest::shaping::generatePositionsQFunction(&mesh,
                                              qfuncs,
                                              sampleRes,
-                                             static_cast<int>(mfem::Quadrature1D::OpenUniform));
+                                             axom::numerics::QuadratureType::OpenUniform);
 
   auto* positions = qfuncs.Get("positions");
   ASSERT_NE(positions, nullptr);

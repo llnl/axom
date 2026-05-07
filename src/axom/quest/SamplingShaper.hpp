@@ -150,28 +150,25 @@ public:
   /*!
    * \brief Sets the 1D quadrature family used to generate custom sample points.
    *
-   * Passing `mfem::Quadrature1D::Invalid` selects Axom's default MFEM quadrature
-   * behavior. Any other accepted value must correspond to a valid
-   * `mfem::Quadrature1D` enum in the inclusive range
-   * `[mfem::Quadrature1D::Invalid, mfem::Quadrature1D::ClosedGL]`.
+   * Passing `axom::numerics::QuadratureType::Invalid` selects the default
+   * quadrature behavior. Other values request a specific quadrature family.
    * For uniform point sampling over the full zone, including the element
-   * edges, `mfem::Quadrature1D::ClosedUniform` is often a good choice. Users
+   * edges, `axom::numerics::QuadratureType::ClosedUniform` is often a good
+   * choice. Users
    * can experiment with other quadrature families when different sample point
    * patterns are desired.
    *
-   * \param [in] qtype Integer value corresponding to an `mfem::Quadrature1D`
-   *                   enum entry.
+   * \param [in] qtype Quadrature family selection.
    */
-  void setQuadratureType(int qtype)
+  void setQuadratureType(axom::numerics::QuadratureType qtype)
   {
-    if(qtype >= static_cast<int>(mfem::Quadrature1D::Invalid) &&
-       qtype <= static_cast<int>(mfem::Quadrature1D::ClosedGL))
+    if(axom::numerics::is_valid_quadrature_type(static_cast<int>(qtype)))
     {
       m_quadratureType = qtype;
     }
     else
     {
-      SLIC_ERROR(axom::fmt::format("Invalid quadrature type value {}", qtype));
+      SLIC_ERROR(axom::fmt::format("Invalid quadrature type value {}", static_cast<int>(qtype)));
     }
   }
 
@@ -819,14 +816,14 @@ private:
         {
           sampler->template sampleInOutField<2, 2>(meshState,
                                                    m_sampleResolution,
-                                                   m_quadratureType,
+                                                   static_cast<int>(m_quadratureType),
                                                    m_projector22);
         }
         else if(meshDim == 3)
         {
           sampler->template sampleInOutField<3, 2>(meshState,
                                                    m_sampleResolution,
-                                                   m_quadratureType,
+                                                   static_cast<int>(m_quadratureType),
                                                    m_projector32);
         }
         break;
@@ -835,14 +832,14 @@ private:
         {
           sampler->template sampleInOutField<2, 3>(meshState,
                                                    m_sampleResolution,
-                                                   m_quadratureType,
+                                                   static_cast<int>(m_quadratureType),
                                                    m_projector23);
         }
         else if(meshDim == 3)
         {
           sampler->template sampleInOutField<3, 3>(meshState,
                                                    m_sampleResolution,
-                                                   m_quadratureType,
+                                                   static_cast<int>(m_quadratureType),
                                                    m_projector33);
         }
         break;
@@ -950,14 +947,14 @@ private:
         {
           sampler->template sampleInOutField<2, 3>(meshState,
                                                    m_sampleResolution,
-                                                   m_quadratureType,
+                                                   static_cast<int>(m_quadratureType),
                                                    m_projector23);
         }
         else if(meshDim == 3)
         {
           sampler->template sampleInOutField<3, 3>(meshState,
                                                    m_sampleResolution,
-                                                   m_quadratureType,
+                                                   static_cast<int>(m_quadratureType),
                                                    m_projector33);
         }
         break;
@@ -1224,7 +1221,7 @@ private:
 
   bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh) const
   {
-    if(m_quadratureType == static_cast<int>(mfem::Quadrature1D::Invalid))
+    if(m_quadratureType == axom::numerics::QuadratureType::Invalid)
     {
       return false;
     }
@@ -1284,7 +1281,7 @@ private:
   shaping::PointProjector<3, 3> m_projector33 {};
 
   shaping::VolFracSampling m_vfSampling {shaping::VolFracSampling::SAMPLE_AT_QPTS};
-  int m_quadratureType {static_cast<int>(mfem::Quadrature1D::Invalid)};
+  axom::numerics::QuadratureType m_quadratureType {axom::numerics::QuadratureType::Invalid};
   int m_sampleResolution[3] = {5, 5, 5};
   int m_volfracOrder {2};
   SamplingMethod m_samplingMethod {SamplingMethod::InOut};

@@ -40,29 +40,17 @@ constexpr const char* QUADRATURE_COORDSET_NAME = "quadrature_points";
 constexpr const char* QUADRATURE_TOPOLOGY_NAME = "quadrature_points";
 constexpr const char* ORIGINAL_ELEMENTS_FIELD_NAME = "originalElements";
 
-numerics::QuadratureRule getBlueprintQuadratureRule(int npts, int quadratureType, int allocatorID)
+numerics::QuadratureRule getBlueprintQuadratureRule(axom::numerics::QuadratureType quadratureType,
+                                                    int npts,
+                                                    int allocatorID)
 {
   SLIC_ERROR_IF(npts < 1, axom::fmt::format("Invalid sample resolution {}.", npts));
+  SLIC_ERROR_IF(!axom::numerics::is_supported_quadrature_type(quadratureType),
+                axom::fmt::format(
+                  "Quadrature type {} is not yet supported for Blueprint quadrature meshes.",
+                  static_cast<int>(quadratureType)));
 
-#if defined(AXOM_USE_MFEM)
-  switch(quadratureType)
-  {
-  case mfem::Quadrature1D::Invalid:
-  case mfem::Quadrature1D::GaussLegendre:
-    return numerics::get_gauss_legendre(npts, allocatorID);
-  case mfem::Quadrature1D::OpenUniform:
-    return numerics::get_open_uniform(npts, allocatorID);
-  case mfem::Quadrature1D::ClosedUniform:
-    return numerics::get_closed_uniform(npts, allocatorID);
-  default:
-    SLIC_ERROR(axom::fmt::format(
-      "Quadrature type {} is not supported for Blueprint quadrature meshes.", quadratureType));
-    return numerics::get_gauss_legendre(npts, allocatorID);
-  }
-#else
-  AXOM_UNUSED_VAR(quadratureType);
-  return numerics::get_gauss_legendre(npts, allocatorID);
-#endif
+  return numerics::get_quadrature_rule(quadratureType, npts, allocatorID);
 }
 
 template <typename ExecSpace, typename CoordsetView>
@@ -75,10 +63,10 @@ void buildBlueprintQuadratureMesh(const conduit::Node& topoNode,
                                   const numerics::QuadratureRule& ruleZ,
                                   conduit::Node& meshNode)
 {
-  using namespace axom::bump::views;
-  constexpr int SupportedShapes = encode_shapes(Quad_ShapeID, Hex_ShapeID);
+  namespace views = axom::bump::views;
+  constexpr int SupportedShapes = views::select_shapes(views::Quad_ShapeID, views::Hex_ShapeID);
 
-  dispatch_unstructured_topology<SupportedShapes>(topoNode, [&](const auto&, auto topoView) {
+  views::dispatch_unstructured_topology<SupportedShapes>(topoNode, [&](const auto&, auto topoView) {
     GenerateQuadratureMesh<ExecSpace, decltype(topoView), CoordsetView> generator(topoView,
                                                                                    coordsetView);
     generator.setAllocatorID(allocatorID);
@@ -116,9 +104,9 @@ private:
 
 bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh,
                                            const int sampleResolution[3],
-                                           int quadratureType)
+                                           axom::numerics::QuadratureType quadratureType)
 {
-  if(quadratureType == static_cast<int>(mfem::Quadrature1D::Invalid))
+  if(quadratureType == axom::numerics::QuadratureType::Invalid)
   {
     return false;
   }
@@ -135,6 +123,30 @@ bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh,
 }
 
 }  // namespace
+
+int to_mfem_quadrature_type(axom::numerics::QuadratureType quadratureType)
+{
+  switch(quadratureType)
+  {
+  case axom::numerics::QuadratureType::Invalid:
+    return mfem::Quadrature1D::Invalid;
+  case axom::numerics::QuadratureType::GaussLegendre:
+    return mfem::Quadrature1D::GaussLegendre;
+  case axom::numerics::QuadratureType::GaussLobatto:
+    return mfem::Quadrature1D::GaussLobatto;
+  case axom::numerics::QuadratureType::OpenUniform:
+    return mfem::Quadrature1D::OpenUniform;
+  case axom::numerics::QuadratureType::ClosedUniform:
+    return mfem::Quadrature1D::ClosedUniform;
+  case axom::numerics::QuadratureType::OpenHalfUniform:
+    return mfem::Quadrature1D::OpenHalfUniform;
+  case axom::numerics::QuadratureType::ClosedGL:
+    return mfem::Quadrature1D::ClosedGL;
+  }
+
+  SLIC_ERROR(axom::fmt::format("Invalid quadrature type {}.", static_cast<int>(quadratureType)));
+  return mfem::Quadrature1D::Invalid;
+}
 
 // Utility function to either return a gf from the dc, or to allocate it through the dc
 mfem::GridFunction* getOrAllocateL2GridFunction(mfem::DataCollection* dc,
@@ -264,7 +276,9 @@ mfem::QuadratureSpace* makeDefaultQuadratureSpace(mfem::Mesh* mesh, int sampleRe
   return new mfem::QuadratureSpace(mesh, sampleOrder);
 }
 
-mfem::QuadratureSpace* makeCustomQuadratureSpace(mfem::Mesh* mesh, int sampleRes[3], int quadratureType)
+mfem::QuadratureSpace* makeCustomQuadratureSpace(mfem::Mesh* mesh,
+                                                 int sampleRes[3],
+                                                 axom::numerics::QuadratureType quadratureType)
 {
   SLIC_ASSERT(mesh != nullptr);
   const int NE = mesh->GetNE();
@@ -284,26 +298,27 @@ mfem::QuadratureSpace* makeCustomQuadratureSpace(mfem::Mesh* mesh, int sampleRes
                   axom::fmt::format("Invalid sample value {} for dimension {}.", sampleRes[d], d));
     switch(quadratureType)
     {
-    case mfem::Quadrature1D::GaussLegendre:
+    case axom::numerics::QuadratureType::GaussLegendre:
       mfem::QuadratureFunctions1D::GaussLegendre(sampleRes[d], &ird[d]);
       break;
-    case mfem::Quadrature1D::GaussLobatto:
+    case axom::numerics::QuadratureType::GaussLobatto:
       mfem::QuadratureFunctions1D::GaussLobatto(sampleRes[d], &ird[d]);
       break;
-    case mfem::Quadrature1D::OpenUniform:
+    case axom::numerics::QuadratureType::OpenUniform:
       mfem::QuadratureFunctions1D::OpenUniform(sampleRes[d], &ird[d]);
       break;
-    case mfem::Quadrature1D::ClosedUniform:
+    case axom::numerics::QuadratureType::ClosedUniform:
       mfem::QuadratureFunctions1D::ClosedUniform(sampleRes[d], &ird[d]);
       break;
-    case mfem::Quadrature1D::OpenHalfUniform:
+    case axom::numerics::QuadratureType::OpenHalfUniform:
       mfem::QuadratureFunctions1D::OpenHalfUniform(sampleRes[d], &ird[d]);
       break;
-    case mfem::Quadrature1D::ClosedGL:
+    case axom::numerics::QuadratureType::ClosedGL:
       mfem::QuadratureFunctions1D::ClosedGL(sampleRes[d], &ird[d]);
       break;
+    case axom::numerics::QuadratureType::Invalid:
     default:
-      SLIC_ERROR(axom::fmt::format("Invalid quadrature type {}.", quadratureType));
+      SLIC_ERROR(axom::fmt::format("Invalid quadrature type {}.", static_cast<int>(quadratureType)));
       break;
     }
   }
@@ -328,7 +343,7 @@ mfem::QuadratureSpace* makeCustomQuadratureSpace(mfem::Mesh* mesh, int sampleRes
 void generatePositionsQFunction(mfem::Mesh* mesh,
                                 QFunctionCollection& inoutQFuncs,
                                 int sampleResolution[3],
-                                int quadratureType)
+                                axom::numerics::QuadratureType quadratureType)
 {
   SLIC_ASSERT(mesh != nullptr);
   const int NE = mesh->GetNE();
@@ -342,7 +357,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
 
   // Make a quadrature space to determine the point locations in each element.
   mfem::QuadratureSpace* sp = nullptr;
-  if(quadratureType == static_cast<int>(mfem::Quadrature1D::Invalid))
+  if(quadratureType == axom::numerics::QuadratureType::Invalid)
   {
     sp = makeDefaultQuadratureSpace(mesh, sampleResolution[0]);
   }
@@ -409,7 +424,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
 
 void generatePositionsQFunction(SamplingMFEMState& mfemState,
                                 int sampleResolution[3],
-                                int quadratureType)
+                                axom::numerics::QuadratureType quadratureType)
 {
   generatePositionsQFunction(mfemState.m_dc->GetMesh(),
                              mfemState.m_inoutShapeQFuncs,
@@ -418,17 +433,19 @@ void generatePositionsQFunction(SamplingMFEMState& mfemState,
 }
 
 #if defined(AXOM_USE_CONDUIT)
-void generatePositionsQFunction(BlueprintState& bpState,
-                                int sampleResolution[3],
-                                int quadratureType)
+void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
+                                 const std::string& topologyName,
+                                 int allocatorID,
+                                 int sampleResolution[3],
+                                 axom::numerics::QuadratureType quadratureType)
 {
-  if(bpState.m_internal_node.has_path(axom::fmt::format("topologies/{}", QUADRATURE_TOPOLOGY_NAME)))
+  if(bpMeshNode.has_path(axom::fmt::format("topologies/{}", QUADRATURE_TOPOLOGY_NAME)))
   {
     return;
   }
 
   const conduit::Node& topoNode =
-    bpState.m_internal_node.fetch_existing("topologies").fetch_existing(bpState.m_topology_name);
+    bpMeshNode.fetch_existing("topologies").fetch_existing(topologyName);
   const std::string topoType = topoNode.fetch_existing("type").as_string();
   SLIC_ERROR_IF(topoType != "unstructured",
                 axom::fmt::format("Unsupported Blueprint topology type '{}' for quadrature mesh generation.",
@@ -440,82 +457,92 @@ void generatePositionsQFunction(BlueprintState& bpState,
                                   shape));
 
   const std::string coordsetName = topoNode.fetch_existing("coordset").as_string();
-  const conduit::Node& coordsetNode =
-    bpState.m_internal_node.fetch_existing("coordsets").fetch_existing(coordsetName);
+  const conduit::Node& coordsetNode = bpMeshNode.fetch_existing("coordsets").fetch_existing(coordsetName);
   const std::string coordsetType = coordsetNode.fetch_existing("type").as_string();
   SLIC_ERROR_IF(coordsetType != "explicit",
                 axom::fmt::format("Unsupported Blueprint coordset type '{}' for quadrature mesh generation.",
                                   coordsetType));
 
-  int allocatorID = bpState.m_allocator_id;
-  if(!axom::execution_space<seq_exec>::usesAllocId(allocatorID) &&
-     !axom::execution_space<omp_exec>::usesAllocId(allocatorID)
+  int selectedAllocatorID = allocatorID;
+  if(!axom::execution_space<seq_exec>::usesAllocId(selectedAllocatorID) &&
+     !axom::execution_space<omp_exec>::usesAllocId(selectedAllocatorID)
 #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-     && !axom::execution_space<cuda_exec>::usesAllocId(allocatorID)
+     && !axom::execution_space<cuda_exec>::usesAllocId(selectedAllocatorID)
 #endif
 #if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-     && !axom::execution_space<hip_exec>::usesAllocId(allocatorID)
+     && !axom::execution_space<hip_exec>::usesAllocId(selectedAllocatorID)
 #endif
   )
   {
-    allocatorID = axom::execution_space<seq_exec>::allocatorID();
+    selectedAllocatorID = axom::execution_space<seq_exec>::allocatorID();
   }
 
-  auto ruleX = getBlueprintQuadratureRule(sampleResolution[0], quadratureType, allocatorID);
-  auto ruleY = getBlueprintQuadratureRule(sampleResolution[1], quadratureType, allocatorID);
-  auto ruleZ = getBlueprintQuadratureRule(sampleResolution[2], quadratureType, allocatorID);
+  auto ruleX = getBlueprintQuadratureRule(quadratureType, sampleResolution[0], selectedAllocatorID);
+  auto ruleY = getBlueprintQuadratureRule(quadratureType, sampleResolution[1], selectedAllocatorID);
+  auto ruleZ = getBlueprintQuadratureRule(quadratureType, sampleResolution[2], selectedAllocatorID);
 
   axom::bump::views::dispatch_explicit_coordset(coordsetNode, [&](auto coordsetView) {
 #if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-    if(axom::execution_space<hip_exec>::usesAllocId(allocatorID))
+    if(axom::execution_space<hip_exec>::usesAllocId(selectedAllocatorID))
     {
       buildBlueprintQuadratureMesh<hip_exec>(topoNode,
                                              coordsetNode,
                                              coordsetView,
-                                             allocatorID,
+                                             selectedAllocatorID,
                                              ruleX,
                                              ruleY,
                                              ruleZ,
-                                             bpState.m_internal_node);
+                                             bpMeshNode);
       return;
     }
 #endif
 #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-    if(axom::execution_space<cuda_exec>::usesAllocId(allocatorID))
+    if(axom::execution_space<cuda_exec>::usesAllocId(selectedAllocatorID))
     {
       buildBlueprintQuadratureMesh<cuda_exec>(topoNode,
                                               coordsetNode,
                                               coordsetView,
-                                              allocatorID,
+                                              selectedAllocatorID,
                                               ruleX,
                                               ruleY,
                                               ruleZ,
-                                              bpState.m_internal_node);
+                                              bpMeshNode);
       return;
     }
 #endif
-    if(axom::execution_space<omp_exec>::usesAllocId(allocatorID))
+    if(axom::execution_space<omp_exec>::usesAllocId(selectedAllocatorID))
     {
       buildBlueprintQuadratureMesh<omp_exec>(topoNode,
                                              coordsetNode,
                                              coordsetView,
-                                             allocatorID,
+                                             selectedAllocatorID,
                                              ruleX,
                                              ruleY,
                                              ruleZ,
-                                             bpState.m_internal_node);
+                                             bpMeshNode);
       return;
     }
 
     buildBlueprintQuadratureMesh<seq_exec>(topoNode,
                                            coordsetNode,
                                            coordsetView,
-                                           allocatorID,
+                                           selectedAllocatorID,
                                            ruleX,
                                            ruleY,
                                            ruleZ,
-                                           bpState.m_internal_node);
+                                           bpMeshNode);
   });
+}
+
+void generatePositionsQFunction(BlueprintState& bpState,
+                                int sampleResolution[3],
+                                axom::numerics::QuadratureType quadratureType)
+{
+  generateQuadraturePointMesh(bpState.m_internal_node,
+                              bpState.m_topology_name,
+                              bpState.m_allocator_id,
+                              sampleResolution,
+                              quadratureType);
 }
 #endif
 

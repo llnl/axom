@@ -22,6 +22,34 @@ namespace numerics
 {
 
 /*!
+ * \brief Enumerates the 1D quadrature families implemented in Axom.
+ */
+enum class QuadratureType : int
+{
+  Invalid = -1,
+  GaussLegendre = 0,
+  GaussLobatto = 1,
+  OpenUniform = 2,
+  ClosedUniform = 3,
+  OpenHalfUniform = 4,
+  ClosedGL = 5
+};
+
+/*!
+ * \brief Returns true when the supplied integer corresponds to a valid
+ *        `QuadratureType` enumerator.
+ */
+bool is_valid_quadrature_type(int quadratureType);
+
+/*!
+ * \brief Returns true when the supplied quadrature family is currently
+ *        implemented in Axom core numerics.
+ *
+ * \note Families may be valid enum values but not yet implemented.
+ */
+bool is_supported_quadrature_type(QuadratureType quadratureType);
+
+/*!
  * \class QuadratureRule
  *
  * \brief Stores fixed views to arrays of 1D quadrature points and weights
@@ -98,6 +126,20 @@ void compute_gauss_legendre_data(int npts,
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
  */
 QuadratureRule get_gauss_legendre(int npts, int allocatorID = axom::getDefaultAllocatorID());
+
+/*!
+ * \brief Returns an Axom quadrature rule by family.
+ *
+ * \param [in] quadratureType The quadrature family to construct.
+ * \param [in] npts The number of quadrature points in the rule.
+ *
+ * \note `QuadratureType::Invalid` selects Axom's default rule, which is
+ *       currently Gauss-Legendre. Only currently-supported Axom quadrature
+ *       families may be passed here.
+ */
+QuadratureRule get_quadrature_rule(QuadratureType quadratureType,
+                                   int npts,
+                                   int allocatorID = axom::getDefaultAllocatorID());
 
 /*!
  * \brief Computes a 1D quadrature rule of open uniform Newton-Cotes points.

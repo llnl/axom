@@ -221,6 +221,29 @@ TEST(numerics_quadrature, closed_uniform_small_rules)
   EXPECT_DOUBLE_EQ(rule.weight(2), 1.0 / 6.0);
 }
 
+TEST(numerics_quadrature, quadrature_type_dispatch)
+{
+  using axom::numerics::QuadratureType;
+
+  auto rule = axom::numerics::get_quadrature_rule(QuadratureType::Invalid, 2);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.21132486540518711775);
+  EXPECT_DOUBLE_EQ(rule.node(1), 0.78867513459481288225);
+
+  rule = axom::numerics::get_quadrature_rule(QuadratureType::GaussLegendre, 2);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.21132486540518711775);
+  EXPECT_DOUBLE_EQ(rule.node(1), 0.78867513459481288225);
+
+  rule = axom::numerics::get_quadrature_rule(QuadratureType::OpenUniform, 3);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.25);
+  EXPECT_DOUBLE_EQ(rule.node(1), 0.5);
+  EXPECT_DOUBLE_EQ(rule.node(2), 0.75);
+
+  rule = axom::numerics::get_quadrature_rule(QuadratureType::ClosedUniform, 3);
+  EXPECT_DOUBLE_EQ(rule.node(0), 0.0);
+  EXPECT_DOUBLE_EQ(rule.node(1), 0.5);
+  EXPECT_DOUBLE_EQ(rule.node(2), 1.0);
+}
+
 TEST(numerics_quadrature, open_uniform_exactness)
 {
   check_polynomial_exactness(

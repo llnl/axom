@@ -23,6 +23,41 @@ namespace axom
 namespace numerics
 {
 
+bool is_valid_quadrature_type(int quadratureType)
+{
+  switch(static_cast<QuadratureType>(quadratureType))
+  {
+  case QuadratureType::Invalid:
+  case QuadratureType::GaussLegendre:
+  case QuadratureType::GaussLobatto:
+  case QuadratureType::OpenUniform:
+  case QuadratureType::ClosedUniform:
+  case QuadratureType::OpenHalfUniform:
+  case QuadratureType::ClosedGL:
+    return true;
+  default:
+    return false;
+  }
+}
+
+bool is_supported_quadrature_type(QuadratureType quadratureType)
+{
+  switch(quadratureType)
+  {
+  case QuadratureType::Invalid:
+  case QuadratureType::GaussLegendre:
+  case QuadratureType::OpenUniform:
+  case QuadratureType::ClosedUniform:
+    return true;
+  case QuadratureType::GaussLobatto:
+  case QuadratureType::OpenHalfUniform:
+  case QuadratureType::ClosedGL:
+    return false;
+  }
+
+  return false;
+}
+
 void compute_gauss_legendre_data(int npts,
                                  axom::Array<double>& nodes,
                                  axom::Array<double>& weights,
@@ -286,6 +321,31 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID)
   auto& storage = get_cached_rule_storage(
     npts, allocatorID, rule_library, rule_library_mutex, compute_gauss_legendre_data);
   return QuadratureRule {storage.nodes.view(), storage.weights.view()};
+}
+
+QuadratureRule get_quadrature_rule(QuadratureType quadratureType, int npts, int allocatorID)
+{
+  assert("Invalid Axom quadrature type." &&
+         is_valid_quadrature_type(static_cast<int>(quadratureType)));
+  assert("Unsupported Axom quadrature type." && is_supported_quadrature_type(quadratureType));
+
+  switch(quadratureType)
+  {
+  case QuadratureType::Invalid:
+  case QuadratureType::GaussLegendre:
+    return get_gauss_legendre(npts, allocatorID);
+  case QuadratureType::OpenUniform:
+    return get_open_uniform(npts, allocatorID);
+  case QuadratureType::ClosedUniform:
+    return get_closed_uniform(npts, allocatorID);
+  case QuadratureType::GaussLobatto:
+  case QuadratureType::OpenHalfUniform:
+  case QuadratureType::ClosedGL:
+    break;
+  }
+
+  assert("Unsupported Axom quadrature type." && false);
+  return get_gauss_legendre(npts, allocatorID);
 }
 
 QuadratureRule get_open_uniform(int npts, int allocatorID)
