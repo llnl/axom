@@ -36,11 +36,12 @@
 #include "mfem.hpp"
 #include "mfem/linalg/dtensor.hpp"
 
+#include "conduit/conduit_relay_io.hpp"
 #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
   #ifdef CONDUIT_RELAY_MPI_ENABLED
-    #include "conduit_relay_mpi_io_blueprint.hpp"
+    #include "conduit/conduit_relay_mpi_io_blueprint.hpp"
   #else
-    #include "conduit_relay_io_blueprint.hpp"
+    #include "conduit/conduit_relay_io_blueprint.hpp"
   #endif
 #endif
 
@@ -338,9 +339,9 @@ public:
       n_mesh["topologies/points/elements/sizes"].set(tmp);
 
   #ifdef CONDUIT_RELAY_MPI_ENABLED
-      conduit::relay::mpi::io::blueprint::save_mesh(n_mesh, filename, "hdf5", MPI_COMM_WORLD);
+      conduit::relay::mpi::io::blueprint::save_mesh(n_mesh, filename, outputProtocol(), m_comm);
   #else
-      conduit::relay::io::blueprint::save_mesh(n_mesh, filename, "hdf5");
+      conduit::relay::io::blueprint::save_mesh(n_mesh, filename, outputProtocol());
   #endif
       SLIC_INFO_ROOT(axom::fmt::format("Saved quadrature point mesh to '{}'.", filename));
       return;
@@ -377,9 +378,9 @@ public:
       }
 
   #ifdef CONDUIT_RELAY_MPI_ENABLED
-      conduit::relay::mpi::io::blueprint::save_mesh(n_mesh, filename, "hdf5", MPI_COMM_WORLD);
+      conduit::relay::mpi::io::blueprint::save_mesh(n_mesh, filename, outputProtocol(), m_comm);
   #else
-      conduit::relay::io::blueprint::save_mesh(n_mesh, filename, "hdf5");
+      conduit::relay::io::blueprint::save_mesh(n_mesh, filename, outputProtocol());
   #endif
       SLIC_INFO_ROOT(axom::fmt::format("Saved quadrature point mesh to '{}'.", filename));
       return;
@@ -818,6 +819,20 @@ public:
                                      initialMessage));
   }
 
+  /*!
+   * \brief Save the shaping results to disk.
+   *
+   * \param extra Save extra data when available.
+   */
+  virtual void saveResults(bool extra) override
+  {
+    Shaper::saveResults(extra);
+    if(extra)
+    {
+      saveQuadraturePoints("shaping_quadrature");
+    }
+  }
+
 private:
   void ensureSamplingPositions(shaping::SamplingMFEMState& mfemState)
   {
@@ -1112,6 +1127,10 @@ private:
 
     const bool reuseExisting = hadExistingMaterial && shape.getGeometry().hasGeometry();
     quest::shaping::copyShapeIntoMaterial(shapeFuncCopy, materialFunc, reuseExisting);
+    if(shape.getGeometry().hasGeometry())
+    {
+      meshState.deleteShapeFunction(axom::fmt::format("inout_{}", shapeName));
+    }
 
     delete shapeFuncCopy;
     shapeFuncCopy = nullptr;

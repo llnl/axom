@@ -992,20 +992,7 @@ int main(int argc, char** argv)
 
   {
     AXOM_ANNOTATE_SCOPE("save shaping results");
-    if(shaper->getDC() != nullptr)
-    {
-#ifdef MFEM_USE_MPI
-      shaper->getDC()->Save();
-#endif
-    }
-
-    if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
-    {
-      if(params.isVerbose())
-      {
-        samplingShaper->saveQuadraturePoints("shaping_quadrature");
-      }
-    }
+    shaper->saveResults(params.isVerbose());
   }
 
   delete shaper;

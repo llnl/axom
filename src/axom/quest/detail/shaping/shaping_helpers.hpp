@@ -204,6 +204,11 @@ struct SamplingMFEMState : public MFEMState
     return m_inoutShapeQFuncs.Get(name);
   }
 
+  void deleteShapeFunction(const std::string& AXOM_UNUSED_PARAM(name))
+  {
+    // TODO: remove the function from m_inoutShapeQFuncs if it exists.
+  }
+
   mfem::QuadratureFunction* getMaterialFunction(const std::string& name)
   {
     return m_inoutMaterialQFuncs.Get(name);
@@ -259,6 +264,18 @@ struct BlueprintState
   {
     return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
                                                       : nullptr;
+  }
+
+  void deleteShapeFunction(const std::string& name)
+  {
+    if(m_internal_node.has_path("fields"))
+    {
+      conduit::Node &n_fields = m_internal_node["fields"];
+      if(n_fields.has_path(name))
+      {
+        n_fields.remove(name);
+      }
+    }
   }
 
   conduit::Node* getMaterialFunction(const std::string& name)

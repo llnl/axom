@@ -190,9 +190,7 @@ public:
                   "A projector callback function is required when FromDim != ToDim");
 
     auto* mesh = mfemState.m_dc->GetMesh();
-    SLIC_ASSERT(mesh != nullptr);
-    //const int NE = mesh->GetNE();
-    //const int dim = mesh->Dimension();
+    SLIC_ERROR_IF(mesh != nullptr, "No input mesh");
 
     AXOM_UNUSED_VAR(sampleRes);
     AXOM_UNUSED_VAR(quadratureType);

@@ -185,6 +185,13 @@ public:
   ///@}
 
   /*!
+   * \brief Save the shaping results to disk.
+   *
+   * \param extra Save extra data when available.
+   */
+  virtual void saveResults(bool extra);
+
+  /*!
    * \brief Helper to apply a parallel sum reduction to a quantity
    *
    * \note This is the identity function when running without MPI 
@@ -310,6 +317,13 @@ protected:
    */
   void ensureBlueprintMeshIsUnstructured();
 #endif
+
+  /*!
+   * \brief Get the protocol to use for Blueprint output.
+   *
+   * \return "hdf5" when possible, otherwise "yaml".
+   */
+  std::string outputProtocol() const;
 
 #if defined(AXOM_USE_MFEM)
   //! \brief MFEM meshes currently have no additional validation here.

@@ -17,6 +17,15 @@
 
 #include "axom/fmt.hpp"
 
+#include "conduit/conduit_relay_io.hpp"
+#ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
+  #ifdef CONDUIT_RELAY_MPI_ENABLED
+    #include "conduit/conduit_relay_mpi_io_blueprint.hpp"
+  #else
+    #include "conduit/conduit_relay_io_blueprint.hpp"
+  #endif
+#endif
+
 namespace axom
 {
 namespace quest
@@ -413,6 +422,15 @@ void Shaper::ensureBlueprintMeshIsUnstructured()
 }
 #endif
 
+std::string Shaper::outputProtocol() const
+{
+#if defined(CONDUIT_RELAY_IO_HDF5_ENABLED)
+  return "hdf5";
+#else
+  return "yaml";
+#endif
+}
+
 #if defined(AXOM_USE_MFEM)
 bool Shaper::verifyMFEMInputMesh(std::string& whyBad) const
 {
@@ -427,6 +445,28 @@ bool Shaper::verifyMFEMInputMesh(std::string& whyBad) const
 }
 #endif
 
+void Shaper::saveResults(bool AXOM_UNUSED_PARAM(extra))
+{
+#ifdef MFEM_USE_MPI
+  // If the target mesh was MFEM, save it.
+  if(getDC() != nullptr)
+  {
+    getDC()->Save();
+  }
+#endif
+#if defined(AXOM_USE_CONDUIT)
+  // If the target mesh was Blueprint, save it.
+  if(m_bp_state != nullptr)
+  {
+    const std::string filename("shaping");
+  #if defined(CONDUIT_RELAY_MPI_ENABLED)
+    conduit::relay::mpi::io::blueprint::save_mesh(m_bp_state->m_internal_node, filename, outputProtocol(), m_comm);
+  #else
+    conduit::relay::io::blueprint::save_mesh(m_bp_state->m_internal_node, filename, outputProtocol());
+  #endif
+  }
+#endif
+}
 // ----------------------------------------------------------------------------
 
 int Shaper::getRank() const
