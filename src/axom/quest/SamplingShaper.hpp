@@ -36,9 +36,18 @@
 #include "mfem.hpp"
 #include "mfem/linalg/dtensor.hpp"
 
+#ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
+  #ifdef CONDUIT_RELAY_MPI_ENABLED
+    #include "conduit_relay_mpi_io_blueprint.hpp"
+  #else
+    #include "conduit_relay_io_blueprint.hpp"
+  #endif
+#endif
+
 #include "axom/fmt.hpp"
 
 #include <functional>
+#include <numeric>
 
 namespace axom
 {
@@ -282,6 +291,106 @@ public:
   mfem::QuadratureFunction* getMaterialQFunction(const std::string& name) const
   {
     return materialQFuncs().Get(name);
+  }
+
+  /*!
+   * \brief Saves the sampling quadrature points as a Blueprint point mesh.
+   *
+   * For MFEM-backed sampling, this converts the `"positions"` quadrature
+   * function to a temporary Blueprint point mesh before saving. For
+   * Blueprint-backed sampling, this saves the generated quadrature-point
+   * topology and any fields associated with it.
+   */
+  void saveQuadraturePoints(const std::string& filename) const
+  {
+#ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
+    conduit::Node n_mesh;
+
+#if defined(AXOM_USE_MFEM)
+    if(m_mfem_state != nullptr)
+    {
+      auto* positions = getShapeQFunction("positions");
+      if(positions == nullptr)
+      {
+        SLIC_WARNING("No MFEM quadrature positions are available to save.");
+        return;
+      }
+
+      const int dim = positions->GetSpace()->GetMesh()->Dimension();
+      mfem::real_t* X = const_cast<mfem::real_t*>(positions->GetData());
+      const int npts = positions->Size() / positions->GetVDim();
+      const conduit::index_t stride = dim * sizeof(mfem::real_t);
+      n_mesh["coordsets/coords/type"] = "explicit";
+      n_mesh["coordsets/coords/values/x"].set_external(X, npts, 0, stride);
+      n_mesh["coordsets/coords/values/y"].set_external(X, npts, sizeof(mfem::real_t), stride);
+      if(dim > 2)
+      {
+        n_mesh["coordsets/coords/values/z"].set_external(X, npts, 2 * sizeof(mfem::real_t), stride);
+      }
+      n_mesh["topologies/points/type"] = "unstructured";
+      n_mesh["topologies/points/coordset"] = "coords";
+      n_mesh["topologies/points/elements/shape"] = "point";
+      std::vector<int> tmp(npts);
+      std::iota(tmp.begin(), tmp.end(), 0);
+      n_mesh["topologies/points/elements/connectivity"].set(tmp);
+      n_mesh["topologies/points/elements/offsets"].set(tmp);
+      std::fill(tmp.begin(), tmp.end(), 1);
+      n_mesh["topologies/points/elements/sizes"].set(tmp);
+
+  #ifdef CONDUIT_RELAY_MPI_ENABLED
+      conduit::relay::mpi::io::blueprint::save_mesh(n_mesh, filename, "hdf5", MPI_COMM_WORLD);
+  #else
+      conduit::relay::io::blueprint::save_mesh(n_mesh, filename, "hdf5");
+  #endif
+      SLIC_INFO_ROOT(axom::fmt::format("Saved quadrature point mesh to '{}'.", filename));
+      return;
+    }
+#endif
+
+#if defined(AXOM_USE_CONDUIT)
+    if(m_bp_state != nullptr)
+    {
+      constexpr const char* quadName = "quadrature_points";
+      const conduit::Node& bpMesh = m_bp_state->m_internal_node;
+
+      if(!bpMesh.has_path(axom::fmt::format("coordsets/{}", quadName)) ||
+         !bpMesh.has_path(axom::fmt::format("topologies/{}", quadName)))
+      {
+        SLIC_WARNING("No Blueprint quadrature point mesh is available to save.");
+        return;
+      }
+
+      n_mesh["coordsets"][quadName].update(bpMesh.fetch_existing(axom::fmt::format("coordsets/{}", quadName)));
+      n_mesh["topologies"][quadName].update(bpMesh.fetch_existing(axom::fmt::format("topologies/{}", quadName)));
+
+      if(bpMesh.has_path("fields"))
+      {
+        const conduit::Node& fields = bpMesh.fetch_existing("fields");
+        for(conduit::index_t i = 0; i < fields.number_of_children(); ++i)
+        {
+          const conduit::Node& field = fields.child(i);
+          if(field.has_path("topology") && field.fetch_existing("topology").as_string() == quadName)
+          {
+            n_mesh["fields"][field.name()].update(field);
+          }
+        }
+      }
+
+  #ifdef CONDUIT_RELAY_MPI_ENABLED
+      conduit::relay::mpi::io::blueprint::save_mesh(n_mesh, filename, "hdf5", MPI_COMM_WORLD);
+  #else
+      conduit::relay::io::blueprint::save_mesh(n_mesh, filename, "hdf5");
+  #endif
+      SLIC_INFO_ROOT(axom::fmt::format("Saved quadrature point mesh to '{}'.", filename));
+      return;
+    }
+#endif
+
+    SLIC_WARNING("No mesh state is available for quadrature-point export.");
+#else
+    AXOM_UNUSED_VAR(filename);
+    SLIC_WARNING("Quadrature-point export requires Conduit Relay HDF5 support.");
+#endif
   }
 
 private:

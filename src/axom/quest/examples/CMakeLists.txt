@@ -190,10 +190,11 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                     COMMAND  quest_shaping_driver_ex
                             -i ${shaping_data_dir}/circles.yaml
                             --method sampling
+                            --verbose
                             inline_mesh_blueprint --min -6 -6 --max 6 6 --res 25 25 -d 2
                     NUM_MPI_TASKS ${_nranks})
                 set_tests_properties(${_testname} PROPERTIES
-                    PASS_REGULAR_EXPRESSION "Saved shaped Blueprint mesh to 'shaping_blueprint'.")
+                    PASS_REGULAR_EXPRESSION "Saved quadrature point mesh to 'shaping_quadrature'.")
             endif()
 
             set(_testname quest_shaping_driver_ex_sampling_balls_and_jacks)

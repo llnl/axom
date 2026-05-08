@@ -617,53 +617,6 @@ void finalizeLogger()
 }
 
 //------------------------------------------------------------------------------
-/// Write the quadrature points as a Blueprint mesh.
-void save_quadrature_points(mfem::QuadratureFunction* positions)
-{
-#ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
-  const int dim = positions->GetSpace()->GetMesh()->Dimension();
-
-  conduit::Node n_mesh;
-  mfem::real_t* X = const_cast<mfem::real_t*>(positions->GetData());
-  const int npts = positions->Size() / positions->GetVDim();
-  const conduit::index_t stride = dim * sizeof(mfem::real_t);
-  n_mesh["coordsets/coords/type"] = "explicit";
-  n_mesh["coordsets/coords/values/x"].set_external(X, npts, 0, stride);
-  n_mesh["coordsets/coords/values/y"].set_external(X, npts, sizeof(mfem::real_t), stride);
-  if(dim > 2)
-  {
-    n_mesh["coordsets/coords/values/z"].set_external(X, npts, 2 * sizeof(mfem::real_t), stride);
-  }
-  n_mesh["topologies/points/type"] = "unstructured";
-  n_mesh["topologies/points/coordset"] = "coords";
-  n_mesh["topologies/points/elements/shape"] = "point";
-  std::vector<int> tmp(npts);
-  std::iota(tmp.begin(), tmp.end(), 0);
-  n_mesh["topologies/points/elements/connectivity"].set(tmp);
-  n_mesh["topologies/points/elements/offset"].set(tmp);
-  std::fill(tmp.begin(), tmp.end(), 1);
-  n_mesh["topologies/points/elements/sizes"].set(tmp);
-
-  #ifdef CONDUIT_RELAY_MPI_ENABLED
-  conduit::relay::mpi::io::blueprint::save_mesh(n_mesh, "shaping_quadrature", "hdf5", MPI_COMM_WORLD);
-  #else
-  conduit::relay::io::blueprint::save_mesh(n_mesh, "shaping_quadrature", "hdf5");
-  #endif
-#endif
-}
-
-#if defined(AXOM_USE_CONDUIT) && defined(CONDUIT_RELAY_IO_HDF5_ENABLED)
-void save_blueprint_mesh(const conduit::Node& n_mesh)
-{
-  #ifdef CONDUIT_RELAY_MPI_ENABLED
-  conduit::relay::mpi::io::blueprint::save_mesh(n_mesh, "shaping_blueprint", "hdf5", MPI_COMM_WORLD);
-  #else
-  conduit::relay::io::blueprint::save_mesh(n_mesh, "shaping_blueprint", "hdf5");
-  #endif
-  SLIC_INFO_ROOT("Saved shaped Blueprint mesh to 'shaping_blueprint'.");
-}
-#endif
-
 //------------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
@@ -1043,24 +996,16 @@ int main(int argc, char** argv)
     {
 #ifdef MFEM_USE_MPI
       shaper->getDC()->Save();
+#endif
+    }
 
-      // Save quadrature sample point positions as a Blueprint mesh in verbose mode.
-      if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
-      {
-        mfem::QuadratureFunction* positions = samplingShaper->getShapeQFunction("positions");
-        if(positions && params.isVerbose())
-        {
-          save_quadrature_points(positions);
-        }
-      }
-#endif
-    }
-#if defined(AXOM_USE_CONDUIT) && defined(CONDUIT_RELAY_IO_HDF5_ENABLED)
-    else if(const conduit::Node* bpMesh = shaper->getBlueprintMeshNode())
+    if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
     {
-      save_blueprint_mesh(*bpMesh);
+      if(params.isVerbose())
+      {
+        samplingShaper->saveQuadraturePoints("shaping_quadrature");
+      }
     }
-#endif
   }
 
   delete shaper;
