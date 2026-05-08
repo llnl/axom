@@ -183,6 +183,19 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             set_tests_properties(${_testname} PROPERTIES 
                 PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 65.")
 
+            if(CONDUIT_FOUND)
+                set(_testname quest_shaping_driver_ex_sampling_circles_blueprint)
+                axom_add_test(
+                    NAME ${_testname}
+                    COMMAND  quest_shaping_driver_ex
+                            -i ${shaping_data_dir}/circles.yaml
+                            --method sampling
+                            inline_mesh_blueprint --min -6 -6 --max 6 6 --res 25 25 -d 2
+                    NUM_MPI_TASKS ${_nranks})
+                set_tests_properties(${_testname} PROPERTIES
+                    PASS_REGULAR_EXPRESSION "Saved shaped Blueprint mesh to 'shaping_blueprint'.")
+            endif()
+
             set(_testname quest_shaping_driver_ex_sampling_balls_and_jacks)
             axom_add_test(
                 NAME ${_testname}
@@ -789,4 +802,3 @@ if(OPENCASCADE_FOUND)
 
     endif()
 endif()
-

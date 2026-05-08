@@ -136,6 +136,13 @@ public:
   }
 #endif
 
+#if defined(AXOM_USE_CONDUIT)
+  const conduit::Node* getBlueprintMeshNode() const
+  {
+    return m_bp_state != nullptr ? &m_bp_state->m_internal_node : nullptr;
+  }
+#endif
+
   /*!
    * \brief Predicate to determine if the specified format is valid
    *

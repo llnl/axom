@@ -664,7 +664,9 @@ public:
     internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
                                                                       : slic::message::Warning);
 
-    auto computeVolumeFractions = [this](const std::string& matName) {
+    for(const auto& materialName : m_knownMaterials)
+    {
+      const auto matName = axom::fmt::format("mat_inout_{}", materialName);
       SLIC_INFO_ROOT(
         axom::fmt::format("Generating volume fraction fields for '{}' material", matName));
 
@@ -676,11 +678,6 @@ public:
       case shaping::VolFracSampling::SAMPLE_AT_DOFS:
         break;
       }
-    };
-
-    for(const auto& materialName : m_knownMaterials)
-    {
-      computeVolumeFractions(axom::fmt::format("mat_inout_{}", materialName));
     }
   }
 
