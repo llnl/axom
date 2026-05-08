@@ -22,6 +22,25 @@ namespace axom
 namespace quest
 {
 
+#if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
+namespace
+{
+bool mpiIsActive()
+{
+  int initialized = 0;
+  MPI_Initialized(&initialized);
+  if(!initialized)
+  {
+    return false;
+  }
+
+  int finalized = 0;
+  MPI_Finalized(&finalized);
+  return finalized == 0;
+}
+}  // namespace
+#endif
+
 // These were needed for linking - but why? They are constexpr.
 constexpr int Shaper::DEFAULT_SAMPLES_PER_KNOT_SPAN;
 constexpr double Shaper::MINIMUM_PERCENT_ERROR;
@@ -75,20 +94,16 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   #endif
 {
   m_bp_state = createBlueprintState();
-  m_bp_state->m_group_ptr = bpGrp;
+  auto* internalGrp = m_dataStore.getRoot()->createGroup("internalGrp");
+  internalGrp->setDefaultArrayAllocator(m_allocatorId);
+  m_bp_state->m_group_ptr = internalGrp->copyGroup(bpGrp);
   m_bp_state->m_allocator_id = m_allocatorId;
-  m_bp_state->m_topology_name =
-    topo.empty() ? bpGrp->getGroup("topologies")->getGroupName(0) : topo;
+  m_bp_state->m_topology_name = resolveBlueprintTopologyName(bpGrp, topo);
   m_bp_state->m_external_node_ptr = nullptr;
 
-  SLIC_ASSERT(m_bp_state->m_topology_name != sidre::InvalidName);
+  SLIC_ASSERT(m_bp_state->m_group_ptr != nullptr);
 
-  // This may take too long if there are repeated construction.
-  m_bp_state->m_group_ptr->createNativeLayout(m_bp_state->m_internal_node);
-
-  m_cellCount = conduit::blueprint::mesh::topology::length(
-    m_bp_state->m_internal_node.fetch_existing("topologies")
-      .fetch_existing(m_bp_state->m_topology_name));
+  refreshBlueprintMeshState();
 
   setFilePath(shapeSet.getPath());
 }
@@ -118,48 +133,14 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   m_bp_state = createBlueprintState();
   m_bp_state->m_group_ptr = nullptr;
   m_bp_state->m_allocator_id = m_allocatorId;
-  m_bp_state->m_topology_name =
-    topo.empty() ? bpNode.fetch_existing("topologies").child(0).name() : topo;
+  m_bp_state->m_topology_name = resolveBlueprintTopologyName(bpNode, topo);
   m_bp_state->m_external_node_ptr = &bpNode;
 
   m_bp_state->m_group_ptr = m_dataStore.getRoot()->createGroup("internalGrp");
   m_bp_state->m_group_ptr->setDefaultArrayAllocator(m_allocatorId);
   m_bp_state->m_group_ptr->importConduitTreeExternal(bpNode);
 
-  // We want unstructured topo but can accomodate structured.
-  const conduit::Node& n_topo =
-    bpNode.fetch_existing("topologies").fetch_existing(m_bp_state->m_topology_name);
-  const std::string topoType = n_topo.fetch_existing("type").as_string();
-
-  if(topoType == "structured")
-  {
-    AXOM_ANNOTATE_SCOPE("Shaper::convertStructured");
-    const std::string shapeType = n_topo.fetch_existing("elements/shape").as_string();
-
-    if(shapeType == "hex")
-    {
-      axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_3d(
-        m_bp_state->m_group_ptr,
-        m_bp_state->m_topology_name,
-        m_execPolicy);
-    }
-    else if(shapeType == "quad")
-    {
-      axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_2d(
-        m_bp_state->m_group_ptr,
-        m_bp_state->m_topology_name,
-        m_execPolicy);
-    }
-    else
-    {
-      SLIC_ERROR("Axom Internal error: Unhandled shape type.");
-    }
-  }
-
-  m_bp_state->m_group_ptr->createNativeLayout(m_bp_state->m_internal_node);
-
-  m_cellCount = conduit::blueprint::mesh::topology::length(
-    bpNode.fetch_existing("topologies").fetch_existing(m_bp_state->m_topology_name));
+  refreshBlueprintMeshState();
 
   setFilePath(shapeSet.getPath());
 }
@@ -278,9 +259,89 @@ void Shaper::loadShapeInternal(const klee::Shape& shape, double percentError, do
 
 bool Shaper::verifyInputMesh(std::string& whyBad) const
 {
-  bool rval = true;
+  return verifyInputMeshImpl(whyBad);
+}
 
 #if defined(AXOM_USE_CONDUIT)
+std::string Shaper::resolveBlueprintTopologyName(const sidre::Group* bpMesh,
+                                                 const std::string& topo) const
+{
+  SLIC_ASSERT(bpMesh != nullptr);
+  auto* topologiesGrp = bpMesh->getGroup("topologies");
+  SLIC_ERROR_IF(topologiesGrp == nullptr, "Blueprint mesh is missing a 'topologies' group.");
+
+  const std::string topologyName =
+    topo.empty() ? topologiesGrp->getGroupName(0) : topo;
+  SLIC_ERROR_IF(topologyName == sidre::InvalidName,
+                "Blueprint mesh does not contain any topology groups.");
+  SLIC_ERROR_IF(!topologiesGrp->hasGroup(topologyName),
+                axom::fmt::format("Blueprint mesh does not contain topology '{}'.", topologyName));
+
+  return topologyName;
+}
+
+std::string Shaper::resolveBlueprintTopologyName(const conduit::Node& bpMesh,
+                                                 const std::string& topo) const
+{
+  SLIC_ERROR_IF(!bpMesh.has_path("topologies"), "Blueprint mesh is missing a 'topologies' node.");
+
+  const conduit::Node& topologies = bpMesh.fetch_existing("topologies");
+  SLIC_ERROR_IF(topologies.number_of_children() == 0,
+                "Blueprint mesh does not contain any topology nodes.");
+
+  const std::string topologyName = topo.empty() ? topologies.child(0).name() : topo;
+  SLIC_ERROR_IF(!topologies.has_child(topologyName),
+                axom::fmt::format("Blueprint mesh does not contain topology '{}'.", topologyName));
+
+  return topologyName;
+}
+
+void Shaper::refreshBlueprintMeshState()
+{
+  SLIC_ASSERT(m_bp_state != nullptr);
+  SLIC_ASSERT(m_bp_state->m_group_ptr != nullptr);
+  m_bp_state->m_group_ptr->createNativeLayout(m_bp_state->m_internal_node);
+  m_cellCount = conduit::blueprint::mesh::topology::length(getBlueprintTopologyNode());
+}
+
+const conduit::Node& Shaper::getBlueprintTopologyNode() const
+{
+  SLIC_ASSERT(m_bp_state != nullptr);
+  return m_bp_state->m_internal_node.fetch_existing("topologies")
+    .fetch_existing(m_bp_state->m_topology_name);
+}
+
+const conduit::Node& Shaper::getBlueprintCoordsetNode() const
+{
+  const std::string coordsetName = getBlueprintTopologyNode().fetch_existing("coordset").as_string();
+  return m_bp_state->m_internal_node.fetch_existing("coordsets").fetch_existing(coordsetName);
+}
+
+std::string Shaper::getBlueprintCellShape() const
+{
+  return shaping::getBlueprintCellShape(getBlueprintTopologyNode());
+}
+
+int Shaper::getBlueprintMeshDimension() const
+{
+  const std::string shapeType = getBlueprintCellShape();
+  if(shapeType == "quad")
+  {
+    return 2;
+  }
+  if(shapeType == "hex")
+  {
+    return 3;
+  }
+
+  SLIC_ERROR(axom::fmt::format("Unsupported Blueprint cell shape '{}'.", shapeType));
+  return -1;
+}
+
+bool Shaper::verifyBlueprintMeshIsStructuredOrUnstructuredQuadHex(std::string& whyBad) const
+{
+  bool rval = true;
+
   if(m_bp_state != nullptr && m_bp_state->m_group_ptr != nullptr)
   {
     conduit::Node info;
@@ -290,40 +351,91 @@ bool Shaper::verifyInputMesh(std::string& whyBad) const
     rval = conduit::blueprint::mesh::verify(m_bp_state->m_internal_node, info);
     if(rval)
     {
-      std::string topoType =
-        m_bp_state->m_internal_node.fetch("topologies")[m_bp_state->m_topology_name]["type"]
-          .as_string();
-      rval = topoType == "unstructured";
-      info[0].set_string("Topology is not unstructured.");
+      const std::string topoType = getBlueprintTopologyNode().fetch_existing("type").as_string();
+      rval = topoType == "unstructured" || topoType == "structured";
+      info[0].set_string("Topology is not structured or unstructured.");
     }
     if(rval)
     {
-      std::string elemShape =
-        m_bp_state->m_internal_node.fetch("topologies")[m_bp_state->m_topology_name]["elements"]
-          ["shape"]
-          .as_string();
+      const std::string elemShape = getBlueprintCellShape();
       rval = (elemShape == "hex") || (elemShape == "quad");
       info[0].set_string("Topology elements are not hex or quad.");
     }
+    if(rval)
+    {
+      const std::string coordsetType = getBlueprintCoordsetNode().fetch_existing("type").as_string();
+      rval = coordsetType == "explicit";
+      info[0].set_string("Coordset is not explicit.");
+    }
     whyBad = info.to_summary_string();
   }
+
+  return rval;
+}
+
+void Shaper::ensureBlueprintMeshIsUnstructured()
+{
+  if(m_bp_state == nullptr || m_bp_state->m_group_ptr == nullptr)
+  {
+    return;
+  }
+
+  const conduit::Node& topoNode = getBlueprintTopologyNode();
+  const std::string topoType = topoNode.fetch_existing("type").as_string();
+  if(topoType != "structured")
+  {
+    return;
+  }
+
+  AXOM_ANNOTATE_SCOPE("Shaper::convertStructured");
+
+  const std::string shapeType = getBlueprintCellShape();
+  if(shapeType == "hex")
+  {
+    axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_3d(
+      m_bp_state->m_group_ptr,
+      m_bp_state->m_topology_name,
+      m_execPolicy);
+  }
+  else if(shapeType == "quad")
+  {
+    axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_2d(
+      m_bp_state->m_group_ptr,
+      m_bp_state->m_topology_name,
+      m_execPolicy);
+  }
+  else
+  {
+    SLIC_ERROR("Axom Internal error: Unhandled shape type.");
+  }
+
+  refreshBlueprintMeshState();
+}
 #endif
 
 #if defined(AXOM_USE_MFEM)
+bool Shaper::verifyMFEMInputMesh(std::string& whyBad) const
+{
+  AXOM_UNUSED_VAR(whyBad);
+
   if(getDC() != nullptr)
   {
     // No specific requirements for MFEM mesh.
   }
-#endif
 
-  return rval;
+  return true;
 }
+#endif
 
 // ----------------------------------------------------------------------------
 
 int Shaper::getRank() const
 {
 #if defined(AXOM_USE_MPI)
+  if(!mpiIsActive())
+  {
+    return 0;
+  }
   int rank = -1;
   MPI_Comm_rank(m_comm, &rank);
   return rank;
@@ -334,6 +446,10 @@ int Shaper::getRank() const
 double Shaper::allReduceSum(double val) const
 {
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
+  if(!mpiIsActive())
+  {
+    return val;
+  }
   double global;
   MPI_Allreduce(&val, &global, 1, MPI_DOUBLE, MPI_SUM, m_comm);
   return global;
@@ -345,6 +461,10 @@ double Shaper::allReduceSum(double val) const
 double Shaper::allReduceMin(double val) const
 {
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
+  if(!mpiIsActive())
+  {
+    return val;
+  }
   double global;
   MPI_Allreduce(&val, &global, 1, MPI_DOUBLE, MPI_MIN, m_comm);
   return global;
@@ -356,6 +476,10 @@ double Shaper::allReduceMin(double val) const
 double Shaper::allReduceMax(double val) const
 {
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
+  if(!mpiIsActive())
+  {
+    return val;
+  }
   double global;
   MPI_Allreduce(&val, &global, 1, MPI_DOUBLE, MPI_MAX, m_comm);
   return global;

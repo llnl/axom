@@ -28,6 +28,9 @@
   #include "axom/bump/views/dispatch_coordset.hpp"
 #endif
 
+#include <set>
+#include <vector>
+
 namespace axom
 {
 
@@ -312,6 +315,26 @@ enum class VolFracSampling : int
 };
 
 /**
+ * \brief Prints the registered sampling-related field names for an MFEM-backed
+ *        sampling state.
+ */
+void printRegisteredFieldNames(const SamplingMFEMState& mfemState,
+                               const std::set<std::string>& knownMaterials,
+                               VolFracSampling vfSampling,
+                               const std::string& initialMessage);
+
+#if defined(AXOM_USE_CONDUIT)
+/**
+ * \brief Prints the registered sampling-related field names for a Blueprint-backed
+ *        sampling state.
+ */
+void printRegisteredFieldNames(const BlueprintState& bpState,
+                               const std::set<std::string>& knownMaterials,
+                               VolFracSampling vfSampling,
+                               const std::string& initialMessage);
+#endif
+
+/**
  * \brief Utility function to either return a grid function from the DataCollection \a dc, 
  * or to allocate the grud function through the dc, ensuring the memory doesn't leak
  * 
@@ -395,6 +418,14 @@ void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
                                        axom::numerics::QuadratureType quadratureType);
 
 #if defined(AXOM_USE_CONDUIT)
+/**
+ * \brief Returns the element shape for a supported Blueprint topology node.
+ *
+ * Structured topologies may omit `elements/shape`, in which case the shape is
+ * inferred from `elements/dims`.
+ */
+std::string getBlueprintCellShape(const conduit::Node& topoNode);
+
 /**
  * \brief Generates a derived Blueprint quadrature point mesh within the
  *        supplied Blueprint mesh node.

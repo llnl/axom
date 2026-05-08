@@ -99,7 +99,7 @@ public:
   /// Refinement type.
   using RefinementType = DiscreteShape::RefinementType;
 
-  //! @brief Verify the input mesh is okay for this class to work with.
+  //! @brief Verify the input mesh is okay for this backend to work with.
   bool verifyInputMesh(std::string& whyBad) const;
 
   ///@{
@@ -239,6 +239,75 @@ protected:
    * \note This function can be called even in non-mpi configurations
    */
   int getRank() const;
+
+  /*!
+   * \brief Backend-specific input-mesh validation hook.
+   *
+   * Derived shapers may support different Blueprint mesh representations, so
+   * the validation policy lives with the concrete backend.
+   */
+  virtual bool verifyInputMeshImpl(std::string& whyBad) const = 0;
+
+#if defined(AXOM_USE_CONDUIT)
+  /*!
+   * \brief Selects the Blueprint topology name to use and verifies it exists.
+   */
+  std::string resolveBlueprintTopologyName(const sidre::Group* bpMesh,
+                                           const std::string& topo) const;
+
+  /*!
+   * \brief Selects the Blueprint topology name to use and verifies it exists.
+   */
+  std::string resolveBlueprintTopologyName(const conduit::Node& bpMesh,
+                                           const std::string& topo) const;
+
+  /*!
+   * \brief Rebuilds the internal Conduit view and cached cell count from the
+   *        current Sidre-owned Blueprint mesh.
+   */
+  void refreshBlueprintMeshState();
+
+  /*!
+   * \brief Returns the active Blueprint topology node.
+   */
+  const conduit::Node& getBlueprintTopologyNode() const;
+
+  /*!
+   * \brief Returns the active Blueprint coordset node.
+   */
+  const conduit::Node& getBlueprintCoordsetNode() const;
+
+  /*!
+   * \brief Returns the active Blueprint cell shape name.
+   */
+  std::string getBlueprintCellShape() const;
+
+  /*!
+   * \brief Returns the active Blueprint mesh dimension for supported quad/hex
+   *        meshes.
+   */
+  int getBlueprintMeshDimension() const;
+
+  /*!
+   * \brief Helper for Blueprint meshes supported directly by sampling or by
+   *        lazy conversion in the intersection backend.
+   *
+   * This helper verifies the internal Blueprint mesh uses a structured or
+   * unstructured quad/hex topology over an explicit coordset.
+   */
+  bool verifyBlueprintMeshIsStructuredOrUnstructuredQuadHex(std::string& whyBad) const;
+
+  /*!
+   * \brief Converts a structured explicit Blueprint quad/hex mesh to an
+   *        unstructured working representation if needed.
+   */
+  void ensureBlueprintMeshIsUnstructured();
+#endif
+
+#if defined(AXOM_USE_MFEM)
+  //! \brief MFEM meshes currently have no additional validation here.
+  bool verifyMFEMInputMesh(std::string& whyBad) const;
+#endif
 
 #if defined(AXOM_USE_MFEM)
   virtual std::unique_ptr<shaping::MFEMState> createMFEMState()

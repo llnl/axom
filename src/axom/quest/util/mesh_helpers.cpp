@@ -343,7 +343,10 @@ void convert_blueprint_structured_explicit_to_unstructured_3d_impl(axom::sidre::
   axom::sidre::View* ugTopoTypeView =
     ugTopoGrp == topoGrp ? ugTopoGrp->getView("type") : ugTopoGrp->createView("type");
   ugTopoTypeView->setString("unstructured");
-  axom::sidre::View* shapeView = ugTopoGrp->createView("elements/shape");
+  axom::sidre::View* shapeView =
+    ugTopoGrp->hasView("elements/shape") ? ugTopoGrp->getView("elements/shape")
+                                         : ugTopoGrp->createView("elements/shape");
+  SLIC_ASSERT(shapeView != nullptr);
   shapeView->setString("hex");
 
   axom::sidre::Group* topoElemGrp = topoGrp->getGroup("elements");
@@ -466,7 +469,11 @@ void convert_blueprint_structured_explicit_to_unstructured_2d_impl(axom::sidre::
   axom::sidre::View* topoTypeView = topoGrp->getView("type");
   SLIC_ASSERT(std::string(topoTypeView->getString()) == "structured");
   topoTypeView->setString("unstructured");
-  topoGrp->createView("elements/shape")->setString("quad");
+  axom::sidre::View* shapeView =
+    topoGrp->hasView("elements/shape") ? topoGrp->getView("elements/shape")
+                                       : topoGrp->createView("elements/shape");
+  SLIC_ASSERT(shapeView != nullptr);
+  shapeView->setString("quad");
 
   axom::sidre::Group* topoElemGrp = topoGrp->getGroup("elements");
   axom::sidre::Group* topoDimsGrp = topoElemGrp->getGroup("dims");

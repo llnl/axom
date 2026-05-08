@@ -250,6 +250,29 @@ public:
 
   ///@}
 
+protected:
+  bool verifyInputMeshImpl(std::string& whyBad) const override
+  {
+    bool rval = true;
+
+#if defined(AXOM_USE_CONDUIT)
+    if(m_bp_state != nullptr)
+    {
+      rval = verifyBlueprintMeshIsStructuredOrUnstructuredQuadHex(whyBad);
+    }
+#endif
+
+#if defined(AXOM_USE_MFEM)
+    if(getDC() != nullptr)
+    {
+      rval = verifyMFEMInputMesh(whyBad);
+    }
+#endif
+
+    return rval;
+  }
+
+public:
   /// Returns a pointer to the quadrature function associated with shape \a name if it exists, else nullptr
   mfem::QuadratureFunction* getShapeQFunction(const std::string& name) const
   {
@@ -665,43 +688,28 @@ public:
   /// This function is intended to help with debugging
   void printRegisteredFieldNames(const std::string& initialMessage)
   {
-    // helper lambda to extract the keys of a map<string,*> as a vector of strings
-    auto extractKeys = [](const auto& map) {
-      std::vector<std::string> keys;
-      for(const auto& kv : map)
-      {
-        keys.push_back(kv.first);
-      }
-      return keys;
-    };
-
-    axom::fmt::memory_buffer out;
-
-    axom::fmt::format_to(std::back_inserter(out),
-                         "List of registered fields in the SamplingShaper {}"
-                         "\n\t* Data collection grid funcs: {}"
-                         "\n\t* Data collection qfuncs: {}"
-                         "\n\t* Known materials: {}",
-                         initialMessage,
-                         axom::fmt::join(extractKeys(getDC()->GetFieldMap()), ", "),
-                         axom::fmt::join(extractKeys(getDC()->GetQFieldMap()), ", "),
-                         axom::fmt::join(m_knownMaterials, ", "));
-
-    if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
+#if defined(AXOM_USE_MFEM)
+    if(m_mfem_state != nullptr)
     {
-      axom::fmt::format_to(std::back_inserter(out),
-                           "\n\t* Shape qfuncs: {}"
-                           "\n\t* Mat qfuncs: {}",
-                           axom::fmt::join(extractKeys(shapeQFuncs()), ", "),
-                           axom::fmt::join(extractKeys(materialQFuncs()), ", "));
+      shaping::printRegisteredFieldNames(samplingMFEMState(),
+                                         m_knownMaterials,
+                                         m_vfSampling,
+                                         initialMessage);
+      return;
     }
-    else if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_DOFS)
+#endif
+#if defined(AXOM_USE_CONDUIT)
+    if(m_bp_state != nullptr)
     {
-      axom::fmt::format_to(std::back_inserter(out),
-                           "\n\t* Shaping tensors: {}",
-                           axom::fmt::join(extractKeys(tensors()), ", "));
+      shaping::printRegisteredFieldNames(*m_bp_state,
+                                         m_knownMaterials,
+                                         m_vfSampling,
+                                         initialMessage);
+      return;
     }
-    SLIC_INFO_ROOT(axom::fmt::to_string(out));
+#endif
+    SLIC_INFO_ROOT(axom::fmt::format("SamplingShaper {} has no registered fields.",
+                                     initialMessage));
   }
 
 private:
@@ -723,12 +731,10 @@ private:
   }
 
 #if defined(AXOM_USE_CONDUIT)
-  static int meshDimension(const shaping::BlueprintState& bpState)
+  int meshDimension(const shaping::BlueprintState& bpState) const
   {
-    const conduit::Node& topoNode =
-      bpState.m_internal_node.fetch_existing("topologies").fetch_existing(bpState.m_topology_name);
-    const std::string coordsetName = topoNode.fetch_existing("coordset").as_string();
-    return bpState.m_internal_node["coordsets"][coordsetName]["values"].number_of_children();
+    AXOM_UNUSED_VAR(bpState);
+    return getBlueprintMeshDimension();
   }
 #endif
 

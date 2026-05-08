@@ -16,10 +16,13 @@
 #include "axom/fmt.hpp"
 
 #include <memory>
+#include <vector>
 
 #if defined(AXOM_USE_CONDUIT)
   #include "axom/bump/views/dispatch_coordset.hpp"
+  #include "axom/bump/views/dispatch_topology.hpp"
   #include "axom/bump/views/dispatch_unstructured_topology.hpp"
+  #include "conduit_blueprint_mesh.hpp"
 #endif
 
 #if defined(AXOM_USE_MFEM)
@@ -40,6 +43,7 @@ constexpr const char* QUADRATURE_COORDSET_NAME = "quadrature_points";
 constexpr const char* QUADRATURE_TOPOLOGY_NAME = "quadrature_points";
 constexpr const char* ORIGINAL_ELEMENTS_FIELD_NAME = "originalElements";
 constexpr const char* QUADRATURE_WEIGHTS_FIELD_NAME = "quadratureWeights";
+constexpr const char* QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME = "quadraturePhysicalWeights";
 
 numerics::QuadratureRule getBlueprintQuadratureRule(axom::numerics::QuadratureType quadratureType,
                                                     int npts,
@@ -52,6 +56,38 @@ numerics::QuadratureRule getBlueprintQuadratureRule(axom::numerics::QuadratureTy
                   static_cast<int>(quadratureType)));
 
   return numerics::get_quadrature_rule(quadratureType, npts, allocatorID);
+}
+
+std::string getBlueprintCellShapeImpl(const conduit::Node& topoNode)
+{
+  const std::string topoType = topoNode.fetch_existing("type").as_string();
+  if(topoNode.has_path("elements/shape"))
+  {
+    return topoNode.fetch_existing("elements/shape").as_string();
+  }
+
+  if(topoType == "structured")
+  {
+    const conduit::Node& dimsNode = topoNode.fetch_existing("elements/dims");
+    if(dimsNode.has_child("k"))
+    {
+      return "hex";
+    }
+    if(dimsNode.has_child("j"))
+    {
+      return "quad";
+    }
+    if(dimsNode.has_child("i"))
+    {
+      return "line";
+    }
+
+    SLIC_ERROR("Structured Blueprint topology is missing recognizable element dims.");
+  }
+
+  SLIC_ERROR(
+    axom::fmt::format("Blueprint topology type '{}' is missing 'elements/shape'.", topoType));
+  return "";
 }
 
 template <typename ExecSpace, typename CoordsetView>
@@ -67,7 +103,9 @@ void buildBlueprintQuadratureMesh(const conduit::Node& topoNode,
   namespace views = axom::bump::views;
   constexpr int SupportedShapes = views::select_shapes(views::Quad_ShapeID, views::Hex_ShapeID);
 
-  views::dispatch_unstructured_topology<SupportedShapes>(topoNode, [&](const auto&, auto topoView) {
+  views::dispatch_topology<views::select_dimensions(2, 3), SupportedShapes>(
+    topoNode,
+    [&](const auto&, auto topoView) {
     GenerateQuadratureMesh<ExecSpace, decltype(topoView), CoordsetView> generator(topoView,
                                                                                    coordsetView);
     generator.setAllocatorID(allocatorID);
@@ -77,14 +115,20 @@ void buildBlueprintQuadratureMesh(const conduit::Node& topoNode,
                       QUADRATURE_COORDSET_NAME,
                       ORIGINAL_ELEMENTS_FIELD_NAME,
                       QUADRATURE_WEIGHTS_FIELD_NAME,
+                      QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME,
                       ruleX,
                       ruleY,
                       ruleZ,
                       meshNode);
-  });
+    });
 }
 
 }  // namespace
+
+std::string getBlueprintCellShape(const conduit::Node& topoNode)
+{
+  return getBlueprintCellShapeImpl(topoNode);
+}
 #endif
 
 #if defined(AXOM_USE_MFEM)
@@ -264,6 +308,51 @@ mfem::QuadratureFunction* cloneInOutFunction(const mfem::QuadratureFunction* qfu
 {
   SLIC_ASSERT(qfunc != nullptr);
   return new mfem::QuadratureFunction(*qfunc);
+}
+
+void printRegisteredFieldNames(const SamplingMFEMState& mfemState,
+                               const std::set<std::string>& knownMaterials,
+                               VolFracSampling vfSampling,
+                               const std::string& initialMessage)
+{
+  SLIC_ASSERT(mfemState.m_dc != nullptr);
+
+  auto extractKeys = [](const auto& map) {
+    std::vector<std::string> keys;
+    for(const auto& kv : map)
+    {
+      keys.push_back(kv.first);
+    }
+    return keys;
+  };
+
+  axom::fmt::memory_buffer out;
+  axom::fmt::format_to(std::back_inserter(out),
+                       "List of registered fields in the SamplingShaper {}"
+                       "\n\t* Data collection grid funcs: {}"
+                       "\n\t* Data collection qfuncs: {}"
+                       "\n\t* Known materials: {}",
+                       initialMessage,
+                       axom::fmt::join(extractKeys(mfemState.m_dc->GetFieldMap()), ", "),
+                       axom::fmt::join(extractKeys(mfemState.m_dc->GetQFieldMap()), ", "),
+                       axom::fmt::join(knownMaterials, ", "));
+
+  if(vfSampling == VolFracSampling::SAMPLE_AT_QPTS)
+  {
+    axom::fmt::format_to(std::back_inserter(out),
+                         "\n\t* Shape qfuncs: {}"
+                         "\n\t* Mat qfuncs: {}",
+                         axom::fmt::join(extractKeys(mfemState.m_inoutShapeQFuncs), ", "),
+                         axom::fmt::join(extractKeys(mfemState.m_inoutMaterialQFuncs), ", "));
+  }
+  else if(vfSampling == VolFracSampling::SAMPLE_AT_DOFS)
+  {
+    axom::fmt::format_to(std::back_inserter(out),
+                         "\n\t* Shaping tensors: {}",
+                         axom::fmt::join(extractKeys(mfemState.m_inoutTensors), ", "));
+  }
+
+  SLIC_INFO_ROOT(axom::fmt::to_string(out));
 }
 
 mfem::QuadratureSpace* makeDefaultQuadratureSpace(mfem::Mesh* mesh, int sampleRes)
@@ -687,6 +776,97 @@ void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
 }
 
 #if defined(AXOM_USE_CONDUIT)
+void printRegisteredFieldNames(const BlueprintState& bpState,
+                               const std::set<std::string>& knownMaterials,
+                               VolFracSampling AXOM_UNUSED_PARAM(vfSampling),
+                               const std::string& initialMessage)
+{
+  auto extractChildren = [](const conduit::Node& node) {
+    std::vector<std::string> names;
+    if(node.dtype().is_object())
+    {
+      names.reserve(node.number_of_children());
+      for(conduit::index_t i = 0; i < node.number_of_children(); ++i)
+      {
+        names.push_back(node.child(i).name());
+      }
+    }
+    return names;
+  };
+
+  auto extractMatchingFields = [&](const std::string& prefix) {
+    std::vector<std::string> names;
+    if(bpState.m_internal_node.has_path("fields"))
+    {
+      const conduit::Node& fieldsNode = bpState.m_internal_node.fetch_existing("fields");
+      for(conduit::index_t i = 0; i < fieldsNode.number_of_children(); ++i)
+      {
+        const std::string name = fieldsNode.child(i).name();
+        if(axom::utilities::string::startsWith(name, prefix))
+        {
+          names.push_back(name);
+        }
+      }
+    }
+    return names;
+  };
+
+  auto extractOtherFields = [&]() {
+    std::vector<std::string> names;
+    if(bpState.m_internal_node.has_path("fields"))
+    {
+      const conduit::Node& fieldsNode = bpState.m_internal_node.fetch_existing("fields");
+      for(conduit::index_t i = 0; i < fieldsNode.number_of_children(); ++i)
+      {
+        const std::string name = fieldsNode.child(i).name();
+        if(!axom::utilities::string::startsWith(name, "inout_") &&
+           !axom::utilities::string::startsWith(name, "mat_inout_") &&
+           !axom::utilities::string::startsWith(name, "vol_frac_"))
+        {
+          names.push_back(name);
+        }
+      }
+    }
+    return names;
+  };
+
+  const std::vector<std::string> topologyNames =
+    bpState.m_internal_node.has_path("topologies")
+    ? extractChildren(bpState.m_internal_node.fetch_existing("topologies"))
+    : std::vector<std::string> {};
+  const std::vector<std::string> coordsetNames =
+    bpState.m_internal_node.has_path("coordsets")
+    ? extractChildren(bpState.m_internal_node.fetch_existing("coordsets"))
+    : std::vector<std::string> {};
+  const std::vector<std::string> fieldNames =
+    bpState.m_internal_node.has_path("fields")
+    ? extractChildren(bpState.m_internal_node.fetch_existing("fields"))
+    : std::vector<std::string> {};
+
+  axom::fmt::memory_buffer out;
+  axom::fmt::format_to(std::back_inserter(out),
+                       "List of registered fields in the SamplingShaper {}"
+                       "\n\t* Blueprint topologies: {}"
+                       "\n\t* Blueprint coordsets: {}"
+                       "\n\t* Blueprint fields: {}"
+                       "\n\t* Known materials: {}"
+                       "\n\t* Shape inout fields: {}"
+                       "\n\t* Mat inout fields: {}"
+                       "\n\t* Volume fraction fields: {}"
+                       "\n\t* Other Blueprint fields: {}",
+                       initialMessage,
+                       axom::fmt::join(topologyNames, ", "),
+                       axom::fmt::join(coordsetNames, ", "),
+                       axom::fmt::join(fieldNames, ", "),
+                       axom::fmt::join(knownMaterials, ", "),
+                       axom::fmt::join(extractMatchingFields("inout_"), ", "),
+                       axom::fmt::join(extractMatchingFields("mat_inout_"), ", "),
+                       axom::fmt::join(extractMatchingFields("vol_frac_"), ", "),
+                       axom::fmt::join(extractOtherFields(), ", "));
+
+  SLIC_INFO_ROOT(axom::fmt::to_string(out));
+}
+
 void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
                                  const std::string& topologyName,
                                  int allocatorID,
@@ -701,11 +881,12 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
   const conduit::Node& topoNode =
     bpMeshNode.fetch_existing("topologies").fetch_existing(topologyName);
   const std::string topoType = topoNode.fetch_existing("type").as_string();
-  SLIC_ERROR_IF(topoType != "unstructured",
-                axom::fmt::format("Unsupported Blueprint topology type '{}' for quadrature mesh generation.",
-                                  topoType));
+  SLIC_ERROR_IF(topoType != "unstructured" && topoType != "structured",
+                axom::fmt::format(
+                  "Unsupported Blueprint topology type '{}' for quadrature mesh generation.",
+                  topoType));
 
-  const std::string shape = topoNode.fetch_existing("elements/shape").as_string();
+  const std::string shape = shaping::getBlueprintCellShape(topoNode);
   SLIC_ERROR_IF(shape != "quad" && shape != "hex",
                 axom::fmt::format("Unsupported Blueprint element shape '{}' for quadrature mesh generation.",
                                   shape));
@@ -819,21 +1000,24 @@ void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::strin
   conduit::Node& bpMeshNode = bpState.m_internal_node;
   SLIC_ERROR_IF(!bpMeshNode.has_path("fields/originalElements/values"),
                 "Missing Blueprint originalElements field for volume fraction projection.");
-  SLIC_ERROR_IF(!bpMeshNode.has_path("fields/quadratureWeights/values"),
-                "Missing Blueprint quadratureWeights field for volume fraction projection.");
+  SLIC_ERROR_IF(
+    !bpMeshNode.has_path("fields/quadraturePhysicalWeights/values") &&
+      !bpMeshNode.has_path("fields/quadratureWeights/values"),
+    "Missing Blueprint quadrature weight field for volume fraction projection.");
 
   const conduit::Node& topoNode =
     bpMeshNode.fetch_existing("topologies").fetch_existing(bpState.m_topology_name);
 
-  axom::IndexType numZones = 0;
-  axom::bump::views::dispatch_unstructured_topology(
-    topoNode, [&](const auto&, auto topoView) { numZones = topoView.numberOfZones(); });
+  const axom::IndexType numZones = conduit::blueprint::mesh::topology::length(topoNode);
 
   namespace utils = axom::bump::utilities;
   const auto originalElements =
     utils::make_array_view<conduit::index_t>(bpMeshNode["fields/originalElements/values"]);
-  const auto quadratureWeights =
-    utils::make_array_view<double>(bpMeshNode["fields/quadratureWeights/values"]);
+  const conduit::Node& quadratureWeightsNode =
+    bpMeshNode.has_path("fields/quadraturePhysicalWeights/values")
+    ? bpMeshNode["fields/quadraturePhysicalWeights/values"]
+    : bpMeshNode["fields/quadratureWeights/values"];
+  const auto quadratureWeights = utils::make_array_view<double>(quadratureWeightsNode);
   const auto inoutValues = utils::make_array_view<double>(inout->fetch_existing("values"));
 
   SLIC_ASSERT(originalElements.size() == quadratureWeights.size());
@@ -851,10 +1035,13 @@ void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::strin
   valuesNode.set_allocator(conduitAllocatorId);
   valuesNode.set(conduit::DataType::float64(numZones));
   auto vfValues = utils::make_array_view<double>(valuesNode);
+  axom::Array<double> totalWeights(numZones, numZones, bpState.m_allocator_id);
+  auto totalWeightsView = totalWeights.view();
 
   for(axom::IndexType zoneIdx = 0; zoneIdx < vfValues.size(); ++zoneIdx)
   {
     vfValues[zoneIdx] = 0.;
+    totalWeightsView[zoneIdx] = 0.;
   }
 
   for(axom::IndexType pointIdx = 0; pointIdx < inoutValues.size(); ++pointIdx)
@@ -863,6 +1050,16 @@ void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::strin
     SLIC_ASSERT(zoneIdx >= 0);
     SLIC_ASSERT(zoneIdx < vfValues.size());
     vfValues[zoneIdx] += inoutValues[pointIdx] * quadratureWeights[pointIdx];
+    totalWeightsView[zoneIdx] += quadratureWeights[pointIdx];
+  }
+
+  for(axom::IndexType zoneIdx = 0; zoneIdx < vfValues.size(); ++zoneIdx)
+  {
+    SLIC_ERROR_IF(axom::utilities::isNearlyEqual(totalWeightsView[zoneIdx], 0.0),
+                  axom::fmt::format(
+                    "Blueprint quadrature weights sum to zero in zone {} during volume fraction projection.",
+                    zoneIdx));
+    vfValues[zoneIdx] /= totalWeightsView[zoneIdx];
   }
 }
 

@@ -381,6 +381,29 @@ public:
   { }
 #endif
 
+protected:
+  bool verifyInputMeshImpl(std::string& whyBad) const override
+  {
+    bool rval = true;
+
+#if defined(AXOM_USE_CONDUIT)
+    if(m_bp_state != nullptr)
+    {
+      rval = verifyBlueprintMeshIsStructuredOrUnstructuredQuadHex(whyBad);
+    }
+#endif
+
+#if defined(AXOM_USE_MFEM)
+    if(getDC() != nullptr)
+    {
+      rval = verifyMFEMInputMesh(whyBad);
+    }
+#endif
+
+    return rval;
+  }
+
+public:
   //!@brief Set data that depends on mesh (but not on shapes).
   template <typename ShapeType>
   void setMeshDependentData()
@@ -1795,6 +1818,13 @@ public:
     AXOM_ANNOTATE_SCOPE("runShapeQuery");
     const std::string shapeFormat = shape.getGeometry().getFormat();
 
+#if defined(AXOM_USE_CONDUIT)
+    if(m_bp_state != nullptr)
+    {
+      ensureBlueprintMeshIsUnstructured();
+    }
+#endif
+
     // C2C mesh is not discretized into tets, but all others are.
     if(surfaceMeshIsTet())
     {
@@ -2976,16 +3006,7 @@ private:
 #if defined(AXOM_USE_CONDUIT)
     if(m_bp_state != nullptr && m_bp_state->m_group_ptr != nullptr)
     {
-      std::string mesh_type =
-        m_bp_state->m_group_ptr->getView("topologies/mesh/elements/shape")->getString();
-      if(mesh_type == "hex")
-      {
-        dim = 3;
-      }
-      else if(mesh_type == "quad")
-      {
-        dim = 2;
-      }
+      dim = getBlueprintMeshDimension();
     }
 #endif
 
