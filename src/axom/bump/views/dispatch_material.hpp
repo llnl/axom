@@ -111,10 +111,11 @@ bool dispatch_material_multibuffer_with_values(const conduit::Node &matset, cons
   verify(matset, "matset");
   if(conduit::blueprint::mesh::matset::is_multi_buffer(matset))
   {
-    if(values_object.number_of_children() > 0)
+    const conduit::Node &volume_fractions = matset.fetch_existing("volume_fractions");
+    if(values_object.number_of_children() > 0 && (volume_fractions.number_of_children() == values_object.number_of_children()))
     {
       const conduit::Node &n_firstValues = values_object[0].fetch_existing("values");
-      const conduit::Node &n_firstIndices = values_object[0].fetch_existing("indices");
+      const conduit::Node &n_firstIndices = volume_fractions[0].fetch_existing("indices");
       indexNodeToArrayView(n_firstIndices, [&](auto firstIndices) {
         floatNodeToArrayView(n_firstValues, [&](auto firstValues) {
           using IntElement =
@@ -129,7 +130,7 @@ bool dispatch_material_multibuffer_with_values(const conduit::Node &matset, cons
           for(conduit::index_t i = 0; i < values_object.number_of_children(); i++)
           {
             const conduit::Node &values = values_object[i].fetch_existing("values");
-            const conduit::Node &indices = values_object[i].fetch_existing("indices");
+            const conduit::Node &indices = volume_fractions[i].fetch_existing("indices");
 
             const IntElement *indices_ptr = indices.value();
             const FloatElement *values_ptr = values.value();
@@ -141,7 +142,7 @@ bool dispatch_material_multibuffer_with_values(const conduit::Node &matset, cons
 
             // Get the material number if we can.
             IntElement matno = getMaterialID<IntElement>(matset,
-                                                         values_object[i].name(),
+                                                         volume_fractions[i].name(),
                                                          static_cast<IntElement>(i));
 
             matsetView.add(matno, indices_view, values_view);

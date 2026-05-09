@@ -52,7 +52,8 @@ struct braid2d_mat_test
     axom::StackArray<axom::IndexType, 2> dims {10, 10};
     axom::StackArray<axom::IndexType, 2> zoneDims {dims[0] - 1, dims[1] - 1};
     axom::blueprint::testing::data::braid(type, dims, n_mesh);
-    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, cleanMats, n_mesh);
+    const bool makeMixedField = false; // for now
+    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, cleanMats, makeMixedField, n_mesh);
   }
 
   // Select a chunk of clean and mixed zones.

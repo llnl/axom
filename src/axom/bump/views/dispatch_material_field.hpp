@@ -85,7 +85,6 @@ bool dispatch_material_element_dominant_field(const conduit::Node &matset, const
 template <typename FuncType, size_t MAXMATERIALS = 20>
 bool dispatch_material_material_dominant_field(const conduit::Node &matset, const conduit::Node n_field, FuncType &&func)
 {
-  bool retval = false;
   verify(matset, "matset");
   detail::verifyMixedField(n_field);
   return detail::dispatch_material_material_dominant_with_values<FuncType, MAXMATERIALS>(matset, n_field["matset_values"], std::forward<FuncType>(func));
@@ -106,19 +105,19 @@ template <typename FuncType, size_t MAXMATERIALS = 20>
 bool dispatch_material_field(const conduit::Node &matset, const conduit::Node &n_field, FuncType &&func)
 {
   bool retval =
-    dispatch_material_unibuffer_field<FuncType, MAXMATERIALS>(matset, std::forward<FuncType>(func));
+    dispatch_material_unibuffer_field<FuncType, MAXMATERIALS>(matset, n_field, std::forward<FuncType>(func));
   if(!retval)
   {
     retval =
-      dispatch_material_multibuffer_field<FuncType, MAXMATERIALS>(matset, std::forward<FuncType>(func));
+      dispatch_material_multibuffer_field<FuncType, MAXMATERIALS>(matset, n_field, std::forward<FuncType>(func));
   }
   if(!retval)
   {
-    retval = dispatch_material_element_dominant_field<FuncType, MAXMATERIALS>(matset, std::forward<FuncType>(func));
+    retval = dispatch_material_element_dominant_field<FuncType, MAXMATERIALS>(matset, n_field, std::forward<FuncType>(func));
   }
   if(!retval)
   {
-    retval = dispatch_material_material_dominant_field<FuncType, MAXMATERIALS>(matset, std::forward<FuncType>(func));
+    retval = dispatch_material_material_dominant_field<FuncType, MAXMATERIALS>(matset, n_field, std::forward<FuncType>(func));
   }
   return retval;
 }

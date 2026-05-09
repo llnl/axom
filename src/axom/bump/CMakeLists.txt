@@ -45,6 +45,7 @@ set(bump_headers
     views/BasicIndexing.hpp
     views/dispatch_coordset.hpp
     views/dispatch_material.hpp
+    views/dispatch_material_field.hpp
     views/dispatch_rectilinear_topology.hpp
     views/dispatch_structured_topology.hpp
     views/dispatch_topology.hpp

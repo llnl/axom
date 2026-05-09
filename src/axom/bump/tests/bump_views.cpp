@@ -597,9 +597,10 @@ struct test_braid2d_mat
 
     // Create the data
     const bool cleanMats = false;
+    const bool makeMixedField = true;
     conduit::Node hostMesh, deviceMesh;
     axom::blueprint::testing::data::braid(type, dims, hostMesh);
-    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, cleanMats, hostMesh);
+    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, cleanMats, makeMixedField, hostMesh);
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
     TestApp.saveVisualization(name + "_orig", hostMesh);
 
@@ -616,25 +617,49 @@ struct test_braid2d_mat
                      utils::make_array_view<int>(deviceMesh["matsets/mat/indices"]));
       // _bump_views_matsetview_end
       // clang-format on
+      SLIC_INFO("unibuffer: matsetView");
       test_matsetview(nzones, matsetView, allocatorID);
+
+      // Test mixed field.
+      const auto mixedFieldView = axom::bump::views::make_unibuffer_matset<int, float, 3>::mixedFieldView(deviceMesh["matsets/mat"], deviceMesh["fields/mixed"]);
+      SLIC_INFO("unibuffer: mixedFieldView");
+      test_matsetview(nzones, mixedFieldView, allocatorID);
     }
     else if(mattype == "multibuffer")
     {
       axom::bump::views::dispatch_material_multibuffer(
         deviceMesh["matsets/mat"],
-        [&](auto matsetView) { test_matsetview(nzones, matsetView, allocatorID); });
+        [&](auto matsetView) { SLIC_INFO("multibuffer: matsetView"); test_matsetview(nzones, matsetView, allocatorID); });
+
+      // Test mixed field.
+      axom::bump::views::dispatch_material_multibuffer_field(
+        deviceMesh["matsets/mat"],
+        deviceMesh["fields/mixed"],
+        [&](auto mixedFieldView) { SLIC_INFO("multibuffer: mixedFieldView"); test_matsetview(nzones, mixedFieldView, allocatorID); });
     }
     else if(mattype == "element_dominant")
     {
       axom::bump::views::dispatch_material_element_dominant(
         deviceMesh["matsets/mat"],
-        [&](auto matsetView) { test_matsetview(nzones, matsetView, allocatorID); });
+        [&](auto matsetView) { SLIC_INFO("element_dominant: matsetView"); test_matsetview(nzones, matsetView, allocatorID); });
+
+      // Test mixed field.
+      axom::bump::views::dispatch_material_element_dominant_field(
+        deviceMesh["matsets/mat"],
+        deviceMesh["fields/mixed"],
+        [&](auto mixedFieldView) { SLIC_INFO("element_dominant: mixedFieldView"); test_matsetview(nzones, mixedFieldView, allocatorID); });
     }
     else if(mattype == "material_dominant")
     {
       axom::bump::views::dispatch_material_material_dominant(
         deviceMesh["matsets/mat"],
-        [&](auto matsetView) { test_matsetview(nzones, matsetView, allocatorID); });
+        [&](auto matsetView) { SLIC_INFO("material_dominant: matsetView"); test_matsetview(nzones, matsetView, allocatorID); });
+
+      // Test mixed field.
+      axom::bump::views::dispatch_material_material_dominant_field(
+        deviceMesh["matsets/mat"],
+        deviceMesh["fields/mixed"],
+        [&](auto mixedFieldView) { SLIC_INFO("material_dominant: mixedFieldView"); test_matsetview(nzones, mixedFieldView, allocatorID); });
     }
   }
 
