@@ -9,6 +9,7 @@
 #include "axom/quest/Delaunay.hpp"
 #include "axom/slic.hpp"
 
+#include <cmath>
 #include <cstddef>
 #include <vector>
 
@@ -246,6 +247,49 @@ TEST(quest_delaunay, query_location_regular_grid_2d)
   {
     EXPECT_NE(DelaunayType<2>::INVALID_INDEX, dt.findContainingElement(query, false));
   }
+}
+
+TEST(quest_delaunay, query_location_boundary_ring_2d)
+{
+  using PointType = typename DelaunayType<2>::PointType;
+  using BoundingBox = typename DelaunayType<2>::BoundingBox;
+
+  DelaunayType<2> dt;
+  dt.initializeBoundary(BoundingBox(PointType {-1.1, -1.1}, PointType {1.1, 1.1}));
+
+  constexpr int NPTS = 625;
+  std::vector<PointType> points;
+  points.reserve(NPTS);
+  for(int i = 0; i < NPTS; ++i)
+  {
+    const double theta = 2. * M_PI * static_cast<double>(i) / static_cast<double>(NPTS);
+    const double radius = 1. + 0.01 * std::sin(17. * theta) + 0.005 * std::cos(31. * theta);
+    points.push_back(PointType {radius * std::cos(theta), radius * std::sin(theta)});
+  }
+
+  insertPoints(dt, points);
+  dt.removeBoundary();
+
+  EXPECT_NE(DelaunayType<2>::INVALID_INDEX, dt.findContainingElement(PointType {0., 0.}, false));
+}
+
+TEST(quest_delaunay, move_rebinds_insertion_helper_2d)
+{
+  using PointType = typename DelaunayType<2>::PointType;
+  using BoundingBox = typename DelaunayType<2>::BoundingBox;
+
+  std::vector<PointType> points {PointType {0.1, 0.1},
+                                 PointType {0.8, 0.1},
+                                 PointType {0.2, 0.8},
+                                 PointType {0.7, 0.7}};
+
+  DelaunayType<2> original;
+  original.initializeBoundary(BoundingBox(PointType {0., 0.}, PointType {1., 1.}));
+  insertPoints(original, std::vector<PointType>(points.begin(), points.end() - 1));
+
+  DelaunayType<2> moved(std::move(original));
+  moved.insertPoint(points.back());
+  expectValidDelaunay(moved, points);
 }
 
 TEST(quest_delaunay, cospherical_cube_3d)

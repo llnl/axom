@@ -355,7 +355,7 @@ inline bool Delaunay<DIM>::isValid(bool verboseOutput) const
       }
     }
 
-    const int kUpper = (DIM == 2) ? 0 : res;
+    const int kUpper = (DIM == 2) ? 1 : res;
     const IndexType stride[3] = {1, res, (DIM == 2) ? 0 : res * res};
     for(IndexType k = 0; k < kUpper; ++k)
     {

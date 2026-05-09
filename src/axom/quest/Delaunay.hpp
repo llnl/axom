@@ -263,6 +263,12 @@ public:
    */
   Delaunay() : m_has_boundary(false), m_insertion_validation_mode(InsertionValidationMode::None) { }
 
+  Delaunay(const Delaunay&) = delete;
+  Delaunay& operator=(const Delaunay&) = delete;
+
+  Delaunay(Delaunay&& other) : Delaunay() { *this = std::move(other); }
+  Delaunay& operator=(Delaunay&& other);
+
   /// \brief Returns statistics about insertion operations
   /// \return InsertionStats containing cavity size metrics
   InsertionStats getInsertionStats() const

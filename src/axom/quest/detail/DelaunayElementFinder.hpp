@@ -215,6 +215,17 @@ public:
     return flatIndex(cell);
   }
 
+  /// \brief Returns the largest useful bin-neighborhood radius for exhaustive local seeding.
+  inline int maxSearchRadius() const
+  {
+    int max_radius = 0;
+    for(int dim = 0; dim < DIM; ++dim)
+    {
+      max_radius = axom::utilities::max(max_radius, static_cast<int>(m_bins.shape()[dim]));
+    }
+    return max_radius;
+  }
+
   /// \brief Update a bin to reference a newly inserted vertex
   ///
   /// \param pt The position of the newly inserted vertex

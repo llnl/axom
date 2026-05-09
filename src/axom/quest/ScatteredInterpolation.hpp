@@ -9,6 +9,7 @@
 
 #include "axom/core.hpp"
 #include "axom/core/NumericLimits.hpp"
+#include "axom/core/utilities/BitUtilities.hpp"
 #include "axom/slic.hpp"
 #include "axom/sidre.hpp"
 #include "axom/spin.hpp"
@@ -314,6 +315,16 @@ private:
     // and a quantized Morton index from a rectangular lattice over the bounding box
 
     const int npts = pts.size();
+    if(npts <= 1)
+    {
+      axom::Array<axom::IndexType> reordered(npts, npts);
+      for(int idx = 0; idx < npts; ++idx)
+      {
+        reordered[idx] = idx;
+      }
+      return reordered;
+    }
+
     const int nlevels = axom::utilities::ceil(axom::utilities::log2<CoordType>(npts));
 
     // Each point has a 50% chance of being at the max level; of the remaining points
@@ -360,8 +371,7 @@ private:
         return 0;
       }
 
-      // level in [1, used_bits]
-      const int level = RNG_BITS - __builtin_clzll(bits);
+      const int level = 32 - axom::utilities::countl_zero(static_cast<std::int32_t>(bits));
       return axom::utilities::min(level, nlevels);
     };
 

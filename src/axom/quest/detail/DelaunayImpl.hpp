@@ -28,6 +28,47 @@ namespace quest
 {
 
 template <int DIM>
+inline Delaunay<DIM>& Delaunay<DIM>::operator=(Delaunay&& other)
+{
+  if(this == &other)
+  {
+    return *this;
+  }
+
+  const bool other_has_insertion_helper = other.m_insertion_helper != nullptr;
+
+  m_mesh = std::move(other.m_mesh);
+  m_bounding_box = std::move(other.m_bounding_box);
+  m_has_boundary = other.m_has_boundary;
+  m_insertion_validation_mode = other.m_insertion_validation_mode;
+  m_deleted_elements = std::move(other.m_deleted_elements);
+  m_element_finder = std::move(other.m_element_finder);
+  m_next_regrid_vertex_count = other.m_next_regrid_vertex_count;
+  m_walk_visited = std::move(other.m_walk_visited);
+  m_total_removed_elements = other.m_total_removed_elements;
+  m_max_removed_elements = other.m_max_removed_elements;
+  m_num_insertions = other.m_num_insertions;
+  m_collect_location_stats = other.m_collect_location_stats;
+  m_num_walk_calls = other.m_num_walk_calls;
+  m_num_walk_found = other.m_num_walk_found;
+  m_num_walk_outside = other.m_num_walk_outside;
+  m_num_walk_failed = other.m_num_walk_failed;
+  m_total_walk_steps = other.m_total_walk_steps;
+  m_max_walk_steps = other.m_max_walk_steps;
+  m_candidate_elements_scratch = std::move(other.m_candidate_elements_scratch);
+  m_walked_elements_scratch = std::move(other.m_walked_elements_scratch);
+  m_walk_local_elements_scratch = std::move(other.m_walk_local_elements_scratch);
+  m_initial_vertices_scratch = std::move(other.m_initial_vertices_scratch);
+  m_insertion_helper =
+    other_has_insertion_helper ? std::make_unique<InsertionHelper>(m_mesh) : nullptr;
+
+  other.m_has_boundary = false;
+  other.m_insertion_helper.reset();
+
+  return *this;
+}
+
+template <int DIM>
 AXOM_QUEST_DELAUNAY_FORCE_INLINE bool Delaunay<DIM>::isSearchableElement(IndexType element_idx) const
 {
   return m_mesh.isValidElement(element_idx);

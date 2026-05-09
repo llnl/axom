@@ -295,6 +295,27 @@ AXOM_QUEST_DELAUNAY_FORCE_INLINE void Delaunay<DIM>::getInitialCandidateElements
                                      /*search_radius=*/1,
                                      /*max_candidates=*/8);
   appendCandidateElementsFromVertices(candidate_elements, m_initial_vertices_scratch);
+  if(!candidate_elements.empty())
+  {
+    return;
+  }
+
+  const int max_search_radius = axom::utilities::max(1, m_element_finder.maxSearchRadius());
+  for(int search_radius = 2; search_radius <= max_search_radius;
+      search_radius = axom::utilities::min(max_search_radius, 2 * search_radius))
+  {
+    m_initial_vertices_scratch.clear();
+    m_element_finder.getNearbyVertices(m_mesh,
+                                       query_pt,
+                                       m_initial_vertices_scratch,
+                                       search_radius,
+                                       /*max_candidates=*/8);
+    appendCandidateElementsFromVertices(candidate_elements, m_initial_vertices_scratch);
+    if(!candidate_elements.empty() || search_radius == max_search_radius)
+    {
+      break;
+    }
+  }
 }
 
 template <int DIM>
