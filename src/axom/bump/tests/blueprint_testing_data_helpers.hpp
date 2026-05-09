@@ -81,7 +81,7 @@ float make_field_value(const std::vector<float> &vfA,
                        const std::vector<float> &vfC,
                        size_t i)
 {
-  return axom::utilities::max(vfA[i], axom::utilities::max(vfB[i], vfC[i]));
+  return vfA[i] + vfB[i] + vfC[i];
 }
 
 /*!
