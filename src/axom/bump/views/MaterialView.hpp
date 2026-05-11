@@ -239,7 +239,7 @@ public:
     void AXOM_HOST_DEVICE advance(bool doIncrement)
     {
       m_currentIndex += (doIncrement && m_currentIndex < size()) ? 1 : 0;
-      const auto idx = m_view->m_offsets[m_zoneIndex] + m_currentIndex;
+      const axom::IndexType idx = m_view->m_offsets[m_zoneIndex] + m_currentIndex;
       if(idx < m_view->m_indices.size())
       {
         m_index = m_view->m_indices[idx];
