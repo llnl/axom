@@ -64,6 +64,28 @@ inline void flatmap_get_value(T key, U& out)
   out = key;
 }
 
+struct FlatMapHostStringHash
+{
+  using argument_type = std::string;
+  using result_type = axom::IndexType;
+
+  AXOM_HOST_DEVICE result_type operator()(const std::string& key) const
+  {
+#if defined(AXOM_DEVICE_CODE)
+    AXOM_UNUSED_VAR(key);
+    return 0;
+#else
+    uint64_t hash = static_cast<uint64_t>(std::hash<std::string> {}(key));
+    hash *= 0xbf58476d1ce4e5b9ULL;
+    hash ^= hash >> 32;
+    hash *= 0x94d049bb133111ebULL;
+    hash ^= hash >> 32;
+    hash *= 0x94d049bb133111ebULL;
+    return static_cast<result_type>(hash);
+#endif
+  }
+};
+
 template <typename FlatMapType>
 class core_flatmap : public ::testing::Test
 {
@@ -102,8 +124,8 @@ public:
 
 using MyTypes = ::testing::Types<axom::FlatMap<int, double>,
                                  axom::FlatMap<int, std::string>,
-                                 axom::FlatMap<std::string, double>,
-                                 axom::FlatMap<std::string, std::string>>;
+                                 axom::FlatMap<std::string, double, FlatMapHostStringHash>,
+                                 axom::FlatMap<std::string, std::string, FlatMapHostStringHash>>;
 
 TYPED_TEST_SUITE(core_flatmap, MyTypes);
 

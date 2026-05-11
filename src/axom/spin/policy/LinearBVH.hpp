@@ -165,9 +165,7 @@ public:
       });
 
       // Return the precomputed values in the reduction.
-      auto returnLeafValue =
-        AXOM_LAMBDA(std::int32_t currentNode, const std::int32_t* leafNodes)->ValueType
-      {
+      auto returnLeafValue = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
         const auto idx = leafNodes[currentNode];
         return leafFieldView[idx];
       };

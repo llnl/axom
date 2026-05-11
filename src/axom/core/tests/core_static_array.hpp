@@ -25,6 +25,8 @@ struct DevicePair
 
   AXOM_HOST_DEVICE explicit DevicePair(int value) : first(value), second(-value) { }
 
+  AXOM_HOST_DEVICE DevicePair(const DevicePair& obj) : first(obj.first), second(obj.second) { }
+
   AXOM_HOST_DEVICE DevicePair& operator=(const DevicePair& other)
   {
     first = other.first;

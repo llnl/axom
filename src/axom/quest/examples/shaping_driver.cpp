@@ -46,6 +46,28 @@ namespace sidre = axom::sidre;
 using VolFracSampling = quest::shaping::VolFracSampling;
 using SamplingMethod = quest::SamplingShaper::SamplingMethod;
 
+namespace
+{
+using Point2D = primal::Point<double, 2>;
+using Point3D = primal::Point<double, 3>;
+
+struct AxisymmetricProjector32
+{
+  AXOM_HOST_DEVICE Point2D operator()(Point3D pt) const
+  {
+    const double& x = pt[0];
+    const double& y = pt[1];
+    const double& z = pt[2];
+    return Point2D {z, sqrt(x * x + y * y)};
+  }
+};
+
+struct Projector23
+{
+  AXOM_HOST_DEVICE Point3D operator()(Point2D pt) const { return Point3D {pt[0], pt[1], 0.}; }
+};
+}  // namespace
+
 //------------------------------------------------------------------------------
 
 /// Struct to help choose our shaping method: sampling or intersection for now
@@ -574,20 +596,11 @@ int main(int argc, char** argv)
     // register point projectors
     if(shapingDC.GetMesh()->Dimension() == 3)
     {
-      samplingShaper->setPointProjector32([](primal::Point<double, 3> pt) {
-        const double& x = pt[0];
-        const double& y = pt[1];
-        const double& z = pt[2];
-        return primal::Point<double, 2> {z, sqrt(x * x + y * y)};
-      });
+      samplingShaper->setPointProjector32(AxisymmetricProjector32 {});
     }
     else if(shapingDC.GetMesh()->Dimension() == 2)
     {
-      samplingShaper->setPointProjector23([](primal::Point<double, 2> pt) {
-        const double& x = pt[0];
-        const double& y = pt[1];
-        return primal::Point<double, 3> {x, y, 0.};
-      });
+      samplingShaper->setPointProjector23(Projector23 {});
     }
   }
 

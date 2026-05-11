@@ -613,7 +613,7 @@ public:
 #if defined(AXOM_DEBUG)
     if(m_state == TUPLE)
     {
-      DataTypeId arg_id = detail::SidreTT<ScalarType>::id;
+      [[maybe_unused]] DataTypeId arg_id = detail::SidreTT<ScalarType>::id;
       SLIC_CHECK_MSG(arg_id == m_node.dtype().id(),
                      SIDRE_VIEW_LOG_PREPEND << "You are setting a scalar value which has changed "
                                             << " the underlying data type. "
@@ -657,7 +657,7 @@ public:
 #if defined(AXOM_DEBUG)
     if(m_state == TUPLE)
     {
-      DataTypeId arg_id = detail::SidreTT<ScalarType>::id;
+      [[maybe_unused]] DataTypeId arg_id = detail::SidreTT<ScalarType>::id;
       SLIC_CHECK_MSG(arg_id == m_node.dtype().id(),
                      SIDRE_VIEW_LOG_PREPEND << "You are setting a scalar value which has changed "
                                             << " the underlying data type. "

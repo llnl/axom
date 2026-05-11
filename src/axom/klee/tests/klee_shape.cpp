@@ -10,10 +10,14 @@
 
 #include "gtest/gtest.h"
 
-namespace axom
-{
-namespace klee
-{
+namespace klee = axom::klee;
+
+using klee::Dimensions;
+using klee::Geometry;
+using klee::LengthUnit;
+using klee::Shape;
+using klee::TransformableGeometryProperties;
+
 namespace
 {
 Geometry createTestGeometry()
@@ -26,6 +30,7 @@ Geometry createTestGeometry()
                    "test path",
                    nullptr};
 }
+}  // namespace
 
 TEST(ShapeTest, replaces_no_lists_given)
 {
@@ -54,6 +59,3 @@ TEST(ShapeTest, both_replacement_lists_given)
   EXPECT_THROW(Shape("name", "material", {"replaced"}, {"not replaced"}, createTestGeometry()),
                std::logic_error);
 }
-}  // namespace
-}  // namespace klee
-}  // namespace axom

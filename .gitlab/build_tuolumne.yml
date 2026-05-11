@@ -36,10 +36,12 @@
 
 ####
 # PR Build jobs
+# Disable OpenMP to avoid timeout
 tuolumne-llvm-amdgpu_6_4_3_hip-src:
   variables:
     COMPILER: "llvm-amdgpu@6.4.3_hip"
     HOST_CONFIG: "tuolumne-toss_4_x86_64_ib_cray-${COMPILER}.cmake"
+    EXTRA_CMAKE_OPTIONS: "-DENABLE_OPENMP:BOOL=OFF"
   extends: .src_build_on_tuolumne
 
 ####

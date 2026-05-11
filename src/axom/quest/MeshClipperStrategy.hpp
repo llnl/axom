@@ -431,13 +431,6 @@ protected:
    * which apply before m_extTrans.
    */
   numerics::Matrix<double> m_extTrans;
-
-private:
-  /*!
-   * @brief Compute the transformation matrix of a GeometryOperator.
-   */
-  numerics::Matrix<double> computeTransformationMatrix(
-    const std::shared_ptr<const axom::klee::GeometryOperator>& op) const;
 };
 
 }  // namespace experimental

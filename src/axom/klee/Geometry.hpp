@@ -261,6 +261,14 @@ public:
   std::shared_ptr<GeometryOperator const> const &getGeometryOperator() const { return m_operator; }
 
   /**
+   * Get any operator transforms concatenated into a 4x4 matrix. If there are no
+   * geometry operators then the identity matrix is returned.
+   *
+   * \return A 4x4 matrix that represents the geometry transforms.
+   */
+  numerics::Matrix<double> getTransform() const;
+
+  /**
    * Get the initial transformable properties of this geometry
    *
    * \return the initial transformable properties of this geometry

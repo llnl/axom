@@ -8,6 +8,7 @@
 
 #include "axom/config.hpp"
 #include "axom/core/numerics/Matrix.hpp"
+#include "axom/core/ArrayView.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -134,6 +135,33 @@ Matrix<T> axisRotation(double angleRad, double x, double y, double z)
 }
 
 /*!
+ * \brief Return translation matrix.
+ *
+ * \param tx The translation in x.
+ * \param ty The translation in y.
+ *
+ * \return A Matrix containing the translation transform.
+ */
+template <typename T = double>
+Matrix<T> translate(T tx, T ty)
+{
+  Matrix<T> M = Matrix<T>::identity(3);
+  M(0, 2) = tx;
+  M(1, 2) = ty;
+  return M;
+}
+
+template <typename T = double>
+Matrix<T> translate(T tx, T ty, T tz)
+{
+  Matrix<T> M = Matrix<T>::identity(4);
+  M(0, 3) = tx;
+  M(1, 3) = ty;
+  M(2, 3) = tz;
+  return M;
+}
+
+/*!
  * \brief Return scaling matrix.
  *
  * \param s The scaling value.
@@ -194,30 +222,66 @@ Matrix<T> scale(T sx, T sy, int ndims = 3)
 }
 
 /*!
- * \brief Return translation matrix.
+ * \brief Return scaling matrix relative to a center point.
  *
- * \param tx The translation in x.
- * \param ty The translation in y.
+ * \param sx The scaling value in x.
+ * \param sy The scaling value in y.
+ * \param center The center point.
  *
- * \return A Matrix containing the translation transform.
+ * \return A 3x3 Matrix containing the scaling transform.
  */
 template <typename T = double>
-Matrix<T> translate(T tx, T ty)
+Matrix<T> scale(T sx, T sy, const axom::ArrayView<T> &center)
 {
-  Matrix<T> M = Matrix<T>::identity(3);
-  M(0, 2) = tx;
-  M(1, 2) = ty;
-  return M;
+  assert(center.size() == 2);
+  const T zero {0};
+  if(axom::utilities::isNearlyEqual(center[0], zero) &&
+     axom::utilities::isNearlyEqual(center[1], zero))
+  {
+    return scale(sx, sy);
+  }
+
+  const auto T0 = translate(-center[0], -center[1]);
+  const auto S = scale(sx, sy, 3);
+  const auto T1 = translate(center[0], center[1]);
+
+  Matrix<T> TS(Matrix<T>::identity(3)), result(Matrix<T>::identity(3));
+  matrix_multiply(T1, S, TS);
+  matrix_multiply(TS, T0, result);
+
+  return result;
 }
 
+/*!
+ * \brief Return scaling matrix relative to a center point.
+ *
+ * \param sx The scaling value in x.
+ * \param sy The scaling value in y.
+ * \param center The center point.
+ *
+ * \return A 4x4 Matrix containing the scaling transform.
+ */
 template <typename T = double>
-Matrix<T> translate(T tx, T ty, T tz)
+Matrix<T> scale(T sx, T sy, T sz, const axom::ArrayView<T> &center)
 {
-  Matrix<T> M = Matrix<T>::identity(4);
-  M(0, 3) = tx;
-  M(1, 3) = ty;
-  M(2, 3) = tz;
-  return M;
+  assert(center.size() == 3);
+  const T zero {0};
+  if(axom::utilities::isNearlyEqual(center[0], zero) &&
+     axom::utilities::isNearlyEqual(center[1], zero) &&
+     axom::utilities::isNearlyEqual(center[2], zero))
+  {
+    return scale(sx, sy, sz, 4);
+  }
+
+  const auto T0 = translate(-center[0], -center[1], -center[2]);
+  const auto S = scale(sx, sy, sz, 4);
+  const auto T1 = translate(center[0], center[1], center[2]);
+
+  Matrix<T> TS(Matrix<T>::identity(4)), result(Matrix<T>::identity(4));
+  matrix_multiply(T1, S, TS);
+  matrix_multiply(TS, T0, result);
+
+  return result;
 }
 
 }  // end namespace transforms

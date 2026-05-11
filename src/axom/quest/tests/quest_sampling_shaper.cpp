@@ -45,6 +45,9 @@ namespace fs = axom::utilities::filesystem;
 
 namespace
 {
+using Point2D = primal::Point<double, 2>;
+using Point3D = primal::Point<double, 3>;
+
 const std::string unit_circle_contour =
   "piece = circle(origin=(0cm, 0cm), radius=1cm, start=0deg, end=360deg)";
 
@@ -64,46 +67,83 @@ const std::string proe_tet_fmt_str = R"(
 // Set the following to true for verbose output and for saving vis files
 constexpr bool very_verbose_output = false;
 
-// Utility function to slice a tetrahedron along a plane
-primal::Polygon<double, 3> slice(const primal::Tetrahedron<double, 3>& tet,
-                                 const primal::Plane<double, 3>& plane)
+struct IdentityProjector22
 {
-  primal::Polygon<double, 3> intersectionPolygon;
+  AXOM_HOST_DEVICE Point2D operator()(const Point2D& pt) const { return Point2D {pt[0], pt[1]}; }
+};
 
-  // find intersection vertices
-  for(int i = 0; i < 4; ++i)
+struct IdentityProjector33
+{
+  AXOM_HOST_DEVICE Point3D operator()(const Point3D& pt) const
   {
-    for(int j = i + 1; j < 4; ++j)
-    {
-      primal::Segment<double, 3> edge(tet[i], tet[j]);
-      double t {};
-      if(primal::intersect(plane, edge, t))
-      {
-        intersectionPolygon.addVertex(edge.at(t));
-      }
-    }
+    return Point3D {pt[0], pt[1], pt[2]};
   }
-  SLIC_ASSERT(intersectionPolygon.numVertices() <= 4);
+};
 
-  // fix the polygon if it bowties
-  if(intersectionPolygon.numVertices() == 4)
+struct Projector32
+{
+  AXOM_HOST_DEVICE Point2D operator()(const Point3D& pt) const { return Point2D {pt[0], pt[1]}; }
+};
+
+struct Projector23
+{
+  AXOM_HOST_DEVICE Point3D operator()(const Point2D& pt) const
   {
-    // note: using BezierCurve since Axom doesn't currently have intersect(segment, segment)
-    primal::BezierCurve<double, 2> seg1(1);
-    seg1[0] = Point2D(intersectionPolygon[0][0], intersectionPolygon[0][1]);
-    seg1[1] = Point2D(intersectionPolygon[1][0], intersectionPolygon[1][1]);
-    primal::BezierCurve<double, 2> seg2(1);
-    seg2[0] = Point2D(intersectionPolygon[2][0], intersectionPolygon[2][1]);
-    seg2[1] = Point2D(intersectionPolygon[3][0], intersectionPolygon[3][1]);
-    axom::Array<double> sp, tp;
-
-    if(!primal::intersect(seg1, seg2, sp, tp))
-    {
-      axom::utilities::swap(intersectionPolygon[2], intersectionPolygon[3]);
-    }
+    return Point3D {pt[0], pt[1], 0.};
   }
-  return intersectionPolygon;
-}
+};
+
+struct ScaleProjector22
+{
+  double scale_a;
+  double scale_b;
+
+  AXOM_HOST_DEVICE Point2D operator()(const Point2D& pt) const
+  {
+    return Point2D {pt[0] / scale_a, pt[1] / scale_b};
+  }
+};
+
+struct ZeroProjector33
+{
+  AXOM_HOST_DEVICE Point3D operator()(const Point3D&) const { return Point3D {0., 0., 0.}; }
+};
+
+struct HalfScaleProjector33
+{
+  AXOM_HOST_DEVICE Point3D operator()(const Point3D& pt) const
+  {
+    return Point3D {pt[0] / 2., pt[1] / 2., pt[2] / 2.};
+  }
+};
+
+struct ZeroProjector32
+{
+  AXOM_HOST_DEVICE Point2D operator()(const Point3D&) const { return Point2D {0., 0.}; }
+};
+
+struct AxisymmetricProjector32
+{
+  AXOM_HOST_DEVICE Point2D operator()(Point3D pt) const
+  {
+    const double& x = pt[0];
+    const double& y = pt[1];
+    const double& z = pt[2];
+    return Point2D {z, sqrt(x * x + y * y)};
+  }
+};
+
+struct PlaneProjector23
+{
+  double z;
+
+  AXOM_HOST_DEVICE Point3D operator()(Point2D pt) const
+  {
+    const double& x = pt[0];
+    const double& y = pt[1];
+    return Point3D {x, y, z};
+  }
+};
 
 }  // namespace
 
@@ -351,7 +391,6 @@ protected:
 class SamplingShaperTest2D : public SamplingShaperTest
 {
 public:
-  using Point2D = primal::Point<double, 2>;
   using BBox2D = primal::BoundingBox<double, 2>;
 
 public:
@@ -478,7 +517,6 @@ public:
 class SampleTester2D : public SamplingShaperTest
 {
 public:
-  using Point2D = primal::Point<double, 2>;
   using BBox2D = primal::BoundingBox<double, 2>;
 
 public:
@@ -594,9 +632,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, basic_circle_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -624,10 +659,10 @@ shapes:
 
   // check that we can set several projectors in 2D and 3D
   // uses simplest projectors, e.g. identity in 2D and 3D
-  this->m_shaper->setPointProjector33([](const Point3D& pt) { return Point3D {pt[0], pt[1], pt[2]}; });
-  this->m_shaper->setPointProjector22([](const Point2D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector32([](const Point3D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector23([](const Point2D& pt) { return Point3D {pt[0], pt[1], 0}; });
+  this->m_shaper->setPointProjector33(IdentityProjector33 {});
+  this->m_shaper->setPointProjector22(IdentityProjector22 {});
+  this->m_shaper->setPointProjector32(Projector32 {});
+  this->m_shaper->setPointProjector23(Projector23 {});
 
   this->runShaping();
 
@@ -644,9 +679,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, circle_projector_anisotropic)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -676,10 +708,9 @@ shapes:
   // creating an ellipse by scaling input x and y by scale_a and scale_b
   constexpr double scale_a = 3. / 2.;
   constexpr double scale_b = 3. / 4.;
-  this->m_shaper->setPointProjector22(
-    [](const Point2D& pt) { return Point2D {pt[0] / scale_a, pt[1] / scale_b}; });
+  this->m_shaper->setPointProjector22(ScaleProjector22 {scale_a, scale_b});
   // check that we can register another projector that's not used
-  this->m_shaper->setPointProjector33([](const Point3D&) { return Point3D {0., 0.}; });
+  this->m_shaper->setPointProjector33(ZeroProjector33 {});
 
   this->runShaping();
 
@@ -753,8 +784,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, disk_via_replacement_with_background)
 {
-  using Point2D = typename SamplingShaperTest2D::Point2D;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -863,8 +892,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, preshaped_materials)
 {
-  using Point2D = typename SamplingShaperTest2D::Point2D;
-
   const std::string& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -944,8 +971,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, disk_with_multiple_preshaped_materials)
 {
-  using Point2D = typename SamplingShaperTest2D::Point2D;
-
   const std::string& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -1146,9 +1171,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, contour_and_stl_2D)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
@@ -1215,7 +1237,7 @@ shapes:
   this->initializeShaping(shape_file.getPath(), initialGridFunctions);
 
   // set projector from 2D mesh points to 3D query points within STL
-  this->m_shaper->setPointProjector23([](Point2D pt) { return Point3D {pt[0], pt[1], 0.}; });
+  this->m_shaper->setPointProjector23(Projector23 {});
 
   this->m_shaper->setQuadratureOrder(8);
 
@@ -1243,8 +1265,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, contour_and_mfem_2D)
 {
-  using Point2D = primal::Point<double, 2>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   // Shape file
@@ -1646,9 +1666,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, tet_boundary_identity_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -1678,10 +1695,10 @@ shapes:
 
   // check that we can set several projectors in 2D and 3D
   // uses simplest projectors, e.g. identity in 2D and 3D
-  this->m_shaper->setPointProjector33([](const Point3D& pt) { return Point3D {pt[0], pt[1], pt[2]}; });
-  this->m_shaper->setPointProjector22([](const Point2D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector32([](const Point3D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector23([](const Point2D& pt) { return Point3D {pt[0], pt[1], 0}; });
+  this->m_shaper->setPointProjector33(IdentityProjector33 {});
+  this->m_shaper->setPointProjector22(IdentityProjector22 {});
+  this->m_shaper->setPointProjector32(Projector32 {});
+  this->m_shaper->setPointProjector23(Projector23 {});
 
   this->runShaping();
 
@@ -1700,9 +1717,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, tet_doubling_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -1731,11 +1745,10 @@ shapes:
   this->initializeShaping(shape_file.getPath());
 
   // scale input points by a factor of 1/2 in each dimension
-  this->m_shaper->setPointProjector33(
-    [](const Point3D& pt) { return Point3D {pt[0] / 2, pt[1] / 2, pt[2] / 2}; });
+  this->m_shaper->setPointProjector33(HalfScaleProjector33 {});
 
   // for good measure, add a 3D->2D projector that will not be used
-  this->m_shaper->setPointProjector32([](const Point3D&) { return Point2D {0, 0}; });
+  this->m_shaper->setPointProjector32(ZeroProjector32 {});
 
   this->runShaping();
 
@@ -1753,9 +1766,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, circle_2D_projector)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
@@ -1795,12 +1805,7 @@ shapes:
   this->initializeShaping(shape_file.getPath());
 
   // set projector from 3D points to axisymmetric plane
-  this->m_shaper->setPointProjector32([](Point3D pt) {
-    const double& x = pt[0];
-    const double& y = pt[1];
-    const double& z = pt[2];
-    return Point2D {z, sqrt(x * x + y * y)};
-  });
+  this->m_shaper->setPointProjector32(AxisymmetricProjector32 {});
 
   // we need a higher quadrature order to resolve this shape at the (low) testing resolution
   this->m_shaper->setQuadratureOrder(8);
@@ -1820,9 +1825,6 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, contour_and_stl_3D)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
@@ -1874,12 +1876,7 @@ shapes:
   this->initializeShaping(shape_file.getPath());
 
   // set projector from 3D points to axisymmetric plane
-  this->m_shaper->setPointProjector32([](Point3D pt) {
-    const double& x = pt[0];
-    const double& y = pt[1];
-    const double& z = pt[2];
-    return Point2D {z, sqrt(x * x + y * y)};
-  });
+  this->m_shaper->setPointProjector32(AxisymmetricProjector32 {});
 
   // we need a higher quadrature order to resolve this shape at the (low) testing resolution
   this->m_shaper->setQuadratureOrder(8);
@@ -1901,9 +1898,6 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, shape_proe_tet_with_2D_projection)
 {
-  using Point2D = primal::Point<double, 2>;
-  using Point3D = primal::Point<double, 3>;
-
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
@@ -1963,16 +1957,12 @@ shapes:
     this->initializeShaping(shape_file.getPath());
 
     primal::Plane<double, 3> plane({0, 0, 1}, z);
-    const auto polygon = slice(tet, plane);
+    const auto polygon = primal::slice(tet, plane);
     const double intersectionArea = polygon.area();
     SLIC_INFO(axom::fmt::format("Area of intersection polygon: {}", intersectionArea));
 
     // set projector from 2D points to 3-space, z-coord is lambda captured
-    this->m_shaper->setPointProjector23([z](Point2D pt) -> Point3D {
-      const double& x = pt[0];
-      const double& y = pt[1];
-      return Point3D {x, y, z};
-    });
+    this->m_shaper->setPointProjector23(PlaneProjector23 {z});
 
     // we need a higher quadrature order to resolve this shape at the (low) testing resolution
     this->m_shaper->setQuadratureOrder(8);

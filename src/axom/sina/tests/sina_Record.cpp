@@ -16,14 +16,23 @@
 #include "axom/sina/tests/SinaMatchers.hpp"
 #include "axom/sina/tests/TestRecord.hpp"
 
-namespace axom
-{
-namespace sina
-{
-namespace testing
-{
-namespace
-{
+namespace sina = axom::sina;
+
+using axom::sina::testing::MatchesJsonMatcher;
+using axom::sina::testing::parseJsonValue;
+using axom::sina::testing::TEST_RECORD_VALUE_KEY;
+using axom::sina::testing::TestRecord;
+using sina::addStringsToNode;
+using sina::createRecordLoaderWithAllKnownTypes;
+using sina::Curve;
+using sina::CurveSet;
+using sina::Datum;
+using sina::File;
+using sina::ID;
+using sina::IDType;
+using sina::Record;
+using sina::RecordLoader;
+using sina::setDefaultCurveOrder;
 
 using ::testing::Contains;
 using ::testing::DoubleEq;
@@ -684,8 +693,3 @@ TEST(RecordLoader, createRecordLoaderWithAllKnownTypes)
   RecordLoader loader = createRecordLoaderWithAllKnownTypes();
   EXPECT_TRUE(loader.canLoad("run"));
 }
-
-}  // namespace
-}  // namespace testing
-}  // namespace sina
-}  // namespace axom

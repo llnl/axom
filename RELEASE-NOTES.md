@@ -25,6 +25,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds `NURBSCurve::isLinear()` to check if a curve is (nearly) flat (corresponding to `BezierCurve::isLinear()`)
 - Primal: Adds `NURBSPatch::isTriviallyTrimmed()` to check if the trimming curves for a patch lie on the patch boundaries
 - Quest: Adds support for reading mfem files with variable order NURBS curves (requires mfem>4.9).
+- Quest: Adds OMP support for fast GWN methods for STL/Triangulated STEP input and linearized NURBS Curve input.
+- Klee: Adds an optional "center" parameter in scale operators that permits scaling relative to a custom center point.
 
 ### Removed
 
@@ -46,6 +48,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   leverage error-controlled approximation and a spatial index (BVH).
 - Slic: Adds new Slic macros that allow you to selectively print messages once per call-site. For example,
   `SLIC_INFO_ONCE(msg)` and `SLIC_INFO_ROOT_IF_ONCE(EXP, msg)`.
+- Primal: Adds a new `slice()` operator to slice tetrahedron with a plane, producing a polygon.
 
 ### Changed
 - Primal: Axom's polygon clipping was modified to handle some corner cases.

@@ -108,13 +108,10 @@ IndexType STLWriter::getNumberOfTriangles() const
   }
   else if(m_mesh->getDimension() == 3)
   {
-    axom::ReduceSum<axom::SEQ_EXEC, axom::IndexType> ntri_reduce(0);
-    axom::mint::for_all_faces<axom::SEQ_EXEC, axom::mint::xargs::nodeids>(
-      m_mesh,
-      AXOM_LAMBDA(IndexType AXOM_UNUSED_PARAM(faceID),
-                  const IndexType *AXOM_UNUSED_PARAM(nodes),
-                  IndexType N) { ntri_reduce += (N - 2); });
-    ntri = ntri_reduce.get();
+    for(IndexType faceId = 0; faceId < m_mesh->getNumberOfFaces(); faceId++)
+    {
+      ntri += (m_mesh->getNumberOfFaceNodes(faceId) - 2);
+    }
   }
   return ntri;
 }
@@ -195,34 +192,30 @@ int STLWriter::write(const mint::Mesh *mesh)
   }
   else
   {
-    // For value capture.
-    std::ofstream *out_ptr = &out;
-    const bool binary = m_binary;
+    axom::Array<axom::IndexType> nodes;
+    for(IndexType faceId = 0; faceId < mesh->getNumberOfFaces(); faceId++)
+    {
+      nodes.resize(mesh->getNumberOfFaceNodes(faceId));
+      const auto nnodes = mesh->getFaceNodeIDs(faceId, nodes.data());
 
-    axom::mint::for_all_faces<axom::SEQ_EXEC, axom::mint::xargs::nodeids>(
-      m_mesh,
-      AXOM_LAMBDA(IndexType AXOM_UNUSED_PARAM(faceID), const IndexType *nodes, IndexType nnodes) {
-        // NOTE: Here in the lambda, we use "mesh" instead of "m_mesh" so we do
-        //       not capture STLWriter's "this" pointer.
+      // Iterate over the face like a triangle fan.
+      double coords[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
+      mesh->getNode(nodes[0], coords[0]);
+      const IndexType ntri = nnodes - 2;
+      for(IndexType ti = 0; ti < ntri; ti++)
+      {
+        mesh->getNode(nodes[ti + 1], coords[1]);
+        mesh->getNode(nodes[ti + 2], coords[2]);
 
-        // Iterate over the face like a triangle fan.
-        double coords[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
-        mesh->getNode(nodes[0], coords[0]);
-        const IndexType ntri = nnodes - 2;
-        for(IndexType ti = 0; ti < ntri; ti++)
-        {
-          mesh->getNode(nodes[ti + 1], coords[1]);
-          mesh->getNode(nodes[ti + 2], coords[2]);
+        // Compute facet normal.
+        const VectorType A(coords[0], 3);
+        const VectorType B(coords[1], 3);
+        const VectorType C(coords[2], 3);
+        const VectorType N = VectorType::cross_product(B - A, C - A).unitVector();
 
-          // Compute facet normal.
-          const VectorType A(coords[0], 3);
-          const VectorType B(coords[1], 3);
-          const VectorType C(coords[2], 3);
-          const VectorType N = VectorType::cross_product(B - A, C - A).unitVector();
-
-          internal::writeTriangle(*out_ptr, binary, coords, N);
-        }
-      });
+        internal::writeTriangle(out, m_binary, coords, N);
+      }
+    }
   }
 
   if(!m_binary)
