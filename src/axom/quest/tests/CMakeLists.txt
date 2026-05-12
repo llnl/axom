@@ -249,6 +249,22 @@ if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
 
 endif()
 
+set(python_quest_tests
+    quest_shaping_Py.py
+   )
+
+if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS AND MFEM_FOUND AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
+    foreach(test ${python_quest_tests})
+        get_filename_component(test_name ${test} NAME_WE)
+
+        axom_add_python_test(
+            NAME ${test_name}
+            SOURCE ${test}
+            OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+           )
+    endforeach()
+endif()
+
 #------------------------------------------------------------------------------
 # Geometry clipping tests require Klee, Sidre, Conduit, RAJA and Bump
 #------------------------------------------------------------------------------

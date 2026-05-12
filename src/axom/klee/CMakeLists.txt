@@ -57,6 +57,20 @@ axom_install_component( NAME    klee
                         HEADERS ${klee_headers}
                         )
 
+if(NANOBIND_FOUND)
+    nanobind_add_module(pyklee nanobind_klee.cpp)
+    target_link_libraries(pyklee PRIVATE klee inlet sidre primal fmt)
+
+    if(AXOM_ENABLE_HIP)
+        set_source_files_properties(nanobind_klee.cpp PROPERTIES LANGUAGE HIP)
+
+        string(REPLACE " " ";" MODULE_LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+        target_link_options(pyklee PRIVATE ${MODULE_LINK_FLAGS})
+    endif()
+
+    install(TARGETS pyklee LIBRARY DESTINATION lib)
+endif()
+
 
 #------------------------------------------------------------------------------
 # Add tests

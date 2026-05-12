@@ -54,3 +54,19 @@ if(ENABLE_GMOCK)
                        COMMAND ${test_name}_test )
     endforeach()
 endif()
+
+set(python_inlet_tests
+    inlet_shaping_metadata_Py.py
+   )
+
+if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
+    foreach(test ${python_inlet_tests})
+        get_filename_component(test_name ${test} NAME_WE)
+
+        axom_add_python_test(
+            NAME ${test_name}
+            SOURCE ${test}
+            OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+           )
+    endforeach()
+endif()

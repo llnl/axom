@@ -45,3 +45,18 @@ foreach(test ${gtest_klee_tests})
                   COMMAND ${test_name}_test )
 endforeach()
 
+set(python_klee_tests
+    klee_shapeset_Py.py
+   )
+
+if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
+    foreach(test ${python_klee_tests})
+        get_filename_component(test_name ${test} NAME_WE)
+
+        axom_add_python_test(
+            NAME ${test_name}
+            SOURCE ${test}
+            OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+           )
+    endforeach()
+endif()

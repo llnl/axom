@@ -121,6 +121,20 @@ axom_install_component(NAME    primal
                        HEADERS ${primal_headers}
                        )
 
+if(NANOBIND_FOUND)
+    nanobind_add_module(pyprimal nanobind_primal.cpp)
+    target_link_libraries(pyprimal PRIVATE primal)
+
+    if(AXOM_ENABLE_HIP)
+        set_source_files_properties(nanobind_primal.cpp PROPERTIES LANGUAGE HIP)
+
+        string(REPLACE " " ";" MODULE_LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+        target_link_options(pyprimal PRIVATE ${MODULE_LINK_FLAGS})
+    endif()
+
+    install(TARGETS pyprimal LIBRARY DESTINATION lib)
+endif()
+
 #------------------------------------------------------------------------------
 # Add tests and examples
 #------------------------------------------------------------------------------

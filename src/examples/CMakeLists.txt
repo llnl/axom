@@ -179,5 +179,30 @@ if(AXOM_ENABLE_TUTORIALS AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_QUEST)
                            OUTPUT_DIR ${PROJECT_BINARY_DIR}/tutorials
                            DEPENDS_ON ${shaping_tutorial_deps})
     endforeach()
+
+    if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
+        set(_python_scripts
+            lesson_00/check_axom_configuration.py
+            lesson_01/mesh_metadata_sidre.py
+            lesson_02/validated_inlet_metadata.py
+            lesson_02/improved_inlet_metadata.py
+            lesson_03/klee_operators_and_validation.py)
+
+        if(LUA_FOUND AND MFEM_FOUND)
+            list(APPEND _python_scripts lesson_04/quest_sampling_shaper.py)
+        endif()
+
+        foreach(_script ${_python_scripts})
+            get_filename_component(_test_name ${_script} NAME_WE)
+            string(REPLACE "/" "_" _qualified_test_name shaping_tutorial_py_${_script})
+            string(REPLACE ".py" "" _qualified_test_name ${_qualified_test_name})
+
+            axom_add_test(
+                NAME ${_qualified_test_name}
+                COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
+                        ${PROJECT_SOURCE_DIR}/examples/shaping_tutorial/${_script}
+               )
+        endforeach()
+    endif()
     
 endif()

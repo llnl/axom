@@ -276,6 +276,20 @@ axom_install_component(NAME    quest
                        HEADERS ${quest_headers}
                        )
 
+if(NANOBIND_FOUND AND MFEM_FOUND AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
+    nanobind_add_module(pyquest nanobind_quest.cpp)
+    target_link_libraries(pyquest PRIVATE quest klee inlet sidre primal fmt mfem)
+
+    if(AXOM_ENABLE_HIP)
+        set_source_files_properties(nanobind_quest.cpp PROPERTIES LANGUAGE HIP)
+
+        string(REPLACE " " ";" MODULE_LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+        target_link_options(pyquest PRIVATE ${MODULE_LINK_FLAGS})
+    endif()
+
+    install(TARGETS pyquest LIBRARY DESTINATION lib)
+endif()
+
 #------------------------------------------------------------------------------
 # Add tests and examples
 #------------------------------------------------------------------------------
