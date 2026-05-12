@@ -1212,9 +1212,11 @@ protected:
               fi.m_matset = n_field["matset"].as_string();
               fi.m_have_matset_values = 1;
               const conduit::Node &matset_values = n_field["matset_values"];
-              fi.m_dtype = matset_values.dtype().is_object() ? matset_values[0].dtype().id() : matset_values.dtype().id();
+              fi.m_dtype = matset_values.dtype().is_object() ? matset_values[0].dtype().id()
+                                                             : matset_values.dtype().id();
 
-              SLIC_ERROR_IF(fi.m_association == "vertex", "Material fields with vertex centering are not supported.");
+              SLIC_ERROR_IF(fi.m_association == "vertex",
+                            "Material fields with vertex centering are not supported.");
             }
             // If the field has values (all do except for some material fields), save metadata.
             if(n_field.has_path("values"))
@@ -1250,7 +1252,8 @@ protected:
         n_newField["topology"] = it->second.m_topology;
         if(!it->second.m_matset.empty())
         {
-          n_newField["matset"] = it->second.m_matset; // TODO: Is this right? or, am I passing in a new matset name somewhere else in the derived class?
+          n_newField["matset"] =
+            it->second.m_matset;  // TODO: Is this right? or, am I passing in a new matset name somewhere else in the derived class?
         }
         if(it->second.m_volume_dependent != InvalidVolumeDependent)
         {
@@ -1286,7 +1289,7 @@ protected:
             for(size_t ci = 0; ci < it->second.m_components.size(); ci++)
             {
               const std::string srcPath("fields/" + it->first + "/values/" +
-                                       it->second.m_components[ci]);
+                                        it->second.m_components[ci]);
               conduit::Node &n_comp = n_values[it->second.m_components[ci]];
               n_comp.set_allocator(conduitAllocatorId);
               if(it->second.m_association == "element")
@@ -1560,7 +1563,9 @@ public:
   template <typename FuncType>
   void dispatchMixedField(conduit::Node &n_matset, conduit::Node &n_field, FuncType &&func)
   {
-    axom::bump::views::dispatch_material_field(n_matset, n_field, [&](auto matsetView) { func(matsetView); });
+    axom::bump::views::dispatch_material_field(n_matset, n_field, [&](auto matsetView) {
+      func(matsetView);
+    });
   }
 };
 
@@ -1632,7 +1637,9 @@ public:
   template <typename FuncType>
   void dispatchMixedField(conduit::Node &n_matset, conduit::Node &n_field, FuncType &&func)
   {
-    axom::bump::views::dispatch_material_unibuffer_field(n_matset, n_field, [&](auto matsetView) { func(matsetView); });
+    axom::bump::views::dispatch_material_unibuffer_field(n_matset, n_field, [&](auto matsetView) {
+      func(matsetView);
+    });
   }
 };
 
@@ -1670,7 +1677,7 @@ private:
     axom::IndexType totalMatCount;
     int itype;
     int ftype;
- };
+  };
 
   /*!
    * \brief Get the material information we'll need to merge materials.
@@ -1703,7 +1710,8 @@ private:
         mi.matsetName = n_matset.name();
         mi.topoName = n_matset.fetch_existing("topology").as_string();
         mi.elementDominant = conduit::blueprint::mesh::matset::is_element_dominant(n_matset);
-        mi.multiBuffer = conduit::blueprint::mesh::matset::is_multi_buffer(n_matset) && !n_matset.has_child("material_ids");
+        mi.multiBuffer = conduit::blueprint::mesh::matset::is_multi_buffer(n_matset) &&
+          !n_matset.has_child("material_ids");
         auto matInfo = axom::bump::views::materials(n_matset);
         for(const auto &info : matInfo)
         {
@@ -2115,9 +2123,9 @@ private:
    * \param[out] fi The field information. We only fill in the dtype and component names.
    */
   void getMixedFieldInformation(const std::vector<MeshInput> &inputs,
-                                      const std::string &srcFieldPath,
-                                      const MaterialInfo &mi,
-                                      FieldInformation &fi) const
+                                const std::string &srcFieldPath,
+                                const MaterialInfo &mi,
+                                FieldInformation &fi) const
   {
     /* Various mixed field representations.
 
@@ -2156,7 +2164,8 @@ private:
     {
       if(inputs[i].m_input->has_path(srcFieldMatsetValuesPath))
       {
-        const conduit::Node &n_matset_values = inputs[i].m_input->fetch_existing(srcFieldMatsetValuesPath);
+        const conduit::Node &n_matset_values =
+          inputs[i].m_input->fetch_existing(srcFieldMatsetValuesPath);
 
         // NOTE: we only try to populate components for fields that look like vectors
         if(mi.multiBuffer)
@@ -2238,12 +2247,16 @@ private:
 
       FieldInformation fi;
       getMixedFieldInformation(inputs, srcFieldPath, mi, fi);
-      SLIC_ERROR_IF(fi.m_dtype == -1, axom::fmt::format("The new mixed field type for {} was not determined.", srcFieldPath));
+      SLIC_ERROR_IF(
+        fi.m_dtype == -1,
+        axom::fmt::format("The new mixed field type for {} was not determined.", srcFieldPath));
       SLIC_ERROR_IF(fi.m_components.size() > 0, "Vector mixed vars not supported");
 
       // Get the Conduit node for the matset we built previously
-      conduit::Node *n_matset = const_cast<conduit::Node *>(conduit::blueprint::mesh::utils::find_reference_node(n_field, "matset"));
-      SLIC_ERROR_IF(n_matset == nullptr, axom::fmt::format("The new matset {} was not found.", matsetName));
+      conduit::Node *n_matset = const_cast<conduit::Node *>(
+        conduit::blueprint::mesh::utils::find_reference_node(n_field, "matset"));
+      SLIC_ERROR_IF(n_matset == nullptr,
+                    axom::fmt::format("The new matset {} was not found.", matsetName));
 
       // Get some parts of the new unibuffer matset.
       conduit::Node &n_material_ids = n_matset->fetch_existing("material_ids");
@@ -2261,52 +2274,43 @@ private:
       // Dispatch the mixed material we built so we can access its arrays as views.
       MaterialDispatch disp;
       auto *This = this;
-      disp.execute(n_material_ids,
-                   n_sizes,
-                   n_offsets,
-                   n_indices,
-                   n_matset_values,
-                   [&](auto AXOM_UNUSED_PARAM(materialIdsView),
-                       auto AXOM_UNUSED_PARAM(sizesView),
-                       auto offsetsView,
-                       auto AXOM_UNUSED_PARAM(indicesView),
-                       auto matsetValuesView)
-      {
-        // Iterate over the inputs and copy their mixed field
-        axom::IndexType zOffset = 0;
-        for(size_t i = 0; i < inputs.size(); i++)
-        {
-          const auto nzones = This->countZones(inputs, i);
-
-          if(inputs[i].m_input->has_child("matsets") &&
-             inputs[i].m_input->has_path(srcFieldPath))
+      disp.execute(
+        n_material_ids,
+        n_sizes,
+        n_offsets,
+        n_indices,
+        n_matset_values,
+        [&](auto AXOM_UNUSED_PARAM(materialIdsView),
+            auto AXOM_UNUSED_PARAM(sizesView),
+            auto offsetsView,
+            auto AXOM_UNUSED_PARAM(indicesView),
+            auto matsetValuesView) {
+          // Iterate over the inputs and copy their mixed field
+          axom::IndexType zOffset = 0;
+          for(size_t i = 0; i < inputs.size(); i++)
           {
-            // Get the source matset.
-            conduit::Node &n_matsets = inputs[i].m_input->fetch_existing("matsets");
-            conduit::Node &n_matset = n_matsets.fetch_existing(matsetName);
-            // Get the source field.
-            conduit::Node &n_src_field = inputs[i].m_input->fetch_existing(srcFieldPath);
+            const auto nzones = This->countZones(inputs, i);
 
-            // Dispatch the source mixed field.
-            disp.dispatchMixedField(n_matset, n_src_field, [&](auto srcMatsetView)
+            if(inputs[i].m_input->has_child("matsets") && inputs[i].m_input->has_path(srcFieldPath))
             {
-              This->mergeMixedField_copy(srcMatsetView,
-                                         matsetValuesView,
-                                         offsetsView,
-                                         nzones,
-                                         zOffset);
-            });
+              // Get the source matset.
+              conduit::Node &n_matsets = inputs[i].m_input->fetch_existing("matsets");
+              conduit::Node &n_matset = n_matsets.fetch_existing(matsetName);
+              // Get the source field.
+              conduit::Node &n_src_field = inputs[i].m_input->fetch_existing(srcFieldPath);
+
+              // Dispatch the source mixed field.
+              disp.dispatchMixedField(n_matset, n_src_field, [&](auto srcMatsetView) {
+                This->mergeMixedField_copy(srcMatsetView, matsetValuesView, offsetsView, nzones, zOffset);
+              });
+            }
+            else
+            {
+              This->mergeMixedField_default(matsetValuesView, offsetsView, nzones, zOffset);
+            }
+            zOffset += nzones;
           }
-          else
-          {
-            This->mergeMixedField_default(matsetValuesView,
-                                          offsetsView,
-                                          nzones,
-                                          zOffset);
-          }
-          zOffset += nzones;
-        }
-      });
+        });
     }
   }
 
@@ -2328,8 +2332,7 @@ private:
   {
     axom::for_all<ExecSpace>(
       nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex)
-      {
+      AXOM_LAMBDA(axom::IndexType zoneIndex) {
         // Get this zone's materials.
         auto zoneMat = srcMatsetView.beginZone(zoneIndex);
         const auto nmats = zoneMat.size();
@@ -2361,13 +2364,11 @@ private:
   {
     axom::for_all<ExecSpace>(
       nzones,
-      AXOM_LAMBDA(axom::IndexType zoneIndex)
-      {
+      AXOM_LAMBDA(axom::IndexType zoneIndex) {
         const auto zoneStart = offsetsView[zOffset + zoneIndex];
         mixedFieldView[zoneStart] = 0;
       });
   }
-
 };
 
 }  // end namespace bump

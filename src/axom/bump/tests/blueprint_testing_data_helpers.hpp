@@ -236,7 +236,7 @@ void make_material_dominant(const std::vector<float> &vfA,
                             conduit::Node &matset,
                             conduit::Node &mfield)
 {
-  std::vector<float> svfA, svfB, svfC; // sparse arrays
+  std::vector<float> svfA, svfB, svfC;  // sparse arrays
   std::vector<int> ziA, ziB, ziC;
   const size_t n = vfA.size();
   for(size_t zi = 0; zi < n; zi++)
@@ -300,7 +300,8 @@ void make_matset(const std::string &type,
                  bool makeMixedField,
                  conduit::Node &mesh)
 {
-  SLIC_ERROR_IF(cleanMats && makeMixedField, "We cannot make a mixed field when making clean materials.");
+  SLIC_ERROR_IF(cleanMats && makeMixedField,
+                "We cannot make a mixed field when making clean materials.");
   constexpr int sampling = 10;
   int midx = sampling * dims[0] / 2;
   int midy = sampling * dims[1] / 2;

@@ -25,7 +25,7 @@ namespace detail
 inline void verifyMixedField(const conduit::Node &n_field)
 {
   SLIC_ERROR_IF(!n_field.has_path("matset_values"),
-    "The mixed field does not contain matset_values");
+                "The mixed field does not contain matset_values");
 }
 
 /*!
@@ -41,27 +41,28 @@ inline void verifyMixedField(const conduit::Node &n_field)
  * \return true if the dispatch worked, false otherwise.
  */
 template <typename FuncType, size_t MAXMATERIALS = 20>
-bool dispatch_material_unibuffer_with_values(const conduit::Node &matset, const conduit::Node &values, FuncType &&func)
+bool dispatch_material_unibuffer_with_values(const conduit::Node &matset,
+                                             const conduit::Node &values,
+                                             FuncType &&func)
 {
   bool retval = false;
   verify(matset, "matset");
   if(conduit::blueprint::mesh::matset::is_uni_buffer(matset))
   {
-    indexNodeToArrayViewSame(
-      matset["material_ids"],
-      matset["sizes"],
-      matset["offsets"],
-      matset["indices"],
-      [&](auto material_ids, auto sizes, auto offsets, auto indices) {
-        floatNodeToArrayView(values, [&](auto typedValues) {
-          using IndexType = typename decltype(material_ids)::value_type;
-          using FloatType = typename decltype(typedValues)::value_type;
+    indexNodeToArrayViewSame(matset["material_ids"],
+                             matset["sizes"],
+                             matset["offsets"],
+                             matset["indices"],
+                             [&](auto material_ids, auto sizes, auto offsets, auto indices) {
+                               floatNodeToArrayView(values, [&](auto typedValues) {
+                                 using IndexType = typename decltype(material_ids)::value_type;
+                                 using FloatType = typename decltype(typedValues)::value_type;
 
-          UnibufferMaterialView<IndexType, FloatType, MAXMATERIALS> matsetView;
-          matsetView.set(material_ids, typedValues, sizes, offsets, indices);
-          func(matsetView);
-        });
-      });
+                                 UnibufferMaterialView<IndexType, FloatType, MAXMATERIALS> matsetView;
+                                 matsetView.set(material_ids, typedValues, sizes, offsets, indices);
+                                 func(matsetView);
+                               });
+                             });
     retval = true;
   }
   return retval;
@@ -105,14 +106,17 @@ IntElement getMaterialID(const conduit::Node &matset,
  * \return true if the dispatch worked, false otherwise.
  */
 template <typename FuncType, size_t MAXMATERIALS = 20>
-bool dispatch_material_multibuffer_with_values(const conduit::Node &matset, const conduit::Node &values_object, FuncType &&func)
+bool dispatch_material_multibuffer_with_values(const conduit::Node &matset,
+                                               const conduit::Node &values_object,
+                                               FuncType &&func)
 {
   bool retval = false;
   verify(matset, "matset");
   if(conduit::blueprint::mesh::matset::is_multi_buffer(matset))
   {
     const conduit::Node &volume_fractions = matset.fetch_existing("volume_fractions");
-    if(values_object.number_of_children() > 0 && (volume_fractions.number_of_children() == values_object.number_of_children()))
+    if(values_object.number_of_children() > 0 &&
+       (volume_fractions.number_of_children() == values_object.number_of_children()))
     {
       const conduit::Node &n_firstValuesObj = values_object[0];
       const conduit::Node &n_firstVolumesObj = volume_fractions[0];
@@ -174,7 +178,9 @@ bool dispatch_material_multibuffer_with_values(const conduit::Node &matset, cons
  * \return true if the dispatch worked, false otherwise.
  */
 template <typename FuncType, size_t MAXMATERIALS = 20>
-bool dispatch_material_element_dominant_with_values(const conduit::Node &matset, const conduit::Node &values_object, FuncType &&func)
+bool dispatch_material_element_dominant_with_values(const conduit::Node &matset,
+                                                    const conduit::Node &values_object,
+                                                    FuncType &&func)
 {
   bool retval = false;
   verify(matset, "matset");
@@ -226,7 +232,9 @@ bool dispatch_material_element_dominant_with_values(const conduit::Node &matset,
  * \return true if the dispatch worked, false otherwise.
  */
 template <typename FuncType, size_t MAXMATERIALS = 20>
-bool dispatch_material_material_dominant_with_values(const conduit::Node &matset, const conduit::Node &values_object, FuncType &&func)
+bool dispatch_material_material_dominant_with_values(const conduit::Node &matset,
+                                                     const conduit::Node &values_object,
+                                                     FuncType &&func)
 {
   bool retval = false;
   verify(matset, "matset");
@@ -280,7 +288,7 @@ bool dispatch_material_material_dominant_with_values(const conduit::Node &matset
   return retval;
 }
 
-} // end namespace detail
+}  // end namespace detail
 
 /*!
  * \brief Make a unibuffer matset view from a Conduit node.
@@ -321,8 +329,7 @@ struct make_unibuffer_matset
    *
    * \return A UnibufferMaterialView.
    */
-  static MatsetView mixedFieldView(const conduit::Node &n_matset,
-                                   const conduit::Node &n_field)
+  static MatsetView mixedFieldView(const conduit::Node &n_matset, const conduit::Node &n_field)
   {
     namespace utils = axom::bump::utilities;
     verify(n_matset, "matset");
@@ -353,8 +360,10 @@ template <typename FuncType, size_t MAXMATERIALS = 20>
 bool dispatch_material_unibuffer(const conduit::Node &matset, FuncType &&func)
 {
   verify(matset, "matset");
-  return detail::dispatch_material_unibuffer_with_values<FuncType, MAXMATERIALS>(matset,
-           matset["volume_fractions"], std::forward<FuncType>(func));
+  return detail::dispatch_material_unibuffer_with_values<FuncType, MAXMATERIALS>(
+    matset,
+    matset["volume_fractions"],
+    std::forward<FuncType>(func));
 }
 
 /*!
@@ -373,7 +382,10 @@ template <typename FuncType, size_t MAXMATERIALS = 20>
 bool dispatch_material_multibuffer(const conduit::Node &matset, FuncType &&func)
 {
   verify(matset, "matset");
-  return detail::dispatch_material_multibuffer_with_values<FuncType, MAXMATERIALS>(matset, matset["volume_fractions"], std::forward<FuncType>(func));
+  return detail::dispatch_material_multibuffer_with_values<FuncType, MAXMATERIALS>(
+    matset,
+    matset["volume_fractions"],
+    std::forward<FuncType>(func));
 }
 
 /*!
@@ -391,7 +403,9 @@ template <typename FuncType, size_t MAXMATERIALS = 20>
 bool dispatch_material_element_dominant(const conduit::Node &matset, FuncType &&func)
 {
   verify(matset, "matset");
-  return detail::dispatch_material_element_dominant_with_values(matset, matset["volume_fractions"], std::forward<FuncType>(func));
+  return detail::dispatch_material_element_dominant_with_values(matset,
+                                                                matset["volume_fractions"],
+                                                                std::forward<FuncType>(func));
 }
 
 /*!
@@ -408,7 +422,10 @@ template <typename FuncType, size_t MAXMATERIALS = 20>
 bool dispatch_material_material_dominant(const conduit::Node &matset, FuncType &&func)
 {
   verify(matset, "matset");
-  return detail::dispatch_material_material_dominant_with_values<FuncType, MAXMATERIALS>(matset, matset["volume_fractions"], std::forward<FuncType>(func));
+  return detail::dispatch_material_material_dominant_with_values<FuncType, MAXMATERIALS>(
+    matset,
+    matset["volume_fractions"],
+    std::forward<FuncType>(func));
 }
 
 /*!
@@ -429,11 +446,14 @@ bool dispatch_material(const conduit::Node &matset, FuncType &&func)
   // Multibuffer
   if(!retval)
   {
-    retval = dispatch_material_element_dominant<FuncType, MAXMATERIALS>(matset, std::forward<FuncType>(func));
+    retval = dispatch_material_element_dominant<FuncType, MAXMATERIALS>(matset,
+                                                                        std::forward<FuncType>(func));
   }
   if(!retval)
   {
-    retval = dispatch_material_material_dominant<FuncType, MAXMATERIALS>(matset, std::forward<FuncType>(func));
+    retval =
+      dispatch_material_material_dominant<FuncType, MAXMATERIALS>(matset,
+                                                                  std::forward<FuncType>(func));
   }
 #if 0
   // NOTE: This one may be obsolete in Blueprint

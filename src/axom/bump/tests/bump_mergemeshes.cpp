@@ -18,8 +18,10 @@
 
 // NOTE: Conduit 0.9.6 and later has macros but Axom is not quite on that version yet.
 #include "conduit/conduit_config.h"
-#define AXOM_CONDUIT_MAKE_VERSION_VALUE(MAJOR, MINOR, PATCH) (((MAJOR)*10000) + ((MINOR)*100) + (PATCH))
-#define AXOM_CONDUIT_VERSION_VALUE AXOM_CONDUIT_MAKE_VERSION_VALUE(CONDUIT_VERSION_MAJOR, CONDUIT_VERSION_MINOR, CONDUIT_VERSION_PATCH)
+#define AXOM_CONDUIT_MAKE_VERSION_VALUE(MAJOR, MINOR, PATCH) \
+  (((MAJOR) * 10000) + ((MINOR) * 100) + (PATCH))
+#define AXOM_CONDUIT_VERSION_VALUE \
+  AXOM_CONDUIT_MAKE_VERSION_VALUE(CONDUIT_VERSION_MAJOR, CONDUIT_VERSION_MINOR, CONDUIT_VERSION_PATCH)
 
 namespace bump = axom::bump;
 namespace utils = axom::bump::utilities;
@@ -30,7 +32,7 @@ struct test_mergemeshes
 {
   static void test()
   {
-    std::vector<std::string> matsetTypes{"unibuffer", "element_dominant", "material_dominant"};
+    std::vector<std::string> matsetTypes {"unibuffer", "element_dominant", "material_dominant"};
     for(const auto &matsetType : matsetTypes)
     {
       SLIC_INFO(axom::fmt::format("test({})", matsetType));
@@ -204,16 +206,14 @@ domain0001:
       domain.remove("fields/zonal_mixed");
 
       // These functions changed in Conduit 0.9.6
-#if AXOM_CONDUIT_VERSION_VALUE < AXOM_CONDUIT_MAKE_VERSION_VALUE(0,9,6)
-      conduit::blueprint::mesh::matset::to_multi_buffer_full(srcMatset,
-                                                             domain["matsets/mat"]);
+#if AXOM_CONDUIT_VERSION_VALUE < AXOM_CONDUIT_MAKE_VERSION_VALUE(0, 9, 6)
+      conduit::blueprint::mesh::matset::to_multi_buffer_full(srcMatset, domain["matsets/mat"]);
       conduit::blueprint::mesh::field::to_multi_buffer_full(srcMatset,
                                                             srcField,
                                                             "mat",
                                                             domain["fields/zonal_mixed"]);
 #else
-      conduit::blueprint::mesh::matset::to_multi_buffer_by_element(srcMatset,
-                                                                   domain["matsets/mat"]);
+      conduit::blueprint::mesh::matset::to_multi_buffer_by_element(srcMatset, domain["matsets/mat"]);
       conduit::blueprint::mesh::field::to_multi_buffer_by_element(srcMatset,
                                                                   srcField,
                                                                   "mat",
@@ -234,8 +234,7 @@ domain0001:
       domain.remove("matsets/mat");
       domain.remove("fields/zonal_mixed");
 
-      conduit::blueprint::mesh::matset::to_multi_buffer_by_material(srcMatset,
-                                                                    domain["matsets/mat"]);
+      conduit::blueprint::mesh::matset::to_multi_buffer_by_material(srcMatset, domain["matsets/mat"]);
       conduit::blueprint::mesh::field::to_multi_buffer_by_material(srcMatset,
                                                                    srcField,
                                                                    "mat",
