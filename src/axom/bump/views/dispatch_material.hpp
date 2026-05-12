@@ -455,14 +455,12 @@ bool dispatch_material(const conduit::Node &matset, FuncType &&func)
       dispatch_material_material_dominant<FuncType, MAXMATERIALS>(matset,
                                                                   std::forward<FuncType>(func));
   }
-#if 0
   // NOTE: This one may be obsolete in Blueprint
   if(!retval)
   {
     retval =
       dispatch_material_multibuffer<FuncType, MAXMATERIALS>(matset, std::forward<FuncType>(func));
   }
-#endif
   return retval;
 }
 

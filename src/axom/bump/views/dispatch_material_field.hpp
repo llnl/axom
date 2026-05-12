@@ -142,14 +142,12 @@ bool dispatch_material_field(const conduit::Node &matset, const conduit::Node &n
       n_field,
       std::forward<FuncType>(func));
   }
-#if 0
   // NOTE: This one may be obsolete in Blueprint
   if(!retval)
   {
     retval =
       dispatch_material_multibuffer_field<FuncType, MAXMATERIALS>(matset, n_field, std::forward<FuncType>(func));
   }
-#endif
   return retval;
 }
 
