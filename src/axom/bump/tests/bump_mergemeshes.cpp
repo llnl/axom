@@ -32,12 +32,12 @@ namespace utils = axom::bump::utilities;
 #ifdef AXOM_DEBUG_MERGE_MESHES_TEST
 void saveMesh(const conduit::Node &n_mesh, const std::string &fileRoot)
 {
-#ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
+  #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
   const std::string protocol("hdf5");
   conduit::relay::io::save(n_mesh, fileRoot + ".yaml", "yaml");
-#else
+  #else
   const std::string protocol("yaml");
-#endif
+  #endif
   // These save with a ".root" extension
   conduit::relay::io::blueprint::save_mesh(n_mesh, fileRoot, protocol);
 }
@@ -111,7 +111,7 @@ struct test_mergemeshes
     result(expectedResult, matflags);
     bool success = false;
     try
-    {  
+    {
       success = compareConduit(expectedResult, hostResult, tolerance, info);
     }
     catch(const conduit::Error &e)
