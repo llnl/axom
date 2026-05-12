@@ -16,6 +16,11 @@
 #include <iostream>
 #include <algorithm>
 
+// NOTE: Conduit 0.9.6 and later has macros but Axom is not quite on that version yet.
+#include "conduit/conduit_config.h"
+#define AXOM_CONDUIT_MAKE_VERSION_VALUE(MAJOR, MINOR, PATCH) (((MAJOR)*10000) + ((MINOR)*100) + (PATCH))
+#define AXOM_CONDUIT_VERSION_VALUE AXOM_CONDUIT_MAKE_VERSION_VALUE(CONDUIT_VERSION_MAJOR, CONDUIT_VERSION_MINOR, CONDUIT_VERSION_PATCH)
+
 namespace bump = axom::bump;
 namespace utils = axom::bump::utilities;
 
@@ -25,8 +30,18 @@ struct test_mergemeshes
 {
   static void test()
   {
+    std::vector<std::string> matsetTypes{"unibuffer", "element_dominant", "material_dominant"};
+    for(const auto &matsetType : matsetTypes)
+    {
+      SLIC_INFO(axom::fmt::format("test({})", matsetType));
+      test(matsetType);
+    }
+  }
+
+  static void test(const std::string &matsetType)
+  {
     conduit::Node hostMesh;
-    create(hostMesh);
+    create(hostMesh, matsetType);
 
     // host->device
     conduit::Node deviceMesh;
@@ -61,7 +76,6 @@ struct test_mergemeshes
     // device->host
     conduit::Node hostResult;
     utils::copy<axom::SEQ_EXEC>(hostResult, deviceResult);
-printNode(hostResult);
     constexpr double tolerance = 1.e-7;
     conduit::Node expectedResult, info;
     result(expectedResult);
@@ -73,7 +87,7 @@ printNode(hostResult);
     EXPECT_TRUE(success);
   }
 
-  static void create(conduit::Node &mesh)
+  static void create(conduit::Node &mesh, const std::string &matsetType)
   {
     const char *yaml = R"xx(
 domain0000:
@@ -161,7 +175,7 @@ domain0001:
       material_map:
         A: 1
         B: 2
-        C: 3
+        #C: 3
       topology: mesh
       material_ids: [1, 1,2, 2, 1,2, 1, 1,2, 2, 1,2, 1,2]
       volume_fractions: [1., 0.5,0.5, 1., 0.5,0.5, 1., 0.5,0.5, 1., 0.5,0.5, 0.5,0.5]
@@ -170,6 +184,68 @@ domain0001:
       offsets: [0, 1, 3, 4, 6, 7, 9, 10, 12]
 )xx";
     mesh.parse(yaml);
+
+    for(int dom = 0; dom < 2; dom++)
+    {
+      changeMatsetType(mesh[dom], matsetType);
+    }
+  }
+
+  static void changeMatsetType(conduit::Node &domain, const std::string &matsetType)
+  {
+    // Change the material and field representations
+    if(matsetType == "element_dominant")
+    {
+      conduit::Node domainCopy(domain);
+      conduit::Node &srcMatset = domainCopy["matsets/mat"];
+      conduit::Node &srcField = domainCopy["fields/zonal_mixed"];
+
+      domain.remove("matsets/mat");
+      domain.remove("fields/zonal_mixed");
+
+      // These functions changed in Conduit 0.9.6
+#if AXOM_CONDUIT_VERSION_VALUE < AXOM_CONDUIT_MAKE_VERSION_VALUE(0,9,6)
+      conduit::blueprint::mesh::matset::to_multi_buffer_full(srcMatset,
+                                                             domain["matsets/mat"]);
+      conduit::blueprint::mesh::field::to_multi_buffer_full(srcMatset,
+                                                            srcField,
+                                                            "mat",
+                                                            domain["fields/zonal_mixed"]);
+#else
+      conduit::blueprint::mesh::matset::to_multi_buffer_by_element(srcMatset,
+                                                                   domain["matsets/mat"]);
+      conduit::blueprint::mesh::field::to_multi_buffer_by_element(srcMatset,
+                                                                  srcField,
+                                                                  "mat",
+                                                                  domain["fields/zonal_mixed"]);
+#endif
+      // Make sure we preserve the material_map.
+      if(srcMatset.has_child("material_map"))
+      {
+        domain["matsets/mat/material_map"].set(srcMatset["material_map"]);
+      }
+    }
+    else if(matsetType == "material_dominant")
+    {
+      conduit::Node domainCopy(domain);
+      conduit::Node &srcMatset = domainCopy["matsets/mat"];
+      conduit::Node &srcField = domainCopy["fields/zonal_mixed"];
+
+      domain.remove("matsets/mat");
+      domain.remove("fields/zonal_mixed");
+
+      conduit::blueprint::mesh::matset::to_multi_buffer_by_material(srcMatset,
+                                                                    domain["matsets/mat"]);
+      conduit::blueprint::mesh::field::to_multi_buffer_by_material(srcMatset,
+                                                                   srcField,
+                                                                   "mat",
+                                                                   domain["fields/zonal_mixed"]);
+      // Make sure we preserve the material_map.
+      if(srcMatset.has_child("material_map"))
+      {
+        domain["matsets/mat/material_map"].set(srcMatset["material_map"]);
+      }
+    }
   }
 
   static void result(conduit::Node &mesh)
@@ -227,7 +303,6 @@ fields:
 };
 
 TEST(bump_mergemeshes, mergemeshes_seq) { test_mergemeshes<seq_exec>::test(); }
-/*
 #if defined(AXOM_USE_OPENMP)
 TEST(bump_mergemeshes, mergemeshes_omp) { test_mergemeshes<omp_exec>::test(); }
 #endif
@@ -237,7 +312,6 @@ TEST(bump_mergemeshes, mergemeshes_cuda) { test_mergemeshes<cuda_exec>::test(); 
 #if defined(AXOM_USE_HIP)
 TEST(bump_mergemeshes, mergemeshes_hip) { test_mergemeshes<hip_exec>::test(); }
 #endif
-*/
 
 //------------------------------------------------------------------------------
 void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)

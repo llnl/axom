@@ -1660,6 +1660,8 @@ private:
   {
     bool hasMatsets;
     bool defaultMaterial;
+    bool elementDominant;
+    bool multiBuffer;
     int nmats;
     std::map<std::string, int> allMats;
     std::string matsetName;
@@ -1670,6 +1672,12 @@ private:
     int ftype;
  };
 
+  /*!
+   * \brief Get the material information we'll need to merge materials.
+   *
+   * \param inputes The inputs to be merged.
+   * \param[out] mi The material information.
+   */
   void getMaterialInfo(const std::vector<MeshInput> &inputs, MaterialInfo &mi) const
   {
     // Make a pass through the inputs and make a list of the material names.
@@ -1683,6 +1691,8 @@ private:
     mi.totalMatCount = 0;
     mi.itype = -1;
     mi.ftype = -1;
+    mi.elementDominant = true;
+    mi.multiBuffer = false;
 
     for(size_t i = 0; i < inputs.size(); i++)
     {
@@ -1692,6 +1702,8 @@ private:
         conduit::Node &n_matset = n_matsets[0];
         mi.matsetName = n_matset.name();
         mi.topoName = n_matset.fetch_existing("topology").as_string();
+        mi.elementDominant = conduit::blueprint::mesh::matset::is_element_dominant(n_matset);
+        mi.multiBuffer = conduit::blueprint::mesh::matset::is_multi_buffer(n_matset) && !n_matset.has_child("material_ids");
         auto matInfo = axom::bump::views::materials(n_matset);
         for(const auto &info : matInfo)
         {
@@ -1709,6 +1721,13 @@ private:
     }
   }
 
+  /*!
+   * \brief Counts the size of the materials and stores the results into \a mi. This lets us know
+   *        how big the merged matset will be.
+   *
+   * \param inputs The inputs to be merged.
+   * \param[out] mi The material information.
+   */
   template <typename MaterialDispatchType>
   void countMaterialSizes(const std::vector<MeshInput> &inputs, MaterialInfo &mi) const
   {
@@ -2095,8 +2114,9 @@ private:
    * \param srcFieldPath The path to the source field.
    * \param[out] fi The field information. We only fill in the dtype and component names.
    */
-  void determineMixedFieldInformation(const std::vector<MeshInput> &inputs,
+  void getMixedFieldInformation(const std::vector<MeshInput> &inputs,
                                       const std::string &srcFieldPath,
+                                      const MaterialInfo &mi,
                                       FieldInformation &fi) const
   {
     /* Various mixed field representations.
@@ -2134,25 +2154,21 @@ private:
 
     for(size_t i = 0; i < inputs.size(); i++)
     {
-      inputs[i].m_input->print();
       if(inputs[i].m_input->has_path(srcFieldMatsetValuesPath))
       {
         const conduit::Node &n_matset_values = inputs[i].m_input->fetch_existing(srcFieldMatsetValuesPath);
-#if 1
-std::cout << "srcFieldPath: " << srcFieldPath << std::endl;
-std::cout << "srcFieldMatsetValuesPath: " << srcFieldMatsetValuesPath << std::endl;
-n_matset_values.print();
-#endif
-        if(n_matset_values.number_of_children() > 0)
+
+        // NOTE: we only try to populate components for fields that look like vectors
+        if(mi.multiBuffer)
         {
-          // multibuffer
           for(conduit::index_t ci = 0; ci < n_matset_values.number_of_children(); ci++)
           {
+            // n_component is a material name
             const conduit::Node &n_component = n_matset_values[ci];
 
             if(n_component.number_of_children() > 0)
             {
-              // n_component is really a material name
+              // vector components under the material name
               fi.m_dtype = n_component[0].dtype().id();
               for(conduit::index_t sci = 0; sci < n_matset_values.number_of_children(); sci++)
               {
@@ -2161,15 +2177,29 @@ n_matset_values.print();
             }
             else
             {
+              // scalar - the material name
               fi.m_dtype = n_component.dtype().id();
-              fi.m_components.push_back(n_component.name());
             }
           }
         }
         else
         {
           // unibuffer
-          fi.m_dtype = n_matset_values.dtype().id();
+          if(n_matset_values.number_of_children() > 0)
+          {
+            // vector - the component name
+            for(conduit::index_t ci = 0; ci < n_matset_values.number_of_children(); ci++)
+            {
+              const conduit::Node &n_component = n_matset_values[ci];
+              fi.m_dtype = n_component.dtype().id();
+              fi.m_components.push_back(n_component.name());
+            }
+          }
+          else
+          {
+            // scalar
+            fi.m_dtype = n_matset_values.dtype().id();
+          }
         }
         break;
       }
@@ -2207,7 +2237,7 @@ n_matset_values.print();
       n_field["matset"] = matsetName;
 
       FieldInformation fi;
-      determineMixedFieldInformation(inputs, srcFieldPath, fi);
+      getMixedFieldInformation(inputs, srcFieldPath, mi, fi);
       SLIC_ERROR_IF(fi.m_dtype == -1, axom::fmt::format("The new mixed field type for {} was not determined.", srcFieldPath));
       SLIC_ERROR_IF(fi.m_components.size() > 0, "Vector mixed vars not supported");
 

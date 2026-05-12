@@ -106,11 +106,7 @@ bool dispatch_material_field(const conduit::Node &matset, const conduit::Node &n
 {
   bool retval =
     dispatch_material_unibuffer_field<FuncType, MAXMATERIALS>(matset, n_field, std::forward<FuncType>(func));
-  if(!retval)
-  {
-    retval =
-      dispatch_material_multibuffer_field<FuncType, MAXMATERIALS>(matset, n_field, std::forward<FuncType>(func));
-  }
+  // Multibuffer
   if(!retval)
   {
     retval = dispatch_material_element_dominant_field<FuncType, MAXMATERIALS>(matset, n_field, std::forward<FuncType>(func));
@@ -119,6 +115,14 @@ bool dispatch_material_field(const conduit::Node &matset, const conduit::Node &n
   {
     retval = dispatch_material_material_dominant_field<FuncType, MAXMATERIALS>(matset, n_field, std::forward<FuncType>(func));
   }
+#if 0
+  // NOTE: This one may be obsolete in Blueprint
+  if(!retval)
+  {
+    retval =
+      dispatch_material_multibuffer_field<FuncType, MAXMATERIALS>(matset, n_field, std::forward<FuncType>(func));
+  }
+#endif
   return retval;
 }
 
