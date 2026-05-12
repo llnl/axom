@@ -120,7 +120,7 @@ bool dispatch_material_field(const conduit::Node &matset, const conduit::Node &n
   // NOTE: Blueprint describes a unibuffer material-dominant matset type but does not technically implement it.
   //       https://llnl-conduit.readthedocs.io/en/latest/blueprint_mesh.html#material-sets
   if(!retval && conduit::blueprint::mesh::matset::is_uni_buffer(matset) &&
-                conduit::blueprint::mesh::matset::is_material_dominant(matset))
+     conduit::blueprint::mesh::matset::is_material_dominant(matset))
   {
     SLIC_ERROR("Unibuffer material dominant matsets are unsupported.");
   }
