@@ -39,31 +39,6 @@ bool dispatch_material_unibuffer_field(const conduit::Node &matset,
 }
 
 /*!
- * \brief Dispatch a Conduit node containing a multibuffer matset to a function as
- *        the appropriate type of matset view.
- *
- * \tparam FuncType The function/lambda type that will take the matset.
- *
- * \param matset The node that contains the matset.
- * \param n_field The node that contains the values to be used as volume fractions / field.
- * \param func   The function/lambda that will operate on the matset view.
- *
- * \return true if the dispatch worked, false otherwise.
- */
-template <typename FuncType, size_t MAXMATERIALS = 20>
-bool dispatch_material_multibuffer_field(const conduit::Node &matset,
-                                         const conduit::Node &n_field,
-                                         FuncType &&func)
-{
-  verify(matset, "matset");
-  detail::verifyMixedField(n_field);
-  return detail::dispatch_material_multibuffer_with_values<FuncType, MAXMATERIALS>(
-    matset,
-    n_field["matset_values"],
-    std::forward<FuncType>(func));
-}
-
-/*!
  * \brief Dispatch Conduit nodes containing a element-dominant matset and related field
  *        to a function as the appropriate type of matset view.
  *
@@ -142,13 +117,12 @@ bool dispatch_material_field(const conduit::Node &matset, const conduit::Node &n
       n_field,
       std::forward<FuncType>(func));
   }
-  // NOTE: This one may be obsolete in Blueprint
-  if(!retval)
+  // NOTE: Blueprint describes a unibuffer material-dominant matset type but does not technically implement it.
+  //       https://llnl-conduit.readthedocs.io/en/latest/blueprint_mesh.html#material-sets
+  if(!retval && conduit::blueprint::mesh::matset::is_uni_buffer(matset) &&
+                conduit::blueprint::mesh::matset::is_material_dominant(matset))
   {
-    retval =
-      dispatch_material_multibuffer_field<FuncType, MAXMATERIALS>(matset,
-                                                                  n_field,
-                                                                  std::forward<FuncType>(func));
+    SLIC_ERROR("Unibuffer material dominant matsets are unsupported.");
   }
   return retval;
 }

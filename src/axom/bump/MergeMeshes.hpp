@@ -1726,6 +1726,12 @@ private:
         mi.defaultMaterial = true;
       }
     }
+
+    // One or more inputs did not have a matset.
+    if(mi.hasMatsets && mi.defaultMaterial)
+    {
+      mi.allMats["default"] = mi.nmats++;
+    }
   }
 
   /*!
@@ -1796,11 +1802,6 @@ private:
 
     if(mi.hasMatsets)
     {
-      MaterialDispatch disp;
-
-      // One or more inputs did not have a matset.
-      if(mi.defaultMaterial) mi.allMats["default"] = mi.nmats++;
-
       countMaterialSizes<MaterialDispatch>(inputs, mi);
 
       // Allocate
@@ -1837,6 +1838,7 @@ private:
           n_material_map[it->first] = it->second;
 
         // Populate
+        MaterialDispatch disp;
         auto *This = this;
         disp.execute(n_material_ids,
                      n_sizes,
@@ -2195,6 +2197,7 @@ private:
    * 
    * \note This function relies on the materials having been merged first so we
    *       can use their pre-existing merged arrays.
+   * \note Mixed fields in Blueprint at this time are limited to scalars.
    */
   virtual void copyMixedField(const std::vector<MeshInput> &inputs,
                               conduit::Node &n_field,
@@ -2208,9 +2211,6 @@ private:
     {
       const auto conduitAllocatorId =
         axom::sidre::ConduitMemory::axomAllocIdToConduit(this->getAllocatorID());
-
-      // One or more inputs did not have a matset.
-      if(mi.defaultMaterial) mi.allMats["default"] = mi.nmats++;
 
       countMaterialSizes<MaterialDispatch>(inputs, mi);
       const std::string matsetName(mi.matsetName);

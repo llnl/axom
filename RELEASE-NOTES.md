@@ -31,6 +31,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Bump: Added `axom::bump::views::dispatch_material_field()` function (and related functions) for creating a material view of a material-dependent or mixed field.
 
 ### Removed
+- Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
 
 ### Deprecated
 

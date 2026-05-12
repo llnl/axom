@@ -633,22 +633,6 @@ struct test_braid2d_mat
       SLIC_INFO("unibuffer: mixedFieldView");
       test_matsetview(nzones, mixedFieldView, allocatorID);
     }
-    else if(mattype == "multibuffer")
-    {
-      axom::bump::views::dispatch_material_multibuffer(deviceMesh["matsets/mat"], [&](auto matsetView) {
-        SLIC_INFO("multibuffer: matsetView");
-        test_matsetview(nzones, matsetView, allocatorID);
-      });
-
-      // Test mixed field.
-      axom::bump::views::dispatch_material_multibuffer_field(
-        deviceMesh["matsets/mat"],
-        deviceMesh["fields/mixed"],
-        [&](auto mixedFieldView) {
-          SLIC_INFO("multibuffer: mixedFieldView");
-          test_matsetview(nzones, mixedFieldView, allocatorID);
-        });
-    }
     else if(mattype == "element_dominant")
     {
       axom::bump::views::dispatch_material_element_dominant(
@@ -851,30 +835,6 @@ TEST(bump_views, matset_unibuffer_hip)
 }
 #endif
 
-// Multibuffer
-TEST(bump_views, matset_multibuffer_seq)
-{
-  test_braid2d_mat<seq_exec>::test("uniform", "multibuffer", "uniform2d_multibuffer");
-}
-#if defined(AXOM_USE_OPENMP)
-TEST(bump_views, matset_multibuffer_omp)
-{
-  test_braid2d_mat<omp_exec>::test("uniform", "multibuffer", "uniform2d_multibuffer");
-}
-#endif
-#if defined(AXOM_USE_CUDA)
-TEST(bump_views, matset_multibuffer_cuda)
-{
-  test_braid2d_mat<cuda_exec>::test("uniform", "multibuffer", "uniform2d_multibuffer");
-}
-#endif
-#if defined(AXOM_USE_HIP)
-TEST(bump_views, matset_multibuffer_hip)
-{
-  test_braid2d_mat<hip_exec>::test("uniform", "multibuffer", "uniform2d_multibuffer");
-}
-#endif
-
 // Element-dominant
 TEST(bump_views, matset_element_dominant_seq)
 {
@@ -922,77 +882,6 @@ TEST(bump_views, matset_material_dominant_hip)
   test_braid2d_mat<hip_exec>::test("uniform", "material_dominant", "uniform2d_material_dominant");
 }
 #endif
-
-TEST(bump_views, matset_multibuffer)
-{
-  const char *yaml = R"(
-matsets:
-  matset:
-    topology: topology
-    volume_fractions:
-      a:
-        values: [0, 0, 0, 0.33, 0, 0.3]  # [0, 0, 0, a1, 0, a0]
-        indices: [5, 3]
-      b:
-        values: [0, 0.7, 1., 0.67, 0]    # [0, b0, b2, b1, 0]
-        indices: [1, 3, 2]
-    material_map: # (optional)
-      a: 0
-      b: 1
-)";
-  conduit::Node matsets;
-  matsets.parse(yaml);
-  const conduit::Node &n_matset = matsets["matsets/matset"];
-  axom::bump::views::dispatch_material_multibuffer(n_matset, [&](auto matsetView) {
-    using IDList = typename decltype(matsetView)::IDList;
-    using VFList = typename decltype(matsetView)::VFList;
-    using VFType = typename VFList::value_type;
-
-    EXPECT_EQ(matsetView.numberOfZones(), 3);
-    EXPECT_EQ(matsetView.numberOfMaterials(0), 2);
-    EXPECT_EQ(matsetView.numberOfMaterials(1), 2);
-    EXPECT_EQ(matsetView.numberOfMaterials(2), 1);
-
-    IDList m0, m1, m2;
-    VFList vf0, vf1, vf2;
-    matsetView.zoneMaterials(0, m0, vf0);
-    EXPECT_EQ(m0.size(), 2);
-    EXPECT_EQ(vf0.size(), 2);
-    EXPECT_EQ(m0[0], 0);
-    EXPECT_EQ(m0[1], 1);
-    EXPECT_EQ(vf0[0], 0.3);
-    EXPECT_EQ(vf0[1], 0.7);
-
-    VFType vf;
-    EXPECT_TRUE(matsetView.zoneContainsMaterial(0, 0, vf));
-    EXPECT_EQ(vf, 0.3);
-    EXPECT_TRUE(matsetView.zoneContainsMaterial(0, 1, vf));
-    EXPECT_EQ(vf, 0.7);
-
-    matsetView.zoneMaterials(1, m1, vf1);
-    EXPECT_EQ(m1.size(), 2);
-    EXPECT_EQ(vf1.size(), 2);
-    EXPECT_EQ(m1[0], 0);
-    EXPECT_EQ(m1[1], 1);
-    EXPECT_EQ(vf1[0], 0.33);
-    EXPECT_EQ(vf1[1], 0.67);
-
-    EXPECT_TRUE(matsetView.zoneContainsMaterial(1, 0, vf));
-    EXPECT_EQ(vf, 0.33);
-    EXPECT_TRUE(matsetView.zoneContainsMaterial(1, 1, vf));
-    EXPECT_EQ(vf, 0.67);
-
-    matsetView.zoneMaterials(2, m2, vf2);
-    EXPECT_EQ(m2.size(), 1);
-    EXPECT_EQ(m2[0], 1);
-    EXPECT_EQ(vf2[0], 1);
-
-    EXPECT_FALSE(matsetView.zoneContainsMaterial(2, 0, vf));
-    EXPECT_EQ(vf, 0.);
-    EXPECT_TRUE(matsetView.zoneContainsMaterial(2, 1, vf));
-    EXPECT_EQ(vf, 1.);
-  });
-}
 
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])
