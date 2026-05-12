@@ -1252,8 +1252,7 @@ protected:
         n_newField["topology"] = it->second.m_topology;
         if(!it->second.m_matset.empty())
         {
-          n_newField["matset"] =
-            it->second.m_matset;  // TODO: Is this right? or, am I passing in a new matset name somewhere else in the derived class?
+          n_newField["matset"] = it->second.m_matset;
         }
         if(it->second.m_volume_dependent != InvalidVolumeDependent)
         {
@@ -2127,34 +2126,6 @@ private:
                                 const MaterialInfo &mi,
                                 FieldInformation &fi) const
   {
-    /* Various mixed field representations.
-
-      # unibuffer - scalar
-      mat:
-        matset_values: []
-
-      # unibuffer - vector
-      mat:
-        matset_values:
-          x: []
-          y: []
-
-      # multibuffer - scalar
-      mat:
-        matset_values:
-          matA: []
-          matB: []
-
-      # multibuffer - vector
-      mat:
-        matset_values:
-          matA:
-           x: []
-           y: []
-          matB:
-           x: []
-           y: []
-     */
     fi.m_dtype = -1;
     fi.m_components.clear();
 
@@ -2263,8 +2234,6 @@ private:
       conduit::Node &n_sizes = n_matset->fetch_existing("sizes");
       conduit::Node &n_offsets = n_matset->fetch_existing("offsets");
       conduit::Node &n_indices = n_matset->fetch_existing("indices");
-
-      // TODO: handle multiple components.
 
       // Allocate the new mixed field.
       conduit::Node &n_matset_values = n_field["matset_values"];

@@ -13,6 +13,8 @@
 #include "axom/bump/tests/blueprint_testing_helpers.hpp"
 #include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 
+#include <conduit/conduit_relay_io_blueprint.hpp>
+
 #include <iostream>
 #include <algorithm>
 
@@ -26,6 +28,21 @@
 namespace bump = axom::bump;
 namespace utils = axom::bump::utilities;
 
+//#define AXOM_DEBUG_MERGE_MESHES_TEST
+#ifdef AXOM_DEBUG_MERGE_MESHES_TEST
+void saveMesh(const conduit::Node &n_mesh, const std::string &fileRoot)
+{
+#ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
+  const std::string protocol("hdf5");
+  conduit::relay::io::save(n_mesh, fileRoot + ".yaml", "yaml");
+#else
+  const std::string protocol("yaml");
+#endif
+  // These save with a ".root" extension
+  conduit::relay::io::blueprint::save_mesh(n_mesh, fileRoot, protocol);
+}
+#endif
+
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
 struct test_mergemeshes
@@ -35,15 +52,22 @@ struct test_mergemeshes
     std::vector<std::string> matsetTypes {"unibuffer", "element_dominant", "material_dominant"};
     for(const auto &matsetType : matsetTypes)
     {
-      SLIC_INFO(axom::fmt::format("test({})", matsetType));
-      test(matsetType);
+      for(int matflags = 3; matflags >= 1; matflags--)
+      {
+        SLIC_INFO(axom::fmt::format("test({}, {})", matsetType, matflags));
+        test(matsetType, matflags);
+      }
     }
   }
 
-  static void test(const std::string &matsetType)
+  static void test(const std::string &matsetType, int matflags)
   {
     conduit::Node hostMesh;
-    create(hostMesh, matsetType);
+    create(hostMesh, matsetType, matflags);
+#ifdef AXOM_DEBUG_MERGE_MESHES_TEST
+    const auto preMergeFilename = axom::fmt::format("preMerge_{}_{}", matflags, matsetType);
+    saveMesh(hostMesh, preMergeFilename);
+#endif
 
     // host->device
     conduit::Node deviceMesh;
@@ -78,18 +102,31 @@ struct test_mergemeshes
     // device->host
     conduit::Node hostResult;
     utils::copy<axom::SEQ_EXEC>(hostResult, deviceResult);
+#ifdef AXOM_DEBUG_MERGE_MESHES_TEST
+    const auto postMergeFilename = axom::fmt::format("postMerge_{}_{}", matflags, matsetType);
+    saveMesh(hostResult, postMergeFilename);
+#endif
     constexpr double tolerance = 1.e-7;
     conduit::Node expectedResult, info;
-    result(expectedResult);
-    bool success = compareConduit(expectedResult, hostResult, tolerance, info);
+    result(expectedResult, matflags);
+    bool success = false;
+    try
+    {  
+      success = compareConduit(expectedResult, hostResult, tolerance, info);
+    }
+    catch(const conduit::Error &e)
+    {
+      e.print();
+    }
     if(!success)
     {
       info.print();
+      printNode(hostResult);
     }
     EXPECT_TRUE(success);
   }
 
-  static void create(conduit::Node &mesh, const std::string &matsetType)
+  static void create(conduit::Node &mesh, const std::string &matsetType, int matflags)
   {
     const char *yaml = R"xx(
 domain0000:
@@ -191,6 +228,21 @@ domain0001:
     {
       changeMatsetType(mesh[dom], matsetType);
     }
+    applyMatFlags(mesh, matflags);
+  }
+
+  /// Remove mixed field and matset on domains according to matflags. This tests merging domains that are missing materials/fields.
+  static void applyMatFlags(conduit::Node &mesh, int matflags)
+  {
+    for(int dom = 0; dom < 2; dom++)
+    {
+      if(!axom::utilities::bitIsSet(matflags, dom))
+      {
+        conduit::Node &domain = mesh[dom];
+        domain["fields"].remove("zonal_mixed");
+        domain.remove("matsets");
+      }
+    }
   }
 
   static void changeMatsetType(conduit::Node &domain, const std::string &matsetType)
@@ -247,9 +299,13 @@ domain0001:
     }
   }
 
-  static void result(conduit::Node &mesh)
+  static void result(conduit::Node &mesh, int matflags)
   {
-    const char *yaml = R"xx(
+    // NOTE: We pass back different baselines for different matflags. The fields and matset change.
+    //       It is simpler to just have a totally separate baseline to parse.
+
+    // Result for matflags=3 - both input domains had the material and the mixed field.
+    const char *yaml3 = R"xx(
 coordsets: 
   coords: 
     type: "explicit"
@@ -297,7 +353,123 @@ fields:
     values: [100.1, 101.1, 102.1, 103.25, 104.25, 105.25, 200.1, 201.15, 202.3, 203.15, 204.1, 205.15, 206.2, 207.15, 208.15]
     matset_values: [100.1, 101.1, 102.1, 103.2, 103.3, 104.2, 104.3, 105.2, 105.3, 200.1, 201.1, 201.2, 202.3, 203.1, 203.2, 204.1, 205.1, 205.2, 206.2, 207.1, 207.2, 208.1, 208.2]
 )xx";
-    mesh.parse(yaml);
+
+    // Result for matflags=2 - domain 0 lacked the material and domain so we get default values where domain 0's data would be.
+    const char *yaml2 = R"xx(
+coordsets: 
+  coords: 
+    type: "explicit"
+    values: 
+      x: [0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0, 1.5, 1.5]
+      y: [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0, 0.5, 1.5]
+topologies: 
+  mesh: 
+    type: "unstructured"
+    coordset: "coords"
+    elements: 
+      connectivity: [0, 1, 5, 4, 4, 5, 9, 8, 8, 9, 13, 12, 2, 3, 7, 6, 6, 7, 11, 10, 10, 11, 15, 14, 1, 16, 5, 1, 2, 16, 2, 6, 16, 16, 6, 5, 5, 17, 9, 5, 6, 17, 6, 10, 17, 10, 9, 17, 9, 10, 14, 13]
+      sizes: [4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 4]
+      offsets: [0, 4, 8, 12, 16, 20, 24, 27, 30, 33, 36, 39, 42, 45, 48]
+      shape: "mixed"
+      shape_map: 
+        quad: 3
+        tri: 2
+      shapes: [3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 3]
+matsets: 
+  mat: 
+    topology: "mesh"
+    volume_fractions: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 0.5, 1.0, 0.5, 0.5, 1.0, 0.5, 0.5, 1.0, 0.5, 0.5, 0.5, 0.5]
+    material_ids: [2, 2, 2, 2, 2, 2, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1]
+    sizes: [1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 2, 1, 2, 2]
+    offsets: [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 12, 13, 15, 16, 18]
+    indices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    material_map: 
+      A: 0
+      B: 1
+      default: 2
+fields: 
+  nodal: 
+    association: "vertex"
+    topology: "mesh"
+    values: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2]
+  zonal: 
+    association: "element"
+    topology: "mesh"
+    values: [0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7, 8]
+  zonal_mixed: 
+    association: "element"
+    topology: "mesh"
+    matset: "mat"
+    values: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 200.1, 201.15, 202.3, 203.15, 204.1, 205.15, 206.2, 207.15, 208.15]
+    matset_values: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 200.1, 201.1, 201.2, 202.3, 203.1, 203.2, 204.1, 205.1, 205.2, 206.2, 207.1, 207.2, 208.1, 208.2]
+)xx";
+
+    // Result for matflags=1 - domain 1 lacked the material and domain so we get default values where domain 1's data would be.
+    const char *yaml1 = R"xx(
+coordsets: 
+  coords: 
+    type: "explicit"
+    values: 
+      x: [0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0, 0.0, 1.0, 2.0, 3.0, 1.5, 1.5]
+      y: [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0, 0.5, 1.5]
+topologies: 
+  mesh: 
+    type: "unstructured"
+    coordset: "coords"
+    elements: 
+      connectivity: [0, 1, 5, 4, 4, 5, 9, 8, 8, 9, 13, 12, 2, 3, 7, 6, 6, 7, 11, 10, 10, 11, 15, 14, 1, 16, 5, 1, 2, 16, 2, 6, 16, 16, 6, 5, 5, 17, 9, 5, 6, 17, 6, 10, 17, 10, 9, 17, 9, 10, 14, 13]
+      sizes: [4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 4]
+      offsets: [0, 4, 8, 12, 16, 20, 24, 27, 30, 33, 36, 39, 42, 45, 48]
+      shape: "mixed"
+      shape_map: 
+        quad: 3
+        tri: 2
+      shapes: [3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 3]
+matsets: 
+  mat: 
+    topology: "mesh"
+    volume_fractions: [1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+    material_ids: [0, 0, 0, 1, 2, 1, 2, 1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3]
+    sizes: [1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+    offsets: [0, 1, 2, 3, 5, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    indices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    material_map: 
+      A: 0
+      B: 1
+      C: 2
+      default: 3
+fields: 
+  nodal: 
+    association: "vertex"
+    topology: "mesh"
+    values: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2]
+  zonal: 
+    association: "element"
+    topology: "mesh"
+    values: [0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7, 8]
+  zonal_mixed: 
+    association: "element"
+    topology: "mesh"
+    matset: "mat"
+    values: [100.1, 101.1, 102.1, 103.25, 104.25, 105.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    matset_values: [100.1, 101.1, 102.1, 103.2, 103.3, 104.2, 104.3, 105.2, 105.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+)xx";
+
+    switch(matflags)
+    {
+    case 3:
+      mesh.parse(yaml3);
+      break;
+    case 2:
+      mesh.parse(yaml2);
+      break;
+    case 1:
+      mesh.parse(yaml1);
+      break;
+    default:
+      SLIC_ERROR("Unsupported matflags value.");
+      break;
+    }
   }
 };
 
