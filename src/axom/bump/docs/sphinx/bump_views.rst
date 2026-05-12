@@ -165,10 +165,12 @@ Matsets
 
 The BUMP component provides material views to wrap Blueprint matsets behind an interface that
 supports queries of the matset data without having to care much about its internal representation.
-Blueprint provides 4 flavors of matset, each with a different representation. The 
-``axom::bump::views::UnibufferMaterialView`` class wraps unibuffer matsets, which consist of
-several arrays that define materials for each zone in the associated topology. The view's
-methods allow algorithms to query the list of materials for each zone.
+Blueprint describes 4 flavors of matset, each with a different representation. In practice,
+Blueprint supports 4 flavors of matset, unibuffer element-dominant, multibuffer element-dominant,
+and multibuffer material-dominant. The ``axom::bump::views::UnibufferMaterialView`` class wraps
+unibuffer element-dominant matsets, which consist of several arrays that define materials for
+each zone in the associated topology. The view's methods allow algorithms to query the list of
+materials for each zone.
 
 .. literalinclude:: ../../tests/bump_views.cpp
    :start-after: _bump_views_matsetview_begin
