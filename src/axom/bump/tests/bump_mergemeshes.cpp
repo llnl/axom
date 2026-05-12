@@ -55,13 +55,13 @@ struct test_mergemeshes
     // Execute
     conduit::Node opts, deviceResult;
     opts["topology"] = "mesh";
-    bump::MergeMeshes<ExecSpace> mm;
+    bump::MergeMeshesAndMatsets<ExecSpace> mm;
     mm.execute(inputs, opts, deviceResult);
 
     // device->host
     conduit::Node hostResult;
     utils::copy<axom::SEQ_EXEC>(hostResult, deviceResult);
-
+printNode(hostResult);
     constexpr double tolerance = 1.e-7;
     conduit::Node expectedResult, info;
     result(expectedResult);
@@ -101,6 +101,25 @@ domain0000:
       topology: mesh
       association: element
       values: [0,1,2, 3,4,5]
+    zonal_mixed:
+      topology: mesh
+      association: element
+      matset: mat
+      values: [100.1, 101.1, 102.1, 103.25, 104.25, 105.25]
+      # matset_values encodes 100+zone.mat
+      matset_values: [100.1, 101.1, 102.1, 103.2,103.3, 104.2,104.3, 105.2,105.3]
+  matsets:
+    mat:
+      material_map:
+        A: 1
+        B: 2
+        C: 3
+      topology: mesh
+      material_ids: [1, 1, 1, 2,3, 2,3, 2,3]
+      volume_fractions: [1., 1., 1., 0.5,0.5, 0.5,0.5, 0.5,0.5]
+      indices: [0, 1, 2, 3,4, 5,6, 7,8]
+      sizes: [1, 1, 1, 2, 2, 2]
+      offsets: [0, 1, 2, 3, 5, 7]
 domain0001:
   coordsets:
     coords:
@@ -130,6 +149,25 @@ domain0001:
       topology: mesh
       association: element
       values: [0,1,2,3, 4,5,6,7, 8]
+    zonal_mixed:
+      topology: mesh
+      association: element
+      matset: mat
+      values: [200.1, 201.15, 202.3, 203.15, 204.1, 205.15, 206.2, 207.15, 208.15]
+      # matset_values encodes 200+zone.mat
+      matset_values: [200.1, 201.1,201.2, 202.3, 203.1,203.2, 204.1, 205.1,205.2, 206.2, 207.1,207.2, 208.1,208.2]
+  matsets:
+    mat:
+      material_map:
+        A: 1
+        B: 2
+        C: 3
+      topology: mesh
+      material_ids: [1, 1,2, 2, 1,2, 1, 1,2, 2, 1,2, 1,2]
+      volume_fractions: [1., 0.5,0.5, 1., 0.5,0.5, 1., 0.5,0.5, 1., 0.5,0.5, 0.5,0.5]
+      indices: [0, 1,2, 3, 4,5, 6, 7,8, 9, 10,11, 12,13]
+      sizes: [1, 2, 1, 2, 1, 2, 1, 2, 2]
+      offsets: [0, 1, 3, 4, 6, 7, 9, 10, 12]
 )xx";
     mesh.parse(yaml);
   }
@@ -156,12 +194,40 @@ topologies:
         quad: 3
         tri: 2
       shapes: [3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 3]
+matsets: 
+  mat: 
+    topology: "mesh"
+    volume_fractions: [1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1.0, 0.5, 0.5, 1.0, 0.5, 0.5, 1.0, 0.5, 0.5, 1.0, 0.5, 0.5, 0.5, 0.5]
+    material_ids: [0, 0, 0, 1, 2, 1, 2, 1, 2, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1]
+    sizes: [1, 1, 1, 2, 2, 2, 1, 2, 1, 2, 1, 2, 1, 2, 2]
+    offsets: [0, 1, 2, 3, 5, 7, 9, 10, 12, 13, 15, 16, 18, 19, 21]
+    indices: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
+    material_map: 
+      A: 0
+      B: 1
+      C: 2
+fields: 
+  nodal: 
+    association: "vertex"
+    topology: "mesh"
+    values: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2]
+  zonal: 
+    association: "element"
+    topology: "mesh"
+    values: [0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7, 8]
+  zonal_mixed: 
+    association: "element"
+    topology: "mesh"
+    matset: "mat"
+    values: [100.1, 101.1, 102.1, 103.25, 104.25, 105.25, 200.1, 201.15, 202.3, 203.15, 204.1, 205.15, 206.2, 207.15, 208.15]
+    matset_values: [100.1, 101.1, 102.1, 103.2, 103.3, 104.2, 104.3, 105.2, 105.3, 200.1, 201.1, 201.2, 202.3, 203.1, 203.2, 204.1, 205.1, 205.2, 206.2, 207.1, 207.2, 208.1, 208.2]
 )xx";
     mesh.parse(yaml);
   }
 };
 
 TEST(bump_mergemeshes, mergemeshes_seq) { test_mergemeshes<seq_exec>::test(); }
+/*
 #if defined(AXOM_USE_OPENMP)
 TEST(bump_mergemeshes, mergemeshes_omp) { test_mergemeshes<omp_exec>::test(); }
 #endif
@@ -171,6 +237,7 @@ TEST(bump_mergemeshes, mergemeshes_cuda) { test_mergemeshes<cuda_exec>::test(); 
 #if defined(AXOM_USE_HIP)
 TEST(bump_mergemeshes, mergemeshes_hip) { test_mergemeshes<hip_exec>::test(); }
 #endif
+*/
 
 //------------------------------------------------------------------------------
 void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)

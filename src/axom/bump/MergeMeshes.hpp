@@ -2129,45 +2129,49 @@ private:
      */
     fi.m_dtype = -1;
     fi.m_components.clear();
-  
+
+    std::string srcFieldMatsetValuesPath(srcFieldPath + "/matset_values");
+
     for(size_t i = 0; i < inputs.size(); i++)
     {
-      if(inputs[i].m_input->has_child(srcFieldPath))
+      inputs[i].m_input->print();
+      if(inputs[i].m_input->has_path(srcFieldMatsetValuesPath))
       {
-        const conduit::Node &n_src_field = inputs[i].m_input->fetch_existing(srcFieldPath);
-        if(n_src_field.has_child("matset_values"))
+        const conduit::Node &n_matset_values = inputs[i].m_input->fetch_existing(srcFieldMatsetValuesPath);
+#if 1
+std::cout << "srcFieldPath: " << srcFieldPath << std::endl;
+std::cout << "srcFieldMatsetValuesPath: " << srcFieldMatsetValuesPath << std::endl;
+n_matset_values.print();
+#endif
+        if(n_matset_values.number_of_children() > 0)
         {
-          const conduit::Node &n_matset_values = n_src_field["matset_values"];
-          if(n_matset_values.number_of_children() > 0)
+          // multibuffer
+          for(conduit::index_t ci = 0; ci < n_matset_values.number_of_children(); ci++)
           {
-            // multibuffer
-            for(conduit::index_t ci = 0; ci < n_matset_values.number_of_children(); ci++)
+            const conduit::Node &n_component = n_matset_values[ci];
+
+            if(n_component.number_of_children() > 0)
             {
-              const conduit::Node &n_component = n_matset_values[ci];
-                
-              if(n_component.number_of_children() > 0)
+              // n_component is really a material name
+              fi.m_dtype = n_component[0].dtype().id();
+              for(conduit::index_t sci = 0; sci < n_matset_values.number_of_children(); sci++)
               {
-                // n_component is really a material name
-                fi.m_dtype = n_component[0].dtype().id();
-                for(conduit::index_t sci = 0; sci < n_matset_values.number_of_children(); sci++)
-                {
-                  fi.m_components.push_back(n_component[sci].name());
-                }
-              }
-              else
-              {
-                fi.m_dtype = n_component.dtype().id();
-                fi.m_components.push_back(n_component.name());
+                fi.m_components.push_back(n_component[sci].name());
               }
             }
+            else
+            {
+              fi.m_dtype = n_component.dtype().id();
+              fi.m_components.push_back(n_component.name());
+            }
           }
-          else
-          {
-            // unibuffer
-            fi.m_dtype = n_matset_values[0].dtype().id();
-          }
-          break;
         }
+        else
+        {
+          // unibuffer
+          fi.m_dtype = n_matset_values.dtype().id();
+        }
+        break;
       }
     }
   }
@@ -2209,7 +2213,7 @@ private:
 
       // Get the Conduit node for the matset we built previously
       conduit::Node *n_matset = const_cast<conduit::Node *>(conduit::blueprint::mesh::utils::find_reference_node(n_field, "matset"));
-      SLIC_ERROR_IF(n_matset == nullptr, axom::fmt::format("The new matset {} was not found.", mi.matsetName));
+      SLIC_ERROR_IF(n_matset == nullptr, axom::fmt::format("The new matset {} was not found.", matsetName));
 
       // Get some parts of the new unibuffer matset.
       conduit::Node &n_material_ids = n_matset->fetch_existing("material_ids");
@@ -2245,7 +2249,7 @@ private:
           const auto nzones = This->countZones(inputs, i);
 
           if(inputs[i].m_input->has_child("matsets") &&
-             inputs[i].m_input->has_child(srcFieldPath))
+             inputs[i].m_input->has_path(srcFieldPath))
           {
             // Get the source matset.
             conduit::Node &n_matsets = inputs[i].m_input->fetch_existing("matsets");
