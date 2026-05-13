@@ -78,6 +78,10 @@ spack:
             c: /opt/rocm-6.3.1/llvm/bin/amdclang
             cxx: /opt/rocm-6.3.1/llvm/bin/amdclang++
             fortran: /opt/rocm-6.3.1/llvm/bin/amdflang
+          flags:
+            cflags: -fPIC
+            cxxflags: -fPIC
+            fflags: -fPIC
           environment: {}
           extra_rpaths: []
       - spec: llvm-amdgpu@6.4.3
@@ -87,6 +91,10 @@ spack:
             c: /opt/rocm-6.4.3/llvm/bin/amdclang
             cxx: /opt/rocm-6.4.3/llvm/bin/amdclang++
             fortran: /opt/rocm-6.4.3/llvm/bin/amdflang
+          flags:
+            cflags: -fPIC
+            cxxflags: -fPIC
+            fflags: -fPIC
           environment: {}
           extra_rpaths: []
     cce:
@@ -98,6 +106,10 @@ spack:
             c: /usr/tce/packages/cce-tce/cce-20.0.0/bin/craycc
             cxx: /usr/tce/packages/cce-tce/cce-20.0.0/bin/crayCC
             fortran: /usr/tce/packages/cce-tce/cce-20.0.0/bin/crayftn
+          flags:
+            cflags: -fPIC
+            cxxflags: -fPIC
+            fflags: -fPIC
           environment: {}
           extra_rpaths: []
 
