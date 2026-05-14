@@ -12,6 +12,7 @@
 
 #include "axom/bump/views/Shapes.hpp"
 #include "axom/bump/views/dispatch_material.hpp"
+#include "axom/bump/views/dispatch_material_field.hpp"
 #include "axom/bump/views/dispatch_unstructured_topology.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
@@ -2293,9 +2294,9 @@ private:
    * \param zOffset The starting offset in the output mixed field view.
    */
   template <typename MatsetView, typename MixedFieldView, typename OffsetsView>
-  void mergeMixedField_copy(const MatsetView &srcMatsetView,
-                            MixedFieldView &mixedFieldView,
-                            const OffsetsView &offsetsView,
+  void mergeMixedField_copy(MatsetView srcMatsetView,
+                            MixedFieldView mixedFieldView,
+                            OffsetsView offsetsView,
                             axom::IndexType nzones,
                             axom::IndexType zOffset) const
   {
@@ -2326,8 +2327,8 @@ private:
    * \param zOffset The starting offset in the output mixed field view.
    */
   template <typename MixedFieldView, typename OffsetsView>
-  void mergeMixedField_default(MixedFieldView &mixedFieldView,
-                               const OffsetsView &offsetsView,
+  void mergeMixedField_default(MixedFieldView mixedFieldView,
+                               OffsetsView offsetsView,
                                axom::IndexType nzones,
                                axom::IndexType zOffset) const
   {
