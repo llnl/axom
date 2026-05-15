@@ -11,21 +11,21 @@
 #include "axom/core/numerics/internal/rational_quadrature.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 #include <complex>
 #include <functional>
-#include <vector>
 
 namespace
 {
 namespace numerics_internal = axom::numerics::internal;
+using Complex = std::complex<double>;
 
 const double pi = std::acos(-1.0);
-std::vector<std::complex<double>> map_interval_poles_m11_to_01(
-  const std::vector<std::complex<double>>& poles_m11)
+axom::Array<Complex> map_interval_poles_m11_to_01(axom::ArrayView<const Complex> poles_m11)
 {
-  std::vector<std::complex<double>> poles01;
+  axom::Array<Complex> poles01;
   poles01.reserve(poles_m11.size());
   for(const auto& pole : poles_m11)
   {
@@ -35,7 +35,7 @@ std::vector<std::complex<double>> map_interval_poles_m11_to_01(
     }
     else
     {
-      poles01.push_back(0.5 * (pole + std::complex<double> {1.0, 0.0}));
+      poles01.push_back(0.5 * (pole + Complex {1.0, 0.0}));
     }
   }
   return poles01;
@@ -52,39 +52,37 @@ double integrate_rule(const axom::numerics::QuadratureRule& rule,
   return value;
 }
 
-double integrate_rule_m11(const std::vector<double>& nodes,
-                          const std::vector<double>& weights,
+double integrate_rule_m11(axom::ArrayView<const double> nodes,
+                          axom::ArrayView<const double> weights,
                           const std::function<double(double)>& integrand)
 {
   double value = 0.0;
-  for(std::size_t i = 0; i < nodes.size(); ++i)
+  for(int i = 0; i < nodes.size(); ++i)
   {
     value += weights[i] * integrand(nodes[i]);
   }
   return value;
 }
 
-std::vector<std::complex<double>> rotor_first_invalid_unique_poles_m11()
+axom::Array<Complex> rotor_first_invalid_unique_poles_m11()
 {
-  return {std::complex<double> {-1.59075549109947922, 0.0},
-          std::complex<double> {1.20225576665447242, -1.25283898687163120},
-          std::complex<double> {1.20225576665447242, 1.25283898687163120}};
+  return {Complex {-1.59075549109947922, 0.0},
+          Complex {1.20225576665447242, -1.25283898687163120},
+          Complex {1.20225576665447242, 1.25283898687163120}};
 }
 
-std::vector<std::complex<double>> repeat_pole_sequence(
-  const std::vector<std::complex<double>>& poles,
-  int repeat_count)
+axom::Array<Complex> repeat_pole_sequence(axom::ArrayView<const Complex> poles, int repeat_count)
 {
-  std::vector<std::complex<double>> repeated;
+  axom::Array<Complex> repeated;
   repeated.reserve(poles.size() * repeat_count);
   for(int repeat = 0; repeat < repeat_count; ++repeat)
   {
-    repeated.insert(repeated.end(), poles.begin(), poles.end());
+    repeated.insert(repeated.size(), poles);
   }
   return repeated;
 }
 
-void pad_poles_with_infinities(std::vector<std::complex<double>>& poles, int total_poles)
+void pad_poles_with_infinities(axom::Array<Complex>& poles, int total_poles)
 {
   const auto inf = axom::numeric_limits<double>::infinity();
   while(static_cast<int>(poles.size()) < total_poles)
@@ -102,7 +100,8 @@ struct RationalFejerDiagnosticsSummary
   double max_abs_basis_coefficient {0.0};
 };
 
-RationalFejerDiagnosticsSummary summarize_rule_diagnostics(const numerics_internal::RationalFejerDiagnostics& diagnostics)
+RationalFejerDiagnosticsSummary summarize_rule_diagnostics(
+  const numerics_internal::RationalFejerDiagnostics& diagnostics)
 {
   RationalFejerDiagnosticsSummary summary;
   summary.min_rcheb_weight = axom::numeric_limits<double>::infinity();
@@ -118,8 +117,9 @@ RationalFejerDiagnosticsSummary summarize_rule_diagnostics(const numerics_intern
   {
     summary.min_final_weight_m11 =
       axom::utilities::min(summary.min_final_weight_m11, diagnostics.final_weights_m11[i]);
-    summary.max_abs_final_weight_m11 = axom::utilities::max(summary.max_abs_final_weight_m11,
-                                                            std::abs(diagnostics.final_weights_m11[i]));
+    summary.max_abs_final_weight_m11 =
+      axom::utilities::max(summary.max_abs_final_weight_m11,
+                           std::abs(diagnostics.final_weights_m11[i]));
     summary.sum_final_weights_m11 += diagnostics.final_weights_m11[i];
   }
 
@@ -133,25 +133,23 @@ RationalFejerDiagnosticsSummary summarize_rule_diagnostics(const numerics_intern
   return summary;
 }
 
-RationalFejerDiagnosticsSummary compute_rule_diagnostics_summary(
-  const std::vector<std::complex<double>>& poles01)
+RationalFejerDiagnosticsSummary compute_rule_diagnostics_summary(axom::ArrayView<const Complex> poles01)
 {
   numerics_internal::RationalFejerDiagnostics diagnostics;
   numerics_internal::compute_rational_fejer_diagnostics(poles01, diagnostics);
   return summarize_rule_diagnostics(diagnostics);
 }
 
-void compute_rcheb_rule_m11(const std::vector<std::complex<double>>& poles_m11,
-                            std::vector<double>& nodes,
-                            std::vector<double>& weights)
+void compute_rcheb_rule_m11(axom::ArrayView<const Complex> poles_m11,
+                            axom::Array<double>& nodes,
+                            axom::Array<double>& weights)
 {
   numerics_internal::compute_rcheb_data_m11(poles_m11, nodes, weights);
 }
 
-void compute_rational_fejer_rule_m11(
-  const std::vector<std::complex<double>>& poles_m11,
-  std::vector<double>& nodes,
-  std::vector<double>& weights)
+void compute_rational_fejer_rule_m11(axom::ArrayView<const Complex> poles_m11,
+                                     axom::Array<double>& nodes,
+                                     axom::Array<double>& weights)
 {
   numerics_internal::compute_rational_fejer_data_m11(poles_m11, nodes, weights);
 }
@@ -244,11 +242,16 @@ TEST(numerics_quadrature, rational_fejer_infinite_poles_are_polynomial_exact)
 
   for(int npoles = 1; npoles <= 8; ++npoles)
   {
-    std::vector<std::complex<double>> poles(npoles, std::complex<double> {inf, 0.0});
+    axom::Array<Complex> poles;
+    poles.reserve(npoles);
+    for(int i = 0; i < npoles; ++i)
+    {
+      poles.emplace_back(inf, 0.0);
+    }
     auto rule = axom::numerics::get_rational_fejer(poles);
 
     const int degree = npoles;
-    std::vector<double> coeffs(degree + 1);
+    axom::Array<double> coeffs(degree + 1, degree + 1);
     for(int i = 0; i <= degree; ++i)
     {
       coeffs[i] = axom::utilities::random_real(-1.0, 1.0, 100 + 13 * npoles + i);
@@ -287,7 +290,7 @@ TEST(numerics_quadrature, rational_fejer_infinite_poles_are_polynomial_exact)
 
 TEST(numerics_quadrature, rational_fejer_matches_simple_pole_moments)
 {
-  std::vector<std::complex<double>> poles;
+  axom::Array<Complex> poles;
   for(int a = 2; a <= 10; ++a)
   {
     poles.emplace_back(0.5 * (a + 1.0), 0.0);
@@ -358,11 +361,12 @@ TEST(numerics_quadrature, rational_fejer_auto_adds_missing_complex_conjugate_pol
 {
   const double a = 1.4;
   const double b = 0.8;
-  const std::complex<double> pole {a, b};
+  const Complex pole {a, b};
 
-  const auto implicit_rule = axom::numerics::get_rational_fejer({pole});
-  const auto explicit_rule =
-    axom::numerics::get_rational_fejer({pole, std::conj(pole)});
+  const axom::Array<Complex> implicit_poles {pole};
+  const axom::Array<Complex> explicit_poles {pole, std::conj(pole)};
+  const auto implicit_rule = axom::numerics::get_rational_fejer(implicit_poles);
+  const auto explicit_rule = axom::numerics::get_rational_fejer(explicit_poles);
 
   ASSERT_EQ(implicit_rule.getNumPoints(), explicit_rule.getNumPoints());
   for(int i = 0; i < implicit_rule.getNumPoints(); ++i)
@@ -385,8 +389,9 @@ TEST(numerics_quadrature, rational_fejer_matches_repeated_complex_pair_exactness
 {
   const double a = 1.25;
   const double b = 0.6;
-  const std::complex<double> pole {a, b};
-  const auto rule = axom::numerics::get_rational_fejer({pole, pole});
+  const Complex pole {a, b};
+  const axom::Array<Complex> poles {pole, pole};
+  const auto rule = axom::numerics::get_rational_fejer(poles);
 
   const auto integrand = [a, b](double x) {
     const double dx = x - a;
@@ -445,7 +450,7 @@ TEST(numerics_quadrature, rotor_pole_family_shows_infinite_padding_drives_instab
 {
   const auto base_poles01 = map_interval_poles_m11_to_01(rotor_first_invalid_unique_poles_m11());
 
-  auto make_summary = [](std::vector<std::complex<double>> poles01) {
+  auto make_summary = [](axom::Array<Complex> poles01) {
     return compute_rule_diagnostics_summary(poles01);
   };
 
@@ -486,15 +491,15 @@ TEST(numerics_quadrature, rotor_pole_family_shows_infinite_padding_drives_instab
 
 TEST(numerics_quadrature, rcheb_internal_matches_vandeun_pure_imaginary_poles_example)
 {
-  std::vector<std::complex<double>> poles_m11;
+  axom::Array<Complex> poles_m11;
   for(int j = 1; j <= 10; ++j)
   {
     poles_m11.emplace_back(0.0, 0.001 * j);
     poles_m11.emplace_back(0.0, -0.001 * j);
   }
 
-  std::vector<double> nodes;
-  std::vector<double> weights;
+  axom::Array<double> nodes;
+  axom::Array<double> weights;
   compute_rcheb_rule_m11(poles_m11, nodes, weights);
 
   ASSERT_EQ(nodes.size(), poles_m11.size());
@@ -517,12 +522,15 @@ TEST(numerics_quadrature, rcheb_internal_matches_vandeun_pure_imaginary_poles_ex
 TEST(numerics_quadrature, rcheb_internal_all_infinite_poles_reduces_to_chebyshev_first_kind)
 {
   constexpr int pole_count = 6;
-  std::vector<std::complex<double>> poles_m11(
-    pole_count,
-    std::complex<double> {axom::numeric_limits<double>::infinity(), 0.0});
+  axom::Array<Complex> poles_m11;
+  poles_m11.reserve(pole_count);
+  for(int i = 0; i < pole_count; ++i)
+  {
+    poles_m11.emplace_back(axom::numeric_limits<double>::infinity(), 0.0);
+  }
 
-  std::vector<double> nodes;
-  std::vector<double> weights;
+  axom::Array<double> nodes;
+  axom::Array<double> weights;
   compute_rcheb_rule_m11(poles_m11, nodes, weights);
 
   ASSERT_EQ(static_cast<int>(nodes.size()), pole_count);
@@ -538,24 +546,23 @@ TEST(numerics_quadrature, rcheb_internal_all_infinite_poles_reduces_to_chebyshev
 
 TEST(numerics_quadrature, rcheb_internal_matches_vandeun_boundary_layer_application_poles)
 {
-  std::vector<std::complex<double>> poles_m11 = {
-    {0.0, 0.0403},
-    {0.0, -0.0403},
-    {0.0094, 0.0398},
-    {0.0094, -0.0398},
-    {-0.0094, 0.0398},
-    {-0.0094, -0.0398},
-    {0.0200, 0.0384},
-    {0.0200, -0.0384},
-    {-0.0200, 0.0384},
-    {-0.0200, -0.0384}};
+  axom::Array<Complex> poles_m11 = {{0.0, 0.0403},
+                                    {0.0, -0.0403},
+                                    {0.0094, 0.0398},
+                                    {0.0094, -0.0398},
+                                    {-0.0094, 0.0398},
+                                    {-0.0094, -0.0398},
+                                    {0.0200, 0.0384},
+                                    {0.0200, -0.0384},
+                                    {-0.0200, 0.0384},
+                                    {-0.0200, -0.0384}};
   for(int i = 0; i < 10; ++i)
   {
     poles_m11.emplace_back(axom::numeric_limits<double>::infinity(), 0.0);
   }
 
-  std::vector<double> nodes;
-  std::vector<double> weights;
+  axom::Array<double> nodes;
+  axom::Array<double> weights;
   compute_rcheb_rule_m11(poles_m11, nodes, weights);
 
   ASSERT_EQ(nodes.size(), poles_m11.size());
@@ -577,23 +584,21 @@ TEST(numerics_quadrature, rcheb_internal_matches_vandeun_boundary_layer_applicat
 
 TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example1_exactness)
 {
-  std::vector<std::complex<double>> poles_m11;
+  axom::Array<Complex> poles_m11;
   for(int a = 2; a <= 10; ++a)
   {
     poles_m11.emplace_back(static_cast<double>(a), 0.0);
   }
 
-  std::vector<double> forward_nodes;
-  std::vector<double> forward_weights;
-  compute_rational_fejer_rule_m11(
-    poles_m11, forward_nodes, forward_weights);
+  axom::Array<double> forward_nodes;
+  axom::Array<double> forward_weights;
+  compute_rational_fejer_rule_m11(poles_m11, forward_nodes, forward_weights);
 
   auto reversed_poles_m11 = poles_m11;
   std::reverse(reversed_poles_m11.begin(), reversed_poles_m11.end());
-  std::vector<double> reversed_nodes;
-  std::vector<double> reversed_weights;
-  compute_rational_fejer_rule_m11(
-    reversed_poles_m11, reversed_nodes, reversed_weights);
+  axom::Array<double> reversed_nodes;
+  axom::Array<double> reversed_weights;
+  compute_rational_fejer_rule_m11(reversed_poles_m11, reversed_nodes, reversed_weights);
 
   ASSERT_EQ(forward_nodes.size(), reversed_nodes.size());
   ASSERT_EQ(forward_weights.size(), reversed_weights.size());
@@ -613,15 +618,19 @@ TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example1_
 TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example2_repeated_real_pole)
 {
   constexpr double A = 2.0;
-  std::vector<std::complex<double>> poles_m11(32, std::complex<double> {A, 0.0});
-  std::vector<double> nodes;
-  std::vector<double> weights;
+  axom::Array<Complex> poles_m11;
+  poles_m11.reserve(32);
+  for(int i = 0; i < 32; ++i)
+  {
+    poles_m11.emplace_back(A, 0.0);
+  }
+  axom::Array<double> nodes;
+  axom::Array<double> weights;
   compute_rational_fejer_rule_m11(poles_m11, nodes, weights);
 
   const auto integrand = [A](double x) { return 1.0 + 2.0 / std::pow(x - A, 100); };
 
-  const double exact =
-    2.0 - (2.0 / 99.0) * (std::pow(1.0 - A, -99) + std::pow(1.0 + A, -99));
+  const double exact = 2.0 - (2.0 / 99.0) * (std::pow(1.0 - A, -99) + std::pow(1.0 + A, -99));
   const double value = integrate_rule_m11(nodes, weights, integrand);
 
   EXPECT_NEAR(value, exact, std::abs(exact) * 1e-11);

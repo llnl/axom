@@ -7,10 +7,11 @@
 #ifndef AXOM_NUMERICS_INTERNAL_RATIONAL_QUADRATURE_HPP_
 #define AXOM_NUMERICS_INTERNAL_RATIONAL_QUADRATURE_HPP_
 
+#include "axom/core/Array.hpp"
+#include "axom/core/ArrayView.hpp"
 #include "axom/core/numerics/quadrature.hpp"
 
 #include <complex>
-#include <vector>
 
 namespace axom
 {
@@ -62,8 +63,8 @@ struct RationalFejerDiagnostics
     axom::Array<double> basis_coefficients_after;
   };
 
-  std::vector<std::complex<double>> canonical_poles_m11;
-  std::vector<std::complex<double>> cayley_poles;
+  axom::Array<std::complex<double>> canonical_poles_m11;
+  axom::Array<std::complex<double>> cayley_poles;
   axom::Array<double> rcheb_nodes_m11;
   axom::Array<double> rcheb_weights_m11;
   axom::Array<double> basis_coefficients;
@@ -74,7 +75,7 @@ struct RationalFejerDiagnostics
   int basis_matrix_col_count {0};
   axom::Array<double> nodes_01;
   axom::Array<double> weights_01;
-  std::vector<Step> steps;
+  axom::Array<Step> steps;
 };
 
 /*!
@@ -84,25 +85,26 @@ struct RationalFejerDiagnostics
  * used in the source papers so core numerics tests can validate the reference
  * examples without going through the public `[0,1]` wrappers.
  */
-void compute_rcheb_data_m11(const std::vector<Complex>& poles_m11,
-                            std::vector<double>& nodes,
-                            std::vector<double>& weights);
+void compute_rcheb_data_m11(axom::ArrayView<const Complex> poles_m11,
+                            axom::Array<double>& nodes,
+                            axom::Array<double>& weights,
+                            int allocatorID = axom::getDefaultAllocatorID());
 
-void compute_rational_fejer_data_m11(const std::vector<Complex>& poles_m11,
-                                     std::vector<double>& nodes,
-                                     std::vector<double>& weights);
+void compute_rational_fejer_data_m11(axom::ArrayView<const Complex> poles_m11,
+                                     axom::Array<double>& nodes,
+                                     axom::Array<double>& weights,
+                                     int allocatorID = axom::getDefaultAllocatorID());
 
-void compute_rational_fejer_diagnostics_m11(const std::vector<Complex>& poles_m11,
+void compute_rational_fejer_diagnostics_m11(axom::ArrayView<const Complex> poles_m11,
                                             RationalFejerDiagnostics& diagnostics,
                                             int allocatorID = axom::getDefaultAllocatorID());
 
 /*!
  * \brief Compute rational Fejer diagnostics for a unit-interval pole sequence.
  */
-void compute_rational_fejer_diagnostics(
-  const std::vector<Complex>& poles01,
-  RationalFejerDiagnostics& diagnostics,
-  int allocatorID = axom::getDefaultAllocatorID());
+void compute_rational_fejer_diagnostics(axom::ArrayView<const Complex> poles01,
+                                        RationalFejerDiagnostics& diagnostics,
+                                        int allocatorID = axom::getDefaultAllocatorID());
 
 }  // namespace internal
 }  // namespace numerics

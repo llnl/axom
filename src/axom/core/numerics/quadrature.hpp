@@ -8,10 +8,10 @@
 #define AXOM_NUMERICS_QUADRATURE_HPP_
 
 #include "axom/core/Array.hpp"
+#include "axom/core/ArrayView.hpp"
 #include "axom/core/memory_management.hpp"
 
 #include <complex>
-#include <vector>
 
 /*!
  * \file quadrature.hpp
@@ -33,7 +33,7 @@ class QuadratureRule
 {
   // Define friend functions so rules can only be created via get_rule() methods
   friend QuadratureRule get_gauss_legendre(int, int);
-  friend QuadratureRule get_rational_fejer(const std::vector<std::complex<double>>&, int);
+  friend QuadratureRule get_rational_fejer(axom::ArrayView<const std::complex<double>>, int);
 
 public:
   //! \brief Accessor for the full array of quadrature nodes
@@ -141,9 +141,9 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID = axom::getDefaultAl
  * singularities on the geometric curve itself.
  *
  * \note This method constructs the points from scratch each time, without caching.
- * \sa get_rational_fejer(const std::vector<std::complex<double>>&, int)
+ * \sa get_rational_fejer(axom::ArrayView<const std::complex<double>>, int)
  */
-void compute_rational_fejer_data(const std::vector<std::complex<double>>& poles01,
+void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> poles01,
                                  axom::Array<double>& nodes,
                                  axom::Array<double>& weights,
                                  int allocatorID = axom::getDefaultAllocatorID());
@@ -166,7 +166,7 @@ void compute_rational_fejer_data(const std::vector<std::complex<double>>& poles0
  *
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
  */
-QuadratureRule get_rational_fejer(const std::vector<std::complex<double>>& poles01,
+QuadratureRule get_rational_fejer(axom::ArrayView<const std::complex<double>> poles01,
                                   int allocatorID = axom::getDefaultAllocatorID());
 
 } /* end namespace numerics */
