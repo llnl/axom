@@ -22,8 +22,7 @@ namespace views
 // MixedFieldView to access MatsetView-specific field data.
 template <typename MatsetView, typename FieldT>
 struct MixedFieldTraits
-{
-};
+{ };
 
 /*!
  * \brief Specialization for UnibufferMaterialView that can store field data organized
@@ -39,10 +38,7 @@ struct MixedFieldTraits<UnibufferMaterialView<IndexT, FloatT, MAXMATERIALS>, Fie
    * \brief Set the field values view.
    * \param values The field values.
    */
-  void set(ValueView values)
-  {
-    m_values = values;
-  }
+  void set(ValueView values) { m_values = values; }
 
   /*!
    * \brief Return the field value for the iterator index.
@@ -74,10 +70,7 @@ struct MixedFieldTraits<ElementDominantMaterialView<IndexT, FloatT, MAXMATERIALS
    * \brief Add the values to the list of buffers.
    * \param values The values to be added.
    */
-  void add(ValueView values)
-  {
-    m_values.push_back(values);
-  }
+  void add(ValueView values) { m_values.push_back(values); }
 
   /*!
    * \brief Return the field value for the iterator index.
@@ -89,7 +82,8 @@ struct MixedFieldTraits<ElementDominantMaterialView<IndexT, FloatT, MAXMATERIALS
   AXOM_HOST_DEVICE FieldT value(const IteratorIndex &index) const
   {
     SLIC_ASSERT(axom::utilities::inBounds_0_N(index.m_bufferIndex, m_values.size()));
-    SLIC_ASSERT(axom::utilities::inBounds_0_N(index.m_localIndex, m_values[index.m_bufferIndex].size()));
+    SLIC_ASSERT(
+      axom::utilities::inBounds_0_N(index.m_localIndex, m_values[index.m_bufferIndex].size()));
     return m_values[index.m_bufferIndex][index.m_localIndex];
   }
 
@@ -110,10 +104,7 @@ struct MixedFieldTraits<MaterialDominantMaterialView<IndexT, FloatT, MAXMATERIAL
    * \brief Add the values to the list of buffers.
    * \param values The values to be added.
    */
-  void add(ValueView values)
-  {
-    m_values.push_back(values);
-  }
+  void add(ValueView values) { m_values.push_back(values); }
 
   /*!
    * \brief Return the field value for the iterator index.
@@ -125,7 +116,8 @@ struct MixedFieldTraits<MaterialDominantMaterialView<IndexT, FloatT, MAXMATERIAL
   AXOM_HOST_DEVICE FieldT value(const IteratorIndex &index) const
   {
     SLIC_ASSERT(axom::utilities::inBounds_0_N(index.m_bufferIndex, m_values.size()));
-    SLIC_ASSERT(axom::utilities::inBounds_0_N(index.m_localIndex, m_values[index.m_bufferIndex].size()));
+    SLIC_ASSERT(
+      axom::utilities::inBounds_0_N(index.m_localIndex, m_values[index.m_bufferIndex].size()));
     return m_values[index.m_bufferIndex][index.m_localIndex];
   }
 
