@@ -7,12 +7,12 @@
 #ifndef MINT_EXTERNALARRAY_HPP_
 #define MINT_EXTERNALARRAY_HPP_
 
-#include "axom/core/Array.hpp"  // to inherit
+#include "axom/core/Array.hpp"
 #include "axom/core/Types.hpp"
 
 #include "axom/fmt.hpp"
 
-#include "axom/slic/interface/slic.hpp"  // for slic logging macros
+#include "axom/slic/interface/slic.hpp"
 
 namespace axom
 {
@@ -44,9 +44,9 @@ struct ExternalStoragePolicy
    */
   template <typename Func>
   T* reallocate(T* AXOM_UNUSED_PARAM(old_data),
-                int old_capacity,
+                IndexType old_capacity,
                 int AXOM_UNUSED_PARAM(allocator_id),
-                int new_capacity,
+                IndexType new_capacity,
                 Func&& AXOM_UNUSED_PARAM(nontrivial_move))
   {
     if(old_capacity != new_capacity)
@@ -67,21 +67,17 @@ struct ExternalStoragePolicy
 /*!
  * \class ExternalArray
  *
- * \brief Provides a generic multi-component array, constructed from external
- *  storage.
+ * \brief Provides a generic multi-component array, constructed from external storage
  *
  *  This ExternalArray class extends axom::Array by storing data in an
  *  externally-owned buffer. This class provides a generic multi-component
  *  array container with dynamic resizing and insertion. Each element in the
- *  array is a tuple consisting of 1 or more components, which are stored
- *  contiguously.
+ *  array is a tuple consisting of 1 or more components, which are stored contiguously.
  *
  *  All array operations can be performed as with the base axom::Array class,
- *  with the exception of operations that require reallocation of the
- *  underlying buffer.
+ *  with the exception of operations that require reallocation of the underlying buffer.
  *
- * \note When the Array object is deleted, it does not delete the associated
- *  data.
+ * \note When the Array object is deleted, it does not delete the associated data.
  *
  * \tparam T the type of the values to hold.
  */

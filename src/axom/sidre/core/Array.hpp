@@ -7,24 +7,22 @@
 #ifndef SIDRE_ARRAY_HPP_
 #define SIDRE_ARRAY_HPP_
 
-#include "axom/core/utilities/Utilities.hpp"  // for memory allocation functions
-#include "axom/core/Array.hpp"                // to inherit
+#include "axom/core/utilities/Utilities.hpp"
+#include "axom/core/Array.hpp"
 #include "axom/core/Types.hpp"
 
-#include "axom/slic/interface/slic.hpp"  // for slic logging macros
+#include "axom/slic/interface/slic.hpp"
 
-#include "View.hpp"    // for View definition
-#include "Buffer.hpp"  // for Buffer definition
+#include "View.hpp"
+#include "Buffer.hpp"
 
-// C/C++ includes
-#include <cstring>  // for std::memcpy
+#include <cstring>
 
 namespace axom
 {
 namespace sidre
 {
-/* Provided so that 0 doesn't convert to nullptr and lead to ambiguous
- * constructor calls. */
+// Provided so that 0 doesn't convert to nullptr and lead to ambiguous constructor calls
 namespace internal
 {
 constexpr axom::IndexType ZERO = 0;
@@ -116,9 +114,9 @@ struct SidreStoragePolicy
    */
   template <typename Func>
   T* reallocate(T* AXOM_UNUSED_PARAM(old_data),
-                int AXOM_UNUSED_PARAM(old_capacity),
+                IndexType AXOM_UNUSED_PARAM(old_capacity),
                 int AXOM_UNUSED_PARAM(allocator_id),
-                int new_capacity,
+                IndexType new_capacity,
                 Func&& AXOM_UNUSED_PARAM(nontrivial_move))
   {
     if(m_view->isEmpty())

@@ -70,20 +70,19 @@ struct DefaultStoragePolicy
    * \param [in] old_capacity the capacity of the currently allocated buffer
    * \param [in] allocator_id the allocator ID to use
    * \param [in] new_capacity the capacity to allocate
-   * \param [in] nontrivial_move a callback to move elements that aren't
-   *  trivially copyable
+   * \param [in] nontrivial_move a callback to move elements that aren't trivially copyable
    *
    * \return a pointer to the new buffer with moved elements
    */
   template <typename Func>
   T* reallocate(T* old_data,
-                int AXOM_UNUSED_PARAM(old_capacity),
+                IndexType AXOM_UNUSED_PARAM(old_capacity),
                 int allocator_id,
-                int new_capacity,
+                IndexType new_capacity,
                 Func&& nontrivial_move)
   {
     // Create a new block of memory, and move the elements over.
-    T* new_data = axom::allocate<T>(new_capacity, allocator_id);
+    T* new_data = axom::allocate<T>(static_cast<std::size_t>(new_capacity), allocator_id);
     nontrivial_move(new_data);
 
     // Destroy the original array.
@@ -1849,8 +1848,9 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::dynamicRealloc(IndexType new_nu
 
   // Using resize strategy from LLVM libc++ (vector::__recommend()):
   //   new_capacity = max(capacity() * resize_ratio, new_num_elements)
-  IndexType new_capacity =
-    axom::utilities::max<IndexType>(this->capacity() * m_resize_ratio + 0.5, new_num_elements);
+  const IndexType recommended_capacity =
+    static_cast<IndexType>(this->capacity() * m_resize_ratio + 0.5);
+  IndexType new_capacity = axom::utilities::max<IndexType>(recommended_capacity, new_num_elements);
   const IndexType block_size = this->blockSize();
   const IndexType remainder = new_capacity % block_size;
   if(remainder != 0)
