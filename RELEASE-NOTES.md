@@ -28,7 +28,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: Adds OMP support for fast GWN methods for STL/Triangulated STEP input and linearized NURBS Curve input.
 - Klee: Adds an optional "center" parameter in scale operators that permits scaling relative to a custom center point.
 - Bump: The `MergeMeshes` class was enhanced so it supports material-dependent/mixed Blueprint fields that are "element-associated". These fields contain per-material values for the materials in a zone.
-- Bump: Added `axom::bump::views::dispatch_material_field()` function (and related functions) for creating a material view of a material-dependent or mixed field.
+- Bump: Added `axom::bump::views::dispatch_material_field()` function (and related functions) for creating a material view and a material-dependent or mixed field view.
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.

@@ -177,12 +177,12 @@ materials for each zone.
    :end-before: _bump_views_matsetview_end
    :language: C++
 
-Mixed (or material-dependent) fields are also supported using BUMP's material views. This is done
-because these fields' data are arranged in the same manner as their related matset, leading to
-multiple representations. The material views are initialized normally from matset data, except
-field values from the field's ``matset_values`` node are used instead of the matset's
-``volume_fractions`` node. The ``axom::bump::views::dispatch_material_field()`` function can be
-used to simplify handling mixed fields.
+Mixed (or material-dependent) fields are supported using `axom::bump::views::MixedFieldView`.
+Mixed field data are arranged in the same manner as their related matset, leading to
+multiple representations. This class is used in conjunction with a material view with the material
+view providing the iterators that are used for traversal and the mixed field view for accessing
+the field values.  The ``axom::bump::views::dispatch_material_field()`` function can be
+used to simplify creating mixed field views.
 
 ----------
 Dispatch
