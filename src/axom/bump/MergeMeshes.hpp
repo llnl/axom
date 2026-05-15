@@ -1563,8 +1563,8 @@ public:
   template <typename FuncType>
   void dispatchMixedField(conduit::Node &n_matset, conduit::Node &n_field, FuncType &&func)
   {
-    axom::bump::views::dispatch_material_field(n_matset, n_field, [&](auto matsetView) {
-      func(matsetView);
+    axom::bump::views::dispatch_material_field(n_matset, n_field, [&](auto matsetView, auto mixedFieldView) {
+      func(matsetView, mixedFieldView);
     });
   }
 };
@@ -1637,8 +1637,8 @@ public:
   template <typename FuncType>
   void dispatchMixedField(conduit::Node &n_matset, conduit::Node &n_field, FuncType &&func)
   {
-    axom::bump::views::dispatch_material_unibuffer_field(n_matset, n_field, [&](auto matsetView) {
-      func(matsetView);
+    axom::bump::views::dispatch_material_unibuffer_field(n_matset, n_field, [&](auto matsetView, auto mixedFieldView) {
+      func(matsetView, mixedFieldView);
     });
   }
 };
@@ -2268,10 +2268,9 @@ private:
               conduit::Node &n_matset = n_matsets.fetch_existing(matsetName);
               // Get the source field.
               conduit::Node &n_src_field = inputs[i].m_input->fetch_existing(srcFieldPath);
-
               // Dispatch the source mixed field.
-              disp.dispatchMixedField(n_matset, n_src_field, [&](auto srcMatsetView) {
-                This->mergeMixedField_copy(srcMatsetView, matsetValuesView, offsetsView, nzones, zOffset);
+              disp.dispatchMixedField(n_matset, n_src_field, [&](auto srcMatsetView, auto srcMixedFieldView) {
+                This->mergeMixedField_copy(srcMatsetView, srcMixedFieldView, matsetValuesView, offsetsView, nzones, zOffset);
               });
             }
             else
@@ -2287,15 +2286,17 @@ private:
   /*!
    * \brief Copy a mixed field from the \a srcMatsetView into the output \a mixedFieldView.
    *
-   * \param srcMatsetView The input matset view that contains the field, accessible as "volume_fraction".
-   * \param[out] mixedFieldView The output view that contains the merged field.
+   * \param srcMatsetView The input matset view that is used to traverse materials.
+   * \param srcMixedFieldView The input mixed field view that contains the field data for the materials.
+   * \param[out] outputView The output view that contains the merged field.
    * \param offsetsView The offsets view that contains the offsets for the output zones.
    * \param nzones The number of zones in the current input.
    * \param zOffset The starting offset in the output mixed field view.
    */
-  template <typename MatsetView, typename MixedFieldView, typename OffsetsView>
-  void mergeMixedField_copy(MatsetView srcMatsetView,
-                            MixedFieldView mixedFieldView,
+  template <typename SourceMatsetView, typename SourceMixedFieldView, typename OutputFieldView, typename OffsetsView>
+  void mergeMixedField_copy(SourceMatsetView srcMatsetView,
+                            SourceMixedFieldView srcMixedFieldView,
+                            OutputFieldView outputView,
                             OffsetsView offsetsView,
                             axom::IndexType nzones,
                             axom::IndexType zOffset) const
@@ -2312,8 +2313,8 @@ private:
         for(axom::IndexType mi = 0; mi < nmats; mi++, zoneMat++)
         {
           const auto destIndex = zoneStart + mi;
-          // NOTE: We are using the "volume_fraction" from that MatsetView as the mixed field value.
-          mixedFieldView[destIndex] = zoneMat.volume_fraction();
+          // Copy the value for the zoneMat from the mixed field view into the output.
+          outputView[destIndex] = srcMixedFieldView.value(zoneMat);
         }
       });
   }

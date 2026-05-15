@@ -45,6 +45,17 @@ using MaterialInformation = std::vector<Material>;
  */
 MaterialInformation materials(const conduit::Node &matset);
 
+/*!
+ * \brief This struct can encode some positional information about the material
+ *        view const_iterators.
+ */
+struct IteratorIndex
+{
+  axom::IndexType m_zoneIndex {0};   //!< Which zone we're working on
+  axom::IndexType m_bufferIndex {0}; //!< Which buffer we're working on
+  axom::IndexType m_localIndex {0};  //!< The element in the buffer we're working in
+};
+
 //---------------------------------------------------------------------------
 // Material views - These objects are meant to wrap Blueprint Matsets behind
 //                  an interface that lets us query materials for a single
@@ -222,7 +233,10 @@ public:
       return m_currentIndex != rhs.m_currentIndex || m_zoneIndex != rhs.m_zoneIndex ||
         m_view != rhs.m_view;
     }
-
+    IteratorIndex AXOM_HOST_DEVICE index() const
+    {
+      return IteratorIndex{static_cast<axom::IndexType>(m_zoneIndex), 0, m_index};
+    }
   private:
     DISABLE_DEFAULT_CTOR(const_iterator);
 
@@ -475,6 +489,10 @@ public:
     {
       return m_currentIndex != rhs.m_currentIndex || m_zoneIndex != rhs.m_zoneIndex ||
         m_view != rhs.m_view;
+    }
+    IteratorIndex AXOM_HOST_DEVICE index() const
+    {
+      return IteratorIndex{static_cast<axom::IndexType>(m_zoneIndex), m_currentIndex, m_zoneIndex};
     }
 
   private:
@@ -787,6 +805,10 @@ public:
     {
       return m_miIndex != rhs.m_miIndex || m_index != rhs.m_index ||
         m_zoneIndex != rhs.m_zoneIndex || m_view != rhs.m_view;
+    }
+    IteratorIndex AXOM_HOST_DEVICE index() const
+    {
+      return IteratorIndex{static_cast<axom::IndexType>(m_zoneIndex), m_miIndex, m_index};
     }
 
   private:

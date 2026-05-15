@@ -586,6 +586,8 @@ TEST(bump_views, strided_structured_seq) { test_strided_structured::test(); }
 template <typename ExecSpace>
 struct test_braid2d_mat
 {
+  struct NoMixedFields {};
+
   static void test(const std::string &type, const std::string &mattype, const std::string &name)
   {
     namespace utils = axom::bump::utilities;
@@ -624,14 +626,16 @@ struct test_braid2d_mat
       // clang-format on
       SLIC_INFO("unibuffer: matsetView");
       test_matsetview(nzones, matsetView, allocatorID);
+      test_matsetview_iterators(nzones, matsetView, NoMixedFields {}, allocatorID);
 
       // Test mixed field.
-      const auto mixedFieldView =
-        axom::bump::views::make_unibuffer_matset<int, float, 3>::mixedFieldView(
-          deviceMesh["matsets/mat"],
-          deviceMesh["fields/mixed"]);
-      SLIC_INFO("unibuffer: mixedFieldView");
-      test_matsetview(nzones, mixedFieldView, allocatorID);
+      axom::bump::views::dispatch_material_unibuffer_field(
+        deviceMesh["matsets/mat"],
+        deviceMesh["fields/mixed"],
+        [&](auto matsetView, auto mixedFieldView) {
+          SLIC_INFO("element_dominant: mixedFieldView");
+          test_matsetview_iterators(nzones, matsetView, mixedFieldView, allocatorID);
+        });
     }
     else if(mattype == "element_dominant")
     {
@@ -640,15 +644,16 @@ struct test_braid2d_mat
         [&](auto matsetView) {
           SLIC_INFO("element_dominant: matsetView");
           test_matsetview(nzones, matsetView, allocatorID);
+          test_matsetview_iterators(nzones, matsetView, NoMixedFields {}, allocatorID);
         });
 
       // Test mixed field.
       axom::bump::views::dispatch_material_element_dominant_field(
         deviceMesh["matsets/mat"],
         deviceMesh["fields/mixed"],
-        [&](auto mixedFieldView) {
+        [&](auto matsetView, auto mixedFieldView) {
           SLIC_INFO("element_dominant: mixedFieldView");
-          test_matsetview(nzones, mixedFieldView, allocatorID);
+          test_matsetview_iterators(nzones, matsetView, mixedFieldView, allocatorID);
         });
     }
     else if(mattype == "material_dominant")
@@ -658,15 +663,16 @@ struct test_braid2d_mat
         [&](auto matsetView) {
           SLIC_INFO("material_dominant: matsetView");
           test_matsetview(nzones, matsetView, allocatorID);
+          test_matsetview_iterators(nzones, matsetView, NoMixedFields {}, allocatorID);
         });
 
       // Test mixed field.
       axom::bump::views::dispatch_material_material_dominant_field(
         deviceMesh["matsets/mat"],
         deviceMesh["fields/mixed"],
-        [&](auto mixedFieldView) {
+        [&](auto matsetView, auto mixedFieldView) {
           SLIC_INFO("material_dominant: mixedFieldView");
-          test_matsetview(nzones, mixedFieldView, allocatorID);
+          test_matsetview_iterators(nzones, matsetView, mixedFieldView, allocatorID);
         });
     }
   }
@@ -736,13 +742,10 @@ struct test_braid2d_mat
     {
       EXPECT_EQ(results[i], resultsHost[i]);
     }
-
-    // Test iterators.
-    test_matsetview_iterators(nzones, matsetView, allocatorID);
   }
 
-  template <typename MatsetView>
-  static void test_matsetview_iterators(axom::IndexType nzones, MatsetView matsetView, int allocatorID)
+  template <typename MatsetView, typename MatsetFieldView>
+  static void test_matsetview_iterators(axom::IndexType nzones, MatsetView matsetView, MatsetFieldView fieldView, int allocatorID)
   {
     using ZoneIndex = typename MatsetView::ZoneIndex;
     // Allocate results array on device.
@@ -779,6 +782,20 @@ struct test_braid2d_mat
         {
           eq_count += (vfs[i] == it.volume_fraction() && ids[i] == it.material_id()) ? 1 : 0;
           count++;
+        }
+
+        // If we passed in a mixed field view, make sure its field contains the same
+        // values as the volume fractions. That is how the dataset's fields are
+        // constructed.
+        if constexpr(!std::is_same_v<MatsetFieldView, NoMixedFields>)
+        {
+          int i = 0;
+          for(auto it = matsetView.beginZone(index); it != end; it++, i++)
+          {
+            const auto value = fieldView.value(it);
+            eq_count += (value == it.volume_fraction()) ? 1 : 0;
+            count++;
+          }
         }
 
         // Test ArrayView version of zoneMaterials().

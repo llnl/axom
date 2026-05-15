@@ -54,6 +54,7 @@ set(bump_headers
     views/dispatch_utilities.hpp
     views/ExplicitCoordsetView.hpp
     views/MaterialView.hpp
+    views/MixedFieldView.hpp
     views/NodeArrayView.hpp
     views/RectilinearCoordsetView.hpp
     views/Shapes.hpp

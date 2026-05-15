@@ -35,7 +35,7 @@ inline void verifyMixedField(const conduit::Node &n_field)
  * \tparam FuncType The function/lambda type that will take the matset.
  *
  * \param matset The node that contains the matset.
- * \param values The node that contains the values to be used as volume fractions / field.
+ * \param values The node that contains the values to be used as volume fractions.
  * \param func   The function/lambda that will operate on the matset view.
  *
  * \return true if the dispatch worked, false otherwise.
@@ -101,7 +101,7 @@ IntElement getMaterialID(const conduit::Node &matset,
  * \tparam FuncType The function/lambda type that will take the matset.
  *
  * \param matset The node that contains the matset.
- * \param values_object The node that contains the values object to be used as volume fractions / field.
+ * \param values_object The node that contains the values object to be used as volume fractions.
  * \param func   The function/lambda that will operate on the matset view.
  *
  * \return true if the dispatch worked, false otherwise.
@@ -155,7 +155,7 @@ bool dispatch_material_element_dominant_with_values(const conduit::Node &matset,
  * \tparam FuncType The function/lambda type that will take the matset.
  *
  * \param matset The node that contains the matset.
- * \param values_object The node that contains the values to use as volume fractions / field values and indices.
+ * \param values_object The node that contains the values to use as volume fractions and indices.
  * \param func   The function/lambda that will operate on the matset view.
  *
  * \return true if the dispatch worked, false otherwise.
@@ -241,32 +241,6 @@ struct make_unibuffer_matset
     MatsetView m;
     m.set(utils::make_array_view<IntType>(n_matset["material_ids"]),
           utils::make_array_view<FloatType>(n_matset["volume_fractions"]),
-          utils::make_array_view<IntType>(n_matset["sizes"]),
-          utils::make_array_view<IntType>(n_matset["offsets"]),
-          utils::make_array_view<IntType>(n_matset["indices"]));
-    return m;
-  }
-
-  /*!
-   * \brief Wrap the Conduit matset and field nodes as a unibuffer matset view
-   *        so we can traverse the field using material machinery. The field
-   *        data will be accessible as the volume component in the matset view.
-   *
-   * \param n_matset The Conduit node that contains the matset.
-   * \param n_field The Conduit node that contains the mixed field; its format
-   *                must match that of the matset.
-   *
-   * \return A UnibufferMaterialView.
-   */
-  static MatsetView mixedFieldView(const conduit::Node &n_matset, const conduit::Node &n_field)
-  {
-    namespace utils = axom::bump::utilities;
-    verify(n_matset, "matset");
-    detail::verifyMixedField(n_field);
-    // NOTE: further field length and type checking happens in the MatsetView.
-    MatsetView m;
-    m.set(utils::make_array_view<IntType>(n_matset["material_ids"]),
-          utils::make_array_view<FloatType>(n_field["matset_values"]),
           utils::make_array_view<IntType>(n_matset["sizes"]),
           utils::make_array_view<IntType>(n_matset["offsets"]),
           utils::make_array_view<IntType>(n_matset["indices"]));
