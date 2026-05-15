@@ -1563,9 +1563,10 @@ public:
   template <typename FuncType>
   void dispatchMixedField(conduit::Node &n_matset, conduit::Node &n_field, FuncType &&func)
   {
-    axom::bump::views::dispatch_material_field(n_matset, n_field, [&](auto matsetView, auto mixedFieldView) {
-      func(matsetView, mixedFieldView);
-    });
+    axom::bump::views::dispatch_material_field(
+      n_matset,
+      n_field,
+      [&](auto matsetView, auto mixedFieldView) { func(matsetView, mixedFieldView); });
   }
 };
 
@@ -1637,9 +1638,10 @@ public:
   template <typename FuncType>
   void dispatchMixedField(conduit::Node &n_matset, conduit::Node &n_field, FuncType &&func)
   {
-    axom::bump::views::dispatch_material_unibuffer_field(n_matset, n_field, [&](auto matsetView, auto mixedFieldView) {
-      func(matsetView, mixedFieldView);
-    });
+    axom::bump::views::dispatch_material_unibuffer_field(
+      n_matset,
+      n_field,
+      [&](auto matsetView, auto mixedFieldView) { func(matsetView, mixedFieldView); });
   }
 };
 
@@ -2269,9 +2271,16 @@ private:
               // Get the source field.
               conduit::Node &n_src_field = inputs[i].m_input->fetch_existing(srcFieldPath);
               // Dispatch the source mixed field.
-              disp.dispatchMixedField(n_matset, n_src_field, [&](auto srcMatsetView, auto srcMixedFieldView) {
-                This->mergeMixedField_copy(srcMatsetView, srcMixedFieldView, matsetValuesView, offsetsView, nzones, zOffset);
-              });
+              disp.dispatchMixedField(n_matset,
+                                      n_src_field,
+                                      [&](auto srcMatsetView, auto srcMixedFieldView) {
+                                        This->mergeMixedField_copy(srcMatsetView,
+                                                                   srcMixedFieldView,
+                                                                   matsetValuesView,
+                                                                   offsetsView,
+                                                                   nzones,
+                                                                   zOffset);
+                                      });
             }
             else
             {

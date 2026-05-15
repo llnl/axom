@@ -586,7 +586,8 @@ TEST(bump_views, strided_structured_seq) { test_strided_structured::test(); }
 template <typename ExecSpace>
 struct test_braid2d_mat
 {
-  struct NoMixedFields {};
+  struct NoMixedFields
+  { };
 
   static void test(const std::string &type, const std::string &mattype, const std::string &name)
   {
@@ -745,7 +746,10 @@ struct test_braid2d_mat
   }
 
   template <typename MatsetView, typename MatsetFieldView>
-  static void test_matsetview_iterators(axom::IndexType nzones, MatsetView matsetView, MatsetFieldView fieldView, int allocatorID)
+  static void test_matsetview_iterators(axom::IndexType nzones,
+                                        MatsetView matsetView,
+                                        MatsetFieldView fieldView,
+                                        int allocatorID)
   {
     using ZoneIndex = typename MatsetView::ZoneIndex;
     // Allocate results array on device.

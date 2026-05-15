@@ -32,8 +32,7 @@ bool dispatch_unibuffer_field(const conduit::Node &n_field, FuncType &&func)
   const conduit::Node &matset_values = n_field["matset_values"];
   SLIC_ERROR_IF(!matset_values.dtype().is_number(), "The matset_values must be a number.");
   // NOTE: For now support float, double types.
-  axom::bump::views::floatNodeToArrayView(matset_values, [&](auto valuesView)
-  {
+  axom::bump::views::floatNodeToArrayView(matset_values, [&](auto valuesView) {
     using FieldT = typename decltype(valuesView)::value_type;
     MixedFieldView<MatsetView, FieldT> mixedFieldView;
     mixedFieldView.traits().set(valuesView);
@@ -58,8 +57,7 @@ bool dispatch_multibuffer_field(const conduit::Node &n_field, FuncType &&func)
   const conduit::Node &matset_values = n_field["matset_values"];
   SLIC_ERROR_IF(matset_values.number_of_children() <= 1, "Missing fields in matset_values.");
   // NOTE: For now support float, double types.
-  axom::bump::views::floatNodeToArrayView(matset_values[0], [&](auto firstValuesView)
-  {
+  axom::bump::views::floatNodeToArrayView(matset_values[0], [&](auto firstValuesView) {
     using FieldT = typename decltype(firstValuesView)::value_type;
     MixedFieldView<MatsetView, FieldT> mixedFieldView;
     mixedFieldView.traits().add(firstValuesView);
@@ -73,7 +71,7 @@ bool dispatch_multibuffer_field(const conduit::Node &n_field, FuncType &&func)
   return rv;
 }
 
-} // end namespace detail
+}  // end namespace detail
 
 /*!
  * \brief Dispatch Conduit nodes containing a unibuffer matset and a values array
@@ -93,17 +91,16 @@ bool dispatch_material_unibuffer_field(const conduit::Node &matset,
   verify(matset, "matset");
   detail::verifyMixedField(n_field);
 
-  auto handleMatset = [&](auto matsetView)
-  {
+  auto handleMatset = [&](auto matsetView) {
     using MatsetView = decltype(matsetView);
-    detail::dispatch_unibuffer_field<MatsetView>(n_field, [&](auto mixedFieldView)
-    {
+    detail::dispatch_unibuffer_field<MatsetView>(n_field, [&](auto mixedFieldView) {
       func(matsetView, mixedFieldView);
     });
   };
-  
+
   return dispatch_material_unibuffer<decltype(handleMatset), MAXMATERIALS>(
-    matset, std::forward<decltype(handleMatset)>(handleMatset));
+    matset,
+    std::forward<decltype(handleMatset)>(handleMatset));
 }
 
 /*!
@@ -123,17 +120,16 @@ bool dispatch_material_element_dominant_field(const conduit::Node &matset,
 {
   verify(matset, "matset");
   detail::verifyMixedField(n_field);
-  auto handleMatset = [&](auto matsetView)
-  {
+  auto handleMatset = [&](auto matsetView) {
     using MatsetView = decltype(matsetView);
-    detail::dispatch_multibuffer_field<MatsetView>(n_field, [&](auto mixedFieldView)
-    {
+    detail::dispatch_multibuffer_field<MatsetView>(n_field, [&](auto mixedFieldView) {
       func(matsetView, mixedFieldView);
     });
   };
 
   return dispatch_material_element_dominant<decltype(handleMatset), MAXMATERIALS>(
-    matset, std::forward<decltype(handleMatset)>(handleMatset));
+    matset,
+    std::forward<decltype(handleMatset)>(handleMatset));
 }
 
 /*!
@@ -153,17 +149,16 @@ bool dispatch_material_material_dominant_field(const conduit::Node &matset,
 {
   verify(matset, "matset");
   detail::verifyMixedField(n_field);
-  auto handleMatset = [&](auto matsetView)
-  {
+  auto handleMatset = [&](auto matsetView) {
     using MatsetView = decltype(matsetView);
-    detail::dispatch_multibuffer_field<MatsetView>(n_field, [&](auto mixedFieldView)
-    {
+    detail::dispatch_multibuffer_field<MatsetView>(n_field, [&](auto mixedFieldView) {
       func(matsetView, mixedFieldView);
     });
   };
 
   return dispatch_material_material_dominant<decltype(handleMatset), MAXMATERIALS>(
-    matset, std::forward<decltype(handleMatset)>(handleMatset));
+    matset,
+    std::forward<decltype(handleMatset)>(handleMatset));
 }
 
 /*!

@@ -51,9 +51,9 @@ MaterialInformation materials(const conduit::Node &matset);
  */
 struct IteratorIndex
 {
-  axom::IndexType m_zoneIndex {0};   //!< Which zone we're working on
-  axom::IndexType m_bufferIndex {0}; //!< Which buffer we're working on
-  axom::IndexType m_localIndex {0};  //!< The element in the buffer we're working in
+  axom::IndexType m_zoneIndex {0};    //!< Which zone we're working on
+  axom::IndexType m_bufferIndex {0};  //!< Which buffer we're working on
+  axom::IndexType m_localIndex {0};   //!< The element in the buffer we're working in
 };
 
 //---------------------------------------------------------------------------
@@ -235,8 +235,9 @@ public:
     }
     IteratorIndex AXOM_HOST_DEVICE index() const
     {
-      return IteratorIndex{static_cast<axom::IndexType>(m_zoneIndex), 0, m_index};
+      return IteratorIndex {static_cast<axom::IndexType>(m_zoneIndex), 0, m_index};
     }
+
   private:
     DISABLE_DEFAULT_CTOR(const_iterator);
 
@@ -492,7 +493,7 @@ public:
     }
     IteratorIndex AXOM_HOST_DEVICE index() const
     {
-      return IteratorIndex{static_cast<axom::IndexType>(m_zoneIndex), m_currentIndex, m_zoneIndex};
+      return IteratorIndex {static_cast<axom::IndexType>(m_zoneIndex), m_currentIndex, m_zoneIndex};
     }
 
   private:
@@ -808,7 +809,7 @@ public:
     }
     IteratorIndex AXOM_HOST_DEVICE index() const
     {
-      return IteratorIndex{static_cast<axom::IndexType>(m_zoneIndex), m_miIndex, m_index};
+      return IteratorIndex {static_cast<axom::IndexType>(m_zoneIndex), m_miIndex, m_index};
     }
 
   private:
