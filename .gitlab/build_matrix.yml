@@ -42,8 +42,6 @@ matrix-gcc_13_3_1_cuda-src:
     COMPILER: "gcc@13.3.1_cuda"
     HOST_CONFIG: "matrix-toss_4_x86_64_ib-${COMPILER}.cmake"
   extends: .src_build_on_matrix
-  # TODO: Fix unit tests failures
-  allow_failure: true
 
 ####
 # Full Build jobs
