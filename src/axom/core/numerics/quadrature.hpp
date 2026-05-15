@@ -10,9 +10,12 @@
 #include "axom/core/Array.hpp"
 #include "axom/core/memory_management.hpp"
 
+#include <complex>
+#include <vector>
+
 /*!
  * \file quadrature.hpp
- * The functions declared in this header file find the nodes and weights of 
+ * The functions declared in this header file find the nodes and weights of
  *   arbitrary order quadrature rules
  */
 
@@ -30,6 +33,7 @@ class QuadratureRule
 {
   // Define friend functions so rules can only be created via get_rule() methods
   friend QuadratureRule get_gauss_legendre(int, int);
+  friend QuadratureRule get_rational_fejer(const std::vector<std::complex<double>>&, int);
 
 public:
   //! \brief Accessor for the full array of quadrature nodes
@@ -63,17 +67,17 @@ private:
 };
 
 /*!
- * \brief Computes a 1D quadrature rule of Gauss-Legendre points 
+ * \brief Computes a 1D quadrature rule of Gauss-Legendre points
  *
  * \param [in] npts The number of points in the rule
  * \param [out] nodes The array of 1D nodes
  * \param [out] weights The array of weights
- * 
+ *
  * A Gauss-Legendre rule with \a npts points can exactly integrate
  *  polynomials of order 2 * npts - 1
  *
  * Algorithm adapted from the MFEM implementation in `mfem/fem/intrules.cpp`
- * 
+ *
  * \note This method constructs the points by scratch each time, without caching
  * \sa get_gauss_legendre(int)
  */
@@ -83,10 +87,10 @@ void compute_gauss_legendre_data(int npts,
                                  int allocatorID = axom::getDefaultAllocatorID());
 
 /*!
- * \brief Computes or accesses a precomputed 1D quadrature rule of Gauss-Legendre points 
+ * \brief Computes or accesses a precomputed 1D quadrature rule of Gauss-Legendre points
  *
  * \param [in] npts The number of points in the rule
- * 
+ *
  * A Gauss-Legendre rule with \a npts points can exactly integrate
  *  polynomials of order 2 * npts - 1
  *
@@ -96,6 +100,74 @@ void compute_gauss_legendre_data(int npts,
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
  */
 QuadratureRule get_gauss_legendre(int npts, int allocatorID = axom::getDefaultAllocatorID());
+
+/*!
+ * \brief Computes a 1D rational Fejer quadrature rule on [0, 1]
+ *
+ * \param [in] poles01 The pole sequence in the [0, 1] parameter domain.
+ *   Finite poles must lie outside [0, 1]. Infinite poles may be supplied as
+ *   `std::complex<double>(inf, 0.)`.
+ * \param [out] nodes The array of 1D nodes on [0, 1]
+ * \param [out] weights The array of weights on [0, 1]
+ *
+ * This rule implements the extended rational Fejer construction of
+ * Deckers, Mougaida, and Belhadjsalah, "Algorithm 973: Extended Rational
+ * Fejer Quadrature Rules Based on Chebyshev Orthogonal Rational Functions"
+ * (ACM TOMS, 2017). Internally, Axom first builds the companion rational
+ * Chebyshev rule on [-1, 1], following the fixed-pole rational
+ * Gauss-Chebyshev / near-best interpolation construction of van Deun,
+ * Deckers, Bultheel, and Weideman, "Algorithm 882" (ACM TOMS, 2008),
+ * and then rescales the resulting nodes and weights to [0, 1].
+ *
+ * Fejer quadrature is closely related to Clenshaw-Curtis quadrature: both are
+ * Chebyshev-based families of rules. A standard Clenshaw-Curtis rule uses
+ * Chebyshev extrema and includes the interval endpoints, while a standard Fejer
+ * rule uses interior Chebyshev nodes and excludes the endpoints. The present
+ * routine goes one step further and builds a rational Fejer rule, so the weights
+ * are adapted to a prescribed pole set rather than to the polynomial-only
+ * Chebyshev setting. When all poles are at infinity, this construction reduces
+ * to the standard interior Chebyshev / Fejer rule.
+ *
+ * In the Spectral_PE path for rational Bezier and NURBS curves, as described by
+ * Gunderman et al., "Spectral Mesh-Free Quadrature for Planar Regions Bounded
+ * by Rational Parametric Curves" (CAD, 2020), these poles are the roots of the
+ * segment's scalar weight polynomial `w(t)`, repeated to match the requested
+ * exactness, plus any optional poles at infinity. In that setting, Spectral_PE
+ * is the polynomially exact variant: for polynomial integrands and a valid pole
+ * construction, the resulting planar rule is exact up to the requested degree.
+ * Those roots are generally off
+ * the real interval `[0, 1]`: they are singularities of the rational
+ * continuation in the complex parameter plane, not necessarily visible
+ * singularities on the geometric curve itself.
+ *
+ * \note This method constructs the points from scratch each time, without caching.
+ * \sa get_rational_fejer(const std::vector<std::complex<double>>&, int)
+ */
+void compute_rational_fejer_data(const std::vector<std::complex<double>>& poles01,
+                                 axom::Array<double>& nodes,
+                                 axom::Array<double>& weights,
+                                 int allocatorID = axom::getDefaultAllocatorID());
+
+/*!
+ * \brief Computes or accesses a cached 1D rational Fejer quadrature rule on [0, 1]
+ *
+ * \param [in] poles01 The pole sequence in the [0, 1] parameter domain.
+ *
+ * \note If this method has already been called for the same pole sequence and allocator,
+ *  it will reuse the same quadrature data without recomputing it.
+ * \note Although rational Fejer is Chebyshev-based like Clenshaw-Curtis, the
+ *  cached rule here is keyed by the explicit pole sequence, since the pole data
+ *  changes the exactness space and therefore the resulting weights.
+ *
+ * For Spectral_PE, this cache is effective because the pole sequence is built
+ * deterministically from the sorted roots of the Bezier weight polynomial for
+ * each segment. The cache key uses the exact computed complex values, so
+ * numerically nearby-but-not-identical pole sets will not alias.
+ *
+ * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
+ */
+QuadratureRule get_rational_fejer(const std::vector<std::complex<double>>& poles01,
+                                  int allocatorID = axom::getDefaultAllocatorID());
 
 } /* end namespace numerics */
 } /* end namespace axom */

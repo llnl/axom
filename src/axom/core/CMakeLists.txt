@@ -36,6 +36,7 @@ set(core_headers
 
     ## numerics
     numerics/internal/matrix_norms.hpp
+    numerics/internal/rational_quadrature.hpp
 
     numerics/Determinants.hpp
     numerics/LU.hpp
@@ -108,6 +109,7 @@ set(core_sources
     utilities/Utilities.cpp
     ${PROJECT_BINARY_DIR}/axom/core/utilities/About.cpp
 
+    numerics/internal/rational_quadrature.cpp
     numerics/polynomial_solvers.cpp
     numerics/quadrature.cpp
 
