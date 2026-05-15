@@ -93,7 +93,7 @@ void pad_poles_with_infinities(axom::Array<Complex>& poles, int total_poles)
 
 struct RationalFejerDiagnosticsSummary
 {
-  double min_rcheb_weight {0.0};
+  double min_rational_chebyshev_weight {0.0};
   double min_final_weight_m11 {0.0};
   double max_abs_final_weight_m11 {0.0};
   double sum_final_weights_m11 {0.0};
@@ -104,13 +104,14 @@ RationalFejerDiagnosticsSummary summarize_rule_diagnostics(
   const numerics_internal::RationalFejerDiagnostics& diagnostics)
 {
   RationalFejerDiagnosticsSummary summary;
-  summary.min_rcheb_weight = axom::numeric_limits<double>::infinity();
+  summary.min_rational_chebyshev_weight = axom::numeric_limits<double>::infinity();
   summary.min_final_weight_m11 = axom::numeric_limits<double>::infinity();
 
-  for(int i = 0; i < diagnostics.rcheb_weights_m11.size(); ++i)
+  for(int i = 0; i < diagnostics.rational_chebyshev_weights_m11.size(); ++i)
   {
-    summary.min_rcheb_weight =
-      axom::utilities::min(summary.min_rcheb_weight, diagnostics.rcheb_weights_m11[i]);
+    summary.min_rational_chebyshev_weight =
+      axom::utilities::min(summary.min_rational_chebyshev_weight,
+                           diagnostics.rational_chebyshev_weights_m11[i]);
   }
 
   for(int i = 0; i < diagnostics.final_weights_m11.size(); ++i)
@@ -140,11 +141,11 @@ RationalFejerDiagnosticsSummary compute_rule_diagnostics_summary(axom::ArrayView
   return summarize_rule_diagnostics(diagnostics);
 }
 
-void compute_rcheb_rule_m11(axom::ArrayView<const Complex> poles_m11,
-                            axom::Array<double>& nodes,
-                            axom::Array<double>& weights)
+void compute_rational_chebyshev_rule_m11(axom::ArrayView<const Complex> poles_m11,
+                                         axom::Array<double>& nodes,
+                                         axom::Array<double>& weights)
 {
-  numerics_internal::compute_rcheb_data_m11(poles_m11, nodes, weights);
+  numerics_internal::compute_rational_chebyshev_data_m11(poles_m11, nodes, weights);
 }
 
 void compute_rational_fejer_rule_m11(axom::ArrayView<const Complex> poles_m11,
@@ -424,23 +425,23 @@ TEST(numerics_quadrature, rotor_pole_family_stays_healthy_until_infinite_padding
   const auto summary48 = summary_for_total_poles(48);
   const auto summary64 = summary_for_total_poles(64);
 
-  EXPECT_GT(summary24.min_rcheb_weight, 0.0);
+  EXPECT_GT(summary24.min_rational_chebyshev_weight, 0.0);
   EXPECT_GT(summary24.min_final_weight_m11, 0.0);
   EXPECT_NEAR(summary24.sum_final_weights_m11, 2.0, 1e-10);
   EXPECT_LT(summary24.max_abs_basis_coefficient, 10.0);
 
   // The first observed breakdown for this rotor pole family occurs when the
   // same three finite poles are padded to 32 total poles with infinities.
-  EXPECT_GT(summary32.min_rcheb_weight, 0.0);
+  EXPECT_GT(summary32.min_rational_chebyshev_weight, 0.0);
   EXPECT_LT(summary32.min_final_weight_m11, 0.0);
   EXPECT_NEAR(summary32.sum_final_weights_m11, 2.0, 1e-10);
   EXPECT_GT(summary32.max_abs_basis_coefficient, 10.0);
 
-  EXPECT_GT(summary48.min_rcheb_weight, 0.0);
+  EXPECT_GT(summary48.min_rational_chebyshev_weight, 0.0);
   EXPECT_LT(summary48.min_final_weight_m11, -1e6);
   EXPECT_GT(summary48.max_abs_basis_coefficient, 1e8);
 
-  EXPECT_GT(summary64.min_rcheb_weight, 0.0);
+  EXPECT_GT(summary64.min_rational_chebyshev_weight, 0.0);
   EXPECT_LT(summary64.min_final_weight_m11, -1e10);
   EXPECT_GT(std::abs(summary64.sum_final_weights_m11 - 2.0), 1e-2);
   EXPECT_GT(summary64.max_abs_basis_coefficient, 1e12);
@@ -467,20 +468,20 @@ TEST(numerics_quadrature, rotor_pole_family_shows_infinite_padding_drives_instab
   pad_poles_with_infinities(repeated_padded_poles01, 64);
   const auto repeated_padded_summary = make_summary(repeated_padded_poles01);
 
-  EXPECT_GT(unique_summary.min_rcheb_weight, 0.0);
+  EXPECT_GT(unique_summary.min_rational_chebyshev_weight, 0.0);
   EXPECT_GT(unique_summary.min_final_weight_m11, 0.0);
   EXPECT_NEAR(unique_summary.sum_final_weights_m11, 2.0, 1e-10);
 
-  EXPECT_GT(repeated_summary.min_rcheb_weight, 0.0);
+  EXPECT_GT(repeated_summary.min_rational_chebyshev_weight, 0.0);
   EXPECT_GT(repeated_summary.min_final_weight_m11, 0.0);
   EXPECT_NEAR(repeated_summary.sum_final_weights_m11, 2.0, 1e-10);
 
-  EXPECT_GT(padded_summary.min_rcheb_weight, 0.0);
+  EXPECT_GT(padded_summary.min_rational_chebyshev_weight, 0.0);
   EXPECT_LT(padded_summary.min_final_weight_m11, -1e6);
   EXPECT_GT(std::abs(padded_summary.sum_final_weights_m11 - 2.0), 1e-2);
   EXPECT_GT(padded_summary.max_abs_basis_coefficient, 1e12);
 
-  EXPECT_GT(repeated_padded_summary.min_rcheb_weight, 0.0);
+  EXPECT_GT(repeated_padded_summary.min_rational_chebyshev_weight, 0.0);
   EXPECT_LT(repeated_padded_summary.min_final_weight_m11, -1e6);
   EXPECT_GT(std::abs(repeated_padded_summary.sum_final_weights_m11 - 2.0), 1e-2);
   EXPECT_GT(repeated_padded_summary.max_abs_basis_coefficient, 1e12);
@@ -489,7 +490,7 @@ TEST(numerics_quadrature, rotor_pole_family_shows_infinite_padding_drives_instab
   EXPECT_LT(repeated_padded_summary.min_final_weight_m11, repeated_summary.min_final_weight_m11);
 }
 
-TEST(numerics_quadrature, rcheb_internal_matches_vandeun_pure_imaginary_poles_example)
+TEST(numerics_quadrature, rational_chebyshev_internal_matches_vandeun_pure_imaginary_poles_example)
 {
   axom::Array<Complex> poles_m11;
   for(int j = 1; j <= 10; ++j)
@@ -500,7 +501,7 @@ TEST(numerics_quadrature, rcheb_internal_matches_vandeun_pure_imaginary_poles_ex
 
   axom::Array<double> nodes;
   axom::Array<double> weights;
-  compute_rcheb_rule_m11(poles_m11, nodes, weights);
+  compute_rational_chebyshev_rule_m11(poles_m11, nodes, weights);
 
   ASSERT_EQ(nodes.size(), poles_m11.size());
   ASSERT_EQ(weights.size(), poles_m11.size());
@@ -519,7 +520,8 @@ TEST(numerics_quadrature, rcheb_internal_matches_vandeun_pure_imaginary_poles_ex
   EXPECT_NEAR(weight_sum, pi, 1e-10);
 }
 
-TEST(numerics_quadrature, rcheb_internal_all_infinite_poles_reduces_to_chebyshev_first_kind)
+TEST(numerics_quadrature,
+     rational_chebyshev_internal_all_infinite_poles_reduces_to_chebyshev_first_kind)
 {
   constexpr int pole_count = 6;
   axom::Array<Complex> poles_m11;
@@ -531,7 +533,7 @@ TEST(numerics_quadrature, rcheb_internal_all_infinite_poles_reduces_to_chebyshev
 
   axom::Array<double> nodes;
   axom::Array<double> weights;
-  compute_rcheb_rule_m11(poles_m11, nodes, weights);
+  compute_rational_chebyshev_rule_m11(poles_m11, nodes, weights);
 
   ASSERT_EQ(static_cast<int>(nodes.size()), pole_count);
   ASSERT_EQ(static_cast<int>(weights.size()), pole_count);
@@ -544,7 +546,7 @@ TEST(numerics_quadrature, rcheb_internal_all_infinite_poles_reduces_to_chebyshev
   }
 }
 
-TEST(numerics_quadrature, rcheb_internal_matches_vandeun_boundary_layer_application_poles)
+TEST(numerics_quadrature, rational_chebyshev_internal_matches_vandeun_boundary_layer_application_poles)
 {
   axom::Array<Complex> poles_m11 = {{0.0, 0.0403},
                                     {0.0, -0.0403},
@@ -563,7 +565,7 @@ TEST(numerics_quadrature, rcheb_internal_matches_vandeun_boundary_layer_applicat
 
   axom::Array<double> nodes;
   axom::Array<double> weights;
-  compute_rcheb_rule_m11(poles_m11, nodes, weights);
+  compute_rational_chebyshev_rule_m11(poles_m11, nodes, weights);
 
   ASSERT_EQ(nodes.size(), poles_m11.size());
   ASSERT_EQ(weights.size(), poles_m11.size());

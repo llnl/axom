@@ -57,11 +57,15 @@ struct RationalFejerRuleStorage
 
 class Pole
 {
+  // Lightweight wrapper for poles in the reference [-1,1] domain. Keeping the
+  // pole-specific tolerance checks, infinity normalization, and Cayley map here
+  // avoids scattering those numerical conventions through the construction.
 public:
   Pole() = default;
   Pole(double real, double imag) : m_value(real, imag) { }
   explicit Pole(const Complex& value) : m_value(value) { }
 
+  // Finite poles with very large magnitude are treated as this infinity sentinel.
   static Pole infinity() { return Pole {std::numeric_limits<double>::infinity(), 0.0}; }
 
   double real() const { return m_value.real(); }
@@ -75,6 +79,8 @@ public:
 
   bool isEffectivelyReal(double tol) const { return std::abs(m_value.imag()) <= tol; }
 
+  // Compare poles using relative distance when possible, with explicit handling
+  // for zero and infinity so duplicate poles can be canonicalized robustly.
   bool closeTo(const Pole& other, double tol) const
   {
     if(isInfinite() || other.isInfinite())
@@ -95,6 +101,8 @@ public:
     return isInfinite() || std::abs(m_value) >= threshold ? Pole::infinity() : *this;
   }
 
+  // Rational Chebyshev formulas group conjugate pairs by upper-half-plane
+  // representatives before they are expanded back into real-valued components.
   Pole withPositiveImaginaryMagnitude() const
   {
     return Pole {Complex {m_value.real(), std::abs(m_value.imag())}};
@@ -104,6 +112,8 @@ public:
 
   Complex cayleyTransform() const
   {
+    // Map poles outside [-1,1] into the unit disk. Infinite poles map to the
+    // origin, matching the Chebyshev polynomial limit of the rational formulas.
     if(isInfinite())
     {
       return Complex {0.0, 0.0};
@@ -140,7 +150,7 @@ struct DistinctPoleData
   axom::Array<int> multiplicities;
 };
 
-struct RChebPoleData
+struct RationalChebyshevPoleData
 {
   axom::Array<Complex> cayley_poles;
   axom::Array<double> multiplicities;
@@ -161,6 +171,9 @@ inline axom::Array<Pole> makePoleArray(axom::ArrayView<const Complex> pole_value
 
 inline axom::Array<Complex> mapUnitIntervalPolesToM11(axom::ArrayView<const Complex> poles01)
 {
+  // `_m11` denotes the `[-1,1]` interval ("minus-one-to-one"). Public callers
+  // provide poles on `[0,1]`, then the implementation maps them into the
+  // symmetric interval used by the rational Chebyshev and Fejer formulas.
   axom::Array<Complex> poles_m11(poles01.size(), poles01.size());
   for(axom::IndexType i = 0; i < poles01.size(); ++i)
   {
@@ -205,6 +218,10 @@ inline axom::Array<Pole> canonicalizePoleSequence(axom::Array<Pole> poles, doubl
 
     if(!pole.isEffectivelyReal(tol))
     {
+      // The real-valued quadrature rule is built from conjugate-complete
+      // pole blocks. If the caller supplies only one side of a complex pair,
+      // synthesize the missing partner here; repeated poles consume one
+      // matching conjugate per occurrence so multiplicities stay balanced.
       const auto conjugate_pole = pole.conjugate();
       for(int idx = i + 1; idx < num_input_poles; ++idx)
       {
@@ -228,8 +245,8 @@ inline axom::Array<Pole> canonicalizePoleSequence(axom::Array<Pole> poles, doubl
   return result;
 }
 
-// Collapse a sorted pole sequence into distinct representatives plus
-// multiplicities, which is the form consumed by the rcheb/rfejer builders.
+// Collapse a sorted pole sequence into distinct representatives plus multiplicities,
+// which is the form consumed by the rational Chebyshev and rational Fejer builders.
 DistinctPoleData collectDistinctPoles(axom::ArrayView<const Pole> poles, double tol)
 {
   axom::Array<Pole> sorted(poles);
@@ -275,8 +292,8 @@ DistinctPoleData collectDistinctPoles(axom::ArrayView<const Pole> poles, double 
   return distinct;
 }
 
-// Standard interior Chebyshev first-kind rule on [-1,1]. In the rational
-// machinery below, this is the all-infinite-pole limit of the rcheb stage.
+// Standard interior Chebyshev first-kind rule on [-1,1]. In the rational machinery below,
+// this is the all-infinite-pole limit of the rational Chebyshev stage.
 inline void compute_chebyshev_first_kind_data_m11(int n,
                                                   axom::Array<double>& nodes,
                                                   axom::Array<double>& weights)
@@ -356,6 +373,9 @@ inline axom::Array<double> computePoleMomentIntegrals(const Pole& pole,
   {
     const Complex pole_value = pole.value();
     const double c = std::abs(pole_value) - 1.0;
+    // Deckers' moment recurrence is numerically split: near the interval,
+    // integrate forward from the closed-form logarithmic expression; farther
+    // away, use the asymptotic expansion and recurse backward.
     if((c < 1e10 * tol) || (std::log(10.0) * (4 * multiplicity + 50) + 90.0 * std::log(c) < 0.0) ||
        ((multiplicity < 3) && (c < 9.0)))
     {
@@ -418,16 +438,15 @@ inline axom::Array<double> computePoleMomentIntegrals(const Pole& pole,
   }
   return result;
 }
-class RChebHelper
+
+class RationalChebyshevHelper
 {
   // Constructs the rational Chebyshev rule on [-1,1] that underpins the
   // rational Fejer rule. This corresponds to the fixed-pole rational
   // Gauss-Chebyshev / near-best interpolation construction described in
-  // van Deun, Deckers, Bultheel, and Weideman, ACM TOMS 35(2), 2008
-  // (Algorithm 882).
-
+  // van Deun, Deckers, Bultheel, and Weideman, ACM TOMS 35(2), 2008 (Algorithm 882).
 public:
-  explicit RChebHelper(axom::Array<Pole> poles) : m_poles(std::move(poles))
+  explicit RationalChebyshevHelper(axom::Array<Pole> poles) : m_poles(std::move(poles))
   {
     for(auto& pole : m_poles)
     {
@@ -456,6 +475,9 @@ public:
       }
       else
       {
+        // Algorithm 882 treats the last pole specially: after the Cayley map
+        // its real value fixes one endpoint of the phase equation, while the
+        // pole list itself is reflected back to the original x-domain.
         poles.back() = Pole {0.5 * (terminal_cayley_node + 1.0 / terminal_cayley_node), 0.0};
       }
     }
@@ -514,8 +536,12 @@ private:
     axom::Array<double> residual_samples;
   };
 
-  RChebPoleData buildCayleyPoleData(axom::ArrayView<const Pole> poles) const
+  RationalChebyshevPoleData buildCayleyPoleData(axom::ArrayView<const Pole> poles) const
   {
+    // The rational Chebyshev phase and weight formulas use the cyclic pole
+    // sequence (p_1, ..., p_n, p_1, ..., p_{n-1}). We collapse that doubled
+    // list into distinct Cayley-domain poles and multiplicities before
+    // evaluating the angle contributions.
     const axom::IndexType num_duplicated_poles = 2 * poles.size() - 1;
     axom::Array<Pole> duplicated_poles(num_duplicated_poles, num_duplicated_poles);
     for(axom::IndexType i = 0; i < poles.size(); ++i)
@@ -531,7 +557,7 @@ private:
 
     const axom::IndexType num_distinct_poles = distinct_poles.values.size();
 
-    RChebPoleData data;
+    RationalChebyshevPoleData data;
     data.cayley_poles = axom::Array<Complex>(num_distinct_poles, num_distinct_poles);
     data.multiplicities = axom::Array<double>(num_distinct_poles, num_distinct_poles);
     data.radii = axom::Array<double>(num_distinct_poles, num_distinct_poles);
@@ -580,10 +606,10 @@ private:
     return fa == 0.0 || fb == 0.0 || (fa < 0.0 && fb > 0.0) || (fa > 0.0 && fb < 0.0);
   }
 
-  double evaluateThetaResidual(double theta, int num_poles, const RChebPoleData& data) const
+  double evaluateThetaResidual(double theta, int num_poles, const RationalChebyshevPoleData& data) const
   {
-    // This residual is the phase equation whose roots define the rcheb node
-    // angles. Each pole contributes an angle term after the Cayley transform.
+    // This residual is the phase equation whose roots define the rational Chebyshev node angles.
+    // Each pole contributes an angle term after the Cayley transform.
     double value = -(num_poles - 1.0) * theta;
     for(axom::IndexType j = 0; j < data.cayley_poles.size(); ++j)
     {
@@ -595,8 +621,10 @@ private:
     return value;
   }
 
-  ThetaResidualGrid buildThetaResidualGrid(int num_poles, const RChebPoleData& data) const
+  ThetaResidualGrid buildThetaResidualGrid(int num_poles, const RationalChebyshevPoleData& data) const
   {
+    // The residual contains atan2 branch changes, so a dense pre-scan gives the bisection
+    // solve reliable brackets without assuming strict monotonicity at machine precision.
     const double eps_theta = 128.0 * axom::numeric_limits<double>::epsilon();
     const double theta_min = eps_theta;
     const double theta_max = M_PI - eps_theta;
@@ -618,7 +646,7 @@ private:
   // Solve the rational Chebyshev phase condition for one node angle theta.
   // The corresponding quadrature node on [-1,1] is then x = cos(theta).
   bool solveTheta(int num_poles,
-                  const RChebPoleData& data,
+                  const RationalChebyshevPoleData& data,
                   const ThetaResidualGrid& grid,
                   double target,
                   int& bracket_start,
@@ -683,14 +711,14 @@ private:
   }
 
   axom::Array<double> computeWeights(axom::ArrayView<const double> theta,
-                                     const RChebPoleData& data) const
+                                     const RationalChebyshevPoleData& data) const
   {
     const int n = static_cast<int>(theta.size());
     axom::Array<double> weights(n, n);
     weights.fill(1.0);
     for(int i = 0; i < n; ++i)
     {
-      // Evaluate the closed-form rcheb weight denominator at the solved node angle.
+      // Evaluate the closed-form rational Chebyshev weight denominator at the solved node angle.
       double denom = 1.0;
       for(axom::IndexType j = 0; j < data.cayley_poles.size(); ++j)
       {
@@ -715,14 +743,14 @@ private:
   double m_poleTolerance {5.0 * axom::numeric_limits<double>::epsilon()};
 };
 
-// Build the rational Chebyshev rule used as the first stage of the
-// extended rational Fejer construction. Adding a trailing pole at infinity
-// produces the rcheb node set that the rational Fejer weight solve is built on.
-inline void compute_rcheb_data(axom::ArrayView<const Pole> poles_in,
-                               axom::Array<double>& nodes,
-                               axom::Array<double>& weights)
+// Build the rational Chebyshev rule used as the first stage of the extended rational
+// Fejer construction. Adding a trailing pole at infinity produces the rational Chebyshev
+// node set that the rational Fejer weight solve is built on.
+inline void compute_rational_chebyshev_data(axom::ArrayView<const Pole> poles_in,
+                                            axom::Array<double>& nodes,
+                                            axom::Array<double>& weights)
 {
-  RChebHelper helper {axom::Array<Pole>(poles_in)};
+  RationalChebyshevHelper helper {axom::Array<Pole>(poles_in)};
   helper.compute(nodes, weights);
 }
 
@@ -736,7 +764,7 @@ inline void copy_array_to_array(axom::ArrayView<const long double> values,
 
 class RationalFejerBasis
 {
-  // Stores the rational basis sampled at the rcheb nodes so the
+  // Stores the rational basis sampled at the rational Chebyshev nodes so the
   // moment solve and final weight assembly can reuse the same matrix.
   // This corresponds to the orthonormal rational basis used in the
   // Deckers et al. extended rational Fejer construction; QuaHOG provided
@@ -781,6 +809,9 @@ public:
     weighted_row1.fill(0.0L);
 
     const Complex pole_value = pole.value();
+    // A real pole contributes one basis component. A non-real pole contributes
+    // the real and negative-imaginary parts of the same rational factor, which
+    // keeps the eventual quadrature weights real.
     for(int i = 0; i < n; ++i)
     {
       const Complex node_value {m_nodes[i], 0.0};
@@ -893,6 +924,9 @@ public:
       step_diagnostics->a11 = static_cast<double>(a11);
     }
 
+    // The complex-pole case is a tiny 2x2 solve. Pivoting is cheap and prevents
+    // the diagnostics path from depending on which projected row happens to
+    // carry the larger leading coefficient.
     const bool used_pivot = std::abs(a10) > std::abs(a00);
     if(used_pivot)
     {
@@ -942,7 +976,7 @@ public:
   axom::Array<double> assembleWeights(axom::ArrayView<const double> coefficients) const
   {
     // Convert basis coefficients back into point weights by evaluating the
-    // sampled basis expansion and multiplying by the rcheb weights.
+    // sampled basis expansion and multiplying by the rational Chebyshev weights.
     axom::Array<double> weights = evaluateExpansion(coefficients);
     for(int i = 0; i < m_nodes.size(); ++i)
     {
@@ -955,9 +989,10 @@ private:
   static axom::Array<double> buildBasisColumns(axom::ArrayView<const Complex> cayley_poles,
                                                axom::ArrayView<const double> nodes)
   {
-    // Sample the orthonormal rational basis at every rcheb node. Later stages
-    // reuse this matrix both when enforcing orthogonality and when rebuilding
-    // the final quadrature weights from the recovered coefficients.
+    // Sample the orthonormal rational basis at every rational Chebyshev node.
+    // Later stages reuse this matrix both when enforcing orthogonality and when
+    // rebuilding the final quadrature weights from the recovered coefficients.
+    // Layout is column-major by basis function: Q_columns[col * n + node].
     const int n = static_cast<int>(nodes.size());
     axom::Array<double> Q_columns(n * n, n * n);
     Q_columns.fill(0.0);
@@ -975,6 +1010,8 @@ private:
     axom::Array<Complex> z_values(n, n);
     for(int i = 0; i < n; ++i)
     {
+      // Nodes x in [-1,1] are lifted to the upper unit circle
+      // z = x + i sqrt(1-x^2), where the Blaschke-product formula is evaluated.
       z_values[i] =
         Complex {nodes[i], std::sqrt(axom::utilities::max(0.0, 1.0 - nodes[i] * nodes[i]))};
     }
@@ -1124,24 +1161,34 @@ inline void compute_rational_fejer_data_m11_impl(axom::ArrayView<const Pole> pol
                                                                      allocatorID);
   }
 
-  axom::Array<Pole> rcheb_poles(num_poles + 1, num_poles + 1);
+  axom::Array<Pole> rational_chebyshev_poles(num_poles + 1, num_poles + 1);
   for(int i = 0; i < num_poles; ++i)
   {
-    rcheb_poles[i] = canonical_poles[i];
+    rational_chebyshev_poles[i] = canonical_poles[i];
   }
-  rcheb_poles[num_poles] = Pole::infinity();
+  // A rational Fejer rule for m finite/infinite poles uses m+1 rational Chebyshev nodes.
+  // The appended infinity pole supplies that extra Chebyshev-like degree.
+  rational_chebyshev_poles[num_poles] = Pole::infinity();
 
-  axom::Array<double> cheb_nodes;
-  axom::Array<double> cheb_weights;
-  compute_rcheb_data(rcheb_poles, cheb_nodes, cheb_weights);
+  axom::Array<double> rational_chebyshev_nodes;
+  axom::Array<double> rational_chebyshev_weights;
+  compute_rational_chebyshev_data(rational_chebyshev_poles,
+                                  rational_chebyshev_nodes,
+                                  rational_chebyshev_weights);
 
   if(diagnostics != nullptr)
   {
-    copy_array_to_array(cheb_nodes, diagnostics->rcheb_nodes_m11, allocatorID);
-    copy_array_to_array(cheb_weights, diagnostics->rcheb_weights_m11, allocatorID);
+    copy_array_to_array(rational_chebyshev_nodes,
+                        diagnostics->rational_chebyshev_nodes_m11,
+                        allocatorID);
+    copy_array_to_array(rational_chebyshev_weights,
+                        diagnostics->rational_chebyshev_weights_m11,
+                        allocatorID);
   }
 
-  RationalFejerBasis basis(cayley_poles, std::move(cheb_nodes), std::move(cheb_weights));
+  RationalFejerBasis basis(cayley_poles,
+                           std::move(rational_chebyshev_nodes),
+                           std::move(rational_chebyshev_weights));
 
   axom::Array<double> basis_coefficients(num_poles + 1, num_poles + 1);
   basis_coefficients.fill(0.0);
@@ -1187,6 +1234,9 @@ inline void compute_rational_fejer_data_m11_impl(axom::ArrayView<const Pole> pol
 
       if(component_count == 2)
       {
+        // Complex poles occupy adjacent coefficient slots in real/imaginary
+        // order. Interleaving the matching conjugate offsets maps the exact
+        // complex moments onto those real-valued slots.
         axom::Array<int> conjugate_positions(multiplicity, multiplicity);
         int conjugate_index = 0;
         for(int idx = coeff_index - 1; idx < num_poles; ++idx)
@@ -1288,14 +1338,14 @@ inline void compute_rational_fejer_diagnostics_m11(axom::ArrayView<const Pole> p
   compute_rational_fejer_data_m11_impl(poles, nodes_m11, weights_m11, &diagnostics, allocatorID);
 }
 
-void compute_rcheb_data_m11(axom::ArrayView<const Complex> poles_m11,
-                            axom::Array<double>& nodes,
-                            axom::Array<double>& weights,
-                            int allocatorID)
+void compute_rational_chebyshev_data_m11(axom::ArrayView<const Complex> poles_m11,
+                                         axom::Array<double>& nodes,
+                                         axom::Array<double>& weights,
+                                         int allocatorID)
 {
   axom::Array<double> nodes_tmp;
   axom::Array<double> weights_tmp;
-  compute_rcheb_data(makePoleArray(poles_m11), nodes_tmp, weights_tmp);
+  compute_rational_chebyshev_data(makePoleArray(poles_m11), nodes_tmp, weights_tmp);
   copy_array_to_array(nodes_tmp, nodes, allocatorID);
   copy_array_to_array(weights_tmp, weights, allocatorID);
 }

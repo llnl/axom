@@ -128,18 +128,6 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID = axom::getDefaultAl
  * Chebyshev setting. When all poles are at infinity, this construction reduces
  * to the standard interior Chebyshev / Fejer rule.
  *
- * In the Spectral_PE path for rational Bezier and NURBS curves, as described by
- * Gunderman et al., "Spectral Mesh-Free Quadrature for Planar Regions Bounded
- * by Rational Parametric Curves" (CAD, 2020), these poles are the roots of the
- * segment's scalar weight polynomial `w(t)`, repeated to match the requested
- * exactness, plus any optional poles at infinity. In that setting, Spectral_PE
- * is the polynomially exact variant: for polynomial integrands and a valid pole
- * construction, the resulting planar rule is exact up to the requested degree.
- * Those roots are generally off
- * the real interval `[0, 1]`: they are singularities of the rational
- * continuation in the complex parameter plane, not necessarily visible
- * singularities on the geometric curve itself.
- *
  * \note This method constructs the points from scratch each time, without caching.
  * \sa get_rational_fejer(axom::ArrayView<const std::complex<double>>, int)
  */
@@ -158,11 +146,6 @@ void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> pol
  * \note Although rational Fejer is Chebyshev-based like Clenshaw-Curtis, the
  *  cached rule here is keyed by the explicit pole sequence, since the pole data
  *  changes the exactness space and therefore the resulting weights.
- *
- * For Spectral_PE, this cache is effective because the pole sequence is built
- * deterministically from the sorted roots of the Bezier weight polynomial for
- * each segment. The cache key uses the exact computed complex values, so
- * numerically nearby-but-not-identical pole sets will not alias.
  *
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
  */
