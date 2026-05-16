@@ -497,6 +497,7 @@ int main(int argc, char** argv)
     AXOM_ANNOTATE_SCOPE("read_mesh");
 
     axom::quest::MFEMReader mfem_reader;
+    // _read_mfem_file_start
     mfem_reader.setFileName(input.inputFile);
 
     const int ret = mfem_reader.read(curves);
@@ -505,6 +506,7 @@ int main(int argc, char** argv)
       SLIC_ERROR("Failed to read MFEM file.");
       return 1;
     }
+    // _read_mfem_file_end
   }
 
   // Linearize the input curves if asked for
@@ -514,6 +516,7 @@ int main(int argc, char** argv)
     AXOM_ANNOTATE_SCOPE("linearization");
 
     axom::utilities::Timer timer(true);
+    // _linearize_curves_start
     axom::quest::LinearizeCurves lc;
     if(input.useUniformLinearization)
     {
@@ -523,6 +526,7 @@ int main(int argc, char** argv)
     {
       lc.getLinearMeshNonUniform(curves.view(), &poly_mesh, input.percentError);
     }
+    // _linearize_curves_end
     timer.stop();
 
     SLIC_INFO(axom::fmt::format(
@@ -553,6 +557,7 @@ int main(int argc, char** argv)
   // if user did not provide a bounding box, user input bounding box scaled by 10%
   mfem::DataCollection dc("winding_query");
   {
+    // _gwn_query_workflow_start
     // Create the desired winding number query instance
     auto wn_query =
       make_gwn_query(input.policy, app.got_subcommand("linearize_curves"), input.approximation_order);
@@ -582,6 +587,7 @@ int main(int argc, char** argv)
 
     // Run the query
     std::visit([&](auto& wn) { wn.query(dc, input.tol); }, wn_query);
+    // _gwn_query_workflow_end
   }
 
   // Postprocess query results: norms, ranges, and integral statistics

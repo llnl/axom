@@ -7,37 +7,31 @@
 Quest User Guide
 ================
 
-The Quest component of Axom provides several spatial operations and queries
-on a ``mint::Mesh``.
+Axom's Quest component provides spatial queries, geometry readers, contouring,
+and shaping algorithms for simulation workflows. Quest works with several Axom
+mesh representations, including ``mint::Mesh`` objects, Conduit Blueprint
+meshes, and MFEM meshes.
 
-  - Operations
+This guide focuses on the most common Quest workflows:
 
-    - :ref:`Read a surface mesh<reading-mesh>` from an STL file
-    - :ref:`Check for some common mesh errors; deduplicate vertices<check-and-repair>`
+* :ref:`Read geometry and meshes <reading-mesh>` from STL, Pro/E, STEP,
+  C2C, and MFEM-based inputs.
+* :ref:`Check and repair surface meshes <check-and-repair>` before using
+  algorithms that require watertight geometry.
+* Run surface and mesh queries, including :ref:`surface containment and signed
+  distance <surface-query-cpp>`, :ref:`point-in-cell <point-in-cell>`, and
+  :ref:`all nearest neighbors <all-nearest>`.
+* Generate :ref:`isocontours and isosurfaces <isosurface-detection>` from
+  nodal scalar fields on Blueprint meshes.
+* Build point-set simplicial meshes with :doc:`Quest's Delaunay triangulation <delaunay>`.
+* Query curved and linearized shapes with :doc:`Winding Numbers <winding_number>`.
+* Approximate curved contour geometry with :doc:`Linearize Curves <linearize_curves>`.
+* Build :ref:`shaping pipelines <shaping-overview>` that convert Klee shape
+  descriptions into material volume fractions on target meshes.
 
-      - vertex welding: merge vertices closer than a specified distance
-        "epsilon"
-      - find self-intersections and degenerate triangles in a surface mesh
-      - watertightness test: is a surface mesh a watertight manifold?
-
-  - Point queries
-
-    - Surface mesh point queries :ref:`in C<surface-query-c>` or
-      :ref:`in C++<surface-query-cpp>`
-
-      - in/out query: is a point inside or outside a surface mesh?
-      - signed distance query: find the minimum distance from a query point
-        to a surface mesh
-
-    - :ref:`Point in cell query<point-in-cell>`: for a query point, find the
-      cell of the mesh that holds the point and the point's isoparametric
-      coordinates within that cell
-    - :ref:`All nearest neighbors<all-nearest>`: given a list of point
-      locations and regions, find all neighbors of each point in a different
-      region
-    - :ref:`Isosurface detection<isosurface-detection>`: generate an
-      isosurface mesh from a nodal scalar field and an isovalue.
-
+The Sphinx pages describe the user-facing workflows and show representative
+examples from Quest's sources and tests. For a full API reference, use the
+generated Doxygen documentation below.
 
 API Documentation
 -----------------
@@ -47,7 +41,7 @@ Doxygen generated API documentation can be found here: `API documentation <../..
 
 .. toctree::
    :caption: Contents
-   :maxdepth: 2
+   :maxdepth: 1
 
    read_mesh
    check_and_repair
@@ -56,4 +50,7 @@ Doxygen generated API documentation can be found here: `API documentation <../..
    point_in_cell
    all_nearest_neighbors
    isosurface_detection
-
+   delaunay
+   winding_number
+   linearize_curves
+   shaping

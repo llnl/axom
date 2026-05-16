@@ -114,6 +114,8 @@ will match that of the (global or per-shape) `dimensions`.
                 x: 10
 
 
+.. _klee-overlay-rules:
+
 Overlay Rules
 -------------
 Shapes are added to meshes in the order in which they appear in the YAML

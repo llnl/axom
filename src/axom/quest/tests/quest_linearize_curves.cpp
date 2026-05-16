@@ -130,8 +130,10 @@ TEST(quest_linearize_curves, revolved_volume)
   // Compute the revolved volume
   const double expectedVolume = 4.15330715158103;
   axom::quest::LinearizeCurves lin;
+  // _revolved_volume_start
   const auto transform = axom::numerics::Matrix<double>::identity(4);
   const double revolvedVolume = lin.getRevolvedVolume(curves.view(), transform);
+  // _revolved_volume_end
   EXPECT_NEAR(revolvedVolume, expectedVolume, 3.e-3);
 }
 

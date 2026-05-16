@@ -21,6 +21,11 @@
 #include "axom/fmt.hpp"
 #include "axom/CLI11.hpp"
 
+// _quest_delaunay_include_start
+using Delaunay2D = axom::quest::Delaunay<2>;
+using Delaunay3D = axom::quest::Delaunay<3>;
+// _quest_delaunay_include_end
+
 /// Struct to parse and contain command line arguments
 struct Input
 {
@@ -133,6 +138,7 @@ void run_delaunay(const Input& params)
   axom::utilities::Timer timer(true);
 
   // Create initial Delaunay triangulation over bounding box
+  // _quest_delaunay_basic_start
   Delaunay dt;
   dt.initializeBoundary(bbox);
 
@@ -158,6 +164,7 @@ void run_delaunay(const Input& params)
 
   //Remove the starting rectangular box
   dt.removeBoundary();
+  // _quest_delaunay_basic_end
 
   timer.stop();
 
@@ -175,8 +182,10 @@ void run_delaunay(const Input& params)
   {
     timer.reset();
     timer.start();
+    // _quest_delaunay_validate_start
     dt.getMeshData()->isValid(true);
     dt.isValid(true);
+    // _quest_delaunay_validate_end
     timer.stop();
     SLIC_INFO(axom::fmt::format("Validation took {} seconds", timer.elapsedTimeInSec()));
   }
@@ -185,7 +194,9 @@ void run_delaunay(const Input& params)
   {
     std::string fname = axom::fmt::format("{}.vtk", outputVTKFile);
     SLIC_INFO(axom::fmt::format("Writing out final Delaunay complex to file '{}'", fname));
+    // _quest_delaunay_output_start
     dt.writeToVTKFile(fname);
+    // _quest_delaunay_output_end
   }
 
   SLIC_INFO("Done!");
