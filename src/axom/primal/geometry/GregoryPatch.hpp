@@ -34,12 +34,12 @@ namespace axom
 namespace primal
 {
 // Forward declare the templated classes and operator functions
-template <typename T, int NDIMS>
+template <typename T>
 class GregoryPatch;
 
 /*! \brief Overloaded output operator for Gregory Patches*/
-template <typename T, int NDIMS>
-std::ostream& operator<<(std::ostream& os, const GregoryPatch<T, NDIMS>& nPatch);
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const GregoryPatch<T>& nPatch);
 
 /*!
  * \class GregoryPatch
@@ -48,7 +48,7 @@ std::ostream& operator<<(std::ostream& os, const GregoryPatch<T, NDIMS>& nPatch)
  * \tparam T the coordinate type, e.g., double, float, etc.
  * \tparam NDIMS the number of dimensions
  */
-template <typename T, int NDIMS>
+template <typename T>
 class GregoryPatch
 {
 public:
@@ -57,16 +57,13 @@ public:
   //  - 2 interior control points for each of 4 boundary curves
   static constexpr int NPTS = 20;
 
-  using PointType = Point<T, NDIMS>;
-  using VectorType = Vector<T, NDIMS>;
+  using PointType = Point<T, 3>;
+  using VectorType = Vector<T, 3>;
 
   using CoordsVec = axom::StackArray<PointType, NPTS>;
 
-  using BoundingBoxType = BoundingBox<T, NDIMS>;
-  using OrientedBoundingBoxType = OrientedBoundingBox<T, NDIMS>;
-
-  AXOM_STATIC_ASSERT_MSG((NDIMS == 1) || (NDIMS == 2) || (NDIMS == 3),
-                         "A Gregory Patch object may be defined in 1-, 2-, or 3-D");
+  using BoundingBoxType = BoundingBox<T, 3>;
+  using OrientedBoundingBoxType = OrientedBoundingBox<T, 3>;
 
   AXOM_STATIC_ASSERT_MSG(std::is_arithmetic<T>::value,
                          "A Gregory Patch must be defined using an arithmetic type");
@@ -142,60 +139,303 @@ public:
   PointType& getTangent(int e, int t) { return m_controlPoints[12 + 2 * e + t]; }
   const PointType& getTangent(int e, int t) const { return m_controlPoints[12 + 2 * e + t]; }
 
-  PointType& getBoundaryPoint(int e, int k) { return m_controlPoints[m_index_map[e][k]]; }
+  void getTangentsByCorner(int i, PointType& v0, PointType& v1) const
+  {
+    v0 = getTangent((i + 3) % 4, 1);
+    v1 = getTangent(i, 0);
+  }
+
+  PointType& getBoundaryPoint(int e, int k) { return m_controlPoints[s_index_map[e][k]]; }
   const PointType& getBoundaryPoint(int e, int k) const
   {
-    return m_controlPoints[m_index_map[e][k]];
+    return m_controlPoints[s_index_map[e][k]];
   }
 
   // Evaluate the patch by constructing the equivalent Bezier patch with interior control nodes
   //  defined in terms of the tangent vectors and the evaluation parameters
   PointType evaluate(T u, T v) const
   {
-    auto gregoryBlend = [&](const PointType& a, const PointType& b, T wa, T wb) -> PointType {
-      const T denom = wa + wb;
-      if(axom::utilities::isNearlyEqual(denom, T(0)))
-      {
-        return a;
-      }
-      return PointType((wa * a.array() + wb * b.array()) / denom);
-    };
+    const auto intermediate = setup_intermediate_bezier(u, v, 0);
+    return intermediate.bpatch.evaluate(u, v);
+  }
 
-    const T um = T(1) - u;
-    const T vm = T(1) - v;
+  /*!
+   * \brief Evaluates all first derivatives of the Gregory patch at (\a u, \a v)
+   *
+   * \param [in] u Parameter value at which to evaluate on the first axis
+   * \param [in] v Parameter value at which to evaluate on the second axis
+   * \param [out] eval The point value of the Gregory patch at (u, v)
+   * \param [out] Du The vector value of S_u(u, v)
+   * \param [out] Dv The vector value of S_v(u, v)
+  */
+  void evaluateFirstDerivatives(T u, T v, PointType& eval, VectorType& Du, VectorType& Dv) const
+  {
+    const auto intermediate = setup_intermediate_bezier(u, v, 1);
+    intermediate.bpatch.evaluateFirstDerivatives(u, v, eval, Du, Dv);
 
-    const PointType Q11 = gregoryBlend(getTangent(0, 0), getTangent(3, 1), u, v);
-    const PointType Q21 = gregoryBlend(getTangent(0, 1), getTangent(1, 0), um, v);
-    const PointType Q12 = gregoryBlend(getTangent(2, 1), getTangent(3, 0), u, vm);
-    const PointType Q22 = gregoryBlend(getTangent(2, 0), getTangent(1, 1), um, vm);
+    // Chain rule correction due to (u,v)-dependent interior control points
+    axom::StaticArray<T, 4> Bu, dBu, Bv, dBv;
+    evaluateCubicBernstein(u, Bu, dBu);
+    evaluateCubicBernstein(v, Bv, dBv);
 
-    auto bpatch = get_bezier_boundary();
+    const T w11 = Bu[1] * Bv[1];
+    const T w21 = Bu[2] * Bv[1];
+    const T w12 = Bu[1] * Bv[2];
+    const T w22 = Bu[2] * Bv[2];
 
-    bpatch(1, 1) = Q11;
-    bpatch(2, 1) = Q21;
-    bpatch(1, 2) = Q12;
-    bpatch(2, 2) = Q22;
+    Du += w11 * intermediate.Q_u[0][0] + w21 * intermediate.Q_u[1][0] +
+      w12 * intermediate.Q_u[0][1] + w22 * intermediate.Q_u[1][1];
+    Dv += w11 * intermediate.Q_v[0][0] + w21 * intermediate.Q_v[1][0] +
+      w12 * intermediate.Q_v[0][1] + w22 * intermediate.Q_v[1][1];
+  }
 
-    return bpatch.evaluate(u, v);
+  /*!
+   * \brief Evaluates all second derivatives of the Gregory patch at (\a u, \a v)
+   *
+   * \param [in] u Parameter value at which to evaluate on the first axis
+   * \param [in] v Parameter value at which to evaluate on the second axis
+   * \param [out] eval The point value of the Gregory patch at (u, v)
+   * \param [out] Du The vector value of S_u(u, v)
+   * \param [out] Dv The vector value of S_v(u, v)
+   * \param [out] DuDu The vector value of S_uu(u, v)
+   * \param [out] DvDv The vector value of S_vv(u, v)
+   * \param [out] DuDv The vector value of S_uv(u, v) == S_vu(u, v)
+   */
+  void evaluateSecondDerivatives(T u,
+                                 T v,
+                                 PointType& eval,
+                                 VectorType& Du,
+                                 VectorType& Dv,
+                                 VectorType& DuDu,
+                                 VectorType& DvDv,
+                                 VectorType& DuDv) const
+  {
+    const auto intermediate = setup_intermediate_bezier(u, v, 2);
+    intermediate.bpatch.evaluateSecondDerivatives(u, v, eval, Du, Dv, DuDu, DvDv, DuDv);
+
+    // Chain rule correction due to (u,v)-dependent interior control points
+    axom::StaticArray<T, 4> Bu, dBu, Bv, dBv;
+    evaluateCubicBernstein(u, Bu, dBu);
+    evaluateCubicBernstein(v, Bv, dBv);
+
+    const T w11 = Bu[1] * Bv[1];
+    const T w21 = Bu[2] * Bv[1];
+    const T w12 = Bu[1] * Bv[2];
+    const T w22 = Bu[2] * Bv[2];
+
+    const T wu11 = dBu[1] * Bv[1];
+    const T wu21 = dBu[2] * Bv[1];
+    const T wu12 = dBu[1] * Bv[2];
+    const T wu22 = dBu[2] * Bv[2];
+
+    const T wv11 = Bu[1] * dBv[1];
+    const T wv21 = Bu[2] * dBv[1];
+    const T wv12 = Bu[1] * dBv[2];
+    const T wv22 = Bu[2] * dBv[2];
+
+    // First derivative corrections
+    Du += w11 * intermediate.Q_u[0][0] + w21 * intermediate.Q_u[1][0] +
+      w12 * intermediate.Q_u[0][1] + w22 * intermediate.Q_u[1][1];
+    Dv += w11 * intermediate.Q_v[0][0] + w21 * intermediate.Q_v[1][0] +
+      w12 * intermediate.Q_v[0][1] + w22 * intermediate.Q_v[1][1];
+
+    // Second derivative corrections
+    DuDu += T(2) *
+        (wu11 * intermediate.Q_u[0][0] + wu21 * intermediate.Q_u[1][0] +
+         wu12 * intermediate.Q_u[0][1] + wu22 * intermediate.Q_u[1][1]) +
+      (w11 * intermediate.Q_uu[0][0] + w21 * intermediate.Q_uu[1][0] +
+       w12 * intermediate.Q_uu[0][1] + w22 * intermediate.Q_uu[1][1]);
+
+    DvDv += T(2) *
+        (wv11 * intermediate.Q_v[0][0] + wv21 * intermediate.Q_v[1][0] +
+         wv12 * intermediate.Q_v[0][1] + wv22 * intermediate.Q_v[1][1]) +
+      (w11 * intermediate.Q_vv[0][0] + w21 * intermediate.Q_vv[1][0] +
+       w12 * intermediate.Q_vv[0][1] + w22 * intermediate.Q_vv[1][1]);
+
+    DuDv += (wu11 * intermediate.Q_v[0][0] + wu21 * intermediate.Q_v[1][0] +
+             wu12 * intermediate.Q_v[0][1] + wu22 * intermediate.Q_v[1][1]) +
+      (wv11 * intermediate.Q_u[0][0] + wv21 * intermediate.Q_u[1][0] +
+       wv12 * intermediate.Q_u[0][1] + wv22 * intermediate.Q_u[1][1]) +
+      (w11 * intermediate.Q_uv[0][0] + w21 * intermediate.Q_uv[1][0] +
+       w12 * intermediate.Q_uv[0][1] + w22 * intermediate.Q_uv[1][1]);
+  }
+
+  VectorType du(T u, T v) const
+  {
+    PointType eval;
+    VectorType Du, Dv;
+    evaluateFirstDerivatives(u, v, eval, Du, Dv);
+    return Du;
+  }
+
+  VectorType dv(T u, T v) const
+  {
+    PointType eval;
+    VectorType Du, Dv;
+    evaluateFirstDerivatives(u, v, eval, Du, Dv);
+    return Dv;
+  }
+
+  VectorType dudu(T u, T v) const
+  {
+    PointType eval;
+    VectorType Du, Dv, DuDu, DvDv, DuDv;
+    evaluateSecondDerivatives(u, v, eval, Du, Dv, DuDu, DvDv, DuDv);
+    return DuDu;
+  }
+
+  VectorType dvdv(T u, T v) const
+  {
+    PointType eval;
+    VectorType Du, Dv, DuDu, DvDv, DuDv;
+    evaluateSecondDerivatives(u, v, eval, Du, Dv, DuDu, DvDv, DuDv);
+    return DvDv;
+  }
+
+  VectorType dudv(T u, T v) const
+  {
+    PointType eval;
+    VectorType Du, Dv, DuDu, DvDv, DuDv;
+    evaluateSecondDerivatives(u, v, eval, Du, Dv, DuDu, DvDv, DuDv);
+    return DuDv;
+  }
+
+  /// \brief Returns an axis-aligned bounding box containing the patch
+  BoundingBoxType boundingBox() const
+  {
+    return BoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
+  }
+
+  /// \brief Returns an oriented bounding box containing the patch
+  OrientedBoundingBoxType orientedBoundingBox() const
+  {
+    return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
   void print(std::ostream& os) const
   {
-    os << "GregoryPatch<" << NDIMS << "D>(";
+    os << "GregoryPatch(";
     for(int i = 0; i < NPTS; ++i)
     {
       os << m_controlPoints[i];
-      it if(i + 1 < NPTS) { os << ", "; }
+      if(i + 1 < NPTS)
+      {
+        os << ", ";
+      }
     }
     os << ")";
   }
 
 private:
+  struct IntermediateBezierDerivatives
+  {
+    BezierPatch<T, 3> bpatch;
+    PointType Q[2][2];
+    VectorType Q_u[2][2];
+    VectorType Q_v[2][2];
+    VectorType Q_uu[2][2];
+    VectorType Q_vv[2][2];
+    VectorType Q_uv[2][2];
+  };
+
+  IntermediateBezierDerivatives setup_intermediate_bezier(T u, T v, int derivative_order) const
+  {
+    IntermediateBezierDerivatives out;
+
+    out.bpatch = get_bezier_boundary();
+
+    const T um = T(1) - u;
+    const T vm = T(1) - v;
+
+    // For each interior point (i,j), select which corner's tangents to use.
+    // This mapping matches the explicit construction used in evaluate():
+    //   (0,0)->corner0, (1,0)->corner1, (0,1)->corner3, (1,1)->corner2
+    static constexpr int corner_of[2][2] = {{0, 3}, {1, 2}};
+
+    for(int j = 0; j < 2; ++j)
+    {
+      const T wb = (j == 0) ? v : vm;
+      const T wb_v = (j == 0) ? T(1) : T(-1);
+
+      for(int i = 0; i < 2; ++i)
+      {
+        const T wa = (i == 0) ? u : um;
+        const T wa_u = (i == 0) ? T(1) : T(-1);
+
+        const int corner = corner_of[i][j];
+
+        PointType tPrev, tNext;
+        getTangentsByCorner(corner, tPrev, tNext);
+
+        // Corner parity determines which tangent is blended with which weight
+        // (see explicit mapping in evaluate()).
+        const bool swap = (corner % 2 == 0);  // corners 0 and 2
+        const PointType& A = swap ? tNext : tPrev;
+        const PointType& B = swap ? tPrev : tNext;
+
+        const T denom = wa + wb;
+        if(axom::utilities::isNearlyEqual(denom, T(0)))
+        {
+          out.Q[i][j] = A;
+          out.Q_u[i][j] = VectorType(T(0));
+          out.Q_v[i][j] = VectorType(T(0));
+          out.Q_uu[i][j] = VectorType(T(0));
+          out.Q_vv[i][j] = VectorType(T(0));
+          out.Q_uv[i][j] = VectorType(T(0));
+          continue;
+        }
+
+        out.Q[i][j] = PointType((wa * A.array() + wb * B.array()) / denom);
+
+        if(derivative_order >= 1)
+        {
+          // Since wa depends only on u and wb depends only on v:
+          //   dQ/du uses only wa_u; dQ/dv uses only wb_v.
+          out.Q_u[i][j] = VectorType((wa_u * (A.array() - out.Q[i][j].array())) / denom);
+          out.Q_v[i][j] = VectorType((wb_v * (B.array() - out.Q[i][j].array())) / denom);
+        }
+        else
+        {
+          out.Q_u[i][j] = VectorType(T(0));
+          out.Q_v[i][j] = VectorType(T(0));
+        }
+
+        if(derivative_order >= 2)
+        {
+          // Second derivatives for linear weights (wa, wb):
+          //   Q_uu = -(2*wa_u/denom) * Q_u
+          //   Q_vv = -(2*wb_v/denom) * Q_v
+          //   Q_uv = -(wa_u*Q_v + wb_v*Q_u)/denom
+          out.Q_uu[i][j] = (-T(2) * wa_u / denom) * out.Q_u[i][j];
+          out.Q_vv[i][j] = (-T(2) * wb_v / denom) * out.Q_v[i][j];
+          out.Q_uv[i][j] = (-(wa_u * out.Q_v[i][j] + wb_v * out.Q_u[i][j])) / denom;
+        }
+        else
+        {
+          out.Q_uu[i][j] = VectorType(T(0));
+          out.Q_vv[i][j] = VectorType(T(0));
+          out.Q_uv[i][j] = VectorType(T(0));
+        }
+      }
+    }
+
+    setBezierInterior(out.bpatch, out.Q);
+    return out;
+  }
+
+  static void setBezierInterior(BezierPatch<T, 3>& bpatch, const PointType Q[2][2])
+  {
+    bpatch(1, 1) = Q[0][0];
+    bpatch(2, 1) = Q[1][0];
+    bpatch(1, 2) = Q[0][1];
+    bpatch(2, 2) = Q[1][1];
+  }
+
   // Copies over the boundary points to a BezierPatch object,
   //  leaving the 4 interior control points uninitialized
-  primal::BezierPatch<double, 3> get_bezier_boundary() const
+  BezierPatch<T, 3> get_bezier_boundary() const
   {
-    BezierPatch<T, NDIMS> bpatch(3, 3);
+    BezierPatch<T, 3> bpatch(3, 3);
 
     bpatch(0, 0) = getCorner(0);
     bpatch(1, 0) = getBoundaryPoint(0, 1);
@@ -216,10 +456,27 @@ private:
     return bpatch;
   }
 
+  static void evaluateCubicBernstein(T t, axom::StaticArray<T, 4>& B, axom::StaticArray<T, 4>& dB)
+  {
+    const T tm = T(1) - t;
+    const T tm2 = tm * tm;
+    const T t2 = t * t;
+
+    B[0] = tm2 * tm;
+    B[1] = T(3) * t * tm2;
+    B[2] = T(3) * t2 * tm;
+    B[3] = t2 * t;
+
+    dB[0] = -T(3) * tm2;
+    dB[1] = T(3) * tm2 - T(6) * t * tm;
+    dB[2] = T(6) * t * tm - T(3) * t2;
+    dB[3] = T(3) * t2;
+  }
+
   CoordsVec m_controlPoints;
 
   // Map of boundary curve control points into internal storage
-  static constexpr int m_index_map[4][4] = {{/*V0*/ 0, /*E01*/ 4, /*E02*/ 5, /*V1*/ 1},
+  static constexpr int s_index_map[4][4] = {{/*V0*/ 0, /*E01*/ 4, /*E02*/ 5, /*V1*/ 1},
                                             {/*V1*/ 1, /*E11*/ 6, /*E12*/ 7, /*V2*/ 2},
                                             {/*V2*/ 2, /*E21*/ 8, /*E22*/ 9, /*V3*/ 3},
                                             {/*V3*/ 3, /*E31*/ 10, /*E32*/ 11, /*V0*/ 0}};
@@ -228,8 +485,8 @@ private:
 //------------------------------------------------------------------------------
 /// Free functions related to GregoryPatch
 //------------------------------------------------------------------------------
-template <typename T, int NDIMS>
-std::ostream& operator<<(std::ostream& os, const GregoryPatch<T, NDIMS>& nPatch)
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const GregoryPatch<T>& nPatch)
 {
   nPatch.print(os);
   return os;
@@ -239,8 +496,8 @@ std::ostream& operator<<(std::ostream& os, const GregoryPatch<T, NDIMS>& nPatch)
 }  // namespace axom
 
 /// Overload to format a primal::GregoryPatch using fmt
-template <typename T, int NDIMS>
-struct axom::fmt::formatter<axom::primal::GregoryPatch<T, NDIMS>> : ostream_formatter
+template <typename T>
+struct axom::fmt::formatter<axom::primal::GregoryPatch<T>> : ostream_formatter
 { };
 
 #endif  // AXOM_PRIMAL_GREGORY_PATCH_HPP_
