@@ -9,7 +9,6 @@
 .on_dane:
   variables:
     SCHEDULER_PARAMETERS: "--reservation=ci --exclusive=user --deadline=now+1hour -N1 -t ${ALLOC_TIME}"
-    PSM2_KASSIST_MODE: auto
   tags:
     - batch
     - dane
