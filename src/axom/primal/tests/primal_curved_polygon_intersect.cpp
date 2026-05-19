@@ -21,12 +21,14 @@
 
 namespace primal = axom::primal;
 
+template <typename CoordType, int DIM>
+using BezierCurvedPolygon = primal::CurvedPolygon<primal::BezierCurve<CoordType, DIM>>;
+
 template <typename CoordType>
-void outputAsSVG(
-  const std::string& filename,
-  const primal::CurvedPolygon<CoordType, 2>& polygon1,
-  const primal::CurvedPolygon<CoordType, 2>& polygon2,
-  const std::vector<primal::CurvedPolygon<CoordType, 2>> intersectionPolygons)
+void outputAsSVG(const std::string& filename,
+                 const BezierCurvedPolygon<CoordType, 2>& polygon1,
+                 const BezierCurvedPolygon<CoordType, 2>& polygon2,
+                 const std::vector<BezierCurvedPolygon<CoordType, 2>> intersectionPolygons)
 {
   // Find the bounding box of the set of polygons
   primal::BoundingBox<CoordType, 2> bbox;
@@ -38,17 +40,18 @@ void outputAsSVG(
   }
   bbox.scale(1.1);
 
-  std::string header = axom::fmt::format(
-    "<svg viewBox='{} {} {} {}' xmlns='http://www.w3.org/2000/svg'>",
-    bbox.getMin()[0],
-    bbox.getMin()[1],
-    bbox.range()[0],
-    bbox.range()[1]);
+  std::string header =
+    axom::fmt::format("<svg viewBox='{} {} {} {}' xmlns='http://www.w3.org/2000/svg'>",
+                      bbox.getMin()[0],
+                      bbox.getMin()[1],
+                      bbox.range()[0],
+                      bbox.range()[1]);
   std::string footer = "</svg>";
 
   // lambda to convert a CurvedPolygon to an SVG path string
-  auto cpToSVG = [](const primal::CurvedPolygon<CoordType, 2>& cp) {
+  auto cpToSVG = [](const BezierCurvedPolygon<CoordType, 2>& cp) {
     axom::fmt::memory_buffer out;
+    axom::fmt::appender out_it(out);
     bool is_first = true;
 
     for(auto& curve : cp.getEdges())
@@ -56,17 +59,17 @@ void outputAsSVG(
       // Only write out first point for first edge
       if(is_first)
       {
-        axom::fmt::format_to(out, "M {} {} ", curve[0][0], curve[0][1]);
+        axom::fmt::format_to(out_it, "M {} {} ", curve[0][0], curve[0][1]);
         is_first = false;
       }
 
       switch(curve.getOrder())
       {
       case 1:
-        axom::fmt::format_to(out, "L {} {} ", curve[1][0], curve[1][1]);
+        axom::fmt::format_to(out_it, "L {} {} ", curve[1][0], curve[1][1]);
         break;
       case 2:
-        axom::fmt::format_to(out,
+        axom::fmt::format_to(out_it,
                              "Q {} {}, {} {} ",
                              curve[1][0],
                              curve[1][1],
@@ -74,7 +77,7 @@ void outputAsSVG(
                              curve[2][1]);
         break;
       case 3:
-        axom::fmt::format_to(out,
+        axom::fmt::format_to(out_it,
                              "C {} {}, {} {}, {} {} ",
                              curve[1][0],
                              curve[1][1],
@@ -84,12 +87,10 @@ void outputAsSVG(
                              curve[3][1]);
         break;
       default:
-        SLIC_WARNING(
-          "Unsupported case: can only output up to cubic curves as SVG.");
+        SLIC_WARNING("Unsupported case: can only output up to cubic curves as SVG.");
       }
     }
-    return axom::fmt::format("    <path d='{} Z' />\n",
-                             axom::fmt::to_string(out));
+    return axom::fmt::format("    <path d='{} Z' />\n", axom::fmt::to_string(out));
   };
 
   std::string poly1Group;
@@ -99,39 +100,39 @@ void outputAsSVG(
   // render polygon1 as SVG
   {
     axom::fmt::memory_buffer out;
-    axom::fmt::format_to(
-      out,
-      "  <g id='source_mesh' stroke='black' stroke-width='.01' "
-      "fill='red' fill-opacity='.7'>\n");
-    axom::fmt::format_to(out, cpToSVG(polygon1));
-    axom::fmt::format_to(out, "  </g>\n");
+    axom::fmt::appender out_it(out);
+    axom::fmt::format_to(out_it,
+                         "  <g id='source_mesh' stroke='black' stroke-width='.01' "
+                         "fill='red' fill-opacity='.7'>\n");
+    axom::fmt::format_to(out_it, "{}", cpToSVG(polygon1));
+    axom::fmt::format_to(out_it, "  </g>\n");
     poly1Group = axom::fmt::to_string(out);
   }
 
   // render polygon2 as SVG
   {
     axom::fmt::memory_buffer out;
-    axom::fmt::format_to(
-      out,
-      "  <g id='target_mesh' stroke='black' stroke-width='.01' "
-      "fill='blue' fill-opacity='.7'>\n");
-    axom::fmt::format_to(out, cpToSVG(polygon2));
-    axom::fmt::format_to(out, "  </g>\n");
+    axom::fmt::appender out_it(out);
+    axom::fmt::format_to(out_it,
+                         "  <g id='target_mesh' stroke='black' stroke-width='.01' "
+                         "fill='blue' fill-opacity='.7'>\n");
+    axom::fmt::format_to(out_it, "{}", cpToSVG(polygon2));
+    axom::fmt::format_to(out_it, "  </g>\n");
     poly2Group = axom::fmt::to_string(out);
   }
 
   //render intersection polygons as SVG
   {
     axom::fmt::memory_buffer out;
-    axom::fmt::format_to(
-      out,
-      "  <g id='intersection_mesh' stroke='black' stroke-width='.01' "
-      "fill='green' fill-opacity='.7'>\n");
+    axom::fmt::appender out_it(out);
+    axom::fmt::format_to(out_it,
+                         "  <g id='intersection_mesh' stroke='black' stroke-width='.01' "
+                         "fill='green' fill-opacity='.7'>\n");
     for(auto& cp : intersectionPolygons)
     {
-      axom::fmt::format_to(out, cpToSVG(cp));
+      axom::fmt::format_to(out_it, "{}", cpToSVG(cp));
     }
-    axom::fmt::format_to(out, "  </g>\n");
+    axom::fmt::format_to(out_it, "  </g>\n");
     intersectionGroup = axom::fmt::to_string(out);
   }
 
@@ -152,16 +153,15 @@ void outputAsSVG(
  * Intersection polygon is computed to within tolerance \a eps and checks use \a test_eps.
  */
 template <typename CoordType>
-void checkIntersection(
-  const primal::CurvedPolygon<CoordType, 2>& bPolygon1,
-  const primal::CurvedPolygon<CoordType, 2>& bPolygon2,
-  const std::vector<primal::CurvedPolygon<CoordType, 2>> expbPolygon,
-  const double eps = 1e-15,
-  const double test_eps = 1e-13)
+void checkIntersection(const BezierCurvedPolygon<CoordType, 2>& bPolygon1,
+                       const BezierCurvedPolygon<CoordType, 2>& bPolygon2,
+                       const std::vector<BezierCurvedPolygon<CoordType, 2>> expbPolygon,
+                       const double eps = 1e-15,
+                       const double test_eps = 1e-13)
 {
   constexpr int DIM = 2;
-  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
-  using BezierCurveType = typename CurvedPolygonType::BezierCurveType;
+  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
+  using CurvedPolygonType = BezierCurvedPolygon<CoordType, DIM>;
   using PointType = typename BezierCurveType::PointType;
 
   std::vector<CurvedPolygonType> intersectionPolys;
@@ -195,8 +195,8 @@ void checkIntersection(
         for(int d = 0; d < DIM; ++d)
         {
           EXPECT_NEAR(ptExp[d], ptActual[d], test_eps)
-            << "Difference in polygon " << p << " edge " << e
-            << " control point " << idx << " dimension " << d;
+            << "Difference in polygon " << p << " edge " << e << " control point " << idx
+            << " dimension " << d;
         }
       }
     }
@@ -211,12 +211,12 @@ void checkIntersection(
  * be given as a list of ints in order of orientation, representing the orders of the component curves.
  */
 template <typename CoordType>
-primal::CurvedPolygon<CoordType, 2> createPolygon(
+BezierCurvedPolygon<CoordType, 2> createPolygon(
   const std::vector<primal::Point<CoordType, 2>> ControlPoints,
   const std::vector<int> orders)
 {
   using PointType = primal::Point<CoordType, 2>;
-  using CurvedPolygonType = primal::CurvedPolygon<CoordType, 2>;
+  using CurvedPolygonType = BezierCurvedPolygon<CoordType, 2>;
   using BezierCurveType = primal::BezierCurve<CoordType, 2>;
 
   const int num_edges = orders.size();
@@ -234,9 +234,8 @@ primal::CurvedPolygon<CoordType, 2> createPolygon(
   for(int j = 0; j < num_edges; ++j)
   {
     std::vector<PointType> subCP;
-    subCP.assign(ControlPoints.begin() + iter,
-                 ControlPoints.begin() + iter + orders[j] + 1);
-    BezierCurveType addCurve(subCP, orders[j]);
+    subCP.assign(ControlPoints.begin() + iter, ControlPoints.begin() + iter + orders[j] + 1);
+    BezierCurveType addCurve(subCP.data(), orders[j]);
     bPolygon.addEdge(addCurve);
     iter += (orders[j]);
   }
@@ -249,7 +248,7 @@ TEST(primal_curvedpolygon, detail_intersection_type)
 {
   const int DIM = 2;
   using CoordType = double;
-  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using CurvedPolygonType = BezierCurvedPolygon<CoordType, DIM>;
   using PointType = primal::Point<CoordType, DIM>;
 
   using primal::detail::getJunctionIntersectionType;
@@ -259,22 +258,15 @@ TEST(primal_curvedpolygon, detail_intersection_type)
 
   // the first pair is a horizontal line from left to right
   std::vector<int> orders = {1, 1};
-  std::vector<PointType> CP = {PointType {-1, 0},
-                               PointType {0, 0},
-                               PointType {1, 0}};
+  std::vector<PointType> CP = {PointType {-1, 0}, PointType {0, 0}, PointType {1, 0}};
   CurvedPolygonType bPolygon1 = createPolygon(CP, orders);
 
   // A type2 case
   {
-    std::vector<PointType> CP2 = {PointType {1, -1},
-                                  PointType {0, 0},
-                                  PointType {-1, -1}};
+    std::vector<PointType> CP2 = {PointType {1, -1}, PointType {0, 0}, PointType {-1, -1}};
     CurvedPolygonType bPolygon2 = createPolygon(CP2, orders);
 
-    auto xType = getJunctionIntersectionType(bPolygon1[0],
-                                             bPolygon1[1],
-                                             bPolygon2[0],
-                                             bPolygon2[1]);
+    auto xType = getJunctionIntersectionType(bPolygon1[0], bPolygon1[1], bPolygon2[0], bPolygon2[1]);
     EXPECT_EQ(JunctionIntersectionType::Type2, xType);
   }
 }
@@ -285,7 +277,7 @@ TEST(primal_curvedpolygon, intersection_squares)
 {
   const int DIM = 2;
   using CoordType = double;
-  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using CurvedPolygonType = BezierCurvedPolygon<CoordType, DIM>;
   using PointType = primal::Point<CoordType, DIM>;
 
   SLIC_INFO("Test intersection of two squares (single region)");
@@ -326,10 +318,7 @@ TEST(primal_curvedpolygon, intersection_squares)
   {
     std::vector<CurvedPolygonType> intersections;
     intersect(bPolygon1, bPolygon2, intersections, 1e-15);
-    outputAsSVG("curved_polygon_intersections_linear_squares.svg",
-                bPolygon1,
-                bPolygon2,
-                intersections);
+    outputAsSVG("curved_polygon_intersections_linear_squares.svg", bPolygon1, bPolygon2, intersections);
   }
 }
 
@@ -339,7 +328,7 @@ TEST(primal_curvedpolygon, intersection_triangle_linear)
 {
   const int DIM = 2;
   using CoordType = double;
-  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using CurvedPolygonType = BezierCurvedPolygon<CoordType, DIM>;
   using PointType = primal::Point<CoordType, DIM>;
 
   SLIC_INFO("Test intersection of two linear triangles (single region)");
@@ -359,11 +348,10 @@ TEST(primal_curvedpolygon, intersection_triangle_linear)
 
   CurvedPolygonType bPolygon2 = createPolygon(CP2, orders);
 
-  std::vector<PointType> expCP = {
-    PointType {0.3091666666666666666666, 1.9755555555555555555},
-    PointType {0.11, 1.71},
-    PointType {0.5083333333333333333, 1.44444444444444444444},
-    PointType {0.3091666666666666666666, 1.9755555555555555555}};
+  std::vector<PointType> expCP = {PointType {0.3091666666666666666666, 1.9755555555555555555},
+                                  PointType {0.11, 1.71},
+                                  PointType {0.5083333333333333333, 1.44444444444444444444},
+                                  PointType {0.3091666666666666666666, 1.9755555555555555555}};
   std::vector<int> exporders = {1, 1, 1};
   CurvedPolygonType expbPolygon = createPolygon(expCP, exporders);
 
@@ -387,11 +375,10 @@ TEST(primal_curvedpolygon, intersections_triangle_rectangle)
 {
   const int DIM = 2;
   using CoordType = double;
-  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using CurvedPolygonType = BezierCurvedPolygon<CoordType, DIM>;
   using PointType = primal::Point<CoordType, DIM>;
 
-  SLIC_INFO(
-    "Test several intersection cases b/w a linear triangle and rectangle");
+  SLIC_INFO("Test several intersection cases b/w a linear triangle and rectangle");
 
   // Rectangle with bounds, -5 <= x < 5 ; and 0 <= y <= 2
   std::vector<PointType> rectanglePts = {PointType {-5, 0},
@@ -418,17 +405,13 @@ TEST(primal_curvedpolygon, intersections_triangle_rectangle)
   {
     CurvedPolygonType bTriangle = createPolygon(triPts, triOrders);
     primal::detail::DirectionalWalk<double> walk(bVerbose);
-    int nIntersections =
-      walk.splitPolygonsAlongIntersections(bRectangle, bTriangle, SQ_EPS);
+    int nIntersections = walk.splitPolygonsAlongIntersections(bRectangle, bTriangle, SQ_EPS);
     EXPECT_EQ(0, nIntersections);
 
     std::vector<CurvedPolygonType> intersections;
     EXPECT_FALSE(primal::intersect(bRectangle, bTriangle, intersections, EPS));
 
-    outputAsSVG("intersection_test_tri_rect_none.svg",
-                bRectangle,
-                bTriangle,
-                intersections);
+    outputAsSVG("intersection_test_tri_rect_none.svg", bRectangle, bTriangle, intersections);
   }
 
   // No intersection case: Triangle apex grazes rectangle
@@ -437,8 +420,7 @@ TEST(primal_curvedpolygon, intersections_triangle_rectangle)
     CurvedPolygonType bTriangle = createPolygon(triPts, triOrders);
 
     primal::detail::DirectionalWalk<double> walk(bVerbose);
-    int nIntersections =
-      walk.splitPolygonsAlongIntersections(bRectangle, bTriangle, SQ_EPS);
+    int nIntersections = walk.splitPolygonsAlongIntersections(bRectangle, bTriangle, SQ_EPS);
     EXPECT_EQ(1, nIntersections);
 
     std::vector<CurvedPolygonType> walkIntersections;
@@ -446,10 +428,7 @@ TEST(primal_curvedpolygon, intersections_triangle_rectangle)
 
     // EXPECT_EQ(0, walkIntersections.size());   // Warning: Not properly handled yet
 
-    outputAsSVG("intersection_test_tri_rect_lower_graze.svg",
-                bRectangle,
-                bTriangle,
-                walkIntersections);
+    outputAsSVG("intersection_test_tri_rect_lower_graze.svg", bRectangle, bTriangle, walkIntersections);
 
     std::vector<CurvedPolygonType> intersections;
     // Warning: Not properly handled yet
@@ -465,8 +444,7 @@ TEST(primal_curvedpolygon, intersections_triangle_rectangle)
     CurvedPolygonType bTriangle = createPolygon(triPts, triOrders);
 
     primal::detail::DirectionalWalk<double> walk(bVerbose);
-    int nIntersections =
-      walk.splitPolygonsAlongIntersections(bRectangle, bTriangle, SQ_EPS);
+    int nIntersections = walk.splitPolygonsAlongIntersections(bRectangle, bTriangle, SQ_EPS);
     EXPECT_EQ(2, nIntersections);
 
     std::vector<CurvedPolygonType> walkIntersections;
@@ -484,8 +462,7 @@ TEST(primal_curvedpolygon, intersections_triangle_rectangle)
                                     PointType {1, 0}};
     std::vector<int> exporders = {1, 1, 1};
 
-    std::vector<CurvedPolygonType> expbPolygons = {
-      createPolygon(expCP, exporders)};
+    std::vector<CurvedPolygonType> expbPolygons = {createPolygon(expCP, exporders)};
 
     checkIntersection(bRectangle, bTriangle, expbPolygons);
   }
@@ -496,8 +473,7 @@ TEST(primal_curvedpolygon, intersections_triangle_rectangle)
     CurvedPolygonType bTriangle = createPolygon(triPts, triOrders);
 
     primal::detail::DirectionalWalk<double> walk(bVerbose);
-    int nIntersections =
-      walk.splitPolygonsAlongIntersections(bRectangle, bTriangle, SQ_EPS);
+    int nIntersections = walk.splitPolygonsAlongIntersections(bRectangle, bTriangle, SQ_EPS);
     EXPECT_EQ(3, nIntersections);
 
     std::vector<CurvedPolygonType> walkIntersections;
@@ -506,10 +482,7 @@ TEST(primal_curvedpolygon, intersections_triangle_rectangle)
 
     //EXPECT_EQ(3, walkIntersections[0].numEdges()); // Warning: Not properly handled yet
 
-    outputAsSVG("intersection_test_tri_rect_upper_graze.svg",
-                bRectangle,
-                bTriangle,
-                walkIntersections);
+    outputAsSVG("intersection_test_tri_rect_upper_graze.svg", bRectangle, bTriangle, walkIntersections);
 
     std::vector<CurvedPolygonType> intersections;
     // Warning: Not properly handled yet
@@ -522,8 +495,7 @@ TEST(primal_curvedpolygon, intersections_triangle_rectangle)
     CurvedPolygonType bTriangle = createPolygon(triPts, triOrders);
 
     primal::detail::DirectionalWalk<double> walk(bVerbose);
-    int nIntersections =
-      walk.splitPolygonsAlongIntersections(bRectangle, bTriangle, SQ_EPS);
+    int nIntersections = walk.splitPolygonsAlongIntersections(bRectangle, bTriangle, SQ_EPS);
     EXPECT_EQ(4, nIntersections);
 
     std::vector<CurvedPolygonType> walkIntersections;
@@ -542,8 +514,7 @@ TEST(primal_curvedpolygon, intersections_triangle_rectangle)
                                     PointType {1.8, 0}};
     std::vector<int> exporders = {1, 1, 1, 1};
 
-    std::vector<CurvedPolygonType> expbPolygons = {
-      createPolygon(expCP, exporders)};
+    std::vector<CurvedPolygonType> expbPolygons = {createPolygon(expCP, exporders)};
 
     checkIntersection(bRectangle, bTriangle, expbPolygons);
   }
@@ -554,7 +525,7 @@ TEST(primal_curvedpolygon, intersection_triangle_quadratic)
 {
   const int DIM = 2;
   using CoordType = double;
-  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using CurvedPolygonType = BezierCurvedPolygon<CoordType, DIM>;
   using PointType = primal::Point<CoordType, DIM>;
 
   SLIC_INFO("Test intersecting two quadratic triangles (single region)");
@@ -581,16 +552,15 @@ TEST(primal_curvedpolygon, intersection_triangle_quadratic)
                                 PointType {0.71, 1.31}};
   CurvedPolygonType bPolygon2 = createPolygon(CP2, orders);
 
-  std::vector<PointType> expCP = {
-    PointType {0.335956890729522, 1.784126953773395},
-    PointType {0.297344765794753, 1.718171485335525},
-    PointType {0.2395677533016981, 1.700128235793371},
-    PointType {0.221884203146682, 1.662410644580941},
-    PointType {0.199328465398189, 1.636873522352205},
-    PointType {0.277429214338182, 1.579562422716502},
-    PointType {0.408882616650578, 1.495574996394597},
-    PointType {0.368520120719339, 1.616453177259694},
-    PointType {0.335956890729522, 1.784126953773394}};
+  std::vector<PointType> expCP = {PointType {0.335956890729522, 1.784126953773395},
+                                  PointType {0.297344765794753, 1.718171485335525},
+                                  PointType {0.2395677533016981, 1.700128235793371},
+                                  PointType {0.221884203146682, 1.662410644580941},
+                                  PointType {0.199328465398189, 1.636873522352205},
+                                  PointType {0.277429214338182, 1.579562422716502},
+                                  PointType {0.408882616650578, 1.495574996394597},
+                                  PointType {0.368520120719339, 1.616453177259694},
+                                  PointType {0.335956890729522, 1.784126953773394}};
   std::vector<int> exporders = {2, 2, 2, 2};
   CurvedPolygonType expbPolygon = createPolygon(expCP, exporders);
   std::vector<CurvedPolygonType> expbPolygons = {expbPolygon};
@@ -603,7 +573,7 @@ TEST(primal_curvedpolygon, intersection_triangle_quadratic_two_regions)
 {
   const int DIM = 2;
   using CoordType = double;
-  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using CurvedPolygonType = BezierCurvedPolygon<CoordType, DIM>;
   using PointType = primal::Point<CoordType, DIM>;
 
   SLIC_INFO("Test intersection of two quadratic triangles (two regions)");
@@ -625,25 +595,23 @@ TEST(primal_curvedpolygon, intersection_triangle_quadratic_two_regions)
                                 PointType {1.0205, 1.6699}};
   std::vector<int> orders = {2, 2, 2};
 
-  std::vector<PointType> expCP1 = {
-    PointType {0.343364196589264, 1.747080669655736},
-    PointType {0.305984025190458, 1.760433098612141},
-    PointType {0.266743999290327, 1.775316659915674},
-    PointType {0.263419346128088, 1.763343410502168},
-    PointType {0.259796003065908, 1.752116885838515},
-    PointType {0.320641367919239, 1.705796408318085},
-    PointType {0.362111919147859, 1.662268860466508},
-    PointType {0.352450139541348, 1.702947255097842},
-    PointType {0.343364196589264, 1.747080669655736}};
+  std::vector<PointType> expCP1 = {PointType {0.343364196589264, 1.747080669655736},
+                                   PointType {0.305984025190458, 1.760433098612141},
+                                   PointType {0.266743999290327, 1.775316659915674},
+                                   PointType {0.263419346128088, 1.763343410502168},
+                                   PointType {0.259796003065908, 1.752116885838515},
+                                   PointType {0.320641367919239, 1.705796408318085},
+                                   PointType {0.362111919147859, 1.662268860466508},
+                                   PointType {0.352450139541348, 1.702947255097842},
+                                   PointType {0.343364196589264, 1.747080669655736}};
 
-  std::vector<PointType> expCP2 = {
-    PointType {0.435276730907216, 1.423589798138227},
-    PointType {0.416268597450954, 1.385275578571685},
-    PointType {0.374100000000000, 1.350300000000000},
-    PointType {0.404839872482010, 1.358536305511285},
-    PointType {0.454478985809487, 1.379250566393211},
-    PointType {0.444689566319939, 1.400290430035245},
-    PointType {0.435276730907216, 1.423589798138227}};
+  std::vector<PointType> expCP2 = {PointType {0.435276730907216, 1.423589798138227},
+                                   PointType {0.416268597450954, 1.385275578571685},
+                                   PointType {0.374100000000000, 1.350300000000000},
+                                   PointType {0.404839872482010, 1.358536305511285},
+                                   PointType {0.454478985809487, 1.379250566393211},
+                                   PointType {0.444689566319939, 1.400290430035245},
+                                   PointType {0.435276730907216, 1.423589798138227}};
 
   std::vector<int> exporder1 = {2, 2, 2, 2};
   std::vector<int> exporder2 = {2, 2, 2};
@@ -659,11 +627,10 @@ TEST(primal_curvedpolygon, intersection_triangle_quadratic_two_regions)
   {
     std::vector<CurvedPolygonType> intersections;
     intersect(bPolygon1, bPolygon2, intersections, 1e-15);
-    outputAsSVG(
-      "curved_polygon_intersections_quadratic_triangles_two_regions.svg",
-      bPolygon1,
-      bPolygon2,
-      intersections);
+    outputAsSVG("curved_polygon_intersections_quadratic_triangles_two_regions.svg",
+                bPolygon1,
+                bPolygon2,
+                intersections);
   }
 }
 
@@ -671,7 +638,7 @@ TEST(primal_curvedpolygon, area_intersection_triangle_inclusion)
 {
   const int DIM = 2;
   using CoordType = double;
-  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using CurvedPolygonType = BezierCurvedPolygon<CoordType, DIM>;
   using PointType = primal::Point<CoordType, DIM>;
 
   SLIC_INFO("Test intersection of two quadratic triangles (inclusion)");
@@ -705,7 +672,7 @@ TEST(primal_curvedpolygon, doubleIntersection)
   const double EPS = 1e-8;
   const int DIM = 2;
   using CoordType = double;
-  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using CurvedPolygonType = BezierCurvedPolygon<CoordType, DIM>;
   using PointType = primal::Point<CoordType, DIM>;
 
   SLIC_INFO("Tests multiple intersections along an edge");
@@ -734,15 +701,13 @@ TEST(primal_curvedpolygon, doubleIntersection)
     {
       const bool verbose = true;
       primal::detail::DirectionalWalk<double> walk(verbose);
-      int numIntersections =
-        walk.splitPolygonsAlongIntersections(bPolygon1, bPolygon2, EPS * EPS);
+      int numIntersections = walk.splitPolygonsAlongIntersections(bPolygon1, bPolygon2, EPS * EPS);
 
       EXPECT_EQ(2, numIntersections);
       EXPECT_NEAR(primal::area(bPolygon1), primal::area(walk.psplit[0]), EPS);
       EXPECT_NEAR(primal::area(bPolygon2), primal::area(walk.psplit[1]), EPS);
 
-      SLIC_INFO("Checking for intersections between " << bPolygon1 << " and "
-                                                      << bPolygon2);
+      SLIC_INFO("Checking for intersections between " << bPolygon1 << " and " << bPolygon2);
 
       std::vector<CurvedPolygonType> regions;
       walk.findIntersectionRegions(regions);
@@ -799,7 +764,7 @@ TEST(primal_curvedpolygon, regression)
   const double EPS = 1e-8;
   const int DIM = 2;
   using CoordType = double;
-  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using CurvedPolygonType = BezierCurvedPolygon<CoordType, DIM>;
   using PointType = primal::Point<CoordType, DIM>;
 
   SLIC_INFO("Test intersection of pairs of polygons from regression data");
@@ -827,8 +792,7 @@ TEST(primal_curvedpolygon, regression)
 
     intersect(bPolygon1, bPolygon2, expIntersections, EPS);
 
-    SLIC_INFO("There were " << expIntersections.size()
-                            << " intersection polygons");
+    SLIC_INFO("There were " << expIntersections.size() << " intersection polygons");
     for(auto cp : expIntersections)
     {
       SLIC_INFO("\t" << cp);
@@ -841,7 +805,7 @@ TEST(primal_curvedpolygon, adjacent_squares)
   const double EPS = 1e-8;
   const int DIM = 2;
   using CoordType = double;
-  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using CurvedPolygonType = BezierCurvedPolygon<CoordType, DIM>;
   using PointType = primal::Point<CoordType, DIM>;
 
   SLIC_INFO("Test intersection of pairs of adjacent squares");
@@ -872,16 +836,12 @@ TEST(primal_curvedpolygon, adjacent_squares)
 
       if(!expIntersections.empty())
       {
-        SLIC_INFO("There were " << expIntersections.size()
-                                << " intersection polygons");
+        SLIC_INFO("There were " << expIntersections.size() << " intersection polygons");
         for(auto cp : expIntersections)
         {
           SLIC_INFO("\t" << cp);
         }
-        outputAsSVG("adjacent_squares_edge_LR.svg",
-                    bPolygon1,
-                    bPolygon2,
-                    expIntersections);
+        outputAsSVG("adjacent_squares_edge_LR.svg", bPolygon1, bPolygon2, expIntersections);
       }
     }
 
@@ -893,16 +853,12 @@ TEST(primal_curvedpolygon, adjacent_squares)
 
       if(!expIntersections.empty())
       {
-        SLIC_INFO("There were " << expIntersections.size()
-                                << " intersection polygons");
+        SLIC_INFO("There were " << expIntersections.size() << " intersection polygons");
         for(auto cp : expIntersections)
         {
           SLIC_INFO("\t" << cp);
         }
-        outputAsSVG("adjacent_squares_edge_RL.svg",
-                    bPolygon2,
-                    bPolygon1,
-                    expIntersections);
+        outputAsSVG("adjacent_squares_edge_RL.svg", bPolygon2, bPolygon1, expIntersections);
       }
     }
   }
@@ -934,16 +890,12 @@ TEST(primal_curvedpolygon, adjacent_squares)
 
       if(!expIntersections.empty())
       {
-        SLIC_INFO("There were " << expIntersections.size()
-                                << " intersection polygons");
+        SLIC_INFO("There were " << expIntersections.size() << " intersection polygons");
         for(auto cp : expIntersections)
         {
           SLIC_INFO("\t" << cp);
         }
-        outputAsSVG("adjacent_squares_corner_LR.svg",
-                    bPolygon1,
-                    bPolygon2,
-                    expIntersections);
+        outputAsSVG("adjacent_squares_corner_LR.svg", bPolygon1, bPolygon2, expIntersections);
       }
     }
 
@@ -956,16 +908,12 @@ TEST(primal_curvedpolygon, adjacent_squares)
 
       if(!expIntersections.empty())
       {
-        SLIC_INFO("There were " << expIntersections.size()
-                                << " intersection polygons");
+        SLIC_INFO("There were " << expIntersections.size() << " intersection polygons");
         for(auto cp : expIntersections)
         {
           SLIC_INFO("\t" << cp);
         }
-        outputAsSVG("adjacent_squares_corner_RL.svg",
-                    bPolygon2,
-                    bPolygon1,
-                    expIntersections);
+        outputAsSVG("adjacent_squares_corner_RL.svg", bPolygon2, bPolygon1, expIntersections);
       }
     }
   }

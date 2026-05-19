@@ -41,8 +41,8 @@ template <typename T>
 bool orient(const BezierCurve<T, 2>& c1, const BezierCurve<T, 2>& c2, T s, T t);
 
 template <typename T>
-int isContained(const CurvedPolygon<T, 2>& p1,
-                const CurvedPolygon<T, 2>& p2,
+int isContained(const CurvedPolygon<BezierCurve<T, 2>>& p1,
+                const CurvedPolygon<BezierCurve<T, 2>>& p2,
                 double sq_tol = 1e-10);
 
 template <typename T>
@@ -50,7 +50,7 @@ class DirectionalWalk
 {
 public:
   static constexpr int NDIMS = 2;
-  using CurvedPolygonType = CurvedPolygon<T, NDIMS>;
+  using CurvedPolygonType = CurvedPolygon<BezierCurve<T, NDIMS>>;
   using IndexArray = std::vector<int>;
 
 public:
@@ -60,17 +60,14 @@ public:
   */
   struct EdgeIntersectionInfo
   {
-    T myTime;  // parameter value of intersection on curve on first CurvePolygon
-    int myEdge;  // index of curve on first CurvedPolygon
-    T otherTime;  // parameter value of intersection on curve on second CurvedPolygon
+    T myTime;       // parameter value of intersection on curve on first CurvePolygon
+    int myEdge;     // index of curve on first CurvedPolygon
+    T otherTime;    // parameter value of intersection on curve on second CurvedPolygon
     int otherEdge;  // index of curve on second CurvedPolygon
     int numinter;   // unique intersection point identifier
 
     /// \brief Comparison operator for sorting by parameter value
-    bool operator<(const EdgeIntersectionInfo& other) const
-    {
-      return myTime < other.myTime;
-    }
+    bool operator<(const EdgeIntersectionInfo& other) const { return myTime < other.myTime; }
   };
 
   /// Enum to represent different Junction states
@@ -96,19 +93,10 @@ public:
 
     bool isActive() const { return junctionState > JunctionState::APPLIED; }
 
-    EdgeIndex currentEdgeIndex(bool active) const
-    {
-      return incomingEdgeIndex[active];
-    }
-    EdgeIndex nextEdgeIndex(bool active) const
-    {
-      return incomingEdgeIndex[active] + 1;
-    }
+    EdgeIndex currentEdgeIndex(bool active) const { return incomingEdgeIndex[active]; }
+    EdgeIndex nextEdgeIndex(bool active) const { return incomingEdgeIndex[active] + 1; }
 
-    bool operator==(const Junction& other) const
-    {
-      return index == other.index;
-    }
+    bool operator==(const Junction& other) const { return index == other.index; }
     bool operator!=(const Junction& other) const { return !(*this == other); }
 
   public:
@@ -155,14 +143,8 @@ public:
 
   private:
     EdgeIndex lastIndex() const { return m_numEdges - 1; }
-    EdgeIndex nextIndex() const
-    {
-      return m_index < lastIndex() ? m_index + 1 : 0;
-    }
-    EdgeIndex prevIndex() const
-    {
-      return m_index > 0 ? m_index - 1 : lastIndex();
-    }
+    EdgeIndex nextIndex() const { return m_index < lastIndex() ? m_index + 1 : 0; }
+    EdgeIndex prevIndex() const { return m_index > 0 ? m_index - 1 : lastIndex(); }
 
   private:
     EdgeIndex m_index;
@@ -186,8 +168,7 @@ public:
                                       double sq_tol)
   {
     // We store intersection information for each edge in EdgeIntersectionInfo structures
-    using EdgeIntersectionInfoArray =
-      std::vector<std::vector<EdgeIntersectionInfo>>;
+    using EdgeIntersectionInfoArray = std::vector<std::vector<EdgeIntersectionInfo>>;
     EdgeIntersectionInfoArray p1IntersectionData(p1.numEdges());
     EdgeIntersectionInfoArray p2IntersectionData(p2.numEdges());
     EdgeIntersectionInfo firstinter;  // Need to do orientation test on first intersection
@@ -198,8 +179,8 @@ public:
     {
       for(int j = 0; j < p2.numEdges(); ++j)
       {
-        std::vector<T> p1times;
-        std::vector<T> p2times;
+        axom::Array<T> p1times;
+        axom::Array<T> p2times;
         intersect_bezier_curves(p1[i],
                                 p2[j],
                                 p1times,
@@ -211,7 +192,7 @@ public:
                                 1.,
                                 0.,
                                 1.);
-        const int edgeIntersections = p1times.size();
+        const int edgeIntersections = static_cast<int>(p1times.size());
         if(edgeIntersections > 0)
         {
           if(numinters == 0)
@@ -221,22 +202,20 @@ public:
 
           for(int k = 0; k < edgeIntersections; ++k, ++numinters)
           {
-            p1IntersectionData[i].push_back(
-              {p1times[k], i, p2times[k], j, numinters + 1});
-            p2IntersectionData[j].push_back(
-              {p2times[k], j, p1times[k], i, numinters + 1});
+            p1IntersectionData[i].push_back({p1times[k], i, p2times[k], j, numinters + 1});
+            p2IntersectionData[j].push_back({p2times[k], j, p1times[k], i, numinters + 1});
 
             if(m_verbose)
             {
-              SLIC_INFO(fmt::format(
-                "Found intersection {} -- on edge {} of polygon1 at t={}"
-                " and edge {} of polygon2 at t={}; intersection point {}",
-                numinters + 1,
-                i,
-                p1times[k],
-                j,
-                p2times[k],
-                p1[i].evaluate(p1times[k])));
+              SLIC_INFO(
+                fmt::format("Found intersection {} -- on edge {} of polygon1 at t={}"
+                            " and edge {} of polygon2 at t={}; intersection point {}",
+                            numinters + 1,
+                            i,
+                            p1times[k],
+                            j,
+                            p2times[k],
+                            p1[i].evaluate(p1times[k])));
             }
           }
         }
@@ -305,8 +284,7 @@ public:
     if(m_verbose)
     {
       const int nJunctions = junctions.size();
-      SLIC_INFO("At start of 'findIntersectionRegions', there are "
-                << nJunctions << " junctions:");
+      SLIC_INFO("At start of 'findIntersectionRegions', there are " << nJunctions << " junctions:");
       for(int i = 0; i < nJunctions; ++i)
       {
         SLIC_INFO(
@@ -315,7 +293,7 @@ public:
                             i,
                             junctions[i].incomingEdgeIndex[0],
                             junctions[i].incomingEdgeIndex[1],
-                            junctions[i].junctionState,
+                            static_cast<int>(junctions[i].junctionState),
                             junctions[i].index));
       }
     }
@@ -331,9 +309,7 @@ public:
       Junction* startJunction = nullptr;
       do
       {
-        startJunction = (junctionIndex < numJunctions)
-          ? &(junctions[junctionIndex++])
-          : nullptr;
+        startJunction = (junctionIndex < numJunctions) ? &(junctions[junctionIndex++]) : nullptr;
       } while(startJunction != nullptr && !startJunction->isActive());
 
       // If we've found all the active junctions, we're done
@@ -423,17 +399,16 @@ public:
 
         if(m_verbose)
         {
-          SLIC_INFO(""
-                    << "Swapped to junction " << junction->index
-                    << "\n\t edges[0] {in: " << junction->currentEdgeIndex(0)
-                    << " -- " << psplit[0][junction->currentEdgeIndex(0)]
-                    << "; out: " << junction->nextEdgeIndex(0) << " -- "
-                    << psplit[0][junction->nextEdgeIndex(0)] << "}"
-                    << "\n\t edges[1] {in: " << junction->currentEdgeIndex(1)
-                    << " -- " << psplit[1][junction->currentEdgeIndex(1)]
-                    << "; out: " << junction->nextEdgeIndex(1) << " -- "
-                    << psplit[1][junction->nextEdgeIndex(1)] << "}"
-                    << "\n\t active: " << (active ? 1 : 0));
+          SLIC_INFO("" << "Swapped to junction " << junction->index
+                       << "\n\t edges[0] {in: " << junction->currentEdgeIndex(0) << " -- "
+                       << psplit[0][junction->currentEdgeIndex(0)]
+                       << "; out: " << junction->nextEdgeIndex(0) << " -- "
+                       << psplit[0][junction->nextEdgeIndex(0)] << "}"
+                       << "\n\t edges[1] {in: " << junction->currentEdgeIndex(1) << " -- "
+                       << psplit[1][junction->currentEdgeIndex(1)]
+                       << "; out: " << junction->nextEdgeIndex(1) << " -- "
+                       << psplit[1][junction->nextEdgeIndex(1)] << "}"
+                       << "\n\t active: " << (active ? 1 : 0));
         }
 
         if(junction->isActive())
@@ -449,8 +424,7 @@ public:
           if(m_verbose)
           {
             SLIC_INFO("Swapped to other polygon, edge index: "
-                      << nextEdgeIndex
-                      << "; edge: " << psplit[active][activeEdge->getIndex()]);
+                      << nextEdgeIndex << "; edge: " << psplit[active][activeEdge->getIndex()]);
           }
         }
       }
@@ -462,9 +436,8 @@ public:
 private:
   /// Splits the polygon with id \a polygonID at every intersection point in \a edgeIntersections.
   /// Uses internal array \a edgeLabels to store ids for vertices (junction indices or 0 for original vertices)
-  void splitPolygon(
-    int polygonID,
-    std::vector<std::vector<EdgeIntersectionInfo>>& allEdgeIntersections)
+  void splitPolygon(int polygonID,
+                    std::vector<std::vector<EdgeIntersectionInfo>>& allEdgeIntersections)
   {
     using axom::utilities::isNearlyEqual;
 
@@ -539,8 +512,7 @@ private:
             fixupBeginningJunctionIdx = idx;
           }
 
-          junctions[idx].junctionState =
-            JunctionState::CROSS;  //JunctionState::GRAZE;
+          junctions[idx].junctionState = JunctionState::CROSS;  //JunctionState::GRAZE;
           junctions[idx].index = idx;
         }
 
@@ -550,12 +522,11 @@ private:
                                       axom::fmt::join(junctionIndices, " ")));
           for(const auto& jj : junctions)
           {
-            SLIC_INFO(fmt::format(
-              "\t{{index: {}, state: {}, edgeIndex[0]: {}, edgeIndex[1]: {} }}",
-              jj.index,
-              jj.junctionState,
-              jj.incomingEdgeIndex[0],
-              jj.incomingEdgeIndex[1]));
+            SLIC_INFO(fmt::format("\t{{index: {}, state: {}, edgeIndex[0]: {}, edgeIndex[1]: {} }}",
+                                  jj.index,
+                                  static_cast<int>(jj.junctionState),
+                                  jj.incomingEdgeIndex[0],
+                                  jj.incomingEdgeIndex[1]));
           }
         }
 
@@ -583,8 +554,7 @@ private:
     {
       const int edgeIndex = junctionIndices.size() - 1;
       junctionIndices[edgeIndex] = fixupBeginningJunctionIdx;
-      junctions[fixupBeginningJunctionIdx].incomingEdgeIndex[polygonID] =
-        edgeIndex;
+      junctions[fixupBeginningJunctionIdx].incomingEdgeIndex[polygonID] = edgeIndex;
     }
   }
 
@@ -608,9 +578,9 @@ public:
  * \param [out] pnew vector of type CurvedPolygon holding CurvedPolygon objects representing boundaries of intersection regions.
  */
 template <typename T>
-bool intersect_polygon(const CurvedPolygon<T, 2>& p1,
-                       const CurvedPolygon<T, 2>& p2,
-                       std::vector<CurvedPolygon<T, 2>>& pnew,
+bool intersect_polygon(const CurvedPolygon<BezierCurve<T, 2>>& p1,
+                       const CurvedPolygon<BezierCurve<T, 2>>& p2,
+                       std::vector<CurvedPolygon<BezierCurve<T, 2>>>& pnew,
                        double sq_tol)
 {
   // Intersection is empty if either of the two polygons are empty
@@ -654,8 +624,8 @@ bool intersect_polygon(const CurvedPolygon<T, 2>& p1,
  * \return 0 if mutually exclusive, 1 if p1 is in p2, 2 if p2 is in p1
  */
 template <typename T>
-int isContained(const CurvedPolygon<T, 2>& p1,
-                const CurvedPolygon<T, 2>& p2,
+int isContained(const CurvedPolygon<BezierCurve<T, 2>>& p1,
+                const CurvedPolygon<BezierCurve<T, 2>>& p2,
                 double sq_tol)
 {
   const int NDIMS = 2;
@@ -672,19 +642,9 @@ int isContained(const CurvedPolygon<T, 2>& p1,
   T line2s = 1.0;
   for(int j = 0; j < p1.numEdges(); ++j)
   {
-    std::vector<T> temps;
-    std::vector<T> tempt;
-    intersect_bezier_curves(LineGuess,
-                            p1[j],
-                            temps,
-                            tempt,
-                            sq_tol,
-                            1,
-                            p1[j].getOrder(),
-                            0.,
-                            1.,
-                            0.,
-                            1.);
+    axom::Array<T> temps;
+    axom::Array<T> tempt;
+    intersect_bezier_curves(LineGuess, p1[j], temps, tempt, sq_tol, 1, p1[j].getOrder(), 0., 1., 0., 1.);
 
     for(int i = 0; i < static_cast<int>(temps.size()); ++i)
     {
@@ -698,19 +658,9 @@ int isContained(const CurvedPolygon<T, 2>& p1,
   }
   for(int j = 0; j < p2.numEdges(); ++j)
   {
-    std::vector<T> temps;
-    std::vector<T> tempt;
-    intersect_bezier_curves(LineGuess,
-                            p2[j],
-                            temps,
-                            tempt,
-                            sq_tol,
-                            1,
-                            p2[j].getOrder(),
-                            1.,
-                            0.,
-                            1.,
-                            0.);
+    axom::Array<T> temps;
+    axom::Array<T> tempt;
+    intersect_bezier_curves(LineGuess, p2[j], temps, tempt, sq_tol, 1, p2[j].getOrder(), 1., 0., 1., 0.);
     intersect(LineGuess, p2[j], temps, tempt);
     for(int i = 0; i < static_cast<int>(temps.size()); ++i)
     {
@@ -724,10 +674,8 @@ int isContained(const CurvedPolygon<T, 2>& p1,
   }
 
   using Vec3 = primal::Vector<T, 3>;
-  const bool E1inE2 =
-    Vec3::cross_product(p1[p1c].dt(p1t), LineGuess.dt(line1s))[2] < 0;
-  const bool E2inE1 =
-    Vec3::cross_product(p2[p2c].dt(p2t), LineGuess.dt(line2s))[2] < 0;
+  const bool E1inE2 = Vec3::cross_product(p1[p1c].dt(p1t), LineGuess.dt(line1s))[2] < 0;
+  const bool E2inE1 = Vec3::cross_product(p2[p2c].dt(p2t), LineGuess.dt(line2s))[2] < 0;
   if(E1inE2 && E2inE1)
   {
     return 1;
@@ -755,8 +703,7 @@ int isContained(const CurvedPolygon<T, 2>& p1,
 template <typename T>
 bool orient(const BezierCurve<T, 2>& c1, const BezierCurve<T, 2>& c2, T s, T t)
 {
-  const auto orientation =
-    primal::Vector<T, 3>::cross_product(c1.dt(s), c2.dt(t))[2];
+  const auto orientation = primal::Vector<T, 3>::cross_product(c1.dt(s), c2.dt(t))[2];
   return (orientation > 0);
 }
 
@@ -774,11 +721,10 @@ enum class JunctionIntersectionType : int
 // determine if the in/out edges of second polygon is on the same
 // side of the first polygon
 template <typename T>
-JunctionIntersectionType getJunctionIntersectionType(
-  const BezierCurve<T, 2>& p0In,
-  const BezierCurve<T, 2>& p0Out,
-  const BezierCurve<T, 2>& p1In,
-  const BezierCurve<T, 2>& p1Out)
+JunctionIntersectionType getJunctionIntersectionType(const BezierCurve<T, 2>& p0In,
+                                                     const BezierCurve<T, 2>& p0Out,
+                                                     const BezierCurve<T, 2>& p1In,
+                                                     const BezierCurve<T, 2>& p1Out)
 {
   using SegmentType = primal::Segment<T, 2>;
   using VectorType = primal::Vector<T, 2>;
@@ -788,13 +734,11 @@ JunctionIntersectionType getJunctionIntersectionType(
   // P0In(1) == P0Out(0) == P1In(1) == P1Out(0)
   // If not, return JunctionIntersectionType::Non_Intersection
 
-  const VectorType p0Tangents[2] = {-p0In.dt(1.).unitVector(),
-                                    p0Out.dt(0.).unitVector()};
+  const VectorType p0Tangents[2] = {-p0In.dt(1.).unitVector(), p0Out.dt(0.).unitVector()};
   const SegmentType p0Seg(PointType {p0Tangents[0][0], p0Tangents[0][1]},
                           PointType {p0Tangents[1][0], p0Tangents[1][1]});
 
-  const VectorType p1Tangents[2] = {-p1In.dt(1.).unitVector(),
-                                    p1Out.dt(0.).unitVector()};
+  const VectorType p1Tangents[2] = {-p1In.dt(1.).unitVector(), p1Out.dt(0.).unitVector()};
   const SegmentType p1Seg(PointType {p1Tangents[0][0], p1Tangents[0][1]},
                           PointType {p1Tangents[1][0], p1Tangents[1][1]});
 
@@ -806,16 +750,14 @@ JunctionIntersectionType getJunctionIntersectionType(
     const int orient_p1_p0In = primal::orientation(p0Seg[0], p1Seg);
     if(orientIn == ON_POSITIVE_SIDE)
     {
-      return orient_p1_p0In == ON_POSITIVE_SIDE
-        ? JunctionIntersectionType::Type3
-        : JunctionIntersectionType::Type1;
+      return orient_p1_p0In == ON_POSITIVE_SIDE ? JunctionIntersectionType::Type3
+                                                : JunctionIntersectionType::Type1;
     }
     else
     {
       {
-        return orient_p1_p0In == ON_POSITIVE_SIDE
-          ? JunctionIntersectionType::Type4
-          : JunctionIntersectionType::Type2;
+        return orient_p1_p0In == ON_POSITIVE_SIDE ? JunctionIntersectionType::Type4
+                                                  : JunctionIntersectionType::Type2;
       }
     }
   }

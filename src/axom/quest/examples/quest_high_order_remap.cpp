@@ -44,8 +44,8 @@ public:
   using BBox = primal::BoundingBox<double, DIM>;
   using SpacePoint = primal::Point<double, DIM>;
 
-  using CurvedPolygonType = primal::CurvedPolygon<double, DIM>;
-  using BCurve = CurvedPolygonType::BezierCurveType;
+  using BCurve = primal::BezierCurve<double, DIM>;
+  using CurvedPolygonType = primal::CurvedPolygon<BCurve>;
 
 private:
   /// \brief Checks if the mesh's nodes are in the Bernstein basis
@@ -58,14 +58,12 @@ private:
       return false;
     }
 
-    if(const mfem::H1_FECollection* h1Fec =
-         dynamic_cast<const mfem::H1_FECollection*>(fec))
+    if(const mfem::H1_FECollection* h1Fec = dynamic_cast<const mfem::H1_FECollection*>(fec))
     {
       return h1Fec->GetBasisType() == mfem::BasisType::Positive;
     }
 
-    if(const mfem::L2_FECollection* l2Fec =
-         dynamic_cast<const mfem::L2_FECollection*>(fec))
+    if(const mfem::L2_FECollection* l2Fec = dynamic_cast<const mfem::L2_FECollection*>(fec))
     {
       return l2Fec->GetBasisType() == mfem::BasisType::Positive;
     }
@@ -104,8 +102,7 @@ public:
     SLIC_ERROR_IF(m_mesh->GetNodes() == nullptr, "The mesh must be high order.");
 
     // Check that mesh nodes are using Bernstein basis
-    SLIC_ERROR_IF(!isBernsteinBasis(),
-                  "The mesh must be in the Bernstein basis");
+    SLIC_ERROR_IF(!isBernsteinBasis(), "The mesh must be in the Bernstein basis");
 
     const double tol = 1E-8;
     computeBoundingBoxes(1 + tol);
@@ -187,8 +184,7 @@ private:
                                const mfem::FiniteElementSpace* fes,
                                const mfem::GridFunction* nodes)
   {
-    return SpacePoint {(*nodes)(fes->DofToVDof(idx, 0)),
-                       (*nodes)(fes->DofToVDof(idx, 1))};
+    return SpacePoint {(*nodes)(fes->DofToVDof(idx, 0)), (*nodes)(fes->DofToVDof(idx, 1))};
   }
 
   /*!
@@ -256,8 +252,7 @@ public:
     fesMap.DeleteData(true);
   }
 
-  mfem::GridFunction* project_to_pos_basis(const mfem::GridFunction* gf,
-                                           bool& is_new)
+  mfem::GridFunction* project_to_pos_basis(const mfem::GridFunction* gf, bool& is_new)
   {
     mfem::GridFunction* out_pos_gf = nullptr;
     is_new = false;
@@ -265,22 +260,18 @@ public:
     SLIC_ASSERT(gf != nullptr);
 
     const mfem::FiniteElementSpace* nodal_fe_space = gf->FESpace();
-    SLIC_ERROR_IF(nodal_fe_space == nullptr,
-                  "project_to_pos_basis(): nodal_fe_space is NULL!");
+    SLIC_ERROR_IF(nodal_fe_space == nullptr, "project_to_pos_basis(): nodal_fe_space is NULL!");
 
     const mfem::FiniteElementCollection* nodal_fe_coll = nodal_fe_space->FEColl();
-    SLIC_ERROR_IF(nodal_fe_coll == nullptr,
-                  "project_to_pos_basis(): nodal_fe_coll is NULL!");
+    SLIC_ERROR_IF(nodal_fe_coll == nullptr, "project_to_pos_basis(): nodal_fe_coll is NULL!");
 
     mfem::Mesh* gf_mesh = nodal_fe_space->GetMesh();
-    SLIC_ERROR_IF(gf_mesh == nullptr,
-                  "project_to_pos_basis(): gf_mesh is NULL!");
+    SLIC_ERROR_IF(gf_mesh == nullptr, "project_to_pos_basis(): gf_mesh is NULL!");
 
     int order = nodal_fe_space->GetOrder(0);
     int dim = gf_mesh->Dimension();
 
-    auto* pos_fe_coll =
-      new mfem::H1_FECollection(order, dim, mfem::BasisType::Positive);
+    auto* pos_fe_coll = new mfem::H1_FECollection(order, dim, mfem::BasisType::Positive);
 
     // {
     //   mfem::Geometry::Type geom_type = gf_mesh->GetElementBaseGeometry(0);
@@ -302,8 +293,7 @@ public:
     const int dims = nodal_fe_space->GetVDim();
 
     // Create a positive (Bernstein) grid function for the nodes
-    mfem::FiniteElementSpace* pos_fe_space =
-      new mfem::FiniteElementSpace(gf_mesh, pos_fe_coll, dims);
+    mfem::FiniteElementSpace* pos_fe_space = new mfem::FiniteElementSpace(gf_mesh, pos_fe_coll, dims);
     mfem::GridFunction* pos_nodes = new mfem::GridFunction(pos_fe_space);
 
     // m_pos_nodes takes ownership of pos_fe_coll's memory (and pos_fe_space's memory)
@@ -315,9 +305,8 @@ public:
     out_pos_gf = pos_nodes;
     is_new = true;
 
-    SLIC_WARNING_IF(
-      out_pos_gf == nullptr,
-      "project_to_pos_basis(): Construction failed;  out_pos_gf is NULL!");
+    SLIC_WARNING_IF(out_pos_gf == nullptr,
+                    "project_to_pos_basis(): Construction failed;  out_pos_gf is NULL!");
 
     return out_pos_gf;
   }
@@ -379,11 +368,9 @@ public:
     {
       bool is_mesh_gf_new {false};
       mfem::GridFunction* mesh_nodes = mesh->GetNodes();
-      mfem::GridFunction* pos_mesh_nodes_ptr =
-        project_to_pos_basis(mesh_nodes, is_mesh_gf_new);
+      mfem::GridFunction* pos_mesh_nodes_ptr = project_to_pos_basis(mesh_nodes, is_mesh_gf_new);
 
-      mfem::GridFunction& pos_mesh_nodes =
-        (is_mesh_gf_new ? *pos_mesh_nodes_ptr : *mesh_nodes);
+      mfem::GridFunction& pos_mesh_nodes = (is_mesh_gf_new ? *pos_mesh_nodes_ptr : *mesh_nodes);
       mesh->NewNodes(pos_mesh_nodes, true);
     }
 
@@ -404,13 +391,13 @@ public:
       tgtMesh.setMesh(mesh);
     }
 
-    SLIC_INFO(axom::fmt::format(
-      "Loaded {} mesh from {} w/ {} elements."
-      "\n\t(Slightly inflated) mesh bounding box: {}",
-      isSource ? "source" : "target",
-      fname.empty() ? "Cartesian grid" : fname,
-      mesh->GetNE(),
-      isSource ? srcMesh.meshBoundingBox() : tgtMesh.meshBoundingBox()));
+    SLIC_INFO(
+      axom::fmt::format("Loaded {} mesh from {} w/ {} elements."
+                        "\n\t(Slightly inflated) mesh bounding box: {}",
+                        isSource ? "source" : "target",
+                        fname.empty() ? "Cartesian grid" : fname,
+                        mesh->GetNE(),
+                        isSource ? srcMesh.meshBoundingBox() : tgtMesh.meshBoundingBox()));
   }
 
   /// Setup the implicit grid spatial index over the source mesh
@@ -462,7 +449,7 @@ public:
         //              << " -- bbox " <<  srcMesh.elementBoundingBox(srcElem)
         //);
 
-        std::vector<primal::CurvedPolygon<double, 2>> pnew;
+        std::vector<MeshWrapper::CurvedPolygonType> pnew;
         tgtPoly.reverseOrientation();
         srcPoly.reverseOrientation();
         if(primal::intersect(tgtPoly, srcPoly, pnew, 1e-8))
@@ -495,8 +482,7 @@ public:
     //  const double tgt_trans = .000000000001345747181586;
     //  double trueError = (tgt_scale*tgt_scale-totalArea);
     //  std::cout << trueError << ", ";
-    std::cout << "Calculated area (supermesh): " << std::fixed << totalArea
-              << std::endl;
+    std::cout << "Calculated area (supermesh): " << std::fixed << totalArea << std::endl;
     std::cout << "Calculated area (target mesh): " << correctArea << std::endl;
     return (totalArea - correctArea);
   }
@@ -535,6 +521,7 @@ public:
     // lambda to convert a CurvedPolygon to an SVG path string
     auto cpToSVG = [](const MeshWrapper::CurvedPolygonType& cp) {
       axom::fmt::memory_buffer out;
+      axom::fmt::appender out_it(out);
       bool is_first = true;
 
       for(auto& curve : cp.getEdges())
@@ -542,17 +529,17 @@ public:
         // Only write out first point for first edge
         if(is_first)
         {
-          axom::fmt::format_to(out, "M {} {} ", curve[0][0], curve[0][1]);
+          axom::fmt::format_to(out_it, "M {} {} ", curve[0][0], curve[0][1]);
           is_first = false;
         }
 
         switch(curve.getOrder())
         {
         case 1:
-          axom::fmt::format_to(out, "L {} {} ", curve[1][0], curve[1][1]);
+          axom::fmt::format_to(out_it, "L {} {} ", curve[1][0], curve[1][1]);
           break;
         case 2:
-          axom::fmt::format_to(out,
+          axom::fmt::format_to(out_it,
                                "Q {} {}, {} {} ",
                                curve[1][0],
                                curve[1][1],
@@ -560,7 +547,7 @@ public:
                                curve[2][1]);
           break;
         case 3:
-          axom::fmt::format_to(out,
+          axom::fmt::format_to(out_it,
                                "C {} {}, {} {}, {} {} ",
                                curve[1][0],
                                curve[1][1],
@@ -570,12 +557,10 @@ public:
                                curve[3][1]);
           break;
         default:
-          SLIC_WARNING(
-            "Unsupported case: can only output up to cubic curves as SVG.");
+          SLIC_WARNING("Unsupported case: can only output up to cubic curves as SVG.");
         }
       }
-      return axom::fmt::format("    <path d='{} Z' />\n",
-                               axom::fmt::to_string(out));
+      return axom::fmt::format("    <path d='{} Z' />\n", axom::fmt::to_string(out));
     };
 
     std::string srcGroup;
@@ -585,34 +570,34 @@ public:
     // output src mesh
     {
       axom::fmt::memory_buffer out;
-      axom::fmt::format_to(
-        out,
-        "  <g id='source_mesh' stroke='black' stroke-width='.01' "
-        "fill='red' fill-opacity='.7'>\n");
+      axom::fmt::appender out_it(out);
+      axom::fmt::format_to(out_it,
+                           "  <g id='source_mesh' stroke='black' stroke-width='.01' "
+                           "fill='red' fill-opacity='.7'>\n");
       auto& meshWrapper = srcMesh;
       for(int i = 0; i < meshWrapper.numElements(); ++i)
       {
         auto cp = meshWrapper.elemAsCurvedPolygon(i);
-        axom::fmt::format_to(out, cpToSVG(cp));
+        axom::fmt::format_to(out_it, "{}", cpToSVG(cp));
       }
-      axom::fmt::format_to(out, "  </g>\n");
+      axom::fmt::format_to(out_it, "  </g>\n");
       srcGroup = axom::fmt::to_string(out);
     }
 
     //output tgt mesh
     {
       axom::fmt::memory_buffer out;
-      axom::fmt::format_to(
-        out,
-        "  <g id='target_mesh' stroke='black' stroke-width='.01' "
-        "fill='blue' fill-opacity='.7'>\n");
+      axom::fmt::appender out_it(out);
+      axom::fmt::format_to(out_it,
+                           "  <g id='target_mesh' stroke='black' stroke-width='.01' "
+                           "fill='blue' fill-opacity='.7'>\n");
       auto& meshWrapper = tgtMesh;
       for(int i = 0; i < meshWrapper.numElements(); ++i)
       {
         auto cp = meshWrapper.elemAsCurvedPolygon(i);
-        axom::fmt::format_to(out, cpToSVG(cp));
+        axom::fmt::format_to(out_it, "{}", cpToSVG(cp));
       }
-      axom::fmt::format_to(out, "  </g>\n");
+      axom::fmt::format_to(out_it, "  </g>\n");
       tgtGroup = axom::fmt::to_string(out);
     }
 
@@ -620,10 +605,10 @@ public:
     {
       double EPS = 1e-8;
       axom::fmt::memory_buffer out;
-      axom::fmt::format_to(
-        out,
-        "  <g id='intersection_mesh' stroke='black' stroke-width='.01' "
-        "fill='green' fill-opacity='.7'>\n");
+      axom::fmt::appender out_it(out);
+      axom::fmt::format_to(out_it,
+                           "  <g id='intersection_mesh' stroke='black' stroke-width='.01' "
+                           "fill='green' fill-opacity='.7'>\n");
 
       // foreach target element, find src intersections and add to group
       const int nTargetElems = tgtMesh.numElements();
@@ -648,7 +633,7 @@ public:
           {
             for(auto& cp : pnew)
             {
-              axom::fmt::format_to(out, cpToSVG(cp));
+              axom::fmt::format_to(out_it, "{}", cpToSVG(cp));
             }
           }
 
@@ -657,7 +642,7 @@ public:
         }
       }
 
-      axom::fmt::format_to(out, "  </g>\n");
+      axom::fmt::format_to(out_it, "  </g>\n");
       intersectionGroup = axom::fmt::to_string(out);
     }
 
@@ -783,9 +768,7 @@ int main(int argc, char** argv)
     app.add_option("--srcFile", srcMesh.file)
       ->description("mfem mesh file for source mesh")
       ->check(axom::CLI::ExistingFile);
-    app.add_option("--srcOffset", srcMesh.offset)
-      ->description("offset for source mesh")
-      ->expected(2);
+    app.add_option("--srcOffset", srcMesh.offset)->description("offset for source mesh")->expected(2);
     app.add_option("--srcScale", srcMesh.scale)
       ->description("scale for source mesh")
       ->capture_default_str();
@@ -799,9 +782,7 @@ int main(int argc, char** argv)
     app.add_option("--tgtFile", tgtMesh.file)
       ->description("mfem mesh file for source mesh")
       ->check(axom::CLI::ExistingFile);
-    app.add_option("--tgtOffset", tgtMesh.offset)
-      ->description("offset for target mesh")
-      ->expected(2);
+    app.add_option("--tgtOffset", tgtMesh.offset)->description("offset for target mesh")->expected(2);
     app.add_option("--tgtScale", tgtMesh.scale)
       ->description("scale for target mesh")
       ->capture_default_str();
@@ -870,9 +851,7 @@ int main(int argc, char** argv)
 
   remap.outputAsSVG();
 
-  SLIC_INFO(axom::fmt::format("Intersecting meshes: area: {}, time: {}",
-                              area,
-                              timer.elapsed()));
+  SLIC_INFO(axom::fmt::format("Intersecting meshes: area: {}, time: {}", area, timer.elapsed()));
 
   return 0;
 }
