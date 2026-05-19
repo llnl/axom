@@ -261,13 +261,13 @@ TEST(primal_curvedpolygon, detail_intersection_type)
   std::vector<PointType> CP = {PointType {-1, 0}, PointType {0, 0}, PointType {1, 0}};
   CurvedPolygonType bPolygon1 = createPolygon(CP, orders);
 
-  // A type2 case
+  // A type3 case
   {
     std::vector<PointType> CP2 = {PointType {1, -1}, PointType {0, 0}, PointType {-1, -1}};
     CurvedPolygonType bPolygon2 = createPolygon(CP2, orders);
 
     auto xType = getJunctionIntersectionType(bPolygon1[0], bPolygon1[1], bPolygon2[0], bPolygon2[1]);
-    EXPECT_EQ(JunctionIntersectionType::Type2, xType);
+    EXPECT_EQ(JunctionIntersectionType::Type3, xType);
   }
 }
 

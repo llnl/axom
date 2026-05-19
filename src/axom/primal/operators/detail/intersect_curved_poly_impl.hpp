@@ -343,25 +343,25 @@ public:
       {
         const int p0Edges = psplit[0].numEdges();
         const int p1Edges = psplit[1].numEdges();
-        const int p0CurrIdx = startJunction->currentEdgeIndex(0);
-        const int p0NextIdx = startJunction->nextEdgeIndex(0) % p0Edges;
-        const int p1CurrIdx = startJunction->currentEdgeIndex(1);
-        const int p1NextIdx = startJunction->nextEdgeIndex(1) % p1Edges;
+        const auto safe_mod = [](int idx, int n) -> int {
+          return (idx >= 0 && n > 0) ? (idx % n) : idx;
+        };
+
+        const int p0CurrIdx = safe_mod(startJunction->currentEdgeIndex(0), p0Edges);
+        const int p0NextIdx = safe_mod(startJunction->nextEdgeIndex(0), p0Edges);
+        const int p1CurrIdx = safe_mod(startJunction->currentEdgeIndex(1), p1Edges);
+        const int p1NextIdx = safe_mod(startJunction->nextEdgeIndex(1), p1Edges);
 
         SLIC_INFO(
           axom::fmt::format("Starting with junction {}"
-                            "\n\t edges[0] {} -> {} {{in: {}; out: {} }}"
-                            "\n\t edges[1] {} -> {} {{in: {}; out: {} }}"
+                            "\n\t edges[0] {} -> {}"
+                            "\n\t edges[1] {} -> {}"
                             "\n\t active: {}",
                             startJunction->index,
                             p0CurrIdx,
                             p0NextIdx,
-                            psplit[0][p0CurrIdx],
-                            psplit[0][p0NextIdx],
                             p1CurrIdx,
                             p1NextIdx,
-                            psplit[1][p1CurrIdx],
-                            psplit[1][p1NextIdx],
                             (active ? 1 : 0)));
       }
 
@@ -399,15 +399,20 @@ public:
 
         if(m_verbose)
         {
+          const int p0Edges = psplit[0].numEdges();
+          const int p1Edges = psplit[1].numEdges();
+          const auto safe_mod = [](int idx, int n) -> int {
+            return (idx >= 0 && n > 0) ? (idx % n) : idx;
+          };
+
+          const int p0InIdx = safe_mod(junction->currentEdgeIndex(0), p0Edges);
+          const int p0OutIdx = safe_mod(junction->nextEdgeIndex(0), p0Edges);
+          const int p1InIdx = safe_mod(junction->currentEdgeIndex(1), p1Edges);
+          const int p1OutIdx = safe_mod(junction->nextEdgeIndex(1), p1Edges);
+
           SLIC_INFO("" << "Swapped to junction " << junction->index
-                       << "\n\t edges[0] {in: " << junction->currentEdgeIndex(0) << " -- "
-                       << psplit[0][junction->currentEdgeIndex(0)]
-                       << "; out: " << junction->nextEdgeIndex(0) << " -- "
-                       << psplit[0][junction->nextEdgeIndex(0)] << "}"
-                       << "\n\t edges[1] {in: " << junction->currentEdgeIndex(1) << " -- "
-                       << psplit[1][junction->currentEdgeIndex(1)]
-                       << "; out: " << junction->nextEdgeIndex(1) << " -- "
-                       << psplit[1][junction->nextEdgeIndex(1)] << "}"
+                       << "\n\t edges[0] {in: " << p0InIdx << "; out: " << p0OutIdx << "}"
+                       << "\n\t edges[1] {in: " << p1InIdx << "; out: " << p1OutIdx << "}"
                        << "\n\t active: " << (active ? 1 : 0));
         }
 
@@ -429,7 +434,14 @@ public:
         }
       }
       // Finalize polygon
-      pnew.push_back(aPart);
+      if(aPart.numEdges() >= 3)
+      {
+        pnew.push_back(aPart);
+      }
+      else if(m_verbose)
+      {
+        SLIC_INFO("Skipping degenerate intersection polygon with " << aPart.numEdges() << " edges");
+      }
     }
   }
 
