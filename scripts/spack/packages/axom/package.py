@@ -16,7 +16,7 @@ from spack_repo.builtin.build_systems.cached_cmake import (
 from spack_repo.builtin.build_systems.cuda import CudaPackage
 from spack_repo.builtin.build_systems.rocm import ROCmPackage
 
-# Axom components we expose to Spack.  Core is always built and is not listed here.
+# Axom components we expose to Spack. Core is always built and is not listed here.
 _AXOM_COMPONENTS = (
     "bump",
     "inlet",
@@ -186,9 +186,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     # Libraries
     # Forward variants to Conduit
     with when("+conduit"):
-        for _var in ["fortran", "hdf5", "mpi", "python"]:
+        for _var in ["hdf5", "mpi"]:
             depends_on("conduit+{0}".format(_var), when="+{0}".format(_var))
             depends_on("conduit~{0}".format(_var), when="~{0}".format(_var))
+        depends_on("conduit+fortran", when="+fortran")
 
     depends_on("hdf5", when="+hdf5")
 
