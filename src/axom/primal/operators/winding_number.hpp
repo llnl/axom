@@ -566,12 +566,26 @@ double winding_number(const Point<T, 3>& q,
     return 0;
   }
 
-  const double num = Vec3::scalar_triple_product(a, b, c);
-  if(axom::utilities::isNearlyEqual(num, 0.0, EPS))
+  // Explicitly compute distance from the triangle plane to the point.
+  // Use the triangle's (query-independent) normal here instead of (b x c),
+  // which can be zero when the query lies on the line through tri[1] and tri[2].
+  const auto tri_normal = Vec3::cross_product(tri[1] - tri[0], tri[2] - tri[0]);
+  const double tri_normal_norm = tri_normal.norm();
+  if(axom::utilities::isNearlyEqual(tri_normal_norm, 0.0, PRIMAL_TINY))
+  {
+    return 0;
+  }
+
+  if(axom::utilities::isNearlyEqual(Vec3::dot_product(q - tri[0], tri_normal) / tri_normal_norm,
+                                    0.0,
+                                    edge_tol))
   {
     isOnFace = true;
     return 0;
   }
+
+  const auto bxc = Vec3::cross_product(b, c);
+  const double num = Vec3::dot_product(a, bxc);
 
   const double denom =
     a_norm * b_norm * c_norm + a_norm * b.dot(c) + b_norm * a.dot(c) + c_norm * a.dot(b);

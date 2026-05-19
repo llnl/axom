@@ -274,8 +274,8 @@ public:
 
   axom::runtime_policy::Policy policy = RuntimePolicy::seq;
 
-  const std::array<std::string, 2> valid_algorithms {"direct", "fast-approximation"};
-  std::string algorithm {valid_algorithms[1]};  // fast-approximation
+  const std::array<std::string, 2> valid_algorithms {"direct", "fast_approximate"};
+  std::string algorithm {valid_algorithms[1]};  // fast-approximate
 
   bool linearize {false};
   int approximation_order {2};
@@ -329,6 +329,19 @@ public:
       ->check(axom::CLI::PositiveNumber)
       ->capture_default_str();
 
+    app.add_option("--algorithm", algorithm)
+      ->description(
+        "Use direct evaluation instead of fast, heirarchical approximation? (significantly "
+        "slower, slightly more precise)")
+      ->capture_default_str()
+      ->check(axom::CLI::IsMember(valid_algorithms));
+    app
+      .add_option("--approximation-order",
+                  approximation_order,
+                  "The order of the Taylor expansion (lower is faster, less precise)")
+      ->expected(0, 2)
+      ->capture_default_str();
+
 #ifdef AXOM_USE_CALIPER
     app.add_option("--caliper", annotationMode)
       ->description(
@@ -367,18 +380,6 @@ public:
           "linearization.")
         ->check(axom::CLI::Range(0.0f, 100.0f))
         ->capture_default_str();
-    linearize_curves_subcommand->add_option("--algorithm", algorithm)
-      ->description(
-        "Use direct evaluation instead of fast, heirarchical approximation? (significantly "
-        "slower, slightly more precise)")
-      ->capture_default_str()
-      ->check(axom::CLI::IsMember(valid_algorithms));
-    linearize_curves_subcommand
-      ->add_option("--approximation-order",
-                   approximation_order,
-                   "The order of the Taylor expansion (lower is faster, less precise)")
-      ->expected(0, 2)
-      ->capture_default_str();
 
     auto* query_mesh_subcommand =
       app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
@@ -410,39 +411,47 @@ public:
   }
 };
 
-using GWNQueryType = std::variant<axom::quest::DirectGWN2D<axom::SEQ_EXEC>,
-                                  axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 0>,
-                                  axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 1>,
-                                  axom::quest::PolylineGWN2D<axom::SEQ_EXEC, 2>
+using GWNQueryType = std::variant<axom::quest::NURBSCurveGWNQuery<axom::SEQ_EXEC, 0>,
+                                  axom::quest::NURBSCurveGWNQuery<axom::SEQ_EXEC, 1>,
+                                  axom::quest::NURBSCurveGWNQuery<axom::SEQ_EXEC, 2>,
+                                  axom::quest::PolylineGWNQuery<axom::SEQ_EXEC, 0>,
+                                  axom::quest::PolylineGWNQuery<axom::SEQ_EXEC, 1>,
+                                  axom::quest::PolylineGWNQuery<axom::SEQ_EXEC, 2>
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
                                   ,
-                                  axom::quest::DirectGWN2D<axom::OMP_EXEC>,
-                                  axom::quest::PolylineGWN2D<axom::OMP_EXEC, 0>,
-                                  axom::quest::PolylineGWN2D<axom::OMP_EXEC, 1>,
-                                  axom::quest::PolylineGWN2D<axom::OMP_EXEC, 2>
+                                  axom::quest::NURBSCurveGWNQuery<axom::OMP_EXEC, 0>,
+                                  axom::quest::NURBSCurveGWNQuery<axom::OMP_EXEC, 1>,
+                                  axom::quest::NURBSCurveGWNQuery<axom::OMP_EXEC, 2>,
+                                  axom::quest::PolylineGWNQuery<axom::OMP_EXEC, 0>,
+                                  axom::quest::PolylineGWNQuery<axom::OMP_EXEC, 1>,
+                                  axom::quest::PolylineGWNQuery<axom::OMP_EXEC, 2>
 #endif
                                   >;
 
 template <typename ExecSpace>
 GWNQueryType pick_gwn_method(bool linearize_curves, int approximation_order)
 {
-  if(linearize_curves)
+  if(approximation_order == 0)
   {
-    if(approximation_order == 0)
-    {
-      return axom::quest::PolylineGWN2D<ExecSpace, 0> {};
-    }
-    else if(approximation_order == 1)
-    {
-      return axom::quest::PolylineGWN2D<ExecSpace, 1> {};
-    }
-    else  // approximation_order == 2
-    {
-      return axom::quest::PolylineGWN2D<ExecSpace, 2> {};
-    }
+    if(linearize_curves)
+      return axom::quest::PolylineGWNQuery<ExecSpace, 0> {};
+    else
+      return axom::quest::NURBSCurveGWNQuery<ExecSpace, 0> {};
   }
-
-  return axom::quest::DirectGWN2D<ExecSpace> {};
+  else if(approximation_order == 1)
+  {
+    if(linearize_curves)
+      return axom::quest::PolylineGWNQuery<ExecSpace, 1> {};
+    else
+      return axom::quest::NURBSCurveGWNQuery<ExecSpace, 1> {};
+  }
+  else  // approximation_order == 2
+  {
+    if(linearize_curves)
+      return axom::quest::PolylineGWNQuery<ExecSpace, 2> {};
+    else
+      return axom::quest::NURBSCurveGWNQuery<ExecSpace, 2> {};
+  }
 }
 
 GWNQueryType make_gwn_query(axom::runtime_policy::Policy policy,
@@ -513,7 +522,6 @@ int main(int argc, char** argv)
   {
     AXOM_ANNOTATE_SCOPE("linearization");
 
-    axom::utilities::Timer timer(true);
     axom::quest::LinearizeCurves lc;
     if(input.useUniformLinearization)
     {
@@ -523,7 +531,6 @@ int main(int argc, char** argv)
     {
       lc.getLinearMeshNonUniform(curves.view(), &poly_mesh, input.percentError);
     }
-    timer.stop();
 
     SLIC_INFO(axom::fmt::format(
       axom::utilities::locale(),
@@ -531,8 +538,6 @@ int main(int argc, char** argv)
       curves.size(),
       input.segmentsPerKnotSpan,
       poly_mesh.getNumberOfCells()));
-    SLIC_INFO(
-      axom::fmt::format("Preprocessing stage (linearization): {} s", timer.elapsedTimeInSec()));
   }
 
   // Early return if user didn't set up a query mesh
@@ -571,7 +576,7 @@ int main(int argc, char** argv)
         using T = std::decay_t<decltype(wn)>;
         if constexpr(quest::gwn_input_type_v<T> == quest::GWNInputType::Curve)
         {
-          wn.preprocess(curves, input.memoized);
+          wn.preprocess(curves, input.algorithm == "direct", input.memoized);
         }
         else if constexpr(quest::gwn_input_type_v<T> == quest::GWNInputType::Polyline)
         {

@@ -155,35 +155,34 @@ public:
   NURBSPatchGWNCache() = default;
 
   /// \brief Initialize the cache with the data for a single NURBS patch
-  NURBSPatchGWNCache(const NURBSPatch<T, 3>& a_patch) : m_alteredPatch(a_patch)
+  NURBSPatchGWNCache(const NURBSPatch<T, 3>& a_patch, bool computeNormal = true)
+    : m_alteredPatch(a_patch.cleanedTrimmedRepresentation())
   {
-    m_alteredPatch.normalizeBySpan();
+    if(computeNormal)
+    {
+      // In a GWN context, the surface has been sufficiently subdivided to
+      //  make additional bezier extraction redundant
+      const auto normal_area =
+        m_alteredPatch.calculateTrimmedPatchNormalArea(/*npts*/ 10, /*useBezierExtraction*/ false);
 
-    // Calculate the average normal for the untrimmed patch
-    if(!m_alteredPatch.isTrimmed())
-    {
-      m_averageNormal = m_alteredPatch.calculateUntrimmedPatchNormal();
-      m_alteredPatch.makeTriviallyTrimmed();
-    }
-    else
-    {
-      m_averageNormal = m_alteredPatch.calculateTrimmedPatchNormal();
-    }
+      m_surfaceArea = normal_area.second;
+      if(m_surfaceArea <= 0.0)
+      {
+        // Degenerate or invalid surface: ignore it by clearing trimming curves so
+        // winding-number evaluation returns early with 0.
+        m_alteredPatch.setTrimmingCurves({});
+        m_curveQuadratureMaps.resize(0);
 
-    // Cast direction is set to average normal, unless it is near zero
-    if(m_averageNormal.norm() < 1e-10)
-    {
-      // ...unless the average direction is zero
-      double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-      double u = axom::utilities::random_real(-1.0, 1.0);
-      m_castDirection = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
-    }
-    else
-    {
-      m_castDirection = m_averageNormal.unitVector();
-    }
+        m_normal = Vector<T, 3> {};
+        m_castDirection = Vector<T, 3> {};
+        m_pboxDiag = m_alteredPatch.getParameterSpaceDiagonal();
+        m_bBox = m_alteredPatch.boundingBox();
+        m_oBox = m_alteredPatch.orientedBoundingBox();
+        return;
+      }
 
-    m_pboxDiag = m_alteredPatch.getParameterSpaceDiagonal();
+      setNormal(normal_area.first, normal_area.second);
+    }
 
     // Make a bounding box by doing (trimmed) bezier extraction,
     //  splitting the resulting bezier patches in 4,
@@ -219,7 +218,10 @@ public:
       m_bBox.addBox(p4.boundingBox());
     }
 
+    // Expand parameter space so trimming curves aren't on the boundary of the
+    // untrimmed patch; this reduces near-miss issues in later ray casting.
     m_alteredPatch.expandParameterSpace(0.05, 0.05);
+    m_pboxDiag = m_alteredPatch.getParameterSpaceDiagonal();
 
     m_curveQuadratureMaps.resize(m_alteredPatch.getNumTrimmingCurves());
   }
@@ -250,8 +252,40 @@ public:
 
   ///@{
   //! \name Accessors for precomputed data
-  const Vector<T, 3>& getAverageNormal() const { return m_averageNormal; }
+  const Vector<T, 3>& getNormal() const { return m_normal; }
   const Vector<T, 3>& getCastDirection() const { return m_castDirection; }
+  double getSurfaceArea() const { return m_surfaceArea; }
+
+  void setNormal(const Vector<T, 3>& v, double sa)
+  {
+    m_normal = v;
+    m_surfaceArea = sa;
+
+    // Cast direction is always set to average normal, unless it is near zero,
+    //  which is the case for high-symmetry surfaces
+
+    // Scale-invariant symmetry detector: ||\int n dA|| / \int ||n|| dA.
+    // For symmetric patches (e.g. cylinders), the numerator can be close to 0 due to cancellation.
+    constexpr double k_dir_eps = 1e-3;
+
+    // Generate a random direction
+    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+    double u = axom::utilities::random_real(-1.0, 1.0);
+    const auto random_unit =
+      Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+
+    // If the average normal is too small, use the random direction as-is
+    if((m_surfaceArea <= 0.0) || (m_normal.norm() / m_surfaceArea) < k_dir_eps)
+    {
+      m_castDirection = random_unit;
+    }
+    // Otherwise, pick a direction that is *mostly* in the direction of the average normal
+    else
+    {
+      m_castDirection = (m_normal.unitVector() + 0.01 * random_unit).unitVector();
+    }
+  }
+
   const BoundingBox<T, 3>& boundingBox() const { return m_bBox; }
   const OrientedBoundingBox<T, 3>& orientedBoundingBox() const { return m_oBox; }
   //@}
@@ -286,7 +320,8 @@ private:
   // Per patch data
   BoundingBox<T, 3> m_bBox;
   OrientedBoundingBox<T, 3> m_oBox;
-  Vector<T, 3> m_averageNormal, m_castDirection;
+  Vector<T, 3> m_normal, m_castDirection;
+  double m_surfaceArea;
   double m_pboxDiag;
 
   // Per trimming curve data, keyed by (whichRefinementLevel, whichRefinementIndex)
@@ -309,11 +344,29 @@ class NURBSPatchCacheManager
 public:
   NURBSPatchCacheManager() = default;
 
-  NURBSPatchCacheManager(const PatchArrayView& patchs)
+  NURBSPatchCacheManager(PatchArrayView patches,
+                         axom::ArrayView<axom::primal::Vector<double, 3>> precomputed_normals,
+                         axom::ArrayView<double> precomputed_surface_areas)
   {
-    for(const auto& patch : patchs)
+    SLIC_ASSERT(precomputed_normals.empty() ||
+                (precomputed_normals.size() == patches.size() &&
+                 precomputed_surface_areas.size() == patches.size()));
+
+    const bool mustComputeNormal = precomputed_normals.empty();
+
+    for(auto& patch : patches)
     {
-      m_nurbs_caches.push_back(NURBSCache(patch));
+      m_nurbs_caches.push_back(NURBSCache(patch, mustComputeNormal));
+    }
+
+    // If we didn't compute normals in NURBSCache constructor,
+    //  need to use precomputed values
+    if(!mustComputeNormal)
+    {
+      for(int n = 0; n < precomputed_normals.size(); ++n)
+      {
+        m_nurbs_caches[n].setNormal(precomputed_normals[n], precomputed_surface_areas[n]);
+      }
     }
   }
 
@@ -358,18 +411,39 @@ class NURBSPatchCacheManagerOMP
 public:
   NURBSPatchCacheManagerOMP() = default;
 
-  NURBSPatchCacheManagerOMP(const PatchArrayView& patches)
+  NURBSPatchCacheManagerOMP(PatchArrayView patches,
+                            axom::ArrayView<axom::primal::Vector<double, 3>> precomputed_normals,
+                            axom::ArrayView<double> precomputed_surface_areas)
   {
+    SLIC_ASSERT(precomputed_normals.empty() ||
+                (precomputed_normals.size() == patches.size() &&
+                 precomputed_surface_areas.size() == patches.size()));
+
+    const bool mustComputeNormal = precomputed_normals.empty();
+
     const int nt = omp_get_max_threads();
     m_nurbs_caches.resize(nt);
     auto nurbs_caches_view = m_nurbs_caches.view();
 
-    // Make the first one
+    // Make the first cache
     nurbs_caches_view[0].resize(patches.size());
     axom::for_all<axom::OMP_EXEC>(
       patches.size(),
-      AXOM_HOST_LAMBDA(axom::IndexType i) { nurbs_caches_view[0][i] = NURBSCache(patches[i]); });
-    SLIC_INFO("Finished the first construction");
+      AXOM_HOST_LAMBDA(axom::IndexType i) {
+        nurbs_caches_view[0][i] = NURBSCache(patches[i], mustComputeNormal);
+      });
+
+    // If we didn't comptue normals in NURBSCache constructor,
+    //  need to get them from the moments
+    if(!mustComputeNormal)
+    {
+      axom::for_all<axom::OMP_EXEC>(
+        patches.size(),
+        AXOM_HOST_LAMBDA(axom::IndexType i) {
+          nurbs_caches_view[0][i].setNormal(precomputed_normals[i], precomputed_surface_areas[i]);
+        });
+    }
+
     // Copy the constructed cache to the other threads' copies (less work than construction)
     axom::for_all<axom::OMP_EXEC>(
       1,

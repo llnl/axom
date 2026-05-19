@@ -29,16 +29,20 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Klee: Adds an optional "center" parameter in scale operators that permits scaling relative to a custom center point.
 - Bump: The `MergeMeshes` class was enhanced so it supports material-dependent/mixed Blueprint fields that are "element-associated". These fields contain per-material values for the materials in a zone.
 - Bump: Added `axom::bump::views::dispatch_material_field()` function (and related functions) for creating a material view and a material-dependent or mixed field view.
+- Core: Adds Durand-Kerner polynomial solver which returns the complex roots of a univariate polynomial
+- Core: Adds `axom::Array::pop_back` for API compatibility with `std::vector`
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
 
 ### Deprecated
+- Core: Deprecates the pointer-based interface to linear-, quadratic- and cubic- polynomial solvers in favor of an ArrayView-based interface
 
 ### Changed
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
 
 ### Fixed
+- Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
 
 ## [Version 0.14.0] - Release date 2026-03-31
 
