@@ -26,6 +26,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds `NURBSPatch::isTriviallyTrimmed()` to check if the trimming curves for a patch lie on the patch boundaries
 - Quest: Adds support for reading mfem files with variable order NURBS curves (requires mfem>4.9).
 - Quest: Adds OMP support for fast GWN methods for STL/Triangulated STEP input and linearized NURBS Curve input.
+- Quest: Adds OMP supported, fast and accurate GWN method for NURBS curves and trimmed NURBS surfaces.
 - Klee: Adds an optional "center" parameter in scale operators that permits scaling relative to a custom center point.
 - Quest: `SamplingShaper` now supports selecting MFEM quadrature families for custom sample-point generation, including
   anisotropic per-direction sampling resolution on quadrilateral and hexahedral meshes. Quadrature type is selected via
@@ -36,6 +37,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   removed in a future version of Axom.
 - Core: Adds Durand-Kerner polynomial solver which returns the complex roots of a univariate polynomial
 - Core: Adds `axom::Array::pop_back` for API compatibility with `std::vector`
+- Primal: Adds a `primal::BezierTriangle` class
 
 ### Removed
 
