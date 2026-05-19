@@ -1,5 +1,6 @@
-// Copyright (c) 2017-2022, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level LICENSE file for details.
+// Copyright (c) Lawrence Livermore National Security, LLC and other
+// Axom Project Contributors. See top-level LICENSE and COPYRIGHT
+// files for dates and other details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -9,8 +10,8 @@
  * \brief Consists of functions to test intersections among curved polygons
  */
 
-#ifndef AXOM_PRIMAL_INTERSECTION_CURVED_POLYGON_IMPL_HPP_
-#define AXOM_PRIMAL_INTERSECTION_CURVED_POLYGON_IMPL_HPP_
+#ifndef AXOM_PRIMAL_INTERSECT_CURVED_POLYGON_IMPL_HPP_
+#define AXOM_PRIMAL_INTERSECT_CURVED_POLYGON_IMPL_HPP_
 
 #include "axom/core.hpp"
 
@@ -831,4 +832,4 @@ constexpr int DirectionalWalk<T>::Junction::NON_JUNCTION_INDEX;
 }  // namespace primal
 }  // namespace axom
 
-#endif  // AXOM_PRIMAL_INTERSECTION_CURVED_POLYGON_IMPL_HPP_
+#endif  // AXOM_PRIMAL_INTERSECT_CURVED_POLYGON_IMPL_HPP_
