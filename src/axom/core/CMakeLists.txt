@@ -66,6 +66,7 @@ set(core_headers
     ItemCollection.hpp
     IteratorBase.hpp
     ListCollection.hpp
+    LRUCache.hpp
     Macros.hpp
     Map.hpp
     MapCollection.hpp

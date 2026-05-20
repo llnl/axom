@@ -6,6 +6,7 @@
 
 #include "axom/config.hpp"
 #include "axom/core/Array.hpp"
+#include "axom/core/LRUCache.hpp"
 #include "axom/core/NumericLimits.hpp"
 #include "axom/core/numerics/internal/rational_quadrature.hpp"
 #include "axom/core/utilities/Utilities.hpp"
@@ -1549,7 +1550,7 @@ QuadratureRule get_rational_fejer(axom::ArrayView<const std::complex<double>> po
   internal::validatePoleSequence(poles01, 0.0, 1.0, "[0,1]");
 
   constexpr std::size_t MAX_RATIONAL_FEJER_CACHED_RULES = 1u << 16;
-  static internal::LruCache<std::string, internal::RationalFejerRuleStorage> rule_library(
+  static axom::LRUCache<std::string, internal::RationalFejerRuleStorage> rule_library(
     MAX_RATIONAL_FEJER_CACHED_RULES);
   static std::mutex rule_library_mutex;
 
