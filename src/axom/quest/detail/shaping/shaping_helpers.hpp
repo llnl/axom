@@ -153,6 +153,12 @@ template <int FromDim, int ToDim>
 using PointProjector =
   axom::function<primal::Point<double, ToDim>(const primal::Point<double, FromDim>&)>;
 
+enum class VolFracSampling : int
+{
+  SAMPLE_AT_DOFS,
+  SAMPLE_AT_QPTS
+};
+
 #if defined(AXOM_USE_MFEM)
 
 /*!
@@ -169,6 +175,9 @@ using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
 using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
 using MFEMArrayCollection = mfem::NamedFieldsMap<mfem::Array<int>>;
 
+/*!
+ * \brief Contains the mesh and state used for shaping.
+ */
 struct MFEMState
 {
   virtual ~MFEMState() = default;
@@ -177,6 +186,9 @@ struct MFEMState
   sidre::MFEMSidreDataCollection* m_dc {nullptr};
 };
 
+/*!
+ * \brief An MFEMState subclass that contains additional data for sampling.
+ */
 struct SamplingMFEMState : public MFEMState
 {
   ~SamplingMFEMState() override
@@ -192,6 +204,11 @@ struct SamplingMFEMState : public MFEMState
 
     m_inoutArrays.DeleteData(true);
     m_inoutArrays.clear();
+  }
+
+  int meshDimension() const
+  {
+    return m_dc->GetMesh()->Dimension();
   }
 
   mfem::QuadratureFunction* getShapeFunction(const std::string& name)
@@ -238,98 +255,6 @@ struct SamplingMFEMState : public MFEMState
   DenseTensorCollection m_inoutTensors;
   MFEMArrayCollection m_inoutArrays;
 };
-#endif
-
-#if defined(AXOM_USE_CONDUIT)
-struct BlueprintState
-{
-  virtual ~BlueprintState() = default;
-
-  //! @brief Version of the mesh for computations.
-  axom::sidre::Group* m_group_ptr {nullptr};
-  int m_allocator_id {axom::getDefaultAllocatorID()};
-  std::string m_topology_name;
-  //! @brief Mesh in an external Node, when provided as a Node.
-  conduit::Node* m_external_node_ptr {nullptr};
-  //! @brief Internal Node representation used for blueprint operations.
-  conduit::Node m_internal_node;
-
-  conduit::Node* getShapeFunction(const std::string& name)
-  {
-    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
-                                                      : nullptr;
-  }
-
-  const conduit::Node* getShapeFunction(const std::string& name) const
-  {
-    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
-                                                      : nullptr;
-  }
-
-  void deleteShapeFunction(const std::string& name)
-  {
-    if(m_internal_node.has_path("fields"))
-    {
-      conduit::Node &n_fields = m_internal_node["fields"];
-      if(n_fields.has_path(name))
-      {
-        n_fields.remove(name);
-      }
-    }
-  }
-
-  conduit::Node* getMaterialFunction(const std::string& name)
-  {
-    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
-                                                      : nullptr;
-  }
-
-  const conduit::Node* getMaterialFunction(const std::string& name) const
-  {
-    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
-                                                      : nullptr;
-  }
-
-  conduit::Node* createMaterialFunction(const std::string& name)
-  {
-    constexpr const char* quadratureTopologyName = "quadrature_points";
-    SLIC_ERROR_IF(!m_internal_node.has_path("coordsets/quadrature_points/values"),
-                  std::string("Cannot create material function '") + name +
-                    "' without quadrature points.");
-
-    conduit::Node& fieldNode = m_internal_node["fields/" + name];
-    fieldNode.reset();
-    fieldNode["association"] = "element";
-    fieldNode["topology"] = quadratureTopologyName;
-
-    const auto conduitAllocatorId =
-      axom::sidre::ConduitMemory::axomAllocIdToConduit(m_allocator_id);
-    conduit::Node& valuesNode = fieldNode["values"];
-    valuesNode.set_allocator(conduitAllocatorId);
-
-    const conduit::Node& values =
-      m_internal_node["coordsets/quadrature_points"].fetch_existing("values");
-    const auto numValues = values.child(0).dtype().number_of_elements();
-    valuesNode.set(conduit::DataType::float64(numValues));
-
-    auto fieldValues = axom::bump::utilities::make_array_view<double>(valuesNode);
-    for(axom::IndexType i = 0; i < fieldValues.size(); ++i)
-    {
-      fieldValues[i] = 0.;
-    }
-
-    return &fieldNode;
-  }
-};
-#endif
-
-#if defined(AXOM_USE_MFEM)
-
-enum class VolFracSampling : int
-{
-  SAMPLE_AT_DOFS,
-  SAMPLE_AT_QPTS
-};
 
 /**
  * \brief Prints the registered sampling-related field names for an MFEM-backed
@@ -339,17 +264,6 @@ void printRegisteredFieldNames(const SamplingMFEMState& mfemState,
                                const std::set<std::string>& knownMaterials,
                                VolFracSampling vfSampling,
                                const std::string& initialMessage);
-
-#if defined(AXOM_USE_CONDUIT)
-/**
- * \brief Prints the registered sampling-related field names for a Blueprint-backed
- *        sampling state.
- */
-void printRegisteredFieldNames(const BlueprintState& bpState,
-                               const std::set<std::string>& knownMaterials,
-                               VolFracSampling vfSampling,
-                               const std::string& initialMessage);
-#endif
 
 /**
  * \brief Utility function to either return a grid function from the DataCollection \a dc, 
@@ -393,16 +307,6 @@ void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
 
 mfem::QuadratureFunction* cloneInOutFunction(const mfem::QuadratureFunction* qfunc);
 
-#if defined(AXOM_USE_CONDUIT)
-void replaceMaterial(conduit::Node* shapeNode, conduit::Node* materialNode, bool shouldReplace);
-
-void copyShapeIntoMaterial(const conduit::Node* shapeNode,
-                           conduit::Node* materialNode,
-                           bool reuseExisting = true);
-
-conduit::Node* cloneInOutFunction(const conduit::Node* node);
-#endif
-
 /**
  * \brief Generates a "position" quadrature function corresponding to the mesh positions and
  *        store it in \a inoutQFuncs.
@@ -433,59 +337,7 @@ void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
                                        int volfracOrder,
                                        int sampleResolution[3],
                                        axom::numerics::QuadratureType quadratureType);
-
-#if defined(AXOM_USE_CONDUIT)
-/**
- * \brief Returns the element shape for a supported Blueprint topology node.
- *
- * Structured topologies may omit `elements/shape`, in which case the shape is
- * inferred from `elements/dims`.
- */
-std::string getBlueprintCellShape(const conduit::Node& topoNode);
-
-/**
- * \brief Generates a derived Blueprint quadrature point mesh within the
- *        supplied Blueprint mesh node.
- *
- * \param bpMeshNode The Blueprint mesh node to augment.
- * \param topologyName The source topology name to sample.
- * \param allocatorID Allocator id used for generated storage.
- * \param sampleResolution The sample resolution in each logical dimension.
- * \param quadratureType An int corresponding to `mfem::Quadrature1D` when MFEM
- *        is enabled, or to `axom::numerics::QuadratureType` otherwise.
- */
-void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
-                                 const std::string& topologyName,
-                                 int allocatorID,
-                                 int sampleResolution[3],
-                                 axom::numerics::QuadratureType quadratureType);
-
-/**
- * \brief Generates a derived Blueprint quadrature point mesh for the supplied
- *        Blueprint state.
- */
-void generateSamplingPositions(BlueprintState& bpState,
-                               int sampleResolution[3],
-                               axom::numerics::QuadratureType quadratureType);
-
-void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::string& matField);
-#endif
-
-/** 
- * Implements flux-corrected transport (FCT) to correct the solution obtained
- * when converting from inout samples (ones and zeros) to a grid function 
- * on the degrees of freedom such that the volume fractions are doubles
- * between 0 and 1 ( \a y_min and \a y_max )
- */
-void FCT_correct(const double* M,
-                 const int s,
-                 const double* m,
-                 const double y_min,  // 0
-                 const double y_max,  // 1
-                 double* xy,
-                 double* fct_mat);  // scratch buffer
-
-/**
+/*!
  * \brief Identity transform for volume fractions from inout samples
  *
  * Copies \a inout samples from the quadrature function directly into volume fraction DOFs.
@@ -509,7 +361,7 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
   *                    point is inside or outside of relevant shapes.
   *
   * \param [in] shapeName The name of the shape used in making data array names.
-  * \param [in] dc The data collection containing the mesh and associated query points
+  * \param [in] mfemState The MFEM state containing the mesh and associated query points
   * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
   * inout samples
   * \param [in] sampleRes The sampling resolution in each logical direction.
@@ -597,87 +449,6 @@ void sampleInOutField(const std::string shapeName,
     timer.elapsed(),
     static_cast<int>(numQueryPoints / timer.elapsed())));
 }
-
-#if defined(AXOM_USE_CONDUIT)
-template <int FromDim, int ToDim, typename InsideFunc>
-void sampleInOutField(const std::string& shapeName,
-                      shaping::BlueprintState& bpState,
-                      int AXOM_UNUSED_PARAM(sampleRes)[3],
-                      int AXOM_UNUSED_PARAM(quadratureType),
-                      InsideFunc&& checkInside,
-                      PointProjector<FromDim, ToDim> projector = {})
-{
-  using FromPoint = primal::Point<double, FromDim>;
-  using ToPoint = primal::Point<double, ToDim>;
-  AXOM_ANNOTATE_SCOPE("sampleInOutField");
-
-  SLIC_ERROR_IF(FromDim != ToDim && !projector,
-                "A projector callback function is required when FromDim != ToDim");
-
-  constexpr const char* quadratureCoordsetName = "quadrature_points";
-  constexpr const char* quadratureTopologyName = "quadrature_points";
-  const std::string inoutName = axom::fmt::format("inout_{}", shapeName);
-
-  conduit::Node& bpMeshNode = bpState.m_internal_node;
-  SLIC_ERROR_IF(!bpMeshNode.has_path("coordsets/quadrature_points"),
-                "Missing Blueprint quadrature coordset. Generate sampling positions first.");
-  SLIC_ERROR_IF(!bpMeshNode.has_path("topologies/quadrature_points"),
-                "Missing Blueprint quadrature topology. Generate sampling positions first.");
-
-  conduit::Node& inoutNode = bpMeshNode["fields/" + inoutName];
-  inoutNode.reset();
-  inoutNode["association"] = "element";
-  inoutNode["topology"] = quadratureTopologyName;
-
-  namespace utils = axom::bump::utilities;
-  const auto conduitAllocatorId =
-    axom::sidre::ConduitMemory::axomAllocIdToConduit(bpState.m_allocator_id);
-  conduit::Node& valuesNode = inoutNode["values"];
-  valuesNode.set_allocator(conduitAllocatorId);
-
-  axom::utilities::Timer timer(true);
-  axom::bump::views::dispatch_explicit_coordset(
-    bpMeshNode["coordsets/" + std::string(quadratureCoordsetName)], [&](auto coordsetView) {
-      using CoordsetView = typename std::decay<decltype(coordsetView)>::type;
-
-      SLIC_ERROR_IF(CoordsetView::dimension() != FromDim,
-                    axom::fmt::format("Expected {}D quadrature point coordset, got {}D.",
-                                      FromDim,
-                                      CoordsetView::dimension()));
-
-      const auto numQueryPoints = coordsetView.size();
-      valuesNode.set(conduit::DataType::float64(numQueryPoints));
-      auto inoutValues = utils::make_array_view<double>(valuesNode);
-
-      for(axom::IndexType i = 0; i < numQueryPoints; ++i)
-      {
-        FromPoint fromPt;
-        const auto coordsetPoint = coordsetView[i];
-        for(int d = 0; d < FromDim; ++d)
-        {
-          fromPt[d] = coordsetPoint[d];
-        }
-
-        const ToPoint queryPt = projector ? projector(fromPt) : ToPoint(fromPt.data());
-        inoutValues[i] = checkInside(queryPt) ? 1. : 0.;
-      }
-    });
-  timer.stop();
-
-  const auto numQueryPoints = bpMeshNode["coordsets/" + std::string(quadratureCoordsetName)]
-                                .fetch_existing("values")
-                                .child(0)
-                                .dtype()
-                                .number_of_elements();
-
-  SLIC_INFO_ROOT(axom::fmt::format(
-    axom::utilities::locale(),
-    "\t Sampling inout field '{}' took {:.3Lf} seconds (@ {:L} queries per second)",
-    inoutName,
-    timer.elapsed(),
-    static_cast<int>(numQueryPoints / timer.elapsed())));
-}
-#endif
 
 /*!
   * \brief Samples the inout field over the indexed geometry, possibly using a
@@ -784,7 +555,284 @@ void computeVolumeFractionsBaseline(const std::string& shapeName,
     }
   }
 }
-#endif  // defined(AXOM_USE_MFEM)
+#endif
+
+#if defined(AXOM_USE_CONDUIT)
+//------------------------------------------------------------------------------
+/**
+ * \brief Returns the element shape for a supported Blueprint topology node.
+ *
+ * Structured topologies may omit `elements/shape`, in which case the shape is
+ * inferred from `elements/dims`.
+ */
+std::string getBlueprintCellShape(const conduit::Node& topoNode);
+
+/*!
+ * \brief A Blueprint-based state class used for shaping.
+ */
+struct BlueprintState
+{
+  virtual ~BlueprintState() = default;
+
+  //! @brief Version of the mesh for computations.
+  axom::sidre::Group* m_group_ptr {nullptr};
+  int m_allocator_id {axom::getDefaultAllocatorID()};
+  std::string m_topology_name;
+  //! @brief Mesh in an external Node, when provided as a Node.
+  conduit::Node* m_external_node_ptr {nullptr};
+  //! @brief Internal Node representation used for blueprint operations.
+  conduit::Node m_internal_node;
+
+  int meshDimension() const
+  {
+    const std::string shapeType = shaping::getBlueprintCellShape(getBlueprintTopologyNode());
+
+    if(shapeType == "quad")
+    {
+      return 2;
+    }
+    if(shapeType == "hex")
+    {
+      return 3;
+    }
+
+    SLIC_ERROR(axom::fmt::format("Unsupported Blueprint cell shape '{}'.", shapeType));
+    return -1;
+  }
+
+  const conduit::Node& getBlueprintTopologyNode() const
+  {
+    return m_internal_node.fetch_existing("topologies").fetch_existing(m_topology_name);
+  }
+
+  conduit::Node* getShapeFunction(const std::string& name)
+  {
+    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
+                                                      : nullptr;
+  }
+
+  const conduit::Node* getShapeFunction(const std::string& name) const
+  {
+    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
+                                                      : nullptr;
+  }
+
+  void deleteShapeFunction(const std::string& name)
+  {
+    // This method lets us delete the shape functions as we go
+    if(m_internal_node.has_path("fields"))
+    {
+      conduit::Node &n_fields = m_internal_node["fields"];
+      if(n_fields.has_path(name))
+      {
+        n_fields.remove(name);
+      }
+    }
+  }
+
+  conduit::Node* getMaterialFunction(const std::string& name)
+  {
+    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
+                                                      : nullptr;
+  }
+
+  const conduit::Node* getMaterialFunction(const std::string& name) const
+  {
+    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
+                                                      : nullptr;
+  }
+
+  conduit::Node* createMaterialFunction(const std::string& name)
+  {
+    constexpr const char* quadratureTopologyName = "quadrature_points";
+    SLIC_ERROR_IF(!m_internal_node.has_path("coordsets/quadrature_points/values"),
+                  std::string("Cannot create material function '") + name +
+                    "' without quadrature points.");
+
+    conduit::Node& fieldNode = m_internal_node["fields/" + name];
+    fieldNode.reset();
+    fieldNode["association"] = "element";
+    fieldNode["topology"] = quadratureTopologyName;
+
+    const auto conduitAllocatorId =
+      axom::sidre::ConduitMemory::axomAllocIdToConduit(m_allocator_id);
+    conduit::Node& valuesNode = fieldNode["values"];
+    valuesNode.set_allocator(conduitAllocatorId);
+
+    const conduit::Node& values =
+      m_internal_node["coordsets/quadrature_points"].fetch_existing("values");
+    const auto numValues = values.child(0).dtype().number_of_elements();
+    valuesNode.set(conduit::DataType::float64(numValues));
+
+    auto fieldValues = axom::bump::utilities::make_array_view<double>(valuesNode);
+    for(axom::IndexType i = 0; i < fieldValues.size(); ++i)
+    {
+      fieldValues[i] = 0.;
+    }
+
+    return &fieldNode;
+  }
+};
+
+/**
+ * \brief Prints the registered sampling-related field names for a Blueprint-backed
+ *        sampling state.
+ */
+void printRegisteredFieldNames(const BlueprintState& bpState,
+                               const std::set<std::string>& knownMaterials,
+                               VolFracSampling vfSampling,
+                               const std::string& initialMessage);
+
+void replaceMaterial(conduit::Node* shapeNode, conduit::Node* materialNode, bool shouldReplace);
+
+void copyShapeIntoMaterial(const conduit::Node* shapeNode,
+                           conduit::Node* materialNode,
+                           bool reuseExisting = true);
+
+conduit::Node* cloneInOutFunction(const conduit::Node* node);
+
+/**
+ * \brief Generates a derived Blueprint quadrature point mesh within the
+ *        supplied Blueprint mesh node.
+ *
+ * \param bpMeshNode The Blueprint mesh node to augment.
+ * \param topologyName The source topology name to sample.
+ * \param allocatorID Allocator id used for generated storage.
+ * \param sampleResolution The sample resolution in each logical dimension.
+ * \param quadratureType An int corresponding to `mfem::Quadrature1D` when MFEM
+ *        is enabled, or to `axom::numerics::QuadratureType` otherwise.
+ */
+void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
+                                 const std::string& topologyName,
+                                 int allocatorID,
+                                 int sampleResolution[3],
+                                 axom::numerics::QuadratureType quadratureType);
+
+/**
+ * \brief Generates a derived Blueprint quadrature point mesh for the supplied
+ *        Blueprint state.
+ */
+void generateSamplingPositions(BlueprintState& bpState,
+                               int sampleResolution[3],
+                               axom::numerics::QuadratureType quadratureType);
+
+void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::string& matField);
+
+/*!
+  * \brief Samples the inout field over the indexed geometry, possibly using a
+  * callback function to project the input points (from the computational mesh)
+  * to query points on the spatial index
+  *
+  * \tparam FromDim The dimension of points from the input mesh
+  * \tparam ToDim The dimension of points on the indexed shape
+  * \tparam InsideFunc A function that takes a point and returns a bool indicating whether the
+  *                    point is inside or outside of relevant shapes.
+  *
+  * \param [in] shapeName The name of the shape used in making data array names.
+  * \param [in] bpState The Blueprint state containing the mesh and associated query points
+  * \param [in] sampleRes The sampling resolution in each logical direction.
+  * For custom quadrature families, these values specify the per-direction
+  * sample counts directly, which in turn determine the quadrature rule used
+  * in each logical direction.
+  * \param [in] quadratureType The quadrature type to use to construct the sample point locations.
+  * \param [in] checkInside The function that determines whether a point is inside.
+  * \param [in] projector A callback function to apply to points from the input mesh
+  * before querying them on the spatial index
+  *
+  * \note A projector callback must be supplied when \a FromDim is not equal
+  *       to \a ToDim.
+  */
+template <int FromDim, int ToDim, typename InsideFunc>
+void sampleInOutField(const std::string& shapeName,
+                      shaping::BlueprintState& bpState,
+                      int AXOM_UNUSED_PARAM(sampleRes)[3],
+                      int AXOM_UNUSED_PARAM(quadratureType),
+                      InsideFunc&& checkInside,
+                      PointProjector<FromDim, ToDim> projector = {})
+{
+  using FromPoint = primal::Point<double, FromDim>;
+  using ToPoint = primal::Point<double, ToDim>;
+  AXOM_ANNOTATE_SCOPE("sampleInOutField");
+
+  SLIC_ERROR_IF(FromDim != ToDim && !projector,
+                "A projector callback function is required when FromDim != ToDim");
+
+  constexpr const char* quadratureCoordsetName = "quadrature_points";
+  constexpr const char* quadratureTopologyName = "quadrature_points";
+  const std::string inoutName = axom::fmt::format("inout_{}", shapeName);
+
+  conduit::Node& bpMeshNode = bpState.m_internal_node;
+  SLIC_ERROR_IF(!bpMeshNode.has_path("coordsets/quadrature_points"),
+                "Missing Blueprint quadrature coordset. Generate sampling positions first.");
+  SLIC_ERROR_IF(!bpMeshNode.has_path("topologies/quadrature_points"),
+                "Missing Blueprint quadrature topology. Generate sampling positions first.");
+
+  conduit::Node& inoutNode = bpMeshNode["fields/" + inoutName];
+  inoutNode.reset();
+  inoutNode["association"] = "element";
+  inoutNode["topology"] = quadratureTopologyName;
+
+  namespace utils = axom::bump::utilities;
+  const auto conduitAllocatorId =
+    axom::sidre::ConduitMemory::axomAllocIdToConduit(bpState.m_allocator_id);
+  conduit::Node& valuesNode = inoutNode["values"];
+  valuesNode.set_allocator(conduitAllocatorId);
+
+  axom::utilities::Timer timer(true);
+  axom::IndexType numQueryPoints = 0;
+  axom::bump::views::dispatch_explicit_coordset(
+    bpMeshNode["coordsets/" + std::string(quadratureCoordsetName)], [&](auto coordsetView) {
+      using CoordsetView = typename std::decay<decltype(coordsetView)>::type;
+
+      SLIC_ERROR_IF(CoordsetView::dimension() != FromDim,
+                    axom::fmt::format("Expected {}D quadrature point coordset, got {}D.",
+                                      FromDim,
+                                      CoordsetView::dimension()));
+
+      numQueryPoints = coordsetView.size();
+      valuesNode.set(conduit::DataType::float64(numQueryPoints));
+      auto inoutValues = utils::make_array_view<double>(valuesNode);
+
+      for(axom::IndexType i = 0; i < numQueryPoints; ++i)
+      {
+        // Make a FromPoint from the coordsetView. The coordsetView might have
+        // float or double, depending on the Blueprint data.
+        FromPoint fromPt;
+        const auto coordsetPoint = coordsetView[i];
+        for(int d = 0; d < FromDim; ++d)
+        {
+          fromPt[d] = coordsetPoint[d];
+        }
+
+        // Sample at the query point.
+        const ToPoint queryPt = projector ? projector(fromPt) : ToPoint(fromPt.data());
+        inoutValues[i] = checkInside(queryPt) ? 1. : 0.;
+      }
+    });
+  timer.stop();
+
+  SLIC_INFO_ROOT(axom::fmt::format(
+    axom::utilities::locale(),
+    "\t Sampling inout field '{}' took {:.3Lf} seconds (@ {:L} queries per second)",
+    inoutName,
+    timer.elapsed(),
+    static_cast<int>(numQueryPoints / timer.elapsed())));
+}
+#endif
+
+/** 
+ * Implements flux-corrected transport (FCT) to correct the solution obtained
+ * when converting from inout samples (ones and zeros) to a grid function 
+ * on the degrees of freedom such that the volume fractions are doubles
+ * between 0 and 1 ( \a y_min and \a y_max )
+ */
+void FCT_correct(const double* M,
+                 const int s,
+                 const double* m,
+                 const double y_min,  // 0
+                 const double y_max,  // 1
+                 double* xy,
+                 double* fct_mat);  // scratch buffer
 
 }  // end namespace shaping
 }  // end namespace quest

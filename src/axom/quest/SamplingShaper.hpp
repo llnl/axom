@@ -139,6 +139,8 @@ private:
                                       >;
 
 public:
+#if defined(AXOM_USE_MFEM)
+  /// MFEM-compatible constructor
   SamplingShaper(RuntimePolicy execPolicy,
                  int allocatorId,
                  const klee::ShapeSet& shapeSet,
@@ -147,8 +149,10 @@ public:
   {
     initializeSamplingMFEMState();
   }
+#endif
 
 #if defined(AXOM_USE_CONDUIT)
+  /// Sidre-compatible constructor
   SamplingShaper(RuntimePolicy execPolicy,
                  int allocatorId,
                  const klee::ShapeSet& shapeSet,
@@ -157,6 +161,7 @@ public:
     : Shaper(execPolicy, allocatorId, shapeSet, bpMesh, topo)
   { }
 
+  /// Blueprint-compatible constructor
   SamplingShaper(RuntimePolicy execPolicy,
                  int allocatorId,
                  const klee::ShapeSet& shapeSet,
@@ -260,29 +265,9 @@ public:
 
   ///@}
 
-protected:
-  bool verifyInputMeshImpl(std::string& whyBad) const override
-  {
-    bool rval = true;
-
-#if defined(AXOM_USE_CONDUIT)
-    if(m_bp_state != nullptr)
-    {
-      rval = verifyBlueprintMeshIsStructuredOrUnstructuredQuadHex(whyBad);
-    }
-#endif
-
 #if defined(AXOM_USE_MFEM)
-    if(getDC() != nullptr)
-    {
-      rval = verifyMFEMInputMesh(whyBad);
-    }
-#endif
+  // NOTE: These methods are used in tests.
 
-    return rval;
-  }
-
-public:
   /// Returns a pointer to the quadrature function associated with shape \a name if it exists, else nullptr
   mfem::QuadratureFunction* getShapeQFunction(const std::string& name) const
   {
@@ -293,6 +278,26 @@ public:
   {
     return materialQFuncs().Get(name);
   }
+#endif
+protected:
+  /*!
+   * \brief Verifies the input mesh.
+   *
+   * \param[out] whyBad A string containing the reason the mesh was bad.
+   *
+   * \return True if the mesh is ok, false if it is bad. The \a whyBad string is set when false.
+   */
+  bool verifyInputMeshImpl(std::string& whyBad) const override;
+
+#if defined(AXOM_USE_CONDUIT)
+  /*!
+   * \brief Save a Blueprint file.
+   *
+   * \param n_mesh The Blueprint mesh to save.
+   * \param filename The name of the file to save.
+   */
+  void saveBlueprintFile(const conduit::Node &n_mesh, const std::string &filename) const;
+#endif
 
   /*!
    * \brief Saves the sampling quadrature points as a Blueprint point mesh.
@@ -302,104 +307,16 @@ public:
    * Blueprint-backed sampling, this saves the generated quadrature-point
    * topology and any fields associated with it.
    */
-  void saveQuadraturePoints(const std::string& filename) const
-  {
-#ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
-    conduit::Node n_mesh;
+  void saveQuadraturePoints(const std::string& filename) const;
 
 #if defined(AXOM_USE_MFEM)
-    if(m_mfem_state != nullptr)
-    {
-      auto* positions = getShapeQFunction("positions");
-      if(positions == nullptr)
-      {
-        SLIC_WARNING("No MFEM quadrature positions are available to save.");
-        return;
-      }
-
-      const int dim = positions->GetSpace()->GetMesh()->Dimension();
-      mfem::real_t* X = const_cast<mfem::real_t*>(positions->GetData());
-      const int npts = positions->Size() / positions->GetVDim();
-      const conduit::index_t stride = dim * sizeof(mfem::real_t);
-      n_mesh["coordsets/coords/type"] = "explicit";
-      n_mesh["coordsets/coords/values/x"].set_external(X, npts, 0, stride);
-      n_mesh["coordsets/coords/values/y"].set_external(X, npts, sizeof(mfem::real_t), stride);
-      if(dim > 2)
-      {
-        n_mesh["coordsets/coords/values/z"].set_external(X, npts, 2 * sizeof(mfem::real_t), stride);
-      }
-      n_mesh["topologies/points/type"] = "unstructured";
-      n_mesh["topologies/points/coordset"] = "coords";
-      n_mesh["topologies/points/elements/shape"] = "point";
-      std::vector<int> tmp(npts);
-      std::iota(tmp.begin(), tmp.end(), 0);
-      n_mesh["topologies/points/elements/connectivity"].set(tmp);
-      n_mesh["topologies/points/elements/offsets"].set(tmp);
-      std::fill(tmp.begin(), tmp.end(), 1);
-      n_mesh["topologies/points/elements/sizes"].set(tmp);
-
-  #ifdef CONDUIT_RELAY_MPI_ENABLED
-      conduit::relay::mpi::io::blueprint::save_mesh(n_mesh, filename, outputProtocol(), m_comm);
-  #else
-      conduit::relay::io::blueprint::save_mesh(n_mesh, filename, outputProtocol());
-  #endif
-      SLIC_INFO_ROOT(axom::fmt::format("Saved quadrature point mesh to '{}'.", filename));
-      return;
-    }
-#endif
-
-#if defined(AXOM_USE_CONDUIT)
-    if(m_bp_state != nullptr)
-    {
-      constexpr const char* quadName = "quadrature_points";
-      const conduit::Node& bpMesh = m_bp_state->m_internal_node;
-
-      if(!bpMesh.has_path(axom::fmt::format("coordsets/{}", quadName)) ||
-         !bpMesh.has_path(axom::fmt::format("topologies/{}", quadName)))
-      {
-        SLIC_WARNING("No Blueprint quadrature point mesh is available to save.");
-        return;
-      }
-
-      n_mesh["coordsets"][quadName].update(bpMesh.fetch_existing(axom::fmt::format("coordsets/{}", quadName)));
-      n_mesh["topologies"][quadName].update(bpMesh.fetch_existing(axom::fmt::format("topologies/{}", quadName)));
-
-      if(bpMesh.has_path("fields"))
-      {
-        const conduit::Node& fields = bpMesh.fetch_existing("fields");
-        for(conduit::index_t i = 0; i < fields.number_of_children(); ++i)
-        {
-          const conduit::Node& field = fields.child(i);
-          if(field.has_path("topology") && field.fetch_existing("topology").as_string() == quadName)
-          {
-            n_mesh["fields"][field.name()].update(field);
-          }
-        }
-      }
-
-  #ifdef CONDUIT_RELAY_MPI_ENABLED
-      conduit::relay::mpi::io::blueprint::save_mesh(n_mesh, filename, outputProtocol(), m_comm);
-  #else
-      conduit::relay::io::blueprint::save_mesh(n_mesh, filename, outputProtocol());
-  #endif
-      SLIC_INFO_ROOT(axom::fmt::format("Saved quadrature point mesh to '{}'.", filename));
-      return;
-    }
-#endif
-
-    SLIC_WARNING("No mesh state is available for quadrature-point export.");
-#else
-    AXOM_UNUSED_VAR(filename);
-    SLIC_WARNING("Quadrature-point export requires Conduit Relay HDF5 support.");
-#endif
-  }
-
-private:
+  /// Create the internal MFEM state. This is called by the Shaper::Shaper MFEM constructor.
   std::unique_ptr<shaping::MFEMState> createMFEMState() override
   {
     return std::make_unique<shaping::SamplingMFEMState>();
   }
 
+  /// 
   void initializeSamplingMFEMState()
   {
     // Shaper constructs its MFEM state in the base constructor, so upgrade it
@@ -450,6 +367,7 @@ private:
   {
     return samplingMFEMState().m_inoutArrays;
   }
+#endif
 
   bool hasValidSampler() const { return !std::holds_alternative<std::monostate>(m_sampler); }
 
@@ -497,139 +415,11 @@ public:
    *
    * \param shape The shape to load.
    */
-  void loadShape(const klee::Shape& shape) override
-  {
-    if(useWindingNumberSampler(shape))
-    {
-      const std::string shapePath =
-        axom::utilities::filesystem::prefixRelativePath(shape.getGeometry().getPath(), m_prefixPath);
-      SLIC_INFO_ROOT("Reading file: " << shapePath << "...");
-      // Read the MFEM file as curved polygon contours for winding number intersection.
-      quest::MFEMReader reader;
-      reader.setFileName(shapePath);
-      const int rc = reader.read(m_contours);
-
-      SLIC_ERROR_IF(rc != quest::MFEMReader::READ_SUCCESS,
-                    axom::fmt::format("Failed to read MFEM shape '{}' from file '{}'.",
-                                      shape.getName(),
-                                      shapePath));
-    }
-    else
-    {
-      Shaper::loadShape(shape);
-    }
-  }
+  void loadShape(const klee::Shape& shape) override;
 
   /// Initializes the spatial index for shaping
-  void prepareShapeQuery(klee::Dimensions shapeDimension, const klee::Shape& shape) override
-  {
-    AXOM_ANNOTATE_SCOPE("prepareShapeQuery");
+  void prepareShapeQuery(klee::Dimensions shapeDimension, const klee::Shape& shape) override;
 
-    internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
-                                                                      : slic::message::Warning);
-
-    if(!shape.getGeometry().hasGeometry())
-    {
-      return;
-    }
-
-    SLIC_INFO_ROOT(axom::fmt::format("{:-^80}", " Generating the spatial index "));
-
-    const auto& shapeName = shape.getName();
-
-    // Initialize the sampler based on shape format
-    // note: ignoring the global shapeDimension for now since it's causing problems
-    // reading c2c when the dimension is Three
-    AXOM_UNUSED_VAR(shapeDimension);
-    const auto format = this->shapeFormat(shape);
-    if(useWindingNumberSampler(shape))
-    {
-      m_sampler = std::make_unique<WindingNumberSampler2D>(shapeName, m_contours.view());
-    }
-    else if(format == "c2c" || format == "mfem")
-    {
-      m_sampler = std::make_unique<InOutSampler2D>(shapeName, m_surfaceMesh);
-    }
-    else if(format == "stl")
-    {
-      m_sampler = std::make_unique<InOutSampler3D>(shapeName, m_surfaceMesh);
-    }
-    else if(format == "proe")
-    {
-      using Policy = runtime_policy::Policy;
-      switch(this->getExecutionPolicy())
-      {
-      case Policy::seq:
-        m_sampler = std::make_unique<PrimitiveSampler3D_seq>(shapeName, m_surfaceMesh);
-        break;
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-      case Policy::omp:
-        m_sampler = std::make_unique<PrimitiveSampler3D_omp>(shapeName, m_surfaceMesh);
-        break;
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-      case Policy::cuda:
-        m_sampler = std::make_unique<PrimitiveSampler3D_cuda>(shapeName, m_surfaceMesh);
-        break;
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-      case Policy::hip:
-        m_sampler = std::make_unique<PrimitiveSampler3D_hip>(shapeName, m_surfaceMesh);
-        break;
-#endif
-      default:
-        SLIC_ERROR("Unsupported execution policy for PrimitiveSampler3D");
-        break;
-      }
-    }
-
-    SLIC_ASSERT(hasValidSampler());
-
-    // Use visitor to initialize the sampler
-    std::visit(
-      [this](auto& sampler) {
-        using T = std::decay_t<decltype(sampler)>;
-        if constexpr(std::is_same_v<T, std::monostate>)
-        {
-          // no op -- monostate
-        }
-        else if constexpr(is_wnsampler_v<typename T::element_type>)
-        {
-          sampler->computeBounds();
-          sampler->initSpatialIndex(this->m_vertexWeldThreshold);
-        }
-        else if constexpr(is_inoutsampler_v<typename T::element_type>)
-        {
-          sampler->computeBounds();
-          sampler->initSpatialIndex(this->m_vertexWeldThreshold);
-        }
-        else if constexpr(is_primitivesampler_v<typename T::element_type>)
-        {
-          sampler->computeBounds();
-          sampler->initSpatialIndex();
-        }
-      },
-      m_sampler);
-
-    // Output some logging info and dump the mesh
-    if(this->isVerbose() && this->getRank() == 0)
-    {
-      if(m_surfaceMesh != nullptr)
-      {
-        const int nVerts = m_surfaceMesh->getNumberOfNodes();
-        const int nCells = m_surfaceMesh->getNumberOfCells();
-        SLIC_INFO(axom::fmt::format("After welding, surface mesh has {} vertices  and {} elements.",
-                                    nVerts,
-                                    nCells));
-        mint::write_vtk(m_surfaceMesh.get(),
-                        axom::fmt::format("melded_shape_mesh_{}.vtk", shapeName));
-      }
-      else if(!m_contours.empty())
-      {
-        SLIC_INFO(axom::fmt::format("Contours contain {} curved polygons.", m_contours.size()));
-      }
-    }
-  }
 
   void runShapeQuery(const klee::Shape& shape) override
   {
@@ -700,6 +490,7 @@ public:
   ///@}
 
 public:
+#if defined(AXOM_USE_MFEM)
   /**
    * \brief Import an initial set of material volume fractions before shaping
    *
@@ -708,65 +499,12 @@ public:
    * The imported grid functions are interpolated at quadrature points and registered
    * with the supplied names as material-based quadrature fields
    */
-  void importInitialVolumeFractions(const std::map<std::string, mfem::GridFunction*>& initialGridFunctions)
-  {
-    internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
-                                                                      : slic::message::Warning);
+  void importInitialVolumeFractions(const std::map<std::string, mfem::GridFunction*>& initialGridFunctions);
+#endif
 
-    auto& mfemState = samplingMFEMState();
-    auto* mesh = mfemState.m_dc->GetMesh();
-    ensureSamplingPositions(mfemState);
-    auto* positionsQSpace = mfemState.m_inoutShapeQFuncs.Get("positions")->GetSpace();
-
-    // Interpolate grid functions at quadrature points & register material quad functions
-    // assume all elements have same integration rule
-    for(auto& entry : initialGridFunctions)
-    {
-      const auto& name = entry.first;
-      auto* gf = entry.second;
-
-      SLIC_INFO_ROOT(axom::fmt::format("Importing volume fraction field for '{}' material", name));
-
-      if(gf == nullptr)
-      {
-        SLIC_WARNING(
-          axom::fmt::format("Skipping missing volume fraction field for material '{}'", name));
-        continue;
-      }
-
-      auto* matQFunc = new mfem::QuadratureFunction(*positionsQSpace);
-      const auto& ir = matQFunc->GetSpace()->GetIntRule(0);
-
-      if(usesAnisotropicCustomTensorQuadrature(*mesh))
-      {
-        // Avoid MFEM's tensor quadrature interpolation path only for
-        // anisotropic custom quad/hex rules. MFEM infers a single q1d from
-        // ir.GetNPoints(), which cannot represent per-direction sample counts
-        // such as 3 x 5 or 3 x 5 x 2.
-        mfem::Vector elemValues;
-        mfem::Vector qfuncValues;
-        for(int elem = 0; elem < mesh->GetNE(); ++elem)
-        {
-          gf->GetValues(elem, ir, elemValues);
-          matQFunc->GetValues(elem, qfuncValues);
-          qfuncValues = elemValues;
-        }
-      }
-      else
-      {
-        const auto* interp = gf->FESpace()->GetQuadratureInterpolator(ir);
-        SLIC_ERROR_IF(interp == nullptr,
-                      axom::fmt::format("Could not create a quadrature interpolator while "
-                                        "importing volume fractions for '{}'.",
-                                        name));
-        interp->Values(*gf, *matQFunc);
-      }
-
-      const auto matName = axom::fmt::format("mat_inout_{}", name);
-      materialQFuncs().Register(matName, matQFunc, true);
-    }
-  }
-
+  /*!
+   * \brief Turn the in/out samples into material in/out fields
+   */
   void adjustVolumeFractions() override
   {
     AXOM_ANNOTATE_SCOPE("adjustVolumeFractions");
@@ -793,52 +531,22 @@ public:
 
   /// Prints out the names of the registered fields related to shapes and materials
   /// This function is intended to help with debugging
-  void printRegisteredFieldNames(const std::string& initialMessage)
-  {
-#if defined(AXOM_USE_MFEM)
-    if(m_mfem_state != nullptr)
-    {
-      shaping::printRegisteredFieldNames(samplingMFEMState(),
-                                         m_knownMaterials,
-                                         m_vfSampling,
-                                         initialMessage);
-      return;
-    }
-#endif
-#if defined(AXOM_USE_CONDUIT)
-    if(m_bp_state != nullptr)
-    {
-      shaping::printRegisteredFieldNames(*m_bp_state,
-                                         m_knownMaterials,
-                                         m_vfSampling,
-                                         initialMessage);
-      return;
-    }
-#endif
-    SLIC_INFO_ROOT(axom::fmt::format("SamplingShaper {} has no registered fields.",
-                                     initialMessage));
-  }
+  void printRegisteredFieldNames(const std::string& initialMessage);
 
   /*!
    * \brief Save the shaping results to disk.
    *
    * \param extra Save extra data when available.
    */
-  virtual void saveResults(bool extra) override
-  {
-    Shaper::saveResults(extra);
-    if(extra)
-    {
-      saveQuadraturePoints("shaping_quadrature");
-    }
-  }
+  virtual void saveResults(bool extra) override;
 
 private:
+#if defined(AXOM_USE_MFEM)
   void ensureSamplingPositions(shaping::SamplingMFEMState& mfemState)
   {
     shaping::generateSamplingPositions(mfemState, m_sampleResolution, m_quadratureType);
   }
-
+#endif
 #if defined(AXOM_USE_CONDUIT)
   void ensureSamplingPositions(shaping::BlueprintState& bpState)
   {
@@ -846,18 +554,25 @@ private:
   }
 #endif
 
-  static int meshDimension(const shaping::SamplingMFEMState& mfemState)
+  /// Return the mesh dimension.
+  int meshDimension() const
   {
-    return mfemState.m_dc->GetMesh()->Dimension();
-  }
-
+    const int InvalidDimension = -1;
+    int dim = InvalidDimension;
 #if defined(AXOM_USE_CONDUIT)
-  int meshDimension(const shaping::BlueprintState& bpState) const
-  {
-    AXOM_UNUSED_VAR(bpState);
-    return getBlueprintMeshDimension();
-  }
+    if(m_mfem_state)
+    {
+      dim = m_bp_state->meshDimension();
+    }
 #endif
+#if defined(AXOM_USE_CONDUIT)
+    if(dim == InvalidDimension && m_bp_state)
+    {
+      dim = m_bp_state->meshDimension();
+    }
+#endif
+    return dim;
+  }
 
   // Handles 2D or 3D shaping for compatible samplers, based on the template and associated parameter
   template <typename MeshState, typename SamplerType>
@@ -869,7 +584,7 @@ private:
       ensureSamplingPositions(meshState);
     }
 
-    const int meshDim = meshDimension(meshState);
+    const int meshDim = meshDimension();
     switch(m_vfSampling)
     {
     case shaping::VolFracSampling::SAMPLE_AT_QPTS:
@@ -992,7 +707,7 @@ private:
   void runShapeQueryImpl(shaping::PrimitiveSampler<DIM, ExecSpace>* sampler)
   {
     auto runImpl = [this, sampler](auto& meshState) {
-      const int meshDim = meshDimension(meshState);
+      const int meshDim = meshDimension();
       if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
       {
         ensureSamplingPositions(meshState);
@@ -1145,78 +860,15 @@ private:
    *
    * \param [in] matField The name of the material
    */
-  void computeVolumeFractionsForMaterial(const std::string& matField)
-  {
-#if defined(AXOM_USE_MFEM)
-    if(m_mfem_state != nullptr)
-    {
-      shaping::computeVolumeFractionsForMaterial(
-        samplingMFEMState(),
-        matField,
-        m_volfracOrder,
-        m_sampleResolution,
-        m_quadratureType);
-      return;
-    }
-#endif
-#if defined(AXOM_USE_CONDUIT)
-    if(m_bp_state != nullptr)
-    {
-      shaping::computeVolumeFractionsForMaterial(*m_bp_state, matField);
-      return;
-    }
-#endif
-    SLIC_ERROR("No mesh state is available for SamplingShaper.");
-  }
+  void computeVolumeFractionsForMaterial(const std::string& matField);
 
-  bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh) const
-  {
-    if(m_quadratureType == axom::numerics::QuadratureType::Invalid)
-    {
-      return false;
-    }
 
-    switch(mesh.GetTypicalElementGeometry())
-    {
-    case mfem::Geometry::SQUARE:
-      return m_sampleResolution[0] != m_sampleResolution[1];
-    case mfem::Geometry::CUBE:
-      return m_sampleResolution[0] != m_sampleResolution[1] ||
-        m_sampleResolution[0] != m_sampleResolution[2];
-    default:
-      return false;
-    }
-  }
-
-  void assembleVolumeFractionRHS(const mfem::FiniteElementSpace& fes,
-                                 mfem::QuadratureFunction& inout,
-                                 const mfem::IntegrationRule& sampleIR,
-                                 mfem::Vector& b) const
-  {
-    mfem::QuadratureFunctionCoefficient qfc(inout);
-    mfem::DomainLFIntegrator rhs(qfc, &sampleIR);
-
-    if(usesAnisotropicCustomTensorQuadrature(*fes.GetMesh()))
-    {
-      mfem::Vector elemVec;
-      mfem::Array<int> elemVDofs;
-
-      for(int elem = 0; elem < fes.GetNE(); ++elem)
-      {
-        rhs.AssembleRHSElementVect(*fes.GetFE(elem), *fes.GetElementTransformation(elem), elemVec);
-        fes.GetElementVDofs(elem, elemVDofs);
-        b.AddElementVector(elemVDofs, elemVec);
-      }
-    }
-    else
-    {
-      mfem::Array<int> elem_marker(fes.GetNE());
-      elem_marker.HostWrite();
-      elem_marker = 1;
-      elem_marker.ReadWrite();
-      rhs.AssembleDevice(fes, elem_marker, b);
-    }
-  }
+  /*!
+   * \brief Determines whether we are using an anisotropic quadrature that we need to work around in MFEM.
+   *
+   * \return True if the quadrature in use is anisotropic; false otherwise.
+   */
+  bool usesAnisotropicCustomTensorQuadrature() const;
 
 private:
   // Holds an instance of the 2D or 3D sampler; only one can be active at a time

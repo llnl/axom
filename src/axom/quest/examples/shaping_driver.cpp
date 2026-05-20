@@ -197,6 +197,7 @@ public:
   }
 
 #if defined(AXOM_USE_CONDUIT)
+  /// Generate a Blueprint Cartesian mesh, scaled to the bounding box range
   std::unique_ptr<sidre::DataStore> createBlueprintBoxMesh()
   {
     auto ds = std::make_unique<sidre::DataStore>();
@@ -720,13 +721,10 @@ int main(int argc, char** argv)
     shapingMesh =
       (pmesh != nullptr) ? new mfem::ParMesh(*pmesh) : new mfem::Mesh(*originalMeshDC->GetMesh());
     shapingDC.SetMesh(shapingMesh);
+    printMeshInfo(shapingMesh, "After loading");
 #endif
   }
   AXOM_ANNOTATE_END("load mesh");
-  if(!params.usesInlineBlueprintMesh())
-  {
-    printMeshInfo(shapingDC.GetMesh(), "After loading");
-  }
 
   //---------------------------------------------------------------------------
   // Initialize the shaping query object
@@ -750,10 +748,12 @@ int main(int argc, char** argv)
     }
     else
     {
+#if defined(AXOM_USE_MFEM)
       shaper = new quest::SamplingShaper(params.policy,
                                          axom::policyToDefaultAllocatorID(params.policy),
                                          params.shapeSet,
                                          &shapingDC);
+#endif
     }
     break;
   case ShapingMethod::Intersection:
@@ -771,10 +771,12 @@ int main(int argc, char** argv)
     }
     else
     {
+#if defined(AXOM_USE_MFEM)
       shaper = new quest::IntersectionShaper(params.policy,
                                              axom::policyToDefaultAllocatorID(params.policy),
                                              params.shapeSet,
                                              &shapingDC);
+#endif
     }
     break;
   }
@@ -857,6 +859,7 @@ int main(int argc, char** argv)
     }
     else
     {
+#if defined(AXOM_USE_MFEM)
       std::map<std::string, mfem::GridFunction*> initial_grid_functions;
 
       // Generate a background material (w/ volume fractions set to 1) if user provided a name
@@ -886,6 +889,7 @@ int main(int argc, char** argv)
 
       // Project provided volume fraction grid functions as quadrature point data
       samplingShaper->importInitialVolumeFractions(initial_grid_functions);
+#endif
     }
   }
   AXOM_ANNOTATE_END("setup shaping problem");
@@ -949,7 +953,12 @@ int main(int argc, char** argv)
   // Compute and print volumes of each material's volume fraction
   //---------------------------------------------------------------------------
   using axom::utilities::string::startsWith;
-  if(shaper->getDC() != nullptr)
+  if(params.usesInlineBlueprintMesh())
+  {
+    SLIC_INFO("Volume summaries are not yet implemented for Blueprint-backed shaping in this driver.");
+  }
+#if defined(AXOM_USE_MFEM)
+  else if(shaper->getDC() != nullptr)
   {
     for(auto& kv : shaper->getDC()->GetFieldMap())
     {
@@ -972,10 +981,7 @@ int main(int argc, char** argv)
       }
     }
   }
-  else
-  {
-    SLIC_INFO("Volume summaries are not yet implemented for Blueprint-backed shaping in this driver.");
-  }
+#endif
   AXOM_ANNOTATE_END("adjust");
 
   //---------------------------------------------------------------------------
