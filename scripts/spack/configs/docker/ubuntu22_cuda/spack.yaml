@@ -127,7 +127,7 @@ spack:
 
     # Globally lock in version of devtools
 
-    # RAJA needs cmake 3.24:
+    # RAJA's spack package depends on a newer version of CMake for CUDA than 3.23.1
     # cmake:
     #   version: [3.23.1]
     #   buildable: false
