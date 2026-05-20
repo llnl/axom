@@ -15,7 +15,9 @@
 #include <cassert>
 #include <cmath>
 #include <complex>
+#include <cstdlib>
 #include <cstdint>
+#include <iostream>
 #include <limits>
 #include <map>
 #include <mutex>
@@ -30,6 +32,13 @@ namespace internal
 {
 
 inline double square(double value) { return value * value; }
+
+[[noreturn]] void failRationalFejerPrecondition(const std::string& message)
+{
+  std::cerr << "ERROR: " << message << "\n";
+  axom::utilities::processAbort();
+  std::abort();
+}
 
 inline Complex powInteger(Complex base, int exponent)
 {
@@ -184,6 +193,80 @@ inline axom::Array<Complex> mapUnitIntervalPolesToM11(axom::ArrayView<const Comp
       : 2.0 * pole - Complex {1.0, 0.0};
   }
   return poles_m11;
+}
+
+inline bool isInfinitePoleValue(const Complex& pole)
+{
+  return std::isinf(pole.real()) || std::isinf(pole.imag()) || std::isinf(std::abs(pole));
+}
+
+inline bool isInvalidFinitePoleValue(const Complex& pole)
+{
+  return !std::isfinite(pole.real()) || !std::isfinite(pole.imag());
+}
+
+inline bool isPoleOnInterval(const Complex& pole, double lower, double upper)
+{
+  const double tol = 16.0 * axom::numeric_limits<double>::epsilon();
+  return std::abs(pole.imag()) <= tol && pole.real() >= lower - tol && pole.real() <= upper + tol;
+}
+
+inline void validatePoleSequence(axom::ArrayView<const Complex> poles,
+                                 double lower,
+                                 double upper,
+                                 const char* domain_name)
+{
+  if(poles.empty())
+  {
+    failRationalFejerPrecondition(
+      axom::fmt::format("Rational Fejer quadrature requires at least one pole in {}.", domain_name));
+  }
+
+  for(axom::IndexType i = 0; i < poles.size(); ++i)
+  {
+    const Complex pole = poles[i];
+    if(std::isnan(pole.real()) || std::isnan(pole.imag()))
+    {
+      failRationalFejerPrecondition(
+        axom::fmt::format("Rational Fejer pole {} in {} contains NaN.", i, domain_name));
+    }
+
+    if(isInfinitePoleValue(pole))
+    {
+      continue;
+    }
+
+    if(isInvalidFinitePoleValue(pole))
+    {
+      failRationalFejerPrecondition(
+        axom::fmt::format("Rational Fejer pole {} in {} is neither finite nor infinite.",
+                          i,
+                          domain_name));
+    }
+
+    if(isPoleOnInterval(pole, lower, upper))
+    {
+      failRationalFejerPrecondition(
+        axom::fmt::format("Rational Fejer finite pole {} = ({}, {}) lies on the {} interval.",
+                          i,
+                          pole.real(),
+                          pole.imag(),
+                          domain_name));
+    }
+  }
+}
+
+inline void validatePoleSequence(axom::ArrayView<const Pole> poles,
+                                 double lower,
+                                 double upper,
+                                 const char* domain_name)
+{
+  axom::Array<Complex> pole_values(poles.size(), poles.size());
+  for(axom::IndexType i = 0; i < poles.size(); ++i)
+  {
+    pole_values[i] = poles[i].value();
+  }
+  validatePoleSequence(pole_values, lower, upper, domain_name);
 }
 
 // Normalize the pole sequence by coalescing near-duplicate poles and keeping
@@ -506,7 +589,11 @@ public:
     {
       const double target = M_PI * (n - i - 0.5);
       bool ok = solveTheta(n, cayley_pole_data, residual_grid, target, bracket_start, node_angles[i]);
-      assert("Failed to construct rational Chebyshev nodes" && ok);
+      if(!ok)
+      {
+        failRationalFejerPrecondition(
+          axom::fmt::format("Failed to construct rational Chebyshev node {} of {}.", i, n));
+      }
     }
 
     axom::Array<std::pair<double, double>> node_angle_pairs(n, n);
@@ -799,7 +886,8 @@ public:
     int num_basis_columns,
     axom::ArrayView<const double> known_integrals,
     int component_count,
-    RationalFejerDiagnostics::Step* step_diagnostics = nullptr) const
+    RationalFejerDiagnostics::Step* step_diagnostics = nullptr,
+    int diagnostic_allocator_id = axom::getDefaultAllocatorID()) const
   {
     const int n = static_cast<int>(m_nodes.size());
     axom::Array<long double> weighted_row0(n, n);
@@ -831,15 +919,11 @@ public:
 
     if(step_diagnostics != nullptr)
     {
-      copy_array_to_array(weighted_row0,
-                          step_diagnostics->weighted_row0,
-                          axom::getDefaultAllocatorID());
+      copy_array_to_array(weighted_row0, step_diagnostics->weighted_row0, diagnostic_allocator_id);
 
       if(component_count == 2)
       {
-        copy_array_to_array(weighted_row1,
-                            step_diagnostics->weighted_row1,
-                            axom::getDefaultAllocatorID());
+        copy_array_to_array(weighted_row1, step_diagnostics->weighted_row1, diagnostic_allocator_id);
       }
     }
 
@@ -887,10 +971,10 @@ public:
 
     if(step_diagnostics != nullptr)
     {
-      copy_array_to_array(bmat_row0, step_diagnostics->projected_row0, axom::getDefaultAllocatorID());
+      copy_array_to_array(bmat_row0, step_diagnostics->projected_row0, diagnostic_allocator_id);
       copy_array_to_array(bmat_row0_terms,
                           step_diagnostics->projected_row0_terms,
-                          axom::getDefaultAllocatorID());
+                          diagnostic_allocator_id);
       step_diagnostics->projected_row_terms_node_count = n;
       step_diagnostics->rhs0 = static_cast<double>(rhs0);
     }
@@ -913,10 +997,10 @@ public:
 
     if(step_diagnostics != nullptr)
     {
-      copy_array_to_array(bmat_row1, step_diagnostics->projected_row1, axom::getDefaultAllocatorID());
+      copy_array_to_array(bmat_row1, step_diagnostics->projected_row1, diagnostic_allocator_id);
       copy_array_to_array(bmat_row1_terms,
                           step_diagnostics->projected_row1_terms,
-                          axom::getDefaultAllocatorID());
+                          diagnostic_allocator_id);
       step_diagnostics->rhs1 = static_cast<double>(rhs1);
       step_diagnostics->a00 = static_cast<double>(a00);
       step_diagnostics->a01 = static_cast<double>(a01);
@@ -1112,7 +1196,7 @@ inline void compute_rational_fejer_data_m11_impl(axom::ArrayView<const Pole> pol
                                                  RationalFejerDiagnostics* diagnostics = nullptr,
                                                  int allocatorID = axom::getDefaultAllocatorID())
 {
-  assert("Rational Fejer quadrature requires at least one pole" && !poles.empty());
+  validatePoleSequence(poles, -1.0, 1.0, "[-1,1]");
 
   const double infinite_pole_threshold = 2.0 / axom::numeric_limits<double>::epsilon();
   const double pole_tolerance = 2.0 * axom::numeric_limits<double>::epsilon();
@@ -1287,7 +1371,8 @@ inline void compute_rational_fejer_data_m11_impl(axom::ArrayView<const Pole> pol
                                      num_known_columns,
                                      known_integrals,
                                      component_count,
-                                     diagnostics != nullptr ? &step_diagnostics : nullptr);
+                                     diagnostics != nullptr ? &step_diagnostics : nullptr,
+                                     allocatorID);
     for(int i = 0; i < component_count; ++i)
     {
       basis_coefficients[coeff_index + i] = orthogonal_integrals[i];
@@ -1343,6 +1428,8 @@ void compute_rational_chebyshev_data_m11(axom::ArrayView<const Complex> poles_m1
                                          axom::Array<double>& weights,
                                          int allocatorID)
 {
+  validatePoleSequence(poles_m11, -1.0, 1.0, "[-1,1]");
+
   axom::Array<double> nodes_tmp;
   axom::Array<double> weights_tmp;
   compute_rational_chebyshev_data(makePoleArray(poles_m11), nodes_tmp, weights_tmp);
@@ -1355,6 +1442,8 @@ void compute_rational_fejer_data_m11(axom::ArrayView<const Complex> poles_m11,
                                      axom::Array<double>& weights,
                                      int allocatorID)
 {
+  validatePoleSequence(poles_m11, -1.0, 1.0, "[-1,1]");
+
   axom::Array<double> nodes_tmp;
   axom::Array<double> weights_tmp;
   compute_rational_fejer_data_m11(makePoleArray(poles_m11), nodes_tmp, weights_tmp);
@@ -1379,6 +1468,8 @@ void compute_rational_fejer_diagnostics_m11(axom::ArrayView<const Complex> poles
                                             RationalFejerDiagnostics& diagnostics,
                                             int allocatorID)
 {
+  validatePoleSequence(poles_m11, -1.0, 1.0, "[-1,1]");
+
   compute_rational_fejer_diagnostics_m11(makePoleArray(poles_m11), diagnostics, allocatorID);
 }
 inline std::string make_rational_fejer_key(axom::ArrayView<const Pole> poles01, int allocatorID)
@@ -1417,7 +1508,7 @@ void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> pol
                                  axom::Array<double>& weights,
                                  int allocatorID)
 {
-  assert("Rational Fejer quadrature requires at least one pole" && !poles01.empty());
+  internal::validatePoleSequence(poles01, 0.0, 1.0, "[0,1]");
 
   const auto poles_m11 = internal::mapUnitIntervalPolesToM11(poles01);
 
@@ -1437,7 +1528,7 @@ void internal::compute_rational_fejer_diagnostics(axom::ArrayView<const std::com
                                                   internal::RationalFejerDiagnostics& diagnostics,
                                                   int allocatorID)
 {
-  assert("Rational Fejer quadrature requires at least one pole" && !poles01.empty());
+  internal::validatePoleSequence(poles01, 0.0, 1.0, "[0,1]");
 
   const auto poles_m11 = internal::mapUnitIntervalPolesToM11(poles01);
 
@@ -1457,20 +1548,54 @@ void internal::compute_rational_fejer_diagnostics(axom::ArrayView<const std::com
 
 QuadratureRule get_rational_fejer(axom::ArrayView<const std::complex<double>> poles01, int allocatorID)
 {
-  assert("Rational Fejer quadrature requires at least one pole" && !poles01.empty());
+  internal::validatePoleSequence(poles01, 0.0, 1.0, "[0,1]");
 
+  constexpr std::size_t MAX_RATIONAL_FEJER_CACHED_RULES = 256;
   static std::map<std::string, internal::RationalFejerRuleStorage> rule_library;
   static std::mutex rule_library_mutex;
 
   const std::string key = internal::make_rational_fejer_key(poles01, allocatorID);
-  const std::lock_guard<std::mutex> lock(rule_library_mutex);
-  auto [it, inserted] = rule_library.emplace(key, internal::RationalFejerRuleStorage {});
-  if(inserted)
+
   {
-    compute_rational_fejer_data(poles01, it->second.nodes, it->second.weights, allocatorID);
+    const std::lock_guard<std::mutex> lock(rule_library_mutex);
+    auto it = rule_library.find(key);
+    if(it != rule_library.end())
+    {
+      return QuadratureRule {it->second.nodes.view(), it->second.weights.view()};
+    }
+
+    if(rule_library.size() >= MAX_RATIONAL_FEJER_CACHED_RULES)
+    {
+      internal::failRationalFejerPrecondition(
+        axom::fmt::format("Rational Fejer cached-rule limit ({}) reached. Use "
+                          "compute_rational_fejer_data() for one-off generated pole sets.",
+                          MAX_RATIONAL_FEJER_CACHED_RULES));
+    }
   }
 
-  return QuadratureRule {it->second.nodes.view(), it->second.weights.view()};
+  internal::RationalFejerRuleStorage storage;
+  compute_rational_fejer_data(poles01, storage.nodes, storage.weights, allocatorID);
+
+  {
+    const std::lock_guard<std::mutex> lock(rule_library_mutex);
+    auto it = rule_library.find(key);
+    if(it != rule_library.end())
+    {
+      return QuadratureRule {it->second.nodes.view(), it->second.weights.view()};
+    }
+
+    if(rule_library.size() >= MAX_RATIONAL_FEJER_CACHED_RULES)
+    {
+      internal::failRationalFejerPrecondition(
+        axom::fmt::format("Rational Fejer cached-rule limit ({}) reached. Use "
+                          "compute_rational_fejer_data() for one-off generated pole sets.",
+                          MAX_RATIONAL_FEJER_CACHED_RULES));
+    }
+
+    auto inserted = rule_library.emplace(key, std::move(storage));
+    return QuadratureRule {inserted.first->second.nodes.view(),
+                           inserted.first->second.weights.view()};
+  }
 }
 
 }  // namespace numerics

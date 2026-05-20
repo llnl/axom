@@ -129,6 +129,7 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID = axom::getDefaultAl
  * to the standard interior Chebyshev / Fejer rule.
  *
  * \note This method constructs the points from scratch each time, without caching.
+ * \pre `poles01` is non-empty and all finite real poles lie outside `[0,1]`.
  * \sa get_rational_fejer(axom::ArrayView<const std::complex<double>>, int)
  */
 void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> poles01,
@@ -146,6 +147,10 @@ void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> pol
  * \note Although rational Fejer is Chebyshev-based like Clenshaw-Curtis, the
  *  cached rule here is keyed by the explicit pole sequence, since the pole data
  *  changes the exactness space and therefore the resulting weights.
+ * \warning This process-wide cache retains entries for the lifetime of the
+ *  process and is capped to avoid unbounded growth. Prefer
+ *  \c compute_rational_fejer_data() for one-off generated pole sequences.
+ * \pre `poles01` is non-empty and all finite real poles lie outside `[0,1]`.
  *
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
  */

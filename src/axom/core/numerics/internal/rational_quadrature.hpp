@@ -101,7 +101,7 @@ struct RationalFejerDiagnostics
  * \param [out] weights Rational Chebyshev weights on `[-1,1]`.
  * \param [in] allocatorID Allocator used for the output arrays.
  *
- * \pre `poles_m11` is non-empty.
+ * \pre `poles_m11` is non-empty and all finite real poles lie outside `[-1,1]`.
  */
 void compute_rational_chebyshev_data_m11(axom::ArrayView<const Complex> poles_m11,
                                          axom::Array<double>& nodes,
@@ -120,7 +120,7 @@ void compute_rational_chebyshev_data_m11(axom::ArrayView<const Complex> poles_m1
  * \param [out] weights Rational Fejer weights on `[-1,1]`.
  * \param [in] allocatorID Allocator used for the output arrays.
  *
- * \pre `poles_m11` is non-empty.
+ * \pre `poles_m11` is non-empty and all finite real poles lie outside `[-1,1]`.
  */
 void compute_rational_fejer_data_m11(axom::ArrayView<const Complex> poles_m11,
                                      axom::Array<double>& nodes,
@@ -139,7 +139,7 @@ void compute_rational_fejer_data_m11(axom::ArrayView<const Complex> poles_m11,
  * \param [out] diagnostics Diagnostic structure populated by the construction.
  * \param [in] allocatorID Allocator used for diagnostic arrays.
  *
- * \pre `poles_m11` is non-empty.
+ * \pre `poles_m11` is non-empty and all finite real poles lie outside `[-1,1]`.
  */
 void compute_rational_fejer_diagnostics_m11(axom::ArrayView<const Complex> poles_m11,
                                             RationalFejerDiagnostics& diagnostics,
@@ -157,7 +157,7 @@ void compute_rational_fejer_diagnostics_m11(axom::ArrayView<const Complex> poles
  * \param [out] diagnostics Diagnostic structure populated by the construction.
  * \param [in] allocatorID Allocator used for diagnostic arrays.
  *
- * \pre `poles01` is non-empty.
+ * \pre `poles01` is non-empty and all finite real poles lie outside `[0,1]`.
  */
 void compute_rational_fejer_diagnostics(axom::ArrayView<const Complex> poles01,
                                         RationalFejerDiagnostics& diagnostics,

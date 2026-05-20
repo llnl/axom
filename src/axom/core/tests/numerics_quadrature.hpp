@@ -289,6 +289,38 @@ TEST(numerics_quadrature, rational_fejer_infinite_poles_are_polynomial_exact)
   }
 }
 
+TEST(numerics_quadrature_DeathTest, rational_fejer_rejects_invalid_public_poles)
+{
+  axom::Array<double> nodes;
+  axom::Array<double> weights;
+
+  axom::Array<Complex> empty_poles;
+  EXPECT_DEATH_IF_SUPPORTED(axom::numerics::compute_rational_fejer_data(empty_poles, nodes, weights),
+                            "");
+
+  const axom::Array<Complex> pole_on_unit_interval {Complex {0.5, 0.0}};
+  EXPECT_DEATH_IF_SUPPORTED(
+    axom::numerics::compute_rational_fejer_data(pole_on_unit_interval, nodes, weights),
+    "");
+
+  const axom::Array<Complex> nan_pole {Complex {axom::numeric_limits<double>::quiet_NaN(), 0.0}};
+  EXPECT_DEATH_IF_SUPPORTED(axom::numerics::get_rational_fejer(nan_pole), "");
+}
+
+TEST(numerics_quadrature_DeathTest, rational_fejer_rejects_invalid_internal_poles)
+{
+  axom::Array<double> nodes;
+  axom::Array<double> weights;
+
+  axom::Array<Complex> empty_poles;
+  EXPECT_DEATH_IF_SUPPORTED(compute_rational_fejer_rule_m11(empty_poles, nodes, weights), "");
+
+  const axom::Array<Complex> pole_on_reference_interval {Complex {0.0, 0.0}};
+  EXPECT_DEATH_IF_SUPPORTED(
+    compute_rational_chebyshev_rule_m11(pole_on_reference_interval, nodes, weights),
+    "");
+}
+
 TEST(numerics_quadrature, rational_fejer_matches_simple_pole_moments)
 {
   axom::Array<Complex> poles;
@@ -311,6 +343,55 @@ TEST(numerics_quadrature, rational_fejer_matches_simple_pole_moments)
     EXPECT_NEAR(observed, exact, 1e-9);
   }
 }
+
+TEST(numerics_quadrature, rational_fejer_cached_rule_matches_uncached_compute)
+{
+  const axom::Array<Complex> poles {Complex {1.4, 0.8}, Complex {1.4, -0.8}, Complex {2.5, 0.0}};
+
+  axom::Array<double> computed_nodes;
+  axom::Array<double> computed_weights;
+  axom::numerics::compute_rational_fejer_data(poles, computed_nodes, computed_weights);
+
+  const auto cached_rule = axom::numerics::get_rational_fejer(poles);
+
+  ASSERT_EQ(cached_rule.getNumPoints(), computed_nodes.size());
+  ASSERT_EQ(computed_nodes.size(), computed_weights.size());
+  for(int i = 0; i < cached_rule.getNumPoints(); ++i)
+  {
+    EXPECT_NEAR(cached_rule.node(i), computed_nodes[i], 1e-14);
+    EXPECT_NEAR(cached_rule.weight(i), computed_weights[i], 1e-14);
+  }
+}
+
+#if defined(AXOM_USE_UMPIRE)
+TEST(numerics_quadrature, rational_fejer_diagnostics_respect_allocator)
+{
+  const int allocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Pinned);
+  const axom::Array<Complex> poles {Complex {1.4, 0.8}, Complex {1.4, -0.8}, Complex {2.5, 0.0}};
+
+  numerics_internal::RationalFejerDiagnostics diagnostics;
+  numerics_internal::compute_rational_fejer_diagnostics(poles, diagnostics, allocatorID);
+
+  EXPECT_EQ(diagnostics.canonical_poles_m11.getAllocatorID(), allocatorID);
+  EXPECT_EQ(diagnostics.cayley_poles.getAllocatorID(), allocatorID);
+  EXPECT_EQ(diagnostics.rational_chebyshev_nodes_m11.getAllocatorID(), allocatorID);
+  EXPECT_EQ(diagnostics.rational_chebyshev_weights_m11.getAllocatorID(), allocatorID);
+  EXPECT_EQ(diagnostics.basis_coefficients.getAllocatorID(), allocatorID);
+  EXPECT_EQ(diagnostics.final_weights_m11.getAllocatorID(), allocatorID);
+  EXPECT_EQ(diagnostics.nodes_01.getAllocatorID(), allocatorID);
+  EXPECT_EQ(diagnostics.weights_01.getAllocatorID(), allocatorID);
+  EXPECT_EQ(diagnostics.steps.getAllocatorID(), allocatorID);
+
+  ASSERT_GT(diagnostics.steps.size(), 0);
+  const auto& step = diagnostics.steps[0];
+  EXPECT_EQ(step.basis_coefficients_before.getAllocatorID(), allocatorID);
+  EXPECT_EQ(step.weighted_row0.getAllocatorID(), allocatorID);
+  EXPECT_EQ(step.projected_row0.getAllocatorID(), allocatorID);
+  EXPECT_EQ(step.projected_row0_terms.getAllocatorID(), allocatorID);
+  EXPECT_EQ(step.orthogonal_integrals.getAllocatorID(), allocatorID);
+  EXPECT_EQ(step.basis_coefficients_after.getAllocatorID(), allocatorID);
+}
+#endif
 
 template <typename ExecSpace>
 struct test_device_quadrature
