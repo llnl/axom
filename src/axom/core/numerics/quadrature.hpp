@@ -147,9 +147,11 @@ void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> pol
  * \note Although rational Fejer is Chebyshev-based like Clenshaw-Curtis, the
  *  cached rule here is keyed by the explicit pole sequence, since the pole data
  *  changes the exactness space and therefore the resulting weights.
- * \warning This process-wide cache retains entries for the lifetime of the
- *  process and is capped to avoid unbounded growth. Prefer
- *  \c compute_rational_fejer_data() for one-off generated pole sequences.
+ * \warning This process-wide cache is capped to avoid unbounded growth. Once
+ *  the cap is reached, adding a new rule evicts the least recently used cached
+ *  rule, which invalidates views returned by the evicted \c QuadratureRule.
+ *  Prefer \c compute_rational_fejer_data() for one-off generated pole
+ *  sequences or when the caller needs owned arrays.
  * \pre `poles01` is non-empty and all finite real poles lie outside `[0,1]`.
  *
  * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights

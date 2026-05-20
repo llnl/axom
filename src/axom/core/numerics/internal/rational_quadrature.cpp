@@ -16,10 +16,8 @@
 #include <cmath>
 #include <complex>
 #include <cstdlib>
-#include <cstdint>
 #include <iostream>
 #include <limits>
-#include <map>
 #include <mutex>
 #include <string>
 #include <utility>
@@ -1550,26 +1548,18 @@ QuadratureRule get_rational_fejer(axom::ArrayView<const std::complex<double>> po
 {
   internal::validatePoleSequence(poles01, 0.0, 1.0, "[0,1]");
 
-  constexpr std::size_t MAX_RATIONAL_FEJER_CACHED_RULES = 256;
-  static std::map<std::string, internal::RationalFejerRuleStorage> rule_library;
+  constexpr std::size_t MAX_RATIONAL_FEJER_CACHED_RULES = 1u << 16;
+  static internal::LruCache<std::string, internal::RationalFejerRuleStorage> rule_library(
+    MAX_RATIONAL_FEJER_CACHED_RULES);
   static std::mutex rule_library_mutex;
 
   const std::string key = internal::make_rational_fejer_key(poles01, allocatorID);
 
   {
     const std::lock_guard<std::mutex> lock(rule_library_mutex);
-    auto it = rule_library.find(key);
-    if(it != rule_library.end())
+    if(auto* storage = rule_library.find(key))
     {
-      return QuadratureRule {it->second.nodes.view(), it->second.weights.view()};
-    }
-
-    if(rule_library.size() >= MAX_RATIONAL_FEJER_CACHED_RULES)
-    {
-      internal::failRationalFejerPrecondition(
-        axom::fmt::format("Rational Fejer cached-rule limit ({}) reached. Use "
-                          "compute_rational_fejer_data() for one-off generated pole sets.",
-                          MAX_RATIONAL_FEJER_CACHED_RULES));
+      return QuadratureRule {storage->nodes.view(), storage->weights.view()};
     }
   }
 
@@ -1578,23 +1568,13 @@ QuadratureRule get_rational_fejer(axom::ArrayView<const std::complex<double>> po
 
   {
     const std::lock_guard<std::mutex> lock(rule_library_mutex);
-    auto it = rule_library.find(key);
-    if(it != rule_library.end())
+    if(auto* cached_storage = rule_library.find(key))
     {
-      return QuadratureRule {it->second.nodes.view(), it->second.weights.view()};
+      return QuadratureRule {cached_storage->nodes.view(), cached_storage->weights.view()};
     }
 
-    if(rule_library.size() >= MAX_RATIONAL_FEJER_CACHED_RULES)
-    {
-      internal::failRationalFejerPrecondition(
-        axom::fmt::format("Rational Fejer cached-rule limit ({}) reached. Use "
-                          "compute_rational_fejer_data() for one-off generated pole sets.",
-                          MAX_RATIONAL_FEJER_CACHED_RULES));
-    }
-
-    auto inserted = rule_library.emplace(key, std::move(storage));
-    return QuadratureRule {inserted.first->second.nodes.view(),
-                           inserted.first->second.weights.view()};
+    auto& cached_storage = rule_library.insert(key, std::move(storage));
+    return QuadratureRule {cached_storage.nodes.view(), cached_storage.weights.view()};
   }
 }
 

@@ -363,6 +363,51 @@ TEST(numerics_quadrature, rational_fejer_cached_rule_matches_uncached_compute)
   }
 }
 
+TEST(numerics_quadrature, rational_fejer_lru_cache_eviction_updates_on_access)
+{
+  numerics_internal::LruCache<int, int> cache(3);
+  cache.insert(1, 10);
+  cache.insert(2, 20);
+  cache.insert(3, 30);
+
+  auto* value = cache.find(1);
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(*value, 10);
+
+  cache.insert(4, 40);
+  EXPECT_TRUE(cache.contains(1));
+  EXPECT_FALSE(cache.contains(2));
+  EXPECT_TRUE(cache.contains(3));
+  EXPECT_TRUE(cache.contains(4));
+
+  value = cache.find(3);
+  ASSERT_NE(value, nullptr);
+  EXPECT_EQ(*value, 30);
+
+  cache.insert(5, 50);
+  EXPECT_FALSE(cache.contains(1));
+  EXPECT_TRUE(cache.contains(3));
+  EXPECT_TRUE(cache.contains(4));
+  EXPECT_TRUE(cache.contains(5));
+  EXPECT_EQ(cache.size(), 3u);
+}
+
+TEST(numerics_quadrature, rational_fejer_cached_rule_allows_more_than_legacy_limit)
+{
+  constexpr int num_distinct_rules = 300;
+  for(int i = 0; i < num_distinct_rules; ++i)
+  {
+    const double pole = 1.25 + 0.001 * i;
+    const axom::Array<Complex> poles {Complex {pole, 0.0}};
+    const auto rule = axom::numerics::get_rational_fejer(poles);
+
+    ASSERT_EQ(rule.getNumPoints(), 2);
+    EXPECT_GT(rule.node(0), 0.0);
+    EXPECT_LT(rule.node(1), 1.0);
+    EXPECT_NEAR(rule.weight(0) + rule.weight(1), 1.0, 1e-12);
+  }
+}
+
 #if defined(AXOM_USE_UMPIRE)
 TEST(numerics_quadrature, rational_fejer_diagnostics_respect_allocator)
 {

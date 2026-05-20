@@ -11,7 +11,12 @@
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/numerics/quadrature.hpp"
 
+#include <cassert>
 #include <complex>
+#include <cstddef>
+#include <list>
+#include <unordered_map>
+#include <utility>
 
 namespace axom
 {
@@ -21,6 +26,76 @@ namespace internal
 {
 
 using Complex = std::complex<double>;
+
+/*!
+ * \brief Small least-recently-used cache helper.
+ *
+ * Lookup and insertion are average constant time. Accessing an entry promotes it
+ * to most-recently-used position, and inserting into a full cache evicts the
+ * least recently used entry.
+ */
+template <typename Key, typename Value>
+class LruCache
+{
+public:
+  explicit LruCache(std::size_t capacity) : m_capacity(capacity) { assert(m_capacity > 0); }
+
+  Value* find(const Key& key)
+  {
+    auto it = m_entries.find(key);
+    if(it == m_entries.end())
+    {
+      return nullptr;
+    }
+
+    touch(it);
+    return &it->second.value;
+  }
+
+  Value& insert(Key key, Value value)
+  {
+    auto it = m_entries.find(key);
+    if(it != m_entries.end())
+    {
+      it->second.value = std::move(value);
+      touch(it);
+      return it->second.value;
+    }
+
+    if(m_entries.size() >= m_capacity)
+    {
+      m_entries.erase(m_lru_order.back());
+      m_lru_order.pop_back();
+    }
+
+    m_lru_order.push_front(key);
+    auto inserted = m_entries.emplace(std::move(key), Entry {std::move(value), m_lru_order.begin()});
+    return inserted.first->second.value;
+  }
+
+  bool contains(const Key& key) const { return m_entries.find(key) != m_entries.end(); }
+
+  std::size_t size() const { return m_entries.size(); }
+
+private:
+  struct Entry
+  {
+    Value value;
+    typename std::list<Key>::iterator lru_position;
+  };
+
+  using EntryIterator = typename std::unordered_map<Key, Entry>::iterator;
+
+  void touch(EntryIterator it)
+  {
+    m_lru_order.splice(m_lru_order.begin(), m_lru_order, it->second.lru_position);
+    it->second.lru_position = m_lru_order.begin();
+  }
+
+  std::size_t m_capacity;
+  std::unordered_map<Key, Entry> m_entries;
+  std::list<Key> m_lru_order;
+};
 
 /*!
  * \note In the rational Fejer implementation, the suffix `_m11` means
