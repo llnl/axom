@@ -495,9 +495,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 hip_link_flags += "-lflang -lflangrti "
 
             # Additional library path for cray compiler
-            if self.spec.satisfies("%cce"):
+            if spec.satisfies("%cce"):
                 hip_link_flags += "-L/opt/cray/pe/cce/{0}/cce/x86_64/lib -Wl,-rpath,/opt/cray/pe/cce/{0}/cce/x86_64/lib ".format(
-                    self.spec.compiler.version
+                    spec.compiler.version
                 )
 
             if spec.satisfies("+fortran"):
@@ -576,7 +576,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 cmake_cache_string("BLT_OPENMP_LINK_FLAGS", openmp_gen_exp, description)
             )
 
-        if spec.satisfies("+openmp") and spec.satisfies("+rocm") and self.spec.satisfies("%cce"):
+        if spec.satisfies("+openmp") and spec.satisfies("+rocm") and spec.satisfies("%cce"):
             openmp_gen_exp = (
                 "$<$<NOT:$<COMPILE_LANGUAGE:Fortran>>:"
                 "-fopenmp=libomp>;$<$<COMPILE_LANGUAGE:"
