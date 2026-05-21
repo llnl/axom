@@ -195,9 +195,25 @@ void replaceMaterial(mfem::QuadratureFunction* shapeQFunc,
 void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
                            mfem::QuadratureFunction* materialQFunc,
                            bool reuseExisting = true);
-
-/// Generates a quadrature function corresponding to the mesh positions
-void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFuncs, int sampleRes);
+/**
+ * \brief Generates a "position" quadrature function corresponding to the mesh positions and
+ *        store it in \a inoutQFuncs.
+ *
+ * \param mesh The mesh
+ * \param inoutQFuncs A collection of quadrature functions where the new "position" function will be added.
+ * \param sampleResolution The sample resolution in each logical dimension. The size of the view should be
+ *                         1 for Invalid \a quadratureType and be equal to the mesh dimension for other
+ *                         \a quadratureType values.
+ * \param quadratureType An int corresponding to mfem::Quadrature1D enum values. If
+ *                       Invalid is used then the default quadrature is constructed.
+ *                       Otherwise, custom quadrature is constructed using the supplied
+ *                       quadratureType -- the same type per dimension but the sampling
+ *                       can vary.
+ */
+void generatePositionsQFunction(mfem::Mesh* mesh,
+                                QFunctionCollection& inoutQFuncs,
+                                axom::ArrayView<int> sampleResolution,
+                                int quadratureType);
 
 /** 
  * Implements flux-corrected transport (FCT) to correct the solution obtained
@@ -227,6 +243,23 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
                                     const std::string& name);
 
 /*!
+ * \brief Determines whether the quadrature is anisotropic.
+ *
+ * \param The MFEM mesh used being sampled onto.
+ * \param sampleResolution The sample resolution for each dimension. If \a quadratureType
+ *                         is Invalid, there must be one value, which will be used for each
+ *                         dimension. For other \a quadratureType values, there must be
+ *                         one value per mesh dimension.
+ * \param quadratureType An int containing an mfem::Quadrature1D enum value that selects
+ *                       the quadrature type.
+ *
+ * \return True if the specified quadrature is anisotropic, false otherwise.
+ */
+bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh,
+                                           axom::ArrayView<int> sampleResolution,
+                                           int quadratureType);
+
+/*!
   * \brief Samples the inout field over the indexed geometry, possibly using a
   * callback function to project the input points (from the computational mesh)
   * to query points on the spatial index
@@ -240,7 +273,13 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
   * \param [in] dc The data collection containing the mesh and associated query points
   * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
   * inout samples
-  * \param [in] sampleRes The quadrature order at which to sample the inout field
+  * \param [in] sampleRes The sampling resolution in each logical direction. For Invalid quadratureType,
+  *                       there must be 1 value, which will be used for each quadrature dimension. For
+  *                       other quadrature types, there must be 1 value per mesh dimension.
+  * For custom quadrature families, these values specify the per-direction
+  * sample counts directly, which in turn determine the quadrature rule used
+  * in each logical direction.
+  * \param [in] quadratureType The quadrature type to use to construct the sample point locations.
   * \param [in] checkInside The function that determines whether a point is inside.
   * \param [in] projector A callback function to apply to points from the input mesh
   * before querying them on the spatial index
@@ -252,7 +291,8 @@ template <int FromDim, int ToDim, typename InsideFunc>
 void sampleInOutField(const std::string shapeName,
                       mfem::DataCollection* dc,
                       shaping::QFunctionCollection& inoutQFuncs,
-                      int sampleRes,
+                      axom::ArrayView<int> sampleRes,
+                      int quadratureType,
                       InsideFunc&& checkInside,
                       PointProjector<FromDim, ToDim> projector = {})
 {
@@ -271,7 +311,7 @@ void sampleInOutField(const std::string shapeName,
   // Generate a Quadrature Function with the geometric positions, if not already available
   if(!inoutQFuncs.Has("positions"))
   {
-    shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes);
+    shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes, quadratureType);
   }
 
   // Access the positions QFunc and associated QuadratureSpace
@@ -337,7 +377,6 @@ void sampleInOutField(const std::string shapeName,
   *
   * \param [in] shapeName The name of the shape used in making data array names.
   * \param [in] dc The data collection containing the mesh and associated query points
-  * \param [in] sampleRes The quadrature order at which to sample the inout field
   * \param [in] outputOrder The order of the output inout field
   * \param [in] checkInside The function that determines whether a point is inside.
   * \param [in] projector A callback function to apply to points from the input mesh
@@ -349,7 +388,6 @@ void sampleInOutField(const std::string shapeName,
 template <int FromDim, int ToDim, typename InsideFunc>
 void computeVolumeFractionsBaseline(const std::string& shapeName,
                                     mfem::DataCollection* dc,
-                                    int AXOM_UNUSED_PARAM(sampleRes),
                                     int outputOrder,
                                     InsideFunc&& checkInside,
                                     PointProjector<FromDim, ToDim> projector = {})

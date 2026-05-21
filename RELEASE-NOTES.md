@@ -29,6 +29,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Klee: Adds an optional "center" parameter in scale operators that permits scaling relative to a custom center point.
 - Bump: The `MergeMeshes` class was enhanced so it supports material-dependent/mixed Blueprint fields that are "element-associated". These fields contain per-material values for the materials in a zone.
 - Bump: Added `axom::bump::views::dispatch_material_field()` function (and related functions) for creating a material view and a material-dependent or mixed field view.
+- Quest: `SamplingShaper` now supports selecting MFEM quadrature families for custom sample-point generation, including
+  anisotropic per-direction sampling resolution on quadrilateral and hexahedral meshes. Quadrature type is selected via
+  a new ``setQuadratureType`` method that accepts an enum value from ``mfem::Quadrature1D``. The number of samples in
+  each direction is selected with a new ``setSamplingResolution`` method that accepts an ``axom::ArrayView<int>`` of
+  sample values, one value per mesh dimension. Values can be the same for isotropic sampling or different for anisotropic
+  sampling. The new method replaces the ``setQuadratureOrder`` method, which has been marked as deprecated and will be
+  removed in a future version of Axom.
 - Core: Adds Durand-Kerner polynomial solver which returns the complex roots of a univariate polynomial
 - Core: Adds `axom::Array::pop_back` for API compatibility with `std::vector`
 
