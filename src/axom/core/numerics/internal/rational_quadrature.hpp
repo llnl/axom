@@ -12,6 +12,7 @@
 #include "axom/core/numerics/quadrature.hpp"
 
 #include <complex>
+#include <string>
 
 namespace axom
 {
@@ -148,6 +149,16 @@ void compute_rational_fejer_data_m11(axom::ArrayView<const Complex> poles_m11,
 void compute_rational_fejer_diagnostics_m11(axom::ArrayView<const Complex> poles_m11,
                                             RationalFejerDiagnostics& diagnostics,
                                             int allocatorID = axom::getDefaultAllocatorID());
+
+/*!
+ * \brief Build the canonical rational Fejer cache key for `[-1,1]` poles.
+ *
+ * This internal helper is exposed for tests that verify cache-key
+ * canonicalization follows the same `[-1,1]` pole pipeline as the rule
+ * construction.
+ */
+std::string make_rational_fejer_cache_key_m11(axom::ArrayView<const Complex> poles_m11,
+                                              int allocatorID = axom::getDefaultAllocatorID());
 
 /*!
  * \brief Populate diagnostics for a rational Fejer rule on `[0,1]`.

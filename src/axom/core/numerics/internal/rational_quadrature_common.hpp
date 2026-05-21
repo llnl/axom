@@ -182,33 +182,6 @@ struct DistinctPoleData
   axom::Array<int> multiplicities;
 };
 
-/// \brief Converts complex pole values to Pole wrappers.
-inline axom::Array<Pole> makePoleArray(axom::ArrayView<const Complex> pole_values)
-{
-  axom::Array<Pole> poles(pole_values.size(), pole_values.size());
-  for(axom::IndexType i = 0; i < pole_values.size(); ++i)
-  {
-    poles[i] = Pole {pole_values[i]};
-  }
-  return poles;
-}
-
-/// \brief Maps poles from [0,1] coordinates to [-1,1] coordinates.
-inline axom::Array<Complex> mapUnitIntervalPolesToM11(axom::ArrayView<const Complex> poles01)
-{
-  // `_m11` denotes the `[-1,1]` interval ("minus-one-to-one"). Public callers
-  // provide poles on `[0,1]`, then the implementation maps them into the
-  // symmetric interval used by the rational Chebyshev and Fejer formulas.
-  axom::Array<Complex> poles_m11(poles01.size(), poles01.size());
-  for(axom::IndexType i = 0; i < poles01.size(); ++i)
-  {
-    const Pole pole {poles01[i]};
-    poles_m11[i] =
-      pole.isInfinite() ? Pole::infinity().value() : 2.0 * pole.value() - Complex {1.0, 0.0};
-  }
-  return poles_m11;
-}
-
 /// \brief Validates a rational Fejer pole against the construction domain.
 inline void validatePole(const Pole& pole,
                          axom::IndexType pole_index,
@@ -245,186 +218,6 @@ inline void validatePole(const Pole& pole,
                         pole.imag(),
                         domain_name));
   }
-}
-
-/// \brief Validates a complex-valued pole sequence against the construction domain.
-inline void validatePoleSequence(axom::ArrayView<const Complex> poles,
-                                 double lower,
-                                 double upper,
-                                 const char* domain_name)
-{
-  const double interval_tol = 16.0 * axom::numeric_limits<double>::epsilon();
-
-  if(poles.empty())
-  {
-    failRationalFejerPrecondition(
-      axom::fmt::format("Rational Fejer quadrature requires at least one pole in {}.", domain_name));
-  }
-
-  for(axom::IndexType i = 0; i < poles.size(); ++i)
-  {
-    validatePole(Pole {poles[i]}, i, lower, upper, interval_tol, domain_name);
-  }
-}
-
-/// \brief Validates a pole sequence against the construction domain.
-inline void validatePoleSequence(axom::ArrayView<const Pole> poles,
-                                 double lower,
-                                 double upper,
-                                 const char* domain_name)
-{
-  const double interval_tol = 16.0 * axom::numeric_limits<double>::epsilon();
-
-  if(poles.empty())
-  {
-    failRationalFejerPrecondition(
-      axom::fmt::format("Rational Fejer quadrature requires at least one pole in {}.", domain_name));
-  }
-
-  for(axom::IndexType i = 0; i < poles.size(); ++i)
-  {
-    validatePole(poles[i], i, lower, upper, interval_tol, domain_name);
-  }
-}
-
-/// \brief Canonicalizes poles by coalescing near-duplicates and keeping
-/// complex-conjugate partners adjacent.
-///
-/// The result is the stable internal representation used for caching,
-/// diagnostics, and the rational recurrences.
-inline axom::Array<Pole> canonicalizePoleSequence(axom::Array<Pole> poles, double tol)
-{
-  const int num_input_poles = static_cast<int>(poles.size());
-  axom::Array<int> consumed(num_input_poles, num_input_poles);
-  consumed.fill(0);
-
-  axom::Array<Pole> ordered_poles;
-  ordered_poles.reserve(2 * num_input_poles);
-  for(int i = 0; i < num_input_poles; ++i)
-  {
-    if(consumed[i])
-    {
-      continue;
-    }
-
-    const Pole pole = poles[i];
-    for(int idx = i + 1; idx < num_input_poles; ++idx)
-    {
-      if(!consumed[idx] && pole.closeTo(poles[idx], tol))
-      {
-        poles[idx] = pole;
-      }
-    }
-
-    ordered_poles.push_back(pole);
-    consumed[i] = 1;
-
-    if(!pole.isEffectivelyReal(tol))
-    {
-      // The real-valued quadrature rule is built from conjugate-complete
-      // pole blocks. If the caller supplies only one side of a complex pair,
-      // synthesize the missing partner here; repeated poles consume one
-      // matching conjugate per occurrence so multiplicities stay balanced.
-      const auto conjugate_pole = pole.conjugate();
-      for(int idx = i + 1; idx < num_input_poles; ++idx)
-      {
-        if(!consumed[idx] && conjugate_pole.closeTo(poles[idx], tol))
-        {
-          consumed[idx] = 1;
-          break;
-        }
-      }
-
-      ordered_poles.push_back(conjugate_pole);
-    }
-  }
-
-  return ordered_poles;
-}
-
-/// \brief Canonicalizes a pole sequence and normalizes very large poles to infinity.
-inline axom::Array<Pole> canonicalizeAndNormalizePoleSequence(axom::ArrayView<const Pole> poles,
-                                                              double pole_tolerance,
-                                                              double infinite_pole_threshold)
-{
-  axom::Array<Pole> canonical_poles =
-    canonicalizePoleSequence(axom::Array<Pole>(poles), pole_tolerance);
-  for(auto& pole : canonical_poles)
-  {
-    pole = pole.normalizedInfinite(infinite_pole_threshold);
-  }
-  return canonical_poles;
-}
-
-/// \brief Appends an infinity pole to a pole sequence.
-inline axom::Array<Pole> appendInfinityPole(axom::ArrayView<const Pole> poles)
-{
-  axom::Array<Pole> result(poles.size() + 1, poles.size() + 1);
-  for(axom::IndexType i = 0; i < poles.size(); ++i)
-  {
-    result[i] = poles[i];
-  }
-  result[poles.size()] = Pole::infinity();
-  return result;
-}
-
-/// \brief Forms the cyclic pole sequence used by Algorithm 882.
-inline axom::Array<Pole> makeCyclicPoleSequence(axom::ArrayView<const Pole> poles)
-{
-  // Algorithm 882 uses the cyclic sequence (p_1, ..., p_n, p_1, ..., p_{n-1})
-  // in its rational Chebyshev phase and weight formulas.
-  const axom::IndexType num_cyclic_poles = 2 * poles.size() - 1;
-  axom::Array<Pole> cyclic_poles(num_cyclic_poles, num_cyclic_poles);
-  for(axom::IndexType i = 0; i < poles.size(); ++i)
-  {
-    cyclic_poles[i] = poles[i];
-  }
-  for(axom::IndexType i = 0; i < poles.size() - 1; ++i)
-  {
-    cyclic_poles[poles.size() + i] = poles[i];
-  }
-  return cyclic_poles;
-}
-
-/// \brief Counts poles in a subrange that match a target pole.
-inline int countMatchingPoles(axom::ArrayView<const Pole> poles,
-                              const Pole& target,
-                              int begin,
-                              int end,
-                              double tol)
-{
-  int count = 0;
-  for(int idx = begin; idx < end; ++idx)
-  {
-    if(target.closeTo(poles[idx], tol))
-    {
-      ++count;
-    }
-  }
-  return count;
-}
-
-/// \brief Collects one-based offsets of poles in a subrange that match a target pole.
-inline axom::Array<int> collectMatchingPoleOffsets(axom::ArrayView<const Pole> poles,
-                                                   const Pole& target,
-                                                   int begin,
-                                                   int end,
-                                                   double tol)
-{
-  axom::Array<int> offsets;
-  offsets.reserve(end - begin);
-
-  for(int idx = begin; idx < end; ++idx)
-  {
-    if(target.closeTo(poles[idx], tol))
-    {
-      // Offsets are one-based relative positions in the coefficient block
-      // beginning at `begin`; the Deckers moment data is written into those
-      // future coefficient slots.
-      offsets.push_back(idx - begin + 1);
-    }
-  }
-  return offsets;
 }
 
 /// \brief Interleaves matching offsets from paired real and imaginary components.
@@ -496,13 +289,18 @@ public:
   /// \brief Converts complex pole values into a PoleSequence.
   static PoleSequence fromComplex(axom::ArrayView<const Complex> pole_values)
   {
-    return PoleSequence {makePoleArray(pole_values)};
+    axom::Array<Pole> poles(pole_values.size(), pole_values.size());
+    for(axom::IndexType i = 0; i < pole_values.size(); ++i)
+    {
+      poles[i] = Pole {pole_values[i]};
+    }
+    return PoleSequence {std::move(poles)};
   }
 
-  /// \brief Converts unit-interval pole values to the [-1,1] reference domain.
-  static PoleSequence fromUnitInterval(axom::ArrayView<const Complex> poles01)
+  /// \brief Converts [0,1] pole values to the [-1,1] reference domain.
+  static PoleSequence from01ToM11(axom::ArrayView<const Complex> poles01)
   {
-    return fromComplex(poles01).mappedUnitIntervalToM11();
+    return fromComplex(poles01).mapped01ToM11();
   }
 
   axom::ArrayView<const Pole> view() const { return m_poles.view(); }
@@ -530,7 +328,7 @@ public:
   }
 
   /// \brief Maps poles from [0,1] coordinates to [-1,1] coordinates.
-  PoleSequence mappedUnitIntervalToM11() const
+  PoleSequence mapped01ToM11() const
   {
     axom::Array<Pole> result(m_poles.size(), m_poles.size());
     for(axom::IndexType i = 0; i < m_poles.size(); ++i)
@@ -545,13 +343,70 @@ public:
   /// \brief Validates the sequence against a construction domain.
   void validate(double lower, double upper, const char* domain_name) const
   {
-    validatePoleSequence(m_poles.view(), lower, upper, domain_name);
+    const double interval_tol = 16.0 * axom::numeric_limits<double>::epsilon();
+
+    if(m_poles.empty())
+    {
+      failRationalFejerPrecondition(
+        axom::fmt::format("Rational Fejer quadrature requires at least one pole in {}.", domain_name));
+    }
+
+    for(axom::IndexType i = 0; i < m_poles.size(); ++i)
+    {
+      validatePole(m_poles[i], i, lower, upper, interval_tol, domain_name);
+    }
   }
 
   /// \brief Returns the canonical conjugate-complete form of this sequence.
   PoleSequence canonicalized(double tol) const
   {
-    return PoleSequence {canonicalizePoleSequence(toPoleArray(), tol)};
+    axom::Array<Pole> poles = toPoleArray();
+    const int num_input_poles = static_cast<int>(poles.size());
+    axom::Array<int> consumed(num_input_poles, num_input_poles);
+    consumed.fill(0);
+
+    axom::Array<Pole> ordered_poles;
+    ordered_poles.reserve(2 * num_input_poles);
+    for(int i = 0; i < num_input_poles; ++i)
+    {
+      if(consumed[i])
+      {
+        continue;
+      }
+
+      const Pole pole = poles[i];
+      for(int idx = i + 1; idx < num_input_poles; ++idx)
+      {
+        if(!consumed[idx] && pole.closeTo(poles[idx], tol))
+        {
+          poles[idx] = pole;
+        }
+      }
+
+      ordered_poles.push_back(pole);
+      consumed[i] = 1;
+
+      if(!pole.isEffectivelyReal(tol))
+      {
+        // The real-valued quadrature rule is built from conjugate-complete
+        // pole blocks. If the caller supplies only one side of a complex pair,
+        // synthesize the missing partner here; repeated poles consume one
+        // matching conjugate per occurrence so multiplicities stay balanced.
+        const auto conjugate_pole = pole.conjugate();
+        for(int idx = i + 1; idx < num_input_poles; ++idx)
+        {
+          if(!consumed[idx] && conjugate_pole.closeTo(poles[idx], tol))
+          {
+            consumed[idx] = 1;
+            break;
+          }
+        }
+
+        ordered_poles.push_back(conjugate_pole);
+      }
+    }
+
+    return PoleSequence {std::move(ordered_poles)};
   }
 
   /// \brief Returns a sequence with very large finite poles replaced by infinity.
@@ -600,11 +455,32 @@ public:
   /// \brief Returns this sequence with a trailing infinity pole.
   PoleSequence withAppendedInfinity() const
   {
-    return PoleSequence {appendInfinityPole(m_poles.view())};
+    axom::Array<Pole> result(m_poles.size() + 1, m_poles.size() + 1);
+    for(axom::IndexType i = 0; i < m_poles.size(); ++i)
+    {
+      result[i] = m_poles[i];
+    }
+    result[m_poles.size()] = Pole::infinity();
+    return PoleSequence {std::move(result)};
   }
 
   /// \brief Returns the cyclic sequence used by the rational Chebyshev construction.
-  PoleSequence cyclic() const { return PoleSequence {makeCyclicPoleSequence(m_poles.view())}; }
+  PoleSequence cyclic() const
+  {
+    // Algorithm 882 uses the cyclic sequence (p_1, ..., p_n, p_1, ..., p_{n-1})
+    // in its rational Chebyshev phase and weight formulas.
+    const axom::IndexType num_cyclic_poles = 2 * m_poles.size() - 1;
+    axom::Array<Pole> cyclic_poles(num_cyclic_poles, num_cyclic_poles);
+    for(axom::IndexType i = 0; i < m_poles.size(); ++i)
+    {
+      cyclic_poles[i] = m_poles[i];
+    }
+    for(axom::IndexType i = 0; i < m_poles.size() - 1; ++i)
+    {
+      cyclic_poles[m_poles.size() + i] = m_poles[i];
+    }
+    return PoleSequence {std::move(cyclic_poles)};
+  }
 
   /// \brief Collapses the sequence into distinct representatives plus multiplicities.
   DistinctPoleData distinct(double tol) const { return collectDistinctPoles(m_poles.view(), tol); }
@@ -612,13 +488,34 @@ public:
   /// \brief Counts poles in a subrange that match a target pole.
   int countMatching(const Pole& target, int begin, int end, double tol) const
   {
-    return countMatchingPoles(m_poles.view(), target, begin, end, tol);
+    int count = 0;
+    for(int idx = begin; idx < end; ++idx)
+    {
+      if(target.closeTo(m_poles[idx], tol))
+      {
+        ++count;
+      }
+    }
+    return count;
   }
 
   /// \brief Collects one-based offsets of poles in a subrange that match a target pole.
   axom::Array<int> matchingOffsets(const Pole& target, int begin, int end, double tol) const
   {
-    return collectMatchingPoleOffsets(m_poles.view(), target, begin, end, tol);
+    axom::Array<int> offsets;
+    offsets.reserve(end - begin);
+
+    for(int idx = begin; idx < end; ++idx)
+    {
+      if(target.closeTo(m_poles[idx], tol))
+      {
+        // Offsets are one-based relative positions in the coefficient block
+        // beginning at `begin`; the Deckers moment data is written into those
+        // future coefficient slots.
+        offsets.push_back(idx - begin + 1);
+      }
+    }
+    return offsets;
   }
 
 private:
@@ -626,11 +523,11 @@ private:
 };
 
 /// \brief Maps a rule from [-1,1] coordinates to [0,1] coordinates.
-inline void map_rule_m11_to_unit_interval(axom::ArrayView<const double> nodes_m11,
-                                          axom::ArrayView<const double> weights_m11,
-                                          axom::Array<double>& nodes,
-                                          axom::Array<double>& weights,
-                                          int allocatorID)
+inline void map_rule_m11_to_01(axom::ArrayView<const double> nodes_m11,
+                               axom::ArrayView<const double> weights_m11,
+                               axom::Array<double>& nodes,
+                               axom::Array<double>& weights,
+                               int allocatorID)
 {
   // Rescale a rule from [-1,1] to [0,1]. The public Fejer APIs export
   // unit-interval rules because the downstream curve-parameter integrators

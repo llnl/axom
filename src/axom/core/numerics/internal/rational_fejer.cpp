@@ -669,6 +669,61 @@ inline axom::Array<Complex> makeRationalFejerCayleyPoles(axom::ArrayView<const P
   return cayley_poles;
 }
 
+/// \brief Prepared pole data shared by Fejer cache lookup, diagnostics, and construction.
+///
+/// Public callers supply poles in `[0,1]`, while the Deckers construction and
+/// cache key are defined from the canonicalized `[-1,1]` pole sequence. Keeping
+/// those derived quantities together prevents the cached and uncached paths
+/// from drifting apart.
+struct RationalFejerPoleData
+{
+  PoleSequence poles_m11;
+  PoleSequence canonical_poles_m11;
+  axom::Array<Complex> cayley_poles;
+  double pole_tolerance {rationalFejerPoleTolerance()};
+  double infinite_pole_threshold {rationalFejerInfinitePoleThreshold()};
+
+  static RationalFejerPoleData from01(axom::ArrayView<const Complex> poles01)
+  {
+    const PoleSequence poles01_sequence = PoleSequence::fromComplex(poles01);
+    poles01_sequence.validate(0.0, 1.0, "[0,1]");
+    return fromValidatedM11(poles01_sequence.mapped01ToM11());
+  }
+
+  static RationalFejerPoleData fromM11(axom::ArrayView<const Complex> poles_m11)
+  {
+    return fromM11(PoleSequence::fromComplex(poles_m11));
+  }
+
+  static RationalFejerPoleData fromM11(PoleSequence poles_m11)
+  {
+    poles_m11.validate(-1.0, 1.0, "[-1,1]");
+    return fromValidatedM11(std::move(poles_m11));
+  }
+
+  std::string cacheKey(int allocatorID) const
+  {
+    axom::fmt::memory_buffer key;
+    axom::fmt::format_to(std::back_inserter(key), "{}|", allocatorID);
+    for(const auto& pole : canonical_poles_m11.array())
+    {
+      axom::fmt::format_to(std::back_inserter(key), "{:a},{:a};", pole.real(), pole.imag());
+    }
+    return axom::fmt::to_string(key);
+  }
+
+private:
+  static RationalFejerPoleData fromValidatedM11(PoleSequence poles_m11)
+  {
+    RationalFejerPoleData data;
+    data.poles_m11 = std::move(poles_m11);
+    data.canonical_poles_m11 =
+      data.poles_m11.canonicalizedAndNormalized(data.pole_tolerance, data.infinite_pole_threshold);
+    data.cayley_poles = makeRationalFejerCayleyPoles(data.canonical_poles_m11.view());
+    return data;
+  }
+};
+
 /// \brief Initializes rational Fejer basis coefficients with the constant term.
 inline axom::Array<double> initializeRationalFejerBasisCoefficients(int num_poles)
 {
@@ -792,28 +847,20 @@ inline axom::Array<double> assembleRationalFejerWeights(const RationalFejerBasis
 }
 
 /// \brief Computes rational Fejer nodes and weights on [-1,1] with optional diagnostics.
-inline void compute_rational_fejer_data_m11_impl(axom::ArrayView<const Pole> poles,
+inline void compute_rational_fejer_data_m11_impl(const RationalFejerPoleData& pole_data,
                                                  axom::Array<double>& nodes,
                                                  axom::Array<double>& weights,
                                                  RationalFejerDiagnostics* diagnostics = nullptr,
                                                  int allocatorID = axom::getDefaultAllocatorID())
 {
-  const PoleSequence input_poles {poles};
-  input_poles.validate(-1.0, 1.0, "[-1,1]");
-
-  const double infinite_pole_threshold = rationalFejerInfinitePoleThreshold();
-  const double pole_tolerance = rationalFejerPoleTolerance();
-
-  const PoleSequence canonical_poles =
-    input_poles.canonicalizedAndNormalized(pole_tolerance, infinite_pole_threshold);
-  const axom::Array<Complex> cayley_poles = makeRationalFejerCayleyPoles(canonical_poles.view());
-
-  RationalFejerDiagnosticsRecorder diagnostics_recorder {diagnostics, allocatorID, pole_tolerance};
-  diagnostics_recorder.recordPoleSetup(canonical_poles.view(), cayley_poles);
+  RationalFejerDiagnosticsRecorder diagnostics_recorder {diagnostics,
+                                                         allocatorID,
+                                                         pole_data.pole_tolerance};
+  diagnostics_recorder.recordPoleSetup(pole_data.canonical_poles_m11.view(), pole_data.cayley_poles);
 
   // A rational Fejer rule for m finite/infinite poles uses m+1 rational Chebyshev nodes.
   // The appended infinity pole supplies that extra Chebyshev-like degree.
-  const PoleSequence rational_chebyshev_poles = canonical_poles.withAppendedInfinity();
+  const PoleSequence rational_chebyshev_poles = pole_data.canonical_poles_m11.withAppendedInfinity();
 
   axom::Array<double> rational_chebyshev_nodes;
   axom::Array<double> rational_chebyshev_weights;
@@ -823,18 +870,35 @@ inline void compute_rational_fejer_data_m11_impl(axom::ArrayView<const Pole> pol
 
   diagnostics_recorder.recordChebyshevSeedRule(rational_chebyshev_nodes, rational_chebyshev_weights);
 
-  RationalFejerBasis basis(cayley_poles,
+  RationalFejerBasis basis(pole_data.cayley_poles,
                            std::move(rational_chebyshev_nodes),
                            std::move(rational_chebyshev_weights));
 
   const axom::Array<double> basis_coefficients =
-    solveRationalFejerBasisCoefficients(canonical_poles, basis, pole_tolerance, diagnostics_recorder);
+    solveRationalFejerBasisCoefficients(pole_data.canonical_poles_m11,
+                                        basis,
+                                        pole_data.pole_tolerance,
+                                        diagnostics_recorder);
 
   nodes = basis.nodes();
   const axom::Array<double> basis_expansion = basis.evaluateExpansion(basis_coefficients);
   weights = assembleRationalFejerWeights(basis, basis_expansion);
 
   diagnostics_recorder.recordFinalRule(basis, basis_coefficients, basis_expansion, weights);
+}
+
+/// \brief Computes rational Fejer nodes and weights on [-1,1] with optional diagnostics.
+inline void compute_rational_fejer_data_m11_impl(axom::ArrayView<const Pole> poles,
+                                                 axom::Array<double>& nodes,
+                                                 axom::Array<double>& weights,
+                                                 RationalFejerDiagnostics* diagnostics = nullptr,
+                                                 int allocatorID = axom::getDefaultAllocatorID())
+{
+  compute_rational_fejer_data_m11_impl(RationalFejerPoleData::fromM11(PoleSequence {poles}),
+                                       nodes,
+                                       weights,
+                                       diagnostics,
+                                       allocatorID);
 }
 
 /// \brief Computes rational Fejer nodes and weights on [-1,1].
@@ -861,12 +925,11 @@ void compute_rational_fejer_data_m11(axom::ArrayView<const Complex> poles_m11,
                                      axom::Array<double>& weights,
                                      int allocatorID)
 {
-  const PoleSequence poles = PoleSequence::fromComplex(poles_m11);
-  poles.validate(-1.0, 1.0, "[-1,1]");
+  const RationalFejerPoleData pole_data = RationalFejerPoleData::fromM11(poles_m11);
 
   axom::Array<double> nodes_tmp;
   axom::Array<double> weights_tmp;
-  compute_rational_fejer_data_m11(poles.view(), nodes_tmp, weights_tmp);
+  compute_rational_fejer_data_m11_impl(pole_data, nodes_tmp, weights_tmp);
   copy_array_to_array(nodes_tmp, nodes, allocatorID);
   copy_array_to_array(weights_tmp, weights, allocatorID);
 }
@@ -878,8 +941,11 @@ inline void compute_rational_fejer_data_m11_impl(axom::ArrayView<const Complex> 
                                                  RationalFejerDiagnostics* diagnostics,
                                                  int allocatorID)
 {
-  const PoleSequence poles = PoleSequence::fromComplex(poles_m11);
-  compute_rational_fejer_data_m11_impl(poles.view(), nodes, weights, diagnostics, allocatorID);
+  compute_rational_fejer_data_m11_impl(RationalFejerPoleData::fromM11(poles_m11),
+                                       nodes,
+                                       weights,
+                                       diagnostics,
+                                       allocatorID);
 }
 
 /// \brief Computes rational Fejer diagnostics on [-1,1].
@@ -887,38 +953,20 @@ void compute_rational_fejer_diagnostics_m11(axom::ArrayView<const Complex> poles
                                             RationalFejerDiagnostics& diagnostics,
                                             int allocatorID)
 {
-  const PoleSequence poles = PoleSequence::fromComplex(poles_m11);
-  poles.validate(-1.0, 1.0, "[-1,1]");
-
-  compute_rational_fejer_diagnostics_m11(poles.view(), diagnostics, allocatorID);
+  axom::Array<double> nodes_m11;
+  axom::Array<double> weights_m11;
+  compute_rational_fejer_data_m11_impl(RationalFejerPoleData::fromM11(poles_m11),
+                                       nodes_m11,
+                                       weights_m11,
+                                       &diagnostics,
+                                       allocatorID);
 }
 
-/// \brief Builds a canonical cache key for a unit-interval rational Fejer pole sequence.
-inline std::string make_rational_fejer_key(axom::ArrayView<const Pole> poles01, int allocatorID)
+/// \brief Builds a canonical cache key for an M11 rational Fejer pole sequence.
+std::string make_rational_fejer_cache_key_m11(axom::ArrayView<const Complex> poles_m11,
+                                              int allocatorID)
 {
-  // Cache by the canonicalized pole sequence that the rule construction
-  // actually uses. This preserves correctness while improving reuse when two
-  // numerically equivalent pole lists differ only by tiny root-solver noise.
-  const double infinite_pole_threshold = rationalFejerInfinitePoleThreshold();
-  const double pole_tolerance = rationalFejerPoleTolerance();
-
-  const PoleSequence canonical_poles =
-    PoleSequence {poles01}.canonicalizedAndNormalized(pole_tolerance, infinite_pole_threshold);
-
-  axom::fmt::memory_buffer key;
-  axom::fmt::format_to(std::back_inserter(key), "{}|", allocatorID);
-  for(const auto& pole : canonical_poles.array())
-  {
-    axom::fmt::format_to(std::back_inserter(key), "{:a},{:a};", pole.real(), pole.imag());
-  }
-  return axom::fmt::to_string(key);
-}
-
-/// \brief Builds a canonical cache key for a unit-interval rational Fejer pole sequence.
-std::string make_rational_fejer_key(axom::ArrayView<const Complex> poles01, int allocatorID)
-{
-  const PoleSequence pole_sequence = PoleSequence::fromComplex(poles01);
-  return make_rational_fejer_key(pole_sequence.view(), allocatorID);
+  return RationalFejerPoleData::fromM11(poles_m11).cacheKey(allocatorID);
 }
 
 }  // namespace internal
@@ -929,9 +977,7 @@ void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> pol
                                  axom::Array<double>& weights,
                                  int allocatorID)
 {
-  const internal::PoleSequence poles01_sequence = internal::PoleSequence::fromComplex(poles01);
-  poles01_sequence.validate(0.0, 1.0, "[0,1]");
-  const internal::PoleSequence poles_m11 = poles01_sequence.mappedUnitIntervalToM11();
+  const internal::RationalFejerPoleData pole_data = internal::RationalFejerPoleData::from01(poles01);
 
   axom::Array<double> nodes_m11;
   axom::Array<double> weights_m11;
@@ -940,13 +986,9 @@ void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> pol
   // rational Fejer and rational Chebyshev constructions. QuaHOG's MATLAB
   // Spectral_PE implementation served as a secondary reference for how these
   // pieces are assembled in the planar integration workflow.
-  internal::compute_rational_fejer_data_m11_impl(poles_m11.view(),
-                                                 nodes_m11,
-                                                 weights_m11,
-                                                 nullptr,
-                                                 allocatorID);
+  internal::compute_rational_fejer_data_m11_impl(pole_data, nodes_m11, weights_m11, nullptr, allocatorID);
 
-  internal::map_rule_m11_to_unit_interval(nodes_m11, weights_m11, nodes, weights, allocatorID);
+  internal::map_rule_m11_to_01(nodes_m11, weights_m11, nodes, weights, allocatorID);
 }
 
 /// \brief Computes rational Fejer diagnostics on [0,1].
@@ -954,36 +996,33 @@ void internal::compute_rational_fejer_diagnostics(axom::ArrayView<const std::com
                                                   internal::RationalFejerDiagnostics& diagnostics,
                                                   int allocatorID)
 {
-  const internal::PoleSequence poles01_sequence = internal::PoleSequence::fromComplex(poles01);
-  poles01_sequence.validate(0.0, 1.0, "[0,1]");
-  const internal::PoleSequence poles_m11 = poles01_sequence.mappedUnitIntervalToM11();
+  const internal::RationalFejerPoleData pole_data = internal::RationalFejerPoleData::from01(poles01);
 
   axom::Array<double> nodes_m11;
   axom::Array<double> weights_m11;
-  internal::compute_rational_fejer_data_m11_impl(poles_m11.view(),
+  internal::compute_rational_fejer_data_m11_impl(pole_data,
                                                  nodes_m11,
                                                  weights_m11,
                                                  &diagnostics,
                                                  allocatorID);
-  internal::map_rule_m11_to_unit_interval(nodes_m11,
-                                          weights_m11,
-                                          diagnostics.nodes_01,
-                                          diagnostics.weights_01,
-                                          allocatorID);
+  internal::map_rule_m11_to_01(nodes_m11,
+                               weights_m11,
+                               diagnostics.nodes_01,
+                               diagnostics.weights_01,
+                               allocatorID);
 }
 
 /// \brief Returns a cached rational Fejer quadrature rule view on [0,1].
 QuadratureRuleView get_rational_fejer(axom::ArrayView<const std::complex<double>> poles01,
                                       int allocatorID)
 {
-  const internal::PoleSequence poles01_sequence = internal::PoleSequence::fromComplex(poles01);
-  poles01_sequence.validate(0.0, 1.0, "[0,1]");
+  const internal::RationalFejerPoleData pole_data = internal::RationalFejerPoleData::from01(poles01);
 
   constexpr std::size_t MAX_RATIONAL_FEJER_CACHED_RULES = 1u << 16;
   static axom::LRUCache<std::string, QuadratureRule> rule_library(MAX_RATIONAL_FEJER_CACHED_RULES);
   static std::mutex rule_library_mutex;
 
-  const std::string key = internal::make_rational_fejer_key(poles01_sequence.view(), allocatorID);
+  const std::string key = pole_data.cacheKey(allocatorID);
 
   {
     const std::lock_guard<std::mutex> lock(rule_library_mutex);
@@ -998,7 +1037,10 @@ QuadratureRuleView get_rational_fejer(axom::ArrayView<const std::complex<double>
   // insertion in case another thread populated the same key meanwhile.
   axom::Array<double> nodes;
   axom::Array<double> weights;
-  compute_rational_fejer_data(poles01, nodes, weights, allocatorID);
+  axom::Array<double> nodes_m11;
+  axom::Array<double> weights_m11;
+  internal::compute_rational_fejer_data_m11_impl(pole_data, nodes_m11, weights_m11, nullptr, allocatorID);
+  internal::map_rule_m11_to_01(nodes_m11, weights_m11, nodes, weights, allocatorID);
   QuadratureRule rule {std::move(nodes), std::move(weights)};
 
   {

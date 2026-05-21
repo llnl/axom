@@ -41,6 +41,24 @@ axom::Array<Complex> map_interval_poles_m11_to_01(axom::ArrayView<const Complex>
   return poles01;
 }
 
+axom::Array<Complex> map_interval_poles_01_to_m11(axom::ArrayView<const Complex> poles01)
+{
+  axom::Array<Complex> poles_m11;
+  poles_m11.reserve(poles01.size());
+  for(const auto& pole : poles01)
+  {
+    if(std::isinf(pole.real()))
+    {
+      poles_m11.emplace_back(axom::numeric_limits<double>::infinity(), 0.0);
+    }
+    else
+    {
+      poles_m11.push_back(2.0 * pole - Complex {1.0, 0.0});
+    }
+  }
+  return poles_m11;
+}
+
 double integrate_rule(const axom::numerics::QuadratureRuleView& rule,
                       const std::function<double(double)>& integrand)
 {
@@ -380,6 +398,65 @@ TEST(numerics_quadrature, rational_fejer_cached_rule_matches_uncached_compute)
   ASSERT_EQ(computed_nodes.size(), computed_weights.size());
   for(int i = 0; i < cached_rule.getNumPoints(); ++i)
   {
+    EXPECT_NEAR(cached_rule.node(i), computed_nodes[i], 1e-14);
+    EXPECT_NEAR(cached_rule.weight(i), computed_weights[i], 1e-14);
+  }
+}
+
+TEST(numerics_quadrature, rational_fejer_cache_key_uses_canonical_m11_poles)
+{
+  const axom::Array<Complex> explicit_poles_m11 {Complex {1.8, 0.6},
+                                                 Complex {1.8, -0.6},
+                                                 Complex {2.5, 0.0}};
+  const axom::Array<Complex> reordered_poles_m11 {Complex {1.8, -0.6},
+                                                  Complex {1.8, 0.6},
+                                                  Complex {2.5, 0.0}};
+  const axom::Array<Complex> implicit_conjugate_m11 {Complex {1.8, 0.6}, Complex {2.5, 0.0}};
+
+  const auto explicit_key = numerics_internal::make_rational_fejer_cache_key_m11(explicit_poles_m11);
+  EXPECT_EQ(explicit_key,
+            numerics_internal::make_rational_fejer_cache_key_m11(implicit_conjugate_m11));
+  EXPECT_NE(explicit_key, numerics_internal::make_rational_fejer_cache_key_m11(reordered_poles_m11));
+}
+
+TEST(numerics_quadrature, rational_fejer_cache_key_canonicalizes_m11_near_duplicates)
+{
+  constexpr double eps = axom::numeric_limits<double>::epsilon();
+  const Complex base_pole {0.0, 0.2};
+  const axom::Array<Complex> base_poles_m11 {base_pole, base_pole};
+  const axom::Array<Complex> close_poles_m11 {base_pole, base_pole * (1.0 + eps)};
+  const axom::Array<Complex> distinct_poles_m11 {base_pole, base_pole * (1.0 + 64.0 * eps)};
+
+  const auto base_key = numerics_internal::make_rational_fejer_cache_key_m11(base_poles_m11);
+  EXPECT_EQ(base_key, numerics_internal::make_rational_fejer_cache_key_m11(close_poles_m11));
+  EXPECT_NE(base_key, numerics_internal::make_rational_fejer_cache_key_m11(distinct_poles_m11));
+}
+
+TEST(numerics_quadrature, rational_fejer_cached_rule_uses_m11_canonical_key)
+{
+  const axom::Array<Complex> explicit_poles01 {Complex {1.4, 0.3},
+                                               Complex {1.4, -0.3},
+                                               Complex {1.75, 0.0}};
+  const axom::Array<Complex> implicit_conjugate_poles01 {Complex {1.4, 0.3}, Complex {1.75, 0.0}};
+
+  const auto explicit_key = numerics_internal::make_rational_fejer_cache_key_m11(
+    map_interval_poles_01_to_m11(explicit_poles01));
+  const auto implicit_key = numerics_internal::make_rational_fejer_cache_key_m11(
+    map_interval_poles_01_to_m11(implicit_conjugate_poles01));
+  ASSERT_EQ(explicit_key, implicit_key);
+
+  axom::Array<double> computed_nodes;
+  axom::Array<double> computed_weights;
+  axom::numerics::compute_rational_fejer_data(explicit_poles01, computed_nodes, computed_weights);
+
+  const auto explicit_cached_rule = axom::numerics::get_rational_fejer(explicit_poles01);
+  const auto cached_rule = axom::numerics::get_rational_fejer(implicit_conjugate_poles01);
+  ASSERT_EQ(explicit_cached_rule.getNumPoints(), cached_rule.getNumPoints());
+  ASSERT_EQ(cached_rule.getNumPoints(), computed_nodes.size());
+  for(int i = 0; i < cached_rule.getNumPoints(); ++i)
+  {
+    EXPECT_NEAR(explicit_cached_rule.node(i), cached_rule.node(i), 1e-14);
+    EXPECT_NEAR(explicit_cached_rule.weight(i), cached_rule.weight(i), 1e-14);
     EXPECT_NEAR(cached_rule.node(i), computed_nodes[i], 1e-14);
     EXPECT_NEAR(cached_rule.weight(i), computed_weights[i], 1e-14);
   }
