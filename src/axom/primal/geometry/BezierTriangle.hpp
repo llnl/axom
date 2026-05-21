@@ -25,7 +25,10 @@
 
 #include "axom/primal/operators/squared_distance.hpp"
 
+#include <vector>
 #include <ostream>
+#include <unordered_map>
+#include <cstdint>
 
 namespace axom
 {
@@ -75,6 +78,7 @@ public:
   using BoundingBoxType = BoundingBox<T, NDIMS>;
   using OrientedBoundingBoxType = OrientedBoundingBox<T, NDIMS>;
   using BezierCurveType = primal::BezierCurve<T, NDIMS>;
+  using EdgesVec = axom::Array<BezierCurveType>;
 
   AXOM_STATIC_ASSERT_MSG((NDIMS == 1) || (NDIMS == 2) || (NDIMS == 3),
                          "A Bezier Triangle object may be defined in 1-, 2-, or 3-D");
@@ -148,7 +152,7 @@ public:
     }
   }
 
-  /// Constructor from ArrayViews of (non-const) control points and weights
+  /// \brief Constructor from ArrayViews of (non-const) control points and weights
   BezierTriangle(axom::ArrayView<PointType> controlPoints, axom::ArrayView<T> weights, int ord)
     : BezierTriangle(axom::ArrayView<const PointType>(controlPoints.data(), controlPoints.size()),
                      axom::ArrayView<const T>(weights.data(), weights.size()),
@@ -234,7 +238,7 @@ public:
    */
   CoordsVec& getControlPoints() { return m_controlPoints; }
 
-  /// \overload
+  /// \brief Returns a reference to the triangle's control points
   const CoordsVec& getControlPoints() const { return m_controlPoints; }
 
   /*!
@@ -245,7 +249,7 @@ public:
    */
   WeightsVec& getWeights() { return m_weights; }
 
-  /// \overload
+  /// \brief Returns a reference to the triangle's weights
   const WeightsVec& getWeights() const { return m_weights; }
 
   /*!
@@ -301,6 +305,703 @@ public:
   int getOrder() const { return m_ord; }
 
   /*!
+   * \brief Returns one of the boundary edges of the Bezier triangle
+   *
+   * \param [in] edgeIdx Index of the requested edge in \a [0,2]
+   *
+   * The edges are returned in counter-clockwise order with respect to the
+   * parameter domain (u,v), with edge 0 across from corner 0 (i.e. evaluate(0,0)):
+   * - \a edgeIdx = 0: u+v = 1 from `evaluate(1,0)` to `evaluate(0,1)`
+   * - \a edgeIdx = 1: u = 0 from `evaluate(0,1)` to `evaluate(0,0)`
+   * - \a edgeIdx = 2: v = 0 from `evaluate(0,0)` to `evaluate(1,0)`
+   *
+   * For rational triangles, the returned curve is rational and uses the subset of
+   * weights corresponding to the boundary control points.
+   * 
+   * \return A Bezier curve representing the requested edge.
+   */
+  BezierCurveType getEdge(int edgeIdx) const
+  {
+    SLIC_ASSERT(m_ord >= 0);
+    SLIC_ASSERT(edgeIdx >= 0 && edgeIdx < 3);
+
+    axom::Array<PointType> pts(m_ord + 1);
+    axom::Array<T> wts;
+    if(isRational())
+    {
+      wts.resize(m_ord + 1);
+    }
+
+    switch(edgeIdx)
+    {
+    case 0:
+      for(int k = 0; k <= m_ord; ++k)
+      {
+        const int i = k;
+        const int j = m_ord - k;
+        pts[k] = (*this)(i, j);
+        if(isRational())
+        {
+          wts[k] = m_weights[triIndex(m_ord, i, j)];
+        }
+      }
+      break;
+    case 1:
+      for(int k = 0; k <= m_ord; ++k)
+      {
+        const int i = m_ord - k;
+        pts[k] = (*this)(i, 0);
+        if(isRational())
+        {
+          wts[k] = m_weights[triIndex(m_ord, i, 0)];
+        }
+      }
+      break;
+    case 2:
+      for(int j = 0; j <= m_ord; ++j)
+      {
+        pts[j] = (*this)(0, j);
+        if(isRational())
+        {
+          wts[j] = m_weights[triIndex(m_ord, 0, j)];
+        }
+      }
+      break;
+    default:
+      break;
+    }
+
+    return isRational() ? BezierCurveType(pts, wts, m_ord) : BezierCurveType(pts, m_ord);
+  }
+
+  /*!
+   * \brief Returns all three boundary edges of the Bezier triangle
+   *
+   * \return An array of three Bezier curves, ordered the same as `getEdge(int)`.
+   */
+  EdgesVec getEdges() const
+  {
+    SLIC_ASSERT(m_ord >= 0);
+    EdgesVec edges;
+    edges.reserve(3);
+    edges.push_back(getEdge(0));
+    edges.push_back(getEdge(1));
+    edges.push_back(getEdge(2));
+    return edges;
+  }
+
+  /*!
+   * \brief Restricts this polynomial Bezier triangle to a subtriangle of the parameter domain
+   *
+   * The subtriangle is defined by three barycentric coordinates \a (u,v,w) (with \a w = 1-u-v)
+   * in the parameter domain of this triangle.
+   *
+   * The returned triangle is parametrized over the reference domain and maps its vertices as:
+   * - local `(0,0)` -> \a Va
+   * - local `(0,1)` -> \a Vb
+   * - local `(1,0)` -> \a Vc
+   *
+   * \param [in] Va Barycentric coordinates of the first subtriangle vertex `(u,v,w)`
+   * \param [in] Vb Barycentric coordinates of the second subtriangle vertex `(u,v,w)`
+   * \param [in] Vc Barycentric coordinates of the third subtriangle vertex `(u,v,w)`
+   *
+   * \pre getOrder() >= 0
+   * \pre This triangle is polynomial (nonrational)
+   */
+  BezierTriangle restrictToSubtriangle(const Point<T, 3>& Va,
+                                       const Point<T, 3>& Vb,
+                                       const Point<T, 3>& Vc) const
+  {
+    BezierTriangle out;
+    restrictToSubtriangle(Va, Vb, Vc, out);
+    return out;
+  }
+
+  /*!
+   * \brief Restricts this polynomial Bezier triangle to a subtriangle of the parameter domain
+   *
+   * See overload returning a `BezierTriangle` for the vertex mapping convention.
+   *
+   * \param [in] Va Barycentric coordinates of the first subtriangle vertex `(u,v,w)`
+   * \param [in] Vb Barycentric coordinates of the second subtriangle vertex `(u,v,w)`
+   * \param [in] Vc Barycentric coordinates of the third subtriangle vertex `(u,v,w)`
+   * \param [out] out Output restricted Bezier triangle
+   *
+   * \pre getOrder() >= 0
+   * \pre This triangle is polynomial (nonrational)
+   */
+  void restrictToSubtriangle(const Point<T, 3>& Va,
+                             const Point<T, 3>& Vb,
+                             const Point<T, 3>& Vc,
+                             BezierTriangle& out) const
+  {
+    using Barycentric = Point<T, 3>;
+    SLIC_ASSERT(m_ord >= 0);
+    SLIC_ASSERT(!isRational());
+
+    const int n = m_ord;
+
+    auto reduce_once = [&](const axom::Array<PointType>& prev, int deg, const Barycentric& Q) {
+      const int newDeg = deg - 1;
+      axom::Array<PointType> next;
+      next.resize(triSize(newDeg));
+
+      for(int ii = 0; ii <= newDeg; ++ii)
+      {
+        for(int jj = 0; jj <= newDeg - ii; ++jj)
+        {
+          const auto& A0 = prev[triIndex(deg, ii, jj)];
+          const auto& B0 = prev[triIndex(deg, ii, jj + 1)];
+          const auto& C0 = prev[triIndex(deg, ii + 1, jj)];
+
+          PointType val;
+          for(int N = 0; N < NDIMS; ++N)
+          {
+            // Barycentric coordinates permuted to match convention in evaluate()
+            val[N] = Q[2] * A0[N] + Q[1] * B0[N] + Q[0] * C0[N];
+          }
+          next[triIndex(newDeg, ii, jj)] = val;
+        }
+      }
+
+      return next;
+    };
+
+    // Tetrahedral family of intermediate nets, indexed by the counts of (Vc, Vb, Va)
+    // fixed in the blossom. For p fixed arguments, there are triSize(p) nets, each of
+    // degree (n-p). At p==n, each net is degree 0 and corresponds to a restricted
+    // control point b(Vc^i, Vb^j, Va^(n-i-j)).
+    std::vector<axom::Array<PointType>> prevNets(1);
+    prevNets[0] = m_controlPoints;
+
+    for(int p = 1; p <= n; ++p)
+    {
+      const int degPrev = n - (p - 1);
+      std::vector<axom::Array<PointType>> currNets(triSize(p));
+
+      for(int a = 0; a <= p; ++a)
+      {
+        for(int b = 0; b <= p - a; ++b)
+        {
+          const int idx = triIndex(p, a, b);
+          const int c = p - a - b;
+
+          // Choose a unique predecessor (and thus a unique evaluation order) to avoid
+          // redundant reductions; the blossom symmetry ensures the final values are
+          // order-independent.
+          const Barycentric* Q = nullptr;
+          int predIdx = -1;
+
+          if(c > 0)
+          {
+            predIdx = triIndex(p - 1, a, b);
+            Q = &Va;
+          }
+          else if(b > 0)
+          {
+            predIdx = triIndex(p - 1, a, b - 1);
+            Q = &Vb;
+          }
+          else
+          {
+            predIdx = triIndex(p - 1, a - 1, b);
+            Q = &Vc;
+          }
+
+          currNets[idx] = reduce_once(prevNets[predIdx], degPrev, *Q);
+        }
+      }
+
+      prevNets.swap(currNets);
+    }
+
+    out.setOrder(n);
+    out.getWeights().resize(0);
+    for(int i = 0; i <= n; ++i)
+    {
+      for(int j = 0; j <= n - i; ++j)
+      {
+        out(i, j) = prevNets[triIndex(n, i, j)][0];
+      }
+    }
+  }
+
+  /*!
+   * \brief Splits a polynomial Bezier triangle into three subtriangles by connecting an
+   * interior parameter point \a (u,v) to the triangle's three vertices
+   *
+   * \param [in] u Parameter value along the \a u axis for the split point
+   * \param [in] v Parameter value along the \a v axis for the split point
+   * \param [out] t0 Subtriangle over the parameter triangle with vertices
+   *  `(0,1)`, `(1,0)`, and `(u,v)` (preserves edge 0)
+   * \param [out] t1 Subtriangle over the parameter triangle with vertices
+   *  `(1,0)`, `(0,0)`, and `(u,v)` (preserves edge 1)
+   * \param [out] t2 Subtriangle over the parameter triangle with vertices
+   *  `(0,0)`, `(0,1)`, and `(u,v)` (preserves edge 2)
+   *
+   * \pre \a u > 0, \a v > 0, and \a u + \a v < 1
+   * 
+   *            A
+   *           /|\
+   *          / | \ 
+   *         /t2|t1\ 
+   *        /  /Q\  \
+   *       / /  t0 \ \ 
+   *      //_________\\
+   *     B             C   
+   * 
+   * \return t0 = Tri(B,C,Q), t1 = Tri(C,A,Q), t2 = Tri(A,B,Q)
+   */
+  void split(T u, T v, BezierTriangle& t0, BezierTriangle& t1, BezierTriangle& t2) const
+  {
+    SLIC_ASSERT(m_ord >= 0);
+    SLIC_ASSERT(!isRational());
+    SLIC_ASSERT(u > T(0));
+    SLIC_ASSERT(v > T(0));
+    SLIC_ASSERT(u + v < T(1));
+
+    // Q is the split point in barycentric coordinates over the reference parameter triangle:
+    using Barycentric = Point<T, 3>;
+    const Barycentric Q {u, v, T(1) - u - v};
+
+    const int n = m_ord;
+    std::vector<axom::Array<PointType>> net(static_cast<std::size_t>(n + 1));
+    net[0] = m_controlPoints;
+
+    for(int p = 1; p <= n; ++p)
+    {
+      const int deg = n - p + 1;
+      const int newDeg = deg - 1;
+
+      net[p].resize(triSize(newDeg));
+      const auto& prev = net[p - 1];
+
+      for(int ii = 0; ii <= newDeg; ++ii)
+      {
+        for(int jj = 0; jj <= newDeg - ii; ++jj)
+        {
+          const auto& A0 = prev[triIndex(deg, ii, jj)];
+          const auto& B0 = prev[triIndex(deg, ii, jj + 1)];
+          const auto& C0 = prev[triIndex(deg, ii + 1, jj)];
+
+          PointType val;
+          for(int N = 0; N < NDIMS; ++N)
+          {
+            val[N] = Q[2] * A0[N] + Q[1] * B0[N] + Q[0] * C0[N];
+          }
+          net[p][triIndex(newDeg, ii, jj)] = val;
+        }
+      }
+    }
+
+    t0.setOrder(n);
+    t1.setOrder(n);
+    t2.setOrder(n);
+    t0.getWeights().resize(0);
+    t1.getWeights().resize(0);
+    t2.getWeights().resize(0);
+
+    // Subtriangle (B,C,Q): (0,1), (1,0), (u,v)
+    for(int i = 0; i <= n; ++i)
+    {
+      const int deg = n - i;
+      for(int j = 0; j <= n - i; ++j)
+      {
+        t0(i, j) = net[i][triIndex(deg, j, deg - j)];
+      }
+    }
+
+    // Subtriangle (C,A,Q): (1,0), (0,0), (u,v)
+    for(int i = 0; i <= n; ++i)
+    {
+      const int deg = n - i;
+      for(int j = 0; j <= n - i; ++j)
+      {
+        t1(i, j) = net[i][triIndex(deg, deg - j, 0)];
+      }
+    }
+
+    // Subtriangle (A,B,Q): (0,0), (0,1), (u,v)
+    for(int i = 0; i <= n; ++i)
+    {
+      const int deg = n - i;
+      for(int j = 0; j <= n - i; ++j)
+      {
+        t2(i, j) = net[i][triIndex(deg, 0, j)];
+      }
+    }
+  }
+
+  /*!
+   * \brief Splits a polynomial Bezier triangle into two subtriangles by connecting a
+   * point on a boundary edge to the opposite vertex
+   *
+   * \param [in] edgeIdx Index of the boundary edge to split (same convention as `getEdge(int)`)
+   * \param [in] s Parameter in \a [0,1] locating the split point along the chosen edge
+   * \param [out] t0 First output subtriangle
+   * \param [out] t1 Second output subtriangle
+   *
+   * \pre edgeIdx is 0, 1, or 2
+   * \pre \a s is in (0,1)
+   *
+   * Taking P0 as the vertex opposite edge `edgeIdx`:
+   * 
+   *            P0
+   *           /|\
+   *          / | \ 
+   *         /  |  \ 
+   *        /   |   \
+   *       / t0 | t1 \ 
+   *      /_____|_____\
+   *   P1       Q      P2   
+   *   s=0      s      s=1
+   * 
+   * \return t0 = Tri( P0, P1, Q ), t1 = Tri( P2, P0, Q )
+   */
+  void split(int edgeIdx, T s, BezierTriangle& t0, BezierTriangle& t1) const
+  {
+    SLIC_ASSERT(m_ord >= 0);
+    SLIC_ASSERT(!isRational());
+    SLIC_ASSERT(edgeIdx >= 0 && edgeIdx < 3);
+    SLIC_ASSERT(s > T(0) && s < T(1));
+
+    using Barycentric = Point<T, 3>;
+
+    Barycentric Q;
+    switch(edgeIdx)
+    {
+    case 0:  // (u=s, v=1-s, w=0)
+      Q = Barycentric {s, T(1) - s, T(0)};
+      break;
+    case 1:  // (u=1-s, v=0, w=s)
+      Q = Barycentric {T(1) - s, T(0), s};
+      break;
+    case 2:  // (u=0, v=s, w=1-s)
+      Q = Barycentric {T(0), s, T(1) - s};
+      break;
+    default:
+      break;
+    }
+
+    const int n = m_ord;
+    std::vector<axom::Array<PointType>> net(static_cast<std::size_t>(n + 1));
+    net[0] = m_controlPoints;
+
+    for(int p = 1; p <= n; ++p)
+    {
+      const int deg = n - p + 1;
+      const int newDeg = deg - 1;
+
+      net[p].resize(triSize(newDeg));
+      const auto& prev = net[p - 1];
+
+      for(int ii = 0; ii <= newDeg; ++ii)
+      {
+        for(int jj = 0; jj <= newDeg - ii; ++jj)
+        {
+          const auto& A0 = prev[triIndex(deg, ii, jj)];
+          const auto& B0 = prev[triIndex(deg, ii, jj + 1)];
+          const auto& C0 = prev[triIndex(deg, ii + 1, jj)];
+
+          PointType val;
+          for(int N = 0; N < NDIMS; ++N)
+          {
+            // Barycentric coordinates permuted to match convention in evaluate
+            val[N] = Q[2] * A0[N] + Q[1] * B0[N] + Q[0] * C0[N];
+          }
+          net[p][triIndex(newDeg, ii, jj)] = val;
+        }
+      }
+    }
+
+    auto fill_from_net = [&](int keptEdge, BezierTriangle& out) {
+      out.setOrder(n);
+      out.getWeights().resize(0);
+      for(int i = 0; i <= n; ++i)
+      {
+        const int deg = n - i;
+        for(int j = 0; j <= n - i; ++j)
+        {
+          switch(keptEdge)
+          {
+          case 0:
+            // Keeps original BC line: (j,deg-j)
+            out(i, j) = net[i][triIndex(deg, j, deg - j)];
+            break;
+          case 1:
+            // Keeps original CA line: (deg-j,0)
+            out(i, j) = net[i][triIndex(deg, deg - j, 0)];
+            break;
+          case 2:
+            // Keeps original AB line: (0,j)
+            out(i, j) = net[i][triIndex(deg, 0, j)];
+            break;
+          default:
+            break;
+          }
+        }
+      }
+    };
+
+    switch(edgeIdx)
+    {
+    case 0:
+      // Q on BC -> keep AB and CA
+      fill_from_net(2, t0);  // (A,B,Q)
+      fill_from_net(1, t1);  // (C,A,Q)
+      break;
+    case 1:
+      // Q on CA -> keep BC and AB
+      fill_from_net(0, t0);  // (B,C,Q)
+      fill_from_net(2, t1);  // (A,B,Q)
+      break;
+    case 2:
+      // Q on AB -> keep CA and BC
+      fill_from_net(1, t0);  // (C,A,Q)
+      fill_from_net(0, t1);  // (B,C,Q)
+      break;
+    default:
+      break;
+    }
+  }
+
+  /*!
+   * \brief Splits a polynomial Bezier triangle into four subtriangles by inserting one
+   * split point on each boundary edge and connecting the split points pairwise
+   *
+   * \param [in] s1 Parameter in \a [0,1] locating the split point on edge 0 (same convention as `getEdge(0)`)
+   * \param [in] s2 Parameter in \a [0,1] locating the split point on edge 1 (same convention as `getEdge(1)`)
+   * \param [in] s3 Parameter in \a [0,1] locating the split point on edge 2 (same convention as `getEdge(2)`)
+   * \param [out] t1 Subtriangle near vertex `(0,0)` with vertices `(0,0)`, point on edge 2, point on edge 1
+   * \param [out] t2 Subtriangle near vertex `(0,1)` with vertices `(0,1)`, point on edge 0, point on edge 2
+   * \param [out] t3 Subtriangle near vertex `(1,0)` with vertices `(1,0)`, point on edge 1, point on edge 0
+   * \param [out] t4 Central subtriangle with vertices point on edge 1, point on edge 0, point on edge 2
+   *
+   * \pre \a s1, \a s2, \a s3 are all in (0,1)
+   *           C
+   *           /\     
+   *          /t3\ 
+   *      P1 /____\ P0 
+   *        /\ t4 /\  
+   *       /t1\  /t2\ 
+   *      /____\/____\
+   *     A     P2      B    
+   * 
+   * \return t1 = Tri( A, P2, P1 ), t2 = Tri( B, P0, P2 ), t3 = Tri( C, P1, P0 ), t4 = Tri( P1, P0, P2 )
+   */
+  void split(T s1,
+             T s2,
+             T s3,
+             BezierTriangle& t1,
+             BezierTriangle& t2,
+             BezierTriangle& t3,
+             BezierTriangle& t4) const
+  {
+    using Barycentric = Point<T, 3>;
+    SLIC_ASSERT(m_ord >= 0);
+    SLIC_ASSERT(!isRational());
+    SLIC_ASSERT(s1 > T(0) && s1 < T(1));
+    SLIC_ASSERT(s2 > T(0) && s2 < T(1));
+    SLIC_ASSERT(s3 > T(0) && s3 < T(1));
+
+    // Barycentric coordinates in (u, v, w) where w = 1-u-v
+    // and the triangle vertices are: A=(0,0,1), B=(0,1,0), C=(1,0,0)
+    const Barycentric A {T(0), T(0), T(1)};
+    const Barycentric B {T(0), T(1), T(0)};
+    const Barycentric C {T(1), T(0), T(0)};
+
+    // Edge points (u, v, w = 1-u-v) following the same orientation as getEdge(0..2)
+    // edge0: B->C  (w == 0)
+    // edge1: C->A  (v == 0)
+    // edge2: A->B  (u == 0)
+    const Barycentric P0 {s1, T(1) - s1, T(0)};
+    const Barycentric P1 {T(1) - s2, T(0), s2};
+    const Barycentric P2 {T(0), s3, T(1) - s3};
+
+    // Corner triangles (ordered to match the diagram and preserve interior-edge orientation)
+    restrictToSubtriangle(A, P2, P1, t1);
+    restrictToSubtriangle(B, P0, P2, t2);
+    restrictToSubtriangle(C, P1, P0, t3);
+    restrictToSubtriangle(P1, P0, P2, t4);
+  }
+
+  /*!
+   * \brief Uniform 4-way "triforce" split at edge midpoints
+   *
+   * This is a convenience wrapper for `split(0.5, 0.5, 0.5, ...)`. A future optimized
+   * implementation can exploit the symmetry at \a s=0.5 to share intermediate nets.
+   *
+   * \param [out] t1 Subtriangle near vertex `(0,0)`
+   * \param [out] t2 Subtriangle near vertex `(0,1)`
+   * \param [out] t3 Subtriangle near vertex `(1,0)`
+   * \param [out] t4 Central subtriangle
+   *
+   * \pre getOrder() >= 0
+   * \pre This triangle is polynomial (nonrational)
+   */
+  void uniformSplit(BezierTriangle& t1,
+                    BezierTriangle& t2,
+                    BezierTriangle& t3,
+                    BezierTriangle& t4) const
+  {
+    SLIC_ASSERT(m_ord >= 0);
+    SLIC_ASSERT(!isRational());
+
+    // Optimized uniform subdivision at the edge midpoints (s=0.5) following:
+    // Kenneth I. Joy, "A Uniform Subdivision Method for Triangular Bezier Patches".
+    //
+    // The method constructs a degenerate "Bezier tetrahedron" of intermediate points via
+    // repeated midpoint averaging in the control net, then extracts the four subpatch
+    // control nets from its four faces (three corner triangles + one central triangle).
+    //
+    // Notation: the paper indexes control points as P_{i,j,k} with i+j+k = n and defines
+    // intermediate points P_{i,j,k}^{[n1,n2,n3]} via:
+    //   if n1>0: 1/2( P^{[n1-1,n2,n3]}_{i,j,k} + P^{[n1-1,n2,n3]}_{i-1,j+1,k} )
+    //   if n2>0: 1/2( P^{[n1,n2-1,n3]}_{i,j,k} + P^{[n1,n2-1,n3]}_{i,j-1,k+1} )
+    //   if n3>0: 1/2( P^{[n1,n2,n3-1]}_{i,j,k} + P^{[n1,n2,n3-1]}_{i+1,j,k-1} )
+    //   else:    P_{i,j,k}
+    //
+    // The four output meshes are then:
+    //   Q1 = { P^{[m,0,k]}_{i,0,k} : i+k=n, m=0..i }          (near paper vertex P1)
+    //   Q2 = { P^{[i,m,0]}_{i,j,0} : i+j=n, m=0..j }          (near paper vertex P2)
+    //   Q3 = { P^{[0,j,m]}_{0,j,k} : j+k=n, m=0..k }          (near paper vertex P3)
+    //   Q4 = { P^{[i,j,k]}_{i,j,k} : i+j+k=n }                (central)
+    //
+    // Under this class' (u,v,w) convention, paper (P1,P2,P3) corresponds to (C,B,A),
+    // so Q3->t1 (near A), Q2->t2 (near B), Q1->t3 (near C), Q4->t4 (central).
+
+    const int n = m_ord;
+
+    t1.setOrder(n);
+    t2.setOrder(n);
+    t3.setOrder(n);
+    t4.setOrder(n);
+    t1.getWeights().resize(0);
+    t2.getWeights().resize(0);
+    t3.getWeights().resize(0);
+    t4.getWeights().resize(0);
+
+    // Memoize intermediate values. For a fixed order, all indices are in [0,n], so we can
+    // use a mixed-radix packing with base (n+1) (safe for typical Bezier orders).
+    const std::uint64_t base = static_cast<std::uint64_t>(n + 1);
+    auto make_key = [&](int i, int j, int k, int n1, int n2, int n3) -> std::uint64_t {
+      std::uint64_t key = static_cast<std::uint64_t>(i);
+      key = key * base + static_cast<std::uint64_t>(j);
+      key = key * base + static_cast<std::uint64_t>(k);
+      key = key * base + static_cast<std::uint64_t>(n1);
+      key = key * base + static_cast<std::uint64_t>(n2);
+      key = key * base + static_cast<std::uint64_t>(n3);
+      return key;
+    };
+
+    std::unordered_map<std::uint64_t, PointType> memo;
+    memo.reserve(static_cast<std::size_t>((n + 1) * (n + 1) * (n + 1)));
+
+    // Recursive evaluation of P^{[n1,n2,n3]}_{i,j,k}.
+    std::function<PointType(int, int, int, int, int, int)> eval =
+      [&](int i, int j, int k, int n1, int n2, int n3) -> PointType {
+      SLIC_ASSERT(i >= 0 && j >= 0 && k >= 0);
+      SLIC_ASSERT(i + j + k == n);
+      SLIC_ASSERT(n1 >= 0 && n2 >= 0 && n3 >= 0);
+      SLIC_ASSERT(n1 <= n && n2 <= n && n3 <= n);
+
+      const auto key = make_key(i, j, k, n1, n2, n3);
+      auto it = memo.find(key);
+      if(it != memo.end())
+      {
+        return it->second;
+      }
+
+      PointType out;
+      if(n1 > 0)
+      {
+        SLIC_ASSERT(i > 0);
+        const auto a = eval(i, j, k, n1 - 1, n2, n3);
+        const auto b = eval(i - 1, j + 1, k, n1 - 1, n2, n3);
+        for(int d = 0; d < NDIMS; ++d)
+        {
+          out[d] = T(0.5) * (a[d] + b[d]);
+        }
+      }
+      else if(n2 > 0)
+      {
+        SLIC_ASSERT(j > 0);
+        const auto a = eval(i, j, k, n1, n2 - 1, n3);
+        const auto b = eval(i, j - 1, k + 1, n1, n2 - 1, n3);
+        for(int d = 0; d < NDIMS; ++d)
+        {
+          out[d] = T(0.5) * (a[d] + b[d]);
+        }
+      }
+      else if(n3 > 0)
+      {
+        SLIC_ASSERT(k > 0);
+        const auto a = eval(i, j, k, n1, n2, n3 - 1);
+        const auto b = eval(i + 1, j, k - 1, n1, n2, n3 - 1);
+        for(int d = 0; d < NDIMS; ++d)
+        {
+          out[d] = T(0.5) * (a[d] + b[d]);
+        }
+      }
+      else
+      {
+        // Base: original control point P_{i,j,k} (k implied by n-i-j).
+        SLIC_ASSERT(k == n - i - j);
+        out = (*this)(i, j);
+      }
+
+      memo.emplace(key, out);
+      return out;
+    };
+
+    // Q3 -> t1 : t1(i_local=j, j_local=m) = P^{[0,j,m]}_{0,j,k}, with k = n-j.
+    for(int i_local = 0; i_local <= n; ++i_local)
+    {
+      const int j = i_local;
+      const int k = n - j;
+      for(int j_local = 0; j_local <= n - i_local; ++j_local)
+      {
+        const int m = j_local;
+        t1(i_local, j_local) = eval(0, j, k, 0, j, m);
+      }
+    }
+
+    // Q2 -> t2 : t2(i_local=i, j_local=m) = P^{[i,m,0]}_{i,j,0}, with j = n-i.
+    for(int i_local = 0; i_local <= n; ++i_local)
+    {
+      const int i = i_local;
+      const int j = n - i;
+      for(int j_local = 0; j_local <= n - i_local; ++j_local)
+      {
+        const int m = j_local;
+        t2(i_local, j_local) = eval(i, j, 0, i, m, 0);
+      }
+    }
+
+    // Q1 -> t3 : t3(i_local=k, j_local=m) = P^{[m,0,k]}_{i,0,k}, with i = n-k.
+    for(int i_local = 0; i_local <= n; ++i_local)
+    {
+      const int k = i_local;
+      const int i = n - k;
+      for(int j_local = 0; j_local <= n - i_local; ++j_local)
+      {
+        const int m = j_local;
+        t3(i_local, j_local) = eval(i, 0, k, m, 0, k);
+      }
+    }
+
+    // Q4 -> t4 : t4(i,j) = P^{[i,j,k]}_{i,j,k}, k = n-i-j.
+    for(int i = 0; i <= n; ++i)
+    {
+      for(int j = 0; j <= n - i; ++j)
+      {
+        const int k = n - i - j;
+        t4(i, j) = eval(i, j, k, i, j, k);
+      }
+    }
+  }
+
+  /*!
    * \brief Access a control point in the triangular control net
    *
    * \param [in] i The first index (0 <= i <= getOrder())
@@ -316,6 +1017,7 @@ public:
     return m_controlPoints[triIndex(m_ord, i, j)];
   }
 
+  /// \brief Access a control point in the triangular control net
   const PointType& operator()(int i, int j) const
   {
     SLIC_ASSERT(i >= 0);
@@ -330,13 +1032,9 @@ public:
    * \param [in] u Parameter value along the \a u axis
    * \param [in] v Parameter value along the \a v axis
    *
-   * \pre getOrder() >= 0
    * \pre u >= 0, v >= 0, and u+v <= 1
-   *
+   * 
    * \return Point value S(u,v)
-   *
-   * \note In the rational case, evaluation is performed in projective space and divided
-   * by the evaluated weight.
    */
   PointType evaluate(T u, T v) const
   {
@@ -408,7 +1106,6 @@ public:
    * \param [out] Du First derivative S_u(u,v)
    * \param [out] Dv First derivative S_v(u,v)
    *
-   * \pre getOrder() >= 0
    * \pre u >= 0, v >= 0, and u+v <= 1
    */
   void evaluateFirstDerivatives(T u,
@@ -735,9 +1432,7 @@ public:
     }
   }
 
-  /*!
-   * \brief Computes a tangent of a Bezier triangle at (\a u, \a v) along the u axis
-   */
+  /// \brief Computes a tangent of a Bezier triangle at (\a u, \a v) along the u axis
   VectorType du(T u, T v) const
   {
     PointType eval;
@@ -746,9 +1441,7 @@ public:
     return Du;
   }
 
-  /*!
-   * \brief Computes a tangent of a Bezier triangle at (\a u, \a v) along the v axis
-   */
+  /// \brief Computes a tangent of a Bezier triangle at (\a u, \a v) along the v axis
   VectorType dv(T u, T v) const
   {
     PointType eval;
@@ -757,9 +1450,7 @@ public:
     return Dv;
   }
 
-  /*!
-   * \brief Computes the second derivative of a Bezier triangle at (\a u, \a v) along the u axis
-   */
+  /// \brief Computes the second derivative of a Bezier triangle at (\a u, \a v) along the u axis
   VectorType dudu(T u, T v) const
   {
     PointType eval;
@@ -768,9 +1459,7 @@ public:
     return DuDu;
   }
 
-  /*!
-   * \brief Computes the second derivative of a Bezier triangle at (\a u, \a v) along the v axis
-   */
+  /// \brief Computes the second derivative of a Bezier triangle at (\a u, \a v) along the v axis
   VectorType dvdv(T u, T v) const
   {
     PointType eval;
@@ -779,9 +1468,7 @@ public:
     return DvDv;
   }
 
-  /*!
-   * \brief Computes the mixed second derivative of a Bezier triangle at (\a u, \a v)
-   */
+  /// \brief Computes the mixed second derivative of a Bezier triangle at (\a u, \a v)
   VectorType dudv(T u, T v) const
   {
     PointType eval;
@@ -790,7 +1477,7 @@ public:
     return DuDv;
   }
 
-  /// Convenience alias for S_vu(u,v), which equals S_uv(u,v) for polynomial triangles
+  /// \brief Convenience alias for S_vu(u,v), which equals S_uv(u,v) for polynomial triangles
   VectorType dvdu(T u, T v) const { return dudv(u, v); }
 
   /*!
@@ -866,8 +1553,7 @@ public:
   }
 
 private:
-  /// Check that the weights used are positive, and
-  ///  that there is one for each control node
+  /// \brief Check that each weight is positive and the size matches control nodes
   bool is_valid_rational() const
   {
     if(!isRational())
@@ -891,6 +1577,7 @@ private:
     return true;
   }
 
+  /// \brief For a rational triangle, fill triangle objects with weighted control points and weights
   void fill_projective_triangles(BezierTriangle<T, NDIMS>& projective,
                                  BezierTriangle<T, 1>& weights) const
   {
