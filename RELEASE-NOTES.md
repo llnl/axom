@@ -27,6 +27,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: Adds support for reading mfem files with variable order NURBS curves (requires mfem>4.9).
 - Quest: Adds OMP support for fast GWN methods for STL/Triangulated STEP input and linearized NURBS Curve input.
 - Klee: Adds an optional "center" parameter in scale operators that permits scaling relative to a custom center point.
+- Quest: `SamplingShaper` now supports selecting MFEM quadrature families for custom sample-point generation, including
+  anisotropic per-direction sampling resolution on quadrilateral and hexahedral meshes. Quadrature type is selected via
+  a new ``setQuadratureType`` method that accepts an enum value from ``mfem::Quadrature1D``. The number of samples in
+  each direction is selected with a new ``setSamplingResolution`` method that accepts an ``axom::ArrayView<int>`` of
+  sample values, one value per mesh dimension. Values can be the same for isotropic sampling or different for anisotropic
+  sampling. The new method replaces the ``setQuadratureOrder`` method, which has been marked as deprecated and will be
+  removed in a future version of Axom.
 - Core: Adds Durand-Kerner polynomial solver which returns the complex roots of a univariate polynomial
 - Core: Adds `axom::Array::pop_back` for API compatibility with `std::vector`
 
