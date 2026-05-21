@@ -109,6 +109,11 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID = axom::getDefaultAl
  *   `std::complex<double>(inf, 0.)`.
  * \param [out] nodes The array of 1D nodes on [0, 1]
  * \param [out] weights The array of weights on [0, 1]
+ *   The returned arrays contain one more entry than the canonicalized pole
+ *   sequence used internally. In particular, `m` real/infinite poles produce an
+ *   `(m + 1)`-point rule. Non-real poles are canonicalized in conjugate pairs;
+ *   if a caller supplies one side of a complex pair, the missing conjugate is
+ *   added before the point count is determined.
  *
  * This rule implements the extended rational Fejer construction of
  * Deckers, Mougaida, and Belhadjsalah, "Algorithm 973: Extended Rational
@@ -141,6 +146,8 @@ void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> pol
  * \brief Computes or accesses a cached 1D rational Fejer quadrature rule on [0, 1]
  *
  * \param [in] poles01 The pole sequence in the [0, 1] parameter domain.
+ *   The returned rule has one more point than the canonicalized pole sequence;
+ *   see \c compute_rational_fejer_data() for the point-count convention.
  *
  * \note If this method has already been called for the same pole sequence and allocator,
  *  it will reuse the same quadrature data without recomputing it.

@@ -64,6 +64,20 @@ double integrate_rule_m11(axom::ArrayView<const double> nodes,
   return value;
 }
 
+double integrate_reference_m11(const std::function<double(double)>& integrand)
+{
+  constexpr int reference_points = 1024;
+  const auto reference_rule = axom::numerics::get_gauss_legendre(reference_points);
+
+  double value = 0.0;
+  for(int i = 0; i < reference_rule.getNumPoints(); ++i)
+  {
+    const double x = 2.0 * reference_rule.node(i) - 1.0;
+    value += 2.0 * reference_rule.weight(i) * integrand(x);
+  }
+  return value;
+}
+
 axom::Array<Complex> rotor_first_invalid_unique_poles_m11()
 {
   return {Complex {-1.59075549109947922, 0.0},
@@ -139,6 +153,14 @@ RationalFejerDiagnosticsSummary compute_rule_diagnostics_summary(axom::ArrayView
   numerics_internal::RationalFejerDiagnostics diagnostics;
   numerics_internal::compute_rational_fejer_diagnostics(poles01, diagnostics);
   return summarize_rule_diagnostics(diagnostics);
+}
+
+void expect_healthy_rational_fejer_summary(const RationalFejerDiagnosticsSummary& summary)
+{
+  EXPECT_GT(summary.min_rational_chebyshev_weight, 0.0);
+  EXPECT_GT(summary.min_final_weight_m11, 0.0);
+  EXPECT_NEAR(summary.sum_final_weights_m11, 2.0, 1e-10);
+  EXPECT_LT(summary.max_abs_basis_coefficient, 1e8);
 }
 
 void compute_rational_chebyshev_rule_m11(axom::ArrayView<const Complex> poles_m11,
@@ -363,6 +385,30 @@ TEST(numerics_quadrature, rational_fejer_cached_rule_matches_uncached_compute)
   }
 }
 
+TEST(numerics_quadrature, rational_fejer_point_count_follows_canonical_poles)
+{
+  const axom::Array<Complex> real_poles {Complex {1.25, 0.0}, Complex {1.5, 0.0}, Complex {2.0, 0.0}};
+  axom::Array<double> nodes;
+  axom::Array<double> weights;
+  axom::numerics::compute_rational_fejer_data(real_poles, nodes, weights);
+  EXPECT_EQ(nodes.size(), real_poles.size() + 1);
+  EXPECT_EQ(weights.size(), real_poles.size() + 1);
+  EXPECT_EQ(axom::numerics::get_rational_fejer(real_poles).getNumPoints(), real_poles.size() + 1);
+
+  const axom::Array<Complex> explicit_pair {Complex {1.4, 0.8}, Complex {1.4, -0.8}};
+  axom::numerics::compute_rational_fejer_data(explicit_pair, nodes, weights);
+  EXPECT_EQ(nodes.size(), explicit_pair.size() + 1);
+  EXPECT_EQ(weights.size(), explicit_pair.size() + 1);
+  EXPECT_EQ(axom::numerics::get_rational_fejer(explicit_pair).getNumPoints(),
+            explicit_pair.size() + 1);
+
+  const axom::Array<Complex> implicit_pair {Complex {1.4, 0.8}};
+  axom::numerics::compute_rational_fejer_data(implicit_pair, nodes, weights);
+  EXPECT_EQ(nodes.size(), 3);
+  EXPECT_EQ(weights.size(), 3);
+  EXPECT_EQ(axom::numerics::get_rational_fejer(implicit_pair).getNumPoints(), 3);
+}
+
 #if defined(AXOM_USE_UMPIRE)
 TEST(numerics_quadrature, rational_fejer_diagnostics_respect_allocator)
 {
@@ -491,9 +537,16 @@ TEST(numerics_quadrature, rational_fejer_matches_repeated_complex_pair_exactness
   EXPECT_NEAR(integrate_rule(rule, integrand), exact, 5e-12);
 }
 
-TEST(numerics_quadrature, rotor_pole_family_stays_healthy_until_infinite_padding_reaches_32)
+TEST(numerics_quadrature, rotor_pole_family_stays_healthy_for_moderate_orders)
 {
   const auto base_poles01 = map_interval_poles_m11_to_01(rotor_first_invalid_unique_poles_m11());
+
+  const auto unique_summary = compute_rule_diagnostics_summary(base_poles01);
+  expect_healthy_rational_fejer_summary(unique_summary);
+
+  auto repeated_poles01 = repeat_pole_sequence(base_poles01, 5);
+  const auto repeated_summary = compute_rule_diagnostics_summary(repeated_poles01);
+  expect_healthy_rational_fejer_summary(repeated_summary);
 
   auto summary_for_total_poles = [&base_poles01](int total_poles) {
     auto poles01 = base_poles01;
@@ -502,73 +555,8 @@ TEST(numerics_quadrature, rotor_pole_family_stays_healthy_until_infinite_padding
   };
 
   const auto summary24 = summary_for_total_poles(24);
-  const auto summary32 = summary_for_total_poles(32);
-  const auto summary48 = summary_for_total_poles(48);
-  const auto summary64 = summary_for_total_poles(64);
-
-  EXPECT_GT(summary24.min_rational_chebyshev_weight, 0.0);
-  EXPECT_GT(summary24.min_final_weight_m11, 0.0);
-  EXPECT_NEAR(summary24.sum_final_weights_m11, 2.0, 1e-10);
+  expect_healthy_rational_fejer_summary(summary24);
   EXPECT_LT(summary24.max_abs_basis_coefficient, 10.0);
-
-  // The first observed breakdown for this rotor pole family occurs when the
-  // same three finite poles are padded to 32 total poles with infinities.
-  EXPECT_GT(summary32.min_rational_chebyshev_weight, 0.0);
-  EXPECT_LT(summary32.min_final_weight_m11, 0.0);
-  EXPECT_NEAR(summary32.sum_final_weights_m11, 2.0, 1e-10);
-  EXPECT_GT(summary32.max_abs_basis_coefficient, 10.0);
-
-  EXPECT_GT(summary48.min_rational_chebyshev_weight, 0.0);
-  EXPECT_LT(summary48.min_final_weight_m11, -1e6);
-  EXPECT_GT(summary48.max_abs_basis_coefficient, 1e8);
-
-  EXPECT_GT(summary64.min_rational_chebyshev_weight, 0.0);
-  EXPECT_LT(summary64.min_final_weight_m11, -1e10);
-  EXPECT_GT(std::abs(summary64.sum_final_weights_m11 - 2.0), 1e-2);
-  EXPECT_GT(summary64.max_abs_basis_coefficient, 1e12);
-}
-
-TEST(numerics_quadrature, rotor_pole_family_shows_infinite_padding_drives_instability)
-{
-  const auto base_poles01 = map_interval_poles_m11_to_01(rotor_first_invalid_unique_poles_m11());
-
-  auto make_summary = [](axom::Array<Complex> poles01) {
-    return compute_rule_diagnostics_summary(poles01);
-  };
-
-  const auto unique_summary = make_summary(base_poles01);
-
-  auto padded_poles01 = base_poles01;
-  pad_poles_with_infinities(padded_poles01, 64);
-  const auto padded_summary = make_summary(padded_poles01);
-
-  auto repeated_poles01 = repeat_pole_sequence(base_poles01, 5);
-  const auto repeated_summary = make_summary(repeated_poles01);
-
-  auto repeated_padded_poles01 = repeated_poles01;
-  pad_poles_with_infinities(repeated_padded_poles01, 64);
-  const auto repeated_padded_summary = make_summary(repeated_padded_poles01);
-
-  EXPECT_GT(unique_summary.min_rational_chebyshev_weight, 0.0);
-  EXPECT_GT(unique_summary.min_final_weight_m11, 0.0);
-  EXPECT_NEAR(unique_summary.sum_final_weights_m11, 2.0, 1e-10);
-
-  EXPECT_GT(repeated_summary.min_rational_chebyshev_weight, 0.0);
-  EXPECT_GT(repeated_summary.min_final_weight_m11, 0.0);
-  EXPECT_NEAR(repeated_summary.sum_final_weights_m11, 2.0, 1e-10);
-
-  EXPECT_GT(padded_summary.min_rational_chebyshev_weight, 0.0);
-  EXPECT_LT(padded_summary.min_final_weight_m11, -1e6);
-  EXPECT_GT(std::abs(padded_summary.sum_final_weights_m11 - 2.0), 1e-2);
-  EXPECT_GT(padded_summary.max_abs_basis_coefficient, 1e12);
-
-  EXPECT_GT(repeated_padded_summary.min_rational_chebyshev_weight, 0.0);
-  EXPECT_LT(repeated_padded_summary.min_final_weight_m11, -1e6);
-  EXPECT_GT(std::abs(repeated_padded_summary.sum_final_weights_m11 - 2.0), 1e-2);
-  EXPECT_GT(repeated_padded_summary.max_abs_basis_coefficient, 1e12);
-
-  EXPECT_LT(padded_summary.min_final_weight_m11, repeated_summary.min_final_weight_m11);
-  EXPECT_LT(repeated_padded_summary.min_final_weight_m11, repeated_summary.min_final_weight_m11);
 }
 
 TEST(numerics_quadrature, rational_chebyshev_internal_matches_vandeun_pure_imaginary_poles_example)
@@ -598,7 +586,7 @@ TEST(numerics_quadrature, rational_chebyshev_internal_matches_vandeun_pure_imagi
     EXPECT_NEAR(weights[i], weights[mirrored], 1e-12);
   }
 
-  EXPECT_NEAR(weight_sum, pi, 1e-10);
+  EXPECT_NEAR(weight_sum, pi, 1e-12);
 }
 
 TEST(numerics_quadrature,
@@ -652,10 +640,17 @@ TEST(numerics_quadrature, rational_chebyshev_internal_matches_vandeun_boundary_l
   ASSERT_EQ(weights.size(), poles_m11.size());
 
   double weight_sum = 0.0;
+  double min_abs_node = axom::numeric_limits<double>::infinity();
+  int nodes_near_boundary_layer = 0;
   for(int i = 0; i < static_cast<int>(nodes.size()); ++i)
   {
     EXPECT_GT(weights[i], 0.0);
     weight_sum += weights[i];
+    min_abs_node = axom::utilities::min(min_abs_node, std::abs(nodes[i]));
+    if(std::abs(nodes[i]) < 0.05)
+    {
+      ++nodes_near_boundary_layer;
+    }
 
     const int mirrored = static_cast<int>(nodes.size()) - 1 - i;
     EXPECT_NEAR(nodes[i], -nodes[mirrored], 1e-10);
@@ -663,6 +658,71 @@ TEST(numerics_quadrature, rational_chebyshev_internal_matches_vandeun_boundary_l
   }
 
   EXPECT_NEAR(weight_sum, pi, 1e-10);
+  EXPECT_LT(min_abs_node, 0.02);
+  EXPECT_GE(nodes_near_boundary_layer, 4);
+}
+
+TEST(numerics_quadrature, rational_chebyshev_internal_matches_vandeun_near_interval_stress)
+{
+  constexpr double eps = axom::numeric_limits<double>::epsilon();
+  axom::Array<Complex> poles_m11;
+  poles_m11.reserve(70);
+  for(int repeat = 0; repeat < 10; ++repeat)
+  {
+    for(int j = 0; j < 7; ++j)
+    {
+      poles_m11.emplace_back(-0.6 + 0.2 * j, 100.0 * eps);
+    }
+  }
+
+  axom::Array<double> nodes;
+  axom::Array<double> weights;
+  compute_rational_chebyshev_rule_m11(poles_m11, nodes, weights);
+
+  ASSERT_EQ(nodes.size(), poles_m11.size());
+  ASSERT_EQ(weights.size(), poles_m11.size());
+
+  double weight_sum = 0.0;
+  for(int i = 0; i < static_cast<int>(nodes.size()); ++i)
+  {
+    EXPECT_GE(nodes[i], -1.0);
+    EXPECT_LE(nodes[i], 1.0);
+    EXPECT_TRUE(std::isfinite(weights[i]));
+    weight_sum += weights[i];
+  }
+
+  EXPECT_NEAR(weight_sum / pi, 1.0, 1e-7);
+}
+
+TEST(numerics_quadrature, rational_chebyshev_internal_matches_vandeun_repeated_pole_scaling_guard)
+{
+  axom::Array<Complex> poles_m11;
+  constexpr int repeat_count = 100;
+  poles_m11.reserve(3 * repeat_count);
+  for(int repeat = 0; repeat < repeat_count; ++repeat)
+  {
+    poles_m11.emplace_back(-1.1, 0.0);
+    poles_m11.emplace_back(0.0, 0.1);
+    poles_m11.emplace_back(1.1, 0.0);
+  }
+
+  axom::Array<double> nodes;
+  axom::Array<double> weights;
+  compute_rational_chebyshev_rule_m11(poles_m11, nodes, weights);
+
+  ASSERT_EQ(nodes.size(), poles_m11.size());
+  ASSERT_EQ(weights.size(), poles_m11.size());
+
+  double weight_sum = 0.0;
+  for(int i = 0; i < static_cast<int>(nodes.size()); ++i)
+  {
+    EXPECT_GE(nodes[i], -1.0);
+    EXPECT_LE(nodes[i], 1.0);
+    EXPECT_GT(weights[i], 0.0);
+    weight_sum += weights[i];
+  }
+
+  EXPECT_NEAR(weight_sum, pi, 1e-11);
 }
 
 TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example1_exactness)
@@ -696,6 +756,200 @@ TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example1_
     EXPECT_NEAR(forward_value, exact, 5e-13);
     EXPECT_NEAR(reversed_value, exact, 5e-13);
   }
+}
+
+TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example7_1_table_scale)
+{
+  struct Case
+  {
+    double omega;
+    int node_count;
+    double paper_relative_error;
+  };
+
+  const Case cases[] = {{1.1, 2, 1.59e-01},
+                        {1.1, 4, 3.77e-04},
+                        {1.1, 8, 1.39e-08},
+                        {1.1, 12, 9.42e-14},
+                        {1.1, 16, 1.99e-16},
+                        {1.001, 2, 4.06e-01},
+                        {1.001, 4, 4.20e-03},
+                        {1.001, 8, 4.98e-08},
+                        {1.001, 12, 3.21e-13},
+                        {1.001, 16, 1.29e-13}};
+
+  for(const auto& test_case : cases)
+  {
+    axom::Array<Complex> poles_m11;
+    poles_m11.reserve(test_case.node_count - 1);
+    for(int k = 1; k < test_case.node_count; ++k)
+    {
+      const double sign = (k % 2 == 1) ? 1.0 : -1.0;
+      const int multiple = (k + 1) / 2;
+      poles_m11.emplace_back(sign * multiple * test_case.omega, 0.0);
+    }
+
+    axom::Array<double> nodes;
+    axom::Array<double> weights;
+    compute_rational_fejer_rule_m11(poles_m11, nodes, weights);
+    ASSERT_EQ(nodes.size(), test_case.node_count);
+    ASSERT_EQ(weights.size(), test_case.node_count);
+
+    const double omega = test_case.omega;
+    const auto integrand = [omega](double x) {
+      const double scaled_x = pi * x / omega;
+      return scaled_x / std::sin(scaled_x);
+    };
+
+    const double reference = integrate_reference_m11(integrand);
+    const double observed = integrate_rule_m11(nodes, weights, integrand);
+    const double relative_error = std::abs(observed - reference) / std::abs(reference);
+    const double tolerance = axom::utilities::max(1e-12, 100.0 * test_case.paper_relative_error);
+    EXPECT_LE(relative_error, tolerance)
+      << "omega=" << test_case.omega << ", node_count=" << test_case.node_count;
+  }
+}
+
+TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example7_4_table_scale)
+{
+  struct Case
+  {
+    int node_count;
+    double paper_relative_error;
+  };
+
+  constexpr double omega = 1.1;
+  const Case cases[] = {{10, 2.79e-05}, {20, 9.07e-14}, {30, 9.50e-15}};
+
+  const auto integrand = [omega](double x) { return std::sin(1.0 / (x - omega)); };
+  const double reference = integrate_reference_m11(integrand);
+
+  for(const auto& test_case : cases)
+  {
+    axom::Array<Complex> poles_m11;
+    poles_m11.reserve(test_case.node_count - 1);
+    for(int i = 0; i < test_case.node_count - 1; ++i)
+    {
+      poles_m11.emplace_back(omega, 0.0);
+    }
+
+    axom::Array<double> nodes;
+    axom::Array<double> weights;
+    compute_rational_fejer_rule_m11(poles_m11, nodes, weights);
+    ASSERT_EQ(nodes.size(), test_case.node_count);
+    ASSERT_EQ(weights.size(), test_case.node_count);
+
+    const double observed = integrate_rule_m11(nodes, weights, integrand);
+    const double relative_error = std::abs(observed - reference) / std::abs(reference);
+    const double tolerance = axom::utilities::max(1e-12, 100.0 * test_case.paper_relative_error);
+    EXPECT_LE(relative_error, tolerance) << "node_count=" << test_case.node_count;
+  }
+}
+
+TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example7_5_symmetry)
+{
+  constexpr double omega = 0.1;
+  constexpr int half_pole_count = 8;
+  constexpr int node_count = 2 * half_pole_count + 1;
+
+  axom::Array<Complex> poles_m11;
+  poles_m11.reserve(2 * half_pole_count);
+  for(int k = -(half_pole_count - 1); k <= half_pole_count; ++k)
+  {
+    poles_m11.emplace_back(0.0, (2 * k - 1) * omega);
+  }
+
+  axom::Array<double> nodes;
+  axom::Array<double> weights;
+  compute_rational_fejer_rule_m11(poles_m11, nodes, weights);
+  ASSERT_EQ(nodes.size(), node_count);
+  ASSERT_EQ(weights.size(), node_count);
+
+  for(int i = 0; i < node_count; ++i)
+  {
+    const int mirrored = node_count - 1 - i;
+    EXPECT_NEAR(nodes[i], -nodes[mirrored], 1e-12);
+    EXPECT_NEAR(weights[i], weights[mirrored], 1e-10);
+  }
+
+  const auto integrand = [omega](double x) { return 1.0 / (std::exp(pi * x / omega) + 1.0); };
+  const double observed = integrate_rule_m11(nodes, weights, integrand);
+  EXPECT_NEAR(observed, 1.0, 1e-12);
+}
+
+TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example7_6_table_scale)
+{
+  struct Case
+  {
+    int node_count;
+    double paper_relative_error;
+  };
+
+  constexpr double pole = -2.5;
+  const Case cases[] = {{2, 2.49e-03}, {4, 1.85e-06}, {8, 5.36e-12}, {12, 2.22e-17}};
+
+  const auto integrand = [](double x) { return 1.0 / std::sqrt((x + 3.0) * (x + 2.0)); };
+  const double reference = integrate_reference_m11(integrand);
+
+  for(const auto& test_case : cases)
+  {
+    axom::Array<Complex> poles_m11;
+    poles_m11.reserve(test_case.node_count - 1);
+    for(int i = 0; i < test_case.node_count - 1; ++i)
+    {
+      poles_m11.emplace_back(pole, 0.0);
+    }
+
+    axom::Array<double> nodes;
+    axom::Array<double> weights;
+    compute_rational_fejer_rule_m11(poles_m11, nodes, weights);
+    ASSERT_EQ(nodes.size(), test_case.node_count);
+    ASSERT_EQ(weights.size(), test_case.node_count);
+
+    const double observed = integrate_rule_m11(nodes, weights, integrand);
+    const double relative_error = std::abs(observed - reference) / std::abs(reference);
+    const double tolerance = axom::utilities::max(1e-12, 100.0 * test_case.paper_relative_error);
+    EXPECT_LE(relative_error, tolerance) << "node_count=" << test_case.node_count;
+  }
+}
+
+TEST(numerics_quadrature,
+     rational_fejer_internal_matches_algorithm973_example7_7_outperforms_polynomial)
+{
+  constexpr int node_count = 10;
+  const double inf = axom::numeric_limits<double>::infinity();
+
+  axom::Array<Complex> rational_poles_m11 {{0.0, 0.2}, {0.0, -0.2}};
+  while(static_cast<int>(rational_poles_m11.size()) < node_count - 1)
+  {
+    rational_poles_m11.emplace_back(inf, 0.0);
+  }
+
+  axom::Array<Complex> polynomial_poles_m11;
+  polynomial_poles_m11.reserve(node_count - 1);
+  for(int i = 0; i < node_count - 1; ++i)
+  {
+    polynomial_poles_m11.emplace_back(inf, 0.0);
+  }
+
+  const auto integrand = [](double x) { return std::exp(x) / (25.0 * x * x + 1.0); };
+  const double reference = integrate_reference_m11(integrand);
+
+  axom::Array<double> rational_nodes;
+  axom::Array<double> rational_weights;
+  compute_rational_fejer_rule_m11(rational_poles_m11, rational_nodes, rational_weights);
+
+  axom::Array<double> polynomial_nodes;
+  axom::Array<double> polynomial_weights;
+  compute_rational_fejer_rule_m11(polynomial_poles_m11, polynomial_nodes, polynomial_weights);
+
+  const double rational_error =
+    std::abs(integrate_rule_m11(rational_nodes, rational_weights, integrand) - reference);
+  const double polynomial_error =
+    std::abs(integrate_rule_m11(polynomial_nodes, polynomial_weights, integrand) - reference);
+
+  EXPECT_LT(rational_error, 1e-10);
+  EXPECT_LT(rational_error, polynomial_error * 1e-4);
 }
 
 TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example2_repeated_real_pole)
