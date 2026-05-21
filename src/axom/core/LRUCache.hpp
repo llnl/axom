@@ -20,7 +20,8 @@ namespace axom
  * \brief Fixed-capacity least-recently-used cache.
  *
  * \tparam Key Cache key type. The default implementation uses
- *  `std::unordered_map`, so `Key` must be hashable and equality comparable.
+ *  `std::unordered_map` and also stores keys in a recency list, so `Key` must
+ *  be copyable, hashable, and equality comparable.
  * \tparam Value Cached value type.
  *
  * `LRUCache` stores at most `capacity()` entries. When insertion of a new key

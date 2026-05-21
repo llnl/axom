@@ -351,6 +351,8 @@ TEST(numerics_quadrature, gauss_legendre_device_hip)
 TEST(numerics_quadrature,
      rational_chebyshev_internal_matches_algorithm882_pure_imaginary_poles_example)
 {
+  // Algorithm 882 reports that imaginary-axis pole pairs should produce
+  // symmetric nodes and weights.
   axom::Array<Complex> poles_m11;
   for(int j = 1; j <= 10; ++j)
   {
@@ -382,6 +384,7 @@ TEST(numerics_quadrature,
 TEST(numerics_quadrature,
      rational_chebyshev_internal_matches_algorithm882_all_infinite_poles_chebyshev_limit)
 {
+  // Infinite poles are the polynomial limit of the rational Chebyshev rule.
   constexpr int pole_count = 6;
   axom::Array<Complex> poles_m11;
   poles_m11.reserve(pole_count);
@@ -405,9 +408,54 @@ TEST(numerics_quadrature,
   }
 }
 
+TEST(numerics_quadrature, rational_chebyshev_internal_matches_algorithm882_figure5_pole_cluster)
+{
+  const axom::Array<Complex> poles_m11 {Complex {2.0, 0.0},
+                                        Complex {0.3, 0.03},
+                                        Complex {0.3, 0.03},
+                                        Complex {0.3, 0.03},
+                                        Complex {-0.6, 0.05},
+                                        Complex {-2.0, 0.0}};
+
+  axom::Array<double> nodes;
+  axom::Array<double> weights;
+  compute_rational_chebyshev_rule_m11(poles_m11, nodes, weights);
+
+  const axom::Array<double> expected_nodes {-0.7756984188077904,
+                                            -0.4966068093008936,
+                                            0.2419174517379600,
+                                            0.2974185508617733,
+                                            0.3402725789709046,
+                                            0.8287384448183092};
+
+  ASSERT_EQ(nodes.size(), expected_nodes.size());
+  ASSERT_EQ(weights.size(), expected_nodes.size());
+
+  double weight_sum = 0.0;
+  int nodes_near_triple_pole = 0;
+  for(int i = 0; i < static_cast<int>(nodes.size()); ++i)
+  {
+    EXPECT_NEAR(nodes[i], expected_nodes[i], 1e-13);
+    EXPECT_GT(weights[i], 0.0);
+    weight_sum += weights[i];
+
+    if(std::abs(nodes[i] - 0.3) < 0.07)
+    {
+      ++nodes_near_triple_pole;
+    }
+  }
+
+  // Figure 5 shows a steep feature near theta = 1.25 from the triple pole at
+  // 0.3 + 0.03i; three computed nodes are correspondingly clustered near x = 0.3.
+  EXPECT_EQ(nodes_near_triple_pole, 3);
+  EXPECT_NEAR(weight_sum, pi, 1e-12);
+}
+
 TEST(numerics_quadrature,
      rational_chebyshev_internal_matches_algorithm882_boundary_layer_application_poles)
 {
+  // These Pade-derived poles from Algorithm 882 cluster points near the
+  // boundary layer at x = 0 while preserving symmetry and positive weights.
   axom::Array<Complex> poles_m11 = {{0.0, 0.0403},
                                     {0.0, -0.0403},
                                     {0.0094, 0.0398},
@@ -455,6 +503,8 @@ TEST(numerics_quadrature,
 
 TEST(numerics_quadrature, rational_chebyshev_internal_matches_algorithm882_near_interval_stress)
 {
+  // Poles only 100 eps from the interval exercise the bisection fallback path
+  // discussed in the Algorithm 882 experiments section.
   constexpr double eps = axom::numeric_limits<double>::epsilon();
   axom::Array<Complex> poles_m11;
   poles_m11.reserve(70);
@@ -487,6 +537,8 @@ TEST(numerics_quadrature, rational_chebyshev_internal_matches_algorithm882_near_
 
 TEST(numerics_quadrature, rational_chebyshev_internal_matches_algorithm882_repeated_pole_scaling_guard)
 {
+  // Repeated poles can make the phase equation large; this keeps the solve
+  // finite and normalized for a moderately large version of the paper's stress case.
   axom::Array<Complex> poles_m11;
   constexpr int repeat_count = 100;
   poles_m11.reserve(3 * repeat_count);
@@ -558,6 +610,8 @@ TEST(numerics_quadrature, rational_fejer_infinite_poles_are_polynomial_exact)
 
   for(int npoles = 1; npoles <= 8; ++npoles)
   {
+    // With every pole at infinity, rational Fejer reduces to the polynomial
+    // Fejer rule and should exactly integrate polynomials through degree m.
     axom::Array<Complex> poles;
     poles.reserve(npoles);
     for(int i = 0; i < npoles; ++i)
@@ -606,6 +660,8 @@ TEST(numerics_quadrature, rational_fejer_infinite_poles_are_polynomial_exact)
 
 TEST(numerics_quadrature, rational_fejer_matches_simple_pole_moments)
 {
+  // A rule built from real poles should integrate the corresponding simple
+  // rational pole moments exactly up to roundoff.
   axom::Array<Complex> poles;
   for(int a = 2; a <= 10; ++a)
   {
@@ -629,6 +685,8 @@ TEST(numerics_quadrature, rational_fejer_matches_simple_pole_moments)
 
 TEST(numerics_quadrature, rational_fejer_auto_adds_missing_complex_conjugate_pole)
 {
+  // Public callers may supply one side of a complex pair; the implementation
+  // canonicalizes to the conjugate-complete real rule.
   const double a = 1.4;
   const double b = 0.8;
   const Complex pole {a, b};
@@ -652,6 +710,8 @@ TEST(numerics_quadrature, rational_fejer_auto_adds_missing_complex_conjugate_pol
 
 TEST(numerics_quadrature, rational_fejer_matches_repeated_complex_pair_exactness)
 {
+  // Repeating a complex pole pair raises the exactness space to include the
+  // squared denominator moment.
   const double a = 1.25;
   const double b = 0.6;
   const Complex pole {a, b};
@@ -676,6 +736,8 @@ TEST(numerics_quadrature, rational_fejer_matches_repeated_complex_pair_exactness
 
 TEST(numerics_quadrature, rational_fejer_point_count_follows_canonical_poles)
 {
+  // Rational Fejer uses one more node than the canonicalized pole sequence,
+  // including any synthesized conjugates.
   const axom::Array<Complex> real_poles {Complex {1.25, 0.0}, Complex {1.5, 0.0}, Complex {2.0, 0.0}};
   axom::Array<double> nodes;
   axom::Array<double> weights;
@@ -700,6 +762,7 @@ TEST(numerics_quadrature, rational_fejer_point_count_follows_canonical_poles)
 
 TEST(numerics_quadrature, rational_fejer_cached_rule_matches_uncached_compute)
 {
+  // The cached API should be only a storage optimization, not a separate rule construction.
   const axom::Array<Complex> poles {Complex {1.4, 0.8}, Complex {1.4, -0.8}, Complex {2.5, 0.0}};
 
   axom::Array<double> computed_nodes;
@@ -772,6 +835,7 @@ TEST(numerics_quadrature, rational_fejer_cached_rule_uses_m11_canonical_key)
 
 TEST(numerics_quadrature, rational_fejer_cached_rule_views_can_be_copied_to_owned_rule)
 {
+  // Copying a cached view gives callers stable owned storage when cache eviction is possible.
   const axom::Array<Complex> poles {Complex {1.4, 0.8}, Complex {1.4, -0.8}, Complex {2.5, 0.0}};
   const auto cached_rule = axom::numerics::get_rational_fejer(poles);
 

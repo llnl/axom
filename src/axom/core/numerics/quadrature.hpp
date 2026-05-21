@@ -211,6 +211,10 @@ QuadratureRuleView get_gauss_legendre(int npts, int allocatorID = axom::getDefau
  * Deckers, Bultheel, and Weideman, "Algorithm 882" (ACM TOMS, 2008),
  * and then rescales the resulting nodes and weights to [0, 1].
  *
+ * In relation to rational Chebyshev quadrature, whose integrands are of the form `f(x)/sqrt(1-x^2)`, 
+ * rational Fejer modifies the weights to support unweighted integrands of the form `f(x)`. 
+ * This construction reuses the rational Chebyshev nodes but modifies the weights.
+ *
  * Fejer quadrature is closely related to Clenshaw-Curtis quadrature: both are
  * Chebyshev-based families of rules. A standard Clenshaw-Curtis rule uses
  * Chebyshev extrema and includes the interval endpoints, while a standard Fejer
@@ -238,6 +242,8 @@ void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> pol
  *
  * \note If this method has already been called for the same pole sequence and allocator,
  *  it will reuse the same quadrature data without recomputing it.
+ * \note The returned rule uses the companion rational Chebyshev nodes with
+ *  rational Fejer weights for ordinary unweighted integration.
  * \note Although rational Fejer is Chebyshev-based like Clenshaw-Curtis, the
  *  cached rule here is keyed by the explicit pole sequence, since the pole data
  *  changes the exactness space and therefore the resulting weights.

@@ -307,7 +307,7 @@ private:
       bool ok = solveTheta(n, data, grid, target, bracket_start, node_angles[i]);
       if(!ok)
       {
-        failRationalFejerPrecondition(
+        failRationalQuadraturePrecondition(
           axom::fmt::format("Failed to construct rational Chebyshev node {} of {}.", i, n));
       }
     }

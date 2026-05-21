@@ -34,8 +34,8 @@ namespace internal
 /// \brief Returns the square of a scalar value.
 inline double square(double value) { return value * value; }
 
-/// \brief Reports a rational Fejer precondition failure and aborts the process.
-[[noreturn]] inline void failRationalFejerPrecondition(const std::string& message)
+/// \brief Reports a rational quadrature precondition failure and aborts the process.
+[[noreturn]] inline void failRationalQuadraturePrecondition(const std::string& message)
 {
   std::cerr << "ERROR: " << message << "\n";
   axom::utilities::processAbort();
@@ -192,8 +192,8 @@ inline void validatePole(const Pole& pole,
 {
   if(pole.hasNaN())
   {
-    failRationalFejerPrecondition(
-      axom::fmt::format("Rational Fejer pole {} in {} contains NaN.", pole_index, domain_name));
+    failRationalQuadraturePrecondition(
+      axom::fmt::format("Rational quadrature pole {} in {} contains NaN.", pole_index, domain_name));
   }
 
   if(pole.isInfinite())
@@ -203,16 +203,16 @@ inline void validatePole(const Pole& pole,
 
   if(!pole.hasFiniteCoordinates())
   {
-    failRationalFejerPrecondition(
-      axom::fmt::format("Rational Fejer pole {} in {} is neither finite nor infinite.",
+    failRationalQuadraturePrecondition(
+      axom::fmt::format("Rational quadrature pole {} in {} is neither finite nor infinite.",
                         pole_index,
                         domain_name));
   }
 
   if(pole.liesOnRealInterval(lower, upper, interval_tol))
   {
-    failRationalFejerPrecondition(
-      axom::fmt::format("Rational Fejer finite pole {} = ({}, {}) lies on the {} interval.",
+    failRationalQuadraturePrecondition(
+      axom::fmt::format("Rational quadrature finite pole {} = ({}, {}) lies on the {} interval.",
                         pole_index,
                         pole.real(),
                         pole.imag(),
@@ -347,8 +347,8 @@ public:
 
     if(m_poles.empty())
     {
-      failRationalFejerPrecondition(
-        axom::fmt::format("Rational Fejer quadrature requires at least one pole in {}.", domain_name));
+      failRationalQuadraturePrecondition(
+        axom::fmt::format("Rational quadrature requires at least one pole in {}.", domain_name));
     }
 
     for(axom::IndexType i = 0; i < m_poles.size(); ++i)
@@ -358,6 +358,14 @@ public:
   }
 
   /// \brief Returns the canonical conjugate-complete form of this sequence.
+  ///
+  /// In this context, "canonical" means a deterministic pole sequence that the
+  /// real-valued rational quadrature construction can consume directly:
+  /// duplicate or nearly duplicate poles are represented by the first matching
+  /// value seen in caller order, and each non-real pole is immediately followed
+  /// by its conjugate. The input order of distinct pole blocks is otherwise
+  /// preserved rather than sorted, since pole order is part of the fixed-pole
+  /// rational basis and therefore part of the rule/cache key.
   PoleSequence canonicalized(double tol) const
   {
     axom::Array<Pole> poles = toPoleArray();
@@ -375,6 +383,8 @@ public:
       }
 
       const Pole pole = poles[i];
+      // Coalesce later near-duplicates onto the first representative. This
+      // keeps repeated poles deterministic without changing the distinct-block order.
       for(int idx = i + 1; idx < num_input_poles; ++idx)
       {
         if(!consumed[idx] && pole.closeTo(poles[idx], tol))

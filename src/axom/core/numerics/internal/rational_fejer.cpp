@@ -887,38 +887,6 @@ inline void compute_rational_fejer_data_m11_impl(const RationalFejerPoleData& po
   diagnostics_recorder.recordFinalRule(basis, basis_coefficients, basis_expansion, weights);
 }
 
-/// \brief Computes rational Fejer nodes and weights on [-1,1] with optional diagnostics.
-inline void compute_rational_fejer_data_m11_impl(axom::ArrayView<const Pole> poles,
-                                                 axom::Array<double>& nodes,
-                                                 axom::Array<double>& weights,
-                                                 RationalFejerDiagnostics* diagnostics = nullptr,
-                                                 int allocatorID = axom::getDefaultAllocatorID())
-{
-  compute_rational_fejer_data_m11_impl(RationalFejerPoleData::fromM11(PoleSequence {poles}),
-                                       nodes,
-                                       weights,
-                                       diagnostics,
-                                       allocatorID);
-}
-
-/// \brief Computes rational Fejer nodes and weights on [-1,1].
-inline void compute_rational_fejer_data_m11(axom::ArrayView<const Pole> poles,
-                                            axom::Array<double>& nodes,
-                                            axom::Array<double>& weights)
-{
-  compute_rational_fejer_data_m11_impl(poles, nodes, weights);
-}
-
-/// \brief Computes rational Fejer diagnostics on [-1,1].
-inline void compute_rational_fejer_diagnostics_m11(axom::ArrayView<const Pole> poles,
-                                                   RationalFejerDiagnostics& diagnostics,
-                                                   int allocatorID)
-{
-  axom::Array<double> nodes_m11;
-  axom::Array<double> weights_m11;
-  compute_rational_fejer_data_m11_impl(poles, nodes_m11, weights_m11, &diagnostics, allocatorID);
-}
-
 /// \brief Computes rational Fejer nodes and weights on [-1,1].
 void compute_rational_fejer_data_m11(axom::ArrayView<const Complex> poles_m11,
                                      axom::Array<double>& nodes,
@@ -932,20 +900,6 @@ void compute_rational_fejer_data_m11(axom::ArrayView<const Complex> poles_m11,
   compute_rational_fejer_data_m11_impl(pole_data, nodes_tmp, weights_tmp);
   copy_array_to_array(nodes_tmp, nodes, allocatorID);
   copy_array_to_array(weights_tmp, weights, allocatorID);
-}
-
-/// \brief Computes rational Fejer nodes and weights on [-1,1] with optional diagnostics.
-inline void compute_rational_fejer_data_m11_impl(axom::ArrayView<const Complex> poles_m11,
-                                                 axom::Array<double>& nodes,
-                                                 axom::Array<double>& weights,
-                                                 RationalFejerDiagnostics* diagnostics,
-                                                 int allocatorID)
-{
-  compute_rational_fejer_data_m11_impl(RationalFejerPoleData::fromM11(poles_m11),
-                                       nodes,
-                                       weights,
-                                       diagnostics,
-                                       allocatorID);
 }
 
 /// \brief Computes rational Fejer diagnostics on [-1,1].
