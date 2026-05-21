@@ -78,7 +78,7 @@ inline LambdaRetType evaluate_line_integral_component(const BezierCurve<T, NDIMS
                                                       Lambda&& integrand,
                                                       const int npts)
 {
-  const axom::numerics::QuadratureRule& quad = axom::numerics::get_gauss_legendre(npts);
+  const auto quad = axom::numerics::get_gauss_legendre(npts);
 
   LambdaRetType full_quadrature = LambdaRetType {};
   for(int q = 0; q < npts; q++)
@@ -137,7 +137,7 @@ inline T evaluate_vector_line_integral_component(const primal::BezierCurve<T, ND
                                                  Lambda&& vector_integrand,
                                                  const int npts)
 {
-  const axom::numerics::QuadratureRule& quad = axom::numerics::get_gauss_legendre(npts);
+  const auto quad = axom::numerics::get_gauss_legendre(npts);
 
   T full_quadrature = T {};
   for(int q = 0; q < npts; q++)
@@ -199,8 +199,8 @@ inline LambdaRetType evaluate_area_integral_component(const primal::BezierCurve<
                                                       const int npts_Q,
                                                       const int npts_P)
 {
-  const axom::numerics::QuadratureRule& quad_Q = axom::numerics::get_gauss_legendre(npts_Q);
-  const axom::numerics::QuadratureRule& quad_P = axom::numerics::get_gauss_legendre(npts_P);
+  const auto quad_Q = axom::numerics::get_gauss_legendre(npts_Q);
+  const auto quad_P = axom::numerics::get_gauss_legendre(npts_P);
 
   LambdaRetType full_quadrature = LambdaRetType {};
   for(int q = 0; q < npts_Q; q++)

@@ -41,7 +41,7 @@ axom::Array<Complex> map_interval_poles_m11_to_01(axom::ArrayView<const Complex>
   return poles01;
 }
 
-double integrate_rule(const axom::numerics::QuadratureRule& rule,
+double integrate_rule(const axom::numerics::QuadratureRuleView& rule,
                       const std::function<double(double)>& integrand)
 {
   double value = 0.0;
@@ -385,20 +385,22 @@ TEST(numerics_quadrature, rational_fejer_cached_rule_matches_uncached_compute)
   }
 }
 
-TEST(numerics_quadrature, rational_fejer_cached_rule_views_can_be_copied_to_owned_arrays)
+TEST(numerics_quadrature, rational_fejer_cached_rule_views_can_be_copied_to_owned_rule)
 {
   const axom::Array<Complex> poles {Complex {1.4, 0.8}, Complex {1.4, -0.8}, Complex {2.5, 0.0}};
   const auto cached_rule = axom::numerics::get_rational_fejer(poles);
 
-  const axom::Array<double> owned_nodes(cached_rule.nodes());
-  const axom::Array<double> owned_weights(cached_rule.weights());
+  const auto owned_rule = cached_rule.copy();
+  const auto copied_rule = owned_rule.view();
 
-  ASSERT_EQ(owned_nodes.size(), cached_rule.getNumPoints());
-  ASSERT_EQ(owned_weights.size(), cached_rule.getNumPoints());
+  ASSERT_EQ(owned_rule.getNumPoints(), cached_rule.getNumPoints());
+  ASSERT_EQ(copied_rule.getNumPoints(), cached_rule.getNumPoints());
   for(int i = 0; i < cached_rule.getNumPoints(); ++i)
   {
-    EXPECT_NEAR(owned_nodes[i], cached_rule.node(i), 1e-14);
-    EXPECT_NEAR(owned_weights[i], cached_rule.weight(i), 1e-14);
+    EXPECT_NEAR(owned_rule.node(i), cached_rule.node(i), 1e-14);
+    EXPECT_NEAR(owned_rule.weight(i), cached_rule.weight(i), 1e-14);
+    EXPECT_NEAR(copied_rule.node(i), cached_rule.node(i), 1e-14);
+    EXPECT_NEAR(copied_rule.weight(i), cached_rule.weight(i), 1e-14);
   }
 }
 
@@ -467,7 +469,7 @@ struct test_device_quadrature
     int allocID;
 #if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_GPU)
 
-    // TODO QuadratureRule class needs to be ported for CUDA
+    // Use unified memory so the cached rule storage can be accessed from device kernels.
     constexpr bool on_device = axom::execution_space<ExecSpace>::onDevice();
 
     allocID = on_device ? axom::getUmpireResourceAllocatorID(umpire::resource::Unified)

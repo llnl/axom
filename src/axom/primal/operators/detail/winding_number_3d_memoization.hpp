@@ -74,7 +74,7 @@ struct TrimmingCurveQuadratureData
     : m_quad_npts(quad_npts)
   {
     // Generate the (cached) quadrature rules in parameter space
-    const numerics::QuadratureRule gl_rule = numerics::get_gauss_legendre(quad_npts);
+    const auto gl_rule = numerics::get_gauss_legendre(quad_npts);
     const auto quad_nodes = gl_rule.nodes();
     const auto quad_weights = gl_rule.weights();
 

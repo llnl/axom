@@ -1545,7 +1545,7 @@ void internal::compute_rational_fejer_diagnostics(axom::ArrayView<const std::com
                                           allocatorID);
 }
 
-QuadratureRule get_rational_fejer(axom::ArrayView<const std::complex<double>> poles01, int allocatorID)
+QuadratureRuleView get_rational_fejer(axom::ArrayView<const std::complex<double>> poles01, int allocatorID)
 {
   internal::validatePoleSequence(poles01, 0.0, 1.0, "[0,1]");
 
@@ -1560,7 +1560,7 @@ QuadratureRule get_rational_fejer(axom::ArrayView<const std::complex<double>> po
     const std::lock_guard<std::mutex> lock(rule_library_mutex);
     if(auto* storage = rule_library.find(key))
     {
-      return QuadratureRule {storage->nodes.view(), storage->weights.view()};
+      return QuadratureRuleView {storage->nodes.view(), storage->weights.view()};
     }
   }
 
@@ -1571,11 +1571,11 @@ QuadratureRule get_rational_fejer(axom::ArrayView<const std::complex<double>> po
     const std::lock_guard<std::mutex> lock(rule_library_mutex);
     if(auto* cached_storage = rule_library.find(key))
     {
-      return QuadratureRule {cached_storage->nodes.view(), cached_storage->weights.view()};
+      return QuadratureRuleView {cached_storage->nodes.view(), cached_storage->weights.view()};
     }
 
     auto& cached_storage = rule_library.insert(key, std::move(storage));
-    return QuadratureRule {cached_storage.nodes.view(), cached_storage.weights.view()};
+    return QuadratureRuleView {cached_storage.nodes.view(), cached_storage.weights.view()};
   }
 }
 

@@ -11,7 +11,9 @@
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/memory_management.hpp"
 
+#include <cassert>
 #include <complex>
+#include <utility>
 
 /*!
  * \file quadrature.hpp
@@ -24,18 +26,101 @@ namespace axom
 namespace numerics
 {
 
+class QuadratureRuleView;
+
 /*!
  * \class QuadratureRule
  *
- * \brief Stores fixed views to arrays of 1D quadrature points and weights
+ * \brief Owns arrays for a 1D quadrature rule.
+ *
+ * `QuadratureRule` stores its own node and weight arrays. Use \c view() when a
+ * lightweight non-owning rule is needed, including in device kernels.
  */
 class QuadratureRule
 {
-  // Define friend functions so rules can only be created via get_rule() methods
-  friend QuadratureRule get_gauss_legendre(int, int);
-  friend QuadratureRule get_rational_fejer(axom::ArrayView<const std::complex<double>>, int);
-
 public:
+  /*!
+   * \brief Copy nodes and weights into owned arrays
+   *
+   * \pre `nodes.size() == weights.size()`.
+   */
+  QuadratureRule(axom::ArrayView<const double> nodes,
+                 axom::ArrayView<const double> weights,
+                 int allocatorID = axom::getDefaultAllocatorID())
+    : m_nodes(nodes, allocatorID)
+    , m_weights(weights, allocatorID)
+  {
+    assert(m_nodes.size() == m_weights.size());
+  }
+
+  /// \brief Copy a non-owning rule into owned arrays
+  QuadratureRule(const QuadratureRuleView& rule, int allocatorID = axom::getDefaultAllocatorID())
+    : QuadratureRule(rule.nodes(), rule.weights(), allocatorID)
+  { }
+
+  /*!
+   * \brief Take ownership of node and weight arrays
+   *
+   * \pre `nodes.size() == weights.size()`.
+   */
+  QuadratureRule(axom::Array<double> nodes, axom::Array<double> weights)
+    : m_nodes(std::move(nodes))
+    , m_weights(std::move(weights))
+  {
+    assert(m_nodes.size() == m_weights.size());
+  }
+
+  //! \brief Accessor for the full array of quadrature nodes
+  axom::ArrayView<const double> nodes() const { return m_nodes.view(); }
+
+  //! \brief Accessor for the full array of quadrature weights
+  axom::ArrayView<const double> weights() const { return m_weights.view(); }
+
+  //! \brief Accessor for quadrature nodes
+  double node(size_t idx) const { return m_nodes[idx]; };
+
+  //! \brief Accessor for quadrature weights
+  double weight(size_t idx) const { return m_weights[idx]; };
+
+  //! \brief Accessor for the size of the quadrature rule
+  int getNumPoints() const { return static_cast<int>(m_nodes.size()); }
+
+  /// \brief Return a non-owning view rule backed by this owned rule
+  QuadratureRuleView view() const { return QuadratureRuleView {m_nodes.view(), m_weights.view()}; }
+
+private:
+  axom::Array<double> m_nodes;
+  axom::Array<double> m_weights;
+};
+
+/*!
+ * \class QuadratureRuleView
+ *
+ * \brief Non-owning view over a 1D quadrature rule's points and weights.
+ *
+ * `QuadratureRuleView` is the lightweight, device-capturable representation of
+ * a quadrature rule. It does not own the node or weight arrays.
+ */
+class QuadratureRuleView
+{
+public:
+  AXOM_HOST_DEVICE QuadratureRuleView() = default;
+
+  //! \brief Construct a view over existing node and weight arrays
+  AXOM_HOST_DEVICE QuadratureRuleView(axom::ArrayView<const double> nodes,
+                                      axom::ArrayView<const double> weights)
+    : m_nodes(nodes)
+    , m_weights(weights)
+  {
+    assert(m_nodes.size() == m_weights.size());
+  }
+
+  //! \brief Copy this non-owning rule into an owning rule
+  QuadratureRule copy(int allocatorID = axom::getDefaultAllocatorID()) const
+  {
+    return QuadratureRule {*this, allocatorID};
+  }
+
   //! \brief Accessor for the full array of quadrature nodes
   AXOM_HOST_DEVICE
   axom::ArrayView<const double> nodes() const { return axom::ArrayView<const double>(m_nodes); }
@@ -57,13 +142,8 @@ public:
   int getNumPoints() const { return static_cast<int>(m_nodes.size()); }
 
 private:
-  //! \brief Use a private constructor to avoid creation of an invalid rule
-  QuadratureRule(axom::ArrayView<double> nodes, axom::ArrayView<double> weights)
-    : m_nodes(nodes)
-    , m_weights(weights) { };
-
-  axom::ArrayView<double> m_nodes;
-  axom::ArrayView<double> m_weights;
+  axom::ArrayView<const double> m_nodes;
+  axom::ArrayView<const double> m_weights;
 };
 
 /*!
@@ -97,9 +177,9 @@ void compute_gauss_legendre_data(int npts,
  * \note If this method has already been called for a given order, it will reuse the same quadrature points
  *  without needing to recompute them
  *
- * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
+ * \return A non-owning \c QuadratureRuleView over cached nodes and weights
  */
-QuadratureRule get_gauss_legendre(int npts, int allocatorID = axom::getDefaultAllocatorID());
+QuadratureRuleView get_gauss_legendre(int npts, int allocatorID = axom::getDefaultAllocatorID());
 
 /*!
  * \brief Computes a 1D rational Fejer quadrature rule on [0, 1]
@@ -156,17 +236,17 @@ void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> pol
  *  changes the exactness space and therefore the resulting weights.
  * \warning This process-wide cache is capped to avoid unbounded growth. Once
  *  the cap is reached, adding a new rule evicts the least recently used cached
- *  rule, which invalidates views returned by the evicted \c QuadratureRule.
- *  Callers that need to store a rule beyond immediate use should copy
- *  \c QuadratureRule::nodes() and \c QuadratureRule::weights() into owned
- *  \c axom::Array objects. Prefer \c compute_rational_fejer_data() for one-off
- *  generated pole sequences or when the caller needs owned arrays directly.
+ *  rule, which invalidates any \c QuadratureRuleView returned for the evicted
+ *  entry. Callers that need to store a rule beyond immediate use should call
+ *  \c QuadratureRuleView::copy() to create an owning \c QuadratureRule. Prefer
+ *  \c compute_rational_fejer_data() for one-off generated pole sequences or
+ *  when the caller needs owned arrays directly.
  * \pre `poles01` is non-empty and all finite real poles lie outside `[0,1]`.
  *
- * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
+ * \return A non-owning \c QuadratureRuleView over cached nodes and weights
  */
-QuadratureRule get_rational_fejer(axom::ArrayView<const std::complex<double>> poles01,
-                                  int allocatorID = axom::getDefaultAllocatorID());
+QuadratureRuleView get_rational_fejer(axom::ArrayView<const std::complex<double>> poles01,
+                                      int allocatorID = axom::getDefaultAllocatorID());
 
 } /* end namespace numerics */
 } /* end namespace axom */

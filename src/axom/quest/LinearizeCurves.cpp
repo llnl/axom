@@ -486,7 +486,7 @@ double LinearizeCurves::revolvedVolume(const LinearizeCurves::NURBSCurve& nurbs,
   using VectorType = axom::primal::Vector<double, 2>;
 
   // Use 5-point Gauss-Legendre Quadrature.
-  numerics::QuadratureRule quad_rule = numerics::get_gauss_legendre(5);
+  const auto quad_rule = numerics::get_gauss_legendre(5);
 
   // Make a transform with no translation. We use this to transform
   // the derivative since we want to permit scaling and rotation but

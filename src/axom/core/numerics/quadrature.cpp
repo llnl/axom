@@ -161,9 +161,9 @@ void compute_gauss_legendre_data(int npts,
  *
  * \note This implementation uses a process-wide cache protected by a mutex for thread safety.
  * 
- * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
+ * \return A `QuadratureRuleView` over cached nodes and weights
  */
-QuadratureRule get_gauss_legendre(int npts, int allocatorID)
+QuadratureRuleView get_gauss_legendre(int npts, int allocatorID)
 {
   assert("Quadrature rules must have >= 1 point" && (npts >= 1));
 
@@ -180,7 +180,7 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID)
     compute_gauss_legendre_data(npts, it->second.nodes, it->second.weights, allocatorID);
   }
 
-  return QuadratureRule {it->second.nodes.view(), it->second.weights.view()};
+  return QuadratureRuleView {it->second.nodes.view(), it->second.weights.view()};
 }
 
 } /* end namespace numerics */

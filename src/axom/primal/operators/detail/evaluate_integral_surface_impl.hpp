@@ -42,7 +42,7 @@ inline LambdaRetType evaluate_surface_integral_component(const primal::BezierPat
                                                          Lambda&& integrand,
                                                          const int npts)
 {
-  const axom::numerics::QuadratureRule& quad = axom::numerics::get_gauss_legendre(npts);
+  const auto quad = axom::numerics::get_gauss_legendre(npts);
 
   LambdaRetType full_quadrature = LambdaRetType {};
   for(int qu = 0; qu < npts; ++qu)
@@ -118,8 +118,8 @@ inline LambdaRetType evaluate_volume_integral_component(const primal::BezierPatc
                                                         const int npts_uv,
                                                         const int npts_z)
 {
-  const axom::numerics::QuadratureRule& quad_uv = axom::numerics::get_gauss_legendre(npts_uv);
-  const axom::numerics::QuadratureRule& quad_z = axom::numerics::get_gauss_legendre(npts_z);
+  const auto quad_uv = axom::numerics::get_gauss_legendre(npts_uv);
+  const auto quad_z = axom::numerics::get_gauss_legendre(npts_z);
 
   LambdaRetType full_quadrature = LambdaRetType {};
   for(int qu = 0; qu < npts_uv; ++qu)
@@ -166,7 +166,7 @@ inline LambdaRetType evaluate_volume_integral_component(const primal::NURBSPatch
     return total_integral;
   }
 
-  const axom::numerics::QuadratureRule& quad_z = axom::numerics::get_gauss_legendre(npts_Z);
+  const auto quad_z = axom::numerics::get_gauss_legendre(npts_Z);
 
   LambdaRetType total_integral = LambdaRetType {};
   for(const auto& split_patch : n.extractTrimmedBezier())
