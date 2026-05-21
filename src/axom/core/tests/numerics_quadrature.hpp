@@ -385,6 +385,23 @@ TEST(numerics_quadrature, rational_fejer_cached_rule_matches_uncached_compute)
   }
 }
 
+TEST(numerics_quadrature, rational_fejer_cached_rule_views_can_be_copied_to_owned_arrays)
+{
+  const axom::Array<Complex> poles {Complex {1.4, 0.8}, Complex {1.4, -0.8}, Complex {2.5, 0.0}};
+  const auto cached_rule = axom::numerics::get_rational_fejer(poles);
+
+  const axom::Array<double> owned_nodes(cached_rule.nodes());
+  const axom::Array<double> owned_weights(cached_rule.weights());
+
+  ASSERT_EQ(owned_nodes.size(), cached_rule.getNumPoints());
+  ASSERT_EQ(owned_weights.size(), cached_rule.getNumPoints());
+  for(int i = 0; i < cached_rule.getNumPoints(); ++i)
+  {
+    EXPECT_NEAR(owned_nodes[i], cached_rule.node(i), 1e-14);
+    EXPECT_NEAR(owned_weights[i], cached_rule.weight(i), 1e-14);
+  }
+}
+
 TEST(numerics_quadrature, rational_fejer_point_count_follows_canonical_poles)
 {
   const axom::Array<Complex> real_poles {Complex {1.25, 0.0}, Complex {1.5, 0.0}, Complex {2.0, 0.0}};

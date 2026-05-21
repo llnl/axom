@@ -44,7 +44,11 @@ public:
    *
    * \pre `capacity > 0`.
    */
-  explicit LRUCache(std::size_t capacity) : m_capacity(capacity) { assert(m_capacity > 0); }
+  explicit LRUCache(std::size_t capacity) : m_capacity(capacity)
+  {
+    assert(m_capacity > 0);
+    m_entries.reserve(m_capacity);
+  }
 
   /*!
    * \brief Find an entry by key and promote it to most-recently-used position.

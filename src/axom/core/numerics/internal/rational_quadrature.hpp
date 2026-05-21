@@ -139,6 +139,10 @@ void compute_rational_fejer_data_m11(axom::ArrayView<const Complex> poles_m11,
  * \param [out] diagnostics Diagnostic structure populated by the construction.
  * \param [in] allocatorID Allocator used for diagnostic arrays.
  *
+ * \note Diagnostics are intended for host-side testing and debugging. The
+ * nested arrays in \c RationalFejerDiagnostics should be allocated with a
+ * host-accessible allocator.
+ *
  * \pre `poles_m11` is non-empty and all finite real poles lie outside `[-1,1]`.
  */
 void compute_rational_fejer_diagnostics_m11(axom::ArrayView<const Complex> poles_m11,
@@ -156,6 +160,10 @@ void compute_rational_fejer_diagnostics_m11(axom::ArrayView<const Complex> poles
  * \param [in] poles01 Pole sequence in the `[0,1]` coordinate system.
  * \param [out] diagnostics Diagnostic structure populated by the construction.
  * \param [in] allocatorID Allocator used for diagnostic arrays.
+ *
+ * \note Diagnostics are intended for host-side testing and debugging. The
+ * nested arrays in \c RationalFejerDiagnostics should be allocated with a
+ * host-accessible allocator.
  *
  * \pre `poles01` is non-empty and all finite real poles lie outside `[0,1]`.
  */
