@@ -53,10 +53,8 @@ public:
     assert(m_nodes.size() == m_weights.size());
   }
 
-  /// \brief Copy a non-owning rule into owned arrays
-  QuadratureRule(const QuadratureRuleView& rule, int allocatorID = axom::getDefaultAllocatorID())
-    : QuadratureRule(rule.nodes(), rule.weights(), allocatorID)
-  { }
+  //! \brief Copy a non-owning rule into owned arrays
+  QuadratureRule(const QuadratureRuleView& rule, int allocatorID = axom::getDefaultAllocatorID());
 
   /*!
    * \brief Take ownership of node and weight arrays
@@ -85,8 +83,8 @@ public:
   //! \brief Accessor for the size of the quadrature rule
   int getNumPoints() const { return static_cast<int>(m_nodes.size()); }
 
-  /// \brief Return a non-owning view rule backed by this owned rule
-  QuadratureRuleView view() const { return QuadratureRuleView {m_nodes.view(), m_weights.view()}; }
+  //! \brief Return a non-owning view rule backed by this owned rule
+  QuadratureRuleView view() const;
 
 private:
   axom::Array<double> m_nodes;
@@ -145,6 +143,15 @@ private:
   axom::ArrayView<const double> m_nodes;
   axom::ArrayView<const double> m_weights;
 };
+
+inline QuadratureRule::QuadratureRule(const QuadratureRuleView& rule, int allocatorID)
+  : QuadratureRule(rule.nodes(), rule.weights(), allocatorID)
+{ }
+
+inline QuadratureRuleView QuadratureRule::view() const
+{
+  return QuadratureRuleView {m_nodes.view(), m_weights.view()};
+}
 
 /*!
  * \brief Computes a 1D quadrature rule of Gauss-Legendre points

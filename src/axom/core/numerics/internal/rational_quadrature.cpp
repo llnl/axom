@@ -57,12 +57,6 @@ inline Complex powInteger(Complex base, int exponent)
   return result;
 }
 
-struct RationalFejerRuleStorage
-{
-  axom::Array<double> nodes;
-  axom::Array<double> weights;
-};
-
 class Pole
 {
   // Lightweight wrapper for poles in the reference [-1,1] domain. Keeping the
@@ -1545,37 +1539,39 @@ void internal::compute_rational_fejer_diagnostics(axom::ArrayView<const std::com
                                           allocatorID);
 }
 
-QuadratureRuleView get_rational_fejer(axom::ArrayView<const std::complex<double>> poles01, int allocatorID)
+QuadratureRuleView get_rational_fejer(axom::ArrayView<const std::complex<double>> poles01,
+                                      int allocatorID)
 {
   internal::validatePoleSequence(poles01, 0.0, 1.0, "[0,1]");
 
   constexpr std::size_t MAX_RATIONAL_FEJER_CACHED_RULES = 1u << 16;
-  static axom::LRUCache<std::string, internal::RationalFejerRuleStorage> rule_library(
-    MAX_RATIONAL_FEJER_CACHED_RULES);
+  static axom::LRUCache<std::string, QuadratureRule> rule_library(MAX_RATIONAL_FEJER_CACHED_RULES);
   static std::mutex rule_library_mutex;
 
   const std::string key = internal::make_rational_fejer_key(poles01, allocatorID);
 
   {
     const std::lock_guard<std::mutex> lock(rule_library_mutex);
-    if(auto* storage = rule_library.find(key))
+    if(auto* rule = rule_library.find(key))
     {
-      return QuadratureRuleView {storage->nodes.view(), storage->weights.view()};
+      return rule->view();
     }
   }
 
-  internal::RationalFejerRuleStorage storage;
-  compute_rational_fejer_data(poles01, storage.nodes, storage.weights, allocatorID);
+  axom::Array<double> nodes;
+  axom::Array<double> weights;
+  compute_rational_fejer_data(poles01, nodes, weights, allocatorID);
+  QuadratureRule rule {std::move(nodes), std::move(weights)};
 
   {
     const std::lock_guard<std::mutex> lock(rule_library_mutex);
-    if(auto* cached_storage = rule_library.find(key))
+    if(auto* cached_rule = rule_library.find(key))
     {
-      return QuadratureRuleView {cached_storage->nodes.view(), cached_storage->weights.view()};
+      return cached_rule->view();
     }
 
-    auto& cached_storage = rule_library.insert(key, std::move(storage));
-    return QuadratureRuleView {cached_storage.nodes.view(), cached_storage.weights.view()};
+    auto& cached_rule = rule_library.insert(key, std::move(rule));
+    return cached_rule.view();
   }
 }
 
