@@ -72,13 +72,9 @@ inline void compute_chebyshev_first_kind_data_m11(int n,
 class RationalChebyshevHelper
 {
 public:
-  explicit RationalChebyshevHelper(axom::Array<Pole> poles) : m_poles(std::move(poles))
-  {
-    for(auto& pole : m_poles)
-    {
-      pole = pole.withPositiveImaginaryMagnitude().normalizedInfinite(m_infinitePoleThreshold);
-    }
-  }
+  explicit RationalChebyshevHelper(PoleSequence poles)
+    : m_poles(poles.normalizedForRationalChebyshev(infinitePoleThreshold()).toPoleArray())
+  { }
 
   void compute(axom::Array<double>& nodes, axom::Array<double>& weights) const
   {
@@ -94,7 +90,7 @@ public:
       return;
     }
 
-    const auto distinct_poles = collectDistinctPoles(poles, m_poleTolerance);
+    const auto distinct_poles = collectDistinctPoles(poles, poleTolerance());
     if(distinct_poles.values.size() == 1 && terminal_cayley_node == 0.0)
     {
       // The all-infinite-pole case reduces to the standard Chebyshev first-kind rule.
@@ -126,7 +122,7 @@ private:
       return terminal_cayley_node;
     }
 
-    if(std::abs(terminal_cayley_node) <= 1.0 / (2.0 * m_infinitePoleThreshold))
+    if(std::abs(terminal_cayley_node) <= 1.0 / (2.0 * infinitePoleThreshold()))
     {
       poles.back() = Pole::infinity();
       return 0.0;
@@ -143,8 +139,7 @@ private:
   {
     // Collapse the cyclic pole list into distinct Cayley-domain poles and
     // multiplicities before evaluating the angle contributions.
-    const auto cyclic_poles = makeCyclicPoleSequence(poles);
-    const auto distinct_poles = collectDistinctPoles(cyclic_poles, m_poleTolerance);
+    const auto distinct_poles = PoleSequence {poles}.cyclic().distinct(poleTolerance());
 
     const axom::IndexType num_distinct_poles = distinct_poles.values.size();
 
@@ -368,9 +363,11 @@ private:
     return weights;
   }
 
+  static double infinitePoleThreshold() { return 5.0 / axom::numeric_limits<double>::epsilon(); }
+
+  static double poleTolerance() { return 5.0 * axom::numeric_limits<double>::epsilon(); }
+
   axom::Array<Pole> m_poles;
-  double m_infinitePoleThreshold {5.0 / axom::numeric_limits<double>::epsilon()};
-  double m_poleTolerance {5.0 * axom::numeric_limits<double>::epsilon()};
 };
 
 /// \brief Builds the rational Chebyshev rule used by the extended rational Fejer rule.
@@ -381,7 +378,7 @@ void compute_rational_chebyshev_data(axom::ArrayView<const Pole> poles_in,
                                      axom::Array<double>& nodes,
                                      axom::Array<double>& weights)
 {
-  RationalChebyshevHelper helper {axom::Array<Pole>(poles_in)};
+  RationalChebyshevHelper helper {PoleSequence {poles_in}};
   helper.compute(nodes, weights);
 }
 
@@ -391,11 +388,12 @@ void compute_rational_chebyshev_data_m11(axom::ArrayView<const Complex> poles_m1
                                          axom::Array<double>& weights,
                                          int allocatorID)
 {
-  validatePoleSequence(poles_m11, -1.0, 1.0, "[-1,1]");
+  const PoleSequence poles = PoleSequence::fromComplex(poles_m11);
+  poles.validate(-1.0, 1.0, "[-1,1]");
 
   axom::Array<double> nodes_tmp;
   axom::Array<double> weights_tmp;
-  compute_rational_chebyshev_data(makePoleArray(poles_m11), nodes_tmp, weights_tmp);
+  compute_rational_chebyshev_data(poles.view(), nodes_tmp, weights_tmp);
   copy_array_to_array(nodes_tmp, nodes, allocatorID);
   copy_array_to_array(weights_tmp, weights, allocatorID);
 }

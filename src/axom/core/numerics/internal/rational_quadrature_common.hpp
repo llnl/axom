@@ -22,6 +22,7 @@
 #include <iostream>
 #include <limits>
 #include <string>
+#include <utility>
 
 namespace axom
 {
@@ -477,6 +478,152 @@ inline DistinctPoleData collectDistinctPoles(axom::ArrayView<const Pole> poles, 
 
   return distinct;
 }
+
+/// \brief Owning sequence of rational quadrature poles.
+///
+/// This class keeps general pole-sequence transformations close to the pole
+/// representation without taking ownership of algorithm-specific steps such as
+/// the Fejer coefficient solve.
+class PoleSequence
+{
+public:
+  PoleSequence() = default;
+
+  explicit PoleSequence(axom::Array<Pole> poles) : m_poles(std::move(poles)) { }
+
+  explicit PoleSequence(axom::ArrayView<const Pole> poles) : m_poles(poles) { }
+
+  /// \brief Converts complex pole values into a PoleSequence.
+  static PoleSequence fromComplex(axom::ArrayView<const Complex> pole_values)
+  {
+    return PoleSequence {makePoleArray(pole_values)};
+  }
+
+  /// \brief Converts unit-interval pole values to the [-1,1] reference domain.
+  static PoleSequence fromUnitInterval(axom::ArrayView<const Complex> poles01)
+  {
+    return fromComplex(poles01).mappedUnitIntervalToM11();
+  }
+
+  axom::ArrayView<const Pole> view() const { return m_poles.view(); }
+
+  const axom::Array<Pole>& array() const { return m_poles; }
+
+  axom::IndexType size() const { return m_poles.size(); }
+
+  bool empty() const { return m_poles.empty(); }
+
+  const Pole& operator[](axom::IndexType idx) const { return m_poles[idx]; }
+
+  /// \brief Copies this sequence to an owning pole array.
+  axom::Array<Pole> toPoleArray() const { return axom::Array<Pole>(m_poles.view()); }
+
+  /// \brief Copies this sequence to complex pole values.
+  axom::Array<Complex> toComplexArray(int allocatorID = axom::getDefaultAllocatorID()) const
+  {
+    axom::Array<Complex> values(m_poles.size(), m_poles.size(), allocatorID);
+    for(axom::IndexType i = 0; i < m_poles.size(); ++i)
+    {
+      values[i] = m_poles[i].value();
+    }
+    return values;
+  }
+
+  /// \brief Maps poles from [0,1] coordinates to [-1,1] coordinates.
+  PoleSequence mappedUnitIntervalToM11() const
+  {
+    axom::Array<Pole> result(m_poles.size(), m_poles.size());
+    for(axom::IndexType i = 0; i < m_poles.size(); ++i)
+    {
+      const Pole& pole = m_poles[i];
+      result[i] =
+        pole.isInfinite() ? Pole::infinity() : Pole {2.0 * pole.value() - Complex {1.0, 0.0}};
+    }
+    return PoleSequence {std::move(result)};
+  }
+
+  /// \brief Validates the sequence against a construction domain.
+  void validate(double lower, double upper, const char* domain_name) const
+  {
+    validatePoleSequence(m_poles.view(), lower, upper, domain_name);
+  }
+
+  /// \brief Returns the canonical conjugate-complete form of this sequence.
+  PoleSequence canonicalized(double tol) const
+  {
+    return PoleSequence {canonicalizePoleSequence(toPoleArray(), tol)};
+  }
+
+  /// \brief Returns a sequence with very large finite poles replaced by infinity.
+  PoleSequence normalizedInfinity(double threshold) const
+  {
+    axom::Array<Pole> result = toPoleArray();
+    for(auto& pole : result)
+    {
+      pole = pole.normalizedInfinite(threshold);
+    }
+    return PoleSequence {std::move(result)};
+  }
+
+  /// \brief Returns a canonical sequence with very large finite poles replaced by infinity.
+  PoleSequence canonicalizedAndNormalized(double pole_tolerance, double infinite_pole_threshold) const
+  {
+    return canonicalized(pole_tolerance).normalizedInfinity(infinite_pole_threshold);
+  }
+
+  /// \brief Returns upper-half-plane representatives for complex conjugate pairs.
+  PoleSequence withPositiveImaginaryMagnitude() const
+  {
+    axom::Array<Pole> result = toPoleArray();
+    for(auto& pole : result)
+    {
+      pole = pole.withPositiveImaginaryMagnitude();
+    }
+    return PoleSequence {std::move(result)};
+  }
+
+  /// \brief Returns the pole form expected by the rational Chebyshev construction.
+  ///
+  /// Algorithm 882 evaluates complex-conjugate pairs through upper-half-plane
+  /// representatives and treats very large finite poles as the Chebyshev
+  /// polynomial limit.
+  PoleSequence normalizedForRationalChebyshev(double infinite_pole_threshold) const
+  {
+    axom::Array<Pole> result = toPoleArray();
+    for(auto& pole : result)
+    {
+      pole = pole.withPositiveImaginaryMagnitude().normalizedInfinite(infinite_pole_threshold);
+    }
+    return PoleSequence {std::move(result)};
+  }
+
+  /// \brief Returns this sequence with a trailing infinity pole.
+  PoleSequence withAppendedInfinity() const
+  {
+    return PoleSequence {appendInfinityPole(m_poles.view())};
+  }
+
+  /// \brief Returns the cyclic sequence used by the rational Chebyshev construction.
+  PoleSequence cyclic() const { return PoleSequence {makeCyclicPoleSequence(m_poles.view())}; }
+
+  /// \brief Collapses the sequence into distinct representatives plus multiplicities.
+  DistinctPoleData distinct(double tol) const { return collectDistinctPoles(m_poles.view(), tol); }
+
+  /// \brief Counts poles in a subrange that match a target pole.
+  int countMatching(const Pole& target, int begin, int end, double tol) const
+  {
+    return countMatchingPoles(m_poles.view(), target, begin, end, tol);
+  }
+
+  /// \brief Collects one-based offsets of poles in a subrange that match a target pole.
+  axom::Array<int> matchingOffsets(const Pole& target, int begin, int end, double tol) const
+  {
+    return collectMatchingPoleOffsets(m_poles.view(), target, begin, end, tol);
+  }
+
+private:
+  axom::Array<Pole> m_poles;
+};
 
 /// \brief Maps a rule from [-1,1] coordinates to [0,1] coordinates.
 inline void map_rule_m11_to_unit_interval(axom::ArrayView<const double> nodes_m11,
