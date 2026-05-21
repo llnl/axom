@@ -74,12 +74,26 @@ public:
   double imag() const { return m_value.imag(); }
   const Complex& value() const { return m_value; }
 
+  bool hasNaN() const { return std::isnan(m_value.real()) || std::isnan(m_value.imag()); }
+
+  bool hasFiniteCoordinates() const
+  {
+    return std::isfinite(m_value.real()) && std::isfinite(m_value.imag());
+  }
+
   bool isInfinite() const
   {
     return std::isinf(m_value.real()) || std::isinf(m_value.imag()) || std::isinf(std::abs(m_value));
   }
 
   bool isEffectivelyReal(double tol) const { return std::abs(m_value.imag()) <= tol; }
+
+  bool liesOnRealInterval(double lower, double upper, double tol) const
+  {
+    return isEffectivelyReal(tol) && m_value.real() >= lower - tol && m_value.real() <= upper + tol;
+  }
+
+  int componentCount(double tol) const { return isEffectivelyReal(tol) ? 1 : 2; }
 
   // Compare poles using relative distance when possible, with explicit handling
   // for zero and infinity so duplicate poles can be canonicalized robustly.
@@ -123,6 +137,12 @@ public:
 
     const double sign = m_value.real() >= 0.0 ? 1.0 : -1.0;
     return Complex {1.0, 0.0} / (m_value + sign * std::sqrt(m_value * m_value - Complex {1.0, 0.0}));
+  }
+
+  Complex cayleyTransformPreservingImaginarySign() const
+  {
+    Complex cayley_value = withPositiveImaginaryMagnitude().cayleyTransform();
+    return m_value.imag() < 0.0 ? std::conj(cayley_value) : cayley_value;
   }
 
   friend bool operator<(const Pole& lhs, const Pole& rhs)
@@ -179,29 +199,48 @@ inline axom::Array<Complex> mapUnitIntervalPolesToM11(axom::ArrayView<const Comp
   axom::Array<Complex> poles_m11(poles01.size(), poles01.size());
   for(axom::IndexType i = 0; i < poles01.size(); ++i)
   {
-    const auto& pole = poles01[i];
-    const auto pole_magnitude = std::abs(pole);
-    poles_m11[i] = std::isinf(pole.real()) || std::isinf(pole.imag()) || std::isinf(pole_magnitude)
-      ? Complex {axom::numeric_limits<double>::infinity(), 0.0}
-      : 2.0 * pole - Complex {1.0, 0.0};
+    const Pole pole {poles01[i]};
+    poles_m11[i] =
+      pole.isInfinite() ? Pole::infinity().value() : 2.0 * pole.value() - Complex {1.0, 0.0};
   }
   return poles_m11;
 }
 
-inline bool isInfinitePoleValue(const Complex& pole)
+inline void validatePole(const Pole& pole,
+                         axom::IndexType pole_index,
+                         double lower,
+                         double upper,
+                         double interval_tol,
+                         const char* domain_name)
 {
-  return std::isinf(pole.real()) || std::isinf(pole.imag()) || std::isinf(std::abs(pole));
-}
+  if(pole.hasNaN())
+  {
+    failRationalFejerPrecondition(
+      axom::fmt::format("Rational Fejer pole {} in {} contains NaN.", pole_index, domain_name));
+  }
 
-inline bool isInvalidFinitePoleValue(const Complex& pole)
-{
-  return !std::isfinite(pole.real()) || !std::isfinite(pole.imag());
-}
+  if(pole.isInfinite())
+  {
+    return;
+  }
 
-inline bool isPoleOnInterval(const Complex& pole, double lower, double upper)
-{
-  const double tol = 16.0 * axom::numeric_limits<double>::epsilon();
-  return std::abs(pole.imag()) <= tol && pole.real() >= lower - tol && pole.real() <= upper + tol;
+  if(!pole.hasFiniteCoordinates())
+  {
+    failRationalFejerPrecondition(
+      axom::fmt::format("Rational Fejer pole {} in {} is neither finite nor infinite.",
+                        pole_index,
+                        domain_name));
+  }
+
+  if(pole.liesOnRealInterval(lower, upper, interval_tol))
+  {
+    failRationalFejerPrecondition(
+      axom::fmt::format("Rational Fejer finite pole {} = ({}, {}) lies on the {} interval.",
+                        pole_index,
+                        pole.real(),
+                        pole.imag(),
+                        domain_name));
+  }
 }
 
 inline void validatePoleSequence(axom::ArrayView<const Complex> poles,
@@ -209,6 +248,8 @@ inline void validatePoleSequence(axom::ArrayView<const Complex> poles,
                                  double upper,
                                  const char* domain_name)
 {
+  const double interval_tol = 16.0 * axom::numeric_limits<double>::epsilon();
+
   if(poles.empty())
   {
     failRationalFejerPrecondition(
@@ -217,35 +258,7 @@ inline void validatePoleSequence(axom::ArrayView<const Complex> poles,
 
   for(axom::IndexType i = 0; i < poles.size(); ++i)
   {
-    const Complex pole = poles[i];
-    if(std::isnan(pole.real()) || std::isnan(pole.imag()))
-    {
-      failRationalFejerPrecondition(
-        axom::fmt::format("Rational Fejer pole {} in {} contains NaN.", i, domain_name));
-    }
-
-    if(isInfinitePoleValue(pole))
-    {
-      continue;
-    }
-
-    if(isInvalidFinitePoleValue(pole))
-    {
-      failRationalFejerPrecondition(
-        axom::fmt::format("Rational Fejer pole {} in {} is neither finite nor infinite.",
-                          i,
-                          domain_name));
-    }
-
-    if(isPoleOnInterval(pole, lower, upper))
-    {
-      failRationalFejerPrecondition(
-        axom::fmt::format("Rational Fejer finite pole {} = ({}, {}) lies on the {} interval.",
-                          i,
-                          pole.real(),
-                          pole.imag(),
-                          domain_name));
-    }
+    validatePole(Pole {poles[i]}, i, lower, upper, interval_tol, domain_name);
   }
 }
 
@@ -254,12 +267,18 @@ inline void validatePoleSequence(axom::ArrayView<const Pole> poles,
                                  double upper,
                                  const char* domain_name)
 {
-  axom::Array<Complex> pole_values(poles.size(), poles.size());
+  const double interval_tol = 16.0 * axom::numeric_limits<double>::epsilon();
+
+  if(poles.empty())
+  {
+    failRationalFejerPrecondition(
+      axom::fmt::format("Rational Fejer quadrature requires at least one pole in {}.", domain_name));
+  }
+
   for(axom::IndexType i = 0; i < poles.size(); ++i)
   {
-    pole_values[i] = poles[i].value();
+    validatePole(poles[i], i, lower, upper, interval_tol, domain_name);
   }
-  validatePoleSequence(pole_values, lower, upper, domain_name);
 }
 
 // Normalize the pole sequence by coalescing near-duplicate poles and keeping
@@ -271,8 +290,8 @@ inline axom::Array<Pole> canonicalizePoleSequence(axom::Array<Pole> poles, doubl
   axom::Array<int> consumed(num_input_poles, num_input_poles);
   consumed.fill(0);
 
-  axom::Array<Pole> ordered_poles(2 * num_input_poles, 2 * num_input_poles);
-  int ordered_count = 0;
+  axom::Array<Pole> ordered_poles;
+  ordered_poles.reserve(2 * num_input_poles);
   for(int i = 0; i < num_input_poles; ++i)
   {
     if(consumed[i])
@@ -289,7 +308,7 @@ inline axom::Array<Pole> canonicalizePoleSequence(axom::Array<Pole> poles, doubl
       }
     }
 
-    ordered_poles[ordered_count++] = pole;
+    ordered_poles.push_back(pole);
     consumed[i] = 1;
 
     if(!pole.isEffectivelyReal(tol))
@@ -308,17 +327,111 @@ inline axom::Array<Pole> canonicalizePoleSequence(axom::Array<Pole> poles, doubl
         }
       }
 
-      ordered_poles[ordered_count++] = conjugate_pole;
+      ordered_poles.push_back(conjugate_pole);
     }
   }
 
-  axom::Array<Pole> result(ordered_count, ordered_count);
-  for(int i = 0; i < ordered_count; ++i)
-  {
-    result[i] = ordered_poles[i];
-  }
+  return ordered_poles;
+}
 
+inline axom::Array<Pole> canonicalizeAndNormalizePoleSequence(axom::ArrayView<const Pole> poles,
+                                                              double pole_tolerance,
+                                                              double infinite_pole_threshold)
+{
+  axom::Array<Pole> canonical_poles =
+    canonicalizePoleSequence(axom::Array<Pole>(poles), pole_tolerance);
+  for(auto& pole : canonical_poles)
+  {
+    pole = pole.normalizedInfinite(infinite_pole_threshold);
+  }
+  return canonical_poles;
+}
+
+inline axom::Array<Pole> appendInfinityPole(axom::ArrayView<const Pole> poles)
+{
+  axom::Array<Pole> result(poles.size() + 1, poles.size() + 1);
+  for(axom::IndexType i = 0; i < poles.size(); ++i)
+  {
+    result[i] = poles[i];
+  }
+  result[poles.size()] = Pole::infinity();
   return result;
+}
+
+inline axom::Array<Pole> makeCyclicPoleSequence(axom::ArrayView<const Pole> poles)
+{
+  // Algorithm 882 uses the cyclic sequence (p_1, ..., p_n, p_1, ..., p_{n-1})
+  // in its rational Chebyshev phase and weight formulas.
+  const axom::IndexType num_cyclic_poles = 2 * poles.size() - 1;
+  axom::Array<Pole> cyclic_poles(num_cyclic_poles, num_cyclic_poles);
+  for(axom::IndexType i = 0; i < poles.size(); ++i)
+  {
+    cyclic_poles[i] = poles[i];
+  }
+  for(axom::IndexType i = 0; i < poles.size() - 1; ++i)
+  {
+    cyclic_poles[poles.size() + i] = poles[i];
+  }
+  return cyclic_poles;
+}
+
+inline int countMatchingPoles(axom::ArrayView<const Pole> poles,
+                              const Pole& target,
+                              int begin,
+                              int end,
+                              double tol)
+{
+  int count = 0;
+  for(int idx = begin; idx < end; ++idx)
+  {
+    if(target.closeTo(poles[idx], tol))
+    {
+      ++count;
+    }
+  }
+  return count;
+}
+
+inline axom::Array<int> collectMatchingPoleOffsets(axom::ArrayView<const Pole> poles,
+                                                   const Pole& target,
+                                                   int begin,
+                                                   int end,
+                                                   double tol)
+{
+  axom::Array<int> offsets;
+  offsets.reserve(end - begin);
+
+  for(int idx = begin; idx < end; ++idx)
+  {
+    if(target.closeTo(poles[idx], tol))
+    {
+      // Offsets are one-based relative positions in the coefficient block
+      // beginning at `begin`; the Deckers moment data is written into those
+      // future coefficient slots.
+      offsets.push_back(idx - begin + 1);
+    }
+  }
+  return offsets;
+}
+
+inline axom::Array<int> interleaveOffsets(axom::ArrayView<const int> even_offsets,
+                                          axom::ArrayView<const int> odd_offsets)
+{
+  assert(even_offsets.size() == odd_offsets.size());
+  axom::Array<int> interleaved(2 * even_offsets.size(), 2 * even_offsets.size());
+  for(axom::IndexType i = 0; i < even_offsets.size(); ++i)
+  {
+    interleaved[2 * i] = even_offsets[i];
+    interleaved[2 * i + 1] = odd_offsets[i];
+  }
+  return interleaved;
+}
+
+inline double rationalFejerPoleTolerance() { return 2.0 * axom::numeric_limits<double>::epsilon(); }
+
+inline double rationalFejerInfinitePoleThreshold()
+{
+  return 2.0 / axom::numeric_limits<double>::epsilon();
 }
 
 // Collapse a sorted pole sequence into distinct representatives plus multiplicities,
@@ -331,37 +444,18 @@ DistinctPoleData collectDistinctPoles(axom::ArrayView<const Pole> poles, double 
   DistinctPoleData distinct;
   // Collapse repeated or near-repeated poles into one representative value and
   // record the multiplicity that the rational basis construction should see.
-  axom::IndexType num_distinct = 0;
-  Pole representative;
-  bool has_representative = false;
+  distinct.values.reserve(sorted.size());
+  distinct.multiplicities.reserve(sorted.size());
   for(const auto& pole : sorted)
   {
-    if(!has_representative || !representative.closeTo(pole, tol))
+    if(distinct.values.empty() || !distinct.values[distinct.values.size() - 1].closeTo(pole, tol))
     {
-      representative = pole;
-      has_representative = true;
-      ++num_distinct;
-    }
-  }
-
-  distinct.values = axom::Array<Pole>(num_distinct, num_distinct);
-  distinct.multiplicities = axom::Array<int>(num_distinct, num_distinct);
-
-  axom::IndexType distinct_index = -1;
-  has_representative = false;
-  for(const auto& pole : sorted)
-  {
-    if(!has_representative || !representative.closeTo(pole, tol))
-    {
-      representative = pole;
-      has_representative = true;
-      ++distinct_index;
-      distinct.values[distinct_index] = pole;
-      distinct.multiplicities[distinct_index] = 1;
+      distinct.values.push_back(pole);
+      distinct.multiplicities.push_back(1);
     }
     else
     {
-      ++distinct.multiplicities[distinct_index];
+      ++distinct.multiplicities[distinct.multiplicities.size() - 1];
     }
   }
 
@@ -405,8 +499,11 @@ inline void map_rule_m11_to_unit_interval(axom::ArrayView<const double> nodes_m1
   }
 }
 
-inline Complex expansion(const Complex& pole, int order, int parity, double tol)
+inline Complex computeAsymptoticPoleMomentIntegral(const Complex& pole, int order, int parity, double tol)
 {
+  // For poles far from [-1,1], the closed-form logarithmic recurrence loses
+  // accuracy. Deckers switches to this inverse-pole expansion and truncates
+  // when the omitted tail is below the requested tolerance.
   int j = 1;
   while(std::log(std::pow(std::abs(pole), 2 * j) * (2 * j + order + 3 - parity) *
                  (2 * j + order + 1 - parity) * tol) < 0.0)
@@ -476,11 +573,13 @@ inline axom::Array<double> computePoleMomentIntegrals(const Pole& pole,
     else
     {
       const int parity = multiplicity % 2;
-      J[multiplicity - 1] = expansion(pole_value, multiplicity, parity, tol);
+      J[multiplicity - 1] =
+        computeAsymptoticPoleMomentIntegral(pole_value, multiplicity, parity, tol);
       if(multiplicity > 1)
       {
         Complex F = J[multiplicity - 1];
-        J[multiplicity - 2] = expansion(pole_value, multiplicity - 1, 1 - parity, tol);
+        J[multiplicity - 2] =
+          computeAsymptoticPoleMomentIntegral(pole_value, multiplicity - 1, 1 - parity, tol);
         for(int k = multiplicity - 2; k >= 1; --k)
         {
           const double parity_term = (k + 1) % 2 == 0 ? 1.0 : -1.0;
@@ -535,28 +634,7 @@ public:
     axom::Array<Pole> poles = m_poles;
     const int n = static_cast<int>(poles.size());
 
-    const Pole last_pole = poles.back();
-    double terminal_cayley_node = 0.0;
-    if(last_pole.isInfinite())
-    {
-      terminal_cayley_node = 0.0;
-    }
-    else
-    {
-      terminal_cayley_node = last_pole.cayleyTransform().real();
-      if(std::abs(terminal_cayley_node) <= 1.0 / (2.0 * m_infinitePoleThreshold))
-      {
-        terminal_cayley_node = 0.0;
-        poles.back() = Pole::infinity();
-      }
-      else
-      {
-        // Algorithm 882 treats the last pole specially: after the Cayley map
-        // its real value fixes one endpoint of the phase equation, while the
-        // pole list itself is reflected back to the original x-domain.
-        poles.back() = Pole {0.5 * (terminal_cayley_node + 1.0 / terminal_cayley_node), 0.0};
-      }
-    }
+    const double terminal_cayley_node = normalizeTerminalPole(poles);
 
     if(n == 1)
     {
@@ -616,24 +694,34 @@ private:
     axom::Array<double> residual_samples;
   };
 
-  RationalChebyshevPoleData buildCayleyPoleData(axom::ArrayView<const Pole> poles) const
+  double normalizeTerminalPole(axom::Array<Pole>& poles) const
   {
-    // The rational Chebyshev phase and weight formulas use the cyclic pole
-    // sequence (p_1, ..., p_n, p_1, ..., p_{n-1}). We collapse that doubled
-    // list into distinct Cayley-domain poles and multiplicities before
-    // evaluating the angle contributions.
-    const axom::IndexType num_duplicated_poles = 2 * poles.size() - 1;
-    axom::Array<Pole> duplicated_poles(num_duplicated_poles, num_duplicated_poles);
-    for(axom::IndexType i = 0; i < poles.size(); ++i)
+    const Pole last_pole = poles.back();
+    double terminal_cayley_node = last_pole.cayleyTransform().real();
+    if(last_pole.isInfinite())
     {
-      duplicated_poles[i] = poles[i];
-    }
-    for(axom::IndexType i = 0; i < poles.size() - 1; ++i)
-    {
-      duplicated_poles[poles.size() + i] = poles[i];
+      return terminal_cayley_node;
     }
 
-    const auto distinct_poles = collectDistinctPoles(duplicated_poles, m_poleTolerance);
+    if(std::abs(terminal_cayley_node) <= 1.0 / (2.0 * m_infinitePoleThreshold))
+    {
+      poles.back() = Pole::infinity();
+      return 0.0;
+    }
+
+    // Algorithm 882 treats the last pole specially: after the Cayley map
+    // its real value fixes one endpoint of the phase equation, while the
+    // pole list itself is reflected back to the original x-domain.
+    poles.back() = Pole {0.5 * (terminal_cayley_node + 1.0 / terminal_cayley_node), 0.0};
+    return terminal_cayley_node;
+  }
+
+  RationalChebyshevPoleData buildCayleyPoleData(axom::ArrayView<const Pole> poles) const
+  {
+    // Collapse the cyclic pole list into distinct Cayley-domain poles and
+    // multiplicities before evaluating the angle contributions.
+    const auto cyclic_poles = makeCyclicPoleSequence(poles);
+    const auto distinct_poles = collectDistinctPoles(cyclic_poles, m_poleTolerance);
 
     const axom::IndexType num_distinct_poles = distinct_poles.values.size();
 
@@ -648,9 +736,7 @@ private:
     {
       // The Cayley transform maps poles outside [-1,1] to the unit disk, where
       // the rational Chebyshev phase and weight formulas are expressed.
-      const Complex cayley_pole = distinct_poles.values[i].isInfinite()
-        ? Complex {0.0, 0.0}
-        : distinct_poles.values[i].cayleyTransform();
+      const Complex cayley_pole = distinct_poles.values[i].cayleyTransform();
       const double radius = std::abs(cayley_pole);
       const double phase = std::arg(cayley_pole);
       const Complex branch_point = (1.0 - radius) * std::exp(Complex {0.0, phase});
@@ -882,28 +968,29 @@ public:
     RationalFejerDiagnostics::Step* step_diagnostics = nullptr,
     int diagnostic_allocator_id = axom::getDefaultAllocatorID()) const
   {
+    assert(component_count == 1 || component_count == 2);
+    assert(num_basis_columns >= component_count);
+    assert(known_integrals.size() >= num_basis_columns);
+
     const int n = static_cast<int>(m_nodes.size());
+    const bool has_imaginary_component = component_count == 2;
+    const int first_unknown_column = num_basis_columns - component_count;
     axom::Array<long double> weighted_row0(n, n);
     weighted_row0.fill(0.0L);
-    axom::Array<long double> weighted_row1(component_count == 2 ? n : 0,
-                                           component_count == 2 ? n : 0);
+    axom::Array<long double> weighted_row1(has_imaginary_component ? n : 0,
+                                           has_imaginary_component ? n : 0);
     weighted_row1.fill(0.0L);
 
-    const Complex pole_value = pole.value();
     // A real pole contributes one basis component. A non-real pole contributes
     // the real and negative-imaginary parts of the same rational factor, which
     // keeps the eventual quadrature weights real.
     for(int i = 0; i < n; ++i)
     {
-      const Complex node_value {m_nodes[i], 0.0};
-      const Complex basis_value = pole.isInfinite()
-        ? powInteger(node_value, multiplicity)
-        : powInteger((Complex {1.0, 0.0} - pole_value * m_nodes[i]) / (node_value - pole_value),
-                     multiplicity);
+      const Complex basis_value = evaluatePoleBasisValue(pole, multiplicity, m_nodes[i]);
 
       weighted_row0[i] =
         static_cast<long double>(m_lambda[i]) * static_cast<long double>(basis_value.real());
-      if(component_count == 2)
+      if(has_imaginary_component)
       {
         weighted_row1[i] =
           static_cast<long double>(m_lambda[i]) * static_cast<long double>(-basis_value.imag());
@@ -914,7 +1001,7 @@ public:
     {
       copy_array_to_array(weighted_row0, step_diagnostics->weighted_row0, diagnostic_allocator_id);
 
-      if(component_count == 2)
+      if(has_imaginary_component)
       {
         copy_array_to_array(weighted_row1, step_diagnostics->weighted_row1, diagnostic_allocator_id);
       }
@@ -922,13 +1009,13 @@ public:
 
     axom::Array<long double> bmat_row0(num_basis_columns, num_basis_columns);
     bmat_row0.fill(0.0L);
-    axom::Array<long double> bmat_row1(component_count == 2 ? num_basis_columns : 0,
-                                       component_count == 2 ? num_basis_columns : 0);
+    axom::Array<long double> bmat_row1(has_imaginary_component ? num_basis_columns : 0,
+                                       has_imaginary_component ? num_basis_columns : 0);
     bmat_row1.fill(0.0L);
     axom::Array<long double> bmat_row0_terms(num_basis_columns * n, num_basis_columns * n);
     bmat_row0_terms.fill(0.0L);
-    axom::Array<long double> bmat_row1_terms(component_count == 2 ? num_basis_columns * n : 0,
-                                             component_count == 2 ? num_basis_columns * n : 0);
+    axom::Array<long double> bmat_row1_terms(has_imaginary_component ? num_basis_columns * n : 0,
+                                             has_imaginary_component ? num_basis_columns * n : 0);
     bmat_row1_terms.fill(0.0L);
     // Project the pole-dependent function against the sampled orthonormal basis.
     // The trailing 1x1 or 2x2 block is then solved for the next basis coefficients.
@@ -942,7 +1029,7 @@ public:
         const long double term0 = weighted_row0[i] * basis_column_value;
         value0 += term0;
         bmat_row0_terms[col * n + i] = term0;
-        if(component_count == 2)
+        if(has_imaginary_component)
         {
           const long double term1 = weighted_row1[i] * basis_column_value;
           value1 += term1;
@@ -950,14 +1037,17 @@ public:
         }
       }
       bmat_row0[col] = value0;
-      if(component_count == 2)
+      if(has_imaginary_component)
       {
         bmat_row1[col] = value1;
       }
     }
 
-    long double rhs0 = static_cast<long double>(known_integrals[num_basis_columns - component_count]);
-    for(int col = 0; col < num_basis_columns - component_count; ++col)
+    long double rhs0 = static_cast<long double>(known_integrals[first_unknown_column]);
+    // Previously solved coefficients already contribute to this projected
+    // moment equation; move those known terms to the right-hand side so the
+    // trailing 1x1 or 2x2 block can be solved directly.
+    for(int col = 0; col < first_unknown_column; ++col)
     {
       rhs0 -= bmat_row0[col] * static_cast<long double>(known_integrals[col]);
     }
@@ -974,19 +1064,19 @@ public:
 
     if(component_count == 1)
     {
-      return axom::Array<double> {static_cast<double>(rhs0 / bmat_row0[num_basis_columns - 1])};
+      return axom::Array<double> {static_cast<double>(rhs0 / bmat_row0[first_unknown_column])};
     }
 
     long double rhs1 = static_cast<long double>(known_integrals[num_basis_columns - 1]);
-    for(int col = 0; col < num_basis_columns - component_count; ++col)
+    for(int col = 0; col < first_unknown_column; ++col)
     {
       rhs1 -= bmat_row1[col] * static_cast<long double>(known_integrals[col]);
     }
 
-    long double a00 = bmat_row0[num_basis_columns - 2];
-    long double a01 = bmat_row0[num_basis_columns - 1];
-    long double a10 = bmat_row1[num_basis_columns - 2];
-    long double a11 = bmat_row1[num_basis_columns - 1];
+    long double a00 = bmat_row0[first_unknown_column];
+    long double a01 = bmat_row0[first_unknown_column + 1];
+    long double a10 = bmat_row1[first_unknown_column];
+    long double a11 = bmat_row1[first_unknown_column + 1];
 
     if(step_diagnostics != nullptr)
     {
@@ -1050,19 +1140,20 @@ public:
     return values;
   }
 
-  axom::Array<double> assembleWeights(axom::ArrayView<const double> coefficients) const
+private:
+  static Complex evaluatePoleBasisValue(const Pole& pole, int multiplicity, double node)
   {
-    // Convert basis coefficients back into point weights by evaluating the
-    // sampled basis expansion and multiplying by the rational Chebyshev weights.
-    axom::Array<double> weights = evaluateExpansion(coefficients);
-    for(int i = 0; i < m_nodes.size(); ++i)
+    const Complex node_value {node, 0.0};
+    if(pole.isInfinite())
     {
-      weights[i] *= m_lambda[i];
+      return powInteger(node_value, multiplicity);
     }
-    return weights;
+
+    const Complex pole_value = pole.value();
+    return powInteger((Complex {1.0, 0.0} - pole_value * node) / (node_value - pole_value),
+                      multiplicity);
   }
 
-private:
   static axom::Array<double> buildBasisColumns(axom::ArrayView<const Complex> cayley_poles,
                                                axom::ArrayView<const double> nodes)
   {
@@ -1176,7 +1267,7 @@ inline int countRationalFejerSteps(axom::ArrayView<const Pole> canonical_poles, 
   while(coeff_index < num_poles + 1)
   {
     const Pole pole = canonical_poles[coeff_index - 1];
-    const int component_count = pole.isEffectivelyReal(pole_tolerance) ? 1 : 2;
+    const int component_count = pole.componentCount(pole_tolerance);
     ++step_count;
     coeff_index += component_count;
   }
@@ -1191,15 +1282,11 @@ inline void compute_rational_fejer_data_m11_impl(axom::ArrayView<const Pole> pol
 {
   validatePoleSequence(poles, -1.0, 1.0, "[-1,1]");
 
-  const double infinite_pole_threshold = 2.0 / axom::numeric_limits<double>::epsilon();
-  const double pole_tolerance = 2.0 * axom::numeric_limits<double>::epsilon();
+  const double infinite_pole_threshold = rationalFejerInfinitePoleThreshold();
+  const double pole_tolerance = rationalFejerPoleTolerance();
 
   axom::Array<Pole> canonical_poles =
-    canonicalizePoleSequence(axom::Array<Pole>(poles), pole_tolerance);
-  for(auto& pole : canonical_poles)
-  {
-    pole = pole.normalizedInfinite(infinite_pole_threshold);
-  }
+    canonicalizeAndNormalizePoleSequence(poles, pole_tolerance, infinite_pole_threshold);
 
   const int num_poles = static_cast<int>(canonical_poles.size());
   axom::Array<Complex> cayley_poles(num_poles, num_poles);
@@ -1207,12 +1294,7 @@ inline void compute_rational_fejer_data_m11_impl(axom::ArrayView<const Pole> pol
   {
     // The rational basis is parameterized in the Cayley-transformed pole domain,
     // while the exact pole integrals are organized using the original pole ordering.
-    const Pole mapped_pole = canonical_poles[i].withPositiveImaginaryMagnitude();
-    cayley_poles[i] = mapped_pole.cayleyTransform();
-    if(canonical_poles[i].imag() < 0.0)
-    {
-      cayley_poles[i] = std::conj(cayley_poles[i]);
-    }
+    cayley_poles[i] = canonical_poles[i].cayleyTransformPreservingImaginarySign();
   }
 
   int diagnostic_step_index = 0;
@@ -1238,14 +1320,9 @@ inline void compute_rational_fejer_data_m11_impl(axom::ArrayView<const Pole> pol
                                                                      allocatorID);
   }
 
-  axom::Array<Pole> rational_chebyshev_poles(num_poles + 1, num_poles + 1);
-  for(int i = 0; i < num_poles; ++i)
-  {
-    rational_chebyshev_poles[i] = canonical_poles[i];
-  }
   // A rational Fejer rule for m finite/infinite poles uses m+1 rational Chebyshev nodes.
   // The appended infinity pole supplies that extra Chebyshev-like degree.
-  rational_chebyshev_poles[num_poles] = Pole::infinity();
+  axom::Array<Pole> rational_chebyshev_poles = appendInfinityPole(canonical_poles);
 
   axom::Array<double> rational_chebyshev_nodes;
   axom::Array<double> rational_chebyshev_weights;
@@ -1275,63 +1352,30 @@ inline void compute_rational_fejer_data_m11_impl(axom::ArrayView<const Pole> pol
   while(coeff_index < num_poles + 1)
   {
     const Pole pole = canonical_poles[coeff_index - 1];
-    const int component_count = pole.isEffectivelyReal(pole_tolerance) ? 1 : 2;
+    const int component_count = pole.componentCount(pole_tolerance);
 
-    int pole_multiplicity_so_far = 0;
-    for(int idx = 0; idx < coeff_index; ++idx)
-    {
-      if(pole.closeTo(canonical_poles[idx], pole_tolerance))
-      {
-        ++pole_multiplicity_so_far;
-      }
-    }
+    const int pole_multiplicity_so_far =
+      countMatchingPoles(canonical_poles, pole, 0, coeff_index, pole_tolerance);
 
     if(pole_multiplicity_so_far == 1)
     {
       // Seed all occurrences of a newly encountered pole with the exact
       // non-orthogonal pole moments from the Deckers construction.
-      int multiplicity = 0;
-      for(int idx = coeff_index - 1; idx < num_poles; ++idx)
-      {
-        if(pole.closeTo(canonical_poles[idx], pole_tolerance))
-        {
-          ++multiplicity;
-        }
-      }
-
-      axom::Array<int> repeated_pole_offsets(multiplicity, multiplicity);
-      int repeated_index = 0;
-      for(int idx = coeff_index - 1; idx < num_poles; ++idx)
-      {
-        if(pole.closeTo(canonical_poles[idx], pole_tolerance))
-        {
-          repeated_pole_offsets[repeated_index++] = idx - (coeff_index - 1) + 1;
-        }
-      }
+      axom::Array<int> repeated_pole_offsets =
+        collectMatchingPoleOffsets(canonical_poles, pole, coeff_index - 1, num_poles, pole_tolerance);
+      const int multiplicity = static_cast<int>(repeated_pole_offsets.size());
 
       if(component_count == 2)
       {
         // Complex poles occupy adjacent coefficient slots in real/imaginary
         // order. Interleaving the matching conjugate offsets maps the exact
         // complex moments onto those real-valued slots.
-        axom::Array<int> conjugate_positions(multiplicity, multiplicity);
-        int conjugate_index = 0;
-        for(int idx = coeff_index - 1; idx < num_poles; ++idx)
-        {
-          if(pole.conjugate().closeTo(canonical_poles[idx], pole_tolerance))
-          {
-            conjugate_positions[conjugate_index++] = idx - (coeff_index - 1) + 1;
-          }
-        }
-        assert(conjugate_index == multiplicity);
-
-        axom::Array<int> interleaved_positions(2 * multiplicity, 2 * multiplicity);
-        for(int i = 0; i < multiplicity; ++i)
-        {
-          interleaved_positions[2 * i] = repeated_pole_offsets[i];
-          interleaved_positions[2 * i + 1] = conjugate_positions[i];
-        }
-        repeated_pole_offsets = std::move(interleaved_positions);
+        axom::Array<int> conjugate_offsets = collectMatchingPoleOffsets(canonical_poles,
+                                                                        pole.conjugate(),
+                                                                        coeff_index - 1,
+                                                                        num_poles,
+                                                                        pole_tolerance);
+        repeated_pole_offsets = interleaveOffsets(repeated_pole_offsets, conjugate_offsets);
       }
 
       const auto pole_integrals =
@@ -1385,6 +1429,8 @@ inline void compute_rational_fejer_data_m11_impl(axom::ArrayView<const Pole> pol
   const axom::Array<double> basis_expansion = basis.evaluateExpansion(basis_coefficients);
   weights = basis_expansion;
   const auto& lambda = basis.lambda();
+  // Convert the solved expansion coefficients back into quadrature weights
+  // by multiplying the basis expansion by the rational Chebyshev weights.
   for(int i = 0; i < weights.size(); ++i)
   {
     weights[i] *= lambda[i];
@@ -1470,15 +1516,11 @@ inline std::string make_rational_fejer_key(axom::ArrayView<const Pole> poles01, 
   // Cache by the canonicalized pole sequence that the rule construction
   // actually uses. This preserves correctness while improving reuse when two
   // numerically equivalent pole lists differ only by tiny root-solver noise.
-  const double infinite_pole_threshold = 2.0 / axom::numeric_limits<double>::epsilon();
-  const double pole_tolerance = 2.0 * axom::numeric_limits<double>::epsilon();
+  const double infinite_pole_threshold = rationalFejerInfinitePoleThreshold();
+  const double pole_tolerance = rationalFejerPoleTolerance();
 
   axom::Array<Pole> canonical_poles =
-    canonicalizePoleSequence(axom::Array<Pole>(poles01), pole_tolerance);
-  for(auto& pole : canonical_poles)
-  {
-    pole = pole.normalizedInfinite(infinite_pole_threshold);
-  }
+    canonicalizeAndNormalizePoleSequence(poles01, pole_tolerance, infinite_pole_threshold);
 
   axom::fmt::memory_buffer key;
   axom::fmt::format_to(std::back_inserter(key), "{}|", allocatorID);
@@ -1558,6 +1600,9 @@ QuadratureRuleView get_rational_fejer(axom::ArrayView<const std::complex<double>
     }
   }
 
+  // Build the rule outside the cache mutex so a slow generated pole family
+  // does not block unrelated cache hits. Recheck under the lock before
+  // insertion in case another thread populated the same key meanwhile.
   axom::Array<double> nodes;
   axom::Array<double> weights;
   compute_rational_fejer_data(poles01, nodes, weights, allocatorID);
