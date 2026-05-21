@@ -351,3 +351,335 @@ TEST(primal_beziertriangle, rational_triangles)
   check_at(0.2, 0.3);
   check_at(0.6, 0.1);
 }
+
+//------------------------------------------------------------------------------
+TEST(primal_beziertriangle, edges)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using BTri = primal::BezierTriangle<CoordType, DIM>;
+  using PointType = BTri::PointType;
+
+  constexpr int ord = 3;
+  BTri poly(ord);
+  BTri rat(ord);
+  rat.getWeights().resize(rat.getControlPoints().size());
+
+  for(int i = 0; i <= ord; ++i)
+  {
+    for(int j = 0; j <= ord - i; ++j)
+    {
+      const int idx = BTri::triIndex(ord, i, j);
+      const auto ii = static_cast<CoordType>(i);
+      const auto jj = static_cast<CoordType>(j);
+      poly(i, j) = PointType {ii, jj, 100. * ii + jj};
+      rat(i, j) = poly(i, j);
+      rat.getWeights()[idx] = 0.25 + idx;
+    }
+  }
+
+  // edge 0: u + v = 1, from (0,1) to (ord,0)
+  {
+    const auto e0 = poly.getEdge(0);
+    EXPECT_EQ(ord, e0.getOrder());
+    EXPECT_FALSE(e0.isRational());
+    EXPECT_EQ(ord + 1, e0.getNumControlPoints());
+    EXPECT_EQ(poly(0, ord), e0.getInitPoint());
+    EXPECT_EQ(poly(ord, 0), e0.getEndPoint());
+  }
+
+  // edge 1: v = 0, from (ord,0) to (0,0)
+  {
+    const auto e1 = poly.getEdge(1);
+    EXPECT_EQ(ord, e1.getOrder());
+    EXPECT_FALSE(e1.isRational());
+    EXPECT_EQ(ord + 1, e1.getNumControlPoints());
+    EXPECT_EQ(poly(ord, 0), e1.getInitPoint());
+    EXPECT_EQ(poly(0, 0), e1.getEndPoint());
+  }
+
+  // edge 2: u = 0, from (0,0) to (0,ord)
+  {
+    const auto e2 = poly.getEdge(2);
+    EXPECT_EQ(ord, e2.getOrder());
+    EXPECT_FALSE(e2.isRational());
+    EXPECT_EQ(ord + 1, e2.getNumControlPoints());
+    EXPECT_EQ(poly(0, 0), e2.getInitPoint());
+    EXPECT_EQ(poly(0, ord), e2.getEndPoint());
+  }
+
+  // weight propagation to rational edge curves
+  {
+    const auto e0 = rat.getEdge(0);
+    EXPECT_TRUE(e0.isRational());
+    EXPECT_EQ(ord, e0.getOrder());
+    ASSERT_EQ(ord + 1, e0.getWeights().size());
+
+    const auto e1 = rat.getEdge(1);
+    EXPECT_TRUE(e1.isRational());
+    EXPECT_EQ(ord, e1.getOrder());
+    ASSERT_EQ(ord + 1, e1.getWeights().size());
+
+    const auto e2 = rat.getEdge(2);
+    EXPECT_TRUE(e2.isRational());
+    EXPECT_EQ(ord, e2.getOrder());
+    ASSERT_EQ(ord + 1, e2.getWeights().size());
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_beziertriangle, split_interior_polynomial)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using BTri = primal::BezierTriangle<CoordType, DIM>;
+  using PointType = BTri::PointType;
+
+  constexpr int ord = 3;
+  BTri tri(ord);
+
+  for(int i = 0; i <= ord; ++i)
+  {
+    for(int j = 0; j <= ord - i; ++j)
+    {
+      const auto ii = static_cast<CoordType>(i);
+      const auto jj = static_cast<CoordType>(j);
+      tri(i, j) = PointType {ii, jj, 10.0 * ii - 3.0 * jj};
+    }
+  }
+
+  const CoordType u = 0.2;
+  const CoordType v = 0.3;
+
+  BTri t0, t1, t2;
+  tri.split(u, v, t0, t1, t2);
+
+  EXPECT_EQ(ord, t0.getOrder());
+  EXPECT_EQ(ord, t1.getOrder());
+  EXPECT_EQ(ord, t2.getOrder());
+  EXPECT_FALSE(t0.isRational());
+  EXPECT_FALSE(t1.isRational());
+  EXPECT_FALSE(t2.isRational());
+
+  // Vertex mapping checks
+  const auto pA = tri.evaluate(0.0, 0.0);
+  const auto pB = tri.evaluate(0.0, 1.0);
+  const auto pC = tri.evaluate(1.0, 0.0);
+  const auto pQ = tri.evaluate(u, v);
+
+  for(int i = 0; i < DIM; ++i)
+  {
+    // t0 -> (B, C, Q)
+    EXPECT_NEAR(pB[i], t0.evaluate(0.0, 0.0)[i], 1e-10);
+    EXPECT_NEAR(pC[i], t0.evaluate(0.0, 1.0)[i], 1e-10);
+    EXPECT_NEAR(pQ[i], t0.evaluate(1.0, 0.0)[i], 1e-10);
+
+    // t1 -> (C, A, Q)
+    EXPECT_NEAR(pC[i], t1.evaluate(0.0, 0.0)[i], 1e-10);
+    EXPECT_NEAR(pA[i], t1.evaluate(0.0, 1.0)[i], 1e-10);
+    EXPECT_NEAR(pQ[i], t1.evaluate(1.0, 0.0)[i], 1e-10);
+
+    // t2 -> (A, B, Q)
+    EXPECT_NEAR(pA[i], t2.evaluate(0.0, 0.0)[i], 1e-10);
+    EXPECT_NEAR(pB[i], t2.evaluate(0.0, 1.0)[i], 1e-10);
+    EXPECT_NEAR(pQ[i], t2.evaluate(1.0, 0.0)[i], 1e-10);
+  }
+
+  // Interior point checks via affine parameter mapping
+  const CoordType s = 0.2;
+  const CoordType t = 0.1;
+
+  // t0 is over vertices (0,1), (1,0), (u,v)
+  {
+    const CoordType u2 = s * u + t;
+    const CoordType v2 = 1.0 + s * (v - 1.0) - t;
+    const auto expected = tri.evaluate(u2, v2);
+    const auto actual = t0.evaluate(s, t);
+    for(int d = 0; d < DIM; ++d)
+    {
+      EXPECT_NEAR(expected[d], actual[d], 1e-12);
+    }
+  }
+
+  // t1 is over vertices (1,0), (0,0), (u,v)
+  {
+    const CoordType u3 = 1.0 + s * (u - 1.0) - t;
+    const CoordType v3 = s * v;
+    const auto expected = tri.evaluate(u3, v3);
+    const auto actual = t1.evaluate(s, t);
+    for(int d = 0; d < DIM; ++d)
+    {
+      EXPECT_NEAR(expected[d], actual[d], 1e-12);
+    }
+  }
+
+  // t2 is over vertices (0,0), (0,1), (u,v)
+  {
+    const CoordType u1 = s * u;
+    const CoordType v1 = t + s * v;
+    const auto expected = tri.evaluate(u1, v1);
+    const auto actual = t2.evaluate(s, t);
+    for(int d = 0; d < DIM; ++d)
+    {
+      EXPECT_NEAR(expected[d], actual[d], 1e-12);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_beziertriangle, split_edge_polynomial)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using BTri = primal::BezierTriangle<CoordType, DIM>;
+  using PointType = BTri::PointType;
+
+  constexpr int ord = 3;
+  BTri tri(ord);
+
+  for(int i = 0; i <= ord; ++i)
+  {
+    for(int j = 0; j <= ord - i; ++j)
+    {
+      const auto ii = static_cast<CoordType>(i);
+      const auto jj = static_cast<CoordType>(j);
+      tri(i, j) = PointType {ii, jj, 10.0 * ii - 3.0 * jj};
+    }
+  }
+
+  const auto pA = tri.evaluate(0.0, 0.0);
+  const auto pB = tri.evaluate(0.0, 1.0);
+  const auto pC = tri.evaluate(1.0, 0.0);
+
+  axom::Array<PointType> vertices {pA, pB, pC};
+
+  const CoordType s = 0.35;
+
+  BTri t0, t1;
+
+  for(int i = 0; i < 3; ++i)
+  {
+    tri.split(i, s, t0, t1);
+
+    EXPECT_EQ(ord, t0.getOrder());
+    EXPECT_EQ(ord, t1.getOrder());
+    EXPECT_FALSE(t0.isRational());
+    EXPECT_FALSE(t1.isRational());
+
+    // Vertex mapping checks
+    const auto pQ = tri.getEdge(i).evaluate(s);
+
+    for(int N = 0; N < DIM; ++N)
+    {
+      EXPECT_NEAR(vertices[(i + 0) % 3][N], t0.evaluate(0.0, 0.0)[N], 1e-10);
+      EXPECT_NEAR(vertices[(i + 1) % 3][N], t0.evaluate(0.0, 1.0)[N], 1e-10);
+
+      EXPECT_NEAR(vertices[(i + 2) % 3][N], t1.evaluate(0.0, 0.0)[N], 1e-10);
+      EXPECT_NEAR(vertices[(i + 0) % 3][N], t1.evaluate(0.0, 1.0)[N], 1e-10);
+
+      // Subtriangles agree at the last vertex
+      EXPECT_NEAR(pQ[N], t0.evaluate(1.0, 0.0)[N], 1e-10);
+      EXPECT_NEAR(pQ[N], t1.evaluate(1.0, 0.0)[N], 1e-10);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_beziertriangle, split_triforce_polynomial)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using BTri = primal::BezierTriangle<CoordType, DIM>;
+  using PointType = BTri::PointType;
+
+  constexpr int ord = 3;
+  BTri tri(ord);
+
+  for(int i = 0; i <= ord; ++i)
+  {
+    for(int j = 0; j <= ord - i; ++j)
+    {
+      const auto ii = static_cast<CoordType>(i);
+      const auto jj = static_cast<CoordType>(j);
+      tri(i, j) = PointType {ii, jj, 10.0 * ii - 3.0 * jj};
+    }
+  }
+
+  const CoordType s0 = 0.25;  // edge0: B->C
+  const CoordType s1 = 0.6;   // edge1: C->A
+  const CoordType s2 = 0.4;   // edge2: A->B
+
+  BTri t1, t2, t3, t4;
+  tri.split(s0, s1, s2, t1, t2, t3, t4);
+
+  EXPECT_EQ(ord, t1.getOrder());
+  EXPECT_EQ(ord, t2.getOrder());
+  EXPECT_EQ(ord, t3.getOrder());
+  EXPECT_EQ(ord, t4.getOrder());
+  EXPECT_FALSE(t1.isRational());
+  EXPECT_FALSE(t2.isRational());
+  EXPECT_FALSE(t3.isRational());
+  EXPECT_FALSE(t4.isRational());
+
+  const auto pA = tri.evaluate(0.0, 0.0);
+  const auto pB = tri.evaluate(0.0, 1.0);
+  const auto pC = tri.evaluate(1.0, 0.0);
+
+  const auto pP0 = tri.getEdge(0).evaluate(s0);
+  const auto pP1 = tri.getEdge(1).evaluate(s1);
+  const auto pP2 = tri.getEdge(2).evaluate(s2);
+
+  for(int d = 0; d < DIM; ++d)
+  {
+    // t1 = Tri(A, P2, P1)
+    EXPECT_NEAR(pA[d], t1.evaluate(0.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pP2[d], t1.evaluate(0.0, 1.0)[d], 1e-10);
+    EXPECT_NEAR(pP1[d], t1.evaluate(1.0, 0.0)[d], 1e-10);
+
+    // t2 = Tri(B, P0, P2)
+    EXPECT_NEAR(pB[d], t2.evaluate(0.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pP0[d], t2.evaluate(0.0, 1.0)[d], 1e-10);
+    EXPECT_NEAR(pP2[d], t2.evaluate(1.0, 0.0)[d], 1e-10);
+
+    // t3 = Tri(C, P1, P0)
+    EXPECT_NEAR(pC[d], t3.evaluate(0.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pP1[d], t3.evaluate(0.0, 1.0)[d], 1e-10);
+    EXPECT_NEAR(pP0[d], t3.evaluate(1.0, 0.0)[d], 1e-10);
+
+    // t4 = Tri(P1, P0, P2)
+    EXPECT_NEAR(pP1[d], t4.evaluate(0.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pP0[d], t4.evaluate(0.0, 1.0)[d], 1e-10);
+    EXPECT_NEAR(pP2[d], t4.evaluate(1.0, 0.0)[d], 1e-10);
+  }
+
+  // Shared interior edges agree (same geometry and orientation for the chosen outputs)
+  const CoordType s = 0.37;
+  const auto eP0P2_from_t2 = t2.getEdge(0).evaluate(s);  // P0 -> P2
+  const auto eP0P2_from_t4 = t4.getEdge(0).evaluate(s);  // P0 -> P2
+
+  const auto eP2P1_from_t1 = t1.getEdge(0).evaluate(s);  // P2 -> P1
+  const auto eP2P1_from_t4 = t4.getEdge(1).evaluate(s);  // P2 -> P1
+
+  const auto eP1P0_from_t3 = t3.getEdge(0).evaluate(s);  // P1 -> P0
+  const auto eP1P0_from_t4 = t4.getEdge(2).evaluate(s);  // P1 -> P0
+
+  for(int d = 0; d < DIM; ++d)
+  {
+    EXPECT_NEAR(eP0P2_from_t2[d], eP0P2_from_t4[d], 1e-12);
+    EXPECT_NEAR(eP2P1_from_t1[d], eP2P1_from_t4[d], 1e-12);
+    EXPECT_NEAR(eP1P0_from_t3[d], eP1P0_from_t4[d], 1e-12);
+  }
+}
+
+int main(int argc, char* argv[])
+{
+  int result = 0;
+
+  ::testing::InitGoogleTest(&argc, argv);
+
+  axom::slic::SimpleLogger logger;
+
+  result = RUN_ALL_TESTS();
+
+  return result;
+}

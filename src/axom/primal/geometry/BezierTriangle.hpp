@@ -27,8 +27,6 @@
 
 #include <vector>
 #include <ostream>
-#include <unordered_map>
-#include <cstdint>
 
 namespace axom
 {
@@ -479,36 +477,41 @@ public:
       const int degPrev = n - (p - 1);
       std::vector<axom::Array<PointType>> currNets(triSize(p));
 
-      for(int a = 0; a <= p; ++a)
+      for(int fixedVcCount = 0; fixedVcCount <= p; ++fixedVcCount)
       {
-        for(int b = 0; b <= p - a; ++b)
+        for(int fixedVbCount = 0; fixedVbCount <= p - fixedVcCount; ++fixedVbCount)
         {
-          const int idx = triIndex(p, a, b);
-          const int c = p - a - b;
+          const int fixedVaCount = p - fixedVcCount - fixedVbCount;
+          const int idx = triIndex(p, fixedVcCount, fixedVbCount);
 
-          // Choose a unique predecessor (and thus a unique evaluation order) to avoid
-          // redundant reductions; the blossom symmetry ensures the final values are
-          // order-independent.
-          const Barycentric* Q = nullptr;
+          // Each net in this "tetrahedral" construction corresponds to a blossom value
+          // b(Vc^fixedVcCount, Vb^fixedVbCount, Va^fixedVaCount) at degree (n-p).
+          //
+          // There are multiple equivalent ways to compute each blossom value (blossom is
+          // symmetric in its arguments). We pick one deterministic predecessor to keep
+          // the recurrence simple and compute each net exactly once.
+          //
+          // Convention: consume Va arguments first, then Vb, then Vc.
           int predIdx = -1;
+          const Barycentric& splitPoint =
+            (fixedVaCount > 0) ? Va : (fixedVbCount > 0) ? Vb : Vc;
 
-          if(c > 0)
+          if(fixedVaCount > 0)
           {
-            predIdx = triIndex(p - 1, a, b);
-            Q = &Va;
+            predIdx = triIndex(p - 1, fixedVcCount, fixedVbCount);
           }
-          else if(b > 0)
+          else if(fixedVbCount > 0)
           {
-            predIdx = triIndex(p - 1, a, b - 1);
-            Q = &Vb;
+            predIdx = triIndex(p - 1, fixedVcCount, fixedVbCount - 1);
           }
           else
           {
-            predIdx = triIndex(p - 1, a - 1, b);
-            Q = &Vc;
+            SLIC_ASSERT(fixedVcCount > 0);
+            predIdx = triIndex(p - 1, fixedVcCount - 1, fixedVbCount);
           }
 
-          currNets[idx] = reduce_once(prevNets[predIdx], degPrev, *Q);
+          SLIC_ASSERT(predIdx >= 0);
+          currNets[idx] = reduce_once(prevNets[predIdx], degPrev, splitPoint);
         }
       }
 
@@ -823,182 +826,6 @@ public:
     restrictToSubtriangle(B, P0, P2, t2);
     restrictToSubtriangle(C, P1, P0, t3);
     restrictToSubtriangle(P1, P0, P2, t4);
-  }
-
-  /*!
-   * \brief Uniform 4-way "triforce" split at edge midpoints
-   *
-   * This is a convenience wrapper for `split(0.5, 0.5, 0.5, ...)`. A future optimized
-   * implementation can exploit the symmetry at \a s=0.5 to share intermediate nets.
-   *
-   * \param [out] t1 Subtriangle near vertex `(0,0)`
-   * \param [out] t2 Subtriangle near vertex `(0,1)`
-   * \param [out] t3 Subtriangle near vertex `(1,0)`
-   * \param [out] t4 Central subtriangle
-   *
-   * \pre getOrder() >= 0
-   * \pre This triangle is polynomial (nonrational)
-   */
-  void uniformSplit(BezierTriangle& t1,
-                    BezierTriangle& t2,
-                    BezierTriangle& t3,
-                    BezierTriangle& t4) const
-  {
-    SLIC_ASSERT(m_ord >= 0);
-    SLIC_ASSERT(!isRational());
-
-    // Optimized uniform subdivision at the edge midpoints (s=0.5) following:
-    // Kenneth I. Joy, "A Uniform Subdivision Method for Triangular Bezier Patches".
-    //
-    // The method constructs a degenerate "Bezier tetrahedron" of intermediate points via
-    // repeated midpoint averaging in the control net, then extracts the four subpatch
-    // control nets from its four faces (three corner triangles + one central triangle).
-    //
-    // Notation: the paper indexes control points as P_{i,j,k} with i+j+k = n and defines
-    // intermediate points P_{i,j,k}^{[n1,n2,n3]} via:
-    //   if n1>0: 1/2( P^{[n1-1,n2,n3]}_{i,j,k} + P^{[n1-1,n2,n3]}_{i-1,j+1,k} )
-    //   if n2>0: 1/2( P^{[n1,n2-1,n3]}_{i,j,k} + P^{[n1,n2-1,n3]}_{i,j-1,k+1} )
-    //   if n3>0: 1/2( P^{[n1,n2,n3-1]}_{i,j,k} + P^{[n1,n2,n3-1]}_{i+1,j,k-1} )
-    //   else:    P_{i,j,k}
-    //
-    // The four output meshes are then:
-    //   Q1 = { P^{[m,0,k]}_{i,0,k} : i+k=n, m=0..i }          (near paper vertex P1)
-    //   Q2 = { P^{[i,m,0]}_{i,j,0} : i+j=n, m=0..j }          (near paper vertex P2)
-    //   Q3 = { P^{[0,j,m]}_{0,j,k} : j+k=n, m=0..k }          (near paper vertex P3)
-    //   Q4 = { P^{[i,j,k]}_{i,j,k} : i+j+k=n }                (central)
-    //
-    // Under this class' (u,v,w) convention, paper (P1,P2,P3) corresponds to (C,B,A),
-    // so Q3->t1 (near A), Q2->t2 (near B), Q1->t3 (near C), Q4->t4 (central).
-
-    const int n = m_ord;
-
-    t1.setOrder(n);
-    t2.setOrder(n);
-    t3.setOrder(n);
-    t4.setOrder(n);
-    t1.getWeights().resize(0);
-    t2.getWeights().resize(0);
-    t3.getWeights().resize(0);
-    t4.getWeights().resize(0);
-
-    // Memoize intermediate values. For a fixed order, all indices are in [0,n], so we can
-    // use a mixed-radix packing with base (n+1) (safe for typical Bezier orders).
-    const std::uint64_t base = static_cast<std::uint64_t>(n + 1);
-    auto make_key = [&](int i, int j, int k, int n1, int n2, int n3) -> std::uint64_t {
-      std::uint64_t key = static_cast<std::uint64_t>(i);
-      key = key * base + static_cast<std::uint64_t>(j);
-      key = key * base + static_cast<std::uint64_t>(k);
-      key = key * base + static_cast<std::uint64_t>(n1);
-      key = key * base + static_cast<std::uint64_t>(n2);
-      key = key * base + static_cast<std::uint64_t>(n3);
-      return key;
-    };
-
-    std::unordered_map<std::uint64_t, PointType> memo;
-    memo.reserve(static_cast<std::size_t>((n + 1) * (n + 1) * (n + 1)));
-
-    // Recursive evaluation of P^{[n1,n2,n3]}_{i,j,k}.
-    std::function<PointType(int, int, int, int, int, int)> eval =
-      [&](int i, int j, int k, int n1, int n2, int n3) -> PointType {
-      SLIC_ASSERT(i >= 0 && j >= 0 && k >= 0);
-      SLIC_ASSERT(i + j + k == n);
-      SLIC_ASSERT(n1 >= 0 && n2 >= 0 && n3 >= 0);
-      SLIC_ASSERT(n1 <= n && n2 <= n && n3 <= n);
-
-      const auto key = make_key(i, j, k, n1, n2, n3);
-      auto it = memo.find(key);
-      if(it != memo.end())
-      {
-        return it->second;
-      }
-
-      PointType out;
-      if(n1 > 0)
-      {
-        SLIC_ASSERT(i > 0);
-        const auto a = eval(i, j, k, n1 - 1, n2, n3);
-        const auto b = eval(i - 1, j + 1, k, n1 - 1, n2, n3);
-        for(int d = 0; d < NDIMS; ++d)
-        {
-          out[d] = T(0.5) * (a[d] + b[d]);
-        }
-      }
-      else if(n2 > 0)
-      {
-        SLIC_ASSERT(j > 0);
-        const auto a = eval(i, j, k, n1, n2 - 1, n3);
-        const auto b = eval(i, j - 1, k + 1, n1, n2 - 1, n3);
-        for(int d = 0; d < NDIMS; ++d)
-        {
-          out[d] = T(0.5) * (a[d] + b[d]);
-        }
-      }
-      else if(n3 > 0)
-      {
-        SLIC_ASSERT(k > 0);
-        const auto a = eval(i, j, k, n1, n2, n3 - 1);
-        const auto b = eval(i + 1, j, k - 1, n1, n2, n3 - 1);
-        for(int d = 0; d < NDIMS; ++d)
-        {
-          out[d] = T(0.5) * (a[d] + b[d]);
-        }
-      }
-      else
-      {
-        // Base: original control point P_{i,j,k} (k implied by n-i-j).
-        SLIC_ASSERT(k == n - i - j);
-        out = (*this)(i, j);
-      }
-
-      memo.emplace(key, out);
-      return out;
-    };
-
-    // Q3 -> t1 : t1(i_local=j, j_local=m) = P^{[0,j,m]}_{0,j,k}, with k = n-j.
-    for(int i_local = 0; i_local <= n; ++i_local)
-    {
-      const int j = i_local;
-      const int k = n - j;
-      for(int j_local = 0; j_local <= n - i_local; ++j_local)
-      {
-        const int m = j_local;
-        t1(i_local, j_local) = eval(0, j, k, 0, j, m);
-      }
-    }
-
-    // Q2 -> t2 : t2(i_local=i, j_local=m) = P^{[i,m,0]}_{i,j,0}, with j = n-i.
-    for(int i_local = 0; i_local <= n; ++i_local)
-    {
-      const int i = i_local;
-      const int j = n - i;
-      for(int j_local = 0; j_local <= n - i_local; ++j_local)
-      {
-        const int m = j_local;
-        t2(i_local, j_local) = eval(i, j, 0, i, m, 0);
-      }
-    }
-
-    // Q1 -> t3 : t3(i_local=k, j_local=m) = P^{[m,0,k]}_{i,0,k}, with i = n-k.
-    for(int i_local = 0; i_local <= n; ++i_local)
-    {
-      const int k = i_local;
-      const int i = n - k;
-      for(int j_local = 0; j_local <= n - i_local; ++j_local)
-      {
-        const int m = j_local;
-        t3(i_local, j_local) = eval(i, 0, k, m, 0, k);
-      }
-    }
-
-    // Q4 -> t4 : t4(i,j) = P^{[i,j,k]}_{i,j,k}, k = n-i-j.
-    for(int i = 0; i <= n; ++i)
-    {
-      for(int j = 0; j <= n - i; ++j)
-      {
-        const int k = n - i - j;
-        t4(i, j) = eval(i, j, k, i, j, k);
-      }
-    }
   }
 
   /*!

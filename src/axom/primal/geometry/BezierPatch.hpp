@@ -2049,10 +2049,13 @@ private:
     return true;
   }
 
-  void fill_projective_patches(BezierPatches<T, NDIMS>& projective, BezierPatches<T, 1>& weights) const
+  void fill_projective_patches(BezierPatch<T, NDIMS>& projective, BezierPatch<T, 1>& weights) const
   {
     SLIC_ASSERT(isRational());
-    SLIC_ASSERT(is_valid_rational());
+    SLIC_ASSERT(isValidRational());
+
+    const int ord_u = getOrder_u();
+    const int ord_v = getOrder_v();
 
     for(int p = 0; p <= ord_u; ++p)
     {
