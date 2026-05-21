@@ -446,7 +446,7 @@ public:
         ->description(
           "Sampling resolution per element for the inout field (x,y,[z]). \n"
           "Determines number of samples per element in determining volume fraction field")
-        ->expected(2, 3)
+        ->expected(1, 3)
         ->check(axom::CLI::PositiveNumber);
 
       std::map<std::string, VolFracSampling> vfsamplingMap {
@@ -803,13 +803,21 @@ int main(int argc, char** argv)
   if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
   {
     int res[3] = {5, 5, 5};
-    for(size_t i = 0; i < std::min(size_t {3}, params.samplingResolution.size()); i++)
+    if(params.samplingResolution.size() == 1)
     {
-      res[i] = params.samplingResolution[i];
+      res[0] = res[1] = res[2] = params.samplingResolution[0];
     }
+    else
+    {
+      for(size_t i = 0; i < std::min(size_t {3}, params.samplingResolution.size()); i++)
+      {
+        res[i] = params.samplingResolution[i];
+      }
+    }
+    axom::ArrayView<int> sampleRes(res, shaper->getDC()->GetMesh()->Dimension());
 
     samplingShaper->setSamplingType(params.vfSampling);
-    samplingShaper->setSamplingResolution(res);
+    samplingShaper->setSamplingResolution(sampleRes);
     samplingShaper->setQuadratureType(params.quadratureType);
     samplingShaper->setVolumeFractionOrder(params.outputOrder);
     samplingShaper->setSamplingMethod(params.samplingMethod);

@@ -154,6 +154,7 @@ public:
     m_bvh.initialize(m_aabbs.view(), m_aabbs.size());
   }
 
+#if defined(AXOM_USE_MFEM)
   /**
     * \brief Samples the inout field over the indexed geometry, possibly using a
     * callback function to project the input points (from the computational mesh)
@@ -161,14 +162,7 @@ public:
     * 
     * \tparam FromDim The dimension of points from the input mesh
     * \tparam ToDim The dimension of points on the indexed shape
-    * \param [in] dc The data collection containing the mesh and associated query points
-    * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
-    * inout samples
-    * \param [in] sampleRes The sampling resolution in each logical direction.
-    * For custom quadrature families, these values specify the per-direction
-    * sample counts directly, which in turn determine the quadrature rule used
-    * in each logical direction.
-    * \param [in] quadratureType The quadrature type to use to construct the sample point locations.
+    * \param [in] mfemState The structure that contains mesh data, query points, and fields.
     * \param [in] projector A callback function to apply to points from the input mesh
     * before querying them on the spatial index
     * 
@@ -178,8 +172,6 @@ public:
     */
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::SamplingMFEMState& mfemState,
-                                                        int sampleRes[3],
-                                                        int quadratureType,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
     using FromPoint = primal::Point<double, FromDim>;
@@ -192,8 +184,6 @@ public:
     auto* mesh = mfemState.m_dc->GetMesh();
     SLIC_ERROR_IF(mesh != nullptr, "No input mesh");
 
-    AXOM_UNUSED_VAR(sampleRes);
-    AXOM_UNUSED_VAR(quadratureType);
     auto& inoutQFuncs = mfemState.m_inoutShapeQFuncs;
     SLIC_ASSERT(inoutQFuncs.Has("positions"));
 
@@ -288,8 +278,6 @@ public:
     */
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::SamplingMFEMState&,
-                                                        int AXOM_UNUSED_PARAM(sampleRes)[3],
-                                                        int AXOM_UNUSED_PARAM(quadratureType),
                                                         PointProjector<FromDim, ToDim>)
   {
     static_assert(ToDim != DIM,
@@ -310,19 +298,16 @@ public:
     AXOM_ANNOTATE_SCOPE("computeVolumeFractionsBaseline");
     SLIC_WARNING_ROOT("computeVolumeFractionsBaseline() not implemented yet");
   }
+#endif
 
 #if defined(AXOM_USE_CONDUIT)
   template <int FromDim, int ToDim = DIM>
   void sampleInOutField(shaping::BlueprintState& bpState,
-                        int sampleRes[3],
-                        int quadratureType,
                         PointProjector<FromDim, ToDim> projector = {})
   {
     auto checkInside = [](const primal::Point<double, DIM>&) -> bool { return false; };
     shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
                                               bpState,
-                                              sampleRes,
-                                              quadratureType,
                                               checkInside,
                                               projector);
   }

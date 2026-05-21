@@ -244,47 +244,6 @@ const std::pair<const char*, axom::numerics::QuadratureType> supported_quadratur
   {"openhalfuniform", axom::numerics::QuadratureType::OpenHalfUniform},
   {"closedgl", axom::numerics::QuadratureType::ClosedGL}};
 
-// Utility function to slice a tetrahedron along a plane
-primal::Polygon<double, 3> slice(const primal::Tetrahedron<double, 3>& tet,
-                                 const primal::Plane<double, 3>& plane)
-{
-  primal::Polygon<double, 3> intersectionPolygon;
-
-  // find intersection vertices
-  for(int i = 0; i < 4; ++i)
-  {
-    for(int j = i + 1; j < 4; ++j)
-    {
-      primal::Segment<double, 3> edge(tet[i], tet[j]);
-      double t {};
-      if(primal::intersect(plane, edge, t))
-      {
-        intersectionPolygon.addVertex(edge.at(t));
-      }
-    }
-  }
-  SLIC_ASSERT(intersectionPolygon.numVertices() <= 4);
-
-  // fix the polygon if it bowties
-  if(intersectionPolygon.numVertices() == 4)
-  {
-    // note: using BezierCurve since Axom doesn't currently have intersect(segment, segment)
-    primal::BezierCurve<double, 2> seg1(1);
-    seg1[0] = Point2D(intersectionPolygon[0][0], intersectionPolygon[0][1]);
-    seg1[1] = Point2D(intersectionPolygon[1][0], intersectionPolygon[1][1]);
-    primal::BezierCurve<double, 2> seg2(1);
-    seg2[0] = Point2D(intersectionPolygon[2][0], intersectionPolygon[2][1]);
-    seg2[1] = Point2D(intersectionPolygon[3][0], intersectionPolygon[3][1]);
-    axom::Array<double> sp, tp;
-
-    if(!primal::intersect(seg1, seg2, sp, tp))
-    {
-      axom::utilities::swap(intersectionPolygon[2], intersectionPolygon[3]);
-    }
-  }
-  return intersectionPolygon;
-}
-
 }  // namespace
 
 /// Test fixture for SamplingShaper tests on MFEM meshes
@@ -2188,7 +2147,7 @@ shapes:
     this->initializeShaping(shape_file.getPath());
 
     primal::Plane<double, 3> plane({0, 0, 1}, z);
-    const auto polygon = slice(tet, plane);
+    const auto polygon = primal::slice(tet, plane);
     const double intersectionArea = polygon.area();
     SLIC_INFO(axom::fmt::format("Area of intersection polygon: {}", intersectionArea));
 
@@ -2386,8 +2345,8 @@ piece = line(end=start)
   this->validateShapeFile(shape_file.getPath());
   this->initializeShaping(shape_file.getPath());
 
-  int sampleRes[3] = {3, 5, 1};
-  this->m_shaper->setSamplingResolution(sampleRes);
+  int sampleRes[3] = {3, 5};
+  this->m_shaper->setSamplingResolution(axom::ArrayView<int> {sampleRes, 2});
   this->m_shaper->setQuadratureType(axom::numerics::QuadratureType::ClosedUniform);
   this->m_shaper->setVolumeFractionOrder(0);
 
@@ -2433,14 +2392,14 @@ piece = line(end=start)
                                      rect_material,
                                      contour_file.getPath()));
 
-  int sampleRes[3] = {3, 5, 1};
+  int sampleRes[3] = {3, 5};
 
   for(const auto& quadrature : supported_quadrature_types)
   {
     this->validateShapeFile(shape_file.getPath());
     this->initializeShaping(shape_file.getPath());
 
-    this->m_shaper->setSamplingResolution(sampleRes);
+    this->m_shaper->setSamplingResolution(axom::ArrayView<int> {sampleRes, 2});
     this->m_shaper->setQuadratureType(quadrature.second);
     this->m_shaper->setVolumeFractionOrder(0);
 
@@ -2520,7 +2479,7 @@ shapes:
   this->initializeShaping(shape_file.getPath());
 
   int sampleRes[3] = {3, 5, 2};
-  this->m_shaper->setSamplingResolution(sampleRes);
+  this->m_shaper->setSamplingResolution(axom::ArrayView<int> {sampleRes, 3});
   this->m_shaper->setQuadratureType(axom::numerics::QuadratureType::ClosedUniform);
   this->m_shaper->setVolumeFractionOrder(0);
 
@@ -2568,7 +2527,7 @@ shapes:
   this->initializeShaping(shape_file.getPath(), initialGridFunctions);
 
   int sampleRes[3] = {3, 4, 5};
-  this->m_shaper->setSamplingResolution(sampleRes);
+  this->m_shaper->setSamplingResolution(axom::ArrayView<int> {sampleRes, 3});
   this->m_shaper->setQuadratureType(axom::numerics::QuadratureType::OpenUniform);
   this->m_shaper->setVolumeFractionOrder(4);
 
@@ -2594,11 +2553,11 @@ TEST_F(CurvedSampleTester2D, positions_match_curved_mesh_for_anisotropic_custom_
   });
   nodes->ProjectCoefficient(warp);
 
-  int sampleRes[3] = {5, 3, 1};
+  int sampleRes[3] = {5, 3};
   quest::shaping::QFunctionCollection qfuncs;
   quest::shaping::generatePositionsQFunction(&mesh,
                                              qfuncs,
-                                             sampleRes,
+                                             axom::ArrayView<int> {sampleRes, 2},
                                              axom::numerics::QuadratureType::OpenUniform);
 
   auto* positions = qfuncs.Get("positions");
@@ -2638,9 +2597,9 @@ TEST_F(CurvedSampleTester2D, generate_sampling_positions_is_idempotent)
   quest::shaping::SamplingMFEMState mfemState;
   mfemState.m_dc = &this->getDC();
 
-  int sampleRes[3] = {3, 2, 1};
+  int sampleRes[] = {3, 2};
   quest::shaping::generateSamplingPositions(mfemState,
-                                            sampleRes,
+                                            axom::ArrayView<int>{sampleRes, 2},
                                             axom::numerics::QuadratureType::OpenUniform);
 
   auto* positions = mfemState.m_inoutShapeQFuncs.Get("positions");
@@ -2650,7 +2609,7 @@ TEST_F(CurvedSampleTester2D, generate_sampling_positions_is_idempotent)
   const int initialNumPoints = qspace->GetElementIntRule(0).GetNPoints();
 
   quest::shaping::generateSamplingPositions(mfemState,
-                                            sampleRes,
+                                            axom::ArrayView<int>{sampleRes, 2},
                                             axom::numerics::QuadratureType::ClosedUniform);
 
   EXPECT_EQ(mfemState.m_inoutShapeQFuncs.Get("positions"), positions);

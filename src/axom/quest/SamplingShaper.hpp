@@ -148,6 +148,7 @@ public:
     : Shaper(execPolicy, allocatorId, shapeSet, dc)
   {
     initializeSamplingMFEMState();
+    initializeSamplingResolution();
   }
 #endif
 
@@ -159,7 +160,9 @@ public:
                  sidre::Group* bpMesh,
                  const std::string& topo = "")
     : Shaper(execPolicy, allocatorId, shapeSet, bpMesh, topo)
-  { }
+  {
+    initializeSamplingResolution();
+  }
 
   /// Blueprint-compatible constructor
   SamplingShaper(RuntimePolicy execPolicy,
@@ -168,7 +171,9 @@ public:
                  conduit::Node& bpNode,
                  const std::string& topo = "")
     : Shaper(execPolicy, allocatorId, shapeSet, bpNode, topo)
-  { }
+  {
+    initializeSamplingResolution();
+  }
 #endif
 
   ~SamplingShaper() override = default;
@@ -218,10 +223,13 @@ public:
    */
   void setSamplingResolution(int sampleRes)
   {
-    SLIC_ASSERT(sampleRes > 0);
-    m_sampleResolution[0] = sampleRes;
-    m_sampleResolution[1] = sampleRes;
-    m_sampleResolution[2] = sampleRes;
+    SLIC_ERROR_IF(sampleRes < 1, "Invalid sample resolution");
+    m_samplingResolution.clear();
+    const auto dim = meshDimension();
+    for(int d = 0; d < dim; d++)
+    {
+      m_samplingResolution.push_back(sampleRes);
+    }
   }
 
   /*!
@@ -233,17 +241,21 @@ public:
    * which in turn determine the quadrature rule used in each logical
    * direction.
    *
-   * \param [in] sampleRes Array containing the sample count per logical
-   *                       direction.
+   * \param [in] sampleRes ArrayView containing the sample count per logical
+   *                       direction. The size needs to match the number of
+   *                       mesh dimensions.
    */
-  void setSamplingResolution(int sampleRes[3])
+  void setSamplingResolution(axom::ArrayView<int> sampleRes)
   {
-    SLIC_ASSERT(sampleRes[0] > 0);
-    SLIC_ASSERT(sampleRes[1] > 0);
-    SLIC_ASSERT(sampleRes[2] > 0);
-    m_sampleResolution[0] = sampleRes[0];
-    m_sampleResolution[1] = sampleRes[1];
-    m_sampleResolution[2] = sampleRes[2];
+    const auto dim = meshDimension();
+    SLIC_ERROR_IF(static_cast<axom::IndexType>(dim) != sampleRes.size(),
+                  "Number of sample resolutions does not match mesh dimension.");
+    m_samplingResolution.clear();
+    for(int d = 0; d < dim; d++)
+    {
+      SLIC_ERROR_IF(sampleRes[d] < 1, "Invalid sample resolution");
+      m_samplingResolution.push_back(sampleRes[d]);
+    }
   }
 
   // Deprecated backward compatibility method
@@ -280,6 +292,17 @@ public:
   }
 #endif
 protected:
+  /// Initializes the sampling resolution array based on the mesh dimension.
+  void initializeSamplingResolution()
+  {
+    // Initialize the default number of samples based on the mesh dimension.
+    const int dim = meshDimension();
+    for(int d = 0; d < dim; d++)
+    {
+      m_samplingResolution.push_back(5);
+    }
+  }
+
   /*!
    * \brief Verifies the input mesh.
    *
@@ -505,29 +528,7 @@ public:
   /*!
    * \brief Turn the in/out samples into material in/out fields
    */
-  void adjustVolumeFractions() override
-  {
-    AXOM_ANNOTATE_SCOPE("adjustVolumeFractions");
-
-    internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
-                                                                      : slic::message::Warning);
-
-    for(const auto& materialName : m_knownMaterials)
-    {
-      const auto matName = axom::fmt::format("mat_inout_{}", materialName);
-      SLIC_INFO_ROOT(
-        axom::fmt::format("Generating volume fraction fields for '{}' material", matName));
-
-      switch(m_vfSampling)
-      {
-      case shaping::VolFracSampling::SAMPLE_AT_QPTS:
-        this->computeVolumeFractionsForMaterial(matName);
-        break;
-      case shaping::VolFracSampling::SAMPLE_AT_DOFS:
-        break;
-      }
-    }
-  }
+  void adjustVolumeFractions() override;
 
   /// Prints out the names of the registered fields related to shapes and materials
   /// This function is intended to help with debugging
@@ -541,38 +542,8 @@ public:
   virtual void saveResults(bool extra) override;
 
 private:
-#if defined(AXOM_USE_MFEM)
-  void ensureSamplingPositions(shaping::SamplingMFEMState& mfemState)
-  {
-    shaping::generateSamplingPositions(mfemState, m_sampleResolution, m_quadratureType);
-  }
-#endif
-#if defined(AXOM_USE_CONDUIT)
-  void ensureSamplingPositions(shaping::BlueprintState& bpState)
-  {
-    shaping::generateSamplingPositions(bpState, m_sampleResolution, m_quadratureType);
-  }
-#endif
-
   /// Return the mesh dimension.
-  int meshDimension() const
-  {
-    const int InvalidDimension = -1;
-    int dim = InvalidDimension;
-#if defined(AXOM_USE_CONDUIT)
-    if(m_mfem_state)
-    {
-      dim = m_bp_state->meshDimension();
-    }
-#endif
-#if defined(AXOM_USE_CONDUIT)
-    if(dim == InvalidDimension && m_bp_state)
-    {
-      dim = m_bp_state->meshDimension();
-    }
-#endif
-    return dim;
-  }
+  int meshDimension() const;
 
   // Handles 2D or 3D shaping for compatible samplers, based on the template and associated parameter
   template <typename MeshState, typename SamplerType>
@@ -581,7 +552,7 @@ private:
     // Sample the InOut field at the mesh quadrature points
     if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
     {
-      ensureSamplingPositions(meshState);
+      shaping::generateSamplingPositions(meshState, m_samplingResolution.view(), m_quadratureType);
     }
 
     const int meshDim = meshDimension();
@@ -594,15 +565,11 @@ private:
         if(meshDim == 2)
         {
           sampler->template sampleInOutField<2, 2>(meshState,
-                                                   m_sampleResolution,
-                                                   static_cast<int>(m_quadratureType),
                                                    m_projector22);
         }
         else if(meshDim == 3)
         {
           sampler->template sampleInOutField<3, 2>(meshState,
-                                                   m_sampleResolution,
-                                                   static_cast<int>(m_quadratureType),
                                                    m_projector32);
         }
         break;
@@ -610,15 +577,11 @@ private:
         if(meshDim == 2)
         {
           sampler->template sampleInOutField<2, 3>(meshState,
-                                                   m_sampleResolution,
-                                                   static_cast<int>(m_quadratureType),
                                                    m_projector23);
         }
         else if(meshDim == 3)
         {
           sampler->template sampleInOutField<3, 3>(meshState,
-                                                   m_sampleResolution,
-                                                   static_cast<int>(m_quadratureType),
                                                    m_projector33);
         }
         break;
@@ -707,12 +670,13 @@ private:
   void runShapeQueryImpl(shaping::PrimitiveSampler<DIM, ExecSpace>* sampler)
   {
     auto runImpl = [this, sampler](auto& meshState) {
-      const int meshDim = meshDimension();
+      int meshDim = meshDimension();
       if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
       {
-        ensureSamplingPositions(meshState);
+        shaping::generateSamplingPositions(meshState, m_samplingResolution.view(), m_quadratureType);
       }
 
+    // Sample the InOut field at the mesh quadrature points
     switch(m_vfSampling)
     {
     case shaping::VolFracSampling::SAMPLE_AT_QPTS:
@@ -725,15 +689,11 @@ private:
         if(meshDim == 2)
         {
           sampler->template sampleInOutField<2, 3>(meshState,
-                                                   m_sampleResolution,
-                                                   static_cast<int>(m_quadratureType),
                                                    m_projector23);
         }
         else if(meshDim == 3)
         {
           sampler->template sampleInOutField<3, 3>(meshState,
-                                                   m_sampleResolution,
-                                                   static_cast<int>(m_quadratureType),
                                                    m_projector33);
         }
         break;
@@ -862,14 +822,6 @@ private:
    */
   void computeVolumeFractionsForMaterial(const std::string& matField);
 
-
-  /*!
-   * \brief Determines whether we are using an anisotropic quadrature that we need to work around in MFEM.
-   *
-   * \return True if the quadrature in use is anisotropic; false otherwise.
-   */
-  bool usesAnisotropicCustomTensorQuadrature() const;
-
 private:
   // Holds an instance of the 2D or 3D sampler; only one can be active at a time
   SamplerVariant m_sampler;
@@ -884,7 +836,7 @@ private:
 
   shaping::VolFracSampling m_vfSampling {shaping::VolFracSampling::SAMPLE_AT_QPTS};
   axom::numerics::QuadratureType m_quadratureType {axom::numerics::QuadratureType::Invalid};
-  int m_sampleResolution[3] = {5, 5, 5};
+  axom::Array<int> m_samplingResolution {};
   int m_volfracOrder {2};
   SamplingMethod m_samplingMethod {SamplingMethod::InOut};
 };

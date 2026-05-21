@@ -182,6 +182,11 @@ struct MFEMState
 {
   virtual ~MFEMState() = default;
 
+  int meshDimension() const
+  {
+    return m_dc->GetMesh()->Dimension();
+  }
+
   // For mesh represented as MFEMSidreDataCollection
   sidre::MFEMSidreDataCollection* m_dc {nullptr};
 };
@@ -204,11 +209,6 @@ struct SamplingMFEMState : public MFEMState
 
     m_inoutArrays.DeleteData(true);
     m_inoutArrays.clear();
-  }
-
-  int meshDimension() const
-  {
-    return m_dc->GetMesh()->Dimension();
   }
 
   mfem::QuadratureFunction* getShapeFunction(const std::string& name)
@@ -313,7 +313,9 @@ mfem::QuadratureFunction* cloneInOutFunction(const mfem::QuadratureFunction* qfu
  *
  * \param mesh The mesh
  * \param inoutQFuncs A collection of quadrature functions where the new "position" function will be added.
- * \param sampleResolution The sample resolution in each logical dimension.
+ * \param sampleResolution The sample resolution in each logical dimension. The size of the view should be
+ *                         1 for Invalid \a quadratureType and be equal to the mesh dimension for other
+ *                         \a quadratureType values.
  * \param quadratureType An int corresponding to mfem::Quadrature1D enum values. If
  *                       Invalid is used then the default quadrature is constructed.
  *                       Otherwise, custom quadrature is constructed using the supplied
@@ -322,20 +324,20 @@ mfem::QuadratureFunction* cloneInOutFunction(const mfem::QuadratureFunction* qfu
  */
 void generatePositionsQFunction(mfem::Mesh* mesh,
                                 QFunctionCollection& inoutQFuncs,
-                                int sampleResolution[3],
+                                axom::ArrayView<int> sampleResolution,
                                 axom::numerics::QuadratureType quadratureType);
 
 /**
  * \brief Generates a "position" quadrature function for the supplied MFEM state.
  */
 void generateSamplingPositions(SamplingMFEMState& mfemState,
-                               int sampleResolution[3],
+                               axom::ArrayView<int> sampleResolution,
                                axom::numerics::QuadratureType quadratureType);
 
 void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
                                        const std::string& matField,
                                        int volfracOrder,
-                                       int sampleResolution[3],
+                                       axom::ArrayView<int> sampleResolution,
                                        axom::numerics::QuadratureType quadratureType);
 /*!
  * \brief Identity transform for volume fractions from inout samples
@@ -351,6 +353,22 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
                                     const std::string& name);
 
 /*!
+ * \brief Determines whether the quadrature is anisotropic.
+ *
+ * \param The MFEM mesh used being sampled onto.
+ * \param sampleResolution The sample resolution for each dimension. If \a quadratureType
+ *                         is Invalid, there must be one value, which will be used for each
+ *                         dimension. For other \a quadratureType values, there must be
+ *                         one value per mesh dimension.
+ * \param quadratureType A quadrature type.
+ *
+ * \return True if the specified quadrature is anisotropic, false otherwise.
+ */
+bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh,
+                                           axom::ArrayView<int> sampleResolution,
+                                           axom::numerics::QuadratureType quadratureType);
+
+/*!
   * \brief Samples the inout field over the indexed geometry, possibly using a
   * callback function to project the input points (from the computational mesh)
   * to query points on the spatial index
@@ -364,7 +382,9 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
   * \param [in] mfemState The MFEM state containing the mesh and associated query points
   * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
   * inout samples
-  * \param [in] sampleRes The sampling resolution in each logical direction.
+  * \param [in] sampleRes The sampling resolution in each logical direction. For Invalid quadratureType,
+  *                       there must be 1 value, which will be used for each quadrature dimension. For
+  *                       other quadrature types, there must be 1 value per mesh dimension.
   * For custom quadrature families, these values specify the per-direction
   * sample counts directly, which in turn determine the quadrature rule used
   * in each logical direction.
@@ -379,8 +399,6 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
 template <int FromDim, int ToDim, typename InsideFunc>
 void sampleInOutField(const std::string shapeName,
                       shaping::SamplingMFEMState& mfemState,
-                      int AXOM_UNUSED_PARAM(sampleRes)[3],
-                      int AXOM_UNUSED_PARAM(quadratureType),
                       InsideFunc&& checkInside,
                       PointProjector<FromDim, ToDim> projector = {})
 {
@@ -691,29 +709,18 @@ void copyShapeIntoMaterial(const conduit::Node* shapeNode,
 
 conduit::Node* cloneInOutFunction(const conduit::Node* node);
 
-/**
- * \brief Generates a derived Blueprint quadrature point mesh within the
- *        supplied Blueprint mesh node.
- *
- * \param bpMeshNode The Blueprint mesh node to augment.
- * \param topologyName The source topology name to sample.
- * \param allocatorID Allocator id used for generated storage.
- * \param sampleResolution The sample resolution in each logical dimension.
- * \param quadratureType An int corresponding to `mfem::Quadrature1D` when MFEM
- *        is enabled, or to `axom::numerics::QuadratureType` otherwise.
- */
+// NOTE: exposed so we can call it from testing functions.
 void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
                                  const std::string& topologyName,
                                  int allocatorID,
-                                 int sampleResolution[3],
+                                 axom::ArrayView<int> sampleResolution,
                                  axom::numerics::QuadratureType quadratureType);
-
-/**
+/*!
  * \brief Generates a derived Blueprint quadrature point mesh for the supplied
  *        Blueprint state.
  */
 void generateSamplingPositions(BlueprintState& bpState,
-                               int sampleResolution[3],
+                               axom::ArrayView<int> sampleResolution,
                                axom::numerics::QuadratureType quadratureType);
 
 void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::string& matField);
@@ -745,8 +752,6 @@ void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::strin
 template <int FromDim, int ToDim, typename InsideFunc>
 void sampleInOutField(const std::string& shapeName,
                       shaping::BlueprintState& bpState,
-                      int AXOM_UNUSED_PARAM(sampleRes)[3],
-                      int AXOM_UNUSED_PARAM(quadratureType),
                       InsideFunc&& checkInside,
                       PointProjector<FromDim, ToDim> projector = {})
 {

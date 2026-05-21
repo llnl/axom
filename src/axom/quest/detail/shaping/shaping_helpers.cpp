@@ -35,6 +35,15 @@ namespace quest
 {
 namespace shaping
 {
+
+template <typename MeshState>
+void checkSampleResolution(const MeshState& meshState,
+                           axom::ArrayView<int> sampleResolution,
+                           axom::numerics::QuadratureType quadratureType)
+{
+  SLIC_ERROR_IF(quadratureType != axom::numerics::QuadratureType::Invalid && sampleResolution.size() != meshState.meshDimension(), "Inconsistent mesh dimension and sample resolutions.");
+}
+
 #if defined(AXOM_USE_CONDUIT)
 namespace
 {
@@ -148,8 +157,10 @@ private:
   std::unique_ptr<mfem::IntegrationRule> m_ir;
 };
 
+}  // namespace
+
 bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh,
-                                           const int sampleResolution[3],
+                                           axom::ArrayView<int> sampleResolution,
                                            axom::numerics::QuadratureType quadratureType)
 {
   if(quadratureType == axom::numerics::QuadratureType::Invalid)
@@ -157,18 +168,24 @@ bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh,
     return false;
   }
 
-  switch(mesh.GetTypicalElementGeometry())
-  {
-  case mfem::Geometry::SQUARE:
-    return sampleResolution[0] != sampleResolution[1];
-  case mfem::Geometry::CUBE:
-    return sampleResolution[0] != sampleResolution[1] || sampleResolution[0] != sampleResolution[2];
-  default:
-    return false;
-  }
-}
+  const auto dim = mesh.Dimension();
+  SLIC_ERROR_IF(sampleResolution.size() != static_cast<axom::IndexType>(dim),
+                "Sample resolution dimension does not match mesh dimension");
 
-}  // namespace
+  if(mesh.GetNE() > 0)
+  {
+    switch(mesh.GetTypicalElementGeometry())
+    {
+    case mfem::Geometry::SQUARE:
+      return sampleResolution[0] != sampleResolution[1];
+    case mfem::Geometry::CUBE:
+      return sampleResolution[0] != sampleResolution[1] || sampleResolution[0] != sampleResolution[2];
+    default:
+      return false;
+    }
+  }
+  return mesh.Dimension();
+}
 
 int to_mfem_quadrature_type(axom::numerics::QuadratureType quadratureType)
 {
@@ -374,12 +391,15 @@ mfem::QuadratureSpace* makeDefaultQuadratureSpace(mfem::Mesh* mesh, int sampleRe
 }
 
 mfem::QuadratureSpace* makeCustomQuadratureSpace(mfem::Mesh* mesh,
-                                                 int sampleRes[3],
+                                                 axom::ArrayView<int> sampleRes,
                                                  axom::numerics::QuadratureType quadratureType)
 {
   SLIC_ASSERT(mesh != nullptr);
   const int NE = mesh->GetNE();
   const int dim = mesh->Dimension();
+
+  SLIC_ERROR_IF(sampleRes.size() != static_cast<axom::IndexType>(dim),
+                "Sample resolution dimension does not match mesh dimension");
 
   if(NE < 1)
   {
@@ -449,8 +469,8 @@ void assembleVolumeFractionRHS(const mfem::FiniteElementSpace& fes,
   {
     mfem::Vector elemVec;
     mfem::Array<int> elemVDofs;
-
-    for(int elem = 0; elem < fes.GetNE(); ++elem)
+    const int NE = fes.GetNE();
+    for(int elem = 0; elem < NE; ++elem)
     {
       rhs.AssembleRHSElementVect(*fes.GetFE(elem), *fes.GetElementTransformation(elem), elemVec);
       fes.GetElementVDofs(elem, elemVDofs);
@@ -470,7 +490,7 @@ void assembleVolumeFractionRHS(const mfem::FiniteElementSpace& fes,
 /// Generates a quadrature function corresponding to the mesh "positions" field
 void generatePositionsQFunction(mfem::Mesh* mesh,
                                 QFunctionCollection& inoutQFuncs,
-                                int sampleResolution[3],
+                                axom::ArrayView<int> sampleResolution,
                                 axom::numerics::QuadratureType quadratureType)
 {
   SLIC_ASSERT(mesh != nullptr);
@@ -487,6 +507,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
   mfem::QuadratureSpace* sp = nullptr;
   if(quadratureType == axom::numerics::QuadratureType::Invalid)
   {
+    SLIC_ERROR_IF(sampleResolution.empty(), "Invalid sampleResolution.");
     sp = makeDefaultQuadratureSpace(mesh, sampleResolution[0]);
   }
   else
@@ -551,9 +572,11 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
 }
 
 void generateSamplingPositions(SamplingMFEMState& mfemState,
-                               int sampleResolution[3],
+                               axom::ArrayView<int> sampleResolution,
                                axom::numerics::QuadratureType quadratureType)
 {
+  checkSampleResolution(mfemState, sampleResolution, quadratureType);
+
   if(mfemState.m_inoutShapeQFuncs.Has("positions"))
   {
     return;
@@ -568,7 +591,7 @@ void generateSamplingPositions(SamplingMFEMState& mfemState,
 void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
                                        const std::string& matField,
                                        int volfracOrder,
-                                       int sampleResolution[3],
+                                       axom::ArrayView<int> sampleResolution,
                                        axom::numerics::QuadratureType quadratureType)
 {
   AXOM_ANNOTATE_SCOPE("computeVolumeFractionsForMaterial");
@@ -588,14 +611,13 @@ void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
   mfem::Mesh* mesh = dc->GetMesh();
   const int dim = mesh->Dimension();
   const int NE = mesh->GetNE();
-  const auto geom = mesh->GetTypicalElementGeometry();
 
-  auto samples_per_dim = [=](int sampleRes[3], mfem::Geometry::Type geomType) -> std::string {
-    switch(geomType)
+  auto samples_per_dim = [=](auto sampleRes, int dim) -> std::string {
+    switch(dim)
     {
-    case mfem::Geometry::SQUARE:
+    case 2:
       return axom::fmt::format(" ({} * {})", sampleRes[0], sampleRes[1]);
-    case mfem::Geometry::CUBE:
+    case 3:
       return axom::fmt::format(" ({} * {} * {})", sampleRes[0], sampleRes[1], sampleRes[2]);
     default:
       return std::string();
@@ -606,7 +628,7 @@ void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
                                    "In computeVolumeFractions(): num samples per element {}{} | "
                                    "sample polynomial order {} | total samples {:L}",
                                    sampleNQ,
-                                   samples_per_dim(sampleResolution, geom),
+                                   samples_per_dim(sampleResolution, dim),
                                    sampleOrder,
                                    sampleSZ));
 
@@ -870,7 +892,7 @@ void printRegisteredFieldNames(const BlueprintState& bpState,
 void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
                                  const std::string& topologyName,
                                  int allocatorID,
-                                 int sampleResolution[3],
+                                 axom::ArrayView<int> sampleResolution,
                                  axom::numerics::QuadratureType quadratureType)
 {
   if(bpMeshNode.has_path(axom::fmt::format("topologies/{}", QUADRATURE_TOPOLOGY_NAME)))
@@ -970,9 +992,11 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
 }
 
 void generateSamplingPositions(BlueprintState& bpState,
-                               int sampleResolution[3],
+                               axom::ArrayView<int> sampleResolution,
                                axom::numerics::QuadratureType quadratureType)
 {
+  checkSampleResolution(bpState, sampleResolution, quadratureType);
+
   if(bpState.m_internal_node.has_path(
        axom::fmt::format("topologies/{}", QUADRATURE_TOPOLOGY_NAME)))
   {

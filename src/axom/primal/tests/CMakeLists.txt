@@ -38,6 +38,7 @@ set( primal_tests
     primal_rational_bezier.cpp
     primal_ray_intersect.cpp
     primal_segment.cpp
+    primal_slice.cpp
     primal_sphere.cpp
     primal_solid_angle.cpp
     primal_split.cpp

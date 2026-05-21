@@ -215,11 +215,11 @@ TEST(quest_blueprint_quadrature_mesh, generate_closed_uniform_quad_mesh)
 {
   conduit::Node mesh = makeQuadMesh();
 
-  int sampleResolution[3] = {2, 3, 1};
+  int sampleResolution[] = {2, 3};
   axom::quest::shaping::generateQuadraturePointMesh(mesh,
                                                     "mesh",
                                                     axom::execution_space<axom::SEQ_EXEC>::allocatorID(),
-                                                    sampleResolution,
+                                                    axom::ArrayView<int>{sampleResolution, 2},
                                                     axom::numerics::QuadratureType::ClosedUniform);
 
   conduit::Node info;
@@ -279,7 +279,7 @@ TEST(quest_blueprint_quadrature_mesh, generate_open_uniform_hex_mesh)
   axom::quest::shaping::generateQuadraturePointMesh(mesh,
                                                     "mesh",
                                                     axom::execution_space<axom::SEQ_EXEC>::allocatorID(),
-                                                    sampleResolution,
+                                                    axom::ArrayView<int>{sampleResolution, 3},
                                                     axom::numerics::QuadratureType::OpenUniform);
 
   conduit::Node info;
@@ -325,11 +325,11 @@ TEST(quest_blueprint_quadrature_mesh, generate_closed_uniform_structured_quad_me
 {
   conduit::Node mesh = makeStructuredQuadMesh();
 
-  int sampleResolution[3] = {2, 2, 1};
+  int sampleResolution[] = {2, 2};
   axom::quest::shaping::generateQuadraturePointMesh(mesh,
                                                     "mesh",
                                                     axom::execution_space<axom::SEQ_EXEC>::allocatorID(),
-                                                    sampleResolution,
+                                                    axom::ArrayView<int>{sampleResolution, 2},
                                                     axom::numerics::QuadratureType::ClosedUniform);
 
   conduit::Node info;
@@ -394,10 +394,10 @@ TEST(quest_blueprint_quadrature_mesh, state_wrapper_generation_is_idempotent)
   bpState.m_topology_name = "mesh";
   bpState.m_internal_node = mesh;
 
-  int sampleResolution[3] = {2, 2, 1};
+  int sampleResolution[] = {2, 2};
   axom::quest::shaping::generateSamplingPositions(
     bpState,
-    sampleResolution,
+    axom::ArrayView<int>{sampleResolution, 2},
     axom::numerics::QuadratureType::ClosedUniform);
 
   ASSERT_TRUE(bpState.m_internal_node.has_path("fields/originalElements/values"));
@@ -407,7 +407,7 @@ TEST(quest_blueprint_quadrature_mesh, state_wrapper_generation_is_idempotent)
 
   axom::quest::shaping::generateSamplingPositions(
     bpState,
-    sampleResolution,
+    axom::ArrayView<int>{sampleResolution, 2},
     axom::numerics::QuadratureType::OpenUniform);
 
   EXPECT_TRUE(bpState.m_internal_node.has_path("topologies/quadrature_points"));
@@ -430,10 +430,10 @@ TEST(quest_blueprint_quadrature_mesh, blueprint_state_field_helpers_support_repl
   bpState.m_topology_name = "mesh";
   bpState.m_internal_node = mesh;
 
-  int sampleResolution[3] = {2, 2, 1};
+  int sampleResolution[] = {2, 2};
   axom::quest::shaping::generateSamplingPositions(
     bpState,
-    sampleResolution,
+    axom::ArrayView<int>{sampleResolution, 2},
     axom::numerics::QuadratureType::ClosedUniform);
 
   conduit::Node& shapeField = bpState.m_internal_node["fields/inout_shape"];
@@ -477,10 +477,10 @@ TEST(quest_blueprint_quadrature_mesh, compute_volume_fractions_for_material_from
   bpState.m_topology_name = "mesh";
   bpState.m_internal_node = mesh;
 
-  int sampleResolution[3] = {2, 2, 1};
+  int sampleResolution[] = {2, 2};
   axom::quest::shaping::generateSamplingPositions(
     bpState,
-    sampleResolution,
+    axom::ArrayView<int>{sampleResolution, 2},
     axom::numerics::QuadratureType::ClosedUniform);
 
   conduit::Node* materialField = bpState.createMaterialFunction("mat_inout_test");
@@ -510,10 +510,10 @@ TEST(quest_blueprint_quadrature_mesh,
   bpState.m_topology_name = "mesh";
   bpState.m_internal_node = mesh;
 
-  int sampleResolution[3] = {2, 2, 1};
+  int sampleResolution[] = {2, 2};
   axom::quest::shaping::generateSamplingPositions(
     bpState,
-    sampleResolution,
+    axom::ArrayView<int>{sampleResolution, 2},
     axom::numerics::QuadratureType::OpenUniform);
 
   conduit::Node* materialField = bpState.createMaterialFunction("mat_inout_test");

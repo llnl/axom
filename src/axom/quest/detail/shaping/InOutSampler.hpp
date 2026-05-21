@@ -95,6 +95,7 @@ public:
     m_octree->generateIndex();
   }
 
+#if defined(AXOM_USE_MFEM)
   /*!
    * \brief Samples the inout field over the indexed geometry, possibly using a
    * callback function to project the input points (from the computational mesh)
@@ -115,8 +116,6 @@ public:
    */
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::SamplingMFEMState& mfemState,
-                                                        int sampleRes[3],
-                                                        int quadratureType,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
     using PointType = primal::Point<double, DIM>;
@@ -125,8 +124,6 @@ public:
     auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
     shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
                                               mfemState,
-                                              sampleRes,
-                                              quadratureType,
                                               checkInside,
                                               projector);
   }
@@ -137,8 +134,6 @@ public:
    */
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::SamplingMFEMState&,
-                                                        int AXOM_UNUSED_PARAM(sampleRes)[3],
-                                                        int AXOM_UNUSED_PARAM(quadratureType),
                                                         PointProjector<FromDim, ToDim>)
   {
     static_assert(ToDim != DIM,
@@ -180,12 +175,11 @@ public:
                   "Do not call this function -- it only exists to appease the compiler!"
                   "Projector's return dimension (ToDim), must match class dimension (DIM)");
   }
+#endif
 
 #if defined(AXOM_USE_CONDUIT)
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::BlueprintState& bpState,
-                                                        int sampleRes[3],
-                                                        int quadratureType,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
     using PointType = primal::Point<double, DIM>;
@@ -194,16 +188,12 @@ public:
     auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
     shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
                                               bpState,
-                                              sampleRes,
-                                              quadratureType,
                                               checkInside,
                                               projector);
   }
 
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::BlueprintState&,
-                                                        int AXOM_UNUSED_PARAM(sampleRes)[3],
-                                                        int AXOM_UNUSED_PARAM(quadratureType),
                                                         PointProjector<FromDim, ToDim>)
   {
     static_assert(ToDim != DIM,

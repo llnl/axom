@@ -27,16 +27,26 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: Adds support for reading mfem files with variable order NURBS curves (requires mfem>4.9).
 - Quest: Adds OMP support for fast GWN methods for STL/Triangulated STEP input and linearized NURBS Curve input.
 - Klee: Adds an optional "center" parameter in scale operators that permits scaling relative to a custom center point.
-- Quest: `SamplingShaper` now supports selecting MFEM quadrature families for custom sample-point generation, including anisotropic per-direction sampling resolution on quadrilateral and hexahedral meshes.
+- Quest: `SamplingShaper` now supports selecting MFEM quadrature families for custom sample-point generation, including
+  anisotropic per-direction sampling resolution on quadrilateral and hexahedral meshes. Quadrature type is selected via
+  a new ``setQuadratureType`` method that accepts an enum value from ``mfem::Quadrature1D``. The number of samples in
+  each direction is selected with a new ``setSamplingResolution`` method that accepts an ``axom::ArrayView<int>`` of
+  sample values, one value per mesh dimension. Values can be the same for isotropic sampling or different for anisotropic
+  sampling. The new method replaces the ``setQuadratureOrder`` method, which has been marked as deprecated and will be
+  removed in a future version of Axom.
+- Core: Adds Durand-Kerner polynomial solver which returns the complex roots of a univariate polynomial
+- Core: Adds `axom::Array::pop_back` for API compatibility with `std::vector`
 
 ### Removed
 
 ### Deprecated
+- Core: Deprecates the pointer-based interface to linear-, quadratic- and cubic- polynomial solvers in favor of an ArrayView-based interface
 
 ### Changed
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
 
 ### Fixed
+- Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
 
 ## [Version 0.14.0] - Release date 2026-03-31
 
@@ -49,6 +59,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   leverage error-controlled approximation and a spatial index (BVH).
 - Slic: Adds new Slic macros that allow you to selectively print messages once per call-site. For example,
   `SLIC_INFO_ONCE(msg)` and `SLIC_INFO_ROOT_IF_ONCE(EXP, msg)`.
+- Primal: Adds a new `slice()` operator to slice tetrahedron with a plane, producing a polygon.
 
 ### Changed
 - Primal: Axom's polygon clipping was modified to handle some corner cases.

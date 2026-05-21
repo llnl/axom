@@ -340,6 +340,15 @@ if(EXISTS ${Python_EXECUTABLE})
       OUTPUT_QUIET
       ERROR_QUIET
     )
+
+    # Check if python environment contains mpi4py
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E env
+              "${Python_EXECUTABLE}" -c "import mpi4py"
+      RESULT_VARIABLE MPI4PY_ENV_IMPORT_CODE
+      OUTPUT_QUIET
+      ERROR_QUIET
+    )
 endif()
 
 # If python environment does not contain required modules, check if
@@ -359,7 +368,24 @@ if((NOT PY_ENV_IMPORT_CODE EQUAL 0)
       "\nThe python library installation paths "
       "(and pytest's dependencies pluggy and iniconfig) "
       "can be specified with CMake variables: "
-      "PY_NANOBIND_DIR, CONDUIT_PYTHON_MODULE_DIR, PY_NUMPY_DIR, PY_PYTEST_DIR, PY_PLUGGY_DIR, PY_INICONFIG_DIR ")
+      "PY_NANOBIND_DIR, CONDUIT_PYTHON_MODULE_DIR, PY_NUMPY_DIR, PY_PYTEST_DIR, PY_PLUGGY_DIR, PY_INICONFIG_DIR")
+endif()
+
+# When Axom is configured with MPI,
+# if python environment does not contain required mpi4py module,
+# check if mpi4py library installation path was provided instead.
+if(AXOM_ENABLE_MPI
+   AND
+   (NOT MPI4PY_ENV_IMPORT_CODE EQUAL 0)
+   AND
+   nanobind_ROOT
+   AND
+   (NOT PY_MPI4PY_DIR))
+    message(FATAL_ERROR
+      "Axom's python extension requires mpi4py when Axom library is configured with MPI."
+      "\nThe mpi4py library installation paths "
+      "can be specified with CMake variable: "
+      "PY_MPI4PY_DIR")
 endif()
 
 # "cannot allocate memory in static TLS block" on blueos with cuda and/or clang.

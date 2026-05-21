@@ -3160,6 +3160,25 @@ public:
     }
   }
 
+  /*!
+   * \brief Clip the edges of a NURBS surface to the AABB of the trimming curves
+   *
+   * \param [in] padding The amount to be left on each side of the AABB after clipping
+   * 
+   * \sa NURBSPatch::clip()
+   */
+  void clipToCurves(double padding = 1e-5)
+  {
+    // Take a union of all trimming curve parameter
+    ParameterBoundingBoxType curve_bbox;
+
+    for(auto& curv : m_trimmingCurves) curve_bbox.addBox(curv.boundingBox());
+
+    uncheckedClip(curve_bbox.getMin()[0] - padding,
+                  curve_bbox.getMax()[0] + padding,
+                  curve_bbox.getMin()[1] - padding,
+                  curve_bbox.getMax()[1] + padding);
+  }
   ///@}
 
   ///@{
@@ -3509,23 +3528,224 @@ public:
    * 
    * \return The calculated mean surface normal
    */
-  VectorType calculateTrimmedPatchNormal(int npts = 20) const
+  VectorType calculateTrimmedPatchNormal(int npts = 20, bool useBezierExtraction = true) const
   {
     SLIC_ASSERT(NDIMS == 3);
 
     VectorType ret_vec;
 
-    // Split the patch along the unique knot values to improve convergence
-    for(const auto& nPatch : extractTrimmedBezier())
+    if(useBezierExtraction)
+    {
+      // Split the patch along the unique knot values to improve convergence
+      for(const auto& nPatch : extractTrimmedBezier())
+      {
+        // Integrate the surface normal over the patches
+        ret_vec += evaluate_area_integral(
+          nPatch.getTrimmingCurves(),
+          [&nPatch](Point2D x) -> Vector<T, 3> { return nPatch.normal(x[0], x[1]); },
+          npts);
+      }
+    }
+    else
     {
       // Integrate the surface normal over the patches
       ret_vec += evaluate_area_integral(
-        nPatch.getTrimmingCurves(),
-        [&nPatch](Point2D x) -> Vector<T, 3> { return nPatch.normal(x[0], x[1]); },
+        getTrimmingCurves(),
+        [this](Point2D x) -> Vector<T, 3> { return this->normal(x[0], x[1]); },
         npts);
     }
 
     return ret_vec;
+  }
+
+  /*!
+   * \brief Calculate the unsigned surface area and integrated normal for the trimmed patch
+   *
+   * \param [in] npts The number of quadrature nodes used in each component integral
+   * \param [in] useBezierExtraction Set whether to do Bezier extraction on input for 
+   *               exponential convergence of general NURBS input
+   *
+   * Decomposes the surface into trimmed Bezier components and evaluates the area
+   *   and integrated normal numerically using trimming curves.
+   * Avoids the redundant geometry processing of computing each value separately
+   */
+  std::pair<VectorType, double> calculateTrimmedPatchNormalArea(int npts = 20,
+                                                                bool useBezierExtraction = true) const
+  {
+    SLIC_ASSERT(NDIMS == 3);
+
+    double area = 0.0;
+    VectorType normal {};
+
+    auto accumulate_patch = [&](const auto& nPatch) {
+      const auto area_and_normal = evaluate_area_integral(
+        nPatch.getTrimmingCurves(),
+        [&nPatch](Point2D x) -> Vector<T, 4> {
+          primal::Point<T, 3> eval;
+          primal::Vector<T, 3> Du, Dv;
+          nPatch.evaluateFirstDerivatives(x[0], x[1], eval, Du, Dv);
+          const auto n = Vector<T, 3>::cross_product(Du, Dv);
+          return Vector<T, 4> {n.norm(), n[0], n[1], n[2]};
+        },
+        npts);
+
+      area += area_and_normal[0];
+      normal += VectorType({area_and_normal[1], area_and_normal[2], area_and_normal[3]});
+    };
+
+    if(useBezierExtraction)
+    {
+      for(const auto& nPatch : extractTrimmedBezier())
+      {
+        accumulate_patch(nPatch);
+      }
+    }
+    else
+    {
+      accumulate_patch(*this);
+    }
+
+    return {normal, area};
+  }
+
+  /*!
+   * \brief Return a "clean" trimmed representation suitable for moment and GWN calculation.
+   *
+   * \param [in] normalize_by_span Normalize the patch parameter space
+   * \param [in] ensure_trimmed If the patch isn't trimmed, make trivially trimmed
+   * \param [in] clip_to_curves Clip patch parameter space to AABB of the trimming curves
+   */
+  NURBSPatch cleanedTrimmedRepresentation(bool normalize_by_span = true,
+                                          bool ensure_trimmed = true,
+                                          bool clip_to_curves = true) const
+  {
+    NURBSPatch patch = *this;
+    if(normalize_by_span)
+    {
+      patch.normalizeBySpan();
+    }
+
+    if(ensure_trimmed && !patch.isTrimmed())
+    {
+      patch.makeTriviallyTrimmed();
+    }
+
+    if(clip_to_curves && patch.getNumTrimmingCurves() > 0)
+    {
+      patch.clipToCurves();
+    }
+
+    return patch;
+  }
+
+  /*!
+   * \brief Calculate the surface moments for the trimmed patch for GWN evaluation
+   *
+   * \param [in] npts The number of quadrature nodes used in each component integral
+   * \param [in] useBezierExtraction Set whether to do Bezier extraction on input for 
+   *               exponential convergence of general NURBS input
+   *
+   * Decomposes the surface into trimmed Bezier components and evaluates up to second
+   *   order moments without recomputing quadrature nodes, avoiding the redundant processing
+   *   of evaluating each separately.
+   */
+  template <int ORDER, int NVALS = 4 + (ORDER >= 0 ? 3 : 0) + (ORDER >= 1 ? 9 : 0) + (ORDER >= 2 ? 27 : 0)>
+  primal::Vector<T, NVALS> calculateSurfaceMoments(int npts = 20, bool useBezierExtraction = false) const
+  {
+    // Need to integrate over 4 (for the coordinates and weight of the centroid)
+    //                      + 3 (for the zeroth order moments)
+    //                      + 9 (for the first order moments)
+    //                      + 27 (for the second order moments)
+    Vector<T, NVALS> ret(0.0);
+
+    auto big_ol_integrand = [](const auto& patch, Point2D x) -> Vector<T, NVALS> {
+      Vector<T, NVALS> M(0.0);
+
+      primal::Point<T, 3> eval;
+      primal::Vector<T, 3> Du, Dv;
+      patch.evaluateFirstDerivatives(x[0], x[1], eval, Du, Dv);
+      const auto the_norm = Vector<T, 3>::cross_product(Du, Dv);
+
+      M[0] = the_norm.norm();
+      M[1] = eval[0] * the_norm.norm();
+      M[2] = eval[1] * the_norm.norm();
+      M[3] = eval[2] * the_norm.norm();
+
+      M[4] = the_norm[0];
+      M[5] = the_norm[1];
+      M[6] = the_norm[2];
+
+      if constexpr(ORDER >= 1)
+      {
+        M[7] = eval[0] * the_norm[0];
+        M[8] = eval[0] * the_norm[1];
+        M[9] = eval[0] * the_norm[2];
+        M[10] = eval[1] * the_norm[0];
+        M[11] = eval[1] * the_norm[1];
+        M[12] = eval[1] * the_norm[2];
+        M[13] = eval[2] * the_norm[0];
+        M[14] = eval[2] * the_norm[1];
+        M[15] = eval[2] * the_norm[2];
+
+        if constexpr(ORDER >= 2)
+        {
+          M[16] = eval[0] * eval[0] * the_norm[0];
+          M[17] = eval[0] * eval[0] * the_norm[1];
+          M[18] = eval[0] * eval[0] * the_norm[2];
+          M[19] = eval[0] * eval[1] * the_norm[0];
+          M[20] = eval[0] * eval[1] * the_norm[1];
+          M[21] = eval[0] * eval[1] * the_norm[2];
+          M[22] = eval[0] * eval[2] * the_norm[0];
+          M[23] = eval[0] * eval[2] * the_norm[1];
+          M[24] = eval[0] * eval[2] * the_norm[2];
+          M[25] = eval[1] * eval[0] * the_norm[0];
+          M[26] = eval[1] * eval[0] * the_norm[1];
+          M[27] = eval[1] * eval[0] * the_norm[2];
+          M[28] = eval[1] * eval[1] * the_norm[0];
+          M[29] = eval[1] * eval[1] * the_norm[1];
+          M[30] = eval[1] * eval[1] * the_norm[2];
+          M[31] = eval[1] * eval[2] * the_norm[0];
+          M[32] = eval[1] * eval[2] * the_norm[1];
+          M[33] = eval[1] * eval[2] * the_norm[2];
+          M[34] = eval[2] * eval[0] * the_norm[0];
+          M[35] = eval[2] * eval[0] * the_norm[1];
+          M[36] = eval[2] * eval[0] * the_norm[2];
+          M[37] = eval[2] * eval[1] * the_norm[0];
+          M[38] = eval[2] * eval[1] * the_norm[1];
+          M[39] = eval[2] * eval[1] * the_norm[2];
+          M[40] = eval[2] * eval[2] * the_norm[0];
+          M[41] = eval[2] * eval[2] * the_norm[1];
+          M[42] = eval[2] * eval[2] * the_norm[2];
+        }
+      }
+
+      return M;
+    };
+
+    if(useBezierExtraction)
+    {
+      for(const auto& patch : extractTrimmedBezier())
+      {
+        ret += evaluate_area_integral(
+          patch.getTrimmingCurves(),
+          [&patch, &big_ol_integrand](Point2D x) -> Vector<T, NVALS> {
+            return big_ol_integrand(patch, x);
+          },
+          npts);
+      }
+    }
+    else
+    {
+      const auto& patch = *this;
+      ret += evaluate_area_integral(
+        patch.getTrimmingCurves(),
+        [&patch, &big_ol_integrand](Point2D x) -> Vector<T, NVALS> {
+          return big_ol_integrand(patch, x);
+        },
+        npts);
+    }
+
+    return ret;
   }
   //@}
 
@@ -3712,6 +3932,66 @@ public:
     }
 
     return true;
+  }
+
+  /*!
+   * \brief Split the patch in the longer parametric direction, determined via maximum control-net polyline length.
+   *
+   * We measure the maximum polyline length of the control net in each parametric direction,
+   * - u-length: max over segments ||P(i+1,j) - P(i,j)||
+   * - v-length: max over segments ||P(i,j+1) - P(i,j)||
+   * and split along the direction with the larger maximum. This approximates the geometric stretch along that axis.
+   * 
+   * \note This heuristic considers only control points (and ignores weights for rational patches).
+   */
+  void nearBisectOnLongerAxis(NURBSPatch& p1, NURBSPatch& p2) const
+  {
+    double split_val_u = (getNumKnots_u() == 2 * (getDegree_u() + 1))
+      ? 0.499 * getMinKnot_u() + 0.501 * getMaxKnot_u()
+      : getKnots_u()[getNumKnots_u() / 2];
+
+    double split_val_v = (getNumKnots_v() == 2 * (getDegree_v() + 1))
+      ? 0.502 * getMinKnot_v() + 0.498 * getMaxKnot_v()
+      : getKnots_v()[getNumKnots_v() / 2];
+
+    const auto& cps = getControlPoints();
+    const auto shape = cps.shape();
+    const int nu = shape[0];
+    const int nv = shape[1];
+
+    double u_max_poly_len = 0.0;
+    for(int j = 0; j < nv; ++j)
+    {
+      double len = 0.0;
+      for(int i = 0; i + 1 < nu; ++i)
+      {
+        const auto d = cps(i + 1, j) - cps(i, j);
+        len += d.norm();
+      }
+      u_max_poly_len = axom::utilities::max(u_max_poly_len, len);
+    }
+
+    double v_max_poly_len = 0.0;
+    for(int i = 0; i < nu; ++i)
+    {
+      double len = 0.0;
+      for(int j = 0; j + 1 < nv; ++j)
+      {
+        const auto d = cps(i, j + 1) - cps(i, j);
+        len += d.norm();
+      }
+      v_max_poly_len = axom::utilities::max(v_max_poly_len, len);
+    }
+
+    const bool split_in_u = (u_max_poly_len >= v_max_poly_len);
+    if(split_in_u)
+    {
+      split_u(split_val_u, p1, p2);
+    }
+    else
+    {
+      split_v(split_val_v, p1, p2);
+    }
   }
 
   /*!

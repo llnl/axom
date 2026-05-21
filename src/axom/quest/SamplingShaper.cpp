@@ -259,26 +259,6 @@ void SamplingShaper::prepareShapeQuery(klee::Dimensions shapeDimension, const kl
   }
 
 #if defined(AXOM_USE_MFEM)
-  /// Determines whether we are using an anisotropic quadrature that we need to work around in MFEM.
-  bool SamplingShaper::usesAnisotropicCustomTensorQuadrature() const
-  {
-    if(m_quadratureType == axom::numerics::QuadratureType::Invalid)
-    {
-      return false;
-    }
-
-    switch(meshDimension())
-    {
-    case 2:
-      return m_sampleResolution[0] != m_sampleResolution[1];
-    case 3:
-      return m_sampleResolution[0] != m_sampleResolution[1] ||
-        m_sampleResolution[0] != m_sampleResolution[2];
-    default:
-      return false;
-    }
-  }
-
   /**
    * \brief Import an initial set of material volume fractions before shaping
    *
@@ -294,7 +274,11 @@ void SamplingShaper::prepareShapeQuery(klee::Dimensions shapeDimension, const kl
 
     auto& mfemState = samplingMFEMState();
     auto* mesh = mfemState.m_dc->GetMesh();
-    ensureSamplingPositions(mfemState);
+    // Sample the InOut field at the mesh quadrature points
+    if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
+    {
+      shaping::generateSamplingPositions(mfemState, m_samplingResolution.view(), m_quadratureType);
+    }
     auto* positionsQSpace = mfemState.m_inoutShapeQFuncs.Get("positions")->GetSpace();
 
     // Interpolate grid functions at quadrature points & register material quad functions
@@ -316,7 +300,7 @@ void SamplingShaper::prepareShapeQuery(klee::Dimensions shapeDimension, const kl
       auto* matQFunc = new mfem::QuadratureFunction(*positionsQSpace);
       const auto& ir = matQFunc->GetSpace()->GetIntRule(0);
 
-      if(usesAnisotropicCustomTensorQuadrature())
+      if(shaping::usesAnisotropicCustomTensorQuadrature(*mesh, m_samplingResolution, m_quadratureType))
       {
         // Avoid MFEM's tensor quadrature interpolation path only for
         // anisotropic custom quad/hex rules. MFEM infers a single q1d from
@@ -387,11 +371,14 @@ void SamplingShaper::prepareShapeQuery(klee::Dimensions shapeDimension, const kl
 #if defined(AXOM_USE_MFEM)
     if(m_mfem_state != nullptr)
     {
+      // NOTE: We pass the m_samplingResolution and m_quadratureType values to this
+      //       version of the function so we can detect whether we have anisotropic
+      //       sampling, which is handled differently.
       shaping::computeVolumeFractionsForMaterial(
         samplingMFEMState(),
         matField,
         m_volfracOrder,
-        m_sampleResolution,
+        m_samplingResolution,
         m_quadratureType);
       return;
     }
@@ -406,6 +393,48 @@ void SamplingShaper::prepareShapeQuery(klee::Dimensions shapeDimension, const kl
     SLIC_ERROR("No mesh state is available for SamplingShaper.");
   }
 
+  void SamplingShaper::adjustVolumeFractions()
+  {
+    AXOM_ANNOTATE_SCOPE("adjustVolumeFractions");
+
+    internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
+                                                                      : slic::message::Warning);
+
+    for(const auto& materialName : m_knownMaterials)
+    {
+      const auto matName = axom::fmt::format("mat_inout_{}", materialName);
+      SLIC_INFO_ROOT(
+        axom::fmt::format("Generating volume fraction fields for '{}' material", matName));
+
+      switch(m_vfSampling)
+      {
+      case shaping::VolFracSampling::SAMPLE_AT_QPTS:
+        this->computeVolumeFractionsForMaterial(matName);
+        break;
+      case shaping::VolFracSampling::SAMPLE_AT_DOFS:
+        break;
+      }
+    }
+  }
+
+  int SamplingShaper::meshDimension() const
+  {
+    const int InvalidDimension = -1;
+    int dim = InvalidDimension;
+#if defined(AXOM_USE_CONDUIT)
+    if(m_mfem_state)
+    {
+      dim = m_mfem_state->meshDimension();
+    }
+#endif
+#if defined(AXOM_USE_CONDUIT)
+    if(dim == InvalidDimension && m_bp_state)
+    {
+      dim = m_bp_state->meshDimension();
+    }
+#endif
+    return dim;
+  }
 
 } // end namespace quest
 } // end namespace axom

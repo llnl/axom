@@ -123,6 +123,7 @@ public:
     m_bvh.initialize(aabbs, aabbs.size());
   }
 
+#if defined(AXOM_USE_MFEM)
   /*!
    * \brief Samples the inout field over the indexed geometry, possibly using a
    * callback function to project the input points (from the computational mesh)
@@ -130,14 +131,9 @@ public:
    * 
    * \tparam FromDim The dimension of points from the input mesh
    * \tparam ToDim The dimension of points on the indexed shape
-   * \param [in] dc The data collection containing the mesh and associated query points
-   * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
-   * inout samples
-   * \param [in] sampleRes The sampling resolution in each logical direction.
-   * For custom quadrature families, these values specify the per-direction
-   * sample counts directly, which in turn determine the quadrature rule used
-   * in each logical direction.
-   * \param [in] quadratureType The quadrature type to use to construct the sample point locations.
+   * \param [in] mfemState The SamplingMFEMState object that contains the data collection containing
+   *                       the mesh and associated query points. It also contains a collection of
+   *                       quadrature functions for the shape and material inout samples.
    * \param [in] projector A callback function to apply to points from the input mesh
    * before querying them on the spatial index
    * 
@@ -147,8 +143,6 @@ public:
    */
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::SamplingMFEMState& mfemState,
-                                                        int sampleRes[3],
-                                                        int quadratureType,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
     static_assert(axom::execution_space<ExecSpace>::onDevice() == false,
@@ -167,8 +161,6 @@ public:
     const int NE = mesh->GetNE();
     const int dim = mesh->Dimension();
 
-    AXOM_UNUSED_VAR(sampleRes);
-    AXOM_UNUSED_VAR(quadratureType);
     auto& inoutQFuncs = mfemState.m_inoutShapeQFuncs;
     SLIC_ASSERT(inoutQFuncs.Has("positions"));
 
@@ -263,8 +255,6 @@ public:
    */
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::SamplingMFEMState&,
-                                                        int AXOM_UNUSED_PARAM(sampleRes)[3],
-                                                        int AXOM_UNUSED_PARAM(quadratureType),
                                                         PointProjector<FromDim, ToDim>)
   {
     static_assert(ToDim != DIM,
@@ -316,14 +306,14 @@ public:
                   "Do not call this function -- it only exists to appease the compiler!"
                   "Projector's return dimension (ToDim), must match class dimension (DIM)");
   }
+#endif
 
 #if defined(AXOM_USE_CONDUIT)
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::BlueprintState& bpState,
-                                                        int sampleRes[3],
-                                                        int quadratureType,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
+    AXOM_ANNOTATE_SCOPE("sampleInOutField");
     const auto contourCaches = m_contourCaches;
     auto checkInside = [=](const PointType& pt) -> bool {
       bool inside = false;
@@ -335,16 +325,12 @@ public:
     };
     shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
                                               bpState,
-                                              sampleRes,
-                                              quadratureType,
                                               checkInside,
                                               projector);
   }
 
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::BlueprintState&,
-                                                        int AXOM_UNUSED_PARAM(sampleRes)[3],
-                                                        int AXOM_UNUSED_PARAM(quadratureType),
                                                         PointProjector<FromDim, ToDim>)
   {
     static_assert(ToDim != DIM,
