@@ -36,6 +36,7 @@ set(core_headers
 
     ## numerics
     numerics/internal/matrix_norms.hpp
+    numerics/internal/rational_quadrature_common.hpp
     numerics/internal/rational_quadrature.hpp
 
     numerics/Determinants.hpp
@@ -110,7 +111,8 @@ set(core_sources
     utilities/Utilities.cpp
     ${PROJECT_BINARY_DIR}/axom/core/utilities/About.cpp
 
-    numerics/internal/rational_quadrature.cpp
+    numerics/internal/rational_chebyshev.cpp
+    numerics/internal/rational_fejer.cpp
     numerics/polynomial_solvers.cpp
     numerics/quadrature.cpp
 
