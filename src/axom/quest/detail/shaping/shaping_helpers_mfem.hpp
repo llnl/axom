@@ -11,14 +11,14 @@
 
 #if defined(AXOM_USE_MFEM)
 
-#include "axom/fmt.hpp"
+  #include "axom/fmt.hpp"
 
-#include "mfem.hpp"
-#include "mfem/linalg/dtensor.hpp"
+  #include "mfem.hpp"
+  #include "mfem/linalg/dtensor.hpp"
 
-#include <set>
-#include <string>
-#include <vector>
+  #include <set>
+  #include <string>
+  #include <vector>
 
 namespace axom
 {
@@ -88,8 +88,7 @@ struct SamplingMFEMState : public MFEMState
   {
     auto* positions = m_inoutShapeQFuncs.Get("positions");
     SLIC_ERROR_IF(positions == nullptr,
-                  std::string("Cannot create material function '") + name +
-                    "' without positions.");
+                  std::string("Cannot create material function '") + name + "' without positions.");
 
     auto* qfunc = new mfem::QuadratureFunction(positions->GetSpace(), 1);
     qfunc->HostWrite();
@@ -238,20 +237,15 @@ void computeVolumeFractionsBaseline(const std::string& shapeName,
   }
 
   const auto volFracName = axom::fmt::format("vol_frac_{}", shapeName);
-  mfem::GridFunction* volFrac = shaping::getOrAllocateL2GridFunction(
-    dc,
-    volFracName,
-    outputOrder,
-    dim,
-    mfem::BasisType::Positive);
+  mfem::GridFunction* volFrac =
+    shaping::getOrAllocateL2GridFunction(dc, volFracName, outputOrder, dim, mfem::BasisType::Positive);
   const mfem::FiniteElementSpace* fes = volFrac->FESpace();
 
   auto* fe = fes->GetFE(0);
   auto& ir = fe->GetNodes();
 
   const int nq = ir.GetNPoints();
-  const auto* geomFactors =
-    mesh->GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
+  const auto* geomFactors = mesh->GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
 
   mfem::DenseTensor pos_coef(dim, nq, NE);
   for(int i = 0; i < NE; ++i)

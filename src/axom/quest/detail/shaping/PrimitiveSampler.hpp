@@ -305,10 +305,7 @@ public:
                         PointProjector<FromDim, ToDim> projector = {})
   {
     auto checkInside = [](const primal::Point<double, DIM>&) -> bool { return false; };
-    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
-                                              bpState,
-                                              checkInside,
-                                              projector);
+    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName, bpState, checkInside, projector);
   }
 
   template <int FromDim, int ToDim = DIM>

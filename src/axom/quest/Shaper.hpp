@@ -266,14 +266,12 @@ protected:
   /*!
    * \brief Selects the Blueprint topology name to use and verifies it exists.
    */
-  std::string resolveBlueprintTopologyName(const sidre::Group* bpMesh,
-                                           const std::string& topo) const;
+  std::string resolveBlueprintTopologyName(const sidre::Group* bpMesh, const std::string& topo) const;
 
   /*!
    * \brief Selects the Blueprint topology name to use and verifies it exists.
    */
-  std::string resolveBlueprintTopologyName(const conduit::Node& bpMesh,
-                                           const std::string& topo) const;
+  std::string resolveBlueprintTopologyName(const conduit::Node& bpMesh, const std::string& topo) const;
 
   /*!
    * \brief Rebuilds the internal Conduit view and cached cell count from the

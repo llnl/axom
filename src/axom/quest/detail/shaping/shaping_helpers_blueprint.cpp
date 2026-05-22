@@ -9,12 +9,12 @@
 
 #if defined(AXOM_USE_CONDUIT)
 
-#include "axom/bump/views/dispatch_topology.hpp"
-#include "axom/bump/views/dispatch_unstructured_topology.hpp"
+  #include "axom/bump/views/dispatch_topology.hpp"
+  #include "axom/bump/views/dispatch_unstructured_topology.hpp"
 
-#include "conduit_blueprint_mesh.hpp"
+  #include "conduit_blueprint_mesh.hpp"
 
-#include <vector>
+  #include <vector>
 
 namespace axom
 {
@@ -30,19 +30,17 @@ constexpr const char* QUADRATURE_COORDSET_NAME = "quadrature_points";
 constexpr const char* QUADRATURE_TOPOLOGY_NAME = "quadrature_points";
 constexpr const char* ORIGINAL_ELEMENTS_FIELD_NAME = "originalElements";
 constexpr const char* QUADRATURE_WEIGHTS_FIELD_NAME = "quadratureWeights";
-constexpr const char* QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME =
-  "quadraturePhysicalWeights";
+constexpr const char* QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME = "quadraturePhysicalWeights";
 
-numerics::QuadratureRule getBlueprintQuadratureRule(
-  axom::numerics::QuadratureType quadratureType,
-  int npts,
-  int allocatorID)
+numerics::QuadratureRule getBlueprintQuadratureRule(axom::numerics::QuadratureType quadratureType,
+                                                    int npts,
+                                                    int allocatorID)
 {
   SLIC_ERROR_IF(npts < 1, axom::fmt::format("Invalid sample resolution {}.", npts));
-  SLIC_ERROR_IF(!axom::numerics::is_supported_quadrature_type(quadratureType),
-                axom::fmt::format(
-                  "Quadrature type {} is not yet supported for Blueprint quadrature meshes.",
-                  static_cast<int>(quadratureType)));
+  SLIC_ERROR_IF(
+    !axom::numerics::is_supported_quadrature_type(quadratureType),
+    axom::fmt::format("Quadrature type {} is not yet supported for Blueprint quadrature meshes.",
+                      static_cast<int>(quadratureType)));
 
   return numerics::get_quadrature_rule(quadratureType, npts, allocatorID);
 }
@@ -74,8 +72,7 @@ std::string getBlueprintCellShapeImpl(const conduit::Node& topoNode)
     SLIC_ERROR("Structured Blueprint topology is missing recognizable element dims.");
   }
 
-  SLIC_ERROR(
-    axom::fmt::format("Blueprint topology type '{}' is missing 'elements/shape'.", topoType));
+  SLIC_ERROR(axom::fmt::format("Blueprint topology type '{}' is missing 'elements/shape'.", topoType));
   return "";
 }
 
@@ -90,15 +87,13 @@ void buildBlueprintQuadratureMesh(const conduit::Node& topoNode,
                                   conduit::Node& meshNode)
 {
   namespace views = axom::bump::views;
-  constexpr int SupportedShapes =
-    views::select_shapes(views::Quad_ShapeID, views::Hex_ShapeID);
+  constexpr int SupportedShapes = views::select_shapes(views::Quad_ShapeID, views::Hex_ShapeID);
 
   views::dispatch_topology<views::select_dimensions(2, 3), SupportedShapes>(
     topoNode,
     [&](const auto&, auto topoView) {
-      GenerateQuadratureMesh<ExecSpace, decltype(topoView), CoordsetView> generator(
-        topoView,
-        coordsetView);
+      GenerateQuadratureMesh<ExecSpace, decltype(topoView), CoordsetView> generator(topoView,
+                                                                                    coordsetView);
       generator.setAllocatorID(allocatorID);
       generator.execute(topoNode,
                         coordsetNode,
@@ -143,8 +138,7 @@ void printRegisteredFieldNames(const BlueprintState& bpState,
     std::vector<std::string> names;
     if(bpState.m_internal_node.has_path("fields"))
     {
-      const conduit::Node& fieldsNode =
-        bpState.m_internal_node.fetch_existing("fields");
+      const conduit::Node& fieldsNode = bpState.m_internal_node.fetch_existing("fields");
       for(conduit::index_t i = 0; i < fieldsNode.number_of_children(); ++i)
       {
         const std::string name = fieldsNode.child(i).name();
@@ -161,8 +155,7 @@ void printRegisteredFieldNames(const BlueprintState& bpState,
     std::vector<std::string> names;
     if(bpState.m_internal_node.has_path("fields"))
     {
-      const conduit::Node& fieldsNode =
-        bpState.m_internal_node.fetch_existing("fields");
+      const conduit::Node& fieldsNode = bpState.m_internal_node.fetch_existing("fields");
       for(conduit::index_t i = 0; i < fieldsNode.number_of_children(); ++i)
       {
         const std::string name = fieldsNode.child(i).name();
@@ -177,16 +170,13 @@ void printRegisteredFieldNames(const BlueprintState& bpState,
     return names;
   };
 
-  const std::vector<std::string> topologyNames =
-    bpState.m_internal_node.has_path("topologies")
+  const std::vector<std::string> topologyNames = bpState.m_internal_node.has_path("topologies")
     ? extractChildren(bpState.m_internal_node.fetch_existing("topologies"))
     : std::vector<std::string> {};
-  const std::vector<std::string> coordsetNames =
-    bpState.m_internal_node.has_path("coordsets")
+  const std::vector<std::string> coordsetNames = bpState.m_internal_node.has_path("coordsets")
     ? extractChildren(bpState.m_internal_node.fetch_existing("coordsets"))
     : std::vector<std::string> {};
-  const std::vector<std::string> fieldNames =
-    bpState.m_internal_node.has_path("fields")
+  const std::vector<std::string> fieldNames = bpState.m_internal_node.has_path("fields")
     ? extractChildren(bpState.m_internal_node.fetch_existing("fields"))
     : std::vector<std::string> {};
 
@@ -228,56 +218,47 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
   const conduit::Node& topoNode =
     bpMeshNode.fetch_existing("topologies").fetch_existing(topologyName);
   const std::string topoType = topoNode.fetch_existing("type").as_string();
-  SLIC_ERROR_IF(topoType != "unstructured" && topoType != "structured",
-                axom::fmt::format(
-                  "Unsupported Blueprint topology type '{}' for quadrature mesh generation.",
-                  topoType));
+  SLIC_ERROR_IF(
+    topoType != "unstructured" && topoType != "structured",
+    axom::fmt::format("Unsupported Blueprint topology type '{}' for quadrature mesh generation.",
+                      topoType));
 
   const std::string shape = shaping::getBlueprintCellShape(topoNode);
-  SLIC_ERROR_IF(shape != "quad" && shape != "hex",
-                axom::fmt::format(
-                  "Unsupported Blueprint element shape '{}' for quadrature mesh generation.",
-                  shape));
+  SLIC_ERROR_IF(
+    shape != "quad" && shape != "hex",
+    axom::fmt::format("Unsupported Blueprint element shape '{}' for quadrature mesh generation.",
+                      shape));
 
   const std::string coordsetName = topoNode.fetch_existing("coordset").as_string();
   const conduit::Node& coordsetNode =
     bpMeshNode.fetch_existing("coordsets").fetch_existing(coordsetName);
   const std::string coordsetType = coordsetNode.fetch_existing("type").as_string();
-  SLIC_ERROR_IF(coordsetType != "explicit",
-                axom::fmt::format(
-                  "Unsupported Blueprint coordset type '{}' for quadrature mesh generation.",
-                  coordsetType));
+  SLIC_ERROR_IF(
+    coordsetType != "explicit",
+    axom::fmt::format("Unsupported Blueprint coordset type '{}' for quadrature mesh generation.",
+                      coordsetType));
 
   int selectedAllocatorID = allocatorID;
   if(!axom::execution_space<seq_exec>::usesAllocId(selectedAllocatorID) &&
      !axom::execution_space<omp_exec>::usesAllocId(selectedAllocatorID)
-#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
      && !axom::execution_space<cuda_exec>::usesAllocId(selectedAllocatorID)
-#endif
-#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+  #endif
+  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
      && !axom::execution_space<hip_exec>::usesAllocId(selectedAllocatorID)
-#endif
+  #endif
   )
   {
     selectedAllocatorID = axom::execution_space<seq_exec>::allocatorID();
   }
 
-  auto ruleX = getBlueprintQuadratureRule(
-    quadratureType,
-    sampleResolution[0],
-    selectedAllocatorID);
-  auto ruleY = getBlueprintQuadratureRule(
-    quadratureType,
-    sampleResolution[1],
-    selectedAllocatorID);
+  auto ruleX = getBlueprintQuadratureRule(quadratureType, sampleResolution[0], selectedAllocatorID);
+  auto ruleY = getBlueprintQuadratureRule(quadratureType, sampleResolution[1], selectedAllocatorID);
   const int nz = (sampleResolution.size() > 2) ? sampleResolution[2] : 1;
-  auto ruleZ = getBlueprintQuadratureRule(
-    quadratureType,
-    nz,
-    selectedAllocatorID);
+  auto ruleZ = getBlueprintQuadratureRule(quadratureType, nz, selectedAllocatorID);
 
   axom::bump::views::dispatch_explicit_coordset(coordsetNode, [&](auto coordsetView) {
-#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
     if(axom::execution_space<hip_exec>::usesAllocId(selectedAllocatorID))
     {
       buildBlueprintQuadratureMesh<hip_exec>(topoNode,
@@ -290,8 +271,8 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
                                              bpMeshNode);
       return;
     }
-#endif
-#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+  #endif
+  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
     if(axom::execution_space<cuda_exec>::usesAllocId(selectedAllocatorID))
     {
       buildBlueprintQuadratureMesh<cuda_exec>(topoNode,
@@ -304,7 +285,7 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
                                               bpMeshNode);
       return;
     }
-#endif
+  #endif
     if(axom::execution_space<omp_exec>::usesAllocId(selectedAllocatorID))
     {
       buildBlueprintQuadratureMesh<omp_exec>(topoNode,
@@ -336,8 +317,7 @@ void generateSamplingPositions(BlueprintState& bpState,
   AXOM_ANNOTATE_SCOPE("generateSamplingPositions");
   checkSampleResolution(bpState, sampleResolution, quadratureType);
 
-  if(bpState.m_internal_node.has_path(
-       axom::fmt::format("topologies/{}", QUADRATURE_TOPOLOGY_NAME)))
+  if(bpState.m_internal_node.has_path(axom::fmt::format("topologies/{}", QUADRATURE_TOPOLOGY_NAME)))
   {
     return;
   }
@@ -349,26 +329,24 @@ void generateSamplingPositions(BlueprintState& bpState,
                               quadratureType);
 }
 
-void computeVolumeFractionsForMaterial(BlueprintState& bpState,
-                                       const std::string& matField)
+void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::string& matField)
 {
   AXOM_ANNOTATE_SCOPE("computeVolumeFractionsForMaterial");
 
   SLIC_ASSERT(axom::utilities::string::startsWith(matField, "mat_inout_"));
 
   conduit::Node* inout = bpState.getMaterialFunction(matField);
-  SLIC_ERROR_IF(inout == nullptr,
-                axom::fmt::format(
-                  "Missing Blueprint material field '{}' for volume fraction projection.",
-                  matField));
+  SLIC_ERROR_IF(
+    inout == nullptr,
+    axom::fmt::format("Missing Blueprint material field '{}' for volume fraction projection.",
+                      matField));
 
   conduit::Node& bpMeshNode = bpState.m_internal_node;
   SLIC_ERROR_IF(!bpMeshNode.has_path("fields/originalElements/values"),
                 "Missing Blueprint originalElements field for volume fraction projection.");
-  SLIC_ERROR_IF(
-    !bpMeshNode.has_path("fields/quadraturePhysicalWeights/values") &&
-      !bpMeshNode.has_path("fields/quadratureWeights/values"),
-    "Missing Blueprint quadrature weight field for volume fraction projection.");
+  SLIC_ERROR_IF(!bpMeshNode.has_path("fields/quadraturePhysicalWeights/values") &&
+                  !bpMeshNode.has_path("fields/quadratureWeights/values"),
+                "Missing Blueprint quadrature weight field for volume fraction projection.");
 
   const conduit::Node& topoNode =
     bpMeshNode.fetch_existing("topologies").fetch_existing(bpState.m_topology_name);
@@ -420,25 +398,23 @@ void computeVolumeFractionsForMaterial(BlueprintState& bpState,
 
   for(axom::IndexType zoneIdx = 0; zoneIdx < vfValues.size(); ++zoneIdx)
   {
-    SLIC_ERROR_IF(axom::utilities::isNearlyEqual(totalWeightsView[zoneIdx], 0.0),
-                  axom::fmt::format(
-                    "Blueprint quadrature weights sum to zero in zone {} during volume fraction projection.",
-                    zoneIdx));
+    SLIC_ERROR_IF(
+      axom::utilities::isNearlyEqual(totalWeightsView[zoneIdx], 0.0),
+      axom::fmt::format(
+        "Blueprint quadrature weights sum to zero in zone {} during volume fraction projection.",
+        zoneIdx));
     vfValues[zoneIdx] /= totalWeightsView[zoneIdx];
   }
 }
 
-void replaceMaterial(conduit::Node* shapeNode,
-                     conduit::Node* materialNode,
-                     bool shapeReplacesMaterial)
+void replaceMaterial(conduit::Node* shapeNode, conduit::Node* materialNode, bool shapeReplacesMaterial)
 {
   SLIC_ASSERT(shapeNode != nullptr);
   SLIC_ASSERT(materialNode != nullptr);
 
   namespace utils = axom::bump::utilities;
   auto shapeValues = utils::make_array_view<double>(shapeNode->fetch_existing("values"));
-  auto materialValues =
-    utils::make_array_view<double>(materialNode->fetch_existing("values"));
+  auto materialValues = utils::make_array_view<double>(materialNode->fetch_existing("values"));
 
   SLIC_ASSERT(shapeValues.size() == materialValues.size());
 
@@ -463,10 +439,8 @@ void copyShapeIntoMaterial(const conduit::Node* shapeNode,
   SLIC_ASSERT(materialNode != nullptr);
 
   namespace utils = axom::bump::utilities;
-  const auto shapeValues =
-    utils::make_array_view<double>(shapeNode->fetch_existing("values"));
-  auto materialValues =
-    utils::make_array_view<double>(materialNode->fetch_existing("values"));
+  const auto shapeValues = utils::make_array_view<double>(shapeNode->fetch_existing("values"));
+  auto materialValues = utils::make_array_view<double>(materialNode->fetch_existing("values"));
 
   SLIC_ASSERT(shapeValues.size() == materialValues.size());
 

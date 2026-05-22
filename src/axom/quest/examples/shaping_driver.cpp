@@ -185,7 +185,7 @@ public:
     }
 
     // Handle conversion to parallel mfem mesh
-#if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
+  #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
     {
       int* partitioning = nullptr;
       int part_method = 0;
@@ -194,7 +194,7 @@ public:
       delete mesh;
       mesh = pmesh;
     }
-#endif
+  #endif
 
     return mesh;
   }
@@ -217,10 +217,11 @@ public:
       auto res = axom::NumericArray<int, 2>(boxResolution.data());
       auto bbox = BBox2D(Pt2D(boxMins.data()), Pt2D(boxMaxs.data()));
 
-      SLIC_INFO_ROOT(axom::fmt::format("Creating inline Blueprint box mesh of resolution {} and "
-                                       "bounding box {}",
-                                       res,
-                                       bbox));
+      SLIC_INFO_ROOT(
+        axom::fmt::format("Creating inline Blueprint box mesh of resolution {} and "
+                          "bounding box {}",
+                          res,
+                          bbox));
 
       if(blueprintTopologyType == BlueprintTopologyType::Structured)
       {
@@ -228,12 +229,7 @@ public:
       }
       else
       {
-        quest::util::make_unstructured_blueprint_box_mesh_2d(meshGrp,
-                                                             bbox,
-                                                             res,
-                                                             "mesh",
-                                                             "coords",
-                                                             policy);
+        quest::util::make_unstructured_blueprint_box_mesh_2d(meshGrp, bbox, res, "mesh", "coords", policy);
       }
     }
     break;
@@ -244,10 +240,11 @@ public:
       auto res = axom::NumericArray<int, 3>(boxResolution.data());
       auto bbox = BBox3D(Pt3D(boxMins.data()), Pt3D(boxMaxs.data()));
 
-      SLIC_INFO_ROOT(axom::fmt::format("Creating inline Blueprint box mesh of resolution {} and "
-                                       "bounding box {}",
-                                       res,
-                                       bbox));
+      SLIC_INFO_ROOT(
+        axom::fmt::format("Creating inline Blueprint box mesh of resolution {} and "
+                          "bounding box {}",
+                          res,
+                          bbox));
 
       if(blueprintTopologyType == BlueprintTopologyType::Structured)
       {
@@ -255,12 +252,7 @@ public:
       }
       else
       {
-        quest::util::make_unstructured_blueprint_box_mesh_3d(meshGrp,
-                                                             bbox,
-                                                             res,
-                                                             "mesh",
-                                                             "coords",
-                                                             policy);
+        quest::util::make_unstructured_blueprint_box_mesh_3d(meshGrp, bbox, res, "mesh", "coords", policy);
       }
     }
     break;
@@ -273,7 +265,7 @@ public:
   }
 #endif
 
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
   std::unique_ptr<sidre::MFEMSidreDataCollection> loadComputationalMesh()
   {
     constexpr bool dc_owns_data = true;
@@ -291,7 +283,7 @@ public:
 
     return dc;
   }
-  #endif
+#endif
 
   std::string getDCMeshName() const
   {
@@ -360,11 +352,12 @@ public:
 
     // use either an input mesh file or a simple inline Cartesian mesh
     {
-      auto* mesh_file = app.add_option("-m,--mesh-file", meshFile)
-                          ->description(
-                            "Path to computational mesh. \n"
-                            "Alternatively, use the `inline_mesh` or `inline_mesh_blueprint` subcommands.")
-                          ->check(axom::CLI::ExistingFile);
+      auto* mesh_file =
+        app.add_option("-m,--mesh-file", meshFile)
+          ->description(
+            "Path to computational mesh. \n"
+            "Alternatively, use the `inline_mesh` or `inline_mesh_blueprint` subcommands.")
+          ->check(axom::CLI::ExistingFile);
 
       auto* inline_mesh_subcommand = app.add_subcommand("inline_mesh")
                                        ->description("Options for setting up a simple inline mesh")
@@ -399,7 +392,8 @@ public:
         app.add_subcommand("inline_mesh_blueprint")
           ->description("Options for setting up a simple inline Blueprint mesh")
           ->fallthrough();
-      inline_mesh_blueprint_subcommand->callback([this]() { inlineMeshKind = InlineMeshKind::Blueprint; });
+      inline_mesh_blueprint_subcommand->callback(
+        [this]() { inlineMeshKind = InlineMeshKind::Blueprint; });
 
       inline_mesh_blueprint_subcommand->add_option("--min", boxMins)
         ->description("Min bounds for box mesh (x,y[,z])")
@@ -528,14 +522,14 @@ void printMeshInfo(mfem::Mesh* mesh, const std::string& prefixMessage = "")
   namespace primal = axom::primal;
 
   int myRank = 0;
-#ifdef AXOM_USE_MPI
+  #ifdef AXOM_USE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD, &myRank);
-#endif
+  #endif
 
   int numElements = mesh->GetNE();
 
   mfem::Vector mins, maxs;
-#ifdef MFEM_USE_MPI
+  #ifdef MFEM_USE_MPI
   auto* pmesh = dynamic_cast<mfem::ParMesh*>(mesh);
   if(pmesh != nullptr)
   {
@@ -544,7 +538,7 @@ void printMeshInfo(mfem::Mesh* mesh, const std::string& prefixMessage = "")
     myRank = pmesh->GetMyRank();
   }
   else
-#endif
+  #endif
   {
     mesh->GetBoundingBox(mins, maxs);
   }
@@ -733,7 +727,8 @@ int main(int argc, char** argv)
     shapingDC.SetMesh(shapingMesh);
     printMeshInfo(shapingMesh, "After loading");
 #else
-    SLIC_ERROR_ROOT("MFEM-backed meshes in shaping_driver require Axom to be configured with MFEM.");
+    SLIC_ERROR_ROOT(
+      "MFEM-backed meshes in shaping_driver require Axom to be configured with MFEM.");
 #endif
   }
   AXOM_ANNOTATE_END("load mesh");
@@ -857,7 +852,7 @@ int main(int argc, char** argv)
     }
     else
 #endif
-    if(params.usesInlineBlueprintMesh())
+      if(params.usesInlineBlueprintMesh())
     {
       meshDim = params.boxDim;
     }
@@ -891,8 +886,9 @@ int main(int argc, char** argv)
     AXOM_ANNOTATE_SCOPE("import initial volume fractions");
     if(params.usesInlineBlueprintMesh())
     {
-      SLIC_ERROR_IF(!params.backgroundMaterial.empty(),
-                    "Background material import is not yet supported for inline Blueprint sampling meshes.");
+      SLIC_ERROR_IF(
+        !params.backgroundMaterial.empty(),
+        "Background material import is not yet supported for inline Blueprint sampling meshes.");
     }
     else
     {
@@ -992,7 +988,8 @@ int main(int argc, char** argv)
   using axom::utilities::string::startsWith;
   if(params.usesInlineBlueprintMesh())
   {
-    SLIC_INFO("Volume summaries are not yet implemented for Blueprint-backed shaping in this driver.");
+    SLIC_INFO(
+      "Volume summaries are not yet implemented for Blueprint-backed shaping in this driver.");
   }
 #if defined(AXOM_USE_MFEM)
   else if(shaper->getDC() != nullptr)

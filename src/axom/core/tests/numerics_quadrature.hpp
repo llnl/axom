@@ -246,12 +246,10 @@ TEST(numerics_quadrature, quadrature_type_dispatch)
 
 TEST(numerics_quadrature, open_uniform_exactness)
 {
-  check_polynomial_exactness(
-    [](int npts) { return axom::numerics::get_open_uniform(npts); }, 10);
+  check_polynomial_exactness([](int npts) { return axom::numerics::get_open_uniform(npts); }, 10);
 }
 
 TEST(numerics_quadrature, closed_uniform_exactness)
 {
-  check_polynomial_exactness(
-    [](int npts) { return axom::numerics::get_closed_uniform(npts); }, 10);
+  check_polynomial_exactness([](int npts) { return axom::numerics::get_closed_uniform(npts); }, 10);
 }

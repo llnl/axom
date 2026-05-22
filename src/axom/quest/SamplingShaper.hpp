@@ -284,7 +284,7 @@ protected:
    * \param n_mesh The Blueprint mesh to save.
    * \param filename The name of the file to save.
    */
-  void saveBlueprintFile(const conduit::Node &n_mesh, const std::string &filename) const;
+  void saveBlueprintFile(const conduit::Node& n_mesh, const std::string& filename) const;
 #endif
 
   /*!
@@ -304,7 +304,7 @@ protected:
     return std::make_unique<shaping::SamplingMFEMState>();
   }
 
-  /// 
+  ///
   void initializeSamplingMFEMState()
   {
     // Shaper constructs its MFEM state in the base constructor, so upgrade it
@@ -351,10 +351,7 @@ protected:
   }
 
   shaping::MFEMArrayCollection& arrays() { return samplingMFEMState().m_inoutArrays; }
-  const shaping::MFEMArrayCollection& arrays() const
-  {
-    return samplingMFEMState().m_inoutArrays;
-  }
+  const shaping::MFEMArrayCollection& arrays() const { return samplingMFEMState().m_inoutArrays; }
 #endif
 
   bool hasValidSampler() const { return !std::holds_alternative<std::monostate>(m_sampler); }
@@ -407,7 +404,6 @@ public:
 
   /// Initializes the spatial index for shaping
   void prepareShapeQuery(klee::Dimensions shapeDimension, const klee::Shape& shape) override;
-
 
   void runShapeQuery(const klee::Shape& shape) override
   {
@@ -487,7 +483,8 @@ public:
    * The imported grid functions are interpolated at quadrature points and registered
    * with the supplied names as material-based quadrature fields
    */
-  void importInitialVolumeFractions(const std::map<std::string, mfem::GridFunction*>& initialGridFunctions);
+  void importInitialVolumeFractions(
+    const std::map<std::string, mfem::GridFunction*>& initialGridFunctions);
 #endif
 
   /*!
@@ -529,25 +526,21 @@ private:
       case 2:
         if(meshDim == 2)
         {
-          sampler->template sampleInOutField<2, 2>(meshState,
-                                                   m_projector22);
+          sampler->template sampleInOutField<2, 2>(meshState, m_projector22);
         }
         else if(meshDim == 3)
         {
-          sampler->template sampleInOutField<3, 2>(meshState,
-                                                   m_projector32);
+          sampler->template sampleInOutField<3, 2>(meshState, m_projector32);
         }
         break;
       case 3:
         if(meshDim == 2)
         {
-          sampler->template sampleInOutField<2, 3>(meshState,
-                                                   m_projector23);
+          sampler->template sampleInOutField<2, 3>(meshState, m_projector23);
         }
         else if(meshDim == 3)
         {
-          sampler->template sampleInOutField<3, 3>(meshState,
-                                                   m_projector33);
+          sampler->template sampleInOutField<3, 3>(meshState, m_projector33);
         }
         break;
       }
@@ -613,7 +606,7 @@ private:
   template <int DIM>
   void runShapeQueryImpl(shaping::WindingNumberSampler<DIM>* sampler)
   {
- #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
     if(m_mfem_state != nullptr)
     {
       runShapeQueryImplSampler(sampler, samplingMFEMState());
@@ -641,33 +634,31 @@ private:
         shaping::generateSamplingPositions(meshState, m_samplingResolution.view(), m_quadratureType);
       }
 
-    // Sample the InOut field at the mesh quadrature points
-    switch(m_vfSampling)
-    {
-    case shaping::VolFracSampling::SAMPLE_AT_QPTS:
-      switch(DIM)
+      // Sample the InOut field at the mesh quadrature points
+      switch(m_vfSampling)
       {
-      case 2:
+      case shaping::VolFracSampling::SAMPLE_AT_QPTS:
+        switch(DIM)
+        {
+        case 2:
+          SLIC_ERROR("Not implemented yet!");
+          break;
+        case 3:
+          if(meshDim == 2)
+          {
+            sampler->template sampleInOutField<2, 3>(meshState, m_projector23);
+          }
+          else if(meshDim == 3)
+          {
+            sampler->template sampleInOutField<3, 3>(meshState, m_projector33);
+          }
+          break;
+        }
+        break;
+      case shaping::VolFracSampling::SAMPLE_AT_DOFS:
         SLIC_ERROR("Not implemented yet!");
         break;
-      case 3:
-        if(meshDim == 2)
-        {
-          sampler->template sampleInOutField<2, 3>(meshState,
-                                                   m_projector23);
-        }
-        else if(meshDim == 3)
-        {
-          sampler->template sampleInOutField<3, 3>(meshState,
-                                                   m_projector33);
-        }
-        break;
       }
-      break;
-    case shaping::VolFracSampling::SAMPLE_AT_DOFS:
-      SLIC_ERROR("Not implemented yet!");
-      break;
-    }
     };
 
 #if defined(AXOM_USE_MFEM)

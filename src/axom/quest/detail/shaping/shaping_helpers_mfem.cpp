@@ -8,8 +8,8 @@
 
 #if defined(AXOM_USE_MFEM)
 
-#include <memory>
-#include <vector>
+  #include <memory>
+  #include <vector>
 
 namespace axom
 {
@@ -55,8 +55,7 @@ bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh,
     case mfem::Geometry::SQUARE:
       return sampleResolution[0] != sampleResolution[1];
     case mfem::Geometry::CUBE:
-      return sampleResolution[0] != sampleResolution[1] ||
-        sampleResolution[0] != sampleResolution[2];
+      return sampleResolution[0] != sampleResolution[1] || sampleResolution[0] != sampleResolution[2];
     default:
       return false;
     }
@@ -84,8 +83,7 @@ int to_mfem_quadrature_type(axom::numerics::QuadratureType quadratureType)
     return mfem::Quadrature1D::ClosedGL;
   }
 
-  SLIC_ERROR(
-    axom::fmt::format("Invalid quadrature type {}.", static_cast<int>(quadratureType)));
+  SLIC_ERROR(axom::fmt::format("Invalid quadrature type {}.", static_cast<int>(quadratureType)));
   return mfem::Quadrature1D::Invalid;
 }
 
@@ -261,10 +259,9 @@ mfem::QuadratureSpace* makeDefaultQuadratureSpace(mfem::Mesh* mesh, int sampleRe
   return new mfem::QuadratureSpace(mesh, sampleOrder);
 }
 
-mfem::QuadratureSpace* makeCustomQuadratureSpace(
-  mfem::Mesh* mesh,
-  axom::ArrayView<int> sampleRes,
-  axom::numerics::QuadratureType quadratureType)
+mfem::QuadratureSpace* makeCustomQuadratureSpace(mfem::Mesh* mesh,
+                                                 axom::ArrayView<int> sampleRes,
+                                                 axom::numerics::QuadratureType quadratureType)
 {
   SLIC_ASSERT(mesh != nullptr);
   const int NE = mesh->GetNE();
@@ -283,10 +280,7 @@ mfem::QuadratureSpace* makeCustomQuadratureSpace(
   for(int d = 0; d < dim; d++)
   {
     SLIC_ERROR_IF(sampleRes[d] < 1,
-                  axom::fmt::format(
-                    "Invalid sample value {} for dimension {}.",
-                    sampleRes[d],
-                    d));
+                  axom::fmt::format("Invalid sample value {} for dimension {}.", sampleRes[d], d));
     switch(quadratureType)
     {
     case axom::numerics::QuadratureType::GaussLegendre:
@@ -309,9 +303,7 @@ mfem::QuadratureSpace* makeCustomQuadratureSpace(
       break;
     case axom::numerics::QuadratureType::Invalid:
     default:
-      SLIC_ERROR(axom::fmt::format(
-        "Invalid quadrature type {}.",
-        static_cast<int>(quadratureType)));
+      SLIC_ERROR(axom::fmt::format("Invalid quadrature type {}.", static_cast<int>(quadratureType)));
       break;
     }
   }
@@ -348,10 +340,7 @@ void assembleVolumeFractionRHS(const mfem::FiniteElementSpace& fes,
     const int NE = fes.GetNE();
     for(int elem = 0; elem < NE; ++elem)
     {
-      rhs.AssembleRHSElementVect(
-        *fes.GetFE(elem),
-        *fes.GetElementTransformation(elem),
-        elemVec);
+      rhs.AssembleRHSElementVect(*fes.GetFE(elem), *fes.GetElementTransformation(elem), elemVec);
       fes.GetElementVDofs(elem, elemVDofs);
       b.AddElementVector(elemVDofs, elemVec);
     }
@@ -404,8 +393,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
 
   if(!usesAnisotropicCustomTensorQuadrature(*mesh, sampleResolution, quadratureType))
   {
-    const auto* geomFactors =
-      mesh->GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
+    const auto* geomFactors = mesh->GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
     geomFactors->X.HostRead();
 
     for(int i = 0; i < NE; ++i)
@@ -492,11 +480,7 @@ void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
     case 2:
       return axom::fmt::format(" ({} * {})", sampleRes[0], sampleRes[1]);
     case 3:
-      return axom::fmt::format(
-        " ({} * {} * {})",
-        sampleRes[0],
-        sampleRes[1],
-        sampleRes[2]);
+      return axom::fmt::format(" ({} * {} * {})", sampleRes[0], sampleRes[1], sampleRes[2]);
     default:
       return std::string();
     }
@@ -510,18 +494,12 @@ void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
                                    sampleOrder,
                                    sampleSZ));
 
-  SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
-                                   "Mesh has dim {} and {:L} elements",
-                                   dim,
-                                   NE));
+  SLIC_INFO_ROOT(
+    axom::fmt::format(axom::utilities::locale(), "Mesh has dim {} and {:L} elements", dim, NE));
 
   const auto vf_name = axom::fmt::format("vol_frac_{}", matField.substr(10));
-  mfem::GridFunction* vf = getOrAllocateL2GridFunction(
-    dc,
-    vf_name,
-    volfracOrder,
-    dim,
-    mfem::BasisType::Positive);
+  mfem::GridFunction* vf =
+    getOrAllocateL2GridFunction(dc, vf_name, volfracOrder, dim, mfem::BasisType::Positive);
   const mfem::FiniteElementSpace* fes = vf->FESpace();
   const int dofs = fes->GetTypicalFE()->GetDof();
 
@@ -543,10 +521,7 @@ void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
     mfem::ConstantCoefficient one_coef(1.0);
     mfem::MassIntegrator mass_integrator(one_coef, &sampleIR);
 
-    if(usesAnisotropicCustomTensorQuadrature(
-         *fes->GetMesh(),
-         sampleResolution,
-         quadratureType))
+    if(usesAnisotropicCustomTensorQuadrature(*fes->GetMesh(), sampleResolution, quadratureType))
     {
       mfem::DenseMatrix elemMat;
       mass_mat->HostWrite();
@@ -581,8 +556,7 @@ void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
   mfem::Array<int>* mass_mat_pivots {nullptr};
   const std::string minv_name = "shaping_mass_matrix_inv";
   const std::string pivots_name = "shaping_mass_matrix_pivots";
-  if(mfemState.m_inoutTensors.Has(minv_name) &&
-     mfemState.m_inoutArrays.Has(pivots_name))
+  if(mfemState.m_inoutTensors.Has(minv_name) && mfemState.m_inoutArrays.Has(pivots_name))
   {
     mass_mat_inv = mfemState.m_inoutTensors.Get(minv_name);
     mass_mat_pivots = mfemState.m_inoutArrays.Get(pivots_name);
@@ -614,10 +588,7 @@ void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
     shaping_scratch_buffer = new mfem::DenseTensor(dofs, dofs, NE);
     shaping_scratch_buffer->HostWrite();
     (*shaping_scratch_buffer) = 0.;
-    mfemState.m_inoutTensors.Register(
-      scratch_buffer_name,
-      shaping_scratch_buffer,
-      true);
+    mfemState.m_inoutTensors.Register(scratch_buffer_name, shaping_scratch_buffer, true);
   }
 
   axom::utilities::Timer timer(true);
@@ -636,10 +607,7 @@ void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
         *fes,
         *inout,
         sampleIR,
-        usesAnisotropicCustomTensorQuadrature(
-          *fes->GetMesh(),
-          sampleResolution,
-          quadratureType),
+        usesAnisotropicCustomTensorQuadrature(*fes->GetMesh(), sampleResolution, quadratureType),
         b);
     }
     inout->HostReadWrite();
@@ -664,18 +632,11 @@ void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
     auto m_d = mfem::Reshape(mass_mat->HostReadWrite(), dofs, dofs, NE);
     auto b_d = mfem::Reshape(b.HostReadWrite(), dofs, NE);
     auto vf_d = mfem::Reshape(vf->HostReadWrite(), dofs, NE);
-    auto fct_mat_d =
-      mfem::Reshape(shaping_scratch_buffer->HostReadWrite(), dofs, dofs, NE);
+    auto fct_mat_d = mfem::Reshape(shaping_scratch_buffer->HostReadWrite(), dofs, dofs, NE);
 
     AXOM_ANNOTATE_BEGIN("fct project");
     axom::for_all<axom::SEQ_EXEC>(0, NE, [=](int i) {
-      FCT_correct(&m_d(0, 0, i),
-                  dofs,
-                  &b_d(0, i),
-                  minY,
-                  maxY,
-                  &vf_d(0, i),
-                  &fct_mat_d(0, 0, i));
+      FCT_correct(&m_d(0, 0, i), dofs, &b_d(0, i), minY, maxY, &vf_d(0, i), &fct_mat_d(0, 0, i));
     });
     AXOM_ANNOTATE_END("fct project");
   }
@@ -755,14 +716,12 @@ void FCT_correct(const double* M,
 
   const double y_avg = sum_m / sum_ML;
 
-#ifdef AXOM_DEBUG
+  #ifdef AXOM_DEBUG
   constexpr double EPS = 1e-12;
-  SLIC_WARNING_IF(!(y_min < y_avg + EPS && y_avg < y_max + EPS),
-                  axom::fmt::format("Average ({}) is out of bounds [{},{}]: ",
-                                    y_avg,
-                                    y_min - EPS,
-                                    y_max + EPS));
-#endif
+  SLIC_WARNING_IF(
+    !(y_min < y_avg + EPS && y_avg < y_max + EPS),
+    axom::fmt::format("Average ({}) is out of bounds [{},{}]: ", y_avg, y_min - EPS, y_max + EPS));
+  #endif
 
   double sum_beta = 0.;
   for(int i = 0; i < s; ++i)
@@ -837,15 +796,15 @@ void FCT_correct(const double* M,
     {
       double fij = fct_mat[i + j * s];
 
-      const double aij = fij >= 0.0 ? axom::utilities::min(gp[i], gm[j])
-                                     : axom::utilities::min(gm[i], gp[j]);
+      const double aij =
+        fij >= 0.0 ? axom::utilities::min(gp[i], gm[j]) : axom::utilities::min(gm[i], gp[j]);
       fij *= aij;
       xy[i] += fij / ML[i];
       xy[j] -= fij / ML[j];
     }
   }
 
-#ifdef AXOM_DEBUG
+  #ifdef AXOM_DEBUG
   for(int i = 0; i < s; ++i)
   {
     SLIC_WARNING_IF(!(y_min < xy[i] + EPS && xy[i] < y_max + EPS),
@@ -855,7 +814,7 @@ void FCT_correct(const double* M,
                                       y_min - EPS,
                                       y_max + EPS));
   }
-#endif
+  #endif
 }
 
 void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
@@ -868,8 +827,7 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
   const int dim = mesh->Dimension();
   const int NE = mesh->GetNE();
 
-  std::cout << axom::fmt::format("Mesh has dim {} and {} elements", dim, NE)
-            << std::endl;
+  std::cout << axom::fmt::format("Mesh has dim {} and {} elements", dim, NE) << std::endl;
 
   auto* fec = new mfem::L2_FECollection(order, dim, mfem::BasisType::Positive);
   auto* fes = new mfem::FiniteElementSpace(mesh, fec);

@@ -133,9 +133,9 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   , m_mfem_state()
   #endif
   , m_bp_state()
-#if defined(AXOM_USE_MPI)
+  #if defined(AXOM_USE_MPI)
   , m_comm(MPI_COMM_WORLD)
-#endif
+  #endif
 {
   AXOM_ANNOTATE_SCOPE("Shaper::Shaper_Node");
 
@@ -266,10 +266,7 @@ void Shaper::loadShapeInternal(const klee::Shape& shape, double percentError, do
   revolvedVolume = discreteShape.getRevolvedVolume();
 }
 
-bool Shaper::verifyInputMesh(std::string& whyBad) const
-{
-  return verifyInputMeshImpl(whyBad);
-}
+bool Shaper::verifyInputMesh(std::string& whyBad) const { return verifyInputMeshImpl(whyBad); }
 
 #if defined(AXOM_USE_CONDUIT)
 std::string Shaper::resolveBlueprintTopologyName(const sidre::Group* bpMesh,
@@ -279,8 +276,7 @@ std::string Shaper::resolveBlueprintTopologyName(const sidre::Group* bpMesh,
   auto* topologiesGrp = bpMesh->getGroup("topologies");
   SLIC_ERROR_IF(topologiesGrp == nullptr, "Blueprint mesh is missing a 'topologies' group.");
 
-  const std::string topologyName =
-    topo.empty() ? topologiesGrp->getGroupName(0) : topo;
+  const std::string topologyName = topo.empty() ? topologiesGrp->getGroupName(0) : topo;
   SLIC_ERROR_IF(topologyName == sidre::InvalidName,
                 "Blueprint mesh does not contain any topology groups.");
   SLIC_ERROR_IF(!topologiesGrp->hasGroup(topologyName),
@@ -460,7 +456,10 @@ void Shaper::saveResults(bool AXOM_UNUSED_PARAM(extra))
   {
     const std::string filename("shaping");
   #if defined(CONDUIT_RELAY_MPI_ENABLED)
-    conduit::relay::mpi::io::blueprint::save_mesh(m_bp_state->m_internal_node, filename, outputProtocol(), m_comm);
+    conduit::relay::mpi::io::blueprint::save_mesh(m_bp_state->m_internal_node,
+                                                  filename,
+                                                  outputProtocol(),
+                                                  m_comm);
   #else
     conduit::relay::io::blueprint::save_mesh(m_bp_state->m_internal_node, filename, outputProtocol());
   #endif

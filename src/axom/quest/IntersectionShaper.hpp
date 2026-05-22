@@ -2752,9 +2752,8 @@ public:
     // conduit::Node meshNode;
     // m_group_ptr->createNativeLayout(m_internal_node);
 
-    const conduit::Node& topoNode =
-      m_bp_state->m_internal_node.fetch_existing("topologies")
-        .fetch_existing(m_bp_state->m_topology_name);
+    const conduit::Node& topoNode = m_bp_state->m_internal_node.fetch_existing("topologies")
+                                      .fetch_existing(m_bp_state->m_topology_name);
     const std::string coordsetName = topoNode.fetch_existing("coordset").as_string();
 
     // Assume unstructured and hexahedral
@@ -2826,9 +2825,8 @@ public:
     // conduit::Node meshNode;
     // m_group_ptr->createNativeLayout(m_internal_node);
 
-    const conduit::Node& topoNode =
-      m_bp_state->m_internal_node.fetch_existing("topologies")
-        .fetch_existing(m_bp_state->m_topology_name);
+    const conduit::Node& topoNode = m_bp_state->m_internal_node.fetch_existing("topologies")
+                                      .fetch_existing(m_bp_state->m_topology_name);
     const conduit::Node& topoCoordsetNode = topoNode.fetch_existing("coordset");
     const std::string coordsetName = topoCoordsetNode.as_string();
 

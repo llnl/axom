@@ -11,15 +11,15 @@
 
 #if defined(AXOM_USE_CONDUIT)
 
-#include "axom/bump/utilities/conduit_memory.hpp"
-#include "axom/bump/views/dispatch_coordset.hpp"
-#include "axom/fmt.hpp"
+  #include "axom/bump/utilities/conduit_memory.hpp"
+  #include "axom/bump/views/dispatch_coordset.hpp"
+  #include "axom/fmt.hpp"
 
-#include "conduit_node.hpp"
+  #include "conduit_node.hpp"
 
-#include <set>
-#include <string>
-#include <vector>
+  #include <set>
+  #include <string>
+  #include <vector>
 
 namespace axom
 {
@@ -64,14 +64,12 @@ struct BlueprintState
 
   conduit::Node* getShapeFunction(const std::string& name)
   {
-    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
-                                                      : nullptr;
+    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name] : nullptr;
   }
 
   const conduit::Node* getShapeFunction(const std::string& name) const
   {
-    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
-                                                      : nullptr;
+    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name] : nullptr;
   }
 
   void deleteShapeFunction(const std::string& name)
@@ -88,30 +86,27 @@ struct BlueprintState
 
   conduit::Node* getMaterialFunction(const std::string& name)
   {
-    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
-                                                      : nullptr;
+    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name] : nullptr;
   }
 
   const conduit::Node* getMaterialFunction(const std::string& name) const
   {
-    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name]
-                                                      : nullptr;
+    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name] : nullptr;
   }
 
   conduit::Node* createMaterialFunction(const std::string& name)
   {
     constexpr const char* quadratureTopologyName = "quadrature_points";
-    SLIC_ERROR_IF(!m_internal_node.has_path("coordsets/quadrature_points/values"),
-                  std::string("Cannot create material function '") + name +
-                    "' without quadrature points.");
+    SLIC_ERROR_IF(
+      !m_internal_node.has_path("coordsets/quadrature_points/values"),
+      std::string("Cannot create material function '") + name + "' without quadrature points.");
 
     conduit::Node& fieldNode = m_internal_node["fields/" + name];
     fieldNode.reset();
     fieldNode["association"] = "element";
     fieldNode["topology"] = quadratureTopologyName;
 
-    const auto conduitAllocatorId =
-      axom::sidre::ConduitMemory::axomAllocIdToConduit(m_allocator_id);
+    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(m_allocator_id);
     conduit::Node& valuesNode = fieldNode["values"];
     valuesNode.set_allocator(conduitAllocatorId);
 
@@ -135,9 +130,7 @@ void printRegisteredFieldNames(const BlueprintState& bpState,
                                VolFracSampling vfSampling,
                                const std::string& initialMessage);
 
-void replaceMaterial(conduit::Node* shapeNode,
-                     conduit::Node* materialNode,
-                     bool shouldReplace);
+void replaceMaterial(conduit::Node* shapeNode, conduit::Node* materialNode, bool shouldReplace);
 
 void copyShapeIntoMaterial(const conduit::Node* shapeNode,
                            conduit::Node* materialNode,
@@ -194,7 +187,8 @@ void sampleInOutField(const std::string& shapeName,
   axom::utilities::Timer timer(true);
   axom::IndexType numQueryPoints = 0;
   axom::bump::views::dispatch_explicit_coordset(
-    bpMeshNode["coordsets/" + std::string(quadratureCoordsetName)], [&](auto coordsetView) {
+    bpMeshNode["coordsets/" + std::string(quadratureCoordsetName)],
+    [&](auto coordsetView) {
       using CoordsetView = typename std::decay<decltype(coordsetView)>::type;
 
       SLIC_ERROR_IF(CoordsetView::dimension() != FromDim,
