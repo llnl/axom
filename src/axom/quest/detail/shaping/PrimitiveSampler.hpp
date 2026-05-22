@@ -23,7 +23,9 @@
 
 #include "axom/fmt.hpp"
 
-#include "mfem.hpp"
+#if defined(AXOM_USE_MFEM)
+  #include "mfem.hpp"
+#endif
 
 namespace axom
 {
@@ -31,8 +33,10 @@ namespace quest
 {
 namespace shaping
 {
+#if defined(AXOM_USE_MFEM)
 using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
 using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
+#endif
 
 template <int NDIMS, typename ExecSpace>
 class PrimitiveSampler

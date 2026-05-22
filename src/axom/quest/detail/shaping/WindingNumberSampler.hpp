@@ -18,8 +18,10 @@
 
 #include "axom/fmt.hpp"
 
-#include "mfem.hpp"
-#include "mfem/linalg/dtensor.hpp"
+#if defined(AXOM_USE_MFEM)
+  #include "mfem.hpp"
+  #include "mfem/linalg/dtensor.hpp"
+#endif
 
 #include <cmath>
 
@@ -30,8 +32,10 @@ namespace quest
 namespace shaping
 {
 
+#if defined(AXOM_USE_MFEM)
 using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
 using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
+#endif
 
 namespace detail
 {

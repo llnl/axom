@@ -127,6 +127,7 @@ namespace quest
 
   void SamplingShaper::loadShape(const klee::Shape& shape)
   {
+#if defined(AXOM_USE_MFEM)
     if(useWindingNumberSampler(shape))
     {
       const std::string shapePath =
@@ -141,11 +142,14 @@ namespace quest
                     axom::fmt::format("Failed to read MFEM shape '{}' from file '{}'.",
                                       shape.getName(),
                                       shapePath));
+      return;
     }
-    else
-    {
-      Shaper::loadShape(shape);
-    }
+#else
+    SLIC_ERROR_IF(useWindingNumberSampler(shape),
+                  "SamplingShaper winding-number sampling for MFEM shapes requires MFEM support.");
+#endif
+
+    Shaper::loadShape(shape);
   }
 
 void SamplingShaper::prepareShapeQuery(klee::Dimensions shapeDimension, const klee::Shape& shape)
@@ -421,7 +425,7 @@ void SamplingShaper::prepareShapeQuery(klee::Dimensions shapeDimension, const kl
   {
     const int InvalidDimension = -1;
     int dim = InvalidDimension;
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_MFEM)
     if(m_mfem_state)
     {
       dim = m_mfem_state->meshDimension();

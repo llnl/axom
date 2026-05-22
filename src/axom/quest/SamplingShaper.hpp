@@ -20,8 +20,8 @@
 #include "axom/mint.hpp"
 #include "axom/klee.hpp"
 
-#if !defined(AXOM_USE_MFEM) || !defined(AXOM_USE_SIDRE)
-  #error SamplingShaper requires Axom to be configured with MFEM and Sidre
+#if (!defined(AXOM_USE_MFEM) && !defined(AXOM_USE_CONDUIT)) || !defined(AXOM_USE_SIDRE)
+  #error SamplingShaper requires Axom to be configured with Sidre and either MFEM or Conduit
 #endif
 
 #include "axom/quest/Shaper.hpp"
@@ -31,17 +31,20 @@
 #include "axom/quest/detail/shaping/InOutSampler.hpp"
 #include "axom/quest/detail/shaping/PrimitiveSampler.hpp"
 #include "axom/quest/detail/shaping/WindingNumberSampler.hpp"
-#include "axom/quest/io/MFEMReader.hpp"
+#if defined(AXOM_USE_MFEM)
+  #include "axom/quest/io/MFEMReader.hpp"
+  #include "mfem.hpp"
+  #include "mfem/linalg/dtensor.hpp"
+#endif
 
-#include "mfem.hpp"
-#include "mfem/linalg/dtensor.hpp"
-
-#include "conduit/conduit_relay_io.hpp"
-#ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
-  #ifdef CONDUIT_RELAY_MPI_ENABLED
-    #include "conduit/conduit_relay_mpi_io_blueprint.hpp"
-  #else
-    #include "conduit/conduit_relay_io_blueprint.hpp"
+#if defined(AXOM_USE_CONDUIT)
+  #include "conduit/conduit_relay_io.hpp"
+  #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
+    #ifdef CONDUIT_RELAY_MPI_ENABLED
+      #include "conduit/conduit_relay_mpi_io_blueprint.hpp"
+    #else
+      #include "conduit/conduit_relay_io_blueprint.hpp"
+    #endif
   #endif
 #endif
 

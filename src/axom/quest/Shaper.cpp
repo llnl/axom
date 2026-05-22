@@ -471,7 +471,7 @@ void Shaper::saveResults(bool AXOM_UNUSED_PARAM(extra))
 
 int Shaper::getRank() const
 {
-#if defined(AXOM_USE_MPI)
+#if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
   if(!mpiIsActive())
   {
     return 0;

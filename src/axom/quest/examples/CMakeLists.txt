@@ -144,17 +144,26 @@ if (CONDUIT_FOUND AND UMPIRE_FOUND)
 endif()
 
 # Shaping example -------------------------------------------------------------
-if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
-                   AND AXOM_ENABLE_SIDRE
-                   AND AXOM_ENABLE_KLEE)
+set(shaping_dependencies )
+if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI)
+  set(AXOM_HAS_MFEM_WITH_MPI TRUE)
+  list(APPEND shaping_dependencies mfem)
+endif()
+if(CONDUIT_FOUND)
+  list(APPEND shaping_dependencies conduit)
+endif()
+
+if((AXOM_HAS_MFEM_WITH_MPI OR CONDUIT_FOUND) AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
     axom_add_executable(
         NAME        quest_shaping_driver_ex
         SOURCES     shaping_driver.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends} mfem
+        DEPENDS_ON  ${quest_example_depends} ${shaping_dependencies}
         FOLDER      axom/quest/examples
         )
-
+endif()
+# Existing tests require MFEM or C2C input.
+if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
         # 2D shaping tests
         set(_nranks 1)

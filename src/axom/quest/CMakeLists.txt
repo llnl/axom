@@ -198,7 +198,7 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
         endif()
     endif()
 
-    if(MFEM_FOUND)
+    if(MFEM_FOUND OR CONDUIT_FOUND)
         list(APPEND quest_sources SamplingShaper.cpp)
         list(APPEND quest_headers SamplingShaper.hpp 
                                   detail/shaping/InOutSampler.hpp

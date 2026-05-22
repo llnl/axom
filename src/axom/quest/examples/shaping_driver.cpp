@@ -34,7 +34,9 @@
   #endif
 #endif
 
-#include "mfem.hpp"
+#if defined(AXOM_USE_MFEM)
+  #include "mfem.hpp"
+#endif
 
 #ifdef AXOM_USE_MPI
   #include "mpi.h"
