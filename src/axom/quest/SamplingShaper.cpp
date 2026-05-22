@@ -15,10 +15,9 @@ void SamplingShaper::setQuadratureType(axom::numerics::QuadratureType qtype)
 {
   if(m_bp_state != nullptr)
   {
-    // For Blueprint, we rely on Axom quadrature types and not all are implementd yet.
-    if(axom::numerics::is_valid_quadrature_type(static_cast<int>(qtype)))
+    // For Blueprint, we rely on Axom quadrature types and not all are implemented yet.
+    if(axom::numerics::is_supported_quadrature_type(qtype))
     {
-      std::cout << "Setting m_quadratureType = " << static_cast<int>(qtype) << std::endl;
       m_quadratureType = qtype;
     }
     else
@@ -50,6 +49,18 @@ void SamplingShaper::setSamplingResolution(axom::ArrayView<int> sampleRes)
     SLIC_ERROR_IF(sampleRes[d] < 1, "Invalid sample resolution");
     m_samplingResolution.push_back(sampleRes[d]);
   }
+}
+
+void SamplingShaper::setVolumeFractionOrder(int volfracOrder)
+{
+#if defined(AXOM_USE_CONDUIT)
+  if(m_bp_state != nullptr)
+  {
+    SLIC_INFO("setVolumeFractionOrder is ignored for Blueprint meshes.");
+    return;
+  }
+#endif
+  m_volfracOrder = axom::utilities::max(1, volfracOrder);
 }
 
 void SamplingShaper::initializeSamplingResolution()

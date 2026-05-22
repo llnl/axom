@@ -165,6 +165,7 @@ public:
     : Shaper(execPolicy, allocatorId, shapeSet, bpMesh, topo)
   {
     initializeSamplingResolution();
+    m_volfracOrder = 1;
   }
 
   /// Blueprint-compatible constructor
@@ -176,6 +177,7 @@ public:
     : Shaper(execPolicy, allocatorId, shapeSet, bpNode, topo)
   {
     initializeSamplingResolution();
+    m_volfracOrder = 1;
   }
 #endif
 
@@ -231,10 +233,16 @@ public:
    */
   void setSamplingResolution(axom::ArrayView<int> sampleRes);
 
-  // Deprecated backward compatibility method
+  /// Deprecated backward compatibility method
   [[deprecated]] void setQuadratureOrder(int order) { setSamplingResolution(order); }
 
-  void setVolumeFractionOrder(int volfracOrder) { m_volfracOrder = volfracOrder; }
+  /*!
+   * \brief Set the order for the output volume fractions. This function has no
+   *        effect for Blueprint meshes.
+   *
+   * \param volfracOrder The order for the output volume fractions.
+   */
+  void setVolumeFractionOrder(int volfracOrder);
 
   /// Registers a function to project from 2D input points to 2D query points
   void setPointProjector22(shaping::PointProjector<2, 2> projector) { m_projector22 = projector; }
@@ -509,7 +517,7 @@ private:
 
   // Handles 2D or 3D shaping for compatible samplers, based on the template and associated parameter
   template <typename MeshState, typename SamplerType>
-  void runShapeQueryImplSampler(SamplerType* sampler, MeshState& meshState)
+  void runShapeQueryImplSampler(MeshState& meshState, SamplerType* sampler)
   {
     // Sample the InOut field at the mesh quadrature points
     if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
@@ -588,35 +596,35 @@ private:
 #if defined(AXOM_USE_MFEM)
     if(m_mfem_state != nullptr)
     {
-      runShapeQueryImplSampler(sampler, samplingMFEMState());
+      runShapeQueryImplSampler(samplingMFEMState(), sampler);
       return;
     }
 #endif
 #if defined(AXOM_USE_CONDUIT)
     if(m_bp_state != nullptr)
     {
-      runShapeQueryImplSampler(sampler, *m_bp_state);
+      runShapeQueryImplSampler(*m_bp_state, sampler);
       return;
     }
 #endif
     SLIC_ERROR("No mesh state is available for SamplingShaper.");
   }
 
-  // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
+  // Handles 2D or 3D shaping for WindingNumberSampler, based on the template and associated parameter
   template <int DIM>
   void runShapeQueryImpl(shaping::WindingNumberSampler<DIM>* sampler)
   {
 #if defined(AXOM_USE_MFEM)
     if(m_mfem_state != nullptr)
     {
-      runShapeQueryImplSampler(sampler, samplingMFEMState());
+      runShapeQueryImplSampler(samplingMFEMState(), sampler);
       return;
     }
 #endif
 #if defined(AXOM_USE_CONDUIT)
     if(m_bp_state != nullptr)
     {
-      runShapeQueryImplSampler(sampler, *m_bp_state);
+      runShapeQueryImplSampler(*m_bp_state, sampler);
       return;
     }
 #endif
