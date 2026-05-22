@@ -162,6 +162,14 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                   SamplingShaper.cpp
                                   detail/shaping/shaping_helpers.cpp
                                   )
+        if(MFEM_FOUND)
+            list(APPEND quest_headers detail/shaping/shaping_helpers_mfem.hpp)
+            list(APPEND quest_sources detail/shaping/shaping_helpers_mfem.cpp)
+        endif()
+        if(CONDUIT_FOUND)
+            list(APPEND quest_headers detail/shaping/shaping_helpers_blueprint.hpp)
+            list(APPEND quest_sources detail/shaping/shaping_helpers_blueprint.cpp)
+        endif()
         list(APPEND quest_depends_on klee)
     endif()
 
