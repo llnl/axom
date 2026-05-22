@@ -846,6 +846,29 @@ TEST(numerics_quadrature, rational_fejer_cached_rule_views_can_be_copied_to_owne
   expect_rules_near(copied_rule, cached_rule, 1e-14);
 }
 
+TEST(numerics_quadrature, rational_fejer_diagnostics_populate_projection_details)
+{
+  // Diagnostics are optional, but when enabled they should retain the detailed
+  // per-node projection terms that the normal construction now skips.
+  const axom::Array<Complex> poles {Complex {1.4, 0.8}, Complex {1.4, -0.8}, Complex {2.5, 0.0}};
+
+  numerics_internal::RationalFejerDiagnostics diagnostics;
+  numerics_internal::compute_rational_fejer_diagnostics(poles, diagnostics);
+
+  ASSERT_GT(diagnostics.steps.size(), 0);
+  const auto& first_step = diagnostics.steps[0];
+  EXPECT_EQ(first_step.component_count, 2);
+  EXPECT_GT(first_step.projected_row_terms_node_count, 0);
+  EXPECT_EQ(first_step.weighted_row0.size(), first_step.projected_row_terms_node_count);
+  EXPECT_EQ(first_step.weighted_row1.size(), first_step.projected_row_terms_node_count);
+  EXPECT_EQ(first_step.projected_row0_terms.size(),
+            first_step.projected_row0.size() * first_step.projected_row_terms_node_count);
+  EXPECT_EQ(first_step.projected_row1_terms.size(),
+            first_step.projected_row1.size() * first_step.projected_row_terms_node_count);
+  EXPECT_GT(first_step.orthogonal_integrals.size(), 0);
+  EXPECT_EQ(diagnostics.nodes_01.size(), diagnostics.weights_01.size());
+}
+
 #if defined(AXOM_USE_UMPIRE)
 TEST(numerics_quadrature, rational_fejer_diagnostics_respect_allocator)
 {

@@ -164,11 +164,13 @@ public:
     , m_allocatorID(diagnostic_allocator_id)
   { }
 
+  bool enabled() const { return m_step != nullptr; }
+
   void recordWeightedRows(axom::ArrayView<const long double> row0,
                           axom::ArrayView<const long double> row1,
                           bool has_imaginary_component) const
   {
-    if(m_step == nullptr)
+    if(!enabled())
     {
       return;
     }
@@ -185,7 +187,7 @@ public:
                            int node_count,
                            long double rhs0) const
   {
-    if(m_step == nullptr)
+    if(!enabled())
     {
       return;
     }
@@ -204,7 +206,7 @@ public:
                            long double a10,
                            long double a11) const
   {
-    if(m_step == nullptr)
+    if(!enabled())
     {
       return;
     }
@@ -225,7 +227,7 @@ public:
                        long double x0,
                        long double x1) const
   {
-    if(m_step == nullptr)
+    if(!enabled())
     {
       return;
     }
@@ -288,6 +290,7 @@ public:
 
     const int n = static_cast<int>(m_nodes.size());
     const bool has_imaginary_component = component_count == 2;
+    const bool diagnostics_enabled = diagnostics.enabled();
     const int first_unknown_column = num_basis_columns - component_count;
     axom::Array<long double> weighted_row0(n, n);
     weighted_row0.fill(0.0L);
@@ -318,11 +321,16 @@ public:
     axom::Array<long double> bmat_row1(has_imaginary_component ? num_basis_columns : 0,
                                        has_imaginary_component ? num_basis_columns : 0);
     bmat_row1.fill(0.0L);
-    axom::Array<long double> bmat_row0_terms(num_basis_columns * n, num_basis_columns * n);
-    bmat_row0_terms.fill(0.0L);
-    axom::Array<long double> bmat_row1_terms(has_imaginary_component ? num_basis_columns * n : 0,
-                                             has_imaginary_component ? num_basis_columns * n : 0);
-    bmat_row1_terms.fill(0.0L);
+    axom::Array<long double> bmat_row0_terms;
+    axom::Array<long double> bmat_row1_terms;
+    if(diagnostics_enabled)
+    {
+      bmat_row0_terms = axom::Array<long double>(num_basis_columns * n, num_basis_columns * n);
+      if(has_imaginary_component)
+      {
+        bmat_row1_terms = axom::Array<long double>(num_basis_columns * n, num_basis_columns * n);
+      }
+    }
     // Project the pole-dependent function against the sampled orthonormal basis.
     // The trailing 1x1 or 2x2 block is then solved for the next basis coefficients.
     for(int col = 0; col < num_basis_columns; ++col)
@@ -334,12 +342,18 @@ public:
         const long double basis_column_value = static_cast<long double>(basisValue(col, i));
         const long double term0 = weighted_row0[i] * basis_column_value;
         value0 += term0;
-        bmat_row0_terms[col * n + i] = term0;
+        if(diagnostics_enabled)
+        {
+          bmat_row0_terms[col * n + i] = term0;
+        }
         if(has_imaginary_component)
         {
           const long double term1 = weighted_row1[i] * basis_column_value;
           value1 += term1;
-          bmat_row1_terms[col * n + i] = term1;
+          if(diagnostics_enabled)
+          {
+            bmat_row1_terms[col * n + i] = term1;
+          }
         }
       }
       bmat_row0[col] = value0;
