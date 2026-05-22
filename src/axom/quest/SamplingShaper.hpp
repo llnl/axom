@@ -201,17 +201,7 @@ public:
    *
    * \param [in] qtype Quadrature family selection.
    */
-  void setQuadratureType(axom::numerics::QuadratureType qtype)
-  {
-    if(axom::numerics::is_valid_quadrature_type(static_cast<int>(qtype)))
-    {
-      m_quadratureType = qtype;
-    }
-    else
-    {
-      SLIC_ERROR(axom::fmt::format("Invalid quadrature type value {}", static_cast<int>(qtype)));
-    }
-  }
+  void setQuadratureType(axom::numerics::QuadratureType qtype);
 
   /*!
    * \brief Sets an isotropic sampling resolution for custom quadrature.
@@ -224,16 +214,7 @@ public:
    * \param [in] sampleRes Number of sample points to use per logical
    *                       direction.
    */
-  void setSamplingResolution(int sampleRes)
-  {
-    SLIC_ERROR_IF(sampleRes < 1, "Invalid sample resolution");
-    m_samplingResolution.clear();
-    const auto dim = meshDimension();
-    for(int d = 0; d < dim; d++)
-    {
-      m_samplingResolution.push_back(sampleRes);
-    }
-  }
+  void setSamplingResolution(int sampleRes);
 
   /*!
    * \brief Sets an anisotropic sampling resolution for custom quadrature.
@@ -248,18 +229,7 @@ public:
    *                       direction. The size needs to match the number of
    *                       mesh dimensions.
    */
-  void setSamplingResolution(axom::ArrayView<int> sampleRes)
-  {
-    const auto dim = meshDimension();
-    SLIC_ERROR_IF(static_cast<axom::IndexType>(dim) != sampleRes.size(),
-                  "Number of sample resolutions does not match mesh dimension.");
-    m_samplingResolution.clear();
-    for(int d = 0; d < dim; d++)
-    {
-      SLIC_ERROR_IF(sampleRes[d] < 1, "Invalid sample resolution");
-      m_samplingResolution.push_back(sampleRes[d]);
-    }
-  }
+  void setSamplingResolution(axom::ArrayView<int> sampleRes);
 
   // Deprecated backward compatibility method
   [[deprecated]] void setQuadratureOrder(int order) { setSamplingResolution(order); }
@@ -296,15 +266,7 @@ public:
 #endif
 protected:
   /// Initializes the sampling resolution array based on the mesh dimension.
-  void initializeSamplingResolution()
-  {
-    // Initialize the default number of samples based on the mesh dimension.
-    const int dim = meshDimension();
-    for(int d = 0; d < dim; d++)
-    {
-      m_samplingResolution.push_back(5);
-    }
-  }
+  void initializeSamplingResolution();
 
   /*!
    * \brief Verifies the input mesh.

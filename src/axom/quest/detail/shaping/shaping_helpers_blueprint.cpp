@@ -270,9 +270,10 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
     quadratureType,
     sampleResolution[1],
     selectedAllocatorID);
+  const int nz = (sampleResolution.size() > 2) ? sampleResolution[2] : 1;
   auto ruleZ = getBlueprintQuadratureRule(
     quadratureType,
-    sampleResolution[2],
+    nz,
     selectedAllocatorID);
 
   axom::bump::views::dispatch_explicit_coordset(coordsetNode, [&](auto coordsetView) {
@@ -332,6 +333,7 @@ void generateSamplingPositions(BlueprintState& bpState,
                                axom::ArrayView<int> sampleResolution,
                                axom::numerics::QuadratureType quadratureType)
 {
+  AXOM_ANNOTATE_SCOPE("generateSamplingPositions");
   checkSampleResolution(bpState, sampleResolution, quadratureType);
 
   if(bpState.m_internal_node.has_path(

@@ -447,6 +447,8 @@ void generateSamplingPositions(SamplingMFEMState& mfemState,
                                axom::ArrayView<int> sampleResolution,
                                axom::numerics::QuadratureType quadratureType)
 {
+  AXOM_ANNOTATE_SCOPE("generateSamplingPositions");
+
   checkSampleResolution(mfemState, sampleResolution, quadratureType);
 
   if(mfemState.m_inoutShapeQFuncs.Has("positions"))

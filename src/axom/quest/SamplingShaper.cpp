@@ -10,6 +10,58 @@ namespace axom
 {
 namespace quest
 {
+
+  void SamplingShaper::setQuadratureType(axom::numerics::QuadratureType qtype)
+  {
+    if(m_bp_state != nullptr)
+    {
+      // For Blueprint, we rely on Axom quadrature types and not all are implementd yet.
+      if(axom::numerics::is_valid_quadrature_type(static_cast<int>(qtype)))
+      {
+std::cout << "Setting m_quadratureType = " << static_cast<int>(qtype) << std::endl;
+        m_quadratureType = qtype;
+      }
+      else
+      {
+        SLIC_ERROR(axom::fmt::format("Invalid quadrature type value {}", static_cast<int>(qtype)));
+      }
+    }
+  }
+
+  void SamplingShaper::setSamplingResolution(int sampleRes)
+  {
+    SLIC_ERROR_IF(sampleRes < 1, "Invalid sample resolution");
+    m_samplingResolution.clear();
+    const auto dim = meshDimension();
+    for(int d = 0; d < dim; d++)
+    {
+      m_samplingResolution.push_back(sampleRes);
+    }
+  }
+
+  void SamplingShaper::setSamplingResolution(axom::ArrayView<int> sampleRes)
+  {
+    const auto dim = meshDimension();
+    SLIC_ERROR_IF(static_cast<axom::IndexType>(dim) != sampleRes.size(),
+                  "Number of sample resolutions does not match mesh dimension.");
+    m_samplingResolution.clear();
+    for(int d = 0; d < dim; d++)
+    {
+      SLIC_ERROR_IF(sampleRes[d] < 1, "Invalid sample resolution");
+      m_samplingResolution.push_back(sampleRes[d]);
+    }
+  }
+
+  void SamplingShaper::initializeSamplingResolution()
+  {
+    // Initialize the default number of samples based on the mesh dimension.
+    const int dim = meshDimension();
+    for(int d = 0; d < dim; d++)
+    {
+      m_samplingResolution.push_back(5);
+    }
+  }
+
   bool SamplingShaper::verifyInputMeshImpl(std::string& whyBad) const
   {
     bool rval = true;
