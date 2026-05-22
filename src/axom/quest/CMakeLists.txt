@@ -151,10 +151,15 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
         list(APPEND quest_headers Shaper.hpp
                                   DiscreteShape.hpp
                                   IntersectionShaper.hpp
+                                  SamplingShaper.hpp 
                                   detail/shaping/shaping_helpers.hpp
+                                  detail/shaping/InOutSampler.hpp
+                                  detail/shaping/PrimitiveSampler.hpp
+                                  detail/shaping/WindingNumberSampler.hpp
                                   )
         list(APPEND quest_sources Shaper.cpp
                                   DiscreteShape.cpp
+                                  SamplingShaper.cpp
                                   detail/shaping/shaping_helpers.cpp
                                   )
         list(APPEND quest_depends_on klee)
@@ -196,15 +201,6 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
             list(APPEND quest_headers detail/clipping/TetMeshClipper.hpp)
             list(APPEND quest_sources detail/clipping/TetMeshClipper.cpp)
         endif()
-    endif()
-
-    if(MFEM_FOUND OR CONDUIT_FOUND)
-        list(APPEND quest_sources SamplingShaper.cpp)
-        list(APPEND quest_headers SamplingShaper.hpp 
-                                  detail/shaping/InOutSampler.hpp
-                                  detail/shaping/PrimitiveSampler.hpp
-                                  detail/shaping/WindingNumberSampler.hpp
-                                  )
     endif()
 endif()
 

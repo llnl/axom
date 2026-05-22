@@ -797,12 +797,15 @@ void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
   vf->HostReadWrite();
 }
 
+#endif  // defined(AXOM_USE_MFEM)
+
 #if defined(AXOM_USE_CONDUIT)
 void printRegisteredFieldNames(const BlueprintState& bpState,
                                const std::set<std::string>& knownMaterials,
                                VolFracSampling AXOM_UNUSED_PARAM(vfSampling),
                                const std::string& initialMessage)
 {
+#pragma message "Compiling Conduit printRegisteredFieldNames!"
   auto extractChildren = [](const conduit::Node& node) {
     std::vector<std::string> names;
     if(node.dtype().is_object())
@@ -1147,7 +1150,9 @@ conduit::Node* cloneInOutFunction(const conduit::Node* node)
   SLIC_ASSERT(node != nullptr);
   return new conduit::Node(*node);
 }
-#endif
+#endif  // defined(AXOM_USE_CONDUIT)
+
+#if defined(AXOM_USE_MFEM)
 
 void FCT_correct(const double* M,     // Mass matrix
                  const int s,         // num dofs

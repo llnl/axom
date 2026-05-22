@@ -146,6 +146,7 @@ public:
   bool usesInlineBlueprintMesh() const { return inlineMeshKind == InlineMeshKind::Blueprint; }
 
   /// Generate an mfem Cartesian mesh, scaled to the bounding box range
+#if defined(AXOM_USE_MFEM)
   mfem::Mesh* createBoxMesh()
   {
     mfem::Mesh* mesh = nullptr;
@@ -197,6 +198,7 @@ public:
 
     return mesh;
   }
+#endif
 
 #if defined(AXOM_USE_CONDUIT)
   /// Generate a Blueprint Cartesian mesh, scaled to the bounding box range
@@ -271,6 +273,7 @@ public:
   }
 #endif
 
+  #if defined(AXOM_USE_MFEM)
   std::unique_ptr<sidre::MFEMSidreDataCollection> loadComputationalMesh()
   {
     constexpr bool dc_owns_data = true;
@@ -288,6 +291,7 @@ public:
 
     return dc;
   }
+  #endif
 
   std::string getDCMeshName() const
   {
@@ -518,6 +522,7 @@ public:
  *
  * \note In MPI-based configurations, this is a collective call, but only prints on rank 0
  */
+#if defined(AXOM_USE_MFEM)
 void printMeshInfo(mfem::Mesh* mesh, const std::string& prefixMessage = "")
 {
   namespace primal = axom::primal;
@@ -571,6 +576,7 @@ void printMeshInfo(mfem::Mesh* mesh, const std::string& prefixMessage = "")
 
   slic::flushStreams();
 }
+#endif
 
 /// \brief Utility function to initialize the logger
 void initializeLogger()
@@ -690,10 +696,12 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   // Load the computational mesh
   //---------------------------------------------------------------------------
-  std::unique_ptr<sidre::MFEMSidreDataCollection> originalMeshDC;
 #if defined(AXOM_USE_CONDUIT)
   std::unique_ptr<sidre::DataStore> originalBlueprintMeshDS;
   sidre::Group* originalBlueprintMeshGroup = nullptr;
+#endif
+#if defined(AXOM_USE_MFEM)
+  std::unique_ptr<sidre::MFEMSidreDataCollection> originalMeshDC;
 #endif
 
   //---------------------------------------------------------------------------
@@ -715,8 +723,8 @@ int main(int argc, char** argv)
   }
   else
   {
-    originalMeshDC = params.loadComputationalMesh();
 #if defined(AXOM_USE_MFEM)
+    originalMeshDC = params.loadComputationalMesh();
     shapingDC.SetMeshNodesName("positions");
 
     auto* pmesh = dynamic_cast<mfem::ParMesh*>(originalMeshDC->GetMesh());
@@ -724,6 +732,8 @@ int main(int argc, char** argv)
       (pmesh != nullptr) ? new mfem::ParMesh(*pmesh) : new mfem::Mesh(*originalMeshDC->GetMesh());
     shapingDC.SetMesh(shapingMesh);
     printMeshInfo(shapingMesh, "After loading");
+#else
+    SLIC_ERROR_ROOT("MFEM-backed meshes in shaping_driver require Axom to be configured with MFEM.");
 #endif
   }
   AXOM_ANNOTATE_END("load mesh");
@@ -796,10 +806,12 @@ int main(int argc, char** argv)
 
   // Associate any fields that begin with "vol_frac" with "material" so when
   // the data collection is written, a matset will be created.
+#if defined(AXOM_USE_MFEM)
   if(shaper->getDC() != nullptr)
   {
     shaper->getDC()->AssociateMaterialSet("vol_frac", "material");
   }
+#endif
 
   // Set specific parameters for a SamplingShaper, if appropriate
   if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
@@ -816,7 +828,19 @@ int main(int argc, char** argv)
         res[i] = params.samplingResolution[i];
       }
     }
-    axom::ArrayView<int> sampleRes(res, shaper->getDC()->GetMesh()->Dimension());
+    int meshDim = -1;
+#if defined(AXOM_USE_MFEM)
+    if(shaper->getDC() != nullptr)
+    {
+      meshDim = shaper->getDC()->GetMesh()->Dimension();
+    }
+#endif
+    if(meshDim < 0 && params.usesInlineBlueprintMesh())
+    {
+      meshDim = params.boxDim;
+    }
+    SLIC_ERROR_IF(meshDim < 0, "Unable to determine mesh dimension for sampling setup.");
+    axom::ArrayView<int> sampleRes(res, meshDim);
 
     samplingShaper->setSamplingType(params.vfSampling);
     samplingShaper->setSamplingResolution(sampleRes);
@@ -825,12 +849,15 @@ int main(int argc, char** argv)
     samplingShaper->setSamplingMethod(params.samplingMethod);
 
     // register point projectors
-    int meshDim = -1;
+    meshDim = -1;
+#if defined(AXOM_USE_MFEM)
     if(shaper->getDC() != nullptr)
     {
-      meshDim = shapingDC.GetMesh()->Dimension();
+      meshDim = shaper->getDC()->GetMesh()->Dimension();
     }
-    else if(params.usesInlineBlueprintMesh())
+    else
+#endif
+    if(params.usesInlineBlueprintMesh())
     {
       meshDim = params.boxDim;
     }
