@@ -79,6 +79,7 @@ set( primal_headers
     operators/detail/fuzzy_comparators.hpp
     operators/detail/intersect_bezier_impl.hpp
     operators/detail/intersect_bounding_box_impl.hpp
+    operators/detail/intersect_curved_poly_impl.hpp
     operators/detail/intersect_patch_impl.hpp
     operators/detail/intersect_impl.hpp
     operators/detail/intersect_ray_impl.hpp
