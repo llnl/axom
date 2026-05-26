@@ -338,6 +338,8 @@ private:
   axom::Array<double> computeWeights(axom::ArrayView<const double> theta,
                                      const RationalChebyshevPoleData& data) const
   {
+    auto square = [](double value) { return value * value; };
+
     const int n = static_cast<int>(theta.size());
     axom::Array<double> weights(n, n);
     weights.fill(1.0);

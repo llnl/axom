@@ -760,6 +760,38 @@ TEST(numerics_quadrature, rational_fejer_point_count_follows_canonical_poles)
   EXPECT_EQ(axom::numerics::get_rational_fejer(implicit_pair).getNumPoints(), 3);
 }
 
+TEST(numerics_quadrature, rational_fejer_reuses_companion_rational_chebyshev_nodes)
+{
+  // Rational Fejer is built on the companion rational Chebyshev rule: the
+  // nodes are reused, while the weights are corrected for unweighted integrals.
+  const axom::Array<Complex> poles_m11 {Complex {-1.4, 0.0}, Complex {1.6, 0.0}, Complex {2.2, 0.0}};
+  const axom::Array<Complex> companion_poles_m11 {
+    Complex {-1.4, 0.0},
+    Complex {1.6, 0.0},
+    Complex {2.2, 0.0},
+    Complex {axom::numeric_limits<double>::infinity(), 0.0}};
+
+  axom::Array<double> fejer_nodes;
+  axom::Array<double> fejer_weights;
+  numerics_internal::compute_rational_fejer_data_m11(poles_m11, fejer_nodes, fejer_weights);
+
+  axom::Array<double> chebyshev_nodes;
+  axom::Array<double> chebyshev_weights;
+  numerics_internal::compute_rational_chebyshev_data_m11(companion_poles_m11,
+                                                         chebyshev_nodes,
+                                                         chebyshev_weights);
+
+  ASSERT_EQ(fejer_nodes.size(), chebyshev_nodes.size());
+  ASSERT_EQ(fejer_weights.size(), chebyshev_weights.size());
+  bool changed_a_weight = false;
+  for(int i = 0; i < fejer_nodes.size(); ++i)
+  {
+    EXPECT_NEAR(fejer_nodes[i], chebyshev_nodes[i], 1e-13);
+    changed_a_weight = changed_a_weight || std::abs(fejer_weights[i] - chebyshev_weights[i]) > 1e-8;
+  }
+  EXPECT_TRUE(changed_a_weight);
+}
+
 TEST(numerics_quadrature, rational_fejer_cached_rule_matches_uncached_compute)
 {
   // The cached API should be only a storage optimization, not a separate rule construction.
@@ -883,6 +915,7 @@ TEST(numerics_quadrature, rational_fejer_diagnostics_respect_allocator)
   EXPECT_EQ(diagnostics.rational_chebyshev_nodes_m11.getAllocatorID(), allocatorID);
   EXPECT_EQ(diagnostics.rational_chebyshev_weights_m11.getAllocatorID(), allocatorID);
   EXPECT_EQ(diagnostics.basis_coefficients.getAllocatorID(), allocatorID);
+  EXPECT_EQ(diagnostics.weight_correction_m11.getAllocatorID(), allocatorID);
   EXPECT_EQ(diagnostics.final_weights_m11.getAllocatorID(), allocatorID);
   EXPECT_EQ(diagnostics.nodes_01.getAllocatorID(), allocatorID);
   EXPECT_EQ(diagnostics.weights_01.getAllocatorID(), allocatorID);

@@ -36,6 +36,7 @@ set(core_headers
 
     ## numerics
     numerics/internal/matrix_norms.hpp
+    numerics/internal/rational_fejer_diagnostics.hpp
     numerics/internal/rational_quadrature_common.hpp
     numerics/internal/rational_quadrature.hpp
 

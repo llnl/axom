@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/core/LRUCache.hpp"
+#include "axom/core/numerics/internal/rational_fejer_diagnostics.hpp"
 #include "axom/core/numerics/internal/rational_quadrature_common.hpp"
 
 #include <cmath>
@@ -30,12 +31,12 @@ namespace internal
  * ACM Transactions on Mathematical Software 43(4), 2017.
  *
  * Given a prescribed pole sequence, the algorithm canonicalizes the poles,
- * completes missing complex conjugates, builds the companion rational
- * Chebyshev rule, seeds exact pole-moment data, and solves for rational basis
- * coefficients by enforcing orthogonality. The sampled basis expansion is then
- * combined with the rational Chebyshev weights to produce the final rational
- * Fejer nodes and weights. Public entry points map between Axom's `[0,1]`
- * rule domain and the `[-1,1]` reference domain used by the paper formulas.
+ * completes missing complex conjugates, and builds the companion rational
+ * Chebyshev rule. Rational Fejer keeps those Chebyshev nodes and solves for a
+ * correction to the Chebyshev weights so that the final rule integrates
+ * unweighted rational basis functions. Public entry points map between Axom's
+ * `[0,1]` rule domain and the `[-1,1]` reference domain used by the paper
+ * formulas.
  */
 
 /// \brief Computes the asymptotic pole-moment integral used for distant poles.
@@ -154,125 +155,35 @@ inline axom::Array<double> computePoleMomentIntegrals(const Pole& pole,
   return result;
 }
 
-/// \brief Records optional diagnostics for one rational Fejer coefficient solve.
-class RationalFejerStepDiagnosticsRecorder
-{
-public:
-  RationalFejerStepDiagnosticsRecorder(RationalFejerDiagnostics::Step* step_diagnostics = nullptr,
-                                       int diagnostic_allocator_id = axom::getDefaultAllocatorID())
-    : m_step(step_diagnostics)
-    , m_allocatorID(diagnostic_allocator_id)
-  { }
-
-  bool enabled() const { return m_step != nullptr; }
-
-  void recordWeightedRows(axom::ArrayView<const long double> row0,
-                          axom::ArrayView<const long double> row1,
-                          bool has_imaginary_component) const
-  {
-    if(!enabled())
-    {
-      return;
-    }
-
-    copy_array_to_array(row0, m_step->weighted_row0, m_allocatorID);
-    if(has_imaginary_component)
-    {
-      copy_array_to_array(row1, m_step->weighted_row1, m_allocatorID);
-    }
-  }
-
-  void recordProjectedRow0(axom::ArrayView<const long double> row0,
-                           axom::ArrayView<const long double> row0_terms,
-                           int node_count,
-                           long double rhs0) const
-  {
-    if(!enabled())
-    {
-      return;
-    }
-
-    copy_array_to_array(row0, m_step->projected_row0, m_allocatorID);
-    copy_array_to_array(row0_terms, m_step->projected_row0_terms, m_allocatorID);
-    m_step->projected_row_terms_node_count = node_count;
-    m_step->rhs0 = static_cast<double>(rhs0);
-  }
-
-  void recordProjectedRow1(axom::ArrayView<const long double> row1,
-                           axom::ArrayView<const long double> row1_terms,
-                           long double rhs1,
-                           long double a00,
-                           long double a01,
-                           long double a10,
-                           long double a11) const
-  {
-    if(!enabled())
-    {
-      return;
-    }
-
-    copy_array_to_array(row1, m_step->projected_row1, m_allocatorID);
-    copy_array_to_array(row1_terms, m_step->projected_row1_terms, m_allocatorID);
-    m_step->rhs1 = static_cast<double>(rhs1);
-    m_step->a00 = static_cast<double>(a00);
-    m_step->a01 = static_cast<double>(a01);
-    m_step->a10 = static_cast<double>(a10);
-    m_step->a11 = static_cast<double>(a11);
-  }
-
-  void recordTinySolve(bool used_pivot,
-                       long double factor,
-                       long double reduced_a11,
-                       long double reduced_rhs1,
-                       long double x0,
-                       long double x1) const
-  {
-    if(!enabled())
-    {
-      return;
-    }
-
-    m_step->used_pivot = used_pivot;
-    m_step->factor = static_cast<double>(factor);
-    m_step->reduced_a11 = static_cast<double>(reduced_a11);
-    m_step->reduced_rhs1 = static_cast<double>(reduced_rhs1);
-    m_step->solved_x0 = static_cast<double>(x0);
-    m_step->solved_x1 = static_cast<double>(x1);
-  }
-
-private:
-  RationalFejerDiagnostics::Step* m_step {nullptr};
-  int m_allocatorID {axom::getDefaultAllocatorID()};
-};
-
-/// \brief Stores the rational basis sampled at the rational Chebyshev nodes.
+/// \brief Stores the rational Fejer basis sampled at the companion Chebyshev nodes.
 ///
-/// The moment solve and final weight assembly reuse this matrix. It
-/// corresponds to the orthonormal rational basis used in the Deckers et al.
-/// extended rational Fejer construction; QuaHOG provided a practical reference
-/// implementation for this Axom port.
+/// The companion rational Chebyshev rule supplies the nodes and seed weights.
+/// The Fejer-specific solve below only computes the weight correction sampled in this basis.
 class RationalFejerBasis
 {
 public:
   RationalFejerBasis(axom::ArrayView<const Complex> cayley_poles,
-                     axom::Array<double> nodes,
-                     axom::Array<double> lambda)
-    : m_nodes(std::move(nodes))
-    , m_lambda(std::move(lambda))
-    , m_QColumns(buildBasisColumns(cayley_poles, m_nodes))
-    , m_basisColumnCount(static_cast<int>(m_nodes.size()))
-    , m_nodeCount(static_cast<int>(m_nodes.size()))
+                     QuadratureRule companion_chebyshev_rule)
+    : m_companionChebyshevRule(std::move(companion_chebyshev_rule))
+    , m_QColumns(buildBasisColumns(cayley_poles, m_companionChebyshevRule.nodes()))
+    , m_basisColumnCount(m_companionChebyshevRule.getNumPoints())
+    , m_nodeCount(m_companionChebyshevRule.getNumPoints())
   { }
 
-  const axom::Array<double>& nodes() const { return m_nodes; }
+  axom::ArrayView<const double> nodes() const { return m_companionChebyshevRule.nodes(); }
 
-  const axom::Array<double>& lambda() const { return m_lambda; }
+  axom::ArrayView<const double> chebyshevWeights() const
+  {
+    return m_companionChebyshevRule.weights();
+  }
 
   axom::ArrayView<const double> basisColumns() const { return m_QColumns.view(); }
 
   int basisColumnCount() const { return m_basisColumnCount; }
 
   int nodeCount() const { return m_nodeCount; }
+
+  double node(int idx) const { return m_companionChebyshevRule.node(idx); }
 
   double basisValue(int column, int node) const { return m_QColumns[column * m_nodeCount + node]; }
 
@@ -288,7 +199,7 @@ public:
     assert(num_basis_columns >= component_count);
     assert(known_integrals.size() >= num_basis_columns);
 
-    const int n = static_cast<int>(m_nodes.size());
+    const int n = nodeCount();
     const bool has_imaginary_component = component_count == 2;
     const bool diagnostics_enabled = diagnostics.enabled();
     const int first_unknown_column = num_basis_columns - component_count;
@@ -303,14 +214,14 @@ public:
     // keeps the eventual quadrature weights real.
     for(int i = 0; i < n; ++i)
     {
-      const Complex basis_value = evaluatePoleBasisValue(pole, multiplicity, m_nodes[i]);
+      const Complex basis_value = evaluatePoleBasisValue(pole, multiplicity, node(i));
 
-      weighted_row0[i] =
-        static_cast<long double>(m_lambda[i]) * static_cast<long double>(basis_value.real());
+      weighted_row0[i] = static_cast<long double>(chebyshevWeights()[i]) *
+        static_cast<long double>(basis_value.real());
       if(has_imaginary_component)
       {
-        weighted_row1[i] =
-          static_cast<long double>(m_lambda[i]) * static_cast<long double>(-basis_value.imag());
+        weighted_row1[i] = static_cast<long double>(chebyshevWeights()[i]) *
+          static_cast<long double>(-basis_value.imag());
       }
     }
 
@@ -412,9 +323,9 @@ public:
     return axom::Array<double> {static_cast<double>(x0), static_cast<double>(x1)};
   }
 
-  axom::Array<double> evaluateExpansion(axom::ArrayView<const double> coefficients) const
+  axom::Array<double> evaluateExpansionAtChebyshevNodes(axom::ArrayView<const double> coefficients) const
   {
-    axom::Array<double> values(m_nodes.size(), m_nodes.size());
+    axom::Array<double> values(nodeCount(), nodeCount());
     values.fill(0.0);
     for(int j = 0; j < coefficients.size(); ++j)
     {
@@ -424,7 +335,7 @@ public:
         continue;
       }
 
-      for(int i = 0; i < m_nodes.size(); ++i)
+      for(int i = 0; i < nodeCount(); ++i)
       {
         values[i] += basisValue(j, i) * coefficient;
       }
@@ -516,158 +427,10 @@ private:
     return Q_columns;
   }
 
-  axom::Array<double> m_nodes;
-  axom::Array<double> m_lambda;
+  QuadratureRule m_companionChebyshevRule;
   axom::Array<double> m_QColumns;
   int m_basisColumnCount {0};
   int m_nodeCount {0};
-};
-
-/// \brief Copies the sampled rational Fejer basis matrix into diagnostics storage.
-///
-/// The surrounding construction follows Deckers, Mougaida, and Belhadjsalah,
-/// ACM TOMS 43(4), 2017 (Algorithm 973). Axom uses the explicit node/weight
-/// construction here, not the semi-automatic adaptive integrator from that paper.
-inline void copy_basis_matrix_to_array(const RationalFejerBasis& basis,
-                                       axom::Array<double>& array,
-                                       int allocatorID)
-{
-  copy_array_to_array(basis.basisColumns(), array, allocatorID);
-}
-
-/// \brief Counts coefficient-solve steps for a canonical rational Fejer pole sequence.
-inline int countRationalFejerSteps(axom::ArrayView<const Pole> canonical_poles, double pole_tolerance)
-{
-  int step_count = 0;
-  int coeff_index = 1;
-  const int num_poles = static_cast<int>(canonical_poles.size());
-  while(coeff_index < num_poles + 1)
-  {
-    const Pole pole = canonical_poles[coeff_index - 1];
-    const int component_count = pole.componentCount(pole_tolerance);
-    ++step_count;
-    coeff_index += component_count;
-  }
-  return step_count;
-}
-
-/// \brief Records optional diagnostics for the full rational Fejer construction.
-class RationalFejerDiagnosticsRecorder
-{
-public:
-  RationalFejerDiagnosticsRecorder(RationalFejerDiagnostics* diagnostics,
-                                   int allocatorID,
-                                   double pole_tolerance)
-    : m_diagnostics(diagnostics)
-    , m_allocatorID(allocatorID)
-    , m_poleTolerance(pole_tolerance)
-  { }
-
-  bool enabled() const { return m_diagnostics != nullptr; }
-
-  void recordPoleSetup(axom::ArrayView<const Pole> canonical_poles,
-                       axom::ArrayView<const Complex> cayley_poles)
-  {
-    if(!enabled())
-    {
-      return;
-    }
-
-    m_diagnostics->canonical_poles_m11 =
-      axom::Array<Complex>(canonical_poles.size(), canonical_poles.size(), m_allocatorID);
-    for(axom::IndexType i = 0; i < canonical_poles.size(); ++i)
-    {
-      m_diagnostics->canonical_poles_m11[i] = canonical_poles[i].value();
-    }
-
-    m_diagnostics->cayley_poles =
-      axom::Array<Complex>(cayley_poles.size(), cayley_poles.size(), m_allocatorID);
-    for(axom::IndexType i = 0; i < cayley_poles.size(); ++i)
-    {
-      m_diagnostics->cayley_poles[i] = cayley_poles[i];
-    }
-
-    const int diagnostic_step_count = countRationalFejerSteps(canonical_poles, m_poleTolerance);
-    m_diagnostics->steps = axom::Array<RationalFejerDiagnostics::Step>(diagnostic_step_count,
-                                                                       diagnostic_step_count,
-                                                                       m_allocatorID);
-  }
-
-  void recordChebyshevSeedRule(axom::ArrayView<const double> nodes,
-                               axom::ArrayView<const double> weights)
-  {
-    if(!enabled())
-    {
-      return;
-    }
-
-    copy_array_to_array(nodes, m_diagnostics->rational_chebyshev_nodes_m11, m_allocatorID);
-    copy_array_to_array(weights, m_diagnostics->rational_chebyshev_weights_m11, m_allocatorID);
-  }
-
-  RationalFejerDiagnostics::Step beginStep(int coeff_index,
-                                           int component_count,
-                                           int pole_multiplicity_so_far,
-                                           const Pole& pole,
-                                           axom::ArrayView<const double> known_integrals) const
-  {
-    RationalFejerDiagnostics::Step step;
-    if(!enabled())
-    {
-      return step;
-    }
-
-    step.step_index = m_stepIndex;
-    step.coeff_index_before = coeff_index;
-    step.component_count = component_count;
-    step.pole_multiplicity_so_far = pole_multiplicity_so_far;
-    step.pole_m11 = pole.value();
-    copy_array_to_array(known_integrals, step.basis_coefficients_before, m_allocatorID);
-    return step;
-  }
-
-  RationalFejerStepDiagnosticsRecorder stepRecorder(RationalFejerDiagnostics::Step& step) const
-  {
-    return RationalFejerStepDiagnosticsRecorder {enabled() ? &step : nullptr, m_allocatorID};
-  }
-
-  void finishStep(RationalFejerDiagnostics::Step&& step,
-                  axom::ArrayView<const double> orthogonal_integrals,
-                  axom::ArrayView<const double> known_integrals)
-  {
-    if(!enabled())
-    {
-      return;
-    }
-
-    copy_array_to_array(orthogonal_integrals, step.orthogonal_integrals, m_allocatorID);
-    copy_array_to_array(known_integrals, step.basis_coefficients_after, m_allocatorID);
-    m_diagnostics->steps[m_stepIndex++] = std::move(step);
-  }
-
-  void recordFinalRule(const RationalFejerBasis& basis,
-                       axom::ArrayView<const double> basis_coefficients,
-                       axom::ArrayView<const double> basis_expansion,
-                       axom::ArrayView<const double> weights)
-  {
-    if(!enabled())
-    {
-      return;
-    }
-
-    copy_array_to_array(basis_coefficients, m_diagnostics->basis_coefficients, m_allocatorID);
-    copy_array_to_array(basis_expansion, m_diagnostics->basis_expansion_m11, m_allocatorID);
-    copy_array_to_array(weights, m_diagnostics->final_weights_m11, m_allocatorID);
-    copy_basis_matrix_to_array(basis, m_diagnostics->basis_matrix_transpose_m11, m_allocatorID);
-    m_diagnostics->basis_matrix_row_count = basis.basisColumnCount();
-    m_diagnostics->basis_matrix_col_count = basis.nodeCount();
-  }
-
-private:
-  RationalFejerDiagnostics* m_diagnostics {nullptr};
-  int m_allocatorID {axom::getDefaultAllocatorID()};
-  double m_poleTolerance {0.0};
-  int m_stepIndex {0};
 };
 
 /// \brief Maps canonical poles to the signed Cayley-domain sequence used by the Fejer basis.
@@ -738,13 +501,13 @@ private:
   }
 };
 
-/// \brief Initializes rational Fejer basis coefficients with the constant term.
-inline axom::Array<double> initializeRationalFejerBasisCoefficients(int num_poles)
+/// \brief Initializes expansion coefficients for the unweighted integration functional.
+inline axom::Array<double> initializeUnweightedIntegralCoefficients(int num_poles)
 {
-  axom::Array<double> basis_coefficients(num_poles + 1, num_poles + 1);
-  basis_coefficients.fill(0.0);
-  basis_coefficients[0] = 2.0 / std::sqrt(M_PI);
-  return basis_coefficients;
+  axom::Array<double> integral_coefficients(num_poles + 1, num_poles + 1);
+  integral_coefficients.fill(0.0);
+  integral_coefficients[0] = 2.0 / std::sqrt(M_PI);
+  return integral_coefficients;
 }
 
 /// \brief Seeds exact non-orthogonal moments for the next newly encountered pole.
@@ -753,7 +516,7 @@ inline int seedNewPoleMomentCoefficients(const PoleSequence& canonical_poles,
                                          int coeff_index,
                                          int component_count,
                                          double pole_tolerance,
-                                         axom::Array<double>& basis_coefficients)
+                                         axom::Array<double>& integral_coefficients)
 {
   const int num_poles = static_cast<int>(canonical_poles.size());
   const int pole_multiplicity_so_far =
@@ -784,21 +547,21 @@ inline int seedNewPoleMomentCoefficients(const PoleSequence& canonical_poles,
     computePoleMomentIntegrals(pole, multiplicity, component_count, pole_tolerance);
   for(axom::IndexType i = 0; i < repeated_pole_offsets.size(); ++i)
   {
-    basis_coefficients[coeff_index + repeated_pole_offsets[i] - 1] = pole_integrals[i];
+    integral_coefficients[coeff_index + repeated_pole_offsets[i] - 1] = pole_integrals[i];
   }
 
   return pole_multiplicity_so_far;
 }
 
-/// \brief Solves the rational Fejer basis coefficients by enforcing orthogonality.
-inline axom::Array<double> solveRationalFejerBasisCoefficients(
+/// \brief Solves the unweighted integration functional in the rational Fejer basis.
+inline axom::Array<double> solveUnweightedIntegralCoefficients(
   const PoleSequence& canonical_poles,
   const RationalFejerBasis& basis,
   double pole_tolerance,
   RationalFejerDiagnosticsRecorder& diagnostics_recorder)
 {
   const int num_poles = static_cast<int>(canonical_poles.size());
-  axom::Array<double> basis_coefficients = initializeRationalFejerBasisCoefficients(num_poles);
+  axom::Array<double> integral_coefficients = initializeUnweightedIntegralCoefficients(num_poles);
 
   int coeff_index = 1;
   while(coeff_index < num_poles + 1)
@@ -810,10 +573,10 @@ inline axom::Array<double> solveRationalFejerBasisCoefficients(
                                                                        coeff_index,
                                                                        component_count,
                                                                        pole_tolerance,
-                                                                       basis_coefficients);
+                                                                       integral_coefficients);
 
     const int num_known_columns = coeff_index + component_count;
-    auto known_integrals = basis_coefficients.view().subspan(0, num_known_columns);
+    auto known_integrals = integral_coefficients.view().subspan(0, num_known_columns);
 
     RationalFejerDiagnostics::Step step_diagnostics =
       diagnostics_recorder.beginStep(coeff_index,
@@ -834,7 +597,7 @@ inline axom::Array<double> solveRationalFejerBasisCoefficients(
                                                                      step_recorder);
     for(int i = 0; i < component_count; ++i)
     {
-      basis_coefficients[coeff_index + i] = orthogonal_integrals[i];
+      integral_coefficients[coeff_index + i] = orthogonal_integrals[i];
     }
 
     diagnostics_recorder.finishStep(std::move(step_diagnostics), orthogonal_integrals, known_integrals);
@@ -842,22 +605,72 @@ inline axom::Array<double> solveRationalFejerBasisCoefficients(
     coeff_index += component_count;
   }
 
-  return basis_coefficients;
+  return integral_coefficients;
 }
 
-/// \brief Reconstructs quadrature weights from a sampled basis expansion.
-inline axom::Array<double> assembleRationalFejerWeights(const RationalFejerBasis& basis,
-                                                        axom::ArrayView<const double> basis_expansion)
+/// \brief Applies the Fejer weight correction to the companion Chebyshev rule.
+inline QuadratureRule applyFejerWeightCorrection(const RationalFejerBasis& basis,
+                                                 axom::ArrayView<const double> weight_correction)
 {
-  axom::Array<double> weights(basis_expansion.size(), basis_expansion.size());
-  const auto& lambda = basis.lambda();
-  // Convert the solved expansion coefficients back into quadrature weights
-  // by multiplying the basis expansion by the rational Chebyshev weights.
+  axom::Array<double> weights(weight_correction.size(), weight_correction.size());
+  const auto chebyshev_weights = basis.chebyshevWeights();
+  // Rational Fejer uses the rational Chebyshev nodes. Only the weights change:
+  // the sampled unweighted integration functional is a correction factor.
   for(int i = 0; i < weights.size(); ++i)
   {
-    weights[i] = basis_expansion[i] * lambda[i];
+    weights[i] = chebyshev_weights[i] * weight_correction[i];
   }
-  return weights;
+  axom::Array<double> nodes(basis.nodes(), axom::getDefaultAllocatorID());
+  return QuadratureRule {std::move(nodes), std::move(weights)};
+}
+
+/// \brief Computes the companion rational Chebyshev rule that supplies Fejer nodes.
+inline QuadratureRule computeCompanionRationalChebyshevRule(const RationalFejerPoleData& pole_data)
+{
+  // A rational Fejer rule for m finite/infinite poles uses m+1 rational Chebyshev nodes. 
+  // The appended infinity pole supplies that extra Chebyshev-like degree.
+  const PoleSequence rational_chebyshev_poles = pole_data.canonical_poles_m11.withAppendedInfinity();
+
+  axom::Array<double> nodes;
+  axom::Array<double> weights;
+  compute_rational_chebyshev_data(rational_chebyshev_poles.view(), nodes, weights);
+  return QuadratureRule {std::move(nodes), std::move(weights)};
+}
+
+/// \brief Computes a rational Fejer rule on [-1,1] with optional diagnostics.
+inline QuadratureRule compute_rational_fejer_rule_m11_impl(
+  const RationalFejerPoleData& pole_data,
+  RationalFejerDiagnostics* diagnostics = nullptr,
+  int allocatorID = axom::getDefaultAllocatorID())
+{
+  RationalFejerDiagnosticsRecorder diagnostics_recorder {diagnostics,
+                                                         allocatorID,
+                                                         pole_data.pole_tolerance};
+  diagnostics_recorder.recordPoleSetup(pole_data.canonical_poles_m11.view(), pole_data.cayley_poles);
+
+  QuadratureRule companion_chebyshev_rule = computeCompanionRationalChebyshevRule(pole_data);
+  diagnostics_recorder.recordCompanionChebyshevRule(companion_chebyshev_rule.view());
+
+  RationalFejerBasis basis(pole_data.cayley_poles, std::move(companion_chebyshev_rule));
+
+  const axom::Array<double> integral_coefficients =
+    solveUnweightedIntegralCoefficients(pole_data.canonical_poles_m11,
+                                        basis,
+                                        pole_data.pole_tolerance,
+                                        diagnostics_recorder);
+
+  const axom::Array<double> weight_correction =
+    basis.evaluateExpansionAtChebyshevNodes(integral_coefficients);
+  QuadratureRule fejer_rule = applyFejerWeightCorrection(basis, weight_correction);
+
+  diagnostics_recorder.recordFinalRule(integral_coefficients,
+                                       weight_correction,
+                                       fejer_rule.view(),
+                                       basis.basisColumns(),
+                                       basis.basisColumnCount(),
+                                       basis.nodeCount());
+
+  return fejer_rule;
 }
 
 /// \brief Computes rational Fejer nodes and weights on [-1,1] with optional diagnostics.
@@ -867,38 +680,10 @@ inline void compute_rational_fejer_data_m11_impl(const RationalFejerPoleData& po
                                                  RationalFejerDiagnostics* diagnostics = nullptr,
                                                  int allocatorID = axom::getDefaultAllocatorID())
 {
-  RationalFejerDiagnosticsRecorder diagnostics_recorder {diagnostics,
-                                                         allocatorID,
-                                                         pole_data.pole_tolerance};
-  diagnostics_recorder.recordPoleSetup(pole_data.canonical_poles_m11.view(), pole_data.cayley_poles);
-
-  // A rational Fejer rule for m finite/infinite poles uses m+1 rational Chebyshev nodes.
-  // The appended infinity pole supplies that extra Chebyshev-like degree.
-  const PoleSequence rational_chebyshev_poles = pole_data.canonical_poles_m11.withAppendedInfinity();
-
-  axom::Array<double> rational_chebyshev_nodes;
-  axom::Array<double> rational_chebyshev_weights;
-  compute_rational_chebyshev_data(rational_chebyshev_poles.view(),
-                                  rational_chebyshev_nodes,
-                                  rational_chebyshev_weights);
-
-  diagnostics_recorder.recordChebyshevSeedRule(rational_chebyshev_nodes, rational_chebyshev_weights);
-
-  RationalFejerBasis basis(pole_data.cayley_poles,
-                           std::move(rational_chebyshev_nodes),
-                           std::move(rational_chebyshev_weights));
-
-  const axom::Array<double> basis_coefficients =
-    solveRationalFejerBasisCoefficients(pole_data.canonical_poles_m11,
-                                        basis,
-                                        pole_data.pole_tolerance,
-                                        diagnostics_recorder);
-
-  nodes = basis.nodes();
-  const axom::Array<double> basis_expansion = basis.evaluateExpansion(basis_coefficients);
-  weights = assembleRationalFejerWeights(basis, basis_expansion);
-
-  diagnostics_recorder.recordFinalRule(basis, basis_coefficients, basis_expansion, weights);
+  const QuadratureRule fejer_rule =
+    compute_rational_fejer_rule_m11_impl(pole_data, diagnostics, allocatorID);
+  copy_array_to_array(fejer_rule.nodes(), nodes, allocatorID);
+  copy_array_to_array(fejer_rule.weights(), weights, allocatorID);
 }
 
 /// \brief Computes rational Fejer nodes and weights on [-1,1].
@@ -947,16 +732,14 @@ void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> pol
 {
   const internal::RationalFejerPoleData pole_data = internal::RationalFejerPoleData::from01(poles01);
 
-  axom::Array<double> nodes_m11;
-  axom::Array<double> weights_m11;
-
   // The implementation below follows the Deckers et al. / van Deun et al.
   // rational Fejer and rational Chebyshev constructions. QuaHOG's MATLAB
   // Spectral_PE implementation served as a secondary reference for how these
   // pieces are assembled in the planar integration workflow.
-  internal::compute_rational_fejer_data_m11_impl(pole_data, nodes_m11, weights_m11, nullptr, allocatorID);
+  const QuadratureRule rule_m11 =
+    internal::compute_rational_fejer_rule_m11_impl(pole_data, nullptr, allocatorID);
 
-  internal::map_rule_m11_to_01(nodes_m11, weights_m11, nodes, weights, allocatorID);
+  internal::map_rule_m11_to_01(rule_m11.nodes(), rule_m11.weights(), nodes, weights, allocatorID);
 }
 
 /// \brief Computes rational Fejer diagnostics on [0,1].
@@ -966,15 +749,10 @@ void internal::compute_rational_fejer_diagnostics(axom::ArrayView<const std::com
 {
   const internal::RationalFejerPoleData pole_data = internal::RationalFejerPoleData::from01(poles01);
 
-  axom::Array<double> nodes_m11;
-  axom::Array<double> weights_m11;
-  internal::compute_rational_fejer_data_m11_impl(pole_data,
-                                                 nodes_m11,
-                                                 weights_m11,
-                                                 &diagnostics,
-                                                 allocatorID);
-  internal::map_rule_m11_to_01(nodes_m11,
-                               weights_m11,
+  const QuadratureRule rule_m11 =
+    internal::compute_rational_fejer_rule_m11_impl(pole_data, &diagnostics, allocatorID);
+  internal::map_rule_m11_to_01(rule_m11.nodes(),
+                               rule_m11.weights(),
                                diagnostics.nodes_01,
                                diagnostics.weights_01,
                                allocatorID);
@@ -1005,10 +783,9 @@ QuadratureRuleView get_rational_fejer(axom::ArrayView<const std::complex<double>
   // insertion in case another thread populated the same key meanwhile.
   axom::Array<double> nodes;
   axom::Array<double> weights;
-  axom::Array<double> nodes_m11;
-  axom::Array<double> weights_m11;
-  internal::compute_rational_fejer_data_m11_impl(pole_data, nodes_m11, weights_m11, nullptr, allocatorID);
-  internal::map_rule_m11_to_01(nodes_m11, weights_m11, nodes, weights, allocatorID);
+  const QuadratureRule rule_m11 =
+    internal::compute_rational_fejer_rule_m11_impl(pole_data, nullptr, allocatorID);
+  internal::map_rule_m11_to_01(rule_m11.nodes(), rule_m11.weights(), nodes, weights, allocatorID);
   QuadratureRule rule {std::move(nodes), std::move(weights)};
 
   {

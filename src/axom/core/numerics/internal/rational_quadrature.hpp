@@ -80,7 +80,8 @@ struct RationalFejerDiagnostics
   axom::Array<double> rational_chebyshev_nodes_m11;
   axom::Array<double> rational_chebyshev_weights_m11;
   axom::Array<double> basis_coefficients;
-  axom::Array<double> basis_expansion_m11;
+  /// Sampled Fejer correction; final weights equal Chebyshev weights times this array.
+  axom::Array<double> weight_correction_m11;
   axom::Array<double> final_weights_m11;
   axom::Array<double> basis_matrix_transpose_m11;
   int basis_matrix_row_count {0};
@@ -140,9 +141,8 @@ void compute_rational_fejer_data_m11(axom::ArrayView<const Complex> poles_m11,
  * \param [out] diagnostics Diagnostic structure populated by the construction.
  * \param [in] allocatorID Allocator used for diagnostic arrays.
  *
- * \note Diagnostics are intended for host-side testing and debugging. The
- * nested arrays in \c RationalFejerDiagnostics should be allocated with a
- * host-accessible allocator.
+ * \note Diagnostics are intended for host-side testing and debugging. The nested arrays
+ * in \c RationalFejerDiagnostics should be allocated with a host-accessible allocator.
  *
  * \pre `poles_m11` is non-empty and all finite real poles lie outside `[-1,1]`.
  */
@@ -153,9 +153,8 @@ void compute_rational_fejer_diagnostics_m11(axom::ArrayView<const Complex> poles
 /*!
  * \brief Build the canonical rational Fejer cache key for `[-1,1]` poles.
  *
- * This internal helper is exposed for tests that verify cache-key
- * canonicalization follows the same `[-1,1]` pole pipeline as the rule
- * construction.
+ * This internal helper is exposed for tests that verify cache-key canonicalization
+ * follows the same `[-1,1]` pole pipeline as the rule construction.
  */
 std::string make_rational_fejer_cache_key_m11(axom::ArrayView<const Complex> poles_m11,
                                               int allocatorID = axom::getDefaultAllocatorID());
@@ -172,9 +171,8 @@ std::string make_rational_fejer_cache_key_m11(axom::ArrayView<const Complex> pol
  * \param [out] diagnostics Diagnostic structure populated by the construction.
  * \param [in] allocatorID Allocator used for diagnostic arrays.
  *
- * \note Diagnostics are intended for host-side testing and debugging. The
- * nested arrays in \c RationalFejerDiagnostics should be allocated with a
- * host-accessible allocator.
+ * \note Diagnostics are intended for host-side testing and debugging. The nested arrays
+ * in \c RationalFejerDiagnostics should be allocated with a host-accessible allocator.
  *
  * \pre `poles01` is non-empty and all finite real poles lie outside `[0,1]`.
  */

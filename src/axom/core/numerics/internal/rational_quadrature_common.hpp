@@ -30,10 +30,6 @@ namespace numerics
 {
 namespace internal
 {
-
-/// \brief Returns the square of a scalar value.
-inline double square(double value) { return value * value; }
-
 /// \brief Reports a rational quadrature precondition failure and aborts the process.
 [[noreturn]] inline void failRationalQuadraturePrecondition(const std::string& message)
 {
