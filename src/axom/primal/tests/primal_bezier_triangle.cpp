@@ -16,9 +16,44 @@
 #include "axom/primal/geometry/BezierTriangle.hpp"
 
 #include <array>
-#include <iterator>
 
 namespace primal = axom::primal;
+
+namespace
+{
+template <typename BTri>
+void fillControlNet(BTri& tri)
+{
+  // Fills the BezierTriangle with sample data
+  using CoordType = typename BTri::PointType::CoordType;
+  using PointType = typename BTri::PointType;
+
+  const int ord = tri.getOrder();
+  for(int i = 0; i <= ord; ++i)
+  {
+    for(int j = 0; j <= ord - i; ++j)
+    {
+      const auto ii = static_cast<CoordType>(i);
+      const auto jj = static_cast<CoordType>(j);
+      tri(i, j) = PointType {ii, jj, 10.0 * ii - 3.0 * jj};
+    }
+  }
+}
+
+template <typename BTri>
+void makeRational(BTri& tri)
+{
+  using CoordType = typename BTri::PointType::CoordType;
+
+  tri.getWeights().resize(tri.getControlPoints().size());
+  for(int k = 0; k < tri.getWeights().size(); ++k)
+  {
+    // Positive, non-uniform weights
+    tri.getWeights()[k] = static_cast<CoordType>(0.5 + 0.25 * k);
+  }
+  EXPECT_TRUE(tri.isRational());
+}
+}  // namespace
 
 //------------------------------------------------------------------------------
 TEST(primal_beziertriangle, sizing_constructors)
@@ -438,15 +473,7 @@ TEST(primal_beziertriangle, split_interior_polynomial)
   constexpr int ord = 3;
   BTri tri(ord);
 
-  for(int i = 0; i <= ord; ++i)
-  {
-    for(int j = 0; j <= ord - i; ++j)
-    {
-      const auto ii = static_cast<CoordType>(i);
-      const auto jj = static_cast<CoordType>(j);
-      tri(i, j) = PointType {ii, jj, 10.0 * ii - 3.0 * jj};
-    }
-  }
+  fillControlNet(tri);
 
   const CoordType u = 0.2;
   const CoordType v = 0.3;
@@ -527,6 +554,99 @@ TEST(primal_beziertriangle, split_interior_polynomial)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_beziertriangle, split_interior_rational)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using BTri = primal::BezierTriangle<CoordType, DIM>;
+
+  constexpr int ord = 3;
+  BTri tri(ord);
+  fillControlNet(tri);
+  makeRational(tri);
+
+  const CoordType u = 0.2;
+  const CoordType v = 0.3;
+
+  BTri t0, t1, t2;
+  tri.split(u, v, t0, t1, t2);
+
+  EXPECT_EQ(ord, t0.getOrder());
+  EXPECT_EQ(ord, t1.getOrder());
+  EXPECT_EQ(ord, t2.getOrder());
+  EXPECT_TRUE(t0.isRational());
+  EXPECT_TRUE(t1.isRational());
+  EXPECT_TRUE(t2.isRational());
+  EXPECT_EQ(BTri::triSize(ord), t0.getWeights().size());
+  EXPECT_EQ(BTri::triSize(ord), t1.getWeights().size());
+  EXPECT_EQ(BTri::triSize(ord), t2.getWeights().size());
+
+  // Vertex mapping checks
+  const auto pA = tri.evaluate(0.0, 0.0);
+  const auto pB = tri.evaluate(0.0, 1.0);
+  const auto pC = tri.evaluate(1.0, 0.0);
+  const auto pQ = tri.evaluate(u, v);
+
+  for(int i = 0; i < DIM; ++i)
+  {
+    // t0 -> (B, C, Q)
+    EXPECT_NEAR(pB[i], t0.evaluate(0.0, 0.0)[i], 1e-10);
+    EXPECT_NEAR(pC[i], t0.evaluate(0.0, 1.0)[i], 1e-10);
+    EXPECT_NEAR(pQ[i], t0.evaluate(1.0, 0.0)[i], 1e-10);
+
+    // t1 -> (C, A, Q)
+    EXPECT_NEAR(pC[i], t1.evaluate(0.0, 0.0)[i], 1e-10);
+    EXPECT_NEAR(pA[i], t1.evaluate(0.0, 1.0)[i], 1e-10);
+    EXPECT_NEAR(pQ[i], t1.evaluate(1.0, 0.0)[i], 1e-10);
+
+    // t2 -> (A, B, Q)
+    EXPECT_NEAR(pA[i], t2.evaluate(0.0, 0.0)[i], 1e-10);
+    EXPECT_NEAR(pB[i], t2.evaluate(0.0, 1.0)[i], 1e-10);
+    EXPECT_NEAR(pQ[i], t2.evaluate(1.0, 0.0)[i], 1e-10);
+  }
+
+  // Interior point checks via affine parameter mapping
+  const CoordType s = 0.2;
+  const CoordType t = 0.1;
+
+  // t0 is over vertices (0,1), (1,0), (u,v)
+  {
+    const CoordType u2 = s * u + t;
+    const CoordType v2 = 1.0 + s * (v - 1.0) - t;
+    const auto expected = tri.evaluate(u2, v2);
+    const auto actual = t0.evaluate(s, t);
+    for(int d = 0; d < DIM; ++d)
+    {
+      EXPECT_NEAR(expected[d], actual[d], 1e-12);
+    }
+  }
+
+  // t1 is over vertices (1,0), (0,0), (u,v)
+  {
+    const CoordType u3 = 1.0 + s * (u - 1.0) - t;
+    const CoordType v3 = s * v;
+    const auto expected = tri.evaluate(u3, v3);
+    const auto actual = t1.evaluate(s, t);
+    for(int d = 0; d < DIM; ++d)
+    {
+      EXPECT_NEAR(expected[d], actual[d], 1e-12);
+    }
+  }
+
+  // t2 is over vertices (0,0), (0,1), (u,v)
+  {
+    const CoordType u1 = s * u;
+    const CoordType v1 = t + s * v;
+    const auto expected = tri.evaluate(u1, v1);
+    const auto actual = t2.evaluate(s, t);
+    for(int d = 0; d < DIM; ++d)
+    {
+      EXPECT_NEAR(expected[d], actual[d], 1e-12);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_beziertriangle, split_edge_polynomial)
 {
   constexpr int DIM = 3;
@@ -537,15 +657,7 @@ TEST(primal_beziertriangle, split_edge_polynomial)
   constexpr int ord = 3;
   BTri tri(ord);
 
-  for(int i = 0; i <= ord; ++i)
-  {
-    for(int j = 0; j <= ord - i; ++j)
-    {
-      const auto ii = static_cast<CoordType>(i);
-      const auto jj = static_cast<CoordType>(j);
-      tri(i, j) = PointType {ii, jj, 10.0 * ii - 3.0 * jj};
-    }
-  }
+  fillControlNet(tri);
 
   const auto pA = tri.evaluate(0.0, 0.0);
   const auto pB = tri.evaluate(0.0, 1.0);
@@ -585,7 +697,7 @@ TEST(primal_beziertriangle, split_edge_polynomial)
 }
 
 //------------------------------------------------------------------------------
-TEST(primal_beziertriangle, split_triforce_polynomial)
+TEST(primal_beziertriangle, split_edge_rational)
 {
   constexpr int DIM = 3;
   using CoordType = double;
@@ -594,16 +706,59 @@ TEST(primal_beziertriangle, split_triforce_polynomial)
 
   constexpr int ord = 3;
   BTri tri(ord);
+  fillControlNet(tri);
+  makeRational(tri);
 
-  for(int i = 0; i <= ord; ++i)
+  const auto pA = tri.evaluate(0.0, 0.0);
+  const auto pB = tri.evaluate(0.0, 1.0);
+  const auto pC = tri.evaluate(1.0, 0.0);
+
+  axom::Array<PointType> vertices {pA, pB, pC};
+
+  const CoordType s = 0.35;
+
+  BTri t0, t1;
+
+  for(int i = 0; i < 3; ++i)
   {
-    for(int j = 0; j <= ord - i; ++j)
+    tri.split(i, s, t0, t1);
+
+    EXPECT_EQ(ord, t0.getOrder());
+    EXPECT_EQ(ord, t1.getOrder());
+    EXPECT_TRUE(t0.isRational());
+    EXPECT_TRUE(t1.isRational());
+    EXPECT_EQ(BTri::triSize(ord), t0.getWeights().size());
+    EXPECT_EQ(BTri::triSize(ord), t1.getWeights().size());
+
+    // Vertex mapping checks
+    const auto pQ = tri.getEdge(i).evaluate(s);
+
+    for(int N = 0; N < DIM; ++N)
     {
-      const auto ii = static_cast<CoordType>(i);
-      const auto jj = static_cast<CoordType>(j);
-      tri(i, j) = PointType {ii, jj, 10.0 * ii - 3.0 * jj};
+      EXPECT_NEAR(vertices[(i + 0) % 3][N], t0.evaluate(0.0, 0.0)[N], 1e-10);
+      EXPECT_NEAR(vertices[(i + 1) % 3][N], t0.evaluate(0.0, 1.0)[N], 1e-10);
+
+      EXPECT_NEAR(vertices[(i + 2) % 3][N], t1.evaluate(0.0, 0.0)[N], 1e-10);
+      EXPECT_NEAR(vertices[(i + 0) % 3][N], t1.evaluate(0.0, 1.0)[N], 1e-10);
+
+      // Subtriangles agree at the last vertex
+      EXPECT_NEAR(pQ[N], t0.evaluate(1.0, 0.0)[N], 1e-10);
+      EXPECT_NEAR(pQ[N], t1.evaluate(1.0, 0.0)[N], 1e-10);
     }
   }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_beziertriangle, split_fourway_polynomial)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using BTri = primal::BezierTriangle<CoordType, DIM>;
+
+  constexpr int ord = 3;
+  BTri tri(ord);
+
+  fillControlNet(tri);
 
   const CoordType s0 = 0.25;  // edge0: B->C
   const CoordType s1 = 0.6;   // edge1: C->A
@@ -668,6 +823,204 @@ TEST(primal_beziertriangle, split_triforce_polynomial)
     EXPECT_NEAR(eP0P2_from_t2[d], eP0P2_from_t4[d], 1e-12);
     EXPECT_NEAR(eP2P1_from_t1[d], eP2P1_from_t4[d], 1e-12);
     EXPECT_NEAR(eP1P0_from_t3[d], eP1P0_from_t4[d], 1e-12);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_beziertriangle, split_fourway_rational)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using BTri = primal::BezierTriangle<CoordType, DIM>;
+
+  constexpr int ord = 3;
+  BTri tri(ord);
+  fillControlNet(tri);
+  makeRational(tri);
+
+  const CoordType s0 = 0.25;  // edge0: B->C
+  const CoordType s1 = 0.6;   // edge1: C->A
+  const CoordType s2 = 0.4;   // edge2: A->B
+
+  BTri t1, t2, t3, t4;
+  tri.split(s0, s1, s2, t1, t2, t3, t4);
+
+  EXPECT_EQ(ord, t1.getOrder());
+  EXPECT_EQ(ord, t2.getOrder());
+  EXPECT_EQ(ord, t3.getOrder());
+  EXPECT_EQ(ord, t4.getOrder());
+  EXPECT_TRUE(t1.isRational());
+  EXPECT_TRUE(t2.isRational());
+  EXPECT_TRUE(t3.isRational());
+  EXPECT_TRUE(t4.isRational());
+
+  const auto pA = tri.evaluate(0.0, 0.0);
+  const auto pB = tri.evaluate(0.0, 1.0);
+  const auto pC = tri.evaluate(1.0, 0.0);
+
+  const auto pP0 = tri.getEdge(0).evaluate(s0);
+  const auto pP1 = tri.getEdge(1).evaluate(s1);
+  const auto pP2 = tri.getEdge(2).evaluate(s2);
+
+  for(int d = 0; d < DIM; ++d)
+  {
+    // t1 = Tri(A, P2, P1)
+    EXPECT_NEAR(pA[d], t1.evaluate(0.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pP2[d], t1.evaluate(0.0, 1.0)[d], 1e-10);
+    EXPECT_NEAR(pP1[d], t1.evaluate(1.0, 0.0)[d], 1e-10);
+
+    // t2 = Tri(B, P0, P2)
+    EXPECT_NEAR(pB[d], t2.evaluate(0.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pP0[d], t2.evaluate(0.0, 1.0)[d], 1e-10);
+    EXPECT_NEAR(pP2[d], t2.evaluate(1.0, 0.0)[d], 1e-10);
+
+    // t3 = Tri(C, P1, P0)
+    EXPECT_NEAR(pC[d], t3.evaluate(0.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pP1[d], t3.evaluate(0.0, 1.0)[d], 1e-10);
+    EXPECT_NEAR(pP0[d], t3.evaluate(1.0, 0.0)[d], 1e-10);
+
+    // t4 = Tri(P1, P0, P2)
+    EXPECT_NEAR(pP1[d], t4.evaluate(0.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pP0[d], t4.evaluate(0.0, 1.0)[d], 1e-10);
+    EXPECT_NEAR(pP2[d], t4.evaluate(1.0, 0.0)[d], 1e-10);
+  }
+
+  // Shared interior edges agree
+  const CoordType s = 0.37;
+  const auto eP0P2_from_t2 = t2.getEdge(0).evaluate(s);  // P0 -> P2
+  const auto eP0P2_from_t4 = t4.getEdge(0).evaluate(s);  // P0 -> P2
+
+  const auto eP2P1_from_t1 = t1.getEdge(0).evaluate(s);  // P2 -> P1
+  const auto eP2P1_from_t4 = t4.getEdge(1).evaluate(s);  // P2 -> P1
+
+  const auto eP1P0_from_t3 = t3.getEdge(0).evaluate(s);  // P1 -> P0
+  const auto eP1P0_from_t4 = t4.getEdge(2).evaluate(s);  // P1 -> P0
+
+  for(int d = 0; d < DIM; ++d)
+  {
+    EXPECT_NEAR(eP0P2_from_t2[d], eP0P2_from_t4[d], 1e-12);
+    EXPECT_NEAR(eP2P1_from_t1[d], eP2P1_from_t4[d], 1e-12);
+    EXPECT_NEAR(eP1P0_from_t3[d], eP1P0_from_t4[d], 1e-12);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_beziertriangle, uniformSplit_fourway_polynomial)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using BTri = primal::BezierTriangle<CoordType, DIM>;
+  using PointType = BTri::PointType;
+
+  constexpr int ord = 3;
+  BTri tri(ord);
+
+  fillControlNet(tri);
+
+  BTri t1, t2, t3, t4;
+  tri.uniformSplit(t1, t2, t3, t4);
+
+  // Compare against the general (non-optimized) split at s=0.5.
+  BTri r1, r2, r3, r4;
+  tri.split(0.5, 0.5, 0.5, r1, r2, r3, r4);
+
+  const auto pP0 = tri.getEdge(0).evaluate(0.5);
+  const auto pP1 = tri.getEdge(1).evaluate(0.5);
+  const auto pP2 = tri.getEdge(2).evaluate(0.5);
+
+  for(int d = 0; d < DIM; ++d)
+  {
+    EXPECT_NEAR(pP1[d], t4.evaluate(0.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pP0[d], t4.evaluate(0.0, 1.0)[d], 1e-10);
+    EXPECT_NEAR(pP2[d], t4.evaluate(1.0, 0.0)[d], 1e-10);
+  }
+
+  const CoordType s = 0.23;
+  const CoordType t = 0.17;
+  const auto p11 = t1.evaluate(s, t);
+  const auto p12 = r1.evaluate(s, t);
+  const auto p21 = t2.evaluate(s, t);
+  const auto p22 = r2.evaluate(s, t);
+  const auto p31 = t3.evaluate(s, t);
+  const auto p32 = r3.evaluate(s, t);
+  const auto p41 = t4.evaluate(s, t);
+  const auto p42 = r4.evaluate(s, t);
+
+  for(int d = 0; d < DIM; ++d)
+  {
+    EXPECT_NEAR(p11[d], p12[d], 1e-12);
+    EXPECT_NEAR(p21[d], p22[d], 1e-12);
+    EXPECT_NEAR(p31[d], p32[d], 1e-12);
+    EXPECT_NEAR(p41[d], p42[d], 1e-12);
+  }
+
+  // Also confirm vertex ordering matches the general split for s=0.5
+  for(int d = 0; d < DIM; ++d)
+  {
+    EXPECT_NEAR(t1.evaluate(0.0, 0.0)[d], r1.evaluate(0.0, 0.0)[d], 1e-12);
+    EXPECT_NEAR(t1.evaluate(0.0, 1.0)[d], r1.evaluate(0.0, 1.0)[d], 1e-12);
+    EXPECT_NEAR(t1.evaluate(1.0, 0.0)[d], r1.evaluate(1.0, 0.0)[d], 1e-12);
+
+    EXPECT_NEAR(t2.evaluate(0.0, 0.0)[d], r2.evaluate(0.0, 0.0)[d], 1e-12);
+    EXPECT_NEAR(t2.evaluate(0.0, 1.0)[d], r2.evaluate(0.0, 1.0)[d], 1e-12);
+    EXPECT_NEAR(t2.evaluate(1.0, 0.0)[d], r2.evaluate(1.0, 0.0)[d], 1e-12);
+
+    EXPECT_NEAR(t3.evaluate(0.0, 0.0)[d], r3.evaluate(0.0, 0.0)[d], 1e-12);
+    EXPECT_NEAR(t3.evaluate(0.0, 1.0)[d], r3.evaluate(0.0, 1.0)[d], 1e-12);
+    EXPECT_NEAR(t3.evaluate(1.0, 0.0)[d], r3.evaluate(1.0, 0.0)[d], 1e-12);
+
+    EXPECT_NEAR(t4.evaluate(0.0, 0.0)[d], r4.evaluate(0.0, 0.0)[d], 1e-12);
+    EXPECT_NEAR(t4.evaluate(0.0, 1.0)[d], r4.evaluate(0.0, 1.0)[d], 1e-12);
+    EXPECT_NEAR(t4.evaluate(1.0, 0.0)[d], r4.evaluate(1.0, 0.0)[d], 1e-12);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_beziertriangle, uniformSplit_fourway_rational)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using BTri = primal::BezierTriangle<CoordType, DIM>;
+
+  constexpr int ord = 3;
+  BTri tri(ord);
+  fillControlNet(tri);
+  makeRational(tri);
+
+  BTri t1, t2, t3, t4;
+  tri.uniformSplit(t1, t2, t3, t4);
+
+  EXPECT_TRUE(t1.isRational());
+  EXPECT_TRUE(t2.isRational());
+  EXPECT_TRUE(t3.isRational());
+  EXPECT_TRUE(t4.isRational());
+
+  // Compare against the general (non-optimized) split at s=0.5.
+  BTri r1, r2, r3, r4;
+  tri.split(0.5, 0.5, 0.5, r1, r2, r3, r4);
+
+  EXPECT_TRUE(r1.isRational());
+  EXPECT_TRUE(r2.isRational());
+  EXPECT_TRUE(r3.isRational());
+  EXPECT_TRUE(r4.isRational());
+
+  const CoordType s = 0.23;
+  const CoordType t = 0.17;
+  const auto p11 = t1.evaluate(s, t);
+  const auto p12 = r1.evaluate(s, t);
+  const auto p21 = t2.evaluate(s, t);
+  const auto p22 = r2.evaluate(s, t);
+  const auto p31 = t3.evaluate(s, t);
+  const auto p32 = r3.evaluate(s, t);
+  const auto p41 = t4.evaluate(s, t);
+  const auto p42 = r4.evaluate(s, t);
+
+  for(int d = 0; d < DIM; ++d)
+  {
+    EXPECT_NEAR(p11[d], p12[d], 1e-12);
+    EXPECT_NEAR(p21[d], p22[d], 1e-12);
+    EXPECT_NEAR(p31[d], p32[d], 1e-12);
+    EXPECT_NEAR(p41[d], p42[d], 1e-12);
   }
 }
 
