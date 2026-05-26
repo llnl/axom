@@ -293,12 +293,6 @@ public:
     return PoleSequence {std::move(poles)};
   }
 
-  /// \brief Converts [0,1] pole values to the [-1,1] reference domain.
-  static PoleSequence from01ToM11(axom::ArrayView<const Complex> poles01)
-  {
-    return fromComplex(poles01).mapped01ToM11();
-  }
-
   axom::ArrayView<const Pole> view() const { return m_poles.view(); }
 
   const axom::Array<Pole>& array() const { return m_poles; }
@@ -311,17 +305,6 @@ public:
 
   /// \brief Copies this sequence to an owning pole array.
   axom::Array<Pole> toPoleArray() const { return axom::Array<Pole>(m_poles.view()); }
-
-  /// \brief Copies this sequence to complex pole values.
-  axom::Array<Complex> toComplexArray(int allocatorID = axom::getDefaultAllocatorID()) const
-  {
-    axom::Array<Complex> values(m_poles.size(), m_poles.size(), allocatorID);
-    for(axom::IndexType i = 0; i < m_poles.size(); ++i)
-    {
-      values[i] = m_poles[i].value();
-    }
-    return values;
-  }
 
   /// \brief Maps poles from [0,1] coordinates to [-1,1] coordinates.
   PoleSequence mapped01ToM11() const
@@ -430,17 +413,6 @@ public:
   PoleSequence canonicalizedAndNormalized(double pole_tolerance, double infinite_pole_threshold) const
   {
     return canonicalized(pole_tolerance).normalizedInfinity(infinite_pole_threshold);
-  }
-
-  /// \brief Returns upper-half-plane representatives for complex conjugate pairs.
-  PoleSequence withPositiveImaginaryMagnitude() const
-  {
-    axom::Array<Pole> result = toPoleArray();
-    for(auto& pole : result)
-    {
-      pole = pole.withPositiveImaginaryMagnitude();
-    }
-    return PoleSequence {std::move(result)};
   }
 
   /// \brief Returns the pole form expected by the rational Chebyshev construction.

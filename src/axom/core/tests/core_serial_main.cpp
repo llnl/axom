@@ -4,9 +4,9 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "gtest/gtest.h"
-
 #include "axom/config.hpp"
+
+#include "gtest/gtest.h"
 
 #include "core_about.hpp"
 #include "core_array.hpp"

@@ -4,9 +4,10 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#include "axom/config.hpp"
+
 #include "gtest/gtest.h"
 
-#include "axom/config.hpp"
 #include "axom/core/numerics/quadrature.hpp"
 #include "axom/core/numerics/internal/rational_quadrature.hpp"
 #include "axom/core/numerics/internal/rational_quadrature_common.hpp"
@@ -23,9 +24,7 @@ namespace
 namespace numerics_internal = axom::numerics::internal;
 using Complex = std::complex<double>;
 using Pole = numerics_internal::Pole;
-using PoleSequence = numerics_internal::PoleSequence;
 
-const double pi = std::acos(-1.0);
 axom::Array<Complex> map_interval_poles_m11_to_01(axom::ArrayView<const Complex> poles_m11)
 {
   axom::Array<Complex> poles01;
@@ -47,7 +46,21 @@ axom::Array<Complex> map_interval_poles_m11_to_01(axom::ArrayView<const Complex>
 
 axom::Array<Complex> map_interval_poles_01_to_m11(axom::ArrayView<const Complex> poles01)
 {
-  return PoleSequence::from01ToM11(poles01).toComplexArray();
+  axom::Array<Complex> poles_m11;
+  poles_m11.reserve(poles01.size());
+  for(const auto& pole_value : poles01)
+  {
+    const Pole pole {pole_value};
+    if(pole.isInfinite())
+    {
+      poles_m11.push_back(Pole::infinity().value());
+    }
+    else
+    {
+      poles_m11.push_back(2.0 * pole.value() - Complex {1.0, 0.0});
+    }
+  }
+  return poles_m11;
 }
 
 double integrate_rule(const axom::numerics::QuadratureRuleView& rule,
@@ -378,7 +391,7 @@ TEST(numerics_quadrature,
     EXPECT_NEAR(weights[i], weights[mirrored], 1e-12);
   }
 
-  EXPECT_NEAR(weight_sum, pi, 1e-12);
+  EXPECT_NEAR(weight_sum, M_PI, 1e-12);
 }
 
 TEST(numerics_quadrature,
@@ -402,9 +415,9 @@ TEST(numerics_quadrature,
 
   for(int i = 0; i < pole_count; ++i)
   {
-    const double theta = pi * (pole_count - i - 0.5) / pole_count;
+    const double theta = M_PI * (pole_count - i - 0.5) / pole_count;
     EXPECT_NEAR(nodes[i], std::cos(theta), 1e-14);
-    EXPECT_NEAR(weights[i], pi / pole_count, 1e-14);
+    EXPECT_NEAR(weights[i], M_PI / pole_count, 1e-14);
   }
 }
 
@@ -448,7 +461,7 @@ TEST(numerics_quadrature, rational_chebyshev_internal_matches_algorithm882_figur
   // Figure 5 shows a steep feature near theta = 1.25 from the triple pole at
   // 0.3 + 0.03i; three computed nodes are correspondingly clustered near x = 0.3.
   EXPECT_EQ(nodes_near_triple_pole, 3);
-  EXPECT_NEAR(weight_sum, pi, 1e-12);
+  EXPECT_NEAR(weight_sum, M_PI, 1e-12);
 }
 
 TEST(numerics_quadrature,
@@ -496,7 +509,7 @@ TEST(numerics_quadrature,
     EXPECT_NEAR(weights[i], weights[mirrored], 1e-10);
   }
 
-  EXPECT_NEAR(weight_sum, pi, 1e-10);
+  EXPECT_NEAR(weight_sum, M_PI, 1e-10);
   EXPECT_LT(min_abs_node, 0.02);
   EXPECT_GE(nodes_near_boundary_layer, 4);
 }
@@ -532,7 +545,7 @@ TEST(numerics_quadrature, rational_chebyshev_internal_matches_algorithm882_near_
     weight_sum += weights[i];
   }
 
-  EXPECT_NEAR(weight_sum / pi, 1.0, 1e-7);
+  EXPECT_NEAR(weight_sum / M_PI, 1.0, 1e-7);
 }
 
 TEST(numerics_quadrature, rational_chebyshev_internal_matches_algorithm882_repeated_pole_scaling_guard)
@@ -565,7 +578,7 @@ TEST(numerics_quadrature, rational_chebyshev_internal_matches_algorithm882_repea
     weight_sum += weights[i];
   }
 
-  EXPECT_NEAR(weight_sum, pi, 1e-11);
+  EXPECT_NEAR(weight_sum, M_PI, 1e-11);
 }
 
 //------------------------------------------------------------------------------
@@ -1052,7 +1065,7 @@ TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example7_
 
     const double omega = test_case.omega;
     const auto integrand = [omega](double x) {
-      const double scaled_x = pi * x / omega;
+      const double scaled_x = M_PI * x / omega;
       return scaled_x / std::sin(scaled_x);
     };
 
@@ -1127,7 +1140,7 @@ TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example7_
     EXPECT_NEAR(weights[i], weights[mirrored], 1e-10);
   }
 
-  const auto integrand = [omega](double x) { return 1.0 / (std::exp(pi * x / omega) + 1.0); };
+  const auto integrand = [omega](double x) { return 1.0 / (std::exp(M_PI * x / omega) + 1.0); };
   const double observed = integrate_rule_m11(nodes, weights, integrand);
   EXPECT_NEAR(observed, 1.0, 1e-12);
 }
