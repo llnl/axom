@@ -73,11 +73,22 @@ inline axom::Array<double> computePoleMomentIntegrals(const Pole& pole,
   // These are the non-orthogonal moments for one repeated pole. The Deckers
   // construction uses them as exact seed data before the integral coefficients
   // are orthogonalized against the sampled rational basis.
+  //
+  // For a finite pole alpha, J[q] is the exact integral over [-1,1] of the
+  // (q+1)-st power of the elementary pole factor
+  //
+  //   (1 - alpha*x) / (x - alpha).
+  //
+  // Repeated poles need this whole ladder of moments because each additional
+  // multiplicity contributes the next power of the same factor.
   axom::Array<Complex> J(multiplicity, multiplicity);
   J.fill(Complex {0.0, 0.0});
 
   if(pole.isInfinite())
   {
+    // An infinite pole is the polynomial limit of the same pole factor. The
+    // moments reduce to integrals of powers of x, so odd powers vanish and even
+    // powers have the familiar value 2 / (degree + 1).
     for(int idx = 1; idx < multiplicity; idx += 2)
     {
       J[idx] = 2.0 / (idx + 2.0);
@@ -93,6 +104,9 @@ inline axom::Array<double> computePoleMomentIntegrals(const Pole& pole,
     if((c < 1e10 * tol) || (std::log(10.0) * (4 * multiplicity + 50) + 90.0 * std::log(c) < 0.0) ||
        ((multiplicity < 3) && (c < 9.0)))
     {
+      // Forward recurrence: start from the first exact moment, where the
+      // logarithm captures the pole location, and build higher powers from the
+      // two previous recurrence states.
       J[0] = (pole_value * pole_value - Complex {1.0, 0.0}) *
           std::log((pole_value + Complex {1.0, 0.0}) / (pole_value - Complex {1.0, 0.0})) -
         2.0 * pole_value;
@@ -113,6 +127,9 @@ inline axom::Array<double> computePoleMomentIntegrals(const Pole& pole,
     }
     else
     {
+      // Backward recurrence: for distant poles, the logarithmic expression loses
+      // relative accuracy, so seed the highest moments with the inverse-pole
+      // asymptotic expansion and walk back toward J[0].
       const int parity = multiplicity % 2;
       J[multiplicity - 1] =
         computeAsymptoticPoleMomentIntegral(pole_value, multiplicity, parity, tol);
@@ -136,6 +153,9 @@ inline axom::Array<double> computePoleMomentIntegrals(const Pole& pole,
     }
   }
 
+  // The Fejer solve is real-valued. Real poles contribute the real moment
+  // ladder directly; complex poles are represented by paired real rows using
+  // the real and negative-imaginary parts of the same complex moments.
   if(component_count == 1)
   {
     axom::Array<double> result(multiplicity, multiplicity);
