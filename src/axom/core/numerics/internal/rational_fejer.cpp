@@ -655,9 +655,10 @@ inline RationalFejerWeightCorrection computeRationalFejerWeightCorrection(
 
 /// \brief Applies the Fejer weight correction to the companion Chebyshev rule.
 inline QuadratureRule applyFejerWeightCorrection(const RationalFejerBasis& basis,
-                                                 axom::ArrayView<const double> weight_correction)
+                                                 axom::ArrayView<const double> weight_correction,
+                                                 int allocatorID)
 {
-  axom::Array<double> weights(weight_correction.size(), weight_correction.size());
+  axom::Array<double> weights(weight_correction.size(), weight_correction.size(), allocatorID);
   const auto chebyshev_weights = basis.chebyshevWeights();
   // Rational Fejer uses the rational Chebyshev nodes. Only the weights change:
   // the sampled unweighted integration functional is a correction factor.
@@ -665,7 +666,7 @@ inline QuadratureRule applyFejerWeightCorrection(const RationalFejerBasis& basis
   {
     weights[i] = chebyshev_weights[i] * weight_correction[i];
   }
-  axom::Array<double> nodes(basis.nodes(), axom::getDefaultAllocatorID());
+  axom::Array<double> nodes(basis.nodes(), allocatorID);
   return QuadratureRule {std::move(nodes), std::move(weights)};
 }
 
@@ -711,7 +712,8 @@ inline QuadratureRule compute_rational_fejer_rule_m11_impl(
 
   // Stage 3: apply the sampled correction to the companion weights. The nodes
   // pass through unchanged; this is the final rational Fejer rule.
-  QuadratureRule fejer_rule = applyFejerWeightCorrection(basis, correction.values_at_chebyshev_nodes);
+  QuadratureRule fejer_rule =
+    applyFejerWeightCorrection(basis, correction.values_at_chebyshev_nodes, allocatorID);
 
   diagnostics_recorder.recordFinalRule(correction.integral_coefficients,
                                        correction.values_at_chebyshev_nodes,
@@ -744,11 +746,7 @@ void compute_rational_fejer_data_m11(axom::ArrayView<const Complex> poles_m11,
 {
   const RationalFejerPoleData pole_data = RationalFejerPoleData::fromM11(poles_m11);
 
-  axom::Array<double> nodes_tmp;
-  axom::Array<double> weights_tmp;
-  compute_rational_fejer_data_m11_impl(pole_data, nodes_tmp, weights_tmp);
-  copy_array_to_array(nodes_tmp, nodes, allocatorID);
-  copy_array_to_array(weights_tmp, weights, allocatorID);
+  compute_rational_fejer_data_m11_impl(pole_data, nodes, weights, nullptr, allocatorID);
 }
 
 /// \brief Computes rational Fejer diagnostics on [-1,1].

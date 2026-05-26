@@ -134,7 +134,7 @@ struct RationalFejerDiagnosticsSummary
   double min_final_weight_m11 {0.0};
   double max_abs_final_weight_m11 {0.0};
   double sum_final_weights_m11 {0.0};
-  double max_abs_basis_coefficient {0.0};
+  double max_abs_integral_coefficient {0.0};
 };
 
 RationalFejerDiagnosticsSummary summarize_rule_diagnostics(
@@ -161,11 +161,11 @@ RationalFejerDiagnosticsSummary summarize_rule_diagnostics(
     summary.sum_final_weights_m11 += diagnostics.final_weights_m11[i];
   }
 
-  for(int i = 0; i < diagnostics.basis_coefficients.size(); ++i)
+  for(int i = 0; i < diagnostics.integral_coefficients.size(); ++i)
   {
-    summary.max_abs_basis_coefficient =
-      axom::utilities::max(summary.max_abs_basis_coefficient,
-                           std::abs(diagnostics.basis_coefficients[i]));
+    summary.max_abs_integral_coefficient =
+      axom::utilities::max(summary.max_abs_integral_coefficient,
+                           std::abs(diagnostics.integral_coefficients[i]));
   }
 
   return summary;
@@ -183,7 +183,7 @@ void expect_healthy_rational_fejer_summary(const RationalFejerDiagnosticsSummary
   EXPECT_GT(summary.min_rational_chebyshev_weight, 0.0);
   EXPECT_GT(summary.min_final_weight_m11, 0.0);
   EXPECT_NEAR(summary.sum_final_weights_m11, 2.0, 1e-10);
-  EXPECT_LT(summary.max_abs_basis_coefficient, 1e8);
+  EXPECT_LT(summary.max_abs_integral_coefficient, 1e8);
 }
 
 void compute_rational_chebyshev_rule_m11(axom::ArrayView<const Complex> poles_m11,
@@ -914,7 +914,7 @@ TEST(numerics_quadrature, rational_fejer_diagnostics_respect_allocator)
   EXPECT_EQ(diagnostics.cayley_poles.getAllocatorID(), allocatorID);
   EXPECT_EQ(diagnostics.rational_chebyshev_nodes_m11.getAllocatorID(), allocatorID);
   EXPECT_EQ(diagnostics.rational_chebyshev_weights_m11.getAllocatorID(), allocatorID);
-  EXPECT_EQ(diagnostics.basis_coefficients.getAllocatorID(), allocatorID);
+  EXPECT_EQ(diagnostics.integral_coefficients.getAllocatorID(), allocatorID);
   EXPECT_EQ(diagnostics.weight_correction_m11.getAllocatorID(), allocatorID);
   EXPECT_EQ(diagnostics.final_weights_m11.getAllocatorID(), allocatorID);
   EXPECT_EQ(diagnostics.nodes_01.getAllocatorID(), allocatorID);
@@ -923,12 +923,12 @@ TEST(numerics_quadrature, rational_fejer_diagnostics_respect_allocator)
 
   ASSERT_GT(diagnostics.steps.size(), 0);
   const auto& step = diagnostics.steps[0];
-  EXPECT_EQ(step.basis_coefficients_before.getAllocatorID(), allocatorID);
+  EXPECT_EQ(step.integral_coefficients_before.getAllocatorID(), allocatorID);
   EXPECT_EQ(step.weighted_row0.getAllocatorID(), allocatorID);
   EXPECT_EQ(step.projected_row0.getAllocatorID(), allocatorID);
   EXPECT_EQ(step.projected_row0_terms.getAllocatorID(), allocatorID);
   EXPECT_EQ(step.orthogonal_integrals.getAllocatorID(), allocatorID);
-  EXPECT_EQ(step.basis_coefficients_after.getAllocatorID(), allocatorID);
+  EXPECT_EQ(step.integral_coefficients_after.getAllocatorID(), allocatorID);
 }
 #endif
 
@@ -956,7 +956,7 @@ TEST(numerics_quadrature, rotor_pole_family_stays_healthy_for_moderate_orders)
 
   const auto summary24 = summary_for_total_poles(24);
   expect_healthy_rational_fejer_summary(summary24);
-  EXPECT_LT(summary24.max_abs_basis_coefficient, 10.0);
+  EXPECT_LT(summary24.max_abs_integral_coefficient, 10.0);
 }
 
 TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example1_exactness)

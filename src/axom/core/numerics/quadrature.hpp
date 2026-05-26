@@ -211,8 +211,9 @@ QuadratureRuleView get_gauss_legendre(int npts, int allocatorID = axom::getDefau
  * Deckers, Bultheel, and Weideman, "Algorithm 882" (ACM TOMS, 2008),
  * and then rescales the resulting nodes and weights to [0, 1].
  *
- * In relation to rational Chebyshev quadrature, whose integrands are of the form `f(x)/sqrt(1-x^2)`, 
- * rational Fejer modifies the weights to support unweighted integrands of the form `f(x)`. 
+ * In relation to rational Chebyshev quadrature, whose integrands are of the form
+ * `f(x)/sqrt(1-x^2)`, rational Fejer modifies the weights to support unweighted
+ * integrands of the form `f(x)`.
  * This construction reuses the rational Chebyshev nodes but modifies the weights.
  *
  * Fejer quadrature is closely related to Clenshaw-Curtis quadrature: both are

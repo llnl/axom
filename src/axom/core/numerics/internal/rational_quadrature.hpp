@@ -51,7 +51,7 @@ struct RationalFejerDiagnostics
     int component_count {0};
     int pole_multiplicity_so_far {0};
     std::complex<double> pole_m11 {0.0, 0.0};
-    axom::Array<double> basis_coefficients_before;
+    axom::Array<double> integral_coefficients_before;
     axom::Array<double> weighted_row0;
     axom::Array<double> weighted_row1;
     axom::Array<double> projected_row0;
@@ -72,14 +72,14 @@ struct RationalFejerDiagnostics
     double solved_x0 {0.0};
     double solved_x1 {0.0};
     axom::Array<double> orthogonal_integrals;
-    axom::Array<double> basis_coefficients_after;
+    axom::Array<double> integral_coefficients_after;
   };
 
   axom::Array<std::complex<double>> canonical_poles_m11;
   axom::Array<std::complex<double>> cayley_poles;
   axom::Array<double> rational_chebyshev_nodes_m11;
   axom::Array<double> rational_chebyshev_weights_m11;
-  axom::Array<double> basis_coefficients;
+  axom::Array<double> integral_coefficients;
   /// Sampled Fejer correction; final weights equal Chebyshev weights times this array.
   axom::Array<double> weight_correction_m11;
   axom::Array<double> final_weights_m11;

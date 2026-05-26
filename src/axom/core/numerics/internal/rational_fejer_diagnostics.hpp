@@ -199,7 +199,7 @@ public:
     step.component_count = component_count;
     step.pole_multiplicity_so_far = pole_multiplicity_so_far;
     step.pole_m11 = pole.value();
-    copy_array_to_array(known_integrals, step.basis_coefficients_before, m_allocatorID);
+    copy_array_to_array(known_integrals, step.integral_coefficients_before, m_allocatorID);
     return step;
   }
 
@@ -218,7 +218,7 @@ public:
     }
 
     copy_array_to_array(orthogonal_integrals, step.orthogonal_integrals, m_allocatorID);
-    copy_array_to_array(known_integrals, step.basis_coefficients_after, m_allocatorID);
+    copy_array_to_array(known_integrals, step.integral_coefficients_after, m_allocatorID);
     m_diagnostics->steps[m_stepIndex++] = std::move(step);
   }
 
@@ -234,7 +234,7 @@ public:
       return;
     }
 
-    copy_array_to_array(integral_coefficients, m_diagnostics->basis_coefficients, m_allocatorID);
+    copy_array_to_array(integral_coefficients, m_diagnostics->integral_coefficients, m_allocatorID);
     copy_array_to_array(weight_correction, m_diagnostics->weight_correction_m11, m_allocatorID);
     copy_array_to_array(fejer_rule.weights(), m_diagnostics->final_weights_m11, m_allocatorID);
     copy_array_to_array(basis_columns, m_diagnostics->basis_matrix_transpose_m11, m_allocatorID);
