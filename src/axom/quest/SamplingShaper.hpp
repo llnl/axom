@@ -264,12 +264,12 @@ public:
   /// Returns a pointer to the quadrature function associated with shape \a name if it exists, else nullptr
   mfem::QuadratureFunction* getShapeQFunction(const std::string& name) const
   {
-    return shapeQFuncs().Get(name);
+    return samplingMFEMState().shapeQFuncs().Get(name);
   }
   /// Returns a pointer to the quadrature function associated with material \a name if it exists, else nullptr
   mfem::QuadratureFunction* getMaterialQFunction(const std::string& name) const
   {
-    return materialQFuncs().Get(name);
+    return samplingMFEMState().materialQFuncs().Get(name);
   }
 #endif
 protected:
@@ -336,30 +336,6 @@ protected:
     SLIC_ASSERT(m_mfem_state != nullptr);
     return static_cast<const shaping::SamplingMFEMState&>(*m_mfem_state);
   }
-
-  shaping::QFunctionCollection& shapeQFuncs() { return samplingMFEMState().m_inoutShapeQFuncs; }
-  const shaping::QFunctionCollection& shapeQFuncs() const
-  {
-    return samplingMFEMState().m_inoutShapeQFuncs;
-  }
-
-  shaping::QFunctionCollection& materialQFuncs()
-  {
-    return samplingMFEMState().m_inoutMaterialQFuncs;
-  }
-  const shaping::QFunctionCollection& materialQFuncs() const
-  {
-    return samplingMFEMState().m_inoutMaterialQFuncs;
-  }
-
-  shaping::DenseTensorCollection& tensors() { return samplingMFEMState().m_inoutTensors; }
-  const shaping::DenseTensorCollection& tensors() const
-  {
-    return samplingMFEMState().m_inoutTensors;
-  }
-
-  shaping::MFEMArrayCollection& arrays() { return samplingMFEMState().m_inoutArrays; }
-  const shaping::MFEMArrayCollection& arrays() const { return samplingMFEMState().m_inoutArrays; }
 #endif
 
   bool hasValidSampler() const { return !std::holds_alternative<std::monostate>(m_sampler); }

@@ -97,6 +97,31 @@ struct SamplingMFEMState : public MFEMState
     return qfunc;
   }
 
+
+  QFunctionCollection& shapeQFuncs() { return m_inoutShapeQFuncs; }
+  const QFunctionCollection& shapeQFuncs() const
+  {
+    return m_inoutShapeQFuncs;
+  }
+
+  QFunctionCollection& materialQFuncs()
+  {
+    return m_inoutMaterialQFuncs;
+  }
+  const QFunctionCollection& materialQFuncs() const
+  {
+    return m_inoutMaterialQFuncs;
+  }
+
+  DenseTensorCollection& tensors() { return m_inoutTensors; }
+  const DenseTensorCollection& tensors() const
+  {
+    return m_inoutTensors;
+  }
+
+  MFEMArrayCollection& arrays() { return m_inoutArrays; }
+  const MFEMArrayCollection& arrays() const { return m_inoutArrays; }
+
   QFunctionCollection m_inoutShapeQFuncs;
   QFunctionCollection m_inoutMaterialQFuncs;
   DenseTensorCollection m_inoutTensors;

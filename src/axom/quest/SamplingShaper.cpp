@@ -114,7 +114,7 @@ void SamplingShaper::saveQuadraturePoints(const std::string& filename) const
   #if defined(AXOM_USE_MFEM)
   if(m_mfem_state != nullptr)
   {
-    auto* positions = shapeQFuncs().Get("positions");
+    auto* positions = samplingMFEMState().shapeQFuncs().Get("positions");
     if(positions == nullptr)
     {
       SLIC_WARNING("No MFEM quadrature positions are available to save.");
@@ -394,7 +394,7 @@ void SamplingShaper::importInitialVolumeFractions(
     }
 
     const auto matName = axom::fmt::format("mat_inout_{}", name);
-    materialQFuncs().Register(matName, matQFunc, true);
+    samplingMFEMState().materialQFuncs().Register(matName, matQFunc, true);
   }
 }
 #endif
