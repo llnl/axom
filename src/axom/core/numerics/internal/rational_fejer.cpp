@@ -71,7 +71,7 @@ inline axom::Array<double> computePoleMomentIntegrals(const Pole& pole,
                                                       double tol)
 {
   // These are the non-orthogonal moments for one repeated pole. The Deckers
-  // construction uses them as exact seed data before the basis coefficients
+  // construction uses them as exact seed data before the integral coefficients
   // are orthogonalized against the sampled rational basis.
   axom::Array<Complex> J(multiplicity, multiplicity);
   J.fill(Complex {0.0, 0.0});
@@ -155,10 +155,29 @@ inline axom::Array<double> computePoleMomentIntegrals(const Pole& pole,
   return result;
 }
 
+/// \brief Evaluates one auxiliary pole-basis factor at a Chebyshev node.
+///
+/// The weight-correction solve projects these pole-dependent factors onto the
+/// sampled orthonormal basis. Real poles contribute one row; complex poles use
+/// the real and negative-imaginary parts as paired real rows.
+inline Complex evaluatePoleBasisValue(const Pole& pole, int multiplicity, double node)
+{
+  const Complex node_value {node, 0.0};
+  if(pole.isInfinite())
+  {
+    return powInteger(node_value, multiplicity);
+  }
+
+  const Complex pole_value = pole.value();
+  return powInteger((Complex {1.0, 0.0} - pole_value * node) / (node_value - pole_value),
+                    multiplicity);
+}
+
 /// \brief Stores the rational Fejer basis sampled at the companion Chebyshev nodes.
 ///
 /// The companion rational Chebyshev rule supplies the nodes and seed weights.
-/// The Fejer-specific solve below only computes the weight correction sampled in this basis.
+/// This class only represents and evaluates that sampled basis; the
+/// Fejer-specific coefficient solve is handled by the weight-correction stage.
 class RationalFejerBasis
 {
 public:
@@ -187,142 +206,6 @@ public:
 
   double basisValue(int column, int node) const { return m_QColumns[column * m_nodeCount + node]; }
 
-  axom::Array<double> solveOrthogonalIntegrals(const Pole& pole,
-                                               int multiplicity,
-                                               int num_basis_columns,
-                                               axom::ArrayView<const double> known_integrals,
-                                               int component_count,
-                                               const RationalFejerStepDiagnosticsRecorder& diagnostics =
-                                                 RationalFejerStepDiagnosticsRecorder {}) const
-  {
-    assert(component_count == 1 || component_count == 2);
-    assert(num_basis_columns >= component_count);
-    assert(known_integrals.size() >= num_basis_columns);
-
-    const int n = nodeCount();
-    const bool has_imaginary_component = component_count == 2;
-    const bool diagnostics_enabled = diagnostics.enabled();
-    const int first_unknown_column = num_basis_columns - component_count;
-    axom::Array<long double> weighted_row0(n, n);
-    weighted_row0.fill(0.0L);
-    axom::Array<long double> weighted_row1(has_imaginary_component ? n : 0,
-                                           has_imaginary_component ? n : 0);
-    weighted_row1.fill(0.0L);
-
-    // A real pole contributes one basis component. A non-real pole contributes
-    // the real and negative-imaginary parts of the same rational factor, which
-    // keeps the eventual quadrature weights real.
-    for(int i = 0; i < n; ++i)
-    {
-      const Complex basis_value = evaluatePoleBasisValue(pole, multiplicity, node(i));
-
-      weighted_row0[i] = static_cast<long double>(chebyshevWeights()[i]) *
-        static_cast<long double>(basis_value.real());
-      if(has_imaginary_component)
-      {
-        weighted_row1[i] = static_cast<long double>(chebyshevWeights()[i]) *
-          static_cast<long double>(-basis_value.imag());
-      }
-    }
-
-    diagnostics.recordWeightedRows(weighted_row0, weighted_row1, has_imaginary_component);
-
-    axom::Array<long double> bmat_row0(num_basis_columns, num_basis_columns);
-    bmat_row0.fill(0.0L);
-    axom::Array<long double> bmat_row1(has_imaginary_component ? num_basis_columns : 0,
-                                       has_imaginary_component ? num_basis_columns : 0);
-    bmat_row1.fill(0.0L);
-    axom::Array<long double> bmat_row0_terms;
-    axom::Array<long double> bmat_row1_terms;
-    if(diagnostics_enabled)
-    {
-      bmat_row0_terms = axom::Array<long double>(num_basis_columns * n, num_basis_columns * n);
-      if(has_imaginary_component)
-      {
-        bmat_row1_terms = axom::Array<long double>(num_basis_columns * n, num_basis_columns * n);
-      }
-    }
-    // Project the pole-dependent function against the sampled orthonormal basis.
-    // The trailing 1x1 or 2x2 block is then solved for the next basis coefficients.
-    for(int col = 0; col < num_basis_columns; ++col)
-    {
-      long double value0 = 0.0L;
-      long double value1 = 0.0L;
-      for(int i = 0; i < n; ++i)
-      {
-        const long double basis_column_value = static_cast<long double>(basisValue(col, i));
-        const long double term0 = weighted_row0[i] * basis_column_value;
-        value0 += term0;
-        if(diagnostics_enabled)
-        {
-          bmat_row0_terms[col * n + i] = term0;
-        }
-        if(has_imaginary_component)
-        {
-          const long double term1 = weighted_row1[i] * basis_column_value;
-          value1 += term1;
-          if(diagnostics_enabled)
-          {
-            bmat_row1_terms[col * n + i] = term1;
-          }
-        }
-      }
-      bmat_row0[col] = value0;
-      if(has_imaginary_component)
-      {
-        bmat_row1[col] = value1;
-      }
-    }
-
-    long double rhs0 = static_cast<long double>(known_integrals[first_unknown_column]);
-    // Previously solved coefficients already contribute to this projected
-    // moment equation; move those known terms to the right-hand side so the
-    // trailing 1x1 or 2x2 block can be solved directly.
-    for(int col = 0; col < first_unknown_column; ++col)
-    {
-      rhs0 -= bmat_row0[col] * static_cast<long double>(known_integrals[col]);
-    }
-
-    diagnostics.recordProjectedRow0(bmat_row0, bmat_row0_terms, n, rhs0);
-
-    if(component_count == 1)
-    {
-      return axom::Array<double> {static_cast<double>(rhs0 / bmat_row0[first_unknown_column])};
-    }
-
-    long double rhs1 = static_cast<long double>(known_integrals[num_basis_columns - 1]);
-    for(int col = 0; col < first_unknown_column; ++col)
-    {
-      rhs1 -= bmat_row1[col] * static_cast<long double>(known_integrals[col]);
-    }
-
-    long double a00 = bmat_row0[first_unknown_column];
-    long double a01 = bmat_row0[first_unknown_column + 1];
-    long double a10 = bmat_row1[first_unknown_column];
-    long double a11 = bmat_row1[first_unknown_column + 1];
-
-    diagnostics.recordProjectedRow1(bmat_row1, bmat_row1_terms, rhs1, a00, a01, a10, a11);
-
-    // The complex-pole case is a tiny 2x2 solve. Pivoting is cheap and prevents
-    // the diagnostics path from depending on which projected row happens to
-    // carry the larger leading coefficient.
-    const bool used_pivot = std::abs(a10) > std::abs(a00);
-    if(used_pivot)
-    {
-      std::swap(a00, a10);
-      std::swap(a01, a11);
-      std::swap(rhs0, rhs1);
-    }
-
-    const long double factor = a10 / a00;
-    const long double reduced_a11 = a11 - factor * a01;
-    const long double reduced_rhs1 = rhs1 - factor * rhs0;
-    const long double x1 = reduced_rhs1 / reduced_a11;
-    const long double x0 = (rhs0 - a01 * x1) / a00;
-    diagnostics.recordTinySolve(used_pivot, factor, reduced_a11, reduced_rhs1, x0, x1);
-    return axom::Array<double> {static_cast<double>(x0), static_cast<double>(x1)};
-  }
-
   axom::Array<double> evaluateExpansionAtChebyshevNodes(axom::ArrayView<const double> coefficients) const
   {
     axom::Array<double> values(nodeCount(), nodeCount());
@@ -345,25 +228,12 @@ public:
   }
 
 private:
-  static Complex evaluatePoleBasisValue(const Pole& pole, int multiplicity, double node)
-  {
-    const Complex node_value {node, 0.0};
-    if(pole.isInfinite())
-    {
-      return powInteger(node_value, multiplicity);
-    }
-
-    const Complex pole_value = pole.value();
-    return powInteger((Complex {1.0, 0.0} - pole_value * node) / (node_value - pole_value),
-                      multiplicity);
-  }
-
   static axom::Array<double> buildBasisColumns(axom::ArrayView<const Complex> cayley_poles,
                                                axom::ArrayView<const double> nodes)
   {
     // Sample the orthonormal rational basis at every rational Chebyshev node.
-    // Later stages reuse this matrix both when enforcing orthogonality and when
-    // rebuilding the final quadrature weights from the recovered coefficients.
+    // The weight-correction stage uses these columns both to project exact
+    // pole moments and to evaluate the recovered correction at the nodes.
     // Layout is column-major by basis function: Q_columns[col * n + node].
     const int n = static_cast<int>(nodes.size());
     axom::Array<double> Q_columns(n * n, n * n);
@@ -553,8 +423,159 @@ inline int seedNewPoleMomentCoefficients(const PoleSequence& canonical_poles,
   return pole_multiplicity_so_far;
 }
 
-/// \brief Solves the unweighted integration functional in the rational Fejer basis.
-inline axom::Array<double> solveUnweightedIntegralCoefficients(
+/// \brief Solves the next coefficient block for one real pole or complex pole pair.
+///
+/// The known exact moments are projected against the sampled basis using the
+/// companion Chebyshev weights. Previously solved coefficients are moved to
+/// the right-hand side, leaving only a trailing 1x1 or 2x2 system.
+inline axom::Array<double> solveIntegralCoefficientUpdate(
+  const RationalFejerBasis& basis,
+  const Pole& pole,
+  int multiplicity,
+  int num_basis_columns,
+  axom::ArrayView<const double> known_integrals,
+  int component_count,
+  const RationalFejerStepDiagnosticsRecorder& diagnostics = RationalFejerStepDiagnosticsRecorder {})
+{
+  assert(component_count == 1 || component_count == 2);
+  assert(num_basis_columns >= component_count);
+  assert(known_integrals.size() >= num_basis_columns);
+
+  const int n = basis.nodeCount();
+  const bool has_imaginary_component = component_count == 2;
+  const bool diagnostics_enabled = diagnostics.enabled();
+  const int first_unknown_column = num_basis_columns - component_count;
+  axom::Array<long double> weighted_row0(n, n);
+  weighted_row0.fill(0.0L);
+  axom::Array<long double> weighted_row1(has_imaginary_component ? n : 0,
+                                         has_imaginary_component ? n : 0);
+  weighted_row1.fill(0.0L);
+  const auto chebyshev_weights = basis.chebyshevWeights();
+
+  // A real pole contributes one basis component. A non-real pole contributes
+  // the real and negative-imaginary parts of the same rational factor, which
+  // keeps the eventual quadrature weights real.
+  for(int i = 0; i < n; ++i)
+  {
+    const Complex basis_value = evaluatePoleBasisValue(pole, multiplicity, basis.node(i));
+
+    weighted_row0[i] =
+      static_cast<long double>(chebyshev_weights[i]) * static_cast<long double>(basis_value.real());
+    if(has_imaginary_component)
+    {
+      weighted_row1[i] = static_cast<long double>(chebyshev_weights[i]) *
+        static_cast<long double>(-basis_value.imag());
+    }
+  }
+
+  diagnostics.recordWeightedRows(weighted_row0, weighted_row1, has_imaginary_component);
+
+  axom::Array<long double> bmat_row0(num_basis_columns, num_basis_columns);
+  bmat_row0.fill(0.0L);
+  axom::Array<long double> bmat_row1(has_imaginary_component ? num_basis_columns : 0,
+                                     has_imaginary_component ? num_basis_columns : 0);
+  bmat_row1.fill(0.0L);
+  axom::Array<long double> bmat_row0_terms;
+  axom::Array<long double> bmat_row1_terms;
+  if(diagnostics_enabled)
+  {
+    bmat_row0_terms = axom::Array<long double>(num_basis_columns * n, num_basis_columns * n);
+    if(has_imaginary_component)
+    {
+      bmat_row1_terms = axom::Array<long double>(num_basis_columns * n, num_basis_columns * n);
+    }
+  }
+
+  for(int col = 0; col < num_basis_columns; ++col)
+  {
+    long double value0 = 0.0L;
+    long double value1 = 0.0L;
+    for(int i = 0; i < n; ++i)
+    {
+      const long double basis_column_value = static_cast<long double>(basis.basisValue(col, i));
+      const long double term0 = weighted_row0[i] * basis_column_value;
+      value0 += term0;
+      if(diagnostics_enabled)
+      {
+        bmat_row0_terms[col * n + i] = term0;
+      }
+      if(has_imaginary_component)
+      {
+        const long double term1 = weighted_row1[i] * basis_column_value;
+        value1 += term1;
+        if(diagnostics_enabled)
+        {
+          bmat_row1_terms[col * n + i] = term1;
+        }
+      }
+    }
+    bmat_row0[col] = value0;
+    if(has_imaginary_component)
+    {
+      bmat_row1[col] = value1;
+    }
+  }
+
+  long double rhs0 = static_cast<long double>(known_integrals[first_unknown_column]);
+  for(int col = 0; col < first_unknown_column; ++col)
+  {
+    rhs0 -= bmat_row0[col] * static_cast<long double>(known_integrals[col]);
+  }
+
+  diagnostics.recordProjectedRow0(bmat_row0, bmat_row0_terms, n, rhs0);
+
+  if(component_count == 1)
+  {
+    return axom::Array<double> {static_cast<double>(rhs0 / bmat_row0[first_unknown_column])};
+  }
+
+  long double rhs1 = static_cast<long double>(known_integrals[num_basis_columns - 1]);
+  for(int col = 0; col < first_unknown_column; ++col)
+  {
+    rhs1 -= bmat_row1[col] * static_cast<long double>(known_integrals[col]);
+  }
+
+  long double a00 = bmat_row0[first_unknown_column];
+  long double a01 = bmat_row0[first_unknown_column + 1];
+  long double a10 = bmat_row1[first_unknown_column];
+  long double a11 = bmat_row1[first_unknown_column + 1];
+
+  diagnostics.recordProjectedRow1(bmat_row1, bmat_row1_terms, rhs1, a00, a01, a10, a11);
+
+  // The complex-pole case is a tiny 2x2 solve. Pivoting is cheap and prevents
+  // the diagnostics path from depending on which projected row happens to
+  // carry the larger leading coefficient.
+  const bool used_pivot = std::abs(a10) > std::abs(a00);
+  if(used_pivot)
+  {
+    std::swap(a00, a10);
+    std::swap(a01, a11);
+    std::swap(rhs0, rhs1);
+  }
+
+  const long double factor = a10 / a00;
+  const long double reduced_a11 = a11 - factor * a01;
+  const long double reduced_rhs1 = rhs1 - factor * rhs0;
+  const long double x1 = reduced_rhs1 / reduced_a11;
+  const long double x0 = (rhs0 - a01 * x1) / a00;
+  diagnostics.recordTinySolve(used_pivot, factor, reduced_a11, reduced_rhs1, x0, x1);
+  return axom::Array<double> {static_cast<double>(x0), static_cast<double>(x1)};
+}
+
+/// \brief Coefficients and nodal values for the Fejer weight correction.
+///
+/// `integral_coefficients` represent the unweighted integration functional in
+/// the sampled rational basis. Evaluating those coefficients at the companion
+/// Chebyshev nodes gives `values_at_chebyshev_nodes`, the factor applied to
+/// the companion Chebyshev weights.
+struct RationalFejerWeightCorrection
+{
+  axom::Array<double> integral_coefficients;
+  axom::Array<double> values_at_chebyshev_nodes;
+};
+
+/// \brief Computes the Fejer correction that transforms companion Chebyshev weights.
+inline RationalFejerWeightCorrection computeRationalFejerWeightCorrection(
   const PoleSequence& canonical_poles,
   const RationalFejerBasis& basis,
   double pole_tolerance,
@@ -586,10 +607,11 @@ inline axom::Array<double> solveUnweightedIntegralCoefficients(
                                      known_integrals);
 
     // Enforce orthogonality against the previously determined columns to recover
-    // the next one or two rational basis coefficients.
+    // the next one or two integral coefficients.
     const RationalFejerStepDiagnosticsRecorder step_recorder =
       diagnostics_recorder.stepRecorder(step_diagnostics);
-    const auto orthogonal_integrals = basis.solveOrthogonalIntegrals(pole,
+    const auto orthogonal_integrals = solveIntegralCoefficientUpdate(basis,
+                                                                     pole,
                                                                      pole_multiplicity_so_far,
                                                                      num_known_columns,
                                                                      known_integrals,
@@ -605,7 +627,10 @@ inline axom::Array<double> solveUnweightedIntegralCoefficients(
     coeff_index += component_count;
   }
 
-  return integral_coefficients;
+  axom::Array<double> values_at_chebyshev_nodes =
+    basis.evaluateExpansionAtChebyshevNodes(integral_coefficients);
+  return RationalFejerWeightCorrection {std::move(integral_coefficients),
+                                        std::move(values_at_chebyshev_nodes)};
 }
 
 /// \brief Applies the Fejer weight correction to the companion Chebyshev rule.
@@ -627,7 +652,7 @@ inline QuadratureRule applyFejerWeightCorrection(const RationalFejerBasis& basis
 /// \brief Computes the companion rational Chebyshev rule that supplies Fejer nodes.
 inline QuadratureRule computeCompanionRationalChebyshevRule(const RationalFejerPoleData& pole_data)
 {
-  // A rational Fejer rule for m finite/infinite poles uses m+1 rational Chebyshev nodes. 
+  // A rational Fejer rule for m finite/infinite poles uses m+1 rational Chebyshev nodes.
   // The appended infinity pole supplies that extra Chebyshev-like degree.
   const PoleSequence rational_chebyshev_poles = pole_data.canonical_poles_m11.withAppendedInfinity();
 
@@ -648,23 +673,28 @@ inline QuadratureRule compute_rational_fejer_rule_m11_impl(
                                                          pole_data.pole_tolerance};
   diagnostics_recorder.recordPoleSetup(pole_data.canonical_poles_m11.view(), pole_data.cayley_poles);
 
+  // Stage 1: build the companion rational Chebyshev rule. Rational Fejer keeps
+  // these nodes and replaces the Chebyshev weights with unweighted moments.
   QuadratureRule companion_chebyshev_rule = computeCompanionRationalChebyshevRule(pole_data);
   diagnostics_recorder.recordCompanionChebyshevRule(companion_chebyshev_rule.view());
 
+  // Stage 2: sample the Fejer basis at the companion nodes, then solve for the
+  // correction factor that converts Chebyshev-weighted integrals to unweighted
+  // integrals over the same rational space.
   RationalFejerBasis basis(pole_data.cayley_poles, std::move(companion_chebyshev_rule));
 
-  const axom::Array<double> integral_coefficients =
-    solveUnweightedIntegralCoefficients(pole_data.canonical_poles_m11,
-                                        basis,
-                                        pole_data.pole_tolerance,
-                                        diagnostics_recorder);
+  const RationalFejerWeightCorrection correction =
+    computeRationalFejerWeightCorrection(pole_data.canonical_poles_m11,
+                                         basis,
+                                         pole_data.pole_tolerance,
+                                         diagnostics_recorder);
 
-  const axom::Array<double> weight_correction =
-    basis.evaluateExpansionAtChebyshevNodes(integral_coefficients);
-  QuadratureRule fejer_rule = applyFejerWeightCorrection(basis, weight_correction);
+  // Stage 3: apply the sampled correction to the companion weights. The nodes
+  // pass through unchanged; this is the final rational Fejer rule.
+  QuadratureRule fejer_rule = applyFejerWeightCorrection(basis, correction.values_at_chebyshev_nodes);
 
-  diagnostics_recorder.recordFinalRule(integral_coefficients,
-                                       weight_correction,
+  diagnostics_recorder.recordFinalRule(correction.integral_coefficients,
+                                       correction.values_at_chebyshev_nodes,
                                        fejer_rule.view(),
                                        basis.basisColumns(),
                                        basis.basisColumnCount(),
