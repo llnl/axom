@@ -1528,10 +1528,7 @@ public:
    *
    * \param [in] ord Triangle order
    */
-  static constexpr int triSize(int ord)
-  {
-    return (ord >= 0) ? ((ord + 1) * (ord + 2) / 2) : 0;
-  }
+  static constexpr int triSize(int ord) { return (ord >= 0) ? ((ord + 1) * (ord + 2) / 2) : 0; }
 
   /*!
    * \brief Maps triangular indices \a (i,j) to the linear storage index
