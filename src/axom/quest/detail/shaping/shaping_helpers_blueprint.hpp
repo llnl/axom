@@ -27,9 +27,16 @@ namespace quest
 {
 namespace shaping
 {
-
+/*!
+ * \brief Return the cell shape for a Blueprint topology.
+ *
+ * \param topoNode The Blueprint topology being queried.
+ *
+ * \return A string containing the cell shape for the topology.
+ */
 std::string getBlueprintCellShape(const conduit::Node& topoNode);
 
+/// A class that contains Blueprint mesh and field state for SamplingShaper class.
 struct BlueprintState
 {
   virtual ~BlueprintState() = default;
@@ -125,31 +132,113 @@ struct BlueprintState
   }
 };
 
+/*!
+ * \brief Print the registered field names in the \a bpState.
+ *
+ * \param bpState The Blueprint state.
+ * \param knownMaterials A set of known material names.
+ * \param vfSampling The type of volume fraction sampling being performed.
+ * \param initialMessage A string to prepend to the printed message.
+ */
+
 void printRegisteredFieldNames(const BlueprintState& bpState,
                                const std::set<std::string>& knownMaterials,
                                VolFracSampling vfSampling,
                                const std::string& initialMessage);
 
+/*!
+ * Utility function to zero out inout quadrature points for a material replaced by a shape
+ *
+ * Each location in space can only be covered by one material.
+ * When \a shouldReplace is true, we clear all values in \a materialQFunc 
+ * that are set in \a shapeQFunc. When it is false, we do the opposite.
+ *
+ * \param shapeNode The node that contains the shape function.
+ * \param materialNode The node that contains the material function.
+ * \param shouldReplace Flag for whether the shape replaces the material 
+ *   or whether the material remains and we should zero out the shape sample (when false)
+ */
 void replaceMaterial(conduit::Node* shapeNode, conduit::Node* materialNode, bool shouldReplace);
 
+/*!
+ * \brief Utility function to copy inout quadrature point values from \a shapeNode to \a materialNode
+ *
+ * \param shapeNode The inout samples field for the current shape
+ * \param materialNode The inout samples field for the material we're writing into
+ * \param reuseExisting When a value is not set in \a shapeNode, should we retain existing values 
+ * from \a materialNode or overwrite them based on \a shapeNode. The default is to retain values
+ */
 void copyShapeIntoMaterial(const conduit::Node* shapeNode,
                            conduit::Node* materialNode,
                            bool reuseExisting = true);
 
+/*!
+ * \brief Create a copy of the supplied field.
+ *
+ * \param node A pointer to the field to clone.
+ *
+ * \return A pointer to a new copy of the supplied field.
+ */
 conduit::Node* cloneInOutFunction(const conduit::Node* node);
 
+/*!
+ * \brief Generate sampling positions within each zone based on element quadrature, creating a new topology.
+ *
+ * \param bpMeshNode The node that will contain the new quadrature point mesh topology.
+ * \param topologyName The name of the new topology to create.
+ * \param allocatorID The allocator Id to use for allocating memory.
+ * \param sampleResolution The number of samples in each dimension.
+ * \param quadratureType The quadrature type that determines the sample locations.
+ */
 void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
                                  const std::string& topologyName,
                                  int allocatorID,
                                  axom::ArrayView<int> sampleResolution,
                                  axom::numerics::QuadratureType quadratureType);
 
+/*!
+ * \brief Generates sampling positions within each zone based on element quadrature.
+ *
+ * \param bpState The Blueprint state.
+ * \param sampleResolution The number of samples in each dimension.
+ * \param quadratureType The quadrature type that determines the sample locations.
+ *
+ * \note The sample points are stored as a new quadrature_points topology.
+ */
 void generateSamplingPositions(BlueprintState& bpState,
                                axom::ArrayView<int> sampleResolution,
                                axom::numerics::QuadratureType quadratureType);
 
+/*!
+ * \brief Create volume fractions for a material using the existing material field
+ *        (mat_inout_{matField}) to make the new field (vol_fract_{matField}).
+ *
+ * \param bpState The Blueprint state that contains the mesh and functions.
+ * \param matField The name of the material field.
+ */
 void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::string& matField);
 
+/*!
+  * \brief Samples the inout field over the indexed geometry, possibly using a
+  * callback function to project the input points (from the computational mesh)
+  * to query points on the spatial index
+  *
+  * \tparam FromDim The dimension of points from the input mesh
+  * \tparam ToDim The dimension of points on the indexed shape
+  * \tparam InsideFunc A function that takes a point and returns a bool indicating whether the
+  *                    point is inside or outside of relevant shapes.
+  *
+  * \param [in] shapeName The name of the shape used in making data array names.
+  * \param [in] mfemState The data collection containing the mesh, associated query points
+  *                       and a collection of quadrature functions for the shape and material
+  *                       inout samples.
+  * \param [in] checkInside The function that determines whether a point is inside.
+  * \param [in] projector A callback function to apply to points from the input mesh
+  * before querying them on the spatial index
+  *
+  * \note A projector callback must be supplied when \a FromDim is not equal
+  *       to \a ToDim.
+  */
 template <int FromDim, int ToDim, typename InsideFunc>
 void sampleInOutField(const std::string& shapeName,
                       shaping::BlueprintState& bpState,

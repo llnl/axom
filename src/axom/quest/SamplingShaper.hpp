@@ -57,7 +57,7 @@ namespace axom
 {
 namespace quest
 {
-/// \brief Concrete class for sample based shaping
+/// \brief Concrete class for sample based shaping on MFEM or Blueprint meshes.
 class SamplingShaper : public Shaper
 {
 public:
@@ -312,7 +312,7 @@ protected:
     return std::make_unique<shaping::SamplingMFEMState>();
   }
 
-  ///
+  /// Finish initializing the MFEM state.
   void initializeSamplingMFEMState()
   {
     // Shaper constructs its MFEM state in the base constructor, so upgrade it
@@ -325,12 +325,14 @@ protected:
     m_mfem_state = std::move(samplingState);
   }
 
+  /// Get a reference to the MFEM state as a SamplingMFEMState.
   shaping::SamplingMFEMState& samplingMFEMState()
   {
     SLIC_ASSERT(m_mfem_state != nullptr);
     return static_cast<shaping::SamplingMFEMState&>(*m_mfem_state);
   }
 
+  /// Get a reference to the MFEM state as a SamplingMFEMState.
   const shaping::SamplingMFEMState& samplingMFEMState() const
   {
     SLIC_ASSERT(m_mfem_state != nullptr);
@@ -662,6 +664,12 @@ private:
     SLIC_ERROR("No mesh state is available for SamplingShaper.");
   }
 
+  /*!
+   * \brief Apply replacement rules using for the supplied shape, adjusting functions in \a meshState.
+   *
+   * \param meshState The object that contains the mesh and fields.
+   * \param shape The shape being considered.
+   */
   template <typename MeshState>
   void applyReplacementRulesImpl(MeshState& meshState, const klee::Shape& shape)
   {
