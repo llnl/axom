@@ -36,6 +36,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   removed in a future version of Axom.
 - Core: Adds Durand-Kerner polynomial solver which returns the complex roots of a univariate polynomial
 - Core: Adds `axom::Array::pop_back` for API compatibility with `std::vector`
+- Quest: Enhanced `SamplingShaper` so it can operate on Blueprint quad/hex meshes.
 
 ### Removed
 
