@@ -1121,6 +1121,7 @@ TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example7_
   static constexpr double omega = 0.1;
   constexpr int half_pole_count = 8;
   constexpr int node_count = 2 * half_pole_count + 1;
+  constexpr double weight_symmetry_tol = 2e-10;
 
   axom::Array<Complex> poles_m11;
   poles_m11.reserve(2 * half_pole_count);
@@ -1135,11 +1136,13 @@ TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example7_
   ASSERT_EQ(nodes.size(), node_count);
   ASSERT_EQ(weights.size(), node_count);
 
+  // The companion rational Chebyshev rule is symmetric to roundoff, but the final Fejer correction
+  // is recovered through a floating-point solve with no explicit symmetry projection
   for(int i = 0; i < node_count; ++i)
   {
     const int mirrored = node_count - 1 - i;
     EXPECT_NEAR(nodes[i], -nodes[mirrored], 1e-12);
-    EXPECT_NEAR(weights[i], weights[mirrored], 1e-10);
+    EXPECT_NEAR(weights[i], weights[mirrored], weight_symmetry_tol);
   }
 
   const auto integrand = [](double x) { return 1.0 / (std::exp(M_PI * x / omega) + 1.0); };
