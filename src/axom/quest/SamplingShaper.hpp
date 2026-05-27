@@ -460,6 +460,17 @@ public:
   ///@}
 
 public:
+#if defined(AXOM_USE_CONDUIT)
+  /**
+   * \brief Import an initial set of material volume fractions before shaping
+   *
+   * \param [in] initialVolumeFractions The input data as a map from material names to fields
+   * 
+   * The imported fields are interpolated at quadrature points and registered
+   * with the supplied names as material-based quadrature fields
+   */
+  void importInitialVolumeFractions(const std::map<std::string, conduit::Node*>& initialVolumeFractions);
+#endif
 #if defined(AXOM_USE_MFEM)
   /**
    * \brief Import an initial set of material volume fractions before shaping

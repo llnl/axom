@@ -265,6 +265,20 @@ public:
   }
 #endif
 
+  int numberOfBoxMeshElements() const
+  {
+    switch(boxDim)
+    {
+    case 3:
+      return boxResolution[0] * boxResolution[1] * boxResolution[2];
+      break;
+    case 2:
+      return boxResolution[0] * boxResolution[1];
+      break;
+    }
+    return 0;
+  }
+
 #if defined(AXOM_USE_MFEM)
   std::unique_ptr<sidre::MFEMSidreDataCollection> loadComputationalMesh()
   {
@@ -886,9 +900,32 @@ int main(int argc, char** argv)
     AXOM_ANNOTATE_SCOPE("import initial volume fractions");
     if(params.usesInlineBlueprintMesh())
     {
-      SLIC_ERROR_IF(
-        !params.backgroundMaterial.empty(),
-        "Background material import is not yet supported for inline Blueprint sampling meshes.");
+#if defined(AXOM_USE_CONDUIT)
+      // Generate a background material (w/ volume fractions set to 1) if user provided a name
+      if(!params.backgroundMaterial.empty())
+      {
+        auto material = params.backgroundMaterial;
+        auto name = axom::fmt::format("vol_frac_{}", material);
+
+        const auto num_elements = params.numberOfBoxMeshElements();
+        conduit::Node* n_mesh = shaper->getBlueprintMeshNode();
+        conduit::Node& n_field = n_mesh->fetch("fields/" + name);
+        n_field["topology"] = "topology";
+        n_field["association"] = "element";
+        n_field["values"].set(conduit::DataType::float64(num_elements));
+        conduit::float64_array values = n_field["values"].value();
+        for(conduit::index_t i = 0; i < num_elements; i++)
+        {
+          values[i] = 1.;
+        }
+
+        std::map<std::string, conduit::Node*> initial_grid_functions;
+        initial_grid_functions[material] = &n_field;
+
+        // Project provided volume fraction grid functions as quadrature point data
+        samplingShaper->importInitialVolumeFractions(initial_grid_functions);
+      }
+#endif
     }
     else
     {

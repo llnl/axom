@@ -17,6 +17,7 @@
 
   #include "conduit_node.hpp"
 
+  #include <map>
   #include <set>
   #include <string>
   #include <vector>
@@ -63,6 +64,8 @@ struct BlueprintState
     SLIC_ERROR(axom::fmt::format("Unsupported Blueprint cell shape '{}'.", shapeType));
     return -1;
   }
+
+  conduit::Node& getBlueprintMeshNode() { return m_internal_node; }
 
   const conduit::Node& getBlueprintTopologyNode() const
   {
@@ -208,6 +211,18 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
 void generateSamplingPositions(BlueprintState& bpState,
                                axom::ArrayView<int> sampleResolution,
                                axom::numerics::QuadratureType quadratureType);
+
+/*!
+ * \brief Import initial volume fractions from the map into the quadrature
+ *        "mat_inout_" fields in \a bpState.
+ *
+ * \param bpState The Blueprint state.
+ * \param initialVolumeFractions A map of initial volume fraction fields used to
+ *                               initialize mat_inout fields over the quadrature
+ *                               points.
+ */
+void importInitialVolumeFractions(BlueprintState& bpState,
+                                  const std::map<std::string, conduit::Node*>& initialVolumeFractions);
 
 /*!
  * \brief Create volume fractions for a material using the existing material field

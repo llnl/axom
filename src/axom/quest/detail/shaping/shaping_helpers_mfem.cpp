@@ -450,6 +450,62 @@ void generateSamplingPositions(SamplingMFEMState& mfemState,
                              quadratureType);
 }
 
+void importInitialVolumeFractions(SamplingMFEMState& mfemState,
+                                  const std::map<std::string, mfem::GridFunction*>& initialGridFunctions,
+                                  bool anisotropic)
+{
+  auto* positionsQSpace = mfemState.shapeQFuncs().Get("positions")->GetSpace();
+  auto* mesh = mfemState.m_dc->GetMesh();
+
+  // Interpolate grid functions at quadrature points & register material quad functions
+  // assume all elements have same integration rule
+  for(auto& entry : initialGridFunctions)
+  {
+    const auto& name = entry.first;
+    auto* gf = entry.second;
+
+    SLIC_INFO_ROOT(axom::fmt::format("Importing volume fraction field for '{}' material", name));
+
+    if(gf == nullptr)
+    {
+      SLIC_WARNING(
+        axom::fmt::format("Skipping missing volume fraction field for material '{}'", name));
+      continue;
+    }
+
+    auto* matQFunc = new mfem::QuadratureFunction(*positionsQSpace);
+    const auto& ir = matQFunc->GetSpace()->GetIntRule(0);
+
+    if(anisotropic)
+    {
+      // Avoid MFEM's tensor quadrature interpolation path only for
+      // anisotropic custom quad/hex rules. MFEM infers a single q1d from
+      // ir.GetNPoints(), which cannot represent per-direction sample counts
+      // such as 3 x 5 or 3 x 5 x 2.
+      mfem::Vector elemValues;
+      mfem::Vector qfuncValues;
+      for(int elem = 0; elem < mesh->GetNE(); ++elem)
+      {
+        gf->GetValues(elem, ir, elemValues);
+        matQFunc->GetValues(elem, qfuncValues);
+        qfuncValues = elemValues;
+      }
+    }
+    else
+    {
+      const auto* interp = gf->FESpace()->GetQuadratureInterpolator(ir);
+      SLIC_ERROR_IF(interp == nullptr,
+                    axom::fmt::format("Could not create a quadrature interpolator while "
+                                      "importing volume fractions for '{}'.",
+                                      name));
+      interp->Values(*gf, *matQFunc);
+    }
+
+    const auto matName = axom::fmt::format("mat_inout_{}", name);
+    mfemState.materialQFuncs().Register(matName, matQFunc, true);
+  }
+}
+
 void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
                                        const std::string& matField,
                                        int volfracOrder,

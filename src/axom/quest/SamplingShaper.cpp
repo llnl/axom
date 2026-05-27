@@ -326,76 +326,40 @@ void SamplingShaper::prepareShapeQuery(klee::Dimensions shapeDimension, const kl
 }
 
 #if defined(AXOM_USE_MFEM)
-/**
-   * \brief Import an initial set of material volume fractions before shaping
-   *
-   * \param [in] initialGridFuncions The input data as a map from material names to grid functions
-   * 
-   * The imported grid functions are interpolated at quadrature points and registered
-   * with the supplied names as material-based quadrature fields
-   */
+void SamplingShaper::importInitialVolumeFractions(
+  const std::map<std::string, conduit::Node*>& initialVolumeFractions)
+{
+  internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
+                                                                    : slic::message::Warning);
+  SLIC_ERROR_IF(m_bp_state == nullptr, "This method requires Blueprint inputs.");
+  // Generate the quadrature points.
+  if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
+  {
+    shaping::generateSamplingPositions(*m_bp_state, m_samplingResolution.view(), m_quadratureType);
+  }
+  shaping::importInitialVolumeFractions(*m_bp_state, initialVolumeFractions);
+}
+#endif
+
+#if defined(AXOM_USE_MFEM)
 void SamplingShaper::importInitialVolumeFractions(
   const std::map<std::string, mfem::GridFunction*>& initialGridFunctions)
 {
   internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
                                                                     : slic::message::Warning);
 
+  SLIC_ERROR_IF(m_mfem_state == nullptr, "This method requires MFEM inputs.");
+
   auto& mfemState = samplingMFEMState();
   auto* mesh = mfemState.m_dc->GetMesh();
-  // Sample the InOut field at the mesh quadrature points
+  // Generate the quadrature points.
   if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
   {
     shaping::generateSamplingPositions(mfemState, m_samplingResolution.view(), m_quadratureType);
   }
-  auto* positionsQSpace = mfemState.m_inoutShapeQFuncs.Get("positions")->GetSpace();
-
-  // Interpolate grid functions at quadrature points & register material quad functions
-  // assume all elements have same integration rule
-  for(auto& entry : initialGridFunctions)
-  {
-    const auto& name = entry.first;
-    auto* gf = entry.second;
-
-    SLIC_INFO_ROOT(axom::fmt::format("Importing volume fraction field for '{}' material", name));
-
-    if(gf == nullptr)
-    {
-      SLIC_WARNING(
-        axom::fmt::format("Skipping missing volume fraction field for material '{}'", name));
-      continue;
-    }
-
-    auto* matQFunc = new mfem::QuadratureFunction(*positionsQSpace);
-    const auto& ir = matQFunc->GetSpace()->GetIntRule(0);
-
-    if(shaping::usesAnisotropicCustomTensorQuadrature(*mesh, m_samplingResolution, m_quadratureType))
-    {
-      // Avoid MFEM's tensor quadrature interpolation path only for
-      // anisotropic custom quad/hex rules. MFEM infers a single q1d from
-      // ir.GetNPoints(), which cannot represent per-direction sample counts
-      // such as 3 x 5 or 3 x 5 x 2.
-      mfem::Vector elemValues;
-      mfem::Vector qfuncValues;
-      for(int elem = 0; elem < mesh->GetNE(); ++elem)
-      {
-        gf->GetValues(elem, ir, elemValues);
-        matQFunc->GetValues(elem, qfuncValues);
-        qfuncValues = elemValues;
-      }
-    }
-    else
-    {
-      const auto* interp = gf->FESpace()->GetQuadratureInterpolator(ir);
-      SLIC_ERROR_IF(interp == nullptr,
-                    axom::fmt::format("Could not create a quadrature interpolator while "
-                                      "importing volume fractions for '{}'.",
-                                      name));
-      interp->Values(*gf, *matQFunc);
-    }
-
-    const auto matName = axom::fmt::format("mat_inout_{}", name);
-    samplingMFEMState().materialQFuncs().Register(matName, matQFunc, true);
-  }
+  const bool anisotropic =
+    shaping::usesAnisotropicCustomTensorQuadrature(*mesh, m_samplingResolution, m_quadratureType);
+  shaping::importInitialVolumeFractions(mfemState, initialGridFunctions, anisotropic);
 }
 #endif
 

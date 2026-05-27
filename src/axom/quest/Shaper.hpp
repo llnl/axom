@@ -137,6 +137,10 @@ public:
 #endif
 
 #if defined(AXOM_USE_CONDUIT)
+  conduit::Node* getBlueprintMeshNode()
+  {
+    return m_bp_state != nullptr ? &m_bp_state->m_internal_node : nullptr;
+  }
   const conduit::Node* getBlueprintMeshNode() const
   {
     return m_bp_state != nullptr ? &m_bp_state->m_internal_node : nullptr;

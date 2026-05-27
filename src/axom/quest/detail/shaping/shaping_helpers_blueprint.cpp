@@ -329,6 +329,64 @@ void generateSamplingPositions(BlueprintState& bpState,
                               quadratureType);
 }
 
+void importInitialVolumeFractions(BlueprintState& bpState,
+                                  const std::map<std::string, conduit::Node*>& initialVolumeFractions)
+{
+  conduit::Node& n_mesh = bpState.getBlueprintMeshNode();
+  const std::string quadName("quadrature_points");
+  const conduit::Node& n_quad_points = n_mesh.fetch_existing("coordsets/" + quadName);
+  const auto totalQuadPoints = conduit::blueprint::mesh::coordset::length(n_quad_points);
+
+  // Get the topology we want to sample.
+  const conduit::Node& n_topo = bpState.getBlueprintTopologyNode();
+  const auto totalZones = conduit::blueprint::mesh::topology::length(n_topo);
+
+  const auto samplesPerZone = totalQuadPoints / totalZones;
+
+  for(auto& entry : initialVolumeFractions)
+  {
+    const auto& name = entry.first;
+    auto* field_ptr = entry.second;
+
+    SLIC_INFO_ROOT(axom::fmt::format("Importing volume fraction field for '{}' material", name));
+
+    if(field_ptr == nullptr)
+    {
+      SLIC_WARNING(
+        axom::fmt::format("Skipping missing volume fraction field for material '{}'", name));
+      continue;
+    }
+
+    // Get the source field.
+    const auto srcPath = axom::fmt::format("fields/vol_frac_{}", name);
+    conduit::Node& n_src_field = n_mesh.fetch_existing(srcPath);
+    SLIC_ERROR_IF(n_src_field.fetch_existing("association").as_string() != "element",
+                  "The imported field must have element association.");
+    const auto src_values = n_src_field["values"].as_double_accessor();
+
+    // Make the new quadrature field.
+    const auto destPath = axom::fmt::format("fields/mat_inout_{}", name);
+    conduit::Node& n_dest_field = n_mesh.fetch(destPath);
+    n_dest_field["topology"] = quadName;
+    n_dest_field["association"] = "element";
+    conduit::Node& n_dest_values = n_dest_field["values"];
+    n_dest_values.set(conduit::DataType::float64(totalQuadPoints));
+    double* dptr = n_dest_values.as_double_ptr();
+
+    // Copy the source field into the dest field. We just copy samplesPerZone values
+    // from the source into the dest since each block of samplesPerZone points in
+    // the quadrature mesh corresponds to a zone in the source mesh.
+    for(conduit::index_t i = 0; i < totalZones; i++)
+    {
+      const auto src_value = src_values[i];
+      for(conduit::index_t c = 0; c < samplesPerZone; c++)
+      {
+        *dptr++ = src_value;
+      }
+    }
+  }
+}
+
 void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::string& matField)
 {
   AXOM_ANNOTATE_SCOPE("computeVolumeFractionsForMaterial");

@@ -99,27 +99,14 @@ struct SamplingMFEMState : public MFEMState
     return qfunc;
   }
 
-
   QFunctionCollection& shapeQFuncs() { return m_inoutShapeQFuncs; }
-  const QFunctionCollection& shapeQFuncs() const
-  {
-    return m_inoutShapeQFuncs;
-  }
+  const QFunctionCollection& shapeQFuncs() const { return m_inoutShapeQFuncs; }
 
-  QFunctionCollection& materialQFuncs()
-  {
-    return m_inoutMaterialQFuncs;
-  }
-  const QFunctionCollection& materialQFuncs() const
-  {
-    return m_inoutMaterialQFuncs;
-  }
+  QFunctionCollection& materialQFuncs() { return m_inoutMaterialQFuncs; }
+  const QFunctionCollection& materialQFuncs() const { return m_inoutMaterialQFuncs; }
 
   DenseTensorCollection& tensors() { return m_inoutTensors; }
-  const DenseTensorCollection& tensors() const
-  {
-    return m_inoutTensors;
-  }
+  const DenseTensorCollection& tensors() const { return m_inoutTensors; }
 
   MFEMArrayCollection& arrays() { return m_inoutArrays; }
   const MFEMArrayCollection& arrays() const { return m_inoutArrays; }
@@ -208,7 +195,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
 /*!
  * \brief Generates sampling positions within each zone based on element quadrature.
  *
- * \param bpState The Blueprint state.
+ * \param mfemState The MFEM state.
  * \param sampleResolution The number of samples in each dimension.
  * \param quadratureType The quadrature type that determines the sample locations.
  *
@@ -217,6 +204,20 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
 void generateSamplingPositions(SamplingMFEMState& mfemState,
                                axom::ArrayView<int> sampleResolution,
                                axom::numerics::QuadratureType quadratureType);
+
+/*!
+ * \brief Import initial volume fractions from the map into the quadrature
+ *        "mat_inout_" fields in \a mfemState.
+ *
+ * \param mfemState The MFEM state.
+ * \param initialVolumeFractions A map of initial volume fraction fields used to
+ *                               initialize mat_inout fields over the quadrature
+ *                               points.
+ * \param anisotropic Whether the quadrature points are anisotropic.
+ */
+void importInitialVolumeFractions(SamplingMFEMState& mfemState,
+                                  const std::map<std::string, mfem::GridFunction*>& initialVolumeFractions,
+                                  bool anisotropic);
 
 /*!
  * \brief Create volume fractions for a material using the existing material field
