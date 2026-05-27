@@ -1007,7 +1007,8 @@ TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example1_
 
 TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example2_repeated_real_pole)
 {
-  constexpr double A = 2.0;
+  static constexpr double A = 2.0;
+
   axom::Array<Complex> poles_m11;
   poles_m11.reserve(32);
   for(int i = 0; i < 32; ++i)
@@ -1018,7 +1019,7 @@ TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example2_
   axom::Array<double> weights;
   compute_rational_fejer_rule_m11(poles_m11, nodes, weights);
 
-  const auto integrand = [A](double x) { return 1.0 + 2.0 / std::pow(x - A, 100); };
+  const auto integrand = [](double x) { return 1.0 + 2.0 / std::pow(x - A, 100); };
 
   const double exact = 2.0 - (2.0 / 99.0) * (std::pow(1.0 - A, -99) + std::pow(1.0 + A, -99));
   const double value = integrate_rule_m11(nodes, weights, integrand);
@@ -1080,16 +1081,17 @@ TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example7_
 
 TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example7_4_table_scale)
 {
+  static constexpr double omega = 1.1;
+
   struct Case
   {
     int node_count;
     double paper_relative_error;
   };
 
-  constexpr double omega = 1.1;
   const Case cases[] = {{10, 2.79e-05}, {20, 9.07e-14}, {30, 9.50e-15}};
 
-  const auto integrand = [omega](double x) { return std::sin(1.0 / (x - omega)); };
+  const auto integrand = [](double x) { return std::sin(1.0 / (x - omega)); };
   const double reference = integrate_reference_m11(integrand);
 
   for(const auto& test_case : cases)
@@ -1116,7 +1118,7 @@ TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example7_
 
 TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example7_5_symmetry)
 {
-  constexpr double omega = 0.1;
+  static constexpr double omega = 0.1;
   constexpr int half_pole_count = 8;
   constexpr int node_count = 2 * half_pole_count + 1;
 
@@ -1140,7 +1142,7 @@ TEST(numerics_quadrature, rational_fejer_internal_matches_algorithm973_example7_
     EXPECT_NEAR(weights[i], weights[mirrored], 1e-10);
   }
 
-  const auto integrand = [omega](double x) { return 1.0 / (std::exp(M_PI * x / omega) + 1.0); };
+  const auto integrand = [](double x) { return 1.0 / (std::exp(M_PI * x / omega) + 1.0); };
   const double observed = integrate_rule_m11(nodes, weights, integrand);
   EXPECT_NEAR(observed, 1.0, 1e-12);
 }
