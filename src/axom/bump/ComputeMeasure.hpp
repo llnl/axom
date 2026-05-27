@@ -36,10 +36,10 @@ public:
    *
    * \param adaptor The adaptor object to use to compute the measure.
    */
-  ComputeMeasure(Adaptor &adaptor) : m_adaptor(adaptor),
-    m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
-  {
-  }
+  ComputeMeasure(Adaptor &adaptor)
+    : m_adaptor(adaptor)
+    , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
+  { }
 
   /*!
    * \brief Set the allocator id to use when allocating memory.
@@ -82,22 +82,23 @@ public:
 
     // Use the Adaptor on device to compute area or volume.
     const Adaptor deviceAdaptor(m_adaptor);
-    axom::for_all<ExecSpace>(deviceAdaptor.numberOfZones(), AXOM_LAMBDA(axom::IndexType zoneIndex)
-    {
-      const auto shape = deviceAdaptor.getShape(zoneIndex);
-      
-      double value = 0.;
-      if constexpr (Adaptor::dimension() == 3)
-      {
-        value = shape.volume();
-      }
-      else if constexpr (Adaptor::dimension() == 2)
-      {
-        value = shape.area();
-      }
+    axom::for_all<ExecSpace>(
+      deviceAdaptor.numberOfZones(),
+      AXOM_LAMBDA(axom::IndexType zoneIndex) {
+        const auto shape = deviceAdaptor.getShape(zoneIndex);
 
-      valuesView[zoneIndex] = value;
-    });
+        double value = 0.;
+        if constexpr(Adaptor::dimension() == 3)
+        {
+          value = shape.volume();
+        }
+        else if constexpr(Adaptor::dimension() == 2)
+        {
+          value = shape.area();
+        }
+
+        valuesView[zoneIndex] = value;
+      });
   }
 
 private:

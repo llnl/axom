@@ -95,10 +95,10 @@ struct Projector23
 
 //------------------------------------------------------------------------------
 #if defined(AXOM_USE_CONDUIT)
-void printSummaryBlueprint(axom::quest::SamplingShaper *);
+void printSummaryBlueprint(axom::quest::SamplingShaper*);
 #endif
 #if defined(AXOM_USE_MFEM)
-void printSummaryMFEM(axom::quest::Shaper *);
+void printSummaryMFEM(axom::quest::Shaper*);
 #endif
 
 //------------------------------------------------------------------------------
@@ -1097,42 +1097,44 @@ void printVolume(const std::string mat_name, double volume)
  *
  * \note At present, only compute volumes for the SamplingShaper.
  */
-void printSummaryBlueprint(axom::quest::SamplingShaper *shaper)
+void printSummaryBlueprint(axom::quest::SamplingShaper* shaper)
 {
   AXOM_ANNOTATE_SCOPE("printSummaryBlueprint");
   using ExecSpace = axom::SEQ_EXEC;
 
   // Make sure there is a fields node. If there isn't then we do not need to do any work.
-  auto *bpState = shaper->getBlueprintState();
-  conduit::Node &n_mesh = bpState->getBlueprintMeshNode();
+  auto* bpState = shaper->getBlueprintState();
+  conduit::Node& n_mesh = bpState->getBlueprintMeshNode();
   if(!n_mesh.has_path("fields"))
   {
     return;
   }
 
-  const conduit::Node &n_topo = bpState->getBlueprintTopologyNode();
-  conduit::Node &n_fields = n_mesh.fetch_existing("fields");
+  const conduit::Node& n_topo = bpState->getBlueprintTopologyNode();
+  conduit::Node& n_fields = n_mesh.fetch_existing("fields");
 
   // Compute the measure field.
   namespace views = axom::bump::views;
-  const conduit::Node *n_coordset = conduit::blueprint::mesh::utils::find_reference_node(n_topo, "coordset");
+  const conduit::Node* n_coordset =
+    conduit::blueprint::mesh::utils::find_reference_node(n_topo, "coordset");
   SLIC_ERROR_IF(n_coordset == nullptr, "Coordset could not be found.");
-  views::dispatch_coordset(*n_coordset, [&](auto coordsetView)
-  {
+  views::dispatch_coordset(*n_coordset, [&](auto coordsetView) {
     using CoordsetView = decltype(coordsetView);
 
     // Only compute over quads or hexes, depending on the dimension.
     constexpr int selected_dimensions = views::select_dimensions(CoordsetView::dimension());
-    constexpr int selected_shapes = (CoordsetView::dimension() == 2) ? (1 << views::Quad_ShapeID) : (1 << views::Hex_ShapeID);
-    views::dispatch_topology<selected_dimensions, selected_shapes>(n_topo, [&](const std::string &AXOM_UNUSED_PARAM(shape), auto topologyView)
-    {
-      using TopologyView = decltype(topologyView);
-      using ShapeAdaptor = axom::bump::PrimalAdaptor<TopologyView, CoordsetView>;
+    constexpr int selected_shapes =
+      (CoordsetView::dimension() == 2) ? (1 << views::Quad_ShapeID) : (1 << views::Hex_ShapeID);
+    views::dispatch_topology<selected_dimensions, selected_shapes>(
+      n_topo,
+      [&](const std::string& AXOM_UNUSED_PARAM(shape), auto topologyView) {
+        using TopologyView = decltype(topologyView);
+        using ShapeAdaptor = axom::bump::PrimalAdaptor<TopologyView, CoordsetView>;
 
-      ShapeAdaptor adaptor(topologyView, coordsetView);
-      axom::bump::ComputeMeasure<ExecSpace, ShapeAdaptor> m(adaptor);
-      m.execute("mesh", n_fields["measure"]);
-    });
+        ShapeAdaptor adaptor(topologyView, coordsetView);
+        axom::bump::ComputeMeasure<ExecSpace, ShapeAdaptor> m(adaptor);
+        m.execute("mesh", n_fields["measure"]);
+      });
   });
 
   // Get the measure field.
@@ -1141,17 +1143,19 @@ void printSummaryBlueprint(axom::quest::SamplingShaper *shaper)
     SLIC_INFO(axom::fmt::format("Could not find measure field."));
     return;
   }
-  const auto measure = axom::bump::utilities::make_array_view<double>(n_fields.fetch_existing("measure/values"));
+  const auto measure =
+    axom::bump::utilities::make_array_view<double>(n_fields.fetch_existing("measure/values"));
 
   // Compute the volumes for all of the "vol_frac_" fields.
   for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
   {
-    conduit::Node &n_field = n_fields[i];
+    conduit::Node& n_field = n_fields[i];
     const std::string name = n_field.name();
     if(axom::utilities::string::startsWith(name, "vol_frac_"))
     {
       const auto mat_name = name.substr(9);
-      const auto values = axom::bump::utilities::make_array_view<double>(n_field.fetch_existing("values"));
+      const auto values =
+        axom::bump::utilities::make_array_view<double>(n_field.fetch_existing("values"));
 
       SLIC_ERROR_IF(values.size() != measure.size(), "Incompatible sizes");
       const auto n = values.size();
@@ -1174,7 +1178,7 @@ void printSummaryBlueprint(axom::quest::SamplingShaper *shaper)
  *
  * \param shaper The shaper that was in use for shaping.
  */
-void printSummaryMFEM(axom::quest::Shaper *shaper)
+void printSummaryMFEM(axom::quest::Shaper* shaper)
 {
   for(auto& kv : shaper->getDC()->GetFieldMap())
   {
