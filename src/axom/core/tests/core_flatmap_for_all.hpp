@@ -93,10 +93,14 @@ using ViewTypes = ::testing::Types<
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
   FlatMapTestParams<axom::FlatMap<int, double>, axom::HIP_EXEC<256>, axom::MemorySpace::Device>,
   FlatMapTestParams<axom::FlatMap<int, double>, axom::HIP_EXEC<256>, axom::MemorySpace::Unified>,
+  #if defined(UMPIRE_ENABLE_PINNED)
   FlatMapTestParams<axom::FlatMap<int, double>, axom::HIP_EXEC<256>, axom::MemorySpace::Pinned>,
+  #endif
   FlatMapTestParams<axom::FlatMap<int, double, ConstantHash<int>>, axom::HIP_EXEC<256>, axom::MemorySpace::Device>,
   FlatMapTestParams<axom::FlatMap<int, double, ConstantHash<int>>, axom::HIP_EXEC<256>, axom::MemorySpace::Unified>,
+  #if defined(UMPIRE_ENABLE_PINNED)
   FlatMapTestParams<axom::FlatMap<int, double, ConstantHash<int>>, axom::HIP_EXEC<256>, axom::MemorySpace::Pinned>,
+  #endif
 #endif
 #if defined(AXOM_USE_UMPIRE)
   FlatMapTestParams<axom::FlatMap<int, double>, axom::SEQ_EXEC, axom::MemorySpace::Host>,

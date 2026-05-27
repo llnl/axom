@@ -917,7 +917,7 @@ TEST(numerics_quadrature, rational_fejer_diagnostics_populate_projection_details
 #if defined(AXOM_USE_UMPIRE)
 TEST(numerics_quadrature, rational_fejer_diagnostics_respect_allocator)
 {
-  const int allocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Pinned);
+  const int allocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
   const axom::Array<Complex> poles {Complex {1.4, 0.8}, Complex {1.4, -0.8}, Complex {2.5, 0.0}};
 
   numerics_internal::RationalFejerDiagnostics diagnostics;

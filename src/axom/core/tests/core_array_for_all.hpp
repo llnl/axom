@@ -63,18 +63,26 @@ using MyTypes = ::testing::Types<
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
   ArrayTestParams<axom::CUDA_EXEC<256>, axom::MemorySpace::Device>,
   ArrayTestParams<axom::CUDA_EXEC<256>, axom::MemorySpace::Unified>,
+  #if defined(UMPIRE_ENABLE_PINNED)
   ArrayTestParams<axom::CUDA_EXEC<256>, axom::MemorySpace::Pinned>,
+  #endif
   ArrayTestParams<axom::CUDA_EXEC<256, axom::ASYNC>, axom::MemorySpace::Device>,
   ArrayTestParams<axom::CUDA_EXEC<256, axom::ASYNC>, axom::MemorySpace::Unified>,
+  #if defined(UMPIRE_ENABLE_PINNED)
   ArrayTestParams<axom::CUDA_EXEC<256, axom::ASYNC>, axom::MemorySpace::Pinned>,
+  #endif
 #endif
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
   ArrayTestParams<axom::HIP_EXEC<256>, axom::MemorySpace::Device>,
   ArrayTestParams<axom::HIP_EXEC<256>, axom::MemorySpace::Unified>,
+  #if defined(UMPIRE_ENABLE_PINNED)
   ArrayTestParams<axom::HIP_EXEC<256>, axom::MemorySpace::Pinned>,
+  #endif
   ArrayTestParams<axom::HIP_EXEC<256, axom::ASYNC>, axom::MemorySpace::Device>,
   ArrayTestParams<axom::HIP_EXEC<256, axom::ASYNC>, axom::MemorySpace::Unified>,
+  #if defined(UMPIRE_ENABLE_PINNED)
   ArrayTestParams<axom::HIP_EXEC<256, axom::ASYNC>, axom::MemorySpace::Pinned>,
+  #endif
 #endif
 #if defined(AXOM_USE_UMPIRE)
   ArrayTestParams<axom::SEQ_EXEC, axom::MemorySpace::Host>,
