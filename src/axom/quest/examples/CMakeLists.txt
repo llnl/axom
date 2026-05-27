@@ -368,6 +368,22 @@ if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
             PASS_REGULAR_EXPRESSION  "Volume of material 'air' is 182,?227,?963")
     endif()
 endif()
+# Blueprint-only shaping test
+if(CONDUIT_FOUND AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+    set(_nranks 1)
+    set(_testname quest_shaping_driver_ex_sampling_stl_spheres)
+    axom_add_test(NAME ${_testname}
+                  COMMAND  quest_shaping_driver_ex 
+                            -i ${shaping_data_dir}/spheres.yaml
+                            --verbose
+                            --method sampling
+                            --sampling inout
+                            --background-material void
+                            inline_mesh_blueprint --min -5 -5 -5 --max 5 5 5 --res 10 10 10 -d 3
+                  NUM_MPI_TASKS ${_nranks})
+    set_tests_properties(${_testname} PROPERTIES 
+                         PASS_REGULAR_EXPRESSION  "Volume fraction fields: vol_frac_void, vol_frac_steel")
+endif()
 
 # Distributed closest point example -------------------------------------------
 if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
