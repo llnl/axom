@@ -65,6 +65,7 @@ set(bump_headers
     views/UnstructuredTopologySingleShapeView.hpp
     views/view_traits.hpp
     BlendData.hpp
+    ComputeMeasure.hpp
     CoordsetBlender.hpp
     CoordsetExtents.hpp
     CoordsetSlicer.hpp

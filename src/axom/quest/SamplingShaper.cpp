@@ -325,7 +325,7 @@ void SamplingShaper::prepareShapeQuery(klee::Dimensions shapeDimension, const kl
   }
 }
 
-#if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_CONDUIT)
 void SamplingShaper::importInitialVolumeFractions(
   const std::map<std::string, conduit::Node*>& initialVolumeFractions)
 {

@@ -371,7 +371,7 @@ endif()
 # Blueprint-only shaping test
 if(CONDUIT_FOUND AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
     set(_nranks 1)
-    set(_testname quest_shaping_driver_ex_sampling_stl_spheres)
+    set(_testname quest_shaping_driver_ex_sampling_blueprint_3D)
     axom_add_test(NAME ${_testname}
                   COMMAND  quest_shaping_driver_ex 
                             -i ${shaping_data_dir}/spheres.yaml
@@ -379,10 +379,15 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_TEST
                             --method sampling
                             --sampling inout
                             --background-material void
-                            inline_mesh_blueprint --min -5 -5 -5 --max 5 5 5 --res 10 10 10 -d 3
+                            inline_mesh_blueprint --min -6 -6 -6 --max 6 6 6 --res 16 16 16 -d 3
+                            --sampling-resolution 5 5 5
+                            --quadrature-type gausslegendre
                   NUM_MPI_TASKS ${_nranks})
+    # bbox volume: 12^3 = 1728; sphere(r=5): ~523.6; sphere(r=2): 33.5
+    # expected analytic volume when fully resolved: ~1237.9
+    # NOTE: the answer depends on the quadrature type. This answer is for gausslegendre.
     set_tests_properties(${_testname} PROPERTIES 
-                         PASS_REGULAR_EXPRESSION  "Volume fraction fields: vol_frac_void, vol_frac_steel")
+                         PASS_REGULAR_EXPRESSION  "Volume of material 'void' is 1,?239.")
 endif()
 
 # Distributed closest point example -------------------------------------------

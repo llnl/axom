@@ -137,6 +137,10 @@ public:
 #endif
 
 #if defined(AXOM_USE_CONDUIT)
+  shaping::BlueprintState *getBlueprintState()
+  {
+    return m_bp_state.get();
+  }
   conduit::Node* getBlueprintMeshNode()
   {
     return m_bp_state != nullptr ? &m_bp_state->m_internal_node : nullptr;
