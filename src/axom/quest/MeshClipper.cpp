@@ -80,12 +80,11 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
   auto& tetsOutCount = getIndexTypeReference(m_counterStats["tetsOut"]);
 
   // Try to label cells as inside, outside or on shape boundary
-  axom::Array<LabelType> cellLabels;
   bool withCellInOut = false;
   if(m_screenLevel >= 1)
   {
     AXOM_ANNOTATE_BEGIN("MeshClipper:label_cells");
-    withCellInOut = m_strategy->labelCellsInOut(m_shapeMesh, cellLabels);
+    withCellInOut = m_strategy->labelCellsInOut(m_shapeMesh, m_cellLabels);
     AXOM_ANNOTATE_END("MeshClipper:label_cells");
   }
 
@@ -94,11 +93,11 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
   if(withCellInOut)
   {
     SLIC_ERROR_IF(
-      cellLabels.size() != m_shapeMesh.getCellCount(),
+      m_cellLabels.size() != m_shapeMesh.getCellCount(),
       axom::fmt::format("MeshClipperStrategy '{}' did not return the correct array size of {}",
                         m_strategy->name(),
                         m_shapeMesh.getCellCount()));
-    SLIC_ERROR_IF(cellLabels.getAllocatorID() != m_shapeMesh.getAllocatorID(),
+    SLIC_ERROR_IF(m_cellLabels.getAllocatorID() != m_shapeMesh.getAllocatorID(),
                   axom::fmt::format("MeshClipperStrategy '{}' failed to provide cellLabels data "
                                     "with the required allocator id {}",
                                     m_strategy->name(),
@@ -107,36 +106,32 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
     if(m_verbose)
     {
       AXOM_ANNOTATE_SCOPE("MeshClipper:verbose");
-      getLabelCounts(cellLabels, cellsInCount, cellsOnCount, cellsOutCount);
+      getLabelCounts(m_cellLabels, cellsInCount, cellsOnCount, cellsOutCount);
       logClippingStats();
     }
 
     AXOM_ANNOTATE_BEGIN("MeshClipper:process_in_out");
 
-    m_impl->initVolumeOverlaps(cellLabels.view(), ovlap);
+    m_impl->initVolumeOverlaps(m_cellLabels.view(), ovlap);
 
-    axom::Array<axom::IndexType> cellsOnBdry;
-    m_impl->collectOnIndices(cellLabels.view(), cellsOnBdry);
+    m_impl->collectOnIndices(m_cellLabels.view(), m_cellsOnBdry);
 
-    axom::Array<LabelType> tetLabels;
     bool withTetInOut = false;
     if(m_screenLevel >= 2)
     {
       AXOM_ANNOTATE_BEGIN("MeshClipper:label_tets");
-      withTetInOut = m_strategy->labelTetsInOut(m_shapeMesh, cellsOnBdry.view(), tetLabels);
+      withTetInOut = m_strategy->labelTetsInOut(m_shapeMesh, m_cellsOnBdry.view(), m_tetLabels);
       AXOM_ANNOTATE_END("MeshClipper:label_tets");
     }
 
-    axom::Array<axom::IndexType> tetsOnBdry;
-
     if(withTetInOut)
     {
-      SLIC_ERROR_IF(tetLabels.size() != NUM_TETS_PER_HEX * cellsOnBdry.size(),
+      SLIC_ERROR_IF(m_tetLabels.size() != NUM_TETS_PER_HEX * m_cellsOnBdry.size(),
                     axom::fmt::format("MeshClipperStrategy '{}' did not return the correct"
                                       " tet label array size of {}",
                                       m_strategy->name(),
-                                      NUM_TETS_PER_HEX * cellsOnBdry.size()));
-      SLIC_ERROR_IF(tetLabels.getAllocatorID() != m_shapeMesh.getAllocatorID(),
+                                      NUM_TETS_PER_HEX * m_cellsOnBdry.size()));
+      SLIC_ERROR_IF(m_tetLabels.getAllocatorID() != m_shapeMesh.getAllocatorID(),
                     axom::fmt::format("MeshClipperStrategy '{}' failed to provide"
                                       "tetLabels data with the required allocator id {}",
                                       m_strategy->name(),
@@ -145,17 +140,17 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
       if(m_verbose)
       {
         AXOM_ANNOTATE_SCOPE("MeshClipper:verbose");
-        getLabelCounts(tetLabels, tetsInCount, tetsOnCount, tetsOutCount);
+        getLabelCounts(m_tetLabels, tetsInCount, tetsOnCount, tetsOutCount);
         logClippingStats();
       }
 
-      m_impl->collectOnIndices(tetLabels.view(), tetsOnBdry);
-      m_impl->remapTetIndices(cellsOnBdry, tetsOnBdry);
+      m_impl->collectOnIndices(m_tetLabels.view(), m_tetsOnBdry);
+      m_impl->remapTetIndices(m_cellsOnBdry, m_tetsOnBdry);
 
-      SLIC_ASSERT(tetsOnBdry.getAllocatorID() == m_shapeMesh.getAllocatorID());
-      SLIC_ASSERT(tetsOnBdry.size() <= cellsOnBdry.size() * NUM_TETS_PER_HEX);
+      SLIC_ASSERT(m_tetsOnBdry.getAllocatorID() == m_shapeMesh.getAllocatorID());
+      SLIC_ASSERT(m_tetsOnBdry.size() <= m_cellsOnBdry.size() * NUM_TETS_PER_HEX);
 
-      m_impl->addVolumesOfInteriorTets(cellsOnBdry.view(), tetLabels.view(), ovlap);
+      m_impl->addVolumesOfInteriorTets(m_cellsOnBdry.view(), m_tetLabels.view(), ovlap);
     }
 
     AXOM_ANNOTATE_END("MeshClipper:process_in_out");
@@ -166,11 +161,11 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
     AXOM_ANNOTATE_BEGIN("MeshClipper:specialized_clip");
     if(withTetInOut)
     {
-      done = m_strategy->specializedClipTets(m_shapeMesh, ovlap, tetsOnBdry, m_counterStats);
+      done = m_strategy->specializedClipTets(m_shapeMesh, ovlap, m_tetsOnBdry, m_counterStats);
     }
     else
     {
-      done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, cellsOnBdry, m_counterStats);
+      done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, m_cellsOnBdry, m_counterStats);
     }
     AXOM_ANNOTATE_END("MeshClipper:specialized_clip");
 
@@ -179,11 +174,11 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
       AXOM_ANNOTATE_SCOPE("MeshClipper:clip_fcn");
       if(withTetInOut)
       {
-        m_impl->computeClipVolumes3DTets(tetsOnBdry.view(), ovlap, m_counterStats);
+        m_impl->computeClipVolumes3DTets(m_tetsOnBdry.view(), ovlap, m_counterStats);
       }
       else
       {
-        m_impl->computeClipVolumes3D(cellsOnBdry.view(), ovlap, m_counterStats);
+        m_impl->computeClipVolumes3D(m_cellsOnBdry.view(), ovlap, m_counterStats);
       }
     }
   }

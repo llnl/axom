@@ -65,6 +65,11 @@ private:
 
   axom::Array<std::shared_ptr<MonotonicZSORClipper>> m_fsorImpls;
 
+  // Two-point implementations used by the CPU analytic clipping path.
+  axom::Array<std::shared_ptr<MonotonicZSORClipper>> m_linearSorImpls;
+
+  std::shared_ptr<MonotonicZSORClipper::BodyVertexCache> m_bodyVertexCache;
+
   /*!
    * @brief The discrete r(z) curve as an array of (z,r) coordinates.
    *

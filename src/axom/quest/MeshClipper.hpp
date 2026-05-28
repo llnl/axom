@@ -248,6 +248,12 @@ private:
   //! @brief Statistics
   conduit::Node m_counterStats;
 
+  //! @brief Scratch arrays retained between clip calls to avoid repeated allocations.
+  axom::Array<LabelType> m_cellLabels;
+  axom::Array<axom::IndexType> m_cellsOnBdry;
+  axom::Array<LabelType> m_tetLabels;
+  axom::Array<axom::IndexType> m_tetsOnBdry;
+
   bool m_verbose;
 
   int m_screenLevel;

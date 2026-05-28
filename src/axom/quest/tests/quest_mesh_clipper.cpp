@@ -1464,6 +1464,10 @@ int main(int argc, char** argv)
 
   SLIC_INFO(axom::fmt::format("exiting with failure count {}", failCounts));
 
+  // The Conduit view aliases buffers owned by the local Sidre datastore.
+  // Release it before the datastore destroys those buffers.
+  compMeshNode.reset();
+
   finalizeLogger();
 
   return failCounts;

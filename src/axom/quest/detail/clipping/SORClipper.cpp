@@ -20,6 +20,12 @@ namespace quest
 {
 namespace experimental
 {
+namespace
+{
+// Amortize clipping each linear segment separately only on sufficiently large meshes.
+constexpr IndexType MIN_LINEAR_SOR_SEQ_CELL_COUNT = 12000;
+constexpr IndexType MIN_LINEAR_SOR_OMP_CELL_COUNT = 8000;
+}  // namespace
 
 SORClipper::SORClipper(const klee::Geometry& kGeom, const std::string& name)
   : MeshClipperStrategy(kGeom)
@@ -28,6 +34,7 @@ SORClipper::SORClipper(const klee::Geometry& kGeom, const std::string& name)
   , m_minRadius(std::numeric_limits<double>::max())
 {
   extractClipperInfo();
+  m_bodyVertexCache = std::make_shared<MonotonicZSORClipper::BodyVertexCache>();
 
   for(auto& pt : m_sorCurve)
   {
@@ -55,7 +62,29 @@ SORClipper::SORClipper(const klee::Geometry& kGeom, const std::string& name)
                                                                  section,
                                                                  m_sorOrigin,
                                                                  m_sorDirection,
-                                                                 m_levelOfRefinement));
+                                                                 m_levelOfRefinement,
+                                                                 m_bodyVertexCache));
+  }
+
+  constexpr double zEps = 1e-14;
+  for(IndexType i = 1; i < m_sorCurve.size(); ++i)
+  {
+    const Point2DType& first = m_sorCurve[i - 1];
+    const Point2DType& second = m_sorCurve[i];
+    if(axom::utilities::isNearlyEqual(second[0] - first[0], 0.0, zEps))
+    {
+      continue;
+    }
+
+    axom::Array<Point2DType> linearSection {first, second};
+    std::string sectionName = axom::fmt::format("{}.linearSection{:02d}", m_name, i - 1);
+    m_linearSorImpls.push_back(std::make_shared<MonotonicZSORClipper>(kGeom,
+                                                                      sectionName,
+                                                                      linearSection.view(),
+                                                                      m_sorOrigin,
+                                                                      m_sorDirection,
+                                                                      m_levelOfRefinement,
+                                                                      m_bodyVertexCache));
   }
 }
 
@@ -74,21 +103,43 @@ bool SORClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
    * but the cone discretization functionality always generates
    * positive volumes.  We correct this by manually applying the
    * correct sign.
-   */
+  */
   const axom::IndexType cellCount = ovlap.size();
   axom::Array<double> tmpOvlap(cellCount, cellCount, ovlap.getAllocatorID());
-  for(auto& fsorImpl : m_fsorImpls)
+  const auto policy = shapeMesh.getRuntimePolicy();
+  IndexType minLinearSorCellCount = MIN_LINEAR_SOR_SEQ_CELL_COUNT;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  if(policy == axom::runtime_policy::Policy::omp)
   {
+    minLinearSorCellCount = MIN_LINEAR_SOR_OMP_CELL_COUNT;
+  }
+#endif
+  const bool useLinearCpuPath = m_levelOfRefinement <= 5 && cellCount >= minLinearSorCellCount &&
+    (policy == axom::runtime_policy::Policy::seq
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+     || policy == axom::runtime_policy::Policy::omp
+#endif
+    );
+  auto& sorImpls = useLinearCpuPath ? m_linearSorImpls : m_fsorImpls;
+
+  for(auto& fsorImpl : sorImpls)
+  {
+    AXOM_ANNOTATE_BEGIN("SORClipper::reset_segment_overlap");
     tmpOvlap.fill(0.0);
+    AXOM_ANNOTATE_END("SORClipper::reset_segment_overlap");
     MeshClipper clipper(shapeMesh, fsorImpl);
-    clipper.setScreenLevel(m_screenLevel);
+    clipper.setScreenLevel(useLinearCpuPath ? 2 : m_screenLevel);
     clipper.setVerbose(false);
+    AXOM_ANNOTATE_BEGIN("SORClipper::clip_segment");
     clipper.clip(tmpOvlap);
+    AXOM_ANNOTATE_END("SORClipper::clip_segment");
     auto sorCurve = fsorImpl->getSorCurve();
     const auto firstZ = sorCurve[0][0];
     const auto lastZ = sorCurve[sorCurve.size() - 1][0];
     int sign = axom::utilities::sign_of(lastZ - firstZ, 0.0);
+    AXOM_ANNOTATE_BEGIN("SORClipper::accumulate_segment");
     accumulateData(ovlap, tmpOvlap.view(), double(sign), shapeMesh.getRuntimePolicy());
+    AXOM_ANNOTATE_END("SORClipper::accumulate_segment");
     MeshClipper::accumulateClippingStats(statistics, clipper.getClippingStats());
   }
   return true;

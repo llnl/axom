@@ -44,7 +44,14 @@ public:
   using OctahedronType = primal::Octahedron<double, 3>;
   using CoordTransformer = primal::experimental::CoordinateTransformer<double>;
 
-  MeshClipperImpl(MeshClipper& clipper) : MeshClipper::Impl(clipper) { }
+  MeshClipperImpl(MeshClipper& clipper)
+    : MeshClipper::Impl(clipper)
+    , m_tmpLabels(0, 0, clipper.getAllocatorID())
+    , m_counts(0, 0, clipper.getAllocatorID())
+    , m_offsets(0, 0, clipper.getAllocatorID())
+    , m_candidates(0, 0, clipper.getAllocatorID())
+    , m_candidateToTet(0, 0, clipper.getAllocatorID())
+  { }
 
   void initVolumeOverlaps(const axom::ArrayView<MeshClipperStrategy::LabelType>& labels,
                           axom::ArrayView<double> ovlap) override
@@ -113,6 +120,10 @@ public:
       {
         onIndices = axom::Array<IndexType>(0, 0, labels.getAllocatorID());
       }
+      else
+      {
+        onIndices.resize(ArrayOptions::Uninitialized(), 0);
+      }
       return;
     };
 
@@ -130,12 +141,9 @@ public:
 
     const axom::IndexType labelCount = labels.size();
 
-    axom::Array<axom::IndexType> tmpLabels(ArrayOptions::Uninitialized(),
-                                           1 + labels.size(),
-                                           0,
-                                           labels.getAllocatorID());
-    tmpLabels.fill(0, 1, 0);
-    auto tmpLabelsView = tmpLabels.view();
+    m_tmpLabels.resize(ArrayOptions::Uninitialized(), 1 + labels.size());
+    m_tmpLabels.fill(0, 1, 0);
+    auto tmpLabelsView = m_tmpLabels.view();
     axom::ReduceSum<ExecSpace, IndexType> onCountReduce {0};
     axom::for_all<ExecSpace>(labelCount, [=] AXOM_HOST_DEVICE(axom::IndexType ci) {
       bool isOn = labels[ci] == LabelType::LABEL_ON;
@@ -147,12 +155,16 @@ public:
 
     // Space for output index list
     axom::IndexType onCount = onCountReduce.get();
-    if(onIndices.size() < onCount || onIndices.getAllocatorID() != labels.getAllocatorID())
+    if(onIndices.getAllocatorID() != labels.getAllocatorID())
     {
       onIndices = axom::Array<axom::IndexType> {axom::ArrayOptions::Uninitialized(),
                                                 onCount,
                                                 0,
                                                 labels.getAllocatorID()};
+    }
+    else
+    {
+      onIndices.resize(axom::ArrayOptions::Uninitialized(), onCount);
     }
 
     auto onIndicesView = onIndices.view();
@@ -267,10 +279,7 @@ public:
   {
     AXOM_ANNOTATE_SCOPE("MeshClipperImpl::computeClipVolumes3DTets");
 
-    ShapeMesh& shapeMesh = getShapeMesh();
     auto meshTets = getShapeMesh().getCellsAsTets();
-
-    const int allocId = shapeMesh.getAllocatorID();
 
     /*
      * Geometry as discrete tets or octs, and their bounding boxes.
@@ -283,45 +292,97 @@ public:
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
 
-    /*
-     * Find which shape bounding boxes intersect hexahedron bounding boxes
-     */
-
-    AXOM_ANNOTATE_BEGIN("MeshClipper:find_candidates");
-    // Create a temporary subset of tet bounding boxes,
-    // containing only those listed in tetIndices.
-    // The BVH searches on this array.
     const axom::IndexType tetCount = tetIndices.size();
-    axom::Array<BoundingBoxType> tetBbs(tetCount, tetCount, allocId);
-    axom::ArrayView<BoundingBoxType> tetBbsView = tetBbs.view();
-    axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType i) {
-      auto& tetBb = tetBbsView[i];
-      axom::IndexType tetId = tetIndices[i];
-      const auto& tet = meshTets[tetId];
-      for(int j = 0; j < 4; ++j) tetBb.addPoint(tet[j]);
-    });
-
-    axom::Array<IndexType> counts(tetCount, tetCount, allocId);
-    axom::Array<IndexType> offsets(tetCount, tetCount, allocId);
-    axom::Array<IndexType> candidates;
-    auto countsView = counts.view();
-    auto offsetsView = offsets.view();
-    // Get the BVH traverser for doing the 2-pass search manually.
     const auto bvhTraverser = bvh.getTraverser();
-    /*
-     * Predicate for traversing the BVH.  We enter BVH nodes
-     * whose bounding boxes intersect the query bounding box.
-     */
     auto traversePredTetId = [=] AXOM_HOST_DEVICE(const IndexType& queryTetId,
                                                   const BoundingBoxType& bvhBbox) -> bool {
       const auto& queryTet = meshTets[tetIndices[queryTetId]];
       return tetBoxCollision(queryTet, bvhBbox);
     };
 
+    ClippingStats clipStats;
+    const auto screenLevel = myClipper().getScreenLevel();
+
+    if constexpr(!axom::execution_space<ExecSpace>::onDevice())
+    {
+      constexpr IndexType MIN_PIECES_FOR_BOX_TRAVERSAL = 32;
+      const IndexType pieceCount = useTets ? geomTetsView.size() : geomOctsView.size();
+      const bool useBoxTraversal = pieceCount >= MIN_PIECES_FOR_BOX_TRAVERSAL;
+      AXOM_ANNOTATE_SCOPE(useBoxTraversal ? "MeshClipper:fused_clip_box_traversal"
+                                          : "MeshClipper:fused_clip_exact_traversal");
+      axom::ReduceSum<ExecSpace, IndexType> candidateCountReduce(0);
+      axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType iTet) {
+        const auto tetId = tetIndices[iTet];
+        const auto cellId = tetId / NUM_TETS_PER_HEX;
+        const auto& meshTet = meshTets[tetId];
+        BoundingBoxType meshTetBox;
+        if(useBoxTraversal)
+        {
+          meshTetBox = BoundingBoxType {meshTet[0], meshTet[1], meshTet[2], meshTet[3]};
+        }
+        Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+        CoordTransformer toUnitTet(&meshTet[0], unitTet);
+        double overlap = 0.0;
+        IndexType candidateCount = 0;
+
+        auto traversePred = [&](const IndexType&, const BoundingBoxType& bvhBbox) -> bool {
+          return useBoxTraversal ? meshTetBox.intersectsWith(bvhBbox)
+                                 : tetBoxCollision(meshTet, bvhBbox, toUnitTet);
+        };
+
+        auto clipCollision = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
+          const auto pieceId = leafNodes[currentNode];
+          if(useTets)
+          {
+            const auto& piece = geomTetsView[pieceId];
+            if(tetTetCollision(meshTet, piece, toUnitTet))
+            {
+              ++candidateCount;
+              computeMeshTetGeomPieceOverlap(meshTet, piece, toUnitTet, &overlap, clipStats, screenLevel);
+            }
+          }
+          else
+          {
+            const auto& piece = geomOctsView[pieceId];
+            if(tetOctCollision(meshTet, piece, toUnitTet))
+            {
+              ++candidateCount;
+              computeMeshTetGeomPieceOverlap(meshTet, piece, toUnitTet, &overlap, clipStats, screenLevel);
+            }
+          }
+        };
+
+        bvhTraverser.traverse_tree(iTet, clipCollision, traversePred);
+        candidateCountReduce += candidateCount;
+        if(overlap > 0.0)
+        {
+          addToOverlapVolume<ExecSpace>(ovlap.data() + cellId, overlap);
+        }
+      });
+
+      clipStats.copyTo(statistics);
+      statistics["clipsCandidates"].set(candidateCountReduce.get());
+      return;
+    }
+
     /*
-     * First pass: count number of collisions each of the tetBbs makes
-     * with the BVH leaves.  Populate the counts array.
+     * Find which shape bounding boxes intersect hexahedron bounding boxes
      */
+
+    AXOM_ANNOTATE_BEGIN("MeshClipper:find_candidates");
+    m_counts.resize(ArrayOptions::Uninitialized(), tetCount);
+    m_offsets.resize(ArrayOptions::Uninitialized(), tetCount);
+    auto countsView = m_counts.view();
+    auto offsetsView = m_offsets.view();
+    /*
+     * Predicate for traversing the BVH.  We enter BVH nodes
+     * whose bounding boxes intersect the query bounding box.
+     */
+
+    /*
+     * First pass: count the geometry pieces each selected tet may intersect.
+     */
+    AXOM_ANNOTATE_BEGIN("MeshClipper:count_candidates");
     axom::ReduceSum<ExecSpace, IndexType> totalCountReduce(0);
     axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType iTet) {
       axom::IndexType count = 0;
@@ -352,10 +413,13 @@ public:
       countsView[iTet] = count;
       totalCountReduce += count;
     });
+    AXOM_ANNOTATE_END("MeshClipper:count_candidates");
 
     // Compute the offsets array using a prefix scan of counts.
-    axom::exclusive_scan<ExecSpace>(counts, offsets);
+    AXOM_ANNOTATE_BEGIN("MeshClipper:scan_candidate_counts");
+    axom::exclusive_scan<ExecSpace>(m_counts, m_offsets);
     const IndexType nCollisions = totalCountReduce.get();
+    AXOM_ANNOTATE_END("MeshClipper:scan_candidate_counts");
 
     /*
      * Allocate 2 arrays to hold info about the meshTet/geometry piece collisions.
@@ -363,14 +427,15 @@ public:
      * - candToTetIdId: indicates the meshTets in the collision,
      *   where candToTetIdId[i] corresponds to meshTets[tetIndices[i]].
      */
-    candidates = axom::Array<IndexType>(nCollisions, nCollisions, allocId);
-    axom::Array<IndexType> candToTetIdId(candidates.size(), candidates.size(), allocId);
-    auto candidatesView = candidates.view();
-    auto candToTetIdIdView = candToTetIdId.view();
+    m_candidates.resize(ArrayOptions::Uninitialized(), nCollisions);
+    m_candidateToTet.resize(ArrayOptions::Uninitialized(), nCollisions);
+    auto candidatesView = m_candidates.view();
+    auto candToTetIdIdView = m_candidateToTet.view();
 
     /*
      * Second pass: Populate tet-candidate piece collision arrays.
      */
+    AXOM_ANNOTATE_BEGIN("MeshClipper:populate_candidates");
     axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType iTet) {
       auto offset = offsetsView[iTet];
 
@@ -409,17 +474,14 @@ public:
 
       bvhTraverser.traverse_tree(iTet, recordCollision, traversePredTetId);
     });
+    AXOM_ANNOTATE_END("MeshClipper:populate_candidates");
     AXOM_ANNOTATE_END("MeshClipper:find_candidates");
 
     SLIC_DEBUG(axom::fmt::format(
       "Running clip loop on {} candidate pieces for the select {} tets of the full {} mesh cells",
-      candidates.size(),
+      m_candidates.size(),
       tetCount,
-      shapeMesh.getCellCount()));
-
-    ClippingStats clipStats;
-
-    const auto screenLevel = myClipper().getScreenLevel();
+      getShapeMesh().getCellCount()));
 
     /*
      * Now we have the candidates.  Do the clip loop.
@@ -427,7 +489,7 @@ public:
     AXOM_ANNOTATE_BEGIN("MeshClipper:clipLoop");
     if(useTets)
     {
-      axom::for_all<ExecSpace>(candidates.size(), [=] AXOM_HOST_DEVICE(axom::IndexType iCand) {
+      axom::for_all<ExecSpace>(m_candidates.size(), [=] AXOM_HOST_DEVICE(axom::IndexType iCand) {
         auto tetIdId = candToTetIdIdView[iCand];
         auto tetId = tetIndices[tetIdId];
         auto cellId = tetId / NUM_TETS_PER_HEX;
@@ -439,7 +501,7 @@ public:
     }
     else  // useOcts
     {
-      axom::for_all<ExecSpace>(candidates.size(), [=] AXOM_HOST_DEVICE(axom::IndexType iCand) {
+      axom::for_all<ExecSpace>(m_candidates.size(), [=] AXOM_HOST_DEVICE(axom::IndexType iCand) {
         auto tetIdId = candToTetIdIdView[iCand];
         auto tetId = tetIndices[tetIdId];
         auto cellId = tetId / NUM_TETS_PER_HEX;
@@ -452,7 +514,7 @@ public:
     AXOM_ANNOTATE_END("MeshClipper:clipLoop");
 
     clipStats.copyTo(statistics);
-    statistics["clipsCandidates"].set(static_cast<IndexType>(candidates.size()));
+    statistics["clipsCandidates"].set(static_cast<IndexType>(m_candidates.size()));
   }  // end of computeClipVolumes3DTets() function
 
   /*!
@@ -591,7 +653,7 @@ public:
       if(geomLabel == LabelType::LABEL_IN)
       {
         auto contribVol = geomPieceVolume(geomPiece);
-        axom::atomicAdd<ExecSpace>(overlapVolume, contribVol);
+        addToOverlapVolume<ExecSpace>(overlapVolume, contribVol);
         clipStats.inSum += 1;
         return geomLabel;
       }
@@ -604,7 +666,7 @@ public:
       // Poly is valid
       auto contribVol = poly.volume();
       SLIC_ASSERT(contribVol >= 0);
-      axom::atomicAdd<ExecSpace>(overlapVolume, contribVol);
+      addToOverlapVolume<ExecSpace>(overlapVolume, contribVol);
     }
     else
     {
@@ -612,6 +674,34 @@ public:
     }
 
     return LabelType::LABEL_ON;
+  }
+
+  template <typename TetOrOctType>
+  AXOM_HOST_DEVICE static inline LabelType computeMeshTetGeomPieceOverlap(
+    const TetrahedronType& meshTet,
+    const TetOrOctType& geomPiece,
+    const CoordTransformer& toUnitTet,
+    double* overlapVolume,
+    const ClippingStats& clipStats,
+    int screenLevel)
+  {
+    if(screenLevel >= 3)
+    {
+      const LabelType geomLabel = labelPieceInOutOfTet(toUnitTet, geomPiece);
+      if(geomLabel == LabelType::LABEL_OUT)
+      {
+        clipStats.outSum += 1;
+        return geomLabel;
+      }
+      if(geomLabel == LabelType::LABEL_IN)
+      {
+        addToOverlapVolume<ExecSpace>(overlapVolume, geomPieceVolume(geomPiece));
+        clipStats.inSum += 1;
+        return geomLabel;
+      }
+    }
+
+    return computeMeshTetGeomPieceOverlap(meshTet, geomPiece, overlapVolume, clipStats, 0);
   }
 
   /*!
@@ -629,7 +719,13 @@ public:
   {
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     CoordTransformer toUnitTet(&tet[0], unitTet);
+    return labelPieceInOutOfTet(toUnitTet, piece);
+  }
 
+  template <typename TetOrOctType>
+  AXOM_HOST_DEVICE static inline LabelType labelPieceInOutOfTet(const CoordTransformer& toUnitTet,
+                                                                const TetOrOctType& piece)
+  {
     /*
      * Count (transformed) piece vertices above/below unitTet as unitTet
      * rests on its 4 sides.  Sides 0-2 are perpendicular to the axes.
@@ -687,7 +783,23 @@ public:
 
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     CoordTransformer toUnitTet(&tet[0], unitTet);
+    return tetBoxCollision(box, toUnitTet);
+  }
 
+  AXOM_HOST_DEVICE static inline bool tetBoxCollision(const TetrahedronType& tet,
+                                                      const BoundingBoxType& box,
+                                                      const CoordTransformer& toUnitTet)
+  {
+    if(box.contains(tet[0]) || box.contains(tet[1]) || box.contains(tet[2]) || box.contains(tet[3]))
+    {
+      return true;
+    }
+    return tetBoxCollision(box, toUnitTet);
+  }
+
+  AXOM_HOST_DEVICE static inline bool tetBoxCollision(const BoundingBoxType& box,
+                                                      const CoordTransformer& toUnitTet)
+  {
     int vsAbove[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     int vsBelow[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     for(int i = 0; i < 8; ++i)
@@ -726,6 +838,13 @@ public:
   {
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     CoordTransformer toUnitTet(&tet[0], unitTet);
+    return tetOctCollision(tet, oct, toUnitTet);
+  }
+
+  AXOM_HOST_DEVICE static inline bool tetOctCollision(const TetrahedronType& tet,
+                                                      const OctahedronType& oct,
+                                                      const CoordTransformer& toUnitTet)
+  {
     int octVertsAbove[OctahedronType::NUM_VERTS] = {0, 0, 0, 0, 0, 0};
     int octVertsBelow[OctahedronType::NUM_VERTS] = {0, 0, 0, 0, 0, 0};
     for(int i = 0; i < OctahedronType::NUM_VERTS; ++i)
@@ -822,7 +941,14 @@ public:
   {
     Point3DType unitTet[] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
     CoordTransformer toUnitTet(&tetA[0], unitTet);
+    return tetTetCollision(tetA, tetB, toUnitTet, flip);
+  }
 
+  AXOM_HOST_DEVICE static inline bool tetTetCollision(const TetrahedronType& tetA,
+                                                      const TetrahedronType& tetB,
+                                                      const CoordTransformer& toUnitTet,
+                                                      bool flip = true)
+  {
     int vsAbove[TetrahedronType::NUM_VERTS] = {0, 0, 0, 0};
     int vsBelow[TetrahedronType::NUM_VERTS] = {0, 0, 0, 0};
     for(int i = 0; i < TetrahedronType::NUM_VERTS; ++i)
@@ -886,6 +1012,12 @@ public:
   }
 
 private:
+  axom::Array<axom::IndexType> m_tmpLabels;
+  axom::Array<IndexType> m_counts;
+  axom::Array<IndexType> m_offsets;
+  axom::Array<IndexType> m_candidates;
+  axom::Array<IndexType> m_candidateToTet;
+
   static constexpr double EPS = 1e-10;
   static constexpr double BVH_SCALE_FACTOR = 1.0;
 };

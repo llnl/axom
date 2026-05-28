@@ -33,6 +33,13 @@ namespace experimental
 class MonotonicZSORClipper : public MeshClipperStrategy
 {
 public:
+  struct BodyVertexCache
+  {
+    const ShapeMesh* shapeMesh {nullptr};
+    const double* sourceCoordinates[3] {nullptr, nullptr, nullptr};
+    axom::Array<Point3DType> vertices;
+  };
+
   /*!
    * @brief Constructor.
    *
@@ -61,7 +68,8 @@ public:
                        axom::ArrayView<const Point2DType> discreteFunction,
                        const Point3DType& sorOrigin,
                        const Vector3DType& sorDirection,
-                       axom::IndexType levelOfRefinement);
+                       axom::IndexType levelOfRefinement,
+                       std::shared_ptr<BodyVertexCache> bodyVertexCache = {});
 
   virtual ~MonotonicZSORClipper() = default;
 
@@ -73,6 +81,11 @@ public:
   bool labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
                       axom::ArrayView<const axom::IndexType> cellIds,
                       axom::Array<LabelType>& tetLabels) override;
+
+  bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
+                           axom::ArrayView<double> ovlap,
+                           const axom::ArrayView<IndexType>& tetIds,
+                           conduit::Node& statistics) override;
 
   bool getGeometryAsOcts(quest::experimental::ShapeMesh& shappeMesh,
                          axom::Array<OctahedronType>& octs) override;
@@ -164,6 +177,9 @@ private:
    */
   axom::primal::experimental::CoordinateTransformer<double> m_invTransformer;
 
+  //! @brief Body-frame vertices shared by segments of the same SOR.
+  std::shared_ptr<BodyVertexCache> m_bodyVertexCache;
+
   template <typename ExecSpace>
   void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                            axom::ArrayView<LabelType> label);
@@ -172,6 +188,12 @@ private:
   void labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                           axom::ArrayView<const axom::IndexType> cellIds,
                           axom::ArrayView<LabelType> tetLabels);
+
+  template <typename ExecSpace>
+  void specializedClipTetsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                               axom::ArrayView<double> ovlap,
+                               const axom::ArrayView<IndexType>& tetIds,
+                               conduit::Node& statistics);
 
   template <typename ExecSpace>
   void computeCurveBoxes(quest::experimental::ShapeMesh& shapeMesh,

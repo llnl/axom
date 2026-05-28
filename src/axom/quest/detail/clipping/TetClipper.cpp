@@ -118,17 +118,11 @@ void TetClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
   /*
    * Compute whether mesh vertices are above/below the tet.
    */
-  axom::Array<bool> below[4];
-  axom::Array<bool> above[4];
-  axom::ArrayView<bool> belowView[4];
-  axom::ArrayView<bool> aboveView[4];
-  for(IndexType p = 0; p < 4; ++p)
-  {
-    below[p] = axom::Array<bool>(ArrayOptions::Uninitialized(), vertCount, 0, allocId);
-    above[p] = axom::Array<bool>(ArrayOptions::Uninitialized(), vertCount, 0, allocId);
-    belowView[p] = below[p].view();
-    aboveView[p] = above[p].view();
-  }
+  // Store the four below-plane flags in the low nibble and the four
+  // above-plane flags in the high nibble. This reduces eight temporary
+  // arrays and eight reads per cell vertex to one of each.
+  axom::Array<unsigned char> planeMasks(ArrayOptions::Uninitialized(), vertCount, 0, allocId);
+  auto planeMasksView = planeMasks.view();
 
   auto toUnitTet = m_toUnitTet;
 
@@ -139,11 +133,13 @@ void TetClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
     toUnitTet.transform(vh[0], vh[1], vh[2]);
     vh[3] = 1 - vh[0] - vh[1] - vh[2];
 
+    unsigned char mask = 0;
     for(int p = 0; p < 4; ++p)
     {
-      belowView[p][vertId] = vh[p] < 0;
-      aboveView[p][vertId] = vh[p] > 1;
+      mask |= static_cast<unsigned char>((vh[p] < 0) << p);
+      mask |= static_cast<unsigned char>((vh[p] > 1) << (p + 4));
     }
+    planeMasksView[vertId] = mask;
   });
 
   constexpr double EPS = 1e-10;
@@ -161,30 +157,24 @@ void TetClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
     LabelType& cellLabel = cellLabels[cellId];
     auto cellVertIds = connView[cellId];
 
-    cellLabel = LabelType::LABEL_ON;
-    bool vertsAreOnTetSideOfAllPlanes = true;
-    for(IndexType p = 0; p < 4; ++p)
+    unsigned int allVertsBelow = 0x0F;
+    unsigned int allVertsAbove = 0x0F;
+    unsigned int anyVertBelow = 0;
+    for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
     {
-      bool allVertsBelow = true;
-      bool allVertsAbove = true;
-      for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
-      {
-        int vertId = cellVertIds[vi];
-        auto vertIsBelow = belowView[p][vertId];
-        auto vertIsAbove = aboveView[p][vertId];
-        allVertsBelow &= vertIsBelow;
-        allVertsAbove &= vertIsAbove;
-        vertsAreOnTetSideOfAllPlanes &= !vertIsBelow;
-      }
-      if(allVertsBelow || allVertsAbove)
-      {
-        cellLabel = LabelType::LABEL_OUT;
-        break;
-      }
+      const unsigned int mask = planeMasksView[cellVertIds[vi]];
+      allVertsBelow &= mask;
+      allVertsAbove &= mask >> 4;
+      anyVertBelow |= mask;
     }
-    if(cellLabel != LabelType::LABEL_OUT && vertsAreOnTetSideOfAllPlanes)
+
+    if(((allVertsBelow | allVertsAbove) & 0x0F) != 0)
     {
-      cellLabel = LabelType::LABEL_IN;
+      cellLabel = LabelType::LABEL_OUT;
+    }
+    else
+    {
+      cellLabel = (anyVertBelow & 0x0F) == 0 ? LabelType::LABEL_IN : LabelType::LABEL_ON;
     }
   });
 
@@ -276,11 +266,9 @@ void TetClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
         continue;
       }
 
-      tetLabel = LabelType::LABEL_ON;
-
-      bool allVertsBelow = true;
-      bool allVertsAbove = true;
-      bool vertsAreOnTetSideOfAllPlanes = true;
+      unsigned int allVertsBelow = 0x0F;
+      unsigned int allVertsAbove = 0x0F;
+      unsigned int anyVertBelow = 0;
 
       for(IndexType vi = 0; vi < 4; ++vi)
       {
@@ -292,32 +280,82 @@ void TetClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
         toUnitTet.transform(vh[0], vh[1], vh[2]);
         vh[3] = 1 - vh[0] - vh[1] - vh[2];
 
-        // Where vertex vi is w.r.t. the tet resting on side pj.
+        unsigned int mask = 0;
         for(int pj = 0; pj < 4; ++pj)
         {
-          bool vertIsBelow = vh[pj] < 0;
-          bool vertIsAbove = vh[pj] > 1;
-
-          allVertsBelow &= vertIsBelow;
-          allVertsAbove &= vertIsAbove;
-          vertsAreOnTetSideOfAllPlanes &= !vertIsBelow;
+          mask |= static_cast<unsigned int>((vh[pj] < 0) << pj);
+          mask |= static_cast<unsigned int>((vh[pj] > 1) << (pj + 4));
         }
-
-        if(allVertsBelow || allVertsAbove)
-        {
-          tetLabel = LabelType::LABEL_OUT;
-          break;
-        }
+        allVertsBelow &= mask;
+        allVertsAbove &= mask >> 4;
+        anyVertBelow |= mask;
       }
 
-      if(tetLabel != LabelType::LABEL_OUT && vertsAreOnTetSideOfAllPlanes)
+      if(((allVertsBelow | allVertsAbove) & 0x0F) != 0)
       {
-        tetLabel = LabelType::LABEL_IN;
+        tetLabel = LabelType::LABEL_OUT;
+      }
+      else
+      {
+        tetLabel = (anyVertBelow & 0x0F) == 0 ? LabelType::LABEL_IN : LabelType::LABEL_ON;
       }
     }
   });
 
   return;
+}
+
+bool TetClipper::specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
+                                     axom::ArrayView<double> ovlap,
+                                     const axom::ArrayView<IndexType>& tetIds,
+                                     conduit::Node& statistics)
+{
+  switch(shapeMesh.getRuntimePolicy())
+  {
+  case axom::runtime_policy::Policy::seq:
+    specializedClipTetsImpl<axom::SEQ_EXEC>(shapeMesh, ovlap, tetIds, statistics);
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case axom::runtime_policy::Policy::omp:
+    specializedClipTetsImpl<axom::OMP_EXEC>(shapeMesh, ovlap, tetIds, statistics);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case axom::runtime_policy::Policy::cuda:
+    return false;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case axom::runtime_policy::Policy::hip:
+    return false;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+  return true;
+}
+
+template <typename ExecSpace>
+void TetClipper::specializedClipTetsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                         axom::ArrayView<double> ovlap,
+                                         const axom::ArrayView<IndexType>& tetIds,
+                                         conduit::Node& statistics)
+{
+  constexpr double EPS = 1e-10;
+  const auto meshTets = shapeMesh.getCellsAsTets();
+  const auto geometryTet = m_tet;
+  const IndexType tetCount = tetIds.size();
+
+  axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(IndexType ti) {
+    const IndexType tetId = tetIds[ti];
+    const IndexType cellId = tetId / NUM_TETS_PER_HEX;
+    SLIC_ASSERT(cellId >= 0 && cellId < ovlap.size());
+    const double volume = primal::clip(meshTets[tetId], geometryTet, EPS).volume();
+    detail::addToOverlapVolume<ExecSpace>(ovlap.data() + cellId, volume);
+  });
+
+  statistics["clipsOn"].set_int64(tetCount);
+  statistics["clipsSum"].set_int64(tetCount);
+  statistics["clipsCandidates"].set(static_cast<IndexType>(tetCount));
 }
 
 bool TetClipper::getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh,

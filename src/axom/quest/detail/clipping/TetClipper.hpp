@@ -50,6 +50,11 @@ public:
                       axom::ArrayView<const axom::IndexType> cellIds,
                       axom::Array<LabelType>& tetLabels) override;
 
+  bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
+                           axom::ArrayView<double> ovlap,
+                           const axom::ArrayView<IndexType>& tetIds,
+                           conduit::Node& statistics) override;
+
   /*!
    * @copydoc MeshClipperStrategy::getGeometryAsTets()
    *
@@ -84,6 +89,12 @@ private:
   void labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                           axom::ArrayView<const axom::IndexType> cellsOnBdry,
                           axom::ArrayView<LabelType> tetLabels);
+
+  template <typename ExecSpace>
+  void specializedClipTetsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                               axom::ArrayView<double> ovlap,
+                               const axom::ArrayView<IndexType>& tetIds,
+                               conduit::Node& statistics);
 
   // Extract clipper info from MeshClipperStrategy::m_info.
   void extractClipperInfo();

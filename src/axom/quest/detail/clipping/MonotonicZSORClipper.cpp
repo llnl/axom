@@ -11,6 +11,7 @@
 #include "axom/primal/operators/squared_distance.hpp"
 #include "axom/quest/Discretize.hpp"
 #include "axom/quest/detail/clipping/MonotonicZSORClipper.hpp"
+#include "axom/quest/detail/clipping/TetrahedronClipUtils.hpp"
 #include "axom/fmt.hpp"
 
 #include <limits>
@@ -21,6 +22,287 @@ namespace quest
 {
 namespace experimental
 {
+namespace
+{
+
+struct RzBounds
+{
+  double zMin;
+  double zMax;
+  double rMinSquared;
+  double rMaxSquared;
+};
+
+struct LinearSorData
+{
+  double z0;
+  double r0;
+  double zMin;
+  double zMax;
+  double drDz;
+};
+
+constexpr int LINEAR_SOR_MAX_SUBDIVISION_LEVELS = 4;
+constexpr double LINEAR_SOR_EDGE_FRACTION = 0.08;
+constexpr double LINEAR_CYLINDER_EDGE_FRACTION = 0.10;
+constexpr double LINEAR_SOR_Z_EPS = 1e-14;
+
+template <typename ExecSpace>
+constexpr bool isCpuExecutionSpace()
+{
+  return std::is_same<ExecSpace, axom::SEQ_EXEC>::value
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+    || std::is_same<ExecSpace, axom::OMP_EXEC>::value
+#endif
+    ;
+}
+
+AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType labelRzBoundsAgainstLinearSor(
+  const RzBounds& bounds,
+  const LinearSorData& sor)
+{
+  const double zLo = bounds.zMin > sor.zMin ? bounds.zMin : sor.zMin;
+  const double zHi = bounds.zMax < sor.zMax ? bounds.zMax : sor.zMax;
+  if(zLo > zHi)
+  {
+    return MeshClipperStrategy::LabelType::LABEL_OUT;
+  }
+
+  const double rAtLo = sor.r0 + sor.drDz * (zLo - sor.z0);
+  const double rAtHi = sor.r0 + sor.drDz * (zHi - sor.z0);
+  const double rAllowedMax = rAtLo > rAtHi ? rAtLo : rAtHi;
+  const double rAllowedMin = rAtLo < rAtHi ? rAtLo : rAtHi;
+  const double rAllowedMaxSquared = rAllowedMax * rAllowedMax;
+  const double rAllowedMinSquared = rAllowedMin * rAllowedMin;
+
+  if(bounds.rMinSquared > rAllowedMaxSquared)
+  {
+    return MeshClipperStrategy::LabelType::LABEL_OUT;
+  }
+
+  if(bounds.zMin >= sor.zMin && bounds.zMax <= sor.zMax && bounds.rMaxSquared <= rAllowedMinSquared)
+  {
+    return MeshClipperStrategy::LabelType::LABEL_IN;
+  }
+
+  return MeshClipperStrategy::LabelType::LABEL_ON;
+}
+
+template <typename PolyhedronType>
+AXOM_HOST_DEVICE inline RzBounds estimateRzBounds(const PolyhedronType& vertices)
+{
+  double zMin = vertices[0][0];
+  double zMax = vertices[0][0];
+  double yMin = vertices[0][1];
+  double yMax = vertices[0][1];
+  double xMin = vertices[0][2];
+  double xMax = vertices[0][2];
+  double rMaxSquared = 0.0;
+  for(int i = 0; i < PolyhedronType::numVertices(); ++i)
+  {
+    const auto& vert = vertices[i];
+    zMin = axom::utilities::min(zMin, vert[0]);
+    zMax = axom::utilities::max(zMax, vert[0]);
+    yMin = axom::utilities::min(yMin, vert[1]);
+    yMax = axom::utilities::max(yMax, vert[1]);
+    xMin = axom::utilities::min(xMin, vert[2]);
+    xMax = axom::utilities::max(xMax, vert[2]);
+    rMaxSquared = axom::utilities::max(rMaxSquared, vert[1] * vert[1] + vert[2] * vert[2]);
+  }
+
+  const double yClosest = yMin > 0.0 ? yMin : (yMax < 0.0 ? yMax : 0.0);
+  const double xClosest = xMin > 0.0 ? xMin : (xMax < 0.0 ? xMax : 0.0);
+  return {zMin, zMax, yClosest * yClosest + xClosest * xClosest, rMaxSquared};
+}
+
+AXOM_HOST_DEVICE inline void subdivideTetByMidpoints(const MeshClipperStrategy::TetrahedronType& tet,
+                                                     MeshClipperStrategy::TetrahedronType children[8])
+{
+  const auto m01 = MeshClipperStrategy::Point3DType::midpoint(tet[0], tet[1]);
+  const auto m02 = MeshClipperStrategy::Point3DType::midpoint(tet[0], tet[2]);
+  const auto m03 = MeshClipperStrategy::Point3DType::midpoint(tet[0], tet[3]);
+  const auto m12 = MeshClipperStrategy::Point3DType::midpoint(tet[1], tet[2]);
+  const auto m13 = MeshClipperStrategy::Point3DType::midpoint(tet[1], tet[3]);
+  const auto m23 = MeshClipperStrategy::Point3DType::midpoint(tet[2], tet[3]);
+
+  children[0] = MeshClipperStrategy::TetrahedronType(tet[0], m01, m02, m03);
+  children[1] = MeshClipperStrategy::TetrahedronType(m01, tet[1], m12, m13);
+  children[2] = MeshClipperStrategy::TetrahedronType(m02, m12, tet[2], m23);
+  children[3] = MeshClipperStrategy::TetrahedronType(m03, m13, m23, tet[3]);
+  children[4] = MeshClipperStrategy::TetrahedronType(m01, m02, m03, m23);
+  children[5] = MeshClipperStrategy::TetrahedronType(m01, m12, m02, m23);
+  children[6] = MeshClipperStrategy::TetrahedronType(m01, m13, m12, m23);
+  children[7] = MeshClipperStrategy::TetrahedronType(m01, m03, m13, m23);
+}
+
+AXOM_HOST_DEVICE inline double tetMaxEdgeSquared(const MeshClipperStrategy::TetrahedronType& tet)
+{
+  double maxEdgeSquared = 0.0;
+  for(int i = 0; i < MeshClipperStrategy::TetrahedronType::NUM_VERTS; ++i)
+  {
+    for(int j = i + 1; j < MeshClipperStrategy::TetrahedronType::NUM_VERTS; ++j)
+    {
+      maxEdgeSquared = axom::utilities::max(maxEdgeSquared, (tet[j] - tet[i]).squared_norm());
+    }
+  }
+  return maxEdgeSquared;
+}
+
+AXOM_HOST_DEVICE inline int chooseSubdivisionLevels(const MeshClipperStrategy::TetrahedronType& tet,
+                                                    double targetEdgeSquared)
+{
+  double edgeSquared = tetMaxEdgeSquared(tet);
+  int levels = 0;
+  while(levels < LINEAR_SOR_MAX_SUBDIVISION_LEVELS && edgeSquared > targetEdgeSquared)
+  {
+    edgeSquared *= 0.25;
+    ++levels;
+  }
+  return levels;
+}
+
+AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType classifyTetAgainstLinearSor(
+  const MeshClipperStrategy::TetrahedronType& bodyTet,
+  const LinearSorData& sor,
+  double radialSquared[4])
+{
+  constexpr double eps = 1e-12;
+  bool allInside = true;
+  double zMin = bodyTet[0][0];
+  double zMax = bodyTet[0][0];
+  double yMin = bodyTet[0][1];
+  double yMax = bodyTet[0][1];
+  double xMin = bodyTet[0][2];
+  double xMax = bodyTet[0][2];
+  double rMaxSquared = 0.0;
+
+  for(int i = 0; i < 4; ++i)
+  {
+    const auto& vert = bodyTet[i];
+    zMin = axom::utilities::min(zMin, vert[0]);
+    zMax = axom::utilities::max(zMax, vert[0]);
+    yMin = axom::utilities::min(yMin, vert[1]);
+    yMax = axom::utilities::max(yMax, vert[1]);
+    xMin = axom::utilities::min(xMin, vert[2]);
+    xMax = axom::utilities::max(xMax, vert[2]);
+
+    radialSquared[i] = vert[1] * vert[1] + vert[2] * vert[2];
+    rMaxSquared = axom::utilities::max(rMaxSquared, radialSquared[i]);
+
+    const double radius = sor.r0 + sor.drDz * (vert[0] - sor.z0);
+    const double radiusSquared = radius * radius;
+    allInside = allInside && vert[0] >= sor.zMin - eps && vert[0] <= sor.zMax + eps &&
+      radius >= 0.0 && radialSquared[i] <= radiusSquared + eps * (1.0 + radiusSquared);
+  }
+  if(allInside)
+  {
+    return MeshClipperStrategy::LabelType::LABEL_IN;
+  }
+
+  const double yClosest = yMin > 0.0 ? yMin : (yMax < 0.0 ? yMax : 0.0);
+  const double xClosest = xMin > 0.0 ? xMin : (xMax < 0.0 ? xMax : 0.0);
+  const RzBounds boundsInRz {zMin, zMax, yClosest * yClosest + xClosest * xClosest, rMaxSquared};
+  const auto bbLabel = labelRzBoundsAgainstLinearSor(boundsInRz, sor);
+  return bbLabel == MeshClipperStrategy::LabelType::LABEL_OUT
+    ? MeshClipperStrategy::LabelType::LABEL_OUT
+    : MeshClipperStrategy::LabelType::LABEL_ON;
+}
+
+AXOM_HOST_DEVICE inline double linearSorSignedDistance(const MeshClipperStrategy::Point3DType& pt,
+                                                       double radialSquared,
+                                                       const LinearSorData& sor)
+{
+  const double radius = sor.r0 + sor.drDz * (pt[0] - sor.z0);
+  const double radialDistance = std::sqrt(radialSquared);
+  return radius - radialDistance;
+}
+
+AXOM_HOST_DEVICE inline double clipBodyTetAgainstLinearSor(
+  const MeshClipperStrategy::TetrahedronType& bodyTet,
+  const LinearSorData& sor,
+  const double radialSquared[4],
+  double bodyTetVolume)
+{
+  using Plane3DType = MeshClipperStrategy::Plane3DType;
+  using Point3DType = MeshClipperStrategy::Point3DType;
+  using Vector3DType = MeshClipperStrategy::Vector3DType;
+
+  constexpr double eps = 1e-10;
+
+  double tetZMin = bodyTet[0][0];
+  double tetZMax = bodyTet[0][0];
+  for(int vi = 1; vi < MeshClipperStrategy::TetrahedronType::NUM_VERTS; ++vi)
+  {
+    tetZMin = axom::utilities::min(tetZMin, bodyTet[vi][0]);
+    tetZMax = axom::utilities::max(tetZMax, bodyTet[vi][0]);
+  }
+
+  const Point3DType& v0 = bodyTet[0];
+  const Point3DType& v1 = bodyTet[1];
+  const Point3DType& v2 = bodyTet[2];
+  const Point3DType& v3 = bodyTet[3];
+  const double phi0 = linearSorSignedDistance(v0, radialSquared[0], sor);
+  const double phi1 = linearSorSignedDistance(v1, radialSquared[1], sor);
+  const double phi2 = linearSorSignedDistance(v2, radialSquared[2], sor);
+  const double phi3 = linearSorSignedDistance(v3, radialSquared[3], sor);
+  const double phi[4] = {phi0, phi1, phi2, phi3};
+
+  if(tetZMin >= sor.zMin && tetZMax <= sor.zMax)
+  {
+    return detail::clipTetByVertexValues(phi, bodyTetVolume);
+  }
+
+  primal::Polyhedron<double, 3> overlap = primal::Polyhedron<double, 3>::from_primitive(bodyTet);
+  if(tetZMin < sor.zMin)
+  {
+    overlap =
+      primal::clip(overlap,
+                   Plane3DType(Vector3DType {1.0, 0.0, 0.0}, Point3DType {sor.zMin, 0.0, 0.0}),
+                   eps);
+    if(overlap.numVertices() < 4)
+    {
+      return 0.0;
+    }
+  }
+
+  if(tetZMax > sor.zMax)
+  {
+    overlap =
+      primal::clip(overlap,
+                   Plane3DType(Vector3DType {-1.0, 0.0, 0.0}, Point3DType {sor.zMax, 0.0, 0.0}),
+                   eps);
+    if(overlap.numVertices() < 4)
+    {
+      return 0.0;
+    }
+  }
+
+  const Vector3DType e1 = v1 - v0;
+  const Vector3DType e2 = v2 - v0;
+  const Vector3DType e3 = v3 - v0;
+
+  const double denom = Vector3DType::scalar_triple_product(e1, e2, e3);
+  if(axom::utilities::isNearlyEqual(denom, 0.0, eps))
+  {
+    return 0.0;
+  }
+
+  const Vector3DType grad = ((phi1 - phi0) * Vector3DType::cross_product(e2, e3) +
+                             (phi2 - phi0) * Vector3DType::cross_product(e3, e1) +
+                             (phi3 - phi0) * Vector3DType::cross_product(e1, e2)) /
+    denom;
+  const double gradSqNorm = grad.squared_norm();
+  if(gradSqNorm <= 1e-20)
+  {
+    return 0.0;
+  }
+
+  const Point3DType planePoint = v0 - (phi0 / gradSqNorm) * grad;
+  overlap = primal::clip(overlap, Plane3DType(grad, planePoint), eps);
+  return overlap.volume();
+}
+
+}  // namespace
 
 MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom, const std::string& name)
   : MeshClipperStrategy(kGeom)
@@ -28,6 +310,7 @@ MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom, const st
   , m_maxRadius(0.0)
   , m_minRadius(numerics::floating_point_limits<double>::max())
   , m_transformer()
+  , m_bodyVertexCache(std::make_shared<BodyVertexCache>())
 {
   extractClipperInfo();
 
@@ -66,7 +349,8 @@ MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom,
                                            axom::ArrayView<const Point2DType> discreteFunction,
                                            const Point3DType& sorOrigin,
                                            const Vector3DType& sorDirection,
-                                           axom::IndexType levelOfRefinement)
+                                           axom::IndexType levelOfRefinement,
+                                           std::shared_ptr<BodyVertexCache> bodyVertexCache)
   : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("FSor") : name)
   , m_sorCurve(discreteFunction, axom::execution_space<axom::SEQ_EXEC>::allocatorID())
@@ -76,6 +360,7 @@ MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom,
   , m_sorDirection(sorDirection)
   , m_levelOfRefinement(levelOfRefinement)
   , m_transformer()
+  , m_bodyVertexCache(bodyVertexCache ? bodyVertexCache : std::make_shared<BodyVertexCache>())
 {
   combineRadialSegments(m_sorCurve);
   axom::Array<axom::IndexType> turnIndices = findZSwitchbacks(m_sorCurve.view());
@@ -185,6 +470,170 @@ bool MonotonicZSORClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeM
   return true;
 }
 
+bool MonotonicZSORClipper::specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
+                                               axom::ArrayView<double> ovlap,
+                                               const axom::ArrayView<IndexType>& tetIds,
+                                               conduit::Node& statistics)
+{
+  if(m_sorCurve.size() != 2 || m_levelOfRefinement > 5)
+  {
+    return false;
+  }
+
+  if(axom::utilities::isNearlyEqual(m_sorCurve[1][0] - m_sorCurve[0][0], 0.0, LINEAR_SOR_Z_EPS))
+  {
+    return false;
+  }
+
+  switch(shapeMesh.getRuntimePolicy())
+  {
+  case axom::runtime_policy::Policy::seq:
+    specializedClipTetsImpl<axom::SEQ_EXEC>(shapeMesh, ovlap, tetIds, statistics);
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case axom::runtime_policy::Policy::omp:
+    specializedClipTetsImpl<axom::OMP_EXEC>(shapeMesh, ovlap, tetIds, statistics);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case axom::runtime_policy::Policy::cuda:
+    return false;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case axom::runtime_policy::Policy::hip:
+    return false;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+  return true;
+}
+
+template <typename ExecSpace>
+void MonotonicZSORClipper::specializedClipTetsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                                   axom::ArrayView<double> ovlap,
+                                                   const axom::ArrayView<IndexType>& tetIds,
+                                                   conduit::Node& statistics)
+{
+  AXOM_ANNOTATE_SCOPE("MonotonicZSORClipper::adaptive_clip");
+  struct WorkTet
+  {
+    TetrahedronType bodyTet;
+    int depth;
+  };
+
+  const double z0 = m_sorCurve[0][0];
+  const double r0 = m_sorCurve[0][1];
+  const double z1 = m_sorCurve[1][0];
+  const double r1 = m_sorCurve[1][1];
+  const LinearSorData sorData {z0, r0, z0 < z1 ? z0 : z1, z0 < z1 ? z1 : z0, (r1 - r0) / (z1 - z0)};
+  const auto invTransformer = m_invTransformer;
+  auto meshTets = shapeMesh.getCellsAsTets();
+  const IndexType tetCount = tetIds.size();
+
+  axom::ReduceSum<ExecSpace, std::int64_t> inSum {0};
+  axom::ReduceSum<ExecSpace, std::int64_t> onSum {0};
+  axom::ReduceSum<ExecSpace, std::int64_t> outSum {0};
+
+  constexpr int childCount = 8;
+  constexpr int maxStackSize = 1 + (childCount - 1) * LINEAR_SOR_MAX_SUBDIVISION_LEVELS;
+  const double maxRadius = axom::utilities::max(r0, r1);
+  const double edgeFraction = axom::utilities::isNearlyEqual(sorData.drDz, 0.0)
+    ? LINEAR_CYLINDER_EDGE_FRACTION
+    : LINEAR_SOR_EDGE_FRACTION;
+  const double targetEdge = maxRadius * edgeFraction;
+  const double targetEdgeSquared = targetEdge * targetEdge;
+
+  AXOM_ANNOTATE_BEGIN("MonotonicZSORClipper::transform_subdivide_clip");
+  axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType ti) {
+    const axom::IndexType tetId = tetIds[ti];
+    const axom::IndexType cellId = tetId / NUM_TETS_PER_HEX;
+    SLIC_ASSERT(cellId >= 0 && cellId < ovlap.size());
+    const TetrahedronType worldTet = meshTets[tetId];
+
+    TetrahedronType bodyTet = worldTet;
+    for(int vi = 0; vi < 4; ++vi)
+    {
+      invTransformer.transform(bodyTet[vi].array());
+    }
+    bodyTet.checkAndFixOrientation();
+    const double bodyRootVolume = bodyTet.volume();
+    if(bodyRootVolume <= 0.0)
+    {
+      return;
+    }
+    const double worldRootVolume = worldTet.volume();
+    const double volumeScale = worldRootVolume / bodyRootVolume;
+    const int maxDepth = chooseSubdivisionLevels(bodyTet, targetEdgeSquared);
+    double levelVolumes[LINEAR_SOR_MAX_SUBDIVISION_LEVELS + 1];
+    double bodyLevelVolumes[LINEAR_SOR_MAX_SUBDIVISION_LEVELS + 1];
+    levelVolumes[0] = worldRootVolume;
+    bodyLevelVolumes[0] = bodyRootVolume;
+    for(int depth = 1; depth <= maxDepth; ++depth)
+    {
+      levelVolumes[depth] = levelVolumes[depth - 1] * 0.125;
+      bodyLevelVolumes[depth] = bodyLevelVolumes[depth - 1] * 0.125;
+    }
+
+    WorkTet stack[maxStackSize];
+    int stackSize = 1;
+    stack[0] = {bodyTet, 0};
+
+    double overlap = 0.0;
+    while(stackSize > 0)
+    {
+      const WorkTet current = stack[--stackSize];
+      double radialSquared[4];
+      const LabelType label = classifyTetAgainstLinearSor(current.bodyTet, sorData, radialSquared);
+
+      if(label == LabelType::LABEL_IN)
+      {
+        overlap += levelVolumes[current.depth];
+        inSum += 1;
+        continue;
+      }
+      if(label == LabelType::LABEL_OUT)
+      {
+        outSum += 1;
+        continue;
+      }
+
+      if(current.depth == maxDepth)
+      {
+        const double bodyOverlap = clipBodyTetAgainstLinearSor(current.bodyTet,
+                                                               sorData,
+                                                               radialSquared,
+                                                               bodyLevelVolumes[current.depth]);
+        overlap += bodyOverlap * volumeScale;
+        onSum += 1;
+        continue;
+      }
+
+      TetrahedronType bodyChildren[childCount];
+      subdivideTetByMidpoints(current.bodyTet, bodyChildren);
+      for(int child = 0; child < childCount; ++child)
+      {
+        stack[stackSize++] = {bodyChildren[child], current.depth + 1};
+      }
+    }
+
+    detail::addToOverlapVolume<ExecSpace>(ovlap.data() + cellId, overlap);
+  });
+  AXOM_ANNOTATE_END("MonotonicZSORClipper::transform_subdivide_clip");
+
+  AXOM_ANNOTATE_BEGIN("MonotonicZSORClipper::record_statistics");
+  const std::int64_t clipsInCount = inSum.get();
+  const std::int64_t clipsOnCount = onSum.get();
+  const std::int64_t clipsOutCount = outSum.get();
+  statistics["clipsIn"].set_int64(clipsInCount);
+  statistics["clipsOn"].set_int64(clipsOnCount);
+  statistics["clipsOut"].set_int64(clipsOutCount);
+  statistics["clipsMiss"].set_int64(0);
+  statistics["clipsSum"].set_int64(clipsInCount + clipsOnCount + clipsOutCount);
+  statistics["clipsCandidates"].set(static_cast<IndexType>(tetCount));
+  AXOM_ANNOTATE_END("MonotonicZSORClipper::record_statistics");
+}
+
 /*
  * Implementation: (reverse) transform the mesh vertices to the r-z
  * frame where the curve is defined as a r(z) function.  It's easier to
@@ -194,9 +643,82 @@ template <typename ExecSpace>
 void MonotonicZSORClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                                                axom::ArrayView<LabelType> labels)
 {
+  if constexpr(isCpuExecutionSpace<ExecSpace>())
+  {
+    if(m_sorCurve.size() == 2 &&
+       !axom::utilities::isNearlyEqual(m_sorCurve[1][0] - m_sorCurve[0][0], 0.0, LINEAR_SOR_Z_EPS))
+    {
+      const double z0 = m_sorCurve[0][0];
+      const double r0 = m_sorCurve[0][1];
+      const double z1 = m_sorCurve[1][0];
+      const double r1 = m_sorCurve[1][1];
+      const LinearSorData sorData {z0, r0, z0 < z1 ? z0 : z1, z0 < z1 ? z1 : z0, (r1 - r0) / (z1 - z0)};
+
+      const auto cellCount = shapeMesh.getCellCount();
+      const auto vertCount = shapeMesh.getVertexCount();
+      const auto& vertCoords = shapeMesh.getVertexCoords3D();
+      const auto& vX = vertCoords[0];
+      const auto& vY = vertCoords[1];
+      const auto& vZ = vertCoords[2];
+      const auto connView = shapeMesh.getCellNodeConnectivity();
+      auto meshCellVolumes = shapeMesh.getCellVolumes();
+      auto invTransformer = m_invTransformer;
+      constexpr double EPS = 1e-10;
+
+      auto& bodyVertices = m_bodyVertexCache->vertices;
+      const bool bodyVerticesCached = m_bodyVertexCache->shapeMesh == &shapeMesh &&
+        m_bodyVertexCache->sourceCoordinates[0] == vX.data() &&
+        m_bodyVertexCache->sourceCoordinates[1] == vY.data() &&
+        m_bodyVertexCache->sourceCoordinates[2] == vZ.data() && bodyVertices.size() == vertCount &&
+        bodyVertices.getAllocatorID() == shapeMesh.getAllocatorID();
+      AXOM_ANNOTATE_BEGIN("MonotonicZSORClipper::transform_vertices");
+      if(!bodyVerticesCached)
+      {
+        bodyVertices = axom::Array<Point3DType>(ArrayOptions::Uninitialized(),
+                                                vertCount,
+                                                vertCount,
+                                                shapeMesh.getAllocatorID());
+        auto bodyVerticesView = bodyVertices.view();
+        axom::for_all<ExecSpace>(vertCount, [=] AXOM_HOST_DEVICE(axom::IndexType vertId) {
+          Point3DType bodyVertex {vX[vertId], vY[vertId], vZ[vertId]};
+          invTransformer.transform(bodyVertex.array());
+          bodyVerticesView[vertId] = bodyVertex;
+        });
+        m_bodyVertexCache->shapeMesh = &shapeMesh;
+        m_bodyVertexCache->sourceCoordinates[0] = vX.data();
+        m_bodyVertexCache->sourceCoordinates[1] = vY.data();
+        m_bodyVertexCache->sourceCoordinates[2] = vZ.data();
+      }
+      AXOM_ANNOTATE_END("MonotonicZSORClipper::transform_vertices");
+      auto bodyVerticesView = bodyVertices.view();
+
+      AXOM_ANNOTATE_BEGIN("MonotonicZSORClipper::classify_cells_linear");
+      axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
+        if(axom::utilities::isNearlyEqual(meshCellVolumes[cellId], 0.0, EPS))
+        {
+          labels[cellId] = LabelType::LABEL_OUT;
+          return;
+        }
+
+        HexahedronType cellHex;
+        const auto cellVertIds = connView[cellId];
+        for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
+        {
+          cellHex[vi] = bodyVerticesView[cellVertIds[vi]];
+        }
+
+        labels[cellId] = labelRzBoundsAgainstLinearSor(estimateRzBounds(cellHex), sorData);
+      });
+      AXOM_ANNOTATE_END("MonotonicZSORClipper::classify_cells_linear");
+      return;
+    }
+  }
+
   axom::Array<BoundingBox2DType> bbOn;
   axom::Array<BoundingBox2DType> bbUnder;
+  AXOM_ANNOTATE_BEGIN("MonotonicZSORClipper::compute_curve_boxes");
   computeCurveBoxes<ExecSpace>(shapeMesh, bbOn, bbUnder);
+  AXOM_ANNOTATE_END("MonotonicZSORClipper::compute_curve_boxes");
   const axom::ArrayView<const BoundingBox2DType> bbOnView = bbOn.view();
   const axom::ArrayView<const BoundingBox2DType> bbUnderView = bbUnder.view();
 
@@ -206,6 +728,7 @@ void MonotonicZSORClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& s
   auto invTransformer = m_invTransformer;
   constexpr double EPS = 1e-10;
 
+  AXOM_ANNOTATE_BEGIN("MonotonicZSORClipper::classify_cells_generic");
   axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
     if(axom::utilities::isNearlyEqual(meshCellVolumes[cellId], 0.0, EPS))
     {
@@ -220,6 +743,7 @@ void MonotonicZSORClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& s
     BoundingBox2DType cellBbInRz = estimateBoundingBoxInRz(cellHex);
     labels[cellId] = rzBbToLabel(cellBbInRz, bbOnView, bbUnderView);
   });
+  AXOM_ANNOTATE_END("MonotonicZSORClipper::classify_cells_generic");
 }
 
 template <typename ExecSpace>
@@ -227,9 +751,78 @@ void MonotonicZSORClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& sh
                                               axom::ArrayView<const axom::IndexType> cellIds,
                                               axom::ArrayView<LabelType> labels)
 {
+  if constexpr(isCpuExecutionSpace<ExecSpace>())
+  {
+    if(m_sorCurve.size() == 2 &&
+       !axom::utilities::isNearlyEqual(m_sorCurve[1][0] - m_sorCurve[0][0], 0.0, LINEAR_SOR_Z_EPS))
+    {
+      const double z0 = m_sorCurve[0][0];
+      const double r0 = m_sorCurve[0][1];
+      const double z1 = m_sorCurve[1][0];
+      const double r1 = m_sorCurve[1][1];
+      const LinearSorData sorData {z0, r0, z0 < z1 ? z0 : z1, z0 < z1 ? z1 : z0, (r1 - r0) / (z1 - z0)};
+
+      const auto cellCount = cellIds.size();
+      auto meshHexes = shapeMesh.getCellsAsHexes();
+      const auto connView = shapeMesh.getCellNodeConnectivity();
+      auto tetVolumes = shapeMesh.getTetVolumes();
+      auto invTransformer = m_invTransformer;
+      const auto& bodyVertices = m_bodyVertexCache->vertices;
+      const bool bodyVerticesCached = m_bodyVertexCache->shapeMesh == &shapeMesh &&
+        bodyVertices.size() == shapeMesh.getVertexCount() &&
+        bodyVertices.getAllocatorID() == shapeMesh.getAllocatorID();
+      const auto bodyVerticesView = bodyVertices.view();
+      constexpr double EPS = 1e-10;
+
+      AXOM_ANNOTATE_BEGIN("MonotonicZSORClipper::classify_tets_linear");
+      axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType ci) {
+        axom::IndexType cellId = cellIds[ci];
+
+        HexahedronType hex;
+        if(bodyVerticesCached)
+        {
+          const auto cellVertIds = connView[cellId];
+          for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
+          {
+            hex[vi] = bodyVerticesView[cellVertIds[vi]];
+          }
+        }
+        else
+        {
+          hex = meshHexes[cellId];
+          for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
+          {
+            invTransformer.transform(hex[vi].array());
+          }
+        }
+
+        TetrahedronType cellTets[NUM_TETS_PER_HEX];
+        ShapeMesh::hexToTets(hex, cellTets);
+
+        for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+        {
+          axom::IndexType tetId = cellId * NUM_TETS_PER_HEX + ti;
+          LabelType& tetLabel = labels[ci * NUM_TETS_PER_HEX + ti];
+          if(axom::utilities::isNearlyEqual(tetVolumes[tetId], 0.0, EPS))
+          {
+            tetLabel = LabelType::LABEL_OUT;
+            continue;
+          }
+
+          const TetrahedronType& tet = cellTets[ti];
+          tetLabel = labelRzBoundsAgainstLinearSor(estimateRzBounds(tet), sorData);
+        }
+      });
+      AXOM_ANNOTATE_END("MonotonicZSORClipper::classify_tets_linear");
+      return;
+    }
+  }
+
   axom::Array<BoundingBox2DType> bbOn;
   axom::Array<BoundingBox2DType> bbUnder;
+  AXOM_ANNOTATE_BEGIN("MonotonicZSORClipper::compute_curve_boxes");
   computeCurveBoxes<ExecSpace>(shapeMesh, bbOn, bbUnder);
+  AXOM_ANNOTATE_END("MonotonicZSORClipper::compute_curve_boxes");
   const axom::ArrayView<const BoundingBox2DType> bbOnView = bbOn.view();
   const axom::ArrayView<const BoundingBox2DType> bbUnderView = bbUnder.view();
 
@@ -239,6 +832,7 @@ void MonotonicZSORClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& sh
   auto invTransformer = m_invTransformer;
   constexpr double EPS = 1e-10;
 
+  AXOM_ANNOTATE_BEGIN("MonotonicZSORClipper::classify_tets_generic");
   axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType ci) {
     axom::IndexType cellId = cellIds[ci];
 
@@ -265,6 +859,7 @@ void MonotonicZSORClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& sh
       tetLabel = rzBbToLabel(bbInRz, bbOnView, bbUnderView);
     }
   });
+  AXOM_ANNOTATE_END("MonotonicZSORClipper::classify_tets_generic");
 }
 
 /*

@@ -274,6 +274,35 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND A
         FOLDER      axom/quest/tests
         )
 
+    axom_add_executable(
+        NAME        quest_tetrahedron_clip_utils_test
+        SOURCES     quest_tetrahedron_clip_utils.cpp
+        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_mesh_clipper_depends}
+        FOLDER      axom/quest/tests
+        )
+
+    axom_add_test(
+        NAME        quest_tetrahedron_clip_utils
+        COMMAND     quest_tetrahedron_clip_utils_test
+        NUM_MPI_TASKS 1
+        )
+
+    if(ENABLE_BENCHMARKS AND ENABLE_GBENCHMARK)
+        axom_add_executable(
+            NAME        quest_mesh_clipper_benchmark
+            SOURCES     quest_mesh_clipper_benchmark.cpp
+            OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+            DEPENDS_ON  ${quest_mesh_clipper_depends} gbenchmark
+            FOLDER      axom/quest/benchmarks
+            )
+
+        blt_add_benchmark(
+            NAME        quest_mesh_clipper_benchmark
+            COMMAND     quest_mesh_clipper_benchmark --benchmark_min_time=0.0001s
+            )
+    endif()
+
     # 3D shaping tests.  No 2D shaping in this feature, at least for now.
     set(_nranks 1)
 
@@ -306,6 +335,29 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND CONDUIT_FOUND AND RAJA_FOUND AND A
             NUM_MPI_TASKS ${_nranks}
             NUM_OMP_THREADS ${_num_threads})
         endforeach()
+      endforeach()
+    endforeach()
+
+    foreach(_policy ${AXOM_EXECUTION_POLICIES})
+      set(_num_threads)
+      if(_policy STREQUAL "omp")
+          set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+      endif()
+
+      foreach(_testgeom "sphere" "cyl" "cone" "tetmesh" "sor" "tet")
+        set(_testname "quest_mesh_clipper_ares_51_${_policy}_${_testgeom}")
+        axom_add_test(
+          NAME ${_testname}
+          COMMAND quest_mesh_clipper_test
+                      --policy ${_policy}
+                      --testGeom ${_testgeom}
+                      -o ${_testname}
+                      --refinements 5
+                      --dir 8 4 2
+                      --meshType bpSidre
+                      inline_mesh --min -2 -2 -2 --max 2 2 2 --resolution 51 51 51
+          NUM_MPI_TASKS ${_nranks}
+          NUM_OMP_THREADS ${_num_threads})
       endforeach()
     endforeach()
 

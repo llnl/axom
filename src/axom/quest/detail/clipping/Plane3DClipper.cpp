@@ -7,6 +7,7 @@
 #include "axom/config.hpp"
 
 #include "axom/quest/detail/clipping/Plane3DClipper.hpp"
+#include "axom/quest/detail/clipping/TetrahedronClipUtils.hpp"
 
 namespace axom
 {
@@ -324,30 +325,57 @@ void Plane3DClipper::specializedClipCellsImpl(quest::experimental::ShapeMesh& sh
   constexpr double EPS = 1e-10;
 
   auto cellsAsTets = shapeMesh.getCellsAsTets();
+  auto meshTetVolumes = shapeMesh.getTetVolumes();
   auto plane = m_plane;
 
   axom::ReduceSum<ExecSpace, std::int64_t> missSum {0};
 
-  axom::for_all<ExecSpace>(cellIds.size(), [=] AXOM_HOST_DEVICE(axom::IndexType i) {
-    axom::IndexType cellId = cellIds[i];
-    const TetrahedronType* tetsInHex = cellsAsTets.data() + cellId * NUM_TETS_PER_HEX;
-    double vol = 0.0;
-    for(int ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
-    {
-      const auto& tet = tetsInHex[ti];
-      primal::Polyhedron<double, 3> overlap = primal::clip(tet, plane, EPS);
-      if(overlap.numVertices() >= 4)
+  if constexpr(!axom::execution_space<ExecSpace>::onDevice())
+  {
+    AXOM_ANNOTATE_BEGIN("Plane3DClipper::direct_tet_volume");
+    axom::for_all<ExecSpace>(cellIds.size(), [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      const axom::IndexType cellId = cellIds[i];
+      const TetrahedronType* tetsInHex = cellsAsTets.data() + cellId * NUM_TETS_PER_HEX;
+      double vol = 0.0;
+      for(int ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
-        auto volume = overlap.volume();
+        const auto& tet = tetsInHex[ti];
+        double values[4];
+        for(int vi = 0; vi < 4; ++vi)
+        {
+          const double value = plane.signedDistance(tet[vi]);
+          values[vi] = axom::utilities::isNearlyEqual(value, 0.0, EPS) ? 0.0 : value;
+        }
+        const double volume =
+          detail::clipTetByVertexValues(values, meshTetVolumes[cellId * NUM_TETS_PER_HEX + ti]);
         vol += volume;
+        if(volume <= 0.0)
+        {
+          missSum += 1;
+        }
       }
-      else
+      ovlap[cellId] = vol;
+    });
+    AXOM_ANNOTATE_END("Plane3DClipper::direct_tet_volume");
+  }
+  else
+  {
+    axom::for_all<ExecSpace>(cellIds.size(), [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+      const axom::IndexType cellId = cellIds[i];
+      const TetrahedronType* tetsInHex = cellsAsTets.data() + cellId * NUM_TETS_PER_HEX;
+      double vol = 0.0;
+      for(int ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
-        missSum += 1;
+        const auto overlap = primal::clip(tetsInHex[ti], plane, EPS);
+        vol += overlap.volume();
+        if(overlap.numVertices() < 4)
+        {
+          missSum += 1;
+        }
       }
-    }
-    ovlap[cellId] = vol;
-  });
+      ovlap[cellId] = vol;
+    });
+  }
 
   statistics["clipsOn"].set_int64(cellIds.size() * NUM_TETS_PER_HEX);
   statistics["clipsSum"].set_int64(cellIds.size() * NUM_TETS_PER_HEX);
@@ -363,17 +391,37 @@ void Plane3DClipper::specializedClipTetsImpl(quest::experimental::ShapeMesh& sha
   constexpr double EPS = 1e-10;
 
   auto meshTets = shapeMesh.getCellsAsTets();
+  auto meshTetVolumes = shapeMesh.getTetVolumes();
   IndexType tetCount = tetIds.size();
   auto plane = m_plane;
 
-  axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType ti) {
-    axom::IndexType tetId = tetIds[ti];
-    axom::IndexType cellId = tetId / NUM_TETS_PER_HEX;
-    const auto& tet = meshTets[tetId];
-    primal::Polyhedron<double, 3> overlap = primal::clip(tet, plane, EPS);
-    double vol = overlap.volume();
-    axom::atomicAdd<ExecSpace>(ovlap.data() + cellId, vol);
-  });
+  if constexpr(!axom::execution_space<ExecSpace>::onDevice())
+  {
+    AXOM_ANNOTATE_BEGIN("Plane3DClipper::direct_tet_volume");
+    axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType ti) {
+      const axom::IndexType tetId = tetIds[ti];
+      const axom::IndexType cellId = tetId / NUM_TETS_PER_HEX;
+      const auto& tet = meshTets[tetId];
+      double values[4];
+      for(int vi = 0; vi < 4; ++vi)
+      {
+        const double value = plane.signedDistance(tet[vi]);
+        values[vi] = axom::utilities::isNearlyEqual(value, 0.0, EPS) ? 0.0 : value;
+      }
+      const double vol = detail::clipTetByVertexValues(values, meshTetVolumes[tetId]);
+      detail::addToOverlapVolume<ExecSpace>(ovlap.data() + cellId, vol);
+    });
+    AXOM_ANNOTATE_END("Plane3DClipper::direct_tet_volume");
+  }
+  else
+  {
+    axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType ti) {
+      const axom::IndexType tetId = tetIds[ti];
+      const axom::IndexType cellId = tetId / NUM_TETS_PER_HEX;
+      const double vol = primal::clip(meshTets[tetId], plane, EPS).volume();
+      detail::addToOverlapVolume<ExecSpace>(ovlap.data() + cellId, vol);
+    });
+  }
 
   // Because the tet screening is perfect, all tets in tetIds are on the plane.
   statistics["onSum"].set_int64(tetCount);

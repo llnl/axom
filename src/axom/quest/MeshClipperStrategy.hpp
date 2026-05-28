@@ -9,12 +9,15 @@
 #include "axom/config.hpp"
 
 #include "axom/core/Array.hpp"
+#include "axom/core/execution/atomics.hpp"
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/ShapeMesh.hpp"
 #include "axom/primal.hpp"
 
 // Requires Conduit for storing hierarchy-form data.
 #include "conduit_blueprint.hpp"
+
+#include <type_traits>
 
 namespace axom
 {
@@ -431,6 +434,24 @@ protected:
    */
   numerics::Matrix<double> m_extTrans;
 };
+
+namespace detail
+{
+
+template <typename ExecSpace>
+AXOM_HOST_DEVICE inline void addToOverlapVolume(double* overlapVolume, double value)
+{
+  if constexpr(std::is_same<ExecSpace, axom::SEQ_EXEC>::value)
+  {
+    *overlapVolume += value;
+  }
+  else
+  {
+    axom::atomicAdd<ExecSpace>(overlapVolume, value);
+  }
+}
+
+}  // namespace detail
 
 }  // namespace experimental
 }  // namespace quest

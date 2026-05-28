@@ -8,6 +8,7 @@
 
 #include "axom/quest/Discretize.hpp"
 #include "axom/quest/detail/clipping/SphereClipper.hpp"
+#include "axom/quest/detail/clipping/TetrahedronClipUtils.hpp"
 
 namespace axom
 {
@@ -15,6 +16,250 @@ namespace quest
 {
 namespace experimental
 {
+
+namespace
+{
+
+constexpr int SPHERE_MAX_SUBDIVISION_LEVELS = 4;
+constexpr double SPHERE_LINEARIZATION_EDGE_FRACTION = 0.08;
+
+struct SphereClipData
+{
+  MeshClipperStrategy::Point3DType center;
+  double radius;
+  double radiusSquared;
+  double targetEdgeSquared;
+};
+
+template <typename ExecSpace>
+constexpr bool isCpuExecutionSpace()
+{
+  return std::is_same<ExecSpace, axom::SEQ_EXEC>::value
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+    || std::is_same<ExecSpace, axom::OMP_EXEC>::value
+#endif
+    ;
+}
+
+/*!
+ * @brief Split a positively oriented tetrahedron into eight positive children.
+ *
+ * The two central children whose natural ordering is negative have their
+ * second and third vertices exchanged. This preserves orientation without
+ * evaluating and correcting every child separately.
+ */
+AXOM_HOST_DEVICE
+void subdivideTetByMidpoints(const MeshClipperStrategy::TetrahedronType& tet,
+                             MeshClipperStrategy::TetrahedronType children[8])
+{
+  const auto m01 = MeshClipperStrategy::Point3DType::midpoint(tet[0], tet[1]);
+  const auto m02 = MeshClipperStrategy::Point3DType::midpoint(tet[0], tet[2]);
+  const auto m03 = MeshClipperStrategy::Point3DType::midpoint(tet[0], tet[3]);
+  const auto m12 = MeshClipperStrategy::Point3DType::midpoint(tet[1], tet[2]);
+  const auto m13 = MeshClipperStrategy::Point3DType::midpoint(tet[1], tet[3]);
+  const auto m23 = MeshClipperStrategy::Point3DType::midpoint(tet[2], tet[3]);
+
+  children[0] = MeshClipperStrategy::TetrahedronType(tet[0], m01, m02, m03);
+  children[1] = MeshClipperStrategy::TetrahedronType(m01, tet[1], m12, m13);
+  children[2] = MeshClipperStrategy::TetrahedronType(m02, m12, tet[2], m23);
+  children[3] = MeshClipperStrategy::TetrahedronType(m03, m13, m23, tet[3]);
+
+  // Split the central octahedron along the m01-m23 diagonal.
+  children[4] = MeshClipperStrategy::TetrahedronType(m01, m02, m03, m23);
+  children[5] = MeshClipperStrategy::TetrahedronType(m01, m12, m02, m23);
+  children[6] = MeshClipperStrategy::TetrahedronType(m01, m13, m12, m23);
+  children[7] = MeshClipperStrategy::TetrahedronType(m01, m03, m13, m23);
+}
+
+/*!
+ * @brief Return the squared length of the longest edge of a tetrahedron.
+ *
+ * The midpoint subdivision used below halves all edge lengths at each level,
+ * so the longest-edge metric lets us choose how many levels are needed before
+ * the final linearized clip is sufficiently local relative to sphere radius.
+ */
+AXOM_HOST_DEVICE
+double tetMaxEdgeSquared(const MeshClipperStrategy::TetrahedronType& tet)
+{
+  double maxEdgeSq = 0.0;
+  for(int i = 0; i < MeshClipperStrategy::TetrahedronType::NUM_VERTS; ++i)
+  {
+    for(int j = i + 1; j < MeshClipperStrategy::TetrahedronType::NUM_VERTS; ++j)
+    {
+      const double edgeSq = (tet[j] - tet[i]).squared_norm();
+      maxEdgeSq = axom::utilities::max(maxEdgeSq, edgeSq);
+    }
+  }
+  return maxEdgeSq;
+}
+
+/*!
+ * @brief Choose the subdivision depth needed before local plane clipping.
+ *
+ * Coarse meshes need more refinement because the sphere curvature is visible
+ * across a larger tet. Finer meshes can stop earlier and avoid unnecessary
+ * subdivision work while still using the same GPU-friendly explicit stack.
+ */
+AXOM_HOST_DEVICE
+int chooseSubdivisionLevels(const MeshClipperStrategy::TetrahedronType& tet,
+                            const SphereClipData& sphere)
+{
+  double edgeSq = tetMaxEdgeSquared(tet);
+  int levels = 0;
+  while(levels < SPHERE_MAX_SUBDIVISION_LEVELS && edgeSq > sphere.targetEdgeSquared)
+  {
+    edgeSq *= 0.25;
+    ++levels;
+  }
+
+  return levels;
+}
+
+/*!
+ * @brief Approximate the sphere/tet overlap by linearizing the signed-distance
+ * field over a small tetrahedron and clipping against the resulting plane.
+ *
+ * The signed-distance samples at the tet vertices define an affine field whose
+ * zero isosurface is the best local planar approximation available from those
+ * samples. The plane is oriented so that its positive side matches the sphere
+ * interior, which matches primal::clip(tet, plane).
+ */
+AXOM_HOST_DEVICE
+double clipTetAgainstLinearizedSphere(const SphereClipData& sphere,
+                                      const double sqDistances[4],
+                                      double tetVolume)
+{
+  double values[4];
+  for(int i = 0; i < 4; ++i)
+  {
+    values[i] = sphere.radius - std::sqrt(sqDistances[i]);
+  }
+  return detail::clipTetByVertexValues(values, tetVolume);
+}
+
+/*!
+ * @brief Conservatively classify a tetrahedron against the sphere.
+ *
+ * This mirrors SphereClipper::polyhedronToLabel() but is specialized to tets
+ * so the file-local adaptive clipper can use the same inexpensive screening.
+ */
+AXOM_HOST_DEVICE
+MeshClipperStrategy::LabelType tetToSphereLabel(const MeshClipperStrategy::TetrahedronType& tet,
+                                                const SphereClipData& sphere,
+                                                double sqDistances[4])
+{
+  using LabelType = MeshClipperStrategy::LabelType;
+
+  double minCoords[3] = {tet[0][0], tet[0][1], tet[0][2]};
+  double maxCoords[3] = {tet[0][0], tet[0][1], tet[0][2]};
+  bool allVerticesInside = true;
+
+  for(int i = 0; i < MeshClipperStrategy::TetrahedronType::NUM_VERTS; ++i)
+  {
+    const auto& vert = tet[i];
+    double sqDistToVert = 0.0;
+    for(int dim = 0; dim < 3; ++dim)
+    {
+      minCoords[dim] = axom::utilities::min(minCoords[dim], vert[dim]);
+      maxCoords[dim] = axom::utilities::max(maxCoords[dim], vert[dim]);
+
+      const double delta = sphere.center[dim] - vert[dim];
+      sqDistToVert += delta * delta;
+    }
+    sqDistances[i] = sqDistToVert;
+    allVerticesInside = allVerticesInside && (sqDistToVert <= sphere.radiusSquared);
+  }
+
+  double sqDistToBb = 0.0;
+  for(int dim = 0; dim < 3; ++dim)
+  {
+    const double delta = sphere.center[dim] < minCoords[dim]
+      ? minCoords[dim] - sphere.center[dim]
+      : (sphere.center[dim] > maxCoords[dim] ? sphere.center[dim] - maxCoords[dim] : 0.0);
+    sqDistToBb += delta * delta;
+  }
+
+  if(sqDistToBb >= sphere.radiusSquared)
+  {
+    return LabelType::LABEL_OUT;
+  }
+
+  return allVerticesInside ? LabelType::LABEL_IN : LabelType::LABEL_ON;
+}
+
+/*!
+ * @brief Compute a sphere/tet overlap using fixed-depth adaptive subdivision.
+ *
+ * Most boundary tets quickly break into fully interior or exterior subtets.
+ * Only the smallest unresolved subtets pay for the local plane clip, which is
+ * why this path is much cheaper than sending every boundary tet through the
+ * generic sphere discretization and BVH clip pipeline.
+ */
+AXOM_HOST_DEVICE
+double clipTetAgainstSphere(const MeshClipperStrategy::TetrahedronType& tet,
+                            const SphereClipData& sphere,
+                            double rootVolume)
+{
+  using LabelType = MeshClipperStrategy::LabelType;
+  using TetrahedronType = MeshClipperStrategy::TetrahedronType;
+  constexpr int CHILD_COUNT = 8;
+  constexpr int MAX_STACK_SIZE = 1 + (CHILD_COUNT - 1) * SPHERE_MAX_SUBDIVISION_LEVELS;
+
+  struct WorkItem
+  {
+    TetrahedronType tet;
+    int level;
+  };
+
+  const int maxSubdivisionLevels = chooseSubdivisionLevels(tet, sphere);
+  double volume = 0.0;
+  WorkItem stack[MAX_STACK_SIZE];
+  int stackSize = 1;
+  stack[0] = {tet, 0};
+  double levelVolumes[SPHERE_MAX_SUBDIVISION_LEVELS + 1];
+  levelVolumes[0] = rootVolume;
+  for(int level = 1; level <= maxSubdivisionLevels; ++level)
+  {
+    levelVolumes[level] = levelVolumes[level - 1] * 0.125;
+  }
+
+  // Use an explicit stack instead of recursion so the same code remains viable
+  // in device execution spaces.
+  while(stackSize > 0)
+  {
+    const WorkItem& item = stack[--stackSize];
+    double sqDistances[4];
+    const LabelType label = tetToSphereLabel(item.tet, sphere, sqDistances);
+    if(label == LabelType::LABEL_IN)
+    {
+      volume += levelVolumes[item.level];
+      continue;
+    }
+    if(label == LabelType::LABEL_OUT)
+    {
+      continue;
+    }
+
+    if(item.level >= maxSubdivisionLevels)
+    {
+      volume += clipTetAgainstLinearizedSphere(sphere, sqDistances, levelVolumes[item.level]);
+      continue;
+    }
+
+    TetrahedronType children[CHILD_COUNT];
+    subdivideTetByMidpoints(item.tet, children);
+    const int childLevel = item.level + 1;
+    for(int i = 0; i < CHILD_COUNT; ++i)
+    {
+      // The stack bound is fixed by the subdivision depth and fanout above.
+      stack[stackSize++] = {children[i], childLevel};
+    }
+  }
+
+  return volume;
+}
+
+}  // namespace
 
 SphereClipper::SphereClipper(const klee::Geometry& kGeom, const std::string& name)
   : MeshClipperStrategy(kGeom)
@@ -73,6 +318,36 @@ void SphereClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMes
   auto cellVolumes = shapeMesh.getCellVolumes();
   constexpr double EPS = 1e-10;
   auto sphere = m_sphere;
+
+  if constexpr(isCpuExecutionSpace<ExecSpace>())
+  {
+    AXOM_ANNOTATE_SCOPE("SphereClipper::label_cells_cpu");
+    auto cellBounds = shapeMesh.getCellBoundingBoxes();
+    const auto sphereCenter = sphere.getCenter();
+    const double sphereRadiusSquared = sphere.getRadius() * sphere.getRadius();
+    axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
+      if(axom::utilities::isNearlyEqual(cellVolumes[cellId], 0.0, EPS) ||
+         primal::squared_distance(sphereCenter, cellBounds[cellId]) >= sphereRadiusSquared)
+      {
+        labels[cellId] = LabelType::LABEL_OUT;
+        return;
+      }
+
+      const auto& hex = cellsAsHexes[cellId];
+      for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
+      {
+        if(primal::squared_distance(sphereCenter, hex[vi]) > sphereRadiusSquared)
+        {
+          labels[cellId] = LabelType::LABEL_ON;
+          return;
+        }
+      }
+      labels[cellId] = LabelType::LABEL_IN;
+    });
+    return;
+  }
+
+  AXOM_ANNOTATE_SCOPE("SphereClipper::label_cells_device");
   axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType cellId) {
     LabelType& cellLabel = labels[cellId];
     if(axom::utilities::isNearlyEqual(cellVolumes[cellId], 0.0, EPS))
@@ -139,10 +414,37 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh
                                        axom::ArrayView<LabelType> tetLabels)
 {
   const axom::IndexType cellCount = cellIds.size();
-  auto meshHexes = shapeMesh.getCellsAsHexes();
   auto tetVolumes = shapeMesh.getTetVolumes();
   constexpr double EPS = 1e-10;
   auto sphere = m_sphere;
+
+  if constexpr(isCpuExecutionSpace<ExecSpace>())
+  {
+    AXOM_ANNOTATE_SCOPE("SphereClipper::label_tets_cpu");
+    auto meshTets = shapeMesh.getCellsAsTets();
+    const double radius = sphere.getRadius();
+    SphereClipData sphereData {sphere.getCenter(), radius, radius * radius, 0.0};
+    axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType ci) {
+      const axom::IndexType cellId = cellIds[ci];
+      for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+      {
+        LabelType& tetLabel = tetLabels[ci * NUM_TETS_PER_HEX + ti];
+        const axom::IndexType tetId = cellId * NUM_TETS_PER_HEX + ti;
+        if(axom::utilities::isNearlyEqual(tetVolumes[tetId], 0.0, EPS))
+        {
+          tetLabel = LabelType::LABEL_OUT;
+          continue;
+        }
+
+        double sqDistances[4];
+        tetLabel = tetToSphereLabel(meshTets[tetId], sphereData, sqDistances);
+      }
+    });
+    return;
+  }
+
+  AXOM_ANNOTATE_SCOPE("SphereClipper::label_tets_device");
+  auto meshHexes = shapeMesh.getCellsAsHexes();
 
   axom::for_all<ExecSpace>(cellCount, [=] AXOM_HOST_DEVICE(axom::IndexType ci) {
     axom::IndexType cellId = cellIds[ci];
@@ -226,7 +528,7 @@ bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
 
   auto octsView = octs.view();
   auto transformer = m_transformer;
-  int allocId = shapeMesh.getAllocatorID();
+  const int allocId = shapeMesh.getAllocatorID();
   axom::for_all<axom::SEQ_EXEC>(octCount, [=] AXOM_HOST_DEVICE(axom::IndexType iOct) {
     OctahedronType& oct = octsView[iOct];
     for(int iVert = 0; iVert < OctType::NUM_VERTS; ++iVert)
@@ -236,7 +538,7 @@ bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
     }
   });
 
-  // The disretize method uses host data.  Place into proper space if needed.
+  // The discretize method uses host data. Place into the required allocator if needed.
   if(octs.getAllocatorID() != allocId)
   {
     octs = axom::Array<axom::primal::Octahedron<double, 3>>(octs, allocId);
@@ -247,6 +549,71 @@ bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
                                m_levelOfRefinement,
                                octs.size()));
   return true;
+}
+
+bool SphereClipper::specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
+                                        axom::ArrayView<double> ovlap,
+                                        const axom::ArrayView<IndexType>& tetIds,
+                                        conduit::Node& statistics)
+{
+  if(m_levelOfRefinement > 5)
+  {
+    return false;
+  }
+
+  switch(shapeMesh.getRuntimePolicy())
+  {
+  case axom::runtime_policy::Policy::seq:
+    specializedClipTetsImpl<axom::SEQ_EXEC>(shapeMesh, ovlap, tetIds, statistics);
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case axom::runtime_policy::Policy::omp:
+    specializedClipTetsImpl<axom::OMP_EXEC>(shapeMesh, ovlap, tetIds, statistics);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case axom::runtime_policy::Policy::cuda:
+    return false;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case axom::runtime_policy::Policy::hip:
+    return false;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+  return true;
+}
+
+template <typename ExecSpace>
+void SphereClipper::specializedClipTetsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                                            axom::ArrayView<double> ovlap,
+                                            const axom::ArrayView<IndexType>& tetIds,
+                                            conduit::Node& statistics)
+{
+  AXOM_ANNOTATE_SCOPE("SphereClipper::adaptive_clip");
+  auto meshTets = shapeMesh.getCellsAsTets();
+  auto meshTetVolumes = shapeMesh.getTetVolumes();
+  const double radius = m_sphere.getRadius();
+  const double targetEdge = radius * SPHERE_LINEARIZATION_EDGE_FRACTION;
+  SphereClipData sphere {m_sphere.getCenter(), radius, radius * radius, targetEdge * targetEdge};
+  const IndexType tetCount = tetIds.size();
+
+  AXOM_ANNOTATE_BEGIN("SphereClipper::subdivide_and_clip");
+  axom::for_all<ExecSpace>(tetCount, [=] AXOM_HOST_DEVICE(axom::IndexType ti) {
+    const axom::IndexType tetId = tetIds[ti];
+    const axom::IndexType cellId = tetId / NUM_TETS_PER_HEX;
+    SLIC_ASSERT(cellId >= 0 && cellId < ovlap.size());
+    const auto& tet = meshTets[tetId];
+    const double vol = clipTetAgainstSphere(tet, sphere, meshTetVolumes[tetId]);
+    detail::addToOverlapVolume<ExecSpace>(ovlap.data() + cellId, vol);
+  });
+  AXOM_ANNOTATE_END("SphereClipper::subdivide_and_clip");
+
+  AXOM_ANNOTATE_BEGIN("SphereClipper::record_statistics");
+  statistics["onSum"].set_int64(tetCount);
+  statistics["clipsSum"].set_int64(tetCount);
+  AXOM_ANNOTATE_END("SphereClipper::record_statistics");
 }
 
 void SphereClipper::extractClipperInfo()

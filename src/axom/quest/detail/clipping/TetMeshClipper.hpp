@@ -54,6 +54,11 @@ public:
                       axom::ArrayView<const axom::IndexType> cellIds,
                       axom::Array<LabelType>& tetLabels) override;
 
+  bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
+                           axom::ArrayView<double> ovlap,
+                           const axom::ArrayView<IndexType>& tetIds,
+                           conduit::Node& statistics) override;
+
   bool getGeometryAsTets(quest::experimental::ShapeMesh& shappeMesh,
                          axom::Array<TetrahedronType>& tets) override;
 
@@ -76,6 +81,10 @@ private:
 
   //! @brief Number of tets in the tet mesh.
   axom::IndexType m_tetCount;
+
+  //! @brief Cached small-mesh geometry used by the direct CPU path.
+  axom::Array<Triangle3DType> m_surfaceTriangles;
+  axom::Array<TetrahedronType> m_geometryTets;
 
   /*!
    * @brief Combined external transformation.
@@ -137,6 +146,12 @@ private:
 
   template <typename ExecSpace>
   void computeTets(axom::ArrayView<TetrahedronType> tetsView);
+
+  template <typename ExecSpace>
+  void specializedClipTetsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                               axom::ArrayView<double> ovlap,
+                               const axom::ArrayView<IndexType>& tetIds,
+                               conduit::Node& statistics);
 
   //@{
   //!@name For computing surface of m_tetMesh.
