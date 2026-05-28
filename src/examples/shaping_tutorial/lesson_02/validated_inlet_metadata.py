@@ -8,7 +8,9 @@ import pyinlet
 
 def main() -> int:
     parser = ArgumentParser(description="Validate and print 2D mesh metadata.")
-    parser.add_argument("input_file", nargs="?", default=str(Path(__file__).with_name("input2D.yaml")))
+    parser.add_argument("input_file",
+                        nargs="?",
+                        default=str(Path(__file__).with_name("input2D.yaml")))
     args = parser.parse_args()
 
     errors = pyinlet.validate_mesh_metadata(args.input_file)

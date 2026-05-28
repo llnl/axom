@@ -32,9 +32,8 @@ def verify_mesh_metadata(mesh_group) -> bool:
 
     bb_group = mesh_group.getGroup("bounding_box")
     res_group = mesh_group.getGroup("resolution")
-    return all(bb_group.hasView(path) for path in required_views) and all(
-        res_group.hasView(path) for path in ["x", "y"]
-    )
+    return all(bb_group.hasView(path)
+               for path in required_views) and all(res_group.hasView(path) for path in ["x", "y"])
 
 
 def create_blueprint(mesh_group) -> dict:
@@ -51,12 +50,26 @@ def create_blueprint(mesh_group) -> dict:
         "coordsets": {
             "coords": {
                 "type": "uniform",
-                "dims": {"i": res_x + 1, "j": res_y + 1},
-                "origin": {"x": x_min, "y": y_min},
-                "spacing": {"dx": (x_max - x_min) / res_x, "dy": (y_max - y_min) / res_y},
+                "dims": {
+                    "i": res_x + 1,
+                    "j": res_y + 1
+                },
+                "origin": {
+                    "x": x_min,
+                    "y": y_min
+                },
+                "spacing": {
+                    "dx": (x_max - x_min) / res_x,
+                    "dy": (y_max - y_min) / res_y
+                },
             }
         },
-        "topologies": {"mesh": {"type": "uniform", "coordset": "coords"}},
+        "topologies": {
+            "mesh": {
+                "type": "uniform",
+                "coordset": "coords"
+            }
+        },
     }
 
 

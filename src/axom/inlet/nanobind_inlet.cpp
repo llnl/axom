@@ -65,7 +65,7 @@ struct MeshMetadata
 
     return BoundingBox3D(Point3D {bb_min[0], bb_min[1], bb_min[2]},
                          Point3D {bb_max[0], bb_max[1], bb_max[2]});
-}
+  }
 };
 
 bool hasSuffix(const std::string& path, const std::string& suffix)
@@ -88,8 +88,9 @@ std::unique_ptr<axom::inlet::Reader> makeReader(const std::string& path)
   }
 #endif
 
-  throw std::runtime_error(axom::fmt::format(
-    "Unsupported mesh metadata extension for '{}'. Expected .yaml, .yml or .lua.", path));
+  throw std::runtime_error(
+    axom::fmt::format("Unsupported mesh metadata extension for '{}'. Expected .yaml, .yml or .lua.",
+                      path));
 }
 
 void defineMeshSchema(axom::inlet::Container& mesh_schema)
@@ -184,9 +185,7 @@ std::vector<std::string> validateMeshMetadata(const std::string& path)
   messages.reserve(errors.size());
   for(const auto& err : errors)
   {
-    messages.push_back(axom::fmt::format("{}: {}",
-                                         static_cast<std::string>(err.path),
-                                         err.message));
+    messages.push_back(axom::fmt::format("{}: {}", static_cast<std::string>(err.path), err.message));
   }
 
   return messages;
@@ -284,22 +283,21 @@ NB_MODULE(pyinlet, m)
     .def_rw("sampling_method", &MeshMetadata::sampling_method)
     .def("getBoundingBox2D", &MeshMetadata::getBoundingBox2D)
     .def("getBoundingBox3D", &MeshMetadata::getBoundingBox3D)
-    .def("__repr__",
-         [](const MeshMetadata& self) {
-           return axom::fmt::format(
-             "MeshMetadata(dim={}, bb_min={}, bb_max={}, resolution={}, "
-             "background_material='{}', volume_fraction_order={}, mesh_order={}, "
-             "quadrature_order={}, sampling_method='{}')",
-             self.dim,
-             self.bb_min,
-             self.bb_max,
-             self.resolution,
-             self.background_material,
-             self.volume_fraction_order,
-             self.mesh_order,
-             self.quadrature_order,
-             self.sampling_method);
-         });
+    .def("__repr__", [](const MeshMetadata& self) {
+      return axom::fmt::format(
+        "MeshMetadata(dim={}, bb_min={}, bb_max={}, resolution={}, "
+        "background_material='{}', volume_fraction_order={}, mesh_order={}, "
+        "quadrature_order={}, sampling_method='{}')",
+        self.dim,
+        self.bb_min,
+        self.bb_max,
+        self.resolution,
+        self.background_material,
+        self.volume_fraction_order,
+        self.mesh_order,
+        self.quadrature_order,
+        self.sampling_method);
+    });
 
   m.def("validate_mesh_metadata",
         &validateMeshMetadata,

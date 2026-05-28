@@ -8,7 +8,9 @@ import pyklee
 
 def main() -> int:
     parser = ArgumentParser(description="Load and summarize a Klee shape-set file.")
-    parser.add_argument("input_file", nargs="?", default=str(Path(__file__).with_name("ice_cream.yaml")))
+    parser.add_argument("input_file",
+                        nargs="?",
+                        default=str(Path(__file__).with_name("ice_cream.yaml")))
     args = parser.parse_args()
 
     shape_set = pyklee.readShapeSet(args.input_file)

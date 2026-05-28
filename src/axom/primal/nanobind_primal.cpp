@@ -70,33 +70,37 @@ void bindBoundingBox(nb::module_& m, const char* name)
       },
       nb::arg("lower"),
       nb::arg("upper"))
-    .def("getMin",
-         [](const Box& self) { return pointToVector<NDIMS>(self.getMin()); },
-         "Return the lower corner of the bounding box as a Python list.")
-    .def("getMax",
-         [](const Box& self) { return pointToVector<NDIMS>(self.getMax()); },
-         "Return the upper corner of the bounding box as a Python list.")
-    .def("contains",
-         [](const Box& self, const std::vector<double>& point) {
-           return self.contains(vectorToPoint<NDIMS>(point, "Point"));
-         },
-         nb::arg("point"),
-         "Return true when the given point lies in the box.")
-    .def("containsBox",
-         [](const Box& self, const Box& other) { return self.contains(other); },
-         nb::arg("other"),
-         "Return true when the other bounding box is fully contained in this box.")
-    .def("intersectsWith",
-         [](const Box& self, const Box& other) { return self.intersectsWith(other); },
-         nb::arg("other"),
-         "Return true when the given bounding box intersects this box.")
+    .def(
+      "getMin",
+      [](const Box& self) { return pointToVector<NDIMS>(self.getMin()); },
+      "Return the lower corner of the bounding box as a Python list.")
+    .def(
+      "getMax",
+      [](const Box& self) { return pointToVector<NDIMS>(self.getMax()); },
+      "Return the upper corner of the bounding box as a Python list.")
+    .def(
+      "contains",
+      [](const Box& self, const std::vector<double>& point) {
+        return self.contains(vectorToPoint<NDIMS>(point, "Point"));
+      },
+      nb::arg("point"),
+      "Return true when the given point lies in the box.")
+    .def(
+      "containsBox",
+      [](const Box& self, const Box& other) { return self.contains(other); },
+      nb::arg("other"),
+      "Return true when the other bounding box is fully contained in this box.")
+    .def(
+      "intersectsWith",
+      [](const Box& self, const Box& other) { return self.intersectsWith(other); },
+      nb::arg("other"),
+      "Return true when the given bounding box intersects this box.")
     .def("isValid", &Box::isValid, "Return true when the bounding box is valid.")
-    .def("__repr__",
-         [](const Box& self) {
-           std::ostringstream oss;
-           oss << self;
-           return oss.str();
-         });
+    .def("__repr__", [](const Box& self) {
+      std::ostringstream oss;
+      oss << self;
+      return oss.str();
+    });
 }
 }  // namespace
 }  // namespace primal

@@ -5,7 +5,9 @@ import pyklee
 
 def test_read_shapeset(tmp_path: Path):
     geometry_file = tmp_path / "shape.mfem"
-    geometry_file.write_text("MFEM mesh v1.0\n\ndimension\n2\n\nelements\n0\n\nboundary\n0\n\nvertices\n0\n", encoding="utf-8")
+    geometry_file.write_text(
+        "MFEM mesh v1.0\n\ndimension\n2\n\nelements\n0\n\nboundary\n0\n\nvertices\n0\n",
+        encoding="utf-8")
 
     shape_file = tmp_path / "shapes.yaml"
     shape_file.write_text(
