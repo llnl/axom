@@ -21,7 +21,8 @@ namespace
 
 constexpr double SPHERE_CLIP_EPS = 1e-10;
 constexpr double SPHERE_CLIP_GRAD_EPS = 1e-20;
-constexpr int SPHERE_SUBDIVISION_LEVELS = 4;
+constexpr int SPHERE_MAX_SUBDIVISION_LEVELS = 4;
+constexpr double SPHERE_LINEARIZATION_EDGE_FRACTION = 0.02;
 
 /*!
  * @brief Construct a tetrahedron and force a positive orientation.
@@ -74,6 +75,53 @@ void subdivideTetByMidpoints(const MeshClipperStrategy::TetrahedronType& tet,
 }
 
 /*!
+ * @brief Return the squared length of the longest edge of a tetrahedron.
+ *
+ * The midpoint subdivision used below halves all edge lengths at each level,
+ * so the longest-edge metric lets us choose how many levels are needed before
+ * the final linearized clip is sufficiently local relative to sphere radius.
+ */
+AXOM_HOST_DEVICE
+double tetMaxEdgeSquared(const MeshClipperStrategy::TetrahedronType& tet)
+{
+  double maxEdgeSq = 0.0;
+  for(int i = 0; i < MeshClipperStrategy::TetrahedronType::NUM_VERTS; ++i)
+  {
+    for(int j = i + 1; j < MeshClipperStrategy::TetrahedronType::NUM_VERTS; ++j)
+    {
+      const double edgeSq = (tet[j] - tet[i]).squared_norm();
+      maxEdgeSq = axom::utilities::max(maxEdgeSq, edgeSq);
+    }
+  }
+  return maxEdgeSq;
+}
+
+/*!
+ * @brief Choose the subdivision depth needed before local plane clipping.
+ *
+ * Coarse meshes need more refinement because the sphere curvature is visible
+ * across a larger tet. Finer meshes can stop earlier and avoid unnecessary
+ * subdivision work while still using the same GPU-friendly explicit stack.
+ */
+AXOM_HOST_DEVICE
+int chooseSubdivisionLevels(const MeshClipperStrategy::TetrahedronType& tet,
+                            const MeshClipperStrategy::SphereType& sphere)
+{
+  const double targetEdge = sphere.getRadius() * SPHERE_LINEARIZATION_EDGE_FRACTION;
+  const double targetEdgeSq = targetEdge * targetEdge;
+
+  double edgeSq = tetMaxEdgeSquared(tet);
+  int levels = 0;
+  while(levels < SPHERE_MAX_SUBDIVISION_LEVELS && edgeSq > targetEdgeSq)
+  {
+    edgeSq *= 0.25;
+    ++levels;
+  }
+
+  return levels;
+}
+
+/*!
  * @brief Approximate the sphere/tet overlap by linearizing the signed-distance
  * field over a small tetrahedron and clipping against the resulting plane.
  *
@@ -110,10 +158,9 @@ double clipTetAgainstLinearizedSphere(const MeshClipperStrategy::TetrahedronType
     return 0.0;
   }
 
-  const Vector3DType grad =
-    ((phi1 - phi0) * Vector3DType::cross_product(e2, e3) +
-     (phi2 - phi0) * Vector3DType::cross_product(e3, e1) +
-     (phi3 - phi0) * Vector3DType::cross_product(e1, e2)) /
+  const Vector3DType grad = ((phi1 - phi0) * Vector3DType::cross_product(e2, e3) +
+                             (phi2 - phi0) * Vector3DType::cross_product(e3, e1) +
+                             (phi3 - phi0) * Vector3DType::cross_product(e1, e2)) /
     denom;
   const double gradSqNorm = grad.squared_norm();
   if(gradSqNorm <= SPHERE_CLIP_GRAD_EPS)
@@ -177,7 +224,7 @@ double clipTetAgainstSphere(const MeshClipperStrategy::TetrahedronType& tet,
   using LabelType = MeshClipperStrategy::LabelType;
   using TetrahedronType = MeshClipperStrategy::TetrahedronType;
   constexpr int CHILD_COUNT = 8;
-  constexpr int MAX_STACK_SIZE = 1 + (CHILD_COUNT - 1) * SPHERE_SUBDIVISION_LEVELS;
+  constexpr int MAX_STACK_SIZE = 1 + (CHILD_COUNT - 1) * SPHERE_MAX_SUBDIVISION_LEVELS;
 
   struct WorkItem
   {
@@ -185,6 +232,7 @@ double clipTetAgainstSphere(const MeshClipperStrategy::TetrahedronType& tet,
     int level;
   };
 
+  const int maxSubdivisionLevels = chooseSubdivisionLevels(tet, sphere);
   double volume = 0.0;
   WorkItem stack[MAX_STACK_SIZE];
   int stackSize = 1;
@@ -206,7 +254,7 @@ double clipTetAgainstSphere(const MeshClipperStrategy::TetrahedronType& tet,
       continue;
     }
 
-    if(item.level >= SPHERE_SUBDIVISION_LEVELS)
+    if(item.level >= maxSubdivisionLevels)
     {
       volume += clipTetAgainstLinearizedSphere(item.tet, sphere);
       continue;
