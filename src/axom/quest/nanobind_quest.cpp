@@ -9,6 +9,7 @@
 #include <nanobind/stl/vector.h>
 
 #include "axom/config.hpp"
+#include "axom/core/utilities/RAII.hpp"
 #include "axom/fmt.hpp"
 #include "axom/inlet/Inlet.hpp"
 #include "axom/inlet/YAMLReader.hpp"
@@ -87,8 +88,9 @@ std::unique_ptr<axom::inlet::Reader> makeReader(const std::string& path)
   }
 #endif
 
-  throw std::runtime_error(axom::fmt::format(
-    "Unsupported mesh metadata extension for '{}'. Expected .yaml, .yml or .lua.", path));
+  throw std::runtime_error(
+    axom::fmt::format("Unsupported mesh metadata extension for '{}'. Expected .yaml, .yml or .lua.",
+                      path));
 }
 
 void defineMeshSchema(axom::inlet::Container& mesh_schema)
@@ -143,9 +145,7 @@ MeshMetadata loadMeshMetadata(const std::string& path)
     std::vector<std::string> messages;
     for(const auto& err : errors)
     {
-      messages.push_back(axom::fmt::format("{}: {}",
-                                           static_cast<std::string>(err.path),
-                                           err.message));
+      messages.push_back(axom::fmt::format("{}: {}", static_cast<std::string>(err.path), err.message));
     }
     throw std::runtime_error(
       axom::fmt::format("Mesh metadata validation failed:\n{}", axom::fmt::join(messages, "\n")));
@@ -206,18 +206,37 @@ MeshMetadata loadMeshMetadata(const std::string& path)
 
 mfem::Mesh* createCartesianMesh(const MeshMetadata& meta)
 {
+  mfem::Mesh* mesh = nullptr;
+
   if(meta.dim == 2)
   {
     const axom::NumericArray<int, 2> res {meta.resolution[0], meta.resolution[1]};
-    return axom::quest::util::make_cartesian_mfem_mesh_2D(meta.getBoundingBox2D(), res, meta.mesh_order);
+    mesh =
+      axom::quest::util::make_cartesian_mfem_mesh_2D(meta.getBoundingBox2D(), res, meta.mesh_order);
   }
-  if(meta.dim == 3)
+  else if(meta.dim == 3)
   {
     const axom::NumericArray<int, 3> res {meta.resolution[0], meta.resolution[1], meta.resolution[2]};
-    return axom::quest::util::make_cartesian_mfem_mesh_3D(meta.getBoundingBox3D(), res, meta.mesh_order);
+    mesh =
+      axom::quest::util::make_cartesian_mfem_mesh_3D(meta.getBoundingBox3D(), res, meta.mesh_order);
+  }
+  else
+  {
+    throw std::runtime_error("Only 2D and 3D meshes are supported.");
   }
 
-  throw std::runtime_error("Only 2D and 3D meshes are supported.");
+#if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
+  {
+    int* partitioning = nullptr;
+    int part_method = 0;
+    mfem::Mesh* pmesh = new mfem::ParMesh(MPI_COMM_WORLD, *mesh, partitioning, part_method);
+    delete[] partitioning;
+    delete mesh;
+    mesh = pmesh;
+  }
+#endif
+
+  return mesh;
 }
 
 axom::klee::ShapeSet readShapeSet(const std::string& path)
@@ -238,6 +257,20 @@ axom::klee::ShapeSet readShapeSet(const std::string& path)
     throw std::runtime_error(
       axom::fmt::format("Error parsing klee input:\n{}", axom::fmt::join(errs, "\n")));
   }
+}
+
+void ensureMPIInitialized()
+{
+#ifdef AXOM_USE_MPI
+  static std::unique_ptr<axom::utilities::raii::MPIWrapper> mpi_wrapper;
+  if(!mpi_wrapper)
+  {
+    int argc = 1;
+    char program_name[] = "pyquest";
+    char* argv[] = {program_name, nullptr};
+    mpi_wrapper = std::make_unique<axom::utilities::raii::MPIWrapper>(argc, argv);
+  }
+#endif
 }
 
 struct ShapingResult
@@ -262,6 +295,8 @@ ShapingResult runShaping(const std::string& meshFile,
                          const std::string& outputName,
                          bool verbose)
 {
+  ensureMPIInitialized();
+
   axom::slic::SimpleLogger logger;
   axom::slic::setLoggingMsgLevel(verbose ? axom::slic::message::Debug : axom::slic::message::Info);
 
@@ -270,18 +305,22 @@ ShapingResult runShaping(const std::string& meshFile,
 
   auto* mesh = createCartesianMesh(meta);
   auto dc = std::make_unique<axom::sidre::MFEMSidreDataCollection>(outputName, nullptr, true);
+#if defined(AXOM_USE_MPI)
+  dc->SetMesh(MPI_COMM_WORLD, mesh);
+#else
   dc->SetMesh(mesh);
+#endif
   dc->SetMeshNodesName("positions");
   dc->AssociateMaterialSet("vol_frac", "material");
 
   using RuntimePolicy = axom::runtime_policy::Policy;
   const RuntimePolicy policy = RuntimePolicy::seq;
 
-  auto shaper = std::make_unique<axom::quest::SamplingShaper>(
-    policy,
-    axom::policyToDefaultAllocatorID(policy),
-    shapeSet,
-    dc.get());
+  auto shaper =
+    std::make_unique<axom::quest::SamplingShaper>(policy,
+                                                  axom::policyToDefaultAllocatorID(policy),
+                                                  shapeSet,
+                                                  dc.get());
 
   shaper->setVerbosity(verbose);
   shaper->setQuadratureOrder(meta.quadrature_order);
@@ -349,9 +388,7 @@ NB_MODULE(pyquest, m)
 
   nb::class_<ShapingResult>(m, "ShapingResult")
     .def("save", &ShapingResult::save)
-    .def("getBlueprintGroup",
-         &ShapingResult::getBlueprintGroup,
-         nb::rv_policy::reference_internal)
+    .def("getBlueprintGroup", &ShapingResult::getBlueprintGroup, nb::rv_policy::reference_internal)
     .def("getDataStore", &ShapingResult::getDataStore, nb::rv_policy::reference_internal)
     .def("getCollectionName", &ShapingResult::getCollectionName);
 

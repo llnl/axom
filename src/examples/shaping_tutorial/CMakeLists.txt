@@ -78,6 +78,35 @@ foreach(lesson_and_file ${_examples})
 endforeach()                   
 
 #------------------------------------------------------------------------------
+# Set up runnable Python lesson entrypoints in build/bin
+#------------------------------------------------------------------------------
+if(EXISTS ${AXOM_DIR}/bin/run_python_with_axom.sh)
+    set(_python_examples lesson_00:check_axom_configuration.py
+                         lesson_01:mesh_metadata_sidre.py
+                         lesson_02:validated_inlet_metadata.py
+                         lesson_02:improved_inlet_metadata.py
+                         lesson_03:klee_operators_and_validation.py)
+    if(AXOM_USE_LUA AND AXOM_USE_MFEM)
+        blt_list_append(TO _python_examples ELEMENTS lesson_04:quest_sampling_shaper.py)
+    endif()
+
+    foreach(lesson_and_file ${_python_examples})
+        string(REPLACE ":" ";" _parts "${lesson_and_file}")
+        list(GET _parts 0 _lesson)
+        list(GET _parts 1 _file_with_ext)
+        get_filename_component(_file_no_ext ${_file_with_ext} NAME_WE)
+        set(_launcher ${CMAKE_BINARY_DIR}/bin/${_lesson}_${_file_no_ext}_py)
+        set(_python_script ${CMAKE_CURRENT_SOURCE_DIR}/${_lesson}/${_file_with_ext})
+
+        file(WRITE ${_launcher}
+"#!/bin/bash
+\"${AXOM_DIR}/bin/run_python_with_axom.sh\" \"${_python_script}\" \"$@\"
+")
+        execute_process(COMMAND /bin/chmod +x ${_launcher})
+    endforeach()
+endif()
+
+#------------------------------------------------------------------------------
 # Optionally, add tests to run the tutorial lessons
 #------------------------------------------------------------------------------
 if(ENABLE_TESTS)
@@ -110,6 +139,43 @@ if(ENABLE_TESTS)
                                                            -k ../lesson_04/circles.yaml -v)                   
     endif()
 
+    if(EXISTS ${AXOM_DIR}/bin/run_python_with_axom.sh)
+        blt_add_test(NAME    lesson_00_check_axom_configuration_py
+                     COMMAND ${CMAKE_BINARY_DIR}/bin/lesson_00_check_axom_configuration_py)
+
+        blt_add_test(NAME    lesson_01_mesh_metadata_sidre_py
+                     COMMAND ${CMAKE_BINARY_DIR}/bin/lesson_01_mesh_metadata_sidre_py
+                             --min_x 50 --min_y 350
+                             --max_x 50 --max_y 350
+                             --res_x 8 --res_y 8
+                             --output_blueprint)
+
+        blt_add_test(NAME    lesson_02_validated_inlet_metadata_py
+                     COMMAND ${CMAKE_BINARY_DIR}/bin/lesson_02_validated_inlet_metadata_py
+                             ../lesson_02/input2D.yaml)
+
+        blt_add_test(NAME    lesson_02_improved_inlet_metadata_yaml_py
+                     COMMAND ${CMAKE_BINARY_DIR}/bin/lesson_02_improved_inlet_metadata_py
+                             ../lesson_02/input3D.yaml)
+
+        if(AXOM_USE_LUA)
+          blt_add_test(NAME    lesson_02_improved_inlet_metadata_lua_py
+                       COMMAND ${CMAKE_BINARY_DIR}/bin/lesson_02_improved_inlet_metadata_py
+                               ../lesson_02/input3D.lua)
+        endif()
+
+        blt_add_test(NAME   lesson_03_klee_operators_and_validation_py
+                    COMMAND ${CMAKE_BINARY_DIR}/bin/lesson_03_klee_operators_and_validation_py
+                            ../lesson_03/ice_cream.yaml)
+
+        if(AXOM_USE_LUA AND AXOM_USE_MFEM)
+          blt_add_test(NAME    lesson_04_quest_sampling_shaper_py
+                       COMMAND ${CMAKE_BINARY_DIR}/bin/lesson_04_quest_sampling_shaper_py
+                               -m ../lesson_04/circle_input.lua
+                               -k ../lesson_04/circles.yaml -v)
+        endif()
+    endif()
+
 endif()
 
 #------------------------------------------------------------------------------
@@ -118,4 +184,3 @@ endif()
 if(EXAMPLE_VERBOSE_OUTPUT)
     blt_print_target_properties(TARGET axom CHILDREN TRUE)  
 endif()
-

@@ -181,28 +181,62 @@ if(AXOM_ENABLE_TUTORIALS AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_QUEST)
     endforeach()
 
     if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
-        set(_python_scripts
-            lesson_00/check_axom_configuration.py
-            lesson_01/mesh_metadata_sidre.py
-            lesson_02/validated_inlet_metadata.py
-            lesson_02/improved_inlet_metadata.py
-            lesson_03/klee_operators_and_validation.py)
+        axom_add_test(
+            NAME shaping_tutorial_py_lesson_00_check_axom_configuration
+            COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
+                    ${PROJECT_SOURCE_DIR}/examples/shaping_tutorial/lesson_00/check_axom_configuration.py
+        )
 
-        if(LUA_FOUND AND MFEM_FOUND)
-            list(APPEND _python_scripts lesson_04/quest_sampling_shaper.py)
+        axom_add_test(
+            NAME shaping_tutorial_py_lesson_01_mesh_metadata_sidre
+            COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
+                    ${PROJECT_SOURCE_DIR}/examples/shaping_tutorial/lesson_01/mesh_metadata_sidre.py
+                    --min_x 50 --min_y 350
+                    --max_x 50 --max_y 350
+                    --res_x 8 --res_y 8
+                    --output_blueprint
+        )
+
+        axom_add_test(
+            NAME shaping_tutorial_py_lesson_02_validated_inlet_metadata
+            COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
+                    ${PROJECT_SOURCE_DIR}/examples/shaping_tutorial/lesson_02/validated_inlet_metadata.py
+                    ${PROJECT_SOURCE_DIR}/examples/shaping_tutorial/lesson_02/input2D.yaml
+        )
+
+        axom_add_test(
+            NAME shaping_tutorial_py_lesson_02_improved_inlet_metadata_yaml
+            COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
+                    ${PROJECT_SOURCE_DIR}/examples/shaping_tutorial/lesson_02/improved_inlet_metadata.py
+                    ${PROJECT_SOURCE_DIR}/examples/shaping_tutorial/lesson_02/input3D.yaml
+        )
+
+        if(LUA_FOUND)
+            axom_add_test(
+                NAME shaping_tutorial_py_lesson_02_improved_inlet_metadata_lua
+                COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
+                        ${PROJECT_SOURCE_DIR}/examples/shaping_tutorial/lesson_02/improved_inlet_metadata.py
+                        ${PROJECT_SOURCE_DIR}/examples/shaping_tutorial/lesson_02/input3D.lua
+            )
         endif()
 
-        foreach(_script ${_python_scripts})
-            get_filename_component(_test_name ${_script} NAME_WE)
-            string(REPLACE "/" "_" _qualified_test_name shaping_tutorial_py_${_script})
-            string(REPLACE ".py" "" _qualified_test_name ${_qualified_test_name})
+        axom_add_test(
+            NAME shaping_tutorial_py_lesson_03_klee_operators_and_validation
+            COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
+                    ${PROJECT_SOURCE_DIR}/examples/shaping_tutorial/lesson_03/klee_operators_and_validation.py
+                    ${PROJECT_SOURCE_DIR}/examples/shaping_tutorial/lesson_03/ice_cream.yaml
+        )
 
+        if(LUA_FOUND AND MFEM_FOUND)
             axom_add_test(
-                NAME ${_qualified_test_name}
+                NAME shaping_tutorial_py_lesson_04_quest_sampling_shaper
                 COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
-                        ${PROJECT_SOURCE_DIR}/examples/shaping_tutorial/${_script}
-               )
-        endforeach()
+                        ${PROJECT_SOURCE_DIR}/examples/shaping_tutorial/lesson_04/quest_sampling_shaper.py
+                        -m ${PROJECT_SOURCE_DIR}/examples/shaping_tutorial/lesson_04/circle_input.lua
+                        -k ${PROJECT_SOURCE_DIR}/examples/shaping_tutorial/lesson_04/circles.yaml
+                        -v
+            )
+        endif()
     endif()
     
 endif()
