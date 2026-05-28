@@ -38,7 +38,7 @@
   #include "mfem/linalg/dtensor.hpp"
 #endif
 
-#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+#if defined(AXOM_USE_CONDUIT)
   #include "conduit/conduit_relay_io.hpp"
   #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
     #ifdef CONDUIT_RELAY_MPI_ENABLED
