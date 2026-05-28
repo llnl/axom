@@ -39,6 +39,7 @@ MeshClipper::MeshClipper(quest::experimental::ShapeMesh& shapeMesh,
 
 void MeshClipper::clip(axom::Array<double>& ovlap)
 {
+  printf("INSIDE MeshClipper::clip(Array)\n");
   const int allocId = m_shapeMesh.getAllocatorID();
   const axom::IndexType cellCount = m_shapeMesh.getCellCount();
 
@@ -64,6 +65,7 @@ void MeshClipper::clip(axom::Array<double>& ovlap)
  */
 void MeshClipper::clip(axom::ArrayView<double> ovlap)
 {
+  printf("INSIDE MeshClipper::clip(ArrayView)\n");
   SLIC_ASSERT(ovlap.size() == m_shapeMesh.getCellCount());
   SLIC_ASSERT(ovlap.getAllocatorID() == m_shapeMesh.getAllocatorID());
 

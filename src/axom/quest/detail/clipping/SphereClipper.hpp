@@ -53,6 +53,19 @@ public:
                       axom::ArrayView<const axom::IndexType> cellIds,
                       axom::Array<LabelType>& tetLabels) override;
 
+  /*!
+   * @brief Compute overlap volumes for tetrahedra labeled as boundary tets.
+   *
+   * This is a sphere-specific fast path used by MeshClipper after the
+   * tet screening step has already removed interior and exterior tets.
+   * The implementation avoids the generic octahedron/BVH clipping path by
+   * working directly against the analytic sphere.
+   */
+  bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
+                           axom::ArrayView<double> ovlap,
+                           const axom::ArrayView<IndexType>& tetIds,
+                           conduit::Node& statistics) override;
+
   bool getGeometryAsOcts(quest::experimental::ShapeMesh& shappeMesh,
                          axom::Array<axom::primal::Octahedron<double, 3>>& octs) override;
 
@@ -80,6 +93,19 @@ private:
   void labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                           axom::ArrayView<const axom::IndexType> cellIds,
                           axom::ArrayView<LabelType> tetLabels);
+
+  /*!
+   * @brief Execution-space implementation of the sphere-specific boundary-tet clip.
+   *
+   * Each boundary tet is adaptively subdivided into smaller tets. Fully interior
+   * and exterior subtets are accumulated cheaply, while only the smallest
+   * unresolved subtets use a local linearization of the sphere boundary.
+   */
+  template <typename ExecSpace>
+  void specializedClipTetsImpl(quest::experimental::ShapeMesh& shapeMesh,
+                               axom::ArrayView<double> ovlap,
+                               const axom::ArrayView<IndexType>& tetIds,
+                               conduit::Node& statistics);
 
   //!@brief Compute LabelType for a polyhedron (hex or tet in our case).
   template <typename Polyhedron>
