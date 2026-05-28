@@ -24,9 +24,10 @@ Two families are supported:
   rule can exactly integrate polynomials of degree 2N-1.
 
 **Rational Fejer Quadrature**
-  Pole-adapted rules for functions with known singularities or sharp features.
-  By specifying pole locations (where the function or its approximation is singular),
-  the quadrature adapts its basis to achieve high accuracy with fewer points.
+  Pole-adapted rules for functions with known singularities or nearby singular
+  structure. By specifying pole locations (where the function or its
+  approximation is singular), the quadrature adapts its basis to achieve high
+  accuracy with fewer points.
 
 Both families use the same ``QuadratureRule`` interface. In the examples below,
 we obtain a rule with ``get_gauss_legendre()`` or ``get_rational_fejer()``,
@@ -144,7 +145,6 @@ Pole Selection Guidelines
 **When to use rational Fejer:**
 
 * Functions with known singularities outside [0, 1]
-* Sharp gradients near domain boundaries (geometric corners)
 * Standard Gauss-Legendre requires very high orders
 * Integrand is well-approximated by rational functions
 
@@ -160,12 +160,8 @@ Pole Selection Guidelines
 **Pole placement strategies:**
 
 1. **Known singularities:** Place poles at actual singularity locations
-2. **Geometric features:** Place poles near sharp corners or discontinuities
-3. **Multiple poles:** Repeat a pole to model higher-order singularities
-4. **Infinite poles:** All poles at infinity gives polynomial Fejer (Chebyshev-based)
-5. **Mixed finite/infinite poles:** Endpoint algebraic singularities such as
-   ``sqrt(x)`` can benefit from combining nearby real poles with a few poles at
-   infinity, rather than using only nearby real poles
+2. **Multiple poles:** Repeat a pole to model higher-order singularities
+3. **Infinite poles:** All poles at infinity gives polynomial Fejer (Chebyshev-based)
 
 Advanced Usage
 ^^^^^^^^^^^^^^
@@ -191,8 +187,9 @@ Two APIs are provided for rational Fejer:
    :language: C++
 
 The ``get_rational_fejer()`` function uses an LRU cache of 65,536 rules. When
-the cache is full, the least recently used rule is evicted, invalidating views to
-it. Use ``.copy()`` if you need stable storage beyond immediate use.
+the cache is full, the least recently used rule is evicted, invalidating views
+to it. Use ``.copy()`` if you need stable storage, especially if many distinct
+pole sequences may be inserted into the cache.
 
 Infinite Poles
 """"""""""""""

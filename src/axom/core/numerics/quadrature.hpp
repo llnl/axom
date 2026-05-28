@@ -20,7 +20,7 @@
  *
  * \brief Numerical quadrature rules for integration
  *
- * This file provides 1D quadrature rules for numerical integration. 
+ * This file provides 1D quadrature rules for numerical integration.
  * It supports two main quadrature families:
  *
  * ## Polynomial Quadrature (Gauss-Legendre)
@@ -43,7 +43,7 @@
  *
  * Consider rational quadrature when:
  * - Integrating functions with known singularities outside [0, 1]
- * - Functions have sharp gradients near specific locations (geometric corners)
+ * - Functions have nearby singular structure that can be represented by poles outside [0, 1]
  * - Standard Gauss-Legendre requires very high orders for accuracy
  * - Integrand is well-approximated by rational functions
  *
@@ -87,14 +87,14 @@
  * - \c QuadratureRule: Owns node and weight arrays (use for long-term storage)
  * - \c QuadratureRuleView: Non-owning view (lightweight, device-compatible)
  *
- * The \c get_* functions return views over cached data. Use \c .copy() to
- * create an owned copy if needed beyond immediate scope:
+ * The \c get_* functions return views over cached data. Use \c .copy() when
+ * you need owned storage whose lifetime is independent of the cache:
  *
  * \code{.cpp}
  * // Get cached view (lightweight)
  * auto view = axom::numerics::get_rational_fejer(poles);
  *
- * // Create owned copy if cache eviction is possible
+ * // Create owned copy if stable storage is needed
  * axom::numerics::QuadratureRule owned = view.copy();
  * \endcode
  *
@@ -105,7 +105,8 @@
  * - Rational Fejer: 65,536 entry LRU cache (least-recently-used eviction when full)
  *
  * When rational Fejer cache is full, eviction invalidates views to evicted
- * rules. Use \c .copy() if you need stable storage beyond immediate use.
+ * rules. Use \c .copy() if you need storage that remains valid independent of
+ * later cache insertions.
  *
  * ### Further Documentation
  *
@@ -353,8 +354,8 @@ QuadratureRuleView get_gauss_legendre(int npts, int allocatorID = axom::getDefau
  * Fejer quadrature is closely related to Clenshaw-Curtis quadrature: both are
  * Chebyshev-based families of rules. A standard Clenshaw-Curtis rule uses
  * Chebyshev extrema and includes the interval endpoints, while a standard Fejer
- * rule uses interior Chebyshev nodes and excludes the endpoints. In the rational 
- * case, the weights are adapted to a prescribed pole set. When all poles are at infinity, 
+ * rule uses interior Chebyshev nodes and excludes the endpoints. In the rational
+ * case, the weights are adapted to a prescribed pole set. When all poles are at infinity,
  * this construction reduces to the standard interior Chebyshev / Fejer rule.
  *
  * \note This method constructs the points from scratch each time, without caching.
@@ -372,7 +373,7 @@ void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> pol
  * \brief Computes or accesses a cached 1D rational Fejer quadrature rule on [0, 1]
  *
  * This is the recommended entry point for rational Fejer quadrature when the same
- * pole sequence will be reused. The function maintains a process-wide LRU cache 
+ * pole sequence will be reused. The function maintains a process-wide LRU cache
  * to avoid recomputation while limiting overall memory consumption.
  *
  * \param [in] poles01 The pole sequence in the [0, 1] parameter domain.
@@ -394,16 +395,13 @@ void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> pol
  * ### When to Use .copy()
  *
  * The returned `QuadratureRuleView` points to cached storage. Use `.copy()` if:
- * - Storing the rule for use beyond immediate scope
+ * - Storing the rule for use beyond the cache-backed call site
  * - Uncertain about cache lifetime (e.g., generating many different pole sequences)
+ * - Other threads may concurrently insert enough distinct rules to trigger eviction
  * - Need guaranteed stable pointers to node/weight arrays
  *
  * \code{.cpp}
- * // Safe: immediate use within local scope
- * auto rule = axom::numerics::get_rational_fejer(poles);
- * double result = integrate(rule, f);
- *
- * // Safe: owned copy protects against cache eviction
+ * // Owned copy protects against later cache eviction
  * axom::numerics::QuadratureRule owned =
  *   axom::numerics::get_rational_fejer(poles).copy();
  * // ... use owned later, even if cache evicts this entry

@@ -207,7 +207,7 @@ void demoRationalFejer()
   std::cout << "\n";
 
   {
-    // _rational_fejer_corner_start
+    // Rational Fejer can also be used for non-polynomial integrands by adding extra poles at infinity
     // Integrate sqrt(x) from 0 to 1
     // Has infinite derivative at x = 0 (corner singularity)
     // Exact: 2/3 ≈ 0.666667
@@ -235,7 +235,6 @@ void demoRationalFejer()
     std::cout << axom::fmt::format("  {} points\n", corner_rule.getNumPoints());
     std::cout << axom::fmt::format("  Result: {:.6f}\n", corner_result);
     std::cout << axom::fmt::format("  Error:  {:.3e}\n", corner_error);
-    // _rational_fejer_corner_end
   }
   std::cout << "\n";
 
@@ -314,7 +313,7 @@ void demoAdvancedUsage()
   std::cout << axom::fmt::format("QuadratureRuleView from cache:\n");
   std::cout << axom::fmt::format("  Points: {}\n", view.getNumPoints());
 
-  // Create an owned copy if needed beyond immediate use
+  // Create an owned copy if you need stable storage outside the cache
   axom::numerics::QuadratureRule owned = view.copy();
 
   std::cout << axom::fmt::format("\nOwned QuadratureRule from copy:\n");

@@ -24,18 +24,18 @@ namespace numerics
 
 namespace
 {
-struct GaussLegendreRuleStorage
-{
-  axom::Array<double> nodes;
-  axom::Array<double> weights;
-};
-
 std::uint64_t make_gauss_legendre_key(int npts, int allocatorID)
 {
   const auto n = static_cast<std::uint64_t>(static_cast<std::uint32_t>(npts));
   const auto a = static_cast<std::uint64_t>(static_cast<std::uint32_t>(allocatorID));
   return (a << 32) | n;
 }
+
+struct GaussLegendreRuleStorage
+{
+  axom::Array<double> nodes;
+  axom::Array<double> weights;
+};
 }  // namespace
 
 /*!
