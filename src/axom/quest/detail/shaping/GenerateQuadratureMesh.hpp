@@ -56,6 +56,13 @@ public:
   using CoordsetType = typename CoordsetView::value_type;
   using PointType = primal::Point<CoordsetType, CoordsetView::dimension()>;
 
+  /// Struct for capturing views.
+  struct ViewPackage
+  {
+    TopologyView topologyView;
+    CoordsetView coordsetView;
+  };
+
   /*!
    * \brief Constructs the generator from a topology and coordset view.
    *
@@ -100,7 +107,7 @@ public:
    * \param [in] ruleZ The quadrature rule in the third logical direction.
    * \param [in,out] n_output The Blueprint mesh tree to augment.
    */
-  void execute(const conduit::Node& n_topology,
+  void execute(const conduit::Node& AXOM_UNUSED_PARAM(n_topology),
                const conduit::Node& n_coordset,
                const std::string& outputTopologyName,
                const std::string& outputCoordsetName,
@@ -188,13 +195,13 @@ public:
     n_physicalWeightValues.set(conduit::DataType::float64(numPoints));
     auto physicalQuadratureWeights = utils::make_array_view<double>(n_physicalWeightValues);
 
-    const TopologyView deviceTopoView(m_topologyView);
-    const CoordsetView deviceCoordsetView(m_coordsetView);
+    // Package these views into a struct to help with device access.
+    const ViewPackage deviceViews {m_topologyView, m_coordsetView};
 
     axom::for_all<ExecSpace>(
       numZones,
       AXOM_LAMBDA(IndexType zoneIndex) {
-        const auto zone = deviceTopoView.zone(zoneIndex);
+        const auto zone = deviceViews.topologyView.zone(zoneIndex);
         IndexType pointIndex = zoneIndex * static_cast<IndexType>(npts);
 
         for(int kz = 0; kz < (dim == 3 ? ruleZ.getNumPoints() : 1); ++kz)
@@ -214,15 +221,15 @@ public:
               double physicalMeasure = 0.;
               if constexpr(CoordsetView::dimension() == 2)
               {
-                pt = detail::mapToPhysicalPoint(zone, deviceCoordsetView, xi, eta);
+                pt = detail::mapToPhysicalPoint(zone, deviceViews.coordsetView, xi, eta);
                 physicalMeasure =
-                  detail::computePhysicalMeasureFactor(zone, deviceCoordsetView, xi, eta);
+                  detail::computePhysicalMeasureFactor(zone, deviceViews.coordsetView, xi, eta);
               }
               else
               {
-                pt = detail::mapToPhysicalPoint(zone, deviceCoordsetView, xi, eta, zeta);
+                pt = detail::mapToPhysicalPoint(zone, deviceViews.coordsetView, xi, eta, zeta);
                 physicalMeasure =
-                  detail::computePhysicalMeasureFactor(zone, deviceCoordsetView, xi, eta, zeta);
+                  detail::computePhysicalMeasureFactor(zone, deviceViews.coordsetView, xi, eta, zeta);
               }
 
               // Retain both the reference-space tensor-product weights and the
@@ -243,11 +250,12 @@ public:
           }
         }
       });
-
-    AXOM_UNUSED_VAR(n_topology);
   }
 
+// The following members are private (unless using CUDA)
+#if !defined(__CUDACC__)
 private:
+#endif
   TopologyView m_topologyView;
   CoordsetView m_coordsetView;
   int m_allocator_id;
