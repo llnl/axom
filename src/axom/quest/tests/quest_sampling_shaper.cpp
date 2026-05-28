@@ -2599,7 +2599,7 @@ TEST_F(CurvedSampleTester2D, generate_sampling_positions_is_idempotent)
 
   int sampleRes[] = {3, 2};
   quest::shaping::generateSamplingPositions(mfemState,
-                                            axom::ArrayView<int>{sampleRes, 2},
+                                            axom::ArrayView<int> {sampleRes, 2},
                                             axom::numerics::QuadratureType::OpenUniform);
 
   auto* positions = mfemState.m_inoutShapeQFuncs.Get("positions");
@@ -2609,7 +2609,7 @@ TEST_F(CurvedSampleTester2D, generate_sampling_positions_is_idempotent)
   const int initialNumPoints = qspace->GetElementIntRule(0).GetNPoints();
 
   quest::shaping::generateSamplingPositions(mfemState,
-                                            axom::ArrayView<int>{sampleRes, 2},
+                                            axom::ArrayView<int> {sampleRes, 2},
                                             axom::numerics::QuadratureType::ClosedUniform);
 
   EXPECT_EQ(mfemState.m_inoutShapeQFuncs.Get("positions"), positions);

@@ -58,7 +58,7 @@ namespace axom
 {
 namespace quest
 {
-/// \brief Concrete class for sample based shaping
+/// \brief Concrete class for sample based shaping on MFEM or Blueprint meshes.
 class SamplingShaper : public Shaper
 {
 public:
@@ -166,6 +166,7 @@ public:
     : Shaper(execPolicy, allocatorId, shapeSet, bpMesh, topo)
   {
     initializeSamplingResolution();
+    m_volfracOrder = 1;
   }
 
   /// Blueprint-compatible constructor
@@ -177,6 +178,7 @@ public:
     : Shaper(execPolicy, allocatorId, shapeSet, bpNode, topo)
   {
     initializeSamplingResolution();
+    m_volfracOrder = 1;
   }
 #endif
 
@@ -202,17 +204,7 @@ public:
    *
    * \param [in] qtype Quadrature family selection.
    */
-  void setQuadratureType(axom::numerics::QuadratureType qtype)
-  {
-    if(axom::numerics::is_valid_quadrature_type(static_cast<int>(qtype)))
-    {
-      m_quadratureType = qtype;
-    }
-    else
-    {
-      SLIC_ERROR(axom::fmt::format("Invalid quadrature type value {}", static_cast<int>(qtype)));
-    }
-  }
+  void setQuadratureType(axom::numerics::QuadratureType qtype);
 
   /*!
    * \brief Sets an isotropic sampling resolution for custom quadrature.
@@ -225,16 +217,7 @@ public:
    * \param [in] sampleRes Number of sample points to use per logical
    *                       direction.
    */
-  void setSamplingResolution(int sampleRes)
-  {
-    SLIC_ERROR_IF(sampleRes < 1, "Invalid sample resolution");
-    m_samplingResolution.clear();
-    const auto dim = meshDimension();
-    for(int d = 0; d < dim; d++)
-    {
-      m_samplingResolution.push_back(sampleRes);
-    }
-  }
+  void setSamplingResolution(int sampleRes);
 
   /*!
    * \brief Sets an anisotropic sampling resolution for custom quadrature.
@@ -249,23 +232,18 @@ public:
    *                       direction. The size needs to match the number of
    *                       mesh dimensions.
    */
-  void setSamplingResolution(axom::ArrayView<int> sampleRes)
-  {
-    const auto dim = meshDimension();
-    SLIC_ERROR_IF(static_cast<axom::IndexType>(dim) != sampleRes.size(),
-                  "Number of sample resolutions does not match mesh dimension.");
-    m_samplingResolution.clear();
-    for(int d = 0; d < dim; d++)
-    {
-      SLIC_ERROR_IF(sampleRes[d] < 1, "Invalid sample resolution");
-      m_samplingResolution.push_back(sampleRes[d]);
-    }
-  }
+  void setSamplingResolution(axom::ArrayView<int> sampleRes);
 
-  // Deprecated backward compatibility method
+  /// Deprecated backward compatibility method
   [[deprecated]] void setQuadratureOrder(int order) { setSamplingResolution(order); }
 
-  void setVolumeFractionOrder(int volfracOrder) { m_volfracOrder = volfracOrder; }
+  /*!
+   * \brief Set the order for the output volume fractions. This function has no
+   *        effect for Blueprint meshes.
+   *
+   * \param volfracOrder The order for the output volume fractions.
+   */
+  void setVolumeFractionOrder(int volfracOrder);
 
   /// Registers a function to project from 2D input points to 2D query points
   void setPointProjector22(shaping::PointProjector<2, 2> projector) { m_projector22 = projector; }
@@ -287,25 +265,17 @@ public:
   /// Returns a pointer to the quadrature function associated with shape \a name if it exists, else nullptr
   mfem::QuadratureFunction* getShapeQFunction(const std::string& name) const
   {
-    return shapeQFuncs().Get(name);
+    return samplingMFEMState().shapeQFuncs().Get(name);
   }
   /// Returns a pointer to the quadrature function associated with material \a name if it exists, else nullptr
   mfem::QuadratureFunction* getMaterialQFunction(const std::string& name) const
   {
-    return materialQFuncs().Get(name);
+    return samplingMFEMState().materialQFuncs().Get(name);
   }
 #endif
 protected:
   /// Initializes the sampling resolution array based on the mesh dimension.
-  void initializeSamplingResolution()
-  {
-    // Initialize the default number of samples based on the mesh dimension.
-    const int dim = meshDimension();
-    for(int d = 0; d < dim; d++)
-    {
-      m_samplingResolution.push_back(5);
-    }
-  }
+  void initializeSamplingResolution();
 
   /*!
    * \brief Verifies the input mesh.
@@ -316,14 +286,14 @@ protected:
    */
   bool verifyInputMeshImpl(std::string& whyBad) const override;
 
-#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+#if defined(AXOM_USE_CONDUIT)
   /*!
    * \brief Save a Blueprint file.
    *
    * \param n_mesh The Blueprint mesh to save.
    * \param filename The name of the file to save.
    */
-  void saveBlueprintFile(const conduit::Node &n_mesh, const std::string &filename) const;
+  void saveBlueprintFile(const conduit::Node& n_mesh, const std::string& filename) const;
 #endif
 
   /*!
@@ -343,7 +313,7 @@ protected:
     return std::make_unique<shaping::SamplingMFEMState>();
   }
 
-  /// 
+  /// Finish initializing the MFEM state.
   void initializeSamplingMFEMState()
   {
     // Shaper constructs its MFEM state in the base constructor, so upgrade it
@@ -356,43 +326,18 @@ protected:
     m_mfem_state = std::move(samplingState);
   }
 
+  /// Get a reference to the MFEM state as a SamplingMFEMState.
   shaping::SamplingMFEMState& samplingMFEMState()
   {
     SLIC_ASSERT(m_mfem_state != nullptr);
     return static_cast<shaping::SamplingMFEMState&>(*m_mfem_state);
   }
 
+  /// Get a reference to the MFEM state as a SamplingMFEMState.
   const shaping::SamplingMFEMState& samplingMFEMState() const
   {
     SLIC_ASSERT(m_mfem_state != nullptr);
     return static_cast<const shaping::SamplingMFEMState&>(*m_mfem_state);
-  }
-
-  shaping::QFunctionCollection& shapeQFuncs() { return samplingMFEMState().m_inoutShapeQFuncs; }
-  const shaping::QFunctionCollection& shapeQFuncs() const
-  {
-    return samplingMFEMState().m_inoutShapeQFuncs;
-  }
-
-  shaping::QFunctionCollection& materialQFuncs()
-  {
-    return samplingMFEMState().m_inoutMaterialQFuncs;
-  }
-  const shaping::QFunctionCollection& materialQFuncs() const
-  {
-    return samplingMFEMState().m_inoutMaterialQFuncs;
-  }
-
-  shaping::DenseTensorCollection& tensors() { return samplingMFEMState().m_inoutTensors; }
-  const shaping::DenseTensorCollection& tensors() const
-  {
-    return samplingMFEMState().m_inoutTensors;
-  }
-
-  shaping::MFEMArrayCollection& arrays() { return samplingMFEMState().m_inoutArrays; }
-  const shaping::MFEMArrayCollection& arrays() const
-  {
-    return samplingMFEMState().m_inoutArrays;
   }
 #endif
 
@@ -446,7 +391,6 @@ public:
 
   /// Initializes the spatial index for shaping
   void prepareShapeQuery(klee::Dimensions shapeDimension, const klee::Shape& shape) override;
-
 
   void runShapeQuery(const klee::Shape& shape) override
   {
@@ -517,6 +461,17 @@ public:
   ///@}
 
 public:
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+  /**
+   * \brief Import an initial set of material volume fractions before shaping
+   *
+   * \param [in] initialVolumeFractions The input data as a map from material names to fields
+   * 
+   * The imported fields are interpolated at quadrature points and registered
+   * with the supplied names as material-based quadrature fields
+   */
+  void importInitialVolumeFractions(const std::map<std::string, conduit::Node*>& initialVolumeFractions);
+#endif
 #if defined(AXOM_USE_MFEM)
   /**
    * \brief Import an initial set of material volume fractions before shaping
@@ -526,7 +481,8 @@ public:
    * The imported grid functions are interpolated at quadrature points and registered
    * with the supplied names as material-based quadrature fields
    */
-  void importInitialVolumeFractions(const std::map<std::string, mfem::GridFunction*>& initialGridFunctions);
+  void importInitialVolumeFractions(
+    const std::map<std::string, mfem::GridFunction*>& initialGridFunctions);
 #endif
 
   /*!
@@ -551,7 +507,7 @@ private:
 
   // Handles 2D or 3D shaping for compatible samplers, based on the template and associated parameter
   template <typename MeshState, typename SamplerType>
-  void runShapeQueryImplSampler(SamplerType* sampler, MeshState& meshState)
+  void runShapeQueryImplSampler(MeshState& meshState, SamplerType* sampler)
   {
     // Sample the InOut field at the mesh quadrature points
     if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
@@ -568,25 +524,21 @@ private:
       case 2:
         if(meshDim == 2)
         {
-          sampler->template sampleInOutField<2, 2>(meshState,
-                                                   m_projector22);
+          sampler->template sampleInOutField<2, 2>(meshState, m_projector22);
         }
         else if(meshDim == 3)
         {
-          sampler->template sampleInOutField<3, 2>(meshState,
-                                                   m_projector32);
+          sampler->template sampleInOutField<3, 2>(meshState, m_projector32);
         }
         break;
       case 3:
         if(meshDim == 2)
         {
-          sampler->template sampleInOutField<2, 3>(meshState,
-                                                   m_projector23);
+          sampler->template sampleInOutField<2, 3>(meshState, m_projector23);
         }
         else if(meshDim == 3)
         {
-          sampler->template sampleInOutField<3, 3>(meshState,
-                                                   m_projector33);
+          sampler->template sampleInOutField<3, 3>(meshState, m_projector33);
         }
         break;
       }
@@ -634,35 +586,35 @@ private:
 #if defined(AXOM_USE_MFEM)
     if(m_mfem_state != nullptr)
     {
-      runShapeQueryImplSampler(sampler, samplingMFEMState());
+      runShapeQueryImplSampler(samplingMFEMState(), sampler);
       return;
     }
 #endif
 #if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
     if(m_bp_state != nullptr)
     {
-      runShapeQueryImplSampler(sampler, *m_bp_state);
+      runShapeQueryImplSampler(*m_bp_state, sampler);
       return;
     }
 #endif
     SLIC_ERROR("No mesh state is available for SamplingShaper.");
   }
 
-  // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
+  // Handles 2D or 3D shaping for WindingNumberSampler, based on the template and associated parameter
   template <int DIM>
   void runShapeQueryImpl(shaping::WindingNumberSampler<DIM>* sampler)
   {
- #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
     if(m_mfem_state != nullptr)
     {
-      runShapeQueryImplSampler(sampler, samplingMFEMState());
+      runShapeQueryImplSampler(samplingMFEMState(), sampler);
       return;
     }
 #endif
 #if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
     if(m_bp_state != nullptr)
     {
-      runShapeQueryImplSampler(sampler, *m_bp_state);
+      runShapeQueryImplSampler(*m_bp_state, sampler);
       return;
     }
 #endif
@@ -680,33 +632,31 @@ private:
         shaping::generateSamplingPositions(meshState, m_samplingResolution.view(), m_quadratureType);
       }
 
-    // Sample the InOut field at the mesh quadrature points
-    switch(m_vfSampling)
-    {
-    case shaping::VolFracSampling::SAMPLE_AT_QPTS:
-      switch(DIM)
+      // Sample the InOut field at the mesh quadrature points
+      switch(m_vfSampling)
       {
-      case 2:
+      case shaping::VolFracSampling::SAMPLE_AT_QPTS:
+        switch(DIM)
+        {
+        case 2:
+          SLIC_ERROR("Not implemented yet!");
+          break;
+        case 3:
+          if(meshDim == 2)
+          {
+            sampler->template sampleInOutField<2, 3>(meshState, m_projector23);
+          }
+          else if(meshDim == 3)
+          {
+            sampler->template sampleInOutField<3, 3>(meshState, m_projector33);
+          }
+          break;
+        }
+        break;
+      case shaping::VolFracSampling::SAMPLE_AT_DOFS:
         SLIC_ERROR("Not implemented yet!");
         break;
-      case 3:
-        if(meshDim == 2)
-        {
-          sampler->template sampleInOutField<2, 3>(meshState,
-                                                   m_projector23);
-        }
-        else if(meshDim == 3)
-        {
-          sampler->template sampleInOutField<3, 3>(meshState,
-                                                   m_projector33);
-        }
-        break;
       }
-      break;
-    case shaping::VolFracSampling::SAMPLE_AT_DOFS:
-      SLIC_ERROR("Not implemented yet!");
-      break;
-    }
     };
 
 #if defined(AXOM_USE_MFEM)
@@ -726,6 +676,12 @@ private:
     SLIC_ERROR("No mesh state is available for SamplingShaper.");
   }
 
+  /*!
+   * \brief Apply replacement rules using for the supplied shape, adjusting functions in \a meshState.
+   *
+   * \param meshState The object that contains the mesh and fields.
+   * \param shape The shape being considered.
+   */
   template <typename MeshState>
   void applyReplacementRulesImpl(MeshState& meshState, const klee::Shape& shape)
   {

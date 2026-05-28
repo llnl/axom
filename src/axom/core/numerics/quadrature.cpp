@@ -318,8 +318,11 @@ QuadratureRule get_gauss_legendre(int npts, int allocatorID)
   // Store cached rules keyed by (npts, allocatorID).
   static axom::FlatMap<std::uint64_t, RuleStorage> rule_library(64);
   static std::mutex rule_library_mutex;
-  auto& storage = get_cached_rule_storage(
-    npts, allocatorID, rule_library, rule_library_mutex, compute_gauss_legendre_data);
+  auto& storage = get_cached_rule_storage(npts,
+                                          allocatorID,
+                                          rule_library,
+                                          rule_library_mutex,
+                                          compute_gauss_legendre_data);
   return QuadratureRule {storage.nodes.view(), storage.weights.view()};
 }
 
@@ -354,8 +357,11 @@ QuadratureRule get_open_uniform(int npts, int allocatorID)
 
   static axom::FlatMap<std::uint64_t, RuleStorage> rule_library(64);
   static std::mutex rule_library_mutex;
-  auto& storage = get_cached_rule_storage(
-    npts, allocatorID, rule_library, rule_library_mutex, compute_open_uniform_data);
+  auto& storage = get_cached_rule_storage(npts,
+                                          allocatorID,
+                                          rule_library,
+                                          rule_library_mutex,
+                                          compute_open_uniform_data);
   return QuadratureRule {storage.nodes.view(), storage.weights.view()};
 }
 
@@ -365,8 +371,11 @@ QuadratureRule get_closed_uniform(int npts, int allocatorID)
 
   static axom::FlatMap<std::uint64_t, RuleStorage> rule_library(64);
   static std::mutex rule_library_mutex;
-  auto& storage = get_cached_rule_storage(
-    npts, allocatorID, rule_library, rule_library_mutex, compute_closed_uniform_data);
+  auto& storage = get_cached_rule_storage(npts,
+                                          allocatorID,
+                                          rule_library,
+                                          rule_library_mutex,
+                                          compute_closed_uniform_data);
   return QuadratureRule {storage.nodes.view(), storage.weights.view()};
 }
 

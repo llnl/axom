@@ -121,10 +121,7 @@ public:
 
     const InOutOctreeType* octree = m_octree;
     auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
-    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
-                                              mfemState,
-                                              checkInside,
-                                              projector);
+    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName, mfemState, checkInside, projector);
   }
 
   /*!
@@ -185,10 +182,7 @@ public:
 
     const InOutOctreeType* octree = m_octree;
     auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
-    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
-                                              bpState,
-                                              checkInside,
-                                              projector);
+    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName, bpState, checkInside, projector);
   }
 
   template <int FromDim, int ToDim>

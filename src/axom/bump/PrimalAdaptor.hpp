@@ -326,6 +326,9 @@ struct PrimalAdaptor
     typename AdaptPolyhedron<TopologyView, CoordsetView, makeFaces>::PolyhedralRepresentation;
   using BoundingBox = axom::primal::BoundingBox<value_type, CoordsetView::dimension()>;
 
+  /// Return the dimension of the shape
+  static constexpr int dimension() { return CoordsetView::dimension(); }
+
   /*!
    * \brief Constructor
    *

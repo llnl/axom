@@ -322,10 +322,7 @@ public:
       }
       return inside;
     };
-    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
-                                              bpState,
-                                              checkInside,
-                                              projector);
+    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName, bpState, checkInside, projector);
   }
 
   template <int FromDim, int ToDim>

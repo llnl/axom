@@ -137,6 +137,11 @@ public:
 #endif
 
 #if defined(AXOM_USE_CONDUIT)
+  shaping::BlueprintState* getBlueprintState() { return m_bp_state.get(); }
+  conduit::Node* getBlueprintMeshNode()
+  {
+    return m_bp_state != nullptr ? &m_bp_state->m_internal_node : nullptr;
+  }
   const conduit::Node* getBlueprintMeshNode() const
   {
     return m_bp_state != nullptr ? &m_bp_state->m_internal_node : nullptr;
@@ -266,14 +271,12 @@ protected:
   /*!
    * \brief Selects the Blueprint topology name to use and verifies it exists.
    */
-  std::string resolveBlueprintTopologyName(const sidre::Group* bpMesh,
-                                           const std::string& topo) const;
+  std::string resolveBlueprintTopologyName(const sidre::Group* bpMesh, const std::string& topo) const;
 
   /*!
    * \brief Selects the Blueprint topology name to use and verifies it exists.
    */
-  std::string resolveBlueprintTopologyName(const conduit::Node& bpMesh,
-                                           const std::string& topo) const;
+  std::string resolveBlueprintTopologyName(const conduit::Node& bpMesh, const std::string& topo) const;
 
   /*!
    * \brief Rebuilds the internal Conduit view and cached cell count from the

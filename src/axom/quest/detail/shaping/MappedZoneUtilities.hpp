@@ -43,11 +43,8 @@ namespace detail
  * \return The mapped physical-space point.
  */
 template <typename ShapeType, typename CoordsetView>
-AXOM_HOST_DEVICE primal::Point<typename CoordsetView::value_type, 2> mapToPhysicalPoint(
-  const ShapeType& zone,
-  const CoordsetView& coordsetView,
-  double u,
-  double v)
+AXOM_HOST_DEVICE primal::Point<typename CoordsetView::value_type, 2>
+mapToPhysicalPoint(const ShapeType& zone, const CoordsetView& coordsetView, double u, double v)
 {
   using PointType = primal::Point<typename CoordsetView::value_type, 2>;
   const auto p0 = coordsetView[zone.getId(0)];
@@ -84,12 +81,8 @@ AXOM_HOST_DEVICE primal::Point<typename CoordsetView::value_type, 2> mapToPhysic
  * \return The mapped physical-space point.
  */
 template <typename ShapeType, typename CoordsetView>
-AXOM_HOST_DEVICE primal::Point<typename CoordsetView::value_type, 3> mapToPhysicalPoint(
-  const ShapeType& zone,
-  const CoordsetView& coordsetView,
-  double u,
-  double v,
-  double w)
+AXOM_HOST_DEVICE primal::Point<typename CoordsetView::value_type, 3>
+mapToPhysicalPoint(const ShapeType& zone, const CoordsetView& coordsetView, double u, double v, double w)
 {
   using PointType = primal::Point<typename CoordsetView::value_type, 3>;
   const auto p0 = coordsetView[zone.getId(0)];
@@ -170,8 +163,7 @@ AXOM_HOST_DEVICE double computePhysicalMeasureFactor(const ShapeType& zone,
     dxdv[d] = dv0 * p0[d] + dv1 * p1[d] + dv2 * p2[d] + dv3 * p3[d];
   }
 
-  return axom::utilities::abs(
-    axom::numerics::determinant(dxdu[0], dxdv[0], dxdu[1], dxdv[1]));
+  return axom::utilities::abs(axom::numerics::determinant(dxdu[0], dxdv[0], dxdu[1], dxdv[1]));
 }
 
 /*!
@@ -245,12 +237,12 @@ AXOM_HOST_DEVICE double computePhysicalMeasureFactor(const ShapeType& zone,
   VectorType dxdw;
   for(int d = 0; d < 3; ++d)
   {
-    dxdu[d] = du0 * p0[d] + du1 * p1[d] + du2 * p2[d] + du3 * p3[d] + du4 * p4[d] +
-      du5 * p5[d] + du6 * p6[d] + du7 * p7[d];
-    dxdv[d] = dv0 * p0[d] + dv1 * p1[d] + dv2 * p2[d] + dv3 * p3[d] + dv4 * p4[d] +
-      dv5 * p5[d] + dv6 * p6[d] + dv7 * p7[d];
-    dxdw[d] = dw0 * p0[d] + dw1 * p1[d] + dw2 * p2[d] + dw3 * p3[d] + dw4 * p4[d] +
-      dw5 * p5[d] + dw6 * p6[d] + dw7 * p7[d];
+    dxdu[d] = du0 * p0[d] + du1 * p1[d] + du2 * p2[d] + du3 * p3[d] + du4 * p4[d] + du5 * p5[d] +
+      du6 * p6[d] + du7 * p7[d];
+    dxdv[d] = dv0 * p0[d] + dv1 * p1[d] + dv2 * p2[d] + dv3 * p3[d] + dv4 * p4[d] + dv5 * p5[d] +
+      dv6 * p6[d] + dv7 * p7[d];
+    dxdw[d] = dw0 * p0[d] + dw1 * p1[d] + dw2 * p2[d] + dw3 * p3[d] + dw4 * p4[d] + dw5 * p5[d] +
+      dw6 * p6[d] + dw7 * p7[d];
   }
 
   return axom::utilities::abs(VectorType::scalar_triple_product(dxdu, dxdv, dxdw));

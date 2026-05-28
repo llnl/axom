@@ -144,13 +144,13 @@ if (CONDUIT_FOUND AND UMPIRE_FOUND)
 endif()
 
 # Shaping example -------------------------------------------------------------
-set(shaping_dependencies )
+set(shaping_driver_dependencies ${quest_example_depends})
 if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI)
   set(AXOM_HAS_MFEM_WITH_MPI TRUE)
-  list(APPEND shaping_dependencies mfem)
+  list(APPEND shaping_driver_dependencies mfem)
 endif()
 if(CONDUIT_FOUND)
-  list(APPEND shaping_dependencies conduit)
+  list(APPEND shaping_driver_dependencies conduit)
 endif()
 
 if((AXOM_HAS_MFEM_WITH_MPI OR (CONDUIT_FOUND AND AXOM_ENABLE_BUMP)) AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
@@ -158,7 +158,7 @@ if((AXOM_HAS_MFEM_WITH_MPI OR (CONDUIT_FOUND AND AXOM_ENABLE_BUMP)) AND AXOM_ENA
         NAME        quest_shaping_driver_ex
         SOURCES     shaping_driver.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends} ${shaping_dependencies}
+        DEPENDS_ON  ${shaping_driver_dependencies}
         FOLDER      axom/quest/examples
         )
 endif()
@@ -367,6 +367,27 @@ if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
         set_tests_properties(${_testname} PROPERTIES 
             PASS_REGULAR_EXPRESSION  "Volume of material 'air' is 182,?227,?963")
     endif()
+endif()
+# Blueprint-only shaping test
+if(CONDUIT_FOUND AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+    set(_nranks 1)
+    set(_testname quest_shaping_driver_ex_sampling_blueprint_3D)
+    axom_add_test(NAME ${_testname}
+                  COMMAND  quest_shaping_driver_ex 
+                            -i ${shaping_data_dir}/spheres.yaml
+                            --verbose
+                            --method sampling
+                            --sampling inout
+                            --background-material void
+                            inline_mesh_blueprint --min -6 -6 -6 --max 6 6 6 --res 16 16 16 -d 3
+                            --sampling-resolution 5 5 5
+                            --quadrature-type gausslegendre
+                  NUM_MPI_TASKS ${_nranks})
+    # bbox volume: 12^3 = 1728; sphere(r=5): ~523.6; sphere(r=2): 33.5
+    # expected analytic volume when fully resolved: ~1237.9
+    # NOTE: the answer depends on the quadrature type. This answer is for gausslegendre.
+    set_tests_properties(${_testname} PROPERTIES 
+                         PASS_REGULAR_EXPRESSION  "Volume of material 'void' is 1,?239.")
 endif()
 
 # Distributed closest point example -------------------------------------------
