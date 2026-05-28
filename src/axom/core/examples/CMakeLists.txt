@@ -12,7 +12,8 @@
 #------------------------------------------------------------------------------
 set(example_sources
     core_numerics.cpp
-    core_containers.cpp 
+    core_quadrature.cpp
+    core_containers.cpp
     core_acceleration.cpp)
 
 #------------------------------------------------------------------------------

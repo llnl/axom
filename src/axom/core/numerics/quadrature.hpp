@@ -60,7 +60,7 @@
  * for (int i = 0; i < rule.getNumPoints(); ++i) {
  *   integral += rule.weight(i) * (1.0 / (rule.node(i) - 1.5));
  * }
- * // Result: integral ≈ log(0.5) ≈ -0.693 (2 points vs 10+ for Gauss-Legendre)
+ * // Result: integral = ln(0.5 / 1.5) which is approximately -1.099 (2 points vs 10+ for Gauss-Legendre)
  * \endcode
  *
  * ### Understanding Poles
@@ -75,7 +75,7 @@
  *   - Example: specifying z = 1.5 + 0.2i automatically includes z = 1.5 - 0.2i
  *
  * - **Infinite poles** represent the polynomial limit
- *   - Use std::complex<double>(inf, 0.0) to specify
+ *   - Use std::complex<double>(std::numeric_limits<double>::infinity(), 0.0) to specify
  *   - All poles at infinity → standard Fejer (Chebyshev-based) rule
  *
  * The number of quadrature points equals (number of canonical poles + 1), where
@@ -100,21 +100,21 @@
  *
  * ### Cache Behavior
  *
- * Both \c get_gauss_legendre() and \c get_rational_fejer() use LRU caches:
+ * Both \c get_gauss_legendre() and \c get_rational_fejer() maintain process-wide caches:
  * - Gauss-Legendre: Unbounded cache (entries never evicted)
- * - Rational Fejer: 65,536 entry cache (LRU eviction when full)
+ * - Rational Fejer: 65,536 entry LRU cache (least-recently-used eviction when full)
  *
  * When rational Fejer cache is full, eviction invalidates views to evicted
  * rules. Use \c .copy() if you need stable storage beyond immediate use.
  *
  * ### Further Documentation
  *
- * See RATIONAL_QUADRATURE_GUIDE.md for:
+ * See the Core Numerics documentation in the Axom User Guide for:
+ * - Complete worked examples with expected output
  * - Detailed pole selection strategies
- * - Complete worked examples
- * - Performance considerations
- * - Comparison with Gauss-Legendre
- * - Device execution examples
+ * - Performance considerations and best practices
+ * - Comparison with Gauss-Legendre for various integrands
+ * - Advanced usage including caching and device execution
  *
  * ### References
  *

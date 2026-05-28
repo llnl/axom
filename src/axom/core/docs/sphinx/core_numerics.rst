@@ -8,9 +8,207 @@
 Core numerics
 ******************************************************
 
-The ``axom::numerics`` namespace was designed for convenient representation
-and use of matrices and vectors, with accompanying manipulation and solver 
-routines.
+The ``axom::numerics`` namespace provides numerical algorithms including:
+
+* **Vectors and Matrices:** Convenient representation with manipulation and solver routines
+* **Numerical Quadrature:** Gauss-Legendre and rational Fejer integration rules
+
+Numerical Quadrature
+==============================
+
+Axom provides 1D quadrature rules for numerical integration.
+Two families are supported:
+
+**Gauss-Legendre Quadrature**
+  Standard polynomial-based rules for smooth functions. An N-point Gauss-Legendre
+  rule can exactly integrate polynomials of degree 2N-1.
+
+**Rational Fejer Quadrature**
+  Pole-adapted rules for functions with known singularities or sharp features.
+  By specifying pole locations (where the function or its approximation is singular),
+  the quadrature adapts its basis to achieve high accuracy with fewer points.
+
+Both families use the same ``QuadratureRule`` interface. In the examples below,
+we obtain a rule with ``get_gauss_legendre()`` or ``get_rational_fejer()``,
+then either inspect its nodes and weights directly or pass it to a small helper
+that evaluates the weighted sum:
+
+.. literalinclude:: ../../examples/core_quadrature.cpp
+   :start-after: _quadrature_rule_start
+   :end-before: _quadrature_rule_end
+   :language: C++
+
+Both ``get_*`` entry points return a lightweight non-owning
+``QuadratureRuleView`` backed by cached quadrature data.
+
+Gauss-Legendre Quadrature
+------------------------------
+
+Gauss-Legendre rules are optimal for integrating smooth, polynomial-like
+functions on [0, 1].
+
+We can access a Gauss-Legendre rule with ``n`` nodes as follows.
+
+.. code-block:: cpp
+
+  auto rule = axom::numerics::get_gauss_legendre(5);
+
+This returns a cached ``QuadratureRuleView``. On the first request for a given
+order, Axom computes the nodes and weights with
+``axom::numerics::compute_gauss_legendre_data()`` and stores them for reuse.
+
+Gauss-Legendre rules have polynomial exactness. A 5-point rule integrates
+polynomials up to degree 9 exactly:
+
+.. literalinclude:: ../../examples/core_quadrature.cpp
+   :start-after: _gauss_legendre_exactness_start
+   :end-before: _gauss_legendre_exactness_end
+   :language: C++
+
+For smooth functions, higher-order rules converge rapidly:
+
+.. literalinclude:: ../../examples/core_quadrature.cpp
+   :start-after: _gauss_legendre_smooth_start
+   :end-before: _gauss_legendre_smooth_end
+   :language: C++
+
+Example output:
+
+.. code-block:: text
+
+   Integrate sin(pi*x) from 0 to 1 with varying orders:
+      3 points: error = 4.421e-04
+      5 points: error = 3.510e-08
+     10 points: error = 1.110e-16
+     20 points: error = 2.220e-16
+
+
+
+Rational Fejer Quadrature
+------------------------------
+
+Rational Fejer quadrature excels at integrating functions with known singularities
+or sharp gradients at specific locations called **poles**. A pole is a complex
+value where the function (or its rational approximation) becomes singular.
+
+For example, integrating f(x) = 1/(x - 1.5) on [0, 1] with a pole at x = 1.5:
+
+.. literalinclude:: ../../examples/core_quadrature.cpp
+   :start-after: _rational_fejer_singularity_start
+   :end-before: _rational_fejer_singularity_end
+   :language: C++
+
+Comparison with Gauss-Legendre
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For functions with near-singularities, rational Fejer can achieve machine
+precision with far fewer points than Gauss-Legendre:
+
+.. literalinclude:: ../../examples/core_quadrature.cpp
+   :start-after: _rational_fejer_vs_gauss_start
+   :end-before: _rational_fejer_vs_gauss_end
+   :language: C++
+
+
+Example output:
+
+.. code-block:: text
+
+   Comparison: Gauss-Legendre vs Rational Fejer
+   Function: f(x) = 1/(x - 1.2) on [0, 1]
+   Singularity at x = 1.2 (close to domain boundary)
+   
+   Gauss-Legendre:
+      5 points: error = 4.241e-04
+     10 points: error = 7.516e-08
+     20 points: error = 8.882e-16
+     50 points: error = 8.882e-16
+   
+   Rational Fejer (pole at x = 1.2):
+      2 points: error = 0.000e+00
+     (Achieves machine precision with only 2 points!)
+
+Multiple Singularities
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Functions with multiple singularities can specify multiple poles:
+
+.. literalinclude:: ../../examples/core_quadrature.cpp
+   :start-after: _rational_fejer_multiple_poles_start
+   :end-before: _rational_fejer_multiple_poles_end
+   :language: C++
+
+Pole Selection Guidelines
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+**When to use rational Fejer:**
+
+* Functions with known singularities outside [0, 1]
+* Sharp gradients near domain boundaries (geometric corners)
+* Standard Gauss-Legendre requires very high orders
+* Integrand is well-approximated by rational functions
+
+**Pole requirements:**
+
+* Finite real poles must lie **outside** [0, 1] (e.g., -0.2, 1.5, 2.0)
+* Complex poles are auto-completed to conjugate pairs
+* Infinite poles: use
+  ``std::complex<double>(std::numeric_limits<double>::infinity(), 0.0)``
+  for the polynomial limit
+* The rule has (number of canonical poles + 1) points
+
+**Pole placement strategies:**
+
+1. **Known singularities:** Place poles at actual singularity locations
+2. **Geometric features:** Place poles near sharp corners or discontinuities
+3. **Multiple poles:** Repeat a pole to model higher-order singularities
+4. **Infinite poles:** All poles at infinity gives polynomial Fejer (Chebyshev-based)
+5. **Mixed finite/infinite poles:** Endpoint algebraic singularities such as
+   ``sqrt(x)`` can benefit from combining nearby real poles with a few poles at
+   infinity, rather than using only nearby real poles
+
+Advanced Usage
+^^^^^^^^^^^^^^
+
+QuadratureRule vs QuadratureRuleView
+"""""""""""""""""""""""""""""""""""""
+
+Similar to Array/ArrayView, quadrature rules have owning and non-owning versions:
+
+.. literalinclude:: ../../examples/core_quadrature.cpp
+   :start-after: _quadrature_rule_copy_start
+   :end-before: _quadrature_rule_copy_end
+   :language: C++
+
+Cached vs Direct Computation
+"""""""""""""""""""""""""""""
+
+Two APIs are provided for rational Fejer:
+
+.. literalinclude:: ../../examples/core_quadrature.cpp
+   :start-after: _quadrature_compute_vs_cached_start
+   :end-before: _quadrature_compute_vs_cached_end
+   :language: C++
+
+The ``get_rational_fejer()`` function uses an LRU cache of 65,536 rules. When
+the cache is full, the least recently used rule is evicted, invalidating views to
+it. Use ``.copy()`` if you need stable storage beyond immediate use.
+
+Infinite Poles
+""""""""""""""
+
+All poles at infinity produce the standard polynomial Fejer
+(Chebyshev-based) rule:
+
+.. literalinclude:: ../../examples/core_quadrature.cpp
+   :start-after: _quadrature_infinite_poles_start
+   :end-before: _quadrature_infinite_poles_end
+   :language: C++
+
+Matrices and Vectors
+==============================
+
+The following sections describe matrix and vector operations.
 
 The following example shows some basic vector operations.
 
@@ -168,4 +366,3 @@ The example produces the following output::
   [ 1 -0.666667 3 ]
    with pivots [1, 2, 2] with result 0 (0 is success)
   Found x = [3, 4, -2] 
-
