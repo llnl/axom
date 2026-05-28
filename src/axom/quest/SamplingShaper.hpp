@@ -20,8 +20,9 @@
 #include "axom/mint.hpp"
 #include "axom/klee.hpp"
 
-#if (!defined(AXOM_USE_MFEM) && !defined(AXOM_USE_CONDUIT)) || !defined(AXOM_USE_SIDRE)
-  #error SamplingShaper requires Axom to be configured with Sidre and either MFEM or Conduit
+#if (!defined(AXOM_USE_MFEM) && !(defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP))) || \
+  !defined(AXOM_USE_SIDRE)
+  #error SamplingShaper requires Axom to be configured with Sidre and either MFEM or Conduit+Bump
 #endif
 
 #include "axom/quest/Shaper.hpp"
@@ -37,7 +38,7 @@
   #include "mfem/linalg/dtensor.hpp"
 #endif
 
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
   #include "conduit/conduit_relay_io.hpp"
   #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
     #ifdef CONDUIT_RELAY_MPI_ENABLED
@@ -155,7 +156,7 @@ public:
   }
 #endif
 
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
   /// Sidre-compatible constructor
   SamplingShaper(RuntimePolicy execPolicy,
                  int allocatorId,
@@ -315,7 +316,7 @@ protected:
    */
   bool verifyInputMeshImpl(std::string& whyBad) const override;
 
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
   /*!
    * \brief Save a Blueprint file.
    *
@@ -487,7 +488,7 @@ public:
       return;
     }
 #endif
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
     if(m_bp_state != nullptr)
     {
       applyReplacementRulesImpl(*m_bp_state, shape);
@@ -637,7 +638,7 @@ private:
       return;
     }
 #endif
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
     if(m_bp_state != nullptr)
     {
       runShapeQueryImplSampler(sampler, *m_bp_state);
@@ -658,7 +659,7 @@ private:
       return;
     }
 #endif
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
     if(m_bp_state != nullptr)
     {
       runShapeQueryImplSampler(sampler, *m_bp_state);
@@ -715,7 +716,7 @@ private:
       return;
     }
 #endif
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
     if(m_bp_state != nullptr)
     {
       runImpl(*m_bp_state);

@@ -14,7 +14,7 @@ namespace quest
   {
     bool rval = true;
 
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
     if(m_bp_state != nullptr)
     {
       rval = verifyBlueprintMeshIsStructuredOrUnstructuredQuadHex(whyBad);
@@ -31,7 +31,7 @@ namespace quest
     return rval;
   }
 
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
   void SamplingShaper::saveBlueprintFile(const conduit::Node &n_mesh, const std::string &filename) const
   {                                             
   #ifdef CONDUIT_RELAY_MPI_ENABLED
@@ -44,7 +44,7 @@ namespace quest
 
   void SamplingShaper::saveQuadraturePoints(const std::string& filename) const
   {
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
     conduit::Node n_mesh;
 
     // Save the quadrature points from MFEM as a Blueprint file.
@@ -347,7 +347,7 @@ void SamplingShaper::prepareShapeQuery(klee::Dimensions shapeDimension, const kl
       return;
     }
 #endif
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
     if(m_bp_state != nullptr)
     {
       shaping::printRegisteredFieldNames(*m_bp_state,
@@ -387,7 +387,7 @@ void SamplingShaper::prepareShapeQuery(klee::Dimensions shapeDimension, const kl
       return;
     }
 #endif
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
     if(m_bp_state != nullptr)
     {
       shaping::computeVolumeFractionsForMaterial(*m_bp_state, matField);
@@ -431,7 +431,7 @@ void SamplingShaper::prepareShapeQuery(klee::Dimensions shapeDimension, const kl
       dim = m_mfem_state->meshDimension();
     }
 #endif
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
     if(dim == InvalidDimension && m_bp_state)
     {
       dim = m_bp_state->meshDimension();

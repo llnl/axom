@@ -5,14 +5,16 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "shaping_helpers_blueprint.hpp"
-#include "GenerateQuadratureMesh.hpp"
 
 #if defined(AXOM_USE_CONDUIT)
 
-#include "axom/bump/views/dispatch_topology.hpp"
-#include "axom/bump/views/dispatch_unstructured_topology.hpp"
-
 #include "conduit_blueprint_mesh.hpp"
+
+#if defined(AXOM_USE_BUMP)
+  #include "GenerateQuadratureMesh.hpp"
+  #include "axom/bump/views/dispatch_topology.hpp"
+  #include "axom/bump/views/dispatch_unstructured_topology.hpp"
+#endif
 
 #include <vector>
 
@@ -32,20 +34,6 @@ constexpr const char* ORIGINAL_ELEMENTS_FIELD_NAME = "originalElements";
 constexpr const char* QUADRATURE_WEIGHTS_FIELD_NAME = "quadratureWeights";
 constexpr const char* QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME =
   "quadraturePhysicalWeights";
-
-numerics::QuadratureRule getBlueprintQuadratureRule(
-  axom::numerics::QuadratureType quadratureType,
-  int npts,
-  int allocatorID)
-{
-  SLIC_ERROR_IF(npts < 1, axom::fmt::format("Invalid sample resolution {}.", npts));
-  SLIC_ERROR_IF(!axom::numerics::is_supported_quadrature_type(quadratureType),
-                axom::fmt::format(
-                  "Quadrature type {} is not yet supported for Blueprint quadrature meshes.",
-                  static_cast<int>(quadratureType)));
-
-  return numerics::get_quadrature_rule(quadratureType, npts, allocatorID);
-}
 
 std::string getBlueprintCellShapeImpl(const conduit::Node& topoNode)
 {
@@ -77,6 +65,21 @@ std::string getBlueprintCellShapeImpl(const conduit::Node& topoNode)
   SLIC_ERROR(
     axom::fmt::format("Blueprint topology type '{}' is missing 'elements/shape'.", topoType));
   return "";
+}
+
+#if defined(AXOM_USE_BUMP)
+numerics::QuadratureRule getBlueprintQuadratureRule(
+  axom::numerics::QuadratureType quadratureType,
+  int npts,
+  int allocatorID)
+{
+  SLIC_ERROR_IF(npts < 1, axom::fmt::format("Invalid sample resolution {}.", npts));
+  SLIC_ERROR_IF(!axom::numerics::is_supported_quadrature_type(quadratureType),
+                axom::fmt::format(
+                  "Quadrature type {} is not yet supported for Blueprint quadrature meshes.",
+                  static_cast<int>(quadratureType)));
+
+  return numerics::get_quadrature_rule(quadratureType, npts, allocatorID);
 }
 
 template <typename ExecSpace, typename CoordsetView>
@@ -113,6 +116,7 @@ void buildBlueprintQuadratureMesh(const conduit::Node& topoNode,
                         meshNode);
     });
 }
+#endif
 
 }  // namespace
 
@@ -121,6 +125,7 @@ std::string getBlueprintCellShape(const conduit::Node& topoNode)
   return getBlueprintCellShapeImpl(topoNode);
 }
 
+#if defined(AXOM_USE_BUMP)
 void printRegisteredFieldNames(const BlueprintState& bpState,
                                const std::set<std::string>& knownMaterials,
                                VolFracSampling AXOM_UNUSED_PARAM(vfSampling),
@@ -489,6 +494,8 @@ conduit::Node* cloneInOutFunction(const conduit::Node* node)
   SLIC_ASSERT(node != nullptr);
   return new conduit::Node(*node);
 }
+
+#endif  // defined(AXOM_USE_BUMP)
 
 }  // end namespace shaping
 }  // end namespace quest

@@ -11,9 +11,12 @@
 
 #if defined(AXOM_USE_CONDUIT)
 
-#include "axom/bump/utilities/conduit_memory.hpp"
-#include "axom/bump/views/dispatch_coordset.hpp"
 #include "axom/fmt.hpp"
+
+#if defined(AXOM_USE_BUMP)
+  #include "axom/bump/utilities/conduit_memory.hpp"
+  #include "axom/bump/views/dispatch_coordset.hpp"
+#endif
 
 #include "conduit_node.hpp"
 
@@ -98,6 +101,7 @@ struct BlueprintState
                                                       : nullptr;
   }
 
+#if defined(AXOM_USE_BUMP)
   conduit::Node* createMaterialFunction(const std::string& name)
   {
     constexpr const char* quadratureTopologyName = "quadrature_points";
@@ -128,8 +132,10 @@ struct BlueprintState
 
     return &fieldNode;
   }
+#endif
 };
 
+#if defined(AXOM_USE_BUMP)
 void printRegisteredFieldNames(const BlueprintState& bpState,
                                const std::set<std::string>& knownMaterials,
                                VolFracSampling vfSampling,
@@ -228,6 +234,8 @@ void sampleInOutField(const std::string& shapeName,
     timer.elapsed(),
     static_cast<int>(numQueryPoints / timer.elapsed())));
 }
+
+#endif  // defined(AXOM_USE_BUMP)
 
 }  // end namespace shaping
 }  // end namespace quest

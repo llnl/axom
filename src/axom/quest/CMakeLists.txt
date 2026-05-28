@@ -151,17 +151,10 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
         list(APPEND quest_headers Shaper.hpp
                                   DiscreteShape.hpp
                                   IntersectionShaper.hpp
-                                  SamplingShaper.hpp 
-                                  detail/shaping/shaping_helpers.hpp
-                                  detail/shaping/InOutSampler.hpp
-                                  detail/shaping/PrimitiveSampler.hpp
-                                  detail/shaping/WindingNumberSampler.hpp
-                                  )
+                                  detail/shaping/shaping_helpers.hpp)
         list(APPEND quest_sources Shaper.cpp
                                   DiscreteShape.cpp
-                                  SamplingShaper.cpp
-                                  detail/shaping/shaping_helpers.cpp
-                                  )
+                                  detail/shaping/shaping_helpers.cpp)
         if(MFEM_FOUND)
             list(APPEND quest_headers detail/shaping/shaping_helpers_mfem.hpp)
             list(APPEND quest_sources detail/shaping/shaping_helpers_mfem.cpp)
@@ -171,6 +164,14 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
             list(APPEND quest_sources detail/shaping/shaping_helpers_blueprint.cpp)
         endif()
         list(APPEND quest_depends_on klee)
+    endif()
+
+    if(MFEM_FOUND OR (CONDUIT_FOUND AND AXOM_ENABLE_BUMP))
+        list(APPEND quest_headers SamplingShaper.hpp
+                                  detail/shaping/InOutSampler.hpp
+                                  detail/shaping/PrimitiveSampler.hpp
+                                  detail/shaping/WindingNumberSampler.hpp)
+        list(APPEND quest_sources SamplingShaper.cpp)
     endif()
 
     # Geometry clipping requires Conduit, Sidre, and RAJA.

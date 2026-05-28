@@ -153,7 +153,7 @@ if(CONDUIT_FOUND)
   list(APPEND shaping_dependencies conduit)
 endif()
 
-if((AXOM_HAS_MFEM_WITH_MPI OR CONDUIT_FOUND) AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
+if((AXOM_HAS_MFEM_WITH_MPI OR (CONDUIT_FOUND AND AXOM_ENABLE_BUMP)) AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
     axom_add_executable(
         NAME        quest_shaping_driver_ex
         SOURCES     shaping_driver.cpp

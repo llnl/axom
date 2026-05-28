@@ -307,7 +307,7 @@ public:
   }
 #endif
 
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::BlueprintState& bpState,
                                                         PointProjector<FromDim, ToDim> projector = {})
