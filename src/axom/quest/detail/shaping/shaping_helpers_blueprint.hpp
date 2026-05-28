@@ -300,26 +300,25 @@ void sampleInOutField(const std::string& shapeName,
     [&](auto coordsetView) {
       using CoordsetView = typename std::decay<decltype(coordsetView)>::type;
 
-      SLIC_ERROR_IF(CoordsetView::dimension() != FromDim,
-                    axom::fmt::format("Expected {}D quadrature point coordset, got {}D.",
-                                      FromDim,
-                                      CoordsetView::dimension()));
-
-      numQueryPoints = coordsetView.size();
-      valuesNode.set(conduit::DataType::float64(numQueryPoints));
-      auto inoutValues = utils::make_array_view<double>(valuesNode);
-
-      for(axom::IndexType i = 0; i < numQueryPoints; ++i)
+      // Limit to handling coordsets whose dimensions match FromDim.
+      if constexpr (CoordsetView::dimension() == FromDim)
       {
-        FromPoint fromPt;
-        const auto coordsetPoint = coordsetView[i];
-        for(int d = 0; d < FromDim; ++d)
-        {
-          fromPt[d] = coordsetPoint[d];
-        }
+        numQueryPoints = coordsetView.size();
+        valuesNode.set(conduit::DataType::float64(numQueryPoints));
+        auto inoutValues = utils::make_array_view<double>(valuesNode);
 
-        const ToPoint queryPt = projector ? projector(fromPt) : ToPoint(fromPt.data());
-        inoutValues[i] = checkInside(queryPt) ? 1. : 0.;
+        for(axom::IndexType i = 0; i < numQueryPoints; ++i)
+        {
+          FromPoint fromPt;
+          const auto coordsetPoint = coordsetView[i];
+          for(int d = 0; d < FromDim; ++d)
+          {
+            fromPt[d] = coordsetPoint[d];
+          }
+
+          const ToPoint queryPt = projector ? projector(fromPt) : ToPoint(fromPt.data());
+          inoutValues[i] = checkInside(queryPt) ? 1. : 0.;
+        }
       }
     });
   timer.stop();

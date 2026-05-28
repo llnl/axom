@@ -89,9 +89,9 @@ void buildBlueprintQuadratureMesh(const conduit::Node& topoNode,
                                   conduit::Node& meshNode)
 {
   namespace views = axom::bump::views;
-  constexpr int SupportedShapes = views::select_shapes(views::Quad_ShapeID, views::Hex_ShapeID);
+  constexpr int SupportedShapes = (CoordsetView::dimension() == 2) ? views::select_shapes(views::Quad_ShapeID) : views::select_shapes(views::Hex_ShapeID);
 
-  views::dispatch_topology<views::select_dimensions(2, 3), SupportedShapes>(
+  views::dispatch_topology<views::select_dimensions(CoordsetView::dimension()), SupportedShapes>(
     topoNode,
     [&](const auto&, auto topoView) {
       GenerateQuadratureMesh<ExecSpace, decltype(topoView), CoordsetView> generator(topoView,
