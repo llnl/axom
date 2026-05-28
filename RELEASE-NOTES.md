@@ -37,7 +37,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Adds Durand-Kerner polynomial solver which returns the complex roots of a univariate polynomial
 - Core: Adds `axom::Array::pop_back` for API compatibility with `std::vector`
 - Core: Adds `axom::LRUCache` template class providing a fixed-capacity least-recently-used cache
-- Core: Adds rational Fejer quadrature for integrating functions with known singularities or sharp 
+- Core: Adds rational Fejer quadrature for integrating functions with known singularities or sharp
   features at prescribed pole locations.
 
 ### Removed
@@ -47,15 +47,16 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ### Changed
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
-- Core: `QuadratureRule` is now an owning class (stores its own node/weight arrays) and 
-  `QuadratureRuleView` is a new non-owning view class (device-compatible). The `get_gauss_legendre()` 
+- Core: `QuadratureRule` is now an owning class (stores its own node/weight arrays) and
+  `QuadratureRuleView` is a new non-owning view class that can be captured by device kernels
+  when backed by device-accessible memory. The `get_gauss_legendre()`
   function now returns `QuadratureRuleView` instead of `QuadratureRule`. Existing code can migrate by:
-  (1) changing the variable type to `QuadratureRuleView`, (2) using `auto`, or (3) calling `.copy()` 
+  (1) changing the variable type to `QuadratureRuleView`, (2) using `auto`, or (3) calling `.copy()`
   to create an owned `QuadratureRule`. This change improves device compatibility and eliminates unnecessary copies when working with cached rules.
 
 ### Fixed
 - Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
-- Core: Fixes `Array` storage policy interface to use `IndexType` instead of `int` for capacity parameters, 
+- Core: Fixes `Array` storage policy interface to use `IndexType` instead of `int` for capacity parameters,
   improving consistency and avoiding potential overflow issues
 
 ## [Version 0.14.0] - Release date 2026-03-31

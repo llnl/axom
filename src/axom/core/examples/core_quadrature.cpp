@@ -122,7 +122,7 @@ void demoGaussLegendre()
   {
     // _gauss_legendre_smooth_start
     // Integrate a smooth function: sin(pi*x) from 0 to 1
-    // Exact: 2/pi ≈ 0.636620
+    // Exact: 2/pi, approximately 0.636620
     auto sine_func = [](double x) { return std::sin(M_PI * x); };
     double exact_sine = 2.0 / M_PI;
 
@@ -150,7 +150,7 @@ void demoRationalFejer()
     // _rational_fejer_singularity_start
     // Integrate f(x) = 1/(x - 1.5) from 0 to 1
     // This has a singularity at x = 1.5 (outside the domain)
-    // Exact integral: log(|1-1.5|/|0-1.5|) = log(0.5/1.5) ≈ -1.0986
+    // Exact integral: log(|1-1.5|/|0-1.5|) = log(0.5/1.5), approximately -1.0986
 
     // Define poles at the singularity location
     axom::Array<std::complex<double>> poles = {std::complex<double>(1.5, 0.0)};
@@ -210,7 +210,7 @@ void demoRationalFejer()
     // Rational Fejer can also be used for non-polynomial integrands by adding extra poles at infinity
     // Integrate sqrt(x) from 0 to 1
     // Has infinite derivative at x = 0 (corner singularity)
-    // Exact: 2/3 ≈ 0.666667
+    // Exact: 2/3, approximately 0.666667
 
     std::cout << axom::fmt::format("Corner singularity: integrate sqrt(x) from 0 to 1\n");
     std::cout << axom::fmt::format("Exact integral: 2/3 = 0.666667\n\n");
@@ -357,7 +357,7 @@ void demoAdvancedUsage()
 
   std::cout << axom::fmt::format("Infinite poles (polynomial Fejer limit):\n\n");
 
-  // All poles at infinity → standard Fejer (Chebyshev-based) rule
+  // All poles at infinity -> standard Fejer (Chebyshev-based) rule
   constexpr double inf = std::numeric_limits<double>::infinity();
   axom::Array<std::complex<double>> infinite_poles = {std::complex<double>(inf, 0.0),
                                                       std::complex<double>(inf, 0.0),
@@ -365,7 +365,7 @@ void demoAdvancedUsage()
 
   auto infinite_rule = axom::numerics::get_rational_fejer(infinite_poles);
 
-  std::cout << axom::fmt::format("  3 infinite poles → {} point rule\n",
+  std::cout << axom::fmt::format("  3 infinite poles -> {} point rule\n",
                                  infinite_rule.getNumPoints());
   std::cout << axom::fmt::format("  This is equivalent to a polynomial Fejer rule\n");
   std::cout << axom::fmt::format("  Good for smooth functions without specific pole structure\n");

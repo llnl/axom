@@ -135,7 +135,7 @@ void compute_rational_fejer_data_m11(axom::ArrayView<const Complex> poles_m11,
  * The diagnostic data records the same internal quantities used by
  * \c compute_rational_fejer_data_m11(), including canonical poles, Cayley
  * poles, rational Chebyshev nodes/weights, sampled basis columns, basis
- * coefficients, and per-step orthogonalization data.
+ * integral coefficients, and per-step orthogonalization data.
  *
  * \param [in] poles_m11 Pole sequence in the `[-1,1]` coordinate system.
  * \param [out] diagnostics Diagnostic structure populated by the construction.

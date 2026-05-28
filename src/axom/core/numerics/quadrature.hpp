@@ -76,7 +76,7 @@
  *
  * - **Infinite poles** represent the polynomial limit
  *   - Use std::complex<double>(std::numeric_limits<double>::infinity(), 0.0) to specify
- *   - All poles at infinity → standard Fejer (Chebyshev-based) rule
+ *   - All poles at infinity -> standard Fejer (Chebyshev-based) rule
  *
  * The number of quadrature points equals (number of canonical poles + 1), where
  * canonical poles include auto-completed conjugates.
@@ -85,10 +85,14 @@
  *
  * Following Axom's Array/ArrayView pattern:
  * - \c QuadratureRule: Owns node and weight arrays (use for long-term storage)
- * - \c QuadratureRuleView: Non-owning view (lightweight, device-compatible)
+ * - \c QuadratureRuleView: Non-owning view (lightweight and device-capturable
+ *   when its backing storage is device-accessible)
  *
  * The \c get_* functions return views over cached data. Use \c .copy() when
- * you need owned storage whose lifetime is independent of the cache:
+ * you need owned storage whose lifetime is independent of the cache. In
+ * multi-threaded code that may insert many distinct rules concurrently,
+ * synchronize around the get-and-copy sequence or use the uncached compute
+ * APIs to avoid racing with cache eviction.
  *
  * \code{.cpp}
  * // Get cached view (lightweight)
@@ -104,9 +108,9 @@
  * - Gauss-Legendre: Unbounded cache (entries never evicted)
  * - Rational Fejer: 65,536 entry LRU cache (least-recently-used eviction when full)
  *
- * When rational Fejer cache is full, eviction invalidates views to evicted
- * rules. Use \c .copy() if you need storage that remains valid independent of
- * later cache insertions.
+ * When the rational Fejer cache is full, eviction invalidates views to evicted
+ * rules. A completed \c .copy() is independent of later cache insertions, but
+ * the returned view itself is not protected against concurrent eviction.
  *
  * ### Further Documentation
  *
@@ -138,7 +142,8 @@ class QuadratureRuleView;
  * \brief Owns arrays for a 1D quadrature rule.
  *
  * `QuadratureRule` stores its own node and weight arrays. Use \c view() when a
- * lightweight non-owning rule is needed, including in device kernels.
+ * lightweight non-owning rule is needed, including in device kernels when the
+ * owned arrays are allocated in a device-accessible memory space.
  */
 class QuadratureRule
 {
@@ -388,8 +393,8 @@ void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> pol
  *
  * ### Caching Behavior
  *
- * - **Cache hit:** Returns a view over previously computed rule (fast O(1) lookup)
- * - **Cache miss:** Computes rule, stores in cache, returns view (O(m^2) construction)
+ * - **Cache hit:** Returns a view over a previously computed rule after canonical key construction
+ * - **Cache miss:** Computes the rule, stores it in the cache, and returns a view
  * - **Cache full:** Evicts least-recently-used entry before inserting new rule
  *
  * ### When to Use .copy()
@@ -397,8 +402,12 @@ void compute_rational_fejer_data(axom::ArrayView<const std::complex<double>> pol
  * The returned `QuadratureRuleView` points to cached storage. Use `.copy()` if:
  * - Storing the rule for use beyond the cache-backed call site
  * - Uncertain about cache lifetime (e.g., generating many different pole sequences)
- * - Other threads may concurrently insert enough distinct rules to trigger eviction
  * - Need guaranteed stable pointers to node/weight arrays
+ *
+ * In multi-threaded code, the returned view can be invalidated after the cache
+ * mutex is released if other threads insert enough distinct rules to evict it.
+ * Synchronize externally around get-and-copy when that race is possible, or use
+ * \c compute_rational_fejer_data() to construct owned arrays without the cache.
  *
  * \code{.cpp}
  * // Owned copy protects against later cache eviction

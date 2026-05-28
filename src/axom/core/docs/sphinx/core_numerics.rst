@@ -118,13 +118,13 @@ Example output:
    Comparison: Gauss-Legendre vs Rational Fejer
    Function: f(x) = 1/(x - 1.2) on [0, 1]
    Singularity at x = 1.2 (close to domain boundary)
-   
+
    Gauss-Legendre:
       5 points: error = 4.241e-04
      10 points: error = 7.516e-08
      20 points: error = 8.882e-16
      50 points: error = 8.882e-16
-   
+
    Rational Fejer (pole at x = 1.2):
       2 points: error = 0.000e+00
      (Achieves machine precision with only 2 points!)
@@ -188,8 +188,15 @@ Two APIs are provided for rational Fejer:
 
 The ``get_rational_fejer()`` function uses an LRU cache of 65,536 rules. When
 the cache is full, the least recently used rule is evicted, invalidating views
-to it. Use ``.copy()`` if you need stable storage, especially if many distinct
-pole sequences may be inserted into the cache.
+to it. Use ``.copy()`` if you need stable storage after the copy completes. In
+multi-threaded code that may insert many distinct rules concurrently, synchronize
+around the get-and-copy sequence or use ``compute_rational_fejer_data()`` to
+construct owned arrays without the cache.
+
+Rational Fejer construction writes nodes and weights on the host. Use host or
+unified-memory allocators for the cached/output arrays; unified memory is the
+appropriate choice when the resulting ``QuadratureRuleView`` will be captured by
+device kernels.
 
 Infinite Poles
 """"""""""""""
