@@ -144,13 +144,13 @@ if (CONDUIT_FOUND AND UMPIRE_FOUND)
 endif()
 
 # Shaping example -------------------------------------------------------------
-set(shaping_dependencies )
+set(shaping_driver_dependencies ${quest_example_depends})
 if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI)
   set(AXOM_HAS_MFEM_WITH_MPI TRUE)
-  list(APPEND shaping_dependencies mfem)
+  list(APPEND shaping_driver_dependencies mfem)
 endif()
 if(CONDUIT_FOUND)
-  list(APPEND shaping_dependencies conduit)
+  list(APPEND shaping_driver_dependencies conduit)
 endif()
 
 if((AXOM_HAS_MFEM_WITH_MPI OR CONDUIT_FOUND) AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
@@ -158,7 +158,7 @@ if((AXOM_HAS_MFEM_WITH_MPI OR CONDUIT_FOUND) AND AXOM_ENABLE_SIDRE AND AXOM_ENAB
         NAME        quest_shaping_driver_ex
         SOURCES     shaping_driver.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends} ${shaping_dependencies}
+        DEPENDS_ON  ${shaping_driver_dependencies}
         FOLDER      axom/quest/examples
         )
 endif()
