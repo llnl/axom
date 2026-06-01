@@ -640,7 +640,7 @@ TEST(primal_solid_angle, teardrop_regression_test)
       // The vertical cross-section of the tip is given by 3sin(1/3 * asin(1-2x)) + x - 0.5
       double fun = 3 * std::sin(1.0 / 3.0 * std::asin(1 - 2 * radius)) + radius - 0.5;
       return (x[2] <= fun) &&
-        ((x[2] > -1.0) || std::sqrt(x[0] * x[0] + x[1] * x[1] + (x[2] + 1.0) * (x[2] + 1.0) <= 1.0));
+        ((x[2] > -1.0) || std::sqrt(x[0] * x[0] + x[1] * x[1] + (x[2] + 1.0) * (x[2] + 1.0)) <= 1.0);
     }
   };
 

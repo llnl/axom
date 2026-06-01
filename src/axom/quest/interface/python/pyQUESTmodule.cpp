@@ -863,9 +863,9 @@ initquest(void)
   struct module_state *st = GETSTATE(m);
 
   // enum axom::quest::SignedDistExec
-  PyModule_AddIntConstant(m, "CPU", axom::quest::CPU);
-  PyModule_AddIntConstant(m, "OpenMP", axom::quest::OpenMP);
-  PyModule_AddIntConstant(m, "GPU", axom::quest::GPU);
+  PyModule_AddIntConstant(m, "CPU", static_cast<int>(axom::quest::SignedDistExec::CPU));
+  PyModule_AddIntConstant(m, "OpenMP", static_cast<int>(axom::quest::SignedDistExec::OpenMP));
+  PyModule_AddIntConstant(m, "GPU", static_cast<int>(axom::quest::SignedDistExec::GPU));
 
   PY_error_obj = PyErr_NewException((char *)error_name, nullptr, nullptr);
   if(PY_error_obj == nullptr) return RETVAL;

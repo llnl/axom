@@ -441,14 +441,31 @@ AXOM_HOST_DEVICE static inline BBoxType sync_load(const BBoxType& box)
   return BBoxType {min_pt, max_pt};
 
 #else  // AXOM_DEVICE_CODE
-  std::atomic_thread_fence(std::memory_order_acquire);
-  return box;
+  using FloatType = typename BBoxType::CoordType;
+  using PointType = typename BBoxType::PointType;
+
+  constexpr int NDIMS = PointType::DIMENSION;
+
+  PointType min_pt {BBoxType::InvalidMin};
+  PointType max_pt {BBoxType::InvalidMax};
+
+  // Read each component atomically to avoid a racy read of the box struct.
+  // This mirrors the device path's "poll until non-sentinel" approach.
+  for(int dim = 0; dim < NDIMS; dim++)
+  {
+    while((min_pt[dim] = axom::atomicLoad<ExecSpace>(const_cast<FloatType*>(&box.getMin()[dim]))) ==
+          BBoxType::InvalidMin);
+    while((max_pt[dim] = axom::atomicLoad<ExecSpace>(const_cast<FloatType*>(&box.getMax()[dim]))) ==
+          BBoxType::InvalidMax);
+  }
+
+  return BBoxType {min_pt, max_pt};
 #endif
 }
 
 //------------------------------------------------------------------------------
 // Writes a bounding box to memory, synchronized with another thread's read.
-// On the CPU, this is achieved with a release fence.
+// On the CPU, we use atomic stores for each component to avoid data races.
 // On the GPU, this function uses atomicExch to write a value directly to the
 // L2 cache, thus avoiding potential cache coherency issues between threads.
 template <typename ExecSpace, typename BBoxType>
@@ -469,8 +486,18 @@ AXOM_HOST_DEVICE static inline void sync_store(BBoxType& box, const BBoxType& va
     axom::atomicExchange<ExecSpace>(&(max_pt[dim]), value.getMax()[dim]);
   }
 #else  // __CUDA_ARCH__ || __HIP_DEVICE_COMPILE__
-  box = value;
-  std::atomic_thread_fence(std::memory_order_release);
+  using PointType = typename BBoxType::PointType;
+  constexpr int NDIMS = PointType::DIMENSION;
+
+  // Cast away the underlying const so we can directly modify the box data.
+  PointType& min_pt = const_cast<PointType&>(box.getMin());
+  PointType& max_pt = const_cast<PointType&>(box.getMax());
+
+  for(int dim = 0; dim < NDIMS; dim++)
+  {
+    axom::atomicStore<ExecSpace>(&(min_pt[dim]), value.getMin()[dim]);
+    axom::atomicStore<ExecSpace>(&(max_pt[dim]), value.getMax()[dim]);
+  }
 #endif
 }
 

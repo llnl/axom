@@ -15,9 +15,8 @@ from spack_repo.builtin.build_systems.cached_cmake import (
 )
 from spack_repo.builtin.build_systems.cuda import CudaPackage
 from spack_repo.builtin.build_systems.rocm import ROCmPackage
-from spack.error import SpackError
 
-# Axom components we expose to Spack.  Core is always built and is not listed here.
+# Axom components we expose to Spack. Core is always built and is not listed here.
 _AXOM_COMPONENTS = (
     "bump",
     "inlet",
@@ -187,9 +186,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     # Libraries
     # Forward variants to Conduit
     with when("+conduit"):
-        for _var in ["fortran", "hdf5", "mpi", "python"]:
+        for _var in ["hdf5", "mpi"]:
             depends_on("conduit+{0}".format(_var), when="+{0}".format(_var))
             depends_on("conduit~{0}".format(_var), when="~{0}".format(_var))
+        depends_on("conduit+fortran", when="+fortran")
 
     depends_on("hdf5", when="+hdf5")
 
@@ -282,6 +282,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("py-nanobind@2.7.0")
         depends_on("py-pytest")
         depends_on("py-numpy")
+        depends_on("py-mpi4py", when="+mpi")
         depends_on("conduit+python")
 
     # Devtools
@@ -415,14 +416,13 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             entries.append(cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-O1 -g"))
 
         if spec.satisfies("%oneapi"):
-            # Addresses floating point issues (default is fast)
-            entries.append(cmake_cache_string("CMAKE_CXX_FLAGS", "-fp-model=precise"))
-
             # Disable intrusive warning:
             #   icpx: remark: note that use of '-g' without any optimization-level
             #   option will turn off most compiler optimizations similar to use of
             #   '-O0'; use '-Rno-debug-disables-optimization' to disable this remark
-            entries.append(cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-g -Rno-debug-disables-optimization"))
+            entries.append(
+                cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-g -Rno-debug-disables-optimization")
+            )
 
         return entries
 
@@ -435,7 +435,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             entries.append(cmake_cache_option("CMAKE_CUDA_SEPARABLE_COMPILATION", True))
 
             # CUDA_FLAGS
-            cudaflags = "${CMAKE_CUDA_FLAGS} -restrict --expt-extended-lambda --expt-relaxed-constexpr "
+            cudaflags = (
+                "${CMAKE_CUDA_FLAGS} -restrict --expt-extended-lambda --expt-relaxed-constexpr "
+            )
 
             # Pass through any cxxflags to the host compiler via nvcc's Xcompiler flag
             host_cxx_flags = spec.compiler_flags["cxxflags"]
@@ -467,14 +469,18 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             # Recommended MPI flags
             if spec.satisfies("+mpi"):
                 hip_link_flags += "-lxpmem "
-                hip_link_flags += "-L/opt/cray/pe/mpich/{0}/gtl/lib ".format(spec["mpi"].version.up_to(3))
+                hip_link_flags += "-L/opt/cray/pe/mpich/{0}/gtl/lib ".format(
+                    spec["mpi"].version.up_to(3)
+                )
                 hip_link_flags += "-Wl,-rpath,/opt/cray/pe/mpich/{0}/gtl/lib ".format(
                     spec["mpi"].version.up_to(3)
                 )
                 hip_link_flags += "-lmpi_gtl_hsa "
 
             if spec.satisfies("^hip@6.0.0:"):
-                hip_link_flags += "-L{0}/lib/llvm/lib -Wl,-rpath,{0}/lib/llvm/lib ".format(rocm_root)
+                hip_link_flags += "-L{0}/lib/llvm/lib -Wl,-rpath,{0}/lib/llvm/lib ".format(
+                    rocm_root
+                )
             else:
                 hip_link_flags += "-L{0}/llvm/lib -Wl,-rpath,{0}/llvm/lib ".format(rocm_root)
             # Only amdclang requires this path; cray compiler fails if this is included
@@ -489,10 +495,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 hip_link_flags += "-lflang -lflangrti "
 
             # Additional library path for cray compiler
-            if self.spec.satisfies("%cce"):
+            if spec.satisfies("%cce"):
                 hip_link_flags += "-L/opt/cray/pe/cce/{0}/cce/x86_64/lib -Wl,-rpath,/opt/cray/pe/cce/{0}/cce/x86_64/lib ".format(
-                                        self.spec.compiler.version
-                                    )
+                    spec.compiler.version
+                )
 
             if spec.satisfies("+fortran"):
                 link_remove_list = []
@@ -570,18 +576,16 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 cmake_cache_string("BLT_OPENMP_LINK_FLAGS", openmp_gen_exp, description)
             )
 
-        if (
-            spec.satisfies("+openmp")
-            and spec.satisfies("+rocm")
-            and self.spec.satisfies("%cce")
-        ):
+        if spec.satisfies("+openmp") and spec.satisfies("+rocm") and spec.satisfies("%cce"):
             openmp_gen_exp = (
                 "$<$<NOT:$<COMPILE_LANGUAGE:Fortran>>:"
                 "-fopenmp=libomp>;$<$<COMPILE_LANGUAGE:"
                 "Fortran>:-fopenmp>"
             )
 
-            description = "Different OpenMP compile & link flags between HIP and CXX compilers (amdclang++)"
+            description = (
+                "Different OpenMP compile & link flags between HIP and CXX compilers (amdclang++)"
+            )
             entries.append(
                 cmake_cache_string("BLT_OPENMP_COMPILE_FLAGS", openmp_gen_exp, description)
             )
@@ -643,13 +647,15 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         if all_components_enabled:
             print("All axom components enabled")
         else:
-            print(f"The following Axom components are enabled: {spec.variants['components'].value}")
+            print(
+                f"The following Axom components are enabled: {spec.variants['components'].value}"
+            )
 
             entries.append("#------------------{0}".format("-" * 60))
             entries.append("# Axom components")
             entries.append("#------------------{0}\n".format("-" * 60))
             entries.append(cmake_cache_option("AXOM_ENABLE_ALL_COMPONENTS", False))
-            
+
             for comp in spec.variants["components"].value:
                 if comp in _AXOM_COMPONENTS:
                     entries.append(cmake_cache_option(f"AXOM_ENABLE_{comp.upper()}", True))
@@ -661,7 +667,18 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
         # Try to find the common prefix of the TPL directory.
         # If found, we will use this in the TPL paths
-        variant_deps = ["conduit", "c2c", "mfem", "hdf5", "lua", "raja", "umpire", "opencascade", "adiak", "caliper"]
+        variant_deps = [
+            "conduit",
+            "c2c",
+            "mfem",
+            "hdf5",
+            "lua",
+            "raja",
+            "umpire",
+            "opencascade",
+            "adiak",
+            "caliper",
+        ]
 
         for dep in variant_deps:
             if dep in ["lua"]:  # skip entries often outside the common prefix
@@ -753,9 +770,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
         if spec.satisfies("^py-yapf"):
             yapf_bin_dir = get_spec_path(spec, "py-yapf", path_replacements, use_bin=True)
-            entries.append(
-                cmake_cache_path("YAPF_EXECUTABLE", pjoin(yapf_bin_dir, "yapf"))
-            )
+            entries.append(cmake_cache_path("YAPF_EXECUTABLE", pjoin(yapf_bin_dir, "yapf")))
 
         if spec.satisfies("^py-shroud"):
             shroud_bin_dir = get_spec_path(spec, "py-shroud", path_replacements, use_bin=True)
@@ -770,11 +785,22 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
         if spec.satisfies("+python"):
             # pytest requires pluggy and iniconfig
-            for dep in ("py-nanobind", "py-pytest", "py-numpy", "py-pluggy", "py-iniconfig"):
+            for dep in (
+                "py-nanobind",
+                "py-pytest",
+                "py-numpy",
+                "py-pluggy",
+                "py-iniconfig",
+                "py-mpi4py",
+            ):
                 if spec.satisfies("^{0}".format(dep)):
                     dep_dir = get_spec_path(spec, dep, path_replacements, use_lib=True)
-                    py_libdir = join_path(dep_dir, f"python{spec['python'].version.up_to(2)}", "site-packages")
-                    entries.append(cmake_cache_path("%s_DIR" % dep.upper().replace("-", "_"), py_libdir))
+                    py_libdir = join_path(
+                        dep_dir, f"python{spec['python'].version.up_to(2)}", "site-packages"
+                    )
+                    entries.append(
+                        cmake_cache_path("%s_DIR" % dep.upper().replace("-", "_"), py_libdir)
+                    )
 
         return entries
 

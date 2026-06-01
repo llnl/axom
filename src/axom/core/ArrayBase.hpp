@@ -577,7 +577,7 @@ public:
   AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, int stride = 1) : m_stride(stride) { }
 
   AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, const StackArray<IndexType, 1>& stride)
-    : m_stride(stride[0])
+    : m_stride(static_cast<int>(stride[0]))
   { }
 
   AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, const MDMapping<1>& mapping)

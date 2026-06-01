@@ -743,6 +743,16 @@ public:
   void emplace_back(Args&&... args);
 
   /*!
+   * \brief Removes the last element from the Array.
+   *
+   * \note The size decreases by 1 and the capacity is unchanged.
+   *
+   * \pre DIM == 1
+   * \pre array.empty() == false
+   */
+  void pop_back();
+
+  /*!
    * \brief Push a value to the back of the array.
    *
    * \param [in] value the value to move to the back.
@@ -1588,6 +1598,17 @@ inline void Array<T, DIM, SPACE, StoragePolicy>::emplace_back(Args&&... args)
   static_assert(DIM == 1, "emplace_back is only supported for 1D arrays");
   IndexType insertIndex = reserveForPushBack();
   m_arrayOps.emplace(m_data, insertIndex, std::forward<Args>(args)...);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+inline void Array<T, DIM, SPACE, StoragePolicy>::pop_back()
+{
+  static_assert(DIM == 1, "pop_back is only supported for 1D arrays");
+  assert(!empty());
+
+  m_arrayOps.destroy(m_data, m_num_elements - 1, 1);
+  updateNumElements(m_num_elements - 1);
 }
 
 //------------------------------------------------------------------------------

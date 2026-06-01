@@ -10,7 +10,7 @@
 /*!
  * \file compute_moments.hpp
  *
- * \brief Consists of a set of methods to compute areas/volumes and centroids 
+ * \brief Consists of a set of methods to compute areas/volumes and centroids
  * for Polygon and CurvedPolygon objects composed of nonrational BezierCurve objects
  */
 
@@ -29,13 +29,13 @@ namespace axom
 namespace primal
 {
 /*!
-   * \brief Calculates the sector area of a planar, nonrational Bezier Curve
-   *
-   * The sector area is the area between the curve and the origin.
-   * The equation and derivation is described in:
-   *  Ueda, K. "Signed area of sectors between spline curves and the origin"
-   *  IEEE International Conference on Information Visualization, 1999.
-   */
+ * \brief Calculates the signed sector area of a planar, nonrational Bezier curve.
+ *
+ * The sector area is the signed area between the curve and the origin.
+ * The equation and derivation are described in:
+ *  Ueda, K. "Signed area of sectors between spline curves and the origin"
+ *  IEEE International Conference on Information Visualization, 1999.
+ */
 template <typename T>
 T sector_area(const primal::BezierCurve<T, 2>& curve)
 {
@@ -53,20 +53,22 @@ T sector_area(const primal::BezierCurve<T, 2>& curve)
   {
     for(int q = 0; q <= ord; ++q)
     {
-      A += weights(p, q) * curve[p][1] * curve[q][0];
+      A += weights(p, q) * curve[p][0] * curve[q][1];
     }
   }
   return A;
 }
 
 /*!
-   * \brief Calculates the sector centroid of a planar, nonrational Bezier Curve
-   *
-   * This is the centroid of the region between the curve and the origin.
-   * The equation and derivation are generalizations of:
-   *  Ueda, K. "Signed area of sectors between spline curves and the origin"
-   *  IEEE International Conference on Information Visualization, 1999.
-   */
+ * \brief Calculates the area-weighted centroid numerator of a planar,
+ * nonrational Bezier curve.
+ *
+ * This is the first raw moment of the region between the curve and the origin.
+ * Divide by sector_area() to recover the centroid.
+ * The equation and derivation are generalizations of:
+ *  Ueda, K. "Signed area of sectors between spline curves and the origin"
+ *  IEEE International Conference on Information Visualization, 1999.
+ */
 template <typename T>
 primal::Point<T, 2> sector_centroid(const primal::BezierCurve<T, 2>& curve)
 {
@@ -86,8 +88,8 @@ primal::Point<T, 2> sector_centroid(const primal::BezierCurve<T, 2>& curve)
     {
       for(int q = 0; q <= ord; ++q)
       {
-        Mx += weights_r(p, q) * curve[p][1] * curve[q][0] * curve[r][0];
-        My += weights_r(p, q) * curve[p][1] * curve[q][0] * curve[r][1];
+        Mx += weights_r(p, q) * curve[p][0] * curve[q][1] * curve[r][0];
+        My += weights_r(p, q) * curve[p][0] * curve[q][1] * curve[r][1];
       }
     }
   }

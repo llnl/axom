@@ -466,6 +466,51 @@ void check_resize(axom::Array<T>& v)
 }
 
 /*!
+ * \brief Check that pop_back() updates the size while keeping capacity and
+ *  existing elements intact.
+ * \param [in] v the Array to check.
+ */
+template <typename T>
+void check_pop_back(axom::Array<T>& v)
+{
+  v.resize(0);
+  v.reserve(4);
+
+  const axom::IndexType capacity = v.capacity();
+  const T* data_ptr = v.data();
+
+  v.push_back(T {1});
+  v.push_back(T {2});
+  v.push_back(T {3});
+
+  EXPECT_EQ(v.size(), 3);
+  EXPECT_EQ(v.capacity(), capacity);
+  EXPECT_EQ(v.data(), data_ptr);
+  EXPECT_EQ(v.front(), T {1});
+  EXPECT_EQ(v.back(), T {3});
+
+  v.pop_back();
+  EXPECT_EQ(v.size(), 2);
+  EXPECT_EQ(v.capacity(), capacity);
+  EXPECT_EQ(v.data(), data_ptr);
+  EXPECT_EQ(v.front(), T {1});
+  EXPECT_EQ(v.back(), T {2});
+
+  v.pop_back();
+  EXPECT_EQ(v.size(), 1);
+  EXPECT_EQ(v.capacity(), capacity);
+  EXPECT_EQ(v.data(), data_ptr);
+  EXPECT_EQ(v.front(), T {1});
+  EXPECT_EQ(v.back(), T {1});
+
+  v.pop_back();
+  EXPECT_TRUE(v.empty());
+  EXPECT_EQ(v.size(), 0);
+  EXPECT_EQ(v.capacity(), capacity);
+  EXPECT_EQ(v.data(), data_ptr);
+}
+
+/*!
  * \brief Check that the insertion into an Array is working properly.
  * \param [in] v the Array to check.
  */
@@ -1175,6 +1220,31 @@ TEST(core_array_DeathTest, checkResize)
   axom::Array<int> v_int(ZERO, size);
   v_int.setResizeRatio(0.99);
   EXPECT_DEATH_IF_SUPPORTED(::check_resize(v_int), "");
+}
+
+//------------------------------------------------------------------------------
+TEST(core_array, checkPopBack)
+{
+  for(axom::IndexType capacity = 2; capacity <= 512; capacity *= 2)
+  {
+    axom::Array<int> v_int(0, capacity);
+    ::check_pop_back(v_int);
+
+    axom::Array<double> v_double(0, capacity);
+    ::check_pop_back(v_double);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(core_array_DeathTest, popBackEmpty)
+{
+  axom::Array<int> v_int(0, 2);
+#ifdef NDEBUG
+  GTEST_SKIP()
+    << "pop_back() uses assert on empty arrays, so this death test only applies in debug builds.";
+#else
+  EXPECT_DEATH_IF_SUPPORTED(v_int.pop_back(), "");
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -2521,6 +2591,47 @@ TEST(core_array, reserve_nontrivial_reloc_um)
   }
 }
 #endif
+
+class PopBackTracked
+{
+public:
+  explicit PopBackTracked(int value = 0) : m_value(value) { }
+
+  PopBackTracked(const PopBackTracked&) = default;
+  PopBackTracked(PopBackTracked&&) = default;
+  PopBackTracked& operator=(const PopBackTracked&) = default;
+  PopBackTracked& operator=(PopBackTracked&&) = default;
+
+  ~PopBackTracked() { ++s_destroyCount; }
+
+  int m_value;
+  static int s_destroyCount;
+};
+
+int PopBackTracked::s_destroyCount = 0;
+
+TEST(core_array, popBackDestroysTrailingElement)
+{
+  PopBackTracked::s_destroyCount = 0;
+
+  {
+    axom::Array<PopBackTracked> array(0, 4);
+    array.emplace_back(1);
+    array.emplace_back(2);
+    array.emplace_back(3);
+
+    EXPECT_EQ(array.size(), 3);
+    EXPECT_EQ(PopBackTracked::s_destroyCount, 0);
+
+    array.pop_back();
+
+    EXPECT_EQ(array.size(), 2);
+    EXPECT_EQ(array.back().m_value, 2);
+    EXPECT_EQ(PopBackTracked::s_destroyCount, 1);
+  }
+
+  EXPECT_EQ(PopBackTracked::s_destroyCount, 3);
+}
 
 class AllocatingDefaultInit
 {

@@ -9,16 +9,17 @@
  */
 
 /* This example code contains snippets used in the Core Sphinx documentation.
-  * They begin and end with comments such as
-  *
-  * timer_start
-  * timer_end
-  *
-  * each prepended with an underscore.
-  */
+ * They begin and end with comments such as
+ *
+ * timer_start
+ * timer_end
+ *
+ * each prepended with an underscore.
+ */
 
 // Axom includes
 #include "axom/core/Macros.hpp"
+#include "axom/core/Array.hpp"
 #include "axom/core/numerics/eigen_solve.hpp"
 #include "axom/core/numerics/jacobi_eigensolve.hpp"
 #include "axom/core/numerics/linear_solve.hpp"
@@ -89,10 +90,11 @@ void demoVectorOps()
   // Find the real roots of a cubic equation.
   // (x + 2)(x - 1)(2x - 3) = 0 = 2x^3 - x^2 - 7x + 6 has real roots at
   // x = -2, x = 1, x = 1.5.
-  double coeff[] = {6., -7., -1., 2.};
-  double roots[3];
+  // Coefficients are in ascending power order: [c0, c1, c2, c3] for c0 + c1*x + c2*x^2 + c3*x^3
+  axom::Array<double> coeff {6., -7., -1., 2.};
+  axom::Array<double> roots {0., 0., 0.};
   int numRoots;
-  int result = numerics::solve_cubic(coeff, roots, numRoots);
+  int result = numerics::solve_cubic(coeff.view(), roots.view(), numRoots);
 
   std::cout << "Root-finding returned " << result
             << " (should be 0, success)."
