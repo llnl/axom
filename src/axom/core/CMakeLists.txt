@@ -170,6 +170,13 @@ axom_install_component( NAME      core
                         )
 
 
+
+if(NANOBIND_FOUND)
+    list(APPEND core_sources nanobind_core.cpp)
+    nanobind_add_module(pycore nanobind_core.cpp)
+    target_link_libraries(pycore PRIVATE core)
+    install(TARGETS pycore LIBRARY DESTINATION lib)
+endif()
 #------------------------------------------------------------------------------
 # Add tests
 #------------------------------------------------------------------------------

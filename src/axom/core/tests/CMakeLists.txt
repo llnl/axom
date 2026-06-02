@@ -246,3 +246,22 @@ if (ENABLE_BENCHMARKS)
                       NUM_OMP_THREADS ${_num_threads})
   endforeach()
 endif()
+
+
+#------------------------------------------------------------------------------
+# Python tests for core
+#------------------------------------------------------------------------------
+if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
+  set(python_core_tests
+     test_pycore.py
+  )
+
+  foreach(test ${python_core_tests})
+    get_filename_component( test_name ${test} NAME_WE )
+
+    axom_add_python_test( NAME ${test_name}
+                          SOURCE ${test}
+                          OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                          )
+  endforeach()
+endif()

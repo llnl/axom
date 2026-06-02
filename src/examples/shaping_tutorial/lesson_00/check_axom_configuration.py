@@ -1,20 +1,14 @@
 #!/usr/bin/env python3
 
-from importlib import import_module
-from pathlib import Path
 import sys
 
-
-def describe_module(name: str) -> str:
-    module = import_module(name)
-    module_path = Path(getattr(module, "__file__", "<builtin>"))
-    return f"{name}: {module_path}"
+import pycore
 
 
 def main() -> int:
     print("Python executable:", sys.executable)
-    for module_name in ["pysidre", "pyprimal", "pyinlet", "pyklee", "pyquest"]:
-        print(describe_module(module_name))
+    # Use the pycore nanobind binding to show Axom configuration
+    pycore.about()
     return 0
 
 
