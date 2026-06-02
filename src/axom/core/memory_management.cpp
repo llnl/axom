@@ -54,6 +54,8 @@ int platformHostAllocatorID() noexcept
 #endif
 }
 
+int initialDefaultHostAllocatorID() noexcept { return MALLOC_ALLOCATOR_ID; }
+
 struct HostAllocatorConfig
 {
   explicit HostAllocatorConfig(int allocId) noexcept : allocatorId {allocId} { }
@@ -68,7 +70,7 @@ private:
 
 HostAllocatorConfig& defaultHostAllocatorConfig() noexcept
 {
-  static HostAllocatorConfig config {platformHostAllocatorID()};
+  static HostAllocatorConfig config {initialDefaultHostAllocatorID()};
   return config;
 }
 }  // namespace

@@ -154,8 +154,7 @@ void check_alloc_and_free(bool hostAccessible = true)
 
     if(size > 0)
     {
-      umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-      EXPECT_EQ(allocatorID, rm.getAllocator(buffer).getId());
+      EXPECT_EQ(allocatorID, axom::getAllocatorIDFromPointer(buffer));
     }
 #else
     int* buffer = axom::allocate<int>(size);
@@ -193,10 +192,9 @@ void check_alloc_realloc_free(bool hostAccessible = true)
 #ifdef AXOM_USE_UMPIRE
     int* buffer = axom::allocate<int>(buffer_size, allocatorID);
 
-    umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
     if(buffer_size > 0)
     {
-      ASSERT_EQ(allocatorID, rm.getAllocator(buffer).getId());
+      ASSERT_EQ(allocatorID, axom::getAllocatorIDFromPointer(buffer));
     }
 #else
     int* buffer = axom::allocate<int>(buffer_size);
@@ -219,12 +217,14 @@ void check_alloc_realloc_free(bool hostAccessible = true)
 
     // Reallocate to a larger size.
     buffer_size *= 3;
-    buffer = axom::reallocate<int>(buffer, buffer_size);
 #ifdef AXOM_USE_UMPIRE
+    buffer = axom::reallocate<int>(buffer, buffer_size, allocatorID);
     if(buffer_size > 0)
     {
-      ASSERT_EQ(allocatorID, rm.getAllocator(buffer).getId());
+      ASSERT_EQ(allocatorID, axom::getAllocatorIDFromPointer(buffer));
     }
+#else
+    buffer = axom::reallocate<int>(buffer, buffer_size);
 #endif
 
     if(hostAccessible)
@@ -244,12 +244,14 @@ void check_alloc_realloc_free(bool hostAccessible = true)
 
     // Reallocate to a smaller size.
     buffer_size /= 5;
-    buffer = axom::reallocate<int>(buffer, buffer_size);
 #ifdef AXOM_USE_UMPIRE
+    buffer = axom::reallocate<int>(buffer, buffer_size, allocatorID);
     if(buffer_size > 0)
     {
-      ASSERT_EQ(allocatorID, rm.getAllocator(buffer).getId());
+      ASSERT_EQ(allocatorID, axom::getAllocatorIDFromPointer(buffer));
     }
+#else
+    buffer = axom::reallocate<int>(buffer, buffer_size);
 #endif
 
     if(hostAccessible)
@@ -337,7 +339,7 @@ TEST(core_memory_management, set_get_default_host_allocator)
 
 #ifdef AXOM_USE_UMPIRE
   const int platformHostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
-  EXPECT_EQ(platformHostAllocatorID, axom::getDefaultHostAllocatorID());
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::getDefaultHostAllocatorID());
 #else
   const int platformHostAllocatorID = axom::MALLOC_ALLOCATOR_ID;
   EXPECT_EQ(platformHostAllocatorID, axom::getDefaultHostAllocatorID());
@@ -368,6 +370,7 @@ TEST(core_memory_management, set_get_default_memory_space)
 {
   ScopedDefaultAllocatorState scopedState;
   const int HostAllocatorID = axom::getDefaultHostAllocatorID();
+  const int platformHostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
   EXPECT_EQ(HostAllocatorID, axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
 
   #if defined(AXOM_USE_GPU)
@@ -399,7 +402,7 @@ TEST(core_memory_management, set_get_default_memory_space)
   #endif  // AXOM_USE_GPU
 
   axom::setDefaultAllocator(axom::MemorySpace::Host);
-  EXPECT_EQ(HostAllocatorID, axom::getDefaultAllocatorID());
+  EXPECT_EQ(platformHostAllocatorID, axom::getDefaultAllocatorID());
 }
 #endif /* AXOM_USE_UMPIRE */
 

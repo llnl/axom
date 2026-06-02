@@ -34,6 +34,18 @@ using IndexType = axom::IndexType;
 
 constexpr double EPS = 1e-6;
 
+template <typename ExecSpace>
+int globalDefaultAllocatorForExecSpace()
+{
+#if defined(AXOM_USE_UMPIRE)
+  return axom::execution_space<ExecSpace>::onDevice()
+    ? axom::execution_space<ExecSpace>::allocatorID()
+    : axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+#else
+  return axom::execution_space<ExecSpace>::allocatorID();
+#endif
+}
+
 //------------------------------------------------------------------------------
 template <typename FloatType, int NDIMS>
 void dump_ray(const std::string& file, FloatType t, const primal::Ray<FloatType, NDIMS>& ray)
@@ -1175,7 +1187,7 @@ void check_build_bvh_zip3d()
   using ZipIter = typename primal::ZipIndexable<BoxType>;
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  axom::setDefaultAllocator(axom::execution_space<ExecSpace>::allocatorID());
+  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   FloatType* xmin = axom::allocate<FloatType>(NUM_BOXES);
   FloatType* ymin = axom::allocate<FloatType>(NUM_BOXES);
@@ -1242,7 +1254,7 @@ void check_find_points_zip3d()
   constexpr IndexType N = 4;
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  axom::setDefaultAllocator(axom::execution_space<ExecSpace>::allocatorID());
+  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   using BoxType = typename primal::BoundingBox<FloatType, NDIMS>;
   using PointType = primal::Point<FloatType, NDIMS>;
@@ -1329,7 +1341,7 @@ void check_find_points_zip2d()
   constexpr IndexType N = 4;
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  axom::setDefaultAllocator(axom::execution_space<ExecSpace>::allocatorID());
+  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   using BoxType = typename primal::BoundingBox<FloatType, NDIMS>;
   using PointType = primal::Point<FloatType, NDIMS>;

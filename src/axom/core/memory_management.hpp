@@ -124,7 +124,8 @@ void setDefaultAllocator(MemorySpace space);
  * \brief Sets the default host allocator using an Axom memory-space enum.
  *
  * \note `MemorySpace::Malloc` selects Axom's malloc-backed host allocator.
- * \note `MemorySpace::Host` resets to the platform host allocator.
+ * \note `MemorySpace::Host` resets to the platform host allocator
+ *       (Umpire Host when available).
  * \note Only `MemorySpace::Malloc` and `MemorySpace::Host` are accepted.
  */
 void setDefaultHostAllocator(MemorySpace space);
@@ -207,8 +208,7 @@ inline int getDefaultAllocatorID()
  * \brief Returns the ID of the current default host allocator.
  *
  * \return The current default host allocator ID. This is initialized to
- *         Umpire's Host allocator in Umpire builds, or `MALLOC_ALLOCATOR_ID`
- *         otherwise.
+ *         `MALLOC_ALLOCATOR_ID` in all builds.
  */
 int getDefaultHostAllocatorID();
 
@@ -328,7 +328,8 @@ inline void deallocate(T*& p) noexcept;
  * current allocator's memory space. This follows the semantics of
  * Umpire's reallocate function.
  * \note When p is a null pointer, allocID is used to allocate the data.
- * Otherwise, it is unused.
+ * In Umpire builds, passing a different valid allocator can migrate a
+ * non-null allocation to that allocator.
  */
 template <typename T>
 inline T* reallocate(T* p, std::size_t n, int allocID = getDefaultAllocatorID()) noexcept;
@@ -470,6 +471,32 @@ inline T* reallocate(T* pointer, std::size_t n, int allocID) noexcept
 #if defined(AXOM_USE_UMPIRE)
 
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
+  if(allocID == MALLOC_ALLOCATOR_ID)
+  {
+    if(pointer == nullptr)
+    {
+      pointer = axom::allocate<T>(n, allocID);
+    }
+    else if(rm.hasAllocator(pointer))
+    {
+      const std::size_t old_numbytes = rm.getSize(pointer);
+      T* new_pointer = axom::allocate<T>(n, allocID);
+      copy(new_pointer, pointer, old_numbytes < numbytes ? old_numbytes : numbytes);
+      deallocate(pointer);
+      pointer = new_pointer;
+    }
+    else
+    {
+      pointer = static_cast<T*>(std::realloc(pointer, numbytes));
+      if(n == 0 && pointer == nullptr)
+      {
+        pointer = axom::allocate<T>(0, allocID);
+      }
+    }
+
+    return pointer;
+  }
+
   if(rm.isAllocator(allocID))
   {
     if(pointer == nullptr)
@@ -499,6 +526,9 @@ inline T* reallocate(T* pointer, std::size_t n, int allocID) noexcept
     }
     return pointer;
   }
+
+  std::cerr << "Unrecognized allocator id " << allocID << std::endl;
+  axom::utilities::processAbort();
 
 #else
 

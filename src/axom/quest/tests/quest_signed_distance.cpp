@@ -297,8 +297,16 @@ void run_vectorized_sphere_test()
 {
   using PointType = primal::Point<double, 3>;
 
-  int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  const int current_allocator = axom::getDefaultAllocatorID();
+  int host_allocator = axom::getDefaultHostAllocatorID();
   int kernel_allocator = axom::execution_space<ExecSpace>::allocatorID();
+
+#if defined(AXOM_USE_UMPIRE)
+  if(!axom::execution_space<ExecSpace>::onDevice())
+  {
+    kernel_allocator = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  }
+#endif
 
   //Use unified memory on device
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
@@ -403,7 +411,7 @@ void run_vectorized_sphere_test()
   delete surface_mesh;
   delete umesh;
 
-  axom::setDefaultAllocator(host_allocator);
+  axom::setDefaultAllocator(current_allocator);
 
   SLIC_INFO("Done.");
 }
@@ -447,11 +455,12 @@ TEST(quest_signed_distance, sphere_vec_device_custom_alloc)
 
   using PointType = primal::Point<double, 3>;
 
-  const int host_allocator = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  const int current_allocator = axom::getDefaultAllocatorID();
+  const int host_allocator = axom::getDefaultHostAllocatorID();
   constexpr bool on_device = axom::execution_space<exec>::onDevice();
   const int kernel_allocator = on_device
     ? axom::getUmpireResourceAllocatorID(umpire::resource::Unified)
-    : axom::execution_space<exec>::allocatorID();
+    : axom::getUmpireResourceAllocatorID(umpire::resource::Host);
   axom::setDefaultAllocator(kernel_allocator);
 
   constexpr double l1norm_expected = 6.7051997372579715;
@@ -572,7 +581,7 @@ TEST(quest_signed_distance, sphere_vec_device_custom_alloc)
   delete surface_mesh;
   delete umesh;
 
-  axom::setDefaultAllocator(host_allocator);
+  axom::setDefaultAllocator(current_allocator);
   SLIC_INFO("Done.");
 }
 #endif  // defined(AXOM_USE_GPU) && defined(AXOM_USE_RAJA)
