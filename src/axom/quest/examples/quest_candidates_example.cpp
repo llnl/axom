@@ -353,7 +353,7 @@ HexMesh loadBlueprintHexMesh(const std::string& mesh_path,
   // Move connectivity information onto device
 
   int* conn_data = nullptr;
-  axom::Array<int> temp_conn_data;
+  conduit::Node temp_conn_data;
   int conn_id = n_load[0]["topologies/topo/elements/connectivity"].dtype().id();
   if(conn_id == conduit::DataType::INT32_ID)
   {
@@ -361,13 +361,8 @@ HexMesh loadBlueprintHexMesh(const std::string& mesh_path,
   }
   else if(conn_id == conduit::DataType::INT64_ID)
   {
-    temp_conn_data.resize(connectivity_size);
-    auto conn_int64_data = n_load[0]["topologies/topo/elements/connectivity"].as_int64_ptr();
-    for(int i = 0; i < connectivity_size; ++i)
-    {
-      temp_conn_data[i] = static_cast<int>(conn_int64_data[i]);
-    }
-    conn_data = temp_conn_data.data();
+    n_load[0]["topologies/topo/elements/connectivity"].to_int32_array(temp_conn_data);
+    conn_data = temp_conn_data.as_int32_ptr();
   }
   else
   {
