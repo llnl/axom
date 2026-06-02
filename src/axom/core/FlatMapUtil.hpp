@@ -284,28 +284,43 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
   // Assume that all elements will be inserted into an empty slot.
   this->reserve(this->size() + num_elems);
 
+  FlatMap<KeyType, ValueType, Hash> temp;
+  bool allocate_temp_map = false;
+#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  if(this->m_allocator.getSpace() == MemorySpace::Pinned)
+  {
+    // Pinned memory is allocated on the CPU, and is not always coherent with respect to the GPU.
+    // Instead of using system-scope atomics, we just construct a temporary map in device memory
+    // and copy it back to the pinned space.
+    axom::Allocator device_allocator {axom::detail::getAllocatorID<MemorySpace::Device>()};
+    temp = FlatMap(*this, device_allocator);
+    allocate_temp_map = true;
+  }
+#endif
+  FlatMap<KeyType, ValueType, Hash>& map = allocate_temp_map ? temp : *this;
+
   // Grab some needed internal fields from the flat map.
   // We're going to be constructing metadata and the K-V pairs directly
   // in-place.
-  const int ngroups_pow_2 = this->m_numGroups2;
-  const auto meta_group = this->m_metadata.view();
-  const auto buckets = this->m_buckets.view();
+  const int ngroups_pow_2 = map.m_numGroups2;
+  const auto meta_group = map.m_metadata.view();
+  const auto buckets = map.m_buckets.view();
 
   // Construct an array of locks per-group. This guards metadata updates for
   // each insertion.
   const IndexType num_groups = 1 << ngroups_pow_2;
-  Array<detail::SpinLock> lock_vec(num_groups, num_groups, this->m_allocator.getID());
+  Array<detail::SpinLock> lock_vec(num_groups, num_groups, map.m_allocator.getID());
   const auto group_locks = lock_vec.view();
 
   // Map bucket slots to k-v pair indices. This is used to deduplicate pairs
   // with the same key value.
-  Array<IndexType> key_index_dedup_vec(0, 0, this->m_allocator.getID());
+  Array<IndexType> key_index_dedup_vec(0, 0, map.m_allocator.getID());
   key_index_dedup_vec.resize(num_groups * GroupBucket::Size, -1);
   const auto key_index_dedup = key_index_dedup_vec.view();
 
   // Map k-v pair indices to bucket slots. This is essentially the inverse of
   // the above mapping.
-  Array<IndexType> key_index_to_bucket_vec(num_elems, num_elems, this->m_allocator.getID());
+  Array<IndexType> key_index_to_bucket_vec(num_elems, num_elems, map.m_allocator.getID());
   const auto key_index_to_bucket = key_index_to_bucket_vec.view();
 
   axom::ReduceSum<ExecSpace, IndexType> total_overwrites(0);
@@ -459,8 +474,19 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
       }
     });
 
-  this->m_size += total_inserts.get() - total_overwrites.get();
-  this->m_loadCount += total_inserts.get() - total_overwrites.get();
+  map.m_size += total_inserts.get() - total_overwrites.get();
+  map.m_loadCount += total_inserts.get() - total_overwrites.get();
+
+#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  if(allocate_temp_map)
+  {
+    // Original pinned map is in temp.
+    axom::Allocator pinned_allocator = temp.getAllocator();
+
+    // Move new FlatMap to pinned memory.
+    *this = FlatMap(map, pinned_allocator);
+  }
+#endif
 }
 
 }  // namespace axom
