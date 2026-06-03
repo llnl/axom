@@ -51,6 +51,15 @@ public:
                          "A knot vector must be defined using an arithmetic type");
 
 public:
+  /*!
+   * \brief Tag type to construct a KnotVector without asserting validity in the constructor
+   *
+   * This enables callers to construct a KnotVector from potentially-invalid input,
+   * then explicitly check \a isValid() and handle errors gracefully.
+   */
+  struct SkipValidityChecks
+  { };
+
   ///@{
   /**
    * \name Constructors for KnotVector
@@ -75,18 +84,34 @@ public:
    * \pre The \a knots can be empty when the degree is -1, otherwise knots.data() is not \a nullptr
    * \sa isValid() tests conditions for a valid knot span instance
    */
-  KnotVector(axom::ArrayView<const T> knots, int degree) : m_deg(degree)
+  KnotVector(axom::ArrayView<const T> knots, int degree)
+    : KnotVector(knots, degree, SkipValidityChecks {})
   {
-    SLIC_ASSERT(degree >= -1);
-    SLIC_ASSERT(knots.size() >= (degree + 1));
-    SLIC_ASSERT(knots.empty() || knots.data() != nullptr);
+    SLIC_ASSERT(isValid());
+  }
 
-    if(!knots.empty())
+  /*!
+   * \brief Constructor from a user-supplied knot vector without asserting \a isValid()
+   *
+   * \param [in] knots the knot vector
+   * \param [in] degree the degree of the curve
+   * \param [in] SkipValidityChecks tag to indicate validity is not asserted
+   *
+   * \post The KnotVector degree is at least -1
+   * \post The KnotVector values will be copied when the input \a knots is non-empty and non-null
+   * \note The resulting KnotVector may be invalid; call \a isValid() to verify.
+   */
+  KnotVector(axom::ArrayView<const T> knots, int degree, SkipValidityChecks)
+    : m_deg(axom::utilities::max(degree, -1))
+  {
+    if(knots.empty() || knots.data() == nullptr)
+    {
+      m_deg = -1;
+    }
+    else
     {
       m_knots = knots;
     }
-
-    SLIC_ASSERT(isValid());
   }
 
   /*!
@@ -98,6 +123,15 @@ public:
    */
   KnotVector(axom::ArrayView<T> knots, int degree)
     : KnotVector(axom::ArrayView<const T>(knots.data(), knots.size()), degree)
+  { }
+
+  /*!
+   * \brief Constructor from a user-supplied knot vector (axom::ArrayView<T>) without asserting \a isValid()
+   *
+   * \overload for ArrayView of non-const T
+   */
+  KnotVector(axom::ArrayView<T> knots, int degree, SkipValidityChecks)
+    : KnotVector(axom::ArrayView<const T>(knots.data(), knots.size()), degree, SkipValidityChecks {})
   { }
 
   /// \brief Default constructor for an empty (invalid) knot vector
@@ -127,6 +161,15 @@ public:
   { }
 
   /*!
+   * \brief Constructor from a user-supplied knot vector (C-style array) without asserting \a isValid()
+   *
+   * \see KnotVector(axom::ArrayView<const T> knots, int degree, SkipValidityChecks)
+   */
+  KnotVector(const T* knots, axom::IndexType nkts, int degree, SkipValidityChecks)
+    : KnotVector(axom::ArrayView<const T>(knots, nkts), degree, SkipValidityChecks {})
+  { }
+
+  /*!
    * \brief Constructor from a user-supplied knot vector (axom::Array)
    * 
    * \param [in] knots the knot vector
@@ -135,6 +178,15 @@ public:
    * \see KnotVector(axom::ArrayView<const T> knots, int degree)
    */
   KnotVector(const axom::Array<T>& knots, int degree) : KnotVector(knots.view(), degree) { }
+
+  /*!
+   * \brief Constructor from a user-supplied knot vector (axom::Array) without asserting \a isValid()
+   *
+   * \see KnotVector(axom::ArrayView<const T> knots, int degree, SkipValidityChecks)
+   */
+  KnotVector(const axom::Array<T>& knots, int degree, SkipValidityChecks)
+    : KnotVector(knots.view(), degree, SkipValidityChecks {})
+  { }
 
   ///@}
 
@@ -224,6 +276,12 @@ public:
   {
     // Check degree
     if(m_deg < 0)
+    {
+      return false;
+    }
+
+    // Check knots vector has the correct size and data
+    if(m_knots.size() < (m_deg + 1 || m_knots.data() == nullptr))
     {
       return false;
     }
