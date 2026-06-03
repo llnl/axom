@@ -9,32 +9,20 @@
 
 #include "axom/core/utilities/About.hpp"
 
-#include <sstream>
-
 namespace nb = nanobind;
 
-namespace {
-
-std::string about_string()
+namespace axom
 {
-  std::ostringstream oss;
-  axom::about(oss);
-  return oss.str();
+
+NB_MODULE(pycore, m_core)
+{
+  m_core.doc() = "Python bindings for a small tutorial-facing slice of Axom core.";
+
+  m_core.def("getVersion", &axom::getVersion, "Return Axom version string.");
+  m_core.def("gitSHA", &axom::gitSHA, "Return Axom git SHA (may be empty).");
+  m_core.def("about",
+             nb::overload_cast<>(&axom::about),
+             " Prints info about how Axom was configured and built.");
 }
 
-void about_print()
-{
-  axom::about();
-}
-
-} // namespace
-
-NB_MODULE(pycore, m)
-{
-  m.doc() = "Python bindings for a small tutorial-facing slice of Axom core.";
-
-  m.def("getVersion", &axom::getVersion, "Return Axom version string.");
-  m.def("gitSHA", &axom::gitSHA, "Return Axom git SHA (may be empty).");
-  m.def("about", &about_print, "Print Axom about() to stdout.");
-  m.def("about_str", &about_string, "Return Axom about information as a string.");
-}
+}  // namespace axom
