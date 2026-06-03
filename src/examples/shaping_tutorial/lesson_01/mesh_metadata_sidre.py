@@ -2,7 +2,14 @@
 
 from argparse import ArgumentParser
 from pathlib import Path
-import json
+
+try:
+    import conduit
+    import conduit.blueprint
+    import conduit.relay
+except ModuleNotFoundError as exc:
+    raise RuntimeError("This lesson requires the Conduit Python modules. Run it through "
+                       "Axom's build/bin wrapper so PYTHONPATH includes Conduit.") from exc
 
 import pysidre
 
@@ -36,7 +43,7 @@ def verify_mesh_metadata(mesh_group) -> bool:
                for path in required_views) and all(res_group.hasView(path) for path in ["x", "y"])
 
 
-def create_blueprint(mesh_group) -> dict:
+def create_blueprint(mesh_group) -> conduit.Node:
     bb_group = mesh_group.getGroup("bounding_box")
     res_group = mesh_group.getGroup("resolution")
     x_min = bb_group.getView("min/x").getDataFloat()
@@ -46,31 +53,17 @@ def create_blueprint(mesh_group) -> dict:
     res_x = res_group.getView("x").getDataInt()
     res_y = res_group.getView("y").getDataInt()
 
-    return {
-        "coordsets": {
-            "coords": {
-                "type": "uniform",
-                "dims": {
-                    "i": res_x + 1,
-                    "j": res_y + 1
-                },
-                "origin": {
-                    "x": x_min,
-                    "y": y_min
-                },
-                "spacing": {
-                    "dx": (x_max - x_min) / res_x,
-                    "dy": (y_max - y_min) / res_y
-                },
-            }
-        },
-        "topologies": {
-            "mesh": {
-                "type": "uniform",
-                "coordset": "coords"
-            }
-        },
-    }
+    blueprint = conduit.Node()
+    blueprint["coordsets/coords/type"] = "uniform"
+    blueprint["coordsets/coords/dims/i"] = res_x + 1
+    blueprint["coordsets/coords/dims/j"] = res_y + 1
+    blueprint["coordsets/coords/origin/x"] = x_min
+    blueprint["coordsets/coords/origin/y"] = y_min
+    blueprint["coordsets/coords/spacing/dx"] = (x_max - x_min) / res_x
+    blueprint["coordsets/coords/spacing/dy"] = (y_max - y_min) / res_y
+    blueprint["topologies/mesh/type"] = "uniform"
+    blueprint["topologies/mesh/coordset"] = "coords"
+    return blueprint
 
 
 def main() -> int:
@@ -82,7 +75,11 @@ def main() -> int:
     parser.add_argument("--res_x", type=int, default=10)
     parser.add_argument("--res_y", type=int, default=20)
     parser.add_argument("--output_blueprint", action="store_true")
-    parser.add_argument("--output_file", default="mesh_blueprint.json")
+    parser.add_argument(
+        "--output_file",
+        default="uniform_bp",
+        help="Base filename for the blueprint rootfile output",
+    )
     args = parser.parse_args()
 
     datastore = pysidre.DataStore()
@@ -95,10 +92,14 @@ def main() -> int:
     print("Resolution:", (args.res_x, args.res_y))
 
     if args.output_blueprint:
-        output_path = Path(args.output_file)
+        output_base = Path(args.output_file).with_suffix("")
         blueprint = create_blueprint(mesh_group)
-        output_path.write_text(json.dumps({"mesh": blueprint}, indent=2), encoding="utf-8")
-        print("Wrote blueprint:", output_path)
+        info = conduit.Node()
+        if not conduit.blueprint.mesh.verify(blueprint, info):
+            raise RuntimeError(f"Blueprint verification failed: {info.to_string()}")
+
+        conduit.relay.io.blueprint.save_mesh(blueprint, str(output_base), "yaml")
+        print("Wrote blueprint:", output_base.with_suffix(".root"))
 
     return 0
 
