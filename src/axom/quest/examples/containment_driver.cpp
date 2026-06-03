@@ -69,12 +69,17 @@ public:
   }
 
 #ifdef AXOM_USE_C2C
-  void loadContourMesh(const std::string& inputFile, int segmentsPerKnotSpan)
+  bool loadContourMesh(const std::string& inputFile, int segmentsPerKnotSpan)
   {
     AXOM_ANNOTATE_SCOPE("load c2c");
     quest::C2CReader reader;
     reader.setFileName(inputFile);
-    reader.read();
+    const int rc = reader.read();
+    if(rc != 0)
+    {
+      SLIC_WARNING(axom::fmt::format("Failed to load contour file '{}'", inputFile));
+      return false;
+    }
 
     // Create surface mesh
     m_surfaceMesh.reset(new UMesh(2, mint::SEGMENT));
@@ -82,15 +87,15 @@ public:
     lin.getLinearMeshUniform(reader.getCurvesView(),
                              static_cast<UMesh*>(m_surfaceMesh.get()),
                              segmentsPerKnotSpan);
+    return true;
   }
 #else
-  void loadContourMesh(const std::string& inputFile, int segmentsPerKnotSpan)
+  bool loadContourMesh(const std::string&, int))
   {
-    AXOM_UNUSED_VAR(inputFile);
-    AXOM_UNUSED_VAR(segmentsPerKnotSpan);
-    SLIC_ERROR(
+    SLIC_WARNING(
       "Configuration error: Loading contour files is only supported when Axom "
       "is configured with C2C support.");
+    return false;
   }
 #endif  // AXOM_USE_C2C
 
@@ -608,7 +613,10 @@ int main(int argc, char** argv)
 
   if(is2D)
   {
-    driver2D.loadContourMesh(params.inputFile, params.samplesPerKnotSpan);
+    if(!driver2D.loadContourMesh(params.inputFile, params.samplesPerKnotSpan))
+    {
+      return 1;
+    }
   }
   else
   {
