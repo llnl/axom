@@ -532,6 +532,15 @@ TEST(primal_knotvector, validity_checks)
     EXPECT_FALSE(kvector.isValid());
   }
 
+  // knot vector needs enough knots for a clamped vector
+  {
+    constexpr int degree = 2;
+    double knots[] = {0.0, 0.0, 0.0};
+
+    primal::KnotVector<double> kvector(knots, 3, degree, SkipTag {});
+    EXPECT_FALSE(kvector.isValid());
+  }
+
   // knot vector needs to be monotonic
   {
     constexpr int degree = 2;

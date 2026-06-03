@@ -305,14 +305,16 @@ public:
       return false;
     }
 
-    if(m_knots.size() < (m_deg + 1))
+    // For clamped knot vectors, we require at least (p+1) repeated knots at each end
+    const axom::IndexType min_num_knots = static_cast<axom::IndexType>(2 * (m_deg + 1));
+    if(m_knots.size() < min_num_knots)
     {
-      SLIC_WARNING_ROOT_IF(
-        verbose,
-        axom::fmt::format(
-          "Invalid KnotVector: knot array too small for degree (degree={}, num_knots={})",
-          m_deg,
-          m_knots.size()));
+      SLIC_WARNING_ROOT_IF(verbose,
+                           axom::fmt::format("Invalid KnotVector: knot array too small for degree "
+                                             "(degree={}, num_knots={}, min_num_knots={})",
+                                             m_deg,
+                                             m_knots.size(),
+                                             min_num_knots));
       return false;
     }
 
