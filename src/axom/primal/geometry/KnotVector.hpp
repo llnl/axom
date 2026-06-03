@@ -271,9 +271,19 @@ public:
     m_knots.clear();
   }
 
-  /// \brief Return if the knot vector is valid
-  ///
-  /// \param [in] verbose When true, emits a warning on the first failing check.
+  /*!
+   *  \brief Return if the knot vector is valid
+   * 
+   *  Checks that the knot vector satisfies all requirements for a valid B-spline/NURBS knot vector:
+   *  degree >= 0, sufficient knots, monotonic sequence, clamped ends, and valid internal multiplicities.
+   * 
+   *  \param [in] verbose When true, emits a warning message describing the first failing check.
+   * 
+   *  \note Only the *first* validation error is reported when \a verbose is true.
+   *        Fix that error and call \a isValid(true) again to discover subsequent errors.
+   * 
+   *  \return true if the knot vector satisfies all validity conditions, false otherwise
+   */
   bool isValid(bool verbose = false) const
   {
     // Check degree

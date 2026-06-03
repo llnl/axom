@@ -106,37 +106,50 @@ int C2CReader::readContour()
     }
 
     // Load and check weights; count must either be 0 or match control points
-    const axom::ArrayView<const double> wts_view(
-      nurbsData.weights.data(),
-      static_cast<axom::IndexType>(nurbsData.weights.size()));
-    if(!wts_view.empty() && wts_view.size() != controlPoints.size())
+    axom::Array<double> weights;
+    if(!nurbsData.weights.empty())
     {
-      SLIC_WARNING(
-        fmt::format("Invalid contour file '{}': piece {} has {} weights for {} control points",
-                    m_fileName,
-                    piece_index,
-                    wts_view.size(),
-                    npts));
-      return 1;
-    }
-
-    // the weights are non-trivial when present and not all equal to 1
-    bool has_non_trivial_weights = false;
-    for(const double& wt : wts_view)
-    {
-      if(wt != 1.0)
+      if(static_cast<axom::IndexType>(nurbsData.weights.size()) != controlPoints.size())
       {
-        has_non_trivial_weights = true;
+        SLIC_WARNING(
+          fmt::format("Invalid contour file '{}': piece {} has {} weights for {} control points",
+                      m_fileName,
+                      piece_index,
+                      nurbsData.weights.size(),
+                      npts));
+        return 1;
+      }
+
+      // Check if weights are non-trivial (present and not all equal to 1)
+      bool has_non_trivial_weights = false;
+      for(const double& wt : nurbsData.weights)
+      {
+        if(wt != 1.0)
+        {
+          has_non_trivial_weights = true;
+          break;
+        }
+      }
+
+      // Only copy weights if they are non-trivial
+      if(has_non_trivial_weights)
+      {
+        weights.reserve(nurbsData.weights.size());
+        for(const double& wt : nurbsData.weights)
+        {
+          weights.push_back(wt);
+        }
       }
     }
 
-    if(has_non_trivial_weights)
+    // Construct NURBSCurve using Array constructors to avoid use-after-free
+    if(weights.empty())
     {
-      m_nurbsData.emplace_back(controlPoints.view(), wts_view, knotvec);
+      m_nurbsData.emplace_back(controlPoints, knotvec);
     }
     else
     {
-      m_nurbsData.emplace_back(controlPoints.view(), knotvec);
+      m_nurbsData.emplace_back(controlPoints, weights, knotvec);
     }
 
     ++piece_index;
