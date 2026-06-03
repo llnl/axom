@@ -87,7 +87,7 @@ public:
   KnotVector(axom::ArrayView<const T> knots, int degree)
     : KnotVector(knots, degree, SkipValidityChecks {})
   {
-    SLIC_ASSERT(isValid());
+    SLIC_ASSERT(isValid(true));
   }
 
   /*!
@@ -97,12 +97,12 @@ public:
    * \param [in] degree the degree of the curve
    * \param [in] SkipValidityChecks tag to indicate validity is not asserted
    *
-   * \post The KnotVector degree is at least -1
+   * \post The KnotVector degree is clamped to be at least -1
    * \post The KnotVector values will be copied when the input \a knots is non-empty and non-null
    * \note The resulting KnotVector may be invalid; call \a isValid() to verify.
    */
   KnotVector(axom::ArrayView<const T> knots, int degree, SkipValidityChecks)
-    : m_deg(axom::utilities::max(degree, -1))
+    : m_deg(axom::utilities::clampLower(degree, -1))
   {
     if(knots.empty() || knots.data() == nullptr)
     {

@@ -72,7 +72,6 @@ int C2CReader::readContour()
     {
       controlPoints.emplace_back(PointType {pt.getZ().getValue(), pt.getR().getValue()});
     }
-    const auto pts_view = controlPoints.view();
     const int npts = static_cast<int>(controlPoints.size());
 
     // Load and check knot vector; check degree first then knots
@@ -99,12 +98,10 @@ int C2CReader::readContour()
     {
       SLIC_WARNING(
         fmt::format("Invalid contour file '{}': piece {} converted to an invalid NURBS knot vector "
-                    "(degree={}). "
-                    "See previous warning for the first invalidity reason.",
+                    "(degree={}).",
                     m_fileName,
                     piece_index,
                     degree));
-      m_nurbsData.clear();
       return 1;
     }
 
@@ -112,7 +109,7 @@ int C2CReader::readContour()
     const axom::ArrayView<const double> wts_view(
       nurbsData.weights.data(),
       static_cast<axom::IndexType>(nurbsData.weights.size()));
-    if(!wts_view.empty() && wts_view.size() != pts_view.size())
+    if(!wts_view.empty() && wts_view.size() != controlPoints.size())
     {
       SLIC_WARNING(
         fmt::format("Invalid contour file '{}': piece {} has {} weights for {} control points",
@@ -120,7 +117,6 @@ int C2CReader::readContour()
                     piece_index,
                     wts_view.size(),
                     npts));
-      m_nurbsData.clear();
       return 1;
     }
 
@@ -136,11 +132,11 @@ int C2CReader::readContour()
 
     if(has_non_trivial_weights)
     {
-      m_nurbsData.emplace_back(pts_view, wts_view, knotvec);
+      m_nurbsData.emplace_back(controlPoints.view(), wts_view, knotvec);
     }
     else
     {
-      m_nurbsData.emplace_back(pts_view, knotvec);
+      m_nurbsData.emplace_back(controlPoints.view(), knotvec);
     }
 
     ++piece_index;

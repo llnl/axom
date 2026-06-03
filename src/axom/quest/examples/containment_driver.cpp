@@ -77,7 +77,9 @@ public:
     const int rc = reader.read();
     if(rc != 0)
     {
-      SLIC_WARNING(axom::fmt::format("Failed to load contour file '{}'", inputFile));
+      SLIC_WARNING(
+        axom::fmt::format("Failed to load contour file '{}'. See earlier warnings for details.",
+                          inputFile));
       return false;
     }
 
