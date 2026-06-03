@@ -3583,10 +3583,7 @@ TEST(sidre_group, import_conduit_lists)
 
 //------------------------------------------------------------------------------
 
-inline int pointerToAllocatorID(const void* ptr)
-{
-  return axom::getAllocatorIDFromPointer(ptr);
-}
+inline int pointerToAllocatorID(const void* ptr) { return axom::getAllocatorIDFromPointer(ptr); }
 
 inline bool isHostAccessibleAllocatorID(int allocId)
 {
