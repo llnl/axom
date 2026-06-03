@@ -88,13 +88,13 @@ axom_add_executable(
     FOLDER      axom/quest/examples
     )
 
-# BVH silo example ------------------------------------------------------------
-if (CONDUIT_FOUND AND UMPIRE_FOUND)
+# BVH Blueprint candidate example -------------------------------------------------
+if (AXOM_ENABLE_MPI AND CONDUIT_FOUND AND UMPIRE_FOUND)
     axom_add_executable(
         NAME        quest_candidates_example_ex
         SOURCES     quest_candidates_example.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends} conduit::conduit umpire
+        DEPENDS_ON  ${quest_example_depends} conduit::conduit conduit::conduit_mpi umpire
         FOLDER      axom/quest/examples
         )
 
@@ -136,7 +136,7 @@ if (CONDUIT_FOUND AND UMPIRE_FOUND)
 
                 # Match either one comma or none for portability
                 set_tests_properties(${_testname} PROPERTIES
-                    PASS_REGULAR_EXPRESSION  "Mesh had 6[,]?859 candidates pairs")
+                    PASS_REGULAR_EXPRESSION  "Mesh had 6[,]?859 candidate pairs")
             endforeach()
         endforeach()
     endif()
@@ -789,4 +789,3 @@ if(OPENCASCADE_FOUND)
 
     endif()
 endif()
-
