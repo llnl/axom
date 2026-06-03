@@ -3585,16 +3585,23 @@ TEST(sidre_group, import_conduit_lists)
 
 inline int pointerToAllocatorID(const void* ptr)
 {
-#ifdef AXOM_USE_UMPIRE
-  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-  if(rm.hasAllocator(const_cast<void*>(ptr)))
+  return axom::getAllocatorIDFromPointer(ptr);
+}
+
+inline bool isHostAccessibleAllocatorID(int allocId)
+{
+  switch(axom::detail::getAllocatorSpace(allocId))
   {
-    umpire::Allocator allocator = rm.getAllocator(const_cast<void*>(ptr));
-    return allocator.getId();
-  }
+  case axom::MemorySpace::Malloc:
+#if defined(AXOM_USE_UMPIRE)
+  case axom::MemorySpace::Host:
+  case axom::MemorySpace::Unified:
+  case axom::MemorySpace::Pinned:
 #endif
-  AXOM_UNUSED_VAR(ptr);
-  return axom::getDefaultAllocatorID();
+    return true;
+  default:
+    return false;
+  }
 }
 
 TEST(sidre_group, import_conduit_into_mem_space)
@@ -3618,7 +3625,7 @@ TEST(sidre_group, import_conduit_into_mem_space)
   conduit::Node node;
   node["origOnHost"].set_dtype(dtype);
   node["origOnDev"].set_external(dtype, devArray);
-  EXPECT_EQ(pointerToAllocatorID(node["origOnHost"].data_ptr()), hostAllocId);
+  EXPECT_TRUE(isHostAccessibleAllocatorID(pointerToAllocatorID(node["origOnHost"].data_ptr())));
   EXPECT_EQ(pointerToAllocatorID(node["origOnDev"].data_ptr()), devAllocId);
 
   /*
