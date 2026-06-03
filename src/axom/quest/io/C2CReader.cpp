@@ -57,21 +57,93 @@ int C2CReader::readContour()
 
   SLIC_INFO(fmt::format("Loading contour with {} pieces", contour.getPieces().size()));
 
+  m_nurbsData.clear();
+  m_nurbsData.reserve(contour.getPieces().size());
+
+  int piece_index = 0;
   for(auto* piece : contour.getPieces())
   {
     const auto nurbsData = c2c::toNurbs(*piece, m_lengthUnit);
 
+    // Load control points
     axom::Array<PointType> controlPoints;
+    controlPoints.reserve(nurbsData.controlPoints.size());
     for(const auto& pt : nurbsData.controlPoints)
     {
       controlPoints.emplace_back(PointType {pt.getZ().getValue(), pt.getR().getValue()});
     }
+    const auto pts_view = controlPoints.view();
+    const int npts = static_cast<int>(controlPoints.size());
 
-    m_nurbsData.emplace_back(controlPoints.data(),
-                             nurbsData.weights.data(),
-                             controlPoints.size(),
-                             nurbsData.knots.data(),
-                             nurbsData.knots.size());
+    // Load and check knot vector; check degree first then knots
+    const auto nkts = static_cast<axom::IndexType>(nurbsData.knots.size());
+    const int degree = static_cast<int>(nkts - npts - 1);
+    if(degree < 0)
+    {
+      SLIC_WARNING(
+        fmt::format("Invalid contour file '{}': computed negative NURBS degree for piece "
+                    "{} (npts={}, nkts={})",
+                    m_fileName,
+                    piece_index,
+                    npts,
+                    nkts));
+      return 1;
+    }
+
+    const axom::ArrayView<const double> knots_view(nurbsData.knots.data(), nkts);
+    primal::KnotVector<double> knotvec(knots_view,
+                                       degree,
+                                       primal::KnotVector<double>::SkipValidityChecks {});
+
+    if(!knotvec.isValid())
+    {
+      SLIC_WARNING(
+        fmt::format("Invalid contour file '{}': piece {} converted to an invalid NURBS knot vector "
+                    "(degree={}). "
+                    "This can happen for linear splines with duplicate points.",
+                    m_fileName,
+                    piece_index,
+                    degree));
+      m_nurbsData.clear();
+      return 1;
+    }
+
+    // Load and check weights; count must either be 0 or match control points
+    const axom::ArrayView<const double> wts_view(
+      nurbsData.weights.data(),
+      static_cast<axom::IndexType>(nurbsData.weights.size()));
+    if(!wts_view.empty() && wts_view.size() != pts_view.size())
+    {
+      SLIC_WARNING(
+        fmt::format("Invalid contour file '{}': piece {} has {} weights for {} control points",
+                    m_fileName,
+                    piece_index,
+                    wts_view.size(),
+                    npts));
+      m_nurbsData.clear();
+      return 1;
+    }
+
+    // the weights are non-trivial when present and not all equal to 1
+    bool has_non_trivial_weights = false;
+    for(const double& wt : wts_view)
+    {
+      if(wt != 1.0)
+      {
+        has_non_trivial_weights = true;
+      }
+    }
+
+    if(has_non_trivial_weights)
+    {
+      m_nurbsData.emplace_back(pts_view, wts_view, knotvec);
+    }
+    else
+    {
+      m_nurbsData.emplace_back(pts_view, knotvec);
+    }
+
+    ++piece_index;
   }
 
   return 0;
