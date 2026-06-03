@@ -90,7 +90,7 @@ public:
     return true;
   }
 #else
-  bool loadContourMesh(const std::string&, int))
+  bool loadContourMesh(const std::string&, int)
   {
     SLIC_WARNING(
       "Configuration error: Loading contour files is only supported when Axom "
