@@ -17,6 +17,7 @@
 
 #include <fstream>
 #include <string>
+#include <utility>
 
 namespace axom
 {
@@ -30,6 +31,9 @@ int C2CReader::read()
   SLIC_WARNING_IF(m_fileName.empty(), "Missing a filename in C2CReader::read()");
 
   using axom::utilities::string::endsWith;
+
+  // Always clear prior results so callers never observe stale curves after a failed read
+  this->clear();
 
   int ret = 1;
 
@@ -57,8 +61,9 @@ int C2CReader::readContour()
 
   SLIC_INFO(fmt::format("Loading contour with {} pieces", contour.getPieces().size()));
 
-  m_nurbsData.clear();
-  m_nurbsData.reserve(contour.getPieces().size());
+  // Build results transactionally so we don't retain partial curves on error
+  CurveArray nurbs_data;
+  nurbs_data.reserve(contour.getPieces().size());
 
   int piece_index = 0;
   for(auto* piece : contour.getPieces())
@@ -73,6 +78,10 @@ int C2CReader::readContour()
       controlPoints.emplace_back(PointType {pt.getZ().getValue(), pt.getR().getValue()});
     }
     const int npts = static_cast<int>(controlPoints.size());
+    if(npts <= 0)
+    {
+      continue;
+    }
 
     // Load and check knot vector; check degree first then knots
     const auto nkts = static_cast<axom::IndexType>(nurbsData.knots.size());
@@ -84,6 +93,19 @@ int C2CReader::readContour()
                     "{} (npts={}, nkts={})",
                     m_fileName,
                     piece_index,
+                    npts,
+                    nkts));
+      return 1;
+    }
+
+    if(npts <= degree)
+    {
+      SLIC_WARNING(
+        fmt::format("Invalid contour file '{}': piece {} has too few control points for degree "
+                    "(degree={}, npts={}, nkts={})",
+                    m_fileName,
+                    piece_index,
+                    degree,
                     npts,
                     nkts));
       return 1;
@@ -145,16 +167,17 @@ int C2CReader::readContour()
     // Construct NURBSCurve using Array constructors to avoid use-after-free
     if(weights.empty())
     {
-      m_nurbsData.emplace_back(controlPoints, knotvec);
+      nurbs_data.emplace_back(controlPoints, knotvec);
     }
     else
     {
-      m_nurbsData.emplace_back(controlPoints, weights, knotvec);
+      nurbs_data.emplace_back(controlPoints, weights, knotvec);
     }
 
     ++piece_index;
   }
 
+  m_nurbsData = std::move(nurbs_data);
   return 0;
 }
 
