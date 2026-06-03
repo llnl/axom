@@ -95,12 +95,12 @@ int C2CReader::readContour()
                                        degree,
                                        primal::KnotVector<double>::SkipValidityChecks {});
 
-    if(!knotvec.isValid())
+    if(!knotvec.isValid(true))
     {
       SLIC_WARNING(
         fmt::format("Invalid contour file '{}': piece {} converted to an invalid NURBS knot vector "
                     "(degree={}). "
-                    "This can happen for linear splines with duplicate points.",
+                    "See previous warning for the first invalidity reason.",
                     m_fileName,
                     piece_index,
                     degree));

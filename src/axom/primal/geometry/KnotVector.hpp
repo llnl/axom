@@ -272,17 +272,37 @@ public:
   }
 
   /// \brief Return if the knot vector is valid
-  bool isValid() const
+  ///
+  /// \param [in] verbose When true, emits a warning on the first failing check.
+  bool isValid(bool verbose = false) const
   {
     // Check degree
     if(m_deg < 0)
     {
+      SLIC_WARNING_ROOT_IF(verbose, "Invalid KnotVector: degree is negative");
       return false;
     }
 
-    // Check knots vector has the correct size and data
-    if(m_knots.size() < (m_deg + 1 || m_knots.data() == nullptr))
+    if(m_knots.empty())
     {
+      SLIC_WARNING_ROOT_IF(verbose, "Invalid KnotVector: knot array is empty");
+      return false;
+    }
+
+    if(m_knots.data() == nullptr)
+    {
+      SLIC_WARNING_ROOT_IF(verbose, "Invalid KnotVector: knot array data pointer is null");
+      return false;
+    }
+
+    if(m_knots.size() < (m_deg + 1))
+    {
+      SLIC_WARNING_ROOT_IF(
+        verbose,
+        axom::fmt::format(
+          "Invalid KnotVector: knot array too small for degree (degree={}, num_knots={})",
+          m_deg,
+          m_knots.size()));
       return false;
     }
 
@@ -291,6 +311,14 @@ public:
     {
       if(m_knots[i] > m_knots[i + 1])
       {
+        SLIC_WARNING_ROOT_IF(
+          verbose,
+          axom::fmt::format(
+            "Invalid KnotVector: knot vector is not monotone (knot[{}]={} > knot[{}]={})",
+            i,
+            m_knots[i],
+            i + 1,
+            m_knots[i + 1]));
         return false;
       }
     }
@@ -303,10 +331,24 @@ public:
     {
       if(m_knots[i] != minKnot)
       {
+        SLIC_WARNING_ROOT_IF(
+          verbose,
+          axom::fmt::format(
+            "Invalid KnotVector: knot vector is not clamped at start (knot[{}]={} != minKnot={})",
+            i,
+            m_knots[i],
+            minKnot));
         return false;
       }
       if(m_knots[nkts - 1 - i] != maxKnot)
       {
+        SLIC_WARNING_ROOT_IF(
+          verbose,
+          axom::fmt::format(
+            "Invalid KnotVector: knot vector is not clamped at end (knot[{}]={} != maxKnot={})",
+            nkts - 1 - i,
+            m_knots[nkts - 1 - i],
+            maxKnot));
         return false;
       }
     }
@@ -326,6 +368,13 @@ public:
         this_multiplicity++;
         if(this_multiplicity > m_deg)
         {
+          SLIC_WARNING_ROOT_IF(
+            verbose,
+            axom::fmt::format("Invalid KnotVector: internal knot multiplicity exceeds degree "
+                              "(knot={}, multiplicity={}, degree={})",
+                              this_knot,
+                              this_multiplicity,
+                              m_deg));
           return false;
         }
       }
