@@ -771,11 +771,16 @@ AXOM_TYPED_TEST(core_flatmap, copy_host_device)
   using DeviceExec = typename TestFixture::DeviceExec;
 
   // CUDA failure - Skip tests if key or value is of type std::string
-  #if defined(AXOM_USE_CUDA)
+  #if defined(AXOM_USE_CUDA) && defined(__GLIBCXX__)
   if constexpr(std::is_same<typename TestFixture::KeyType, std::string>::value ||
                std::is_same<typename TestFixture::ValueType, std::string>::value)
   {
-    return;
+    // Copies of non-trivial types to or from device-only memory on CUDA rely
+    // on the types being "trivially relocatable," just as in axom::Array.
+    //
+    // For libstdc++, std::string is not trivially-relocatable, as it keeps a
+    // pointer to itself in its implementation of small-string optimization.
+    GTEST_SKIP() << "std::string is not supported in device-only memory on GCC's libstdc++";
   }
   #endif
 

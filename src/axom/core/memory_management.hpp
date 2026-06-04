@@ -378,6 +378,9 @@ public:
   /// \brief Returns the allocator ID.
   int getID() const { return m_id; }
 
+  /// \brief Returns the MemorySpace type for the given allocator.
+  MemorySpace getSpace() const;
+
 private:
   int m_id;
 };
@@ -872,6 +875,8 @@ inline bool isDeviceAllocator(int allocator_id)
 #else
 inline bool isDeviceAllocator(int AXOM_UNUSED_PARAM(allocator_id)) { return false; }
 #endif
+
+inline MemorySpace Allocator::getSpace() const { return axom::detail::getAllocatorSpace(m_id); }
 
 }  // namespace axom
 
