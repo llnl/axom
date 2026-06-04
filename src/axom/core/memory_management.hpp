@@ -91,7 +91,7 @@ enum class MemorySpace
 /// @{
 
 /*!
- * \brief Returns whether a memory space is available in the current build.
+ * \brief Returns true if memory space is available in the current build.
  *
  * \note `MemorySpace::Malloc`, `MemorySpace::Dynamic`, and `MemorySpace::Host`
  *       are always available. The remaining spaces require Umpire support for
@@ -110,7 +110,7 @@ bool isMemorySpaceAvailable(MemorySpace space) noexcept;
 int getAllocatorIDFromMemorySpace(MemorySpace space);
 
 /*!
- * \brief Sets the default memory allocator using an Axom memory-space enum.
+ * \brief Sets the default memory allocator using an Axom MemorySpace enum value.
  *
  * \note When Axom is built without Umpire, setting the default allocator has
  *       no effect and host-backed memory spaces resolve to malloc.
@@ -121,7 +121,7 @@ int getAllocatorIDFromMemorySpace(MemorySpace space);
 void setDefaultAllocator(MemorySpace space);
 
 /*!
- * \brief Sets the default host allocator using an Axom memory-space enum.
+ * \brief Sets the default host allocator using Axom MemorySpace enum value.
  *
  * \note `MemorySpace::Malloc` selects Axom's malloc-backed host allocator.
  * \note `MemorySpace::Host` resets to the platform host allocator
@@ -728,6 +728,28 @@ inline int getAllocatorID<MemorySpace::Constant>()
 
 }  // namespace detail
 
+/*!
+ * \brief Returns true if memory allocated by allocator with given ID
+ *        is accessible on host; else return false.
+ */
+inline bool isHostAccessibleAllocatorID(int allocId)
+{
+  switch(detail::getAllocatorSpace(allocId))
+  {
+  case axom::MemorySpace::Malloc:
+  case axom::MemorySpace::Host:
+  case axom::MemorySpace::Unified:
+  case axom::MemorySpace::Pinned:
+    return true;
+  default:
+    return false;
+  }
+}
+
+/*!
+ * \brief Returns true if allocator with given ID is compatible with given 
+ *        memory space enum value; else return false.
+ */
 inline bool isAllocatorCompatibleWithMemorySpace(int allocId, MemorySpace space) noexcept
 {
   if(!isValidAllocatorID(allocId))

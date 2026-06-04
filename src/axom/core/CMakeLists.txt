@@ -27,6 +27,7 @@ set(core_headers
     utilities/BitUtilities.hpp
     utilities/CommandLineUtilities.hpp
     utilities/FileUtilities.hpp
+    utilities/MemoryTesting.hpp
     utilities/RAII.hpp
     utilities/Sorting.hpp
     utilities/StringUtilities.hpp

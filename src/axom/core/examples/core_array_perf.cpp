@@ -186,19 +186,6 @@ int allocatorIdFromPolicy(axom::runtime_policy::Policy policy)
   return allocatorID;
 }
 
-#if defined(AXOM_USE_UMPIRE)
-std::string allocatorName(int allocatorId)
-{
-  if(allocatorId == axom::MALLOC_ALLOCATOR_ID)
-  {
-    return "Malloc";
-  }
-
-  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-  return rm.getAllocator(allocatorId).getName();
-}
-#endif
-
 template <int DIM, typename ExecSpace>
 class MDMappingPerfTester
 {
@@ -217,9 +204,20 @@ public:
   {
     m_allocatorId = allocatorIdFromPolicy(params.runtimePolicy);
 #ifdef AXOM_USE_UMPIRE
+    std::string name;
+    if (m_allocatorId == axom::MALLOC_ALLOCATOR_ID)
+    {
+      name = "Malloc";
+    }
+    else 
+    {
+      umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
+      name = rm.getAllocator(m_allocatorId).getName(); 
+    }
+
     std::cout << axom::fmt::format("Allocator id: {}, Umpire memory space {}",
                                    m_allocatorId,
-                                   allocatorName(m_allocatorId))
+                                   name)
               << std::endl;
 #else
     std::cout << axom::fmt::format("Allocator id: {}, default memory space", m_allocatorId)

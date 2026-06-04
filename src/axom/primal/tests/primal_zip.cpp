@@ -9,6 +9,8 @@
 #include "axom/core/execution/for_all.hpp"
 #include "axom/core/execution/runtime_policy.hpp"
 #include "axom/core/memory_management.hpp"
+#include "axom/core/utilities/MemoryTesting.hpp"
+
 #include "axom/slic.hpp"
 
 #include "axom/primal/geometry/Point.hpp"
@@ -23,17 +25,6 @@
 using namespace axom;
 
 //------------------------------------------------------------------------------
-template <typename ExecSpace>
-int globalDefaultAllocatorForExecSpace()
-{
-#if defined(AXOM_USE_UMPIRE)
-  return axom::execution_space<ExecSpace>::onDevice()
-    ? axom::execution_space<ExecSpace>::allocatorID()
-    : axom::getUmpireResourceAllocatorID(umpire::resource::Host);
-#else
-  return axom::execution_space<ExecSpace>::allocatorID();
-#endif
-}
 
 template <typename PrimitiveType>
 void check_default_ctor()
@@ -49,7 +40,7 @@ void check_zip_points_3d()
   using ZipType = primal::ZipIndexable<PrimitiveType>;
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   // create arrays of data
   constexpr int N = 8;
@@ -97,7 +88,7 @@ void check_zip_points_2d_from_3d()
   using ZipType = primal::ZipIndexable<PointType>;
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   // create arrays of data
   constexpr int N = 4;
@@ -143,7 +134,7 @@ void check_zip_vectors_2d_from_3d()
   using ZipType = primal::ZipIndexable<PointType>;
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   // create arrays of data
   constexpr int N = 4;
@@ -190,7 +181,7 @@ void check_zip_bbs_3d()
   using ZipType = primal::ZipIndexable<BoxType>;
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   // create arrays of data
   constexpr int N = 8;
@@ -257,7 +248,7 @@ void check_zip_bbs_2d_from_3d()
   using ZipType = primal::ZipIndexable<BoxType>;
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   // create arrays of data
   constexpr int N = 4;
@@ -321,7 +312,7 @@ void check_zip_rays_3d()
   using ZipType = primal::ZipIndexable<RayType>;
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   // create arrays of data
   constexpr int N = 4;
@@ -400,7 +391,7 @@ void check_zip_rays_2d_from_3d()
   using ZipType = primal::ZipIndexable<RayType>;
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   // create arrays of data
   constexpr int N = 4;

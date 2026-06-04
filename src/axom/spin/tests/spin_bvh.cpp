@@ -7,6 +7,8 @@
 // axom includes
 #include "axom/config.hpp"
 #include "axom/core.hpp"
+#include "axom/core/utilities/MemoryTesting.hpp"
+
 #include "axom/primal.hpp"
 #include "axom/mint.hpp"
 
@@ -33,18 +35,6 @@ namespace xargs = mint::xargs;
 using IndexType = axom::IndexType;
 
 constexpr double EPS = 1e-6;
-
-template <typename ExecSpace>
-int globalDefaultAllocatorForExecSpace()
-{
-#if defined(AXOM_USE_UMPIRE)
-  return axom::execution_space<ExecSpace>::onDevice()
-    ? axom::execution_space<ExecSpace>::allocatorID()
-    : axom::getUmpireResourceAllocatorID(umpire::resource::Host);
-#else
-  return axom::execution_space<ExecSpace>::allocatorID();
-#endif
-}
 
 //------------------------------------------------------------------------------
 template <typename FloatType, int NDIMS>
@@ -1187,7 +1177,7 @@ void check_build_bvh_zip3d()
   using ZipIter = typename primal::ZipIndexable<BoxType>;
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   FloatType* xmin = axom::allocate<FloatType>(NUM_BOXES);
   FloatType* ymin = axom::allocate<FloatType>(NUM_BOXES);
@@ -1254,7 +1244,7 @@ void check_find_points_zip3d()
   constexpr IndexType N = 4;
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   using BoxType = typename primal::BoundingBox<FloatType, NDIMS>;
   using PointType = primal::Point<FloatType, NDIMS>;
@@ -1341,7 +1331,7 @@ void check_find_points_zip2d()
   constexpr IndexType N = 4;
 
   const int current_allocator = axom::getDefaultAllocatorID();
-  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   using BoxType = typename primal::BoundingBox<FloatType, NDIMS>;
   using PointType = primal::Point<FloatType, NDIMS>;

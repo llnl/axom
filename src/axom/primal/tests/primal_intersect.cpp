@@ -10,6 +10,7 @@
 
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/memory_management.hpp"
+#include "axom/core/utilities/MemoryTesting.hpp"
 
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
@@ -30,17 +31,6 @@ namespace primal = axom::primal;
 
 namespace
 {
-template <typename ExecSpace>
-int globalDefaultAllocatorForExecSpace()
-{
-#if defined(AXOM_USE_UMPIRE)
-  return axom::execution_space<ExecSpace>::onDevice()
-    ? axom::execution_space<ExecSpace>::allocatorID()
-    : axom::getUmpireResourceAllocatorID(umpire::resource::Host);
-#else
-  return axom::execution_space<ExecSpace>::allocatorID();
-#endif
-}
 
 template <int NDIMS>
 primal::Point<double, NDIMS> randomPt(double beg, double end)
@@ -2602,7 +2592,7 @@ void check_plane_bb_intersect()
   // Save current/default allocator
   const int current_allocator = axom::getDefaultAllocatorID();
 
-  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   // Initialize bounding box and planes on device,
   // intersection results in unified memory to check results on host.
@@ -2676,7 +2666,7 @@ void check_plane_seg_intersect()
   // Save current/default allocator
   const int current_allocator = axom::getDefaultAllocatorID();
 
-  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   // Initialize planes and segments on device,
   // intersection results in unified memory to check results on host.
@@ -2759,7 +2749,7 @@ void check_segment_segment_intersect_policy()
 
   const int current_allocator = axom::getDefaultAllocatorID();
 
-  axom::setDefaultAllocator(globalDefaultAllocatorForExecSpace<ExecSpace>());
+  axom::setDefaultAllocator(axom::utilities::globalDefaultAllocatorForExecSpace<ExecSpace>());
 
   const int result_allocator = (axom::execution_space<ExecSpace>::onDevice()
                                   ? rm.getAllocator(umpire::resource::Unified).getId()
