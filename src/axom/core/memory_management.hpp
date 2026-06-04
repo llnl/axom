@@ -386,6 +386,127 @@ private:
 //                        IMPLEMENTATION
 //------------------------------------------------------------------------------
 
+namespace detail
+{
+
+enum class AllocationBackend
+{
+  Malloc,
+#ifdef AXOM_USE_UMPIRE
+  Umpire,
+#endif
+  Invalid
+};
+
+inline AllocationBackend getAllocatorBackend(int allocID) noexcept
+{
+  if(allocID == MALLOC_ALLOCATOR_ID)
+  {
+    return AllocationBackend::Malloc;
+  }
+
+#ifdef AXOM_USE_UMPIRE
+  if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
+  {
+    return AllocationBackend::Umpire;
+  }
+#endif
+
+  return AllocationBackend::Invalid;
+}
+
+template <typename T>
+inline AllocationBackend getPointerBackend(T* pointer) noexcept
+{
+#ifdef AXOM_USE_UMPIRE
+  if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.hasAllocator(pointer))
+  {
+    return AllocationBackend::Umpire;
+  }
+#else
+  AXOM_UNUSED_VAR(pointer);
+#endif
+
+  return AllocationBackend::Malloc;
+}
+
+inline void abortOnInvalidAllocatorID(int allocID)
+{
+#ifdef AXOM_USE_UMPIRE
+  std::cerr << "Unrecognized allocator id " << allocID << std::endl;
+#else
+  std::cerr
+    << "*** Unrecognized allocator id " << allocID
+    << ".  Axom was NOT built with Umpire, so the only valid allocator id is MALLOC_ALLOCATOR_ID ("
+    << MALLOC_ALLOCATOR_ID << ")." << std::endl;
+#endif
+  axom::utilities::processAbort();
+}
+
+inline void abortOnInvalidReallocateState()
+{
+  std::cerr << "Unexpected allocator backend state in axom::reallocate()." << std::endl;
+  axom::utilities::processAbort();
+}
+
+template <typename T>
+inline T* normalizeZeroSizeReallocateResult(T* pointer, std::size_t n, int allocID) noexcept
+{
+  if(n == 0 && pointer == nullptr)
+  {
+    return axom::allocate<T>(0, allocID);
+  }
+
+  return pointer;
+}
+
+template <typename T>
+inline T* reallocateWithinMalloc(T* pointer, std::size_t numbytes) noexcept
+{
+  return static_cast<T*>(std::realloc(pointer, numbytes));
+}
+
+#ifdef AXOM_USE_UMPIRE
+template <typename T>
+inline T* reallocateWithinUmpire(T* pointer, std::size_t numbytes) noexcept
+{
+  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
+  return static_cast<T*>(rm.reallocate(pointer, numbytes));
+}
+
+template <typename T>
+inline T* migrateUmpireToMalloc(T* pointer, std::size_t n, std::size_t numbytes) noexcept
+{
+  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
+  const std::size_t old_numbytes = rm.getSize(pointer);
+
+  T* new_pointer = axom::allocate<T>(n, MALLOC_ALLOCATOR_ID);
+  copy(new_pointer, pointer, old_numbytes < numbytes ? old_numbytes : numbytes);
+  deallocate(pointer);
+
+  return new_pointer;
+}
+
+template <typename T>
+inline T* migrateMallocToUmpire(T* pointer, std::size_t n, std::size_t numbytes, int allocID) noexcept
+{
+  /*
+   * Reallocate from non-Umpire to Umpire, manually, using
+   * allocate, copy and deallocate. Because we don't know the
+   * current size, we first do a reallocate within the current
+   * space just so we have the size for the copy.
+   */
+  T* tmpPointer = static_cast<T*>(std::realloc(pointer, numbytes));
+  T* new_pointer = axom::allocate<T>(n, allocID);
+  copy(new_pointer, tmpPointer, numbytes);
+  deallocate(tmpPointer);
+
+  return new_pointer;
+}
+#endif
+
+}  // namespace detail
+
 template <typename T>
 inline T* allocate(std::size_t n, int allocID) noexcept
 {
@@ -467,92 +588,56 @@ inline T* reallocate(T* pointer, std::size_t n, int allocID) noexcept
   assert(allocID != INVALID_ALLOCATOR_ID);
 
   const std::size_t numbytes = n * sizeof(T);
+  const detail::AllocationBackend dst = detail::getAllocatorBackend(allocID);
 
-#if defined(AXOM_USE_UMPIRE)
-
-  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-  if(allocID == MALLOC_ALLOCATOR_ID)
+  if(dst == detail::AllocationBackend::Invalid)
   {
-    if(pointer == nullptr)
+    detail::abortOnInvalidAllocatorID(allocID);
+  }
+
+  if(pointer == nullptr)
+  {
+    return detail::normalizeZeroSizeReallocateResult(axom::allocate<T>(n, allocID), n, allocID);
+  }
+
+  const detail::AllocationBackend src = detail::getPointerBackend(pointer);
+
+  if(src == dst)
+  {
+    if(src == detail::AllocationBackend::Malloc)
     {
-      pointer = axom::allocate<T>(n, allocID);
+      pointer = detail::reallocateWithinMalloc(pointer, numbytes);
     }
-    else if(rm.hasAllocator(pointer))
+#ifdef AXOM_USE_UMPIRE
+    else if(src == detail::AllocationBackend::Umpire)
     {
-      const std::size_t old_numbytes = rm.getSize(pointer);
-      T* new_pointer = axom::allocate<T>(n, allocID);
-      copy(new_pointer, pointer, old_numbytes < numbytes ? old_numbytes : numbytes);
-      deallocate(pointer);
-      pointer = new_pointer;
+      pointer = detail::reallocateWithinUmpire(pointer, numbytes);
     }
+#endif
     else
     {
-      pointer = static_cast<T*>(std::realloc(pointer, numbytes));
-      if(n == 0 && pointer == nullptr)
-      {
-        pointer = axom::allocate<T>(0, allocID);
-      }
+      detail::abortOnInvalidReallocateState();
     }
 
-    return pointer;
+    return detail::normalizeZeroSizeReallocateResult(pointer, n, allocID);
   }
 
-  if(rm.isAllocator(allocID))
+#ifdef AXOM_USE_UMPIRE
+  if(src == detail::AllocationBackend::Malloc && dst == detail::AllocationBackend::Umpire)
   {
-    if(pointer == nullptr)
-    {
-      pointer = axom::allocate<T>(n, allocID);
-    }
-    else
-    {
-      if(rm.hasAllocator(pointer))
-      {
-        pointer = static_cast<T*>(rm.reallocate(pointer, numbytes));
-      }
-      else
-      {
-        /*
-         * Reallocate from non-Umpire to Umpire, manually, using
-         * allocate, copy and deallocate.  Because we don't know the
-         * current size, we first do a (extra) reallocate within the
-         * current space just so we have the size for the copy.
-         * Is there a better way?
-         */
-        auto tmpPointer = std::realloc(pointer, numbytes);
-        pointer = axom::allocate<T>(n, allocID);
-        copy(pointer, tmpPointer, numbytes);
-        deallocate(tmpPointer);
-      }
-    }
-    return pointer;
+    pointer = detail::migrateMallocToUmpire(pointer, n, numbytes, allocID);
+    return detail::normalizeZeroSizeReallocateResult(pointer, n, allocID);
   }
 
-  std::cerr << "Unrecognized allocator id " << allocID << std::endl;
-  axom::utilities::processAbort();
-
-#else
-
-  if(allocID == MALLOC_ALLOCATOR_ID)
+  if(src == detail::AllocationBackend::Umpire && dst == detail::AllocationBackend::Malloc)
   {
-    pointer = static_cast<T*>(std::realloc(pointer, numbytes));
+    pointer = detail::migrateUmpireToMalloc(pointer, n, numbytes);
+    return detail::normalizeZeroSizeReallocateResult(pointer, n, allocID);
   }
-  else
-  {
-    std::cerr << "*** Unrecognized allocator id "
-              << allocID << ".  Axom was NOT built with Umpire, so the only valid allocator id is MALLOC_ALLOCATOR_ID ("
-              << MALLOC_ALLOCATOR_ID << ")." << std::endl;
-    axom::utilities::processAbort();
-  }
-
-  // Consistently handle realloc(0) for std::realloc to match Umpire's behavior
-  if(n == 0 && pointer == nullptr)
-  {
-    pointer = axom::allocate<T>(0);
-  }
-
 #endif
 
-  return pointer;
+  detail::abortOnInvalidReallocateState();
+  return nullptr;  // Silence warning.
 }
 
 //------------------------------------------------------------------------------
