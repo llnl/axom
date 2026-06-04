@@ -21,6 +21,50 @@ namespace quest
 {
 namespace experimental
 {
+namespace
+{
+
+AXOM_HOST_DEVICE inline MeshClipperStrategy::LabelType labelRzBoxAgainstLinearSor(
+  const MeshClipperStrategy::BoundingBox2DType& bbInRz,
+  double z0,
+  double r0,
+  double z1,
+  double r1)
+{
+  const double zMin = bbInRz.getMin()[0];
+  const double zMax = bbInRz.getMax()[0];
+  const double rMin = bbInRz.getMin()[1];
+  const double rMax = bbInRz.getMax()[1];
+
+  const double curveMinZ = z0 < z1 ? z0 : z1;
+  const double curveMaxZ = z0 < z1 ? z1 : z0;
+  const double zLo = zMin > curveMinZ ? zMin : curveMinZ;
+  const double zHi = zMax < curveMaxZ ? zMax : curveMaxZ;
+  if(zLo > zHi)
+  {
+    return MeshClipperStrategy::LabelType::LABEL_OUT;
+  }
+
+  const double invDz = 1.0 / (z1 - z0);
+  const double rAtLo = r0 + (r1 - r0) * (zLo - z0) * invDz;
+  const double rAtHi = r0 + (r1 - r0) * (zHi - z0) * invDz;
+  const double rAllowedMax = rAtLo > rAtHi ? rAtLo : rAtHi;
+  const double rAllowedMin = rAtLo < rAtHi ? rAtLo : rAtHi;
+
+  if(rMin > rAllowedMax)
+  {
+    return MeshClipperStrategy::LabelType::LABEL_OUT;
+  }
+
+  if(zMin >= curveMinZ && zMax <= curveMaxZ && rMax <= rAllowedMin)
+  {
+    return MeshClipperStrategy::LabelType::LABEL_IN;
+  }
+
+  return MeshClipperStrategy::LabelType::LABEL_ON;
+}
+
+}  // namespace
 
 MonotonicZSORClipper::MonotonicZSORClipper(const klee::Geometry& kGeom, const std::string& name)
   : MeshClipperStrategy(kGeom)
@@ -194,6 +238,40 @@ template <typename ExecSpace>
 void MonotonicZSORClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                                                axom::ArrayView<LabelType> labels)
 {
+  if(m_sorCurve.size() == 2)
+  {
+    const double z0 = m_sorCurve[0][0];
+    const double r0 = m_sorCurve[0][1];
+    const double z1 = m_sorCurve[1][0];
+    const double r1 = m_sorCurve[1][1];
+
+    const auto cellCount = shapeMesh.getCellCount();
+    auto meshHexes = shapeMesh.getCellsAsHexes();
+    auto meshCellVolumes = shapeMesh.getCellVolumes();
+    auto invTransformer = m_invTransformer;
+    constexpr double EPS = 1e-10;
+
+    axom::for_all<ExecSpace>(
+      cellCount,
+      AXOM_LAMBDA(axom::IndexType cellId) {
+        if(axom::utilities::isNearlyEqual(meshCellVolumes[cellId], 0.0, EPS))
+        {
+          labels[cellId] = LabelType::LABEL_OUT;
+          return;
+        }
+
+        auto cellHex = meshHexes[cellId];
+        for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
+        {
+          invTransformer.transform(cellHex[vi].array());
+        }
+
+        BoundingBox2DType bbInRz = estimateBoundingBoxInRz(cellHex);
+        labels[cellId] = labelRzBoxAgainstLinearSor(bbInRz, z0, r0, z1, r1);
+      });
+    return;
+  }
+
   axom::Array<BoundingBox2DType> bbOn;
   axom::Array<BoundingBox2DType> bbUnder;
   computeCurveBoxes<ExecSpace>(shapeMesh, bbOn, bbUnder);
@@ -229,6 +307,51 @@ void MonotonicZSORClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& sh
                                               axom::ArrayView<const axom::IndexType> cellIds,
                                               axom::ArrayView<LabelType> labels)
 {
+  if(m_sorCurve.size() == 2)
+  {
+    const double z0 = m_sorCurve[0][0];
+    const double r0 = m_sorCurve[0][1];
+    const double z1 = m_sorCurve[1][0];
+    const double r1 = m_sorCurve[1][1];
+
+    const auto cellCount = cellIds.size();
+    auto meshHexes = shapeMesh.getCellsAsHexes();
+    auto tetVolumes = shapeMesh.getTetVolumes();
+    auto invTransformer = m_invTransformer;
+    constexpr double EPS = 1e-10;
+
+    axom::for_all<ExecSpace>(
+      cellCount,
+      AXOM_LAMBDA(axom::IndexType ci) {
+        axom::IndexType cellId = cellIds[ci];
+
+        HexahedronType hex = meshHexes[cellId];
+        for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
+        {
+          invTransformer.transform(hex[vi].array());
+        }
+
+        TetrahedronType cellTets[NUM_TETS_PER_HEX];
+        ShapeMesh::hexToTets(hex, cellTets);
+
+        for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
+        {
+          axom::IndexType tetId = cellId * NUM_TETS_PER_HEX + ti;
+          LabelType& tetLabel = labels[ci * NUM_TETS_PER_HEX + ti];
+          if(axom::utilities::isNearlyEqual(tetVolumes[tetId], 0.0, EPS))
+          {
+            tetLabel = LabelType::LABEL_OUT;
+            continue;
+          }
+
+          const TetrahedronType& tet = cellTets[ti];
+          BoundingBox2DType bbInRz = estimateBoundingBoxInRz(tet);
+          tetLabel = labelRzBoxAgainstLinearSor(bbInRz, z0, r0, z1, r1);
+        }
+      });
+    return;
+  }
+
   axom::Array<BoundingBox2DType> bbOn;
   axom::Array<BoundingBox2DType> bbUnder;
   computeCurveBoxes<ExecSpace>(shapeMesh, bbOn, bbUnder);
