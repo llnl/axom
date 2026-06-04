@@ -205,19 +205,17 @@ public:
     m_allocatorId = allocatorIdFromPolicy(params.runtimePolicy);
 #ifdef AXOM_USE_UMPIRE
     std::string name;
-    if (m_allocatorId == axom::MALLOC_ALLOCATOR_ID)
+    if(m_allocatorId == axom::MALLOC_ALLOCATOR_ID)
     {
       name = "Malloc";
     }
-    else 
+    else
     {
       umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-      name = rm.getAllocator(m_allocatorId).getName(); 
+      name = rm.getAllocator(m_allocatorId).getName();
     }
 
-    std::cout << axom::fmt::format("Allocator id: {}, Umpire memory space {}",
-                                   m_allocatorId,
-                                   name)
+    std::cout << axom::fmt::format("Allocator id: {}, Umpire memory space {}", m_allocatorId, name)
               << std::endl;
 #else
     std::cout << axom::fmt::format("Allocator id: {}, default memory space", m_allocatorId)

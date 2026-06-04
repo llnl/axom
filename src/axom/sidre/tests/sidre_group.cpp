@@ -3604,7 +3604,8 @@ TEST(sidre_group, import_conduit_into_mem_space)
   conduit::Node node;
   node["origOnHost"].set_dtype(dtype);
   node["origOnDev"].set_external(dtype, devArray);
-  EXPECT_TRUE(axom::isHostAccessibleAllocatorID(axom::getAllocatorIDFromPointer(node["origOnHost"].data_ptr())));
+  EXPECT_TRUE(axom::isHostAccessibleAllocatorID(
+    axom::getAllocatorIDFromPointer(node["origOnHost"].data_ptr())));
   EXPECT_EQ(axom::getAllocatorIDFromPointer(node["origOnDev"].data_ptr()), devAllocId);
 
   /*
