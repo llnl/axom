@@ -494,22 +494,23 @@ TEST(primal_beziertriangle, split_interior_polynomial)
   const auto pC = tri.evaluate(1.0, 0.0);
   const auto pQ = tri.evaluate(u, v);
 
+  constexpr double tol = 1e-10;
   for(int i = 0; i < DIM; ++i)
   {
     // t0 -> (B, C, Q)
-    EXPECT_NEAR(pB[i], t0.evaluate(0.0, 0.0)[i], 1e-10);
-    EXPECT_NEAR(pC[i], t0.evaluate(0.0, 1.0)[i], 1e-10);
-    EXPECT_NEAR(pQ[i], t0.evaluate(1.0, 0.0)[i], 1e-10);
+    EXPECT_NEAR(pB[i], t0.evaluate(0.0, 0.0)[i], tol);
+    EXPECT_NEAR(pC[i], t0.evaluate(0.0, 1.0)[i], tol);
+    EXPECT_NEAR(pQ[i], t0.evaluate(1.0, 0.0)[i], tol);
 
     // t1 -> (C, A, Q)
-    EXPECT_NEAR(pC[i], t1.evaluate(0.0, 0.0)[i], 1e-10);
-    EXPECT_NEAR(pA[i], t1.evaluate(0.0, 1.0)[i], 1e-10);
-    EXPECT_NEAR(pQ[i], t1.evaluate(1.0, 0.0)[i], 1e-10);
+    EXPECT_NEAR(pC[i], t1.evaluate(0.0, 0.0)[i], tol);
+    EXPECT_NEAR(pA[i], t1.evaluate(0.0, 1.0)[i], tol);
+    EXPECT_NEAR(pQ[i], t1.evaluate(1.0, 0.0)[i], tol);
 
     // t2 -> (A, B, Q)
-    EXPECT_NEAR(pA[i], t2.evaluate(0.0, 0.0)[i], 1e-10);
-    EXPECT_NEAR(pB[i], t2.evaluate(0.0, 1.0)[i], 1e-10);
-    EXPECT_NEAR(pQ[i], t2.evaluate(1.0, 0.0)[i], 1e-10);
+    EXPECT_NEAR(pA[i], t2.evaluate(0.0, 0.0)[i], tol);
+    EXPECT_NEAR(pB[i], t2.evaluate(0.0, 1.0)[i], tol);
+    EXPECT_NEAR(pQ[i], t2.evaluate(1.0, 0.0)[i], tol);
   }
 
   // Interior point checks via affine parameter mapping
@@ -524,7 +525,7 @@ TEST(primal_beziertriangle, split_interior_polynomial)
     const auto actual = t0.evaluate(s, t);
     for(int d = 0; d < DIM; ++d)
     {
-      EXPECT_NEAR(expected[d], actual[d], 1e-12);
+      EXPECT_NEAR(expected[d], actual[d], tol);
     }
   }
 
@@ -536,7 +537,7 @@ TEST(primal_beziertriangle, split_interior_polynomial)
     const auto actual = t1.evaluate(s, t);
     for(int d = 0; d < DIM; ++d)
     {
-      EXPECT_NEAR(expected[d], actual[d], 1e-12);
+      EXPECT_NEAR(expected[d], actual[d], tol);
     }
   }
 
@@ -548,7 +549,7 @@ TEST(primal_beziertriangle, split_interior_polynomial)
     const auto actual = t2.evaluate(s, t);
     for(int d = 0; d < DIM; ++d)
     {
-      EXPECT_NEAR(expected[d], actual[d], 1e-12);
+      EXPECT_NEAR(expected[d], actual[d], tol);
     }
   }
 }
@@ -587,22 +588,23 @@ TEST(primal_beziertriangle, split_interior_rational)
   const auto pC = tri.evaluate(1.0, 0.0);
   const auto pQ = tri.evaluate(u, v);
 
+  constexpr double tol = 1e-10;
   for(int i = 0; i < DIM; ++i)
   {
     // t0 -> (B, C, Q)
-    EXPECT_NEAR(pB[i], t0.evaluate(0.0, 0.0)[i], 1e-10);
-    EXPECT_NEAR(pC[i], t0.evaluate(0.0, 1.0)[i], 1e-10);
-    EXPECT_NEAR(pQ[i], t0.evaluate(1.0, 0.0)[i], 1e-10);
+    EXPECT_NEAR(pB[i], t0.evaluate(0.0, 0.0)[i], tol);
+    EXPECT_NEAR(pC[i], t0.evaluate(0.0, 1.0)[i], tol);
+    EXPECT_NEAR(pQ[i], t0.evaluate(1.0, 0.0)[i], tol);
 
     // t1 -> (C, A, Q)
-    EXPECT_NEAR(pC[i], t1.evaluate(0.0, 0.0)[i], 1e-10);
-    EXPECT_NEAR(pA[i], t1.evaluate(0.0, 1.0)[i], 1e-10);
-    EXPECT_NEAR(pQ[i], t1.evaluate(1.0, 0.0)[i], 1e-10);
+    EXPECT_NEAR(pC[i], t1.evaluate(0.0, 0.0)[i], tol);
+    EXPECT_NEAR(pA[i], t1.evaluate(0.0, 1.0)[i], tol);
+    EXPECT_NEAR(pQ[i], t1.evaluate(1.0, 0.0)[i], tol);
 
     // t2 -> (A, B, Q)
-    EXPECT_NEAR(pA[i], t2.evaluate(0.0, 0.0)[i], 1e-10);
-    EXPECT_NEAR(pB[i], t2.evaluate(0.0, 1.0)[i], 1e-10);
-    EXPECT_NEAR(pQ[i], t2.evaluate(1.0, 0.0)[i], 1e-10);
+    EXPECT_NEAR(pA[i], t2.evaluate(0.0, 0.0)[i], tol);
+    EXPECT_NEAR(pB[i], t2.evaluate(0.0, 1.0)[i], tol);
+    EXPECT_NEAR(pQ[i], t2.evaluate(1.0, 0.0)[i], tol);
   }
 
   // Interior point checks via affine parameter mapping
@@ -617,7 +619,7 @@ TEST(primal_beziertriangle, split_interior_rational)
     const auto actual = t0.evaluate(s, t);
     for(int d = 0; d < DIM; ++d)
     {
-      EXPECT_NEAR(expected[d], actual[d], 1e-12);
+      EXPECT_NEAR(expected[d], actual[d], tol);
     }
   }
 
@@ -629,7 +631,7 @@ TEST(primal_beziertriangle, split_interior_rational)
     const auto actual = t1.evaluate(s, t);
     for(int d = 0; d < DIM; ++d)
     {
-      EXPECT_NEAR(expected[d], actual[d], 1e-12);
+      EXPECT_NEAR(expected[d], actual[d], tol);
     }
   }
 
@@ -641,7 +643,7 @@ TEST(primal_beziertriangle, split_interior_rational)
     const auto actual = t2.evaluate(s, t);
     for(int d = 0; d < DIM; ++d)
     {
-      EXPECT_NEAR(expected[d], actual[d], 1e-12);
+      EXPECT_NEAR(expected[d], actual[d], tol);
     }
   }
 }
@@ -784,27 +786,28 @@ TEST(primal_beziertriangle, split_fourway_polynomial)
   const auto pP1 = tri.getEdge(1).evaluate(s1);
   const auto pP2 = tri.getEdge(2).evaluate(s2);
 
+  constexpr double tol = 1e-10;
   for(int d = 0; d < DIM; ++d)
   {
     // t1 = Tri(A, P2, P1)
-    EXPECT_NEAR(pA[d], t1.evaluate(0.0, 0.0)[d], 1e-10);
-    EXPECT_NEAR(pP2[d], t1.evaluate(0.0, 1.0)[d], 1e-10);
-    EXPECT_NEAR(pP1[d], t1.evaluate(1.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pA[d], t1.evaluate(0.0, 0.0)[d], tol);
+    EXPECT_NEAR(pP2[d], t1.evaluate(0.0, 1.0)[d], tol);
+    EXPECT_NEAR(pP1[d], t1.evaluate(1.0, 0.0)[d], tol);
 
     // t2 = Tri(B, P0, P2)
-    EXPECT_NEAR(pB[d], t2.evaluate(0.0, 0.0)[d], 1e-10);
-    EXPECT_NEAR(pP0[d], t2.evaluate(0.0, 1.0)[d], 1e-10);
-    EXPECT_NEAR(pP2[d], t2.evaluate(1.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pB[d], t2.evaluate(0.0, 0.0)[d], tol);
+    EXPECT_NEAR(pP0[d], t2.evaluate(0.0, 1.0)[d], tol);
+    EXPECT_NEAR(pP2[d], t2.evaluate(1.0, 0.0)[d], tol);
 
     // t3 = Tri(C, P1, P0)
-    EXPECT_NEAR(pC[d], t3.evaluate(0.0, 0.0)[d], 1e-10);
-    EXPECT_NEAR(pP1[d], t3.evaluate(0.0, 1.0)[d], 1e-10);
-    EXPECT_NEAR(pP0[d], t3.evaluate(1.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pC[d], t3.evaluate(0.0, 0.0)[d], tol);
+    EXPECT_NEAR(pP1[d], t3.evaluate(0.0, 1.0)[d], tol);
+    EXPECT_NEAR(pP0[d], t3.evaluate(1.0, 0.0)[d], tol);
 
     // t4 = Tri(P1, P0, P2)
-    EXPECT_NEAR(pP1[d], t4.evaluate(0.0, 0.0)[d], 1e-10);
-    EXPECT_NEAR(pP0[d], t4.evaluate(0.0, 1.0)[d], 1e-10);
-    EXPECT_NEAR(pP2[d], t4.evaluate(1.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pP1[d], t4.evaluate(0.0, 0.0)[d], tol);
+    EXPECT_NEAR(pP0[d], t4.evaluate(0.0, 1.0)[d], tol);
+    EXPECT_NEAR(pP2[d], t4.evaluate(1.0, 0.0)[d], tol);
   }
 
   // Shared interior edges agree (same geometry and orientation for the chosen outputs)
@@ -820,9 +823,9 @@ TEST(primal_beziertriangle, split_fourway_polynomial)
 
   for(int d = 0; d < DIM; ++d)
   {
-    EXPECT_NEAR(eP0P2_from_t2[d], eP0P2_from_t4[d], 1e-12);
-    EXPECT_NEAR(eP2P1_from_t1[d], eP2P1_from_t4[d], 1e-12);
-    EXPECT_NEAR(eP1P0_from_t3[d], eP1P0_from_t4[d], 1e-12);
+    EXPECT_NEAR(eP0P2_from_t2[d], eP0P2_from_t4[d], tol);
+    EXPECT_NEAR(eP2P1_from_t1[d], eP2P1_from_t4[d], tol);
+    EXPECT_NEAR(eP1P0_from_t3[d], eP1P0_from_t4[d], tol);
   }
 }
 
@@ -862,27 +865,28 @@ TEST(primal_beziertriangle, split_fourway_rational)
   const auto pP1 = tri.getEdge(1).evaluate(s1);
   const auto pP2 = tri.getEdge(2).evaluate(s2);
 
+  constexpr double tol = 1e-10;
   for(int d = 0; d < DIM; ++d)
   {
     // t1 = Tri(A, P2, P1)
-    EXPECT_NEAR(pA[d], t1.evaluate(0.0, 0.0)[d], 1e-10);
-    EXPECT_NEAR(pP2[d], t1.evaluate(0.0, 1.0)[d], 1e-10);
-    EXPECT_NEAR(pP1[d], t1.evaluate(1.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pA[d], t1.evaluate(0.0, 0.0)[d], tol);
+    EXPECT_NEAR(pP2[d], t1.evaluate(0.0, 1.0)[d], tol);
+    EXPECT_NEAR(pP1[d], t1.evaluate(1.0, 0.0)[d], tol);
 
     // t2 = Tri(B, P0, P2)
-    EXPECT_NEAR(pB[d], t2.evaluate(0.0, 0.0)[d], 1e-10);
-    EXPECT_NEAR(pP0[d], t2.evaluate(0.0, 1.0)[d], 1e-10);
-    EXPECT_NEAR(pP2[d], t2.evaluate(1.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pB[d], t2.evaluate(0.0, 0.0)[d], tol);
+    EXPECT_NEAR(pP0[d], t2.evaluate(0.0, 1.0)[d], tol);
+    EXPECT_NEAR(pP2[d], t2.evaluate(1.0, 0.0)[d], tol);
 
     // t3 = Tri(C, P1, P0)
-    EXPECT_NEAR(pC[d], t3.evaluate(0.0, 0.0)[d], 1e-10);
-    EXPECT_NEAR(pP1[d], t3.evaluate(0.0, 1.0)[d], 1e-10);
-    EXPECT_NEAR(pP0[d], t3.evaluate(1.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pC[d], t3.evaluate(0.0, 0.0)[d], tol);
+    EXPECT_NEAR(pP1[d], t3.evaluate(0.0, 1.0)[d], tol);
+    EXPECT_NEAR(pP0[d], t3.evaluate(1.0, 0.0)[d], tol);
 
     // t4 = Tri(P1, P0, P2)
-    EXPECT_NEAR(pP1[d], t4.evaluate(0.0, 0.0)[d], 1e-10);
-    EXPECT_NEAR(pP0[d], t4.evaluate(0.0, 1.0)[d], 1e-10);
-    EXPECT_NEAR(pP2[d], t4.evaluate(1.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pP1[d], t4.evaluate(0.0, 0.0)[d], tol);
+    EXPECT_NEAR(pP0[d], t4.evaluate(0.0, 1.0)[d], tol);
+    EXPECT_NEAR(pP2[d], t4.evaluate(1.0, 0.0)[d], tol);
   }
 
   // Shared interior edges agree
@@ -898,9 +902,9 @@ TEST(primal_beziertriangle, split_fourway_rational)
 
   for(int d = 0; d < DIM; ++d)
   {
-    EXPECT_NEAR(eP0P2_from_t2[d], eP0P2_from_t4[d], 1e-12);
-    EXPECT_NEAR(eP2P1_from_t1[d], eP2P1_from_t4[d], 1e-12);
-    EXPECT_NEAR(eP1P0_from_t3[d], eP1P0_from_t4[d], 1e-12);
+    EXPECT_NEAR(eP0P2_from_t2[d], eP0P2_from_t4[d], tol);
+    EXPECT_NEAR(eP2P1_from_t1[d], eP2P1_from_t4[d], tol);
+    EXPECT_NEAR(eP1P0_from_t3[d], eP1P0_from_t4[d], tol);
   }
 }
 
@@ -928,11 +932,12 @@ TEST(primal_beziertriangle, uniformSplit_fourway_polynomial)
   const auto pP1 = tri.getEdge(1).evaluate(0.5);
   const auto pP2 = tri.getEdge(2).evaluate(0.5);
 
+  constexpr double tol = 1e-10;
   for(int d = 0; d < DIM; ++d)
   {
-    EXPECT_NEAR(pP1[d], t4.evaluate(0.0, 0.0)[d], 1e-10);
-    EXPECT_NEAR(pP0[d], t4.evaluate(0.0, 1.0)[d], 1e-10);
-    EXPECT_NEAR(pP2[d], t4.evaluate(1.0, 0.0)[d], 1e-10);
+    EXPECT_NEAR(pP1[d], t4.evaluate(0.0, 0.0)[d], tol);
+    EXPECT_NEAR(pP0[d], t4.evaluate(0.0, 1.0)[d], tol);
+    EXPECT_NEAR(pP2[d], t4.evaluate(1.0, 0.0)[d], tol);
   }
 
   const CoordType s = 0.23;
@@ -957,21 +962,21 @@ TEST(primal_beziertriangle, uniformSplit_fourway_polynomial)
   // Also confirm vertex ordering matches the general split for s=0.5
   for(int d = 0; d < DIM; ++d)
   {
-    EXPECT_NEAR(t1.evaluate(0.0, 0.0)[d], r1.evaluate(0.0, 0.0)[d], 1e-12);
-    EXPECT_NEAR(t1.evaluate(0.0, 1.0)[d], r1.evaluate(0.0, 1.0)[d], 1e-12);
-    EXPECT_NEAR(t1.evaluate(1.0, 0.0)[d], r1.evaluate(1.0, 0.0)[d], 1e-12);
+    EXPECT_NEAR(t1.evaluate(0.0, 0.0)[d], r1.evaluate(0.0, 0.0)[d], tol);
+    EXPECT_NEAR(t1.evaluate(0.0, 1.0)[d], r1.evaluate(0.0, 1.0)[d], tol);
+    EXPECT_NEAR(t1.evaluate(1.0, 0.0)[d], r1.evaluate(1.0, 0.0)[d], tol);
 
-    EXPECT_NEAR(t2.evaluate(0.0, 0.0)[d], r2.evaluate(0.0, 0.0)[d], 1e-12);
-    EXPECT_NEAR(t2.evaluate(0.0, 1.0)[d], r2.evaluate(0.0, 1.0)[d], 1e-12);
-    EXPECT_NEAR(t2.evaluate(1.0, 0.0)[d], r2.evaluate(1.0, 0.0)[d], 1e-12);
+    EXPECT_NEAR(t2.evaluate(0.0, 0.0)[d], r2.evaluate(0.0, 0.0)[d], tol);
+    EXPECT_NEAR(t2.evaluate(0.0, 1.0)[d], r2.evaluate(0.0, 1.0)[d], tol);
+    EXPECT_NEAR(t2.evaluate(1.0, 0.0)[d], r2.evaluate(1.0, 0.0)[d], tol);
 
-    EXPECT_NEAR(t3.evaluate(0.0, 0.0)[d], r3.evaluate(0.0, 0.0)[d], 1e-12);
-    EXPECT_NEAR(t3.evaluate(0.0, 1.0)[d], r3.evaluate(0.0, 1.0)[d], 1e-12);
-    EXPECT_NEAR(t3.evaluate(1.0, 0.0)[d], r3.evaluate(1.0, 0.0)[d], 1e-12);
+    EXPECT_NEAR(t3.evaluate(0.0, 0.0)[d], r3.evaluate(0.0, 0.0)[d], tol);
+    EXPECT_NEAR(t3.evaluate(0.0, 1.0)[d], r3.evaluate(0.0, 1.0)[d], tol);
+    EXPECT_NEAR(t3.evaluate(1.0, 0.0)[d], r3.evaluate(1.0, 0.0)[d], tol);
 
-    EXPECT_NEAR(t4.evaluate(0.0, 0.0)[d], r4.evaluate(0.0, 0.0)[d], 1e-12);
-    EXPECT_NEAR(t4.evaluate(0.0, 1.0)[d], r4.evaluate(0.0, 1.0)[d], 1e-12);
-    EXPECT_NEAR(t4.evaluate(1.0, 0.0)[d], r4.evaluate(1.0, 0.0)[d], 1e-12);
+    EXPECT_NEAR(t4.evaluate(0.0, 0.0)[d], r4.evaluate(0.0, 0.0)[d], tol);
+    EXPECT_NEAR(t4.evaluate(0.0, 1.0)[d], r4.evaluate(0.0, 1.0)[d], tol);
+    EXPECT_NEAR(t4.evaluate(1.0, 0.0)[d], r4.evaluate(1.0, 0.0)[d], tol);
   }
 }
 
@@ -1015,12 +1020,13 @@ TEST(primal_beziertriangle, uniformSplit_fourway_rational)
   const auto p41 = t4.evaluate(s, t);
   const auto p42 = r4.evaluate(s, t);
 
+  constexpr double tol = 1e-12;
   for(int d = 0; d < DIM; ++d)
   {
-    EXPECT_NEAR(p11[d], p12[d], 1e-12);
-    EXPECT_NEAR(p21[d], p22[d], 1e-12);
-    EXPECT_NEAR(p31[d], p32[d], 1e-12);
-    EXPECT_NEAR(p41[d], p42[d], 1e-12);
+    EXPECT_NEAR(p11[d], p12[d], tol);
+    EXPECT_NEAR(p21[d], p22[d], tol);
+    EXPECT_NEAR(p31[d], p32[d], tol);
+    EXPECT_NEAR(p41[d], p42[d], tol);
   }
 }
 

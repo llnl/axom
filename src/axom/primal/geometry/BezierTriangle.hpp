@@ -40,6 +40,8 @@ std::ostream& operator<<(std::ostream& os, const BezierTriangle<T, NDIMS>& bTri)
  *
  * \brief Represents a Bezier triangle defined by a triangular array of control points
  * \tparam T the coordinate type, e.g., double, float, etc.
+ * \tparam NDIMS The dimension of each control point, e.g. 4 for homogeneous surfaces 
+ *                 or 1 for rational weights.
  *
  * A Bezier triangle of order \a N has \f$ (N+1)(N+2)/2 \f$ control points.
  * It is parametrized over the domain \f$ u0 \ge 0, v0 \ge 0, u0+v0 \le 1 \f$.
@@ -57,13 +59,26 @@ std::ostream& operator<<(std::ostream& os, const BezierTriangle<T, NDIMS>& bTri)
  * - `evaluate(0,0) == (*this)(0,0)`
  * - `evaluate(0,1) == (*this)(0,1)`
  * - `evaluate(1,0) == (*this)(1,0)`
- * These are mapped to standard Barycentric coordinates through (u0, v0) = {1 - u0 - v0, v0, u0}
+ * 
+ * These are mapped to standard Barycentric coordinates {u,v,w} through (u0, v0) = {1 - u0 - v0, v0, u0}:
+ *
+ *   Parametric (u0, v0):       Barycentric {u,v,w}:
+ *        (1, 0)                      {0,0,1}
+ *          /\                          /\
+ *         /  \                        /  \
+ *   ^    /    \         <--->        /    \
+ *   |   /      \                    /      \
+ *   |  /        \                  /        \
+ *  v0 /__________\                /__________\
+ * (0, 0) u0 ---> (0, 1)       {1,0,0}        {0,1,0}
+ * 
  */
 template <typename T, int NDIMS>
 class BezierTriangle
 {
 public:
   using PointType = Point<T, NDIMS>;
+  using Barycentric = Point<T, 3>;
   using VectorType = Vector<T, NDIMS>;
 
   using CoordsVec = axom::Array<PointType, 1>;
@@ -76,6 +91,11 @@ public:
 
   AXOM_STATIC_ASSERT_MSG((NDIMS == 1) || (NDIMS == 2) || (NDIMS == 3),
                          "A Bezier Triangle object may be defined in 1-, 2-, or 3-D");
+
+  // Allows template types to access private member data of other allowable templates
+  friend class BezierTriangle<T, 1>;
+  friend class BezierTriangle<T, 2>;
+  friend class BezierTriangle<T, 3>;
 
   AXOM_STATIC_ASSERT_MSG(std::is_arithmetic<T>::value,
                          "A Bezier Triangle must be defined using an arithmetic type");
@@ -225,6 +245,19 @@ public:
    */
   bool isRational() const { return !m_weights.empty(); }
 
+  /// Make trivially rational. If already rational, do nothing
+  void makeRational()
+  {
+    if(!isRational())
+    {
+      m_weights.resize(triSize(m_ord));
+      m_weights.fill(1.0);
+    }
+  }
+
+  /// Make nonrational by shrinking array of weights
+  void makeNonrational() { m_weights.clear(); }
+
   /*!
    * \brief Returns a reference to the triangle's control points
    *
@@ -245,43 +278,6 @@ public:
 
   /// \brief Returns a reference to the triangle's weights
   const WeightsVec& getWeights() const { return m_weights; }
-
-  /*!
-   * \brief Get a specific weight from a rational Bezier triangle
-   *
-   * \param [in] i First control net index
-   * \param [in] j Second control net index
-   * \pre Requires that the triangle be rational
-   */
-  const T& getWeight(int i, int j) const
-  {
-    SLIC_ASSERT(isRational());
-    SLIC_ASSERT(m_weights.size() == m_controlPoints.size());
-    SLIC_ASSERT(i >= 0);
-    SLIC_ASSERT(j >= 0);
-    SLIC_ASSERT(i + j <= m_ord);
-    return m_weights[triIndex(m_ord, i, j)];
-  }
-
-  /*!
-   * \brief Set the weight at a specific index for a rational Bezier triangle
-   *
-   * \param [in] i First control net index
-   * \param [in] j Second control net index
-   * \param [in] weight The updated value of the weight
-   * \pre Requires that the triangle be rational
-   * \pre Requires that the weight be positive
-   */
-  void setWeight(int i, int j, T weight)
-  {
-    SLIC_ASSERT(isRational());
-    SLIC_ASSERT(m_weights.size() == m_controlPoints.size());
-    SLIC_ASSERT(weight > T(0));
-    SLIC_ASSERT(i >= 0);
-    SLIC_ASSERT(j >= 0);
-    SLIC_ASSERT(i + j <= m_ord);
-    m_weights[triIndex(m_ord, i, j)] = weight;
-  }
 
   /*!
    * \brief Returns an axis-aligned bounding box containing the Bezier triangle
@@ -362,7 +358,7 @@ public:
   }
 
   /*!
-   * \brief Returns one of the boundary edges of the Bezier triangle
+   * \brief Returns a copy of one of the boundary edges of the Bezier triangle
    *
    * \param [in] edgeIdx Index of the requested edge in \a [0,2]
    *
@@ -372,7 +368,7 @@ public:
    * - \a edgeIdx = 1: u = 0 from `evaluate(0,1)` to `evaluate(0,0)`
    * - \a edgeIdx = 2: v = 0 from `evaluate(0,0)` to `evaluate(1,0)`
    *
-   * \return A Bezier curve representing the requested edge.
+   * \return A copy of the Bezier curve representing the requested edge.
    */
   BezierCurveType getEdge(int edgeIdx) const
   {
@@ -391,33 +387,33 @@ public:
     case 0:
       for(int k = 0; k <= m_ord; ++k)
       {
-        const int i = k;
-        const int j = m_ord - k;
-        pts[k] = (*this)(i, j);
+        const int idx = triIndex(m_ord, k, m_ord - k);
+        pts[k] = m_controlPoints[idx];
         if(isRational())
         {
-          wts[k] = m_weights[triIndex(m_ord, i, j)];
+          wts[k] = m_weights[idx];
         }
       }
       break;
     case 1:
       for(int k = 0; k <= m_ord; ++k)
       {
-        const int i = m_ord - k;
-        pts[k] = (*this)(i, 0);
+        const int idx = triIndex(m_ord, m_ord - k, 0);
+        pts[k] = m_controlPoints[idx];
         if(isRational())
         {
-          wts[k] = m_weights[triIndex(m_ord, i, 0)];
+          wts[k] = m_weights[idx];
         }
       }
       break;
     case 2:
-      for(int j = 0; j <= m_ord; ++j)
+      for(int k = 0; k <= m_ord; ++k)
       {
-        pts[j] = (*this)(0, j);
+        const int idx = triIndex(m_ord, 0, k);
+        pts[k] = m_controlPoints[idx];
         if(isRational())
         {
-          wts[j] = m_weights[triIndex(m_ord, 0, j)];
+          wts[k] = m_weights[idx];
         }
       }
       break;
@@ -449,23 +445,22 @@ public:
    *
    * See overload returning a `BezierTriangle` for the vertex mapping convention.
    *
-   * \param [in] Va Barycentric coordinates of the first subtriangle vertex `(u,v,w)`
-   * \param [in] Vb Barycentric coordinates of the second subtriangle vertex `(u,v,w)`
-   * \param [in] Vc Barycentric coordinates of the third subtriangle vertex `(u,v,w)`
+   * \param [in] Qa Barycentric coordinates of the first subtriangle vertex `(u,v,w)`
+   * \param [in] Qb Barycentric coordinates of the second subtriangle vertex `(u,v,w)`
+   * \param [in] Qc Barycentric coordinates of the third subtriangle vertex `(u,v,w)`
    * \param [out] out Output restricted Bezier triangle
    *
    * \pre getOrder() >= 0
    *
-   * \note The barycentric inputs \a Va, \a Vb, \a Vc are \a (u,v,w) triplets in the same
-   *       parameter-coordinate convention used internally by `evaluate(u,v)` (with \a w = 1-u-v).
+   * \note The barycentric inputs \a Qa, \a Qb, \a Qc are standard Barycentric coordiantes
+   *       related to parameter convention through (u0 = Qc, v0 = Qb)
    */
-  void restrictToSubtriangle(const Point<T, 3>& Va,
-                             const Point<T, 3>& Vb,
-                             const Point<T, 3>& Vc,
+  void restrictToSubtriangle(const Barycentric& Qa,
+                             const Barycentric& Qb,
+                             const Barycentric& Qc,
                              BezierTriangle& out) const
   {
     using TriangularArray = axom::Array<PointType>;
-    using Barycentric = Point<T, 3>;
 
     SLIC_ASSERT(m_ord >= 0);
     if(isRational())
@@ -478,8 +473,8 @@ public:
       BezierTriangle<T, NDIMS> proj_out(m_ord);
       BezierTriangle<T, 1> w_out(m_ord);
 
-      projective.restrictToSubtriangle(Va, Vb, Vc, proj_out);
-      weights.restrictToSubtriangle(Va, Vb, Vc, w_out);
+      projective.restrictToSubtriangle(Qa, Qb, Qc, proj_out);
+      weights.restrictToSubtriangle(Qa, Qb, Qc, w_out);
 
       set_from_projective_triangles(proj_out, w_out, out);
       return;
@@ -501,22 +496,16 @@ public:
             const auto& B0 = prev[triIndex(deg, ii, jj + 1)];
             const auto& C0 = prev[triIndex(deg, ii + 1, jj)];
 
-            PointType val;
-            for(int N = 0; N < NDIMS; ++N)
-            {
-              // Barycentric coordinates permuted to match convention in evaluate()
-              val[N] = Q[2] * A0[N] + Q[1] * B0[N] + Q[0] * C0[N];
-            }
-            next[triIndex(newDeg, ii, jj)] = val;
+            next[triIndex(newDeg, ii, jj)] = triInterpolate(A0, B0, C0, Q);
           }
         }
       };
 
-    // The restricted control net over (Va,Vb,Vc) is given by blossom values:
-    //   out(i,j) = b(Vc^i, Vb^j, Va^(n-i-j))  for 0<=i<=n and 0<=j<=n-i
+    // The restricted control net over (Qa,Qb,Qc) is given by blossom values:
+    //   out(i,j) = b(Qc^i, Qb^j, Qa^(n-i-j))  for 0<=i<=n and 0<=j<=n-i
     //
     // At layer p, we maintain all intermediate nets with exactly p fixed arguments,
-    //  i.e. b(Vc^i0, Vb^j0, Vc^k0) with i0 + j0 + k0 = p, and use them to compute nets
+    //  i.e. b(Qc^i0, Qb^j0, Qc^k0) with i0 + j0 + k0 = p, and use them to compute nets
     //  for blossom values with one more fixed argument until p == n
     axom::Array<TriangularArray> prevNets(1);
     prevNets[0] = m_controlPoints;
@@ -546,18 +535,18 @@ public:
           if(k0 > 0)
           {
             const int predIdx = triIndex(p - 1, i0, j0);
-            reduce_once(prevNets[predIdx], currNets[idx], degPrev, Va);
+            reduce_once(prevNets[predIdx], currNets[idx], degPrev, Qa);
           }
           else if(j0 > 0)
           {
             const int predIdx = triIndex(p - 1, i0, j0 - 1);
-            reduce_once(prevNets[predIdx], currNets[idx], degPrev, Vb);
+            reduce_once(prevNets[predIdx], currNets[idx], degPrev, Qb);
           }
           else
           {
             SLIC_ASSERT(i0 > 0);
             const int predIdx = triIndex(p - 1, i0 - 1, j0);
-            reduce_once(prevNets[predIdx], currNets[idx], degPrev, Vc);
+            reduce_once(prevNets[predIdx], currNets[idx], degPrev, Qc);
           }
         }
       }
@@ -568,28 +557,29 @@ public:
 
     // Each net in the last layer (p==n) has degree 0 and contains a single control point.
     out.setOrder(n);
-    out.getWeights().resize(0);
+    out.makeNonrational();
     for(int i = 0; i <= n; ++i)
     {
       for(int j = 0; j <= n - i; ++j)
       {
-        out(i, j) = prevNets[triIndex(n, i, j)][0];
+        const int idx = triIndex(n, i, j);
+        out.m_controlPoints[idx] = prevNets[idx][0];
       }
     }
   }
 
   /*!
    * \brief Splits a Bezier triangle into three subtriangles by connecting an
-   * interior parameter point \a (u,v) to the triangle's three vertices
+   * interior parameter point \a (u0,v0) to the triangle's three vertices
    *
    * \param [in] u0 Parameter value along the \a u axis for the split point
    * \param [in] v0 Parameter value along the \a v axis for the split point
    * \param [out] t0 Subtriangle over the parameter triangle with vertices
-   *  `(0,1)`, `(1,0)`, and `(u,v)` (preserves edge 0)
+   *  `(0,1)`, `(1,0)`, and `(u0,v0)` (preserves edge 0)
    * \param [out] t1 Subtriangle over the parameter triangle with vertices
-   *  `(1,0)`, `(0,0)`, and `(u,v)` (preserves edge 1)
+   *  `(1,0)`, `(0,0)`, and `(u0,v0)` (preserves edge 1)
    * \param [out] t2 Subtriangle over the parameter triangle with vertices
-   *  `(0,0)`, `(0,1)`, and `(u,v)` (preserves edge 2)
+   *  `(0,0)`, `(0,1)`, and `(u0,v0)` (preserves edge 2)
    *
    * \pre \a u0 > 0, \a v0 > 0, and \a u0 + \a v0 < 1
    *
@@ -607,9 +597,7 @@ public:
   void split(T u0, T v0, BezierTriangle& t0, BezierTriangle& t1, BezierTriangle& t2) const
   {
     SLIC_ASSERT(m_ord >= 0);
-    SLIC_ASSERT(u0 > T(0));
-    SLIC_ASSERT(v0 > T(0));
-    SLIC_ASSERT(u0 + v0 < T(1));
+    SLIC_ASSERT(is_valid_interior_parameter(u0, v0));
 
     if(isRational())
     {
@@ -630,8 +618,7 @@ public:
     }
 
     // Q is the split point in barycentric coordinates over the reference parameter triangle:
-    using Barycentric = Point<T, 3>;
-    const Barycentric Q {u0, v0, T(1) - u0 - v0};
+    const Barycentric Q {T(1) - u0 - v0, v0, u0};
 
     const int n = m_ord;
     axom::Array<axom::Array<PointType>> net(n + 1);
@@ -653,24 +640,14 @@ public:
           const auto& B0 = prev[triIndex(deg, ii, jj + 1)];
           const auto& C0 = prev[triIndex(deg, ii + 1, jj)];
 
-          PointType val;
-          for(int N = 0; N < NDIMS; ++N)
-          {
-            val[N] = Q[2] * A0[N] + Q[1] * B0[N] + Q[0] * C0[N];
-          }
-          net[p][triIndex(newDeg, ii, jj)] = val;
+          net[p][triIndex(newDeg, ii, jj)] = triInterpolate(A0, B0, C0, Q);
         }
       }
     }
 
-    t0.setOrder(n);
-    t1.setOrder(n);
-    t2.setOrder(n);
-    t0.getWeights().resize(0);
-    t1.getWeights().resize(0);
-    t2.getWeights().resize(0);
-
     // Subtriangle (B,C,Q): (0,1), (1,0), (u0,v0)
+    t0.setOrder(n);
+    t0.makeNonrational();
     for(int i = 0; i <= n; ++i)
     {
       const int deg = n - i;
@@ -681,6 +658,8 @@ public:
     }
 
     // Subtriangle (C,A,Q): (1,0), (0,0), (u0,v0)
+    t1.setOrder(n);
+    t1.makeNonrational();
     for(int i = 0; i <= n; ++i)
     {
       const int deg = n - i;
@@ -691,6 +670,8 @@ public:
     }
 
     // Subtriangle (A,B,Q): (0,0), (0,1), (u0,v0)
+    t2.setOrder(n);
+    t2.makeNonrational();
     for(int i = 0; i <= n; ++i)
     {
       const int deg = n - i;
@@ -751,19 +732,18 @@ public:
     }
 
     using TriangularArray = axom::Array<PointType>;
-    using Barycentric = Point<T, 3>;
 
     Barycentric Q;
     switch(edgeIdx)
     {
-    case 0:  // (u=s, v=1-s, w=0)
-      Q = Barycentric {s, T(1) - s, T(0)};
+    case 0:  // (u=0, v=1-s, w=s)
+      Q = Barycentric {T(0), T(1) - s, s};
       break;
-    case 1:  // (u=1-s, v=0, w=s)
-      Q = Barycentric {T(1) - s, T(0), s};
+    case 1:  // (u=s, v=0, w=1-s)
+      Q = Barycentric {s, T(0), T(1) - s};
       break;
-    case 2:  // (u=0, v=s, w=1-s)
-      Q = Barycentric {T(0), s, T(1) - s};
+    case 2:  // (u=1-s, v=s, w=0)
+      Q = Barycentric {T(1) - s, s, T(0)};
       break;
     default:
       break;
@@ -789,20 +769,14 @@ public:
           const auto& B0 = prev[triIndex(deg, ii, jj + 1)];
           const auto& C0 = prev[triIndex(deg, ii + 1, jj)];
 
-          PointType val;
-          for(int N = 0; N < NDIMS; ++N)
-          {
-            // Barycentric coordinates permuted to match convention in evaluate
-            val[N] = Q[2] * A0[N] + Q[1] * B0[N] + Q[0] * C0[N];
-          }
-          net[p][triIndex(newDeg, ii, jj)] = val;
+          net[p][triIndex(newDeg, ii, jj)] = triInterpolate(A0, B0, C0, Q);
         }
       }
     }
 
     auto fill_from_net = [&](int keptEdge, BezierTriangle& out) {
       out.setOrder(n);
-      out.getWeights().resize(0);
+      out.makeNonrational();
       for(int i = 0; i <= n; ++i)
       {
         const int deg = n - i;
@@ -887,10 +861,10 @@ public:
 
     if(!isRational())
     {
-      t0.getWeights().resize(0);
-      t1.getWeights().resize(0);
-      t2.getWeights().resize(0);
-      t3.getWeights().resize(0);
+      t0.makeNonrational();
+      t1.makeNonrational();
+      t2.makeNonrational();
+      t3.makeNonrational();
 
       // For polynomial triangles, these accessors just use the regular control points
       auto get_point = [&](int i, int j) -> PointType { return (*this)(i, j); };
@@ -902,29 +876,33 @@ public:
     else
     {
       using HomogeneousPoint = Point<T, NDIMS + 1>;
-      t0.getWeights().resize(triN);
-      t1.getWeights().resize(triN);
-      t2.getWeights().resize(triN);
-      t3.getWeights().resize(triN);
+      t0.makeRational();
+      t1.makeRational();
+      t2.makeRational();
+      t3.makeRational();
 
       // For rational triangles, these accessors generate homogeneous control points
       auto get_hom_point = [&](int i, int j) -> HomogeneousPoint {
+        const int idx = triIndex(n, i, j);
+
         HomogeneousPoint hp;
-        const T w = m_weights[triIndex(n, i, j)];
-        hp[NDIMS] = w;
+        hp[NDIMS] = m_weights[idx];
         for(int d = 0; d < NDIMS; ++d)
         {
-          hp[d] = (*this)(i, j)[d] * w;
+          hp[d] = m_controlPoints[idx][d] * m_weights[idx];
         }
         return hp;
       };
       auto set_hom_point = [&](BezierTriangle& out, int i, int j, const HomogeneousPoint& hp) {
+        const int idx = triIndex(n, i, j);
+
         const T w = hp[NDIMS];
         SLIC_ASSERT(w > T(0));
-        out.getWeights()[triIndex(n, i, j)] = w;
+
+        out.m_weights[idx] = w;
         for(int d = 0; d < NDIMS; ++d)
         {
-          out(i, j)[d] = hp[d] / w;
+          out.m_controlPoints[idx][d] = hp[d] / w;
         }
       };
       uniform_split_impl<HomogeneousPoint>(get_hom_point, set_hom_point, t0, t1, t2, t3);
@@ -963,25 +941,24 @@ public:
              BezierTriangle& t3,
              BezierTriangle& t4) const
   {
-    using Barycentric = Point<T, 3>;
     SLIC_ASSERT(m_ord >= 0);
     SLIC_ASSERT(s1 > T(0) && s1 < T(1));
     SLIC_ASSERT(s2 > T(0) && s2 < T(1));
     SLIC_ASSERT(s3 > T(0) && s3 < T(1));
 
-    // Barycentric coordinates in (u, v, w) where w = 1-u-v
-    // and the triangle vertices are: A=(0,0,1), B=(0,1,0), C=(1,0,0)
-    const Barycentric A {T(0), T(0), T(1)};
+    // Standard Barycentric coordinates in {u,v,w} where w = 1-u-v
+    // and the triangle vertices are: A={1,0,0}, B={0,1,0}, C={0,0,1}
+    const Barycentric A {T(1), T(0), T(0)};
     const Barycentric B {T(0), T(1), T(0)};
-    const Barycentric C {T(1), T(0), T(0)};
+    const Barycentric C {T(0), T(0), T(1)};
 
-    // Edge points (u, v, w = 1-u-v) following the same orientation as getEdge(0..2)
+    // Edge points {u,v,w} following the same orientation as getEdge(0..2)
     // edge0: B->C  (w == 0)
     // edge1: C->A  (v == 0)
     // edge2: A->B  (u == 0)
-    const Barycentric P0 {s1, T(1) - s1, T(0)};
-    const Barycentric P1 {T(1) - s2, T(0), s2};
-    const Barycentric P2 {T(0), s3, T(1) - s3};
+    const Barycentric P0 {T(0), T(1) - s1, s1};
+    const Barycentric P1 {s2, T(0), T(1) - s2};
+    const Barycentric P2 {T(1) - s3, s3, T(0)};
 
     // Corner triangles (ordered to match the diagram and preserve interior-edge orientation)
     restrictToSubtriangle(A, P2, P1, t1);
@@ -1000,19 +977,46 @@ public:
    */
   PointType& operator()(int i, int j)
   {
-    SLIC_ASSERT(i >= 0);
-    SLIC_ASSERT(j >= 0);
-    SLIC_ASSERT(i + j <= m_ord);
+    SLIC_ASSERT(isValidIndex(m_ord, i, j));
     return m_controlPoints[triIndex(m_ord, i, j)];
   }
 
   /// \brief Access a control point in the triangular control net
   const PointType& operator()(int i, int j) const
   {
-    SLIC_ASSERT(i >= 0);
-    SLIC_ASSERT(j >= 0);
-    SLIC_ASSERT(i + j <= m_ord);
+    SLIC_ASSERT(isValidIndex(m_ord, i, j));
     return m_controlPoints[triIndex(m_ord, i, j)];
+  }
+
+  /*!
+   * \brief Get a specific weight from a rational Bezier triangle
+   *
+   * \param [in] i First control net index
+   * \param [in] j Second control net index
+   * \pre Requires that the triangle be rational
+   */
+  const T& getWeight(int i, int j) const
+  {
+    SLIC_ASSERT(isRational());
+    SLIC_ASSERT(isValidIndex(m_ord, i, j));
+    return m_weights[triIndex(m_ord, i, j)];
+  }
+
+  /*!
+   * \brief Set the weight at a specific index for a rational Bezier triangle
+   *
+   * \param [in] i First control net index
+   * \param [in] j Second control net index
+   * \param [in] weight The updated value of the weight
+   * \pre Requires that the triangle be rational
+   * \pre Requires that the weight be positive
+   */
+  void setWeight(int i, int j, T weight)
+  {
+    SLIC_ASSERT(isRational());
+    SLIC_ASSERT(weight > T {0});
+    SLIC_ASSERT(isValidIndex(m_ord, i, j));
+    m_weights[triIndex(m_ord, i, j)] = weight;
   }
 
   /*!
@@ -1021,22 +1025,20 @@ public:
    * \param [in] u0 Parameter value along the \a u axis
    * \param [in] v0 Parameter value along the \a v axis
    *
-   * \pre u0 >= 0, v0 >= 0, and u0+v0 <= 1
-   *
    * \note Evaluation uses permuted barycentric coordinates such that
    *   parameter values (u0, v0) correspond to the triangle vertices:
    *     - `evaluate(0,0) == (*this)(0,0)`
    *     - `evaluate(0,1) == (*this)(0,order)`
    *     - `evaluate(1,0) == (*this)(order,0)`
    *
+   * \warning Will automatically extrapolate if (u0, v0) are outside the triangular
+   *            domain (u0 >= 0, v0 >= 0, and u0+v0 <= 1)
+   * 
    * \return Point value S(u0,v0)
    */
   PointType evaluate(T u0, T v0) const
   {
     SLIC_ASSERT(m_ord >= 0);
-    SLIC_ASSERT(u0 >= T(0));
-    SLIC_ASSERT(v0 >= T(0));
-    SLIC_ASSERT(u0 + v0 <= T(1));
 
     if(!isRational())
     {
@@ -1063,7 +1065,8 @@ public:
               const auto& A = dCarray[triIndex(end, i, j)];
               const auto& B = dCarray[triIndex(end, i, j + 1)];
               const auto& C = dCarray[triIndex(end, i + 1, j)];
-              dCarray[triIndex(end - 1, i, j)] = A + u0 * (C - A) + v0 * (B - A);
+              dCarray[triIndex(end - 1, i, j)] =
+                triInterpolate(A, B, C, Barycentric {1.0 - u0 - v0, v0, u0});
             }
           }
         }
@@ -1101,7 +1104,8 @@ public:
    * \param [out] Du First derivative S_u(u,v)
    * \param [out] Dv First derivative S_v(u,v)
    *
-   * \pre u0 >= 0, v0 >= 0, and u0+v0 <= 1
+   * \warning Will automatically extrapolate if (u0, v0) are outside the triangular
+   *            domain (u0 >= 0, v0 >= 0, and u0+v0 <= 1)
    */
   void evaluateFirstDerivatives(T u0,
                                 T v0,
@@ -1110,9 +1114,6 @@ public:
                                 Vector<T, NDIMS>& Dv) const
   {
     SLIC_ASSERT(m_ord >= 0);
-    SLIC_ASSERT(u0 >= T(0));
-    SLIC_ASSERT(v0 >= T(0));
-    SLIC_ASSERT(u0 + v0 <= T(1));
 
     if(m_ord == 0)
     {
@@ -1148,7 +1149,8 @@ public:
               const auto& A = dCarray[triIndex(end, i, j)];
               const auto& B = dCarray[triIndex(end, i, j + 1)];
               const auto& C = dCarray[triIndex(end, i + 1, j)];
-              dCarray[triIndex(end - 1, i, j)] = A + u0 * (C - A) + v0 * (B - A);
+              dCarray[triIndex(end - 1, i, j)] =
+                triInterpolate(A, B, C, Barycentric {1.0 - u0 - v0, v0, u0});
             }
           }
         }
@@ -1196,6 +1198,9 @@ public:
    * \param [out] Du The vector value of S_u(u, v)
    * \param [out] Dv The vector value of S_v(u, v)
    * \param [out] DuDv The vector value of S_uv(u, v) == S_vu(u, v)
+   *
+   * \warning Will automatically extrapolate if (u0, v0) are outside the triangular
+   *            domain (u0 >= 0, v0 >= 0, and u0+v0 <= 1)
    */
   void evaluateLinearDerivatives(T u0,
                                  T v0,
@@ -1205,9 +1210,6 @@ public:
                                  Vector<T, NDIMS>& DuDv) const
   {
     SLIC_ASSERT(m_ord >= 0);
-    SLIC_ASSERT(u0 >= T(0));
-    SLIC_ASSERT(v0 >= T(0));
-    SLIC_ASSERT(u0 + v0 <= T(1));
 
     if(!isRational())
     {
@@ -1245,7 +1247,8 @@ public:
               const auto& A = dCarray[triIndex(end, i, j)];
               const auto& B = dCarray[triIndex(end, i, j + 1)];
               const auto& C = dCarray[triIndex(end, i + 1, j)];
-              dCarray[triIndex(end - 1, i, j)] = A + u0 * (C - A) + v0 * (B - A);
+              dCarray[triIndex(end - 1, i, j)] =
+                triInterpolate(A, B, C, Barycentric {1.0 - u0 - v0, v0, u0});
             }
           }
         }
@@ -1305,6 +1308,9 @@ public:
    * \param [out] DuDu The vector value of S_uu(u, v)
    * \param [out] DvDv The vector value of S_vv(u, v)
    * \param [out] DuDv The vector value of S_uv(u, v) == S_vu(u, v)
+   * 
+   * \warning Will automatically extrapolate if (u0, v0) are outside the triangular
+   *            domain (u0 >= 0, v0 >= 0, and u0+v0 <= 1)
    */
   void evaluateSecondDerivatives(T u0,
                                  T v0,
@@ -1316,9 +1322,6 @@ public:
                                  Vector<T, NDIMS>& DuDv) const
   {
     SLIC_ASSERT(m_ord >= 0);
-    SLIC_ASSERT(u0 >= T(0));
-    SLIC_ASSERT(v0 >= T(0));
-    SLIC_ASSERT(u0 + v0 <= T(1));
 
     if(m_ord == 0)
     {
@@ -1372,7 +1375,8 @@ public:
               const auto& A = dCarray[triIndex(end, i, j)];
               const auto& B = dCarray[triIndex(end, i, j + 1)];
               const auto& C = dCarray[triIndex(end, i + 1, j)];
-              dCarray[triIndex(end - 1, i, j)] = A + u0 * (C - A) + v0 * (B - A);
+              dCarray[triIndex(end - 1, i, j)] =
+                triInterpolate(A, B, C, Barycentric {1.0 - u0 - v0, v0, u0});
             }
           }
         }
@@ -1544,6 +1548,27 @@ public:
     return static_cast<size_t>(i * (2 * ord + 3 - i) / 2 + j);
   }
 
+  /// \brief Check if a given index is valid in the triangular array
+  static constexpr bool isValidIndex(int ord, int i, int j)
+  {
+    return (i >= 0) && (j >= 0) && (i + j <= ord);
+  }
+
+  /// \brief Do a triangular interpolation from three points and a barycentric coordinate
+  static constexpr PointType triInterpolate(const PointType& A,
+                                            const PointType& B,
+                                            const PointType& C,
+                                            const Barycentric& Q)
+  {
+    return PointType {Q[0] * A.array() + Q[1] * B.array() + Q[2] * C.array()};
+  }
+
+  /// \brief Do a triangular interpolation from three coordinates and a barycentric coordinate
+  static constexpr T triInterpolate(const T& A, const T& B, const T& C, const Barycentric& Q)
+  {
+    return Q[0] * A + Q[1] * B + Q[2] * C;
+  }
+
 private:
   /// \brief Check that each weight is positive and the size matches control nodes
   bool is_valid_rational() const
@@ -1569,26 +1594,10 @@ private:
     return true;
   }
 
-  /// \brief For a rational triangle, fill triangle objects with weighted control points and weights
-  void fill_projective_triangles(BezierTriangle<T, NDIMS>& projective,
-                                 BezierTriangle<T, 1>& weights) const
+  /// \brief Check if the given coordinates are interior to the triangle
+  bool is_valid_interior_parameter(T u0, T v0) const
   {
-    SLIC_ASSERT(isRational());
-    SLIC_ASSERT(is_valid_rational());
-
-    for(int i = 0; i <= m_ord; ++i)
-    {
-      for(int j = 0; j <= m_ord - i; ++j)
-      {
-        const T w = m_weights[triIndex(m_ord, i, j)];
-        weights(i, j)[0] = w;
-
-        for(int N = 0; N < NDIMS; ++N)
-        {
-          projective(i, j)[N] = (*this)(i, j)[N] * w;
-        }
-      }
-    }
+    return (u0 > T {0}) && (v0 > T {0}) && (u0 + v0 < T {1});
   }
 
   /*!
@@ -1787,19 +1796,44 @@ private:
     SLIC_ASSERT(ord == weights.getOrder());
 
     out.setOrder(ord);
-    out.getWeights().resize(triSize(ord));
+    out.makeRational();
 
     for(int i = 0; i <= ord; ++i)
     {
       for(int j = 0; j <= ord - i; ++j)
       {
-        const T w = weights(i, j)[0];
+        const int idx = triIndex(ord, i, j);
+        const T w = weights.m_controlPoints[idx][0];
+
         SLIC_ASSERT(w > T(0));
-        out.getWeights()[triIndex(ord, i, j)] = w;
+        out.m_weights[idx] = w;
 
         for(int N = 0; N < NDIMS; ++N)
         {
-          out(i, j)[N] = projective(i, j)[N] / w;
+          out.m_controlPoints[idx][N] = projective.m_controlPoints[idx][N] / w;
+        }
+      }
+    }
+  }
+
+  /// \brief For a rational triangle, fill triangle objects with weighted control points and weights
+  void fill_projective_triangles(BezierTriangle<T, NDIMS>& projective,
+                                 BezierTriangle<T, 1>& weights) const
+  {
+    SLIC_ASSERT(isRational());
+    SLIC_ASSERT(is_valid_rational());
+
+    for(int i = 0; i <= m_ord; ++i)
+    {
+      for(int j = 0; j <= m_ord - i; ++j)
+      {
+        const int idx = triIndex(m_ord, i, j);
+        const T w = m_weights[idx];
+        weights.m_controlPoints[idx][0] = w;
+
+        for(int N = 0; N < NDIMS; ++N)
+        {
+          projective.m_controlPoints[idx][N] = m_controlPoints[idx][N] * w;
         }
       }
     }
