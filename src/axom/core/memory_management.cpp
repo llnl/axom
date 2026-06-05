@@ -83,9 +83,7 @@ struct MallocAllocationRegistry
     m_sizes[pointer] = numbytes;
   }
 
-  void updateAllocation(const void* oldPointer,
-                        const void* newPointer,
-                        std::size_t numbytes) noexcept
+  void updateAllocation(const void* oldPointer, const void* newPointer, std::size_t numbytes) noexcept
   {
     if(newPointer == nullptr)
     {
@@ -155,9 +153,7 @@ void registerMallocAllocation(const void* pointer, std::size_t numbytes) noexcep
   mallocAllocationRegistry().registerAllocation(pointer, numbytes);
 }
 
-void updateMallocAllocation(const void* oldPointer,
-                            const void* newPointer,
-                            std::size_t numbytes) noexcept
+void updateMallocAllocation(const void* oldPointer, const void* newPointer, std::size_t numbytes) noexcept
 {
   mallocAllocationRegistry().updateAllocation(oldPointer, newPointer, numbytes);
 }
