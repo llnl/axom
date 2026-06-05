@@ -13,7 +13,7 @@
 #include "axom/core/utilities/Utilities.hpp"
 
 // Umpire includes
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   #include "umpire/config.hpp"
   #include "umpire/ResourceManager.hpp"
   #include "umpire/op/MemoryOperationRegistry.hpp"
@@ -137,7 +137,7 @@ void setDefaultHostAllocator(MemorySpace space);
  */
 void setDefaultHostAllocator(int allocId);
 
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
 
 /*!
  * \brief Returns the ID of the predefined allocator for a given resource.
@@ -172,7 +172,7 @@ inline void setDefaultAllocator(umpire::resource::MemoryResourceType resource_ty
  */
 inline void setDefaultAllocator(int allocId)
 {
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   if(allocId == MALLOC_ALLOCATOR_ID)
   {
     std::cerr << "Cannot set Axom's malloc allocator as the global default "
@@ -197,7 +197,7 @@ inline void setDefaultAllocator(int allocId)
  */
 inline int getDefaultAllocatorID()
 {
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   return umpire::ResourceManager::getInstance().getDefaultAllocator().getId();
 #else
   return MALLOC_ALLOCATOR_ID;
@@ -232,7 +232,7 @@ bool isAllocatorCompatibleWithMemorySpace(int allocId, MemorySpace space) noexce
  */
 inline int getAllocatorIDFromPointer(const void* ptr)
 {
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
   if(rm.hasAllocator(const_cast<void*>(ptr)))
   {
@@ -392,10 +392,20 @@ private:
 namespace detail
 {
 
+void registerMallocAllocation(const void* pointer, std::size_t numbytes) noexcept;
+
+void updateMallocAllocation(const void* oldPointer,
+                            const void* newPointer,
+                            std::size_t numbytes) noexcept;
+
+void unregisterMallocAllocation(const void* pointer) noexcept;
+
+bool tryGetMallocAllocationSize(const void* pointer, std::size_t& numbytes) noexcept;
+
 enum class AllocationBackend
 {
   Malloc,
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   Umpire,
 #endif
   Invalid
@@ -408,7 +418,7 @@ inline AllocationBackend getAllocatorBackend(int allocID) noexcept
     return AllocationBackend::Malloc;
   }
 
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
   {
     return AllocationBackend::Umpire;
@@ -421,7 +431,7 @@ inline AllocationBackend getAllocatorBackend(int allocID) noexcept
 template <typename T>
 inline AllocationBackend getPointerBackend(T* pointer) noexcept
 {
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.hasAllocator(pointer))
   {
     return AllocationBackend::Umpire;
@@ -435,7 +445,7 @@ inline AllocationBackend getPointerBackend(T* pointer) noexcept
 
 inline void abortOnInvalidAllocatorID(int allocID)
 {
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   std::cerr << "Unrecognized allocator id " << allocID << std::endl;
 #else
   std::cerr
@@ -449,6 +459,16 @@ inline void abortOnInvalidAllocatorID(int allocID)
 inline void abortOnInvalidReallocateState()
 {
   std::cerr << "Unexpected allocator backend state in axom::reallocate()." << std::endl;
+  axom::utilities::processAbort();
+}
+
+inline void abortOnUntrackedMallocMigration(const void* pointer, int allocID)
+{
+  std::cerr << "Cannot migrate malloc-backed pointer " << pointer << " to allocator id " << allocID
+            << " because its allocation size is not tracked by Axom. "
+               "Pointers migrated from malloc to Umpire must be allocated through "
+               "axom::allocate()/axom::reallocate()."
+            << std::endl;
   axom::utilities::processAbort();
 }
 
@@ -466,10 +486,18 @@ inline T* normalizeZeroSizeReallocateResult(T* pointer, std::size_t n, int alloc
 template <typename T>
 inline T* reallocateWithinMalloc(T* pointer, std::size_t numbytes) noexcept
 {
-  return static_cast<T*>(std::realloc(pointer, numbytes));
+  if(numbytes == 0)
+  {
+    axom::deallocate(pointer);
+    return nullptr;
+  }
+
+  T* reallocated = static_cast<T*>(std::realloc(pointer, numbytes));
+  updateMallocAllocation(pointer, reallocated, numbytes);
+  return reallocated;
 }
 
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
 template <typename T>
 inline T* reallocateWithinUmpire(T* pointer, std::size_t numbytes) noexcept
 {
@@ -493,16 +521,15 @@ inline T* migrateUmpireToMalloc(T* pointer, std::size_t n, std::size_t numbytes)
 template <typename T>
 inline T* migrateMallocToUmpire(T* pointer, std::size_t n, std::size_t numbytes, int allocID) noexcept
 {
-  /*
-   * Reallocate from non-Umpire to Umpire, manually, using
-   * allocate, copy and deallocate. Because we don't know the
-   * current size, we first do a reallocate within the current
-   * space just so we have the size for the copy.
-   */
-  T* tmpPointer = static_cast<T*>(std::realloc(pointer, numbytes));
+  std::size_t old_numbytes = 0;
+  if(!tryGetMallocAllocationSize(pointer, old_numbytes))
+  {
+    abortOnUntrackedMallocMigration(pointer, allocID);
+  }
+
   T* new_pointer = axom::allocate<T>(n, allocID);
-  copy(new_pointer, tmpPointer, numbytes);
-  deallocate(tmpPointer);
+  copy(new_pointer, pointer, old_numbytes < numbytes ? old_numbytes : numbytes);
+  deallocate(pointer);
 
   return new_pointer;
 }
@@ -515,7 +542,7 @@ inline T* allocate(std::size_t n, int allocID) noexcept
 {
   const std::size_t numbytes = n * sizeof(T);
 
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
   {
     umpire::Allocator allocator = rm.getAllocator(allocID);
@@ -525,7 +552,9 @@ inline T* allocate(std::size_t n, int allocID) noexcept
 
   if(allocID == MALLOC_ALLOCATOR_ID)
   {
-    return static_cast<T*>(std::malloc(numbytes));
+    T* pointer = static_cast<T*>(std::malloc(numbytes));
+    detail::registerMallocAllocation(pointer, numbytes);
+    return pointer;
   }
 
   std::cerr << "Unrecognized allocator id " << allocID << std::endl;
@@ -539,7 +568,7 @@ inline T* allocate(std::size_t n, const std::string& name, int allocID) noexcept
 {
   const std::size_t numbytes = n * sizeof(T);
 
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
   {
     umpire::Allocator allocator = rm.getAllocator(allocID);
@@ -551,7 +580,9 @@ inline T* allocate(std::size_t n, const std::string& name, int allocID) noexcept
   if(allocID == MALLOC_ALLOCATOR_ID)
   {
     AXOM_UNUSED_VAR(name);
-    return static_cast<T*>(std::malloc(numbytes));
+    T* pointer = static_cast<T*>(std::malloc(numbytes));
+    detail::registerMallocAllocation(pointer, numbytes);
+    return pointer;
   }
 
   std::cerr << "Unrecognized allocator id " << allocID << std::endl;
@@ -568,7 +599,7 @@ inline void deallocate(T*& pointer) noexcept
     return;
   }
 
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
 
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
   if(rm.hasAllocator(pointer))
@@ -580,6 +611,7 @@ inline void deallocate(T*& pointer) noexcept
 
 #endif
 
+  detail::unregisterMallocAllocation(pointer);
   std::free(pointer);
   pointer = nullptr;
 }
@@ -611,7 +643,7 @@ inline T* reallocate(T* pointer, std::size_t n, int allocID) noexcept
     {
       pointer = detail::reallocateWithinMalloc(pointer, numbytes);
     }
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
     else if(src == detail::AllocationBackend::Umpire)
     {
       pointer = detail::reallocateWithinUmpire(pointer, numbytes);
@@ -625,7 +657,7 @@ inline T* reallocate(T* pointer, std::size_t n, int allocID) noexcept
     return detail::normalizeZeroSizeReallocateResult(pointer, n, allocID);
   }
 
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   if(src == detail::AllocationBackend::Malloc && dst == detail::AllocationBackend::Umpire)
   {
     pointer = detail::migrateMallocToUmpire(pointer, n, numbytes, allocID);
@@ -646,7 +678,7 @@ inline T* reallocate(T* pointer, std::size_t n, int allocID) noexcept
 //------------------------------------------------------------------------------
 inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept
 {
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
   umpire::op::MemoryOperationRegistry& op_registry =
     umpire::op::MemoryOperationRegistry::getInstance();
@@ -682,7 +714,7 @@ template <typename T>
 inline void fill(void* dst, std::size_t n, const T& value) noexcept
 {
   bool doHostFill = true;
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   // Since data might be copied to GPU, it needs to be trivially copyable.
   static_assert(std::is_trivially_copyable<T>::value, "value must be trivially copyable.");
   auto& rm = umpire::ResourceManager::getInstance();
@@ -748,7 +780,7 @@ inline int getAllocatorID<MemorySpace::Malloc>()
  */
 inline MemorySpace getAllocatorSpace(int allocatorId)
 {
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   using ump_res_type = typename umpire::MemoryResourceTraits::resource_type;
 
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();

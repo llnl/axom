@@ -1365,7 +1365,7 @@ TEST(core_array, checkAlloc)
         ::check_alloc(v_double, id);
       }
 // Then, if Umpire is available, we can use the space as an explicit template parameter
-#ifdef AXOM_USE_UMPIRE
+#if defined(AXOM_USE_UMPIRE)
   #ifdef UMPIRE_ENABLE_DEVICE
       axom::Array<int, 1, axom::MemorySpace::Device> v_int_device(capacity, capacity);
       ::check_alloc(v_int_device, axom::getUmpireResourceAllocatorID(umpire::resource::Device));

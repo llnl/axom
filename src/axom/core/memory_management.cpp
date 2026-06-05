@@ -16,6 +16,8 @@
 #endif
 
 #include <atomic>
+#include <mutex>
+#include <unordered_map>
 
 namespace axom
 {
@@ -68,12 +70,109 @@ private:
   std::atomic<int> allocatorId;
 };
 
+struct MallocAllocationRegistry
+{
+  void registerAllocation(const void* pointer, std::size_t numbytes) noexcept
+  {
+    if(pointer == nullptr)
+    {
+      return;
+    }
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_sizes[pointer] = numbytes;
+  }
+
+  void updateAllocation(const void* oldPointer,
+                        const void* newPointer,
+                        std::size_t numbytes) noexcept
+  {
+    if(newPointer == nullptr)
+    {
+      return;
+    }
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(oldPointer != nullptr)
+    {
+      m_sizes.erase(oldPointer);
+    }
+    m_sizes[newPointer] = numbytes;
+  }
+
+  void unregisterAllocation(const void* pointer) noexcept
+  {
+    if(pointer == nullptr)
+    {
+      return;
+    }
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_sizes.erase(pointer);
+  }
+
+  bool getAllocationSize(const void* pointer, std::size_t& numbytes) const noexcept
+  {
+    if(pointer == nullptr)
+    {
+      return false;
+    }
+
+    std::lock_guard<std::mutex> lock(m_mutex);
+    const auto iter = m_sizes.find(pointer);
+    if(iter == m_sizes.end())
+    {
+      return false;
+    }
+
+    numbytes = iter->second;
+    return true;
+  }
+
+private:
+  mutable std::mutex m_mutex;
+  std::unordered_map<const void*, std::size_t> m_sizes;
+};
+
 HostAllocatorConfig& defaultHostAllocatorConfig() noexcept
 {
   static HostAllocatorConfig config {initialDefaultHostAllocatorID()};
   return config;
 }
+
+MallocAllocationRegistry& mallocAllocationRegistry() noexcept
+{
+  static MallocAllocationRegistry registry {};
+  return registry;
+}
 }  // namespace
+
+namespace detail
+{
+
+void registerMallocAllocation(const void* pointer, std::size_t numbytes) noexcept
+{
+  mallocAllocationRegistry().registerAllocation(pointer, numbytes);
+}
+
+void updateMallocAllocation(const void* oldPointer,
+                            const void* newPointer,
+                            std::size_t numbytes) noexcept
+{
+  mallocAllocationRegistry().updateAllocation(oldPointer, newPointer, numbytes);
+}
+
+void unregisterMallocAllocation(const void* pointer) noexcept
+{
+  mallocAllocationRegistry().unregisterAllocation(pointer);
+}
+
+bool tryGetMallocAllocationSize(const void* pointer, std::size_t& numbytes) noexcept
+{
+  return mallocAllocationRegistry().getAllocationSize(pointer, numbytes);
+}
+
+}  // namespace detail
 
 bool isMemorySpaceAvailable(MemorySpace space) noexcept
 {
