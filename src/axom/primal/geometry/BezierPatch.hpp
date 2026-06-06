@@ -52,6 +52,9 @@ std::ostream& operator<<(std::ostream& os, const BezierPatch<T, NDIMS>& bPatch);
  * Contains a 2D array of positive weights to represent a rational Bezier patch.
  * Polynomial (nonrational) Bezier patches are identified by an empty weights array.
  * 
+ * A default-constructed patch will have order -1 in both directions, and is "invalid".
+ * Arrays of nodes and weights will be empty, and most methods are invalid.
+ * 
  * Algorithms for Rational Bezier curves derived from 
  * Gerald Farin, "Algorithms for rational Bezier curves"
  * Computer-Aided Design, Volume 15, Number 2, 1983,
@@ -114,7 +117,7 @@ public:
    * \param [in] ord_v The patch's polynomial order on the second axis
    * 
    * If \a controlPoints is empty, we still allocate space for (ord_u+1, ord_v+1) control points
-   * \pre ord_u and ord_v must either both be at least 0 for a valid patch, or both must be -1 for an empty patch
+   * \pre ord_u and ord_v must either both be at least 0 for a valid patch, or both must be -1 for an invalid patch
    */
   BezierPatch(axom::ArrayView<const PointType, 2> controlPoints,
               axom::ArrayView<const T, 2> weights,

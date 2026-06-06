@@ -40,8 +40,7 @@ std::ostream& operator<<(std::ostream& os, const BezierTriangle<T, NDIMS>& bTri)
  *
  * \brief Represents a Bezier triangle defined by a triangular array of control points
  * \tparam T the coordinate type, e.g., double, float, etc.
- * \tparam NDIMS The dimension of each control point, e.g. 4 for homogeneous surfaces 
- *                 or 1 for rational weights.
+ * \tparam NDIMS The dimension of each control point, e.g. 1 for rational weights
  *
  * A Bezier triangle of order \a N has \f$ (N+1)(N+2)/2 \f$ control points.
  * It is parametrized over the domain \f$ u0 \ge 0, v0 \ge 0, u0+v0 \le 1 \f$.
@@ -54,6 +53,9 @@ std::ostream& operator<<(std::ostream& os, const BezierTriangle<T, NDIMS>& bTri)
  * Rational triangles are represented by an additional set of positive weights.
  * Polynomial (nonrational) Bezier triangles are identified by an empty weights array.
  *
+ * A default-constructed triangle will have order -1, and is "invalid".
+ * Arrays of nodes and weights will be empty, and most methods are invalid 
+ * 
  * \note This triangle uses permuted barycentric coordinates (u0, v0) for evaluation such that, when
  * `getOrder()==1`, the parameter values correspond to the triangle vertices:
  * - `evaluate(0,0) == (*this)(0,0)`
@@ -118,10 +120,8 @@ public:
    * All weights must be greater than 0 in a rational triangle.
    *
    * For 1D control point/weight arrays, the expected layout corresponds to the indexing
-   * used by `operator()(i,j)`:
-     \verbatim
-      pts[ triIndex(N,i,j) ]  <->  (*this)(i,j)   for 0<=i<=N and 0<=j<=N-i
-     \endverbatim
+   * used by `operator()(i,j)`: 
+   *    pts[ triIndex(N,i,j) ]  <->  (*this)(i,j)   for 0<=i<=N and 0<=j<=N-i
    */
 
   /**
