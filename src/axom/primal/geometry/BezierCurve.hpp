@@ -160,7 +160,7 @@ public:
    *
    * \param [in] pts a vector with ord+1 control points
    * \param [in] ord The Curve's polynomial order
-   * \pre order is greater than or equal to zero
+   * \pre order is greater than or equal to -1
    */
   BezierCurve(const PointType* pts, int ord)
     : BezierCurve(axom::ArrayView<const PointType>(pts, ord + 1),
@@ -174,7 +174,7 @@ public:
    * \param [in] pts a vector with ord+1 control points
    * \param [in] weights a vector with ord+1 positive weights
    * \param [in] ord The Curve's polynomial order
-   * \pre order is greater than or equal to zero
+   * \pre order is greater than or equal to -1
    */
   BezierCurve(const PointType* pts, const T* weights, int ord)
     : BezierCurve(axom::ArrayView<const PointType>(pts, ord + 1),
@@ -187,7 +187,7 @@ public:
    *
    * \param [in] pts an array with ord+1 control points
    * \param [in] ord The Curve's polynomial order
-   * \pre order is greater than or equal to zero
+   * \pre order+1 is equal to pts.size()
    */
   BezierCurve(const axom::Array<PointType>& pts, int ord)
     : BezierCurve(pts.view(), axom::ArrayView<const T>(nullptr, 0), ord)
@@ -199,7 +199,8 @@ public:
    * \param [in] pts an array with ord+1 control points
    * \param [in] weights an array with ord+1 positive weights
    * \param [in] ord The Curve's polynomial order
-   * \pre order is greater than or equal to zero
+   * \pre pts.size() is equal to order+1
+   * \pre weights.size() is equal to order+1 or 0
    */
   BezierCurve(const axom::Array<PointType>& pts, const axom::Array<T>& weights, int ord)
     : BezierCurve(pts.view(), weights.view(), ord)

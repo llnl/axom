@@ -176,7 +176,7 @@ public:
    *  space for the given order of the surface
    * 
    * \param [in] ord_u, ord_v The patch's polynomial orders
-   * \pre ord_u, ord_v greater than or equal to -1.
+   * \pre ord_u and ord_v must either both be at least 0 for a valid patch, or both must be -1 for an invalid patch
    */
   BezierPatch(int ord_u = -1, int ord_v = -1)
     : BezierPatch(axom::ArrayView<const PointType, 2>(nullptr, {0, 0}),
