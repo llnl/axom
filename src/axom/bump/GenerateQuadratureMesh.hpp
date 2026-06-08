@@ -4,17 +4,17 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_GENERATE_QUADRATURE_MESH_HPP_
-#define AXOM_QUEST_GENERATE_QUADRATURE_MESH_HPP_
+#ifndef AXOM_BUMP_GENERATE_QUADRATURE_MESH_HPP_
+#define AXOM_BUMP_GENERATE_QUADRATURE_MESH_HPP_
 
 #include "axom/config.hpp"
 
 #if defined(AXOM_USE_CONDUIT)
 
-  #include "MappedZoneUtilities.hpp"
   #include "axom/bump/utilities/blueprint_utilities.hpp"
   #include "axom/bump/utilities/conduit_memory.hpp"
   #include "axom/core.hpp"
+  #include "axom/core/numerics/Determinants.hpp"
   #include "axom/core/numerics/quadrature.hpp"
   #include "axom/primal.hpp"
   #include "axom/sidre/core/ConduitMemory.hpp"
@@ -33,22 +33,184 @@
 
 namespace axom
 {
-namespace quest
+namespace bump
 {
-namespace shaping
+namespace detail
 {
 
-/*!
- * \brief Generates a Blueprint point mesh of quadrature samples over an input
- *        topology view.
- *
- * The generated mesh stores one point element per sampled quadrature point and
- * publishes fields that map those points back to their source zones.
- *
- * \tparam ExecSpace The execution space used to populate the generated data.
- * \tparam TopologyView The bump topology view type.
- * \tparam CoordsetView The bump coordset view type.
- */
+template <typename ShapeType, typename CoordsetView>
+AXOM_HOST_DEVICE primal::Point<typename CoordsetView::value_type, 2>
+mapToPhysicalPoint(const ShapeType& zone, const CoordsetView& coordsetView, double u, double v)
+{
+  using PointType = primal::Point<typename CoordsetView::value_type, 2>;
+  const auto p0 = coordsetView[zone.getId(0)];
+  const auto p1 = coordsetView[zone.getId(1)];
+  const auto p2 = coordsetView[zone.getId(2)];
+  const auto p3 = coordsetView[zone.getId(3)];
+
+  const double n0 = (1.0 - u) * (1.0 - v);
+  const double n1 = u * (1.0 - v);
+  const double n2 = u * v;
+  const double n3 = (1.0 - u) * v;
+
+  PointType pt;
+  for(int d = 0; d < 2; ++d)
+  {
+    pt[d] = n0 * p0[d] + n1 * p1[d] + n2 * p2[d] + n3 * p3[d];
+  }
+  return pt;
+}
+
+template <typename ShapeType, typename CoordsetView>
+AXOM_HOST_DEVICE primal::Point<typename CoordsetView::value_type, 3>
+mapToPhysicalPoint(const ShapeType& zone,
+                   const CoordsetView& coordsetView,
+                   double u,
+                   double v,
+                   double w)
+{
+  using PointType = primal::Point<typename CoordsetView::value_type, 3>;
+  const auto p0 = coordsetView[zone.getId(0)];
+  const auto p1 = coordsetView[zone.getId(1)];
+  const auto p2 = coordsetView[zone.getId(2)];
+  const auto p3 = coordsetView[zone.getId(3)];
+  const auto p4 = coordsetView[zone.getId(4)];
+  const auto p5 = coordsetView[zone.getId(5)];
+  const auto p6 = coordsetView[zone.getId(6)];
+  const auto p7 = coordsetView[zone.getId(7)];
+
+  const double a = 1.0 - u;
+  const double b = 1.0 - v;
+  const double c = 1.0 - w;
+
+  const double n0 = a * b * c;
+  const double n1 = u * b * c;
+  const double n2 = u * v * c;
+  const double n3 = a * v * c;
+  const double n4 = a * b * w;
+  const double n5 = u * b * w;
+  const double n6 = u * v * w;
+  const double n7 = a * v * w;
+
+  PointType pt;
+  for(int d = 0; d < 3; ++d)
+  {
+    pt[d] = n0 * p0[d] + n1 * p1[d] + n2 * p2[d] + n3 * p3[d] + n4 * p4[d] + n5 * p5[d] +
+      n6 * p6[d] + n7 * p7[d];
+  }
+  return pt;
+}
+
+template <typename ShapeType, typename CoordsetView>
+AXOM_HOST_DEVICE double computePhysicalMeasureFactor(const ShapeType& zone,
+                                                     const CoordsetView& coordsetView,
+                                                     double u,
+                                                     double v)
+{
+  using VectorType = primal::Vector<typename CoordsetView::value_type, 2>;
+
+  const auto p0 = coordsetView[zone.getId(0)];
+  const auto p1 = coordsetView[zone.getId(1)];
+  const auto p2 = coordsetView[zone.getId(2)];
+  const auto p3 = coordsetView[zone.getId(3)];
+
+  const double du0 = -(1.0 - v);
+  const double du1 = (1.0 - v);
+  const double du2 = v;
+  const double du3 = -v;
+
+  const double dv0 = -(1.0 - u);
+  const double dv1 = -u;
+  const double dv2 = u;
+  const double dv3 = 1.0 - u;
+
+  VectorType dxdu;
+  VectorType dxdv;
+  for(int d = 0; d < 2; ++d)
+  {
+    dxdu[d] = du0 * p0[d] + du1 * p1[d] + du2 * p2[d] + du3 * p3[d];
+    dxdv[d] = dv0 * p0[d] + dv1 * p1[d] + dv2 * p2[d] + dv3 * p3[d];
+  }
+
+  return axom::utilities::abs(axom::numerics::determinant(dxdu[0], dxdv[0], dxdu[1], dxdv[1]));
+}
+
+template <typename ShapeType, typename CoordsetView>
+AXOM_HOST_DEVICE double computePhysicalMeasureFactor(const ShapeType& zone,
+                                                     const CoordsetView& coordsetView,
+                                                     double u,
+                                                     double v,
+                                                     double w)
+{
+  using VectorType = primal::Vector<typename CoordsetView::value_type, 3>;
+
+  const auto p0 = coordsetView[zone.getId(0)];
+  const auto p1 = coordsetView[zone.getId(1)];
+  const auto p2 = coordsetView[zone.getId(2)];
+  const auto p3 = coordsetView[zone.getId(3)];
+  const auto p4 = coordsetView[zone.getId(4)];
+  const auto p5 = coordsetView[zone.getId(5)];
+  const auto p6 = coordsetView[zone.getId(6)];
+  const auto p7 = coordsetView[zone.getId(7)];
+
+  const double a = 1.0 - u;
+  const double b = 1.0 - v;
+  const double c = 1.0 - w;
+
+  const double du0 = -b * c;
+  const double du1 = b * c;
+  const double du2 = v * c;
+  const double du3 = -v * c;
+  const double du4 = -b * w;
+  const double du5 = b * w;
+  const double du6 = v * w;
+  const double du7 = -v * w;
+
+  const double dv0 = -a * c;
+  const double dv1 = -u * c;
+  const double dv2 = u * c;
+  const double dv3 = a * c;
+  const double dv4 = -a * w;
+  const double dv5 = -u * w;
+  const double dv6 = u * w;
+  const double dv7 = a * w;
+
+  const double dw0 = -a * b;
+  const double dw1 = -u * b;
+  const double dw2 = -u * v;
+  const double dw3 = -a * v;
+  const double dw4 = a * b;
+  const double dw5 = u * b;
+  const double dw6 = u * v;
+  const double dw7 = a * v;
+
+  VectorType dxdu;
+  VectorType dxdv;
+  VectorType dxdw;
+  for(int d = 0; d < 3; ++d)
+  {
+    dxdu[d] = du0 * p0[d] + du1 * p1[d] + du2 * p2[d] + du3 * p3[d] + du4 * p4[d] + du5 * p5[d] +
+      du6 * p6[d] + du7 * p7[d];
+    dxdv[d] = dv0 * p0[d] + dv1 * p1[d] + dv2 * p2[d] + dv3 * p3[d] + dv4 * p4[d] + dv5 * p5[d] +
+      dv6 * p6[d] + dv7 * p7[d];
+    dxdw[d] = dw0 * p0[d] + dw1 * p1[d] + dw2 * p2[d] + dw3 * p3[d] + dw4 * p4[d] + dw5 * p5[d] +
+      dw6 * p6[d] + dw7 * p7[d];
+  }
+
+  return axom::utilities::abs(VectorType::scalar_triple_product(dxdu, dxdv, dxdw));
+}
+
+inline int quadraturePointCount(const numerics::QuadratureRule& ruleX,
+                                const numerics::QuadratureRule& ruleY,
+                                const numerics::QuadratureRule& ruleZ,
+                                int dim)
+{
+  return dim == 2 ? ruleX.getNumPoints() * ruleY.getNumPoints()
+                  : ruleX.getNumPoints() * ruleY.getNumPoints() * ruleZ.getNumPoints();
+}
+
+}  // namespace detail
+
 template <typename ExecSpace, typename TopologyView, typename CoordsetView>
 class GenerateQuadratureMesh
 {
@@ -56,30 +218,18 @@ public:
   using CoordsetType = typename CoordsetView::value_type;
   using PointType = primal::Point<CoordsetType, CoordsetView::dimension()>;
 
-  /// Struct for capturing views.
   struct ViewPackage
   {
     TopologyView topologyView;
     CoordsetView coordsetView;
   };
 
-  /*!
-   * \brief Constructs the generator from a topology and coordset view.
-   *
-   * \param [in] topologyView The source topology view.
-   * \param [in] coordsetView The source coordset view.
-   */
   GenerateQuadratureMesh(const TopologyView& topologyView, const CoordsetView& coordsetView)
     : m_topologyView(topologyView)
     , m_coordsetView(coordsetView)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
 
-  /*!
-   * \brief Sets the allocator used for generated Conduit-backed storage.
-   *
-   * \param [in] allocator_id The allocator to use for generated arrays.
-   */
   void setAllocatorID(int allocator_id)
   {
     SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
@@ -90,23 +240,6 @@ public:
 
   int getAllocatorID() const { return m_allocator_id; }
 
-  /*!
-   * \brief Executes the quadrature-point mesh generation.
-   *
-   * \param [in] n_topology The source topology node.
-   * \param [in] n_coordset The source coordset node.
-   * \param [in] outputTopologyName The generated point-topology name.
-   * \param [in] outputCoordsetName The generated coordset name.
-   * \param [in] originalElementsFieldName The generated provenance field name.
-   * \param [in] quadratureWeightsFieldName The generated reference-weight field
-   *            name.
-   * \param [in] quadraturePhysicalWeightsFieldName The generated physical-weight
-   *            field name.
-   * \param [in] ruleX The quadrature rule in the first logical direction.
-   * \param [in] ruleY The quadrature rule in the second logical direction.
-   * \param [in] ruleZ The quadrature rule in the third logical direction.
-   * \param [in,out] n_output The Blueprint mesh tree to augment.
-   */
   void execute(const conduit::Node& AXOM_UNUSED_PARAM(n_topology),
                const conduit::Node& n_coordset,
                const std::string& outputTopologyName,
@@ -135,7 +268,6 @@ public:
     n_outputCoordset.reset();
     n_outputCoordset["type"] = "explicit";
 
-    // Store the sampled coordinates as plain explicit coordset components.
     axom::StackArray<axom::ArrayView<CoordsetType>, CoordsetView::dimension()> coordViews;
     for(int d = 0; d < dim; ++d)
     {
@@ -151,7 +283,6 @@ public:
     n_outputTopo["coordset"] = outputCoordsetName;
     n_outputTopo["elements/shape"] = "point";
 
-    // The derived topology is a point mesh, so connectivity is the identity.
     conduit::Node& n_connectivity = n_outputTopo["elements/connectivity"];
     n_connectivity.set_allocator(conduitAllocatorId);
     n_connectivity.set(conduit::DataType::index_t(numPoints));
@@ -195,7 +326,6 @@ public:
     n_physicalWeightValues.set(conduit::DataType::float64(numPoints));
     auto physicalQuadratureWeights = utils::make_array_view<double>(n_physicalWeightValues);
 
-    // Package these views into a struct to help with device access.
     const ViewPackage deviceViews {m_topologyView, m_coordsetView};
 
     axom::for_all<ExecSpace>(
@@ -228,12 +358,14 @@ public:
               else
               {
                 pt = detail::mapToPhysicalPoint(zone, deviceViews.coordsetView, xi, eta, zeta);
-                physicalMeasure =
-                  detail::computePhysicalMeasureFactor(zone, deviceViews.coordsetView, xi, eta, zeta);
+                physicalMeasure = detail::computePhysicalMeasureFactor(
+                  zone,
+                  deviceViews.coordsetView,
+                  xi,
+                  eta,
+                  zeta);
               }
 
-              // Retain both the reference-space tensor-product weights and the
-              // Jacobian-weighted physical weights for downstream consumers.
               const double referenceWeight = wx * wy * wz;
               for(int d = 0; d < dim; ++d)
               {
@@ -252,7 +384,6 @@ public:
       });
   }
 
-// The following members are private (unless using CUDA)
 #if !defined(__CUDACC__)
 private:
 #endif
@@ -261,8 +392,7 @@ private:
   int m_allocator_id;
 };
 
-}  // namespace shaping
-}  // namespace quest
+}  // namespace bump
 }  // namespace axom
 
 #endif

@@ -11,7 +11,7 @@
 #include "conduit_blueprint_mesh.hpp"
 
 #if defined(AXOM_USE_BUMP)
-  #include "GenerateQuadratureMesh.hpp"
+  #include "axom/bump/GenerateQuadratureMesh.hpp"
   #include "axom/bump/views/dispatch_topology.hpp"
   #include "axom/bump/views/dispatch_unstructured_topology.hpp"
 #endif
@@ -94,8 +94,9 @@ void buildBlueprintQuadratureMesh(const conduit::Node& topoNode,
   views::dispatch_topology<views::select_dimensions(CoordsetView::dimension()), SupportedShapes>(
     topoNode,
     [&](const auto&, auto topoView) {
-      GenerateQuadratureMesh<ExecSpace, decltype(topoView), CoordsetView> generator(topoView,
-                                                                                    coordsetView);
+      axom::bump::GenerateQuadratureMesh<ExecSpace, decltype(topoView), CoordsetView> generator(
+        topoView,
+        coordsetView);
       generator.setAllocatorID(allocatorID);
       generator.execute(topoNode,
                         coordsetNode,

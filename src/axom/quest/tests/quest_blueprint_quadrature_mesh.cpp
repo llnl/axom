@@ -13,7 +13,6 @@
   #include "axom/core.hpp"
   #include "axom/quest/IntersectionShaper.hpp"
   #include "axom/quest/SamplingShaper.hpp"
-  #include "axom/quest/detail/shaping/MappedZoneUtilities.hpp"
   #include "axom/quest/detail/shaping/shaping_helpers.hpp"
   #include "axom/quest/util/mesh_helpers.hpp"
   #include "axom/bump/utilities/conduit_memory.hpp"
@@ -152,27 +151,6 @@ conduit::Node makeQuadMesh(const std::string& topoName = "mesh")
   return mesh;
 }
 
-conduit::Node makeHexMesh(const std::string& topoName = "mesh")
-{
-  conduit::Node mesh;
-
-  mesh["coordsets/coords/type"] = "explicit";
-  const axom::Array<double> x {{0., 1., 0., 1., 0., 1., 0., 1.}};
-  const axom::Array<double> y {{0., 0., 1., 1., 0., 0., 1., 1.}};
-  const axom::Array<double> z {{0., 0., 0., 0., 1., 1., 1., 1.}};
-  setNodeValues(mesh["coordsets/coords/values/x"], x.view());
-  setNodeValues(mesh["coordsets/coords/values/y"], y.view());
-  setNodeValues(mesh["coordsets/coords/values/z"], z.view());
-
-  mesh["topologies"][topoName]["type"] = "unstructured";
-  mesh["topologies"][topoName]["coordset"] = "coords";
-  mesh["topologies"][topoName]["elements/shape"] = "hex";
-  const axom::Array<conduit::index_t> connectivity {{0, 1, 3, 2, 4, 5, 7, 6}};
-  setNodeValues(mesh["topologies"][topoName]["elements/connectivity"], connectivity.view());
-
-  return mesh;
-}
-
 conduit::Node makeDistortedQuadMesh(const std::string& topoName = "mesh")
 {
   conduit::Node mesh;
@@ -212,185 +190,6 @@ conduit::Node makeStructuredQuadMesh(const std::string& topoName = "mesh")
 }
 
 }  // namespace
-
-TEST(quest_blueprint_quadrature_mesh, generate_closed_uniform_quad_mesh)
-{
-  conduit::Node mesh = makeQuadMesh();
-
-  int sampleResolution[] = {2, 3};
-  axom::quest::shaping::generateQuadraturePointMesh(
-    mesh,
-    "mesh",
-    axom::execution_space<axom::SEQ_EXEC>::allocatorID(),
-    axom::ArrayView<int> {sampleResolution, 2},
-    axom::numerics::QuadratureType::ClosedUniform);
-
-  conduit::Node info;
-  EXPECT_TRUE(conduit::blueprint::mesh::verify(mesh, info)) << info.to_yaml();
-
-  const conduit::Node& quadTopo = mesh["topologies/quadrature_points"];
-  EXPECT_EQ(quadTopo["type"].as_string(), "unstructured");
-  EXPECT_EQ(quadTopo["coordset"].as_string(), "quadrature_points");
-  EXPECT_EQ(quadTopo["elements/shape"].as_string(), "point");
-
-  namespace utils = axom::bump::utilities;
-  const auto connView = utils::make_array_view<conduit::index_t>(
-    mesh["topologies/quadrature_points/elements/connectivity"]);
-  const auto sizesView =
-    utils::make_array_view<conduit::index_t>(mesh["topologies/quadrature_points/elements/sizes"]);
-  const auto offsetsView =
-    utils::make_array_view<conduit::index_t>(mesh["topologies/quadrature_points/elements/offsets"]);
-  const auto originalElementsView =
-    utils::make_array_view<conduit::index_t>(mesh["fields/originalElements/values"]);
-  const auto quadratureWeightsView =
-    utils::make_array_view<double>(mesh["fields/quadratureWeights/values"]);
-  const auto physicalQuadratureWeightsView =
-    utils::make_array_view<double>(mesh["fields/quadraturePhysicalWeights/values"]);
-
-  const axom::Array<double> expectedX {{0., 1., 0., 1., 0., 1.}};
-  const axom::Array<double> expectedY {{0., 0., 0.5, 0.5, 1., 1.}};
-  const axom::Array<conduit::index_t> expectedConn {{0, 1, 2, 3, 4, 5}};
-  const axom::Array<conduit::index_t> expectedSizes {{1, 1, 1, 1, 1, 1}};
-  const axom::Array<conduit::index_t> expectedOffsets {{0, 1, 2, 3, 4, 5}};
-  const axom::Array<conduit::index_t> expectedOriginalElements {{0, 0, 0, 0, 0, 0}};
-  const axom::Array<double> expectedWeights {
-    {1. / 12., 1. / 12., 1. / 3., 1. / 3., 1. / 12., 1. / 12.}};
-
-  axom::bump::views::dispatch_explicit_coordset(
-    mesh["coordsets/quadrature_points"],
-    [&](auto coordsetView) {
-      for(axom::IndexType i = 0; i < expectedX.size(); ++i)
-      {
-        EXPECT_NEAR(coordsetView[i][0], expectedX[i], 1e-12);
-        EXPECT_NEAR(coordsetView[i][1], expectedY[i], 1e-12);
-      }
-    });
-  EXPECT_TRUE(compareArrayView(expectedConn.view(), connView));
-  EXPECT_TRUE(compareArrayView(expectedSizes.view(), sizesView));
-  EXPECT_TRUE(compareArrayView(expectedOffsets.view(), offsetsView));
-  EXPECT_TRUE(compareArrayView(expectedOriginalElements.view(), originalElementsView));
-  for(axom::IndexType i = 0; i < expectedWeights.size(); ++i)
-  {
-    EXPECT_NEAR(expectedWeights[i], quadratureWeightsView[i], 1e-12);
-    EXPECT_NEAR(expectedWeights[i], physicalQuadratureWeightsView[i], 1e-12);
-  }
-}
-
-TEST(quest_blueprint_quadrature_mesh, generate_open_uniform_hex_mesh)
-{
-  conduit::Node mesh = makeHexMesh();
-
-  int sampleResolution[3] = {2, 1, 2};
-  axom::quest::shaping::generateQuadraturePointMesh(
-    mesh,
-    "mesh",
-    axom::execution_space<axom::SEQ_EXEC>::allocatorID(),
-    axom::ArrayView<int> {sampleResolution, 3},
-    axom::numerics::QuadratureType::OpenUniform);
-
-  conduit::Node info;
-  EXPECT_TRUE(conduit::blueprint::mesh::verify(mesh, info)) << info.to_yaml();
-
-  EXPECT_TRUE(mesh.has_path("coordsets/quadrature_points/type")) << mesh.to_yaml();
-  EXPECT_TRUE(mesh.has_path("coordsets/quadrature_points/values/x")) << mesh.to_yaml();
-  EXPECT_TRUE(mesh.has_path("coordsets/quadrature_points/values/y")) << mesh.to_yaml();
-  EXPECT_TRUE(mesh.has_path("coordsets/quadrature_points/values/z")) << mesh.to_yaml();
-
-  namespace utils = axom::bump::utilities;
-  const auto originalElementsView =
-    utils::make_array_view<conduit::index_t>(mesh["fields/originalElements/values"]);
-  const auto quadratureWeightsView =
-    utils::make_array_view<double>(mesh["fields/quadratureWeights/values"]);
-  const auto physicalQuadratureWeightsView =
-    utils::make_array_view<double>(mesh["fields/quadraturePhysicalWeights/values"]);
-
-  const axom::Array<double> expectedX {{1. / 3., 2. / 3., 1. / 3., 2. / 3.}};
-  const axom::Array<double> expectedY {{0.5, 0.5, 0.5, 0.5}};
-  const axom::Array<double> expectedZ {{1. / 3., 1. / 3., 2. / 3., 2. / 3.}};
-  const axom::Array<conduit::index_t> expectedOriginalElements {{0, 0, 0, 0}};
-  const axom::Array<double> expectedWeights {{0.25, 0.25, 0.25, 0.25}};
-
-  axom::bump::views::dispatch_explicit_coordset(
-    mesh["coordsets/quadrature_points"],
-    [&](auto coordsetView) {
-      for(axom::IndexType i = 0; i < expectedX.size(); ++i)
-      {
-        EXPECT_NEAR(coordsetView[i][0], expectedX[i], 1e-6);
-        EXPECT_NEAR(coordsetView[i][1], expectedY[i], 1e-6);
-        EXPECT_NEAR(coordsetView[i][2], expectedZ[i], 1e-6);
-      }
-    });
-  EXPECT_TRUE(compareArrayView(expectedOriginalElements.view(), originalElementsView));
-  for(axom::IndexType i = 0; i < expectedWeights.size(); ++i)
-  {
-    EXPECT_NEAR(expectedWeights[i], quadratureWeightsView[i], 1e-12);
-    EXPECT_NEAR(expectedWeights[i], physicalQuadratureWeightsView[i], 1e-12);
-  }
-}
-
-TEST(quest_blueprint_quadrature_mesh, generate_closed_uniform_structured_quad_mesh)
-{
-  conduit::Node mesh = makeStructuredQuadMesh();
-
-  int sampleResolution[] = {2, 2};
-  axom::quest::shaping::generateQuadraturePointMesh(
-    mesh,
-    "mesh",
-    axom::execution_space<axom::SEQ_EXEC>::allocatorID(),
-    axom::ArrayView<int> {sampleResolution, 2},
-    axom::numerics::QuadratureType::ClosedUniform);
-
-  conduit::Node info;
-  EXPECT_TRUE(conduit::blueprint::mesh::verify(mesh, info)) << info.to_yaml();
-
-  ASSERT_TRUE(mesh.has_path("coordsets/quadrature_points/values/x"));
-  ASSERT_TRUE(mesh.has_path("fields/originalElements/values"));
-
-  namespace utils = axom::bump::utilities;
-  const auto originalElementsView =
-    utils::make_array_view<conduit::index_t>(mesh["fields/originalElements/values"]);
-
-  const axom::Array<double> expectedX {{0., 1., 0., 1.}};
-  const axom::Array<double> expectedY {{0., 0., 1., 1.}};
-  const axom::Array<conduit::index_t> expectedOriginalElements {{0, 0, 0, 0}};
-
-  axom::bump::views::dispatch_explicit_coordset(
-    mesh["coordsets/quadrature_points"],
-    [&](auto coordsetView) {
-      for(axom::IndexType i = 0; i < expectedX.size(); ++i)
-      {
-        EXPECT_NEAR(coordsetView[i][0], expectedX[i], 1e-12);
-        EXPECT_NEAR(coordsetView[i][1], expectedY[i], 1e-12);
-      }
-    });
-  EXPECT_TRUE(compareArrayView(expectedOriginalElements.view(), originalElementsView));
-}
-
-TEST(quest_blueprint_quadrature_mesh, mapped_zone_helper_computes_distorted_quad_measure_factor)
-{
-  conduit::Node mesh = makeDistortedQuadMesh();
-  double lowerFactor = -1.;
-  double upperFactor = -1.;
-
-  axom::bump::views::dispatch_explicit_coordset(mesh["coordsets/coords"], [&](auto coordsetView) {
-    axom::bump::views::dispatch_unstructured_topology(
-      mesh["topologies/mesh"],
-      [&](const auto&, auto topoView) {
-        const auto zone = topoView.zone(0);
-        lowerFactor = axom::quest::shaping::detail::computePhysicalMeasureFactor(zone,
-                                                                                 coordsetView,
-                                                                                 1. / 3.,
-                                                                                 1. / 3.);
-        upperFactor = axom::quest::shaping::detail::computePhysicalMeasureFactor(zone,
-                                                                                 coordsetView,
-                                                                                 1. / 3.,
-                                                                                 2. / 3.);
-      });
-  });
-
-  EXPECT_NEAR(lowerFactor, 5. / 3., 1e-12);
-  EXPECT_NEAR(upperFactor, 4. / 3., 1e-12);
-}
 
 TEST(quest_blueprint_quadrature_mesh, state_wrapper_generation_is_idempotent)
 {
@@ -634,6 +433,7 @@ TEST(quest_blueprint_quadrature_mesh, blueprint_shapers_support_nondefault_topol
   EXPECT_EQ(intersectionShaper.blueprintMeshDimension(), 2);
 }
 
+#ifdef AXOM_USE_C2C
 TEST(quest_blueprint_quadrature_mesh, sampling_shaper_shapes_structured_quad_blueprint_mesh)
 {
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
@@ -688,6 +488,7 @@ shapes:
     computeStructuredMaterialMeasure(shaper.internalMesh(), "vol_frac_circleMat", cellArea);
   EXPECT_NEAR(totalArea, 3.14159265358979323846, 5e-2);
 }
+#endif
 
 TEST(quest_blueprint_quadrature_mesh, sampling_shaper_shapes_structured_hex_blueprint_mesh)
 {

@@ -74,6 +74,7 @@ set(bump_headers
     ExtrudeMesh.hpp
     FieldBlender.hpp
     FieldSlicer.hpp
+    GenerateQuadratureMesh.hpp
     HashNaming.hpp
     IndexingPolicies.hpp
     MakePointMesh.hpp
