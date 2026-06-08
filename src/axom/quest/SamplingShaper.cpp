@@ -25,6 +25,18 @@ void SamplingShaper::setQuadratureType(axom::numerics::QuadratureType qtype)
       SLIC_ERROR(axom::fmt::format("Invalid quadrature type value {}", static_cast<int>(qtype)));
     }
   }
+  else if(m_mfem_state != nullptr)
+  {
+    // Check that the value is valid.
+    if(axom::numerics::is_valid_quadrature_type(static_cast<int>(qtype)))
+    {
+      m_quadratureType = qtype;
+    }
+    else
+    {
+      SLIC_ERROR(axom::fmt::format("Invalid quadrature type value {}", static_cast<int>(qtype)));
+    }
+  }
 }
 
 void SamplingShaper::setSamplingResolution(int sampleRes)

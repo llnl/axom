@@ -181,7 +181,7 @@ public:
                   "A projector callback function is required when FromDim != ToDim");
 
     auto* mesh = mfemState.m_dc->GetMesh();
-    SLIC_ERROR_IF(mesh != nullptr, "No input mesh");
+    SLIC_ERROR_IF(mesh == nullptr, "No input mesh");
 
     auto& inoutQFuncs = mfemState.m_inoutShapeQFuncs;
     SLIC_ASSERT(inoutQFuncs.Has("positions"));

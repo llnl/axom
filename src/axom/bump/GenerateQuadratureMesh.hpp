@@ -9,8 +9,6 @@
 
 #include "axom/config.hpp"
 
-#if defined(AXOM_USE_CONDUIT)
-
   #include "axom/bump/MappedZoneUtilities.hpp"
   #include "axom/bump/utilities/blueprint_utilities.hpp"
   #include "axom/bump/utilities/conduit_memory.hpp"
@@ -38,6 +36,16 @@ namespace bump
 namespace detail
 {
 
+/*!
+ * \brief Returns the number of tensor-product quadrature points per zone.
+ *
+ * \param ruleX Quadrature rule in the reference x direction.
+ * \param ruleY Quadrature rule in the reference y direction.
+ * \param ruleZ Quadrature rule in the reference z direction.
+ * \param dim Mesh dimension, expected to be 2 or 3.
+ *
+ * \return The number of quadrature points generated for one zone.
+ */
 inline int quadraturePointCount(const numerics::QuadratureRule& ruleX,
                                 const numerics::QuadratureRule& ruleY,
                                 const numerics::QuadratureRule& ruleZ,
@@ -49,6 +57,19 @@ inline int quadraturePointCount(const numerics::QuadratureRule& ruleX,
 
 }  // namespace detail
 
+/*!
+ * \brief Builds a Blueprint point mesh of quadrature samples over a low-order
+ *        quad or hex mesh.
+ *
+ * The generated mesh stores one point element for each tensor-product
+ * quadrature point in each zone. It also creates fields that record the
+ * originating zone and both reference-space and physical-space quadrature
+ * weights for each generated point.
+ *
+ * \tparam ExecSpace Execution space used to populate the output arrays.
+ * \tparam TopologyView View type for the source topology.
+ * \tparam CoordsetView View type for the source coordset.
+ */
 template <typename ExecSpace, typename TopologyView, typename CoordsetView>
 class GenerateQuadratureMesh
 {
@@ -56,18 +77,34 @@ public:
   using CoordsetType = typename CoordsetView::value_type;
   using PointType = primal::Point<CoordsetType, CoordsetView::dimension()>;
 
+  /*!
+   * \brief Bundles the topology and coordset views for device access.
+   */
   struct ViewPackage
   {
     TopologyView topologyView;
     CoordsetView coordsetView;
   };
 
+  /*!
+   * \brief Constructs a quadrature-mesh generator over the supplied mesh views.
+   *
+   * \param topologyView View of the source Blueprint topology.
+   * \param coordsetView View of the source Blueprint coordset.
+   */
   GenerateQuadratureMesh(const TopologyView& topologyView, const CoordsetView& coordsetView)
     : m_topologyView(topologyView)
     , m_coordsetView(coordsetView)
     , m_allocator_id(axom::execution_space<ExecSpace>::allocatorID())
   { }
 
+  /*!
+   * \brief Sets the allocator used for output Conduit arrays.
+   *
+   * The allocator must be valid and accessible from \a ExecSpace.
+   *
+   * \param allocator_id Axom allocator identifier for output storage.
+   */
   void setAllocatorID(int allocator_id)
   {
     SLIC_ERROR_IF(!axom::isValidAllocatorID(allocator_id), "Invalid allocator id.");
@@ -76,8 +113,35 @@ public:
     m_allocator_id = allocator_id;
   }
 
+  /*!
+   * \brief Returns the allocator used for output Conduit arrays.
+   *
+   * \return The Axom allocator identifier for output storage.
+   */
   int getAllocatorID() const { return m_allocator_id; }
 
+  /*!
+   * \brief Generates a Blueprint point mesh containing quadrature samples.
+   *
+   * The output mesh contains explicit point coordinates, a point-element
+   * topology, the source zone index for each point, and both reference and
+   * physical quadrature weights.
+   *
+   * \param n_topology Source topology node. Currently unused because the
+   *        topology is accessed through \a m_topologyView.
+   * \param n_coordset Source coordset node, used to preserve axis naming.
+   * \param outputTopologyName Name of the generated point topology.
+   * \param outputCoordsetName Name of the generated explicit coordset.
+   * \param originalElementsFieldName Name of the field storing source zone ids.
+   * \param quadratureWeightsFieldName Name of the field storing reference
+   *        quadrature weights.
+   * \param quadraturePhysicalWeightsFieldName Name of the field storing
+   *        physical quadrature weights.
+   * \param ruleX Quadrature rule in the reference x direction.
+   * \param ruleY Quadrature rule in the reference y direction.
+   * \param ruleZ Quadrature rule in the reference z direction.
+   * \param n_output Output Blueprint node populated with the generated mesh.
+   */
   void execute(const conduit::Node& AXOM_UNUSED_PARAM(n_topology),
                const conduit::Node& n_coordset,
                const std::string& outputTopologyName,
@@ -232,7 +296,5 @@ private:
 
 }  // namespace bump
 }  // namespace axom
-
-#endif
 
 #endif
