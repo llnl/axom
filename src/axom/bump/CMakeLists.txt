@@ -77,6 +77,7 @@ set(bump_headers
     GenerateQuadratureMesh.hpp
     HashNaming.hpp
     IndexingPolicies.hpp
+    MappedZoneUtilities.hpp
     MakePointMesh.hpp
     MakePolyhedralTopology.hpp
     MakeUnstructured.hpp
