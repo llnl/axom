@@ -281,21 +281,21 @@ TEST(core_memory_management, memory_space_availability)
 
 #if defined(AXOM_USE_UMPIRE)
 
-#if defined(UMPIRE_ENABLE_DEVICE)
+  #if defined(UMPIRE_ENABLE_DEVICE)
   EXPECT_TRUE(axom::isMemorySpaceAvailable(axom::MemorySpace::Device));
-#endif
+  #endif
 
-#if defined(UMPIRE_ENABLE_UM)
+  #if defined(UMPIRE_ENABLE_UM)
   EXPECT_TRUE(axom::isMemorySpaceAvailable(axom::MemorySpace::Unified));
-#endif
+  #endif
 
-#if defined(UMPIRE_ENABLE_PINNED)
+  #if defined(UMPIRE_ENABLE_PINNED)
   EXPECT_TRUE(axom::isMemorySpaceAvailable(axom::MemorySpace::Pinned));
-#endif
+  #endif
 
-#if defined(UMPIRE_ENABLE_CONST)
+  #if defined(UMPIRE_ENABLE_CONST)
   EXPECT_TRUE(axom::isMemorySpaceAvailable(axom::MemorySpace::Constant));
-#endif
+  #endif
 
 #endif
 }

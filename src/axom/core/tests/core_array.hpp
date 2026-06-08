@@ -2368,7 +2368,8 @@ TEST(core_array, host_space_uses_umpire_host_allocator)
   ScopedDefaultHostAllocatorStateForArray scopedState;
   axom::setDefaultHostAllocator(axom::MemorySpace::Host);
 
-  const int hostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+  const int hostAllocatorID =
+    axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
 
   axom::Array<int, 1, axom::MemorySpace::Host> arr(8, 8);
   EXPECT_EQ(hostAllocatorID, arr.getAllocatorID());
