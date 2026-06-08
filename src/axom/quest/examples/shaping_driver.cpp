@@ -12,7 +12,9 @@
 // Axom includes
 #include "axom/config.hpp"
 #include "axom/core.hpp"
-#include "axom/bump.hpp"
+#ifdef AXOM_USE_BUMP
+  #include "axom/bump.hpp"
+#endif
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
 #include "axom/sidre.hpp"
@@ -23,8 +25,8 @@
 #include "axom/CLI11.hpp"
 
 // NOTE: The shaping driver requires Axom to be configured with conduit or mfem.
-#if !defined(AXOM_USE_MFEM) && !defined(AXOM_USE_CONDUIT)
-  #error Shaping functionality requires Axom to be configured with Conduit or MFEM
+#if !defined(AXOM_USE_MFEM) && !(defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP))
+  #error Shaping functionality requires Axom to be configured with MFEM or Conduit+Bump
 #endif
 
 #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
@@ -94,7 +96,7 @@ struct Projector23
 }  // namespace
 
 //------------------------------------------------------------------------------
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
 void printSummaryBlueprint(axom::quest::SamplingShaper*);
 #endif
 #if defined(AXOM_USE_MFEM)
@@ -766,14 +768,15 @@ int main(int argc, char** argv)
   case ShapingMethod::Sampling:
     if(params.usesInlineBlueprintMesh())
     {
-#if defined(AXOM_USE_CONDUIT)
+      // NOTE: The SamplingShaper requires Conduit + Bump for Blueprint support.
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
       shaper = new quest::SamplingShaper(params.policy,
                                          axom::policyToDefaultAllocatorID(params.policy),
                                          params.shapeSet,
                                          originalBlueprintMeshGroup,
                                          "mesh");
 #else
-      SLIC_ERROR_ROOT("inline_mesh_blueprint requires Axom to be configured with Conduit.");
+      SLIC_ERROR_ROOT("inline_mesh_blueprint requires Axom to be configured with Conduit and Bump.");
 #endif
     }
     else
@@ -789,6 +792,7 @@ int main(int argc, char** argv)
   case ShapingMethod::Intersection:
     if(params.usesInlineBlueprintMesh())
     {
+      // NOTE: The IntersectionShaper requires Conduit for Blueprint support.
 #if defined(AXOM_USE_CONDUIT)
       shaper = new quest::IntersectionShaper(params.policy,
                                              axom::policyToDefaultAllocatorID(params.policy),
@@ -909,7 +913,8 @@ int main(int argc, char** argv)
     AXOM_ANNOTATE_SCOPE("import initial volume fractions");
     if(params.usesInlineBlueprintMesh())
     {
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
+
       // Generate a background material (w/ volume fractions set to 1) if user provided a name
       if(!params.backgroundMaterial.empty())
       {
@@ -1034,7 +1039,7 @@ int main(int argc, char** argv)
   using axom::utilities::string::startsWith;
   if(params.usesInlineBlueprintMesh())
   {
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
     if(auto* samplingShaper = dynamic_cast<quest::SamplingShaper*>(shaper))
     {
       printSummaryBlueprint(samplingShaper);
@@ -1089,7 +1094,7 @@ void printVolume(const std::string mat_name, double volume)
                               volume));
 }
 
-#if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
 /*!
  * \brief Print the summary information for Blueprint meshes.
  *
