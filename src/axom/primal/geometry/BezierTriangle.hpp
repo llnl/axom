@@ -852,7 +852,6 @@ public:
   {
     SLIC_ASSERT(m_ord >= 0);
     const int n = m_ord;
-    const int triN = triSize(n);
 
     t0.setOrder(n);
     t1.setOrder(n);

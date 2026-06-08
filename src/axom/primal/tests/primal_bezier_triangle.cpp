@@ -468,7 +468,6 @@ TEST(primal_beziertriangle, split_interior_polynomial)
   constexpr int DIM = 3;
   using CoordType = double;
   using BTri = primal::BezierTriangle<CoordType, DIM>;
-  using PointType = BTri::PointType;
 
   constexpr int ord = 3;
   BTri tri(ord);
@@ -914,7 +913,6 @@ TEST(primal_beziertriangle, uniformSplit_fourway_polynomial)
   constexpr int DIM = 3;
   using CoordType = double;
   using BTri = primal::BezierTriangle<CoordType, DIM>;
-  using PointType = BTri::PointType;
 
   constexpr int ord = 3;
   BTri tri(ord);
