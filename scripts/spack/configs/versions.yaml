@@ -10,10 +10,10 @@ packages:
   caliper:
     require:
       - spec: "@git.7e5b7a5c0eacc077f9b842abf41c9fc7b996ce0c=master"
-  # v2025.12
+  # testing
   camp:
     require:
-      - spec: "@git.36b724872427cbea8f4aedab31da6af21d221cf3=main"
+      - spec: "@git.e75ab64c029aa27c80593715cb2a3ccad7453c8c=main"
   conduit:
     require:
       - spec: "@0.9.5"
@@ -29,10 +29,10 @@ packages:
   py-jsonschema:
     require:
       - spec: "@:4.17" #Anything after this requires py-rpds which requires rust and adds 40 minutes
-  # v2025.12.1
+  # testing
   raja:
     require:
-      - spec: "@git.c2573cbe8b1941a0d0f335e5f5f0e43779308215=develop"
+      - spec: "@develop"
   scr:
     require:
       - spec: "@3.0.1"
