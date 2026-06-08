@@ -28,12 +28,6 @@ namespace shaping
 namespace
 {
 
-constexpr const char* QUADRATURE_COORDSET_NAME = "quadrature_points";
-constexpr const char* QUADRATURE_TOPOLOGY_NAME = "quadrature_points";
-constexpr const char* ORIGINAL_ELEMENTS_FIELD_NAME = "originalElements";
-constexpr const char* QUADRATURE_WEIGHTS_FIELD_NAME = "quadratureWeights";
-constexpr const char* QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME = "quadraturePhysicalWeights";
-
 numerics::QuadratureRule getBlueprintQuadratureRule(axom::numerics::QuadratureType quadratureType,
                                                     int npts,
                                                     int allocatorID)
