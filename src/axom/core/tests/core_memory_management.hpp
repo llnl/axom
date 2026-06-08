@@ -362,6 +362,54 @@ TEST(core_memory_management, set_get_default_host_allocator)
 
 #if defined(AXOM_USE_UMPIRE)
 
+TEST(core_memory_management, host_space_allocation_uses_umpire_host_default)
+{
+  ScopedDefaultAllocatorState scopedState;
+  axom::setDefaultHostAllocator(axom::MemorySpace::Host);
+
+  const int hostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  const int resolvedHostAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host);
+  EXPECT_EQ(hostAllocatorID, resolvedHostAllocatorID);
+
+  int* buffer = axom::allocate<int>(ARRAY_SIZE, resolvedHostAllocatorID);
+  ASSERT_NE(buffer, nullptr);
+  EXPECT_EQ(hostAllocatorID, axom::getAllocatorIDFromPointer(buffer));
+  axom::deallocate(buffer);
+}
+
+TEST(core_memory_management, host_space_allocation_uses_malloc_host_default)
+{
+  ScopedDefaultAllocatorState scopedState;
+  axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+
+  const int resolvedHostAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host);
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, resolvedHostAllocatorID);
+
+  int* buffer = axom::allocate<int>(ARRAY_SIZE, resolvedHostAllocatorID);
+  ASSERT_NE(buffer, nullptr);
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::getAllocatorIDFromPointer(buffer));
+  axom::deallocate(buffer);
+}
+
+TEST(core_memory_management, host_space_allocation_ignores_global_default_allocator)
+{
+  ScopedDefaultAllocatorState scopedState;
+  const int hostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+
+  axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+  axom::setDefaultAllocator(axom::MemorySpace::Host);
+
+  EXPECT_EQ(hostAllocatorID, axom::getDefaultAllocatorID());
+
+  const int resolvedHostAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host);
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, resolvedHostAllocatorID);
+
+  int* buffer = axom::allocate<int>(ARRAY_SIZE, resolvedHostAllocatorID);
+  ASSERT_NE(buffer, nullptr);
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::getAllocatorIDFromPointer(buffer));
+  axom::deallocate(buffer);
+}
+
 TEST(core_memory_management, set_get_default_memory_space)
 {
   ScopedDefaultAllocatorState scopedState;

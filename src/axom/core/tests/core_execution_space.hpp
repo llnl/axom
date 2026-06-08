@@ -34,6 +34,23 @@ struct ScopedDefaultHostAllocatorStateForExecution
   int m_allocator;
 };
 
+struct ScopedDefaultAllocatorStateForExecution
+{
+  ScopedDefaultAllocatorStateForExecution()
+    : m_defaultAllocator(axom::getDefaultAllocatorID())
+    , m_defaultHostAllocator(axom::getDefaultHostAllocatorID())
+  { }
+
+  ~ScopedDefaultAllocatorStateForExecution()
+  {
+    axom::setDefaultAllocator(m_defaultAllocator);
+    axom::setDefaultHostAllocator(m_defaultHostAllocator);
+  }
+
+  int m_defaultAllocator;
+  int m_defaultHostAllocator;
+};
+
 template <typename ExecSpace>
 void check_valid()
 {
@@ -170,6 +187,38 @@ TEST(core_execution_space, host_exec_uses_configured_host_allocator)
   ScopedDefaultHostAllocatorStateForExecution scopedState;
   axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
 
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+
+  #if defined(AXOM_USE_OPENMP)
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::execution_space<axom::OMP_EXEC>::allocatorID());
+  #endif
+}
+
+TEST(core_execution_space, host_exec_uses_umpire_host_allocator)
+{
+  ScopedDefaultAllocatorStateForExecution scopedState;
+  const int hostAllocatorID =
+    axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+
+  axom::setDefaultHostAllocator(axom::MemorySpace::Host);
+
+  EXPECT_EQ(hostAllocatorID, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+
+  #if defined(AXOM_USE_OPENMP)
+  EXPECT_EQ(hostAllocatorID, axom::execution_space<axom::OMP_EXEC>::allocatorID());
+  #endif
+}
+
+TEST(core_execution_space, host_exec_ignores_global_default_allocator)
+{
+  ScopedDefaultAllocatorStateForExecution scopedState;
+  const int hostAllocatorID =
+    axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+
+  axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+  axom::setDefaultAllocator(axom::MemorySpace::Host);
+
+  EXPECT_EQ(hostAllocatorID, axom::getDefaultAllocatorID());
   EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
 
   #if defined(AXOM_USE_OPENMP)
