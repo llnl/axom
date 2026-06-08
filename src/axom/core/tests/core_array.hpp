@@ -2361,6 +2361,56 @@ TEST(core_array, host_space_copy_preserves_malloc_allocator)
   }
 }
 
+#if defined(AXOM_USE_UMPIRE)
+//------------------------------------------------------------------------------
+TEST(core_array, host_space_uses_umpire_host_allocator)
+{
+  ScopedDefaultHostAllocatorStateForArray scopedState;
+  axom::setDefaultHostAllocator(axom::MemorySpace::Host);
+
+  const int hostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+
+  axom::Array<int, 1, axom::MemorySpace::Host> arr(8, 8);
+  EXPECT_EQ(hostAllocatorID, arr.getAllocatorID());
+
+  for(int i = 0; i < arr.size(); ++i)
+  {
+    arr[i] = i;
+  }
+
+  axom::ArrayView<int, 1, axom::MemorySpace::Host> view(arr);
+  EXPECT_EQ(hostAllocatorID, view.getAllocatorID());
+  EXPECT_EQ(arr.size(), view.size());
+
+  for(int i = 0; i < view.size(); ++i)
+  {
+    EXPECT_EQ(i, view[i]);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(core_array, host_space_copy_preserves_compatible_malloc_allocator_with_umpire_host_default)
+{
+  ScopedDefaultHostAllocatorStateForArray scopedState;
+  axom::setDefaultHostAllocator(axom::MemorySpace::Host);
+
+  axom::Array<int, 1, axom::MemorySpace::Dynamic> src(8, 8, axom::MALLOC_ALLOCATOR_ID);
+  for(int i = 0; i < src.size(); ++i)
+  {
+    src[i] = 2 * i;
+  }
+
+  axom::Array<int, 1, axom::MemorySpace::Host> dst(src);
+  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, dst.getAllocatorID());
+  EXPECT_EQ(src.size(), dst.size());
+
+  for(int i = 0; i < dst.size(); ++i)
+  {
+    EXPECT_EQ(2 * i, dst[i]);
+  }
+}
+#endif
+
 //------------------------------------------------------------------------------
 TEST(core_array, checkConstConversion)
 {
