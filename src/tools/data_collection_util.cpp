@@ -195,7 +195,7 @@ public:
     minbb->needs(maxbb);
     maxbb->needs(minbb);
 
-    box_options->add_option("--res", boxResolution)
+    box_options->add_option("--res, --resolution", boxResolution)
       ->description("Resolution of the box mesh (i,j[,k])")
       ->expected(2, 3);
 
