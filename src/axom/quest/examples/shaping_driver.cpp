@@ -776,7 +776,8 @@ int main(int argc, char** argv)
                                          originalBlueprintMeshGroup,
                                          "mesh");
 #else
-      SLIC_ERROR_ROOT("inline_mesh_blueprint requires Axom to be configured with Conduit and Bump.");
+      SLIC_ERROR_ROOT(
+        "inline_mesh_blueprint requires Axom to be configured with Conduit and Bump.");
 #endif
     }
     else

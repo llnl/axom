@@ -433,7 +433,7 @@ TEST(quest_blueprint_quadrature_mesh, blueprint_shapers_support_nondefault_topol
   EXPECT_EQ(intersectionShaper.blueprintMeshDimension(), 2);
 }
 
-#ifdef AXOM_USE_C2C
+  #ifdef AXOM_USE_C2C
 TEST(quest_blueprint_quadrature_mesh, sampling_shaper_shapes_structured_quad_blueprint_mesh)
 {
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
@@ -488,7 +488,7 @@ shapes:
     computeStructuredMaterialMeasure(shaper.internalMesh(), "vol_frac_circleMat", cellArea);
   EXPECT_NEAR(totalArea, 3.14159265358979323846, 5e-2);
 }
-#endif
+  #endif
 
 TEST(quest_blueprint_quadrature_mesh, sampling_shaper_shapes_structured_hex_blueprint_mesh)
 {

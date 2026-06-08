@@ -8,15 +8,15 @@
 
 #if defined(AXOM_USE_CONDUIT)
 
-#include "conduit_blueprint_mesh.hpp"
+  #include "conduit_blueprint_mesh.hpp"
 
-#if defined(AXOM_USE_BUMP)
-  #include "axom/bump/GenerateQuadratureMesh.hpp"
-  #include "axom/bump/views/dispatch_topology.hpp"
-  #include "axom/bump/views/dispatch_unstructured_topology.hpp"
-#endif
+  #if defined(AXOM_USE_BUMP)
+    #include "axom/bump/GenerateQuadratureMesh.hpp"
+    #include "axom/bump/views/dispatch_topology.hpp"
+    #include "axom/bump/views/dispatch_unstructured_topology.hpp"
+  #endif
 
-#include <vector>
+  #include <vector>
 
 namespace axom
 {
@@ -77,7 +77,7 @@ std::string getBlueprintCellShapeImpl(const conduit::Node& topoNode)
   return "";
 }
 
-#if defined(AXOM_USE_BUMP)
+  #if defined(AXOM_USE_BUMP)
 template <typename ExecSpace, typename CoordsetView>
 void buildBlueprintQuadratureMesh(const conduit::Node& topoNode,
                                   const conduit::Node& coordsetNode,
@@ -89,7 +89,9 @@ void buildBlueprintQuadratureMesh(const conduit::Node& topoNode,
                                   conduit::Node& meshNode)
 {
   namespace views = axom::bump::views;
-  constexpr int SupportedShapes = (CoordsetView::dimension() == 2) ? views::select_shapes(views::Quad_ShapeID) : views::select_shapes(views::Hex_ShapeID);
+  constexpr int SupportedShapes = (CoordsetView::dimension() == 2)
+    ? views::select_shapes(views::Quad_ShapeID)
+    : views::select_shapes(views::Hex_ShapeID);
 
   views::dispatch_topology<views::select_dimensions(CoordsetView::dimension()), SupportedShapes>(
     topoNode,
@@ -111,7 +113,7 @@ void buildBlueprintQuadratureMesh(const conduit::Node& topoNode,
                         meshNode);
     });
 }
-#endif
+  #endif
 
 }  // namespace
 
@@ -120,7 +122,7 @@ std::string getBlueprintCellShape(const conduit::Node& topoNode)
   return getBlueprintCellShapeImpl(topoNode);
 }
 
-#if defined(AXOM_USE_BUMP)
+  #if defined(AXOM_USE_BUMP)
 void printRegisteredFieldNames(const BlueprintState& bpState,
                                const std::set<std::string>& knownMaterials,
                                VolFracSampling AXOM_UNUSED_PARAM(vfSampling),
@@ -246,12 +248,12 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
   int selectedAllocatorID = allocatorID;
   if(!axom::execution_space<seq_exec>::usesAllocId(selectedAllocatorID) &&
      !axom::execution_space<omp_exec>::usesAllocId(selectedAllocatorID)
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+    #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
      && !axom::execution_space<cuda_exec>::usesAllocId(selectedAllocatorID)
-  #endif
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+    #endif
+    #if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
      && !axom::execution_space<hip_exec>::usesAllocId(selectedAllocatorID)
-  #endif
+    #endif
   )
   {
     selectedAllocatorID = axom::execution_space<seq_exec>::allocatorID();
@@ -263,7 +265,7 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
   auto ruleZ = getBlueprintQuadratureRule(quadratureType, nz, selectedAllocatorID);
 
   axom::bump::views::dispatch_explicit_coordset(coordsetNode, [&](auto coordsetView) {
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+    #if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
     if(axom::execution_space<hip_exec>::usesAllocId(selectedAllocatorID))
     {
       buildBlueprintQuadratureMesh<hip_exec>(topoNode,
@@ -276,8 +278,8 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
                                              bpMeshNode);
       return;
     }
-  #endif
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+    #endif
+    #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
     if(axom::execution_space<cuda_exec>::usesAllocId(selectedAllocatorID))
     {
       buildBlueprintQuadratureMesh<cuda_exec>(topoNode,
@@ -290,7 +292,7 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
                                               bpMeshNode);
       return;
     }
-  #endif
+    #endif
     if(axom::execution_space<omp_exec>::usesAllocId(selectedAllocatorID))
     {
       buildBlueprintQuadratureMesh<omp_exec>(topoNode,
@@ -529,7 +531,7 @@ conduit::Node* cloneInOutFunction(const conduit::Node* node)
   return new conduit::Node(*node);
 }
 
-#endif  // defined(AXOM_USE_BUMP)
+  #endif  // defined(AXOM_USE_BUMP)
 
 }  // end namespace shaping
 }  // end namespace quest

@@ -144,15 +144,12 @@ void generateQuadratureMesh(conduit::Node& mesh,
   namespace views = axom::bump::views;
 
   const int allocatorId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-  auto ruleX =
-    axom::numerics::get_quadrature_rule(quadratureType, sampleResolution[0], allocatorId);
-  auto ruleY =
-    axom::numerics::get_quadrature_rule(quadratureType, sampleResolution[1], allocatorId);
+  auto ruleX = axom::numerics::get_quadrature_rule(quadratureType, sampleResolution[0], allocatorId);
+  auto ruleY = axom::numerics::get_quadrature_rule(quadratureType, sampleResolution[1], allocatorId);
   const int nz = sampleResolution.size() > 2 ? sampleResolution[2] : 1;
   auto ruleZ = axom::numerics::get_quadrature_rule(quadratureType, nz, allocatorId);
 
-  const conduit::Node& topoNode =
-    mesh.fetch_existing("topologies").fetch_existing(topologyName);
+  const conduit::Node& topoNode = mesh.fetch_existing("topologies").fetch_existing(topologyName);
   const conduit::Node& coordsetNode =
     mesh.fetch_existing("coordsets").fetch_existing(topoNode.fetch_existing("coordset").as_string());
 
@@ -165,10 +162,9 @@ void generateQuadratureMesh(conduit::Node& mesh,
     views::dispatch_topology<views::select_dimensions(CoordsetView::dimension()), supportedShapes>(
       topoNode,
       [&](const auto&, auto topoView) {
-        axom::bump::GenerateQuadratureMesh<axom::SEQ_EXEC,
-                                           decltype(topoView),
-                                           CoordsetView>
-          generator(topoView, coordsetView);
+        axom::bump::GenerateQuadratureMesh<axom::SEQ_EXEC, decltype(topoView), CoordsetView> generator(
+          topoView,
+          coordsetView);
         generator.setAllocatorID(allocatorId);
         generator.execute(topoNode,
                           coordsetNode,
@@ -342,10 +338,8 @@ TEST(bump_blueprint_quadrature_mesh, mapped_zone_helper_computes_distorted_quad_
   axom::bump::views::dispatch_explicit_coordset(mesh["coordsets/coords"], [&](auto coordsetView) {
     axom::bump::views::dispatch_topology(mesh["topologies/mesh"], [&](const auto&, auto topoView) {
       const auto zone = topoView.zone(0);
-      lowerFactor =
-        axom::bump::detail::computePhysicalMeasureFactor(zone, coordsetView, 0.5, 0.0);
-      upperFactor =
-        axom::bump::detail::computePhysicalMeasureFactor(zone, coordsetView, 0.5, 1.0);
+      lowerFactor = axom::bump::detail::computePhysicalMeasureFactor(zone, coordsetView, 0.5, 0.0);
+      upperFactor = axom::bump::detail::computePhysicalMeasureFactor(zone, coordsetView, 0.5, 1.0);
     });
   });
 

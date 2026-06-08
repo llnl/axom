@@ -9,18 +9,18 @@
 
 #include "axom/config.hpp"
 
-  #include "axom/bump/MappedZoneUtilities.hpp"
-  #include "axom/bump/utilities/blueprint_utilities.hpp"
-  #include "axom/bump/utilities/conduit_memory.hpp"
-  #include "axom/core.hpp"
-  #include "axom/core/numerics/quadrature.hpp"
-  #include "axom/primal.hpp"
-  #include "axom/sidre/core/ConduitMemory.hpp"
-  #include "axom/slic.hpp"
+#include "axom/bump/MappedZoneUtilities.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/core.hpp"
+#include "axom/core/numerics/quadrature.hpp"
+#include "axom/primal.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
+#include "axom/slic.hpp"
 
-  #include <conduit/conduit.hpp>
-  #include <string>
-  #include <vector>
+#include <conduit/conduit.hpp>
+#include <string>
+#include <vector>
 
 /*!
  * \file GenerateQuadratureMesh.hpp
@@ -260,12 +260,8 @@ public:
               else
               {
                 pt = detail::mapToPhysicalPoint(zone, deviceViews.coordsetView, xi, eta, zeta);
-                physicalMeasure = detail::computePhysicalMeasureFactor(
-                  zone,
-                  deviceViews.coordsetView,
-                  xi,
-                  eta,
-                  zeta);
+                physicalMeasure =
+                  detail::computePhysicalMeasureFactor(zone, deviceViews.coordsetView, xi, eta, zeta);
               }
 
               const double referenceWeight = wx * wy * wz;

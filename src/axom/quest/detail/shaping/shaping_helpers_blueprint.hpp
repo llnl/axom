@@ -11,14 +11,14 @@
 
 #if defined(AXOM_USE_CONDUIT)
 
-#include "axom/fmt.hpp"
+  #include "axom/fmt.hpp"
 
-#if defined(AXOM_USE_BUMP)
-  #include "axom/bump/utilities/conduit_memory.hpp"
-  #include "axom/bump/views/dispatch_coordset.hpp"
-#endif
+  #if defined(AXOM_USE_BUMP)
+    #include "axom/bump/utilities/conduit_memory.hpp"
+    #include "axom/bump/views/dispatch_coordset.hpp"
+  #endif
 
-#include "conduit_node.hpp"
+  #include "conduit_node.hpp"
 
   #include <map>
   #include <set>
@@ -107,7 +107,7 @@ struct BlueprintState
     return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name] : nullptr;
   }
 
-#if defined(AXOM_USE_BUMP)
+  #if defined(AXOM_USE_BUMP)
   conduit::Node* createMaterialFunction(const std::string& name)
   {
     constexpr const char* quadratureTopologyName = "quadrature_points";
@@ -137,10 +137,10 @@ struct BlueprintState
 
     return &fieldNode;
   }
-#endif
+  #endif
 };
 
-#if defined(AXOM_USE_BUMP)
+  #if defined(AXOM_USE_BUMP)
 /*!
  * \brief Print the registered field names in the \a bpState.
  *
@@ -301,7 +301,7 @@ void sampleInOutField(const std::string& shapeName,
       using CoordsetView = typename std::decay<decltype(coordsetView)>::type;
 
       // Limit to handling coordsets whose dimensions match FromDim.
-      if constexpr (CoordsetView::dimension() == FromDim)
+      if constexpr(CoordsetView::dimension() == FromDim)
       {
         numQueryPoints = coordsetView.size();
         valuesNode.set(conduit::DataType::float64(numQueryPoints));
@@ -331,7 +331,7 @@ void sampleInOutField(const std::string& shapeName,
     static_cast<int>(numQueryPoints / timer.elapsed())));
 }
 
-#endif  // defined(AXOM_USE_BUMP)
+  #endif  // defined(AXOM_USE_BUMP)
 
 }  // end namespace shaping
 }  // end namespace quest
