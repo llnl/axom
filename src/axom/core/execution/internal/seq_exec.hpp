@@ -60,8 +60,12 @@ struct execution_space<SEQ_EXEC>
   }
   static bool usesMemorySpace(axom::MemorySpace m) noexcept
   {
+#if defined(AXOM_USE_UMPIRE)
     return m == MemorySpace::Dynamic || m == MemorySpace::Malloc || m == MemorySpace::Host ||
       (m == MemorySpace::Unified && axom::isMemorySpaceAvailable(MemorySpace::Unified));
+#else
+    return m == MemorySpace::Dynamic || m == MemorySpace::Malloc || m == MemorySpace::Host;
+#endif
   }
   static bool usesAllocId(int allocId) noexcept
   {

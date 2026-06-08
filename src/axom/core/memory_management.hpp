@@ -79,10 +79,12 @@ enum class MemorySpace
   Malloc,   //!< Host memory using malloc, free and realloc
   Dynamic,  //!< Refers to Umpire's current default allocator
   Host,     //!< Host memory space
+#if defined(AXOM_USE_UMPIRE)
   Device,   //!< Device memory space
   Unified,  //!< Unified memory space
   Pinned,   //!< Pinned host memory space
   Constant  //!< Constant device memory space
+#endif
 };
 // _memory_space_end
 
@@ -822,6 +824,7 @@ inline int getAllocatorID<MemorySpace::Host>()
   return axom::getAllocatorIDFromMemorySpace(MemorySpace::Host);
 }
 
+#if defined(AXOM_USE_UMPIRE)
 template <>
 inline int getAllocatorID<MemorySpace::Device>()
 {
@@ -845,6 +848,7 @@ inline int getAllocatorID<MemorySpace::Constant>()
 {
   return axom::getAllocatorIDFromMemorySpace(MemorySpace::Constant);
 }
+#endif
 
 }  // namespace detail
 
@@ -858,8 +862,10 @@ inline bool isHostAccessibleAllocatorID(int allocId)
   {
   case axom::MemorySpace::Malloc:
   case axom::MemorySpace::Host:
+#if defined(AXOM_USE_UMPIRE)
   case axom::MemorySpace::Unified:
   case axom::MemorySpace::Pinned:
+#endif
     return true;
   default:
     return false;

@@ -34,6 +34,7 @@ const char* memorySpaceName(MemorySpace space) noexcept
     return "Dynamic";
   case MemorySpace::Host:
     return "Host";
+#if defined(AXOM_USE_UMPIRE)
   case MemorySpace::Device:
     return "Device";
   case MemorySpace::Unified:
@@ -42,6 +43,7 @@ const char* memorySpaceName(MemorySpace space) noexcept
     return "Pinned";
   case MemorySpace::Constant:
     return "Constant";
+#endif
   }
 
   return "Unknown";
@@ -178,29 +180,33 @@ bool isMemorySpaceAvailable(MemorySpace space) noexcept
   case MemorySpace::Dynamic:
   case MemorySpace::Host:
     return true;
+#if defined(AXOM_USE_UMPIRE)
+
   case MemorySpace::Device:
-#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_DEVICE)
+#if defined(UMPIRE_ENABLE_DEVICE)
     return true;
 #else
     return false;
 #endif
   case MemorySpace::Unified:
-#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_UM)
+#if defined(UMPIRE_ENABLE_UM)
     return true;
 #else
     return false;
 #endif
   case MemorySpace::Pinned:
-#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_PINNED)
+#if defined(UMPIRE_ENABLE_PINNED)
     return true;
 #else
     return false;
 #endif
   case MemorySpace::Constant:
-#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_CONST)
+#if defined(UMPIRE_ENABLE_CONST)
     return true;
 #else
     return false;
+#endif
+
 #endif
   }
 
@@ -217,29 +223,33 @@ int getAllocatorIDFromMemorySpace(MemorySpace space)
     return MALLOC_ALLOCATOR_ID;
   case MemorySpace::Host:
     return getDefaultHostAllocatorID();
+
+#if defined(AXOM_USE_UMPIRE)
   case MemorySpace::Device:
-#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_DEVICE)
+#if defined(UMPIRE_ENABLE_DEVICE)
     return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
 #else
     break;
 #endif
   case MemorySpace::Unified:
-#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_UM)
+#if defined(UMPIRE_ENABLE_UM)
     return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
 #else
     break;
 #endif
   case MemorySpace::Pinned:
-#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_PINNED)
+#if defined(UMPIRE_ENABLE_PINNED)
     return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Pinned);
 #else
     break;
 #endif
   case MemorySpace::Constant:
-#if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_CONST)
+#if defined(UMPIRE_ENABLE_CONST)
     return getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Constant);
 #else
     break;
+#endif
+
 #endif
   }
 
