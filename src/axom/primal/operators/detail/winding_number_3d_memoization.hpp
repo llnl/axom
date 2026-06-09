@@ -268,11 +268,18 @@ public:
     // For symmetric patches (e.g. cylinders), the numerator can be close to 0 due to cancellation.
     constexpr double k_dir_eps = 1e-3;
 
-    // Generate a random direction
-    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-    double u = axom::utilities::random_real(-1.0, 1.0);
+    // Generate a random direction with simple hashes
+    unsigned int seed1 =
+      std::hash<T> {}(m_bBox.getMin()[0] + m_bBox.getMin()[1] + m_bBox.getMin()[2]);
+    unsigned int seed2 =
+      std::hash<T> {}(m_bBox.getMax()[0] + m_bBox.getMax()[1] + m_bBox.getMax()[2]);
+
+    double theta = axom::utilities::random_real(0.0, 2 * M_PI, seed1);
+    double u = axom::utilities::random_real(-1.0, 1.0, seed2);
     const auto random_unit =
       Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+
+    m_castDirection = m_normal.unitVector();
 
     // If the average normal is too small, use the random direction as-is
     if((m_surfaceArea <= 0.0) || (m_normal.norm() / m_surfaceArea) < k_dir_eps)
