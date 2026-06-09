@@ -7,7 +7,7 @@
 /*!
  * \file GregoryPatch.hpp
  *
- * \brief A Gregory patch primitive
+ * \brief A bicubic Gregory patch primitive
  */
 
 #ifndef AXOM_PRIMAL_GREGORY_PATCH_HPP_
@@ -44,9 +44,10 @@ std::ostream& operator<<(std::ostream& os, const GregoryPatch<T>& nPatch);
 /*!
  * \class GregoryPatch
  *
- * \brief Represents a 3D Gregory patch defined by ...
+ * \brief Represents a 3D Gregory patch defined by the control points of 4 cubic Bezier curves
+ *          for each boundary, and an additional two "Gregory points" for each edge which 
+ *          determine the internal geometry of the surface.
  * \tparam T the coordinate type, e.g., double, float, etc.
- * \tparam NDIMS the number of dimensions
  */
 template <typename T>
 class GregoryPatch
@@ -145,10 +146,10 @@ public:
     v1 = getTangent(i, 0);
   }
 
-  PointType& getBoundaryPoint(int e, int k) { return m_controlPoints[s_index_map[e][k]]; }
+  PointType& getBoundaryPoint(int e, int k) { return m_controlPoints[s_edge_index_map[e][k]]; }
   const PointType& getBoundaryPoint(int e, int k) const
   {
-    return m_controlPoints[s_index_map[e][k]];
+    return m_controlPoints[s_edge_index_map[e][k]];
   }
 
   // Evaluate the patch by constructing the equivalent Bezier patch with interior control nodes
@@ -327,7 +328,7 @@ public:
   }
 
 private:
-  struct IntermediateBezierDerivatives
+  struct IntermediateBlendingDerivatives
   {
     BezierPatch<T, 3> bpatch;
     PointType Q[2][2];
@@ -338,9 +339,9 @@ private:
     VectorType Q_uv[2][2];
   };
 
-  IntermediateBezierDerivatives setup_intermediate_bezier(T u, T v, int derivative_order) const
+  IntermediateBlendingDerivatives setup_intermediate_bezier(T u, T v, int derivative_order) const
   {
-    IntermediateBezierDerivatives out;
+    IntermediateBlendingDerivatives out;
 
     out.bpatch = get_bezier_boundary();
 
@@ -476,10 +477,10 @@ private:
   CoordsVec m_controlPoints;
 
   // Map of boundary curve control points into internal storage
-  static constexpr int s_index_map[4][4] = {{/*V0*/ 0, /*E01*/ 4, /*E02*/ 5, /*V1*/ 1},
-                                            {/*V1*/ 1, /*E11*/ 6, /*E12*/ 7, /*V2*/ 2},
-                                            {/*V2*/ 2, /*E21*/ 8, /*E22*/ 9, /*V3*/ 3},
-                                            {/*V3*/ 3, /*E31*/ 10, /*E32*/ 11, /*V0*/ 0}};
+  static constexpr int s_edge_index_map[4][4] = {{/*V0*/ 0, /*E01*/ 4, /*E02*/ 5, /*V1*/ 1},
+                                                 {/*V1*/ 1, /*E11*/ 6, /*E12*/ 7, /*V2*/ 2},
+                                                 {/*V2*/ 2, /*E21*/ 8, /*E22*/ 9, /*V3*/ 3},
+                                                 {/*V3*/ 3, /*E31*/ 10, /*E32*/ 11, /*V0*/ 0}};
 };
 
 //------------------------------------------------------------------------------

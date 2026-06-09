@@ -29,6 +29,7 @@ set( primal_headers
     geometry/Cone.hpp
     geometry/CurvedPolygon.hpp
     geometry/GregoryPatch.hpp
+    geometry/GregoryTriangle.hpp
     geometry/Hexahedron.hpp
     geometry/KnotVector.hpp
     geometry/Line.hpp
