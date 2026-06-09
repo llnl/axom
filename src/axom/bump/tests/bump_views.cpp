@@ -746,6 +746,13 @@ struct test_braid2d_mat
   }
 
   template <typename MatsetView, typename MatsetFieldView>
+  struct ViewPackage
+  {
+    MatsetView matsetView;
+    MatsetFieldView fieldView;
+  };
+
+  template <typename MatsetView, typename MatsetFieldView>
   static void test_matsetview_iterators(axom::IndexType nzones,
                                         MatsetView matsetView,
                                         MatsetFieldView fieldView,
@@ -757,15 +764,18 @@ struct test_braid2d_mat
     axom::Array<int> resultsArrayDevice(nResults, nResults, allocatorID);
     auto resultsView = resultsArrayDevice.view();
 
+    // Bundle the views together for device access.
+    ViewPackage<MatsetView, MatsetFieldView> viewPackage{matsetView, fieldView};
+
     axom::for_all<ExecSpace>(
       nzones,
       AXOM_LAMBDA(axom::IndexType index) {
         typename MatsetView::IDList ids {};
         typename MatsetView::VFList vfs {};
-        matsetView.zoneMaterials(index, ids, vfs);
+        viewPackage.matsetView.zoneMaterials(index, ids, vfs);
 
         // Get the end iterator for the zone.
-        const auto end = matsetView.endZone(index);
+        const auto end = viewPackage.matsetView.endZone(index);
 
         int eq_count = 0;
         int count = 0;
@@ -782,7 +792,7 @@ struct test_braid2d_mat
 
         // Make sure the iterator order is the same as for the values we got from zoneMaterials().
         int i = 0;
-        for(auto it = matsetView.beginZone(index); it != end; it++, i++)
+        for(auto it = viewPackage.matsetView.beginZone(index); it != end; it++, i++)
         {
           eq_count += (vfs[i] == it.volume_fraction() && ids[i] == it.material_id()) ? 1 : 0;
           count++;
@@ -794,9 +804,9 @@ struct test_braid2d_mat
         if constexpr(!std::is_same_v<MatsetFieldView, NoMixedFields>)
         {
           int i = 0;
-          for(auto it = matsetView.beginZone(index); it != end; it++, i++)
+          for(auto it = viewPackage.matsetView.beginZone(index); it != end; it++, i++)
           {
-            const auto value = fieldView.value(it);
+            const auto value = viewPackage.fieldView.value(it);
             eq_count += (value == it.volume_fraction()) ? 1 : 0;
             count++;
           }
@@ -810,7 +820,7 @@ struct test_braid2d_mat
         FloatType vfStorage[ARRAY_SIZE];
         axom::ArrayView<IndexType> idView(idStorage, ARRAY_SIZE);
         axom::ArrayView<FloatType> vfView(vfStorage, ARRAY_SIZE);
-        const auto nmats = matsetView.zoneMaterials(index, idView, vfView);
+        const auto nmats = viewPackage.matsetView.zoneMaterials(index, idView, vfView);
         eq_count += (nmats == ids.size()) ? 1 : 0;
         count++;
         for(axom::IndexType j = 0; j < nmats; j++)
