@@ -199,52 +199,9 @@ void defineValidatedMeshSchema(axom::inlet::Container& mesh_schema)
   });
 }
 
-std::vector<std::string> validateMeshMetadata(const std::string& path)
+MeshMetadata meshMetadataFromProxy(const axom::inlet::Proxy& mesh)
 {
-  auto reader = makeReader(path);
-  if(!reader->parseFile(path))
-  {
-    throw std::runtime_error(axom::fmt::format("Failed to parse '{}'.", path));
-  }
-
-  axom::inlet::Inlet inlet(std::move(reader));
-  auto& mesh_schema = inlet.addStruct("mesh", "Mesh metadata").required();
-  defineMeshSchema(mesh_schema);
-
-  std::vector<axom::inlet::VerificationError> errors;
-  inlet.verify(&errors);
-
-  std::vector<std::string> messages;
-  messages.reserve(errors.size());
-  for(const auto& err : errors)
-  {
-    messages.push_back(axom::fmt::format("{}: {}", static_cast<std::string>(err.path), err.message));
-  }
-
-  return messages;
-}
-
-MeshMetadata loadMeshMetadata(const std::string& path)
-{
-  auto errors = validateMeshMetadata(path);
-  if(!errors.empty())
-  {
-    throw std::runtime_error(
-      axom::fmt::format("Mesh metadata validation failed:\n{}", axom::fmt::join(errors, "\n")));
-  }
-
-  auto reader = makeReader(path);
-  if(!reader->parseFile(path))
-  {
-    throw std::runtime_error(axom::fmt::format("Failed to parse '{}'.", path));
-  }
-
-  axom::inlet::Inlet inlet(std::move(reader));
-  auto& mesh_schema = inlet.addStruct("mesh", "Mesh metadata").required();
-  defineMeshSchema(mesh_schema);
-
   MeshMetadata result;
-  auto mesh = inlet["mesh"];
 
   if(mesh.contains("dim"))
   {
@@ -295,6 +252,52 @@ MeshMetadata loadMeshMetadata(const std::string& path)
 
   return result;
 }
+
+std::vector<std::string> validateMeshMetadata(const std::string& path)
+{
+  auto reader = makeReader(path);
+  if(!reader->parseFile(path))
+  {
+    throw std::runtime_error(axom::fmt::format("Failed to parse '{}'.", path));
+  }
+
+  axom::inlet::Inlet inlet(std::move(reader));
+  auto& mesh_schema = inlet.addStruct("mesh", "Mesh metadata").required();
+  defineMeshSchema(mesh_schema);
+
+  std::vector<axom::inlet::VerificationError> errors;
+  inlet.verify(&errors);
+
+  std::vector<std::string> messages;
+  messages.reserve(errors.size());
+  for(const auto& err : errors)
+  {
+    messages.push_back(axom::fmt::format("{}: {}", static_cast<std::string>(err.path), err.message));
+  }
+
+  return messages;
+}
+
+MeshMetadata loadMeshMetadata(const std::string& path)
+{
+  auto errors = validateMeshMetadata(path);
+  if(!errors.empty())
+  {
+    throw std::runtime_error(
+      axom::fmt::format("Mesh metadata validation failed:\n{}", axom::fmt::join(errors, "\n")));
+  }
+
+  auto reader = makeReader(path);
+  if(!reader->parseFile(path))
+  {
+    throw std::runtime_error(axom::fmt::format("Failed to parse '{}'.", path));
+  }
+
+  axom::inlet::Inlet inlet(std::move(reader));
+  auto& mesh_schema = inlet.addStruct("mesh", "Mesh metadata").required();
+  defineMeshSchema(mesh_schema);
+  return meshMetadataFromProxy(inlet["mesh"]);
+}
 }  // namespace
 
 NB_MODULE(pyinlet, m)
@@ -321,12 +324,15 @@ NB_MODULE(pyinlet, m)
     .def("contains", &axom::inlet::Proxy::contains, nb::arg("name"))
     .def("__getitem__",
          [](const axom::inlet::Proxy& self, const std::string& name) { return self[name]; })
-    .def("__bool__", [](const axom::inlet::Proxy& self) { return static_cast<bool>(self.get<bool>()); })
+    .def("getMeshMetadata", &meshMetadataFromProxy)
+    .def("__bool__",
+         [](const axom::inlet::Proxy& self) { return static_cast<bool>(self.get<bool>()); })
     .def("__int__", [](const axom::inlet::Proxy& self) { return static_cast<int>(self.get<int>()); })
     .def("__float__",
          [](const axom::inlet::Proxy& self) { return static_cast<double>(self.get<double>()); })
-    .def("__str__",
-         [](const axom::inlet::Proxy& self) { return static_cast<std::string>(self.get<std::string>()); });
+    .def("__str__", [](const axom::inlet::Proxy& self) {
+      return static_cast<std::string>(self.get<std::string>());
+    });
 
   nb::class_<axom::inlet::VerifiableScalar>(m, "VerifiableScalar")
     .def("required",
@@ -368,20 +374,22 @@ NB_MODULE(pyinlet, m)
          nb::overload_cast<const std::vector<double>&>(&axom::inlet::VerifiableScalar::validValues),
          nb::arg("values"),
          nb::rv_policy::reference_internal)
-    .def("validValues",
-         nb::overload_cast<const std::vector<std::string>&>(&axom::inlet::VerifiableScalar::validValues),
-         nb::arg("values"),
-         nb::rv_policy::reference_internal)
-    .def("registerVerifier",
-         [](axom::inlet::VerifiableScalar& self, nb::callable callback) -> axom::inlet::VerifiableScalar& {
-           self.registerVerifier([callback](const axom::inlet::Field& field) {
-             nb::gil_scoped_acquire gil;
-             return nb::cast<bool>(callback(field));
-           });
-           return self;
-         },
-         nb::arg("verifier"),
-         nb::rv_policy::reference_internal);
+    .def(
+      "validValues",
+      nb::overload_cast<const std::vector<std::string>&>(&axom::inlet::VerifiableScalar::validValues),
+      nb::arg("values"),
+      nb::rv_policy::reference_internal)
+    .def(
+      "registerVerifier",
+      [](axom::inlet::VerifiableScalar& self, nb::callable callback) -> axom::inlet::VerifiableScalar& {
+        self.registerVerifier([callback](const axom::inlet::Field& field) {
+          nb::gil_scoped_acquire gil;
+          return nb::cast<bool>(callback(nb::cast(&field, nb::rv_policy::reference)));
+        });
+        return self;
+      },
+      nb::arg("verifier"),
+      nb::rv_policy::reference_internal);
 
   nb::class_<axom::inlet::Field, axom::inlet::VerifiableScalar>(m, "Field")
     .def("required",
@@ -429,48 +437,56 @@ NB_MODULE(pyinlet, m)
          nb::rv_policy::reference_internal);
 
   nb::class_<axom::inlet::Container>(m, "Container")
-    .def("addStruct",
-         nb::overload_cast<const std::string&, const std::string&>(&axom::inlet::Container::addStruct),
-         nb::arg("name"),
-         nb::arg("description") = "",
-         nb::rv_policy::reference_internal)
+    .def(
+      "addStruct",
+      nb::overload_cast<const std::string&, const std::string&>(&axom::inlet::Container::addStruct),
+      nb::arg("name"),
+      nb::arg("description") = "",
+      nb::rv_policy::reference_internal)
     .def("addInt",
          nb::overload_cast<const std::string&, const std::string&>(&axom::inlet::Container::addInt),
          nb::arg("name"),
          nb::arg("description") = "",
          nb::rv_policy::reference_internal)
-    .def("addDouble",
-         nb::overload_cast<const std::string&, const std::string&>(&axom::inlet::Container::addDouble),
-         nb::arg("name"),
-         nb::arg("description") = "",
-         nb::rv_policy::reference_internal)
-    .def("addString",
-         nb::overload_cast<const std::string&, const std::string&>(&axom::inlet::Container::addString),
-         nb::arg("name"),
-         nb::arg("description") = "",
-         nb::rv_policy::reference_internal)
+    .def(
+      "addDouble",
+      nb::overload_cast<const std::string&, const std::string&>(&axom::inlet::Container::addDouble),
+      nb::arg("name"),
+      nb::arg("description") = "",
+      nb::rv_policy::reference_internal)
+    .def(
+      "addString",
+      nb::overload_cast<const std::string&, const std::string&>(&axom::inlet::Container::addString),
+      nb::arg("name"),
+      nb::arg("description") = "",
+      nb::rv_policy::reference_internal)
     .def("required",
          nb::overload_cast<bool>(&axom::inlet::Container::required),
          nb::arg("is_required") = true,
          nb::rv_policy::reference_internal)
     .def("isRequired", &axom::inlet::Container::isRequired)
-    .def("registerVerifier",
-         [](axom::inlet::Container& self, nb::callable callback) -> axom::inlet::Container& {
-           self.registerVerifier([callback](const axom::inlet::Container& container,
-                                            std::vector<axom::inlet::VerificationError>*) {
-             nb::gil_scoped_acquire gil;
-             return nb::cast<bool>(callback(container));
-           });
-           return self;
-         },
-         nb::arg("verifier"),
-         nb::rv_policy::reference_internal)
+    .def(
+      "registerVerifier",
+      [](axom::inlet::Container& self, nb::callable callback) -> axom::inlet::Container& {
+        self.registerVerifier([callback](const axom::inlet::Container& container,
+                                         std::vector<axom::inlet::VerificationError>*) {
+          nb::gil_scoped_acquire gil;
+          return nb::cast<bool>(callback(nb::cast(&container, nb::rv_policy::reference)));
+        });
+        return self;
+      },
+      nb::arg("verifier"),
+      nb::rv_policy::reference_internal)
     .def("verify", [](const axom::inlet::Container& self) { return self.verify(); })
     .def("contains", &axom::inlet::Container::contains, nb::arg("name"))
     .def("__getitem__",
          [](const axom::inlet::Container& self, const std::string& name) { return self[name]; });
 
   nb::class_<axom::inlet::Inlet>(m, "Inlet")
+    .def(nb::init<std::unique_ptr<axom::inlet::Reader>, bool, bool>(),
+         nb::arg("reader"),
+         nb::arg("doc_enabled") = true,
+         nb::arg("reconstruct") = false)
     .def("addStruct",
          nb::overload_cast<const std::string&, const std::string&>(&axom::inlet::Inlet::addStruct),
          nb::arg("name"),
@@ -481,18 +497,19 @@ NB_MODULE(pyinlet, m)
     .def("__getitem__",
          [](const axom::inlet::Inlet& self, const std::string& name) { return self[name]; });
 
-  m.def("open_inlet",
-        [](const std::string& path, bool doc_enabled, bool reconstruct) {
-          auto reader = makeReader(path);
-          if(!reader->parseFile(path))
-          {
-            throw std::runtime_error(axom::fmt::format("Failed to parse '{}'.", path));
-          }
-          return axom::inlet::Inlet(std::move(reader), doc_enabled, reconstruct);
-        },
-        nb::arg("path"),
-        nb::arg("doc_enabled") = true,
-        nb::arg("reconstruct") = false);
+  m.def(
+    "open_inlet",
+    [](const std::string& path, bool doc_enabled, bool reconstruct) {
+      auto reader = makeReader(path);
+      if(!reader->parseFile(path))
+      {
+        throw std::runtime_error(axom::fmt::format("Failed to parse '{}'.", path));
+      }
+      return axom::inlet::Inlet(std::move(reader), doc_enabled, reconstruct);
+    },
+    nb::arg("path"),
+    nb::arg("doc_enabled") = true,
+    nb::arg("reconstruct") = false);
 
   m.def("define_validated_mesh_schema",
         &defineValidatedMeshSchema,
