@@ -279,8 +279,6 @@ public:
     const auto random_unit =
       Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
 
-    m_castDirection = m_normal.unitVector();
-
     // If the average normal is too small, use the random direction as-is
     if((m_surfaceArea <= 0.0) || (m_normal.norm() / m_surfaceArea) < k_dir_eps)
     {
