@@ -395,6 +395,91 @@ public:
     }
   }
 
+  /*!
+   * \brief Degree-elevates this Bezier curve by \a degrees
+   *
+   * Degree elevation increases the polynomial order while preserving the curve geometry.
+   * For a polynomial curve of order n, one elevation step produces an order n+1 curve
+   * with control points:
+   *   P'_0 = P_0
+   *   P'_{n+1} = P_n
+   *   P'_i = (i/(n+1)) P_{i-1} + (1 - i/(n+1)) P_i, for i=1..n
+   *
+   * For a rational curve, the degree elevation is performed in projective space by
+   * elevating both the projective control points (w*P) and the weights (w), then
+   * converting back to Euclidean control points.
+   *
+   * \param [in] degrees Number of elevation steps to apply (must be nonnegative)
+   *
+   * \note This is a no-op for empty curves (order < 0) or when \a degrees == 0
+   */
+  void degreeElevate(int degrees = 1)
+  {
+    SLIC_ASSERT(degrees >= 0);
+    if(degrees == 0)
+    {
+      return;
+    }
+
+    int ord = getOrder();
+    if(ord < 0)
+    {
+      return;
+    }
+
+    for(int step = 0; step < degrees; ++step)
+    {
+      const int n = ord;
+      const int np1 = n + 1;
+
+      axom::Array<PointType> newPts(np1 + 1);
+      newPts[0] = m_controlPoints[0];
+      newPts[np1] = m_controlPoints[n];
+
+      if(!isRational())
+      {
+        for(int i = 1; i <= n; ++i)
+        {
+          const T alpha = static_cast<T>(i) / static_cast<T>(np1);
+          newPts[i] =
+            PointType(alpha * m_controlPoints[i - 1].array() + (T(1) - alpha) * m_controlPoints[i].array());
+        }
+
+        m_controlPoints = newPts;
+      }
+      else
+      {
+        axom::Array<T> newWts(np1 + 1);
+        newWts[0] = m_weights[0];
+        newWts[np1] = m_weights[n];
+
+        // Projective control points H_i = w_i * P_i
+        axom::Array<PointType> H(n + 1);
+        for(int i = 0; i <= n; ++i)
+        {
+          H[i] = PointType(m_weights[i] * m_controlPoints[i].array());
+        }
+
+        axom::Array<PointType> newH(np1 + 1);
+        newH[0] = H[0];
+        newH[np1] = H[n];
+
+        for(int i = 1; i <= n; ++i)
+        {
+          const T alpha = static_cast<T>(i) / static_cast<T>(np1);
+          newWts[i] = alpha * m_weights[i - 1] + (T(1) - alpha) * m_weights[i];
+          newH[i] = PointType(alpha * H[i - 1].array() + (T(1) - alpha) * H[i].array());
+          newPts[i] = PointType(newH[i].array() / newWts[i]);
+        }
+
+        m_controlPoints = newPts;
+        m_weights = newWts;
+      }
+
+      ord = np1;
+    }
+  }
+
   ///@}
 
   ///@{
