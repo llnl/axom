@@ -777,7 +777,8 @@ int main(int argc, char** argv)
                                          "mesh");
 #else
       SLIC_ERROR_ROOT(
-        "Using inline_mesh_blueprint with SamplingShaper requires Axom to be configured with Conduit+Bump.");
+        "Using inline_mesh_blueprint with SamplingShaper requires Axom to be configured with "
+        "Conduit+Bump.");
 #endif
     }
     else
@@ -801,7 +802,9 @@ int main(int argc, char** argv)
                                              originalBlueprintMeshGroup,
                                              "mesh");
 #else
-      SLIC_ERROR_ROOT("Using inline_mesh_blueprint with IntersectionShaper requires Axom to be configured with Conduit.");
+      SLIC_ERROR_ROOT(
+        "Using inline_mesh_blueprint with IntersectionShaper requires Axom to be configured with "
+        "Conduit.");
 #endif
     }
     else

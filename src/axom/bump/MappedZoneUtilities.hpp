@@ -72,11 +72,7 @@ mapToPhysicalPoint(const ShapeType& zone, const CoordsetView& coordsetView, doub
  */
 template <typename ShapeType, typename CoordsetView>
 AXOM_HOST_DEVICE primal::Point<typename CoordsetView::value_type, 3>
-mapToPhysicalPoint(const ShapeType& zone,
-                   const CoordsetView& coordsetView,
-                   double u,
-                   double v,
-                   double w)
+mapToPhysicalPoint(const ShapeType& zone, const CoordsetView& coordsetView, double u, double v, double w)
 {
   using PointType = primal::Point<typename CoordsetView::value_type, 3>;
   const auto p0 = coordsetView[zone.getId(0)];
