@@ -56,7 +56,7 @@ if(ENABLE_GMOCK)
 endif()
 
 set(python_inlet_tests
-    inlet_shaping_metadata_Py.py
+    inlet_Py.py
    )
 
 if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
