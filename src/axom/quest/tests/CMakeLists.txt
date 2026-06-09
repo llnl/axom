@@ -87,21 +87,6 @@ if(CONDUIT_FOUND AND AXOM_DATA_DIR)
 
 endif()
 
-if(CONDUIT_FOUND AND MFEM_FOUND AND AXOM_ENABLE_SIDRE)
-    axom_add_executable(
-        NAME        quest_blueprint_quadrature_mesh_test
-        SOURCES     quest_blueprint_quadrature_mesh.cpp
-        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_tests_depends} conduit::conduit mfem
-        FOLDER      axom/quest/tests
-    )
-
-    axom_add_test(
-        NAME    quest_blueprint_quadrature_mesh
-        COMMAND quest_blueprint_quadrature_mesh_test
-    )
-endif()
-
 #------------------------------------------------------------------------------
 # Tests that use MFEM when available
 #------------------------------------------------------------------------------

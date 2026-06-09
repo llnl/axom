@@ -28,18 +28,6 @@ namespace shaping
 namespace
 {
 
-numerics::QuadratureRule getBlueprintQuadratureRule(axom::numerics::QuadratureType quadratureType,
-                                                    int npts,
-                                                    int allocatorID)
-{
-  SLIC_ERROR_IF(npts < 1, axom::fmt::format("Invalid sample resolution {}.", npts));
-  SLIC_ERROR_IF(
-    !axom::numerics::is_supported_quadrature_type(quadratureType),
-    axom::fmt::format("Quadrature type {} is not yet supported for Blueprint quadrature meshes.",
-                      static_cast<int>(quadratureType)));
-
-  return numerics::get_quadrature_rule(quadratureType, npts, allocatorID);
-}
 std::string getBlueprintCellShapeImpl(const conduit::Node& topoNode)
 {
   const std::string topoType = topoNode.fetch_existing("type").as_string();
@@ -72,6 +60,26 @@ std::string getBlueprintCellShapeImpl(const conduit::Node& topoNode)
 }
 
   #if defined(AXOM_USE_BUMP)
+
+constexpr const char* QUADRATURE_COORDSET_NAME = "quadrature_points";
+constexpr const char* QUADRATURE_TOPOLOGY_NAME = "quadrature_points";
+constexpr const char* ORIGINAL_ELEMENTS_FIELD_NAME = "originalElements";
+constexpr const char* QUADRATURE_WEIGHTS_FIELD_NAME = "quadratureWeights";
+constexpr const char* QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME = "quadraturePhysicalWeights";
+
+numerics::QuadratureRule getBlueprintQuadratureRule(axom::numerics::QuadratureType quadratureType,
+                                                    int npts,
+                                                    int allocatorID)
+{
+  SLIC_ERROR_IF(npts < 1, axom::fmt::format("Invalid sample resolution {}.", npts));
+  SLIC_ERROR_IF(
+    !axom::numerics::is_supported_quadrature_type(quadratureType),
+    axom::fmt::format("Quadrature type {} is not yet supported for Blueprint quadrature meshes.",
+                      static_cast<int>(quadratureType)));
+
+  return numerics::get_quadrature_rule(quadratureType, npts, allocatorID);
+}
+
 template <typename ExecSpace, typename CoordsetView>
 void buildBlueprintQuadratureMesh(const conduit::Node& topoNode,
                                   const conduit::Node& coordsetNode,

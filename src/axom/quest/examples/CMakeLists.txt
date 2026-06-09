@@ -192,7 +192,7 @@ if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
             set_tests_properties(${_testname} PROPERTIES 
                 PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 65.")
 
-            if(CONDUIT_FOUND)
+            if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
                 set(_testname quest_shaping_driver_ex_sampling_circles_blueprint)
                 axom_add_test(
                     NAME ${_testname}
@@ -369,7 +369,7 @@ if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
     endif()
 endif()
 # Blueprint-only shaping test
-if(CONDUIT_FOUND AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
     set(_nranks 1)
     set(_testname quest_shaping_driver_ex_sampling_blueprint_3D)
     axom_add_test(NAME ${_testname}

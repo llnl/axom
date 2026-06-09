@@ -40,7 +40,7 @@ namespace shaping
  */
 std::string getBlueprintCellShape(const conduit::Node& topoNode);
 
-/// A class that contains Blueprint mesh and field state for SamplingShaper class.
+/// A class that contains Blueprint mesh and field state for Shaper class.
 struct BlueprintState
 {
   virtual ~BlueprintState() = default;
