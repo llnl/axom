@@ -31,7 +31,7 @@ spack:
       when: '%cxx'
     - spec: '%fortran=llvm-amdgpu@6.4.3'
       when: '%fortran'
-    - spec: '%cray-mpich@8.1.29.rocm_6.4.3'
+    - spec: '%cray-mpich@9.0.1.rocm_6.4.3'
       when: '%mpi'
     rocm_6_3_1:
     - spec: fflags=-Mfreeform
@@ -41,7 +41,7 @@ spack:
       when: '%cxx'
     - spec: '%fortran=llvm-amdgpu@6.3.1'
       when: '%fortran'
-    - spec: '%cray-mpich@8.1.29.rocm_6_3_1'
+    - spec: '%cray-mpich@9.0.1.rocm_6_3_1'
       when: '%mpi'
     cce_20:
     # Flag for lowercase Fortran module names
@@ -52,7 +52,7 @@ spack:
       when: '%cxx'
     - spec: '%fortran=cce@20.0.0'
       when: '%fortran'
-    - spec: '%cray-mpich@8.1.32.cce_20'
+    - spec: '%cray-mpich@9.0.1.cce_20'
       when: '%mpi'
 
   packages:
@@ -180,12 +180,12 @@ spack:
     cray-mpich:
       buildable: false
       externals:
-      - spec: cray-mpich@8.1.29.rocm_6_3_1+slurm
-        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-rocmcc-6.3.1/
-      - spec: cray-mpich@8.1.29.rocm_6_4_3+slurm
-        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-rocmcc-6.4.3/
-      - spec: cray-mpich@8.1.32.cce_20+slurm
-        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.32-rocmcc-6.4.3/
+      - spec: cray-mpich@9.0.1.rocm_6_3_1+slurm
+        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-9.0.1-rocmcc-6.3.1/
+      - spec: cray-mpich@9.0.1.rocm_6_4_3+slurm
+        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-9.0.1-rocmcc-6.4.3/
+      - spec: cray-mpich@9.0.1.cce_20+slurm
+        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-9.0.1-rocmcc-6.4.3/
 
     # blas is a bit more complicated because its a virtual package so fake it with
     # the following per spack docs
