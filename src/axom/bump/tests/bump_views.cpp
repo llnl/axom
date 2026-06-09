@@ -765,7 +765,7 @@ struct test_braid2d_mat
     auto resultsView = resultsArrayDevice.view();
 
     // Bundle the views together for device access.
-    ViewPackage<MatsetView, MatsetFieldView> deviceViews{matsetView, fieldView};
+    ViewPackage<MatsetView, MatsetFieldView> deviceViews {matsetView, fieldView};
 
     axom::for_all<ExecSpace>(
       nzones,
