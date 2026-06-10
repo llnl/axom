@@ -129,6 +129,33 @@ using MyTypes = ::testing::Types<axom::FlatMap<int, double>,
 
 TYPED_TEST_SUITE(core_flatmap, MyTypes);
 
+TEST(core_flatmap_unit, float_keys_in_unit_interval)
+{
+  // Regression test for the floating-point DeviceHash specialization, which
+  // converted keys to integers by value: every key in (0, 1) hashed to 0, so
+  // this map was a single probe chain and each insert/find was O(size).
+  // With bit-pattern hashing the keys spread normally.
+  axom::FlatMap<float, int> test_map;
+  const int NUM_ELEMS = 512;
+
+  for(int i = 1; i <= NUM_ELEMS; i++)
+  {
+    float key = i / static_cast<float>(NUM_ELEMS + 2);
+    test_map[key] = i;
+  }
+
+  EXPECT_EQ(test_map.size(), NUM_ELEMS);
+  for(int i = 1; i <= NUM_ELEMS; i++)
+  {
+    float key = i / static_cast<float>(NUM_ELEMS + 2);
+    auto it = test_map.find(key);
+    ASSERT_NE(it, test_map.end());
+    EXPECT_EQ(it->second, i);
+  }
+  EXPECT_EQ(test_map.find(1.5f), test_map.end());
+  EXPECT_EQ(test_map.count(0.5f), 1);
+}
+
 AXOM_TYPED_TEST(core_flatmap, default_init)
 {
   using MapType = typename TestFixture::MapType;

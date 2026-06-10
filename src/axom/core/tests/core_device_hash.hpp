@@ -11,6 +11,9 @@
 // gtest includes
 #include "gtest/gtest.h"
 
+// C++ includes
+#include <set>
+
 template <typename TheExecSpace>
 class core_device_hash : public ::testing::Test
 {
@@ -274,7 +277,7 @@ TEST(core_device_hash, hash_width_decoupled_from_indextype)
                 "integral hash result must be std::uint64_t");
   static_assert(std::is_same<axom::DeviceHash<double>::result_type, std::uint64_t>::value,
                 "floating-point hash result must be std::uint64_t");
-  static_assert(std::is_same<axom::DeviceHash<int*>::result_type, std::uint64_t>::value,
+  static_assert(std::is_same<axom::DeviceHash<int *>::result_type, std::uint64_t>::value,
                 "pointer hash result must be std::uint64_t");
   static_assert(std::is_same<axom::DeviceHash<std::string>::result_type, std::uint64_t>::value,
                 "catch-all (std::hash) result must be std::uint64_t");
@@ -289,4 +292,37 @@ TEST(core_device_hash, hash_width_decoupled_from_indextype)
   EXPECT_NE(device_hasher(base), device_hasher(plus_2_32));
   EXPECT_NE(device_hasher(base), device_hasher(plus_2_33));
   EXPECT_NE(device_hasher(plus_2_32), device_hasher(plus_2_33));
+}
+
+TEST(core_device_hash, hash_float_bit_pattern)
+{
+  // Floating-point keys must be hashed by bit pattern, not by integer value conversion.
+  // This is a regression test for a previous implementation where the conversion collapsed
+  // every key with the same integer value, e.g. all numbers between -1 and 1 converted to integer 0
+  // so a FlatMap keyed on fractional floats degenerated into a single probe chain.
+  axom::DeviceHash<float> float_hasher;
+  axom::DeviceHash<double> double_hasher;
+
+  EXPECT_NE(float_hasher(0.25f), float_hasher(0.75f));
+  EXPECT_NE(float_hasher(0.25f), std::uint64_t {0});
+  EXPECT_NE(double_hasher(0.25), double_hasher(0.75));
+
+  // A spread of fractional keys must be collision-free at this scale
+  std::set<std::uint64_t> float_hashes, double_hashes;
+  const int NUM_KEYS = 1000;
+  for(int i = 1; i <= NUM_KEYS; i++)
+  {
+    float_hashes.insert(float_hasher(i / static_cast<float>(NUM_KEYS + 1)));
+    double_hashes.insert(double_hasher(i / static_cast<double>(NUM_KEYS + 1)));
+  }
+  EXPECT_EQ(float_hashes.size(), NUM_KEYS);
+  EXPECT_EQ(double_hashes.size(), NUM_KEYS);
+
+  // Signed zeros compare equal and must hash equal
+  EXPECT_EQ(float_hasher(0.0f), float_hasher(-0.0f));
+  EXPECT_EQ(double_hasher(0.0), double_hasher(-0.0));
+
+  // Magnitudes beyond any integer type's range are now well-defined and distinct
+  EXPECT_NE(double_hasher(1e300), double_hasher(2e300));
+  EXPECT_NE(float_hasher(-0.5f), float_hasher(0.5f));
 }
