@@ -46,7 +46,9 @@ foreach(test ${gtest_klee_tests})
 endforeach()
 
 set(python_klee_tests
-    klee_shapeset_Py.py
+    klee_io_Py.py
+    klee_shape_Py.py
+    klee_shape_set_Py.py
    )
 
 if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
