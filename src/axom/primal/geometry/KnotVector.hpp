@@ -51,6 +51,15 @@ public:
                          "A knot vector must be defined using an arithmetic type");
 
 public:
+  /*!
+   * \brief Tag type to construct a KnotVector without asserting validity in the constructor
+   *
+   * This enables callers to construct a KnotVector from potentially-invalid input,
+   * then explicitly check \a isValid() and handle errors gracefully.
+   */
+  struct SkipValidityChecks
+  { };
+
   ///@{
   /**
    * \name Constructors for KnotVector
@@ -75,18 +84,34 @@ public:
    * \pre The \a knots can be empty when the degree is -1, otherwise knots.data() is not \a nullptr
    * \sa isValid() tests conditions for a valid knot span instance
    */
-  KnotVector(axom::ArrayView<const T> knots, int degree) : m_deg(degree)
+  KnotVector(axom::ArrayView<const T> knots, int degree)
+    : KnotVector(knots, degree, SkipValidityChecks {})
   {
-    SLIC_ASSERT(degree >= -1);
-    SLIC_ASSERT(knots.size() >= (degree + 1));
-    SLIC_ASSERT(knots.empty() || knots.data() != nullptr);
+    SLIC_ASSERT(isValid(true));
+  }
 
-    if(!knots.empty())
+  /*!
+   * \brief Constructor from a user-supplied knot vector without asserting \a isValid()
+   *
+   * \param [in] knots the knot vector
+   * \param [in] degree the degree of the curve
+   * \param [in] SkipValidityChecks tag to indicate validity is not asserted
+   *
+   * \post The KnotVector degree is clamped to be at least -1
+   * \post The KnotVector values will be copied when the input \a knots is non-empty and non-null
+   * \note The resulting KnotVector may be invalid; call \a isValid() to verify.
+   */
+  KnotVector(axom::ArrayView<const T> knots, int degree, SkipValidityChecks)
+    : m_deg(axom::utilities::clampLower(degree, -1))
+  {
+    if(knots.empty() || knots.data() == nullptr)
+    {
+      m_deg = -1;
+    }
+    else
     {
       m_knots = knots;
     }
-
-    SLIC_ASSERT(isValid());
   }
 
   /*!
@@ -98,6 +123,15 @@ public:
    */
   KnotVector(axom::ArrayView<T> knots, int degree)
     : KnotVector(axom::ArrayView<const T>(knots.data(), knots.size()), degree)
+  { }
+
+  /*!
+   * \brief Constructor from a user-supplied knot vector (axom::ArrayView<T>) without asserting \a isValid()
+   *
+   * \overload for ArrayView of non-const T
+   */
+  KnotVector(axom::ArrayView<T> knots, int degree, SkipValidityChecks)
+    : KnotVector(axom::ArrayView<const T>(knots.data(), knots.size()), degree, SkipValidityChecks {})
   { }
 
   /// \brief Default constructor for an empty (invalid) knot vector
@@ -127,6 +161,15 @@ public:
   { }
 
   /*!
+   * \brief Constructor from a user-supplied knot vector (C-style array) without asserting \a isValid()
+   *
+   * \see KnotVector(axom::ArrayView<const T> knots, int degree, SkipValidityChecks)
+   */
+  KnotVector(const T* knots, axom::IndexType nkts, int degree, SkipValidityChecks)
+    : KnotVector(axom::ArrayView<const T>(knots, nkts), degree, SkipValidityChecks {})
+  { }
+
+  /*!
    * \brief Constructor from a user-supplied knot vector (axom::Array)
    * 
    * \param [in] knots the knot vector
@@ -135,6 +178,15 @@ public:
    * \see KnotVector(axom::ArrayView<const T> knots, int degree)
    */
   KnotVector(const axom::Array<T>& knots, int degree) : KnotVector(knots.view(), degree) { }
+
+  /*!
+   * \brief Constructor from a user-supplied knot vector (axom::Array) without asserting \a isValid()
+   *
+   * \see KnotVector(axom::ArrayView<const T> knots, int degree, SkipValidityChecks)
+   */
+  KnotVector(const axom::Array<T>& knots, int degree, SkipValidityChecks)
+    : KnotVector(knots.view(), degree, SkipValidityChecks {})
+  { }
 
   ///@}
 
@@ -219,12 +271,50 @@ public:
     m_knots.clear();
   }
 
-  /// \brief Return if the knot vector is valid
-  bool isValid() const
+  /*!
+   *  \brief Return if the knot vector is valid
+   * 
+   *  Checks that the knot vector satisfies all requirements for a valid B-spline/NURBS knot vector:
+   *  degree >= 0, sufficient knots, monotonic sequence, clamped ends, and valid internal multiplicities.
+   * 
+   *  \param [in] verbose When true, emits a warning message describing the first failing check.
+   * 
+   *  \note Only the *first* validation error is reported when \a verbose is true.
+   *        Fix that error and call \a isValid(true) again to discover subsequent errors.
+   * 
+   *  \return true if the knot vector satisfies all validity conditions, false otherwise
+   */
+  bool isValid(bool verbose = false) const
   {
     // Check degree
     if(m_deg < 0)
     {
+      SLIC_WARNING_ROOT_IF(verbose, "Invalid KnotVector: degree is negative");
+      return false;
+    }
+
+    if(m_knots.empty())
+    {
+      SLIC_WARNING_ROOT_IF(verbose, "Invalid KnotVector: knot array is empty");
+      return false;
+    }
+
+    if(m_knots.data() == nullptr)
+    {
+      SLIC_WARNING_ROOT_IF(verbose, "Invalid KnotVector: knot array data pointer is null");
+      return false;
+    }
+
+    // For clamped knot vectors, we require at least (p+1) repeated knots at each end
+    const axom::IndexType min_num_knots = static_cast<axom::IndexType>(2 * (m_deg + 1));
+    if(m_knots.size() < min_num_knots)
+    {
+      SLIC_WARNING_ROOT_IF(verbose,
+                           axom::fmt::format("Invalid KnotVector: knot array too small for degree "
+                                             "(degree={}, num_knots={}, min_num_knots={})",
+                                             m_deg,
+                                             m_knots.size(),
+                                             min_num_knots));
       return false;
     }
 
@@ -233,6 +323,14 @@ public:
     {
       if(m_knots[i] > m_knots[i + 1])
       {
+        SLIC_WARNING_ROOT_IF(
+          verbose,
+          axom::fmt::format(
+            "Invalid KnotVector: knot vector is not monotone (knot[{}]={} > knot[{}]={})",
+            i,
+            m_knots[i],
+            i + 1,
+            m_knots[i + 1]));
         return false;
       }
     }
@@ -245,10 +343,24 @@ public:
     {
       if(m_knots[i] != minKnot)
       {
+        SLIC_WARNING_ROOT_IF(
+          verbose,
+          axom::fmt::format(
+            "Invalid KnotVector: knot vector is not clamped at start (knot[{}]={} != minKnot={})",
+            i,
+            m_knots[i],
+            minKnot));
         return false;
       }
       if(m_knots[nkts - 1 - i] != maxKnot)
       {
+        SLIC_WARNING_ROOT_IF(
+          verbose,
+          axom::fmt::format(
+            "Invalid KnotVector: knot vector is not clamped at end (knot[{}]={} != maxKnot={})",
+            nkts - 1 - i,
+            m_knots[nkts - 1 - i],
+            maxKnot));
         return false;
       }
     }
@@ -268,6 +380,13 @@ public:
         this_multiplicity++;
         if(this_multiplicity > m_deg)
         {
+          SLIC_WARNING_ROOT_IF(
+            verbose,
+            axom::fmt::format("Invalid KnotVector: internal knot multiplicity exceeds degree "
+                              "(knot={}, multiplicity={}, degree={})",
+                              this_knot,
+                              this_multiplicity,
+                              m_deg));
           return false;
         }
       }
