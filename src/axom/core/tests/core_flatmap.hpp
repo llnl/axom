@@ -520,6 +520,41 @@ AXOM_TYPED_TEST(core_flatmap, copy_assign)
   }
 }
 
+AXOM_TYPED_TEST(core_flatmap, const_lookup)
+{
+  using MapType = typename TestFixture::MapType;
+  MapType test_map;
+  const int NUM_ELEMS = 20;
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    test_map[this->getKey(i)] = this->getValue(i + 10.0);
+  }
+
+  // Read-only lookups must be through const reference (matching std::unordered_map)
+  // operator[] is intentionally non-const since it inserts on a missing key
+  const MapType& const_map = test_map;
+  EXPECT_EQ(const_map.size(), NUM_ELEMS);
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i + 10.0);
+
+    auto it = const_map.find(key);
+    ASSERT_NE(it, const_map.end());
+    EXPECT_EQ(it->second, value);
+    EXPECT_EQ(const_map.at(key), value);
+    EXPECT_EQ(const_map.count(key), 1);
+    EXPECT_TRUE(const_map.contains(key));
+  }
+
+  auto missing = this->getKey(NUM_ELEMS + 5);
+  EXPECT_EQ(const_map.find(missing), const_map.end());
+  EXPECT_EQ(const_map.count(missing), 0);
+  EXPECT_FALSE(const_map.contains(missing));
+  EXPECT_THROW(const_map.at(missing), std::out_of_range);
+}
+
 AXOM_TYPED_TEST(core_flatmap, insert_until_rehash)
 {
   using MapType = typename TestFixture::MapType;

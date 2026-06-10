@@ -332,7 +332,6 @@ public:
    *
    * \pre ValueType is default-constructible
    */
-  /// @{
   ValueType& operator[](const KeyType& key)
   {
     static_assert(std::is_default_constructible<ValueType>::value,
@@ -340,14 +339,6 @@ public:
                   "default-constructible.");
     return this->try_emplace(key).first->second;
   }
-  const ValueType& operator[](const KeyType& key) const
-  {
-    static_assert(std::is_default_constructible<ValueType>::value,
-                  "Cannot use axom::FlatMap::operator[] when value type is not "
-                  "default-constructible.");
-    return this->try_emplace(key).first->second;
-  }
-  /// @}
 
   /*!
    * \brief Return the number of entries matching a given key.
