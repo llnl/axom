@@ -400,7 +400,7 @@ int read_c2c_mesh(const std::string& file,
   }
   else
   {
-    SLIC_WARNING("reading C2C file failed, setting mesh to NULL");
+    SLIC_WARNING_ROOT(axom::fmt::format("reading C2C file '{}' failed, setting mesh to NULL", file));
     m = nullptr;
   }
 

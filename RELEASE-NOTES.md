@@ -37,6 +37,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   removed in a future version of Axom.
 - Core: Adds Durand-Kerner polynomial solver which returns the complex roots of a univariate polynomial
 - Core: Adds `axom::Array::pop_back` for API compatibility with `std::vector`
+- Primal: Adds KnotVector constructors that skip validity assertion checks, allowing the user to call `isValid()`
+  and handle the error appropriately.
 - Primal: Adds a `primal::BezierTriangle` class
 
 ### Removed
@@ -49,6 +51,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ### Fixed
 - Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
+- Quest: Improves error handling/reporting when loading an invalid c2c contour
 
 ## [Version 0.14.0] - Release date 2026-03-31
 
