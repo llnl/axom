@@ -259,3 +259,34 @@ AXOM_TYPED_TEST(core_device_hash, hash_user_defined)
     }
   }
 }
+
+TEST(core_device_hash, hash_width_decoupled_from_indextype)
+{
+  // The hash result must be 64 bits wide regardless of the configured
+  // axom::IndexType. When the result type was IndexType, builds with
+  // AXOM_USE_64BIT_INDEXTYPE=OFF truncated integer keys to 32 bits before
+  // the FlatMap bit mixer ran, so keys equal mod 2^32 (e.g. deep Morton codes)
+  // produced identical hashes. The type assertions catch the coupling in every
+  // build configuration; the value checks fail in the truncating configuration itself.
+  static_assert(std::is_same<axom::DeviceHash<std::uint64_t>::result_type, std::uint64_t>::value,
+                "integral hash result must be std::uint64_t");
+  static_assert(std::is_same<axom::DeviceHash<int>::result_type, std::uint64_t>::value,
+                "integral hash result must be std::uint64_t");
+  static_assert(std::is_same<axom::DeviceHash<double>::result_type, std::uint64_t>::value,
+                "floating-point hash result must be std::uint64_t");
+  static_assert(std::is_same<axom::DeviceHash<int*>::result_type, std::uint64_t>::value,
+                "pointer hash result must be std::uint64_t");
+  static_assert(std::is_same<axom::DeviceHash<std::string>::result_type, std::uint64_t>::value,
+                "catch-all (std::hash) result must be std::uint64_t");
+  static_assert(
+    std::is_same<decltype(axom::DeviceHash<std::uint64_t> {}(std::uint64_t {})), std::uint64_t>::value,
+    "integral hash operator() must return std::uint64_t");
+
+  axom::DeviceHash<std::uint64_t> device_hasher;
+  const std::uint64_t base = 1;
+  const std::uint64_t plus_2_32 = base + (std::uint64_t {1} << 32);
+  const std::uint64_t plus_2_33 = base + (std::uint64_t {1} << 33);
+  EXPECT_NE(device_hasher(base), device_hasher(plus_2_32));
+  EXPECT_NE(device_hasher(base), device_hasher(plus_2_33));
+  EXPECT_NE(device_hasher(plus_2_32), device_hasher(plus_2_33));
+}
