@@ -481,6 +481,45 @@ AXOM_TYPED_TEST(core_flatmap, init_and_copy)
   }
 }
 
+AXOM_TYPED_TEST(core_flatmap, copy_assign)
+{
+  using MapType = typename TestFixture::MapType;
+  MapType test_map;
+  const int NUM_ELEMS = 40;
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    test_map[this->getKey(i)] = this->getValue(i + 10.0);
+  }
+
+  // Copy-assign over a non-empty map with different contents should replace prior contents
+  MapType copied_map;
+  copied_map[this->getKey(NUM_ELEMS + 5)] = this->getValue(0.0);
+  copied_map = test_map;
+
+  EXPECT_EQ(copied_map.size(), NUM_ELEMS);
+  EXPECT_EQ(copied_map.find(this->getKey(NUM_ELEMS + 5)), copied_map.end());
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto it = copied_map.find(this->getKey(i));
+    ASSERT_NE(it, copied_map.end());
+    EXPECT_EQ(it->second, this->getValue(i + 10.0));
+  }
+
+  // The source should be unchanged
+  EXPECT_EQ(test_map.size(), NUM_ELEMS);
+
+  // Self-assignment is a no-op
+  copied_map = static_cast<const MapType&>(copied_map);
+  EXPECT_EQ(copied_map.size(), NUM_ELEMS);
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto it = copied_map.find(this->getKey(i));
+    ASSERT_NE(it, copied_map.end());
+    EXPECT_EQ(it->second, this->getValue(i + 10.0));
+  }
+}
+
 AXOM_TYPED_TEST(core_flatmap, insert_until_rehash)
 {
   using MapType = typename TestFixture::MapType;

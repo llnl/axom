@@ -179,7 +179,7 @@ public:
     static_assert(std::is_copy_constructible<ValueType>::value,
                   "Cannot copy an axom::FlatMap when value type is not "
                   "copy-constructible.");
-    if(*this != other)
+    if(this != &other)
     {
       FlatMap new_map(other);
       swap(new_map);
