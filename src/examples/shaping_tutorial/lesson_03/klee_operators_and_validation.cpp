@@ -93,7 +93,7 @@ void printShapeSetInfo(const axom::klee::ShapeSet& shapeSet)
     }
   };
 
-  // lambda to help format a parir of klee::LengthUnits
+  // lambda to help format a pair of klee::LengthUnits
   auto formattedUnits = [&lengthUnitToString](axom::klee::LengthUnit startUnits,
                                               axom::klee::LengthUnit endUnits) -> std::string {
     return (startUnits == endUnits) ? axom::fmt::format("'{}'", lengthUnitToString(startUnits))
@@ -102,7 +102,7 @@ void printShapeSetInfo(const axom::klee::ShapeSet& shapeSet)
                                                         lengthUnitToString(endUnits));
   };
 
-  // lambda to help format a parir of klee::Dimensions
+  // lambda to help format a pair of klee::Dimensions
   auto formattedDimensions = [&dimensionsToString](axom::klee::Dimensions startDims,
                                                    axom::klee::Dimensions endDims) -> std::string {
     return (startDims == endDims)

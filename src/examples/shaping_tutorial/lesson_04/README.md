@@ -459,9 +459,7 @@ The replacement rules are implicit -- each new shape replaces all existing mater
 
 > :clapper: This example was run using from the build directory as:
 > ```bash
->   ./bin/shaping_tutorial_lesson_04_quest_sampling_shaper \
->              -k ../src/examples/shaping_tutorial/lesson_04/circles.yaml \
->              -m ../src/examples/shaping_tutorial/lesson_04/circle_input.lua
+>   ./bin/lesson_04_quest_sampling_shaper -k ../lesson_04/circles.yaml -m ../lesson_04/circle_input.lua
 > ```
 
 
@@ -574,9 +572,7 @@ shapes:
 
 > :clapper: This example was run in parallel on 32 ranks using from the build directory as:
 > ```bash
->   srun -n32 ./bin/shaping_tutorial_lesson_04_quest_sampling_shaper \
->            -k ../src/examples/shaping_tutorial/lesson_04/ice_cream.yaml \
->            -m ../src/examples/shaping_tutorial/lesson_04/ice_cream_metadata.lua
+>   srun -n32 ./bin/lesson_04_quest_sampling_shaper -k ../lesson_04/ice_cream.yaml -m ../lesson_04/ice_cream_metadata.lua
 > ```
 
 ### Example: Klee's heroic roses
