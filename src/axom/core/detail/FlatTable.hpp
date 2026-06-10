@@ -319,10 +319,11 @@ struct SequentialLookupPolicy : ProbePolicy
   IndexType probeEmptyIndex(int ngroups_pow_2, ArrayView<GroupBucket> metadata, HashType hash) const
   {
     // We use the k MSBs of the hash as the initial group probe point,
-    // where ngroups = 2^k.
-    int bitshift_right = ((CHAR_BIT * sizeof(HashType)) - ngroups_pow_2);
-    HashType curr_group = hash >> bitshift_right;
-    curr_group &= ((1 << ngroups_pow_2) - 1);
+    // where ngroups = 2^k. Since the group count is always a power of two,
+    // wrapping a group index is a bitwise AND with this mask.
+    const int bitshift_right = ((CHAR_BIT * sizeof(HashType)) - ngroups_pow_2);
+    const HashType group_mask = (HashType {1} << ngroups_pow_2) - 1;
+    HashType curr_group = (hash >> bitshift_right) & group_mask;
     int empty_group = NO_MATCH;
     int empty_bucket = NO_MATCH;
 
@@ -347,7 +348,10 @@ struct SequentialLookupPolicy : ProbePolicy
         // Set the overflow bit and continue probing.
         metadata[curr_group].setOverflow(hash_8);
       }
-      curr_group = (curr_group + this->getNext(iteration)) % metadata.size();
+      // Mask instead of "% metadata.size()": the group count is a power of
+      // two, and the modulo compiled to a 64-bit signed division on the
+      // critical path of every probe continuation.
+      curr_group = (curr_group + this->getNext(iteration)) & group_mask;
     }
     if(empty_group != NO_MATCH)
     {
@@ -373,10 +377,11 @@ struct SequentialLookupPolicy : ProbePolicy
                                    FoundIndex&& on_hash_found) const
   {
     // We use the k MSBs of the hash as the initial group probe point,
-    // where ngroups = 2^k.
-    int bitshift_right = ((CHAR_BIT * sizeof(HashType)) - ngroups_pow_2);
-    HashType curr_group = hash >> bitshift_right;
-    curr_group &= ((1 << ngroups_pow_2) - 1);
+    // where ngroups = 2^k. Since the group count is always a power of two,
+    // wrapping a group index is a bitwise AND with this mask.
+    const int bitshift_right = ((CHAR_BIT * sizeof(HashType)) - ngroups_pow_2);
+    const HashType group_mask = (HashType {1} << ngroups_pow_2) - 1;
+    HashType curr_group = (hash >> bitshift_right) & group_mask;
 
     std::uint8_t hash_8 = static_cast<std::uint8_t>(hash);
     bool keep_going = true;
@@ -397,8 +402,8 @@ struct SequentialLookupPolicy : ProbePolicy
       {
         break;
       }
-      // Probe the next bucket.
-      curr_group = (curr_group + this->getNext(iteration)) % metadata.size();
+      // Probe the next bucket. Note that the group count is a power of 2 so we can use a bit mask
+      curr_group = (curr_group + this->getNext(iteration)) & group_mask;
     }
   }
 

@@ -156,6 +156,78 @@ TEST(core_flatmap_unit, float_keys_in_unit_interval)
   EXPECT_EQ(test_map.count(0.5f), 1);
 }
 
+// Hash functor whose group-selector bits (the top bits) are always zero,
+// so every key lands in the same initial group and probing must walk across groups.
+// Stress tests the cross-group probe sequence.
+struct DegenerateGroupHash
+{
+  using argument_type = int;
+  using result_type = std::uint64_t;
+  std::uint64_t operator()(int key) const
+  {
+    return static_cast<std::uint64_t>(static_cast<unsigned>(key) & 0xFF);
+  }
+};
+
+TEST(core_flatmap_unit, cross_group_probe_chains)
+{
+  // Forces hundreds of keys through a single initial group:
+  // inserts walk probeEmptyIndex's group sequence, lookups walk probeIndex's,
+  // both wrap around the group array, and erases punch holes mid-sequence.
+  // Guards the probe-advance arithmetic (group wrapping) against regressions.
+  axom::FlatMap<int, int, DegenerateGroupHash> test_map;
+  const int NUM_ELEMS = 600;
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    test_map[i] = i * 3;
+  }
+  EXPECT_EQ(test_map.size(), NUM_ELEMS);
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto it = test_map.find(i);
+    ASSERT_NE(it, test_map.end());
+    EXPECT_EQ(it->second, i * 3);
+  }
+  for(int i = NUM_ELEMS; i < NUM_ELEMS + 64; i++)
+  {
+    EXPECT_EQ(test_map.find(i), test_map.end());
+  }
+
+  // Erase every third key (some mid-probe-sequence) and re-verify
+  for(int i = 0; i < NUM_ELEMS; i += 3)
+  {
+    EXPECT_EQ(test_map.erase(i), 1);
+  }
+  EXPECT_EQ(test_map.size(), NUM_ELEMS - (NUM_ELEMS + 2) / 3);
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    if(i % 3 == 0)
+    {
+      EXPECT_EQ(test_map.find(i), test_map.end());
+    }
+    else
+    {
+      auto it = test_map.find(i);
+      ASSERT_NE(it, test_map.end());
+      EXPECT_EQ(it->second, i * 3);
+    }
+  }
+
+  // Reinsert over the holes and verify
+  for(int i = 0; i < NUM_ELEMS; i += 3)
+  {
+    test_map[i] = i * 7;
+  }
+  EXPECT_EQ(test_map.size(), NUM_ELEMS);
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto it = test_map.find(i);
+    ASSERT_NE(it, test_map.end());
+    EXPECT_EQ(it->second, (i % 3 == 0) ? i * 7 : i * 3);
+  }
+}
+
 AXOM_TYPED_TEST(core_flatmap, default_init)
 {
   using MapType = typename TestFixture::MapType;
