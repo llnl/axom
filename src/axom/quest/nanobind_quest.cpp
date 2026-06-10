@@ -25,7 +25,6 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -69,64 +68,12 @@ void ensureAxomRuntime()
 #endif
 }
 
-void validateMeshInputs(int dim,
-                        const std::vector<double>& bb_min,
-                        const std::vector<double>& bb_max,
-                        const std::vector<int>& resolution,
-                        int mesh_order)
-{
-  if(dim != 2 && dim != 3)
-  {
-    throw std::invalid_argument(axom::fmt::format("'dim' must be 2 or 3; got {}.", dim));
-  }
-
-  const auto expected_size = static_cast<std::size_t>(dim);
-  const auto validate_size = [expected_size, dim](std::string_view name, std::size_t actual_size) {
-    if(actual_size != expected_size)
-    {
-      throw std::invalid_argument(
-        axom::fmt::format("'{}' must contain {} entries for dim={}; got {}.",
-                          name,
-                          expected_size,
-                          dim,
-                          actual_size));
-    }
-  };
-
-  validate_size("bb_min", bb_min.size());
-  validate_size("bb_max", bb_max.size());
-  validate_size("resolution", resolution.size());
-
-  if(mesh_order < 1)
-  {
-    throw std::invalid_argument(
-      axom::fmt::format("'mesh_order' must be at least 1; got {}.", mesh_order));
-  }
-
-  for(int i = 0; i < dim; ++i)
-  {
-    if(bb_min[i] >= bb_max[i])
-    {
-      throw std::invalid_argument(
-        axom::fmt::format("Invalid bounding box range for axis {}: {} >= {}.", i, bb_min[i], bb_max[i]));
-    }
-
-    if(resolution[i] < 1)
-    {
-      throw std::invalid_argument(
-        axom::fmt::format("'resolution[{}]' must be positive; got {}.", i, resolution[i]));
-    }
-  }
-}
-
 mfem::Mesh* createCartesianMesh(int dim,
                                 const std::vector<double>& bb_min,
                                 const std::vector<double>& bb_max,
                                 const std::vector<int>& resolution,
                                 int mesh_order)
 {
-  validateMeshInputs(dim, bb_min, bb_max, resolution, mesh_order);
-
   mfem::Mesh* mesh = nullptr;
   switch(dim)
   {
