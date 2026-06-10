@@ -124,6 +124,8 @@ public:
       .range(1, std::numeric_limits<int>::max());
     mesh_schema.addInt("sampling_resolution", "Sampling resolution (>= 1)")
       .range(1, std::numeric_limits<int>::max());
+    mesh_schema.addInt("quadrature_order", "Legacy alias for sampling_resolution (>= 1)")
+      .range(1, std::numeric_limits<int>::max());
 
     mesh_schema.addString("sampling_method", "Sampling method ('inout' or 'winding')")
       .validValues({"inout", "winding"});
@@ -230,6 +232,10 @@ struct FromInlet<MeshMetadata>
     if(input_data.contains("sampling_resolution"))
     {
       result.sampling_resolution = static_cast<int>(input_data["sampling_resolution"]);
+    }
+    else if(input_data.contains("quadrature_order"))
+    {
+      result.sampling_resolution = static_cast<int>(input_data["quadrature_order"]);
     }
 
     if(input_data.contains("sampling_method"))

@@ -9,17 +9,11 @@
 #include <nanobind/stl/vector.h>
 
 #include "axom/config.hpp"
+#include "axom/core.hpp"
 #include "axom/core/utilities/RAII.hpp"
 #include "axom/fmt.hpp"
-#include "axom/inlet/Inlet.hpp"
-#include "axom/inlet/YAMLReader.hpp"
-#ifdef AXOM_USE_LUA
-  #include "axom/inlet/LuaReader.hpp"
-#endif
-#include "axom/klee/KleeError.hpp"
-#include "axom/klee/io/IO.hpp"
-#include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
+#include "axom/primal/geometry/Point.hpp"
 #include "axom/quest/SamplingShaper.hpp"
 #include "axom/quest/util/mesh_helpers.hpp"
 #include "axom/sidre/core/MFEMSidreDataCollection.hpp"
@@ -27,11 +21,12 @@
 
 #include "mfem.hpp"
 
-#include <limits>
 #include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 namespace nb = nanobind;
@@ -42,187 +37,116 @@ using BoundingBox2D = axom::primal::BoundingBox<double, 2>;
 using BoundingBox3D = axom::primal::BoundingBox<double, 3>;
 using Point2D = axom::primal::Point<double, 2>;
 using Point3D = axom::primal::Point<double, 3>;
+using RuntimePolicy = axom::runtime_policy::Policy;
+using SamplingMethod = axom::quest::SamplingShaper::SamplingMethod;
 
-struct MeshMetadata
+void ensureAxomRuntime()
 {
-  int dim {2};
-  std::vector<double> bb_min {0.0, 0.0};
-  std::vector<double> bb_max {1.0, 1.0};
-  std::vector<int> resolution {10, 10};
+#ifdef AXOM_USE_MPI
+  static axom::utilities::raii::MPIWrapper* mpi_wrapper = nullptr;
+#endif
+  static axom::slic::SimpleLogger* logger = nullptr;
 
-  std::string background_material;
-  int volume_fraction_order {2};
-  int mesh_order {1};
-  int quadrature_order {5};
-  std::string sampling_method {"inout"};
-
-  BoundingBox2D getBoundingBox2D() const
+#ifdef AXOM_USE_MPI
+  if(!mpi_wrapper)
   {
-    return BoundingBox2D(Point2D {bb_min[0], bb_min[1]}, Point2D {bb_max[0], bb_max[1]});
-  }
-
-  BoundingBox3D getBoundingBox3D() const
-  {
-    return BoundingBox3D(Point3D {bb_min[0], bb_min[1], bb_min[2]},
-                         Point3D {bb_max[0], bb_max[1], bb_max[2]});
-  }
-};
-
-bool hasSuffix(const std::string& path, const std::string& suffix)
-{
-  return path.size() >= suffix.size() &&
-    path.compare(path.size() - suffix.size(), suffix.size(), suffix) == 0;
-}
-
-std::unique_ptr<axom::inlet::Reader> makeReader(const std::string& path)
-{
-  if(hasSuffix(path, ".yaml") || hasSuffix(path, ".yml"))
-  {
-    return std::make_unique<axom::inlet::YAMLReader>();
-  }
-
-#ifdef AXOM_USE_LUA
-  if(hasSuffix(path, ".lua"))
-  {
-    return std::make_unique<axom::inlet::LuaReader>();
+    int argc = 1;
+    char program_name[] = "pyquest";
+    char* argv[] = {program_name, nullptr};
+    mpi_wrapper = new axom::utilities::raii::MPIWrapper(argc, argv);
   }
 #endif
 
-  throw std::runtime_error(
-    axom::fmt::format("Unsupported mesh metadata extension for '{}'. Expected .yaml, .yml or .lua.",
-                      path));
-}
-
-void defineMeshSchema(axom::inlet::Container& mesh_schema)
-{
-  mesh_schema.addInt("dim", "Dimension (2 or 3)").range(2, 3);
-
-  auto& bb = mesh_schema.addStruct("bounding_box", "Mesh bounding box").required();
-
-  auto& min = bb.addStruct("min", "Minimum coordinates").required();
-  min.addDouble("x", "Minimum x coordinate").required();
-  min.addDouble("y", "Minimum y coordinate").required();
-  min.addDouble("z", "Minimum z coordinate (only specify when dim is 3)");
-
-  auto& max = bb.addStruct("max", "Maximum coordinates").required();
-  max.addDouble("x", "Maximum x coordinate").required();
-  max.addDouble("y", "Maximum y coordinate").required();
-  max.addDouble("z", "Maximum z coordinate (only specify when dim is 3)");
-
-  auto& res = mesh_schema.addStruct("resolution", "Mesh resolution").required();
-  res.addInt("x", "Resolution in x direction").required().range(1, std::numeric_limits<int>::max());
-  res.addInt("y", "Resolution in y direction").required().range(1, std::numeric_limits<int>::max());
-  res.addInt("z", "Resolution in z direction (only specify when dim is 3)")
-    .range(1, std::numeric_limits<int>::max());
-
-  mesh_schema.addString("background_material", "Optional background material");
-  mesh_schema.addInt("volume_fraction_order", "Order for volume fraction fields (>= 1)")
-    .range(1, std::numeric_limits<int>::max());
-  mesh_schema.addInt("mesh_order", "Order for mesh nodes (>= 1)")
-    .range(1, std::numeric_limits<int>::max());
-  mesh_schema.addInt("quadrature_order", "Order for quadrature (>= 1)")
-    .range(1, std::numeric_limits<int>::max());
-  mesh_schema.addString("sampling_method", "Sampling method ('inout' or 'winding')")
-    .validValues({"inout", "winding"});
-}
-
-MeshMetadata loadMeshMetadata(const std::string& path)
-{
-  auto reader = makeReader(path);
-  if(!reader->parseFile(path))
+  if(!logger)
   {
-    throw std::runtime_error(axom::fmt::format("Failed to parse '{}'.", path));
+    logger = new axom::slic::SimpleLogger();
   }
 
-  axom::inlet::Inlet inlet(std::move(reader));
-  auto& mesh_schema = inlet.addStruct("mesh", "Mesh metadata").required();
-  defineMeshSchema(mesh_schema);
+#ifdef AXOM_USE_MPI
+  axom::slic::setIsRoot(mpi_wrapper->my_rank() == 0);
+#else
+  axom::slic::setIsRoot(true);
+#endif
+}
 
-  std::vector<axom::inlet::VerificationError> errors;
-  inlet.verify(&errors);
-  if(!errors.empty())
+void validateMeshInputs(int dim,
+                        const std::vector<double>& bb_min,
+                        const std::vector<double>& bb_max,
+                        const std::vector<int>& resolution,
+                        int mesh_order)
+{
+  if(dim != 2 && dim != 3)
   {
-    std::vector<std::string> messages;
-    for(const auto& err : errors)
+    throw std::invalid_argument(axom::fmt::format("'dim' must be 2 or 3; got {}.", dim));
+  }
+
+  const auto expected_size = static_cast<std::size_t>(dim);
+  const auto validate_size = [expected_size, dim](std::string_view name, std::size_t actual_size) {
+    if(actual_size != expected_size)
     {
-      messages.push_back(axom::fmt::format("{}: {}", static_cast<std::string>(err.path), err.message));
+      throw std::invalid_argument(
+        axom::fmt::format("'{}' must contain {} entries for dim={}; got {}.",
+                          name,
+                          expected_size,
+                          dim,
+                          actual_size));
     }
-    throw std::runtime_error(
-      axom::fmt::format("Mesh metadata validation failed:\n{}", axom::fmt::join(messages, "\n")));
-  }
+  };
 
-  MeshMetadata result;
-  auto mesh = inlet["mesh"];
+  validate_size("bb_min", bb_min.size());
+  validate_size("bb_max", bb_max.size());
+  validate_size("resolution", resolution.size());
 
-  if(mesh.contains("dim"))
+  if(mesh_order < 1)
   {
-    result.dim = static_cast<int>(mesh["dim"]);
+    throw std::invalid_argument(
+      axom::fmt::format("'mesh_order' must be at least 1; got {}.", mesh_order));
   }
 
-  result.bb_min.resize(result.dim);
-  result.bb_max.resize(result.dim);
-  result.resolution.resize(result.dim);
+  for(int i = 0; i < dim; ++i)
+  {
+    if(bb_min[i] >= bb_max[i])
+    {
+      throw std::invalid_argument(
+        axom::fmt::format("Invalid bounding box range for axis {}: {} >= {}.", i, bb_min[i], bb_max[i]));
+    }
 
-  auto bb = mesh["bounding_box"];
-  result.bb_min[0] = bb["min/x"];
-  result.bb_min[1] = bb["min/y"];
-  result.bb_max[0] = bb["max/x"];
-  result.bb_max[1] = bb["max/y"];
-
-  auto res = mesh["resolution"];
-  result.resolution[0] = res["x"];
-  result.resolution[1] = res["y"];
-
-  if(result.dim == 3)
-  {
-    result.bb_min[2] = bb["min/z"];
-    result.bb_max[2] = bb["max/z"];
-    result.resolution[2] = res["z"];
+    if(resolution[i] < 1)
+    {
+      throw std::invalid_argument(
+        axom::fmt::format("'resolution[{}]' must be positive; got {}.", i, resolution[i]));
+    }
   }
-
-  if(mesh.contains("background_material"))
-  {
-    result.background_material = static_cast<std::string>(mesh["background_material"]);
-  }
-  if(mesh.contains("volume_fraction_order"))
-  {
-    result.volume_fraction_order = static_cast<int>(mesh["volume_fraction_order"]);
-  }
-  if(mesh.contains("mesh_order"))
-  {
-    result.mesh_order = static_cast<int>(mesh["mesh_order"]);
-  }
-  if(mesh.contains("quadrature_order"))
-  {
-    result.quadrature_order = static_cast<int>(mesh["quadrature_order"]);
-  }
-  if(mesh.contains("sampling_method"))
-  {
-    result.sampling_method = static_cast<std::string>(mesh["sampling_method"]);
-  }
-
-  return result;
 }
 
-mfem::Mesh* createCartesianMesh(const MeshMetadata& meta)
+mfem::Mesh* createCartesianMesh(int dim,
+                                const std::vector<double>& bb_min,
+                                const std::vector<double>& bb_max,
+                                const std::vector<int>& resolution,
+                                int mesh_order)
 {
-  mfem::Mesh* mesh = nullptr;
+  validateMeshInputs(dim, bb_min, bb_max, resolution, mesh_order);
 
-  if(meta.dim == 2)
+  mfem::Mesh* mesh = nullptr;
+  switch(dim)
   {
-    const axom::NumericArray<int, 2> res {meta.resolution[0], meta.resolution[1]};
-    mesh =
-      axom::quest::util::make_cartesian_mfem_mesh_2D(meta.getBoundingBox2D(), res, meta.mesh_order);
+  case 2:
+  {
+    const BoundingBox2D bbox(Point2D {bb_min[0], bb_min[1]}, Point2D {bb_max[0], bb_max[1]});
+    const axom::NumericArray<int, 2> res {resolution[0], resolution[1]};
+    mesh = axom::quest::util::make_cartesian_mfem_mesh_2D(bbox, res, mesh_order);
   }
-  else if(meta.dim == 3)
+  break;
+  case 3:
   {
-    const axom::NumericArray<int, 3> res {meta.resolution[0], meta.resolution[1], meta.resolution[2]};
-    mesh =
-      axom::quest::util::make_cartesian_mfem_mesh_3D(meta.getBoundingBox3D(), res, meta.mesh_order);
+    const BoundingBox3D bbox(Point3D {bb_min[0], bb_min[1], bb_min[2]},
+                             Point3D {bb_max[0], bb_max[1], bb_max[2]});
+    const axom::NumericArray<int, 3> res {resolution[0], resolution[1], resolution[2]};
+    mesh = axom::quest::util::make_cartesian_mfem_mesh_3D(bbox, res, mesh_order);
   }
-  else
-  {
-    throw std::runtime_error("Only 2D and 3D meshes are supported.");
+  break;
+  default:
+    throw std::invalid_argument(axom::fmt::format("'dim' must be 2 or 3; got {}.", dim));
   }
 
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
@@ -239,164 +163,151 @@ mfem::Mesh* createCartesianMesh(const MeshMetadata& meta)
   return mesh;
 }
 
-axom::klee::ShapeSet readShapeSet(const std::string& path)
+std::unique_ptr<axom::sidre::MFEMSidreDataCollection> createDataCollection(
+  int dim,
+  const std::vector<double>& bb_min,
+  const std::vector<double>& bb_max,
+  const std::vector<int>& resolution,
+  int mesh_order,
+  const std::string& output_name)
 {
-  try
-  {
-    return axom::klee::readShapeSet(path);
-  }
-  catch(const axom::klee::KleeError& error)
-  {
-    std::vector<std::string> errs;
-    for(const auto& verificationError : error.getErrors())
-    {
-      errs.push_back(axom::fmt::format("{}: {}",
-                                       static_cast<std::string>(verificationError.path),
-                                       verificationError.message));
-    }
-    throw std::runtime_error(
-      axom::fmt::format("Error parsing klee input:\n{}", axom::fmt::join(errs, "\n")));
-  }
-}
+  ensureAxomRuntime();
 
-void ensureMPIInitialized()
-{
-#ifdef AXOM_USE_MPI
-  static std::unique_ptr<axom::utilities::raii::MPIWrapper> mpi_wrapper;
-  if(!mpi_wrapper)
-  {
-    int argc = 1;
-    char program_name[] = "pyquest";
-    char* argv[] = {program_name, nullptr};
-    mpi_wrapper = std::make_unique<axom::utilities::raii::MPIWrapper>(argc, argv);
-  }
-#endif
-}
+  auto* mesh = createCartesianMesh(dim, bb_min, bb_max, resolution, mesh_order);
+  auto dc = std::make_unique<axom::sidre::MFEMSidreDataCollection>(output_name, nullptr, true);
 
-struct ShapingResult
-{
-  explicit ShapingResult(std::unique_ptr<axom::sidre::MFEMSidreDataCollection> dc)
-    : collection(std::move(dc))
-  { }
-
-  void save() { collection->Save(); }
-
-  axom::sidre::Group* getBlueprintGroup() { return collection->GetBPGroup(); }
-
-  axom::sidre::DataStore* getDataStore() { return collection->GetBPGroup()->getDataStore(); }
-
-  std::string getCollectionName() const { return collection->GetCollectionName(); }
-
-  std::unique_ptr<axom::sidre::MFEMSidreDataCollection> collection;
-};
-
-ShapingResult runShaping(const std::string& meshFile,
-                         const std::string& kleeFile,
-                         const std::string& outputName,
-                         bool verbose)
-{
-  ensureMPIInitialized();
-
-  axom::slic::SimpleLogger logger;
-  axom::slic::setLoggingMsgLevel(verbose ? axom::slic::message::Debug : axom::slic::message::Info);
-
-  const MeshMetadata meta = loadMeshMetadata(meshFile);
-  auto shapeSet = readShapeSet(kleeFile);
-
-  auto* mesh = createCartesianMesh(meta);
-  auto dc = std::make_unique<axom::sidre::MFEMSidreDataCollection>(outputName, nullptr, true);
 #if defined(AXOM_USE_MPI)
   dc->SetMesh(MPI_COMM_WORLD, mesh);
 #else
   dc->SetMesh(mesh);
 #endif
+
   dc->SetMeshNodesName("positions");
   dc->AssociateMaterialSet("vol_frac", "material");
-
-  using RuntimePolicy = axom::runtime_policy::Policy;
-  const RuntimePolicy policy = RuntimePolicy::seq;
-
-  auto shaper =
-    std::make_unique<axom::quest::SamplingShaper>(policy,
-                                                  axom::policyToDefaultAllocatorID(policy),
-                                                  shapeSet,
-                                                  dc.get());
-
-  shaper->setVerbosity(verbose);
-  shaper->setQuadratureOrder(meta.quadrature_order);
-  shaper->setVolumeFractionOrder(meta.volume_fraction_order);
-
-  if(meta.sampling_method == "winding")
-  {
-    shaper->setSamplingMethod(axom::quest::SamplingShaper::SamplingMethod::WindingNumber);
-  }
-  else
-  {
-    shaper->setSamplingMethod(axom::quest::SamplingShaper::SamplingMethod::InOut);
-    shaper->setSamplesPerKnotSpan(50);
-  }
-
-  if(!meta.background_material.empty())
-  {
-    std::map<std::string, mfem::GridFunction*> initial_grid_functions;
-
-    const auto material = meta.background_material;
-    const auto name = axom::fmt::format("vol_frac_{}", material);
-    const int order = meta.volume_fraction_order;
-    const int dim = meta.dim;
-    const auto basis = mfem::BasisType::Positive;
-
-    auto* coll = new mfem::L2_FECollection(order, dim, basis);
-    auto* fes = new mfem::FiniteElementSpace(dc->GetMesh(), coll);
-    const int sz = fes->GetVSize();
-
-    auto* view = dc->AllocNamedBuffer(name, sz);
-    auto* volFrac = new mfem::GridFunction(fes, view->getArray());
-    volFrac->MakeOwner(coll);
-    (*volFrac) = 1.0;
-
-    dc->RegisterField(name, volFrac);
-    initial_grid_functions[material] = dc->GetField(name);
-    shaper->importInitialVolumeFractions(initial_grid_functions);
-  }
-
-  for(const auto& shape : shapeSet.getShapes())
-  {
-    const auto shapeDim = shape.getGeometry().getInputDimensions();
-    shaper->loadShape(shape);
-    shaper->prepareShapeQuery(shapeDim, shape);
-    shaper->runShapeQuery(shape);
-    shaper->applyReplacementRules(shape);
-    shaper->finalizeShapeQuery();
-  }
-
-  shaper->adjustVolumeFractions();
-  return ShapingResult(std::move(dc));
+  return dc;
 }
+
+void importBackgroundMaterial(axom::quest::SamplingShaper& shaper,
+                              axom::sidre::MFEMSidreDataCollection& collection,
+                              int mesh_dim,
+                              const std::string& material,
+                              int volume_fraction_order)
+{
+  std::map<std::string, mfem::GridFunction*> initial_grid_functions;
+
+  const auto name = axom::fmt::format("vol_frac_{}", material);
+  const auto basis = mfem::BasisType::Positive;
+
+  auto* coll = new mfem::L2_FECollection(volume_fraction_order, mesh_dim, basis);
+  auto* fes = new mfem::FiniteElementSpace(collection.GetMesh(), coll);
+  const int size = fes->GetVSize();
+
+  auto* view = collection.AllocNamedBuffer(name, size);
+  auto* vol_frac = new mfem::GridFunction(fes, view->getArray());
+  vol_frac->MakeOwner(coll);
+  (*vol_frac) = 1.0;
+
+  collection.RegisterField(name, vol_frac);
+  initial_grid_functions[material] = collection.GetField(name);
+  shaper.importInitialVolumeFractions(initial_grid_functions);
+}
+
+void configureVerbosity(axom::quest::SamplingShaper& shaper, bool verbose)
+{
+  ensureAxomRuntime();
+  axom::slic::setLoggingMsgLevel(verbose ? axom::slic::message::Debug : axom::slic::message::Info);
+  shaper.setVerbosity(verbose);
+}
+
+class PySamplingShaper : public axom::quest::SamplingShaper
+{
+public:
+  PySamplingShaper(const axom::klee::ShapeSet& shape_set,
+                   int dim,
+                   const std::vector<double>& bb_min,
+                   const std::vector<double>& bb_max,
+                   const std::vector<int>& resolution,
+                   int mesh_order = 1,
+                   const std::string& output_name = "shaping")
+    : PySamplingShaper(std::make_shared<axom::klee::ShapeSet>(shape_set),
+                       createDataCollection(dim, bb_min, bb_max, resolution, mesh_order, output_name),
+                       dim,
+                       RuntimePolicy::seq)
+  { }
+
+  void save() { m_collection->Save(); }
+
+  void importBackgroundMaterial(const std::string& material, int volume_fraction_order)
+  {
+    ::importBackgroundMaterial(*this, *m_collection, m_mesh_dim, material, volume_fraction_order);
+  }
+
+private:
+  PySamplingShaper(std::shared_ptr<axom::klee::ShapeSet> shape_set,
+                   std::unique_ptr<axom::sidre::MFEMSidreDataCollection> collection,
+                   int mesh_dim,
+                   RuntimePolicy policy)
+    : axom::quest::SamplingShaper(policy,
+                                  axom::policyToDefaultAllocatorID(policy),
+                                  *shape_set,
+                                  collection.get())
+    , m_shape_set(std::move(shape_set))
+    , m_collection(std::move(collection))
+    , m_mesh_dim(mesh_dim)
+  { }
+
+  std::shared_ptr<axom::klee::ShapeSet> m_shape_set;
+  std::unique_ptr<axom::sidre::MFEMSidreDataCollection> m_collection;
+  int m_mesh_dim;
+};
 }  // namespace
 
 NB_MODULE(pyquest, m)
 {
   m.doc() = "Tutorial-facing Python bindings for Axom Quest shaping.";
 
-  nb::module_::import_("pysidre");
+  nb::module_::import_("pyklee");
 
-  nb::enum_<axom::quest::SamplingShaper::SamplingMethod>(m, "SamplingMethod")
-    .value("InOut", axom::quest::SamplingShaper::SamplingMethod::InOut)
-    .value("WindingNumber", axom::quest::SamplingShaper::SamplingMethod::WindingNumber)
+  nb::enum_<SamplingMethod>(m, "SamplingMethod")
+    .value("InOut", SamplingMethod::InOut)
+    .value("WindingNumber", SamplingMethod::WindingNumber)
     .export_values();
 
-  nb::class_<ShapingResult>(m, "ShapingResult")
-    .def("save", &ShapingResult::save)
-    .def("getBlueprintGroup", &ShapingResult::getBlueprintGroup, nb::rv_policy::reference_internal)
-    .def("getDataStore", &ShapingResult::getDataStore, nb::rv_policy::reference_internal)
-    .def("getCollectionName", &ShapingResult::getCollectionName);
-
-  m.def("runShaping",
-        &runShaping,
-        nb::arg("mesh_file"),
-        nb::arg("klee_file"),
-        nb::arg("output_name") = "shaping",
-        nb::arg("verbose") = false,
-        "Run the shaping tutorial pipeline and return an owned result object.");
+  nb::class_<PySamplingShaper>(m, "SamplingShaper")
+    .def(nb::init<const axom::klee::ShapeSet&,
+                  int,
+                  const std::vector<double>&,
+                  const std::vector<double>&,
+                  const std::vector<int>&,
+                  int,
+                  const std::string&>(),
+         nb::arg("shape_set"),
+         nb::arg("dim"),
+         nb::arg("bb_min"),
+         nb::arg("bb_max"),
+         nb::arg("resolution"),
+         nb::arg("mesh_order") = 1,
+         nb::arg("output_name") = "shaping")
+    .def("setVerbosity",
+         [](PySamplingShaper& self, bool verbose) { configureVerbosity(self, verbose); })
+    .def("setSamplesPerKnotSpan", &PySamplingShaper::setSamplesPerKnotSpan, nb::arg("samples"))
+    .def("setSamplingMethod", &PySamplingShaper::setSamplingMethod, nb::arg("sampling_method"))
+    .def("setSamplingResolution",
+         nb::overload_cast<int>(&PySamplingShaper::setSamplingResolution),
+         nb::arg("resolution"))
+    .def("setVolumeFractionOrder", &PySamplingShaper::setVolumeFractionOrder, nb::arg("order"))
+    .def("loadShape", &PySamplingShaper::loadShape, nb::arg("shape"))
+    .def("prepareShapeQuery",
+         &PySamplingShaper::prepareShapeQuery,
+         nb::arg("shape_dimension"),
+         nb::arg("shape"))
+    .def("runShapeQuery", &PySamplingShaper::runShapeQuery, nb::arg("shape"))
+    .def("applyReplacementRules", &PySamplingShaper::applyReplacementRules, nb::arg("shape"))
+    .def("finalizeShapeQuery", &PySamplingShaper::finalizeShapeQuery)
+    .def("adjustVolumeFractions", &PySamplingShaper::adjustVolumeFractions)
+    .def("importBackgroundMaterial",
+         &PySamplingShaper::importBackgroundMaterial,
+         nb::arg("material"),
+         nb::arg("volume_fraction_order"))
+    .def("save", &PySamplingShaper::save);
 }

@@ -83,6 +83,7 @@ shapes:
 
 
 def test_both_replacement_lists_given(tmp_path: Path):
+
     def read_invalid():
         _read_shape_set(
             tmp_path,

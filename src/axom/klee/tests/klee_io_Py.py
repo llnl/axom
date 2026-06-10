@@ -170,8 +170,7 @@ shapes:
         encoding="utf-8",
     )
 
-    _assert_runtime_error_contains(lambda: pyklee.readShapeSet(str(shape_file)),
-                                   "Provided format")
+    _assert_runtime_error_contains(lambda: pyklee.readShapeSet(str(shape_file)), "Provided format")
 
 
 def test_read_shapeset_format_geometry_format(tmp_path: Path):
@@ -205,5 +204,5 @@ shapes:
         encoding="utf-8",
     )
 
-    _assert_runtime_error_contains(lambda: pyklee.readShapeSet(str(shape_file)),
-                                   "replaces", "does_not_replace")
+    _assert_runtime_error_contains(lambda: pyklee.readShapeSet(str(shape_file)), "replaces",
+                                   "does_not_replace")
