@@ -278,8 +278,12 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
 
     for(IndexType idx = 0; idx < num_elems; ++idx)
     {
-      auto kv = *(kv_begin + idx);
-      this->insert_or_assign(kv.first, kv.second);
+      // Preserve the value category of the input pair. In particular, when
+      // kv_begin/kv_end are move iterators, we must forward the mapped value
+      // so move-only types remain supported.
+      decltype(auto) kv = *(kv_begin + idx);
+      this->insert_or_assign(std::forward<decltype(kv)>(kv).first,
+                             std::forward<decltype(kv)>(kv).second);
     }
     return;
   }

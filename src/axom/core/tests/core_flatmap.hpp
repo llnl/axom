@@ -13,6 +13,9 @@
 // gtest includes
 #include "gtest/gtest.h"
 
+// C++ includes
+#include <memory>
+
 // Unit test for QuadraticProbing
 TEST(core_flatmap_unit, quadratic_probing)
 {
@@ -653,6 +656,51 @@ TEST(core_flatmap_moveonly, init_and_move_moveonly)
 
     auto old_it = test_map.find(i);
     EXPECT_EQ(old_it, test_map.end());
+  }
+}
+
+TEST(core_flatmap_moveonly, insert_batched_seq_move_iterators)
+{
+  using MapType = axom::FlatMap<int, std::unique_ptr<double>>;
+  MapType test_map;
+
+  using PairType = std::pair<int, std::unique_ptr<double>>;
+  std::vector<PairType> pairs;
+
+  const int NUM_ELEMS = 64;
+  pairs.reserve(NUM_ELEMS + 1);
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    pairs.emplace_back(i, std::make_unique<double>(i + 1.0));
+  }
+
+  // Include a duplicate so "later duplicates overwrite earlier ones" is exercised,
+  // while also ensuring the value is moved in all cases.
+  pairs.emplace_back(NUM_ELEMS / 2, std::make_unique<double>(123.0));
+
+  test_map.template insert<axom::SEQ_EXEC>(std::make_move_iterator(pairs.begin()),
+                                           std::make_move_iterator(pairs.end()));
+
+  EXPECT_EQ(test_map.size(), NUM_ELEMS);
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    ASSERT_EQ(test_map.count(i), 1);
+    auto& ptr = test_map.at(i);
+    ASSERT_NE(ptr.get(), nullptr);
+    if(i == NUM_ELEMS / 2)
+    {
+      EXPECT_EQ(*ptr, 123.0);
+    }
+    else
+    {
+      EXPECT_EQ(*ptr, i + 1.0);
+    }
+  }
+
+  // All source values should have been moved-from.
+  for(const auto& kv : pairs)
+  {
+    EXPECT_EQ(kv.second.get(), nullptr);
   }
 }
 
