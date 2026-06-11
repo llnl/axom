@@ -163,7 +163,7 @@ struct DegenerateGroupHash
 {
   using argument_type = int;
   using result_type = std::uint64_t;
-  std::uint64_t operator()(int key) const
+  AXOM_HOST_DEVICE std::uint64_t operator()(int key) const
   {
     return static_cast<std::uint64_t>(static_cast<unsigned>(key) & 0xFF);
   }
