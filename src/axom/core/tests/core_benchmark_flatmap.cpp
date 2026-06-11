@@ -273,6 +273,15 @@ axom::FlatMap<Key, Value, Hash> make_filled_flatmap_with_target_load_factor(
 
   // FlatMap's ctor/rehash argument is scaled internally by max_load_factor.
   // To target load factor `lf` for `n` elements, scale the count accordingly.
+  //
+  // NOTE: FlatMap rounds its group count up to a power of two, so for a
+  // fixed n the achievable load factors form a geometric ladder
+  // (n / (15 * 2^k - 1) for integer k) and the request is quantized to the
+  // next rung at or below the target. At n = 2^16 this means a 0.70 target
+  // and the default reserve(n) geometry coincide at an actual load factor
+  // of 0.533, and a 0.50 target lands at 0.267 (a table twice as large).
+  // The benchmarks below export the realized load factor and bucket count
+  // as counters; compare those, not the nominal targets.
   const axom::IndexType rehash_count = static_cast<axom::IndexType>(std::ceil((n * max_lf) / lf));
 
   map.rehash(rehash_count);
@@ -414,6 +423,11 @@ void BM_FlatMap_Find_Hit_TargetLoad(benchmark::State& state, double target_load_
   const auto pairs = make_pairs(keys);
   const MapType map =
     make_filled_flatmap_with_target_load_factor<KeyType, ValueType, Hash>(pairs, target_load_factor);
+
+  // Export the geometry actually realized after power-of-two rounding so
+  // that runs with different nominal targets can be compared meaningfully.
+  state.counters["load_factor"] = map.load_factor();
+  state.counters["buckets"] = static_cast<double>(map.bucket_count());
 
   for(auto _ : state)
   {
