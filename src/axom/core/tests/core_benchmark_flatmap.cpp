@@ -13,10 +13,6 @@
 #include "axom/CLI11.hpp"
 #include "axom/fmt.hpp"
 
-#include "axom/core/FlatMap.hpp"
-#include "axom/core/FlatMapUtil.hpp"
-#include "axom/core/detail/FlatTable.hpp"
-
 #if defined(AXOM_USE_SPARSEHASH)
   #include "axom/sparsehash/sparse_hash_map"
 #endif
@@ -553,6 +549,269 @@ void BM_BatchedInsert_Reserved(benchmark::State& state)
   }
 }
 
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+
+  // Device execution policy for benchmarking
+  #if defined(AXOM_USE_HIP)
+using DeviceExec = axom::HIP_EXEC<256>;
+  #elif defined(AXOM_USE_CUDA)
+using DeviceExec = axom::CUDA_EXEC<256>;
+  #endif
+
+  #if defined(AXOM_USE_CUDA) || defined(AXOM_USE_HIP)
+
+/*!
+ * \brief Device/parallel benchmarks for FlatMap
+ *
+ * These benchmarks measure GPU kernel execution + data transfer overhead.
+ * Google Benchmark measures wall-clock time, which includes:
+ * - Host-to-device memory transfers
+ * - Kernel launch overhead
+ * - GPU execution time
+ * - Device-to-host synchronization
+ *
+ * For pure kernel performance, profile with nsys/rocprof separately.
+ * These benchmarks characterize end-to-end device operation cost.
+ */
+
+/*!
+ * \brief Simple device sanity check
+ *
+ * Minimal test to verify device operations work before trying FlatMap.
+ */
+void BM_Device_Sanity_Check(benchmark::State& state)
+{
+  const int n = state.range(0);
+
+  const int device_allocator_id = axom::execution_space<DeviceExec>::allocatorID();
+  if(device_allocator_id == axom::INVALID_ALLOCATOR_ID)
+  {
+    state.SkipWithError("Device allocator not available");
+    return;
+  }
+
+  // Allocate simple arrays on device
+  int* device_input = axom::allocate<int>(n, device_allocator_id);
+  int* device_output = axom::allocate<int>(n, device_allocator_id);
+
+  // Initialize on host
+  std::vector<int> host_data(n, 42);
+  axom::copy(device_input, host_data.data(), sizeof(int) * n);
+
+  for(auto _ : state)
+  {
+    // Simple kernel: copy input to output
+    axom::for_all<DeviceExec>(n, [=] AXOM_HOST_DEVICE(int i) {
+      device_output[i] = device_input[i] + 1;
+    });
+
+    axom::synchronize<DeviceExec>();
+    benchmark::DoNotOptimize(device_output);
+  }
+
+  axom::deallocate(device_input);
+  axom::deallocate(device_output);
+}
+
+/*!
+ * \brief Benchmark parallel batched insertion on device
+ */
+void BM_FlatMap_Insert_Device_Reserved(benchmark::State& state)
+{
+  using MapType = axom::FlatMap<KeyType, ValueType>;
+
+  const int n = state.range(0);
+  const auto keys = make_shuffled_keys(n, 0x1CEB00DAULL);
+  const auto pairs = make_pairs(keys);
+
+  // Check if device allocator is available
+  const int device_allocator_id = axom::execution_space<DeviceExec>::allocatorID();
+  if(device_allocator_id == axom::INVALID_ALLOCATOR_ID)
+  {
+    state.SkipWithError("Device allocator not available");
+    return;
+  }
+
+  // Use axom::Array for host data
+  using PairType = std::pair<KeyType, ValueType>;
+  axom::Array<PairType> host_pairs(pairs.size(), pairs.size());
+  std::copy(pairs.begin(), pairs.end(), host_pairs.data());
+
+  // Copy to device using axom::Array with device allocator
+  axom::Array<PairType> device_pairs(pairs.size(), pairs.size(), device_allocator_id);
+  axom::copy(device_pairs.data(), host_pairs.data(), sizeof(PairType) * pairs.size());
+
+  const std::size_t bs = static_cast<std::size_t>(std::max(1, ::args_batch_size));
+
+  // Get device-safe ArrayView and extract raw pointer for template instantiation
+  auto pairs_view = device_pairs.view();
+  PairType* device_pairs_ptr = pairs_view.data();
+  const std::size_t total_size = pairs.size();
+
+  for(auto _ : state)
+  {
+    // Create map with device allocator and reserve capacity
+    MapType map(axom::Allocator {device_allocator_id});
+    map.reserve(static_cast<axom::IndexType>(pairs.size()));
+
+    // Benchmark parallel batched insertion using raw pointers from ArrayView
+    for(std::size_t offset = 0; offset < total_size; offset += bs)
+    {
+      const std::size_t count = std::min(bs, total_size - offset);
+      map.template insert<DeviceExec>(device_pairs_ptr + offset, device_pairs_ptr + offset + count);
+    }
+
+    // Synchronize to ensure device operations complete
+    axom::synchronize<DeviceExec>();
+
+    benchmark::DoNotOptimize(map);
+  }
+}
+
+/*!
+ * \brief Benchmark parallel lookup on device
+ */
+void BM_FlatMap_Find_Hit_Device(benchmark::State& state)
+{
+  using MapType = axom::FlatMap<KeyType, ValueType>;
+
+  const int n = state.range(0);
+  const auto keys = make_shuffled_keys(n, 0xC0FFEEULL);
+  const auto pairs = make_pairs(keys);
+  const auto lookup_keys = make_lookup_order(keys, 0xBADC0DE5ULL);
+
+  // Check if device allocator is available
+  const int device_allocator_id = axom::execution_space<DeviceExec>::allocatorID();
+  if(device_allocator_id == axom::INVALID_ALLOCATOR_ID)
+  {
+    state.SkipWithError("Device allocator not available");
+    return;
+  }
+
+  // Use axom::Array for host data
+  using PairType = std::pair<KeyType, ValueType>;
+  axom::Array<PairType> host_pairs(pairs.size(), pairs.size());
+  std::copy(pairs.begin(), pairs.end(), host_pairs.data());
+
+  // Copy to device using axom::Array with device allocator
+  axom::Array<PairType> device_pairs(pairs.size(), pairs.size(), device_allocator_id);
+  axom::copy(device_pairs.data(), host_pairs.data(), sizeof(PairType) * pairs.size());
+
+  // Create and populate map on device
+  MapType map(axom::Allocator {device_allocator_id});
+  map.reserve(static_cast<axom::IndexType>(pairs.size()));
+
+  // Use raw pointer from ArrayView for template instantiation
+  auto pairs_view = device_pairs.view();
+  map.template insert<DeviceExec>(pairs_view.data(), pairs_view.data() + pairs_view.size());
+
+  // Copy lookup keys to device using axom::Array
+  axom::Array<KeyType> host_lookup_keys(lookup_keys.size(), lookup_keys.size());
+  std::copy(lookup_keys.begin(), lookup_keys.end(), host_lookup_keys.data());
+
+  axom::Array<KeyType> device_lookup_keys(lookup_keys.size(), lookup_keys.size(), device_allocator_id);
+  axom::copy(device_lookup_keys.data(), host_lookup_keys.data(), sizeof(KeyType) * lookup_keys.size());
+
+  // Allocate result array on device using axom::Array
+  axom::Array<ValueType> device_results(lookup_keys.size(), lookup_keys.size(), device_allocator_id);
+
+  // Get device-safe views for kernel capture
+  // Note: Using explicit [=] AXOM_HOST_DEVICE instead of AXOM_LAMBDA to avoid
+  // RAJA privatizer issues on HIP with non-trivial types in capture
+  auto map_view = map.view();
+  auto lookup_keys_view = device_lookup_keys.view();
+  auto results_view = device_results.view();
+
+  for(auto _ : state)
+  {
+    // Perform lookups in parallel using ArrayViews
+    axom::for_all<DeviceExec>(static_cast<axom::IndexType>(lookup_keys.size()),
+                              [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+                                auto it = map_view.find(lookup_keys_view[i]);
+                                results_view[i] =
+                                  (it != map_view.end()) ? it->second : ValueType {-1};
+                              });
+
+    // Synchronize to ensure device operations complete
+    axom::synchronize<DeviceExec>();
+
+    benchmark::DoNotOptimize(device_results.data());
+  }
+}
+
+/*!
+ * \brief Benchmark parallel lookup misses on device
+ */
+void BM_FlatMap_Find_Miss_Device(benchmark::State& state)
+{
+  using MapType = axom::FlatMap<KeyType, ValueType>;
+
+  const int n = state.range(0);
+  const auto keys = make_shuffled_keys(n, 0xC0FFEEULL);
+  const auto pairs = make_pairs(keys);
+  const auto miss_keys = make_miss_keys(keys, static_cast<KeyType>(n) + 11);
+
+  // Check if device allocator is available
+  const int device_allocator_id = axom::execution_space<DeviceExec>::allocatorID();
+  if(device_allocator_id == axom::INVALID_ALLOCATOR_ID)
+  {
+    state.SkipWithError("Device allocator not available");
+    return;
+  }
+
+  // Use axom::Array for host data
+  using PairType = std::pair<KeyType, ValueType>;
+  axom::Array<PairType> host_pairs(pairs.size(), pairs.size());
+  std::copy(pairs.begin(), pairs.end(), host_pairs.data());
+
+  // Copy to device using axom::Array with device allocator
+  axom::Array<PairType> device_pairs(pairs.size(), pairs.size(), device_allocator_id);
+  axom::copy(device_pairs.data(), host_pairs.data(), sizeof(PairType) * pairs.size());
+
+  // Create and populate map on device
+  MapType map(axom::Allocator {device_allocator_id});
+  map.reserve(static_cast<axom::IndexType>(pairs.size()));
+
+  // Use raw pointer from ArrayView for template instantiation
+  auto pairs_view = device_pairs.view();
+  map.template insert<DeviceExec>(pairs_view.data(), pairs_view.data() + pairs_view.size());
+
+  // Copy miss keys to device using axom::Array
+  axom::Array<KeyType> host_miss_keys(miss_keys.size(), miss_keys.size());
+  std::copy(miss_keys.begin(), miss_keys.end(), host_miss_keys.data());
+
+  axom::Array<KeyType> device_miss_keys(miss_keys.size(), miss_keys.size(), device_allocator_id);
+  axom::copy(device_miss_keys.data(), host_miss_keys.data(), sizeof(KeyType) * miss_keys.size());
+
+  // Allocate result array on device using axom::Array
+  axom::Array<int> device_misses(miss_keys.size(), miss_keys.size(), device_allocator_id);
+
+  // Get device-safe views for kernel capture
+  // Note: Using explicit [=] AXOM_HOST_DEVICE instead of AXOM_LAMBDA to avoid
+  // RAJA privatizer issues on HIP with non-trivial types in capture
+  auto map_view = map.view();
+  auto miss_keys_view = device_miss_keys.view();
+  auto misses_view = device_misses.view();
+
+  for(auto _ : state)
+  {
+    // Perform lookups in parallel using ArrayViews
+    axom::for_all<DeviceExec>(static_cast<axom::IndexType>(miss_keys.size()),
+                              [=] AXOM_HOST_DEVICE(axom::IndexType i) {
+                                misses_view[i] =
+                                  (map_view.find(miss_keys_view[i]) == map_view.end()) ? 1 : 0;
+                              });
+
+    // Synchronize to ensure device operations complete
+    axom::synchronize<DeviceExec>();
+
+    benchmark::DoNotOptimize(device_misses.data());
+  }
+}
+
+  #endif  // AXOM_USE_CUDA || AXOM_USE_HIP
+#endif    // AXOM_USE_RAJA && AXOM_USE_UMPIRE
+
 }  // namespace
 
 //-----------------------------------------------------------------------------
@@ -724,6 +983,30 @@ int main(int argc, char* argv[])
   RegisterBenchmarksFor<axom::google::sparse_hash_map<KeyType, ValueType>>(
     "axom::google::sparse_hash_map");
 #endif
+
+  // Device/parallel benchmarks for debugging
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && \
+  (defined(AXOM_USE_CUDA) || defined(AXOM_USE_HIP))
+
+  // Device benchmarks enabled with raw pointers (iterators cause host stack address faults)
+  benchmark::RegisterBenchmark("Device::sanity_check", &BM_Device_Sanity_Check)->Apply(CustomArgs);
+
+  if((::args_benchmark_features & FlatMapFeatureBenchmarks::BatchedInsertion) !=
+     FlatMapFeatureBenchmarks::None)
+  {
+    benchmark::RegisterBenchmark("axom::FlatMap::insert_device_reserved",
+                                 &BM_FlatMap_Insert_Device_Reserved)
+      ->Apply(CustomArgs);
+  }
+
+  if((::args_benchmark_features & FlatMapFeatureBenchmarks::Lookup) != FlatMapFeatureBenchmarks::None)
+  {
+    benchmark::RegisterBenchmark("axom::FlatMap::find_hit_device", &BM_FlatMap_Find_Hit_Device)
+      ->Apply(CustomArgs);
+    benchmark::RegisterBenchmark("axom::FlatMap::find_miss_device", &BM_FlatMap_Find_Miss_Device)
+      ->Apply(CustomArgs);
+  }
+#endif  // AXOM_USE_RAJA && AXOM_USE_UMPIRE && (AXOM_USE_CUDA || AXOM_USE_HIP)
 
   ::benchmark::RunSpecifiedBenchmarks();
   return 0;
