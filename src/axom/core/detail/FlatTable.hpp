@@ -28,17 +28,6 @@
   #include <emmintrin.h>
 #endif
 
-// Force-inline annotation for the FlatMap/FlatTable lookup hot path.
-#if defined(__CUDACC__) || defined(__HIPCC__)
-  #define AXOM_FLATMAP_FORCE_INLINE __forceinline__
-#elif defined(__GNUC__) || defined(__clang__)
-  #define AXOM_FLATMAP_FORCE_INLINE inline __attribute__((always_inline))
-#elif defined(_MSC_VER)
-  #define AXOM_FLATMAP_FORCE_INLINE __forceinline
-#else
-  #define AXOM_FLATMAP_FORCE_INLINE inline
-#endif
-
 namespace axom
 {
 namespace detail
@@ -173,7 +162,7 @@ struct GroupBucket
   }
 
   template <typename Func>
-  AXOM_FLATMAP_FORCE_INLINE AXOM_HOST_DEVICE int visitHashBucket(std::uint8_t hash, Func&& visitor) const
+  AXOM_FORCE_INLINE AXOM_HOST_DEVICE int visitHashBucket(std::uint8_t hash, Func&& visitor) const
   {
     std::uint8_t reducedHash = reduceHash(hash);
 #if !defined(AXOM_DEVICE_CODE) && defined(_AXOM_CORE_HAVE_SSE2)
@@ -288,7 +277,7 @@ struct GroupBucket
   }
 
   template <bool Atomic = false>
-  AXOM_FLATMAP_FORCE_INLINE AXOM_HOST_DEVICE bool getMaybeOverflowed(std::uint8_t hash) const
+  AXOM_FORCE_INLINE AXOM_HOST_DEVICE bool getMaybeOverflowed(std::uint8_t hash) const
   {
     std::uint8_t hashOfwBit = 1 << (hash % 8);
     std::uint8_t curr_ofw;
@@ -488,10 +477,10 @@ struct SequentialLookupPolicy : ProbePolicy
    *  matching hash
    */
   template <typename FoundIndex>
-  AXOM_FLATMAP_FORCE_INLINE AXOM_HOST_DEVICE void probeIndex(int ngroups_pow_2,
-                                                             ArrayView<const GroupBucket> metadata,
-                                                             HashType hash,
-                                                             FoundIndex&& on_hash_found) const
+  AXOM_FORCE_INLINE AXOM_HOST_DEVICE void probeIndex(int ngroups_pow_2,
+                                                     ArrayView<const GroupBucket> metadata,
+                                                     HashType hash,
+                                                     FoundIndex&& on_hash_found) const
   {
     // We use the k MSBs of the hash as the initial group probe point,
     // where ngroups = 2^k. Since the group count is always a power of two,
