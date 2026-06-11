@@ -23,7 +23,7 @@ emphasize the following principles in software design and implementation:
 
   * Start design and implementation based on concrete application use cases and maintain flexibility to meet the needs of a diverse set of applications
   * Develop high-quality, robust, high performance software that has well-designed APIs, good documentation, and solid testing
-  * Apply consistent software engineering practices across all Axom components so developers can easily work on them
+  * Apply consistent software engineering practices across all Axom components so developers can easily work on any of them
   * Ensure that components integrate well together and are easy for applications to adopt
 
 The main drivers of Axom capabilities originate in the needs of multiphysics
@@ -42,21 +42,22 @@ Axom software components are maintained and developed on the
 .. note:: While Axom is developed in C++, its components have native 
           interfaces in C and Fortran for straightforward usage in 
           applications developed in those languages. Python interfaces 
-          are in development.
+          for select components are in development.
 
 Our current collection of components is listed here. The number of 
 components and their capabilities will expand over time as new needs
 are identified.
 
+   * Core: Basic utilities and data structures used throughout Axom
    * Bump: Blueprint Utilities for Mesh Processing
    * Inlet: Input file parsing and information storage/retrieval
-   * Klee: Shaping specification and implementation
+   * Klee: Material shaping specification and implementation
    * Lumberjack: Scalable parallel message logging and filtering
    * Mint: Mesh data model
-   * Mir: (Material interface reconstruction)
+   * Mir: Material interface reconstruction
    * Multimat: Managing multimaterial field data
    * Primal: Computational geometry primitives
-   * Quest: Querying on surface tool
+   * Quest: Querying on surface tools
    * Sidre: Simulation data repository
    * Sina: Simulation insight and analysis
    * Slam: Set-theoretic lightweight API for meshes
@@ -128,16 +129,23 @@ Component Level Dependencies
 
 Axom has the following inter-component dependencies:
 
-- Core has no dependencies and the other components depend on Core
-- Bump depends on Sidre, Slic, Spin, and Primal.
+- Core has no dependencies
+- Most other components depend on Core, either directly or transitively
+
+Additionally, 
+
+- Bump depends on Slic, Sidre, Spin, and Primal
+- Inlet depends on Slic, Sidre and Primal
+- Klee depends on Slic, Sidre, Inlet, and Primal
+- Mint depends on Slic, Slam, and optionally Sidre
+- Mir depends on Slic, Bump, Slam, Sidre, and Primal.
+- Multimat depends on Slic and Slam
+- Primal depends on Slic
+- Quest depends on Slic, Mint, Primal, Slam, Spin, and optionally, Klee and Sidre
+- Sidre depends on Slic
+- Slam depends on Slic
 - Slic optionally depends on Lumberjack
-- Slam, Spin, Primal, Mint, Quest, and Sidre depend on Slic
-- Mint depends on Slam, and optionally Sidre
-- Mir depends on Bump, Slic, Slam, and Primal.
-- Multimat depends on Slic, and Slam
-- Inlet depends on Sidre, Slic, and Primal
-- Klee depends on Sidre, Slic, Inlet and Primal
-- Quest depends on Slam, Spin, Primal, Mint, and, optionally, Klee, Bump and Sidre
+- Spin depends on Slic, Primal, and Slam
 
 The figure below summarizes these dependencies. Solid links indicate hard 
 dependencies; dashed links indicate optional dependencies.
