@@ -228,6 +228,114 @@ TEST(core_flatmap_unit, cross_group_probe_chains)
   }
 }
 
+// Hash functor that maps every key to the same hash value
+// This forces long probe chains and stresses fused "find + empty-slot" probing
+struct ConstantHash64
+{
+  using argument_type = int;
+  using result_type = std::uint64_t;
+
+  AXOM_HOST_DEVICE std::uint64_t operator()(int) const { return std::uint64_t {0}; }
+};
+
+TEST(core_flatmap_unit, fused_emplace_probe_no_duplicate_across_tombstone)
+{
+  using MapType = axom::FlatMap<int, int, ConstantHash64>;
+  MapType test_map;
+
+  const int NUM_ELEMS = 40;
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    test_map.insert_or_assign(i, i * 10);
+  }
+  ASSERT_EQ(test_map.size(), NUM_ELEMS);
+
+  // Create a tombstone early in the probe trail
+  EXPECT_EQ(test_map.erase(1), 1);
+  ASSERT_EQ(test_map.size(), NUM_ELEMS - 1);
+
+  // Update a key that should live beyond the first group. The fused emplace probe
+  // must keep probing past the earlier empty slot and find the existing key.
+  const int existing_key = NUM_ELEMS - 1;
+  auto result = test_map.insert_or_assign(existing_key, 12345);
+  EXPECT_FALSE(result.second);
+  EXPECT_EQ(test_map.size(), NUM_ELEMS - 1);
+  EXPECT_EQ(test_map.at(existing_key), 12345);
+
+  // Verify we did not accidentally insert a duplicate key
+  // (which would be possible if the probe stopped at the tombstone)
+  int occurrences = 0;
+  for(const auto& kv : test_map)
+  {
+    occurrences += (kv.first == existing_key) ? 1 : 0;
+  }
+  EXPECT_EQ(occurrences, 1);
+}
+
+TEST(core_flatmap_unit, fused_emplace_probe_try_emplace_respects_existing_after_tombstone)
+{
+  using MapType = axom::FlatMap<int, int, ConstantHash64>;
+  MapType test_map;
+
+  const int NUM_ELEMS = 40;
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    test_map.insert_or_assign(i, i * 10);
+  }
+  ASSERT_EQ(test_map.size(), NUM_ELEMS);
+
+  // Create a tombstone early in the probe trail
+  EXPECT_EQ(test_map.erase(2), 1);
+  ASSERT_EQ(test_map.size(), NUM_ELEMS - 1);
+
+  const int existing_key = NUM_ELEMS - 2;
+  test_map.insert_or_assign(existing_key, 777);
+  ASSERT_EQ(test_map.at(existing_key), 777);
+
+  // try_emplace must not insert or overwrite when the key exists
+  auto emplace_res = test_map.try_emplace(existing_key, 999);
+  EXPECT_FALSE(emplace_res.second);
+  EXPECT_EQ(emplace_res.first->second, 777);
+
+  int occurrences = 0;
+  for(const auto& kv : test_map)
+  {
+    occurrences += (kv.first == existing_key) ? 1 : 0;
+  }
+  EXPECT_EQ(occurrences, 1);
+}
+
+TEST(core_flatmap_unit, fused_emplace_probe_recomputes_slot_after_rehash)
+{
+  using MapType = axom::FlatMap<int, int, ConstantHash64>;
+  MapType test_map;
+
+  const int init_buckets = test_map.bucket_count();
+  const int size_no_rehash = static_cast<int>(test_map.max_load_factor() * init_buckets);
+
+  // Fill right up to the no-rehash threshold.
+  for(int i = 0; i < size_no_rehash; i++)
+  {
+    test_map.insert_or_assign(i, i);
+  }
+  ASSERT_EQ(test_map.bucket_count(), init_buckets);
+  ASSERT_EQ(test_map.size(), size_no_rehash);
+
+  // Create a mid-sequence tombstone. With ConstantHash64 and a full trail, this should
+  // preserve loadCount, so the next insertion triggers a rehash even though an empty slot exists.
+  EXPECT_EQ(test_map.erase(0), 1);
+  ASSERT_EQ(test_map.bucket_count(), init_buckets);
+  ASSERT_EQ(test_map.size(), size_no_rehash - 1);
+
+  const int buckets_before = test_map.bucket_count();
+  const int new_key = 100000;
+  test_map.insert_or_assign(new_key, 42);
+
+  EXPECT_GT(test_map.bucket_count(), buckets_before);
+  EXPECT_EQ(test_map.at(new_key), 42);
+  EXPECT_EQ(test_map.count(0), 0);
+}
+
 AXOM_TYPED_TEST(core_flatmap, default_init)
 {
   using MapType = typename TestFixture::MapType;

@@ -897,9 +897,18 @@ auto FlatMap<KeyType, ValueType, Hash>::getEmplacePos(const KeyType& key)
 {
   auto hash = Hash {}(key);
 
-  // If the key already exists, return the existing iterator.
-  // Reuse the hash computed above rather than re-hashing inside find().
-  iterator existing_elem = this->find_with_hash(key, hash);
+  // Single fused probe: visit key matches and locate the insertion slot in a single pass
+  iterator existing_elem = this->end();
+  IndexType newBucket =
+    this->probeEmplaceIndex(m_numGroups2, m_metadata, hash, [&](IndexType bucket_index) -> bool {
+      if(this->m_buckets[bucket_index].get().first == key)
+      {
+        existing_elem = iterator(this, bucket_index);
+        return false;
+      }
+      return true;
+    });
+
   if(existing_elem != this->end())
   {
     return {existing_elem, false};
@@ -916,10 +925,9 @@ auto FlatMap<KeyType, ValueType, Hash>::getEmplacePos(const KeyType& key)
   {
     IndexType newNumGroups = m_metadata.size() * 2;
     rehash(newNumGroups * BucketsPerGroup - 1);
+    // The table was rebuilt, so the slot is stale. If we got here, the key is missing
+    newBucket = this->probeEmptyIndex(m_numGroups2, m_metadata, hash);
   }
-
-  // Get an empty index to place the element into.
-  IndexType newBucket = this->probeEmptyIndex(m_numGroups2, m_metadata, hash);
 
   // Add a hash to the corresponding bucket slot.
   this->setBucketHash(m_metadata, newBucket, hash);

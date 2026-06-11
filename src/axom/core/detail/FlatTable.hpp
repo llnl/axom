@@ -395,6 +395,89 @@ struct SequentialLookupPolicy : ProbePolicy
   }
 
   /*!
+   * \brief Fused find-or-locate-empty probe for single-key emplacement.
+   *
+   *  Walks the probe sequence once, simultaneously visiting key matches and
+   *  tracking the first empty slot. Overflow bits are maintained in the 
+   *  same way as probeEmptyIndex(): a full group that hasn't yielded an insertion 
+   *  slot is marked overflowed for this hash before moving on.
+   *
+   * \param [in] ngroups_pow_2 the number of groups, expressed as a power of 2
+   * \param [in] metadata the array of metadata for the groups in the hash map
+   * \param [in] hash the hash to search for and, if absent, insert
+   * \param [in] on_hash_found functor called for each matching bucket slot;
+   *  returns false to stop the probe (existing key found)
+   *
+   * \return the bucket index to insert into, or NO_MATCH if the visitor stopped the probe
+   */
+  template <typename FoundIndex>
+  IndexType probeEmplaceIndex(int ngroups_pow_2,
+                              ArrayView<GroupBucket> metadata,
+                              HashType hash,
+                              FoundIndex&& on_hash_found) const
+  {
+    const int bitshift_right = ((CHAR_BIT * sizeof(HashType)) - ngroups_pow_2);
+    const HashType group_mask = (HashType {1} << ngroups_pow_2) - 1;
+    HashType curr_group = (hash >> bitshift_right) & group_mask;
+    int empty_group = NO_MATCH;
+    int empty_bucket = NO_MATCH;
+
+    std::uint8_t hash_8 = static_cast<std::uint8_t>(hash);
+    bool may_exist = true;
+    for(int iteration = 0; iteration < metadata.size(); ++iteration)
+    {
+      if(may_exist)
+      {
+        // The key may be in the current group, so scan for matches just as probeIndex() does
+        bool keep_going = true;
+        metadata[curr_group].visitHashBucket(hash_8, [&](IndexType bucket_index) -> bool {
+          keep_going = on_hash_found(curr_group * GroupBucket::Size + bucket_index);
+          return keep_going;
+        });
+        if(!keep_going)
+        {
+          // Visitor stopped the probe: the key already exists
+          return NO_MATCH;
+        }
+      }
+
+      if(empty_group == NO_MATCH)
+      {
+        int tentative_empty_bucket = metadata[curr_group].getEmptyBucket();
+        if(tentative_empty_bucket != GroupBucket::InvalidSlot)
+        {
+          empty_group = curr_group;
+          empty_bucket = tentative_empty_bucket;
+        }
+      }
+
+      if(!metadata[curr_group].getMaybeOverflowed(hash_8))
+      {
+        // The key cannot exist past this group
+        may_exist = false;
+        if(empty_group != NO_MATCH)
+        {
+          break;
+        }
+        // Full group at the end of the trail, mark as overflowed and keep looking for an empty slot
+        metadata[curr_group].setOverflow(hash_8);
+      }
+      else if(empty_group == NO_MATCH)
+      {
+        // Full group inside the trail
+        metadata[curr_group].setOverflow(hash_8);
+      }
+      // The group count is a power of two, so we can use a bitmask (instead of a modulo)
+      curr_group = (curr_group + this->getNext(iteration)) & group_mask;
+    }
+    if(empty_group != NO_MATCH)
+    {
+      return empty_group * GroupBucket::Size + empty_bucket;
+    }
+    return NO_MATCH;
+  }
+
+  /*!
    * \brief Finds the next potential bucket index for a given hash in a group
    *  array for an open-addressing hash map.
    *
