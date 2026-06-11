@@ -12,6 +12,7 @@
 #include "gtest/gtest.h"
 
 // C++ includes
+#include <cstdint>
 #include <set>
 
 template <typename TheExecSpace>
@@ -37,6 +38,7 @@ AXOM_TYPED_TEST(core_device_hash, hash_int)
   using ExecSpace = typename TestFixture::ExecSpace;
 
   axom::DeviceHash<int> device_hasher;
+  using HashResult = typename decltype(device_hasher)::result_type;
 
   constexpr int NUM_HASHES = 4;
 
@@ -44,7 +46,7 @@ AXOM_TYPED_TEST(core_device_hash, hash_int)
 
   // Allocate space for hash results.
   int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-  axom::IndexType *computed_hashes = axom::allocate<axom::IndexType>(NUM_HASHES, allocatorID);
+  HashResult* computed_hashes = axom::allocate<HashResult>(NUM_HASHES, allocatorID);
 
   // Compute hashes.
   axom::for_all<ExecSpace>(
@@ -52,8 +54,8 @@ AXOM_TYPED_TEST(core_device_hash, hash_int)
     AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
 
   // Copy back to host.
-  axom::IndexType computed_hashes_host[NUM_HASHES];
-  axom::copy(computed_hashes_host, computed_hashes, sizeof(axom::IndexType) * NUM_HASHES);
+  HashResult computed_hashes_host[NUM_HASHES];
+  axom::copy(computed_hashes_host, computed_hashes, sizeof(HashResult) * NUM_HASHES);
   axom::deallocate(computed_hashes);
 
   for(int i = 0; i < NUM_HASHES; i++)
@@ -74,6 +76,7 @@ AXOM_TYPED_TEST(core_device_hash, hash_float)
   using ExecSpace = typename TestFixture::ExecSpace;
 
   axom::DeviceHash<float> device_hasher;
+  using HashResult = typename decltype(device_hasher)::result_type;
 
   constexpr int NUM_HASHES = 4;
 
@@ -81,7 +84,7 @@ AXOM_TYPED_TEST(core_device_hash, hash_float)
 
   // Allocate space for hash results.
   int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-  axom::IndexType *computed_hashes = axom::allocate<axom::IndexType>(NUM_HASHES, allocatorID);
+  HashResult* computed_hashes = axom::allocate<HashResult>(NUM_HASHES, allocatorID);
 
   // Compute hashes.
   axom::for_all<ExecSpace>(
@@ -89,8 +92,8 @@ AXOM_TYPED_TEST(core_device_hash, hash_float)
     AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
 
   // Copy back to host.
-  axom::IndexType computed_hashes_host[NUM_HASHES];
-  axom::copy(computed_hashes_host, computed_hashes, sizeof(axom::IndexType) * NUM_HASHES);
+  HashResult computed_hashes_host[NUM_HASHES];
+  axom::copy(computed_hashes_host, computed_hashes, sizeof(HashResult) * NUM_HASHES);
   axom::deallocate(computed_hashes);
 
   for(int i = 0; i < NUM_HASHES; i++)
@@ -112,12 +115,13 @@ AXOM_TYPED_TEST(core_device_hash, hash_float)
 TEST(core_device_hash, hash_string)
 {
   axom::DeviceHash<std::string> device_hasher;
+  using HashResult = typename decltype(device_hasher)::result_type;
 
   constexpr int NUM_HASHES = 4;
 
   std::string things_to_hash[NUM_HASHES] {"0", "1", "37", "1100"};
 
-  axom::IndexType computed_hashes[NUM_HASHES];
+  HashResult computed_hashes[NUM_HASHES];
 
   // Compute hashes.
   for(int i = 0; i < NUM_HASHES; i++)
@@ -151,6 +155,7 @@ AXOM_TYPED_TEST(core_device_hash, hash_enum)
   using ExecSpace = typename TestFixture::ExecSpace;
 
   axom::DeviceHash<TestEnumHash> device_hasher;
+  using HashResult = typename decltype(device_hasher)::result_type;
 
   constexpr int NUM_HASHES = 4;
 
@@ -161,7 +166,7 @@ AXOM_TYPED_TEST(core_device_hash, hash_enum)
 
   // Allocate space for hash results.
   int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-  axom::IndexType *computed_hashes = axom::allocate<axom::IndexType>(NUM_HASHES, allocatorID);
+  HashResult* computed_hashes = axom::allocate<HashResult>(NUM_HASHES, allocatorID);
 
   // Compute hashes.
   axom::for_all<ExecSpace>(
@@ -169,8 +174,8 @@ AXOM_TYPED_TEST(core_device_hash, hash_enum)
     AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
 
   // Copy back to host.
-  axom::IndexType computed_hashes_host[NUM_HASHES];
-  axom::copy(computed_hashes_host, computed_hashes, sizeof(axom::IndexType) * NUM_HASHES);
+  HashResult computed_hashes_host[NUM_HASHES];
+  axom::copy(computed_hashes_host, computed_hashes, sizeof(HashResult) * NUM_HASHES);
   axom::deallocate(computed_hashes);
 
   for(int i = 0; i < NUM_HASHES; i++)
@@ -210,7 +215,7 @@ struct DeviceHash<axom_testing::UserVector<T>>
     constexpr int NWORDS = sizeof(axom_testing::UserVector<T>) / sizeof(int);
     alignas(axom_testing::UserVector<T>) int bytes[NWORDS];
     // NOTE: Separating these statements fixes a warning about strict-aliasing.
-    auto ptr = reinterpret_cast<axom_testing::UserVector<T> *>(bytes);
+    auto ptr = reinterpret_cast<axom_testing::UserVector<T>*>(bytes);
     *ptr = value;
 
     axom::IndexType hash_result {};
@@ -228,6 +233,7 @@ AXOM_TYPED_TEST(core_device_hash, hash_user_defined)
   using ExecSpace = typename TestFixture::ExecSpace;
 
   axom::DeviceHash<axom_testing::UserVector<float>> device_hasher;
+  using HashResult = typename decltype(device_hasher)::result_type;
 
   constexpr int NUM_HASHES = 4;
 
@@ -238,7 +244,7 @@ AXOM_TYPED_TEST(core_device_hash, hash_user_defined)
 
   // Allocate space for hash results.
   int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-  axom::IndexType *computed_hashes = axom::allocate<axom::IndexType>(NUM_HASHES, allocatorID);
+  HashResult* computed_hashes = axom::allocate<HashResult>(NUM_HASHES, allocatorID);
 
   // Compute hashes.
   axom::for_all<ExecSpace>(
@@ -246,8 +252,8 @@ AXOM_TYPED_TEST(core_device_hash, hash_user_defined)
     AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
 
   // Copy back to host.
-  axom::IndexType computed_hashes_host[NUM_HASHES];
-  axom::copy(computed_hashes_host, computed_hashes, sizeof(axom::IndexType) * NUM_HASHES);
+  HashResult computed_hashes_host[NUM_HASHES];
+  axom::copy(computed_hashes_host, computed_hashes, sizeof(HashResult) * NUM_HASHES);
   axom::deallocate(computed_hashes);
 
   for(int i = 0; i < NUM_HASHES; i++)
@@ -261,6 +267,101 @@ AXOM_TYPED_TEST(core_device_hash, hash_user_defined)
       EXPECT_NE(computed_hashes_host[i], computed_hashes_host[j]);
     }
   }
+}
+
+AXOM_TYPED_TEST(core_device_hash, hash_uint64_distinguishes_high_bits)
+{
+  using ExecSpace = typename TestFixture::ExecSpace;
+
+  axom::DeviceHash<std::uint64_t> device_hasher;
+  using HashResult = typename decltype(device_hasher)::result_type;
+
+  constexpr int NUM_HASHES = 3;
+  std::uint64_t things_to_hash[NUM_HASHES] = {std::uint64_t {1},
+                                              std::uint64_t {1} + (std::uint64_t {1} << 32),
+                                              std::uint64_t {1} + (std::uint64_t {1} << 33)};
+
+  int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+  HashResult* computed_hashes = axom::allocate<HashResult>(NUM_HASHES, allocatorID);
+
+  axom::for_all<ExecSpace>(
+    NUM_HASHES,
+    AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
+
+  HashResult computed_hashes_host[NUM_HASHES];
+  axom::copy(computed_hashes_host, computed_hashes, sizeof(HashResult) * NUM_HASHES);
+  axom::deallocate(computed_hashes);
+
+  EXPECT_NE(computed_hashes_host[0], computed_hashes_host[1]);
+  EXPECT_NE(computed_hashes_host[0], computed_hashes_host[2]);
+  EXPECT_NE(computed_hashes_host[1], computed_hashes_host[2]);
+}
+
+AXOM_TYPED_TEST(core_device_hash, hash_fractional_float_device)
+{
+  using ExecSpace = typename TestFixture::ExecSpace;
+
+  axom::DeviceHash<float> device_hasher;
+  using HashResult = typename decltype(device_hasher)::result_type;
+
+  constexpr int NUM_HASHES = 8;
+  float things_to_hash[NUM_HASHES] = {0.25f, 0.75f, -0.5f, 0.5f, 0.125f, 0.625f, 0.875f, 1.25f};
+
+  int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+  HashResult* computed_hashes = axom::allocate<HashResult>(NUM_HASHES, allocatorID);
+
+  axom::for_all<ExecSpace>(
+    NUM_HASHES,
+    AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
+
+  HashResult computed_hashes_host[NUM_HASHES];
+  axom::copy(computed_hashes_host, computed_hashes, sizeof(HashResult) * NUM_HASHES);
+  axom::deallocate(computed_hashes);
+
+  // Idempotence and pairwise distinctness for these chosen values.
+  for(int i = 0; i < NUM_HASHES; i++)
+  {
+    EXPECT_EQ(computed_hashes_host[i], device_hasher(things_to_hash[i]));
+    for(int j = i + 1; j < NUM_HASHES; j++)
+    {
+      EXPECT_NE(computed_hashes_host[i], computed_hashes_host[j]);
+    }
+  }
+
+  EXPECT_EQ(device_hasher(0.0f), device_hasher(-0.0f));
+}
+
+AXOM_TYPED_TEST(core_device_hash, hash_fractional_double_device)
+{
+  using ExecSpace = typename TestFixture::ExecSpace;
+
+  axom::DeviceHash<double> device_hasher;
+  using HashResult = typename decltype(device_hasher)::result_type;
+
+  constexpr int NUM_HASHES = 8;
+  double things_to_hash[NUM_HASHES] = {0.25, 0.75, -0.5, 0.5, 0.125, 0.625, 0.875, 1.25};
+
+  int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+  HashResult* computed_hashes = axom::allocate<HashResult>(NUM_HASHES, allocatorID);
+
+  axom::for_all<ExecSpace>(
+    NUM_HASHES,
+    AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
+
+  HashResult computed_hashes_host[NUM_HASHES];
+  axom::copy(computed_hashes_host, computed_hashes, sizeof(HashResult) * NUM_HASHES);
+  axom::deallocate(computed_hashes);
+
+  for(int i = 0; i < NUM_HASHES; i++)
+  {
+    EXPECT_EQ(computed_hashes_host[i], device_hasher(things_to_hash[i]));
+    for(int j = i + 1; j < NUM_HASHES; j++)
+    {
+      EXPECT_NE(computed_hashes_host[i], computed_hashes_host[j]);
+    }
+  }
+
+  EXPECT_EQ(device_hasher(0.0), device_hasher(-0.0));
 }
 
 TEST(core_device_hash, hash_width_decoupled_from_indextype)
@@ -277,7 +378,7 @@ TEST(core_device_hash, hash_width_decoupled_from_indextype)
                 "integral hash result must be std::uint64_t");
   static_assert(std::is_same<axom::DeviceHash<double>::result_type, std::uint64_t>::value,
                 "floating-point hash result must be std::uint64_t");
-  static_assert(std::is_same<axom::DeviceHash<int *>::result_type, std::uint64_t>::value,
+  static_assert(std::is_same<axom::DeviceHash<int*>::result_type, std::uint64_t>::value,
                 "pointer hash result must be std::uint64_t");
   static_assert(std::is_same<axom::DeviceHash<std::string>::result_type, std::uint64_t>::value,
                 "catch-all (std::hash) result must be std::uint64_t");
