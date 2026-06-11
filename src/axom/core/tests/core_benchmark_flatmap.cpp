@@ -30,6 +30,7 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -158,6 +159,46 @@ std::vector<KeyType> make_miss_keys(const std::vector<KeyType>& keys, KeyType of
   return misses;
 }
 
+/*!
+ * \brief Returns a copy of \a keys reshuffled with an independent seed.
+ *
+ *  Looking keys up in the exact order they were inserted is rarely representative, 
+ *  and it systematically favors node-based containers: with libstdc++'s identity hash 
+ *  for integers and densely numbered keys, the i-th lookup touches the i-th allocated node, 
+ *  so the lookup loop streams through the heap nearly sequentially and the hardware prefetcher hides
+ *  most of the pointer-chasing latency. An independently shuffled lookup order removes that correlation.
+ */
+std::vector<KeyType> make_lookup_order(const std::vector<KeyType>& keys, std::uint64_t seed)
+{
+  std::vector<KeyType> lookup = keys;
+  std::mt19937_64 rng(seed);
+  std::shuffle(lookup.begin(), lookup.end(), rng);
+  return lookup;
+}
+
+/*!
+ * \brief Generates \a n distinct pseudorandom 64-bit keys.
+ *
+ *  Dense keys in [0, n) are friendly to identity-style integer hashes and bucket layouts.
+ *  Random keys exercise hashing and probing the way sparse or pointer-derived IDs do.
+ */
+std::vector<KeyType> make_random_unique_keys(int n, std::uint64_t seed)
+{
+  std::mt19937_64 rng(seed);
+  std::unordered_set<KeyType> seen;
+  std::vector<KeyType> keys;
+  keys.reserve(static_cast<std::size_t>(n));
+  while(keys.size() < static_cast<std::size_t>(n))
+  {
+    const KeyType k = static_cast<KeyType>(rng());
+    if(seen.insert(k).second)
+    {
+      keys.push_back(k);
+    }
+  }
+  return keys;
+}
+
 template <typename MapType>
 struct MapFactory
 {
@@ -269,6 +310,9 @@ void BM_Insert_Reserved(benchmark::State& state)
   }
 }
 
+// NOTE: BM_Find_Hit looks keys up in insertion order, which favors
+// node-based maps as described on make_lookup_order() above.
+// Prefer BM_Find_Hit_Shuffled and BM_Find_Hit_RandomKeys when comparing containers.
 template <typename MapType>
 void BM_Find_Hit(benchmark::State& state)
 {
@@ -281,6 +325,54 @@ void BM_Find_Hit(benchmark::State& state)
   {
     ValueType sum = 0;
     for(KeyType k : keys)
+    {
+      auto it = map.find(k);
+      if(it != map.end())
+      {
+        sum += it->second;
+      }
+    }
+    benchmark::DoNotOptimize(sum);
+  }
+}
+
+template <typename MapType>
+void BM_Find_Hit_Shuffled(benchmark::State& state)
+{
+  const int n = state.range(0);
+  const auto keys = make_shuffled_keys(n, 0xC0FFEEULL);
+  const auto pairs = make_pairs(keys);
+  const MapType map = make_filled_map<MapType>(pairs);
+  const auto lookup_keys = make_lookup_order(keys, 0xBADC0DE5ULL);
+
+  for(auto _ : state)
+  {
+    ValueType sum = 0;
+    for(KeyType k : lookup_keys)
+    {
+      auto it = map.find(k);
+      if(it != map.end())
+      {
+        sum += it->second;
+      }
+    }
+    benchmark::DoNotOptimize(sum);
+  }
+}
+
+template <typename MapType>
+void BM_Find_Hit_RandomKeys(benchmark::State& state)
+{
+  const int n = state.range(0);
+  const auto keys = make_random_unique_keys(n, 0xFEEDFACEULL);
+  const auto pairs = make_pairs(keys);
+  const MapType map = make_filled_map<MapType>(pairs);
+  const auto lookup_keys = make_lookup_order(keys, 0xBADC0DE5ULL);
+
+  for(auto _ : state)
+  {
+    ValueType sum = 0;
+    for(KeyType k : lookup_keys)
     {
       auto it = map.find(k);
       if(it != map.end())
@@ -467,6 +559,8 @@ void RegisterBenchmarksFor(const std::string& map_name)
   if((::args_benchmark_features & FlatMapFeatureBenchmarks::Lookup) != FlatMapFeatureBenchmarks::None)
   {
     benchmark::RegisterBenchmark(name("find_hit"), &BM_Find_Hit<MapType>)->Apply(CustomArgs);
+    benchmark::RegisterBenchmark(name("find_hit_shuffled"), &BM_Find_Hit_Shuffled<MapType>)->Apply(CustomArgs);
+    benchmark::RegisterBenchmark(name("find_hit_randkeys"), &BM_Find_Hit_RandomKeys<MapType>)->Apply(CustomArgs);
     benchmark::RegisterBenchmark(name("find_miss"), &BM_Find_Miss<MapType>)->Apply(CustomArgs);
   }
 
