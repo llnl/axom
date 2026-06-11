@@ -359,11 +359,11 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
       // Hash keys.
       auto hash = Hash {}(key);
 
-      // We use the k MSBs of the hash as the initial group probe point,
-      // where ngroups = 2^k.
-      int bitshift_right = ((CHAR_BIT * sizeof(HashResult)) - ngroups_pow_2);
-      HashResult curr_group = hash >> bitshift_right;
-      curr_group &= ((1 << ngroups_pow_2) - 1);
+      // We use the k MSBs of the hash as the initial group probe point, where ngroups = 2^k.
+      const auto init =
+        detail::flat_map::SequentialLookupPolicy<HashResult>::initGroupProbe(hash, ngroups_pow_2);
+      const HashResult group_mask = init.group_mask;
+      HashResult curr_group = init.curr_group;
 
       std::uint8_t hash_8 = static_cast<std::uint8_t>(hash);
 
@@ -469,7 +469,7 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
           else
           {
             // Move to next group.
-            curr_group = (curr_group + LookupPolicy {}.getNext(iteration)) % meta_group.size();
+            curr_group = (curr_group + LookupPolicy {}.getNext(iteration)) & group_mask;
             iteration++;
           }
         }

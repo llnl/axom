@@ -333,6 +333,21 @@ struct SequentialLookupPolicy : ProbePolicy
 {
   constexpr static int NO_MATCH = -1;
 
+  struct GroupProbeInit
+  {
+    HashType group_mask;
+    HashType curr_group;
+  };
+
+  AXOM_FORCE_INLINE AXOM_HOST_DEVICE static GroupProbeInit initGroupProbe(HashType hash,
+                                                                          int ngroups_pow_2)
+  {
+    const int bitshift_right = (CHAR_BIT * sizeof(HashType)) - ngroups_pow_2;
+    const HashType group_mask = (HashType {1} << ngroups_pow_2) - 1;
+    const HashType curr_group = (hash >> bitshift_right) & group_mask;
+    return {group_mask, curr_group};
+  }
+
   /*!
    * \brief Inserts a hash into the first empty bucket in an array of groups
    *  for an open-addressing hash map.
@@ -343,12 +358,10 @@ struct SequentialLookupPolicy : ProbePolicy
    */
   IndexType probeEmptyIndex(int ngroups_pow_2, ArrayView<GroupBucket> metadata, HashType hash) const
   {
-    // We use the k MSBs of the hash as the initial group probe point,
-    // where ngroups = 2^k. Since the group count is always a power of two,
-    // wrapping a group index is a bitwise AND with this mask.
-    const int bitshift_right = ((CHAR_BIT * sizeof(HashType)) - ngroups_pow_2);
-    const HashType group_mask = (HashType {1} << ngroups_pow_2) - 1;
-    HashType curr_group = (hash >> bitshift_right) & group_mask;
+    // We use the k MSBs of the hash as the initial group probe point, where ngroups = 2^k.
+    const auto init = initGroupProbe(hash, ngroups_pow_2);
+    const HashType group_mask = init.group_mask;
+    HashType curr_group = init.curr_group;
     int empty_group = NO_MATCH;
     int empty_bucket = NO_MATCH;
 
@@ -405,9 +418,9 @@ struct SequentialLookupPolicy : ProbePolicy
                               HashType hash,
                               FoundIndex&& on_hash_found) const
   {
-    const int bitshift_right = ((CHAR_BIT * sizeof(HashType)) - ngroups_pow_2);
-    const HashType group_mask = (HashType {1} << ngroups_pow_2) - 1;
-    HashType curr_group = (hash >> bitshift_right) & group_mask;
+    const auto init = initGroupProbe(hash, ngroups_pow_2);
+    const HashType group_mask = init.group_mask;
+    HashType curr_group = init.curr_group;
     int empty_group = NO_MATCH;
     int empty_bucket = NO_MATCH;
 
@@ -482,12 +495,10 @@ struct SequentialLookupPolicy : ProbePolicy
                                                      HashType hash,
                                                      FoundIndex&& on_hash_found) const
   {
-    // We use the k MSBs of the hash as the initial group probe point,
-    // where ngroups = 2^k. Since the group count is always a power of two,
-    // wrapping a group index is a bitwise AND with this mask.
-    const int bitshift_right = ((CHAR_BIT * sizeof(HashType)) - ngroups_pow_2);
-    const HashType group_mask = (HashType {1} << ngroups_pow_2) - 1;
-    HashType curr_group = (hash >> bitshift_right) & group_mask;
+    // We use the k MSBs of the hash as the initial group probe point, where ngroups = 2^k.
+    const auto init = initGroupProbe(hash, ngroups_pow_2);
+    const HashType group_mask = init.group_mask;
+    HashType curr_group = init.curr_group;
 
     std::uint8_t hash_8 = static_cast<std::uint8_t>(hash);
     bool keep_going = true;
