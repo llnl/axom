@@ -289,10 +289,11 @@ public:
    *  if the key wasn't found.
    */
   /// @{
-  iterator find(const KeyType& key);
-  const_iterator find(const KeyType& key) const;
-  iterator find_with_hash(const KeyType& key, hash_result_type hash);
-  const_iterator find_with_hash(const KeyType& key, hash_result_type hash) const;
+  AXOM_FLATMAP_FORCE_INLINE iterator find(const KeyType& key);
+  AXOM_FLATMAP_FORCE_INLINE const_iterator find(const KeyType& key) const;
+  AXOM_FLATMAP_FORCE_INLINE iterator find_with_hash(const KeyType& key, hash_result_type hash);
+  AXOM_FLATMAP_FORCE_INLINE const_iterator find_with_hash(const KeyType& key,
+                                                          hash_result_type hash) const;
   /// @}
 
   /*!
