@@ -72,6 +72,7 @@ inline FlatMapFeatureBenchmarks operator&(FlatMapFeatureBenchmarks lhs, FlatMapF
 std::vector<int> args_benchmark_sizes;
 FlatMapFeatureBenchmarks args_benchmark_features {FlatMapFeatureBenchmarks::None};
 int args_batch_size = 1 << 10;
+bool args_include_insertion_order_lookup = false;
 }  // namespace
 
 template <>
@@ -162,9 +163,9 @@ std::vector<KeyType> make_miss_keys(const std::vector<KeyType>& keys, KeyType of
 /*!
  * \brief Returns a copy of \a keys reshuffled with an independent seed.
  *
- *  Looking keys up in the exact order they were inserted is rarely representative, 
- *  and it systematically favors node-based containers: with libstdc++'s identity hash 
- *  for integers and densely numbered keys, the i-th lookup touches the i-th allocated node, 
+ *  Looking keys up in the exact order they were inserted is rarely representative,
+ *  and it systematically favors node-based containers: with libstdc++'s identity hash
+ *  for integers and densely numbered keys, the i-th lookup touches the i-th allocated node,
  *  so the lookup loop streams through the heap nearly sequentially and the hardware prefetcher hides
  *  most of the pointer-chasing latency. An independently shuffled lookup order removes that correlation.
  */
@@ -423,6 +424,7 @@ void BM_FlatMap_Find_Hit_TargetLoad(benchmark::State& state, double target_load_
   const auto pairs = make_pairs(keys);
   const MapType map =
     make_filled_flatmap_with_target_load_factor<KeyType, ValueType, Hash>(pairs, target_load_factor);
+  const auto lookup_keys = make_lookup_order(keys, 0xF00DBA11ULL);
 
   // Export the geometry actually realized after power-of-two rounding so
   // that runs with different nominal targets can be compared meaningfully.
@@ -432,7 +434,7 @@ void BM_FlatMap_Find_Hit_TargetLoad(benchmark::State& state, double target_load_
   for(auto _ : state)
   {
     ValueType sum = 0;
-    for(KeyType k : keys)
+    for(KeyType k : lookup_keys)
     {
       auto it = map.find(k);
       if(it != map.end())
@@ -572,7 +574,10 @@ void RegisterBenchmarksFor(const std::string& map_name)
 
   if((::args_benchmark_features & FlatMapFeatureBenchmarks::Lookup) != FlatMapFeatureBenchmarks::None)
   {
-    benchmark::RegisterBenchmark(name("find_hit"), &BM_Find_Hit<MapType>)->Apply(CustomArgs);
+    if(::args_include_insertion_order_lookup)
+    {
+      benchmark::RegisterBenchmark(name("find_hit"), &BM_Find_Hit<MapType>)->Apply(CustomArgs);
+    }
     benchmark::RegisterBenchmark(name("find_hit_shuffled"), &BM_Find_Hit_Shuffled<MapType>)->Apply(CustomArgs);
     benchmark::RegisterBenchmark(name("find_hit_randkeys"), &BM_Find_Hit_RandomKeys<MapType>)->Apply(CustomArgs);
     benchmark::RegisterBenchmark(name("find_miss"), &BM_Find_Miss<MapType>)->Apply(CustomArgs);
@@ -603,6 +608,7 @@ int main(int argc, char* argv[])
   std::vector<int> local_test_sizes;
   FlatMapFeatureBenchmarks local_benchmark_features {FlatMapFeatureBenchmarks::None};
   int local_batch_size = ::args_batch_size;
+  bool local_include_insertion_order_lookup = ::args_include_insertion_order_lookup;
 
   axom::CLI::App app {"Axom FlatMap benchmarks"};
   app.add_option("-s,--custom_sizes", local_test_sizes)
@@ -631,6 +637,9 @@ int main(int argc, char* argv[])
     ->description("Batch size for batched insertion benchmarks")
     ->default_val(local_batch_size)
     ->check(axom::CLI::PositiveNumber);
+
+  app.add_flag("--include_insertion_order_lookup", local_include_insertion_order_lookup)
+    ->description("Includes insertion-order lookup benchmark (biased; for diagnosis)");
 
   std::vector<std::string> feature_strings;
   auto feature_opt =
@@ -673,11 +682,14 @@ int main(int argc, char* argv[])
     std::swap(::args_benchmark_sizes, local_test_sizes);
 
     ::args_batch_size = local_batch_size;
+    ::args_include_insertion_order_lookup = local_include_insertion_order_lookup;
 
     SLIC_INFO("Parsed and processed command line arguments:");
     SLIC_INFO(axom::fmt::format("- Map sizes: {}", axom::fmt::join(::args_benchmark_sizes, ",")));
     SLIC_INFO(axom::fmt::format("- Batch size: {}", ::args_batch_size));
     SLIC_INFO(axom::fmt::format("- Map features to test: {}", ::args_benchmark_features));
+    SLIC_INFO(axom::fmt::format("- Include insertion-order lookup: {}",
+                                ::args_include_insertion_order_lookup ? "true" : "false"));
   }
 
   RegisterBenchmarksFor<axom::FlatMap<KeyType, ValueType>>("axom::FlatMap");
@@ -687,19 +699,22 @@ int main(int argc, char* argv[])
 
   // Explore the impact of lower load factors on successful lookups.
   // This trades memory for potentially fewer probes and fewer cache misses.
-  using DefaultHash = axom::FlatMap<KeyType, ValueType>::hasher;
-  benchmark::RegisterBenchmark("axom::FlatMap::find_hit_lf0p50", [](benchmark::State& st) {
-    BM_FlatMap_Find_Hit_TargetLoad<DefaultHash>(st, 0.50);
-  })->Apply(CustomArgs);
-  benchmark::RegisterBenchmark("axom::FlatMap::find_hit_lf0p70", [](benchmark::State& st) {
-    BM_FlatMap_Find_Hit_TargetLoad<DefaultHash>(st, 0.70);
-  })->Apply(CustomArgs);
-  benchmark::RegisterBenchmark("axom::FlatMapFastHash::find_hit_lf0p50", [](benchmark::State& st) {
-    BM_FlatMap_Find_Hit_TargetLoad<FastHash>(st, 0.50);
-  })->Apply(CustomArgs);
-  benchmark::RegisterBenchmark("axom::FlatMapFastHash::find_hit_lf0p70", [](benchmark::State& st) {
-    BM_FlatMap_Find_Hit_TargetLoad<FastHash>(st, 0.70);
-  })->Apply(CustomArgs);
+  if((::args_benchmark_features & FlatMapFeatureBenchmarks::Lookup) != FlatMapFeatureBenchmarks::None)
+  {
+    using DefaultHash = axom::FlatMap<KeyType, ValueType>::hasher;
+    benchmark::RegisterBenchmark("axom::FlatMap::find_hit_lf0p50", [](benchmark::State& st) {
+      BM_FlatMap_Find_Hit_TargetLoad<DefaultHash>(st, 0.50);
+    })->Apply(CustomArgs);
+    benchmark::RegisterBenchmark("axom::FlatMap::find_hit_lf0p70", [](benchmark::State& st) {
+      BM_FlatMap_Find_Hit_TargetLoad<DefaultHash>(st, 0.70);
+    })->Apply(CustomArgs);
+    benchmark::RegisterBenchmark("axom::FlatMapFastHash::find_hit_lf0p50", [](benchmark::State& st) {
+      BM_FlatMap_Find_Hit_TargetLoad<FastHash>(st, 0.50);
+    })->Apply(CustomArgs);
+    benchmark::RegisterBenchmark("axom::FlatMapFastHash::find_hit_lf0p70", [](benchmark::State& st) {
+      BM_FlatMap_Find_Hit_TargetLoad<FastHash>(st, 0.70);
+    })->Apply(CustomArgs);
+  }
 
   RegisterBenchmarksFor<std::unordered_map<KeyType, ValueType>>("std::unordered_map");
   RegisterBenchmarksFor<std::map<KeyType, ValueType>>("std::map");
