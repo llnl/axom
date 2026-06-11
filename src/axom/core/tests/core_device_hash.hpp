@@ -14,6 +14,7 @@
 // C++ includes
 #include <cstdint>
 #include <set>
+#include <type_traits>
 
 template <typename TheExecSpace>
 class core_device_hash : public ::testing::Test
@@ -426,4 +427,16 @@ TEST(core_device_hash, hash_float_bit_pattern)
   // Magnitudes beyond any integer type's range are now well-defined and distinct
   EXPECT_NE(double_hasher(1e300), double_hasher(2e300));
   EXPECT_NE(float_hasher(-0.5f), float_hasher(0.5f));
+}
+
+TEST(core_device_hash, hash_long_double_has_stable_equal_value_hash)
+{
+  axom::DeviceHash<long double> long_double_hasher;
+
+  static_assert(std::is_same<axom::DeviceHash<long double>::result_type, std::uint64_t>::value,
+                "long double hash result must be std::uint64_t");
+
+  EXPECT_EQ(long_double_hasher(0.0L), long_double_hasher(-0.0L));
+  EXPECT_EQ(long_double_hasher(0.25L), long_double_hasher(static_cast<long double>(0.25)));
+  EXPECT_NE(long_double_hasher(0.25L), long_double_hasher(0.75L));
 }

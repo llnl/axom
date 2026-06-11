@@ -455,10 +455,11 @@ void BM_FlatMap_Find_Hit_Prehashed(benchmark::State& state)
   const auto keys = make_shuffled_keys(n, 0xC0FFEEULL);
   const auto pairs = make_pairs(keys);
   const MapType map = make_filled_map<MapType>(pairs);
+  const auto lookup_keys = make_lookup_order(keys, 0xBADC0DE5ULL);
 
   std::vector<HashResult> hashes;
-  hashes.reserve(keys.size());
-  for(KeyType k : keys)
+  hashes.reserve(lookup_keys.size());
+  for(KeyType k : lookup_keys)
   {
     hashes.push_back(typename MapType::hasher {}(k));
   }
@@ -466,9 +467,9 @@ void BM_FlatMap_Find_Hit_Prehashed(benchmark::State& state)
   for(auto _ : state)
   {
     ValueType sum = 0;
-    for(std::size_t i = 0; i < keys.size(); ++i)
+    for(std::size_t i = 0; i < lookup_keys.size(); ++i)
     {
-      auto it = map.find_with_hash(keys[i], hashes[i]);
+      auto it = map.find_with_hash(lookup_keys[i], hashes[i]);
       if(it != map.end())
       {
         sum += it->second;

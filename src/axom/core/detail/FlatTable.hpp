@@ -400,8 +400,8 @@ struct SequentialLookupPolicy : ProbePolicy
    * \brief Fused find-or-locate-empty probe for single-key emplacement.
    *
    *  Walks the probe sequence once, simultaneously visiting key matches and
-   *  tracking the first empty slot. Overflow bits are maintained in the 
-   *  same way as probeEmptyIndex(): a full group that hasn't yielded an insertion 
+   *  tracking the first empty slot. Overflow bits are maintained in the
+   *  same way as probeEmptyIndex(): a full group that hasn't yielded an insertion
    *  slot is marked overflowed for this hash before moving on.
    *
    * \param [in] ngroups_pow_2 the number of groups, expressed as a power of 2

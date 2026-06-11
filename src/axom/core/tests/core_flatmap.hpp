@@ -339,6 +339,38 @@ TEST(core_flatmap_unit, fused_emplace_probe_recomputes_slot_after_rehash)
   EXPECT_EQ(test_map.count(0), 0);
 }
 
+TEST(core_flatmap_unit, find_with_hash_uses_precomputed_hash)
+{
+  using MapType = axom::FlatMap<int, int>;
+  MapType test_map;
+
+  const int NUM_ELEMS = 64;
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    test_map.insert_or_assign(i, i * 10);
+  }
+
+  const int key = 37;
+  const auto hash = MapType::hasher {}(key);
+
+  auto it = test_map.find_with_hash(key, hash);
+  ASSERT_NE(it, test_map.end());
+  EXPECT_EQ(it->first, key);
+  EXPECT_EQ(it->second, key * 10);
+
+  const MapType& const_map = test_map;
+  auto const_it = const_map.find_with_hash(key, hash);
+  ASSERT_NE(const_it, const_map.end());
+  EXPECT_EQ(const_it->first, key);
+  EXPECT_EQ(const_it->second, key * 10);
+
+  // A precomputed hash is part of the lookup key. Supplying a mismatched hash
+  // may miss an existing key; this guards the documented precondition.
+  const auto mismatched_hash = hash ^ MapType::hash_result_type {0x80};
+  EXPECT_EQ(test_map.find_with_hash(key, mismatched_hash), test_map.end());
+  EXPECT_EQ(const_map.find_with_hash(key, mismatched_hash), const_map.end());
+}
+
 AXOM_TYPED_TEST(core_flatmap, default_init)
 {
   using MapType = typename TestFixture::MapType;

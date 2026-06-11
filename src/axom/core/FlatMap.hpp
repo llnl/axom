@@ -292,6 +292,21 @@ public:
   /// @{
   AXOM_FORCE_INLINE iterator find(const KeyType& key);
   AXOM_FORCE_INLINE const_iterator find(const KeyType& key) const;
+  /// @}
+
+  /*!
+   * \brief Try to find an entry with a given key and a precomputed hash.
+   *
+   * \param [in] key the key to search for
+   * \param [in] hash the precomputed hash for \a key
+   *
+   * \return An iterator pointing to the corresponding key-value pair, or end()
+   *  if the key wasn't found.
+   *
+   * \pre hash must be equivalent to hasher{}(key) for this FlatMap's Hash policy.
+   *  Supplying a hash computed for a different key or Hash policy can miss an existing key
+   */
+  /// @{
   AXOM_FORCE_INLINE iterator find_with_hash(const KeyType& key, hash_result_type hash);
   AXOM_FORCE_INLINE const_iterator find_with_hash(const KeyType& key, hash_result_type hash) const;
   /// @}

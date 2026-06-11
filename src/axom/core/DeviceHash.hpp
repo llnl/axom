@@ -52,21 +52,19 @@ struct DeviceHashHelper<T, std::enable_if_t<std::is_floating_point<T>::value>>
     // A float-to-integer value conversion collapses every key sharing an integer part,
     // e.g. all numbers between -1 and 1 converts to integer 0
 
-    // NUM_WORDS is 1 for float or double, possibly 2 for long double
-    constexpr std::size_t NUM_WORDS = (sizeof(T) + sizeof(std::uint64_t) - 1) / sizeof(std::uint64_t);
-    // zero out words since we might only copy 4 bytes in for floats
-    std::uint64_t words[NUM_WORDS] = {0};
-    memcpy(words, &value, sizeof(T));
-
-    std::uint64_t result = words[0];
-    // Extra processing fortypes wider than 64 bits (long double).
-    // Use an odd multiplier (2^64/golden-ratio-phi),
-    // so the halves cannot cancel under a later XOR-style mixer
-    for(std::size_t i = 1; i < NUM_WORDS; i++)
+    if constexpr(sizeof(T) <= sizeof(std::uint64_t))
     {
-      result = result * std::uint64_t {0x9e3779b97f4a7c15} + words[i];
+      // Zero-initialize first since we only copy 4 bytes for floats.
+      std::uint64_t result = 0;
+      memcpy(&result, &value, sizeof(T));
+      return result;
     }
 
+    // Avoid hashing padding bytes for wider floating types such as x86 long double.
+    // Collisions are acceptable for a hash; equal values must hash identically.
+    double narrowed_value = static_cast<double>(value);
+    std::uint64_t result = 0;
+    memcpy(&result, &narrowed_value, sizeof(narrowed_value));
     return result;
   }
 };
