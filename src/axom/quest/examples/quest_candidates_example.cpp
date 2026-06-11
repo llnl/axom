@@ -941,7 +941,7 @@ int main(int argc, char** argv)
 
   // Print total number of pairs across all ranks
   int totalNumCandidates = 0;
-  MPI_Reduce(&numCandidates, &totalNumCandidates, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(const_cast<int*>(&numCandidates), &totalNumCandidates, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
   if(myRank == 0)
   {
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),

@@ -152,18 +152,18 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     SLIC_ERROR_ROOT_IF(file_format != "c2c",
                        axom::fmt::format(" '{}' format requires .contour file type", file_format));
 
-    // Get the transforms that are being applied to the mesh. Get them
-    // as a single concatenated matrix.
+    // Get the transforms that are being applied to the mesh as a single concatenated matrix
     auto transform = getTransforms();
 
-    // Pass in the transform so any transformations can figure into computing the revolved volume.
+    // Pass in the transform so any transformations can figure into computing the revolved volume
     axom::mint::Mesh* meshRep = nullptr;
     const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic &&
                            m_percentError > MINIMUM_PERCENT_ERROR);
-  #ifdef AXOM_USE_MPI
+
     int rc = quest::internal::READ_FAILED;
     try
     {
+  #ifdef AXOM_USE_MPI
       rc = quest::internal::read_c2c_mesh(shapePath,
                                           uniform,
                                           transform,
@@ -173,25 +173,7 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
                                           meshRep,
                                           m_revolvedVolume,  // output arg
                                           m_comm);
-    }
-    catch(const std::exception& e)
-    {
-      SLIC_ERROR_ROOT(
-        axom::fmt::format("Failed to read C2C shape '{}' from file '{}'. Exception: {}",
-                          m_shape.getName(),
-                          shapePath,
-                          e.what()));
-    }
-    catch(...)
-    {
-      SLIC_ERROR_ROOT(axom::fmt::format("Failed to read C2C shape '{}' from file '{}'.",
-                                        m_shape.getName(),
-                                        shapePath));
-    }
   #else
-    int rc = quest::internal::READ_FAILED;
-    try
-    {
       rc = quest::internal::read_c2c_mesh(shapePath,
                                           uniform,
                                           transform,
@@ -200,6 +182,7 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
                                           m_percentError,
                                           meshRep,
                                           m_revolvedVolume);  // output arg
+  #endif
     }
     catch(const std::exception& e)
     {
@@ -215,11 +198,13 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
                                         m_shape.getName(),
                                         shapePath));
     }
-  #endif
-    SLIC_ERROR_ROOT_IF(rc != quest::internal::READ_SUCCESS,
-                       axom::fmt::format("Failed to read C2C shape '{}' from file '{}'.",
-                                         m_shape.getName(),
-                                         shapePath));
+
+    SLIC_ERROR_ROOT_IF(
+      rc != quest::internal::READ_SUCCESS,
+      axom::fmt::format(
+        "Invalid C2C contour for shape '{}' from file '{}'. See earlier warnings for details.",
+        m_shape.getName(),
+        shapePath));
 
     m_meshRep.reset(meshRep);
 

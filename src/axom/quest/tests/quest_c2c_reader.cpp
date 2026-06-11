@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/config.hpp"
+#include "axom/core/utilities/FileUtilities.hpp"
 
 #ifndef AXOM_USE_C2C
   #error These tests should only be included when Axom is configured with C2C
@@ -226,6 +227,23 @@ TEST(quest_c2c_reader, interpolate_spline)
   mint::write_vtk(mesh, "test_spline.vtk");
 
   delete mesh;
+}
+
+TEST(quest_c2c_reader, duplicate_point_linear_fails_gracefully)
+{
+#ifdef AXOM_DATA_DIR
+  // This file contains an invalid contour -- reading the files should return non-zero
+  const auto fileName =
+    axom::utilities::filesystem::joinPath(AXOM_DATA_DIR, "contours/duplicate_point_linear.contour");
+
+  quest::C2CReader reader;
+  reader.setFileName(fileName);
+
+  EXPECT_NE(0, reader.read());
+  EXPECT_EQ(0, reader.getCurvesView().size());
+#else
+  GTEST_SKIP() << "AXOM_DATA_DIR not defined";
+#endif
 }
 
 //------------------------------------------------------------------------------

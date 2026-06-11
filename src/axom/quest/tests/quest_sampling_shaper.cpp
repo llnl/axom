@@ -785,6 +785,37 @@ shapes:
   }
 }
 
+TEST_F(SamplingShaperTest2D, duplicate_point_linear_contour_aborts)
+{
+#if defined(AXOM_USE_C2C) && defined(AXOM_DATA_DIR)
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const auto contour_file = fs::joinPath(AXOM_DATA_DIR, "contours/duplicate_point_linear.contour");
+
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: dup_linear
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+)";
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), "dupMat", contour_file));
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
+
+  slic::ScopedAbortToThrow abort_guard;
+  EXPECT_THROW(this->runShaping(), slic::SlicAbortException);
+#else
+  GTEST_SKIP() << "Test requires AXOM_USE_C2C and AXOM_DATA_DIR";
+#endif
+}
+
 TEST_F(SamplingShaperTest2D, basic_circle_projector)
 {
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
