@@ -7,6 +7,7 @@
 #ifndef Axom_Core_FlatMap_HPP
 #define Axom_Core_FlatMap_HPP
 
+#include <cstdint>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -897,14 +898,21 @@ auto FlatMap<KeyType, ValueType, Hash>::getEmplacePos(const KeyType& key)
   auto hash = Hash {}(key);
 
   // If the key already exists, return the existing iterator.
-  iterator existing_elem = this->find(key);
+  // Reuse the hash computed above rather than re-hashing inside find().
+  iterator existing_elem = this->find_with_hash(key, hash);
   if(existing_elem != this->end())
   {
     return {existing_elem, false};
   }
   // Resize to double the number of bucket groups if insertion would put us
   // above the maximum load factor.
-  if(((m_loadCount + 1) / (double)bucket_count()) >= MAX_LOAD_FACTOR)
+  // MAX_LOAD_FACTOR is exactly 7/8, so (count + 1) / buckets >= 7/8 is
+  // equivalent to 8 * (count + 1) >= 7 * buckets in exact integer arithmetic.
+  // This avoids a floating-point division on every insertion.
+  static_assert(MAX_LOAD_FACTOR == 0.875,
+                "Integer load-factor check below assumes MAX_LOAD_FACTOR == 7/8.");
+  if(8 * (static_cast<std::uint64_t>(m_loadCount) + 1) >=
+     7 * static_cast<std::uint64_t>(bucket_count()))
   {
     IndexType newNumGroups = m_metadata.size() * 2;
     rehash(newNumGroups * BucketsPerGroup - 1);
