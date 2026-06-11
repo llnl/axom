@@ -201,7 +201,11 @@ struct GroupBucket
     {
       if(metadata.buckets[i] == reducedHash)
       {
-        visitor(i);
+        if(!visitor(i))
+        {
+          // Found a match - stop visiting, mirroring the SSE2 path above.
+          break;
+        }
       }
     }
 #endif
