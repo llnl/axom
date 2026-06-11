@@ -218,6 +218,11 @@ if (ENABLE_BENCHMARKS)
   foreach(test ${core_benchmarks})
     get_filename_component(test_name ${test} NAME_WE)
 
+    set(_num_threads)
+    if(test STREQUAL "core_benchmark_flatmap.cpp" AND AXOM_ENABLE_OPENMP)
+        set(_num_threads ${AXOM_TEST_NUM_OMP_THREADS})
+    endif()
+
     axom_add_executable(NAME       ${test_name}
                         SOURCES    ${test}
                         OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
@@ -225,6 +230,7 @@ if (ENABLE_BENCHMARKS)
                         FOLDER     axom/core/benchmarks)
 
     blt_add_benchmark(NAME    ${test_name}
-                      COMMAND ${test_name} --benchmark_min_time=0.0001s)
+                      COMMAND ${test_name} --benchmark_min_time=0.0001s
+                      NUM_OMP_THREADS ${_num_threads})
   endforeach()
 endif()
