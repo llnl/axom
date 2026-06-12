@@ -398,7 +398,7 @@ public:
         ->expected(2, 3)
         ->required();
 
-      inline_mesh_subcommand->add_option("--res, --resolution", boxResolution)
+      inline_mesh_subcommand->add_option("--res,--resolution", boxResolution)
         ->description("Resolution of the box mesh (i,j[,k])")
         ->expected(2, 3)
         ->required();
@@ -428,7 +428,7 @@ public:
         ->description("Max bounds for box mesh (x,y[,z])")
         ->expected(2, 3)
         ->required();
-      inline_mesh_blueprint_subcommand->add_option("--res", boxResolution)
+      inline_mesh_blueprint_subcommand->add_option("--res,--resolution", boxResolution)
         ->description("Resolution of the box mesh (i,j[,k])")
         ->expected(2, 3)
         ->required();

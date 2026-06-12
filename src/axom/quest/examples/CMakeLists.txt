@@ -200,10 +200,11 @@ if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
                             -i ${shaping_data_dir}/circles.yaml
                             --method sampling
                             --verbose
-                            inline_mesh_blueprint --min -6 -6 --max 6 6 --res 25 25 -d 2
+                            inline_mesh_blueprint --min -6 -6 --max 6 6 --resolution 25 25 -d 2
                     NUM_MPI_TASKS ${_nranks})
+                # Analytic area for annulus w/ outer/inner radii 5 and 2.5 is ~58.905
                 set_tests_properties(${_testname} PROPERTIES
-                    PASS_REGULAR_EXPRESSION "Saved quadrature point mesh to 'shaping_quadrature'.")
+                    PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 58.")
             endif()
 
             set(_testname quest_shaping_driver_ex_sampling_balls_and_jacks)
@@ -379,7 +380,7 @@ if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE
                             --method sampling
                             --sampling inout
                             --background-material void
-                            inline_mesh_blueprint --min -6 -6 -6 --max 6 6 6 --res 16 16 16 -d 3
+                            inline_mesh_blueprint --min -6 -6 -6 --max 6 6 6 --resolution 16 16 16 -d 3
                             --sampling-resolution 5 5 5
                             --quadrature-type gausslegendre
                   NUM_MPI_TASKS ${_nranks})
