@@ -194,3 +194,29 @@ as ``std::unordered_map<int, T>``:
 String-keyed dictionaries are implemented as ``std::unordered_map<std::string, T>`` and can be retrieved
 in the same way as the array above.  For dictionaries with a mix of string and integer keys, the
 ``inlet::VariantKey`` type can be used, namely, by retrieving a ``std::unordered_map<inlet::VariantKey, T>``.
+
+Variant Struct Collections
+--------------------------
+
+Collections whose entries can be selected from a finite set of user-defined struct types can be
+defined with ``addVariantStructArray`` or ``addVariantStructDictionary``.  Each entry must contain
+a string discriminator field, and each alternative still uses its normal ``FromInlet`` specialization
+for retrieval:
+
+.. code-block:: C++
+
+  using Shape = std::variant<Circle, Box>;
+
+  auto shapes = inlet.addVariantStructArray<Shape>("shapes", "kind");
+  shapes.addAlternative<Circle>("circle", [](inlet::Container& circle) {
+    circle.addDouble("radius").required();
+  });
+  shapes.addAlternative<Box>("box", [](inlet::Container& box) {
+    box.addDouble("width").required();
+    box.addDouble("height").required();
+  });
+
+  auto values = inlet["shapes"].get<std::vector<Shape>>();
+
+Verification fails if an entry omits the discriminator or uses a discriminator value that was not
+registered as an alternative.
