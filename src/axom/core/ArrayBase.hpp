@@ -584,15 +584,25 @@ public:
     : m_stride(mapping.strides()[0])
   { }
 
-  // Empty implementation because no member data
-  template <typename OtherArrayType>
-  AXOM_HOST_DEVICE ArrayBase(const ArrayBase<typename std::remove_const<T>::type, 1, OtherArrayType>&)
-  { }
-
-  // Empty implementation because no member data
+  /*!
+   * \brief Copy the stride from another 1D array-like object.
+   *
+   * When this array is a view, the source's spacing must be preserved so the
+   * view continues to address the same elements. When this array is owning,
+   * the stride is the compile-time unit stride regardless of the source
+   * (a deep copy from a strided view compacts into contiguous storage).
+   */
   template <typename OtherArrayType>
   AXOM_HOST_DEVICE ArrayBase(
-    const ArrayBase<const typename std::remove_const<T>::type, 1, OtherArrayType>&)
+    const ArrayBase<typename std::remove_const<T>::type, 1, OtherArrayType>& other)
+    : m_stride(static_cast<int>(other.minStride()))
+  { }
+
+  /// \overload
+  template <typename OtherArrayType>
+  AXOM_HOST_DEVICE ArrayBase(
+    const ArrayBase<const typename std::remove_const<T>::type, 1, OtherArrayType>& other)
+    : m_stride(static_cast<int>(other.minStride()))
   { }
 
   /// \brief Returns the dimensions of the Array
@@ -655,8 +665,8 @@ public:
   /// @}
 
   /// \brief Swaps two ArrayBases
-  /// No member data, so this is a no-op
-  void swap(ArrayBase&) { }
+  /// Swaps the stride; this is a no-op for owning arrays (unit stride).
+  void swap(ArrayBase& other) { std::swap(m_stride, other.m_stride); }
 
   /// \brief Set the shape
   /// No member data, so this is a no-op
