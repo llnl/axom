@@ -514,20 +514,32 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 hip_link_flags += "-L{0} -Wl,-rpath,{0}".format(lib_path)
 
             if spec.satisfies("+fortran"):
-                link_remove_list = []
+                link_lib_remove_list = []
+                link_dir_remove_list = []
+
+                if self.cxx_std == "20":
+                    link_dir_remove_list += ["/opt/rh/gcc-toolset-12/root/usr/lib/gcc/x86_64-redhat-linux/12"]
+                    link_dir_remove_list += ["/opt/rh/gcc-toolset-12/root/usr/lib64"]
 
                 # Remove extra link library for crayftn
                 if self.is_fortran_compiler("crayftn"):
-                    link_remove_list += ["unwind"]
+                    link_lib_remove_list += ["unwind"]
 
                 # Remove injected OpenMP stub library
                 if spec.satisfies("+openmp"):
-                    link_remove_list += ["ompstub"]
+                    link_lib_remove_list += ["ompstub"]
 
-                if link_remove_list:
+                if link_lib_remove_list:
                     entries.append(
                         cmake_cache_string(
-                            "BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE", ";".join(link_remove_list)
+                            "BLT_CMAKE_IMPLICIT_LINK_LIBRARIES_EXCLUDE", ";".join(link_lib_remove_list)
+                        )
+                    )
+
+                if link_dir_remove_list:
+                    entries.append(
+                        cmake_cache_string(
+                            "BLT_CMAKE_IMPLICIT_LINK_DIRECTORIES_EXCLUDE", ";".join(link_dir_remove_list)
                         )
                     )
 
