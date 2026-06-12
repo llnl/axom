@@ -562,6 +562,21 @@ class ArrayBase<T, 1, ArrayType>
 private:
   constexpr static bool is_array_view = detail::ArrayTraits<ArrayType>::is_view;
 
+  /*!
+   * \brief Empty stand-in for the stride of an owning 1D Array.
+   *
+   * Owning 1D arrays are always contiguous, so their stride is the compile-time constant 1.
+   * Encoding that in the type (rather than storing a runtime int that is invariantly 1)
+   * lets operator[] and flatIndex() compile down to data()[idx], with no runtime multiply on the
+   * address-generation path. ArrayViews support runtime spacing and continue to store their stride as an int.
+   */
+  struct UnitStrideTag
+  {
+    AXOM_HOST_DEVICE constexpr UnitStrideTag(int = 1) { }
+    AXOM_HOST_DEVICE constexpr operator int() const { return 1; }
+  };
+  using StrideStorage = typename std::conditional<is_array_view, int, UnitStrideTag>::type;
+
 public:
   /* If ArrayType is an ArrayView, we use shallow-const semantics, akin to
    * std::span; a const ArrayView will still allow for mutating the underlying
@@ -574,15 +589,22 @@ public:
 
   AXOM_HOST_DEVICE ArrayBase(IndexType = 0) { }
 
-  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, int stride = 1) : m_stride(stride) { }
+  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, int stride = 1) : m_stride(stride)
+  {
+    assert(is_array_view || stride == 1);
+  }
 
   AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, const StackArray<IndexType, 1>& stride)
     : m_stride(static_cast<int>(stride[0]))
-  { }
+  {
+    assert(is_array_view || stride[0] == 1);
+  }
 
   AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, const MDMapping<1>& mapping)
-    : m_stride(mapping.strides()[0])
-  { }
+    : m_stride(static_cast<int>(mapping.strides()[0]))
+  {
+    assert(is_array_view || mapping.strides()[0] == 1);
+  }
 
   /*!
    * \brief Copy the stride from another 1D array-like object.
@@ -710,7 +732,7 @@ private:
   }
   /// @}
 
-  int m_stride {1};
+  StrideStorage m_stride {1};
 };
 
 //------------------------------------------------------------------------------
