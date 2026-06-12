@@ -170,13 +170,19 @@ Variant arrays are added with ``addVariantArray``:
 Accessing
 ---------
 
-Contiguous homogeneous arrays can be retrieved as ``std::vector<T>``.  Integer-keyed
-homogeneous arrays can be retrieved as ``std::unordered_map<int, T>`` when the
-original indices are needed.
+Contiguous homogeneous arrays can be retrieved as ``std::vector<T>``:
 
 .. literalinclude:: ../../examples/homogeneous_collections.cpp
-   :start-after: _inlet_simple_types_homogeneous_arrays_access_start
-   :end-before: _inlet_simple_types_homogeneous_arrays_access_end
+   :start-after: _inlet_simple_types_homogeneous_arrays_access_vector_start
+   :end-before: _inlet_simple_types_homogeneous_arrays_access_vector_end
+   :language: C++
+
+Integer-keyed homogeneous arrays can be retrieved as
+``std::unordered_map<int, T>`` when the original indices are needed:
+
+.. literalinclude:: ../../examples/homogeneous_collections.cpp
+   :start-after: _inlet_simple_types_homogeneous_arrays_access_map_start
+   :end-before: _inlet_simple_types_homogeneous_arrays_access_map_end
    :language: C++
 
 Contiguous variant arrays can be retrieved as ``std::vector<inlet::VariantValue>``.

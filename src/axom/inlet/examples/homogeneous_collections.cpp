@@ -75,14 +75,16 @@ int main()
     SLIC_ERROR("Inlet failed to verify against provided schema");
   }
 
-  // _inlet_simple_types_homogeneous_arrays_access_start
+  // _inlet_simple_types_homogeneous_arrays_access_vector_start
   SLIC_INFO("Contiguous int array as std::vector<int>:");
   const std::vector<int> contiguous_values = inlet["contiguous"].get<std::vector<int>>();
   for(const int value : contiguous_values)
   {
     SLIC_INFO(axom::fmt::format("{}", value));
   }
+  // _inlet_simple_types_homogeneous_arrays_access_vector_end
 
+  // _inlet_simple_types_homogeneous_arrays_access_map_start
   SLIC_INFO("Integer-keyed int array as std::unordered_map<int, int>:");
   const std::unordered_map<int, int> indexed_values =
     inlet["indexed"].get<std::unordered_map<int, int>>();
@@ -90,7 +92,7 @@ int main()
   {
     SLIC_INFO(axom::fmt::format("{} = {}", entry.first, entry.second));
   }
-  // _inlet_simple_types_homogeneous_arrays_access_end
+  // _inlet_simple_types_homogeneous_arrays_access_map_end
 
   // _inlet_simple_types_homogeneous_dictionary_access_start
   SLIC_INFO("Mixed-key int dictionary as std::unordered_map<VariantKey, int>:");
