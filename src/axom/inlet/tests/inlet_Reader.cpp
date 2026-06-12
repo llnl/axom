@@ -14,6 +14,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <variant>
 
 template <typename InletReader>
 class inlet_Reader : public testing::Test
@@ -178,6 +179,24 @@ TYPED_TEST(inlet_Reader, getMap)
   // std::unordered_map<int, std::string> expectedStrs {{6, "hello"},
   //                                                    {7, "bye"}};
   // EXPECT_EQ(expectedStrs, strs);
+}
+
+TYPED_TEST(inlet_Reader, getVariantMap)
+{
+  std::string testString = "luaArray = { [0] = 42, [1] = 'hello', [2] = true, [3] = 3.14 }";
+  TypeParam reader;
+  reader.parseString(fromLuaTo<TypeParam>(testString));
+
+  std::unordered_map<int, axom::inlet::VariantValue> values;
+  ReaderResult retValue = reader.getVariantMap("luaArray", values);
+  EXPECT_EQ(retValue, ReaderResult::Success);
+
+  std::unordered_map<int, axom::inlet::VariantValue> expected {
+    {0, axom::inlet::VariantValue {42}},
+    {1, axom::inlet::VariantValue {std::string {"hello"}}},
+    {2, axom::inlet::VariantValue {true}},
+    {3, axom::inlet::VariantValue {3.14}}};
+  EXPECT_EQ(expected, values);
 }
 
 TYPED_TEST(inlet_Reader, emptyCollections)

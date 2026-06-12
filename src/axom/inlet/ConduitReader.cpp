@@ -155,6 +155,27 @@ void arrayToMap(const conduit::DataArray<ConduitType>& array,
   }
 }
 
+template <typename ConduitType>
+void arrayToMap(const conduit::DataArray<ConduitType>& array,
+                std::unordered_map<int, VariantValue>& map)
+{
+  map.clear();
+  for(conduit::index_t i = 0; i < array.number_of_elements(); i++)
+  {
+    if(std::is_floating_point<ConduitType>::value)
+    {
+      const double double_value = array[i];
+      const int int_value = static_cast<int>(double_value);
+      map[i] = (static_cast<double>(int_value) == double_value) ? VariantValue {int_value}
+                                                                : VariantValue {double_value};
+    }
+    else
+    {
+      map[i] = VariantValue {static_cast<int>(array[i])};
+    }
+  }
+}
+
 /*!
  *******************************************************************************
  * \brief Recursive name retrieval function - adds the names of all descendents
@@ -259,6 +280,39 @@ ReaderResult ConduitReader::getValue(const conduit::Node* node, bool& value)
   return node->dtype().is_empty() ? ReaderResult::NotFound : ReaderResult::WrongType;
 }
 
+ReaderResult ConduitReader::getValue(const conduit::Node* node, VariantValue& value)
+{
+  if(!node)
+  {
+    return ReaderResult::NotFound;
+  }
+
+  bool bool_value = false;
+  if(getValue(node, bool_value) == ReaderResult::Success)
+  {
+    value = bool_value;
+    return ReaderResult::Success;
+  }
+
+  if(node->dtype().is_number() && !node->dtype().is_uint8())
+  {
+    const double double_value = node->to_double();
+    const int int_value = node->to_int();
+    value = (static_cast<double>(int_value) == double_value) ? VariantValue {int_value}
+                                                             : VariantValue {double_value};
+    return ReaderResult::Success;
+  }
+
+  std::string string_value;
+  if(getValue(node, string_value) == ReaderResult::Success)
+  {
+    value = string_value;
+    return ReaderResult::Success;
+  }
+
+  return node->dtype().is_empty() ? ReaderResult::NotFound : ReaderResult::WrongType;
+}
+
 ReaderResult ConduitReader::getBool(const std::string& id, bool& value)
 {
   return getValue(detail::traverseNode(m_root, id), value);
@@ -321,6 +375,18 @@ ReaderResult ConduitReader::getBoolMap(const std::string& id,
 
 ReaderResult ConduitReader::getStringMap(const std::string& id,
                                          std::unordered_map<VariantKey, std::string>& values)
+{
+  return getDictionary(id, values);
+}
+
+ReaderResult ConduitReader::getVariantMap(const std::string& id,
+                                          std::unordered_map<int, VariantValue>& values)
+{
+  return getArray(id, values);
+}
+
+ReaderResult ConduitReader::getVariantMap(const std::string& id,
+                                          std::unordered_map<VariantKey, VariantValue>& values)
 {
   return getDictionary(id, values);
 }
