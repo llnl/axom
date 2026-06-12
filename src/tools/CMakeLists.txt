@@ -140,12 +140,12 @@ if(AXOM_ENABLE_SIDRE AND AXOM_ENABLE_PRIMAL AND MFEM_FOUND)
         
     axom_add_test(
         NAME    data_collection_util_box2D
-        COMMAND data_collection_util --min -1 -1 --max 1 1 --res 16 16 -p 1
+        COMMAND data_collection_util --min -1 -1 --max 1 1 --resolution 16 16 -p 1
         NUM_MPI_TASKS ${_nranks}
     )
     axom_add_test(
         NAME    data_collection_util_box3D
-        COMMAND data_collection_util --min -1 -1 -1 --max 1 1 1 --res 16 16 16 -p 1
+        COMMAND data_collection_util --min -1 -1 -1 --max 1 1 1 --resolution 16 16 16 -p 1
         NUM_MPI_TASKS ${_nranks}
     )
 

@@ -233,6 +233,7 @@ public:
     m_metadata.swap(other.m_metadata);
     m_buckets.swap(other.m_buckets);
     axom::utilities::swap(m_loadCount, other.m_loadCount);
+    axom::utilities::swap(m_allocator, other.m_allocator);
   }
 
   /*!
