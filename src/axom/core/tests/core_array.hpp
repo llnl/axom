@@ -2434,6 +2434,50 @@ void test_resize_with_stackarray(DataType value)
   }
 }
 
+TEST(core_array, check_1D_view_spacing_preserved)
+{
+  int buf[12];
+  for(int i = 0; i < 12; i++)
+  {
+    buf[i] = i;
+  }
+
+  // A strided 1D view referencing elements {0, 3, 6, 9}
+  axom::ArrayView<int, 1> v(buf, {{4}}, axom::StackArray<axom::IndexType, 1> {{3}});
+  EXPECT_EQ(v.minStride(), 3);
+  EXPECT_EQ(v[1], 3);
+
+  // A strided 1D view created through the min_stride constructor
+  {
+    axom::ArrayView<int, 1> vs(buf, {{4}}, 3);
+    EXPECT_EQ(vs.minStride(), 3);
+    EXPECT_EQ(vs[2], 6);
+  }
+
+  // Conversion to a view-of-const must preserve the spacing
+  {
+    axom::ArrayView<const int, 1> cv = v;
+    EXPECT_EQ(cv.minStride(), 3);
+    EXPECT_EQ(cv[1], 3);
+    EXPECT_EQ(cv[3], 9);
+    EXPECT_EQ(cv.mapping().strides()[0], 3);
+  }
+
+  // Copy construction must preserve the spacing
+  {
+    axom::ArrayView<int, 1> v2(v);
+    EXPECT_EQ(v2.minStride(), 3);
+    EXPECT_EQ(v2[2], 6);
+  }
+
+  // Owning 1D arrays are always contiguous (unit stride)
+  {
+    axom::Array<int> a(4);
+    EXPECT_EQ(a.minStride(), 1);
+    EXPECT_EQ(a.mapping().strides()[0], 1);
+  }
+}
+
 TEST(core_array, resize_stackarray)
 {
   test_resize_with_stackarray<bool>(false);
