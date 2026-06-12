@@ -29,10 +29,10 @@ packages:
   py-jsonschema:
     require:
       - spec: "@:4.17" #Anything after this requires py-rpds which requires rust and adds 40 minutes
-  # testing
+  # testing commit before PR #2005 (HIP error std::memcpy TypeConverts)
   raja:
     require:
-      - spec: "@develop"
+      - spec: "@c3e4576eccff2435c358b691e4fcad4e601a7441=develop"
   scr:
     require:
       - spec: "@3.0.1"
