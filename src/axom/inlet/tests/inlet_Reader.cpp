@@ -199,6 +199,40 @@ TYPED_TEST(inlet_Reader, getVariantMap)
   EXPECT_EQ(expected, values);
 }
 
+TEST(inlet_Reader_JSON, getVariantMapBoolArray)
+{
+  axom::inlet::JSONReader reader;
+  bool result = reader.parseString("{\"bools\": [true, false, true]}");
+  EXPECT_TRUE(result);
+
+  std::unordered_map<int, axom::inlet::VariantValue> values;
+  ReaderResult retValue = reader.getVariantMap("bools", values);
+  EXPECT_EQ(retValue, ReaderResult::Success);
+
+  std::unordered_map<int, axom::inlet::VariantValue> expected {
+    {0, axom::inlet::VariantValue {true}},
+    {1, axom::inlet::VariantValue {false}},
+    {2, axom::inlet::VariantValue {true}}};
+  EXPECT_EQ(expected, values);
+}
+
+TEST(inlet_Reader_JSON, getVariantMapStringArray)
+{
+  axom::inlet::JSONReader reader;
+  bool result = reader.parseString("{\"strings\": [\"red\", \"green\", \"blue\"]}");
+  EXPECT_TRUE(result);
+
+  std::unordered_map<int, axom::inlet::VariantValue> values;
+  ReaderResult retValue = reader.getVariantMap("strings", values);
+  EXPECT_EQ(retValue, ReaderResult::Success);
+
+  std::unordered_map<int, axom::inlet::VariantValue> expected {
+    {0, axom::inlet::VariantValue {std::string {"red"}}},
+    {1, axom::inlet::VariantValue {std::string {"green"}}},
+    {2, axom::inlet::VariantValue {std::string {"blue"}}}};
+  EXPECT_EQ(expected, values);
+}
+
 TYPED_TEST(inlet_Reader, emptyCollections)
 {
   TypeParam reader;

@@ -122,6 +122,8 @@ private:
 
   template <typename T>
   ReaderResult getArray(const std::string& id, std::unordered_map<int, T>& values);
+  ReaderResult getVariantArray(const std::string& id,
+                               std::unordered_map<int, VariantValue>& values);
   conduit::Node m_root;
   const std::string m_protocol;
 };
