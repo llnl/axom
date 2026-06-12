@@ -78,7 +78,7 @@ int main()
     SLIC_ERROR("Inlet failed to verify against provided schema");
   }
 
-  // _inlet_simple_types_variant_arrays_access_start
+  // _inlet_simple_types_variant_arrays_access_vector_start
   SLIC_INFO("Contiguous VariantArray as std::vector:");
   const std::vector<inlet::VariantValue> contiguous_values =
     inlet["contiguous"].get<std::vector<inlet::VariantValue>>();
@@ -88,7 +88,9 @@ int main()
       SLIC_INFO(axom::fmt::format("{}", concrete_value));
     }, value);
   }
+  // _inlet_simple_types_variant_arrays_access_vector_end
 
+  // _inlet_simple_types_variant_arrays_access_map_start
   SLIC_INFO("Integer-keyed VariantArray as std::unordered_map<int, VariantValue>:");
   const std::unordered_map<int, inlet::VariantValue> indexed_values =
     inlet["indexed"].get<std::unordered_map<int, inlet::VariantValue>>();
@@ -100,7 +102,7 @@ int main()
       SLIC_INFO(axom::fmt::format("{} = {}", entry.first, concrete_value));
     }, entry.second);
   }
-  // _inlet_simple_types_variant_arrays_access_end
+  // _inlet_simple_types_variant_arrays_access_map_end
 
   // _inlet_simple_types_variant_dictionary_access_start
   SLIC_INFO("Mixed-key VariantDictionary as std::unordered_map<VariantKey, VariantValue>:");
