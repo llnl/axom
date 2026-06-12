@@ -504,14 +504,13 @@ std::vector<VariantKey> registerCollection(Container& container,
 
 void addVariantValue(Container& container, const std::string& key, const VariantValue& value)
 {
-  std::visit([&container, &key](const auto& concrete_value) {
-    container.addPrimitive(key, "", true, concrete_value);
-  }, value);
+  std::visit([&container, &key](
+               const auto& concrete_value) { container.addPrimitive(key, "", true, concrete_value); },
+             value);
 }
 
-std::vector<VariantKey> registerCollection(
-  Container& container,
-  const std::unordered_map<int, VariantValue>& collection)
+std::vector<VariantKey> registerCollection(Container& container,
+                                           const std::unordered_map<int, VariantValue>& collection)
 {
   std::vector<VariantKey> result;
   for(const auto& entry : collection)
@@ -522,9 +521,8 @@ std::vector<VariantKey> registerCollection(
   return result;
 }
 
-std::vector<VariantKey> registerCollection(
-  Container& container,
-  const std::unordered_map<VariantKey, VariantValue>& collection)
+std::vector<VariantKey> registerCollection(Container& container,
+                                           const std::unordered_map<VariantKey, VariantValue>& collection)
 {
   std::vector<VariantKey> result;
   for(const auto& entry : collection)

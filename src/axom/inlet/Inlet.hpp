@@ -372,7 +372,8 @@ public:
    * \return Reference to the created array
    *****************************************************************************
    */
-  Verifiable<Container>& addVariantArray(const std::string& name, const std::string& description = "")
+  Verifiable<Container>& addVariantArray(const std::string& name,
+                                         const std::string& description = "")
   {
     return m_globalContainer.addVariantArray(name, description);
   }

@@ -840,11 +840,10 @@ TYPED_TEST(inlet_object, variant_arrays_as_std_vector)
 
   EXPECT_TRUE(inlet.verify());
 
-  std::vector<VariantValue> expected_arr {
-    VariantValue {42},
-    VariantValue {std::string {"hello"}},
-    VariantValue {true},
-    VariantValue {3.14}};
+  std::vector<VariantValue> expected_arr {VariantValue {42},
+                                          VariantValue {std::string {"hello"}},
+                                          VariantValue {true},
+                                          VariantValue {3.14}};
   std::vector<VariantValue> arr = inlet["arr"].get<std::vector<VariantValue>>();
   EXPECT_EQ(arr, expected_arr);
 
