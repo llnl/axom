@@ -13,6 +13,10 @@
 #include "axom/CLI11.hpp"
 #include "axom/fmt.hpp"
 
+#if defined(AXOM_USE_OPENMP)
+  #include <omp.h>
+#endif
+
 #if defined(AXOM_USE_SPARSEHASH)
   #include "axom/sparsehash/sparse_hash_map"
 #endif
@@ -805,6 +809,18 @@ void RegisterFlatMapPrehashedBenchmarks()
   }
 }
 
+#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
+std::string make_openmp_exec_suffix()
+{
+  return axom::fmt::format("omp_{}t", omp_get_max_threads());
+}
+
+std::string make_openmp_sanity_prefix()
+{
+  return axom::fmt::format("OMP_{}t", omp_get_max_threads());
+}
+#endif
+
 template <typename ExecSpace>
 void RegisterFlatMapExecSpaceBenchmarks(const std::string& exec_suffix,
                                         const std::string& sanity_prefix)
@@ -956,7 +972,8 @@ int main(int argc, char* argv[])
   RegisterFlatMapExecSpaceBenchmarks<axom::SEQ_EXEC>("seq", "SEQ");
 
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
-  RegisterFlatMapExecSpaceBenchmarks<axom::OMP_EXEC>("omp", "OMP");
+  RegisterFlatMapExecSpaceBenchmarks<axom::OMP_EXEC>(make_openmp_exec_suffix(),
+                                                     make_openmp_sanity_prefix());
 #endif
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_HIP)
