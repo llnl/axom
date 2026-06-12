@@ -48,11 +48,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ### Changed
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
+- Core: Optimization for axom::Array indirection -- since the stride is always 1, we can remove the runtime multiplication
 
 ### Fixed
 - Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
 - Quest: Improves error handling/reporting when loading an invalid c2c contour
 - Primal: Improves reproducibility of 3D GWN methods by removing some sources of randomness
+- Core: ArrayView assigments/copies now copy the stride
 
 ## [Version 0.14.0] - Release date 2026-03-31
 
