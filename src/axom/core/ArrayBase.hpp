@@ -7,15 +7,15 @@
 #ifndef AXOM_ARRAYBASE_HPP_
 #define AXOM_ARRAYBASE_HPP_
 
-#include "axom/config.hpp"                    // for compile-time defines
-#include "axom/core/Macros.hpp"               // for axom macros
-#include "axom/core/MDMapping.hpp"            // for index conversion
-#include "axom/core/memory_management.hpp"    // for memory allocation functions
-#include "axom/core/utilities/Utilities.hpp"  // for processAbort()
-#include "axom/core/Types.hpp"                // for IndexType definition
+#include "axom/config.hpp"
+#include "axom/core/Macros.hpp"
+#include "axom/core/MDMapping.hpp"
+#include "axom/core/memory_management.hpp"
+#include "axom/core/utilities/Utilities.hpp"
+#include "axom/core/Types.hpp"
 #include "axom/core/StackArray.hpp"
-#include "axom/core/numerics/matvecops.hpp"  // for dot_product
-#include "axom/core/execution/for_all.hpp"   // for for_all, *_EXEC
+#include "axom/core/numerics/matvecops.hpp"
+#include "axom/core/execution/for_all.hpp"
 
 // C/C++ includes
 #include <iostream>  // for std::cerr and std::ostream
@@ -1102,6 +1102,67 @@ public:
       std::uninitialized_copy(src_buf.getStagingBuffer(),
                               src_buf.getStagingBuffer() + nelems,
                               dst_buf.getStagingBuffer());
+    }
+  }
+
+  /*!
+   * \brief Fills an uninitialized array with a strided range of objects of type T.
+   *
+   * Similar to fill_range, but handles source data with non-unit stride. When src_stride == 1,
+   * this behaves identically to fill_range (and uses the same fast path). When src_stride > 1,
+   * elements are copied from positions 0, src_stride, 2*src_stride, etc.
+   *
+   * \param [inout] array the array to fill
+   * \param [in] begin the index at which to begin placing elements
+   * \param [in] nelems the number of elements to copy
+   * \param [in] values pointer to the first element of the source data
+   * \param [in] src_stride spacing between consecutive source elements
+   * \param [in] valueSpace the memory space in which values resides
+   */
+  void fill_range_strided(T* array,
+                          IndexType begin,
+                          IndexType nelems,
+                          const T* values,
+                          IndexType src_stride,
+                          MemorySpace valueSpace)
+  {
+    if constexpr(std::is_trivially_copyable_v<T>)
+    {
+      if(src_stride == 1)
+      {
+        // Contiguous case - use efficient bulk copy
+        axom::copy(array + begin, values, sizeof(T) * nelems);
+      }
+      else
+      {
+        // Strided case - element-by-element copy
+        StagingBuffer dst_buf(space, array, begin, nelems);
+        DeviceStagingBuffer<T> src_buf(valueSpace, const_cast<T*>(values), 0, nelems * src_stride, true);
+
+        T* dst = dst_buf.getStagingBuffer();
+        const T* src = src_buf.getStagingBuffer();
+
+        for(IndexType i = 0; i < nelems; ++i)
+        {
+          dst[i] = src[i * src_stride];
+        }
+        // Staging buffers clean up automatically via destructors
+      }
+    }
+    else
+    {
+      // Non-trivially copyable - use placement new with stride
+      StagingBuffer dst_buf(space, array, begin, nelems);
+      DeviceStagingBuffer<T> src_buf(valueSpace, const_cast<T*>(values), 0, nelems * src_stride, true);
+
+      T* dst = dst_buf.getStagingBuffer();
+      const T* src = src_buf.getStagingBuffer();
+
+      for(IndexType i = 0; i < nelems; ++i)
+      {
+        new(&dst[i]) T(src[i * src_stride]);
+      }
+      // Staging buffers clean up automatically via destructors
     }
   }
 

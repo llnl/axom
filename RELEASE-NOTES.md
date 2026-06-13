@@ -55,6 +55,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: Improves error handling/reporting when loading an invalid c2c contour
 - Primal: Improves reproducibility of 3D GWN methods by removing some sources of randomness
 - Core: ArrayView assigments/copies now copy the stride
+- Core: Array construction from strided ArrayView now correctly copies the strided elements
 
 ## [Version 0.14.0] - Release date 2026-03-31
 
