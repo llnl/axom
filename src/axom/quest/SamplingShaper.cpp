@@ -169,32 +169,27 @@ void SamplingShaper::saveQuadraturePoints(const std::string& filename) const
   {
     const conduit::Node& bpMesh = m_bp_state->getBlueprintMeshNode();
 
-    if(!bpMesh.has_path(axom::fmt::format("coordsets/{}",
-                                          shaping::QUADRATURE_COORDSET_NAME)) ||
-       !bpMesh.has_path(axom::fmt::format("topologies/{}",
-                                          shaping::QUADRATURE_TOPOLOGY_NAME)))
+    if(!bpMesh.has_path(axom::fmt::format("coordsets/{}", shaping::QUADRATURE_COORDSET_NAME)) ||
+       !bpMesh.has_path(axom::fmt::format("topologies/{}", shaping::QUADRATURE_TOPOLOGY_NAME)))
     {
       SLIC_WARNING("No Blueprint quadrature point mesh is available to save.");
       return;
     }
 
     n_mesh["coordsets"][shaping::QUADRATURE_COORDSET_NAME].update(
-      bpMesh.fetch_existing(axom::fmt::format("coordsets/{}",
-                                              shaping::QUADRATURE_COORDSET_NAME)));
+      bpMesh.fetch_existing(axom::fmt::format("coordsets/{}", shaping::QUADRATURE_COORDSET_NAME)));
     n_mesh["topologies"][shaping::QUADRATURE_TOPOLOGY_NAME].update(
-      bpMesh.fetch_existing(axom::fmt::format("topologies/{}",
-                                              shaping::QUADRATURE_TOPOLOGY_NAME)));
+      bpMesh.fetch_existing(axom::fmt::format("topologies/{}", shaping::QUADRATURE_TOPOLOGY_NAME)));
 
     if(bpMesh.has_path("fields"))
     {
-      const conduit::Node& fields = bpMesh.fetch_existing("fields");
-      for(conduit::index_t i = 0; i < fields.number_of_children(); ++i)
+      for(const auto& fieldName : m_bp_state->fieldNames())
       {
-        const conduit::Node& field = fields.child(i);
+        const conduit::Node& field = m_bp_state->getField(fieldName);
         if(field.has_path("topology") &&
            field.fetch_existing("topology").as_string() == shaping::QUADRATURE_TOPOLOGY_NAME)
         {
-          n_mesh["fields"][field.name()].update(field);
+          n_mesh["fields"][fieldName].update(field);
         }
       }
     }

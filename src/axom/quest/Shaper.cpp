@@ -104,12 +104,9 @@ Shaper::Shaper(RuntimePolicy execPolicy,
 {
   m_bp_state = createBlueprintState();
   bpGrp->setDefaultArrayAllocator(m_allocatorId);
-  m_bp_state->m_group_ptr = bpGrp;
-  m_bp_state->m_allocator_id = m_allocatorId;
-  m_bp_state->m_topology_name = resolveBlueprintTopologyName(bpGrp, topo);
-  m_bp_state->m_external_node_ptr = nullptr;
+  m_bp_state->initialize(bpGrp, m_allocatorId, resolveBlueprintTopologyName(bpGrp, topo));
 
-  SLIC_ASSERT(m_bp_state->m_group_ptr != nullptr);
+  SLIC_ASSERT(m_bp_state->isSidreBacked());
 
   refreshBlueprintMeshState();
 
@@ -139,10 +136,7 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   AXOM_ANNOTATE_SCOPE("Shaper::Shaper_Node");
 
   m_bp_state = createBlueprintState();
-  m_bp_state->m_group_ptr = nullptr;
-  m_bp_state->m_allocator_id = m_allocatorId;
-  m_bp_state->m_topology_name = resolveBlueprintTopologyName(bpNode, topo);
-  m_bp_state->m_external_node_ptr = &bpNode;
+  m_bp_state->initialize(&bpNode, m_allocatorId, resolveBlueprintTopologyName(bpNode, topo));
 
   refreshBlueprintMeshState();
 

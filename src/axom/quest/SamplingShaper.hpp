@@ -734,7 +734,8 @@ private:
                           thisMatName,
                           shouldReplace ? "yes" : "no"));
 
-      auto* otherMatFunc = meshState.getMaterialFunction(shaping::materialInOutFieldName(otherMatName));
+      auto* otherMatFunc =
+        meshState.getMaterialFunction(shaping::materialInOutFieldName(otherMatName));
       SLIC_ERROR_IF(otherMatFunc == nullptr,
                     axom::fmt::format("Missing inout samples for material '{}' while applying "
                                       "replacement rules for shape '{}'.",

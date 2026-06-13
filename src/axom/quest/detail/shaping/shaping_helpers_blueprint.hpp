@@ -39,13 +39,13 @@ namespace shaping
  */
 std::string getBlueprintCellShape(const conduit::Node& topoNode);
 
-#if defined(AXOM_USE_BUMP)
+  #if defined(AXOM_USE_BUMP)
 constexpr const char* QUADRATURE_COORDSET_NAME = "quadrature_points";
 constexpr const char* QUADRATURE_TOPOLOGY_NAME = "quadrature_points";
 constexpr const char* ORIGINAL_ELEMENTS_FIELD_NAME = "originalElements";
 constexpr const char* QUADRATURE_WEIGHTS_FIELD_NAME = "quadratureWeights";
 constexpr const char* QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME = "quadraturePhysicalWeights";
-#endif
+  #endif
 
 /*!
  * \brief Stores Blueprint mesh state and backend-specific access for Quest shapers.
@@ -77,6 +77,36 @@ struct BlueprintState
   bool isConduitBacked() const { return m_external_node_ptr != nullptr; }
 
   /*!
+   * \brief Initialize this state from a caller-owned Sidre mesh group.
+   *
+   * \param group The Sidre group that backs the Blueprint mesh.
+   * \param allocatorId Allocator id used for new array allocations.
+   * \param topologyName Name of the active topology.
+   */
+  void initialize(axom::sidre::Group* group, int allocatorId, const std::string& topologyName)
+  {
+    m_group_ptr = group;
+    m_allocator_id = allocatorId;
+    m_topology_name = topologyName;
+    m_external_node_ptr = nullptr;
+  }
+
+  /*!
+   * \brief Initialize this state from a caller-owned Blueprint node.
+   *
+   * \param node The Conduit node that backs the Blueprint mesh.
+   * \param allocatorId Allocator id used for new array allocations.
+   * \param topologyName Name of the active topology.
+   */
+  void initialize(conduit::Node* node, int allocatorId, const std::string& topologyName)
+  {
+    m_group_ptr = nullptr;
+    m_allocator_id = allocatorId;
+    m_topology_name = topologyName;
+    m_external_node_ptr = node;
+  }
+
+  /*!
    * \brief Refresh the cached native Conduit layout for Sidre-backed meshes.
    *
    * This is a no-op for Conduit-backed meshes.
@@ -89,6 +119,12 @@ struct BlueprintState
    * \return `2` for quadrilateral meshes or `3` for hexahedral meshes.
    */
   int meshDimension() const;
+
+  /// Return the allocator id used for new Blueprint array allocations.
+  int allocatorId() const { return m_allocator_id; }
+
+  /// Return the name of the active Blueprint topology.
+  const std::string& topologyName() const { return m_topology_name; }
 
   /*!
    * \brief Convert a structured Blueprint mesh to unstructured topology in place.
@@ -112,7 +148,7 @@ struct BlueprintState
   /// Return the active Blueprint topology node.
   const conduit::Node& getBlueprintTopologyNode() const
   {
-    return getBlueprintMeshNode().fetch_existing("topologies").fetch_existing(m_topology_name);
+    return getBlueprintMeshNode().fetch_existing("topologies").fetch_existing(topologyName());
   }
 
   /// Return a named Blueprint coordset node.
@@ -132,6 +168,24 @@ struct BlueprintState
   {
     return getBlueprintMeshNode().has_path(axom::fmt::format("fields/{}", name));
   }
+
+  /*!
+   * \brief Return the child names under a Blueprint object path.
+   *
+   * \param path The object path to inspect.
+   *
+   * \return A vector containing the child names in insertion order.
+   */
+  std::vector<std::string> childNames(const std::string& path) const;
+
+  /// Return all registered Blueprint topology names.
+  std::vector<std::string> topologyNames() const { return childNames("topologies"); }
+
+  /// Return all registered Blueprint coordset names.
+  std::vector<std::string> coordsetNames() const { return childNames("coordsets"); }
+
+  /// Return all registered Blueprint field names.
+  std::vector<std::string> fieldNames() const { return childNames("fields"); }
 
   /// Return a named Blueprint field node.
   conduit::Node& getField(const std::string& name)
@@ -365,8 +419,7 @@ void sampleInOutField(const std::string& shapeName,
       if constexpr(CoordsetView::dimension() == FromDim)
       {
         numQueryPoints = coordsetView.size();
-        auto inoutValues =
-          bpState.createField(inoutName, QUADRATURE_TOPOLOGY_NAME, numQueryPoints);
+        auto inoutValues = bpState.createField(inoutName, QUADRATURE_TOPOLOGY_NAME, numQueryPoints);
 
         for(axom::IndexType i = 0; i < numQueryPoints; ++i)
         {

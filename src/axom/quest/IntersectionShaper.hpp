@@ -1992,17 +1992,12 @@ public:
 #if defined(AXOM_USE_CONDUIT)
     if(m_bp_state != nullptr)
     {
-      const conduit::Node& bpMeshNode = m_bp_state->getBlueprintMeshNode();
-      if(bpMeshNode.has_path("fields"))
+      for(const auto& fieldName : m_bp_state->fieldNames())
       {
-        const conduit::Node& fieldsNode = bpMeshNode.fetch_existing("fields");
-        for(conduit::index_t i = 0; i < fieldsNode.number_of_children(); ++i)
+        std::string materialName = fieldNameToMaterialName(fieldName);
+        if(!materialName.empty())
         {
-          std::string materialName = fieldNameToMaterialName(fieldsNode.child(i).name());
-          if(!materialName.empty())
-          {
-            materialNames.emplace_back(materialName);
-          }
+          materialNames.emplace_back(materialName);
         }
       }
     }
@@ -2581,7 +2576,7 @@ private:
       {
         conduit::Node& fieldNode = m_bp_state->getField(fieldName);
         SLIC_ASSERT(fieldNode.fetch_existing("association").as_string() == std::string("element"));
-        SLIC_ASSERT(fieldNode.fetch_existing("topology").as_string() == m_bp_state->m_topology_name);
+        SLIC_ASSERT(fieldNode.fetch_existing("topology").as_string() == m_bp_state->topologyName());
 
         conduit::Node& valuesNode = fieldNode.fetch_existing("values");
         SLIC_ASSERT(valuesNode.dtype().id() == dtype.id());
@@ -2613,8 +2608,11 @@ private:
         }
         else if(m_bp_state->isSidreBacked())
         {
-          rval =
-            m_bp_state->createField(fieldName, m_bp_state->m_topology_name, m_cellCount, true, volumeDependent);
+          rval = m_bp_state->createField(fieldName,
+                                         m_bp_state->topologyName(),
+                                         m_cellCount,
+                                         true,
+                                         volumeDependent);
         }
       }
     }

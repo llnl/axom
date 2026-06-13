@@ -22,7 +22,7 @@ constexpr const char* SHAPE_VOLUME_FRACTION_PREFIX = "shape_vol_frac_";
 std::string extractSuffixedName(const std::string& fieldName, const std::string& prefix)
 {
   return axom::utilities::string::startsWith(fieldName, prefix) ? fieldName.substr(prefix.size())
-                                                                 : std::string {};
+                                                                : std::string {};
 }
 }  // namespace
 
