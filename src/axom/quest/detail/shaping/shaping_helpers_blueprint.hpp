@@ -14,7 +14,6 @@
   #include "axom/fmt.hpp"
 
   #if defined(AXOM_USE_BUMP)
-    #include "axom/bump/utilities/conduit_memory.hpp"
     #include "axom/bump/views/dispatch_coordset.hpp"
   #endif
 
@@ -48,253 +47,169 @@ constexpr const char* QUADRATURE_WEIGHTS_FIELD_NAME = "quadratureWeights";
 constexpr const char* QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME = "quadraturePhysicalWeights";
 #endif
 
-/// A class that contains Blueprint mesh and field state for Shaper class.
+/*!
+ * \brief Stores Blueprint mesh state and backend-specific access for Quest shapers.
+ *
+ * A `BlueprintState` may be backed either by a caller-owned `sidre::Group`
+ * or by a caller-owned `conduit::Node`. The helper methods on this struct
+ * provide a single access layer for reading and updating Blueprint mesh data
+ * without forcing the shaper code to know which storage backend is active.
+ */
 struct BlueprintState
 {
+  /// Destructor.
   virtual ~BlueprintState() = default;
 
+  /// The caller-owned Sidre group backing the mesh, when Sidre-backed.
   axom::sidre::Group* m_group_ptr {nullptr};
+  /// Allocator id used for newly-created Blueprint array data.
   int m_allocator_id {axom::getDefaultAllocatorID()};
+  /// Name of the active Blueprint topology.
   std::string m_topology_name;
+  /// The caller-owned Blueprint mesh node, when Conduit-backed.
   conduit::Node* m_external_node_ptr {nullptr};
+  /// Cached native Conduit layout for Sidre-backed meshes.
   conduit::Node m_internal_node;
 
+  /// Return whether the active Blueprint mesh is backed by Sidre storage.
   bool isSidreBacked() const { return m_group_ptr != nullptr; }
+  /// Return whether the active Blueprint mesh is backed by a Conduit node.
   bool isConduitBacked() const { return m_external_node_ptr != nullptr; }
 
-  void refreshBlueprintMeshNode()
-  {
-    if(isSidreBacked())
-    {
-      m_internal_node.reset();
-      m_group_ptr->createNativeLayout(m_internal_node);
-    }
-  }
+  /*!
+   * \brief Refresh the cached native Conduit layout for Sidre-backed meshes.
+   *
+   * This is a no-op for Conduit-backed meshes.
+   */
+  void refreshBlueprintMeshNode();
 
-  int meshDimension() const
-  {
-    const std::string shapeType = shaping::getBlueprintCellShape(getBlueprintTopologyNode());
+  /*!
+   * \brief Return the dimension implied by the active Blueprint cell shape.
+   *
+   * \return `2` for quadrilateral meshes or `3` for hexahedral meshes.
+   */
+  int meshDimension() const;
 
-    if(shapeType == "quad")
-    {
-      return 2;
-    }
-    if(shapeType == "hex")
-    {
-      return 3;
-    }
+  /*!
+   * \brief Convert a structured Blueprint mesh to unstructured topology in place.
+   *
+   * \param execPolicy Runtime policy used by the conversion helper.
+   */
+  void ensureUnstructured(axom::runtime_policy::Policy execPolicy);
 
-    SLIC_ERROR(axom::fmt::format("Unsupported Blueprint cell shape '{}'.", shapeType));
-    return -1;
-  }
-
+  /// Return the active Blueprint mesh node for the current backing store.
   conduit::Node& getBlueprintMeshNode()
   {
     return isConduitBacked() ? *m_external_node_ptr : m_internal_node;
   }
 
+  /// Return the active Blueprint mesh node for the current backing store.
   const conduit::Node& getBlueprintMeshNode() const
   {
     return isConduitBacked() ? *m_external_node_ptr : m_internal_node;
   }
 
+  /// Return the active Blueprint topology node.
   const conduit::Node& getBlueprintTopologyNode() const
   {
     return getBlueprintMeshNode().fetch_existing("topologies").fetch_existing(m_topology_name);
   }
 
+  /// Return a named Blueprint coordset node.
   conduit::Node& getBlueprintCoordsetNode(const std::string& name)
   {
     return getBlueprintMeshNode().fetch_existing("coordsets").fetch_existing(name);
   }
 
+  /// Return a named Blueprint coordset node.
   const conduit::Node& getBlueprintCoordsetNode(const std::string& name) const
   {
     return getBlueprintMeshNode().fetch_existing("coordsets").fetch_existing(name);
   }
 
+  /// Return whether a named Blueprint field is present.
   bool hasField(const std::string& name) const
   {
     return getBlueprintMeshNode().has_path(axom::fmt::format("fields/{}", name));
   }
 
+  /// Return a named Blueprint field node.
   conduit::Node& getField(const std::string& name)
   {
     return getBlueprintMeshNode().fetch_existing("fields").fetch_existing(name);
   }
 
+  /// Return a named Blueprint field node.
   const conduit::Node& getField(const std::string& name) const
   {
     return getBlueprintMeshNode().fetch_existing("fields").fetch_existing(name);
   }
 
+  /// Return a shape in/out field, if present.
   conduit::Node* getShapeFunction(const std::string& name)
   {
     return hasField(name) ? &getField(name) : nullptr;
   }
 
+  /// Return a shape in/out field, if present.
   const conduit::Node* getShapeFunction(const std::string& name) const
   {
     return hasField(name) ? &getField(name) : nullptr;
   }
 
-  void deleteShapeFunction(const std::string& name)
-  {
-    if(isSidreBacked())
-    {
-      const std::string fieldPath = axom::fmt::format("fields/{}", name);
-      if(m_group_ptr->hasGroup(fieldPath))
-      {
-        m_group_ptr->destroyGroupAndData(fieldPath);
-        refreshBlueprintMeshNode();
-      }
-      return;
-    }
+  /*!
+   * \brief Remove a shape in/out field from the active Blueprint mesh.
+   *
+   * \param name The field name to remove.
+   */
+  void deleteShapeFunction(const std::string& name);
 
-    conduit::Node& bpMeshNode = getBlueprintMeshNode();
-    if(bpMeshNode.has_path("fields"))
-    {
-      conduit::Node& n_fields = bpMeshNode["fields"];
-      if(n_fields.has_path(name))
-      {
-        n_fields.remove(name);
-      }
-    }
-  }
-
+  /// Return a material in/out field, if present.
   conduit::Node* getMaterialFunction(const std::string& name)
   {
     return hasField(name) ? &getField(name) : nullptr;
   }
 
+  /// Return a material in/out field, if present.
   const conduit::Node* getMaterialFunction(const std::string& name) const
   {
     return hasField(name) ? &getField(name) : nullptr;
   }
 
+  /*!
+   * \brief Create or replace an element-associated Blueprint field.
+   *
+   * \param name The field name.
+   * \param topologyName The associated topology name.
+   * \param size The number of scalar values to allocate.
+   * \param addVolumeDependent Whether to add the `volume_dependent` metadata.
+   * \param volumeDependent Value to store in `volume_dependent` when requested.
+   *
+   * \return A writable view over the allocated field values.
+   */
   axom::ArrayView<double> createField(const std::string& name,
                                       const std::string& topologyName,
                                       axom::IndexType size,
                                       bool addVolumeDependent = false,
-                                      bool volumeDependent = false)
-  {
-    if(isSidreBacked())
-    {
-      const std::string fieldPath = axom::fmt::format("fields/{}", name);
-      if(m_group_ptr->hasGroup(fieldPath))
-      {
-        m_group_ptr->destroyGroupAndData(fieldPath);
-      }
-
-      auto* fieldGrp = m_group_ptr->createGroup(fieldPath);
-      SLIC_ASSERT(fieldGrp != nullptr);
-      fieldGrp->createViewString("association", "element");
-      fieldGrp->createViewString("topology", topologyName);
-      if(addVolumeDependent)
-      {
-        fieldGrp->createViewString("volume_dependent", volumeDependent ? "true" : "false");
-      }
-
-      auto* valuesView =
-        fieldGrp->createViewAndAllocate("values", axom::sidre::DataTypeId::FLOAT64_ID, size);
-      SLIC_ASSERT(valuesView != nullptr);
-      refreshBlueprintMeshNode();
-      return axom::ArrayView<double>(static_cast<double*>(valuesView->getVoidPtr()), size);
-    }
-
-    conduit::Node& fieldNode = getBlueprintMeshNode()["fields/" + name];
-    fieldNode.reset();
-    fieldNode["association"] = "element";
-    fieldNode["topology"] = topologyName;
-    if(addVolumeDependent)
-    {
-      fieldNode["volume_dependent"] = volumeDependent ? "true" : "false";
-    }
-
-    const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(m_allocator_id);
-    conduit::Node& valuesNode = fieldNode["values"];
-    valuesNode.set_allocator(conduitAllocatorId);
-    valuesNode.set(conduit::DataType::float64(size));
-    return axom::bump::utilities::make_array_view<double>(valuesNode);
-  }
+                                      bool volumeDependent = false);
 
   #if defined(AXOM_USE_BUMP)
-  void importQuadraturePointMesh(const conduit::Node& quadratureMesh)
-  {
-    auto replaceSubtree = [&](const std::string& path, const conduit::Node& node) {
-      if(isSidreBacked())
-      {
-        if(m_group_ptr->hasGroup(path))
-        {
-          m_group_ptr->destroyGroupAndData(path);
-        }
+  /*!
+   * \brief Import generated quadrature Blueprint objects into the active mesh.
+   *
+   * \param quadratureMesh A mesh node containing the generated quadrature
+   *        coordset, topology, and support fields.
+   */
+  void importQuadraturePointMesh(const conduit::Node& quadratureMesh);
 
-        auto* group = m_group_ptr->createGroup(path);
-        SLIC_ERROR_IF(group == nullptr,
-                      axom::fmt::format("Failed to create Sidre group for Blueprint path '{}'.",
-                                        path));
-        const bool importSuccess = group->importConduitTree(node);
-        SLIC_ERROR_IF(!importSuccess,
-                      axom::fmt::format("Failed to import Blueprint subtree '{}'.", path));
-        return;
-      }
-
-      conduit::Node& outputNode = getBlueprintMeshNode()[path];
-      outputNode.reset();
-      outputNode.update(node);
-    };
-
-    const std::string quadratureCoordsetPath =
-      axom::fmt::format("coordsets/{}", QUADRATURE_COORDSET_NAME);
-    const std::string quadratureTopologyPath =
-      axom::fmt::format("topologies/{}", QUADRATURE_TOPOLOGY_NAME);
-    const std::string originalElementsPath =
-      axom::fmt::format("fields/{}", ORIGINAL_ELEMENTS_FIELD_NAME);
-    const std::string quadratureWeightsPath =
-      axom::fmt::format("fields/{}", QUADRATURE_WEIGHTS_FIELD_NAME);
-    const std::string quadraturePhysicalWeightsPath =
-      axom::fmt::format("fields/{}", QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME);
-
-    SLIC_ERROR_IF(!quadratureMesh.has_path(quadratureCoordsetPath),
-                  "Quadrature mesh is missing its Blueprint quadrature coordset.");
-    SLIC_ERROR_IF(!quadratureMesh.has_path(quadratureTopologyPath),
-                  "Quadrature mesh is missing its Blueprint quadrature topology.");
-
-    replaceSubtree(quadratureCoordsetPath, quadratureMesh.fetch_existing(quadratureCoordsetPath));
-    replaceSubtree(quadratureTopologyPath, quadratureMesh.fetch_existing(quadratureTopologyPath));
-    replaceSubtree(originalElementsPath, quadratureMesh.fetch_existing(originalElementsPath));
-    replaceSubtree(quadratureWeightsPath, quadratureMesh.fetch_existing(quadratureWeightsPath));
-
-    if(quadratureMesh.has_path(quadraturePhysicalWeightsPath))
-    {
-      replaceSubtree(quadraturePhysicalWeightsPath,
-                     quadratureMesh.fetch_existing(quadraturePhysicalWeightsPath));
-    }
-
-    if(isSidreBacked())
-    {
-      refreshBlueprintMeshNode();
-    }
-  }
-
-  conduit::Node* createMaterialFunction(const std::string& name)
-  {
-    SLIC_ERROR_IF(
-      !getBlueprintMeshNode().has_path(axom::fmt::format("coordsets/{}/values", QUADRATURE_COORDSET_NAME)),
-      std::string("Cannot create material function '") + name + "' without quadrature points.");
-
-    const conduit::Node& values =
-      getBlueprintCoordsetNode(QUADRATURE_COORDSET_NAME).fetch_existing("values");
-    const auto numValues = values.child(0).dtype().number_of_elements();
-
-    auto fieldValues = createField(name, QUADRATURE_TOPOLOGY_NAME, numValues);
-    for(axom::IndexType i = 0; i < fieldValues.size(); ++i)
-    {
-      fieldValues[i] = 0.;
-    }
-
-    return &getField(name);
-  }
+  /*!
+   * \brief Create a zero-initialized material in/out field on the quadrature topology.
+   *
+   * \param name The field name to create.
+   *
+   * \return The created field node.
+   */
+  conduit::Node* createMaterialFunction(const std::string& name);
   #endif
 };
 

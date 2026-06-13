@@ -8,10 +8,12 @@
 
 #if defined(AXOM_USE_CONDUIT)
 
+  #include "axom/quest/util/mesh_helpers.hpp"
   #include "conduit_blueprint_mesh.hpp"
 
   #if defined(AXOM_USE_BUMP)
     #include "axom/bump/GenerateQuadratureMesh.hpp"
+    #include "axom/bump/utilities/conduit_memory.hpp"
     #include "axom/bump/views/dispatch_topology.hpp"
     #include "axom/bump/views/dispatch_unstructured_topology.hpp"
   #endif
@@ -118,7 +120,216 @@ std::string getBlueprintCellShape(const conduit::Node& topoNode)
   return getBlueprintCellShapeImpl(topoNode);
 }
 
+void BlueprintState::refreshBlueprintMeshNode()
+{
+  if(isSidreBacked())
+  {
+    m_internal_node.reset();
+    m_group_ptr->createNativeLayout(m_internal_node);
+  }
+}
+
+int BlueprintState::meshDimension() const
+{
+  const std::string shapeType = shaping::getBlueprintCellShape(getBlueprintTopologyNode());
+
+  if(shapeType == "quad")
+  {
+    return 2;
+  }
+  if(shapeType == "hex")
+  {
+    return 3;
+  }
+
+  SLIC_ERROR(axom::fmt::format("Unsupported Blueprint cell shape '{}'.", shapeType));
+  return -1;
+}
+
+void BlueprintState::ensureUnstructured(axom::runtime_policy::Policy execPolicy)
+{
+  const std::string topoType = getBlueprintTopologyNode().fetch_existing("type").as_string();
+  if(topoType != "structured")
+  {
+    return;
+  }
+
+  if(!isSidreBacked())
+  {
+    SLIC_ERROR(
+      "Structured Blueprint meshes backed by conduit::Node are not yet supported for "
+      "in-place conversion to unstructured topology.");
+  }
+
+  const std::string shapeType = shaping::getBlueprintCellShape(getBlueprintTopologyNode());
+  if(shapeType == "hex")
+  {
+    axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_3d(m_group_ptr,
+                                                                                 m_topology_name,
+                                                                                 execPolicy);
+  }
+  else if(shapeType == "quad")
+  {
+    axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_2d(m_group_ptr,
+                                                                                 m_topology_name,
+                                                                                 execPolicy);
+  }
+  else
+  {
+    SLIC_ERROR("Axom Internal error: Unhandled shape type.");
+  }
+
+  refreshBlueprintMeshNode();
+}
+
+void BlueprintState::deleteShapeFunction(const std::string& name)
+{
+  if(isSidreBacked())
+  {
+    const std::string fieldPath = axom::fmt::format("fields/{}", name);
+    if(m_group_ptr->hasGroup(fieldPath))
+    {
+      m_group_ptr->destroyGroupAndData(fieldPath);
+      refreshBlueprintMeshNode();
+    }
+    return;
+  }
+
+  conduit::Node& bpMeshNode = getBlueprintMeshNode();
+  if(bpMeshNode.has_path("fields"))
+  {
+    conduit::Node& n_fields = bpMeshNode["fields"];
+    if(n_fields.has_path(name))
+    {
+      n_fields.remove(name);
+    }
+  }
+}
+
+axom::ArrayView<double> BlueprintState::createField(const std::string& name,
+                                                    const std::string& topologyName,
+                                                    axom::IndexType size,
+                                                    bool addVolumeDependent,
+                                                    bool volumeDependent)
+{
+  if(isSidreBacked())
+  {
+    const std::string fieldPath = axom::fmt::format("fields/{}", name);
+    if(m_group_ptr->hasGroup(fieldPath))
+    {
+      m_group_ptr->destroyGroupAndData(fieldPath);
+    }
+
+    auto* fieldGrp = m_group_ptr->createGroup(fieldPath);
+    SLIC_ASSERT(fieldGrp != nullptr);
+    fieldGrp->createViewString("association", "element");
+    fieldGrp->createViewString("topology", topologyName);
+    if(addVolumeDependent)
+    {
+      fieldGrp->createViewString("volume_dependent", volumeDependent ? "true" : "false");
+    }
+
+    auto* valuesView =
+      fieldGrp->createViewAndAllocate("values", axom::sidre::DataTypeId::FLOAT64_ID, size);
+    SLIC_ASSERT(valuesView != nullptr);
+    refreshBlueprintMeshNode();
+    return axom::ArrayView<double>(static_cast<double*>(valuesView->getVoidPtr()), size);
+  }
+
+  conduit::Node& fieldNode = getBlueprintMeshNode()["fields/" + name];
+  fieldNode.reset();
+  fieldNode["association"] = "element";
+  fieldNode["topology"] = topologyName;
+  if(addVolumeDependent)
+  {
+    fieldNode["volume_dependent"] = volumeDependent ? "true" : "false";
+  }
+
+  const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(m_allocator_id);
+  conduit::Node& valuesNode = fieldNode["values"];
+  valuesNode.set_allocator(conduitAllocatorId);
+  valuesNode.set(conduit::DataType::float64(size));
+  return axom::bump::utilities::make_array_view<double>(valuesNode);
+}
+
   #if defined(AXOM_USE_BUMP)
+void BlueprintState::importQuadraturePointMesh(const conduit::Node& quadratureMesh)
+{
+  auto replaceSubtree = [&](const std::string& path, const conduit::Node& node) {
+    if(isSidreBacked())
+    {
+      if(m_group_ptr->hasGroup(path))
+      {
+        m_group_ptr->destroyGroupAndData(path);
+      }
+
+      auto* group = m_group_ptr->createGroup(path);
+      SLIC_ERROR_IF(group == nullptr,
+                    axom::fmt::format("Failed to create Sidre group for Blueprint path '{}'.",
+                                      path));
+      const bool importSuccess = group->importConduitTree(node);
+      SLIC_ERROR_IF(!importSuccess,
+                    axom::fmt::format("Failed to import Blueprint subtree '{}'.", path));
+      return;
+    }
+
+    conduit::Node& outputNode = getBlueprintMeshNode()[path];
+    outputNode.reset();
+    outputNode.update(node);
+  };
+
+  const std::string quadratureCoordsetPath =
+    axom::fmt::format("coordsets/{}", QUADRATURE_COORDSET_NAME);
+  const std::string quadratureTopologyPath =
+    axom::fmt::format("topologies/{}", QUADRATURE_TOPOLOGY_NAME);
+  const std::string originalElementsPath =
+    axom::fmt::format("fields/{}", ORIGINAL_ELEMENTS_FIELD_NAME);
+  const std::string quadratureWeightsPath =
+    axom::fmt::format("fields/{}", QUADRATURE_WEIGHTS_FIELD_NAME);
+  const std::string quadraturePhysicalWeightsPath =
+    axom::fmt::format("fields/{}", QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME);
+
+  SLIC_ERROR_IF(!quadratureMesh.has_path(quadratureCoordsetPath),
+                "Quadrature mesh is missing its Blueprint quadrature coordset.");
+  SLIC_ERROR_IF(!quadratureMesh.has_path(quadratureTopologyPath),
+                "Quadrature mesh is missing its Blueprint quadrature topology.");
+
+  replaceSubtree(quadratureCoordsetPath, quadratureMesh.fetch_existing(quadratureCoordsetPath));
+  replaceSubtree(quadratureTopologyPath, quadratureMesh.fetch_existing(quadratureTopologyPath));
+  replaceSubtree(originalElementsPath, quadratureMesh.fetch_existing(originalElementsPath));
+  replaceSubtree(quadratureWeightsPath, quadratureMesh.fetch_existing(quadratureWeightsPath));
+
+  if(quadratureMesh.has_path(quadraturePhysicalWeightsPath))
+  {
+    replaceSubtree(quadraturePhysicalWeightsPath,
+                   quadratureMesh.fetch_existing(quadraturePhysicalWeightsPath));
+  }
+
+  if(isSidreBacked())
+  {
+    refreshBlueprintMeshNode();
+  }
+}
+
+conduit::Node* BlueprintState::createMaterialFunction(const std::string& name)
+{
+  SLIC_ERROR_IF(!getBlueprintMeshNode().has_path(
+                  axom::fmt::format("coordsets/{}/values", QUADRATURE_COORDSET_NAME)),
+                std::string("Cannot create material function '") + name + "' without quadrature points.");
+
+  const conduit::Node& values =
+    getBlueprintCoordsetNode(QUADRATURE_COORDSET_NAME).fetch_existing("values");
+  const auto numValues = values.child(0).dtype().number_of_elements();
+
+  auto fieldValues = createField(name, QUADRATURE_TOPOLOGY_NAME, numValues);
+  for(axom::IndexType i = 0; i < fieldValues.size(); ++i)
+  {
+    fieldValues[i] = 0.;
+  }
+
+  return &getField(name);
+}
+
 void printRegisteredFieldNames(const BlueprintState& bpState,
                                const std::set<std::string>& knownMaterials,
                                VolFracSampling AXOM_UNUSED_PARAM(vfSampling),

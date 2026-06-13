@@ -388,34 +388,13 @@ void Shaper::ensureBlueprintMeshIsUnstructured()
 
   if(!m_bp_state->isSidreBacked())
   {
-    SLIC_ERROR(
-      "Structured Blueprint meshes backed by conduit::Node are not yet supported for "
-      "in-place conversion to unstructured topology.");
+    m_bp_state->ensureUnstructured(m_execPolicy);
+    return;
   }
 
   AXOM_ANNOTATE_SCOPE("Shaper::convertStructured");
-
-  const std::string shapeType = getBlueprintCellShape();
-  if(shapeType == "hex")
-  {
-    axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_3d(
-      m_bp_state->m_group_ptr,
-      m_bp_state->m_topology_name,
-      m_execPolicy);
-  }
-  else if(shapeType == "quad")
-  {
-    axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_2d(
-      m_bp_state->m_group_ptr,
-      m_bp_state->m_topology_name,
-      m_execPolicy);
-  }
-  else
-  {
-    SLIC_ERROR("Axom Internal error: Unhandled shape type.");
-  }
-
-  refreshBlueprintMeshState();
+  m_bp_state->ensureUnstructured(m_execPolicy);
+  m_cellCount = conduit::blueprint::mesh::topology::length(getBlueprintTopologyNode());
 }
 #endif
 
