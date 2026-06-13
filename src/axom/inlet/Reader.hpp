@@ -22,6 +22,7 @@
 
 #include "axom/inlet/Function.hpp"
 #include "axom/inlet/VariantKey.hpp"
+#include "axom/inlet/VariantValue.hpp"
 
 namespace axom
 {
@@ -213,6 +214,24 @@ public:
   /// \overload
   virtual ReaderResult getStringMap(const std::string& id,
                                     std::unordered_map<VariantKey, std::string>& values) = 0;
+
+  /*!
+   *****************************************************************************
+   * \brief Get an index-variant mapping for the given array
+   *
+   * This retrieves arrays/dictionaries with mixed primitive values.
+   *
+   * \param [in]  id    The identifier to the collection that will be retrieved
+   * \param [out] map The mixed primitive values that were retrieved
+   *
+   * \return The status of the retrieval, \see ReaderResult
+   *****************************************************************************
+   */
+  virtual ReaderResult getVariantMap(const std::string& id,
+                                     std::unordered_map<int, VariantValue>& values) = 0;
+  /// \overload
+  virtual ReaderResult getVariantMap(const std::string& id,
+                                     std::unordered_map<VariantKey, VariantValue>& values) = 0;
 
   /*!
    *****************************************************************************
