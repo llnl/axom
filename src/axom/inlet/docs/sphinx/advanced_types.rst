@@ -198,20 +198,75 @@ in the same way as the array above.  For dictionaries with a mix of string and i
 Variant Struct Collections
 --------------------------
 
-Collections whose entries can be selected from a finite set of user-defined struct types can be
-defined with ``addVariantStructArray`` or ``addVariantStructDictionary``.  Each entry must contain
-a string discriminator field, and each alternative still uses its normal ``FromInlet`` specialization
-for retrieval:
+Variant struct collections store a collection whose entries can be selected from a
+finite set of user-defined struct types.  They are useful when every entry in a
+collection shares the same role, but different entries require different fields.
+For example, a ``shapes`` collection might contain both circles and boxes.
+
+Each entry must contain a string discriminator field.  The discriminator value
+selects which struct schema and ``FromInlet`` specialization Inlet should use for
+that entry.
+
+Defining And Storing
+~~~~~~~~~~~~~~~~~~~~
+
+Represent the possible entry types with a ``std::variant``.  Each alternative in
+the variant is a normal user-defined type, so it still provides its own
+``FromInlet`` specialization:
 
 .. literalinclude:: ../../examples/variant_struct_collections.cpp
    :start-after: _inlet_variant_struct_collections_start
    :end-before: _inlet_variant_struct_collections_end
    :language: C++
 
+Use ``addVariantStructArray`` for array-like input.  The function takes the
+collection name and the discriminator field name.  After creating the collection
+schema, register each allowed discriminator value with ``addAlternative`` and
+define the schema for that alternative:
+
 .. literalinclude:: ../../examples/variant_struct_collections.cpp
-   :start-after: _inlet_variant_struct_collections_usage_start
-   :end-before: _inlet_variant_struct_collections_usage_end
+   :start-after: _inlet_variant_struct_collections_schema_usage_start
+   :end-before: _inlet_variant_struct_collections_schema_usage_end
    :language: C++
 
 Verification fails if an entry omits the discriminator or uses a discriminator value that was not
 registered as an alternative.
+
+Accessing
+~~~~~~~~~
+
+Variant struct collections are retrieved as collections of the same
+``std::variant`` type used when defining the schema.  Call ``verify`` before
+retrieval to check that every entry has a known discriminator:
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_verify_start
+   :end-before: _inlet_variant_struct_collections_verify_end
+   :language: C++
+
+Contiguous arrays can be retrieved as ``std::vector<Variant>``:
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_access_vector_start
+   :end-before: _inlet_variant_struct_collections_access_vector_end
+   :language: C++
+
+The same array-like collection can also be retrieved as an integer-keyed
+dictionary when the original indices are needed:
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_access_dictionary_start
+   :end-before: _inlet_variant_struct_collections_access_dictionary_end
+   :language: C++
+
+For associative input, use ``addVariantStructDictionary`` and retrieve the
+collection as ``std::unordered_map<inlet::VariantKey, Variant>``.
+
+Once retrieved, use normal ``std::variant`` access patterns, such as
+``std::visit``, ``std::get_if``, or ``std::holds_alternative``, to work with the
+concrete struct stored in each entry:
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_visit_start
+   :end-before: _inlet_variant_struct_collections_visit_end
+   :language: C++
