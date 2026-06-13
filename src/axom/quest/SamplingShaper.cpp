@@ -449,7 +449,7 @@ void SamplingShaper::adjustVolumeFractions()
 
   for(const auto& materialName : m_knownMaterials)
   {
-    const auto matName = axom::fmt::format("mat_inout_{}", materialName);
+    const auto matName = shaping::materialInOutFieldName(materialName);
     SLIC_INFO_ROOT(axom::fmt::format("Generating volume fraction fields for '{}' material", matName));
 
     switch(m_vfSampling)

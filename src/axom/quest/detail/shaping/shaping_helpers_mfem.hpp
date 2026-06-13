@@ -304,7 +304,7 @@ void sampleInOutField(const std::string shapeName,
 
   const auto pos = mfem::Reshape(pos_coef->HostRead(), dim, nq, NE);
 
-  const std::string inoutName = axom::fmt::format("inout_{}", shapeName);
+  const std::string inoutName = shaping::shapeInOutFieldName(shapeName);
   auto* inout = new mfem::QuadratureFunction(sp, 1);
   inoutQFuncs.Register(inoutName, inout, true);
   auto inout_vals = mfem::Reshape(inout->HostWrite(), nq, NE);
@@ -384,7 +384,7 @@ void computeVolumeFractionsBaseline(const std::string& shapeName,
     return;
   }
 
-  const auto volFracName = axom::fmt::format("vol_frac_{}", shapeName);
+  const auto volFracName = shaping::volumeFractionFieldName(shapeName);
   mfem::GridFunction* volFrac =
     shaping::getOrAllocateL2GridFunction(dc, volFracName, outputOrder, dim, mfem::BasisType::Positive);
   const mfem::FiniteElementSpace* fes = volFrac->FESpace();

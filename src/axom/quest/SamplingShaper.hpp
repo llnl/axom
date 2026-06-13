@@ -693,8 +693,8 @@ private:
                         axom::fmt::format("Applying replacement rules for shape '{}'", shapeName)));
 
     auto* shapeFunc = shape.getGeometry().hasGeometry()
-      ? meshState.getShapeFunction(axom::fmt::format("inout_{}", shapeName))
-      : meshState.getMaterialFunction(axom::fmt::format("mat_inout_{}", thisMatName));
+      ? meshState.getShapeFunction(shaping::shapeInOutFieldName(shapeName))
+      : meshState.getMaterialFunction(shaping::materialInOutFieldName(thisMatName));
 
     if(shape.getGeometry().hasGeometry())
     {
@@ -734,8 +734,7 @@ private:
                           thisMatName,
                           shouldReplace ? "yes" : "no"));
 
-      auto* otherMatFunc =
-        meshState.getMaterialFunction(axom::fmt::format("mat_inout_{}", otherMatName));
+      auto* otherMatFunc = meshState.getMaterialFunction(shaping::materialInOutFieldName(otherMatName));
       SLIC_ERROR_IF(otherMatFunc == nullptr,
                     axom::fmt::format("Missing inout samples for material '{}' while applying "
                                       "replacement rules for shape '{}'.",
@@ -745,7 +744,7 @@ private:
       quest::shaping::replaceMaterial(shapeFuncCopy, otherMatFunc, shouldReplace);
     }
 
-    const std::string materialFunctionName = axom::fmt::format("mat_inout_{}", thisMatName);
+    const std::string materialFunctionName = shaping::materialInOutFieldName(thisMatName);
     auto* materialFunc = meshState.getMaterialFunction(materialFunctionName);
     const bool hadExistingMaterial = (materialFunc != nullptr);
 
@@ -764,7 +763,7 @@ private:
     quest::shaping::copyShapeIntoMaterial(shapeFuncCopy, materialFunc, reuseExisting);
     if(shape.getGeometry().hasGeometry())
     {
-      meshState.deleteShapeFunction(axom::fmt::format("inout_{}", shapeName));
+      meshState.deleteShapeFunction(shaping::shapeInOutFieldName(shapeName));
     }
 
     delete shapeFuncCopy;

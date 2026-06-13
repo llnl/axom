@@ -21,6 +21,7 @@
 #include "axom/slic.hpp"
 
 #include <cstddef>
+#include <string>
 #include <type_traits>
 #include <utility>
 
@@ -124,6 +125,14 @@ enum class VolFracSampling : int
   SAMPLE_AT_DOFS,
   SAMPLE_AT_QPTS
 };
+
+std::string shapeInOutFieldName(const std::string& shapeName);
+std::string materialInOutFieldName(const std::string& materialName);
+std::string volumeFractionFieldName(const std::string& materialName);
+std::string shapeVolumeFractionFieldName(const std::string& shapeName);
+
+std::string materialNameFromMaterialInOutFieldName(const std::string& fieldName);
+std::string materialNameFromVolumeFractionFieldName(const std::string& fieldName);
 
 template <typename MeshState>
 void checkSampleResolution(const MeshState& meshState,

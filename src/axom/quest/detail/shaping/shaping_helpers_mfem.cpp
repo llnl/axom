@@ -501,7 +501,7 @@ void importInitialVolumeFractions(SamplingMFEMState& mfemState,
       interp->Values(*gf, *matQFunc);
     }
 
-    const auto matName = axom::fmt::format("mat_inout_{}", name);
+    const auto matName = shaping::materialInOutFieldName(name);
     mfemState.materialQFuncs().Register(matName, matQFunc, true);
   }
 }
@@ -514,7 +514,8 @@ void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
 {
   AXOM_ANNOTATE_SCOPE("computeVolumeFractionsForMaterial");
 
-  SLIC_ASSERT(axom::utilities::string::startsWith(matField, "mat_inout_"));
+  const std::string materialName = shaping::materialNameFromMaterialInOutFieldName(matField);
+  SLIC_ASSERT(!materialName.empty());
   auto* inout = mfemState.getMaterialFunction(matField);
   SLIC_ASSERT(inout != nullptr);
 
@@ -553,7 +554,7 @@ void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
   SLIC_INFO_ROOT(
     axom::fmt::format(axom::utilities::locale(), "Mesh has dim {} and {:L} elements", dim, NE));
 
-  const auto vf_name = axom::fmt::format("vol_frac_{}", matField.substr(10));
+  const auto vf_name = shaping::volumeFractionFieldName(materialName);
   mfem::GridFunction* vf =
     getOrAllocateL2GridFunction(dc, vf_name, volfracOrder, dim, mfem::BasisType::Positive);
   const mfem::FiniteElementSpace* fes = vf->FESpace();

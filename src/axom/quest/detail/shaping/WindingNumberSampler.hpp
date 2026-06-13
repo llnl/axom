@@ -174,7 +174,7 @@ public:
 
     // Sample the in/out field at each point
     // store in QField which we register with the QFunc collection
-    const std::string inoutName = axom::fmt::format("inout_{}", m_shapeName);
+    const std::string inoutName = shaping::shapeInOutFieldName(m_shapeName);
     const int vdim = 1;
     auto* inout = new mfem::QuadratureFunction(sp, vdim);
     inoutQFuncs.Register(inoutName, inout, true);

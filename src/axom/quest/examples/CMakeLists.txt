@@ -193,18 +193,20 @@ if(AXOM_HAS_MFEM_WITH_MPI AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE)
                 PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 65.")
 
             if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP)
-                set(_testname quest_shaping_driver_ex_sampling_circles_blueprint)
-                axom_add_test(
-                    NAME ${_testname}
-                    COMMAND  quest_shaping_driver_ex
-                            -i ${shaping_data_dir}/circles.yaml
-                            --method sampling
-                            --verbose
-                            inline_mesh_blueprint --min -6 -6 --max 6 6 --resolution 25 25 -d 2
-                    NUM_MPI_TASKS ${_nranks})
-                # Analytic area for annulus w/ outer/inner radii 5 and 2.5 is ~58.905
-                set_tests_properties(${_testname} PROPERTIES
-                    PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 58.")
+                foreach(_backing sidre conduit)
+                    set(_testname quest_shaping_driver_ex_sampling_circles_blueprint_${_backing})
+                    axom_add_test(
+                        NAME ${_testname}
+                        COMMAND  quest_shaping_driver_ex
+                                -i ${shaping_data_dir}/circles.yaml
+                                --method sampling
+                                --verbose
+                                inline_mesh_blueprint --backing ${_backing} --min -6 -6 --max 6 6 --resolution 25 25 -d 2
+                        NUM_MPI_TASKS ${_nranks})
+                    # Analytic area for annulus w/ outer/inner radii 5 and 2.5 is ~58.905
+                    set_tests_properties(${_testname} PROPERTIES
+                        PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 58.")
+                endforeach()
             endif()
 
             set(_testname quest_shaping_driver_ex_sampling_balls_and_jacks)
@@ -372,23 +374,25 @@ endif()
 # Blueprint-only shaping test
 if(CONDUIT_FOUND AND AXOM_ENABLE_BUMP AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
     set(_nranks 1)
-    set(_testname quest_shaping_driver_ex_sampling_blueprint_3D)
-    axom_add_test(NAME ${_testname}
-                  COMMAND  quest_shaping_driver_ex 
-                            -i ${shaping_data_dir}/spheres.yaml
-                            --verbose
-                            --method sampling
-                            --sampling inout
-                            --background-material void
-                            inline_mesh_blueprint --min -6 -6 -6 --max 6 6 6 --resolution 16 16 16 -d 3
-                            --sampling-resolution 5 5 5
-                            --quadrature-type gausslegendre
-                  NUM_MPI_TASKS ${_nranks})
-    # bbox volume: 12^3 = 1728; sphere(r=5): ~523.6; sphere(r=2): 33.5
-    # expected analytic volume when fully resolved: ~1237.9
-    # NOTE: the answer depends on the quadrature type. This answer is for gausslegendre.
-    set_tests_properties(${_testname} PROPERTIES 
-                         PASS_REGULAR_EXPRESSION  "Volume of material 'void' is 1,?239.")
+    foreach(_backing sidre conduit)
+        set(_testname quest_shaping_driver_ex_sampling_blueprint_3D_${_backing})
+        axom_add_test(NAME ${_testname}
+                      COMMAND  quest_shaping_driver_ex 
+                                -i ${shaping_data_dir}/spheres.yaml
+                                --verbose
+                                --method sampling
+                                --sampling inout
+                                --background-material void
+                                inline_mesh_blueprint --backing ${_backing} --min -6 -6 -6 --max 6 6 6 --resolution 16 16 16 -d 3
+                                --sampling-resolution 5 5 5
+                                --quadrature-type gausslegendre
+                      NUM_MPI_TASKS ${_nranks})
+        # bbox volume: 12^3 = 1728; sphere(r=5): ~523.6; sphere(r=2): 33.5
+        # expected analytic volume when fully resolved: ~1237.9
+        # NOTE: the answer depends on the quadrature type. This answer is for gausslegendre.
+        set_tests_properties(${_testname} PROPERTIES 
+                             PASS_REGULAR_EXPRESSION  "Volume of material 'void' is 1,?239.")
+    endforeach()
 endif()
 
 # Distributed closest point example -------------------------------------------

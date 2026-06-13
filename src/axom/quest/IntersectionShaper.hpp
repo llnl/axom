@@ -1380,7 +1380,7 @@ private:
    */
   std::string materialNameToFieldName(const std::string& materialName) const
   {
-    return axom::fmt::format("vol_frac_{}", materialName);
+    return shaping::volumeFractionFieldName(materialName);
   }
 
   /*!
@@ -1392,13 +1392,7 @@ private:
    */
   std::string fieldNameToMaterialName(const std::string& fieldName) const
   {
-    const std::string vol_frac_("vol_frac_");
-    std::string name;
-    if(fieldName.find(vol_frac_) == 0)
-    {
-      name = fieldName.substr(vol_frac_.size());
-    }
-    return name;
+    return shaping::materialNameFromVolumeFractionFieldName(fieldName);
   }
 
   /*!
@@ -1537,7 +1531,7 @@ public:
     int dataSize = matVF.first.size();
 
     // Get this shape's array.
-    auto shapeVolFracName = axom::fmt::format("shape_vol_frac_{}", shape.getName());
+    auto shapeVolFracName = shaping::shapeVolumeFractionFieldName(shape.getName());
     // auto* shapeVolFrac = this->getDC()->GetField(shapeVolFracName);
     auto shapeVolFrac = getScalarCellData(shapeVolFracName);
     SLIC_ERROR_IF(shapeVolFrac.empty(),

@@ -164,9 +164,9 @@ void printRegisteredFieldNames(const BlueprintState& bpState,
       for(conduit::index_t i = 0; i < fieldsNode.number_of_children(); ++i)
       {
         const std::string name = fieldsNode.child(i).name();
-        if(!axom::utilities::string::startsWith(name, "inout_") &&
-           !axom::utilities::string::startsWith(name, "mat_inout_") &&
-           !axom::utilities::string::startsWith(name, "vol_frac_"))
+        if(shaping::materialNameFromVolumeFractionFieldName(name).empty() &&
+           shaping::materialNameFromMaterialInOutFieldName(name).empty() &&
+           !axom::utilities::string::startsWith(name, "inout_"))
         {
           names.push_back(name);
         }
@@ -381,17 +381,16 @@ void importInitialVolumeFractions(BlueprintState& bpState,
     }
 
     // Get the source field.
-    const auto srcPath = axom::fmt::format("fields/vol_frac_{}", name);
+    const auto srcPath = axom::fmt::format("fields/{}", shaping::volumeFractionFieldName(name));
     conduit::Node& n_src_field = n_mesh.fetch_existing(srcPath);
     SLIC_ERROR_IF(n_src_field.fetch_existing("association").as_string() != "element",
                   "The imported field must have element association.");
     const auto src_values = n_src_field["values"].as_double_accessor();
 
     // Make the new quadrature field.
-    auto destValues =
-      bpState.createField(axom::fmt::format("mat_inout_{}", name),
-                          QUADRATURE_TOPOLOGY_NAME,
-                          totalQuadPoints);
+    auto destValues = bpState.createField(shaping::materialInOutFieldName(name),
+                                          QUADRATURE_TOPOLOGY_NAME,
+                                          totalQuadPoints);
     double* dptr = destValues.data();
 
     // Copy the source field into the dest field. We just copy samplesPerZone values
@@ -412,7 +411,8 @@ void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::strin
 {
   AXOM_ANNOTATE_SCOPE("computeVolumeFractionsForMaterial");
 
-  SLIC_ASSERT(axom::utilities::string::startsWith(matField, "mat_inout_"));
+  const std::string materialName = shaping::materialNameFromMaterialInOutFieldName(matField);
+  SLIC_ASSERT(!materialName.empty());
 
   conduit::Node* inout = bpState.getMaterialFunction(matField);
   SLIC_ERROR_IF(
@@ -452,7 +452,7 @@ void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::strin
   SLIC_ASSERT(originalElements.size() == quadratureWeights.size());
   SLIC_ASSERT(originalElements.size() == inoutValues.size());
 
-  const std::string vfName = axom::fmt::format("vol_frac_{}", matField.substr(10));
+  const std::string vfName = shaping::volumeFractionFieldName(materialName);
   auto vfValues = bpState.createField(vfName, bpState.m_topology_name, numZones);
   axom::Array<double> totalWeights(numZones, numZones, bpState.m_allocator_id);
   auto totalWeightsView = totalWeights.view();

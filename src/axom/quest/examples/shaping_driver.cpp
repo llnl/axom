@@ -78,6 +78,12 @@ enum class BlueprintTopologyType : int
   Unstructured
 };
 
+enum class BlueprintMeshBacking : int
+{
+  Sidre,
+  Conduit
+};
+
 struct AxisymmetricProjector32
 {
   AXOM_HOST_DEVICE Point2D operator()(Point3D pt) const
@@ -127,6 +133,7 @@ public:
   int boxDim {-1};
   InlineMeshKind inlineMeshKind {InlineMeshKind::None};
   BlueprintTopologyType blueprintTopologyType {BlueprintTopologyType::Structured};
+  BlueprintMeshBacking blueprintMeshBacking {BlueprintMeshBacking::Sidre};
 
   std::string shapeFile;
   klee::ShapeSet shapeSet;
@@ -412,6 +419,9 @@ public:
       std::map<std::string, BlueprintTopologyType> blueprintTopoMap {
         {"structured", BlueprintTopologyType::Structured},
         {"unstructured", BlueprintTopologyType::Unstructured}};
+      std::map<std::string, BlueprintMeshBacking> blueprintBackingMap {
+        {"sidre", BlueprintMeshBacking::Sidre},
+        {"conduit", BlueprintMeshBacking::Conduit}};
 
       auto* inline_mesh_blueprint_subcommand =
         app.add_subcommand("inline_mesh_blueprint")
@@ -441,6 +451,10 @@ public:
         ->description("Blueprint topology type for the inline mesh")
         ->capture_default_str()
         ->transform(axom::CLI::CheckedTransformer(blueprintTopoMap, axom::CLI::ignore_case));
+      inline_mesh_blueprint_subcommand->add_option("--backing", blueprintMeshBacking)
+        ->description("Inline Blueprint mesh backing used to construct the shaper")
+        ->capture_default_str()
+        ->transform(axom::CLI::CheckedTransformer(blueprintBackingMap, axom::CLI::ignore_case));
 #endif
 
       // we want either the mesh_file or an inline mesh
@@ -718,6 +732,7 @@ int main(int argc, char** argv)
 #if defined(AXOM_USE_CONDUIT)
   std::unique_ptr<sidre::DataStore> originalBlueprintMeshDS;
   sidre::Group* originalBlueprintMeshGroup = nullptr;
+  conduit::Node originalBlueprintMeshNode;
 #endif
 #if defined(AXOM_USE_MFEM)
   std::unique_ptr<sidre::MFEMSidreDataCollection> originalMeshDC;
@@ -736,6 +751,11 @@ int main(int argc, char** argv)
 #if defined(AXOM_USE_CONDUIT)
     originalBlueprintMeshDS = params.createBlueprintBoxMesh();
     originalBlueprintMeshGroup = originalBlueprintMeshDS->getRoot()->getGroup("mesh");
+    SLIC_ASSERT(originalBlueprintMeshGroup != nullptr);
+    if(params.blueprintMeshBacking == BlueprintMeshBacking::Conduit)
+    {
+      originalBlueprintMeshGroup->createNativeLayout(originalBlueprintMeshNode);
+    }
 #else
     SLIC_ERROR_ROOT("inline_mesh_blueprint requires Axom to be configured with Conduit.");
 #endif
@@ -770,11 +790,22 @@ int main(int argc, char** argv)
     {
       // NOTE: The SamplingShaper requires Conduit + Bump for Blueprint support.
 #if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
-      shaper = new quest::SamplingShaper(params.policy,
-                                         axom::policyToDefaultAllocatorID(params.policy),
-                                         params.shapeSet,
-                                         originalBlueprintMeshGroup,
-                                         "mesh");
+      if(params.blueprintMeshBacking == BlueprintMeshBacking::Conduit)
+      {
+        shaper = new quest::SamplingShaper(params.policy,
+                                           axom::policyToDefaultAllocatorID(params.policy),
+                                           params.shapeSet,
+                                           originalBlueprintMeshNode,
+                                           "mesh");
+      }
+      else
+      {
+        shaper = new quest::SamplingShaper(params.policy,
+                                           axom::policyToDefaultAllocatorID(params.policy),
+                                           params.shapeSet,
+                                           originalBlueprintMeshGroup,
+                                           "mesh");
+      }
 #else
       SLIC_ERROR_ROOT(
         "Using inline_mesh_blueprint with SamplingShaper requires Axom to be configured with "
@@ -796,11 +827,22 @@ int main(int argc, char** argv)
     {
       // NOTE: The IntersectionShaper requires Conduit for Blueprint support.
 #if defined(AXOM_USE_CONDUIT)
-      shaper = new quest::IntersectionShaper(params.policy,
-                                             axom::policyToDefaultAllocatorID(params.policy),
-                                             params.shapeSet,
-                                             originalBlueprintMeshGroup,
-                                             "mesh");
+      if(params.blueprintMeshBacking == BlueprintMeshBacking::Conduit)
+      {
+        shaper = new quest::IntersectionShaper(params.policy,
+                                               axom::policyToDefaultAllocatorID(params.policy),
+                                               params.shapeSet,
+                                               originalBlueprintMeshNode,
+                                               "mesh");
+      }
+      else
+      {
+        shaper = new quest::IntersectionShaper(params.policy,
+                                               axom::policyToDefaultAllocatorID(params.policy),
+                                               params.shapeSet,
+                                               originalBlueprintMeshGroup,
+                                               "mesh");
+      }
 #else
       SLIC_ERROR_ROOT(
         "Using inline_mesh_blueprint with IntersectionShaper requires Axom to be configured with "

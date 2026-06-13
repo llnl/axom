@@ -437,7 +437,7 @@ void sampleInOutField(const std::string& shapeName,
   SLIC_ERROR_IF(!bpMeshNode.has_path(axom::fmt::format("topologies/{}", QUADRATURE_TOPOLOGY_NAME)),
                 "Missing Blueprint quadrature topology. Generate sampling positions first.");
 
-  const std::string inoutName = axom::fmt::format("inout_{}", shapeName);
+  const std::string inoutName = shaping::shapeInOutFieldName(shapeName);
 
   axom::utilities::Timer timer(true);
   axom::IndexType numQueryPoints = 0;
