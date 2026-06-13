@@ -61,12 +61,6 @@ std::string getBlueprintCellShapeImpl(const conduit::Node& topoNode)
 
   #if defined(AXOM_USE_BUMP)
 
-constexpr const char* QUADRATURE_COORDSET_NAME = "quadrature_points";
-constexpr const char* QUADRATURE_TOPOLOGY_NAME = "quadrature_points";
-constexpr const char* ORIGINAL_ELEMENTS_FIELD_NAME = "originalElements";
-constexpr const char* QUADRATURE_WEIGHTS_FIELD_NAME = "quadratureWeights";
-constexpr const char* QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME = "quadraturePhysicalWeights";
-
 numerics::QuadratureRule getBlueprintQuadratureRule(axom::numerics::QuadratureType quadratureType,
                                                     int npts,
                                                     int allocatorID)
@@ -145,9 +139,10 @@ void printRegisteredFieldNames(const BlueprintState& bpState,
 
   auto extractMatchingFields = [&](const std::string& prefix) {
     std::vector<std::string> names;
-    if(bpState.m_internal_node.has_path("fields"))
+    const conduit::Node& bpMeshNode = bpState.getBlueprintMeshNode();
+    if(bpMeshNode.has_path("fields"))
     {
-      const conduit::Node& fieldsNode = bpState.m_internal_node.fetch_existing("fields");
+      const conduit::Node& fieldsNode = bpMeshNode.fetch_existing("fields");
       for(conduit::index_t i = 0; i < fieldsNode.number_of_children(); ++i)
       {
         const std::string name = fieldsNode.child(i).name();
@@ -162,9 +157,10 @@ void printRegisteredFieldNames(const BlueprintState& bpState,
 
   auto extractOtherFields = [&]() {
     std::vector<std::string> names;
-    if(bpState.m_internal_node.has_path("fields"))
+    const conduit::Node& bpMeshNode = bpState.getBlueprintMeshNode();
+    if(bpMeshNode.has_path("fields"))
     {
-      const conduit::Node& fieldsNode = bpState.m_internal_node.fetch_existing("fields");
+      const conduit::Node& fieldsNode = bpMeshNode.fetch_existing("fields");
       for(conduit::index_t i = 0; i < fieldsNode.number_of_children(); ++i)
       {
         const std::string name = fieldsNode.child(i).name();
@@ -179,14 +175,15 @@ void printRegisteredFieldNames(const BlueprintState& bpState,
     return names;
   };
 
-  const std::vector<std::string> topologyNames = bpState.m_internal_node.has_path("topologies")
-    ? extractChildren(bpState.m_internal_node.fetch_existing("topologies"))
+  const conduit::Node& bpMeshNode = bpState.getBlueprintMeshNode();
+  const std::vector<std::string> topologyNames = bpMeshNode.has_path("topologies")
+    ? extractChildren(bpMeshNode.fetch_existing("topologies"))
     : std::vector<std::string> {};
-  const std::vector<std::string> coordsetNames = bpState.m_internal_node.has_path("coordsets")
-    ? extractChildren(bpState.m_internal_node.fetch_existing("coordsets"))
+  const std::vector<std::string> coordsetNames = bpMeshNode.has_path("coordsets")
+    ? extractChildren(bpMeshNode.fetch_existing("coordsets"))
     : std::vector<std::string> {};
-  const std::vector<std::string> fieldNames = bpState.m_internal_node.has_path("fields")
-    ? extractChildren(bpState.m_internal_node.fetch_existing("fields"))
+  const std::vector<std::string> fieldNames = bpMeshNode.has_path("fields")
+    ? extractChildren(bpMeshNode.fetch_existing("fields"))
     : std::vector<std::string> {};
 
   axom::fmt::memory_buffer out;
@@ -213,7 +210,8 @@ void printRegisteredFieldNames(const BlueprintState& bpState,
   SLIC_INFO_ROOT(axom::fmt::to_string(out));
 }
 
-void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
+void generateQuadraturePointMesh(const conduit::Node& bpMeshNode,
+                                 conduit::Node& outputMeshNode,
                                  const std::string& topologyName,
                                  int allocatorID,
                                  axom::ArrayView<int> sampleResolution,
@@ -277,7 +275,7 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
                                              ruleX,
                                              ruleY,
                                              ruleZ,
-                                             bpMeshNode);
+                                             outputMeshNode);
       return;
     }
     #endif
@@ -291,7 +289,7 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
                                               ruleX,
                                               ruleY,
                                               ruleZ,
-                                              bpMeshNode);
+                                              outputMeshNode);
       return;
     }
     #endif
@@ -304,7 +302,7 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
                                              ruleX,
                                              ruleY,
                                              ruleZ,
-                                             bpMeshNode);
+                                             outputMeshNode);
       return;
     }
 
@@ -315,7 +313,7 @@ void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
                                            ruleX,
                                            ruleY,
                                            ruleZ,
-                                           bpMeshNode);
+                                           outputMeshNode);
   });
 }
 
@@ -326,24 +324,40 @@ void generateSamplingPositions(BlueprintState& bpState,
   AXOM_ANNOTATE_SCOPE("generateSamplingPositions");
   checkSampleResolution(bpState, sampleResolution, quadratureType);
 
-  if(bpState.m_internal_node.has_path(axom::fmt::format("topologies/{}", QUADRATURE_TOPOLOGY_NAME)))
+  conduit::Node& bpMeshNode = bpState.getBlueprintMeshNode();
+  if(bpMeshNode.has_path(axom::fmt::format("topologies/{}", QUADRATURE_TOPOLOGY_NAME)))
   {
     return;
   }
 
-  generateQuadraturePointMesh(bpState.m_internal_node,
-                              bpState.m_topology_name,
-                              bpState.m_allocator_id,
-                              sampleResolution,
-                              quadratureType);
+  if(bpState.isSidreBacked())
+  {
+    conduit::Node quadratureMesh;
+    generateQuadraturePointMesh(bpMeshNode,
+                                quadratureMesh,
+                                bpState.m_topology_name,
+                                bpState.m_allocator_id,
+                                sampleResolution,
+                                quadratureType);
+    bpState.importQuadraturePointMesh(quadratureMesh);
+  }
+  else
+  {
+    generateQuadraturePointMesh(bpMeshNode,
+                                bpMeshNode,
+                                bpState.m_topology_name,
+                                bpState.m_allocator_id,
+                                sampleResolution,
+                                quadratureType);
+  }
 }
 
 void importInitialVolumeFractions(BlueprintState& bpState,
                                   const std::map<std::string, conduit::Node*>& initialVolumeFractions)
 {
   conduit::Node& n_mesh = bpState.getBlueprintMeshNode();
-  const std::string quadName("quadrature_points");
-  const conduit::Node& n_quad_points = n_mesh.fetch_existing("coordsets/" + quadName);
+  const conduit::Node& n_quad_points =
+    n_mesh.fetch_existing(axom::fmt::format("coordsets/{}", QUADRATURE_COORDSET_NAME));
   const auto totalQuadPoints = conduit::blueprint::mesh::coordset::length(n_quad_points);
 
   // Get the topology we want to sample.
@@ -374,13 +388,11 @@ void importInitialVolumeFractions(BlueprintState& bpState,
     const auto src_values = n_src_field["values"].as_double_accessor();
 
     // Make the new quadrature field.
-    const auto destPath = axom::fmt::format("fields/mat_inout_{}", name);
-    conduit::Node& n_dest_field = n_mesh.fetch(destPath);
-    n_dest_field["topology"] = quadName;
-    n_dest_field["association"] = "element";
-    conduit::Node& n_dest_values = n_dest_field["values"];
-    n_dest_values.set(conduit::DataType::float64(totalQuadPoints));
-    double* dptr = n_dest_values.as_double_ptr();
+    auto destValues =
+      bpState.createField(axom::fmt::format("mat_inout_{}", name),
+                          QUADRATURE_TOPOLOGY_NAME,
+                          totalQuadPoints);
+    double* dptr = destValues.data();
 
     // Copy the source field into the dest field. We just copy samplesPerZone values
     // from the source into the dest since each block of samplesPerZone points in
@@ -408,11 +420,18 @@ void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::strin
     axom::fmt::format("Missing Blueprint material field '{}' for volume fraction projection.",
                       matField));
 
-  conduit::Node& bpMeshNode = bpState.m_internal_node;
-  SLIC_ERROR_IF(!bpMeshNode.has_path("fields/originalElements/values"),
+  conduit::Node& bpMeshNode = bpState.getBlueprintMeshNode();
+  const std::string originalElementsPath =
+    axom::fmt::format("fields/{}/values", ORIGINAL_ELEMENTS_FIELD_NAME);
+  const std::string quadraturePhysicalWeightsPath =
+    axom::fmt::format("fields/{}/values", QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME);
+  const std::string quadratureWeightsPath =
+    axom::fmt::format("fields/{}/values", QUADRATURE_WEIGHTS_FIELD_NAME);
+
+  SLIC_ERROR_IF(!bpMeshNode.has_path(originalElementsPath),
                 "Missing Blueprint originalElements field for volume fraction projection.");
-  SLIC_ERROR_IF(!bpMeshNode.has_path("fields/quadraturePhysicalWeights/values") &&
-                  !bpMeshNode.has_path("fields/quadratureWeights/values"),
+  SLIC_ERROR_IF(!bpMeshNode.has_path(quadraturePhysicalWeightsPath) &&
+                  !bpMeshNode.has_path(quadratureWeightsPath),
                 "Missing Blueprint quadrature weight field for volume fraction projection.");
 
   const conduit::Node& topoNode =
@@ -422,11 +441,11 @@ void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::strin
 
   namespace utils = axom::bump::utilities;
   const auto originalElements =
-    utils::make_array_view<conduit::index_t>(bpMeshNode["fields/originalElements/values"]);
+    utils::make_array_view<conduit::index_t>(bpMeshNode.fetch_existing(originalElementsPath));
   const conduit::Node& quadratureWeightsNode =
-    bpMeshNode.has_path("fields/quadraturePhysicalWeights/values")
-    ? bpMeshNode["fields/quadraturePhysicalWeights/values"]
-    : bpMeshNode["fields/quadratureWeights/values"];
+    bpMeshNode.has_path(quadraturePhysicalWeightsPath)
+    ? bpMeshNode.fetch_existing(quadraturePhysicalWeightsPath)
+    : bpMeshNode.fetch_existing(quadratureWeightsPath);
   const auto quadratureWeights = utils::make_array_view<double>(quadratureWeightsNode);
   const auto inoutValues = utils::make_array_view<double>(inout->fetch_existing("values"));
 
@@ -434,17 +453,7 @@ void computeVolumeFractionsForMaterial(BlueprintState& bpState, const std::strin
   SLIC_ASSERT(originalElements.size() == inoutValues.size());
 
   const std::string vfName = axom::fmt::format("vol_frac_{}", matField.substr(10));
-  conduit::Node& vfNode = bpMeshNode["fields/" + vfName];
-  vfNode.reset();
-  vfNode["association"] = "element";
-  vfNode["topology"] = bpState.m_topology_name;
-
-  const auto conduitAllocatorId =
-    axom::sidre::ConduitMemory::axomAllocIdToConduit(bpState.m_allocator_id);
-  conduit::Node& valuesNode = vfNode["values"];
-  valuesNode.set_allocator(conduitAllocatorId);
-  valuesNode.set(conduit::DataType::float64(numZones));
-  auto vfValues = utils::make_array_view<double>(valuesNode);
+  auto vfValues = bpState.createField(vfName, bpState.m_topology_name, numZones);
   axom::Array<double> totalWeights(numZones, numZones, bpState.m_allocator_id);
   auto totalWeightsView = totalWeights.view();
 

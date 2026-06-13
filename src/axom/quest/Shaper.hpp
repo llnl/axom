@@ -140,11 +140,11 @@ public:
   shaping::BlueprintState* getBlueprintState() { return m_bp_state.get(); }
   conduit::Node* getBlueprintMeshNode()
   {
-    return m_bp_state != nullptr ? &m_bp_state->m_internal_node : nullptr;
+    return m_bp_state != nullptr ? &m_bp_state->getBlueprintMeshNode() : nullptr;
   }
   const conduit::Node* getBlueprintMeshNode() const
   {
-    return m_bp_state != nullptr ? &m_bp_state->m_internal_node : nullptr;
+    return m_bp_state != nullptr ? &m_bp_state->getBlueprintMeshNode() : nullptr;
   }
 #endif
 

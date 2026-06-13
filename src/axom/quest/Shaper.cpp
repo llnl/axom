@@ -103,9 +103,8 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   #endif
 {
   m_bp_state = createBlueprintState();
-  auto* internalGrp = m_dataStore.getRoot()->createGroup("internalGrp");
-  internalGrp->setDefaultArrayAllocator(m_allocatorId);
-  m_bp_state->m_group_ptr = internalGrp->copyGroup(bpGrp);
+  bpGrp->setDefaultArrayAllocator(m_allocatorId);
+  m_bp_state->m_group_ptr = bpGrp;
   m_bp_state->m_allocator_id = m_allocatorId;
   m_bp_state->m_topology_name = resolveBlueprintTopologyName(bpGrp, topo);
   m_bp_state->m_external_node_ptr = nullptr;
@@ -144,10 +143,6 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   m_bp_state->m_allocator_id = m_allocatorId;
   m_bp_state->m_topology_name = resolveBlueprintTopologyName(bpNode, topo);
   m_bp_state->m_external_node_ptr = &bpNode;
-
-  m_bp_state->m_group_ptr = m_dataStore.getRoot()->createGroup("internalGrp");
-  m_bp_state->m_group_ptr->setDefaultArrayAllocator(m_allocatorId);
-  m_bp_state->m_group_ptr->importConduitTreeExternal(bpNode);
 
   refreshBlueprintMeshState();
 
@@ -304,22 +299,21 @@ std::string Shaper::resolveBlueprintTopologyName(const conduit::Node& bpMesh,
 void Shaper::refreshBlueprintMeshState()
 {
   SLIC_ASSERT(m_bp_state != nullptr);
-  SLIC_ASSERT(m_bp_state->m_group_ptr != nullptr);
-  m_bp_state->m_group_ptr->createNativeLayout(m_bp_state->m_internal_node);
+  m_bp_state->refreshBlueprintMeshNode();
   m_cellCount = conduit::blueprint::mesh::topology::length(getBlueprintTopologyNode());
 }
 
 const conduit::Node& Shaper::getBlueprintTopologyNode() const
 {
   SLIC_ASSERT(m_bp_state != nullptr);
-  return m_bp_state->m_internal_node.fetch_existing("topologies")
-    .fetch_existing(m_bp_state->m_topology_name);
+  return m_bp_state->getBlueprintTopologyNode();
 }
 
 const conduit::Node& Shaper::getBlueprintCoordsetNode() const
 {
+  SLIC_ASSERT(m_bp_state != nullptr);
   const std::string coordsetName = getBlueprintTopologyNode().fetch_existing("coordset").as_string();
-  return m_bp_state->m_internal_node.fetch_existing("coordsets").fetch_existing(coordsetName);
+  return m_bp_state->getBlueprintCoordsetNode(coordsetName);
 }
 
 std::string Shaper::getBlueprintCellShape() const
@@ -347,13 +341,13 @@ bool Shaper::verifyBlueprintMeshIsStructuredOrUnstructuredQuadHex(std::string& w
 {
   bool rval = true;
 
-  if(m_bp_state != nullptr && m_bp_state->m_group_ptr != nullptr)
+  if(m_bp_state != nullptr)
   {
     conduit::Node info;
     // Conduit's verify should work even if m_internal_node has array data on
     // devices. because the verification doesn't dereference array data.
     // If this changes in the future, more care must be taken.
-    rval = conduit::blueprint::mesh::verify(m_bp_state->m_internal_node, info);
+    rval = conduit::blueprint::mesh::verify(m_bp_state->getBlueprintMeshNode(), info);
     if(rval)
     {
       const std::string topoType = getBlueprintTopologyNode().fetch_existing("type").as_string();
@@ -380,7 +374,7 @@ bool Shaper::verifyBlueprintMeshIsStructuredOrUnstructuredQuadHex(std::string& w
 
 void Shaper::ensureBlueprintMeshIsUnstructured()
 {
-  if(m_bp_state == nullptr || m_bp_state->m_group_ptr == nullptr)
+  if(m_bp_state == nullptr)
   {
     return;
   }
@@ -390,6 +384,13 @@ void Shaper::ensureBlueprintMeshIsUnstructured()
   if(topoType != "structured")
   {
     return;
+  }
+
+  if(!m_bp_state->isSidreBacked())
+  {
+    SLIC_ERROR(
+      "Structured Blueprint meshes backed by conduit::Node are not yet supported for "
+      "in-place conversion to unstructured topology.");
   }
 
   AXOM_ANNOTATE_SCOPE("Shaper::convertStructured");
@@ -456,12 +457,14 @@ void Shaper::saveResults(bool AXOM_UNUSED_PARAM(extra))
   {
     const std::string filename("shaping");
   #if defined(CONDUIT_RELAY_MPI_ENABLED)
-    conduit::relay::mpi::io::blueprint::save_mesh(m_bp_state->m_internal_node,
+    conduit::relay::mpi::io::blueprint::save_mesh(m_bp_state->getBlueprintMeshNode(),
                                                   filename,
                                                   outputProtocol(),
                                                   m_comm);
   #else
-    conduit::relay::io::blueprint::save_mesh(m_bp_state->m_internal_node, filename, outputProtocol());
+    conduit::relay::io::blueprint::save_mesh(m_bp_state->getBlueprintMeshNode(),
+                                             filename,
+                                             outputProtocol());
   #endif
   }
 #endif

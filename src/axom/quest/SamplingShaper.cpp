@@ -167,20 +167,23 @@ void SamplingShaper::saveQuadraturePoints(const std::string& filename) const
   // Save the Blueprint quadrature point mesh as a Blueprint file.
   if(m_bp_state != nullptr)
   {
-    constexpr const char* quadName = "quadrature_points";
-    const conduit::Node& bpMesh = m_bp_state->m_internal_node;
+    const conduit::Node& bpMesh = m_bp_state->getBlueprintMeshNode();
 
-    if(!bpMesh.has_path(axom::fmt::format("coordsets/{}", quadName)) ||
-       !bpMesh.has_path(axom::fmt::format("topologies/{}", quadName)))
+    if(!bpMesh.has_path(axom::fmt::format("coordsets/{}",
+                                          shaping::QUADRATURE_COORDSET_NAME)) ||
+       !bpMesh.has_path(axom::fmt::format("topologies/{}",
+                                          shaping::QUADRATURE_TOPOLOGY_NAME)))
     {
       SLIC_WARNING("No Blueprint quadrature point mesh is available to save.");
       return;
     }
 
-    n_mesh["coordsets"][quadName].update(
-      bpMesh.fetch_existing(axom::fmt::format("coordsets/{}", quadName)));
-    n_mesh["topologies"][quadName].update(
-      bpMesh.fetch_existing(axom::fmt::format("topologies/{}", quadName)));
+    n_mesh["coordsets"][shaping::QUADRATURE_COORDSET_NAME].update(
+      bpMesh.fetch_existing(axom::fmt::format("coordsets/{}",
+                                              shaping::QUADRATURE_COORDSET_NAME)));
+    n_mesh["topologies"][shaping::QUADRATURE_TOPOLOGY_NAME].update(
+      bpMesh.fetch_existing(axom::fmt::format("topologies/{}",
+                                              shaping::QUADRATURE_TOPOLOGY_NAME)));
 
     if(bpMesh.has_path("fields"))
     {
@@ -188,7 +191,8 @@ void SamplingShaper::saveQuadraturePoints(const std::string& filename) const
       for(conduit::index_t i = 0; i < fields.number_of_children(); ++i)
       {
         const conduit::Node& field = fields.child(i);
-        if(field.has_path("topology") && field.fetch_existing("topology").as_string() == quadName)
+        if(field.has_path("topology") &&
+           field.fetch_existing("topology").as_string() == shaping::QUADRATURE_TOPOLOGY_NAME)
         {
           n_mesh["fields"][field.name()].update(field);
         }

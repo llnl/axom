@@ -40,6 +40,14 @@ namespace shaping
  */
 std::string getBlueprintCellShape(const conduit::Node& topoNode);
 
+#if defined(AXOM_USE_BUMP)
+constexpr const char* QUADRATURE_COORDSET_NAME = "quadrature_points";
+constexpr const char* QUADRATURE_TOPOLOGY_NAME = "quadrature_points";
+constexpr const char* ORIGINAL_ELEMENTS_FIELD_NAME = "originalElements";
+constexpr const char* QUADRATURE_WEIGHTS_FIELD_NAME = "quadratureWeights";
+constexpr const char* QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME = "quadraturePhysicalWeights";
+#endif
+
 /// A class that contains Blueprint mesh and field state for Shaper class.
 struct BlueprintState
 {
@@ -50,6 +58,18 @@ struct BlueprintState
   std::string m_topology_name;
   conduit::Node* m_external_node_ptr {nullptr};
   conduit::Node m_internal_node;
+
+  bool isSidreBacked() const { return m_group_ptr != nullptr; }
+  bool isConduitBacked() const { return m_external_node_ptr != nullptr; }
+
+  void refreshBlueprintMeshNode()
+  {
+    if(isSidreBacked())
+    {
+      m_internal_node.reset();
+      m_group_ptr->createNativeLayout(m_internal_node);
+    }
+  }
 
   int meshDimension() const
   {
@@ -68,28 +88,73 @@ struct BlueprintState
     return -1;
   }
 
-  conduit::Node& getBlueprintMeshNode() { return m_internal_node; }
+  conduit::Node& getBlueprintMeshNode()
+  {
+    return isConduitBacked() ? *m_external_node_ptr : m_internal_node;
+  }
+
+  const conduit::Node& getBlueprintMeshNode() const
+  {
+    return isConduitBacked() ? *m_external_node_ptr : m_internal_node;
+  }
 
   const conduit::Node& getBlueprintTopologyNode() const
   {
-    return m_internal_node.fetch_existing("topologies").fetch_existing(m_topology_name);
+    return getBlueprintMeshNode().fetch_existing("topologies").fetch_existing(m_topology_name);
+  }
+
+  conduit::Node& getBlueprintCoordsetNode(const std::string& name)
+  {
+    return getBlueprintMeshNode().fetch_existing("coordsets").fetch_existing(name);
+  }
+
+  const conduit::Node& getBlueprintCoordsetNode(const std::string& name) const
+  {
+    return getBlueprintMeshNode().fetch_existing("coordsets").fetch_existing(name);
+  }
+
+  bool hasField(const std::string& name) const
+  {
+    return getBlueprintMeshNode().has_path(axom::fmt::format("fields/{}", name));
+  }
+
+  conduit::Node& getField(const std::string& name)
+  {
+    return getBlueprintMeshNode().fetch_existing("fields").fetch_existing(name);
+  }
+
+  const conduit::Node& getField(const std::string& name) const
+  {
+    return getBlueprintMeshNode().fetch_existing("fields").fetch_existing(name);
   }
 
   conduit::Node* getShapeFunction(const std::string& name)
   {
-    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name] : nullptr;
+    return hasField(name) ? &getField(name) : nullptr;
   }
 
   const conduit::Node* getShapeFunction(const std::string& name) const
   {
-    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name] : nullptr;
+    return hasField(name) ? &getField(name) : nullptr;
   }
 
   void deleteShapeFunction(const std::string& name)
   {
-    if(m_internal_node.has_path("fields"))
+    if(isSidreBacked())
     {
-      conduit::Node& n_fields = m_internal_node["fields"];
+      const std::string fieldPath = axom::fmt::format("fields/{}", name);
+      if(m_group_ptr->hasGroup(fieldPath))
+      {
+        m_group_ptr->destroyGroupAndData(fieldPath);
+        refreshBlueprintMeshNode();
+      }
+      return;
+    }
+
+    conduit::Node& bpMeshNode = getBlueprintMeshNode();
+    if(bpMeshNode.has_path("fields"))
+    {
+      conduit::Node& n_fields = bpMeshNode["fields"];
       if(n_fields.has_path(name))
       {
         n_fields.remove(name);
@@ -99,43 +164,136 @@ struct BlueprintState
 
   conduit::Node* getMaterialFunction(const std::string& name)
   {
-    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name] : nullptr;
+    return hasField(name) ? &getField(name) : nullptr;
   }
 
   const conduit::Node* getMaterialFunction(const std::string& name) const
   {
-    return m_internal_node.has_path("fields/" + name) ? &m_internal_node["fields/" + name] : nullptr;
+    return hasField(name) ? &getField(name) : nullptr;
   }
 
-  #if defined(AXOM_USE_BUMP)
-  conduit::Node* createMaterialFunction(const std::string& name)
+  axom::ArrayView<double> createField(const std::string& name,
+                                      const std::string& topologyName,
+                                      axom::IndexType size,
+                                      bool addVolumeDependent = false,
+                                      bool volumeDependent = false)
   {
-    constexpr const char* quadratureTopologyName = "quadrature_points";
-    SLIC_ERROR_IF(
-      !m_internal_node.has_path("coordsets/quadrature_points/values"),
-      std::string("Cannot create material function '") + name + "' without quadrature points.");
+    if(isSidreBacked())
+    {
+      const std::string fieldPath = axom::fmt::format("fields/{}", name);
+      if(m_group_ptr->hasGroup(fieldPath))
+      {
+        m_group_ptr->destroyGroupAndData(fieldPath);
+      }
 
-    conduit::Node& fieldNode = m_internal_node["fields/" + name];
+      auto* fieldGrp = m_group_ptr->createGroup(fieldPath);
+      SLIC_ASSERT(fieldGrp != nullptr);
+      fieldGrp->createViewString("association", "element");
+      fieldGrp->createViewString("topology", topologyName);
+      if(addVolumeDependent)
+      {
+        fieldGrp->createViewString("volume_dependent", volumeDependent ? "true" : "false");
+      }
+
+      auto* valuesView =
+        fieldGrp->createViewAndAllocate("values", axom::sidre::DataTypeId::FLOAT64_ID, size);
+      SLIC_ASSERT(valuesView != nullptr);
+      refreshBlueprintMeshNode();
+      return axom::ArrayView<double>(static_cast<double*>(valuesView->getVoidPtr()), size);
+    }
+
+    conduit::Node& fieldNode = getBlueprintMeshNode()["fields/" + name];
     fieldNode.reset();
     fieldNode["association"] = "element";
-    fieldNode["topology"] = quadratureTopologyName;
+    fieldNode["topology"] = topologyName;
+    if(addVolumeDependent)
+    {
+      fieldNode["volume_dependent"] = volumeDependent ? "true" : "false";
+    }
 
     const auto conduitAllocatorId = axom::sidre::ConduitMemory::axomAllocIdToConduit(m_allocator_id);
     conduit::Node& valuesNode = fieldNode["values"];
     valuesNode.set_allocator(conduitAllocatorId);
+    valuesNode.set(conduit::DataType::float64(size));
+    return axom::bump::utilities::make_array_view<double>(valuesNode);
+  }
+
+  #if defined(AXOM_USE_BUMP)
+  void importQuadraturePointMesh(const conduit::Node& quadratureMesh)
+  {
+    auto replaceSubtree = [&](const std::string& path, const conduit::Node& node) {
+      if(isSidreBacked())
+      {
+        if(m_group_ptr->hasGroup(path))
+        {
+          m_group_ptr->destroyGroupAndData(path);
+        }
+
+        auto* group = m_group_ptr->createGroup(path);
+        SLIC_ERROR_IF(group == nullptr,
+                      axom::fmt::format("Failed to create Sidre group for Blueprint path '{}'.",
+                                        path));
+        const bool importSuccess = group->importConduitTree(node);
+        SLIC_ERROR_IF(!importSuccess,
+                      axom::fmt::format("Failed to import Blueprint subtree '{}'.", path));
+        return;
+      }
+
+      conduit::Node& outputNode = getBlueprintMeshNode()[path];
+      outputNode.reset();
+      outputNode.update(node);
+    };
+
+    const std::string quadratureCoordsetPath =
+      axom::fmt::format("coordsets/{}", QUADRATURE_COORDSET_NAME);
+    const std::string quadratureTopologyPath =
+      axom::fmt::format("topologies/{}", QUADRATURE_TOPOLOGY_NAME);
+    const std::string originalElementsPath =
+      axom::fmt::format("fields/{}", ORIGINAL_ELEMENTS_FIELD_NAME);
+    const std::string quadratureWeightsPath =
+      axom::fmt::format("fields/{}", QUADRATURE_WEIGHTS_FIELD_NAME);
+    const std::string quadraturePhysicalWeightsPath =
+      axom::fmt::format("fields/{}", QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME);
+
+    SLIC_ERROR_IF(!quadratureMesh.has_path(quadratureCoordsetPath),
+                  "Quadrature mesh is missing its Blueprint quadrature coordset.");
+    SLIC_ERROR_IF(!quadratureMesh.has_path(quadratureTopologyPath),
+                  "Quadrature mesh is missing its Blueprint quadrature topology.");
+
+    replaceSubtree(quadratureCoordsetPath, quadratureMesh.fetch_existing(quadratureCoordsetPath));
+    replaceSubtree(quadratureTopologyPath, quadratureMesh.fetch_existing(quadratureTopologyPath));
+    replaceSubtree(originalElementsPath, quadratureMesh.fetch_existing(originalElementsPath));
+    replaceSubtree(quadratureWeightsPath, quadratureMesh.fetch_existing(quadratureWeightsPath));
+
+    if(quadratureMesh.has_path(quadraturePhysicalWeightsPath))
+    {
+      replaceSubtree(quadraturePhysicalWeightsPath,
+                     quadratureMesh.fetch_existing(quadraturePhysicalWeightsPath));
+    }
+
+    if(isSidreBacked())
+    {
+      refreshBlueprintMeshNode();
+    }
+  }
+
+  conduit::Node* createMaterialFunction(const std::string& name)
+  {
+    SLIC_ERROR_IF(
+      !getBlueprintMeshNode().has_path(axom::fmt::format("coordsets/{}/values", QUADRATURE_COORDSET_NAME)),
+      std::string("Cannot create material function '") + name + "' without quadrature points.");
 
     const conduit::Node& values =
-      m_internal_node["coordsets/quadrature_points"].fetch_existing("values");
+      getBlueprintCoordsetNode(QUADRATURE_COORDSET_NAME).fetch_existing("values");
     const auto numValues = values.child(0).dtype().number_of_elements();
-    valuesNode.set(conduit::DataType::float64(numValues));
 
-    auto fieldValues = axom::bump::utilities::make_array_view<double>(valuesNode);
+    auto fieldValues = createField(name, QUADRATURE_TOPOLOGY_NAME, numValues);
     for(axom::IndexType i = 0; i < fieldValues.size(); ++i)
     {
       fieldValues[i] = 0.;
     }
 
-    return &fieldNode;
+    return &getField(name);
   }
   #endif
 };
@@ -198,7 +356,8 @@ conduit::Node* cloneInOutFunction(const conduit::Node* node);
  * \param sampleResolution The number of samples in each dimension.
  * \param quadratureType The quadrature type that determines the sample locations.
  */
-void generateQuadraturePointMesh(conduit::Node& bpMeshNode,
+void generateQuadraturePointMesh(const conduit::Node& bpMeshNode,
+                                 conduit::Node& outputMeshNode,
                                  const std::string& topologyName,
                                  int allocatorID,
                                  axom::ArrayView<int> sampleResolution,
@@ -272,31 +431,18 @@ void sampleInOutField(const std::string& shapeName,
   SLIC_ERROR_IF(FromDim != ToDim && !projector,
                 "A projector callback function is required when FromDim != ToDim");
 
-  constexpr const char* quadratureCoordsetName = "quadrature_points";
-  constexpr const char* quadratureTopologyName = "quadrature_points";
-  const std::string inoutName = axom::fmt::format("inout_{}", shapeName);
-
-  conduit::Node& bpMeshNode = bpState.m_internal_node;
-  SLIC_ERROR_IF(!bpMeshNode.has_path("coordsets/quadrature_points"),
+  conduit::Node& bpMeshNode = bpState.getBlueprintMeshNode();
+  SLIC_ERROR_IF(!bpMeshNode.has_path(axom::fmt::format("coordsets/{}", QUADRATURE_COORDSET_NAME)),
                 "Missing Blueprint quadrature coordset. Generate sampling positions first.");
-  SLIC_ERROR_IF(!bpMeshNode.has_path("topologies/quadrature_points"),
+  SLIC_ERROR_IF(!bpMeshNode.has_path(axom::fmt::format("topologies/{}", QUADRATURE_TOPOLOGY_NAME)),
                 "Missing Blueprint quadrature topology. Generate sampling positions first.");
 
-  conduit::Node& inoutNode = bpMeshNode["fields/" + inoutName];
-  inoutNode.reset();
-  inoutNode["association"] = "element";
-  inoutNode["topology"] = quadratureTopologyName;
-
-  namespace utils = axom::bump::utilities;
-  const auto conduitAllocatorId =
-    axom::sidre::ConduitMemory::axomAllocIdToConduit(bpState.m_allocator_id);
-  conduit::Node& valuesNode = inoutNode["values"];
-  valuesNode.set_allocator(conduitAllocatorId);
+  const std::string inoutName = axom::fmt::format("inout_{}", shapeName);
 
   axom::utilities::Timer timer(true);
   axom::IndexType numQueryPoints = 0;
   axom::bump::views::dispatch_explicit_coordset(
-    bpMeshNode["coordsets/" + std::string(quadratureCoordsetName)],
+    bpMeshNode["coordsets/" + std::string(QUADRATURE_COORDSET_NAME)],
     [&](auto coordsetView) {
       using CoordsetView = typename std::decay<decltype(coordsetView)>::type;
 
@@ -304,8 +450,8 @@ void sampleInOutField(const std::string& shapeName,
       if constexpr(CoordsetView::dimension() == FromDim)
       {
         numQueryPoints = coordsetView.size();
-        valuesNode.set(conduit::DataType::float64(numQueryPoints));
-        auto inoutValues = utils::make_array_view<double>(valuesNode);
+        auto inoutValues =
+          bpState.createField(inoutName, QUADRATURE_TOPOLOGY_NAME, numQueryPoints);
 
         for(axom::IndexType i = 0; i < numQueryPoints; ++i)
         {

@@ -1996,14 +1996,15 @@ public:
     }
 #endif
 #if defined(AXOM_USE_CONDUIT)
-    if(m_bp_state != nullptr && m_bp_state->m_group_ptr != nullptr)
+    if(m_bp_state != nullptr)
     {
-      auto fieldsGrp = m_bp_state->m_group_ptr->getGroup("fields");
-      if(fieldsGrp != nullptr)
+      const conduit::Node& bpMeshNode = m_bp_state->getBlueprintMeshNode();
+      if(bpMeshNode.has_path("fields"))
       {
-        for(auto& group : fieldsGrp->groups())
+        const conduit::Node& fieldsNode = bpMeshNode.fetch_existing("fields");
+        for(conduit::index_t i = 0; i < fieldsNode.number_of_children(); ++i)
         {
-          std::string materialName = fieldNameToMaterialName(group.getName());
+          std::string materialName = fieldNameToMaterialName(fieldsNode.child(i).name());
           if(!materialName.empty())
           {
             materialNames.emplace_back(materialName);
@@ -2537,10 +2538,9 @@ private:
     }
 #endif
 #if defined(AXOM_USE_CONDUIT)
-    if(m_bp_state != nullptr && m_bp_state->m_group_ptr != nullptr)
+    if(m_bp_state != nullptr)
     {
-      std::string fieldPath = axom::fmt::format("fields/{}", fieldName);
-      has = m_bp_state->m_group_ptr->hasGroup(fieldPath);
+      has = m_bp_state->hasField(fieldName);
     }
 #endif
     return has;
@@ -2579,23 +2579,24 @@ private:
 #endif
 
 #if defined(AXOM_USE_CONDUIT)
-    if(m_bp_state != nullptr && m_bp_state->m_group_ptr != nullptr)
+    if(m_bp_state != nullptr)
     {
       std::string fieldPath = "fields/" + fieldName;
       auto dtype = conduit::DataType::float64(m_cellCount);
-      axom::sidre::View* valuesView = nullptr;
-      if(m_bp_state->m_group_ptr->hasGroup(fieldPath))
+      if(m_bp_state->hasField(fieldName))
       {
-        auto* fieldGrp = m_bp_state->m_group_ptr->getGroup(fieldPath);
-        valuesView = fieldGrp->getView("values");
-        SLIC_ASSERT(fieldGrp->getView("association")->getString() == std::string("element"));
-        SLIC_ASSERT(fieldGrp->getView("topology")->getString() == m_bp_state->m_topology_name);
-        SLIC_ASSERT(valuesView->getNumElements() == m_cellCount);
-        SLIC_ASSERT(valuesView->getNode().dtype().id() == dtype.id());
+        conduit::Node& fieldNode = m_bp_state->getField(fieldName);
+        SLIC_ASSERT(fieldNode.fetch_existing("association").as_string() == std::string("element"));
+        SLIC_ASSERT(fieldNode.fetch_existing("topology").as_string() == m_bp_state->m_topology_name);
+
+        conduit::Node& valuesNode = fieldNode.fetch_existing("values");
+        SLIC_ASSERT(valuesNode.dtype().id() == dtype.id());
+        SLIC_ASSERT(valuesNode.dtype().number_of_elements() == m_cellCount);
+        rval = axom::ArrayView<double>(valuesNode.as_double_ptr(), m_cellCount);
       }
       else
       {
-        if(m_bp_state->m_external_node_ptr != nullptr)
+        if(m_bp_state->isConduitBacked())
         {
           /*
             If the computational mesh is an external conduit::Node, it
@@ -2604,7 +2605,7 @@ private:
             the allocator id for only array data.  conduit::Node doesn't
             have this capability.
           */
-          SLIC_WARNING_IF(m_bp_state->m_external_node_ptr != nullptr,
+          SLIC_WARNING_IF(m_bp_state->isConduitBacked(),
                           "For a computational mesh in a conduit::Node, all"
                           " output fields must be preallocated before shaping."
                           "  IntersectionShaper will NOT contravene the user's"
@@ -2616,23 +2617,12 @@ private:
                             " with the mesh as a sidre::Group  with your"
                             " specific allocator id.");
         }
-        else
+        else if(m_bp_state->isSidreBacked())
         {
-          constexpr axom::IndexType componentCount = 1;
-          axom::IndexType shape[2] = {m_cellCount, componentCount};
-          auto* fieldGrp = m_bp_state->m_group_ptr->createGroup(fieldPath);
-          // valuesView = fieldGrp->createView("values");
-          valuesView =
-            fieldGrp->createViewWithShape("values", axom::sidre::DataTypeId::FLOAT64_ID, 2, shape);
-          fieldGrp->createView("association")->setString("element");
-          fieldGrp->createView("topology")->setString(m_bp_state->m_topology_name);
-          fieldGrp->createView("volume_dependent")
-            ->setString(std::string(volumeDependent ? "true" : "false"));
-          valuesView->allocate();
+          rval =
+            m_bp_state->createField(fieldName, m_bp_state->m_topology_name, m_cellCount, true, volumeDependent);
         }
       }
-
-      rval = axom::ArrayView<double>(static_cast<double*>(valuesView->getVoidPtr()), m_cellCount);
     }
 #endif
     return rval;
@@ -2662,7 +2652,7 @@ public:
     }
 #endif
 #if defined(AXOM_USE_CONDUIT)
-    if(m_bp_state != nullptr && m_bp_state->m_group_ptr != nullptr)
+    if(m_bp_state != nullptr)
     {
       populateVertCoordsFromBlueprintMesh2D<ExecSpace>(vertCoords);
     }
@@ -2708,7 +2698,7 @@ public:
     }
 #endif
 #if defined(AXOM_USE_CONDUIT)
-    if(m_bp_state != nullptr && m_bp_state->m_group_ptr != nullptr)
+    if(m_bp_state != nullptr)
     {
       populateVertCoordsFromBlueprintMesh3D<ExecSpace>(vertCoords);
     }
@@ -2752,8 +2742,7 @@ public:
     // conduit::Node meshNode;
     // m_group_ptr->createNativeLayout(m_internal_node);
 
-    const conduit::Node& topoNode = m_bp_state->m_internal_node.fetch_existing("topologies")
-                                      .fetch_existing(m_bp_state->m_topology_name);
+    const conduit::Node& topoNode = m_bp_state->getBlueprintTopologyNode();
     const std::string coordsetName = topoNode.fetch_existing("coordset").as_string();
 
     // Assume unstructured and hexahedral
@@ -2773,7 +2762,7 @@ public:
     const auto* connPtr = static_cast<const axom::IndexType*>(connNode.data_ptr());
     axom::ArrayView<const axom::IndexType, 2> conn(connPtr, m_cellCount, NUM_VERTS_PER_QUAD);
 
-    const conduit::Node& coordNode = m_bp_state->m_internal_node["coordsets"][coordsetName];
+    const conduit::Node& coordNode = m_bp_state->getBlueprintCoordsetNode(coordsetName);
     const conduit::Node& coordValues = coordNode.fetch_existing("values");
     axom::IndexType vertexCount = coordValues["x"].dtype().number_of_elements();
     bool isInterleaved = conduit::blueprint::mcarray::is_interleaved(coordValues);
@@ -2825,8 +2814,7 @@ public:
     // conduit::Node meshNode;
     // m_group_ptr->createNativeLayout(m_internal_node);
 
-    const conduit::Node& topoNode = m_bp_state->m_internal_node.fetch_existing("topologies")
-                                      .fetch_existing(m_bp_state->m_topology_name);
+    const conduit::Node& topoNode = m_bp_state->getBlueprintTopologyNode();
     const conduit::Node& topoCoordsetNode = topoNode.fetch_existing("coordset");
     const std::string coordsetName = topoCoordsetNode.as_string();
 
@@ -2847,7 +2835,7 @@ public:
     const auto* connPtr = static_cast<const axom::IndexType*>(connNode.data_ptr());
     axom::ArrayView<const axom::IndexType, 2> conn(connPtr, m_cellCount, NUM_VERTS_PER_HEX);
 
-    const conduit::Node& coordNode = m_bp_state->m_internal_node["coordsets"][coordsetName];
+    const conduit::Node& coordNode = m_bp_state->getBlueprintCoordsetNode(coordsetName);
     const conduit::Node& coordValues = coordNode.fetch_existing("values");
     axom::IndexType vertexCount = coordValues["x"].dtype().number_of_elements();
     bool isInterleaved = conduit::blueprint::mcarray::is_interleaved(coordValues);
@@ -3002,7 +2990,7 @@ private:
     }
 #endif
 #if defined(AXOM_USE_CONDUIT)
-    if(m_bp_state != nullptr && m_bp_state->m_group_ptr != nullptr)
+    if(m_bp_state != nullptr)
     {
       dim = getBlueprintMeshDimension();
     }
