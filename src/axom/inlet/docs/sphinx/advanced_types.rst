@@ -203,20 +203,15 @@ defined with ``addVariantStructArray`` or ``addVariantStructDictionary``.  Each 
 a string discriminator field, and each alternative still uses its normal ``FromInlet`` specialization
 for retrieval:
 
-.. code-block:: C++
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_start
+   :end-before: _inlet_variant_struct_collections_end
+   :language: C++
 
-  using Shape = std::variant<Circle, Box>;
-
-  auto shapes = inlet.addVariantStructArray<Shape>("shapes", "kind");
-  shapes.addAlternative<Circle>("circle", [](inlet::Container& circle) {
-    circle.addDouble("radius").required();
-  });
-  shapes.addAlternative<Box>("box", [](inlet::Container& box) {
-    box.addDouble("width").required();
-    box.addDouble("height").required();
-  });
-
-  auto values = inlet["shapes"].get<std::vector<Shape>>();
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_usage_start
+   :end-before: _inlet_variant_struct_collections_usage_end
+   :language: C++
 
 Verification fails if an entry omits the discriminator or uses a discriminator value that was not
 registered as an alternative.
