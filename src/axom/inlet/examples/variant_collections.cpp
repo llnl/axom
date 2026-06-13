@@ -84,9 +84,8 @@ int main()
     inlet["contiguous"].get<std::vector<inlet::VariantValue>>();
   for(const inlet::VariantValue& value : contiguous_values)
   {
-    std::visit([](const auto& concrete_value) {
-      SLIC_INFO(axom::fmt::format("{}", concrete_value));
-    }, value);
+    std::visit([](const auto& concrete_value) { SLIC_INFO(axom::fmt::format("{}", concrete_value)); },
+               value);
   }
   // _inlet_simple_types_variant_arrays_access_vector_end
 
@@ -98,9 +97,11 @@ int main()
                                                            indexed_values.end());
   for(const auto& entry : sorted_indexed_values)
   {
-    std::visit([&entry](const auto& concrete_value) {
-      SLIC_INFO(axom::fmt::format("{} = {}", entry.first, concrete_value));
-    }, entry.second);
+    std::visit(
+      [&entry](const auto& concrete_value) {
+        SLIC_INFO(axom::fmt::format("{} = {}", entry.first, concrete_value));
+      },
+      entry.second);
   }
   // _inlet_simple_types_variant_arrays_access_map_end
 
@@ -110,9 +111,11 @@ int main()
     inlet["keyed"].get<std::unordered_map<inlet::VariantKey, inlet::VariantValue>>();
   for(const auto& entry : keyed_values)
   {
-    std::visit([&entry](const auto& concrete_value) {
-      SLIC_INFO(axom::fmt::format("{} = {}", entry.first, concrete_value));
-    }, entry.second);
+    std::visit(
+      [&entry](const auto& concrete_value) {
+        SLIC_INFO(axom::fmt::format("{} = {}", entry.first, concrete_value));
+      },
+      entry.second);
   }
   // _inlet_simple_types_variant_dictionary_access_end
 
