@@ -638,7 +638,7 @@ public:
   /*!
    * \brief Returns the stride between adjacent items.
    */
-  AXOM_HOST_DEVICE IndexType minStride() const { return m_stride; }
+  AXOM_HOST_DEVICE constexpr IndexType minStride() const { return m_stride; }
 
   /*!
    * \brief Accessor, returns a reference to the given value.
@@ -698,7 +698,7 @@ protected:
   /*!
    * \brief Returns the minimum "chunk size" that should be allocated
    */
-  IndexType blockSize() const { return m_stride; }
+  constexpr IndexType blockSize() const { return m_stride; }
 
   /*!
    * \brief Updates the internal dimensions and striding based on the insertion
