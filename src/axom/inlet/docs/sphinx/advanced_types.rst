@@ -219,14 +219,30 @@ the variant is a normal user-defined type, so it still provides its own
    :end-before: _inlet_variant_struct_collections_end
    :language: C++
 
-Use ``addVariantStructArray`` for array-like input.  The function takes the
-collection name and the discriminator field name.  After creating the collection
-schema, register each allowed discriminator value with ``addAlternative`` and
-define the schema for that alternative:
+For array-like input, use ``addVariantStructArray``.  The function takes the
+collection name and the discriminator field name:
 
 .. literalinclude:: ../../examples/variant_struct_collections.cpp
-   :start-after: _inlet_variant_struct_collections_schema_usage_start
-   :end-before: _inlet_variant_struct_collections_schema_usage_end
+   :start-after: _inlet_variant_struct_collections_array_input_start
+   :end-before: _inlet_variant_struct_collections_array_input_end
+   :language: lua
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_array_schema_usage_start
+   :end-before: _inlet_variant_struct_collections_array_schema_usage_end
+   :language: C++
+
+For named dictionary input, use ``addVariantStructDictionary`` with the same
+variant type and discriminator field:
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_dictionary_input_start
+   :end-before: _inlet_variant_struct_collections_dictionary_input_end
+   :language: lua
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_dictionary_schema_usage_start
+   :end-before: _inlet_variant_struct_collections_dictionary_schema_usage_end
    :language: C++
 
 Verification fails if an entry omits the discriminator or uses a discriminator value that was not
@@ -244,23 +260,20 @@ retrieval to check that every entry has a known discriminator:
    :end-before: _inlet_variant_struct_collections_verify_end
    :language: C++
 
-Contiguous arrays can be retrieved as ``std::vector<Variant>``:
+The array input can be retrieved as ``std::vector<Variant>``:
 
 .. literalinclude:: ../../examples/variant_struct_collections.cpp
    :start-after: _inlet_variant_struct_collections_access_vector_start
    :end-before: _inlet_variant_struct_collections_access_vector_end
    :language: C++
 
-The same array-like collection can also be retrieved as an integer-keyed
-dictionary when the original indices are needed:
+The named dictionary input can be retrieved as
+``std::unordered_map<inlet::VariantKey, Variant>``:
 
 .. literalinclude:: ../../examples/variant_struct_collections.cpp
    :start-after: _inlet_variant_struct_collections_access_dictionary_start
    :end-before: _inlet_variant_struct_collections_access_dictionary_end
    :language: C++
-
-For associative input, use ``addVariantStructDictionary`` and retrieve the
-collection as ``std::unordered_map<inlet::VariantKey, Variant>``.
 
 Once retrieved, use normal ``std::variant`` access patterns, such as
 ``std::visit``, ``std::get_if``, or ``std::holds_alternative``, to work with the
