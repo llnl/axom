@@ -9,6 +9,18 @@
     "fmt"
   ],
   "features": {
+    "cuda": {
+      "description": "cuda functionality for umpire",
+      "dependencies": [
+        "cuda",
+        {
+          "name": "camp",
+          "features": [
+            "cuda"
+          ]
+        }
+      ]
+    },
     "openmp": {
       "description": "openmp functionality for umpire",
       "dependencies": [

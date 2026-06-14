@@ -185,6 +185,31 @@ set(ENABLE_OPENMP ON CACHE BOOL "")
 set(BLT_OPENMP_LINK_FLAGS " " CACHE STRING "")
 ]=])
 
+set(_cuda_dep [=[
+
+# Setup CUDA
+set(ENABLE_CUDA ON CACHE BOOL "")
+set(AXOM_ENABLE_CUDA ON CACHE BOOL "")
+set(CMAKE_CUDA_SEPARABLE_COMPILATION ON CACHE BOOL "")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -restrict --expt-extended-lambda --expt-relaxed-constexpr" CACHE STRING "")
+set(gtest_disable_pthreads ON CACHE BOOL "")
+
+if(DEFINED ENV{CUDA_PATH})
+  file(TO_CMAKE_PATH "$ENV{CUDA_PATH}" _cuda_path)
+  set(CUDAToolkit_ROOT "${_cuda_path}" CACHE PATH "")
+  set(CUDA_TOOLKIT_ROOT_DIR "${_cuda_path}" CACHE PATH "")
+  if(EXISTS "${_cuda_path}/bin/nvcc.exe")
+    set(CMAKE_CUDA_COMPILER "${_cuda_path}/bin/nvcc.exe" CACHE FILEPATH "")
+  endif()
+endif()
+
+if(NOT "@CUDA_ARCHITECTURES@" STREQUAL "")
+  set(CMAKE_CUDA_ARCHITECTURES "@CUDA_ARCHITECTURES@" CACHE STRING "")
+elseif(DEFINED ENV{CUDA_ARCHITECTURES})
+  set(CMAKE_CUDA_ARCHITECTURES "$ENV{CUDA_ARCHITECTURES}" CACHE STRING "")
+endif()
+]=])
+
 # TODO:
 #  * Add features/TPLs: mpi
 #  * Add tools: uncrustify, sphinx, doxygen
@@ -200,6 +225,14 @@ set(_hc_file ${CURRENT_PACKAGES_DIR}/include/${PORT}/hc.cmake)
 
 # Add enabled features to host-config
 message(STATUS "FEATURES: ${FEATURES}")
+set(_enabled_deps ${FEATURES})
+if(cuda IN_LIST FEATURES)
+  list(APPEND _enabled_deps raja umpire)
+  if(NOT DEFINED CUDA_ARCHITECTURES AND DEFINED ENV{CUDA_ARCHITECTURES})
+    set(CUDA_ARCHITECTURES "$ENV{CUDA_ARCHITECTURES}")
+  endif()
+endif()
+list(REMOVE_DUPLICATES _enabled_deps)
 
 file(WRITE ${_hc_file}.in "${_host-config_hdr}")
 
@@ -210,15 +243,21 @@ else()
 endif()
 
 foreach(_dep lua mfem openmp raja umpire opencascade)
-  if(${_dep} IN_LIST FEATURES)
+  if(${_dep} IN_LIST _enabled_deps)
     file(APPEND ${_hc_file}.in "${_${_dep}_dep}")
   else()
     file(APPEND ${_hc_file}.in "# ${_dep} dependency disabled")
   endif()
 endforeach()
 
+if(cuda IN_LIST FEATURES)
+  file(APPEND ${_hc_file}.in "${_cuda_dep}")
+else()
+  file(APPEND ${_hc_file}.in "# cuda dependency disabled")
+endif()
+
 # camp is required if umpire or raja are present
-if(raja IN_LIST FEATURES OR umpire IN_LIST FEATURES)
+if(raja IN_LIST _enabled_deps OR umpire IN_LIST _enabled_deps)
   file(APPEND ${_hc_file}.in "${_camp_dep}")
 endif()
 

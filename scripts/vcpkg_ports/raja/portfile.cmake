@@ -14,8 +14,21 @@ endif()
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
     FEATURES
+        cuda         ENABLE_CUDA
         openmp       ENABLE_OPENMP
 )
+
+if("cuda" IN_LIST FEATURES)
+    if(NOT DEFINED CUDA_ARCHITECTURES AND DEFINED ENV{CUDA_ARCHITECTURES})
+        set(CUDA_ARCHITECTURES "$ENV{CUDA_ARCHITECTURES}")
+    endif()
+
+    if(DEFINED CUDA_ARCHITECTURES AND NOT "${CUDA_ARCHITECTURES}" STREQUAL "")
+        list(APPEND FEATURE_OPTIONS
+            "-DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}"
+        )
+    endif()
+endif()
 
 vcpkg_configure_cmake(
     SOURCE_PATH ${SOURCE_PATH}

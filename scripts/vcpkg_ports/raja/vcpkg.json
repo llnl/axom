@@ -8,6 +8,18 @@
     "camp"
   ],
   "features": {
+    "cuda": {
+      "description": "cuda functionality for raja",
+      "dependencies": [
+        "cuda",
+        {
+          "name": "camp",
+          "features": [
+            "cuda"
+          ]
+        }
+      ]
+    },
     "openmp": {
       "description": "openmp functionality for raja",
       "dependencies": [

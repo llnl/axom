@@ -7,6 +7,12 @@
     "blt"
   ],
   "features": {
+    "cuda": {
+      "description": "cuda functionality for camp",
+      "dependencies": [
+        "cuda"
+      ]
+    },
     "openmp": {
       "description": "openmp functionality for camp"
     }
