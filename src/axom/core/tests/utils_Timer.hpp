@@ -8,7 +8,7 @@
 
 #include "axom/core/utilities/Timer.hpp"
 
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
   #include "windows.h"  // for Sleep(), in milliseconds
 #else
   #include <unistd.h>  // for usleep(), in microseconds
@@ -17,7 +17,7 @@
 // cross-platform utility for calling sleep function, in milliseconds
 void sleep_ms(std::uint32_t ms)
 {
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
   Sleep(ms);  // already in milliseconds
 #else
   usleep(ms * 1000);  // convert to microseconds

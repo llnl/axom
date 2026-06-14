@@ -16,7 +16,7 @@
 #include <cstdio>  // defines FILENAME_MAX
 #include <cstdlib>
 
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
   #include <windows.h>
   #include <direct.h>
   #include <sys/stat.h>
@@ -98,7 +98,7 @@ int makeDirsForPath(const std::string& path)
   {
     pos = path.find(separator, pos + 1);
     std::string dir_name = path.substr(0, pos);
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
     err = _mkdir(dir_name.c_str());
 #else
     mode_t mode = 0777;  // rwx permissions for everyone
@@ -180,7 +180,7 @@ int removeFile(const std::string& filename) { return Unlink(filename.c_str()); }
 //-----------------------------------------------------------------------------
 TempFile::TempFile(const std::string& file_name, const std::string& ext)
 {
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
   char temp_dir[MAX_PATH];
   char temp_file_name[MAX_PATH];
   GetTempPathA(MAX_PATH, temp_dir);

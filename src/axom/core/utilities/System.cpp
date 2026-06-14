@@ -6,7 +6,7 @@
 
 #include "axom/core/utilities/System.hpp"
 
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
   #include <windows.h>
   #include <tchar.h>
 #else
@@ -23,7 +23,7 @@ namespace utilities
 {
 #define INFO_BUFFER_SIZE 32767
 
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
 std::string TCharToString(TCHAR* buf)
 {
   #ifndef UNICODE
@@ -39,7 +39,7 @@ std::string getHostName()
 {
   std::string hostName = "";
 
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
   TCHAR infoBuf[INFO_BUFFER_SIZE];
 #else
   char infoBuf[INFO_BUFFER_SIZE];
@@ -47,7 +47,7 @@ std::string getHostName()
 
   infoBuf[INFO_BUFFER_SIZE - 1] = '\0';
 
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
   DWORD bufCharCount = INFO_BUFFER_SIZE;
   if(GetComputerName(infoBuf, &bufCharCount))
   {
@@ -67,7 +67,7 @@ std::string getUserName()
 {
   std::string userName = "";
 
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
   TCHAR infoBuf[INFO_BUFFER_SIZE];
 #else
   char infoBuf[INFO_BUFFER_SIZE];
@@ -75,7 +75,7 @@ std::string getUserName()
 
   infoBuf[INFO_BUFFER_SIZE - 1] = '\0';
 
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
   DWORD bufCharCount = INFO_BUFFER_SIZE;
   if(GetUserName(infoBuf, &bufCharCount))
   {

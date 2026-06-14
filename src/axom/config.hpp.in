@@ -92,7 +92,7 @@
  * for math defines (_USE_MATH_DEFINES), and to disambiguate
  * Windows GDI geometry classes (NOGDI).
  */
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
 #define _USE_MATH_DEFINES
 #define NOGDI
 #define NOMINMAX

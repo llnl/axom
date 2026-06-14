@@ -17,7 +17,7 @@
   * each prepended with an underscore.
   */
 
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
   #include "windows.h"
 void sleep(int numSeconds)
 {
@@ -50,7 +50,7 @@ void demoFileSystemAndString(const char* argv0)
   std::string cwd = filesystem::getCWD();
 
   // Split it on file separator.
-#if WIN32
+#if defined(_WIN32) || defined(WIN32)
   const char pathsep = '\\';
 #else
   const char pathsep = '/';

@@ -30,7 +30,7 @@
 #include "axom/core/utilities/Timer.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
   #include "windows.h"
 void sleep(int numSeconds)
 {
