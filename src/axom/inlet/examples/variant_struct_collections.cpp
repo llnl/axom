@@ -33,10 +33,7 @@ using Shape = std::variant<Circle, Box>;
 template <>
 struct FromInlet<Circle>
 {
-  Circle operator()(const inlet::Container& input_data)
-  {
-    return {input_data["radius"]};
-  }
+  Circle operator()(const inlet::Container& input_data) { return {input_data["radius"]}; }
 };
 
 template <>
