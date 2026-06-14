@@ -1,0 +1,35 @@
+diff --git a/include/fmt/format.h b/include/fmt/format.h
+index af3a1138..b5b57a49 100644
+--- a/include/fmt/format.h
++++ b/include/fmt/format.h
+@@ -3219,10 +3219,26 @@ constexpr auto fractional_part_rounding_thresholds(int index) -> uint32_t {
+   // The kth entry is chosen to be the smallest integer such that the
+   // upper 32-bits of 10^(k+1) times it is strictly bigger than 5 * 10^k.
+   // It is equal to ceil(2^31 + 2^32/10^(k + 1)).
+-  // These are stored in a string literal because we cannot have static arrays
+-  // in constexpr functions and non-static ones are poorly optimized.
+-  return U"\x9999999a\x828f5c29\x80418938\x80068db9\x8000a7c6\x800010c7"
+-         U"\x800001ae\x8000002b"[index];
++  // Spell these out to avoid CUDA 13 on Windows rejecting the equivalent
++  // char32_t string literal's large escaped code points.
++  switch (index) {
++  case 0:
++    return 0x9999999au;
++  case 1:
++    return 0x828f5c29u;
++  case 2:
++    return 0x80418938u;
++  case 3:
++    return 0x80068db9u;
++  case 4:
++    return 0x8000a7c6u;
++  case 5:
++    return 0x800010c7u;
++  case 6:
++    return 0x800001aeu;
++  default:
++    return 0x8000002bu;
++  }
+ }
+ 
+ template <typename Float>

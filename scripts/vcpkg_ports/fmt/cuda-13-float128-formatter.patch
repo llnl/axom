@@ -1,0 +1,14 @@
+diff --git a/include/fmt/format.h b/include/fmt/format.h
+index af3a1138..d7be229c 100644
+--- a/include/fmt/format.h
++++ b/include/fmt/format.h
+@@ -4337,7 +4337,9 @@ FMT_BEGIN_EXPORT
+ 
++#if FMT_USE_FLOAT128
+ template <typename Char>
+ struct formatter<detail::float128, Char>
+     : detail::native_formatter<detail::float128, Char,
+                                detail::type::float_type> {};
++#endif
+ 
+ #if FMT_USE_USER_DEFINED_LITERALS

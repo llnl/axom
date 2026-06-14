@@ -4,6 +4,9 @@ vcpkg_from_github(
     REF ccd6d31c7072ff984c7c8b723fc51f69e677ca72
     SHA512 dc3ab1b01293772a048d1531f6953e82cb9b38a162153c2002f89f1dfd07c0cf087e40153024ceeee2f5040ae2611ed8936292ce0bec568b068313ec2dfd853c
     HEAD_REF develop
+    PATCHES
+        cuda-13-memory-clock-rate.patch
+        msvc-gtest-flags-non-cuda.patch
 )
 
 file(MAKE_DIRECTORY

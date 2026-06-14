@@ -3,14 +3,15 @@ vcpkg_from_github(
     REPO llnl/raja
     REF v2025.12.1
     SHA512 fca1d5d336cb552bbee1f33da69734c3c0dd53632e04db3ae76f08e1160801676e085c41b52fa1d1e7bd91b8b880338c30396a03c13dd32f6941c327c52cf5e8
+    PATCHES
+        cuda-13-mem-advise-location.patch
+        windows-cuda-msvc.patch
 )
 
+set(_extra_cxx_flags "")
 set(_is_shared TRUE)
-if(VCPKG_LIBRARY_LINKAGE STREQUAL "static")
-    set(_is_shared FALSE)
-else()
-    set(_extra_cxx_flags "/DRAJASHAREDDLL_EXPORTS")
-endif()
+set(FEATURE_OPTIONS_DEBUG "")
+set(FEATURE_OPTIONS_RELEASE "")
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
     FEATURES
@@ -18,14 +19,45 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
         openmp       ENABLE_OPENMP
 )
 
+if(VCPKG_TARGET_IS_WINDOWS AND "cuda" IN_LIST FEATURES)
+    vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
+endif()
+
+if(VCPKG_LIBRARY_LINKAGE STREQUAL "static" OR (VCPKG_TARGET_IS_WINDOWS AND "cuda" IN_LIST FEATURES))
+    set(_is_shared FALSE)
+endif()
+
 if("cuda" IN_LIST FEATURES)
-    if(NOT DEFINED CUDA_ARCHITECTURES AND DEFINED ENV{CUDA_ARCHITECTURES})
+    include("${CURRENT_INSTALLED_DIR}/share/cuda/vcpkg_find_cuda.cmake")
+    vcpkg_find_cuda(OUT_CUDA_TOOLKIT_ROOT _cuda_toolkit_root)
+
+    if((NOT DEFINED CUDA_ARCHITECTURES OR "${CUDA_ARCHITECTURES}" STREQUAL "") AND DEFINED ENV{CUDA_ARCHITECTURES})
         set(CUDA_ARCHITECTURES "$ENV{CUDA_ARCHITECTURES}")
+    endif()
+
+    if(VCPKG_TARGET_IS_WINDOWS)
+        string(APPEND _extra_cxx_flags " /Zc:preprocessor /utf-8")
+        list(APPEND FEATURE_OPTIONS_DEBUG
+            "-DBLT_CUDA_FLAGS:STRING=-Xcompiler=/Zc:preprocessor -Xcompiler=/utf-8 -Xcompiler=/MDd"
+        )
+        list(APPEND FEATURE_OPTIONS_RELEASE
+            "-DBLT_CUDA_FLAGS:STRING=-Xcompiler=/Zc:preprocessor -Xcompiler=/utf-8 -Xcompiler=/MD"
+        )
     endif()
 
     if(DEFINED CUDA_ARCHITECTURES AND NOT "${CUDA_ARCHITECTURES}" STREQUAL "")
         list(APPEND FEATURE_OPTIONS
             "-DCMAKE_CUDA_ARCHITECTURES=${CUDA_ARCHITECTURES}"
+        )
+    endif()
+
+    if(EXISTS "${_cuda_toolkit_root}/include/cccl/cub/cub.cuh")
+        list(APPEND FEATURE_OPTIONS
+            "-DCUB_DIR=${_cuda_toolkit_root}/include/cccl"
+        )
+    elseif(EXISTS "${_cuda_toolkit_root}/include/cub/cub.cuh")
+        list(APPEND FEATURE_OPTIONS
+            "-DCUB_DIR=${_cuda_toolkit_root}/include"
         )
     endif()
 endif()
@@ -50,6 +82,10 @@ vcpkg_configure_cmake(
         -DBUILD_SHARED_LIBS:BOOL=${_is_shared}
         -DBLT_CXX_FLAGS:STRING=${_extra_cxx_flags}
         ${FEATURE_OPTIONS}
+    OPTIONS_DEBUG
+        ${FEATURE_OPTIONS_DEBUG}
+    OPTIONS_RELEASE
+        ${FEATURE_OPTIONS_RELEASE}
 )
 
 vcpkg_install_cmake()
@@ -65,7 +101,7 @@ file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/debug/share)
 
 message(STATUS "CURRENT_PACKAGES_DIR -- ${CURRENT_PACKAGES_DIR}")
 
-if(VCPKG_LIBRARY_LINKAGE STREQUAL static)
+if(NOT _is_shared)
     # Note: Not tested
     file(REMOVE_RECURSE ${CURRENT_PACKAGES_DIR}/bin ${CURRENT_PACKAGES_DIR}/debug/bin)
 else()

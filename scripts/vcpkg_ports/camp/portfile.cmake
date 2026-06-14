@@ -3,6 +3,8 @@ vcpkg_from_github(
     REPO llnl/camp
     REF v2025.12.0
     SHA512 caff00944ad27bbd819f0ebf0bec8ffbe4579ab9e39dc8da97a52954293bb4450605bc624dc0d5c7ab0fc1c445088c34a1ec10352499d5e4ff90fd126e809860
+    PATCHES
+        cuda-13-mem-location-stream-helper.patch
 )
 
 set(_is_shared TRUE)
@@ -17,8 +19,15 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
 )
 
 if("cuda" IN_LIST FEATURES)
-    if(NOT DEFINED CUDA_ARCHITECTURES AND DEFINED ENV{CUDA_ARCHITECTURES})
+    if((NOT DEFINED CUDA_ARCHITECTURES OR "${CUDA_ARCHITECTURES}" STREQUAL "") AND DEFINED ENV{CUDA_ARCHITECTURES})
         set(CUDA_ARCHITECTURES "$ENV{CUDA_ARCHITECTURES}")
+    endif()
+
+    if(VCPKG_TARGET_IS_WINDOWS)
+        list(APPEND FEATURE_OPTIONS
+            "-DBLT_CUDA_FLAGS:STRING=-Xcompiler=/Zc:preprocessor -Xcompiler=/utf-8"
+            "-DBLT_CXX_FLAGS:STRING=/Zc:preprocessor /utf-8"
+        )
     endif()
 
     if(DEFINED CUDA_ARCHITECTURES AND NOT "${CUDA_ARCHITECTURES}" STREQUAL "")
