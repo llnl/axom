@@ -219,17 +219,19 @@ if(NANOBIND_FOUND)
             NAME    run_python_with_axom_build
             COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import pysidre, conduit, numpy")
 
-        # The pytest harness is provided per-test via the ENVIRONMENT property
-        # verify that the wrapper + injected ENVIRONMENT combination resolves.
-        axom_add_test(
-            NAME    run_python_with_axom_pytest_harness
-            COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import pytest")
-        axom_python_test_environment(_py_test_env)
-        if(_py_test_env)
-            set_tests_properties(run_python_with_axom_pytest_harness
-                                 PROPERTIES ENVIRONMENT "${_py_test_env}")
+        if(AXOM_ENABLE_PYTHON_TESTS)
+            # The pytest harness is provided per-test via the ENVIRONMENT property;
+            # verify that the wrapper + injected ENVIRONMENT combination resolves.
+            axom_add_test(
+                NAME    run_python_with_axom_pytest_harness
+                COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import pytest")
+            axom_python_test_environment(_py_test_env)
+            if(_py_test_env)
+                set_tests_properties(run_python_with_axom_pytest_harness
+                                     PROPERTIES ENVIRONMENT "${_py_test_env}")
+            endif()
+            unset(_py_test_env)
         endif()
-        unset(_py_test_env)
     endif()
 
     #--------------------------------------------------------------------------

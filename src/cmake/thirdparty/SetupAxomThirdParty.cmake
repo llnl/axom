@@ -370,13 +370,12 @@ if((NOT PY_RUNTIME_IMPORT_CODE EQUAL 0)
    (NOT CONDUIT_PYTHON_MODULE_DIR OR NOT PY_NUMPY_DIR))
     message(FATAL_ERROR
       "Axom's python extensions require conduit and numpy at runtime."
-      "\nThe python library installation paths  can be specified with CMake variables: "
+      "\nThe python library installation paths can be specified with CMake variables: "
       "CONDUIT_PYTHON_MODULE_DIR, PY_NUMPY_DIR")
 endif()
 
-# The pytest harness (pytest plus its dependencies pluggy and iniconfig) is a
-# test-only requirement; it is injected per-test via the ENVIRONMENT property
-# (see axom_python_test_environment in AxomMacros.cmake) and is only required
+# The pytest harness (pytest and its dependencies) is a test-only requirement.
+# It is injected per-test via the ENVIRONMENT property and is only required
 # when Axom's python tests are enabled.
 if(AXOM_ENABLE_PYTHON_TESTS
    AND
