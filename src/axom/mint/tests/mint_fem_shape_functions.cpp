@@ -15,7 +15,7 @@
 
 #include "axom/slic.hpp"
 
-using namespace axom;
+namespace mint = axom::mint;
 using mint::Lagrange;
 using mint::ShapeFunction;
 

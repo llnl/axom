@@ -11,7 +11,7 @@
 #include "axom/slic.hpp"
 // SPHINX_SLIC_INCLUDES_END
 
-using namespace axom;
+namespace slic = axom::slic;
 
 //------------------------------------------------------------------------------
 int main(int AXOM_UNUSED_PARAM(argc), char** AXOM_UNUSED_PARAM(argv))

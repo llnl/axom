@@ -15,7 +15,7 @@
 // MPI
 #include <mpi.h>
 
-using namespace axom;
+namespace slic = axom::slic;
 
 #define N 20
 

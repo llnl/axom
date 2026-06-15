@@ -20,7 +20,7 @@
 
 #include "gtest/gtest.h"
 
-using namespace axom;
+namespace primal = axom::primal;
 
 //------------------------------------------------------------------------------
 

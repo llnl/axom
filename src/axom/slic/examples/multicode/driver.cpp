@@ -17,7 +17,7 @@
 
 #define N 10
 
-using namespace axom;
+namespace slic = axom::slic;
 
 std::ofstream hsp;
 

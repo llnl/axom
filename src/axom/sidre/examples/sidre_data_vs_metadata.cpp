@@ -9,8 +9,7 @@
 
 #include "axom/sidre.hpp"
 
-using namespace axom;
-using namespace sidre;
+using namespace axom::sidre;
 
 /**************************************************************************
  * Subroutine:  main

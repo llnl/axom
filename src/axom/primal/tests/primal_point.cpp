@@ -12,7 +12,7 @@
 #include "axom/core/execution/for_all.hpp"
 #include "axom/slic.hpp"
 
-using namespace axom;
+namespace primal = axom::primal;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>

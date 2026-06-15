@@ -19,7 +19,7 @@
 // MPI
 #include <mpi.h>
 
-using namespace axom;
+namespace slic = axom::slic;
 
 #define CYCLELIMIT 5
 #define RANKSLIMIT 5

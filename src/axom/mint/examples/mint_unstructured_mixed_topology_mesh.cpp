@@ -19,7 +19,8 @@
 // C/C++ includes
 #include <random>
 
-using namespace axom;
+namespace mint = axom::mint;
+namespace utilities = axom::utilities;
 
 inline bool appendQuad(axom::IndexType i, axom::IndexType j) { return (i + j) % 2 == 0; }
 

@@ -33,7 +33,10 @@
 
 //#define MINT_FEM_DEBUG
 
-using namespace axom;
+namespace mint = axom::mint;
+namespace numerics = axom::numerics;
+namespace utilities = axom::utilities;
+using axom::IndexType;
 
 //------------------------------------------------------------------------------
 //  INTERNAL HELPER METHODS

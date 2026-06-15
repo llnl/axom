@@ -16,7 +16,8 @@
 #include "axom/mint.hpp"
 #include "axom/slic.hpp"
 
-using namespace axom;
+namespace mint = axom::mint;
+namespace utilities = axom::utilities;
 
 //------------------------------------------------------------------------------
 int main(int AXOM_UNUSED_PARAM(argc), char** AXOM_UNUSED_PARAM(argv))

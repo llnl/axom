@@ -11,7 +11,7 @@
 #include "axom/slic/interface/slic.hpp"
 #include "axom/slic/streams/GenericOutputStream.hpp"
 
-using namespace axom;
+namespace slic = axom::slic;
 
 namespace physicsA
 {
