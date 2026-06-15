@@ -40,6 +40,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds KnotVector constructors that skip validity assertion checks, allowing the user to call `isValid()`
   and handle the error appropriately.
 - Primal: Adds a `primal::BezierTriangle` class
+- Inlet: Added the ability to have collections (array and dictionary) with variant values.
 
 ### Removed
 
@@ -52,6 +53,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ### Fixed
 - Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
 - Quest: Improves error handling/reporting when loading an invalid c2c contour
+- Primal: Improves reproducibility of 3D GWN methods by removing some sources of randomness
 
 ## [Version 0.14.0] - Release date 2026-03-31
 

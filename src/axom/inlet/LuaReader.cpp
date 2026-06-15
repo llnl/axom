@@ -66,6 +66,29 @@ VariantKey extractAs(const axom::sol::object& obj)
   }
 }
 
+bool extractVariantValue(const axom::sol::object& obj, VariantValue& value)
+{
+  switch(obj.get_type())
+  {
+  case axom::sol::type::boolean:
+    value = obj.as<bool>();
+    return true;
+  case axom::sol::type::number:
+  {
+    const double double_value = obj.as<double>();
+    const int int_value = obj.as<int>();
+    value = (static_cast<double>(int_value) == double_value) ? VariantValue {int_value}
+                                                             : VariantValue {double_value};
+    return true;
+  }
+  case axom::sol::type::string:
+    value = obj.as<std::string>();
+    return true;
+  default:
+    return false;
+  }
+}
+
 /*!
  *******************************************************************************
  * \brief Recursive name retrieval function - adds the names of all descendents
@@ -275,6 +298,18 @@ ReaderResult LuaReader::getStringMap(const std::string& id,
                                      std::unordered_map<VariantKey, std::string>& values)
 {
   return getMap(id, values, axom::sol::type::string);
+}
+
+ReaderResult LuaReader::getVariantMap(const std::string& id,
+                                      std::unordered_map<int, VariantValue>& values)
+{
+  return getVariantMapInternal(id, values);
+}
+
+ReaderResult LuaReader::getVariantMap(const std::string& id,
+                                      std::unordered_map<VariantKey, VariantValue>& values)
+{
+  return getVariantMapInternal(id, values);
 }
 
 template <typename Iter>
@@ -569,6 +604,47 @@ ReaderResult LuaReader::getMap(const std::string& id,
     if(is_correct_key_type(entry.first.get_type()) && entry.second.get_type() == type)
     {
       values[detail::extractAs<Key>(entry.first)] = detail::extractAs<Val>(entry.second);
+    }
+    else
+    {
+      contains_other_type = true;
+    }
+  }
+  return collectionRetrievalResult(contains_other_type, !values.empty());
+}
+
+template <typename Key>
+ReaderResult LuaReader::getVariantMapInternal(const std::string& id,
+                                              std::unordered_map<Key, VariantValue>& values)
+{
+  values.clear();
+  std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
+
+  axom::sol::table t;
+  if(tokens.empty() || !traverseToTable(tokens.begin(), tokens.end(), t))
+  {
+    return ReaderResult::NotFound;
+  }
+
+  const auto is_correct_key_type = [](const axom::sol::type type) {
+    const bool is_number = type == axom::sol::type::number;
+    if(std::is_same<Key, int>::value)
+    {
+      return is_number;
+    }
+    else
+    {
+      return is_number || (type == axom::sol::type::string);
+    }
+  };
+
+  bool contains_other_type = false;
+  for(const auto& entry : t)
+  {
+    VariantValue value;
+    if(is_correct_key_type(entry.first.get_type()) && detail::extractVariantValue(entry.second, value))
+    {
+      values[detail::extractAs<Key>(entry.first)] = value;
     }
     else
     {

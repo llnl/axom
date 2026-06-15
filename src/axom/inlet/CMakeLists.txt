@@ -25,6 +25,7 @@ set(inlet_headers
     Container.hpp 
     Proxy.hpp
     VariantKey.hpp
+    VariantValue.hpp
     Verifiable.hpp
     VerifiableScalar.hpp
     Writer.hpp
