@@ -38,6 +38,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Adds `axom::Array::pop_back` for API compatibility with `std::vector`
 - Primal: Adds KnotVector constructors that skip validity assertion checks, allowing the user to call `isValid()`
   and handle the error appropriately.
+- Inlet: Added the ability to have collections (array and dictionary) with variant values.
 
 ### Removed
 

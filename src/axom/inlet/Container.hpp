@@ -29,6 +29,7 @@
 #include "axom/inlet/Reader.hpp"
 #include "axom/inlet/inlet_utils.hpp"
 #include "axom/inlet/VariantKey.hpp"
+#include "axom/inlet/VariantValue.hpp"
 #include "axom/inlet/Verifiable.hpp"
 
 #include "axom/sidre.hpp"
@@ -80,6 +81,13 @@ struct is_inlet_primitive
   static constexpr bool value = std::is_same<BaseType, bool>::value ||
     std::is_same<BaseType, int>::value || std::is_same<BaseType, double>::value ||
     std::is_same<BaseType, std::string>::value;
+};
+
+template <typename T>
+struct is_variant_value
+{
+  using BaseType = typename std::decay<T>::type;
+  static constexpr bool value = std::is_same<BaseType, VariantValue>::value;
 };
 
 /*!
@@ -448,6 +456,19 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Add an array of mixed primitive Fields to the input file schema.
+   *
+   * \param [in] name Name of the array
+   * \param [in] description Description of the Field
+   *
+   * \return Reference to the created array
+   *****************************************************************************
+   */
+  Verifiable<Container>& addVariantArray(const std::string& name,
+                                         const std::string& description = "");
+
+  /*!
+   *****************************************************************************
    * \brief Add an array of Fields to the input file schema.
    *
    * \param [in] name Name of the array
@@ -507,6 +528,19 @@ public:
    */
   Verifiable<Container>& addStringDictionary(const std::string& name,
                                              const std::string& description = "");
+
+  /*!
+   *****************************************************************************
+   * \brief Add a dictionary of mixed primitive Fields to the input file schema.
+   *
+   * \param [in] name Name of the dict
+   * \param [in] description Description of the dictionary
+   *
+   * \return Reference to the created dictionary
+   *****************************************************************************
+   */
+  Verifiable<Container>& addVariantDictionary(const std::string& name,
+                                              const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -635,6 +669,45 @@ public:
 
   /*!
    *******************************************************************************
+   * \brief Returns a stored mixed primitive value.
+   * 
+   * \param [in] name Name of the Field value to be gotten
+   * \return The retrieved value
+   * 
+   * \tparam T The variant value type
+   *******************************************************************************
+   */
+  template <typename T>
+  typename std::enable_if<detail::is_variant_value<T>::value, T>::type get(const std::string& name) const
+  {
+    if(!hasField(name))
+    {
+      const std::string msg = fmt::format(
+        "[Inlet] Field with specified path "
+        "does not exist: {0}",
+        name);
+      SLIC_ERROR(msg);
+    }
+
+    const Field& field = getField(name);
+    switch(field.type())
+    {
+    case InletType::Bool:
+      return field.get<bool>();
+    case InletType::Integer:
+      return field.get<int>();
+    case InletType::Double:
+      return field.get<double>();
+    case InletType::String:
+      return field.get<std::string>();
+    default:
+      SLIC_ERROR(fmt::format("[Inlet] Field with specified path is not a variant value: {0}", name));
+      return {};
+    }
+  }
+
+  /*!
+   *******************************************************************************
    * \brief Returns a stored value of user-defined type.
    * 
    * Retrieves a value of user-defined type.
@@ -648,8 +721,9 @@ public:
    *******************************************************************************
    */
   template <typename T>
-  typename std::enable_if<!detail::is_inlet_primitive<T>::value && !detail::is_inlet_array<T>::value &&
-                            !detail::is_inlet_dict<T>::value && !detail::is_std_vector<T>::value,
+  typename std::enable_if<!detail::is_inlet_primitive<T>::value &&
+                            !detail::is_inlet_array<T>::value && !detail::is_inlet_dict<T>::value &&
+                            !detail::is_std_vector<T>::value && !detail::is_variant_value<T>::value,
                           T>::type
   get(const std::string& name = "") const
   {
@@ -928,7 +1002,8 @@ private:
    *****************************************************************************
    */
   template <typename T,
-            typename SFINAE = typename std::enable_if<detail::is_inlet_primitive<T>::value>::type>
+            typename SFINAE = typename std::enable_if<detail::is_inlet_primitive<T>::value ||
+                                                      detail::is_variant_value<T>::value>::type>
   Verifiable<Container>& addPrimitiveArray(const std::string& name,
                                            const std::string& description = "",
                                            const bool isDict = false,

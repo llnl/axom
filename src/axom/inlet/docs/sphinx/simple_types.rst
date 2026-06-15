@@ -127,30 +127,141 @@ can get the Container instance first, then access it with the relative name.
 Arrays
 ******
 
-Coming soon!
+Primitive arrays store a collection of values under integer keys.  The ``addBoolArray``,
+``addIntArray``, ``addDoubleArray``, and ``addStringArray`` schema methods expect
+all values in the array to have the requested primitive type.
+
+In this example, both arrays contain only integer values.  The first input array
+is contiguous and the second uses explicit integer keys:
+
+.. literalinclude:: ../../examples/homogeneous_collections.cpp
+   :start-after: _inlet_simple_types_homogeneous_arrays_input_start
+   :end-before: _inlet_simple_types_homogeneous_arrays_input_end
+   :language: lua
+
+For arrays whose values can be any supported primitive type, use ``addVariantArray``.
+Variant arrays store values as ``inlet::VariantValue``, which is a
+``std::variant<bool, int, double, std::string>``.
+
+In this example, the arrays contain mixed primitive value types:
+
+.. literalinclude:: ../../examples/variant_collections.cpp
+   :start-after: _inlet_simple_types_variant_arrays_input_start
+   :end-before: _inlet_simple_types_variant_arrays_input_end
+   :language: lua
 
 Defining And Storing
 --------------------
 
-Coming soon!
+Homogeneous primitive arrays are added with the type-specific ``add*Array`` method:
+
+.. literalinclude:: ../../examples/homogeneous_collections.cpp
+   :start-after: _inlet_simple_types_homogeneous_collections_add_start
+   :end-before: _inlet_simple_types_homogeneous_collections_add_end
+   :language: C++
+
+Variant arrays are added with ``addVariantArray``:
+
+.. literalinclude:: ../../examples/variant_collections.cpp
+   :start-after: _inlet_simple_types_variant_collections_add_start
+   :end-before: _inlet_simple_types_variant_collections_add_end
+   :language: C++
 
 Accessing
 ---------
 
-Coming soon!
+Contiguous homogeneous arrays can be retrieved as ``std::vector<T>``:
+
+.. literalinclude:: ../../examples/homogeneous_collections.cpp
+   :start-after: _inlet_simple_types_homogeneous_arrays_access_vector_start
+   :end-before: _inlet_simple_types_homogeneous_arrays_access_vector_end
+   :language: C++
+
+Integer-keyed homogeneous arrays can be retrieved as
+``std::unordered_map<int, T>`` when the original indices are needed:
+
+.. literalinclude:: ../../examples/homogeneous_collections.cpp
+   :start-after: _inlet_simple_types_homogeneous_arrays_access_map_start
+   :end-before: _inlet_simple_types_homogeneous_arrays_access_map_end
+   :language: C++
+
+Contiguous variant arrays can be retrieved as
+``std::vector<inlet::VariantValue>``:
+
+.. literalinclude:: ../../examples/variant_collections.cpp
+   :start-after: _inlet_simple_types_variant_arrays_access_vector_start
+   :end-before: _inlet_simple_types_variant_arrays_access_vector_end
+   :language: C++
+
+Integer-keyed variant arrays can be retrieved as
+``std::unordered_map<int, inlet::VariantValue>`` when the original indices are
+needed:
+
+.. literalinclude:: ../../examples/variant_collections.cpp
+   :start-after: _inlet_simple_types_variant_arrays_access_map_start
+   :end-before: _inlet_simple_types_variant_arrays_access_map_end
+   :language: C++
 
 ************
 Dictionaries
 ************
 
-Coming soon!
+Dictionaries store a collection of values under arbitrary string keys or a mix of
+string and integer keys.  The ``addBoolDictionary``, ``addIntDictionary``,
+``addDoubleDictionary``, and ``addStringDictionary`` schema methods expect all
+values in the dictionary to have the requested primitive type.
+
+In this example, all dictionary values are integers:
+
+.. literalinclude:: ../../examples/homogeneous_collections.cpp
+   :start-after: _inlet_simple_types_homogeneous_dictionary_input_start
+   :end-before: _inlet_simple_types_homogeneous_dictionary_input_end
+   :language: lua
+
+For dictionaries whose values can be any supported primitive type, use
+``addVariantDictionary``.  Mixed string and integer keys are represented with
+``inlet::VariantKey``.
+
+In this example, the dictionary has mixed primitive values and mixed key types:
+
+.. literalinclude:: ../../examples/variant_collections.cpp
+   :start-after: _inlet_simple_types_variant_dictionary_input_start
+   :end-before: _inlet_simple_types_variant_dictionary_input_end
+   :language: lua
 
 Defining And Storing
 --------------------
 
-Coming soon!
+Homogeneous primitive dictionaries are added with the type-specific
+``add*Dictionary`` method:
+
+.. literalinclude:: ../../examples/homogeneous_collections.cpp
+   :start-after: _inlet_simple_types_homogeneous_collections_add_start
+   :end-before: _inlet_simple_types_homogeneous_collections_add_end
+   :language: C++
+
+Variant dictionaries are added with ``addVariantDictionary``:
+
+.. literalinclude:: ../../examples/variant_collections.cpp
+   :start-after: _inlet_simple_types_variant_collections_add_start
+   :end-before: _inlet_simple_types_variant_collections_add_end
+   :language: C++
 
 Accessing
 ---------
 
-Coming soon!
+Mixed-key homogeneous dictionaries can be retrieved as
+``std::unordered_map<inlet::VariantKey, T>``.
+
+.. literalinclude:: ../../examples/homogeneous_collections.cpp
+   :start-after: _inlet_simple_types_homogeneous_dictionary_access_start
+   :end-before: _inlet_simple_types_homogeneous_dictionary_access_end
+   :language: C++
+
+Mixed-key variant dictionaries can be retrieved as
+``std::unordered_map<inlet::VariantKey, inlet::VariantValue>``.
+
+.. literalinclude:: ../../examples/variant_collections.cpp
+   :start-after: _inlet_simple_types_variant_dictionary_access_start
+   :end-before: _inlet_simple_types_variant_dictionary_access_end
+   :language: C++
