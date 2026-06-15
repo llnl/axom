@@ -5,6 +5,9 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "axom/quest/SamplingShaper.hpp"
 #include "axom/quest/detail/shaping/shaping_helpers.hpp"
+#if defined(AXOM_USE_CONDUIT)
+  #include "axom/quest/detail/shaping/shaping_helpers_blueprint.hpp"
+#endif
 
 namespace axom
 {
