@@ -4,6 +4,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#include "axom/config.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/numerics/polynomial_solvers.hpp"
 

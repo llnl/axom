@@ -4,14 +4,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#include "axom/config.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/Array.hpp"
 #include "axom/core/FlatMap.hpp"
 #include "axom/core/NumericLimits.hpp"
 #include "axom/core/numerics/quadrature.hpp"
-
-// For math constants and includes
-#include "axom/config.hpp"
 
 #include <cmath>
 #include <cstdint>
