@@ -36,7 +36,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   removed in a future version of Axom.
 - Core: Adds Durand-Kerner polynomial solver which returns the complex roots of a univariate polynomial
 - Core: Adds `axom::Array::pop_back` for API compatibility with `std::vector`
-- Core: Axom core memory allocation semantics and defaults have changed to be more consistent. Specifically, the separation of the Axom default global allocator and default host allocator (both used for CPU-accessible allocations) is more clear. Host-facing code paths have been updated to use that distinction consistently. Please see Core component user documentation for more inofrmaiton.
+- Core: Axom core memory allocation semantics and defaults have changed to be more consistent. Specifically, the default allocation stractegy for host allocations is now Axom's malloc routine; before it was the Umpire default HOST allocator. Also, the separation of the Axom default global allocator and default host allocator (both used for CPU-accessible allocations) is more clear. Host-facing code paths have been updated to use that distinction consistently. Please see Core component user documentation for more information.
 - Primal: Adds KnotVector constructors that skip validity assertion checks, allowing the user to call `isValid()`
   and handle the error appropriately.
 - Inlet: Added the ability to have collections (array and dictionary) with variant values.
