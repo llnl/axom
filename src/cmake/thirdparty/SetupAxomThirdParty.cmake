@@ -364,10 +364,8 @@ endif()
 # If the python environment does not contain the required runtime modules,
 # check if library installation paths were provided instead.
 if((NOT PY_RUNTIME_IMPORT_CODE EQUAL 0)
-   AND
-   nanobind_ROOT
-   AND
-   (NOT CONDUIT_PYTHON_MODULE_DIR OR NOT PY_NUMPY_DIR))
+   AND nanobind_ROOT
+   AND (NOT CONDUIT_PYTHON_MODULE_DIR OR NOT PY_NUMPY_DIR))
     message(FATAL_ERROR
       "Axom's python extensions require conduit and numpy at runtime."
       "\nThe python library installation paths can be specified with CMake variables: "
@@ -378,12 +376,9 @@ endif()
 # It is injected per-test via the ENVIRONMENT property and is only required
 # when Axom's python tests are enabled.
 if(AXOM_ENABLE_PYTHON_TESTS
-   AND
-   (NOT PY_PYTEST_IMPORT_CODE EQUAL 0)
-   AND
-   nanobind_ROOT
-   AND
-   (NOT PY_PYTEST_DIR OR NOT PY_PLUGGY_DIR OR NOT PY_INICONFIG_DIR))
+   AND (NOT PY_PYTEST_IMPORT_CODE EQUAL 0)
+   AND nanobind_ROOT
+   AND (NOT PY_PYTEST_DIR OR NOT PY_PLUGGY_DIR OR NOT PY_INICONFIG_DIR))
     message(FATAL_ERROR
       "Running Axom's python tests requires pytest (and its dependencies pluggy and iniconfig)."
       "\nThe library installation paths can be specified with CMake variables: "
@@ -395,12 +390,9 @@ endif()
 # if python environment does not contain required mpi4py module,
 # check if mpi4py library installation path was provided instead.
 if(AXOM_ENABLE_MPI
-   AND
-   (NOT MPI4PY_ENV_IMPORT_CODE EQUAL 0)
-   AND
-   nanobind_ROOT
-   AND
-   (NOT PY_MPI4PY_DIR))
+   AND (NOT MPI4PY_ENV_IMPORT_CODE EQUAL 0)
+   AND nanobind_ROOT
+   AND (NOT PY_MPI4PY_DIR))
     message(FATAL_ERROR
       "Axom's python extension requires mpi4py when Axom library is configured with MPI."
       "\nThe mpi4py library installation paths "
@@ -415,11 +407,8 @@ if(nanobind_ROOT
    AND NOT AXOM_ENABLE_CUDA
    AND NOT AXOM_ENABLE_ASAN
    AND NOT AXOM_ENABLE_UBSAN
-   AND
-   ((NOT "$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9")
-   OR
-   ("$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9"
-   AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")))
+   AND ((NOT "$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9")
+        OR  ("$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9" AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")))
 
     axom_assert_is_directory(DIR_VARIABLE nanobind_ROOT)
     find_package(nanobind CONFIG REQUIRED)
