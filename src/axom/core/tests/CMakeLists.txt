@@ -172,13 +172,26 @@ axom_add_test( NAME    utils_config
                COMMAND utils_config_test )
 
 # Add flag to ignore unknown openmp pragmas in utils_config
-set_property(TARGET utils_config_test
-    APPEND_STRING PROPERTY COMPILE_FLAGS "${AXOM_DISABLE_OMP_PRAGMA_WARNINGS}")
+if(MSVC AND AXOM_ENABLE_CUDA)
+    target_compile_options(utils_config_test PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4068>
+        $<$<COMPILE_LANGUAGE:CXX>:/wd4068>)
 
-# Have to ignore unused parameters for mfem
-if(MFEM_FOUND)
+    # Have to ignore unused parameters for mfem
+    if(MFEM_FOUND)
+        target_compile_options(utils_config_test PRIVATE
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4100>
+            $<$<COMPILE_LANGUAGE:CXX>:/wd4100>)
+    endif()
+else()
     set_property(TARGET utils_config_test
-        APPEND_STRING PROPERTY COMPILE_FLAGS "${AXOM_DISABLE_UNUSED_PARAMETER_WARNINGS}")
+        APPEND_STRING PROPERTY COMPILE_FLAGS "${AXOM_DISABLE_OMP_PRAGMA_WARNINGS}")
+
+    # Have to ignore unused parameters for mfem
+    if(MFEM_FOUND)
+        set_property(TARGET utils_config_test
+            APPEND_STRING PROPERTY COMPILE_FLAGS "${AXOM_DISABLE_UNUSED_PARAMETER_WARNINGS}")
+    endif()
 endif()
 
 #------------------------------------------------------------------------------
