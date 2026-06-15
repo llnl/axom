@@ -63,20 +63,20 @@ TEST(sidre_group, get_path_name)
   EXPECT_EQ(croot, root);
   EXPECT_EQ(root->getName(), "");
   Group* group = root->createGroup("test/a/b/c");
-  Group* grp2 = root->getGroup("test/a");
-  Group* grp3 = root->getGroup("test");
+  Group* group_test_a = root->getGroup("test/a");
+  Group* group_test = root->getGroup("test");
 
   EXPECT_EQ(root->getName(), std::string(""));
   EXPECT_EQ(root->getPath(), std::string(""));
   EXPECT_EQ(root->getPathName(), std::string(""));
 
-  EXPECT_EQ(grp2->getName(), std::string("a"));
-  EXPECT_EQ(grp2->getPath(), std::string("test"));
-  EXPECT_EQ(grp2->getPathName(), std::string("test/a"));
+  EXPECT_EQ(group_test_a->getName(), std::string("a"));
+  EXPECT_EQ(group_test_a->getPath(), std::string("test"));
+  EXPECT_EQ(group_test_a->getPathName(), std::string("test/a"));
 
-  EXPECT_EQ(grp3->getName(), std::string("test"));
-  EXPECT_EQ(grp3->getPath(), std::string(""));
-  EXPECT_EQ(grp3->getPathName(), std::string("test"));
+  EXPECT_EQ(group_test->getName(), std::string("test"));
+  EXPECT_EQ(group_test->getPath(), std::string(""));
+  EXPECT_EQ(group_test->getPathName(), std::string("test"));
 
   EXPECT_EQ(group->getName(), std::string("c"));
   EXPECT_EQ(group->getPath(), std::string("test/a/b"));

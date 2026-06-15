@@ -28,6 +28,8 @@ using axom::sidre::NO_TYPE_ID;
 using axom::sidre::TypeID;
 using axom::sidre::View;
 
+namespace sidre = axom::sidre;
+
 using namespace conduit;
 
 #define BLEN 10
@@ -2151,7 +2153,6 @@ TEST(sidre_view, deep_copy_to_conduit_with_allocid)
 
 TEST(sidre_view, reshape_array)
 {
-  using namespace axom;
   DataStore ds;
   Group* root = ds.getRoot();
 
@@ -2286,7 +2287,6 @@ TEST(sidre_view, reshape_array)
 
 TEST(sidre_view, apply_and_shape_behavior)
 {
-  using namespace axom;
   DataStore ds;
   Group* root = ds.getRoot();
 

@@ -193,8 +193,8 @@ TEST(sidre_attribute, view_attr)
 
   //----------------------------------------
   // Set the first attribute in a Group
-  Group* grp1 = root->createGroup("grp1");
-  View* view1a = grp1->createView(g_namea);
+  Group* group1 = root->createGroup("grp1");
+  View* view1a = group1->createView(g_namea);
   EXPECT_TRUE(view1a != nullptr);
 
   EXPECT_FALSE(view1a->hasAttributeValue(g_attr_null));
@@ -236,9 +236,9 @@ TEST(sidre_attribute, view_attr)
 
   //----------------------------------------
   // Set the second attribute in a Group
-  Group* grp2 = root->createGroup("grp2");
+  Group* group2 = root->createGroup("grp2");
 
-  View* view2a = grp2->createView(g_namea);
+  View* view2a = group2->createView(g_namea);
   EXPECT_TRUE(view2a != nullptr);
 
   EXPECT_FALSE(view2a->hasAttributeValue(attr_color));
@@ -273,10 +273,10 @@ TEST(sidre_attribute, view_attr)
 
   //----------------------------------------
   // Set attribute on second View in a Group
-  Group* grp3 = root->createGroup("grp3");
-  View* view3a = grp3->createView(g_namea);
+  Group* group3 = root->createGroup("grp3");
+  View* view3a = group3->createView(g_namea);
   EXPECT_TRUE(view3a != nullptr);
-  View* view3b = grp3->createView(g_nameb);
+  View* view3b = group3->createView(g_nameb);
   EXPECT_TRUE(view3b != nullptr);
 
   ok = view3b->setAttributeString(attr_animal, g_animal_dog);
@@ -290,9 +290,9 @@ TEST(sidre_attribute, view_attr)
 
   //----------------------------------------
   // Moving a view should preserve attributes
-  Group* grp4 = root->createGroup("grp4");
+  Group* group4 = root->createGroup("grp4");
 
-  grp4->moveView(view3b);
+  group4->moveView(view3b);
 
   const std::string& out4a = view3b->getAttributeString(attr_animal);
   EXPECT_EQ(g_animal_dog, out4a);
@@ -300,8 +300,8 @@ TEST(sidre_attribute, view_attr)
   // Create an attribute which will be destroyed
   view3a->setAttributeString(attr_animal, g_animal_dog);
 
-  grp3->destroyView(g_namea);
-  grp4->destroyView(g_nameb);
+  group3->destroyView(g_namea);
+  group4->destroyView(g_nameb);
 
   delete ds;
 
@@ -336,8 +336,8 @@ TEST(sidre_attribute, view_int_and_double)
 
   //----------------------------------------
   // Create a View
-  Group* grp1 = root->createGroup("grp1");
-  View* view1a = grp1->createView(g_namea);
+  Group* group1 = root->createGroup("grp1");
+  View* view1a = group1->createView(g_namea);
   EXPECT_TRUE(view1a != nullptr);
 
   // Get default values
@@ -410,8 +410,8 @@ TEST(sidre_attribute, set_default)
 
   //----------------------------------------
   // Create a View
-  Group* grp1 = root->createGroup("grp1");
-  View* view1a = grp1->createView(g_namea);
+  Group* group1 = root->createGroup("grp1");
+  View* view1a = group1->createView(g_namea);
   EXPECT_TRUE(view1a != nullptr);
 
   // reset unset attribute 1
@@ -469,8 +469,8 @@ TEST(sidre_attribute, as_node)
 
   //----------------------------------------
   // Set the first attribute in a Group
-  Group* grp1 = root->createGroup("grp1");
-  View* view1a = grp1->createView(g_namea);
+  Group* group1 = root->createGroup("grp1");
+  View* view1a = group1->createView(g_namea);
   EXPECT_TRUE(view1a != nullptr);
 
   ok = view1a->setAttributeString(attr_color, g_color_red);
