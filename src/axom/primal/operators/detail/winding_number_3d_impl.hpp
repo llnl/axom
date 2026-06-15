@@ -577,10 +577,28 @@ double nurbs_winding_number(const Point<T, 3>& query,
    * of the surface at known locations.
    */
 
-  // Lambda to generate an entirely random unit vector
-  auto random_unit = []() -> Vector<T, 3> {
-    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-    double u = axom::utilities::random_real(-1.0, 1.0);
+  // If a new cast direction is needed, use an (2, 3)-Halton sequence
+  //  projected onto the sphere to pick the next direction
+  auto halton = [](int i, int base) -> T {
+    T f = 1.0;
+    T r = 0.0;
+    while(i > 0)
+    {
+      f /= base;
+      r += f * (i % base);
+      i /= base;
+    }
+    return r;
+  };
+
+  // Shift the entire sequence by the original cast direction
+  const T cast_direction_u = (1.0 - cast_direction[2]) / 2.0 - halton(1, 2);
+  const T cast_direction_v =
+    (0.5 * M_1_PI * std::atan2(cast_direction[1], cast_direction[0]) + 1.0) - halton(1, 3);
+
+  auto recast_direction = [&](int attempt) -> Vector<T, 3> {
+    T theta = 2.0 * M_PI * std::fmod(halton(attempt + 1, 3) + cast_direction_v + 1.0, 1.0);
+    T u = 2.0 * std::fmod(halton(attempt + 1, 2) + cast_direction_u + 1.0, 1.0) - 1.0;
     return Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
   };
 
@@ -594,7 +612,8 @@ double nurbs_winding_number(const Point<T, 3>& query,
     auto request_recast = [&]() -> bool {
       if(can_recast)
       {
-        cast_direction_local = random_unit();
+        cast_direction_local = recast_direction(recast_attempt + 1);
+
         return true;
       }
       return false;
@@ -848,8 +867,8 @@ double nurbs_winding_number(const Point<T, 3>& query,
           //  with a cast ray that is mostly in the direction of the normal (assuming it's non-zero)
           Vector<T, 3> new_cast_direction = the_disk.normal(up[i], vp[i]);
           new_cast_direction = (new_cast_direction.norm() < EPS)
-            ? random_unit()
-            : (new_cast_direction.unitVector() + 0.1 * random_unit()).unitVector();
+            ? recast_direction(recast_attempt + 1)
+            : (new_cast_direction.unitVector() + 0.1 * recast_direction(recast_attempt + 1)).unitVector();
 
           the_gwn += nurbs_winding_number(query,
                                           the_disk,
