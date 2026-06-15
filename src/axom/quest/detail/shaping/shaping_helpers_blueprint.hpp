@@ -39,13 +39,11 @@ namespace shaping
  */
 std::string getBlueprintCellShape(const conduit::Node& topoNode);
 
-  #if defined(AXOM_USE_BUMP)
 constexpr const char* QUADRATURE_COORDSET_NAME = "quadrature_points";
 constexpr const char* QUADRATURE_TOPOLOGY_NAME = "quadrature_points";
 constexpr const char* ORIGINAL_ELEMENTS_FIELD_NAME = "originalElements";
 constexpr const char* QUADRATURE_WEIGHTS_FIELD_NAME = "quadratureWeights";
 constexpr const char* QUADRATURE_PHYSICAL_WEIGHTS_FIELD_NAME = "quadraturePhysicalWeights";
-  #endif
 
 /*!
  * \brief Stores Blueprint mesh state and backend-specific access for Quest shapers.
