@@ -951,6 +951,30 @@ struct DeviceStagingBuffer
   bool m_deviceStage;
 };
 
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
+template <typename ExecSpace, typename T>
+void arrayOpsInitDeviceDefault(T* data, IndexType begin, IndexType nelems)
+{
+  for_all<ExecSpace>(begin, begin + nelems, AXOM_LAMBDA(IndexType i) { new(&data[i]) T(); });
+}
+
+template <typename ExecSpace, typename T>
+void arrayOpsInitDeviceFromValue(T* data, IndexType begin, IndexType nelems)
+{
+  T object {};
+  for_all<ExecSpace>(
+    begin,
+    begin + nelems,
+    AXOM_LAMBDA(IndexType i) { new(&data[i]) T(object); });
+}
+
+template <typename ExecSpace, typename T>
+void arrayOpsFillDevice(T* array, IndexType begin, IndexType nelems, const T& value)
+{
+  for_all<ExecSpace>(nelems, AXOM_LAMBDA(IndexType i) { new(&array[i + begin]) T(value); });
+}
+#endif
+
 template <typename T>
 struct ArrayOps
 {
@@ -985,7 +1009,6 @@ struct ArrayOps
 #endif
   using StagingBuffer = DeviceStagingBuffer<T>;
 
-public:
   ArrayOps(int allocId, bool preferDevice)
   {
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
@@ -1024,18 +1047,14 @@ public:
         {
           // Object is trivially default-constructible, so default-construct
           // the object on the device.
-          for_all<ExecSpace>(begin, begin + nelems, AXOM_LAMBDA(IndexType i) { new(&data[i]) T(); });
+          arrayOpsInitDeviceDefault<ExecSpace>(data, begin, nelems);
           return;
         }
         else if constexpr(std::is_trivially_copyable_v<T>)
         {
           // Object is not trivially default-constructible, but is trivially-
           // copyable. Copy-construct instances on the device.
-          T object {};
-          for_all<ExecSpace>(
-            begin,
-            begin + nelems,
-            AXOM_LAMBDA(IndexType i) { new(&data[i]) T(object); });
+          arrayOpsInitDeviceFromValue<ExecSpace>(data, begin, nelems);
           return;
         }
       }
@@ -1067,7 +1086,7 @@ public:
       if constexpr(std::is_trivially_copyable_v<T>)
       {
         // Trivially-copyable objects can be copied on the device.
-        for_all<ExecSpace>(nelems, AXOM_LAMBDA(IndexType i) { new(&array[i + begin]) T(value); });
+        arrayOpsFillDevice<ExecSpace>(array, begin, nelems, value);
         return;
       }
     }
