@@ -8,7 +8,6 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/core/utilities/MemoryTesting.hpp"
-
 #include "axom/primal.hpp"
 #include "axom/mint.hpp"
 
