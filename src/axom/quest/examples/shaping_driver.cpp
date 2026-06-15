@@ -965,20 +965,15 @@ int main(int argc, char** argv)
       if(!params.backgroundMaterial.empty())
       {
         auto material = params.backgroundMaterial;
-        auto name = axom::fmt::format("vol_frac_{}", material);
+        auto name = quest::shaping::volumeFractionFieldName(material);
 
         const auto num_elements = params.numberOfBoxMeshElements();
-        conduit::Node* n_mesh = shaper->getBlueprintMeshNode();
-        conduit::Node& n_field = n_mesh->fetch("fields/" + name);
-        n_field["topology"] = "topology";
-        n_field["association"] = "element";
-        n_field["values"].set(conduit::DataType::float64(num_elements));
-        conduit::float64_array values = n_field["values"].value();
-        for(conduit::index_t i = 0; i < num_elements; i++)
+        auto values = shaper->getBlueprintState()->createField(name, "mesh", num_elements);
+        for(axom::IndexType i = 0; i < num_elements; i++)
         {
           values[i] = 1.;
         }
-
+        conduit::Node& n_field = shaper->getBlueprintState()->getField(name);
         std::map<std::string, conduit::Node*> initial_grid_functions;
         initial_grid_functions[material] = &n_field;
 
@@ -996,7 +991,7 @@ int main(int argc, char** argv)
       if(!params.backgroundMaterial.empty())
       {
         auto material = params.backgroundMaterial;
-        auto name = axom::fmt::format("vol_frac_{}", material);
+        auto name = quest::shaping::volumeFractionFieldName(material);
 
         const int order = params.outputOrder;
         const int dim = shapingMesh->Dimension();
