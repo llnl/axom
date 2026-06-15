@@ -2479,11 +2479,7 @@ TEST(core_array, check_1D_view_spacing_preserved)
 
   // Deep copy from strided view to owning array -- must copy the values, not contiguous indices
   {
-    int source[10];
-    for(int i = 0; i < 10; ++i)
-    {
-      source[i] = i * 10;  // {0, 10, 20, 30, 40, 50, 60, 70, 80, 90}
-    }
+    int source[10] = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90};
 
     // Strided view with stride=2 references elements {0, 20, 40, 60, 80}
     axom::ArrayView<int, 1> strided_view(source, {{5}}, 2);
@@ -2494,15 +2490,15 @@ TEST(core_array, check_1D_view_spacing_preserved)
     EXPECT_EQ(strided_view[3], 60);
     EXPECT_EQ(strided_view[4], 80);
 
-    // Deep copy to owning array - should preserve the VALUES
+    // Deep copy to owning array - should preserve the stride
     axom::Array<int, 1> arr(strided_view);
     EXPECT_EQ(arr.size(), 5);
     EXPECT_EQ(arr.minStride(), 1);  // Owning array is contiguous
-    EXPECT_EQ(arr[0], 0);           // Should copy source[0*2], not source[0]
-    EXPECT_EQ(arr[1], 20);          // Should copy source[1*2], not source[1]
-    EXPECT_EQ(arr[2], 40);          // Should copy source[2*2], not source[2]
-    EXPECT_EQ(arr[3], 60);          // Should copy source[3*2], not source[3]
-    EXPECT_EQ(arr[4], 80);          // Should copy source[4*2], not source[4]
+    EXPECT_EQ(arr[0], 0);           // Each should copy source[i*2], not source[i]
+    EXPECT_EQ(arr[1], 20);
+    EXPECT_EQ(arr[2], 40);
+    EXPECT_EQ(arr[3], 60);
+    EXPECT_EQ(arr[4], 80);
   }
 
   // Test with stride=3

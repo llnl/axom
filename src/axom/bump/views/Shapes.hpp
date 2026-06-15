@@ -87,7 +87,7 @@ struct PointTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 1> getFace(IndexType faceIndex)
   {
-#ifdef NDEBUG
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
@@ -136,7 +136,7 @@ struct LineTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 2> getFace(IndexType faceIndex)
   {
-#ifdef NDEBUG
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
@@ -190,7 +190,7 @@ struct TriTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 3> getFace(IndexType faceIndex)
   {
-#ifdef NDEBUG
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
@@ -245,7 +245,7 @@ struct QuadTraits
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 4> getFace(IndexType faceIndex)
   {
-#ifdef NDEBUG
+#if defined(NDEBUG)
     AXOM_UNUSED_VAR(faceIndex);
 #endif
     assert(faceIndex == 0);
