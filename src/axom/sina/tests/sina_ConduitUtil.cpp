@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include <stdexcept>
+#include <string>
 
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
@@ -31,7 +32,9 @@ TEST(ConduitUtil, getRequiredField_present)
 {
   conduit::Node parent;
   parent["fieldName"] = "field value";
-  auto &field = getRequiredField("fieldName", parent, "parent name");
+  std::string const field_name {"fieldName"};
+  std::string const parent_name {"parent name"};
+  conduit::Node const &field = getRequiredField(field_name, parent, parent_name);
   EXPECT_TRUE(field.dtype().is_string());
   EXPECT_EQ("field value", field.as_string());
 }
@@ -41,7 +44,9 @@ TEST(ConduitUtil, getRequiredField_missing)
   conduit::Node parent;
   try
   {
-    auto &field = getRequiredField("fieldName", parent, "parent name");
+    std::string const field_name {"fieldName"};
+    std::string const parent_name {"parent name"};
+    conduit::Node const &field = getRequiredField(field_name, parent, parent_name);
     FAIL() << "Should not have found field, but got " << field.name();
   }
   catch(std::invalid_argument const &expected)
