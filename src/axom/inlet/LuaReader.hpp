@@ -72,6 +72,11 @@ public:
   ReaderResult getStringMap(const std::string& id,
                             std::unordered_map<VariantKey, std::string>& values) override;
 
+  ReaderResult getVariantMap(const std::string& id,
+                             std::unordered_map<int, VariantValue>& values) override;
+  ReaderResult getVariantMap(const std::string& id,
+                             std::unordered_map<VariantKey, VariantValue>& values) override;
+
   ReaderResult getIndices(const std::string& id, std::vector<int>& indices) override;
   ReaderResult getIndices(const std::string& id, std::vector<VariantKey>& indices) override;
 
@@ -116,6 +121,10 @@ private:
   ReaderResult getMap(const std::string& id,
                       std::unordered_map<Key, Val>& values,
                       axom::sol::type type);
+
+  template <typename Key>
+  ReaderResult getVariantMapInternal(const std::string& id,
+                                     std::unordered_map<Key, VariantValue>& values);
 
   template <typename T>
   ReaderResult getIndicesInternal(const std::string& id, std::vector<T>& indices);

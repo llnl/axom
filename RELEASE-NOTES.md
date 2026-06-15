@@ -39,6 +39,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Quest: Enhanced `SamplingShaper` so it can operate on Blueprint quad/hex meshes.
 - Primal: Adds KnotVector constructors that skip validity assertion checks, allowing the user to call `isValid()`
   and handle the error appropriately.
+- Inlet: Added the ability to have collections (array and dictionary) with variant values.
 
 ### Removed
 

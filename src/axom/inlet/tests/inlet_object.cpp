@@ -19,11 +19,13 @@
 #include <vector>
 #include <unordered_map>
 #include <iostream>
+#include <variant>
 
 using axom::Path;
 using axom::inlet::Inlet;
 using axom::inlet::InletType;
 using axom::inlet::VariantKey;
+using axom::inlet::VariantValue;
 using axom::inlet::VerificationError;
 
 using ::testing::Contains;
@@ -829,6 +831,32 @@ TYPED_TEST(inlet_object, primitive_arrays_as_std_vector)
   EXPECT_EQ(arr_w_indices, expected_arr_w_indices);
 }
 
+TYPED_TEST(inlet_object, variant_arrays_as_std_vector)
+{
+  std::string testString = " arr = { [0] = 42, [1] = 'hello', [2] = true, [3] = 3.14 }";
+  Inlet inlet = createBasicInlet<TypeParam>(testString);
+
+  inlet.addVariantArray("arr");
+
+  EXPECT_TRUE(inlet.verify());
+
+  std::vector<VariantValue> expected_arr {VariantValue {42},
+                                          VariantValue {std::string {"hello"}},
+                                          VariantValue {true},
+                                          VariantValue {3.14}};
+  std::vector<VariantValue> arr = inlet["arr"].get<std::vector<VariantValue>>();
+  EXPECT_EQ(arr, expected_arr);
+
+  std::unordered_map<int, VariantValue> expected_arr_w_indices {
+    {0, VariantValue {42}},
+    {1, VariantValue {std::string {"hello"}}},
+    {2, VariantValue {true}},
+    {3, VariantValue {3.14}}};
+  std::unordered_map<int, VariantValue> arr_w_indices =
+    inlet["arr"].get<std::unordered_map<int, VariantValue>>();
+  EXPECT_EQ(arr_w_indices, expected_arr_w_indices);
+}
+
 TYPED_TEST(inlet_object, primitive_arrays_as_std_vector_wrong_type)
 {
   std::string testString = " arr = { [0] = 'a', [1] = 'b', [2] = 'c'}";
@@ -1362,6 +1390,21 @@ TEST(inlet_object_lua_dict, mixed_keys_primitive)
   inlet.addIntDictionary("foo", "foo's description");
   std::unordered_map<VariantKey, int> dict = inlet["foo"];
   std::unordered_map<VariantKey, int> correct_dict = {{"key1", 4}, {1, 6}};
+  EXPECT_EQ(dict, correct_dict);
+}
+
+TEST(inlet_object_lua_dict, mixed_keys_variant)
+{
+  std::string testString = "foo = { ['key1'] = 'hello', [1] = 42, ['flag'] = true }";
+  Inlet inlet = createBasicInlet<axom::inlet::LuaReader>(testString);
+
+  inlet.addVariantDictionary("foo", "foo's description");
+  std::unordered_map<VariantKey, VariantValue> dict =
+    inlet["foo"].get<std::unordered_map<VariantKey, VariantValue>>();
+  std::unordered_map<VariantKey, VariantValue> correct_dict = {
+    {"key1", VariantValue {std::string {"hello"}}},
+    {1, VariantValue {42}},
+    {"flag", VariantValue {true}}};
   EXPECT_EQ(dict, correct_dict);
 }
 

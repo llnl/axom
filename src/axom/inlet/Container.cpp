@@ -188,6 +188,12 @@ Verifiable<Container>& Container::addStringArray(const std::string& name,
   return addPrimitiveArray<std::string>(name, description);
 }
 
+Verifiable<Container>& Container::addVariantArray(const std::string& name,
+                                                  const std::string& description)
+{
+  return addPrimitiveArray<VariantValue>(name, description);
+}
+
 template <typename Key>
 Container& Container::addStructCollection(const std::string& name, const std::string& description)
 {
@@ -249,6 +255,12 @@ Verifiable<Container>& Container::addStringDictionary(const std::string& name,
                                                       const std::string& description)
 {
   return addPrimitiveArray<std::string>(name, description, true);
+}
+
+Verifiable<Container>& Container::addVariantDictionary(const std::string& name,
+                                                       const std::string& description)
+{
+  return addPrimitiveArray<VariantValue>(name, description, true);
 }
 
 Container& Container::addStructDictionary(const std::string& name, const std::string& description)
@@ -490,6 +502,44 @@ std::vector<VariantKey> registerCollection(Container& container,
   return result;
 }
 
+void addVariantValue(Container& container, const std::string& key, const VariantValue& value)
+{
+  std::visit([&container, &key](
+               const auto& concrete_value) { container.addPrimitive(key, "", true, concrete_value); },
+             value);
+}
+
+std::vector<VariantKey> registerCollection(Container& container,
+                                           const std::unordered_map<int, VariantValue>& collection)
+{
+  std::vector<VariantKey> result;
+  for(const auto& entry : collection)
+  {
+    result.push_back(entry.first);
+    addVariantValue(container, std::to_string(entry.first), entry.second);
+  }
+  return result;
+}
+
+std::vector<VariantKey> registerCollection(Container& container,
+                                           const std::unordered_map<VariantKey, VariantValue>& collection)
+{
+  std::vector<VariantKey> result;
+  for(const auto& entry : collection)
+  {
+    result.push_back(entry.first);
+    auto string_key = indexToString(entry.first);
+    const auto illegal_char_loc = string_key.find_first_of("/[]");
+    SLIC_ERROR_IF(illegal_char_loc != std::string::npos,
+                  fmt::format("[Inlet] Dictionary key '{0}' contains illegal character '{1}'",
+                              string_key,
+                              string_key[illegal_char_loc]));
+    SLIC_ERROR_IF(string_key.empty(), "[Inlet] Dictionary key cannot be the empty string");
+    addVariantValue(container, string_key, entry.second);
+  }
+  return result;
+}
+
 /*!
  *****************************************************************************
  * \brief Implementation helper for adding primitive arrays
@@ -555,6 +605,18 @@ struct PrimitiveArrayHelper<Key, std::string>
   {
     std::unordered_map<Key, std::string> map;
     const auto result = reader.getStringMap(lookupPath, map);
+    markRetrievalStatus(*container.sidreGroup(), result);
+    return registerCollection(container, map);
+  }
+};
+
+template <typename Key>
+struct PrimitiveArrayHelper<Key, VariantValue>
+{
+  static std::vector<VariantKey> add(Container& container, Reader& reader, const std::string& lookupPath)
+  {
+    std::unordered_map<Key, VariantValue> map;
+    const auto result = reader.getVariantMap(lookupPath, map);
     markRetrievalStatus(*container.sidreGroup(), result);
     return registerCollection(container, map);
   }
