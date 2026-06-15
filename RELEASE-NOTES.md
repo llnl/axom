@@ -39,6 +39,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Axom core memory allocation semantics and defaults have changed to be more consistent. Specifically, the separation of the Axom default global allocator and default host allocator (both used for CPU-accessible allocations) is more clear. Host-facing code paths have been updated to use that distinction consistently. Please see Core component user documentation for more inofrmaiton.
 - Primal: Adds KnotVector constructors that skip validity assertion checks, allowing the user to call `isValid()`
   and handle the error appropriately.
+- Inlet: Added the ability to have collections (array and dictionary) with variant values.
 
 ### Removed
 

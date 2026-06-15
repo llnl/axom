@@ -16,6 +16,10 @@
 #ifndef INLET_KEY_HPP
 #define INLET_KEY_HPP
 
+#include <ostream>
+#include <string>
+
+#include "axom/fmt.hpp"
 #include "axom/slic/interface/slic.hpp"
 
 namespace axom
@@ -166,5 +170,10 @@ struct hash<axom::inlet::VariantKey>
   }
 };
 }  // end namespace std
+
+/// Overload to format an inlet::VariantKey using fmt
+template <>
+struct axom::fmt::formatter<axom::inlet::VariantKey> : ostream_formatter
+{ };
 
 #endif  // INLET_KEY_HPP

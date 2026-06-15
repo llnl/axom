@@ -364,6 +364,22 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Add an array of mixed primitive Fields to the input file schema.
+   *
+   * \param [in] name Name of the array
+   * \param [in] description Description of the array
+   *
+   * \return Reference to the created array
+   *****************************************************************************
+   */
+  Verifiable<Container>& addVariantArray(const std::string& name,
+                                         const std::string& description = "")
+  {
+    return m_globalContainer.addVariantArray(name, description);
+  }
+
+  /*!
+   *****************************************************************************
    * \brief Add an array of user-defined type to the input file schema.
    *
    * \param [in] name Name of the array
@@ -458,6 +474,22 @@ public:
                                              const std::string& description = "")
   {
     return m_globalContainer.addStringDictionary(name, description);
+  }
+
+  /*!
+   *****************************************************************************
+   * \brief Add a dictionary of mixed primitive Fields to the input file schema.
+   *
+   * \param [in] name Name of the dict
+   * \param [in] description Description of the dictionary
+   *
+   * \return Reference to the created dictionary
+   *****************************************************************************
+   */
+  Verifiable<Container>& addVariantDictionary(const std::string& name,
+                                              const std::string& description = "")
+  {
+    return m_globalContainer.addVariantDictionary(name, description);
   }
 
   /*!
