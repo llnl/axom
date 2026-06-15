@@ -7,7 +7,7 @@
 #include <cstdlib>  // for free
 #include <sstream>  // for std::ostringstream
 
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
   #define NOMINMAX
   #include <Windows.h>
   #include <WinBase.h>
@@ -28,7 +28,7 @@ namespace slic
 {
 namespace internal
 {
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
 
 std::string stacktrace()
 {
@@ -64,7 +64,7 @@ std::string stacktrace()
   return (oss.str());
 }
 
-#else /* #ifdef WIN32 */
+#else /* #if defined(_WIN32) || defined(WIN32) */
 
 //------------------------------------------------------------------------------
 std::string demangle(char* backtraceString, int frame)
@@ -173,7 +173,7 @@ std::string stacktrace()
   return (oss.str());
 }
 
-#endif /* #ifdef WIN32 */
+#endif /* #if defined(_WIN32) || defined(WIN32) */
 
 } /* namespace internal */
 

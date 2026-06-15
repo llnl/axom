@@ -48,7 +48,7 @@ void LogStream::replaceKey(std::string& msg,
 //------------------------------------------------------------------------------
 std::string LogStream::getTimeStamp()
 {
-#ifdef WIN32
+#if defined(_WIN32) || defined(WIN32)
   #pragma warning(disable : 4996)  // _CRT_SECURE_NO_WARNINGS
 #endif
 
