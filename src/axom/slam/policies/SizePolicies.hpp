@@ -48,7 +48,7 @@ template <typename IntType>
 struct RuntimeSize
 {
 public:
-  static const IntType DEFAULT_VALUE;
+  static constexpr IntType DEFAULT_VALUE = IntType {};
 
   AXOM_HOST_DEVICE RuntimeSize(IntType sz = DEFAULT_VALUE) : m_sz(sz) { }
 
@@ -68,9 +68,6 @@ public:
 protected:
   IntType m_sz;
 };
-
-template <typename IntType>
-const IntType RuntimeSize<IntType>::DEFAULT_VALUE = IntType {};
 
 /**
  * \brief A policy class for the size of a set that can be modified at runtime
@@ -114,7 +111,7 @@ public:
 template <typename IntType, IntType INT_VAL>
 struct CompileTimeSize
 {
-  static const IntType DEFAULT_VALUE = INT_VAL;
+  static constexpr IntType DEFAULT_VALUE = INT_VAL;
 
   AXOM_HOST_DEVICE CompileTimeSize(IntType val = INT_VAL)
   {
@@ -143,7 +140,7 @@ struct CompileTimeSize
 template <typename IntType>
 struct ZeroSize
 {
-  static const IntType DEFAULT_VALUE;
+  static constexpr IntType DEFAULT_VALUE = IntType {};
 
   AXOM_HOST_DEVICE ZeroSize(IntType val = DEFAULT_VALUE)
   {
@@ -158,9 +155,6 @@ struct ZeroSize
   AXOM_HOST_DEVICE inline bool empty() const { return true; }
   inline bool isValid(bool) const { return true; }
 };
-
-template <typename IntType>
-const IntType ZeroSize<IntType>::DEFAULT_VALUE = IntType {};
 
 /// \}
 

@@ -47,7 +47,7 @@ template <typename IntType>
 struct RuntimeOffset
 {
 public:
-  static const IntType DEFAULT_VALUE;
+  static constexpr IntType DEFAULT_VALUE = IntType {};
 
   AXOM_HOST_DEVICE RuntimeOffset(IntType off = DEFAULT_VALUE) : m_off(off) { }
 
@@ -62,9 +62,6 @@ public:
 private:
   IntType m_off;
 };
-
-template <typename IntType>
-const IntType RuntimeOffset<IntType>::DEFAULT_VALUE = IntType {};
 
 /**
  * \brief A policy class for a compile-time known set offset

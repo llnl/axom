@@ -49,7 +49,7 @@ template <typename IntType>
 struct RuntimeStride
 {
 public:
-  static const IntType DEFAULT_VALUE = IntType(1);
+  static constexpr IntType DEFAULT_VALUE = IntType(1);
   static const bool IS_COMPILE_TIME = false;
   constexpr static int NumDims = 1;
 
@@ -89,7 +89,7 @@ private:
 template <typename IntType, IntType INT_VAL>
 struct CompileTimeStride
 {
-  static const IntType DEFAULT_VALUE = INT_VAL;
+  static constexpr IntType DEFAULT_VALUE = INT_VAL;
   static const bool IS_COMPILE_TIME = true;
   constexpr static int NumDims = 1;
 
