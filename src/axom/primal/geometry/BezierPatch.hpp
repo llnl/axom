@@ -52,6 +52,9 @@ std::ostream& operator<<(std::ostream& os, const BezierPatch<T, NDIMS>& bPatch);
  * Contains a 2D array of positive weights to represent a rational Bezier patch.
  * Polynomial (nonrational) Bezier patches are identified by an empty weights array.
  * 
+ * A default-constructed patch will have order -1 in both directions, and is "invalid".
+ * Arrays of nodes and weights will be empty, and most methods are invalid.
+ * 
  * Algorithms for Rational Bezier curves derived from 
  * Gerald Farin, "Algorithms for rational Bezier curves"
  * Computer-Aided Design, Volume 15, Number 2, 1983,
@@ -114,7 +117,7 @@ public:
    * \param [in] ord_v The patch's polynomial order on the second axis
    * 
    * If \a controlPoints is empty, we still allocate space for (ord_u+1, ord_v+1) control points
-   * \pre ord_u and ord_v must either both be at least 0 for a valid patch, or both must be -1 for an empty patch
+   * \pre ord_u and ord_v must either both be at least 0 for a valid patch, or both must be -1 for an invalid patch
    */
   BezierPatch(axom::ArrayView<const PointType, 2> controlPoints,
               axom::ArrayView<const T, 2> weights,
@@ -173,7 +176,7 @@ public:
    *  space for the given order of the surface
    * 
    * \param [in] ord_u, ord_v The patch's polynomial orders
-   * \pre ord_u, ord_v greater than or equal to -1.
+   * \pre ord_u and ord_v must either both be at least 0 for a valid patch, or both must be -1 for an invalid patch
    */
   BezierPatch(int ord_u = -1, int ord_v = -1)
     : BezierPatch(axom::ArrayView<const PointType, 2>(nullptr, {0, 0}),
@@ -821,19 +824,7 @@ public:
       //  and BezierPatch of weights (w)
       BezierPatch<T, NDIMS> projective(ord_u, ord_v);
       BezierPatch<T, 1> weights(ord_u, ord_v);
-
-      for(int p = 0; p <= ord_u; ++p)
-      {
-        for(int q = 0; q <= ord_v; ++q)
-        {
-          weights(p, q)[0] = m_weights(p, q);
-
-          for(int i = 0; i < NDIMS; ++i)
-          {
-            projective(p, q)[i] = m_controlPoints(p, q)[i] * m_weights(p, q);
-          }
-        }
-      }
+      fill_projective_patches(projective, weights);
 
       BezierCurve<T, NDIMS> P = projective.isocurve_u(u);
       BezierCurve<T, 1> W = weights.isocurve_u(u);
@@ -942,19 +933,7 @@ public:
       //  and BezierPatch of weights (w)
       BezierPatch<T, NDIMS> projective(ord_u, ord_v);
       BezierPatch<T, 1> weights(ord_u, ord_v);
-
-      for(int p = 0; p <= ord_u; ++p)
-      {
-        for(int q = 0; q <= ord_v; ++q)
-        {
-          weights(p, q)[0] = m_weights(p, q);
-
-          for(int i = 0; i < NDIMS; ++i)
-          {
-            projective(p, q)[i] = m_controlPoints(p, q)[i] * m_weights(p, q);
-          }
-        }
-      }
+      fill_projective_patches(projective, weights);
 
       BezierCurve<T, NDIMS> P = projective.isocurve_v(v);
       BezierCurve<T, 1> W = weights.isocurve_v(v);
@@ -1131,19 +1110,7 @@ public:
       //  and BezierPatch of weights (w)
       BezierPatch<T, NDIMS> projective(ord_u, ord_v);
       BezierPatch<T, 1> weights(ord_u, ord_v);
-
-      for(int p = 0; p <= ord_u; ++p)
-      {
-        for(int q = 0; q <= ord_v; ++q)
-        {
-          weights(p, q)[0] = m_weights(p, q);
-
-          for(int i = 0; i < NDIMS; ++i)
-          {
-            projective(p, q)[i] = m_controlPoints(p, q)[i] * m_weights(p, q);
-          }
-        }
-      }
+      fill_projective_patches(projective, weights);
 
       Point<T, NDIMS> P;
       Vector<T, NDIMS> P_u, P_v, P_uu, P_vv, P_uv;
@@ -1175,12 +1142,12 @@ public:
    *
    * \note We typically evaluate the patch at \a u and \a v between 0 and 1
    */
-  void evaluate_linear_derivatives(T u,
-                                   T v,
-                                   Point<T, NDIMS>& eval,
-                                   Vector<T, NDIMS>& Du,
-                                   Vector<T, NDIMS>& Dv,
-                                   Vector<T, NDIMS>& DuDv) const
+  void evaluateLinearDerivatives(T u,
+                                 T v,
+                                 Point<T, NDIMS>& eval,
+                                 Vector<T, NDIMS>& Du,
+                                 Vector<T, NDIMS>& Dv,
+                                 Vector<T, NDIMS>& DuDv) const
   {
     using axom::utilities::lerp;
     const int ord_u = getOrder_u();
@@ -1307,19 +1274,7 @@ public:
       //  and BezierPatch of weights (w)
       BezierPatch<T, NDIMS> projective(ord_u, ord_v);
       BezierPatch<T, 1> weights(ord_u, ord_v);
-
-      for(int p = 0; p <= ord_u; ++p)
-      {
-        for(int q = 0; q <= ord_v; ++q)
-        {
-          weights(p, q)[0] = m_weights(p, q);
-
-          for(int i = 0; i < NDIMS; ++i)
-          {
-            projective(p, q)[i] = m_controlPoints(p, q)[i] * m_weights(p, q);
-          }
-        }
-      }
+      fill_projective_patches(projective, weights);
 
       Point<T, NDIMS> P;
       Vector<T, NDIMS> P_u, P_v, P_uu, P_vv, P_uv;
@@ -1568,19 +1523,7 @@ public:
       //  and BezierPatch of weights (w)
       BezierPatch<T, NDIMS> projective(ord_u, ord_v);
       BezierPatch<T, 1> weights(ord_u, ord_v);
-
-      for(int p = 0; p <= ord_u; ++p)
-      {
-        for(int q = 0; q <= ord_v; ++q)
-        {
-          weights(p, q)[0] = m_weights(p, q);
-
-          for(int i = 0; i < NDIMS; ++i)
-          {
-            projective(p, q)[i] = m_controlPoints(p, q)[i] * m_weights(p, q);
-          }
-        }
-      }
+      fill_projective_patches(projective, weights);
 
       Point<T, NDIMS> P;
       Vector<T, NDIMS> P_u, P_v, P_uu, P_vv, P_uv;
@@ -1770,19 +1713,7 @@ public:
       //  and BezierPatch of weights (w)
       BezierPatch<T, NDIMS> projective(ord_u, ord_v);
       BezierPatch<T, 1> weights(ord_u, ord_v);
-
-      for(int p = 0; p <= ord_u; ++p)
-      {
-        for(int q = 0; q <= ord_v; ++q)
-        {
-          weights(p, q)[0] = m_weights(p, q);
-
-          for(int i = 0; i < NDIMS; ++i)
-          {
-            projective(p, q)[i] = m_controlPoints(p, q)[i] * m_weights(p, q);
-          }
-        }
-      }
+      fill_projective_patches(projective, weights);
 
       Point<T, NDIMS> P;
       Vector<T, NDIMS> P_u, P_v, P_uv;
@@ -1790,8 +1721,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_u, W_v, W_uv;
 
-      projective.evaluate_linear_derivatives(u, v, P, P_u, P_v, P_uv);
-      weights.evaluate_linear_derivatives(u, v, W, W_u, W_v, W_uv);
+      projective.evaluateLinearDerivatives(u, v, P, P_u, P_v, P_uv);
+      weights.evaluateLinearDerivatives(u, v, W, W_u, W_v, W_uv);
 
       // Store values used in each coordinate computation
       double weight_prod = 2 * W_u[0] * W_v[0] - W[0] * W_uv[0];
@@ -2119,6 +2050,28 @@ private:
     }
 
     return true;
+  }
+
+  void fill_projective_patches(BezierPatch<T, NDIMS>& projective, BezierPatch<T, 1>& weights) const
+  {
+    SLIC_ASSERT(isRational());
+    SLIC_ASSERT(isValidRational());
+
+    const int ord_u = getOrder_u();
+    const int ord_v = getOrder_v();
+
+    for(int p = 0; p <= ord_u; ++p)
+    {
+      for(int q = 0; q <= ord_v; ++q)
+      {
+        weights(p, q)[0] = m_weights(p, q);
+
+        for(int i = 0; i < NDIMS; ++i)
+        {
+          projective(p, q)[i] = m_controlPoints(p, q)[i] * m_weights(p, q);
+        }
+      }
+    }
   }
 
 private:
