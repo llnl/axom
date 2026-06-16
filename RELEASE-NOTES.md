@@ -26,6 +26,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds `NURBSPatch::isTriviallyTrimmed()` to check if the trimming curves for a patch lie on the patch boundaries
 - Quest: Adds support for reading mfem files with variable order NURBS curves (requires mfem>4.9).
 - Quest: Adds OMP support for fast GWN methods for STL/Triangulated STEP input and linearized NURBS Curve input.
+- Quest: Adds OMP supported, fast and accurate GWN method for NURBS curves and trimmed NURBS surfaces.
 - Klee: Adds an optional "center" parameter in scale operators that permits scaling relative to a custom center point.
 - Bump: The `MergeMeshes` class was enhanced so it supports material-dependent/mixed Blueprint fields that are "element-associated". These fields contain per-material values for the materials in a zone.
 - Bump: Added `axom::bump::views::dispatch_material_field()` function (and related functions) for creating a material view and a material-dependent or mixed field view.
@@ -38,6 +39,11 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   removed in a future version of Axom.
 - Core: Adds Durand-Kerner polynomial solver which returns the complex roots of a univariate polynomial
 - Core: Adds `axom::Array::pop_back` for API compatibility with `std::vector`
+- Primal: Adds KnotVector constructors that skip validity assertion checks, allowing the user to call `isValid()`
+  and handle the error appropriately.
+- Primal: Adds a `primal::BezierTriangle` class
+- Inlet: Added the ability to have collections (array and dictionary) with variant values.
+- Inlet: Added the ability to have collections (array and dictionary) with variant user defined structures.
 
 ### Removed
 - Bump: Removed `axom::bump::views::MultiBufferMaterialView`, which was a view type for an obsolete flavor of Blueprint matset.
@@ -47,9 +53,15 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ### Changed
 - Updates CMake code check targets to only use checked in files (via `git ls-files`, when available)
+- Core: Optimization for axom::Array indirection -- since the stride is always 1, we can remove the runtime multiplication
+- Python: Removes build and test dependencies from `run_python_with_axom.sh` wrapper script
 
 ### Fixed
 - Primal: Fixes signs of `compute_moments` to match orientation convention in `primal::evaluate_area_integral`
+- Quest: Improves error handling/reporting when loading an invalid c2c contour
+- Primal: Improves reproducibility of 3D GWN methods by removing some sources of randomness
+- Core: ArrayView assigments/copies now copy the stride
+- Core: Array construction from strided ArrayView now correctly copies the strided elements
 
 ## [Version 0.14.0] - Release date 2026-03-31
 

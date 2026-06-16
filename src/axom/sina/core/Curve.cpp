@@ -18,6 +18,7 @@
 #include "axom/sina/core/ConduitUtil.hpp"
 
 #include <memory>
+#include <string>
 
 namespace axom
 {
@@ -52,8 +53,10 @@ Curve::Curve(std::string name_, conduit::Node const &curveAsNode)
   , units {}
   , tags {}
 {
-  auto &valuesAsNode = getRequiredField(VALUES_KEY, curveAsNode, CURVE_TYPE_NAME);
-  values = toDoubleVector(valuesAsNode, VALUES_KEY);
+  std::string const curve_type_name {CURVE_TYPE_NAME};
+  std::string const values_key {VALUES_KEY};
+  conduit::Node const &valuesAsNode = getRequiredField(values_key, curveAsNode, curve_type_name);
+  values = toDoubleVector(valuesAsNode, values_key);
 
   units = getOptionalString(UNITS_KEY, curveAsNode, CURVE_TYPE_NAME);
 

@@ -10,6 +10,7 @@
 #include <nanobind/ndarray.h>
 #include <nanobind/make_iterator.h>
 
+#include "axom/config.hpp"
 #include "axom/core/Types.hpp"
 #include "core/SidreTypes.hpp"
 #include "core/Buffer.hpp"
@@ -243,6 +244,9 @@ conduit::Node& nbObjectToNode(nb::object& o)
 NB_MODULE(pysidre, m_sidre)
 {
   m_sidre.doc() = "A python extension for Axom's Sidre component";
+
+  // Module version mirrors the Axom release
+  m_sidre.attr("__version__") = AXOM_VERSION_FULL;
 
   m_sidre.attr("InvalidIndex") = axom::InvalidIndex;
   m_sidre.attr("InvalidName") = axom::utilities::string::InvalidName;

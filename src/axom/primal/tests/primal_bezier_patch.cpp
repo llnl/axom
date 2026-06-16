@@ -822,7 +822,7 @@ TEST(primal_bezierpatch, rational_batch_derivatives)
     BezierPatchType patch(controlPoints, weights, order_u, order_v);
 
     patch.evaluateFirstDerivatives(u, v, batch1_val, batch1_du, batch1_dv);
-    patch.evaluate_linear_derivatives(u, v, batch2_val, batch2_du, batch2_dv, batch2_dudv);
+    patch.evaluateLinearDerivatives(u, v, batch2_val, batch2_du, batch2_dv, batch2_dudv);
     patch.evaluateSecondDerivatives(u,
                                     v,
                                     batch3_val,
@@ -855,7 +855,7 @@ TEST(primal_bezierpatch, rational_batch_derivatives)
     patch.swapAxes();
 
     patch.evaluateFirstDerivatives(u, v, batch1_val, batch1_du, batch1_dv);
-    patch.evaluate_linear_derivatives(u, v, batch2_val, batch2_du, batch2_dv, batch2_dudv);
+    patch.evaluateLinearDerivatives(u, v, batch2_val, batch2_du, batch2_dv, batch2_dudv);
     patch.evaluateSecondDerivatives(u,
                                     v,
                                     batch3_val,

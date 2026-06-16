@@ -674,6 +674,13 @@ TEST(primal_solid_angle, teardrop_regression_test)
     const bool calc_containment = (std::round(gwn_array[n]) != 0);
     EXPECT_EQ(calc_containment, true_containment_arr[n]);
   }
+
+  // Verify determinism of GWN calculation
+  double gwn_1 = axom::primal::winding_number(query_arr[tot_npts / 2], teardrop_shape[0]);
+  double gwn_2 = axom::primal::winding_number(query_arr[tot_npts / 2], teardrop_shape[0]);
+
+  // Should be equal in double precision
+  EXPECT_EQ(gwn_1, gwn_2);
 }
 
 int main(int argc, char** argv)

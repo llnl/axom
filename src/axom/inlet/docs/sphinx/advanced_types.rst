@@ -194,3 +194,92 @@ as ``std::unordered_map<int, T>``:
 String-keyed dictionaries are implemented as ``std::unordered_map<std::string, T>`` and can be retrieved
 in the same way as the array above.  For dictionaries with a mix of string and integer keys, the
 ``inlet::VariantKey`` type can be used, namely, by retrieving a ``std::unordered_map<inlet::VariantKey, T>``.
+
+Variant Struct Collections
+--------------------------
+
+Variant struct collections store a collection whose entries can be selected from a
+finite set of user-defined struct types.  They are useful when every entry in a
+collection shares the same role, but different entries require different fields.
+For example, a ``shapes`` collection might contain both circles and boxes.
+
+Each entry must contain a string discriminator field.  The discriminator value
+selects which struct schema and ``FromInlet`` specialization Inlet should use for
+that entry.
+
+Defining And Storing
+~~~~~~~~~~~~~~~~~~~~
+
+Represent the possible entry types with a ``std::variant``.  Each alternative in
+the variant is a normal user-defined type, so it still provides its own
+``FromInlet`` specialization:
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_start
+   :end-before: _inlet_variant_struct_collections_end
+   :language: C++
+
+For array-like input, use ``addVariantStructArray``.  The function takes the
+collection name and the discriminator field name:
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_array_input_start
+   :end-before: _inlet_variant_struct_collections_array_input_end
+   :language: lua
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_array_schema_usage_start
+   :end-before: _inlet_variant_struct_collections_array_schema_usage_end
+   :language: C++
+
+For named dictionary input, use ``addVariantStructDictionary`` with the same
+variant type and discriminator field:
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_dictionary_input_start
+   :end-before: _inlet_variant_struct_collections_dictionary_input_end
+   :language: lua
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_dictionary_schema_usage_start
+   :end-before: _inlet_variant_struct_collections_dictionary_schema_usage_end
+   :language: C++
+
+Verification fails if an entry omits the discriminator or uses a discriminator value that was not
+registered as an alternative.
+
+Accessing
+~~~~~~~~~
+
+Variant struct collections are retrieved as collections of the same
+``std::variant`` type used when defining the schema.  Call ``verify`` before
+retrieval to check that every entry has a known discriminator:
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_verify_start
+   :end-before: _inlet_variant_struct_collections_verify_end
+   :language: C++
+
+The array input can be retrieved as ``std::vector<Variant>``:
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_access_vector_start
+   :end-before: _inlet_variant_struct_collections_access_vector_end
+   :language: C++
+
+The named dictionary input can be retrieved as
+``std::unordered_map<inlet::VariantKey, Variant>``:
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_access_dictionary_start
+   :end-before: _inlet_variant_struct_collections_access_dictionary_end
+   :language: C++
+
+Once retrieved, use normal ``std::variant`` access patterns, such as
+``std::visit``, ``std::get_if``, or ``std::holds_alternative``, to work with the
+concrete struct stored in each entry:
+
+.. literalinclude:: ../../examples/variant_struct_collections.cpp
+   :start-after: _inlet_variant_struct_collections_visit_start
+   :end-before: _inlet_variant_struct_collections_visit_end
+   :language: C++
