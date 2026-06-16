@@ -26,10 +26,7 @@ struct Box
   double height;
 };
 
-struct Shape
-{
-  std::variant<Circle, Box> value;
-};
+using Shape = std::variant<Circle, Box>;
 
 template <>
 struct FromInlet<Circle>
@@ -49,15 +46,17 @@ struct FromInlet<Box>
 template <>
 struct FromInlet<Shape>
 {
-  Shape operator()(const inlet::Container& input_data)
+  // Shape is a std::variant, so it cannot be read through Container::get<T>().
+  // Use the public Proxy returned by inlet["shape"] to access its fields instead.
+  Shape operator()(const inlet::Proxy& input_data)
   {
     const std::string kind = input_data["kind"];
     if(kind == "circle")
     {
-      return {FromInlet<Circle> {}(input_data)};
+      return Circle {input_data["radius"]};
     }
 
-    return {FromInlet<Box> {}(input_data)};
+    return Box {input_data["width"], input_data["height"]};
   }
 };
 
@@ -113,29 +112,34 @@ void printShape(const Shape& shape)
                                     concrete_shape.height));
       }
     },
-    shape.value);
+    shape);
 }
 
 int main()
 {
+  // Initialize Axom's logger
   axom::slic::SimpleLogger logger;
 
+  // Create Inlet object with the Lua Reader and parse the input file snippet
   auto lr = std::make_unique<inlet::LuaReader>();
   lr->parseString(input);
   inlet::Inlet inlet(std::move(lr));
 
+  // Define the input file schema
   // _inlet_user_defined_variant_schema_usage_start
   auto& shape_schema = inlet.addStruct("shape", "A single user-defined variant");
   defineShapeSchema(shape_schema);
   // _inlet_user_defined_variant_schema_usage_end
 
+  // Verify input file validates against the schema
   if(!inlet.verify())
   {
     SLIC_ERROR("Inlet failed to verify against provided schema");
   }
 
+  // Create a shape object from inlet container
   // _inlet_user_defined_variant_access_start
-  const Shape shape = inlet["shape"].get<Shape>();
+  const Shape shape = FromInlet<Shape> {}(inlet["shape"]);
   // _inlet_user_defined_variant_access_end
 
   printShape(shape);
