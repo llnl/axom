@@ -137,11 +137,16 @@ public:
 #endif
 
 #if defined(AXOM_USE_CONDUIT)
+  /// \brief Return the active Blueprint state, if this shaper is using Blueprint input.
   shaping::BlueprintState* getBlueprintState() { return m_bp_state.get(); }
+
+  /// \brief Return the active Blueprint mesh node, if this shaper is using Blueprint input.
   conduit::Node* getBlueprintMeshNode()
   {
     return m_bp_state != nullptr ? &m_bp_state->getBlueprintMeshNode() : nullptr;
   }
+
+  /// \brief Return the active Blueprint mesh node, if this shaper is using Blueprint input.
   const conduit::Node* getBlueprintMeshNode() const
   {
     return m_bp_state != nullptr ? &m_bp_state->getBlueprintMeshNode() : nullptr;

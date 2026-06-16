@@ -126,17 +126,94 @@ enum class VolFracSampling : int
   SAMPLE_AT_QPTS
 };
 
+/*!
+ * \brief Return the registered shape in/out field name for a shape.
+ *
+ * \param shapeName The shape name.
+ *
+ * \return The corresponding shape in/out field name.
+ */
 std::string shapeInOutFieldName(const std::string& shapeName);
+
+/*!
+ * \brief Return the registered material in/out field name for a material.
+ *
+ * \param materialName The material name.
+ *
+ * \return The corresponding material in/out field name.
+ */
 std::string materialInOutFieldName(const std::string& materialName);
+
+/*!
+ * \brief Return the registered volume-fraction field name for a material.
+ *
+ * \param materialName The material name.
+ *
+ * \return The corresponding volume-fraction field name.
+ */
 std::string volumeFractionFieldName(const std::string& materialName);
+
+/*!
+ * \brief Return the per-shape volume-fraction field name for a shape.
+ *
+ * \param shapeName The shape name.
+ *
+ * \return The corresponding per-shape volume-fraction field name.
+ */
 std::string shapeVolumeFractionFieldName(const std::string& shapeName);
 
+/*!
+ * \brief Return whether a field name is a registered shape in/out field name.
+ *
+ * \param fieldName The field name to inspect.
+ *
+ * \return True if the field name belongs to the shape in/out family.
+ */
 bool isShapeInOutFieldName(const std::string& fieldName);
+
+/*!
+ * \brief Return whether a field name is a registered material in/out field name.
+ *
+ * \param fieldName The field name to inspect.
+ *
+ * \return True if the field name belongs to the material in/out family.
+ */
 bool isMaterialInOutFieldName(const std::string& fieldName);
+
+/*!
+ * \brief Return whether a field name is a registered material volume-fraction field name.
+ *
+ * \param fieldName The field name to inspect.
+ *
+ * \return True if the field name belongs to the material volume-fraction family.
+ */
 bool isVolumeFractionFieldName(const std::string& fieldName);
+
+/*!
+ * \brief Return whether a field name is a registered per-shape volume-fraction field name.
+ *
+ * \param fieldName The field name to inspect.
+ *
+ * \return True if the field name belongs to the per-shape volume-fraction family.
+ */
 bool isShapeVolumeFractionFieldName(const std::string& fieldName);
 
+/*!
+ * \brief Extract the material name from a material in/out field name.
+ *
+ * \param fieldName The field name to inspect.
+ *
+ * \return The material name, or an empty string if the field name does not match.
+ */
 std::string materialNameFromMaterialInOutFieldName(const std::string& fieldName);
+
+/*!
+ * \brief Extract the material name from a volume-fraction field name.
+ *
+ * \param fieldName The field name to inspect.
+ *
+ * \return The material name, or an empty string if the field name does not match.
+ */
 std::string materialNameFromVolumeFractionFieldName(const std::string& fieldName);
 
 template <typename MeshState>
