@@ -2704,7 +2704,8 @@ public:
     const conduit::Node& topoNode = m_bp_state->getBlueprintTopologyNode();
 
     // Assume unstructured and hexahedral
-    SLIC_ERROR_IF(m_bp_state->topologyType() != "unstructured", "topology type must be 'unstructured'");
+    SLIC_ERROR_IF(m_bp_state->topologyType() != "unstructured",
+                  "topology type must be 'unstructured'");
     SLIC_ERROR_IF(m_bp_state->cellShape() != "quad", "element shape must be 'quad'");
 
     const auto& connNode = topoNode["elements/connectivity"];
@@ -2774,7 +2775,8 @@ public:
     const conduit::Node& topoNode = m_bp_state->getBlueprintTopologyNode();
 
     // Assume unstructured and hexahedral
-    SLIC_ERROR_IF(m_bp_state->topologyType() != "unstructured", "topology type must be 'unstructured'");
+    SLIC_ERROR_IF(m_bp_state->topologyType() != "unstructured",
+                  "topology type must be 'unstructured'");
     SLIC_ERROR_IF(m_bp_state->cellShape() != "hex", "element shape must be 'hex'");
 
     const auto& connNode = topoNode["elements/connectivity"];

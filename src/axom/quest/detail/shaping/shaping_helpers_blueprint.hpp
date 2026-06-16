@@ -156,7 +156,10 @@ struct BlueprintState
   }
 
   /// Return the Blueprint cell shape for the active topology.
-  std::string cellShape() const { return shaping::getBlueprintCellShape(getBlueprintTopologyNode()); }
+  std::string cellShape() const
+  {
+    return shaping::getBlueprintCellShape(getBlueprintTopologyNode());
+  }
 
   /// Return the coordset name referenced by the active Blueprint topology.
   std::string coordsetName() const

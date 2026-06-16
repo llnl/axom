@@ -392,8 +392,7 @@ void printRegisteredFieldNames(const BlueprintState& bpState,
     std::vector<std::string> names;
     for(const auto& name : bpState.fieldNames())
     {
-      if(!shaping::isVolumeFractionFieldName(name) &&
-         !shaping::isMaterialInOutFieldName(name) &&
+      if(!shaping::isVolumeFractionFieldName(name) && !shaping::isMaterialInOutFieldName(name) &&
          !shaping::isShapeInOutFieldName(name))
       {
         names.push_back(name);
@@ -407,25 +406,26 @@ void printRegisteredFieldNames(const BlueprintState& bpState,
   const std::vector<std::string> fieldNames = bpState.fieldNames();
 
   axom::fmt::memory_buffer out;
-  axom::fmt::format_to(std::back_inserter(out),
-                       "List of registered fields in the SamplingShaper {}"
-                       "\n\t* Blueprint topologies: {}"
-                       "\n\t* Blueprint coordsets: {}"
-                       "\n\t* Blueprint fields: {}"
-                       "\n\t* Known materials: {}"
-                       "\n\t* Shape inout fields: {}"
-                       "\n\t* Mat inout fields: {}"
-                       "\n\t* Volume fraction fields: {}"
-                       "\n\t* Other Blueprint fields: {}",
-                       initialMessage,
-                       axom::fmt::join(topologyNames, ", "),
-                       axom::fmt::join(coordsetNames, ", "),
-                       axom::fmt::join(fieldNames, ", "),
-                       axom::fmt::join(knownMaterials, ", "),
-                       axom::fmt::join(extractMatchingFields(shaping::shapeInOutFieldName("")), ", "),
-                       axom::fmt::join(extractMatchingFields(shaping::materialInOutFieldName("")), ", "),
-                       axom::fmt::join(extractMatchingFields(shaping::volumeFractionFieldName("")), ", "),
-                       axom::fmt::join(extractOtherFields(), ", "));
+  axom::fmt::format_to(
+    std::back_inserter(out),
+    "List of registered fields in the SamplingShaper {}"
+    "\n\t* Blueprint topologies: {}"
+    "\n\t* Blueprint coordsets: {}"
+    "\n\t* Blueprint fields: {}"
+    "\n\t* Known materials: {}"
+    "\n\t* Shape inout fields: {}"
+    "\n\t* Mat inout fields: {}"
+    "\n\t* Volume fraction fields: {}"
+    "\n\t* Other Blueprint fields: {}",
+    initialMessage,
+    axom::fmt::join(topologyNames, ", "),
+    axom::fmt::join(coordsetNames, ", "),
+    axom::fmt::join(fieldNames, ", "),
+    axom::fmt::join(knownMaterials, ", "),
+    axom::fmt::join(extractMatchingFields(shaping::shapeInOutFieldName("")), ", "),
+    axom::fmt::join(extractMatchingFields(shaping::materialInOutFieldName("")), ", "),
+    axom::fmt::join(extractMatchingFields(shaping::volumeFractionFieldName("")), ", "),
+    axom::fmt::join(extractOtherFields(), ", "));
 
   SLIC_INFO_ROOT(axom::fmt::to_string(out));
 }

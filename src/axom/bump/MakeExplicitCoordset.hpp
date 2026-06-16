@@ -43,15 +43,13 @@ public:
       conduit::Node n_dest_coordset;
       if(cstype == "uniform")
       {
-        axom::bump::views::dispatch_uniform_coordset(n_coordset, [&](auto coordsetView)
-        {
+        axom::bump::views::dispatch_uniform_coordset(n_coordset, [&](auto coordsetView) {
           convert(coordsetView, n_dest_coordset, allocator_id);
         });
       }
       else if(cstype == "rectilinear")
       {
-        axom::bump::views::dispatch_rectilinear_coordset(n_coordset, [&](auto coordsetView)
-        {
+        axom::bump::views::dispatch_rectilinear_coordset(n_coordset, [&](auto coordsetView) {
           convert(coordsetView, n_dest_coordset, allocator_id);
         });
       }
@@ -98,14 +96,15 @@ private:
     }
 
     // Copy data from the view into the new coordinate array views.
-    axom::for_all<ExecSpace>(coordsetView.size(), AXOM_LAMBDA(axom::IndexType i)
-    {
-      const auto pt = coordsetView[i];
-      for(int c = 0; c < coordsetView.dimension(); c++)
-      {
-        comps[c][i] = pt[c];
-      }
-    });
+    axom::for_all<ExecSpace>(
+      coordsetView.size(),
+      AXOM_LAMBDA(axom::IndexType i) {
+        const auto pt = coordsetView[i];
+        for(int c = 0; c < coordsetView.dimension(); c++)
+        {
+          comps[c][i] = pt[c];
+        }
+      });
   }
 };
 

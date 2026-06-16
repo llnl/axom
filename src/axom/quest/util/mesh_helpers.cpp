@@ -753,10 +753,12 @@ void fill_cartesian_coords_2d_impl(const primal::BoundingBox<double, 2>& domainB
 }
 
 #if defined(AXOM_USE_CONDUIT)
-#if defined(AXOM_USE_BUMP)
+  #if defined(AXOM_USE_BUMP)
 /// Convert a Blueprint topology and coordset stored as conduit::Node to unstructured+explicit
 template <typename ExecSpace>
-void convert_to_unstructured_impl(conduit::Node &n_topo, conduit::Node &n_coordset, const std::string &topologyName)
+void convert_to_unstructured_impl(conduit::Node& n_topo,
+                                  conduit::Node& n_coordset,
+                                  const std::string& topologyName)
 {
   // Make sure the coordset is explicit, or do nothing if it is already explicit.
   axom::bump::MakeExplicitCoordset<ExecSpace>::execute(n_coordset);
@@ -768,46 +770,48 @@ void convert_to_unstructured_impl(conduit::Node &n_topo, conduit::Node &n_coords
     axom::bump::MakeUnstructured<ExecSpace>::execute(n_topo, n_coordset, topologyName, newMesh);
 
     // Swap topology definitions so we keep the converted one.
-    conduit::Node &n_new_topo = newMesh.fetch_existing("topologies/" + topologyName);
+    conduit::Node& n_new_topo = newMesh.fetch_existing("topologies/" + topologyName);
     n_topo.swap(n_new_topo);
   }
 }
-#endif
+  #endif
 
-void convert_blueprint_structured_explicit_to_unstructured(conduit::Node &n_mesh, const std::string &topologyName,
-  axom::runtime_policy::Policy runtimePolicy)
+void convert_blueprint_structured_explicit_to_unstructured(conduit::Node& n_mesh,
+                                                           const std::string& topologyName,
+                                                           axom::runtime_policy::Policy runtimePolicy)
 {
-#if defined(AXOM_USE_BUMP)
+  #if defined(AXOM_USE_BUMP)
   SLIC_ERROR_IF(!n_mesh.has_path("topologies/" + topologyName), "Cannot find topology");
-  conduit::Node &n_topo = n_mesh.fetch_existing("topologies/" + topologyName);
-  conduit::Node *n_coordset = const_cast<conduit::Node *>(conduit::blueprint::mesh::utils::find_reference_node(n_topo, "coordset"));
+  conduit::Node& n_topo = n_mesh.fetch_existing("topologies/" + topologyName);
+  conduit::Node* n_coordset = const_cast<conduit::Node*>(
+    conduit::blueprint::mesh::utils::find_reference_node(n_topo, "coordset"));
   SLIC_ERROR_IF(n_coordset == nullptr, "Cannot find coordset");
 
   if(runtimePolicy == axom::runtime_policy::Policy::seq)
   {
     convert_to_unstructured_impl<axom::SEQ_EXEC>(n_topo, *n_coordset, topologyName);
   }
-#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+    #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   if(runtimePolicy == axom::runtime_policy::Policy::omp)
   {
     convert_to_unstructured_impl<axom::OMP_EXEC>(n_topo, *n_coordset, topologyName);
   }
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+    #endif
+    #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   if(runtimePolicy == axom::runtime_policy::Policy::cuda)
   {
     convert_to_unstructured_impl<axom::CUDA_EXEC<256>>(n_topo, *n_coordset, topologyName);
   }
-#endif
-#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+    #endif
+    #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   if(runtimePolicy == axom::runtime_policy::Policy::hip)
   {
     convert_to_unstructured_impl<axom::HIP_EXEC<256>>(n_topo, *n_coordset, topologyName);
   }
-#endif
-#else
+    #endif
+  #else
   SLIC_ERROR("convert_blueprint_structured_explicit_to_unstructured requires Bump.");
-#endif
+  #endif
 }
 #endif
 

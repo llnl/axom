@@ -347,7 +347,8 @@ bool Shaper::verifyBlueprintMeshIsStructuredOrUnstructuredQuadHex(std::string& w
     }
     if(rval)
     {
-      const std::string coordsetType = m_bp_state->getBlueprintCoordsetNode().fetch_existing("type").as_string();
+      const std::string coordsetType =
+        m_bp_state->getBlueprintCoordsetNode().fetch_existing("type").as_string();
       rval = coordsetType == "explicit";
       info[0].set_string("Coordset is not explicit.");
     }

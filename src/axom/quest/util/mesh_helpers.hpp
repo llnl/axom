@@ -197,8 +197,8 @@ bool verifyBlueprintMesh(const axom::sidre::Group* meshGrp, conduit::Node info);
  *       convert_blueprint_structured_explicit_to_unstructured_3d but it operates on conduit::Node
  *       through axom::bump.
  */
-void convert_blueprint_structured_explicit_to_unstructured(conduit::Node &n_mesh,
-                                                           const std::string &topologyName,
+void convert_blueprint_structured_explicit_to_unstructured(conduit::Node& n_mesh,
+                                                           const std::string& topologyName,
                                                            axom::runtime_policy::Policy runtimePolicy);
   #endif
 
