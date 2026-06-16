@@ -77,8 +77,8 @@ inline bool isValidAllocatorID(int allocatorId) noexcept
 enum class MemorySpace
 {
   Malloc,   //!< Host memory using malloc, free and realloc
-  Dynamic,  //!< Refers to Umpire's current default allocator
-  Host,     //!< Host memory space
+  Dynamic,  //!< Default template param value for Axom array types (see above)
+  Host,     //!< Default host memory space (i.e., CPU-accessible)
 #if defined(AXOM_USE_UMPIRE)
   Device,   //!< Device memory space
   Unified,  //!< Unified memory space
