@@ -92,7 +92,7 @@ If a ``Car`` object as defined above is located at the path "car" within the inp
 Individual Variant Structs
 ********************************
 
-When a single input table may describe one of several user-defined struct types,
+When a single input entry may describe one of several user-defined struct types,
 use a normal ``addStruct`` schema with a discriminator field and provide a
 ``FromInlet`` specialization that constructs the selected alternative.  This is
 useful for inputs that are variant-valued but are not arrays or dictionaries.
