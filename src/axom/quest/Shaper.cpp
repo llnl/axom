@@ -73,7 +73,7 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   , m_bp_state()
   #endif
 {
-  m_mfem_state = createMFEMState();
+  m_mfem_state = std::make_unique<shaping::MFEMState>();
   m_mfem_state->m_dc = dc;
 
   #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)

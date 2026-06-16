@@ -140,7 +140,6 @@ public:
                  sidre::MFEMSidreDataCollection* dc)
     : Shaper(execPolicy, allocatorId, shapeSet, dc)
   {
-    initializeSamplingMFEMState();
     initializeSamplingResolution();
   }
 #endif
@@ -254,12 +253,14 @@ public:
   /// Returns a pointer to the quadrature function associated with shape \a name if it exists, else nullptr
   mfem::QuadratureFunction* getShapeQFunction(const std::string& name) const
   {
-    return samplingMFEMState().shapeQFuncs().Get(name);
+    SLIC_ASSERT(m_mfem_state != nullptr);
+    return m_mfem_state->shapeQFuncs().Get(name);
   }
   /// Returns a pointer to the quadrature function associated with material \a name if it exists, else nullptr
   mfem::QuadratureFunction* getMaterialQFunction(const std::string& name) const
   {
-    return samplingMFEMState().materialQFuncs().Get(name);
+    SLIC_ASSERT(m_mfem_state != nullptr);
+    return m_mfem_state->materialQFuncs().Get(name);
   }
 #endif
 protected:
@@ -294,41 +295,6 @@ protected:
    * topology and any fields associated with it.
    */
   void saveQuadraturePoints(const std::string& filename) const;
-
-#if defined(AXOM_USE_MFEM)
-  /// Create the internal MFEM state. This is called by the Shaper::Shaper MFEM constructor.
-  std::unique_ptr<shaping::MFEMState> createMFEMState() override
-  {
-    return std::make_unique<shaping::SamplingMFEMState>();
-  }
-
-  /// Finish initializing the MFEM state.
-  void initializeSamplingMFEMState()
-  {
-    // Shaper constructs its MFEM state in the base constructor, so upgrade it
-    // here rather than relying on virtual dispatch during base construction.
-    auto samplingState = std::make_unique<shaping::SamplingMFEMState>();
-    if(m_mfem_state != nullptr)
-    {
-      samplingState->m_dc = m_mfem_state->m_dc;
-    }
-    m_mfem_state = std::move(samplingState);
-  }
-
-  /// Get a reference to the MFEM state as a SamplingMFEMState.
-  shaping::SamplingMFEMState& samplingMFEMState()
-  {
-    SLIC_ASSERT(m_mfem_state != nullptr);
-    return static_cast<shaping::SamplingMFEMState&>(*m_mfem_state);
-  }
-
-  /// Get a reference to the MFEM state as a SamplingMFEMState.
-  const shaping::SamplingMFEMState& samplingMFEMState() const
-  {
-    SLIC_ASSERT(m_mfem_state != nullptr);
-    return static_cast<const shaping::SamplingMFEMState&>(*m_mfem_state);
-  }
-#endif
 
   bool hasValidSampler() const { return !std::holds_alternative<std::monostate>(m_sampler); }
 
@@ -417,7 +383,7 @@ public:
 #if defined(AXOM_USE_MFEM)
     if(m_mfem_state != nullptr)
     {
-      applyReplacementRulesImpl(samplingMFEMState(), shape);
+      applyReplacementRulesImpl(*m_mfem_state, shape);
       return;
     }
 #endif
@@ -575,7 +541,7 @@ private:
 #if defined(AXOM_USE_MFEM)
     if(m_mfem_state != nullptr)
     {
-      runShapeQueryImplSampler(samplingMFEMState(), sampler);
+      runShapeQueryImplSampler(*m_mfem_state, sampler);
       return;
     }
 #endif
@@ -596,7 +562,7 @@ private:
 #if defined(AXOM_USE_MFEM)
     if(m_mfem_state != nullptr)
     {
-      runShapeQueryImplSampler(samplingMFEMState(), sampler);
+      runShapeQueryImplSampler(*m_mfem_state, sampler);
       return;
     }
 #endif
@@ -651,7 +617,7 @@ private:
 #if defined(AXOM_USE_MFEM)
     if(m_mfem_state != nullptr)
     {
-      runImpl(samplingMFEMState());
+      runImpl(*m_mfem_state);
       return;
     }
 #endif

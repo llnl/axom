@@ -2625,7 +2625,7 @@ TEST_F(CurvedSampleTester2D, positions_match_curved_mesh_for_anisotropic_custom_
 
 TEST_F(CurvedSampleTester2D, generate_sampling_positions_is_idempotent)
 {
-  quest::shaping::SamplingMFEMState mfemState;
+  quest::shaping::MFEMState mfemState;
   mfemState.m_dc = &this->getDC();
 
   int sampleRes[] = {3, 2};

@@ -326,12 +326,6 @@ protected:
   bool verifyMFEMInputMesh(std::string& whyBad) const;
 #endif
 
-#if defined(AXOM_USE_MFEM)
-  virtual std::unique_ptr<shaping::MFEMState> createMFEMState()
-  {
-    return std::make_unique<shaping::MFEMState>();
-  }
-#endif
 #if defined(AXOM_USE_CONDUIT)
   virtual std::unique_ptr<shaping::BlueprintState> createBlueprintState()
   {

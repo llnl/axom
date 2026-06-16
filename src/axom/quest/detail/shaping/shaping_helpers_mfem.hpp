@@ -33,20 +33,10 @@ using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
 using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
 using MFEMArrayCollection = mfem::NamedFieldsMap<mfem::Array<int>>;
 
-/// Base class that contains MFEM state for Shaper classes.
+/// MFEM state shared by Quest shapers and MFEM-backed sampling helpers.
 struct MFEMState
 {
-  virtual ~MFEMState() = default;
-
-  int meshDimension() const { return m_dc->GetMesh()->Dimension(); }
-
-  sidre::MFEMSidreDataCollection* m_dc {nullptr};
-};
-
-/// Derived class that contains additional state for SamplingShaper class.
-struct SamplingMFEMState : public MFEMState
-{
-  ~SamplingMFEMState() override
+  ~MFEMState()
   {
     m_inoutShapeQFuncs.DeleteData(true);
     m_inoutShapeQFuncs.clear();
@@ -60,6 +50,10 @@ struct SamplingMFEMState : public MFEMState
     m_inoutArrays.DeleteData(true);
     m_inoutArrays.clear();
   }
+
+  int meshDimension() const { return m_dc->GetMesh()->Dimension(); }
+
+  sidre::MFEMSidreDataCollection* m_dc {nullptr};
 
   mfem::QuadratureFunction* getShapeFunction(const std::string& name)
   {
@@ -125,7 +119,7 @@ struct SamplingMFEMState : public MFEMState
  * \param vfSampling The type of volume fraction sampling being performed.
  * \param initialMessage A string to prepend to the printed message.
  */
-void printRegisteredFieldNames(const SamplingMFEMState& mfemState,
+void printRegisteredFieldNames(const MFEMState& mfemState,
                                const std::set<std::string>& knownMaterials,
                                VolFracSampling vfSampling,
                                const std::string& initialMessage);
@@ -201,7 +195,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
  *
  * \note The sample points are stored as a function corresponding to the mesh positions
  */
-void generateSamplingPositions(SamplingMFEMState& mfemState,
+void generateSamplingPositions(MFEMState& mfemState,
                                axom::ArrayView<int> sampleResolution,
                                axom::numerics::QuadratureType quadratureType);
 
@@ -215,7 +209,7 @@ void generateSamplingPositions(SamplingMFEMState& mfemState,
  *                               points.
  * \param anisotropic Whether the quadrature points are anisotropic.
  */
-void importInitialVolumeFractions(SamplingMFEMState& mfemState,
+void importInitialVolumeFractions(MFEMState& mfemState,
                                   const std::map<std::string, mfem::GridFunction*>& initialVolumeFractions,
                                   bool anisotropic);
 
@@ -229,7 +223,7 @@ void importInitialVolumeFractions(SamplingMFEMState& mfemState,
  * \param sampleResolution The number of samples in each mesh dimension.
  * \param quadratureType The quadrature type that determines the sample point locations.
  */
-void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
+void computeVolumeFractionsForMaterial(MFEMState& mfemState,
                                        const std::string& matField,
                                        int volfracOrder,
                                        axom::ArrayView<int> sampleResolution,
@@ -277,7 +271,7 @@ bool usesAnisotropicCustomTensorQuadrature(const mfem::Mesh& mesh,
   */
 template <int FromDim, int ToDim, typename InsideFunc>
 void sampleInOutField(const std::string shapeName,
-                      shaping::SamplingMFEMState& mfemState,
+                      shaping::MFEMState& mfemState,
                       InsideFunc&& checkInside,
                       PointProjector<FromDim, ToDim> projector = {})
 {
@@ -364,7 +358,7 @@ void sampleInOutField(const std::string shapeName,
  */
 template <int FromDim, int ToDim, typename InsideFunc>
 void computeVolumeFractionsBaseline(const std::string& shapeName,
-                                    shaping::SamplingMFEMState& mfemState,
+                                    shaping::MFEMState& mfemState,
                                     int outputOrder,
                                     InsideFunc&& checkInside,
                                     PointProjector<FromDim, ToDim> projector = {})

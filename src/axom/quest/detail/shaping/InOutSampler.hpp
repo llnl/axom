@@ -114,7 +114,7 @@ public:
    * \note \a ToDim must be equal to \a DIM, the dimension of the spatial index
    */
   template <int FromDim, int ToDim = DIM>
-  std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::SamplingMFEMState& mfemState,
+  std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::MFEMState& mfemState,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
     using PointType = primal::Point<double, DIM>;
@@ -129,7 +129,7 @@ public:
    * defined to support various callback specializations for the \a PointProjector.
    */
   template <int FromDim, int ToDim>
-  std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::SamplingMFEMState&,
+  std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::MFEMState&,
                                                         PointProjector<FromDim, ToDim>)
   {
     static_assert(ToDim != DIM,
@@ -143,7 +143,7 @@ public:
    */
   template <int FromDim, int ToDim = DIM>
   std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(
-    shaping::SamplingMFEMState& mfemState,
+    shaping::MFEMState& mfemState,
     int outputOrder,
     PointProjector<FromDim, ToDim> projector = {})
   {
@@ -163,7 +163,7 @@ public:
    */
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(
-    shaping::SamplingMFEMState& AXOM_UNUSED_PARAM(mfemState),
+    shaping::MFEMState& AXOM_UNUSED_PARAM(mfemState),
     int AXOM_UNUSED_PARAM(outputOrder),
     PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {

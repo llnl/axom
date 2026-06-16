@@ -196,7 +196,7 @@ mfem::QuadratureFunction* cloneInOutFunction(const mfem::QuadratureFunction* qfu
   return new mfem::QuadratureFunction(*qfunc);
 }
 
-void printRegisteredFieldNames(const SamplingMFEMState& mfemState,
+void printRegisteredFieldNames(const MFEMState& mfemState,
                                const std::set<std::string>& knownMaterials,
                                VolFracSampling vfSampling,
                                const std::string& initialMessage)
@@ -431,7 +431,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
   inoutQFuncs.Register("positions", pos_coef, true);
 }
 
-void generateSamplingPositions(SamplingMFEMState& mfemState,
+void generateSamplingPositions(MFEMState& mfemState,
                                axom::ArrayView<int> sampleResolution,
                                axom::numerics::QuadratureType quadratureType)
 {
@@ -450,7 +450,7 @@ void generateSamplingPositions(SamplingMFEMState& mfemState,
                              quadratureType);
 }
 
-void importInitialVolumeFractions(SamplingMFEMState& mfemState,
+void importInitialVolumeFractions(MFEMState& mfemState,
                                   const std::map<std::string, mfem::GridFunction*>& initialGridFunctions,
                                   bool anisotropic)
 {
@@ -506,7 +506,7 @@ void importInitialVolumeFractions(SamplingMFEMState& mfemState,
   }
 }
 
-void computeVolumeFractionsForMaterial(SamplingMFEMState& mfemState,
+void computeVolumeFractionsForMaterial(MFEMState& mfemState,
                                        const std::string& matField,
                                        int volfracOrder,
                                        axom::ArrayView<int> sampleResolution,

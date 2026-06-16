@@ -130,7 +130,7 @@ public:
    * 
    * \tparam FromDim The dimension of points from the input mesh
    * \tparam ToDim The dimension of points on the indexed shape
-   * \param [in] mfemState The SamplingMFEMState object that contains the data collection containing
+   * \param [in] mfemState The MFEMState object that contains the data collection containing
    *                       the mesh and associated query points. It also contains a collection of
    *                       quadrature functions for the shape and material inout samples.
    * \param [in] projector A callback function to apply to points from the input mesh
@@ -141,7 +141,7 @@ public:
    * \note \a ToDim must be equal to \a DIM, the dimension of the spatial index
    */
   template <int FromDim, int ToDim = DIM>
-  std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::SamplingMFEMState& mfemState,
+  std::enable_if_t<ToDim == DIM, void> sampleInOutField(shaping::MFEMState& mfemState,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
     static_assert(axom::execution_space<ExecSpace>::onDevice() == false,
@@ -253,7 +253,7 @@ public:
    * defined to support various callback specializations for the \a PointProjector.
    */
   template <int FromDim, int ToDim>
-  std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::SamplingMFEMState&,
+  std::enable_if_t<ToDim != DIM, void> sampleInOutField(shaping::MFEMState&,
                                                         PointProjector<FromDim, ToDim>)
   {
     static_assert(ToDim != DIM,
@@ -267,7 +267,7 @@ public:
    */
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(
-    shaping::SamplingMFEMState& mfemState,
+    shaping::MFEMState& mfemState,
     int outputOrder,
     PointProjector<FromDim, ToDim> projector = {})
   {
@@ -297,7 +297,7 @@ public:
    */
   template <int FromDim, int ToDim>
   std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(
-    shaping::SamplingMFEMState& AXOM_UNUSED_PARAM(mfemState),
+    shaping::MFEMState& AXOM_UNUSED_PARAM(mfemState),
     int AXOM_UNUSED_PARAM(outputOrder),
     PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {

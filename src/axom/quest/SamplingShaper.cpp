@@ -141,7 +141,7 @@ void SamplingShaper::saveQuadraturePoints(const std::string& filename) const
   #if defined(AXOM_USE_MFEM)
   if(m_mfem_state != nullptr)
   {
-    auto* positions = samplingMFEMState().shapeQFuncs().Get("positions");
+    auto* positions = m_mfem_state->shapeQFuncs().Get("positions");
     if(positions == nullptr)
     {
       SLIC_WARNING("No MFEM quadrature positions are available to save.");
@@ -376,7 +376,7 @@ void SamplingShaper::importInitialVolumeFractions(
 
   SLIC_ERROR_IF(m_mfem_state == nullptr, "This method requires MFEM inputs.");
 
-  auto& mfemState = samplingMFEMState();
+  auto& mfemState = *m_mfem_state;
   auto* mesh = mfemState.m_dc->GetMesh();
   // Generate the quadrature points.
   if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
@@ -394,7 +394,7 @@ void SamplingShaper::printRegisteredFieldNames(const std::string& initialMessage
 #if defined(AXOM_USE_MFEM)
   if(m_mfem_state != nullptr)
   {
-    shaping::printRegisteredFieldNames(samplingMFEMState(),
+    shaping::printRegisteredFieldNames(*m_mfem_state,
                                        m_knownMaterials,
                                        m_vfSampling,
                                        initialMessage);
@@ -428,7 +428,7 @@ void SamplingShaper::computeVolumeFractionsForMaterial(const std::string& matFie
     // NOTE: We pass the m_samplingResolution and m_quadratureType values to this
     //       version of the function so we can detect whether we have anisotropic
     //       sampling, which is handled differently.
-    shaping::computeVolumeFractionsForMaterial(samplingMFEMState(),
+    shaping::computeVolumeFractionsForMaterial(*m_mfem_state,
                                                matField,
                                                m_volfracOrder,
                                                m_samplingResolution,
