@@ -1051,10 +1051,16 @@ Container& Container::registerVerifier(Verifier lambda)
 
 bool Container::verify(std::vector<VerificationError>* errors) const
 {
+  const bool collection_group_provided = isCollectionGroup(m_name) &&
+    m_sidreGroup->hasView(detail::VARIANT_STRUCT_COLLECTION_FLAG) &&
+    m_sidreGroup->hasView("retrieval_status") &&
+    static_cast<ReaderResult>(static_cast<int>(m_sidreGroup->getView("retrieval_status")->getData())) ==
+      ReaderResult::Success;
+
   // Whether the calling container has anything in it
   // If the name is empty then we're the global (root) container, which we always
   // consider to be defined
-  const bool this_container_defined = isUserProvided() || m_name.empty();
+  const bool this_container_defined = isUserProvided() || m_name.empty() || collection_group_provided;
 
   // If this container was required, make sure something was defined in it
   bool verified = verifyRequired(*m_sidreGroup, this_container_defined, "Container", errors);

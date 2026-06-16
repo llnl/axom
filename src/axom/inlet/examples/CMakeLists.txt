@@ -23,6 +23,7 @@ blt_list_append(
     fields.cpp
     homogeneous_collections.cpp
     lua_library.cpp
+    variant_struct_collections.cpp
     variant_collections.cpp
     containers.cpp
     user_defined_type.cpp
@@ -78,6 +79,9 @@ if (SOL_FOUND)
 
     axom_add_test( NAME    inlet_variant_collections_ex
                    COMMAND inlet_variant_collections_ex )
+
+    axom_add_test( NAME    inlet_variant_struct_collections_ex
+                   COMMAND inlet_variant_struct_collections_ex )
 
     axom_add_test( NAME    inlet_containers_ex
                    COMMAND inlet_containers_ex)
