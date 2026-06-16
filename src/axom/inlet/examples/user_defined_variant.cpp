@@ -12,8 +12,6 @@
 #include <type_traits>
 #include <variant>
 
-namespace inlet = axom::inlet;
-
 // _inlet_user_defined_variant_start
 struct Circle
 {
@@ -31,13 +29,13 @@ using Shape = std::variant<Circle, Box>;
 template <>
 struct FromInlet<Circle>
 {
-  Circle operator()(const inlet::Container& input_data) { return {input_data["radius"]}; }
+  Circle operator()(const axom::inlet::Container& input_data) { return {input_data["radius"]}; }
 };
 
 template <>
 struct FromInlet<Box>
 {
-  Box operator()(const inlet::Container& input_data)
+  Box operator()(const axom::inlet::Container& input_data)
   {
     return {input_data["width"], input_data["height"]};
   }
@@ -48,7 +46,7 @@ struct FromInlet<Shape>
 {
   // Shape is a std::variant, so it cannot be read through Container::get<T>().
   // Use the public Proxy returned by inlet["shape"] to access its fields instead.
-  Shape operator()(const inlet::Proxy& input_data)
+  Shape operator()(const axom::inlet::Proxy& input_data)
   {
     const std::string kind = input_data["kind"];
     if(kind == "circle")
@@ -65,14 +63,14 @@ struct FromInlet<Shape>
   }
 };
 
-void defineShapeSchema(inlet::Container& shape)
+void defineShapeSchema(axom::inlet::Container& shape)
 {
   shape.addString("kind", "Shape variant discriminator").required().validValues({"circle", "box"});
   shape.addDouble("radius", "Circle radius").required(false);
   shape.addDouble("width", "Box width").required(false);
   shape.addDouble("height", "Box height").required(false);
 
-  shape.registerVerifier([](const inlet::Container& input_data) {
+  shape.registerVerifier([](const axom::inlet::Container& input_data) {
     if(!input_data.isUserProvided("kind"))
     {
       return false;
@@ -130,9 +128,9 @@ int main()
   axom::slic::SimpleLogger logger;
 
   // Create Inlet object with the Lua Reader and parse the input file snippet
-  auto lr = std::make_unique<inlet::LuaReader>();
+  auto lr = std::make_unique<axom::inlet::LuaReader>();
   lr->parseString(input);
-  inlet::Inlet inlet(std::move(lr));
+  axom::inlet::Inlet inlet(std::move(lr));
 
   // Define the input file schema
   // _inlet_user_defined_variant_schema_usage_start
