@@ -88,8 +88,7 @@ TEST(SamplingShaperBlueprintTest, sidre_blueprint_quadrature_persists)
   EXPECT_TRUE(refreshedMesh.has_path("topologies/quadrature_points"));
   EXPECT_TRUE(refreshedMesh.has_path("fields/originalElements/values"));
   EXPECT_TRUE(refreshedMesh.has_path("fields/quadratureWeights/values"));
-  EXPECT_TRUE(
-    refreshedMesh.has_path(axom::fmt::format("fields/{}/values", backgroundMatInOutName)));
+  EXPECT_TRUE(refreshedMesh.has_path(axom::fmt::format("fields/{}/values", backgroundMatInOutName)));
 }
 
 int main(int argc, char* argv[])
