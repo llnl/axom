@@ -55,8 +55,13 @@ struct FromInlet<Shape>
     {
       return Circle {input_data["radius"]};
     }
+    else if(kind == "box")
+    {
+      return Box {input_data["width"], input_data["height"]};
+    }
 
-    return Box {input_data["width"], input_data["height"]};
+    SLIC_ERROR(axom::fmt::format("Unknown shape discriminator '{}'", kind));
+    return Box {0.0, 0.0};
   }
 };
 
@@ -79,9 +84,13 @@ void defineShapeSchema(inlet::Container& shape)
       return input_data.isUserProvided("radius") && !input_data.isUserProvided("width") &&
         !input_data.isUserProvided("height");
     }
+    else if(kind == "box")
+    {
+      return input_data.isUserProvided("width") && input_data.isUserProvided("height") &&
+        !input_data.isUserProvided("radius");
+    }
 
-    return input_data.isUserProvided("width") && input_data.isUserProvided("height") &&
-      !input_data.isUserProvided("radius");
+    return false;
   });
 }
 // _inlet_user_defined_variant_end
