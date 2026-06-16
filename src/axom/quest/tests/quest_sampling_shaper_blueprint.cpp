@@ -68,12 +68,11 @@ TEST(SamplingShaperBlueprintTest, sidre_blueprint_quadrature_persists)
                                "mesh");
   shaper.setSamplingResolution(2);
 
-  auto* bpMeshNode = shaper.getBlueprintMeshNode();
-  ASSERT_NE(bpMeshNode, nullptr);
+  auto* bpState = shaper.getBlueprintState();
+  ASSERT_NE(bpState, nullptr);
 
   std::map<std::string, conduit::Node*> initialVolumeFractions;
-  initialVolumeFractions["background"] =
-    &bpMeshNode->fetch_existing(axom::fmt::format("fields/{}", backgroundVolFracName));
+  initialVolumeFractions["background"] = &bpState->getField(backgroundVolFracName);
   shaper.importInitialVolumeFractions(initialVolumeFractions);
 
   EXPECT_TRUE(meshGroup->hasGroup("coordsets/quadrature_points"));

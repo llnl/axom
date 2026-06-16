@@ -7,6 +7,14 @@
 #include "axom/quest/detail/shaping/shaping_helpers.hpp"
 #if defined(AXOM_USE_CONDUIT)
   #include "axom/quest/detail/shaping/shaping_helpers_blueprint.hpp"
+  #include "conduit/conduit_relay_io.hpp"
+  #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
+    #ifdef CONDUIT_RELAY_MPI_ENABLED
+      #include "conduit/conduit_relay_mpi_io_blueprint.hpp"
+    #else
+      #include "conduit/conduit_relay_io_blueprint.hpp"
+    #endif
+  #endif
 #endif
 
 namespace axom
