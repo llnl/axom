@@ -18,6 +18,10 @@
   #error Shaping functionality requires Axom to be configured with the Klee component
 #endif
 
+#ifndef AXOM_USE_SIDRE
+  #error Shaping functionality requires Axom to be configured with the Sidre component
+#endif
+
 #if !defined(AXOM_USE_MFEM) && !defined(AXOM_USE_CONDUIT)
   #error Shaping functionality requires Axom to be configured with Conduit or MFEM
 #endif
@@ -45,7 +49,8 @@ namespace quest
 /**
  * Abstract base class for shaping material volume fractions
  *
- * Shaper requires Axom to be configured with Conduit or MFEM or both.
+ * Shaper requires Axom to be configured with Sidre and with Conduit or MFEM
+ * or both.
  */
 class Shaper
 {
@@ -74,11 +79,6 @@ public:
   /*!
    * @brief Construct Shaper to operate on a blueprint-formatted mesh
    * stored in a conduit Node.
-   * 
-   * Because \c conduit::Node doesn't support application-specified
-   * allocator id for (only) arrays, the incoming \c bpNode must have
-   * all arrays pre-allocated in a space accessible by the runtime
-   * policy.  Any needed-but-missing space would lead to an exception.
   */
   Shaper(RuntimePolicy execPolicy,
          int allocatorId,

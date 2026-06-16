@@ -13,16 +13,18 @@
 #include "axom/quest/Shaper.hpp"
 #include "axom/quest/DiscreteShape.hpp"
 #include "axom/quest/util/mesh_helpers.hpp"
-#include "conduit_blueprint_mesh.hpp"
 
 #include "axom/fmt.hpp"
 
-#include "conduit/conduit_relay_io.hpp"
-#ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
-  #ifdef CONDUIT_RELAY_MPI_ENABLED
-    #include "conduit/conduit_relay_mpi_io_blueprint.hpp"
-  #else
-    #include "conduit/conduit_relay_io_blueprint.hpp"
+#if defined(AXOM_USE_CONDUIT)
+  #include "conduit_blueprint_mesh.hpp"
+  #include "conduit/conduit_relay_io.hpp"
+  #ifdef CONDUIT_RELAY_IO_HDF5_ENABLED
+    #ifdef CONDUIT_RELAY_MPI_ENABLED
+      #include "conduit/conduit_relay_mpi_io_blueprint.hpp"
+    #else
+      #include "conduit/conduit_relay_io_blueprint.hpp"
+    #endif
   #endif
 #endif
 
@@ -398,7 +400,7 @@ bool Shaper::verifyMFEMInputMesh(std::string& whyBad) const
 
 void Shaper::saveResults(bool AXOM_UNUSED_PARAM(extra))
 {
-#ifdef MFEM_USE_MPI
+#if defined(AXOM_USE_MFEM)
   // If the target mesh was MFEM, save it.
   if(getDC() != nullptr)
   {
