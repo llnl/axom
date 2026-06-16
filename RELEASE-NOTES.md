@@ -26,6 +26,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds `NURBSPatch::isTriviallyTrimmed()` to check if the trimming curves for a patch lie on the patch boundaries
 - Quest: Adds support for reading mfem files with variable order NURBS curves (requires mfem>4.9).
 - Quest: Adds OMP support for fast GWN methods for STL/Triangulated STEP input and linearized NURBS Curve input.
+- Quest: Adds OMP supported, fast and accurate GWN method for NURBS curves and trimmed NURBS surfaces.
 - Klee: Adds an optional "center" parameter in scale operators that permits scaling relative to a custom center point.
 - Quest: `SamplingShaper` now supports selecting MFEM quadrature families for custom sample-point generation, including
   anisotropic per-direction sampling resolution on quadrilateral and hexahedral meshes. Quadrature type is selected via
@@ -39,6 +40,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Core: Axom core memory allocation semantics and defaults have changed to be more consistent. Specifically, the default allocation stractegy for host allocations is now Axom's malloc routine; before it was the Umpire default HOST allocator. Also, the separation of the Axom default global allocator and default host allocator (both used for CPU-accessible allocations) is more clear. Host-facing code paths have been updated to use that distinction consistently. Please see Core component user documentation for more information.
 - Primal: Adds KnotVector constructors that skip validity assertion checks, allowing the user to call `isValid()`
   and handle the error appropriately.
+- Primal: Adds a `primal::BezierTriangle` class
 - Inlet: Added the ability to have collections (array and dictionary) with variant values.
 - Inlet: Added the ability to have collections (array and dictionary) with variant user defined structures.
 
