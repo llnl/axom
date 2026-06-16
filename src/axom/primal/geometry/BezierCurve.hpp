@@ -52,6 +52,10 @@ std::ostream& operator<<(std::ostream& os, const BezierCurve<T, NDIMS>& bCurve);
  * 
  * Contains an array of positive weights to represent a rational Bezier curve.
  * Nonrational Bezier curves are identified by an empty weights array.
+ * 
+ * A default-constructed curve will have order -1, and is "invalid".
+ * Arrays of nodes and weights will be empty, and most methods are invalid 
+ * 
  * Algorithms for Rational Bezier curves derived from 
  * Gerald Farin, "Algorithms for rational Bezier curves"
  * Computer-Aided Design, Volume 15, Number 2, 1983,
@@ -103,15 +107,14 @@ public:
    * If \a controlPoints is empty, we still allocate space for \a ord+1 control points
    * \pre order \a ord is greater than or equal to -1
    * \pre controlPoints is either empty or has size \a ord+1
-   * \pre weights is either empty or has size \a ord+1
-   * \pre controlPoints cannot be empty if weights are supplied
+   * \pre weights is either empty or has size of controlPoints
    */
   BezierCurve(axom::ArrayView<const PointType> controlPoints, axom::ArrayView<const T> weights, int ord)
   {
     SLIC_ASSERT(ord >= -1);
     const int SZ = utilities::max(0, ord + 1);
 
-    SLIC_ASSERT(controlPoints.size() >= weights.size());
+    SLIC_ASSERT(weights.empty() || controlPoints.size() == weights.size());
 
     // note: always allocates space for the control points
     if(controlPoints.empty())
@@ -157,7 +160,7 @@ public:
    *
    * \param [in] pts a vector with ord+1 control points
    * \param [in] ord The Curve's polynomial order
-   * \pre order is greater than or equal to zero
+   * \pre order is greater than or equal to -1
    */
   BezierCurve(const PointType* pts, int ord)
     : BezierCurve(axom::ArrayView<const PointType>(pts, ord + 1),
@@ -171,7 +174,7 @@ public:
    * \param [in] pts a vector with ord+1 control points
    * \param [in] weights a vector with ord+1 positive weights
    * \param [in] ord The Curve's polynomial order
-   * \pre order is greater than or equal to zero
+   * \pre order is greater than or equal to -1
    */
   BezierCurve(const PointType* pts, const T* weights, int ord)
     : BezierCurve(axom::ArrayView<const PointType>(pts, ord + 1),
@@ -184,7 +187,7 @@ public:
    *
    * \param [in] pts an array with ord+1 control points
    * \param [in] ord The Curve's polynomial order
-   * \pre order is greater than or equal to zero
+   * \pre order+1 is equal to pts.size()
    */
   BezierCurve(const axom::Array<PointType>& pts, int ord)
     : BezierCurve(pts.view(), axom::ArrayView<const T>(nullptr, 0), ord)
@@ -196,7 +199,8 @@ public:
    * \param [in] pts an array with ord+1 control points
    * \param [in] weights an array with ord+1 positive weights
    * \param [in] ord The Curve's polynomial order
-   * \pre order is greater than or equal to zero
+   * \pre pts.size() is equal to order+1
+   * \pre weights.size() is equal to order+1 or 0
    */
   BezierCurve(const axom::Array<PointType>& pts, const axom::Array<T>& weights, int ord)
     : BezierCurve(pts.view(), weights.view(), ord)
