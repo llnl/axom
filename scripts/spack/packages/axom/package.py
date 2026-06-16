@@ -279,7 +279,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     # Python
     with when("+python"):
-        depends_on("py-nanobind@2.7.0")
+        depends_on("py-nanobind@2.7.0:")
         depends_on("py-pytest")
         depends_on("py-numpy")
         depends_on("py-mpi4py", when="+mpi")

@@ -318,9 +318,10 @@ set_target_properties(compiler_flag_unused_local_typedef_test
     PROPERTIES COMPILE_FLAGS "${ADDL_SMOKE_FLAGS} ${AXOM_DISABLE_UNUSED_LOCAL_TYPEDEF}")
 
 # the aliasing test requires optimization, set this up as custom compiler flag
-# in case we need more flexibility for this flag (e.g. for MSVC)
+# GNU requires a higher warning level to trigger strict-aliasing, before disabling it
 blt_append_custom_compiler_flag(FLAGS_VAR TMP_OPT_FLAG
     DEFAULT "-O2"
+    GNU     "-O2 -Wstrict-aliasing=2"
     MSVC    " "
 )
 

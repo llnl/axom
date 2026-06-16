@@ -57,6 +57,46 @@ struct FromInlet<Foo>
   }
 };
 
+struct Circle
+{
+  double radius;
+
+  bool operator==(const Circle& other) const { return radius == other.radius; }
+};
+
+struct Box
+{
+  double width;
+  double height;
+
+  bool operator==(const Box& other) const { return width == other.width && height == other.height; }
+};
+
+using Shape = std::variant<Circle, Box>;
+
+template <>
+struct FromInlet<Circle>
+{
+  Circle operator()(const axom::inlet::Container& base) { return {base["radius"]}; }
+};
+
+template <>
+struct FromInlet<Box>
+{
+  Box operator()(const axom::inlet::Container& base) { return {base["width"], base["height"]}; }
+};
+
+void defineShapeSchema(axom::inlet::VariantStructCollection<Shape>& shapes)
+{
+  shapes.addAlternative<Circle>("circle", [](axom::inlet::Container& circle) {
+    circle.addDouble("radius").required();
+  });
+  shapes.addAlternative<Box>("box", [](axom::inlet::Container& box) {
+    box.addDouble("width").required();
+    box.addDouble("height").required();
+  });
+}
+
 template <typename InletReader>
 class inlet_object : public ::testing::Test
 { };
@@ -123,6 +163,79 @@ TYPED_TEST(inlet_object, simple_array_of_struct_by_value)
   std::unordered_map<int, Foo> expected_foos = {{0, {true, false}}, {1, {false, true}}};
   auto foos = inlet["foo"].get<std::unordered_map<int, Foo>>();
   EXPECT_EQ(foos, expected_foos);
+}
+
+TYPED_TEST(inlet_object, variant_array_of_struct_by_value)
+{
+  std::string testString =
+    "shapes = { [0] = { kind = \"circle\"; radius = 2.5 }, "
+    "           [1] = { kind = \"box\"; width = 3.0; height = 4.0 } }";
+  Inlet inlet = createBasicInlet<TypeParam>(testString);
+
+  auto shapes = inlet.addVariantStructArray<Shape>("shapes", "kind");
+  defineShapeSchema(shapes);
+
+  EXPECT_TRUE(inlet.verify());
+
+  std::unordered_map<int, Shape> expected_shapes = {{0, Circle {2.5}}, {1, Box {3.0, 4.0}}};
+  auto actual_shapes = inlet["shapes"].get<std::unordered_map<int, Shape>>();
+  EXPECT_EQ(actual_shapes, expected_shapes);
+}
+
+TYPED_TEST(inlet_object, variant_array_of_struct_as_vector)
+{
+  std::string testString =
+    "shapes = { [0] = { kind = \"circle\"; radius = 2.5 }, "
+    "           [1] = { kind = \"box\"; width = 3.0; height = 4.0 } }";
+  Inlet inlet = createBasicInlet<TypeParam>(testString);
+
+  auto shapes = inlet.addVariantStructArray<Shape>("shapes", "kind");
+  defineShapeSchema(shapes);
+
+  auto actual_shapes = inlet["shapes"].get<std::vector<Shape>>();
+  ASSERT_EQ(actual_shapes.size(), 2u);
+  EXPECT_EQ(actual_shapes[0], Shape(Circle {2.5}));
+  EXPECT_EQ(actual_shapes[1], Shape(Box {3.0, 4.0}));
+}
+
+TYPED_TEST(inlet_object, variant_dictionary_of_struct_by_value)
+{
+  std::string testString =
+    "shapes = { ball = { kind = \"circle\"; radius = 2.5 }, "
+    "           block = { kind = \"box\"; width = 3.0; height = 4.0 } }";
+  Inlet inlet = createBasicInlet<TypeParam>(testString);
+
+  auto shapes = inlet.addVariantStructDictionary<Shape>("shapes", "kind");
+  defineShapeSchema(shapes);
+
+  EXPECT_TRUE(inlet.verify());
+
+  std::unordered_map<VariantKey, Shape> expected_shapes = {{VariantKey {"ball"}, Circle {2.5}},
+                                                           {VariantKey {"block"}, Box {3.0, 4.0}}};
+  auto actual_shapes = inlet["shapes"].get<std::unordered_map<VariantKey, Shape>>();
+  EXPECT_EQ(actual_shapes, expected_shapes);
+}
+
+TYPED_TEST(inlet_object, variant_array_of_struct_missing_discriminator_fails)
+{
+  std::string testString = "shapes = { [0] = { radius = 2.5 } }";
+  Inlet inlet = createBasicInlet<TypeParam>(testString);
+
+  auto shapes = inlet.addVariantStructArray<Shape>("shapes", "kind");
+  defineShapeSchema(shapes);
+
+  EXPECT_FALSE(inlet.verify());
+}
+
+TYPED_TEST(inlet_object, variant_array_of_struct_unknown_discriminator_fails)
+{
+  std::string testString = "shapes = { [0] = { kind = \"triangle\"; side = 2.5 } }";
+  Inlet inlet = createBasicInlet<TypeParam>(testString);
+
+  auto shapes = inlet.addVariantStructArray<Shape>("shapes", "kind");
+  defineShapeSchema(shapes);
+
+  EXPECT_FALSE(inlet.verify());
 }
 
 TYPED_TEST(inlet_object, simple_array_of_struct_implicit_idx)

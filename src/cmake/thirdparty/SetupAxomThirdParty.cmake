@@ -331,12 +331,22 @@ if(EXISTS ${Python_EXECUTABLE})
         )
     endif()
 
-    # Check if python environment potentially contains all
-    # required dependencies
+    # Check if the python environment contains the runtime dependencies for Axom's python
+    # conduit (Node interop) and numpy (ndarray returns). 
+    # nanobind is statically linked at build time and is located separately above.
     execute_process(
       COMMAND "${CMAKE_COMMAND}" -E env
-              "${Python_EXECUTABLE}" -c "import nanobind, conduit, numpy, pytest"
-      RESULT_VARIABLE PY_ENV_IMPORT_CODE
+              "${Python_EXECUTABLE}" -c "import conduit, numpy"
+      RESULT_VARIABLE PY_RUNTIME_IMPORT_CODE
+      OUTPUT_QUIET
+      ERROR_QUIET
+    )
+
+    # Check if the python environment contains the pytest test harness,
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E env
+              "${Python_EXECUTABLE}" -c "import pytest"
+      RESULT_VARIABLE PY_PYTEST_IMPORT_CODE
       OUTPUT_QUIET
       ERROR_QUIET
     )
@@ -351,36 +361,38 @@ if(EXISTS ${Python_EXECUTABLE})
     )
 endif()
 
-# If python environment does not contain required modules, check if
-# library installation paths were provided instead.
-if((NOT PY_ENV_IMPORT_CODE EQUAL 0)
-   AND
-   nanobind_ROOT
-   AND
-   (NOT PY_NANOBIND_DIR
-   OR NOT CONDUIT_PYTHON_MODULE_DIR
-   OR NOT PY_NUMPY_DIR
-   OR NOT PY_PYTEST_DIR
-   OR NOT PY_PLUGGY_DIR
-   OR NOT PY_INICONFIG_DIR))
+# If the python environment does not contain the required runtime modules,
+# check if library installation paths were provided instead.
+if((NOT PY_RUNTIME_IMPORT_CODE EQUAL 0)
+   AND nanobind_ROOT
+   AND (NOT CONDUIT_PYTHON_MODULE_DIR OR NOT PY_NUMPY_DIR))
     message(FATAL_ERROR
-      "Axom's python extensions require nanobind, numpy, pytest, and conduit."
-      "\nThe python library installation paths "
-      "(and pytest's dependencies pluggy and iniconfig) "
-      "can be specified with CMake variables: "
-      "PY_NANOBIND_DIR, CONDUIT_PYTHON_MODULE_DIR, PY_NUMPY_DIR, PY_PYTEST_DIR, PY_PLUGGY_DIR, PY_INICONFIG_DIR")
+      "Axom's python extensions require conduit and numpy at runtime."
+      "\nThe python library installation paths can be specified with CMake variables: "
+      "CONDUIT_PYTHON_MODULE_DIR, PY_NUMPY_DIR")
+endif()
+
+# The pytest harness (pytest and its dependencies) is a test-only requirement.
+# It is injected per-test via the ENVIRONMENT property and is only required
+# when Axom's python tests are enabled.
+if(AXOM_ENABLE_PYTHON_TESTS
+   AND (NOT PY_PYTEST_IMPORT_CODE EQUAL 0)
+   AND nanobind_ROOT
+   AND (NOT PY_PYTEST_DIR OR NOT PY_PLUGGY_DIR OR NOT PY_INICONFIG_DIR))
+    message(FATAL_ERROR
+      "Running Axom's python tests requires pytest (and its dependencies pluggy and iniconfig)."
+      "\nThe library installation paths can be specified with CMake variables: "
+      "PY_PYTEST_DIR, PY_PLUGGY_DIR, PY_INICONFIG_DIR."
+      "\nAlternatively, configure with AXOM_ENABLE_PYTHON_TESTS=OFF.")
 endif()
 
 # When Axom is configured with MPI,
 # if python environment does not contain required mpi4py module,
 # check if mpi4py library installation path was provided instead.
 if(AXOM_ENABLE_MPI
-   AND
-   (NOT MPI4PY_ENV_IMPORT_CODE EQUAL 0)
-   AND
-   nanobind_ROOT
-   AND
-   (NOT PY_MPI4PY_DIR))
+   AND (NOT MPI4PY_ENV_IMPORT_CODE EQUAL 0)
+   AND nanobind_ROOT
+   AND (NOT PY_MPI4PY_DIR))
     message(FATAL_ERROR
       "Axom's python extension requires mpi4py when Axom library is configured with MPI."
       "\nThe mpi4py library installation paths "
@@ -395,11 +407,8 @@ if(nanobind_ROOT
    AND NOT AXOM_ENABLE_CUDA
    AND NOT AXOM_ENABLE_ASAN
    AND NOT AXOM_ENABLE_UBSAN
-   AND
-   ((NOT "$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9")
-   OR
-   ("$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9"
-   AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")))
+   AND ((NOT "$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9")
+        OR  ("$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9" AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")))
 
     axom_assert_is_directory(DIR_VARIABLE nanobind_ROOT)
     find_package(nanobind CONFIG REQUIRED)
