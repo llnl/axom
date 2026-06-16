@@ -77,13 +77,14 @@ set(bump_headers
     GenerateQuadratureMesh.hpp
     HashNaming.hpp
     IndexingPolicies.hpp
-    MappedZoneUtilities.hpp
+    MakeExplicitCoordset.hpp
     MakePointMesh.hpp
     MakePolyhedralTopology.hpp
     MakeUnstructured.hpp
     MakeZoneCenters.hpp
     MakeZoneVolumes.hpp
     MapBasedNaming.hpp
+    MappedZoneUtilities.hpp
     MatsetSlicer.hpp
     MergeCoordsetPoints.hpp
     MergeMeshes.hpp

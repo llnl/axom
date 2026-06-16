@@ -172,37 +172,41 @@ std::vector<std::string> BlueprintState::childNames(const std::string& path) con
 void BlueprintState::ensureUnstructured(axom::runtime_policy::Policy execPolicy)
 {
   const std::string topoType = getBlueprintTopologyNode().fetch_existing("type").as_string();
-  if(topoType != "structured")
+  if(topoType == "unstructured")
   {
     return;
   }
 
-  if(!isSidreBacked())
+  if(isSidreBacked())
   {
-    SLIC_ERROR(
-      "Structured Blueprint meshes backed by conduit::Node are not yet supported for "
-      "in-place conversion to unstructured topology.");
-  }
+    // Sidre
+    const std::string shapeType = shaping::getBlueprintCellShape(getBlueprintTopologyNode());
+    if(shapeType == "hex")
+    {
+      axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_3d(m_group_ptr,
+                                                                                  topologyName(),
+                                                                                  execPolicy);
+    }
+    else if(shapeType == "quad")
+    {
+      axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_2d(m_group_ptr,
+                                                                                  topologyName(),
+                                                                                  execPolicy);
+    }
+    else
+    {
+      SLIC_ERROR("Axom Internal error: Unhandled shape type.");
+    }
 
-  const std::string shapeType = shaping::getBlueprintCellShape(getBlueprintTopologyNode());
-  if(shapeType == "hex")
-  {
-    axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_3d(m_group_ptr,
-                                                                                topologyName(),
-                                                                                execPolicy);
-  }
-  else if(shapeType == "quad")
-  {
-    axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_2d(m_group_ptr,
-                                                                                topologyName(),
-                                                                                execPolicy);
+    refreshBlueprintMeshNode();
   }
   else
   {
-    SLIC_ERROR("Axom Internal error: Unhandled shape type.");
+    // Conduit
+    axom::quest::util::convert_blueprint_structured_explicit_to_unstructured(getBlueprintMeshNode(),
+                                                                             topologyName(),
+                                                                             execPolicy);
   }
-
-  refreshBlueprintMeshNode();
 }
 
 void BlueprintState::deleteShapeFunction(const std::string& name)

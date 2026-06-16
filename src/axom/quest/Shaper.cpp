@@ -373,21 +373,14 @@ void Shaper::ensureBlueprintMeshIsUnstructured()
     return;
   }
 
+  AXOM_ANNOTATE_SCOPE("Shaper::convertStructured");
   const conduit::Node& topoNode = getBlueprintTopologyNode();
   const std::string topoType = topoNode.fetch_existing("type").as_string();
-  if(topoType != "structured")
-  {
-    return;
-  }
 
-  if(!m_bp_state->isSidreBacked())
+  if(topoType != "unstructured")
   {
     m_bp_state->ensureUnstructured(m_execPolicy);
-    return;
   }
-
-  AXOM_ANNOTATE_SCOPE("Shaper::convertStructured");
-  m_bp_state->ensureUnstructured(m_execPolicy);
   m_cellCount = conduit::blueprint::mesh::topology::length(getBlueprintTopologyNode());
 }
 #endif
