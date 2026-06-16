@@ -104,7 +104,7 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   , m_comm(MPI_COMM_WORLD)
   #endif
 {
-  m_bp_state = createBlueprintState();
+  m_bp_state = std::make_unique<shaping::BlueprintState>();
   bpGrp->setDefaultArrayAllocator(m_allocatorId);
   m_bp_state->initialize(bpGrp, m_allocatorId, resolveBlueprintTopologyName(bpGrp, topo));
 
@@ -137,7 +137,7 @@ Shaper::Shaper(RuntimePolicy execPolicy,
 {
   AXOM_ANNOTATE_SCOPE("Shaper::Shaper_Node");
 
-  m_bp_state = createBlueprintState();
+  m_bp_state = std::make_unique<shaping::BlueprintState>();
   m_bp_state->initialize(&bpNode, m_allocatorId, resolveBlueprintTopologyName(bpNode, topo));
 
   refreshBlueprintMeshState();
