@@ -91,9 +91,9 @@ struct BlueprintState
     m_topology_name = topologyName.empty() ? topologiesGrp->getGroupName(0) : topologyName;
     SLIC_ERROR_IF(m_topology_name == sidre::InvalidName,
                   "Blueprint mesh does not contain any topology groups.");
-    SLIC_ERROR_IF(!topologiesGrp->hasGroup(m_topology_name),
-                  axom::fmt::format("Blueprint mesh does not contain topology '{}'.",
-                                    m_topology_name));
+    SLIC_ERROR_IF(
+      !topologiesGrp->hasGroup(m_topology_name),
+      axom::fmt::format("Blueprint mesh does not contain topology '{}'.", m_topology_name));
     m_external_node_ptr = nullptr;
   }
 
@@ -115,9 +115,9 @@ struct BlueprintState
                   "Blueprint mesh does not contain any topology nodes.");
 
     m_topology_name = topologyName.empty() ? topologies.child(0).name() : topologyName;
-    SLIC_ERROR_IF(!topologies.has_child(m_topology_name),
-                  axom::fmt::format("Blueprint mesh does not contain topology '{}'.",
-                                    m_topology_name));
+    SLIC_ERROR_IF(
+      !topologies.has_child(m_topology_name),
+      axom::fmt::format("Blueprint mesh does not contain topology '{}'.", m_topology_name));
     m_external_node_ptr = node;
   }
 

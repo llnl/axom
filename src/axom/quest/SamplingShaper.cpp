@@ -394,10 +394,7 @@ void SamplingShaper::printRegisteredFieldNames(const std::string& initialMessage
 #if defined(AXOM_USE_MFEM)
   if(m_mfem_state != nullptr)
   {
-    shaping::printRegisteredFieldNames(*m_mfem_state,
-                                       m_knownMaterials,
-                                       m_vfSampling,
-                                       initialMessage);
+    shaping::printRegisteredFieldNames(*m_mfem_state, m_knownMaterials, m_vfSampling, initialMessage);
     return;
   }
 #endif
