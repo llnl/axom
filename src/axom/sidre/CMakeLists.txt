@@ -119,10 +119,6 @@ if(AXOM_ENABLE_MPI)
     blt_list_append(TO sidre_depends ELEMENTS scr IF SCR_FOUND)
 endif()
 
-if(NANOBIND_FOUND)
-    list(APPEND sidre_depends conduit::conduit_python)
-endif()
-
 axom_add_library(NAME       sidre
                  SOURCES    ${sidre_sources}
                  HEADERS    ${sidre_headers}
@@ -143,7 +139,9 @@ endif()
 
 if(NANOBIND_FOUND)
     nanobind_add_module(pysidre nanobind_sidre.cpp)
-    target_link_libraries(pysidre PRIVATE sidre)
+    # conduit::conduit_python provides conduit_python.hpp
+    # and is needed only by the binding translation unit, not by libsidre
+    target_link_libraries(pysidre PRIVATE sidre conduit::conduit_python)
 
     # Use HIP executable linker flags for the python module
     # (CMake treats modules separately from executables,
