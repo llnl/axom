@@ -1684,7 +1684,7 @@ private:
   /*!
    * \brief Get the material information we'll need to merge materials.
    *
-   * \param inputes The inputs to be merged.
+   * \param inputs The inputs to be merged.
    * \param[out] mi The material information.
    */
   void getMaterialInfo(const std::vector<MeshInput> &inputs, MaterialInfo &mi) const
