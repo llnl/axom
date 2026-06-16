@@ -810,6 +810,9 @@ void convert_blueprint_structured_explicit_to_unstructured(conduit::Node& n_mesh
   }
     #endif
   #else
+  AXOM_UNUSED_VAR(n_mesh);
+  AXOM_UNUSED_VAR(topologyName);
+  AXOM_UNUSED_VAR(runtimePolicy);
   SLIC_ERROR("convert_blueprint_structured_explicit_to_unstructured requires Bump.");
   #endif
 }

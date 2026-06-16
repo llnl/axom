@@ -276,7 +276,7 @@ axom::ArrayView<double> BlueprintState::createField(const std::string& name,
   conduit::Node& valuesNode = fieldNode["values"];
   valuesNode.set_allocator(conduitAllocatorId);
   valuesNode.set(conduit::DataType::float64(size));
-  return axom::bump::utilities::make_array_view<double>(valuesNode);
+  return axom::ArrayView<double>(valuesNode.as_double_ptr(), valuesNode.dtype().number_of_elements());
 }
 
 axom::ArrayView<double> BlueprintState::getScalarFieldView(const std::string& name,
