@@ -306,8 +306,7 @@ const conduit::Node& Shaper::getBlueprintTopologyNode() const
 const conduit::Node& Shaper::getBlueprintCoordsetNode() const
 {
   SLIC_ASSERT(m_bp_state != nullptr);
-  const std::string coordsetName = getBlueprintTopologyNode().fetch_existing("coordset").as_string();
-  return m_bp_state->getBlueprintCoordsetNode(coordsetName);
+  return m_bp_state->getBlueprintCoordsetNode();
 }
 
 std::string Shaper::getBlueprintCellShape() const
@@ -317,18 +316,8 @@ std::string Shaper::getBlueprintCellShape() const
 
 int Shaper::getBlueprintMeshDimension() const
 {
-  const std::string shapeType = getBlueprintCellShape();
-  if(shapeType == "quad")
-  {
-    return 2;
-  }
-  if(shapeType == "hex")
-  {
-    return 3;
-  }
-
-  SLIC_ERROR(axom::fmt::format("Unsupported Blueprint cell shape '{}'.", shapeType));
-  return -1;
+  SLIC_ASSERT(m_bp_state != nullptr);
+  return m_bp_state->meshDimension();
 }
 
 bool Shaper::verifyBlueprintMeshIsStructuredOrUnstructuredQuadHex(std::string& whyBad) const
@@ -344,19 +333,19 @@ bool Shaper::verifyBlueprintMeshIsStructuredOrUnstructuredQuadHex(std::string& w
     rval = conduit::blueprint::mesh::verify(m_bp_state->getBlueprintMeshNode(), info);
     if(rval)
     {
-      const std::string topoType = getBlueprintTopologyNode().fetch_existing("type").as_string();
+      const std::string topoType = m_bp_state->topologyType();
       rval = topoType == "unstructured" || topoType == "structured";
       info[0].set_string("Topology is not structured or unstructured.");
     }
     if(rval)
     {
-      const std::string elemShape = getBlueprintCellShape();
+      const std::string elemShape = m_bp_state->cellShape();
       rval = (elemShape == "hex") || (elemShape == "quad");
       info[0].set_string("Topology elements are not hex or quad.");
     }
     if(rval)
     {
-      const std::string coordsetType = getBlueprintCoordsetNode().fetch_existing("type").as_string();
+      const std::string coordsetType = m_bp_state->getBlueprintCoordsetNode().fetch_existing("type").as_string();
       rval = coordsetType == "explicit";
       info[0].set_string("Coordset is not explicit.");
     }
@@ -374,8 +363,7 @@ void Shaper::ensureBlueprintMeshIsUnstructured()
   }
 
   AXOM_ANNOTATE_SCOPE("Shaper::convertStructured");
-  const conduit::Node& topoNode = getBlueprintTopologyNode();
-  const std::string topoType = topoNode.fetch_existing("type").as_string();
+  const std::string topoType = m_bp_state->topologyType();
 
   if(topoType != "unstructured")
   {

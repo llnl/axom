@@ -2570,50 +2570,17 @@ private:
 #if defined(AXOM_USE_CONDUIT)
     if(m_bp_state != nullptr)
     {
-      std::string fieldPath = "fields/" + fieldName;
-      auto dtype = conduit::DataType::float64(m_cellCount);
       if(m_bp_state->hasField(fieldName))
       {
-        conduit::Node& fieldNode = m_bp_state->getField(fieldName);
-        SLIC_ASSERT(fieldNode.fetch_existing("association").as_string() == std::string("element"));
-        SLIC_ASSERT(fieldNode.fetch_existing("topology").as_string() == m_bp_state->topologyName());
-
-        conduit::Node& valuesNode = fieldNode.fetch_existing("values");
-        SLIC_ASSERT(valuesNode.dtype().id() == dtype.id());
-        SLIC_ASSERT(valuesNode.dtype().number_of_elements() == m_cellCount);
-        rval = axom::ArrayView<double>(valuesNode.as_double_ptr(), m_cellCount);
+        rval = m_bp_state->getScalarFieldView(fieldName, m_cellCount);
       }
       else
       {
-        if(m_bp_state->isConduitBacked())
-        {
-          /*
-            If the computational mesh is an external conduit::Node, it
-            must have all necessary fields.  We will only generate
-            fields for meshes in sidre::Group, where the user can set
-            the allocator id for only array data.  conduit::Node doesn't
-            have this capability.
-          */
-          SLIC_WARNING_IF(m_bp_state->isConduitBacked(),
-                          "For a computational mesh in a conduit::Node, all"
-                          " output fields must be preallocated before shaping."
-                          "  IntersectionShaper will NOT contravene the user's"
-                          " memory management.  The cell-centered field '" +
-                            fieldPath +
-                            "' is missing.  Please pre-allocate"
-                            " this output memory, or to have IntersectionShaper"
-                            " allocate it, construct the IntersectionShaper"
-                            " with the mesh as a sidre::Group  with your"
-                            " specific allocator id.");
-        }
-        else if(m_bp_state->isSidreBacked())
-        {
-          rval = m_bp_state->createField(fieldName,
-                                         m_bp_state->topologyName(),
-                                         m_cellCount,
-                                         true,
-                                         volumeDependent);
-        }
+        rval = m_bp_state->createField(fieldName,
+                                       m_bp_state->topologyName(),
+                                       m_cellCount,
+                                       true,
+                                       volumeDependent);
       }
     }
 #endif
@@ -2735,12 +2702,10 @@ public:
     // m_group_ptr->createNativeLayout(m_internal_node);
 
     const conduit::Node& topoNode = m_bp_state->getBlueprintTopologyNode();
-    const std::string coordsetName = topoNode.fetch_existing("coordset").as_string();
 
     // Assume unstructured and hexahedral
-    SLIC_ERROR_IF(topoNode["type"].as_string() != "unstructured",
-                  "topology type must be 'unstructured'");
-    SLIC_ERROR_IF(topoNode["elements/shape"].as_string() != "quad", "element shape must be 'quad'");
+    SLIC_ERROR_IF(m_bp_state->topologyType() != "unstructured", "topology type must be 'unstructured'");
+    SLIC_ERROR_IF(m_bp_state->cellShape() != "quad", "element shape must be 'quad'");
 
     const auto& connNode = topoNode["elements/connectivity"];
     SLIC_ERROR_IF(
@@ -2754,7 +2719,7 @@ public:
     const auto* connPtr = static_cast<const axom::IndexType*>(connNode.data_ptr());
     axom::ArrayView<const axom::IndexType, 2> conn(connPtr, m_cellCount, NUM_VERTS_PER_QUAD);
 
-    const conduit::Node& coordNode = m_bp_state->getBlueprintCoordsetNode(coordsetName);
+    const conduit::Node& coordNode = m_bp_state->getBlueprintCoordsetNode();
     const conduit::Node& coordValues = coordNode.fetch_existing("values");
     axom::IndexType vertexCount = coordValues["x"].dtype().number_of_elements();
     bool isInterleaved = conduit::blueprint::mcarray::is_interleaved(coordValues);
@@ -2807,13 +2772,10 @@ public:
     // m_group_ptr->createNativeLayout(m_internal_node);
 
     const conduit::Node& topoNode = m_bp_state->getBlueprintTopologyNode();
-    const conduit::Node& topoCoordsetNode = topoNode.fetch_existing("coordset");
-    const std::string coordsetName = topoCoordsetNode.as_string();
 
     // Assume unstructured and hexahedral
-    SLIC_ERROR_IF(topoNode["type"].as_string() != "unstructured",
-                  "topology type must be 'unstructured'");
-    SLIC_ERROR_IF(topoNode["elements/shape"].as_string() != "hex", "element shape must be 'hex'");
+    SLIC_ERROR_IF(m_bp_state->topologyType() != "unstructured", "topology type must be 'unstructured'");
+    SLIC_ERROR_IF(m_bp_state->cellShape() != "hex", "element shape must be 'hex'");
 
     const auto& connNode = topoNode["elements/connectivity"];
     SLIC_ERROR_IF(
@@ -2827,7 +2789,7 @@ public:
     const auto* connPtr = static_cast<const axom::IndexType*>(connNode.data_ptr());
     axom::ArrayView<const axom::IndexType, 2> conn(connPtr, m_cellCount, NUM_VERTS_PER_HEX);
 
-    const conduit::Node& coordNode = m_bp_state->getBlueprintCoordsetNode(coordsetName);
+    const conduit::Node& coordNode = m_bp_state->getBlueprintCoordsetNode();
     const conduit::Node& coordValues = coordNode.fetch_existing("values");
     axom::IndexType vertexCount = coordValues["x"].dtype().number_of_elements();
     bool isInterleaved = conduit::blueprint::mcarray::is_interleaved(coordValues);

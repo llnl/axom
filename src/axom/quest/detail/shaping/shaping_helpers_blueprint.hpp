@@ -149,6 +149,30 @@ struct BlueprintState
     return getBlueprintMeshNode().fetch_existing("topologies").fetch_existing(topologyName());
   }
 
+  /// Return the Blueprint topology type for the active topology.
+  std::string topologyType() const
+  {
+    return getBlueprintTopologyNode().fetch_existing("type").as_string();
+  }
+
+  /// Return the Blueprint cell shape for the active topology.
+  std::string cellShape() const { return shaping::getBlueprintCellShape(getBlueprintTopologyNode()); }
+
+  /// Return the coordset name referenced by the active Blueprint topology.
+  std::string coordsetName() const
+  {
+    return getBlueprintTopologyNode().fetch_existing("coordset").as_string();
+  }
+
+  /// Return the coordset referenced by the active Blueprint topology.
+  conduit::Node& getBlueprintCoordsetNode() { return getBlueprintCoordsetNode(coordsetName()); }
+
+  /// Return the coordset referenced by the active Blueprint topology.
+  const conduit::Node& getBlueprintCoordsetNode() const
+  {
+    return getBlueprintCoordsetNode(coordsetName());
+  }
+
   /// Return a named Blueprint coordset node.
   conduit::Node& getBlueprintCoordsetNode(const std::string& name)
   {
@@ -196,6 +220,16 @@ struct BlueprintState
   {
     return getBlueprintMeshNode().fetch_existing("fields").fetch_existing(name);
   }
+
+  /*!
+   * \brief Return a writable view over a scalar element-associated Blueprint field.
+   *
+   * \param name The field name.
+   * \param size Expected number of values.
+   *
+   * \return A writable view over the field values.
+   */
+  axom::ArrayView<double> getScalarFieldView(const std::string& name, axom::IndexType size);
 
   /// Return a shape in/out field, if present.
   conduit::Node* getShapeFunction(const std::string& name)

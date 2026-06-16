@@ -131,7 +131,7 @@ void BlueprintState::refreshBlueprintMeshNode()
 
 int BlueprintState::meshDimension() const
 {
-  const std::string shapeType = shaping::getBlueprintCellShape(getBlueprintTopologyNode());
+  const std::string shapeType = cellShape();
 
   if(shapeType == "quad")
   {
@@ -277,6 +277,20 @@ axom::ArrayView<double> BlueprintState::createField(const std::string& name,
   valuesNode.set_allocator(conduitAllocatorId);
   valuesNode.set(conduit::DataType::float64(size));
   return axom::bump::utilities::make_array_view<double>(valuesNode);
+}
+
+axom::ArrayView<double> BlueprintState::getScalarFieldView(const std::string& name,
+                                                           axom::IndexType size)
+{
+  conduit::Node& fieldNode = getField(name);
+  SLIC_ASSERT(fieldNode.fetch_existing("association").as_string() == std::string("element"));
+  SLIC_ASSERT(fieldNode.fetch_existing("topology").as_string() == topologyName());
+
+  conduit::Node& valuesNode = fieldNode.fetch_existing("values");
+  SLIC_ASSERT(valuesNode.dtype().id() == conduit::DataType::float64(size).id());
+  SLIC_ASSERT(valuesNode.dtype().number_of_elements() == size);
+
+  return axom::ArrayView<double>(valuesNode.as_double_ptr(), size);
 }
 
   #if defined(AXOM_USE_BUMP)
