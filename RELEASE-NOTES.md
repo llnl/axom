@@ -41,6 +41,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   and handle the error appropriately.
 - Primal: Adds a `primal::BezierTriangle` class
 - Inlet: Added the ability to have collections (array and dictionary) with variant values.
+- Inlet: Added the ability to have collections (array and dictionary) with variant user defined structures.
 
 ### Removed
 
