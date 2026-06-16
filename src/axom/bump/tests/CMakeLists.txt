@@ -17,6 +17,7 @@ set(gtest_bump_tests
     bump_clipfield.cpp
     bump_cutfield.cpp
     bump_coordset_extents.cpp
+    bump_make_explicit_coordset.cpp
     bump_make_polyhedral_topology.cpp
     bump_mergemeshes.cpp
     bump_mesh_operations.cpp
