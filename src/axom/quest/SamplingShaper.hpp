@@ -775,8 +775,8 @@ private:
 
   /**
    * \brief Compute volume fractions for a given material using its associated quadrature function.
-   * 
-   * The generated grid function will be registered in the data collection and prefixed by `vol_frac_`
+   *
+   * The generated field uses shaping::volumeFractionFieldName() for its name.
    *
    * \param [in] matField The name of the material
    */

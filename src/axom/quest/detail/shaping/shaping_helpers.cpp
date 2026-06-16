@@ -46,6 +46,26 @@ std::string shapeVolumeFractionFieldName(const std::string& shapeName)
   return axom::fmt::format("{}{}", SHAPE_VOLUME_FRACTION_PREFIX, shapeName);
 }
 
+bool isShapeInOutFieldName(const std::string& fieldName)
+{
+  return axom::utilities::string::startsWith(fieldName, SHAPE_INOUT_PREFIX);
+}
+
+bool isMaterialInOutFieldName(const std::string& fieldName)
+{
+  return !materialNameFromMaterialInOutFieldName(fieldName).empty();
+}
+
+bool isVolumeFractionFieldName(const std::string& fieldName)
+{
+  return !materialNameFromVolumeFractionFieldName(fieldName).empty();
+}
+
+bool isShapeVolumeFractionFieldName(const std::string& fieldName)
+{
+  return axom::utilities::string::startsWith(fieldName, SHAPE_VOLUME_FRACTION_PREFIX);
+}
+
 std::string materialNameFromMaterialInOutFieldName(const std::string& fieldName)
 {
   return extractSuffixedName(fieldName, MATERIAL_INOUT_PREFIX);

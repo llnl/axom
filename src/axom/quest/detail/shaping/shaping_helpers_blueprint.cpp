@@ -392,9 +392,9 @@ void printRegisteredFieldNames(const BlueprintState& bpState,
     std::vector<std::string> names;
     for(const auto& name : bpState.fieldNames())
     {
-      if(shaping::materialNameFromVolumeFractionFieldName(name).empty() &&
-         shaping::materialNameFromMaterialInOutFieldName(name).empty() &&
-         !axom::utilities::string::startsWith(name, "inout_"))
+      if(!shaping::isVolumeFractionFieldName(name) &&
+         !shaping::isMaterialInOutFieldName(name) &&
+         !shaping::isShapeInOutFieldName(name))
       {
         names.push_back(name);
       }
@@ -422,9 +422,9 @@ void printRegisteredFieldNames(const BlueprintState& bpState,
                        axom::fmt::join(coordsetNames, ", "),
                        axom::fmt::join(fieldNames, ", "),
                        axom::fmt::join(knownMaterials, ", "),
-                       axom::fmt::join(extractMatchingFields("inout_"), ", "),
-                       axom::fmt::join(extractMatchingFields("mat_inout_"), ", "),
-                       axom::fmt::join(extractMatchingFields("vol_frac_"), ", "),
+                       axom::fmt::join(extractMatchingFields(shaping::shapeInOutFieldName("")), ", "),
+                       axom::fmt::join(extractMatchingFields(shaping::materialInOutFieldName("")), ", "),
+                       axom::fmt::join(extractMatchingFields(shaping::volumeFractionFieldName("")), ", "),
                        axom::fmt::join(extractOtherFields(), ", "));
 
   SLIC_INFO_ROOT(axom::fmt::to_string(out));

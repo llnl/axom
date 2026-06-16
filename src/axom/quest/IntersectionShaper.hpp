@@ -294,8 +294,8 @@ AXOM_HOST_DEVICE inline void TempArrayView<hip_exec>::finalize()
  * Replacement rules for Blueprint meshes is not yet supported.
  * The following comments apply to replacement rules.
  *
- * Volume fractions are represented in the input mesh as a GridFunction with a special prefix,
- * currently "vol_frac_", followed by a material name. Volume fractions
+ * Volume fractions are represented in the input mesh as fields named by
+ * shaping::volumeFractionFieldName(), one per material. Volume fractions
  * can be present in the input data collection prior to shaping and the
  * IntersectionShaper will augment them when changes are needed such as when
  * a material overwrites them. If a new material is not yet represented in

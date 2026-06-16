@@ -131,6 +131,11 @@ std::string materialInOutFieldName(const std::string& materialName);
 std::string volumeFractionFieldName(const std::string& materialName);
 std::string shapeVolumeFractionFieldName(const std::string& shapeName);
 
+bool isShapeInOutFieldName(const std::string& fieldName);
+bool isMaterialInOutFieldName(const std::string& fieldName);
+bool isVolumeFractionFieldName(const std::string& fieldName);
+bool isShapeVolumeFractionFieldName(const std::string& fieldName);
+
 std::string materialNameFromMaterialInOutFieldName(const std::string& fieldName);
 std::string materialNameFromVolumeFractionFieldName(const std::string& fieldName);
 
