@@ -106,11 +106,12 @@ Shaper::Shaper(RuntimePolicy execPolicy,
 {
   m_bp_state = std::make_unique<shaping::BlueprintState>();
   bpGrp->setDefaultArrayAllocator(m_allocatorId);
-  m_bp_state->initialize(bpGrp, m_allocatorId, resolveBlueprintTopologyName(bpGrp, topo));
+  m_bp_state->initialize(bpGrp, m_allocatorId, topo);
 
   SLIC_ASSERT(m_bp_state->isSidreBacked());
 
-  refreshBlueprintMeshState();
+  m_bp_state->refreshBlueprintMeshNode();
+  m_cellCount = conduit::blueprint::mesh::topology::length(m_bp_state->getBlueprintTopologyNode());
 
   setFilePath(shapeSet.getPath());
 }
@@ -138,9 +139,10 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   AXOM_ANNOTATE_SCOPE("Shaper::Shaper_Node");
 
   m_bp_state = std::make_unique<shaping::BlueprintState>();
-  m_bp_state->initialize(&bpNode, m_allocatorId, resolveBlueprintTopologyName(bpNode, topo));
+  m_bp_state->initialize(&bpNode, m_allocatorId, topo);
 
-  refreshBlueprintMeshState();
+  m_bp_state->refreshBlueprintMeshNode();
+  m_cellCount = conduit::blueprint::mesh::topology::length(m_bp_state->getBlueprintTopologyNode());
 
   setFilePath(shapeSet.getPath());
 }
@@ -260,68 +262,6 @@ void Shaper::loadShapeInternal(const klee::Shape& shape, double percentError, do
 bool Shaper::verifyInputMesh(std::string& whyBad) const { return verifyInputMeshImpl(whyBad); }
 
 #if defined(AXOM_USE_CONDUIT)
-std::string Shaper::resolveBlueprintTopologyName(const sidre::Group* bpMesh,
-                                                 const std::string& topo) const
-{
-  SLIC_ASSERT(bpMesh != nullptr);
-  auto* topologiesGrp = bpMesh->getGroup("topologies");
-  SLIC_ERROR_IF(topologiesGrp == nullptr, "Blueprint mesh is missing a 'topologies' group.");
-
-  const std::string topologyName = topo.empty() ? topologiesGrp->getGroupName(0) : topo;
-  SLIC_ERROR_IF(topologyName == sidre::InvalidName,
-                "Blueprint mesh does not contain any topology groups.");
-  SLIC_ERROR_IF(!topologiesGrp->hasGroup(topologyName),
-                axom::fmt::format("Blueprint mesh does not contain topology '{}'.", topologyName));
-
-  return topologyName;
-}
-
-std::string Shaper::resolveBlueprintTopologyName(const conduit::Node& bpMesh,
-                                                 const std::string& topo) const
-{
-  SLIC_ERROR_IF(!bpMesh.has_path("topologies"), "Blueprint mesh is missing a 'topologies' node.");
-
-  const conduit::Node& topologies = bpMesh.fetch_existing("topologies");
-  SLIC_ERROR_IF(topologies.number_of_children() == 0,
-                "Blueprint mesh does not contain any topology nodes.");
-
-  const std::string topologyName = topo.empty() ? topologies.child(0).name() : topo;
-  SLIC_ERROR_IF(!topologies.has_child(topologyName),
-                axom::fmt::format("Blueprint mesh does not contain topology '{}'.", topologyName));
-
-  return topologyName;
-}
-
-void Shaper::refreshBlueprintMeshState()
-{
-  SLIC_ASSERT(m_bp_state != nullptr);
-  m_bp_state->refreshBlueprintMeshNode();
-  m_cellCount = conduit::blueprint::mesh::topology::length(getBlueprintTopologyNode());
-}
-
-const conduit::Node& Shaper::getBlueprintTopologyNode() const
-{
-  SLIC_ASSERT(m_bp_state != nullptr);
-  return m_bp_state->getBlueprintTopologyNode();
-}
-
-const conduit::Node& Shaper::getBlueprintCoordsetNode() const
-{
-  SLIC_ASSERT(m_bp_state != nullptr);
-  return m_bp_state->getBlueprintCoordsetNode();
-}
-
-std::string Shaper::getBlueprintCellShape() const
-{
-  return shaping::getBlueprintCellShape(getBlueprintTopologyNode());
-}
-
-int Shaper::getBlueprintMeshDimension() const
-{
-  SLIC_ASSERT(m_bp_state != nullptr);
-  return m_bp_state->meshDimension();
-}
-
 bool Shaper::verifyBlueprintMeshIsStructuredOrUnstructuredQuadHex(std::string& whyBad) const
 {
   bool rval = true;
@@ -372,7 +312,7 @@ void Shaper::ensureBlueprintMeshIsUnstructured()
   {
     m_bp_state->ensureUnstructured(m_execPolicy);
   }
-  m_cellCount = conduit::blueprint::mesh::topology::length(getBlueprintTopologyNode());
+  m_cellCount = conduit::blueprint::mesh::topology::length(m_bp_state->getBlueprintTopologyNode());
 }
 #endif
 

@@ -79,13 +79,21 @@ struct BlueprintState
    *
    * \param group The Sidre group that backs the Blueprint mesh.
    * \param allocatorId Allocator id used for new array allocations.
-   * \param topologyName Name of the active topology.
+   * \param topologyName Requested topology name, or empty to select the first topology.
    */
   void initialize(axom::sidre::Group* group, int allocatorId, const std::string& topologyName)
   {
     m_group_ptr = group;
     m_allocator_id = allocatorId;
-    m_topology_name = topologyName;
+    auto* topologiesGrp = group->getGroup("topologies");
+    SLIC_ERROR_IF(topologiesGrp == nullptr, "Blueprint mesh is missing a 'topologies' group.");
+
+    m_topology_name = topologyName.empty() ? topologiesGrp->getGroupName(0) : topologyName;
+    SLIC_ERROR_IF(m_topology_name == sidre::InvalidName,
+                  "Blueprint mesh does not contain any topology groups.");
+    SLIC_ERROR_IF(!topologiesGrp->hasGroup(m_topology_name),
+                  axom::fmt::format("Blueprint mesh does not contain topology '{}'.",
+                                    m_topology_name));
     m_external_node_ptr = nullptr;
   }
 
@@ -94,13 +102,22 @@ struct BlueprintState
    *
    * \param node The Conduit node that backs the Blueprint mesh.
    * \param allocatorId Allocator id used for new array allocations.
-   * \param topologyName Name of the active topology.
+   * \param topologyName Requested topology name, or empty to select the first topology.
    */
   void initialize(conduit::Node* node, int allocatorId, const std::string& topologyName)
   {
     m_group_ptr = nullptr;
     m_allocator_id = allocatorId;
-    m_topology_name = topologyName;
+    SLIC_ERROR_IF(!node->has_path("topologies"), "Blueprint mesh is missing a 'topologies' node.");
+
+    const conduit::Node& topologies = node->fetch_existing("topologies");
+    SLIC_ERROR_IF(topologies.number_of_children() == 0,
+                  "Blueprint mesh does not contain any topology nodes.");
+
+    m_topology_name = topologyName.empty() ? topologies.child(0).name() : topologyName;
+    SLIC_ERROR_IF(!topologies.has_child(m_topology_name),
+                  axom::fmt::format("Blueprint mesh does not contain topology '{}'.",
+                                    m_topology_name));
     m_external_node_ptr = node;
   }
 

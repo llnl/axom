@@ -262,43 +262,6 @@ protected:
 
 #if defined(AXOM_USE_CONDUIT)
   /*!
-   * \brief Selects the Blueprint topology name to use and verifies it exists.
-   */
-  std::string resolveBlueprintTopologyName(const sidre::Group* bpMesh, const std::string& topo) const;
-
-  /*!
-   * \brief Selects the Blueprint topology name to use and verifies it exists.
-   */
-  std::string resolveBlueprintTopologyName(const conduit::Node& bpMesh, const std::string& topo) const;
-
-  /*!
-   * \brief Rebuilds the internal Conduit view and cached cell count from the
-   *        current Sidre-owned Blueprint mesh.
-   */
-  void refreshBlueprintMeshState();
-
-  /*!
-   * \brief Returns the active Blueprint topology node.
-   */
-  const conduit::Node& getBlueprintTopologyNode() const;
-
-  /*!
-   * \brief Returns the active Blueprint coordset node.
-   */
-  const conduit::Node& getBlueprintCoordsetNode() const;
-
-  /*!
-   * \brief Returns the active Blueprint cell shape name.
-   */
-  std::string getBlueprintCellShape() const;
-
-  /*!
-   * \brief Returns the active Blueprint mesh dimension for supported quad/hex
-   *        meshes.
-   */
-  int getBlueprintMeshDimension() const;
-
-  /*!
    * \brief Helper for Blueprint meshes supported directly by sampling or by
    *        lazy conversion in the intersection backend.
    *

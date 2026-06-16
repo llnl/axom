@@ -2948,7 +2948,7 @@ private:
 #if defined(AXOM_USE_CONDUIT)
     if(m_bp_state != nullptr)
     {
-      dim = getBlueprintMeshDimension();
+      dim = m_bp_state->meshDimension();
     }
 #endif
 
