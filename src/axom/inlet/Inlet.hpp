@@ -395,6 +395,25 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Add an array of variant user-defined types to the input file schema.
+   *
+   * \param [in] name Name of the array
+   * \param [in] discriminator Name of the field selecting the alternative
+   * \param [in] description Description of the array
+   *
+   * \return Helper used to register struct alternatives
+   *****************************************************************************
+   */
+  template <typename Variant>
+  VariantStructCollection<Variant> addVariantStructArray(const std::string& name,
+                                                         const std::string& discriminator = "type",
+                                                         const std::string& description = "")
+  {
+    return m_globalContainer.addVariantStructArray<Variant>(name, discriminator, description);
+  }
+
+  /*!
+   *****************************************************************************
    * \brief Get a function from the input deck
    *
    * \param [in] name        Name of the function
@@ -505,6 +524,26 @@ public:
   Container& addStructDictionary(const std::string& name, const std::string& description = "")
   {
     return m_globalContainer.addStructDictionary(name, description);
+  }
+
+  /*!
+   *****************************************************************************
+   * \brief Add a dictionary of variant user-defined types to the input file schema.
+   *
+   * \param [in] name Name of the dictionary
+   * \param [in] discriminator Name of the field selecting the alternative
+   * \param [in] description Description of the dictionary
+   *
+   * \return Helper used to register struct alternatives
+   *****************************************************************************
+   */
+  template <typename Variant>
+  VariantStructCollection<Variant> addVariantStructDictionary(
+    const std::string& name,
+    const std::string& discriminator = "type",
+    const std::string& description = "")
+  {
+    return m_globalContainer.addVariantStructDictionary<Variant>(name, discriminator, description);
   }
 
   /*!

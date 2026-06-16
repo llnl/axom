@@ -2540,6 +2540,91 @@ void test_resize_with_stackarray(DataType value)
   }
 }
 
+TEST(core_array, check_1D_view_spacing_preserved)
+{
+  int buf[12];
+  for(int i = 0; i < 12; i++)
+  {
+    buf[i] = i;
+  }
+
+  // A strided 1D view referencing elements {0, 3, 6, 9}
+  axom::ArrayView<int, 1> v(buf, {{4}}, axom::StackArray<axom::IndexType, 1> {{3}});
+  EXPECT_EQ(v.minStride(), 3);
+  EXPECT_EQ(v[1], 3);
+
+  // A strided 1D view created through the min_stride constructor
+  {
+    axom::ArrayView<int, 1> vs(buf, {{4}}, 3);
+    EXPECT_EQ(vs.minStride(), 3);
+    EXPECT_EQ(vs[2], 6);
+  }
+
+  // Conversion to a view-of-const must preserve the spacing
+  {
+    axom::ArrayView<const int, 1> cv = v;
+    EXPECT_EQ(cv.minStride(), 3);
+    EXPECT_EQ(cv[1], 3);
+    EXPECT_EQ(cv[3], 9);
+    EXPECT_EQ(cv.mapping().strides()[0], 3);
+  }
+
+  // Copy construction must preserve the spacing
+  {
+    axom::ArrayView<int, 1> v2(v);
+    EXPECT_EQ(v2.minStride(), 3);
+    EXPECT_EQ(v2[2], 6);
+  }
+
+  // Owning 1D arrays are always contiguous (unit stride)
+  {
+    axom::Array<int> a(4);
+    EXPECT_EQ(a.minStride(), 1);
+    EXPECT_EQ(a.mapping().strides()[0], 1);
+  }
+
+  // Deep copy from strided view to owning array -- must copy the values, not contiguous indices
+  {
+    int source[10] = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90};
+
+    // Strided view with stride=2 references elements {0, 20, 40, 60, 80}
+    axom::ArrayView<int, 1> strided_view(source, {{5}}, 2);
+    EXPECT_EQ(strided_view.minStride(), 2);
+    EXPECT_EQ(strided_view[0], 0);
+    EXPECT_EQ(strided_view[1], 20);
+    EXPECT_EQ(strided_view[2], 40);
+    EXPECT_EQ(strided_view[3], 60);
+    EXPECT_EQ(strided_view[4], 80);
+
+    // Deep copy to owning array - should preserve the stride
+    axom::Array<int, 1> arr(strided_view);
+    EXPECT_EQ(arr.size(), 5);
+    EXPECT_EQ(arr.minStride(), 1);  // Owning array is contiguous
+    EXPECT_EQ(arr[0], 0);           // Each should copy source[i*2], not source[i]
+    EXPECT_EQ(arr[1], 20);
+    EXPECT_EQ(arr[2], 40);
+    EXPECT_EQ(arr[3], 60);
+    EXPECT_EQ(arr[4], 80);
+  }
+
+  // Test with stride=3
+  {
+    int source[12];
+    for(int i = 0; i < 12; ++i)
+    {
+      source[i] = i * 100;
+    }
+
+    axom::ArrayView<int, 1> view3(source, {{4}}, 3);  // {0, 300, 600, 900}
+    axom::Array<int, 1> arr3(view3);
+    EXPECT_EQ(arr3.size(), 4);
+    EXPECT_EQ(arr3[0], 0);
+    EXPECT_EQ(arr3[1], 300);
+    EXPECT_EQ(arr3[2], 600);
+    EXPECT_EQ(arr3[3], 900);
+  }
+}
+
 TEST(core_array, resize_stackarray)
 {
   test_resize_with_stackarray<bool>(false);
