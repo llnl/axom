@@ -107,6 +107,90 @@ public:
   using ConcreteMap = Map<T, S, IndPol, StrPol, policies::ConcreteInterface>;
   using VirtualMap = Map<T, S, IndPol, StrPol, policies::VirtualInterface>;
 
+  template <typename PointerType, typename ReferenceType>
+  class MapView
+  {
+  public:
+    AXOM_HOST_DEVICE MapView() { }
+
+    AXOM_HOST_DEVICE MapView(PointerType dataPtr,
+                             SetPosition size,
+                             SetPosition numComp,
+                             SetPosition minStride,
+                             ElementShape shape,
+                             ElementShape strides)
+      : m_data(dataPtr)
+      , m_size(size)
+      , m_numComp(numComp)
+      , m_minStride(minStride)
+      , m_shape(shape)
+      , m_strides(strides)
+    { }
+
+    AXOM_HOST_DEVICE ReferenceType operator[](SetPosition setIndex) const
+    {
+      return *(m_data + setIndex * m_minStride);
+    }
+
+    AXOM_HOST_DEVICE ReferenceType operator()(SetPosition setIdx) const { return value(setIdx, 0); }
+
+    template <typename... ComponentPos>
+    AXOM_HOST_DEVICE ReferenceType operator()(SetPosition setIdx, ComponentPos... compIdx) const
+    {
+      return value(setIdx, compIdx...);
+    }
+
+    AXOM_HOST_DEVICE ReferenceType value(SetPosition setIdx) const { return value(setIdx, 0); }
+
+    template <typename... ComponentPos>
+    AXOM_HOST_DEVICE ReferenceType value(SetPosition setIdx, ComponentPos... compIdx) const
+    {
+      static_assert(sizeof...(ComponentPos) == StridePolicyType::NumDims,
+                    "Invalid number of components provided for given Map's StridePolicy");
+      static_assert(axom::detail::all_types_are_integral<ComponentPos...>::value,
+                    "MapView::value(...): index parameter pack must all be integral types.");
+
+      SetPosition elemIndex = setIdx * m_numComp;
+      elemIndex += componentOffset(compIdx...);
+      return (*this)[elemIndex];
+    }
+
+    AXOM_HOST_DEVICE SetPosition size() const { return m_size; }
+    AXOM_HOST_DEVICE SetPosition numComp() const { return m_numComp; }
+    AXOM_HOST_DEVICE SetPosition stride() const { return m_numComp; }
+    AXOM_HOST_DEVICE ElementShape shape() const { return m_shape; }
+    AXOM_HOST_DEVICE PointerType data() const { return m_data; }
+
+  private:
+    template <typename ComponentIndex>
+    AXOM_HOST_DEVICE SetPosition componentOffset(ComponentIndex componentIndex) const
+    {
+      return componentIndex;
+    }
+
+    template <typename... ComponentIndex>
+    AXOM_HOST_DEVICE SetPosition componentOffset(ComponentIndex... componentIndex) const
+    {
+      ElementShape indexArray {{componentIndex...}};
+      SetPosition offset = 0;
+      for(int dim = 0; dim < StridePolicyType::NumDims; dim++)
+      {
+        offset += indexArray[dim] * m_strides[dim];
+      }
+      return offset;
+    }
+
+    PointerType m_data {nullptr};
+    SetPosition m_size {0};
+    SetPosition m_numComp {0};
+    SetPosition m_minStride {1};
+    ElementShape m_shape {};
+    ElementShape m_strides {};
+  };
+
+  using View = MapView<typename IndirectionPolicy::ResultPtr, ValueType>;
+  using ConstView = MapView<typename IndirectionPolicy::ConstResultPtr, ConstValueType>;
+
 private:
   template <typename USet = SetType, bool HasValue = !std::is_abstract<USet>::value>
   struct SetContainer;
@@ -663,6 +747,16 @@ public:
   OrderedMap& data() { return m_data; }
   const OrderedMap& data() const { return m_data; }
 
+  View view()
+  {
+    return View(data_ptr(), size(), numComp(), data_min_stride(), shape(), componentStrides());
+  }
+
+  ConstView view() const
+  {
+    return ConstView(data_ptr(), size(), numComp(), data_min_stride(), shape(), componentStrides());
+  }
+
 private:
   inline void verifyPosition(SetPosition idx) const { verifyPositionImpl(idx); }
 
@@ -764,7 +858,33 @@ private:
     return IndirectionPolicy::getIndirection(m_data);
   }
 
-private:
+  template <typename Policy = StridePolicyType>
+  AXOM_HOST_DEVICE typename std::enable_if<Policy::NumDims == 1, ElementShape>::type componentStrides() const
+  {
+    return ElementShape(1);
+  }
+
+  template <typename Policy = StridePolicyType>
+  AXOM_HOST_DEVICE typename std::enable_if<(Policy::NumDims > 1), ElementShape>::type componentStrides() const
+  {
+    return StridePolicyType::strides();
+  }
+
+  AXOM_HOST_DEVICE SetPosition data_min_stride() const { return data_min_stride(m_data, 0); }
+
+  template <typename Buffer>
+  AXOM_HOST_DEVICE static auto data_min_stride(const Buffer& data, int)
+    -> decltype(data.minStride(), SetPosition())
+  {
+    return static_cast<SetPosition>(data.minStride());
+  }
+
+  template <typename Buffer>
+  AXOM_HOST_DEVICE static SetPosition data_min_stride(const Buffer&, ...)
+  {
+    return SetPosition(1);
+  }
+
   SetContainer<> m_set;
   OrderedMap m_data;
 };

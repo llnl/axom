@@ -927,7 +927,8 @@ bool MultiMat::removeEntry(int cell_id, int mat_id)
  *  This function may run on the GPU if an appropriate execution space is
  *  provided.
  *
- * \param [in] oldRelationSet the sparse relation to transpose
+ * \param [in] oldFirstIndexes old relation's first-set index for each flat index
+ * \param [in] oldSecondIndexes old relation's second-set index for each flat index
  * \param [out] beginOffsets the new relation's begin offsets
  * \param [out] secondIndexes the new relation's second-set indices map
  * \param [out] firstIndexes the new relation's first-set indices map
@@ -939,22 +940,26 @@ bool MultiMat::removeEntry(int cell_id, int mat_id)
  * \pre Requires that Multimat is built with support for RAJA and Umpire
  */
 template <typename ExecSpace, typename IndexType>
-void TransposeRelationImplRAJA(const MultiMat::RelationSetType* oldRelationSet,
+void TransposeRelationImplRAJA(const axom::Array<IndexType>& oldFirstIndexes,
+                               const axom::Array<IndexType>& oldSecondIndexes,
                                axom::Array<IndexType>& beginOffsets,
                                axom::Array<IndexType>& secondIndexes,
                                axom::Array<IndexType>& firstIndexes,
                                axom::Array<IndexType>& flatOldToNew,
                                axom::Array<IndexType>& flatNewToOld)
 {
+  const int relationSize = static_cast<int>(oldSecondIndexes.size());
+  const auto oldFirstIdxView = oldFirstIndexes.view();
+  const auto oldSecondIdxView = oldSecondIndexes.view();
   const auto countsView = beginOffsets.view();
   const auto firstIdxView = firstIndexes.view();
   const auto flatNewToOldView = flatNewToOld.view();
 
   // Count the number of entries for each second set index
   axom::for_all<ExecSpace>(
-    oldRelationSet->totalSize(),
+    relationSize,
     AXOM_LAMBDA(int flatIndex) {
-      int secondIdx = oldRelationSet->flatToSecondIndex(flatIndex);
+      int secondIdx = oldSecondIdxView[flatIndex];
       axom::atomicAdd<ExecSpace>(&countsView[secondIdx], IndexType {1});
 
       // We create the first indices array and flatNewToOld maps here.
@@ -975,11 +980,11 @@ void TransposeRelationImplRAJA(const MultiMat::RelationSetType* oldRelationSet,
   // With the new-to-old map, we can now fill in the second-set indices array
   // and the old-to-new map.
   axom::for_all<ExecSpace>(
-    oldRelationSet->totalSize(),
+    relationSize,
     AXOM_LAMBDA(int newFlatIndex) {
       int oldFlatIndex = flatNewToOldView[newFlatIndex];
 
-      int firstIdx = oldRelationSet->flatToFirstIndex(oldFlatIndex);
+      int firstIdx = oldFirstIdxView[oldFlatIndex];
       secondIdxView[newFlatIndex] = firstIdx;
       flatOldToNewView[oldFlatIndex] = newFlatIndex;
     });
@@ -995,7 +1000,9 @@ void TransposeRelationImplRAJA(const MultiMat::RelationSetType* oldRelationSet,
  *  For example, a cell-dominant relation would be transposed into a material-
  *  dominant relation, and vice versa.
  *
- * \param [in] oldRelationSet the sparse relation to transpose
+ * \param [in] oldRelationSet the sparse relation to transpose, used for host-side sizes
+ * \param [in] oldFirstIndexes old relation's first-set index for each flat index
+ * \param [in] oldSecondIndexes old relation's second-set index for each flat index
  * \param [out] beginOffsets the new relation's begin offsets
  * \param [out] secondIndexes the new relation's second-set indices map
  * \param [out] firstIndexes the new relation's first-set indices map
@@ -1004,6 +1011,8 @@ void TransposeRelationImplRAJA(const MultiMat::RelationSetType* oldRelationSet,
  */
 template <typename ExecSpace, typename IndexType>
 void TransposeRelationImpl(const MultiMat::RelationSetType* oldRelationSet,
+                           const axom::Array<IndexType>& oldFirstIndexes,
+                           const axom::Array<IndexType>& oldSecondIndexes,
                            axom::Array<IndexType>& beginOffsets,
                            axom::Array<IndexType>& secondIndexes,
                            axom::Array<IndexType>& firstIndexes,
@@ -1014,7 +1023,9 @@ void TransposeRelationImpl(const MultiMat::RelationSetType* oldRelationSet,
   using IndBufferType = axom::Array<IndexType>;
 
   int numCols = oldRelationSet->secondSetSize() + 1;
-  int relationSize = oldRelationSet->totalSize();
+  int relationSize = oldSecondIndexes.size();
+  SLIC_ASSERT(oldFirstIndexes.size() == oldSecondIndexes.size());
+
   beginOffsets = IndBufferType(numCols, numCols, slamAllocatorID);
   firstIndexes = IndBufferType(relationSize, relationSize, slamAllocatorID);
   secondIndexes = IndBufferType(relationSize, relationSize, slamAllocatorID);
@@ -1024,7 +1035,8 @@ void TransposeRelationImpl(const MultiMat::RelationSetType* oldRelationSet,
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
   if(AllocatorOnDevice(slamAllocatorID))
   {
-    TransposeRelationImplRAJA<GPU_Exec>(oldRelationSet,
+    TransposeRelationImplRAJA<GPU_Exec>(oldFirstIndexes,
+                                        oldSecondIndexes,
                                         beginOffsets,
                                         secondIndexes,
                                         firstIndexes,
@@ -1035,13 +1047,15 @@ void TransposeRelationImpl(const MultiMat::RelationSetType* oldRelationSet,
 #endif
 
   IndBufferType counts(numCols, numCols, slamAllocatorID);
+  const auto oldFirstIdxView = oldFirstIndexes.view();
+  const auto oldSecondIdxView = oldSecondIndexes.view();
   const auto countsView = counts.view();
 
   // Count the number of entries for each second set index
   axom::for_all<axom::SEQ_EXEC>(
-    oldRelationSet->totalSize(),
+    relationSize,
     AXOM_LAMBDA(int flatIndex) {
-      int secondIdx = oldRelationSet->flatToSecondIndex(flatIndex);
+      int secondIdx = oldSecondIdxView[flatIndex];
       countsView[secondIdx]++;
     });
 
@@ -1062,10 +1076,10 @@ void TransposeRelationImpl(const MultiMat::RelationSetType* oldRelationSet,
 
   // Fill first and second index arrays
   axom::for_all<axom::SEQ_EXEC>(
-    oldRelationSet->totalSize(),
+    relationSize,
     AXOM_LAMBDA(int oldFlatIndex) {
-      int firstIdx = oldRelationSet->flatToFirstIndex(oldFlatIndex);
-      int secondIdx = oldRelationSet->flatToSecondIndex(oldFlatIndex);
+      int firstIdx = oldFirstIdxView[oldFlatIndex];
+      int secondIdx = oldSecondIdxView[oldFlatIndex];
 
       // Start from end of the second set element's range.
       int reverse_offset = beginView[secondIdx + 1];
@@ -1096,6 +1110,8 @@ void MultiMat::makeOtherRelation(DataLayout layout)
   if(old_layout == DataLayout::CELL_DOM)
   {
     TransposeRelationImpl<axom::SEQ_EXEC>(oldRelationSet,
+                                          relFirstIndVec(old_layout),
+                                          relIndVec(old_layout),
                                           newBeginVec,
                                           newIndicesVec,
                                           newFirstIndicesVec,
@@ -1106,6 +1122,8 @@ void MultiMat::makeOtherRelation(DataLayout layout)
   else
   {
     TransposeRelationImpl<axom::SEQ_EXEC>(oldRelationSet,
+                                          relFirstIndVec(old_layout),
+                                          relIndVec(old_layout),
                                           newBeginVec,
                                           newIndicesVec,
                                           newFirstIndicesVec,
@@ -1311,32 +1329,39 @@ void MultiMat::convertFieldToDense(int field_idx)
  * \brief Converts a dense-layout field to a sparse-layout field.
  *
  * \param [in] oldField the field to convert
- * \param [in] prodSet the associated relation set for the new field
+ * \param [in] relationFirstIndices relation first-set indices for the new sparse field
+ * \param [in] relationSecondIndices relation second-set indices for the new sparse field
  * \param [in] allocatorId allocator to use for the new array
  *
  * \return the associated sparse-layout data
  */
-template <typename DataType>
-axom::Array<DataType> ConvertToSparseImpl(const MultiMat::DenseField2D<DataType> oldField,
-                                          const MultiMat::RelationSetType* relationSet,
+template <typename DataType, typename RelationIndexArray>
+axom::Array<DataType> ConvertToSparseImpl(const MultiMat::DenseField2D<DataType>& oldField,
+                                          const RelationIndexArray& relationFirstIndices,
+                                          const RelationIndexArray& relationSecondIndices,
                                           int allocatorId)
 {
   int stride = oldField.stride();
-  int sparseSize = relationSet->totalSize() * stride;
+  int sparseSize = relationSecondIndices.size() * stride;
+  int denseSecondSetSize = oldField.secondSetSize();
   axom::Array<DataType> sparseField(sparseSize, sparseSize, allocatorId);
+  const auto oldFieldView = oldField.getMap()->view();
   const auto sparseFieldView = sparseField.view();
+  const auto relationFirstIndicesView = relationFirstIndices.view();
+  const auto relationSecondIndicesView = relationSecondIndices.view();
 
   ExecLambdaForMemory(
-    relationSet->totalSize() * stride,
+    sparseSize,
     allocatorId,
     AXOM_LAMBDA(int index) {
       int flatIdx = index / stride;
       int comp = index % stride;
 
-      auto firstIdx = relationSet->flatToFirstIndex(flatIdx);
-      auto secondIdx = relationSet->flatToSecondIndex(flatIdx);
+      int firstIdx = relationFirstIndicesView[flatIdx];
+      int secondIdx = relationSecondIndicesView[flatIdx];
+      int denseFlatIdx = firstIdx * denseSecondSetSize + secondIdx;
 
-      sparseFieldView[index] = oldField(firstIdx, secondIdx, comp);
+      sparseFieldView[index] = oldFieldView(denseFlatIdx, comp);
     });
 
   return sparseField;
@@ -1354,12 +1379,14 @@ void MultiMat::convertToSparse_helper(int map_i)
     return;
   }
 
-  const RelationSetType* rel_set = &relSparseSet(m_fieldDataLayoutVec[map_i]);
+  const DataLayout layout = m_fieldDataLayoutVec[map_i];
 
   DenseField2D<DataType> dense_field = getDense2dField<DataType>(m_fieldNameVec[map_i]);
 
-  axom::Array<DataType> sparseFieldData =
-    ConvertToSparseImpl(dense_field, rel_set, m_fieldAllocatorId);
+  axom::Array<DataType> sparseFieldData = ConvertToSparseImpl(dense_field,
+                                                              relFirstIndVec(layout),
+                                                              relIndVec(layout),
+                                                              m_fieldAllocatorId);
 
   m_fieldBackingVec[map_i]->getArray<DataType>() = std::move(sparseFieldData);
 }
@@ -1369,35 +1396,41 @@ void MultiMat::convertToSparse_helper(int map_i)
  *
  * \param [in] oldField the field to convert
  * \param [in] prodSet the associated product set for the new field
+ * \param [in] relationFirstIndices source relation first-set indices
+ * \param [in] relationSecondIndices source relation second-set indices
  * \param [in] allocatorId allocator to use for the new array
  *
  * \return the associated dense-layout data
  */
-template <typename DataType>
-axom::Array<DataType> ConvertToDenseImpl(const MultiMat::SparseField2D<DataType> oldField,
+template <typename DataType, typename RelationIndexArray>
+axom::Array<DataType> ConvertToDenseImpl(const MultiMat::SparseField2D<DataType>& oldField,
                                          const MultiMat::ProductSetType* prodSet,
+                                         const RelationIndexArray& relationFirstIndices,
+                                         const RelationIndexArray& relationSecondIndices,
                                          int allocatorId)
 {
   int stride = oldField.stride();
   int denseSize = prodSet->size() * stride;
+  int denseSecondSetSize = prodSet->secondSetSize();
   axom::Array<DataType> denseField(denseSize, denseSize, allocatorId);
   const auto denseFieldView = denseField.view();
-  const auto* relationSetHost = oldField.set();
+  const auto oldFieldView = oldField.getMap()->view();
+  const auto relationFirstIndicesView = relationFirstIndices.view();
+  const auto relationSecondIndicesView = relationSecondIndices.view();
 
   ExecLambdaForMemory(
-    relationSetHost->totalSize() * stride,
+    relationSecondIndices.size() * stride,
     allocatorId,
     AXOM_LAMBDA(int index) {
       int flatIdx = index / stride;
       int comp = index % stride;
 
-      const auto* relationSet = oldField.set();
-      auto firstIdx = relationSet->flatToFirstIndex(flatIdx);
-      auto secondIdx = relationSet->flatToSecondIndex(flatIdx);
+      int firstIdx = relationFirstIndicesView[flatIdx];
+      int secondIdx = relationSecondIndicesView[flatIdx];
 
-      int denseIdx = prodSet->findElementFlatIndex(firstIdx, secondIdx);
+      int denseIdx = firstIdx * denseSecondSetSize + secondIdx;
 
-      denseFieldView[denseIdx * stride + comp] = oldField[index];
+      denseFieldView[denseIdx * stride + comp] = oldFieldView(flatIdx, comp);
     });
 
   return denseField;
@@ -1415,11 +1448,16 @@ void MultiMat::convertToDense_helper(int map_i)
     return;
   }
 
-  ProductSetType* prod_set = &relDenseSet(m_fieldDataLayoutVec[map_i]);
+  const DataLayout layout = m_fieldDataLayoutVec[map_i];
+  ProductSetType* prod_set = &relDenseSet(layout);
 
   SparseField2D<DataType> oldField = getSparse2dField<DataType>(m_fieldNameVec[map_i]);
 
-  axom::Array<DataType> denseFieldData = ConvertToDenseImpl(oldField, prod_set, m_fieldAllocatorId);
+  axom::Array<DataType> denseFieldData = ConvertToDenseImpl(oldField,
+                                                            prod_set,
+                                                            relFirstIndVec(layout),
+                                                            relIndVec(layout),
+                                                            m_fieldAllocatorId);
 
   m_fieldBackingVec[map_i]->getArray<DataType>() = std::move(denseFieldData);
 }
@@ -1459,6 +1497,7 @@ axom::Array<DataType> TransposeSparseImpl(const MultiMat::SparseField2D<DataType
   int sparseSize = relationSet->totalSize() * stride;
   axom::Array<DataType> sparseField(sparseSize, sparseSize, allocatorId);
 
+  const auto oldFieldView = oldField.getMap()->view();
   const auto sparseFieldView = sparseField.view();
   const auto flatTransposeMapView = flatTransposeMap.view();
 
@@ -1471,7 +1510,7 @@ axom::Array<DataType> TransposeSparseImpl(const MultiMat::SparseField2D<DataType
 
       int newFlatIdx = flatTransposeMapView[flatIdx];
 
-      sparseFieldView[newFlatIdx * stride + comp] = oldField[index];
+      sparseFieldView[newFlatIdx * stride + comp] = oldFieldView(flatIdx, comp);
     });
 
   return sparseField;
@@ -1482,41 +1521,50 @@ axom::Array<DataType> TransposeSparseImpl(const MultiMat::SparseField2D<DataType
  *
  * \param [in] oldField the field to convert
  * \param [in] relationSet the associated relation set for the field's layout
+ * \param [in] relationFirstIndices source relation first-set indices
+ * \param [in] relationSecondIndices source relation second-set indices
  * \param [in] allocatorId allocator to use for the new array
  *
  * \return the dense field transposed into the complementary data layout
  */
-template <typename DataType>
-axom::Array<DataType> TransposeDenseImpl(const MultiMat::DenseField2D<DataType> oldField,
+template <typename DataType, typename RelationIndexArray>
+axom::Array<DataType> TransposeDenseImpl(const MultiMat::DenseField2D<DataType>& oldField,
                                          const MultiMat::RelationSetType* relationSet,
+                                         const RelationIndexArray& relationFirstIndices,
+                                         const RelationIndexArray& relationSecondIndices,
                                          int allocatorId)
 {
   int stride = oldField.stride();
 
   const auto* firstSet = relationSet->getFirstSet();
   const auto* secondSet = relationSet->getSecondSet();
-  int denseSize = firstSet->size() * secondSet->size() * stride;
+  int oldFirstSetSize = firstSet->size();
+  int oldSecondSetSize = secondSet->size();
+  int denseSize = oldFirstSetSize * oldSecondSetSize * stride;
 
   axom::Array<DataType> denseField(denseSize, denseSize, allocatorId);
+  const auto oldFieldView = oldField.getMap()->view();
   const auto denseFieldView = denseField.view();
+  const auto relationFirstIndicesView = relationFirstIndices.view();
+  const auto relationSecondIndicesView = relationSecondIndices.view();
 
   // Note: even though this is a dense field, we iterate over the relation set
   // in order to only copy over filled-in slots.
   // Note: Execute sequentially to avoid intermittent error with HIP
   axom::for_all<axom::SEQ_EXEC>(
-    relationSet->totalSize() * stride,
+    relationSecondIndices.size() * stride,
     AXOM_LAMBDA(int index) {
       int flatIdx = index / stride;
       int comp = index % stride;
 
-      auto firstIdx = relationSet->flatToFirstIndex(flatIdx);
-      auto secondIdx = relationSet->flatToSecondIndex(flatIdx);
+      int firstIdx = relationFirstIndicesView[flatIdx];
+      int secondIdx = relationSecondIndicesView[flatIdx];
 
       // Compute complementary dense index
-      int denseIndex = secondIdx * firstSet->size() + firstIdx;
-      denseIndex = denseIndex * stride + comp;
+      int oldDenseIndex = firstIdx * oldSecondSetSize + secondIdx;
+      int newDenseIndex = secondIdx * oldFirstSetSize + firstIdx;
 
-      denseFieldView[denseIndex] = oldField(firstIdx, secondIdx, comp);
+      denseFieldView[newDenseIndex * stride + comp] = oldFieldView(oldDenseIndex, comp);
     });
 
   return denseField;
@@ -1598,7 +1646,11 @@ void MultiMat::transposeField_helper(int field_idx)
                                     old_data_view,
                                     m_fieldStrideVec[field_idx]);
 
-    arr_data = TransposeDenseImpl(oldField, fromRelSet, m_fieldAllocatorId);
+    arr_data = TransposeDenseImpl(oldField,
+                                  fromRelSet,
+                                  relFirstIndVec(oldDataLayout),
+                                  relIndVec(oldDataLayout),
+                                  m_fieldAllocatorId);
   }
 
   SLIC_ASSERT(arr_data.getAllocatorID() == m_fieldAllocatorId);

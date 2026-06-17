@@ -538,17 +538,20 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTestStride1)
 
   SLIC_INFO("\nSetting the elements.");
   const double multFac = 100.0001;
-  axom::for_all<ExecSpace>(this->m_set.size(), AXOM_LAMBDA(int index) { m(index) = index * multFac; });
+  auto mapView = m.view();
+  axom::for_all<ExecSpace>(
+    this->m_set.size(),
+    AXOM_LAMBDA(int index) { mapView(index) = index * multFac; });
 
   SLIC_INFO("\nChecking the elements.");
   int totalSize = this->m_set.size() * stride;
   axom::Array<int> isValid(totalSize, totalSize, this->m_unifiedAllocatorId);
-  const auto isValid_view = isValid.view();
+  auto isValid_view = isValid.data();
 
   axom::for_all<ExecSpace>(
     this->m_set.size(),
     AXOM_LAMBDA(int index) {
-      bool entryValid = (m(index) == index * multFac);
+      bool entryValid = (mapView(index) == index * multFac);
       isValid_view[index] = entryValid;
     });
 
@@ -576,12 +579,13 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTestStride3)
   SLIC_INFO("\nSetting the elements.");
   const double multFac = 100.0001;
   const double multFac2 = 1.010;
+  auto mapView = m.view();
   axom::for_all<ExecSpace>(
     this->m_set.size(),
     AXOM_LAMBDA(int index) {
       for(int comp = 0; comp < stride; comp++)
       {
-        m(index, comp) = index * multFac + comp * multFac2;
+        mapView(index, comp) = index * multFac + comp * multFac2;
       }
     });
 
@@ -595,8 +599,8 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTestStride3)
     AXOM_LAMBDA(int index) {
       for(int comp = 0; comp < stride; comp++)
       {
-        bool entryValid = (m(index, comp) == index * multFac + comp * multFac2);
-        isValid_view[index * stride + comp] = entryValid;
+        bool entryValid = (mapView(index, comp) == index * multFac + comp * multFac2);
+        isValid_view[index * mapView.numComp() + comp] = entryValid;
       }
     });
 
@@ -627,6 +631,7 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTest2DStride)
   const double multFac = 100.0001;
   const double multFac2 = 1.00100;
   const double multFac3 = 0.10010;
+  auto mapView = m.view();
   axom::for_all<ExecSpace>(
     this->m_set.size(),
     AXOM_LAMBDA(int index) {
@@ -634,7 +639,7 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTest2DStride)
       {
         for(int j = 0; j < shape[1]; j++)
         {
-          m(index, i, j) = index * multFac + i * multFac2 + j * multFac3;
+          mapView(index, i, j) = index * multFac + i * multFac2 + j * multFac3;
         }
       }
     });
@@ -699,6 +704,7 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTest3DStride)
   const double multFac2 = 1.00100;
   const double multFac3 = 0.10010;
   const double multFac4 = 0.01001;
+  auto mapView = m.view();
   axom::for_all<ExecSpace>(
     this->m_set.size(),
     AXOM_LAMBDA(int index) {
@@ -708,7 +714,7 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTest3DStride)
         {
           for(int k = 0; k < shape[2]; k++)
           {
-            m(index, i, j, k) = index * multFac + i * multFac2 + j * multFac3 + k * multFac4;
+            mapView(index, i, j, k) = index * multFac + i * multFac2 + j * multFac3 + k * multFac4;
           }
         }
       }
