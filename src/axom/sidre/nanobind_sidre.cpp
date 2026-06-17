@@ -1363,6 +1363,7 @@ NB_MODULE(pysidre, m_sidre)
       "Destroy all child Groups in this Group.")
     .def("moveGroup",
          &Group::moveGroup,
+         nb::rv_policy::reference_internal,
          "Remove given Group object from its parent Group and make it a child of this Group.")
     .def("copyGroup",
          &Group::copyGroup,

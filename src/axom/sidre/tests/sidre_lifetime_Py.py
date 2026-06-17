@@ -258,6 +258,27 @@ def test_parent_group_outlives_datastore():
     assert parent.hasGroup("b")
 
 
+def test_moved_group_outlives_owner_chain():
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+    src = root.createGroup("src")
+    dst = root.createGroup("dst")
+    child = src.createGroup("child")
+
+    moved = dst.moveGroup(child)
+    assert moved.getPathName() == "dst/child"
+
+    del ds
+    del root
+    del src
+    del dst
+    del child
+    _force_gc()
+
+    assert moved.getName() == "child"
+    assert moved.getPathName() == "dst/child"
+
+
 # ---------------------------------------------------------------------------
 # Zero-copy numpy arrays must pin their backing View / Buffer (and DataStore)
 # ---------------------------------------------------------------------------
