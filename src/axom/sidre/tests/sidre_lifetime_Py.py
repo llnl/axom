@@ -18,6 +18,7 @@ prior bindings they crash the interpreter (the failure mode the audit fixes).
 """
 
 import gc
+import weakref
 
 import numpy as np
 import pytest
@@ -298,6 +299,92 @@ def test_view_array_survives_owner_chain_collection():
     arr = make_array()
     _force_gc()
     np.testing.assert_array_equal(arr, np.arange(5, dtype=np.float64))
+
+
+# ---------------------------------------------------------------------------
+# External numpy storage borrowed by Sidre must stay alive with the C++ View
+# ---------------------------------------------------------------------------
+def test_create_view_external_array_owner_survives_discarded_proxy():
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+
+    def create_external_view():
+        external = np.arange(6, dtype=np.int64)
+        ref = weakref.ref(external)
+        root.createView("external", external).apply(pysidre.TypeID.INT64_ID, 6)
+        return ref
+
+    ref = create_external_view()
+    _force_gc()
+    assert ref() is not None
+    np.testing.assert_array_equal(root.getView("external").getDataArray(), np.arange(6))
+
+
+def test_create_view_with_shape_external_array_owner_survives_discarded_proxy():
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+    shape = np.array([2, 3])
+
+    def create_external_view():
+        external = np.arange(6, dtype=np.int64)
+        ref = weakref.ref(external)
+        root.createViewWithShape("shaped", pysidre.TypeID.INT64_ID, 2, shape, external)
+        return ref
+
+    ref = create_external_view()
+    _force_gc()
+    assert ref() is not None
+    np.testing.assert_array_equal(root.getView("shaped").getDataArray(), np.arange(6).reshape(2, 3))
+
+
+def test_set_external_data_array_owner_survives_discarded_proxy():
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+
+    def set_external_data():
+        view = root.createView("external")
+        external = np.arange(6, dtype=np.int64)
+        ref = weakref.ref(external)
+        view.setExternalData(pysidre.TypeID.INT64_ID, 6, external)
+        return ref
+
+    ref = set_external_data()
+    _force_gc()
+    assert ref() is not None
+    np.testing.assert_array_equal(root.getView("external").getDataArray(), np.arange(6))
+
+
+def test_set_external_data_with_shape_array_owner_survives_discarded_proxy():
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+    shape = np.array([2, 3])
+
+    def set_external_data():
+        view = root.createView("shaped")
+        external = np.arange(6, dtype=np.int64)
+        ref = weakref.ref(external)
+        view.setExternalData(pysidre.TypeID.INT64_ID, 2, shape, external)
+        return ref
+
+    ref = set_external_data()
+    _force_gc()
+    assert ref() is not None
+    np.testing.assert_array_equal(root.getView("shaped").getDataArray(), np.arange(6).reshape(2, 3))
+
+
+def test_clear_releases_external_array_owner():
+    ds = pysidre.DataStore()
+    view = ds.getRoot().createView("external")
+    external = np.arange(6, dtype=np.int64)
+    ref = weakref.ref(external)
+    view.setExternalData(pysidre.TypeID.INT64_ID, 6, external)
+    del external
+    _force_gc()
+    assert ref() is not None
+
+    view.clear()
+    _force_gc()
+    assert ref() is None
 
 
 if __name__ == "__main__":

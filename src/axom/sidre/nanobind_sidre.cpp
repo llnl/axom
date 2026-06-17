@@ -11,6 +11,7 @@
 #include <nanobind/make_iterator.h>
 
 #include <memory>
+#include <unordered_map>
 
 #include "axom/config.hpp"
 #include "axom/core/Types.hpp"
@@ -256,6 +257,109 @@ conduit::Node& nbObjectToNode(nb::object& o)
   SLIC_ERROR_IF(!cpp_node, "Failed to get underlying conduit::Node pointer");
 
   return *cpp_node;
+}
+
+/*!
+ * \brief Binding-side owner pinning for external NumPy-backed Sidre views.
+ *
+ * Sidre external views (View::setExternalDataPtr / Group::createView(..., void*))
+ * borrow a raw pointer and do not own the storage. In Python, it is common to
+ * pass a temporary NumPy array (e.g. createView("x", np.arange(...))) and then
+ * drop it immediately, which can leave Sidre holding a dangling pointer once
+ * the ndarray is garbage collected.
+ *
+ * To keep Sidre's C++ semantics unchanged while making the Python API safe, 
+ * we maintain a binding-only registry that maps a C++ View* to a copied
+ * nanobind::ndarray wrapper. Copying nb::ndarray increments the underlying
+ * ndarray owner's refcount via nanobind's internal handle, so the NumPy storage
+ * remains alive as long as the View exists.
+ *
+ * Pins are released when the external pointer is cleared (e.g. View.clear(),
+ * setExternalData(None)) and when views/groups are destroyed via the bound Group::destroy* APIs.
+ */
+std::unordered_map<View*, nb::ndarray<>>& externalDataOwnerRegistry()
+{
+  // Intentionally heap-allocated so Python-owned references are not destroyed
+  // after interpreter finalization during static shutdown.
+  static auto* registry = new std::unordered_map<View*, nb::ndarray<>>();
+  return *registry;
+}
+
+template <typename... Args>
+void pinExternalDataOwner(View* view, const nb::ndarray<Args...>& owner)
+{
+  if(view != nullptr)
+  {
+    externalDataOwnerRegistry()[view] = nb::ndarray<>(owner);
+  }
+}
+
+void releaseExternalDataOwner(View* view)
+{
+  if(view != nullptr)
+  {
+    externalDataOwnerRegistry().erase(view);
+  }
+}
+
+void releaseExternalDataOwners(Group* group)
+{
+  if(group == nullptr)
+  {
+    return;
+  }
+
+  for(auto& v : group->views())
+  {
+    releaseExternalDataOwner(&v);
+  }
+
+  for(auto& g : group->groups())
+  {
+    releaseExternalDataOwners(&g);
+  }
+}
+
+void releaseExternalDataOwnersOfViews(Group& group)
+{
+  for(auto& v : group.views())
+  {
+    releaseExternalDataOwner(&v);
+  }
+}
+
+View* setExternalDataAndPinOwner(View& view, const nb::ndarray<>& owner)
+{
+  View* result = view.setExternalDataPtr(owner.data());
+  if(result != nullptr && result->isExternal())
+  {
+    pinExternalDataOwner(result, owner);
+  }
+  return result;
+}
+
+View* setExternalDataAndPinOwner(View& view, TypeID type, IndexType num_elems, const nb::ndarray<>& owner)
+{
+  View* result = view.setExternalDataPtr(type, num_elems, owner.data());
+  if(result != nullptr && result->isExternal())
+  {
+    pinExternalDataOwner(result, owner);
+  }
+  return result;
+}
+
+View* setExternalDataAndPinOwner(View& view,
+                                 TypeID type,
+                                 int ndims,
+                                 const nb::ndarray<IndexType>& shape,
+                                 const nb::ndarray<>& owner)
+{
+  View* result = view.setExternalDataPtr(type, ndims, shape.data(), owner.data());
+  if(result != nullptr && result->isExternal())
+  {
+    pinExternalDataOwner(result, owner);
+  }
+  return result;
 }
 
 #if defined(AXOM_USE_MPI)
@@ -671,7 +775,13 @@ NB_MODULE(pysidre, m_sidre)
          nb::arg("shape"),
          nb::arg("buffer").none())
 
-    .def("clear", &View::clear, "Clear data and metadata from the View.")
+    .def(
+      "clear",
+      [](View& self) {
+        self.clear();
+        releaseExternalDataOwner(&self);
+      },
+      "Clear data and metadata from the View.")
     .def("apply", nb::overload_cast<>(&View::apply), "Apply the View's description to its data.")
     .def("apply",
          nb::overload_cast<IndexType, IndexType, IndexType>(&View::apply),
@@ -717,9 +827,12 @@ NB_MODULE(pysidre, m_sidre)
       [](View& self, nb::object external_ptr) {
         if(external_ptr.is_none())
         {
-          return self.setExternalDataPtr(nullptr);
+          View* result = self.setExternalDataPtr(nullptr);
+          releaseExternalDataOwner(&self);
+          return result;
         }
-        return self.setExternalDataPtr(nb::cast<nb::ndarray<>>(external_ptr).data());
+        nb::ndarray<> owner = nb::cast<nb::ndarray<>>(external_ptr);
+        return setExternalDataAndPinOwner(self, owner);
       },
       nb::rv_policy::reference,
       "Set the View to hold undescribed external data (numpy array).",
@@ -727,14 +840,14 @@ NB_MODULE(pysidre, m_sidre)
     .def(
       "setExternalData",
       [](View& self, const nb::ndarray<>& external_ptr) {
-        return self.setExternalDataPtr(external_ptr.data());
+        return setExternalDataAndPinOwner(self, external_ptr);
       },
       nb::rv_policy::reference,
       "Set the View to hold undescribed external data (numpy array).")
     .def(
       "setExternalData",
       [](View& self, TypeID type, IndexType num_elems, const nb::ndarray<>& external_ptr) {
-        return self.setExternalDataPtr(type, num_elems, external_ptr.data());
+        return setExternalDataAndPinOwner(self, type, num_elems, external_ptr);
       },
       nb::rv_policy::reference,
       "Set the View to hold described external data  (numpy array).")
@@ -745,7 +858,7 @@ NB_MODULE(pysidre, m_sidre)
          int ndims,
          const nb::ndarray<IndexType>& shape,
          const nb::ndarray<>& external_ptr) {
-        return self.setExternalDataPtr(type, ndims, shape.data(), external_ptr.data());
+        return setExternalDataAndPinOwner(self, type, ndims, shape, external_ptr);
       },
       nb::rv_policy::reference,
       "Set the View to hold described external data (numpy array).")
@@ -1026,14 +1139,18 @@ NB_MODULE(pysidre, m_sidre)
     .def(
       "createView",
       [](Group& self, const std::string& path, const nb::ndarray<>& a) {
-        return self.createView(path, a.data());
+        View* view = self.createView(path, a.data());
+        pinExternalDataOwner(view, a);
+        return view;
       },
       nb::rv_policy::reference_internal)
 
     .def(
       "createView",
       [](Group& self, const std::string& path, TypeID id, IndexType num_elems, const nb::ndarray<>& a) {
-        return self.createView(path, id, num_elems, a.data());
+        View* view = self.createView(path, id, num_elems, a.data());
+        pinExternalDataOwner(view, a);
+        return view;
       },
       nb::rv_policy::reference_internal,
       "Create View object with given name or path in this Group that has a data description "
@@ -1047,7 +1164,9 @@ NB_MODULE(pysidre, m_sidre)
          int ndims,
          const nb::ndarray<IndexType>& shape,
          const nb::ndarray<>& external_ptr) {
-        return self.createViewWithShape(path, type, ndims, shape.data(), external_ptr.data());
+        View* view = self.createViewWithShape(path, type, ndims, shape.data(), external_ptr.data());
+        pinExternalDataOwner(view, external_ptr);
+        return view;
       },
       nb::rv_policy::reference_internal,
       "Create View object with given name or path in this Group that has a data description "
@@ -1094,20 +1213,36 @@ NB_MODULE(pysidre, m_sidre)
          nb::arg("value").noconvert(),
          nb::arg("allocID") = INVALID_ALLOCATOR_ID)
 
-    .def("destroyView",
-         nb::overload_cast<const std::string&>(&Group::destroyView),
-         "Destroy View with given name or path owned by this Group, but leave its data intact.")
-    .def("destroyViewAndData",
-         nb::overload_cast<const std::string&>(&Group::destroyViewAndData),
-         "Destroy View with given name or path owned by this Group and deallocate")
-    .def("destroyViewAndData",
-         nb::overload_cast<IndexType>(&Group::destroyViewAndData),
-         "Destroy View with given index owned by this Group and deallocate its data if it's the "
-         "only View associated with that data.")
-    .def("destroyViewsAndData",
-         &Group::destroyViewsAndData,
-         "Destroy all Views owned by this Group and deallocate "
-         "data for each View when it's the only View associated with that data.")
+    .def(
+      "destroyView",
+      [](Group& self, const std::string& path) {
+        releaseExternalDataOwner(self.getView(path));
+        self.destroyView(path);
+      },
+      "Destroy View with given name or path owned by this Group, but leave its data intact.")
+    .def(
+      "destroyViewAndData",
+      [](Group& self, const std::string& path) {
+        releaseExternalDataOwner(self.getView(path));
+        self.destroyViewAndData(path);
+      },
+      "Destroy View with given name or path owned by this Group and deallocate")
+    .def(
+      "destroyViewAndData",
+      [](Group& self, IndexType idx) {
+        releaseExternalDataOwner(self.getView(idx));
+        self.destroyViewAndData(idx);
+      },
+      "Destroy View with given index owned by this Group and deallocate its data if it's the "
+      "only View associated with that data.")
+    .def(
+      "destroyViewsAndData",
+      [](Group& self) {
+        releaseExternalDataOwnersOfViews(self);
+        self.destroyViewsAndData();
+      },
+      "Destroy all Views owned by this Group and deallocate "
+      "data for each View when it's the only View associated with that data.")
 
     .def("moveView",
          &Group::moveView,
@@ -1167,29 +1302,65 @@ NB_MODULE(pysidre, m_sidre)
          nb::rv_policy::reference_internal,
          "Create a child Group within this Group with no name.",
          nb::arg("is_list") = false)
-    .def("destroyGroup",
-         nb::overload_cast<const std::string&>(&Group::destroyGroup),
-         "Destroy child Group in this Group with given name or path.")
-    .def("destroyGroup",
-         nb::overload_cast<IndexType>(&Group::destroyGroup),
-         "Destroy child Group within this Group with given index.")
-    .def("destroyGroupAndData",
-         nb::overload_cast<const std::string&>(&Group::destroyGroupAndData),
-         "Destroy child Group at the given path, and destroy data that is "
-         "not shared elsewhere.")
-    .def("destroyGroupAndData",
-         nb::overload_cast<IndexType>(&Group::destroyGroupAndData),
-         "Destroy child Group with the given index, and destroy data that "
-         "is not shared elsewhere.")
-    .def("destroyGroupsAndData",
-         &Group::destroyGroupsAndData,
-         "Destroy all child Groups held by this Group, and destroy data that "
-         "is not shared elsewhere.")
-    .def("destroyGroupSubtreeAndData",
-         &Group::destroyGroupSubtreeAndData,
-         "Destroy the entire subtree of Groups and Views held by this Group, "
-         "and destroy data that is not shared elsewhere.")
-    .def("destroyGroups", &Group::destroyGroups, "Destroy all child Groups in this Group.")
+    .def(
+      "destroyGroup",
+      [](Group& self, const std::string& path) {
+        releaseExternalDataOwners(self.getGroup(path));
+        self.destroyGroup(path);
+      },
+      "Destroy child Group in this Group with given name or path.")
+    .def(
+      "destroyGroup",
+      [](Group& self, IndexType idx) {
+        releaseExternalDataOwners(self.getGroup(idx));
+        self.destroyGroup(idx);
+      },
+      "Destroy child Group within this Group with given index.")
+    .def(
+      "destroyGroupAndData",
+      [](Group& self, const std::string& path) {
+        releaseExternalDataOwners(self.getGroup(path));
+        self.destroyGroupAndData(path);
+      },
+      "Destroy child Group at the given path, and destroy data that is "
+      "not shared elsewhere.")
+    .def(
+      "destroyGroupAndData",
+      [](Group& self, IndexType idx) {
+        releaseExternalDataOwners(self.getGroup(idx));
+        self.destroyGroupAndData(idx);
+      },
+      "Destroy child Group with the given index, and destroy data that "
+      "is not shared elsewhere.")
+    .def(
+      "destroyGroupsAndData",
+      [](Group& self) {
+        for(auto& g : self.groups())
+        {
+          releaseExternalDataOwners(&g);
+        }
+        self.destroyGroupsAndData();
+      },
+      "Destroy all child Groups held by this Group, and destroy data that "
+      "is not shared elsewhere.")
+    .def(
+      "destroyGroupSubtreeAndData",
+      [](Group& self) {
+        releaseExternalDataOwners(&self);
+        self.destroyGroupSubtreeAndData();
+      },
+      "Destroy the entire subtree of Groups and Views held by this Group, "
+      "and destroy data that is not shared elsewhere.")
+    .def(
+      "destroyGroups",
+      [](Group& self) {
+        for(auto& g : self.groups())
+        {
+          releaseExternalDataOwners(&g);
+        }
+        self.destroyGroups();
+      },
+      "Destroy all child Groups in this Group.")
     .def("moveGroup",
          &Group::moveGroup,
          "Remove given Group object from its parent Group and make it a child of this Group.")
