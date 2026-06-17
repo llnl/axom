@@ -47,6 +47,13 @@ namespace detail
  * - boundary_facets: Faces between cavity and non-cavity elements
  * - inserted_elems: New simplices created by connecting new point to boundary
  * - containing_element, containing_bary, seed_elements_debug: For diagnostics
+ *
+ * \tparam DIM The spatial dimension (2 for triangles, 3 for tetrahedra)
+ * \tparam PointType The point type used for the new (query) point, e.g. primal::Point
+ * \tparam BaryCoordType The barycentric-coordinate type used during point location
+ * \tparam IndexType The integer type indexing vertices and elements of the mesh
+ * \tparam IndexArray The container type used to pass a set of seed elements
+ * \tparam IAMeshType The topological mesh data structure type (slam::IAMesh) being modified
  */
 template <int DIM, typename PointType, typename BaryCoordType, typename IndexType, typename IndexArray, typename IAMeshType>
 class DelaunayInsertionHelper
@@ -56,14 +63,28 @@ public:
   static constexpr int VERTS_PER_FACET = VERT_PER_ELEMENT - 1;
   static constexpr IndexType INVALID_INDEX = IndexType {-1};
 
+  /**
+   * \brief A facet on the boundary of the cavity, paired with its adjacent non-cavity element
+   *
+   *  Used to re-stitch the triangulation after the cavity is removed.
+   */
   struct BoundaryFacet
   {
     std::array<IndexType, VERTS_PER_FACET> vertices {};
     IndexType neighbor {INVALID_INDEX};
   };
 
+  /**
+   * \brief Construct the helper bound to the mesh it will modify in place.
+   *
+   * \param mesh The IA mesh whose cavity will be carved and re-triangulated
+   */
   explicit DelaunayInsertionHelper(IAMeshType& mesh) : m_mesh(mesh) { }
 
+  /**
+   * \brief Clears all per-insertion scratch state so the helper can be reused
+   *  for the next point without reallocating its internal buffers.
+   */
   void reset()
   {
     for(const IndexType element_idx : cavity_elems)
@@ -82,6 +103,20 @@ public:
     m_stack.clear();
   }
 
+  /**
+   * \brief Computes the Bowyer-Watson cavity: the set of elements whose circumspheres
+   *  contain the query point, found by a flood fill outward from the seed elements across shared facets.
+   *
+   * Populates \a cavity_elems (the elements to delete) and their \a boundary_facets
+   * 
+   * \tparam CircumspherePredicate Callable `(IndexType elem) -> bool` returning
+   *   true when the query point lies inside element \a elem's circumsphere
+   *
+   * \param query_pt The point being inserted
+   * \param seed_elements One or more elements known to contain \a query_pt in
+   *   their circumsphere, used to seed the flood fill
+   * \param isPointInCircumsphere The in-circumsphere predicate (see tparam)
+   */
   template <typename CircumspherePredicate>
   void findCavityElements(const PointType& query_pt,
                           const IndexArray& seed_elements,
@@ -162,6 +197,13 @@ public:
     SLIC_ASSERT(!boundary_facets.empty());
   }
 
+  /**
+   * \brief Removes the cavity elements from the mesh, releasing their slots to
+   *  the deleted-element pool for reuse by the new simplices.
+   *
+   * \tparam DeletedElementPool A pool type exposing `release(IndexType)`
+   * \param deleted_elements The pool that receives the freed element slots
+   */
   template <typename DeletedElementPool>
   void createCavity(DeletedElementPool& deleted_elements)
   {
@@ -172,6 +214,14 @@ public:
     }
   }
 
+  /**
+   * \brief Retriangulates the cavity by connecting the new point to each
+   *  boundary facet (forming the "Delaunay ball"), reusing freed slots first.
+   *
+   * \tparam DeletedElementPool A pool type exposing reusable element slots
+   * \param new_pt_i The vertex index of the just-inserted point
+   * \param deleted_elements The pool of element slots freed by createCavity()
+   */
   template <typename DeletedElementPool>
   void delaunayBall(IndexType new_pt_i, DeletedElementPool& deleted_elements)
   {
@@ -234,6 +284,11 @@ public:
 
   int numRemovedElements() const { return static_cast<int>(cavity_elems.size()); }
 
+  /**
+   * \brief Returns true if \a element_idx is a member of the current cavity.
+   *
+   * \param element_idx The element to test for cavity membership
+   */
   bool containsCavityElement(IndexType element_idx) const
   {
     return element_idx >= 0 && static_cast<std::size_t>(element_idx) < m_cavity_membership.size() &&

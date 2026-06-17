@@ -38,6 +38,12 @@ namespace detail
  * The grid adapts to point set size: resolution is O(n^(1/DIM)) to maintain
  * constant expected bin occupancy. This provides O(1) expected distance (in hops)
  * from grid cell to query point's containing simplex.
+ *
+ * \tparam DIM The spatial dimension (2 or 3)
+ * \tparam PointType The point type used for query coordinates, e.g. primal::Point
+ * \tparam IAMeshType The topological mesh data structure type (slam::IAMesh) being queried
+ * \tparam BoundingBox The bounding-box type spanning the triangulation, e.g. primal::BoundingBox
+ * \tparam IndexType The integer type indexing vertices, elements, and lattice bins
  */
 template <int DIM, typename PointType, typename IAMeshType, typename BoundingBox, typename IndexType>
 class DelaunayElementFinder
@@ -48,11 +54,13 @@ public:
 
   explicit DelaunayElementFinder() = default;
 
-  /// \brief Rebuild the spatial bin structure based on current vertex positions
-  ///
-  /// \param mesh The current Delaunay mesh
-  /// \param bb The bounding box of the triangulation
-  /// \note Grid resolution adapts to vertex count: ~n^(1/DIM) / 4 bins per dimension
+  /**
+   * \brief Rebuild the spatial bin structure based on current vertex positions
+   *
+   * \param mesh The current Delaunay mesh
+   * \param bb The bounding box of the triangulation
+   * \note Grid resolution adapts to vertex count: ~n^(1/DIM) / 4 bins per dimension
+   */
   void recomputeGrid(const IAMeshType& mesh, const BoundingBox& bb)
   {
     const auto& verts = mesh.vertices();
@@ -100,13 +108,15 @@ public:
     }
   }
 
-  /// \brief Find vertices in bins near a query point, sorted by distance
-  ///
-  /// \param mesh The current Delaunay mesh
-  /// \param pt The query point
-  /// \param[out] nearby_vertices Output array of vertex indices sorted by distance to pt
-  /// \param search_radius Number of bin layers to search (1 = immediate neighbors, 2 = two layers, etc.)
-  /// \param max_candidates Maximum number of vertices to return
+  /**
+   * \brief Find vertices in bins near a query point, sorted by distance
+   *
+   * \param mesh The current Delaunay mesh
+   * \param pt The query point
+   * \param[out] nearby_vertices Output array of vertex indices sorted by distance to pt
+   * \param search_radius Number of bin layers to search (1 = immediate neighbors, 2 = two layers, etc.)
+   * \param max_candidates Maximum number of vertices to return
+   */
   inline void getNearbyVertices(const IAMeshType& mesh,
                                 const PointType& pt,
                                 std::vector<IndexType>& nearby_vertices,
@@ -205,10 +215,12 @@ public:
     }
   }
 
-  /// \brief Get the vertex stored in the bin containing a query point
-  ///
-  /// \param pt The query point
-  /// \return Vertex index of a representative vertex in that bin (or INVALID_INDEX if bin is empty)
+  /**
+   * \brief Get the vertex stored in the bin containing a query point
+   *
+   * \param pt The query point
+   * \return Vertex index of a representative vertex in that bin (or INVALID_INDEX if bin is empty)
+   */
   inline IndexType getNearbyVertex(const PointType& pt) const
   {
     const auto cell = m_lattice.gridCell(pt);
@@ -226,11 +238,13 @@ public:
     return max_radius;
   }
 
-  /// \brief Update a bin to reference a newly inserted vertex
-  ///
-  /// \param pt The position of the newly inserted vertex
-  /// \param vertex_id The index of the newly inserted vertex
-  /// \note Called after each successful point insertion
+  /**
+   * \brief Update a bin to reference a newly inserted vertex
+   *
+   * \param pt The position of the newly inserted vertex
+   * \param vertex_id The index of the newly inserted vertex
+   * \note Called after each successful point insertion
+   */
   inline void updateBin(const PointType& pt, IndexType vertex_id)
   {
     const auto cell = m_lattice.gridCell(pt);

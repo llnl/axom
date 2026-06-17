@@ -235,7 +235,6 @@ public:
    * This method sizes the table appropriately and advances the generation counter.
    * It should be called before each batch of insertions.
    *
-   * The table is sized to maintain a low load factor (~12.5-25%) for O(1) performance.
    * In 2D, each element contributes 2 incident faces (face 0 is on boundary).
    * In 3D, each element contributes 3 incident faces (face 0 is on boundary).
    *
@@ -248,7 +247,7 @@ public:
     // Cold sizing targets a low load factor: ~(2*TDIM)x the facet count
     // (2D: ~2 incident faces/elem; 3D: ~3 incident faces/elem). The next
     // power-of-two round-up below lowers the realized load further.
-    // The table  never shrinks, so after a large pairing pass,
+    // The table never shrinks, so after a large pairing pass,
     // subsequent small stars run at a much lower load factor.
     const std::size_t target_slots =
       axom::utilities::max<std::size_t>(8, (TDIM == 2 ? 4 : 8) * expected_facet_count);

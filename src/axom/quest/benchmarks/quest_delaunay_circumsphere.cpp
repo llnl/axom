@@ -58,6 +58,14 @@ double unitInterval(std::uint64_t bits)
   return static_cast<double>(bits & 0xFFFFFFFFu) / static_cast<double>(0x100000000ULL);
 }
 
+// Advances a 64-bit linear congruential generator (LCG):
+//   x_{n+1} = (a * x_n + c) mod 2^64
+// with Knuth's multiplier a = 6364136223846793005 and increment c = 1442695040888963407.
+// The modulus is 2^64 via unsigned wraparound.
+// By the Hull-Dobell theorem this generator has full period 2^64 because:
+//   c is odd (hence coprime to the modulus),
+//   (a - 1) is divisible by 4 (the modulus's only prime factor, 2, with the extra factor required for 4 | m).
+// We use it here to generate reproducible pseudo-random sample geometry for the benchmark.
 std::uint64_t stepLcg(std::uint64_t state)
 {
   return state * 6364136223846793005ULL + 1442695040888963407ULL;

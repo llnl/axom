@@ -193,9 +193,11 @@ private:
   using InsertionHelper =
     detail::DelaunayInsertionHelper<DIM, PointType, BaryCoordType, IndexType, IndexArray, IAMeshType>;
 
-  /// Number of adjacency layers to search around visited simplices when a directed walk fails.
-  /// If a walk cycles or reaches its step budget, we probe this many layers of neighbors
-  /// before giving up. Value of 2 balances coverage vs. cost for typical meshes.
+  /**
+   * Number of adjacency layers to search around visited simplices when a directed walk fails.
+   * If a walk cycles or reaches its step budget, we probe this many layers of neighbors
+   * before giving up. Value of 2 balances coverage vs. cost for typical meshes.
+   */
   static constexpr int WALK_NEIGHBORHOOD_LAYERS = 2;
 
   /**
@@ -269,21 +271,27 @@ public:
   Delaunay(Delaunay&& other) : Delaunay() { *this = std::move(other); }
   Delaunay& operator=(Delaunay&& other);
 
-  /// \brief Returns statistics about insertion operations
-  /// \return InsertionStats containing cavity size metrics
+  /**
+   * \brief Returns statistics about insertion operations
+   * \return InsertionStats containing cavity size metrics
+   */
   InsertionStats getInsertionStats() const
   {
     return {m_num_insertions, m_total_removed_elements, m_max_removed_elements};
   }
 
-  /// \brief Enable or disable collection of point location statistics
-  /// \param enabled If true, track walk performance metrics (adds minimal overhead)
-  /// \note Stats collection is disabled by default
+  /**
+   * \brief Enable or disable collection of point location statistics
+   * \param enabled If true, track walk performance metrics (adds minimal overhead)
+   * \note Stats collection is disabled by default
+   */
   void setCollectPointLocationStats(bool enabled) { m_collect_location_stats = enabled; }
 
-  /// \brief Returns statistics about point location query performance
-  /// \return PointLocationStats containing walk performance metrics
-  /// \note Returns zeros if setCollectPointLocationStats(true) was not called
+  /**
+   * \brief Returns statistics about point location query performance
+   * \return PointLocationStats containing walk performance metrics
+   * \note Returns zeros if setCollectPointLocationStats(true) was not called
+   */
   PointLocationStats getPointLocationStats() const
   {
     return {m_num_walk_calls,
@@ -294,10 +302,12 @@ public:
             m_max_walk_steps};
   }
 
-  /// \brief Controls the amount of validation performed around each point insertion
-  ///
-  /// \note This is intended for debugging. `InsertionValidationMode::Full` is a diagnostic mode
-  /// and should not be enabled in performance-sensitive runs.
+  /**
+   * \brief Controls the amount of validation performed around each point insertion
+   *
+   * \note This is intended for debugging. `InsertionValidationMode::Full` is a diagnostic mode
+   * and should not be enabled in performance-sensitive runs.
+   */
   void setInsertionValidationMode(InsertionValidationMode mode)
   {
     m_insertion_validation_mode = mode;
@@ -315,13 +325,16 @@ public:
    */
   void initializeBoundary(const BoundingBox& bb);
 
-  /// \brief Reserve storage for an expected number of inserted points.
-  ///
-  /// Uses a dimension-specific heuristic for the total simplex count so large
-  /// bulk-builds can avoid repeated mesh-container reallocations.
-  /// \param num_points Expected number of points to be inserted
-  /// \note Based on Euler characteristic: 2D expects ~2n triangles for n points,
-  ///       3D expects ~6n tetrahedra. Heuristics account for bounding box and over-tessellation.
+  /**
+   * \brief Reserve storage for an expected number of inserted points.
+   *
+   * Uses a dimension-specific heuristic for the total simplex count so large
+   * bulk-builds can avoid repeated mesh-container reallocations.
+   * 
+   * \param num_points Expected number of points to be inserted
+   * \note Based on Euler characteristic: 2D expects ~2n triangles for n points,
+   *       3D expects ~6n tetrahedra. Heuristics account for bounding box and over-tessellation.
+   */
   void reserveForPointCount(IndexType num_points)
   {
     if(!m_has_boundary || num_points <= 0)
@@ -366,9 +379,11 @@ public:
    */
   void insertPoint(const PointType& new_pt);
 
-  /// \brief Retrieves the geometric element (triangle or tetrahedron) at the given index
-  /// \param element_index The index of the element to retrieve
-  /// \return Triangle (2D) or Tetrahedron (3D) with vertex coordinates
+  /**
+   * \brief Retrieves the geometric element (triangle or tetrahedron) at the given index
+   * \param element_index The index of the element to retrieve
+   * \return Triangle (2D) or Tetrahedron (3D) with vertex coordinates
+   */
   ElementType getElement(int element_index) const
   {
     const auto verts = m_mesh.boundaryVertices(element_index);
@@ -442,20 +457,24 @@ public:
    */
   bool isConforming(bool verboseOutput = false) const;
 
-  /// \brief Returns true if an element is active and can participate in point-location queries
-  ///
-  /// \param element_idx The element index to check
-  /// \return true if element is valid (not a deleted/recycled slot)
-  /// \note During insertion, all active elements have valid vertices. After removeBoundary(),
-  ///       the mesh is compacted so all element indices are valid.
+  /**
+   * \brief Returns true if an element is active and can participate in point-location queries
+   *
+   * \param element_idx The element index to check
+   * \return true if element is valid (not a deleted/recycled slot)
+   * \note During insertion, all active elements have valid vertices. After removeBoundary(),
+   *       the mesh is compacted so all element indices are valid.
+   */
   bool isSearchableElement(IndexType element_idx) const;
 
-  /// \brief Locate the element containing a query point using directed walk
-  ///
-  /// \param query_pt The point to locate
-  /// \param warnOnInvalid If true, log a warning if location fails
-  /// \return Element index containing the point, or INVALID_INDEX if not found
-  /// \note Uses grid-seeded directed walk for O(n^(1/DIM)) expected performance
+  /**
+   * \brief Locate the element containing a query point using directed walk
+   *
+   * \param query_pt The point to locate
+   * \param warnOnInvalid If true, log a warning if location fails
+   * \return Element index containing the point, or INVALID_INDEX if not found
+   * \note Uses grid-seeded directed walk for O(n^(1/DIM)) expected performance
+   */
   IndexType findContainingElement(const PointType& query_pt, bool warnOnInvalid = true) const;
 
   /**
@@ -468,16 +487,18 @@ public:
    */
   BaryCoordType getBaryCoords(IndexType element_idx, const PointType& q_pt) const;
 
-  /// \brief Returns initial seed elements for cavity expansion based on point location
-  ///
-  /// If the query point lies on a face/edge of the containing element (indicated by a
-  /// barycentric coordinate near zero), the neighbor across that face is also included
-  /// as a seed. This ensures the cavity expansion starts from all elements that might
-  /// contain the point in their circumsphere.
-  ///
-  /// \param element_idx The element containing (or nearest to) the query point
-  /// \param bary_coord Barycentric coordinates of the query point in that element
-  /// \return Array of seed element indices (at least 1, possibly more if point is on boundary feature)
+  /**
+   * \brief Returns initial seed elements for cavity expansion based on point location
+   *
+   * If the query point lies on a face/edge of the containing element (indicated by a
+   * barycentric coordinate near zero), the neighbor across that face is also included
+   * as a seed. This ensures the cavity expansion starts from all elements that might
+   * contain the point in their circumsphere.
+   *
+   * \param element_idx The element containing (or nearest to) the query point
+   * \param bary_coord Barycentric coordinates of the query point in that element
+   * \return Array of seed element indices (at least 1, possibly more if point is on boundary feature)
+   */
   IndexArray getSeedElements(IndexType element_idx, const BaryCoordType& bary_coord) const
   {
     IndexArray seed_elements;
@@ -501,38 +522,104 @@ public:
     return seed_elements;
   }
 
-  /// \brief Classify a value as positive, negative, or zero within tolerance
-  /// \param value The value to classify
-  /// \param tolerance The tolerance for considering the value as zero
-  /// \return +1 if value > tolerance, -1 if value < -tolerance, 0 otherwise
+  /**
+   * \brief Classify a value as positive, negative, or zero within tolerance
+   * 
+   * \param value The value to classify
+   * \param tolerance The tolerance for considering the value as zero
+   * \return +1 if value > tolerance, -1 if value < -tolerance, 0 otherwise
+   */
   static int signWithTolerance(double value, double tolerance)
   {
     return value > tolerance ? 1 : (value < -tolerance ? -1 : 0);
   }
 
+  /**
+   * \brief Builds the circumsphere (center and squared radius) of a mesh element.
+   * 
+   * \param mesh The triangulation containing the element
+   * \param element_idx The element whose circumsphere is computed
+   * \return The precomputed circumsphere for repeated in-sphere distance tests
+   */
   static CircumsphereEval evaluateCircumsphereOnMesh(const IAMeshType& mesh, IndexType element_idx);
 
+  /**
+   * \brief Scale-aware tolerance for comparing a squared distance against a
+   *  circumsphere's squared radius, used to classify on-sphere cases robustly.
+   * 
+   * \param sphere The circumsphere being tested against
+   * \param x The query point
+   * \param distance_sq The squared distance from \a x to the sphere center
+   * \return The tolerance (in squared-distance units) for the on-sphere band
+   */
   static double sphereSquaredDistanceTolerance(const CircumsphereEval& sphere,
                                                const PointType& x,
                                                double distance_sq);
 
+  /**
+   * \brief Classifies the query point against an element's circumsphere via the
+   *  in-sphere determinant: ON_POSITIVE_SIDE (outside), ON_NEGATIVE_SIDE (inside),
+   *  or ON_BOUNDARY (on the sphere, within tolerance).
+   * 
+   * \param mesh The triangulation containing the element
+   * \param q The query point
+   * \param element_idx The element whose circumsphere is tested
+   */
   static int inSphereOrientationOnMesh(const IAMeshType& mesh,
                                        const PointType& q,
                                        IndexType element_idx);
 
+  /**
+   * \brief Returns the raw (unclassified) in-sphere determinant of \a q against
+   *  the circumsphere of \a element_idx. The sign indicates inside/outside.
+   *  The caller applies its own tolerance (see inSphereOrientationOnMesh()).
+   * 
+   * \param mesh The triangulation containing the element
+   * \param q The query point
+   * \param element_idx The element whose circumsphere is tested
+   */
   static double inSphereDeterminantOnMesh(const IAMeshType& mesh,
                                           const PointType& q,
                                           IndexType element_idx);
 
+  /**
+   * \brief Returns a human-readable name for a primal::OrientationResult value
+   *  (for diagnostics and warning messages).
+   * 
+   * \param result An orientation result code (ON_POSITIVE_SIDE/ON_BOUNDARY/ON_NEGATIVE_SIDE)
+   */
   static const char* orientationResultName(int result);
 
+  /**
+   *  \brief Convenience predicate: true if \a q is inside element \a element_idx's
+   *  circumsphere (and, when \a includeBoundary is set, on it within tolerance).
+   * 
+   * \param mesh The triangulation containing the element
+   * \param q The query point
+   * \param element_idx The element whose circumsphere is tested
+   * \param includeBoundary If true, on-sphere points count as contained
+   */
   static bool isPointInSphereOnMesh(const IAMeshType& mesh,
                                     const PointType& q,
                                     IndexType element_idx,
                                     bool includeBoundary);
 
+  /**
+   * \brief Classifies an orientation determinant against a tolerance into a
+   *  primal::OrientationResult (ON_POSITIVE_SIDE/ON_BOUNDARY/ON_NEGATIVE_SIDE).
+   * 
+   * \param det The raw orientation determinant
+   * \param tol The scale-aware tolerance for the ON_BOUNDARY band
+   */
   static int classifyOrientationDeterminant(double det, double tol);
 
+  /**
+   * \brief Computes the signed orientation determinant of an element together
+   *  with its scale-aware tolerance and classification.
+   * 
+   * \param element_idx The element to evaluate
+   * \return An OrientationEval bundling the determinant, tolerance, and class
+   */
   OrientationEval evaluateElementOrientationDeterminant(IndexType element_idx) const;
 
 private:
@@ -628,6 +715,7 @@ private:
 
   /**
    * \brief Helper function to fill the array with the initial mesh.
+   * 
    * \details create a rectangle for 2D, cube for 3D, and fill the array with the mesh data.
    */
   void generateInitialMesh(std::vector<DataType>& points,
