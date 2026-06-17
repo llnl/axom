@@ -33,26 +33,25 @@ spack:
       when: '%fortran'
     - spec: '%cray-mpich@8.1.29.rocm_6.4.3'
       when: '%mpi'
-    rocm_6_3_1:
-    - spec: fflags=-Mfreeform
-    - spec: '%c=llvm-amdgpu@6.3.1'
+    rocm_7_2_1:
+    - spec: '%c=llvm-amdgpu@7.2.1'
       when: '%c'
-    - spec: '%cxx=llvm-amdgpu@6.3.1'
+    - spec: '%cxx=llvm-amdgpu@7.2.1'
       when: '%cxx'
-    - spec: '%fortran=llvm-amdgpu@6.3.1'
+    - spec: '%fortran=llvm-amdgpu@7.2.1'
       when: '%fortran'
-    - spec: '%cray-mpich@8.1.29.rocm_6_3_1'
+    - spec: '%cray-mpich@9.1.0.rocm_7.2.1'
       when: '%mpi'
-    cce_20:
+    cce_21:
     # Flag for lowercase Fortran module names
     - spec: fflags=-ef
-    - spec: '%c=cce@20.0.0'
+    - spec: '%c=cce@21.0.0'
       when: '%c'
-    - spec: '%cxx=cce@20.0.0'
+    - spec: '%cxx=cce@21.0.0'
       when: '%cxx'
-    - spec: '%fortran=cce@20.0.0'
+    - spec: '%fortran=cce@21.0.0'
       when: '%fortran'
-    - spec: '%cray-mpich@8.1.32.cce_20'
+    - spec: '%cray-mpich@8.1.32.cce_21'
       when: '%mpi'
 
   packages:
@@ -71,13 +70,13 @@ spack:
     # - Use amdgpu_target=gfx908 for rznevada
     llvm-amdgpu:
       externals:
-      - spec: llvm-amdgpu@6.3.1
-        prefix: /opt/rocm-6.3.1
+      - spec: llvm-amdgpu@7.2.1
+        prefix: /opt/rocm-7.2.1
         extra_attributes:
           compilers:
-            c: /opt/rocm-6.3.1/llvm/bin/amdclang
-            cxx: /opt/rocm-6.3.1/llvm/bin/amdclang++
-            fortran: /opt/rocm-6.3.1/llvm/bin/amdflang
+            c: /opt/rocm-7.2.1/llvm/bin/amdclang
+            cxx: /opt/rocm-7.2.1/llvm/bin/amdclang++
+            fortran: /opt/rocm-7.2.1/llvm/bin/amdflang
           environment: {}
           extra_rpaths: []
       - spec: llvm-amdgpu@6.4.3
@@ -91,85 +90,95 @@ spack:
           extra_rpaths: []
     cce:
       externals:
-      - spec: cce@20.0.0
-        prefix: /usr/tce/packages/cce-tce/cce-20.0.0
+      - spec: cce@21.0.0
+        prefix: /usr/tce/packages/cce-tce/cce-21.0.0
         extra_attributes:
           compilers:
-            c: /usr/tce/packages/cce-tce/cce-20.0.0/bin/craycc
-            cxx: /usr/tce/packages/cce-tce/cce-20.0.0/bin/crayCC
-            fortran: /usr/tce/packages/cce-tce/cce-20.0.0/bin/crayftn
+            c: /usr/tce/packages/cce-tce/cce-21.0.0/bin/craycc
+            cxx: /usr/tce/packages/cce-tce/cce-21.0.0/bin/crayCC
+            fortran: /usr/tce/packages/cce-tce/cce-21.0.0/bin/crayftn
           environment: {}
           extra_rpaths: []
 
 
     hip:
-      # version: [6.3.1, 6.4.3]
+      # version: [7.2.1, 6.4.3]
       buildable: false
       externals:
-      - spec: hip@6.3.1
-        prefix: /opt/rocm-6.3.1
+      - spec: hip@7.2.1
+        prefix: /opt/rocm-7.2.1
       - spec: hip@6.4.3
         prefix: /opt/rocm-6.4.3
 
     hipblas:
       buildable: false
       externals:
-      - spec: hipblas@6.3.1
-        prefix: /opt/rocm-6.3.1
+      - spec: hipblas@7.2.1
+        prefix: /opt/rocm-7.2.1
       - spec: hipblas@6.4.3
+        prefix: /opt/rocm-6.4.3
+
+    hipcub:
+      buildable: false
+      externals:
+      - spec: hipcub@7.2.1
+        prefix: /opt/rocm-7.2.1
+      - spec: hipcub@6.4.3
         prefix: /opt/rocm-6.4.3
 
     hipsparse:
       buildable: false
       externals:
-      - spec: hipsparse@6.3.1
-        prefix: /opt/rocm-6.3.1
+      - spec: hipsparse@7.2.1
+        prefix: /opt/rocm-7.2.1
       - spec: hipsparse@6.4.3
         prefix: /opt/rocm-6.4.3
 
     hsa-rocr-dev:
       buildable: false
       externals:
-      - spec: hsa-rocr-dev@6.3.1
-        prefix: /opt/rocm-6.3.1/
+      - spec: hsa-rocr-dev@7.2.1
+        prefix: /opt/rocm-7.2.1/
       - spec: hsa-rocr-dev@6.4.3
         prefix: /opt/rocm-6.4.3
 
     rocblas:
       buildable: false
       externals:
-      - spec: rocblas@6.3.1
-        prefix: /opt/rocm-6.3.1/
+      - spec: rocblas@7.2.1
+        prefix: /opt/rocm-7.2.1/
       - spec: rocblas@6.4.3
         prefix: /opt/rocm-6.4.3/
 
     rocminfo:
       buildable: false
       externals:
-      - spec: rocminfo@6.3.1
-        prefix: /opt/rocm-6.3.1
+      - spec: rocminfo@7.2.1
+        prefix: /opt/rocm-7.2.1
       - spec: rocminfo@6.4.3
         prefix: /opt/rocm-6.4.3
 
     rocprim:
       buildable: false
       externals:
-      - spec: rocprim@6.3.1
-        prefix: /opt/rocm-6.3.1/
+      - spec: rocprim@7.2.1
+        prefix: /opt/rocm-7.2.1/
       - spec: rocprim@6.4.3
         prefix: /opt/rocm-6.4.3
 
     rocm-device-libs:
       buildable: false
       externals:
-      - spec: rocm-device-libs@6.3.1
-        prefix: /opt/rocm-6.3.1/
+      - spec: rocm-device-libs@7.2.1
+        prefix: /opt/rocm-7.2.1/
       - spec: rocm-device-libs@6.4.3
         prefix: /opt/rocm-6.4.3
 
     rocprofiler-sdk:
       buildable: false
       externals:
+        - spec: rocprofiler-sdk@7.2.1
+          prefix: /opt/rocm-7.2.1
         - spec: rocprofiler-sdk@6.4.3
           prefix: /opt/rocm-6.4.3
 
@@ -180,11 +189,11 @@ spack:
     cray-mpich:
       buildable: false
       externals:
-      - spec: cray-mpich@8.1.29.rocm_6_3_1+slurm
-        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-rocmcc-6.3.1/
+      - spec: cray-mpich@9.1.0.rocm_7.2.1+slurm
+        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-9.1.0-rocmcc-7.2.1/
       - spec: cray-mpich@8.1.29.rocm_6_4_3+slurm
         prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-rocmcc-6.4.3/
-      - spec: cray-mpich@8.1.32.cce_20+slurm
+      - spec: cray-mpich@8.1.32.cce_21+slurm
         prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.32-rocmcc-6.4.3/
 
     # blas is a bit more complicated because its a virtual package so fake it with
