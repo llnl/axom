@@ -595,6 +595,9 @@ axom::Array<primal::Point<double, DIM>> generatePts(int numPts,
 
   BoundingBox bbox {PointType(bb_min.data()), PointType(bb_max.data())};
 
+  // This example uses a directly-seedable std::mt19937_64 (rather than axom::utilities::random_real)
+  // so that the generated point set is exactly reproducible. The AXOM_SCATTERED_INTERP_SEED environment variable
+  // can be used to pin the seed for repeatable timing/comparison runs, falling back to a nondeterministic seed otherwise.
   std::mt19937_64 mt;
   if(const char* env = std::getenv("AXOM_SCATTERED_INTERP_SEED"))
   {

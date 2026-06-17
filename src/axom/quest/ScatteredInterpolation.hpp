@@ -338,6 +338,11 @@ private:
     // distribution using a single 64-bit random integer per point:
     // - Take the top `nlevels` bits.
     // - The BRIO level is the position of the highest set bit (1..nlevels), or 0 if all are 0.
+    //
+    // This single-integer sampler is intentionally preferred over repeated `random_real()` here:
+    // it is faster at large N and draws the same geometric level distribution.
+    // The "highest set bit of a random integer -> geometric level" idiom is reusable
+    // and could be promoted to axom::utilities (alongside the bit-twiddling helpers)
     std::mt19937_64 mt;
     std::uint64_t seed = 0;
     if(::getScatteredInterpSeed(seed))
