@@ -290,6 +290,8 @@ void pinExternalDataOwner(View* view, const nb::ndarray<Args...>& owner)
 {
   if(view != nullptr)
   {
+    // Note: Map assignment automatically releases the previous ndarray wrapper if present.
+    // When nb::ndarray<> is destroyed, nanobind decrements the underlying Python object's refcount
     externalDataOwnerRegistry()[view] = nb::ndarray<>(owner);
   }
 }
@@ -325,6 +327,72 @@ void releaseExternalDataOwnersOfViews(Group& group)
   for(auto& v : group.views())
   {
     releaseExternalDataOwner(&v);
+  }
+}
+
+/*!
+ * \brief Copy external data pin from source View to destination View.
+ *
+ * When copyView() creates a shallow copy that shares external data, the new View
+ * needs its own pin to prevent the numpy array from being garbage collected.
+ * This function looks up the source View's pin and copies it to the destination.
+ *
+ * \param src_view Source View (must have an external data pin)
+ * \param dst_view Destination View (will receive a copy of the pin)
+ */
+void copyExternalDataOwner(const View* src_view, View* dst_view)
+{
+  if(src_view == nullptr || dst_view == nullptr)
+  {
+    return;
+  }
+
+  auto& registry = externalDataOwnerRegistry();
+  auto it = registry.find(const_cast<View*>(src_view));
+  if(it != registry.end())
+  {
+    // Copy the ndarray handle to the new View, incrementing its refcount
+    registry[dst_view] = it->second;
+  }
+}
+
+/*!
+ * \brief Recursively copy external data pins from source Group hierarchy to destination.
+ *
+ * When copyGroup() creates a shallow copy of a Group hierarchy, all Views with
+ * external data in the source hierarchy need their pins copied to the destination.
+ *
+ * \param src_group Source Group (root of hierarchy to copy from)
+ * \param dst_group Destination Group (root of copied hierarchy)
+ */
+void copyExternalDataOwners(const Group* src_group, Group* dst_group)
+{
+  if(src_group == nullptr || dst_group == nullptr)
+  {
+    return;
+  }
+
+  // Copy pins for all Views in this Group
+  for(auto& src_view : src_group->views())
+  {
+    if(src_view.isExternal())
+    {
+      View* dst_view = dst_group->getView(src_view.getName());
+      if(dst_view != nullptr)
+      {
+        copyExternalDataOwner(&src_view, dst_view);
+      }
+    }
+  }
+
+  // Recursively copy pins for all child Groups
+  for(auto& src_child : src_group->groups())
+  {
+    Group* dst_child = dst_group->getGroup(src_child.getName());
+    if(dst_child != nullptr)
+    {
+      copyExternalDataOwners(&src_child, dst_child);
+    }
   }
 }
 
@@ -431,7 +499,34 @@ private:
 
 NB_MODULE(pysidre, m_sidre)
 {
-  m_sidre.doc() = "A python extension for Axom's Sidre component";
+  m_sidre.doc() = R"pbdoc(
+    A python extension for Axom's Sidre component.
+
+    **Thread Safety:**
+    This module relies on Python's Global Interpreter Lock (GIL) for thread safety.
+
+    - **Python threads:** Safe. The GIL serializes all operations.
+    - **C++ threads:** Unsafe. Calling Sidre methods from C++ threads without acquiring
+      the GIL will cause data races and undefined behavior.
+    - **GIL release:** The bindings do not release the GIL during operations, so Python
+      threads are always serialized. If future changes add `nb::call_guard<nb::gil_scoped_release>`,
+      explicit synchronization (e.g., mutexes) must be added to the external data registry.
+
+    **External Data Lifetime:**
+    Views can reference external numpy arrays via setExternalData() or createView().
+    The binding automatically pins these arrays to prevent garbage collection while
+    the View exists. Pins are released when:
+    - View.clear() is called
+    - The View is destroyed via destroyView() or destroyViewAndData()
+    - The owning Group hierarchy is destroyed via destroyGroup*() methods
+
+    **Reallocation Hazards:**
+    Arrays obtained via getDataArray() are zero-copy views into Sidre storage.
+    View::reallocate() or Buffer::reallocate() can move the underlying storage,
+    leaving existing numpy arrays pointing to freed memory. Always re-acquire
+    arrays after any reallocation. The binding cannot prevent this hazard without
+    breaking zero-copy semantics.
+  )pbdoc";
 
   // Module version mirrors the Axom release
   m_sidre.attr("__version__") = AXOM_VERSION_FULL;
@@ -1221,6 +1316,13 @@ NB_MODULE(pysidre, m_sidre)
       },
       "Destroy View with given name or path owned by this Group, but leave its data intact.")
     .def(
+      "destroyView",
+      [](Group& self, IndexType idx) {
+        releaseExternalDataOwner(self.getView(idx));
+        self.destroyView(idx);
+      },
+      "Destroy View with given index owned by this Group, but leave its data intact.")
+    .def(
       "destroyViewAndData",
       [](Group& self, const std::string& path) {
         releaseExternalDataOwner(self.getView(path));
@@ -1248,10 +1350,20 @@ NB_MODULE(pysidre, m_sidre)
          &Group::moveView,
          nb::rv_policy::reference_internal,
          "Remove given View object from its owning Group and move it to this Group.")
-    .def("copyView",
-         &Group::copyView,
-         nb::rv_policy::reference_internal,
-         "Create a (shallow) copy of given View object and add it to this Group.")
+    .def(
+      "copyView",
+      [](Group& self, View* view) {
+        View* copy = self.copyView(view);
+        if(copy != nullptr && view != nullptr && view->isExternal())
+        {
+          // Shallow copy shares external data pointer - copy the pin to prevent
+          // the numpy array from being garbage collected
+          copyExternalDataOwner(view, copy);
+        }
+        return copy;
+      },
+      nb::rv_policy::reference_internal,
+      "Create a (shallow) copy of given View object and add it to this Group.")
 
     .def("hasGroup",
          nb::overload_cast<const std::string&>(&Group::hasGroup, nb::const_),
@@ -1365,11 +1477,20 @@ NB_MODULE(pysidre, m_sidre)
          &Group::moveGroup,
          nb::rv_policy::reference_internal,
          "Remove given Group object from its parent Group and make it a child of this Group.")
-    .def("copyGroup",
-         &Group::copyGroup,
-         nb::rv_policy::reference_internal,
-         "Create a (shallow) copy of Group hierarchy rooted at given "
-         "Group and make the copy a child of this Group.")
+    .def(
+      "copyGroup",
+      [](Group& self, Group* group) {
+        Group* copy = self.copyGroup(group);
+        if(copy != nullptr && group != nullptr)
+        {
+          // Shallow copy shares external data pointers - recursively copy all pins
+          copyExternalDataOwners(group, copy);
+        }
+        return copy;
+      },
+      nb::rv_policy::reference_internal,
+      "Create a (shallow) copy of Group hierarchy rooted at given "
+      "Group and make the copy a child of this Group.")
     .def("deepCopyGroup",
          &Group::deepCopyGroup,
          nb::rv_policy::reference_internal,

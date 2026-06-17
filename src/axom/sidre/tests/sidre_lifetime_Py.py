@@ -408,6 +408,160 @@ def test_clear_releases_external_array_owner():
     assert ref() is None
 
 
+def test_copy_view_with_external_data_preserves_pin():
+    """copyView on an external View should copy the pin to prevent premature collection."""
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+    src_group = root.createGroup("src")
+    dst_group = root.createGroup("dst")
+
+    # Create view with external data
+    external = np.arange(10, dtype=np.int64)
+    ref = weakref.ref(external)
+    src_view = src_group.createView("original", external)
+    src_view.apply(pysidre.TypeID.INT64_ID, 10)
+    del external
+    _force_gc()
+    assert ref() is not None  # Pin keeps it alive
+
+    # Copy the view - should copy the pin
+    copied_view = dst_group.copyView(src_view)
+    assert copied_view.isExternal()
+
+    # Delete source view and DS - copied view should keep pin alive
+    del src_view
+    del src_group
+    del ds
+    del root
+    del dst_group
+    _force_gc()
+
+    # Pin should still be valid
+    assert ref() is not None
+    np.testing.assert_array_equal(copied_view.getDataArray(), np.arange(10))
+
+
+def test_copy_group_with_external_data_preserves_pins():
+    """copyGroup should recursively copy pins for all external Views in hierarchy."""
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+    src = root.createGroup("source")
+
+    # Create nested groups with external data
+    external1 = np.arange(5, dtype=np.int32)
+    external2 = np.arange(8, dtype=np.int64)
+    ref1 = weakref.ref(external1)
+    ref2 = weakref.ref(external2)
+
+    src.createView("view1", external1).apply(pysidre.TypeID.INT32_ID, 5)
+    child = src.createGroup("child")
+    child.createView("view2", external2).apply(pysidre.TypeID.INT64_ID, 8)
+
+    del external1
+    del external2
+    _force_gc()
+    assert ref1() is not None
+    assert ref2() is not None
+
+    # Copy the entire group hierarchy - copyGroup creates a group with the source name
+    dst_parent = root.createGroup("copies")
+    dst = dst_parent.copyGroup(src)
+    assert dst is not None
+    assert dst.getName() == "source"
+    assert dst.hasView("view1")
+    assert dst.hasGroup("child")
+    assert dst.getGroup("child").hasView("view2")
+
+    # Delete source hierarchy - copied pins should keep arrays alive
+    del src
+    del child
+    del ds
+    del root
+    del dst_parent
+    _force_gc()
+
+    # Both pins should still be valid
+    assert ref1() is not None
+    assert ref2() is not None
+    np.testing.assert_array_equal(dst.getView("view1").getDataArray(), np.arange(5, dtype=np.int32))
+    np.testing.assert_array_equal(
+        dst.getGroup("child").getView("view2").getDataArray(), np.arange(8, dtype=np.int64))
+
+
+def test_move_view_with_external_data_preserves_pin():
+    """moveView should preserve the pin since the View* pointer doesn't change."""
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+    src = root.createGroup("src")
+    dst = root.createGroup("dst")
+
+    # Create view with external data
+    external = np.arange(12, dtype=np.int64)
+    ref = weakref.ref(external)
+    view = src.createView("moveable", external)
+    view.apply(pysidre.TypeID.INT64_ID, 12)
+    del external
+    _force_gc()
+    assert ref() is not None  # Pin keeps it alive
+
+    # Move the view to dst - View* stays the same, pin should remain valid
+    moved = dst.moveView(view)
+    assert moved.getPathName() == "dst/moveable"
+    assert moved.isExternal()
+    assert not src.hasView("moveable")
+    assert dst.hasView("moveable")
+
+    # Delete original references - moved view should keep pin alive
+    del view
+    del src
+    del ds
+    del root
+    del dst
+    _force_gc()
+
+    # Pin should still be valid
+    assert ref() is not None
+    np.testing.assert_array_equal(moved.getDataArray(), np.arange(12))
+
+
+def test_destroy_view_by_index_releases_external_pin():
+    """destroyView(IndexType) should release the external data pin."""
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+
+    external = np.arange(7, dtype=np.int32)
+    ref = weakref.ref(external)
+    view = root.createView("indexed", external)
+    view.apply(pysidre.TypeID.INT32_ID, 7)
+    view_idx = view.getIndex()
+    del external
+    del view
+    _force_gc()
+    assert ref() is not None  # Pin keeps it alive
+
+    # Destroy by index - should release the pin
+    root.destroyView(view_idx)
+    _force_gc()
+    assert ref() is None  # Pin released, array collected
+
+
+def test_pin_overwrite_warning():
+    """Setting external data twice on the same View correctly replaces the pin."""
+    ds = pysidre.DataStore()
+    view = ds.getRoot().createView("test")
+
+    # First external data
+    external1 = np.arange(5, dtype=np.int32)
+    view.setExternalData(pysidre.TypeID.INT32_ID, 5, external1)
+
+    # Second external data on same view - old pin released, new pin created
+    external2 = np.arange(10, dtype=np.int64)
+    view.setExternalData(pysidre.TypeID.INT64_ID, 10, external2)
+
+    # The second pin should be active; first pin was automatically released
+    np.testing.assert_array_equal(view.getDataArray(), external2)
+
+
 if __name__ == "__main__":
     import sys
 
