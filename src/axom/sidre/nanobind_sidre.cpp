@@ -281,6 +281,13 @@ NB_MODULE(pysidre, m_sidre)
   m_sidre.attr("AXOM_ENABLE_MPI") = false;
 #endif
 
+#if defined(AXOM_USE_MPI) && \
+  ((NB_VERSION_MAJOR > 2) || (NB_VERSION_MAJOR == 2 && NB_VERSION_MINOR >= 10))
+  m_sidre.attr("AXOM_HAS_DISTRIBUTED_BLUEPRINT_INDEX_BINDING") = true;
+#else
+  m_sidre.attr("AXOM_HAS_DISTRIBUTED_BLUEPRINT_INDEX_BINDING") = false;
+#endif
+
   // Bind the DataTypeId enum (TypeID alias)
   nb::enum_<DataTypeId>(m_sidre, "TypeID")
     .value("NO_TYPE_ID", NO_TYPE_ID)
@@ -430,13 +437,32 @@ NB_MODULE(pysidre, m_sidre)
          nb::keep_alive<0, 1>(),
          "Return an iterator over Attributes")
 
-    // Nanobind fails compilation on blueos
-    // #ifdef AXOM_USE_MPI
-    //     .def("generateBlueprintIndex",
-    //          nb::overload_cast<MPI_Comm, const std::string&, const std::string&, const std::string&>(
-    //            &DataStore::generateBlueprintIndex),
-    //          "Generate a Conduit Blueprint index from a distributed mesh stored in this Datastore")
-    // #endif
+#if defined(AXOM_USE_MPI) && \
+  ((NB_VERSION_MAJOR > 2) || (NB_VERSION_MAJOR == 2 && NB_VERSION_MINOR >= 10))
+    // Distributed Blueprint index generation builds cleanly under nanobind >= 2.10
+    .def(
+      "generateBlueprintIndex",
+      [](DataStore& self,
+         nb::object comm,
+         const std::string& domain_path,
+         const std::string& mesh_name,
+         const std::string& index_path) {
+        MPI_Comm c = MPI_COMM_WORLD;
+        if(!comm.is_none())
+        {
+          MPI_Fint handle = nb::cast<MPI_Fint>(comm.attr("py2f")());
+          c = MPI_Comm_f2c(handle);
+        }
+        return self.generateBlueprintIndex(c, domain_path, mesh_name, index_path);
+      },
+      "Generate a Conduit Blueprint index from a distributed mesh stored in this "
+      "DataStore. Pass None to use MPI_COMM_WORLD.",
+      nb::arg("comm").none(),
+      nb::arg("domain_path"),
+      nb::arg("mesh_name"),
+      nb::arg("index_path"))
+#endif
+
     .def("print",
          nb::overload_cast<>(&DataStore::print, nb::const_),
          "Print JSON description of the DataStore");

@@ -100,6 +100,32 @@ def test_iomanager_split_communicator(tmp_path):
         sub.Free()
 
 
+def test_distributed_generate_blueprint_index(tmp_path):
+    # The distributed generateBlueprintIndex overload is built only under
+    # nanobind >= 2.10; skip cleanly if this build omitted it.
+    if not pysidre.AXOM_HAS_DISTRIBUTED_BLUEPRINT_INDEX_BINDING:
+        pytest.skip("generateBlueprintIndex not bound")
+
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+    mesh = root.createGroup("mesh")
+    coords = mesh.createGroup("coordsets/coords")
+    coords.createViewString("type", "explicit")
+    topo = mesh.createGroup("topologies/topo")
+    topo.createViewString("type", "unstructured")
+    topo.createViewString("coordset", "coords")
+
+    base_dir = MPI.COMM_WORLD.bcast(str(tmp_path) if MPI.COMM_WORLD.Get_rank() == 0 else None,
+                                    root=0)
+    out = os.path.join(base_dir, "bp_index")
+
+    # Distributed signature: (comm, domain_path, mesh_name, index_path).
+    # We only assert the call is reachable and returns a bool; full Blueprint
+    # validity is covered by the C++ spio tests.
+    result = ds.generateBlueprintIndex(MPI.COMM_WORLD, "mesh", "mesh", out)
+    assert isinstance(result, bool)
+
+
 if __name__ == "__main__":
     import sys
 
