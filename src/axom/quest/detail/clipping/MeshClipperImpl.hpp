@@ -295,6 +295,7 @@ public:
     bool useTets = getDiscreteGeometry(geomAsTets, geomAsOcts, pieceBbs, bvh);
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
+    const IndexType geomPieceCount = useTets ? geomTetsView.size() : geomOctsView.size();
 
     /*
      * Find which shape bounding boxes intersect hexahedron bounding boxes
@@ -348,6 +349,11 @@ public:
           const auto& meshTet = meshTets[tetId];
 
           auto pieceId = leafNodes[currentNode];
+          if(pieceId < 0 || pieceId >= geomPieceCount)
+          {
+            return;
+          }
+
           if(useTets)
           {
             const auto& piece = geomTetsView[pieceId];
@@ -401,6 +407,11 @@ public:
           auto& tetId = tetIndices[iTet];
           const auto& meshTet = meshTets[tetId];
           auto pieceId = leafs[currentNode];
+          if(pieceId < 0 || pieceId >= geomPieceCount)
+          {
+            return;
+          }
+
           bool record = false;
           if(useTets)
           {
