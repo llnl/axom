@@ -76,6 +76,14 @@ inline double in_sphere_determinant(const Point<T, 3>& q, const Tetrahedron<T, 3
  * \brief Classifies a query point against a 2D triangle's circumcircle.
  *
  * \return ON_NEGATIVE_SIDE if inside, ON_POSITIVE_SIDE if outside, ON_BOUNDARY otherwise.
+ *
+ * \note \a EPS is compared against the raw in-sphere determinant, which is NOT normalized
+ *  by the coordinate magnitude. The determinant scales like (length)^(DIM+1)
+ *  (degree 3 in 2D, degree 4 in 3D), so the default EPS = 1e-8 is only meaningful
+ *  for points whose coordinates are O(1). For inputs with large coordinates
+ *  (or that are not centered near the origin), pass an EPS scaled to the data,
+ *  or call in_sphere_determinant() and apply your own scale-aware tolerance.
+ *  See quest::Delaunay's tolerance helpers for an example of the latter approach.
  */
 template <typename T>
 inline int in_sphere_orientation(const Point<T, 2>& q,

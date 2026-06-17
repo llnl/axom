@@ -61,7 +61,15 @@ inline double Delaunay<DIM>::getBoundaryCoordinateTolerance() const
     max_extent = axom::utilities::max(max_extent, max_pt[dim] - min_pt[dim]);
   }
 
-  return 64. * std::numeric_limits<double>::epsilon() * max_extent;
+  // Absolute tolerance for treating a coordinate as lying on the bounding box.
+  // Geometric predicates accumulate floating-point round-off proportional to the
+  // magnitude of the coordinates involved: an error of order (machine epsilon) x (coordinate magnitude).
+  // We use the largest box extent as that magnitude and multiply by a conservative safety factor.
+  // The factor 64 (= 2^6) was chosen empirically -- it comfortably dominates the observed round-off on the 2D/3D
+  // grid and cospherical stress tests without being so large that it merges genuinely distinct points.
+  // Treat it as a tuned safety margin, not an exact bound.
+  constexpr double SAFETY_FACTOR = 64.;
+  return SAFETY_FACTOR * std::numeric_limits<double>::epsilon() * max_extent;
 }
 
 template <int DIM>
@@ -108,7 +116,22 @@ template <int DIM>
 inline double Delaunay<DIM>::getElementMeasureTolerance() const
 {
   const double scale = axom::utilities::max(1., m_bounding_box.range().norm());
-  return 256. * std::numeric_limits<double>::epsilon() * std::pow(scale, static_cast<double>(DIM));
+
+  // Tolerance for deciding whether an element's signed area/volume is effectively zero.
+  // A d-dimensional measure is a determinant of d coordinate differences,
+  // so its round-off scales like (machine epsilon) x (length)^d.
+  // The leading 256 (= 2^8) is a conservative empirical safety margin validated on grid/cospherical tests.
+  // It is larger than the boundary-coordinate factor because measures compound error across DIM coordinate differences.
+  // Treat this as a tuned margin rather than a proven bound.
+  constexpr double SAFETY_FACTOR = 256.;
+  if constexpr(DIM == 2)
+  {
+    return SAFETY_FACTOR * std::numeric_limits<double>::epsilon() * scale * scale;
+  }
+  else
+  {
+    return SAFETY_FACTOR * std::numeric_limits<double>::epsilon() * scale * scale * scale;
+  }
 }
 
 template <int DIM>
@@ -313,7 +336,12 @@ inline bool Delaunay<DIM>::isValid(bool verboseOutput) const
       scale = axom::utilities::max(scale, axom::utilities::abs(x[dim]));
     }
 
-    return 256. * std::numeric_limits<double>::epsilon() * scale;
+    // Tolerance band for classifying a point as on the circumsphere when comparing (signed) distance to the radius.
+    // Round-off scales with the largest magnitude among the radius, center, and query coordinates.
+    // The 256 safety factor matches getElementMeasureTolerance(), which is also related to near-zero geometric quantities.
+    // Treat this as an empirical bound rather than a proven bound.
+    constexpr double SAFETY_FACTOR = 256.;
+    return SAFETY_FACTOR * std::numeric_limits<double>::epsilon() * scale;
   };
 
   {

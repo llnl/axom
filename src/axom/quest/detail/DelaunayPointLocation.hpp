@@ -86,7 +86,13 @@ inline double Delaunay<DIM>::rawBarycentricDeterminantTolerance(IndexType elemen
     scale = axom::utilities::max(scale, diff.norm());
   }
 
-  const double k = 64.;
+  // Tolerance for treating a raw barycentric determinant as zero
+  // (the query point lies on a facet of this element).
+  // A barycentric numerator is a (DIM)-dimensional determinant of coordinate differences,
+  // so its round-off scales like (machine epsilon) x (length)^DIM.
+  // The factor 64 matches getBoundaryCoordinateTolerance(), which is also related to the facet/boundary decision.
+  // Empirical safety margin, validated on the grid/cospherical stress tests, not a proven bound.
+  constexpr double k = 64.;
   if constexpr(DIM == 2)
   {
     return k * std::numeric_limits<double>::epsilon() * scale * scale;
