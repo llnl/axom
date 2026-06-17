@@ -10,6 +10,8 @@
 #include <nanobind/ndarray.h>
 #include <nanobind/make_iterator.h>
 
+#include <memory>
+
 #include "axom/config.hpp"
 #include "axom/core/Types.hpp"
 #include "core/SidreTypes.hpp"
@@ -256,6 +258,73 @@ conduit::Node& nbObjectToNode(nb::object& o)
   return *cpp_node;
 }
 
+#if defined(AXOM_USE_MPI)
+MPI_Comm mpiCommFromObject(nb::object comm)
+{
+  MPI_Comm c = MPI_COMM_WORLD;
+  if(!comm.is_none())
+  {
+    MPI_Fint handle = nb::cast<MPI_Fint>(comm.attr("py2f")());
+    c = MPI_Comm_f2c(handle);
+  }
+  return c;
+}
+
+/*!
+ * \brief Python-facing IOManager holder that owns the communicator lifetime.
+ *
+ * sidre::IOManager stores the MPI_Comm passed to its constructor but does not
+ * duplicate or free it. That borrowed-communicator contract works for C++
+ * callers, but it is unsafe for mpi4py objects: py2f() exposes the object's
+ * current communicator handle, and Python code may later drop or explicitly
+ * Free() that object while pysidre.IOManager is still alive.
+ *
+ * PyIOManager keeps the public Python class name as pysidre.IOManager while
+ * giving the binding its own lifetime boundary. It duplicates the input
+ * communicator, constructs sidre::IOManager with that duplicate, destroys the
+ * IOManager first, and then frees the duplicate when MPI is still active.
+ */
+class PyIOManager
+{
+public:
+  PyIOManager(MPI_Comm comm, bool use_scr)
+  {
+    int err = MPI_Comm_dup(comm, &m_comm);
+    SLIC_ERROR_IF(err != MPI_SUCCESS, "Failed to duplicate MPI communicator for pysidre.IOManager");
+    m_manager = std::make_unique<IOManager>(m_comm, use_scr);
+  }
+
+  ~PyIOManager()
+  {
+    // IOManager may still use m_comm during destruction, so release it before
+    // freeing the duplicated communicator.
+    m_manager.reset();
+
+    int initialized = 0;
+    MPI_Initialized(&initialized);
+    if(initialized != 0 && m_comm != MPI_COMM_NULL)
+    {
+      int finalized = 0;
+      MPI_Finalized(&finalized);
+      if(finalized == 0)
+      {
+        MPI_Comm_free(&m_comm);
+      }
+    }
+  }
+
+  PyIOManager(const PyIOManager&) = delete;
+  PyIOManager& operator=(const PyIOManager&) = delete;
+
+  IOManager& manager() { return *m_manager; }
+  const IOManager& manager() const { return *m_manager; }
+
+private:
+  MPI_Comm m_comm {MPI_COMM_NULL};
+  std::unique_ptr<IOManager> m_manager;
+};
+#endif
+
 NB_MODULE(pysidre, m_sidre)
 {
   m_sidre.doc() = "A python extension for Axom's Sidre component";
@@ -448,11 +517,7 @@ NB_MODULE(pysidre, m_sidre)
          const std::string& mesh_name,
          const std::string& index_path) {
         MPI_Comm c = MPI_COMM_WORLD;
-        if(!comm.is_none())
-        {
-          MPI_Fint handle = nb::cast<MPI_Fint>(comm.attr("py2f")());
-          c = MPI_Comm_f2c(handle);
-        }
+        c = mpiCommFromObject(comm);
         return self.generateBlueprintIndex(c, domain_path, mesh_name, index_path);
       },
       "Generate a Conduit Blueprint index from a distributed mesh stored in this "
@@ -1213,70 +1278,97 @@ NB_MODULE(pysidre, m_sidre)
     .def("getTypeID", &Attribute::getTypeID, "Return type of Attribute.");
 
 #if defined(AXOM_USE_MPI)
-  nb::class_<IOManager>(m_sidre, "IOManager")
+  nb::class_<PyIOManager>(m_sidre, "IOManager")
     .def(
       "__init__",
-      [](IOManager* self, bool use_scr) { new(self) IOManager(MPI_COMM_WORLD, use_scr); },
+      [](PyIOManager* self, bool use_scr) { new(self) PyIOManager(MPI_COMM_WORLD, use_scr); },
       "Create an IOManager on MPI_COMM_WORLD.",
       nb::arg("use_scr") = false)
     .def(
       "__init__",
-      [](IOManager* self, nb::object comm, bool use_scr) {
+      [](PyIOManager* self, nb::object comm, bool use_scr) {
         // Accept an mpi4py communicator without depending on mpi4py's C headers.
         // mpi4py Comm objects expose py2f(), which returns the Fortran integer handle.
         // MPI_Comm_f2c converts that handle back to an MPI_Comm.
-        // Passing None uses MPI_COMM_WORLD, while no-argument calls are handled by the bool/use_scr overload above.
-        MPI_Comm c = MPI_COMM_WORLD;
-        if(!comm.is_none())
-        {
-          MPI_Fint handle = nb::cast<MPI_Fint>(comm.attr("py2f")());
-          c = MPI_Comm_f2c(handle);
-        }
-        new(self) IOManager(c, use_scr);
+        // PyIOManager duplicates the communicator, so callers may drop or free
+        // the mpi4py communicator after construction.
+        // Passing None uses MPI_COMM_WORLD, while no-argument calls are
+        // handled by the bool/use_scr overload above.
+        new(self) PyIOManager(mpiCommFromObject(comm), use_scr);
       },
       "Create an IOManager on an mpi4py communicator, or MPI_COMM_WORLD when comm is None.",
       nb::arg("comm"),
       nb::arg("use_scr") = false)
-    .def("write",
-         &IOManager::write,
-         "Write a Group to output files.",
-         nb::arg("group"),
-         nb::arg("num_files"),
-         nb::arg("file_base"),
-         nb::arg("protocol"),
-         nb::arg("tree_pattern") = "datagroup")
-    .def("read",
-         nb::overload_cast<Group*, const std::string&, const std::string&, bool>(&IOManager::read),
-         "Read from input file.",
-         nb::arg("group"),
-         nb::arg("root_file"),
-         nb::arg("protocol"),
-         nb::arg("preserve_contents") = false)
-    .def("read",
-         nb::overload_cast<Group*, const std::string&, bool>(&IOManager::read),
-         "Read from a root file.",
-         nb::arg("group"),
-         nb::arg("root_file"),
-         nb::arg("preserve_contents") = false)
-    .def("loadExternalData",
-         nb::overload_cast<Group*, const std::string&>(&IOManager::loadExternalData),
-         "Load external data into a group.",
-         nb::arg("group"),
-         nb::arg("root_file"))
-    .def("loadExternalData",
-         nb::overload_cast<Group*, Group*, const std::string&>(&IOManager::loadExternalData),
-         "Piecewise load of external data into a group.",
-         nb::arg("parent_group"),
-         nb::arg("load_group"),
-         nb::arg("root_file"))
-    .def("getNumFilesFromRoot",
-         &IOManager::getNumFilesFromRoot,
-         "Gets the number of files in the dataset from the specified root file.",
-         nb::arg("root_file"))
-    .def("getNumGroupsFromRoot",
-         &IOManager::getNumGroupsFromRoot,
-         "Gets the number of groups in the dataset from the specified root file.",
-         nb::arg("root_file"))
+    .def(
+      "write",
+      [](PyIOManager& self,
+         Group* group,
+         int num_files,
+         const std::string& file_base,
+         const std::string& protocol,
+         const std::string& tree_pattern) {
+        self.manager().write(group, num_files, file_base, protocol, tree_pattern);
+      },
+      "Write a Group to output files.",
+      nb::arg("group"),
+      nb::arg("num_files"),
+      nb::arg("file_base"),
+      nb::arg("protocol"),
+      nb::arg("tree_pattern") = "datagroup")
+    .def(
+      "read",
+      [](PyIOManager& self,
+         Group* group,
+         const std::string& root_file,
+         const std::string& protocol,
+         bool preserve_contents) {
+        self.manager().read(group, root_file, protocol, preserve_contents);
+      },
+      "Read from input file.",
+      nb::arg("group"),
+      nb::arg("root_file"),
+      nb::arg("protocol"),
+      nb::arg("preserve_contents") = false)
+    .def(
+      "read",
+      [](PyIOManager& self, Group* group, const std::string& root_file, bool preserve_contents) {
+        self.manager().read(group, root_file, preserve_contents);
+      },
+      "Read from a root file.",
+      nb::arg("group"),
+      nb::arg("root_file"),
+      nb::arg("preserve_contents") = false)
+    .def(
+      "loadExternalData",
+      [](PyIOManager& self, Group* group, const std::string& root_file) {
+        self.manager().loadExternalData(group, root_file);
+      },
+      "Load external data into a group.",
+      nb::arg("group"),
+      nb::arg("root_file"))
+    .def(
+      "loadExternalData",
+      [](PyIOManager& self, Group* parent_group, Group* load_group, const std::string& root_file) {
+        self.manager().loadExternalData(parent_group, load_group, root_file);
+      },
+      "Piecewise load of external data into a group.",
+      nb::arg("parent_group"),
+      nb::arg("load_group"),
+      nb::arg("root_file"))
+    .def(
+      "getNumFilesFromRoot",
+      [](PyIOManager& self, const std::string& root_file) {
+        return self.manager().getNumFilesFromRoot(root_file);
+      },
+      "Gets the number of files in the dataset from the specified root file.",
+      nb::arg("root_file"))
+    .def(
+      "getNumGroupsFromRoot",
+      [](PyIOManager& self, const std::string& root_file) {
+        return self.manager().getNumGroupsFromRoot(root_file);
+      },
+      "Gets the number of groups in the dataset from the specified root file.",
+      nb::arg("root_file"))
     .def_static("correspondingRelayProtocol",
                 &IOManager::correspondingRelayProtocol,
                 "Finds conduit relay protocol corresponding to a sidre protocol.");

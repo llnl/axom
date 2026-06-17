@@ -79,6 +79,21 @@ def test_iomanager_explicit_world_communicator(tmp_path):
     assert list(arr) == [rank, rank + 1, rank + 2, rank + 3]
 
 
+def test_iomanager_owned_duplicate_survives_comm_free(tmp_path):
+    # IOManager duplicates the input communicator, so callers may free their
+    # mpi4py communicator after construction.
+    comm = MPI.COMM_SELF.Dup()
+    iom = pysidre.IOManager(comm)
+    comm.Free()
+
+    ds = _fill_datastore()
+    base = _shared_base(tmp_path, f"freed_comm_rank{MPI.COMM_WORLD.Get_rank()}")
+    iom.write(ds.getRoot(), 1, base, pysidre.Group.getDefaultIOProtocol())
+    assert iom.getNumFilesFromRoot(base + ".root") == 1
+    assert iom.getNumGroupsFromRoot(base + ".root") == 1
+    MPI.COMM_WORLD.Barrier()
+
+
 def test_iomanager_split_communicator(tmp_path):
     # Construct from a split communicator; each writes its own dataset.
     world = MPI.COMM_WORLD
@@ -87,17 +102,21 @@ def test_iomanager_split_communicator(tmp_path):
 
     color = world.Get_rank() % 2
     sub = world.Split(color=color, key=world.Get_rank())
+    sub_freed = False
     try:
+        sub_size = sub.Get_size()
         ds = _fill_datastore()
         iom = pysidre.IOManager(sub)
+        sub.Free()
+        sub_freed = True
         # tmp_path differs per rank; rendezvous on a shared, rank-0-broadcast dir
         base = _shared_base(tmp_path, f"split_color{color}")
         iom.write(ds.getRoot(), 1, base, pysidre.Group.getDefaultIOProtocol())
-        sub.Barrier()
         assert iom.getNumFilesFromRoot(base + ".root") == 1
-        assert iom.getNumGroupsFromRoot(base + ".root") == sub.Get_size()
+        assert iom.getNumGroupsFromRoot(base + ".root") == sub_size
     finally:
-        sub.Free()
+        if not sub_freed:
+            sub.Free()
 
 
 def test_distributed_generate_blueprint_index(tmp_path):
