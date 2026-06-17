@@ -1428,14 +1428,14 @@ AXOM_HOST_DEVICE void elvira3d(const FloatType *vf, FloatType n[3])
   }
 
   // Find dimension with smallest variance.
-  int small = 0;
-  small = (variance[1] < variance[small]) ? 1 : small;
-  small = (variance[2] < variance[small]) ? 2 : small;
+  int minVarianceDim = 0;
+  minVarianceDim = (variance[1] < variance[minVarianceDim]) ? 1 : minVarianceDim;
+  minVarianceDim = (variance[2] < variance[minVarianceDim]) ? 2 : minVarianceDim;
 
   // Get 2d normals to slopes in direction away from material
   // plane 0=yz, 1=zx, 2=xy.
   Result2D<FloatType> elv2d[2];
-  int plane = small;
+  int plane = minVarianceDim;
   for(int dir = 0; dir < 2; dir++)
   {
     plane = (plane + 1) % 3;
@@ -1447,7 +1447,7 @@ AXOM_HOST_DEVICE void elvira3d(const FloatType *vf, FloatType n[3])
   FloatType vf_col[3];
   for(int i = 0; i < 3; i++)
   {
-    vf_col[i] = vf[ccol[small][i]];
+    vf_col[i] = vf[ccol[minVarianceDim][i]];
   }
 
   // Choose difference schemes.

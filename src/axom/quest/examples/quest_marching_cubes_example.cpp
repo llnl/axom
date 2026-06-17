@@ -1328,12 +1328,12 @@ struct ContourTestBase
         auto tol = axom::numerics::floating_point_limits<double>::epsilon();
         axom::primal::BoundingBox<double, DIM> big(parentCellBox);
         big.expand(tol);
-        axom::primal::BoundingBox<double, DIM> small(parentCellBox);
+        axom::primal::BoundingBox<double, DIM> innerBox(parentCellBox);
         auto range = parentCellBox.range();
         bool checkSmall = elementGreaterThan(range, tol);
         if(checkSmall)
         {
-          small.expand(-tol);
+          innerBox.expand(-tol);
         }
 
         axom::IndexType* cellNodeIds = contourMesh.getCellNodeIDs(iContourCell);
@@ -1354,7 +1354,7 @@ struct ContourTestBase
                                            nodeCoords));
           }
 
-          if(checkSmall && small.contains(nodeCoords))
+          if(checkSmall && innerBox.contains(nodeCoords))
           {
             ++errCount;
             SLIC_INFO_IF(params.isVerbose(),
