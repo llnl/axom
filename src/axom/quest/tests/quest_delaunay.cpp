@@ -69,8 +69,14 @@ void expectValidDelaunayWithBoundary(const DelaunayType<DIM>& dt)
 
 }  // namespace
 
-TEST(quest_delaunay, local_bad_geometry_pool_2d)
+TEST(quest_delaunay, regression_clustered_collinear_points_2d)
 {
+  // Regression test: a tightly clustered, nearly-collinear pool of points
+  // that previously triggered point-location / predicate failures
+  // (points getting "stuck" on a facet, producing a non-conforming mesh).
+  // Inserts all but the last point, validates, then inserts the point that exposed the bug.
+  // Uses Local insertion validation to catch cavity/ball invariant violations as they happen.
+
   using PointType = typename DelaunayType<2>::PointType;
   using BoundingBox = typename DelaunayType<2>::BoundingBox;
   using ValidationMode = typename DelaunayType<2>::InsertionValidationMode;
@@ -105,8 +111,12 @@ TEST(quest_delaunay, local_bad_geometry_pool_2d)
   expectValidDelaunayWithBoundary(dt);
 }
 
-TEST(quest_delaunay, local_bad_geometry_pool_3d)
+TEST(quest_delaunay, regression_clustered_coplanar_points_3d)
 {
+  // Regression test (3D analog of the 2D case above): a tightly clustered,
+  // nearly co-planar collections of tetrahedralization points that previously caused
+  // point insertion to fail near-degenerate predicate decisions.
+
   using PointType = typename DelaunayType<3>::PointType;
   using BoundingBox = typename DelaunayType<3>::BoundingBox;
 
@@ -290,6 +300,14 @@ TEST(quest_delaunay, move_rebinds_insertion_helper_2d)
   DelaunayType<2> moved(std::move(original));
   moved.insertPoint(points.back());
   expectValidDelaunay(moved, points);
+
+  // The moved-from object is in a valid-but-unspecified state.
+  // We don't assert a particular topology on it (the move contract doesn't guarantee one),
+  // but it must remain safe to reuse: re-initializing and building a fresh triangulation
+  // in `original` should work and produce a valid Delaunay complex.
+  original.initializeBoundary(BoundingBox(PointType {0., 0.}, PointType {1., 1.}));
+  insertPoints(original, points);
+  expectValidDelaunay(original, points);
 }
 
 TEST(quest_delaunay, cospherical_cube_3d)
