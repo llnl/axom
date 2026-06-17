@@ -341,6 +341,10 @@ inline void Delaunay<DIM>::insertPoint(const PointType& new_pt)
 
   IndexType element_i = findContainingElement(new_pt);
 
+  // No-op (with a warning) if point location fails: if no containing element is found,
+  // the point cannot be inserted, so we leave the triangulation unchanged and return.
+  // This can happen for points outside the current convex hull or in near-degenerate
+  // configurations where the walk does not converge.
   if(element_i == INVALID_INDEX)
   {
     SLIC_WARNING(
