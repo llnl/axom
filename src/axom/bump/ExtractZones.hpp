@@ -76,6 +76,29 @@ public:
    */
   int getAllocatorID() const { return m_allocator_id; }
 
+  int countMaskedNodesDevice(axom::IndexType nnodes, axom::ArrayView<int> maskView) const
+  {
+    axom::ReduceSum<ExecSpace, int> mask_reduce(0);
+    axom::for_all<ExecSpace>(
+      nnodes,
+      AXOM_LAMBDA(axom::IndexType index) { mask_reduce += maskView[index]; });
+    return mask_reduce.get();
+  }
+
+  axom::IndexType computeVariableConnectivitySize(const SelectedZonesView selectedZonesView) const
+  {
+    axom::ReduceSum<ExecSpace, int> connsize_reduce(0);
+    const TopologyView deviceTopologyView(m_topologyView);
+    axom::for_all<ExecSpace>(
+      selectedZonesView.size(),
+      AXOM_LAMBDA(axom::IndexType szIndex) {
+        const auto zoneIndex = selectedZonesView[szIndex];
+        const auto zone = deviceTopologyView.zone(zoneIndex);
+        connsize_reduce += zone.numberOfNodes();
+      });
+    return connsize_reduce.get();
+  }
+
   /*!
    * \brief Select zones from the input mesh by id and output them in the output mesh.
    *
@@ -290,16 +313,7 @@ protected:
     }
     else
     {
-      axom::ReduceSum<ExecSpace, int> connsize_reduce(0);
-      const TopologyView deviceTopologyView(m_topologyView);
-      axom::for_all<ExecSpace>(
-        selectedZonesView.size(),
-        AXOM_LAMBDA(axom::IndexType szIndex) {
-          const auto zoneIndex = selectedZonesView[szIndex];
-          const auto zone = deviceTopologyView.zone(zoneIndex);
-          connsize_reduce += zone.numberOfNodes();
-        });
-      newConnSize = connsize_reduce.get();
+      newConnSize = computeVariableConnectivitySize(selectedZonesView);
     }
     if(!selectedZonesView.empty())
     {
@@ -389,11 +403,7 @@ protected:
     int newNumNodes {};
     if constexpr(axom::execution_space<ExecSpace>::onDevice())
     {
-      axom::ReduceSum<ExecSpace, int> mask_reduce(0);
-      axom::for_all<ExecSpace>(
-        nnodes,
-        AXOM_LAMBDA(axom::IndexType index) { mask_reduce += maskView[index]; });
-      newNumNodes = mask_reduce.get();
+      newNumNodes = countMaskedNodesDevice(nnodes, maskView);
     }
     else
     {

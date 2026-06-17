@@ -65,6 +65,18 @@ public:
    */
   int getAllocatorID() const { return m_allocator_id; }
 
+  template <typename MaskView>
+  axom::IndexType countCleanZonesDevice(axom::IndexType nzones, MaskView maskView) const
+  {
+    axom::ReduceSum<ExecSpace, int> mask_reduce(0);
+    axom::for_all<ExecSpace>(
+      nzones,
+      AXOM_LAMBDA(axom::IndexType index) {
+        mask_reduce += static_cast<int>(maskView[index]);
+      });
+    return mask_reduce.get();
+  }
+
   /*!
    * \brief Build the list of clean and mixed zones using the number of materials
    *        per zone, maxed to the nodes.
@@ -147,13 +159,7 @@ public:
       if constexpr(axom::execution_space<ExecSpace>::onDevice())
       {
         // On device, use a reduction on maskView to count clean zones.
-        axom::ReduceSum<ExecSpace, int> mask_reduce(0);
-        axom::for_all<ExecSpace>(
-          nzones,
-          AXOM_LAMBDA(axom::IndexType zoneIndex) {
-            mask_reduce += static_cast<int>(maskView[zoneIndex]);
-          });
-        nClean = mask_reduce.get();
+        nClean = countCleanZonesDevice(nzones, maskView);
       }
       else
       {
@@ -320,13 +326,7 @@ public:
       if constexpr(axom::execution_space<ExecSpace>::onDevice())
       {
         // On device, use a reduction on maskView to count clean zones.
-        axom::ReduceSum<ExecSpace, int> mask_reduce(0);
-        axom::for_all<ExecSpace>(
-          nzones,
-          AXOM_LAMBDA(axom::IndexType szIndex) {
-            mask_reduce += static_cast<int>(maskView[szIndex]);
-          });
-        nClean = mask_reduce.get();
+        nClean = countCleanZonesDevice(nzones, maskView);
       }
       else
       {

@@ -58,8 +58,39 @@ public:
    * \brief Get the allocator id to use when allocating memory.
    *
    * \return The allocator id to use when allocating memory.
-   */
+  */
   int getAllocatorID() const { return m_allocator_id; }
+
+  template <typename SizesView>
+  axom::IndexType computeMatsetSizesDevice(MatsetView deviceMatsetView,
+                                           const SelectedZonesView deviceSelectedZonesView,
+                                           SizesView sizesView) const
+  {
+    using MatsetIndex = typename MatsetView::IndexType;
+
+    axom::ReduceSum<ExecSpace, MatsetIndex> size_reduce(0);
+    axom::for_all<ExecSpace>(
+      deviceSelectedZonesView.size(),
+      AXOM_LAMBDA(axom::IndexType index) {
+        const auto nmats = deviceMatsetView.numberOfMaterials(deviceSelectedZonesView[index]);
+        sizesView[index] = nmats;
+        size_reduce += nmats;
+      });
+    return size_reduce.get();
+  }
+
+  template <typename SizesView>
+  void computeMatsetSizesHost(MatsetView deviceMatsetView,
+                              const SelectedZonesView deviceSelectedZonesView,
+                              SizesView sizesView) const
+  {
+    axom::for_all<ExecSpace>(
+      deviceSelectedZonesView.size(),
+      AXOM_LAMBDA(axom::IndexType index) {
+        const auto nmats = deviceMatsetView.numberOfMaterials(deviceSelectedZonesView[index]);
+        sizesView[index] = nmats;
+      });
+  }
 
   /*!
    * \brief Slice the input matset and output a new matset.
@@ -107,24 +138,11 @@ public:
     axom::IndexType totalSize {};
     if constexpr(axom::execution_space<ExecSpace>::onDevice())
     {
-      axom::ReduceSum<ExecSpace, MatsetIndex> size_reduce(0);
-      axom::for_all<ExecSpace>(
-        selectedZonesView.size(),
-        AXOM_LAMBDA(axom::IndexType index) {
-          const auto nmats = deviceMatsetView.numberOfMaterials(deviceSelectedZonesView[index]);
-          sizesView[index] = nmats;
-          size_reduce += nmats;
-        });
-      totalSize = size_reduce.get();
+      totalSize = computeMatsetSizesDevice(deviceMatsetView, deviceSelectedZonesView, sizesView);
     }
     else
     {
-      axom::for_all<ExecSpace>(
-        selectedZonesView.size(),
-        AXOM_LAMBDA(axom::IndexType index) {
-          const auto nmats = deviceMatsetView.numberOfMaterials(deviceSelectedZonesView[index]);
-          sizesView[index] = nmats;
-        });
+      computeMatsetSizesHost(deviceMatsetView, deviceSelectedZonesView, sizesView);
     }
     AXOM_ANNOTATE_END("size");
 

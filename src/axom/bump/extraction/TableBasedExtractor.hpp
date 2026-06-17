@@ -1415,6 +1415,30 @@ private:
   }
 
   /*!
+   * \brief Compute fragment totals on device execution spaces.
+   *
+   * \param[inout] fragmentData The object that contains data about the zone fragments.
+   * \param nzones The number of selected zones.
+   */
+  void computeFragmentSizesDevice(FragmentData &fragmentData, IndexType nzones) const
+  {
+    // Sum the number of fragments as well as the fragment connectivity sizes.
+    axom::ReduceSum<ExecSpace, IndexType> fragment_sum(0);
+    axom::ReduceSum<ExecSpace, IndexType> fragment_nids_sum(0);
+    const auto fragmentsView = fragmentData.m_fragmentsView;
+    const auto fragmentsSizeView = fragmentData.m_fragmentsSizeView;
+    axom::for_all<ExecSpace>(
+      nzones,
+      AXOM_LAMBDA(axom::IndexType szIndex) {
+        fragment_sum += fragmentsView[szIndex];
+        fragment_nids_sum += fragmentsSizeView[szIndex];
+      });
+
+    fragmentData.m_finalNumZones = fragment_sum.get();
+    fragmentData.m_finalConnSize = fragment_nids_sum.get();
+  }
+
+  /*!
    * \brief Compute the total number of fragments and their size.
    *
    * \param[inout] fragmentData The object that contains data about the zone fragments.
@@ -1425,20 +1449,7 @@ private:
     const auto nzones = selectedZones.view().size();
     if constexpr(axom::execution_space<ExecSpace>::onDevice())
     {
-      // Sum the number of fragments as well as the fragment connectivity sizes.
-      axom::ReduceSum<ExecSpace, IndexType> fragment_sum(0);
-      axom::ReduceSum<ExecSpace, IndexType> fragment_nids_sum(0);
-      const auto fragmentsView = fragmentData.m_fragmentsView;
-      const auto fragmentsSizeView = fragmentData.m_fragmentsSizeView;
-      axom::for_all<ExecSpace>(
-        nzones,
-        AXOM_LAMBDA(axom::IndexType szIndex) {
-          fragment_sum += fragmentsView[szIndex];
-          fragment_nids_sum += fragmentsSizeView[szIndex];
-        });
-
-      fragmentData.m_finalNumZones = fragment_sum.get();
-      fragmentData.m_finalConnSize = fragment_nids_sum.get();
+      computeFragmentSizesDevice(fragmentData, nzones);
     }
     else
     {
