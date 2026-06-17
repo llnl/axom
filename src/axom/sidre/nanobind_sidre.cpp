@@ -1154,6 +1154,9 @@ NB_MODULE(pysidre, m_sidre)
     .def("loadExternalData",
          nb::overload_cast<const std::string&>(&Group::loadExternalData),
          "Load data into the Group's external views from a file.")
+    .def_static("getDefaultIOProtocol",
+                &Group::getDefaultIOProtocol,
+                "Return the default I/O protocol for this Axom build.")
     .def("rename", &Group::rename, "Change the name of this Group.");
 
   // Bindings for the Attribute class
@@ -1188,6 +1191,25 @@ NB_MODULE(pysidre, m_sidre)
     .def(
       "__init__",
       [](IOManager* self, bool use_scr) { new(self) IOManager(MPI_COMM_WORLD, use_scr); },
+      "Create an IOManager on MPI_COMM_WORLD.",
+      nb::arg("use_scr") = false)
+    .def(
+      "__init__",
+      [](IOManager* self, nb::object comm, bool use_scr) {
+        // Accept an mpi4py communicator without depending on mpi4py's C headers.
+        // mpi4py Comm objects expose py2f(), which returns the Fortran integer handle.
+        // MPI_Comm_f2c converts that handle back to an MPI_Comm.
+        // Passing None uses MPI_COMM_WORLD, while no-argument calls are handled by the bool/use_scr overload above.
+        MPI_Comm c = MPI_COMM_WORLD;
+        if(!comm.is_none())
+        {
+          MPI_Fint handle = nb::cast<MPI_Fint>(comm.attr("py2f")());
+          c = MPI_Comm_f2c(handle);
+        }
+        new(self) IOManager(c, use_scr);
+      },
+      "Create an IOManager on an mpi4py communicator, or MPI_COMM_WORLD when comm is None.",
+      nb::arg("comm"),
       nb::arg("use_scr") = false)
     .def("write",
          &IOManager::write,
