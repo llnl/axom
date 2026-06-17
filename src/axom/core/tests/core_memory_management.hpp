@@ -469,7 +469,7 @@ TEST(core_memory_management, alloc_free)
   check_alloc_and_free(PinnedAllocatorID, HOST_ACCESSIBLE);
     #endif
 
-    #if defineed(UMPIRE_ENABLE_DEVICE)
+    #if defined(UMPIRE_ENABLE_DEVICE)
   const int DeviceAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Device);
   check_alloc_and_free(DeviceAllocatorID, NOT_HOST_ACCESSIBLE);
     #endif
