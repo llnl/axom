@@ -69,7 +69,11 @@ using seq_exec = axom::SEQ_EXEC;
 #include <memory>
 
 // _read_stl_typedefs_start
-using namespace axom;
+namespace mint = axom::mint;
+namespace primal = axom::primal;
+namespace quest = axom::quest;
+namespace slic = axom::slic;
+namespace spin = axom::spin;
 
 using UMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
 // _read_stl_typedefs_end
