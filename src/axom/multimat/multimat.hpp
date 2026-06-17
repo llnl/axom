@@ -106,6 +106,9 @@ private:
     typename slam::BivariateMap<T, BSet, IndViewPolicy<T>>::ConcreteMap;
 
 public:
+  template <typename T, typename BSet = BivariateSetType>
+  using Field2DMapType = BivariateMapType<T, BSet>;
+
   using SparseRelationType = StaticVariableRelationType;
 
   // SLAM RelationSet for the set of non-zero cell to mat variables

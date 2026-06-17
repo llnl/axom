@@ -19,10 +19,10 @@ namespace multimat
 
 template <typename Field2DType>
 class MMSubField2D
-  : public slam::SubMap<typename Field2DType::BiVarMapType, MultiMat::RangeSetType, slam::policies::ConcreteInterface>
+  : public slam::SubMap<typename Field2DType::BiVarMapType, MultiMat::IndexSet, slam::policies::ConcreteInterface>
 {
 public:
-  using SubSetType = MultiMat::RangeSetType;
+  using SubSetType = MultiMat::IndexSet;
   using SubMapType =
     slam::SubMap<typename Field2DType::BiVarMapType, SubSetType, slam::policies::ConcreteInterface>;
   using SuperMapType = typename Field2DType::BiVarMapType;
