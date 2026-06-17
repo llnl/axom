@@ -664,7 +664,9 @@ macro(axom_add_python_test)
 
     axom_python_test_environment(_py_test_env)
     if(_py_test_env)
-        set_tests_properties(${arg_NAME} PROPERTIES ENVIRONMENT "${_py_test_env}")
+        set_property(TEST ${arg_NAME}
+                     APPEND
+                     PROPERTY ENVIRONMENT "${_py_test_env}")
     endif()
     unset(_py_test_env)
     unset(_test_command)
