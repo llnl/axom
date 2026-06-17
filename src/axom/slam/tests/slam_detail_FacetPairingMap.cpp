@@ -14,12 +14,12 @@ using namespace axom;
 using namespace axom::slam;
 
 //------------------------------------------------------------------------------
-// FacetKey Tests
+// LinkFace Tests
 //------------------------------------------------------------------------------
 
-TEST(slam_detail_FacetKey, construction_2d)
+TEST(slam_detail_LinkFace, construction_2d)
 {
-  using KeyType = axom::slam::detail::FacetKey<2, int>;
+  using KeyType = axom::slam::detail::LinkFace<2, int>;
 
   // Default construction
   KeyType key1;
@@ -37,9 +37,9 @@ TEST(slam_detail_FacetKey, construction_2d)
   // v1 is present but not used for matching in 2D
 }
 
-TEST(slam_detail_FacetKey, construction_3d)
+TEST(slam_detail_LinkFace, construction_3d)
 {
-  using KeyType = axom::slam::detail::FacetKey<3, int>;
+  using KeyType = axom::slam::detail::LinkFace<3, int>;
 
   // Default construction
   KeyType key1;
@@ -57,9 +57,9 @@ TEST(slam_detail_FacetKey, construction_3d)
   EXPECT_EQ(key3.v1, 20);  // Sorted
 }
 
-TEST(slam_detail_FacetKey, equality_2d)
+TEST(slam_detail_LinkFace, equality_2d)
 {
-  using KeyType = axom::slam::detail::FacetKey<2, int>;
+  using KeyType = axom::slam::detail::LinkFace<2, int>;
 
   KeyType key1(42);
   KeyType key2(42);
@@ -70,9 +70,9 @@ TEST(slam_detail_FacetKey, equality_2d)
   EXPECT_TRUE(key1 != key3);
 }
 
-TEST(slam_detail_FacetKey, equality_3d_with_sorting)
+TEST(slam_detail_LinkFace, equality_3d_with_sorting)
 {
-  using KeyType = axom::slam::detail::FacetKey<3, int>;
+  using KeyType = axom::slam::detail::LinkFace<3, int>;
 
   // Same keys in different order should match
   KeyType key1(10, 20);
@@ -84,12 +84,12 @@ TEST(slam_detail_FacetKey, equality_3d_with_sorting)
 }
 
 //------------------------------------------------------------------------------
-// FacetData Tests
+// StarFacetSlot Tests
 //------------------------------------------------------------------------------
 
-TEST(slam_detail_FacetData, construction)
+TEST(slam_detail_StarFacetSlot, construction)
 {
-  using DataType = axom::slam::detail::FacetData<int>;
+  using DataType = axom::slam::detail::StarFacetSlot<int>;
 
   // Default construction
   DataType data1;
@@ -125,7 +125,7 @@ TEST(slam_detail_FacetPairingMap, basic_2d_insert_and_match)
 
   // Match with same key
   KeyType key2(42);
-  auto match = map.findAndRemove(key2);
+  auto match = map.findAndExtract(key2);
 
   ASSERT_TRUE(match.has_value());
   EXPECT_EQ(match->element_idx, 100);
@@ -157,7 +157,7 @@ TEST(slam_detail_FacetPairingMap, multiple_2d_facets)
   for(int i = 0; i < 10; ++i)
   {
     KeyType key(i * 10);
-    auto match = map.findAndRemove(key);
+    auto match = map.findAndExtract(key);
 
     ASSERT_TRUE(match.has_value());
     EXPECT_EQ(match->element_idx, i);
@@ -184,7 +184,7 @@ TEST(slam_detail_FacetPairingMap, not_found_2d)
 
   // Try to find a different key
   KeyType key2(43);
-  auto match = map.findAndRemove(key2);
+  auto match = map.findAndExtract(key2);
 
   EXPECT_FALSE(match.has_value());
   EXPECT_EQ(map.pendingCount(), 1);  // Original still there
@@ -212,7 +212,7 @@ TEST(slam_detail_FacetPairingMap, basic_3d_insert_and_match)
 
   // Match with equivalent key (different order)
   KeyType key2(20, 10);  // Should match (10, 20) after sorting
-  auto match = map.findAndRemove(key2);
+  auto match = map.findAndExtract(key2);
 
   ASSERT_TRUE(match.has_value());
   EXPECT_EQ(match->element_idx, 100);
@@ -244,7 +244,7 @@ TEST(slam_detail_FacetPairingMap, multiple_3d_facets)
   {
     // Use reversed order to test sorting
     KeyType key(i + 1000, i);
-    auto match = map.findAndRemove(key);
+    auto match = map.findAndExtract(key);
 
     ASSERT_TRUE(match.has_value()) << "Failed to find key (" << i << ", " << (i + 1000) << ")";
     EXPECT_EQ(match->element_idx, i);
@@ -271,7 +271,7 @@ TEST(slam_detail_FacetPairingMap, 3d_key_ordering_invariant)
 
   // Should match with reversed order
   KeyType key2(10, 5);
-  auto match = map.findAndRemove(key2);
+  auto match = map.findAndExtract(key2);
 
   ASSERT_TRUE(match.has_value());
   EXPECT_EQ(match->element_idx, 100);
@@ -283,7 +283,7 @@ TEST(slam_detail_FacetPairingMap, 3d_key_ordering_invariant)
 
   // Match with normal order
   KeyType key4(10, 15);
-  auto match2 = map.findAndRemove(key4);
+  auto match2 = map.findAndExtract(key4);
 
   ASSERT_TRUE(match2.has_value());
   EXPECT_EQ(match2->element_idx, 200);
@@ -326,7 +326,7 @@ TEST(slam_detail_FacetPairingMap, collision_handling)
 
   for(int idx : indices)
   {
-    auto match = map.findAndRemove(keys[idx]);
+    auto match = map.findAndExtract(keys[idx]);
     ASSERT_TRUE(match.has_value()) << "Failed to find key at index " << idx;
     EXPECT_EQ(match->element_idx, idx);
   }
@@ -351,7 +351,7 @@ TEST(slam_detail_FacetPairingMap, tombstone_reuse)
     map.insert(key1, data1);
 
     KeyType key2(i * 10);
-    auto match = map.findAndRemove(key2);
+    auto match = map.findAndExtract(key2);
     ASSERT_TRUE(match.has_value());
   }
 
@@ -371,7 +371,7 @@ TEST(slam_detail_FacetPairingMap, tombstone_reuse)
   for(int i = 0; i < 5; ++i)
   {
     KeyType key(i * 10 + 5);
-    auto match = map.findAndRemove(key);
+    auto match = map.findAndExtract(key);
     ASSERT_TRUE(match.has_value());
     EXPECT_EQ(match->element_idx, i + 100);
   }
@@ -408,7 +408,7 @@ TEST(slam_detail_FacetPairingMap, multiple_prepare_cycles)
     for(int i = 0; i < 5; ++i)
     {
       KeyType key(cycle * 100 + i);
-      auto match = map.findAndRemove(key);
+      auto match = map.findAndExtract(key);
       ASSERT_TRUE(match.has_value());
       EXPECT_EQ(match->element_idx, i);
       EXPECT_EQ(match->local_face, cycle);
@@ -439,7 +439,7 @@ TEST(slam_detail_FacetPairingMap, generation_isolation)
 
   // Try to find old key - should not be found
   KeyType key2(42);
-  auto match = map.findAndRemove(key2);
+  auto match = map.findAndExtract(key2);
   EXPECT_FALSE(match.has_value());
 }
 
@@ -497,7 +497,7 @@ TEST(slam_detail_FacetPairingMap, empty_map_operations)
 
   // Try to find in empty map
   KeyType key(42);
-  auto match = map.findAndRemove(key);
+  auto match = map.findAndExtract(key);
 
   EXPECT_FALSE(match.has_value());
   EXPECT_EQ(map.pendingCount(), 0);
@@ -519,7 +519,7 @@ TEST(slam_detail_FacetPairingMap, single_facet)
 
   EXPECT_EQ(map.pendingCount(), 1);
 
-  auto match = map.findAndRemove(key);
+  auto match = map.findAndExtract(key);
   ASSERT_TRUE(match.has_value());
   EXPECT_EQ(map.pendingCount(), 0);
 }
@@ -548,7 +548,7 @@ TEST(slam_detail_FacetPairingMap, large_vertex_ids)
   for(int i = 0; i < 10; ++i)
   {
     KeyType key(LARGE_ID + i, LARGE_ID + i + 1);
-    auto match = map.findAndRemove(key);
+    auto match = map.findAndExtract(key);
     ASSERT_TRUE(match.has_value());
   }
 

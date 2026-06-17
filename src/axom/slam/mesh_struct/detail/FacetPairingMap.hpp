@@ -85,7 +85,7 @@
  * map.prepareForInsertions(expected_facet_count);
  *
  * for (each incident face of each star element):
- *   if (auto match = map.findAndRemove(link_face_key))
+ *   if (auto match = map.findAndExtract(link_face_key))
  *     // Second sighting: wire the two star elements adjacent across this link face
  *     updateAdjacencies(current_slot, match.value());
  *   else
@@ -121,7 +121,7 @@ namespace detail
  * for both incident tetrahedra sharing in the star of \a apex.
  */
 template <int TDIM, typename IndexType>
-struct FacetKey
+struct LinkFace
 {
   static constexpr IndexType INVALID = static_cast<IndexType>(-1);
 
@@ -129,12 +129,12 @@ struct FacetKey
   IndexType v1 {INVALID};  ///< Unused in 2D; larger link-edge endpoint (3D)
 
   /// Default constructor - creates invalid key
-  FacetKey() = default;
+  LinkFace() = default;
 
   /// Construct from key components (automatically sorted in 3D)
   /// \param a First link vertex / link-edge endpoint
   /// \param b Second link-edge endpoint (unused in 2D, sorted in 3D)
-  FacetKey(IndexType a, IndexType b = INVALID) : v0(a), v1(b)
+  LinkFace(IndexType a, IndexType b = INVALID) : v0(a), v1(b)
   {
     // In 3D, ensure consistent ordering: v0 <= v1
     // This allows the same link edge to match from either incident tetrahedron.
@@ -148,10 +148,10 @@ struct FacetKey
   }
 
   /// Equality comparison
-  bool operator==(const FacetKey& other) const { return v0 == other.v0 && v1 == other.v1; }
+  bool operator==(const LinkFace& other) const { return v0 == other.v0 && v1 == other.v1; }
 
   /// Inequality comparison
-  bool operator!=(const FacetKey& other) const { return !(*this == other); }
+  bool operator!=(const LinkFace& other) const { return !(*this == other); }
 };
 
 /**
@@ -163,7 +163,7 @@ struct FacetKey
  * star elements that are adjacent across the link face.
  */
 template <typename IndexType>
-struct FacetData
+struct StarFacetSlot
 {
   static constexpr IndexType INVALID = static_cast<IndexType>(-1);
 
@@ -171,10 +171,10 @@ struct FacetData
   IndexType local_face {INVALID};   ///< Local face slot in that element (0..VERTS_PER_ELEM-1)
 
   /// Default constructor
-  FacetData() = default;
+  StarFacetSlot() = default;
 
   /// Construct from element and local face slot
-  FacetData(IndexType elem, IndexType face) : element_idx(elem), local_face(face) { }
+  StarFacetSlot(IndexType elem, IndexType face) : element_idx(elem), local_face(face) { }
 };
 
 /**
@@ -194,8 +194,8 @@ template <int TDIM, typename IndexType = int>
 class FacetPairingMap
 {
 public:
-  using KeyType = FacetKey<TDIM, IndexType>;
-  using DataType = FacetData<IndexType>;
+  using KeyType = LinkFace<TDIM, IndexType>;
+  using DataType = StarFacetSlot<IndexType>;
 
   static constexpr IndexType INVALID = static_cast<IndexType>(-1);
   // Emptiness is encoded by the per-entry generation counter (see Entry below),
@@ -285,7 +285,7 @@ public:
    * \note This uses linear probing with generational marking. Empty slots
    *       (including stale generations) terminate the search.
    */
-  std::optional<DataType> findAndRemove(const KeyType& key)
+  std::optional<DataType> findAndExtract(const KeyType& key)
   {
     const std::size_t hash = computeHash(key);
     std::size_t slot = hash & m_mask;
@@ -325,7 +325,7 @@ public:
   /**
    * \brief Insert a new facet into the table.
    *
-   * Should only be called after findAndRemove() returns empty for this key.
+   * Should only be called after findAndExtract() returns empty for this key.
    * Calling insert() for an already-present key is an error (assertion).
    *
    * \param key The facet key
