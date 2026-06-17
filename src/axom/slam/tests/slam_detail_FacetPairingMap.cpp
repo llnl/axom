@@ -23,18 +23,18 @@ TEST(slam_detail_FacetKey, construction_2d)
 
   // Default construction
   KeyType key1;
-  EXPECT_EQ(key1.key0, KeyType::INVALID);
-  EXPECT_EQ(key1.key1, KeyType::INVALID);
+  EXPECT_EQ(key1.v0, KeyType::INVALID);
+  EXPECT_EQ(key1.v1, KeyType::INVALID);
 
   // Construction with single key (2D)
   KeyType key2(42);
-  EXPECT_EQ(key2.key0, 42);
-  EXPECT_EQ(key2.key1, KeyType::INVALID);
+  EXPECT_EQ(key2.v0, 42);
+  EXPECT_EQ(key2.v1, KeyType::INVALID);
 
-  // key1 parameter should be ignored in 2D
+  // The second component is ignored in 2D (only the single link vertex matters)
   KeyType key3(42, 100);
-  EXPECT_EQ(key3.key0, 42);
-  // key1 is present but not used for matching in 2D
+  EXPECT_EQ(key3.v0, 42);
+  // v1 is present but not used for matching in 2D
 }
 
 TEST(slam_detail_FacetKey, construction_3d)
@@ -43,18 +43,18 @@ TEST(slam_detail_FacetKey, construction_3d)
 
   // Default construction
   KeyType key1;
-  EXPECT_EQ(key1.key0, KeyType::INVALID);
-  EXPECT_EQ(key1.key1, KeyType::INVALID);
+  EXPECT_EQ(key1.v0, KeyType::INVALID);
+  EXPECT_EQ(key1.v1, KeyType::INVALID);
 
   // Construction with sorted keys
   KeyType key2(10, 20);
-  EXPECT_EQ(key2.key0, 10);
-  EXPECT_EQ(key2.key1, 20);
+  EXPECT_EQ(key2.v0, 10);
+  EXPECT_EQ(key2.v1, 20);
 
   // Construction with unsorted keys (should auto-sort)
   KeyType key3(20, 10);
-  EXPECT_EQ(key3.key0, 10);  // Sorted
-  EXPECT_EQ(key3.key1, 20);  // Sorted
+  EXPECT_EQ(key3.v0, 10);  // Sorted
+  EXPECT_EQ(key3.v1, 20);  // Sorted
 }
 
 TEST(slam_detail_FacetKey, equality_2d)
@@ -94,12 +94,12 @@ TEST(slam_detail_FacetData, construction)
   // Default construction
   DataType data1;
   EXPECT_EQ(data1.element_idx, DataType::INVALID);
-  EXPECT_EQ(data1.face_idx, DataType::INVALID);
+  EXPECT_EQ(data1.local_face, DataType::INVALID);
 
   // Construction with values
   DataType data2(100, 2);
   EXPECT_EQ(data2.element_idx, 100);
-  EXPECT_EQ(data2.face_idx, 2);
+  EXPECT_EQ(data2.local_face, 2);
 }
 
 //------------------------------------------------------------------------------
@@ -129,7 +129,7 @@ TEST(slam_detail_FacetPairingMap, basic_2d_insert_and_match)
 
   ASSERT_TRUE(match.has_value());
   EXPECT_EQ(match->element_idx, 100);
-  EXPECT_EQ(match->face_idx, 1);
+  EXPECT_EQ(match->local_face, 1);
   EXPECT_EQ(map.pendingCount(), 0);
   EXPECT_TRUE(map.allFacetsPaired());
 }
@@ -161,7 +161,7 @@ TEST(slam_detail_FacetPairingMap, multiple_2d_facets)
 
     ASSERT_TRUE(match.has_value());
     EXPECT_EQ(match->element_idx, i);
-    EXPECT_EQ(match->face_idx, 0);
+    EXPECT_EQ(match->local_face, 0);
   }
 
   EXPECT_EQ(map.pendingCount(), 0);
@@ -216,7 +216,7 @@ TEST(slam_detail_FacetPairingMap, basic_3d_insert_and_match)
 
   ASSERT_TRUE(match.has_value());
   EXPECT_EQ(match->element_idx, 100);
-  EXPECT_EQ(match->face_idx, 1);
+  EXPECT_EQ(match->local_face, 1);
   EXPECT_EQ(map.pendingCount(), 0);
 }
 
@@ -248,7 +248,7 @@ TEST(slam_detail_FacetPairingMap, multiple_3d_facets)
 
     ASSERT_TRUE(match.has_value()) << "Failed to find key (" << i << ", " << (i + 1000) << ")";
     EXPECT_EQ(match->element_idx, i);
-    EXPECT_EQ(match->face_idx, 2);
+    EXPECT_EQ(match->local_face, 2);
   }
 
   EXPECT_EQ(map.pendingCount(), 0);
@@ -411,7 +411,7 @@ TEST(slam_detail_FacetPairingMap, multiple_prepare_cycles)
       auto match = map.findAndRemove(key);
       ASSERT_TRUE(match.has_value());
       EXPECT_EQ(match->element_idx, i);
-      EXPECT_EQ(match->face_idx, cycle);
+      EXPECT_EQ(match->local_face, cycle);
     }
 
     EXPECT_EQ(map.pendingCount(), 0);

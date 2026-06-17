@@ -10,51 +10,89 @@
 /**
  * \file FacetPairingMap.hpp
  *
- * \brief Specialized hash table for matching pairs of facets during mesh connectivity repair.
+ * \brief Pairs the interior faces of a vertex star during IA connectivity repair.
  *
- * This hash table is used by IAMesh::fixVertexNeighborhood() to efficiently match
- * facets between elements in a vertex star. It uses Robin Hood open addressing with
- * generational marking to provide O(1) expected performance without allocations.
+ * This is used by IAMesh::fixVertexNeighborhood() after a vertex \a apex is inserted
+ * and its star -- the new elements incident to \a apex -- is retriangulated. 
+ * The job is to recover the element-element adjacencies that are \a internal 
+ * to that star. It is a transient pairing table, not a persistent lookup container.
  *
- * ## Algorithm: Robin Hood Open Addressing with Generational Marking
+ * ## Why the key is a face of the link
+ *
+ * Recall that the \a star of \a apex is the collection of elements (triangles in 2D, tetrahedra in 3D)
+ * incident to \a apex, and the \a link of \a apex is the boundary of the star:
+ * a closed polyline in 2D (or open if \a apex is on the domain boundary)
+ * and a triangulated sphere in 3D (or a disk if \a apex is on the domain boundary).
+ *
+ * Each star element splits its faces into two kinds. 
+ * In the IA convention, local face \a i is opposite local vertex \a i-1, 
+ * and \a apex is stored at the last local vertex position, 
+ * so the face opposite \a apex is local face 0:
+ *   - Local face 0 does not contain \a apex. This is the element's contribution 
+ *     to the LINK of \a apex (an edge in 2D, a triangle in 3D). Its neighbor lies 
+ *     outside the star, so it is repaired directly by fixVertexNeighborhood() and never enters this pairer.
+ *   - The other \a TDIM faces are all incident in \a apex and are paired here.
+ *
+ * Because every incident face contains \a apex, the apex carries no
+ * discriminating information. Removing it leaves a face of the link (our hash Key):
+ *   - 2D: an incident face is the edge {apex, a}; the key is the single link vertex.
+ *   - 3D: an incident face is the triangle {apex, a, b}; the key is the link
+ *         edge {a, b}, stored sorted so that both incident tetrahedra produce the same key.
+ *
+ * Two star elements are adjacent across an incident face if and only if they
+ * share that link face, so matching keys is equivalent to reconstructing the
+ * star's internal adjacency. The apex is the implicit extra vertex of every key.
+ *
+ * ## Algorithm: linear-probing open addressing with generational marking
  *
  * **Generational Marking:** Each entry stores a generation counter. Entries with
- * generation != current_generation are treated as empty without actually clearing them.
- * This avoids O(n) clear operations between uses.
+ * generation != current_generation are treated as empty without actually clearing
+ * them. This makes prepareForInsertions() an O(1) "clear" (bump the generation)
+ * rather than an O(table) reset between uses.
  *
- * **Generation Wraparound:** On 32-bit wraparound (every ~4 billion calls), we reset
- * all entry generations to 0 and restart at 1. This is the only O(n) operation in
- * the table's lifetime.
+ * **Generation Wraparound:** On 32-bit wraparound (every ~4 billion
+ * prepareForInsertions() calls), we reset all entry generations to 0 and restart
+ * at 1. This is the only O(table) operation in the table's lifetime.
  *
  * **Tombstone Markers:** Deleted entries are marked with a special TOMBSTONE value
  * to preserve probe chains. Tombstones can be reused for new insertions.
  *
- * **Thread-Local Storage:** Uses static thread_local storage to amortize allocation
- * cost across many operations. This provides zero-allocation operation after the
- * first resize.
+ * **Thread-Local Storage:** Uses static thread_local storage so the backing array
+ * is reused across calls. The table only ever grows: prepareForInsertions() grows
+ * it to fit the largest star seen, so after a large pairing pass the table stays
+ * oversized for the lifetime of the thread.
  *
- * ## Performance Characteristics
+ * ## Performance characteristics
  *
- * - **Lookup:** O(1) expected
- * - **Insert:** O(1) expected
- * - **Space:** 4x-8x oversizing for ~12.5-25% load factor
- * - **Allocations:** Zero after first use (thread-local reuse)
+ * - **Lookup / insert:** O(1) expected.
+ * - **Space:** cold, the table is sized to ~(2*TDIM)x the facet count, i.e. about
+ *   12-37% load for typical star sizes. After a large pairing pass it remains at
+ *   that high-water mark, so the effective load factor for subsequent small stars is much lower.
+ * - **Allocations:** zero after the high-water mark is reached (thread-local reuse).
  *
- * ## Usage Pattern
+ * \note This is NOT a general-purpose facet map. The reduced key (a face of the link)
+ *  is valid because every key within a single pairing pass shares the same apex.
+ *  The global manifold check, IAMesh::isConforming(), has no fixed apex to factor out
+ *  and instead keys on the full sorted vertex tuple.
+ *
+ * \note Host-only by construction (thread_local + std::vector + std::optional).
+ *  This is a serial, construction-time helper, not a portable (e.g. device-capable) container.
+ *
+ * ## Usage pattern
  *
  * ```cpp
  * FacetPairingMap<TDIM> map;
  * map.prepareForInsertions(expected_facet_count);
  *
- * for (each facet in new elements):
- *   if (auto match = map.findAndRemove(facet_key))
- *     // Found matching facet - update both adjacencies
- *     updateAdjacencies(facet, match.value());
+ * for (each incident face of each star element):
+ *   if (auto match = map.findAndRemove(link_face_key))
+ *     // Second sighting: wire the two star elements adjacent across this link face
+ *     updateAdjacencies(current_slot, match.value());
  *   else
- *     // First time seeing this facet - store it
- *     map.insert(facet_key, facet_data);
+ *     // First sighting: park which star element/face owns this link face
+ *     map.insert(link_face_key, current_slot);
  *
- * assert(map.allFacetsPaired());  // Validate all facets matched
+ * assert(map.allFacetsPaired());  // every link face matched exactly twice
  * ```
  */
 
@@ -74,67 +112,69 @@ namespace detail
 {
 
 /**
- * \brief Facet key for 2D (edge) or 3D (triangle) face matching.
+ * \brief A face of the link of the inserted vertex (the apex)
  *
- * In 2D (triangles): key0 is the single non-shared vertex, key1 is unused
- * In 3D (tetrahedra): (key0, key1) are the two non-shared vertices in sorted order
+ *   - In 2D (triangle star): \a v0 is the single link vertex
+ *   - In 3D (tetrahedron star): (v0, v1) are the two endpoints of a link edge, stored in sorted order.
  *
- * The key is normalized so that equivalent facets from different elements
- * produce identical keys for matching.
+ * The sorted ordering in 3D ensures that the same link edge produces an identical key
+ * for both incident tetrahedra sharing in the star of \a apex.
  */
 template <int TDIM, typename IndexType>
 struct FacetKey
 {
   static constexpr IndexType INVALID = static_cast<IndexType>(-1);
 
-  IndexType key0 {INVALID};  ///< First key component (only component in 2D)
-  IndexType key1 {INVALID};  ///< Second key component (unused in 2D)
+  IndexType v0 {INVALID};  ///< Link vertex (2D) or smaller link-edge endpoint (3D)
+  IndexType v1 {INVALID};  ///< Unused in 2D; larger link-edge endpoint (3D)
 
   /// Default constructor - creates invalid key
   FacetKey() = default;
 
   /// Construct from key components (automatically sorted in 3D)
-  /// \param k0 First key component
-  /// \param k1 Second key component (unused in 2D, sorted in 3D)
-  FacetKey(IndexType k0, IndexType k1 = INVALID) : key0(k0), key1(k1)
+  /// \param a First link vertex / link-edge endpoint
+  /// \param b Second link-edge endpoint (unused in 2D, sorted in 3D)
+  FacetKey(IndexType a, IndexType b = INVALID) : v0(a), v1(b)
   {
-    // In 3D, ensure consistent ordering: key0 <= key1
-    // This allows facets from different elements to match
+    // In 3D, ensure consistent ordering: v0 <= v1
+    // This allows the same link edge to match from either incident tetrahedron.
     if constexpr(TDIM == 3)
     {
-      if(k1 < k0)
+      if(b < a)
       {
-        axom::utilities::swap(key0, key1);
+        axom::utilities::swap(v0, v1);
       }
     }
   }
 
   /// Equality comparison
-  bool operator==(const FacetKey& other) const { return key0 == other.key0 && key1 == other.key1; }
+  bool operator==(const FacetKey& other) const { return v0 == other.v0 && v1 == other.v1; }
 
   /// Inequality comparison
   bool operator!=(const FacetKey& other) const { return !(*this == other); }
 };
 
 /**
- * \brief Facet data stored in the hash table during face matching.
+ * \brief Identifies which star element generated a given link face, and where.
  *
- * Associates a facet key with the element that owns it and the local
- * face index within that element.
+ * On the first sighting of a link face, fixVertexNeighborhood() stores the star
+ * element that owns it together with the local face slot it occupies in that element.
+ * On the second sighting this is returned so the caller can wire the two
+ * star elements that are adjacent across the link face.
  */
 template <typename IndexType>
 struct FacetData
 {
   static constexpr IndexType INVALID = static_cast<IndexType>(-1);
 
-  IndexType element_idx {INVALID};  ///< Element owning this facet
-  IndexType face_idx {INVALID};     ///< Local face index (0..VERTS_PER_ELEM-1)
+  IndexType element_idx {INVALID};  ///< Star element owning this link face
+  IndexType local_face {INVALID};   ///< Local face slot in that element (0..VERTS_PER_ELEM-1)
 
   /// Default constructor
   FacetData() = default;
 
-  /// Construct from element and face indices
-  FacetData(IndexType elem, IndexType face) : element_idx(elem), face_idx(face) { }
+  /// Construct from element and local face slot
+  FacetData(IndexType elem, IndexType face) : element_idx(elem), local_face(face) { }
 };
 
 /**
@@ -158,7 +198,9 @@ public:
   using DataType = FacetData<IndexType>;
 
   static constexpr IndexType INVALID = static_cast<IndexType>(-1);
-  static constexpr IndexType EMPTY_SLOT = INVALID;
+  // Emptiness is encoded by the per-entry generation counter (see Entry below),
+  // not by a sentinel key, so there is no EMPTY_SLOT. TOMBSTONE_SLOT marks a
+  // deleted entry within an otherwise live probe chain.
   static constexpr IndexType TOMBSTONE_SLOT = INVALID - 1;
 
   /// Golden ratio constant for Knuth's multiplicative hashing
@@ -180,8 +222,8 @@ private:
   static thread_local std::vector<Entry> s_table;
   static thread_local unsigned int s_generation;
 
-  std::size_t m_mask {0};   ///< Table size - 1 (for fast modulo via bitwise AND)
-  int m_pending_count {0};  ///< Number of unpaired facets currently in table
+  std::size_t m_mask {0};    ///< Table size - 1 (for fast modulo via bitwise AND)
+  int m_unpaired_count {0};  ///< Number of unpaired facets currently in table
 
 public:
   /// Default constructor
@@ -203,10 +245,11 @@ public:
    */
   void prepareForInsertions(std::size_t expected_facet_count)
   {
-    // Heuristic sizing to maintain low load factor:
-    // - 2D: ~2 incident faces per element, 4x oversizing = 50% load
-    // - 3D: ~3 incident faces per element, 8/3x oversizing ≈ 37.5% load
-    // These values are tuned for performance based on empirical testing.
+    // Cold sizing targets a low load factor: ~(2*TDIM)x the facet count
+    // (2D: ~2 incident faces/elem; 3D: ~3 incident faces/elem). The next
+    // power-of-two round-up below lowers the realized load further.
+    // The table  never shrinks, so after a large pairing pass,
+    // subsequent small stars run at a much lower load factor.
     const std::size_t target_slots =
       axom::utilities::max<std::size_t>(8, (TDIM == 2 ? 4 : 8) * expected_facet_count);
 
@@ -224,7 +267,7 @@ public:
     }
 
     m_mask = s_table.size() - 1;
-    m_pending_count = 0;
+    m_unpaired_count = 0;
 
     // Advance generation counter (handles wraparound)
     advanceGeneration();
@@ -270,7 +313,7 @@ public:
       {
         DataType result = entry.data;
         entry.data.element_idx = TOMBSTONE_SLOT;  // Mark as deleted
-        --m_pending_count;
+        --m_unpaired_count;
         return result;
       }
 
@@ -308,7 +351,7 @@ public:
         target.key = key;
         target.data = data;
         target.generation = s_generation;
-        ++m_pending_count;
+        ++m_unpaired_count;
         return;
       }
 
@@ -333,19 +376,22 @@ public:
     }
   }
 
-  /// \brief Returns the number of unpaired facets currently in the table
-  /// \return Number of facets waiting for a match
-  int pendingCount() const { return m_pending_count; }
+  /// \brief Returns the number of link faces seen an odd number of times so far
+  /// \return Number of link faces still waiting for their second sighting
+  int pendingCount() const { return m_unpaired_count; }
 
   /**
-   * \brief Validates that all facets were successfully paired.
+   * \brief Checks that every link face was paired exactly twice.
    *
-   * Should be called after all insertions complete. A non-zero pending count
-   * indicates a topological error (non-manifold vertex or broken adjacency).
+   * Should be called after all insertions complete. For an interior apex this is
+   * the manifold condition: the link is closed (a loop in 2D, a sphere in 3D),
+   * so every link face is interior and is shared by exactly two star elements.
+   * A non-zero count indicates a link face seen only once, i.e. a link with boundary
+   * or a non-manifold/broken star.
    *
-   * \return true if all facets paired successfully (pending count is zero)
+   * \return true if all link faces paired (unpaired count is zero)
    */
-  bool allFacetsPaired() const { return m_pending_count == 0; }
+  bool allFacetsPaired() const { return m_unpaired_count == 0; }
 
   /// \brief Returns the current generation counter value (for testing)
   unsigned int currentGeneration() const { return s_generation; }
@@ -358,23 +404,28 @@ public:
 
 private:
   /**
-   * \brief Compute hash for a facet key using Knuth's multiplicative method.
+   * \brief Compute hash for a link-face key using Knuth's multiplicative method.
    *
    * Uses the golden ratio constant (phi * 2^64) which provides excellent
-   * bit distribution. In 3D, the two key components are mixed together.
+   * bit distribution. In 3D, the two link-edge endpoints are mixed together.
    *
-   * \param key The facet key to hash
+   * \param key The link-face key to hash
    * \return Hash value
+   *
+   * \note In 2D the single link vertex is returned unmixed; the table relies on
+   *  linear probing and power-of-two masking to spread sequential vertex ids.
+   *  With spatially sorted (e.g. BRIO) insertion these ids are not random and can clump,
+   *  so applying the same multiplicative mix in 2D may be worth measuring.
    */
   std::size_t computeHash(const KeyType& key) const
   {
-    std::size_t seed = static_cast<std::size_t>(key.key0);
+    std::size_t seed = static_cast<std::size_t>(key.v0);
 
     if constexpr(TDIM == 3)
     {
-      // Mix in second key component using bit shifting and XOR
-      // This formula provides good avalanche properties
-      seed ^= static_cast<std::size_t>(key.key1) + HASH_MULTIPLIER + (seed << 6) + (seed >> 2);
+      // Mix in the second link-edge endpoint using bit shifting and XOR.
+      // This formula provides good avalanche properties.
+      seed ^= static_cast<std::size_t>(key.v1) + HASH_MULTIPLIER + (seed << 6) + (seed >> 2);
     }
 
     return seed;

@@ -283,12 +283,16 @@ public:
   /**
    * \brief Fix the element adjacency relation in the neighborhood of a vertex
    *
-   * \details Given a vertex index and a list of all the elements incident in
-   * that vertex, fix the element->element relation data.
+   * \details Given the apex vertex and the list of star elements incident to it
+   * (e.g. the elements created when inserting the apex), recover the
+   * element->element adjacencies internal to that star.
    * Sometimes when modifying the mesh, the mesh becomes non-manifold.
    * Adding elements may result in incorrect element->element data.
+   *
+   * \param apex The vertex whose star is being repaired
+   * \param star_elements The elements incident to \a apex
    */
-  void fixVertexNeighborhood(IndexType vertex_idx, const std::vector<IndexType>& new_elements);
+  void fixVertexNeighborhood(IndexType apex, const std::vector<IndexType>& star_elements);
 
   /**
    * \brief Return a valid element index
@@ -415,7 +419,8 @@ private:
                                       IndexType element_i,
                                       IndexType side_i);
 
-  /// \brief Create a facet key for matching faces during connectivity repair
+  /// \brief Create the link-face key for an incident face of a star element
+  /// (the face with the apex removed) during connectivity repair
   typename detail::FacetPairingMap<TDIM, IndexType>::KeyType createFacetKey(IndexType element_idx,
                                                                             int face_idx) const;
 

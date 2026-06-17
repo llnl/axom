@@ -631,14 +631,17 @@ typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::reuseElement(In
 }
 
 /**
- * \brief Create a facet key for a given face of an element.
+ * \brief Create the link-face key for an incident face of a star element.
  *
- * In 2D (triangles): Returns the single non-shared vertex
- * In 3D (tetrahedra): Returns the two non-shared vertices (will be auto-sorted by FacetKey)
+ * An incident face contains the apex vertex; removing the apex leaves a face of its link:
+ *  - 2D (triangles): the single non-apex (link) vertex of the incident edge.
+ *  - 3D (tetrahedra): the two non-apex (link) vertices of the incident triangle,
+ *    i.e. the endpoints of the link edge (auto-sorted by FacetKey).
  *
- * \param element_idx Index of the element
- * \param face_idx Local face index (1..VERTS_PER_ELEM-1, face 0 is boundary)
- * \return FacetKey identifying this face
+ * \param element_idx Index of the star element
+ * \param face_idx Local face index (1..VERTS_PER_ELEM-1; local face 0 is the link
+ *  face opposite the apex and is not keyed here)
+ * \return The link-face key identifying this incident face
  */
 template <int TDIM, int SDIM, typename P>
 typename detail::FacetPairingMap<TDIM, typename IAMesh<TDIM, SDIM, P>::IndexType>::KeyType
@@ -651,31 +654,31 @@ IAMesh<TDIM, SDIM, P>::createFacetKey(IndexType element_idx, int face_idx) const
 
   if constexpr(TDIM == 2)
   {
-    // 2D: face is identified by the single non-shared vertex
+    // 2D: key is the single non-apex (link) vertex of the incident edge
     SLIC_ASSERT(face_idx == 1 || face_idx == 2);
     return KeyType(face_idx == 1 ? element_vertices[1] : element_vertices[0]);
   }
   else
   {
-    // 3D: face is identified by the two non-shared vertices
+    // 3D: key is the two non-apex (link) vertices of the incident triangle
     SLIC_ASSERT(face_idx >= 1 && face_idx <= 3);
-    IndexType key0, key1;
+    IndexType v0, v1;
     switch(face_idx)
     {
     case 1:
-      key0 = element_vertices[1];
-      key1 = element_vertices[2];
+      v0 = element_vertices[1];
+      v1 = element_vertices[2];
       break;
     case 2:
-      key0 = element_vertices[2];
-      key1 = element_vertices[0];
+      v0 = element_vertices[2];
+      v1 = element_vertices[0];
       break;
     default:  // face 3
-      key0 = element_vertices[0];
-      key1 = element_vertices[1];
+      v0 = element_vertices[0];
+      v1 = element_vertices[1];
       break;
     }
-    return KeyType(key0, key1);  // Auto-sorted by FacetKey constructor
+    return KeyType(v0, v1);  // Auto-sorted by FacetKey constructor
   }
 }
 
@@ -747,28 +750,33 @@ int IAMesh<TDIM, SDIM, P>::findNeighborFaceIndex(IndexType neighbor_idx,
   }
 }
 
-//==============================================================================
-// fixVertexNeighborhood - Refactored to use FacetPairingMap
-//==============================================================================
+//=================================================================================
+// fixVertexNeighborhood - pairs the interior faces of the star via FacetPairingMap
+//=================================================================================
 
 template <int TDIM, int SDIM, typename P>
-void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
-                                                  const std::vector<IndexType>& new_elements)
+void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType apex,
+                                                  const std::vector<IndexType>& star_elements)
 {
   using FacetMap = detail::FacetPairingMap<TDIM, IndexType>;
   using FacetKey = typename FacetMap::KeyType;
   using FacetData = typename FacetMap::DataType;
 
-  // Prepare hash table for expected facet count
+  // Prepare the link-face pairing table for the expected number of incident faces
   FacetMap facet_map;
-  facet_map.prepareForInsertions(new_elements.size());
+  facet_map.prepareForInsertions(star_elements.size());
 
   // Statistics tracking (for validation)
-  int num_boundary_faces = 0;
-  int num_incident_faces = 0;
+  int num_link_faces = 0;      // local face 0 of each element: the link face (opposite apex)
+  int num_incident_faces = 0;  // the TDIM faces of each element that contain apex
 
-  // Process all faces in the new elements
-  for(IndexType element_idx : new_elements)
+  // Each star element has TDIM+1 faces.
+  // In the IA convention, local face i is opposite local vertex i-1 and `apex` is the last local vertex, so:
+  //  - local face 0 is opposite `apex`: it is this element's link face, and its
+  //    neighbor lies OUTSIDE the star, so we repair that one adjacency directly.
+  //  - the other TDIM faces contain `apex`: with `apex` removed each is a face of
+  //    the link, and we pair it against the other star element that shares it.
+  for(IndexType element_idx : star_elements)
   {
     // Get element vertices and adjacencies using SLAM relation accessors
     const auto element_vertices = ev_rel[element_idx];
@@ -780,14 +788,13 @@ void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
       ModularFacetIndex mod_face(local_face_idx);
       const int vertex_position = mod_face - 1;
 
-      // Check if this face contains the vertex we're fixing
-      if(element_vertices[vertex_position] == vertex_idx)
+      // The face opposite `apex` (local face 0) is the link face
+      if(element_vertices[vertex_position] == apex)
       {
-        // This is a BOUNDARY face of the vertex star
-        // (face 0, which is opposite the last vertex)
-        ++num_boundary_faces;
+        // LINK face of this star element (opposite apex).
+        // Its neighbor lies outside the star, so repair that single adjacency directly.
+        ++num_link_faces;
 
-        // Update neighbor's adjacency to point back to this element
         const IndexType neighbor = element_neighbors[local_face_idx];
         if(neighbor != INVALID_ELEMENT_INDEX)
         {
@@ -805,28 +812,28 @@ void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
       }
       else
       {
-        // This is an INCIDENT face (touches vertex_idx but doesn't have it opposite)
+        // INCIDENT face (contains apex). Its key is the corresponding link face.
         ++num_incident_faces;
 
-        // Create facet key for matching
-        const FacetKey face_key = createFacetKey(element_idx, local_face_idx);
+        // Build the link-face key for matching
+        const FacetKey link_face_key = createFacetKey(element_idx, local_face_idx);
 
-        // Try to find matching facet from another element
-        if(auto match = facet_map.findAndRemove(face_key))
+        // Try to match the other star element sharing this link face
+        if(auto match = facet_map.findAndRemove(link_face_key))
         {
-          // Found the matching face - update both adjacencies using SLAM relation accessors
+          // Second sighting: wire the two star elements adjacent across this link face
           SLIC_ASSERT_MSG(match->element_idx != element_idx,
-                          "Each face in the inserted star should be shared by two elements");
+                          "Each interior face of the star should be shared by two elements");
 
           auto match_element_neighbors = ee_rel[match->element_idx];
-          match_element_neighbors[match->face_idx] = element_idx;
+          match_element_neighbors[match->local_face] = element_idx;
           element_neighbors[local_face_idx] = match->element_idx;
         }
         else
         {
-          // First time seeing this facet - store it for later matching
-          FacetData face_data(element_idx, local_face_idx);
-          facet_map.insert(face_key, face_data);
+          // First sighting: insert the star element/face that owns this link face
+          FacetData parked_slot(element_idx, local_face_idx);
+          facet_map.insert(link_face_key, parked_slot);
         }
       }
     }
@@ -834,10 +841,10 @@ void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
 
   // Validate star topology
   AXOM_UNUSED_VAR(num_incident_faces);
-  AXOM_UNUSED_VAR(num_boundary_faces);
-  SLIC_ASSERT(num_incident_faces == static_cast<int>(new_elements.size()) * TDIM);
+  AXOM_UNUSED_VAR(num_link_faces);
+  SLIC_ASSERT(num_incident_faces == static_cast<int>(star_elements.size()) * TDIM);
   SLIC_ASSERT_MSG(facet_map.allFacetsPaired(),
-                  "All faces in the inserted star should be paired exactly once");
+                  "Every interior face of the star should be paired exactly twice");
 }
 
 // Remove all the invalid entries in the IA structure
