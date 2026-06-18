@@ -478,9 +478,9 @@ public:
   }
 
   /// Wait for some non-blocking sends (if any) to finish.
-  void check_send_requests(std::list<std::pair<conduit::relay::mpi::Request,
-                                     std::unique_ptr<conduit::Node>>>& isendRequests,
-                           bool atLeastOne) const
+  void check_send_requests(
+    std::list<std::pair<conduit::relay::mpi::Request, std::unique_ptr<conduit::Node>>>& isendRequests,
+    bool atLeastOne) const
   {
     std::vector<MPI_Request> reqs;
     reqs.reserve(isendRequests.size());
@@ -508,7 +508,7 @@ public:
     int reqIdx = 0;
     for(const int idx : indices)
     {
-      while (reqIdx < idx)
+      while(reqIdx < idx)
       {
         ++reqIter;
         ++reqIdx;
@@ -777,8 +777,7 @@ public:
     // arbitrary tags for send/recv xferNodes.
     const int tag = 987342;
 
-    std::list<std::pair<conduit::relay::mpi::Request,
-                        std::unique_ptr<conduit::Node>>> isendRequests;
+    std::list<std::pair<conduit::relay::mpi::Request, std::unique_ptr<conduit::Node>>> isendRequests;
 
     {
       /*
@@ -832,7 +831,11 @@ public:
         SLIC_ASSERT(nextRecipient != -1);
         isendRequests.emplace_back(conduit::relay::mpi::Request(), std::move(recvXferNodePtr));
         auto& isendRequest = isendRequests.back();
-        relay::mpi::isend_using_schema(*isendRequest.second, nextRecipient, tag, m_mpiComm, &isendRequest.first);
+        relay::mpi::isend_using_schema(*isendRequest.second,
+                                       nextRecipient,
+                                       tag,
+                                       m_mpiComm,
+                                       &isendRequest.first);
 
         // Check non-blocking sends to free memory.
         check_send_requests(isendRequests, false);
