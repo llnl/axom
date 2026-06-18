@@ -345,8 +345,12 @@ public:
         axom::IndexType count = 0;
         auto countCollisions = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
           // countCollisions is only called at the leaves.
-          auto& tetId = tetIndices[iTet];
+          auto tetId = tetIndices[iTet];
           const auto& meshTet = meshTets[tetId];
+          if(!tetValidForClipping(meshTet))
+          {
+            return;
+          }
 
           auto pieceId = leafNodes[currentNode];
           if(pieceId < 0 || pieceId >= geomPieceCount)
@@ -404,8 +408,13 @@ public:
          * Unless tet and candidate can be shown not to collide.
          */
         auto recordCollision = [&](std::int32_t currentNode, const std::int32_t* leafs) {
-          auto& tetId = tetIndices[iTet];
+          auto tetId = tetIndices[iTet];
           const auto& meshTet = meshTets[tetId];
+          if(!tetValidForClipping(meshTet))
+          {
+            return;
+          }
+
           auto pieceId = leafs[currentNode];
           if(pieceId < 0 || pieceId >= geomPieceCount)
           {
@@ -550,13 +559,16 @@ public:
     if(useTets)
     {
       auto geomTetsView = geomAsTets.view();
+      const double eps = EPS;
       axom::for_all<ExecSpace>(
         pieceBbsView.size(),
         AXOM_LAMBDA(axom::IndexType i) {
-          if(!geomTetsView[i].degenerate())
+          BoundingBoxType pieceBb;
+          if(!geomTetsView[i].degenerate(eps))
           {
-            pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
+            pieceBb = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
           }
+          pieceBbsView[i] = pieceBb;
         });
     }
     else
@@ -719,6 +731,36 @@ public:
   }
 
   /*!
+   * @brief Whether the tet is suitable for primal::clip plane construction.
+   *
+   * The 18-tet hex decomposition intentionally creates zero-volume face tets.
+   * Those tets do not contribute volume, and primal::clip cannot build planes
+   * for their collapsed faces.
+   */
+  AXOM_HOST_DEVICE static inline bool tetValidForClipping(const TetrahedronType& tet)
+  {
+    if(tet.degenerate(EPS))
+    {
+      return false;
+    }
+
+    int faceIds[4][3] = {{1, 3, 2}, {0, 2, 3}, {0, 3, 1}, {0, 1, 2}};
+    for(int i = 0; i < 4; ++i)
+    {
+      const auto& p0 = tet[faceIds[i][0]];
+      const auto& p1 = tet[faceIds[i][1]];
+      const auto& p2 = tet[faceIds[i][2]];
+      const auto normal = axom::primal::Vector<double, 3>::cross_product(p1 - p0, p2 - p0);
+      if(normal.is_zero())
+      {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /*!
    * @brief Whether a tet and a bounding box (possibly) intersect.
    * Answer may be a false positive but never a false negative
    * (which is why this code lives here instead of in a primal::intersect method).
@@ -726,6 +768,11 @@ public:
   AXOM_HOST_DEVICE static inline bool tetBoxCollision(const TetrahedronType& tet,
                                                       const BoundingBoxType& box)
   {
+    if(!box.isValid() || !tetValidForClipping(tet))
+    {
+      return false;
+    }
+
     if(box.contains(tet[0]) || box.contains(tet[1]) || box.contains(tet[2]) || box.contains(tet[3]))
     {
       return true;
