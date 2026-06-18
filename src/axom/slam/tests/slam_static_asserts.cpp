@@ -7,19 +7,19 @@
 /**
  * \file slam_static_asserts.cpp
  *
- * \brief Compile-time conformance harness for slam's constexpr arithmetic core.
+ * \brief Compile-time conformance harness for slam's constexpr arithmetic
  *
  * The tests in this file exercise the compile time set/value asserts
  * for sizes, offsets, strides, modular wraparound, and policy composition, so the checks cost
  * nothing at run time and run on every backend on every build. 
- *
- * The single gtest case below exists only so the file participates in the test runner. 
- * If this file compiles, the invariants it encodes hold.
+ * 
+ * Many of the checks in this file are static_asserts. If the file compiles, its invariants hold.
  */
 
 #include "gtest/gtest.h"
 
 #include "axom/slam/ModularInt.hpp"
+#include "axom/slam/Optional.hpp"
 #include "axom/slam/policies/SizePolicies.hpp"
 #include "axom/slam/policies/StridePolicies.hpp"
 #include "axom/slam/policies/OffsetPolicies.hpp"
@@ -126,16 +126,49 @@ static_assert(incTwice(4) == 1, "++ twice from 4 mod 5 == 1");
 static_assert(Mod5(2) == Mod5(7), "2 and 7 are equal mod 5");
 static_assert(Mod5(2) != Mod5(3), "2 and 3 differ mod 5");
 
+//------------------------------------------------------------------------------
+// slam::Optional: a device-safe "maybe a value", fully constexpr.
+//------------------------------------------------------------------------------
+static_assert(!slam::Optional<int>().has_value(), "default Optional is disengaged");
+static_assert(slam::Optional<int>(42).has_value(), "value-constructed Optional is engaged");
+static_assert(*slam::Optional<int>(42) == 42, "engaged Optional yields its value");
+static_assert(slam::Optional<int>(42).value_or(-1) == 42, "value_or returns the value when engaged");
+static_assert(slam::Optional<int>().value_or(-1) == -1, "value_or returns fallback when empty");
+static_assert(static_cast<bool>(slam::Optional<int>(0)), "engaged-with-zero is still engaged");
+static_assert(!static_cast<bool>(slam::Optional<int>()), "disengaged converts to false");
+// Trivial copyability allows it to be captured on device
+static_assert(std::is_trivially_copyable_v<slam::Optional<int>>,
+              "slam::Optional<int> is trivially copyable (device-capturable)");
+
 }  // anonymous namespace
 
 //------------------------------------------------------------------------------
-// Checks that a constexpr value survives to run time.
-//------------------------------------------------------------------------------
 TEST(slam_static_asserts, compile_time_value_holds)
 {
+  // Checks that a constexpr value survives to run time.
+
   constexpr int wrapped = int(Mod5(7));
   EXPECT_EQ(wrapped, 2);
 
   constexpr int idx = flatIndex(Off3().offset(), Stride4().stride(), 2);
   EXPECT_EQ(idx, 11);
+}
+
+TEST(slam_optional, engaged_and_disengaged)
+{
+  // Checks runtime API of slam::Optional
+
+  axom::slam::Optional<double> empty;
+  EXPECT_FALSE(empty.has_value());
+  EXPECT_FALSE(static_cast<bool>(empty));
+  EXPECT_DOUBLE_EQ(empty.value_or(2.5), 2.5);
+
+  axom::slam::Optional<double> full(3.25);
+  EXPECT_TRUE(full.has_value());
+  EXPECT_TRUE(static_cast<bool>(full));
+  EXPECT_DOUBLE_EQ(*full, 3.25);
+  EXPECT_DOUBLE_EQ(full.value_or(2.5), 3.25);
+
+  *full = 9.0;
+  EXPECT_DOUBLE_EQ(*full, 9.0);
 }

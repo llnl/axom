@@ -39,6 +39,7 @@ set(gtest_slam_tests
     slam_AccessingRelationDataInMap.cpp
 
     # aux tests
+    slam_FieldRegistry.cpp
     slam_ModularInt.cpp
     slam_static_asserts.cpp
     
