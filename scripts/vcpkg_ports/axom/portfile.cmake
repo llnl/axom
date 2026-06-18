@@ -213,6 +213,7 @@ if(CMAKE_HOST_WIN32)
 
   set(BLT_CXX_FLAGS "${BLT_CXX_FLAGS} /Zc:preprocessor /utf-8 /bigobj /EHsc" CACHE STRING "")
   set(BLT_CUDA_FLAGS "${BLT_CUDA_FLAGS} -Xcompiler=/Zc:preprocessor -Xcompiler=/utf-8 -Xcompiler=/bigobj -Xcompiler=/EHsc" CACHE STRING "")
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --diag-suppress=1388,1394" CACHE STRING "" FORCE)
   set(BLT_DEFINES "${BLT_DEFINES};-DFMT_UNICODE=0;-DAXOM_FMT_UNICODE=0" CACHE STRING "")
 endif()
 
