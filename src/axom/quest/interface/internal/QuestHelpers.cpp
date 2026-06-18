@@ -18,9 +18,10 @@
 #endif
 
 #if defined(AXOM_USE_C2C)
-  #include "axom/quest/io/C2CReader.hpp"
   #if defined(AXOM_USE_MPI)
     #include "axom/quest/io/PC2CReader.hpp"
+  #else
+    #include "axom/quest/io/C2CReader.hpp"
   #endif
 #endif
 
@@ -40,30 +41,6 @@ namespace quest
 namespace internal
 {
 /// Mesh I/O methods
-
-#ifdef AXOM_USE_MPI
-namespace
-{
-bool mpiIsActive()
-{
-  int initialized = 0;
-  MPI_Initialized(&initialized);
-  if(!initialized)
-  {
-    return false;
-  }
-
-  int finalized = 0;
-  MPI_Finalized(&finalized);
-  return finalized == 0;
-}
-
-bool useParallelReader(MPI_Comm comm)
-{
-  return mpiIsActive() && comm != MPI_COMM_NULL && comm != MPI_COMM_SELF;
-}
-}  // namespace
-#endif
 
 #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
 /*!
@@ -343,28 +320,11 @@ int read_stl_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
   m = new TriangleMesh(DIMENSION, mint::TRIANGLE);
 
   // STEP 2: construct STL reader
-  quest::STLReader reader;
 #ifdef AXOM_USE_MPI
-  if(useParallelReader(comm))
-  {
-    quest::PSTLReader preader(comm);
-    preader.setFileName(file);
-    int rc = preader.read();
-    if(rc == READ_SUCCESS)
-    {
-      preader.getMesh(static_cast<TriangleMesh*>(m));
-    }
-    else
-    {
-      SLIC_WARNING("reading STL file failed, setting mesh to NULL");
-      delete m;
-      m = nullptr;
-    }
-
-    return rc;
-  }
+  quest::PSTLReader reader(comm);
 #else
   AXOM_UNUSED_VAR(comm);
+  quest::STLReader reader;
 #endif
 
   // STEP 3: read the mesh from the STL file
@@ -411,43 +371,11 @@ int read_c2c_mesh(const std::string& file,
   }
 
   // STEP 2: construct C2C reader
-  quest::C2CReader reader;
   #if defined(AXOM_USE_MPI) && defined(AXOM_USE_C2C)
-  if(useParallelReader(comm))
-  {
-    quest::PC2CReader preader(comm);
-    preader.setFileName(file);
-    int rc = preader.read();
-    if(rc == READ_SUCCESS)
-    {
-      m = new SegmentMesh(DIMENSION, mint::SEGMENT);
-
-      LinearizeCurves lin;
-      lin.setVertexWeldingThreshold(vertexWeldThreshold);
-      if(uniform)
-      {
-        lin.getLinearMeshUniform(preader.getCurvesView(),
-                                 static_cast<SegmentMesh*>(m),
-                                 segmentsPerPiece);
-      }
-      else
-      {
-        lin.getLinearMeshNonUniform(preader.getCurvesView(),
-                                    static_cast<SegmentMesh*>(m),
-                                    percentError);
-      }
-      revolvedVolume = lin.getRevolvedVolume(preader.getCurvesView(), transform);
-    }
-    else
-    {
-      SLIC_WARNING("reading C2C file failed, setting mesh to NULL");
-      m = nullptr;
-    }
-
-    return rc;
-  }
+  quest::PC2CReader reader(comm);
   #else
   AXOM_UNUSED_VAR(comm);
+  quest::C2CReader reader;
   #endif
 
   // STEP 3: read the mesh from the input file
@@ -500,28 +428,11 @@ int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
   m = new TetMesh(DIMENSION, mint::TET);
 
   // STEP 2: construct Pro/E reader
-  quest::ProEReader reader;
 #ifdef AXOM_USE_MPI
-  if(useParallelReader(comm))
-  {
-    quest::PProEReader preader(comm);
-    preader.setFileName(file);
-    int rc = preader.read();
-    if(rc == READ_SUCCESS)
-    {
-      preader.getMesh(static_cast<TetMesh*>(m));
-    }
-    else
-    {
-      SLIC_WARNING("reading Pro/E file failed, setting mesh to NULL");
-      delete m;
-      m = nullptr;
-    }
-
-    return rc;
-  }
+  quest::PProEReader reader(comm);
 #else
   AXOM_UNUSED_VAR(comm);
+  quest::ProEReader reader;
 #endif
 
   // STEP 3: read the mesh from the Pro/E file
