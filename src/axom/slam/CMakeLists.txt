@@ -76,7 +76,6 @@ set(slam_headers
 set(slam_sources
     # SRM Set sources
     BitSet.cpp
-    OrderedSet.cpp
 
     # SRM Relation sources
 
