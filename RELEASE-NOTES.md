@@ -62,6 +62,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Improves reproducibility of 3D GWN methods by removing some sources of randomness
 - Core: ArrayView assigments/copies now copy the stride
 - Core: Array construction from strided ArrayView now correctly copies the strided elements
+- Core: Improved `axom::FlatMap` insertion performance by fusing duplicate-key lookup with empty-slot probing.
+- Core: Updated DeviceHash to use 64-bit hash results and improved coverage for integer and floating-point hashing.
 
 ## [Version 0.14.0] - Release date 2026-03-31
 
