@@ -33,7 +33,7 @@ namespace utilities
 /*!
  * \brief Gracefully aborts the application
  */
-void processAbort();
+[[noreturn]] void processAbort();
 
 /*!
  * \brief Returns the absolute value of x.

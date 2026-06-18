@@ -15,8 +15,7 @@
  *   * DEFAULT_VALUE is a public static constant of type IntType
  *   * size() : IntType  -- returns the underlying integer size
  *   * empty() : bool -- returns whether the size is zero
- *   * isValid() : bool -- indicates whether the Size policy of the set is
- *      valid
+ *   * isValid() : bool -- indicates whether the Size policy of the set is valid
  *   * [optional]
  *     * operator(): IntType -- alternate accessor for the size value
  *
@@ -53,10 +52,10 @@ public:
 
   using BaseType::BaseType;
 
-  AXOM_HOST_DEVICE inline IntType size() const { return this->value(); }
-  AXOM_HOST_DEVICE inline IntType& size() { return this->value(); }
+  AXOM_HOST_DEVICE constexpr IntType size() const { return this->value(); }
+  AXOM_HOST_DEVICE constexpr IntType& size() { return this->value(); }
 
-  AXOM_HOST_DEVICE inline bool empty() const { return this->m_value == IntType(); }
+  AXOM_HOST_DEVICE constexpr bool empty() const { return this->m_value == IntType(); }
 };
 
 template <typename IntType>
@@ -108,9 +107,9 @@ public:
 
   using BaseType::BaseType;
 
-  AXOM_HOST_DEVICE inline IntType size() const { return INT_VAL; }
+  AXOM_HOST_DEVICE constexpr IntType size() const { return INT_VAL; }
 
-  AXOM_HOST_DEVICE inline bool empty() const { return INT_VAL == IntType {}; }
+  AXOM_HOST_DEVICE constexpr bool empty() const { return INT_VAL == IntType {}; }
 };
 
 /// \brief A policy class for an empty set (no size)

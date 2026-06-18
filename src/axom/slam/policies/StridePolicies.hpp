@@ -12,13 +12,13 @@
  * Stride policies are meant to represent the fixed distance    between consecutive
  * elements of an OrderedSet
  * A valid stride policy must support the following interface:
- *   * [required]
- *   * DEFAULT_VALUE is a public static const IntType
- *   * IS_COMPILE_TIME is a public static const bool
- *   * stride() : IntType  -- returns the stride
- *   * isValid() : bool -- indicates whether the Stride policy of the set is valid
- *   * [optional]
- *   * operator(): IntType -- alternate accessor for the stride value
+ *   [required]
+ *    - DEFAULT_VALUE is a public static const IntType
+ *    - IS_COMPILE_TIME is a public static const bool
+ *    - stride() : IntType  -- returns the stride
+ *    - isValid() : bool -- indicates whether the Stride policy of the set is valid
+ *   [optional]
+ *    - operator(): IntType -- alternate accessor for the stride value
  *
  * \note All non-zero stride values are valid.
  *
@@ -33,6 +33,7 @@
 #define SLAM_POLICIES_STRIDE_H_
 
 #include "axom/core/Macros.hpp"
+#include "axom/core/StackArray.hpp"
 #include "axom/slam/policies/ValuePolicies.hpp"
 
 namespace axom::slam::policies
@@ -67,14 +68,14 @@ public:
   using BaseType::BaseType;
 
   /// \brief Returns the stride between consecutive elements.
-  AXOM_HOST_DEVICE inline IntType stride() const { return this->value(); }
-  AXOM_HOST_DEVICE inline IntType& stride() { return this->value(); }
+  AXOM_HOST_DEVICE constexpr IntType stride() const { return this->value(); }
+  AXOM_HOST_DEVICE constexpr IntType& stride() { return this->value(); }
 
   /*!
    * \brief Returns the shape of the inner data for a given stride.
    *  This only has meaning when used with Map-based types.
    */
-  AXOM_HOST_DEVICE inline IntType shape() const { return this->value(); }
+  AXOM_HOST_DEVICE constexpr IntType shape() const { return this->value(); }
 
   void setStride(IntType str) { this->m_value = str; }
 };
@@ -101,8 +102,8 @@ public:
 
   using BaseType::BaseType;
 
-  AXOM_HOST_DEVICE inline IntType stride() const { return INT_VAL; }
-  AXOM_HOST_DEVICE inline IntType shape() const { return INT_VAL; }
+  AXOM_HOST_DEVICE constexpr IntType stride() const { return INT_VAL; }
+  AXOM_HOST_DEVICE constexpr IntType shape() const { return INT_VAL; }
 
   AXOM_HOST_DEVICE void setStride(IntType AXOM_DEBUG_PARAM(val))
   {

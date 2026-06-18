@@ -52,8 +52,8 @@ public:
 
   using BaseType::BaseType;
 
-  AXOM_HOST_DEVICE inline IntType offset() const { return this->value(); }
-  AXOM_HOST_DEVICE inline IntType& offset() { return this->value(); }
+  AXOM_HOST_DEVICE constexpr IntType offset() const { return this->value(); }
+  AXOM_HOST_DEVICE constexpr IntType& offset() { return this->value(); }
 };
 
 template <typename IntType>
@@ -71,7 +71,7 @@ public:
 
   using BaseType::BaseType;
 
-  AXOM_HOST_DEVICE inline IntType offset() const { return INT_VAL; }
+  AXOM_HOST_DEVICE constexpr IntType offset() const { return INT_VAL; }
 };
 
 /// \brief A policy class for when we have no offset

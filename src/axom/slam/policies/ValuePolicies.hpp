@@ -41,6 +41,7 @@
 
 #include "axom/core/Macros.hpp"
 #include "axom/slic.hpp"
+#include "axom/slam/policies/ConstexprAssert.hpp"
 
 namespace axom::slam::policies
 {
@@ -107,17 +108,17 @@ struct RuntimeValue
 public:
   using TagType = Tag;
 
-  AXOM_HOST_DEVICE RuntimeValue(decltype(Tag::defaultValue()) val = Tag::defaultValue())
+  AXOM_HOST_DEVICE constexpr RuntimeValue(decltype(Tag::defaultValue()) val = Tag::defaultValue())
     : m_value(val)
   { }
 
-  AXOM_HOST_DEVICE inline auto value() const { return m_value; }
-  AXOM_HOST_DEVICE inline auto& value() { return m_value; }
+  AXOM_HOST_DEVICE constexpr auto value() const { return m_value; }
+  AXOM_HOST_DEVICE constexpr auto& value() { return m_value; }
 
-  inline auto operator()() const { return value(); }
-  inline auto& operator()() { return value(); }
+  constexpr auto operator()() const { return value(); }
+  constexpr auto& operator()() { return value(); }
 
-  inline bool isValid(bool) const { return Tag::isValidValue(m_value); }
+  constexpr bool isValid(bool) const { return Tag::isValidValue(m_value); }
 
 protected:
   decltype(Tag::defaultValue()) m_value;
@@ -147,20 +148,17 @@ public:
 
   static constexpr IntType VALUE = V;
 
-  AXOM_HOST_DEVICE CompileTimeValue(IntType val = V)
+  AXOM_HOST_DEVICE constexpr CompileTimeValue(IntType val = V)
   {
     AXOM_UNUSED_VAR(val);
-    SLIC_ASSERT_MSG(val == V,
-                    Tag::name() << " -- tried to initialize a compile-time value policy with "
-                                << "value (" << val << ") that differs from the template "
-                                << "parameter of " << V << ".");
+    SLAM_CONSTEXPR_ASSERT(val == V);
   }
 
-  AXOM_HOST_DEVICE inline IntType value() const { return V; }
+  AXOM_HOST_DEVICE constexpr IntType value() const { return V; }
 
-  inline IntType operator()() const { return value(); }
+  constexpr IntType operator()() const { return value(); }
 
-  inline bool isValid(bool) const { return Tag::isValidValue(V); }
+  constexpr bool isValid(bool) const { return Tag::isValidValue(V); }
 };
 
 }  // end namespace axom::slam::policies

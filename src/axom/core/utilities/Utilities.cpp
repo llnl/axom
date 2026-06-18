@@ -24,7 +24,7 @@ namespace axom
 {
 namespace utilities
 {
-void processAbort()
+[[noreturn]] void processAbort()
 {
 #ifndef AXOM_USE_MPI
   abort();

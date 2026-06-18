@@ -40,7 +40,8 @@ set(gtest_slam_tests
 
     # aux tests
     slam_ModularInt.cpp
-
+    slam_static_asserts.cpp
+    
     #mesh structure test
     slam_IA.cpp
     slam_detail_FacetPairingMap.cpp
