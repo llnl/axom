@@ -14,6 +14,7 @@
 #include "axom/slam/Map.hpp"
 
 #include <sstream>
+#include <typeinfo>
 
 namespace axom
 {
@@ -106,10 +107,7 @@ public:
   }
 
 private:
-  std::string dataTypeString() const
-  {
-    return axom::slam::util::TypeToString<DataType>::to_string();
-  }
+  std::string dataTypeString() const { return typeid(DataType).name(); }
 
   inline void verifyFieldsKey(const KeyType& AXOM_DEBUG_PARAM(key)) const
   {

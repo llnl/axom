@@ -129,9 +129,6 @@ public:
    * with some value for not containing the element
    */
   virtual bool          contains(const SetElement & elt) const = 0;
-
-  //Possible other useful functions
-  void                  reset(size_type) { throw NotImplementedException(); }
 #endif
 
 private:

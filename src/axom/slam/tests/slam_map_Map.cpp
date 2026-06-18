@@ -60,7 +60,7 @@ bool constructAndTestMap()
   EXPECT_EQ(s.size(), MAX_SET_SIZE);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("Creating " << slam::util::TypeToString<T>::to_string() << " map on the set ");
+  SLIC_INFO("Creating map on the set ");
 
   slam::Map<T, BaseSet> m(&s);
   EXPECT_TRUE(m.isValid());
@@ -155,8 +155,7 @@ void constructAndTestMapWithStride(int stride)
   EXPECT_EQ(s.size(), MAX_SET_SIZE);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("\nCreating " << slam::util::TypeToString<T>::to_string() << " map with stride "
-                          << stride << " on the set ");
+  SLIC_INFO("\nCreating map with stride " << stride << " on the set ");
 
   using MapType = slam::Map<T, BaseSet, VecIndirection<T>, StrideType>;
   MapType m(&s, 0, stride);
@@ -211,7 +210,7 @@ TEST(slam_map, iterate)
   SetType s(MAX_SET_SIZE);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("Creating '" << slam::util::TypeToString<double>::to_string() << "' map on the set ");
+  SLIC_INFO("Creating map on the set ");
   RealMap m(&s);
   EXPECT_TRUE(m.isValid());
 

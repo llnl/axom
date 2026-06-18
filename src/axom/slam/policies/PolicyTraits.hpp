@@ -18,13 +18,10 @@
 #include "axom/slam/policies/SizePolicies.hpp"
 #include "axom/slam/policies/StridePolicies.hpp"
 
+#include <type_traits>
 #include <utility>
 
-namespace axom
-{
-namespace slam
-{
-namespace policies
+namespace axom::slam::policies
 {
 /**
  * \brief Definition of a type trait to adapt a StridePolicy into a SizePolicy
@@ -97,24 +94,10 @@ struct EmptySetTraits<slam::Set<P, E>>
   }
 };
 
-}  // end namespace policies
+}  // end namespace axom::slam::policies
 
-namespace traits
+namespace axom::slam::traits
 {
-// Implementation of void_t (from C++17) with bug fix for
-// earlier versions of gcc. Credit: https://stackoverflow.com/a/35754473
-namespace void_details
-{
-template <class...>
-struct make_void
-{
-  using type = void;
-};
-}  // namespace void_details
-
-template <class... T>
-using void_t = typename void_details::make_void<T...>::type;
-
 ///\name has_relation_ptr traits class
 ///@{
 
@@ -123,7 +106,7 @@ struct has_relation_ptr : std::false_type
 { };
 
 template <class T>
-struct has_relation_ptr<T, void_t<decltype(std::declval<T>().getRelation())>> : std::true_type
+struct has_relation_ptr<T, std::void_t<decltype(std::declval<T>().getRelation())>> : std::true_type
 { };
 
 ///@}
@@ -136,14 +119,11 @@ struct indices_use_indirection : std::true_type
 { };
 
 template <class T>
-struct indices_use_indirection<T, void_t<typename T::ProductSetType>> : std::false_type
+struct indices_use_indirection<T, std::void_t<typename T::ProductSetType>> : std::false_type
 { };
 
 ///@}
 
-}  // end namespace traits
-
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam::traits
 
 #endif  // SLAM_POLICY_TRAITS_H_
