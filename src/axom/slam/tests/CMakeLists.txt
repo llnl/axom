@@ -40,6 +40,7 @@ set(gtest_slam_tests
 
     # aux tests
     slam_FieldRegistry.cpp
+    slam_make_helpers.cpp
     slam_ModularInt.cpp
     slam_static_asserts.cpp
     

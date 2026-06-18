@@ -53,6 +53,7 @@ set(slam_headers
     ProductSet.hpp
     DynamicSet.hpp
     Set.hpp
+    SetBuilders.hpp
     BivariateSet.hpp
     BitSet.hpp
     RelationSet.hpp
@@ -60,6 +61,7 @@ set(slam_headers
     # SRM Relation headers
     Relation.hpp
     StaticRelation.hpp
+    RelationBuilders.hpp
     DynamicVariableRelation.hpp
     DynamicConstantRelation.hpp
 
