@@ -38,11 +38,7 @@
 #include "axom/core/NumericLimits.hpp"
 #include "axom/slic/interface/slic.hpp"
 
-namespace axom
-{
-namespace slam
-{
-namespace policies
+namespace axom::slam::policies
 {
 namespace detail
 {
@@ -81,68 +77,64 @@ struct IndexedIndirection : public BasePolicy
                       bool verboseOutput = false) const;
 
   template <bool DeviceEnable = BasePolicy::DeviceAccessible>
-  AXOM_HOST_DEVICE static inline std::enable_if_t<DeviceEnable, ResultPtr> getIndirection(
-    IndirectionRefType buf,
-    PositionType pos = 0)
+  AXOM_HOST_DEVICE static inline ResultPtr getIndirection(IndirectionRefType buf, PositionType pos = 0)
   {
-    return &buf[pos];
-  }
-
-  template <bool DeviceEnable = BasePolicy::DeviceAccessible>
-  AXOM_HOST_DEVICE static inline std::enable_if_t<DeviceEnable, ConstResultPtr> getConstIndirection(
-    IndirectionConstRefType buf,
-    PositionType pos = 0)
-  {
-    return &buf[pos];
-  }
-
-  template <bool DeviceEnable = BasePolicy::DeviceAccessible>
-  AXOM_HOST_DEVICE static inline std::enable_if_t<!DeviceEnable, ResultPtr> getIndirection(
-    IndirectionRefType buf,
-    PositionType pos = 0)
-  {
+    if constexpr(DeviceEnable)
+    {
+      return &buf[pos];
+    }
+    else
+    {
 #ifdef AXOM_DEVICE_CODE
-    AXOM_UNUSED_VAR(buf);
-    AXOM_UNUSED_VAR(pos);
-    SLIC_ASSERT_MSG(
-      false,
-      BasePolicy::Name << " -- Attempting to indirect on an unsupported indirection policy.");
+      AXOM_UNUSED_VAR(buf);
+      AXOM_UNUSED_VAR(pos);
+      SLIC_ASSERT_MSG(
+        false,
+        BasePolicy::Name << " -- Attempting to indirect on an unsupported indirection policy.");
 
   // Disable no-return warnings from device code
   #if defined(__CUDA_ARCH__)
-    __trap();
+      __trap();
   #elif defined(__HIP_DEVICE_COMPILE__)
-    abort();
+      abort();
   #endif
-    return nullptr;
+      return nullptr;
 #else
-    // Always return a value.
-    return &buf[pos];
+      // Always return a value.
+      return &buf[pos];
 #endif
+    }
   }
 
   template <bool DeviceEnable = BasePolicy::DeviceAccessible>
-  AXOM_HOST_DEVICE static inline std::enable_if_t<!DeviceEnable, ConstResultPtr>
-  getConstIndirection(IndirectionConstRefType buf, PositionType pos = 0)
+  AXOM_HOST_DEVICE static inline ConstResultPtr getConstIndirection(IndirectionConstRefType buf,
+                                                                    PositionType pos = 0)
   {
+    if constexpr(DeviceEnable)
+    {
+      return &buf[pos];
+    }
+    else
+    {
 #ifdef AXOM_DEVICE_CODE
-    AXOM_UNUSED_VAR(buf);
-    AXOM_UNUSED_VAR(pos);
-    SLIC_ASSERT_MSG(
-      false,
-      BasePolicy::Name << " -- Attempting to indirect on an unsupported indirection policy.");
+      AXOM_UNUSED_VAR(buf);
+      AXOM_UNUSED_VAR(pos);
+      SLIC_ASSERT_MSG(
+        false,
+        BasePolicy::Name << " -- Attempting to indirect on an unsupported indirection policy.");
 
   // Disable no-return warnings from device code
   #if defined(__CUDA_ARCH__)
-    __trap();
+      __trap();
   #elif defined(__HIP_DEVICE_COMPILE__)
-    abort();
+      abort();
   #endif
-    return nullptr;
+      return nullptr;
 #else
-    // Always return a value.
-    return &buf[pos];
+      // Always return a value.
+      return &buf[pos];
 #endif
+    }
   }
 
   AXOM_HOST_DEVICE inline ConstIndirectionResult indirection(PositionType pos) const
@@ -464,8 +456,6 @@ using ArrayViewIndirection =
 
 /// \}
 
-}  // end namespace policies
-}  // end namespace slam
-}  // end namespace axom
+}  // end namespace axom::slam::policies
 
 #endif  // SLAM_POLICIES_INDIRECTION_H_
