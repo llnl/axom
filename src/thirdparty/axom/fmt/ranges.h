@@ -67,6 +67,9 @@ struct has_member_fn_begin_end_t<T, void_t<decltype(*std::declval<T>().begin()),
                                            decltype(std::declval<T>().end())>>
     : std::true_type {};
 
+using std::begin;
+using std::end;
+
 // Member function overloads.
 template <typename T>
 auto range_begin(T&& rng) -> decltype(static_cast<T&&>(rng).begin()) {
