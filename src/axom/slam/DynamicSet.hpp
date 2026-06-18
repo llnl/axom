@@ -409,7 +409,7 @@ public:
   IndexType insert(ElementType val)
   {
     m_data.push_back(val);
-    SizePolicy::m_sz = m_data.size();
+    SizePolicy::size() = m_data.size();
     return size() - 1;
   };
 
@@ -431,7 +431,7 @@ public:
    */
   void reset(PositionType sz)
   {
-    SizePolicy::m_sz = sz;
+    SizePolicy::size() = sz;
     fill_array_default(sz);
   }
 

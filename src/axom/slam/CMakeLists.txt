@@ -31,6 +31,7 @@ set(slam_headers
 
     #SRM policies
     policies/CardinalityPolicies.hpp
+    policies/ValuePolicies.hpp
     policies/SizePolicies.hpp
     policies/OffsetPolicies.hpp
     policies/StridePolicies.hpp
