@@ -72,6 +72,27 @@ struct HashMixer64
   }
 };
 
+/*!
+ * \brief A faster (but lower-cost) hash mixer for 64-bit hashing.
+ *
+ * Intended for performance experiments when the cost of hashing dominates
+ * lookup. Uses a single 64-bit multiply followed by an xor-fold.
+ */
+template <typename KeyType, template <typename> class HashFunc>
+struct FastHashMixer64
+{
+  using argument_type = typename HashFunc<KeyType>::argument_type;
+  using result_type = typename HashFunc<KeyType>::result_type;
+
+  AXOM_HOST_DEVICE uint64_t operator()(const KeyType& key) const
+  {
+    uint64_t hash = static_cast<uint64_t>(HashFunc<KeyType> {}(key));
+    hash *= 0x9e3779b97f4a7c15ULL;
+    hash ^= hash >> 32;
+    return hash;
+  }
+};
+
 // We follow the design of boost::unordered_flat_map, which uses a 128-bit chunk
 // of metadata for each group of 15 buckets.
 // This is split up into an "overflow bit", and 15 bytes representing the
@@ -141,7 +162,7 @@ struct GroupBucket
   }
 
   template <typename Func>
-  AXOM_HOST_DEVICE int visitHashBucket(std::uint8_t hash, Func&& visitor) const
+  AXOM_FORCE_INLINE AXOM_HOST_DEVICE int visitHashBucket(std::uint8_t hash, Func&& visitor) const
   {
     std::uint8_t reducedHash = reduceHash(hash);
 #if !defined(AXOM_DEVICE_CODE) && defined(_AXOM_CORE_HAVE_SSE2)
@@ -169,7 +190,11 @@ struct GroupBucket
     {
       if(metadata.buckets[i] == reducedHash)
       {
-        visitor(i);
+        if(!visitor(i))
+        {
+          // Found a match - stop visiting, mirroring the SSE2 path above.
+          break;
+        }
       }
     }
 #endif
@@ -252,7 +277,7 @@ struct GroupBucket
   }
 
   template <bool Atomic = false>
-  AXOM_HOST_DEVICE bool getMaybeOverflowed(std::uint8_t hash) const
+  AXOM_FORCE_INLINE AXOM_HOST_DEVICE bool getMaybeOverflowed(std::uint8_t hash) const
   {
     std::uint8_t hashOfwBit = 1 << (hash % 8);
     std::uint8_t curr_ofw;
@@ -308,6 +333,21 @@ struct SequentialLookupPolicy : ProbePolicy
 {
   constexpr static int NO_MATCH = -1;
 
+  struct GroupProbeInit
+  {
+    HashType group_mask;
+    HashType curr_group;
+  };
+
+  AXOM_FORCE_INLINE AXOM_HOST_DEVICE static GroupProbeInit initGroupProbe(HashType hash,
+                                                                          int ngroups_pow_2)
+  {
+    const int bitshift_right = (CHAR_BIT * sizeof(HashType)) - ngroups_pow_2;
+    const HashType group_mask = (HashType {1} << ngroups_pow_2) - 1;
+    const HashType curr_group = (hash >> bitshift_right) & group_mask;
+    return {group_mask, curr_group};
+  }
+
   /*!
    * \brief Inserts a hash into the first empty bucket in an array of groups
    *  for an open-addressing hash map.
@@ -318,11 +358,10 @@ struct SequentialLookupPolicy : ProbePolicy
    */
   IndexType probeEmptyIndex(int ngroups_pow_2, ArrayView<GroupBucket> metadata, HashType hash) const
   {
-    // We use the k MSBs of the hash as the initial group probe point,
-    // where ngroups = 2^k.
-    int bitshift_right = ((CHAR_BIT * sizeof(HashType)) - ngroups_pow_2);
-    HashType curr_group = hash >> bitshift_right;
-    curr_group &= ((1 << ngroups_pow_2) - 1);
+    // We use the k MSBs of the hash as the initial group probe point, where ngroups = 2^k.
+    const auto init = initGroupProbe(hash, ngroups_pow_2);
+    const HashType group_mask = init.group_mask;
+    HashType curr_group = init.curr_group;
     int empty_group = NO_MATCH;
     int empty_bucket = NO_MATCH;
 
@@ -347,7 +386,91 @@ struct SequentialLookupPolicy : ProbePolicy
         // Set the overflow bit and continue probing.
         metadata[curr_group].setOverflow(hash_8);
       }
-      curr_group = (curr_group + this->getNext(iteration)) % metadata.size();
+      // The group count is a power of two,  so we can use a bitmask (instead of a modulo)
+      curr_group = (curr_group + this->getNext(iteration)) & group_mask;
+    }
+    if(empty_group != NO_MATCH)
+    {
+      return empty_group * GroupBucket::Size + empty_bucket;
+    }
+    return NO_MATCH;
+  }
+
+  /*!
+   * \brief Fused find-or-locate-empty probe for single-key emplacement.
+   *
+   *  Walks the probe sequence once, simultaneously visiting key matches and
+   *  tracking the first empty slot. Overflow bits are maintained in the
+   *  same way as probeEmptyIndex(): a full group that hasn't yielded an insertion
+   *  slot is marked overflowed for this hash before moving on.
+   *
+   * \param [in] ngroups_pow_2 the number of groups, expressed as a power of 2
+   * \param [in] metadata the array of metadata for the groups in the hash map
+   * \param [in] hash the hash to search for and, if absent, insert
+   * \param [in] on_hash_found functor called for each matching bucket slot;
+   *  returns false to stop the probe (existing key found)
+   *
+   * \return the bucket index to insert into, or NO_MATCH if the visitor stopped the probe
+   */
+  template <typename FoundIndex>
+  IndexType probeEmplaceIndex(int ngroups_pow_2,
+                              ArrayView<GroupBucket> metadata,
+                              HashType hash,
+                              FoundIndex&& on_hash_found) const
+  {
+    const auto init = initGroupProbe(hash, ngroups_pow_2);
+    const HashType group_mask = init.group_mask;
+    HashType curr_group = init.curr_group;
+    int empty_group = NO_MATCH;
+    int empty_bucket = NO_MATCH;
+
+    std::uint8_t hash_8 = static_cast<std::uint8_t>(hash);
+    bool may_exist = true;
+    for(int iteration = 0; iteration < metadata.size(); ++iteration)
+    {
+      if(may_exist)
+      {
+        // The key may be in the current group, so scan for matches just as probeIndex() does
+        bool keep_going = true;
+        metadata[curr_group].visitHashBucket(hash_8, [&](IndexType bucket_index) -> bool {
+          keep_going = on_hash_found(curr_group * GroupBucket::Size + bucket_index);
+          return keep_going;
+        });
+        if(!keep_going)
+        {
+          // Visitor stopped the probe: the key already exists
+          return NO_MATCH;
+        }
+      }
+
+      if(empty_group == NO_MATCH)
+      {
+        int tentative_empty_bucket = metadata[curr_group].getEmptyBucket();
+        if(tentative_empty_bucket != GroupBucket::InvalidSlot)
+        {
+          empty_group = curr_group;
+          empty_bucket = tentative_empty_bucket;
+        }
+      }
+
+      if(!metadata[curr_group].getMaybeOverflowed(hash_8))
+      {
+        // The key cannot exist past this group
+        may_exist = false;
+        if(empty_group != NO_MATCH)
+        {
+          break;
+        }
+        // Full group at the end of the trail, mark as overflowed and keep looking for an empty slot
+        metadata[curr_group].setOverflow(hash_8);
+      }
+      else if(empty_group == NO_MATCH)
+      {
+        // Full group inside the trail
+        metadata[curr_group].setOverflow(hash_8);
+      }
+      // The group count is a power of two, so we can use a bitmask (instead of a modulo)
+      curr_group = (curr_group + this->getNext(iteration)) & group_mask;
     }
     if(empty_group != NO_MATCH)
     {
@@ -367,16 +490,15 @@ struct SequentialLookupPolicy : ProbePolicy
    *  matching hash
    */
   template <typename FoundIndex>
-  AXOM_HOST_DEVICE void probeIndex(int ngroups_pow_2,
-                                   ArrayView<const GroupBucket> metadata,
-                                   HashType hash,
-                                   FoundIndex&& on_hash_found) const
+  AXOM_FORCE_INLINE AXOM_HOST_DEVICE void probeIndex(int ngroups_pow_2,
+                                                     ArrayView<const GroupBucket> metadata,
+                                                     HashType hash,
+                                                     FoundIndex&& on_hash_found) const
   {
-    // We use the k MSBs of the hash as the initial group probe point,
-    // where ngroups = 2^k.
-    int bitshift_right = ((CHAR_BIT * sizeof(HashType)) - ngroups_pow_2);
-    HashType curr_group = hash >> bitshift_right;
-    curr_group &= ((1 << ngroups_pow_2) - 1);
+    // We use the k MSBs of the hash as the initial group probe point, where ngroups = 2^k.
+    const auto init = initGroupProbe(hash, ngroups_pow_2);
+    const HashType group_mask = init.group_mask;
+    HashType curr_group = init.curr_group;
 
     std::uint8_t hash_8 = static_cast<std::uint8_t>(hash);
     bool keep_going = true;
@@ -397,8 +519,8 @@ struct SequentialLookupPolicy : ProbePolicy
       {
         break;
       }
-      // Probe the next bucket.
-      curr_group = (curr_group + this->getNext(iteration)) % metadata.size();
+      // Probe the next bucket. Note that the group count is a power of 2 so we can use a bit mask
+      curr_group = (curr_group + this->getNext(iteration)) & group_mask;
     }
   }
 

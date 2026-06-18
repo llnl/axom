@@ -90,6 +90,24 @@
 #endif
 // _decorating_macros_end
 
+/*!
+ * \def AXOM_FORCE_INLINE
+ *
+ * \brief Force-inline annotation for hot-path functions
+ *
+ * \note Prefer using this sparingly on true hot paths since overuse can increase
+ *  code size and hurt instruction cache behavior
+ */
+#if defined(__CUDACC__) || defined(__HIPCC__)
+  #define AXOM_FORCE_INLINE __forceinline__
+#elif defined(__GNUC__) || defined(__clang__)
+  #define AXOM_FORCE_INLINE inline __attribute__((always_inline))
+#elif defined(_MSC_VER)
+  #define AXOM_FORCE_INLINE __forceinline
+#else
+  #define AXOM_FORCE_INLINE inline
+#endif
+
 /*
  * \def AXOM_STRINGIFY
  *
