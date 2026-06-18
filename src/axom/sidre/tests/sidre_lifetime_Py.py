@@ -562,6 +562,32 @@ def test_pin_overwrite_warning():
     np.testing.assert_array_equal(view.getDataArray(), external2)
 
 
+def test_registry_cleanup_on_explicit_destroy():
+    """Pins are released when Views are explicitly destroyed, preventing registry bloat."""
+    ds = pysidre.DataStore()
+    root = ds.getRoot()
+
+    weak_refs = []
+    for i in range(5):
+        external = np.arange(10, dtype=np.int32)
+        weak_refs.append(weakref.ref(external))
+        view = root.createView(f"view_{i}")
+        view.setExternalData(pysidre.TypeID.INT32_ID, 10, external)
+        del external  # Pin keeps it alive
+        del view  # Don't hold view reference
+
+    # Explicitly destroy all views - this releases pins
+    for i in range(5):
+        root.destroyView(f"view_{i}")
+
+    _force_gc()
+
+    # Verify all arrays were collected after explicit destruction
+    collected_count = sum(1 for ref in weak_refs if ref() is None)
+    assert collected_count == len(weak_refs), \
+        f"Only {collected_count}/{len(weak_refs)} arrays collected after explicit destroy"
+
+
 if __name__ == "__main__":
     import sys
 

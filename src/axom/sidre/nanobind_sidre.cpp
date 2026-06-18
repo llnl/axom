@@ -110,6 +110,12 @@ nb::ndarray<nb::numpy> viewToNumpyArray(nb::handle_t<View> h)
 
   IndexType shapeOutput[DMAX];
   size_t ndims = self.getShape(DMAX, shapeOutput);
+
+  // Guard against buffer overflow if View has more dimensions than our buffer can hold
+  SLIC_ERROR_IF(ndims > DMAX,
+                "View has " << ndims << " dimensions, exceeds maximum of " << DMAX
+                            << ". Cannot convert to numpy array.");
+
   size_t shape[DMAX];
   for(size_t i = 0; i < ndims; i++)
   {
@@ -268,7 +274,7 @@ conduit::Node& nbObjectToNode(nb::object& o)
  * drop it immediately, which can leave Sidre holding a dangling pointer once
  * the ndarray is garbage collected.
  *
- * To keep Sidre's C++ semantics unchanged while making the Python API safe, 
+ * To keep Sidre's C++ semantics unchanged while making the Python API safe,
  * we maintain a binding-only registry that maps a C++ View* to a copied
  * nanobind::ndarray wrapper. Copying nb::ndarray increments the underlying
  * ndarray owner's refcount via nanobind's internal handle, so the NumPy storage
@@ -276,6 +282,14 @@ conduit::Node& nbObjectToNode(nb::object& o)
  *
  * Pins are released when the external pointer is cleared (e.g. View.clear(),
  * setExternalData(None)) and when views/groups are destroyed via the bound Group::destroy* APIs.
+ *
+ * **Registry Lifetime:** The registry persists for the process lifetime and may accumulate
+ * entries for destroyed Views if those Views are destroyed by the C++ DataStore destructor
+ * rather than through the Python-wrapped destroy methods. This is acceptable because:
+ * (1) Dangling View* keys are never dereferenced (we only erase, never lookup by pointer)
+ * (2) The memory overhead is small (one map entry per external View ever created)
+ * (3) In typical Python usage, Views with external data are explicitly destroyed via
+ *     destroyView()/destroyGroup(), which properly releases pins.
  */
 std::unordered_map<View*, nb::ndarray<>>& externalDataOwnerRegistry()
 {
@@ -1311,6 +1325,7 @@ NB_MODULE(pysidre, m_sidre)
     .def(
       "destroyView",
       [](Group& self, const std::string& path) {
+        // releaseExternalDataOwner is null-safe; destroyView handles invalid paths gracefully
         releaseExternalDataOwner(self.getView(path));
         self.destroyView(path);
       },
@@ -1318,6 +1333,7 @@ NB_MODULE(pysidre, m_sidre)
     .def(
       "destroyView",
       [](Group& self, IndexType idx) {
+        // releaseExternalDataOwner is null-safe; destroyView handles invalid indices gracefully
         releaseExternalDataOwner(self.getView(idx));
         self.destroyView(idx);
       },
@@ -1325,6 +1341,7 @@ NB_MODULE(pysidre, m_sidre)
     .def(
       "destroyViewAndData",
       [](Group& self, const std::string& path) {
+        // releaseExternalDataOwner is null-safe; destroyViewAndData handles invalid paths gracefully
         releaseExternalDataOwner(self.getView(path));
         self.destroyViewAndData(path);
       },
@@ -1417,6 +1434,7 @@ NB_MODULE(pysidre, m_sidre)
     .def(
       "destroyGroup",
       [](Group& self, const std::string& path) {
+        // releaseExternalDataOwners is null-safe; destroyGroup handles invalid paths gracefully
         releaseExternalDataOwners(self.getGroup(path));
         self.destroyGroup(path);
       },
@@ -1424,6 +1442,7 @@ NB_MODULE(pysidre, m_sidre)
     .def(
       "destroyGroup",
       [](Group& self, IndexType idx) {
+        // releaseExternalDataOwners is null-safe; destroyGroup handles invalid indices gracefully
         releaseExternalDataOwners(self.getGroup(idx));
         self.destroyGroup(idx);
       },
@@ -1431,6 +1450,7 @@ NB_MODULE(pysidre, m_sidre)
     .def(
       "destroyGroupAndData",
       [](Group& self, const std::string& path) {
+        // releaseExternalDataOwners is null-safe; destroyGroupAndData handles invalid paths gracefully
         releaseExternalDataOwners(self.getGroup(path));
         self.destroyGroupAndData(path);
       },
