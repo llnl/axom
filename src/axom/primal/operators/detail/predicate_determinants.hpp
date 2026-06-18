@@ -12,6 +12,19 @@
  * These routines centralize the core determinant computations used by primal
  * predicates (e.g. orientation and in-sphere).  They return the raw determinant
  * values without interpreting tolerances or mapping to OrientationResult.
+ *
+ * \note **Precision / robustness.** These determinants are evaluated in ordinary
+ *  IEEE double-precision floating point. They are fast and accurate away from
+ *  degeneracy, but they are NOT exact sign oracles: for inputs that are exactly
+ *  or nearly degenerate (collinear points for orientation; co-circular /
+ *  co-spherical points for in-sphere), accumulated round-off can make the
+ *  computed sign unreliable, and no fixed tolerance fully recovers the exact
+ *  sign. Callers needing robust behavior on (near-)degenerate configurations
+ *  should classify with a scale-aware tolerance (see the *_orientation wrappers
+ *  and quest::Delaunay's tolerance helpers) rather than trusting the bare sign.
+ *  Exact / adaptive-precision predicates (e.g. Shewchuk-style) would remove this
+ *  limitation and are a possible future enhancement; see the primal tests
+ *  characterizing where the double-precision sign is and is not reliable.
  */
 
 #ifndef AXOM_PRIMAL_PREDICATE_DETERMINANTS_HPP_

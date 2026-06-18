@@ -10,6 +10,9 @@
  * \brief Consists of a set of templated (overloaded) routines used to calculate
  *  the orientation of a given point to another geometric entity.
  *
+ * \note These routines use double-precision determinants and are not exact sign
+ *  oracles near degeneracy (e.g. nearly collinear/coplanar inputs).
+ *  See detail/predicate_determinants.hpp for the precision/robustness discussion.
  */
 
 #ifndef AXOM_PRIMAL_ORIENTATION_HPP_
