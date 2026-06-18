@@ -311,10 +311,17 @@ public:
     axom::for_all<ExecSpace>(
       tetCount,
       AXOM_LAMBDA(axom::IndexType i) {
-        auto& tetBb = tetBbsView[i];
         axom::IndexType tetId = tetIndices[i];
+        BoundingBoxType tetBb;
         const auto& tet = meshTets[tetId];
+        if(!tetValidForClipping(tet))
+        {
+          tetBbsView[i] = tetBb;
+          return;
+        }
+
         for(int j = 0; j < 4; ++j) tetBb.addPoint(tet[j]);
+        tetBbsView[i] = tetBb;
       });
 
     axom::Array<IndexType> counts(tetCount, tetCount, allocId);
@@ -324,40 +331,46 @@ public:
     auto offsetsView = offsets.view();
     // Get the BVH traverser for doing the 2-pass search manually.
     const auto bvhTraverser = bvh.getTraverser();
+
     /*
-     * Predicate for traversing the BVH.  We enter BVH nodes
-     * whose bounding boxes intersect the query bounding box.
+     * Predicate for traversing the BVH. We enter BVH nodes whose bounding
+     * boxes intersect the query tet. Invalid tetBbs correspond to degenerate
+     * mesh tets that cannot contribute volume or be passed to tetBoxCollision().
      */
     auto traversePredTetId = [=] AXOM_HOST_DEVICE(const IndexType& queryTetId,
                                                   const BoundingBoxType& bvhBbox) -> bool {
+      const auto& queryBb = tetBbsView[queryTetId];
+      if(!queryBb.isValid())
+      {
+        return false;
+      }
+      if(!queryBb.intersectsWith(bvhBbox))
+      {
+        return false;
+      }
+
       const auto& queryTet = meshTets[tetIndices[queryTetId]];
       return tetBoxCollision(queryTet, bvhBbox);
     };
 
     /*
-     * First pass: count number of collisions each of the tetBbs makes
-     * with the BVH leaves.  Populate the counts array.
+     * First pass: count number of collisions each of the selected mesh tets
+     * makes with the BVH leaves. Populate the counts array.
      */
     axom::ReduceSum<ExecSpace, IndexType> totalCountReduce(0);
     axom::for_all<ExecSpace>(
       tetCount,
       AXOM_LAMBDA(axom::IndexType iTet) {
-        axom::IndexType count = 0;
+        IndexType count = 0;
         auto countCollisions = [&](std::int32_t currentNode, const std::int32_t* leafNodes) {
-          // countCollisions is only called at the leaves.
-          auto tetId = tetIndices[iTet];
-          const auto& meshTet = meshTets[tetId];
-          if(!tetValidForClipping(meshTet))
-          {
-            return;
-          }
-
           auto pieceId = leafNodes[currentNode];
           if(pieceId < 0 || pieceId >= geomPieceCount)
           {
             return;
           }
 
+          auto tetId = tetIndices[iTet];
+          const auto& meshTet = meshTets[tetId];
           if(useTets)
           {
             const auto& piece = geomTetsView[pieceId];
@@ -408,19 +421,14 @@ public:
          * Unless tet and candidate can be shown not to collide.
          */
         auto recordCollision = [&](std::int32_t currentNode, const std::int32_t* leafs) {
-          auto tetId = tetIndices[iTet];
-          const auto& meshTet = meshTets[tetId];
-          if(!tetValidForClipping(meshTet))
-          {
-            return;
-          }
-
           auto pieceId = leafs[currentNode];
           if(pieceId < 0 || pieceId >= geomPieceCount)
           {
             return;
           }
 
+          auto tetId = tetIndices[iTet];
+          const auto& meshTet = meshTets[tetId];
           bool record = false;
           if(useTets)
           {
@@ -764,11 +772,13 @@ public:
    * @brief Whether a tet and a bounding box (possibly) intersect.
    * Answer may be a false positive but never a false negative
    * (which is why this code lives here instead of in a primal::intersect method).
+   *
+   * \pre tet is nondegenerate and valid for CoordTransformer construction.
    */
   AXOM_HOST_DEVICE static inline bool tetBoxCollision(const TetrahedronType& tet,
                                                       const BoundingBoxType& box)
   {
-    if(!box.isValid() || !tetValidForClipping(tet))
+    if(!box.isValid())
     {
       return false;
     }
