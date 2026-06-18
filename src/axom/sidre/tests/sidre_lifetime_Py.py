@@ -588,6 +588,168 @@ def test_registry_cleanup_on_explicit_destroy():
         f"Only {collected_count}/{len(weak_refs)} arrays collected after explicit destroy"
 
 
+def test_multiple_concurrent_datastores():
+    """Multiple active DataStores with external data should not interfere with each other."""
+    # Create multiple DataStores simultaneously
+    datastores = []
+    views = []
+    arrays = []
+
+    for ds_idx in range(3):
+        ds = pysidre.DataStore()
+        root = ds.getRoot()
+        datastores.append(ds)
+
+        # Each DataStore has multiple Views with external data
+        ds_views = []
+        ds_arrays = []
+        for view_idx in range(3):
+            external = np.arange(view_idx * 10, (view_idx + 1) * 10, dtype=np.int32)
+            ds_arrays.append(external)
+            view = root.createView(f"view_{view_idx}")
+            view.setExternalData(pysidre.TypeID.INT32_ID, 10, external)
+            ds_views.append(view)
+
+        views.append(ds_views)
+        arrays.append(ds_arrays)
+
+    # Verify all views can access their data correctly
+    for ds_idx in range(3):
+        for view_idx in range(3):
+            view = views[ds_idx][view_idx]
+            expected = arrays[ds_idx][view_idx]
+            retrieved = view.getDataArray()
+            np.testing.assert_array_equal(retrieved,
+                                          expected,
+                                          err_msg=f"DS{ds_idx} view{view_idx} data mismatch")
+
+    # Destroy one DataStore while others remain active
+    root0 = datastores[0].getRoot()
+    for view_idx in range(3):
+        root0.destroyView(f"view_{view_idx}")
+
+    # Keep references to DS1 and DS2 before deleting DS0
+    ds1_views = views[1]
+    ds2_views = views[2]
+    ds1_arrays = arrays[1]
+    ds2_arrays = arrays[2]
+
+    del datastores[0], views[0], arrays[0]
+    _force_gc()
+
+    # Verify remaining DataStores still work correctly
+    for local_idx, (ds_views, ds_arrays, ds_label) in enumerate([(ds1_views, ds1_arrays, "DS1"),
+                                                                 (ds2_views, ds2_arrays, "DS2")]):
+        for view_idx in range(3):
+            view = ds_views[view_idx]
+            expected = ds_arrays[view_idx]
+            retrieved = view.getDataArray()
+            np.testing.assert_array_equal(
+                retrieved,
+                expected,
+                err_msg=f"After DS0 destroy: {ds_label} view{view_idx} data mismatch")
+
+    # Create a new DataStore and verify it doesn't conflict
+    ds_new = pysidre.DataStore()
+    root_new = ds_new.getRoot()
+    external_new = np.arange(100, 110, dtype=np.int32)
+    view_new = root_new.createView("new_view")
+    view_new.setExternalData(pysidre.TypeID.INT32_ID, 10, external_new)
+
+    # Verify new DataStore works
+    np.testing.assert_array_equal(view_new.getDataArray(), external_new)
+
+    # Verify old DataStores still work
+    for ds_views, ds_arrays, ds_label in [(ds1_views, ds1_arrays, "DS1"),
+                                          (ds2_views, ds2_arrays, "DS2")]:
+        for view_idx in range(3):
+            view = ds_views[view_idx]
+            expected = ds_arrays[view_idx]
+            retrieved = view.getDataArray()
+            np.testing.assert_array_equal(
+                retrieved,
+                expected,
+                err_msg=f"After new DS: {ds_label} view{view_idx} data mismatch")
+
+
+def test_concurrent_datastores_with_copy_move():
+    """Copy/move operations should work correctly with multiple concurrent DataStores."""
+    ds1 = pysidre.DataStore()
+    ds2 = pysidre.DataStore()
+
+    root1 = ds1.getRoot()
+    root2 = ds2.getRoot()
+
+    # Create view with external data in DS1
+    external1 = np.arange(10, dtype=np.int32)
+    view1 = root1.createView("src")
+    view1.setExternalData(pysidre.TypeID.INT32_ID, 10, external1)
+
+    # Copy view to a group in DS1
+    grp1 = root1.createGroup("grp1")
+    copied = grp1.copyView(view1)
+    np.testing.assert_array_equal(copied.getDataArray(), external1)
+
+    # Create view with different external data in DS2
+    external2 = np.arange(20, 30, dtype=np.int64)
+    view2 = root2.createView("other")
+    view2.setExternalData(pysidre.TypeID.INT64_ID, 10, external2)
+
+    # Verify both DataStores maintain correct data
+    np.testing.assert_array_equal(view1.getDataArray(), external1)
+    np.testing.assert_array_equal(copied.getDataArray(), external1)
+    np.testing.assert_array_equal(view2.getDataArray(), external2)
+
+    # Move view within DS1
+    grp2 = root1.createGroup("grp2")
+    moved = grp2.moveView(copied)
+    np.testing.assert_array_equal(moved.getDataArray(), external1)
+
+    # Verify DS2 unaffected
+    np.testing.assert_array_equal(view2.getDataArray(), external2)
+
+
+def test_concurrent_datastores_registry_isolation():
+    """Registry should correctly isolate pins between different DataStores."""
+    ds1 = pysidre.DataStore()
+    ds2 = pysidre.DataStore()
+
+    external1 = np.arange(5, dtype=np.int32)
+    external2 = np.arange(5, dtype=np.int64)
+
+    ref1 = weakref.ref(external1)
+    ref2 = weakref.ref(external2)
+
+    # Both DataStores use external data
+    view1 = ds1.getRoot().createView("v1")
+    view1.setExternalData(pysidre.TypeID.INT32_ID, 5, external1)
+
+    view2 = ds2.getRoot().createView("v2")
+    view2.setExternalData(pysidre.TypeID.INT64_ID, 5, external2)
+
+    del external1, external2  # Only pins keep them alive
+    _force_gc()
+
+    # Both should still be alive
+    assert ref1() is not None, "DS1 external data collected prematurely"
+    assert ref2() is not None, "DS2 external data collected prematurely"
+
+    # Destroy view in DS1
+    ds1.getRoot().destroyView("v1")
+    _force_gc()
+
+    # DS1's external data should be collected, DS2's should not
+    assert ref1() is None, "DS1 external data not collected after destroyView"
+    assert ref2() is not None, "DS2 external data incorrectly collected"
+
+    # Destroy view in DS2
+    ds2.getRoot().destroyView("v2")
+    _force_gc()
+
+    # Now DS2's external data should be collected too
+    assert ref2() is None, "DS2 external data not collected after destroyView"
+
+
 if __name__ == "__main__":
     import sys
 
