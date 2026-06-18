@@ -23,6 +23,7 @@ blt_list_append(
     fields.cpp
     homogeneous_collections.cpp
     lua_library.cpp
+    user_defined_variant.cpp
     variant_struct_collections.cpp
     variant_collections.cpp
     containers.cpp
@@ -88,6 +89,9 @@ if (SOL_FOUND)
 
     axom_add_test( NAME    inlet_user_defined_type_ex
                    COMMAND inlet_user_defined_type_ex --file ${CMAKE_CURRENT_LIST_DIR}/example1.lua)
+
+    axom_add_test( NAME    inlet_user_defined_variant_ex
+                   COMMAND inlet_user_defined_variant_ex )
 
     axom_add_test( NAME    inlet_verification_ex
                    COMMAND inlet_verification_ex )

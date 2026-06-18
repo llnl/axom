@@ -88,6 +88,44 @@ If a ``Car`` object as defined above is located at the path "car" within the inp
 
   Car car = inlet["car"].get<Car>();
 
+********************************
+Individual Variant Structs
+********************************
+
+When a single input entry may describe one of several user-defined struct types,
+use a normal ``addStruct`` schema with a discriminator field and provide a
+``FromInlet`` specialization that constructs the selected alternative.  This is
+useful for inputs that are variant-valued but are not arrays or dictionaries.
+
+For example, a single ``shape`` table can use a ``kind`` field to select the
+concrete shape:
+
+.. literalinclude:: ../../examples/user_defined_variant.cpp
+   :start-after: _inlet_user_defined_variant_input_start
+   :end-before: _inlet_user_defined_variant_input_end
+   :language: lua
+
+The C++ type can store the concrete result in a ``std::variant`` while keeping
+the Inlet-facing type as a user-defined struct:
+
+.. literalinclude:: ../../examples/user_defined_variant.cpp
+   :start-after: _inlet_user_defined_variant_start
+   :end-before: _inlet_user_defined_variant_end
+   :language: C++
+
+Define the schema with ``addStruct`` and retrieve the result as the wrapper
+user-defined type:
+
+.. literalinclude:: ../../examples/user_defined_variant.cpp
+   :start-after: _inlet_user_defined_variant_schema_usage_start
+   :end-before: _inlet_user_defined_variant_schema_usage_end
+   :language: C++
+
+.. literalinclude:: ../../examples/user_defined_variant.cpp
+   :start-after: _inlet_user_defined_variant_access_start
+   :end-before: _inlet_user_defined_variant_access_end
+   :language: C++
+
 **********************************
 Arrays and Dictionaries of Structs
 **********************************
