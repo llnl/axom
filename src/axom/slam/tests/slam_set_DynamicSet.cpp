@@ -93,7 +93,7 @@ TEST(slam_set_dynamicset, out_of_bounds_at)
   // NOTE: AXOM_DEBUG is disabled in release mode,
   // so this test will only fail in debug mode
 
-  EXPECT_DEATH_IF_SUPPORTED(s.at(MAX_SET_SIZE), "");
+  EXPECT_DEATH_IF_SUPPORTED((void)s.at(MAX_SET_SIZE), "");
 #else
   SLIC_INFO("Skipped assertion failure check in release mode.");
 #endif

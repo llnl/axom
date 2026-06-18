@@ -184,9 +184,8 @@ public:
    * \class SetBuilder
    * \brief Helper class for constructing an ordered set.
    *
-   *  Uses named parameter idiom to enable function chaining and for better code
-   *  self-documentation
-   * */
+   *  Uses named parameter idiom to enable function chaining and for better code self-documentation
+   */
   struct SetBuilder
   {
     friend struct OrderedSet;
@@ -438,10 +437,7 @@ public:  // Functions related to iteration
   const_iterator_pair range() const { return std::make_pair(begin(), end()); }
 
 public:
-  /**
-   * \brief Given a position in the Set, return a position in the larger index
-   *  space
-   */
+  /// \brief Given a position in the Set, return a position in the larger index space
   AXOM_HOST_DEVICE
   inline typename IndirectionPolicy::ConstIndirectionResult operator[](PositionType pos) const
   {
@@ -461,14 +457,14 @@ public:
     return IndirectionPolicy::indirection(pos * StridePolicyType::stride() +
                                           OffsetPolicyType::offset());
   }
-  inline ElementType at(PositionType pos) const { return operator[](pos); }
+  [[nodiscard]] inline ElementType at(PositionType pos) const { return operator[](pos); }
 
-  AXOM_HOST_DEVICE inline PositionType size() const { return SizePolicyType::size(); }
+  [[nodiscard]] AXOM_HOST_DEVICE inline PositionType size() const { return SizePolicyType::size(); }
 
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE inline bool empty() const { return SizePolicyType::empty(); }
+  [[nodiscard]] AXOM_HOST_DEVICE inline bool empty() const { return SizePolicyType::empty(); }
 
-  bool isValid(bool verboseOutput = false) const;
+  [[nodiscard]] bool isValid(bool verboseOutput = false) const;
 
   bool isSubset() const { return SubsettingPolicy::isSubset(); }
 
@@ -478,7 +474,10 @@ public:
    * An index pos is valid when \f$ 0 \le pos < size() \f$
    * \return true if the position is valid, false otherwise
    */
-  inline bool isValidIndex(PositionType pos) const { return pos >= 0 && pos < size(); }
+  [[nodiscard]] inline bool isValidIndex(PositionType pos) const
+  {
+    return pos >= 0 && pos < size();
+  }
 
   /**
    * \brief returns a PositionSet over the set's positions

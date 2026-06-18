@@ -64,8 +64,7 @@ namespace slam
  * <ol>
  *  <li> Implicit indexes -- all we need here is a size operator
  *  <li> Sliced indices -- here we need the dimension and the striding
- *  <li> Explicit indices -- for a subset, we need the indices with respect to
- *       some other indexing scheme
+ *  <li> Explicit indices -- for a subset, we need the indices with respect to some other indexing scheme
  * </ol>
  *
  * The interface is for constant access to the elements.
@@ -85,57 +84,49 @@ public:
    * \brief Random access to the entities of the set
    * \param The index of the desired element
    * \return The value of the element at the given position
-   * \pre The position must be less than the number of elements in the set (
-   * size() )
-   * \note Concrete realizations of Set also support subscript operator --
-   * operator[].
-   * \note How are we planning to handle indexes that are out or range
-   *(accidentally)?
+   * \pre The position must be less than the number of elements in the set ( size() )
+   * \note Concrete realizations of Set also support subscript operator operator[].
+   * \note How are we planning to handle indexes that are out or range (accidentally)?
    *       Are we planning to handle indexes that are intentionally out of range
    *       (e.g. to indicate a problem, or a missing element etc..)?
    */
-  virtual ElementType at(PositionType) const = 0;
+  [[nodiscard]] virtual ElementType at(PositionType) const = 0;
 
   /**
    * \brief Get the number of entities in the set
    * \return The number of entities in the set.
    */
-  AXOM_HOST_DEVICE virtual PositionType size() const = 0;
+  [[nodiscard]] AXOM_HOST_DEVICE virtual PositionType size() const = 0;
 
   /**
    * \brief Determines if the Set is a Subset of another set.
    * \return true if the set is a subset of another set, otherwise false.
    */
-  virtual bool isSubset() const = 0;
+  [[nodiscard]] virtual bool isSubset() const = 0;
 
   /**
    * \brief Checks whether the set is valid.
    * \return true if the underlying indices are valid, false otherwise.
    */
-  virtual bool isValid(bool verboseOutput = false) const = 0;
+  [[nodiscard]] virtual bool isValid(bool verboseOutput = false) const = 0;
 
   /**
-   * \brief Checks if there are any elements in the set -- equivalent to:
-   * set.size() == 0
+   * \brief Checks if there are any elements in the set -- equivalent to: set.size() == 0
    */
-  AXOM_HOST_DEVICE virtual bool empty() const = 0;
+  [[nodiscard]] AXOM_HOST_DEVICE virtual bool empty() const = 0;
 
 #if 0
   /**
    * \brief Returns true if the set contains the given element.
    *
-   * Alternatively, we can return the position in the set containing the
-   * element,
+   * Alternatively, we can return the position in the set containing the element,
    * with some value for not containing the element
    */
   virtual bool          contains(const SetElement & elt) const = 0;
 #endif
 
 private:
-  /**
-   * \brief Utility function to verify that the given SetPosition is in a valid
-   * range.
-   */
+  /// \brief Utility function to verify that the given SetPosition is in a valid range.
   virtual void verifyPosition(PositionType) const = 0;
 };
 
@@ -170,9 +161,7 @@ inline bool operator==(const Set<P1, E1>& set1, const Set<P2, E2>& set2)
   }
   return true;
 }
-/**
- * \brief Set inequality operator
- */
+/// \brief Set inequality operator
 template <typename P1, typename E1, typename P2, typename E2>
 inline bool operator!=(const Set<P1, E1>& set1, const Set<P2, E2>& set2)
 {

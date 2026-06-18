@@ -250,7 +250,7 @@ public:
    *
    * \pre pos must be between 0 and size()
    */
-  ElementType at(PositionType pos) const { return operator[](pos); };
+  [[nodiscard]] ElementType at(PositionType pos) const { return operator[](pos); };
 
   /**
    * \brief Access the element at position \a pos
@@ -328,14 +328,13 @@ public:
   /**
    * \brief Returns the number of possible elements in the set
    *
-   * \note Not all elements are necessarily valid since some elements
-   * could have been deleted
+   * \note Not all elements are necessarily valid since some elements could have been deleted
    * \sa numberOfValidEntries(), isValidEntry()
    */
   AXOM_HOST_DEVICE inline PositionType size() const { return SizePolicy::size(); };
 
   /// \brief Uses \a SizePolicy::empty() to determine if the set is empty
-  AXOM_HOST_DEVICE bool empty() const { return SizePolicy::empty(); };
+  [[nodiscard]] AXOM_HOST_DEVICE bool empty() const { return SizePolicy::empty(); };
 
   /// \brief Returns a positionset over the set elements
   PositionSet<PositionType> positions() const { return PositionSet<PositionType>(size()); }
@@ -346,7 +345,7 @@ public:
    * \details This is an O(n) operation, because the class makes no assumption
    * that data was not changed by the user
    */
-  PositionType numberOfValidEntries() const
+  [[nodiscard]] PositionType numberOfValidEntries() const
   {
     PositionType nvalid = 0;
 
@@ -373,7 +372,7 @@ public:
    * The entry is valid when 0 <= i < size() and the value at index
    * \a i is not marked as \a INVALID_ENTRY
    */
-  inline bool isValidEntry(IndexType i) const
+  [[nodiscard]] inline bool isValidEntry(IndexType i) const
   {
     return i >= 0 && i < SizePolicy::size() && m_data[i] != INVALID_ENTRY;
   };
@@ -384,7 +383,7 @@ public:
    * A DynamicSet is valid if each of its policies claim it to be valid.
    * This includes its \a SizePolicy, \a OffsetPolicy and \a StridePolicy
    */
-  bool isValid(bool verboseOutput = false) const
+  [[nodiscard]] bool isValid(bool verboseOutput = false) const
   {
     bool bValid = SizePolicy::isValid(verboseOutput);
     return bValid;

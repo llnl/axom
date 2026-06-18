@@ -29,9 +29,8 @@ namespace slam
 /**
  * \class ProductSet
  *
- * \brief Models a set whose element is the Cartesian product of two sets. The
- *        number of elements in this set is the product of the sizes of the two
- *        input sets.
+ * \brief Models a set whose element is the Cartesian product of two sets. 
+ *        The number of elements in this set is the product of the sizes of the two input sets.
  *
  *        Users should refer to the BivariateSet documentation for descriptions
  *        of the different indexing names (SparseIndex, DenseIndex, FlatIndex).
@@ -171,8 +170,7 @@ public:
   }
 
   /**
-   * \brief Given the flat index, return the associated to-set index in the
-   *        relation pair.
+   * \brief Given the flat index, return the associated to-set index in the relation pair.
    *
    * \param flatIndex The FlatIndex of the from-set/to-set pair.
    *
@@ -188,8 +186,7 @@ public:
   }
 
   /**
-   * \brief Given the flat index, return the associated from-set index in the
-   *        relation pair.
+   * \brief Given the flat index, return the associated from-set index in the relation pair.
    *
    * \param flatIndex The FlatIndex of the from-set/to-set pair.
    *
@@ -219,7 +216,10 @@ public:
     return m_rowSet.get(this->secondSetSize());
   }
 
-  AXOM_HOST_DEVICE ElementType at(PositionType pos) const { return pos % this->secondSetSize(); }
+  [[nodiscard]] AXOM_HOST_DEVICE ElementType at(PositionType pos) const
+  {
+    return pos % this->secondSetSize();
+  }
 
   AXOM_HOST_DEVICE PositionType size() const
   {
@@ -228,16 +228,10 @@ public:
 
   PositionType size(PositionType) const { return this->secondSetSize(); }
 
-  /*!
-   * \brief Return an iterator to the first pair of set elements in the
-   *  relation.
-   */
+  /// \brief Return an iterator to the first pair of set elements in the relation.
   IteratorType begin() const { return IteratorType(this, 0); }
 
-  /*!
-   * \brief Return an iterator to one past the last pair of set elements in the
-   *  relation.
-   */
+  /// \brief Return an iterator to one past the last pair of set elements in the relation.
   IteratorType end() const { return IteratorType(this, size()); }
 
   AXOM_HOST_DEVICE RangeSetType elementRangeSet(PositionType pos1) const
@@ -246,23 +240,26 @@ public:
     return typename RangeSetType::SetBuilder().size(sz).offset(sz * pos1);
   }
 
-  bool isValidIndex(PositionType s1, PositionType s2) const
+  [[nodiscard]] bool isValidIndex(PositionType s1, PositionType s2) const
   {
     PositionType size1 = this->firstSetSize();
     PositionType size2 = this->secondSetSize();
     return s1 >= 0 && s1 < size1 && s2 >= 0 && s2 < size2;
   }
 
-  bool isValid(bool verboseOutput = false) const { return BaseType::isValid(verboseOutput); }
+  [[nodiscard]] bool isValid(bool verboseOutput = false) const
+  {
+    return BaseType::isValid(verboseOutput);
+  }
 
 private:
-  /** \brief verify the FlatIndex \a pos is within the valid range. */
+  /// \brief verify the FlatIndex \a pos is within the valid range.
   void verifyPosition(PositionType pos) const
   {  //from RangeSet, overloading to avoid warning in compiler
     verifyPositionImpl(pos);
   }
 
-  /** \brief implementation for verifyPosition */
+  /// \brief implementation for verifyPosition
   inline void verifyPositionImpl(PositionType AXOM_DEBUG_PARAM(pos)) const
   {  //from RangeSet, overloading to avoid warning in compiler
     SLIC_ASSERT_MSG(pos >= 0 && pos < size(),
@@ -270,15 +267,13 @@ private:
                       << pos << ", but set only has " << size() << " elements.");
   }
 
-  /** \brief verify the SparseIndex (which is the same as its DenseIndex) is
-   *         within the valid range. */
+  /// \brief verify the SparseIndex (which is the same as its DenseIndex) is within the valid range.
   void verifyPosition(PositionType pos1, PositionType pos2) const
   {
     verifyPositionImpl(pos1, pos2);
   }
 
-  /** \brief verify the SparseIndex (which is the same as its DenseIndex) is
-   *         within the valid range. */
+  /// \brief verify the SparseIndex (which is the same as its DenseIndex) is within the valid range.
   inline void verifyPositionImpl(PositionType AXOM_DEBUG_PARAM(pos1),
                                  PositionType AXOM_DEBUG_PARAM(pos2)) const
   {

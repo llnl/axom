@@ -37,8 +37,7 @@ struct BivariateSetIterator;
  *
  * \brief Abstract class that models a set whose elements are indexed by two
  *        indices. Each element in a BivariateSet is equivalent to an ordered
- *        pair containing a row and column index, similar to indexing in a
- *        matrix.
+ *        pair containing a row and column index, similar to indexing in a matrix.
  *
  * \detail BivariateSet models a subset of the Cartesian product of its two
  *         sets. Elements of a BivariateSet can be represented as an ordered
@@ -191,11 +190,9 @@ public:
    * \return A range set of the positions in the second set
    */
   AXOM_HOST_DEVICE virtual RangeSetType elementRangeSet(PositionType pos1) const = 0;
-  /**
-   * \brief Size of the BivariateSet, which is the number of non-zero entries
-   *        in the BivariateSet.
-   */
-  AXOM_HOST_DEVICE virtual PositionType size() const = 0;
+
+  /// \brief The number of non-zero entries in the BivariateSet.
+  [[nodiscard]] AXOM_HOST_DEVICE virtual PositionType size() const = 0;
 
   /**
    * \brief Number of elements of the BivariateSet whose first index is \a pos
@@ -205,14 +202,14 @@ public:
   virtual PositionType size(PositionType pos1) const = 0;  //size of a row
 
   /** \brief Size of the first set.   */
-  AXOM_HOST_DEVICE inline PositionType firstSetSize() const
+  [[nodiscard]] AXOM_HOST_DEVICE inline PositionType firstSetSize() const
   {
     return getSize<FirstSetType>(m_set1);
   }
 
   /** \brief Size of the second set.   */
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE inline PositionType secondSetSize() const
+  [[nodiscard]] AXOM_HOST_DEVICE inline PositionType secondSetSize() const
   {
     return getSize<SecondSetType>(m_set2);
   }
@@ -224,7 +221,7 @@ public:
   const SecondSetType* getSecondSet() const { return m_set2; }
 
   /** \brief Returns the element at the given FlatIndex \a pos */
-  AXOM_HOST_DEVICE virtual ElementType at(PositionType pos) const = 0;
+  [[nodiscard]] AXOM_HOST_DEVICE virtual ElementType at(PositionType pos) const = 0;
 
   /**
    * \brief A set of elements with the given first set index.
@@ -235,19 +232,13 @@ public:
    */
   virtual SubsetType getElements(PositionType s1) const = 0;
 
-  /*!
-   * \brief Return an iterator to the first pair of set elements in the
-   *  relation.
-   */
+  /// \brief Return an iterator to the first pair of set elements in the relation.
   IteratorType begin() const { return IteratorType(this, 0); }
 
-  /*!
-   * \brief Return an iterator to one past the last pair of set elements in the
-   *  relation.
-   */
+  /// \brief Return an iterator to one past the last pair of set elements in the relation.
   IteratorType end() const { return IteratorType(this, size()); }
 
-  virtual bool isValid(bool verboseOutput = false) const;
+  [[nodiscard]] virtual bool isValid(bool verboseOutput = false) const;
 
 private:
   virtual void verifyPosition(PositionType s1, PositionType s2) const = 0;

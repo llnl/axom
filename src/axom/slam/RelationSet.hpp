@@ -119,8 +119,7 @@ public:
 
   /**
    * \brief Search for the FlatIndex of the element given its DenseIndex.
-   * \warning This function can be slow, since a linear search is performed on
-   *          the row each time.
+   * \warning This function can be slow, since a linear search is performed on the row each time.
    *
    * \param pos1  The first set position.
    * \param pos2  The second set position.
@@ -164,8 +163,7 @@ public:
   }
 
   /**
-   * \brief Given the flat index, return the associated to-set index in the
-   *        relation pair.
+   * \brief Given the flat index, return the associated to-set index in the relation pair.
    *
    * \param flatIndex The FlatIndex of the from-set/to-set pair.
    *
@@ -182,8 +180,7 @@ public:
   }
 
   /**
-   * \brief Given the flat index, return the associated from-set index in the
-   *        relation pair.
+   * \brief Given the flat index, return the associated from-set index in the relation pair.
    *
    * \param flatIndex The FlatIndex of the from-set/to-set pair.
    *
@@ -214,7 +211,7 @@ public:
   SubsetType getElements(PositionType s1) const { return (*m_relation)[s1]; }
 
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE ElementType at(PositionType pos) const
+  [[nodiscard]] AXOM_HOST_DEVICE ElementType at(PositionType pos) const
   {
 #ifndef AXOM_DEVICE_CODE
     RelationSet::verifyPosition(pos);
@@ -238,19 +235,13 @@ public:
    */
   PositionType size(PositionType pos) const { return m_relation->size(pos); }
 
-  /*!
-   * \brief Return an iterator to the first pair of set elements in the
-   *  relation.
-   */
+  /// \brief Return an iterator to the first pair of set elements in the relation.
   IteratorType begin() const { return IteratorType(this, 0); }
 
-  /*!
-   * \brief Return an iterator to one past the last pair of set elements in the
-   *  relation.
-   */
+  /// \brief Return an iterator to one past the last pair of set elements in the relation.
   IteratorType end() const { return IteratorType(this, totalSize()); }
 
-  bool isValid(bool verboseOutput = false) const
+  [[nodiscard]] bool isValid(bool verboseOutput = false) const
   {
     if(m_relation == nullptr)
     {
@@ -271,14 +262,14 @@ public:
   //(and can be called from base ptr)
   // KW -- made this public to use from BivariateMap
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE PositionType size() const
+  [[nodiscard]] AXOM_HOST_DEVICE PositionType size() const
   {
     return PositionType(m_relation->relationData().size());
   }
 
 private:
   //range check only
-  bool isValidIndex(PositionType s1, PositionType s2) const
+  [[nodiscard]] bool isValidIndex(PositionType s1, PositionType s2) const
   {
     return s1 >= 0 && s1 < m_relation->fromSet()->size() && s2 >= 0 && s2 < m_relation->size(s1);
   }
