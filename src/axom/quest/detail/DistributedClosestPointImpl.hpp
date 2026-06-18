@@ -478,12 +478,15 @@ public:
   }
 
   /// Wait for some non-blocking sends (if any) to finish.
-  void check_send_requests(std::list<conduit::relay::mpi::Request>& isendRequests, bool atLeastOne) const
+  void check_send_requests(std::list<std::pair<conduit::relay::mpi::Request,
+                                     std::unique_ptr<conduit::Node>>>& isendRequests,
+                           bool atLeastOne) const
   {
     std::vector<MPI_Request> reqs;
-    for(auto& isr : isendRequests)
+    reqs.reserve(isendRequests.size());
+    for(auto const& isr : isendRequests)
     {
-      reqs.push_back(isr.m_request);
+      reqs.push_back(isr.first.m_request);
     }
 
     int inCount = static_cast<int>(reqs.size());
@@ -498,17 +501,20 @@ public:
       MPI_Testsome(inCount, reqs.data(), &outCount, indices.data(), MPI_STATUSES_IGNORE);
     }
     indices.resize(outCount);
+    // MPI does not guarantee indices are in order
+    std::sort(indices.begin(), indices.end());
 
     auto reqIter = isendRequests.begin();
-    int prevIdx = 0;
+    int reqIdx = 0;
     for(const int idx : indices)
     {
-      for(; prevIdx < idx; ++prevIdx)
+      while (reqIdx < idx)
       {
         ++reqIter;
+        ++reqIdx;
       }
       reqIter = isendRequests.erase(reqIter);
-      ++prevIdx;
+      ++reqIdx;
     }
   }
 
@@ -739,26 +745,19 @@ public:
   {
     SLIC_ASSERT_MSG(m_bvh, "BVH tree must be initialized before calling 'computeClosestPoints");
 
-    std::map<int, std::shared_ptr<conduit::Node>> xferNodes;
+    std::unique_ptr<conduit::Node> xferNodePtr = std::make_unique<conduit::Node>();
 
     // create conduit Node containing data that has to xfer between ranks.
     // The node will be mostly empty if there are no domains on this rank
-    {
-      xferNodes[m_rank] = std::make_shared<conduit::Node>();
-      conduit::Node& xferNode = *xferNodes[m_rank];
-      node_copy_query_to_xfer(queryMesh, xferNode, topologyName);
-      xferNode["homeRank"] = m_rank;
-    }
+    node_copy_query_to_xfer(queryMesh, *xferNodePtr, topologyName);
+    (*xferNodePtr)["homeRank"] = m_rank;
 
-    BoxType myQueryBb = computeMeshBoundingBox(*xferNodes[m_rank]);
-    put_bounding_box_to_conduit_node(myQueryBb, xferNodes[m_rank]->fetch("aabb"));
+    BoxType myQueryBb = computeMeshBoundingBox(*xferNodePtr);
+    put_bounding_box_to_conduit_node(myQueryBb, xferNodePtr->fetch("aabb"));
     BoxArray allQueryBbs;
     gatherBoundingBoxes(myQueryBb, allQueryBbs);
 
-    {
-      conduit::Node& xferNode = *xferNodes[m_rank];
-      computeLocalClosestPoints(xferNode);
-    }
+    computeLocalClosestPoints(*xferNodePtr);
 
     const auto& myObjectBb = m_objectPartitionBbs[m_rank];
     int remainingRecvs = 0;
@@ -775,10 +774,11 @@ public:
       }
     }
 
-    // arbitrary tags for send/recv xferNode.
+    // arbitrary tags for send/recv xferNodes.
     const int tag = 987342;
 
-    std::list<conduit::relay::mpi::Request> isendRequests;
+    std::list<std::pair<conduit::relay::mpi::Request,
+                        std::unique_ptr<conduit::Node>>> isendRequests;
 
     {
       /*
@@ -786,7 +786,7 @@ public:
         partition, if any.  Increase remainingRecvs, because this data
         will come back.
       */
-      int firstRecipForMyQuery = next_recipient(*xferNodes[m_rank]);
+      int firstRecipForMyQuery = next_recipient(*xferNodePtr);
       if(m_nranks == 1)
       {
         SLIC_ASSERT(firstRecipForMyQuery == -1);
@@ -795,14 +795,15 @@ public:
       if(firstRecipForMyQuery == -1)
       {
         // No need to send anywhere.  Put computed data back into queryMesh.
-        node_copy_xfer_to_query(*xferNodes[m_rank], queryMesh, topologyName);
-        xferNodes.erase(m_rank);
+        node_copy_xfer_to_query(*xferNodePtr, queryMesh, topologyName);
+        // Free xferNode memory
+        xferNodePtr.reset();
       }
       else
       {
-        isendRequests.emplace_back(conduit::relay::mpi::Request());
+        isendRequests.emplace_back(conduit::relay::mpi::Request(), std::move(xferNodePtr));
         auto& req = isendRequests.back();
-        relay::mpi::isend_using_schema(*xferNodes[m_rank], firstRecipForMyQuery, tag, m_mpiComm, &req);
+        relay::mpi::isend_using_schema(*req.second, firstRecipForMyQuery, tag, m_mpiComm, &req.first);
         ++remainingRecvs;
       }
     }
@@ -813,27 +814,25 @@ public:
                    fmt::format("=======  {} receives remaining =======", remainingRecvs));
 
       // Receive the next xferNode
-      std::shared_ptr<conduit::Node> recvXferNodePtr = std::make_shared<conduit::Node>();
+      std::unique_ptr<conduit::Node> recvXferNodePtr = std::make_unique<conduit::Node>();
       conduit::relay::mpi::recv_using_schema(*recvXferNodePtr, MPI_ANY_SOURCE, tag, m_mpiComm);
 
       const int homeRank = recvXferNodePtr->fetch_existing("homeRank").as_int();
       --remainingRecvs;
-      xferNodes[homeRank] = recvXferNodePtr;
-      conduit::Node& xferNode = *xferNodes[homeRank];
 
       if(homeRank == m_rank)
       {
-        node_copy_xfer_to_query(xferNode, queryMesh, topologyName);
+        node_copy_xfer_to_query(*recvXferNodePtr, queryMesh, topologyName);
       }
       else
       {
-        computeLocalClosestPoints(xferNode);
+        computeLocalClosestPoints(*recvXferNodePtr);
 
-        isendRequests.emplace_back(conduit::relay::mpi::Request());
-        auto& isendRequest = isendRequests.back();
-        int nextRecipient = next_recipient(xferNode);
+        int nextRecipient = next_recipient(*recvXferNodePtr);
         SLIC_ASSERT(nextRecipient != -1);
-        relay::mpi::isend_using_schema(xferNode, nextRecipient, tag, m_mpiComm, &isendRequest);
+        isendRequests.emplace_back(conduit::relay::mpi::Request(), std::move(recvXferNodePtr));
+        auto& isendRequest = isendRequests.back();
+        relay::mpi::isend_using_schema(*isendRequest.second, nextRecipient, tag, m_mpiComm, &isendRequest.first);
 
         // Check non-blocking sends to free memory.
         check_send_requests(isendRequests, false);
