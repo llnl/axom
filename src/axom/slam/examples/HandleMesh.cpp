@@ -69,10 +69,8 @@ int main(int, char**)
   const int sz = 5;
   HandleSet::IndirectionBufferType vecHandle(sz);
 
-  // Create a set of handles
-  HandleSet hSet = HandleSet::SetBuilder()  //
-                     .size(sz)              //
-                     .data(&vecHandle);
+  // Create a set of handles (helper deduces the set policy stack)
+  HandleSet hSet = slam::make_vector_set(vecHandle);
 
   // Add handles with (somewhat) arbitrary IDs to the set
   for(auto i : hSet.positions())

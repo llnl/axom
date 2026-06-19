@@ -97,6 +97,22 @@ TEST(slam_make_helpers, make_vector_set_deduces_element_type)
   EXPECT_EQ(s[2], 9);
 }
 
+TEST(slam_make_helpers, make_array_set_deduces_element_type)
+{
+  axom::Array<double> data {1.0, 2.0, 3.0};
+  auto s = slam::make_array_set(data);
+
+  static_assert(std::is_same_v<decltype(s), slam::ArrayIndirectionSet<Pos, double>>,
+                "make_array_set deduces ArrayIndirectionSet<.., double>");
+  static_assert(std::is_same_v<typename decltype(s)::PositionType, Pos>,
+                "make_array_set uses DefaultPositionType by default");
+
+  ASSERT_EQ(s.size(), 3);
+  EXPECT_TRUE(s.isValid());
+  EXPECT_DOUBLE_EQ(s[0], 1.0);
+  EXPECT_DOUBLE_EQ(s[2], 3.0);
+}
+
 TEST(slam_make_helpers, make_carray_set)
 {
   int data[3] = {2, 4, 6};
@@ -148,6 +164,22 @@ TEST(slam_make_helpers, make_variable_relation)
   EXPECT_EQ(rel2[1], 4);
 }
 
+TEST(slam_make_helpers, make_variable_relation_axom_array_buffers)
+{
+  auto fromSet = slam::make_range_set(3);
+  auto toSet = slam::make_range_set(5);
+
+  axom::Array<Pos> begins {0, 2, 3, 5};
+  axom::Array<Pos> indices {1, 2, 3, 0, 4};
+
+  auto rel = slam::make_variable_relation(&fromSet, &toSet, begins, indices);
+
+  EXPECT_TRUE(rel.isValid());
+  EXPECT_EQ(rel.size(0), 2);
+  EXPECT_EQ(rel.size(1), 1);
+  EXPECT_EQ(rel.size(2), 2);
+}
+
 TEST(slam_make_helpers, make_variable_relation_indices_are_to_set_positions)
 {
   // toSet has element type != position type; relation indices should still be positions.
@@ -189,6 +221,19 @@ TEST(slam_make_helpers, make_constant_relation_runtime_stride)
   ASSERT_EQ(r1.size(), 2);
   EXPECT_EQ(r1[0], 3);
   EXPECT_EQ(r1[1], 4);
+}
+
+TEST(slam_make_helpers, make_constant_relation_runtime_stride_array_view)
+{
+  auto fromSet = slam::make_range_set(2);
+  auto toSet = slam::make_range_set(5);
+
+  axom::Array<Pos> indices {0, 4, 1, 3};
+  auto rel = slam::make_constant_relation(&fromSet, &toSet, Pos {2}, indices.view());
+
+  EXPECT_TRUE(rel.isValid());
+  EXPECT_EQ(rel.size(0), 2);
+  EXPECT_EQ(rel.size(1), 2);
 }
 
 TEST(slam_make_helpers, make_constant_relation_compile_time_stride)

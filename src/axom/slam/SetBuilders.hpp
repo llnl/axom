@@ -37,7 +37,7 @@
 #ifndef SLAM_SET_BUILDERS_H_
 #define SLAM_SET_BUILDERS_H_
 
-#include "axom/core/memory_management.hpp"
+#include "axom/core/Array.hpp"
 
 #include "axom/slam/Utilities.hpp"
 #include "axom/slam/RangeSet.hpp"
@@ -118,6 +118,22 @@ VectorIndirectionSet<PosType, T> make_vector_set(std::vector<T>& vec)
 {
   using SetType = VectorIndirectionSet<PosType, T>;
   return SetType(typename SetType::SetBuilder().size(static_cast<PosType>(vec.size())).data(&vec));
+}
+
+/*!
+ * \brief Make a set whose elements indirect through an axom::Array.
+ *
+ * The element type is deduced from \a arr; the set is device-capable
+ * (axom::Array indirection is host-device). The set's size matches the array.
+ *
+ * \param arr the backing array (must outlive the set)
+ * \return an ArrayIndirectionSet<PosType, T>
+ */
+template <typename PosType = DefaultPositionType, typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
+ArrayIndirectionSet<PosType, T> make_array_set(axom::Array<T, DIM, SPACE, StoragePolicy>& arr)
+{
+  using SetType = ArrayIndirectionSet<PosType, T>;
+  return SetType(typename SetType::SetBuilder().size(static_cast<PosType>(arr.size())).data(&arr));
 }
 
 /*!
