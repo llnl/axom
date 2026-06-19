@@ -54,8 +54,8 @@ namespace axom::slam
  * \brief Make a static, variable-cardinality (CSR) relation 
  *  from \a fromSet to \a toSet, backed by std::vector storage for its begins and indices.
  *
- * The from/to set types are deduced from the pointers. 
-   The begins offsets and flat indices are taken from \a begins and \a indices
+ * The from/to set types are deduced from the pointers.
+ * The begins offsets and flat indices (to-set positions) are taken from \a begins and \a indices
  * (which must outlive the relation). The relation uses STL-vector indirection.
  *
  * \param fromSet pointer to the from-set (must outlive the relation)
@@ -69,7 +69,7 @@ namespace axom::slam
 template <typename FromSet,
           typename ToSet,
           typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename FromSet::ElementType>
+          typename ElemType = typename ToSet::PositionType>
 auto make_variable_relation(FromSet* fromSet,
                             ToSet* toSet,
                             std::vector<PosType>& begins,
@@ -105,7 +105,7 @@ auto make_variable_relation(FromSet* fromSet,
 template <typename FromSet,
           typename ToSet,
           typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename FromSet::ElementType>
+          typename ElemType = typename ToSet::PositionType>
 auto make_variable_relation(FromSet* fromSet,
                             ToSet* toSet,
                             PosType* begins,
@@ -139,7 +139,7 @@ auto make_variable_relation(FromSet* fromSet,
 template <typename FromSet,
           typename ToSet,
           typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename FromSet::ElementType>
+          typename ElemType = typename ToSet::PositionType>
 auto make_variable_relation(FromSet* fromSet,
                             ToSet* toSet,
                             axom::ArrayView<PosType> begins,
@@ -173,7 +173,7 @@ auto make_variable_relation(FromSet* fromSet,
 template <typename FromSet,
           typename ToSet,
           typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename FromSet::ElementType>
+          typename ElemType = typename ToSet::PositionType>
 auto make_constant_relation(FromSet* fromSet, ToSet* toSet, PosType stride, std::vector<ElemType>& indices)
 {
   using IndicesIndirection = policies::STLVectorIndirection<PosType, ElemType>;
@@ -200,7 +200,7 @@ template <int STRIDE,
           typename FromSet,
           typename ToSet,
           typename PosType = typename FromSet::PositionType,
-          typename ElemType = typename FromSet::ElementType>
+          typename ElemType = typename ToSet::PositionType>
 auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, ElemType* indices, PosType indicesSize)
 {
   using IndicesIndirection = policies::CArrayIndirection<PosType, ElemType>;

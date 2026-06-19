@@ -148,6 +148,28 @@ TEST(slam_make_helpers, make_variable_relation)
   EXPECT_EQ(rel2[1], 4);
 }
 
+TEST(slam_make_helpers, make_variable_relation_indices_are_to_set_positions)
+{
+  // toSet has element type != position type; relation indices should still be positions.
+  auto fromSet = slam::make_range_set(2);
+
+  axom::Array<double> values {10., 20., 30.};
+  auto toSet = slam::make_array_view_set(values.view());  // ArrayViewIndirectionSet<Pos, double>
+
+  std::vector<Pos> begins {0, 2, 3};
+  std::vector<Pos> indices {0, 2, 1};  // positions into toSet
+
+  auto rel = slam::make_variable_relation(&fromSet, &toSet, begins, indices);
+
+  static_assert(std::is_same_v<typename decltype(rel)::SetElement, Pos>,
+                "relation element type defaults to ToSet::PositionType");
+
+  auto r0 = rel[0];
+  ASSERT_EQ(r0.size(), 2);
+  EXPECT_DOUBLE_EQ(toSet[r0[0]], 10.0);
+  EXPECT_DOUBLE_EQ(toSet[r0[1]], 30.0);
+}
+
 TEST(slam_make_helpers, make_constant_relation_runtime_stride)
 {
   auto fromSet = slam::make_range_set(3);
