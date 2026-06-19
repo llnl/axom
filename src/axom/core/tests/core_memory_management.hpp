@@ -14,6 +14,8 @@
   #include "umpire/ResourceManager.hpp"
 #endif
 
+#include <cstdlib>
+
 //------------------------------------------------------------------------------
 // HELPER METHODS
 //------------------------------------------------------------------------------
@@ -362,52 +364,103 @@ TEST(core_memory_management, set_get_default_host_allocator)
 
 #if defined(AXOM_USE_UMPIRE)
 
-TEST(core_memory_management, host_space_allocation_uses_umpire_host_default)
+bool hostAllocationUsesExpectedAllocator(int selectedHostAllocId,
+                                         int expectedAllocId,
+                                         bool setGlobalDefaultToHost = false)
 {
-  ScopedDefaultAllocatorState scopedState;
-  axom::setDefaultHostAllocator(axom::MemorySpace::Host);
+  axom::setDefaultHostAllocator(selectedHostAllocId);
 
-  const int hostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  if(setGlobalDefaultToHost)
+  {
+    axom::setDefaultAllocator(axom::MemorySpace::Host);
+  }
+
   const int resolvedHostAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host);
-  EXPECT_EQ(hostAllocatorID, resolvedHostAllocatorID);
+  if(resolvedHostAllocatorID != selectedHostAllocId)
+  {
+    return false;
+  }
 
   int* buffer = axom::allocate<int>(ARRAY_SIZE, resolvedHostAllocatorID);
-  ASSERT_NE(buffer, nullptr);
-  EXPECT_EQ(hostAllocatorID, axom::getAllocatorIDFromPointer(buffer));
+  if(buffer == nullptr)
+  {
+    return false;
+  }
+
+  const bool allocatorMatches = axom::getAllocatorIDFromPointer(buffer) == expectedAllocId;
   axom::deallocate(buffer);
+  return allocatorMatches;
+}
+
+TEST(core_memory_management, host_space_allocation_uses_umpire_host_default)
+{
+  EXPECT_EXIT(
+    ([]() {
+      if(!hostAllocationUsesExpectedAllocator(
+           axom::getUmpireResourceAllocatorID(umpire::resource::Host),
+           axom::getUmpireResourceAllocatorID(umpire::resource::Host)))
+      {
+        std::exit(1);
+      }
+
+      std::exit(0);
+    })(),
+    ::testing::ExitedWithCode(0),
+    "");
 }
 
 TEST(core_memory_management, host_space_allocation_uses_malloc_host_default)
 {
-  ScopedDefaultAllocatorState scopedState;
-  axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+  EXPECT_EXIT(
+    ([]() {
+      if(!hostAllocationUsesExpectedAllocator(axom::MALLOC_ALLOCATOR_ID, axom::MALLOC_ALLOCATOR_ID))
+      {
+        std::exit(1);
+      }
 
-  const int resolvedHostAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host);
-  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, resolvedHostAllocatorID);
-
-  int* buffer = axom::allocate<int>(ARRAY_SIZE, resolvedHostAllocatorID);
-  ASSERT_NE(buffer, nullptr);
-  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::getAllocatorIDFromPointer(buffer));
-  axom::deallocate(buffer);
+      std::exit(0);
+    })(),
+    ::testing::ExitedWithCode(0),
+    "");
 }
 
 TEST(core_memory_management, host_space_allocation_ignores_global_default_allocator)
 {
-  ScopedDefaultAllocatorState scopedState;
-  const int hostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  EXPECT_EXIT(
+    ([]() {
+      const int hostAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+      axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+      axom::setDefaultAllocator(axom::MemorySpace::Host);
 
-  axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
-  axom::setDefaultAllocator(axom::MemorySpace::Host);
+      if(axom::getDefaultAllocatorID() != hostAllocatorID)
+      {
+        std::exit(1);
+      }
 
-  EXPECT_EQ(hostAllocatorID, axom::getDefaultAllocatorID());
+      if(!hostAllocationUsesExpectedAllocator(axom::MALLOC_ALLOCATOR_ID,
+                                              axom::MALLOC_ALLOCATOR_ID))
+      {
+        std::exit(1);
+      }
 
-  const int resolvedHostAllocatorID = axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host);
-  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, resolvedHostAllocatorID);
+      std::exit(0);
+    })(),
+    ::testing::ExitedWithCode(0),
+    "");
+}
 
-  int* buffer = axom::allocate<int>(ARRAY_SIZE, resolvedHostAllocatorID);
-  ASSERT_NE(buffer, nullptr);
-  EXPECT_EQ(axom::MALLOC_ALLOCATOR_ID, axom::getAllocatorIDFromPointer(buffer));
-  axom::deallocate(buffer);
+TEST(core_memory_management, changing_default_host_allocator_after_host_allocation_fails)
+{
+  EXPECT_DEATH_IF_SUPPORTED(
+    []() {
+      const int hostAllocatorID =
+        axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+      axom::setDefaultHostAllocator(hostAllocatorID);
+      int* buffer = axom::allocate<int>(ARRAY_SIZE, axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
+      AXOM_UNUSED_VAR(buffer);
+      axom::setDefaultHostAllocator(axom::MALLOC_ALLOCATOR_ID);
+    }(),
+    "Default host allocator cannot be changed");
 }
 
 TEST(core_memory_management, set_get_default_memory_space)
@@ -652,81 +705,35 @@ TEST(core_memory_management, foreign_malloc_to_umpire_reallocate_fails)
       int* foreignBuffer = static_cast<int*>(std::malloc(localN * sizeof(int)));
       axom::reallocate(foreignBuffer, localN + 1, localUmpireHostAllocId);
     }(),
-    "allocation size is not tracked by Axom");
+    "Cannot reallocate across allocator backends");
 }
-#endif
 
-//------------------------------------------------------------------------------
-TEST(core_memory_management, interspace_reallocation)
+TEST(core_memory_management, axom_malloc_to_umpire_reallocate_fails)
 {
-  // Allocator ids to test.
-  std::vector<int> allocIds(1, axom::MALLOC_ALLOCATOR_ID);
-#if defined(AXOM_USE_UMPIRE)
-  allocIds.push_back(axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
-  #ifdef AXOM_USE_GPU
-    #if defined(UMPIRE_ENABLE_DEVICE)
-  allocIds.push_back(axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Device));
-    #endif
-    #if defined(UMPIRE_ENABLE_UM)
-  allocIds.push_back(axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Unified));
-    #endif
-    // Does it make sense to check Pinned and Constant memory spaces?
-  #endif
-#endif
-
-  // We'll allocate N items, reallocate to K items, reallocate back to N.
-  constexpr std::size_t N = 5;
-  constexpr std::size_t K = 8;
-  constexpr std::size_t maxNK = std::max(N, K);
-  constexpr std::size_t minNK = std::min(N, K);
-
-  // origOnHost and tempOnHost are for initialization and results-checking on host.
-  int* origOnHost = axom::allocate<int>(maxNK, axom::MALLOC_ALLOCATOR_ID);
-  for(std::size_t i = 0; i < maxNK; ++i)
-  {
-    origOnHost[i] = 100 + i;
-  }
-  int* tempOnHost = axom::allocate<int>(maxNK, axom::MALLOC_ALLOCATOR_ID);
-
-  // Count differences between origOnHost and tempOnHost.
-  auto countDiffs = [=]() {
-    std::size_t diffCount = 0;
-    for(std::size_t j = 0; j < minNK; ++j)
-    {
-      diffCount += tempOnHost[j] != origOnHost[j];
-    }
-    return diffCount;
-  };
-
-  std::size_t diffCount = 0;
-  for(auto srcAllocId : allocIds)
-  {
-    for(auto dstAllocId : allocIds)
-    {
-      std::cout << "Testing allocator ids " << srcAllocId << " and " << dstAllocId << std::endl;
-      // For each combination of srcAllocId and dstAllocId,
-      // allocate src, reallocate to dst, reallocate back to src.
-
-      int* src = axom::allocate<int>(N, srcAllocId);
-      axom::copy(src, origOnHost, N * sizeof(int));
-
-      int* dst = axom::reallocate(src, K, dstAllocId);
-      axom::copy(tempOnHost, dst, N * sizeof(int));
-      diffCount = countDiffs();
-      EXPECT_EQ(diffCount, 0);
-
-      src = axom::reallocate(dst, N, srcAllocId);
-      axom::copy(tempOnHost, src, N * sizeof(int));
-      diffCount = countDiffs();
-      EXPECT_EQ(diffCount, 0);
-
-      axom::deallocate(src);
-    }
-  }
-
-  axom::deallocate(origOnHost);
-  axom::deallocate(tempOnHost);
+  EXPECT_DEATH_IF_SUPPORTED(
+    []() {
+      constexpr std::size_t localN = 5;
+      const int localUmpireHostAllocId =
+        axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+      int* buffer = axom::allocate<int>(localN, axom::MALLOC_ALLOCATOR_ID);
+      axom::reallocate(buffer, localN + 1, localUmpireHostAllocId);
+    }(),
+    "Cannot reallocate across allocator backends");
 }
+
+TEST(core_memory_management, umpire_to_axom_malloc_reallocate_fails)
+{
+  EXPECT_DEATH_IF_SUPPORTED(
+    []() {
+      constexpr std::size_t localN = 5;
+      const int localUmpireHostAllocId =
+        axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+      int* buffer = axom::allocate<int>(localN, localUmpireHostAllocId);
+      axom::reallocate(buffer, localN + 1, axom::MALLOC_ALLOCATOR_ID);
+    }(),
+    "Cannot reallocate across allocator backends");
+}
+#endif
 
 //------------------------------------------------------------------------------
 TEST(core_memory_management, test_fill)

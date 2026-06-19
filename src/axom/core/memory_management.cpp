@@ -16,8 +16,6 @@
 #endif
 
 #include <atomic>
-#include <mutex>
-#include <unordered_map>
 
 namespace axom
 {
@@ -62,76 +60,22 @@ int initialDefaultHostAllocatorID() noexcept { return MALLOC_ALLOCATOR_ID; }
 
 struct HostAllocatorConfig
 {
-  explicit HostAllocatorConfig(int allocId) noexcept : allocatorId {allocId} { }
+  explicit HostAllocatorConfig(int allocId) noexcept
+    : allocatorId {allocId}
+    , locked {false}
+  { }
 
   int get() const noexcept { return allocatorId.load(std::memory_order_relaxed); }
 
   void set(int allocId) noexcept { allocatorId.store(allocId, std::memory_order_relaxed); }
 
+  bool isLocked() const noexcept { return locked.load(std::memory_order_relaxed); }
+
+  void markUsed() noexcept { locked.store(true, std::memory_order_relaxed); }
+
 private:
   std::atomic<int> allocatorId;
-};
-
-struct MallocAllocationRegistry
-{
-  void registerAllocation(const void* pointer, std::size_t numbytes) noexcept
-  {
-    if(pointer == nullptr)
-    {
-      return;
-    }
-
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_sizes[pointer] = numbytes;
-  }
-
-  void updateAllocation(const void* oldPointer, const void* newPointer, std::size_t numbytes) noexcept
-  {
-    if(newPointer == nullptr)
-    {
-      return;
-    }
-
-    std::lock_guard<std::mutex> lock(m_mutex);
-    if(oldPointer != nullptr)
-    {
-      m_sizes.erase(oldPointer);
-    }
-    m_sizes[newPointer] = numbytes;
-  }
-
-  void unregisterAllocation(const void* pointer) noexcept
-  {
-    if(pointer == nullptr)
-    {
-      return;
-    }
-
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_sizes.erase(pointer);
-  }
-
-  bool getAllocationSize(const void* pointer, std::size_t& numbytes) const noexcept
-  {
-    if(pointer == nullptr)
-    {
-      return false;
-    }
-
-    std::lock_guard<std::mutex> lock(m_mutex);
-    const auto iter = m_sizes.find(pointer);
-    if(iter == m_sizes.end())
-    {
-      return false;
-    }
-
-    numbytes = iter->second;
-    return true;
-  }
-
-private:
-  mutable std::mutex m_mutex;
-  std::unordered_map<const void*, std::size_t> m_sizes;
+  std::atomic<bool> locked;
 };
 
 HostAllocatorConfig& defaultHostAllocatorConfig() noexcept
@@ -139,35 +83,17 @@ HostAllocatorConfig& defaultHostAllocatorConfig() noexcept
   static HostAllocatorConfig config {initialDefaultHostAllocatorID()};
   return config;
 }
-
-MallocAllocationRegistry& mallocAllocationRegistry() noexcept
-{
-  static MallocAllocationRegistry registry {};
-  return registry;
-}
 }  // namespace
 
 namespace detail
 {
 
-void registerMallocAllocation(const void* pointer, std::size_t numbytes) noexcept
+void markDefaultHostAllocatorUsed(int allocId, const void* pointer) noexcept
 {
-  mallocAllocationRegistry().registerAllocation(pointer, numbytes);
-}
-
-void updateMallocAllocation(const void* oldPointer, const void* newPointer, std::size_t numbytes) noexcept
-{
-  mallocAllocationRegistry().updateAllocation(oldPointer, newPointer, numbytes);
-}
-
-void unregisterMallocAllocation(const void* pointer) noexcept
-{
-  mallocAllocationRegistry().unregisterAllocation(pointer);
-}
-
-bool tryGetMallocAllocationSize(const void* pointer, std::size_t& numbytes) noexcept
-{
-  return mallocAllocationRegistry().getAllocationSize(pointer, numbytes);
+  if(pointer != nullptr && allocId == defaultHostAllocatorConfig().get())
+  {
+    defaultHostAllocatorConfig().markUsed();
+  }
 }
 
 }  // namespace detail
@@ -297,6 +223,14 @@ void setDefaultHostAllocator(int allocId)
   {
     std::cerr << "Allocator id " << allocId << " is not compatible with Axom's host memory space."
               << std::endl;
+    axom::utilities::processAbort();
+  }
+
+  const int currentAllocId = defaultHostAllocatorConfig().get();
+  if(currentAllocId != allocId && defaultHostAllocatorConfig().isLocked())
+  {
+    std::cerr << "Default host allocator cannot be changed from " << currentAllocId << " to "
+              << allocId << " after an allocation has been made from it." << std::endl;
     axom::utilities::processAbort();
   }
 

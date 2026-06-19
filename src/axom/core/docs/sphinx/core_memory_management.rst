@@ -57,6 +57,11 @@ Axom host allocator choice can be selected at run time. For example::
     axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
   axom::setDefaultHostAllocator(hostId);
 
+Once Axom has made an allocation from the current host allocator, that host
+allocator selection is fixed for the remainder of the process. Configure the
+desired host allocator before creating ``MemorySpace::Host`` allocations or
+other allocations that use the current Axom host allocator.
+
 Similarly, the Axom global allocator can be changed. For example::
 
   // set Axom global allocator to Umpire Host

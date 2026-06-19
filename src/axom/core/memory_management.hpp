@@ -394,15 +394,7 @@ private:
 namespace detail
 {
 
-void registerMallocAllocation(const void* pointer, std::size_t numbytes) noexcept;
-
-void updateMallocAllocation(const void* oldPointer,
-                            const void* newPointer,
-                            std::size_t numbytes) noexcept;
-
-void unregisterMallocAllocation(const void* pointer) noexcept;
-
-bool tryGetMallocAllocationSize(const void* pointer, std::size_t& numbytes) noexcept;
+void markDefaultHostAllocatorUsed(int allocId, const void* pointer) noexcept;
 
 enum class AllocationBackend
 {
@@ -464,12 +456,12 @@ inline void abortOnInvalidReallocateState()
   axom::utilities::processAbort();
 }
 
-inline void abortOnUntrackedMallocMigration(const void* pointer, int allocID)
+inline void abortOnCrossBackendReallocate(int srcAllocID, int dstAllocID)
 {
-  std::cerr << "Cannot migrate malloc-backed pointer " << pointer << " to allocator id " << allocID
-            << " because its allocation size is not tracked by Axom. "
-               "Pointers migrated from malloc to Umpire must be allocated through "
-               "axom::allocate()/axom::reallocate()."
+  std::cerr << "Cannot reallocate across allocator backends. Source allocator id is "
+            << srcAllocID << " and destination allocator id is " << dstAllocID
+            << ". Reallocation is only supported within malloc-backed memory or within "
+               "Umpire-backed memory."
             << std::endl;
   axom::utilities::processAbort();
 }
@@ -495,7 +487,6 @@ inline T* reallocateWithinMalloc(T* pointer, std::size_t numbytes) noexcept
   }
 
   T* reallocated = static_cast<T*>(std::realloc(pointer, numbytes));
-  updateMallocAllocation(pointer, reallocated, numbytes);
   return reallocated;
 }
 
@@ -505,35 +496,6 @@ inline T* reallocateWithinUmpire(T* pointer, std::size_t numbytes) noexcept
 {
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
   return static_cast<T*>(rm.reallocate(pointer, numbytes));
-}
-
-template <typename T>
-inline T* migrateUmpireToMalloc(T* pointer, std::size_t n, std::size_t numbytes) noexcept
-{
-  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-  const std::size_t old_numbytes = rm.getSize(pointer);
-
-  T* new_pointer = axom::allocate<T>(n, MALLOC_ALLOCATOR_ID);
-  copy(new_pointer, pointer, old_numbytes < numbytes ? old_numbytes : numbytes);
-  deallocate(pointer);
-
-  return new_pointer;
-}
-
-template <typename T>
-inline T* migrateMallocToUmpire(T* pointer, std::size_t n, std::size_t numbytes, int allocID) noexcept
-{
-  std::size_t old_numbytes = 0;
-  if(!tryGetMallocAllocationSize(pointer, old_numbytes))
-  {
-    abortOnUntrackedMallocMigration(pointer, allocID);
-  }
-
-  T* new_pointer = axom::allocate<T>(n, allocID);
-  copy(new_pointer, pointer, old_numbytes < numbytes ? old_numbytes : numbytes);
-  deallocate(pointer);
-
-  return new_pointer;
 }
 #endif
 
@@ -548,14 +510,16 @@ inline T* allocate(std::size_t n, int allocID) noexcept
   if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
   {
     umpire::Allocator allocator = rm.getAllocator(allocID);
-    return static_cast<T*>(allocator.allocate(numbytes));
+    T* pointer = static_cast<T*>(allocator.allocate(numbytes));
+    detail::markDefaultHostAllocatorUsed(allocID, pointer);
+    return pointer;
   }
 #endif
 
   if(allocID == MALLOC_ALLOCATOR_ID)
   {
     T* pointer = static_cast<T*>(std::malloc(numbytes));
-    detail::registerMallocAllocation(pointer, numbytes);
+    detail::markDefaultHostAllocatorUsed(allocID, pointer);
     return pointer;
   }
 
@@ -574,8 +538,10 @@ inline T* allocate(std::size_t n, const std::string& name, int allocID) noexcept
   if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
   {
     umpire::Allocator allocator = rm.getAllocator(allocID);
-    return name.empty() ? static_cast<T*>(allocator.allocate(numbytes))
-                        : static_cast<T*>(allocator.allocate(name, numbytes));
+    T* pointer = name.empty() ? static_cast<T*>(allocator.allocate(numbytes))
+                              : static_cast<T*>(allocator.allocate(name, numbytes));
+    detail::markDefaultHostAllocatorUsed(allocID, pointer);
+    return pointer;
   }
 #endif
 
@@ -583,7 +549,7 @@ inline T* allocate(std::size_t n, const std::string& name, int allocID) noexcept
   {
     AXOM_UNUSED_VAR(name);
     T* pointer = static_cast<T*>(std::malloc(numbytes));
-    detail::registerMallocAllocation(pointer, numbytes);
+    detail::markDefaultHostAllocatorUsed(allocID, pointer);
     return pointer;
   }
 
@@ -613,7 +579,6 @@ inline void deallocate(T*& pointer) noexcept
 
 #endif
 
-  detail::unregisterMallocAllocation(pointer);
   std::free(pointer);
   pointer = nullptr;
 }
@@ -659,21 +624,7 @@ inline T* reallocate(T* pointer, std::size_t n, int allocID) noexcept
     return detail::normalizeZeroSizeReallocateResult(pointer, n, allocID);
   }
 
-#if defined(AXOM_USE_UMPIRE)
-  if(src == detail::AllocationBackend::Malloc && dst == detail::AllocationBackend::Umpire)
-  {
-    pointer = detail::migrateMallocToUmpire(pointer, n, numbytes, allocID);
-    return detail::normalizeZeroSizeReallocateResult(pointer, n, allocID);
-  }
-
-  if(src == detail::AllocationBackend::Umpire && dst == detail::AllocationBackend::Malloc)
-  {
-    pointer = detail::migrateUmpireToMalloc(pointer, n, numbytes);
-    return detail::normalizeZeroSizeReallocateResult(pointer, n, allocID);
-  }
-#endif
-
-  detail::abortOnInvalidReallocateState();
+  detail::abortOnCrossBackendReallocate(getAllocatorIDFromPointer(pointer), allocID);
   return nullptr;  // Silence warning.
 }
 
