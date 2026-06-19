@@ -19,7 +19,7 @@
 
 #include "axom/slic/interface/slic.hpp"
 #include "axom/slam/policies/SizePolicies.hpp"
-#include "axom/slam/policies/ConstexprAssert.hpp"
+#include "axom/core/Macros.hpp"
 
 namespace axom
 {
@@ -45,7 +45,7 @@ public:
     : SizePolicy(modulusVal)
     , m_val(val)
   {
-    SLAM_CONSTEXPR_ASSERT(modulus() != 0);
+    AXOM_CONSTEXPR_ASSERT(modulus() != 0);
     normalize();
   }
 
@@ -56,7 +56,7 @@ public:
    */
   constexpr ModularInt(const ModularInt& mi) : SizePolicy(mi), m_val(mi.m_val)
   {
-    SLAM_CONSTEXPR_ASSERT(modulus() != 0);
+    AXOM_CONSTEXPR_ASSERT(modulus() != 0);
 
     // For efficiency, we are assuming that argument mi is consistent and avoid normalization.
     // This assumption is tested in debug builds...
@@ -232,7 +232,7 @@ private:
     verifyValue();
   }
 
-  constexpr void verifyValue() { SLAM_CONSTEXPR_ASSERT(m_val >= 0 && m_val < modulus()); }
+  constexpr void verifyValue() { AXOM_CONSTEXPR_ASSERT(m_val >= 0 && m_val < modulus()); }
 
 private:
   int m_val;

@@ -24,8 +24,10 @@ set(core_headers
     ## utilities
     utilities/About.hpp
     utilities/Annotations.hpp
+    utilities/Abort.hpp
     utilities/BitUtilities.hpp
     utilities/CommandLineUtilities.hpp
+    utilities/ConstexprAssert.hpp
     utilities/FileUtilities.hpp
     utilities/RAII.hpp
     utilities/Sorting.hpp

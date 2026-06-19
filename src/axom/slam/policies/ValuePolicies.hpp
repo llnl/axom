@@ -41,7 +41,6 @@
 
 #include "axom/core/Macros.hpp"
 #include "axom/slic.hpp"
-#include "axom/slam/policies/ConstexprAssert.hpp"
 
 namespace axom::slam::policies
 {
@@ -151,7 +150,7 @@ public:
   AXOM_HOST_DEVICE constexpr CompileTimeValue(IntType val = V)
   {
     AXOM_UNUSED_VAR(val);
-    SLAM_CONSTEXPR_ASSERT(val == V);
+    AXOM_CONSTEXPR_ASSERT(val == V);
   }
 
   AXOM_HOST_DEVICE constexpr IntType value() const { return V; }

@@ -18,6 +18,7 @@
 #include "axom/config.hpp"  // for compile-time definitions
 #include "axom/core/Types.hpp"
 #include "axom/core/Macros.hpp"  // for AXOM_STATIC_ASSERT
+#include "axom/core/utilities/Abort.hpp"
 
 #include <cassert>  // for assert()
 #include <cmath>    // for log2()
@@ -30,11 +31,6 @@ namespace axom
 {
 namespace utilities
 {
-/*!
- * \brief Gracefully aborts the application
- */
-[[noreturn]] void processAbort();
-
 /*!
  * \brief Returns the absolute value of x.
  * \accelerated

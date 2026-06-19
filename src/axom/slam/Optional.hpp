@@ -27,7 +27,6 @@
 #define SLAM_OPTIONAL_H_
 
 #include "axom/core/Macros.hpp"
-#include "axom/slam/policies/ConstexprAssert.hpp"
 
 #include <type_traits>
 
@@ -65,12 +64,12 @@ struct Optional
    */
   AXOM_HOST_DEVICE constexpr const T& operator*() const
   {
-    SLAM_CONSTEXPR_ASSERT(m_engaged);
+    AXOM_CONSTEXPR_ASSERT(m_engaged);
     return m_value;
   }
   AXOM_HOST_DEVICE constexpr T& operator*()
   {
-    SLAM_CONSTEXPR_ASSERT(m_engaged);
+    AXOM_CONSTEXPR_ASSERT(m_engaged);
     return m_value;
   }
 
