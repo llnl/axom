@@ -62,7 +62,10 @@ set(core_headers
     ArrayBase.hpp
     ArrayIteratorBase.hpp
     ArrayView.hpp
-    MDMapping.hpp
+    DeviceHash.hpp
+    FlatMap.hpp
+    FlatMapView.hpp
+    FlatMapUtil.hpp
     IndexedCollection.hpp
     ItemCollection.hpp
     IteratorBase.hpp
@@ -70,12 +73,10 @@ set(core_headers
     Macros.hpp
     Map.hpp
     MapCollection.hpp
-    FlatMap.hpp
-    FlatMapView.hpp
-    FlatMapUtil.hpp
-    DeviceHash.hpp
+    MDMapping.hpp
     NumericArray.hpp
     NumericLimits.hpp
+    Optional.hpp
     Path.hpp
     RangeAdapter.hpp
     StackArray.hpp

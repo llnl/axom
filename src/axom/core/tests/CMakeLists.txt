@@ -23,6 +23,7 @@ set(core_serial_tests
     core_utilities.hpp
     core_bit_utilities.hpp
     core_constexpr_assert.hpp
+    core_optional.hpp
     core_device_hash.hpp
     core_execution_for_all.hpp
     core_execution_scans.hpp

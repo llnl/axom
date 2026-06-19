@@ -4,44 +4,46 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-/**
+/*!
  * \file Optional.hpp
  *
- * \brief A minimal, host-device "maybe a value" type for slam.
+ * \brief A minimal, host/device "maybe a value" type.
  *
- * std::optional is a host-only facility in slam's portability model
- * and is not guaranteed to be available/usable in device code 
- * across all of slam's backends (SEQ/OMP/CUDA/HIP).
+ * `std::optional` is a host-only facility in Axom's portability model 
+ * and is not guaranteed to be available/usable in device code across all backends (SEQ/OMP/CUDA/HIP).
  *
- * slam::Optional<T> is a trivially-structured aggregate of {engaged flag, storage} 
- * that is AXOM_HOST_DEVICE throughout and has no throwing value() accessor
- * (querying an unengaged Optional in a kernel cannot throw, 
- *  so the contract is "check has_value() first"; in debug host builds a violation asserts).
+ * `axom::Optional<T>` is a trivially-structured aggregate of `{storage, engaged flag}`
+ * that is `AXOM_HOST_DEVICE` throughout and has no throwing `value()` accessor.
  *
- * It has sufficient functionality for a kernel-side optional (i.e to check if something is found)
- * but is not a drop-in std::optional -- it does not have: exceptions, monadic and_then/transforms, 
- * or in-place construction machinery.
+ * The contract is to check `has_value()` before accessing the value.
+ * In host debug builds, a disengaged dereference asserts, and during constant evaluation it is a compile error.
+ *
+ * This type is intentionally small and is not a drop-in replacement for `std::optional`.
+ * Specifically, it does not provide exceptions, monadic combinators, or in-place construction.
  */
 
-#ifndef SLAM_OPTIONAL_H_
-#define SLAM_OPTIONAL_H_
+#ifndef AXOM_OPTIONAL_HPP_
+#define AXOM_OPTIONAL_HPP_
 
 #include "axom/core/Macros.hpp"
 
 #include <type_traits>
 
-namespace axom::slam
+namespace axom
 {
 /*!
  * \class Optional
- * \brief Host-device "maybe a value of type T".
+ * \brief Host/device "maybe a value of type T".
  *
- * \tparam T the (literal/trivially-copyable) value type. Intended for the
- *  small value and index types that flow through slam's device find APIs.
+ * \tparam T The value type. Intended for small, trivially-copyable types
+ *  that are safe to capture and use in device kernels.
  */
 template <typename T>
 struct Optional
 {
+  static_assert(std::is_trivially_copyable_v<T>,
+                "axom::Optional<T> is intended for trivially-copyable value types");
+
   T m_value {};
   bool m_engaged {false};
 
@@ -59,8 +61,9 @@ struct Optional
 
   /*!
    * \brief Access the contained value.
-   * \pre has_value() is true. There is no throwing accessor -- in host debug builds,
-   *  a disengaged access asserts, and during constant evaluation it is a compile error.
+   * \pre has_value() is true. There is no throwing accessor. 
+   *  In host debug builds, a disengaged access asserts,
+   *  and during constant evaluation it is a compile error.
    */
   AXOM_HOST_DEVICE constexpr const T& operator*() const
   {
@@ -80,6 +83,6 @@ struct Optional
   }
 };
 
-}  // end namespace axom::slam
+}  // namespace axom
 
-#endif  // SLAM_OPTIONAL_H_
+#endif  // AXOM_OPTIONAL_HPP_

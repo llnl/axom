@@ -28,7 +28,6 @@ set(slam_headers
     Utilities.hpp
     FieldRegistry.hpp
     ModularInt.hpp
-    Optional.hpp
 
     #SRM policies
     policies/CardinalityPolicies.hpp

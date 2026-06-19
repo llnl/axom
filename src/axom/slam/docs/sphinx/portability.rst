@@ -26,9 +26,9 @@ and are therefore unconditionally kernel-safe.
    * - A
      - All compile-time language features (concepts, ``if constexpr``,
        class template argument deduction (CTAD), non-type template parameters,
-       fold expressions, type traits, ``constexpr`` evaluation); 
-       Axom host-device types (``StackArray``, ``ArrayView``, ``NumericLimits``, ``utilities::*``); 
-       and Slam's own host-device types, including ``slam::Optional``.
+       fold expressions, type traits, ``constexpr`` evaluation)
+       as well as Axom host-device types (``StackArray``, ``ArrayView``, 
+       ``NumericLimits``, ``Optional``, ``utilities::*``). 
      - everywhere, including kernels
    * - B
      - ``std::optional``, ``std::string_view``, ``std::variant``,
@@ -47,7 +47,7 @@ Why not a device ``std::optional``?
 but we cannot depend on them for our non-GPU sequential and OpenMP builds.
 Instead, Slam uses small internal host-device types in the spirit of ``axom::StackArray``.
 
-:cpp:class:`axom::slam::Optional` is the one such type Slam adds for this purpose. 
+:cpp:class:`axom::Optional` is the one such type Axom provides for this purpose. 
 It is a trivially-copyable aggregate of an engaged flag and storage,
 is ``AXOM_HOST_DEVICE`` throughout, and has no throwing ``value()`` accessor.
 The contract is to check ``has_value()`` (or use ``value_or``) before dereferencing. 
