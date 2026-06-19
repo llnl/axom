@@ -394,19 +394,18 @@ bool hostAllocationUsesExpectedAllocator(int selectedHostAllocId,
 
 TEST(core_memory_management, host_space_allocation_uses_umpire_host_default)
 {
-  EXPECT_EXIT(
-    ([]() {
-      if(!hostAllocationUsesExpectedAllocator(
-           axom::getUmpireResourceAllocatorID(umpire::resource::Host),
-           axom::getUmpireResourceAllocatorID(umpire::resource::Host)))
-      {
-        std::exit(1);
-      }
+  EXPECT_EXIT(([]() {
+                if(!hostAllocationUsesExpectedAllocator(
+                     axom::getUmpireResourceAllocatorID(umpire::resource::Host),
+                     axom::getUmpireResourceAllocatorID(umpire::resource::Host)))
+                {
+                  std::exit(1);
+                }
 
-      std::exit(0);
-    })(),
-    ::testing::ExitedWithCode(0),
-    "");
+                std::exit(0);
+              })(),
+              ::testing::ExitedWithCode(0),
+              "");
 }
 
 TEST(core_memory_management, host_space_allocation_uses_malloc_host_default)
@@ -437,8 +436,7 @@ TEST(core_memory_management, host_space_allocation_ignores_global_default_alloca
         std::exit(1);
       }
 
-      if(!hostAllocationUsesExpectedAllocator(axom::MALLOC_ALLOCATOR_ID,
-                                              axom::MALLOC_ALLOCATOR_ID))
+      if(!hostAllocationUsesExpectedAllocator(axom::MALLOC_ALLOCATOR_ID, axom::MALLOC_ALLOCATOR_ID))
       {
         std::exit(1);
       }
@@ -456,7 +454,8 @@ TEST(core_memory_management, changing_default_host_allocator_after_host_allocati
       const int hostAllocatorID =
         axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
       axom::setDefaultHostAllocator(hostAllocatorID);
-      int* buffer = axom::allocate<int>(ARRAY_SIZE, axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
+      int* buffer =
+        axom::allocate<int>(ARRAY_SIZE, axom::getAllocatorIDFromMemorySpace(axom::MemorySpace::Host));
       AXOM_UNUSED_VAR(buffer);
       axom::setDefaultHostAllocator(axom::MALLOC_ALLOCATOR_ID);
     }(),

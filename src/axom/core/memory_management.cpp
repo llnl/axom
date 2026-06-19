@@ -60,10 +60,7 @@ int initialDefaultHostAllocatorID() noexcept { return MALLOC_ALLOCATOR_ID; }
 
 struct HostAllocatorConfig
 {
-  explicit HostAllocatorConfig(int allocId) noexcept
-    : allocatorId {allocId}
-    , locked {false}
-  { }
+  explicit HostAllocatorConfig(int allocId) noexcept : allocatorId {allocId}, locked {false} { }
 
   int get() const noexcept { return allocatorId.load(std::memory_order_relaxed); }
 

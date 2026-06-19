@@ -394,8 +394,10 @@ private:
 namespace detail
 {
 
+/// Record that default host allocator has been used to allocate memory.
 void markDefaultHostAllocatorUsed(int allocId, const void* pointer) noexcept;
 
+/// Enumeration used internally to make default allocator more easily identifiable.
 enum class AllocationBackend
 {
   Malloc,
@@ -405,6 +407,7 @@ enum class AllocationBackend
   Invalid
 };
 
+/// Get enum value for allocator backend associated with given allocator ID
 inline AllocationBackend getAllocatorBackend(int allocID) noexcept
 {
   if(allocID == MALLOC_ALLOCATOR_ID)
@@ -422,6 +425,7 @@ inline AllocationBackend getAllocatorBackend(int allocID) noexcept
   return AllocationBackend::Invalid;
 }
 
+/// Get enum value for allocator backend associated with given pointer
 template <typename T>
 inline AllocationBackend getPointerBackend(T* pointer) noexcept
 {
@@ -437,6 +441,7 @@ inline AllocationBackend getPointerBackend(T* pointer) noexcept
   return AllocationBackend::Malloc;
 }
 
+/// Utility to abort when attempt is made to use invalid allocator ID
 inline void abortOnInvalidAllocatorID(int allocID)
 {
 #if defined(AXOM_USE_UMPIRE)
@@ -450,22 +455,25 @@ inline void abortOnInvalidAllocatorID(int allocID)
   axom::utilities::processAbort();
 }
 
+/// Utility to abort when attempt is made to reallocate with invalid allocator ID
 inline void abortOnInvalidReallocateState()
 {
   std::cerr << "Unexpected allocator backend state in axom::reallocate()." << std::endl;
   axom::utilities::processAbort();
 }
 
+/// Utility to abort when attempt is made to reallocate from malloc to Umpire or vice-versa.
 inline void abortOnCrossBackendReallocate(int srcAllocID, int dstAllocID)
 {
-  std::cerr << "Cannot reallocate across allocator backends. Source allocator id is "
-            << srcAllocID << " and destination allocator id is " << dstAllocID
+  std::cerr << "Cannot reallocate across allocator backends. Source allocator id is " << srcAllocID
+            << " and destination allocator id is " << dstAllocID
             << ". Reallocation is only supported within malloc-backed memory or within "
                "Umpire-backed memory."
             << std::endl;
   axom::utilities::processAbort();
 }
 
+/// Normalize pointer when request to reallocate to size zero is made
 template <typename T>
 inline T* normalizeZeroSizeReallocateResult(T* pointer, std::size_t n, int allocID) noexcept
 {
@@ -477,6 +485,7 @@ inline T* normalizeZeroSizeReallocateResult(T* pointer, std::size_t n, int alloc
   return pointer;
 }
 
+/// Reallocate an Axom malloc allocation
 template <typename T>
 inline T* reallocateWithinMalloc(T* pointer, std::size_t numbytes) noexcept
 {
@@ -491,6 +500,7 @@ inline T* reallocateWithinMalloc(T* pointer, std::size_t numbytes) noexcept
 }
 
 #if defined(AXOM_USE_UMPIRE)
+/// Reallocate an Umpire allocation
 template <typename T>
 inline T* reallocateWithinUmpire(T* pointer, std::size_t numbytes) noexcept
 {
@@ -501,13 +511,23 @@ inline T* reallocateWithinUmpire(T* pointer, std::size_t numbytes) noexcept
 
 }  // namespace detail
 
+/*!
+ * \brief Allocate memory using given allocator ID.
+ *
+ * \param [in] n number of bytes to allocate
+ * \param [in] allocID id of allocator
+ * \return pointer to allocated memory
+ *
+ * \note This function aborts if the allocator ID is not recognized.
+ */
 template <typename T>
 inline T* allocate(std::size_t n, int allocID) noexcept
 {
   const std::size_t numbytes = n * sizeof(T);
 
 #if defined(AXOM_USE_UMPIRE)
-  if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
+  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
+  if(rm.isAllocator(allocID))
   {
     umpire::Allocator allocator = rm.getAllocator(allocID);
     T* pointer = static_cast<T*>(allocator.allocate(numbytes));
@@ -529,13 +549,25 @@ inline T* allocate(std::size_t n, int allocID) noexcept
   return nullptr;  // Silence warning.
 }
 
+/*!
+ * \brief Allocate 'named' memory using given allocator ID.
+ *
+ * \param [in] n number of bytes to allocate
+ * \param [in] name name of allocation
+ * \param [in] allocID id of allocator
+ * \return pointer to allocated memory
+ *
+ * \note Name is used only in case of Umpire allocation
+ * \note This function aborts if the allocator ID is not recognized.
+ */
 template <typename T>
 inline T* allocate(std::size_t n, const std::string& name, int allocID) noexcept
 {
   const std::size_t numbytes = n * sizeof(T);
 
 #if defined(AXOM_USE_UMPIRE)
-  if(umpire::ResourceManager& rm = umpire::ResourceManager::getInstance(); rm.isAllocator(allocID))
+  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
+  if(rm.isAllocator(allocID))
   {
     umpire::Allocator allocator = rm.getAllocator(allocID);
     T* pointer = name.empty() ? static_cast<T*>(allocator.allocate(numbytes))
@@ -558,7 +590,10 @@ inline T* allocate(std::size_t n, const std::string& name, int allocID) noexcept
 
   return nullptr;  // Silence warning.
 }
-//------------------------------------------------------------------------------
+
+/*!
+ * \brief Deallocate memory referenced by given pointer
+ */
 template <typename T>
 inline void deallocate(T*& pointer) noexcept
 {
@@ -583,7 +618,18 @@ inline void deallocate(T*& pointer) noexcept
   pointer = nullptr;
 }
 
-//------------------------------------------------------------------------------
+/*!
+ * \brief Reallocate memory using given allocator ID.
+ *
+ * \param [in] pointer address of memory to reallocate
+ * \param [in] n number of bytes in new allocation
+ * \param [in] allocID id of allocator
+ * \return pointer to reallocated memory
+ *
+ * \note This function aborts if the allocator ID is not recognized,
+ *       or if attempt is made to reallocate memory allocated with 
+ *       Axom malloc using an Umpire allocator or vice versa.
+ */
 template <typename T>
 inline T* reallocate(T* pointer, std::size_t n, int allocID) noexcept
 {
@@ -628,7 +674,13 @@ inline T* reallocate(T* pointer, std::size_t n, int allocID) noexcept
   return nullptr;  // Silence warning.
 }
 
-//------------------------------------------------------------------------------
+/*!
+ * \brief Copy given number of bytes from one memory chunk to another
+ *
+ * \param [in] dst copy destination
+ * \param [in] src copy src
+ * \param [in] numbytes number of bytes to copy
+ */
 inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept
 {
 #if defined(AXOM_USE_UMPIRE)
@@ -662,7 +714,13 @@ inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept
 #endif
 }
 
-//------------------------------------------------------------------------------
+/*!
+ * \brief Fill allocation with given value.
+ *
+ * \param [in] dst fill destination
+ * \param [in] n number of values (of type T) to fill
+ * \param [in] value value to fill
+ */
 template <typename T>
 inline void fill(void* dst, std::size_t n, const T& value) noexcept
 {

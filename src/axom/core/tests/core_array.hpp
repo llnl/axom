@@ -2310,146 +2310,142 @@ TEST(core_array, checkUninitialized)
 //------------------------------------------------------------------------------
 TEST(core_array, host_space_accepts_malloc_allocator)
 {
-  EXPECT_EXIT(
-    ([]() {
-      axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+  EXPECT_EXIT(([]() {
+                axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
 
-      axom::Array<int, 1, axom::MemorySpace::Host> arr(8, 8, axom::MALLOC_ALLOCATOR_ID);
-      if(arr.getAllocatorID() != axom::MALLOC_ALLOCATOR_ID)
-      {
-        std::exit(1);
-      }
+                axom::Array<int, 1, axom::MemorySpace::Host> arr(8, 8, axom::MALLOC_ALLOCATOR_ID);
+                if(arr.getAllocatorID() != axom::MALLOC_ALLOCATOR_ID)
+                {
+                  std::exit(1);
+                }
 
-      for(int i = 0; i < arr.size(); ++i)
-      {
-        arr[i] = i;
-      }
+                for(int i = 0; i < arr.size(); ++i)
+                {
+                  arr[i] = i;
+                }
 
-      axom::ArrayView<int, 1, axom::MemorySpace::Host> view(arr);
-      if(view.getAllocatorID() != axom::MALLOC_ALLOCATOR_ID || arr.size() != view.size())
-      {
-        std::exit(1);
-      }
+                axom::ArrayView<int, 1, axom::MemorySpace::Host> view(arr);
+                if(view.getAllocatorID() != axom::MALLOC_ALLOCATOR_ID || arr.size() != view.size())
+                {
+                  std::exit(1);
+                }
 
-      for(int i = 0; i < view.size(); ++i)
-      {
-        if(i != view[i])
-        {
-          std::exit(1);
-        }
-      }
+                for(int i = 0; i < view.size(); ++i)
+                {
+                  if(i != view[i])
+                  {
+                    std::exit(1);
+                  }
+                }
 
-      std::exit(0);
-    })(),
-    ::testing::ExitedWithCode(0),
-    "");
+                std::exit(0);
+              })(),
+              ::testing::ExitedWithCode(0),
+              "");
 }
 
 //------------------------------------------------------------------------------
 TEST(core_array, host_space_copy_preserves_malloc_allocator)
 {
-  EXPECT_EXIT(
-    ([]() {
-      axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
+  EXPECT_EXIT(([]() {
+                axom::setDefaultHostAllocator(axom::MemorySpace::Malloc);
 
-      axom::Array<int, 1, axom::MemorySpace::Dynamic> src(8, 8, axom::MALLOC_ALLOCATOR_ID);
-      for(int i = 0; i < src.size(); ++i)
-      {
-        src[i] = 2 * i;
-      }
+                axom::Array<int, 1, axom::MemorySpace::Dynamic> src(8, 8, axom::MALLOC_ALLOCATOR_ID);
+                for(int i = 0; i < src.size(); ++i)
+                {
+                  src[i] = 2 * i;
+                }
 
-      axom::Array<int, 1, axom::MemorySpace::Host> dst(src);
-      if(dst.getAllocatorID() != axom::MALLOC_ALLOCATOR_ID || src.size() != dst.size())
-      {
-        std::exit(1);
-      }
+                axom::Array<int, 1, axom::MemorySpace::Host> dst(src);
+                if(dst.getAllocatorID() != axom::MALLOC_ALLOCATOR_ID || src.size() != dst.size())
+                {
+                  std::exit(1);
+                }
 
-      for(int i = 0; i < dst.size(); ++i)
-      {
-        if(2 * i != dst[i])
-        {
-          std::exit(1);
-        }
-      }
+                for(int i = 0; i < dst.size(); ++i)
+                {
+                  if(2 * i != dst[i])
+                  {
+                    std::exit(1);
+                  }
+                }
 
-      std::exit(0);
-    })(),
-    ::testing::ExitedWithCode(0),
-    "");
+                std::exit(0);
+              })(),
+              ::testing::ExitedWithCode(0),
+              "");
 }
 
 #if defined(AXOM_USE_UMPIRE)
 //------------------------------------------------------------------------------
 TEST(core_array, host_space_uses_umpire_host_allocator)
 {
-  EXPECT_EXIT(
-    ([]() {
-      const int hostAllocatorID =
-        axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
-      axom::setDefaultHostAllocator(axom::MemorySpace::Host);
+  EXPECT_EXIT(([]() {
+                const int hostAllocatorID =
+                  axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
+                axom::setDefaultHostAllocator(axom::MemorySpace::Host);
 
-      axom::Array<int, 1, axom::MemorySpace::Host> arr(8, 8);
-      if(arr.getAllocatorID() != hostAllocatorID)
-      {
-        std::exit(1);
-      }
+                axom::Array<int, 1, axom::MemorySpace::Host> arr(8, 8);
+                if(arr.getAllocatorID() != hostAllocatorID)
+                {
+                  std::exit(1);
+                }
 
-      for(int i = 0; i < arr.size(); ++i)
-      {
-        arr[i] = i;
-      }
+                for(int i = 0; i < arr.size(); ++i)
+                {
+                  arr[i] = i;
+                }
 
-      axom::ArrayView<int, 1, axom::MemorySpace::Host> view(arr);
-      if(view.getAllocatorID() != hostAllocatorID || arr.size() != view.size())
-      {
-        std::exit(1);
-      }
+                axom::ArrayView<int, 1, axom::MemorySpace::Host> view(arr);
+                if(view.getAllocatorID() != hostAllocatorID || arr.size() != view.size())
+                {
+                  std::exit(1);
+                }
 
-      for(int i = 0; i < view.size(); ++i)
-      {
-        if(i != view[i])
-        {
-          std::exit(1);
-        }
-      }
+                for(int i = 0; i < view.size(); ++i)
+                {
+                  if(i != view[i])
+                  {
+                    std::exit(1);
+                  }
+                }
 
-      std::exit(0);
-    })(),
-    ::testing::ExitedWithCode(0),
-    "");
+                std::exit(0);
+              })(),
+              ::testing::ExitedWithCode(0),
+              "");
 }
 
 //------------------------------------------------------------------------------
 TEST(core_array, host_space_copy_preserves_compatible_malloc_allocator_with_umpire_host_default)
 {
-  EXPECT_EXIT(
-    ([]() {
-      axom::setDefaultHostAllocator(axom::MemorySpace::Host);
+  EXPECT_EXIT(([]() {
+                axom::setDefaultHostAllocator(axom::MemorySpace::Host);
 
-      axom::Array<int, 1, axom::MemorySpace::Dynamic> src(8, 8, axom::MALLOC_ALLOCATOR_ID);
-      for(int i = 0; i < src.size(); ++i)
-      {
-        src[i] = 2 * i;
-      }
+                axom::Array<int, 1, axom::MemorySpace::Dynamic> src(8, 8, axom::MALLOC_ALLOCATOR_ID);
+                for(int i = 0; i < src.size(); ++i)
+                {
+                  src[i] = 2 * i;
+                }
 
-      axom::Array<int, 1, axom::MemorySpace::Host> dst(src);
-      if(dst.getAllocatorID() != axom::MALLOC_ALLOCATOR_ID || src.size() != dst.size())
-      {
-        std::exit(1);
-      }
+                axom::Array<int, 1, axom::MemorySpace::Host> dst(src);
+                if(dst.getAllocatorID() != axom::MALLOC_ALLOCATOR_ID || src.size() != dst.size())
+                {
+                  std::exit(1);
+                }
 
-      for(int i = 0; i < dst.size(); ++i)
-      {
-        if(2 * i != dst[i])
-        {
-          std::exit(1);
-        }
-      }
+                for(int i = 0; i < dst.size(); ++i)
+                {
+                  if(2 * i != dst[i])
+                  {
+                    std::exit(1);
+                  }
+                }
 
-      std::exit(0);
-    })(),
-    ::testing::ExitedWithCode(0),
-    "");
+                std::exit(0);
+              })(),
+              ::testing::ExitedWithCode(0),
+              "");
 }
 #endif
 
