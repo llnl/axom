@@ -70,7 +70,7 @@ int main(int, char**)
   HandleSet::IndirectionBufferType vecHandle(sz);
 
   // Create a set of handles (helper deduces the set policy stack)
-  HandleSet hSet = slam::make_vector_set(vecHandle);
+  HandleSet hSet = slam::make_indirection_set(vecHandle);
 
   // Add handles with (somewhat) arbitrary IDs to the set
   for(auto i : hSet.positions())

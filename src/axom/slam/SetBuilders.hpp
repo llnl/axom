@@ -22,7 +22,7 @@
  * from the buffer:
  *
  * \code
- *   auto s = slam::make_array_view_set(v);   // -> ArrayViewIndirectionSet<.., double>
+ *   auto s = slam::make_indirection_set(v);   // -> ArrayViewIndirectionSet<.., double>
  * \endcode
  *
  * \note On CTAD vs. helpers. A class-template-argument deduction guide cannot
@@ -91,7 +91,7 @@ RangeSet<PosType, ElemType> make_range_set(detail::type_identity_t<PosType> lowe
 }
 
 /*!
- * \brief Make a set whose elements indirect through an axom::ArrayView.
+ * \brief Make an indirection set whose elements indirect through an axom::ArrayView.
  *
  * The element type is deduced from \a view; the set is device-capable
  * (ArrayView indirection is host-device). The set's size matches the view.
@@ -100,28 +100,28 @@ RangeSet<PosType, ElemType> make_range_set(detail::type_identity_t<PosType> lowe
  * \return an ArrayViewIndirectionSet<PosType, T>
  */
 template <typename PosType = DefaultPositionType, typename T>
-ArrayViewIndirectionSet<PosType, T> make_array_view_set(axom::ArrayView<T> view)
+ArrayViewIndirectionSet<PosType, T> make_indirection_set(axom::ArrayView<T> view)
 {
   using SetType = ArrayViewIndirectionSet<PosType, T>;
   return SetType(typename SetType::SetBuilder().size(static_cast<PosType>(view.size())).data(view));
 }
 
 /*!
- * \brief Make a set whose elements indirect through an std::vector.
+ * \brief Make an indirection set whose elements indirect through an std::vector.
  *
  * The element type is deduced from \a vec. The set's size matches the vector.
  * \param vec the backing vector (must outlive the set)
  * \return a VectorIndirectionSet<PosType, T>
  */
 template <typename PosType = DefaultPositionType, typename T>
-VectorIndirectionSet<PosType, T> make_vector_set(std::vector<T>& vec)
+VectorIndirectionSet<PosType, T> make_indirection_set(std::vector<T>& vec)
 {
   using SetType = VectorIndirectionSet<PosType, T>;
   return SetType(typename SetType::SetBuilder().size(static_cast<PosType>(vec.size())).data(&vec));
 }
 
 /*!
- * \brief Make a set whose elements indirect through an axom::Array.
+ * \brief Make an indirection set whose elements indirect through an axom::Array.
  *
  * The element type is deduced from \a arr; the set is device-capable
  * (axom::Array indirection is host-device). The set's size matches the array.
@@ -130,21 +130,21 @@ VectorIndirectionSet<PosType, T> make_vector_set(std::vector<T>& vec)
  * \return an ArrayIndirectionSet<PosType, T>
  */
 template <typename PosType = DefaultPositionType, typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
-ArrayIndirectionSet<PosType, T> make_array_set(axom::Array<T, DIM, SPACE, StoragePolicy>& arr)
+ArrayIndirectionSet<PosType, T> make_indirection_set(axom::Array<T, DIM, SPACE, StoragePolicy>& arr)
 {
   using SetType = ArrayIndirectionSet<PosType, T>;
   return SetType(typename SetType::SetBuilder().size(static_cast<PosType>(arr.size())).data(&arr));
 }
 
 /*!
- * \brief Make a set whose elements indirect through a C array.
+ * \brief Make an indirection set whose elements indirect through a C array.
  *
  * \param data pointer to the backing buffer (must outlive the set)
  * \param size the number of elements
  * \return a CArrayIndirectionSet<PosType, T>
  */
 template <typename PosType = DefaultPositionType, typename T>
-CArrayIndirectionSet<PosType, T> make_c_array_set(T* data, detail::type_identity_t<PosType> size)
+CArrayIndirectionSet<PosType, T> make_indirection_set(T* data, detail::type_identity_t<PosType> size)
 {
   using SetType = CArrayIndirectionSet<PosType, T>;
   return SetType(typename SetType::SetBuilder().size(size).data(data));

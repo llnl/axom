@@ -67,13 +67,13 @@ TEST(slam_make_helpers, make_array_view_set_deduces_element_type)
   axom::Array<double> data {10., 20., 30., 40.};
   axom::ArrayView<double> view = data.view();
 
-  auto s = slam::make_array_view_set(view);
+  auto s = slam::make_indirection_set(view);
 
   // Element type double was deduced from the view.
   static_assert(std::is_same_v<decltype(s), slam::ArrayViewIndirectionSet<Pos, double>>,
-                "make_array_view_set deduces ArrayViewIndirectionSet<.., double>");
+                "make_indirection_set(ArrayView) deduces ArrayViewIndirectionSet<.., double>");
   static_assert(std::is_same_v<typename decltype(s)::PositionType, Pos>,
-                "make_array_view_set uses DefaultPositionType by default");
+                "make_indirection_set(ArrayView) uses DefaultPositionType by default");
 
   ASSERT_EQ(s.size(), 4);
   EXPECT_TRUE(s.isValid());
@@ -84,12 +84,12 @@ TEST(slam_make_helpers, make_array_view_set_deduces_element_type)
 TEST(slam_make_helpers, make_vector_set_deduces_element_type)
 {
   std::vector<int> vec {7, 8, 9};
-  auto s = slam::make_vector_set(vec);
+  auto s = slam::make_indirection_set(vec);
 
   static_assert(std::is_same_v<decltype(s), slam::VectorIndirectionSet<Pos, int>>,
-                "make_vector_set deduces VectorIndirectionSet<.., int>");
+                "make_indirection_set(vector) deduces VectorIndirectionSet<.., int>");
   static_assert(std::is_same_v<typename decltype(s)::PositionType, Pos>,
-                "make_vector_set uses DefaultPositionType by default");
+                "make_indirection_set(vector) uses DefaultPositionType by default");
 
   ASSERT_EQ(s.size(), 3);
   EXPECT_TRUE(s.isValid());
@@ -100,12 +100,12 @@ TEST(slam_make_helpers, make_vector_set_deduces_element_type)
 TEST(slam_make_helpers, make_array_set_deduces_element_type)
 {
   axom::Array<double> data {1.0, 2.0, 3.0};
-  auto s = slam::make_array_set(data);
+  auto s = slam::make_indirection_set(data);
 
   static_assert(std::is_same_v<decltype(s), slam::ArrayIndirectionSet<Pos, double>>,
-                "make_array_set deduces ArrayIndirectionSet<.., double>");
+                "make_indirection_set(Array) deduces ArrayIndirectionSet<.., double>");
   static_assert(std::is_same_v<typename decltype(s)::PositionType, Pos>,
-                "make_array_set uses DefaultPositionType by default");
+                "make_indirection_set(Array) uses DefaultPositionType by default");
 
   ASSERT_EQ(s.size(), 3);
   EXPECT_TRUE(s.isValid());
@@ -116,12 +116,12 @@ TEST(slam_make_helpers, make_array_set_deduces_element_type)
 TEST(slam_make_helpers, make_carray_set)
 {
   int data[3] = {2, 4, 6};
-  auto s = slam::make_c_array_set(data, 3);
+  auto s = slam::make_indirection_set(data, 3);
 
   static_assert(std::is_same_v<decltype(s), slam::CArrayIndirectionSet<Pos, int>>,
-                "make_c_array_set deduces CArrayIndirectionSet<.., int>");
+                "make_indirection_set(C array) deduces CArrayIndirectionSet<.., int>");
   static_assert(std::is_same_v<typename decltype(s)::PositionType, Pos>,
-                "make_c_array_set uses DefaultPositionType by default");
+                "make_indirection_set(C array) uses DefaultPositionType by default");
 
   ASSERT_EQ(s.size(), 3);
   EXPECT_TRUE(s.isValid());
@@ -134,7 +134,7 @@ TEST(slam_make_helpers, make_array_view_set_explicit_position_type)
   auto view = data.view();
 
   // Position type can be supplied explicitly as the leading template argument.
-  auto s = slam::make_array_view_set<std::int64_t>(view);
+  auto s = slam::make_indirection_set<std::int64_t>(view);
   static_assert(std::is_same_v<decltype(s), slam::ArrayViewIndirectionSet<std::int64_t, float>>,
                 "explicit PosType flows through");
   EXPECT_EQ(s.size(), 2);
@@ -186,7 +186,7 @@ TEST(slam_make_helpers, make_variable_relation_indices_are_to_set_positions)
   auto fromSet = slam::make_range_set(2);
 
   axom::Array<double> values {10., 20., 30.};
-  auto toSet = slam::make_array_view_set(values.view());  // ArrayViewIndirectionSet<Pos, double>
+  auto toSet = slam::make_indirection_set(values.view());  // ArrayViewIndirectionSet<Pos, double>
 
   std::vector<Pos> begins {0, 2, 3};
   std::vector<Pos> indices {0, 2, 1};  // positions into toSet
