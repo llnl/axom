@@ -494,10 +494,14 @@ template <int STRIDE,
           typename ElemType = typename ToSet::PositionType>
 auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, axom::ArrayView<ElemType> indices)
 {
-  return make_constant_relation_ct<STRIDE>(fromSet,
-                                           toSet,
-                                           indices.data(),
-                                           static_cast<PosType>(indices.size()));
+  using IndicesIndirection = policies::ArrayViewIndirection<PosType, ElemType>;
+  using StridePolicy = policies::CompileTimeStride<PosType, static_cast<PosType>(STRIDE)>;
+  using CTy = policies::ConstantCardinality<PosType, StridePolicy>;
+  using RelationType = StaticRelation<PosType, ElemType, CTy, IndicesIndirection, FromSet, ToSet>;
+  using Builder = typename RelationType::RelationBuilder;
+
+  return RelationType(Builder().fromSet(fromSet).toSet(toSet).indices(
+    typename Builder::IndicesSetBuilder().size(static_cast<PosType>(indices.size())).data(indices)));
 }
 
 /*!

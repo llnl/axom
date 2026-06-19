@@ -167,6 +167,24 @@ public:
     m_data = IndirectionPolicy::create(size() * numComp(), defaultValue, allocatorID);
   }
 
+  /**
+   * \brief Constructor for Map using a Set pointer and externally-owned data.
+   *
+   * This overload is intended for non-owning indirection policies such as
+   * `policies::ArrayViewIndirection`, but also works for owning buffers.
+   *
+   * \param theSet pointer to the map's set (must outlive the map)
+   * \param data externally-owned (or moved-in) storage for the map's values
+   * \param shape (Optional) number of values mapped per set element (stride)
+   */
+  Map(const SetType* theSet, OrderedMap data, ElementShape shape = StridePolicyType::DefaultSize())
+    : StridePolicyType(shape)
+    , m_set(theSet)
+    , m_data(std::move(data))
+  {
+    checkBackingSize(std::integral_constant<bool, IndirectionPolicy::IsMutableBuffer> {});
+  }
+
   /// \overload
   template <typename USet,
             typename TSet = SetType,
