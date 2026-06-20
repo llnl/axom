@@ -40,7 +40,7 @@ axom::IndexType map_storage_size(const SetType* set, PosType stride)
  * \param data  backing storage as an ArrayView (must outlive the map)
  */
 template <typename SetType, typename T, typename PosType = typename SetType::PositionType>
-auto make_map(SetType* set, PosType stride, axom::ArrayView<T> data)
+auto make_map(const SetType* set, PosType stride, axom::ArrayView<T> data)
 {
   using Indirection = policies::ArrayViewIndirection<PosType, T>;
   using Stride = policies::RuntimeStride<PosType>;
@@ -52,7 +52,7 @@ auto make_map(SetType* set, PosType stride, axom::ArrayView<T> data)
  * \brief Make a stride-one SLAM map backed by ArrayView storage.
  */
 template <typename SetType, typename T, typename PosType = typename SetType::PositionType>
-auto make_map(SetType* set, axom::ArrayView<T> data)
+auto make_map(const SetType* set, axom::ArrayView<T> data)
 {
   using Indirection = policies::ArrayViewIndirection<PosType, T>;
   using Stride = policies::StrideOne<PosType>;
@@ -67,7 +67,7 @@ auto make_map(SetType* set, axom::ArrayView<T> data)
  * and returns an ArrayView-backed map.
  */
 template <typename SetType, typename T, typename PosType = typename SetType::PositionType>
-auto make_map(SetType* set, PosType stride, T* data)
+auto make_map(const SetType* set, PosType stride, T* data)
 {
   const auto n = detail::map_storage_size(set, stride);
   return make_map(set, stride, axom::ArrayView<T>(data, n));
@@ -77,7 +77,7 @@ auto make_map(SetType* set, PosType stride, T* data)
  * \brief Make a stride-one SLAM map backed by a raw pointer buffer.
  */
 template <typename SetType, typename T, typename PosType = typename SetType::PositionType>
-auto make_map(SetType* set, T* data)
+auto make_map(const SetType* set, T* data)
 {
   const auto n = detail::map_storage_size(set, PosType {1});
   return make_map(set, axom::ArrayView<T>(data, n));
@@ -89,7 +89,7 @@ auto make_map(SetType* set, T* data)
  * \tparam STRIDE number of values per set element
  */
 template <int STRIDE, typename SetType, typename T, typename PosType = typename SetType::PositionType>
-auto make_map_ct(SetType* set, axom::ArrayView<T> data)
+auto make_map_ct(const SetType* set, axom::ArrayView<T> data)
 {
   using Indirection = policies::ArrayViewIndirection<PosType, T>;
   using Stride = policies::CompileTimeStride<PosType, static_cast<PosType>(STRIDE)>;
@@ -104,7 +104,7 @@ auto make_map_ct(SetType* set, axom::ArrayView<T> data)
  * and returns an ArrayView-backed map.
  */
 template <int STRIDE, typename SetType, typename T, typename PosType = typename SetType::PositionType>
-auto make_map_ct(SetType* set, T* data)
+auto make_map_ct(const SetType* set, T* data)
 {
   const PosType stride = static_cast<PosType>(STRIDE);
   const auto n = detail::map_storage_size(set, stride);

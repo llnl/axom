@@ -19,6 +19,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 namespace
 {
@@ -118,4 +119,54 @@ TEST(slam_FieldRegistry, nameless_keys_are_unique)
   auto& b0 = ireg.addNamelessBuffer(2);
   auto& b1 = ireg.addNamelessBuffer(2);
   EXPECT_NE(&b0, &b1);
+}
+
+TEST(slam_FieldRegistry, view_buffer_add_get_find)
+{
+  IndexRegistry reg;
+
+  int data[4] = {10, 20, 30, 40};
+  reg.addBufferView("view", data, SetType::PositionType {4});
+
+  EXPECT_TRUE(reg.hasBufferView("view"));
+  EXPECT_EQ(reg.getBufferView("view")[2], 30);
+
+  auto hit = reg.findBufferView("view");
+  ASSERT_TRUE(hit.has_value());
+  EXPECT_EQ(hit->get()[3], 40);
+
+  const IndexRegistry& creg = reg;
+  auto chit = creg.findBufferView("view");
+  ASSERT_TRUE(chit.has_value());
+  EXPECT_EQ(chit->get()[0], 10);
+}
+
+TEST(slam_FieldRegistry, view_field_is_non_owning)
+{
+  SetType s(5);
+  ScalarRegistry reg;
+
+  double data[5] = {1., 2., 3., 4., 5.};
+  auto& field = reg.addFieldView("temp", &s, data);
+
+  static_assert(
+    std::is_same_v<typename std::remove_reference_t<decltype(field)>::IndirectionPolicy::IndirectionBufferType,
+                   axom::ArrayView<double>>,
+    "view fields use ArrayView-backed indirection");
+
+  EXPECT_TRUE(reg.hasFieldView("temp"));
+  EXPECT_DOUBLE_EQ(reg.getFieldView("temp")[1], 2.0);
+
+  // Mutating through the map updates the backing buffer.
+  reg.getFieldView("temp")[2] = 42.0;
+  EXPECT_DOUBLE_EQ(data[2], 42.0);
+
+  // Mutating the backing buffer is visible through the map.
+  data[0] = -3.0;
+  EXPECT_DOUBLE_EQ(reg.getFieldView("temp")[0], -3.0);
+
+  const ScalarRegistry& creg = reg;
+  auto hit = creg.findFieldView("temp");
+  ASSERT_TRUE(hit.has_value());
+  EXPECT_EQ(hit->get().size(), 5);
 }
