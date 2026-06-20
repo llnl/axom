@@ -27,4 +27,3 @@ namespace axom::utilities
 }  // namespace axom::utilities
 
 #endif  // AXOM_CORE_UTILITIES_ABORT_HPP_
-

@@ -24,7 +24,6 @@
  * A `Tag` type supplies the policy-specific knobs as static members:
  *   - `static constexpr IntType defaultValue();` -- the DEFAULT_VALUE
  *   - `static constexpr bool isValidValue(IntType);` -- validity predicate
- *   - `static constexpr const char* name();` -- used in assertion text
  *
  * The named accessors (`size()`, `stride()`, `offset()`) are *not* provided here; 
  * they live in the thin leaf policies in SizePolicies.hpp / StridePolicies.hpp / OffsetPolicies.hpp
@@ -40,7 +39,6 @@
 #define SLAM_POLICIES_VALUE_H_
 
 #include "axom/core/Macros.hpp"
-#include "axom/slic.hpp"
 
 namespace axom::slam::policies
 {
@@ -58,7 +56,6 @@ struct SizeTag
 {
   AXOM_HOST_DEVICE static constexpr IntType defaultValue() { return IntType {}; }
   AXOM_HOST_DEVICE static constexpr bool isValidValue(IntType v) { return v >= IntType {}; }
-  static constexpr const char* name() { return "slam::Size"; }
 };
 
 /*!
@@ -70,7 +67,6 @@ struct StrideTag
 {
   AXOM_HOST_DEVICE static constexpr IntType defaultValue() { return IntType(1); }
   AXOM_HOST_DEVICE static constexpr bool isValidValue(IntType v) { return v != IntType {}; }
-  static constexpr const char* name() { return "slam::Stride"; }
 };
 
 /*!
@@ -82,7 +78,6 @@ struct OffsetTag
 {
   AXOM_HOST_DEVICE static constexpr IntType defaultValue() { return IntType {}; }
   AXOM_HOST_DEVICE static constexpr bool isValidValue(IntType) { return true; }
-  static constexpr const char* name() { return "slam::Offset"; }
 };
 
 /// \}
