@@ -137,6 +137,19 @@ public:
     return pos2;
   }
 
+  /*!
+   * \brief Optional-returning wrapper for `findElementIndex`.
+   *
+   * \return An engaged `axom::Optional` with the SparseIndex if valid, else empty.
+   */
+  [[nodiscard]] axom::Optional<PositionType> findElementIndexOptional(PositionType pos1,
+                                                                      PositionType pos2) const
+  {
+    const auto idx = findElementIndex(pos1, pos2);
+    return idx != BaseType::INVALID_POS ? axom::Optional<PositionType>(idx)
+                                        : axom::Optional<PositionType> {};
+  }
+
   /**
    * \brief Returns an element's FlatIndex given its DenseIndex. Since
    *        ProductSet is the full Cartesian product of the two sets, an
@@ -158,6 +171,20 @@ public:
     return pos;
   }
 
+  /*!
+   * \brief Optional-returning wrapper for `findElementFlatIndex(pos1, pos2)`.
+   *
+   * \return An engaged `axom::Optional` with the FlatIndex if valid, else empty.
+   */
+  [[nodiscard]] AXOM_HOST_DEVICE axom::Optional<PositionType> findElementFlatIndexOptional(
+    PositionType pos1,
+    PositionType pos2) const
+  {
+    const auto idx = findElementFlatIndex(pos1, pos2);
+    return idx != BaseType::INVALID_POS ? axom::Optional<PositionType>(idx)
+                                        : axom::Optional<PositionType> {};
+  }
+
   /**
    * \brief Returns the FlatIndex of the first element in the specified row.
    *        This is equal to `pos1*secondSetSize()`.
@@ -167,6 +194,18 @@ public:
   PositionType findElementFlatIndex(PositionType pos1) const
   {
     return findElementFlatIndex(pos1, 0);
+  }
+
+  /*!
+   * \brief Optional-returning wrapper for `findElementFlatIndex(pos1)`.
+   *
+   * \return An engaged `axom::Optional` with the FlatIndex if valid, else empty.
+   */
+  [[nodiscard]] axom::Optional<PositionType> findElementFlatIndexOptional(PositionType pos1) const
+  {
+    const auto idx = findElementFlatIndex(pos1);
+    return idx != BaseType::INVALID_POS ? axom::Optional<PositionType>(idx)
+                                        : axom::Optional<PositionType> {};
   }
 
   /**

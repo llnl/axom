@@ -117,6 +117,19 @@ public:
     return BaseType::INVALID_POS;
   }
 
+  /*!
+   * \brief Optional-returning wrapper for `findElementIndex`.
+   *
+   * \return An engaged `axom::Optional` with the SparseIndex if the element exists, else empty.
+   */
+  [[nodiscard]] axom::Optional<PositionType> findElementIndexOptional(PositionType pos1,
+                                                                      PositionType pos2) const
+  {
+    const auto idx = findElementIndex(pos1, pos2);
+    return idx != BaseType::INVALID_POS ? axom::Optional<PositionType>(idx)
+                                        : axom::Optional<PositionType> {};
+  }
+
   /**
    * \brief Search for the FlatIndex of the element given its DenseIndex.
    * \warning This function can be slow, since a linear search is performed on the row each time.
@@ -140,6 +153,20 @@ public:
     return BaseType::INVALID_POS;
   }
 
+  /*!
+   * \brief Optional-returning wrapper for `findElementFlatIndex(s1, s2)`.
+   *
+   * \return An engaged `axom::Optional` with the FlatIndex if the element exists, else empty.
+   */
+  [[nodiscard]] AXOM_HOST_DEVICE axom::Optional<PositionType> findElementFlatIndexOptional(
+    PositionType s1,
+    PositionType s2) const
+  {
+    const auto idx = findElementFlatIndex(s1, s2);
+    return idx != BaseType::INVALID_POS ? axom::Optional<PositionType>(idx)
+                                        : axom::Optional<PositionType> {};
+  }
+
   /**
    * \brief Given the from-set index pos1, return the FlatIndex of the first
    *        existing to-set element in the relation pair, or `INVALID_POS` if
@@ -160,6 +187,18 @@ public:
     }
 
     return BaseType::INVALID_POS;
+  }
+
+  /*!
+   * \brief Optional-returning wrapper for `findElementFlatIndex(pos1)`.
+   *
+   * \return An engaged `axom::Optional` with the FlatIndex if the row contains any elements, else empty.
+   */
+  [[nodiscard]] axom::Optional<PositionType> findElementFlatIndexOptional(PositionType pos1) const
+  {
+    const auto idx = findElementFlatIndex(pos1);
+    return idx != BaseType::INVALID_POS ? axom::Optional<PositionType>(idx)
+                                        : axom::Optional<PositionType> {};
   }
 
   /**

@@ -244,6 +244,21 @@ TEST(slam_set_dynamicset, find_index)
   }
 }
 
+TEST(slam_set_dynamicset, findIndexOptional)
+{
+  SetType s(MAX_SET_SIZE);
+
+  for(SetPosition i = 0; i < MAX_SET_SIZE; i++)
+  {
+    auto opt = s.findIndexOptional(i);
+    ASSERT_TRUE(opt.has_value());
+    EXPECT_EQ(*opt, i);
+  }
+
+  auto miss = s.findIndexOptional(MAX_SET_SIZE + 1);
+  EXPECT_FALSE(miss.has_value());
+}
+
 TEST(slam_set_dynamicset, iterator)
 {
   SetType s(MAX_SET_SIZE);
