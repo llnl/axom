@@ -254,3 +254,51 @@ TEST(slam_make_helpers, make_constant_relation_compile_time_stride)
   EXPECT_EQ(r0[0], 0);
   EXPECT_EQ(r0[1], 4);
 }
+
+TEST(slam_make_helpers, make_constant_relation_runtime_stride_carray)
+{
+  // tests make_constant_relation helper function for C-style arrays
+
+  auto fromSet = slam::make_range_set(3);
+  auto toSet = slam::make_range_set(5);
+
+  // from { 0 -> {1,2}; 1 -> {3,4}; 2 -> {0,2} }
+  Pos indices[6] = {1, 2, 3, 4, 0, 2};
+
+  // C-array backing: raw pointer + element count.
+  auto rel = slam::make_constant_relation(&fromSet, &toSet, Pos {2}, indices, Pos {6});
+
+  EXPECT_TRUE(rel.isValid());
+  EXPECT_EQ(rel.size(0), 2);
+  EXPECT_EQ(rel.size(1), 2);
+  EXPECT_EQ(rel.size(2), 2);
+
+  auto r2 = rel[2];
+  ASSERT_EQ(r2.size(), 2);
+  EXPECT_EQ(r2[0], 0);
+  EXPECT_EQ(r2[1], 2);
+}
+
+TEST(slam_make_helpers, make_constant_relation_runtime_stride_axom_array)
+{
+  // tests make_constant_relation helper function for axom::Array
+
+  auto fromSet = slam::make_range_set(3);
+  auto toSet = slam::make_range_set(5);
+
+  // from { 0 -> {1,2}; 1 -> {3,4}; 2 -> {0,2} }
+  axom::Array<Pos> indices {1, 2, 3, 4, 0, 2};
+
+  // axom::Array backing (by reference, distinct from the ArrayView overload).
+  auto rel = slam::make_constant_relation(&fromSet, &toSet, Pos {2}, indices);
+
+  EXPECT_TRUE(rel.isValid());
+  EXPECT_EQ(rel.size(0), 2);
+  EXPECT_EQ(rel.size(1), 2);
+  EXPECT_EQ(rel.size(2), 2);
+
+  auto r0 = rel[0];
+  ASSERT_EQ(r0.size(), 2);
+  EXPECT_EQ(r0[0], 1);
+  EXPECT_EQ(r0[1], 2);
+}
