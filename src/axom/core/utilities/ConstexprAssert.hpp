@@ -45,6 +45,29 @@
 
 #if !defined(__CUDA_ARCH__) && !defined(__HIP_DEVICE_COMPILE__)
   #include <cassert>
+  #include <type_traits>
+#endif
+
+// Detect if we are in a constant-evaluation context:
+//   - std::is_constant_evaluated() is a C++20 library function.
+//   - __builtin_is_constant_evaluated() is a compiler builtin available in C++17
+//   - otherwise, AXOM_DETAIL_HAS_IS_CONSTANT_EVALUATED is 0
+#if defined(__cpp_lib_is_constant_evaluated)
+  #define AXOM_DETAIL_IS_CONSTANT_EVALUATED() (std::is_constant_evaluated())
+  #define AXOM_DETAIL_HAS_IS_CONSTANT_EVALUATED 1
+#elif defined(__has_builtin)
+  #if __has_builtin(__builtin_is_constant_evaluated)
+    #define AXOM_DETAIL_IS_CONSTANT_EVALUATED() (__builtin_is_constant_evaluated())
+    #define AXOM_DETAIL_HAS_IS_CONSTANT_EVALUATED 1
+  #endif
+#elif defined(_MSC_VER) && _MSC_VER >= 1926
+  // MSVC provides the builtin but historically did not implement __has_builtin.
+  #define AXOM_DETAIL_IS_CONSTANT_EVALUATED() (__builtin_is_constant_evaluated())
+  #define AXOM_DETAIL_HAS_IS_CONSTANT_EVALUATED 1
+#endif
+
+#if !defined(AXOM_DETAIL_HAS_IS_CONSTANT_EVALUATED)
+  #define AXOM_DETAIL_HAS_IS_CONSTANT_EVALUATED 0
 #endif
 
 namespace axom::detail
@@ -68,8 +91,8 @@ AXOM_DETAIL_CONSTEXPR_ASSERT_HOST_DEVICE constexpr void constexprAssert(bool con
 {
   if(!cond)
   {
-  #if defined(__clang__) || defined(__GNUC__)
-    if(__builtin_is_constant_evaluated())
+  #if AXOM_DETAIL_HAS_IS_CONSTANT_EVALUATED
+    if(AXOM_DETAIL_IS_CONSTANT_EVALUATED())
     {
       // Not constexpr: reaching this in constant evaluation is a hard error.
       constexprAssertFail(expr, file, line);
@@ -98,5 +121,7 @@ AXOM_DETAIL_CONSTEXPR_ASSERT_HOST_DEVICE constexpr void constexprAssert(bool,
 }  // namespace axom::detail
 
 #undef AXOM_DETAIL_CONSTEXPR_ASSERT_HOST_DEVICE
+#undef AXOM_DETAIL_IS_CONSTANT_EVALUATED
+#undef AXOM_DETAIL_HAS_IS_CONSTANT_EVALUATED
 
 #endif  // AXOM_CORE_UTILITIES_CONSTEXPR_ASSERT_HPP_
