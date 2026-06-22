@@ -8,7 +8,6 @@
  * \file ProductSet.hpp
  *
  * \brief Basic API for a SLAM Cartesian product set
- *
  */
 
 #ifndef SLAM_PRODUCT_SET_H_
@@ -193,6 +192,15 @@ public:
    */
   PositionType findElementFlatIndex(PositionType pos1) const
   {
+    SLIC_ASSERT_MSG(pos1 >= 0 && pos1 < this->firstSetSize(),
+                    "SLAM::ProductSet -- requested out-of-range first-set position "
+                      << pos1 << ", but set only has " << this->firstSetSize() << " rows.");
+
+    if(this->secondSetSize() == 0)
+    {
+      return BaseType::INVALID_POS;
+    }
+
     return findElementFlatIndex(pos1, 0);
   }
 

@@ -8,8 +8,7 @@
  * \file slam_set_BivariateSet.cpp
  *
  * This file tests BivariateSet, ProductSet and RelationSet within Slam.
- * It uses a templated test fixture to test many different types of
- * bivariate sets
+ * It uses a templated test fixture to test many different types of bivariate sets
  */
 
 #include "gtest/gtest.h"
@@ -564,6 +563,30 @@ TYPED_TEST(BivariateSetTester, traverse)
     bool checkMod = true;
     bSetTraverseTest<S1, S2, RSet>(&rset, checkMod);
   }
+}
+
+TEST(slam_bivariate_set, product_set_empty_second_set_has_no_first_flat_index)
+{
+  using SetType = slam::PositionSet<>;
+  using ProductSetType = slam::ProductSet<SetType, SetType>;
+
+  SetType firstSet(3);
+  SetType secondSet(0);
+  ProductSetType productSet(&firstSet, &secondSet);
+
+  ASSERT_TRUE(productSet.isValid(true));
+  EXPECT_EQ(productSet.firstSetSize(), 3);
+  EXPECT_EQ(productSet.secondSetSize(), 0);
+  EXPECT_EQ(productSet.size(), 0);
+  EXPECT_EQ(productSet.size(0), 0);
+  EXPECT_EQ(productSet.getElements(0).size(), 0);
+
+  EXPECT_EQ(productSet.findElementFlatIndex(0), ProductSetType::INVALID_POS);
+  EXPECT_FALSE(productSet.findElementFlatIndexOptional(0).has_value());
+
+  const slam::BivariateSet<SetType, SetType>* baseSet = &productSet;
+  EXPECT_EQ(baseSet->findElementFlatIndex(0), ProductSetType::INVALID_POS);
+  EXPECT_FALSE(baseSet->findElementFlatIndexOptional(0).has_value());
 }
 
 TYPED_TEST(BivariateSetTester, optional_find_returns_empty_for_missing_relation_entries)
