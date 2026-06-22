@@ -22,7 +22,7 @@
  * from the buffer:
  *
  * \code
- *   auto s = slam::make_indirection_set(v);   // -> ArrayViewIndirectionSet<.., double>
+ *   auto s = slam::make_indirection_set(view);  // -> ArrayViewIndirectionSet<.., double>
  * \endcode
  *
  * \note On CTAD vs. helpers. A class-template-argument deduction guide cannot
@@ -110,19 +110,23 @@ VectorIndirectionSet<PosType, T> make_indirection_set(std::vector<T>& vec)
 }
 
 /*!
- * \brief Make an indirection set whose elements indirect through an axom::Array.
+ * \brief Make an indirection set whose elements indirect through an axom::Array's flat storage.
  *
- * The element type is deduced from \a arr; the set is device-capable
- * (axom::Array indirection is host-device). The set's size matches the array.
+ * The element type is deduced from \a arr; the set is device-capable because it 
+ * stores an ArrayView over the array's flat storage. The set's size matches the array.
  *
- * \param arr the backing array (must outlive the set)
- * \return an ArrayIndirectionSet<PosType, T>
+ * \param arr the backing array (its storage must outlive the set and not be reallocated)
+ * \return an ArrayViewIndirectionSet<PosType, T>
  */
 template <typename PosType = DefaultPositionType, typename T, int DIM, MemorySpace SPACE, typename StoragePolicy>
-ArrayIndirectionSet<PosType, T> make_indirection_set(axom::Array<T, DIM, SPACE, StoragePolicy>& arr)
+ArrayViewIndirectionSet<PosType, T> make_indirection_set(axom::Array<T, DIM, SPACE, StoragePolicy>& arr)
 {
-  using SetType = ArrayIndirectionSet<PosType, T>;
-  return SetType(typename SetType::SetBuilder().size(static_cast<PosType>(arr.size())).data(&arr));
+  using SetType = ArrayViewIndirectionSet<PosType, T>;
+  const axom::StackArray<axom::IndexType, 1> flatShape {arr.size()};
+  const axom::StackArray<axom::IndexType, 1> flatStride {arr.minStride()};
+  axom::ArrayView<T> flatView(arr.data(), flatShape, flatStride);
+  return SetType(
+    typename SetType::SetBuilder().size(static_cast<PosType>(flatView.size())).data(flatView));
 }
 
 /*!

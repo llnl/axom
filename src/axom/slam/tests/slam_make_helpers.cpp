@@ -102,8 +102,8 @@ TEST(slam_make_helpers, make_array_set_deduces_element_type)
   axom::Array<double> data {1.0, 2.0, 3.0};
   auto s = slam::make_indirection_set(data);
 
-  static_assert(std::is_same_v<decltype(s), slam::ArrayIndirectionSet<Pos, double>>,
-                "make_indirection_set(Array) deduces ArrayIndirectionSet<.., double>");
+  static_assert(std::is_same_v<decltype(s), slam::ArrayViewIndirectionSet<Pos, double>>,
+                "make_indirection_set(Array) deduces ArrayViewIndirectionSet<.., double>");
   static_assert(std::is_same_v<typename decltype(s)::PositionType, Pos>,
                 "make_indirection_set(Array) uses DefaultPositionType by default");
 
@@ -111,6 +111,36 @@ TEST(slam_make_helpers, make_array_set_deduces_element_type)
   EXPECT_TRUE(s.isValid());
   EXPECT_DOUBLE_EQ(s[0], 1.0);
   EXPECT_DOUBLE_EQ(s[2], 3.0);
+
+  data[1] = 20.0;
+  EXPECT_DOUBLE_EQ(s[1], 20.0);
+
+  s[2] = 30.0;
+  EXPECT_DOUBLE_EQ(data[2], 30.0);
+}
+
+TEST(slam_make_helpers, make_multidimensional_array_set_uses_flat_storage)
+{
+  const axom::StackArray<axom::IndexType, 2> shape {2, 3};
+  axom::Array<int, 2> data(shape);
+
+  for(axom::IndexType i = 0; i < data.size(); ++i)
+  {
+    data.flatIndex(i) = static_cast<int>(10 + i);
+  }
+
+  auto s = slam::make_indirection_set(data);
+
+  static_assert(std::is_same_v<decltype(s), slam::ArrayViewIndirectionSet<Pos, int>>,
+                "multidimensional Array helper returns flat ArrayViewIndirectionSet");
+
+  ASSERT_EQ(s.size(), 6);
+  EXPECT_TRUE(s.isValid());
+  EXPECT_EQ(s[0], 10);
+  EXPECT_EQ(s[4], data.flatIndex(4));
+
+  s[5] = 42;
+  EXPECT_EQ(data.flatIndex(5), 42);
 }
 
 TEST(slam_make_helpers, make_carray_set)
