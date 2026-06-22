@@ -164,6 +164,47 @@ TEST(slam_make_helpers, make_variable_relation)
   EXPECT_EQ(rel2[1], 4);
 }
 
+TEST(slam_make_helpers, make_variable_relation_carray_buffers)
+{
+  auto fromSet = slam::make_range_set(3);
+  auto toSet = slam::make_range_set(5);
+
+  Pos begins[4] = {0, 2, 3, 5};
+  Pos indices[5] = {1, 2, 3, 0, 4};
+
+  auto rel = slam::make_variable_relation(&fromSet, &toSet, begins, Pos {4}, indices, Pos {5});
+
+  static_assert(std::is_same_v<typename decltype(rel)::CardinalityPolicy::BeginsIndirectionPolicy,
+                               slam::policies::CArrayIndirection<Pos, Pos>>,
+                "raw-pointer begins remain C-array backed");
+  static_assert(std::is_same_v<typename decltype(rel)::IndicesIndirectionPolicy,
+                               slam::policies::CArrayIndirection<Pos, Pos>>,
+                "raw-pointer indices remain C-array backed");
+
+  EXPECT_TRUE(rel.isValid());
+  EXPECT_EQ(rel.size(0), 2);
+  EXPECT_EQ(rel.size(1), 1);
+  EXPECT_EQ(rel.size(2), 2);
+
+  auto rel0 = rel[0];
+  ASSERT_EQ(rel0.size(), 2);
+  EXPECT_EQ(rel0[0], 1);
+  EXPECT_EQ(rel0[1], 2);
+}
+
+TEST(slam_make_helpers, make_variable_relation_carray_rejects_short_begins_size)
+{
+  auto fromSet = slam::make_range_set(3);
+  auto toSet = slam::make_range_set(5);
+
+  Pos begins[4] = {0, 2, 3, 3};
+  Pos indices[3] = {1, 2, 3};
+
+  auto rel = slam::make_variable_relation(&fromSet, &toSet, begins, Pos {3}, indices, Pos {3});
+
+  EXPECT_FALSE(rel.isValid());
+}
+
 TEST(slam_make_helpers, make_variable_relation_axom_array_buffers)
 {
   auto fromSet = slam::make_range_set(3);

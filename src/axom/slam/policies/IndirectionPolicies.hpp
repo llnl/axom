@@ -289,17 +289,22 @@ struct CArrayIndirectionBase
   static constexpr bool IsMutableBuffer = false;
   static constexpr const char* Name = "SLAM::CArrayIndirection";
 
-  AXOM_HOST_DEVICE CArrayIndirectionBase(IndirectionPtrType buf = nullptr) : m_arrBuf(buf) { }
+  AXOM_HOST_DEVICE CArrayIndirectionBase(IndirectionPtrType buf = nullptr,
+                                         PositionType size = axom::numeric_limits<PositionType>::max())
+    : m_arrBuf(buf)
+    , m_arrSize(size)
+  { }
 
   AXOM_HOST_DEVICE IndirectionBufferType data() const { return m_arrBuf; }
   AXOM_HOST_DEVICE IndirectionBufferType& ptr() { return m_arrBuf; }
 
   bool hasIndirection() const { return m_arrBuf != nullptr; }
 
-  constexpr PositionType size() const { return axom::numeric_limits<PositionType>::max(); }
+  AXOM_HOST_DEVICE PositionType size() const { return m_arrSize; }
 
 private:
   IndirectionBufferType m_arrBuf;
+  PositionType m_arrSize;
 };
 
 /**

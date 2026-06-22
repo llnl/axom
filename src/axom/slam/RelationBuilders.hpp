@@ -139,8 +139,8 @@ auto make_variable_relation(FromSet* fromSet,
     Builder()
       .fromSet(fromSet)
       .toSet(toSet)
-      .begins(typename Builder::BeginsSetBuilder().size(beginsSize).data(begins))
-      .indices(typename Builder::IndicesSetBuilder().size(indicesSize).data(indices)));
+      .begins(typename Builder::BeginsSetBuilder().size(beginsSize).data(begins, beginsSize))
+      .indices(typename Builder::IndicesSetBuilder().size(indicesSize).data(indices, indicesSize)));
 }
 
 /*!
@@ -323,7 +323,7 @@ auto make_constant_relation(FromSet* fromSet,
       .fromSet(fromSet)
       .toSet(toSet)
       .begins(begins_builder)
-      .indices(typename Builder::IndicesSetBuilder().size(indicesSize).data(indices)));
+      .indices(typename Builder::IndicesSetBuilder().size(indicesSize).data(indices, indicesSize)));
 }
 
 /*!
@@ -439,7 +439,7 @@ auto make_constant_relation_ct(FromSet* fromSet, ToSet* toSet, ElemType* indices
   using Builder = typename RelationType::RelationBuilder;
 
   return RelationType(Builder().fromSet(fromSet).toSet(toSet).indices(
-    typename Builder::IndicesSetBuilder().size(indicesSize).data(indices)));
+    typename Builder::IndicesSetBuilder().size(indicesSize).data(indices, indicesSize)));
 }
 
 /*!

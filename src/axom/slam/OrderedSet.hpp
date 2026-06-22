@@ -229,6 +229,14 @@ public:
       return *this;
     }
 
+    AXOM_HOST_DEVICE SetBuilder& data(DataType bufPtr, PositionType bufferSize)
+    {
+      static_assert(std::is_constructible<IndirectionPolicyType, DataType, PositionType>::value,
+                    "This indirection policy does not support sized data binding.");
+      m_data = IndirectionPolicyType(bufPtr, bufferSize);
+      return *this;
+    }
+
     SetBuilder& parent(ParentSetType* parSet)
     {
       m_parent = SubsettingPolicyType(parSet);
