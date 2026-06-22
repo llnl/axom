@@ -148,7 +148,7 @@ TEST(slam_FieldRegistry, view_field_is_non_owning)
   ScalarRegistry reg;
 
   double data[5] = {1., 2., 3., 4., 5.};
-  auto& field = reg.addFieldView("temp", &s, data);
+  auto& field = reg.addField("temp", &s, data);
 
   static_assert(
     std::is_same_v<typename std::remove_reference_t<decltype(field)>::IndirectionPolicy::IndirectionBufferType,
@@ -165,6 +165,7 @@ TEST(slam_FieldRegistry, view_field_is_non_owning)
   static_assert(std::is_same_v<typename ConstViewIndirection::ConstIndirectionResult, const double&>,
                 "const ArrayView<const T> fields expose immutable values");
 
+  EXPECT_TRUE(reg.hasField("temp"));
   EXPECT_TRUE(reg.hasFieldView("temp"));
   EXPECT_DOUBLE_EQ(reg.getFieldView("temp")[1], 2.0);
 
@@ -184,4 +185,37 @@ TEST(slam_FieldRegistry, view_field_is_non_owning)
   ASSERT_TRUE(hit.has_value());
   EXPECT_EQ(hit->get().size(), 5);
   EXPECT_DOUBLE_EQ(hit->get()[2], 42.0);
+}
+
+TEST(slam_FieldRegistry, field_storage_modes_share_keyspace)
+{
+  SetType s(3);
+  ScalarRegistry reg;
+
+  double data[3] = {10., 20., 30.};
+  auto& viewField = reg.addField("density", &s, data);
+
+  EXPECT_TRUE(reg.hasField("density"));
+  EXPECT_TRUE(reg.hasFieldView("density"));
+  EXPECT_FALSE(reg.findField("density").has_value());
+  ASSERT_TRUE(reg.findFieldView("density").has_value());
+
+  viewField[1] = 21.;
+  EXPECT_DOUBLE_EQ(data[1], 21.);
+
+  auto& owningField = reg.addField("density", &s);
+  EXPECT_TRUE(reg.hasField("density"));
+  EXPECT_FALSE(reg.hasFieldView("density"));
+  EXPECT_FALSE(reg.findFieldView("density").has_value());
+  ASSERT_TRUE(reg.findField("density").has_value());
+
+  owningField[1] = 99.;
+  EXPECT_DOUBLE_EQ(reg.getField("density")[1], 99.);
+  EXPECT_DOUBLE_EQ(data[1], 21.);
+
+  auto& viewFieldAgain = reg.addFieldView("density", &s, data);
+  EXPECT_TRUE(reg.hasField("density"));
+  EXPECT_TRUE(reg.hasFieldView("density"));
+  EXPECT_FALSE(reg.findField("density").has_value());
+  EXPECT_DOUBLE_EQ(viewFieldAgain[1], 21.);
 }

@@ -21,6 +21,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 
 namespace axom::slam
 {
@@ -32,12 +33,12 @@ namespace axom::slam
  *
  * \note FieldRegistry is a host-only facility: it stores std::map tables
  *       keyed by std::string and its find APIs return std::optional. The
- *       three lookup tables use transparent comparison (std::less<>) so callers may
+ *       lookup tables use transparent comparison (std::less<>) so callers may
  *       query with a std::string_view without constructing a temporary std::string.
  *
- * \note FieldRegistry supports two storage modes:
- *       - owning fields/buffers stored as `slam::Map` / `std::vector`
- *       - view-backed fields/buffers stored as `slam::Map` / `axom::ArrayView`
+ * \note FieldRegistry supports two field storage modes under a single field keyspace:
+ *       - owning fields stored as `slam::Map`
+ *       - view-backed fields stored as `slam::Map` over `axom::ArrayView`
  *         (useful when generating SLAM objects from externally-owned C arrays)
  */
 template <typename SetType, typename TheDataType>
@@ -71,20 +72,22 @@ public:
   /// \brief View-backed buffer type stored by this registry.
   using ViewBufferType = axom::ArrayView<DataType>;
 
+  /// \brief Storage for one named field, either owning or view-backed.
+  using FieldStorageType = std::variant<MapType, ViewMapType>;
+
   // Transparent comparator (std::less<>) enables heterogeneous lookup: a
   // std::string_view (or const char*) can be used as a key without allocating.
-  using DataVecMap = std::map<KeyType, MapType, std::less<>>;
-  using DataViewMap = std::map<KeyType, ViewMapType, std::less<>>;
+  using DataVecMap = std::map<KeyType, FieldStorageType, std::less<>>;
   using DataBufferMap = std::map<KeyType, BufferType, std::less<>>;
   using DataViewBufferMap = std::map<KeyType, ViewBufferType, std::less<>>;
   using DataAttrMap = std::map<KeyType, DataType, std::less<>>;
 
 public:
-  /// \name Owning Fields
+  /// \name Fields
   /// @{
 
   /*!
-   * \brief Returns true if an owning field with the given key exists.
+   * \brief Returns true if a field with the given key exists.
    *
    * This function performs heterogeneous lookup, so callers may pass a
    * `std::string_view` (or `const char*`) without allocating.
@@ -105,8 +108,43 @@ public:
    */
   MapType& addField(KeyType key, const SetType* theSet)
   {
-    auto [it, _] = m_maps.insert_or_assign(std::move(key), MapType(theSet));
-    return it->second;
+    auto [it, _] = m_maps.insert_or_assign(std::move(key), FieldStorageType(MapType(theSet)));
+    return std::get<MapType>(it->second);
+  }
+
+  /*!
+   * \brief Adds (or replaces) a view-backed field from an `axom::ArrayView`.
+   *
+   * \param key The field name.
+   * \param theSet Pointer to the set associated with the field (must outlive the map).
+   * \param data View of externally-owned storage (must outlive the map).
+   * \return A mutable reference to the stored field.
+   *
+   * \note If an entry with the same key already exists, it is overwritten.
+   */
+  ViewMapType& addField(KeyType key, const SetType* theSet, axom::ArrayView<DataType> data)
+  {
+    auto [it, _] =
+      m_maps.insert_or_assign(std::move(key), FieldStorageType(slam::make_map(theSet, data)));
+    return std::get<ViewMapType>(it->second);
+  }
+
+  /*!
+   * \brief Adds (or replaces) a view-backed field from a raw pointer buffer.
+   *
+   * \param key The field name.
+   * \param theSet Pointer to the set associated with the field (must outlive the map).
+   * \param data Pointer to externally-owned storage (must outlive the map).
+   *             The helper wraps this as an `axom::ArrayView<DataType>` sized to `theSet->size()`.
+   * \return A mutable reference to the stored field.
+   *
+   * \note If an entry with the same key already exists, it is overwritten.
+   */
+  ViewMapType& addField(KeyType key, const SetType* theSet, DataType* data)
+  {
+    auto [it, _] =
+      m_maps.insert_or_assign(std::move(key), FieldStorageType(slam::make_map(theSet, data)));
+    return std::get<ViewMapType>(it->second);
   }
 
   /*!
@@ -120,8 +158,19 @@ public:
    */
   MapType& addNamelessField(const SetType* theSet)
   {
-    static int cnt = 0;
-    return addField(axom::fmt::format("__field_{}", cnt++), theSet);
+    return addField(makeNamelessFieldKey(), theSet);
+  }
+
+  /*!
+   * \brief Adds a new view-backed field using an auto-generated unique key.
+   *
+   * \param theSet Pointer to the set associated with the field (must outlive the map).
+   * \param data View of externally-owned storage (must outlive the map).
+   * \return A mutable reference to the stored field.
+   */
+  ViewMapType& addNamelessField(const SetType* theSet, axom::ArrayView<DataType> data)
+  {
+    return addField(makeNamelessFieldKey(), theSet, data);
   }
 
   /*!
@@ -130,13 +179,14 @@ public:
    * \param key Field name.
    * \return A mutable reference to the stored field.
    *
-   * \pre `hasField(key)` is true.
+   * \pre `findField(key)` has a value.
    * \note In debug builds, this asserts if the key is missing.
+   * \note For view-backed fields, use `getFieldView()`.
    */
   MapType& getField(std::string_view key)
   {
     verifyFieldsKey(key);
-    return m_maps.find(key)->second;
+    return std::get<MapType>(m_maps.find(key)->second);
   }
 
   /*!
@@ -145,13 +195,14 @@ public:
    * \param key Field name.
    * \return A const reference to the stored field.
    *
-   * \pre `hasField(key)` is true.
+   * \pre `findField(key)` has a value.
    * \note In debug builds, this asserts if the key is missing.
+   * \note For view-backed fields, use `getFieldView()`.
    */
   const MapType& getField(std::string_view key) const
   {
     verifyFieldsKey(key);
-    return m_maps.find(key)->second;
+    return std::get<MapType>(m_maps.find(key)->second);
   }
 
   /*!
@@ -165,8 +216,13 @@ public:
   [[nodiscard]] std::optional<std::reference_wrapper<MapType>> findField(std::string_view key)
   {
     auto it = m_maps.find(key);
-    return it != m_maps.end() ? std::optional<std::reference_wrapper<MapType>>(it->second)
-                              : std::nullopt;
+    if(it == m_maps.end())
+    {
+      return std::nullopt;
+    }
+
+    auto* field = std::get_if<MapType>(&it->second);
+    return field != nullptr ? std::optional<std::reference_wrapper<MapType>>(*field) : std::nullopt;
   }
 
   /*!
@@ -180,8 +236,14 @@ public:
   [[nodiscard]] std::optional<std::reference_wrapper<const MapType>> findField(std::string_view key) const
   {
     auto it = m_maps.find(key);
-    return it != m_maps.end() ? std::optional<std::reference_wrapper<const MapType>>(it->second)
-                              : std::nullopt;
+    if(it == m_maps.end())
+    {
+      return std::nullopt;
+    }
+
+    const auto* field = std::get_if<MapType>(&it->second);
+    return field != nullptr ? std::optional<std::reference_wrapper<const MapType>>(*field)
+                            : std::nullopt;
   }
 
   /// @}
@@ -192,7 +254,8 @@ public:
   /// \brief Returns true if a view-backed field with the given key exists.
   [[nodiscard]] bool hasFieldView(std::string_view key) const
   {
-    return m_view_maps.find(key) != m_view_maps.end();
+    auto it = m_maps.find(key);
+    return it != m_maps.end() && std::holds_alternative<ViewMapType>(it->second);
   }
 
   /*!
@@ -207,8 +270,7 @@ public:
    */
   ViewMapType& addFieldView(KeyType key, const SetType* theSet, axom::ArrayView<DataType> data)
   {
-    auto [it, _] = m_view_maps.insert_or_assign(std::move(key), slam::make_map(theSet, data));
-    return it->second;
+    return addField(std::move(key), theSet, data);
   }
 
   /*!
@@ -224,8 +286,7 @@ public:
    */
   ViewMapType& addFieldView(KeyType key, const SetType* theSet, DataType* data)
   {
-    auto [it, _] = m_view_maps.insert_or_assign(std::move(key), slam::make_map(theSet, data));
-    return it->second;
+    return addField(std::move(key), theSet, data);
   }
 
   /*!
@@ -237,8 +298,7 @@ public:
    */
   ViewMapType& addNamelessFieldView(const SetType* theSet, axom::ArrayView<DataType> data)
   {
-    static int cnt = 0;
-    return addFieldView(axom::fmt::format("__field_view_{}", cnt++), theSet, data);
+    return addNamelessField(theSet, data);
   }
 
   /*!
@@ -249,7 +309,7 @@ public:
   ViewMapType& getFieldView(std::string_view key)
   {
     verifyFieldViewKey(key);
-    return m_view_maps.find(key)->second;
+    return std::get<ViewMapType>(m_maps.find(key)->second);
   }
 
   /*!
@@ -260,7 +320,7 @@ public:
   const ViewMapType& getFieldView(std::string_view key) const
   {
     verifyFieldViewKey(key);
-    return m_view_maps.find(key)->second;
+    return std::get<ViewMapType>(m_maps.find(key)->second);
   }
 
   /*!
@@ -270,9 +330,15 @@ public:
    */
   [[nodiscard]] std::optional<std::reference_wrapper<ViewMapType>> findFieldView(std::string_view key)
   {
-    auto it = m_view_maps.find(key);
-    return it != m_view_maps.end() ? std::optional<std::reference_wrapper<ViewMapType>>(it->second)
-                                   : std::nullopt;
+    auto it = m_maps.find(key);
+    if(it == m_maps.end())
+    {
+      return std::nullopt;
+    }
+
+    auto* field = std::get_if<ViewMapType>(&it->second);
+    return field != nullptr ? std::optional<std::reference_wrapper<ViewMapType>>(*field)
+                            : std::nullopt;
   }
 
   /*!
@@ -283,10 +349,15 @@ public:
   [[nodiscard]] std::optional<std::reference_wrapper<const ViewMapType>> findFieldView(
     std::string_view key) const
   {
-    auto it = m_view_maps.find(key);
-    return it != m_view_maps.end()
-      ? std::optional<std::reference_wrapper<const ViewMapType>>(it->second)
-      : std::nullopt;
+    auto it = m_maps.find(key);
+    if(it == m_maps.end())
+    {
+      return std::nullopt;
+    }
+
+    const auto* field = std::get_if<ViewMapType>(&it->second);
+    return field != nullptr ? std::optional<std::reference_wrapper<const ViewMapType>>(*field)
+                            : std::nullopt;
   }
 
   /// @}
@@ -534,9 +605,20 @@ public:
   /// @}
 
 private:
+  static KeyType makeNamelessFieldKey()
+  {
+    static int cnt = 0;
+    return axom::fmt::format("__field_{}", cnt++);
+  }
+
   inline void verifyFieldsKey(std::string_view AXOM_DEBUG_PARAM(key)) const
   {
-    SLIC_ASSERT_MSG(hasField(key), "Didn't find field named " << key);
+#ifdef AXOM_DEBUG
+    auto it = m_maps.find(key);
+    SLIC_ASSERT_MSG(it != m_maps.end(), "Didn't find field named " << key);
+    SLIC_ASSERT_MSG(it == m_maps.end() || std::holds_alternative<MapType>(it->second),
+                    "Field named " << key << " is view-backed; use getFieldView()");
+#endif
   }
 
   inline void verifyFieldViewKey(std::string_view AXOM_DEBUG_PARAM(key)) const
@@ -561,7 +643,6 @@ private:
 
 private:
   DataVecMap m_maps;
-  DataViewMap m_view_maps;
   DataBufferMap m_buff;
   DataViewBufferMap m_view_buff;
   DataAttrMap m_scal;
