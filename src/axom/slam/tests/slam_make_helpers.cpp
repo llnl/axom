@@ -255,6 +255,50 @@ TEST(slam_make_helpers, make_constant_relation_compile_time_stride)
   EXPECT_EQ(r0[1], 4);
 }
 
+TEST(slam_make_helpers, make_constant_relation_compile_time_stride_vector_backed)
+{
+  auto fromSet = slam::make_range_set(2);
+  auto toSet = slam::make_range_set(5);
+
+  std::vector<Pos> indices {0, 4, 1, 3};
+  auto rel = slam::make_constant_relation_ct<2>(&fromSet, &toSet, indices);
+
+  static_assert(std::is_same_v<typename decltype(rel)::IndicesIndirectionPolicy,
+                               slam::policies::STLVectorIndirection<Pos, Pos>>,
+                "make_constant_relation_ct(vector) keeps STLVectorIndirection backing");
+
+  EXPECT_TRUE(rel.isValid());
+  EXPECT_EQ(rel.size(0), 2);
+  EXPECT_EQ(rel.size(1), 2);
+
+  auto r1 = rel[1];
+  ASSERT_EQ(r1.size(), 2);
+  EXPECT_EQ(r1[0], 1);
+  EXPECT_EQ(r1[1], 3);
+}
+
+TEST(slam_make_helpers, make_constant_relation_compile_time_stride_axom_array_backed)
+{
+  auto fromSet = slam::make_range_set(2);
+  auto toSet = slam::make_range_set(5);
+
+  axom::Array<Pos> indices {0, 4, 1, 3};
+  auto rel = slam::make_constant_relation_ct<2>(&fromSet, &toSet, indices);
+
+  static_assert(std::is_same_v<typename decltype(rel)::IndicesIndirectionPolicy,
+                               slam::policies::ArrayIndirection<Pos, Pos>>,
+                "make_constant_relation_ct(axom::Array) keeps ArrayIndirection backing");
+
+  EXPECT_TRUE(rel.isValid());
+  EXPECT_EQ(rel.size(0), 2);
+  EXPECT_EQ(rel.size(1), 2);
+
+  auto r0 = rel[0];
+  ASSERT_EQ(r0.size(), 2);
+  EXPECT_EQ(r0[0], 0);
+  EXPECT_EQ(r0[1], 4);
+}
+
 TEST(slam_make_helpers, make_constant_relation_runtime_stride_carray)
 {
   // tests make_constant_relation helper function for C-style arrays
