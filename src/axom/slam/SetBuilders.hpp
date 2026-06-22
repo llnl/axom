@@ -38,6 +38,7 @@
 #define SLAM_SET_BUILDERS_H_
 
 #include "axom/core/Array.hpp"
+#include "axom/core/Types.hpp"
 
 #include "axom/slam/Utilities.hpp"
 #include "axom/slam/RangeSet.hpp"
@@ -48,18 +49,6 @@
 
 namespace axom::slam
 {
-namespace detail
-{
-template <typename T>
-struct type_identity
-{
-  using type = T;
-};
-
-template <typename T>
-using type_identity_t = typename type_identity<T>::type;
-}  // namespace detail
-
 /// \name Set construction helpers
 /// \brief Construct a SLAM set while deducing its policy stack from the buffer
 ///  or range. \a PosType defaults to slam's default position type and may be
@@ -72,7 +61,7 @@ using type_identity_t = typename type_identity<T>::type;
  * \return a RangeSet<PosType, ElemType>
  */
 template <typename PosType = DefaultPositionType, typename ElemType = DefaultElementType>
-RangeSet<PosType, ElemType> make_range_set(detail::type_identity_t<PosType> size)
+RangeSet<PosType, ElemType> make_range_set(axom::type_identity_t<PosType> size)
 {
   return RangeSet<PosType, ElemType>(size);
 }
@@ -84,8 +73,8 @@ RangeSet<PosType, ElemType> make_range_set(detail::type_identity_t<PosType> size
  * \return a RangeSet<PosType, ElemType>
  */
 template <typename PosType = DefaultPositionType, typename ElemType = DefaultElementType>
-RangeSet<PosType, ElemType> make_range_set(detail::type_identity_t<PosType> lower,
-                                           detail::type_identity_t<PosType> upper)
+RangeSet<PosType, ElemType> make_range_set(axom::type_identity_t<PosType> lower,
+                                           axom::type_identity_t<PosType> upper)
 {
   return RangeSet<PosType, ElemType>(lower, upper);
 }
@@ -144,7 +133,7 @@ ArrayIndirectionSet<PosType, T> make_indirection_set(axom::Array<T, DIM, SPACE, 
  * \return a CArrayIndirectionSet<PosType, T>
  */
 template <typename PosType = DefaultPositionType, typename T>
-CArrayIndirectionSet<PosType, T> make_indirection_set(T* data, detail::type_identity_t<PosType> size)
+CArrayIndirectionSet<PosType, T> make_indirection_set(T* data, axom::type_identity_t<PosType> size)
 {
   using SetType = CArrayIndirectionSet<PosType, T>;
   return SetType(typename SetType::SetBuilder().size(size).data(data));
