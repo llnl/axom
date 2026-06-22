@@ -20,6 +20,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 
 namespace
 {
@@ -153,6 +154,16 @@ TEST(slam_FieldRegistry, view_field_is_non_owning)
     std::is_same_v<typename std::remove_reference_t<decltype(field)>::IndirectionPolicy::IndirectionBufferType,
                    axom::ArrayView<double>>,
     "view fields use ArrayView-backed indirection");
+  using ViewFieldType = std::remove_reference_t<decltype(field)>;
+  static_assert(std::is_same_v<typename ViewFieldType::ConstValueType, double&>,
+                "const ArrayView-backed fields preserve mutable view semantics");
+
+  using ConstViewIndirection =
+    slam::policies::ArrayViewIndirection<SetType::PositionType, const double>;
+  static_assert(std::is_same_v<typename ConstViewIndirection::IndirectionResult, const double&>,
+                "ArrayView<const T> exposes immutable values");
+  static_assert(std::is_same_v<typename ConstViewIndirection::ConstIndirectionResult, const double&>,
+                "const ArrayView<const T> fields expose immutable values");
 
   EXPECT_TRUE(reg.hasFieldView("temp"));
   EXPECT_DOUBLE_EQ(reg.getFieldView("temp")[1], 2.0);
@@ -166,7 +177,11 @@ TEST(slam_FieldRegistry, view_field_is_non_owning)
   EXPECT_DOUBLE_EQ(reg.getFieldView("temp")[0], -3.0);
 
   const ScalarRegistry& creg = reg;
+  const auto& constField = creg.getFieldView("temp");
+  EXPECT_DOUBLE_EQ(constField[0], -3.0);
+
   auto hit = creg.findFieldView("temp");
   ASSERT_TRUE(hit.has_value());
   EXPECT_EQ(hit->get().size(), 5);
+  EXPECT_DOUBLE_EQ(hit->get()[2], 42.0);
 }
