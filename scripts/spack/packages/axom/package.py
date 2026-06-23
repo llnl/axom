@@ -169,7 +169,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     conflicts("cxxstd=11", when="@0.7.0:")
     # C++17 required as of 0.12.0
     conflicts("cxxstd=14", when="@0.12.0:")
-    # C++17 required as of unreleased 0.15.0 (Should be 0.15.0)
+    # C++20 required as of unreleased 0.15.0 (Should be 0.15.0)
     conflicts("cxxstd=17", when="@0.14.0:")
 
     # -----------------------------------------------------------------------
@@ -356,9 +356,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     conflicts("^blt@:0.3.6", when="+rocm")
 
-    # python interface requires mpi
-    conflicts("~mpi", when="+python")
-
     def flag_handler(self, name, flags):
         if self.spec.satisfies("%cce") and name == "fflags":
             flags.append("-ef")
@@ -462,7 +459,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
             if spec.satisfies("^blt@:0.5.1"):
                 # This is handled internally by BLT now
-                cudaflags += " -std=c++14"
+                if self.cxx_std == "14":
+                    cudaflags += " -std=c++14"
+                if self.cxx_std == "11":
+                    cudaflags += " -std=c++11"
             entries.append(cmake_cache_string("CMAKE_CUDA_FLAGS", cudaflags, force=True))
 
             entries.append("# nvcc does not like gtest's 'pthreads' flag\n")
@@ -601,6 +601,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 cmake_cache_string("BLT_OPENMP_LINK_FLAGS", openmp_gen_exp, description)
             )
 
+        # For cce up to version 20.0.0
         if spec.satisfies("+openmp") and spec.satisfies("+rocm") and spec.satisfies("%cce@:20"):
             openmp_gen_exp = (
                 "$<$<NOT:$<COMPILE_LANGUAGE:Fortran>>:"
