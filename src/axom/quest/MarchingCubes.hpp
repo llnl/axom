@@ -204,6 +204,23 @@ public:
   void setParentCellIdMode(MarchingCubesParentCellIdMode mode) { m_parentCellIdMode = mode; }
 
   /*!
+   * @brief Select the bump::extraction::CutField backend (vs. the legacy
+   * structured-only marching cubes kernel).
+   * @param [in] useBump If true, isocontour extraction is delegated to bump,
+   *   which additionally supports unstructured single-shape quad (2D) and hex
+   *   (3D) meshes.  If false (default), the legacy kernel is used.
+   *
+   * Only available when Axom is configured with Conduit and the bump component
+   * (AXOM_ENABLE_BUMP); requesting the bump backend otherwise has no effect.
+   * The legacy backend supports only structured input.
+   *
+   * @note This is transitional: while the bump backend matures it is opt-in so
+   * existing users are unaffected.  A future release is expected to make it the
+   * default and retire the legacy kernel and its lookup tables.
+  */
+  void setUseBumpBackend(bool useBump) { m_useBumpBackend = useBump; }
+
+  /*!
    * @brief Computes the isocontour.
    * @param [in] contourVal isocontour value
    *
@@ -362,6 +379,9 @@ private:
 
   //! @brief How to number parent-cell ids of generated facets.
   MarchingCubesParentCellIdMode m_parentCellIdMode = MarchingCubesParentCellIdMode::blueprintZoneId;
+
+  //! @brief Whether to use the bump CutField backend (opt-in; default legacy).
+  bool m_useBumpBackend = false;
 
   //! @brief First facet index from each parent domain.
   axom::Array<axom::IndexType> m_facetIndexOffsets;

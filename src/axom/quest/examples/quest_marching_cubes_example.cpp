@@ -104,6 +104,9 @@ public:
   quest::MarchingCubesParentCellIdMode parentCellIdMode =
     quest::MarchingCubesParentCellIdMode::blueprintZoneId;
 
+  // Use the bump CutField backend (supports unstructured quad/hex) vs legacy.
+  bool useBumpBackend = false;
+
   // Distinct MarchingCubes objects count.
   int objectRepCount = 1;
   // Contour generation count for each MarchingCubes objects.
@@ -154,6 +157,12 @@ public:
         "'blueprintZoneId' (default) or 'legacyFieldOrder' (structured only)")
       ->capture_default_str()
       ->transform(axom::CLI::CheckedTransformer(s_validParentCellIdModes));
+
+    app.add_flag("--useBumpBackend", useBumpBackend)
+      ->description(
+        "Use the bump CutField backend (adds unstructured quad/hex support) "
+        "instead of the legacy structured-only marching cubes kernel")
+      ->capture_default_str();
 
     app.add_option("-m,--mesh-file", meshFile)
       ->description(
@@ -861,6 +870,7 @@ struct ContourTestBase
         initializationTimer.start();
         mcPtr =
           std::make_unique<quest::MarchingCubes>(params.policy, s_allocatorId, params.dataParallelism);
+        mcPtr->setUseBumpBackend(params.useBumpBackend);
         mcPtr->setParentCellIdMode(params.parentCellIdMode);
         mcPtr->setMesh(computationalMesh.asConduitNode(), "mesh", "mask");
         initializationTimer.stop();
