@@ -634,7 +634,16 @@ public:
         MemorySpace space = detail::getAllocatorSpace(m_allocator.getID());
         if(space == MemorySpace::Device || space == MemorySpace::Unified)
         {
-  #if !defined(AXOM_GPUCC)
+  #if defined(AXOM_USE_CUDA)
+          int host_allocator_id = axom::detail::getAllocatorID<MemorySpace::Host>();
+          FlatMap host_map(*this, axom::Allocator {host_allocator_id});
+          host_map.rehash(count);
+
+          FlatMap rehashed_device(host_map, m_allocator);
+          this->swap(rehashed_device);
+          return;
+  #elif defined(AXOM_USE_HIP)
+    #if !defined(AXOM_GPUCC)
           // Similar to the issue in ArrayBase (PR #1582), using FlatMap from
           // a GPU-enabled Axom library but with a host-only compiler results
           // in an ODR violation.
@@ -647,13 +656,12 @@ public:
                         "with a host-only compiler. Axom was built with GPU support, so you should "
                         "build all source files using FlatMap with a CUDA/HIP compiler.");
           using ExecSpace = axom::SEQ_EXEC;
-  #elif defined(AXOM_USE_CUDA)
-          using ExecSpace = axom::CUDA_EXEC<256>;
-  #elif defined(AXOM_USE_HIP)
+    #else
           using ExecSpace = axom::HIP_EXEC<256>;
-  #endif
+    #endif
           this->parallelRehash<ExecSpace>(count);
           return;
+  #endif
         }
 #endif
       }
