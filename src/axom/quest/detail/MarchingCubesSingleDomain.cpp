@@ -53,8 +53,15 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
   SLIC_ASSERT_MSG(!conduit::blueprint::mesh::is_multi_domain(dom),
                   "Internal error.  Attempt to set a multi-domain mesh in "
                   "MarchingCubesSingleDomain.");
-  SLIC_ASSERT(dom.fetch_existing("topologies/" + m_topologyName + "/type").as_string() ==
-              "structured");
+  // The legacy backend supports only structured topologies.  The bump backend
+  // additionally supports unstructured single-shape quad/hex; it validates the
+  // topology type itself in its own setDomain(), so we only enforce the
+  // structured requirement here when using the legacy backend.
+  if(!m_mc.m_useBumpBackend)
+  {
+    SLIC_ASSERT(dom.fetch_existing("topologies/" + m_topologyName + "/type").as_string() ==
+                "structured");
+  }
 
   const std::string coordsetPath =
     "coordsets/" + dom.fetch_existing("topologies/" + m_topologyName + "/coordset").as_string();
@@ -76,9 +83,16 @@ void MarchingCubesSingleDomain::setDomain(const conduit::Node& dom,
     dom.fetch_existing(axom::fmt::format("topologies/{}", m_topologyName)));
   SLIC_ASSERT(m_ndim >= 2 && m_ndim <= 3);
 
-  SLIC_ASSERT_MSG(
-    !conduit::blueprint::mcarray::is_interleaved(dom.fetch_existing(coordsetPath + "/values")),
-    "MarchingCubes currently requires contiguous coordinates layout.");
+  // The legacy backend reads coordinates through strided component views and
+  // requires a contiguous (non-interleaved) layout.  The bump backend wraps the
+  // coordset via bump's coordset views; if a given layout is unsupported there,
+  // bump's dispatch reports it.  So enforce contiguity only for the legacy path.
+  if(!m_mc.m_useBumpBackend)
+  {
+    SLIC_ASSERT_MSG(
+      !conduit::blueprint::mcarray::is_interleaved(dom.fetch_existing(coordsetPath + "/values")),
+      "MarchingCubes currently requires contiguous coordinates layout.");
+  }
 
   m_impl = newMarchingCubesImpl();
 
