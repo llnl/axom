@@ -51,7 +51,7 @@ spack:
       when: '%cxx'
     - spec: '%fortran=cce@21.0.0'
       when: '%fortran'
-    - spec: '%cray-mpich@8.1.32.cce_21'
+    - spec: '%cray-mpich@9.1.0.cce_21'
       when: '%mpi'
 
   packages:
@@ -77,6 +77,10 @@ spack:
             c: /opt/rocm-7.2.1/llvm/bin/amdclang
             cxx: /opt/rocm-7.2.1/llvm/bin/amdclang++
             fortran: /opt/rocm-7.2.1/llvm/bin/amdflang
+          flags:
+            cflags: -fPIC
+            cxxflags: -fPIC
+            fflags: -fPIC
           environment: {}
           extra_rpaths: []
       - spec: llvm-amdgpu@6.4.3
@@ -86,6 +90,10 @@ spack:
             c: /opt/rocm-6.4.3/llvm/bin/amdclang
             cxx: /opt/rocm-6.4.3/llvm/bin/amdclang++
             fortran: /opt/rocm-6.4.3/llvm/bin/amdflang
+          flags:
+            cflags: -fPIC
+            cxxflags: -fPIC
+            fflags: -fPIC
           environment: {}
           extra_rpaths: []
     cce:
@@ -97,6 +105,10 @@ spack:
             c: /usr/tce/packages/cce-tce/cce-21.0.0/bin/craycc
             cxx: /usr/tce/packages/cce-tce/cce-21.0.0/bin/crayCC
             fortran: /usr/tce/packages/cce-tce/cce-21.0.0/bin/crayftn
+          flags:
+            cflags: -fPIC
+            cxxflags: -fPIC
+            fflags: -fPIC
           environment: {}
           extra_rpaths: []
 
@@ -193,8 +205,8 @@ spack:
         prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-9.1.0-rocmcc-7.2.1/
       - spec: cray-mpich@8.1.29.rocm_6_4_3+slurm
         prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-rocmcc-6.4.3/
-      - spec: cray-mpich@8.1.32.cce_21+slurm
-        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.32-rocmcc-6.4.3/
+      - spec: cray-mpich@9.1.0.cce_21+slurm
+        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-9.1.0-cce-21.0.0/
 
     # blas is a bit more complicated because its a virtual package so fake it with
     # the following per spack docs

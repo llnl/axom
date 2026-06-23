@@ -601,7 +601,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
                 cmake_cache_string("BLT_OPENMP_LINK_FLAGS", openmp_gen_exp, description)
             )
 
-        if spec.satisfies("+openmp") and spec.satisfies("+rocm") and spec.satisfies("%cce"):
+        if spec.satisfies("+openmp") and spec.satisfies("+rocm") and spec.satisfies("%cce@:20"):
             openmp_gen_exp = (
                 "$<$<NOT:$<COMPILE_LANGUAGE:Fortran>>:"
                 "-fopenmp=libomp>;$<$<COMPILE_LANGUAGE:"
