@@ -5,7 +5,7 @@
 packages:
   adiak:
     require: 
-      - spec: "@0.4.0"
+      - spec: "@0.5.0"
   # Newer commit than 2.14.0 that fixes rocprofiler dependency
   caliper:
     require:
@@ -16,16 +16,16 @@ packages:
       - spec: "@git.e75ab64c029aa27c80593715cb2a3ccad7453c8c=main"
   conduit:
     require:
-      - spec: "@0.9.5"
+      - spec: "@0.9.7"
   hypre:
     require:
-      - spec: "@2.27.0"
+      - spec: "@3.1.0"
   mfem:
     require:
       - spec: "@4.9"
   opencascade:
     require:
-      - spec: "@7.8.1"
+      - spec: "@7.9.3"
   py-jsonschema:
     require:
       - spec: "@:4.17" #Anything after this requires py-rpds which requires rust and adds 40 minutes
@@ -35,7 +35,8 @@ packages:
       - spec: "@c3e4576eccff2435c358b691e4fcad4e601a7441=develop"
   scr:
     require:
-      - spec: "@3.0.1"
+      - spec: "@3.1.0"
+  # testing
   umpire:
     require:
       - spec: "@git.f81afcab0e07c431288e950d471aa739df68f7f7=develop"
