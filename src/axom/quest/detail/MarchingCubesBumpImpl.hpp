@@ -44,8 +44,11 @@
 
   #include "axom/core/execution/execution_space.hpp"
   #include "axom/core/execution/for_all.hpp"
+  #include "axom/core/MDMapping.hpp"
   #include "axom/slic/interface/slic_macros.hpp"
+  #include "axom/quest/MeshViewUtil.hpp"
   #include "axom/quest/detail/MarchingCubesSingleDomain.hpp"
+  #include "axom/quest/detail/MarchingCubesBumpAdaptor.hpp"
 
   // bump extraction + views
   #include "axom/bump/extraction/CutField.hpp"
@@ -107,6 +110,7 @@ public:
     const conduit::Node& n_topo =
       dom.fetch_existing(axom::fmt::format("topologies/{}", topologyName));
     const std::string topoType = n_topo.fetch_existing("type").as_string();
+    m_isStructured = (topoType != "unstructured");
     if(topoType == "unstructured")
     {
       const std::string shape = n_topo.fetch_existing("elements/shape").as_string();
@@ -256,6 +260,36 @@ private:
     // triangles/segments, not the number of bump polygons; compute it from the
     // output element sizes.
     m_facetCount = computeTriangulatedFacetCount(n_out);
+
+    // For the opt-in legacyFieldOrder numbering on structured input, capture the
+    // logical cell dims and the function field's stride order so the output
+    // adaptor can remap bump's i-fastest zone ids back to the legacy ordering.
+    if(m_parentCellIdMode == MarchingCubesParentCellIdMode::legacyFieldOrder &&
+       m_isStructured)
+    {
+      captureStructuredMetadata();
+    }
+  }
+
+  /*!
+   * @brief Populate m_cellDims and m_fieldSlowestDirs from the structured
+   * domain, for the legacyFieldOrder parent-id remap.
+   *
+   * Uses MeshViewUtil to read the logical cell shape and the function field's
+   * strides, from which an MDMapping yields the slowest->fastest permutation.
+   *
+   * NOTE: This path is exercised only when a caller explicitly opts into
+   * legacyFieldOrder on structured input; it is the part of the bump backend
+   * most in need of build/test validation (MeshViewUtil templating x ExecSpace).
+   */
+  void captureStructuredMetadata()
+  {
+    axom::quest::MeshViewUtil<DIM, MemorySpace> mvu(*m_dom, m_topologyName);
+    m_cellDims = mvu.getCellShape();
+    const auto fcnView = mvu.template getConstFieldView<double>(m_fcnFieldName, false);
+    // Build an MDMapping from the field strides to extract the stride order.
+    axom::MDMapping<DIM> fcnMap(fcnView.strides());
+    m_fieldSlowestDirs = fcnMap.slowestDirs();
   }
 
   /*!
@@ -304,28 +338,33 @@ private:
   void fillLegacyOutputBuffers()
   {
     SLIC_ASSERT(m_output != nullptr);
-    // TODO(Phase 1.3): gather welded coords + connectivity from *m_output,
-    // fan-triangulate (3D), re-expand to per-facet corners, and scatter into
-    //   m_facetNodeIds   (shape [facetCount, DIM], values = local corner ids
-    //                     offset by m_facetIndexOffset*DIM)
-    //   m_facetNodeCoords(shape [facetCount*DIM, DIM])
-    //   m_facetParentIds (parent-cell id per the resolved mode below)
-    // honoring m_facetIndexOffset.  Must run in ExecSpace's memory space.
-    //
-    // Parent-cell id (R5), now fully characterized:
-    //   bump's originalElements is the Blueprint zone index, which bump orders
-    //   i-fastest: flat = i + j*nx + k*nx*ny (StructuredIndexing).  The legacy
-    //   numbering is the flat index in the *function field's* stride order
-    //   (MarchingCubesImpl initializes its case-id mapper from
-    //   fcnView.strides()).  These agree iff the field is stored i-fastest.
-    //   - m_parentCellIdMode == blueprintZoneId: write originalElements as-is.
-    //   - m_parentCellIdMode == legacyFieldOrder && structured input: build an
-    //     MDMapping from the field strides and remap each i-fastest zone index
-    //     to the field-stride-order flat index before writing.
-    //   - legacyFieldOrder && unstructured input: ignored; write originalElements.
-    SLIC_WARNING(
-      "MarchingCubesBumpImpl::fillLegacyOutputBuffers is a Phase-1 stub; "
-      "output-buffer population lands in the next step.");
+
+    // Build the legacy field-stride remap only when the user asked for the
+    // legacy numbering AND the input is structured (unstructured has no
+    // canonical field stride order; we leave the remap empty -> pass-through).
+    axom::Array<axom::IndexType> remapHost(0, 0);
+    if(m_parentCellIdMode == MarchingCubesParentCellIdMode::legacyFieldOrder &&
+       m_isStructured)
+    {
+      remapHost = buildFieldStrideRemap<DIM>(m_cellDims, m_fieldSlowestDirs);
+    }
+
+    // Move the (possibly empty) remap into ExecSpace memory for the kernel.
+    axom::Array<axom::IndexType> remapDevice;
+    axom::ArrayView<const axom::IndexType, 1> remapView;
+    if(!remapHost.empty())
+    {
+      remapDevice = axom::Array<axom::IndexType>(remapHost, m_allocatorID);
+      remapView = remapDevice.view();
+    }
+
+    adaptCutFieldOutput<DIM, ExecSpace>(*m_output,
+                                        m_facetNodeIds,
+                                        m_facetNodeCoords,
+                                        m_facetParentIds,
+                                        m_facetIndexOffset,
+                                        m_facetCount,
+                                        remapView);
   }
 
   //! @brief Return the (single) topology name present in a bump output node.
@@ -346,6 +385,13 @@ private:
 
   //! @brief How to number parent-cell ids of generated facets.
   MarchingCubesParentCellIdMode m_parentCellIdMode = MarchingCubesParentCellIdMode::blueprintZoneId;
+
+  //! @name Structured metadata, captured only for the legacyFieldOrder remap.
+  //! @{
+  bool m_isStructured = false;
+  axom::StackArray<axom::IndexType, DIM> m_cellDims {};
+  axom::StackArray<std::uint16_t, DIM> m_fieldSlowestDirs {};
+  //! @}
 
   //! @brief Cached bump CutField output (Blueprint mesh).
   std::unique_ptr<conduit::Node> m_output;
