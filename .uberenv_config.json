@@ -6,7 +6,7 @@
 "spack_url": "https://github.com/spack/spack.git",
 "spack_commit": "63962ed90680d339004305075da272ae93c04a41",
 "spack_configs_path": "scripts/spack/configs",
-"spack_packages_commit": "d4f7c711a6a42f1c4d551c8fd10fce9a11340a81",
+"spack_packages_commit": "4d3d0f8ee5ffd6f099727f46ec704f3f4ee98e5c",
 "spack_packages_path": "scripts/spack/packages",
 "spack_concretizer": "clingo",
 "vcpkg_url": "https://github.com/microsoft/vcpkg",
