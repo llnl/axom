@@ -28,6 +28,7 @@
 #include <cmath>
 #include <list>
 #include <vector>
+#include <algorithm>
 
 #ifndef AXOM_USE_MPI
   #error This file requires Axom to be configured with MPI
@@ -799,7 +800,7 @@ public:
       {
         isendRequests.emplace_back(conduit::relay::mpi::Request());
         auto& req = isendRequests.back();
-        relay::mpi::isend_using_schema(xferNode, firstRecipForMyQuery, tag, m_mpiComm, &req.first);
+        relay::mpi::isend_using_schema(xferNode, firstRecipForMyQuery, tag, m_mpiComm, &req);
         ++remainingRecvs;
       }
     }
