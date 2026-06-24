@@ -36,10 +36,10 @@
     "__comment__":"# Use amdgpu_target=gfx90a for tioga/rzvernal",
     "__comment__":"# Use amdgpu_target=gfx908 for rznevada",
     "__comment__":"# -Wno-int-conversion flag needed for building HDF5",
-    "__comment__":"# caliper disabled for rocm@7.2.1, rocprof deadlock",
+    "__comment__":"# caliper~shared required for rocm@7.2.1 to prevent rocprof runtime deadlock",
     "toss_4_x86_64_ib_cray":
     [ "+python+devtools+openmp+mfem+c2c+adiak+caliper+rocm amdgpu_target=gfx942,gfx90a %rocm_6_4_3 ^hip@6.4.3 ^hipblas@6.4.3 ^hipsparse@6.4.3 ^hsa-rocr-dev@6.4.3 ^rocprim@6.4.3 ^mfem+raja+umpire ^raja+openmp+rocm ^umpire+openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
-      "+python+devtools+openmp+mfem+c2c+adiak~caliper+rocm amdgpu_target=gfx942,gfx90a %rocm_7_2_1 ^hip@7.2.1 ^hipblas@7.2.1 ^hipsparse@7.2.1 ^hsa-rocr-dev@7.2.1 ^rocprim@7.2.1 ^mfem+raja+umpire ^raja+openmp+rocm ^umpire+openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
+      "+python+devtools+openmp+mfem+c2c+adiak+caliper+rocm amdgpu_target=gfx942,gfx90a %rocm_7_2_1 ^hip@7.2.1 ^hipblas@7.2.1 ^hipsparse@7.2.1 ^hsa-rocr-dev@7.2.1 ^rocprim@7.2.1 ^caliper~shared ^mfem+raja+umpire ^raja+openmp+rocm ^umpire+openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
       "+python+devtools+openmp+mfem+c2c+adiak+caliper+rocm amdgpu_target=gfx942,gfx90a %cce_21  ^hip@7.2.1 ^hipblas@7.2.1 ^hipsparse@7.2.1 ^hsa-rocr-dev@7.2.1 ^rocprim@7.2.1 ^caliper~shared ^mfem+raja+umpire ^raja+openmp+rocm ^umpire+openmp+rocm ^hdf5 cflags=-Wno-int-conversion" ],
 
     "darwin-x86_64":
