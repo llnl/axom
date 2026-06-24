@@ -155,10 +155,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     variant("lua", default=True, description="Build with Lua")
     variant("mfem", default=False, description="Build with mfem")
     variant("opencascade", default=False, description="Build with opencascade")
+    variant("raja", default=True, description="Build with raja")
     variant("scr", default=False, description="Build with SCR")
     variant("umpire", default=True, description="Build with umpire")
-
-    variant("raja", default=True, description="Build with raja")
 
     varmsg = "Build development tools (such as Sphinx, Doxygen, etc...)"
     variant("devtools", default=False, description=varmsg)
@@ -230,7 +229,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
     depends_on("caliper", when="+caliper")
     with when("+profiling"):
         depends_on("adiak")
-        depends_on("caliper+adiak~papi")
+        depends_on("caliper+adiak")
 
         depends_on("caliper+cuda", when="+cuda")
         depends_on("caliper~cuda", when="~cuda")
