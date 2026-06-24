@@ -400,15 +400,14 @@ if(AXOM_ENABLE_MPI
       "PY_MPI4PY_DIR")
 endif()
 
-# "cannot allocate memory in static TLS block" on blueos with cuda and/or clang.
+# nanobind extensions have hit "cannot allocate memory in static TLS block" 
+# when the module is loaded into an interpreter alongside CUDA runtime initialization. 
 # Also disable when sanitizers are enabled, requires environment variable manipulation:
 # https://stackoverflow.com/questions/55692357/address-sanitizer-on-a-python-extension
 if(nanobind_ROOT
    AND NOT AXOM_ENABLE_CUDA
    AND NOT AXOM_ENABLE_ASAN
-   AND NOT AXOM_ENABLE_UBSAN
-   AND ((NOT "$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9")
-        OR  ("$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9" AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")))
+   AND NOT AXOM_ENABLE_UBSAN)
 
     axom_assert_is_directory(DIR_VARIABLE nanobind_ROOT)
     find_package(nanobind CONFIG REQUIRED)
