@@ -626,9 +626,10 @@ function(axom_python_test_environment output_var)
 endfunction()
 
 ##------------------------------------------------------------------------------
-## axom_add_python_test(NAME       [name]
-##                      SOURCE     [source]
-##                      OUTPUT_DIR [dir])
+## axom_add_python_test(NAME          [name]
+##                      SOURCE        [source]
+##                      OUTPUT_DIR    [dir]
+##                      NUM_MPI_TASKS [n])
 ##
 ## Wrapper around add_test() that handles functionality
 ## that Axom applies to all python tests.
@@ -636,7 +637,7 @@ endfunction()
 macro(axom_add_python_test)
 
     set(options)
-    set(singleValueArgs NAME SOURCE OUTPUT_DIR)
+    set(singleValueArgs NAME SOURCE OUTPUT_DIR NUM_MPI_TASKS)
     set(multiValueArgs)
 
     # Parse the arguments to the macro
@@ -651,15 +652,24 @@ macro(axom_add_python_test)
     # The run_python_with_axom.sh wrapper provides the runtime environment
     # and the testing dependencies are injected via the test's ENVIRONMENT property when provided.
     # "-p no:cacheprovider" disables caching.
-    add_test (NAME    ${arg_NAME}
-      COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -m pytest -s -p no:cacheprovider ${arg_OUTPUT_DIR}/${arg_SOURCE}
-    )
+    set(_test_command ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
+                      -m pytest -s -p no:cacheprovider ${arg_OUTPUT_DIR}/${arg_SOURCE})
+    blt_add_test(NAME          ${arg_NAME}
+                 COMMAND       ${_test_command}
+                 NUM_MPI_TASKS ${arg_NUM_MPI_TASKS})
+
+    set_property(TEST ${arg_NAME}
+                 APPEND
+                 PROPERTY ENVIRONMENT  "OMPI_MCA_rmaps_base_oversubscribe=1")
 
     axom_python_test_environment(_py_test_env)
     if(_py_test_env)
-        set_tests_properties(${arg_NAME} PROPERTIES ENVIRONMENT "${_py_test_env}")
+        set_property(TEST ${arg_NAME}
+                     APPEND
+                     PROPERTY ENVIRONMENT "${_py_test_env}")
     endif()
     unset(_py_test_env)
+    unset(_test_command)
 
 endmacro(axom_add_python_test)
 

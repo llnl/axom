@@ -31,6 +31,10 @@
 #include "axom/slam/DynamicMap.hpp"
 #include "axom/slam/FieldRegistry.hpp"
 
+#include "axom/slam/mesh_struct/detail/FacetPairingMap.hpp"
+
+#include <array>
+
 namespace axom
 {
 namespace slam
@@ -116,6 +120,15 @@ public:
   using ModularFacetIndex =
     slam::ModularInt<slam::policies::CompileTimeSize<IndexType, VERTS_PER_ELEM>>;
 
+  using FacetKey = std::array<IndexType, VERTS_PER_ELEM - 1>;
+
+  struct FacetRecord
+  {
+    IndexType element_idx {INVALID_ELEMENT_INDEX};
+    IndexType facet_idx {INVALID_ELEMENT_INDEX};
+    IndexType neighbor_idx {INVALID_ELEMENT_INDEX};
+  };
+
 public:
   /// \brief Default Constructor for an empty mesh
   IAMesh();
@@ -134,6 +147,20 @@ public:
    * \note Valid meshes are not necessarily manifold.
    */
   bool isValid(bool verboseOutput = false) const;
+
+  /**
+   * \brief Checks that the simplicial complex is conforming (manifold faces and consistent adjacencies)
+   *
+   * This is stricter than \a isValid(): it verifies that each facet is used by
+   * at most two elements and that element adjacencies are reciprocal across
+   * shared facets.
+   *
+   * \note This function does not validate geometric orientation/volume.
+   */
+  bool isConforming(bool verboseOutput = false) const;
+
+  /// \brief Returns a canonical (sorted) facet key for element \a element_idx and local facet \a facet_idx
+  FacetKey getSortedFacetKey(IndexType element_idx, IndexType facet_idx) const;
 
   /// \name Accessors for encoded Sets, Relations and Maps
   /// @{
@@ -256,12 +283,16 @@ public:
   /**
    * \brief Fix the element adjacency relation in the neighborhood of a vertex
    *
-   * \details Given a vertex index and a list of all the elements incident in
-   * that vertex, fix the element->element relation data.
+   * \details Given the apex vertex and the list of star elements incident to it
+   * (e.g. the elements created when inserting the apex), recover the
+   * element->element adjacencies internal to that star.
    * Sometimes when modifying the mesh, the mesh becomes non-manifold.
    * Adding elements may result in incorrect element->element data.
+   *
+   * \param apex The vertex whose star is being repaired
+   * \param star_elements The elements incident to \a apex
    */
-  void fixVertexNeighborhood(IndexType vertex_idx, const std::vector<IndexType>& new_elements);
+  void fixVertexNeighborhood(IndexType apex, const std::vector<IndexType>& star_elements);
 
   /**
    * \brief Return a valid element index
@@ -320,6 +351,17 @@ public:
   IndexType addElement(const IndexType* vlist, const IndexType* neighbors);
 
   /**
+   * \brief Reactivates an invalid element slot with new boundary and adjacency data.
+   *
+   * \param element_idx The invalid element slot to reuse.
+   * \param vlist A pointer to the vertex indices of the recycled element.
+   * The array size should be at least VERTS_PER_ELEM.
+   * \param neighbors A pointer to the neighbor indices of the recycled element.
+   * The array size should be at least VERTS_PER_ELEM.
+   */
+  IndexType reuseElement(IndexType element_idx, const IndexType* vlist, const IndexType* neighbors);
+
+  /**
    * \brief Removes an element from the mesh
    *
    * \details If the index is invalid or out of bounds,
@@ -347,6 +389,12 @@ public:
    */
   void compact();
 
+  /// \brief Reserves storage for at least \a vertex_capacity vertices.
+  void reserveVertices(IndexType vertex_capacity);
+
+  /// \brief Reserves storage for at least \a element_capacity elements.
+  void reserveElements(IndexType element_capacity);
+
   /**
    * \brief Prints the IA mesh structure, for debug purpose.
    */
@@ -370,6 +418,16 @@ private:
   ElementAndFaceIdxType ElemNbrFinder(V2EMapType& vertpair_to_elem_map,
                                       IndexType element_i,
                                       IndexType side_i);
+
+  /// \brief Create the link-face key for an incident face of a star element
+  /// (the face with the apex removed) during connectivity repair
+  typename detail::FacetPairingMap<TDIM, IndexType>::KeyType createFacetKey(IndexType element_idx,
+                                                                            int face_idx) const;
+
+  /// \brief Find which face of a neighbor element shares vertices with a given face
+  int findNeighborFaceIndex(IndexType neighbor_idx,
+                            IndexType current_element_idx,
+                            int current_face_idx) const;
 
 private:
   VertexSet vertex_set;             //Set of vertices

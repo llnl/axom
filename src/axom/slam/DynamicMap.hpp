@@ -94,11 +94,14 @@ public:
 
   /// @}
 
-  /** \brief Access to underlying data */
+  /// \brief Access to underlying data
   OrderedMap& data() { return m_data; }
 
-  /** \brief Const access to underlying data */
+  /// \brief Const access to underlying data
   const OrderedMap& data() const { return m_data; }
+
+  /// \brief Reserves storage for at least \a s entries.
+  void reserve(SetPosition s) { m_data.reserve(s); }
 
   /// \name DynamicMap cardinality functions
   /// @{
