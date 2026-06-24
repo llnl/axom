@@ -20,13 +20,15 @@ namespace detail
 inline void verifyMatchingMaterialOrder(const conduit::Node &mat_values,
                                         const conduit::Node &field_values)
 {
-  SLIC_ERROR_IF(mat_values.number_of_children() != field_values.number_of_children(),
-                "The matset volume_fractions and field matset_values have different numbers of materials.");
+  SLIC_ERROR_IF(
+    mat_values.number_of_children() != field_values.number_of_children(),
+    "The matset volume_fractions and field matset_values have different numbers of materials.");
 
   for(conduit::index_t i = 0; i < mat_values.number_of_children(); i++)
   {
-    SLIC_ERROR_IF(mat_values[i].name() != field_values[i].name(),
-                  "The matset volume_fractions and field matset_values do not have matching material order.");
+    SLIC_ERROR_IF(
+      mat_values[i].name() != field_values[i].name(),
+      "The matset volume_fractions and field matset_values do not have matching material order.");
   }
 }
 
