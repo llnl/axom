@@ -25,17 +25,17 @@ packages:
       - spec: "@4.9"
   opencascade:
     require:
-      - spec: "@7.9.3"
+      - spec: "@7.9.1"
   py-jsonschema:
     require:
       - spec: "@:4.17" #Anything after this requires py-rpds which requires rust and adds 40 minutes
-  # testing commit before PR #2005 (HIP error std::memcpy TypeConverts)
+  # testing branch #2011 (will partially break since requires #2048)
   raja:
     require:
-      - spec: "@c3e4576eccff2435c358b691e4fcad4e601a7441=develop"
+      - spec: "@git.bb9b6b8e789ff838c844a58461ba49663ddf5a15=develop"
   scr:
     require:
-      - spec: "@3.1.0"
+      - spec: "@3.0.1"
   # testing
   umpire:
     require:
