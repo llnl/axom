@@ -87,6 +87,13 @@ tells ``mc`` to run sequentially on the host.  ``MarchingCubes``
 currently also supports OpenMP and GPU device executions using CUDA
 and HIP.
 
+The ``MarchingCubesDataParallelism`` constructor argument selects the
+scan strategy used by the legacy structured-mesh backend.  When the
+optional bump ``CutField`` backend is enabled with
+``setUseBumpBackend(true)``, bump manages its own internal parallelism
+for the selected runtime policy and the data-parallelism setting is
+accepted for API compatibility only.
+
 .. sourcecode:: C++
 
    conduit::Node blueprintMesh = blueprint_mesh_from_user();
@@ -106,7 +113,9 @@ Place the isocontour in an output ``mint::UnstructuredMesh`` object:
 
 ``MarchingCubes`` generates the isocontour mesh in an internal format.
 Use ``populateContourMesh`` to put it in a ``mint::UnstructuredMesh``
-object.  In the future, we will support outputs in blueprint format.
+object.  When the bump backend is enabled,
+``populateContourMeshBlueprint`` and ``relinquishContourDataBlueprint``
+provide the richer welded Blueprint output directly.
 
 ``populateContourMesh`` provides two scalar fields for the generated
 mesh:

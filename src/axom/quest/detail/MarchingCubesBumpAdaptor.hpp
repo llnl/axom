@@ -59,6 +59,7 @@
   #include "axom/slic/interface/slic_macros.hpp"
 
   #include "axom/bump/utilities/blueprint_utilities.hpp"
+  #include "axom/bump/views/NodeArrayView.hpp"
   #include "axom/bump/views/Shapes.hpp"
 
   #include "conduit_node.hpp"
@@ -145,125 +146,125 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
   // originalElements: element-associated, one entry per output zone (fragment).
   const conduit::Node& n_orig = n_output.fetch_existing("fields/originalElements/values");
 
-  // --- Wrap everything in typed device-friendly array views ----------------
-  // CAVEAT (must be confirmed at build/test time): bump's connectivity / sizes
-  // / offsets / originalElements are stored as ConnectivityType, which may be
-  // int32 OR int64 depending on the topology view's ConnectivityType.  Reading
-  // them through a fixed `conduit::index_t` (int64) view is only correct when
-  // ConnectivityType IS int64.  The robust form is bump's dtype-dispatching
-  // `views::indexNodeToArrayView(node, [&](auto view){...})`, which would make
-  // this whole routine a lambda templated on the deduced integer type.  That
-  // refactor is deferred to the build-validation step (it needs a compiler to
-  // confirm the deduced-type kernel instantiates for every ExecSpace); the
-  // fixed-type form below is a readable placeholder with identical logic.
-  // TODO(Phase 1.3-validate): switch to indexNodeToArrayView dispatch.
-  auto sizesView = bputils::make_array_view<conduit::index_t>(n_sizes);
-  auto offsetsView = bputils::make_array_view<conduit::index_t>(n_offsets);
-  auto connView = bputils::make_array_view<conduit::index_t>(n_conn);
-  auto origView = bputils::make_array_view<conduit::index_t>(n_orig);
+  SLIC_ERROR_IF(n_offsets.dtype().id() != n_sizes.dtype().id() ||
+                  n_conn.dtype().id() != n_sizes.dtype().id() ||
+                  n_orig.dtype().id() != n_sizes.dtype().id(),
+                "MarchingCubes bump adaptor expects connectivity, sizes, "
+                "offsets, and originalElements to use the same integer type.");
 
-  const conduit::Node& n_x = n_coords.fetch_existing("values/x");
-  const conduit::Node& n_y = n_coords.fetch_existing("values/y");
-  auto xView = bputils::make_array_view<double>(n_x);
-  auto yView = bputils::make_array_view<double>(n_y);
-  // z only in 3D.
-  axom::ArrayView<double> zView;
-  if(DIM == 3)
-  {
-    const conduit::Node& n_z = n_coords.fetch_existing("values/z");
-    zView = bputils::make_array_view<double>(n_z);
-  }
+  auto adaptViews = [&](auto sizesView, auto offsetsView, auto connView, auto origView) {
+    const conduit::Node& n_x = n_coords.fetch_existing("values/x");
+    const conduit::Node& n_y = n_coords.fetch_existing("values/y");
+    auto xView = bputils::make_array_view<double>(n_x);
+    auto yView = bputils::make_array_view<double>(n_y);
+    // z only in 3D.
+    axom::ArrayView<double> zView;
+    if(DIM == 3)
+    {
+      const conduit::Node& n_z = n_coords.fetch_existing("values/z");
+      zView = bputils::make_array_view<double>(n_z);
+    }
 
-  const axom::IndexType numZones = static_cast<axom::IndexType>(sizesView.size());
+    const axom::IndexType numZones = static_cast<axom::IndexType>(sizesView.size());
 
-  // --- Per-zone facet offset (exclusive scan of facetsPerZone) -------------
-  // We need, for each bump zone, the index of its first facet within this
-  // domain so kernels can write without atomics.  Build it with an exclusive
-  // scan in ExecSpace.
-  const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-  axom::Array<axom::IndexType> zoneFacetCounts(numZones, numZones, allocatorID);
-  auto zoneFacetCountsView = zoneFacetCounts.view();
-  axom::for_all<ExecSpace>(
-    numZones,
-    AXOM_LAMBDA(axom::IndexType z) {
-      zoneFacetCountsView[z] = facetsPerZone<DIM>(static_cast<axom::IndexType>(sizesView[z]));
-    });
+    // --- Per-zone facet offset (exclusive scan of facetsPerZone) -----------
+    // We need, for each bump zone, the index of its first facet within this
+    // domain so kernels can write without atomics.
+    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    axom::Array<axom::IndexType> zoneFacetCounts(numZones, numZones, allocatorID);
+    auto zoneFacetCountsView = zoneFacetCounts.view();
+    axom::for_all<ExecSpace>(
+      numZones,
+      AXOM_LAMBDA(axom::IndexType z) {
+        zoneFacetCountsView[z] = facetsPerZone<DIM>(static_cast<axom::IndexType>(sizesView[z]));
+      });
 
-  axom::Array<axom::IndexType> zoneFacetOffsets(numZones, numZones, allocatorID);
-  auto zoneFacetOffsetsView = zoneFacetOffsets.view();
-  axom::exclusive_scan<ExecSpace>(zoneFacetCountsView, zoneFacetOffsetsView);
+    axom::Array<axom::IndexType> zoneFacetOffsets(numZones, numZones, allocatorID);
+    auto zoneFacetOffsetsView = zoneFacetOffsets.view();
+    axom::exclusive_scan<ExecSpace>(zoneFacetCountsView, zoneFacetOffsetsView);
 
-  // Capture raw views for the kernel.
-  const bool doRemap = !fieldStrideRemap.empty();
+    // Capture raw views for the kernel.
+    const bool doRemap = !fieldStrideRemap.empty();
 
-  // --- The fan-triangulation + re-expansion kernel -------------------------
-  // One thread per bump zone.  Each zone writes facetsPerZone facets; for each
-  // facet we emit DIM corner coords (re-expanded / un-welded) and DIM ids.
-  axom::for_all<ExecSpace>(
-    numZones,
-    AXOM_LAMBDA(axom::IndexType z) {
-      const axom::IndexType nCorners = static_cast<axom::IndexType>(sizesView[z]);
-      const axom::IndexType nFacets = facetsPerZone<DIM>(nCorners);
-      if(nFacets == 0)
-      {
-        return;
-      }
-      const axom::IndexType connStart = static_cast<axom::IndexType>(offsetsView[z]);
-
-      // Parent-cell id for every facet of this zone.
-      axom::IndexType parentId = static_cast<axom::IndexType>(origView[z]);
-      if(doRemap)
-      {
-        parentId = fieldStrideRemap[parentId];
-      }
-
-      // This zone's first facet within the whole concatenated output.
-      const axom::IndexType facetBase = facetIndexOffset + zoneFacetOffsetsView[z];
-
-      for(axom::IndexType f = 0; f < nFacets; ++f)
-      {
-        const axom::IndexType facetIdx = facetBase + f;
-
-        // Local corner indices of this facet within the zone.
-        //   DIM==2: the segment endpoints {0,1}
-        //   DIM==3: fan triangle {0, f+1, f+2}
-        axom::IndexType local[DIM];
-        if constexpr(DIM == 3)
+    // --- The fan-triangulation + re-expansion kernel -----------------------
+    // One thread per bump zone.  Each zone writes facetsPerZone facets; for
+    // each facet we emit DIM corner coords (re-expanded / un-welded) and DIM
+    // ids.
+    axom::for_all<ExecSpace>(
+      numZones,
+      AXOM_LAMBDA(axom::IndexType z) {
+        const axom::IndexType nCorners = static_cast<axom::IndexType>(sizesView[z]);
+        const axom::IndexType nFacets = facetsPerZone<DIM>(nCorners);
+        if(nFacets == 0)
         {
-          local[0] = 0;
-          local[1] = f + 1;
-          local[2] = f + 2;
+          return;
         }
-        else
+        const axom::IndexType connStart = static_cast<axom::IndexType>(offsetsView[z]);
+
+        // Parent-cell id for every facet of this zone.
+        axom::IndexType parentId = static_cast<axom::IndexType>(origView[z]);
+        if(doRemap)
         {
-          local[0] = 0;
-          local[1] = 1;
+          parentId = fieldStrideRemap[parentId];
         }
 
-        // Re-expanded node rows for this facet are contiguous: each facet owns
-        // exactly DIM rows in m_facetNodeCoords at facetIdx*DIM .. +DIM.
-        const axom::IndexType nodeRowBase = facetIdx * DIM;
+        // This zone's first facet within the whole concatenated output.
+        const axom::IndexType facetBase = facetIndexOffset + zoneFacetOffsetsView[z];
 
-        for(int c = 0; c < DIM; ++c)
+        for(axom::IndexType f = 0; f < nFacets; ++f)
         {
-          const axom::IndexType weldedNode =
-            static_cast<axom::IndexType>(connView[connStart + local[c]]);
-          const axom::IndexType outRow = nodeRowBase + c;
+          const axom::IndexType facetIdx = facetBase + f;
 
-          facetNodeCoords(outRow, 0) = xView[weldedNode];
-          facetNodeCoords(outRow, 1) = yView[weldedNode];
-          if(DIM == 3)
+          // Local corner indices of this facet within the zone.
+          //   DIM==2: the segment endpoints {0,1}
+          //   DIM==3: fan triangle {0, f+1, f+2}
+          axom::IndexType local[DIM];
+          if constexpr(DIM == 3)
           {
-            facetNodeCoords(outRow, 2) = zView[weldedNode];
+            local[0] = 0;
+            local[1] = f + 1;
+            local[2] = f + 2;
+          }
+          else
+          {
+            local[0] = 0;
+            local[1] = 1;
           }
 
-          // Legacy ids index into m_facetNodeCoords directly.
-          facetNodeIds(facetIdx, c) = outRow;
-        }
+          // Re-expanded node rows for this facet are contiguous: each facet
+          // owns exactly DIM rows in m_facetNodeCoords at facetIdx*DIM .. +DIM.
+          const axom::IndexType nodeRowBase = facetIdx * DIM;
 
-        facetParentIds[facetIdx] = parentId;
-      }
-    });
+          for(int c = 0; c < DIM; ++c)
+          {
+            const axom::IndexType weldedNode =
+              static_cast<axom::IndexType>(connView[connStart + local[c]]);
+            const axom::IndexType outRow = nodeRowBase + c;
+
+            facetNodeCoords(outRow, 0) = xView[weldedNode];
+            facetNodeCoords(outRow, 1) = yView[weldedNode];
+            if(DIM == 3)
+            {
+              facetNodeCoords(outRow, 2) = zView[weldedNode];
+            }
+
+            // Legacy ids index into m_facetNodeCoords directly.
+            facetNodeIds(facetIdx, c) = outRow;
+          }
+
+          facetParentIds[facetIdx] = parentId;
+        }
+      });
+  };
+
+  #if defined(_WIN32)
+  adaptViews(bputils::make_array_view<axom::IndexType>(n_sizes),
+             bputils::make_array_view<axom::IndexType>(n_offsets),
+             bputils::make_array_view<axom::IndexType>(n_conn),
+             bputils::make_array_view<axom::IndexType>(n_orig));
+  #else
+  bpviews::indexNodeToArrayViewSame(n_sizes, n_offsets, n_conn, n_orig, adaptViews);
+  #endif
 }
 
 /*!

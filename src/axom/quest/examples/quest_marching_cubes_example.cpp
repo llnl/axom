@@ -147,7 +147,9 @@ public:
       ->transform(axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
 
     app.add_option("--dataParallelism", dataParallelism)
-      ->description("Set full or partial data-parallelism, or by-policy")
+      ->description(
+        "Set full or partial data-parallelism, or by-policy, for the legacy backend "
+        "(ignored by --useBumpBackend)")
       ->capture_default_str()
       ->transform(axom::CLI::CheckedTransformer(s_validImplChoices));
 

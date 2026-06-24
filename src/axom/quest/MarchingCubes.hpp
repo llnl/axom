@@ -42,13 +42,18 @@ class MarchingCubesSingleDomain;
 }  // namespace detail
 
 /*!
- * @brief Enum for implementation.
+ * @brief Enum for the legacy marching cubes data-parallel implementation.
  *
  * Partial parallel implementation uses a non-parallizable loop and
  * processes less data.  It has been shown to work well on CPUs.
  * Full parallel implementation processes more data, but parallelizes
  * fully and has been shown to work well on GPUs.  byPolicy chooses
  * based on runtime policy.
+ *
+ * This setting controls only the legacy structured-mesh backend.  When
+ * MarchingCubes is configured to use the bump::extraction::CutField backend,
+ * bump manages its own internal parallelism and this value is accepted only
+ * for API compatibility.
  */
 enum class MarchingCubesDataParallelism
 {
@@ -149,7 +154,9 @@ public:
    *             running sequentially on the CPU.
    * @param [in] allocatorID Data allocator ID.  Choose something compatible
    *             with \c runtimePolicy.  See \c execution_space.
-   * @param [in] dataParallelism Data parallel implementation choice.
+   * @param [in] dataParallelism Data parallel implementation choice for the
+   *             legacy backend.  The bump backend accepts but ignores this
+   *             setting because bump manages its own internal parallelism.
   */
   MarchingCubes(RuntimePolicy runtimePolicy,
                 int allocatorId,
@@ -213,6 +220,10 @@ public:
    * Only available when Axom is configured with Conduit and the bump component
    * (AXOM_USE_BUMP); requesting the bump backend otherwise has no effect.
    * The legacy backend supports only structured input.
+   *
+   * @note The MarchingCubesDataParallelism constructor argument is a legacy
+   * backend scan-strategy selector.  The bump backend ignores it and relies on
+   * bump's internal parallelism for the selected runtime policy.
    *
    * @note This is transitional: while the bump backend matures it is opt-in so
    * existing users are unaffected.  A future release is expected to make it the
@@ -385,7 +396,7 @@ private:
   RuntimePolicy m_runtimePolicy;
   int m_allocatorID = axom::INVALID_ALLOCATOR_ID;
 
-  //! @brief Choice of full or partial data-parallelism, or byPolicy.
+  //! @brief Legacy backend data-parallel scan strategy, or byPolicy.
   MarchingCubesDataParallelism m_dataParallelism = MarchingCubesDataParallelism::byPolicy;
 
   //! @brief Number of domains.
