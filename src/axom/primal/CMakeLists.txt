@@ -83,6 +83,7 @@ set( primal_headers
     operators/detail/intersect_patch_impl.hpp
     operators/detail/intersect_impl.hpp
     operators/detail/intersect_ray_impl.hpp
+    operators/detail/predicate_determinants.hpp
     operators/detail/slice_impl.hpp
     operators/detail/winding_number_2d_impl.hpp
     operators/detail/winding_number_2d_memoization.hpp
