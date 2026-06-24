@@ -91,6 +91,7 @@ template <typename IndexT, typename FloatT, axom::IndexType MAXMATERIALS = 20>
 class UnibufferMaterialView
 {
 public:
+  static_assert(MAXMATERIALS > 0, "MAXMATERIALS must be greater than 0.");
   using MaterialID = IndexT;
   using ZoneIndex = IndexT;
   using IndexType = IndexT;
@@ -334,6 +335,7 @@ template <typename IndexT, typename FloatT, axom::IndexType MAXMATERIALS = 20>
 class ElementDominantMaterialView
 {
 public:
+  static_assert(MAXMATERIALS > 0, "MAXMATERIALS must be greater than 0.");
   using MaterialID = IndexT;
   using ZoneIndex = IndexT;
   using IndexType = IndexT;
@@ -624,6 +626,7 @@ template <typename IndexT, typename FloatT, axom::IndexType MAXMATERIALS = 20>
 class MaterialDominantMaterialView
 {
 public:
+  static_assert(MAXMATERIALS > 0, "MAXMATERIALS must be greater than 0.");
   using MaterialID = IndexT;
   using ZoneIndex = IndexT;
   using IndexType = IndexT;

@@ -21,6 +21,11 @@ namespace views
 {
 namespace detail
 {
+template <axom::IndexType MAXMATERIALS>
+constexpr void verifyPositiveMaxMaterials()
+{
+  static_assert(MAXMATERIALS > 0, "MAXMATERIALS must be greater than 0.");
+}
 
 inline void verifyMixedField(const conduit::Node &n_field)
 {
@@ -40,11 +45,12 @@ inline void verifyMixedField(const conduit::Node &n_field)
  *
  * \return true if the dispatch worked, false otherwise.
  */
-template <typename FuncType, size_t MAXMATERIALS = 20>
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
 bool dispatch_material_unibuffer_with_values(const conduit::Node &matset,
                                              const conduit::Node &values,
                                              FuncType &&func)
 {
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   bool retval = false;
   verify(matset, "matset");
   if(conduit::blueprint::mesh::matset::is_uni_buffer(matset))
@@ -106,11 +112,12 @@ IntElement getMaterialID(const conduit::Node &matset,
  *
  * \return true if the dispatch worked, false otherwise.
  */
-template <typename FuncType, size_t MAXMATERIALS = 20>
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
 bool dispatch_material_element_dominant_with_values(const conduit::Node &matset,
                                                     const conduit::Node &values_object,
                                                     FuncType &&func)
 {
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   bool retval = false;
   verify(matset, "matset");
   if(conduit::blueprint::mesh::matset::is_multi_buffer(matset) &&
@@ -160,11 +167,12 @@ bool dispatch_material_element_dominant_with_values(const conduit::Node &matset,
  *
  * \return true if the dispatch worked, false otherwise.
  */
-template <typename FuncType, size_t MAXMATERIALS = 20>
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
 bool dispatch_material_material_dominant_with_values(const conduit::Node &matset,
                                                      const conduit::Node &values_object,
                                                      FuncType &&func)
 {
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   bool retval = false;
   verify(matset, "matset");
   if(conduit::blueprint::mesh::matset::is_multi_buffer(matset) &&
@@ -222,9 +230,10 @@ bool dispatch_material_material_dominant_with_values(const conduit::Node &matset
 /*!
  * \brief Make a unibuffer matset view from a Conduit node.
  */
-template <typename IntType, typename FloatType, size_t MAXMATERIALS = 20>
+template <typename IntType, typename FloatType, axom::IndexType MAXMATERIALS = 20>
 struct make_unibuffer_matset
 {
+  static_assert(MAXMATERIALS > 0, "MAXMATERIALS must be greater than 0.");
   using MatsetView = UnibufferMaterialView<IntType, FloatType, MAXMATERIALS>;
 
   /*!
@@ -259,9 +268,10 @@ struct make_unibuffer_matset
  *
  * \return true if the dispatch worked, false otherwise.
  */
-template <typename FuncType, size_t MAXMATERIALS = 20>
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
 bool dispatch_material_unibuffer(const conduit::Node &matset, FuncType &&func)
 {
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   verify(matset, "matset");
   return detail::dispatch_material_unibuffer_with_values<FuncType, MAXMATERIALS>(
     matset,
@@ -280,9 +290,10 @@ bool dispatch_material_unibuffer(const conduit::Node &matset, FuncType &&func)
  *
  * \return true if the dispatch worked, false otherwise.
  */
-template <typename FuncType, size_t MAXMATERIALS = 20>
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
 bool dispatch_material_element_dominant(const conduit::Node &matset, FuncType &&func)
 {
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   verify(matset, "matset");
   return detail::dispatch_material_element_dominant_with_values(matset,
                                                                 matset["volume_fractions"],
@@ -299,9 +310,10 @@ bool dispatch_material_element_dominant(const conduit::Node &matset, FuncType &&
  *
  * \return true if the dispatch worked, false otherwise.
  */
-template <typename FuncType, size_t MAXMATERIALS = 20>
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
 bool dispatch_material_material_dominant(const conduit::Node &matset, FuncType &&func)
 {
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   verify(matset, "matset");
   return detail::dispatch_material_material_dominant_with_values<FuncType, MAXMATERIALS>(
     matset,
@@ -319,9 +331,10 @@ bool dispatch_material_material_dominant(const conduit::Node &matset, FuncType &
  *
  * \return true if the dispatch worked, false otherwise.
  */
-template <typename FuncType, size_t MAXMATERIALS = 20>
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
 bool dispatch_material(const conduit::Node &matset, FuncType &&func)
 {
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   bool retval =
     dispatch_material_unibuffer<FuncType, MAXMATERIALS>(matset, std::forward<FuncType>(func));
   // Multibuffer

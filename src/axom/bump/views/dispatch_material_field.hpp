@@ -96,11 +96,12 @@ bool dispatch_multibuffer_field(const conduit::Node &n_field, FuncType &&func)
  * \param n_field The node that contains the values to be used as volume fractions / field.
  * \param func   The function/lambda that will operate on the matset and mixed field views.
  */
-template <typename FuncType, size_t MAXMATERIALS = 20>
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
 bool dispatch_material_unibuffer_field(const conduit::Node &matset,
                                        const conduit::Node &n_field,
                                        FuncType &&func)
 {
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   verify(matset, "matset");
   detail::verifyMixedField(n_field);
 
@@ -126,11 +127,12 @@ bool dispatch_material_unibuffer_field(const conduit::Node &matset,
  * \param n_field The node that contains the values to be used as volume fractions / field.
  * \param func   The function/lambda that will operate on the matset and mixed field views.
  */
-template <typename FuncType, size_t MAXMATERIALS = 20>
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
 bool dispatch_material_element_dominant_field(const conduit::Node &matset,
                                               const conduit::Node &n_field,
                                               FuncType &&func)
 {
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   verify(matset, "matset");
   detail::verifyMixedField(n_field);
   detail::verifyMatchingMaterialOrder(matset["volume_fractions"], n_field["matset_values"]);
@@ -156,11 +158,12 @@ bool dispatch_material_element_dominant_field(const conduit::Node &matset,
  * \param n_field The node that contains the values to be used as volume fractions / field.
  * \param func   The function/lambda that will operate on the matset and mixed field views.
  */
-template <typename FuncType, size_t MAXMATERIALS = 20>
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
 bool dispatch_material_material_dominant_field(const conduit::Node &matset,
                                                const conduit::Node &n_field,
                                                FuncType &&func)
 {
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   verify(matset, "matset");
   detail::verifyMixedField(n_field);
   detail::verifyMatchingMaterialOrder(matset["volume_fractions"], n_field["matset_values"]);
@@ -187,9 +190,10 @@ bool dispatch_material_material_dominant_field(const conduit::Node &matset,
  * \param n_field The node that contains the values to be used as volume fractions / field.
  * \param func   The function/lambda that will operate on the matset and mixed field views.
  */
-template <typename FuncType, size_t MAXMATERIALS = 20>
+template <typename FuncType, axom::IndexType MAXMATERIALS = 20>
 bool dispatch_material_field(const conduit::Node &matset, const conduit::Node &n_field, FuncType &&func)
 {
+  detail::verifyPositiveMaxMaterials<MAXMATERIALS>();
   bool retval =
     dispatch_material_unibuffer_field<FuncType, MAXMATERIALS>(matset,
                                                               n_field,

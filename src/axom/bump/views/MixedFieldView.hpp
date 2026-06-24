@@ -31,6 +31,7 @@ struct MixedFieldTraits
 template <typename IndexT, typename FloatT, typename FieldT, axom::IndexType MAXMATERIALS>
 struct MixedFieldTraits<UnibufferMaterialView<IndexT, FloatT, MAXMATERIALS>, FieldT>
 {
+  static_assert(MAXMATERIALS > 0, "MAXMATERIALS must be greater than 0.");
   using MatsetView = UnibufferMaterialView<IndexT, FloatT, MAXMATERIALS>;
   using ValueView = axom::ArrayView<FieldT>;
 
@@ -63,6 +64,7 @@ struct MixedFieldTraits<UnibufferMaterialView<IndexT, FloatT, MAXMATERIALS>, Fie
 template <typename IndexT, typename FloatT, typename FieldT, axom::IndexType MAXMATERIALS>
 struct MixedFieldTraits<ElementDominantMaterialView<IndexT, FloatT, MAXMATERIALS>, FieldT>
 {
+  static_assert(MAXMATERIALS > 0, "MAXMATERIALS must be greater than 0.");
   using MatsetView = ElementDominantMaterialView<IndexT, FloatT, MAXMATERIALS>;
   using ValueView = axom::ArrayView<FieldT>;
 
@@ -97,6 +99,7 @@ struct MixedFieldTraits<ElementDominantMaterialView<IndexT, FloatT, MAXMATERIALS
 template <typename IndexT, typename FloatT, typename FieldT, axom::IndexType MAXMATERIALS>
 struct MixedFieldTraits<MaterialDominantMaterialView<IndexT, FloatT, MAXMATERIALS>, FieldT>
 {
+  static_assert(MAXMATERIALS > 0, "MAXMATERIALS must be greater than 0.");
   using MatsetView = MaterialDominantMaterialView<IndexT, FloatT, MAXMATERIALS>;
   using ValueView = axom::ArrayView<FieldT>;
 
