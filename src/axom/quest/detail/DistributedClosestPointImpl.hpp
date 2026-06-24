@@ -507,7 +507,7 @@ public:
     int reqIdx = 0;
     for(const int idx : indices)
     {
-      while (reqIdx < idx)
+      while(reqIdx < idx)
       {
         ++reqIter;
         ++reqIdx;
@@ -752,32 +752,32 @@ public:
     std::list<conduit::relay::mpi::Request> isendRequests;
 
     {
-      // create conduit Node containing data that has to xfer between ranks.
-      // The node will be mostly empty if there are no domains on this rank
+    // create conduit Node containing data that has to xfer between ranks.
+    // The node will be mostly empty if there are no domains on this rank
       conduit::Node xferNode;
       node_copy_query_to_xfer(queryMesh, xferNode, topologyName);
       xferNode["homeRank"] = m_rank;
 
       BoxType myQueryBb = computeMeshBoundingBox(xferNode);
       put_bounding_box_to_conduit_node(myQueryBb, xferNode.fetch("aabb"));
-      BoxArray allQueryBbs;
-      gatherBoundingBoxes(myQueryBb, allQueryBbs);
+    BoxArray allQueryBbs;
+    gatherBoundingBoxes(myQueryBb, allQueryBbs);
 
       computeLocalClosestPoints(xferNode);
 
-      const auto& myObjectBb = m_objectPartitionBbs[m_rank];
-      for(int r = 0; r < m_nranks; ++r)
+    const auto& myObjectBb = m_objectPartitionBbs[m_rank];
+    for(int r = 0; r < m_nranks; ++r)
+    {
+      if(r != m_rank)
       {
-        if(r != m_rank)
+        const auto& otherQueryBb = allQueryBbs[r];
+        double sqDistance = axom::primal::squared_distance(otherQueryBb, myObjectBb);
+        if(sqDistance <= m_sqDistanceThreshold)
         {
-          const auto& otherQueryBb = allQueryBbs[r];
-          double sqDistance = axom::primal::squared_distance(otherQueryBb, myObjectBb);
-          if(sqDistance <= m_sqDistanceThreshold)
-          {
-            ++remainingRecvs;
-          }
+          ++remainingRecvs;
         }
       }
+    }
 
       /*
         Send local query mesh to next rank with close-enough object
