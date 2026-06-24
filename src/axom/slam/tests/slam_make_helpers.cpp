@@ -13,9 +13,13 @@
 
 #include "gtest/gtest.h"
 
+#include "axom/slic.hpp"
 #include "axom/core/Array.hpp"
 #include "axom/slam/SetBuilders.hpp"
 #include "axom/slam/RelationBuilders.hpp"
+#include "axom/slam/MapBuilders.hpp"
+#include "axom/slam/policies/IndirectionPolicies.hpp"
+#include "axom/slam/policies/StridePolicies.hpp"
 
 #include <type_traits>
 #include <vector>
@@ -416,4 +420,135 @@ TEST(slam_make_helpers, make_constant_relation_runtime_stride_axom_array)
   ASSERT_EQ(r0.size(), 2);
   EXPECT_EQ(r0[0], 1);
   EXPECT_EQ(r0[1], 2);
+}
+
+//------------------------------------------------------------------------------
+// Test for make_map helpers
+//------------------------------------------------------------------------------
+
+TEST(slam_make_helpers, make_map_stride_one_array_view)
+{
+  auto set = slam::make_range_set(4);
+  using SetT = decltype(set);
+
+  axom::Array<double> data {10., 20., 30., 40.};
+  auto m = slam::make_map(&set, data.view());
+
+  using Indirection = slam::policies::ArrayViewIndirection<SetT::PositionType, double>;
+  using Stride = slam::policies::StrideOne<SetT::PositionType>;
+  static_assert(std::is_same_v<decltype(m), slam::Map<double, SetT, Indirection, Stride>>,
+                "make_map(set, ArrayView) yields a stride-one ArrayView-backed Map");
+
+  EXPECT_TRUE(m.isValid());
+  EXPECT_EQ(m.size(), set.size());
+  EXPECT_EQ(m.stride(), 1);
+  EXPECT_DOUBLE_EQ(m[0], 10.);
+  EXPECT_DOUBLE_EQ(m[3], 40.);
+
+  // The map is a non-owning view: writes round-trip through the backing storage.
+  m[2] = 33.;
+  EXPECT_DOUBLE_EQ(data[2], 33.);
+  data[1] = 22.;
+  EXPECT_DOUBLE_EQ(m[1], 22.);
+}
+
+TEST(slam_make_helpers, make_map_runtime_stride_array_view)
+{
+  auto set = slam::make_range_set(2);
+
+  // 2 elements, each with stride/numComp 3 => 6 backing values, laid out element-major:
+  //   element 0 -> {1, 2, 3}, element 1 -> {4, 5, 6}
+  axom::Array<double> data {1., 2., 3., 4., 5., 6.};
+  auto m = slam::make_map(&set, Pos {3}, data.view());
+
+  EXPECT_TRUE(m.isValid());
+  EXPECT_EQ(m.size(), 2);
+  EXPECT_EQ(m.stride(), 3);
+
+  // operator()(elem, comp) reads flat index elem*stride + comp.
+  EXPECT_DOUBLE_EQ(m(0, 0), 1.);
+  EXPECT_DOUBLE_EQ(m(0, 2), 3.);
+  EXPECT_DOUBLE_EQ(m(1, 0), 4.);
+  EXPECT_DOUBLE_EQ(m(1, 2), 6.);
+
+  // operator[] is the flat accessor over size()*numComp() values.
+  EXPECT_DOUBLE_EQ(m[4], 5.);
+}
+
+TEST(slam_make_helpers, make_map_ct_compile_time_stride_array_view)
+{
+  auto set = slam::make_range_set(2);
+  using SetT = decltype(set);
+
+  axom::Array<double> data {10., 11., 20., 21.};
+  auto m = slam::make_map_ct<2>(&set, data.view());
+
+  using Indirection = slam::policies::ArrayViewIndirection<SetT::PositionType, double>;
+  using Stride = slam::policies::CompileTimeStride<SetT::PositionType, 2>;
+  static_assert(std::is_same_v<decltype(m), slam::Map<double, SetT, Indirection, Stride>>,
+                "make_map_ct yields an ArrayView-backed compile-time-stride Map");
+
+  EXPECT_TRUE(m.isValid());
+  EXPECT_EQ(m.size(), 2);
+  EXPECT_EQ(m.stride(), 2);
+  EXPECT_DOUBLE_EQ(m(0, 0), 10.);
+  EXPECT_DOUBLE_EQ(m(1, 1), 21.);
+}
+
+TEST(slam_make_helpers, make_map_raw_pointer_overloads_size_the_view)
+{
+  auto set = slam::make_range_set(3);
+
+  // stride-one raw pointer overload: view sized to set->size().
+  double one[3] = {7., 8., 9.};
+  auto m1 = slam::make_map(&set, one);
+  EXPECT_TRUE(m1.isValid());
+  EXPECT_EQ(m1.stride(), 1);
+  EXPECT_DOUBLE_EQ(m1[2], 9.);
+
+  // strided raw pointer overload: view sized to set->size() * stride.
+  double strided[6] = {1., 2., 3., 4., 5., 6.};
+  auto m2 = slam::make_map(&set, Pos {2}, strided);
+  EXPECT_TRUE(m2.isValid());
+  EXPECT_EQ(m2.stride(), 2);
+  EXPECT_DOUBLE_EQ(m2(2, 1), 6.);
+
+  // compile-time-stride raw pointer overload.
+  auto m3 = slam::make_map_ct<2>(&set, strided);
+  EXPECT_TRUE(m3.isValid());
+  EXPECT_EQ(m3.stride(), 2);
+  EXPECT_DOUBLE_EQ(m3(0, 1), 2.);
+}
+
+TEST(slam_make_helpers, make_map_undersized_view_is_a_precondition_violation)
+{
+  // The ArrayView-taking make_map overloads require data.size() == set->size() * stride.
+  // An undersized view is checked in debug builds (no-op in release).
+  auto set = slam::make_range_set(4);
+
+#ifdef AXOM_DEBUG
+  // NOTE: AXOM_DEBUG is disabled in release mode, so these checks are skipped there.
+  axom::Array<double> tooSmall {1., 2., 3.};  // need 4 for stride one
+  EXPECT_DEATH_IF_SUPPORTED(slam::make_map(&set, tooSmall.view()), "");
+
+  axom::Array<double> tooSmallStrided {1., 2., 3., 4., 5.};  // need 8 for stride two
+  EXPECT_DEATH_IF_SUPPORTED(slam::make_map(&set, Pos {2}, tooSmallStrided.view()), "");
+  EXPECT_DEATH_IF_SUPPORTED(slam::make_map_ct<2>(&set, tooSmallStrided.view()), "");
+#else
+  SLIC_INFO("Skipped assertion failure check in release mode.");
+#endif
+}
+
+//----------------------------------------------------------------------
+
+int main(int argc, char* argv[])
+{
+  int result = 0;
+
+  ::testing::InitGoogleTest(&argc, argv);
+  axom::slic::SimpleLogger logger;
+
+  result = RUN_ALL_TESTS();
+
+  return result;
 }
