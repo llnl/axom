@@ -17,6 +17,19 @@ namespace views
 {
 namespace detail
 {
+inline void verifyMatchingMaterialOrder(const conduit::Node &mat_values,
+                                        const conduit::Node &field_values)
+{
+  SLIC_ERROR_IF(mat_values.number_of_children() != field_values.number_of_children(),
+                "The matset volume_fractions and field matset_values have different numbers of materials.");
+
+  for(conduit::index_t i = 0; i < mat_values.number_of_children(); i++)
+  {
+    SLIC_ERROR_IF(mat_values[i].name() != field_values[i].name(),
+                  "The matset volume_fractions and field matset_values do not have matching material order.");
+  }
+}
+
 /*!
  * \brief Dispatch a unibuffer matset_values field.
  *
@@ -55,7 +68,7 @@ bool dispatch_multibuffer_field(const conduit::Node &n_field, FuncType &&func)
   bool rv = false;
   detail::verifyMixedField(n_field);
   const conduit::Node &matset_values = n_field["matset_values"];
-  SLIC_ERROR_IF(matset_values.number_of_children() <= 1, "Missing fields in matset_values.");
+  SLIC_ERROR_IF(matset_values.number_of_children() < 1, "Missing fields in matset_values.");
   // NOTE: For now support float, double types.
   axom::bump::views::floatNodeToArrayView(matset_values[0], [&](auto firstValuesView) {
     using FieldT = typename decltype(firstValuesView)::value_type;
@@ -120,6 +133,7 @@ bool dispatch_material_element_dominant_field(const conduit::Node &matset,
 {
   verify(matset, "matset");
   detail::verifyMixedField(n_field);
+  detail::verifyMatchingMaterialOrder(matset["volume_fractions"], n_field["matset_values"]);
   auto handleMatset = [&](auto matsetView) {
     using MatsetView = decltype(matsetView);
     detail::dispatch_multibuffer_field<MatsetView>(n_field, [&](auto mixedFieldView) {
@@ -149,6 +163,7 @@ bool dispatch_material_material_dominant_field(const conduit::Node &matset,
 {
   verify(matset, "matset");
   detail::verifyMixedField(n_field);
+  detail::verifyMatchingMaterialOrder(matset["volume_fractions"], n_field["matset_values"]);
   auto handleMatset = [&](auto matsetView) {
     using MatsetView = decltype(matsetView);
     detail::dispatch_multibuffer_field<MatsetView>(n_field, [&](auto mixedFieldView) {
