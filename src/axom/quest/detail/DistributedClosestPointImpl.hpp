@@ -760,24 +760,24 @@ public:
 
       BoxType myQueryBb = computeMeshBoundingBox(xferNode);
       put_bounding_box_to_conduit_node(myQueryBb, xferNode.fetch("aabb"));
-    BoxArray allQueryBbs;
-    gatherBoundingBoxes(myQueryBb, allQueryBbs);
+      BoxArray allQueryBbs;
+      gatherBoundingBoxes(myQueryBb, allQueryBbs);
 
       computeLocalClosestPoints(xferNode);
 
-    const auto& myObjectBb = m_objectPartitionBbs[m_rank];
-    for(int r = 0; r < m_nranks; ++r)
-    {
-      if(r != m_rank)
+      const auto& myObjectBb = m_objectPartitionBbs[m_rank];
+      for(int r = 0; r < m_nranks; ++r)
       {
-        const auto& otherQueryBb = allQueryBbs[r];
-        double sqDistance = axom::primal::squared_distance(otherQueryBb, myObjectBb);
-        if(sqDistance <= m_sqDistanceThreshold)
+        if(r != m_rank)
         {
-          ++remainingRecvs;
+          const auto& otherQueryBb = allQueryBbs[r];
+          double sqDistance = axom::primal::squared_distance(otherQueryBb, myObjectBb);
+          if(sqDistance <= m_sqDistanceThreshold)
+          {
+            ++remainingRecvs;
+          }
         }
       }
-    }
 
       /*
         Send local query mesh to next rank with close-enough object
