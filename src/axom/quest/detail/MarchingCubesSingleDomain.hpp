@@ -120,6 +120,15 @@ public:
     }
   }
 
+  void setParentCellIdMode(MarchingCubesParentCellIdMode mode)
+  {
+    m_parentCellIdMode = mode;
+    if(m_impl)
+    {
+      m_impl->setParentCellIdMode(m_parentCellIdMode);
+    }
+  }
+
   // Methods trivially delegated to implementation.
   void markCrossings() { m_impl->markCrossings(); }
   void scanCrossings() { m_impl->scanCrossings(); }
@@ -162,6 +171,15 @@ public:
     virtual void setFunctionField(const std::string &fcnFieldName) = 0;
     virtual void setContourValue(double contourVal) = 0;
     virtual void setMaskValue(int maskVal) = 0;
+
+    /*!
+     * @brief Set how parent-cell ids of generated facets are numbered.
+     *
+     * Default is a no-op so backends that only ever produce the legacy
+     * numbering (the structured-only MarchingCubesImpl) need not implement it.
+     * The bump backend overrides this to honor both numbering modes.
+     */
+    virtual void setParentCellIdMode(MarchingCubesParentCellIdMode) { }
 
     virtual void setDataParallelism(MarchingCubesDataParallelism dataPar) = 0;
 
@@ -242,6 +260,7 @@ private:
 
   double m_contourVal = 0.0;
   int m_maskVal = 1;
+  MarchingCubesParentCellIdMode m_parentCellIdMode = MarchingCubesParentCellIdMode::blueprintZoneId;
 
   std::unique_ptr<ImplBase> m_impl;
 

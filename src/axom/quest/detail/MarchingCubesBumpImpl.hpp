@@ -137,6 +137,21 @@ public:
 
   void setMaskValue(int maskVal) override { m_maskVal = maskVal; }
 
+  /*!
+   * @brief Honor the requested parent-cell-id numbering.
+   *
+   * blueprintZoneId (default): use bump's originalElements directly.
+   * legacyFieldOrder: for structured input, remap the Blueprint zone index
+   *   (which bump orders i-fastest, independent of memory layout) to the legacy
+   *   flat index in the function field's stride order.  For unstructured input
+   *   this mode is ignored (no canonical "field stride order" exists) and the
+   *   Blueprint zone id is used.
+   */
+  void setParentCellIdMode(MarchingCubesParentCellIdMode mode) override
+  {
+    m_parentCellIdMode = mode;
+  }
+
   // The data-parallelism knob is a legacy-kernel concept; bump manages its own
   // parallelism.  We accept and ignore it (kept for API compatibility).
   void setDataParallelism(MarchingCubesDataParallelism dataPar) override
@@ -294,12 +309,20 @@ private:
     //   m_facetNodeIds   (shape [facetCount, DIM], values = local corner ids
     //                     offset by m_facetIndexOffset*DIM)
     //   m_facetNodeCoords(shape [facetCount*DIM, DIM])
-    //   m_facetParentIds (originalElements mapped to parent-cell-id semantics)
+    //   m_facetParentIds (parent-cell id per the resolved mode below)
     // honoring m_facetIndexOffset.  Must run in ExecSpace's memory space.
     //
-    // R5 (parent-id semantics): for structured input, originalElements is the
-    // Blueprint zone index; reconcile with the legacy "flat structured cell
-    // index in field stride order" before writing m_facetParentIds.
+    // Parent-cell id (R5), now fully characterized:
+    //   bump's originalElements is the Blueprint zone index, which bump orders
+    //   i-fastest: flat = i + j*nx + k*nx*ny (StructuredIndexing).  The legacy
+    //   numbering is the flat index in the *function field's* stride order
+    //   (MarchingCubesImpl initializes its case-id mapper from
+    //   fcnView.strides()).  These agree iff the field is stored i-fastest.
+    //   - m_parentCellIdMode == blueprintZoneId: write originalElements as-is.
+    //   - m_parentCellIdMode == legacyFieldOrder && structured input: build an
+    //     MDMapping from the field strides and remap each i-fastest zone index
+    //     to the field-stride-order flat index before writing.
+    //   - legacyFieldOrder && unstructured input: ignored; write originalElements.
     SLIC_WARNING(
       "MarchingCubesBumpImpl::fillLegacyOutputBuffers is a Phase-1 stub; "
       "output-buffer population lands in the next step.");
@@ -320,6 +343,9 @@ private:
   std::string m_topologyName;
   std::string m_fcnFieldName;
   std::string m_maskFieldName;
+
+  //! @brief How to number parent-cell ids of generated facets.
+  MarchingCubesParentCellIdMode m_parentCellIdMode = MarchingCubesParentCellIdMode::blueprintZoneId;
 
   //! @brief Cached bump CutField output (Blueprint mesh).
   std::unique_ptr<conduit::Node> m_output;

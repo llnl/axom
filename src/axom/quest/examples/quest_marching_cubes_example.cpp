@@ -101,6 +101,9 @@ public:
 
   quest::MarchingCubesDataParallelism dataParallelism = quest::MarchingCubesDataParallelism::byPolicy;
 
+  quest::MarchingCubesParentCellIdMode parentCellIdMode =
+    quest::MarchingCubesParentCellIdMode::blueprintZoneId;
+
   // Distinct MarchingCubes objects count.
   int objectRepCount = 1;
   // Contour generation count for each MarchingCubes objects.
@@ -122,6 +125,14 @@ private:
   };
   // clang-format on
 
+  // clang-format off
+  const std::map<std::string, quest::MarchingCubesParentCellIdMode> s_validParentCellIdModes
+  {
+    {"blueprintZoneId", quest::MarchingCubesParentCellIdMode::blueprintZoneId}
+    , {"legacyFieldOrder", quest::MarchingCubesParentCellIdMode::legacyFieldOrder}
+  };
+  // clang-format on
+
 public:
   bool isVerbose() const { return _verboseOutput; }
 
@@ -136,6 +147,13 @@ public:
       ->description("Set full or partial data-parallelism, or by-policy")
       ->capture_default_str()
       ->transform(axom::CLI::CheckedTransformer(s_validImplChoices));
+
+    app.add_option("--parentCellIdMode", parentCellIdMode)
+      ->description(
+        "How to number parent-cell ids of generated facets: "
+        "'blueprintZoneId' (default) or 'legacyFieldOrder' (structured only)")
+      ->capture_default_str()
+      ->transform(axom::CLI::CheckedTransformer(s_validParentCellIdModes));
 
     app.add_option("-m,--mesh-file", meshFile)
       ->description(
@@ -843,6 +861,7 @@ struct ContourTestBase
         initializationTimer.start();
         mcPtr =
           std::make_unique<quest::MarchingCubes>(params.policy, s_allocatorId, params.dataParallelism);
+        mcPtr->setParentCellIdMode(params.parentCellIdMode);
         mcPtr->setMesh(computationalMesh.asConduitNode(), "mesh", "mask");
         initializationTimer.stop();
       }
