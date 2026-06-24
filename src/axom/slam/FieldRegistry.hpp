@@ -179,9 +179,11 @@ public:
    * \param key Field name.
    * \return A mutable reference to the stored field.
    *
-   * \pre `findField(key)` has a value.
-   * \note In debug builds, this asserts if the key is missing.
-   * \note For view-backed fields, use `getFieldView()`.
+   * \pre `findField(key)` has a value (the key exists and is owning, not view-backed).
+   * \note In debug builds, this asserts if the key is missing or is view-backed.
+   * \note For view-backed fields, use `getFieldView()`. Requesting an owning field for a
+   *  view-backed key is a precondition violation: it asserts in debug builds, and in release
+   *  builds the underlying `std::get` throws `std::bad_variant_access`.
    */
   MapType& getField(std::string_view key)
   {
@@ -195,9 +197,11 @@ public:
    * \param key Field name.
    * \return A const reference to the stored field.
    *
-   * \pre `findField(key)` has a value.
-   * \note In debug builds, this asserts if the key is missing.
-   * \note For view-backed fields, use `getFieldView()`.
+   * \pre `findField(key)` has a value (the key exists and is owning, not view-backed).
+   * \note In debug builds, this asserts if the key is missing or is view-backed.
+   * \note For view-backed fields, use `getFieldView()`. Requesting an owning field for a
+   *  view-backed key is a precondition violation: it asserts in debug builds, and in release
+   *  builds the underlying `std::get` throws `std::bad_variant_access`.
    */
   const MapType& getField(std::string_view key) const
   {
@@ -304,7 +308,10 @@ public:
   /*!
    * \brief Returns a mutable reference to the view-backed field for \a key.
    *
-   * \pre `hasFieldView(key)` is true.
+   * \pre `hasFieldView(key)` is true (the key exists and is view-backed, not owning).
+   * \note For owning fields, use `getField()`. Requesting a view-backed field for an owning
+   *  key is a precondition violation: it asserts in debug builds, and in release builds the
+   *  underlying `std::get` throws `std::bad_variant_access`.
    */
   ViewMapType& getFieldView(std::string_view key)
   {
@@ -315,7 +322,10 @@ public:
   /*!
    * \brief Returns a const reference to the view-backed field for \a key.
    *
-   * \pre `hasFieldView(key)` is true.
+   * \pre `hasFieldView(key)` is true (the key exists and is view-backed, not owning).
+   * \note For owning fields, use `getField()`. Requesting a view-backed field for an owning
+   *  key is a precondition violation: it asserts in debug builds, and in release builds the
+   *  underlying `std::get` throws `std::bad_variant_access`.
    */
   const ViewMapType& getFieldView(std::string_view key) const
   {
@@ -616,8 +626,8 @@ private:
 #ifdef AXOM_DEBUG
     auto it = m_maps.find(key);
     SLIC_ASSERT_MSG(it != m_maps.end(), "Didn't find field named " << key);
-    SLIC_ASSERT_MSG(it == m_maps.end() || std::holds_alternative<MapType>(it->second),
-                    "Field named " << key << " is view-backed; use getFieldView()");
+    SLIC_ASSERT_MSG(std::holds_alternative<MapType>(it->second),
+                    "Field named '" << key << "' is view-backed; use getFieldView()");
 #endif
   }
 

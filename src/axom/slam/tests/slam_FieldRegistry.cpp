@@ -13,6 +13,7 @@
 
 #include "gtest/gtest.h"
 
+#include "axom/slic.hpp"
 #include "axom/slam/RangeSet.hpp"
 #include "axom/slam/FieldRegistry.hpp"
 
@@ -21,6 +22,7 @@
 #include <string_view>
 #include <type_traits>
 #include <utility>
+#include <variant>
 
 namespace
 {
@@ -89,13 +91,16 @@ TEST(slam_FieldRegistry, find_buffer_optional)
   EXPECT_FALSE(miss.has_value());
 }
 
-TEST(slam_FieldRegistry, heterogeneous_lookup_no_allocation)
+TEST(slam_FieldRegistry, heterogeneous_lookup_with_string_view_key)
 {
   ScalarRegistry reg;
   reg.addScalar("energy", 1.0);
 
-  // Query with a string_view and a const char* -- transparent comparison means
-  // neither constructs a temporary std::string key.
+  // The lookup tables use transparent comparison (std::less<>), so a std::string_view or a const char*
+  // resolves directly against the std::string keys. (A non-transparent std::map would require
+  // an implicit std::string_view -> std::string conversion, which is explicit and would not compile.
+  // So the fact that these calls compile and resolve is the guarantees that no temporary std::string key
+  // is being constructed for lookup.)
   std::string_view sv = "energy";
   EXPECT_TRUE(reg.hasScalar(sv));
   EXPECT_TRUE(reg.hasScalar("energy"));
@@ -218,4 +223,52 @@ TEST(slam_FieldRegistry, field_storage_modes_share_keyspace)
   EXPECT_TRUE(reg.hasFieldView("density"));
   EXPECT_FALSE(reg.findField("density").has_value());
   EXPECT_DOUBLE_EQ(viewFieldAgain[1], 21.);
+}
+
+TEST(slam_FieldRegistry, get_wrong_storage_mode_is_a_precondition_violation)
+{
+  // getField()/getFieldView() fetch a specific std::variant alternative. Asking for the
+  // wrong alternative for an existing key is a precondition violation: it asserts in debug
+  // builds (via the verify*Key helpers) and throws std::bad_variant_access in release builds.
+  SetType s(3);
+  ScalarRegistry reg;
+
+  double data[3] = {10., 20., 30.};
+  reg.addFieldView("density", &s, data);  // view-backed
+  reg.addField("temperature", &s);        // owning
+
+#ifdef AXOM_DEBUG
+  // NOTE: AXOM_DEBUG is disabled in release mode, so these checks are skipped there.
+  EXPECT_DEATH_IF_SUPPORTED(reg.getField("density"), "");
+  EXPECT_DEATH_IF_SUPPORTED(reg.getFieldView("temperature"), "");
+
+  const ScalarRegistry& creg = reg;
+  EXPECT_DEATH_IF_SUPPORTED(creg.getField("density"), "");
+  EXPECT_DEATH_IF_SUPPORTED(creg.getFieldView("temperature"), "");
+#else
+  SLIC_INFO("Skipped assertion failure check in release mode.");
+  // In release builds the underlying std::get throws on the wrong alternative.
+  EXPECT_THROW(reg.getField("density"), std::bad_variant_access);
+  EXPECT_THROW(reg.getFieldView("temperature"), std::bad_variant_access);
+#endif
+
+  // The safe, non-throwing discriminators agree on the storage mode in all build types.
+  EXPECT_FALSE(reg.findField("density").has_value());
+  EXPECT_TRUE(reg.findFieldView("density").has_value());
+  EXPECT_TRUE(reg.findField("temperature").has_value());
+  EXPECT_FALSE(reg.findFieldView("temperature").has_value());
+}
+
+//----------------------------------------------------------------------
+
+int main(int argc, char* argv[])
+{
+  int result = 0;
+
+  ::testing::InitGoogleTest(&argc, argv);
+  axom::slic::SimpleLogger logger;
+
+  result = RUN_ALL_TESTS();
+
+  return result;
 }

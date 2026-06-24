@@ -9,7 +9,7 @@
  *
  * \brief Stride policies for SLAM
  *
- * Stride policies are meant to represent the fixed distance    between consecutive
+ * Stride policies are meant to represent the fixed distance between consecutive
  * elements of an OrderedSet
  * A valid stride policy must support the following interface:
  *   [required]

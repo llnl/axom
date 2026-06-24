@@ -115,6 +115,13 @@ VectorIndirectionSet<PosType, T> make_indirection_set(std::vector<T>& vec)
  * The element type is deduced from \a arr; the set is device-capable because it 
  * stores an ArrayView over the array's flat storage. The set's size matches the array.
  *
+ * The set exposes the array in `flatIndex` order: element \c i resolves to
+ * `arr.data()[i * arr.minStride()]`, matching axom::Array's own flat-index contract
+ * (see axom::ArrayBase::flatIndex). The flat ArrayView is therefore valid for any layout
+ * axom::Array produces, including multidimensional row-major arrays. For the common 1D case
+ * (`axom::Array<T>` / `DIM == 1`) the storage is always contiguous with unit stride, so the
+ * set indexes the buffer directly.
+ *
  * \param arr the backing array (its storage must outlive the set and not be reallocated)
  * \return an ArrayViewIndirectionSet<PosType, T>
  */

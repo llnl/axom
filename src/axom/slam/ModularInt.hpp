@@ -69,7 +69,7 @@ public:
    *
    * \param mi other ModularInt
    * \return A reference to the constructed object
-   * \note This operator only modifies the value of the local instance, but not modify the \a modulus()
+   * \note This operator only modifies the value of the local instance. It does not modify the \a modulus()
    */
   constexpr ModularInt& operator=(const ModularInt& mi)
   {
