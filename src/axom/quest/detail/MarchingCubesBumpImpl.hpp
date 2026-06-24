@@ -55,6 +55,8 @@
   #include "axom/bump/views/dispatch_coordset.hpp"
   #include "axom/bump/views/dispatch_topology.hpp"
   #include "axom/bump/views/Shapes.hpp"
+  #include "axom/bump/utilities/blueprint_utilities.hpp"
+  #include "axom/bump/utilities/conduit_traits.hpp"
   #include "axom/bump/utilities/conduit_memory.hpp"
 
   #include "conduit_node.hpp"
@@ -107,6 +109,18 @@ public:
     m_dom = &dom;
     m_topologyName = topologyName;
     m_maskFieldName = maskFieldName;
+
+    if(!m_maskFieldName.empty())
+    {
+      const conduit::Node& n_mask =
+        dom.fetch_existing(axom::fmt::format("fields/{}", m_maskFieldName));
+      SLIC_ERROR_IF(n_mask.fetch_existing("association").as_string() != "element",
+                    "MarchingCubes mask fields must be element-associated.");
+      SLIC_ERROR_IF(!n_mask.has_path("values"),
+                    "MarchingCubes mask field is missing a values node.");
+      SLIC_ERROR_IF(!n_mask.fetch_existing("values").dtype().is_int32(),
+                    "MarchingCubes mask field values must be int32.");
+    }
 
     // Validate that this is a topology bump+MarchingCubes supports: a DIM-
     // dimensional structured topology, or an unstructured single-shape quad
@@ -365,6 +379,111 @@ private:
   #endif
   }
 
+  void attachSelectedZonesOption(conduit::Node& n_options,
+                                 axom::Array<axom::IndexType>& selectedZones) const
+  {
+    conduit::Node& n_selectedZones = n_options["selectedZones"];
+    if(selectedZones.empty())
+    {
+      n_selectedZones.set(
+        conduit::DataType(axom::bump::utilities::cpp2conduit<axom::IndexType>::id, 0));
+    }
+    else
+    {
+      n_selectedZones.set_external(selectedZones.data(), selectedZones.size());
+    }
+  }
+
+  template <typename MaskPredicate>
+  void buildSelectedZonesFromMask(axom::IndexType nZones,
+                                  MaskPredicate isSelected,
+                                  conduit::Node& n_options,
+                                  axom::Array<axom::IndexType>& selectedZones) const
+  {
+    axom::Array<axom::IndexType> maskFlags(nZones, nZones, m_allocatorID);
+    auto maskFlagsView = maskFlags.view();
+
+    axom::ReduceSum<ExecSpace, axom::IndexType> selectedCountReduce(0);
+    axom::for_all<ExecSpace>(
+      nZones,
+      AXOM_LAMBDA(axom::IndexType zoneIndex) {
+        const axom::IndexType selected = isSelected(zoneIndex) ? 1 : 0;
+        maskFlagsView[zoneIndex] = selected;
+        selectedCountReduce += selected;
+      });
+
+    const axom::IndexType selectedCount = selectedCountReduce.get();
+    selectedZones = axom::Array<axom::IndexType>(selectedCount, selectedCount, m_allocatorID);
+
+    axom::Array<axom::IndexType> selectedOffsets(nZones, nZones, m_allocatorID);
+    auto selectedOffsetsView = selectedOffsets.view();
+    axom::exclusive_scan<ExecSpace>(maskFlagsView, selectedOffsetsView);
+
+    auto selectedZonesView = selectedZones.view();
+    axom::for_all<ExecSpace>(
+      nZones,
+      AXOM_LAMBDA(axom::IndexType zoneIndex) {
+        if(maskFlagsView[zoneIndex] != 0)
+        {
+          selectedZonesView[selectedOffsetsView[zoneIndex]] = zoneIndex;
+        }
+      });
+
+    attachSelectedZonesOption(n_options, selectedZones);
+  }
+
+  template <typename TopologyView>
+  void addMaskSelectedZonesOption(const TopologyView& topologyView,
+                                  conduit::Node& n_options,
+                                  axom::Array<axom::IndexType>& selectedZones) const
+  {
+    namespace bputils = axom::bump::utilities;
+
+    if(m_maskFieldName.empty())
+    {
+      return;
+    }
+
+    const axom::IndexType nZones = topologyView.numberOfZones();
+    const conduit::Node& n_mask =
+      m_dom->fetch_existing(axom::fmt::format("fields/{}", m_maskFieldName));
+    const conduit::Node& n_maskValues = n_mask.fetch_existing("values");
+
+    if(m_isStructured)
+    {
+      axom::quest::MeshViewUtil<DIM, MemorySpace> mvu(*m_dom, m_topologyName);
+      const auto maskView = mvu.template getConstFieldView<int>(m_maskFieldName, false);
+      const axom::MDMapping<DIM> topoMap(mvu.getCellShape(), axom::ArrayStrideOrder::COLUMN);
+
+      buildSelectedZonesFromMask(
+        nZones,
+        AXOM_LAMBDA(axom::IndexType zoneIndex) {
+          const auto zoneIdx = topoMap.toMultiIndex(zoneIndex);
+          if constexpr(DIM == 2)
+          {
+            return maskView(zoneIdx[0], zoneIdx[1]) == m_maskVal;
+          }
+          else
+          {
+            return maskView(zoneIdx[0], zoneIdx[1], zoneIdx[2]) == m_maskVal;
+          }
+        },
+        n_options,
+        selectedZones);
+    }
+    else
+    {
+      auto maskView = bputils::make_array_view<int>(n_maskValues);
+      SLIC_ERROR_IF(maskView.size() < nZones,
+                    "MarchingCubes mask field has fewer values than topology zones.");
+      buildSelectedZonesFromMask(
+        nZones,
+        AXOM_LAMBDA(axom::IndexType zoneIndex) { return maskView[zoneIndex] == m_maskVal; },
+        n_options,
+        selectedZones);
+    }
+  }
+
   /*!
    * @brief Instantiate CutField for (DIM, ExecSpace, this domain's view types)
    * and run it, storing the Blueprint output.
@@ -397,9 +516,6 @@ private:
     // Ask bump to record each output facet's originating input zone, which we
     // map onto the legacy "parent cell id" output.
     n_options["originalElementsField"] = "originalElements";
-    // TODO(masking): plumb m_maskFieldName/m_maskVal to a selectedZones list or
-    // an intersector that honors the mask (Phase 2 follow-up).  bump does not
-    // take a mask field directly; it takes selectedZones.
 
     m_output = std::make_unique<conduit::Node>();
     conduit::Node& n_out = *m_output;
@@ -416,6 +532,8 @@ private:
         using Cut = bumpx::CutField<ExecSpace, TopologyView, CoordsetView>;
         Cut iso(topologyView, coordsetView);
         iso.setAllocatorID(m_allocatorID);
+        axom::Array<axom::IndexType> selectedZones;
+        addMaskSelectedZonesOption(topologyView, n_options, selectedZones);
         iso.execute(*m_dom, n_options, n_out);
       });
     });

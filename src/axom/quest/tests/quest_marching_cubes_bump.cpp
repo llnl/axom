@@ -32,9 +32,7 @@
  *       shared once.
  *
  * NOTE: This file is written to compile under AXOM_USE_CONDUIT && AXOM_USE_BUMP
- * and link against quest+bump+gtest, matching the other quest tests.  It has not
- * been built in this environment; the analytic oracles and edge-manifold logic
- * are independently unit-checked (see the inline EdgeManifold self-test).
+ * and link against quest+bump+gtest, matching the other quest tests.
  */
 
 #include "axom/config.hpp"
@@ -278,6 +276,189 @@ void buildStructured3D(conduit::Node& mesh, int n, const Field& f, const std::st
   }
 }
 
+void addStructuredMask3D(conduit::Node& mesh,
+                         int n,
+                         const std::string& maskFieldName,
+                         int selectedValue,
+                         int rejectedValue)
+{
+  conduit::Node& mask = mesh["fields/" + maskFieldName];
+  mask["topology"] = "mesh";
+  mask["association"] = "element";
+  const conduit::index_t nCells = static_cast<conduit::index_t>(n) * n * n;
+  mask["values"].set(conduit::DataType::int32(nCells));
+  auto* values = mask["values"].as_int32_ptr();
+
+  conduit::index_t idx = 0;
+  for(int k = 0; k < n; ++k)
+  {
+    for(int j = 0; j < n; ++j)
+    {
+      for(int i = 0; i < n; ++i, ++idx)
+      {
+        AXOM_UNUSED_VAR(i);
+        AXOM_UNUSED_VAR(j);
+        values[idx] = (k < n / 2) ? selectedValue : rejectedValue;
+      }
+    }
+  }
+}
+
+using Point3D = std::array<double, 3>;
+
+struct Bounds3D
+{
+  Point3D min {};
+  Point3D max {};
+  bool initialized = false;
+
+  void addPoint(const Point3D& p)
+  {
+    if(!initialized)
+    {
+      min = p;
+      max = p;
+      initialized = true;
+      return;
+    }
+
+    for(int d = 0; d < 3; ++d)
+    {
+      min[d] = std::min(min[d], p[d]);
+      max[d] = std::max(max[d], p[d]);
+    }
+  }
+
+  bool contains(const Point3D& p, double eps) const
+  {
+    if(!initialized)
+    {
+      return false;
+    }
+
+    for(int d = 0; d < 3; ++d)
+    {
+      if(p[d] < min[d] - eps || p[d] > max[d] + eps)
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
+Point3D contourFacetCentroid3D(const axom::ArrayView<const double, 2>& nodeCoords,
+                               const axom::ArrayView<const axom::IndexType, 2>& facetCorners,
+                               axom::IndexType facetIndex)
+{
+  Point3D centroid {};
+  for(int c = 0; c < 3; ++c)
+  {
+    const axom::IndexType nodeIndex = facetCorners(facetIndex, c);
+    for(int d = 0; d < 3; ++d)
+    {
+      centroid[d] += nodeCoords(nodeIndex, d);
+    }
+  }
+  for(double& coord : centroid)
+  {
+    coord /= 3.0;
+  }
+  return centroid;
+}
+
+void addCoordsetPointToBounds(const conduit::Node& n_values, axom::IndexType nodeIndex, Bounds3D& bounds)
+{
+  const auto x = n_values.fetch_existing("x").as_float64_accessor();
+  const auto y = n_values.fetch_existing("y").as_float64_accessor();
+  const auto z = n_values.fetch_existing("z").as_float64_accessor();
+  bounds.addPoint(Point3D {static_cast<double>(x[nodeIndex]),
+                           static_cast<double>(y[nodeIndex]),
+                           static_cast<double>(z[nodeIndex])});
+}
+
+bool structuredCellBounds3D(const conduit::Node& mesh, axom::IndexType cellIndex, Bounds3D& bounds)
+{
+  const conduit::Node& topo = mesh.fetch_existing("topologies/mesh");
+  const axom::IndexType ni =
+    static_cast<axom::IndexType>(topo.fetch_existing("elements/dims/i").to_value());
+  const axom::IndexType nj =
+    static_cast<axom::IndexType>(topo.fetch_existing("elements/dims/j").to_value());
+  const axom::IndexType nk =
+    static_cast<axom::IndexType>(topo.fetch_existing("elements/dims/k").to_value());
+  const axom::IndexType nCells = ni * nj * nk;
+  if(cellIndex < 0 || cellIndex >= nCells)
+  {
+    return false;
+  }
+
+  const axom::IndexType i = cellIndex % ni;
+  const axom::IndexType j = (cellIndex / ni) % nj;
+  const axom::IndexType k = cellIndex / (ni * nj);
+
+  const std::string coordsetName = topo.fetch_existing("coordset").as_string();
+  const conduit::Node& n_values = mesh.fetch_existing("coordsets/" + coordsetName + "/values");
+
+  const axom::IndexType nni = ni + 1;
+  const axom::IndexType nnj = nj + 1;
+  auto nodeIndex = [=](axom::IndexType ii, axom::IndexType jj, axom::IndexType kk) {
+    return ii + jj * nni + kk * nni * nnj;
+  };
+
+  for(axom::IndexType dk = 0; dk <= 1; ++dk)
+  {
+    for(axom::IndexType dj = 0; dj <= 1; ++dj)
+    {
+      for(axom::IndexType di = 0; di <= 1; ++di)
+      {
+        addCoordsetPointToBounds(n_values, nodeIndex(i + di, j + dj, k + dk), bounds);
+      }
+    }
+  }
+  return bounds.initialized;
+}
+
+bool unstructuredHexCellBounds3D(const conduit::Node& mesh, axom::IndexType cellIndex, Bounds3D& bounds)
+{
+  const conduit::Node& topo = mesh.fetch_existing("topologies/mesh");
+  if(topo.fetch_existing("elements/shape").as_string() != std::string("hex"))
+  {
+    return false;
+  }
+
+  constexpr axom::IndexType HEX_NODES = 8;
+  const auto conn = topo.fetch_existing("elements/connectivity").as_index_t_accessor();
+  const axom::IndexType firstConn = cellIndex * HEX_NODES;
+  if(cellIndex < 0 || firstConn + HEX_NODES > conn.number_of_elements())
+  {
+    return false;
+  }
+
+  const std::string coordsetName = topo.fetch_existing("coordset").as_string();
+  const conduit::Node& n_values = mesh.fetch_existing("coordsets/" + coordsetName + "/values");
+
+  for(axom::IndexType c = 0; c < HEX_NODES; ++c)
+  {
+    const axom::IndexType nodeIndex = static_cast<axom::IndexType>(conn[firstConn + c]);
+    addCoordsetPointToBounds(n_values, nodeIndex, bounds);
+  }
+  return bounds.initialized;
+}
+
+bool parentCellBounds3D(const conduit::Node& mesh, axom::IndexType cellIndex, Bounds3D& bounds)
+{
+  const std::string topoType = mesh.fetch_existing("topologies/mesh/type").as_string();
+  if(topoType == "structured")
+  {
+    return structuredCellBounds3D(mesh, cellIndex, bounds);
+  }
+  if(topoType == "unstructured")
+  {
+    return unstructuredHexCellBounds3D(mesh, cellIndex, bounds);
+  }
+  return false;
+}
+
 //---------------------------------------------------------------------------
 // Core check: run bump-backed MarchingCubes and apply O1/O2/O3.
 //---------------------------------------------------------------------------
@@ -289,7 +470,9 @@ void runAndVerify3D(conduit::Node& mesh,
                     RuntimePolicy policy,
                     const std::string& fieldName,
                     bool expectClosedInterior,
-                    double analyticSurfaceTol)
+                    double analyticSurfaceTol,
+                    const std::string& maskFieldName = {},
+                    int maskVal = 1)
 {
   namespace quest = axom::quest;
 
@@ -303,7 +486,11 @@ void runAndVerify3D(conduit::Node& mesh,
   // cache pointers into it.
   conduit::Node mdMesh;
   mdMesh.append().set(mesh);
-  mc.setMesh(mdMesh, "mesh");
+  mc.setMesh(mdMesh, "mesh", maskFieldName);
+  if(!maskFieldName.empty())
+  {
+    mc.setMaskValue(maskVal);
+  }
   mc.setFunctionField(fieldName);
   mc.computeIsocontour(contourVal);
 
@@ -340,13 +527,33 @@ void runAndVerify3D(conduit::Node& mesh,
   }
   EXPECT_LT(maxValErr, analyticSurfaceTol) << "O1: a facet node is off the isosurface.";
 
-  // O2: parent id range (centroid-in-cell omitted here; needs cell lookup).
+  // O2: parent id range + facet centroid within parent cell bounds.
   const conduit::index_t nCells =
     conduit::blueprint::mesh::topology::length(mesh["topologies/mesh"]);
+  const conduit::Node* maskValues = nullptr;
+  if(!maskFieldName.empty())
+  {
+    ASSERT_TRUE(mesh.has_path("fields/" + maskFieldName + "/values"));
+    maskValues = &mesh.fetch_existing("fields/" + maskFieldName + "/values");
+  }
   for(axom::IndexType ff = 0; ff < nFacets; ++ff)
   {
     EXPECT_GE(parents[ff], 0);
     EXPECT_LT(parents[ff], static_cast<axom::IndexType>(nCells)) << "O2: parent id out of range.";
+    if(!maskFieldName.empty() && parents[ff] >= 0 && parents[ff] < nCells)
+    {
+      EXPECT_EQ(maskValues->as_int32_accessor()[parents[ff]], maskVal)
+        << "masked extraction emitted a facet from an unselected parent zone.";
+    }
+    if(parents[ff] >= 0 && parents[ff] < nCells)
+    {
+      Bounds3D parentBounds;
+      ASSERT_TRUE(parentCellBounds3D(mesh, parents[ff], parentBounds))
+        << "O2: could not compute parent cell bounds.";
+      const Point3D centroid = contourFacetCentroid3D(coords, corners, ff);
+      EXPECT_TRUE(parentBounds.contains(centroid, 1.0e-8))
+        << "O2: facet centroid is outside the reported parent cell bounds.";
+    }
   }
 
   // O3: edge manifoldness.
@@ -392,6 +599,23 @@ void test_structured_round(RuntimePolicy policy)
   runAndVerify3D(mesh, f, 0.0, policy, "fcn", /*expectClosedInterior=*/true, 5.0e-3);
 }
 
+void test_structured_planar_mask(RuntimePolicy policy)
+{
+  conduit::Node mesh;
+  PlanarField f {0.5, 0.5, 0.30, 0.0, 0.0, 1.0};  // horizontal plane z=0.30
+  buildStructured3D(mesh, 8, f, "fcn");
+  addStructuredMask3D(mesh, 8, "mask", /*selectedValue=*/7, /*rejectedValue=*/3);
+  runAndVerify3D(mesh,
+                 f,
+                 0.0,
+                 policy,
+                 "fcn",
+                 /*expectClosedInterior=*/false,
+                 1.0e-6,
+                 "mask",
+                 7);
+}
+
 // Unstructured hex: build structured, then convert in-place via the Axom
 // mesh helper, then run the same verification.  Uses a sidre Group because the
 // converter operates on sidre.
@@ -426,6 +650,10 @@ TEST(quest_marching_cubes_bump, structured_planar_seq)
   test_structured_planar(RuntimePolicy::seq);
 }
 TEST(quest_marching_cubes_bump, structured_round_seq) { test_structured_round(RuntimePolicy::seq); }
+TEST(quest_marching_cubes_bump, structured_planar_mask_seq)
+{
+  test_structured_planar_mask(RuntimePolicy::seq);
+}
 TEST(quest_marching_cubes_bump, unstructured_hex_round_seq)
 {
   test_unstructured_hex_round(RuntimePolicy::seq);
@@ -433,6 +661,10 @@ TEST(quest_marching_cubes_bump, unstructured_hex_round_seq)
 
   #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP) && !defined(_WIN32)
 TEST(quest_marching_cubes_bump, structured_round_omp) { test_structured_round(RuntimePolicy::omp); }
+TEST(quest_marching_cubes_bump, structured_planar_mask_omp)
+{
+  test_structured_planar_mask(RuntimePolicy::omp);
+}
 TEST(quest_marching_cubes_bump, unstructured_hex_round_omp)
 {
   test_unstructured_hex_round(RuntimePolicy::omp);
