@@ -169,15 +169,15 @@ public:
    * Some metadata from \a bpMesh may be cached.  Any change to it
    * after setMesh() leads to undefined behavior.
   */
-  void setMesh(const conduit::Node &bpMesh,
-               const std::string &topologyName,
-               const std::string &maskField = {});
+  void setMesh(const conduit::Node& bpMesh,
+               const std::string& topologyName,
+               const std::string& maskField = {});
 
   /*!
    * @brief Set the field containing the nodal function.
    * @param [in] fcnField Name of node-based scalar function values.
   */
-  void setFunctionField(const std::string &fcnField);
+  void setFunctionField(const std::string& fcnField);
 
   /*!
    * @brief Set the mask value.
@@ -211,7 +211,7 @@ public:
    *   (3D) meshes.  If false (default), the legacy kernel is used.
    *
    * Only available when Axom is configured with Conduit and the bump component
-   * (AXOM_ENABLE_BUMP); requesting the bump backend otherwise has no effect.
+   * (AXOM_USE_BUMP); requesting the bump backend otherwise has no effect.
    * The legacy backend supports only structured input.
    *
    * @note This is transitional: while the bump backend matures it is opt-in so
@@ -256,9 +256,26 @@ public:
    *  data to host memory.  To access the data without deep-copying, see
    *  the other output methods in this name group.
   */
-  void populateContourMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> &mesh,
-                           const std::string &cellIdField = {},
-                           const std::string &domainIdField = {}) const;
+  void populateContourMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& mesh,
+                           const std::string& cellIdField = {},
+                           const std::string& domainIdField = {}) const;
+
+  /*!
+   * @brief Copy the richer bump-backed contour mesh into a Blueprint
+   * multi-domain mesh.
+   * @param [out] bpMesh Output Blueprint multi-domain mesh.
+   *
+   * This accessor is available only for contours computed with the bump
+   * backend.  It preserves bump's native welded representation: line segments
+   * in 2D and polygonal surface elements in 3D with Blueprint
+   * elements/{connectivity,sizes,offsets}.  The existing fixed-stride array
+   * accessors still expose the legacy un-welded triangle/segment soup.
+   *
+   * Array data in \a bpMesh is copied into the same memory space used by the
+   * MarchingCubes object.  If the contour was computed with a device policy,
+   * callers that need host-readable Blueprint data should copy it to host.
+  */
+  void populateContourMeshBlueprint(conduit::Node& bpMesh) const;
 
   /*!
    * @brief Return view of facet corner node indices (connectivity) Array.
@@ -320,10 +337,10 @@ public:
    *  @pre computeIsocontour() must have been called.
    *  @post outputs can no longer be accessed from object, as though clearOutput() has been called.
    */
-  void relinquishContourData(axom::Array<axom::IndexType, 2> &facetNodeIds,
-                             axom::Array<double, 2> &facetNodeCoords,
-                             axom::Array<axom::IndexType, 1> &facetParentIds,
-                             axom::Array<axom::IndexType> &facetDomainIds)
+  void relinquishContourData(axom::Array<axom::IndexType, 2>& facetNodeIds,
+                             axom::Array<double, 2>& facetNodeCoords,
+                             axom::Array<axom::IndexType, 1>& facetParentIds,
+                             axom::Array<axom::IndexType>& facetDomainIds)
   {
     facetNodeIds.clear();
     facetNodeCoords.clear();
@@ -336,6 +353,17 @@ public:
     facetParentIds.swap(m_facetParentIds);
     facetDomainIds.swap(m_facetDomainIds);
   }
+
+  /*!
+   * @brief Give caller possession of the richer bump-backed Blueprint contour.
+   * @param [out] bpMesh Output Blueprint multi-domain mesh.
+   *
+   * This moves the cached bump output nodes without deep-copying them.  It is
+   * available only for contours computed with the bump backend and leaves this
+   * MarchingCubes object with no accessible contour output, as though
+   * clearOutput() had been called.
+  */
+  void relinquishContourDataBlueprint(conduit::Node& bpMesh);
   ///@}
 
   //! @brief Clear the computed contour mesh.

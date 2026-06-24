@@ -47,7 +47,7 @@
 
 #include "axom/config.hpp"
 
-#if defined(AXOM_USE_CONDUIT) && defined(AXOM_ENABLE_BUMP)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
 
   #include "axom/core/execution/execution_space.hpp"
   #include "axom/core/execution/for_all.hpp"
@@ -143,8 +143,7 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
   const conduit::Node& n_conn = n_elems.fetch_existing("connectivity");
 
   // originalElements: element-associated, one entry per output zone (fragment).
-  const conduit::Node& n_orig =
-    n_output.fetch_existing("fields/originalElements/values");
+  const conduit::Node& n_orig = n_output.fetch_existing("fields/originalElements/values");
 
   // --- Wrap everything in typed device-friendly array views ----------------
   // CAVEAT (must be confirmed at build/test time): bump's connectivity / sizes
@@ -158,21 +157,21 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
   // confirm the deduced-type kernel instantiates for every ExecSpace); the
   // fixed-type form below is a readable placeholder with identical logic.
   // TODO(Phase 1.3-validate): switch to indexNodeToArrayView dispatch.
-  auto sizesView = bputils::make_array_view<const conduit::index_t>(n_sizes);
-  auto offsetsView = bputils::make_array_view<const conduit::index_t>(n_offsets);
-  auto connView = bputils::make_array_view<const conduit::index_t>(n_conn);
-  auto origView = bputils::make_array_view<const conduit::index_t>(n_orig);
+  auto sizesView = bputils::make_array_view<conduit::index_t>(n_sizes);
+  auto offsetsView = bputils::make_array_view<conduit::index_t>(n_offsets);
+  auto connView = bputils::make_array_view<conduit::index_t>(n_conn);
+  auto origView = bputils::make_array_view<conduit::index_t>(n_orig);
 
   const conduit::Node& n_x = n_coords.fetch_existing("values/x");
   const conduit::Node& n_y = n_coords.fetch_existing("values/y");
-  auto xView = bputils::make_array_view<const double>(n_x);
-  auto yView = bputils::make_array_view<const double>(n_y);
+  auto xView = bputils::make_array_view<double>(n_x);
+  auto yView = bputils::make_array_view<double>(n_y);
   // z only in 3D.
-  axom::ArrayView<const double> zView;
+  axom::ArrayView<double> zView;
   if(DIM == 3)
   {
     const conduit::Node& n_z = n_coords.fetch_existing("values/z");
-    zView = bputils::make_array_view<const double>(n_z);
+    zView = bputils::make_array_view<double>(n_z);
   }
 
   const axom::IndexType numZones = static_cast<axom::IndexType>(sizesView.size());
@@ -187,8 +186,7 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
   axom::for_all<ExecSpace>(
     numZones,
     AXOM_LAMBDA(axom::IndexType z) {
-      zoneFacetCountsView[z] =
-        facetsPerZone<DIM>(static_cast<axom::IndexType>(sizesView[z]));
+      zoneFacetCountsView[z] = facetsPerZone<DIM>(static_cast<axom::IndexType>(sizesView[z]));
     });
 
   axom::Array<axom::IndexType> zoneFacetOffsets(numZones, numZones, allocatorID);
@@ -204,15 +202,13 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
   axom::for_all<ExecSpace>(
     numZones,
     AXOM_LAMBDA(axom::IndexType z) {
-      const axom::IndexType nCorners =
-        static_cast<axom::IndexType>(sizesView[z]);
+      const axom::IndexType nCorners = static_cast<axom::IndexType>(sizesView[z]);
       const axom::IndexType nFacets = facetsPerZone<DIM>(nCorners);
       if(nFacets == 0)
       {
         return;
       }
-      const axom::IndexType connStart =
-        static_cast<axom::IndexType>(offsetsView[z]);
+      const axom::IndexType connStart = static_cast<axom::IndexType>(offsetsView[z]);
 
       // Parent-cell id for every facet of this zone.
       axom::IndexType parentId = static_cast<axom::IndexType>(origView[z]);
@@ -232,7 +228,7 @@ void adaptCutFieldOutput(const conduit::Node& n_output,
         //   DIM==2: the segment endpoints {0,1}
         //   DIM==3: fan triangle {0, f+1, f+2}
         axom::IndexType local[DIM];
-        if(DIM == 3)
+        if constexpr(DIM == 3)
         {
           local[0] = 0;
           local[1] = f + 1;
@@ -334,5 +330,5 @@ axom::Array<axom::IndexType> buildFieldStrideRemap(
 }  // namespace quest
 }  // namespace axom
 
-#endif  // AXOM_USE_CONDUIT && AXOM_ENABLE_BUMP
+#endif  // AXOM_USE_CONDUIT && AXOM_USE_BUMP
 #endif  // AXOM_QUEST_MARCHINGCUBESBUMPADAPTOR_H_

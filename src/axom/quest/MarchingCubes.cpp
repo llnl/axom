@@ -235,6 +235,60 @@ void MarchingCubes::populateContourMesh(axom::mint::UnstructuredMesh<axom::mint:
   }
 }
 
+void MarchingCubes::populateContourMeshBlueprint(conduit::Node& bpMesh) const
+{
+  AXOM_ANNOTATE_SCOPE("MarchingCubes::populateContourMeshBlueprint");
+  bpMesh.reset();
+
+  SLIC_ERROR_IF(!m_useBumpBackend,
+                "MarchingCubes Blueprint contour output is available only when "
+                "setUseBumpBackend(true) was used.");
+
+  for(axom::IndexType d = 0; d < m_domainCount; ++d)
+  {
+    const auto& single = *m_singles[d];
+    const auto& impl = single.getImpl();
+    SLIC_ERROR_IF(!impl.hasContourMeshBlueprint(),
+                  "MarchingCubes has no Blueprint contour output. "
+                  "Call computeIsocontour() before requesting it.");
+
+    conduit::Node& outDom = bpMesh.append();
+    impl.copyContourMeshBlueprint(outDom);
+    if(!outDom.has_path("state/domain_id"))
+    {
+      outDom["state/domain_id"] = single.getDomainId(static_cast<int32_t>(d));
+    }
+  }
+}
+
+void MarchingCubes::relinquishContourDataBlueprint(conduit::Node& bpMesh)
+{
+  AXOM_ANNOTATE_SCOPE("MarchingCubes::relinquishContourDataBlueprint");
+  bpMesh.reset();
+
+  SLIC_ERROR_IF(!m_useBumpBackend,
+                "MarchingCubes Blueprint contour output is available only when "
+                "setUseBumpBackend(true) was used.");
+
+  for(axom::IndexType d = 0; d < m_domainCount; ++d)
+  {
+    auto& single = *m_singles[d];
+    auto& impl = single.getImpl();
+    SLIC_ERROR_IF(!impl.hasContourMeshBlueprint(),
+                  "MarchingCubes has no Blueprint contour output. "
+                  "Call computeIsocontour() before requesting it.");
+
+    conduit::Node& outDom = bpMesh.append();
+    impl.relinquishContourMeshBlueprint(outDom);
+    if(!outDom.has_path("state/domain_id"))
+    {
+      outDom["state/domain_id"] = single.getDomainId(static_cast<int32_t>(d));
+    }
+  }
+
+  clearOutput();
+}
+
 void MarchingCubes::allocateOutputBuffers()
 {
   AXOM_ANNOTATE_SCOPE("MarchingCubes::allocateOutputBuffers");

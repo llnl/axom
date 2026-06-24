@@ -40,7 +40,7 @@
 
 #include "axom/config.hpp"
 
-#if defined(AXOM_USE_CONDUIT) && defined(AXOM_ENABLE_BUMP)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
 
   #include "axom/core/execution/execution_space.hpp"
   #include "axom/core/execution/for_all.hpp"
@@ -62,6 +62,7 @@
 
   #include <memory>
   #include <string>
+  #include <utility>
 
 namespace axom
 {
@@ -87,6 +88,9 @@ class MarchingCubesBumpImpl : public MarchingCubesSingleDomain::ImplBase
 {
 public:
   static constexpr auto MemorySpace = execution_space<ExecSpace>::memory_space;
+  static constexpr int SelectedDimensions = axom::bump::views::select_dimensions(DIM);
+  static constexpr int ShapeTypes =
+    (DIM == 3) ? (1 << axom::bump::views::Hex_ShapeID) : (1 << axom::bump::views::Quad_ShapeID);
 
   MarchingCubesBumpImpl(int allocatorID) : m_allocatorID(allocatorID) { }
 
@@ -124,18 +128,14 @@ public:
     }
     else
     {
-      SLIC_ERROR_IF(topoType != "uniform" && topoType != "rectilinear" &&
-                      topoType != "structured",
+      SLIC_ERROR_IF(topoType != "uniform" && topoType != "rectilinear" && topoType != "structured",
                     axom::fmt::format("MarchingCubes (bump backend) does not support "
                                       "topology type '{}'.",
                                       topoType));
     }
   }
 
-  void setFunctionField(const std::string& fcnFieldName) override
-  {
-    m_fcnFieldName = fcnFieldName;
-  }
+  void setFunctionField(const std::string& fcnFieldName) override { m_fcnFieldName = fcnFieldName; }
 
   void setContourValue(double contourVal) override { m_contourVal = contourVal; }
 
@@ -187,6 +187,27 @@ public:
 
   axom::IndexType getContourCellCount() const override { return m_facetCount; }
 
+  bool hasContourMeshBlueprint() const override { return m_output != nullptr; }
+
+  void copyContourMeshBlueprint(conduit::Node& bpMesh) const override
+  {
+    SLIC_ERROR_IF(m_output == nullptr,
+                  "MarchingCubes bump backend has no Blueprint contour output. "
+                  "Call computeIsocontour() before requesting it.");
+    axom::bump::utilities::copy<ExecSpace>(bpMesh, *m_output, m_allocatorID);
+  }
+
+  void relinquishContourMeshBlueprint(conduit::Node& bpMesh) override
+  {
+    SLIC_ERROR_IF(m_output == nullptr,
+                  "MarchingCubes bump backend has no Blueprint contour output. "
+                  "Call computeIsocontour() before requesting it.");
+    bpMesh.reset();
+    bpMesh.swap(*m_output);
+    m_output.reset();
+    m_facetCount = 0;
+  }
+
   void clearDomain() override
   {
     m_output.reset();
@@ -194,6 +215,156 @@ public:
   }
 
 private:
+  /*! @brief Dispatch a coordset view restricted to this implementation's DIM. */
+  template <typename FuncType>
+  static void dispatchCoordset(const conduit::Node& n_coords, FuncType&& func)
+  {
+    namespace bumpviews = axom::bump::views;
+
+    const std::string cstype = n_coords.fetch_existing("type").as_string();
+    if(cstype == "uniform")
+    {
+      auto coordsetView = bumpviews::make_uniform_coordset<DIM>::view(n_coords);
+      func(coordsetView);
+    }
+    else if(cstype == "rectilinear")
+    {
+      const conduit::Node& values = n_coords.fetch_existing("values");
+      if constexpr(DIM == 2)
+      {
+        SLIC_ERROR_IF(values.number_of_children() != 2,
+                      "2D rectilinear coordsets require 2 component arrays.");
+        bumpviews::floatNodeToArrayViewSame(values[0], values[1], [&](auto xView, auto yView) {
+          bumpviews::RectilinearCoordsetView2<typename decltype(xView)::value_type> coordsetView(
+            xView,
+            yView);
+          func(coordsetView);
+        });
+      }
+      else
+      {
+        SLIC_ERROR_IF(values.number_of_children() != 3,
+                      "3D rectilinear coordsets require 3 component arrays.");
+        bumpviews::floatNodeToArrayViewSame(
+          values[0],
+          values[1],
+          values[2],
+          [&](auto xView, auto yView, auto zView) {
+            bumpviews::RectilinearCoordsetView3<typename decltype(xView)::value_type> coordsetView(
+              xView,
+              yView,
+              zView);
+            func(coordsetView);
+          });
+      }
+    }
+    else if(cstype == "explicit")
+    {
+      const conduit::Node& values = n_coords.fetch_existing("values");
+      if constexpr(DIM == 2)
+      {
+        SLIC_ERROR_IF(values.number_of_children() != 2,
+                      "2D explicit coordsets require 2 component arrays.");
+        bumpviews::floatNodeToArrayViewSame(values[0], values[1], [&](auto xView, auto yView) {
+          bumpviews::ExplicitCoordsetView<typename decltype(xView)::value_type, 2> coordsetView(
+            xView,
+            yView);
+          func(coordsetView);
+        });
+      }
+      else
+      {
+        SLIC_ERROR_IF(values.number_of_children() != 3,
+                      "3D explicit coordsets require 3 component arrays.");
+        bumpviews::floatNodeToArrayViewSame(
+          values[0],
+          values[1],
+          values[2],
+          [&](auto xView, auto yView, auto zView) {
+            bumpviews::ExplicitCoordsetView<typename decltype(xView)::value_type, 3> coordsetView(
+              xView,
+              yView,
+              zView);
+            func(coordsetView);
+          });
+      }
+    }
+    else
+    {
+      SLIC_ERROR(axom::fmt::format("Unsupported coordset type '{}'.", cstype));
+    }
+  }
+
+  /*! @brief Dispatch a topology view restricted to MarchingCubes-supported shapes. */
+  template <typename FuncType>
+  static void dispatchTopology(const conduit::Node& n_topo, FuncType&& func)
+  {
+    namespace bumpviews = axom::bump::views;
+
+  #if defined(_WIN32)
+    // Windows shared-library builds auto-export template instantiations from
+    // axom_quest.dll.  Keep this opt-in bump path narrow enough to link there,
+    // while preserving the generic bump dispatcher on other platforms.
+    const std::string topoType = n_topo.fetch_existing("type").as_string();
+    if(topoType == "unstructured")
+    {
+      const std::string shape = n_topo.fetch_existing("elements/shape").as_string();
+      if constexpr(DIM == 3)
+      {
+        SLIC_ERROR_IF(shape != "hex",
+                      axom::fmt::format("MarchingCubes bump backend expected "
+                                        "unstructured hex topology, but got '{}'.",
+                                        shape));
+        using ShapeType = bumpviews::HexShape<axom::IndexType>;
+        auto topologyView =
+          bumpviews::make_unstructured_single_shape_topology<ShapeType>::view(n_topo);
+        func(shape, topologyView);
+      }
+      else
+      {
+        SLIC_ERROR_IF(shape != "quad",
+                      axom::fmt::format("MarchingCubes bump backend expected "
+                                        "unstructured quad topology, but got '{}'.",
+                                        shape));
+        using ShapeType = bumpviews::QuadShape<axom::IndexType>;
+        auto topologyView =
+          bumpviews::make_unstructured_single_shape_topology<ShapeType>::view(n_topo);
+        func(shape, topologyView);
+      }
+    }
+    else if(topoType == "uniform" || topoType == "rectilinear" || topoType == "structured")
+    {
+      SLIC_ERROR_IF(
+        n_topo.has_path("elements/dims/offsets") || n_topo.has_path("elements/dims/strides"),
+        "MarchingCubes bump backend does not support strided structured topology "
+        "on Windows shared-library builds.");
+
+      const std::string shape = (DIM == 3) ? "hex" : "quad";
+      bumpviews::StructuredTopologyView<bumpviews::StructuredIndexing<axom::IndexType, DIM>> topologyView;
+      if(topoType == "uniform")
+      {
+        topologyView = bumpviews::make_uniform_topology<DIM>::view(n_topo);
+      }
+      else if(topoType == "rectilinear")
+      {
+        topologyView = bumpviews::make_rectilinear_topology<DIM>::view(n_topo);
+      }
+      else
+      {
+        topologyView = bumpviews::make_structured_topology<DIM>::view(n_topo);
+      }
+      func(shape, topologyView);
+    }
+    else
+    {
+      SLIC_ERROR(axom::fmt::format("Unsupported topology type '{}'.", topoType));
+    }
+  #else
+    bumpviews::dispatch_topology<SelectedDimensions, ShapeTypes>(n_topo,
+                                                                 std::forward<FuncType>(func));
+  #endif
+  }
+
   /*!
    * @brief Instantiate CutField for (DIM, ExecSpace, this domain's view types)
    * and run it, storing the Blueprint output.
@@ -235,24 +406,18 @@ private:
 
     // Restrict the unstructured shape set to {quad, hex} as requested, to bound
     // template instantiation.  Structured dimensions restricted to DIM.
-    constexpr int shapeMask =
-      (DIM == 3) ? (1 << bumpviews::Hex_ShapeID) : (1 << bumpviews::Quad_ShapeID);
-    constexpr int dimMask = bumpviews::select_dimensions(DIM);
-
     // Dispatch coordset, then topology, building the matching views and running
     // CutField.  The double dispatch yields the concrete (CoordView, TopoView)
     // pair at compile time.
-    bumpviews::dispatch_coordset(n_coords, [&](auto coordsetView) {
+    dispatchCoordset(n_coords, [&](auto coordsetView) {
       using CoordsetView = decltype(coordsetView);
-      bumpviews::dispatch_topology<dimMask, shapeMask>(
-        n_topo,
-        [&](const std::string& AXOM_UNUSED_PARAM(shape), auto topologyView) {
-          using TopologyView = decltype(topologyView);
-          using Cut = bumpx::CutField<ExecSpace, TopologyView, CoordsetView>;
-          Cut iso(topologyView, coordsetView);
-          iso.setAllocatorID(m_allocatorID);
-          iso.execute(*m_dom, n_options, n_out);
-        });
+      dispatchTopology(n_topo, [&](const std::string& AXOM_UNUSED_PARAM(shape), auto topologyView) {
+        using TopologyView = decltype(topologyView);
+        using Cut = bumpx::CutField<ExecSpace, TopologyView, CoordsetView>;
+        Cut iso(topologyView, coordsetView);
+        iso.setAllocatorID(m_allocatorID);
+        iso.execute(*m_dom, n_options, n_out);
+      });
     });
 
     // Determine the facet count from the bump output.  After fan-triangulation
@@ -264,8 +429,7 @@ private:
     // For the opt-in legacyFieldOrder numbering on structured input, capture the
     // logical cell dims and the function field's stride order so the output
     // adaptor can remap bump's i-fastest zone ids back to the legacy ordering.
-    if(m_parentCellIdMode == MarchingCubesParentCellIdMode::legacyFieldOrder &&
-       m_isStructured)
+    if(m_parentCellIdMode == MarchingCubesParentCellIdMode::legacyFieldOrder && m_isStructured)
     {
       captureStructuredMetadata();
     }
@@ -343,8 +507,7 @@ private:
     // legacy numbering AND the input is structured (unstructured has no
     // canonical field stride order; we leave the remap empty -> pass-through).
     axom::Array<axom::IndexType> remapHost(0, 0);
-    if(m_parentCellIdMode == MarchingCubesParentCellIdMode::legacyFieldOrder &&
-       m_isStructured)
+    if(m_parentCellIdMode == MarchingCubesParentCellIdMode::legacyFieldOrder && m_isStructured)
     {
       remapHost = buildFieldStrideRemap<DIM>(m_cellDims, m_fieldSlowestDirs);
     }
@@ -405,5 +568,5 @@ private:
 }  // namespace quest
 }  // namespace axom
 
-#endif  // AXOM_USE_CONDUIT && AXOM_ENABLE_BUMP
+#endif  // AXOM_USE_CONDUIT && AXOM_USE_BUMP
 #endif  // AXOM_QUEST_MARCHINGCUBESBUMPIMPL_H_

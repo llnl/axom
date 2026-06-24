@@ -25,12 +25,13 @@
  *       field, equals the contour value within tolerance (exact for planar).
  *   O2. Parent containment: each facet's parent cell id is in range, and the
  *       facet centroid lies within the parent cell's axis-aligned bounds.
- *   O3. Edge manifoldness (after welding the soup): every contour edge (3D) is
- *       shared by exactly 1 or 2 facets; no edge is used 3+ times.  A closed
- *       smooth surface interior to the domain should have all-interior edges
- *       shared exactly twice; boundary-clipped edges may be shared once.
+ *   O3. Edge manifoldness on bump's welded Blueprint output: every contour
+ *       edge (3D) is shared by exactly 1 or 2 facets; no edge is used 3+
+ *       times.  A closed smooth surface interior to the domain should have
+ *       all-interior edges shared exactly twice; boundary-clipped edges may be
+ *       shared once.
  *
- * NOTE: This file is written to compile under AXOM_USE_CONDUIT && AXOM_ENABLE_BUMP
+ * NOTE: This file is written to compile under AXOM_USE_CONDUIT && AXOM_USE_BUMP
  * and link against quest+bump+gtest, matching the other quest tests.  It has not
  * been built in this environment; the analytic oracles and edge-manifold logic
  * are independently unit-checked (see the inline EdgeManifold self-test).
@@ -38,7 +39,7 @@
 
 #include "axom/config.hpp"
 
-#if defined(AXOM_USE_CONDUIT) && defined(AXOM_ENABLE_BUMP)
+#if defined(AXOM_USE_CONDUIT) && defined(AXOM_USE_BUMP)
 
   #include "axom/core.hpp"
   #include "axom/primal.hpp"
@@ -51,8 +52,10 @@
 
   #include "gtest/gtest.h"
 
-  #include <map>
+  #include <array>
   #include <cmath>
+  #include <cstdint>
+  #include <map>
   #include <utility>
 
 namespace
@@ -173,6 +176,56 @@ EdgeManifoldResult checkEdgeManifold3D(const axom::ArrayView<const double, 2>& n
   return res;
 }
 
+EdgeManifoldResult checkBlueprintEdgeManifold3D(const conduit::Node& contourDom)
+{
+  const conduit::Node& n_topo = contourDom.fetch_existing("topologies").child(0);
+  const conduit::Node& n_elems = n_topo.fetch_existing("elements");
+  const auto sizes = n_elems.fetch_existing("sizes").as_index_t_accessor();
+  const auto offsets = n_elems.fetch_existing("offsets").as_index_t_accessor();
+  const auto conn = n_elems.fetch_existing("connectivity").as_index_t_accessor();
+
+  std::map<std::pair<axom::IndexType, axom::IndexType>, int> edgeUse;
+  const conduit::index_t nZones = sizes.number_of_elements();
+  for(conduit::index_t z = 0; z < nZones; ++z)
+  {
+    const auto nCorners = static_cast<axom::IndexType>(sizes[z]);
+    const auto offset = static_cast<axom::IndexType>(offsets[z]);
+    for(axom::IndexType e = 0; e < nCorners; ++e)
+    {
+      axom::IndexType a = static_cast<axom::IndexType>(conn[offset + e]);
+      axom::IndexType b = static_cast<axom::IndexType>(conn[offset + ((e + 1) % nCorners)]);
+      if(a == b)
+      {
+        continue;  // degenerate edge; ignore
+      }
+      if(a > b)
+      {
+        std::swap(a, b);
+      }
+      edgeUse[{a, b}]++;
+    }
+  }
+
+  EdgeManifoldResult res;
+  for(const auto& kv : edgeUse)
+  {
+    res.maxMultiplicity = std::max(res.maxMultiplicity, kv.second);
+    if(kv.second == 1)
+    {
+      res.boundaryEdges++;
+    }
+    else if(kv.second == 2)
+    {
+      res.interiorEdges++;
+    }
+    else if(kv.second >= 3)
+    {
+      res.edgesUsed3PlusTimes++;
+    }
+  }
+  return res;
+}
+
 //---------------------------------------------------------------------------
 // Mesh builders
 //---------------------------------------------------------------------------
@@ -235,16 +288,39 @@ void runAndVerify3D(conduit::Node& mesh,
                     double contourVal,
                     RuntimePolicy policy,
                     const std::string& fieldName,
-                    bool expectClosedInterior)
+                    bool expectClosedInterior,
+                    double analyticSurfaceTol)
 {
   namespace quest = axom::quest;
 
-  quest::MarchingCubes mc(policy, axom::execution_space<axom::SEQ_EXEC>::allocatorID(),
+  quest::MarchingCubes mc(policy,
+                          axom::execution_space<axom::SEQ_EXEC>::allocatorID(),
                           quest::MarchingCubesDataParallelism::byPolicy);
   mc.setUseBumpBackend(true);
-  mc.setMesh(mesh, "mesh");
+
+  // MarchingCubes' public input contract is multi-domain.  Keep the wrapped
+  // node alive through computeIsocontour(), since the single-domain objects
+  // cache pointers into it.
+  conduit::Node mdMesh;
+  mdMesh.append().set(mesh);
+  mc.setMesh(mdMesh, "mesh");
   mc.setFunctionField(fieldName);
   mc.computeIsocontour(contourVal);
+
+  conduit::Node contourBp;
+  mc.populateContourMeshBlueprint(contourBp);
+  ASSERT_TRUE(conduit::blueprint::mesh::is_multi_domain(contourBp));
+  ASSERT_EQ(conduit::blueprint::mesh::number_of_domains(contourBp), 1);
+  const conduit::Node& contourDom = contourBp.child(0);
+  ASSERT_TRUE(contourDom.has_path("state/domain_id"));
+  EXPECT_EQ(contourDom["state/domain_id"].to_int32(), 0);
+  ASSERT_TRUE(contourDom.has_path("topologies"));
+  ASSERT_EQ(contourDom["topologies"].number_of_children(), 1);
+  const conduit::Node& contourTopo = contourDom["topologies"].child(0);
+  ASSERT_TRUE(contourTopo.has_path("elements/connectivity"));
+  ASSERT_TRUE(contourTopo.has_path("elements/sizes"));
+  ASSERT_TRUE(contourTopo.has_path("elements/offsets"));
+  ASSERT_TRUE(contourDom.has_path("fields/originalElements/values"));
 
   const auto coords = mc.getContourNodeCoords();
   const auto corners = mc.getContourFacetCorners();
@@ -262,7 +338,7 @@ void runAndVerify3D(conduit::Node& mesh,
     const double v = f(coords(r, 0), coords(r, 1), coords(r, 2));
     maxValErr = std::max(maxValErr, std::abs(v - contourVal));
   }
-  EXPECT_LT(maxValErr, 1.0e-6) << "O1: a facet node is off the isosurface.";
+  EXPECT_LT(maxValErr, analyticSurfaceTol) << "O1: a facet node is off the isosurface.";
 
   // O2: parent id range (centroid-in-cell omitted here; needs cell lookup).
   const conduit::index_t nCells =
@@ -274,8 +350,9 @@ void runAndVerify3D(conduit::Node& mesh,
   }
 
   // O3: edge manifoldness.
-  const auto em = checkEdgeManifold3D(coords, corners, 1.0e-9);
-  EXPECT_EQ(em.edgesUsed3PlusTimes, 0) << "O3: a contour edge is shared by 3+ facets (non-manifold).";
+  const auto em = checkBlueprintEdgeManifold3D(contourDom);
+  EXPECT_EQ(em.edgesUsed3PlusTimes, 0)
+    << "O3: a contour edge is shared by 3+ facets (non-manifold).";
   EXPECT_LE(em.maxMultiplicity, 2) << "O3: max edge multiplicity exceeds 2.";
   if(expectClosedInterior)
   {
@@ -283,6 +360,12 @@ void runAndVerify3D(conduit::Node& mesh,
     EXPECT_EQ(em.boundaryEdges, 0)
       << "O3: closed interior surface unexpectedly has boundary (once-used) edges.";
   }
+
+  conduit::Node relinquishedBp;
+  mc.relinquishContourDataBlueprint(relinquishedBp);
+  ASSERT_TRUE(conduit::blueprint::mesh::is_multi_domain(relinquishedBp));
+  ASSERT_EQ(conduit::blueprint::mesh::number_of_domains(relinquishedBp), 1);
+  EXPECT_EQ(mc.getContourCellCount(), 0);
 }
 
 //---------------------------------------------------------------------------
@@ -295,7 +378,7 @@ void test_structured_planar(RuntimePolicy policy)
   PlanarField f {0.5, 0.5, 0.5, 0.0, 0.0, 1.0};  // horizontal plane z=0.5
   buildStructured3D(mesh, 8, f, "fcn");
   // Planar contour clips the domain -> open surface (boundary edges expected).
-  runAndVerify3D(mesh, f, 0.0, policy, "fcn", /*expectClosedInterior=*/false);
+  runAndVerify3D(mesh, f, 0.0, policy, "fcn", /*expectClosedInterior=*/false, 1.0e-6);
 }
 
 void test_structured_round(RuntimePolicy policy)
@@ -304,7 +387,9 @@ void test_structured_round(RuntimePolicy policy)
   RoundField f {0.5, 0.5, 0.5, 0.25};  // sphere fully inside [0,1]^3
   buildStructured3D(mesh, 16, f, "fcn");
   // Sphere interior to the domain -> closed surface (no boundary edges).
-  runAndVerify3D(mesh, f, 0.0, policy, "fcn", /*expectClosedInterior=*/true);
+  // The contour is exact for the linearly interpolated nodal field, so the
+  // analytic signed-distance residual is O(h^2), not roundoff.
+  runAndVerify3D(mesh, f, 0.0, policy, "fcn", /*expectClosedInterior=*/true, 5.0e-3);
 }
 
 // Unstructured hex: build structured, then convert in-place via the Axom
@@ -322,29 +407,31 @@ void test_unstructured_hex_round(RuntimePolicy policy)
   meshGrp->importConduitTree(structured);
 
   // Convert structured -> unstructured single-shape hex in place.
-  axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_3d(meshGrp, "mesh",
-                                                                              policy);
+  axom::quest::util::convert_blueprint_structured_explicit_to_unstructured_3d(meshGrp, "mesh", policy);
 
   // Re-export to a conduit node for MarchingCubes::setMesh.
   conduit::Node unstructured;
   meshGrp->createNativeLayout(unstructured);
 
   ASSERT_EQ(unstructured["topologies/mesh/type"].as_string(), std::string("unstructured"));
-  runAndVerify3D(unstructured, f, 0.0, policy, "fcn", /*expectClosedInterior=*/true);
+  runAndVerify3D(unstructured, f, 0.0, policy, "fcn", /*expectClosedInterior=*/true, 5.0e-3);
 }
 
 //---------------------------------------------------------------------------
 // GTest registration (sequential always; others when compiled in).
 //---------------------------------------------------------------------------
 
-TEST(quest_marching_cubes_bump, structured_planar_seq) { test_structured_planar(RuntimePolicy::seq); }
+TEST(quest_marching_cubes_bump, structured_planar_seq)
+{
+  test_structured_planar(RuntimePolicy::seq);
+}
 TEST(quest_marching_cubes_bump, structured_round_seq) { test_structured_round(RuntimePolicy::seq); }
 TEST(quest_marching_cubes_bump, unstructured_hex_round_seq)
 {
   test_unstructured_hex_round(RuntimePolicy::seq);
 }
 
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP) && !defined(_WIN32)
 TEST(quest_marching_cubes_bump, structured_round_omp) { test_structured_round(RuntimePolicy::omp); }
 TEST(quest_marching_cubes_bump, unstructured_hex_round_omp)
 {
@@ -353,7 +440,10 @@ TEST(quest_marching_cubes_bump, unstructured_hex_round_omp)
   #endif
 
   #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(quest_marching_cubes_bump, structured_round_cuda) { test_structured_round(RuntimePolicy::cuda); }
+TEST(quest_marching_cubes_bump, structured_round_cuda)
+{
+  test_structured_round(RuntimePolicy::cuda);
+}
 TEST(quest_marching_cubes_bump, unstructured_hex_round_cuda)
 {
   test_unstructured_hex_round(RuntimePolicy::cuda);
@@ -375,28 +465,44 @@ TEST(quest_marching_cubes_bump, edge_manifold_helper_selftest)
   // Two triangles sharing edge (0,0,0)-(1,0,0): a manifold pair.
   axom::Array<double, 2> coords(axom::ArrayOptions::Uninitialized(), 6, 3);
   // tri 0: (0,0,0),(1,0,0),(0,1,0)
-  coords(0, 0) = 0; coords(0, 1) = 0; coords(0, 2) = 0;
-  coords(1, 0) = 1; coords(1, 1) = 0; coords(1, 2) = 0;
-  coords(2, 0) = 0; coords(2, 1) = 1; coords(2, 2) = 0;
+  coords(0, 0) = 0;
+  coords(0, 1) = 0;
+  coords(0, 2) = 0;
+  coords(1, 0) = 1;
+  coords(1, 1) = 0;
+  coords(1, 2) = 0;
+  coords(2, 0) = 0;
+  coords(2, 1) = 1;
+  coords(2, 2) = 0;
   // tri 1: (0,0,0),(1,0,0),(0,-1,0)  -> shares edge (0,0,0)-(1,0,0)
-  coords(3, 0) = 0; coords(3, 1) = 0; coords(3, 2) = 0;
-  coords(4, 0) = 1; coords(4, 1) = 0; coords(4, 2) = 0;
-  coords(5, 0) = 0; coords(5, 1) = -1; coords(5, 2) = 0;
+  coords(3, 0) = 0;
+  coords(3, 1) = 0;
+  coords(3, 2) = 0;
+  coords(4, 0) = 1;
+  coords(4, 1) = 0;
+  coords(4, 2) = 0;
+  coords(5, 0) = 0;
+  coords(5, 1) = -1;
+  coords(5, 2) = 0;
 
   axom::Array<axom::IndexType, 2> corners(axom::ArrayOptions::Uninitialized(), 2, 3);
-  corners(0, 0) = 0; corners(0, 1) = 1; corners(0, 2) = 2;
-  corners(1, 0) = 3; corners(1, 1) = 4; corners(1, 2) = 5;
+  corners(0, 0) = 0;
+  corners(0, 1) = 1;
+  corners(0, 2) = 2;
+  corners(1, 0) = 3;
+  corners(1, 1) = 4;
+  corners(1, 2) = 5;
 
   const auto em = checkEdgeManifold3D(coords.view(), corners.view(), 1.0e-9);
-  EXPECT_EQ(em.maxMultiplicity, 2);       // shared edge used twice
-  EXPECT_EQ(em.interiorEdges, 1);         // exactly one shared edge
-  EXPECT_EQ(em.boundaryEdges, 4);         // the other four edges used once
+  EXPECT_EQ(em.maxMultiplicity, 2);  // shared edge used twice
+  EXPECT_EQ(em.interiorEdges, 1);    // exactly one shared edge
+  EXPECT_EQ(em.boundaryEdges, 4);    // the other four edges used once
   EXPECT_EQ(em.edgesUsed3PlusTimes, 0);
 }
 
 }  // namespace
 
-#endif  // AXOM_USE_CONDUIT && AXOM_ENABLE_BUMP
+#endif  // AXOM_USE_CONDUIT && AXOM_USE_BUMP
 
 int main(int argc, char** argv)
 {
