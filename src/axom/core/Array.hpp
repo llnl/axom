@@ -136,6 +136,11 @@ struct DefaultStoragePolicy
  *  its memory at allocation time and we use axom's memory_management
  *  and allocator ID abstractions rather than std::allocator.
  *
+ *  Move semantics follow standard container conventions: moved-from Arrays are
+ *  left in a valid-but-unspecified state and may be safely reused
+ *  (e.g. assigned to, cleared, or appended to). 
+  * The allocator id of a moved-from Array remains valid.
+ *
  *  Array always retains exclusive ownership of its data and is responsible for
  *  freeing its memory.
  *
@@ -293,6 +298,8 @@ public:
 
   /*! 
    * \brief Move constructor for an Array instance 
+   *
+   * \note The moved-from Array is left in a valid-but-unspecified state and may be reused.
    */
   Array(Array&& other) noexcept;
 
@@ -369,6 +376,8 @@ public:
 
   /*! 
    * \brief Move assignment operator for Array
+   *
+   * \note The moved-from Array is left in a valid-but-unspecified state and may be reused.
    */
   Array& operator=(Array&& other) noexcept
   {
@@ -390,7 +399,6 @@ public:
       other.m_num_elements = 0;
       other.m_capacity = 0;
       other.m_resize_ratio = DEFAULT_RESIZE_RATIO;
-      other.m_allocator_id = INVALID_ALLOCATOR_ID;
     }
 
     return *this;
@@ -1262,7 +1270,6 @@ Array<T, DIM, SPACE, StoragePolicy>::Array(Array&& other) noexcept
   other.m_num_elements = 0;
   other.m_capacity = 0;
   other.m_resize_ratio = DEFAULT_RESIZE_RATIO;
-  other.m_allocator_id = INVALID_ALLOCATOR_ID;
 }
 
 //------------------------------------------------------------------------------
