@@ -27,11 +27,39 @@
 #include <cstddef>
 #include <cstdlib>
 #include <iostream>
+#include <mutex>
 #include <string>
 #include <type_traits>
 
 namespace axom
 {
+#ifdef AXOM_USE_UMPIRE
+namespace detail
+{
+struct UmpireCopyContext
+{
+  umpire::strategy::AllocationStrategy* hostStrategy {nullptr};
+  umpire::op::MemoryOperationRegistry* operationRegistry {nullptr};
+};
+
+inline const UmpireCopyContext& getUmpireCopyContext() noexcept
+{
+  static std::once_flag once;
+  static UmpireCopyContext context {};
+
+  // Resolve Umpire's fallback HOST path once so the first threaded axom::copy()
+  // cannot race through lazy resource creation.
+  std::call_once(once, []() {
+    auto& rm = umpire::ResourceManager::getInstance();
+    context.hostStrategy = rm.getAllocator("HOST").getAllocationStrategy();
+    context.operationRegistry = &umpire::op::MemoryOperationRegistry::getInstance();
+  });
+
+  return context;
+}
+}  // namespace detail
+#endif
+
 // To co-exist with Umpire allocator ids, use negative values here.
 constexpr int INVALID_ALLOCATOR_ID = -1;  //!< Place holder for no/unknown allocator
 constexpr int MALLOC_ALLOCATOR_ID = -3;   //!< Refers to MemorySpace::Malloc
@@ -462,11 +490,11 @@ inline T* reallocate(T* pointer, std::size_t n, int allocID) noexcept
 inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept
 {
 #ifdef AXOM_USE_UMPIRE
+  const auto& copyContext = detail::getUmpireCopyContext();
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-  umpire::op::MemoryOperationRegistry& op_registry =
-    umpire::op::MemoryOperationRegistry::getInstance();
+  umpire::op::MemoryOperationRegistry& op_registry = *copyContext.operationRegistry;
 
-  auto dstStrategy = rm.getAllocator("HOST").getAllocationStrategy();
+  auto dstStrategy = copyContext.hostStrategy;
   auto srcStrategy = dstStrategy;
 
   using AllocationRecord = umpire::util::AllocationRecord;
