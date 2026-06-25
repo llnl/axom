@@ -227,7 +227,8 @@ void computeVolumeFractionsForMaterial(MFEMState& mfemState,
                                        const std::string& matField,
                                        int volfracOrder,
                                        axom::ArrayView<int> sampleResolution,
-                                       axom::numerics::QuadratureType quadratureType);
+                                       axom::numerics::QuadratureType quadratureType,
+                                       axom::runtime_policy::Policy execPolicy);
 
 void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
                                     mfem::QuadratureFunction* inout,

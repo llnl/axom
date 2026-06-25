@@ -46,6 +46,39 @@ struct VolumeFractionMassConfig
   std::int64_t cachedMassBytes {};
 };
 
+axom::runtime_policy::Policy selectFCTExecutionPolicy(axom::runtime_policy::Policy execPolicy,
+                                                      const std::string& vfName)
+{
+  using RuntimePolicy = axom::runtime_policy::Policy;
+
+  switch(execPolicy)
+  {
+  case RuntimePolicy::seq:
+    return RuntimePolicy::seq;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case RuntimePolicy::omp:
+    return RuntimePolicy::omp;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case RuntimePolicy::cuda:
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case RuntimePolicy::hip:
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA) || defined(AXOM_RUNTIME_POLICY_USE_HIP)
+    SLIC_WARNING_ROOT(axom::fmt::format(
+      "FCT projection for '{}' uses MFEM host data and currently falls back to sequential execution for device runtime policies.",
+      vfName));
+    return RuntimePolicy::seq;
+#endif
+  default:
+    SLIC_WARNING_ROOT(axom::fmt::format(
+      "FCT projection for '{}' falls back to sequential execution because the requested runtime policy is not available in this build.",
+      vfName));
+    return RuntimePolicy::seq;
+  }
+}
+
 void assembleVolumeFractionRHS(const mfem::FiniteElementSpace& fes,
                                mfem::QuadratureFunction& inout,
                                const mfem::IntegrationRule& sampleIR,
@@ -243,31 +276,67 @@ mfem::DenseTensor* getOrAllocateScratchBuffer(MFEMState& mfemState,
 }
 
 void applyFCTProjection(mfem::DenseTensor& massMat,
+                        axom::runtime_policy::Policy execPolicy,
                         mfem::Vector& rhs,
                         const int dofs,
                         const int numElements,
                         mfem::Vector& vfData,
-                        mfem::DenseTensor& scratchBuffer)
+                        mfem::DenseTensor& scratchBuffer);
+
+template <typename ExecSpace>
+void applyFCTProjectionImpl(mfem::DenseTensor& massMat,
+                            mfem::Vector& rhs,
+                            const int dofs,
+                            const int numElements,
+                            mfem::Vector& vfData,
+                            mfem::DenseTensor& scratchBuffer)
 {
   constexpr double minY = 0.;
   constexpr double maxY = 1.;
+
+  AXOM_ANNOTATE_SCOPE("fct project");
 
   auto m_d = mfem::Reshape(massMat.HostReadWrite(), dofs, dofs, numElements);
   auto b_d = mfem::Reshape(rhs.HostReadWrite(), dofs, numElements);
   auto vf_d = mfem::Reshape(vfData.HostReadWrite(), dofs, numElements);
   auto fct_mat_d = mfem::Reshape(scratchBuffer.HostReadWrite(), dofs, dofs, numElements);
 
-  AXOM_ANNOTATE_BEGIN("fct project");
-  axom::for_all<axom::SEQ_EXEC>(0, numElements, [=](int elem) {
+  axom::for_all<ExecSpace>(0, numElements, [=](int elem) {
     FCT_correct(&m_d(0, 0, elem), dofs, &b_d(0, elem), minY, maxY, &vf_d(0, elem), &fct_mat_d(0, 0, elem));
   });
-  AXOM_ANNOTATE_END("fct project");
+}
+
+void applyFCTProjection(mfem::DenseTensor& massMat,
+                        axom::runtime_policy::Policy execPolicy,
+                        mfem::Vector& rhs,
+                        const int dofs,
+                        const int numElements,
+                        mfem::Vector& vfData,
+                        mfem::DenseTensor& scratchBuffer)
+{
+  using RuntimePolicy = axom::runtime_policy::Policy;
+
+  switch(execPolicy)
+  {
+  case RuntimePolicy::seq:
+    applyFCTProjectionImpl<seq_exec>(massMat, rhs, dofs, numElements, vfData, scratchBuffer);
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case RuntimePolicy::omp:
+    applyFCTProjectionImpl<omp_exec>(massMat, rhs, dofs, numElements, vfData, scratchBuffer);
+    break;
+#endif
+  default:
+    applyFCTProjectionImpl<seq_exec>(massMat, rhs, dofs, numElements, vfData, scratchBuffer);
+    break;
+  }
 }
 
 void solveVolumeFractionsCached(MFEMState& mfemState,
                                 const mfem::FiniteElementSpace& fes,
                                 const mfem::IntegrationRule& sampleIR,
                                 const VolumeFractionMassConfig& config,
+                                axom::runtime_policy::Policy execPolicy,
                                 mfem::Vector& rhs,
                                 mfem::GridFunction& vf)
 {
@@ -289,7 +358,7 @@ void solveVolumeFractionsCached(MFEMState& mfemState,
   massMatInv->HostReadWrite();
   massMatPivots->HostReadWrite();
 
-  applyFCTProjection(*massMat, rhs, config.dofs, config.numElements, vf, *scratchBuffer);
+  applyFCTProjection(*massMat, execPolicy, rhs, config.dofs, config.numElements, vf, *scratchBuffer);
 }
 
 int computeChunkSize(const VolumeFractionMassConfig& config)
@@ -303,13 +372,14 @@ int computeChunkSize(const VolumeFractionMassConfig& config)
   return static_cast<int>(std::min<std::int64_t>(config.numElements, elemsPerChunk));
 }
 
-void assembleChunkMassMatrices(const mfem::FiniteElementSpace& fes,
-                               mfem::MassIntegrator& massIntegrator,
-                               const VolumeFractionMassConfig& config,
-                               int elemBegin,
-                               int chunkNE,
-                               mfem::DenseTensor& massMat,
-                               mfem::DenseTensor& massMatInv)
+/// Serial version that does not have to create MFEM objects each iteration.
+void assembleChunkMassMatricesSequential(const mfem::FiniteElementSpace& fes,
+                                         mfem::MassIntegrator& massIntegrator,
+                                         const VolumeFractionMassConfig& config,
+                                         int elemBegin,
+                                         int chunkNE,
+                                         mfem::DenseTensor& massMat,
+                                         mfem::DenseTensor& massMatInv)
 {
   mfem::DenseMatrix elemMat;
   massMat.HostWrite();
@@ -330,6 +400,73 @@ void assembleChunkMassMatrices(const mfem::FiniteElementSpace& fes,
         massMatInv(i, j, elem) = value;
       }
     }
+  }
+}
+
+/// OpenMP parallelizable version that builds MFEM objects in the for_all.
+template <typename ExecSpace>
+void assembleChunkMassMatricesImpl(const mfem::FiniteElementSpace& fes,
+                                   const mfem::IntegrationRule& sampleIR,
+                                   const VolumeFractionMassConfig& config,
+                                   int elemBegin,
+                                   int chunkNE,
+                                   mfem::DenseTensor& massMat,
+                                   mfem::DenseTensor& massMatInv)
+{
+  auto massMat_d = mfem::Reshape(massMat.HostWrite(), config.dofs, config.dofs, chunkNE);
+  auto massMatInv_d = mfem::Reshape(massMatInv.HostWrite(), config.dofs, config.dofs, chunkNE);
+  auto* mesh = fes.GetMesh();
+
+  axom::for_all<ExecSpace>(0, chunkNE, [=, &fes, &sampleIR](int elem) {
+    mfem::ConstantCoefficient oneCoef(1.0);
+    mfem::MassIntegrator massIntegrator(oneCoef, &sampleIR);
+    mfem::DenseMatrix elemMat;
+    mfem::IsoparametricTransformation tr;
+
+    const int globalElem = elemBegin + elem;
+    mesh->GetElementTransformation(globalElem, &tr);
+    massIntegrator.AssembleElementMatrix(*fes.GetFE(globalElem), tr, elemMat);
+
+    for(int j = 0; j < config.dofs; ++j)
+    {
+      for(int i = 0; i < config.dofs; ++i)
+      {
+        const double value = elemMat(i, j);
+        massMat_d(i, j, elem) = value;
+        massMatInv_d(i, j, elem) = value;
+      }
+    }
+  });
+}
+
+void assembleChunkMassMatrices(const mfem::FiniteElementSpace& fes,
+                               const mfem::IntegrationRule& sampleIR,
+                               mfem::MassIntegrator& massIntegrator,
+                               const VolumeFractionMassConfig& config,
+                               axom::runtime_policy::Policy execPolicy,
+                               int elemBegin,
+                               int chunkNE,
+                               mfem::DenseTensor& massMat,
+                               mfem::DenseTensor& massMatInv)
+{
+  using RuntimePolicy = axom::runtime_policy::Policy;
+
+  switch(execPolicy)
+  {
+  case RuntimePolicy::seq:
+    assembleChunkMassMatricesSequential(
+      fes, massIntegrator, config, elemBegin, chunkNE, massMat, massMatInv);
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case RuntimePolicy::omp:
+    assembleChunkMassMatricesImpl<omp_exec>(
+      fes, sampleIR, config, elemBegin, chunkNE, massMat, massMatInv);
+    break;
+#endif
+  default:
+    assembleChunkMassMatricesSequential(
+      fes, massIntegrator, config, elemBegin, chunkNE, massMat, massMatInv);
+    break;
   }
 }
 
@@ -378,6 +515,7 @@ void copyChunkResultToGridFunction(const VolumeFractionMassConfig& config,
 void solveVolumeFractionsChunked(const mfem::FiniteElementSpace& fes,
                                  const mfem::IntegrationRule& sampleIR,
                                  const VolumeFractionMassConfig& config,
+                                 axom::runtime_policy::Policy execPolicy,
                                  mfem::Vector& rhs,
                                  mfem::GridFunction& vf)
 {
@@ -398,21 +536,44 @@ void solveVolumeFractionsChunked(const mfem::FiniteElementSpace& fes,
     mfem::Vector rhsChunk(config.dofs * chunkNE);
     mfem::Vector vfChunk(config.dofs * chunkNE);
 
-    assembleChunkMassMatrices(fes, massIntegrator, config, elemBegin, chunkNE, massMat, massMatInv);
+    {
+      AXOM_ANNOTATE_SCOPE("chunk mass assembly");
+      assembleChunkMassMatrices(fes,
+                                sampleIR,
+                                massIntegrator,
+                                config,
+                                execPolicy,
+                                elemBegin,
+                                chunkNE,
+                                massMat,
+                                massMatInv);
+    }
 
-    copyChunkRHS(rhs, config, elemBegin, chunkNE, rhsChunk, vfChunk);
+    {
+      AXOM_ANNOTATE_SCOPE("chunk rhs copy");
+      copyChunkRHS(rhs, config, elemBegin, chunkNE, rhsChunk, vfChunk);
+    }
 
-    massMatInv.ReadWrite();
-    massMatPivots.Write();
-    mfem::BatchLUFactor(massMatInv, massMatPivots);
+    {
+      AXOM_ANNOTATE_SCOPE("chunk batch lu factor");
+      massMatInv.ReadWrite();
+      massMatPivots.Write();
+      mfem::BatchLUFactor(massMatInv, massMatPivots);
+    }
 
-    massMatInv.Read();
-    massMatPivots.Read();
-    vfChunk.ReadWrite();
-    mfem::BatchLUSolve(massMatInv, massMatPivots, vfChunk);
+    {
+      AXOM_ANNOTATE_SCOPE("chunk batch lu solve");
+      massMatInv.Read();
+      massMatPivots.Read();
+      vfChunk.ReadWrite();
+      mfem::BatchLUSolve(massMatInv, massMatPivots, vfChunk);
+    }
 
-    applyFCTProjection(massMat, rhsChunk, config.dofs, chunkNE, vfChunk, scratchBuffer);
-    copyChunkResultToGridFunction(config, elemBegin, chunkNE, vfChunk, vf);
+    applyFCTProjection(massMat, execPolicy, rhsChunk, config.dofs, chunkNE, vfChunk, scratchBuffer);
+    {
+      AXOM_ANNOTATE_SCOPE("chunk result copy");
+      copyChunkResultToGridFunction(config, elemBegin, chunkNE, vfChunk, vf);
+    }
   }
 }
 
@@ -893,7 +1054,8 @@ void computeVolumeFractionsForMaterial(MFEMState& mfemState,
                                        const std::string& matField,
                                        int volfracOrder,
                                        axom::ArrayView<int> sampleResolution,
-                                       axom::numerics::QuadratureType quadratureType)
+                                       axom::numerics::QuadratureType quadratureType,
+                                       axom::runtime_policy::Policy execPolicy)
 {
   AXOM_ANNOTATE_SCOPE("computeVolumeFractionsForMaterial");
 
@@ -922,6 +1084,7 @@ void computeVolumeFractionsForMaterial(MFEMState& mfemState,
   const VolumeFractionMassConfig config =
     makeVolumeFractionMassConfig(*fes, sampleResolution, quadratureType);
   logChunkedMassProcessing(vf_name, config);
+  const auto fctExecPolicy = selectFCTExecutionPolicy(execPolicy, vf_name);
 
   axom::utilities::Timer timer(true);
   {
@@ -931,11 +1094,11 @@ void computeVolumeFractionsForMaterial(MFEMState& mfemState,
 
     if(config.useChunkedMassProcessing)
     {
-      solveVolumeFractionsChunked(*fes, sampleIR, config, b, *vf);
+      solveVolumeFractionsChunked(*fes, sampleIR, config, fctExecPolicy, b, *vf);
     }
     else
     {
-      solveVolumeFractionsCached(mfemState, *fes, sampleIR, config, b, *vf);
+      solveVolumeFractionsCached(mfemState, *fes, sampleIR, config, fctExecPolicy, b, *vf);
     }
   }
   timer.stop();
