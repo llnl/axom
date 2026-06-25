@@ -479,8 +479,7 @@ public:
   }
 
   /// Wait for some non-blocking sends (if any) to finish.
-  void check_send_requests(std::list<conduit::relay::mpi::Request>& isendRequests,
-                           bool atLeastOne) const
+  void check_send_requests(std::list<conduit::relay::mpi::Request>& isendRequests, bool atLeastOne) const
   {
     std::vector<MPI_Request> reqs;
     reqs.reserve(isendRequests.size());
@@ -753,8 +752,8 @@ public:
     std::list<conduit::relay::mpi::Request> isendRequests;
 
     {
-    // create conduit Node containing data that has to xfer between ranks.
-    // The node will be mostly empty if there are no domains on this rank
+      // create conduit Node containing data that has to xfer between ranks.
+      // The node will be mostly empty if there are no domains on this rank
       conduit::Node xferNode;
       node_copy_query_to_xfer(queryMesh, xferNode, topologyName);
       xferNode["homeRank"] = m_rank;
