@@ -78,6 +78,17 @@
 #cmakedefine AXOM_USE_UMPIRE
 
 /*
+ * MFEM requires CAMP to use the platform default stream when Axom is built
+ * with RAJA/CAMP support. Define this before any RAJA or CAMP headers are
+ * included through Axom headers.
+ */
+#if defined(AXOM_USE_MFEM) && defined(AXOM_USE_RAJA)
+#ifndef CAMP_USE_PLATFORM_DEFAULT_STREAM
+#define CAMP_USE_PLATFORM_DEFAULT_STREAM 1
+#endif
+#endif
+
+/*
  * Compiler defines for library capabilities
  */
 #cmakedefine AXOM_USE_UMPIRE_SHARED_MEMORY
