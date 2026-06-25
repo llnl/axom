@@ -606,17 +606,36 @@ endmacro(axom_configure_file)
 ##------------------------------------------------------------------------------
 ## axom_python_test_environment(<output_var>)
 ##
-## Composes the ENVIRONMENT entry ("PYTHONPATH=<dir>:<dir>:...") that provides
-## the pytest paths (pytest and its dependencies) from their respective CMake cache variables.
+## Composes the single ENVIRONMENT entry ("PYTHONPATH=<dir>:<dir>:...") needed to
+## run Axom's Python tests directly under ${Python_EXECUTABLE} without a wrapper script.
 ##
-## Note: runtime dependencies (e.g. axom, conduit, numpy) are expected to be preprended
-## via the run_python_with_axom.sh script.
+## We assemble one path list here, ordered:
+##
+##   1. the staged Python package tree (axom/ + pysidre shim)  -- runtime
+##   2. conduit's python module dir                            -- runtime
+##   3. numpy, then mpi4py (MPI configs)                       -- runtime
+##   4. pytest and its dependencies (pluggy, iniconfig)        -- test harness
+##
+## Axom's own package tree comes first so it is preferred over anything the
+## interpreter might also provide. Entries whose cache variable is unset are skipped;
+## conduit/numpy/etc. already on the interpreter's path make the corresponding entries harmless no-ops.
 ##------------------------------------------------------------------------------
 function(axom_python_test_environment output_var)
     set(_paths "")
+
+    # (1) staged package tree -- mirrors run_python_with_axom.sh's _PYEXT_DIR
+    blt_list_append(TO _paths ELEMENTS "${PROJECT_BINARY_DIR}/python")
+
+    # (2,3) runtime dependencies
+    foreach(_var CONDUIT_PYTHON_MODULE_DIR PY_NUMPY_DIR PY_MPI4PY_DIR)
+        blt_list_append(TO _paths ELEMENTS "${${_var}}" IF ${_var})
+    endforeach()
+
+    # (4) test-harness dependencies
     foreach(_var PY_PYTEST_DIR PY_PLUGGY_DIR PY_INICONFIG_DIR)
         blt_list_append(TO _paths ELEMENTS "${${_var}}" IF ${_var})
     endforeach()
+
     if(_paths)
         list(JOIN _paths ":" _joined)
         set(${output_var} "PYTHONPATH=${_joined}" PARENT_SCOPE)
@@ -648,11 +667,14 @@ macro(axom_add_python_test)
     axom_configure_file ("${arg_SOURCE}"
                          "${arg_OUTPUT_DIR}/${arg_SOURCE}" COPYONLY)
 
-    # Run unit test with pytest ("python3 -m pytest").
-    # The run_python_with_axom.sh wrapper provides the runtime environment
-    # and the testing dependencies are injected via the test's ENVIRONMENT property when provided.
+    # Run unit test with pytest ("python3 -m pytest"), invoked directly rather
+    # than through the run_python_with_axom.sh wrapper. The full runtime + test
+    # environment is supplied via the test's ENVIRONMENT property (a single
+    # combined PYTHONPATH; see axom_python_test_environment). Running pytest
+    # natively keeps the tests composable with IDEs/debuggers and removes the
+    # bash-only wrapper from the test path.
     # "-p no:cacheprovider" disables caching.
-    set(_test_command ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
+    set(_test_command ${Python_EXECUTABLE}
                       -m pytest -s -p no:cacheprovider ${arg_OUTPUT_DIR}/${arg_SOURCE})
     blt_add_test(NAME          ${arg_NAME}
                  COMMAND       ${_test_command}

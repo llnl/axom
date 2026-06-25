@@ -214,29 +214,11 @@ if(NANOBIND_FOUND)
 
     unset(_PYEXT_DIR)
 
-    # Smoke tests for the script.
-    # The wrapper provides the runtime environment only:
-    # Axom extensions, conduit (Node interop), numpy (ndarray returns), plus mpi4py in MPI configurations. 
-    # nanobind is a build-time dependency (statically linked into the extensions).
-    # pytest/pluggy/iniconfig are test-harness dependencies.
+    # Smoke test for the script: verify it makes Axom's bindings and runtime dependencies importable
     if(AXOM_ENABLE_TESTS AND AXOM_ENABLE_SIDRE)
         axom_add_test(
             NAME    run_python_with_axom_build
             COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import axom.sidre, conduit, numpy")
-
-        if(AXOM_ENABLE_PYTHON_TESTS)
-            # The pytest harness is provided per-test via the ENVIRONMENT property;
-            # verify that the wrapper + injected ENVIRONMENT combination resolves.
-            axom_add_test(
-                NAME    run_python_with_axom_pytest_harness
-                COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import pytest")
-            axom_python_test_environment(_py_test_env)
-            if(_py_test_env)
-                set_tests_properties(run_python_with_axom_pytest_harness
-                                     PROPERTIES ENVIRONMENT "${_py_test_env}")
-            endif()
-            unset(_py_test_env)
-        endif()
     endif()
 
     #--------------------------------------------------------------------------
@@ -256,13 +238,22 @@ if(NANOBIND_FOUND)
         set(_testname "convert_sidre_protocol_py")
         axom_add_test(
           NAME ${_testname}
-          COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh
+          COMMAND ${Python_EXECUTABLE}
                   ${PROJECT_BINARY_DIR}/bin/convert_sidre_protocol.py
                   --input ${box_dir}
                   --output csp_output
                   --protocol json
                   --verbose
+          NUM_MPI_TASKS 3
         )
+
+        axom_python_test_environment(_csp_py_env)
+        if(_csp_py_env)
+            set_property(TEST ${_testname}
+                         APPEND
+                         PROPERTY ENVIRONMENT "${_csp_py_env}")
+        endif()
+        unset(_csp_py_env)
 
         set_tests_properties(${_testname} PROPERTIES
             PASS_REGULAR_EXPRESSION  "Writing out datastore")
