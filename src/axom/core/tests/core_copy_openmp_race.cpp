@@ -6,10 +6,9 @@
 
 #include "gtest/gtest.h"
 
+#include "axom/core/Array.hpp"
 #include "axom/core/execution/for_all.hpp"
 #include "axom/core/memory_management.hpp"
-
-#include <cstdlib>
 
 namespace
 {
@@ -31,11 +30,8 @@ TEST(core_copy_openmp_race, first_use_inside_for_all)
   constexpr axom::IndexType sliceSize = 64;
   constexpr axom::IndexType size = nslices * sliceSize;
 
-  auto* src = static_cast<int*>(std::malloc(size * sizeof(int)));
-  auto* dst = static_cast<int*>(std::malloc(size * sizeof(int)));
-
-  ASSERT_NE(src, nullptr);
-  ASSERT_NE(dst, nullptr);
+  axom::Array<int> src(size);
+  axom::Array<int> dst(size);
 
   for(axom::IndexType i = 0; i < size; ++i)
   {
@@ -43,15 +39,12 @@ TEST(core_copy_openmp_race, first_use_inside_for_all)
     dst[i] = -1;
   }
 
-  CopySlices<axom::OMP_EXEC>::run(dst, src, nslices, sliceSize);
+  CopySlices<axom::OMP_EXEC>::run(dst.data(), src.data(), nslices, sliceSize);
 
   for(axom::IndexType i = 0; i < size; ++i)
   {
     EXPECT_EQ(dst[i], src[i]);
   }
-
-  std::free(dst);
-  std::free(src);
 }
 
 int main(int argc, char** argv)
