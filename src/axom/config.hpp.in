@@ -82,7 +82,7 @@
  * with RAJA/CAMP support. Define this before any RAJA or CAMP headers are
  * included through Axom headers.
  */
-#if defined(AXOM_USE_MFEM) && defined(AXOM_USE_RAJA)
+#if defined(AXOM_USE_MFEM)
 #ifndef CAMP_USE_PLATFORM_DEFAULT_STREAM
 #define CAMP_USE_PLATFORM_DEFAULT_STREAM 1
 #endif
