@@ -8,6 +8,9 @@
 
 #if defined(AXOM_USE_MFEM)
 
+  #include <algorithm>
+  #include <cstdint>
+  #include <limits>
   #include <memory>
   #include <vector>
 
@@ -559,93 +562,27 @@ void computeVolumeFractionsForMaterial(MFEMState& mfemState,
     getOrAllocateL2GridFunction(dc, vf_name, volfracOrder, dim, mfem::BasisType::Positive);
   const mfem::FiniteElementSpace* fes = vf->FESpace();
   const int dofs = fes->GetTypicalFE()->GetDof();
+  const bool usesAnisotropicQuadrature =
+    usesAnisotropicCustomTensorQuadrature(*fes->GetMesh(), sampleResolution, quadratureType);
+  const std::int64_t elemTensorEntries = static_cast<std::int64_t>(dofs) * dofs;
+  const std::int64_t totalTensorEntries = elemTensorEntries * NE;
+  constexpr std::int64_t MAX_CACHED_MASS_BYTES = 1LL << 30;
+  const std::int64_t cachedMassBytes = totalTensorEntries * 3 * sizeof(double);
+  const bool useChunkedMassProcessing =
+    totalTensorEntries > std::numeric_limits<int>::max() ||
+    cachedMassBytes > MAX_CACHED_MASS_BYTES;
 
-  mfem::DenseTensor* mass_mat {nullptr};
-  const std::string mass_matrix_name = "shaping_mass_matrix";
-  if(mfemState.m_inoutTensors.Has(mass_matrix_name))
+  if(useChunkedMassProcessing)
   {
-    mass_mat = mfemState.m_inoutTensors.Get(mass_matrix_name);
-  }
-  else
-  {
-    AXOM_ANNOTATE_SCOPE("mass integrator assemble");
-
-    mass_mat = new mfem::DenseTensor(dofs, dofs, NE);
-    mass_mat->HostWrite();
-    (*mass_mat) = 0.;
-    mass_mat->ReadWrite();
-
-    mfem::ConstantCoefficient one_coef(1.0);
-    mfem::MassIntegrator mass_integrator(one_coef, &sampleIR);
-
-    if(usesAnisotropicCustomTensorQuadrature(*fes->GetMesh(), sampleResolution, quadratureType))
-    {
-      mfem::DenseMatrix elemMat;
-      mass_mat->HostWrite();
-      for(int elem = 0; elem < NE; ++elem)
-      {
-        mass_integrator.AssembleElementMatrix(*fes->GetFE(elem),
-                                              *fes->GetElementTransformation(elem),
-                                              elemMat);
-        for(int j = 0; j < dofs; ++j)
-        {
-          for(int i = 0; i < dofs; ++i)
-          {
-            (*mass_mat)(i, j, elem) = elemMat(i, j);
-          }
-        }
-      }
-    }
-    else
-    {
-      const int sz = mass_mat->TotalSize();
-      mfem::Vector mass_vec;
-      mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
-      mass_vec.SetSize(sz);
-      mass_integrator.AssembleEA(*fes, mass_vec, false);
-      mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
-    }
-
-    mfemState.m_inoutTensors.Register(mass_matrix_name, mass_mat, true);
-  }
-
-  mfem::DenseTensor* mass_mat_inv {nullptr};
-  mfem::Array<int>* mass_mat_pivots {nullptr};
-  const std::string minv_name = "shaping_mass_matrix_inv";
-  const std::string pivots_name = "shaping_mass_matrix_pivots";
-  if(mfemState.m_inoutTensors.Has(minv_name) && mfemState.m_inoutArrays.Has(pivots_name))
-  {
-    mass_mat_inv = mfemState.m_inoutTensors.Get(minv_name);
-    mass_mat_pivots = mfemState.m_inoutArrays.Get(pivots_name);
-  }
-  else
-  {
-    AXOM_ANNOTATE_SCOPE("batch lu factor");
-
-    mass_mat->ReadWrite();
-    mass_mat_inv = new mfem::DenseTensor(*mass_mat);
-    mass_mat_pivots = new mfem::Array<int>(dofs * NE);
-
-    mass_mat_inv->ReadWrite();
-    mass_mat_pivots->Write();
-    mfem::BatchLUFactor(*mass_mat_inv, *mass_mat_pivots);
-
-    mfemState.m_inoutTensors.Register(minv_name, mass_mat_inv, true);
-    mfemState.m_inoutArrays.Register(pivots_name, mass_mat_pivots, true);
-  }
-
-  mfem::DenseTensor* shaping_scratch_buffer {nullptr};
-  const std::string scratch_buffer_name = "shaping_scratch_buffer";
-  if(mfemState.m_inoutTensors.Has(scratch_buffer_name))
-  {
-    shaping_scratch_buffer = mfemState.m_inoutTensors.Get(scratch_buffer_name);
-  }
-  else
-  {
-    shaping_scratch_buffer = new mfem::DenseTensor(dofs, dofs, NE);
-    shaping_scratch_buffer->HostWrite();
-    (*shaping_scratch_buffer) = 0.;
-    mfemState.m_inoutTensors.Register(scratch_buffer_name, shaping_scratch_buffer, true);
+    SLIC_INFO_ROOT(
+      axom::fmt::format(axom::utilities::locale(),
+                        "Using chunked local mass assembly for '{}' (dofs={}, elements={:L}, "
+                        "dense cache would require {:.2f} GiB)",
+                        vf_name,
+                        dofs,
+                        NE,
+                        static_cast<double>(cachedMassBytes) /
+                          (1024.0 * 1024.0 * 1024.0)));
   }
 
   axom::utilities::Timer timer(true);
@@ -664,38 +601,226 @@ void computeVolumeFractionsForMaterial(MFEMState& mfemState,
         *fes,
         *inout,
         sampleIR,
-        usesAnisotropicCustomTensorQuadrature(*fes->GetMesh(), sampleResolution, quadratureType),
+        usesAnisotropicQuadrature,
         b);
     }
     inout->HostReadWrite();
 
-    {
-      AXOM_ANNOTATE_SCOPE("batch lu solve");
-
-      mass_mat_inv->Read();
-      mass_mat_pivots->Read();
-
-      vf->HostReadWrite();
-      (*vf) = b;
-      vf->ReadWrite();
-      mfem::BatchLUSolve(*mass_mat_inv, *mass_mat_pivots, *vf);
-    }
-    mass_mat_inv->HostReadWrite();
-    mass_mat_pivots->HostReadWrite();
-
     constexpr double minY = 0.;
     constexpr double maxY = 1.;
+    if(useChunkedMassProcessing)
+    {
+      AXOM_ANNOTATE_SCOPE("chunked mass solve");
 
-    auto m_d = mfem::Reshape(mass_mat->HostReadWrite(), dofs, dofs, NE);
-    auto b_d = mfem::Reshape(b.HostReadWrite(), dofs, NE);
-    auto vf_d = mfem::Reshape(vf->HostReadWrite(), dofs, NE);
-    auto fct_mat_d = mfem::Reshape(shaping_scratch_buffer->HostReadWrite(), dofs, dofs, NE);
+      mfem::ConstantCoefficient one_coef(1.0);
+      mfem::MassIntegrator mass_integrator(one_coef, &sampleIR);
+      mfem::DenseMatrix elemMat;
 
-    AXOM_ANNOTATE_BEGIN("fct project");
-    axom::for_all<axom::SEQ_EXEC>(0, NE, [=](int i) {
-      FCT_correct(&m_d(0, 0, i), dofs, &b_d(0, i), minY, maxY, &vf_d(0, i), &fct_mat_d(0, 0, i));
-    });
-    AXOM_ANNOTATE_END("fct project");
+      constexpr std::int64_t TARGET_CHUNK_BYTES = 256LL * 1024 * 1024;
+      const std::int64_t bytesPerElement =
+        (3 * elemTensorEntries * sizeof(double)) + (static_cast<std::int64_t>(dofs) * sizeof(int));
+      const std::int64_t elemsPerChunk =
+        std::max<std::int64_t>(1, TARGET_CHUNK_BYTES / std::max<std::int64_t>(1, bytesPerElement));
+      const int chunkSize = static_cast<int>(std::min<std::int64_t>(NE, elemsPerChunk));
+
+      auto b_d = mfem::Reshape(b.HostReadWrite(), dofs, NE);
+      auto vf_d = mfem::Reshape(vf->HostReadWrite(), dofs, NE);
+
+      for(int elemBegin = 0; elemBegin < NE; elemBegin += chunkSize)
+      {
+        const int chunkNE = std::min(chunkSize, NE - elemBegin);
+
+        mfem::DenseTensor mass_mat(dofs, dofs, chunkNE);
+        mfem::DenseTensor mass_mat_inv(dofs, dofs, chunkNE);
+        mfem::DenseTensor shaping_scratch_buffer(dofs, dofs, chunkNE);
+        mfem::Array<int> mass_mat_pivots(dofs * chunkNE);
+        mfem::Vector rhs_chunk(dofs * chunkNE);
+        mfem::Vector vf_chunk(dofs * chunkNE);
+
+        mass_mat.HostWrite();
+        mass_mat_inv.HostWrite();
+        for(int elem = 0; elem < chunkNE; ++elem)
+        {
+          const int globalElem = elemBegin + elem;
+          mass_integrator.AssembleElementMatrix(*fes->GetFE(globalElem),
+                                                *fes->GetElementTransformation(globalElem),
+                                                elemMat);
+          for(int j = 0; j < dofs; ++j)
+          {
+            for(int i = 0; i < dofs; ++i)
+            {
+              const double value = elemMat(i, j);
+              mass_mat(i, j, elem) = value;
+              mass_mat_inv(i, j, elem) = value;
+            }
+          }
+        }
+
+        auto rhs_chunk_d = mfem::Reshape(rhs_chunk.HostWrite(), dofs, chunkNE);
+        auto vf_chunk_d = mfem::Reshape(vf_chunk.HostWrite(), dofs, chunkNE);
+        for(int elem = 0; elem < chunkNE; ++elem)
+        {
+          const int globalElem = elemBegin + elem;
+          for(int i = 0; i < dofs; ++i)
+          {
+            const double value = b_d(i, globalElem);
+            rhs_chunk_d(i, elem) = value;
+            vf_chunk_d(i, elem) = value;
+          }
+        }
+
+        mass_mat_inv.ReadWrite();
+        mass_mat_pivots.Write();
+        mfem::BatchLUFactor(mass_mat_inv, mass_mat_pivots);
+
+        mass_mat_inv.Read();
+        mass_mat_pivots.Read();
+        vf_chunk.ReadWrite();
+        mfem::BatchLUSolve(mass_mat_inv, mass_mat_pivots, vf_chunk);
+
+        auto m_d = mfem::Reshape(mass_mat.HostReadWrite(), dofs, dofs, chunkNE);
+        auto fct_rhs_d = mfem::Reshape(rhs_chunk.HostReadWrite(), dofs, chunkNE);
+        auto fct_vf_d = mfem::Reshape(vf_chunk.HostReadWrite(), dofs, chunkNE);
+        auto fct_mat_d =
+          mfem::Reshape(shaping_scratch_buffer.HostWrite(), dofs, dofs, chunkNE);
+
+        AXOM_ANNOTATE_BEGIN("fct project");
+        axom::for_all<axom::SEQ_EXEC>(0, chunkNE, [=](int elem) {
+          FCT_correct(&m_d(0, 0, elem),
+                      dofs,
+                      &fct_rhs_d(0, elem),
+                      minY,
+                      maxY,
+                      &fct_vf_d(0, elem),
+                      &fct_mat_d(0, 0, elem));
+        });
+        AXOM_ANNOTATE_END("fct project");
+
+        for(int elem = 0; elem < chunkNE; ++elem)
+        {
+          const int globalElem = elemBegin + elem;
+          for(int i = 0; i < dofs; ++i)
+          {
+            vf_d(i, globalElem) = fct_vf_d(i, elem);
+          }
+        }
+      }
+    }
+    else
+    {
+      mfem::DenseTensor* mass_mat {nullptr};
+      const std::string mass_matrix_name = "shaping_mass_matrix";
+      if(mfemState.m_inoutTensors.Has(mass_matrix_name))
+      {
+        mass_mat = mfemState.m_inoutTensors.Get(mass_matrix_name);
+      }
+      else
+      {
+        AXOM_ANNOTATE_SCOPE("mass integrator assemble");
+
+        mass_mat = new mfem::DenseTensor(dofs, dofs, NE);
+        mass_mat->HostWrite();
+        (*mass_mat) = 0.;
+        mass_mat->ReadWrite();
+
+        mfem::ConstantCoefficient one_coef(1.0);
+        mfem::MassIntegrator mass_integrator(one_coef, &sampleIR);
+
+        if(usesAnisotropicQuadrature)
+        {
+          mfem::DenseMatrix elemMat;
+          mass_mat->HostWrite();
+          for(int elem = 0; elem < NE; ++elem)
+          {
+            mass_integrator.AssembleElementMatrix(*fes->GetFE(elem),
+                                                  *fes->GetElementTransformation(elem),
+                                                  elemMat);
+            for(int j = 0; j < dofs; ++j)
+            {
+              for(int i = 0; i < dofs; ++i)
+              {
+                (*mass_mat)(i, j, elem) = elemMat(i, j);
+              }
+            }
+          }
+        }
+        else
+        {
+          const int sz = mass_mat->TotalSize();
+          mfem::Vector mass_vec;
+          mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+          mass_vec.SetSize(sz);
+          mass_integrator.AssembleEA(*fes, mass_vec, false);
+          mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+        }
+
+        mfemState.m_inoutTensors.Register(mass_matrix_name, mass_mat, true);
+      }
+
+      mfem::DenseTensor* mass_mat_inv {nullptr};
+      mfem::Array<int>* mass_mat_pivots {nullptr};
+      const std::string minv_name = "shaping_mass_matrix_inv";
+      const std::string pivots_name = "shaping_mass_matrix_pivots";
+      if(mfemState.m_inoutTensors.Has(minv_name) && mfemState.m_inoutArrays.Has(pivots_name))
+      {
+        mass_mat_inv = mfemState.m_inoutTensors.Get(minv_name);
+        mass_mat_pivots = mfemState.m_inoutArrays.Get(pivots_name);
+      }
+      else
+      {
+        AXOM_ANNOTATE_SCOPE("batch lu factor");
+
+        mass_mat->ReadWrite();
+        mass_mat_inv = new mfem::DenseTensor(*mass_mat);
+        mass_mat_pivots = new mfem::Array<int>(dofs * NE);
+
+        mass_mat_inv->ReadWrite();
+        mass_mat_pivots->Write();
+        mfem::BatchLUFactor(*mass_mat_inv, *mass_mat_pivots);
+
+        mfemState.m_inoutTensors.Register(minv_name, mass_mat_inv, true);
+        mfemState.m_inoutArrays.Register(pivots_name, mass_mat_pivots, true);
+      }
+
+      mfem::DenseTensor* shaping_scratch_buffer {nullptr};
+      const std::string scratch_buffer_name = "shaping_scratch_buffer";
+      if(mfemState.m_inoutTensors.Has(scratch_buffer_name))
+      {
+        shaping_scratch_buffer = mfemState.m_inoutTensors.Get(scratch_buffer_name);
+      }
+      else
+      {
+        shaping_scratch_buffer = new mfem::DenseTensor(dofs, dofs, NE);
+        shaping_scratch_buffer->HostWrite();
+        (*shaping_scratch_buffer) = 0.;
+        mfemState.m_inoutTensors.Register(scratch_buffer_name, shaping_scratch_buffer, true);
+      }
+
+      {
+        AXOM_ANNOTATE_SCOPE("batch lu solve");
+
+        mass_mat_inv->Read();
+        mass_mat_pivots->Read();
+
+        vf->HostReadWrite();
+        (*vf) = b;
+        vf->ReadWrite();
+        mfem::BatchLUSolve(*mass_mat_inv, *mass_mat_pivots, *vf);
+      }
+      mass_mat_inv->HostReadWrite();
+      mass_mat_pivots->HostReadWrite();
+
+      auto m_d = mfem::Reshape(mass_mat->HostReadWrite(), dofs, dofs, NE);
+      auto b_d = mfem::Reshape(b.HostReadWrite(), dofs, NE);
+      auto vf_d = mfem::Reshape(vf->HostReadWrite(), dofs, NE);
+      auto fct_mat_d = mfem::Reshape(shaping_scratch_buffer->HostReadWrite(), dofs, dofs, NE);
+
+      AXOM_ANNOTATE_BEGIN("fct project");
+      axom::for_all<axom::SEQ_EXEC>(0, NE, [=](int i) {
+        FCT_correct(&m_d(0, 0, i), dofs, &b_d(0, i), minY, maxY, &vf_d(0, i), &fct_mat_d(0, 0, i));
+      });
+      AXOM_ANNOTATE_END("fct project");
+    }
   }
   timer.stop();
 
