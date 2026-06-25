@@ -11,6 +11,8 @@
 #include "axom/core/Macros.hpp"
 #include "axom/core/Types.hpp"
 
+#include <cstdint>
+#include <cstring>
 #include <type_traits>
 
 namespace axom
@@ -25,8 +27,11 @@ template <typename T>
 struct DeviceHashHelper<T, std::enable_if_t<std::is_integral<T>::value>>
 {
   using argument_type = T;
-  using result_type = axom::IndexType;
-  AXOM_HOST_DEVICE axom::IndexType operator()(T value) const { return value; }
+  using result_type = std::uint64_t;
+  AXOM_HOST_DEVICE std::uint64_t operator()(T value) const
+  {
+    return static_cast<std::uint64_t>(value);
+  }
 };
 
 /// \brief Specialization for floating-point types
@@ -34,15 +39,33 @@ template <typename T>
 struct DeviceHashHelper<T, std::enable_if_t<std::is_floating_point<T>::value>>
 {
   using argument_type = T;
-  using result_type = axom::IndexType;
-  AXOM_HOST_DEVICE axom::IndexType operator()(T value) const
+  using result_type = std::uint64_t;
+  AXOM_HOST_DEVICE std::uint64_t operator()(T value) const
   {
-    // Special case: -0.0 and 0.0 compare equal but have different byte representations.
+    // -0.0 and 0.0 compare equal but have different bit patterns; normalize so both hash identically
     if(value == T {0.})
     {
-      return 0;
+      value = T {0.};
     }
-    return value;
+
+    // Hash the bit pattern, not the converted value.
+    // A float-to-integer value conversion collapses every key sharing an integer part,
+    // e.g. all numbers between -1 and 1 converts to integer 0
+
+    if constexpr(sizeof(T) <= sizeof(std::uint64_t))
+    {
+      // Zero-initialize first since we only copy 4 bytes for floats.
+      std::uint64_t result = 0;
+      memcpy(&result, &value, sizeof(T));
+      return result;
+    }
+
+    // Avoid hashing padding bytes for wider floating types such as x86 long double.
+    // Collisions are acceptable for a hash; equal values must hash identically.
+    double narrowed_value = static_cast<double>(value);
+    std::uint64_t result = 0;
+    memcpy(&result, &narrowed_value, sizeof(narrowed_value));
+    return result;
   }
 };
 
@@ -51,10 +74,10 @@ template <typename T>
 struct DeviceHashHelper<T, std::enable_if_t<std::is_enum<T>::value>>
 {
   using argument_type = T;
-  using result_type = axom::IndexType;
-  AXOM_HOST_DEVICE axom::IndexType operator()(T value) const
+  using result_type = std::uint64_t;
+  AXOM_HOST_DEVICE std::uint64_t operator()(T value) const
   {
-    return static_cast<axom::IndexType>(value);
+    return static_cast<std::uint64_t>(value);
   }
 };
 
@@ -63,10 +86,10 @@ template <typename T>
 struct DeviceHashHelper<T*, void>
 {
   using argument_type = T*;
-  using result_type = axom::IndexType;
-  AXOM_HOST_DEVICE axom::IndexType operator()(T* ptr) const
+  using result_type = std::uint64_t;
+  AXOM_HOST_DEVICE std::uint64_t operator()(T* ptr) const
   {
-    return static_cast<axom::IndexType>(reinterpret_cast<std::uintptr_t>(ptr));
+    return static_cast<std::uint64_t>(reinterpret_cast<std::uintptr_t>(ptr));
   }
 };
 
@@ -75,10 +98,10 @@ template <typename T, typename Enable>
 struct DeviceHashHelper
 {
   using argument_type = T;
-  using result_type = axom::IndexType;
-  axom::IndexType operator()(const T& object) const
+  using result_type = std::uint64_t;
+  std::uint64_t operator()(const T& object) const
   {
-    return static_cast<axom::IndexType>(std::hash<T> {}(object));
+    return static_cast<std::uint64_t>(std::hash<T> {}(object));
   }
 };
 
@@ -89,6 +112,10 @@ struct DeviceHashHelper
  *
  * \brief Implements a host/device-callable hash function for supported types,
  *  and passes through to std::hash otherwise.
+ *
+ *  The result type is always std::uint64_t, independent of the configured axom::IndexType width.
+ *  Hashes feed bit mixers and bucket selection, where truncating wide keys (e.g. 64-bit Morton codes)
+ *  to a 32-bit IndexType before mixing would make keys equal mod 2^32 collide.
  */
 template <typename T>
 struct DeviceHash : public detail::DeviceHashHelper<T>

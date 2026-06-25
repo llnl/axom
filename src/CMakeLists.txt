@@ -42,7 +42,7 @@ else()
     endif()
 endif()
 
-if (“${PROJECT_SOURCE_DIR}” STREQUAL “${CMAKE_SOURCE_DIR}”)
+if ("${PROJECT_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
     # Set some default BLT options before loading BLT only if not included in
     # another project
     if (NOT BLT_CXX_STD)
