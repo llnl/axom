@@ -277,15 +277,18 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("mfem~mpi", when="~mpi")
         depends_on("mfem@4.5.0:", when="@0.7.0:")
 
-    depends_on("python", when="+python")
-
     # Python
     with when("+python"):
+        depends_on("python")
+
+        # extending python allows spack environment views to import axom from python
+        extends("python")
+
         depends_on("py-nanobind@2.7.0:")
         depends_on("py-pytest")
         depends_on("py-numpy")
         depends_on("py-mpi4py", when="+mpi")
-        depends_on("conduit+python")
+        depends_on("conduit+python", when="+conduit")
 
     # Devtools
     with when("+devtools"):
@@ -756,6 +759,17 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         if spec.satisfies("+python") or spec.satisfies("+devtools"):
             python_bin_dir = get_spec_path(spec, "python", path_replacements, use_bin=True)
             entries.append(cmake_cache_path("Python_EXECUTABLE", pjoin(python_bin_dir, "python3")))
+
+        if spec.satisfies("+python"):
+            # Install Axom's Python package(s) so a spack environment view merges them into
+            # a single site-packages and `import axom.sidre` works without updating PYTHONPATH
+            axom_prefix = os.path.realpath(spec.prefix)
+            for key in path_replacements:
+                axom_prefix = axom_prefix.replace(key, path_replacements[key])
+            py_platlib = pjoin(axom_prefix, spec["python"].package.platlib)
+            entries.append(
+                cmake_cache_path("AXOM_PYTHON_MODULE_INSTALL_PREFIX", py_platlib)
+            )
 
         if spec.satisfies("^py-jsonschema"):
             jsonschema_dir = get_spec_path(spec, "py-jsonschema", path_replacements, use_bin=True)
